@@ -112,6 +112,9 @@ namespace Laubrary.Shaper
     {
         const uint FldPosJitterX = 0x7E00_0001u, FldPosJitterY = 0x7E00_0002u;
         const uint FldRotJitter = 0x7E00_0003u, FldScaleJitter = 0x7E00_0004u;
+        const uint FldRadius = 0x7E00_0005u, FldOffsetX = 0x7E00_0006u, FldOffsetY = 0x7E00_0007u;
+        const uint FldSpawnerRot = 0x7E00_0008u, FldSpawnerPitch = 0x7E00_0009u, FldSpawnerYaw = 0x7E00_000Au;
+        const uint FldProgress = 0x7E00_000Bu, FldSpawnTiming = 0x7E00_000Cu, FldScaleByIndex = 0x7E00_000Du;
 
         public bool enabled = false;
 
@@ -145,6 +148,101 @@ namespace Laubrary.Shaper
         /// effects would. Values between are a partial stagger.
         /// </summary>
         [Range(0f, 1f)] public float lifetimeStagger = 1f;
+
+        // ── T-0169 spawn shape ───────────────────────────────────────────────────────────────────────────
+        // Every field below defaults to an exact identity, and the whole block is gated on `shape` being
+        // something other than None, so a swarm authored before this task renders bit-for-bit what it did.
+
+        /// <summary>The figure the instances arrange themselves on. <see cref="ShaperSwarmShape.None"/> — the
+        /// default — leaves every instance on the node's own origin, moved only by the jitter dials.</summary>
+        public ShaperSwarmShape shape = ShaperSwarmShape.None;
+
+        /// <summary>Whether instances fill the shape's interior or ride its outline.</summary>
+        public ShaperSwarmSpawnMode spawnMode = ShaperSwarmSpawnMode.Area;
+
+        /// <summary>The shape's radius in the node's own parent-local canvas units — for a polygon, the
+        /// circumradius; for <see cref="ShaperSwarmShape.Line"/>, half its length. Animatable, so a ring can
+        /// expand over the document's frames.</summary>
+        public ZUIValue spawnerRadius = new ZUIValue(24f);
+
+        /// <summary>Where the shape's centre sits, relative to the node's own authored position.</summary>
+        public ZUIValue spawnerOffsetX = new ZUIValue(0f);
+        public ZUIValue spawnerOffsetY = new ZUIValue(0f);
+
+        /// <summary>Degrees, counter-clockwise, turning the whole arrangement in the canvas plane.</summary>
+        public ZUIValue spawnerRotationDegrees = new ZUIValue(0f);
+        /// <summary>Pseudo-3D tilt about the horizontal axis: at 90° the shape collapses to a horizontal
+        /// line, so a ring reads as a ring seen edge-on rather than as a flattened oval.</summary>
+        public ZUIValue spawnerPitchDegrees = new ZUIValue(0f);
+        /// <summary>Pseudo-3D tilt about the vertical axis.</summary>
+        public ZUIValue spawnerYawDegrees = new ZUIValue(0f);
+
+        /// <summary>Area mode: 0 places instances on an even, ordered ring layout; 1 scatters them at random
+        /// inside the shape; between blends the two placements.</summary>
+        [Range(0f, 1f)] public float distribution = 0f;
+
+        /// <summary>Which end the ordered layout builds from — innermost ring first, or outermost. Only
+        /// visible in its effect while <see cref="distribution"/> is below 1.</summary>
+        public bool gridReverse = false;
+
+        /// <summary>Which position each spawn moment reveals: 0 walks spatial neighbours, 1 is a full seeded
+        /// shuffle. Observable only when <see cref="timing"/> gives instances distinct birth moments.</summary>
+        [Range(0f, 1f)] public float spawnOrderChaos = 0f;
+
+        /// <summary>Path mode: where along the outline the arrangement sits. Closed shapes WRAP, so animating
+        /// this past 1 rides the instances around further laps rather than pinning them at the end.</summary>
+        public ZUIValue pathProgress = new ZUIValue(0f);
+
+        /// <summary>Path mode: spread the instances evenly along the outline by index, so
+        /// <see cref="pathProgress"/> becomes the whole string's shared ride rather than each instance's own
+        /// position. Defaults ON — unlike Pyre, where it defaults off for byte-identity with an older
+        /// renderer — because a Path shape picked with it off puts every instance on the same point, and an
+        /// authoring default that produces one visible instance is a dead end, not a neutral state.</summary>
+        public bool evenSpacing = true;
+
+        /// <summary>How much of the outline the evenly-spaced string covers. 1 is the whole shape; 0.5 is a
+        /// half-shape arc.</summary>
+        [Range(0f, 1f)] public float pathSpread = 1f;
+
+        /// <summary>Which way each instance faces once placed.</summary>
+        public ShaperSwarmOrient orient = ShaperSwarmOrient.None;
+
+        /// <summary>A per-instance size multiplier read at <c>index/(count-1)</c> rather than at the document
+        /// phase — so a Curve tapers the swarm from one end to the other, and Min-Max gives each instance its
+        /// own random size. Static 1, the default, is an exact no-op.</summary>
+        public ZUIValue scaleByIndex = new ZUIValue(1f);
+
+        // ── T-0169 spawn timing ──────────────────────────────────────────────────────────────────────────
+
+        /// <summary>How instances are distributed in time. <see cref="ShaperSwarmTiming.Stagger"/> is the
+        /// default and the pre-T-0169 model.</summary>
+        public ShaperSwarmTiming timing = ShaperSwarmTiming.Stagger;
+
+        /// <summary>Window timing: maps an instance's number (0 = first, 1 = last) to the document phase it is
+        /// BORN at. A linear ramp spreads the births evenly; an eased curve bursts then trickles; a flat
+        /// Static value births the whole swarm at once; Min-Max births each instance at a random moment.</summary>
+        public ZUIValue spawnTiming = DefaultSpawnTiming();
+
+        /// <summary>FrameStep timing: the document phase the FIRST instance is born at. Stored in phase, not
+        /// in frames, so the engine needs no knowledge of the document's frame count — the window authors it
+        /// in frames and converts through <see cref="ShaperClock"/>, which stays the one home for that
+        /// mapping.</summary>
+        [Range(0f, 1f)] public float firstSpawnPhase = 0f;
+
+        /// <summary>FrameStep timing: how much later in the document each next instance is born. 0 births the
+        /// whole swarm on the first frame.</summary>
+        [Range(0f, 1f)] public float spawnPhaseStep = 0.1f;
+
+        /// <summary>Window/FrameStep timing: how much of the document each instance is alive for, measured
+        /// from its own birth. Outside that span the instance is not emitted at all — it has not appeared yet,
+        /// or it is gone.</summary>
+        [Range(0.01f, 1f)] public float instanceLife = 0.5f;
+
+        /// <summary>Window/FrameStep timing: every instance dies at the SAME moment — the last birth plus one
+        /// life — instead of one life after its own birth, so the swarm vanishes as one burst. An instance
+        /// born early therefore runs its own 0..1 more slowly, because a Shaper instance has no duration of
+        /// its own, only a normalised phase to be spread across whatever span it is alive for.</summary>
+        public bool dieTogether = false;
 
         /// <summary>How swarm instances fold into one field. Reused rather than re-invented — the same knobs a
         /// Bag member's own <see cref="ShaperBlend"/> already exposes for organic merging.</summary>
@@ -191,6 +289,29 @@ namespace Laubrary.Shaper
             if (rotationJitterDegreesDial == null) rotationJitterDegreesDial = new ZUIValue(0f);
             if (scaleJitterDial == null) scaleJitterDial = new ZUIValue(0f);
             if (merge == null) merge = new ShaperBlend();
+
+            if (spawnerRadius == null) spawnerRadius = new ZUIValue(24f);
+            if (spawnerOffsetX == null) spawnerOffsetX = new ZUIValue(0f);
+            if (spawnerOffsetY == null) spawnerOffsetY = new ZUIValue(0f);
+            if (spawnerRotationDegrees == null) spawnerRotationDegrees = new ZUIValue(0f);
+            if (spawnerPitchDegrees == null) spawnerPitchDegrees = new ZUIValue(0f);
+            if (spawnerYawDegrees == null) spawnerYawDegrees = new ZUIValue(0f);
+            if (pathProgress == null) pathProgress = new ZUIValue(0f);
+            if (scaleByIndex == null) scaleByIndex = new ZUIValue(1f);
+            if (spawnTiming == null) spawnTiming = DefaultSpawnTiming();
+        }
+
+        /// <summary>A linear (0,0)→(1,1) ramp: the first instance is born at the document's start and the last
+        /// at its end. Built as a Curve rather than left Static so the dial opens already showing the mapping
+        /// it represents — a Static default would birth every instance at one moment, which is a legal but
+        /// misleading first impression of what Window timing does.</summary>
+        static ZUIValue DefaultSpawnTiming()
+        {
+            var v = new ZUIValue { mode = ZUIValue.Mode.Curve, yMin = 0f, yMax = 1f };
+            v.points.Clear();
+            v.points.Add(new ZUIEnvelopePoint(0f, 0f));
+            v.points.Add(new ZUIEnvelopePoint(1f, 1f));
+            return v;
         }
 
         public Vector2 positionJitter
@@ -223,5 +344,116 @@ namespace Laubrary.Shaper
             rotation = ShaperValue.Sample(rotationJitterDegreesDial, phase01, dialSeed ^ FldRotJitter, 0f);
             scale = Mathf.Clamp01(ShaperValue.Sample(scaleJitterDial, phase01, dialSeed ^ FldScaleJitter, 0f));
         }
+
+        /// <summary>The spawner's own dials resolved at one document phase — sampled ONCE per compile, never
+        /// per instance, because the spawner is one figure the whole swarm sits on rather than a per-instance
+        /// value (BC-1.2's "evaluate into the program, not inside the loop", applied to a swarm).</summary>
+        public ShaperSpawner SampleSpawner(float phase01, uint dialSeed)
+        {
+            EnsureDials();
+            return new ShaperSpawner
+            {
+                radius = Mathf.Max(0f, ShaperValue.Sample(spawnerRadius, phase01, dialSeed ^ FldRadius, 24f)),
+                offset = new Vector2(ShaperValue.Sample(spawnerOffsetX, phase01, dialSeed ^ FldOffsetX, 0f),
+                                     ShaperValue.Sample(spawnerOffsetY, phase01, dialSeed ^ FldOffsetY, 0f)),
+                rotationDegrees = ShaperValue.Sample(spawnerRotationDegrees, phase01, dialSeed ^ FldSpawnerRot, 0f),
+                pitchDegrees = ShaperValue.Sample(spawnerPitchDegrees, phase01, dialSeed ^ FldSpawnerPitch, 0f),
+                yawDegrees = ShaperValue.Sample(spawnerYawDegrees, phase01, dialSeed ^ FldSpawnerYaw, 0f),
+            };
+        }
+
+        /// <summary>The document phase instance number <paramref name="i"/> of <paramref name="count"/> is
+        /// BORN at, under whichever timing mode is authored. Meaningless under
+        /// <see cref="ShaperSwarmTiming.Stagger"/>, where instances have no birth at all — the caller checks
+        /// the mode before asking.</summary>
+        public float SpawnPhase(int i, int count, uint dialSeed)
+        {
+            if (timing == ShaperSwarmTiming.FrameStep)
+                return Mathf.Clamp01(firstSpawnPhase + i * spawnPhaseStep);
+            float t = count > 1 ? i / (float)(count - 1) : 0f;
+            return Mathf.Clamp01(ShaperValue.Sample(spawnTiming, t, dialSeed ^ FldSpawnTiming, t));
+        }
+
+        /// <summary>The per-instance size multiplier read at <c>index/(count-1)</c>. 1 when the dial is at its
+        /// default, which the caller folds in as a zero scale bias.</summary>
+        public float ScaleAtIndex(int i, int count, uint dialSeed)
+        {
+            float t = count > 1 ? i / (float)(count - 1) : 0f;
+            return ShaperValue.Sample(scaleByIndex, t, dialSeed ^ FldScaleByIndex, 1f);
+        }
+
+        /// <summary>Where instance <paramref name="posIdx"/> lands, and which way it faces — the whole
+        /// placement pipeline for one instance, in the node's own parent-local units with the node's authored
+        /// position as the origin. <paramref name="instancePhase"/> is the phase the outline progress is read
+        /// at, so instances at different points in their own life ride different points of an animated path.
+        /// </summary>
+        public void PlaceInstance(int posIdx, int count, in ShaperSpawner spawner, float instancePhase,
+                                  uint dialSeed, out Vector2 offset, out float orientDegrees)
+        {
+            offset = Vector2.zero;
+            orientDegrees = 0f;
+            if (shape == ShaperSwarmShape.None) return;
+
+            float progress = 0f;
+            if (spawnMode == ShaperSwarmSpawnMode.Path)
+            {
+                progress = ShaperValue.Sample(pathProgress, instancePhase, dialSeed ^ FldProgress, 0f);
+                if (evenSpacing && count > 1)
+                {
+                    // A FULL lap divides by the count, not by count-1: the outline is closed, so progress 0
+                    // and progress 1 are the same point and dividing by count-1 lands the first and last
+                    // instance on top of each other. A partial arc is open, so it divides by count-1 and its
+                    // ends sit exactly on the ends of the arc. (Pyre always divides by count-1 and therefore
+                    // doubles up on a full lap — the maths is ported, the wart is not.)
+                    float spread = Mathf.Clamp01(pathSpread);
+                    int denom = spread >= 1f ? count : count - 1;
+                    progress += posIdx / (float)denom * spread;
+                }
+            }
+
+            Vector2 local = ShaperSwarmPlacement.Place(shape, spawnMode, spawner.radius, count, posIdx,
+                                                       distribution, gridReverse, progress, seed);
+            Vector2 placed = ShaperSwarmPlacement.ApplySpawnerTransform(
+                local, spawner.radius, spawner.rotationDegrees, spawner.yawDegrees, spawner.pitchDegrees, out _);
+            offset = placed + spawner.offset;
+
+            if (orient == ShaperSwarmOrient.None) return;
+
+            // The angle is a MATH angle (0 = +X). A Shaper primitive is drawn pointing +Y, so the instance's
+            // own rotation is that angle less a quarter turn — which is what makes an Outward-oriented star
+            // point away from the centre rather than lying on its side.
+            bool wantTangent = orient == ShaperSwarmOrient.PathTangent
+                               && spawnMode == ShaperSwarmSpawnMode.Path;
+            if (wantTangent)
+            {
+                Vector2 tangent = ShaperSwarmPlacement.PathTangent(shape, spawner.radius, progress);
+                if (spawner.rotationDegrees != 0f)
+                {
+                    float a = spawner.rotationDegrees * Mathf.Deg2Rad, c = Mathf.Cos(a), s = Mathf.Sin(a);
+                    tangent = new Vector2(tangent.x * c - tangent.y * s, tangent.x * s + tangent.y * c);
+                }
+                if (tangent.sqrMagnitude > 1e-8f)
+                {
+                    orientDegrees = Mathf.Atan2(tangent.y, tangent.x) * Mathf.Rad2Deg - 90f;
+                    return;
+                }
+            }
+
+            // Outward — and the honest fallback for a PathTangent asked for in Area mode, or on a degenerate
+            // tangent: a facing the user can see is better than silently no facing at all.
+            if (placed.sqrMagnitude > 1e-8f)
+                orientDegrees = Mathf.Atan2(placed.y, placed.x) * Mathf.Rad2Deg - 90f;
+        }
+    }
+
+    /// <summary>The swarm's spawner figure resolved at one document phase — see
+    /// <see cref="ShaperSwarmDef.SampleSpawner"/>.</summary>
+    public struct ShaperSpawner
+    {
+        public float radius;
+        public Vector2 offset;
+        public float rotationDegrees;
+        public float pitchDegrees;
+        public float yawDegrees;
     }
 }

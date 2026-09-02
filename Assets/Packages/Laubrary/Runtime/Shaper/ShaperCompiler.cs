@@ -505,7 +505,10 @@ namespace Laubrary.Shaper
                         float death = swarm.dieTogether
                             ? sharedDeath
                             : Mathf.Min(1f, birth + Mathf.Max(0.01f, swarm.instanceLife));
-                        if (originalPhase < birth || originalPhase > death || death <= birth)
+                        // `death < birth` only — an instance born ON the last frame has a zero-length life and
+                        // must still be drawn for that one frame, or the last of a spread-out swarm never
+                        // appears at all.
+                        if (originalPhase < birth || originalPhase > death || death < birth)
                         {
                             phasesUsed[i] = -1f;
                             continue;

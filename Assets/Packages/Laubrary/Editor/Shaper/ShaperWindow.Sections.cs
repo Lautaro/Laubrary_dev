@@ -786,11 +786,7 @@ namespace Laubrary.Shaper.Editor
                 Val("Rotation jitter", "How much each instance's rotation varies, in degrees.",
                     s.rotationJitterDegreesDial, 0f, 180f, decimals: 0),
                 Val("Scale jitter", "How much each instance's scale varies.",
-                    s.scaleJitterDial, 0f, 1f),
-                // The stagger decides how the per-instance clocks are DRAWN, so animating it over those same
-                // clocks would be circular — it stays a plain dial deliberately.
-                Dial("Lifetime stagger", "How much each instance's clock is offset from the others.",
-                    s.lifetimeStagger, 0f, 1f, v => s.lifetimeStagger = v)));
+                    s.scaleJitterDial, 0f, 1f)));
 
             // A spatial pair is one 2D control, never two packed 1D fields — and each axis is its own dial, so
             // animating the pair makes the cloud spread out or draw in without re-rolling which instance is where.
@@ -801,6 +797,9 @@ namespace Laubrary.Shaper.Editor
                 new ZuiValue2DControl.Options().WithRange(0f, 128f, 0f, 128f).WithPlotSize(110f)
                     .WithDefault(new Vector2(24f, 24f)).WithPrefKey("shaper.swarm.positionJitter")));
 
+            BuildSwarmShapeBox(box, s);
+            BuildSwarmTimingBox(box, s);
+
             box.Add(Z.HGroup(
                 Z.Toggle("Interact", "Let instances affect one another rather than being independent.",
                     s.interact, v => Change(() => s.interact = v)),
@@ -810,6 +809,154 @@ namespace Laubrary.Shaper.Editor
                     s.merge.sharpnessDial, 0f, 1f)));
 
             root.Add(box);
+        }
+
+        // T-0169 — WHERE the instances land. Every control here is inert while the shape is None, so the box
+        // shows only the shape picker until a shape is chosen: an authored figure is what gives radius,
+        // distribution, progress and orient anything to mean.
+        void BuildSwarmShapeBox(VisualElement parent, ShaperSwarmDef s)
+        {
+            var box = Z.BoxKeyed("Spawn shape", "The figure the instances arrange themselves on, instead of "
+                + "sitting on the node's own position.", "shaper.window.swarm.shape");
+
+            box.Add(Z.Field("Shape", "The figure the instances arrange themselves on.",
+                Z.MiniRadio((int)s.shape, Enum.GetNames(typeof(ShaperSwarmShape)),
+                    "None leaves every instance on the node's own position, moved only by the jitter above.",
+                    v => { Change(() => s.shape = (ShaperSwarmShape)v); Rebuild(); }, wrap: true)));
+
+            if (s.shape == ShaperSwarmShape.None) { parent.Add(box); return; }
+
+            bool line = s.shape == ShaperSwarmShape.Line;
+            bool path = !line && s.spawnMode == ShaperSwarmSpawnMode.Path;
+
+            // Built as one argument list rather than by Add-ing afterwards: ZuiHGroup spaces its children in
+            // its constructor, so a child added later would sit flush against its neighbour.
+            box.Add(Z.HGroup(
+                line ? null : Z.Field("Spawn", "Whether instances fill the figure or ride its outline.",
+                    Z.Segmented((int)s.spawnMode, Enum.GetNames(typeof(ShaperSwarmSpawnMode)),
+                        "Area fills the interior; Path places them along the edge.",
+                        v => { Change(() => s.spawnMode = (ShaperSwarmSpawnMode)v); Rebuild(); })),
+                Val(line ? "Half length" : "Radius",
+                    line ? "Half the length of the row, in canvas pixels."
+                         : "How big the figure is, in canvas pixels. Animate it to make the arrangement grow "
+                           + "or close in over the document's frames.",
+                    s.spawnerRadius, 0f, 256f, decimals: 0),
+                Val("Turn", "Turns the whole arrangement in the canvas plane, in degrees.",
+                    s.spawnerRotationDegrees, 0f, 360f, cyclic: true, decimals: 0),
+                Val("Tilt", "Leans the arrangement away from the viewer about the horizontal axis, in "
+                    + "degrees. At 90° it collapses to a line, so a ring reads as seen edge-on.",
+                    s.spawnerPitchDegrees, -90f, 90f, decimals: 0),
+                Val("Yaw", "Leans the arrangement about the vertical axis, in degrees.",
+                    s.spawnerYawDegrees, -90f, 90f, decimals: 0)));
+
+            box.Add(Val2D("Centre offset",
+                "Where the figure's centre sits, relative to the node's own position, in canvas pixels.",
+                s.spawnerOffsetX, s.spawnerOffsetY,
+                new ZuiValue2DControl.Options().WithRange(-128f, 128f, -128f, 128f).WithPlotSize(110f)
+                    .WithDefault(Vector2.zero).WithPrefKey("shaper.swarm.spawnerOffset")));
+
+            if (!line && !path)
+            {
+                box.Add(Z.HGroup(
+                    Dial("Distribution", "0 spaces the instances evenly through the figure; 1 scatters them "
+                        + "at random inside it.", s.distribution, 0f, 1f, v => s.distribution = v),
+                    Z.Toggle("Fill from the edge", "Build the even layout from the outermost ring inward "
+                        + "instead of from the centre out.", s.gridReverse,
+                        v => Change(() => s.gridReverse = v))));
+            }
+            else if (path)
+            {
+                box.Add(Z.HGroup(
+                    Val("Progress", "Where along the outline the arrangement sits, as a fraction of one lap. "
+                        + "Animate it past 1 to ride the instances around further laps.",
+                        s.pathProgress, 0f, 2f),
+                    Z.Toggle("Even spacing", "Spread the instances evenly along the outline, so Progress "
+                        + "moves the whole string rather than each instance's own place on it.",
+                        s.evenSpacing, v => { Change(() => s.evenSpacing = v); Rebuild(); }),
+                    s.evenSpacing
+                        ? Dial("Spread", "How much of the outline the evenly-spaced string covers. 1 is the "
+                            + "whole shape; 0.5 is a half-shape arc.", s.pathSpread, 0f, 1f,
+                            v => s.pathSpread = v)
+                        : null));
+            }
+
+            box.Add(Z.HGroup(
+                Z.Field("Face", "Which way each instance is turned once it is placed.",
+                    Z.MiniRadio((int)s.orient, Enum.GetNames(typeof(ShaperSwarmOrient)),
+                        path ? "Outward turns each instance away from the centre; PathTangent turns it along "
+                               + "the outline it sits on."
+                             : "Outward turns each instance away from the centre. PathTangent needs a Path "
+                               + "spawn, and falls back to Outward here.",
+                        v => Change(() => s.orient = (ShaperSwarmOrient)v))),
+                Val("Size by index", "A size multiplier read across the instances rather than over time — "
+                    + "author it as a curve to taper the swarm from one end to the other, or as Min-Max to "
+                    + "give each instance its own size.", s.scaleByIndex, 0f, 2f)));
+
+            parent.Add(box);
+        }
+
+        // T-0169 — WHEN the instances exist. Stagger is the model the swarm shipped with (every instance alive
+        // the whole time, its own clock offset); the other two give each instance a real birth and death, so
+        // the swarm builds up and clears instead of merely being present.
+        void BuildSwarmTimingBox(VisualElement parent, ShaperSwarmDef s)
+        {
+            var box = Z.BoxKeyed("Spawn timing", "When each instance appears and how long it lasts.",
+                "shaper.window.swarm.timing");
+
+            // Collected first and constructed once: ZuiHGroup spaces its children in its constructor, so a
+            // child added afterwards would sit flush against its neighbour.
+            var kids = new List<VisualElement>
+            {
+                Z.Field("Timing", "How the instances are distributed over the document's frames.",
+                    Z.MiniRadio((int)s.timing, Enum.GetNames(typeof(ShaperSwarmTiming)),
+                        "Stagger keeps every instance alive throughout; Window and FrameStep give each one a "
+                        + "birth and a death, outside which it is not drawn at all.",
+                        v => { Change(() => s.timing = (ShaperSwarmTiming)v); Rebuild(); }))
+            };
+
+            if (s.timing == ShaperSwarmTiming.Stagger)
+            {
+                // The stagger decides how the per-instance clocks are DRAWN, so animating it over those same
+                // clocks would be circular — it stays a plain dial deliberately.
+                kids.Add(Dial("Lifetime stagger", "How much each instance's clock is offset from the others.",
+                    s.lifetimeStagger, 0f, 1f, v => s.lifetimeStagger = v));
+                box.Add(Z.HGroup(kids.ToArray()));
+                parent.Add(box);
+                return;
+            }
+
+            if (s.timing == ShaperSwarmTiming.Window)
+            {
+                kids.Add(Val("Births", "Maps an instance's number — 0 for the first, 1 for the last — to the "
+                    + "moment it appears. A rising curve spreads the births out; a flat value brings the "
+                    + "whole swarm in at once.", s.spawnTiming, 0f, 1f));
+            }
+            else
+            {
+                // Authored in FRAMES, stored in phase. ShaperClock is the one home for that conversion, so the
+                // control converts through it in both directions rather than dividing by frameCount here.
+                int frames = Mathf.Max(1, document != null ? document.frameCount : 1);
+                int last = Mathf.Max(1, frames - 1);
+                kids.Add(Dial("First frame", "Which frame the first instance appears on.",
+                    Mathf.Round(s.firstSpawnPhase * last), 0f, last,
+                    v => s.firstSpawnPhase = ShaperClock.PhaseOfFrame(Mathf.RoundToInt(v), frames), decimals: 0));
+                kids.Add(Dial("Frame step", "How many frames pass between one instance appearing and the next. "
+                    + "0 brings the whole swarm in on the first frame.",
+                    Mathf.Round(s.spawnPhaseStep * last), 0f, last,
+                    v => s.spawnPhaseStep = ShaperClock.PhaseOfFrame(Mathf.RoundToInt(v), frames), decimals: 0));
+            }
+
+            kids.Add(Dial("Lifetime", "How much of the document each instance lasts, measured from its own "
+                + "birth.", s.instanceLife, 0.01f, 1f, v => s.instanceLife = v));
+            kids.Add(Z.Toggle("Die together", "Clear the whole swarm at one moment rather than letting each "
+                + "instance expire on its own schedule.", s.dieTogether,
+                v => Change(() => s.dieTogether = v)));
+            kids.Add(Dial("Appearance order", "0 brings in neighbouring positions one after another; 1 "
+                + "reveals them in a scrambled order.", s.spawnOrderChaos, 0f, 1f,
+                v => s.spawnOrderChaos = v));
+
+            box.Add(Z.HGroup(kids.ToArray()));
+            parent.Add(box);
         }
 
         // ── Composite generator ──────────────────────────────────────────────────────────────────────────
