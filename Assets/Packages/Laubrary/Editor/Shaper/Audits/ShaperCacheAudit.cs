@@ -179,12 +179,12 @@ namespace Laubrary.Shaper.Editor
             bool allMatch = true;
             for (int i = 0; i < 5; i++)
             {
-                var k5 = ShaperNodeIdentity.SwarmInstanceKey(baseHash, swarm5, i);
-                var k8 = ShaperNodeIdentity.SwarmInstanceKey(baseHash, swarm8, i);
+                var k5 = ShaperNodeIdentity.SwarmInstanceKey(baseHash, swarm5, i, 0f);
+                var k8 = ShaperNodeIdentity.SwarmInstanceKey(baseHash, swarm8, i, 0f);
                 if (k5 != k8) allMatch = false;
             }
-            var wholeA = ShaperNodeIdentity.SwarmWholeNodeKey(baseHash, swarm5);
-            var wholeB = ShaperNodeIdentity.SwarmWholeNodeKey(baseHash, swarm8);
+            var wholeA = ShaperNodeIdentity.SwarmWholeNodeKey(baseHash, swarm5, 0f);
+            var wholeB = ShaperNodeIdentity.SwarmWholeNodeKey(baseHash, swarm8, 0f);
             bool wholeDiffers = wholeA != wholeB; // the ATOMIC whole-node key SHOULD differ (this task's built path uses this one)
 
             return $"CT4 swarm instance keys: instances 0-4 identical across count=5 vs count=8 growth: {allMatch} [{Verdict(allMatch)}]; " +

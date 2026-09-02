@@ -48,6 +48,29 @@ namespace Laubrary.Shaper.Editor
         public bool ShowFrameBorder;
         public float Zoom = 1f;
 
+        // ── on-canvas position handle (T-0168) ──────────────────────────────────────────────────────────────
+        // The node being edited is the window's business, so the stage asks for it rather than tracking a
+        // selection of its own; the two callbacks are the window's Undo/dirty contract, handed in for the same
+        // reason (this element must not know what an asset is).
+        const float HandleSize = 13f;
+
+        /// The node whose placement the handle drags, and the layer root it hangs under — the second is what
+        /// lets the handle account for every ancestor transform between the two.
+        public Func<ShaperNode> SelectedNode;
+        public Func<ShaperNode> SelectedLayerRoot;
+        /// Called ONCE per completed drag, immediately before the final value is written — this is what makes
+        /// a whole drag a single Ctrl+Z rather than one entry per mouse-move.
+        public Action RecordUndo;
+        /// Called after every write, live during the drag: dirty the asset and repaint.
+        public Action Changed;
+        /// Called once, after the drag has settled — for anything too heavy to run per mouse-move.
+        public Action DragCommitted;
+
+        readonly VisualElement _handle;
+        bool _dragging;
+        Vector2 _dragStartTranslate;
+        Vector2 _dragStartPointer;
+
         public ShaperPreviewStage(Func<ShaperDocument> doc, Func<int> frame)
         {
             _doc = doc;
@@ -106,7 +129,23 @@ namespace Laubrary.Shaper.Editor
             _frameBorder.style.borderLeftColor = _frameBorder.style.borderRightColor = edge;
             Add(_frameBorder);
 
-            RegisterCallback<GeometryChangedEvent>(_ => LayoutFrameBorder());
+            // The position handle sits last so it paints over the picture, and it is the only pickable child —
+            // everything below it is Ignore, so a click that misses the handle still falls through to the stage.
+            _handle = new VisualElement { pickingMode = PickingMode.Position };
+            _handle.style.position = Position.Absolute;
+            _handle.style.display = DisplayStyle.None;
+            _handle.style.width = HandleSize;
+            _handle.style.height = HandleSize;
+            _handle.style.borderTopWidth = _handle.style.borderBottomWidth = 2f;
+            _handle.style.borderLeftWidth = _handle.style.borderRightWidth = 2f;
+            _handle.style.borderTopLeftRadius = _handle.style.borderTopRightRadius = HandleSize * 0.5f;
+            _handle.style.borderBottomLeftRadius = _handle.style.borderBottomRightRadius = HandleSize * 0.5f;
+            Add(_handle);
+            _handle.RegisterCallback<PointerDownEvent>(OnHandleDown);
+            _handle.RegisterCallback<PointerMoveEvent>(OnHandleMove);
+            _handle.RegisterCallback<PointerUpEvent>(OnHandleUp);
+
+            RegisterCallback<GeometryChangedEvent>(_ => { LayoutFrameBorder(); LayoutHandle(); });
 
             // A Texture2D is an unmanaged Unity object; a window rebuild drops this element and would leak it.
             RegisterCallback<DetachFromPanelEvent>(_ => Dispose());
@@ -134,6 +173,175 @@ namespace Laubrary.Shaper.Editor
             _frameBorder.style.top = r.y;
             _frameBorder.style.width = r.width;
             _frameBorder.style.height = r.height;
+        }
+
+        // ── the position handle ─────────────────────────────────────────────────────────────────────────────
+
+        /// Where the picture actually is, INCLUDING zoom. Zoom is applied as a negative percentage inset on the
+        /// image layer, so the image's own box is the stage grown by (zoom−1)/2 on every side; the canvas is
+        /// then fitted inside that. Anything drawn over the picture has to use the same box or it drifts off
+        /// the thing it is marking as soon as the user zooms.
+        Rect ZoomedCanvasRect(ShaperDocument doc)
+        {
+            float vw = resolvedStyle.width, vh = resolvedStyle.height;
+            if (float.IsNaN(vw) || float.IsNaN(vh) || vw <= 0f || vh <= 0f) return Rect.zero;
+            float z = Mathf.Max(1f, Zoom);
+            var view = new Rect(-(z - 1f) * 0.5f * vw, -(z - 1f) * 0.5f * vh, vw * z, vh * z);
+            return FittedCanvasRect(view, doc);
+        }
+
+        /// A point in canvas units to a point in this element's own pixels. Canvas units are centred on the
+        /// canvas and row 0 is the BOTTOM one (the renderer's own convention, see this file's header), so the
+        /// Y axis flips on the way to screen space.
+        static Vector2 CanvasToLocal(ShaperDocument doc, in Rect r, Vector2 canvasPoint)
+        {
+            int w = Mathf.Max(1, doc.canvasWidth), h = Mathf.Max(1, doc.canvasHeight);
+            float ps = Mathf.Max(1e-4f, doc.pixelSize);
+            float halfW = 0.5f * (w - 1) * ps, halfH = 0.5f * (h - 1) * ps;
+            float u = ((canvasPoint.x + halfW) / ps + 0.5f) / w;
+            float v = ((canvasPoint.y + halfH) / ps + 0.5f) / h;
+            return new Vector2(r.x + u * r.width, r.yMax - v * r.height);
+        }
+
+        /// The matrix every ancestor between the layer root and the selected node contributes — the frame the
+        /// node's own translate is expressed in. Identity when the node IS the layer root.
+        static ShaperMatrix ParentForwardOf(ShaperNode root, ShaperNode target, float phase01, uint seed)
+        {
+            var m = ShaperMatrix.Identity;
+            if (root == null || target == null || ReferenceEquals(root, target)) return m;
+            Accumulate(root, m, out var found, out var result);
+            return found ? result : ShaperMatrix.Identity;
+
+            void Accumulate(ShaperNode node, in ShaperMatrix parent, out bool hit, out ShaperMatrix outMatrix)
+            {
+                hit = false; outMatrix = ShaperMatrix.Identity;
+                if (node?.children == null) return;
+                ShaperMatrix here = ShaperMatrix.Mul(parent, (node.transform ?? new ShaperTransformBlock()).ToMatrix(phase01, seed));
+                for (int i = 0; i < node.children.Count; i++)
+                {
+                    var c = node.children[i];
+                    if (c == null) continue;
+                    if (ReferenceEquals(c, target)) { hit = true; outMatrix = here; return; }
+                    Accumulate(c, here, out hit, out outMatrix);
+                    if (hit) return;
+                }
+            }
+        }
+
+        /// True only when BOTH axes are plain static numbers. Dragging a Curve would have to overwrite the
+        /// value the curve is scaled from, which reads as "the drag did nothing" — so an animated node shows
+        /// the marker and refuses the drag rather than silently mis-editing it.
+        static bool IsDraggable(ShaperNode node)
+        {
+            var t = node?.transform;
+            if (t == null) return false;
+            t.EnsureDials();
+            return t.translateX.mode == ZUIValue.Mode.Static && t.translateY.mode == ZUIValue.Mode.Static;
+        }
+
+        void LayoutHandle()
+        {
+            var doc = _doc?.Invoke();
+            var node = SelectedNode?.Invoke();
+            var root = SelectedLayerRoot?.Invoke();
+            if (doc == null || node == null || node.transform == null)
+            {
+                _handle.style.display = DisplayStyle.None;
+                return;
+            }
+
+            var r = ZoomedCanvasRect(doc);
+            if (r.width <= 0f || r.height <= 0f) { _handle.style.display = DisplayStyle.None; return; }
+
+            float phase = doc.PhaseOfFrame(Mathf.Max(0, _frame?.Invoke() ?? 0));
+            var parent = ParentForwardOf(root, node, phase, doc.seed);
+            var forward = ShaperMatrix.Mul(parent, node.transform.ToMatrix(phase, doc.seed));
+            // The node's own local origin, carried up to canvas space: applying the map to (0,0) is just its
+            // translation column, so this is where the node's content is centred right now.
+            var local = CanvasToLocal(doc, r, new Vector2(forward.m02, forward.m12));
+
+            bool draggable = IsDraggable(node);
+            var ring = draggable ? new Color(1f, 0.78f, 0.2f, 0.95f) : new Color(1f, 1f, 1f, 0.35f);
+            _handle.style.borderTopColor = _handle.style.borderBottomColor = ring;
+            _handle.style.borderLeftColor = _handle.style.borderRightColor = ring;
+            _handle.style.backgroundColor = new Color(0f, 0f, 0f, draggable ? 0.25f : 0.12f);
+            _handle.pickingMode = draggable ? PickingMode.Position : PickingMode.Ignore;
+            _handle.tooltip = draggable
+                ? "Drag to place \"" + node.name + "\" on the canvas. One drag is one undo step."
+                : "\"" + node.name + "\" has an animated position, so its place on the canvas comes from its "
+                  + "curve — set Translate back to a static value to drag it here.";
+
+            _handle.style.display = DisplayStyle.Flex;
+            _handle.style.left = local.x - HandleSize * 0.5f;
+            _handle.style.top = local.y - HandleSize * 0.5f;
+        }
+
+        void OnHandleDown(PointerDownEvent evt)
+        {
+            var node = SelectedNode?.Invoke();
+            if (evt.button != 0 || node == null || !IsDraggable(node)) return;
+            _dragging = true;
+            _dragStartTranslate = node.transform.translate;
+            _dragStartPointer = this.WorldToLocal(evt.position);
+            _handle.CapturePointer(evt.pointerId);
+            evt.StopPropagation();
+        }
+
+        void OnHandleMove(PointerMoveEvent evt)
+        {
+            if (!_dragging) return;
+            ApplyDrag(this.WorldToLocal(evt.position));
+            evt.StopPropagation();
+        }
+
+        void OnHandleUp(PointerUpEvent evt)
+        {
+            if (!_dragging) return;
+            _dragging = false;
+            _handle.ReleasePointer(evt.pointerId);
+
+            var node = SelectedNode?.Invoke();
+            if (node?.transform != null)
+            {
+                // One undo step for the whole gesture: the live drag wrote straight onto the node, so the
+                // pre-drag value is put back FIRST, then recorded, then the final value written over it.
+                Vector2 settled = node.transform.translate;
+                node.transform.translate = _dragStartTranslate;
+                RecordUndo?.Invoke();
+                node.transform.translate = settled;
+            }
+            Changed?.Invoke();
+            evt.StopPropagation();
+            DragCommitted?.Invoke();
+        }
+
+        void ApplyDrag(Vector2 localPointer)
+        {
+            var doc = _doc?.Invoke();
+            var node = SelectedNode?.Invoke();
+            if (doc == null || node?.transform == null) return;
+
+            var r = ZoomedCanvasRect(doc);
+            if (r.width <= 0f || r.height <= 0f) return;
+
+            int w = Mathf.Max(1, doc.canvasWidth), h = Mathf.Max(1, doc.canvasHeight);
+            float ps = Mathf.Max(1e-4f, doc.pixelSize);
+            Vector2 d = localPointer - _dragStartPointer;
+            // Pixels back to canvas units, with the same Y flip CanvasToLocal applies going the other way.
+            var canvasDelta = new Vector2(d.x * w * ps / r.width, -d.y * h * ps / r.height);
+
+            // The drag is felt in CANVAS space but written into the node's PARENT frame, so it goes back down
+            // through the ancestors' linear part; without this a node inside a rotated or scaled bag would run
+            // away from the cursor.
+            float phase = doc.PhaseOfFrame(Mathf.Max(0, _frame?.Invoke() ?? 0));
+            var parent = ParentForwardOf(SelectedLayerRoot?.Invoke(), node, phase, doc.seed);
+            Vector2 localDelta = canvasDelta;
+            if (parent.TryInvert(out var inv))
+                localDelta = new Vector2(inv.m00 * canvasDelta.x + inv.m01 * canvasDelta.y,
+                                         inv.m10 * canvasDelta.x + inv.m11 * canvasDelta.y);
+
+            node.transform.translate = _dragStartTranslate + localDelta;
+            Changed?.Invoke();
         }
 
         /// Where the canvas actually lands inside `view` under ScaleToFit + Zoom — the border has to follow
@@ -178,6 +386,7 @@ namespace Laubrary.Shaper.Editor
             // of the small frictions that came with the island.)
             _backdrop.SetSettings(doc?.previewBackSplash);
             LayoutFrameBorder();
+            LayoutHandle();
 
             if (doc == null)
             {

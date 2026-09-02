@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Laubrary.Shaper
 {
@@ -55,42 +56,45 @@ namespace Laubrary.Shaper
     /// lives in the transform block, where it goes through the <c>σ_min</c> rescale and stays bounded).
     /// </summary>
     [Serializable]
-    public class ShaperPrimitiveDef
+    public class ShaperPrimitiveDef : ISerializationCallbackReceiver
     {
         public ShaperPrimitiveKind kind = ShaperPrimitiveKind.Rect;
 
         // Rect
-        public float rectHalfW = 50f;
-        public float rectHalfH = 50f;
-        public float rectCornerRadius = 0f;
+        public ZUIValue rectHalfWDial = new ZUIValue(50f);
+        public ZUIValue rectHalfHDial = new ZUIValue(50f);
+        public ZUIValue rectCornerRadiusDial = new ZUIValue(0f);
 
         // Ellipse
-        public float ellipseRx = 50f;
-        public float ellipseRy = 50f;
+        public ZUIValue ellipseRxDial = new ZUIValue(50f);
+        public ZUIValue ellipseRyDial = new ZUIValue(50f);
 
         // Diamond — vertices at (±rx, 0) and (0, ±ry).
-        public float diamondRx = 50f;
-        public float diamondRy = 50f;
+        public ZUIValue diamondRxDial = new ZUIValue(50f);
+        public ZUIValue diamondRyDial = new ZUIValue(50f);
 
         // Triangle — isosceles, apex UP at +height/2, base down at −height/2.
-        public float triangleBase = 100f;
-        public float triangleHeight = 100f;
+        public ZUIValue triangleBaseDial = new ZUIValue(100f);
+        public ZUIValue triangleHeightDial = new ZUIValue(100f);
 
         // Capsule — the centre segment runs along X from (−halfLength, 0) to (+halfLength, 0).
-        public float capsuleHalfLength = 40f;
-        public float capsuleRadius = 20f;
+        public ZUIValue capsuleHalfLengthDial = new ZUIValue(40f);
+        public ZUIValue capsuleRadiusDial = new ZUIValue(20f);
 
-        // N-gon — replaces the reference app's hand-fitted hexagon and octagon outright.
+        // N-gon — replaces the reference app's hand-fitted hexagon and octagon outright. The side COUNT stays a
+        // plain int: it selects one of a discrete family of shapes rather than measuring one, and sweeping it
+        // over a curve would pop between polygons rather than animate anything.
         [Range(3, 64)] public int ngonSides = 6;
-        public float ngonRadius = 50f;
+        public ZUIValue ngonRadiusDial = new ZUIValue(50f);
         /// <summary>Degrees. At 0, vertex 0 points UP (+Y), matching Pyre's tip convention.</summary>
-        public float ngonRotation = 0f;
-        public float ngonCornerRadius = 0f;
+        public ZUIValue ngonRotationDial = new ZUIValue(0f);
+        public ZUIValue ngonCornerRadiusDial = new ZUIValue(0f);
 
-        // Star — Pyre's specification, ported by value (Pyre.cs:489-492).
+        // Star — Pyre's specification, ported by value (Pyre.cs:489-492). Arm count is an int for the same
+        // reason ngonSides is.
         [Range(2, 20)] public int starArms = 5;
         /// <summary>Tip radius R.</summary>
-        public float starRadius = 50f;
+        public ZUIValue starRadiusDial = new ZUIValue(50f);
         /// <summary>Arm reach 0..1; valley radius is <c>R·max(MinValleyFraction, 1 − length)</c> — a fraction
         /// of R, so the shape is scale-free. 0.62 ≈ the golden-ratio pentagram inner radius.</summary>
         public ZUIValue starLength = new ZUIValue(0.62f);
@@ -98,6 +102,87 @@ namespace Laubrary.Shaper
         public ZUIValue starBaseWidth = new ZUIValue(1f);
         /// <summary>Valley swirl in degrees, −60..60 — a true pinwheel twist, clamped so valleys never cross tips.</summary>
         public ZUIValue starSkew = new ZUIValue(0f);
+
+        // ── the pre-promotion storage, read once to seed the dials above ─────────────────────────────────
+        [SerializeField, FormerlySerializedAs("rectHalfW")]         float legacyRectHalfW = 50f;
+        [SerializeField, FormerlySerializedAs("rectHalfH")]         float legacyRectHalfH = 50f;
+        [SerializeField, FormerlySerializedAs("rectCornerRadius")]  float legacyRectCorner = 0f;
+        [SerializeField, FormerlySerializedAs("ellipseRx")]         float legacyEllipseRx = 50f;
+        [SerializeField, FormerlySerializedAs("ellipseRy")]         float legacyEllipseRy = 50f;
+        [SerializeField, FormerlySerializedAs("diamondRx")]         float legacyDiamondRx = 50f;
+        [SerializeField, FormerlySerializedAs("diamondRy")]         float legacyDiamondRy = 50f;
+        [SerializeField, FormerlySerializedAs("triangleBase")]      float legacyTriangleBase = 100f;
+        [SerializeField, FormerlySerializedAs("triangleHeight")]    float legacyTriangleHeight = 100f;
+        [SerializeField, FormerlySerializedAs("capsuleHalfLength")] float legacyCapsuleHalfLength = 40f;
+        [SerializeField, FormerlySerializedAs("capsuleRadius")]     float legacyCapsuleRadius = 20f;
+        [SerializeField, FormerlySerializedAs("ngonRadius")]        float legacyNgonRadius = 50f;
+        [SerializeField, FormerlySerializedAs("ngonRotation")]      float legacyNgonRotation = 0f;
+        [SerializeField, FormerlySerializedAs("ngonCornerRadius")]  float legacyNgonCorner = 0f;
+        [SerializeField, FormerlySerializedAs("starRadius")]        float legacyStarRadius = 50f;
+        [SerializeField] bool dialsPromoted;
+
+        public void OnBeforeSerialize() => dialsPromoted = true;
+
+        public void OnAfterDeserialize()
+        {
+            if (dialsPromoted) { EnsureDials(); return; }
+            rectHalfWDial = new ZUIValue(legacyRectHalfW);
+            rectHalfHDial = new ZUIValue(legacyRectHalfH);
+            rectCornerRadiusDial = new ZUIValue(legacyRectCorner);
+            ellipseRxDial = new ZUIValue(legacyEllipseRx);
+            ellipseRyDial = new ZUIValue(legacyEllipseRy);
+            diamondRxDial = new ZUIValue(legacyDiamondRx);
+            diamondRyDial = new ZUIValue(legacyDiamondRy);
+            triangleBaseDial = new ZUIValue(legacyTriangleBase);
+            triangleHeightDial = new ZUIValue(legacyTriangleHeight);
+            capsuleHalfLengthDial = new ZUIValue(legacyCapsuleHalfLength);
+            capsuleRadiusDial = new ZUIValue(legacyCapsuleRadius);
+            ngonRadiusDial = new ZUIValue(legacyNgonRadius);
+            ngonRotationDial = new ZUIValue(legacyNgonRotation);
+            ngonCornerRadiusDial = new ZUIValue(legacyNgonCorner);
+            starRadiusDial = new ZUIValue(legacyStarRadius);
+            dialsPromoted = true;
+        }
+
+        public void EnsureDials()
+        {
+            if (rectHalfWDial == null) rectHalfWDial = new ZUIValue(50f);
+            if (rectHalfHDial == null) rectHalfHDial = new ZUIValue(50f);
+            if (rectCornerRadiusDial == null) rectCornerRadiusDial = new ZUIValue(0f);
+            if (ellipseRxDial == null) ellipseRxDial = new ZUIValue(50f);
+            if (ellipseRyDial == null) ellipseRyDial = new ZUIValue(50f);
+            if (diamondRxDial == null) diamondRxDial = new ZUIValue(50f);
+            if (diamondRyDial == null) diamondRyDial = new ZUIValue(50f);
+            if (triangleBaseDial == null) triangleBaseDial = new ZUIValue(100f);
+            if (triangleHeightDial == null) triangleHeightDial = new ZUIValue(100f);
+            if (capsuleHalfLengthDial == null) capsuleHalfLengthDial = new ZUIValue(40f);
+            if (capsuleRadiusDial == null) capsuleRadiusDial = new ZUIValue(20f);
+            if (ngonRadiusDial == null) ngonRadiusDial = new ZUIValue(50f);
+            if (ngonRotationDial == null) ngonRotationDial = new ZUIValue(0f);
+            if (ngonCornerRadiusDial == null) ngonCornerRadiusDial = new ZUIValue(0f);
+            if (starRadiusDial == null) starRadiusDial = new ZUIValue(50f);
+            if (starLength == null) starLength = new ZUIValue(0.62f);
+            if (starBaseWidth == null) starBaseWidth = new ZUIValue(1f);
+            if (starSkew == null) starSkew = new ZUIValue(0f);
+        }
+
+        // Plain-number views — see ShaperDial. Code that sizes a primitive outright (a demo, an audit fixture,
+        // the window's "new layer" default) means the static value, not an envelope.
+        public float rectHalfW { get => ShaperDial.Get(rectHalfWDial, 50f); set => ShaperDial.Set(ref rectHalfWDial, value); }
+        public float rectHalfH { get => ShaperDial.Get(rectHalfHDial, 50f); set => ShaperDial.Set(ref rectHalfHDial, value); }
+        public float rectCornerRadius { get => ShaperDial.Get(rectCornerRadiusDial); set => ShaperDial.Set(ref rectCornerRadiusDial, value); }
+        public float ellipseRx { get => ShaperDial.Get(ellipseRxDial, 50f); set => ShaperDial.Set(ref ellipseRxDial, value); }
+        public float ellipseRy { get => ShaperDial.Get(ellipseRyDial, 50f); set => ShaperDial.Set(ref ellipseRyDial, value); }
+        public float diamondRx { get => ShaperDial.Get(diamondRxDial, 50f); set => ShaperDial.Set(ref diamondRxDial, value); }
+        public float diamondRy { get => ShaperDial.Get(diamondRyDial, 50f); set => ShaperDial.Set(ref diamondRyDial, value); }
+        public float triangleBase { get => ShaperDial.Get(triangleBaseDial, 100f); set => ShaperDial.Set(ref triangleBaseDial, value); }
+        public float triangleHeight { get => ShaperDial.Get(triangleHeightDial, 100f); set => ShaperDial.Set(ref triangleHeightDial, value); }
+        public float capsuleHalfLength { get => ShaperDial.Get(capsuleHalfLengthDial, 40f); set => ShaperDial.Set(ref capsuleHalfLengthDial, value); }
+        public float capsuleRadius { get => ShaperDial.Get(capsuleRadiusDial, 20f); set => ShaperDial.Set(ref capsuleRadiusDial, value); }
+        public float ngonRadius { get => ShaperDial.Get(ngonRadiusDial, 50f); set => ShaperDial.Set(ref ngonRadiusDial, value); }
+        public float ngonRotation { get => ShaperDial.Get(ngonRotationDial); set => ShaperDial.Set(ref ngonRotationDial, value); }
+        public float ngonCornerRadius { get => ShaperDial.Get(ngonCornerRadiusDial); set => ShaperDial.Set(ref ngonCornerRadiusDial, value); }
+        public float starRadius { get => ShaperDial.Get(starRadiusDial, 50f); set => ShaperDial.Set(ref starRadiusDial, value); }
     }
 
     /// <summary>
@@ -117,10 +202,18 @@ namespace Laubrary.Shaper
         /// </summary>
         public const float MinValleyFraction = 0.01f;
 
-        // Field ids for the animatable star dials, so each draws its own reproducible MinMax sample.
+        // Field ids, so each dial draws its own reproducible Min-Max sample instead of every dial on one
+        // primitive sharing a single draw.
         const uint FldStarLen = 0x51A21E01u;
         const uint FldStarBase = 0x51A21E02u;
         const uint FldStarSkew = 0x51A21E03u;
+        const uint FldRectHalfW = 0x51A21E10u, FldRectHalfH = 0x51A21E11u, FldRectCorner = 0x51A21E12u;
+        const uint FldEllipseRx = 0x51A21E13u, FldEllipseRy = 0x51A21E14u;
+        const uint FldDiamondRx = 0x51A21E15u, FldDiamondRy = 0x51A21E16u;
+        const uint FldTriBase = 0x51A21E17u, FldTriHeight = 0x51A21E18u;
+        const uint FldCapsuleHalf = 0x51A21E19u, FldCapsuleRadius = 0x51A21E1Au;
+        const uint FldNgonRadius = 0x51A21E1Bu, FldNgonRotation = 0x51A21E1Cu, FldNgonCorner = 0x51A21E1Du;
+        const uint FldStarRadius = 0x51A21E1Eu;
 
         /// <summary>
         /// The declared Lipschitz bound of each primitive. Every one of these is 1 because every one is an
@@ -155,6 +248,7 @@ namespace Laubrary.Shaper
         {
             var b = new ShaperBakedPrimitive();
             if (def == null) def = new ShaperPrimitiveDef();
+            def.EnsureDials();
 
             b.kind = def.kind;
             b.bound = Bound(def.kind);
@@ -164,9 +258,10 @@ namespace Laubrary.Shaper
             {
                 case ShaperPrimitiveKind.Rect:
                 {
-                    float hw = Mathf.Max(1e-4f, def.rectHalfW);
-                    float hh = Mathf.Max(1e-4f, def.rectHalfH);
-                    float r = Mathf.Clamp(def.rectCornerRadius, 0f, Mathf.Min(hw, hh));
+                    float hw = Mathf.Max(1e-4f, ShaperValue.Sample(def.rectHalfWDial, phase01, seed ^ FldRectHalfW, 50f));
+                    float hh = Mathf.Max(1e-4f, ShaperValue.Sample(def.rectHalfHDial, phase01, seed ^ FldRectHalfH, 50f));
+                    float r = Mathf.Clamp(ShaperValue.Sample(def.rectCornerRadiusDial, phase01, seed ^ FldRectCorner, 0f),
+                                          0f, Mathf.Min(hw, hh));
                     b.p0 = hw; b.p1 = hh; b.p2 = r;
                     b.halfExtentX = hw; b.halfExtentY = hh;
                     b.longitudinalHalfLength = hw;
@@ -174,8 +269,8 @@ namespace Laubrary.Shaper
                 }
                 case ShaperPrimitiveKind.Ellipse:
                 {
-                    float rx = Mathf.Max(1e-4f, def.ellipseRx);
-                    float ry = Mathf.Max(1e-4f, def.ellipseRy);
+                    float rx = Mathf.Max(1e-4f, ShaperValue.Sample(def.ellipseRxDial, phase01, seed ^ FldEllipseRx, 50f));
+                    float ry = Mathf.Max(1e-4f, ShaperValue.Sample(def.ellipseRyDial, phase01, seed ^ FldEllipseRy, 50f));
                     b.p0 = rx; b.p1 = ry;
                     b.halfExtentX = rx; b.halfExtentY = ry;
                     b.longitudinalHalfLength = rx;
@@ -183,8 +278,8 @@ namespace Laubrary.Shaper
                 }
                 case ShaperPrimitiveKind.Diamond:
                 {
-                    float rx = Mathf.Max(1e-4f, def.diamondRx);
-                    float ry = Mathf.Max(1e-4f, def.diamondRy);
+                    float rx = Mathf.Max(1e-4f, ShaperValue.Sample(def.diamondRxDial, phase01, seed ^ FldDiamondRx, 50f));
+                    float ry = Mathf.Max(1e-4f, ShaperValue.Sample(def.diamondRyDial, phase01, seed ^ FldDiamondRy, 50f));
                     b.p0 = rx; b.p1 = ry;
                     b.halfExtentX = rx; b.halfExtentY = ry;
                     b.longitudinalHalfLength = rx;
@@ -192,8 +287,8 @@ namespace Laubrary.Shaper
                 }
                 case ShaperPrimitiveKind.Triangle:
                 {
-                    float halfBase = Mathf.Max(1e-4f, def.triangleBase * 0.5f);
-                    float height = Mathf.Max(1e-4f, def.triangleHeight);
+                    float halfBase = Mathf.Max(1e-4f, ShaperValue.Sample(def.triangleBaseDial, phase01, seed ^ FldTriBase, 100f) * 0.5f);
+                    float height = Mathf.Max(1e-4f, ShaperValue.Sample(def.triangleHeightDial, phase01, seed ^ FldTriHeight, 100f));
                     b.p0 = halfBase; b.p1 = height;
                     b.halfExtentX = halfBase; b.halfExtentY = height * 0.5f;
                     b.longitudinalHalfLength = halfBase;
@@ -201,8 +296,8 @@ namespace Laubrary.Shaper
                 }
                 case ShaperPrimitiveKind.Capsule:
                 {
-                    float half = Mathf.Max(0f, def.capsuleHalfLength);
-                    float r = Mathf.Max(1e-4f, def.capsuleRadius);
+                    float half = Mathf.Max(0f, ShaperValue.Sample(def.capsuleHalfLengthDial, phase01, seed ^ FldCapsuleHalf, 40f));
+                    float r = Mathf.Max(1e-4f, ShaperValue.Sample(def.capsuleRadiusDial, phase01, seed ^ FldCapsuleRadius, 20f));
                     b.p0 = half; b.p1 = r;
                     b.halfExtentX = half + r; b.halfExtentY = r;
                     b.longitudinalHalfLength = half + r;
@@ -211,7 +306,7 @@ namespace Laubrary.Shaper
                 case ShaperPrimitiveKind.NGon:
                 {
                     int n = Mathf.Clamp(def.ngonSides, 3, 64);
-                    float radius = Mathf.Max(1e-4f, def.ngonRadius);
+                    float radius = Mathf.Max(1e-4f, ShaperValue.Sample(def.ngonRadiusDial, phase01, seed ^ FldNgonRadius, 50f));
                     float sector = 2f * Mathf.PI / n;
                     float halfSector = Mathf.PI / n;
                     // Rounding preserves the OUTER EXTENT, per spec §5.1. Bake the inner polygon at
@@ -224,14 +319,15 @@ namespace Laubrary.Shaper
                     // with corner 15 measured 35.000, and with corner 35 measured 25.025 — half the authored
                     // size. Holding the outer extent is what the spec requires and what an author expects
                     // from a dial named "radius".
-                    float corner = Mathf.Clamp(def.ngonCornerRadius, 0f, radius);
+                    float corner = Mathf.Clamp(ShaperValue.Sample(def.ngonCornerRadiusDial, phase01, seed ^ FldNgonCorner, 0f), 0f, radius);
                     float innerRadius = Mathf.Max(0f, radius - corner);
                     float apothemInner = innerRadius * Mathf.Cos(halfSector);
                     float halfEdge = innerRadius * Mathf.Sin(halfSector);
 
                     // The fold puts an EDGE NORMAL along the folded +X axis. Edge normals bisect vertices, so
                     // offsetting by a half-sector from "up" puts vertex 0 up at rotation 0 (Pyre's convention).
-                    float rot = TipUp + halfSector + def.ngonRotation * Mathf.Deg2Rad;
+                    float rot = TipUp + halfSector
+                              + ShaperValue.Sample(def.ngonRotationDial, phase01, seed ^ FldNgonRotation, 0f) * Mathf.Deg2Rad;
 
                     b.count = n;
                     b.p0 = apothemInner; b.p1 = halfEdge; b.p2 = corner; b.p3 = rot; b.p4 = sector;
@@ -244,7 +340,7 @@ namespace Laubrary.Shaper
                 case ShaperPrimitiveKind.Star:
                 {
                     // ── Pyre's star geometry, PyreRenderer.cs:3259-3281, ported by value ──────────────────
-                    float R = Mathf.Max(1e-4f, def.starRadius);
+                    float R = Mathf.Max(1e-4f, ShaperValue.Sample(def.starRadiusDial, phase01, seed ^ FldStarRadius, 50f));
                     int N = Mathf.Clamp(def.starArms, 2, 20);
                     float len = Mathf.Clamp01(ShaperValue.Sample(def.starLength, phase01, seed ^ FldStarLen, 0.62f));
 

@@ -535,57 +535,58 @@ namespace Laubrary.Shaper.Editor
             // sized against the canvas rather than a fixed guess.
             float ext = Mathf.Max(document.canvasWidth, document.canvasHeight);
 
+            p.EnsureDials();
+
             switch (p.kind)
             {
                 case ShaperPrimitiveKind.Rect:
                     box.Add(Z.HGroup(
-                        Dial("Half width", "Half the rectangle's width, canvas pixels.", p.rectHalfW, 1f, ext, v => p.rectHalfW = v),
-                        Dial("Half height", "Half the rectangle's height, canvas pixels.", p.rectHalfH, 1f, ext, v => p.rectHalfH = v),
-                        Dial("Corner", "Corner radius, canvas pixels. 0 is a sharp corner.", p.rectCornerRadius, 0f, ext * 0.5f, v => p.rectCornerRadius = v)));
+                        Val("Half width", "Half the rectangle's width, canvas pixels.", p.rectHalfWDial, 1f, ext),
+                        Val("Half height", "Half the rectangle's height, canvas pixels.", p.rectHalfHDial, 1f, ext),
+                        Val("Corner", "Corner radius, canvas pixels. 0 is a sharp corner.", p.rectCornerRadiusDial, 0f, ext * 0.5f)));
                     break;
 
                 case ShaperPrimitiveKind.Ellipse:
                     box.Add(Z.HGroup(
-                        Dial("Radius X", "Horizontal radius, canvas pixels.", p.ellipseRx, 1f, ext, v => p.ellipseRx = v),
-                        Dial("Radius Y", "Vertical radius, canvas pixels.", p.ellipseRy, 1f, ext, v => p.ellipseRy = v)));
+                        Val("Radius X", "Horizontal radius, canvas pixels.", p.ellipseRxDial, 1f, ext),
+                        Val("Radius Y", "Vertical radius, canvas pixels.", p.ellipseRyDial, 1f, ext)));
                     break;
 
                 case ShaperPrimitiveKind.Diamond:
                     box.Add(Z.HGroup(
-                        Dial("Radius X", "Horizontal vertex distance from centre, canvas pixels.", p.diamondRx, 1f, ext, v => p.diamondRx = v),
-                        Dial("Radius Y", "Vertical vertex distance from centre, canvas pixels.", p.diamondRy, 1f, ext, v => p.diamondRy = v)));
+                        Val("Radius X", "Horizontal vertex distance from centre, canvas pixels.", p.diamondRxDial, 1f, ext),
+                        Val("Radius Y", "Vertical vertex distance from centre, canvas pixels.", p.diamondRyDial, 1f, ext)));
                     break;
 
                 case ShaperPrimitiveKind.Triangle:
                     box.Add(Z.HGroup(
-                        Dial("Base", "Base width, canvas pixels.", p.triangleBase, 1f, ext * 2f, v => p.triangleBase = v),
-                        Dial("Height", "Height from base to apex, canvas pixels.", p.triangleHeight, 1f, ext * 2f, v => p.triangleHeight = v)));
+                        Val("Base", "Base width, canvas pixels.", p.triangleBaseDial, 1f, ext * 2f),
+                        Val("Height", "Height from base to apex, canvas pixels.", p.triangleHeightDial, 1f, ext * 2f)));
                     break;
 
                 case ShaperPrimitiveKind.Capsule:
                     box.Add(Z.HGroup(
-                        Dial("Half length", "Half the length of the capsule's centre segment, canvas pixels.", p.capsuleHalfLength, 0f, ext, v => p.capsuleHalfLength = v),
-                        Dial("Radius", "Cap radius, canvas pixels.", p.capsuleRadius, 1f, ext * 0.5f, v => p.capsuleRadius = v)));
+                        Val("Half length", "Half the length of the capsule's centre segment, canvas pixels.", p.capsuleHalfLengthDial, 0f, ext),
+                        Val("Radius", "Cap radius, canvas pixels.", p.capsuleRadiusDial, 1f, ext * 0.5f)));
                     break;
 
                 case ShaperPrimitiveKind.NGon:
+                    // Side count is the one plain dial here: it picks one of a discrete family of polygons
+                    // rather than measuring one, so a curve through it would pop rather than animate.
                     box.Add(Z.HGroup(
                         Dial("Sides", "How many sides the polygon has.", p.ngonSides, 3f, 64f, v => p.ngonSides = Mathf.RoundToInt(v), decimals: 0),
-                        Dial("Radius", "Circumradius, canvas pixels.", p.ngonRadius, 1f, ext, v => p.ngonRadius = v),
-                        Dial("Rotation", "Rotation of the polygon, degrees.", p.ngonRotation, 0f, 360f, v => p.ngonRotation = v, decimals: 0),
-                        Dial("Corner", "Corner radius, canvas pixels.", p.ngonCornerRadius, 0f, ext * 0.5f, v => p.ngonCornerRadius = v)));
+                        Val("Radius", "Circumradius, canvas pixels.", p.ngonRadiusDial, 1f, ext),
+                        Val("Rotation", "Rotation of the polygon, degrees.", p.ngonRotationDial, -360f, 360f, cyclic: true, decimals: 0),
+                        Val("Corner", "Corner radius, canvas pixels.", p.ngonCornerRadiusDial, 0f, ext * 0.5f)));
                     break;
 
                 case ShaperPrimitiveKind.Star:
-                    // Sides/radius are plain floats on the real def; length/base width/skew are ZUIValue
-                    // (ShaperPrimitives.cs:39-43) and therefore genuinely animatable — hence Val, not Dial.
-                    // This is the per-field check in action: same struct, two different postures.
                     box.Add(Z.HGroup(
                         Dial("Arms", "How many points the star has.", p.starArms, 2f, 20f, v => p.starArms = Mathf.RoundToInt(v), decimals: 0),
-                        Dial("Radius", "Outer radius, canvas pixels.", p.starRadius, 1f, ext, v => p.starRadius = v),
-                        Val("Length", "How far the arms reach relative to the outer radius. Animatable over the document's phase.", p.starLength, 0f, 1f),
-                        Val("Base width", "How wide each arm is at its base. Animatable over the document's phase.", p.starBaseWidth, 0f, 2f),
-                        Val("Skew", "Twists the arms. Animatable over the document's phase.", p.starSkew, -1f, 1f)));
+                        Val("Radius", "Outer radius, canvas pixels.", p.starRadiusDial, 1f, ext),
+                        Val("Length", "How far the arms reach relative to the outer radius.", p.starLength, 0f, 1f),
+                        Val("Base width", "How wide each arm is at its base.", p.starBaseWidth, 0f, 2f),
+                        Val("Skew", "Twists the arms.", p.starSkew, -1f, 1f)));
                     break;
             }
         }
@@ -601,29 +602,35 @@ namespace Laubrary.Shaper.Editor
                 "shaper.window.transform", icon: "move");
 
             float ext = Mathf.Max(document.canvasWidth, document.canvasHeight);
+            t.EnsureDials();
 
-            // Spatial X/Y pairs are 2D pads, never two packed float fields — dragging two 1D fields to aim one
-            // 2D value is the ergonomics problem, and packing them into a row fixes only the width.
+            // Spatial X/Y pairs are one 2D control, never two packed float fields — dragging two 1D fields to
+            // aim one 2D value is the ergonomics problem, and packing them into a row fixes only the width.
+            // Value2D rather than Pad, because each axis is its own animatable dial: right-click either to
+            // author a Curve and the node travels, grows or leans over the document's frames.
             box.Add(Z.HGroup(
-                Z.Field("Translate", "Move this node's content, in canvas pixels.",
-                    Z.Pad(t.translate, new Rect(-ext, -ext, ext * 2f, ext * 2f),
-                        "Move this node's content, in canvas pixels.",
-                        v => Change(() => t.translate = v))),
-                Z.Field("Origin", "The point this node rotates and scales around, in canvas pixels.",
-                    Z.Pad(t.origin, new Rect(-ext, -ext, ext * 2f, ext * 2f),
-                        "The point this node rotates and scales around, in canvas pixels.",
-                        v => Change(() => t.origin = v))),
-                Z.Field("Scale", "Scale this node's content on each axis. 1 is unscaled.",
-                    Z.Pad(t.scale, new Rect(0.05f, 0.05f, 3.95f, 3.95f),
-                        "Scale this node's content on each axis. 1 is unscaled.",
-                        v => Change(() => t.scale = v))),
-                Z.Field("Skew", "Slant this node's content on each axis, in degrees.",
-                    Z.Pad(t.skewDegrees, new Rect(-80f, -80f, 160f, 160f),
-                        "Slant this node's content on each axis, in degrees.",
-                        v => Change(() => t.skewDegrees = v)))));
+                Val2D("Translate", "Move this node's content, in canvas pixels. Animate it to make the node "
+                    + "travel across the canvas over the document's frames.",
+                    t.translateX, t.translateY,
+                    new ZuiValue2DControl.Options().WithRange(-ext, ext, -ext, ext).WithPlotSize(110f)
+                        .WithPrefKey("shaper.transform.translate")),
+                Val2D("Origin", "The point this node rotates and scales around, in canvas pixels.",
+                    t.originX, t.originY,
+                    new ZuiValue2DControl.Options().WithRange(-ext, ext, -ext, ext).WithPlotSize(110f)
+                        .WithPrefKey("shaper.transform.origin")),
+                Val2D("Scale", "Scale this node's content on each axis. 1 is unscaled. Animate it to make the "
+                    + "node grow or shrink over the document's frames.",
+                    t.scaleX, t.scaleY,
+                    new ZuiValue2DControl.Options().WithRange(0.05f, 4f, 0.05f, 4f).WithPlotSize(110f)
+                        .WithDefault(Vector2.one).WithPrefKey("shaper.transform.scale")),
+                Val2D("Skew", "Slant this node's content on each axis, in degrees.",
+                    t.skewX, t.skewY,
+                    new ZuiValue2DControl.Options().WithRange(-80f, 80f, -80f, 80f).WithPlotSize(110f)
+                        .WithPrefKey("shaper.transform.skew"))));
 
-            box.Add(Dial("Rotation", "Rotate this node's content around its origin, in degrees.",
-                t.rotation, 0f, 360f, v => t.rotation = v, decimals: 0));
+            box.Add(Val("Rotation", "Rotate this node's content around its origin, in degrees. Animate it to "
+                + "make the node spin over the document's frames.",
+                t.rotationDegrees, -720f, 720f, cyclic: true, decimals: 0));
 
             root.Add(box);
         }
@@ -647,6 +654,23 @@ namespace Laubrary.Shaper.Editor
             // T-0165 — repaint the cache tick strip / "N/M cached" readout whenever the background pre-baker
             // makes progress, without touching the (expensive) preview image itself.
             stage.CacheProgressed += RefreshCacheReadout;
+
+            // T-0168 — the on-canvas position handle. The stage draws and drags it; which node it belongs to,
+            // and what an edit costs in Undo, stay the window's business.
+            stage.SelectedNode = () => CurrentNode;
+            stage.SelectedLayerRoot = () => CurrentLayer?.root;
+            stage.RecordUndo = () => { if (document != null) Undo.RecordObject(document, "Move Shaper Node"); };
+            stage.Changed = () =>
+            {
+                if (document != null) EditorUtility.SetDirty(document);
+                stage.InvalidateFrameCache();
+                RefreshPreview();
+            };
+            // Only once the drag has settled: the Transform card's own numeric readout has to catch up with
+            // where the handle was dropped, and rebuilding the panel mid-gesture would pull the control out
+            // from under the pointer.
+            stage.DragCommitted = Rebuild;
+
             previewSection.Add(stage);
             ApplyPreviewChromeToStage();
 
@@ -909,6 +933,19 @@ namespace Laubrary.Shaper.Editor
                 },
                 () => { if (document != null) Undo.RecordObject(document, "Edit Shaper Document"); });
         }
+
+        /// The 2D analog of Val — one control over an X/Y PAIR of animatable dials, so a spatial value is aimed
+        /// by dragging a point rather than by nudging two sliders. Same Undo/dirty/cache contract as Val.
+        internal VisualElement Val2D(string label, string tooltip, ZUIValue x, ZUIValue y,
+                                     ZuiValue2DControl.Options o)
+            => Z.Value2D(label, x, y, o, tooltip,
+                () =>
+                {
+                    if (document != null) EditorUtility.SetDirty(document);
+                    stage?.InvalidateFrameCache();
+                    RefreshPreview();
+                },
+                () => { if (document != null) Undo.RecordObject(document, "Edit Shaper Document"); });
 
         /// Re-render the preview. T-0165 — this now reads through ShaperPreviewStage's own frame cache
         /// (ShaperPreviewFrameCache), so a frame already visited this session is a dictionary hit rather than

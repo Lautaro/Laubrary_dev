@@ -67,51 +67,72 @@ namespace Laubrary.Shaper
 
         static ShaperCacheMixer MixCommon(ShaperCacheMixer m, ShaperNode node, float phase01, uint seed)
         {
-            m.MixVector2(node.transform.translate);
-            m.MixFloat(node.transform.rotation);
-            m.MixVector2(node.transform.scale);
-            m.MixVector2(node.transform.skewDegrees);
-            m.MixVector2(node.transform.origin);
-            MixSweep(ref m, node.sweep);
-            MixShell(ref m, node.shell);
+            var t = node.transform;
+            if (t != null)
+            {
+                t.EnsureDials();
+                MixZuiValue(ref m, t.translateX, phase01);
+                MixZuiValue(ref m, t.translateY, phase01);
+                MixZuiValue(ref m, t.rotationDegrees, phase01);
+                MixZuiValue(ref m, t.scaleX, phase01);
+                MixZuiValue(ref m, t.scaleY, phase01);
+                MixZuiValue(ref m, t.skewX, phase01);
+                MixZuiValue(ref m, t.skewY, phase01);
+                MixZuiValue(ref m, t.originX, phase01);
+                MixZuiValue(ref m, t.originY, phase01);
+            }
+            MixSweep(ref m, node.sweep, phase01);
+            MixShell(ref m, node.shell, phase01);
             m.MixFloat(phase01);
             m.MixUInt(seed);
             return m;
         }
 
-        static void MixSweep(ref ShaperCacheMixer m, ShaperSweep s)
+        static void MixSweep(ref ShaperCacheMixer m, ShaperSweep s, float phase01)
         {
             if (s == null) { m.MixBool(false); return; }
             m.MixBool(s.enabled);
             if (!s.enabled) return;
-            m.MixFloat(s.startDegrees); m.MixFloat(s.extentDegrees);
-            m.MixFloat(s.startFraction); m.MixFloat(s.extentFraction);
+            s.EnsureDials();
+            MixZuiValue(ref m, s.startDegreesDial, phase01); MixZuiValue(ref m, s.extentDegreesDial, phase01);
+            MixZuiValue(ref m, s.startFractionDial, phase01); MixZuiValue(ref m, s.extentFractionDial, phase01);
         }
 
-        static void MixShell(ref ShaperCacheMixer m, ShaperShell s)
+        static void MixShell(ref ShaperCacheMixer m, ShaperShell s, float phase01)
         {
             if (s == null) { m.MixBool(false); return; }
             m.MixBool(s.enabled);
             if (!s.enabled) return;
-            m.MixFloat(s.thickness);
+            s.EnsureDials();
+            MixZuiValue(ref m, s.thicknessDial, phase01);
             m.MixInt((int)s.alignment);
         }
 
-        static void MixSwarmDef(ref ShaperCacheMixer m, ShaperSwarmDef s)
+        static void MixBlend(ref ShaperCacheMixer m, ShaperBlend b, float phase01)
+        {
+            if (b == null) { m.MixBool(false); return; }
+            m.MixBool(true);
+            b.EnsureDials();
+            MixZuiValue(ref m, b.widthDial, phase01);
+            MixZuiValue(ref m, b.sharpnessDial, phase01);
+            MixZuiValue(ref m, b.carveStrengthDial, phase01);
+        }
+
+        static void MixSwarmDef(ref ShaperCacheMixer m, ShaperSwarmDef s, float phase01)
         {
             if (s == null) { m.MixBool(false); return; }
             m.MixBool(s.enabled);
             if (!s.enabled || s.count <= 1) return;
+            s.EnsureDials();
             m.MixInt(s.count);
             m.MixUInt(s.seed);
-            m.MixVector2(s.positionJitter);
-            m.MixFloat(s.rotationJitterDegrees);
-            m.MixFloat(s.scaleJitter);
+            MixZuiValue(ref m, s.positionJitterX, phase01);
+            MixZuiValue(ref m, s.positionJitterY, phase01);
+            MixZuiValue(ref m, s.rotationJitterDegreesDial, phase01);
+            MixZuiValue(ref m, s.scaleJitterDial, phase01);
             m.MixFloat(s.lifetimeStagger);
             m.MixBool(s.interact);
-            m.MixFloat(s.merge != null ? s.merge.width : 0f);
-            m.MixFloat(s.merge != null ? s.merge.sharpness : 0f);
-            m.MixFloat(s.merge != null ? s.merge.carveStrength : 0f);
+            MixBlend(ref m, s.merge, phase01);
         }
 
         /// <summary>
@@ -132,7 +153,7 @@ namespace Laubrary.Shaper
         {
             var m = ShaperCacheMixer.Begin(SaltSolid);
             m = MixCommon(m, node, phase01, seed);
-            MixSwarmDef(ref m, node.swarm);
+            MixSwarmDef(ref m, node.swarm, phase01);
 
             var s = node.solid ?? new ShaperSolidDef();
             m.MixInt((int)s.form);
@@ -166,16 +187,21 @@ namespace Laubrary.Shaper
         {
             var m = ShaperCacheMixer.Begin(SaltPrimitive);
             m = MixCommon(m, node, phase01, seed);
-            MixSwarmDef(ref m, node.swarm);
+            MixSwarmDef(ref m, node.swarm, phase01);
             var p = node.primitive ?? new ShaperPrimitiveDef();
+            p.EnsureDials();
             m.MixInt((int)p.kind);
-            m.MixFloat(p.rectHalfW); m.MixFloat(p.rectHalfH); m.MixFloat(p.rectCornerRadius);
-            m.MixFloat(p.ellipseRx); m.MixFloat(p.ellipseRy);
-            m.MixFloat(p.diamondRx); m.MixFloat(p.diamondRy);
-            m.MixFloat(p.triangleBase); m.MixFloat(p.triangleHeight);
-            m.MixFloat(p.capsuleHalfLength); m.MixFloat(p.capsuleRadius);
-            m.MixInt(p.ngonSides); m.MixFloat(p.ngonRadius); m.MixFloat(p.ngonRotation); m.MixFloat(p.ngonCornerRadius);
-            m.MixInt(p.starArms); m.MixFloat(p.starRadius);
+            MixZuiValue(ref m, p.rectHalfWDial, phase01); MixZuiValue(ref m, p.rectHalfHDial, phase01);
+            MixZuiValue(ref m, p.rectCornerRadiusDial, phase01);
+            MixZuiValue(ref m, p.ellipseRxDial, phase01); MixZuiValue(ref m, p.ellipseRyDial, phase01);
+            MixZuiValue(ref m, p.diamondRxDial, phase01); MixZuiValue(ref m, p.diamondRyDial, phase01);
+            MixZuiValue(ref m, p.triangleBaseDial, phase01); MixZuiValue(ref m, p.triangleHeightDial, phase01);
+            MixZuiValue(ref m, p.capsuleHalfLengthDial, phase01); MixZuiValue(ref m, p.capsuleRadiusDial, phase01);
+            m.MixInt(p.ngonSides);
+            MixZuiValue(ref m, p.ngonRadiusDial, phase01); MixZuiValue(ref m, p.ngonRotationDial, phase01);
+            MixZuiValue(ref m, p.ngonCornerRadiusDial, phase01);
+            m.MixInt(p.starArms);
+            MixZuiValue(ref m, p.starRadiusDial, phase01);
             MixZuiValue(ref m, p.starLength, phase01);
             MixZuiValue(ref m, p.starBaseWidth, phase01);
             MixZuiValue(ref m, p.starSkew, phase01);
@@ -186,7 +212,7 @@ namespace Laubrary.Shaper
         {
             var m = ShaperCacheMixer.Begin(SaltComposite);
             m = MixCommon(m, node, phase01, seed);
-            MixSwarmDef(ref m, node.swarm);
+            MixSwarmDef(ref m, node.swarm, phase01);
             var c = node.composite ?? new ShaperCompositeDef();
             m.MixInt((int)c.reason);
             m.MixString(c.reasonNote);
@@ -230,7 +256,7 @@ namespace Laubrary.Shaper
         {
             var m = ShaperCacheMixer.Begin(SaltBag);
             m = MixCommon(m, node, phase01, seed);
-            MixSwarmDef(ref m, node.swarm);
+            MixSwarmDef(ref m, node.swarm, phase01);
             // Deliberately NOT children here -- see FoldChild/BuildBagKey.
             return m.Key;
         }
@@ -263,10 +289,47 @@ namespace Laubrary.Shaper
         public static bool IsCacheable(ShaperNode node)
         {
             if (node == null || !node.enabled) return true;   // the Empty-key fast path is always safe to cache
+
+            // T-0168 — the transform, sweep, shell, fold blend and swarm jitter ranges are all animatable now,
+            // so the Min-Max exclusion has to cover them too: any of them can be the one dial that re-draws.
+            var t = node.transform;
+            if (t != null &&
+                (IsNonDeterministic(t.translateX) || IsNonDeterministic(t.translateY) ||
+                 IsNonDeterministic(t.rotationDegrees) ||
+                 IsNonDeterministic(t.scaleX) || IsNonDeterministic(t.scaleY) ||
+                 IsNonDeterministic(t.skewX) || IsNonDeterministic(t.skewY) ||
+                 IsNonDeterministic(t.originX) || IsNonDeterministic(t.originY)))
+                return false;
+
+            var sw = node.sweep;
+            if (sw != null && sw.enabled &&
+                (IsNonDeterministic(sw.startDegreesDial) || IsNonDeterministic(sw.extentDegreesDial) ||
+                 IsNonDeterministic(sw.startFractionDial) || IsNonDeterministic(sw.extentFractionDial)))
+                return false;
+
+            var sh = node.shell;
+            if (sh != null && sh.enabled && IsNonDeterministic(sh.thicknessDial)) return false;
+
+            if (IsBlendNonDeterministic(node.blend)) return false;
+
+            var sm = node.swarm;
+            if (sm != null && sm.enabled && sm.count > 1 &&
+                (IsNonDeterministic(sm.positionJitterX) || IsNonDeterministic(sm.positionJitterY) ||
+                 IsNonDeterministic(sm.rotationJitterDegreesDial) || IsNonDeterministic(sm.scaleJitterDial) ||
+                 IsBlendNonDeterministic(sm.merge)))
+                return false;
+
             if (node.kind == ShaperNodeKind.Primitive && node.primitive != null)
             {
                 var p = node.primitive;
-                if (IsNonDeterministic(p.starLength) || IsNonDeterministic(p.starBaseWidth) || IsNonDeterministic(p.starSkew))
+                if (IsNonDeterministic(p.starLength) || IsNonDeterministic(p.starBaseWidth) || IsNonDeterministic(p.starSkew) ||
+                    IsNonDeterministic(p.rectHalfWDial) || IsNonDeterministic(p.rectHalfHDial) || IsNonDeterministic(p.rectCornerRadiusDial) ||
+                    IsNonDeterministic(p.ellipseRxDial) || IsNonDeterministic(p.ellipseRyDial) ||
+                    IsNonDeterministic(p.diamondRxDial) || IsNonDeterministic(p.diamondRyDial) ||
+                    IsNonDeterministic(p.triangleBaseDial) || IsNonDeterministic(p.triangleHeightDial) ||
+                    IsNonDeterministic(p.capsuleHalfLengthDial) || IsNonDeterministic(p.capsuleRadiusDial) ||
+                    IsNonDeterministic(p.ngonRadiusDial) || IsNonDeterministic(p.ngonRotationDial) ||
+                    IsNonDeterministic(p.ngonCornerRadiusDial) || IsNonDeterministic(p.starRadiusDial))
                     return false;
             }
             // T-0155 — the same rule for Solids, and it needs every dial rather than a chosen few: unlike a
@@ -290,6 +353,10 @@ namespace Laubrary.Shaper
 
         static bool IsNonDeterministic(ZUIValue v) => v != null && v.mode == ZUIValue.Mode.MinMax;
 
+        static bool IsBlendNonDeterministic(ShaperBlend b)
+            => b != null && (IsNonDeterministic(b.widthDial) || IsNonDeterministic(b.sharpnessDial) ||
+                             IsNonDeterministic(b.carveStrengthDial));
+
         /// <summary>
         /// The PARENT's fold step: combine an already-accumulated key with one more child, folding in the
         /// child's own <see cref="ShaperCacheKey"/> (its shape) AND the child's <see cref="ShaperNode.mode"/>/
@@ -305,14 +372,14 @@ namespace Laubrary.Shaper
         /// recursively and passes the finished key in here, so this method never needs to know how a nested
         /// bag's key was built, only that it correctly identifies "this child's whole subtree, unioned".
         /// </summary>
-        public static ShaperCacheKey FoldChild(ShaperCacheKey accumulated, ShaperNode child, ShaperCacheKey childKey)
+        public static ShaperCacheKey FoldChild(ShaperCacheKey accumulated, ShaperNode child, ShaperCacheKey childKey,
+                                               float phase01)
         {
             var m = ShaperCacheMixer.Begin(SaltFold);
             m.MixKey(accumulated);
             m.MixKey(childKey);
             m.MixInt((int)child.mode);
-            var b = child.blend ?? new ShaperBlend();
-            m.MixFloat(b.width); m.MixFloat(b.sharpness); m.MixFloat(b.carveStrength);
+            MixBlend(ref m, child.blend ?? new ShaperBlend(), phase01);
             return m.Key;
         }
 
@@ -320,11 +387,12 @@ namespace Laubrary.Shaper
         /// the single atomic cache unit for the whole swarm (see SPEC.md Part 5 -- per-instance sub-caching
         /// within one swarm was designed but not built; this is the coarser, honestly-scoped alternative that
         /// still gets dirty-propagation right at the node level).</summary>
-        public static ShaperCacheKey SwarmWholeNodeKey(ShaperCacheKey baseOwnHashExcludingSwarm, ShaperSwarmDef swarm)
+        public static ShaperCacheKey SwarmWholeNodeKey(ShaperCacheKey baseOwnHashExcludingSwarm, ShaperSwarmDef swarm,
+                                                       float phase01)
         {
             var m = ShaperCacheMixer.Begin(SaltSwarmWhole);
             m.MixKey(baseOwnHashExcludingSwarm);
-            MixSwarmDef(ref m, swarm);
+            MixSwarmDef(ref m, swarm, phase01);
             return m.Key;
         }
 
@@ -352,7 +420,7 @@ namespace Laubrary.Shaper
                 var c = children[i];
                 if (c == null || !c.enabled) continue;
                 var childKey = FullSubtreeStructuralKey(c, phase01, seed);
-                key = FoldChild(key, c, childKey);
+                key = FoldChild(key, c, childKey, phase01);
             }
             return key;
         }
@@ -361,14 +429,20 @@ namespace Laubrary.Shaper
         /// swarm.count/enabled bookkeeping) plus the instance index and the swarm's own seed/jitter ranges, so
         /// instance i's key is IDENTICAL whether the swarm has 5 instances or 50: growing count reuses every
         /// existing instance's cache entry untouched (SPEC.md Part 3).</summary>
-        public static ShaperCacheKey SwarmInstanceKey(ShaperCacheKey baseOwnHashExcludingSwarm, ShaperSwarmDef swarm, int instanceIndex)
+        public static ShaperCacheKey SwarmInstanceKey(ShaperCacheKey baseOwnHashExcludingSwarm, ShaperSwarmDef swarm,
+                                                      int instanceIndex, float phase01)
         {
             var m = ShaperCacheMixer.Begin(SaltSwarmInstance);
             m.MixKey(baseOwnHashExcludingSwarm);
             m.MixUInt(swarm != null ? swarm.seed : 0u);
-            m.MixVector2(swarm != null ? swarm.positionJitter : Vector2.zero);
-            m.MixFloat(swarm != null ? swarm.rotationJitterDegrees : 0f);
-            m.MixFloat(swarm != null ? swarm.scaleJitter : 0f);
+            if (swarm != null)
+            {
+                swarm.EnsureDials();
+                MixZuiValue(ref m, swarm.positionJitterX, phase01);
+                MixZuiValue(ref m, swarm.positionJitterY, phase01);
+                MixZuiValue(ref m, swarm.rotationJitterDegreesDial, phase01);
+                MixZuiValue(ref m, swarm.scaleJitterDial, phase01);
+            }
             m.MixFloat(swarm != null ? swarm.lifetimeStagger : 0f);
             m.MixInt(instanceIndex);
             return m.Key;

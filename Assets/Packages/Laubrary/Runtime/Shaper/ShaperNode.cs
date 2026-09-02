@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Laubrary.Shaper
 {
@@ -24,14 +25,55 @@ namespace Laubrary.Shaper
     /// quantities.
     /// </summary>
     [Serializable]
-    public class ShaperBlend
+    public class ShaperBlend : ISerializationCallbackReceiver
     {
+        const uint FldWidth = 0x7B00_0001u, FldSharpness = 0x7B00_0002u, FldCarve = 0x7B00_0003u;
+
         /// <summary>Blend band half-width in <b>canvas pixels</b>, for Add and Intersect. 0 = a hard combine.</summary>
-        public float width = 0f;
+        public ZUIValue widthDial = new ZUIValue(0f);
         /// <summary>0..1, mapped to the profile exponent <c>n = pow(8, sharpness)</c>.</summary>
-        [Range(0f, 1f)] public float sharpness = 0.5f;
+        public ZUIValue sharpnessDial = new ZUIValue(0.5f);
         /// <summary>0..1 for Subtract: 1 = a full hard cut, 0 = an exact no-op everywhere in the field.</summary>
-        [Range(0f, 1f)] public float carveStrength = 1f;
+        public ZUIValue carveStrengthDial = new ZUIValue(1f);
+
+        [SerializeField, FormerlySerializedAs("width")]         float legacyWidth = 0f;
+        [SerializeField, FormerlySerializedAs("sharpness")]     float legacySharpness = 0.5f;
+        [SerializeField, FormerlySerializedAs("carveStrength")] float legacyCarve = 1f;
+        [SerializeField] bool dialsPromoted;
+
+        public void OnBeforeSerialize() => dialsPromoted = true;
+
+        public void OnAfterDeserialize()
+        {
+            if (dialsPromoted) { EnsureDials(); return; }
+            widthDial = new ZUIValue(legacyWidth);
+            sharpnessDial = new ZUIValue(legacySharpness);
+            carveStrengthDial = new ZUIValue(legacyCarve);
+            dialsPromoted = true;
+        }
+
+        public void EnsureDials()
+        {
+            if (widthDial == null) widthDial = new ZUIValue(0f);
+            if (sharpnessDial == null) sharpnessDial = new ZUIValue(0.5f);
+            if (carveStrengthDial == null) carveStrengthDial = new ZUIValue(1f);
+        }
+
+        // Plain-number views of the three dials, for code that authors one outright rather than as an envelope.
+        // They read and write the STATIC value only, which is what "set this blend to 4 pixels" means.
+        public float width { get => ShaperDial.Get(widthDial); set => ShaperDial.Set(ref widthDial, value); }
+        public float sharpness { get => ShaperDial.Get(sharpnessDial, 0.5f); set => ShaperDial.Set(ref sharpnessDial, value); }
+        public float carveStrength { get => ShaperDial.Get(carveStrengthDial, 1f); set => ShaperDial.Set(ref carveStrengthDial, value); }
+
+        /// <summary>The three dials sampled once at <paramref name="phase01"/>, already clamped to the ranges
+        /// the fold maths requires, so no caller has to remember which of them is bounded.</summary>
+        public void Sample(float phase01, uint seed, out float bandWidth, out float sharp, out float carve)
+        {
+            EnsureDials();
+            bandWidth = Mathf.Max(0f, ShaperValue.Sample(widthDial, phase01, seed ^ FldWidth, 0f));
+            sharp = Mathf.Clamp01(ShaperValue.Sample(sharpnessDial, phase01, seed ^ FldSharpness, 0.5f));
+            carve = Mathf.Clamp01(ShaperValue.Sample(carveStrengthDial, phase01, seed ^ FldCarve, 1f));
+        }
     }
 
     /// <summary>
@@ -47,19 +89,65 @@ namespace Laubrary.Shaper
     /// identity default, so an enabled sweep with nothing authored is a no-op on either axis.
     /// </summary>
     [Serializable]
-    public class ShaperSweep
+    public class ShaperSweep : ISerializationCallbackReceiver
     {
+        const uint FldStartDeg = 0x7C00_0001u, FldExtentDeg = 0x7C00_0002u;
+        const uint FldStartFrac = 0x7C00_0003u, FldExtentFrac = 0x7C00_0004u;
+
         public bool enabled = false;
 
         /// <summary>Radial only: where the kept arc starts, in degrees from +X, counter-clockwise.</summary>
-        public float startDegrees = 0f;
+        public ZUIValue startDegreesDial = new ZUIValue(0f);
         /// <summary>Radial only: degrees of arc kept. 360 (the default) is the identity.</summary>
-        public float extentDegrees = 360f;
+        public ZUIValue extentDegreesDial = new ZUIValue(360f);
 
         /// <summary>Longitudinal only: where the kept slab starts, as a 0..1 fraction of the length.</summary>
-        [Range(0f, 1f)] public float startFraction = 0f;
+        public ZUIValue startFractionDial = new ZUIValue(0f);
         /// <summary>Longitudinal only: the 0..1 fraction of the length kept. 1 (the default) is the identity.</summary>
-        [Range(0f, 1f)] public float extentFraction = 1f;
+        public ZUIValue extentFractionDial = new ZUIValue(1f);
+
+        [SerializeField, FormerlySerializedAs("startDegrees")]   float legacyStartDegrees = 0f;
+        [SerializeField, FormerlySerializedAs("extentDegrees")]  float legacyExtentDegrees = 360f;
+        [SerializeField, FormerlySerializedAs("startFraction")]  float legacyStartFraction = 0f;
+        [SerializeField, FormerlySerializedAs("extentFraction")] float legacyExtentFraction = 1f;
+        [SerializeField] bool dialsPromoted;
+
+        public void OnBeforeSerialize() => dialsPromoted = true;
+
+        public void OnAfterDeserialize()
+        {
+            if (dialsPromoted) { EnsureDials(); return; }
+            startDegreesDial = new ZUIValue(legacyStartDegrees);
+            extentDegreesDial = new ZUIValue(legacyExtentDegrees);
+            startFractionDial = new ZUIValue(legacyStartFraction);
+            extentFractionDial = new ZUIValue(legacyExtentFraction);
+            dialsPromoted = true;
+        }
+
+        public void EnsureDials()
+        {
+            if (startDegreesDial == null) startDegreesDial = new ZUIValue(0f);
+            if (extentDegreesDial == null) extentDegreesDial = new ZUIValue(360f);
+            if (startFractionDial == null) startFractionDial = new ZUIValue(0f);
+            if (extentFractionDial == null) extentFractionDial = new ZUIValue(1f);
+        }
+
+        public float startDegrees { get => ShaperDial.Get(startDegreesDial); set => ShaperDial.Set(ref startDegreesDial, value); }
+        public float extentDegrees { get => ShaperDial.Get(extentDegreesDial, 360f); set => ShaperDial.Set(ref extentDegreesDial, value); }
+        public float startFraction { get => ShaperDial.Get(startFractionDial); set => ShaperDial.Set(ref startFractionDial, value); }
+        public float extentFraction { get => ShaperDial.Get(extentFractionDial, 1f); set => ShaperDial.Set(ref extentFractionDial, value); }
+
+        /// <summary>The four dials at <paramref name="phase01"/>, each clamped to its own declared range so an
+        /// animated sweep can never hand the compiler an arc it has no maths for.</summary>
+        public void Sample(float phase01, uint seed, out float startDeg, out float extentDeg,
+                           out float startFrac, out float extentFrac)
+        {
+            EnsureDials();
+            startDeg = ShaperValue.Sample(startDegreesDial, phase01, seed ^ FldStartDeg, 0f);
+            extentDeg = Mathf.Clamp(ShaperValue.Sample(extentDegreesDial, phase01, seed ^ FldExtentDeg, 360f), 0f, 360f);
+            startFrac = Mathf.Clamp01(ShaperValue.Sample(startFractionDial, phase01, seed ^ FldStartFrac, 0f));
+            extentFrac = Mathf.Clamp01(ShaperValue.Sample(extentFractionDial, phase01, seed ^ FldExtentFrac, 1f));
+        }
     }
 
     /// <summary>
@@ -67,12 +155,39 @@ namespace Laubrary.Shaper
     /// Its identity setting is <c>enabled == false</c>, which returns the child's value untouched.
     /// </summary>
     [Serializable]
-    public class ShaperShell
+    public class ShaperShell : ISerializationCallbackReceiver
     {
+        const uint FldThickness = 0x7D00_0001u;
+
         public bool enabled = false;
         /// <summary>Wall thickness in canvas pixels — constant everywhere, which is the whole point.</summary>
-        public float thickness = 4f;
+        public ZUIValue thicknessDial = new ZUIValue(4f);
         public ShaperShellAlignment alignment = ShaperShellAlignment.Centred;
+
+        [SerializeField, FormerlySerializedAs("thickness")] float legacyThickness = 4f;
+        [SerializeField] bool dialsPromoted;
+
+        public void OnBeforeSerialize() => dialsPromoted = true;
+
+        public void OnAfterDeserialize()
+        {
+            if (dialsPromoted) { EnsureDials(); return; }
+            thicknessDial = new ZUIValue(legacyThickness);
+            dialsPromoted = true;
+        }
+
+        public void EnsureDials()
+        {
+            if (thicknessDial == null) thicknessDial = new ZUIValue(4f);
+        }
+
+        public float thickness { get => ShaperDial.Get(thicknessDial, 4f); set => ShaperDial.Set(ref thicknessDial, value); }
+
+        public float SampleThickness(float phase01, uint seed)
+        {
+            EnsureDials();
+            return Mathf.Max(0f, ShaperValue.Sample(thicknessDial, phase01, seed ^ FldThickness, 4f));
+        }
     }
 
     /// <summary>

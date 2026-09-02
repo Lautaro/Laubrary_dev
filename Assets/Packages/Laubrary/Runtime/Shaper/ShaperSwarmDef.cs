@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Laubrary.Shaper
 {
@@ -107,8 +108,11 @@ namespace Laubrary.Shaper
     /// silently mis-declare its own implementation.
     /// </summary>
     [Serializable]
-    public class ShaperSwarmDef
+    public class ShaperSwarmDef : ISerializationCallbackReceiver
     {
+        const uint FldPosJitterX = 0x7E00_0001u, FldPosJitterY = 0x7E00_0002u;
+        const uint FldRotJitter = 0x7E00_0003u, FldScaleJitter = 0x7E00_0004u;
+
         public bool enabled = false;
 
         /// <summary>Instance count. 1 is a legal identity — one instance, itself.</summary>
@@ -121,14 +125,15 @@ namespace Laubrary.Shaper
         /// <summary>Half-range, in the node's own PARENT-local canvas units, of a per-instance random position
         /// offset. (0,0) is the identity — every instance lands exactly on the node's own authored position,
         /// still a legal (if pointless) swarm rather than a forced minimum spread.</summary>
-        public Vector2 positionJitter = new Vector2(24f, 24f);
+        public ZUIValue positionJitterX = new ZUIValue(24f);
+        public ZUIValue positionJitterY = new ZUIValue(24f);
 
         /// <summary>Degrees, half-range, of a per-instance random rotation offset added to the node's own.</summary>
-        public float rotationJitterDegrees = 0f;
+        public ZUIValue rotationJitterDegreesDial = new ZUIValue(0f);
 
         /// <summary>0..1, half-range, of a per-instance random uniform scale multiplier around 1 (so 0.3 draws
         /// each instance's scale from 0.7×..1.3× the node's own).</summary>
-        [Range(0f, 1f)] public float scaleJitter = 0f;
+        public ZUIValue scaleJitterDial = new ZUIValue(0f);
 
         /// <summary>
         /// THE FIX this task's body requires ("most big effects start every instance on the shared clock, so
@@ -161,5 +166,62 @@ namespace Laubrary.Shaper
         /// reasoning and SWARM-SPEC.md §5 for the measured cost this protects against.
         /// </summary>
         public const int SimulationHardCap = 6;
+
+        [SerializeField, FormerlySerializedAs("positionJitter")]        Vector2 legacyPositionJitter = new Vector2(24f, 24f);
+        [SerializeField, FormerlySerializedAs("rotationJitterDegrees")] float legacyRotationJitter = 0f;
+        [SerializeField, FormerlySerializedAs("scaleJitter")]           float legacyScaleJitter = 0f;
+        [SerializeField] bool dialsPromoted;
+
+        public void OnBeforeSerialize() => dialsPromoted = true;
+
+        public void OnAfterDeserialize()
+        {
+            if (dialsPromoted) { EnsureDials(); return; }
+            positionJitterX = new ZUIValue(legacyPositionJitter.x);
+            positionJitterY = new ZUIValue(legacyPositionJitter.y);
+            rotationJitterDegreesDial = new ZUIValue(legacyRotationJitter);
+            scaleJitterDial = new ZUIValue(legacyScaleJitter);
+            dialsPromoted = true;
+        }
+
+        public void EnsureDials()
+        {
+            if (positionJitterX == null) positionJitterX = new ZUIValue(24f);
+            if (positionJitterY == null) positionJitterY = new ZUIValue(24f);
+            if (rotationJitterDegreesDial == null) rotationJitterDegreesDial = new ZUIValue(0f);
+            if (scaleJitterDial == null) scaleJitterDial = new ZUIValue(0f);
+            if (merge == null) merge = new ShaperBlend();
+        }
+
+        public Vector2 positionJitter
+        {
+            get => new Vector2(ShaperDial.Get(positionJitterX, 24f), ShaperDial.Get(positionJitterY, 24f));
+            set { ShaperDial.Set(ref positionJitterX, value.x); ShaperDial.Set(ref positionJitterY, value.y); }
+        }
+
+        public float rotationJitterDegrees
+        {
+            get => ShaperDial.Get(rotationJitterDegreesDial);
+            set => ShaperDial.Set(ref rotationJitterDegreesDial, value);
+        }
+
+        public float scaleJitter
+        {
+            get => ShaperDial.Get(scaleJitterDial);
+            set => ShaperDial.Set(ref scaleJitterDial, value);
+        }
+
+        /// <summary>The jitter RANGES at <paramref name="phase01"/> — the ranges themselves are animatable, so a
+        /// swarm can start tight and spread out; the per-instance draw within them stays a pure hash of
+        /// <see cref="seed"/> and the instance index.</summary>
+        public void SampleJitter(float phase01, uint dialSeed, out Vector2 position, out float rotation, out float scale)
+        {
+            EnsureDials();
+            position = new Vector2(
+                ShaperValue.Sample(positionJitterX, phase01, dialSeed ^ FldPosJitterX, 24f),
+                ShaperValue.Sample(positionJitterY, phase01, dialSeed ^ FldPosJitterY, 24f));
+            rotation = ShaperValue.Sample(rotationJitterDegreesDial, phase01, dialSeed ^ FldRotJitter, 0f);
+            scale = Mathf.Clamp01(ShaperValue.Sample(scaleJitterDial, phase01, dialSeed ^ FldScaleJitter, 0f));
+        }
     }
 }

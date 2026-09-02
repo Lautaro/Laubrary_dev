@@ -255,7 +255,7 @@ namespace Laubrary.Shaper
         static Emitted EmitNode(ShaperNode node, in ShaperMatrix parentForward, State st, bool isRoot = false)
         {
             var block = node.transform ?? new ShaperTransformBlock();
-            ShaperMatrix localToParent = block.ToMatrix();
+            ShaperMatrix localToParent = block.ToMatrix(st.phase01, st.seed);
             ShaperMatrix forward = ShaperMatrix.Mul(parentForward, localToParent);
             bool invertible = forward.TryInvert(out ShaperMatrix inverse);
             forward.SingularValues(out float sigmaMin, out float sigmaMax);
@@ -397,7 +397,7 @@ namespace Laubrary.Shaper
             // BASE (un-jittered) transform stands in for the local-frame fields a parent bag's box fold or a
             // fill-anchor subtree compile may read off this node, exactly as EmitNode publishes them for an
             // ordinary node. Documented approximation, not a bug: SWARM-SPEC.md §4.
-            ShaperMatrix baseLocalToParent = (node.transform ?? new ShaperTransformBlock()).ToMatrix();
+            ShaperMatrix baseLocalToParent = (node.transform ?? new ShaperTransformBlock()).ToMatrix(st.phase01, st.seed);
             ShaperMatrix baseForward = ShaperMatrix.Mul(parentForward, baseLocalToParent);
             bool baseInvertible = baseForward.TryInvert(out ShaperMatrix baseInverse);
             baseForward.SingularValues(out float baseSigmaMin, out _);
@@ -438,10 +438,16 @@ namespace Laubrary.Shaper
             bool axisAgrees = true;
             float spread = 1f;
 
-            Vector2 originalTranslate = transform.translate;
-            float originalRotation = transform.rotation;
-            Vector2 originalScale = transform.scale;
+            // The per-instance offset is written to the transform block's OWN jitter slots rather than onto its
+            // authored dials: a dial may be a Curve, and the only way to write a jittered number onto one would
+            // be to overwrite its static value, which silently throws the curve away.
+            Vector2 originalInstanceTranslate = transform.instanceTranslate;
+            float originalInstanceRotation = transform.instanceRotationDegrees;
+            float originalInstanceScaleBias = transform.instanceScaleBias;
             bool originalSwarmEnabled = swarm.enabled;
+
+            swarm.SampleJitter(st.phase01, st.seed, out Vector2 jitterRange, out float rotJitterRange,
+                               out float scaleJitterRange);
             float originalPhase = st.phase01;
             uint originalSeed = st.seed;
 
@@ -458,15 +464,15 @@ namespace Laubrary.Shaper
                     uint h3 = Hash(h2, 0xC2B2AE3Du);
                     uint h4 = Hash(h3, 0x27D4EB2Fu);
 
-                    float jx = (Unit(h0) * 2f - 1f) * swarm.positionJitter.x;
-                    float jy = (Unit(h1) * 2f - 1f) * swarm.positionJitter.y;
-                    float jrot = (Unit(h2) * 2f - 1f) * swarm.rotationJitterDegrees;
-                    float jscale = 1f + (Unit(h3) * 2f - 1f) * swarm.scaleJitter;
+                    float jx = (Unit(h0) * 2f - 1f) * jitterRange.x;
+                    float jy = (Unit(h1) * 2f - 1f) * jitterRange.y;
+                    float jrot = (Unit(h2) * 2f - 1f) * rotJitterRange;
+                    float jscale = (Unit(h3) * 2f - 1f) * scaleJitterRange;
                     float jphaseRaw = Unit(h4);
 
-                    transform.translate = originalTranslate + new Vector2(jx, jy);
-                    transform.rotation = originalRotation + jrot;
-                    transform.scale = originalScale * jscale;
+                    transform.instanceTranslate = new Vector2(jx, jy);
+                    transform.instanceRotationDegrees = jrot;
+                    transform.instanceScaleBias = jscale;
 
                     // THE shared-clock fix: at lifetimeStagger=1 each instance's phase is drawn independently
                     // across the whole cycle; at 0 every instance shares the node's own phase, the old broken
@@ -481,8 +487,7 @@ namespace Laubrary.Shaper
                     else if (axis != ce.sweepAxis) axisAgrees = false;
 
                     var merge = swarm.merge ?? new ShaperBlend();
-                    float width = Mathf.Max(0f, merge.width);
-                    float strength = Mathf.Clamp01(merge.carveStrength);
+                    merge.Sample(st.phase01, st.seed, out float width, out float mergeSharpness, out float strength);
 
                     Box combined = box.Union(ce.box);
                     Box childLocal = ce.localBox.Map(ce.localToParent);
@@ -496,7 +501,7 @@ namespace Laubrary.Shaper
                         kind = ShaperOpKind.Combine,
                         mode = ShaperCombineMode.Add,
                         p0 = width,
-                        p1 = ShaperOps.BlendExponent(merge.sharpness),
+                        p1 = ShaperOps.BlendExponent(mergeSharpness),
                         p2 = strength,
                         p3 = Mathf.Max(0f, reach),
                         bound = ShaperBound.Combine(ShaperCombineMode.Add, bound, ce.bound, width, strength),
@@ -516,9 +521,9 @@ namespace Laubrary.Shaper
             }
             finally
             {
-                transform.translate = originalTranslate;
-                transform.rotation = originalRotation;
-                transform.scale = originalScale;
+                transform.instanceTranslate = originalInstanceTranslate;
+                transform.instanceRotationDegrees = originalInstanceRotation;
+                transform.instanceScaleBias = originalInstanceScaleBias;
                 swarm.enabled = originalSwarmEnabled;
                 st.phase01 = originalPhase;
                 st.seed = originalSeed;
@@ -559,19 +564,23 @@ namespace Laubrary.Shaper
             var offsets = new Vector2[count];
             var seeds = new uint[count];
             var phases = new float[count];
+            // The jitter RANGES are read once, at the node's own phase — the per-instance draw inside them stays
+            // a pure hash, so an animated range widens or tightens the cloud without re-rolling which instance
+            // sits where.
+            swarm.SampleJitter(st.phase01, st.seed, out Vector2 jitterRange, out _, out _);
             for (int i = 0; i < count; i++)
             {
                 uint h0 = Hash(swarm.seed, (uint)i * 2654435761u + 1u);
                 uint h1 = Hash(h0, 0x9E3779B1u);
                 uint h4 = Hash(Hash(Hash(h1, 0x85EBCA77u), 0xC2B2AE3Du), 0x27D4EB2Fu);
-                offsets[i] = new Vector2((Unit(h0) * 2f - 1f) * swarm.positionJitter.x,
-                                          (Unit(h1) * 2f - 1f) * swarm.positionJitter.y);
+                offsets[i] = new Vector2((Unit(h0) * 2f - 1f) * jitterRange.x,
+                                          (Unit(h1) * 2f - 1f) * jitterRange.y);
                 seeds[i] = Hash(st.seed, h0);
                 phases[i] = Mathf.Clamp01(Mathf.Lerp(st.phase01, Unit(h4), Mathf.Clamp01(swarm.lifetimeStagger)));
             }
             if (st.program.swarmInstancePhases == null) st.program.swarmInstancePhases = phases;
 
-            ShaperMatrix localToParent = (node.transform ?? new ShaperTransformBlock()).ToMatrix();
+            ShaperMatrix localToParent = (node.transform ?? new ShaperTransformBlock()).ToMatrix(st.phase01, st.seed);
             ShaperMatrix forward = ShaperMatrix.Mul(parentForward, localToParent);
             bool invertible = forward.TryInvert(out ShaperMatrix inverse);
             forward.SingularValues(out float sigmaMin, out _);
@@ -829,8 +838,7 @@ namespace Laubrary.Shaper
                 else if (axis != ce.sweepAxis) axisAgrees = false;
 
                 var blend = child.blend ?? new ShaperBlend();
-                float width = Mathf.Max(0f, blend.width);
-                float strength = Mathf.Clamp01(blend.carveStrength);
+                blend.Sample(st.phase01, st.seed, out float width, out float blendSharpness, out float strength);
 
                 Box combined;
                 Box childLocal = ce.localBox.Map(ce.localToParent);
@@ -863,7 +871,7 @@ namespace Laubrary.Shaper
                     kind = ShaperOpKind.Combine,
                     mode = child.mode,
                     p0 = width,
-                    p1 = ShaperOps.BlendExponent(blend.sharpness),
+                    p1 = ShaperOps.BlendExponent(blendSharpness),
                     p2 = strength,
                     p3 = Mathf.Max(0f, reach),
                     bound = ShaperBound.Combine(child.mode, bound, ce.bound, width, strength),
@@ -900,6 +908,9 @@ namespace Laubrary.Shaper
             var sweep = node.sweep;
             if (sweep == null || !sweep.enabled) return child;
 
+            sweep.Sample(st.phase01, st.seed, out float sweepStartDeg, out float sweepExtentDeg,
+                         out float sweepStartFrac, out float sweepExtentFrac);
+
             var op = new ShaperOp
             {
                 kind = ShaperOpKind.Sweep,
@@ -916,14 +927,14 @@ namespace Laubrary.Shaper
 
             if (child.sweepAxis == ShaperSweepAxis.Radial)
             {
-                float extent = sweep.extentDegrees;
+                float extent = sweepExtentDeg;
                 if (extent >= 360f)
                 {
                     op.p5 = 1f;   // identity — the evaluator returns the child's float untouched
                 }
                 else
                 {
-                    float s = sweep.startDegrees * Mathf.Deg2Rad;
+                    float s = sweepStartDeg * Mathf.Deg2Rad;
                     float e = Mathf.Max(0f, extent) * Mathf.Deg2Rad;
                     float end = s + e;
                     // Half-plane on the counter-clockwise side of the start ray, negative inside:
@@ -945,8 +956,8 @@ namespace Laubrary.Shaper
                     float hw = Mathf.Abs(inverse.m00) * child.box.HalfW + Mathf.Abs(inverse.m01) * child.box.HalfH;
                     lo = cx - hw; hi = cx + hw;
                 }
-                float start = Mathf.Clamp01(sweep.startFraction);
-                float extent = Mathf.Clamp01(sweep.extentFraction);
+                float start = sweepStartFrac;
+                float extent = sweepExtentFrac;
                 if (start <= 0f && start + extent >= 1f)
                 {
                     op.p5 = 1f;   // identity
@@ -973,7 +984,7 @@ namespace Laubrary.Shaper
             var shell = node.shell;
             if (shell == null || !shell.enabled) return child;   // identity by construction: nothing is emitted
 
-            float thickness = Mathf.Max(0f, shell.thickness);
+            float thickness = shell.SampleThickness(st.phase01, st.seed);
             Box box = child.box;
             Box localBox = child.localBox;
             if (shell.alignment != ShaperShellAlignment.Inward)

@@ -692,13 +692,17 @@ namespace Laubrary.Shaper.Editor
 
         // ── Shape modifiers: Blend / Sweep / Shell ───────────────────────────────────────────────────────
 
-        // All plain floats in the engine (ShaperNode.cs:24-69), so all Dial, with the [Range] bounds taken
-        // from the declarations rather than invented.
+        // Every dial here is a ZUIValue on the engine side (ShaperNode.cs), so all Val — right-click one to
+        // author a Curve and the join, the slice or the wall thickness moves over the document's frames.
         void BuildModifiersSection(VisualElement root, ShaperNode node)
         {
             var box = modifiersSection = Z.Section("Modifiers",
                 "How this node folds into its parent, and the sweep/shell applied to its own shape.",
                 "shaper.window.modifiers", icon: "sliders-horizontal");
+
+            node.blend.EnsureDials();
+            node.sweep.EnsureDials();
+            node.shell.EnsureDials();
 
             // Blend governs how this node combines with its siblings, so the combine mode belongs with it.
             box.Add(Z.HGroup(
@@ -706,27 +710,28 @@ namespace Laubrary.Shaper.Editor
                     Z.Segmented((int)node.mode, Enum.GetNames(typeof(ShaperCombineMode)),
                         "Add unions; Subtract carves; Intersect keeps only the overlap.",
                         v => Change(() => node.mode = (ShaperCombineMode)v))),
-                Dial("Blend width", "How far the join between this node and its neighbours is softened, "
+                Val("Blend width", "How far the join between this node and its neighbours is softened, "
                     + "in canvas pixels. 0 is a hard edge.",
-                    node.blend.width, 0f, 32f, v => node.blend.width = v),
-                Dial("Sharpness", "How abruptly the softened join falls off.",
-                    node.blend.sharpness, 0f, 1f, v => node.blend.sharpness = v),
-                Dial("Carve strength", "How strongly a Subtract carves. 1 removes fully.",
-                    node.blend.carveStrength, 0f, 1f, v => node.blend.carveStrength = v)));
+                    node.blend.widthDial, 0f, 32f),
+                Val("Sharpness", "How abruptly the softened join falls off.",
+                    node.blend.sharpnessDial, 0f, 1f),
+                Val("Carve strength", "How strongly a Subtract carves. 1 removes fully.",
+                    node.blend.carveStrengthDial, 0f, 1f)));
 
             var sweep = Z.BoxKeyed("Sweep", "Keep only an angular or fractional slice of the shape.",
                 "shaper.window.sweep");
             sweep.Add(Z.HGroup(
                 Z.Toggle("Enabled", "Apply the sweep.", node.sweep.enabled,
                     v => Change(() => node.sweep.enabled = v)),
-                Dial("Start", "Where the kept slice begins, in degrees.",
-                    node.sweep.startDegrees, 0f, 360f, v => node.sweep.startDegrees = v, decimals: 0),
-                Dial("Extent", "How much of the shape is kept, in degrees.",
-                    node.sweep.extentDegrees, 0f, 360f, v => node.sweep.extentDegrees = v, decimals: 0),
-                Dial("Start ƒ", "Where the kept slice begins as a fraction of the shape.",
-                    node.sweep.startFraction, 0f, 1f, v => node.sweep.startFraction = v),
-                Dial("Extent ƒ", "How much is kept as a fraction of the shape.",
-                    node.sweep.extentFraction, 0f, 1f, v => node.sweep.extentFraction = v)));
+                Val("Start", "Where the kept slice begins, in degrees.",
+                    node.sweep.startDegreesDial, 0f, 360f, cyclic: true, decimals: 0),
+                Val("Extent", "How much of the shape is kept, in degrees. Animate it to wipe the shape on or "
+                    + "off over the document's frames.",
+                    node.sweep.extentDegreesDial, 0f, 360f, decimals: 0),
+                Val("Start ƒ", "Where the kept slice begins as a fraction of the shape.",
+                    node.sweep.startFractionDial, 0f, 1f),
+                Val("Extent ƒ", "How much is kept as a fraction of the shape.",
+                    node.sweep.extentFractionDial, 0f, 1f)));
             box.Add(sweep);
 
             var shell = Z.BoxKeyed("Shell", "Hollow the shape into a shell of a given thickness.",
@@ -734,8 +739,8 @@ namespace Laubrary.Shaper.Editor
             shell.Add(Z.HGroup(
                 Z.Toggle("Enabled", "Hollow this shape.", node.shell.enabled,
                     v => Change(() => node.shell.enabled = v)),
-                Dial("Thickness", "How thick the remaining shell is, in canvas pixels.",
-                    node.shell.thickness, 0f, 32f, v => node.shell.thickness = v),
+                Val("Thickness", "How thick the remaining shell is, in canvas pixels.",
+                    node.shell.thicknessDial, 0f, 32f),
                 Z.Field("Alignment", "Which side of the surface the shell is taken from.",
                     Z.Segmented((int)node.shell.alignment, Enum.GetNames(typeof(ShaperShellAlignment)),
                         "Centred straddles the surface; Inward keeps material inside it; Outward outside.",
@@ -750,6 +755,7 @@ namespace Laubrary.Shaper.Editor
         void BuildSwarmSection(VisualElement root, ShaperNode node)
         {
             var s = node.swarm;
+            s.EnsureDials();
             var box = swarmSection = Z.Section("Swarm",
                 "Repeat this node's own content many times with per-instance jitter.",
                 "shaper.window.swarm", icon: "copy");
@@ -777,27 +783,31 @@ namespace Laubrary.Shaper.Editor
                     + "int — the engine's field is a uint, whose upper half no int control can express.",
                     Z.Int((int)Math.Min(s.seed, int.MaxValue), "Swarm seed.",
                         v => Change(() => s.seed = (uint)Mathf.Max(0, v)), 90f)),
-                Dial("Rotation jitter", "How much each instance's rotation varies, in degrees.",
-                    s.rotationJitterDegrees, 0f, 180f, v => s.rotationJitterDegrees = v, decimals: 0),
-                Dial("Scale jitter", "How much each instance's scale varies.",
-                    s.scaleJitter, 0f, 1f, v => s.scaleJitter = v),
+                Val("Rotation jitter", "How much each instance's rotation varies, in degrees.",
+                    s.rotationJitterDegreesDial, 0f, 180f, decimals: 0),
+                Val("Scale jitter", "How much each instance's scale varies.",
+                    s.scaleJitterDial, 0f, 1f),
+                // The stagger decides how the per-instance clocks are DRAWN, so animating it over those same
+                // clocks would be circular — it stays a plain dial deliberately.
                 Dial("Lifetime stagger", "How much each instance's clock is offset from the others.",
                     s.lifetimeStagger, 0f, 1f, v => s.lifetimeStagger = v)));
 
-            // A spatial pair is a pad, never two packed 1D fields — aiming a 2D value with two sliders is the
-            // ergonomics problem the rule exists for.
-            box.Add(Z.Field("Position jitter", "How far each instance can be displaced, in canvas pixels.",
-                Z.Pad(s.positionJitter, new Rect(0f, 0f, 128f, 128f),
-                    "How far each instance can be displaced, in canvas pixels.",
-                    v => Change(() => s.positionJitter = v))));
+            // A spatial pair is one 2D control, never two packed 1D fields — and each axis is its own dial, so
+            // animating the pair makes the cloud spread out or draw in without re-rolling which instance is where.
+            box.Add(Val2D("Position jitter",
+                "How far each instance can be displaced, in canvas pixels. Animate it to make the swarm "
+                + "spread out or gather over the document's frames.",
+                s.positionJitterX, s.positionJitterY,
+                new ZuiValue2DControl.Options().WithRange(0f, 128f, 0f, 128f).WithPlotSize(110f)
+                    .WithDefault(new Vector2(24f, 24f)).WithPrefKey("shaper.swarm.positionJitter")));
 
             box.Add(Z.HGroup(
                 Z.Toggle("Interact", "Let instances affect one another rather than being independent.",
                     s.interact, v => Change(() => s.interact = v)),
-                Dial("Merge width", "How far neighbouring instances blend into each other.",
-                    s.merge.width, 0f, 32f, v => s.merge.width = v),
-                Dial("Merge sharpness", "How abruptly that blend falls off.",
-                    s.merge.sharpness, 0f, 1f, v => s.merge.sharpness = v)));
+                Val("Merge width", "How far neighbouring instances blend into each other.",
+                    s.merge.widthDial, 0f, 32f),
+                Val("Merge sharpness", "How abruptly that blend falls off.",
+                    s.merge.sharpnessDial, 0f, 1f)));
 
             root.Add(box);
         }

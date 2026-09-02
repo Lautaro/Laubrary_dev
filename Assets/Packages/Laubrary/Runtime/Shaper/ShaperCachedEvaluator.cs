@@ -130,7 +130,7 @@ namespace Laubrary.Shaper
         static Result EvaluateBag(ShaperNode node, in ShaperMatrix parentForward, float phase01, uint seed,
                                   in ShaperSampleGrid grid, int width, int height, ShaperNodeCache cache)
         {
-            ShaperMatrix thisForward = ShaperMatrix.Mul(parentForward, node.transform.ToMatrix());
+            ShaperMatrix thisForward = ShaperMatrix.Mul(parentForward, node.transform.ToMatrix(phase01, seed));
             ShaperCacheKey foldKey = ShaperNodeIdentity.OwnHash(node, phase01, seed);
 
             ShaperFieldBuffer accumBuffer = null; // null == the empty field, everywhere
@@ -144,7 +144,7 @@ namespace Laubrary.Shaper
                 if (child == null || !child.enabled) continue;
 
                 var childResult = Evaluate(child, thisForward, phase01, seed, grid, width, height, cache);
-                var newFoldKey = ShaperNodeIdentity.FoldChild(foldKey, child, childResult.key);
+                var newFoldKey = ShaperNodeIdentity.FoldChild(foldKey, child, childResult.key, phase01);
 
                 // The box AFTER folding this child -- computed once, up front, so it can be stored WITH a
                 // freshly-computed buffer (letting a later hit on this exact prefix skip recompute entirely,
@@ -163,9 +163,8 @@ namespace Laubrary.Shaper
                     float reach = ComputeReach(accCx, accCy, accHalfW, accHalfH, accValid,
                                                childResult.boxCx, childResult.boxCy, childResult.boxHalfW, childResult.boxHalfH);
                     var blend = child.blend ?? new ShaperBlend();
-                    float blendWidth = Mathf.Max(0f, blend.width);
-                    float blendExponent = ShaperOps.BlendExponent(blend.sharpness);
-                    float carveStrength = Mathf.Clamp01(blend.carveStrength);
+                    blend.Sample(phase01, seed, out float blendWidth, out float blendSharpness, out float carveStrength);
+                    float blendExponent = ShaperOps.BlendExponent(blendSharpness);
 
                     var newDistance = new float[width * height];
                     var srcA = accumBuffer;
@@ -202,7 +201,7 @@ namespace Laubrary.Shaper
                 }
                 else
                 {
-                    accumBuffer = ApplySweepShell(node, thisForward, grid, width, height, accumBuffer,
+                    accumBuffer = ApplySweepShell(node, thisForward, grid, phase01, seed, width, height, accumBuffer,
                         accCx, accCy, accHalfW, accHalfH, accValid);
                     cache.ComputeCount++;
                     cache.Store(postKey, accumBuffer);
@@ -295,6 +294,7 @@ namespace Laubrary.Shaper
         /// not just unoptimised -- see SPEC.md Part 4 for why this is flagged rather than silently accepted.
         /// </summary>
         static ShaperFieldBuffer ApplySweepShell(ShaperNode node, in ShaperMatrix thisForward, in ShaperSampleGrid grid,
+                                                 float phase01, uint seed,
                                                  int width, int height, ShaperFieldBuffer input,
                                                  float boxCx, float boxCy, float boxHalfW, float boxHalfH, bool boxValid)
         {
@@ -303,16 +303,19 @@ namespace Laubrary.Shaper
             bool hasSweep = sweep != null && sweep.enabled;
             bool hasShell = shell != null && shell.enabled;
 
+            float sweepStartDeg = 0f, sweepExtentDeg = 360f;
+            if (hasSweep) sweep.Sample(phase01, seed, out sweepStartDeg, out sweepExtentDeg, out _, out _);
+
             var outDistance = (float[])input.distance.Clone();
 
-            if (hasSweep && sweep.extentDegrees < 360f)
+            if (hasSweep && sweepExtentDeg < 360f)
             {
                 bool invertible = thisForward.TryInvert(out var inverse);
                 if (invertible)
                 {
                     float sigmaMin = thisForward.SigmaMin;
-                    float s = sweep.startDegrees * Mathf.Deg2Rad;
-                    float e = Mathf.Max(0f, sweep.extentDegrees) * Mathf.Deg2Rad;
+                    float s = sweepStartDeg * Mathf.Deg2Rad;
+                    float e = Mathf.Max(0f, sweepExtentDeg) * Mathf.Deg2Rad;
                     float end = s + e;
                     float p0 = Mathf.Sin(s), p1 = -Mathf.Cos(s);
                     float p2 = -Mathf.Sin(end), p3 = Mathf.Cos(end);
@@ -337,8 +340,9 @@ namespace Laubrary.Shaper
 
             if (hasShell)
             {
+                float thickness = shell.SampleThickness(phase01, seed);
                 for (int p = 0; p < outDistance.Length; p++)
-                    outDistance[p] = ShaperOps.Shell(shell.alignment, shell.thickness, outDistance[p]);
+                    outDistance[p] = ShaperOps.Shell(shell.alignment, thickness, outDistance[p]);
             }
 
             return new ShaperFieldBuffer(width, height, outDistance, boxCx, boxCy, boxHalfW, boxHalfH, boxValid);

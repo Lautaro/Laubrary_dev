@@ -58,4 +58,24 @@ namespace Laubrary.Shaper
         /// <summary>A hashed word folded to a unit float in [0,1).</summary>
         public static float UnitOf(uint h) => (h & 0x00FFFFFFu) * (1f / 16777216f);
     }
+
+    /// <summary>
+    /// The plain-number view of an animatable dial: its STATIC value, read and written in place. Every authored
+    /// block that carries <see cref="ZUIValue"/> dials exposes its fields twice — once as the dial (which the
+    /// window edits and the compiler samples over the document's phase) and once as a bare number, which is
+    /// what "set this radius to 40" means when it is set from code rather than authored as an envelope.
+    ///
+    /// Writing through this view deliberately leaves the dial's MODE alone: it edits the number a Static dial
+    /// shows and the number a Curve dial is scaled from, never converting one into the other.
+    /// </summary>
+    public static class ShaperDial
+    {
+        public static float Get(ZUIValue v, float fallback = 0f) => v != null ? v.staticValue : fallback;
+
+        public static void Set(ref ZUIValue v, float value)
+        {
+            if (v == null) v = new ZUIValue(value);
+            else v.staticValue = value;
+        }
+    }
 }

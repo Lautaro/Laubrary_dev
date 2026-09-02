@@ -428,7 +428,7 @@ namespace Laubrary.Shaper
             if (node.kind == ShaperNodeKind.Bag && node.children != null)
             {
                 ShaperMatrix forward = ShaperMatrix.Mul(parentForward,
-                                                        (node.transform ?? new ShaperTransformBlock()).ToMatrix());
+                                                        (node.transform ?? new ShaperTransformBlock()).ToMatrix(phase01, seed));
                 for (int i = 0; i < node.children.Count; i++)
                 {
                     Walk(doc, node.children[i], forward, myOwnerIndex, false, phase01, seed,
