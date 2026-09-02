@@ -205,6 +205,16 @@ namespace Laubrary.Shaper
             MixZuiValue(ref m, p.starLength, phase01);
             MixZuiValue(ref m, p.starBaseWidth, phase01);
             MixZuiValue(ref m, p.starSkew, phase01);
+            // ── T-0174 Text ────────────────────────────────────────────────────────────────────────────────
+            // Every dial that changes the baked glyph raster must be in the key: the node cache keys a whole
+            // rendered node on this hash, so a dial left out would let an edited string keep drawing the old one.
+            m.MixInt(p.textFont != null ? p.textFont.GetInstanceID() : 0);
+            m.MixInt(p.textString != null ? ShaperTextPrepassCache.StableHash(p.textString) : 0);
+            m.MixInt((int)p.textAlign);
+            MixZuiValue(ref m, p.textSizeDial, phase01);
+            MixZuiValue(ref m, p.textLetterSpacingDial, phase01);
+            MixZuiValue(ref m, p.textLineSpacingDial, phase01);
+            MixZuiValue(ref m, p.textWeightDial, phase01);
             return m.Key;
         }
 
@@ -329,7 +339,11 @@ namespace Laubrary.Shaper
                     IsNonDeterministic(p.triangleBaseDial) || IsNonDeterministic(p.triangleHeightDial) ||
                     IsNonDeterministic(p.capsuleHalfLengthDial) || IsNonDeterministic(p.capsuleRadiusDial) ||
                     IsNonDeterministic(p.ngonRadiusDial) || IsNonDeterministic(p.ngonRotationDial) ||
-                    IsNonDeterministic(p.ngonCornerRadiusDial) || IsNonDeterministic(p.starRadiusDial))
+                    IsNonDeterministic(p.ngonCornerRadiusDial) || IsNonDeterministic(p.starRadiusDial) ||
+                    // T-0174 — a Text dial re-drawn per evaluation rebakes a different glyph raster, which is
+                    // exactly the thing a cache must not memoise.
+                    IsNonDeterministic(p.textSizeDial) || IsNonDeterministic(p.textLetterSpacingDial) ||
+                    IsNonDeterministic(p.textLineSpacingDial) || IsNonDeterministic(p.textWeightDial))
                     return false;
             }
             // T-0155 — the same rule for Solids, and it needs every dial rather than a chosen few: unlike a

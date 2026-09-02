@@ -50,6 +50,18 @@ namespace Laubrary.Shaper
         /// since a Sprite is a <see cref="ShaperPrimitiveKind"/> under a Primitive node, not its own node kind.
         /// </summary>
         SpriteSample = 7,
+
+        /// <summary>
+        /// T-0174 — pushes one <see cref="ShaperPrimitiveKind.Text"/> primitive's signed edge distance, in canvas
+        /// pixels. Identical in shape to <see cref="SpriteSample"/> (local-frame transform, one bilinear fetch of
+        /// a real distance, one scale) and equally NOT a pseudo-distance: the raster came from an exact Euclidean
+        /// distance transform of the thresholded glyph mask (<see cref="ShaperTextPrepassCache"/>), indexed by
+        /// <see cref="ShaperOp.count"/> into <see cref="ShaperProgram.textFields"/>. A third array rather than
+        /// reusing <see cref="ShaperProgram.spriteFields"/> because the two carry different payloads — a text
+        /// raster also publishes a per-glyph index channel — and sharing the slot would make one op kind's index
+        /// mean two things.
+        /// </summary>
+        TextSample = 8,
     }
 
     /// <summary>
@@ -71,6 +83,8 @@ namespace Laubrary.Shaper
     /// <item><b>SpriteSample</b> (T-0175) — p0/p1 the raster's own local half-extent X/Y; <c>count</c> is the
     /// index into <see cref="ShaperProgram.spriteFields"/>. No inversion slot needed: the raster already holds a
     /// real distance.</item>
+    /// <item><b>TextSample</b> (T-0174) — p0/p1 the raster's own local half-extent X/Y; <c>count</c> is the
+    /// index into <see cref="ShaperProgram.textFields"/>. Same slot meaning as SpriteSample, for the same reason.</item>
     /// </list>
     /// </summary>
     public struct ShaperOp
@@ -220,6 +234,15 @@ namespace Laubrary.Shaper
         /// ordinary Primitive node while a composite is its own <see cref="ShaperNodeKind"/>.
         /// </summary>
         public ShaperCompiledSpriteField[] spriteFields = System.Array.Empty<ShaperCompiledSpriteField>();
+
+        /// <summary>
+        /// T-0174 — every <see cref="ShaperPrimitiveKind.Text"/> primitive's baked distance raster, in the order
+        /// its <see cref="ShaperOpKind.TextSample"/> op was emitted. <see cref="ShaperOp.count"/> indexes this
+        /// array. Each entry also carries the per-glyph index channel a per-character fill selects from
+        /// (<see cref="ShaperCompiledTextField.glyphIndex"/>), which is why it is not folded into
+        /// <see cref="spriteFields"/>.
+        /// </summary>
+        public ShaperCompiledTextField[] textFields = System.Array.Empty<ShaperCompiledTextField>();
 
         // ── T-0113 swarm — the structural "shown, not hidden" surface ──────────────────────────────────────
         // Every field below is READ from the compiled program, never authored on ShaperSwarmDef, so which

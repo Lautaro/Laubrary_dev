@@ -144,6 +144,8 @@ namespace Laubrary.Shaper
             public List<ShaperCompiledComposite> composites = new List<ShaperCompiledComposite>();
             /// <summary>T-0175 — every Sprite primitive's baked distance raster, collected in emission order.</summary>
             public List<ShaperCompiledSpriteField> spriteFields = new List<ShaperCompiledSpriteField>();
+            /// <summary>T-0174 — every Text primitive's baked distance raster, collected in emission order.</summary>
+            public List<ShaperCompiledTextField> textFields = new List<ShaperCompiledTextField>();
             public int depth;
             public int maxDepth;
             public float phase01;
@@ -213,6 +215,7 @@ namespace Laubrary.Shaper
             st.program.ops = st.ops.ToArray();
             st.program.composites = st.composites.ToArray();
             st.program.spriteFields = st.spriteFields.ToArray();
+            st.program.textFields = st.textFields.ToArray();   // T-0174
             st.program.stackDepth = Mathf.Max(1, st.maxDepth);
             st.program.bound = top.bound;
             if (top.box.valid)
@@ -733,6 +736,10 @@ namespace Laubrary.Shaper
             if (primitive != null && primitive.kind == ShaperPrimitiveKind.Sprite)
                 return EmitSpriteLeaf(primitive, forward, inverse, sigmaMin, st);
 
+            // T-0174 — Text forks for the same reason, at the same point.
+            if (primitive != null && primitive.kind == ShaperPrimitiveKind.Text)
+                return EmitTextLeaf(primitive, forward, inverse, sigmaMin, st);
+
             ShaperBakedPrimitive baked = ShaperPrimitives.Bake(primitive, st.phase01, st.seed);
 
             var op = new ShaperOp
@@ -812,6 +819,65 @@ namespace Laubrary.Shaper
                 bound = 1f,
             };
             st.spriteFields.Add(raster);
+
+            float chw = Mathf.Abs(forward.m00) * raster.halfExtentX + Mathf.Abs(forward.m01) * raster.halfExtentY;
+            float chh = Mathf.Abs(forward.m10) * raster.halfExtentX + Mathf.Abs(forward.m11) * raster.halfExtentY;
+            Box box = Box.FromCentre(forward.m02, forward.m12, chw, chh);
+            op.boxCx = box.CentreX; op.boxCy = box.CentreY; op.boxHalfW = box.HalfW; op.boxHalfH = box.HalfH;
+
+            st.ops.Add(op);
+            st.Push();
+            return new Emitted
+            {
+                bound = 1f,
+                box = box,
+                sweepAxis = ShaperSweepAxis.Radial,
+                localBox = Box.FromCentre(0f, 0f, raster.halfExtentX, raster.halfExtentY),
+            };
+        }
+
+        // ── T-0174 Text ──────────────────────────────────────────────────────────────────────────────────────
+        // Field ids for the text dials' own reproducible Min-Max sampling, in the same space as the sprite ones
+        // above (ShaperPrimitives.Bake never sees a Text primitive either).
+        const uint FldTextSize = 0x51A21E30u, FldTextLetterSpacing = 0x51A21E31u;
+        const uint FldTextLineSpacing = 0x51A21E32u, FldTextWeight = 0x51A21E33u;
+
+        /// <summary>
+        /// T-0174 — a Text primitive's leaf. Resolves its dials once at this compile's own phase/seed (BC-1.2),
+        /// fetches (or builds) its cached glyph distance raster, and emits a <see cref="ShaperOpKind.TextSample"/>
+        /// op. Structurally the same method as <see cref="EmitSpriteLeaf"/>; the raster's OWN half-extents (which
+        /// the text sizes for itself from the font's metrics, rather than being told by an authored box) become
+        /// both the op's sampling box and the node's local box.
+        /// </summary>
+        static Emitted EmitTextLeaf(ShaperPrimitiveDef primitive, in ShaperMatrix forward, in ShaperMatrix inverse,
+                                    float sigmaMin, State st)
+        {
+            float size = Mathf.Max(1e-3f, ShaperValue.Sample(primitive.textSizeDial, st.phase01, st.seed ^ FldTextSize, 40f));
+            float letterSpacing = ShaperValue.Sample(primitive.textLetterSpacingDial, st.phase01, st.seed ^ FldTextLetterSpacing, 0f);
+            float lineSpacing = ShaperValue.Sample(primitive.textLineSpacingDial, st.phase01, st.seed ^ FldTextLineSpacing, 0f);
+            float weight = Mathf.Clamp(ShaperValue.Sample(primitive.textWeightDial, st.phase01, st.seed ^ FldTextWeight, 0.5f), 0.05f, 0.95f);
+
+            ShaperCompiledTextField raster = ShaperTextPrepassCache.Get(
+                primitive, size, letterSpacing, lineSpacing, weight, primitive.textAlign);
+            if (raster == null)
+            {
+                // No font, no string, or nothing in the string this font can draw — a legal, if useless,
+                // authoring state, the same posture EmitSpriteLeaf takes for an unassigned sprite.
+                EmitEmpty(st);
+                return new Emitted { bound = 1f, box = Box.Invalid, sweepAxis = ShaperSweepAxis.Radial, localBox = Box.Invalid };
+            }
+
+            var op = new ShaperOp
+            {
+                kind = ShaperOpKind.TextSample,
+                count = st.textFields.Count,
+                p0 = raster.halfExtentX, p1 = raster.halfExtentY,
+                m00 = inverse.m00, m01 = inverse.m01, m02 = inverse.m02,
+                m10 = inverse.m10, m11 = inverse.m11, m12 = inverse.m12,
+                distanceScale = sigmaMin,
+                bound = 1f,
+            };
+            st.textFields.Add(raster);
 
             float chw = Mathf.Abs(forward.m00) * raster.halfExtentX + Mathf.Abs(forward.m01) * raster.halfExtentY;
             float chh = Mathf.Abs(forward.m10) * raster.halfExtentX + Mathf.Abs(forward.m11) * raster.halfExtentY;

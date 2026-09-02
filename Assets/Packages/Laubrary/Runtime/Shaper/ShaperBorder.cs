@@ -240,6 +240,9 @@ namespace Laubrary.Shaper
                 // node) but live for Sprite, which has no such refusal.
                 composites = nodeProgram.composites,
                 spriteFields = nodeProgram.spriteFields,
+                // T-0174 — same fix, same reason, for a TextSample leaf: a bordered Text node is not merely
+                // reachable, it is the ordinary case (a border is what makes text read against a background).
+                textFields = nodeProgram.textFields,
                 stackDepth = nodeProgram.stackDepth,          // Shell is unary: it pops one and pushes one
                 bound = ShaperBound.Shell(nodeProgram.bound),
                 supportCx = nodeProgram.supportCx,

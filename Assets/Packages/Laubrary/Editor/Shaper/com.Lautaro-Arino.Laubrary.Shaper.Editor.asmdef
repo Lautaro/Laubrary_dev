@@ -10,7 +10,8 @@
         "com.Lautaro-Arino.Laubrary.Pyre",
         "com.Lautaro-Arino.Laubrary.Pyre.Shaper",
         "com.Lautaro-Arino.Laubrary.BackSplash",
-        "com.Lautaro-Arino.Laubrary.BackSplash.Editor"
+        "com.Lautaro-Arino.Laubrary.BackSplash.Editor",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [
         "Editor"

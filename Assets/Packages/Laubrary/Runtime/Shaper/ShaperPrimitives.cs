@@ -24,6 +24,16 @@ namespace Laubrary.Shaper
         /// mirroring the composite generator's raster leaf rather than the exact-SDF registry above.
         /// </summary>
         Sprite = 7,
+
+        /// <summary>
+        /// T-0174 — a string's TMP glyphs become the shape. Like <see cref="Sprite"/> it has no analytic SDF, so
+        /// <see cref="ShaperCompiler"/> routes it around <see cref="ShaperPrimitives.Bake"/> into a baked, cached
+        /// signed-distance raster (<see cref="ShaperTextField"/>'s <see cref="ShaperCompiledTextField"/>). Text is
+        /// a PRIMITIVE and not a composite because a glyph is a region of the plane: once its signed distance
+        /// exists, the fill, border, height and light stages apply to it with no knowledge that it came from a
+        /// font — which is exactly what Pyre's Text form had to reimplement for itself.
+        /// </summary>
+        Text = 8,
     }
 
     /// <summary>How a Sprite primitive's own pixel rect maps onto its authored half-extent box. APPEND-ONLY.</summary>
@@ -132,6 +142,24 @@ namespace Laubrary.Shaper
         public ZUIValue spriteSoftnessDial = new ZUIValue(0f);
         public ShaperSpriteFitMode spriteFitMode = ShaperSpriteFitMode.Uniform;
 
+        // ── Text (T-0174) ────────────────────────────────────────────────────────────────────────────────
+        // The font is a plain reference for the same reason spriteAsset is: it is picked, not animated. The
+        // STRING is a plain string and is the one place in Shaper a typed text field is correct — it DECLARES
+        // content rather than referencing something by name.
+        public TMPro.TMP_FontAsset textFont;
+        public string textString = "TEXT";
+        /// <summary>Em height in canvas units — the same meaning Pyre's Text form gives its own `size`
+        /// (<c>Pyre.cs:398</c>), so a value ported from a Pyre form means the same thing here.</summary>
+        public ZUIValue textSizeDial = new ZUIValue(40f);
+        /// <summary>Extra space added after every glyph's own advance, canvas units. Negative tightens.</summary>
+        public ZUIValue textLetterSpacingDial = new ZUIValue(0f);
+        /// <summary>Extra space added to the font's own line height, canvas units.</summary>
+        public ZUIValue textLineSpacingDial = new ZUIValue(0f);
+        /// <summary>Where the glyph outline is cut out of the SDF. TMP writes 0.5 at the outline, so below 0.5
+        /// fattens the letters and above 0.5 thins them — a free bold/light on any font.</summary>
+        public ZUIValue textWeightDial = new ZUIValue(0.5f);
+        public ShaperTextAlign textAlign = ShaperTextAlign.Centre;
+
         // ── the pre-promotion storage, read once to seed the dials above ─────────────────────────────────
         [SerializeField, FormerlySerializedAs("rectHalfW")]         float legacyRectHalfW = 50f;
         [SerializeField, FormerlySerializedAs("rectHalfH")]         float legacyRectHalfH = 50f;
@@ -197,6 +225,12 @@ namespace Laubrary.Shaper
             if (spriteHalfHDial == null) spriteHalfHDial = new ZUIValue(50f);
             if (spriteThresholdDial == null) spriteThresholdDial = new ZUIValue(0.5f);
             if (spriteSoftnessDial == null) spriteSoftnessDial = new ZUIValue(0f);
+            // T-0174
+            if (textSizeDial == null) textSizeDial = new ZUIValue(40f);
+            if (textLetterSpacingDial == null) textLetterSpacingDial = new ZUIValue(0f);
+            if (textLineSpacingDial == null) textLineSpacingDial = new ZUIValue(0f);
+            if (textWeightDial == null) textWeightDial = new ZUIValue(0.5f);
+            if (textString == null) textString = string.Empty;
         }
 
         // Plain-number views — see ShaperDial. Code that sizes a primitive outright (a demo, an audit fixture,
@@ -220,6 +254,10 @@ namespace Laubrary.Shaper
         public float spriteHalfH { get => ShaperDial.Get(spriteHalfHDial, 50f); set => ShaperDial.Set(ref spriteHalfHDial, value); }
         public float spriteThreshold { get => ShaperDial.Get(spriteThresholdDial, 0.5f); set => ShaperDial.Set(ref spriteThresholdDial, value); }
         public float spriteSoftness { get => ShaperDial.Get(spriteSoftnessDial, 0f); set => ShaperDial.Set(ref spriteSoftnessDial, value); }
+        public float textSize { get => ShaperDial.Get(textSizeDial, 40f); set => ShaperDial.Set(ref textSizeDial, value); }
+        public float textLetterSpacing { get => ShaperDial.Get(textLetterSpacingDial, 0f); set => ShaperDial.Set(ref textLetterSpacingDial, value); }
+        public float textLineSpacing { get => ShaperDial.Get(textLineSpacingDial, 0f); set => ShaperDial.Set(ref textLineSpacingDial, value); }
+        public float textWeight { get => ShaperDial.Get(textWeightDial, 0.5f); set => ShaperDial.Set(ref textWeightDial, value); }
     }
 
     /// <summary>
@@ -275,6 +313,14 @@ namespace Laubrary.Shaper
                 // is Lipschitz-1 up to the raster's own texel error, and 1 is what every consumer of this table
                 // (border reach, soft-combine width) already assumes a "bound" means.
                 case ShaperPrimitiveKind.Sprite: return 1f;
+                // T-0174 — 1, on the same footing as Sprite and for a stronger reason than "uniformity": the
+                // Text raster is an EXACT Euclidean distance transform of the thresholded glyph mask
+                // (ShaperDistanceTransform.Signed), and the lower-envelope method is Lipschitz-1 in texel units
+                // by construction, so the only departure from 1 is the raster's own texel quantisation — the
+                // same residual every consumer of this table (border reach, soft-combine width) already tolerates.
+                // Notably NOT the TMP atlas' own SDF, which saturates a few texels past its padding band and
+                // would over-report badly out in the margin where a border lives.
+                case ShaperPrimitiveKind.Text: return 1f;
                 default: return 1f;
             }
         }
@@ -287,7 +333,8 @@ namespace Laubrary.Shaper
         /// Resolve an authored primitive at a normalised frame time into flat numbers. Called once per
         /// compile, never per sample.
         ///
-        /// <see cref="ShaperPrimitiveKind.Sprite"/> is never handed to this method: it has no flat-number form
+        /// <see cref="ShaperPrimitiveKind.Sprite"/> and <see cref="ShaperPrimitiveKind.Text"/> are never handed to
+        /// this method: neither has a flat-number form
         /// at all (its "shape" is a baked raster), so <see cref="ShaperCompiler"/>'s <c>EmitLeafFrom</c> checks
         /// the kind before calling <c>Bake</c> and routes it to <c>EmitSpriteLeaf</c> instead — the same fork
         /// point a Solid node's carrier leaf and a Composite node's raster leaf already take around this method.

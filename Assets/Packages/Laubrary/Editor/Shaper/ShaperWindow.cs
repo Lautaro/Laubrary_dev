@@ -608,6 +608,35 @@ namespace Laubrary.Shaper.Editor
                         Val("Threshold", "Alpha cutoff, below which a pixel counts as outside the shape.", p.spriteThresholdDial, 0f, 1f),
                         Val("Softness", "Blurs the sprite's alpha before thresholding, softening the shape's own edge.", p.spriteSoftnessDial, 0f, ext * 0.25f)));
                     break;
+
+                case ShaperPrimitiveKind.Text:
+                    // T-0174 — glyphs are the shape, so everything downstream (fill, border, height, lights)
+                    // needs no text-specific dial of its own. Two raw islands here, both sanctioned: the font is
+                    // an object picker (never a typed asset name), and the string is a text field because it
+                    // DECLARES content rather than referencing something by name.
+                    box.Add(Z.Field("Font", "The SDF font whose glyphs become this shape. Empty uses the "
+                        + "project's default TextMeshPro font.",
+                        Z.Object<TMPro.TMP_FontAsset>(p.textFont, "The SDF font whose glyphs become this shape. "
+                            + "Empty uses the project's default TextMeshPro font.",
+                            f => { Change(() => p.textFont = f); Rebuild(); }, 200f)));
+                    box.Add(Z.Field("Text", "The characters this shape draws. A new line starts another line of text.",
+                        Z.TextInput(p.textString, "The characters this shape draws. A new line starts another "
+                            + "line of text.", s => Change(() => p.textString = s), 200f)));
+                    box.Add(Z.Field("Align", "How the lines line up with each other when the text runs to more "
+                        + "than one line.",
+                        Z.MiniRadio((int)p.textAlign, Enum.GetNames(typeof(ShaperTextAlign)),
+                            "How the lines line up with each other when the text runs to more than one line.",
+                            v => Change(() => p.textAlign = (ShaperTextAlign)v))));
+                    box.Add(Z.HGroup(
+                        Val("Size", "Character height, canvas pixels. The shape sizes itself from the font's own "
+                            + "metrics, so there is no box to set.", p.textSizeDial, 4f, ext),
+                        Val("Letter spacing", "Adds space after every character. Negative tightens the word up.",
+                            p.textLetterSpacingDial, -ext * 0.1f, ext * 0.25f),
+                        Val("Line spacing", "Adds space between lines, on top of the font's own line height.",
+                            p.textLineSpacingDial, -ext * 0.1f, ext * 0.5f),
+                        Val("Weight", "Where the letter's edge is cut. Below 0.5 fattens the letters, above 0.5 "
+                            + "thins them.", p.textWeightDial, 0.05f, 0.95f)));
+                    break;
             }
         }
 
