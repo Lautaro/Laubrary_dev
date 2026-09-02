@@ -7,6 +7,13 @@
 // Vector2 (a get/set pair) for values that must never animate — Pyre's blast origin, a MetaBlob orb's
 // position. The plain source reports SupportsAnimation=false, which hides the mode switch entirely
 // so the control still looks and feels like the same ZUI 2D pad everywhere.
+//
+// RIGHT-CLICK is the single way into the mode / presentation / copy-paste menu, on every mode and
+// anywhere on the control (label, thumbnail, plot, side panel alike). There is deliberately no "⋯"
+// button — same rule as ZuiValueControl (2026-07-23 there, matched here 2026-09-02): one gesture,
+// learned once, works on every value in every tool. Curve mode keeps its own right-click (remove the
+// nearest point) inside the plot; that consumption stops propagation before it reaches this control's
+// handler, so the menu stays one right-click away on the plot's empty space, the label or the side panel.
 using System;
 using System.Collections.Generic;
 using UnityEditor;
@@ -192,7 +199,7 @@ namespace Laubrary.Zui
             public bool showNumericInputs = true;    // compact numeric X/Y block (Static mode)
             public bool stackInputsVertically = false;   // code-only layout call, not a menu item
             public bool startExpanded = false;       // first-open state (per control instance key)
-            public bool showSidePanel = true;        // the label / Reset / ⋯ column left of the plot
+            public bool showSidePanel = true;        // the label / Reset column left of the plot
             /// Extra content appended into the side panel under the label (e.g. Pyre's origin α slider).
             public Func<VisualElement> sidePanelExtra = null;
             /// EditorPrefs suffix for the per-identity "2D pad vs Two sliders" presentation choice
@@ -242,11 +249,6 @@ namespace Laubrary.Zui
         // Presentation: false = the 2D pad (default), true = two stacked 1D value controls. Persisted per
         // control identity in EditorPrefs; only offered when the source exposes the two ZUIValues.
         bool _twoSliders;
-        // Set true on a right-click PointerDown as it enters the control, cleared as it bubbles back out
-        // un-stopped. If a child (the plot / an envelope) consumed the right-click for its own gesture
-        // (e.g. removing a point) it stopped propagation, so this stays true and the presentation menu is
-        // suppressed for that click — the child's gesture wins.
-        bool _suppressContextMenuOnce;
 
         public Action OnBeforeMutate;
         public Action OnChanged;
@@ -270,19 +272,21 @@ namespace Laubrary.Zui
             if (!fold.seeded) { fold.seeded = true; fold.expanded = _opt.startExpanded; }
 
             // The Two-sliders presentation binds two 1D ZuiValueControls to the pair's X/Y ZUIValues, so it
-            // only exists for an animatable pair source (a plain Vector2 has no ZUIValues to bind). Gate the
-            // whole right-click menu on that, and restore the persisted choice.
-            if (_src is ZuiValuePairSource)
+            // only exists for an animatable pair source (a plain Vector2 has no ZUIValues to bind); restore
+            // the persisted choice when it applies. The right-click menu itself is unconditional below — a
+            // plain Vector2 source still needs Reset/copy-paste even though it has no mode or presentation
+            // choice to offer.
+            if (_src is ZuiValuePairSource) _twoSliders = EditorPrefs.GetBool(PrefsKey, false);
+
+            // RIGHT-CLICK ANYWHERE opens the menu (bubble phase, default): a curve-mode point removal inside
+            // the plot (Plot2D.OnPointerDown) stops propagation when it actually consumes the click, which
+            // keeps this handler from firing for that gesture without needing a separate suppress flag.
+            RegisterCallback<PointerDownEvent>(e =>
             {
-                _twoSliders = EditorPrefs.GetBool(PrefsKey, false);
-                // Track whether a right-click was consumed by a child before the menu (MouseUp) is decided.
-                RegisterCallback<PointerDownEvent>(
-                    e => { if (e.button == 1) _suppressContextMenuOnce = true; }, TrickleDown.TrickleDown);
-                RegisterCallback<PointerDownEvent>(
-                    e => { if (e.button == 1) _suppressContextMenuOnce = false; });
-                // Composes with any other ContextualMenu contributions on this element or its ancestors.
-                this.AddManipulator(new ContextualMenuManipulator(PopulateContextMenu));
-            }
+                if (e.button != 1) return;
+                ShowMenu(this);
+                e.StopPropagation();
+            });
 
             Build();
         }
@@ -299,17 +303,7 @@ namespace Laubrary.Zui
             if (fold.expanded) BuildExpanded(fold); else BuildCollapsed(fold);
         }
 
-        Button MenuButton()
-        {
-            Button btn = null;
-            btn = Z.Button("⋯",
-                (_src.SupportsAnimation ? "Static point, or animate over time; " : "") +
-                "value display; reset" + (_src.ToClipboard() != null ? "; copy/paste." : "."),
-                () => ShowMenu(btn)).W(24f);
-            return btn;
-        }
-
-        // ── collapsed: label · mini thumbnail · ⋯ ───────────────────────────────────
+        // ── collapsed: label · mini thumbnail (right-click for the menu) ────────────
         void BuildCollapsed(FoldState fold)
         {
             var row = new VisualElement();
@@ -318,7 +312,7 @@ namespace Laubrary.Zui
             {
                 var l = new Label(_label)
                 {
-                    tooltip = (_tooltip + " ").TrimStart() + "Click to expand the 2D editor.",
+                    tooltip = (_tooltip + " ").TrimStart() + "Click to expand the 2D editor. Right-click to configure.",
                 };
                 l.AddToClassList("zui-field__label");
                 l.AddToClassList("zui-fold-label");
@@ -329,7 +323,7 @@ namespace Laubrary.Zui
                 });
                 row.Add(l);
             }
-            var thumb = new Plot2D(this, thumbnail: true) { tooltip = "Click to expand the 2D editor." };
+            var thumb = new Plot2D(this, thumbnail: true) { tooltip = "Click to expand the 2D editor. Right-click to configure." };
             thumb.style.width = 120f;
             thumb.style.height = 18f;
             thumb.RegisterCallback<PointerDownEvent>(e =>
@@ -338,7 +332,6 @@ namespace Laubrary.Zui
                 fold.expanded = true; Build(); e.StopPropagation();
             });
             row.Add(thumb);
-            row.Add(MenuButton());
             Add(row);
         }
 
@@ -398,12 +391,11 @@ namespace Laubrary.Zui
                         SidePanelWidth - 8f, showValue: true));
                 }
                 side.Add(Z.Button("Reset", "Reset this value to its default.", ResetToDefault));
-                // No flexible spacer before these: the side panel stretches to whatever the numeric
-                // block/plot beside it is tall, which left the buttons floating far below the rest of
+                // No flexible spacer before this: the side panel stretches to whatever the numeric
+                // block/plot beside it is tall, which left the button floating far below the rest of
                 // the column (reported 2026-07-23). A tight column reads as one group.
-                side.Add(Z.Row(MenuButton(),
-                    Z.Button("▲", "Collapse the 2D editor back to its one-line thumbnail.",
-                        () => { fold.expanded = false; Build(); }).W(22f)));
+                side.Add(Z.Button("▲", "Collapse the 2D editor back to its one-line thumbnail.",
+                    () => { fold.expanded = false; Build(); }));
                 row.Add(side);
             }
 
@@ -426,7 +418,6 @@ namespace Laubrary.Zui
             }
             else row.Add(plot);
 
-            if (!_opt.showSidePanel) row.Add(MenuButton());
             Add(row);
         }
 
@@ -475,12 +466,22 @@ namespace Laubrary.Zui
             return col;
         }
 
-        // ── the ⋯ menu, a ZUI popover anchored to the ⋯ button ──────────────────────
+        // ── the mode menu, a ZUI popover anchored to whatever was right-clicked ─────
         void ShowMenu(VisualElement anchor)
         {
             var fold = GetFold(_key);
             var menu = Z.Menu(anchor);
             bool isCurve = _src.IsCurve;   // curve/path has no single (x,y); the display-option toggles below are hidden for it
+
+            // Presentation → 2D pad (default) or two stacked 1D sliders over the same X/Y ZUIValues. Only
+            // offered for an animatable pair source — a plain Vector2 has no ZUIValues to bind a slider to.
+            if (_src is ZuiValuePairSource)
+            {
+                menu.Radio(null, new[] { "2D pad", "Two sliders" }, _twoSliders ? 1 : 0,
+                    "Show this value as one synchronized XY pad, or as two separate sliders.",
+                    i => SetTwoSliders(i == 1), closeOnSelect: true);
+                menu.Separator();
+            }
 
             // Mode → one radio group (pick-one-then-close), only when the value can animate at all.
             if (_src.SupportsAnimation)
@@ -565,19 +566,6 @@ namespace Laubrary.Zui
             if (string.IsNullOrEmpty(axisName)) axisName = defaultAxis;
             if (string.IsNullOrEmpty(_label)) return axisName;
             return axisName == defaultAxis ? _label + " · " + axisName : axisName;
-        }
-
-        // ── right-click presentation menu (pad ↔ two sliders), composed onto the element ─────────────
-        void PopulateContextMenu(ContextualMenuPopulateEvent evt)
-        {
-            // A child (plot / envelope) already consumed this right-click for its own gesture — don't also
-            // pop the menu. We only skip OUR two items; anything other code appended still shows.
-            if (_suppressContextMenuOnce) { _suppressContextMenuOnce = false; return; }
-
-            evt.menu.AppendAction("2D pad", _ => SetTwoSliders(false),
-                _twoSliders ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Checked);
-            evt.menu.AppendAction("Two sliders", _ => SetTwoSliders(true),
-                _twoSliders ? DropdownMenuAction.Status.Checked : DropdownMenuAction.Status.Normal);
         }
 
         void SetTwoSliders(bool on)
