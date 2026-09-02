@@ -574,18 +574,30 @@ namespace Laubrary.Shaper
         /// <c>PyreRenderer.cs:4258-4266</c>'s own default angles; per-light specular <c>0.9</c>
         /// (<c>Pyre.cs:363</c>).
         ///
-        /// <b>Directional where Pyre's is a point light, and the one number that had to be derived.</b> Pyre
-        /// puts its lamp at <c>3.5·R</c> with range <c>4.7·R</c> (<c>PyreRenderer.cs:4260-4267</c>) — a
-        /// per-particle light scaled to the particle, which LR-1.6 is precisely the break from and which a
-        /// document-level rig has no way to express: it would have to know each Solid's own size and centre,
-        /// which is a light owned by a generator (LR-1.1 forbids it). A directional key has no falloff at all,
-        /// so it is stable across sizes, which is the behaviour a shared rig should have anyway. Pyre's
-        /// attenuation at the solid's centre is <c>1/(1 + 3.5²/4.7²) = 0.643</c>, so its effective diffuse
-        /// there is <c>2.1 × 0.643 = 1.35</c> (<c>gemDiffuse = 2.1</c>, <c>Pyre.cs:362</c>) — and that is this
-        /// light's intensity. The stated consequence, so it is not reported as a bug: Pyre's solid is very
-        /// slightly brighter on the lit limb and darker on the far one than this, because a point light's
-        /// falloff varies across the surface and a directional one does not. B8's ruling covers exactly this —
-        /// the shading LAW is shared and identical, the pictures are consistent and not identical.
+        /// <b>A POINT light, and the probe is why.</b> The first build of this made it DIRECTIONAL, on the
+        /// reasoning that a directional light has no falloff and is therefore stable across sizes. Measured, that
+        /// was wrong in a way that defeated the whole task: a directional light delivers ONE CONSTANT VALUE
+        /// across a flat face, so every facet solid came back with exactly as many luminances as it has visible
+        /// faces — Box 2, Ring 2, Pyramid 2, Gem 8 — against Pyre's 119, 137, 155 and 173 on the same forms. A
+        /// box lit that way is a flat coloured square with a line on it, which is the owner's original complaint
+        /// restated, not fixed. Only the Orb survived, because a sphere's normal turns under the light on its
+        /// own. <b>What gradates a facet in Pyre is the point light's distance falloff</b>
+        /// (<c>PyreRenderer.cs:4340-4342</c> — the surface point is interpolated per pixel and the light vector
+        /// and attenuation are recomputed from it), and Shaper's law already implements the identical
+        /// <c>1/(1 + d²/range²)</c> (<c>ShaperLightLaw.cs:249</c>). So the built-in key is Pyre's lamp: yaw
+        /// <c>-55°</c>, pitch <c>38°</c>, distance <c>3.5·R</c>, range <c>4.7·R</c>
+        /// (<c>Pyre.cs:351,352,357</c>), evaluated at the default Solid size <c>R = 20</c>
+        /// (<c>ShaperSolidDef.size</c>), colour = Pyre's diffuse <c>2.1</c> (<c>Pyre.cs:362</c>), specular
+        /// <c>0.9</c> (<c>:363</c>), ambient <c>0.05</c> (<c>:358</c>).
+        ///
+        /// <b>The one honest divergence, stated rather than discovered.</b> Pyre's lamp is placed per particle,
+        /// scaled to that particle's own <c>R</c> — LR-1.6 is precisely the break from that, and a
+        /// document-level rig cannot own a per-node light without LR-1.1's "no light is owned by a generator".
+        /// This lamp therefore sits at ONE FIXED CANVAS POSITION, the position Pyre's occupies for a
+        /// default-size solid at the origin. A solid authored much larger, or moved far across the canvas,
+        /// receives correspondingly more or less of it — which is what a real scene light does, is continuous
+        /// rather than surprising, and is exactly the situation the author resolves by adding their own light,
+        /// at which point this one is gone entirely.
         /// </summary>
         public static ShaperLightRigCompiled BuiltInSolidKey => builtInSolidKey;
 
@@ -595,22 +607,26 @@ namespace Laubrary.Shaper
         {
             var rig = new ShaperLightRigCompiled { count = 1, ambR = 0.05f, ambG = 0.05f, ambB = 0.05f };
 
-            // Same construction CompileDocument's directional branch performs (:281-302), written out rather
-            // than routed through it because there is no authored ShaperLight to sample: yaw about +Y from +Z
-            // toward +X, pitch as elevation above the canvas plane, unit, TOWARD the light.
-            const float yaw = -55f * Mathf.Deg2Rad, pitch = 38f * Mathf.Deg2Rad;
-            float ch = Mathf.Cos(pitch);
-            float dx = ch * Mathf.Sin(yaw), dy = Mathf.Sin(pitch), dz = ch * Mathf.Cos(yaw);
-            float len = Mathf.Sqrt(dx * dx + dy * dy + dz * dz);
-            if (len > 1e-6f) { dx /= len; dy /= len; dz /= len; }
+            // PyreRenderer.cs:4260-4266's own construction, at the default Solid radius. `R` is a CONSTANT here
+            // and not the node's size on purpose: see the divergence paragraph above.
+            const float R = 20f;                       // ShaperSolidDef.size's default
+            const float LightDistance = 3.5f;          // Pyre.cs:357
+            const float RangeBias = 1.2f;              // PyreRenderer.cs:4267 — (distance + 1.2)·R
+            float yaw = -55f * Mathf.Deg2Rad, pitch = 38f * Mathf.Deg2Rad;
+
+            float dist = LightDistance * R;
+            float horiz = dist * Mathf.Cos(pitch);
+            float range = (LightDistance + RangeBias) * R;
 
             rig.Set(0, new ShaperLightCompiled
             {
-                kind = (int)ShaperLightKind.Directional,
-                dirX = dx, dirY = dy, dirZ = dz,
-                r = 1.35f, g = 1.35f, b = 1.35f,
-                invRangeSq = 0f,          // LR-2.4: a directional light has no falloff, ever.
-                specular = 0.9f,
+                kind = (int)ShaperLightKind.Point,
+                posX = horiz * Mathf.Sin(yaw),
+                posY = dist * Mathf.Sin(pitch),
+                posZ = horiz * Mathf.Cos(yaw),
+                r = 2.1f, g = 2.1f, b = 2.1f,          // Pyre.cs:362 — gemDiffuse, folded in as the light's colour
+                invRangeSq = 1f / (range * range),
+                specular = 0.9f,                        // Pyre.cs:363
             });
             return rig;
         }

@@ -57,8 +57,20 @@ namespace Laubrary.Shaper
 
         /// <summary>Yaw about Y, degrees — Pyre's <c>particleSpin</c>.</summary>
         public ZUIValue yaw = new ZUIValue(0f);
-        /// <summary>Tilt about X, degrees — Pyre's <c>gemTilt</c>.</summary>
-        public ZUIValue tilt = new ZUIValue(0f);
+        /// <summary>
+        /// Tilt about X, degrees — Pyre's <c>gemTilt</c>, <b>including its default of 18°</b>
+        /// (<c>Pyre.cs:341</c>).
+        ///
+        /// T-0203 — this was 0, and 0 is why the owner reported "just 2D silhouettes". These solids are
+        /// ORTHOGRAPHIC (LR-6.5d) and backface-culled, so a Box square-on to the viewer at yaw 0 / tilt 0
+        /// presents exactly ONE face: not a box that looks flat, a box of which one flat square is genuinely
+        /// all there is to see. The same zero pose turns the Ring edge-on-ish, the Pyramid into its front
+        /// triangle and the Can into its front wall. Pyre has never shipped that pose; a fresh Pyre solid is
+        /// tilted 18° so that a second face and the seam between them are visible immediately, which is what
+        /// makes it read as a solid at all. Matching it is the difference between a first-run Solid that shows
+        /// what it is and one that has to be rotated by hand before it shows anything.
+        /// </summary>
+        public ZUIValue tilt = new ZUIValue(18f);
         /// <summary>Roll about Z in model space, applied FIRST — Pyre's <c>gemRoll</c>.</summary>
         public ZUIValue roll = new ZUIValue(0f);
 
@@ -72,12 +84,21 @@ namespace Laubrary.Shaper
         /// <summary>The facet edge line's colour, sRGB, decoded once at compile.</summary>
         public Color lineColour = Color.white;
 
-        /// <summary>Halo strength, 0..1 — Pyre's <c>gemEdgeGlow</c>.</summary>
-        public ZUIValue edgeGlow = new ZUIValue(0f);
+        /// <summary>
+        /// Halo strength, 0..1 — Pyre's <c>gemEdgeGlow</c>, including its default of 0.5 (<c>Pyre.cs:1113-1118</c>,
+        /// "steady halo out of the box").
+        ///
+        /// T-0203 — this was 0. A Solid's glow is one of the four things the owner listed as missing, and at 0
+        /// it was missing because nothing was asking for it, not because anything was broken. Pyre ships a
+        /// steady halo and a steady inner glow on every solid; a Shaper Solid that ships at zero is a different
+        /// object at first sight from the one it is meant to match.
+        /// </summary>
+        public ZUIValue edgeGlow = new ZUIValue(0.5f);
         public Color edgeGlowColour = Color.white;
 
-        /// <summary>Inner-glow strength, 0..1 — Pyre's <c>gemInnerGlow</c>.</summary>
-        public ZUIValue innerGlow = new ZUIValue(0f);
+        /// <summary>Inner-glow strength, 0..1 — Pyre's <c>gemInnerGlow</c>, including its default of 0.35
+        /// (<c>Pyre.cs:1120-1125</c>). Was 0; see <see cref="edgeGlow"/> for why that was wrong.</summary>
+        public ZUIValue innerGlow = new ZUIValue(0.35f);
         public Color innerGlowColour = Color.white;
     }
 
@@ -416,11 +437,11 @@ namespace Laubrary.Shaper
             op.gemPavilion = Dial(ShaperValue.Sample(def.gemPavilion, phase01, seed + 108u, 0.85f), 0f, MaxSolidScale, 0.85f);
             op.ringInner = Dial(ShaperValue.Sample(def.ringInner, phase01, seed + 109u, 0.55f), 0.1f, 0.92f, 0.55f);
             op.yaw = Dial(ShaperValue.Sample(def.yaw, phase01, seed + 110u), -MaxSolidCoord, MaxSolidCoord, 0f) * Mathf.Deg2Rad;
-            op.tilt = Dial(ShaperValue.Sample(def.tilt, phase01, seed + 111u), -MaxSolidCoord, MaxSolidCoord, 0f) * Mathf.Deg2Rad;
+            op.tilt = Dial(ShaperValue.Sample(def.tilt, phase01, seed + 111u, 18f), -MaxSolidCoord, MaxSolidCoord, 18f) * Mathf.Deg2Rad;
             op.roll = Dial(ShaperValue.Sample(def.roll, phase01, seed + 112u), -MaxSolidCoord, MaxSolidCoord, 0f) * Mathf.Deg2Rad;
             op.lineWidth = Dial(ShaperValue.Sample(def.lineWidth, phase01, seed + 113u, 1.1f), 0f, MaxSolidCoord, 1.1f);
-            op.edgeGlow = Mathf.Clamp01(Dial(ShaperValue.Sample(def.edgeGlow, phase01, seed + 114u), 0f, 1f, 0f));
-            op.innerGlow = Mathf.Clamp01(Dial(ShaperValue.Sample(def.innerGlow, phase01, seed + 115u), 0f, 1f, 0f));
+            op.edgeGlow = Mathf.Clamp01(Dial(ShaperValue.Sample(def.edgeGlow, phase01, seed + 114u, 0.5f), 0f, 1f, 0.5f));
+            op.innerGlow = Mathf.Clamp01(Dial(ShaperValue.Sample(def.innerGlow, phase01, seed + 115u, 0.35f), 0f, 1f, 0.35f));
 
             // The one place a Solids colour is decoded, and it happens ONCE, at compile — FC-2.3's single
             // decode discipline. The law never decodes and never encodes (LR-2.6).
@@ -829,14 +850,29 @@ namespace Laubrary.Shaper
                                      ? NearestLine(geo, lx, ly)
                                      : Mathf.Abs(dist);
 
+                            // T-0203 — THE GLOW STRENGTH IS DECODED, because it is authored in the same space
+                            // its colour is. `op.edgeGlowR/G/B` came out of ShaperSrgb.Decode at compile, so
+                            // the colour is LINEAR; the strength beside it was being applied raw, which means
+                            // a linear colour was being scaled by a perceptual number. That mismatch is what
+                            // washed every Solid out: measured on the six forms at defaults, the darkest
+                            // covered pixel sat at luminance 116 against Pyre's 31, and the same Orb that read
+                            // 35..255 with the glows off read 116..255 with them on — the glow was not adding
+                            // a halo, it was lifting the whole picture off its own black.
+                            //
+                            // Pyre adds `colour_sRGB · amount` straight into an sRGB framebuffer
+                            // (PyreRenderer.cs:4371-4377), so for the default WHITE glow this decode makes the
+                            // two byte-for-byte equivalent: encode(decode(amt)) == amt. It is not a fudge
+                            // toward Pyre's look, it is the same fix FC-2.3's single-decode discipline already
+                            // applies to every authored colour in the document, applied to the scalar that
+                            // multiplies one.
                             float h = 1f - ed / haloR; if (h < 0f) h = 0f;
-                            float haloAmt = 0.85f * op.edgeGlow * h * h;
+                            float haloAmt = ShaperSrgb.DecodeChannel(0.85f * op.edgeGlow * h * h);
                             gr += op.edgeGlowR * haloAmt; gg += op.edgeGlowG * haloAmt; gb += op.edgeGlowB * haloAmt;
 
                             if (line == 0f)
                             {
                                 float core = Mathf.Pow(Mathf.Clamp01(ed / innerR), 1.4f);
-                                float innerAmt = 0.75f * op.innerGlow * core;
+                                float innerAmt = ShaperSrgb.DecodeChannel(0.75f * op.innerGlow * core);
                                 gr += op.innerGlowR * innerAmt; gg += op.innerGlowG * innerAmt; gb += op.innerGlowB * innerAmt;
                             }
                         }

@@ -103,9 +103,11 @@ namespace Laubrary.Shaper.Editor
                 new Sweep { dial = ShaperSolidDial.GemCrown,    form = ShaperSolidForm.Gem,  moved = 1.4f,  label = "Gem crown 0.55 -> 1.4" },
                 new Sweep { dial = ShaperSolidDial.GemPavilion, form = ShaperSolidForm.Gem,  moved = 1.6f,  label = "Gem pavilion 0.85 -> 1.6" },
                 new Sweep { dial = ShaperSolidDial.RingInner,   form = ShaperSolidForm.Ring, moved = 0.85f, label = "Ring inner 0.55 -> 0.85" },
-                new Sweep { dial = ShaperSolidDial.Yaw,         form = ShaperSolidForm.Box,  moved = 35f,   label = "Yaw 0 -> 35" },
-                new Sweep { dial = ShaperSolidDial.Tilt,        form = ShaperSolidForm.Box,  moved = 28f,   label = "Tilt 0 -> 28" },
-                new Sweep { dial = ShaperSolidDial.Roll,        form = ShaperSolidForm.Box,  moved = 22f,   label = "Roll 0 -> 22" },
+                // Moved values must differ from Pose()'s: the first run set Yaw to 35 on a pose that was
+                // already yaw 35 and reported the dial INERT, which was the probe lying, not the engine.
+                new Sweep { dial = ShaperSolidDial.Yaw,         form = ShaperSolidForm.Box,  moved = 75f,   label = "Yaw 35 -> 75" },
+                new Sweep { dial = ShaperSolidDial.Tilt,        form = ShaperSolidForm.Box,  moved = -40f,  label = "Tilt 28 -> -40" },
+                new Sweep { dial = ShaperSolidDial.Roll,        form = ShaperSolidForm.Box,  moved = 22f,   label = "Roll 12 -> 22" },
                 new Sweep { dial = ShaperSolidDial.LineWidth,   form = ShaperSolidForm.Gem,  moved = 4f,    label = "Line width 1.1 -> 4" },
                 new Sweep { dial = ShaperSolidDial.EdgeGlow,    form = ShaperSolidForm.Gem,  moved = 1f,    label = "Edge glow 0 -> 1" },
                 new Sweep { dial = ShaperSolidDial.InnerGlow,   form = ShaperSolidForm.Gem,  moved = 1f,    label = "Inner glow 0 -> 1" },
@@ -181,9 +183,15 @@ namespace Laubrary.Shaper.Editor
             Blit(sheet, 4, bordered, 2, 0);
             Blit(sheet, 4, rigLit, 3, 0);
 
-            sb.AppendLine($"  fill tints albedo   : {Differing(plain, tinted),6} px changed");
-            sb.AppendLine($"  border draws        : {Differing(plain, bordered),6} px changed");
-            sb.AppendLine($"  one rig light wins  : {Differing(plain, rigLit),6} px changed (built-in key must be replaced)");
+            // Reported against the COVERED count, not as a bare number: "336 changed" says nothing until you
+            // know whether 336 is most of the solid or a tenth of it. A fill swap should reach nearly every
+            // covered pixel EXCEPT the facet lines (whose albedo is substituted) and the glow-only fringe.
+            int cov = Covered(plain);
+            sb.AppendLine($"  covered pixels      : {cov,6}");
+            sb.AppendLine($"  fill tints albedo   : {Differing(plain, tinted),6} px changed  ({Pct(Differing(plain, tinted), cov)})");
+            sb.AppendLine($"  border draws        : {Differing(plain, bordered),6} px changed  ({Pct(Differing(plain, bordered), cov)})");
+            sb.AppendLine($"  covered with border : {Covered(bordered),6} (a border should ADD covered pixels)");
+            sb.AppendLine($"  one rig light wins  : {Differing(plain, rigLit),6} px changed  ({Pct(Differing(plain, rigLit), cov)})");
             sb.AppendLine($"  plain  : {Describe(plain)}");
             sb.AppendLine($"  rigLit : {Describe(rigLit)}");
 
@@ -245,6 +253,16 @@ namespace Laubrary.Shaper.Editor
             layer.shapeForm = form;
             layer.swarmEnabled = false;                 // Pyre.cs:652 — off means exactly one centred particle
 
+            // SIZE PINNED TO SHAPER'S DEFAULT. Pyre's `size` is an envelope over the particle's own life
+            // (Pyre.cs:326, DefaultSize) and at mid-life it resolves well above 20, so the first sheet compared
+            // a radius-20 Shaper solid against a visibly larger Pyre one — every covered-pixel count differed
+            // by 1.5x and it read as a lighting difference when it was a size difference. Pinning it makes the
+            // two rows differ ONLY in what this task is about. Both glow radii scale with R
+            // (max(2.5, 0.24R) / max(3, 0.30R)), so this also puts the two glows at the same proportion of the
+            // solid rather than leaving Shaper's looking heavier.
+            layer.size = new ZUIValue(20f);             // ShaperSolidDef.size's default
+            layer.alpha = new ZUIValue(1f);             // and no life fade, so alpha is not a second variable
+
             // The window's own conversion, called rather than copied: a fresh 3D solid gets a STEADY Solid
             // material instead of the OverLife fire gradient (PyreShapeCards.cs:916), which is what makes a
             // Pyre solid read as light-driven. Without it the two rows would differ by the material, not the
@@ -291,16 +309,44 @@ namespace Laubrary.Shaper.Editor
             }
         }
 
+        /// <summary>
+        /// Nearest-neighbour upscaled on the way out. A 96px tile is too small to judge a bevel or a facet
+        /// seam by eye at 1:1 — the first look at this sheet read a mid-brown front face as near-black, which
+        /// the per-face numbers then contradicted. A contact sheet nobody can actually see is not evidence.
+        /// </summary>
+        const int Zoom = 3;
+
         static void Save(Color32[] sheet, int cols, int rows, string file)
         {
-            var tex = new Texture2D(cols * Tile, rows * Tile, TextureFormat.RGBA32, false);
-            tex.SetPixels32(sheet);
+            // VERTICALLY FLIPPED on the way out, and this is not cosmetic. A Texture2D's row 0 is the BOTTOM
+            // row, so the first save put row 0 (Shaper) along the bottom of the PNG while the report above it
+            // read top-down — and the first look at that sheet drew exactly the wrong conclusion from it,
+            // reading Pyre's contrasty solids as Shaper's. A sheet whose rows are not where its caption says
+            // is worse than no sheet.
+            int w = cols * Tile, h = rows * Tile;
+            var big = new Color32[w * Zoom * h * Zoom];
+            for (int y = 0; y < h * Zoom; y++)
+                for (int x = 0; x < w * Zoom; x++)
+                    big[y * w * Zoom + x] = sheet[(h - 1 - y / Zoom) * w + (x / Zoom)];
+
+            var tex = new Texture2D(w * Zoom, h * Zoom, TextureFormat.RGBA32, false);
+            tex.SetPixels32(big);
             tex.Apply();
             File.WriteAllBytes(Path.Combine(OutDir, file), tex.EncodeToPNG());
             UnityEngine.Object.DestroyImmediate(tex);
         }
 
         // ── measurements ──────────────────────────────────────────────────────────────────────────────────
+
+        static int Covered(Color32[] px)
+        {
+            if (px == null) return 0;
+            int n = 0;
+            for (int i = 0; i < px.Length; i++) if (px[i].a >= 8) n++;
+            return n;
+        }
+
+        static string Pct(int part, int whole) => whole <= 0 ? "n/a" : (100f * part / whole).ToString("0") + "% of covered";
 
         static int Differing(Color32[] a, Color32[] b)
         {
