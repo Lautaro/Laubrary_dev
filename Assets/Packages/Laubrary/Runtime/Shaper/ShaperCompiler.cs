@@ -142,6 +142,8 @@ namespace Laubrary.Shaper
             public ShaperProgram program = new ShaperProgram();
             /// <summary>T-0112 — every composite node's baked picture, collected in emission order.</summary>
             public List<ShaperCompiledComposite> composites = new List<ShaperCompiledComposite>();
+            /// <summary>T-0175 — every Sprite primitive's baked distance raster, collected in emission order.</summary>
+            public List<ShaperCompiledSpriteField> spriteFields = new List<ShaperCompiledSpriteField>();
             public int depth;
             public int maxDepth;
             public float phase01;
@@ -210,6 +212,7 @@ namespace Laubrary.Shaper
 
             st.program.ops = st.ops.ToArray();
             st.program.composites = st.composites.ToArray();
+            st.program.spriteFields = st.spriteFields.ToArray();
             st.program.stackDepth = Mathf.Max(1, st.maxDepth);
             st.program.bound = top.bound;
             if (top.box.valid)
@@ -451,6 +454,28 @@ namespace Laubrary.Shaper
             float originalPhase = st.phase01;
             uint originalSeed = st.seed;
 
+            // T-0169 — the spawner is ONE figure the whole swarm sits on, so its dials are sampled once here
+            // rather than per instance, and the spawn-order permutation is built once for the same reason.
+            // Both collapse to an exact no-op when no shape is authored, which is the default.
+            ShaperSpawner spawner = swarm.SampleSpawner(st.phase01, st.seed);
+            bool placed = swarm.shape != ShaperSwarmShape.None;
+            int[] spawnPerm = (placed || swarm.spawnOrderChaos > 0f)
+                ? ShaperSwarmPlacement.BuildSpawnPermutation(swarm.shape, swarm.spawnMode, spawner.radius, count,
+                    Mathf.Clamp01(swarm.spawnOrderChaos), swarm.distribution, swarm.gridReverse, swarm.seed)
+                : null;
+
+            // Die-together needs the LAST birth before any instance is placed, so it is computed up front:
+            // every instance then shares that one death moment instead of each carrying its own.
+            bool timed = swarm.timing != ShaperSwarmTiming.Stagger;
+            float sharedDeath = 0f;
+            if (timed && swarm.dieTogether)
+            {
+                float lastSpawn = 0f;
+                for (int i = 0; i < count; i++) lastSpawn = Mathf.Max(lastSpawn, swarm.SpawnPhase(i, count, st.seed));
+                sharedDeath = Mathf.Min(1f, lastSpawn + Mathf.Max(0.01f, swarm.instanceLife));
+            }
+
+            // -1 marks an instance that is not alive at this document phase and was therefore never emitted.
             var phasesUsed = new float[count];
 
             swarm.enabled = false;
@@ -470,14 +495,49 @@ namespace Laubrary.Shaper
                     float jscale = (Unit(h3) * 2f - 1f) * scaleJitterRange;
                     float jphaseRaw = Unit(h4);
 
-                    transform.instanceTranslate = new Vector2(jx, jy);
-                    transform.instanceRotationDegrees = jrot;
-                    transform.instanceScaleBias = jscale;
+                    // T-0169 — under Window/FrameStep an instance has a BIRTH and a DEATH, and outside that
+                    // span it is not emitted at all: the swarm genuinely appears and clears rather than
+                    // fading a permanently-present instance, which is the thing a spawn timing is for.
+                    float instancePhase;
+                    if (timed)
+                    {
+                        float birth = swarm.SpawnPhase(i, count, originalSeed);
+                        float death = swarm.dieTogether
+                            ? sharedDeath
+                            : Mathf.Min(1f, birth + Mathf.Max(0.01f, swarm.instanceLife));
+                        if (originalPhase < birth || originalPhase > death || death <= birth)
+                        {
+                            phasesUsed[i] = -1f;
+                            continue;
+                        }
+                        instancePhase = Mathf.Clamp01((originalPhase - birth) / Mathf.Max(1e-4f, death - birth));
+                    }
+                    else
+                    {
+                        // THE shared-clock fix: at lifetimeStagger=1 each instance's phase is drawn
+                        // independently across the whole cycle; at 0 every instance shares the node's own
+                        // phase, the old broken behaviour, kept selectable rather than deleted
+                        // (ShaperSwarmDef.lifetimeStagger doc).
+                        instancePhase = Mathf.Clamp01(Mathf.Lerp(originalPhase, jphaseRaw,
+                                                                 Mathf.Clamp01(swarm.lifetimeStagger)));
+                    }
 
-                    // THE shared-clock fix: at lifetimeStagger=1 each instance's phase is drawn independently
-                    // across the whole cycle; at 0 every instance shares the node's own phase, the old broken
-                    // behaviour, kept selectable rather than deleted (ShaperSwarmDef.lifetimeStagger doc).
-                    st.phase01 = Mathf.Clamp01(Mathf.Lerp(originalPhase, jphaseRaw, Mathf.Clamp01(swarm.lifetimeStagger)));
+                    int posIdx = spawnPerm != null ? spawnPerm[i] : i;
+                    Vector2 place = Vector2.zero;
+                    float orientDeg = 0f;
+                    float sizeBias = 0f;
+                    if (placed)
+                    {
+                        swarm.PlaceInstance(posIdx, count, spawner, instancePhase, originalSeed,
+                                            out place, out orientDeg);
+                        sizeBias = swarm.ScaleAtIndex(posIdx, count, originalSeed) - 1f;
+                    }
+
+                    transform.instanceTranslate = new Vector2(place.x + jx, place.y + jy);
+                    transform.instanceRotationDegrees = jrot + orientDeg;
+                    transform.instanceScaleBias = jscale + sizeBias;
+
+                    st.phase01 = instancePhase;
                     st.seed = Hash(originalSeed, h0);
                     phasesUsed[i] = st.phase01;
 
@@ -568,15 +628,32 @@ namespace Laubrary.Shaper
             // a pure hash, so an animated range widens or tightens the cloud without re-rolling which instance
             // sits where.
             swarm.SampleJitter(st.phase01, st.seed, out Vector2 jitterRange, out _, out _);
+
+            // T-0169 — the spawn shape belongs to the SWARM, not to either implementation, so a native source
+            // is handed the same placed offsets the generic wrapper would have used (the interface's own
+            // contract: "the EXACT values the generic wrapper would have used for the same authored swarm").
+            // A native source cannot express a per-instance ROTATION or SIZE, so orient and scale-by-index are
+            // dropped here rather than silently half-applied; the window says which path is in use.
+            ShaperSpawner spawner = swarm.SampleSpawner(st.phase01, st.seed);
+            bool placed = swarm.shape != ShaperSwarmShape.None;
+            int[] spawnPerm = (placed || swarm.spawnOrderChaos > 0f)
+                ? ShaperSwarmPlacement.BuildSpawnPermutation(swarm.shape, swarm.spawnMode, spawner.radius, count,
+                    Mathf.Clamp01(swarm.spawnOrderChaos), swarm.distribution, swarm.gridReverse, swarm.seed)
+                : null;
+
             for (int i = 0; i < count; i++)
             {
                 uint h0 = Hash(swarm.seed, (uint)i * 2654435761u + 1u);
                 uint h1 = Hash(h0, 0x9E3779B1u);
                 uint h4 = Hash(Hash(Hash(h1, 0x85EBCA77u), 0xC2B2AE3Du), 0x27D4EB2Fu);
-                offsets[i] = new Vector2((Unit(h0) * 2f - 1f) * jitterRange.x,
-                                          (Unit(h1) * 2f - 1f) * jitterRange.y);
-                seeds[i] = Hash(st.seed, h0);
                 phases[i] = Mathf.Clamp01(Mathf.Lerp(st.phase01, Unit(h4), Mathf.Clamp01(swarm.lifetimeStagger)));
+                Vector2 place = Vector2.zero;
+                if (placed)
+                    swarm.PlaceInstance(spawnPerm != null ? spawnPerm[i] : i, count, spawner, phases[i], st.seed,
+                                        out place, out _);
+                offsets[i] = new Vector2(place.x + (Unit(h0) * 2f - 1f) * jitterRange.x,
+                                         place.y + (Unit(h1) * 2f - 1f) * jitterRange.y);
+                seeds[i] = Hash(st.seed, h0);
             }
             if (st.program.swarmInstancePhases == null) st.program.swarmInstancePhases = phases;
 
@@ -647,6 +724,12 @@ namespace Laubrary.Shaper
         static Emitted EmitLeafFrom(ShaperPrimitiveDef primitive, in ShaperMatrix forward, in ShaperMatrix inverse,
                                     float sigmaMin, State st)
         {
+            // T-0175 — a Sprite has no flat-number SDF form at all, so it forks around ShaperPrimitives.Bake
+            // entirely, the same way EmitComposite and EmitSolid already fork around the ordinary Leaf op for
+            // their own non-analytic or synthesized content.
+            if (primitive != null && primitive.kind == ShaperPrimitiveKind.Sprite)
+                return EmitSpriteLeaf(primitive, forward, inverse, sigmaMin, st);
+
             ShaperBakedPrimitive baked = ShaperPrimitives.Bake(primitive, st.phase01, st.seed);
 
             var op = new ShaperOp
@@ -682,6 +765,64 @@ namespace Laubrary.Shaper
                 // transform applied. These are fixed before any transform touches them, which is precisely what
                 // makes the fill anchor rotation-invariant and scale-stable.
                 localBox = Box.FromCentre(0f, 0f, baked.halfExtentX, baked.halfExtentY),
+            };
+        }
+
+        // Field ids for the sprite dials' own reproducible Min-Max sampling — mirrors ShaperPrimitives' own
+        // Fld* constants, kept local because only this method samples them (ShaperPrimitives.Bake never sees a
+        // Sprite primitive — see its own class doc).
+        const uint FldSpriteHalfW = 0x51A21E20u, FldSpriteHalfH = 0x51A21E21u;
+        const uint FldSpriteThreshold = 0x51A21E22u, FldSpriteSoftness = 0x51A21E23u;
+
+        /// <summary>
+        /// T-0175 — a Sprite primitive's leaf. Resolves its dials at this compile's own phase/seed (the same
+        /// funnel-once-per-compile rule every other dial follows, BC-1.2), fetches (or builds) its cached distance
+        /// raster, and emits a <see cref="ShaperOpKind.SpriteSample"/> op — structurally identical to
+        /// <see cref="EmitLeafFrom"/>'s own tail (canvas support box, local box, Push) with the raster lookup
+        /// standing in for <see cref="ShaperSdf.Evaluate"/>.
+        /// </summary>
+        static Emitted EmitSpriteLeaf(ShaperPrimitiveDef primitive, in ShaperMatrix forward, in ShaperMatrix inverse,
+                                      float sigmaMin, State st)
+        {
+            float hw = Mathf.Max(1e-4f, ShaperValue.Sample(primitive.spriteHalfWDial, st.phase01, st.seed ^ FldSpriteHalfW, 50f));
+            float hh = Mathf.Max(1e-4f, ShaperValue.Sample(primitive.spriteHalfHDial, st.phase01, st.seed ^ FldSpriteHalfH, 50f));
+            float threshold = Mathf.Clamp01(ShaperValue.Sample(primitive.spriteThresholdDial, st.phase01, st.seed ^ FldSpriteThreshold, 0.5f));
+            float softness = Mathf.Max(0f, ShaperValue.Sample(primitive.spriteSoftnessDial, st.phase01, st.seed ^ FldSpriteSoftness, 0f));
+
+            ShaperCompiledSpriteField raster = ShaperSpritePrepassCache.Get(primitive, hw, hh, threshold, softness, primitive.spriteFitMode);
+            if (raster == null)
+            {
+                // No sprite assigned — a legal, if useless, authoring state (FC-6.5's posture): empty everywhere,
+                // same as an unassigned Texture/Gradient fill or a Composite node with no source.
+                EmitEmpty(st);
+                return new Emitted { bound = 1f, box = Box.Invalid, sweepAxis = ShaperSweepAxis.Radial, localBox = Box.Invalid };
+            }
+
+            var op = new ShaperOp
+            {
+                kind = ShaperOpKind.SpriteSample,
+                count = st.spriteFields.Count,
+                p0 = raster.halfExtentX, p1 = raster.halfExtentY,
+                m00 = inverse.m00, m01 = inverse.m01, m02 = inverse.m02,
+                m10 = inverse.m10, m11 = inverse.m11, m12 = inverse.m12,
+                distanceScale = sigmaMin,
+                bound = 1f,
+            };
+            st.spriteFields.Add(raster);
+
+            float chw = Mathf.Abs(forward.m00) * raster.halfExtentX + Mathf.Abs(forward.m01) * raster.halfExtentY;
+            float chh = Mathf.Abs(forward.m10) * raster.halfExtentX + Mathf.Abs(forward.m11) * raster.halfExtentY;
+            Box box = Box.FromCentre(forward.m02, forward.m12, chw, chh);
+            op.boxCx = box.CentreX; op.boxCy = box.CentreY; op.boxHalfW = box.HalfW; op.boxHalfH = box.HalfH;
+
+            st.ops.Add(op);
+            st.Push();
+            return new Emitted
+            {
+                bound = 1f,
+                box = box,
+                sweepAxis = ShaperSweepAxis.Radial,
+                localBox = Box.FromCentre(0f, 0f, raster.halfExtentX, raster.halfExtentY),
             };
         }
 

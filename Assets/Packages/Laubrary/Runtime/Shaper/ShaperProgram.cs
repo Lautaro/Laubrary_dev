@@ -38,6 +38,18 @@ namespace Laubrary.Shaper
         /// costs a composite node the border stage and any wide soft-combine.
         /// </summary>
         CompositeSample = 6,
+
+        /// <summary>
+        /// T-0175 — pushes one <see cref="ShaperPrimitiveKind.Sprite"/> primitive's signed edge distance, in
+        /// canvas pixels. Structurally identical to <see cref="Leaf"/> (local-frame transform, one value pushed,
+        /// canvas support box carried out) but — unlike <see cref="CompositeSample"/> — the value read back is a
+        /// REAL distance everywhere on the raster, not a pseudo-distance saturating a texel from the edge: it was
+        /// baked by an exact Euclidean distance transform of the sprite's threshold+softness alpha mask
+        /// (<see cref="ShaperSpritePrepassCache"/>), cached and indexed by <see cref="ShaperOp.count"/> into
+        /// <see cref="ShaperProgram.spriteFields"/>, entirely separate from <see cref="ShaperProgram.composites"/>
+        /// since a Sprite is a <see cref="ShaperPrimitiveKind"/> under a Primitive node, not its own node kind.
+        /// </summary>
+        SpriteSample = 7,
     }
 
     /// <summary>
@@ -56,6 +68,9 @@ namespace Laubrary.Shaper
     /// <item><b>CompositeSample</b> (T-0112) — p0/p1 the local half-extent X/Y the raster maps to, p2 the
     /// texel half-band used to invert coverage into a pseudo-distance; <c>count</c> is the index into
     /// <see cref="ShaperProgram.composites"/>.</item>
+    /// <item><b>SpriteSample</b> (T-0175) — p0/p1 the raster's own local half-extent X/Y; <c>count</c> is the
+    /// index into <see cref="ShaperProgram.spriteFields"/>. No inversion slot needed: the raster already holds a
+    /// real distance.</item>
     /// </list>
     /// </summary>
     public struct ShaperOp
@@ -197,6 +212,14 @@ namespace Laubrary.Shaper
         /// a zero-length array, not a null check threaded through the evaluator.
         /// </summary>
         public ShaperCompiledComposite[] composites = System.Array.Empty<ShaperCompiledComposite>();
+
+        /// <summary>
+        /// T-0175 — every <see cref="ShaperPrimitiveKind.Sprite"/> primitive's baked distance raster, in the
+        /// order its <see cref="ShaperOpKind.SpriteSample"/> op was emitted. <see cref="ShaperOp.count"/> indexes
+        /// this array, kept separate from <see cref="composites"/> because a Sprite primitive lives under an
+        /// ordinary Primitive node while a composite is its own <see cref="ShaperNodeKind"/>.
+        /// </summary>
+        public ShaperCompiledSpriteField[] spriteFields = System.Array.Empty<ShaperCompiledSpriteField>();
 
         // ── T-0113 swarm — the structural "shown, not hidden" surface ──────────────────────────────────────
         // Every field below is READ from the compiled program, never authored on ShaperSwarmDef, so which

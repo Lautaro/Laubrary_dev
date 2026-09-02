@@ -135,6 +135,19 @@ namespace Laubrary.Shaper
                         stack[sp++] = dLocal * ops[i].distanceScale;
                         break;
                     }
+
+                    case ShaperOpKind.SpriteSample:
+                    {
+                        // T-0175 — a Sprite primitive's raster already holds a real signed distance (unlike
+                        // CompositeSample's coverage, which needs inverting), so this is a straight bilinear
+                        // fetch: map into the node's own local frame like Leaf/CompositeSample, sample, scale.
+                        float lx = ops[i].m00 * x + ops[i].m01 * y + ops[i].m02;
+                        float ly = ops[i].m10 * x + ops[i].m11 * y + ops[i].m12;
+                        ShaperCompiledSpriteField raster = program.spriteFields[ops[i].count];
+                        float dLocal = SampleSpriteDistance(raster, lx, ly, ops[i].p0, ops[i].p1);
+                        stack[sp++] = dLocal * ops[i].distanceScale;
+                        break;
+                    }
                 }
             }
 
@@ -216,6 +229,42 @@ namespace Laubrary.Shaper
             float c11 = raster.coverage[y1 * raster.width + x1];
             float top = Mathf.Lerp(c00, c10, tx);
             float bot = Mathf.Lerp(c01, c11, tx);
+            return Mathf.Lerp(top, bot, ty);
+        }
+
+        /// <summary>
+        /// T-0175 — bilinear-sample a Sprite primitive's baked distance raster at a LOCAL-frame point
+        /// <paramref name="lx"/>/<paramref name="ly"/>, where the raster covers
+        /// <c>[-halfExtentX, halfExtentX] x [-halfExtentY, halfExtentY]</c>. CLAMPS at the box edge exactly like
+        /// <see cref="SampleCompositeCoverage"/> — a point outside the raster's own fitted box (possible under
+        /// <see cref="ShaperSpriteFitMode.Uniform"/>, where the raster can be smaller than the primitive's
+        /// authored half-extent) reads the nearest edge value rather than extrapolating.
+        /// </summary>
+        static float SampleSpriteDistance(ShaperCompiledSpriteField raster, float lx, float ly,
+                                          float halfExtentX, float halfExtentY)
+        {
+            if (raster == null || raster.distance == null || raster.width <= 0 || raster.height <= 0) return ShaperField.Empty;
+
+            float u = halfExtentX > 1e-9f ? (lx + halfExtentX) / (2f * halfExtentX) : 0.5f;
+            float v = halfExtentY > 1e-9f ? (ly + halfExtentY) / (2f * halfExtentY) : 0.5f;
+            u = Mathf.Clamp01(u);
+            v = Mathf.Clamp01(v);
+
+            float fx = u * raster.width - 0.5f;
+            float fy = v * raster.height - 0.5f;
+            int x0 = Mathf.Clamp(Mathf.FloorToInt(fx), 0, raster.width - 1);
+            int y0 = Mathf.Clamp(Mathf.FloorToInt(fy), 0, raster.height - 1);
+            int x1 = Mathf.Clamp(x0 + 1, 0, raster.width - 1);
+            int y1 = Mathf.Clamp(y0 + 1, 0, raster.height - 1);
+            float tx = Mathf.Clamp01(fx - x0);
+            float ty = Mathf.Clamp01(fy - y0);
+
+            float d00 = raster.distance[y0 * raster.width + x0];
+            float d10 = raster.distance[y0 * raster.width + x1];
+            float d01 = raster.distance[y1 * raster.width + x0];
+            float d11 = raster.distance[y1 * raster.width + x1];
+            float top = Mathf.Lerp(d00, d10, tx);
+            float bot = Mathf.Lerp(d01, d11, tx);
             return Mathf.Lerp(top, bot, ty);
         }
 

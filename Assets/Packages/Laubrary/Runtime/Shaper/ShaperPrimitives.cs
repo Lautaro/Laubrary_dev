@@ -16,6 +16,23 @@ namespace Laubrary.Shaper
         Capsule = 4,
         NGon = 5,
         Star = 6,
+
+        /// <summary>
+        /// T-0175 — a Sprite's alpha becomes the shape. Unlike every other kind, this one has no analytic SDF:
+        /// <see cref="ShaperCompiler"/> routes it around <see cref="ShaperPrimitives.Bake"/> entirely (its own
+        /// <c>EmitSpriteLeaf</c>) into a baked, cached signed-distance raster (<see cref="ShaperSpriteField"/>),
+        /// mirroring the composite generator's raster leaf rather than the exact-SDF registry above.
+        /// </summary>
+        Sprite = 7,
+    }
+
+    /// <summary>How a Sprite primitive's own pixel rect maps onto its authored half-extent box. APPEND-ONLY.</summary>
+    public enum ShaperSpriteFitMode
+    {
+        /// <summary>Preserves the sprite's own pixel aspect ratio, fitted (letterboxed) inside the box.</summary>
+        Uniform = 0,
+        /// <summary>Stretches the sprite non-uniformly to fill the box exactly.</summary>
+        Stretch = 1,
     }
 
     /// <summary>
@@ -103,6 +120,18 @@ namespace Laubrary.Shaper
         /// <summary>Valley swirl in degrees, −60..60 — a true pinwheel twist, clamped so valleys never cross tips.</summary>
         public ZUIValue starSkew = new ZUIValue(0f);
 
+        // Sprite (T-0175) — the source asset is a plain reference, never a dial: it is picked, not animated.
+        // Half-extents are the AUTHORED box the sprite maps onto, same role as Rect's halfW/halfH.
+        public Sprite spriteAsset;
+        public ZUIValue spriteHalfWDial = new ZUIValue(50f);
+        public ZUIValue spriteHalfHDial = new ZUIValue(50f);
+        /// <summary>Alpha cutoff, 0..1, for the inside/outside mask the distance transform is built from.</summary>
+        public ZUIValue spriteThresholdDial = new ZUIValue(0.5f);
+        /// <summary>Blur radius applied to the alpha channel before thresholding, in local canvas units — softens
+        /// the mask boundary itself (and so the distance field it produces), not just the final antialiasing.</summary>
+        public ZUIValue spriteSoftnessDial = new ZUIValue(0f);
+        public ShaperSpriteFitMode spriteFitMode = ShaperSpriteFitMode.Uniform;
+
         // ── the pre-promotion storage, read once to seed the dials above ─────────────────────────────────
         [SerializeField, FormerlySerializedAs("rectHalfW")]         float legacyRectHalfW = 50f;
         [SerializeField, FormerlySerializedAs("rectHalfH")]         float legacyRectHalfH = 50f;
@@ -164,6 +193,10 @@ namespace Laubrary.Shaper
             if (starLength == null) starLength = new ZUIValue(0.62f);
             if (starBaseWidth == null) starBaseWidth = new ZUIValue(1f);
             if (starSkew == null) starSkew = new ZUIValue(0f);
+            if (spriteHalfWDial == null) spriteHalfWDial = new ZUIValue(50f);
+            if (spriteHalfHDial == null) spriteHalfHDial = new ZUIValue(50f);
+            if (spriteThresholdDial == null) spriteThresholdDial = new ZUIValue(0.5f);
+            if (spriteSoftnessDial == null) spriteSoftnessDial = new ZUIValue(0f);
         }
 
         // Plain-number views — see ShaperDial. Code that sizes a primitive outright (a demo, an audit fixture,
@@ -183,6 +216,10 @@ namespace Laubrary.Shaper
         public float ngonRotation { get => ShaperDial.Get(ngonRotationDial); set => ShaperDial.Set(ref ngonRotationDial, value); }
         public float ngonCornerRadius { get => ShaperDial.Get(ngonCornerRadiusDial); set => ShaperDial.Set(ref ngonCornerRadiusDial, value); }
         public float starRadius { get => ShaperDial.Get(starRadiusDial, 50f); set => ShaperDial.Set(ref starRadiusDial, value); }
+        public float spriteHalfW { get => ShaperDial.Get(spriteHalfWDial, 50f); set => ShaperDial.Set(ref spriteHalfWDial, value); }
+        public float spriteHalfH { get => ShaperDial.Get(spriteHalfHDial, 50f); set => ShaperDial.Set(ref spriteHalfHDial, value); }
+        public float spriteThreshold { get => ShaperDial.Get(spriteThresholdDial, 0.5f); set => ShaperDial.Set(ref spriteThresholdDial, value); }
+        public float spriteSoftness { get => ShaperDial.Get(spriteSoftnessDial, 0f); set => ShaperDial.Set(ref spriteSoftnessDial, value); }
     }
 
     /// <summary>
@@ -232,6 +269,12 @@ namespace Laubrary.Shaper
                 case ShaperPrimitiveKind.Capsule: return 1f;
                 case ShaperPrimitiveKind.NGon: return 1f;
                 case ShaperPrimitiveKind.Star: return 1f;
+                // T-0175 — declared 1 for uniformity with every other primitive's registry entry, on the same
+                // "no invented meaning for a case with no Lipschitz proof" posture ShaperCompiler.EmitComposite
+                // already takes for its own raster leaf: an exact Euclidean distance transform sampled bilinearly
+                // is Lipschitz-1 up to the raster's own texel error, and 1 is what every consumer of this table
+                // (border reach, soft-combine width) already assumes a "bound" means.
+                case ShaperPrimitiveKind.Sprite: return 1f;
                 default: return 1f;
             }
         }
@@ -243,6 +286,11 @@ namespace Laubrary.Shaper
         /// <summary>
         /// Resolve an authored primitive at a normalised frame time into flat numbers. Called once per
         /// compile, never per sample.
+        ///
+        /// <see cref="ShaperPrimitiveKind.Sprite"/> is never handed to this method: it has no flat-number form
+        /// at all (its "shape" is a baked raster), so <see cref="ShaperCompiler"/>'s <c>EmitLeafFrom</c> checks
+        /// the kind before calling <c>Bake</c> and routes it to <c>EmitSpriteLeaf</c> instead — the same fork
+        /// point a Solid node's carrier leaf and a Composite node's raster leaf already take around this method.
         /// </summary>
         public static ShaperBakedPrimitive Bake(ShaperPrimitiveDef def, float phase01, uint seed)
         {

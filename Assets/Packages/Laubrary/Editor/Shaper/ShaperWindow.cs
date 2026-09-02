@@ -588,6 +588,26 @@ namespace Laubrary.Shaper.Editor
                         Val("Base width", "How wide each arm is at its base.", p.starBaseWidth, 0f, 2f),
                         Val("Skew", "Twists the arms.", p.starSkew, -1f, 1f)));
                     break;
+
+                case ShaperPrimitiveKind.Sprite:
+                    // T-0175 — a Sprite's alpha becomes the shape. The asset itself is a picker (never a typed
+                    // reference), the box it maps onto is two dials like every other primitive's half-extents,
+                    // and threshold/softness are the two dials that shape the mask the distance transform reads.
+                    box.Add(Z.Field("Sprite", "The sprite whose alpha becomes this shape's coverage and edge.",
+                        Z.Object<Sprite>(p.spriteAsset, "The sprite whose alpha becomes this shape's coverage and edge.",
+                            s => { Change(() => p.spriteAsset = s); Rebuild(); }, 200f)));
+                    box.Add(Z.Field("Fit", "How the sprite's own pixel aspect maps onto the box below. Uniform "
+                        + "keeps its proportions; Stretch fills the box exactly.",
+                        Z.MiniRadio((int)p.spriteFitMode, Enum.GetNames(typeof(ShaperSpriteFitMode)),
+                            "How the sprite's own pixel aspect maps onto the box below. Uniform keeps its "
+                            + "proportions (letterboxed); Stretch fills the box exactly.",
+                            v => Change(() => p.spriteFitMode = (ShaperSpriteFitMode)v))));
+                    box.Add(Z.HGroup(
+                        Val("Half width", "Half the width of the box the sprite maps onto, canvas pixels.", p.spriteHalfWDial, 1f, ext),
+                        Val("Half height", "Half the height of the box the sprite maps onto, canvas pixels.", p.spriteHalfHDial, 1f, ext),
+                        Val("Threshold", "Alpha cutoff, below which a pixel counts as outside the shape.", p.spriteThresholdDial, 0f, 1f),
+                        Val("Softness", "Blurs the sprite's alpha before thresholding, softening the shape's own edge.", p.spriteSoftnessDial, 0f, ext * 0.25f)));
+                    break;
             }
         }
 
