@@ -215,6 +215,24 @@ namespace Laubrary.Shaper
             MixZuiValue(ref m, p.textLetterSpacingDial, phase01);
             MixZuiValue(ref m, p.textLineSpacingDial, phase01);
             MixZuiValue(ref m, p.textWeightDial, phase01);
+            // ── T-0175 fix (T-0174-noticed) Sprite ────────────────────────────────────────────────────────
+            // Same reasoning as Text immediately above: every dial that changes the baked distance raster must
+            // be in the key, or two Sprite primitives differing only in these keep sharing one node cache key
+            // and the preview cache serves a stale field. The sprite ASSET is identity, not a dial, but its
+            // own rect is part of the authoring state too — the same source texture re-sliced (an atlas
+            // re-pack, a different sub-sprite at the same GUID) bakes a different raster from the same
+            // instance id.
+            m.MixInt(p.spriteAsset != null ? p.spriteAsset.GetInstanceID() : 0);
+            if (p.spriteAsset != null)
+            {
+                Rect sr = p.spriteAsset.rect;
+                m.MixFloat(sr.x); m.MixFloat(sr.y); m.MixFloat(sr.width); m.MixFloat(sr.height);
+            }
+            m.MixInt((int)p.spriteFitMode);
+            MixZuiValue(ref m, p.spriteHalfWDial, phase01);
+            MixZuiValue(ref m, p.spriteHalfHDial, phase01);
+            MixZuiValue(ref m, p.spriteThresholdDial, phase01);
+            MixZuiValue(ref m, p.spriteSoftnessDial, phase01);
             return m.Key;
         }
 
@@ -343,7 +361,12 @@ namespace Laubrary.Shaper
                     // T-0174 — a Text dial re-drawn per evaluation rebakes a different glyph raster, which is
                     // exactly the thing a cache must not memoise.
                     IsNonDeterministic(p.textSizeDial) || IsNonDeterministic(p.textLetterSpacingDial) ||
-                    IsNonDeterministic(p.textLineSpacingDial) || IsNonDeterministic(p.textWeightDial))
+                    IsNonDeterministic(p.textLineSpacingDial) || IsNonDeterministic(p.textWeightDial) ||
+                    // T-0175 fix — same reasoning: a Sprite dial re-drawn per evaluation rebakes a different
+                    // distance raster (a different threshold/softness mask, or a different fitted box), which
+                    // this cache must not memoise either.
+                    IsNonDeterministic(p.spriteHalfWDial) || IsNonDeterministic(p.spriteHalfHDial) ||
+                    IsNonDeterministic(p.spriteThresholdDial) || IsNonDeterministic(p.spriteSoftnessDial))
                     return false;
             }
             // T-0155 — the same rule for Solids, and it needs every dial rather than a chosen few: unlike a
