@@ -178,6 +178,88 @@ namespace Laubrary.Shaper
         /// </summary>
         public Color textureTint = Color.white;
 
+        /// <summary>
+        /// T-0172 — a SPRITE-SHEET texture stepped by the node's own phase, rather than the continuous UV
+        /// scroll <see cref="textureOffsetU"/>/<see cref="textureOffsetV"/> already give (FC-6.4e's "that is
+        /// why an animated texture is not a fifth fill" — this is why it is a MODE on Texture instead: it
+        /// shares every other Texture dial, including the tint/mapping/tiling above, and differs only in which
+        /// sub-rectangle of <see cref="texture"/> is sampled). When false, every field below is inert and the
+        /// kind renders exactly as before T-0172 (byte-identical).
+        /// </summary>
+        public bool textureAnimated = false;
+
+        /// <summary>The sheet's grid, columns × rows. Rounded and clamped to >= 1 at compile.</summary>
+        public ZUIValue textureFrameColumns = new ZUIValue(1f);
+        public ZUIValue textureFrameRows = new ZUIValue(1f);
+
+        /// <summary>
+        /// How many of the grid's <c>columns × rows</c> cells are actually used frames, in ROW-MAJOR order
+        /// starting at the sheet's texel row 0 (Unity's <c>GetPixels32</c> is BOTTOM-up, so frame 0 is the
+        /// BOTTOM-left cell — the same convention <see cref="ShaperFillOps"/>'s existing texel indexing already
+        /// uses, not a new one). Clamped to <c>[1, columns·rows]</c> at compile. The frame shown is
+        /// <c>floor(phase01 · frameCount)</c>, clamped to the last frame at <c>phase01 == 1</c> rather than
+        /// wrapping past it — a stepped sprite-sheet plays once per node cycle, the same way every other
+        /// phase-driven Shaper dial reads the node's own clock once per cycle (FC-1.4).
+        /// </summary>
+        public ZUIValue textureFrameCount = new ZUIValue(1f);
+
+        // ── OverPhase (FC-6.10, T-0172) ───────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// The ramp this fill's single flat colour is drawn from — see <see cref="ShaperFillKind.OverPhase"/>.
+        /// Null falls back to <see cref="overPhaseTint"/> as a Solid, same rule as every other kind's gradient
+        /// (FC-6.5).
+        /// </summary>
+        public ZuiGradient overPhaseGradient = new ZuiGradient();
+
+        /// <summary>The fallback colour when <see cref="overPhaseGradient"/> is null.</summary>
+        public Color overPhaseTint = Color.white;
+
+        // ── Procedural: Noise / Grid / Dots (FC-6.11, T-0172) ─────────────────────────────────────────────
+
+        /// <summary>Which procedural pattern this fill draws — see <see cref="ShaperFillKind.Procedural"/>.</summary>
+        public ShaperProceduralKind proceduralKind = ShaperProceduralKind.Noise;
+
+        /// <summary><see cref="ShaperProceduralKind.Noise"/> only — see <see cref="ShaperNoiseKind"/>.</summary>
+        public ShaperNoiseKind noiseKind = ShaperNoiseKind.Value;
+
+        /// <summary>Noise only: the ramp the noise value is mapped through. Null falls back to <see cref="proceduralTint"/> (FC-6.5).</summary>
+        public ZuiGradient proceduralGradient = new ZuiGradient();
+
+        /// <summary>
+        /// Noise's fallback colour when <see cref="proceduralGradient"/> is null; Grid/Dots' INK colour
+        /// (<c>ZuiFill.cs:68</c>'s "Ink = color" by value — the pattern's alpha-equivalent mask multiplies the
+        /// common <see cref="veil"/> dial instead of a fourth channel, per FC-2.2).
+        /// </summary>
+        public Color proceduralTint = Color.white;
+
+        /// <summary>
+        /// A SIZE, not a frequency — same convention as <see cref="gradientSize"/> (bigger spreads the pattern
+        /// further; the reciprocal is taken once at compile). For Grid/Dots this is the cell size; for Noise
+        /// the noise wavelength.
+        /// </summary>
+        public ZUIValue proceduralScale = new ZUIValue(1f);
+
+        /// <summary>Animatable — slides the pattern, which is how it scrolls/drifts over the node's phase.</summary>
+        public ZUIValue proceduralOffsetU = new ZUIValue(0f);
+        public ZUIValue proceduralOffsetV = new ZUIValue(0f);
+
+        /// <summary>Rotates the pattern about its offset.</summary>
+        public ZUIValue proceduralAngleDegrees = new ZUIValue(0f);
+
+        /// <summary>Grid only: line thickness as a fraction of a cell (<c>ZuiFill.cs:146</c> by value).</summary>
+        public ZUIValue gridLineWidth = new ZUIValue(0.08f);
+
+        /// <summary>Grid only: which axes draw lines (<c>ZuiFill.cs:147-148</c> by value).</summary>
+        public bool gridVertical = true;
+        public bool gridHorizontal = true;
+
+        /// <summary>Dots only: disc diameter as a fraction of a cell (<c>ZuiFill.cs:152</c> by value).</summary>
+        public ZUIValue dotSize = new ZUIValue(0.5f);
+
+        /// <summary>Dots only: offset alternating rows by half a cell (<c>ZuiFill.cs:154</c> by value).</summary>
+        public bool dotStagger = true;
+
         // ── Indexed strip (FC-6.6, T-0110) ────────────────────────────────────────────────────────────────
 
         /// <summary>Angle-around or projection-across (B6). See <see cref="ShaperStripParameterisation"/>.</summary>
@@ -331,7 +413,7 @@ namespace Laubrary.Shaper
                     return ShaperQuantitySet.EdgeDistance;
 
                 default:
-                    return ShaperQuantitySet.None;   // Solid, Texture, HeightField
+                    return ShaperQuantitySet.None;   // Solid, Texture, HeightField, OverPhase, Procedural
             }
         }
 

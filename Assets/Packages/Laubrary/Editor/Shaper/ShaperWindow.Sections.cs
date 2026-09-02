@@ -316,6 +316,8 @@ namespace Laubrary.Shaper.Editor
                 case ShaperFillKind.IndexedStrip: BuildStripFill(box, f, keyPrefix); break;
                 case ShaperFillKind.HeightField: BuildHeightFieldFill(box, f); break;
                 case ShaperFillKind.TapestrySteel: BuildSteelFill(box, f); break;
+                case ShaperFillKind.OverPhase: BuildOverPhaseFill(box, f); break;
+                case ShaperFillKind.Procedural: BuildProceduralFill(box, f); break;
             }
 
             // quantiseLevels (:292) is ZUIValue, and applies whatever the kind is.
@@ -372,6 +374,16 @@ namespace Laubrary.Shaper.Editor
             box.Add(Z.Field("Ramp", "The colour ramp the chosen quantity is mapped through.",
                 Gradient(f.rampGradient, "The colour ramp the chosen quantity is mapped through.")));
 
+            // T-0172 — a preset REPLACES rampGradient wholesale (an authoring convenience, not a persistent
+            // dial), so a button opening a picker is the right control, not a MiniRadio (which implies a
+            // saved "current selection" this fill does not have — picking a preset does not remember which
+            // one, only its effect).
+            VisualElement presetButton = null;
+            presetButton = Z.Button("Choose preset…", "Overwrites the ramp above with a Pyre preset, converted to a plain gradient you can then tune freely.",
+                () => ShowRampPresetMenu(presetButton, f));
+            box.Add(Z.Field("Presets", "Start the ramp above from one of Pyre's shipped ramps, then keep editing it.",
+                presetButton));
+
             box.Add(Z.HGroup(
                 Val("Input low", "The quantity value that maps to the START of the ramp.",
                     f.rampInputLow, -1f, 2f),
@@ -401,6 +413,20 @@ namespace Laubrary.Shaper.Editor
                 Z.Field("Tint", "Multiplies the sampled texel.",
                     Z.Color(f.textureTint, "Multiplies the sampled texel.",
                         c => Change(() => f.textureTint = c), 90f))));
+
+            // T-0172 — a sprite-sheet stepped by phase, distinct from the continuous scroll Offset U/V above
+            // already give (FC-6.4e).
+            box.Add(Z.Toggle("Animated", "Treat the texture as a sprite-sheet grid and step to one cell per "
+                + "the node's own phase, instead of sampling the whole image.",
+                f.textureAnimated, v => { Change(() => f.textureAnimated = v); Rebuild(); }));
+            if (f.textureAnimated)
+                box.Add(Z.HGroup(
+                    Val("Columns", "How many frames the sheet is divided into horizontally.",
+                        f.textureFrameColumns, 1f, 32f, decimals: 0),
+                    Val("Rows", "How many frames the sheet is divided into vertically.",
+                        f.textureFrameRows, 1f, 32f, decimals: 0),
+                    Val("Frames", "How many of the grid's cells are used frames, in order from the bottom-left.",
+                        f.textureFrameCount, 1f, 1024f, decimals: 0)));
         }
 
         void BuildStripFill(VisualElement box, ShaperFillDef f, string keyPrefix)
@@ -507,6 +533,91 @@ namespace Laubrary.Shaper.Editor
                 Z.Field("Rust", "The rust colour.",
                     Z.Color(f.steelRustColor, "The rust colour.",
                         c => Change(() => f.steelRustColor = c), 90f))));
+        }
+
+        void BuildOverPhaseFill(VisualElement box, ShaperFillDef f)
+        {
+            box.Add(Z.Field("Ramp", "The whole shape paints this ramp's colour at the node's own phase — a "
+                + "flash of red at phase 0 sliding to blue at phase 1, for instance, never a spatial pattern.",
+                Gradient(f.overPhaseGradient, "The ramp this fill's flat colour is drawn from, over the node's phase.")));
+            box.Add(Z.Field("Tint", "The flat colour painted while no ramp is authored.",
+                Z.Color(f.overPhaseTint, "The flat colour painted while no ramp is authored.",
+                    c => Change(() => f.overPhaseTint = c), 90f)));
+        }
+
+        void BuildProceduralFill(VisualElement box, ShaperFillDef f)
+        {
+            box.Add(Z.Field("Pattern", "Which procedural pattern this fill draws.",
+                Z.MiniRadio((int)f.proceduralKind, Enum.GetNames(typeof(ShaperProceduralKind)),
+                    "Noise paints a ramp through hashed noise; Grid and Dots ink a repeating line/disc pattern "
+                    + "and leave the rest transparent.",
+                    v => { Change(() => f.proceduralKind = (ShaperProceduralKind)v); Rebuild(); })));
+
+            box.Add(Z.HGroup(
+                Val("Scale", "How far the pattern spreads before it repeats.", f.proceduralScale, 0.05f, 16f),
+                Val("Offset U", "Slides the pattern horizontally — animate this to make it drift.",
+                    f.proceduralOffsetU, -8f, 8f),
+                Val("Offset V", "Slides the pattern vertically — animate this to make it drift.",
+                    f.proceduralOffsetV, -8f, 8f),
+                Val("Angle", "Rotates the pattern, in degrees.",
+                    f.proceduralAngleDegrees, 0f, 360f, cyclic: true, decimals: 0)));
+
+            switch (f.proceduralKind)
+            {
+                case ShaperProceduralKind.Noise:
+                    box.Add(Z.Field("Noise shape", "How the raw noise value is reshaped before it drives the ramp.",
+                        Z.Segmented((int)f.noiseKind, Enum.GetNames(typeof(ShaperNoiseKind)),
+                            "Value is plain noise; Ridged creases it into ridges; Steps posterises it into four bands.",
+                            v => Change(() => f.noiseKind = (ShaperNoiseKind)v))));
+                    box.Add(Z.Field("Ramp", "The colour ramp the noise value is mapped through.",
+                        Gradient(f.proceduralGradient, "The colour ramp the noise value is mapped through.")));
+                    box.Add(Z.Field("Tint", "The flat colour painted while no ramp is authored.",
+                        Z.Color(f.proceduralTint, "The flat colour painted while no ramp is authored.",
+                            c => Change(() => f.proceduralTint = c), 90f)));
+                    break;
+
+                case ShaperProceduralKind.Grid:
+                    box.Add(Z.HGroup(
+                        Val("Line width", "Line thickness, as a fraction of one cell.", f.gridLineWidth, 0f, 1f),
+                        Z.Toggle("Vertical", "Draw the vertical lines.", f.gridVertical,
+                            v => Change(() => f.gridVertical = v)),
+                        Z.Toggle("Horizontal", "Draw the horizontal lines.", f.gridHorizontal,
+                            v => Change(() => f.gridHorizontal = v)),
+                        Z.Field("Ink", "The line colour; everywhere else stays fully transparent (veiled to zero).",
+                            Z.Color(f.proceduralTint, "The line colour.",
+                                c => Change(() => f.proceduralTint = c), 90f))));
+                    break;
+
+                case ShaperProceduralKind.Dots:
+                    box.Add(Z.HGroup(
+                        Val("Dot size", "Disc diameter, as a fraction of one cell.", f.dotSize, 0f, 1f),
+                        Z.Toggle("Stagger", "Offset alternating rows by half a cell.", f.dotStagger,
+                            v => Change(() => f.dotStagger = v)),
+                        Z.Field("Ink", "The dot colour; everywhere else stays fully transparent (veiled to zero).",
+                            Z.Color(f.proceduralTint, "The dot colour.",
+                                c => Change(() => f.proceduralTint = c), 90f))));
+                    break;
+            }
+        }
+
+        /// T-0172 — the ramp-preset picker. Overwrites <paramref name="f"/>'s rampGradient with a Pyre preset,
+        /// converted through <see cref="PyreShaperRampPresets.ToZuiGradient"/> so the applied gradient is a
+        /// fresh, detached copy — never a live reference back into Pyre.
+        void ShowRampPresetMenu(VisualElement anchor, ShaperFillDef f)
+        {
+            var menu = Z.Menu(anchor).Width(280f).Search("Search ramps…");
+            foreach (var preset in PyreShaperRampPresets.All)
+            {
+                var captured = preset;
+                menu.Item(captured.name, "Overwrite the ramp with this Pyre preset.", () =>
+                {
+                    var converted = PyreShaperRampPresets.ToZuiGradient(captured.factory());
+                    if (converted == null) return;
+                    Change(() => f.rampGradient = converted);
+                    Rebuild();
+                });
+            }
+            menu.Show();
         }
 
         /// A ZuiGradient control wired for Undo. Z.Gradient's own callback fires AFTER the edit, so the

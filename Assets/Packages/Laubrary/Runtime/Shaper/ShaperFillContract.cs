@@ -265,6 +265,53 @@ namespace Laubrary.Shaper
         /// accounting of what was and was not ported.
         /// </summary>
         TapestrySteel = 6,
+
+        /// <summary>
+        /// T-0172 — colour-over-phase, the Shaper-clock equivalent of <c>ZuiFill.Mode.OverLife</c>
+        /// (<c>Zui/Scripts/Runtime/ZuiFill.cs:29,176-177</c>): the WHOLE shape is one flat colour, and that
+        /// colour is the fill's own gradient sampled AT the node's own phase rather than at a spatial
+        /// coordinate — non-positional, exactly like <see cref="Solid"/>. T-0139's "existing colour-over-time
+        /// control" is <see cref="ZuiGradient"/>'s own life-driven <c>Evaluate(t, phase, life)</c>
+        /// (<c>ZuiGradient.cs:81-125</c>): baking with the ramp POSITION <c>t</c> set to the phase (life
+        /// following position, the same trick <c>ZuiGradient.ToLut</c>'s <c>lifeFollowsPosition</c> already
+        /// names for exactly this OverLife case) is the whole mechanism — no new maths, one new bake function.
+        /// </summary>
+        OverPhase = 7,
+
+        /// <summary>
+        /// T-0172 — the procedural texture family <c>ZuiFill</c> keeps under <c>TextureKind</c>
+        /// (<c>ZuiFill.cs:34,281-350</c>): Noise / Grid / Dots. Grouped under ONE fill kind rather than three,
+        /// the same way this contract already groups Gradient's four spatial projections under one kind
+        /// (<see cref="ShaperGradientMode"/>) — a sub-mode is a dial, not a new closed-switch case, whenever
+        /// the kinds share every other dial and differ only in the per-sample expression.
+        /// See <see cref="ShaperProceduralKind"/>.
+        /// </summary>
+        Procedural = 8,
+    }
+
+    /// <summary>
+    /// T-0172 — <see cref="ShaperFillKind.Procedural"/>'s sub-mode. APPEND-ONLY: serialized as an int, taken
+    /// BY VALUE from <c>ZuiFill.TextureKind</c>'s Noise/Grid/Dots trio (<c>ZuiFill.cs:34</c>) minus Sprite
+    /// (Shaper already has an image fill, <see cref="ShaperFillKind.Texture"/>) and None (a Procedural fill is
+    /// never "off" — switching kinds is what turns it off).
+    /// </summary>
+    public enum ShaperProceduralKind
+    {
+        Noise = 0,
+        Grid = 1,
+        Dots = 2,
+    }
+
+    /// <summary>
+    /// T-0172 — <see cref="ShaperProceduralKind.Noise"/>'s shape, taken BY VALUE from <c>ZuiFill.NoiseKind</c>
+    /// (<c>ZuiFill.cs:36-38</c>): Value is the plain FNV value noise, Ridged folds it into creased ridges
+    /// (<c>1 − |2t−1|</c>), Steps posterises it into four bands (<c>floor(t·4)/3</c>). APPEND-ONLY.
+    /// </summary>
+    public enum ShaperNoiseKind
+    {
+        Value = 0,
+        Ridged = 1,
+        Steps = 2,
     }
 
     /// <summary>

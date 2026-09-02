@@ -151,6 +151,13 @@ namespace Laubrary.Shaper
         public float tilesX, tilesY;
         public float offsetU, offsetV;
         public float texCosTheta, texSinTheta;
+        /// <summary>
+        /// T-0172, animated sprite sheet: the selected frame's sub-rectangle in 0..1 UV, applied AFTER the
+        /// existing Fitted/Tiled mapping computes <c>uu, vv</c> — so a frame is treated as its own whole image
+        /// for fit/tile purposes. Default (0, 0, 1, 1) is the identity mapping — every pre-T-0172 Texture fill
+        /// is byte-identical.
+        /// </summary>
+        public float animCellU0, animCellV0, animCellScaleU, animCellScaleV;
 
         // IndexedStrip (T-0110)
         /// <summary>1 = <see cref="ShaperStripParameterisation.Angular"/>, 0 = <see cref="ShaperStripParameterisation.Projection"/>.</summary>
@@ -188,6 +195,23 @@ namespace Laubrary.Shaper
         public float steelGrain;
         /// <summary>0 or 1 = off. FC-6.9.</summary>
         public int quantiseLevels;
+
+        // Procedural: Noise / Grid / Dots (T-0172). Positional — reuses centreX/centreY/cosTheta/sinTheta/
+        // invSize above for its own offset/rotation/scale (the same "centre + rotation + reciprocal size"
+        // triple Gradient already bakes; a second set of fields for the identical concept would be the
+        // duplication FC-6's "common to all four" already argues against).
+        /// <summary>0 = <see cref="ShaperProceduralKind.Noise"/>, 1 = Grid, 2 = Dots.</summary>
+        public int procKind;
+        /// <summary>Noise only: 0 = Value, 1 = Ridged, 2 = Steps.</summary>
+        public int procNoiseKind;
+        /// <summary>Grid only: line half-width and soft-edge band, in cell units.</summary>
+        public float procGridHalfW, procGridSoft;
+        /// <summary>Grid only: which axes draw lines.</summary>
+        public int procGridVertical, procGridHorizontal;
+        /// <summary>Dots only: disc radius and soft-edge band, in cell units.</summary>
+        public float procDotRadius, procDotSoft;
+        /// <summary>Dots only: 1 = stagger alternating rows by half a cell.</summary>
+        public int procDotStagger;
     }
 
     /// <summary>
@@ -261,6 +285,9 @@ namespace Laubrary.Shaper
                 lutOffset = -1,
                 texOffset = -1,
                 heightFieldOffset = -1,
+                // T-0172: identity mapping — a non-animated Texture fill reads its whole sheet as before.
+                animCellScaleU = 1f,
+                animCellScaleV = 1f,
             };
 
             // ── the two common dials (FC-6, "common to all four") ─────────────────────────────────────────
@@ -289,7 +316,8 @@ namespace Laubrary.Shaper
                             def.kind == ShaperFillKind.Texture ||
                             def.kind == ShaperFillKind.IndexedStrip ||
                             def.kind == ShaperFillKind.HeightField ||
-                            def.kind == ShaperFillKind.TapestrySteel
+                            def.kind == ShaperFillKind.TapestrySteel ||
+                            def.kind == ShaperFillKind.Procedural
                 ? 1 : 0;
             op.fixedSpace = def.space == ShaperFillSpace.Fixed ? 1 : 0;
             BakeAnchor(def, anchor, ref op);
@@ -324,6 +352,14 @@ namespace Laubrary.Shaper
 
                 case ShaperFillKind.TapestrySteel:
                     BakeTapestrySteel(def, p, seed, prog, ref op);
+                    break;
+
+                case ShaperFillKind.OverPhase:
+                    BakeOverPhase(def, p, prog, ref op);
+                    break;
+
+                case ShaperFillKind.Procedural:
+                    BakeProcedural(def, p, seed, prog, ref op);
                     break;
             }
 
@@ -604,6 +640,32 @@ namespace Laubrary.Shaper
             op.texWidth = w;
             op.texHeight = h;
             prog.bulk = texels;
+
+            // T-0172: an animated sprite sheet steps to one grid cell, chosen from the node's own phase —
+            // resolved here, once per compile, exactly like every other compile-time scalar (FC-5.3). The
+            // frame does not interpolate between cells: a phase-driven texture STEPS, the same reasoning
+            // BakeStrip's palette indexes a slot rather than lerping two (FC-5.4's "point lookup, not lerp"
+            // applies to a discrete frame exactly as it does to a discrete ramp band).
+            if (def.textureAnimated)
+            {
+                int columns = Mathf.Max(1, Mathf.RoundToInt(ShaperValue.Sample(def.textureFrameColumns, p, seed, 1f)));
+                int rows = Mathf.Max(1, Mathf.RoundToInt(ShaperValue.Sample(def.textureFrameRows, p, seed, 1f)));
+                int frameCount = Mathf.Clamp(
+                    Mathf.RoundToInt(ShaperValue.Sample(def.textureFrameCount, p, seed, 1f)), 1, columns * rows);
+
+                // floor + clamp-to-last, not wrap: a stepped sheet plays once across the node's own 0..1
+                // cycle (FC-1.4), it does not loop mid-cycle the way a spatial Tiled pattern repeats.
+                int frame = Mathf.Clamp(Mathf.FloorToInt(p * frameCount), 0, frameCount - 1);
+                int col = frame % columns;
+                int row = frame / columns;
+
+                // Row-major from texel row 0, which GetPixels32 lays out BOTTOM-up — frame 0 is the sheet's
+                // bottom-left cell, the same convention the texel buffer above already uses (no new one).
+                op.animCellScaleU = 1f / columns;
+                op.animCellScaleV = 1f / rows;
+                op.animCellU0 = col * op.animCellScaleU;
+                op.animCellV0 = row * op.animCellScaleV;
+            }
         }
 
         // ── indexed strip (T-0110, B6, FC-6.6) ───────────────────────────────────────────────────────────────
@@ -766,6 +828,104 @@ namespace Laubrary.Shaper
 
             int levels = Mathf.RoundToInt(ShaperValue.Sample(def.quantiseLevels, p, seed, 0f));
             op.quantiseLevels = levels;
+        }
+
+        // ── OverPhase (T-0172, FC-6.10) ──────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Bakes an <see cref="ShaperFillKind.OverPhase"/> fill: ONE colour, sampled from the gradient at the
+        /// node's own phase, decoded straight into <c>colR/G/B</c> — the same three floats <see cref="ShaperFillKind.Solid"/>
+        /// writes, so the per-sample path needs no new case (see <see cref="ShaperFillOps.Sample"/>'s
+        /// <c>OverPhase</c> case, which documents why it is bit-identical to Solid's).
+        /// </summary>
+        static void BakeOverPhase(ShaperFillDef def, float p, ShaperFillProgram prog, ref ShaperFillOp op)
+        {
+            // Decoded either way, so a null gradient degenerates to Solid-of-tint with no second code path
+            // (FC-6.5), exactly like Gradient's own null fallback.
+            ShaperSrgb.Decode(def.overPhaseTint, out op.colR, out op.colG, out op.colB);
+
+            if (def.overPhaseGradient == null || def.overPhaseGradient.gradient == null)
+            {
+                prog.diagnostic = "Colour-over-phase fill has no gradient authored; painting flat tint instead.";
+                return;
+            }
+
+            // T-0139's "existing colour-over-time control": ZuiGradient.Evaluate's ramp POSITION and its
+            // LIFE-driven colour transforms (hue/sat/brightness/contrast/phaseAnim) are both set to the SAME
+            // node phase, exactly the "ramp position IS the life" trick ZuiGradient.ToLut's
+            // lifeFollowsPosition already names for an OverLife-shaped fill (ZuiGradient.cs:130-135). One
+            // sample, not a LUT — the whole shape is one colour at this compile, so there is nothing to look
+            // up per pixel.
+            Color c = def.overPhaseGradient.Evaluate(p, 0f, p);
+            ShaperSrgb.Decode(c, out op.colR, out op.colG, out op.colB);
+        }
+
+        // ── Procedural: Noise / Grid / Dots (T-0172, FC-6.11) ────────────────────────────────────────────
+
+        /// <summary>
+        /// Bakes an <see cref="ShaperFillKind.Procedural"/> fill. Shares Gradient's own centre/rotation/size
+        /// fields (<c>centreX/centreY/cosTheta/sinTheta/invSize</c>) for its offset/angle/scale — the same
+        /// "position + rotation + reciprocal size" triple, baked the same way, for the same reason (FC-5.3).
+        /// Noise bakes a LUT exactly like Gradient/Ramp (FC-5.4); Grid and Dots bake no bulk data at all — an
+        /// ink-and-mask kind, like TapestrySteel, needs none.
+        /// </summary>
+        static void BakeProcedural(ShaperFillDef def, float p, uint seed, ShaperFillProgram prog, ref ShaperFillOp op)
+        {
+            op.procKind = (int)def.proceduralKind;
+            op.procNoiseKind = (int)def.noiseKind;
+
+            // Fallback (Noise) / ink (Grid, Dots) colour, decoded either way (FC-6.5 pattern; also literally
+            // the ink ZuiFill.cs:68 calls "Ink = color" for Grid and Dots, by value).
+            ShaperSrgb.Decode(def.proceduralTint, out op.colR, out op.colG, out op.colB);
+
+            op.centreX = ShaperValue.Sample(def.proceduralOffsetU, p, seed, 0f);
+            op.centreY = ShaperValue.Sample(def.proceduralOffsetV, p, seed, 0f);
+
+            float theta = ShaperValue.Sample(def.proceduralAngleDegrees, p, seed, 0f) * Mathf.Deg2Rad;
+            op.cosTheta = Mathf.Cos(theta);
+            op.sinTheta = Mathf.Sin(theta);
+
+            // A SIZE, not a frequency — same convention as Gradient's own gradientSize (ZuiFill.cs:83-88 by
+            // value). The reciprocal is taken once, here.
+            float scale = ShaperValue.Sample(def.proceduralScale, p, seed, 1f);
+            op.invSize = Mathf.Abs(scale) > MinPositive ? 1f / scale : 0f;
+
+            switch (def.proceduralKind)
+            {
+                case ShaperProceduralKind.Grid:
+                {
+                    // ZuiFill.cs:315-316 by value: half-width and a soft edge band, both in CELL units
+                    // (lineWidth is a fraction of a cell).
+                    float lineWidth = Mathf.Max(0f, ShaperValue.Sample(def.gridLineWidth, p, seed, 0.08f));
+                    op.procGridHalfW = lineWidth * 0.5f;
+                    op.procGridSoft = 0.1f * op.procGridHalfW + 0.02f;
+                    op.procGridVertical = def.gridVertical ? 1 : 0;
+                    op.procGridHorizontal = def.gridHorizontal ? 1 : 0;
+                    return;
+                }
+
+                case ShaperProceduralKind.Dots:
+                {
+                    // ZuiFill.cs:338,347 by value: disc radius and its soft edge, both in CELL units (dotSize
+                    // is a diameter fraction of a cell).
+                    float r = Mathf.Clamp01(ShaperValue.Sample(def.dotSize, p, seed, 0.5f)) * 0.5f;
+                    op.procDotRadius = r;
+                    op.procDotSoft = 0.15f * r + 0.02f;
+                    op.procDotStagger = def.dotStagger ? 1 : 0;
+                    return;
+                }
+
+                default:   // Noise
+                    if (def.proceduralGradient == null || def.proceduralGradient.gradient == null)
+                    {
+                        op.kind = ShaperFillKind.Solid;
+                        prog.diagnostic = "Noise fill has no gradient authored; painting flat tint instead.";
+                        return;
+                    }
+                    op.lutOffset = 0;
+                    prog.bulk = BakeLut(def.proceduralGradient, prog.phase01);
+                    return;
+            }
         }
     }
 }

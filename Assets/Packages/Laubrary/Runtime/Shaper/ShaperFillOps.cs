@@ -246,6 +246,13 @@ namespace Laubrary.Shaper
                         vv = Mathf.Clamp01(rv * 0.5f + 0.5f + op.offsetV);
                     }
 
+                    // T-0172: remap into the selected sprite-sheet cell AFTER the Fitted/Tiled mapping above —
+                    // a frame is treated as its own whole image for fit/tile purposes, then that whole-image
+                    // UV is rescaled into the cell's sub-rectangle. Identity (0,0,1,1) for a non-animated
+                    // Texture fill, so this is a no-op for every pre-T-0172 asset.
+                    uu = op.animCellU0 + uu * op.animCellScaleU;
+                    vv = op.animCellV0 + vv * op.animCellScaleV;
+
                     // FC-6.4b: POINT filtering only, and there is no filter dial. This is a pixel-art tool;
                     // bilinear on a pixel-art texture is the defect rather than the feature, and a dial that is
                     // always set to one value is clutter. If smoothing is ever wanted it is a new dial then, on
@@ -424,6 +431,79 @@ namespace Laubrary.Shaper
                     return;
                 }
 
+                case ShaperFillKind.OverPhase:
+                {
+                    // BakeOverPhase already resolved this fill to ONE constant colour at compile time (the
+                    // gradient sampled at the node's own phase) — the per-sample read is identical to Solid's.
+                    // A real case rather than falling through to `default` purely for the reader: OverPhase is
+                    // a documented kind with its own bake path, and code that "happens to work via default"
+                    // would drift silently if default's fallback ever changed for an unrelated reason.
+                    r = op.colR; g = op.colG; b = op.colB;
+                    return;
+                }
+
+                case ShaperFillKind.Procedural:
+                {
+                    Anchor(in op, x, y, out float u, out float v);
+                    float du = u - op.centreX;
+                    float dv = v - op.centreY;
+                    // ZuiFill.cs:308-313 by value: rotate into CELL SPACE (−angle), then divide by the
+                    // reciprocal SIZE so 1 unit = 1 cell.
+                    float px = (du * op.cosTheta - dv * op.sinTheta) * op.invSize;
+                    float py = (du * op.sinTheta + dv * op.cosTheta) * op.invSize;
+
+                    switch (op.procKind)
+                    {
+                        case 1:   // Grid
+                        {
+                            // ZuiFill.cs:318-321 by value: combine the enabled axes by max; a pixel on either
+                            // line's axis is inked. The mask multiplies the common veil (FC-2.2 — no alpha
+                            // channel on albedo) rather than a fourth output, unlike ZuiFill's own alpha.
+                            float mask = 0f;
+                            if (op.procGridVertical != 0)
+                                mask = Mathf.Max(mask, 1f - Smoothstep01(op.procGridHalfW, op.procGridHalfW + op.procGridSoft, LineDist(px)));
+                            if (op.procGridHorizontal != 0)
+                                mask = Mathf.Max(mask, 1f - Smoothstep01(op.procGridHalfW, op.procGridHalfW + op.procGridSoft, LineDist(py)));
+                            r = op.colR; g = op.colG; b = op.colB;
+                            veil = Mathf.Clamp01(op.veil * mask);
+                            return;
+                        }
+
+                        case 2:   // Dots
+                        {
+                            // ZuiFill.cs:341-349 by value: staggered rows shift x by half a cell, distance is
+                            // measured from the cell centre, inked inside the disc radius.
+                            float ppx = px, ppy = py;
+                            if (op.procDotStagger != 0 && (Mathf.Abs(Mathf.Floor(ppy)) % 2f) >= 1f) ppx += 0.5f;
+                            float dx = Frac(ppx) - 0.5f;
+                            float dy = Frac(ppy) - 0.5f;
+                            float d = Mathf.Sqrt(dx * dx + dy * dy);
+                            float mask = op.procDotRadius <= 0f
+                                ? 0f
+                                : Mathf.Clamp01(1f - Smoothstep01(op.procDotRadius - op.procDotSoft, op.procDotRadius, d));
+                            r = op.colR; g = op.colG; b = op.colB;
+                            veil = Mathf.Clamp01(op.veil * mask);
+                            return;
+                        }
+
+                        default:   // Noise
+                        {
+                            // ZuiFill.cs:289-296 by value: two-octave FNV value noise (×3 matches the
+                            // reference's own frequency multiplier), shaped by noiseKind, mapped through the
+                            // gradient LUT exactly like Gradient/Ramp above.
+                            float n = ValueNoise2Octave(px * 3f, py * 3f);
+                            switch (op.procNoiseKind)
+                            {
+                                case 1: n = 1f - Mathf.Abs(2f * n - 1f); break;   // Ridged
+                                case 2: n = Mathf.Floor(n * 4f) / 3f; break;       // Steps
+                                // Value: n unchanged.
+                            }
+                            Lut(in op, bulk, Mathf.Clamp01(n), out r, out g, out b);
+                            return;
+                        }
+                    }
+                }
+
                 default:
                     r = op.colR; g = op.colG; b = op.colB;
                     return;
@@ -494,6 +574,72 @@ namespace Laubrary.Shaper
             else if (idx >= ShaperFillCompiler.LutEntries) idx = ShaperFillCompiler.LutEntries - 1;
             int o = op.lutOffset + idx * ShaperFillCompiler.LutChannels;
             r = bulk[o + 0]; g = bulk[o + 1]; b = bulk[o + 2];
+        }
+
+        // ── Procedural helpers (T-0172), ported BY VALUE from ZuiFill.cs:352-366,615-662 ────────────────
+        // Pure static math, no UnityEngine.Random — identical output for identical inputs, always (BC-1.3).
+
+        /// <summary>Distance to the nearest integer grid line, in cell units (0 on a line, up to 0.5 mid-cell). ZuiFill.cs:353 by value.</summary>
+        static float LineDist(float x) { float f = Frac(x); return Mathf.Min(f, 1f - f); }
+
+        /// <summary>
+        /// A REAL edge smoothstep (GLSL semantics): 0 below edge0, 1 above edge1, a smooth Hermite ramp
+        /// between. Deliberately NOT <c>Mathf.SmoothStep</c> — that clamps its third argument to [0,1] and
+        /// lerps <c>from</c>/<c>to</c>, which is the wrong function for a threshold test (ZuiFill.cs:355-358's
+        /// own documented v1 bug: using it as a threshold left every pixel reading ≈opaque).
+        /// </summary>
+        static float Smoothstep01(float edge0, float edge1, float x)
+        {
+            if (edge1 <= edge0) return x < edge0 ? 0f : 1f;   // degenerate band → a hard step
+            float t = Mathf.Clamp01((x - edge0) / (edge1 - edge0));
+            return t * t * (3f - 2f * t);
+        }
+
+        static float Frac(float x) => x - Mathf.Floor(x);
+
+        /// <summary>Two-octave FNV value noise: doubled frequency, offset so the layers don't align, half amplitude. ZuiFill.cs:618-624 by value.</summary>
+        static float ValueNoise2Octave(float x, float y)
+        {
+            float a = ValueNoise(x, y);
+            float b = ValueNoise(x * 2f + 31.7f, y * 2f + 17.3f);
+            return (a + b * 0.5f) / 1.5f;   // normalize by total amplitude → stays in [0,1]
+        }
+
+        /// <summary>Bilinear-interpolated hashed lattice noise, smoothstep-faded. ZuiFill.cs:626-644 by value.</summary>
+        static float ValueNoise(float x, float y)
+        {
+            int x0 = Mathf.FloorToInt(x);
+            int y0 = Mathf.FloorToInt(y);
+            float fx = x - x0;
+            float fy = y - y0;
+            float sx = fx * fx * (3f - 2f * fx);
+            float sy = fy * fy * (3f - 2f * fy);
+
+            float n00 = Hash01(x0, y0);
+            float n10 = Hash01(x0 + 1, y0);
+            float n01 = Hash01(x0, y0 + 1);
+            float n11 = Hash01(x0 + 1, y0 + 1);
+
+            float nx0 = Mathf.Lerp(n00, n10, sx);
+            float nx1 = Mathf.Lerp(n01, n11, sx);
+            return Mathf.Lerp(nx0, nx1, sy);
+        }
+
+        /// <summary>FNV-1a hash of a lattice coordinate → a well-mixed value in [0,1). ZuiFill.cs:647-662 by value.</summary>
+        static float Hash01(int x, int y)
+        {
+            unchecked
+            {
+                const uint FnvOffset = 2166136261u;
+                const uint FnvPrime = 16777619u;
+                uint h = FnvOffset;
+                h = (h ^ (uint)x) * FnvPrime;
+                h = (h ^ (uint)y) * FnvPrime;
+                h ^= h >> 15; h *= 2246822519u;
+                h ^= h >> 13; h *= 3266489917u;
+                h ^= h >> 16;
+                return (h & 0xFFFFFFu) / (float)0x1000000;   // 24-bit → [0,1)
+            }
         }
     }
 }
