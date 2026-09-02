@@ -134,7 +134,7 @@ namespace Laubrary.Shaper.Editor
         // ── transport ────────────────────────────────────────────────────────────────────────────────────
         bool playing;
         Button playButton;
-        SliderInt scrubber;
+        ZuiMicroSlider scrubber;
         double lastPlayTick;
         float playAcc;
 
@@ -384,7 +384,7 @@ namespace Laubrary.Shaper.Editor
                     "The SELECTED layer's (“" + (lay.name ?? "Layer") + "”) frame lifetime window — "
                     + "the frames it contributes to. Outside this range the layer renders nothing, exactly as a "
                     + "disabled layer does.",
-                    Z.MinMax(lo, hi, 0f, document.frameCount - 1,
+                    Z.MicroMinMax("Lifetime", lo, hi, 0f, document.frameCount - 1,
                         "The selected layer's frame lifetime window — the frames it contributes to.",
                         (newLo, newHi) => Change(() =>
                         {
@@ -393,7 +393,7 @@ namespace Laubrary.Shaper.Editor
                             // unauthored window at its -1 default through a later frameCount change.
                             int rh = Mathf.RoundToInt(newHi);
                             lay.endFrame = rh >= document.frameCount - 1 ? -1 : rh;
-                        }), 200f, isInt: true)));
+                        }), 200f, decimals: 0)));
             }
 
             root.Add(box);
@@ -780,10 +780,13 @@ namespace Laubrary.Shaper.Editor
             // the toggle, scale and dither controls now live beside the other output toggles in
             // ShaperWindow.Bake.cs, and the Bake button writes the GIF when that toggle is on.
 
-            scrubber = Z.SliderInt(currentFrame, 0, max,
+            // A MicroSlider carries its own caption inside the track (matching Dial() above), so it is added
+            // directly rather than wrapped in Z.Field — a Field label would just duplicate "Frame". Full row
+            // width per the owner's "we have width, not height" feedback, rather than the old 220px fixed size.
+            scrubber = Z.MicroSlider("Frame", currentFrame, 0, max,
                 "Scrub to an exact frame. Dragging pauses playback and holds that frame.", v =>
                 {
-                    currentFrame = v;
+                    currentFrame = Mathf.RoundToInt(v);
                     playing = false;
                     // Hand control back to the scrubber. Without this the cherry sequencer would still be
                     // "running", so previewFrame would keep returning its last resolved beat and the scrub
@@ -791,8 +794,11 @@ namespace Laubrary.Shaper.Editor
                     cherryRunning = false;
                     if (playButton != null) playButton.text = "▶ Play";
                     RefreshPreview();
-                }, 220f);
-            host.Add(Z.Field("Frame", "Scrub to an exact frame.", scrubber));
+                }, decimals: 0);
+            // `host` stacks its children in a COLUMN, so flex-grow (the main axis, vertical here) would not
+            // widen the scrubber — a percentage width is what actually fills the row.
+            scrubber.style.width = new Length(100f, LengthUnit.Percent);
+            host.Add(scrubber);
 
             // T-0165 — cached-frame ticks + "N/M cached" readout, in a PERMANENTLY reserved row (stable-
             // workspace rule): this row is built once here and only ever has its paint/text updated
@@ -818,7 +824,7 @@ namespace Laubrary.Shaper.Editor
                     playing = false;
                     cherryRunning = false;
                     if (playButton != null) playButton.text = "▶ Play";
-                    scrubber?.SetValueWithoutNotify(currentFrame);
+                    if (scrubber != null) scrubber.value = currentFrame;
                     RefreshPreview();
                 });
             host.Add(filmstrip);
@@ -867,7 +873,7 @@ namespace Laubrary.Shaper.Editor
                 if (shown >= 0)
                 {
                     currentFrame = Mathf.Clamp(shown, 0, Mathf.Max(0, document.frameCount - 1));
-                    scrubber?.SetValueWithoutNotify(currentFrame);
+                    if (scrubber != null) scrubber.value = currentFrame;
                 }
                 RefreshPreview();
                 return;
@@ -884,7 +890,7 @@ namespace Laubrary.Shaper.Editor
             if (stage != null && !stage.IsFrameCached(nextFrame)) return;
 
             currentFrame = nextFrame;
-            scrubber?.SetValueWithoutNotify(currentFrame);
+            if (scrubber != null) scrubber.value = currentFrame;
             RefreshPreview();
         }
 

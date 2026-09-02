@@ -316,11 +316,10 @@ namespace Laubrary.Shaper.Editor
                 panel.Add(Z.Text(multi ? $"{indices.Count} slots selected" : $"Slot {i + 1}", ZuiText.Body, ""));
 
                 if (!multi)
-                    panel.Add(Z.Field("Source frame", "Which of this document's own frames this slot plays.",
-                        Z.SliderInt(Mathf.Clamp(first.sourceIndex, 0, maxFrame), 0, maxFrame,
-                            "Which of this document's own frames this slot plays.",
-                            v => { Change(() => document.cherryFrames[i].sourceIndex = v); ResetCherryPlayback(); },
-                            160f)));
+                    panel.Add(Z.MicroSlider("Source frame", Mathf.Clamp(first.sourceIndex, 0, maxFrame), 0, maxFrame,
+                        "Which of this document's own frames this slot plays.",
+                        v => { Change(() => document.cherryFrames[i].sourceIndex = Mathf.RoundToInt(v)); ResetCherryPlayback(); },
+                        160f, decimals: 0));
 
                 panel.Add(Z.Toggle("Randomise length",
                     "Draw a new hold length on every pass through the sequence instead of always using the "
