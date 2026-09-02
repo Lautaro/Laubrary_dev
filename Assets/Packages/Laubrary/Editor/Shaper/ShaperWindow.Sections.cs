@@ -667,7 +667,7 @@ namespace Laubrary.Shaper.Editor
             {
                 box.Add(Z.Field("Border", "This node has no border.",
                     Z.Button("Add border", "Give this node a border strip.",
-                        () => { Change(() => node.border = new ShaperBorderDef()); Rebuild(); })));
+                        () => { Change(() => node.border = new ShaperBorderDef { fill = SeededBorderFill(node) }); Rebuild(); })));
                 root.Add(box);
                 return;
             }
@@ -691,7 +691,7 @@ namespace Laubrary.Shaper.Editor
             {
                 box.Add(Z.Field("Border fill", "The border has no fill of its own yet.",
                     Z.Button("Add border fill", "Give the border its own fill.",
-                        () => { Change(() => b.fill = new ShaperFillDef()); Rebuild(); })));
+                        () => { Change(() => b.fill = SeededBorderFill(node)); Rebuild(); })));
             }
             else
             {
@@ -704,6 +704,40 @@ namespace Laubrary.Shaper.Editor
             box.Add(Z.Button("Remove border", "Remove this node's border entirely.",
                 () => { Change(() => node.border = null); Rebuild(); }));
             root.Add(box);
+        }
+
+        /// <summary>
+        /// W6.3 — a border added to a node whose OWN fill is currently fading (T-0190's seeded envelope,
+        /// <see cref="SeededVeil"/>) must fade WITH it. Before this fix a fresh document's seeded root-fill
+        /// fade left an opaque, unfaded grey outline behind it as the fill vanished — exactly the picture the
+        /// owner's screenshot showed at frame 14/16: a grey silhouette with only a sliver of the (authored,
+        /// dark-red-tinted) fill still visible where the fade hadn't yet fully bottomed out.
+        ///
+        /// <b>Why this, and not a layer-level alpha veil.</b> A genuine layer-level veil — one dial the
+        /// compositor applies uniformly to every contributor (fill, border, and any future per-node kind) —
+        /// is the more architecturally correct destination, but it needs new surface in
+        /// <see cref="ShaperFillResolver"/>'s / <see cref="ShaperDocumentRenderer"/>'s compositing path,
+        /// which T-0194 is actively editing this same wave (PROGRAMME_RULES.md's "one driver at a time"
+        /// makes that path off-limits here). Re-seeding the border's OWN veil costs nothing there: a border
+        /// fill is already <see cref="ShaperFillDef"/>, already carries its own <c>veil</c> dial, and this
+        /// window is already the ONE place seeding happens (<see cref="NewLayer"/>'s "seeded here, and only
+        /// here"). A border added later, well after the layer's own fade was seeded, is exactly the "any
+        /// other route" case that stays untouched by design — so the match is made at the moment a border's
+        /// fill is CREATED, not read live off the node's current fill.
+        ///
+        /// A fresh independent <see cref="SeededVeil"/> rather than a shared reference or a deep clone of
+        /// the node's own curve: both envelopes hit the same normalised life fractions (0 / 0.15 / 0.7 / 1),
+        /// so fill and border move together, while staying two authored curves an author can later detune
+        /// independently without one edit silently dragging the other. Only fires when the node's own fill
+        /// is actually animated (Curve mode) — a node with a Static veil gets a Static border, unchanged from
+        /// before this fix.
+        /// </summary>
+        internal static ShaperFillDef SeededBorderFill(ShaperNode node)
+        {
+            var fill = ShaperFillDef.DefaultRootFill();
+            if (node?.fill != null && node.fill.veil != null && node.fill.veil.mode == ZUIValue.Mode.Curve)
+                fill.veil = SeededVeil();
+            return fill;
         }
 
         // ── Combine / Sweep / Shell — part of the SHAPE, not modifiers of it (T-0182) ────────────────────

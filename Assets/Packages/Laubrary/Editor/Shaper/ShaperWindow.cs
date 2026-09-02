@@ -409,7 +409,15 @@ namespace Laubrary.Shaper.Editor
         /// first-run choice, so the engine defaults stay Static and a document authored by any other route —
         /// a script, a test, a bake — is bit-identical to what it always was. Switching an existing node to
         /// another shape does NOT re-seed either, because that would overwrite dials the author has tuned.
-        static ShaperLayer NewLayer(string name, ShaperDocument doc)
+        ///
+        /// W6.3: a border does not exist yet at this point (a fresh layer's root has none), so a border added
+        /// LATER cannot be seeded here — see <see cref="SeededBorderFill"/> (ShaperWindow.Sections.cs), which
+        /// re-seeds a matching fade onto a border's own veil at the moment its fill is created, so it moves
+        /// with a fill this method already put a fade on.
+        // internal (was private): W6.3's T0196_FillDefaultsProbe calls this directly so its fade-together
+        // check exercises the SAME seeding code the window itself runs, rather than a second copy that could
+        // silently drift from what actually ships. Widening private -> internal only, no behaviour change.
+        internal static ShaperLayer NewLayer(string name, ShaperDocument doc)
         {
             var layer = new ShaperLayer
             {
@@ -467,7 +475,7 @@ namespace Laubrary.Shaper.Editor
         /// thumbnail, it is what a paused transport shows, it is what a still bake writes. Seeding a fade from
         /// zero would fix "the animation does not move" by replacing it with "the picture is empty", which is
         /// the same first-run failure wearing a different hat.
-        static ZUIValue SeededVeil()
+        internal static ZUIValue SeededVeil()
         {
             var v = new ZUIValue { mode = ZUIValue.Mode.Curve, yMin = 0f, yMax = 1f };
             v.points.Clear();
