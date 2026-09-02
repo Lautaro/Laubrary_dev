@@ -1,0 +1,24 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Shaper.Editor.Audits",
+    "rootNamespace": "",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Shaper",
+        "com.Lautaro-Arino.Laubrary.Pyre",
+        "com.Lautaro-Arino.Laubrary.Pyre.Forms.Kiln",
+        "com.Lautaro-Arino.Laubrary.Pyre.Shaper",
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "LAUBRARY_SHAPER_AUDITS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

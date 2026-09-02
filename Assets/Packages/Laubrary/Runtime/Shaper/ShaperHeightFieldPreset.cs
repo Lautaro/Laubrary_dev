@@ -17,7 +17,7 @@ namespace Laubrary.Shaper
     /// <c>D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0111\TAPESTRY-SPEC.md</c> Part 3 for the
     /// normalise-vs-scale decision this records.
     /// </summary>
-    [CreateAssetMenu(menuName = "Laubrary/Shaper/Tapestry Height Field Preset", fileName = "HeightField")]
+    [CreateAssetMenu(menuName = "Laubrary/Shaper Height Field Preset", fileName = "HeightField")]
     public class ShaperHeightFieldPreset : ScriptableObject
     {
         /// <summary>The RFloat field texture. A sub-asset of this same file, embedded at import.</summary>
