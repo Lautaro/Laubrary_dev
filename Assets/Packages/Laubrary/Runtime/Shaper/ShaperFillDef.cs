@@ -209,8 +209,30 @@ namespace Laubrary.Shaper
         /// The ramp this fill's single flat colour is drawn from — see <see cref="ShaperFillKind.OverPhase"/>.
         /// Null falls back to <see cref="overPhaseTint"/> as a Solid, same rule as every other kind's gradient
         /// (FC-6.5).
+        ///
+        /// <b>Deliberately NOT <c>new ZuiGradient()</c> (W6.3).</b> Every other positional kind samples this
+        /// ramp at many spatial <c>t</c> values across one shape, so its shared black→white default still
+        /// shows both ends somewhere on screen. OverPhase samples ONE fixed <c>t</c> — the node's own phase —
+        /// for the WHOLE shape, so a still frame (a contact sheet, or simply phase 0 on a freshly authored
+        /// node) shows exactly the ramp's FIRST stop. With the shared default that stop is black: a fresh
+        /// OverPhase fill rendered as a solid black shape, indistinguishable from nothing painted at all. See
+        /// <see cref="DefaultOverPhaseGradient"/>.
         /// </summary>
-        public ZuiGradient overPhaseGradient = new ZuiGradient();
+        public ZuiGradient overPhaseGradient = DefaultOverPhaseGradient();
+
+        /// <summary>
+        /// W6.3 — OverPhase's own default ramp. Red-to-blue matches this fill kind's own doc comment example
+        /// ("a flash of red at phase 0 sliding to blue at phase 1"), so a fresh fill is recognisably itself at
+        /// ANY single phase — not merely correct on average across a sweep nobody may ever watch.
+        /// </summary>
+        static ZuiGradient DefaultOverPhaseGradient()
+        {
+            var g = new Gradient();
+            g.SetKeys(
+                new[] { new GradientColorKey(Color.red, 0f), new GradientColorKey(new Color(0.25f, 0.45f, 1f), 1f) },
+                new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) });
+            return new ZuiGradient { gradient = g };
+        }
 
         /// <summary>The fallback colour when <see cref="overPhaseGradient"/> is null.</summary>
         public Color overPhaseTint = Color.white;
@@ -277,10 +299,18 @@ namespace Laubrary.Shaper
         /// <summary>
         /// The hand-painted strip itself, in authored order. Selected by INDEX, never interpolated — this is
         /// what "indexed" means and what keeps it a strip of discrete slots rather than a second gradient.
-        /// Empty is a legal, degenerate authoring state: the fill falls back to <see cref="stripPlainColor"/>
-        /// as a flat Solid (FC-6.5's "a half-configured fill never renders empty").
+        /// Empty is still a legal authoring state (an author can clear every slot) — the fill falls back to
+        /// <see cref="stripPlainColor"/> as a flat Solid then (FC-6.5's "a half-configured fill never renders
+        /// empty") — but a FRESH fill is seeded with two contrasting slots (W6.3): a zero-slot default made
+        /// every new IndexedStrip fill degenerate to that same flat Solid, so the contact sheet's "every cell
+        /// must visibly show the kind's character" requirement failed for this kind specifically — switching
+        /// to IndexedStrip showed no strip at all until an author added a slot by hand.
         /// </summary>
-        public List<ShaperStripSlot> stripSlots = new List<ShaperStripSlot>();
+        public List<ShaperStripSlot> stripSlots = new List<ShaperStripSlot>
+        {
+            new ShaperStripSlot { color = new Color(0.92f, 0.92f, 0.92f) },
+            new ShaperStripSlot { color = new Color(0.32f, 0.32f, 0.32f) },
+        };
 
         /// <summary>
         /// Whole-number repeats of the strip around the parameter's full cycle — 3D Shaper's improvement over

@@ -356,12 +356,21 @@ namespace Laubrary.Shaper.Editor
             };
             if (f.gradientMode == ShaperGradientMode.Radial || f.gradientMode == ShaperGradientMode.Angular)
             {
-                rows.Add(Val("Centre X", "Where the gradient radiates from, in canvas pixels.",
-                    f.gradientCentreX, -128f, 128f));
-                rows.Add(Val("Centre Y", "Where the gradient radiates from, in canvas pixels.",
-                    f.gradientCentreY, -128f, 128f));
-                rows.Add(Val("Size", "How far the gradient reaches before it repeats or clamps.",
-                    f.gradientSize, 0f, 256f));
+                // W6.3 — these three are normalised to the shape's own half-extent (1 = the node's own edge
+                // along this axis, FC-1.5), never canvas pixels. The old "in canvas pixels" tooltip and the
+                // -128..128 / 0..256 ranges were sized for a pixel-scale dial on a unit whose entire
+                // meaningful range is roughly -2..2 / 0..3 — dragging "Size" even a little on that old scale
+                // overshot the shape by 50-100x, which is what made a freshly authored gradient read as
+                // "barely showing": the ramp's whole variation got compressed into a sliver near t=0.5.
+                rows.Add(Val("Centre X", "Where the gradient radiates from, as a fraction of the shape's own "
+                    + "half-width — 0 is the shape's centre, 1 is its edge.",
+                    f.gradientCentreX, -2f, 2f));
+                rows.Add(Val("Centre Y", "Where the gradient radiates from, as a fraction of the shape's own "
+                    + "half-height — 0 is the shape's centre, 1 is its edge.",
+                    f.gradientCentreY, -2f, 2f));
+                rows.Add(Val("Size", "How far the gradient reaches before it clamps or repeats, as a fraction "
+                    + "of the shape's own half-extent — 1 reaches exactly to the shape's own edge.",
+                    f.gradientSize, 0f, 4f));
             }
             if (f.gradientMode == ShaperGradientMode.ByEdgeDistance)
                 rows.Add(Val("Depth", "How far in from the edge the ramp is spread, in pixels.",
