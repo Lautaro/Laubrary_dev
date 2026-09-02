@@ -292,9 +292,11 @@ namespace Laubrary.Shaper.Editor
                     document.canvasHeight, 32f, 256f, v => document.canvasHeight = Mathf.RoundToInt(v), decimals: 0),
                 Dial("Pixel size", "Canvas units per sample. 1 makes a \"canvas pixel\" in a dial equal one "
                     + "sample (LR-1.5).", document.pixelSize, 0.1f, 8f, v => document.pixelSize = v),
-                Dial("Layer spacing", "Canvas pixels between consecutive layers' base planes. With a layer's "
-                    + "own Z offset this gives base(i) = i × spacing + zOffset(i), the layer's only Z "
-                    + "contributor (HS-7.2).", document.layerSpacing, 0f, 8f, v => document.layerSpacing = v)));
+                Dial("Layer spacing", "Canvas pixels between consecutive layers' base planes, and so how far "
+                    + "apart in depth they sit: layers are composited by which surface is nearest, and a layer "
+                    + "whose height rises more than this above the one below it breaks through it. 0 puts "
+                    + "every base plane together, where list order decides.",
+                    document.layerSpacing, 0f, 8f, v => document.layerSpacing = v)));
 
             box.Add(Z.HGroup(
                 Dial("Frames", "How many frames this document resolves to. 1 is a still document, where every "
@@ -441,9 +443,10 @@ namespace Laubrary.Shaper.Editor
                 v => Change(() => layer.name = v), 150f));
 
             // zOffset is ZUIValue on the real ShaperLayer, so it is a real Z.Value row, not a plain slider.
-            row.Add(Val("Z", "This layer's own Z-position offset in canvas pixels, added to the ordering base "
-                + "(layer index × layer spacing) to give its base plane. Signed — it can pull a layer forward "
-                + "as well as push it back.", layer.zOffset, -256f, 256f));
+            row.Add(Val("Z", "Moves this layer in depth, in canvas pixels, on top of its place in the list "
+                + "(layer index × layer spacing). It re-orders as well as shades: push a layer back far "
+                + "enough and the ones below it come through, and two raised shapes at different depths "
+                + "intersect along a curve instead of one hiding the other.", layer.zOffset, -256f, 256f));
 
             // T-0166 — the lifetime window used to live HERE as a bare, unlabeled slider, and PM's by-eye vet
             // (pm-vet-wave2-light-crop.png) caught it: no label, no readable min/max, running underneath the

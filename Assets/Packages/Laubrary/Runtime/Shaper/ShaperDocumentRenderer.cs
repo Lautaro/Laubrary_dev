@@ -42,6 +42,19 @@ namespace Laubrary.Shaper
         /// <summary>Floats per sample in the accumulated destination: premultiplied linear R,G,B and alpha.</summary>
         public const int FloatsPerSample = 4;
 
+        /// <summary>
+        /// T-0171 — the depth band, in CANVAS PIXELS, over which a layer that is BEHIND the accumulated
+        /// surface fades from painting under it to painting over it.
+        ///
+        /// One canvas pixel is chosen because Z is measured in canvas pixels (<see cref="ShaperDocument.pixelSize"/>
+        /// is what relates a canvas pixel to a sample, LR-1.5) and because the band's job is to be invisible at
+        /// the resolution the picture is actually sampled at: a surface crossing another within a single pixel
+        /// of depth is a surface the raster cannot separate anyway, so blending there is honest rather than
+        /// arbitrary. A band of zero would z-test hard and produce a one-sample stair along every intersection
+        /// curve; a band of many pixels would smear a genuine occlusion into a haze.
+        /// </summary>
+        public const float DepthBlendBand = 1f;
+
         /// <summary>Samples in <paramref name="doc"/>'s canvas. 0 when the document is null.</summary>
         public static int SampleCount(ShaperDocument doc)
             => doc == null ? 0 : Mathf.Max(1, doc.canvasWidth) * Mathf.Max(1, doc.canvasHeight);
@@ -158,6 +171,16 @@ namespace Laubrary.Shaper
         /// <c>ShaperFillResolver.Encode</c>'s own comment names as the thing 8-bit cannot carry) is clamped by
         /// the encode and does not come back. A layer with no enabled effect never enters that path — it takes
         /// the float composite untouched, so every existing document is bit-identical.
+        ///
+        /// <b>Layers are composited by DEPTH, not by list order alone (T-0171).</b> A layer's surface Z at a
+        /// sample is <c>LayerBase(i) + height(i)</c> — HS-7.2's base plane
+        /// (<c>ShaperHeightCompiler.cs:273-280</c>) plus that layer's own accumulated height field
+        /// (<c>ShaperFillResolver.cs:243-244</c>, seeded with <c>height_shape</c> at <c>:1001</c> and summed
+        /// with every fill's <c>heightDelta</c> at <c>:1238</c>/<c>:1371</c>) — and the walk carries a running
+        /// depth buffer so a layer whose surface sits BEHIND what is already painted goes under it instead of
+        /// over it. Two domes with different <see cref="ShaperLayer.zOffset"/>s therefore INTERSECT along a
+        /// curve instead of one hiding the other. See <see cref="CompositeDepth"/> for the rule, the boundary
+        /// blend, and why a document that never contradicts its own list order is untouched.
         /// </summary>
         public static void RenderPhaseInto(ShaperDocument doc, float phase01, float[] dst, int frameIndex = -1,
                                            ShaperRenderBufferPool pool = null,
@@ -213,6 +236,15 @@ namespace Laubrary.Shaper
                 ShaperFillBuffers maskBuf = null;
                 float[] maskField = null;
 
+                // T-0171 — the cross-layer depth buffer. `accZ` is the Z of the surface currently showing at
+                // each sample and `accZw` is how much of that sample is actually covered by it, which is what
+                // lets a partly-transparent edge hand its depth over gradually instead of asserting a hard
+                // plane. They are separate from `dst`'s alpha on purpose: the document background fills alpha
+                // everywhere while occupying no depth at all, and reusing alpha as the depth weight would put
+                // every layer with a negative Z behind the backdrop.
+                var accZ = new float[n];
+                var accZw = new float[n];
+
                 for (int li = 0; li < doc.layers.Count; li++)
                 {
                     var lay = doc.layers[li];
@@ -236,7 +268,8 @@ namespace Laubrary.Shaper
                     var buf = pool != null
                         ? pool.Rent(li, n, Mathf.Max(1, fdoc.owners.Count))
                         : new ShaperFillBuffers(n, Mathf.Max(1, fdoc.owners.Count));
-                    var scene = ShaperLightCompiler.BindLayer(doc, li, prog, buf.sampleCapacity, buf.ownerCapacity);
+                    var scene = ShaperLightCompiler.BindLayer(doc, li, prog, buf.sampleCapacity,
+                                                              buf.ownerCapacity, RootProgram(fdoc), doc.pixelSize);
                     BindSolids(fdoc, scene, phase01, doc.seed, prog);
                     ShaperFillResolver.PaintTile(fdoc, grid, 0, 0, w, h, buf,
                                                  new ShaperFillSheets { published = ShaperQuantitySet.ShippedShapeEngine },
@@ -250,7 +283,14 @@ namespace Laubrary.Shaper
                                           ref maskBuf, ref maskField))
                         ApplyMask(buf.dst, maskField, n, lay.mask.mode);
 
+                    // T-0171 — this layer's base plane, the same HS-7.2 value BindLayer above compiled its
+                    // height stage against (ShaperLightCompiler.cs:492), read from the one function that
+                    // computes it so the composite cannot drift from the shading.
+                    float baseZ = ShaperHeightCompiler.LayerBase(doc, li, phase01, doc.seed);
+
                     // T-0163 — the layer's own PRE-composite list, on the layer's own picture, before the fold.
+                    // The effect stage rewrites the layer's COLOUR, never its height, so the depth it composites
+                    // at is still the layer's own surface.
                     if (effects != null && HasEnabled(lay.effects))
                     {
                         if (layerPx == null || layerPx.Length < n) layerPx = new Color32[n];
@@ -259,14 +299,40 @@ namespace Laubrary.Shaper
                         Encode(buf.dst, layerPx, n);
                         effects.Apply(lay.effects, ShaperEffectStage.PreComposite, layerPx, w, h, phase01, doc.seed);
                         DecodeToPremultiplied(layerPx, layerAcc, n);
-                        CompositeOver(dst, layerAcc, n);
+                        CompositeDepth(dst, accZ, accZw, layerAcc, buf.height, baseZ, n);
                         continue;
                     }
 
-                    CompositeOver(dst, buf.dst, n);
+                    CompositeDepth(dst, accZ, accZw, buf.dst, buf.height, baseZ, n);
                 }
             }
             finally { doc.phase01 = savedPhase; }
+        }
+
+        /// <summary>
+        /// The layer root's compiled shape program — the owner with no binding ancestor
+        /// (<c>ShaperFillResolver.cs:16-17</c>), which is the node HS-1.1 defines the layer's solid from.
+        ///
+        /// <b>Why the layer walk has to hand this to <see cref="ShaperLightCompiler.BindLayer"/> (T-0171).</b>
+        /// <c>BindLayer</c> takes the program and the sample spacing as OPTIONAL arguments and falls back to
+        /// <c>span = pixelSize</c> and an identity local frame when they are absent
+        /// (<c>ShaperLightCompiler.cs:468-475</c>, <c>ShaperHeightCompiler.cs:96-105</c>). The renderer passed
+        /// neither, so HS-1.2's span was one canvas pixel for every layer in every document: <c>t</c> saturates
+        /// a single pixel in from the silhouette, so EVERY extrusion profile flattened to a full-depth plateau
+        /// and <c>Linear</c> — the one technique that reads the node-local frame (HS-2.3) — read
+        /// <c>nx = ny = 0</c> and became a constant slab. Measured on a Dome of depth 26 over a 34-pixel disc:
+        /// the height field was 26 everywhere inside and 0 outside.
+        ///
+        /// It surfaced here because a depth composite makes the height field VISIBLE for the first time — a
+        /// plateau can only re-order whole layers, never let two surfaces cross — but the flattening was never
+        /// specific to depth: it was already wrong for lighting, whose <c>pointZ</c> reads the same sheet.
+        /// </summary>
+        static ShaperProgram RootProgram(ShaperFillDocument fdoc)
+        {
+            if (fdoc == null || fdoc.owners == null) return null;
+            for (int o = 0; o < fdoc.owners.Count; o++)
+                if (fdoc.owners[o] != null && fdoc.owners[o].ancestorOwner < 0) return fdoc.owners[o].shape;
+            return null;
         }
 
         /// <summary>True when <paramref name="list"/> holds at least one entry that would actually run — the
@@ -323,7 +389,8 @@ namespace Laubrary.Shaper
             if (scratch == null || scratch.sampleCapacity < n || scratch.ownerCapacity < owners)
                 scratch = new ShaperFillBuffers(n, owners);
 
-            var sscene = ShaperLightCompiler.BindLayer(doc, si, prog, scratch.sampleCapacity, scratch.ownerCapacity);
+            var sscene = ShaperLightCompiler.BindLayer(doc, si, prog, scratch.sampleCapacity,
+                                                       scratch.ownerCapacity, RootProgram(sdoc), doc.pixelSize);
             BindSolids(sdoc, sscene, phase01, doc.seed, prog);
             ShaperFillResolver.PaintTile(sdoc, grid, 0, 0, w, h, scratch,
                                          new ShaperFillSheets { published = ShaperQuantitySet.ShippedShapeEngine },
@@ -373,9 +440,12 @@ namespace Laubrary.Shaper
         /// which is what keeps the buffer premultiplied: it cuts the sample's alpha and leaves the colour it
         /// would un-premultiply to untouched, so a masked edge fades out rather than fading to black.
         ///
-        /// <c>ShaperFillBuffers.height</c> is deliberately not scaled: it is a per-layer accumulator that
-        /// nothing cross-layer reads (no depth-resolved composite exists — see <see cref="CompositeOver"/>),
-        /// so scaling it would change no pixel and would invent a second, unverifiable rule.
+        /// <c>ShaperFillBuffers.height</c> is deliberately not scaled, and T-0171's depth composite is the
+        /// reason that is still right rather than merely harmless: the mask cuts the sample's ALPHA to zero,
+        /// and <see cref="CompositeDepth"/> weights a layer's claim on the depth buffer by exactly that alpha,
+        /// so a masked-away region contributes no depth however tall its height field says it is. Scaling the
+        /// height instead would move the masked surface DOWNWARD in Z, which is a different picture — a shape
+        /// sinking into the one behind it rather than being cut out of it.
         /// </summary>
         static void ApplyMask(float[] dst, float[] field, int sampleCount, ShaperMaskMode mode)
         {
@@ -472,21 +542,10 @@ namespace Laubrary.Shaper
         /// <c>Encode</c>'s own comment describes, which is also why it names the float destination as where a
         /// further composite belongs (<c>:1507-1509</c>).
         ///
-        /// <b>Stacking is LIST ORDER, not Z order, and that is a finding rather than a shortcut — see the
-        /// class-level note in the file header of this method's caller.</b> <see cref="ShaperDocument.layers"/>
-        /// is ordered bottom-most first and no stage may reorder it (<c>ShaperResolve.cs:120</c>,
-        /// <c>ShaperHeightCompiler.cs:248-249</c>), so walking the list in order and compositing each layer OVER
-        /// the accumulator IS the document's authored stacking order by definition.
-        ///
-        /// What that does NOT do: HS-7.2 gives every layer a base plane
-        /// <c>base(i) = i × layerSpacing + zOffset(i)</c> with a SIGNED, deliberately unrestricted
-        /// <c>zOffset</c> (<c>ShaperHeightCompiler.cs:247-279</c>). That Z feeds the height and light compile
-        /// per layer; nothing in the engine depth-TESTS one layer against another, and no cross-layer depth
-        /// buffer exists. So pushing a later layer far back in Z changes its shading and its height, but it
-        /// still paints in front of earlier layers. A depth-resolved composite is buildable — every layer's
-        /// <c>ShaperFillBuffers.height</c> (<c>:243-244</c>) already carries the accumulated height a z-test
-        /// would need — but it does not exist today, was not silently invented here, and is recorded as an open
-        /// question rather than decided by a renderer.
+        /// <b>This is the unconditional composite — the layer walk uses <see cref="CompositeDepth"/> instead
+        /// (T-0171).</b> It remains the primitive that one names when the question is "what does laying this
+        /// on top mean", and it is what the depth composite degenerates to for the first layer, for a tie, and
+        /// for anything in front.
         /// </summary>
         public static void CompositeOver(float[] acc, float[] src, int sampleCount)
         {
@@ -500,6 +559,87 @@ namespace Laubrary.Shaper
                 acc[k + 1] = src[k + 1] + acc[k + 1] * inv;
                 acc[k + 2] = src[k + 2] + acc[k + 2] * inv;
                 acc[k + 3] = sa + acc[k + 3] * inv;
+            }
+        }
+
+        /// <summary>
+        /// <b>T-0171 — the depth-resolved layer composite.</b> Lays <paramref name="src"/> into
+        /// <paramref name="acc"/> at the surface Z <c>baseZ + srcHeight[i]</c>, choosing per sample whether it
+        /// goes OVER or UNDER what is already there, and carries the running depth in
+        /// <paramref name="accZ"/>/<paramref name="accZw"/>.
+        ///
+        /// <b>The rule, and why it is this one.</b> Both orderings are exact premultiplied composites of the
+        /// same two samples — <c>over = src + acc·(1−src.a)</c> and <c>under = acc + src·(1−acc.a)</c> — and
+        /// they produce IDENTICAL alpha (<c>a+b−ab</c> either way). That is what makes blending between them
+        /// legitimate rather than a fudge: the mix parameter moves colour only, so a soft intersection can
+        /// never punch a hole in, or double up, the coverage. The mix is
+        /// <list type="number">
+        /// <item><b>Ties and anything in front go OVER, exactly.</b> <c>srcZ ≥ accZ</c> gives <c>t = 1</c>,
+        /// which is <see cref="CompositeOver"/> byte for byte. A document whose layers never contradict their
+        /// own list order — every default one, since <c>base(i) = i × layerSpacing</c> rises with the index,
+        /// and equally one with <c>layerSpacing = 0</c> where every base ties — therefore renders exactly as
+        /// it did before this existed. Ordering ties by list order is not a convenience: list order IS the
+        /// document's authored answer to "which of these is on top" and there is no better one to invent.</item>
+        /// <item><b>Behind by more than <see cref="DepthBlendBand"/> goes UNDER, exactly.</b></item>
+        /// <item><b>In between, a smoothstep across that band.</b> Continuous at both ends (the ramp reaches 1
+        /// at the crossing), so an intersection curve is a soft seam a pixel wide rather than the stair a hard
+        /// z-test leaves along it, and no sample flips between two orderings frame to frame.</item>
+        /// </list>
+        ///
+        /// <b>Coverage-weighting, which is the other half of "no hard seam".</b> A depth read from a sample the
+        /// accumulator barely covers is barely a surface — a shape's antialiased rim covers a tenth of its edge
+        /// pixels, and letting that tenth assert a full occluding plane is what makes naive z-testing bite
+        /// visibly along every silhouette. So the test's outcome is itself lerped toward "in front" by
+        /// <paramref name="accZw"/>, the coverage the standing depth was written with, and a layer writes its
+        /// own depth in weighted by its own alpha. An empty sample (<c>accZw = 0</c>) hands the incoming layer
+        /// the depth outright.
+        /// </summary>
+        /// <param name="srcHeight">The layer's accumulated height field, one float per sample, measured above
+        /// its own base plane (<c>ShaperFillResolver.cs:243-244</c>). Null means a flat layer at
+        /// <paramref name="baseZ"/>.</param>
+        /// <param name="baseZ">HS-7.2's <c>i × layerSpacing + zOffset(i)</c> for this layer, from
+        /// <see cref="ShaperHeightCompiler.LayerBase"/> — the same value its height and lighting compiled
+        /// against.</param>
+        public static void CompositeDepth(float[] acc, float[] accZ, float[] accZw,
+                                          float[] src, float[] srcHeight, float baseZ, int sampleCount)
+        {
+            if (acc == null || src == null) return;
+            if (accZ == null || accZw == null) { CompositeOver(acc, src, sampleCount); return; }
+
+            for (int i = 0; i < sampleCount; i++)
+            {
+                int k = i * FloatsPerSample;
+                float sa = src[k + 3];
+                float sz = baseZ + (srcHeight != null ? srcHeight[i] : 0f);
+
+                float zw = accZw[i];
+                float t = 1f;
+                if (zw > 0f)
+                {
+                    float d = sz - accZ[i];
+                    float raw = 1f;
+                    if (d < 0f)
+                    {
+                        float x = 1f + d / DepthBlendBand;          // 1 at the crossing, 0 a full band behind
+                        raw = x <= 0f ? 0f : x * x * (3f - 2f * x);
+                    }
+                    t = 1f + (raw - 1f) * zw;                        // lerp(1, raw, zw)
+                }
+
+                float aa = acc[k + 3];
+                float invS = 1f - sa, invA = 1f - aa;
+                for (int c = 0; c < 3; c++)
+                {
+                    float over = src[k + c] + acc[k + c] * invS;
+                    float under = acc[k + c] + src[k + c] * invA;
+                    acc[k + c] = under + (over - under) * t;
+                }
+                acc[k + 3] = sa + aa * invS;
+
+                if (sa <= 0f) continue;
+                float front = zw <= 0f || sz > accZ[i] ? sz : accZ[i];
+                accZ[i] = zw <= 0f ? sz : accZ[i] + (front - accZ[i]) * sa;
+                accZw[i] = zw + sa * (1f - zw);
             }
         }
     }
