@@ -1,6 +1,9 @@
-// ChunkWindow.FragmentFractureCard — the card for a Fragment Fracture.
-//
-// Placeholder: see ChunkWindow.DebrisScatterCard.cs. Copy ChunkWindow.PyreBlastCard.cs for the row shapes.
+// ChunkWindow.FragmentFractureCard — the card for a Fragment Fracture: the big-piece cut producer. Shape
+// copied from PyreBlastCard: the source pickers are wide by nature and get their own rows first, the one
+// control that changes what else is shown (Inherit burst direction) sits directly above the field it hides,
+// the rest pack into rows of short controls, and the layer slot is last.
+using Laubrary.Zui;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Laubrary.Chunks.Editor
@@ -9,7 +12,84 @@ namespace Laubrary.Chunks.Editor
     {
         void BuildFragmentFractureCard(VisualElement body, ChunkSpec c, FragmentFracture cap)
         {
-            body.Add(Pending(cap));
+            string id = cap.id;
+
+            // ── what gets cut ─────────────────────────────────────────────────────
+            body.Add(Z.Field("Source",
+                "Animated content to fracture — a Zoe, a Pyre, anything that can hand over frames. Its FIRST " +
+                "frame is the picture that gets cut, so a character comes apart in the pose it was in. Outranks " +
+                "the plain sprite below.",
+                AssetPicker(cap.sourceVisual, o => Dial("Set Fracture Source", () => cap.sourceVisual = o),
+                            typeof(IChunkAnimation), "Source",
+                            "Animated content to fracture. Its first frame is the picture that gets cut.")));
+
+            // A plain Sprite, not a LauAsset — Z.Object<T>, matching every other raw-Sprite field in the
+            // codebase (Pyre, BackSplash, Cartographer, SpriteFx); AssetPicker's LauAsset chip only browses
+            // registered LauAsset types and would show nothing for a plain imported sprite.
+            body.Add(Z.Field("Fallback sprite",
+                "The plain sprite that gets cut when Source above is empty. Its texture needs Read/Write Enabled.",
+                Z.Object<Sprite>(cap.source, "The plain sprite that gets cut when Source above is empty.",
+                    v => Dial("Set Fracture Sprite", () => cap.source = v), 200f)));
+
+            body.Add(Z.HGroup(
+                Z.Field("Pieces",
+                    "How many pieces the picture is cut into. 2–6 keeps each piece recognisable as part of it.",
+                    Z.Int(cap.pieceCount, "How many pieces the picture is cut into.",
+                        v => Dial("Edit Piece Count", () => cap.pieceCount = Mathf.Max(1, v)), 70f)),
+                Z.Field("Min area",
+                    "Smallest piece, in source pixels. Anything below this merges into its neighbour instead " +
+                    "of becoming a fragment nobody can see.",
+                    Z.Int(cap.minPieceAreaPx, "Smallest piece, in source pixels.",
+                        v => Dial("Edit Min Piece Area", () => cap.minPieceAreaPx = Mathf.Max(1, v)), 70f)),
+                Z.Field("Seed",
+                    "Fixes which pieces the cut produces and how they fly. 0 rerolls every time.",
+                    Z.Int(cap.seed, "Fixes which pieces the cut produces and how they fly.",
+                        v => Dial("Edit Fracture Seed", () => cap.seed = v), 70f))));
+
+            // ── how it flies ──────────────────────────────────────────────────────
+            body.Add(Z.HGroup(
+                Z.MicroMinMax("Speed", cap.speedMin, cap.speedMax, 0f, 20f,
+                    "Launch speed, world units/sec. Each piece picks one random speed in between.",
+                    (lo, hi) => Dial("Edit Speed", () => { cap.speedMin = lo; cap.speedMax = hi; }),
+                    150f, showValue: true, decimals: 2),
+                Z.Toggle("Inherit burst direction",
+                    "Aim the pieces along the recipe's own direction instead of the angle set below.",
+                    cap.useBurstDirection, v => DialAndRebuildCard(id, "Toggle Inherit Direction", () => cap.useBurstDirection = v))));
+
+            if (!cap.useBurstDirection)
+                body.Add(Z.MicroSlider("Direction", cap.directionDeg, 0f, 360f,
+                    "Centre of the cone in degrees. 0 = right, 90 = up.",
+                    v => Dial("Edit Direction", () => cap.directionDeg = v), 150f, showValue: true, decimals: 0));
+
+            body.Add(Z.MicroSlider("Spread", cap.spreadDeg, 0f, 180f,
+                "Cone half-angle. 180 = each piece flies straight out from where it sat; 0 = all the same way.",
+                v => Dial("Edit Spread", () => cap.spreadDeg = v), 150f, showValue: true, decimals: 0));
+
+            body.Add(Z.HGroup(
+                Z.Field("Gravity",
+                    "Downward acceleration, world units/sec².",
+                    Z.Float(cap.gravity, "Downward acceleration, world units/sec².",
+                        v => Dial("Edit Gravity", () => cap.gravity = Mathf.Max(0f, v)), 70f)),
+                Z.MicroSlider("Drag", cap.drag, 0f, 5f,
+                    "Air resistance: per-second damping of velocity.",
+                    v => Dial("Edit Drag", () => cap.drag = v), 150f, showValue: true, decimals: 2)));
+
+            body.Add(Z.MicroMinMax("Spin", cap.angularSpeedMin, cap.angularSpeedMax, 0f, 720f,
+                "Spin rate, degrees/sec. Each piece's direction is randomised.",
+                (lo, hi) => Dial("Edit Spin", () => { cap.angularSpeedMin = lo; cap.angularSpeedMax = hi; }),
+                150f, showValue: true, decimals: 0));
+
+            // ── life ──────────────────────────────────────────────────────────────
+            body.Add(Z.MicroMinMax("Life", cap.lifeMin, cap.lifeMax, 0.01f, 8f,
+                "Lifetime, seconds.",
+                (lo, hi) => Dial("Edit Life", () => { cap.lifeMin = Mathf.Max(0.01f, lo); cap.lifeMax = Mathf.Max(cap.lifeMin, hi); }),
+                150f, showValue: true, decimals: 2));
+
+            body.Add(Z.Field("Alpha over life",
+                "Opacity across a piece's life, left (spawn) to right (death).",
+                Z.Curve(cap.alphaOverLife, "Opacity across a piece's life, left (spawn) to right (death).",
+                    v => Dial("Edit Alpha Over Life", () => cap.alphaOverLife = v))));
+
             var slot = LayerSlotRow(c, () => cap.layerName, v => cap.layerName = v);
             if (slot != null) body.Add(slot);
         }
