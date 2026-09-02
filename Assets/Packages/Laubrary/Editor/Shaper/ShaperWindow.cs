@@ -181,6 +181,7 @@ namespace Laubrary.Shaper.Editor
             leftPane = left;
 
             BuildCanvasSection(left.contentContainer);
+            BuildLightsSection(left.contentContainer);   // ShaperWindow.Lights.cs (T-0164) — document-level, sits beside Canvas
             BuildLayersSection(left.contentContainer);
             BuildSelectedLayerSections(left.contentContainer);
             RestoreScroll(left);
@@ -210,6 +211,7 @@ namespace Laubrary.Shaper.Editor
                 // the rest rather than sitting outside the tool's own chrome.
                 ("Tags", TagsSection),
                 ("Canvas", canvasSection),
+                ("Lights", lightsSection),   // ShaperWindow.Lights.cs (T-0164)
                 ("Layers", layersSection),
                 ("Shape", shapeSection),
                 ("Transform", transformSection),
