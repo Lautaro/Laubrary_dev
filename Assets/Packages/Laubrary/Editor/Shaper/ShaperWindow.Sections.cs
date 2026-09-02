@@ -105,6 +105,17 @@ namespace Laubrary.Shaper.Editor
 
             BuildBreadcrumb(root, layer);
 
+            // T-0204 — reset every CONDITIONALLY-built section before deciding whether to rebuild it, so a
+            // stale ZuiSection from a PREVIOUS selection never lingers in the toggle bar once its card is
+            // genuinely absent for the current one (a composite node has neither Fill nor Border; a drilled-in
+            // bag member has no Lighting card). Without this the bar kept offering a segment whose section no
+            // longer existed anywhere in the tree, so toggling it did nothing — "Fill and Border are
+            // selectable but don't show up in the UI" (owner). Mirrors the fix layerEffectsSection already had
+            // ("so a stale section from the layer root never lingers in the bar").
+            fillSection = null;
+            borderSection = null;
+            responseSection = null;
+
             // The per-shape bodies (generator dials, bag members, solid dials) and the combine/sweep/shell
             // ops moved INTO the Shape card in T-0182 — see ShaperWindow.BuildShapeSection. They are drawn
             // by the same absence rule, one card closer to the choice that summons them.
@@ -165,12 +176,58 @@ namespace Laubrary.Shaper.Editor
             return el;
         }
 
+        /// <summary>
+        /// T-0203 — is the built-in key light standing in for an empty rig right now? Answered from the
+        /// AUTHORED rig using the same test <see cref="ShaperLightCompiler"/> compiles with (an entry that is
+        /// null or disabled is not a light), so the card cannot claim one thing while the renderer does
+        /// another.
+        /// </summary>
+        bool BuiltInSolidKeyStandingIn()
+        {
+            if (document == null) return false;
+
+            // The layer's own switch wins, exactly as it does in the engine (ShaperLightCompiler.BindLayer):
+            // an author who turned this layer's lighting off asked for an unlit layer and gets one, so
+            // claiming a built-in key here would be the card lying about the picture.
+            var layer = selectedLayer >= 0 && selectedLayer < document.layers.Count
+                      ? document.layers[selectedLayer] : null;
+            if (layer == null || layer.response == null || !layer.response.receiveLighting) return false;
+
+            var rig = document.lightRig;
+            if (rig == null || rig.lights == null) return true;
+            for (int i = 0; i < rig.lights.Count; i++)
+                if (rig.lights[i] != null && rig.lights[i].enabled) return false;
+            return true;
+        }
+
         /// The solid dials, drawn inside the Shape card for a node whose picked shape is a solid (T-0182).
         /// The form itself is no longer chosen here — it is one of the Solids column's entries in the shape
         /// picker, because "which solid" is the same question as "what does this node draw".
         internal void BuildSolidBody(VisualElement box, ShaperNode node)
         {
             var s = node.solid ?? (node.solid = new ShaperSolidDef());
+
+            // T-0203 — say which light is shading this solid, because the answer can be a light that does not
+            // appear in the Lights section. A Solid is exempt from T-0200's "no lights ⇒ render unlit" rule
+            // (ShaperLightCompiler.BuiltInSolidKey): unlit, a Solid does not read as a dim solid, it reads as
+            // a flat one-colour silhouette with its bevel and facets gone, because the shading term was the
+            // only thing expressing them. A light the author cannot see is exactly what LR-7.3 forbids leaving
+            // silent, so it is stated here and the sentence is the engine's own const.
+            if (BuiltInSolidKeyStandingIn())
+                box.Add(Z.Text(ShaperLightRig.BuiltInSolidKeyActive, ZuiText.Subtle,
+                               ShaperLightRig.BuiltInSolidKeyActive));
+
+            // T-0203 — what the ORDINARY stages do to a Solid, stated once here rather than left for the
+            // author to test one control at a time. All three are live and none of them is a special case:
+            // a Solid is an owner like any other from the moment it publishes coverage (LR-6.1).
+            box.Add(Z.Text(
+                "This node's Fill tints the solid's albedo — the colour the light is applied to — so a "
+                + "gradient or ramp fill shades in 3D rather than replacing the shading. A Border draws around "
+                + "the solid's silhouette (not its facet seams, which are the Line width control below) and is "
+                + "lit by this same light. The layer's Height stage is a separate authority and does not move "
+                + "the solid's own geometry; only a Height-field fill on this node tilts its surface.",
+                ZuiText.Subtle,
+                "How Fill, Border and Height behave on a solid."));
 
             box.Add(Z.HGroup(
                 SolidVal("Size", "The solid's radius, in canvas pixels.", s.size, 1f, 128f,
@@ -641,11 +698,10 @@ namespace Laubrary.Shaper.Editor
         /// mutates.
         VisualElement Gradient(ZuiGradient g, string tooltip)
         {
-            var ctrl = Z.Gradient(g, tooltip, () =>
-            {
-                if (document != null) EditorUtility.SetDirty(document);
-                RefreshPreview();
-            });
+            // T-0201 — AfterEdit, not SetDirty+RefreshPreview: a gradient stop moved without invalidating the
+            // frame cache re-served the frame rendered before the move, so the ramp changed and the picture
+            // did not.
+            var ctrl = Z.Gradient(g, tooltip, AfterEdit);
             ctrl.OnBeforeMutate = () =>
             {
                 if (document != null) Undo.RegisterCompleteObjectUndo(document, "Edit Shaper Document");
@@ -1048,6 +1104,7 @@ namespace Laubrary.Shaper.Editor
         internal void BuildCompositeBody(VisualElement box, ShaperNode node)
         {
             var c = node.composite;
+            var hostLayer = CurrentLayer;   // T-0204 — the source's LayerStartFrame/LayerEndFrame below
 
             // What the dials are read off. A hosted Pyre form declares them on the FORM, so the wrapper's own two
             // fields must not be what gets reflected; a source that is not a form (a stateful simulation) declares
@@ -1103,12 +1160,18 @@ namespace Laubrary.Shaper.Editor
                     FrameCount = document != null ? document.frameCount : 0,
                     CanvasExtent = document != null
                         ? Mathf.Max(document.canvasWidth, document.canvasHeight) : 128f,
+                    // T-0204 — the SELECTED layer's own Lifetime, in document-frame space, -1 sentinel kept as
+                    // -1 rather than resolved here: a source that mirrors it (a hosted Pyre layer's Life
+                    // window) is expected to treat -1 the same way ShaperLayer's own resolver does ("the last
+                    // frame", tracking frameCount), not freeze today's frameCount into a concrete number.
+                    LayerStartFrame = hostLayer != null ? hostLayer.startFrame : 0,
+                    LayerEndFrame = hostLayer != null ? hostLayer.endFrame : -1,
                     Change = Change,
-                    Touch = () =>
-                    {
-                        if (document != null) EditorUtility.SetDirty(document);
-                        RefreshPreview();
-                    },
+                    // T-0201 — every dial on a hosted Pyre layer (PyreShapeCards' Reach/Spread/Auto Exposure
+                    // among them) reports its edit through Touch. It used to dirty the asset and re-read the
+                    // frame cache, which still held the pre-edit frame, so the whole hosted-layer panel looked
+                    // inert until an unrelated edit flushed the cache.
+                    Touch = AfterEdit,
                     Rebuild = Rebuild,
                 }, c.source);
                 return;
@@ -1130,11 +1193,11 @@ namespace Laubrary.Shaper.Editor
                 {
                     if (document != null) Undo.RegisterCompleteObjectUndo(document, "Edit Shaper Document");
                 },
-                OnChanged = () =>
-                {
-                    if (document != null) EditorUtility.SetDirty(document);
-                    RefreshPreview();
-                },
+                // T-0201 — the generators' own dials (Orb, Plasma Bloom, ArcBurst, Fire, Fireball…) are drawn
+                // straight off the generator object, so this hook is the ONLY thing standing between such an
+                // edit and the preview. Dirty-and-refresh alone re-served the cached frame, which is why the
+                // owner could take every Orb dial to its extreme and see nothing move.
+                OnChanged = AfterEdit,
                 OnStructureChanged = Rebuild,
                 ControlWidth = 140f,
             });
@@ -1288,23 +1351,15 @@ namespace Laubrary.Shaper.Editor
         // "Height, Mask? ... perhaps part of the layer item in the layer list" (owner). Keyed by ordinal —
         // same fold-drift-on-reorder trade-off ShaperWindow.Lights.cs's per-light cards already accept, low
         // cost here since it only affects which card starts folded, never any authored value.
+        //
+        // T-0204 — the "no stage yet" placeholder card is GONE: BuildLayersSection now only calls this once
+        // its own "Height" toggle has already put a stage on the layer, so a layer with none simply shows no
+        // card at all rather than a whole box whose only content was an Add button — "Both mask and height
+        // create a whole section each without being used" (owner). layer.height is asserted non-null on entry.
         void BuildHeightSection(VisualElement root, ShaperLayer layer)
         {
             string key = "shaper.window.height." + document.layers.IndexOf(layer);
-
-            if (layer.height == null)
-            {
-                var empty = Z.BoxKeyed("Height", "Extrude this LAYER's silhouette into relief.", key, "mountains");
-                if (s_layerCardDefaultedClosed.Add(key)) empty.IsOpen = false;
-                empty.SetHeaderSuffix(() => ": none");
-                empty.Add(Z.Field("Height", "This layer has no height stage, so it stays flat.",
-                    Z.Button("Add height", "Give this layer an extrusion stage.",
-                        () => { Change(() => layer.height = new ShaperHeightDef()); Rebuild(); })));
-                root.Add(empty);
-                return;
-            }
-
-            var h = layer.height;
+            var h = layer.height ?? (layer.height = new ShaperHeightDef());
             var box = Z.BoxKeyed("Height", "Extrude this LAYER's silhouette into relief.", key, "mountains");
             if (s_layerCardDefaultedClosed.Add(key)) box.IsOpen = false;
             box.SetHeaderSuffix(() => ": " + ObjectNames.NicifyVariableName(h.technique.ToString()));
@@ -1448,13 +1503,11 @@ namespace Laubrary.Shaper.Editor
                         ShaperLayerMask.QuantityNotPublished));
             }
 
-            // Lives here rather than on the layer row because it is only ever set for a layer that is being
-            // used as a mask, and this is the card that explains what that means.
-            box.Add(Z.Toggle("Draws into the picture",
-                "Turn this off to make THIS layer a pure mask: it still resolves, and other layers may still "
-                + "be cut by it, but it never paints into the picture itself. Disabling the layer instead "
-                + "turns it off as a mask source too.",
-                layer.contributesToPicture, v => Change(() => layer.contributesToPicture = v)));
+            // T-0204 — "Draws into the picture" moved OUT of this card onto the always-visible Lifetime/Z row
+            // in BuildLayersSection: it is a property of the layer being USED as a mask SOURCE by some other
+            // layer, which has nothing to do with whether THIS layer has a mask of its OWN — a layer with no
+            // mask card at all (this whole card is now absent for it) can still be somebody else's mask
+            // source, and hiding the toggle along with an unrelated card would have taken away a real setting.
 
             root.Add(box);
         }
@@ -1626,7 +1679,7 @@ namespace Laubrary.Shaper.Editor
         ZuiReflect.Options EffectDrawerOptions(string displayName) => new ZuiReflect.Options
         {
             OnBeforeChange = () => { if (document != null) Undo.RegisterCompleteObjectUndo(document, "Edit Shaper effect"); },
-            OnChanged = () => { if (document != null) EditorUtility.SetDirty(document); RefreshPreview(); },
+            OnChanged = AfterEdit,
             OnStructureChanged = Rebuild,
             // The enable toggle lives in the header row; drawing the modifier's own `enabled` field too would
             // put two controls for one idea on one card.

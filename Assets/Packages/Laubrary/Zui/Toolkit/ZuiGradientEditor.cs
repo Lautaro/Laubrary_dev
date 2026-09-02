@@ -21,6 +21,7 @@ namespace Laubrary.Zui
         public readonly Image Output;          // objective preview (ToLut) — read-only, the final ramp
         public readonly GradientField Source;  // editable base ramp
         public readonly ZuiBox Adjust;         // the transforms, in a collapsible box
+        public readonly Button Library;        // T-0205 — the project's saved-gradient library (browse / save)
 
         readonly ZuiGradient _g;
         readonly bool _lifeFollowsPosition;
@@ -56,6 +57,13 @@ namespace Laubrary.Zui
 
             Source = new GradientField { value = _g.gradient, tooltip = "The SOURCE ramp you edit — the transforms below apply on top of it." };
             Source.RegisterValueChangedCallback(e => Mutate(() => _g.gradient = e.newValue));
+
+            // T-0205 — one shared "project's saved gradients" library, reachable from every ZuiGradient site
+            // (this control backs Fill's Gradient fill, RampByQuantity, OverPhase, Procedural noise) AND from
+            // ZuiRampControl's own Library button (via ZuiRampGradientBridge) — the owner's ask that ramp
+            // controls and Fill's gradient picker share the same saved palette.
+            Library = Z.Button("★", "This project's saved gradients — click to apply one, or save the CURRENT "
+                              + "ramp under a new name.", OpenLibrary).W(22f);
 
             Adjust = Z.Box("Adjust",
                 "Non-destructive transforms applied on top of the base ramp. Hue / Saturation / Brightness / Contrast "
@@ -116,6 +124,15 @@ namespace Laubrary.Zui
             return Z.Value(label, v, o, tip,
                 () => { Refresh(); OnChanged?.Invoke(); },
                 () => OnBeforeMutate?.Invoke());
+        }
+
+        void OpenLibrary()
+        {
+            ZuiGradientPresetPopup.Show(Library, () => _g.gradient, applied =>
+            {
+                Mutate(() => _g.gradient = applied);
+                Source.SetValueWithoutNotify(_g.gradient);
+            });
         }
 
         void Mutate(Action apply)

@@ -28,7 +28,13 @@ namespace Laubrary.Zui
                 OnChanged = () => OnChanged?.Invoke(),
             };
             ed.Output.style.marginBottom = 4;
-            Add(ed.Output);
+            var outputRow = new VisualElement { style = { flexDirection = FlexDirection.Row, alignItems = Align.Center } };
+            ed.Output.style.flexGrow = 1f;
+            ed.Output.style.flexShrink = 1f;
+            outputRow.Add(ed.Output);
+            ed.Library.style.marginLeft = 4f;
+            outputRow.Add(ed.Library);
+            Add(outputRow);
             Add(ed.Source);
             Add(ed.Adjust);
         }

@@ -206,9 +206,31 @@ namespace Laubrary.Shaper
         /// unlit pass-through regardless of that layer's own <see cref="ShaperLightResponse.receiveLighting"/>.
         /// A header TOOLTIP and not body text (LR-7.3's own instruction: attach a stated limitation to the
         /// specific control it qualifies), so it stays short.
+        ///
+        /// T-0203 amended the sentence rather than leaving it: Solids are exempt from that gate
+        /// (<see cref="ShaperLightCompiler.BuiltInSolidKey"/>), so "layers render unlit" was true of
+        /// Silhouette and false of the
+        /// one family the reader is most likely to be looking at when they read it.
         /// </summary>
         public const string NoLightsRenderUnlit =
-            "No lights — layers render unlit; add a light to shade.";
+            "No lights — Silhouette layers render unlit; add a light to shade. Solids keep their own built-in " +
+            "key light and stay lit.";
+
+        /// <summary>
+        /// T-0203. Shown on the Solids card while the document rig is empty, and the reason the exemption
+        /// exists at all.
+        ///
+        /// A Solid publishes real 3D geometry with a genuine surface direction at every dot
+        /// (<c>SHAPER_THE_DESIGN.md:190</c>). Rendered unlit it is not a dimmer version of itself, it is a flat
+        /// one-colour silhouette with its whole subject — the bevel, the facets, the turn of the surface —
+        /// erased, because the only thing that ever expressed that geometry as a picture was the shading term.
+        /// The unlit gate is right for Silhouette, which loses a highlight and keeps its shape; it deletes the
+        /// subject for Solids. So an empty rig stands the built-in key in, and the author still owns the
+        /// picture the moment they add one real light.
+        /// </summary>
+        public const string BuiltInSolidKeyActive =
+            "The rig has no lights, so this solid is lit by Shaper's built-in key light — up, left and toward " +
+            "the viewer, matching Pyre's solids. Add a light to the rig and it takes over completely.";
     }
 
     /// <summary>

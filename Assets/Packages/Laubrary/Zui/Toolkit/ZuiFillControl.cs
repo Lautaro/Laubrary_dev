@@ -243,6 +243,7 @@ namespace Laubrary.Zui
             ed.Output.style.flexGrow = 1f; ed.Output.style.flexShrink = 1f;
             ed.Output.style.marginLeft = 6f; ed.Output.style.marginRight = 6f;
             row1.Add(ed.Output);   // objective output preview (read-only)
+            row1.Add(ed.Library);  // T-0205 — this project's saved-gradient library (browse / save)
             col.Add(row1);
 
             // Row 2: the editable SOURCE ramp, full column width.

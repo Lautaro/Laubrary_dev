@@ -44,6 +44,15 @@ namespace Laubrary.Shaper
         /// <summary>How many entries the rig held, enabled or not. Reported alongside, never used for the cap.</summary>
         public int authoredLightCount;
 
+        /// <summary>
+        /// T-0203 — at least one layer bound this frame stood <see cref="ShaperLightCompiler.BuiltInSolidKey"/>
+        /// in for an empty rig, so any Solids in it are lit by the built-in key rather than by the author's
+        /// rig. DECLARED, in the same shape as every other diagnostic on this class, because a picture lit by
+        /// a light the author cannot see in the Lights section is exactly the silent behaviour LR-7.3 exists to
+        /// forbid. The window's reading of it is <see cref="ShaperLightRig.BuiltInSolidKeyActive"/>.
+        /// </summary>
+        public bool solidsUseBuiltInKey;
+
         // ── LR-7.2 / LR-7.3: a dial that is on but cannot do anything ─────────────────────────────────────
 
         /// <summary>
@@ -381,6 +390,12 @@ namespace Laubrary.Shaper
             // Audits' standalone probes (ShaperHeightAudit.cs:2529,2664) that construct a response with no rig
             // to speak of; those keep testing `resp.receiveLighting` verbatim, which is correct for what they
             // measure.
+            //
+            // T-0203 SCOPE NOTE. The gate stays exactly as written and is NOT weakened for Solids here,
+            // because a response block is per LAYER and a layer may hold a Solids node and an ordinary shape
+            // node side by side; relaxing it here would light both. The Solids exemption is instead a SECOND,
+            // per-OWNER rig chosen at the one place an owner is known to be a Solid — see
+            // <see cref="BuiltInSolidKey"/> and <see cref="ShaperLightScene.solidRigIsBuiltIn"/>.
             if (prog != null && prog.rig.count == 0) c.receive = 0;
 
             // Every one of these goes through Dial (see the block comment at the top of this class). The
@@ -512,7 +527,92 @@ namespace Laubrary.Shaper
             var nop = CompileNormal(layer.response, hop);
             scene.SetAll(resp, nop);
             scene.SetAllHeight(hop);
+
+            // ── T-0203 — THE SOLIDS EXEMPTION FROM T-0200'S UNLIT GATE, and its whole extent ──────────────
+            //
+            // Two lights' worth of state, set here and read at exactly one place
+            // (ShaperFillResolver.LightSample). It fires ONLY when all three hold:
+            //   • the document rig compiled to zero enabled lights — the gate's own condition, reused verbatim
+            //     rather than restated, so the two can never disagree;
+            //   • the layer's OWN receiveLighting is on — an author who switched lighting off for this layer
+            //     asked for an unlit layer and gets one, built-in key or not;
+            //   • the owner being painted is a Solids owner (checked at the read site, not here, because THIS
+            //     method does not know which owners are Solids and a response block is per layer).
+            //
+            // The moment the author adds one real light, `prog.rig.count > 0`, this whole block is inert, and
+            // the rig they authored is the only rig any Solid ever sees. That is what keeps the exemption from
+            // becoming a hidden ninth light.
+            bool layerWantsLight = layer.response != null && layer.response.receiveLighting;
+            if (prog.rig.count == 0 && layerWantsLight)
+            {
+                scene.solidRigIsBuiltIn = true;
+                scene.solidRig = BuiltInSolidKey;
+
+                // The layer's own response, with the gate's forced `receive = 0` undone — and NOTHING else
+                // changed. Specular strength, specular power, the tint, rim, the intensity scale are all
+                // still the author's, so the built-in key substitutes for the LIGHTS and never for the
+                // layer's response to them.
+                var sresp = resp;
+                sresp.receive = 1;
+                scene.solidResponse = sresp;
+                prog.solidsUseBuiltInKey = true;
+            }
             return scene;
+        }
+
+        /// <summary>
+        /// <b>T-0203 — the built-in key light a Solid is lit by when the document rig is empty.</b>
+        ///
+        /// Not a ninth light and not a hidden addition to the author's rig: it is only ever consulted when the
+        /// rig compiled to ZERO lights, and only for an owner that is a Solid. A rig with one light in it
+        /// overrides this completely.
+        ///
+        /// <b>The numbers are Pyre's, taken from its solids and not invented</b>, so a Shaper Solid at defaults
+        /// and its Pyre counterpart read as the same object: ambient <c>0.05</c> (<c>Pyre.cs:358</c>) rather
+        /// than the document default <c>0.18</c>, which is a floor under real lights and far too high to be a
+        /// whole ambient; the key at yaw <c>-55°</c>, pitch <c>38°</c> — up, left and toward the viewer,
+        /// <c>PyreRenderer.cs:4258-4266</c>'s own default angles; per-light specular <c>0.9</c>
+        /// (<c>Pyre.cs:363</c>).
+        ///
+        /// <b>Directional where Pyre's is a point light, and the one number that had to be derived.</b> Pyre
+        /// puts its lamp at <c>3.5·R</c> with range <c>4.7·R</c> (<c>PyreRenderer.cs:4260-4267</c>) — a
+        /// per-particle light scaled to the particle, which LR-1.6 is precisely the break from and which a
+        /// document-level rig has no way to express: it would have to know each Solid's own size and centre,
+        /// which is a light owned by a generator (LR-1.1 forbids it). A directional key has no falloff at all,
+        /// so it is stable across sizes, which is the behaviour a shared rig should have anyway. Pyre's
+        /// attenuation at the solid's centre is <c>1/(1 + 3.5²/4.7²) = 0.643</c>, so its effective diffuse
+        /// there is <c>2.1 × 0.643 = 1.35</c> (<c>gemDiffuse = 2.1</c>, <c>Pyre.cs:362</c>) — and that is this
+        /// light's intensity. The stated consequence, so it is not reported as a bug: Pyre's solid is very
+        /// slightly brighter on the lit limb and darker on the far one than this, because a point light's
+        /// falloff varies across the surface and a directional one does not. B8's ruling covers exactly this —
+        /// the shading LAW is shared and identical, the pictures are consistent and not identical.
+        /// </summary>
+        public static ShaperLightRigCompiled BuiltInSolidKey => builtInSolidKey;
+
+        static readonly ShaperLightRigCompiled builtInSolidKey = MakeBuiltInSolidKey();
+
+        static ShaperLightRigCompiled MakeBuiltInSolidKey()
+        {
+            var rig = new ShaperLightRigCompiled { count = 1, ambR = 0.05f, ambG = 0.05f, ambB = 0.05f };
+
+            // Same construction CompileDocument's directional branch performs (:281-302), written out rather
+            // than routed through it because there is no authored ShaperLight to sample: yaw about +Y from +Z
+            // toward +X, pitch as elevation above the canvas plane, unit, TOWARD the light.
+            const float yaw = -55f * Mathf.Deg2Rad, pitch = 38f * Mathf.Deg2Rad;
+            float ch = Mathf.Cos(pitch);
+            float dx = ch * Mathf.Sin(yaw), dy = Mathf.Sin(pitch), dz = ch * Mathf.Cos(yaw);
+            float len = Mathf.Sqrt(dx * dx + dy * dy + dz * dz);
+            if (len > 1e-6f) { dx /= len; dy /= len; dz /= len; }
+
+            rig.Set(0, new ShaperLightCompiled
+            {
+                kind = (int)ShaperLightKind.Directional,
+                dirX = dx, dirY = dy, dirZ = dz,
+                r = 1.35f, g = 1.35f, b = 1.35f,
+                invRangeSq = 0f,          // LR-2.4: a directional light has no falloff, ever.
+                specular = 0.9f,
+            });
+            return rig;
         }
 
         /// <summary>Compile one layer's normal provider (LR-3.1), normalising the constant at compile.</summary>
@@ -636,6 +736,22 @@ namespace Laubrary.Shaper
         /// than asserted.
         /// </summary>
         public ShaperSolidGeometry[] solid;
+
+        /// <summary>
+        /// T-0203 — true when the document rig compiled to zero lights AND this layer wanted lighting, so a
+        /// SOLIDS owner in this layer shades against <see cref="solidRig"/> and <see cref="solidResponse"/>
+        /// instead of taking T-0200's unlit pass-through. False on every other scene, including every scene a
+        /// caller constructs directly, so those are bit-identical to the pre-T-0203 build.
+        /// </summary>
+        public bool solidRigIsBuiltIn;
+
+        /// <summary>T-0203 — <see cref="ShaperLightCompiler.BuiltInSolidKey"/>, meaningful only while
+        /// <see cref="solidRigIsBuiltIn"/>.</summary>
+        public ShaperLightRigCompiled solidRig;
+
+        /// <summary>T-0203 — this layer's own compiled response with the gate's forced <c>receive = 0</c>
+        /// undone, meaningful only while <see cref="solidRigIsBuiltIn"/>.</summary>
+        public ShaperResponseCompiled solidResponse;
 
         /// <summary>Per owner, per sample: 3 floats, UNIT, canvas frame (LR-3.5).</summary>
         public float[] normal;

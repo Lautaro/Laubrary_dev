@@ -1237,6 +1237,18 @@ namespace Laubrary.Shaper
                 // ordinary albedo, lit like every other owner's.
                 bool doLight = scene != null && o < scene.ownerCapacity && !add &&
                                ow.compositeAlbedo == null && scene.response[o].receive != 0;
+
+                // T-0203 — THE SOLIDS EXEMPTION, read here and nowhere else. When the document rig is empty,
+                // T-0200's gate forced `receive = 0` and `doLight` above is false; a Solid rendered that way
+                // is not a dim solid, it is a flat one-colour silhouette with its bevel, its facets and the
+                // whole turn of its surface deleted, because the shading term was the only thing expressing
+                // them. So a Solids owner shades against ShaperLightCompiler.BuiltInSolidKey instead.
+                //
+                // Every other clause of `doLight` still applies verbatim: an ADDITIVE fill is still not lit
+                // (LR-5.3), a composite root's finished picture is still not lit again (T-0191 clause 4), and
+                // a layer whose own receiveLighting is off never sets `solidRigIsBuiltIn` in the first place.
+                bool solidBuiltIn = solidOwner && !doLight && scene.solidRigIsBuiltIn && !add &&
+                                    ow.compositeAlbedo == null;
                 int nslab = o * buf.sampleCapacity;
 
                 for (int i = 0; i < n; i++)
@@ -1265,7 +1277,7 @@ namespace Laubrary.Shaper
                     // very long way before premultiplication. The unlit branch is taken literally — the
                     // original three lines, unchanged — so a null scene and a receive-off layer are
                     // bit-identical to the pre-T-0108 build rather than arithmetically equal to it (LR-4.3).
-                    if (!doLight && !solidOwner)
+                    if (!doLight && !solidOwner && !solidBuiltIn)
                     {
                         buf.subtree[s4 + 0] += buf.albedo[a3 + 0] * ce;
                         buf.subtree[s4 + 1] += buf.albedo[a3 + 1] * ce;
@@ -1274,7 +1286,8 @@ namespace Laubrary.Shaper
                     else
                     {
                         LightSample(scene, buf, o, nslab, i, a3, grid, x0, y0, width,
-                                    doLight, solidOwner, out float cr, out float cg, out float cb);
+                                    doLight, solidOwner, solidBuiltIn,
+                                    out float cr, out float cg, out float cb);
                         buf.subtree[s4 + 0] += cr * ce;
                         buf.subtree[s4 + 1] += cg * ce;
                         buf.subtree[s4 + 2] += cb * ce;
@@ -1375,6 +1388,14 @@ namespace Laubrary.Shaper
                     // LR-5.3 applies here unchanged: a border that declares Add is not lit either.
                     bool bLight = scene != null && o < scene.ownerCapacity && !badd &&
                                   scene.response[o].receive != 0;
+
+                    // T-0203 — the exemption reaches a border on a Solid, for LR-5.4's own reason: "an unlit
+                    // outline on a lit shape is the 'not one scene' failure at the smallest possible scale".
+                    // With an empty rig the host is now lit by the built-in key, so a border left on the unlit
+                    // branch would be exactly the bright rim on a shaded shape that paragraph forbids. It is
+                    // still the HOST's response block and the HOST's normal (`o`, `bnslab`), unchanged.
+                    bool bSolidHost = scene != null && o < scene.ownerCapacity && scene.solid[o] != null;
+                    bool bBuiltIn = bSolidHost && !bLight && scene.solidRigIsBuiltIn && !badd;
                     int bnslab = o * buf.sampleCapacity;
 
                     // BD-3.6 — a HOSTLESS strip is scaled by `1 − the later siblings' alpha`, snapshotted at the
@@ -1403,11 +1424,15 @@ namespace Laubrary.Shaper
                         // borders and non-borders by the same code". The unlit branch is again taken
                         // literally so a null scene is bit-identical (LR-4.3).
                         float br, bg, bb;
-                        if (!bLight) { br = buf.albedo[a3 + 0]; bg = buf.albedo[a3 + 1]; bb = buf.albedo[a3 + 2]; }
+                        if (!bLight && !bBuiltIn)
+                        { br = buf.albedo[a3 + 0]; bg = buf.albedo[a3 + 1]; bb = buf.albedo[a3 + 2]; }
                         else
                         {
+                            // `solidOwner: false` stays false even when the host IS a Solid: the facet-line
+                            // albedo substitution and the glow both belong to the HOST's own block, which has
+                            // already added them once. A border is a band of paint on that surface, lit by it.
                             LightSample(scene, buf, o, bnslab, i, a3, grid, x0, y0, width,
-                                        true, false, out br, out bg, out bb);
+                                        bLight, false, bBuiltIn, out br, out bg, out bb);
                         }
 
                         float sr = br * ce;
@@ -1496,7 +1521,7 @@ namespace Laubrary.Shaper
         static void LightSample(ShaperLightScene scene, ShaperFillBuffers buf,
                                 int respOwner, int nslab, int i, int a3,
                                 in ShaperSampleGrid grid, int x0, int y0, int width,
-                                bool doLight, bool solidOwner,
+                                bool doLight, bool solidOwner, bool builtInSolidKey,
                                 out float cr, out float cg, out float cb)
         {
             int t = nslab + i;
@@ -1518,15 +1543,22 @@ namespace Laubrary.Shaper
                 ab = scene.solidOp[respOwner].lineB;
             }
 
-            if (doLight)
+            if (doLight || builtInSolidKey)
             {
                 int ix = x0 + (i % width), iy = y0 + (i / width);
                 float px = grid.originX + ix * grid.pixelSize;
                 float py = grid.originY + iy * grid.pixelSize;
                 float pz = scene.pointZ[t];                     // 0 for a Silhouette layer: LR-1.5's base plane
 
+                // T-0203 — the ONE place the Solids exemption changes an arithmetic result: which rig and
+                // which response go into the SAME law call. There is still exactly one call to Shade in this
+                // file (LT-1b), and the built-in key is a rig like any other, so nothing about the law, the
+                // normal, the surface point or the view direction differs between the two branches.
+                ShaperLightRigCompiled rig = builtInSolidKey ? scene.solidRig : scene.rig;
+                ShaperResponseCompiled resp = builtInSolidKey ? scene.solidResponse : scene.response[respOwner];
+
                 int t3 = t * 3;
-                ShaperLightLaw.Shade(scene.rig, scene.response[respOwner],
+                ShaperLightLaw.Shade(rig, resp,
                                      px, py, pz,
                                      scene.normal[t3 + 0], scene.normal[t3 + 1], scene.normal[t3 + 2],
                                      scene.vx, scene.vy, scene.vz,
