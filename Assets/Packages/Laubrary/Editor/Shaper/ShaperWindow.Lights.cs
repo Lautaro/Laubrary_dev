@@ -151,25 +151,48 @@ namespace Laubrary.Shaper.Editor
             string posReason = "Position and range only apply to a Point light, which falls off with distance "
                 + "(LR-2.4). This light is Directional, which has no location — only a direction it comes from.";
 
-            var dirRow = Val2D("Direction", isDirectional
+            // Direction/Position are spatial X/Y pairs, so they take the SAME Z.Pad the Transform section uses
+            // (ShaperWindow.cs BuildTransformSection's Translate/Origin/Scale/Skew), not the animatable
+            // Z.Value2D this card used before the PM's by-eye pass (2026-09-02) flagged the inconsistency:
+            // ui-layout-rules.md says the same KIND of value uses the same control everywhere, and the "…"
+            // config affordance Z.Value2D's side panel exposes is deprecated by user decree.
+            //
+            // The real cost, stated rather than hidden: yaw/pitch and posX/posY are ZUIValue
+            // (ShaperLightRig.cs:46,55,58,60) and therefore individually animatable, but Z.Pad edits a plain
+            // Vector2 — so this pad reads/writes only each field's STATIC value (ZUIValue.staticValue) and
+            // drops the curve/min-max/steps/oscillation modes from THIS control. An author can still animate
+            // yaw, pitch, posX or posY — nothing here forces Static — just not from this pad; the same
+            // limitation Transform's own plain-Vector2 translate/origin/scale/skew dials already carry.
+            var dirRow = Z.Field("Direction", isDirectional
                     ? "Where this Directional light comes FROM, in the canvas frame — yaw (X) then pitch (Y), "
-                      + "degrees."
+                      + "degrees. Edits the static value only."
                     : dirReason,
-                light.yaw, light.pitch, new ZuiValue2DControl.Options
-                {
-                    xMin = 0f, xMax = 360f, yMin = -90f, yMax = 90f,
-                    plotSize = 100f, showSidePanel = true,
-                }.WithAxisLabels("Yaw", "Pitch"));
+                Z.Pad(new Vector2(light.yaw.staticValue, light.pitch.staticValue),
+                    new Rect(0f, -90f, 360f, 180f),
+                    isDirectional
+                        ? "Where this Directional light comes FROM — yaw (X) then pitch (Y), degrees."
+                        : dirReason,
+                    v => Change(() =>
+                    {
+                        light.yaw.staticValue = v.x;
+                        light.pitch.staticValue = v.y;
+                    })));
             if (!isDirectional) dirRow.SetEnabled(false);
 
-            var posRow = Val2D("Position", isDirectional
+            var posRow = Z.Field("Position", isDirectional
                     ? posReason
-                    : "This Point light's absolute canvas position, X and Y. Canvas pixels.",
-                light.posX, light.posY, new ZuiValue2DControl.Options
-                {
-                    xMin = -256f, xMax = 256f, yMin = -256f, yMax = 256f,
-                    plotSize = 100f, showSidePanel = true,
-                });
+                    : "This Point light's absolute canvas position, X and Y. Canvas pixels. Edits the static "
+                      + "value only.",
+                Z.Pad(new Vector2(light.posX.staticValue, light.posY.staticValue),
+                    new Rect(-256f, -256f, 512f, 512f),
+                    isDirectional
+                        ? posReason
+                        : "This Point light's absolute canvas position, X and Y. Canvas pixels.",
+                    v => Change(() =>
+                    {
+                        light.posX.staticValue = v.x;
+                        light.posY.staticValue = v.y;
+                    })));
             if (isDirectional) posRow.SetEnabled(false);
 
             card.Add(Z.HGroup(dirRow, posRow));
@@ -186,14 +209,5 @@ namespace Laubrary.Shaper.Editor
 
             return card;
         }
-
-        /// The ZUIValue-pair analog of Val — an animatable XY control, same Undo-record + preview-dirty wiring
-        /// as this tool's own Val(). yaw/pitch and posX/posY are each two independently-animated ZUIValue
-        /// fields (ShaperLightRig.cs:46,55,58,60), so a plain Z.Pad (which takes a static Vector2) would
-        /// silently drop their curve/min-max modes — Z.Value2D is the control built for exactly this pair.
-        VisualElement Val2D(string label, string tooltip, ZUIValue x, ZUIValue y, ZuiValue2DControl.Options o)
-            => Z.Value2D(label, x, y, o, tooltip,
-                () => { if (document != null) EditorUtility.SetDirty(document); RefreshPreview(); },
-                () => { if (document != null) Undo.RecordObject(document, "Edit Shaper Document"); });
     }
 }
