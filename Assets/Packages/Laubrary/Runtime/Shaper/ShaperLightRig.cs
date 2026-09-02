@@ -199,6 +199,16 @@ namespace Laubrary.Shaper
         public const string SilhouetteIsFlatUntilExtrusion =
             "This layer's surface faces one fixed direction. Lighting, falloff and colour are real and match " +
             "the rest of the document, but there is no relief to catch a highlight until the layer is extruded.";
+
+        /// <summary>
+        /// T-0200 — shown on the Lights section's header while the rig holds zero ENABLED lights, which is
+        /// exactly when <see cref="ShaperLightCompiler.CompileResponse"/> forces every layer to LR-4.3's
+        /// unlit pass-through regardless of that layer's own <see cref="ShaperLightResponse.receiveLighting"/>.
+        /// A header TOOLTIP and not body text (LR-7.3's own instruction: attach a stated limitation to the
+        /// specific control it qualifies), so it stays short.
+        /// </summary>
+        public const string NoLightsRenderUnlit =
+            "No lights — layers render unlit; add a light to shade.";
     }
 
     /// <summary>

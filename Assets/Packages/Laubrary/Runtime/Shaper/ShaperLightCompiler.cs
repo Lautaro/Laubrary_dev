@@ -368,6 +368,21 @@ namespace Laubrary.Shaper
             float p = Mathf.Clamp01(phase01);
             c.receive = resp.receiveLighting ? 1 : 0;
 
+            // T-0200 — THE gate, in this one place rather than at every call site (BindLayer covers both
+            // Silhouette and Solids through the same CompileResponse call, so there is only one site to begin
+            // with). When the rig compiled to zero ENABLED lights, `prog.rig.count` is already 0 here — Compile
+            // always runs before CompileResponse in the real render path (CompileDocument, then BindLayer per
+            // layer) — and every layer is forced to LR-4.3's existing `receive == 0` branch regardless of its
+            // OWN receiveLighting flag. That branch already does exactly what an empty rig should: L = (1,1,1),
+            // S = (0,0,0), the albedo written through unchanged. Before this gate a fresh document still ran
+            // every layer through `ambR/G/B` (default 0.18) with receive == 1, so a white fill encoded ~46%
+            // grey and a red ramp encoded dark red before an author had authored a single light — ambient acting
+            // as a global darkener rather than "a floor under real lights". `prog` is null only from the
+            // Audits' standalone probes (ShaperHeightAudit.cs:2529,2664) that construct a response with no rig
+            // to speak of; those keep testing `resp.receiveLighting` verbatim, which is correct for what they
+            // measure.
+            if (prog != null && prog.rig.count == 0) c.receive = 0;
+
             // Every one of these goes through Dial (see the block comment at the top of this class). The
             // measured failure this closes is a negative rimPower writing 19 200 Infinity or NaN floats into
             // `dst` plus 6 400 black garbage pixels; the sweep covers every sibling dial rather than only the

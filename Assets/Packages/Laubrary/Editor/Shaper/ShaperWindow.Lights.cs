@@ -42,10 +42,7 @@ namespace Laubrary.Shaper.Editor
             if (rig == null) return;
 
             var box = lightsSection = Z.Section("Lights",
-                "The document's one light rig (LR-1.1): a single ambient term plus an ordered list of lights. "
-                + "No light is owned by a layer or a fill — every layer is lit by this same rig, which is what "
-                + "keeps a multi-layer picture reading as one scene rather than several independently-lit ones.",
-                "shaper.window.lights", icon: "sun");
+                LightsSectionTooltip(rig), "shaper.window.lights", icon: "sun");
 
             box.Add(Z.HGroup(
                 Z.Field("Ambient", "The rig's one ambient term (LR-1.3), added once before any light and never "
@@ -84,6 +81,27 @@ namespace Laubrary.Shaper.Editor
             if (rig == null) return;
             for (int i = 0; i < rig.lights.Count; i++)
                 lightListHost.Add(BuildLightCard(lightListHost, i));
+            // T-0200 — every add/remove/enable-toggle of a light routes through here (BuildLightsSection calls
+            // it once up front, the +Add button and every card's enable checkbox and remove button call it
+            // again), so this is the ONE place that needs to re-check "does the rig still have zero enabled
+            // lights" rather than a refresh wired into each of those three call sites separately.
+            lightsSection?.SetTooltip(LightsSectionTooltip(rig));
+        }
+
+        /// T-0200 — the Lights section's header tooltip, honest about whether the rig is currently doing
+        /// anything: <see cref="ShaperLightRig.NoLightsRenderUnlit"/> while it holds zero ENABLED lights (the
+        /// exact condition <see cref="ShaperLightCompiler.CompileResponse"/> gates every layer's shading on),
+        /// the ordinary description otherwise.
+        static string LightsSectionTooltip(ShaperLightRig rig)
+        {
+            bool anyEnabled = false;
+            if (rig?.lights != null)
+                for (int i = 0; i < rig.lights.Count; i++)
+                    if (rig.lights[i] != null && rig.lights[i].enabled) { anyEnabled = true; break; }
+            if (!anyEnabled) return ShaperLightRig.NoLightsRenderUnlit;
+            return "The document's one light rig (LR-1.1): a single ambient term plus an ordered list of lights. "
+                + "No light is owned by a layer or a fill — every layer is lit by this same rig, which is what "
+                + "keeps a multi-layer picture reading as one scene rather than several independently-lit ones.";
         }
 
         VisualElement BuildLightCard(VisualElement listHost, int index)
