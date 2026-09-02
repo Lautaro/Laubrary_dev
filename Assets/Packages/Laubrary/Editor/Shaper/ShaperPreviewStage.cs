@@ -13,7 +13,6 @@
 using System;
 using Laubrary.BackSplash.Editor;
 using Laubrary.PyreShaper;
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -23,8 +22,9 @@ namespace Laubrary.Shaper.Editor
     {
         readonly Func<ShaperDocument> _doc;
         readonly Func<int> _frame;
-        readonly IMGUIContainer _backdrop;
+        readonly BackSplashElement _backdrop;
         readonly VisualElement _image;
+        readonly VisualElement _frameBorder;
         Texture2D _tex;
 
         /// Cosmetic view state, owned by the window and pushed in — see ShaperWindow.Preview.cs for why these
@@ -49,13 +49,22 @@ namespace Laubrary.Shaper.Editor
             // copied literally here because this stage is retained-mode: a VisualElement paints its own
             // background BEFORE its children, so a backdrop painted onto THIS element would sit behind the
             // frame only by accident, and any later restyle of the stage would silently reorder them.
-            // Instead the order is made structural — two sibling children, backdrop first, frame second —
-            // which is the retained-mode spelling of the same blit order and cannot be reordered by styling.
+            // Instead the order is made structural — sibling children, backdrop first, frame second, border
+            // last — which is the retained-mode spelling of the same blit order and cannot be reordered by
+            // styling.
+            //
+            // This is UI TOOLKIT throughout. It briefly was not: the backdrop was an IMGUIContainer running
+            // BackSplashPainter, the only IMGUI left in an otherwise pure-UITK tool, imported purely to reuse
+            // a shared painter whose API is Draw(Rect,...). The right fix was neither to keep the island nor
+            // to re-implement the backdrop privately here (which would have been the FOURTH copy of those
+            // twenty lines, and BackSplashPainter exists because the third one silently stopped reading
+            // imageZoom/imagePos) — it was to add the UITK spelling to the SHARED module. That is
+            // BackSplashElement, beside the painter, reading the same BackSplashSettings.
             //
             // The frame keeps its transparency, which is what makes the backdrop visible at all: the layer
             // walk clears its accumulator with Array.Clear and Encode writes STRAIGHT alpha, so every sample
             // outside the shape is genuinely alpha 0 rather than an opaque background colour.
-            _backdrop = new IMGUIContainer(DrawBackdrop) { pickingMode = PickingMode.Ignore };
+            _backdrop = new BackSplashElement(new Color(0.08f, 0.08f, 0.10f));
             _backdrop.StretchToParentSize();
             Add(_backdrop);
 
@@ -64,33 +73,48 @@ namespace Laubrary.Shaper.Editor
             _image.StretchToParentSize();
             Add(_image);
 
+            // The canvas-edge outline, as a styled border rather than four EditorGUI.DrawRect calls. Absolute
+            // and pointer-transparent, positioned onto the fitted canvas rect whenever the stage resizes —
+            // the border has to follow the PICTURE, not the panel, or it stops meaning "this is the canvas
+            // edge". Cosmetic: no renderer or baker path can see it.
+            _frameBorder = new VisualElement { pickingMode = PickingMode.Ignore };
+            _frameBorder.style.position = Position.Absolute;
+            _frameBorder.style.display = DisplayStyle.None;
+            var edge = new Color(1f, 1f, 1f, 0.28f);
+            _frameBorder.style.borderTopWidth = _frameBorder.style.borderBottomWidth = 1f;
+            _frameBorder.style.borderLeftWidth = _frameBorder.style.borderRightWidth = 1f;
+            _frameBorder.style.borderTopColor = _frameBorder.style.borderBottomColor = edge;
+            _frameBorder.style.borderLeftColor = _frameBorder.style.borderRightColor = edge;
+            Add(_frameBorder);
+
+            RegisterCallback<GeometryChangedEvent>(_ => LayoutFrameBorder());
+
             // A Texture2D is an unmanaged Unity object; a window rebuild drops this element and would leak it.
             RegisterCallback<DetachFromPanelEvent>(_ => Dispose());
             Refresh();
         }
 
-        /// The backdrop is painted through the SHARED BackSplashPainter, not a local copy — that painter
-        /// exists precisely because Pyre and Mirage had each written the same twenty lines and drifted.
-        /// `contentRect` is this container's own local rect, which is already the space an IMGUIContainer's
-        /// GUI calls draw in, so no parent offset is added (adding one double-counts, the same class of
-        /// mistake Pyre's popover-anchoring note warns about).
-        void DrawBackdrop()
+        /// Places the canvas-edge outline onto the fitted canvas rect. Called on every geometry change and
+        /// whenever the toggle or the document changes, because the fitted rect depends on the stage size and
+        /// on the document's own aspect.
+        void LayoutFrameBorder()
         {
             var doc = _doc?.Invoke();
-            BackSplashPainter.Draw(_backdrop.contentRect, doc?.previewBackSplash,
-                                   new Color(0.08f, 0.08f, 0.10f));
+            if (!ShowFrameBorder || doc == null)
+            {
+                _frameBorder.style.display = DisplayStyle.None;
+                return;
+            }
 
-            if (!ShowFrameBorder || doc == null) return;
+            float vw = resolvedStyle.width, vh = resolvedStyle.height;
+            if (float.IsNaN(vw) || float.IsNaN(vh) || vw <= 0f || vh <= 0f) return;
 
-            // A 1px outline around the canvas edge — four DrawRect edges, Pyre's own idiom. Cosmetic only:
-            // it is drawn in the editor's IMGUI pass over the preview, and no renderer or baker path can see
-            // it, so a bordered preview and an unbordered one bake byte-identically.
-            var r = FittedCanvasRect(_backdrop.contentRect, doc);
-            var col = new Color(1f, 1f, 1f, 0.28f);
-            EditorGUI.DrawRect(new Rect(r.x, r.y, r.width, 1f), col);
-            EditorGUI.DrawRect(new Rect(r.x, r.yMax - 1f, r.width, 1f), col);
-            EditorGUI.DrawRect(new Rect(r.x, r.y, 1f, r.height), col);
-            EditorGUI.DrawRect(new Rect(r.xMax - 1f, r.y, 1f, r.height), col);
+            var r = FittedCanvasRect(new Rect(0f, 0f, vw, vh), doc);
+            _frameBorder.style.display = DisplayStyle.Flex;
+            _frameBorder.style.left = r.x;
+            _frameBorder.style.top = r.y;
+            _frameBorder.style.width = r.width;
+            _frameBorder.style.height = r.height;
         }
 
         /// Where the canvas actually lands inside `view` under ScaleToFit + Zoom — the border has to follow
@@ -113,7 +137,11 @@ namespace Laubrary.Shaper.Editor
         public void Refresh()
         {
             var doc = _doc?.Invoke();
-            _backdrop.MarkDirtyRepaint();   // the backdrop is IMGUI; it repaints only when asked
+            // Retained-mode: the backdrop is a real element, so it is pointed at the current settings rather
+            // than being told to repaint. (As an IMGUIContainer this needed a manual MarkDirtyRepaint — one
+            // of the small frictions that came with the island.)
+            _backdrop.SetSettings(doc?.previewBackSplash);
+            LayoutFrameBorder();
 
             if (doc == null)
             {
