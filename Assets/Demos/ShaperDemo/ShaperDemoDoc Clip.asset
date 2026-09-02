@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 814d39121fa3ca349a807da65ac86915, type: 3}
+  m_Name: ShaperDemoDoc Clip
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Shaper::Laubrary.Shaper.ShaperClip
+  frames:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: -8476570793016743487, guid: a7aea7116fac0774280f68a01df6816d, type: 3}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 2301235174926699277, guid: a7aea7116fac0774280f68a01df6816d, type: 3}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  frameRate: 12
+  seed: 424242
+  cherryEnabled: 1
+  cherryFrames:
+  - sourceIndex: 6
+    lengthMultiplier: 1
+    minLengthMultiplier: 1
+    maxLengthMultiplier: 1
+    useMinMaxLength: 0
+    multiFrame: 0
+    multiFrameSources: 
+    multiFrameRandomSeed: 0
+  - sourceIndex: 9
+    lengthMultiplier: 1.5
+    minLengthMultiplier: 1
+    maxLengthMultiplier: 1
+    useMinMaxLength: 0
+    multiFrame: 0
+    multiFrameSources: 
+    multiFrameRandomSeed: 0
+  cherryLoopDelaySeconds: 0.15
+  sourceDocumentName: ShaperDemoDoc
