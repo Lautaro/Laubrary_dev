@@ -82,6 +82,27 @@ namespace Laubrary.DotGen
             if (doc.showFrameStroke) DrawFrameStroke(buf, size, doc.frameStroke, s);
 
             if (withDots && res != null) DrawDots(buf, size, res, s);
+
+            FlipRows(buf, size);
+        }
+
+        /// The pipeline's y runs DOWNWARD from the frame's top edge — an area anchored Top sits at y ≈ 0, which
+        /// is what makes "Bottom makes an area grow upward" true. A Color32 buffer handed to SetPixels32 (or
+        /// encoded to a PNG) is read BOTTOM row first, so the buffer has to be turned over at the end or every
+        /// picture comes out vertically mirrored and every anchor means its opposite. Done once here, at the
+        /// single point where a rasterised frame becomes an image, rather than inverting y in four rasterisers.
+        static void FlipRows(Color32[] buf, int size)
+        {
+            for (int y = 0, other = size - 1; y < other; y++, other--)
+            {
+                int a = y * size, b = other * size;
+                for (int x = 0; x < size; x++)
+                {
+                    var t = buf[a + x];
+                    buf[a + x] = buf[b + x];
+                    buf[b + x] = t;
+                }
+            }
         }
 
         /// The export bytes. Same path as the preview, so what is exported is what was judged.

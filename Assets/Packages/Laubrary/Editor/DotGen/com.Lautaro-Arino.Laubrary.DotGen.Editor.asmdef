@@ -1,0 +1,23 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.DotGen.Editor",
+    "rootNamespace": "Laubrary.DotGen.Editor",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.DotGen",
+        "com.Lautaro-Arino.Laubrary.AssetKit.Editor",
+        "com.Lautaro-Arino.Laubrary.Zui.Editor",
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime",
+        "com.Lautaro-Arino.Laubrary.BackSplash",
+        "com.Lautaro-Arino.Laubrary.BackSplash.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
