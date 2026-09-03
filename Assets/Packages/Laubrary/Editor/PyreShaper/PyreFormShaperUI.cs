@@ -14,6 +14,9 @@
 // for a generator family to bring its own card, and Shaper's core editor assembly is not allowed to learn this
 // family by name. The cost is that a drawer replaces the reflected dump rather than sitting beside it, so the
 // dump is reproduced below — with the window's own options, so the two cannot look different.
+using System;
+using System.Collections.Generic;
+using System.Reflection;
 using Laubrary.Pyre;
 using Laubrary.Shaper;
 using Laubrary.Shaper.Editor;
@@ -100,6 +103,8 @@ namespace Laubrary.PyreShaper.Editor
                     OnChanged = ctx.Touch,
                     OnStructureChanged = ctx.Rebuild,
                     ControlWidth = 140f,
+                    ReorderFields = OrbNoseAxisReorder,
+                    TooltipFor = OrbNoseAxisTooltip,
                 });
                 dials.Add(host);
                 box.Add(dials);
@@ -113,6 +118,44 @@ namespace Laubrary.PyreShaper.Editor
             {
                 if (ctx.UndoTarget != null)
                     Undo.RegisterCompleteObjectUndo(ctx.UndoTarget, "Edit Shaper Document");
+            }
+
+            // ── OrbForm's Nose X / Axis Y (T-0220) ─────────────────────────────────────────────────────────
+            // Owner: "are these just placing the shape in the frame? Transform already does this." They are
+            // NOT — off-swarm they are the intrinsic composition point the wake trails behind (OrbForm.cs's
+            // own doc: "SWARM: off = one orb at Nose X / Axis Y"), read only by the generator's own program,
+            // never by ShaperTransformBlock. But OrbForm declares them second and third (right after
+            // `variant`, ahead of Radius/Wake), so the reflected dump drew them at the top of the card, beside
+            // Transform's own Translate row one section up — exactly where they'd read as a duplicate. Can't
+            // fix the declaration order without editing OrbForm.cs (Pyre's file, read-only to this
+            // programme); fixed here instead, purely at draw time, by field name — a no-op on every form that
+            // doesn't declare all three.
+            static readonly string[] NoseAxisFields = { "noseX", "axisY" };
+
+            static FieldInfo[] OrbNoseAxisReorder(FieldInfo[] fields)
+            {
+                int noseIdx = Array.FindIndex(fields, f => f.Name == "noseX");
+                int axisIdx = Array.FindIndex(fields, f => f.Name == "axisY");
+                int radiusIdx = Array.FindIndex(fields, f => f.Name == "radius");
+                if (noseIdx < 0 || axisIdx < 0 || radiusIdx < 0) return fields;
+
+                var nose = fields[noseIdx];
+                var axis = fields[axisIdx];
+                var rest = new List<FieldInfo>(fields.Length);
+                foreach (var f in fields)
+                    if (f.Name != "noseX" && f.Name != "axisY") rest.Add(f);
+
+                int insertAt = rest.FindIndex(f => f.Name == "radius") + 1;   // right after Radius, before Wake
+                rest.Insert(insertAt, nose);
+                rest.Insert(insertAt + 1, axis);
+                return rest.ToArray();
+            }
+
+            static string OrbNoseAxisTooltip(FieldInfo f)
+            {
+                if (Array.IndexOf(NoseAxisFields, f.Name) < 0) return null;
+                var attr = (TooltipAttribute)Attribute.GetCustomAttribute(f, typeof(TooltipAttribute));
+                return "Within the orb's own frame: " + (attr?.tooltip ?? f.Name);
             }
         }
     }

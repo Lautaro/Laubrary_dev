@@ -1034,7 +1034,7 @@ namespace Laubrary.Shaper.Editor
             // Value2D rather than Pad, because each axis is its own animatable dial: right-click either to
             // author a Curve and the node travels, grows or leans over the document's frames.
             box.Add(Z.HGroup(
-                Val2D("Translate", "Move this node's content, in canvas pixels. Animate it to make the node "
+                Val2D("Translate", "Moves the shape, in canvas pixels. Animate it to make the node "
                     + "travel across the canvas over the document's frames.",
                     t.translateX, t.translateY,
                     // T-0186 — no plot-size override: Pyre's own Val2D (PyreWindow.cs:2607) never overrides it
@@ -1043,7 +1043,14 @@ namespace Laubrary.Shaper.Editor
                     // still shows 2 envelopes per line rather than overflowing at the wider size.
                     new ZuiValue2DControl.Options().WithRange(-ext, ext, -ext, ext)
                         .WithPrefKey("shaper.transform.translate")),
-                Val2D("Origin", "The point this node rotates and scales around, in canvas pixels.",
+                // T-0220 — "moves like Translate, in the opposite direction" was the owner's read of this
+                // dial with no visual to explain it: the pivot is drawn as a small cross on the preview
+                // (ShaperPreviewStage.LayoutOriginCross) exactly so this tooltip's claim is checkable by eye.
+                // ShaperMatrix.ToMatrix already composes T·origin·R·S·K·origin⁻¹ (verified invariant at
+                // identity rotation/scale/skew, T-0220 probe) — moving Origin alone never moves the shape;
+                // it only relocates what Rotation/Scale/Skew turn around.
+                Val2D("Origin", "The pivot rotation and scale turn around, in canvas pixels. Moving it does "
+                    + "not move the shape by itself.",
                     t.originX, t.originY,
                     new ZuiValue2DControl.Options().WithRange(-ext, ext, -ext, ext)
                         .WithPrefKey("shaper.transform.origin")),
@@ -1060,6 +1067,10 @@ namespace Laubrary.Shaper.Editor
             box.Add(Val("Rotation", "Rotate this node's content around its origin, in degrees. Animate it to "
                 + "make the node spin over the document's frames.",
                 t.rotationDegrees, -720f, 720f, cyclic: true, decimals: 0));
+
+            // T-0220 — folding the card away turns the pivot cross off too (ShowOrigin reads IsOpen); this is
+            // the header-click half of keeping that in sync, since the fold itself doesn't touch the preview.
+            box.ViewChanged += RefreshPreview;
 
             root.Add(box);
         }
@@ -1108,6 +1119,9 @@ namespace Laubrary.Shaper.Editor
             // where the handle was dropped, and rebuilding the panel mid-gesture would pull the control out
             // from under the pointer.
             stage.DragCommitted = Rebuild;
+            // T-0220 — the pivot cross only means anything while the Transform card is the thing being looked
+            // at; a card the owner folded away has no business leaving a mark on the picture.
+            stage.ShowOrigin = () => transformSection != null && transformSection.IsOpen;
 
             // T-0190 — preview overlays. The stage owes them a buffer and nothing else; which features have
             // marks to draw, and which are switched on, is decided here (ShaperPreviewOverlays).

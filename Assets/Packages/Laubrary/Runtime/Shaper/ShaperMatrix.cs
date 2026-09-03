@@ -48,6 +48,11 @@ namespace Laubrary.Shaper
             };
         }
 
+        /// <summary>Maps a point through this affine map. Exists so a caller that only has a matrix and a
+        /// point (the preview stage placing the pivot cross, T-0220) does not have to hand-inline the two
+        /// dot products every time — <c>m02</c>/<c>m12</c> alone only ever gives the image of (0,0).</summary>
+        public Vector2 TransformPoint(Vector2 p) => new Vector2(m00 * p.x + m01 * p.y + m02, m10 * p.x + m11 * p.y + m12);
+
         public float Determinant => m00 * m11 - m01 * m10;
 
         /// <summary>Inverse. Returns false (and identity) when the linear part is singular; never divides by zero.</summary>
@@ -232,6 +237,19 @@ namespace Laubrary.Shaper
             if (skewY == null) skewY = new ZUIValue(0f);
             if (originX == null) originX = new ZUIValue(0f);
             if (originY == null) originY = new ZUIValue(0f);
+        }
+
+        /// <summary>The pivot's own sampled position, in the node's local units — same phase/seed a
+        /// <see cref="ToMatrix"/> call for the same frame would use. Exists so a caller that wants to know
+        /// WHERE the pivot is (the preview stage's pivot cross, T-0220) can ask for exactly that instead of
+        /// re-deriving it from the composed matrix, which is the general "T·origin·R·S·K·origin⁻¹ fixes
+        /// origin" fact rather than something specific to drawing.</summary>
+        public Vector2 SampleOrigin(float phase01, uint seed)
+        {
+            EnsureDials();
+            return new Vector2(
+                ShaperValue.Sample(originX, phase01, seed ^ FldOriginX, 0f),
+                ShaperValue.Sample(originY, phase01, seed ^ FldOriginY, 0f));
         }
 
         /// <summary>The forward map, <c>T · P · R · S · K · P⁻¹</c>, with every dial sampled once at

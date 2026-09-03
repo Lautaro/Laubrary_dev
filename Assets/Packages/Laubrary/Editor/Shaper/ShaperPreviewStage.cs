@@ -81,6 +81,23 @@ namespace Laubrary.Shaper.Editor
         Vector2 _dragStartTranslate;
         Vector2 _dragStartPointer;
 
+        // ── the pivot cross (T-0220) ────────────────────────────────────────────────────────────────────────
+        // A second, distinct mark from the yellow Translate handle above: the handle sits where the node's
+        // local (0,0) landed, which DOES move under rotation/scale around a pivot elsewhere. The cross sits
+        // where translate+origin landed instead — the one point ShaperTransformBlock.ToMatrix keeps fixed
+        // regardless of rotation/scale/skew (T-0220 probe: verified invariant at identity R/S/K, and moves
+        // only when R/S/K is non-identity, exactly the "what Rotation turns around" reading). It exists so the
+        // Origin dial's tooltip claim — "moving it does not move the shape" — is something the owner can watch
+        // happen rather than take on faith.
+        const float CrossSize = 15f;
+        readonly VisualElement _originCross;
+        readonly VisualElement _originCrossH;
+        readonly VisualElement _originCrossV;
+
+        /// Whether the Transform card is the thing currently being looked at — set by the window from its own
+        /// ZuiSection.IsOpen, never decided in here (the stage does not know what a "card" is).
+        public Func<bool> ShowOrigin;
+
         public ShaperPreviewStage(Func<ShaperDocument> doc, Func<int> frame)
         {
             _doc = doc;
@@ -155,7 +172,33 @@ namespace Laubrary.Shaper.Editor
             _handle.RegisterCallback<PointerMoveEvent>(OnHandleMove);
             _handle.RegisterCallback<PointerUpEvent>(OnHandleUp);
 
-            RegisterCallback<GeometryChangedEvent>(_ => { LayoutFrameBorder(); LayoutHandle(); });
+            // The cross itself: two thin bars in a plain container, ignore-picking throughout — it marks a
+            // point, it is not draggable "unless trivially the same mechanism" (the task's own words), and
+            // dragging the pivot is a materially different gesture (it would have to rewrite BOTH origin and
+            // translate to hold the picture still) that nobody asked for here.
+            _originCross = new VisualElement { pickingMode = PickingMode.Ignore };
+            _originCross.style.position = Position.Absolute;
+            _originCross.style.display = DisplayStyle.None;
+            _originCross.style.width = CrossSize;
+            _originCross.style.height = CrossSize;
+            var crossColor = new Color(0.35f, 0.85f, 1f, 0.95f); // cyan — distinct from the yellow translate ring
+            _originCrossH = new VisualElement { pickingMode = PickingMode.Ignore };
+            _originCrossH.style.position = Position.Absolute;
+            _originCrossH.style.left = 0f; _originCrossH.style.right = 0f;
+            _originCrossH.style.top = CrossSize * 0.5f - 1f;
+            _originCrossH.style.height = 2f;
+            _originCrossH.style.backgroundColor = crossColor;
+            _originCrossV = new VisualElement { pickingMode = PickingMode.Ignore };
+            _originCrossV.style.position = Position.Absolute;
+            _originCrossV.style.top = 0f; _originCrossV.style.bottom = 0f;
+            _originCrossV.style.left = CrossSize * 0.5f - 1f;
+            _originCrossV.style.width = 2f;
+            _originCrossV.style.backgroundColor = crossColor;
+            _originCross.Add(_originCrossH);
+            _originCross.Add(_originCrossV);
+            Add(_originCross);
+
+            RegisterCallback<GeometryChangedEvent>(_ => { LayoutFrameBorder(); LayoutHandle(); LayoutOriginCross(); });
 
             // A Texture2D is an unmanaged Unity object; a window rebuild drops this element and would leak it.
             RegisterCallback<DetachFromPanelEvent>(_ => Dispose());
@@ -286,6 +329,40 @@ namespace Laubrary.Shaper.Editor
             _handle.style.top = local.y - HandleSize * 0.5f;
         }
 
+        /// Places the pivot cross at translate+origin, carried up through every ancestor transform the same
+        /// way the handle is (ParentForwardOf) — a node inside a rotated/scaled bag needs its cross to follow
+        /// that bag, or it stops marking the point it claims to mark.
+        void LayoutOriginCross()
+        {
+            var doc = _doc?.Invoke();
+            var node = SelectedNode?.Invoke();
+            var root = SelectedLayerRoot?.Invoke();
+            bool wants = ShowOrigin != null && ShowOrigin();
+            if (!wants || doc == null || node?.transform == null)
+            {
+                _originCross.style.display = DisplayStyle.None;
+                return;
+            }
+
+            var r = ZoomedCanvasRect(doc);
+            if (r.width <= 0f || r.height <= 0f) { _originCross.style.display = DisplayStyle.None; return; }
+
+            float phase = doc.PhaseOfFrame(Mathf.Max(0, _frame?.Invoke() ?? 0));
+            var t = node.transform;
+            var parent = ParentForwardOf(root, node, phase, doc.seed);
+            var localToParent = t.ToMatrix(phase, doc.seed);
+            // M(origin) — the one point ShaperTransformBlock.ToMatrix's T·origin·R·S·K·origin⁻¹ composition
+            // holds fixed no matter what R/S/K sample to (T-0220 probe). NOT forward.m02/m12 (LayoutHandle's
+            // point) — that is M(0,0), the local content origin, which is exactly the point that DOES move
+            // under rotation/scale around this pivot; using it here would draw the cross on the wrong invariant.
+            var canvasPoint = parent.TransformPoint(localToParent.TransformPoint(t.SampleOrigin(phase, doc.seed)));
+            var local = CanvasToLocal(doc, r, canvasPoint);
+
+            _originCross.style.display = DisplayStyle.Flex;
+            _originCross.style.left = local.x - CrossSize * 0.5f;
+            _originCross.style.top = local.y - CrossSize * 0.5f;
+        }
+
         void OnHandleDown(PointerDownEvent evt)
         {
             var node = SelectedNode?.Invoke();
@@ -402,6 +479,7 @@ namespace Laubrary.Shaper.Editor
             _backdrop.SetSettings(doc?.previewBackSplash);
             LayoutFrameBorder();
             LayoutHandle();
+            LayoutOriginCross();
 
             if (doc == null)
             {
