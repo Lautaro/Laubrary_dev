@@ -110,6 +110,16 @@
       "id": "ChunksEditor-2026-09-02",
       "name": "Chunks editor \u2014 capability stack in Pyre's style",
       "parent": "Chunks"
+    },
+    {
+      "id": "DotGen",
+      "name": "DotGen",
+      "parent": null
+    },
+    {
+      "id": "DotGen-2026-09-03",
+      "name": "DotGen \u2014 port the Dot Foundry POC into Laubrary (Pyre-style ZUI window)",
+      "parent": "DotGen"
     }
   ]
 }
