@@ -78,6 +78,10 @@ namespace Laubrary.Shaper.Editor
 
         readonly VisualElement _handle;
         bool _dragging;
+        // The handle and the pivot cross are only shown while the pointer is over the stage (or mid-drag), so
+        // the picture is unobstructed the rest of the time — owner request, 2026-09-03. Visibility, not
+        // display: the marks keep their layout slot and just stop painting (stable-workspace rule).
+        bool _hover;
         Vector2 _dragStartTranslate;
         Vector2 _dragStartPointer;
 
@@ -199,6 +203,8 @@ namespace Laubrary.Shaper.Editor
             Add(_originCross);
 
             RegisterCallback<GeometryChangedEvent>(_ => { LayoutFrameBorder(); LayoutHandle(); LayoutOriginCross(); });
+            RegisterCallback<PointerEnterEvent>(_ => { _hover = true; ApplyHoverVisibility(); });
+            RegisterCallback<PointerLeaveEvent>(_ => { _hover = false; ApplyHoverVisibility(); });
 
             // A Texture2D is an unmanaged Unity object; a window rebuild drops this element and would leak it.
             RegisterCallback<DetachFromPanelEvent>(_ => Dispose());
@@ -327,6 +333,16 @@ namespace Laubrary.Shaper.Editor
             _handle.style.display = DisplayStyle.Flex;
             _handle.style.left = local.x - HandleSize * 0.5f;
             _handle.style.top = local.y - HandleSize * 0.5f;
+            ApplyHoverVisibility();
+        }
+
+        /// The marks paint only while the pointer is over the stage or a drag is in flight; a drag that
+        /// wanders outside the stage keeps its handle visible until the pointer is released.
+        void ApplyHoverVisibility()
+        {
+            var v = (_hover || _dragging) ? Visibility.Visible : Visibility.Hidden;
+            _handle.style.visibility = v;
+            _originCross.style.visibility = v;
         }
 
         /// Places the pivot cross at translate+origin, carried up through every ancestor transform the same
@@ -359,6 +375,7 @@ namespace Laubrary.Shaper.Editor
             var local = CanvasToLocal(doc, r, canvasPoint);
 
             _originCross.style.display = DisplayStyle.Flex;
+            ApplyHoverVisibility();
             _originCross.style.left = local.x - CrossSize * 0.5f;
             _originCross.style.top = local.y - CrossSize * 0.5f;
         }
