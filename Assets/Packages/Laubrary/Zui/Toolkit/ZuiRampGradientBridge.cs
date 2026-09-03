@@ -1,88 +1,92 @@
-// ZuiRampGradientBridge — T-0205. The lossless-both-ways conversion between an IZuiRamp (Pyre's PyreRamp,
-// or any future ramp type) and a plain UnityEngine.Gradient, so ZuiRampControl can reach the SAME project
-// gradient library Z.Gradient uses (ZuiGradientPresetLibrary) without PyreRamp itself ever being rewritten
-// to store its stops as a Gradient.
+// ZuiRampGradientBridge — the conversion between an IZuiRamp (Pyre's PyreRamp, or any future ramp type) and a
+// ZuiGradient, so a ramp and a gradient exchange stops through the SAME project library (ZuiGradientPresetLibrary)
+// without either one being rewritten to store the other's shape.
 //
-// Why not just make every ramp a ZuiGradient (the owner's "consider if ramp can't just be replaced"
-// question)? A UnityEngine.Gradient hard-caps at 8 colour keys — PyreRampPresets.Ember() alone ships 10 —
-// and PyreShade evaluates a PyreRamp through PyreRampSpace (LinearLight/Srgb blending), which a plain
-// Gradient cannot express. Flattening PyreRamp into a Gradient would silently truncate or re-blend an
-// existing >8-stop asset on load: not lossless, and exactly the failure ZuiRampControl was built to avoid
-// (see ZuiRampControl.cs's own file header and IZuiRamp.cs). So PyreRamp keeps its own unbounded stop list
-// and its own control; what moves is the LIBRARY — a ramp can now pull a saved gradient IN (always exact:
-// a Gradient has at most 8 keys, and IZuiRamp has no upper bound, so Gradient -> ramp never loses a stop)
-// and push its own stops OUT to be saved (exact up to 8 stops; beyond that, evenly subsampled — stated, not
-// hidden, the same approximation PyreShaperRampPresets.ToZuiGradient already ships and the project already
-// accepted for the Pyre-preset-into-Shaper path).
+// LOSSLESS BOTH WAYS since T-0221. It used to convert through a UnityEngine.Gradient, which caps at 8 colour keys —
+// so a ramp with more stops (PyreRampPresets.Ember() ships 10) was evenly subsampled on the way into the library
+// and could never come back whole. ZuiGradient now owns its own unbounded stop list and its own interpolation
+// space, which is exactly the shape a PyreRamp has, so the conversion is now stop-for-stop with the blend mode
+// carried across as its index: nothing is dropped in either direction, at any stop count.
 //
-// ToRamp is the ONLY half of this that mutates an existing ramp, and only when a caller explicitly invokes
-// "Load from library" — never on deserialize, never automatically. Existing PyreRamp assets are therefore
-// untouched by this file unless a human picks a saved gradient for that specific ramp.
-using System.Collections.Generic;
+// The blend-mode index is passed straight through because both enums declare the same two members in the same
+// order (LinearLight = 0, Srgb = 1 — see ZuiGradientSpace's own comment saying so); the name lists are compared
+// first so a future ramp type with a different mode set is left at its own default rather than silently re-blended.
+//
+// Neither direction runs on deserialize — only when a caller explicitly invokes "Load from library" / "Save to
+// library". Existing PyreRamp and ZuiGradient assets are therefore untouched by this file unless a human picks a
+// saved gradient for that specific field.
 using UnityEngine;
 
 namespace Laubrary.Zui
 {
     public static class ZuiRampGradientBridge
     {
-        /// UnityEngine.Gradient's own key cap — a ramp beyond this many stops is evenly subsampled when saved
-        /// to the shared library, never silently truncated from one end.
-        public const int MaxGradientKeys = 8;
+        /// UnityEngine.Gradient's own key cap, kept for the legacy Gradient-shaped overloads below.
+        public const int MaxGradientKeys = ZuiGradient.MaxGradientKeys;
 
-        /// <summary>Converts a ramp's CURRENT stops into a fresh Gradient the caller owns outright. Null/empty
-        /// ramp in, null out (an empty ramp — Pyre's legal "no colour here" state — has nothing to save).</summary>
-        public static Gradient ToGradient(IZuiRamp ramp)
+        /// <summary>The ramp's CURRENT stops as a fresh ZuiGradient the caller owns outright — every stop, its
+        /// colour and its blend space. Null/empty ramp in, null out (an empty ramp — Pyre's legal "no colour here"
+        /// state — has nothing to save).</summary>
+        public static ZuiGradient ToZuiGradient(IZuiRamp ramp)
         {
             if (ramp == null || ramp.Count == 0) return null;
 
-            int n = ramp.Count;
-            var positions = new List<float>(n);
-            var colors = new List<Color>(n);
-            for (int i = 0; i < n; i++) { positions.Add(ramp.GetPos(i)); colors.Add(ramp.GetColor(i)); }
-
-            if (n > MaxGradientKeys)
-            {
-                var idx = new List<int>(MaxGradientKeys);
-                for (int i = 0; i < MaxGradientKeys; i++)
-                    idx.Add(Mathf.RoundToInt(i * (n - 1) / (float)(MaxGradientKeys - 1)));
-                var p2 = new List<float>(MaxGradientKeys); var c2 = new List<Color>(MaxGradientKeys);
-                foreach (var i in idx) { p2.Add(positions[i]); c2.Add(colors[i]); }
-                positions = p2; colors = c2;
-                n = MaxGradientKeys;
-            }
-
-            var ck = new GradientColorKey[n];
-            var ak = new GradientAlphaKey[n];
-            for (int i = 0; i < n; i++)
-            {
-                ck[i] = new GradientColorKey(colors[i], positions[i]);
-                ak[i] = new GradientAlphaKey(colors[i].a, positions[i]);
-            }
-            var g = new Gradient();
-            g.SetKeys(ck, ak);
-            return g;
+            var zg = new ZuiGradient();
+            var stops = zg.Stops;
+            stops.Clear();
+            for (int i = 0; i < ramp.Count; i++)
+                stops.Add(new ZuiGradientStop(ramp.GetPos(i), ramp.GetColor(i)));
+            stops.Sort((a, b) => a.pos.CompareTo(b.pos));
+            zg.MarkStopsChanged();
+            if (SameModes(ramp)) zg.BlendMode = ramp.BlendMode;
+            return zg;
         }
 
-        /// <summary>Replaces ALL of `ramp`'s stops with `g`'s colour keys (alpha keys are folded into each
-        /// stop's own colour, matching IZuiRamp's "alpha is the opacity there, not a separate key" contract —
-        /// sampling the gradient at each colour key's own position, not interleaving colour/alpha key lists
-        /// positionally, so an authored alpha key that sits at a DIFFERENT position than any colour key still
-        /// contributes correctly). Always exact: a Gradient has at most 8 keys, IZuiRamp has no upper bound.
-        /// Caller owns the Undo gesture (OnBeforeMutate before calling this, OnChanged after) — this method
-        /// does not open one itself, so it composes under ZuiRampControl's existing Mutate() wrapper.</summary>
+        /// <summary>Replaces ALL of `ramp`'s stops with `zg`'s — every stop, no cap, no subsampling — and carries
+        /// the blend space across when both types name the same modes. Caller owns the Undo gesture
+        /// (OnBeforeMutate before calling this, OnChanged after), so this composes under ZuiRampControl's existing
+        /// Mutate() wrapper.</summary>
+        public static void ApplyZuiGradient(IZuiRamp ramp, ZuiGradient zg)
+        {
+            if (ramp == null || zg == null) return;
+            var stops = zg.Stops;
+            if (stops.Count == 0) return;
+
+            while (ramp.Count > 0) ramp.RemoveAt(ramp.Count - 1);
+            foreach (var s in stops) ramp.Insert(s.pos, s.color);
+            if (SameModes(ramp)) ramp.BlendMode = zg.BlendMode;
+        }
+
+        /// True when the ramp's blend-mode labels match ZuiGradient's own, so the index means the same thing on
+        /// both sides. A ramp type with a different mode set keeps whatever mode it already had.
+        static bool SameModes(IZuiRamp ramp)
+        {
+            var mine = new ZuiGradient().BlendModeNames;
+            var theirs = ramp.BlendModeNames;
+            if (theirs == null || mine == null || theirs.Length != mine.Length) return false;
+            for (int i = 0; i < mine.Length; i++)
+                if (!string.Equals(mine[i], theirs[i], System.StringComparison.OrdinalIgnoreCase)) return false;
+            return true;
+        }
+
+        // ── legacy UnityEngine.Gradient shapes ───────────────────────────────────────────────────────────
+        // Kept for callers that genuinely deal in a Gradient (an import from outside, an old saved library
+        // entry). Both go through ZuiGradient, so the 8-key cap now only ever applies where a real Gradient is
+        // demanded — never between a ramp and the library.
+
+        /// <summary>The ramp's stops as a Gradient — exact up to 8 stops, evenly subsampled beyond (endpoints
+        /// kept). Use <see cref="ToZuiGradient"/> instead unless a UnityEngine.Gradient is genuinely required.</summary>
+        public static Gradient ToGradient(IZuiRamp ramp) => ToZuiGradient(ramp)?.gradient;
+
+        /// <summary>Replaces ALL of `ramp`'s stops with `g`'s colour keys (alpha keys are folded into each stop's
+        /// own colour at the union of both key sets, matching IZuiRamp's "alpha is the opacity there, not a
+        /// separate key" contract). Always exact: a Gradient has at most 8 keys, IZuiRamp has no upper bound.</summary>
         public static void ApplyGradient(IZuiRamp ramp, Gradient g)
         {
             if (ramp == null || g == null) return;
-            var keys = g.colorKeys;
-            if (keys == null || keys.Length == 0) return;
-
-            while (ramp.Count > 0) ramp.RemoveAt(ramp.Count - 1);
-
-            foreach (var k in keys)
-            {
-                var c = g.Evaluate(k.time);   // folds the alpha curve in at this exact position
-                ramp.Insert(k.time, c);
-            }
+            var zg = new ZuiGradient();
+            zg.SetGradient(g);
+            ApplyZuiGradient(ramp, zg);
         }
     }
 }

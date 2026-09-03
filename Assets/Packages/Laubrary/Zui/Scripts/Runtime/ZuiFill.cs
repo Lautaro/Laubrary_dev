@@ -225,7 +225,9 @@ public class ZuiFill : ISerializationCallbackReceiver
     // ── gradient companion access (byte-identical to the pre-migration `gradient` path) ─────
     /// <summary>True when there's a gradient to sample — the ZuiGradient companion's base if seeded, else the
     /// legacy gradient (an in-memory fill whose companion hasn't been seeded yet).</summary>
-    bool HasGrad => (gradientAnim != null ? gradientAnim.gradient : gradient) != null;
+    // HasRamp, not `.gradient != null`: reading the companion's Gradient now BUILDS one from its stop list
+    // (T-0221), which this per-sample check must not do.
+    bool HasGrad => gradientAnim != null ? gradientAnim.HasRamp : gradient != null;
 
     /// <summary>Sample the effective gradient at <paramref name="t"/>: the ZuiGradient companion (transforms
     /// applied, phase 0) if seeded, else the legacy gradient directly. At default transforms

@@ -844,7 +844,7 @@ namespace Laubrary.Shaper
             // (FC-6.5), exactly like Gradient's own null fallback.
             ShaperSrgb.Decode(def.overPhaseTint, out op.colR, out op.colG, out op.colB);
 
-            if (def.overPhaseGradient == null || def.overPhaseGradient.gradient == null)
+            if (def.overPhaseGradient == null || !def.overPhaseGradient.HasRamp)
             {
                 prog.diagnostic = "Colour-over-phase fill has no gradient authored; painting flat tint instead.";
                 return;
@@ -916,7 +916,7 @@ namespace Laubrary.Shaper
                 }
 
                 default:   // Noise
-                    if (def.proceduralGradient == null || def.proceduralGradient.gradient == null)
+                    if (def.proceduralGradient == null || !def.proceduralGradient.HasRamp)
                     {
                         op.kind = ShaperFillKind.Solid;
                         prog.diagnostic = "Noise fill has no gradient authored; painting flat tint instead.";

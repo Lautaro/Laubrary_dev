@@ -10,12 +10,10 @@
 // reflection scan would still need a name allow-list to exclude the latter — this table IS that allow-list,
 // written directly rather than filtered out of GetMethods().
 //
-// The conversion is a DELIBERATE APPROXIMATION, stated rather than hidden: PyreShade evaluates a ramp's stops
-// through PyreRampSpace (LinearLight or Srgb blending, PyreShade.cs:138-164), while a plain UnityEngine.Gradient
-// interpolates in whatever space Unity's own Gradient uses. So a converted preset is a faithful STARTING POINT
-// — same stops, same positions, same colours — not a byte-identical re-render of the Pyre ramp. That is
-// adequate for a picker whose whole job is "start here and keep tuning", and exact colorimetric parity is not
-// what T-0172 asked for.
+// The conversion is EXACT since T-0221, where it used to be a stated approximation: a ZuiGradient now owns an
+// unbounded stop list and its own blend space, so a preset's stops, positions, colours AND its LinearLight/sRGB
+// blending all survive — Ember's 10 stops included, which UnityEngine.Gradient's 8-key cap used to subsample.
+// A converted preset therefore re-renders the Pyre ramp, not merely a faithful starting point.
 
 using System.Collections.Generic;
 using Laubrary.Pyre;
@@ -78,9 +76,6 @@ namespace Laubrary.PyreShaper
             new Preset("Torch — Gold", PyreRampPresets.TorchGold),
         };
 
-        /// <summary>UnityEngine.Gradient's own key cap — a converted preset beyond this many stops is subsampled, never silently truncated.</summary>
-        const int MaxGradientKeys = 8;
-
         /// <summary>
         /// Converts a Pyre ramp into a fresh <see cref="ZuiGradient"/> the caller owns outright — no shared
         /// reference back to anything Pyre-side. Null/empty in, null out (FC-6.5's "half-configured never
@@ -93,22 +88,23 @@ namespace Laubrary.PyreShaper
 
             var stops = new List<PyreRampStop>(ramp.stops);
             stops.Sort((a, b) => a.pos.CompareTo(b.pos));
-            if (stops.Count > MaxGradientKeys) stops = Subsample(stops, MaxGradientKeys);
 
-            var ck = new GradientColorKey[stops.Count];
-            var ak = new GradientAlphaKey[stops.Count];
-            for (int i = 0; i < stops.Count; i++)
-            {
-                ck[i] = new GradientColorKey(stops[i].color, stops[i].pos);
-                ak[i] = new GradientAlphaKey(stops[i].color.a, stops[i].pos);
-            }
-            var g = new Gradient();
-            g.SetKeys(ck, ak);
-            return new ZuiGradient { gradient = g };
+            // EXACT, at any stop count (T-0221): a ZuiGradient owns its own stop list and its own blend space,
+            // so Ember's 10 stops arrive as 10 stops in linear light — the same ramp Pyre renders, not the
+            // 8-key subsample a UnityEngine.Gradient forced this conversion into.
+            var zg = new ZuiGradient();
+            var into = zg.Stops;
+            into.Clear();
+            foreach (var s in stops) into.Add(new ZuiGradientStop(s.pos, s.color));
+            zg.MarkStopsChanged();
+            zg.space = ramp.space == PyreRampSpace.Srgb ? ZuiGradientSpace.Srgb : ZuiGradientSpace.LinearLight;
+            return zg;
         }
 
-        /// <summary>Evenly-spaced stop selection, always keeping the first and last (the ramp's true endpoints).</summary>
-        static List<PyreRampStop> Subsample(List<PyreRampStop> stops, int count)
+        /// <summary>Evenly-spaced stop selection, always keeping the first and last (the ramp's true endpoints).
+        /// Unused by the conversion since T-0221 (nothing is subsampled any more); kept for a caller that
+        /// genuinely needs a reduced-stop copy.</summary>
+        internal static List<PyreRampStop> Subsample(List<PyreRampStop> stops, int count)
         {
             var outList = new List<PyreRampStop>(count);
             for (int i = 0; i < count; i++)

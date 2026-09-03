@@ -115,17 +115,9 @@ namespace Laubrary.SpriteFx
             return c;
         }
 
-        static ZuiGradient CloneGradient(ZuiGradient s)
-        {
-            if (s == null) return null;
-            return new ZuiGradient
-            {
-                gradient = Sfx.CloneGradient(s.gradient),
-                reverse = s.reverse, hueShift = s.hueShift, saturation = s.saturation,
-                brightness = s.brightness, contrast = s.contrast, quantiseSteps = s.quantiseSteps,
-                cycle = s.cycle, cycleSpeed = s.cycleSpeed,
-            };
-        }
+        // ZuiGradient.Clone copies the stop list, the blend space and every transform — the field-by-field copy
+        // this used to do went through an 8-key UnityEngine.Gradient and would drop stops beyond it.
+        static ZuiGradient CloneGradient(ZuiGradient s) => s?.Clone();
     }
 
     /// Recolours an EXISTING sprite / Lauminary by remapping its source colours (Form A of the recolour design). Each

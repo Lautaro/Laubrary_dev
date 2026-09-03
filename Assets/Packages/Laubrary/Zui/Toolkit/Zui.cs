@@ -659,7 +659,9 @@ namespace Laubrary.Zui
             return f;
         }
 
-        /// The richer ZuiGradient editor — a base Gradient plus non-destructive transform knobs (reverse /
+        /// The richer ZuiGradient editor — an UNLIMITED-stop ramp (edited with the same stop control every Pyre
+        /// ramp field uses: drag / double-click to insert / right-click to remove / click for a colour) plus
+        /// non-destructive transform knobs (reverse /
         /// hue / saturation / brightness / contrast / quantise / cycle), topped by a LIVE preview strip that
         /// shows the TRUE evaluated ramp (painted from ZuiGradient.ToLut — the exact LUT the runtime/shader
         /// uses, so the preview is never a lie). Mutates the passed ZuiGradient in place; onChanged fires after edits.

@@ -132,22 +132,24 @@ namespace Laubrary.Shaper.Editor
 
         static ZuiGradient FlatGradient(Color c)
         {
-            var g = new ZuiGradient();
-            g.gradient = new Gradient();
-            g.gradient.SetKeys(
+            // Build the Gradient, THEN assign: ZuiGradient.gradient is a property over its own stop list
+            // (T-0221), so mutating what the getter returns would edit a temporary.
+            var grad = new Gradient();
+            grad.SetKeys(
                 new[] { new GradientColorKey(c, 0f), new GradientColorKey(c, 1f) },
                 new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) });
+            var g = new ZuiGradient { gradient = grad };
             g.EnsureTransformAnim();
             return g;
         }
 
         static ZuiGradient BlackToWhite()
         {
-            var g = new ZuiGradient();
-            g.gradient = new Gradient();
-            g.gradient.SetKeys(
+            var grad = new Gradient();
+            grad.SetKeys(
                 new[] { new GradientColorKey(Color.black, 0f), new GradientColorKey(Color.white, 1f) },
                 new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) });
+            var g = new ZuiGradient { gradient = grad };
             g.EnsureTransformAnim();
             return g;
         }
@@ -2337,9 +2339,8 @@ namespace Laubrary.Shaper.Editor
         /// </summary>
         static ZuiGradient SheetRamp()
         {
-            var g = new ZuiGradient();
-            g.gradient = new Gradient();
-            g.gradient.SetKeys(
+            var grad = new Gradient();
+            grad.SetKeys(
                 new[]
                 {
                     new GradientColorKey(new Color(0.10f, 0.05f, 0.35f), 0f),
@@ -2347,6 +2348,7 @@ namespace Laubrary.Shaper.Editor
                     new GradientColorKey(new Color(1f, 0.90f, 0.30f), 1f),
                 },
                 new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) });
+            var g = new ZuiGradient { gradient = grad };
             g.EnsureTransformAnim();
             return g;
         }

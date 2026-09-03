@@ -1,16 +1,20 @@
 // ZuiGradientEditor — the COMPOSABLE pieces of a ZuiGradient editor, so a host can arrange them freely:
 //   • Output — the objective PREVIEW strip (painted from ZuiGradient.ToLut(), i.e. the final ramp WITH every
 //     transform applied). Read-only; it is what actually renders.
-//   • Source — the editable base GradientField (the raw ramp the user edits; transforms apply on top).
+//   • Source — the editable STOP EDITOR (ZuiRampControl) over the ramp itself; transforms apply on top.
 //   • Adjust — a collapsible "Adjust" box of the transforms (Hue/Sat/Brightness/Contrast/Phase MultiCont, Quantise,
 //     Cycle+Reverse).
 // Editing Source or any transform re-bakes Output. ZuiGradientControl stacks all three (Output, Source, Adjust);
 // ZuiFillControl puts Output in the Fill header beside the square+label, Source just below, and Adjust in the
 // collapsible body — so the objective + source ramps stay visible even when the fill's controls fold away.
-// Editor-only (uses UnityEditor's GradientField).
+//
+// T-0221 — Source used to be Unity's own GradientField, which caps at 8 colour keys: a gradient could not hold a
+// 10-colour ramp at all, which is the whole reason a Pyre ramp needed a second, different control. It is now the
+// SAME ZuiRampControl every ramp field already uses (drag a stop, double-click to insert, right-click to remove,
+// click for its colour, "+" to add), reading and writing ZuiGradient's own unbounded stop list — one stop editor
+// in the package, and the "★" library round-trips whatever it holds.
 
 using System;
-using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -18,9 +22,9 @@ namespace Laubrary.Zui
 {
     public sealed class ZuiGradientEditor
     {
-        public readonly Image Output;          // objective preview (ToLut) — read-only, the final ramp
-        public readonly GradientField Source;  // editable base ramp
-        public readonly ZuiBox Adjust;         // the transforms, in a collapsible box
+        public readonly Image Output;            // objective preview (ToLut) — read-only, the final ramp
+        public readonly ZuiRampControl Source;   // editable stop list — unlimited stops (T-0221)
+        public readonly ZuiBox Adjust;           // the transforms, in a collapsible box
         public readonly Button Library;        // T-0205 — the project's saved-gradient library (browse / save)
 
         readonly ZuiGradient _g;
@@ -43,6 +47,7 @@ namespace Laubrary.Zui
             _g = g ?? throw new ArgumentNullException(nameof(g));
             _lifeFollowsPosition = lifeFollowsPosition;
             _g.EnsureTransformAnim();   // non-null ZUIValue companions for the MultiCont controls
+            _g.EnsureStops();           // convert a pre-stop-list gradient before the stop editor reads it
 
             Output = new Image
             {
@@ -55,8 +60,16 @@ namespace Laubrary.Zui
             Output.style.minWidth = 120f;
             Output.RegisterCallback<DetachFromPanelEvent>(_ => DisposeLut());
 
-            Source = new GradientField { value = _g.gradient, tooltip = "The SOURCE ramp you edit — the transforms below apply on top of it." };
-            Source.RegisterValueChangedCallback(e => Mutate(() => _g.gradient = e.newValue));
+            // The SOURCE ramp: the package's one stop editor, over this gradient's own stop list. `showLibrary:
+            // false` because this editor already carries the "★" on the Output row below — one library button per
+            // gradient, not two.
+            Source = new ZuiRampControl(_g, "The SOURCE ramp you edit — drag a stop, double-click to insert one, "
+                                          + "right-click a stop to remove it, click it for its colour. The "
+                                          + "transforms below apply on top of this.", showLibrary: false)
+            {
+                OnBeforeMutate = () => OnBeforeMutate?.Invoke(),
+                OnChanged = () => { Refresh(); OnChanged?.Invoke(); },
+            };
 
             // T-0205 — one shared "project's saved gradients" library, reachable from every ZuiGradient site
             // (this control backs Fill's Gradient fill, RampByQuantity, OverPhase, Procedural noise) AND from
@@ -67,7 +80,7 @@ namespace Laubrary.Zui
 
             Adjust = Z.Box("Adjust",
                 "Non-destructive transforms applied on top of the base ramp. Hue / Saturation / Brightness / Contrast "
-                + "/ Phase are animatable over the particle's life (Static / Min-Max / Curve via the ⋯ menu).");
+                + "/ Phase are animatable over the particle's life (right-click one for Static / Min-Max / Curve).");
             // T-0140 — packed 2-3 per row instead of six stacked full-width rows (caught live by a project
             // owner screenshot): these are all compact Z.Value rows (controlWidth 150), the same "share a
             // row, don't stack" rule already applied everywhere else in this codebase.
@@ -83,7 +96,7 @@ namespace Laubrary.Zui
                                                                     + "back REVERSED, and 2 lands exactly where 0 did — so animating Phase over life (a rising Curve 0→2) "
                                                                     + "scrolls the gradient in a SEAMLESS loop, no jump, no shader. The mirrored second half is what makes "
                                                                     + "it smooth (the ramp mirrors instead of snapping from its end back to its start).",
-                v => _g.gradient != null ? _g.gradient.Evaluate(Mathf.PingPong(v, 1f)) : Color.clear);
+                v => _g.HasRamp ? _g.EvalRamp(Mathf.PingPong(v, 1f)) : Color.clear);
             Adjust.Add(Z.HGroup(hue, sat, bri));
             Adjust.Add(Z.HGroup(con, pha));
 
@@ -126,12 +139,22 @@ namespace Laubrary.Zui
                 () => OnBeforeMutate?.Invoke());
         }
 
+        // The saved-gradient library, in stops: saving keeps every stop whatever the count, and applying one
+        // replaces this gradient's stops wholesale (one Undo-recorded gesture) rather than going through an
+        // 8-key Gradient in between.
         void OpenLibrary()
         {
-            ZuiGradientPresetPopup.Show(Library, () => _g.gradient, applied =>
+            ZuiGradientPresetPopup.Show(Library, () => _g, applied =>
             {
-                Mutate(() => _g.gradient = applied);
-                Source.SetValueWithoutNotify(_g.gradient);
+                Mutate(() =>
+                {
+                    var stops = _g.Stops;
+                    stops.Clear();
+                    foreach (var s in applied.Stops) stops.Add(new ZuiGradientStop(s.pos, s.color));
+                    _g.BlendMode = applied.BlendMode;
+                    _g.MarkStopsChanged();
+                });
+                Source.Refresh();
             });
         }
 

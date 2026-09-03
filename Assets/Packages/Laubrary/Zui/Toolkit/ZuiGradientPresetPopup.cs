@@ -1,10 +1,13 @@
-// ZuiGradientPresetPopup — T-0205. The project's saved-gradient library picker: ONE popup opened from the
-// "★" button on ZuiGradientEditor's Output row (so every ZuiGradient site — Fill's Gradient fill,
-// RampByQuantity, OverPhase, Procedural noise — reaches it identically, since they all already compose
-// through ZuiGradientEditor/Z.Gradient) AND from ZuiRampControl's "Library" button (an IZuiRamp field —
-// Pyre's PyreRamp — via ZuiRampGradientBridge). Both callers browse and save into the SAME
-// ZuiGradientPresetLibrary asset, which is literally the owner's ask: "Gradients saved in the gradient
-// control used in Fill will hold gradients the user has saved for this project."
+// ZuiGradientPresetPopup — T-0205, unlimited stops since T-0221. The project's saved-gradient library picker:
+// ONE popup opened from the "★" button on ZuiGradientEditor's Output row (so every ZuiGradient site — Fill's
+// Gradient fill, RampByQuantity, OverPhase, Procedural noise — reaches it identically, since they all already
+// compose through ZuiGradientEditor/Z.Gradient) AND from ZuiRampControl's "★" (an IZuiRamp field — Pyre's
+// PyreRamp — via ZuiRampGradientBridge). Both callers browse and save into the SAME ZuiGradientPresetLibrary
+// asset, which is literally the owner's ask: "Gradients saved in the gradient control used in Fill will hold
+// gradients the user has saved for this project."
+//
+// It trades in ZuiGradient rather than UnityEngine.Gradient, so a 10-stop Pyre ramp saves and reloads whole
+// instead of being subsampled to 8 keys on the way in.
 //
 // UI Toolkit throughout (Z.Popover / Z.TextInput / Z.Button), matching ZuiRampControl's own popover — no
 // PopupWindowContent / IMGUI, unlike the older ZUIEnvelopePresetPopup this mirrors structurally.
@@ -18,10 +21,9 @@ namespace Laubrary.Zui
     {
         /// Opens the picker anchored to <paramref name="anchor"/>. <paramref name="current"/> supplies the
         /// gradient a "Save" click stores (read lazily, at Save time, so it always saves whatever is live at
-        /// that moment). <paramref name="apply"/> receives a FRESH cloned Gradient when a saved entry is
-        /// picked — never a shared reference into the library's own copy (mirrors
-        /// PyreShaperRampPresets.ToZuiGradient's "detached copy" contract).
-        public static void Show(VisualElement anchor, Func<Gradient> current, Action<Gradient> apply)
+        /// that moment). <paramref name="apply"/> receives a FRESH ZuiGradient when a saved entry is picked —
+        /// never a shared reference into the library's own copy.
+        public static void Show(VisualElement anchor, Func<ZuiGradient> current, Action<ZuiGradient> apply)
         {
             var lib = ZuiGradientPresetLibrary.Load();
             string newName = "";
@@ -42,7 +44,8 @@ namespace Laubrary.Zui
                 nameField = Z.TextInput("", "Name this project's saved gradient.", v => newName = v, 180f);
                 saveRow.Add(nameField);
 
-                var saveBtn = Z.Button("Save", "Add the CURRENT gradient to this project's saved library.", () =>
+                var saveBtn = Z.Button("Save", "Add the CURRENT ramp — every stop, whatever the count — to this "
+                                             + "project's saved library.", () =>
                 {
                     if (string.IsNullOrWhiteSpace(newName)) return;
                     lib.Add(newName, current?.Invoke());
@@ -75,20 +78,21 @@ namespace Laubrary.Zui
                     {
                         int idx = i;
                         var entry = lib.presets[idx];
+                        var resolved = entry.Resolve();
 
                         var row = new VisualElement();
                         row.style.flexDirection = FlexDirection.Row;
                         row.style.alignItems = Align.Center;
                         row.style.marginBottom = 3f;
 
-                        var swatch = new GradientSwatch(entry.gradient);
+                        var swatch = new RampSwatch(resolved);
                         swatch.style.width = 80f;
                         swatch.style.height = 20f;
                         swatch.style.marginRight = 6f;
                         row.Add(swatch);
 
-                        var pick = Z.Button(entry.name, "Apply this saved gradient.",
-                            () => apply(ZuiGradientPresetLibraryUtil.CloneGradient(entry.gradient)));
+                        var pick = Z.Button(entry.name,
+                            $"Apply this saved gradient ({resolved.Count} stops).", () => apply(entry.Resolve()));
                         pick.style.flexGrow = 1f;
                         row.Add(pick);
 
@@ -107,13 +111,13 @@ namespace Laubrary.Zui
             }, new ZuiPopover.Options { minWidth = 260f });
         }
 
-        /// A small read-only painted strip previewing a saved gradient — a raw Evaluate per column, cheap at
-        /// swatch width, no LUT bake needed (unlike ZuiGradientEditor.Output, which bakes the full transform
-        /// stack; this shows the plain base Gradient the library stores).
-        sealed class GradientSwatch : VisualElement
+        /// A small read-only painted strip previewing a saved ramp — a raw EvalRamp per column, cheap at swatch
+        /// width, no LUT bake needed (unlike ZuiGradientEditor.Output, which bakes the full transform stack; a
+        /// saved entry stores stops only, so its raw ramp IS the whole entry).
+        sealed class RampSwatch : VisualElement
         {
-            readonly Gradient _g;
-            public GradientSwatch(Gradient g)
+            readonly ZuiGradient _g;
+            public RampSwatch(ZuiGradient g)
             {
                 _g = g;
                 generateVisualContent += OnGenerate;
@@ -128,27 +132,13 @@ namespace Laubrary.Zui
                 {
                     float x0 = c, x1 = Mathf.Min(c + 1f, r.width);
                     if (x1 <= x0) continue;
-                    p.fillColor = _g.Evaluate((c + 0.5f) / r.width);
+                    p.fillColor = _g.EvalRamp((c + 0.5f) / r.width);
                     p.BeginPath();
                     p.MoveTo(new Vector2(x0, 0)); p.LineTo(new Vector2(x1, 0));
                     p.LineTo(new Vector2(x1, r.height)); p.LineTo(new Vector2(x0, r.height));
                     p.ClosePath(); p.Fill();
                 }
             }
-        }
-    }
-
-    /// Tiny shared clone helper (used by both this popup and ZuiRampControl's Save action) so "a saved
-    /// entry is a detached copy" is written once.
-    public static class ZuiGradientPresetLibraryUtil
-    {
-        public static Gradient CloneGradient(Gradient g)
-        {
-            if (g == null) return null;
-            var clone = new Gradient();
-            clone.SetKeys(g.colorKeys, g.alphaKeys);
-            clone.mode = g.mode;
-            return clone;
         }
     }
 }

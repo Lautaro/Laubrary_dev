@@ -1,7 +1,10 @@
 // ZuiGradientControl — the STANDALONE gradient editor (used by ZuiReflect for a reflected ZuiGradient field and by
-// Z.Gradient). It is now a thin composer of the shared ZuiGradientEditor pieces, stacked: the objective OUTPUT
+// Z.Gradient). It is a thin composer of the shared ZuiGradientEditor pieces, stacked: the objective OUTPUT
 // preview strip, the editable SOURCE ramp, then the collapsible "Adjust" transforms box. (ZuiFillControl uses the
 // same ZuiGradientEditor but arranges the pieces into the Fill header instead.)
+//
+// The SOURCE ramp is the package's one stop editor (ZuiRampControl) since T-0221 — the same control every Pyre
+// ramp field uses, with no 8-stop ceiling. A 10-colour ramp is authored here exactly as it is on a ramp.
 
 using System;
 using UnityEngine.UIElements;
@@ -35,6 +38,7 @@ namespace Laubrary.Zui
             ed.Library.style.marginLeft = 4f;
             outputRow.Add(ed.Library);
             Add(outputRow);
+            ed.Source.style.marginBottom = 4;   // the stop editor's marker lane needs air before the Adjust box
             Add(ed.Source);
             Add(ed.Adjust);
         }

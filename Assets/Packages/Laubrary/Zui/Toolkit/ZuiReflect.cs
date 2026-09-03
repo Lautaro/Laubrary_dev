@@ -115,6 +115,14 @@ namespace Laubrary.Zui
             /// host hides that mode (allowMinMax = false) and the meaningless runtime Duration/Warmup/Loop
             /// row (hideCurveTiming = true) instead of offering controls that do nothing.
             public Action<FieldInfo, ZuiValueControl.Options> ConfigureValue;
+            /// Re-order a type's own declaration order before it is drawn — the field set and every other
+            /// per-field hook (Skip/TooltipFor/ConfigureValue) are unaffected, only where a control LANDS in
+            /// the flow. Exists for a host that dumps a generator's dials wholesale (a hosted PyreForm,
+            /// T-0220) but knows a couple of them read as misplaced at their declared position — reordering
+            /// there, once, beats either hand-listing every dial (unmaintainable for a ~30–190-field form) or
+            /// editing the generator's own field order (which is Pyre's file, not this host's to touch).
+            /// Return the array unchanged (or null) to leave declaration order as-is.
+            public Func<FieldInfo[], FieldInfo[]> ReorderFields;
             public float ControlWidth = 150f;
         }
 
@@ -145,6 +153,7 @@ namespace Laubrary.Zui
         {
             if (owner == null) return;
             var fields = FieldsOf(owner.GetType());
+            if (opt?.ReorderFields != null) fields = opt.ReorderFields(fields) ?? fields;
 
             // A [ZUIPair2D] X field swallows its Y partner into one 2D control, so the partner must not also
             // be drawn on its own further down the card. Collected first, because the Y field can be declared
@@ -496,7 +505,9 @@ namespace Laubrary.Zui
             }
 
             // A colour ramp that speaks IZuiRamp (Pyre's PyreRamp) → ONE ZuiRampControl: a strip painted from the
-            // ramp's own Eval with a marker per stop. This case has to sit BEFORE both the List<> branch and the
+            // ramp's own Eval with a marker per stop. Since T-0221 this is the SAME control a ZuiGradient's own
+            // source ramp uses (ZuiGradientEditor.Source), and its "★" reaches the same project library with no
+            // stop cap either way — so a ramp and a gradient are edited and exchanged identically. This case has to sit BEFORE both the List<> branch and the
             // nested-plain-class branch below, or a PyreRamp falls through to a titled box wrapping a list box of
             // near-identical "Stop N" cards — ten of them for a Jet ramp, which is what this replaces. Type-level,
             // so every authored ramp field in every form adopts it at once with no per-form edit. Mutates in place

@@ -100,11 +100,13 @@ namespace Laubrary.Shaper.Editor
 
         static ZuiGradient Ramp(Color a, Color b)
         {
-            var g = new ZuiGradient();
-            g.gradient = new Gradient();
-            g.gradient.SetKeys(
+            // Build the Gradient, THEN assign: ZuiGradient.gradient is a property over its own stop list
+            // (T-0221), so mutating what the getter returns would edit a temporary.
+            var grad = new Gradient();
+            grad.SetKeys(
                 new[] { new GradientColorKey(a, 0f), new GradientColorKey(b, 1f) },
                 new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) });
+            var g = new ZuiGradient { gradient = grad };
             g.EnsureTransformAnim();
             return g;
         }

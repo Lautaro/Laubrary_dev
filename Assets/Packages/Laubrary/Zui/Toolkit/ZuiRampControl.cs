@@ -42,7 +42,10 @@ namespace Laubrary.Zui
         public const float MinStripWidth = 150f;
         const float AddWidth = 22f;
 
-        public ZuiRampControl(IZuiRamp ramp, string tooltip = null)
+        /// <param name="showLibrary">Draw this control's own "★" saved-gradient button. A host that already
+        /// carries one for the same ramp (ZuiGradientEditor puts it on the Output row) passes false, so a
+        /// gradient shows one library button, not two.</param>
+        public ZuiRampControl(IZuiRamp ramp, string tooltip = null, bool showLibrary = true)
         {
             _ramp = ramp ?? throw new ArgumentNullException(nameof(ramp));
             AddToClassList("zui-ramp");
@@ -67,15 +70,18 @@ namespace Laubrary.Zui
             add.style.marginLeft = 6f;
             Add(add);
 
-            // T-0205 — the SAME project gradient library Z.Gradient's "★" reaches, via ZuiRampGradientBridge:
-            // "Load" replaces every stop with a saved gradient's colour keys (always exact — a Gradient has at
-            // most 8 keys, this ramp has no upper bound); "Save" pushes the ramp's own stops out as a Gradient
-            // (exact up to 8 stops, evenly subsampled beyond that — stated in the bridge's own file header).
-            // This does NOT touch this ramp's data on its own; it only acts when the author presses one of these.
-            _library = Z.Button("★", "This project's saved gradients — Load one into this ramp, or Save this "
-                                  + "ramp's stops as a new one.", OpenLibrary).W(AddWidth);
-            _library.style.marginLeft = 4f;
-            Add(_library);
+            // T-0205 — the SAME project gradient library Z.Gradient's "★" reaches, via ZuiRampGradientBridge.
+            // LOSSLESS both ways since T-0221 (the bridge trades in ZuiGradient's own stop list instead of an
+            // 8-key UnityEngine.Gradient), so a 10-stop ramp saves and comes back whole. This does NOT touch the
+            // ramp's data on its own; it only acts when the author presses one of these.
+            if (showLibrary)
+            {
+                _library = Z.Button("★", "This project's saved gradients — apply one to this ramp (every stop, "
+                                      + "whatever the count), or save this ramp's stops under a new name.",
+                                    OpenLibrary).W(AddWidth);
+                _library.style.marginLeft = 4f;
+                Add(_library);
+            }
 
             // Two short options => Segmented, never a dropdown and never MiniRadio (ui-layout-rules: control choice).
             var names = _ramp.BlendModeNames;
@@ -107,14 +113,18 @@ namespace Laubrary.Zui
         void Mutate(Action edit) { BeginGesture(); Apply(edit); EndGesture(); }
 
         // T-0205 — opens the SAME saved-gradient popup Z.Gradient's "★" opens. "Save" reads this ramp's current
-        // stops (via the bridge, subsampled beyond 8 as stated in ZuiRampGradientBridge's header) and adds them
-        // to the shared ZuiGradientPresetLibrary; picking a saved entry REPLACES every stop on this ramp — one
-        // gesture, recorded through the normal Mutate() Undo wrapper, never applied silently.
+        // stops through the bridge (every stop, no subsampling since T-0221) into the shared
+        // ZuiGradientPresetLibrary; picking a saved entry REPLACES every stop on this ramp — one gesture,
+        // recorded through the normal Mutate() Undo wrapper, never applied silently.
         void OpenLibrary()
         {
             ZuiGradientPresetPopup.Show(_library,
-                current: () => ZuiRampGradientBridge.ToGradient(_ramp),
-                apply: g => Mutate(() => ZuiRampGradientBridge.ApplyGradient(_ramp, g)));
+                current: () => ZuiRampGradientBridge.ToZuiGradient(_ramp),
+                apply: g => Mutate(() =>
+                {
+                    ZuiRampGradientBridge.ApplyZuiGradient(_ramp, g);
+                    _mode?.SetOn(i => i == _ramp.BlendMode);
+                }));
         }
 
         // ── the per-stop popover ─────────────────────────────────────────────────────────────────────────
