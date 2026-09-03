@@ -1,25 +1,28 @@
-// ZuiRampControl — the bespoke control for a colour ramp (IZuiRamp): ONE row holding a painted strip over a
-// checkerboard, a marker lane under it (one thumb per stop, tinted with that stop's own colour), a compact "+"
-// and — when the ramp offers blend modes — a segmented mode row. It replaces the vertical stack of near-identical
-// "Stop N" cards ZuiReflect's generic List<> branch used to draw for a ramp, which was unusable at 10 stops.
+// ZuiRampControl — the control for a colour ramp (IZuiRamp): ONE row holding Unity's own GradientField, the "★"
+// project-library button, and — when the ramp offers blend modes — a segmented mode row beside it.
 //
-// The strip is painted from the ramp's OWN Eval, so what it shows IS what the renderer paints — there is no second
-// preview image to drift from it, and none is added (the editing surface IS the preview).
+// The field is the SANCTIONED RAW ISLAND for a gradient. Unity's gradient popup is the editor everyone already
+// knows (click under the bar to add a stop, drag it, pick its colour, alpha keys on top, presets, eyedropper); a
+// bespoke stop editor re-teaches all of that and was, in the owner's words, cumbersome. So every ramp site and
+// every gradient site opens the same familiar popup, and ZUI adds only what Unity's field cannot express: the
+// saved-gradient library and the interpolation space.
 //
-// Gestures, deliberately the same vocabulary as ZuiEnvelope so ZUI stays internally consistent:
-//   * drag a marker           -> moves that stop's position, clamped strictly between its neighbours
-//   * double-click the strip  -> inserts a stop THERE, carrying the colour the ramp already evaluates there, so
-//                                inserting never changes how the ramp looks
-//   * right-click a marker    -> removes that stop
-//   * click a marker          -> a popover with its colour (the sanctioned ColorField island), its position, and
-//                                a Remove button
-//   * the "+" button          -> inserts at the middle; it is present ALWAYS, including at zero stops, because an
-//                                empty ramp is legal (Pyre's soot ramp) and must never be auto-seeded — a blank
-//                                surface with no create affordance would be a dead end.
+// THE 8-STOP QUESTION, and why storage is not what the field shows. A UnityEngine.Gradient caps at 8 colour keys;
+// an IZuiRamp does not (PyreRampPresets.Ember() ships 10). The cap is therefore paid at the LAST possible moment:
+//   * DISPLAY subsamples to 8 (endpoints exact) purely to fill the field. Nothing is written, so an untouched
+//     ramp — a Pyre preset, a 14-stop palette from the library — keeps every stop it has and renders exactly.
+//   * Only a real EDIT in the popup writes back, and that necessarily collapses the ramp to what the field holds.
+//     The field's tooltip says so before it happens, naming the count that will be lost.
+// This is the deliberate trade the owner asked for (T-0223): the familiar editor everywhere, exactness preserved
+// until the moment someone chooses to edit.
 //
-// Undo contract, same as every ZUI control that mutates in place: OnBeforeMutate fires once per GESTURE (a drag,
-// a colour pick, an insert) BEFORE the first mutation, OnChanged after every mutation.
+// An EMPTY ramp is legal and meaningful (Pyre's soot ramp means "no soot"), so it is never auto-seeded: it shows
+// as a fully transparent bar — which is what it evaluates to — and stays empty until the author edits the field.
+//
+// Undo contract, same as every ZUI control that mutates in place: OnBeforeMutate fires once per gesture BEFORE the
+// first mutation, OnChanged after every mutation.
 using System;
+using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -33,14 +36,16 @@ namespace Laubrary.Zui
         public Action OnChanged;
 
         readonly IZuiRamp _ramp;
-        readonly Strip _strip;
+        readonly GradientField _field;
         readonly ZuiSegmented _mode;
         readonly Button _library;
+        readonly string _tip;
 
-        // The width lesson from the deleted ZuiBandsControl: a strip sized for a narrow card gets CLIPPED at the
-        // reflected card's column edge. This one starts at a readable minimum and takes whatever the pane gives it.
-        public const float MinStripWidth = 150f;
-        const float AddWidth = 22f;
+        // Set while the ramp is being written FROM the field's own change event: pushing the value back into the
+        // field mid-gesture would fight Unity's open popup (and re-enter this callback).
+        bool _applying;
+
+        const float BtnWidth = 22f;
 
         /// <param name="showLibrary">Draw this control's own "★" saved-gradient button. A host that already
         /// carries one for the same ramp (ZuiGradientEditor puts it on the Output row) passes false, so a
@@ -48,42 +53,51 @@ namespace Laubrary.Zui
         public ZuiRampControl(IZuiRamp ramp, string tooltip = null, bool showLibrary = true)
         {
             _ramp = ramp ?? throw new ArgumentNullException(nameof(ramp));
+            _tip = string.IsNullOrEmpty(tooltip)
+                ? "The colour ramp. Click it for Unity's gradient editor — click under the bar to add a stop, drag "
+                + "to move it, and set its colour; the row of keys above the bar is opacity."
+                : tooltip;
+
             AddToClassList("zui-ramp");
             AddToClassList("zui-row");
             style.flexDirection = FlexDirection.Row;
-            style.alignItems = Align.FlexStart;
+            style.alignItems = Align.Center;
             style.flexGrow = 1f;
             style.flexShrink = 1f;
-            if (!string.IsNullOrEmpty(tooltip)) this.tooltip = tooltip;
+            // Wrap, because a Pyre form's left pane is often narrower than field + "★" + a two-option segmented:
+            // without this the blend-space row is drawn past the pane's edge and simply clipped, which is how it
+            // read before. Wrapped, the space choice drops to a second line and stays reachable at any pane width.
+            style.flexWrap = Wrap.Wrap;
 
-            _strip = new Strip(this)
-            {
-                tooltip = "The ramp as the renderer paints it, over a checker so each stop's alpha reads. "
-                        + "Drag a marker to move that stop; double-click the strip to insert one there; "
-                        + "right-click a marker to remove it; click a marker for its colour and position.",
-            };
-            Add(_strip);
+            _field = new GradientField();
+            // A ramp legitimately takes the width of the pane it sits in — the same reason the painted strip did.
+            // The shared sheet pins every .unity-base-field to flex-grow 0, so this opts out explicitly and tells
+            // ZuiAudit that the stretch is intended rather than the usual accidental one.
+            _field.AddToClassList("zui-audit-allow-stretch");
+            _field.style.minWidth = 120f;   // a gradient bar reads at less width than the painted strip needed
+            _field.style.height = 20f;
+            _field.style.flexGrow = 1f;
+            _field.style.flexShrink = 1f;
+            _field.style.marginLeft = 0f;
+            _field.style.marginRight = 0f;
+            _field.RegisterValueChangedCallback(OnFieldChanged);
+            Add(_field);
 
-            var add = Z.Button("+", "Add a stop in the middle of the ramp, taking the colour the ramp already has "
-                                  + "there. Double-click the strip instead to place one at an exact position.",
-                () => Mutate(() => _ramp.Insert(0.5f, _ramp.Eval(0.5f)))).W(AddWidth);
-            add.style.marginLeft = 6f;
-            Add(add);
-
-            // T-0205 — the SAME project gradient library Z.Gradient's "★" reaches, via ZuiRampGradientBridge.
-            // LOSSLESS both ways since T-0221 (the bridge trades in ZuiGradient's own stop list instead of an
-            // 8-key UnityEngine.Gradient), so a 10-stop ramp saves and comes back whole. This does NOT touch the
-            // ramp's data on its own; it only acts when the author presses one of these.
+            // T-0205 — the SAME project gradient library Z.Gradient's "★" reaches, via ZuiRampGradientBridge, which
+            // trades in stop lists rather than an 8-key Gradient: saving keeps every stop the ramp has even though
+            // the field beside it can only draw eight, and applying one brings all of them back. This does NOT touch
+            // the ramp's data on its own; it only acts when the author presses one of these.
             if (showLibrary)
             {
                 _library = Z.Button("★", "This project's saved gradients — apply one to this ramp (every stop, "
                                       + "whatever the count), or save this ramp's stops under a new name.",
-                                    OpenLibrary).W(AddWidth);
+                                    OpenLibrary).W(BtnWidth);
                 _library.style.marginLeft = 4f;
                 Add(_library);
             }
 
             // Two short options => Segmented, never a dropdown and never MiniRadio (ui-layout-rules: control choice).
+            // Unity's field cannot express this at all — a Gradient always blends in gamma — so it stays beside it.
             var names = _ramp.BlendModeNames;
             if (names != null && names.Length > 0)
             {
@@ -95,13 +109,15 @@ namespace Laubrary.Zui
                 _mode.style.flexShrink = 0f;
                 Add(_mode);
             }
+
+            SyncField();
         }
 
-        /// Re-read the ramp (an undo, an external edit) — the strip and the mode row redraw from it.
+        /// Re-read the ramp (an undo, an external edit) — the field and the mode row redraw from it.
         public void Refresh()
         {
             _mode?.SetOn(i => i == _ramp.BlendMode);
-            _strip.MarkDirtyRepaint();
+            SyncField();
         }
 
         // ── mutation / Undo bookkeeping ──────────────────────────────────────────────────────────────────
@@ -109,13 +125,67 @@ namespace Laubrary.Zui
         bool _gestureOpen;
         void BeginGesture() { if (_gestureOpen) return; _gestureOpen = true; OnBeforeMutate?.Invoke(); }
         void EndGesture() => _gestureOpen = false;
-        void Apply(Action edit) { edit(); _strip.MarkDirtyRepaint(); OnChanged?.Invoke(); }
+        void Apply(Action edit) { edit(); SyncField(); OnChanged?.Invoke(); }
         void Mutate(Action edit) { BeginGesture(); Apply(edit); EndGesture(); }
 
+        // ── the GradientField, and the one place the 8-key cap is paid ───────────────────────────────────
+
+        /// Push the ramp's CURRENT stops into the field without notifying (so this never re-enters the change
+        /// callback), and restate the tooltip — which has to name the live stop count to be worth reading.
+        void SyncField()
+        {
+            if (_applying) return;
+            _field.SetValueWithoutNotify(BuildDisplayGradient());
+            _field.tooltip = FieldTooltip();
+        }
+
+        /// DISPLAY only: exact up to 8 stops, evenly subsampled beyond with the endpoints kept. The ramp itself is
+        /// not touched, so a 14-stop preset stays 14 stops behind an 8-key picture until someone edits it.
+        Gradient BuildDisplayGradient()
+        {
+            var g = ZuiRampGradientBridge.ToGradient(_ramp);
+            if (g != null) return g;
+
+            // Empty ramp: a fully transparent bar, which is exactly what it evaluates to. Editing the field is the
+            // way in; until then nothing is written and the ramp stays legitimately empty.
+            var empty = new Gradient();
+            empty.SetKeys(
+                new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0f, 1f) });
+            return empty;
+        }
+
+        string FieldTooltip()
+        {
+            int n = _ramp.Count;
+            if (n > ZuiGradient.MaxGradientKeys)
+                return _tip + $" Unity's editor holds {ZuiGradient.MaxGradientKeys} stops; this gradient was "
+                     + $"simplified from {n} for the picture above. The ramp still has all {n} and renders with "
+                     + $"them — changing anything here replaces them with the {ZuiGradient.MaxGradientKeys} you see.";
+            if (n == 0)
+                return _tip + " This ramp is EMPTY (no colour at all, which is a legal state) — editing the field "
+                     + "is what gives it stops.";
+            return _tip;
+        }
+
+        void OnFieldChanged(ChangeEvent<Gradient> e)
+        {
+            if (e.newValue == null) return;
+            _applying = true;
+            try
+            {
+                // ApplyGradient keeps the ramp's own blend space (a UnityEngine.Gradient carries none), so editing
+                // colours never silently re-blends a Linear-Light ramp into sRGB.
+                Mutate(() => ZuiRampGradientBridge.ApplyGradient(_ramp, e.newValue));
+            }
+            finally { _applying = false; }
+            _field.tooltip = FieldTooltip();
+        }
+
         // T-0205 — opens the SAME saved-gradient popup Z.Gradient's "★" opens. "Save" reads this ramp's current
-        // stops through the bridge (every stop, no subsampling since T-0221) into the shared
-        // ZuiGradientPresetLibrary; picking a saved entry REPLACES every stop on this ramp — one gesture,
-        // recorded through the normal Mutate() Undo wrapper, never applied silently.
+        // stops through the bridge (every stop, no subsampling) into the shared ZuiGradientPresetLibrary; picking a
+        // saved entry REPLACES every stop on this ramp — one gesture, recorded through the normal Mutate() Undo
+        // wrapper, never applied silently. This is the route by which a ramp gets MORE than eight stops.
         void OpenLibrary()
         {
             ZuiGradientPresetPopup.Show(_library,
@@ -125,225 +195,6 @@ namespace Laubrary.Zui
                     ZuiRampGradientBridge.ApplyZuiGradient(_ramp, g);
                     _mode?.SetOn(i => i == _ramp.BlendMode);
                 }));
-        }
-
-        // ── the per-stop popover ─────────────────────────────────────────────────────────────────────────
-
-        void OpenStopEditor(int i)
-        {
-            if (i < 0 || i >= _ramp.Count) return;
-            ZuiPopover pop = null;
-            pop = Z.Popover(_strip, panel =>
-            {
-                panel.style.flexDirection = FlexDirection.Row;
-                panel.style.alignItems = Align.Center;
-                string tip = $"Stop {i + 1} of {_ramp.Count}.";
-
-                panel.Add(Z.Color(_ramp.GetColor(i),
-                    tip + " Its colour — the alpha is the ramp's opacity at this position, not a separate key.",
-                    c => Mutate(() => _ramp.SetColor(i, c)), 90f));
-
-                // Bounded by the neighbours, so the stop can never jump past one and reorder the ramp under the
-                // index this popover captured.
-                float lo = i > 0 ? _ramp.GetPos(i - 1) : 0f;
-                float hi = i + 1 < _ramp.Count ? _ramp.GetPos(i + 1) : 1f;
-                if (hi < lo) { var swap = lo; lo = hi; hi = swap; }
-                var pos = Z.MicroSlider("Pos", Mathf.Clamp(_ramp.GetPos(i), lo, hi), lo, hi,
-                    tip + " Where it sits along the ramp, between its neighbours.",
-                    v => Apply(() => _ramp.SetPos(i, v)), 120f, showValue: true, decimals: 3,
-                    onBeforeMutate: BeginGesture);
-                pos.style.marginLeft = 6f;
-                pos.style.marginBottom = 0f;
-                panel.Add(pos);
-
-                var del = Z.Button("Remove stop", tip + " Delete it — the ramp blends straight between its "
-                                                      + "neighbours afterwards.", () =>
-                {
-                    Mutate(() => _ramp.RemoveAt(i));
-                    pop?.Close();
-                });
-                del.style.marginLeft = 6f;
-                panel.Add(del);
-            });
-        }
-
-        /// The painted strip + marker lane. Pointer logic lives here so the element's local coordinates ARE the
-        /// ramp coordinates (t = x / width).
-        sealed class Strip : VisualElement
-        {
-            const float StripH = 22f, LaneH = 10f, MarkerHalf = 5f, HitPad = 6f, DragSlop = 2f;
-            readonly ZuiRampControl _o;
-            int _drag = -1;
-            bool _dragMoved;
-            float _downX;
-
-            public Strip(ZuiRampControl owner)
-            {
-                _o = owner;
-                AddToClassList("zui-ramp__strip");
-                style.minWidth = MinStripWidth;
-                style.height = StripH + LaneH;
-                style.flexGrow = 1f;
-                style.flexShrink = 1f;
-                generateVisualContent += OnGenerate;
-                RegisterCallback<PointerDownEvent>(OnDown);
-                RegisterCallback<PointerMoveEvent>(OnMove);
-                RegisterCallback<PointerUpEvent>(OnUp);
-            }
-
-            float X(float t) => Mathf.Clamp01(t) * contentRect.width;
-            float T(float x) => Mathf.Clamp01(x / Mathf.Max(1f, contentRect.width));
-            static bool InLane(float y) => y >= StripH - 3f;
-
-            /// The stop whose marker sits nearest x, or -1 when none is within the grab pad. Ties go to the LATER
-            /// marker, which is the one drawn on top.
-            int MarkerAt(float x)
-            {
-                int best = -1; float bestD = HitPad;
-                for (int i = 0; i < _o._ramp.Count; i++)
-                {
-                    float d = Mathf.Abs(X(_o._ramp.GetPos(i)) - x);
-                    if (d <= bestD) { bestD = d; best = i; }
-                }
-                return best;
-            }
-
-            /// A stop may not cross its neighbours — that would reorder the ramp under every index the UI holds.
-            float ClampBetweenNeighbours(int i, float t)
-            {
-                var r = _o._ramp;
-                float lo = i > 0 ? r.GetPos(i - 1) : 0f;
-                float hi = i + 1 < r.Count ? r.GetPos(i + 1) : 1f;
-                return Mathf.Clamp(t, Mathf.Min(lo, hi), Mathf.Max(lo, hi));
-            }
-
-            void OnDown(PointerDownEvent e)
-            {
-                float x = e.localPosition.x, y = e.localPosition.y;
-
-                // Right-click a marker removes it. (Anywhere else right-click is left alone, so a host context
-                // menu still reaches the card.)
-                if (e.button == 1)
-                {
-                    int hit = InLane(y) ? MarkerAt(x) : -1;
-                    if (hit >= 0) { _o.Mutate(() => _o._ramp.RemoveAt(hit)); e.StopPropagation(); }
-                    return;
-                }
-                if (e.button != 0) return;
-
-                int m = InLane(y) ? MarkerAt(x) : -1;
-                if (m >= 0)
-                {
-                    // Arm a drag but mutate NOTHING yet: a press that never moves is the "open its editor"
-                    // gesture, and recording an Undo step for it would leave a no-op entry in the user's history.
-                    _drag = m; _dragMoved = false; _downX = x;
-                    this.CapturePointer(e.pointerId);
-                    e.StopPropagation();
-                    return;
-                }
-
-                if (e.clickCount == 2)
-                {
-                    // Insert carrying the colour the ramp ALREADY evaluates there, so the picture does not change —
-                    // the new stop is a handle on what was being drawn anyway. Then drag it straight away.
-                    float t = T(x);
-                    _o.BeginGesture();
-                    int idx = -1;
-                    _o.Apply(() => idx = _o._ramp.Insert(t, _o._ramp.Eval(t)));
-                    _drag = idx; _dragMoved = true; _downX = x;
-                    this.CapturePointer(e.pointerId);
-                    e.StopPropagation();
-                }
-            }
-
-            void OnMove(PointerMoveEvent e)
-            {
-                if (_drag < 0) return;
-                float x = e.localPosition.x;
-                if (!_dragMoved)
-                {
-                    if (Mathf.Abs(x - _downX) < DragSlop) return;   // still a click, not a drag
-                    _dragMoved = true;
-                    _o.BeginGesture();
-                }
-                int i = _drag;
-                if (i < 0 || i >= _o._ramp.Count) return;
-                float t = ClampBetweenNeighbours(i, T(x));
-                _o.Apply(() => _o._ramp.SetPos(i, t));
-                e.StopPropagation();
-            }
-
-            void OnUp(PointerUpEvent e)
-            {
-                if (_drag < 0) return;
-                int i = _drag;
-                bool moved = _dragMoved;
-                _drag = -1; _dragMoved = false;
-                this.ReleasePointer(e.pointerId);
-                _o.EndGesture();
-                MarkDirtyRepaint();
-                if (!moved) _o.OpenStopEditor(i);
-                e.StopPropagation();
-            }
-
-            void OnGenerate(MeshGenerationContext mgc)
-            {
-                var r = contentRect;
-                if (r.width <= 1f) return;
-                var p = mgc.painter2D;
-                var ramp = _o._ramp;
-
-                // Checker under the ramp so per-stop alpha reads; the same two greys Unity's colour fields use.
-                const float cell = 6f;
-                var dark = new Color(0.30f, 0.30f, 0.30f, 1f);
-                var light = new Color(0.45f, 0.45f, 0.45f, 1f);
-                for (float y = 0; y < StripH; y += cell)
-                    for (float x = 0; x < r.width; x += cell)
-                        Rect(p, x, y, Mathf.Min(cell, r.width - x), Mathf.Min(cell, StripH - y),
-                            (((int)(x / cell) + (int)(y / cell)) & 1) == 0 ? dark : light);
-
-                int n = ramp.Count;
-                // An EMPTY ramp is legal and meaningful ("no colour at all"): show the bare checker rather than
-                // inventing a stop. The always-present "+" beside the strip is the way in.
-                if (n == 0) return;
-
-                // One column per pixel, straight from the ramp's own Eval — this IS the renderer's ramp.
-                float w = r.width;
-                int cols = Mathf.Max(1, Mathf.CeilToInt(w));
-                for (int c = 0; c < cols; c++)
-                {
-                    float x0 = c, x1 = Mathf.Min(c + 1f, w);
-                    if (x1 <= x0) continue;
-                    Rect(p, x0, 0f, x1 - x0, StripH, ramp.Eval((c + 0.5f) / w));
-                }
-
-                // A marker per stop, tinted with that stop's OWN colour so the lane is legible at a glance
-                // (drawn opaque, or a low-alpha stop would leave an invisible handle).
-                for (int i = 0; i < n; i++)
-                {
-                    float x = X(ramp.GetPos(i));
-                    var c = ramp.GetColor(i);
-                    bool hot = i == _drag;
-                    p.fillColor = hot ? new Color(1f, 0.85f, 0.3f, 1f) : new Color(c.r, c.g, c.b, 1f);
-                    p.strokeColor = new Color(0f, 0f, 0f, 0.8f);
-                    p.lineWidth = 1f;
-                    p.BeginPath();
-                    p.MoveTo(new Vector2(x, StripH));
-                    p.LineTo(new Vector2(x + MarkerHalf, StripH + LaneH - 1f));
-                    p.LineTo(new Vector2(x - MarkerHalf, StripH + LaneH - 1f));
-                    p.ClosePath();
-                    p.Fill(); p.Stroke();
-                }
-            }
-
-            static void Rect(Painter2D p, float x, float y, float w, float h, Color c)
-            {
-                p.fillColor = c;
-                p.BeginPath();
-                p.MoveTo(new Vector2(x, y)); p.LineTo(new Vector2(x + w, y));
-                p.LineTo(new Vector2(x + w, y + h)); p.LineTo(new Vector2(x, y + h));
-                p.ClosePath(); p.Fill();
-            }
         }
     }
 }

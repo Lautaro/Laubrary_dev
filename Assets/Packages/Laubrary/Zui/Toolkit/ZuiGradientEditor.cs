@@ -1,18 +1,19 @@
 // ZuiGradientEditor — the COMPOSABLE pieces of a ZuiGradient editor, so a host can arrange them freely:
 //   • Output — the objective PREVIEW strip (painted from ZuiGradient.ToLut(), i.e. the final ramp WITH every
 //     transform applied). Read-only; it is what actually renders.
-//   • Source — the editable STOP EDITOR (ZuiRampControl) over the ramp itself; transforms apply on top.
+//   • Source — the editable base ramp (ZuiRampControl, i.e. Unity's own GradientField plus the "★" library and the
+//     blend-space row); transforms apply on top.
 //   • Adjust — a collapsible "Adjust" box of the transforms (Hue/Sat/Brightness/Contrast/Phase MultiCont, Quantise,
 //     Cycle+Reverse).
 // Editing Source or any transform re-bakes Output. ZuiGradientControl stacks all three (Output, Source, Adjust);
 // ZuiFillControl puts Output in the Fill header beside the square+label, Source just below, and Adjust in the
 // collapsible body — so the objective + source ramps stay visible even when the fill's controls fold away.
 //
-// T-0221 — Source used to be Unity's own GradientField, which caps at 8 colour keys: a gradient could not hold a
-// 10-colour ramp at all, which is the whole reason a Pyre ramp needed a second, different control. It is now the
-// SAME ZuiRampControl every ramp field already uses (drag a stop, double-click to insert, right-click to remove,
-// click for its colour, "+" to add), reading and writing ZuiGradient's own unbounded stop list — one stop editor
-// in the package, and the "★" library round-trips whatever it holds.
+// T-0223 — Source opens Unity's own gradient editor again, and so does every ramp site: ZuiRampControl is now a
+// GradientField wearing the "★" library and the blend-space row, so there is ONE colour editor in the package and
+// it is the one everybody already knows. T-0221's bespoke stop editor is gone; what T-0221 built and kept is the
+// STORAGE — ZuiGradient still owns an unbounded stop list, so a 14-stop palette from the library is held and
+// rendered whole, and the 8-key cap is paid only for the field's picture and only written back if edited.
 
 using System;
 using UnityEngine;
@@ -23,7 +24,7 @@ namespace Laubrary.Zui
     public sealed class ZuiGradientEditor
     {
         public readonly Image Output;            // objective preview (ToLut) — read-only, the final ramp
-        public readonly ZuiRampControl Source;   // editable stop list — unlimited stops (T-0221)
+        public readonly ZuiRampControl Source;   // editable base ramp — Unity's GradientField + blend space (T-0223)
         public readonly ZuiBox Adjust;           // the transforms, in a collapsible box
         public readonly Button Library;        // T-0205 — the project's saved-gradient library (browse / save)
 
@@ -59,13 +60,16 @@ namespace Laubrary.Zui
             Output.style.height = 22;   // fixed height; a column parent stretches it full-width (no flexGrow needed)
             Output.style.minWidth = 120f;
             Output.RegisterCallback<DetachFromPanelEvent>(_ => DisposeLut());
+            // Detaching frees the LUT, and a host that merely HIDES this control (a folded section, a toggle bar,
+            // a reparent) detaches it too — after which the preview came back permanently blank, because nothing
+            // re-baked it. Re-baking on attach costs one 256×1 texture and is the only thing that makes the strip
+            // survive being folded away and reopened.
+            Output.RegisterCallback<AttachToPanelEvent>(_ => Refresh());
 
-            // The SOURCE ramp: the package's one stop editor, over this gradient's own stop list. `showLibrary:
-            // false` because this editor already carries the "★" on the Output row below — one library button per
-            // gradient, not two.
-            Source = new ZuiRampControl(_g, "The SOURCE ramp you edit — drag a stop, double-click to insert one, "
-                                          + "right-click a stop to remove it, click it for its colour. The "
-                                          + "transforms below apply on top of this.", showLibrary: false)
+            // The SOURCE ramp: Unity's own gradient editor over this gradient. `showLibrary: false` because this
+            // editor already carries the "★" on the Output row below — one library button per gradient, not two.
+            Source = new ZuiRampControl(_g, "The SOURCE ramp you edit — click it for Unity's gradient editor. The "
+                                          + "transforms below apply on top of it.", showLibrary: false)
             {
                 OnBeforeMutate = () => OnBeforeMutate?.Invoke(),
                 OnChanged = () => { Refresh(); OnChanged?.Invoke(); },

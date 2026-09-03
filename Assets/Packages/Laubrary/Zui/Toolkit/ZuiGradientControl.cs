@@ -3,8 +3,9 @@
 // preview strip, the editable SOURCE ramp, then the collapsible "Adjust" transforms box. (ZuiFillControl uses the
 // same ZuiGradientEditor but arranges the pieces into the Fill header instead.)
 //
-// The SOURCE ramp is the package's one stop editor (ZuiRampControl) since T-0221 — the same control every Pyre
-// ramp field uses, with no 8-stop ceiling. A 10-colour ramp is authored here exactly as it is on a ramp.
+// The SOURCE ramp is Unity's own GradientField (ZuiRampControl since T-0223) — the same control every Pyre ramp
+// field now uses, so there is one colour editor in the package and it is the familiar one. Storage still holds an
+// unbounded stop list, so a >8-stop palette applied from the "★" library is kept and rendered whole.
 
 using System;
 using UnityEngine.UIElements;
@@ -38,7 +39,7 @@ namespace Laubrary.Zui
             ed.Library.style.marginLeft = 4f;
             outputRow.Add(ed.Library);
             Add(outputRow);
-            ed.Source.style.marginBottom = 4;   // the stop editor's marker lane needs air before the Adjust box
+            ed.Source.style.marginBottom = 4;   // air between the editable ramp row and the Adjust box
             Add(ed.Source);
             Add(ed.Adjust);
         }

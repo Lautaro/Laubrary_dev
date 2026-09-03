@@ -9,9 +9,8 @@
 // (Do not confuse this with ZuiScrub — a false friend by name. ZuiScrub makes a NUMERIC FIELD draggable;
 // it has nothing to do with a timeline.)
 //
-// Modelled deliberately on ZuiRampControl's Strip: a Painter2D-painted background whose element-local
-// coordinates ARE the value's coordinates, click-to-position, pointer-captured drag. Same idiom, so a
-// reader of one already knows the other.
+// The idiom: a Painter2D-painted background whose element-local coordinates ARE the value's coordinates,
+// click-to-position, pointer-captured drag — shared with ZuiLanes, so a reader of one already knows the other.
 //
 // Two things this control deliberately does NOT do, because they belong to the host:
 //   * it never owns the seconds — the host holds the clock and pushes it in (SetSecondsWithoutNotify
@@ -192,7 +191,7 @@ namespace Laubrary.Zui
         /// x → seconds.
         float T(float x) => _total > 0f ? Mathf.Clamp01(x / Mathf.Max(1f, BarWidth)) * _total : 0f;
 
-        // ── gestures (pointer-captured drag, the ZuiRampControl.Strip idiom) ─────────────────────────────
+        // ── gestures (pointer-captured drag) ─────────────────────────────────────────────────────────────
         void OnDown(PointerDownEvent e)
         {
             if (e.button != 0) return;

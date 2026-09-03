@@ -504,10 +504,11 @@ namespace Laubrary.Zui
                 return Z.Field(nice, tip, sc);
             }
 
-            // A colour ramp that speaks IZuiRamp (Pyre's PyreRamp) → ONE ZuiRampControl: a strip painted from the
-            // ramp's own Eval with a marker per stop. Since T-0221 this is the SAME control a ZuiGradient's own
-            // source ramp uses (ZuiGradientEditor.Source), and its "★" reaches the same project library with no
-            // stop cap either way — so a ramp and a gradient are edited and exchanged identically. This case has to sit BEFORE both the List<> branch and the
+            // A colour ramp that speaks IZuiRamp (Pyre's PyreRamp) → ONE ZuiRampControl: Unity's own GradientField
+            // plus the "★" project library and the blend-space row. Since T-0223 this is the SAME control a
+            // ZuiGradient's own source ramp uses (ZuiGradientEditor.Source), and its "★" reaches the same project
+            // library with no stop cap either way — so a ramp and a gradient are edited and exchanged identically.
+            // This case has to sit BEFORE both the List<> branch and the
             // nested-plain-class branch below, or a PyreRamp falls through to a titled box wrapping a list box of
             // near-identical "Stop N" cards — ten of them for a Jet ramp, which is what this replaces. Type-level,
             // so every authored ramp field in every form adopts it at once with no per-form edit. Mutates in place

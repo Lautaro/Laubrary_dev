@@ -80,13 +80,18 @@ namespace Laubrary.Zui
 
         /// <summary>Replaces ALL of `ramp`'s stops with `g`'s colour keys (alpha keys are folded into each stop's
         /// own colour at the union of both key sets, matching IZuiRamp's "alpha is the opacity there, not a
-        /// separate key" contract). Always exact: a Gradient has at most 8 keys, IZuiRamp has no upper bound.</summary>
+        /// separate key" contract). Always exact: a Gradient has at most 8 keys, IZuiRamp has no upper bound.
+        /// The ramp's own BLEND SPACE is preserved: a UnityEngine.Gradient carries no such choice (it always
+        /// blends in gamma), so taking the temporary's default would silently re-blend a Linear-Light ramp into
+        /// sRGB every time someone edited its colours through a GradientField.</summary>
         public static void ApplyGradient(IZuiRamp ramp, Gradient g)
         {
             if (ramp == null || g == null) return;
+            int space = ramp.BlendMode;
             var zg = new ZuiGradient();
             zg.SetGradient(g);
             ApplyZuiGradient(ramp, zg);
+            ramp.BlendMode = space;
         }
     }
 }
