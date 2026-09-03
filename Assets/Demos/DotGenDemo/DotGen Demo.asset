@@ -1,0 +1,244 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 993dfe6b342ff944eb451a7100ab593b, type: 3}
+  m_Name: DotGen Demo
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.DotGen::Laubrary.DotGen.DotGen
+  seed: 4821
+  frameSize: 512
+  background: {r: 0.047058824, g: 0.0627451, b: 0.09019608, a: 1}
+  guideGrid: {r: 0.15294118, g: 0.19215687, b: 0.2509804, a: 1}
+  showGuideGrid: 1
+  frameStroke: {r: 0.39215687, g: 0.45490196, b: 0.54509807, a: 1}
+  showFrameStroke: 1
+  gizmoMode: 0
+  selectedGeneratorId: gen_b
+  generators:
+  - id: gen_1
+    parentId: 
+    name: Root Frame
+    enabled: 1
+    color: {r: 0.4392157, g: 0.88235295, b: 0.6313726, a: 1}
+    dotSize: 4
+    showDots: 0
+    shape: 0
+    sizeX: 100
+    sizeY: 100
+    rotation: 0
+    anchor: 4
+    areaBasis: 0
+    spawnEvery: 1
+    spawnChance: 100
+    maxInstances: 1
+    placementTypeId: grid
+    placementBank:
+    - rid: 2235495243863818989
+    selectors:
+    - rid: 2235495243863818990
+    mutators:
+    - rid: 2235495243863818991
+    drawers: []
+  - id: gen_5
+    parentId: gen_1
+    name: Radial Clusters
+    enabled: 1
+    color: {r: 0.38431373, g: 0.84705883, b: 1, a: 1}
+    dotSize: 3
+    showDots: 1
+    shape: 1
+    sizeX: 20
+    sizeY: 20
+    rotation: 0
+    anchor: 4
+    areaBasis: 0
+    spawnEvery: 2
+    spawnChance: 78
+    maxInstances: 24
+    placementTypeId: radial
+    placementBank:
+    - rid: 2235495243863818992
+    - rid: 2235495243863818993
+    selectors:
+    - rid: 2235495243863818994
+    mutators:
+    - rid: 2235495243863818995
+    - rid: 2235495243863818996
+    drawers: []
+  - id: gen_b
+    parentId: gen_1
+    name: Diamond Grids
+    enabled: 1
+    color: {r: 1, g: 0.8, b: 0.4, a: 1}
+    dotSize: 3
+    showDots: 1
+    shape: 2
+    sizeX: 13
+    sizeY: 13
+    rotation: 0
+    anchor: 4
+    areaBasis: 0
+    spawnEvery: 4
+    spawnChance: 70
+    maxInstances: 12
+    placementTypeId: grid
+    placementBank:
+    - rid: 2235495243863818997
+    selectors:
+    - rid: 2235495243863818998
+    mutators:
+    - rid: 2235495243863818999
+    drawers: []
+  nextId: 16
+  previewBackSplash:
+    cameraColor: {r: 0.08, g: 0.08, b: 0.1, a: 1}
+    image: {fileID: 0}
+    imageTint: {r: 1, g: 1, b: 1, a: 1}
+    imageZoom: 1
+    imagePos: {x: 0, y: 0}
+  references:
+    version: 2
+    RefIds:
+    - rid: 2235495243863818989
+      type: {class: DotGridPlacement, ns: Laubrary.DotGen, asm: com.Lautaro-Arino.Laubrary.DotGen}
+      data:
+        id: place_2
+        name: 
+        enabled: 1
+        columns: 8
+        rows: 7
+        gapX: 0
+        gapY: 0
+        skewX: 0
+        skewY: 0
+        rotation: 0
+        offsetX: 0
+        offsetY: 0
+    - rid: 2235495243863818990
+      type: {class: DotMarginSelector, ns: Laubrary.DotGen, asm: com.Lautaro-Arino.Laubrary.DotGen}
+      data:
+        id: sel_3
+        name: Safe frame
+        enabled: 1
+        bandWidth: 8
+        softness: 3
+        edgeBandValue: 0
+        innerCoreValue: 100
+    - rid: 2235495243863818991
+      type: {class: DotNudgeMutator, ns: Laubrary.DotGen, asm: com.Lautaro-Arino.Laubrary.DotGen}
+      data:
+        id: mut_4
+        name: Loose lattice
+        enabled: 1
+        selectorId: sel_3
+        strength: 2.2
+        seedOffset: 31
+        directionBias: 18
+        biasAngle: -12
+    - rid: 2235495243863818992
+      type: {class: DotGridPlacement, ns: Laubrary.DotGen, asm: com.Lautaro-Arino.Laubrary.DotGen}
+      data:
+        id: place_6
+        name: 
+        enabled: 1
+        columns: 4
+        rows: 4
+        gapX: 0
+        gapY: 0
+        skewX: 0
+        skewY: 0
+        rotation: 0
+        offsetX: 0
+        offsetY: 0
+    - rid: 2235495243863818993
+      type: {class: DotRadialPlacement, ns: Laubrary.DotGen, asm: com.Lautaro-Arino.Laubrary.DotGen}
+      data:
+        id: place_7
+        name: 
+        enabled: 1
+        flow: 0
+        rings: 3
+        baseDotsPerRing: 7
+        innerRadius: 18
+        outerRadius: 88
+        ringSpacingCurve: 0
+        outerDensityScale: 45
+        phase: 8
+        rotation: 0
+        centerDot: 1
+    - rid: 2235495243863818994
+      type: {class: DotGradientSelector, ns: Laubrary.DotGen, asm: com.Lautaro-Arino.Laubrary.DotGen}
+      data:
+        id: sel_8
+        name: Light sweep
+        enabled: 1
+        field: 0
+        angle: -28
+        offset: 10
+        contrast: 125
+        frequency: 2
+        phase: 0
+        invert: 0
+    - rid: 2235495243863818995
+      type: {class: DotWarpMutator, ns: Laubrary.DotGen, asm: com.Lautaro-Arino.Laubrary.DotGen}
+      data:
+        id: mut_9
+        name: Gather
+        enabled: 1
+        selectorId: sel_8
+        fieldSource: 0
+        force: 0
+        strength: 4.5
+        centers: 1
+        influenceRadius: 55
+        seedOffset: 12
+        lineAngle: 0
+        lineSpacing: 24
+    - rid: 2235495243863818996
+      type: {class: DotCullMutator, ns: Laubrary.DotGen, asm: com.Lautaro-Arino.Laubrary.DotGen}
+      data:
+        id: mut_a
+        name: Fade out
+        enabled: 1
+        selectorId: sel_8
+        cullAction: 0
+        seedOffset: 92
+    - rid: 2235495243863818997
+      type: {class: DotGridPlacement, ns: Laubrary.DotGen, asm: com.Lautaro-Arino.Laubrary.DotGen}
+      data:
+        id: place_c
+        name: 
+        enabled: 1
+        columns: 4
+        rows: 4
+        gapX: 7
+        gapY: 7
+        skewX: 0
+        skewY: 0
+        rotation: 45
+        offsetX: 0
+        offsetY: 0
+    - rid: 2235495243863818998
+      type: {class: DotRandomSelector, ns: Laubrary.DotGen, asm: com.Lautaro-Arino.Laubrary.DotGen}
+      data:
+        id: sel_d
+        name: Broken cells
+        enabled: 1
+        amount: 72
+        seedOffset: 22
+    - rid: 2235495243863818999
+      type: {class: DotCullMutator, ns: Laubrary.DotGen, asm: com.Lautaro-Arino.Laubrary.DotGen}
+      data:
+        id: mut_e
+        name: Cull
+        enabled: 1
+        selectorId: sel_d
+        cullAction: 0
+        seedOffset: 28

@@ -1,0 +1,791 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 993dfe6b342ff944eb451a7100ab593b, type: 3}
+  m_Name: Three Rows of Buildings
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.DotGen::Laubrary.DotGen.DotGen
+  seed: 4821
+  frameSize: 512
+  background: {r: 0.047058824, g: 0.0627451, b: 0.09019608, a: 1}
+  guideGrid: {r: 0.15294118, g: 0.19215687, b: 0.2509804, a: 1}
+  showGuideGrid: 1
+  frameStroke: {r: 0.39215687, g: 0.45490196, b: 0.54509807, a: 1}
+  showFrameStroke: 1
+  gizmoMode: 0
+  selectedGeneratorId: gen_1
+  generators:
+  - id: gen_1
+    parentId: 
+    name: Root Frame
+    enabled: 1
+    color: {r: 0.4392157, g: 0.88235295, b: 0.6313726, a: 1}
+    dotSize: 4
+    showDots: 0
+    shape: 0
+    sizeX: 100
+    sizeY: 60
+    rotation: 0
+    anchor: 7
+    areaBasis: 0
+    spawnEvery: 1
+    spawnChance: 100
+    maxInstances: 1
+    placementTypeId: grid
+    placementBank:
+    - rid: 2235495243863819002
+    selectors: []
+    mutators: []
+    drawers: []
+  - id: gen_f
+    parentId: gen_1
+    name: Houses
+    enabled: 1
+    color: {r: 0.38431373, g: 0.84705883, b: 1, a: 1}
+    dotSize: 3
+    showDots: 1
+    shape: 0
+    sizeX: 100
+    sizeY: 100
+    rotation: 0
+    anchor: 4
+    areaBasis: 1
+    spawnEvery: 1
+    spawnChance: 100
+    maxInstances: 80
+    placementTypeId: boxRow
+    placementBank:
+    - rid: 2235495243863819013
+    - rid: 2235495243863819014
+    selectors: []
+    mutators: []
+    drawers:
+    - rid: 2235495243863819015
+  - id: gen_j
+    parentId: gen_f
+    name: Windows
+    enabled: 1
+    color: {r: 0.38431373, g: 0.84705883, b: 1, a: 1}
+    dotSize: 3
+    showDots: 1
+    shape: 0
+    sizeX: 100
+    sizeY: 100
+    rotation: 0
+    anchor: 4
+    areaBasis: 1
+    spawnEvery: 1
+    spawnChance: 100
+    maxInstances: 80
+    placementTypeId: grid
+    placementBank:
+    - rid: 2235495243863819019
+    selectors:
+    - rid: 2235495243863819020
+    mutators: []
+    drawers:
+    - rid: 2235495243863819021
+  nextId: 23
+  previewBackSplash:
+    cameraColor: {r: 0.08, g: 0.08, b: 0.1, a: 1}
+    image: {fileID: 0}
+    imageTint: {r: 1, g: 1, b: 1, a: 1}
+    imageZoom: 1
+    imagePos: {x: 0, y: 0}
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
+    - rid: 2235495243863819002
+      type: {class: DotGridPlacement, ns: Laubrary.DotGen, asm: com.Lautaro-Arino.Laubrary.DotGen}
+      data:
+        id: place_2
+        name: 
+        enabled: 1
+        columns: 1
+        rows: 3
+        gapX: 0
+        gapY: 0
+        skewX: 0
+        skewY: 0
+        rotation: 0
+        offsetX: 0
+        offsetY: 0
+    - rid: 2235495243863819013
+      type: {class: DotGridPlacement, ns: Laubrary.DotGen, asm: com.Lautaro-Arino.Laubrary.DotGen}
+      data:
+        id: place_g
+        name: 
+        enabled: 1
+        columns: 4
+        rows: 4
+        gapX: 0
+        gapY: 0
+        skewX: 0
+        skewY: 0
+        rotation: 0
+        offsetX: 0
+        offsetY: 0
+    - rid: 2235495243863819014
+      type: {class: DotBoxRowPlacement, ns: Laubrary.DotGen, asm: com.Lautaro-Arino.Laubrary.DotGen}
+      data:
+        id: place_h
+        name: Box Row
+        enabled: 1
+        widthMin: 8
+        widthMax: 18
+        heightBasis: 0
+        heightMin: 35
+        heightMax: 260
+        aspectMin: 1
+        aspectMax: 3
+        growOutsideArea: 1
+        gap: 2
+        edgePadding: 2
+        verticalAnchor: 0
+        variationSeed: 101
+    - rid: 2235495243863819015
+      type: {class: DotFillDrawer, ns: Laubrary.DotGen, asm: com.Lautaro-Arino.Laubrary.DotGen}
+      data:
+        id: draw_i
+        name: Fill shapes
+        enabled: 1
+        selectorId: 
+        drawTarget: 1
+        use: 0
+        threshold: 50
+        cellShape: 0
+        cellWidth: 62
+        cellHeight: 62
+        opacity: 100
+        fillSource: 0
+        fill:
+          mode: 0
+          color: {r: 0.14901961, g: 0.21960784, b: 0.2901961, a: 1}
+          gradient:
+            serializedVersion: 2
+            key0: {r: 1, g: 1, b: 1, a: 1}
+            key1: {r: 1, g: 1, b: 1, a: 1}
+            key2: {r: 0, g: 0, b: 0, a: 0}
+            key3: {r: 0, g: 0, b: 0, a: 0}
+            key4: {r: 0, g: 0, b: 0, a: 0}
+            key5: {r: 0, g: 0, b: 0, a: 0}
+            key6: {r: 0, g: 0, b: 0, a: 0}
+            key7: {r: 0, g: 0, b: 0, a: 0}
+            ctime0: 0
+            ctime1: 65535
+            ctime2: 0
+            ctime3: 0
+            ctime4: 0
+            ctime5: 0
+            ctime6: 0
+            ctime7: 0
+            atime0: 0
+            atime1: 65535
+            atime2: 0
+            atime3: 0
+            atime4: 0
+            atime5: 0
+            atime6: 0
+            atime7: 0
+            m_Mode: 0
+            m_ColorSpace: -1
+            m_NumColorKeys: 2
+            m_NumAlphaKeys: 2
+          gradientAnim:
+            rid: -2
+          angleDeg: 0
+          zoom: 1
+          center: {x: 0, y: 0}
+          zoomAnim:
+            rid: 2235495243863819016
+          centerXAnim:
+            rid: 2235495243863819017
+          centerYAnim:
+            rid: 2235495243863819018
+          space: 0
+          fit: 0
+          texture: 0
+          textureSprite: {fileID: 0}
+          noiseKind: 0
+          gridAngle: 0
+          gridSpacing: 0.5
+          gridLineWidth: 0.08
+          gridVertical: 1
+          gridHorizontal: 1
+          dotSize: 0.5
+          dotSpacing: 0.35
+          dotStagger: 1
+          fillVersion: 1
+        variationSeed: 211
+        fills:
+        - mode: 0
+          color: {r: 0.14901961, g: 0.21960784, b: 0.2901961, a: 1}
+          gradient:
+            serializedVersion: 2
+            key0: {r: 1, g: 1, b: 1, a: 1}
+            key1: {r: 1, g: 1, b: 1, a: 1}
+            key2: {r: 0, g: 0, b: 0, a: 0}
+            key3: {r: 0, g: 0, b: 0, a: 0}
+            key4: {r: 0, g: 0, b: 0, a: 0}
+            key5: {r: 0, g: 0, b: 0, a: 0}
+            key6: {r: 0, g: 0, b: 0, a: 0}
+            key7: {r: 0, g: 0, b: 0, a: 0}
+            ctime0: 0
+            ctime1: 65535
+            ctime2: 0
+            ctime3: 0
+            ctime4: 0
+            ctime5: 0
+            ctime6: 0
+            ctime7: 0
+            atime0: 0
+            atime1: 65535
+            atime2: 0
+            atime3: 0
+            atime4: 0
+            atime5: 0
+            atime6: 0
+            atime7: 0
+            m_Mode: 0
+            m_ColorSpace: -1
+            m_NumColorKeys: 2
+            m_NumAlphaKeys: 2
+          gradientAnim:
+            rid: -2
+          angleDeg: 0
+          zoom: 1
+          center: {x: 0, y: 0}
+          zoomAnim:
+            rid: -2
+          centerXAnim:
+            rid: -2
+          centerYAnim:
+            rid: -2
+          space: 0
+          fit: 0
+          texture: 0
+          textureSprite: {fileID: 0}
+          noiseKind: 0
+          gridAngle: 0
+          gridSpacing: 0.5
+          gridLineWidth: 0.08
+          gridVertical: 1
+          gridHorizontal: 1
+          dotSize: 0.5
+          dotSpacing: 0.35
+          dotStagger: 1
+          fillVersion: 1
+        - mode: 2
+          color: {r: 0.16078432, g: 0.20392157, b: 0.28627452, a: 1}
+          gradient:
+            serializedVersion: 2
+            key0: {r: 0.16078432, g: 0.20392157, b: 0.28627452, a: 1}
+            key1: {r: 0.4745098, g: 0.7058824, b: 0.8235294, a: 1}
+            key2: {r: 0, g: 0, b: 0, a: 0}
+            key3: {r: 0, g: 0, b: 0, a: 0}
+            key4: {r: 0, g: 0, b: 0, a: 0}
+            key5: {r: 0, g: 0, b: 0, a: 0}
+            key6: {r: 0, g: 0, b: 0, a: 0}
+            key7: {r: 0, g: 0, b: 0, a: 0}
+            ctime0: 0
+            ctime1: 65535
+            ctime2: 0
+            ctime3: 0
+            ctime4: 0
+            ctime5: 0
+            ctime6: 0
+            ctime7: 0
+            atime0: 0
+            atime1: 65535
+            atime2: 0
+            atime3: 0
+            atime4: 0
+            atime5: 0
+            atime6: 0
+            atime7: 0
+            m_Mode: 0
+            m_ColorSpace: -1
+            m_NumColorKeys: 2
+            m_NumAlphaKeys: 2
+          gradientAnim:
+            rid: -2
+          angleDeg: 90
+          zoom: 1
+          center: {x: 0, y: 0}
+          zoomAnim:
+            rid: -2
+          centerXAnim:
+            rid: -2
+          centerYAnim:
+            rid: -2
+          space: 0
+          fit: 0
+          texture: 0
+          textureSprite: {fileID: 0}
+          noiseKind: 0
+          gridAngle: 0
+          gridSpacing: 0.5
+          gridLineWidth: 0.08
+          gridVertical: 1
+          gridHorizontal: 1
+          dotSize: 0.5
+          dotSpacing: 0.35
+          dotStagger: 1
+          fillVersion: 1
+        - mode: 2
+          color: {r: 0.27450982, g: 0.19607843, b: 0.2784314, a: 1}
+          gradient:
+            serializedVersion: 2
+            key0: {r: 0.27450982, g: 0.19607843, b: 0.2784314, a: 1}
+            key1: {r: 0.827451, g: 0.5529412, b: 0.47058824, a: 1}
+            key2: {r: 0, g: 0, b: 0, a: 0}
+            key3: {r: 0, g: 0, b: 0, a: 0}
+            key4: {r: 0, g: 0, b: 0, a: 0}
+            key5: {r: 0, g: 0, b: 0, a: 0}
+            key6: {r: 0, g: 0, b: 0, a: 0}
+            key7: {r: 0, g: 0, b: 0, a: 0}
+            ctime0: 0
+            ctime1: 65535
+            ctime2: 0
+            ctime3: 0
+            ctime4: 0
+            ctime5: 0
+            ctime6: 0
+            ctime7: 0
+            atime0: 0
+            atime1: 65535
+            atime2: 0
+            atime3: 0
+            atime4: 0
+            atime5: 0
+            atime6: 0
+            atime7: 0
+            m_Mode: 0
+            m_ColorSpace: -1
+            m_NumColorKeys: 2
+            m_NumAlphaKeys: 2
+          gradientAnim:
+            rid: -2
+          angleDeg: 90
+          zoom: 1
+          center: {x: 0, y: 0}
+          zoomAnim:
+            rid: -2
+          centerXAnim:
+            rid: -2
+          centerYAnim:
+            rid: -2
+          space: 0
+          fit: 0
+          texture: 0
+          textureSprite: {fileID: 0}
+          noiseKind: 0
+          gridAngle: 0
+          gridSpacing: 0.5
+          gridLineWidth: 0.08
+          gridVertical: 1
+          gridHorizontal: 1
+          dotSize: 0.5
+          dotSpacing: 0.35
+          dotStagger: 1
+          fillVersion: 1
+    - rid: 2235495243863819016
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 2235495243863819017
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 2235495243863819018
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 2235495243863819019
+      type: {class: DotGridPlacement, ns: Laubrary.DotGen, asm: com.Lautaro-Arino.Laubrary.DotGen}
+      data:
+        id: place_k
+        name: 
+        enabled: 1
+        columns: 4
+        rows: 4
+        gapX: 0
+        gapY: 0
+        skewX: 0
+        skewY: 0
+        rotation: 0
+        offsetX: 0
+        offsetY: 0
+    - rid: 2235495243863819020
+      type: {class: DotMarginSelector, ns: Laubrary.DotGen, asm: com.Lautaro-Arino.Laubrary.DotGen}
+      data:
+        id: sel_l
+        name: Edge margin
+        enabled: 1
+        bandWidth: 22
+        softness: 8
+        edgeBandValue: 0
+        innerCoreValue: 100
+    - rid: 2235495243863819021
+      type: {class: DotFillDrawer, ns: Laubrary.DotGen, asm: com.Lautaro-Arino.Laubrary.DotGen}
+      data:
+        id: draw_m
+        name: Fill shapes
+        enabled: 1
+        selectorId: sel_l
+        drawTarget: 1
+        use: 0
+        threshold: 50
+        cellShape: 0
+        cellWidth: 62
+        cellHeight: 62
+        opacity: 100
+        fillSource: 0
+        fill:
+          mode: 0
+          color: {r: 0.14901961, g: 0.21960784, b: 0.2901961, a: 1}
+          gradient:
+            serializedVersion: 2
+            key0: {r: 1, g: 1, b: 1, a: 1}
+            key1: {r: 1, g: 1, b: 1, a: 1}
+            key2: {r: 0, g: 0, b: 0, a: 0}
+            key3: {r: 0, g: 0, b: 0, a: 0}
+            key4: {r: 0, g: 0, b: 0, a: 0}
+            key5: {r: 0, g: 0, b: 0, a: 0}
+            key6: {r: 0, g: 0, b: 0, a: 0}
+            key7: {r: 0, g: 0, b: 0, a: 0}
+            ctime0: 0
+            ctime1: 65535
+            ctime2: 0
+            ctime3: 0
+            ctime4: 0
+            ctime5: 0
+            ctime6: 0
+            ctime7: 0
+            atime0: 0
+            atime1: 65535
+            atime2: 0
+            atime3: 0
+            atime4: 0
+            atime5: 0
+            atime6: 0
+            atime7: 0
+            m_Mode: 0
+            m_ColorSpace: -1
+            m_NumColorKeys: 2
+            m_NumAlphaKeys: 2
+          gradientAnim:
+            rid: -2
+          angleDeg: 0
+          zoom: 1
+          center: {x: 0, y: 0}
+          zoomAnim:
+            rid: 2235495243863819022
+          centerXAnim:
+            rid: 2235495243863819023
+          centerYAnim:
+            rid: 2235495243863819024
+          space: 0
+          fit: 0
+          texture: 0
+          textureSprite: {fileID: 0}
+          noiseKind: 0
+          gridAngle: 0
+          gridSpacing: 0.5
+          gridLineWidth: 0.08
+          gridVertical: 1
+          gridHorizontal: 1
+          dotSize: 0.5
+          dotSpacing: 0.35
+          dotStagger: 1
+          fillVersion: 1
+        variationSeed: 211
+        fills:
+        - mode: 0
+          color: {r: 0.14901961, g: 0.21960784, b: 0.2901961, a: 1}
+          gradient:
+            serializedVersion: 2
+            key0: {r: 1, g: 1, b: 1, a: 1}
+            key1: {r: 1, g: 1, b: 1, a: 1}
+            key2: {r: 0, g: 0, b: 0, a: 0}
+            key3: {r: 0, g: 0, b: 0, a: 0}
+            key4: {r: 0, g: 0, b: 0, a: 0}
+            key5: {r: 0, g: 0, b: 0, a: 0}
+            key6: {r: 0, g: 0, b: 0, a: 0}
+            key7: {r: 0, g: 0, b: 0, a: 0}
+            ctime0: 0
+            ctime1: 65535
+            ctime2: 0
+            ctime3: 0
+            ctime4: 0
+            ctime5: 0
+            ctime6: 0
+            ctime7: 0
+            atime0: 0
+            atime1: 65535
+            atime2: 0
+            atime3: 0
+            atime4: 0
+            atime5: 0
+            atime6: 0
+            atime7: 0
+            m_Mode: 0
+            m_ColorSpace: -1
+            m_NumColorKeys: 2
+            m_NumAlphaKeys: 2
+          gradientAnim:
+            rid: -2
+          angleDeg: 0
+          zoom: 1
+          center: {x: 0, y: 0}
+          zoomAnim:
+            rid: -2
+          centerXAnim:
+            rid: -2
+          centerYAnim:
+            rid: -2
+          space: 0
+          fit: 0
+          texture: 0
+          textureSprite: {fileID: 0}
+          noiseKind: 0
+          gridAngle: 0
+          gridSpacing: 0.5
+          gridLineWidth: 0.08
+          gridVertical: 1
+          gridHorizontal: 1
+          dotSize: 0.5
+          dotSpacing: 0.35
+          dotStagger: 1
+          fillVersion: 1
+        - mode: 2
+          color: {r: 0.16078432, g: 0.20392157, b: 0.28627452, a: 1}
+          gradient:
+            serializedVersion: 2
+            key0: {r: 0.16078432, g: 0.20392157, b: 0.28627452, a: 1}
+            key1: {r: 0.4745098, g: 0.7058824, b: 0.8235294, a: 1}
+            key2: {r: 0, g: 0, b: 0, a: 0}
+            key3: {r: 0, g: 0, b: 0, a: 0}
+            key4: {r: 0, g: 0, b: 0, a: 0}
+            key5: {r: 0, g: 0, b: 0, a: 0}
+            key6: {r: 0, g: 0, b: 0, a: 0}
+            key7: {r: 0, g: 0, b: 0, a: 0}
+            ctime0: 0
+            ctime1: 65535
+            ctime2: 0
+            ctime3: 0
+            ctime4: 0
+            ctime5: 0
+            ctime6: 0
+            ctime7: 0
+            atime0: 0
+            atime1: 65535
+            atime2: 0
+            atime3: 0
+            atime4: 0
+            atime5: 0
+            atime6: 0
+            atime7: 0
+            m_Mode: 0
+            m_ColorSpace: -1
+            m_NumColorKeys: 2
+            m_NumAlphaKeys: 2
+          gradientAnim:
+            rid: -2
+          angleDeg: 90
+          zoom: 1
+          center: {x: 0, y: 0}
+          zoomAnim:
+            rid: -2
+          centerXAnim:
+            rid: -2
+          centerYAnim:
+            rid: -2
+          space: 0
+          fit: 0
+          texture: 0
+          textureSprite: {fileID: 0}
+          noiseKind: 0
+          gridAngle: 0
+          gridSpacing: 0.5
+          gridLineWidth: 0.08
+          gridVertical: 1
+          gridHorizontal: 1
+          dotSize: 0.5
+          dotSpacing: 0.35
+          dotStagger: 1
+          fillVersion: 1
+        - mode: 2
+          color: {r: 0.27450982, g: 0.19607843, b: 0.2784314, a: 1}
+          gradient:
+            serializedVersion: 2
+            key0: {r: 0.27450982, g: 0.19607843, b: 0.2784314, a: 1}
+            key1: {r: 0.827451, g: 0.5529412, b: 0.47058824, a: 1}
+            key2: {r: 0, g: 0, b: 0, a: 0}
+            key3: {r: 0, g: 0, b: 0, a: 0}
+            key4: {r: 0, g: 0, b: 0, a: 0}
+            key5: {r: 0, g: 0, b: 0, a: 0}
+            key6: {r: 0, g: 0, b: 0, a: 0}
+            key7: {r: 0, g: 0, b: 0, a: 0}
+            ctime0: 0
+            ctime1: 65535
+            ctime2: 0
+            ctime3: 0
+            ctime4: 0
+            ctime5: 0
+            ctime6: 0
+            ctime7: 0
+            atime0: 0
+            atime1: 65535
+            atime2: 0
+            atime3: 0
+            atime4: 0
+            atime5: 0
+            atime6: 0
+            atime7: 0
+            m_Mode: 0
+            m_ColorSpace: -1
+            m_NumColorKeys: 2
+            m_NumAlphaKeys: 2
+          gradientAnim:
+            rid: -2
+          angleDeg: 90
+          zoom: 1
+          center: {x: 0, y: 0}
+          zoomAnim:
+            rid: -2
+          centerXAnim:
+            rid: -2
+          centerYAnim:
+            rid: -2
+          space: 0
+          fit: 0
+          texture: 0
+          textureSprite: {fileID: 0}
+          noiseKind: 0
+          gridAngle: 0
+          gridSpacing: 0.5
+          gridLineWidth: 0.08
+          gridVertical: 1
+          gridHorizontal: 1
+          dotSize: 0.5
+          dotSpacing: 0.35
+          dotStagger: 1
+          fillVersion: 1
+    - rid: 2235495243863819022
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 2235495243863819023
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 2235495243863819024
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
