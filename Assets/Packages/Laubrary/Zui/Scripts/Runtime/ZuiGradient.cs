@@ -436,11 +436,17 @@ public class ZuiGradient : ISerializationCallbackReceiver, IZuiRamp
 
     /// One stop per DISTINCT key position across the Gradient's colour AND alpha keys, coloured by evaluating the
     /// Gradient there. On each sub-interval a Blend gradient is linear in both colour and alpha, so linear
-    /// interpolation between these stops reproduces it exactly. A Fixed (stepped) gradient gets a second stop just
-    /// before each boundary, so the step survives as a step instead of becoming a ramp.
+    /// interpolation between these stops reproduces it exactly.
+    ///
+    /// A Fixed (stepped) gradient needs the opposite treatment: each interval is CONSTANT, so it gets a PAIR of
+    /// stops spanning it — start and end, both carrying the interval's own colour (sampled at its MIDPOINT, which
+    /// is right whichever key Unity's Fixed mode reads). Interpolating between the key positions instead, as this
+    /// first did, turns every step into a ramp: measured 816 of 1024 samples wrong on a 3-key stepped gradient
+    /// (T-0221 probe, section A). Two stops therefore share a position at each boundary — a REPEATED position is
+    /// how this codebase already encodes a hard edge (PyreShade.CollapseSteps reads exactly that shape back out
+    /// of Kiln's step-encoded contract ramps), and EvalRamp resolves a zero-width span to the later stop.
     static void BuildStops(Gradient g, List<ZuiGradientStop> into)
     {
-        const float StepEps = 1e-4f;
         var times = new List<float>();
         var ck = g.colorKeys;
         var ak = g.alphaKeys;
@@ -448,17 +454,46 @@ public class ZuiGradient : ISerializationCallbackReceiver, IZuiRamp
         if (ak != null) foreach (var k in ak) times.Add(Mathf.Clamp01(k.time));
         times.Sort();
 
-        bool stepped = g.mode == GradientMode.Fixed;
+        var distinct = new List<float>(times.Count);
         float prev = float.NegativeInfinity;
         foreach (var t in times)
         {
-            if (t - prev < 1e-6f) continue;                      // one stop per distinct position
-            if (stepped && prev > float.NegativeInfinity && t - StepEps > prev)
-                into.Add(new ZuiGradientStop(t - StepEps, g.Evaluate(t - StepEps)));
-            into.Add(new ZuiGradientStop(t, g.Evaluate(t)));
+            if (t - prev < 1e-6f) continue;
+            distinct.Add(t);
             prev = t;
         }
-        if (into.Count == 0) into.Add(new ZuiGradientStop(0f, g.Evaluate(0f)));
+        if (distinct.Count == 0) { into.Add(new ZuiGradientStop(0f, g.Evaluate(0f))); return; }
+
+        if (g.mode != GradientMode.Fixed)
+        {
+            foreach (var t in distinct) into.Add(new ZuiGradientStop(t, g.Evaluate(t)));
+            return;
+        }
+
+        // Unity's Fixed mode reads the NEXT key across each interval, but returns the FIRST key's own colour at
+        // exactly t = 0 (measured, T-0221 probe: Evaluate(0) is key 0's colour, Evaluate(0 + 1e-6) is key 1's).
+        // A leading stop pair reproduces that single point too — EvalRamp returns the first stop at or below its
+        // position, and the second of the pair from there on — so the conversion is exact, not exact-except-one.
+        AddStop(into, distinct[0], g.Evaluate(distinct[0]));
+        for (int i = 0; i + 1 < distinct.Count; i++)
+        {
+            float a = distinct[i], b = distinct[i + 1];
+            Color seg = g.Evaluate((a + b) * 0.5f);
+            AddStop(into, a, seg);
+            AddStop(into, b, seg);
+        }
+        // Everything past the last key holds its colour; EvalRamp clamps beyond the final stop.
+        AddStop(into, distinct[distinct.Count - 1], g.Evaluate(distinct[distinct.Count - 1]));
+    }
+
+    /// Append a stop unless it would repeat the previous one outright (same position AND colour) — a repeated
+    /// position is meaningful (it is how a hard edge is written), a repeated position with the same colour is
+    /// just a handle the author would have to drag off the one underneath it.
+    static void AddStop(List<ZuiGradientStop> into, float pos, Color c)
+    {
+        int n = into.Count;
+        if (n > 0 && Mathf.Approximately(into[n - 1].pos, pos) && into[n - 1].color == c) return;
+        into.Add(new ZuiGradientStop(pos, c));
     }
 
     /// The stops as a Gradient: exact at or below Gradient's 8-key cap, evenly subsampled above it (first and
