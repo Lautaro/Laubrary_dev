@@ -1,0 +1,7 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.LatticeLines",
+    "rootNamespace": "Laubrary.LatticeLines",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Lattice"
+    ]
+}

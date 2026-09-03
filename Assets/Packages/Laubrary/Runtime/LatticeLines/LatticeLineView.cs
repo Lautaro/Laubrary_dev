@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
+using Laubrary.Lattice;
 using UnityEngine;
 
-namespace Laubrary.Lattice
+namespace Laubrary.LatticeLines
 {
     /// <summary>
-    /// Draws every edge of a <see cref="LatticeGraph"/> as a LineRenderer and
-    /// colours it by a consumer-defined integer "state" via a material swap.
+    /// Vector renderer for a <see cref="LatticeGraph"/>: one LineRenderer per
+    /// edge, coloured by material swap from a consumer-defined integer state.
     /// The consumer supplies the materials and two functions: the state of a
     /// whole edge (or -1 when the edge must be coloured per chunk) and the
     /// state of an individual chunk. Per-chunk edges are drawn as one pooled
@@ -72,8 +73,7 @@ namespace Laubrary.Lattice
             {
                 if (!_lineByEdge.TryGetValue(e, out var lr)) continue;
                 int state = UniformState(e);
-                _lastState.TryGetValue(e, out int last);
-                if (!_lastState.ContainsKey(e)) last = Unset;
+                if (!_lastState.TryGetValue(e, out int last)) last = Unset;
 
                 if (state >= 0)
                 {
@@ -144,46 +144,6 @@ namespace Laubrary.Lattice
             lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             lr.receiveShadows = false;
             return lr;
-        }
-
-        /// <summary>
-        /// A solid-colour unlit material using whichever unlit shader the
-        /// project has. With transparent = true the material alpha-blends,
-        /// which URP's Unlit shader does not do by default.
-        /// </summary>
-        public static Material UnlitMaterial(Color c, bool transparent = false)
-        {
-            Shader s = Shader.Find("Universal Render Pipeline/Unlit")
-                    ?? Shader.Find("Sprites/Default")
-                    ?? Shader.Find("Unlit/Color");
-            var m = new Material(s);
-            if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
-            if (m.HasProperty("_Color")) m.SetColor("_Color", c);
-            if (transparent) SetTransparent(m);
-            return m;
-        }
-
-        /// <summary>Writes a colour to a material made by <see cref="UnlitMaterial"/>.</summary>
-        public static void SetUnlitColor(Material m, Color c)
-        {
-            if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
-            if (m.HasProperty("_Color")) m.SetColor("_Color", c);
-        }
-
-        private static void SetTransparent(Material m)
-        {
-            if (m.HasProperty("_Surface"))
-            {
-                m.SetFloat("_Surface", 1f);
-                m.SetFloat("_Blend", 0f);
-                m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                m.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                m.SetInt("_ZWrite", 0);
-                m.DisableKeyword("_ALPHATEST_ON");
-                m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-                m.SetOverrideTag("RenderType", "Transparent");
-            }
-            m.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
         }
     }
 }

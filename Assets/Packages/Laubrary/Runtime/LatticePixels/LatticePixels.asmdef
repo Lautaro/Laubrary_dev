@@ -1,0 +1,7 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.LatticePixels",
+    "rootNamespace": "Laubrary.LatticePixels",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Lattice"
+    ]
+}
