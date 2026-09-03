@@ -1,0 +1,114 @@
+UNIVERSE 156  DRIVEN 139  89.1%
+NOT DRIVEN:
+   Cues#8.cues[0].zoundName
+   Cues#8.delay
+   DebrisScatter#3.animationSource
+   DebrisScatter#3.sampleSource
+   FragmentFracture#1.alphaOverLife
+   FragmentFracture#1.source
+   FragmentFracture#1.sourceVisual
+   Hits#7.delay
+   LayerPlan#0.delay
+   LayerPlan#0.layers.baseOrder
+   LayerPlan#0.layers.sortingLayerName
+   LayerPlan#0.layers.step
+   PaletteSplash#2.sprite
+   PyreBlast#4.source
+   Trail#6.delay
+   Trail#6.trailSource
+   Trajectory#5.delay
+
+DISTINCT CONTROLS SEEN: 177
+MOVED at least once: 89
+NEVER MOVED THE PICTURE: 33
+   Layer Plan | Text | Name -> LayerPlan#0.displayName
+   Layer Plan | Text | (unlabelled) -> LayerPlan#0.layers.layers[0],PaletteSplash#2.layerName
+   Fragment Fracture | Text | Name -> FragmentFracture#1.displayName
+   Fragment Fracture | Int | Min area -> FragmentFracture#1.minPieceAreaPx
+   Fragment Fracture | Toggle | Inherit burst direction -> FragmentFracture#1.useBurstDirection
+   Palette Splash | Text | Name -> PaletteSplash#2.displayName
+   Palette Splash | Toggle | Inherit burst direction -> PaletteSplash#2.inheritBurstDirection
+   Debris Scatter | Text | Name -> DebrisScatter#3.displayName
+   Debris Scatter | Float | Pixels/unit -> DebrisScatter#3.pixelsPerUnit
+   Pyre Blast | Text | Name -> PyreBlast#4.displayName
+   Pyre Blast | Segmented | Rotation -> PyreBlast#4.rotationMode
+   Pyre Blast | MicroMinMax | Angle range -> PyreBlast#4.randomAngleMinDeg,PyreBlast#4.randomAngleMaxDeg
+   Pyre Blast | Int | Seed -> PyreBlast#4.seed
+   Trajectory | Text | Name -> Trajectory#5.displayName
+   Trajectory | Toggle | Inherit burst direction -> Trajectory#5.inheritBurstDirection
+   Trajectory | Toggle | Face velocity -> Trajectory#5.faceVelocity
+   Trajectory | Toggle | Until target ends -> Trajectory#5.untilTargetEnds
+   Trail | Text | Name -> Trail#6.displayName
+   Hits | Text | Name -> Hits#7.displayName
+   Hits | Float | Damage -> Hits#7.damage
+   Cues | Text | Name -> Cues#8.displayName
+   Preview backdrop | Color | Colour -> ChunkSpec.previewBackSplash.cameraColor
+   Pyre Blast | Int | Pattern seed -> PyreBlast#4.formation.seed
+   Trajectory | MicroSlider | Life -> Trajectory#5.lifeSeconds
+   Debris Scatter | MicroMinMax | Sample px -> DebrisScatter#3.samplePxMin,DebrisScatter#3.samplePxMax
+   Debris Scatter | MicroSlider | Shade -> DebrisScatter#3.tumbleShadeStrength
+   Tint | MiniRadio | Mode -> DebrisScatter#3.tintMode
+   Tint | Color | Colour -> DebrisScatter#3.tintColor
+   Tint | MicroSlider | Strength -> DebrisScatter#3.tintStrength
+   Colour remap | Toggle | ✔ -> DebrisScatter#3.modifiers[0].enabled
+   Colour remap | Toggle | Drop Unmatched -> DebrisScatter#3.modifiers[0].dropUnmatched
+   Colour remap | Toggle | Apply Target Alpha -> DebrisScatter#3.modifiers[0].applyTargetAlpha
+   Tint | Int | Edge px -> DebrisScatter#3.edgeThicknessPx
+
+NOT DRIVABLE BY THE HARNESS: 9
+   Fragment Fracture | AssetPicker | Source -> SKIP (asset picker — needs an asset pick)
+   Fragment Fracture | Object | Fallback sprite -> SKIP (object field — needs an asset pick)
+   Palette Splash | Object | Sprite -> SKIP (object field — needs an asset pick)
+   Pyre Blast | AssetPicker | Blast -> SKIP (asset picker — needs an asset pick)
+   Trail | AssetPicker | Trail source -> SKIP (asset picker — needs an asset pick)
+   Preview backdrop | Object | Image -> SKIP (object field — needs an asset pick)
+   Debris Scatter | PropertyField | (unlabelled) -> SKIP (bound list)
+   Debris Scatter | AssetPicker | Animation -> SKIP (asset picker — needs an asset pick)
+   Debris Scatter | Object | Sample source -> SKIP (object field — needs an asset pick)
+
+ACTIONS (not dials): 43
+   Layer Plan | Button:▲ | ▾
+   Layer Plan | Button:▼ | ▾
+   Layer Plan | Button:× | ▾
+   Layer Plan | Button:▲ | (unlabelled)
+   Layer Plan | Button:▼ | (unlabelled)
+   Layer Plan | Button:× | (unlabelled)
+   Layer Plan | Button:Add layer | (unlabelled)
+   Fragment Fracture | Button:▲ | ▾
+   Fragment Fracture | Button:▼ | ▾
+   Fragment Fracture | Button:× | ▾
+   Palette Splash | Button:▲ | ▾
+   Palette Splash | Button:▼ | ▾
+   Palette Splash | Button:× | ▾
+   Debris Scatter | Button:▲ | ▾
+   Debris Scatter | Button:▼ | ▾
+   Debris Scatter | Button:× | ▾
+   Pyre Blast | Button:▲ | ▾
+   Pyre Blast | Button:▼ | ▾
+   Pyre Blast | Button:× | ▾
+   Pyre Blast | Button:Add alternate | (unlabelled)
+   Trajectory | Button:▲ | ▾
+   Trajectory | Button:▼ | ▾
+   Trajectory | Button:× | ▾
+   Trail | Button:▲ | ▾
+   Trail | Button:▼ | ▾
+   Trail | Button:× | ▾
+   Hits | Button:▲ | ▾
+   Hits | Button:▼ | ▾
+   Hits | Button:× | ▾
+   Cues | Button:▲ | ▾
+   Cues | Button:▼ | ▾
+   Cues | Button:× | ▾
+   Cues | Button:× | (unlabelled)
+   Cues | Button:Add cue | (unlabelled)
+   (recipe) | Button:Add capability… | (unlabelled)
+   (recipe) | Button:▶ Play | (unlabelled)
+   (recipe) | Button:⟲ Replay | (unlabelled)
+   (recipe) | Button:Preview in Mirage | (unlabelled)
+   Preview backdrop | Button:Recall… | (unlabelled)
+   Preview backdrop | Button:Save… | (unlabelled)
+   Colour remap | Button:× | ▾
+   Regions  (0) | Button:+ Add region | (unlabelled)
+   Modifiers | Button:+ Add modifier | (unlabelled)
+
+MISSING TOOLTIPS: 0

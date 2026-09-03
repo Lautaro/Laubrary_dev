@@ -1,0 +1,12 @@
+predict i=0 t=0.0000 pos=(-6.802965,-3.716902) frames=0
+predict i=1 t=0.0882 pos=(-6.617278,-2.599232) frames=0
+predict i=2 t=0.1583 pos=(-7.291456,-1.829654) frames=0
+predict i=3 t=0.2432 pos=(-8.384436,-1.605056) frames=0
+predict i=4 t=0.3062 pos=(-9.224371,-2.341525) frames=0
+fire frame=2 withTrajectory=False observeAfter=0
+saw i=0 t=0.0200 pos=(0.000000,0.000000) frames=0 name=~Pool: PyreBlastPlayer
+saw i=1 t=0.0200 pos=(-6.802965,-3.716902) frames=0 name=PyreBlastPlayer (pooled)
+saw i=2 t=0.2676 pos=(-6.617278,-2.599232) frames=1 name=PyreBlastPlayer (pooled)
+saw i=3 t=0.3460 pos=(-7.291456,-1.829654) frames=6 name=PyreBlastPlayer (pooled)
+saw i=4 t=0.4323 pos=(-8.384436,-1.605056) frames=10 name=PyreBlastPlayer (pooled)
+saw i=5 t=0.5070 pos=(-9.224371,-2.341525) frames=15 name=PyreBlastPlayer (pooled)

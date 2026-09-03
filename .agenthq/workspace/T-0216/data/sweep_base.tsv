@@ -1,0 +1,151 @@
+idx	card	kind	label	action	picture	fields	tooltip
+0	Layer Plan	Toggle	On	submit	MOVED	LayerPlan#0.enabled	tip
+1	Layer Plan	Button:▲	▾	SKIP (action, not a dial)	same	-	tip
+2	Layer Plan	Button:▼	▾	SKIP (action, not a dial)	same	-	tip
+3	Layer Plan	Button:×	▾	SKIP (action, not a dial)	same	-	tip
+4	Layer Plan	Text	Name	text+X	same	LayerPlan#0.displayName	tip
+5	Layer Plan	Text	(unlabelled)	text+X	same	LayerPlan#0.layers.layers[0],PaletteSplash#2.layerName	tip
+6	Layer Plan	Button:▲	(unlabelled)	SKIP (action, not a dial)	same	-	tip
+7	Layer Plan	Button:▼	(unlabelled)	SKIP (action, not a dial)	same	-	tip
+8	Layer Plan	Button:×	(unlabelled)	SKIP (action, not a dial)	same	-	tip
+9	Layer Plan	Text	(unlabelled)	text+X	same	LayerPlan#0.layers.layers[1],FragmentFracture#1.layerName	tip
+10	Layer Plan	Button:▲	(unlabelled)	SKIP (action, not a dial)	same	-	tip
+11	Layer Plan	Button:▼	(unlabelled)	SKIP (action, not a dial)	same	-	tip
+12	Layer Plan	Button:×	(unlabelled)	SKIP (action, not a dial)	same	-	tip
+13	Layer Plan	Button:Add layer	(unlabelled)	SKIP (action, not a dial)	same	-	tip
+14	Fragment Fracture	Toggle	On	submit	MOVED	FragmentFracture#1.enabled	tip
+15	Fragment Fracture	Button:▲	▾	SKIP (action, not a dial)	same	-	tip
+16	Fragment Fracture	Button:▼	▾	SKIP (action, not a dial)	same	-	tip
+17	Fragment Fracture	Button:×	▾	SKIP (action, not a dial)	same	-	tip
+18	Fragment Fracture	Text	Name	text+X	same	FragmentFracture#1.displayName	tip
+19	Fragment Fracture	Float	Delay	float+1.37	MOVED	FragmentFracture#1.delay	tip
+20	Fragment Fracture	AssetPicker	Source	SKIP (asset picker — needs an asset pick)	same	-	tip
+21	Fragment Fracture	Object	Fallback sprite	SKIP (object field — needs an asset pick)	same	-	tip
+22	Fragment Fracture	MicroSlider	Pieces	track .78	MOVED	FragmentFracture#1.pieceCount	tip
+23	Fragment Fracture	Int	Min area	int+3	same	FragmentFracture#1.minPieceAreaPx	tip
+24	Fragment Fracture	Int	Seed	int+3	MOVED	FragmentFracture#1.seed	tip
+25	Fragment Fracture	MicroMinMax	Speed	track .93+.06	MOVED	FragmentFracture#1.speedMin,FragmentFracture#1.speedMax	tip
+26	Fragment Fracture	Toggle	Inherit burst direction	submit	same	FragmentFracture#1.useBurstDirection	tip
+27	Fragment Fracture	MicroSlider	Spread	track .78	MOVED	FragmentFracture#1.spreadDeg	tip
+28	Fragment Fracture	MicroSlider	Gravity	track .78	MOVED	FragmentFracture#1.gravity	tip
+29	Fragment Fracture	MicroSlider	Drag	track .78	MOVED	FragmentFracture#1.drag	tip
+30	Fragment Fracture	MicroMinMax	Spin	track .93+.06	MOVED	FragmentFracture#1.angularSpeedMin,FragmentFracture#1.angularSpeedMax	tip
+31	Fragment Fracture	MicroMinMax	Life	track .93+.06	MOVED	FragmentFracture#1.lifeMin,FragmentFracture#1.lifeMax	tip
+32	Fragment Fracture	Curve	Alpha over life	curve key	MOVED	FragmentFracture#1.alphaOverLife	tip
+33	Fragment Fracture	MiniRadio	Layer	radio 1	MOVED	FragmentFracture#1.layerName	tip
+34	Palette Splash	Toggle	On	submit	MOVED	PaletteSplash#2.enabled	tip
+35	Palette Splash	Button:▲	▾	SKIP (action, not a dial)	same	-	tip
+36	Palette Splash	Button:▼	▾	SKIP (action, not a dial)	same	-	tip
+37	Palette Splash	Button:×	▾	SKIP (action, not a dial)	same	-	tip
+38	Palette Splash	Text	Name	text+X	same	PaletteSplash#2.displayName	tip
+39	Palette Splash	Float	Delay	float+1.37	MOVED	PaletteSplash#2.delay	tip
+40	Palette Splash	Object	Sprite	SKIP (object field — needs an asset pick)	same	-	tip
+41	Palette Splash	Toggle	From footprint	submit	MOVED	PaletteSplash#2.emitFromFootprint	tip
+42	Palette Splash	MicroMinMax	Count	track .93+.06	MOVED	PaletteSplash#2.countMin,PaletteSplash#2.countMax	tip
+43	Palette Splash	MicroMinMax	Size px	track .93+.06	MOVED	PaletteSplash#2.sizePxMin,PaletteSplash#2.sizePxMax	tip
+44	Palette Splash	Float	Pixels/unit	float+1.37	MOVED	PaletteSplash#2.pixelsPerUnit	tip
+45	Palette Splash	MicroMinMax	Speed	track .93+.06	MOVED	PaletteSplash#2.speedMin,PaletteSplash#2.speedMax	tip
+46	Palette Splash	Toggle	Inherit burst direction	submit	same	PaletteSplash#2.inheritBurstDirection	tip
+47	Palette Splash	MicroSlider	Spread	track .78	MOVED	PaletteSplash#2.spreadDeg	tip
+48	Palette Splash	MicroSlider	Gravity	track .78	MOVED	PaletteSplash#2.gravity	tip
+49	Palette Splash	MicroSlider	Drag	track .78	MOVED	PaletteSplash#2.drag	tip
+50	Palette Splash	MicroMinMax	Life	track .93+.06	MOVED	PaletteSplash#2.lifeMin,PaletteSplash#2.lifeMax	tip
+51	Palette Splash	Int	Seed	int+3	MOVED	PaletteSplash#2.seed	tip
+52	Palette Splash	Curve	Alpha over life	curve key	MOVED	PaletteSplash#2.alphaOverLife	tip
+53	Palette Splash	MiniRadio	Layer	radio 2	MOVED	PaletteSplash#2.layerName	tip
+54	Debris Scatter	Toggle	On	submit	MOVED	DebrisScatter#3.enabled	tip
+55	Debris Scatter	Button:▲	▾	SKIP (action, not a dial)	same	-	tip
+56	Debris Scatter	Button:▼	▾	SKIP (action, not a dial)	same	-	tip
+57	Debris Scatter	Button:×	▾	SKIP (action, not a dial)	same	-	tip
+58	Debris Scatter	Text	Name	text+X	same	DebrisScatter#3.displayName	tip
+59	Debris Scatter	Float	Delay	float+1.37	MOVED	DebrisScatter#3.delay	tip
+60	Debris Scatter	MiniRadio	Visual	radio 3	same	DebrisScatter#3.visual	tip
+61	Debris Scatter	Float	Pixels/unit	float+1.37	same	DebrisScatter#3.pixelsPerUnit	tip
+62	Debris Scatter	MicroMinMax	Count	track .93+.06	MOVED	DebrisScatter#3.countMin,DebrisScatter#3.countMax	tip
+63	Debris Scatter	MicroMinMax	Speed	track .93+.06	MOVED	DebrisScatter#3.speedMin,DebrisScatter#3.speedMax	tip
+64	Debris Scatter	MicroSlider	Upward bias	track .78	MOVED	DebrisScatter#3.upwardBias	tip
+65	Debris Scatter	MicroSlider	Spread	track .78	MOVED	DebrisScatter#3.spreadDeg	tip
+66	Debris Scatter	MicroSlider	Gravity	track .78	MOVED	DebrisScatter#3.gravity	tip
+67	Debris Scatter	MicroSlider	Drag	track .78	MOVED	DebrisScatter#3.drag	tip
+68	Debris Scatter	MicroMinMax	Spin	track .93+.06	MOVED	DebrisScatter#3.angularSpeedMin,DebrisScatter#3.angularSpeedMax	tip
+69	Debris Scatter	Toggle	Face velocity	submit	MOVED	DebrisScatter#3.faceVelocity	tip
+70	Debris Scatter	MicroMinMax	Life	track .93+.06	MOVED	DebrisScatter#3.lifeMin,DebrisScatter#3.lifeMax	tip
+71	Debris Scatter	MicroMinMax	Size	track .93+.06	MOVED	DebrisScatter#3.sizeMin,DebrisScatter#3.sizeMax	tip
+72	Debris Scatter	Curve	Size over life	curve key	MOVED	DebrisScatter#3.sizeOverLife	tip
+73	Debris Scatter	Curve	Alpha over life	curve key	MOVED	DebrisScatter#3.alphaOverLife	tip
+74	Debris Scatter	Gradient	Colour over life	gradient set	MOVED	DebrisScatter#3.colorOverLife	tip
+75	Floor	Toggle	On	submit	MOVED	DebrisScatter#3.useFloor	tip
+76	Floor	Float	Floor Y	float+1.37	MOVED	DebrisScatter#3.floorY	tip
+77	Floor	MicroSlider	Bounce	track .78	MOVED	DebrisScatter#3.bounciness	tip
+78	Floor	MicroSlider	Friction	track .78	MOVED	DebrisScatter#3.floorFriction	tip
+79	Floor	Toggle	Rest on floor	submit	MOVED	DebrisScatter#3.restOnFloor	tip
+80	Debris Scatter	Int	Seed	int+3	MOVED	DebrisScatter#3.seed	tip
+81	Debris Scatter	MiniRadio	Layer	radio 2	MOVED	DebrisScatter#3.layerName	tip
+82	Pyre Blast	Toggle	On	submit	MOVED	PyreBlast#4.enabled	tip
+83	Pyre Blast	Button:▲	▾	SKIP (action, not a dial)	same	-	tip
+84	Pyre Blast	Button:▼	▾	SKIP (action, not a dial)	same	-	tip
+85	Pyre Blast	Button:×	▾	SKIP (action, not a dial)	same	-	tip
+86	Pyre Blast	Text	Name	text+X	same	PyreBlast#4.displayName	tip
+87	Pyre Blast	Float	Delay	float+1.37	MOVED	PyreBlast#4.delay	tip
+88	Pyre Blast	AssetPicker	Blast	SKIP (asset picker — needs an asset pick)	same	-	tip
+89	Pyre Blast	Button:Add alternate	(unlabelled)	SKIP (action, not a dial)	same	-	tip
+90	Pyre Blast	Segmented	Pattern	segment 2	MOVED	PyreBlast#4.useFormation	tip
+91	Pyre Blast	Pad	Offset	pad .8	MOVED	PyreBlast#4.offset	tip
+92	Pyre Blast	Segmented	Rotation	segment 1	same	PyreBlast#4.rotationMode	tip
+93	Pyre Blast	MicroMinMax	Angle range	track .93+.06	same	PyreBlast#4.randomAngleMinDeg,PyreBlast#4.randomAngleMaxDeg	tip
+94	Pyre Blast	MicroMinMax	Scale	track .93+.06	MOVED	PyreBlast#4.scaleMin,PyreBlast#4.scaleMax	tip
+95	Pyre Blast	MicroSlider	On screen	track .78	MOVED	PyreBlast#4.blastSeconds	tip
+96	Pyre Blast	Int	Seed	int+3	same	PyreBlast#4.seed	tip
+97	Pyre Blast	MiniRadio	Layer	radio 2	MOVED	PyreBlast#4.layerName	tip
+98	Trajectory	Toggle	On	submit	MOVED	Trajectory#5.enabled	tip
+99	Trajectory	Button:▲	▾	SKIP (action, not a dial)	same	-	tip
+100	Trajectory	Button:▼	▾	SKIP (action, not a dial)	same	-	tip
+101	Trajectory	Button:×	▾	SKIP (action, not a dial)	same	-	tip
+102	Trajectory	Text	Name	text+X	same	Trajectory#5.displayName	tip
+103	Trajectory	MiniRadio	Target	radio 1	same	-	tip
+104	Trajectory	MicroMinMax	Speed	track .93+.06	MOVED	Trajectory#5.speedMin,Trajectory#5.speedMax	tip
+105	Trajectory	MicroSlider	Upward bias	track .78	MOVED	Trajectory#5.upwardBias	tip
+106	Trajectory	Toggle	Inherit burst direction	submit	same	Trajectory#5.inheritBurstDirection	tip
+107	Trajectory	MicroSlider	Spread	track .78	MOVED	Trajectory#5.spreadDeg	tip
+108	Trajectory	MicroSlider	Gravity	track .78	MOVED	Trajectory#5.gravity	tip
+109	Trajectory	MicroSlider	Drag	track .78	MOVED	Trajectory#5.drag	tip
+110	Trajectory	Toggle	Face velocity	submit	same	Trajectory#5.faceVelocity	tip
+111	Trajectory	Toggle	Until target ends	submit	same	Trajectory#5.untilTargetEnds	tip
+112	Trajectory	Int	Seed	int+3	MOVED	Trajectory#5.seed	tip
+113	Trail	Toggle	On	submit	MOVED	Trail#6.enabled	tip
+114	Trail	Button:▲	▾	SKIP (action, not a dial)	same	-	tip
+115	Trail	Button:▼	▾	SKIP (action, not a dial)	same	-	tip
+116	Trail	Button:×	▾	SKIP (action, not a dial)	same	-	tip
+117	Trail	Text	Name	text+X	same	Trail#6.displayName	tip
+118	Trail	MiniRadio	Target	radio 2	MOVED	-	tip
+119	Trail	AssetPicker	Trail source	SKIP (asset picker — needs an asset pick)	same	-	tip
+120	Trail	MicroSlider	Interval	track .78	MOVED	Trail#6.interval	tip
+121	Hits	Toggle	On	submit	MOVED	Hits#7.enabled	tip
+122	Hits	Button:▲	▾	SKIP (action, not a dial)	same	-	tip
+123	Hits	Button:▼	▾	SKIP (action, not a dial)	same	-	tip
+124	Hits	Button:×	▾	SKIP (action, not a dial)	same	-	tip
+125	Hits	Text	Name	text+X	same	Hits#7.displayName	tip
+126	Hits	MiniRadio	Target	radio 2	MOVED	-	tip
+127	Hits	Float	Damage	float+1.37	same	Hits#7.damage	tip
+128	Hits	MicroSlider	Radius scale	track .78	MOVED	Hits#7.radiusScale	tip
+129	Cues	Toggle	On	submit	MOVED	Cues#8.enabled	tip
+130	Cues	Button:▲	▾	SKIP (action, not a dial)	same	-	tip
+131	Cues	Button:▼	▾	SKIP (action, not a dial)	same	-	tip
+132	Cues	Button:×	▾	SKIP (action, not a dial)	same	-	tip
+133	Cues	Text	Name	text+X	same	Cues#8.displayName	tip
+134	Cues	Float	At	float+1.37	MOVED	Cues#8.cues[0].time	tip
+135	Cues	Segmented	(unlabelled)	segment 1	MOVED	Cues#8.cues[0].kind	tip
+136	Cues	Text	(unlabelled)	text+X	MOVED	Cues#8.cues[0].codeName	tip
+137	Cues	Button:×	(unlabelled)	SKIP (action, not a dial)	same	-	tip
+138	Cues	Button:Add cue	(unlabelled)	SKIP (action, not a dial)	same	-	tip
+139	(recipe)	Button:Add capability…	(unlabelled)	SKIP (action, not a dial)	same	-	tip
+140	(recipe)	Button:▶ Play	(unlabelled)	SKIP (action, not a dial)	same	-	tip
+141	(recipe)	Button:⟲ Replay	(unlabelled)	SKIP (action, not a dial)	same	-	tip
+142	(recipe)	Toggle	Loop	submit	same	-	tip
+143	(recipe)	Button:Preview in Mirage	(unlabelled)	SKIP (action, not a dial)	same	-	tip
+144	(recipe)	MicroSlider	Burst direction	track .78	MOVED	ChunkSpec.directionDeg	tip
+145	Preview backdrop	Button:Recall…	(unlabelled)	SKIP (action, not a dial)	same	-	tip
+146	Preview backdrop	Button:Save…	(unlabelled)	SKIP (action, not a dial)	same	-	tip
+147	Preview backdrop	Color	Colour	colour set	same	ChunkSpec.previewBackSplash.cameraColor	tip
+148	Preview backdrop	Object	Image	SKIP (object field — needs an asset pick)	same	-	tip
+
