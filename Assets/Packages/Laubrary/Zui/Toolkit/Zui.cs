@@ -417,6 +417,14 @@ namespace Laubrary.Zui
             Action<int, bool> onToggled, string[] icons = null)
             => ZuiSegmented.Multi(isOn, labels, tooltip, onToggled, icons);
 
+        /// The nine-point anchor picker: a 3×3 grid whose cell IS the point, plus the chosen anchor's name
+        /// beside it. `selected` is 0..8 row-major from the top-left (see ZuiAnchorGrid.Names). Use this
+        /// wherever a box attaches by one of its corners/edges/centre — never a nine-entry radio strip or
+        /// dropdown, which makes the author translate a word back into a position on every visit.
+        public static ZuiAnchorGrid AnchorGrid(int selected, string tooltip, Action<int> onChanged,
+            Action onBeforeMutate = null)
+            => new ZuiAnchorGrid(selected, tooltip, onChanged, onBeforeMutate);
+
         /// ROUTED to the ZUI button-toggle (2026-08-02): the wrapper's whole point is that call sites keep
         /// their shape while the resolved control obeys the rulebook — a bool never renders as an OS
         /// checkbox on any surface. Every existing Z.Toggle call site healed at once by this one line.

@@ -353,6 +353,7 @@
 .zui-value,
 .zui-fill,
 .zui-microslider,
+.zui-anchorgrid,
 .zui-hgroup,
 .zui-row {
     margin-bottom: 4px;
@@ -1008,4 +1009,79 @@
     padding-left: 4px;
     padding-top: 2px;
     padding-bottom: 2px;
+}
+
+/* Anchor grid — the nine-point picker (ZuiAnchorGrid) ---------------------- */
+/* Declared AFTER .zui-togglebutton so the cell's own metrics win the specificity tie on source order:
+   a cell is a square the size of a hit target, not a text button that happens to be empty. */
+
+.zui-anchorgrid {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* Cross-axis guard — the same bug, and the same fix, as .unity-toggle / .zui-togglebutton / .zui-chip
+   above. flex-grow governs only the MAIN axis, so in a COLUMN body (a ZuiBox/ZuiSection body) this
+   would inherit align-items:stretch and run the anchor name out to the pane edge. Inside a row the
+   cross axis is height, so those contexts keep the row's vertical centring instead. */
+.zui-root .zui-anchorgrid {
+    align-self: flex-start;
+}
+
+.zui-root .zui-row .zui-anchorgrid,
+.zui-root .zui-field .zui-anchorgrid,
+.zui-root .zui-hgroup .zui-anchorgrid,
+.zui-root .zui-box__titlerow .zui-anchorgrid,
+.zui-root .zui-section__header .zui-anchorgrid {
+    align-self: center;
+}
+
+.zui-anchorgrid__grid {
+    flex-shrink: 0;
+}
+
+/* 3px between rows and between cells. USS here has no adjacent-sibling combinator, so the gap is on
+   every row/cell and the first one in each direction takes it back — the same __first idiom the
+   segmented control already uses. */
+.zui-anchorgrid__row {
+    flex-direction: row;
+    margin-top: 3px;
+}
+
+.zui-anchorgrid__row--first {
+    margin-top: 0;
+}
+
+.zui-anchorgrid__cell {
+    width: 25px;
+    height: 25px;
+    min-width: 25px;
+    flex-shrink: 0;
+    flex-grow: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    margin-right: 0;
+    margin-left: 3px;
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    -unity-text-align: middle-center;
+}
+
+.zui-anchorgrid__cell--first {
+    margin-left: 0;
+}
+
+/* A cell is 25px tall by declaration, so it must not be stretched to the row's height nor pushed off
+   centre by the generic togglebutton guard. */
+.zui-root .zui-anchorgrid__row .zui-anchorgrid__cell {
+    align-self: center;
+}
+
+.zui-anchorgrid__name {
+    margin-left: 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
 }

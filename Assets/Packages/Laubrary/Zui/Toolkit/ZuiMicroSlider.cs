@@ -55,7 +55,11 @@ namespace Laubrary.Zui
         {
             _min = min; _max = Mathf.Max(min + 1e-6f, max);
             _value = Mathf.Clamp(value, _min, _max);
-            _onChanged = onChanged; _default = defaultValue;
+            // Clamp the default into the track the same way SetValue would, so the tooltip never PROMISES a
+            // number the double-click cannot actually produce (a default outside a narrowed [Range] used to
+            // read as a broken reset).
+            _onChanged = onChanged;
+            _default = defaultValue.HasValue ? Mathf.Clamp(defaultValue.Value, _min, _max) : (float?)null;
             _onBeforeMutate = onBeforeMutate; _decimals = decimals;
             // The display-options menu is now the DEFAULT for every ZUI MicroSlider — when no explicit prefsKey is
             // given, the caption is the persistence key ("lbl:<label>"), so a slider remembers its toggles by name.
@@ -65,8 +69,11 @@ namespace Laubrary.Zui
             _showNumInput   = EditorPrefs.GetBool(PrefKey("num"), false);
             // Append the drag-modifier hint to the hover tooltip so the Shift-fine / double-click gestures are
             // discoverable (the element itself is what receives the hover — the caption ignores picking).
+            // THE ONE PLACE the reset suffix is composed: every slider in the toolkit — hand-written or drawn
+            // by ZuiReflect — gets the same sentence, with the actual number spelled out rather than the word
+            // "default", so the author can tell what a double-click will do without performing it first.
             this.tooltip = tooltip + "  ·  Drag to set; Shift = fine"
-                + (_default.HasValue ? "; double-click resets to default." : ".")
+                + (_default.HasValue ? ". Double-click to reset to " + Format(_default.Value) + "." : ".")
                 + (HasPrefs ? "  ·  Right-click for display options." : "");
 
             AddToClassList("zui-microslider");
@@ -136,14 +143,21 @@ namespace Laubrary.Zui
             menu.Show();
         }
 
+        /// How this slider prints a number — the in-track readout and the tooltip's reset hint must agree, or
+        /// "resets to 0.5" sits above a track that then reads "1" (same value, two conventions).
+        /// Decimals scale to the range, matching the old MicroSlider's AutoFormat: a 0..1 dial wants more
+        /// places than a 0..360 one.
+        string Format(float v)
+        {
+            float span = _max - _min;
+            string fmt = _decimals >= 0 ? "F" + _decimals : span <= 3f ? "0.##" : span <= 40f ? "0.#" : "0";
+            return v.ToString(fmt);
+        }
+
         void UpdateValueLabel()
         {
             if (!_showValueLabel) return;
-            // Decimals scale to the range, matching the old MicroSlider's AutoFormat: a 0..1 dial wants
-            // more places than a 0..360 one.
-            float span = _max - _min;
-            string fmt = _decimals >= 0 ? "F" + _decimals : span <= 3f ? "0.##" : span <= 40f ? "0.#" : "0";
-            _valueLabel.text = _value.ToString(fmt);
+            _valueLabel.text = Format(_value);
         }
 
         float ValueFromX(float localX)

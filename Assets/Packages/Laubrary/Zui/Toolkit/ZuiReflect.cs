@@ -140,6 +140,75 @@ namespace Laubrary.Zui
 
         static readonly Dictionary<Type, FieldInfo[]> s_fieldCache = new();
 
+        // ── field-initializer defaults (double-click reset) ──────────────────────────
+        //
+        // A ZuiMicroSlider offers double-click-to-reset only when it was TOLD what to reset to, and a
+        // reflected field has nowhere to declare that: `public float radius = 0.35f;` is the author's
+        // statement of intent, but it lives in IL, not in an attribute. So read it back off a fresh
+        // instance of the owner's type — one throwaway object per type, kept for the session — and hand
+        // the number to the slider. Nothing else about the reflected control changes: the reset routes
+        // through the same onBeforeMutate/onChanged pair as a drag, so a host that already records Undo
+        // gets one undo step and one re-evaluate for free, with no per-tool wiring.
+
+        static readonly Dictionary<Type, object> s_defaultProbe = new();
+
+        /// A throwaway instance of `t` whose fields still hold their initializers, or null when one cannot
+        /// be made SAFELY. Deliberately conservative — a missing default costs a reset, a bad `new` costs a
+        /// broken inspector:
+        ///   • a UnityEngine.Object (ScriptableObject/MonoBehaviour) is never constructed with `new` — it
+        ///     needs its own factory and would run OnEnable on a phantom object;
+        ///   • an abstract or open generic type cannot be constructed at all — for a [SerializeReference]
+        ///     slot the caller passes the CONCRETE runtime type of the assigned instance, which can be;
+        ///   • a type with no parameterless constructor, or one that throws, yields null rather than an error.
+        static object DefaultProbe(Type t)
+        {
+            if (t == null) return null;
+            if (s_defaultProbe.TryGetValue(t, out var cached)) return cached;
+            object made = null;
+            bool constructible = !typeof(UnityEngine.Object).IsAssignableFrom(t)
+                                 && !t.IsAbstract && !t.ContainsGenericParameters
+                                 && (t.IsValueType || t.GetConstructor(Type.EmptyTypes) != null);
+            if (constructible)
+            {
+                try { made = Activator.CreateInstance(t); }
+                catch { made = null; }
+            }
+            s_defaultProbe[t] = made;
+            return made;
+        }
+
+        /// The number `field` holds on a fresh `ownerType` — what a double-click on its slider restores.
+        /// Null when no probe could be made or the field is not a plain float/int.
+        static float? DefaultNumberOf(Type ownerType, FieldInfo field)
+        {
+            var probe = DefaultProbe(ownerType);
+            if (probe == null) return null;
+            try
+            {
+                object dv = field.GetValue(probe);
+                if (dv is float f) return f;
+                if (dv is int i) return i;
+                return null;
+            }
+            catch { return null; }
+        }
+
+        /// The same, one level deeper: the float inside a duck-typed wrapper field (a Rulesets RuleParam's
+        /// `staticValue`) on a fresh owner. Null when either level is unavailable.
+        static float? DefaultWrappedNumberOf(Type ownerType, FieldInfo field, PropertyInfo wrapperProp)
+        {
+            var probe = DefaultProbe(ownerType);
+            if (probe == null || wrapperProp == null) return null;
+            try
+            {
+                object wrapper = field.GetValue(probe);
+                if (wrapper == null) return null;
+                object dv = wrapperProp.GetValue(wrapper);
+                return dv is float f ? f : (float?)null;
+            }
+            catch { return null; }
+        }
+
         /// Build a control for every field of `owner`, appended to `root`.
         public static void BuildFields(VisualElement root, object owner, Options opt)
         {
@@ -307,7 +376,8 @@ namespace Laubrary.Zui
             {
                 float hue = (float)v;
                 var slider = Z.MicroSlider(nice, hue, range?.min ?? 0f, range?.max ?? 360f, tip,
-                    nv => Set(nv), opt.ControlWidth, showValue: true);
+                    nv => Set(nv), opt.ControlWidth, showValue: true,
+                    defaultValue: DefaultNumberOf(owner.GetType(), field));
                 var swatch = Z.Color(Color.HSVToRGB(Mathf.Repeat(hue, 360f) / 360f, 1f, 1f),
                     tip + "  •  Click the swatch to choose a colour, or use the EYEDROPPER beside it to " +
                     "sample one from anywhere on screen — including the sprite in the preview above. Only " +
@@ -324,9 +394,12 @@ namespace Laubrary.Zui
                 // ranged scalar is a MicroSlider (label + value INSIDE the track), never a plain Slider + a
                 // separate numeric field. Unbounded → a scrub Float wrapped in a Z.Field for its external label.
                 // The MicroSlider carries its OWN caption, so it is NOT wrapped in a Z.Field (that prints twice).
+                // `defaultValue` is the field's own initializer, read off a fresh owner (see DefaultProbe) —
+                // it is what makes double-click-to-reset work on a reflected dial at all.
                 return range != null
                     ? (VisualElement)Z.MicroSlider(nice, (float)v, range.min, range.max, tip,
-                        nv => Set(nv), opt.ControlWidth, showValue: true)
+                        nv => Set(nv), opt.ControlWidth, showValue: true,
+                        defaultValue: DefaultNumberOf(owner.GetType(), field))
                     : Z.Field(nice, tip, Z.Float((float)v, tip, nv => Set(nv), 80f));
 
             if (t == typeof(int))
@@ -335,7 +408,8 @@ namespace Laubrary.Zui
                 // thumbed SliderInt, for a count). Unbounded → a scrub Int wrapped in a Z.Field for its label.
                 return range != null
                     ? (VisualElement)Z.MicroSlider(nice, (int)v, range.min, range.max, tip,
-                        nv => Set(Mathf.RoundToInt(nv)), opt.ControlWidth, showValue: true, decimals: 0)
+                        nv => Set(Mathf.RoundToInt(nv)), opt.ControlWidth, showValue: true,
+                        defaultValue: DefaultNumberOf(owner.GetType(), field), decimals: 0)
                     : Z.Field(nice, tip, Z.Int((int)v, tip, nv => Set(nv), 80f));
 
             if (t == typeof(bool))
@@ -470,7 +544,8 @@ namespace Laubrary.Zui
                 // unbounded → a scrub Float wrapped for its external label.
                 return range != null
                     ? (VisualElement)Z.MicroSlider(nice, cur, range.min, range.max, tip,
-                        SetWrapped, opt.ControlWidth, showValue: true)
+                        SetWrapped, opt.ControlWidth, showValue: true,
+                        defaultValue: DefaultWrappedNumberOf(owner.GetType(), field, wrapperProp))
                     : Z.Field(nice, tip, Z.Float(cur, tip, SetWrapped, 80f));
             }
 
