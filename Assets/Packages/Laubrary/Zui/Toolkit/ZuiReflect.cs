@@ -70,6 +70,15 @@ namespace Laubrary.Zui
 
             int sel = 0;
             for (int i = 0; i < values.Length; i++) if (values.GetValue(i).Equals(value)) { sel = i; break; }
+
+            // A short set is a Z.Segmented, a long one wraps as mini-radios — the same split every hand-written
+            // ZUI window already makes (ui-layout-rules: "Segmented for short 2–3 single-line sets", and "the
+            // same KIND of value should use the same control everywhere"). Before this, a three-option enum
+            // drawn by hand and the same enum drawn by reflection looked like two different controls in one
+            // window, which reads as an oversight even when each choice is defensible on its own.
+            if (values.Length <= 3)
+                return Z.Segmented(sel, labels, tooltip, i => onChanged?.Invoke((Enum)values.GetValue(i)));
+
             return Z.MiniRadio(sel, labels, tooltip, i => onChanged?.Invoke((Enum)values.GetValue(i)), wrap: true);
         }
 
@@ -115,6 +124,13 @@ namespace Laubrary.Zui
             /// host hides that mode (allowMinMax = false) and the meaningless runtime Duration/Warmup/Loop
             /// row (hideCurveTiming = true) instead of offering controls that do nothing.
             public Action<FieldInfo, ZuiValueControl.Options> ConfigureValue;
+            /// What a double-click on this field's slider should restore, when the field's own initializer is
+            /// not the whole story. Returning null (or leaving this null) falls back to the initializer read
+            /// off a fresh owner, which is the right answer almost everywhere. The exception is a field whose
+            /// registered default depends on the CONTEXT the object is used in — DotGen's Grid is 8x7 on a root
+            /// generator and 4x4 on a child, one type serving two roles — where a reset to the type's own
+            /// number would quietly be the wrong number.
+            public Func<FieldInfo, float?> DefaultFor;
             public float ControlWidth = 150f;
         }
 
@@ -399,7 +415,7 @@ namespace Laubrary.Zui
                 return range != null
                     ? (VisualElement)Z.MicroSlider(nice, (float)v, range.min, range.max, tip,
                         nv => Set(nv), opt.ControlWidth, showValue: true,
-                        defaultValue: DefaultNumberOf(owner.GetType(), field))
+                        defaultValue: opt.DefaultFor?.Invoke(field) ?? DefaultNumberOf(owner.GetType(), field))
                     : Z.Field(nice, tip, Z.Float((float)v, tip, nv => Set(nv), 80f));
 
             if (t == typeof(int))
@@ -409,7 +425,8 @@ namespace Laubrary.Zui
                 return range != null
                     ? (VisualElement)Z.MicroSlider(nice, (int)v, range.min, range.max, tip,
                         nv => Set(Mathf.RoundToInt(nv)), opt.ControlWidth, showValue: true,
-                        defaultValue: DefaultNumberOf(owner.GetType(), field), decimals: 0)
+                        defaultValue: opt.DefaultFor?.Invoke(field) ?? DefaultNumberOf(owner.GetType(), field),
+                        decimals: 0)
                     : Z.Field(nice, tip, Z.Int((int)v, tip, nv => Set(nv), 80f));
 
             if (t == typeof(bool))
@@ -759,6 +776,7 @@ namespace Laubrary.Zui
             Skip = o.Skip,
             FloatWrapperProperty = o.FloatWrapperProperty,
             ConfigureValue = o.ConfigureValue,
+            DefaultFor = o.DefaultFor,
             ControlWidth = 100f,
         };
 

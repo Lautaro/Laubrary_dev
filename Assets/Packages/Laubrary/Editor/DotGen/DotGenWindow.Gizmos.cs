@@ -25,11 +25,11 @@
 //     A real document can have dozens of generators; drawing every one's placement/selector/mutator/drawer
 //     gizmos at once would be visual noise a single-generator scope avoids. The Generator Area gizmo was
 //     already limited to the selected generator by the reference itself (POC §13.1) in every mode.
-//  2. Hovered-mode Generator Area gizmo has nothing to trigger it: DotGenWindow.cs's tree rows only carry a
-//     Clickable (selection), no PointerEnter/PointerLeave, and no generator-hover field exists on the window
-//     (only `hoveredModuleId`, for CARDS, in DotGenWindow.Cards.cs). So today Hovered mode only ever shows a
-//     hovered card's specific module gizmo, never the Generator Area outline. Wiring tree-row hover needs an
-//     edit to DotGenWindow.cs, which is out of scope (and off-limits) for this task — flagged for the PM.
+//  2. Hovered mode is driven from BOTH a card (its own module's gizmo) and a Hierarchy tree ROW (that
+//     generator's Area outline, `hoveredGeneratorId` in DotGenWindow.cs). A row wins when both are set,
+//     because the pointer can only be over one of them and the row is the more specific request. The row
+//     half is deliberately not limited to the selected generator: asking "where does that one sit?" without
+//     leaving the one being edited is the only thing hovering a row can mean.
 //  3. The Selector gizmo reads each dot's own `DotPoint.area` (populated by the evaluator) to find which
 //     area a base dot belongs to, rather than the reference's `Math.floor(i / (base.length/areas.length))`
 //     guess — strictly more accurate, and free, since the field is already sitting on every DotPoint.
@@ -99,9 +99,15 @@ namespace Laubrary.DotGen.Editor
             if (mode == DotGizmoMode.Off) return;
 
             var gen = doc.Selected;
-            if (gen == null) return;
-            var gd = Result.For(gen);
-            if (gd == null) return;   // a disabled selected generator evaluates to nothing
+            var gd = gen != null ? Result.For(gen) : null;   // a disabled selected generator evaluates to nothing
+
+            // A hovered TREE ROW asks about a generator other than the selected one, so it is resolved on its
+            // own rather than through the selection — that is the whole point of hovering it.
+            DotGenerator hoverGen = mode == DotGizmoMode.Hovered && !string.IsNullOrEmpty(hoveredGeneratorId)
+                ? doc.Find(hoveredGeneratorId) : null;
+            var hoverGd = hoverGen != null ? Result.For(hoverGen) : null;
+
+            if (gd == null && hoverGd == null) return;
 
             Handles.BeginGUI();
             var prevColor = Handles.color;
@@ -109,18 +115,21 @@ namespace Laubrary.DotGen.Editor
             switch (mode)
             {
                 case DotGizmoMode.Hovered:
-                    // Per the header's decision 2: no tree-row hover exists yet, so only a hovered card's own
-                    // module ever draws here — never the Generator Area.
-                    DrawForModule(gen, gd, hoveredModuleId);
+                    // A tree row wins over a card: the pointer can only be over one of them, and the row is
+                    // the more specific answer to "show me that generator".
+                    if (hoverGd != null) DrawGeneratorArea(hoverGen, hoverGd);
+                    else if (gd != null) DrawForModule(gen, gd, hoveredModuleId);
                     break;
 
                 case DotGizmoMode.Selected:
+                    if (gd == null) break;
                     // Null means "the generator's own area" (DotGenWindow.Cards.cs's own doc comment).
                     if (string.IsNullOrEmpty(selectedModuleId)) DrawGeneratorArea(gen, gd);
                     else DrawForModule(gen, gd, selectedModuleId);
                     break;
 
                 case DotGizmoMode.All:
+                    if (gd == null) break;
                     DrawGeneratorArea(gen, gd);
                     var placement = gen.ActivePlacement;
                     if (placement != null) DrawPlacementGizmo(gen, gd, placement);

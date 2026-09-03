@@ -209,8 +209,7 @@ namespace Laubrary.DotGen.Editor
                 + ". Each method keeps its own settings, so switching away and back brings them with it.";
 
             placementHost.Add(Z.Field("Method", methodTip,
-                Z.MiniRadio(sel, labels, methodTip,
-                    i => SetPlacementMethod(g, entries[i]), wrap: true)));
+                Choice(sel, labels, methodTip, i => SetPlacementMethod(g, entries[i]))));
 
             var p = g.ActivePlacement;
             if (p == null)
@@ -221,12 +220,33 @@ namespace Laubrary.DotGen.Editor
             }
 
             string category = p.Meta?.DisplayName ?? "Placement";
+            // No title on this card: the Method row directly above it already names the placement, and a card
+            // headed "Grid" under a radio reading "Grid" says the same thing twice.
             placementHost.Add(BuildCard(p, category,
                 category + " — the one placement this generator is running. A generator has exactly one, so "
                 + "this card cannot be turned off or removed; choose a different method above instead.",
                 listHost: null, rebuild: RebuildPlacement, onMoved: null, onRemove: null,
                 canEnable: false, canRename: false,
-                buildBody: body => ZuiReflect.FlowFields(body, p, ModuleFieldOptions(RebuildPlacement, null))));
+                buildBody: body =>
+                {
+                    var o = ModuleFieldOptions(RebuildPlacement, null);
+                    o.DefaultFor = f => RolePlacementDefault(g, p, f);
+                    ZuiReflect.FlowFields(body, p, o);
+                },
+                showCategory: false));
+        }
+
+        /// What a double-click on a placement dial restores. Almost always the type's own initializer (null
+        /// hands the question back to the reflection drawer) — but a Grid is 8x7 on a root generator and 4x4 on
+        /// a child, and the generator, not the Grid type, is what knows which. Resolved from a FRESH instance
+        /// put through the same role pass a new placement gets, so the reset and the creation can never drift.
+        float? RolePlacementDefault(DotGenerator g, DotPlacement active, System.Reflection.FieldInfo f)
+        {
+            if (g == null || !(active is DotGridPlacement)) return null;
+            if (f.Name != "columns" && f.Name != "rows") return null;
+            var fresh = new DotGridPlacement();
+            g.ApplyRolePlacementDefaults(fresh);
+            return f.Name == "columns" ? fresh.columns : fresh.rows;
         }
 
         /// Switch method. `UsePlacement` activates the bank's existing instance for that type, or creates it
@@ -490,11 +510,14 @@ namespace Laubrary.DotGen.Editor
         /// placement has no grip/enable/remove, a selector has no grip, a mutator and a drawer have all of it.
         VisualElement BuildCard(DotModule m, string category, string categoryTip,
             VisualElement listHost, Action rebuild, Action<int, int> onMoved, Action onRemove,
-            bool canEnable, bool canRename, Action<VisualElement> buildBody)
+            bool canEnable, bool canRename, Action<VisualElement> buildBody, bool showCategory = true)
         {
             var card = Z.Box(null, null);
             card.AddToClassList(CardClass);
             card.userData = m.id;
+            // With no title in the header there is nothing left to hover for an explanation, so the card
+            // itself carries the one the label would have had.
+            if (!showCategory) card.tooltip = categoryTip;
 
             var header = Z.Row();
             header.style.flexWrap = Wrap.NoWrap;
@@ -547,19 +570,25 @@ namespace Laubrary.DotGen.Editor
                         EditorUtility.SetDirty(doc);
                         OnModuleRenamed(m);
                     }, 0f);
+                // The name is the header's variable-width content, so it takes the slack itself rather than
+                // sharing it with a flexible spacer — a field sized to half the slack clipped the last letter
+                // of an ordinary default name ("Edge margin" → "Edge margi"), which reads as a data bug.
                 nameField.style.flexGrow = 1f;
                 nameField.style.flexShrink = 1f;
-                nameField.style.minWidth = 60f;
+                nameField.style.minWidth = 90f;
                 nameField.AddToClassList("zui-audit-allow-stretch");
                 header.Add(nameField);
                 nonFolding.Add(nameField);
 
-                var cat = Z.Text(category, ZuiText.Small, categoryTip);
-                cat.style.flexShrink = 0f;
-                cat.style.whiteSpace = WhiteSpace.NoWrap;
-                header.Add(cat);
+                if (showCategory)
+                {
+                    var cat = Z.Text(category, ZuiText.Small, categoryTip);
+                    cat.style.flexShrink = 0f;
+                    cat.style.whiteSpace = WhiteSpace.NoWrap;
+                    header.Add(cat);
+                }
             }
-            else
+            else if (showCategory)
             {
                 var cat = Z.Text(category, ZuiText.Body, categoryTip);
                 cat.style.flexShrink = 0f;
@@ -567,7 +596,9 @@ namespace Laubrary.DotGen.Editor
                 header.Add(cat);
             }
 
-            header.Add(Z.Flexible());
+            // A card whose name field already eats the slack needs no spacer; one without a name field does,
+            // or its × would sit against the caret instead of hard right.
+            if (!canRename) header.Add(Z.Flexible());
 
             if (onRemove != null)
             {

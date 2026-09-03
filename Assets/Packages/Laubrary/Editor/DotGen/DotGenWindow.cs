@@ -171,6 +171,9 @@ namespace Laubrary.DotGen.Editor
             leftPane = left;
             left.style.width = Mathf.Clamp(leftPaneWidth, LeftPaneMin, LeftPaneMax);
             left.style.flexShrink = 0f;
+            // Nothing in this pane is ever wider than the pane, so the horizontal scroller is an inert stub —
+            // and a horizontal scrollbar on a pane meant to fit is read as a layout bug, not as chrome.
+            left.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
             left.style.minHeight = 0f;
             left.contentContainer.style.flexGrow = 1f;
 
@@ -288,14 +291,14 @@ namespace Laubrary.DotGen.Editor
 
             seedField = Z.Int(d.seed, "The one number every random draw in this document comes from. "
                 + "The same seed always gives the same picture.",
-                v => Dirty(() => d.seed = Mathf.Clamp(v, 0, 999998), "Set DotGen seed"), 80f);
+                v => Dirty(() => d.seed = Mathf.Clamp(v, 0, 999998), "Set DotGen seed"), 60f);
+            // Seed, its reroll and the resolution are three short document-wide dials — one row, not three.
             frameSection.Add(Z.Row(
                 Z.Field("Seed", "The one number every random draw in this document comes from.", seedField),
-                Z.Button("New seed", "Draw a different composition from the same settings.", NewSeed)));
-
-            frameSection.Add(Dial("Frame size", d.frameSize, 64f, 2048f,
-                "Resolution of the rendered frame, in pixels. Exports at this size too.",
-                v => d.frameSize = Mathf.RoundToInt(v), 512f, 0));
+                Z.Button("New seed", "Draw a different composition from the same settings.", NewSeed),
+                Dial("Frame size", d.frameSize, 64f, 2048f,
+                    "Resolution of the rendered frame, in pixels. Exports at this size too.",
+                    v => d.frameSize = Mathf.RoundToInt(v), 512f, 0, 118f)));
 
             frameSection.Add(Z.Field("Background", "The colour behind everything.",
                 Z.Color(d.background, "The colour behind everything.",
@@ -435,6 +438,11 @@ namespace Laubrary.DotGen.Editor
                 treeHost.Add(BuildTreeRow(tree, flat[i]));
 
             RebuildHierarchyButtons();
+
+            // Fill the fresh rows from the evaluation already in hand. Without this every rebuilt row reads
+            // "—" until the preview next repaints, so clicking through the tree flashes the counts away and
+            // back — the readouts are refreshed from the RENDER, which happens a frame later than the rows.
+            if (result != null) RefreshReadouts(result);
         }
 
         VisualElement BuildTreeRow(DotGenTree tree, DotGenerator g)
@@ -495,7 +503,24 @@ namespace Laubrary.DotGen.Editor
             treeMeta.Add((g.id, meta, count));
 
             wrap.AddManipulator(new Clickable(() => SelectGenerator(g.id)));
+
+            // Hovering a row is the one way to ask "where does THAT generator sit?" without leaving the one you
+            // are editing — so it targets the Generator Area gizmo the same way a card targets its own.
+            string gid = g.id;
+            wrap.RegisterCallback<PointerEnterEvent>(_ => HoverGenerator(gid));
+            wrap.RegisterCallback<PointerLeaveEvent>(_ => { if (hoveredGeneratorId == gid) HoverGenerator(null); });
             return wrap;
+        }
+
+        /// The generator whose area outline follows the pointer in Hovered mode. Window-only, never persisted:
+        /// it is a property of looking at the document, like the card hover it sits beside.
+        string hoveredGeneratorId;
+
+        void HoverGenerator(string id)
+        {
+            if (hoveredGeneratorId == id) return;
+            hoveredGeneratorId = id;
+            if (doc != null && doc.gizmoMode == DotGizmoMode.Hovered) preview?.MarkDirtyRepaint();
         }
 
         void RebuildHierarchyButtons()
@@ -744,10 +769,11 @@ namespace Laubrary.DotGen.Editor
                     + "drawers, no children. Its settings are kept.", g.enabled,
                     v => { Dirty(() => g.enabled = v, "Toggle generator"); RebuildTree(); })));
 
-            generatorHost.Add(Z.Text(isRoot ? "Area inside the fixed frame" : "Area attached to each parent dot",
-                ZuiText.Subtle, isRoot
-                    ? "The root's area is placed inside the frame itself — there is nothing above it to attach to."
-                    : "One copy of this area is attached to every surviving dot of " + (parent?.name ?? "its parent") + "."));
+            // Where this generator's area lives is an explanation, not a heading — it belongs in the tooltips
+            // of the controls that shape the area, not on screen where it is re-read on every visit.
+            string areaTip = isRoot
+                ? "The root's area sits inside the fixed frame itself — there is nothing above it to attach to. "
+                : "One copy of this area is attached to every surviving dot of " + (parent?.name ?? "its parent") + ". ";
 
             generatorHost.Add(Z.Row(
                 Z.Toggle("Dot output", "Off hides the dot markers only — those dots still spawn children and "
@@ -761,24 +787,24 @@ namespace Laubrary.DotGen.Editor
                 "Radius of each dot marker, in pixels at the reference 900 px frame.",
                 v => g.dotSize = v, isRoot ? 4f : 3f, 1));
 
-            generatorHost.Add(Z.Field("Shape",
-                "The shape of this generator's area. Dots that fall outside it are not emitted.",
-                Z.Segmented((int)g.shape, ShapeLabels,
-                    "The shape of this generator's area. Dots that fall outside it are not emitted.",
+            string shapeTip = areaTip + "The shape of that area — dots that fall outside it are not emitted.";
+            generatorHost.Add(Z.Field("Shape", shapeTip,
+                Z.Segmented((int)g.shape, ShapeLabels, shapeTip,
                     v => Dirty(() => g.shape = (DotShape)v, "Set generator shape"))));
 
             generatorHost.Add(Z.HGroup(
                 Dial("Width", g.sizeX, 2f, isRoot ? 100f : 200f,
-                    "Area width, as a percentage of whatever it is attached to.",
+                    areaTip + "This is its width, as a percentage of whatever it is attached to.",
                     v => g.sizeX = v, isRoot ? 100f : 22f, 0),
                 Dial("Height", g.sizeY, 2f, isRoot ? 100f : 600f,
-                    "Area height, as a percentage of whatever it is attached to. A child may grow far past its basis.",
+                    areaTip + "This is its height, as a percentage of whatever it is attached to. "
+                    + "A child may grow far past its basis.",
                     v => g.sizeY = v, isRoot ? 100f : 22f, 0)));
 
-            generatorHost.Add(Z.Field("Anchor",
-                "Which point of the area sits on the attachment point. Bottom makes an area grow upward.",
-                Z.AnchorGrid((int)g.anchor,
-                    "Which point of the area sits on the attachment point. Bottom makes an area grow upward.",
+            string anchorTip = areaTip
+                + "This is which point of the area sits on that attachment point. Bottom makes an area grow upward.";
+            generatorHost.Add(Z.Field("Anchor", anchorTip,
+                Z.AnchorGrid((int)g.anchor, anchorTip,
                     v => Dirty(() => g.anchor = (DotAnchor)v, "Set generator anchor"),
                     Record("Set generator anchor"))));
 
@@ -789,7 +815,8 @@ namespace Laubrary.DotGen.Editor
             if (isRoot) return;
 
             // ── child-only ───────────────────────────────────────────────────────
-            generatorHost.Add(Z.Divider("Attachment",
+            // A thin rule, not a heading: what this block does belongs in its controls' own tooltips.
+            generatorHost.Add(Z.Divider(null,
                 "How this generator picks which of its parent's dots to appear on, and what it takes its size from."));
 
             // "Placement cell" is only meaningful when the parent's placement hands out cells, so it is offered
@@ -798,26 +825,36 @@ namespace Laubrary.DotGen.Editor
             bool hasCells = pp != null && pp.ProvidesCells;
             string[] basisLabels = hasCells ? AreaBasisLabels : AreaBasisParentOnly;
             int basisIndex = hasCells ? (int)g.areaBasis : 0;
-            generatorHost.Add(Z.Field("Size relative to",
-                hasCells
-                    ? "Take size and rotation from the parent's whole area, or from the exact cell around the parent dot."
-                    : "Takes size and rotation from the parent's whole area. " + (parent?.name ?? "The parent")
-                      + "'s placement produces no cells, so there is nothing else to measure against.",
-                Z.MiniRadio(basisIndex, basisLabels,
-                    "Take size and rotation from the parent's whole area, or from the exact cell around the parent dot.",
+            string basisTip = hasCells
+                ? "Take size and rotation from the parent's whole area, or from the exact cell around the parent dot."
+                : "Takes size and rotation from the parent's whole area. " + (parent?.name ?? "The parent")
+                  + "'s placement produces no cells, so there is nothing else to measure against.";
+            generatorHost.Add(Z.Field("Size relative to", basisTip,
+                Choice(basisIndex, basisLabels, basisTip,
                     v => Dirty(() => g.areaBasis = (DotAreaBasis)v, "Set area basis"))));
 
             generatorHost.Add(Z.HGroup(
                 DialInt("Every Nth", g.spawnEvery, 1, 12,
-                    "Spawn on every Nth surviving parent dot.", v => g.spawnEvery = v, 1, 120f),
+                    "Which of the parent's dots this generator appears on: every Nth surviving one.",
+                    v => g.spawnEvery = v, 1, 120f),
                 Dial("Spawn chance", g.spawnChance, 0f, 100f,
                     "Chance that an eligible parent dot spawns this generator at all.",
                     v => g.spawnChance = v, 100f, 0, 175f)));
 
             generatorHost.Add(DialInt("Instance limit", g.maxInstances, 1, 250,
-                "Hard ceiling on how many copies of this generator are evaluated.",
+                "Hard ceiling on how many copies of this generator are evaluated, whatever the two dials above allow.",
                 v => g.maxInstances = v, 80));
         }
+
+        /// One fixed set of choices, drawn the same way everywhere: a short set is a joined segmented control,
+        /// a longer one wraps as mini-radios. The same rule `ZuiReflect.EnumControl` applies to every enum it
+        /// draws, so a choice built by hand and the same choice drawn by reflection cannot look like two
+        /// different kinds of control in one window. (A PICKER over a growing list — the selector reference —
+        /// deliberately stays a MiniRadio at every length; it must not change shape as names are added.)
+        static VisualElement Choice(int index, string[] labels, string tooltip, Action<int> onChanged)
+            => labels != null && labels.Length <= 3
+                ? Z.Segmented(index, labels, tooltip, onChanged)
+                : Z.MiniRadio(index, labels, tooltip, onChanged, wrap: true);
 
         static readonly string[] ShapeLabels = { "Rectangle", "Ellipse", "Diamond" };
         static readonly string[] AreaBasisLabels = { "Parent area", "Placement cell" };
