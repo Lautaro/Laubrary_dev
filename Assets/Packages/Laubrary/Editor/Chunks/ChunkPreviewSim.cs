@@ -529,6 +529,15 @@ namespace Laubrary.Chunks.Editor
                 into.Required = Mathf.Max(into.Required,
                                           ((Vector2)Placements[i].Position).magnitude + radius);
 
+            // The runtime multiplies the tint onto whatever the blast draws, so the schematic multiplies it
+            // onto the slot colour the disc would otherwise have had: a white tint leaves the picture exactly
+            // as it was, and a coloured one shows on the stage the way it will show in the burst. RGB only —
+            // the tint's own opacity belongs with the per-instance alpha below, since the stage sets a
+            // guide's alpha from that field and ignores the colour's.
+            var tint = b.tint;
+            var tinted = new Color(colour.r * tint.r, colour.g * tint.g, colour.b * tint.b, 1f);
+            float tintAlpha = Mathf.Clamp01(tint.a);
+
             float blast = Mathf.Max(0.05f, b.blastSeconds);
             var flight = spec != null ? spec.FindModifier<Trajectory>(b) : null;
             if (flight != null && !flight.enabled) flight = null;
@@ -548,9 +557,12 @@ namespace Laubrary.Chunks.Editor
                 float since = local - fires;
                 if (pending || since < 0f)
                 {
+                    // A point that has not gone off yet keeps its full outline alpha: the faint ring is the
+                    // schematic saying "not yet", and dimming it by an authored alpha band would make a
+                    // half-faded blast's own placement unreadable before it fires.
                     into.Guides.Add(new ChunkGuide
                     {
-                        pos = at, radius = radius, alpha = PendingAlpha, color = colour,
+                        pos = at, radius = radius, alpha = PendingAlpha, color = tinted,
                         shape = ChunkGuideShape.Ring, order = order,
                         label = Placements.Count > 1 ? rank.ToString() : null,
                     });
@@ -571,15 +583,17 @@ namespace Laubrary.Chunks.Editor
                         into.Paths.Add(new ChunkGuidePath
                         {
                             points = Thin(PathScratch),
-                            alpha = 0.65f, color = colour, order = order - 1,
+                            alpha = 0.65f, color = tinted, order = order - 1,
                         });
                 }
 
                 into.Guides.Add(new ChunkGuide
                 {
                     pos = pos, radius = radius,
-                    alpha = 1f - Mathf.Clamp01(since / blast),      // fades out over its authored length
-                    color = colour, shape = ChunkGuideShape.Disc, order = order,
+                    // Its own opacity, this point's own draw from the alpha band, and the fade over its
+                    // authored length — the same three multiplied onto the renderer at runtime.
+                    alpha = (1f - Mathf.Clamp01(since / blast)) * tintAlpha * BlastAlpha(b, seed, placement.Index),
+                    color = tinted, shape = ChunkGuideShape.Disc, order = order,
                     label = Placements.Count > 1 ? rank.ToString() : null,
                 });
                 drawn++;
@@ -762,6 +776,20 @@ namespace Laubrary.Chunks.Editor
             float hi = Mathf.Max(lo, b.scaleMax);
             float scale = new ChunkRng(seed, 977).Range(lo, hi);   // its own stream: a scale must not shift the layout
             return Mathf.Clamp(half * scale, 0.02f, 20f);
+        }
+
+        /// The opacity one point of a blast comes out at, from its authored alpha band.
+        ///
+        /// Hashed from the seed and the point's own index rather than replayed in sequence, for the reason
+        /// BlastRadius takes its own stream: the preview does not walk a pattern in firing order, so a
+        /// sequential draw would hand point 3 the value the runtime gives point 1. Same seed, same value, and
+        /// the points differ from each other exactly as the runtime's successive draws do. A band with both
+        /// ends together draws nothing at all — the runtime skips its draw there too.
+        static float BlastAlpha(PyreBlast b, int seed, int index)
+        {
+            float lo = Mathf.Clamp01(Mathf.Min(b.alphaMin, b.alphaMax));
+            float hi = Mathf.Clamp01(Mathf.Max(b.alphaMin, b.alphaMax));
+            return hi <= lo ? lo : new ChunkRng(seed, 613 + index).Range(lo, hi);
         }
 
         /// Which alternate this blast uses, hashed from its seed rather than drawn in sequence, so the

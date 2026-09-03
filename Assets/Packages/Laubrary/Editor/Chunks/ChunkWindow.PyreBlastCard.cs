@@ -169,10 +169,30 @@ namespace Laubrary.Chunks.Editor
                     v => Dial("Edit Blast Length", () => cap.blastSeconds = Mathf.Max(0f, v)),
                     150f, showValue: true, decimals: 2)));
 
+            // Colour sits with Scale rather than with the pattern, because both answer "how does one blast
+            // come out" — the pattern above answers "how many, and where".
+            body.Add(Z.HGroup(
+                Z.Field("Tint",
+                    "Multiplied onto every blast this spawns, so one effect can come out in several colours. " +
+                    "White leaves it exactly as authored.",
+                    Z.Color(cap.tint,
+                        "Multiplied onto every blast this spawns. White leaves it exactly as authored.",
+                        v => Dial("Edit Blast Tint", () => cap.tint = v), 110f)),
+                Z.MicroMinMax("Alpha", cap.alphaMin, cap.alphaMax, 0f, 1f,
+                    "The opacity band a blast comes out at, on top of the tint's own. Both ends at 1 leaves " +
+                    "every blast fully solid.",
+                    (lo, hi) => Dial("Edit Blast Alpha", () =>
+                    {
+                        cap.alphaMin = Mathf.Clamp01(lo);
+                        cap.alphaMax = Mathf.Clamp01(Mathf.Max(cap.alphaMin, hi));
+                    }),
+                    180f, showValue: true, decimals: 2)));
+
             body.Add(Z.Field("Seed",
-                "Fixes which alternate, which angle and which size each spawn draws, so the blast comes out the " +
-                "same every time. 0 rerolls.",
-                Z.Int(cap.seed, "Fixes the picking, angle and size so the blast comes out the same every time.",
+                "Fixes which alternate, which angle, which size and which opacity each spawn draws, so the " +
+                "blast comes out the same every time. 0 rerolls.",
+                Z.Int(cap.seed, "Fixes the picking, angle, size and opacity so the blast comes out the same " +
+                                "every time.",
                       v => Dial("Edit Blast Seed", () => cap.seed = v), 70f)));
 
             var slot = LayerSlotRow(c, () => cap.layerName, v => cap.layerName = v);

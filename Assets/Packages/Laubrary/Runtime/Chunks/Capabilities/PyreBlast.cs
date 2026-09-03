@@ -100,6 +100,19 @@ namespace Laubrary.Chunks
         [Tooltip("Largest uniform scale a blast comes out at. Equal to the minimum = every blast the same size.")]
         [Min(0.01f)] public float scaleMax = 1f;
 
+        // Colour is a PER-USE override, which is why it lives here and not on the effect asset: the same Pyre
+        // picked into three recipes is one asset, so tinting it there would retint the other two. A recipe
+        // wanting "the same explosion, but this one green and half faded" says so on its own blast.
+        [Tooltip("Multiplied onto every blast this spawns, so one effect can come out in several colours. " +
+                 "White leaves it exactly as authored.")]
+        public Color tint = Color.white;
+
+        [Tooltip("Faintest a blast comes out at, as a fraction of the tint's own opacity.")]
+        [Range(0f, 1f)] public float alphaMin = 1f;
+
+        [Tooltip("Strongest a blast comes out at. Equal to the minimum = every blast the same opacity.")]
+        [Range(0f, 1f)] public float alphaMax = 1f;
+
         [Tooltip("Fixes the random picking, angle and scale so every play resolves identically. 0 = reroll.")]
         public int seed = 0;
 
@@ -206,6 +219,42 @@ namespace Laubrary.Chunks
             return hi <= lo ? lo : _rng.Range(lo, hi);
         }
 
+        /// The opacity one spawn comes out at, as a fraction of the tint's own alpha. Drawn from the same
+        /// generator, in the same fire, as the angle and the scale — so a seeded blast resolves its whole
+        /// appearance from one authored number.
+        ///
+        /// The draw is SKIPPED when both ends are equal (the default, 1..1): every existing recipe therefore
+        /// takes exactly the sequence of angles and sizes it took before this field existed. An alpha band is
+        /// the only thing that shifts that sequence, and only for a recipe that asked for one.
+        public float ResolveAlpha()
+        {
+            float lo = Mathf.Clamp01(Mathf.Min(alphaMin, alphaMax));
+            float hi = Mathf.Clamp01(Mathf.Max(alphaMin, alphaMax));
+            return hi <= lo ? lo : _rng.Range(lo, hi);
+        }
+
+        // One shared buffer for the renderer walk below: a burst spawns dozens of blasts and the allocating
+        // GetComponentsInChildren overload would throw away an array per spawn.
+        static readonly List<SpriteRenderer> Painted = new List<SpriteRenderer>();
+
+        /// Colour every renderer the spawned effect brought with it, tint × this instance's alpha.
+        ///
+        /// IChunkEffectSpawner says nothing about colour — deliberately, since widening it would make every
+        /// implementer answer a question only a recipe cares about — so the tint is applied from this side, to
+        /// whatever the spawner handed back. It is written on EVERY spawn, the white default included: a
+        /// spawner is free to pool its players, and a player handed back after a red blast would otherwise
+        /// come out red for the next recipe that never asked for a tint at all.
+        void Paint(Transform spawned, float alpha)
+        {
+            if (spawned == null) return;
+
+            var colour = new Color(tint.r, tint.g, tint.b, tint.a * Mathf.Clamp01(alpha));
+            spawned.GetComponentsInChildren(true, Painted);
+            for (int i = 0; i < Painted.Count; i++)
+                if (Painted[i] != null) Painted[i].color = colour;
+            Painted.Clear();
+        }
+
         /// Spawn exactly one blast at worldPos and return its transform (null when nothing could be spawned).
         /// The placement pass calls this once per point, so picking, rotation and scaling exist in ONE place
         /// and the pattern only has to know where its points are.
@@ -224,6 +273,10 @@ namespace Laubrary.Chunks
             string sortingLayer = ctx.Layers != null ? ctx.Layers.sortingLayerName : null;
             var spawned = spawner.SpawnEffect(worldPos, rotation, scale, sortingLayer,
                                               ctx.OrderFor(LayerName, orderOffset));
+
+            // Colour is applied here, on the one thing the spawner handed back, for the same reason scale and
+            // rotation are passed in: this is the single place in Chunks that ever holds a fresh blast.
+            Paint(spawned, ResolveAlpha());
 
             // Flight is a DECORATION on a spawn rather than a spawn of its own, so it is applied at the one
             // point in Chunks that ever holds a freshly spawned blast's transform.

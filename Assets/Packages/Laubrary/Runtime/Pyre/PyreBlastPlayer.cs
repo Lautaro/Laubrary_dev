@@ -61,6 +61,10 @@ namespace Laubrary.Pyre
         {
             if (spec == null) return;
             if (sr == null) sr = GetComponent<SpriteRenderer>();
+            // A pooled instance is handed on to whoever asks next, and a caller that recoloured the renderer
+            // for its own shot (a Chunks recipe tinting one blast red) has no hook to put it back — so a play
+            // always starts from the frames' own colours rather than the last user's.
+            sr.color = Color.white;
             // ALWAYS re-ask GetFrames here (not frames ??= ...) — a pooled instance is reused across many
             // Play()s, possibly for a different spec each time, or the SAME spec re-edited between shots.
             frames = PyreRenderer.GetFrames(spec);
