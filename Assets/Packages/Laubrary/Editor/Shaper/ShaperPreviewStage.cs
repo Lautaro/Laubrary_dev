@@ -203,6 +203,7 @@ namespace Laubrary.Shaper.Editor
             Add(_originCross);
 
             RegisterCallback<GeometryChangedEvent>(_ => { LayoutFrameBorder(); LayoutHandle(); LayoutOriginCross(); });
+            ApplyHoverVisibility(); // start hidden: nothing paints until the pointer is over the stage
             RegisterCallback<PointerEnterEvent>(_ => { _hover = true; ApplyHoverVisibility(); });
             RegisterCallback<PointerLeaveEvent>(_ => { _hover = false; ApplyHoverVisibility(); });
 
