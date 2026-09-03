@@ -86,6 +86,14 @@
     background-color: var(--zui-sub-fill-2);
 }
 
+/* A card that is the current overlay target — the card in the pane and the gizmo drawn over the preview
+   have to read as the same thing, or a stack of near-identical cards leaves the author guessing which one
+   the overlay belongs to. Colour only: the card's 1px border already exists, so lighting it up moves
+   nothing. Any tool with a hover/select-driven overlay can wear this class. */
+.zui-root .zui-box.zui-card--gizmo {
+    border-color: rgb(98, 216, 255);
+}
+
 /* A titled sub-section still needs its title to read as a heading, but one step quieter than a
    top-level section title so the hierarchy stays legible. */
 .zui-box .zui-box > .zui-box__titlerow > .zui-box__title {
