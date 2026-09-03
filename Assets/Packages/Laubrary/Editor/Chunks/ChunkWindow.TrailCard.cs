@@ -17,7 +17,8 @@ namespace Laubrary.Chunks.Editor
 
             body.Add(Z.Field("Trail source",
                 "What each puff is — an asset that can spawn one (a Pyre Blast Trail Source, a fire→smoke blast).",
-                AssetPicker(cap.trailSource, o => Dial("Set Trail Source", () => cap.trailSource = o),
+                AssetPicker(cap.trailSource,
+                            o => DialAndRebuildCard(cap.id, "Set Trail Source", () => cap.trailSource = o),
                             typeof(IChunkTrailSource), "Trail Source",
                             "What each puff is — an asset that can spawn one.")));
 

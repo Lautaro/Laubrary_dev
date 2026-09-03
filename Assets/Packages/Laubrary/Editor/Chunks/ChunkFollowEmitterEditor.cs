@@ -72,14 +72,12 @@ namespace Laubrary.Chunks.Editor
                 "recipe's capabilities — Palette Splash and Pyre Blast — each on its own interval.";
             // A reference is always a picker, never a raw ObjectField — the same LauAssetElement chip every
             // other ChunkSpec reference in the package uses (ChunkWindow.Recipe.cs's AssetPicker helper).
-            // Picking through it doesn't rebuild this inspector's tree (nothing here rebuilds mid-edit), so —
-            // exactly like ChunkWindow.PyreBlastCard's own plain-Dial asset pickers — the chip's own label
-            // catches up on the next Refresh() rather than instantly; that is the established convention,
-            // not a shortcut taken here.
-            box.Add(Z.Field("Chunk Spec", specTip,
-                LauAssetElement.Build(_e.spec,
-                    v => Dial("Follow emitter spec", () => _e.spec = v as ChunkSpec),
-                    typeof(ChunkSpec), _thumbCache, "Follow Emitter Spec", "Assets/Chunks", specTip)));
+            // The chip renders the name it was BUILT with and has no setter, so picking has to rebuild the
+            // row it sits in — otherwise the field still reads the old recipe's name while the emitter is
+            // already pointed at the new one, which is the one thing a picker must never do.
+            _specRow = new VisualElement();
+            FillSpecRow(specTip);
+            box.Add(_specRow);
 
             const string targetTip = "The transform this emitter follows every frame. Leave empty to follow the " +
                 "emitter's own transform. A target destroyed mid-flight stops the emitter cleanly.";
@@ -181,14 +179,19 @@ namespace Laubrary.Chunks.Editor
                 "has no layer stack configured. The layer stack wins whenever it names the module's slot.";
             _playOnAwakeToggle = Z.Toggle("Play On Awake", awakeTip, _e.playOnAwake,
                 v => Dial("Play on awake", () => _e.playOnAwake = v));
-            box.Add(Z.Row(
+            // Three labelled controls do not fit an inspector pane's real width — measured at 460pt, where the
+            // Sorting Order field ran off the edge and the whole inspector grew a horizontal scrollbar. The row
+            // wraps instead, so the third control drops to a second line rather than off the pane.
+            var row = Z.Row(
                 _playOnAwakeToggle,
                 Z.HSpace(),
                 Z.Field("Duration (s)", durationTip,
                     Z.Float(_e.duration, durationTip, v => Dial("Follow emitter duration", () => _e.duration = Mathf.Max(0f, v)), Num)),
                 Z.HSpace(),
                 Z.Field("Sorting Order", orderTip,
-                    Z.Int(_e.sortingOrder, orderTip, v => Dial("Follow emitter sorting order", () => _e.sortingOrder = v), Num))));
+                    Z.Int(_e.sortingOrder, orderTip, v => Dial("Follow emitter sorting order", () => _e.sortingOrder = v), Num)));
+            row.style.flexWrap = Wrap.Wrap;
+            box.Add(row);
 
             _playButton = Z.Button("Play", "Start emitting now. Only available while the game is playing.",
                 () => { _e.Play(); Refresh(); });
@@ -207,6 +210,22 @@ namespace Laubrary.Chunks.Editor
             _stopButton.style.width = 70f;
             box.Add(Z.Row(_playButton, Z.HSpace(), _finishButton, Z.HSpace(), _stopButton));
             return box;
+        }
+
+        VisualElement _specRow;
+
+        void FillSpecRow(string specTip)
+        {
+            _specRow.Clear();
+            _specRow.Add(Z.Field("Chunk Spec", specTip,
+                LauAssetElement.Build(_e.spec,
+                    v =>
+                    {
+                        Dial("Follow emitter spec", () => _e.spec = v as ChunkSpec);
+                        FillSpecRow(specTip);   // the chip renders the name it was built with; rebuild it
+                        Refresh();              // and re-derive what this emitter can now actually do
+                    },
+                    typeof(ChunkSpec), _thumbCache, "Follow Emitter Spec", "Assets/Chunks", specTip)));
         }
 
         // ── the three silent failures, surfaced ─────────────────────────────────

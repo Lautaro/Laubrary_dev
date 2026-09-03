@@ -162,8 +162,7 @@ namespace Laubrary.Chunks.Editor
         // no card yet still gets its delay row, so the stack reads consistently while the rest lands.
         void FillCardBody(VisualElement body, ChunkSpec c, ChunkCapability cap)
         {
-            var delay = DelayRow(c, cap);
-            if (delay != null) body.Add(delay);
+            body.Add(IdentityRow(c, cap));
 
             switch (cap)
             {
@@ -307,6 +306,34 @@ namespace Laubrary.Chunks.Editor
         }
 
         // ── rows every card can use ───────────────────────────────────────────────────────────────────────
+
+        /// What this capability is CALLED, and when it fires — the two answers that are about the card itself
+        /// rather than about what it produces, so they share the first row of every card.
+        ///
+        /// The name is a text field because this is where it is DECLARED: a card carries an optional name of
+        /// its own, and a recipe with three Pyre Blasts is unreadable until they are "Flash", "Ring" and
+        /// "Aftershock". Empty means the kind's own name, which is why the field shows the kind as its
+        /// placeholder rather than pre-filling it — typing nothing must not authored a name. It commits on
+        /// Enter or blur, since the card's header title is rebuilt from it.
+        internal VisualElement IdentityRow(ChunkSpec c, ChunkCapability cap)
+        {
+            var name = Z.TextInput(cap.displayName,
+                "A name of your own for this card. Empty uses the kind's name (" + cap.KindName + ").",
+                v =>
+                {
+                    Dial("Rename Capability", () => cap.displayName = v ?? "");
+                    // The header title is written from this, so the stack is rebuilt — one frame late,
+                    // because the field raising this callback is one of the elements about to be destroyed.
+                    stackHost?.schedule.Execute(RebuildStack).ExecuteLater(0);
+                }, 150f);
+            name.isDelayed = true;
+
+            var row = Z.Row(Z.Field("Name",
+                "A name of your own for this card. Empty uses the kind's name.", name));
+            var delay = DelayRow(c, cap);
+            if (delay != null) { row.Add(Z.HSpace(6f)); row.Add(delay); }
+            return row;
+        }
 
         /// When this capability fires, in seconds from the start of the recipe — or NULL when the recipe has
         /// nothing to be timed against. A lone capability owns the whole clock, so a Delay dial there would

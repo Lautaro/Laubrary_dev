@@ -117,7 +117,9 @@ namespace Laubrary.Chunks.Editor
                     var cap = caps[i];
                     if (cap == null) continue;
                     string delayText = cap.OccupiesTime ? $" · {cap.delay:0.00}s" : "";
-                    string line = (cap.enabled ? "On" : "Off") + "  " + cap.Title + delayText;
+                    // A glyph rather than the word "On": "On Layer Plan" reads as a preposition and turns a
+                    // list of what the recipe HOLDS into a list of sentences about something else.
+                    string line = (cap.enabled ? "●  " : "○  ") + cap.Title + delayText;
                     string tip = !cap.enabled
                         ? $"{cap.KindName} is switched off in the recipe — its values are kept but nothing plays."
                         : cap.OccupiesTime

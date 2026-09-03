@@ -25,6 +25,8 @@ namespace Laubrary.Chunks
             public float age;
             public float life;
             public bool faceVelocity;
+            /// The frame this entry was handed over. Flight starts on the NEXT one — see Update.
+            public int bornFrame;
         }
 
         readonly List<MotionEntry> _motion = new List<MotionEntry>();
@@ -38,7 +40,7 @@ namespace Laubrary.Chunks
             _motion.Add(new MotionEntry
             {
                 target = target, velocity = velocity, gravity = gravity, drag = drag,
-                age = 0f, life = life, faceVelocity = faceVelocity
+                age = 0f, life = life, faceVelocity = faceVelocity, bornFrame = Time.frameCount
             });
         }
 
@@ -59,6 +61,15 @@ namespace Laubrary.Chunks
                     _motion.RemoveAt(i);
                     continue;
                 }
+
+                // Flight starts on the frame AFTER the hand-over, never on the same one. Without this, a
+                // point spawned from inside somebody's Update (a formation's immediate, delay-0 point) is
+                // moved a whole frame before a point spawned from a coroutine (every staggered point, which
+                // resumes after all Updates) — so one point of a pattern gets a head start over its
+                // neighbours, and where it lands stops matching the placement its own formation resolved.
+                // Whether it happened at all depended on Unity's execution order for a component added
+                // mid-frame, which is not a thing a burst's geometry should rest on.
+                if (e.bornFrame == Time.frameCount) continue;
 
                 e.age += dt;
                 if (e.life > 0f && e.age >= e.life)

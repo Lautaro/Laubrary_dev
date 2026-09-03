@@ -19,7 +19,8 @@ namespace Laubrary.Chunks.Editor
                 "Animated content to fracture — a Zoe, a Pyre, anything that can hand over frames. Its FIRST " +
                 "frame is the picture that gets cut, so a character comes apart in the pose it was in. Outranks " +
                 "the plain sprite below.",
-                AssetPicker(cap.sourceVisual, o => Dial("Set Fracture Source", () => cap.sourceVisual = o),
+                AssetPicker(cap.sourceVisual,
+                            o => DialAndRebuildCard(id, "Set Fracture Source", () => cap.sourceVisual = o),
                             typeof(IChunkAnimation), "Source",
                             "Animated content to fracture. Its first frame is the picture that gets cut.")));
 

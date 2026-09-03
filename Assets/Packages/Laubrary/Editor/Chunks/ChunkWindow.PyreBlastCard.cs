@@ -23,7 +23,7 @@ namespace Laubrary.Chunks.Editor
             // ── what gets spawned ────────────────────────────────────────────────
             body.Add(Z.Field("Blast",
                 "The effect spawned at each point of the pattern. Ignored while the alternates below hold anything.",
-                AssetPicker(cap.source, o => Dial("Set Blast", () => cap.source = o),
+                AssetPicker(cap.source, o => DialAndRebuildCard(id, "Set Blast", () => cap.source = o),
                             typeof(IChunkEffectSpawner), "Blast",
                             "The effect spawned at each point of the pattern.")));
 

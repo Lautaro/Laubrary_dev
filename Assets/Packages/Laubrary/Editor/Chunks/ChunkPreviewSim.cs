@@ -127,6 +127,10 @@ namespace Laubrary.Chunks.Editor
 
         const float PendingAlpha = 0.22f;   // a capability whose delay has not come round yet
 
+        /// How long a settled chunk lingers before it is gone, when Rest on floor is off. Chunk.Update's own
+        /// number — a short linger rather than a blink-out.
+        const float SettleLinger = 0.05f;
+
         // ── caches ────────────────────────────────────────────────────────────────────────────────────────
         // Keyed by the asset, not by the capability, because two blasts pointing at one Pyre must not render
         // it twice. Cleared whenever the window says the recipe changed, so an edited source is re-measured.
@@ -309,6 +313,11 @@ namespace Laubrary.Chunks.Editor
                 var flight = Fly(Vector2.zero, velocity, d.gravity, d.drag, local,
                                  d.useFloor, d.floorY, d.bounciness, d.floorFriction, d.restOnFloor,
                                  wantPath ? PathScratch : null);
+
+                // Rest on floor OFF means a settled piece lingers a moment and is gone — Chunk.Update cuts its
+                // life to the instant it stopped plus a beat. Without this the picture keeps a floor full of
+                // debris the burst will have cleared, which is the whole difference the dial makes.
+                if (!d.restOnFloor && flight.settled && local > flight.settledAt + SettleLinger) continue;
 
                 float t01 = Mathf.Clamp01(local / Mathf.Max(0.01f, life));
                 float sizeMul = d.sizeOverLife != null ? Mathf.Max(0f, d.sizeOverLife.Evaluate(t01)) : 1f;
@@ -598,6 +607,10 @@ namespace Laubrary.Chunks.Editor
             public Vector2 position;
             public Vector2 velocity;
             public bool settled;
+            /// Seconds into the flight at which it came to rest, or -1 if it never did. Chunk.Update cuts a
+            /// piece's life short from that moment when Rest on floor is off, so the picture needs the time,
+            /// not just the fact.
+            public float settledAt;
         }
 
         /// Where something launched at <paramref name="velocity"/> is after <paramref name="seconds"/>.
@@ -614,6 +627,7 @@ namespace Laubrary.Chunks.Editor
             var pos = from;
             var vel = velocity;
             bool settled = false;
+            float settledAt = -1f;
             path?.Clear();
             path?.Add(pos);
 
@@ -633,13 +647,18 @@ namespace Laubrary.Chunks.Editor
                     pos.y = floorY;
                     vel.y = -vel.y * bounce;
                     vel.x *= 1f - friction;
-                    if (vel.magnitude < SettleSpeed) { settled = true; vel = Vector2.zero; }
+                    if (vel.magnitude < SettleSpeed)
+                    {
+                        settled = true;
+                        settledAt = (i + 1) * Step;
+                        vel = Vector2.zero;
+                    }
                 }
 
                 path?.Add(pos);
             }
 
-            return new Flight { position = pos, velocity = vel, settled = settled };
+            return new Flight { position = pos, velocity = vel, settled = settled, settledAt = settledAt };
         }
 
         /// A drawable copy of a flight path, thinned to a readable number of points. The integration runs at

@@ -33,12 +33,15 @@ namespace Laubrary.Chunks.Editor
                     "What each chunk is made of. Only the chosen kind's own dials are authored.",
                     i => DialAndRebuildCard(id, "Set Debris Visual", () => cap.visual = (DebrisVisual)i))));
 
-            // Pixels/unit drives both the procedural square (Squares) and the world size a Sampled cut comes
-            // out at — irrelevant to Sprites/Animated, which carry their own sizing on the source asset.
+            // Pixels/unit is the RESOLUTION of the generated sprite (the procedural square, or a Sampled cut)
+            // — never its size on screen: Chunk.Init normalises whatever sprite it is given to the Size dial's
+            // world units, so a chunk is exactly as big as Size says whatever this is set to. Irrelevant to
+            // Sprites/Animated, which bring their own artwork.
             if (cap.visual == DebrisVisual.Squares || cap.visual == DebrisVisual.Sampled)
                 body.Add(Z.Field("Pixels/unit",
-                    "Pixel density of the procedural pixel-square, and of a Sampled cut's world size.",
-                    Z.Float(cap.pixelsPerUnit, "Pixel density of the procedural pixel-square and of a Sampled cut's world size.",
+                    "How many pixels across the generated chunk sprite is. Its size on screen is the Size " +
+                    "dial's, not this — a higher value is a crisper chunk, not a bigger one.",
+                    Z.Float(cap.pixelsPerUnit, "Resolution of the generated chunk sprite. Size on screen is the Size dial's.",
                         v => Dial("Edit Pixels/Unit", () => cap.pixelsPerUnit = Mathf.Max(1f, v)), 70f)));
 
             switch (cap.visual)
@@ -61,7 +64,8 @@ namespace Laubrary.Chunks.Editor
                     body.Add(Z.Field("Animation",
                         "Animated content every chunk plays instead of a static sprite — a Pyre, a Zoe, or a " +
                         "wrapper that overrides its speed or looping.",
-                        AssetPicker(cap.animationSource, o => Dial("Set Animation Source", () => cap.animationSource = o),
+                        AssetPicker(cap.animationSource,
+                                    o => DialAndRebuildCard(id, "Set Animation Source", () => cap.animationSource = o),
                                     typeof(IChunkAnimation), cap.Title,
                                     "Animated content every chunk plays instead of a static sprite.")));
                     break;
@@ -99,10 +103,14 @@ namespace Laubrary.Chunks.Editor
                     "Air resistance: per-second damping of velocity. 0 = none, ~1 = noticeable, ~3 = soupy.",
                     v => Dial("Edit Drag", () => cap.drag = v), 150f, showValue: true, decimals: 2)));
 
-            body.Add(Z.MicroMinMax("Spin", cap.angularSpeedMin, cap.angularSpeedMax, 0f, 720f,
-                "Spin rate, degrees/sec. Each chunk picks its own rate in between and its own direction.",
-                (lo, hi) => Dial("Edit Spin", () => { cap.angularSpeedMin = lo; cap.angularSpeedMax = hi; }),
-                150f, showValue: true, decimals: 0));
+            // A tumbling sampled cut takes its rate from Tumble speed instead — the two are the same dial for
+            // one chunk, and DebrisScatter.Fire reads only one of them. Showing both would offer a spin dial
+            // that silently does nothing, which is exactly what the mode branches above exist to avoid.
+            if (!(cap.UsesSampledDebris && cap.tumble))
+                body.Add(Z.MicroMinMax("Spin", cap.angularSpeedMin, cap.angularSpeedMax, 0f, 720f,
+                    "Spin rate, degrees/sec. Each chunk picks its own rate in between and its own direction.",
+                    (lo, hi) => Dial("Edit Spin", () => { cap.angularSpeedMin = lo; cap.angularSpeedMax = hi; }),
+                    150f, showValue: true, decimals: 0));
 
             body.Add(Z.Toggle("Face velocity",
                 "Point each chunk along its travel direction instead of spinning it freely.",
