@@ -1,0 +1,22 @@
+dataPath=D:/UNITY/Laubrary Dev/Assets
+hash01(4821,0,0) = 0.49455784959718585  expected 0.49455784959718585  EXACT
+hash01(4858,13,5) = 0.69184010848402977  expected 0.69184010848402977  EXACT
+hash01(-7,999,123456) = 0.54021740308962762  expected 0.54021740308962762  EXACT
+hash01(0,0,0) = 0.44666966679506004  expected 0.44666966679506004  EXACT
+hash01(2147483647,-1,17) = 0.86665415251627564  expected 0.86665415251627564  EXACT
+HASH: all 5 bit-exact
+  Root Frame (gen_1): areas=1 base=56 final=56 showDots=False
+  Radial Clusters (gen_5): areas=22 base=484 final=286 showDots=True
+  Diamond Grids (gen_b): areas=9 base=36 final=22 showDots=True
+DEMO: visibleDots=308 (expect 308)  areas=32 (expect 32)
+DETERMINISM: differing pixels = 0 of 262144
+SEED SENSITIVITY: pixels changed by a new seed = 42623
+TIMING @512: evaluate 0.39 ms + render 3.13 ms = 3.52 ms (best of 6)
+PNG: D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0226\dotgen-demo-512.png (85589 bytes)
+ROUND-TRIP: generators=3 rootPlacement=DotGridPlacement rootSelectors=1 rootMutators=1 visibleDots=308 areas=32 yaml=6174 bytes | probe asset deleted
+
+  Root Frame: areas=1 final=3
+  Houses: areas=3 final=20
+  Windows: areas=20 final=300
+DRAWERS: painted pixels = 93847 of 262144
+PNG: dotgen-drawers-512.png
