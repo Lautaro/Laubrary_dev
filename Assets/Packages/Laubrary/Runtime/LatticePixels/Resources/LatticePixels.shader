@@ -18,6 +18,9 @@ Shader "Laubrary/LatticePixels"
         _VisionRange ("Vision Range", Float) = 0
         _VisionOmni ("Vision Omni Radius", Float) = 0
         _VisionOn ("Vision Enabled", Float) = 0
+        _VisionMode ("Vision Mode (0 cone, 1 occluded)", Float) = 0
+        _VisionHalfAngle ("Vision Half Angle (radians)", Float) = 1.4
+        _ShadowMap ("Shadow Map", 2D) = "white" {}
     }
 
     SubShader
@@ -37,6 +40,7 @@ Shader "Laubrary/LatticePixels"
 
             TEXTURE2D(_RoadMask);   SAMPLER(sampler_RoadMask);
             TEXTURE2D(_RevealMask); SAMPLER(sampler_RevealMask);
+            TEXTURE2D(_ShadowMap);  SAMPLER(sampler_ShadowMap);
 
             CBUFFER_START(UnityPerMaterial)
                 half4 _ShadowColor;
@@ -51,6 +55,8 @@ Shader "Laubrary/LatticePixels"
                 float _VisionRange;
                 float _VisionOmni;
                 float _VisionOn;
+                float _VisionMode;
+                float _VisionHalfAngle;
             CBUFFER_END
 
             struct Attributes { float4 positionOS : POSITION; float2 uv : TEXCOORD0; };
@@ -82,7 +88,21 @@ Shader "Laubrary/LatticePixels"
                     {
                         float2 dir = d * rsqrt(r2);
                         float2 f = normalize(_VisionDir.xy);
-                        if (dot(dir, f) >= _VisionCos) visible = true;
+                        if (_VisionMode < 0.5)
+                        {
+                            if (dot(dir, f) >= _VisionCos) visible = true;
+                        }
+                        else
+                        {
+                            // Occluded: look the pixel's angle up in the shadow map.
+                            float ang = atan2(f.x * dir.y - f.y * dir.x, dot(f, dir));
+                            float u = (ang / _VisionHalfAngle + 1.0) * 0.5;
+                            if (u >= 0.0 && u <= 1.0)
+                            {
+                                float reach = SAMPLE_TEXTURE2D(_ShadowMap, sampler_ShadowMap, float2(u, 0.5)).r;
+                                if (sqrt(r2) <= reach) visible = true;
+                            }
+                        }
                     }
                 }
 

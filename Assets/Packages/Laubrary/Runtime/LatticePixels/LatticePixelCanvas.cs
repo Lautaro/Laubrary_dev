@@ -182,6 +182,64 @@ namespace Laubrary.LatticePixels
             return true;
         }
 
+        // ─── Occlusion ─────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Casts rays from a world position across a cone and records, per
+        /// ray, how far it travels before leaving road pixels. Everything that
+        /// is not road occludes. Output length is the ray count; entries are
+        /// distances in world units, ordered from -halfAngle to +halfAngle
+        /// around the facing direction (counter-clockwise positive).
+        /// </summary>
+        public void CastShadowMap(Vector3 worldPos, Vector3 worldDir, float halfAngleDeg, float range, float[] output)
+        {
+            var (pu, pv) = Graph.PlaneCoords(worldPos);
+            var (fu, fv) = Graph.PlaneCoords(Graph.Origin + worldDir);
+            float fl = Mathf.Sqrt(fu * fu + fv * fv);
+            if (fl < 1e-6f) { fu = 0f; fv = 1f; } else { fu /= fl; fv /= fl; }
+
+            float half = halfAngleDeg * Mathf.Deg2Rad;
+            float step = 0.5f / PixelsPerUnit;
+            int n = output.Length;
+            for (int i = 0; i < n; i++)
+            {
+                float a = -half + (i + 0.5f) / n * 2f * half;
+                float cos = Mathf.Cos(a), sin = Mathf.Sin(a);
+                float du = fu * cos - fv * sin, dv = fu * sin + fv * cos;
+                float s = 0f;
+                while (s < range)
+                {
+                    float ns = s + step;
+                    if (!IsRoadAt(pu + du * ns, pv + dv * ns)) break;
+                    s = ns;
+                }
+                output[i] = s;
+            }
+        }
+
+        /// <summary>True if the straight path between two world positions crosses only road pixels.</summary>
+        public bool IsClearPath(Vector3 from, Vector3 to)
+        {
+            var (au, av) = Graph.PlaneCoords(from);
+            var (bu, bv) = Graph.PlaneCoords(to);
+            float len = Mathf.Sqrt((bu - au) * (bu - au) + (bv - av) * (bv - av));
+            float step = 0.5f / PixelsPerUnit;
+            int steps = Mathf.Max(1, Mathf.CeilToInt(len / step));
+            for (int i = 0; i <= steps; i++)
+            {
+                float t = (float)i / steps;
+                if (!IsRoadAt(au + (bu - au) * t, av + (bv - av) * t)) return false;
+            }
+            return true;
+        }
+
+        private bool IsRoadAt(float u, float v)
+        {
+            int px = Mathf.FloorToInt((u - MinU) * PixelsPerUnit);
+            int py = Mathf.FloorToInt((v - MinV) * PixelsPerUnit);
+            return IsRoad(px, py);
+        }
+
         public static RectInt Union(RectInt a, RectInt b)
         {
             if (a.width == 0 || a.height == 0) return b;

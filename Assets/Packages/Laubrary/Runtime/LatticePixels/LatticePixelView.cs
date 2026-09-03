@@ -45,8 +45,12 @@ namespace Laubrary.LatticePixels
         /// <summary>A road texel was painted for the first time, at this world position.</summary>
         public event Action<Vector3> RoadPixelRevealed;
 
+        [Tooltip("Rays cast across the cone per frame in occluded vision mode. More is smoother at range.")]
+        public int ShadowRays = 1024;
+
         private LatticeGraph _graph;
-        private Texture2D _roadTex, _revealTex, _staging;
+        private Texture2D _roadTex, _revealTex, _staging, _shadowTex;
+        private float[] _shadow;
         private byte[] _stagingBuffer;
         private Material _material;
         private byte[] _brush;
@@ -62,6 +66,9 @@ namespace Laubrary.LatticePixels
         private static readonly int VisionRangeId = Shader.PropertyToID("_VisionRange");
         private static readonly int VisionOmniId = Shader.PropertyToID("_VisionOmni");
         private static readonly int VisionOnId = Shader.PropertyToID("_VisionOn");
+        private static readonly int VisionModeId = Shader.PropertyToID("_VisionMode");
+        private static readonly int VisionHalfAngleId = Shader.PropertyToID("_VisionHalfAngle");
+        private static readonly int ShadowMapId = Shader.PropertyToID("_ShadowMap");
         private static readonly int[] ColorIds =
         {
             Shader.PropertyToID("_ShadowColor"), Shader.PropertyToID("_RevealedColor"),
@@ -145,6 +152,38 @@ namespace Laubrary.LatticePixels
             _material.SetFloat(VisionRangeId, range);
             _material.SetFloat(VisionOmniId, omniRadius);
             _material.SetFloat(VisionOnId, 1f);
+            _material.SetFloat(VisionModeId, 0f);
+        }
+
+        /// <summary>
+        /// Per-pixel vision with occlusion: the omni disc sees everything, but
+        /// the forward cone is blocked by anything that is not road, so it only
+        /// reaches along the street the player is looking down. Casts a shadow
+        /// map on the CPU (ShadowRays rays across the cone) and hands it to the
+        /// shader.
+        /// </summary>
+        public void SetVisionOccluded(Vector3 worldPos, Vector3 worldDir, float halfAngleDeg, float range, float omniRadius)
+        {
+            if (_material == null) return;
+            if (_shadow == null || _shadow.Length != ShadowRays)
+            {
+                _shadow = new float[ShadowRays];
+                if (_shadowTex != null) Destroy(_shadowTex);
+                _shadowTex = new Texture2D(ShadowRays, 1, TextureFormat.RFloat, false, true)
+                {
+                    name = "ShadowMap",
+                    filterMode = FilterMode.Point,
+                    wrapMode = TextureWrapMode.Clamp,
+                };
+                _material.SetTexture(ShadowMapId, _shadowTex);
+            }
+            Canvas.CastShadowMap(worldPos, worldDir, halfAngleDeg, range, _shadow);
+            _shadowTex.SetPixelData(_shadow, 0);
+            _shadowTex.Apply(false, false);
+
+            SetVision(worldPos, worldDir, halfAngleDeg, range, omniRadius);
+            _material.SetFloat(VisionHalfAngleId, halfAngleDeg * Mathf.Deg2Rad);
+            _material.SetFloat(VisionModeId, 1f);
         }
 
         public void ClearVision()
@@ -222,6 +261,7 @@ namespace Laubrary.LatticePixels
             if (_roadTex != null) Destroy(_roadTex);
             if (_revealTex != null) Destroy(_revealTex);
             if (_staging != null) Destroy(_staging);
+            if (_shadowTex != null) Destroy(_shadowTex);
             if (_material != null) Destroy(_material);
         }
     }
