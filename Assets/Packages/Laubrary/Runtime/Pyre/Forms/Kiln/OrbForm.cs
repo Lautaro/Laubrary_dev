@@ -44,8 +44,8 @@ namespace Laubrary.Pyre.Forms.Kiln
             + "snaking persistence trail), Coronal (granulated star, prominences bent back into a fan), Membrane (a "
             + "see-through bubble shedding a dissolving veil and motes), Voltcore (a hyper-bright bead, filaments and a "
             + "plasma tail). Colour comes from the variant's Ramp, NOT the layer Fill. To aim it, add a Rotate geometry "
-            + "modifier. SWARM: off = one orb at Nose X / Axis Y; on = one orb per swarm particle at its position, "
-            + "sized by Swarm Size and the particle's depth shading, all sharing the clip's loop clock.";
+            + "modifier. SWARM: off = one orb at Nose across frame / Travel line; on = one orb per swarm particle at its position, "
+            + "sized by Size per swarm particle and the particle's depth shading, all sharing the clip's loop clock.";
 
         /// Colour is the variant's ramp + the tone map, never the layer Fill.
         public override bool UsesFill => false;
@@ -77,7 +77,7 @@ namespace Laubrary.Pyre.Forms.Kiln
         [Tooltip("Alpha (0..255) under which a pixel is dropped entirely — nothing carries colour it cannot show.")]
         [ZUILabel("Hide below alpha")] [ZUIGroup("Cleanup", Advanced = true)]
         [Range(0, 16)] public int floor = 3;
-        [Tooltip("Drop lit pixels that are BOTH faint (alpha under Despeckle Below) and isolated (fewer than 2 lit 4-neighbours): the sampled boundary of a wake's falloff, not artwork.")]
+        [Tooltip("Drop lit pixels that are BOTH faint (alpha under Speck alpha limit) and isolated (fewer than 2 lit 4-neighbours): the sampled boundary of a wake's falloff, not artwork.")]
         [ZUILabel("Remove stray specks")] [ZUIGroup("Cleanup", Advanced = true)]
         public bool despeckle = true;
         [ZUIShowIf("despeckle", "True")]

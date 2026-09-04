@@ -310,9 +310,11 @@ namespace Laubrary.Zui
 
         static void EmitGroup(VisualElement host, object owner, Options opt, GroupBucket b, FieldInfo[] all)
         {
-            // Keyed by the owning type + the group name, never the title alone: two generators can both have a
-            // "Noise detail" box and must not fold together.
-            string key = $"reflect.group.{owner.GetType().Name}.{b.Name}";
+            // Keyed by where this object SITS as well as by its type, never by the title alone: two generators
+            // can both have a "Noise detail" box, and one settings class reused for three nested populations
+            // (a Plasma Bloom's chunks / embers / motes) would otherwise fold all three together — the exact
+            // reason BoxKeyed exists.
+            string key = $"reflect.group.{_groupKeyPath}{owner.GetType().Name}.{b.Name}";
             var box = Z.BoxKeyed(b.Name, b.Tooltip, key);
             var flow = FlowSubset(box, owner, opt, b.Fields.ToArray(), all);
             // Every dial in the group is currently gated off (a [ZUIShowIf] the owner does not satisfy) — an
@@ -380,6 +382,8 @@ namespace Laubrary.Zui
         }
 
         [ThreadStatic] static int _nestDepth;   // recursion guard for nested plain-class fields
+        /// Where the object currently being drawn SITS, for fold-state keys — see EmitGroup.
+        [ThreadStatic] static string _groupKeyPath;
 
         /// Build one control for `field` on `owner`, or null when the type isn't renderable.
         public static VisualElement BuildField(object owner, FieldInfo field, Options opt)
@@ -637,8 +641,10 @@ namespace Laubrary.Zui
                 if (v == null) { v = Activator.CreateInstance(t); field.SetValue(owner, v); }
                 var box = Z.BoxKeyed(nice, tip, $"reflect.nested.{owner.GetType().Name}.{field.Name}");
                 _nestDepth++;
+                string outerPath = _groupKeyPath;
+                _groupKeyPath = $"{outerPath}{owner.GetType().Name}.{field.Name}.";
                 try { FlowFields(box, v, opt); }
-                finally { _nestDepth--; }
+                finally { _nestDepth--; _groupKeyPath = outerPath; }
                 return box;
             }
 

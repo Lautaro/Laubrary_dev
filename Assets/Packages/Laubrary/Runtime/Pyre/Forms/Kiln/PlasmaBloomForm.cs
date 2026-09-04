@@ -39,53 +39,77 @@ namespace Laubrary.Pyre.Forms.Kiln
     public sealed class PlasmaPopulation
     {
         [Tooltip("How many pieces of this kind. A piece is fixed by a handful of numbers drawn once from the seed; its position at any time is a pure function of them.")]
+        [ZUILabel("Count")] [ZUIGroup("Population", Tooltip = "How many pieces of this kind there are, how bright they read, and where on the blast front they start.")]
         [Range(0, 200)] public int n = 26;
         [Tooltip("Innermost starting radius, as a fraction of the blast radius, at the moment the piece detaches from the front.")]
+        [ZUILabel("Inner start radius")] [ZUIGroup("Population")]
         [Range(0f, 1.2f)] public float rhoLo = 0.05f;
-        [Tooltip("Outermost starting radius, as a fraction of the blast radius. Pieces spread between Rho lo and Rho hi by a shuffled square-root quantile.")]
+        [Tooltip("Outermost starting radius, as a fraction of the blast radius. Pieces spread between Inner start radius and Outer start radius by a shuffled square-root quantile.")]
+        [ZUILabel("Outer start radius")] [ZUIGroup("Population")]
         [Range(0f, 1.5f)] public float rhoHi = 1.0f;
         [Tooltip("Gaussian radius of a piece, as a fraction of the blast radius (per piece × 0.62..1.47).")]
+        [ZUILabel("Piece size")] [ZUIGroup("Piece shape", Tooltip = "What one piece looks like: how big it is, how it grows, and how far it smears along its own flight.")]
         [Range(0.005f, 0.3f)] public float size = 0.079f;
         [Tooltip("Radius gained over a piece's own life (1 = doubles by the end; negative shrinks).")]
+        [ZUILabel("Growth over life")] [ZUIGroup("Piece shape")]
         [Range(-0.5f, 0.5f)] public float grow = 0.12f;
         [Tooltip("Elongation along the piece's own velocity at birth: 1 = round, 2 = twice as long as wide.")]
+        [ZUILabel("Stretch at birth")] [ZUIGroup("Piece shape")]
         [Range(0.5f, 3f)] public float stretch = 1.14f;
         [Tooltip("Extra stretch gained over the piece's own life — the smear lengthens as it flies.")]
+        [ZUILabel("Extra stretch in flight")] [ZUIGroup("Piece shape")]
         [Range(0f, 1.5f)] public float streak = 0.18f;
         [Tooltip("Random tilt of the smear away from the true velocity, radians (per piece × −1..1).")]
+        [ZUILabel("Smear tilt")] [ZUIGroup("Piece shape")]
         [Range(0f, 1f)] public float tilt = 0.40f;
-        [Tooltip("Half-width of the stratified per-piece speed range around Spd base. Wide = some pieces crawl and loiter in the middle while others race to the rim; narrow = everything arrives on one shell and the burst is a ring.")]
+        [Tooltip("Half-width of the stratified per-piece speed range around Base speed. Wide = some pieces crawl and loiter in the middle while others race to the rim; narrow = everything arrives on one shell and the burst is a ring.")]
+        [ZUILabel("Speed spread")] [ZUIGroup("Flight", Tooltip = "How the pieces travel out — how fast, how varied, how far they get before they settle.")]
         [Range(0f, 1.2f)] public float spread = 0.88f;
         [Tooltip("Velocity ACROSS the ray (per piece × −1..1), as a fraction of the radial speed — takes each piece off its own ray so the smears do not all point at the centre.")]
+        [ZUILabel("Sideways drift")] [ZUIGroup("Flight")]
         [Range(0f, 0.6f)] public float lat = 0.20f;
         [Tooltip("Brightness of this population (0 = off).")]
+        [ZUILabel("Brightness")] [ZUIGroup("Population")]
         [Range(0f, 2f)] public ZUIValue amp = new ZUIValue(1.30f);
         [Tooltip("Multiplier on Exp rate for this population's expansion easing (lower = the pieces decelerate later than the front).")]
+        [ZUILabel("Slowdown")] [ZUIGroup("Flight")]
         [Range(0.2f, 2f)] public float ease = 0.85f;
         [Tooltip("Linear share of the pieces' travel: above 0 they never fully stop, so the back half of the clip keeps moving.")]
+        [ZUILabel("Steady travel share")] [ZUIGroup("Flight")]
         [Range(0f, 1f)] public float lin = 0.58f;
         [Tooltip("How strongly the FASTEST pieces are faded (by their speed above 1): keeps the far field wide without a lone bright stray in a corner.")]
+        [ZUILabel("Fade the fastest")] [ZUIGroup("Flight")]
         [Range(0f, 3f)] public float farFade = 0.45f;
-        [Tooltip("Base speed relative to the front. Near 1 the slowest pieces (Spd base − Spread) crawl and fill the middle; far above 1 nothing is slow and the burst hollows into an annulus.")]
+        [Tooltip("Base speed relative to the front. Near 1 the slowest pieces (Base speed − Speed spread) crawl and fill the middle; far above 1 nothing is slow and the burst hollows into an annulus.")]
+        [ZUILabel("Base speed")] [ZUIGroup("Flight")]
         [Range(0.3f, 2.5f)] public float spdBase = 1.12f;
         [Tooltip("Start of the birth window on the blast clock — the first piece detaches here.")]
+        [ZUILabel("First birth")] [ZUIGroup("Timing", Tooltip = "When the pieces are born, how long each one lives, and how it fades.")]
         [Range(0f, 0.8f)] public float t0 = 0.02f;
         [Tooltip("End of the birth window on the blast clock. Births are stratified across it, so pieces trickle off steadily (the shedding).")]
+        [ZUILabel("Last birth")] [ZUIGroup("Timing")]
         [Range(0.02f, 1f)] public float t1 = 0.18f;
         [Tooltip("A piece's lifetime as a fraction of the blast clock (per piece × 0.62..1.47), from its own birth.")]
+        [ZUILabel("Piece lifetime")] [ZUIGroup("Timing")]
         [Range(0.1f, 1.2f)] public float life = 0.80f;
         [Tooltip("Fade-in over this fraction of the piece's own life.")]
+        [ZUILabel("Fade-in")] [ZUIGroup("Timing")]
         [Range(0.01f, 0.5f)] public float ramp = 0.10f;
-        [Tooltip("Decay exponent over the piece's own life: (1 − age)^fade.")]
+        [Tooltip("How a piece dies: above 1 it holds its brightness and then drops away at the end, below 1 it starts dimming the moment it is born.")]
+        [ZUILabel("Fade-out shape")] [ZUIGroup("Timing")]
         [Range(0.3f, 3f)] public float fade = 1.2f;
         [Tooltip("How much of the global Swirl this population follows (its angle turns by Swirl × this × time).")]
+        [ZUILabel("Swirl follow")] [ZUIGroup("Flight")]
         [Range(0f, 2f)] public float swirl = 1.0f;
         [Tooltip("Per-piece random rotation rate, radians per unit clock (× −1..1 per piece).")]
+        [ZUILabel("Spin rate")] [ZUIGroup("Flight")]
         [Range(-1f, 1f)] public float spin = 0f;
         [Tooltip("0 or 1 = pieces spread evenly round the circle. 2 or more = they come off in this many angular GROUPS (the tongues of a plume shed from the tongues).")]
+        [ZUILabel("Angular groups")] [ZUIGroup("Population")]
         [Range(0, 16)] public int clusters = 0;
         [ZUIShowIf("clusters", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16")]
         [Tooltip("Angular width of each cluster, radians.")]
+        [ZUILabel("Group width")] [ZUIGroup("Population")]
         [Range(0f, 2f)] public float clusterW = 0.6f;
 
         /// `amp` resolved at the layer's life this frame (PlasmaBloomForm.Prepare) — the value the algorithm reads.
