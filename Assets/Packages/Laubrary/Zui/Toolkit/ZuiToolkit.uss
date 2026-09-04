@@ -383,8 +383,20 @@
 .zui-microslider__caption {
     position: absolute;
     left: 6px;
+    right: 6px;
     font-size: 11px;
     -unity-text-align: middle-left;
+    /* Both labels are absolutely positioned, so nothing stops a long caption running straight under the value
+       and printing two numbers on top of each other. It ends where the track does, and elides if it must. */
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* …and it stops short of the value when there is one. Toggled from ApplyDisplay, because hiding the value
+   (the ⋯ menu's "Value in slider") gives the caption the whole track back. */
+.zui-microslider__caption--reserve {
+    right: 46px;
 }
 
 .zui-microslider__value {

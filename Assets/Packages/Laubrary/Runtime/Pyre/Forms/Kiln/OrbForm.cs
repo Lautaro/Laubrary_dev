@@ -95,7 +95,7 @@ namespace Laubrary.Pyre.Forms.Kiln
         // ── swarm ──
         [PyreSwarmOnly]
         [Tooltip("Size of each swarm particle's orb as a fraction of the solo Radius (the swarm's own size/depth shading multiplies it).")]
-        [ZUILabel("Size per swarm particle")] [ZUIGroup("Placement & size")]
+        [ZUILabel("Swarm orb size")] [ZUIGroup("Placement & size")]
         [Range(0.1f, 1f)] public ZUIValue swarmSize = new ZUIValue(0.5f);
 
         // ── settings boxes ─────────────────────────────────────────────────────────────────────────────────────

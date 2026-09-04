@@ -49,6 +49,53 @@ namespace Laubrary.PyreShaper.Editor
             return sb.ToString();
         }
 
+        /// Open a tool on an Orb-bearing asset and photograph its window. Read-only: the asset is selected and
+        /// shown, never written. Call twice — the first call opens and focuses, the second photographs a window
+        /// that has actually painted.
+        public static string Shot(string menuItem, string assetPath, string windowTitle, string file, float scrollY = 0f)
+        {
+            var asset = UnityEditor.AssetDatabase.LoadMainAssetAtPath(assetPath);
+            if (asset == null) return $"{assetPath}: NOT FOUND";
+            UnityEditor.Selection.activeObject = asset;
+            UnityEditor.EditorApplication.ExecuteMenuItem(menuItem);
+
+            UnityEditor.EditorWindow win = null;
+            foreach (var w in Resources.FindObjectsOfTypeAll<UnityEditor.EditorWindow>())
+                if (w != null && w.titleContent != null && w.titleContent.text == windowTitle) { win = w; break; }
+            if (win == null) return $"{windowTitle}: window not found";
+            // Both tools are ZuiAssetWindow<T>s, which open on their browser until told which asset to edit.
+            // Selecting it in the Project view is not that instruction — SetAsset is.
+            for (Type wt = win.GetType(); wt != null; wt = wt.BaseType)
+            {
+                var m = wt.GetMethod("SetAsset", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic
+                                                 | BindingFlags.DeclaredOnly);
+                if (m == null || m.GetParameters().Length != 1) continue;
+                if (!m.GetParameters()[0].ParameterType.IsInstanceOfType(asset)) continue;
+                m.Invoke(win, new object[] { asset });
+                break;
+            }
+            if (scrollY > 0f && win.rootVisualElement != null)
+                foreach (var sv in UnityEngine.UIElements.UQueryExtensions.Query<UnityEngine.UIElements.ScrollView>(win.rootVisualElement).ToList())
+                    sv.scrollOffset = new Vector2(sv.scrollOffset.x, scrollY);
+
+            win.Focus();
+            win.Repaint();
+
+            var r = win.position;
+            int w2 = Mathf.Clamp(Mathf.RoundToInt(r.width), 1, 4096);
+            int h2 = Mathf.Clamp(Mathf.RoundToInt(r.height), 1, 4096);
+            var px = UnityEditorInternal.InternalEditorUtility.ReadScreenPixel(new Vector2(r.x, r.y), w2, h2);
+            if (px == null || px.Length != w2 * h2) return $"{windowTitle}: screen read failed";
+
+            var tex = new Texture2D(w2, h2, TextureFormat.RGBA32, false);
+            tex.SetPixels(px);
+            tex.Apply();
+            string path = Path.Combine(Path.GetTempPath(), file);
+            File.WriteAllBytes(path, tex.EncodeToPNG());
+            UnityEngine.Object.DestroyImmediate(tex);
+            return $"{windowTitle}: {path} ({w2}x{h2}) selected={asset.name}";
+        }
+
         /// OrbForm caches a baked LUT keyed on its ramp's identity. Turning an Adjust knob must repaint, and
         /// turning it back must land on exactly the bytes it started from — a cache that only notices the stops
         /// fails the first half, and one that re-bakes unconditionally would still have to pass the second.

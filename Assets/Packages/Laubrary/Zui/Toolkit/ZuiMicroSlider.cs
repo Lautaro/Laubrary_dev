@@ -119,6 +119,9 @@ namespace Laubrary.Zui
             bool showVal = _showValueLabel && !_showNumInput;
             _valueLabel.style.display = showVal ? DisplayStyle.Flex : DisplayStyle.None;
             _numField.style.display = _showNumInput ? DisplayStyle.Flex : DisplayStyle.None;
+            // The caption keeps clear of whatever is drawn at the right end of the track, and gets the width
+            // back when nothing is.
+            _caption.EnableInClassList("zui-microslider__caption--reserve", showVal || _showNumInput);
             if (_showNumInput) _numField.SetValueWithoutNotify(_value);
             if (showVal) UpdateValueLabel();
             MarkDirtyRepaint();
