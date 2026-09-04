@@ -618,15 +618,10 @@ namespace Laubrary.Pyre.Forms.Kiln
             return new OrbStyle { gain = s.live.gain, a0 = s.live.a0, a1 = s.live.a1, acurve = s.live.acurve, amax = s.live.amax, floor = floor, lut = _lut };
         }
 
-        static int RampHash(PyreRamp r)
-        {
-            unchecked
-            {
-                int h = (int)2166136261u ^ (int)r.space;
-                if (r.stops != null) foreach (var s in r.stops) { h = (h ^ s.pos.GetHashCode()) * 16777619; h = (h ^ s.color.GetHashCode()) * 16777619; }
-                return h;
-            }
-        }
+        /// The shared identity, not a private copy of it: a ramp is its stops, its blend space AND its Adjust
+        /// knobs, and folding only the stops here meant turning a knob repainted nothing until something else
+        /// happened to invalidate `_lut`.
+        static int RampHash(PyreRamp r) => PyreShade.RampHash(r);
 
         public override void Render(in PyreFormCtx ctx, Color32[] target)
         {

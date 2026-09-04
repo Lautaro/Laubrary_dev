@@ -40,10 +40,35 @@ namespace Laubrary.PyreShaper.Editor
             sb.AppendLine("sheet: " + path);
 
             sb.AppendLine();
+            sb.AppendLine(RampAdjustCheck());
+
+            sb.AppendLine();
             sb.AppendLine(CaptionReport(typeof(OrbForm)));
             sb.AppendLine(CaptionReport(typeof(OrbForm.EmberdriftSettings)));
             sb.AppendLine(CaptionReport(typeof(PlasmaPopulation)));
             return sb.ToString();
+        }
+
+        /// OrbForm caches a baked LUT keyed on its ramp's identity. Turning an Adjust knob must repaint, and
+        /// turning it back must land on exactly the bytes it started from — a cache that only notices the stops
+        /// fails the first half, and one that re-bakes unconditionally would still have to pass the second.
+        static string RampAdjustCheck()
+        {
+            var form = new OrbForm();
+            uint before = Hash(RenderStrip(form, out _, out _));
+
+            var adj = form.emberdrift.ramp.adjust;
+            float saved = adj.hueShift;
+            adj.hueShift = 0.5f;   // = +90°; the knob is -1..1 where ±1 is ±180°, so a whole number is exactly identity
+            uint turned = Hash(RenderStrip(form, out _, out _));
+
+            adj.hueShift = saved;
+            uint restored = Hash(RenderStrip(form, out _, out _));
+
+            return "── ramp Adjust / LUT cache ──\n"
+                 + $"  default {before:X8} · hueShift +90° {turned:X8} · back {restored:X8}\n"
+                 + $"  knob repaints:  {(turned != before ? "YES" : "NO — cache did not invalidate")}\n"
+                 + $"  restores exact: {(restored == before ? "YES" : "NO")}";
         }
 
         /// One horizontal strip: `Frames` frames of the form's own life, left to right.
@@ -56,7 +81,14 @@ namespace Laubrary.PyreShaper.Editor
             {
                 Array.Clear(frame, 0, frame.Length);
                 float life = Frames > 1 ? f / (float)(Frames - 1) : 0f;
-                var ctx = new PyreFormCtx(Size, Size, life, 2101, 0, null, 1f, null, null, null, 0f, f, Frames);
+                // Built by reflection, not by `new`: two of the constructor's parameters are SpriteFx modifier
+                // arrays, and naming them — even to pass null — would drag a SpriteFx reference into this
+                // assembly for a throwaway probe. There is exactly one constructor, so the binding is
+                // unambiguous with nulls.
+                var ctx = (PyreFormCtx)Activator.CreateInstance(typeof(PyreFormCtx), new object[]
+                {
+                    Size, Size, life, 2101, 0, null, 1f, null, null, null, 0f, f, Frames, null,
+                });
                 form.Prepare(new PyreFormPrepareCtx(life, 2101, 0, (val, id) => val?.staticValue ?? 0f));
                 form.Render(ctx, frame);
                 for (int y = 0; y < Size; y++)
