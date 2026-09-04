@@ -1,5 +1,11 @@
-// ZuiRampControl — the control for a colour ramp (IZuiRamp): ONE row holding Unity's own GradientField, the "★"
-// project-library button, and — when the ramp offers blend modes — a segmented mode row beside it.
+// ZuiRampControl — the control for a colour ramp (IZuiRamp): one row holding Unity's own GradientField, the "★"
+// project-library button and — when the ramp offers blend modes — a segmented mode row beside it, over a
+// collapsible "Adjust" box when the ramp carries non-destructive knobs of its own (IZuiRamp.RampAdjust).
+//
+// The Adjust box is the SAME box a Fill's gradient has always had, drawn from the same knobs in the same order:
+// a raw ramp holding the same colours now offers the same adjustments instead of a strictly poorer control just
+// because of which type is holding it. A ramp with no knobs (a ZuiGradient, whose own editor draws the animatable
+// set) draws no box, so nothing moved for the sites that never had one.
 //
 // The field is the SANCTIONED RAW ISLAND for a gradient. Unity's gradient popup is the editor everyone already
 // knows (click under the bar to add a stop, drag it, pick its colour, alpha keys on top, presets, eyedropper); a
@@ -36,10 +42,14 @@ namespace Laubrary.Zui
         public Action OnChanged;
 
         readonly IZuiRamp _ramp;
+        readonly VisualElement _row;     // field + "★" + blend space; the Adjust box sits under it
         readonly GradientField _field;
         readonly ZuiSegmented _mode;
         readonly Button _library;
         readonly string _tip;
+        ZuiBox _adjust;                  // null when the ramp offers no Adjust knobs of its own
+        Image _preview;                  // objective strip (the ramp WITH its knobs); only exists alongside _adjust
+        Texture2D _previewTex;
 
         // Set while the ramp is being written FROM the field's own change event: pushing the value back into the
         // field mid-gesture would fight Unity's open popup (and re-enter this callback).
@@ -59,15 +69,27 @@ namespace Laubrary.Zui
                 : tooltip;
 
             AddToClassList("zui-ramp");
-            AddToClassList("zui-row");
-            style.flexDirection = FlexDirection.Row;
-            style.alignItems = Align.Center;
+            style.flexDirection = FlexDirection.Column;
             style.flexGrow = 1f;
             style.flexShrink = 1f;
+
+            // The ramp row itself (field + "★" + blend space). It used to be this control's own box; it became a
+            // child the moment a ramp could also carry an Adjust box below it, and a ramp with no knobs still draws
+            // exactly one row, so nothing moved for the sites that had none.
+            _row = new VisualElement();
+            _row.AddToClassList("zui-row");
+            _row.style.flexDirection = FlexDirection.Row;
+            _row.style.alignItems = Align.Center;
+            // flexGrow 0 in a COLUMN parent: growth here would be VERTICAL, which padded the ramp row out with
+            // empty space instead of widening it. The field inside still grows horizontally.
+            _row.style.flexGrow = 0f;
+            _row.style.flexShrink = 1f;
+            _row.style.width = Length.Percent(100f);
             // Wrap, because a Pyre form's left pane is often narrower than field + "★" + a two-option segmented:
             // without this the blend-space row is drawn past the pane's edge and simply clipped, which is how it
             // read before. Wrapped, the space choice drops to a second line and stays reachable at any pane width.
-            style.flexWrap = Wrap.Wrap;
+            _row.style.flexWrap = Wrap.Wrap;
+            Add(_row);
 
             _field = new GradientField();
             // A ramp legitimately takes the width of the pane it sits in — the same reason the painted strip did.
@@ -81,7 +103,7 @@ namespace Laubrary.Zui
             _field.style.marginLeft = 0f;
             _field.style.marginRight = 0f;
             _field.RegisterValueChangedCallback(OnFieldChanged);
-            Add(_field);
+            _row.Add(_field);
 
             // T-0205 — the SAME project gradient library Z.Gradient's "★" reaches, via ZuiRampGradientBridge, which
             // trades in stop lists rather than an 8-key Gradient: saving keeps every stop the ramp has even though
@@ -93,7 +115,7 @@ namespace Laubrary.Zui
                                       + "whatever the count), or save this ramp's stops under a new name.",
                                     OpenLibrary).W(BtnWidth);
                 _library.style.marginLeft = 4f;
-                Add(_library);
+                _row.Add(_library);
             }
 
             // Two short options => Segmented, never a dropdown and never MiniRadio (ui-layout-rules: control choice).
@@ -107,16 +129,93 @@ namespace Laubrary.Zui
                     i => Mutate(() => _ramp.BlendMode = i));
                 _mode.style.marginLeft = 6f;
                 _mode.style.flexShrink = 0f;
-                Add(_mode);
+                _row.Add(_mode);
             }
+
+            BuildAdjust();
 
             SyncField();
         }
 
-        /// Re-read the ramp (an undo, an external edit) — the field and the mode row redraw from it.
+        // ── the Adjust box (T-0234) ──────────────────────────────────────────────────────────────────────
+        // A raw ramp's knobs are the SAME knobs a Fill's gradient has always shown, so they are drawn as the same
+        // collapsible "Adjust" box in the same order (ZuiGradientEditor.cs:85-124) — an author who has adjusted one
+        // has already learned the other. They are plain floats here rather than ZuiGradient's per-life ZUIValues, so
+        // they are MicroSliders rather than Z.Value rows; a ramp that offers none (a ZuiGradient, whose own editor
+        // draws the animatable set) gets no box at all and this control stays the single row it was.
+        void BuildAdjust()
+        {
+            var a = _ramp.RampAdjust;
+            if (a == null) return;
+
+            // The objective preview: the ramp as it RENDERS, knobs applied. Unity's field below shows the SOURCE
+            // stops (what the popup edits) and cannot show a hue shift at all, so without this strip the knobs
+            // would look inert — the same reason ZuiGradientEditor puts an Output strip over its own Source row.
+            // Only a ramp WITH knobs gets one; a gradient's control already carries Output above this control.
+            if (_preview == null)
+            {
+                _preview = new Image
+                {
+                    scaleMode = ScaleMode.StretchToFill,
+                    tooltip = "The ramp exactly as it renders, with the Adjust knobs applied. The bar below is the "
+                            + "SOURCE ramp you edit.",
+                };
+                _preview.style.height = 16f;
+                _preview.style.minWidth = 120f;
+                _preview.style.marginBottom = 3f;
+                _preview.RegisterCallback<DetachFromPanelEvent>(_ => DisposePreview());
+                // A host that merely HIDES this control detaches it and frees the texture; re-baking on attach is
+                // what stops the strip coming back permanently blank after a fold-away.
+                _preview.RegisterCallback<AttachToPanelEvent>(_ => RefreshPreview());
+                Insert(0, _preview);
+            }
+            RefreshPreview();
+
+            _adjust = Z.Box("Adjust",
+                "Non-destructive adjustments applied on top of the ramp above. The stops themselves are never "
+              + "rewritten — turn a knob back and the exact original ramp returns.");
+
+            _adjust.Add(Z.HGroup(
+                Z.MicroSlider("Hue", a.hueShift, -1f, 1f,
+                    "Rotate the hue of every colour in the ramp (±1 = ±180°).",
+                    v => Mutate(() => a.hueShift = v), prefsKey: "ramp.hue"),
+                Z.MicroSlider("Saturation", a.saturation, 0f, 2f,
+                    "Multiply how colourful the ramp is (1 = unchanged, 0 = grey).",
+                    v => Mutate(() => a.saturation = v), prefsKey: "ramp.sat"),
+                Z.MicroSlider("Brightness", a.brightness, 0f, 2f,
+                    "Multiply how bright the ramp is (1 = unchanged).",
+                    v => Mutate(() => a.brightness = v), prefsKey: "ramp.bri")));
+
+            _adjust.Add(Z.HGroup(
+                Z.MicroSlider("Contrast", a.contrast, 0f, 2f,
+                    "Push the ramp's colours away from mid-grey (1 = unchanged, above 1 = harder edges between them).",
+                    v => Mutate(() => a.contrast = v), prefsKey: "ramp.con"),
+                Z.MicroSlider("Phase", a.phase, 0f, 2f,
+                    "Scroll the ramp along its own length. 0→1 runs it forward, 1→2 runs it back mirrored, so 2 lands "
+                  + "exactly where 0 did and an animated phase never jumps at the wrap.",
+                    v => Mutate(() => a.phase = v), prefsKey: "ramp.phase")));
+
+            _adjust.Add(Z.HGroup(
+                Z.MicroSlider("Quantise", a.quantiseSteps, 0, 16,
+                    "Snap the ramp to N flat bands instead of a smooth blend (0 = smooth).",
+                    v => Mutate(() => a.quantiseSteps = Mathf.RoundToInt(v)), decimals: 0, prefsKey: "ramp.quantise"),
+                Z.Toggle("Cycle", "Mark this ramp as wanting to colour-cycle — a driver advances its phase at "
+                                + "runtime. A still frame looks the same either way.",
+                    a.cycle, v => Mutate(() => a.cycle = v)),
+                Z.Toggle("Reverse", "Read the ramp end-to-start, so the hot core colour lands where the cold edge was.",
+                    a.reverse, v => Mutate(() => a.reverse = v))));
+
+            Add(_adjust);
+        }
+
+        /// Re-read the ramp (an undo, an external edit) — the field, the mode row and the Adjust knobs redraw from
+        /// it. The Adjust box is rebuilt rather than written back into: its controls own their displayed value and
+        /// pushing one in would fire the change callback, turning a refresh into an edit and an Undo into a new
+        /// Undo record.
         public void Refresh()
         {
             _mode?.SetOn(i => i == _ramp.BlendMode);
+            if (_adjust != null) { Remove(_adjust); _adjust = null; BuildAdjust(); }
             SyncField();
         }
 
@@ -137,6 +236,33 @@ namespace Laubrary.Zui
             if (_applying) return;
             _field.SetValueWithoutNotify(BuildDisplayGradient());
             _field.tooltip = FieldTooltip();
+            RefreshPreview();
+        }
+
+        /// Re-bake the objective preview strip from the ramp's OWN evaluation, so the picture cannot drift from
+        /// what the renderer reads. Cheap (256×1) and only exists on a ramp that has knobs at all.
+        void RefreshPreview()
+        {
+            if (_preview == null) return;
+            DisposePreview();
+            var tex = new Texture2D(256, 1, TextureFormat.RGBA32, false)
+            {
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+                hideFlags = HideFlags.HideAndDontSave,
+            };
+            var px = new Color[256];
+            for (int i = 0; i < 256; i++) px[i] = _ramp.Eval(i / 255f);
+            tex.SetPixels(px);
+            tex.Apply();
+            _previewTex = tex;
+            _preview.image = tex;
+        }
+
+        void DisposePreview()
+        {
+            if (_previewTex != null) { UnityEngine.Object.DestroyImmediate(_previewTex); _previewTex = null; }
+            if (_preview != null) _preview.image = null;
         }
 
         /// DISPLAY only: exact up to 8 stops, evenly subsampled beyond with the endpoints kept. The ramp itself is

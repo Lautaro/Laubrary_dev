@@ -605,7 +605,25 @@ namespace Laubrary.Pyre.Forms.Kiln
                     lut[i * 3 + c] = v;
                 }
             }
+            ApplyAdjust(lut, ramp?.adjust);
             return lut;
+        }
+
+        /// The ramp's non-destructive Adjust knobs, folded into the baked LUT rather than into the stops — Orb reads
+        /// its colour through this table, so this is the one point where a hue shift can reach the picture without
+        /// touching what the author drew. Identity knobs (the default, and every ramp authored before they existed)
+        /// return immediately, which is what keeps a shipped preset bit-for-bit what it was. Positions are re-read at
+        /// LUT resolution, the same 256 entries the renderer samples, so no new interpolation is introduced.
+        static void ApplyAdjust(double[] lut, ZuiRampAdjust a)
+        {
+            if (a == null || a.IsIdentity) return;
+            var src = (double[])lut.Clone();
+            for (int i = 0; i < 256; i++)
+            {
+                int j = Mathf.Clamp(Mathf.RoundToInt(a.Position(i / 255f) * 255f), 0, 255);
+                var c = a.Apply(new Color((float)(src[j * 3] / 255.0), (float)(src[j * 3 + 1] / 255.0), (float)(src[j * 3 + 2] / 255.0), 1f));
+                lut[i * 3] = c.r * 255.0; lut[i * 3 + 1] = c.g * 255.0; lut[i * 3 + 2] = c.b * 255.0;
+            }
         }
 
         /// orbcanvas.rasterise + despeckle on a y-DOWN field: straight RGBA into `target` (y-UP, the renderer's rows),

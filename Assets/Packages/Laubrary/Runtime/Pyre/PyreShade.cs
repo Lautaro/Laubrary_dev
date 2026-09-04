@@ -49,16 +49,32 @@ namespace Laubrary.Pyre
         [Tooltip("Linear light decodes sRGB before blending and re-encodes after (Kiln's default — mid-tones stay bright instead of going brown); sRGB blends the stored values directly, the way Unity's Gradient does.")]
         public PyreRampSpace space = PyreRampSpace.LinearLight;
 
+        /// The non-destructive Adjust knobs a Fill's gradient has always had — hue / saturation / brightness /
+        /// contrast / phase / quantise / cycle / reverse — now on a raw ramp too, so the same colours get the same
+        /// controls whichever type is holding them. Every default is the identity and `Evaluate` skips the whole
+        /// pass when it is, which is why adding this leaves every authored asset and every shipped preset rendering
+        /// byte-identically. The STOPS are never rewritten: turning a knob back returns the exact original ramp.
+        [Tooltip("Non-destructive adjustments applied on top of the stops. The stops themselves are never rewritten — turn a knob back and the original ramp returns.")]
+        public ZuiRampAdjust adjust = new ZuiRampAdjust();
+
         public bool IsEmpty => stops == null || stops.Count == 0;
 
         public PyreRamp Clone()
         {
-            var c = new PyreRamp { space = space };
+            var c = new PyreRamp { space = space, adjust = adjust != null ? adjust.Clone() : new ZuiRampAdjust() };
             if (stops != null) foreach (var s in stops) c.stops.Add(new PyreRampStop(s.pos, s.color));
             return c;
         }
 
-        public Color Evaluate(float t) => PyreShade.EvalStops(stops, space, t);
+        /// The ramp as it RENDERS: the authored stops read through the Adjust knobs. Identity knobs (the default,
+        /// and every asset authored before they existed) take the untouched path, so this is the same call it was.
+        public Color Evaluate(float t) =>
+            adjust == null || adjust.IsIdentity
+                ? PyreShade.EvalStops(stops, space, t)
+                : adjust.Sample(EvalRaw, t);
+
+        /// The stops with NO knobs applied — what the ramp control's own strip and Unity's gradient field edit.
+        public Color EvalRaw(float t) => PyreShade.EvalStops(stops, space, t);
 
         // ── IZuiRamp (presentation only — no new state, no algorithm change) ─────────────────────────────
 
@@ -91,6 +107,10 @@ namespace Laubrary.Pyre
 
         /// The ramp's own evaluation — the same `Evaluate` the renderer uses, so a drawn strip cannot drift from it.
         public Color Eval(float t) => Evaluate(t);
+
+        /// The ramp's own Adjust knobs, so the ZUI ramp control draws the same "Adjust" box a Fill's gradient has.
+        /// Never null in practice; a fresh instance covers an asset deserialized before the field existed.
+        public ZuiRampAdjust RampAdjust => adjust ??= new ZuiRampAdjust();
 
         public string[] BlendModeNames => s_spaceNames;
 
@@ -161,7 +181,31 @@ namespace Laubrary.Pyre
             return ToSrgb(l);
         }
 
-        public static PyreLut BakeLut(PyreRamp ramp, int size = 256) => BakeLut(ramp?.stops, ramp?.space ?? PyreRampSpace.LinearLight, size);
+        /// Bake a ramp — through its Adjust knobs, which is what makes them visible in anything that renders from a
+        /// baked LUT rather than from Evaluate. Identity knobs (the default) take the original stops path, so an
+        /// existing form bakes exactly the LUT it always did.
+        public static PyreLut BakeLut(PyreRamp ramp, int size = 256)
+        {
+            var a = ramp?.adjust;
+            if (a == null || a.IsIdentity) return BakeLut(ramp?.stops, ramp?.space ?? PyreRampSpace.LinearLight, size);
+            size = Mathf.Max(2, size);
+            var e = new Color[size];
+            for (int i = 0; i < size; i++) e[i] = ramp.Evaluate(i / (float)(size - 1));
+            return new PyreLut(e);
+        }
+
+        /// A ramp's identity for a LUT cache: its stops, its blend space AND its Adjust knobs. A form that caches a
+        /// baked LUT keys on this, or turning a knob repaints nothing until something else happens to change.
+        public static int RampHash(PyreRamp r)
+        {
+            if (r == null) return 0;
+            unchecked
+            {
+                int h = (int)2166136261u ^ (int)r.space;
+                if (r.stops != null) foreach (var s in r.stops) { h = (h ^ s.pos.GetHashCode()) * 16777619; h = (h ^ s.color.GetHashCode()) * 16777619; }
+                return ZuiRampMath.Hash(h, r.adjust);
+            }
+        }
 
         public static PyreLut BakeLut(IList<PyreRampStop> stops, PyreRampSpace space, int size = 256)
         {

@@ -42,6 +42,13 @@ public interface IZuiRamp
     /// control paints its strip from this, so the strip can never drift from what the renderer draws.
     Color Eval(float t);
 
+    /// The ramp's own non-destructive Adjust knobs (hue / saturation / brightness / contrast / phase / quantise /
+    /// cycle / reverse), or NULL when the ramp has none of its own — a ZuiGradient returns null because its knobs
+    /// are animatable over life and its own editor already draws them, so the ramp control must not draw a second,
+    /// non-animatable set beside them. The control edits this object IN PLACE, under the same OnBeforeMutate /
+    /// OnChanged gesture contract as every other edit here.
+    ZuiRampAdjust RampAdjust { get; }
+
     /// Labels for the ramp's blend-mode choices, drawn as a segmented row (never a dropdown). Null or empty means
     /// the ramp has no mode to choose and the control draws no mode control at all.
     string[] BlendModeNames { get; }

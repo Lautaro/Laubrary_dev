@@ -694,7 +694,32 @@ namespace Laubrary.Pyre.Forms.Kiln
                 lut.r[i] = SrgbToLinear((float)(lut.sr[i] / 255f)); lut.g[i] = SrgbToLinear((float)(lut.sg[i] / 255f)); lut.b[i] = SrgbToLinear((float)(lut.sb[i] / 255f));
                 lut.a[i] = (float)A;
             }
+            ApplyAdjust(lut, ramp?.adjust);
             return lut;
+        }
+
+        /// The ramp's non-destructive Adjust knobs, folded into the baked table rather than into the stops — a jet
+        /// reads every colour through this LUT, so this is where a hue shift reaches the flame without rewriting
+        /// what the author drew. Identity knobs (the default, and every ramp authored before they existed) return
+        /// immediately, so a shipped preset bakes the exact table it always did. The sRGB bytes are re-derived from
+        /// the adjusted colour and the linear channels from those bytes, keeping the byte→linear relationship the
+        /// source path establishes; alpha is carried through the position transform but never colour-adjusted,
+        /// because opacity is the ramp's authored ceiling and not a colour.
+        static void ApplyAdjust(Lut lut, ZuiRampAdjust a)
+        {
+            if (a == null || a.IsIdentity) return;
+            var sr = (byte[])lut.sr.Clone(); var sg = (byte[])lut.sg.Clone(); var sb = (byte[])lut.sb.Clone();
+            var al = (double[])lut.a.Clone();
+            for (int i = 0; i < N_LUT; i++)
+            {
+                int j = Mathf.Clamp(Mathf.RoundToInt(a.Position(i / (float)(N_LUT - 1)) * (N_LUT - 1)), 0, N_LUT - 1);
+                var c = a.Apply(new Color(sr[j] / 255f, sg[j] / 255f, sb[j] / 255f, 1f));
+                lut.sr[i] = ToByte(c.r); lut.sg[i] = ToByte(c.g); lut.sb[i] = ToByte(c.b);
+                lut.r[i] = SrgbToLinear((float)(lut.sr[i] / 255f));
+                lut.g[i] = SrgbToLinear((float)(lut.sg[i] / 255f));
+                lut.b[i] = SrgbToLinear((float)(lut.sb[i] / 255f));
+                lut.a[i] = al[j];
+            }
         }
 
         static int Byte(float c) => Mathf.Clamp(Mathf.RoundToInt(c * 255f), 0, 255);

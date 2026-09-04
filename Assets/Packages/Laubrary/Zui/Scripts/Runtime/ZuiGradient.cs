@@ -240,18 +240,12 @@ public class ZuiGradient : ISerializationCallbackReceiver, IZuiRamp
     /// path.</summary>
     public Color Evaluate(float t, float phase = 0f, float life = 0f)
     {
-        float u = reverse ? 1f - t : t;
         // The authored scroll (animatable over life) plus any external cycle phase the caller passed.
         float ph = phase + EvalTransform(phaseAnim, life, 0f);
-        // With a scroll, MIRROR the ramp (append its reverse: 0→1→0) via PingPong so it loops SEAMLESSLY — the
-        // colour at the wrap matches instead of jumping from the end back to the start. No offset ⇒ Clamp01 (a
-        // plain Evaluate(1) must stay at the ramp END; PingPong/Repeat(1,1) would fold/wrap it to 0), so the
-        // default (ph==0) is byte-identical to the pre-phase path.
-        u = ph != 0f ? Mathf.PingPong(u + ph, 1f) : Mathf.Clamp01(u);
         int steps = bandLocked ? Mathf.Max(1, quantiseSteps) : quantiseSteps;
-        if (steps > 0)
-            u = Mathf.Floor(u * steps) / Mathf.Max(1, steps - 1);
-        u = Mathf.Clamp01(u);
+        // ZuiRampMath is the ONE implementation of the position transform (reverse → scroll → quantise); a raw
+        // PyreRamp's own Adjust knobs run the same call, so the two cannot drift into two arithmetics.
+        float u = ZuiRampMath.Position(t, reverse, ph, steps);
 
         Color c = EvalRamp(u);
 
@@ -262,22 +256,9 @@ public class ZuiGradient : ISerializationCallbackReceiver, IZuiRamp
         float brightnessV  = EvalTransform(brightnessAnim,  life, brightness);
         float contrastV    = EvalTransform(contrastAnim,    life, contrast);
 
-        if (hueShiftV != 0f || saturationV != 1f || brightnessV != 1f)
-        {
-            Color.RGBToHSV(c, out float h, out float s, out float v);
-            h = Mathf.Repeat(h + hueShiftV * 0.5f, 1f);   // ±1 → ±180°
-            s = Mathf.Clamp01(s * saturationV);
-            v = Mathf.Clamp01(v * brightnessV);
-            float a = c.a;
-            c = Color.HSVToRGB(h, s, v); c.a = a;
-        }
-        if (contrastV != 1f)
-        {
-            c.r = Mathf.Clamp01((c.r - 0.5f) * contrastV + 0.5f);
-            c.g = Mathf.Clamp01((c.g - 0.5f) * contrastV + 0.5f);
-            c.b = Mathf.Clamp01((c.b - 0.5f) * contrastV + 0.5f);
-        }
-        return c;
+        // Same shared arithmetic a raw ramp's Adjust knobs use — the values differ (these are sampled at THIS life),
+        // the maths does not.
+        return ZuiRampMath.Adjust(c, hueShiftV, saturationV, brightnessV, contrastV);
     }
 
     /// <summary>The RAW ramp at t — the stops blended in this gradient's own space, with NO transform knobs
@@ -353,6 +334,11 @@ public class ZuiGradient : ISerializationCallbackReceiver, IZuiRamp
     }
 
     public Color Eval(float t) => EvalRamp(t);
+
+    /// Null: this gradient's transform knobs are ANIMATABLE over life and its own editor (ZuiGradientEditor.Adjust)
+    /// already draws them. Handing the ramp control a plain-float set here would draw a second Adjust box beside the
+    /// richer one and give an author two places to say the same thing.
+    public ZuiRampAdjust RampAdjust => null;
 
     public string[] BlendModeNames => s_spaceNames;
 

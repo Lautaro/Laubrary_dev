@@ -87,16 +87,9 @@ namespace Laubrary.Pyre.Forms.Kiln
             if (_soot == null || _sootHash != h2) { _soot = JetShade.Bake(s.sootRamp); _sootHash = h2; }
         }
 
-        static int RampHash(PyreRamp r)
-        {
-            if (r == null) return 0;
-            unchecked
-            {
-                int h = (int)2166136261u ^ (int)r.space;
-                if (r.stops != null) foreach (var s in r.stops) { h = (h ^ s.pos.GetHashCode()) * 16777619; h = (h ^ s.color.GetHashCode()) * 16777619; }
-                return h;
-            }
-        }
+        // Stops, blend space AND the ramp's Adjust knobs — the shared identity in PyreShade, so turning Hue
+        // re-bakes this cached LUT exactly the way moving a stop does instead of repainting nothing.
+        static int RampHash(PyreRamp r) => PyreShade.RampHash(r);
 
         public override void Render(in PyreFormCtx ctx, Color32[] target)
         {
