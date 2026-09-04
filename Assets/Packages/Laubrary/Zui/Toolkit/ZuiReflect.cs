@@ -154,23 +154,31 @@ namespace Laubrary.Zui
             if (owner == null) return;
             var fields = FieldsOf(owner.GetType());
             if (opt?.ReorderFields != null) fields = opt.ReorderFields(fields) ?? fields;
+            BuildSubset(root, owner, opt, fields, fields);
+        }
 
+        /// Build `subset`, resolving [ZUIShowIf] gates and [ZUIPair2D] partners against `all`. The two differ
+        /// only when a caller draws the fields in several passes (grouped boxes): a gate field can then sit in
+        /// a different pass from the field it gates, and resolving against the pass alone would silently show
+        /// every gated dial at once.
+        static void BuildSubset(VisualElement root, object owner, Options opt, FieldInfo[] subset, FieldInfo[] all)
+        {
             // A [ZUIPair2D] X field swallows its Y partner into one 2D control, so the partner must not also
             // be drawn on its own further down the card. Collected first, because the Y field can be declared
             // before the X one and a single forward pass would already have drawn it.
             HashSet<string> consumed = null;
-            foreach (var f in fields)
+            foreach (var f in all)
             {
                 var pair = PairAttributeOf(f);
                 if (pair == null) continue;
-                if (FindField(fields, pair.YField) == null) continue;   // bad name → both draw normally
+                if (FindField(all, pair.YField) == null) continue;   // bad name → both draw normally
                 (consumed ??= new HashSet<string>()).Add(pair.YField);
             }
 
-            foreach (var f in fields)
+            foreach (var f in subset)
             {
                 if (consumed != null && consumed.Contains(f.Name)) continue;
-                if (!VisibleNow(owner, f, fields)) continue;
+                if (!VisibleNow(owner, f, all)) continue;
                 if (opt?.Skip != null && opt.Skip(f)) continue;
                 var ve = BuildField(owner, f, opt);
                 if (ve != null) root.Add(ve);
@@ -230,11 +238,98 @@ namespace Laubrary.Zui
         /// space-economy rule, so a nested list element and a top-level effect card lay out the same way.
         public static void FlowFields(VisualElement host, object owner, Options opt)
         {
+            if (owner == null) return;
+            var fields = FieldsOf(owner.GetType());
+            if (opt?.ReorderFields != null) fields = opt.ReorderFields(fields) ?? fields;
+            if (HasGroups(fields)) FlowGrouped(host, owner, opt, fields);
+            else FlowSubset(host, owner, opt, fields, fields);
+        }
+
+        /// Whether any field of this set asks to sit in a named box. Nothing else in this file changes when
+        /// none does, so a card that has not adopted [ZUIGroup] draws exactly as it always did.
+        static bool HasGroups(FieldInfo[] fields)
+        {
+            foreach (var f in fields) if (Attribute.IsDefined(f, typeof(ZUIGroupAttribute))) return true;
+            return false;
+        }
+
+        static ZUIGroupAttribute GroupOf(FieldInfo f)
+            => (ZUIGroupAttribute)Attribute.GetCustomAttribute(f, typeof(ZUIGroupAttribute));
+
+        sealed class GroupBucket
+        {
+            public string Name, Tooltip;
+            public bool Advanced;
+            public readonly List<FieldInfo> Fields = new();
+        }
+
+        /// A box that opens folded the FIRST time this session builds it, and obeys the user's own fold state
+        /// after that — an "advanced" group must be out of the way on arrival without ever re-folding itself
+        /// under someone who deliberately opened it. Session-scoped like ZuiBox's own fold state, so the two
+        /// forget together on a domain reload.
+        static readonly HashSet<string> s_advancedFolded = new();
+
+        /// Fields walked in declaration order: an ungrouped run flows inline, a grouped field lands in its
+        /// box, and a box is created where its first member is declared. Advanced groups are held back to the
+        /// end of the card regardless of where they were declared.
+        static void FlowGrouped(VisualElement host, object owner, Options opt, FieldInfo[] fields)
+        {
+            var buckets = new List<GroupBucket>();
+            var byName = new Dictionary<string, GroupBucket>();
+            var slots = new List<object>();          // List<FieldInfo> = an inline run; GroupBucket = a box
+            List<FieldInfo> run = null;
+
+            foreach (var f in fields)
+            {
+                var g = GroupOf(f);
+                if (g == null || string.IsNullOrEmpty(g.Group))
+                {
+                    if (run == null) { run = new List<FieldInfo>(); slots.Add(run); }
+                    run.Add(f);
+                    continue;
+                }
+                run = null;
+                if (!byName.TryGetValue(g.Group, out var b))
+                {
+                    b = new GroupBucket { Name = g.Group, Advanced = g.Advanced };
+                    byName[g.Group] = b;
+                    buckets.Add(b);
+                    if (!b.Advanced) slots.Add(b);
+                }
+                if (string.IsNullOrEmpty(b.Tooltip)) b.Tooltip = g.Tooltip;
+                b.Fields.Add(f);
+            }
+
+            foreach (var slot in slots)
+            {
+                if (slot is List<FieldInfo> inline) FlowSubset(host, owner, opt, inline.ToArray(), fields);
+                else EmitGroup(host, owner, opt, (GroupBucket)slot, fields);
+            }
+            foreach (var b in buckets) if (b.Advanced) EmitGroup(host, owner, opt, b, fields);
+        }
+
+        static void EmitGroup(VisualElement host, object owner, Options opt, GroupBucket b, FieldInfo[] all)
+        {
+            // Keyed by the owning type + the group name, never the title alone: two generators can both have a
+            // "Noise detail" box and must not fold together.
+            string key = $"reflect.group.{owner.GetType().Name}.{b.Name}";
+            var box = Z.BoxKeyed(b.Name, b.Tooltip, key);
+            var flow = FlowSubset(box, owner, opt, b.Fields.ToArray(), all);
+            // Every dial in the group is currently gated off (a [ZUIShowIf] the owner does not satisfy) — an
+            // empty titled box says nothing and costs a line, so it is simply not added.
+            if (flow.childCount == 0) return;
+            host.Add(box);
+            if (b.Advanced && s_advancedFolded.Add(key)) box.IsOpen = false;
+        }
+
+        static VisualElement FlowSubset(VisualElement host, object owner, Options opt,
+            FieldInfo[] subset, FieldInfo[] all)
+        {
             var flow = new VisualElement();
             flow.style.flexDirection = FlexDirection.Row;
             flow.style.flexWrap = Wrap.Wrap;
             flow.style.alignItems = Align.FlexStart;
-            BuildFields(flow, owner, opt);
+            BuildSubset(flow, owner, opt, subset, all);
 
             void ApplyWidths()
             {
@@ -257,6 +352,7 @@ namespace Laubrary.Zui
             }
 
             host.Add(flow);
+            return flow;
         }
 
         /// A control that earns a whole line: one drawing a curve or a plot rather than sitting on a row like
@@ -289,7 +385,7 @@ namespace Laubrary.Zui
         public static VisualElement BuildField(object owner, FieldInfo field, Options opt)
         {
             opt ??= new Options();
-            string nice = ObjectNames.NicifyVariableName(field.Name);
+            string nice = LabelOf(field);
             // A field's own [Tooltip] is the AUTHORED description of what it does — always better than a
             // generated sentence that only restates the label, so it outranks the fallback.
             string tip = opt.TooltipFor?.Invoke(field) ?? TooltipAttributeOf(field)
@@ -431,7 +527,7 @@ namespace Laubrary.Zui
                             xMin = range?.min ?? -1f, xMax = range?.max ?? 1f,
                             yMin = yRange?.min ?? -1f, yMax = yRange?.max ?? 1f,
                             xLabel = AxisLabel(nice, "X"),
-                            yLabel = AxisLabel(ObjectNames.NicifyVariableName(yField.Name), "Y"),
+                            yLabel = AxisLabel(LabelOf(yField), "Y"),
                             // Two pads on one card (an offset and a drift) must not share the pad-vs-sliders
                             // preference, so the key names the owning type and the pair.
                             prefKey = $"{owner.GetType().Name}.{field.Name}",
@@ -743,6 +839,16 @@ namespace Laubrary.Zui
                     Z.Int(cur.y, etip + " (Y)", nv => { var c = (Vector2Int)list[idx]; Set(new Vector2Int(c.x, nv)); }, 70f));
             }
             return null;
+        }
+
+        /// The caption a field draws: its authored [ZUILabel] when it has one, else the nicified field name.
+        /// A generator ported from a research program keeps that program's parameter keys as serialized names
+        /// (contract files and [MovedFrom] history are written in them), so the readable name has to come from
+        /// somewhere other than the field name.
+        public static string LabelOf(FieldInfo field)
+        {
+            var a = (ZUILabelAttribute)Attribute.GetCustomAttribute(field, typeof(ZUILabelAttribute));
+            return string.IsNullOrEmpty(a?.Label) ? ObjectNames.NicifyVariableName(field.Name) : a.Label;
         }
 
         /// The field's authored [Tooltip] text, or null when it has none.
