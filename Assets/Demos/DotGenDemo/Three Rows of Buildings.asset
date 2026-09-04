@@ -50,7 +50,7 @@ MonoBehaviour:
     enabled: 1
     color: {r: 0.38431373, g: 0.84705883, b: 1, a: 1}
     dotSize: 3
-    showDots: 1
+    showDots: 0
     shape: 0
     sizeX: 100
     sizeY: 100
@@ -74,7 +74,7 @@ MonoBehaviour:
     enabled: 1
     color: {r: 0.38431373, g: 0.84705883, b: 1, a: 1}
     dotSize: 3
-    showDots: 1
+    showDots: 0
     shape: 0
     sizeX: 100
     sizeY: 100
@@ -498,7 +498,7 @@ MonoBehaviour:
         fillSource: 0
         fill:
           mode: 0
-          color: {r: 0.14901961, g: 0.21960784, b: 0.2901961, a: 1}
+          color: {r: 0.4745, g: 0.7059, b: 0.8235, a: 1}
           gradient:
             serializedVersion: 2
             key0: {r: 1, g: 1, b: 1, a: 1}
