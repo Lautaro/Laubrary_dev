@@ -18,8 +18,17 @@ namespace Laubrary.Mirage
         public MirageRig rig;
         public Camera previewCamera;
 
+        [Tooltip("Allow middle-mouse dragging and the mouse wheel to pan and zoom the preview camera. Off by default so Mirage does not consume those player controls.")]
+        public bool mouseCameraNavigation;
+        [Tooltip("Allow WASD and arrow keys to move the preview camera. Off by default so Mirage does not consume player movement controls.")]
+        public bool keyboardCameraNavigation;
+
         Object _armedContent;
         string _draggingId;
+
+        bool _cameraDragging;
+        Vector2 _cameraDragStartWorld;
+        Vector3 _cameraDragStartPosition;
 
         string _flashEntryId;
         double _flashUntil;
@@ -284,7 +293,7 @@ namespace Laubrary.Mirage
 
         void DrawPanel()
         {
-            var content = Zui.Panel(ZuiAnchor.TopLeft, 240f, 90f, new Color(0f, 0f, 0f, 0.6f));
+            var content = Zui.Panel(ZuiAnchor.TopLeft, 240f, 140f, new Color(0f, 0f, 0f, 0.6f));
             var s = new ZuiStack(content);
             s.Label("Mirage", bold: true);
 
@@ -312,12 +321,18 @@ namespace Laubrary.Mirage
             {
                 MirageAssetPicker.BuildMenu(picked => _armedContent = picked).ShowAsContext();
             }
+
+            s.Space(4f);
+            mouseCameraNavigation = s.Toggle(mouseCameraNavigation ? "Mouse camera: on" : "Mouse camera: off", mouseCameraNavigation);
+            keyboardCameraNavigation = s.Toggle(keyboardCameraNavigation ? "Keyboard camera: on" : "Keyboard camera: off", keyboardCameraNavigation);
         }
 
         void HandleInput()
         {
             if (rig == null || previewCamera == null || !Application.isPlaying) return;
             var e = Event.current;
+
+            HandleCameraNavigation(e);
 
             if (_armedContent != null)
             {
@@ -345,6 +360,52 @@ namespace Laubrary.Mirage
                 _draggingId = null;
                 e.Use();
             }
+        }
+
+        void HandleCameraNavigation(Event e)
+        {
+            if (mouseCameraNavigation)
+            {
+                if (e.type == EventType.MouseDown && e.button == 2)
+                {
+                    _cameraDragging = true;
+                    _cameraDragStartWorld = ScreenToWorld(e.mousePosition);
+                    _cameraDragStartPosition = previewCamera.transform.position;
+                    e.Use();
+                }
+                else if (e.type == EventType.MouseDrag && _cameraDragging)
+                {
+                    Vector2 delta = _cameraDragStartWorld - ScreenToWorld(e.mousePosition);
+                    previewCamera.transform.position = _cameraDragStartPosition + new Vector3(delta.x, delta.y, 0f);
+                    e.Use();
+                }
+                else if (e.type == EventType.MouseUp && _cameraDragging)
+                {
+                    _cameraDragging = false;
+                    e.Use();
+                }
+                else if (e.type == EventType.ScrollWheel && previewCamera.orthographic)
+                {
+                    previewCamera.orthographicSize = Mathf.Clamp(previewCamera.orthographicSize * Mathf.Exp(e.delta.y * 0.1f), 0.01f, 1000f);
+                    e.Use();
+                }
+            }
+
+            if (!keyboardCameraNavigation || e.type != EventType.KeyDown) return;
+
+            Vector2 direction = e.keyCode switch
+            {
+                KeyCode.W or KeyCode.UpArrow => Vector2.up,
+                KeyCode.S or KeyCode.DownArrow => Vector2.down,
+                KeyCode.A or KeyCode.LeftArrow => Vector2.left,
+                KeyCode.D or KeyCode.RightArrow => Vector2.right,
+                _ => Vector2.zero
+            };
+            if (direction == Vector2.zero) return;
+
+            float step = previewCamera.orthographic ? previewCamera.orthographicSize * 0.1f : 0.5f;
+            previewCamera.transform.position += new Vector3(direction.x * step, direction.y * step, 0f);
+            e.Use();
         }
 
         /// OnGUI's mouse Y is top-down; Camera pixel coords are bottom-up — flip before converting. The
