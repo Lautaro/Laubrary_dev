@@ -103,6 +103,10 @@ namespace Laubrary.Shaper.Editor
             var layer = CurrentLayer;
             if (layer == null || node == null) return;
 
+            // T-0257 — resolved ONCE per card build, here, because both the Fill card and the Border fill box
+            // read it and a second Resolve() would walk the same tree twice for the same answer.
+            fillDiagnostics = ResolveFillDiagnostics(layer);
+
             BuildBreadcrumb(root, layer);
 
             // T-0204 — reset every CONDITIONALLY-built section before deciding whether to rebuild it, so a
@@ -167,13 +171,100 @@ namespace Laubrary.Shaper.Editor
                                ShaperSolidForm form, ShaperSolidDial dial, int decimals = -1)
         {
             string reason = ShaperSolids.InertReason(form, dial);
-            var el = Val(label, reason ?? tip, v, lo, hi, decimals: decimals);
-            if (reason != null)
-            {
-                el.SetEnabled(false);
-                el.tooltip = "Does nothing on a " + form + ": " + reason;
-            }
+            return Inert(Val(label, reason ?? tip, v, lo, hi, decimals: decimals),
+                         reason == null ? null : "Does nothing on a " + form + ": " + reason);
+        }
+
+        /// <summary>
+        /// T-0257 — the ONE way this window declares a control inert. Lifted out of <see cref="SolidVal"/>
+        /// (which was the only place doing it) so every other "the wire behind this dial is cut right now"
+        /// case states itself the same way instead of inventing a second convention: draw the control,
+        /// disable it, and put the REASON on it as its tooltip, because a dial that quietly vanishes teaches
+        /// the author nothing and a dial that quietly does nothing teaches them something false.
+        ///
+        /// <paramref name="reason"/> null means "this dial can act" and the control is returned untouched, so
+        /// a call site can compute a reason-or-null once and wrap unconditionally.
+        /// </summary>
+        static VisualElement Inert(VisualElement el, string reason)
+        {
+            if (el == null || reason == null) return el;
+            el.SetEnabled(false);
+            el.tooltip = reason;
             return el;
+        }
+
+        /// <summary>
+        /// <see cref="Val"/> plus that declaration in one call — the exact shape <see cref="SolidVal"/> has
+        /// always had, generalised so every other reason a dial can be dead uses it rather than a second
+        /// idiom. The reason is passed INTO the control as its own tooltip as well as onto the wrapper, so
+        /// the sentence is there whichever part of the control the pointer lands on.
+        /// </summary>
+        VisualElement InertVal(string label, string tip, string reason, ZUIValue v, float lo, float hi,
+                               bool cyclic = false, int decimals = -1)
+            => Inert(Val(label, reason ?? tip, v, lo, hi, cyclic, decimals), reason);
+
+        /// <summary>
+        /// The same declaration applied to INDIVIDUAL OPTIONS of a <c>Z.MiniRadio</c>/<c>Z.Segmented</c> row,
+        /// for a choice control where some options are unreachable rather than the whole control being dead
+        /// (the Ramp quantity radio: six of its nine values name a sheet the shipped shape stage never
+        /// publishes). Both factories build exactly one child element per option, in option order, so the
+        /// row's children ARE the options — no ZUI change is needed to say so.
+        ///
+        /// <paramref name="reasonAt"/> returns null for an option that is genuinely available.
+        /// </summary>
+        static VisualElement InertOptions(VisualElement row, Func<int, string> reasonAt)
+        {
+            if (row == null || reasonAt == null) return row;
+            int i = 0;
+            foreach (var option in row.Children())
+            {
+                string reason = reasonAt(i++);
+                if (reason == null) continue;
+                option.SetEnabled(false);
+                option.tooltip = reason;
+            }
+            return row;
+        }
+
+        /// <summary>
+        /// Whether a dial can ever be anything but zero. A Static dial at zero is a dial that does nothing,
+        /// full stop; an ANIMATED one is non-zero somewhere on the timeline even when it reads zero at the
+        /// frame on screen, so it is never declared inert — greying a curve because the playhead happens to
+        /// sit on its zero would be a worse lie than the one this fixes.
+        /// </summary>
+        static bool DialAlwaysZero(ZUIValue v)
+            => v == null
+            || (v.mode == ZUIValue.Mode.Static && Mathf.Approximately(ShaperValue.Sample(v, 0f, 0u), 0f));
+
+        /// <summary>
+        /// T-0257 — does the document's rig hold a light the compiler will actually use? The same test
+        /// <see cref="ShaperLightCompiler"/> compiles with (an entry that is null or disabled is not a light),
+        /// shared with <see cref="BuiltInSolidKeyStandingIn"/> above rather than restated, so the Lighting
+        /// card cannot grey a dial the renderer is still reading.
+        /// </summary>
+        bool DocumentHasEnabledLight()
+        {
+            var rig = document != null ? document.lightRig : null;
+            if (rig == null || rig.lights == null) return false;
+            for (int i = 0; i < rig.lights.Count; i++)
+                if (rig.lights[i] != null && rig.lights[i].enabled) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// Whether anything in this layer's tree is a Solid. Solids are EXEMPT from the empty-rig unlit gate
+        /// (<c>ShaperLightCompiler</c>'s built-in key, T-0203) and that exemption keeps the layer's own
+        /// response — its specular, rim and intensity scale are still read — so a layer holding one has live
+        /// lighting dials even with an empty rig, and greying them there would be wrong.
+        /// </summary>
+        static bool LayerHasSolid(ShaperNode node)
+        {
+            if (node == null || !node.enabled) return false;
+            if (node.kind == ShaperNodeKind.Solid) return true;
+            if (node.children != null)
+                for (int i = 0; i < node.children.Count; i++)
+                    if (LayerHasSolid(node.children[i])) return true;
+            return false;
         }
 
         /// <summary>
@@ -193,11 +284,7 @@ namespace Laubrary.Shaper.Editor
                       ? document.layers[selectedLayer] : null;
             if (layer == null || layer.response == null || !layer.response.receiveLighting) return false;
 
-            var rig = document.lightRig;
-            if (rig == null || rig.lights == null) return true;
-            for (int i = 0; i < rig.lights.Count; i++)
-                if (rig.lights[i] != null && rig.lights[i].enabled) return false;
-            return true;
+            return !DocumentHasEnabledLight();
         }
 
         /// The solid dials, drawn inside the Shape card for a node whose picked shape is a solid (T-0182).
@@ -304,6 +391,91 @@ namespace Laubrary.Shaper.Editor
             root.Add(row);
         }
 
+        // ── Fill refusals, said out loud (T-0257) ────────────────────────────────────────────────────────
+        //
+        // The engine has always written a complete sentence when it refuses a fill and paints the default
+        // Solid instead — "Ramp-by-value on 'Torso' needs Height, which this shape does not publish." — and
+        // until now the ONLY reader of those five strings was ShaperFillAudit. So picking Ramp by value ▸
+        // Height on a layer with no height stage painted flat white and said nothing anywhere on screen.
+        // ShaperFillResolver.Resolve is the same tree walk the renderer already does per frame; it paints
+        // nothing, so calling it once per card build to read its diagnostics is cheap and, more importantly,
+        // it is the SAME answer the picture came from rather than a second opinion computed here.
+
+        /// The layer's current fill diagnostics, resolved once per card build by BuildAuthoringSections.
+        ShaperFillDocument fillDiagnostics;
+
+        ShaperFillDocument ResolveFillDiagnostics(ShaperLayer layer)
+        {
+            if (document == null || layer == null || layer.root == null) return null;
+            // The renderer's own half-extents (ShaperDocumentRenderer.cs:238-239) — a fill's anchor box is
+            // measured against them, so a different pair here could refuse differently from the picture.
+            float halfW = 0.5f * (document.canvasWidth - 1) * document.pixelSize;
+            float halfH = 0.5f * (document.canvasHeight - 1) * document.pixelSize;
+            // The phase of the frame ON SCREEN, through ShaperClock (the one home for that conversion) rather
+            // than off document.phase01, which the renderer writes and restores mid-render and so is not a
+            // stable reading of anything.
+            float phase = ShaperClock.PhaseOfFrame(currentFrame, document.frameCount);
+            try
+            {
+                return ShaperFillResolver.Resolve(layer.root, phase, document.seed, halfW, halfH,
+                                                  ShaperQuantitySet.ShippedShapeEngine);
+            }
+            catch (Exception)
+            {
+                // A diagnostic read may never be the reason a card fails to draw.
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// The refusal sentence for one node's fill, or null when nothing was refused. Matched by the name the
+        /// engine puts in its own sentence — the node's name for a fill, "<c>&lt;node&gt; border</c>" for a
+        /// border (ShaperFillResolver.Refuse's `label` parameter), which is why this takes the whole label
+        /// rather than the node.
+        ///
+        /// The engine records the FIRST offender of each kind plus a count, so a second refused node in the
+        /// same layer has no sentence of its own to show. Its card therefore stays silent rather than
+        /// borrowing somebody else's sentence, and the count is reported on the card that does own one.
+        /// </summary>
+        string FillRefusalFor(string who)
+        {
+            var d = fillDiagnostics;
+            if (d == null || string.IsNullOrEmpty(who)) return null;
+
+            if (d.hasUnavailableFill && d.unavailableFillNode == who)
+                return Countable(d.unavailableFillReason, d.unavailableFillCount);
+            if (d.hasTypeRefusedFill && d.typeRefusedFillNode == who)
+                return Countable(d.typeRefusedFillReason, d.typeRefusedFillCount);
+            if (d.hasSubtractFill && d.subtractFillNode == who)
+                return Countable(d.subtractFillReason, d.subtractFillCount);
+            if (d.hasFallbackFill && d.fallbackFillNode == who)
+                return Countable(d.fallbackFillReason, d.fallbackFillCount);
+            return null;
+        }
+
+        /// <summary>The border-strip refusal (BD-3.7), which has its own remedy and so its own sentence.</summary>
+        string BorderRefusalFor(ShaperNode node)
+        {
+            var d = fillDiagnostics;
+            if (d == null || node == null) return null;
+            if (d.hasSubtractBorder && d.subtractBorderNode == node.name)
+                return Countable(d.subtractBorderReason, d.subtractBorderCount);
+            return FillRefusalFor(node.name + " border");
+        }
+
+        /// The engine keeps a count precisely so a UI can say "and two more like it" instead of pointing at
+        /// one node and silently hiding the rest (ShaperProgram.cs:90-95).
+        static string Countable(string reason, int count)
+            => count > 1 ? reason + " (" + count + " fills in this layer were refused this way.)" : reason;
+
+        /// <summary>
+        /// The status line itself: the engine's OWN sentence, verbatim, in the same <c>Subtle</c> shape the
+        /// Mask card's "Falling back to Coverage." line already uses — so a refused fill reads the same
+        /// wherever it happens. Not a paraphrase, because the sentence names the fill kind, the node, the
+        /// missing quantity AND where it went missing, and every one of those is the remedy.
+        /// </summary>
+        static VisualElement RefusalLine(string reason) => Z.Text(reason, ZuiText.Subtle, reason);
+
         // ── Fill ─────────────────────────────────────────────────────────────────────────────────────────
 
         // ShaperNode.fill (:138) has NO initializer, so it is genuinely nullable and null is a meaningful
@@ -326,6 +498,11 @@ namespace Laubrary.Shaper.Editor
                 return;
             }
 
+            // T-0257 — said BEFORE the dials, not after them: the whole failure this closes is an author
+            // tuning a ramp that is not the thing on screen.
+            string refused = FillRefusalFor(node.name);
+            if (refused != null) box.Add(RefusalLine(refused));
+
             BuildFillBody(box, node.fill, "shaper.window.fill");
             box.Add(Z.Button("Remove fill", "Drop this node's own fill and fall back to the default/inherited one.",
                 () => { Change(() => node.fill = null); Rebuild(); }));
@@ -338,31 +515,34 @@ namespace Laubrary.Shaper.Editor
         void BuildFillBody(VisualElement box, ShaperFillDef f, string keyPrefix)
         {
             box.Add(Z.Field("Kind", "Which fill this is. Switching it changes the dials below.",
-                Z.MiniRadio((int)f.kind, Enum.GetNames(typeof(ShaperFillKind)),
+                Z.MiniRadio((int)f.kind, ShaperWords.Names(typeof(ShaperFillKind)),
                     "Which fill this is.", v => { Change(() => f.kind = (ShaperFillKind)v); Rebuild(); },
                     wrap: true)));
 
             // Cross-kind fields, packed as ONE continuous group so an overflowing control lands beside the
             // next one instead of orphaned on a line of its own.
             box.Add(Z.HGroup(
-                Z.Field("Composite", "Whether this fill paints OVER what is underneath or ADDS to it.",
-                    Z.Segmented((int)f.composite, Enum.GetNames(typeof(ShaperFillComposite)),
+                // T-0257 — "Composite" was the pipeline's word for it; the author is choosing how this fill
+                // blends with what is underneath, and the SpriteFX cards now say "blending" for the same idea.
+                Z.Field("Blending", "Whether this fill paints OVER what is underneath or ADDS to it.",
+                    Z.Segmented((int)f.composite, ShaperWords.Names(typeof(ShaperFillComposite)),
                         "Over paints on top; Add sums, which is what makes glow read as glow.",
                         v => Change(() => f.composite = (ShaperFillComposite)v))),
-                Z.Field("Space", "Whether the fill is stamped onto the shape or fixed to the canvas.",
-                    Z.Segmented((int)f.space, Enum.GetNames(typeof(ShaperFillSpace)),
-                        "Stamped moves with the shape; Fixed stays put while the shape moves through it.",
+                Z.Field("Space", "Whether the fill travels with the shape or stays put on the canvas.",
+                    Z.Segmented((int)f.space, ShaperWords.Names(typeof(ShaperFillSpace)),
+                        "“Moves with the shape” stamps the fill onto it; “Stays put” holds the fill still "
+                        + "while the shape moves through it.",
                         v => Change(() => f.space = (ShaperFillSpace)v))),
                 Z.Field("Fit", "How the fill is fitted to the shape's bounds.",
-                    Z.Segmented((int)f.fit, Enum.GetNames(typeof(ShaperFillFit)),
-                        "Uniform preserves aspect; Stretch fills the bounds exactly.",
+                    Z.Segmented((int)f.fit, ShaperWords.Names(typeof(ShaperFillFit)),
+                        "“Keep proportions” preserves aspect; “Stretch to fit” fills the bounds exactly.",
                         v => Change(() => f.fit = (ShaperFillFit)v))),
                 // INVENTORY GAP CLOSED — veil (:60) and heightDelta (:68) apply to every fill kind and had
                 // no UI anywhere. heightDelta is the input the relief shading of T-0110/T-0127 reads, so
                 // without it relief could not be authored at all.
-                Val("Veil", "Multiplies this fill's own transparency — the veil the palette applies on top "
+                Val("Fade", "Multiplies this fill's own transparency — the fade the palette applies on top "
                     + "of whatever edge rule the fill computed.", f.veil, 0f, 1f),
-                Val("Height Δ", "How much this fill raises or lowers the surface it paints. This is the "
+                Val("Height change", "How much this fill raises or lowers the surface it paints. This is the "
                     + "input the relief shading reads, so a non-zero value is what makes a fill sculpt "
                     + "rather than merely colour.", f.heightDelta, -32f, 32f)));
 
@@ -385,16 +565,16 @@ namespace Laubrary.Shaper.Editor
             }
 
             // quantiseLevels (:292) is ZUIValue, and applies whatever the kind is.
-            box.Add(Val("Quantise", "Snap the result to this many discrete colour bands. 0 leaves it smooth.",
+            box.Add(Val("Posterise", "Snap the result to this many discrete colour bands. 0 leaves it smooth.",
                 f.quantiseLevels, 0f, 32f, decimals: 0));
         }
 
         void BuildGradientFill(VisualElement box, ShaperFillDef f)
         {
             box.Add(Z.Field("Mode", "How the gradient is projected across the shape.",
-                Z.MiniRadio((int)f.gradientMode, Enum.GetNames(typeof(ShaperGradientMode)),
+                Z.MiniRadio((int)f.gradientMode, ShaperWords.Names(typeof(ShaperGradientMode)),
                     "Linear sweeps along an angle; Radial runs out from a centre; Angular sweeps around it; "
-                    + "By Edge Distance follows how far each sample is from the shape's edge.",
+                    + "“From the edge inwards” follows how far each sample is from the shape's edge.",
                     v => { Change(() => f.gradientMode = (ShaperGradientMode)v); Rebuild(); })));
 
             box.Add(Z.Field("Ramp", "The colour ramp this gradient samples.", Gradient(f.gradient,
@@ -430,17 +610,28 @@ namespace Laubrary.Shaper.Editor
                     f.gradientSize, 0f, 4f));
             }
             if (f.gradientMode == ShaperGradientMode.ByEdgeDistance)
-                rows.Add(Val("Depth", "How far in from the edge the ramp is spread, in pixels.",
+                // T-0257 — one of the three unrelated "Depth"s this window used to show. The solid's Z
+                // half-extent keeps the bare word; this one and the height stage's are qualified.
+                rows.Add(Val("Ramp depth", "How far in from the edge the ramp is spread, in pixels.",
                     f.gradientDepthPixels, 0f, 128f));
             box.Add(Z.HGroup(rows.ToArray()));
         }
 
         void BuildRampFill(VisualElement box, ShaperFillDef f)
         {
+            // T-0257 — six of the nine values name a sheet the shipped shape stage NEVER publishes
+            // (ShaperFillSheets.FromShapeStage publishes Coverage + Edge distance, and Height only when the
+            // layer carries a height stage), so two thirds of this radio was a trap: picking one painted flat
+            // white with no message anywhere. The values stay — the enum is append-only and an authored
+            // document may already hold one — but they are declared inert with the reason, which is the same
+            // posture ShaperSolids.InertReason takes for a dial that does nothing on a given solid form.
+            bool layerHasHeight = CurrentLayer != null && CurrentLayer.height != null;
             box.Add(Z.Field("Quantity", "Which published quantity drives the ramp.",
-                Z.MiniRadio((int)f.rampQuantity, Enum.GetNames(typeof(ShaperQuantity)),
-                    "The sheet this fill reads to decide where in the ramp each sample lands.",
-                    v => Change(() => f.rampQuantity = (ShaperQuantity)v), wrap: true)));
+                InertOptions(
+                    Z.MiniRadio((int)f.rampQuantity, ShaperWords.Names(typeof(ShaperQuantity)),
+                        "The sheet this fill reads to decide where in the ramp each sample lands.",
+                        v => { Change(() => f.rampQuantity = (ShaperQuantity)v); Rebuild(); }, wrap: true),
+                    i => RampQuantityReason((ShaperQuantity)i, layerHasHeight))));
 
             // INVENTORY GAP CLOSED — rampGradient (:141) had no UI, so RampByQuantity had no authorable ramp
             // at all: the user could choose what drove the ramp but not what the ramp looked like.
@@ -467,14 +658,41 @@ namespace Laubrary.Shaper.Editor
                         c => Change(() => f.rampTint = c), 90f))));
         }
 
+        /// <summary>
+        /// Why a ramp quantity cannot be used right now, or null when it can. The three the shape stage does
+        /// publish are named from the engine's own sets (<see cref="ShaperQuantitySet.ShippedShapeEngine"/>
+        /// plus Height when a height stage is attached, HS-1.4); the other six have no publisher at all in
+        /// the shipped engine, and Surface direction is additionally refused on TYPE — the engine's own
+        /// sentence for that is reused rather than a second one written here.
+        /// </summary>
+        static string RampQuantityReason(ShaperQuantity q, bool layerHasHeight)
+        {
+            switch (q)
+            {
+                case ShaperQuantity.Coverage:
+                case ShaperQuantity.EdgeDistance:
+                    return null;
+                case ShaperQuantity.Height:
+                    return layerHasHeight ? null
+                        : "This layer has no height stage, so nothing publishes a height to ramp through. "
+                          + "Turn Height on for the layer and this becomes available.";
+                case ShaperQuantity.SurfaceDirection:
+                    return "Not available: " + ShaperQuantities.SurfaceDirectionRefusal + ".";
+                default:
+                    return "Nothing in the shipped shape engine publishes " + ShaperWords.Of(q).ToLowerInvariant()
+                         + ". It is kept because a simulation source could publish it, and because a document "
+                         + "authored against one must not lose its setting.";
+            }
+        }
+
         void BuildTextureFill(VisualElement box, ShaperFillDef f)
         {
             box.Add(Z.Field("Texture", "The image this fill samples.",
                 Z.Object<Texture2D>(f.texture, "The image this fill samples.",
                     t => Change(() => f.texture = t), 200f)));
             box.Add(Z.Field("Mapping", "How the texture is mapped onto the shape.",
-                Z.Segmented((int)f.textureMapping, Enum.GetNames(typeof(ShaperTextureMapping)),
-                    "Fitted stretches one copy to the bounds; Tiled repeats it.",
+                Z.Segmented((int)f.textureMapping, ShaperWords.Names(typeof(ShaperTextureMapping)),
+                    "“Fit once” stretches a single copy to the bounds; “Repeat” tiles it.",
                     v => Change(() => f.textureMapping = (ShaperTextureMapping)v))));
             box.Add(Z.HGroup(
                 Val("Tiles X", "How many times the texture repeats horizontally.", f.textureTilesX, 0.1f, 16f),
@@ -504,10 +722,11 @@ namespace Laubrary.Shaper.Editor
 
         void BuildStripFill(VisualElement box, ShaperFillDef f, string keyPrefix)
         {
-            box.Add(Z.Field("Parameterisation", "How a sample is turned into a position along the strip.",
+            box.Add(Z.Field("Band direction", "Which way the bands run across the shape.",
                 Z.Segmented((int)f.stripParameterisation,
-                    Enum.GetNames(typeof(ShaperStripParameterisation)),
-                    "Angular walks around the shape; Projection walks along an axis.",
+                    ShaperWords.Names(typeof(ShaperStripParameterisation)),
+                    "“Around the shape” walks the bands round its outline; “Across the shape” walks them "
+                    + "along one axis.",
                     v => Change(() => f.stripParameterisation = (ShaperStripParameterisation)v))));
             box.Add(Z.HGroup(
                 Val("Repeats", "How many times the strip repeats around/along the shape.",
@@ -590,7 +809,7 @@ namespace Laubrary.Shaper.Editor
             box.Add(Z.HGroup(
                 Val("Cells", "How many noise cells across the surface — the grain size.", f.steelCells, 1f, 64f),
                 Val("Octaves", "How many layers of noise are summed.", f.steelOctaves, 1f, 8f, decimals: 0),
-                Val("Seed", "Varies the pattern without changing its character.", f.steelSeed, 0f, 9999f, decimals: 0),
+                Val("Grain seed", "Varies the pattern without changing its character.", f.steelSeed, 0f, 9999f, decimals: 0),
                 Val("Grain", "How strongly the grain shows.", f.steelGrain, 0f, 1f)));
             box.Add(Z.HGroup(
                 Val("Rust amount", "How much rust covers the surface.", f.steelRustAmount, 0f, 1f),
@@ -621,7 +840,7 @@ namespace Laubrary.Shaper.Editor
         void BuildProceduralFill(VisualElement box, ShaperFillDef f)
         {
             box.Add(Z.Field("Pattern", "Which procedural pattern this fill draws.",
-                Z.MiniRadio((int)f.proceduralKind, Enum.GetNames(typeof(ShaperProceduralKind)),
+                Z.MiniRadio((int)f.proceduralKind, ShaperWords.Names(typeof(ShaperProceduralKind)),
                     "Noise paints a ramp through hashed noise; Grid and Dots ink a repeating line/disc pattern "
                     + "and leave the rest transparent.",
                     v => { Change(() => f.proceduralKind = (ShaperProceduralKind)v); Rebuild(); })));
@@ -639,8 +858,9 @@ namespace Laubrary.Shaper.Editor
             {
                 case ShaperProceduralKind.Noise:
                     box.Add(Z.Field("Noise shape", "How the raw noise value is reshaped before it drives the ramp.",
-                        Z.Segmented((int)f.noiseKind, Enum.GetNames(typeof(ShaperNoiseKind)),
-                            "Value is plain noise; Ridged creases it into ridges; Steps posterises it into four bands.",
+                        Z.Segmented((int)f.noiseKind, ShaperWords.Names(typeof(ShaperNoiseKind)),
+                            "Smooth is plain noise; Ridged creases it into ridges; Banded posterises it into "
+                            + "four bands.",
                             v => Change(() => f.noiseKind = (ShaperNoiseKind)v))));
                     box.Add(Z.Field("Ramp", "The colour ramp the noise value is mapped through.",
                         Gradient(f.proceduralGradient, "The colour ramp the noise value is mapped through.")));
@@ -733,13 +953,20 @@ namespace Laubrary.Shaper.Editor
 
             box.Add(Z.HGroup(
                 Val("Width", "How thick the border strip is, in canvas pixels.", b.width, 0f, 32f),
-                Z.Field("Alignment", "Which side of the edge the strip sits on.",
-                    Z.Segmented((int)b.alignment, Enum.GetNames(typeof(ShaperShellAlignment)),
+                // T-0257 — "Alignment" was the label on two unrelated cards (this and the Shell); this one
+                // says where the strip SITS relative to the edge it traces.
+                Z.Field("Sits", "Which side of the edge the strip sits on.",
+                    Z.Segmented((int)b.alignment, ShaperWords.Names(typeof(ShaperShellAlignment)),
                         "Centred straddles the edge; Inward grows into the shape; Outward grows out of it.",
                         v => Change(() => b.alignment = (ShaperShellAlignment)v))),
                 Z.Toggle("Joins coverage",
                     "Whether the border adds itself to the shape's coverage, or only paints over it.",
                     b.joinsCoverage, v => Change(() => b.joinsCoverage = v))));
+
+            // T-0257 — a border strip has its own refusal (BD-3.7/BD-3.8) with its own remedy, so it gets its
+            // own sentence rather than being folded into the node's.
+            string borderRefused = BorderRefusalFor(node);
+            if (borderRefused != null) box.Add(RefusalLine(borderRefused));
 
             // The border carries a full ShaperFillDef of its own, so it gets the same editor rather than a
             // reduced copy that would drift.
@@ -819,8 +1046,9 @@ namespace Laubrary.Shaper.Editor
                     "How this member folds into the bag it belongs to.", "shaper.window.combine");
                 combine.Add(Z.HGroup(
                     Z.Field("Combine", "How this node combines with what is already there.",
-                        Z.Segmented((int)node.mode, Enum.GetNames(typeof(ShaperCombineMode)),
-                            "Add unions; Subtract carves; Intersect keeps only the overlap.",
+                        Z.Segmented((int)node.mode, ShaperWords.Names(typeof(ShaperCombineMode)),
+                            "Add unions; “Cut out” carves this member away; “Keep overlap” keeps only the "
+                            + "part both cover.",
                             v => Change(() => node.mode = (ShaperCombineMode)v))),
                     Val("Blend width", "How far the join between this node and its neighbours is softened, "
                         + "in canvas pixels. 0 is a hard edge.",
@@ -834,18 +1062,39 @@ namespace Laubrary.Shaper.Editor
 
             var sweep = Z.BoxKeyed("Sweep", "Keep only an angular or fractional slice of the shape.",
                 "shaper.window.sweep");
+
+            // T-0257 — A SWEEP HAS TWO PARAMETERISATIONS AND ONLY ONE OF THEM EVER ACTS. The axis is the
+            // SHAPE's own answer, not an authored choice (ShaperPrimitives.SweepAxis: a Capsule is
+            // Longitudinal, every other primitive is Radial — ShaperPrimitives.cs:329-330), and the compiler
+            // reads the degree pair on a Radial axis and the fraction pair on a Longitudinal one
+            // (ShaperCompiler.EmitSweep). So on a disc the two "ƒ" dials moved nothing and said nothing.
+            // Answered ONLY for a Primitive, where the axis is exactly known; a bag folds its members' axes
+            // and disagreement falls back to Radial, so claiming an answer there would be a guess.
+            string degreeReason = null, fractionReason = null;
+            if (node.kind == ShaperNodeKind.Primitive && node.primitive != null)
+            {
+                bool longitudinal =
+                    ShaperPrimitives.SweepAxis(node.primitive.kind) == ShaperSweepAxis.Longitudinal;
+                string inert = longitudinal
+                    ? "This shape is swept along its length, so the angle dials do nothing here — use Start "
+                      + "and Extent below."
+                    : "This shape is swept around its centre, so the fraction dials do nothing here — use the "
+                      + "degree dials above.";
+                if (longitudinal) degreeReason = inert; else fractionReason = inert;
+            }
+
             sweep.Add(Z.HGroup(
                 Z.Toggle("Enabled", "Apply the sweep.", node.sweep.enabled,
                     v => Change(() => node.sweep.enabled = v)),
-                Val("Start", "Where the kept slice begins, in degrees.",
+                InertVal("Start", "Where the kept slice begins, in degrees.", degreeReason,
                     node.sweep.startDegreesDial, 0f, 360f, cyclic: true, decimals: 0),
-                Val("Extent", "How much of the shape is kept, in degrees. Animate it to wipe the shape on or "
-                    + "off over the document's frames.",
+                InertVal("Extent", "How much of the shape is kept, in degrees. Animate it to wipe the shape "
+                    + "on or off over the document's frames.", degreeReason,
                     node.sweep.extentDegreesDial, 0f, 360f, decimals: 0),
-                Val("Start ƒ", "Where the kept slice begins as a fraction of the shape.",
-                    node.sweep.startFractionDial, 0f, 1f),
-                Val("Extent ƒ", "How much is kept as a fraction of the shape.",
-                    node.sweep.extentFractionDial, 0f, 1f)));
+                InertVal("Start ƒ", "Where the kept slice begins as a fraction of the shape's length.",
+                    fractionReason, node.sweep.startFractionDial, 0f, 1f),
+                InertVal("Extent ƒ", "How much is kept as a fraction of the shape's length.",
+                    fractionReason, node.sweep.extentFractionDial, 0f, 1f)));
             box.Add(sweep);
 
             var shell = Z.BoxKeyed("Shell", "Hollow the shape into a shell of a given thickness.",
@@ -855,8 +1104,8 @@ namespace Laubrary.Shaper.Editor
                     v => Change(() => node.shell.enabled = v)),
                 Val("Thickness", "How thick the remaining shell is, in canvas pixels.",
                     node.shell.thicknessDial, 0f, 32f),
-                Z.Field("Alignment", "Which side of the surface the shell is taken from.",
-                    Z.Segmented((int)node.shell.alignment, Enum.GetNames(typeof(ShaperShellAlignment)),
+                Z.Field("Taken from", "Which side of the surface the shell is taken from.",
+                    Z.Segmented((int)node.shell.alignment, ShaperWords.Names(typeof(ShaperShellAlignment)),
                         "Centred straddles the surface; Inward keeps material inside it; Outward outside.",
                         v => Change(() => node.shell.alignment = (ShaperShellAlignment)v)))));
             box.Add(shell);
@@ -891,7 +1140,7 @@ namespace Laubrary.Shaper.Editor
                     s.count, 1f, 64f, v => { s.count = Mathf.RoundToInt(v); Rebuild(); }, decimals: 0),
                 // uint seed, same clamp reasoning the shell used for the document seed: an int control cannot
                 // express the top half of a uint, and no workflow needs it.
-                Z.Field("Seed", "Varies the jitter without changing its character. Clamped to a positive "
+                Z.Field("Swarm seed", "Varies the jitter without changing its character. Clamped to a positive "
                     + "int — the engine's field is a uint, whose upper half no int control can express.",
                     Z.Int((int)Math.Min(s.seed, int.MaxValue), "Swarm seed.",
                         v => Change(() => s.seed = (uint)Mathf.Max(0, v)), 90f)),
@@ -921,16 +1170,34 @@ namespace Laubrary.Shaper.Editor
             // alike. Presenting it as live would be the lie; hiding it would leave the author wondering where
             // the node blend's third dial went. Same "declare inert with a reason, never hide" posture
             // ShaperSolids.InertReason takes for a dial that does nothing on a given solid form.
-            var mergeCarve = Val("Merge carve", "How strongly a Subtract carves.",
+            // T-0257 — routed through the shared InertVal rather than its own SetEnabled/tooltip pair, so
+            // there is exactly one way this window says "dead, and here is why".
+            var mergeCarve = InertVal("Merge carve", null,
+                "Does nothing on a swarm: instances are unioned, and carve strength is read only where a node "
+                + "subtracts. The merge keeps the value so a blend that does carve still has it.",
                 s.merge.carveStrengthDial, 0f, 1f);
-            mergeCarve.SetEnabled(false);
-            mergeCarve.tooltip = "Does nothing on a swarm: instances are unioned, and carve strength is read "
-                + "only where a node subtracts. The merge keeps the value so a blend that does carve still "
-                + "has it.";
+
+            // T-0257 — "Interact" was a verb with no object. What the flag does is let one instance's values
+            // BLEED INTO its neighbours' rather than each being evaluated alone and unioned, so a cluster
+            // reads as one body (ShaperSwarmDef.cs:250-258, measured by ShaperSwarmAudit's CT-6/CT-7). It is
+            // read ONLY on the native swarm path — a source that declares IShaperSwarmNativeSource and
+            // currently supports it (ShaperCompiler.cs:372) — and CT-7 measures that a Primitive compiles
+            // identically with it on and off, so on anything else it is declared inert rather than left to
+            // look live. That is the greying the card's own "declare inert with a reason, never hide" comment
+            // has been promising since T-0169 without doing it.
+            var nativeSource = node.kind == ShaperNodeKind.Composite ? node.composite?.source : null;
+            bool nativeSwarm = nativeSource is IShaperSwarmNativeSource nat && nat.SupportsNativeSwarm;
+            var instancesMix = Inert(
+                Z.Toggle("Instances mix",
+                    "Let each instance's values bleed into its neighbours', so a close cluster reads as one "
+                    + "body instead of many separate copies.",
+                    s.interact, v => Change(() => s.interact = v)),
+                nativeSwarm ? null
+                    : "Does nothing on this shape: instances are evaluated independently and unioned. Only a "
+                    + "generator that brings its own swarm path can let them mix.");
 
             box.Add(Z.HGroup(
-                Z.Toggle("Interact", "Let instances affect one another rather than being independent.",
-                    s.interact, v => Change(() => s.interact = v)),
+                instancesMix,
                 Val("Merge width", "How far neighbouring instances blend into each other.",
                     s.merge.widthDial, 0f, 32f),
                 Val("Merge sharpness", "How abruptly that blend falls off.",
@@ -949,7 +1216,7 @@ namespace Laubrary.Shaper.Editor
                 + "sitting on the node's own position.", "shaper.window.swarm.shape");
 
             box.Add(Z.Field("Shape", "The figure the instances arrange themselves on.",
-                Z.MiniRadio((int)s.shape, Enum.GetNames(typeof(ShaperSwarmShape)),
+                Z.MiniRadio((int)s.shape, ShaperWords.Names(typeof(ShaperSwarmShape)),
                     "None leaves every instance on the node's own position, moved only by the jitter above.",
                     v => { Change(() => s.shape = (ShaperSwarmShape)v); Rebuild(); }, wrap: true)));
 
@@ -962,7 +1229,7 @@ namespace Laubrary.Shaper.Editor
             // its constructor, so a child added later would sit flush against its neighbour.
             box.Add(Z.HGroup(
                 line ? null : Z.Field("Spawn", "Whether instances fill the figure or ride its outline.",
-                    Z.Segmented((int)s.spawnMode, Enum.GetNames(typeof(ShaperSwarmSpawnMode)),
+                    Z.Segmented((int)s.spawnMode, ShaperWords.Names(typeof(ShaperSwarmSpawnMode)),
                         "Area fills the interior; Path places them along the edge.",
                         v => { Change(() => s.spawnMode = (ShaperSwarmSpawnMode)v); Rebuild(); })),
                 Val(line ? "Half length" : "Radius",
@@ -1012,11 +1279,11 @@ namespace Laubrary.Shaper.Editor
 
             box.Add(Z.HGroup(
                 Z.Field("Face", "Which way each instance is turned once it is placed.",
-                    Z.MiniRadio((int)s.orient, Enum.GetNames(typeof(ShaperSwarmOrient)),
-                        path ? "Outward turns each instance away from the centre; PathTangent turns it along "
-                               + "the outline it sits on."
-                             : "Outward turns each instance away from the centre. PathTangent needs a Path "
-                               + "spawn, and falls back to Outward here.",
+                    Z.MiniRadio((int)s.orient, ShaperWords.Names(typeof(ShaperSwarmOrient)),
+                        path ? "“Away from centre” turns each instance outward; “Along the path” turns it "
+                               + "along the outline it sits on."
+                             : "“Away from centre” turns each instance outward. “Along the path” needs a Path "
+                               + "spawn, and turns away from the centre here.",
                         v => Change(() => s.orient = (ShaperSwarmOrient)v))),
                 Val("Size by index", "A size multiplier read across the instances rather than over time — "
                     + "author it as a curve to taper the swarm from one end to the other, or as Min-Max to "
@@ -1038,8 +1305,8 @@ namespace Laubrary.Shaper.Editor
             var kids = new List<VisualElement>
             {
                 Z.Field("Timing", "How the instances are distributed over the document's frames.",
-                    Z.MiniRadio((int)s.timing, Enum.GetNames(typeof(ShaperSwarmTiming)),
-                        "Stagger keeps every instance alive throughout; Window and FrameStep give each one a "
+                    Z.MiniRadio((int)s.timing, ShaperWords.Names(typeof(ShaperSwarmTiming)),
+                        "“Spread out” keeps every instance alive throughout; the other two give each one a "
                         + "birth and a death, outside which it is not drawn at all.",
                         v => { Change(() => s.timing = (ShaperSwarmTiming)v); Rebuild(); }))
             };
@@ -1232,8 +1499,8 @@ namespace Laubrary.Shaper.Editor
                         v => Change(() => child.enabled = v)));
                     row.Add(Z.TextInput(child.name ?? "", "This member's name.",
                         v => Change(() => child.name = v), 140f));
-                    row.Add(Z.Text(child.mode.ToString(), ZuiText.Subtle,
-                        "How this member combines: " + child.mode));
+                    row.Add(Z.Text(ShaperWords.Of(child.mode), ZuiText.Subtle,
+                        "How this member combines: " + ShaperWords.Of(child.mode).ToLowerInvariant() + "."));
                     row.Add(Z.Flexible());
                     // Label = action: this opens the member for editing, which is what "Open" says it does.
                     row.Add(Z.Button("Open", "Author this member.",
@@ -1268,42 +1535,56 @@ namespace Laubrary.Shaper.Editor
                 "How this LAYER responds to the document's light rig.",
                 "shaper.window.response", icon: "sun");
 
-            // LR-4.5 declares ShaperLightRig.ShadowsNotComputed (ShaperLightRig.cs:194) as the sentence to show
-            // on the Cast/Receive Shadows controls "whenever either is ticked", and the compiler raises it on
-            // the program under exactly that condition (ShaperLightCompiler.cs:422). Neither control was
-            // quoting it, so ticking one read as "this now casts a shadow" when nothing is computed. The
-            // string is composed in per state rather than pinned on permanently, because a conditional tooltip
-            // has to read true for the state it is actually in: with both off, no shadow is being claimed. The
-            // toggles Rebuild so the tooltip recomposes the moment the state it describes changes.
-            bool shadowClaimed = r.castShadows || r.receiveShadows;
-            string shadowLimit = shadowClaimed ? " " + ShaperLightRig.ShadowsNotComputed : "";
-
+            // T-0257 — THE CAST/RECEIVE SHADOW TOGGLES ARE GONE. LR-4.5 is explicit that they are "authored,
+            // serialized and persisted; changes no pixel", and BC-2.3 explains they are not merely unscheduled
+            // but unimplementable on v1's one straight-down ray. A control that can never move a pixel is not
+            // a limitation to declare, it is a promise to withdraw — the two greyed toggles it would otherwise
+            // become would still say "shadows exist here, just not yet". The FIELDS stay on
+            // ShaperLightResponse (castShadows/receiveShadows, ShaperLightRig.cs:274-277) exactly as LR-4.5
+            // asks, so a document that authored them keeps the author's intent for the day shadows land; this
+            // window simply no longer reads or offers them, and ShaperLightRig.ShadowsNotComputed stays as the
+            // sentence for whoever brings the controls back.
             box.Add(Z.HGroup(
                 Z.Toggle("Receive lighting", "Let the rig light this layer at all.",
-                    r.receiveLighting, v => { Change(() => r.receiveLighting = v); Rebuild(); }),
-                Z.Toggle("Cast shadows", "Let this layer cast shadows." + shadowLimit,
-                    r.castShadows, v => { Change(() => r.castShadows = v); Rebuild(); }),
-                Z.Toggle("Receive shadows", "Let this layer be shadowed." + shadowLimit,
-                    r.receiveShadows, v => { Change(() => r.receiveShadows = v); Rebuild(); })));
+                    r.receiveLighting, v => { Change(() => r.receiveLighting = v); Rebuild(); })));
 
             if (!r.receiveLighting) { root.Add(box); return; }
 
-            box.Add(Z.HGroup(
-                Val("Intensity ×", "Scales the rig's effect on this layer.", r.intensityScale, 0f, 3f),
-                Val("Rim strength", "How strong the rim light is.", r.rimStrength, 0f, 2f),
-                Val("Rim power", "How tightly the rim light hugs the silhouette.", r.rimPower, 0.5f, 8f),
-                Val("Specular", "How strong the specular highlight is.", r.specular, 0f, 1f),
-                Val("Spec power", "How tight the specular highlight is.", r.specularPower, 1f, 128f),
-                Z.Field("Spec tint", "Tints the specular highlight.",
-                    Z.Color(r.specularTint, "Tints the specular highlight.",
-                        c => Change(() => r.specularTint = c), 90f))));
+            // T-0257 — with no enabled light in the rig, ShaperLightCompiler.CompileResponse forces this
+            // layer's `receive` to 0 (ShaperLightCompiler.cs:399) and every dial below multiplies a term that
+            // is not computed. The one exemption is a Solid, which keeps the built-in key light AND the
+            // layer's own response (ShaperLightCompiler.cs:544-556) — so a layer holding one has live dials
+            // and must not be greyed. Both halves of that are asked here rather than assumed.
+            string unlit = DocumentHasEnabledLight() || LayerHasSolid(layer.root) ? null
+                : "The rig has no enabled light, so this layer renders unlit and this dial does nothing. Add "
+                + "a light in the Lights section.";
 
-            box.Add(Z.Field("Normals", "Where this layer's surface directions come from.",
-                Z.Segmented((int)r.normalKind, Enum.GetNames(typeof(ShaperNormalKind)),
-                    "Constant uses one authored direction for the whole layer; Profile uses the "
+            // Rim power shapes a term rim STRENGTH scales to nothing, so at strength 0 it is inert on its own
+            // account, whatever the rig holds. An animated strength is never declared inert — see
+            // DialAlwaysZero.
+            string noRim = unlit ?? (DialAlwaysZero(r.rimStrength)
+                ? "Rim strength is 0, so there is no rim light for this to shape. Raise Rim strength first."
+                : null);
+
+            box.Add(Z.HGroup(
+                InertVal("Intensity ×", "Scales the rig's effect on this layer.", unlit,
+                    r.intensityScale, 0f, 3f),
+                InertVal("Rim strength", "How strong the rim light is.", unlit, r.rimStrength, 0f, 2f),
+                InertVal("Rim power", "How tightly the rim light hugs the silhouette.", noRim,
+                    r.rimPower, 0.5f, 8f),
+                InertVal("Specular", "How strong the specular highlight is.", unlit, r.specular, 0f, 1f),
+                InertVal("Spec power", "How tight the specular highlight is.", unlit,
+                    r.specularPower, 1f, 128f),
+                Inert(Z.Field("Spec tint", "Tints the specular highlight.",
+                    Z.Color(r.specularTint, "Tints the specular highlight.",
+                        c => Change(() => r.specularTint = c), 90f)), unlit)));
+
+            box.Add(Inert(Z.Field("Normals", "Where this layer's surface directions come from.",
+                Z.Segmented((int)r.normalKind, ShaperWords.Names(typeof(ShaperNormalKind)),
+                    "“Flat” uses one authored direction for the whole layer; “Follow the surface” uses the "
                     + "extrusion/bevel profile's own analytic normal, which needs a height stage to produce "
                     + "any relief.",
-                    v => { Change(() => r.normalKind = (ShaperNormalKind)v); Rebuild(); })));
+                    v => { Change(() => r.normalKind = (ShaperNormalKind)v); Rebuild(); })), unlit));
 
             // INVENTORY GAP CLOSED — normalConstant (ShaperLightRig.cs:295) is the ONLY parameter of the
             // DEFAULT normal path and had no UI at all, so the default lighting mode was unauthorable. Drawn
@@ -1312,15 +1593,16 @@ namespace Laubrary.Shaper.Editor
             if (r.normalKind == ShaperNormalKind.Constant)
             {
                 box.Add(Z.HGroup(
-                    Z.Field("Direction XY", "The surface direction this layer reports, X and Y.",
+                    Inert(Z.Field("Direction XY", "The surface direction this layer reports, X and Y.",
                         Z.Pad(new Vector2(r.normalConstant.x, r.normalConstant.y),
                             new Rect(-1f, -1f, 2f, 2f),
                             "The surface direction this layer reports, X and Y.",
                             v => Change(() =>
-                                r.normalConstant = new Vector3(v.x, v.y, r.normalConstant.z)))),
-                    Dial("Direction Z", "The surface direction's Z. 1 faces the viewer.",
+                                r.normalConstant = new Vector3(v.x, v.y, r.normalConstant.z)))), unlit),
+                    Inert(Dial("Direction Z", "The surface direction's Z. 1 faces the viewer.",
                         r.normalConstant.z, -1f, 1f,
-                        v => r.normalConstant = new Vector3(r.normalConstant.x, r.normalConstant.y, v))));
+                        v => r.normalConstant = new Vector3(r.normalConstant.x, r.normalConstant.y, v)),
+                        unlit)));
             }
 
             root.Add(box);
@@ -1344,31 +1626,55 @@ namespace Laubrary.Shaper.Editor
         void BuildHeightSection(VisualElement root, ShaperLayer layer)
         {
             string key = "shaper.window.height." + document.layers.IndexOf(layer);
-            var h = layer.height ?? (layer.height = new ShaperHeightDef());
-            var box = Z.BoxKeyed("Height", "Extrude this LAYER's silhouette into relief.", key, "mountains");
+            var h = layer.height ?? (layer.height = NewHeightStage());
+            // T-0257 — the tooltip now states the OTHER switch this stage depends on. A height stage feeds the
+            // light only through the Profile surface-direction provider, and the layer's Normals default to
+            // Flat (ShaperLightRig.cs:320), so an extruded layer whose Normals are still Flat is shaded as if
+            // it were not extruded at all — the relief is real (it reorders in depth and it publishes the
+            // Height quantity for a ramp or a mask) but it catches no highlight.
+            var box = Z.BoxKeyed("Height",
+                "Extrude this LAYER's silhouette into relief. For the relief to catch light as well as reorder "
+                + "in depth, set the Lighting card's Normals to “Follow the surface” — with Normals on “Flat” "
+                + "the layer is shaded as though it were not extruded.", key, "mountains");
             if (s_layerCardDefaultedClosed.Add(key)) box.IsOpen = false;
-            box.SetHeaderSuffix(() => ": " + ObjectNames.NicifyVariableName(h.technique.ToString()));
-            box.Add(Z.Field("Technique", "How the silhouette is raised.",
-                Z.MiniRadio((int)h.technique, Enum.GetNames(typeof(ShaperExtrusionTechnique)),
+            box.SetHeaderSuffix(() => ": " + ShaperWords.Of(h.technique));
+            // T-0257 — "Technique" is the engineer's word for the shape of the extrusion.
+            box.Add(Z.Field("Profile", "How the silhouette is raised.",
+                Z.MiniRadio((int)h.technique, ShaperWords.Names(typeof(ShaperExtrusionTechnique)),
                     "Flat leaves it unraised; the others differ in how the surface climbs from edge to centre.",
                     v => { Change(() => h.technique = (ShaperExtrusionTechnique)v); Rebuild(); }, wrap: true)));
 
+            // T-0257 — SIX DIALS BEHIND ONE. Every profile and bevel dial here is multiplied by the stage's
+            // body, `max(0, depth)` (ShaperHeightOp.body, ShaperHeight.cs:145), so at depth 0 none of them can
+            // move a pixel. That is the single largest "I turned it and nothing happened" in this window, and
+            // it is now stated on each of them rather than left to be discovered.
+            string noDepth = DialAlwaysZero(h.depth)
+                ? "Raise is 0, so this layer is not extruded at all and this dial has nothing to shape. Raise "
+                + "it above 0 first."
+                : null;
+
             box.Add(Z.HGroup(
-                Val("Depth", "How far the surface is raised, in canvas pixels.", h.depth, 0f, 64f),
-                Val("Angle", "The wall angle of the extrusion, in degrees.", h.angle, 0f, 90f, decimals: 0),
-                Val("Steps", "How many discrete steps a stepped technique uses.", h.steps, 1f, 32f, decimals: 0),
-                Val("Curve", "How the climb is shaped between edge and centre.", h.curve, 0f, 4f),
-                Val("Taper", "How much the surface narrows as it rises.", h.taper, 0f, 2f)));
+                // One of the three unrelated "Depth"s this window used to show, and the one the engine's own
+                // field doc warns is thickness rather than a Z position (ShaperHeight.cs:85-95).
+                Val("Raise", "How far the surface is raised, in canvas pixels.", h.depth, 0f, 64f),
+                InertVal("Angle", "The wall angle of the extrusion, in degrees.", noDepth,
+                    h.angle, 0f, 90f, decimals: 0),
+                InertVal("Steps", "How many discrete steps a stepped profile uses.", noDepth,
+                    h.steps, 1f, 32f, decimals: 0),
+                InertVal("Curve", "How the climb is shaped between edge and centre.", noDepth,
+                    h.curve, 0f, 4f),
+                InertVal("Taper", "How much the surface narrows as it rises.", noDepth, h.taper, 0f, 2f)));
 
             box.Add(Z.Field("Bevel", "An additional bevel applied at the edge.",
-                Z.MiniRadio((int)h.bevel, Enum.GetNames(typeof(ShaperBevelTechnique)),
+                Z.MiniRadio((int)h.bevel, ShaperWords.Names(typeof(ShaperBevelTechnique)),
                     "None leaves a hard edge; the others differ in the bevel's profile.",
                     v => { Change(() => h.bevel = (ShaperBevelTechnique)v); Rebuild(); }, wrap: true)));
 
             if (h.bevel != ShaperBevelTechnique.None)
                 box.Add(Z.HGroup(
-                    Val("Bevel amount", "How far the bevel reaches in from the edge.", h.bevelAmount, 0f, 16f),
-                    Val("Bevel steps", "How many discrete steps a stepped bevel uses.",
+                    InertVal("Bevel amount", "How far the bevel reaches in from the edge.", noDepth,
+                        h.bevelAmount, 0f, 16f),
+                    InertVal("Bevel steps", "How many discrete steps a stepped bevel uses.", noDepth,
                         h.bevelSteps, 1f, 16f, decimals: 0)));
 
             // T-0204 — RefreshSelectedLayerCards(), not Rebuild(): this button turns the layer's own Height
@@ -1457,11 +1763,13 @@ namespace Laubrary.Shaper.Editor
             if (m.IsSet)
             {
                 box.Add(Z.HGroup(
-                    Z.Field("Mode", "Clip keeps what the source covers, Subtract cuts it away, and Intersect "
-                        + "keeps the lesser of the two — which differ only where the mask is soft.",
-                        Z.Segmented((int)m.mode, Enum.GetNames(typeof(ShaperMaskMode)),
-                            "Clip keeps what the source covers, Subtract cuts it away, Intersect keeps the "
-                            + "lesser of the two.",
+                    // T-0257 — these three used to print Clip/Subtract/Intersect, two of which are the same
+                    // words the Combine control uses for entirely different operations.
+                    Z.Field("Mode", "Keep what the source covers, cut it away, or keep the lesser of the two "
+                        + "— which differ only where the mask is soft.",
+                        Z.Segmented((int)m.mode, ShaperWords.Names(typeof(ShaperMaskMode)),
+                            "“Keep inside” keeps what the source covers, “Cut away” removes it, “Keep "
+                            + "overlap” keeps the lesser of the two.",
                             v => { Change(() => m.mode = (ShaperMaskMode)v); Rebuild(); })),
                     Z.Toggle("Invert", "Read the source backwards, so it cuts where it is empty instead of "
                         + "where it is solid.", m.invert, v => Change(() => m.invert = v))));
@@ -1472,27 +1780,33 @@ namespace Laubrary.Shaper.Editor
                 // than hidden, the same posture ShaperSolids.InertReason takes for an inert dial.
                 bool heightUnavailable = source != null && source.height == null;
                 bool quantityUnavailable = heightUnavailable && m.quantity == ShaperMaskQuantity.Height;
-                string qTip = "Which of the source's quantities is read as the mask. Coverage is its "
-                    + "silhouette, Edge Distance ramps inward from its outline, Height needs it to be "
-                    + "extruded, and Luma reads how bright it is."
+                string qTip = "Which of the source's quantities is read as the mask. Opacity is its "
+                    + "silhouette, Distance from edge ramps inward from its outline, Height needs it to be "
+                    + "extruded, and Brightness reads how bright it is."
                     + (heightUnavailable ? "\n\n" + ShaperLayerMask.QuantityNotPublished : "");
 
                 var qRow = Z.HGroup(
                     Z.Field("Quantity", qTip,
-                        Z.MiniRadio((int)m.quantity, Enum.GetNames(typeof(ShaperMaskQuantity)), qTip,
-                            v => { Change(() => m.quantity = (ShaperMaskQuantity)v); Rebuild(); }, wrap: true)));
+                        InertOptions(
+                            Z.MiniRadio((int)m.quantity, ShaperWords.Names(typeof(ShaperMaskQuantity)), qTip,
+                                v => { Change(() => m.quantity = (ShaperMaskQuantity)v); Rebuild(); },
+                                wrap: true),
+                            // T-0257 — the source's own answer, said on the option itself rather than only in
+                            // the shared tooltip: the mask source publishes Height only when IT is extruded.
+                            i => heightUnavailable && (ShaperMaskQuantity)i == ShaperMaskQuantity.Height
+                                   ? ShaperLayerMask.QuantityNotPublished : null)));
 
                 // Coverage is already 0..1, so it has no scale to set and the dial is not drawn for it —
                 // a second amplitude dial on a normalized quantity is the "two dials for one quantity"
                 // defect ShaperLight.range refuses by name.
                 if (m.quantity != ShaperMaskQuantity.Coverage)
-                    qRow.Add(Val("Full at", "The source value that reads as a fully solid mask — canvas pixels "
+                    qRow.Add(Val("Fully masked at", "The source value that reads as a fully solid mask — canvas pixels "
                         + "for Height and Edge Distance, linear brightness for Luma. At 0 it becomes a hard "
                         + "test with no ramp.", m.fullAt, 0f, 64f));
                 box.Add(qRow);
 
                 if (quantityUnavailable)
-                    box.Add(Z.Text("Falling back to Coverage.", ZuiText.Subtle,
+                    box.Add(Z.Text("Falling back to Opacity.", ZuiText.Subtle,
                         ShaperLayerMask.QuantityNotPublished));
             }
 
@@ -1630,7 +1944,9 @@ namespace Laubrary.Shaper.Editor
             header.Add(Z.Text(inst != null ? inst.DisplayName : (entry.typeName ?? "(unnamed)"), ZuiText.Body,
                 ok ? stageSentence : "Will not run — " + reason));
             header.Add(Z.Flexible());
-            header.Add(Z.Text(ok ? (stage == ShaperEffectStage.PreComposite ? "pre-composite" : "post-composite")
+            // T-0257 — "pre-composite"/"post-composite" is the pipeline's vocabulary for a fact the author
+            // reads as "does this run on my layer or on the finished picture".
+            header.Add(Z.Text(ok ? (stage == ShaperEffectStage.PreComposite ? "Before blending" : "After blending")
                                  : "inert",
                               ZuiText.Subtle, ok ? stageSentence : reason));
 

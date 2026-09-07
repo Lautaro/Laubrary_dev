@@ -72,11 +72,51 @@ namespace Laubrary.Shaper.Editor
 
         /// A document with no layer has nothing to render and no affordance that suggests what to do, so a
         /// new one starts with a single primitive layer — the first run is the only run every user gets.
+        ///
+        /// T-0257 — and with ONE ENABLED KEY LIGHT. `ShaperLightRig.lights` defaults to an empty list, and an
+        /// empty rig is not "dim", it is a hard gate: `ShaperLightCompiler.CompileResponse` forces every
+        /// Silhouette layer's `receive` to 0 (ShaperLightCompiler.cs:399), so intensity, rim, specular, spec
+        /// power and spec tint — the whole Lighting card — do nothing at all until somebody adds a light. A
+        /// first-run author has no way to know that, and the six dials are right there.
+        ///
+        /// SEEDED HERE AND NOT ON THE RIG'S OWN FIELD, deliberately: a field initializer runs for every
+        /// ShaperLightRig anyone constructs, including the one an old asset's deserialization builds before
+        /// its authored (possibly empty, possibly deliberate) list is read back over it. Seeding at asset
+        /// CREATION cannot reach a document that already exists, which is the whole requirement.
         protected override void InitializeNewAsset(ShaperDocument item)
         {
             if (item == null) return;
             item.layers.Add(NewLayer("Layer 1", item));
+
+            // The rig's own defaults are Pyre's relief-light numbers (ShaperLightRig.cs:121-133 and
+            // ShaperLight's yaw/pitch/intensity), so an unmodified ShaperLight IS the key light this wants —
+            // up, left and toward the viewer. Named rather than left as "Light" so the Lights list reads as
+            // something authored rather than something that appeared.
+            item.lightRig ??= new ShaperLightRig();
+            item.lightRig.lights ??= new List<ShaperLight>();
+            if (item.lightRig.lights.Count == 0)
+                item.lightRig.lights.Add(new ShaperLight { name = "Key", enabled = true });
         }
+
+        /// <summary>
+        /// T-0257 — a height stage that can be SEEN the moment it is switched on.
+        ///
+        /// <c>ShaperHeightDef</c>'s own defaults are depth 0 and profile Flat, and depth is the body every
+        /// other dial on the card is multiplied by (<c>ShaperHeightOp.body</c>, ShaperHeight.cs:145), so
+        /// ticking Height used to add a stage that changed nothing and six dials that could not change
+        /// anything either. Both halves are seeded here, at the one place this window creates a stage, rather
+        /// than on the type's fields — the same reasoning as the key light above: a field default would also
+        /// apply to every stage the engine or a deserializer constructs, a creation-time seed cannot reach an
+        /// authored document.
+        ///
+        /// Dome rather than Flat because Flat's profile is <c>E ≡ 1</c> (ShaperHeight.cs:455-457) — a raised
+        /// slab with a flat top, whose surface direction is the same everywhere, so it reads as a Z shift and
+        /// not as relief. 8 canvas pixels is a visible rise at the 32–256 canvas sizes this tool authors.
+        static ShaperHeightDef NewHeightStage() => new ShaperHeightDef
+        {
+            technique = ShaperExtrusionTechnique.Dome,
+            depth = new ZUIValue(8f),
+        };
 
         /// Browsing to another document must not carry the previous one's layer selection, frame or a running
         /// playback loop — a stale layer index would land on a different shape, and a live tick would keep
@@ -507,7 +547,7 @@ namespace Laubrary.Shaper.Editor
         void BuildCanvasSection(VisualElement root)
         {
             var box = canvasSection = Z.Section("Canvas",
-                "The document's own resolution, sampling density, layer spacing, animation clock and seed.",
+                "The document's own resolution, sampling density, depth between layers, frame count and seed.",
                 "shaper.window.canvas", icon: "frame-corners");
 
             // One continuous HGroup rather than several: an overflowing field then lands beside the NEXT
@@ -517,13 +557,17 @@ namespace Laubrary.Shaper.Editor
                     document.canvasWidth, 32f, 256f, v => document.canvasWidth = Mathf.RoundToInt(v), decimals: 0),
                 Dial("Height", "Canvas height in samples.",
                     document.canvasHeight, 32f, 256f, v => document.canvasHeight = Mathf.RoundToInt(v), decimals: 0),
-                Dial("Pixel size", "Canvas units per sample. 1 makes a \"canvas pixel\" in a dial equal one "
+                // T-0257 — "Pixel size" read as "how big is a pixel"; it is how much canvas one sample covers.
+                Dial("Canvas scale", "Canvas units per sample. 1 makes a \"canvas pixel\" in a dial equal one "
                     + "sample (LR-1.5).", document.pixelSize, 0.1f, 8f, v => document.pixelSize = v),
-                Dial("Layer spacing", "Canvas pixels between consecutive layers' base planes, and so how far "
-                    + "apart in depth they sit: layers are composited by which surface is nearest, and a layer "
-                    + "whose height rises more than this above the one below it breaks through it. 0 puts "
-                    + "every base plane together, where list order decides.",
-                    document.layerSpacing, 0f, 8f, v => document.layerSpacing = v)));
+                // T-0257 — "Layer spacing" never said what it spaced them along; the per-layer Z dial in the
+                // Layers card is the other end of this same axis. Given the extra width its own name needs,
+                // since the group wraps rather than clipping.
+                Dial("Depth between layers", "Canvas pixels between consecutive layers' base planes, and so "
+                    + "how far apart in depth they sit: layers are composited by which surface is nearest, and "
+                    + "a layer whose height rises more than this above the one below it breaks through it. 0 "
+                    + "puts every base plane together, where list order decides.",
+                    document.layerSpacing, 0f, 8f, v => document.layerSpacing = v, width: 190f)));
 
             box.Add(Z.HGroup(
                 // T-0190 (checklist 2.2) — the frame axis is the one dial the TRANSPORT is built from, so it
@@ -538,11 +582,9 @@ namespace Laubrary.Shaper.Editor
                         document.frameCount = Mathf.Max(1, Mathf.RoundToInt(v));
                         FillTransport();
                     }, decimals: 0),
-                Dial("Rate", "Playback rate in frames per second — how fast frames are shown here and how fast "
-                    + "a baked clip plays. Nothing in the render pipeline reads it; the render is driven by "
-                    + "phase, not by a wall clock.", document.frameRate,
-                    ShaperClock.MinFrameRate, ShaperClock.MaxFrameRate, v => document.frameRate = v, decimals: 0),
-                Z.Field("Seed",
+                // T-0257 — "Rate" was here AND in the transport, same label, same field, two cards. The
+                // transport is the natural home (it is where playback lives), so this copy is gone.
+                Z.Field("Document seed",
                     "The seed every deterministic draw in this document derives from — Min-Max light dials and "
                     + "cherry-frame picks. Same seed, same result, every time.\n\n"
                     + "The document stores this as a uint; this control covers 0…2147483647, so the top half of "
@@ -553,9 +595,12 @@ namespace Laubrary.Shaper.Editor
                     // when you merely look at it is the worst possible bug in a determinism feature.
                     Z.Int((int)Math.Min(document.seed, (uint)int.MaxValue),
                         "Seed for this document's deterministic draws (0…2147483647).",
-                        v => Change(() => document.seed = (uint)Mathf.Max(0, v)), 80f))));
-
-            box.Add(Z.HGroup(
+                        v => Change(() => document.seed = (uint)Mathf.Max(0, v)), 80f)),
+                // T-0257 — Background moved up into this row. It used to share a row with a "PPU" dial that is
+                // gone (the same field was ALSO in the Bake box, spelled out, whose own tooltip admitted the
+                // duplication — "shown here too because it is a bake setting"); it is a bake setting, so Bake
+                // is now its one home, and leaving Background alone on a row of its own would have spent a
+                // whole line on one colour chip.
                 Z.Field("Background",
                     "Composited UNDER every layer, so a bake, a GIF and a baked clip all carry it. Transparent "
                     + "by default. Distinct from the preview-only backdrop below — this one reaches the shipped "
@@ -563,11 +608,7 @@ namespace Laubrary.Shaper.Editor
                     Z.Color(document.background,
                         "Composited UNDER every layer, so a bake, a GIF and a baked clip all carry it. "
                         + "Transparent by default.",
-                        v => Change(() => document.background = v))),
-                Dial("PPU", "Screen pixels per world unit for a baked sprite — the same convention Pyre's own "
-                    + "pixelsPerUnit carries. Not the same as Pixel size above, which is a sampling density, not "
-                    + "a display scale.", document.pixelsPerUnit, 1f, 64f,
-                    v => document.pixelsPerUnit = Mathf.Clamp(Mathf.RoundToInt(v), 1, 64), decimals: 0)));
+                        v => Change(() => document.background = v)))));
 
             root.Add(box);
         }
@@ -675,7 +716,7 @@ namespace Laubrary.Shaper.Editor
             // appears ONLY while its toggle is on — see the calls below.
             row.Add(Z.Toggle("Height", "Extrude this layer's silhouette into relief. The card below appears "
                 + "while this is on.", lay.height != null,
-                v => { Change(() => lay.height = v ? new ShaperHeightDef() : null); RefreshSelectedLayerCards(); }));
+                v => { Change(() => lay.height = v ? NewHeightStage() : null); RefreshSelectedLayerCards(); }));
 
             row.Add(Z.Toggle("Mask", "Cut this layer with another layer of the same document. Turning this on "
                 + "opens the source picker; the card below appears once a source is picked.",
@@ -972,11 +1013,10 @@ namespace Laubrary.Shaper.Editor
                     box.Add(Z.Field("Sprite", "The sprite whose alpha becomes this shape's coverage and edge.",
                         Z.Object<Sprite>(p.spriteAsset, "The sprite whose alpha becomes this shape's coverage and edge.",
                             s => { Change(() => p.spriteAsset = s); Rebuild(); }, 200f)));
-                    box.Add(Z.Field("Fit", "How the sprite's own pixel aspect maps onto the box below. Uniform "
-                        + "keeps its proportions; Stretch fills the box exactly.",
-                        Z.MiniRadio((int)p.spriteFitMode, Enum.GetNames(typeof(ShaperSpriteFitMode)),
-                            "How the sprite's own pixel aspect maps onto the box below. Uniform keeps its "
-                            + "proportions (letterboxed); Stretch fills the box exactly.",
+                    box.Add(Z.Field("Fit", "How the sprite's own pixel aspect maps onto the box below.",
+                        Z.MiniRadio((int)p.spriteFitMode, ShaperWords.Names(typeof(ShaperSpriteFitMode)),
+                            "“Keep proportions” letterboxes the sprite inside the box; “Stretch to fit” "
+                            + "fills the box exactly.",
                             v => Change(() => p.spriteFitMode = (ShaperSpriteFitMode)v))));
                     box.Add(Z.HGroup(
                         Val("Half width", "Half the width of the box the sprite maps onto, canvas pixels.", p.spriteHalfWDial, 1f, ext),
@@ -1000,7 +1040,7 @@ namespace Laubrary.Shaper.Editor
                             + "line of text.", s => Change(() => p.textString = s), 200f)));
                     box.Add(Z.Field("Align", "How the lines line up with each other when the text runs to more "
                         + "than one line.",
-                        Z.MiniRadio((int)p.textAlign, Enum.GetNames(typeof(ShaperTextAlign)),
+                        Z.MiniRadio((int)p.textAlign, ShaperWords.Names(typeof(ShaperTextAlign)),
                             "How the lines line up with each other when the text runs to more than one line.",
                             v => Change(() => p.textAlign = (ShaperTextAlign)v))));
                     box.Add(Z.HGroup(
@@ -1255,7 +1295,11 @@ namespace Laubrary.Shaper.Editor
 
             transportHost.Add(Z.HGroup(
                 playButton,
-                Dial("Rate", "Playback rate in frames per second.", document.frameRate,
+                // T-0257 — the ONE home for this field now (it used to be here and in the Canvas card under
+                // the same label), so the tooltip carries the whole story rather than half of it in each.
+                Dial("Rate", "Playback rate in frames per second — how fast frames are shown here and how "
+                    + "fast a baked clip plays. Nothing in the render pipeline reads it; the render is driven "
+                    + "by phase, not by a wall clock.", document.frameRate,
                     ShaperClock.MinFrameRate, ShaperClock.MaxFrameRate, v => document.frameRate = v, decimals: 0),
                 Dial("Loop gap", "Seconds of blank between one pass through the frames and the next. 0 loops "
                     + "with no gap. The gap plays as nothing on screen, not as a held frame, and is preview "
@@ -1359,10 +1403,11 @@ namespace Laubrary.Shaper.Editor
             // T-0190 — now a MODE, with Pyre's own Tile-px slider beside its toggle above.
             if (!previewStrip) return;
 
-            transportHost.Add(Z.MicroSlider("Tile px", previewStripTile, 24f, 128f,
-                "How big each frame tile in the contact sheet is. Only changes how the strip is drawn — no "
-                + "frame is re-rendered and no bake is affected.",
-                v => { previewStripTile = Mathf.Clamp(v, 24f, 128f); FillTransport(); }, 150f, decimals: 0));
+            // T-0257 — "Tile px" was an abbreviation of a unit, not a name for the thing it sizes.
+            transportHost.Add(Z.MicroSlider("Strip tile size", previewStripTile, 24f, 128f,
+                "How big each frame tile in the contact sheet is, in screen pixels. Only changes how the "
+                + "strip is drawn — no frame is re-rendered and no bake is affected.",
+                v => { previewStripTile = Mathf.Clamp(v, 24f, 128f); FillTransport(); }, 185f, decimals: 0));
 
             filmstrip = new ShaperFilmstripElement(() => document,
                 () => currentFrame,
@@ -1571,9 +1616,14 @@ namespace Laubrary.Shaper.Editor
         }
 
         /// A plain-float dial. Use for a field the engine declares as `float`/`int`.
+        ///
+        /// T-0257 — <paramref name="width"/> exists because a MicroSlider draws its caption INSIDE its track
+        /// beside the value, so a dial whose honest name is longer than roughly fourteen characters
+        /// ("Depth between layers", "Pixels per unit") ellipsises at the 140px default and is once again
+        /// unreadable. Widening the one control is the fix; shortening the name back into jargon is not.
         internal VisualElement Dial(string label, string tooltip, float value, float min, float max,
-            Action<float> set, int decimals = -1)
-            => Z.MicroSlider(label, value, min, max, tooltip, v => Change(() => set(v)), 140f, decimals: decimals);
+            Action<float> set, int decimals = -1, float width = 140f)
+            => Z.MicroSlider(label, value, min, max, tooltip, v => Change(() => set(v)), width, decimals: decimals);
 
         /// The ZUIValue analog of Dial — use for a field the engine declares as `ZUIValue`, which is what makes
         /// it animatable over the document's phase (right-click opens Static / Min-Max / Curve). Curve timing,

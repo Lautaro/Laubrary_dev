@@ -266,14 +266,18 @@ namespace Laubrary.Shaper.Editor
                             w.ResetCherryPlayback();
                             w.RebuildCherryPanel();
                         }),
-                    Z.MicroSlider("Loop gap", Doc.cherryLoopDelaySeconds, 0f, 4f,
-                        "Seconds of blank between one pass through the sequence and the next. 0 loops with no "
-                        + "gap. A gap plays as nothing on screen, not as a held frame.",
+                    // T-0257 — this and the transport's own gap were BOTH labelled "Loop gap" and are two
+                    // different fields (cherryLoopDelaySeconds here, loopDelaySeconds there): one is the gap
+                    // between passes through the SEQUENCE, the other between passes through the FRAMES.
+                    Z.MicroSlider("Cherry loop gap", Doc.cherryLoopDelaySeconds, 0f, 4f,
+                        "Seconds of blank between one pass through the CHERRY SEQUENCE and the next — a "
+                        + "different gap from the transport's, which is between passes through the frames. 0 "
+                        + "loops with no gap. A gap plays as nothing on screen, not as a held frame.",
                         v =>
                         {
                             w.Change(() => Doc.cherryLoopDelaySeconds = Mathf.Max(0f, v));
                             w.ResetCherryPlayback();
-                        }, 150f, decimals: 2)));
+                        }, 185f, decimals: 2)));
             }
 
             public void BuildExtraCherrySectionRows(VisualElement section) => section.Add(w.BuildZoundCueRow());
@@ -328,11 +332,12 @@ namespace Laubrary.Shaper.Editor
                         ResetCherryPlayback();
                         Refill();
                     }),
-                Z.MicroSlider("Seed", document.cherryFrames[slotIndex].multiFrameRandomSeed, 0f, 9999f,
+                // T-0257 — one of three unrelated "Seed"s (document, swarm, this one), now each qualified.
+                Z.MicroSlider("Cherry seed", document.cherryFrames[slotIndex].multiFrameRandomSeed, 0f, 9999f,
                     "Per-slot salt for the multi-frame draw. Non-zero pins this slot's picks independently "
                     + "of the document seed, so one slot can be re-rolled without disturbing the others.",
                     v => Change(() => document.cherryFrames[slotIndex].multiFrameRandomSeed = Mathf.RoundToInt(v)),
-                    110f, decimals: 0)));
+                    140f, decimals: 0)));
             return host;
         }
 
@@ -347,7 +352,7 @@ namespace Laubrary.Shaper.Editor
             // own -1-means-never contract rather than aliasing an empty sequence onto a slot that doesn't
             // exist.
             int maxSlot = (document.cherryFrames?.Count ?? 0) - 1;
-            var slider = Z.MicroSlider("Fires on slot", document.previewZoundFrame, -1f, maxSlot,
+            var slider = Z.MicroSlider("Plays on slot", document.previewZoundFrame, -1f, maxSlot,
                 "Which cherry slot (by play order) fires the Zound below, once per entry into it. -1 = never. "
                 + "Preview-only — this can never reach a bake.",
                 v =>

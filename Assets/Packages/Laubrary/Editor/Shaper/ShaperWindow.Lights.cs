@@ -138,7 +138,7 @@ namespace Laubrary.Shaper.Editor
             card.AddHeaderContent(Z.Toggle("", "Show or hide this light. A disabled light contributes nothing "
                 + "to the rig.", light.enabled, v => { Change(() => light.enabled = v); RebuildLightList(); }));
 
-            card.AddHeaderContent(Z.Segmented((int)light.kind, Enum.GetNames(typeof(ShaperLightKind)),
+            card.AddHeaderContent(Z.Segmented((int)light.kind, ShaperWords.Names(typeof(ShaperLightKind)),
                 "Directional has no position — it shades from a fixed direction with no falloff (LR-2.4). "
                 + "Point has a position and falls off with range.",
                 v => { Change(() => light.kind = (ShaperLightKind)v); RebuildLightList(); }));

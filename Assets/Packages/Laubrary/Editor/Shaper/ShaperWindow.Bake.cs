@@ -76,11 +76,14 @@ namespace Laubrary.Shaper.Editor
                     "Where a bake lands: beside the document's own asset once it has been saved, or "
                     + "\"Assets\" for an in-memory document that has not been saved yet."));
 
+            // T-0257 — this is now the ONLY place the field is authored. The Canvas card used to carry a
+            // second copy of it labelled "PPU", and this tooltip used to admit the duplication instead of
+            // fixing it ("shown here too because it is a bake setting"). It is a bake setting; it lives here.
             var ppuRow = Dial("Pixels per unit", "Screen pixels per world unit, baked into every sprite output "
-                + "(the sheet's import settings and the ShaperClip's own sprites). The same field as the "
-                + "Canvas section above — shown here too because it is a bake setting.",
+                + "(the sheet's import settings and the ShaperClip's own sprites). Not the same as Canvas "
+                + "scale, which is a sampling density rather than a display scale.",
                 document.pixelsPerUnit, 1f, 64f,
-                v => document.pixelsPerUnit = Mathf.Clamp(Mathf.RoundToInt(v), 1, 64), decimals: 0);
+                v => document.pixelsPerUnit = Mathf.Clamp(Mathf.RoundToInt(v), 1, 64), decimals: 0, width: 175f);
 
             var sheetToggle = Z.Toggle("Sprite sheet PNG",
                 "The sliced frame sheet every other output below reads its sprites from. Always produced "

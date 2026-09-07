@@ -174,11 +174,13 @@ namespace Laubrary.Shaper.Editor
                 yield return new ShaperShapeEntry
                 {
                     Category = "Primitives",
-                    // Not NicifyVariableName: it splits every internal capital, so NGon reads "N Gon".
-                    // The enum's own name is already the name of the shape.
-                    Label = kind.ToString(),
+                    // T-0257 — not NicifyVariableName (it splits every internal capital, so NGon reads "N
+                    // Gon"), and no longer the raw identifier either: ShaperWords is the one table that says
+                    // Rect is a Rectangle, a Capsule is a Pill and an NGon is a Polygon. A kind with no entry
+                    // falls through to its own name, which is what this line used to do for all of them.
+                    Label = ShaperWords.Of(kind),
                     Icon = icon,
-                    Tooltip = tip ?? ("Draw a " + kind + "."),
+                    Tooltip = tip ?? ("Draw a " + ShaperWords.Of(kind).ToLowerInvariant() + "."),
                     IsCurrent = n => n.kind == ShaperNodeKind.Primitive && n.primitive != null && n.primitive.kind == kind,
                     Apply = n =>
                     {
