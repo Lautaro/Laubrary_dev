@@ -98,129 +98,183 @@ namespace Laubrary.Pyre.Forms.Kiln
     {
         // ── the source frame ──
         [Tooltip("Width of the draw's SOURCE frame in px — the reference every px dial and every canvas-width dial here is relative to (Scale × canvas width / this = the scale).")]
+        [ZUILabel("Source frame width (px)")] [ZUIGroup("Source frame", Tooltip = "The draw's own reference frame — every px dial here is relative to it.", Advanced = true)]
         [Range(16, 400)] public int w = 160;
         [Tooltip("Height of the draw's source frame in px. Nothing is drawn outside the frame.")]
+        [ZUILabel("Source frame height (px)")] [ZUIGroup("Source frame", Advanced = true)]
         [Range(16, 400)] public int h = 80;
         [Tooltip("Where the nozzle sits across the source frame, as a fraction of its width (contract `nozzle` x).")]
+        [ZUILabel("Nozzle across frame")] [ZUIGroup("Source frame", Advanced = true)]
         [Range(0f, 1f)] public float nozzleX = 0.08f;
         [Tooltip("Where the nozzle sits down the source frame, as a fraction of its height from the TOP (contract `nozzle` y; the source is y-down).")]
+        [ZUILabel("Nozzle down frame")] [ZUIGroup("Source frame", Advanced = true)]
         [Range(0f, 1f)] public float nozzleY = 0.55f;
 
         // ── where it goes ──
         [Tooltip("Aim in degrees: 0 = straight right, + = downward (the source's y-down frame).")]
+        [ZUILabel("Aim direction")] [ZUIGroup("Where it goes", Tooltip = "The stream's direction and reach.")]
         [Range(-180f, 180f)] public ZUIValue aim = new ZUIValue(0f);
         [Tooltip("Travel of a puff over its whole life, in canvas WIDTHS of the source frame.")]
+        [ZUILabel("Travel distance")] [ZUIGroup("Where it goes")]
         [Range(0.05f, 1.5f)] public ZUIValue reach = new ZUIValue(0.80f);
         [Tooltip("Half-angle of the emission arc, degrees (180 = a full disc). The directional jet biases angles towards the axis by a fixed |x|^1.7 power, so the stream has a spine and a ragged fringe rather than a paper fan; the radial jet exposes that power as its Bias dial.")]
+        [ZUILabel("Spread angle")] [ZUIGroup("Where it goes")]
         [Range(0f, 180f)] public ZUIValue spread = new ZUIValue(10f);
 
         // ── the argument between the push and the air ──
         [Tooltip("Exponential drag: > 0 decelerates, the higher the sooner the puff stalls. Travel = reach·(1 − e^(−drag·s))/(1 − e^(−drag)).")]
+        [ZUIGroup("Puff physics", Tooltip = "How a single puff moves and grows as it travels.")]
         [Range(0.01f, 6f)] public float drag = 2.2f;
         [Tooltip("Upward rise by the end of a puff's life, canvas widths — applied as s^2.4, so the root runs flat and only the slowed tip rolls over.")]
+        [ZUILabel("Rise (buoyancy)")] [ZUIGroup("Puff physics")]
         [Range(0f, 1f)] public float buoy = 0.10f;
         [Tooltip("Downward sag by the end of life, canvas widths — applied as s² (unburnt fuel is heavy).")]
+        [ZUILabel("Sag (gravity)")] [ZUIGroup("Puff physics")]
         [Range(0f, 1f)] public float grav = 0f;
         [Tooltip("Puff radius at the nozzle, source px.")]
+        [ZUILabel("Puff size at nozzle")] [ZUIGroup("Puff physics")]
         [Range(0.5f, 10f)] public ZUIValue r0 = new ZUIValue(2.6f);
         [Tooltip("Radius gained per px travelled (entrainment): the cone fattens as it slows.")]
+        [ZUILabel("Growth by distance")] [ZUIGroup("Puff physics")]
         [Range(0f, 0.3f)] public float growth = 0.075f;
         [Tooltip("Extra length-to-width of a puff at birth (a streak along its velocity); decays as it slows.")]
+        [ZUILabel("Birth stretch")] [ZUIGroup("Puff physics")]
         [Range(0f, 6f)] public ZUIValue elong = new ZUIValue(2.4f);
         [Tooltip("Age (fraction of life) by which a puff is round again: aspect = 1 + elong·e^(−s/round_at).")]
+        [ZUILabel("Round by age")] [ZUIGroup("Puff physics")]
         [Range(0.02f, 1f)] public float roundAt = 0.30f;
 
         // ── emission ──
         [Tooltip("Puff slots. Slot i is born at phase i/slots every loop, so the set of live puffs at phase 1 is the set at phase 0.")]
+        [ZUILabel("Puff slots")] [ZUIGroup("Emission", Tooltip = "How often puffs are born and how they burn.")]
         [Range(1, 800)] public int slots = 64;
         [Tooltip("A puff's life as a fraction of the loop.")]
+        [ZUILabel("Puff lifetime")] [ZUIGroup("Emission")]
         [Range(0.05f, 1f)] public float life = 0.55f;
         [Tooltip("Per-slot variation of speed / size / amplitude / life, 0..1 (scales the uniform jitters of the slot table).")]
+        [ZUILabel("Puff variation")] [ZUIGroup("Emission")]
         [Range(0f, 1f)] public ZUIValue jitter = new ZUIValue(0.55f);
         [Tooltip("Peak heat a puff deposits (the kernel's height); overlap sums.")]
+        [ZUILabel("Heat strength")] [ZUIGroup("Emission")]
         [Range(0.05f, 3f)] public ZUIValue strength = new ZUIValue(1.15f);
         [Tooltip("Amplitude falloff exponent over a puff's life: amp ∝ (1 − s)^cool.")]
+        [ZUILabel("Cooling rate")] [ZUIGroup("Emission")]
         [Range(0.1f, 4f)] public ZUIValue cool = new ZUIValue(1.6f);
         [Tooltip("Soot tint gained by the end of a puff's life (tint = clip(soot·s)); drives the crossfade into the second ramp. 0 = the second ramp is never used.")]
+        [ZUILabel("Soot tint")] [ZUIGroup("Emission")]
         [Range(0f, 2f)] public ZUIValue soot = new ZUIValue(0f);
         [Tooltip("Surges per loop frozen into each puff at birth; 0 = a steady jet.")]
+        [ZUILabel("Surges per loop")] [ZUIGroup("Surge & sweep", Tooltip = "Periodic pulsing and side-to-side sweeping of the whole stream.")]
         [Range(0, 6)] public int pulseN = 0;
         [Tooltip("Depth of the surges: amp × clip(1 + depth·cos(2π·pulse_n·birth), 0.05, 2.5).")]
+        [ZUILabel("Surge depth")] [ZUIGroup("Surge & sweep")]
         [Range(0f, 1f)] public ZUIValue pulseDepth = new ZUIValue(0f);
         [Tooltip("Degrees the aim swings either side, frozen into each puff at birth — a swept stream CURVES because its tail still points where the nozzle was.")]
+        [ZUILabel("Sweep angle")] [ZUIGroup("Surge & sweep")]
         [Range(0f, 90f)] public ZUIValue sweep = new ZUIValue(0f);
         [Tooltip("Sweeps per loop (integer, so the loop stays exact).")]
+        [ZUILabel("Sweeps per loop")] [ZUIGroup("Surge & sweep")]
         [Range(1, 4)] public int sweepN = 1;
         [Tooltip("Shock diamonds: standing bright nodes down the axis, this many per reach; the gas travels through them. 0 = none.")]
+        [ZUILabel("Shock diamond count")] [ZUIGroup("Shock diamonds", Tooltip = "Standing bright nodes down the axis the gas travels through. 0 = none.")]
         [Range(0f, 8f)] public float shockN = 0f;
         [Tooltip("Depth of the shock modulation: amp × (1 + depth·cos(2π·shock_n·d/reach)).")]
+        [ZUILabel("Shock diamond strength")] [ZUIGroup("Shock diamonds")]
         [Range(0f, 1f)] public ZUIValue shockDepth = new ZUIValue(0f);
 
         // ── the root ──
         [Tooltip("Radius of the dense hot lump at the nozzle, source px; 0 = none. It is what makes the stream read as THROWN from a source rather than drifting.")]
+        [ZUILabel("Root lump size")] [ZUIGroup("Root", Tooltip = "The dense hot lump at the nozzle that anchors the stream. 0 = none.")]
         [Range(0f, 10f)] public ZUIValue rootR = new ZUIValue(0f);
         [Tooltip("Heat of the root lump.")]
+        [ZUILabel("Root lump brightness")] [ZUIGroup("Root")]
         [Range(0f, 4f)] public ZUIValue rootAmp = new ZUIValue(1.5f);
 
         // ── things that leave the stream ──
         [Tooltip("Share of slots that detach: extra lateral throw, sideways drift, 0.72 amplitude and a longer life — fireballs tumbling off the end.")]
+        [ZUILabel("Shed fraction")] [ZUIGroup("Shedding & sparks", Tooltip = "Puffs and sparks that detach from the main stream.")]
         [Range(0f, 1f)] public ZUIValue shed = new ZUIValue(0f);
         [Tooltip("A shed puff's extra angular throw (× its own cone angle) and drift scale.")]
+        [ZUILabel("Shed throw")] [ZUIGroup("Shedding & sparks")]
         [Range(0f, 3f)] public ZUIValue shedKick = new ZUIValue(1.6f);
         [Tooltip("A shed puff's life as a multiple of Life.")]
+        [ZUILabel("Shed lifetime")] [ZUIGroup("Shedding & sparks")]
         [Range(0.5f, 3f)] public float shedLife = 1.5f;
         [Tooltip("Tiny fast bright motes torn off the stream (own stream seed·104729 + 77).")]
+        [ZUILabel("Spark count")] [ZUIGroup("Shedding & sparks")]
         [Range(0, 40)] public int sparks = 0;
         [Tooltip("Spark radius, source px (never one pixel: 1.4 rasterises to a 9 px lump, the floor the reference sheets keep).")]
+        [ZUILabel("Spark size")] [ZUIGroup("Shedding & sparks")]
         [Range(0.5f, 4f)] public ZUIValue sparkR = new ZUIValue(1.5f);
 
         // ── vortex rings ──
         [Tooltip("Vortex rings shed per loop, seen from the side as flattened O's travelling away; 0 = none.")]
+        [ZUILabel("Vortex ring count")] [ZUIGroup("Vortex rings", Tooltip = "Rings shed periodically down the stream. 0 = none.")]
         [Range(0, 6)] public int ringN = 0;
         [Tooltip("Minimum puffs per ring; the count grows with the circumference so the ring stays closed.")]
+        [ZUILabel("Ring puff count")] [ZUIGroup("Vortex rings", Advanced = true)]
         [Range(3, 48)] public int ringK = 8;
         [Tooltip("Ring radius at birth, source px.")]
+        [ZUILabel("Ring birth radius")] [ZUIGroup("Vortex rings")]
         [Range(0.5f, 10f)] public ZUIValue ringR0 = new ZUIValue(2f);
         [Tooltip("Ring radius gained per px travelled.")]
+        [ZUILabel("Ring growth")] [ZUIGroup("Vortex rings")]
         [Range(0f, 0.5f)] public float ringGrow = 0.16f;
         [Tooltip("Ring life as a multiple of Life — a ring has to OUTLIVE the stream to get clear of it.")]
+        [ZUILabel("Ring lifetime")] [ZUIGroup("Vortex rings")]
         [Range(0.5f, 4f)] public float ringLife = 1.9f;
         [Tooltip("Ring travel as a multiple of Reach — and OUTRUN it.")]
+        [ZUILabel("Ring travel")] [ZUIGroup("Vortex rings")]
         [Range(0.5f, 3f)] public ZUIValue ringReach = new ZUIValue(1.45f);
         [Tooltip("Ring heat relative to Strength (rings cool slower than the stream: (1 − s)^(0.3·cool)).")]
+        [ZUILabel("Ring brightness")] [ZUIGroup("Vortex rings")]
         [Range(0f, 4f)] public ZUIValue ringAmp = new ZUIValue(0.95f);
 
         // ── turbulence ──
         [Tooltip("Domain-warp amplitude at the nozzle, source px (a jet is laminar while it is fast).")]
+        [ZUILabel("Turbulence at nozzle")] [ZUIGroup("Turbulence", Tooltip = "Domain-warp breakup of the stream's texture.")]
         [Range(0f, 4f)] public ZUIValue warp0 = new ZUIValue(0.6f);
         [Tooltip("Warp amplitude added by the end of the reach, source px (it breaks up once it has slowed).")]
+        [ZUILabel("Turbulence at reach")] [ZUIGroup("Turbulence")]
         [Range(0f, 12f)] public ZUIValue warp1 = new ZUIValue(5.5f);
         [Tooltip("Source px per noise lattice cell — the texture scale. The downstream scroll is snapped to whole lattice periods per loop so the loop stays exact.")]
+        [ZUILabel("Turbulence cell size")] [ZUIGroup("Turbulence", Advanced = true)]
         [Range(2f, 24f)] public float warpCell = 9f;
         [Tooltip("Noise octaves (lacunarity 2, gain 0.5).")]
+        [ZUILabel("Turbulence octaves")] [ZUIGroup("Turbulence", Advanced = true)]
         [Range(1, 3)] public int warpOct = 2;
 
         // ── look ──
         [Tooltip("Field value at the silhouette's outer edge (lit = H·gain > lo).")]
+        [ZUILabel("Field floor")] [ZUIGroup("Look", Tooltip = "The colour ramp and how the heat field maps onto it.")]
         [Range(0f, 1f)] public ZUIValue lo = new ZUIValue(0.20f);
         [Tooltip("Field value at which the ramp tops out. FITTED per draw by the source's tune2 solver against two style targets (average ramp position, share of lit area in the top tenth) — not a guess; the shipped values are the contract's.")]
+        [ZUILabel("Field ceiling")] [ZUIGroup("Look")]
         [Range(0.3f, 16f)] public ZUIValue hi = new ZUIValue(1.20f);
         [Tooltip("Bends where the gradient is spent: t^curve, < 1 pushes area up the ramp (a hotter, fully developed flame). FITTED together with Hi.")]
+        [ZUILabel("Ramp bend")] [ZUIGroup("Look")]
         [Range(0.2f, 2f)] public ZUIValue curve = new ZUIValue(1f);
         [Tooltip("Shades in the ramp: 0 = continuous; N quantises the ramp coordinate to N shades (floor, so the darkest shade reaches the edge). Never quantises the alpha.")]
+        [ZUILabel("Colour bands")] [ZUIGroup("Look")]
         [Range(0, 64)] public int steps = 0;
         [Tooltip("Width of the edge falloff in field units: alpha = smoothstep((H − lo)/soft) × the ramp's opacity ceiling.")]
+        [ZUILabel("Edge softness")] [ZUIGroup("Look")]
         [Range(0.01f, 1f)] public ZUIValue soft = new ZUIValue(0.55f);
         [Tooltip("Multiplier on the heat before exposure.")]
+        [ZUILabel("Heat gain")] [ZUIGroup("Look")]
         [Range(0.1f, 3f)] public ZUIValue gain = new ZUIValue(1f);
 
         [Tooltip("The heat ramp: pos 0 = the cold outer edge, pos 1 = the hottest core; each stop's alpha is its OPACITY CEILING. Interpolated in linear light through a 1024-entry table.")]
+        [ZUILabel("Colour ramp")] [ZUIGroup("Look")]
         public PyreRamp ramp = PyreRampPresets.Ember();
         [Tooltip("The second ramp the gas crosses into as its soot tint rises (gout / sputter: greasy soot; whip: a HOT orange — the head of the swung stream). Empty = no crossfade.")]
+        [ZUILabel("Soot ramp")] [ZUIGroup("Look")]
         public PyreRamp sootRamp = new PyreRamp();
         [Tooltip("Tint (T/H) at which the crossfade into the second ramp starts — a WIDTH with Soot Hi, not a threshold.")]
+        [ZUILabel("Soot crossfade start")] [ZUIGroup("Look")]
         [Range(0f, 1f)] public ZUIValue sootLo = new ZUIValue(0.35f);
         [Tooltip("Tint at which the crossfade is complete.")]
+        [ZUILabel("Soot crossfade end")] [ZUIGroup("Look")]
         [Range(0f, 1f)] public ZUIValue sootHi = new ZUIValue(0.95f);
 
         public bool HasSoot => sootRamp != null && !sootRamp.IsEmpty;
@@ -297,6 +351,7 @@ namespace Laubrary.Pyre.Forms.Kiln
     public class JetSlots
     {
         public double[] phase, da, vs, rs, amp, ls, drift;
+        [ZUILabel("Shed fraction")] [ZUIGroup("Shedding & sparks")]
         public bool[] shed;
         public int N => phase.Length;
     }

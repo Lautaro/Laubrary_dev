@@ -24,15 +24,19 @@ namespace Laubrary.Pyre.Forms.Kiln
 
         // ── placement (shared) ──
         [Tooltip("Where the nozzle (or, for a radial jet, the centre) sits across the canvas, as a fraction of the width.")]
+        [ZUILabel("Nozzle across frame")] [ZUIGroup("Placement & size", Tooltip = "Where the jet sits and how big it is.")]
         [Range(0f, 1f)] public ZUIValue anchorX = new ZUIValue(0.5f);
         [Tooltip("Where the nozzle (or centre) sits down the canvas, as a fraction of the height from the TOP (the source's y-down frame: a positive Aim points down).")]
+        [ZUILabel("Nozzle down frame")] [ZUIGroup("Placement & size")]
         [Range(0f, 1f)] public ZUIValue anchorY = new ZUIValue(0.5f);
         [Tooltip("Scale of the jet: the variant's source frame width as a fraction of the canvas width; every length inside the variant scales with it (1 = the source frame spans the canvas).")]
+        [ZUILabel("Jet scale")] [ZUIGroup("Placement & size")]
         [Range(0.2f, 2f)] public ZUIValue scale = new ZUIValue(1f);
 
         // ── swarm ──
         [PyreSwarmOnly]
         [Tooltip("Scale of each swarm particle's jet as a fraction of the solo Scale (the swarm's own size / depth shading multiplies it).")]
+        [ZUILabel("Swarm jet size")] [ZUIGroup("Placement & size")]
         [Range(0.1f, 1f)] public ZUIValue swarmSize = new ZUIValue(0.5f);
 
         // ── runtime ──

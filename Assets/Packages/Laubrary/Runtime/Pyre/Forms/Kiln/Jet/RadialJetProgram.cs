@@ -56,32 +56,42 @@ namespace Laubrary.Pyre.Forms.Kiln
     {
         // ── the arc ──
         [Tooltip("Angle-distribution power across the arc: 1 = uniform (a disc is actually filled); > 1 biases towards the aim (the base jet's fixed 1.7 gives a beam a spine). Wide arcs (Spread ≥ 60°) also draw their base angles STRATIFIED and permuted, so a thin corona has no bald patch and no rotating arm.")]
+        [ZUILabel("Angle bias")] [ZUIGroup("Arc shape", Tooltip = "How the disc is filled and torn into tongues.")]
         [Range(0.5f, 3f)] public ZUIValue bias = new ZUIValue(1.7f);
         [Tooltip("Birth radius, canvas WIDTHS of the source frame: > 0 = the gas leaves a burner RING rather than a point, and the middle stays dark.")]
+        [ZUILabel("Burner ring radius")] [ZUIGroup("Arc shape")]
         [Range(0f, 0.3f)] public ZUIValue srcR = new ZUIValue(0f);
 
         // ── the three ways a disc stops being a disc ──
         [Tooltip("Degrees a puff is carried AROUND the source over its life — its track becomes a spiral and it is stretched along that track (a fire whirl). Applied at the puff's age, not to its birth angle.")]
+        [ZUILabel("Swirl (fire whirl)")] [ZUIGroup("Arc shape")]
         [Range(-360f, 360f)] public ZUIValue swirl = new ZUIValue(0f);
         [Tooltip("Whole turns per loop the emission pattern rotates (integer, so the loop stays exact); a puff carries the aim it was born under, so a spinning source trails spiral arms.")]
+        [ZUILabel("Pattern spin")] [ZUIGroup("Arc shape")]
         [Range(-3, 3)] public int spin = 0;
         [Tooltip("Gather the arc into N tongues with real gaps between them (the birth angles are REDISTRIBUTED by φ − depth·sin φ, never resampled, so the sheet keeps its gas). 0 = an even sheet.")]
+        [ZUILabel("Tongue count")] [ZUIGroup("Arc shape")]
         [Range(0, 12)] public int lobes = 0;
         [Tooltip("How hard the tongues clump, 0..0.95 (the remap stays crossing-free below 1).")]
+        [ZUILabel("Tongue clumping")] [ZUIGroup("Arc shape")]
         [Range(0f, 0.95f)] public ZUIValue lobeDepth = new ZUIValue(0f);
         [Tooltip("Extra travel on a lobe axis against between them (speed × (1 − kick·(1 − cos-window))), so the tongues have length as well as density.")]
+        [ZUILabel("Tongue length kick")] [ZUIGroup("Arc shape")]
         [Range(0f, 1f)] public ZUIValue lobeKick = new ZUIValue(0f);
 
         // ── the root ──
         [Tooltip("With Src R > 0: the root is this many lumps laid round the birth circle (each stretched along the tangent); 0 = one lump at the centre.")]
+        [ZUILabel("Root lump count")] [ZUIGroup("Arc shape", Advanced = true)]
         [Range(0, 48)] public int rootK = 0;
 
         // ── rings ──
         [Tooltip("Rings seen FACE ON — an expanding circle in the picture plane with its puffs elongated along the ring (a radial source's shockwave) instead of the base jet's edge-on flattened O.")]
+        [ZUILabel("Rings face-on")] [ZUIGroup("Arc shape")]
         public bool ringFlat = false;
 
         // ── turbulence ──
         [Tooltip("Whole turns per loop the polar noise texture rotates around the source (integer, so the loop stays exact).")]
+        [ZUILabel("Turbulence spin")] [ZUIGroup("Arc shape", Advanced = true)]
         [Range(-3, 3)] public int warpSpin = 0;
 
         /// The radial dials' envelopes resolved at one layer life (slots 40 onward).

@@ -28,100 +28,140 @@ namespace Laubrary.Pyre.Forms.Kiln
 
         // ── the explosion's clock ──
         [Tooltip("The explosion's progress over the layer's life — a TIME REMAP as one envelope. The default straight line plays in real time; bend it to snap in and hold at full bloom, slow the smoky tail, or play sections at different speeds. A Static value freezes the explosion at that moment as a pose.")]
+        [ZUIGroup("Clock", Tooltip = "The explosion's overall timing — a time remap over the layer's life.")]
         [Range(0f, 1f)] public ZUIValue progress = IdentityCurve();
 
         // ── multi-blast character (only meaningful when the swarm ignites several blasts) ──
         [PyreSwarmOnly, Tooltip("Per-blast variation of size, torque, heat and jaggedness — 0 makes every blast a twin.")]
+        [ZUILabel("Per-blast variation")] [ZUIGroup("Multiple blasts", Tooltip = "Only meaningful when the swarm ignites several blasts — how they differ from each other.")]
         [Range(0f, 1f)] public float mutation = 0.4f;
         [PyreSwarmOnly, Tooltip("How strongly overlapping blasts ADD heat instead of replacing one another — what makes overlapping blasts glow hotter than either alone.")]
+        [ZUILabel("Overlap heat stacking")] [ZUIGroup("Multiple blasts")]
         [Range(0f, 1f)] public float heatStacking = 0.48f;
         [PyreSwarmOnly, Tooltip("Slides each blast's fire-vs-smoke character across the sequence: negative = the first blasts burn fierier and later ones turn sootier, positive = the reverse. 0 = every blast takes the Fire and Smoke dials as-is.")]
+        [ZUILabel("Fire/smoke drift across blasts")] [ZUIGroup("Multiple blasts")]
         [Range(-1f, 1f)] public float characterDrift = 0f;
         [PyreSwarmOnly, Tooltip("Randomises each blast's fire-vs-smoke character — some fierier, some sootier, no order.")]
+        [ZUILabel("Fire/smoke jitter across blasts")] [ZUIGroup("Multiple blasts")]
         [Range(0f, 1f)] public float characterJitter = 0f;
 
         // ── blast ──
         [Tooltip("Final occupied radius inside the safe zone, over the layer's life.")]
+        [ZUILabel("Blast size")] [ZUIGroup("Blast", Tooltip = "The explosion's birth: how big it gets, how it snaps in, and its opening drama.")]
         [Range(0.05f, 1f)] public ZUIValue blastSize = new ZUIValue(0.82f);
         [Tooltip("White-hot ignition flash and central punch at each blast's birth, over the layer's life. Tinted from the Fill's hot end.")]
+        [ZUILabel("Ignition flash")] [ZUIGroup("Blast")]
         [Range(0f, 1f)] public ZUIValue flash = new ZUIValue(0.72f);
         [Tooltip("How abruptly the first expansion happens — 1 is a violent snap (frames, not a bloom).")]
+        [ZUILabel("Bang speed")] [ZUIGroup("Blast")]
         [Range(0.2f, 1f)] public float bangSpeed = 0.82f;
         [Tooltip("DRAMA, opt-in: the bang overshoots its radius and settles back, ignition spikes the heat white-hot, and the flash blows out bigger. 0 = the calm prototype look.")]
+        [ZUILabel("Punch (drama)")] [ZUIGroup("Blast")]
         [Range(0f, 1f)] public float punch = 0f;
         [Tooltip("How FAR the flash reaches out from the blast centre — its size, set independently of how bright it is.")]
+        [ZUILabel("Flash reach")] [ZUIGroup("Blast")]
         [Range(0f, 1f)] public float flashReach = 0.4f;
         [Tooltip("How gradually the flash's alpha fades out into the cloud: 0 = a tight core with a crisp edge, 1 = a broad soft glow. (WHEN it fades is the Flash envelope's job.)")]
+        [ZUILabel("Flash softness")] [ZUIGroup("Blast")]
         [Range(0f, 1f)] public float flashSoftness = 0.45f;
         [Tooltip("Pulls the outer shape back in after the blast.")]
+        [ZUILabel("Recoil")] [ZUIGroup("Blast")]
         [Range(0f, 1f)] public float recoil = 0.42f;
 
         // ── containment ──
         [Tooltip("How far the cloud's own rim fades out, in absolute canvas terms — so the fade looks the same whether the blast is tiny or huge. Low reads as a hard-edged solid; raise it for gas.")]
+        [ZUILabel("Edge softness")] [ZUIGroup("Containment", Tooltip = "How the cloud is kept inside its safe area.")]
         [Range(0f, 1f)] public ZUIValue edgeSoftness = new ZUIValue(0.3f);
         [Tooltip("Minimum empty border around the effect, as a fraction of the canvas — nothing is drawn past it, so the effect can never touch the frame edge.")]
+        [ZUILabel("Safe margin")] [ZUIGroup("Containment")]
         [Range(0f, 0.25f)] public float safeMargin = 0.08f;
         [Tooltip("How wide the fade-to-nothing is as the cloud nears the Safe margin — anything close to the border dissolves instead of being cut. The band grows inward, so the frame edge itself is always fully transparent.")]
+        [ZUILabel("Frame-edge fade")] [ZUIGroup("Containment")]
         [Range(0f, 1f)] public float frameFade = 0.35f;
 
         // ── cloud shape ──
         [Tooltip("Large coherent lobes, merged into one cloud.")]
+        [ZUILabel("Clump count")] [ZUIGroup("Cloud shape", Tooltip = "The cloud's overall silhouette.")]
         [Range(1, 9)] public int clumps = 5;
         [Tooltip("Separates the hot lobes without breaking cohesion, over the layer's life.")]
+        [ZUILabel("Clump spread")] [ZUIGroup("Cloud shape")]
         [Range(0f, 1f)] public ZUIValue clumpSpread = new ZUIValue(0.52f);
         [Tooltip("Strength of the rolling, 3D-looking cloud pockets, over the layer's life — what keeps the cloud from reading as a flat slab.")]
+        [ZUILabel("Billow strength")] [ZUIGroup("Cloud shape")]
         [Range(0f, 1f)] public ZUIValue billow = new ZUIValue(0.72f);
         [Tooltip("Breaks the perfect circle into torn explosive lobes, over the layer's life.")]
+        [ZUILabel("Jaggedness")] [ZUIGroup("Cloud shape")]
         [Range(0f, 1f)] public ZUIValue jagged = new ZUIValue(0.53f);
         [Tooltip("Keeps the MIDDLE of the cloud thick over the layer's life. The cavity and noise detail bite hardest where the cloud is thickest, which thins (or holes) the centre without this.")]
+        [ZUILabel("Core density")] [ZUIGroup("Cloud shape")]
         [Range(0f, 1f)] public ZUIValue coreDensity = new ZUIValue(0.5f);
         [Tooltip("Higher keeps all clumps visibly connected as one mass, over the layer's life — fall to a low value late and the cloud visibly blows apart into fragments.")]
+        [ZUILabel("Cohesion")] [ZUIGroup("Cloud shape")]
         [Range(0f, 1f)] public ZUIValue cohesion = new ZUIValue(0.78f);
         [Tooltip("Carves the cloud's core out into a cavity over the layer's life, leaving a burning shell — 0 = solid, high = a ring/torus of fire. Animate it to make the cloud bloom open into a ring.")]
+        [ZUILabel("Hollow core")] [ZUIGroup("Hollow core", Tooltip = "Carves the cloud's centre into a burning cavity.")]
         [Range(0f, 1f)] public ZUIValue hollow = new ZUIValue(0f);
         [Tooltip("Heat concentrated on the cavity's INNER boundary over the layer's life, so the shell visibly burns. Only acts once Hollow is raised.")]
+        [ZUILabel("Inner rim heat")] [ZUIGroup("Hollow core")]
         [Range(0f, 1f)] public ZUIValue hollowRim = new ZUIValue(0.5f);
         [Tooltip("Heat concentrated on the cloud's OUTER rim over the layer's life — a burning surface instead of an evenly lit disc. Animate it to have the shell ignite and cool.")]
+        [ZUILabel("Outer rim heat")] [ZUIGroup("Hollow core")]
         [Range(0f, 1f)] public ZUIValue outerRim = new ZUIValue(0f);
 
         // ── churn & motion ──
         [Tooltip("Rolling internal displacement, over the layer's life.")]
+        [ZUILabel("Churn")] [ZUIGroup("Churn & motion", Tooltip = "Internal roiling and turning.")]
         [Range(0f, 1f)] public ZUIValue churn = new ZUIValue(0.68f);
         [Tooltip("Rotational torque, either way (−1..1), over the layer's life; 0 = none.")]
+        [ZUILabel("Rotation torque")] [ZUIGroup("Churn & motion")]
         [Range(-1f, 1f)] public ZUIValue rotation = new ZUIValue(0.22f);
         [Tooltip("A secondary compression wave that breathes the SAME blast in and out after the bang — it does not add a second explosion (use more swarm particles for that).")]
+        [ZUILabel("Secondary pulse")] [ZUIGroup("Churn & motion")]
         [Range(0f, 1f)] public float pulse = 0.46f;
 
         // ── fire ──
         [Tooltip("How much of the cloud is FLAME, over the layer's life: 0 = no fire at all (pure smoke); 1 = fire fills most of the dense regions.")]
+        [ZUILabel("Fire amount")] [ZUIGroup("Fire", Tooltip = "How much of the cloud burns, and how it looks while burning.")]
         [Range(0f, 1f)] public ZUIValue fire = new ZUIValue(0.79f);
         [Tooltip("Varies the heat WITHIN the fire — internal boiling regions. (Clumps shape the cloud's mass; this only changes how hot each part of it burns.)")]
+        [ZUILabel("Heat pockets")] [ZUIGroup("Fire")]
         [Range(0f, 1f)] public float heatPockets = 0.67f;
         [Tooltip("How quickly flame turns into dark smoke over each blast's own life — the fire→smoke rate.")]
+        [ZUILabel("Cooling rate")] [ZUIGroup("Fire")]
         [Range(0f, 1f)] public float cooling = 0.54f;
         [Tooltip("An inner glow at the cloud's core over the layer's life, added after Cooling so it survives it — the smoulder left inside the smoke. Its timing is entirely this envelope's: flat glows throughout, a curve swells and dies exactly when you draw it.")]
+        [ZUILabel("Core glow")] [ZUIGroup("Fire")]
         [Range(0f, 1f)] public ZUIValue coreGlow = new ZUIValue(0.4f);
 
         // ── smoke ──
         [Tooltip("How much SOOT there is, over the layer's life — the one dial for the amount of smoke.")]
+        [ZUILabel("Smoke amount")] [ZUIGroup("Smoke", Tooltip = "The soot half of the cloud.")]
         [Range(0f, 1f)] public ZUIValue smoke = new ZUIValue(0.66f);
         [Tooltip("How far the soot reaches BEYOND the fire, over the layer's life — the shell of smoke that frames the flame and feathers into the background instead of stopping at its silhouette.")]
+        [ZUILabel("Smoke spread")] [ZUIGroup("Smoke")]
         [Range(0f, 1f)] public ZUIValue smokeSpread = new ZUIValue(0.45f);
         [Tooltip("Heavier, darker soot over the layer's life. SMOKE ONLY — burning pixels take the Fill ramp's colour outright, so this never tints the flame.")]
+        [ZUILabel("Smoke darkness")] [ZUIGroup("Smoke")]
         [Range(0f, 1f)] public ZUIValue darkness = new ZUIValue(0.64f);
         [Tooltip("How long the smoke STAYS: 0 = fades out over the last frames; 1 = persists to the very end of the timeline. The shared Alpha envelope above also fades the tail by default — flatten it for smoke that holds to the last frame.")]
+        [ZUILabel("Smoke lingers")] [ZUIGroup("Smoke")]
         [Range(0f, 1f)] public float linger = 0.5f;
         [Tooltip("How OPAQUE the thick of the cloud reads, over the layer's life: 0 = ghostly gas, 1 = dense fire and smoke read as solid matter. Affects flame and soot alike.")]
+        [ZUILabel("Body opacity")] [ZUIGroup("Smoke")]
         [Range(0f, 1f)] public ZUIValue body = new ZUIValue(0.75f);
 
         // ── finish ──
         [Tooltip("Dissolves the whole effect to nothing over the final fraction of the timeline, so it ends on its own instead of running until the last frame cuts it off. 0 = no forced ending.")]
+        [ZUILabel("Dies out early")] [ZUIGroup("Finish", Tooltip = "The explosion's ending and overall shading.")]
         [Range(0f, 1f)] public float dieOut = 0f;
         [Tooltip("Short contained sparks that arc out and fade before the border.")]
+        [ZUILabel("Embers")] [ZUIGroup("Finish")]
         [Range(0f, 1f)] public float embers = 0.38f;
         [Tooltip("Pseudo-3D shading from the cloud's own density — carves lit billows and shadowed pockets.")]
+        [ZUILabel("Pseudo-3D lighting")] [ZUIGroup("Finish")]
         [Range(0f, 1f)] public float lighting = 0.76f;
         [Tooltip("Separates hot cavities from dark billows on the heat ramp.")]
+        [ZUILabel("Contrast")] [ZUIGroup("Finish")]
         [Range(0f, 1f)] public float contrast = 0.61f;
 
         // The identity curve (0,0)→(1,1): internal time == the layer's life, so an untouched Progress is no remap.

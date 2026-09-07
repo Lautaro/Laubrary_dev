@@ -44,6 +44,7 @@ namespace Laubrary.Pyre.Forms.Kiln
         public enum Variant { Lance, Gout, Sputter, Whip, Wyrm }
 
         [Tooltip("Which of the five published jets this is. Each is its own settings box below; switching keeps the shared placement dials.")]
+        [ZUILabel("Jet type")]
         public Variant variant = Variant.Gout;
 
         // ── the variants ──

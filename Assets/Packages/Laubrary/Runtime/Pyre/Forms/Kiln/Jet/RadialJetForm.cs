@@ -41,6 +41,7 @@ namespace Laubrary.Pyre.Forms.Kiln
         public enum Variant { Corona, Fan, Crown, Whirl, Shockring, Maw, Starburst, Halo }
 
         [Tooltip("Which of the eight published radial jets this is. Each is its own settings box below; switching keeps the shared placement dials.")]
+        [ZUILabel("Radial jet type")]
         public Variant variant = Variant.Corona;
 
         // ── the variants ──
