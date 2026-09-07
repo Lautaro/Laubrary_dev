@@ -226,7 +226,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c3397ac2511c5a44a955110f59472a56, type: 3}
   m_Name: 
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Demos::Laubrary.Demos.ProtoGuyDemo.FireDirectionVisualizer
-  enableVisualizer: 1
+  enableVisualizer: 0
   lineLength: 6
   lineColor: {r: 1, g: 0, b: 0, a: 1}
   lineWidth: 0.03
