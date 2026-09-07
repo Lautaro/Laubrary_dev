@@ -180,6 +180,7 @@ GameObject:
   - component: {fileID: 1395470068}
   - component: {fileID: 1395470067}
   - component: {fileID: 1395470069}
+  - component: {fileID: 1395470070}
   m_Layer: 0
   m_Name: Demo Controls
   m_TagString: Untagged
@@ -231,6 +232,22 @@ MonoBehaviour:
   lineColor: {r: 1, g: 0, b: 0, a: 1}
   lineWidth: 0.03
   rescanInterval: 0.5
+--- !u!114 &1395470070
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1395470066}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5a4cbd243ca77141a38dfb1235a2cfc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Demos::Laubrary.Demos.ProtoGuyDemo.BackSplashZoomSlider
+  enableSlider: 1
+  backdrop: {fileID: 1627808704}
+  minZoom: 0.2
+  maxZoom: 5
 --- !u!1 &1432643068
 GameObject:
   m_ObjectHideFlags: 0
@@ -288,6 +305,8 @@ GameObject:
   - component: {fileID: 1627808699}
   - component: {fileID: 1627808701}
   - component: {fileID: 1627808702}
+  - component: {fileID: 1627808703}
+  - component: {fileID: 1627808704}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -397,6 +416,40 @@ MonoBehaviour:
   m_CropFrameX: 0
   m_CropFrameY: 1
   m_StretchFill: 0
+--- !u!114 &1627808703
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1627808698}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e39fe7ecdfec04943892de39049bc227, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.PixelScale::Laubrary.PixelScale.ScreenEdgeVisualizer
+  enableVisualizer: 1
+  outerResolution: {x: 1920, y: 1080}
+  coreColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  outerColor: {r: 1, g: 0.5, b: 0, a: 1}
+  lineWidth: 0.03
+  lineDistance: 1
+--- !u!114 &1627808704
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1627808698}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fd30b1311e9b0114fbb22c32c0cd191d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.BackSplash::Laubrary.BackSplash.BackSplashBackdrop
+  backSplash: {fileID: 11400000, guid: 8c7451a088f73e84891061bf6f67e1d9, type: 2}
+  targetCamera: {fileID: 0}
+  distance: 10
+  sortingOrder: -1000
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

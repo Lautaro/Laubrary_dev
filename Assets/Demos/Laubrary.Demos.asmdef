@@ -34,7 +34,9 @@
         "com.Lautaro-Arino.Laubrary.ZuiRuntime",
         "com.Lautaro-Arino.Laubrary.Loom",
         "com.Lautaro-Arino.Laubrary.Daemon",
-        "com.Lautaro-Arino.Laubrary.ZoeCharacter"
+        "com.Lautaro-Arino.Laubrary.ZoeCharacter",
+        "GUID:f4b94230a34bec540a84186d63a7a164",
+        "GUID:002c10c3c1ce7df4cb5543082041ede3"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
