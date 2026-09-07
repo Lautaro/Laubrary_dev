@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- Shaper: the window sits in Pyre's frame — eight bar sections (Views, Canvas, Layers, Shape, Fill, SpriteFX, Lights, Tags); Transform is the Shape card's Position box, Border is the Fill card's Edge box, per-layer Lighting is a folded box on the layer row, Swarm is a box on the Shape card, and layer and whole-picture SpriteFX share one card with a Whole picture toggle per entry (T-0258).
+- AssetKit: every asset window shows an unsaved dot beside the asset name and a Save button that saves that asset (T-0258).
+- Pyre forms: Explosive Jet's 87 dials get captions, groups and effect tooltips (T-0263).
 - Shaper: every choice control speaks plain words (one shared label map over 25 enum sites); dials that cannot act are greyed with the reason in their tooltip (no light, zero raise, zero rim, unused sweep parameterisation, unpublished ramp quantities); a refused fill says so under the Fill card; the two unimplemented shadow toggles are gone; a new document starts with a key light and a new height stage with a visible raise; Rate, Pixels per unit, Loop gap, Seed and Depth each live in one place with one name (T-0257).
 - Pyre forms: every dial caption now fits a 150 px MicroSlider (326 captions shortened across 12 form files, the longer wording moved into tooltips) (T-0262).
 - Pyre forms: Arc Burst, Fork Blast, Inferno, Torch and the Jet family's dials carry plain-language captions, groups and effect tooltips (serialized names untouched, render hashes unchanged); Explosive Jet's own dials are still to do (T-0255).

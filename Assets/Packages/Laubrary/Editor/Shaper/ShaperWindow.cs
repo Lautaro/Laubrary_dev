@@ -233,7 +233,11 @@ namespace Laubrary.Shaper.Editor
         // ── chrome ───────────────────────────────────────────────────────────────────────────────────────
         ShaperPreviewStage stage;
         VisualElement layerListHost, toggleBarHost, selectedLayerCardsHost;
-        ZuiSection canvasSection, layersSection, shapeSection, transformSection;
+        ZuiSection canvasSection, layersSection, shapeSection;
+        // T-0258 — the ex-Transform card, now the Shape card's "Position" box. Still held because the preview's
+        // pivot cross is drawn only while it is open (see stage.ShowOrigin in BuildRight): a box the author
+        // folded away has no business leaving a mark on the picture.
+        ZuiBox positionBox;
         ScrollView leftPane;
         Vector2 carriedScroll;
 
@@ -336,10 +340,22 @@ namespace Laubrary.Shaper.Editor
         // ordinary ZuiSections like every other bar entry — Tags happens to also stay physically placed BELOW
         // the bar (BuildAsset) so folding it can never move the bar itself, which is a layout choice, not a
         // reason to keep it out of the bar's own show/hide roster.
+        //
+        // T-0258 — THIRTEEN ENTRIES DOWN TO EIGHT, which is Pyre's own count (Tags, Views, Canvas, Layers,
+        // Global Mod, Shape, Swarm, Modifiers — Editor/Pyre/PyreWindow.cs:488-499). Five of the thirteen were
+        // not sections at all, they were parts of another section wearing a bar segment, and each one has gone
+        // back where it belongs rather than being deleted:
+        //   • Transform  → the Shape card's "Position" box (a node's placement is part of what it draws)
+        //   • Border     → the Fill card's "Edge" box (a border is a second fill, on the edge)
+        //   • Lighting   → a folded box on the selected layer's row, beside Height and Mask (it is a LAYER
+        //                  property, and those two already moved there in T-0187/T-0204)
+        //   • Global SpriteFX → merged into SpriteFX; an entry's "Whole picture" toggle moves it between the
+        //                  layer list and the document list, so one card holds both
+        //   • Swarm      → the Shape card's "Swarm" box, beside Sweep and Shell
+        // A bar segment is the promise that a card is a place you go; a part of a card is not.
         static readonly string[] ToggleBarOrder =
         {
-            "Views", "Canvas", "Layers", "Shape", "Transform", "Fill", "Border",
-            "SpriteFX", "Global SpriteFX", "Swarm", "Lights", "Lighting", "Tags",
+            "Views", "Canvas", "Layers", "Shape", "Fill", "SpriteFX", "Lights", "Tags",
         };
 
         void RefreshToggleBar()
@@ -352,7 +368,6 @@ namespace Laubrary.Shaper.Editor
                 ["Lights"] = lightsSection,   // ShaperWindow.Lights.cs (T-0164)
                 ["Layers"] = layersSection,
                 ["Shape"] = shapeSection,
-                ["Transform"] = transformSection,
                 ["Views"] = viewsSection,
                 ["Tags"] = TagsSection,   // base ZuiAssetWindow field — see BuildAsset's own placement comment
             };
@@ -728,6 +743,21 @@ namespace Laubrary.Shaper.Editor
                     RefreshSelectedLayerCards();
                 }));
 
+            // T-0258 — Lighting joins Height and Mask on this row, and stops being a toggle-bar section. It is
+            // a LAYER property exactly as those two are (ShaperLayer.response, ShaperLightRig.cs:352), so it
+            // belongs where the layer is edited rather than in the bar, which is for places you GO.
+            //
+            // The toggle is the response's own `receiveLighting` flag rather than a second view-only switch:
+            // the card already refused to draw a dial while that flag was off, so the flag WAS the card's
+            // show/hide condition — same shape as Height (a stage exists or does not) and Mask (a source is
+            // picked or is not), and it leaves exactly one control for the one idea instead of a bar segment,
+            // a header and an in-card toggle all saying it.
+            var resp = lay.response ?? (lay.response = new ShaperLightResponse());
+            row.Add(Z.Toggle("Lighting", "Let the document's light rig light this layer. The card below "
+                + "appears while this is on; with it off the layer paints its own colours flat.",
+                resp.receiveLighting,
+                v => { Change(() => resp.receiveLighting = v); RefreshSelectedLayerCards(); }));
+
             // T-0204 — relocated out of the (now conditional) Mask card: whether this layer draws into the
             // picture is a property of it being used as a mask SOURCE by some OTHER layer, unrelated to
             // whether it has a mask of its own, so it must stay visible even when this layer's own Mask card
@@ -742,6 +772,8 @@ namespace Laubrary.Shaper.Editor
 
             if (lay.height != null) BuildHeightSection(selectedLayerCardsHost, lay);
             if (lay.mask != null && lay.mask.IsSet) BuildMaskSection(selectedLayerCardsHost, lay);
+            // T-0258 — same absence rule as the two above, driven by the same row's toggle.
+            if (resp.receiveLighting) BuildLightingBox(selectedLayerCardsHost, lay);
         }
 
         /// Opens the "which other layer masks this one" menu directly, for the Mask toggle's on-click
@@ -903,7 +935,6 @@ namespace Laubrary.Shaper.Editor
             if (node == null) return;
 
             BuildShapeSection(root, node);
-            BuildTransformSection(root, node);
             BuildAuthoringSections(root, node);
         }
 
@@ -935,12 +966,23 @@ namespace Laubrary.Shaper.Editor
                 case ShaperNodeKind.Bag: BuildChildrenBody(box, node); break;
             }
 
+            // T-0258 — Position (was the "Transform" section) sits directly under the shape's own dials,
+            // ahead of the optional carves below it: every node has a placement, while Combine/Sweep/Shell
+            // and Swarm are things a node may or may not do. Pyre groups the same fields into one collapsible
+            // "Position" box on its Shape card (Editor/Pyre/PyreShapeCards.cs:232), which is what this is.
+            BuildPositionBox(box, node);
+
             // The combine op and the join dials only mean something for a node that has siblings to combine
             // WITH, so they are drawn only for a bag member; the sweep and shell carve this node's own
             // geometry and apply wherever it sits, so they are not gated. (Both used to live in a card
             // called "Modifiers", which they never were — a modifier is an effect on the picture, these
             // are part of the shape.)
             BuildShapeOpsBody(box, node);
+
+            // T-0258 — Swarm was a bar section of its own; it is a box beside Sweep and Shell now, because it
+            // is the same kind of thing they are: an optional operation on THIS node's content, off by
+            // default, whose dials are absent until it is switched on.
+            BuildSwarmBox(box, node);
 
             root.Add(box);
         }
@@ -1056,15 +1098,22 @@ namespace Laubrary.Shaper.Editor
             }
         }
 
-        void BuildTransformSection(VisualElement root, ShaperNode node)
+        /// <summary>
+        /// Where this node's content sits and how it is turned — the ex-"Transform" section, now a folded box
+        /// inside the Shape card (T-0258), exactly as Pyre groups the same fields into its own "Position" box
+        /// (Editor/Pyre/PyreShapeCards.cs:232). Same controls, same ranges, same Undo path; only its home and
+        /// its title changed. The state key is DELIBERATELY still "shaper.window.transform" — a key names the
+        /// data, never the label, so a saved view that folded this away keeps folding it away.
+        /// </summary>
+        void BuildPositionBox(VisualElement parent, ShaperNode node)
         {
             // Closes the inventory's worst gap: ShaperTransformBlock (ShaperMatrix.cs) is on EVERY node and had
             // no UI anywhere, which meant a shape could not be positioned at all.
             var t = node.transform;
-            var box = transformSection = Z.Section("Transform",
+            var box = positionBox = Z.BoxKeyed("Position",
                 "Where this node's content sits, and how it is oriented. Applied to the node's whole content — "
                 + "for a bag, to the whole assembly before its members.",
-                "shaper.window.transform", icon: "move");
+                "shaper.window.transform", "move");
 
             float ext = Mathf.Max(document.canvasWidth, document.canvasHeight);
             t.EnsureDials();
@@ -1112,7 +1161,7 @@ namespace Laubrary.Shaper.Editor
             // the header-click half of keeping that in sync, since the fold itself doesn't touch the preview.
             box.ViewChanged += RefreshPreview;
 
-            root.Add(box);
+            parent.Add(box);
         }
 
         // ── right pane: preview, transport, bake ─────────────────────────────────────────────────────────
@@ -1159,9 +1208,10 @@ namespace Laubrary.Shaper.Editor
             // where the handle was dropped, and rebuilding the panel mid-gesture would pull the control out
             // from under the pointer.
             stage.DragCommitted = Rebuild;
-            // T-0220 — the pivot cross only means anything while the Transform card is the thing being looked
-            // at; a card the owner folded away has no business leaving a mark on the picture.
-            stage.ShowOrigin = () => transformSection != null && transformSection.IsOpen;
+            // T-0220 — the pivot cross only means anything while the Position box is the thing being looked
+            // at; a box the owner folded away has no business leaving a mark on the picture. (T-0258 — the
+            // box is the ex-Transform section, now inside the Shape card; the rule is unchanged.)
+            stage.ShowOrigin = () => positionBox != null && positionBox.IsOpen;
 
             // T-0190 — preview overlays. The stage owes them a buffer and nothing else; which features have
             // marks to draw, and which are switched on, is decided here (ShaperPreviewOverlays).

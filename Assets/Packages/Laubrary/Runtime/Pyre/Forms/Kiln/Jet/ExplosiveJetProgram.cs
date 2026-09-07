@@ -63,15 +63,20 @@ namespace Laubrary.Pyre.Forms.Kiln
     [Serializable]
     public sealed class ExplosiveBlast
     {
-        [Tooltip("Loop phase this detonation fires at (0..1). Uneven spacing between blasts is what makes a schedule STAGGERED.")]
+        [Tooltip("Full name: \"Blast at\". Loop phase this detonation fires at (0..1). Uneven spacing between blasts is what makes a schedule STAGGERED.")]
+        [ZUILabel("Blast at")] [ZUIGroup("Blasts", Tooltip = "The authored schedule of detonations: when each one fires, how violent it is, its share of the puffs, and where its seat sits.")]
         [Range(0f, 1f)] public float at = 0f;
-        [Tooltip("This blast's violence: scales its puffs' speed AND amplitude, its flash, ring, chunks, gobs, dust and sparks (contract `blast_pow`).")]
+        [Tooltip("Full name: \"Violence\". This blast's violence: scales its puffs' speed AND amplitude, its flash, ring, chunks, gobs, dust and sparks (contract `blast_pow`).")]
+        [ZUILabel("Violence")] [ZUIGroup("Blasts")]
         [Range(0.1f, 2f)] public float pow = 1f;
-        [Tooltip("This blast's share of the slots, relative to the other blasts' shares (normalised; contract `blast_share`).")]
+        [Tooltip("Full name: \"Share\". This blast's share of the slots, relative to the other blasts' shares (normalised; contract `blast_share`).")]
+        [ZUILabel("Share")] [ZUIGroup("Blasts")]
         [Range(0.05f, 2f)] public float share = 1f;
-        [Tooltip("Seat offset across the source frame, as a fraction of its width (contract `blast_off` x).")]
+        [Tooltip("Full name: \"Seat X\". Seat offset across the source frame, as a fraction of its width (contract `blast_off` x).")]
+        [ZUILabel("Seat X")] [ZUIGroup("Blasts")]
         [Range(-0.5f, 0.5f)] public float offX = 0f;
-        [Tooltip("Seat offset down the source frame, as a fraction of its height (contract `blast_off` y; + = down).")]
+        [Tooltip("Full name: \"Seat Y\". Seat offset down the source frame, as a fraction of its height (contract `blast_off` y; + = down).")]
+        [ZUILabel("Seat Y")] [ZUIGroup("Blasts")]
         [Range(-0.5f, 0.5f)] public float offY = 0f;
     }
 
@@ -79,29 +84,41 @@ namespace Laubrary.Pyre.Forms.Kiln
     [Serializable]
     public sealed class ExplosiveFracture
     {
-        [Tooltip("PROBABILITY a detonation cracks (contract `frac_p`), rolled per blast off the draw's seed — so a three-blast draw can crack on its second bang and not its first, the same way every loop. 0 = never.")]
+        [Tooltip("Full name: \"Crack chance\". PROBABILITY a detonation cracks (contract `frac_p`), rolled per blast off the draw's seed — so a three-blast draw can crack on its second bang and not its first, the same way every loop. 0 = never.")]
+        [ZUILabel("Crack chance")] [ZUIGroup("Fracture", Tooltip = "THE CRACK: past Crack at the body is cut into uneven wedges that close towards their own bisectors, slide apart, kick, spin and drift.")]
         [Range(0f, 1f)] public float chance = 0f;
-        [Tooltip("Pieces the body is cut into (`frac_n`). Their widths are UNEVEN (0.55..1.45 of the mean) — equal wedges read as a pinwheel, not a broken thing.")]
+        [Tooltip("Full name: \"Pieces\". Pieces the body is cut into (`frac_n`). Their widths are UNEVEN (0.55..1.45 of the mean) — equal wedges read as a pinwheel, not a broken thing.")]
+        [ZUILabel("Pieces")] [ZUIGroup("Fracture")]
         [Range(2, 12)] public int pieces = 6;
-        [Tooltip("Age (fraction of a puff's life) the crack opens at (`frac_at`); each piece is delayed by up to Stagger.")]
+        [Tooltip("Full name: \"Crack at\". Age (fraction of a puff's life) the crack opens at (`frac_at`); each piece is delayed by up to Stagger.")]
+        [ZUILabel("Crack at")] [ZUIGroup("Fracture")]
         [Range(0f, 1f)] public float at = 0.52f;
-        [Tooltip("How far each piece closes up towards its own bisector, radians (`frac_open`) — the WEDGE-shaped half of the gap; × a per-piece 0.3..1.7 multiplier so no two seams let go by the same amount.")]
+        [Tooltip("Full name: \"Crack open\". How far each piece closes up towards its own bisector, radians (`frac_open`) — the WEDGE-shaped half of the gap; × a per-piece 0.3..1.7 multiplier so no two seams let go by the same amount.")]
+        [ZUILabel("Crack open")] [ZUIGroup("Fracture")]
         [Range(0f, 1.6f)] public float open = 0.30f;
-        [Tooltip("Per-piece extra travel, ± (`frac_kick`, × reach): zero-mean, so half the pieces are pulled in and half pushed out — they separate from EACH OTHER, not from the origin.")]
+        [Tooltip("Full name: \"Piece kick\". Per-piece extra travel, ± (`frac_kick`, × reach): zero-mean, so half the pieces are pulled in and half pushed out — they separate from EACH OTHER, not from the origin.")]
+        [ZUILabel("Piece kick")] [ZUIGroup("Fracture")]
         [Range(0f, 1f)] public float kick = 0.22f;
-        [Tooltip("Degrees a piece turns as it goes (`frac_spin`, ± per piece).")]
+        [Tooltip("Full name: \"Piece spin\". Degrees a piece turns as it goes (`frac_spin`, ± per piece).")]
+        [ZUILabel("Piece spin")] [ZUIGroup("Fracture")]
         [Range(0f, 30f)] public float spin = 8f;
-        [Tooltip("Share of the gas that follows its piece (`frac_grip`); the rest stays and bridges the crack as wisps, so the tear is ragged rather than cut.")]
+        [Tooltip("Full name: \"Gas grip\". Share of the gas that follows its piece (`frac_grip`); the rest stays and bridges the crack as wisps, so the tear is ragged rather than cut.")]
+        [ZUILabel("Gas grip")] [ZUIGroup("Fracture")]
         [Range(0f, 1f)] public float grip = 0.82f;
-        [Tooltip("Turns the crack pattern round the arc (`frac_rot`, fraction of the arc) so every radial draw does not split along the same axis.")]
+        [Tooltip("Full name: \"Crack rotate\". Turns the crack pattern round the arc (`frac_rot`, fraction of the arc) so every radial draw does not split along the same axis.")]
+        [ZUILabel("Crack rotate")] [ZUIGroup("Fracture", Advanced = true)]
         [Range(0f, 1f)] public float rot = 0f;
-        [Tooltip("Per-piece translation in its OWN random direction, canvas widths (`frac_drift`) — wedges that only slide radially stay a rosette; this shears them past each other.")]
+        [Tooltip("Full name: \"Piece drift\". Per-piece translation in its OWN random direction, canvas widths (`frac_drift`) — wedges that only slide radially stay a rosette; this shears them past each other.")]
+        [ZUILabel("Piece drift")] [ZUIGroup("Fracture")]
         [Range(0f, 0.4f)] public float drift = 0.05f;
-        [Tooltip("A piece's crack is delayed by up to this much life (`frac_stagger`), so the break RUNS through the mass instead of happening all at once.")]
+        [Tooltip("Full name: \"Stagger\". A piece's crack is delayed by up to this much life (`frac_stagger`), so the break RUNS through the mass instead of happening all at once.")]
+        [ZUILabel("Stagger")] [ZUIGroup("Fracture")]
         [Range(0f, 0.5f)] public float stagger = 0.16f;
-        [Tooltip("The CONSTANT-WIDTH half of the gap, canvas widths (`frac_cut`): a displacement across each piece's own bisector, so the crack is as wide at the hub as at the shell and reaches the middle (an angle alone heals over at the root).")]
+        [Tooltip("Full name: \"Crack cut\". The CONSTANT-WIDTH half of the gap, canvas widths (`frac_cut`): a displacement across each piece's own bisector, so the crack is as wide at the hub as at the shell and reaches the middle (an angle alone heals over at the root).")]
+        [ZUILabel("Crack cut")] [ZUIGroup("Fracture")]
         [Range(0f, 0.3f)] public float cut = 0f;
-        [Tooltip("0 = only the SHELL separates (the slow core stays and holds the pieces together); 1 = the whole piece leaves, core and all, and what is left in the middle is a hole because the gas is visibly somewhere else (`frac_body`).")]
+        [Tooltip("Full name: \"Piece body\". 0 = only the SHELL separates (the slow core stays and holds the pieces together); 1 = the whole piece leaves, core and all, and what is left in the middle is a hole because the gas is visibly somewhere else (`frac_body`).")]
+        [ZUILabel("Piece body")] [ZUIGroup("Fracture")]
         [Range(0f, 1f)] public float body = 0f;
     }
 
@@ -109,21 +126,29 @@ namespace Laubrary.Pyre.Forms.Kiln
     [Serializable]
     public sealed class ExplosiveFracture2
     {
-        [Tooltip("PROBABILITY a piece breaks AGAIN (`frac2_p`), rolled PER PIECE — two of four pieces splitting is a thing breaking up; four of four is a symmetry operation. 0 = one crack only.")]
+        [Tooltip("Full name: \"2nd crack chance\". PROBABILITY a piece breaks AGAIN (`frac2_p`), rolled PER PIECE — two of four pieces splitting is a thing breaking up; four of four is a symmetry operation. 0 = one crack only.")]
+        [ZUILabel("Crack2 chance")] [ZUIGroup("Fracture 2", Tooltip = "THE SECOND CRACK: every piece from Fracture splits at its own random seam and rolls whether that seam opens later. Expert-only refinement — leave at 0 for a single, cleaner break.", Advanced = true)]
         [Range(0f, 1f)] public float chance = 0f;
-        [Tooltip("Age the second crack opens at (`frac2_at`); never before the first one + 0.02.")]
+        [Tooltip("Full name: \"2nd crack at\". Age the second crack opens at (`frac2_at`); never before the first one + 0.02.")]
+        [ZUILabel("2nd crack at")] [ZUIGroup("Fracture 2", Advanced = true)]
         [Range(0f, 1f)] public float at = 0.72f;
-        [Tooltip("The second crack's angular closing, radians (`frac2_open`).")]
+        [Tooltip("Full name: \"2nd crack open\". The second crack's angular closing, radians (`frac2_open`).")]
+        [ZUILabel("2nd open")] [ZUIGroup("Fracture 2", Advanced = true)]
         [Range(0f, 1.6f)] public float open = 0.45f;
-        [Tooltip("The second crack's constant-width cut, canvas widths (`frac2_cut`).")]
+        [Tooltip("Full name: \"2nd crack cut\". The second crack's constant-width cut, canvas widths (`frac2_cut`).")]
+        [ZUILabel("2nd cut")] [ZUIGroup("Fracture 2", Advanced = true)]
         [Range(0f, 0.3f)] public float cut = 0f;
-        [Tooltip("Per-sub-piece extra travel (`frac2_kick`, × reach, drawn −0.80..0.95).")]
+        [Tooltip("Full name: \"2nd piece kick\". Per-sub-piece extra travel (`frac2_kick`, × reach, drawn −0.80..0.95).")]
+        [ZUILabel("2nd kick")] [ZUIGroup("Fracture 2", Advanced = true)]
         [Range(0f, 1f)] public float kick = 0.18f;
-        [Tooltip("Per-sub-piece translation in its own direction, canvas widths (`frac2_drift`).")]
+        [Tooltip("Full name: \"2nd piece drift\". Per-sub-piece translation in its own direction, canvas widths (`frac2_drift`).")]
+        [ZUILabel("2nd drift")] [ZUIGroup("Fracture 2", Advanced = true)]
         [Range(0f, 0.4f)] public float drift = 0.06f;
-        [Tooltip("Degrees a sub-piece turns (`frac2_spin`, ± per sub-piece).")]
+        [Tooltip("Full name: \"2nd piece spin\". Degrees a sub-piece turns (`frac2_spin`, ± per sub-piece).")]
+        [ZUILabel("2nd spin")] [ZUIGroup("Fracture 2", Advanced = true)]
         [Range(0f, 30f)] public float spin = 7f;
-        [Tooltip("Per-sub-piece delay of the second crack, fraction of life (`frac2_stagger`).")]
+        [Tooltip("Full name: \"2nd stagger\". Per-sub-piece delay of the second crack, fraction of life (`frac2_stagger`).")]
+        [ZUILabel("2nd stagger")] [ZUIGroup("Fracture 2", Advanced = true)]
         [Range(0f, 0.5f)] public float stagger = 0.14f;
     }
 
@@ -131,15 +156,20 @@ namespace Laubrary.Pyre.Forms.Kiln
     [Serializable]
     public sealed class ExplosiveFlash
     {
-        [Tooltip("Radius of the detonation core, source px (`flash_r`); 0 = none. It is the brightest thing in the file for a tenth of the loop and then not there at all.")]
+        [Tooltip("Full name: \"Flash radius\". Radius of the detonation core, source px (`flash_r`); 0 = none. It is the brightest thing in the file for a tenth of the loop and then not there at all.")]
+        [ZUILabel("Flash radius")] [ZUIGroup("Flash", Tooltip = "THE INSTANT: a hard bright core at each detonation's seat, gone in a few frames.")]
         [Range(0f, 20f)] public float radius = 0f;
-        [Tooltip("Heat of the flash (`flash_amp`); × the blast's violence.")]
+        [Tooltip("Full name: \"Flash heat\". Heat of the flash (`flash_amp`); × the blast's violence.")]
+        [ZUILabel("Heat")] [ZUIGroup("Flash")]
         [Range(0f, 6f)] public float amp = 3f;
-        [Tooltip("Life of the flash as a fraction of the LOOP, not of a puff's life (`flash_life`) — it is brief; decays as (1 − s)³.")]
+        [Tooltip("Full name: \"Flash duration\". Life of the flash as a fraction of the LOOP, not of a puff's life (`flash_life`) — it is brief; decays as (1 − s)³.")]
+        [ZUILabel("Duration")] [ZUIGroup("Flash")]
         [Range(0.01f, 0.5f)] public float life = 0.10f;
-        [Tooltip("Growth of the core over its life (`flash_grow`): r × (1 + grow·s) — a fireball's core expands while it cools; shrinking it reads as a light switched off.")]
+        [Tooltip("Full name: \"Flash growth\". Growth of the core over its life (`flash_grow`): r × (1 + grow·s) — a fireball's core expands while it cools; shrinking it reads as a light switched off.")]
+        [ZUILabel("Growth")] [ZUIGroup("Flash")]
         [Range(0f, 4f)] public float grow = 1.6f;
-        [Tooltip("> 1 stretches the flash along the aim (`flash_elong`) — a muzzle flash.")]
+        [Tooltip("Full name: \"Flash elongate\". > 1 stretches the flash along the aim (`flash_elong`) — a muzzle flash.")]
+        [ZUILabel("Elongate")] [ZUIGroup("Flash", Advanced = true)]
         [Range(1f, 4f)] public float elong = 1f;
     }
 
@@ -147,23 +177,32 @@ namespace Laubrary.Pyre.Forms.Kiln
     [Serializable]
     public sealed class ExplosiveChunks
     {
-        [Tooltip("Fragments per blast (`chunk_n`; own stream seed·6367 + 29). Not sparks: 2–4 px lumps with their own lower drag, sagging under gravity, outliving the fireball that threw them.")]
+        [Tooltip("Full name: \"Chunk count\". Fragments per blast (`chunk_n`; own stream seed·6367 + 29). Not sparks: 2–4 px lumps with their own lower drag, sagging under gravity, outliving the fireball that threw them.")]
+        [ZUILabel("Count")] [ZUIGroup("Chunks", Tooltip = "BURNING FRAGMENTS thrown clear of the fireball with trails: they outrun the gas, arc over under gravity and go out on their own against an empty frame.")]
         [Range(0, 60)] public int count = 0;
-        [Tooltip("Fragment radius, source px (`chunk_r`; × 0.70..1.45 per chunk).")]
+        [Tooltip("Full name: \"Chunk radius\". Fragment radius, source px (`chunk_r`; × 0.70..1.45 per chunk).")]
+        [ZUILabel("Radius")] [ZUIGroup("Chunks")]
         [Range(0.5f, 6f)] public float radius = 2.4f;
-        [Tooltip("Travel as a multiple of Reach (`chunk_reach`) — they OUTRUN the gas.")]
+        [Tooltip("Full name: \"Chunk reach\". Travel as a multiple of Reach (`chunk_reach`) — they OUTRUN the gas.")]
+        [ZUILabel("Reach")] [ZUIGroup("Chunks")]
         [Range(0.2f, 3f)] public float reach = 1.55f;
-        [Tooltip("Exponential drag of a fragment (`chunk_drag`); lower than the gas's, so it keeps going after the gas has stalled.")]
+        [Tooltip("Full name: \"Chunk drag\". Exponential drag of a fragment (`chunk_drag`); lower than the gas's, so it keeps going after the gas has stalled.")]
+        [ZUILabel("Drag")] [ZUIGroup("Chunks")]
         [Range(0.05f, 4f)] public float drag = 0.75f;
-        [Tooltip("Life as a multiple of Life (`chunk_life`).")]
+        [Tooltip("Full name: \"Chunk life\". Life as a multiple of Life (`chunk_life`).")]
+        [ZUILabel("Life")] [ZUIGroup("Chunks")]
         [Range(0.3f, 3f)] public float life = 1.4f;
-        [Tooltip("Fall by the end of life, canvas widths (`chunk_sag`; × 0.45..1.35 per chunk, applied as s²).")]
+        [Tooltip("Full name: \"Chunk sag\". Fall by the end of life, canvas widths (`chunk_sag`; × 0.45..1.35 per chunk, applied as s²).")]
+        [ZUILabel("Sag")] [ZUIGroup("Chunks")]
         [Range(0f, 1f)] public float sag = 0.30f;
-        [Tooltip("Blobs of trail drawn behind each fragment (`chunk_trail`): the same closed-form position at earlier ages, thinning 26 % a step.")]
+        [Tooltip("Full name: \"Chunk trail\". Blobs of trail drawn behind each fragment (`chunk_trail`): the same closed-form position at earlier ages, thinning 26 % a step.")]
+        [ZUILabel("Trail")] [ZUIGroup("Chunks", Advanced = true)]
         [Range(1, 6)] public int trail = 3;
-        [Tooltip("Heat of a fragment (`chunk_amp`); × the blast's violence.")]
+        [Tooltip("Full name: \"Chunk heat\". Heat of a fragment (`chunk_amp`); × the blast's violence.")]
+        [ZUILabel("Heat")] [ZUIGroup("Chunks")]
         [Range(0f, 4f)] public float amp = 1.5f;
-        [Tooltip("Its arc as a multiple of the gas arc (`chunk_wide`), capped at a half turn.")]
+        [Tooltip("Full name: \"Chunk arc width\". Its arc as a multiple of the gas arc (`chunk_wide`), capped at a half turn.")]
+        [ZUILabel("Arc width")] [ZUIGroup("Chunks")]
         [Range(0.2f, 2f)] public float wide = 1.25f;
     }
 
@@ -171,27 +210,38 @@ namespace Laubrary.Pyre.Forms.Kiln
     [Serializable]
     public sealed class ExplosiveGobs
     {
-        [Tooltip("Gobs per loop (`gob_n`; own stream seed·3571 + 91). Gas that has come off the mass: several times a spark's size, leaving in the first half of the blast span, ballooning as it dies — the opposite of the body, which dies by shrinking.")]
+        [Tooltip("Full name: \"Gob count\". Gobs per loop (`gob_n`; own stream seed·3571 + 91). Gas that has come off the mass: several times a spark's size, leaving in the first half of the blast span, ballooning as it dies — the opposite of the body, which dies by shrinking.")]
+        [ZUILabel("Count")] [ZUIGroup("Gobs", Tooltip = "SHED BURNING MASS: lumps torn off the opening front in the blast's first phase that balloon and thin as they die.")]
         [Range(0, 60)] public int count = 0;
-        [Tooltip("Gob radius at birth, source px (`gob_r`; × 0.62..1.55 per gob).")]
+        [Tooltip("Full name: \"Gob radius\". Gob radius at birth, source px (`gob_r`; × 0.62..1.55 per gob).")]
+        [ZUILabel("Radius")] [ZUIGroup("Gobs")]
         [Range(1f, 10f)] public float radius = 4.5f;
-        [Tooltip("Travel as a multiple of Reach (`gob_reach`).")]
+        [Tooltip("Full name: \"Gob reach\". Travel as a multiple of Reach (`gob_reach`).")]
+        [ZUILabel("Reach")] [ZUIGroup("Gobs")]
         [Range(0.2f, 2f)] public float reach = 0.85f;
-        [Tooltip("Exponential drag of a gob (`gob_drag`); it decelerates hard.")]
+        [Tooltip("Full name: \"Gob drag\". Exponential drag of a gob (`gob_drag`); it decelerates hard.")]
+        [ZUILabel("Drag")] [ZUIGroup("Gobs")]
         [Range(0.05f, 4f)] public float drag = 1.30f;
-        [Tooltip("Life as a multiple of Life (`gob_life`).")]
+        [Tooltip("Full name: \"Gob life\". Life as a multiple of Life (`gob_life`).")]
+        [ZUILabel("Life")] [ZUIGroup("Gobs")]
         [Range(0.3f, 3f)] public float life = 1.35f;
-        [Tooltip("Heat of a gob (`gob_amp`); × the blast's violence; decays as (1 − s)².")]
+        [Tooltip("Full name: \"Gob heat\". Heat of a gob (`gob_amp`); × the blast's violence; decays as (1 − s)².")]
+        [ZUILabel("Heat")] [ZUIGroup("Gobs")]
         [Range(0f, 4f)] public float amp = 1.25f;
-        [Tooltip("It DISSIPATES: radius × (1 + swell·s) while its heat falls (`gob_swell`).")]
+        [Tooltip("Full name: \"Gob swell\". It DISSIPATES: radius × (1 + swell·s) while its heat falls (`gob_swell`).")]
+        [ZUILabel("Swell")] [ZUIGroup("Gobs")]
         [Range(0f, 4f)] public float swell = 1.60f;
-        [Tooltip("Fall by the end of life, canvas widths (`gob_sag`).")]
+        [Tooltip("Full name: \"Gob sag\". Fall by the end of life, canvas widths (`gob_sag`).")]
+        [ZUILabel("Sag")] [ZUIGroup("Gobs")]
         [Range(0f, 1f)] public float sag = 0.10f;
-        [Tooltip("Its arc as a multiple of the gas arc (`gob_wide`).")]
+        [Tooltip("Full name: \"Gob arc width\". Its arc as a multiple of the gas arc (`gob_wide`).")]
+        [ZUILabel("Arc width")] [ZUIGroup("Gobs")]
         [Range(0.2f, 2f)] public float wide = 1.15f;
-        [Tooltip("Gobs are born inside this fraction of the blast span, piled at the front by u^1.7 (`gob_early`) — a gob that leaves late is just a second, smaller explosion.")]
+        [Tooltip("Full name: \"Gob early birth\". Gobs are born inside this fraction of the blast span, piled at the front by u^1.7 (`gob_early`) — a gob that leaves late is just a second, smaller explosion.")]
+        [ZUILabel("Early birth")] [ZUIGroup("Gobs")]
         [Range(0f, 1f)] public float early = 0.45f;
-        [Tooltip("Blobs of trail behind each gob (`gob_trail`), thinning 30 % a step.")]
+        [Tooltip("Full name: \"Gob trail\". Blobs of trail behind each gob (`gob_trail`), thinning 30 % a step.")]
+        [ZUILabel("Trail")] [ZUIGroup("Gobs", Advanced = true)]
         [Range(1, 6)] public int trail = 2;
     }
 
@@ -199,33 +249,47 @@ namespace Laubrary.Pyre.Forms.Kiln
     [Serializable]
     public sealed class ExplosiveDust
     {
-        [Tooltip("Particles per loop (`dust_n`; own stream seed·2749 + 617). Born ON the body's surface, at the radius the fireball has actually reached at that moment, and drifting off it slowly — which is what reads as the blast SHEDDING rather than as more ejecta from the middle.")]
+        [Tooltip("Full name: \"Dust count\". Particles per loop (`dust_n`; own stream seed·2749 + 617). Born ON the body's surface, at the radius the fireball has actually reached at that moment, and drifting off it slowly — which is what reads as the blast SHEDDING rather than as more ejecta from the middle.")]
+        [ZUILabel("Count")] [ZUIGroup("Dust", Tooltip = "PARTICLES shed off the burning body's own skin, continuously, at the radius it has actually reached.")]
         [Range(0, 200)] public int count = 0;
-        [Tooltip("Particle radius, source px (`dust_r`; × 0.60..1.55 per particle; contracts 42 % over its life).")]
+        [Tooltip("Full name: \"Dust radius\". Particle radius, source px (`dust_r`; × 0.60..1.55 per particle; contracts 42 % over its life).")]
+        [ZUILabel("Radius")] [ZUIGroup("Dust")]
         [Range(0.5f, 5f)] public float radius = 1.9f;
-        [Tooltip("Earliest body age a particle comes off at, fraction of life (`dust_from`). On a fracturing draw it sits on the crack.")]
+        [Tooltip("Full name: \"Born from\". Earliest body age a particle comes off at, fraction of life (`dust_from`). On a fracturing draw it sits on the crack.")]
+        [ZUILabel("Born from")] [ZUIGroup("Dust")]
         [Range(0f, 1f)] public float from = 0.30f;
-        [Tooltip("Latest body age a particle comes off at (`dust_to`).")]
+        [Tooltip("Full name: \"Born to\". Latest body age a particle comes off at (`dust_to`).")]
+        [ZUILabel("Born to")] [ZUIGroup("Dust")]
         [Range(0f, 1f)] public float to = 0.85f;
-        [Tooltip("> 1 piles the births at From (`dust_bias`: born = from + (to − from)·u^bias).")]
+        [Tooltip("Full name: \"Birth bias\". > 1 piles the births at From (`dust_bias`: born = from + (to − from)·u^bias).")]
+        [ZUILabel("Birth bias")] [ZUIGroup("Dust", Advanced = true)]
         [Range(0.2f, 4f)] public float bias = 1f;
-        [Tooltip("The body radius they come off, as a share of the front's travel at that age (`dust_where`; × 0.88..1.18 so they come off the outer skin, not one circle).")]
+        [Tooltip("Full name: \"Skin depth\". The body radius they come off, as a share of the front's travel at that age (`dust_where`; × 0.88..1.18 so they come off the outer skin, not one circle).")]
+        [ZUILabel("Skin depth")] [ZUIGroup("Dust", Advanced = true)]
         [Range(0.2f, 1.5f)] public float where = 0.85f;
-        [Tooltip("A particle's own travel after leaving, multiple of Reach (`dust_reach`).")]
+        [Tooltip("Full name: \"Dust reach\". A particle's own travel after leaving, multiple of Reach (`dust_reach`).")]
+        [ZUILabel("Reach")] [ZUIGroup("Dust")]
         [Range(0f, 1.5f)] public float reach = 0.20f;
-        [Tooltip("Exponential drag of a particle (`dust_drag`).")]
+        [Tooltip("Full name: \"Dust drag\". Exponential drag of a particle (`dust_drag`).")]
+        [ZUILabel("Drag")] [ZUIGroup("Dust")]
         [Range(0.05f, 5f)] public float drag = 2.0f;
-        [Tooltip("Life as a multiple of Life (`dust_life`).")]
+        [Tooltip("Full name: \"Dust life\". Life as a multiple of Life (`dust_life`).")]
+        [ZUILabel("Life")] [ZUIGroup("Dust")]
         [Range(0.1f, 3f)] public float life = 0.55f;
-        [Tooltip("Heat of a particle (`dust_amp`); decays as (1 − s)^1.7.")]
+        [Tooltip("Full name: \"Dust heat\". Heat of a particle (`dust_amp`); decays as (1 − s)^1.7.")]
+        [ZUILabel("Heat")] [ZUIGroup("Dust")]
         [Range(0f, 4f)] public float amp = 1.05f;
-        [Tooltip("Fall by the end of life, canvas widths (`dust_sag`).")]
+        [Tooltip("Full name: \"Dust sag\". Fall by the end of life, canvas widths (`dust_sag`).")]
+        [ZUILabel("Sag")] [ZUIGroup("Dust")]
         [Range(0f, 1f)] public float sag = 0.10f;
-        [Tooltip("Radians of spray either side of straight out (`dust_scatter`).")]
+        [Tooltip("Full name: \"Dust scatter\". Radians of spray either side of straight out (`dust_scatter`).")]
+        [ZUILabel("Scatter")] [ZUIGroup("Dust")]
         [Range(0f, 1.6f)] public float scatter = 0.45f;
-        [Tooltip("Its arc as a multiple of the gas arc (`dust_wide`).")]
+        [Tooltip("Full name: \"Dust arc width\". Its arc as a multiple of the gas arc (`dust_wide`).")]
+        [ZUILabel("Arc width")] [ZUIGroup("Dust")]
         [Range(0.2f, 2f)] public float wide = 1f;
-        [Tooltip("Blobs of trail behind each particle (`dust_trail`), thinning 34 % a step.")]
+        [Tooltip("Full name: \"Dust trail\". Blobs of trail behind each particle (`dust_trail`), thinning 34 % a step.")]
+        [ZUILabel("Trail")] [ZUIGroup("Dust", Advanced = true)]
         [Range(1, 6)] public int trail = 1;
     }
 
@@ -235,55 +299,78 @@ namespace Laubrary.Pyre.Forms.Kiln
     public sealed class ExplosiveJetSettings : JetSettings
     {
         // ── the arc (gen 3) ──
-        [Tooltip("Angle-distribution power across the arc: 1 = uniform (a disc is actually filled); > 1 biases towards the aim. Wide arcs (Spread ≥ 60°) draw their base angles STRATIFIED and permuted PER BLAST, so each detonation covers the arc evenly.")]
+        [Tooltip("Full name: \"Angle bias\". Angle-distribution power across the arc: 1 = uniform (a disc is actually filled); > 1 biases towards the aim. Wide arcs (Spread ≥ 60°) draw their base angles STRATIFIED and permuted PER BLAST, so each detonation covers the arc evenly.")]
+        [ZUILabel("Angle bias")] [ZUIGroup("Arc shape", Tooltip = "How the disc is filled and torn into tongues.")]
         [Range(0.5f, 3f)] public float bias = 1.7f;
-        [Tooltip("Birth radius, canvas WIDTHS of the source frame: > 0 = the gas leaves a ring rather than a point.")]
+        [Tooltip("Full name: \"Burn radius\". Birth radius, canvas WIDTHS of the source frame: > 0 = the gas leaves a ring rather than a point.")]
+        [ZUILabel("Burn radius")] [ZUIGroup("Arc shape")]
         [Range(0f, 0.3f)] public float srcR = 0f;
-        [Tooltip("Degrees a puff is carried AROUND the seat over its life — a blast curled by a vortex (lash's hooked arms); gobs take 60 % of it, sparks all of it.")]
+        [Tooltip("Full name: \"Swirl\". Degrees a puff is carried AROUND the seat over its life — a blast curled by a vortex (lash's hooked arms); gobs take 60 % of it, sparks all of it.")]
+        [ZUILabel("Swirl")] [ZUIGroup("Arc shape")]
         [Range(-360f, 360f)] public float swirl = 0f;
-        [Tooltip("Whole turns per loop the emission pattern rotates (integer, so the loop stays exact).")]
+        [Tooltip("Full name: \"Pattern spin\". Whole turns per loop the emission pattern rotates (integer, so the loop stays exact).")]
+        [ZUILabel("Pattern spin")] [ZUIGroup("Arc shape")]
         [Range(-3, 3)] public int spin = 0;
-        [Tooltip("Gather the arc into N tongues with real gaps (the birth angles REDISTRIBUTED by φ − depth·sin φ). 0 = an even sheet. A fracture is NOT a lobe: lobes shape the blast at birth, a fracture cuts a body that was whole.")]
+        [Tooltip("Full name: \"Tongue count\". Gather the arc into N tongues with real gaps (the birth angles REDISTRIBUTED by φ − depth·sin φ). 0 = an even sheet. A fracture is NOT a lobe: lobes shape the blast at birth, a fracture cuts a body that was whole.")]
+        [ZUILabel("Tongue count")] [ZUIGroup("Arc shape")]
         [Range(0, 12)] public int lobes = 0;
-        [Tooltip("How hard the tongues clump, 0..0.95.")]
+        [Tooltip("Full name: \"Tongue clump\". How hard the tongues clump, 0..0.95.")]
+        [ZUILabel("Tongue clump")] [ZUIGroup("Arc shape")]
         [Range(0f, 0.95f)] public float lobeDepth = 0f;
-        [Tooltip("Extra travel on a lobe axis against between them.")]
+        [Tooltip("Full name: \"Tongue kick\". Extra travel on a lobe axis against between them.")]
+        [ZUILabel("Tongue kick")] [ZUIGroup("Arc shape")]
         [Range(0f, 1f)] public float lobeKick = 0f;
-        [Tooltip("With Src R > 0 and NO schedule: the root is this many lumps round the birth circle. A detonation has no standing source — with a schedule the seat lump burns out with each blast instead.")]
+        [Tooltip("Full name: \"Lump count\". With Src R > 0 and NO schedule: the root is this many lumps round the birth circle. A detonation has no standing source — with a schedule the seat lump burns out with each blast instead.")]
+        [ZUILabel("Lump count")] [ZUIGroup("Arc shape", Advanced = true)]
         [Range(0, 48)] public int rootK = 0;
-        [Tooltip("Rings seen FACE ON (an expanding circle in the picture plane — a shockwave) instead of the edge-on O. With a schedule, ring m launches at blast m's phase, from its seat, at its violence.")]
+        [Tooltip("Full name: \"Rings face-on\". Rings seen FACE ON (an expanding circle in the picture plane — a shockwave) instead of the edge-on O. With a schedule, ring m launches at blast m's phase, from its seat, at its violence.")]
+        [ZUILabel("Rings face-on")] [ZUIGroup("Arc shape")]
         public bool ringFlat = false;
-        [Tooltip("HALF-angle of a flat ring, degrees: < 180 draws only the part of the circle within that angle of the aim — a directional blast's leading FRONT, tapered to nothing over the last 30 % of each end. A fracturing draw breaks the front along the same seams as the gas.")]
+        [Tooltip("Full name: \"Ring arc angle\". HALF-angle of a flat ring, degrees: < 180 draws only the part of the circle within that angle of the aim — a directional blast's leading FRONT, tapered to nothing over the last 30 % of each end. A fracturing draw breaks the front along the same seams as the gas.")]
+        [ZUILabel("Ring arc")] [ZUIGroup("Arc shape")]
         [Range(5f, 180f)] public float ringArc = 180f;
-        [Tooltip("Whole turns per loop the polar noise texture rotates around the seat (integer, so the loop stays exact).")]
+        [Tooltip("Full name: \"Turbulence spin\". Whole turns per loop the polar noise texture rotates around the seat (integer, so the loop stays exact).")]
+        [ZUILabel("Turb. spin")] [ZUIGroup("Arc shape", Advanced = true)]
         [Range(-3, 3)] public int warpSpin = 0;
 
         // ── the detonation (gen 4) ──
-        [Tooltip("The authored schedule: every slot belongs to one of these detonations, as contiguous blocks sized by their shares, and the flash / ring / chunks / gobs / dust / sparks fire at the same instants. Empty = a steady stream (generation 3's jet). SWARM ON: each particle fires ONE blast of this list (particle i → blast i mod N) at its own position.")]
+        [Tooltip("Full name: \"Blast schedule\". The authored schedule: every slot belongs to one of these detonations, as contiguous blocks sized by their shares, and the flash / ring / chunks / gobs / dust / sparks fire at the same instants. Empty = a steady stream (generation 3's jet). SWARM ON: each particle fires ONE blast of this list (particle i → blast i mod N) at its own position.")]
+        [ZUILabel("Schedule")] [ZUIGroup("Blasts", Tooltip = "The authored schedule: when each detonation fires and how the puffs are timed onto it.")]
         public List<ExplosiveBlast> blasts = new List<ExplosiveBlast>();
-        [Tooltip("Birth times of a blast's slots are spread over this much of the loop (`blast_span`).")]
+        [Tooltip("Full name: \"Blast span\". Birth times of a blast's slots are spread over this much of the loop (`blast_span`).")]
+        [ZUILabel("Blast span")] [ZUIGroup("Blasts")]
         [Range(0.01f, 0.5f)] public float blastSpan = 0.10f;
-        [Tooltip("Birth offset = span·u^skew: > 1 piles the births at the front (`blast_skew`) — hard attack, ragged tail, which a symmetric pulse cannot make.")]
+        [Tooltip("Full name: \"Blast skew\". Birth offset = span·u^skew: > 1 piles the births at the front (`blast_skew`) — hard attack, ragged tail, which a symmetric pulse cannot make.")]
+        [ZUILabel("Blast skew")] [ZUIGroup("Blasts")]
         [Range(0.5f, 4f)] public float blastSkew = 2.4f;
-        [Tooltip("Extra speed for the first gas out (`blast_front`: speed × (1 + front·(1 − u^skew))), so the blast has a FRONT that runs away from the body instead of expanding as one shell.")]
+        [Tooltip("Full name: \"Blast front\". Extra speed for the first gas out (`blast_front`: speed × (1 + front·(1 − u^skew))), so the blast has a FRONT that runs away from the body instead of expanding as one shell.")]
+        [ZUILabel("Blast front")] [ZUIGroup("Blasts")]
         [Range(0f, 1.5f)] public float blastFront = 0f;
-        [Tooltip("0 = one speed ± jitter = a SHELL (a smoke ring with a hole). > 0 scales each puff's speed by 1 − k·u^1.4, a long tail towards zero, so the slow gas never leaves the middle and the fireball FILLS (`vel_spread`).")]
+        [Tooltip("Full name: \"Velocity spread\". 0 = one speed ± jitter = a SHELL (a smoke ring with a hole). > 0 scales each puff's speed by 1 − k·u^1.4, a long tail towards zero, so the slow gas never leaves the middle and the fireball FILLS (`vel_spread`).")]
+        [ZUILabel("Vel spread")] [ZUIGroup("Blasts")]
         [Range(0f, 0.95f)] public float velSpread = 0f;
-        [Tooltip("Radius gained per unit AGE, canvas widths (`swell`): stalled gas keeps entraining air — it is what closes the centre of a fireball filled by Vel Spread.")]
+        [Tooltip("Full name: \"Swell\". Radius gained per unit AGE, canvas widths (`swell`): stalled gas keeps entraining air — it is what closes the centre of a fireball filled by Vel Spread.")]
+        [ZUILabel("Swell")] [ZUIGroup("Blasts")]
         [Range(0f, 0.3f)] public float swell = 0f;
 
         // ── how it dies (gen 5) ──
-        [Tooltip("> 0 holds the amplitude up and drops it late (`hold`: decay = 1 − s^(1 + hold) instead of 1 − s) — at 1.6 a puff still holds 80 % at 60 % of its life. The delay that leaves the body solid long enough for the contraction to be what you see.")]
+        [Tooltip("Full name: \"Hold\". > 0 holds the amplitude up and drops it late (`hold`: decay = 1 − s^(1 + hold) instead of 1 − s) — at 1.6 a puff still holds 80 % at 60 % of its life. The delay that leaves the body solid long enough for the contraction to be what you see.")]
+        [ZUILabel("Hold")] [ZUIGroup("Death", Tooltip = "How the body dies: contracting from the outside in, going solid, then holding until it fades.")]
         [Range(0f, 3f)] public float hold = 0f;
-        [Tooltip("Fraction of its radius a puff loses by the end of its life (`shrink`), weighted by lead^1.4 so the front loses all of it and the slowest third does not contract at all: the blast collapses from the OUTSIDE IN and never hollows. Shed gas is exempt (it swells).")]
+        [Tooltip("Full name: \"Shrink\". Fraction of its radius a puff loses by the end of its life (`shrink`), weighted by lead^1.4 so the front loses all of it and the slowest third does not contract at all: the blast collapses from the OUTSIDE IN and never hollows. Shed gas is exempt (it swells).")]
+        [ZUILabel("Shrink")] [ZUIGroup("Death")]
         [Range(0f, 1f)] public float shrink = 0f;
-        [Tooltip("The age the contraction starts at (`shrink_at`).")]
+        [Tooltip("Full name: \"Shrink at\". The age the contraction starts at (`shrink_at`).")]
+        [ZUILabel("Shrink at")] [ZUIGroup("Death")]
         [Range(0f, 1f)] public float shrinkAt = 0.50f;
-        [Tooltip("The FAST gas dies first (`lead_die`: life × (1 − lead_die·lead), shed gas takes half of it) — the outer shell expires while the slow middle still burns, so the lit silhouette contracts.")]
+        [Tooltip("Full name: \"Lead dies first\". The FAST gas dies first (`lead_die`: life × (1 − lead_die·lead), shed gas takes half of it) — the outer shell expires while the slow middle still burns, so the lit silhouette contracts.")]
+        [ZUILabel("Lead die")] [ZUIGroup("Death")]
         [Range(0f, 1f)] public float leadDie = 0f;
-        [Tooltip("Exponent on the ramp's opacity ceiling (`opaq`): < 1 pushes the mid-ramp ceilings towards solid (0.62^0.55 = 0.77) while the coldest skin stays see-through — a solid body WITHOUT losing the soft edge. 1 = the ramp as authored.")]
+        [Tooltip("Full name: \"Solidity\". Exponent on the ramp's opacity ceiling (`opaq`): < 1 pushes the mid-ramp ceilings towards solid (0.62^0.55 = 0.77) while the coldest skin stays see-through — a solid body WITHOUT losing the soft edge. 1 = the ramp as authored.")]
+        [ZUILabel("Solidity")] [ZUIGroup("Death")]
         [Range(0.2f, 1.5f)] public float opaq = 1f;
-        [Tooltip("Shed gas dies the OTHER way: radius × (1 + shed_swell·s) — it thins and spreads while the body contracts, which is what separates the lumps from the body they came off.")]
+        [Tooltip("Full name: \"Shed swell\". Shed gas dies the OTHER way: radius × (1 + shed_swell·s) — it thins and spreads while the body contracts, which is what separates the lumps from the body they came off.")]
+        [ZUILabel("Shed swell")] [ZUIGroup("Death")]
         [Range(0f, 2f)] public float shedSwell = 0f;
 
         // ── fracture (gen 6 / 7) and debris (gen 4 / 5 / 6) ──

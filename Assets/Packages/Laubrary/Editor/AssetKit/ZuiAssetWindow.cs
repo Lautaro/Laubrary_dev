@@ -163,11 +163,62 @@ namespace Laubrary.AssetKit.Editor
 
         protected override void OnBeforeRebuild() => _thumbImages.Clear();
 
+        // ── unsaved state (T-0258) ──────────────────────────────────────────────────
+        //
+        // Every ZuiAssetWindow edits a ScriptableObject through Undo + EditorUtility.SetDirty, and NONE of them
+        // had a way to save it or a way to see that it needed saving: persistence depended entirely on Unity's
+        // own Ctrl+S or the quit prompt, which the window never surfaced, never labelled and never showed the
+        // state of. An author who closed the editor after an hour of dialling had no on-screen reason to think
+        // anything was pending. This is in the SHARED base rather than in one tool because it is the same
+        // omission in every one of them — Pyre, Shaper, Choreographer and the rest all gain it at once.
+        //
+        // Both halves are PERMANENTLY present and only change what they SAY (the dot flips `visibility`, which
+        // keeps its layout space, and the button flips enabled): a toolbar that grew a control the moment the
+        // asset went dirty would reflow the row under the pointer, which is exactly what "Stable workspace"
+        // forbids.
+        VisualElement _dirtyDot;
+        Button _saveButton;
+
+        bool AssetIsDirty => asset != null && EditorUtility.IsDirty(asset);
+
+        void RefreshSaveAffordance()
+        {
+            if (_dirtyDot != null)
+            {
+                _dirtyDot.style.visibility = AssetIsDirty ? Visibility.Visible : Visibility.Hidden;
+                _dirtyDot.tooltip = $"This {TypeLabel} has unsaved edits. Press Save to write them to disk.";
+            }
+            if (_saveButton != null)
+            {
+                _saveButton.SetEnabled(AssetIsDirty);
+                _saveButton.tooltip = asset == null
+                    ? $"No {TypeLabel} is open, so there is nothing to save."
+                    : AssetIsDirty
+                        ? $"Write this {TypeLabel}'s edits to disk now."
+                        : $"This {TypeLabel} matches what is on disk — nothing to save.";
+            }
+        }
+
         VisualElement BuildToolbar()
         {
+            // Sits immediately after the asset field, so "which asset" and "is it saved" read as one statement.
+            _dirtyDot = Z.Text("●", ZuiText.Body, $"This {TypeLabel} has unsaved edits.");
+            _dirtyDot.style.width = 12f;
+            _dirtyDot.style.flexShrink = 0f;
+
+            _saveButton = Z.Button("Save", $"Write this {TypeLabel}'s edits to disk now.", () =>
+            {
+                if (asset == null) return;
+                AssetDatabase.SaveAssetIfDirty(asset);
+                RefreshSaveAffordance();
+            });
+            _saveButton.style.width = 52f;
+
             var row = Z.Row(
                 Z.Object<T>(asset, $"The {TypeLabel} asset being edited — assign one directly, or use Browse.",
                     v => SetAsset(v), 200f),
+                _dirtyDot,
+                _saveButton,
                 Z.Button("New", $"Create a brand new {TypeLabel} asset (undoable).",
                     () => { creating = true; renaming = false; createText = NewAssetName; Rebuild(); }),
                 Z.Button(browsing ? "Close browser" : "Browse",
@@ -197,6 +248,12 @@ namespace Laubrary.AssetKit.Editor
                     DeleteCurrent));
             }
             row.Add(Z.Flexible());
+
+            // Dirtiness is set from wherever an edit happens (a dial callback, a nested control's own hook, an
+            // Undo), not from a place this base can hook, so the state is POLLED rather than pushed. 4/second is
+            // below the threshold at which a change reads as delayed and far above what an EditorWindow costs.
+            RefreshSaveAffordance();
+            row.schedule.Execute(RefreshSaveAffordance).Every(250);
             return row;
         }
 

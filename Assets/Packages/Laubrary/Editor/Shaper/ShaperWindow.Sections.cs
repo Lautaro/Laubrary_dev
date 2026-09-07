@@ -56,9 +56,10 @@ namespace Laubrary.Shaper.Editor
         // T-0182 — Generator, Children, Solid and Modifiers are no longer sections of their own: what a node
         // draws is ONE question answered by the Shape card's picker, so those bodies are now drawn inside
         // that card and appear only for the shape that has them.
-        ZuiSection fillSection, borderSection, swarmSection,
-                   responseSection, effectsSection,
-                   layerEffectsSection;
+        // T-0258 — Border, Swarm and Lighting stopped being sections (they are boxes inside the card whose
+        // subject they belong to now: Fill, Shape and the selected layer's row), and the two effect lists
+        // collapsed into one SpriteFX section, so only two of the six survive as bar entries.
+        ZuiSection fillSection, effectsSection;
 
         // T-0187 — Height and Mask stopped being toggle-bar ZuiSections (the owner: "I get the feeling you
         // shouldn't make them into sections... perhaps part of the layer item in the layer list") and became
@@ -111,14 +112,12 @@ namespace Laubrary.Shaper.Editor
 
             // T-0204 — reset every CONDITIONALLY-built section before deciding whether to rebuild it, so a
             // stale ZuiSection from a PREVIOUS selection never lingers in the toggle bar once its card is
-            // genuinely absent for the current one (a composite node has neither Fill nor Border; a drilled-in
-            // bag member has no Lighting card). Without this the bar kept offering a segment whose section no
-            // longer existed anywhere in the tree, so toggling it did nothing — "Fill and Border are
-            // selectable but don't show up in the UI" (owner). Mirrors the fix layerEffectsSection already had
-            // ("so a stale section from the layer root never lingers in the bar").
+            // genuinely absent for the current one (a composite node has no Fill). Without this the bar kept
+            // offering a segment whose section no longer existed anywhere in the tree, so toggling it did
+            // nothing — "Fill and Border are selectable but don't show up in the UI" (owner).
+            // T-0258 — Fill is the only one left: Border, Swarm and Lighting are boxes now, and a box is
+            // owned by the card that draws it rather than by the bar.
             fillSection = null;
-            borderSection = null;
-            responseSection = null;
 
             // The per-shape bodies (generator dials, bag members, solid dials) and the combine/sweep/shell
             // ops moved INTO the Shape card in T-0182 — see ShaperWindow.BuildShapeSection. They are drawn
@@ -129,31 +128,23 @@ namespace Laubrary.Shaper.Editor
             // its edge is a raster, so a Shaper fill would be a second authority over the same pixel and a
             // border has no analytic edge to trace. A greyed card would still be a promise — it says "this
             // exists, you just cannot reach it today" — where the truth is that it does not apply at all.
-            if (node.kind != ShaperNodeKind.Composite)
-            {
-                BuildFillSection(root, node);
-                BuildBorderSection(root, node);
-            }
-            BuildSwarmSection(root, node);
+            // T-0258 — the Border card is now the Fill card's "Edge" box (BuildFillSection adds it), and the
+            // Swarm card is the Shape card's "Swarm" box (BuildShapeSection adds it), so a composite node
+            // skipping Fill now skips its edge with it — which is the same rule stated once instead of twice.
+            if (node.kind != ShaperNodeKind.Composite) BuildFillSection(root, node);
 
-            // LAYER-level cards. These bind to ShaperLayer, not to the node — the mock had them on the node
-            // and that was corrected. Shown only at the layer root, because a bag member has no layer of its
-            // own to author and drawing them while drilled in would be a lie about what is being edited.
-            // T-0187 — Height and Mask no longer build here: they moved into BuildLayersSection
-            // (ShaperWindow.cs), which draws them for the SELECTED layer regardless of drillPath, since they
-            // are layer-level, not node-level, and the Layers section isn't about node drilling at all.
-            if (drillPath.Count == 0) BuildResponseSection(root, layer);
-
+            // T-0258 — Lighting moved out of here entirely: it is a LAYER property, so it is now a toggle plus
+            // a folded box on the selected layer's own row (RefreshSelectedLayerCards, ShaperWindow.cs), where
+            // Height and Mask already went in T-0187/T-0204, and it is drawn for the selected layer whether or
+            // not the author has drilled into a bag member — the layer being edited does not change when they do.
             BuildEffectsSection(root, layer);
         }
 
         /// The sections this file adds, for the shell's toggle bar. Null entries are skipped by the bar.
         internal (string, ZuiSection)[] SectionBarEntries() => new[]
         {
-            ("Fill", fillSection), ("Border", borderSection),
-            ("Swarm", swarmSection),
-            ("Lighting", responseSection),
-            ("SpriteFX", layerEffectsSection), ("Global SpriteFX", effectsSection),
+            ("Fill", fillSection),
+            ("SpriteFX", effectsSection),
         };
 
         // ── Solids (T-0155) ──────────────────────────────────────────────────────────────────────────────
@@ -494,6 +485,10 @@ namespace Laubrary.Shaper.Editor
                     + "engine's default fill; a child without one inherits from its owner.",
                     Z.Button("Add fill", "Give this node its own fill.",
                         () => { Change(() => node.fill = new ShaperFillDef()); Rebuild(); })));
+                // T-0258 — an edge is authorable whether or not the node owns a fill of its own: a layer root
+                // with an empty slot is still painted (FC-3.2 substitutes a default), so the box goes in on
+                // both paths rather than being stranded behind the Add-fill affordance.
+                BuildEdgeBox(box, node);
                 root.Add(box);
                 return;
             }
@@ -506,6 +501,7 @@ namespace Laubrary.Shaper.Editor
             BuildFillBody(box, node.fill, "shaper.window.fill");
             box.Add(Z.Button("Remove fill", "Drop this node's own fill and fall back to the default/inherited one.",
                 () => { Change(() => node.fill = null); Rebuild(); }));
+            BuildEdgeBox(box, node);
             root.Add(box);
         }
 
@@ -929,29 +925,41 @@ namespace Laubrary.Shaper.Editor
             return ctrl;
         }
 
-        // ── Border ───────────────────────────────────────────────────────────────────────────────────────
+        // ── Edge (was the "Border" section) ──────────────────────────────────────────────────────────────
 
-        // ShaperNode.border (:161) is nullable like fill, so the card offers add/remove. Its `enabled` flag is
-        // separate from existing at all, and both are meaningful: a border that exists but is off keeps its
+        // ShaperNode.border (:161) is nullable like fill, so the box offers add/remove. Its `enabled` flag is
+        // separate from existing at all, and both are meaningful: an edge that exists but is off keeps its
         // authored width and fill for when it is switched back on.
-        void BuildBorderSection(VisualElement root, ShaperNode node)
+        //
+        // T-0258 — this was a top-level section with its own toggle-bar segment, and it is a folded box inside
+        // the FILL card now. A border is a second fill painted on a strip derived from the same coverage: it
+        // carries a whole ShaperFillDef of its own (ShaperBorderDef.fill:107) and is drawn by the very same
+        // BuildFillBody. Giving it a segment of its own doubled the height of the colour column for something
+        // most nodes never author. Named "Edge" rather than "Border" because the strip is the shape's edge —
+        // "border" reads as a frame around the picture. The state key stays "shaper.window.border" (a key names
+        // the data, never the label) and the nested fill box keeps "shaper.window.border.fill".
+        void BuildEdgeBox(VisualElement parent, ShaperNode node)
         {
-            var box = borderSection = Z.Section("Border", "A derived strip around this node's edge, with its "
-                + "own fill.", "shaper.window.border", icon: "square");
+            var box = Z.BoxKeyed("Edge", "A derived strip around this node's edge, with its own fill.",
+                "shaper.window.border", "square");
 
             if (node.border == null)
             {
-                box.Add(Z.Field("Border", "This node has no border.",
-                    Z.Button("Add border", "Give this node a border strip.",
+                box.Add(Z.Field("Edge", "This node has no edge strip.",
+                    Z.Button("Add edge", "Give this node an edge strip.",
                         () => { Change(() => node.border = new ShaperBorderDef { fill = SeededBorderFill(node) }); Rebuild(); })));
-                root.Add(box);
+                parent.Add(box);
                 return;
             }
 
             var b = node.border;
-            box.SetHeaderToggle(b.enabled, "Draw this border.", v => Change(() => b.enabled = v));
+            // A folded box must still say whether the thing it holds is on — the same job the section header's
+            // own toggle used to do from the bar.
+            box.SetHeaderSuffix(() => b.enabled ? "" : " — off");
 
             box.Add(Z.HGroup(
+                Z.Toggle("Enabled", "Draw this edge strip.", b.enabled,
+                    v => { Change(() => b.enabled = v); Rebuild(); }),
                 Val("Width", "How thick the border strip is, in canvas pixels.", b.width, 0f, 32f),
                 // T-0257 — "Alignment" was the label on two unrelated cards (this and the Shell); this one
                 // says where the strip SITS relative to the edge it traces.
@@ -972,21 +980,21 @@ namespace Laubrary.Shaper.Editor
             // reduced copy that would drift.
             if (b.fill == null)
             {
-                box.Add(Z.Field("Border fill", "The border has no fill of its own yet.",
-                    Z.Button("Add border fill", "Give the border its own fill.",
+                box.Add(Z.Field("Edge fill", "The edge strip has no fill of its own yet.",
+                    Z.Button("Add edge fill", "Give the edge strip its own fill.",
                         () => { Change(() => b.fill = SeededBorderFill(node)); Rebuild(); })));
             }
             else
             {
-                var fillBox = Z.BoxKeyed("Border fill", "How the border strip itself is coloured.",
+                var fillBox = Z.BoxKeyed("Edge fill", "How the edge strip itself is coloured.",
                     "shaper.window.border.fill");
                 BuildFillBody(fillBox, b.fill, "shaper.window.border.fill");
                 box.Add(fillBox);
             }
 
-            box.Add(Z.Button("Remove border", "Remove this node's border entirely.",
+            box.Add(Z.Button("Remove edge", "Remove this node's edge strip entirely.",
                 () => { Change(() => node.border = null); Rebuild(); }));
-            root.Add(box);
+            parent.Add(box);
         }
 
         /// <summary>
@@ -1113,17 +1121,26 @@ namespace Laubrary.Shaper.Editor
 
         // ── Swarm ────────────────────────────────────────────────────────────────────────────────────────
 
-        void BuildSwarmSection(VisualElement root, ShaperNode node)
+        /// <summary>
+        /// T-0258 — the ex-Swarm SECTION, now a box on the Shape card beside Sweep and Shell, and gone from
+        /// the toggle bar. It is the same kind of thing they are: an optional operation on this node's own
+        /// content, off by default, whose dials are absent until its Enabled toggle is on. Same controls, same
+        /// ranges, same state key ("shaper.window.swarm"), so a saved view keeps folding it exactly as before.
+        /// </summary>
+        void BuildSwarmBox(VisualElement parent, ShaperNode node)
         {
             var s = node.swarm;
             s.EnsureDials();
-            var box = swarmSection = Z.Section("Swarm",
+            var box = Z.BoxKeyed("Swarm",
                 "Repeat this node's own content many times with per-instance jitter.",
-                "shaper.window.swarm", icon: "copy");
-            box.SetHeaderToggle(s.enabled, "Repeat this node as a swarm.",
+                "shaper.window.swarm", "copy");
+            // Sweep and Shell put their Enabled toggle first in the body; this matches them rather than
+            // inventing a second idiom two boxes down the same card. The suffix is what a FOLDED box says.
+            box.SetHeaderSuffix(() => s.enabled ? " — " + s.count : "");
+            var enable = Z.Toggle("Enabled", "Repeat this node as a swarm.", s.enabled,
                 v => { Change(() => s.enabled = v); Rebuild(); });
 
-            if (!s.enabled) { root.Add(box); return; }
+            if (!s.enabled) { box.Add(enable); parent.Add(box); return; }
 
             // The hard cap is a real engine rule (ShaperSwarmDef.cs:163) and the reason a large count can
             // silently do less than it says. It goes in the CONTROL'S OWN TOOLTIP, composed for the current
@@ -1136,6 +1153,7 @@ namespace Laubrary.Shaper.Editor
                 : "How many instances. 1 is a legal identity — one instance, itself.";
 
             box.Add(Z.HGroup(
+                enable,
                 Dial("Count", countTip,
                     s.count, 1f, 64f, v => { s.count = Mathf.RoundToInt(v); Rebuild(); }, decimals: 0),
                 // uint seed, same clamp reasoning the shell used for the document seed: an int control cannot
@@ -1204,7 +1222,7 @@ namespace Laubrary.Shaper.Editor
                     s.merge.sharpnessDial, 0f, 1f),
                 mergeCarve));
 
-            root.Add(box);
+            parent.Add(box);
         }
 
         // T-0169 — WHERE the instances land. Every control here is inert while the shape is None, so the box
@@ -1526,14 +1544,24 @@ namespace Laubrary.Shaper.Editor
 
         // ── Light response (LAYER) ───────────────────────────────────────────────────────────────────────
 
-        void BuildResponseSection(VisualElement root, ShaperLayer layer)
+        /// <summary>
+        /// T-0258 — the ex-Lighting SECTION, now a folded box under the selected layer's own row, beside the
+        /// Height and Mask boxes that moved there in T-0187/T-0204, and gone from the toggle bar. It edits
+        /// <c>ShaperLayer.response</c> (ShaperLightRig.cs:352) — a LAYER property, so the layer row is where it
+        /// belongs. Only called while the row's "Lighting" toggle is on, which is the response's own
+        /// <c>receiveLighting</c> flag: the card already refused to draw a single dial while that was off, so
+        /// the flag was always this card's own absence rule and now says so once instead of three times (a bar
+        /// segment, a section header and an in-card toggle). State key unchanged.
+        /// </summary>
+        void BuildLightingBox(VisualElement parent, ShaperLayer layer)
         {
             var r = layer.response;
-            if (r == null) return;
+            if (r == null || !r.receiveLighting) return;
 
-            var box = responseSection = Z.Section("Lighting",
-                "How this LAYER responds to the document's light rig.",
-                "shaper.window.response", icon: "sun");
+            var box = Z.BoxKeyed("Lighting",
+                "How this LAYER responds to the document's light rig. Turn it off with the “Lighting” toggle "
+                + "on the layer's own row above.",
+                "shaper.window.response", "sun");
 
             // T-0257 — THE CAST/RECEIVE SHADOW TOGGLES ARE GONE. LR-4.5 is explicit that they are "authored,
             // serialized and persisted; changes no pixel", and BC-2.3 explains they are not merely unscheduled
@@ -1544,11 +1572,6 @@ namespace Laubrary.Shaper.Editor
             // asks, so a document that authored them keeps the author's intent for the day shadows land; this
             // window simply no longer reads or offers them, and ShaperLightRig.ShadowsNotComputed stays as the
             // sentence for whoever brings the controls back.
-            box.Add(Z.HGroup(
-                Z.Toggle("Receive lighting", "Let the rig light this layer at all.",
-                    r.receiveLighting, v => { Change(() => r.receiveLighting = v); Rebuild(); })));
-
-            if (!r.receiveLighting) { root.Add(box); return; }
 
             // T-0257 — with no enabled light in the rig, ShaperLightCompiler.CompileResponse forces this
             // layer's `receive` to 0 (ShaperLightCompiler.cs:399) and every dial below multiplies a term that
@@ -1584,7 +1607,11 @@ namespace Laubrary.Shaper.Editor
                     "“Flat” uses one authored direction for the whole layer; “Follow the surface” uses the "
                     + "extrusion/bevel profile's own analytic normal, which needs a height stage to produce "
                     + "any relief.",
-                    v => { Change(() => r.normalKind = (ShaperNormalKind)v); Rebuild(); })), unlit));
+                    // T-0258 — refreshes the pane this box lives in rather than the whole window: the
+                    // Direction row below appears/disappears with this choice, and a full Rebuild() here is
+                    // what drops ZuiSectionToggleBar's solo/quick-view state (T-0197).
+                    v => { Change(() => r.normalKind = (ShaperNormalKind)v); RefreshSelectedLayerCards(); })),
+                unlit));
 
             // INVENTORY GAP CLOSED — normalConstant (ShaperLightRig.cs:295) is the ONLY parameter of the
             // DEFAULT normal path and had no UI at all, so the default lighting mode was unauthorable. Drawn
@@ -1605,7 +1632,7 @@ namespace Laubrary.Shaper.Editor
                         unlit)));
             }
 
-            root.Add(box);
+            parent.Add(box);
         }
 
         // ── Height / extrusion (LAYER) ───────────────────────────────────────────────────────────────────
@@ -1832,65 +1859,82 @@ namespace Laubrary.Shaper.Editor
         // reason — the same "declare, don't hide" posture ShaperSolids.InertReason takes.
         //
         // T-0184 — owner: "Effects is what is called Modifiers in Pyre — that's the same thing as the SpriteFX
-        // stack. So let's call them SpriteFX." The per-layer list is titled "SpriteFX" (Pyre's per-layer
-        // "Modifiers"), the document-wide list "Global SpriteFX" (Pyre's spec-wide "Global Modifiers") — labels
-        // and tooltips only; type names, C# member names (effectsSection/layerEffectsSection/BuildEffectsSection/
-        // etc.) and view-state keys are unchanged. The add picker (ShowAddEffectMenu) was also rebuilt to match
+        // stack. So let's call them SpriteFX." Labels and tooltips only; type names, C# member names and
+        // view-state keys are unchanged. (T-0258 folded the two lists into ONE card called "SpriteFX", so the
+        // separate "Global SpriteFX" title is gone — see BuildEffectsSection.)
+        // The add picker (ShowAddEffectMenu) was also rebuilt to match
         // Pyre's own "+ Add modifier" menu (PyreWindow.Modifiers.cs:344-378) content-for-content — a section
         // per family, an item per effect, unavailable entries greyed with their reason — but laid out as one
         // COLUMN per family instead of Pyre's flat vertical list, per the owner's separate standing feedback
         // this wave ("we have a lot of width but less height... at least 4 columns is totally acceptable").
 
+        /// <summary>
+        /// T-0258 — ONE SpriteFX card holding BOTH effect lists, where there used to be two sections
+        /// ("SpriteFX" and "Global SpriteFX") competing for two bar segments. They were never two different
+        /// features: a Shaper effect is one modifier, and the only thing that differs is whether it runs on
+        /// this layer's own picture or on the finished one. That is now a per-entry <b>Whole picture</b>
+        /// toggle which MOVES the entry between the two lists, so the difference is authored on the thing it
+        /// is a fact about instead of by choosing which card to add it to.
+        ///
+        /// The two lists keep their own hosts inside the card, because apply ORDER is per-list: a drag is only
+        /// meaningful among the entries that run at the same point, and crossing the boundary is exactly what
+        /// the toggle is for.
+        ///
+        /// The layer half is no longer gated on <c>drillPath.Count == 0</c>. Drilling into a bag member does
+        /// not change which LAYER is being edited, and every other layer-level control (Height, Mask, Lighting
+        /// since this task) is drawn regardless — hiding this one while drilled made a layer's own effects look
+        /// deleted.
+        ///
+        /// T-0184 — owner: "Effects is what is called Modifiers in Pyre — that's the same thing as the SpriteFX
+        /// stack. So let's call them SpriteFX." Type names and view keys are unchanged.
+        /// </summary>
         void BuildEffectsSection(VisualElement root, ShaperLayer layer)
         {
-            // LAYER effects are a property of the layer, so — like Lighting and Height — they are only drawn
-            // at the layer root. Drilled into a bag member there is no layer being edited to attach them to.
-            //
-            // T-0184 — owner: "Effects is what is called Modifiers in Pyre — that's the same thing as the
-            // SpriteFX stack. So let's call them SpriteFX." Renamed labels/tooltips only (type names, view
-            // keys and the effectsSection/layerEffectsSection field names are unchanged): per-layer → "SpriteFX"
-            // (mirrors Pyre's per-layer "Modifiers"), document-wide → "Global SpriteFX" (mirrors Pyre's
-            // spec-wide "Global Modifiers").
-            layerEffectsSection = null;   // so a stale section from the layer root never lingers in the bar
-            if (drillPath.Count == 0)
-                BuildEffectListSection(root, ref layerEffectsSection, "SpriteFX",
-                    "Effects applied to THIS layer's own picture before it composites into the document.",
-                    "shaper.window.layereffects", layer.effects, ShaperEffectStage.PreComposite);
+            var layerList = layer.effects;
+            var docList = document.effects;
+            MigrateLegacyEntries(layerList);
+            MigrateLegacyEntries(docList);
 
-            BuildEffectListSection(root, ref effectsSection, "Global SpriteFX",
-                "Effects applied to the document's finished picture, after every layer has composited.",
-                "shaper.window.effects", document.effects, ShaperEffectStage.PostComposite);
-        }
+            const string tooltip =
+                "Effects applied to this document's picture. An entry runs on THIS layer's own picture before "
+                + "it composites, unless its “Whole picture” toggle is on — then it runs on the finished "
+                + "picture after every layer has composited.";
 
-        /// <summary>One effect list as a section: the cards, the enabled count on the collapsed header, and the
-        /// add picker. Both stages share it verbatim — the only difference between them is the list and the
-        /// stage, which is exactly the claim the two-list design makes.</summary>
-        void BuildEffectListSection(VisualElement root, ref ZuiSection slot, string title, string tooltip,
-                                    string key, List<ShaperEffectRef> list, ShaperEffectStage stage)
-        {
-            MigrateLegacyEntries(list);
-
-            var box = Z.Section(title, tooltip, key, icon: "sparkles");
-            slot = box;
+            var box = effectsSection = Z.Section("SpriteFX", tooltip, "shaper.window.layereffects",
+                icon: "sparkles");
             box.SetHeaderSuffix(() =>
             {
-                int n = 0;
-                for (int i = 0; i < list.Count; i++) if (list[i] != null && list[i].enabled) n++;
+                int n = CountEnabled(layerList) + CountEnabled(docList);
                 return n > 0 ? $" ({n})" : "";
             });
 
-            var listHost = new VisualElement();
-            for (int i = 0; i < list.Count; i++)
-                listHost.Add(BuildEffectCard(listHost, list, i, stage));
+            // Two hosts, one per list, so ZuiReorder's (from, to) indices stay inside the list they belong to.
+            var layerHost = new VisualElement();
+            for (int i = 0; i < layerList.Count; i++)
+                layerHost.Add(BuildEffectCard(layerHost, layerList, i, ShaperEffectStage.PreComposite,
+                                              layerList, docList));
+            box.Add(layerHost);
 
-            if (list.Count == 0)
-                listHost.Add(Z.Text("No effects.", ZuiText.Subtle, tooltip));
-            box.Add(listHost);
+            var docHost = new VisualElement();
+            for (int i = 0; i < docList.Count; i++)
+                docHost.Add(BuildEffectCard(docHost, docList, i, ShaperEffectStage.PostComposite,
+                                            layerList, docList));
+            box.Add(docHost);
+
+            if (layerList.Count + docList.Count == 0)
+                box.Add(Z.Text("No effects.", ZuiText.Subtle, tooltip));
 
             Button add = null;
-            add = Z.Button("+ Add SpriteFX", tooltip, () => ShowAddEffectMenu(add, list, stage));
+            add = Z.Button("+ Add SpriteFX", tooltip, () => ShowAddEffectMenu(add, layerList, docList));
             box.Add(add);
             root.Add(box);
+        }
+
+        static int CountEnabled(List<ShaperEffectRef> list)
+        {
+            int n = 0;
+            for (int i = 0; i < list.Count; i++) if (list[i] != null && list[i].enabled) n++;
+            return n;
         }
 
         /// <summary>
@@ -1899,7 +1943,8 @@ namespace Laubrary.Shaper.Editor
         /// authoring it should not feel like a different thing in a different window.
         /// </summary>
         VisualElement BuildEffectCard(VisualElement listHost, List<ShaperEffectRef> list, int index,
-                                      ShaperEffectStage stage)
+                                      ShaperEffectStage stage,
+                                      List<ShaperEffectRef> layerList, List<ShaperEffectRef> docList)
         {
             var entry = list[index];
             var box = Z.Box(null, null);
@@ -1944,6 +1989,46 @@ namespace Laubrary.Shaper.Editor
             header.Add(Z.Text(inst != null ? inst.DisplayName : (entry.typeName ?? "(unnamed)"), ZuiText.Body,
                 ok ? stageSentence : "Will not run — " + reason));
             header.Add(Z.Flexible());
+
+            // T-0258 — the toggle that replaced the "Global SpriteFX" section. On = this entry lives in the
+            // DOCUMENT's list and runs once on the finished picture; off = it lives in this LAYER's list and
+            // runs on the layer alone. Flipping it MOVES the entry between the two lists, which is the whole
+            // of what the two sections used to mean, authored on the entry itself.
+            //
+            // Declared inert (never hidden) when the effect cannot run at the other end: several catalog
+            // entries are one-stage-only (ShaperEffectRuntime.CanRun, Runtime/PyreShaper/ShaperEffectRuntime
+            // .cs:163-169), and a toggle that silently refuses is worse than one that says why.
+            bool whole = stage == ShaperEffectStage.PostComposite;
+            var otherStage = whole ? ShaperEffectStage.PreComposite : ShaperEffectStage.PostComposite;
+            string moveReason;
+            bool canMove;
+            if (string.IsNullOrEmpty(entry.typeName))
+            {
+                canMove = false;
+                moveReason = "This entry names no effect, so it cannot be moved.";
+            }
+            else canMove = ShaperEffectRuntime.CanRun(entry.typeName, otherStage, out moveReason);
+            header.Add(Inert(
+                Z.Toggle("Whole picture",
+                    "On: run this once on the finished picture, after every layer has composited. Off: run it "
+                    + "on this layer's own picture, before it composites. Switching moves the entry between "
+                    + "the layer's list and the document's.",
+                    whole,
+                    v =>
+                    {
+                        var src = v ? layerList : docList;
+                        var dst = v ? docList : layerList;
+                        Change(() =>
+                        {
+                            int at = src.IndexOf(entry);
+                            if (at >= 0) src.RemoveAt(at);
+                            dst.Add(entry);
+                        });
+                        Rebuild();
+                    }),
+                canMove ? null
+                    : "Cannot move: " + (moveReason ?? "this effect only runs where it is.")));
+
             // T-0257 — "pre-composite"/"post-composite" is the pipeline's vocabulary for a fact the author
             // reads as "does this run on my layer or on the finished picture".
             header.Add(Z.Text(ok ? (stage == ShaperEffectStage.PreComposite ? "Before blending" : "After blending")
@@ -2040,13 +2125,16 @@ namespace Laubrary.Shaper.Editor
         /// placement — Custom hands us a real element to lay out a Row of columns into, reusing the SAME
         /// "zui-menu__item"/"zui-menu__label" chrome every other menu row uses (BuildEffectMenuItem below) so a
         /// column entry looks identical to a Pyre menu item, just placed in a grid instead of one long list.
+        ///
+        /// T-0258 — ONE picker for the merged card, so every catalog entry is reachable from one button. An
+        /// entry lands in the list where it can actually run: its own default stage when that is available,
+        /// the other one when it is not, and greyed with the reason when NEITHER is. Before the merge, an
+        /// effect that only runs post-composite was greyed in the layer card's picker and addable only from
+        /// the other section — with one card, keeping that rule would have made it unreachable.
         /// </summary>
-        void ShowAddEffectMenu(VisualElement anchor, List<ShaperEffectRef> list, ShaperEffectStage stage)
+        void ShowAddEffectMenu(VisualElement anchor, List<ShaperEffectRef> layerList,
+                               List<ShaperEffectRef> docList)
         {
-            string stageSentence = stage == ShaperEffectStage.PreComposite
-                ? "Will run on this layer's own picture, before it composites."
-                : "Will run on the finished picture, after every layer has composited.";
-
             // Canonical family order — Pyre's own Geometry/Pixel/Post + Shaper's Simulation slot, plus Edge
             // (the one genuinely-stuck effect, T-0114) shown rather than hidden, matching the catalog's own
             // "declared, greyed-out-with-a-reason" posture.
@@ -2088,14 +2176,30 @@ namespace Laubrary.Shaper.Editor
                     foreach (var i in bucket)
                     {
                         var e = ShaperEffectCatalog.All[i];
-                        bool ok = ShaperEffectRuntime.CanRun(in ShaperEffectCatalog.All[i], stage, out string reason);
+                        // Its own default stage first — that is the stage the catalog says the effect is FOR,
+                        // so an entry that can run at both lands where its author meant it to.
+                        var wanted = e.defaultStage;
+                        bool ok = ShaperEffectRuntime.CanRun(in ShaperEffectCatalog.All[i], wanted,
+                                                             out string reason);
+                        if (!ok)
+                        {
+                            wanted = wanted == ShaperEffectStage.PreComposite
+                                ? ShaperEffectStage.PostComposite : ShaperEffectStage.PreComposite;
+                            ok = ShaperEffectRuntime.CanRun(in ShaperEffectCatalog.All[i], wanted, out reason);
+                        }
+                        bool whole = wanted == ShaperEffectStage.PostComposite;
+                        var target = whole ? docList : layerList;
                         string typeName = e.typeName;
-                        col.Add(BuildEffectMenuItem(typeName, ok ? stageSentence : "Unavailable — " + reason, ok,
+                        string lands = whole
+                            ? "Will run on the finished picture, after every layer has composited — it arrives "
+                              + "with “Whole picture” on."
+                            : "Will run on this layer's own picture, before it composites.";
+                        col.Add(BuildEffectMenuItem(typeName, ok ? lands : "Unavailable — " + reason, ok,
                             () =>
                             {
                                 var made = ShaperEffectRuntime.Create(typeName);
                                 if (made == null) return;
-                                Change(() => list.Add(new ShaperEffectRef(typeName, made)));
+                                Change(() => target.Add(new ShaperEffectRef(typeName, made)));
                                 Rebuild();
                             }, close));
                     }
