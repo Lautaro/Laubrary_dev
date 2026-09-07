@@ -90,8 +90,11 @@ namespace Laubrary.Chunks.Editor
 
             body.Add(Z.Field("Alpha over life",
                 "Opacity across a piece's life, left (spawn) to right (death).",
-                Z.Curve(cap.alphaOverLife, "Opacity across a piece's life, left (spawn) to right (death).",
-                    v => Dial("Edit Alpha Over Life", () => cap.alphaOverLife = v))));
+                Z.Envelope(cap.alphaEnvelope,
+                    new ZuiEnvelopeOptions { xMin = 0f, xMax = 1f, yMin = 0f, yMax = 1f },
+                    "Opacity across a piece's life, left (spawn) to right (death).",
+                    onChanged: EnvelopeChanged,
+                    onBeforeMutate: () => EnvelopeUndo("Edit Alpha Over Life"))));
 
             var slot = LayerSlotRow(c, () => cap.layerName, v => cap.layerName = v);
             if (slot != null) body.Add(slot);

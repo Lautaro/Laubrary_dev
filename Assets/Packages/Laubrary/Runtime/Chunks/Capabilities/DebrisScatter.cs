@@ -165,12 +165,28 @@ namespace Laubrary.Chunks
         [Tooltip("Largest chunk, world units.")]
         [Min(0.001f)] public float sizeMax = 0.35f;
 
+        // Legacy migration source ONLY (T-0261 — no native CurveField anywhere; ZUI Envelope is the only
+        // authored curve control). Never authored directly anymore — see sizeEnvelope/alphaEnvelope below,
+        // which MigrateLegacyCurves() converts these into on first load.
+        [HideInInspector] public AnimationCurve sizeOverLife = DefaultSizeCurve();
+        [HideInInspector] public AnimationCurve alphaOverLife = DefaultAlphaCurve();
+        [SerializeField, HideInInspector] bool curvesMigrated;
+
         [Tooltip("Size across a chunk's life, left (spawn) to right (death).")]
-        public AnimationCurve sizeOverLife = DefaultSizeCurve();
+        public List<ZUIEnvelopePoint> sizeEnvelope = new List<ZUIEnvelopePoint>();
         [Tooltip("Opacity across a chunk's life, left (spawn) to right (death).")]
-        public AnimationCurve alphaOverLife = DefaultAlphaCurve();
+        public List<ZUIEnvelopePoint> alphaEnvelope = new List<ZUIEnvelopePoint>();
         [Tooltip("Tint across a chunk's life, multiplied onto its own colour.")]
         public Gradient colorOverLife = DefaultColorGradient();
+
+        public override bool MigrateLegacyCurves()
+        {
+            if (curvesMigrated) return false;
+            sizeEnvelope = SampleCurveToEnvelope(sizeOverLife, 1f);
+            alphaEnvelope = SampleCurveToEnvelope(alphaOverLife, 1f);
+            curvesMigrated = true;
+            return true;
+        }
 
         // ── floor ─────────────────────────────────────────────────────────────────
         [Tooltip("Bounce chunks off a horizontal floor. No Physics2D colliders involved.")]

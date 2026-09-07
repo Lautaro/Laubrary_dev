@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Laubrary.Chunks
@@ -68,6 +69,40 @@ namespace Laubrary.Chunks
         /// generator, which is what lets a preview reproduce the whole sequence from that one integer.
         protected static ChunkRng Rng(int seed)
             => new ChunkRng(seed != 0 ? seed : Random.Range(1, int.MaxValue));
+
+        /// One-time upgrade for a capability that used to hold a native <see cref="AnimationCurve"/> and now
+        /// holds a <c>List&lt;ZUIEnvelopePoint&gt;</c> instead (T-0261 — CurveField is banned project-wide, ZUI
+        /// Envelope is the only authored curve control). No-op by default; a capability that carries a legacy
+        /// curve field overrides this, converts it once (guarded by its own serialized "migrated" flag) and
+        /// returns true the one time it actually changed something, so <see cref="ChunkSpec.UpgradeIfNeeded"/>
+        /// knows whether the asset needs re-saving. Called on every load — cheap once migrated, since the guard
+        /// short-circuits — so it needs no schema-version bump of its own.
+        public virtual bool MigrateLegacyCurves() => false;
+
+        /// Turns an old AnimationCurve into an equivalent ZUI Envelope by DENSELY SAMPLING it rather than
+        /// trying to reproduce its Hermite tangents as per-segment exponents — ZUIEnvelopePoint's bend is a
+        /// simple Lerp(a, b, Pow(t, exponent)), which cannot represent an arbitrary tangent exactly, but many
+        /// linear segments between close samples read as visually identical to the smooth original. A null or
+        /// empty curve becomes a flat two-point envelope at <paramref name="fallbackValue"/>, matching how the
+        /// runtime evaluator already treats a missing curve/envelope.
+        protected static List<ZUIEnvelopePoint> SampleCurveToEnvelope(AnimationCurve curve, float fallbackValue = 1f,
+                                                                       int sampleCount = 9)
+        {
+            var points = new List<ZUIEnvelopePoint>(Mathf.Max(2, sampleCount));
+            if (curve == null || curve.length == 0)
+            {
+                points.Add(new ZUIEnvelopePoint(0f, fallbackValue));
+                points.Add(new ZUIEnvelopePoint(1f, fallbackValue));
+                return points;
+            }
+            sampleCount = Mathf.Max(2, sampleCount);
+            for (int i = 0; i < sampleCount; i++)
+            {
+                float t = (float)i / (sampleCount - 1);
+                points.Add(new ZUIEnvelopePoint(t, curve.Evaluate(t)));
+            }
+            return points;
+        }
     }
 
     /// A capability that acts on what a PRODUCER made rather than producing anything itself. It is never

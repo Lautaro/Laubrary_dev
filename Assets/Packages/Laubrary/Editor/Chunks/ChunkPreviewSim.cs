@@ -320,8 +320,8 @@ namespace Laubrary.Chunks.Editor
                 if (!d.restOnFloor && flight.settled && local > flight.settledAt + SettleLinger) continue;
 
                 float t01 = Mathf.Clamp01(local / Mathf.Max(0.01f, life));
-                float sizeMul = d.sizeOverLife != null ? Mathf.Max(0f, d.sizeOverLife.Evaluate(t01)) : 1f;
-                float alpha = d.alphaOverLife != null ? Mathf.Clamp01(d.alphaOverLife.Evaluate(t01)) : 1f;
+                float sizeMul = Mathf.Max(0f, ZUIEnvelopeEvaluator.Evaluate(d.sizeEnvelope, t01, 1f));
+                float alpha = Mathf.Clamp01(ZUIEnvelopeEvaluator.Evaluate(d.alphaEnvelope, t01, 1f));
                 Color tint = d.colorOverLife != null ? d.colorOverLife.Evaluate(t01) : Color.white;
                 float radius = Mathf.Max(0.002f, size * 0.5f * sizeMul);
 
@@ -420,7 +420,7 @@ namespace Laubrary.Chunks.Editor
                                  false, 0f, 0f, 0f, false, trailing ? PathScratch : null);
 
                 float t01 = Mathf.Clamp01(local / Mathf.Max(0.01f, life));
-                float alpha = f.alphaOverLife != null ? Mathf.Clamp01(f.alphaOverLife.Evaluate(t01)) : 1f;
+                float alpha = Mathf.Clamp01(ZUIEnvelopeEvaluator.Evaluate(f.alphaEnvelope, t01, 1f));
                 float radius = Mathf.Max(0.01f, extent / Mathf.Max(1.4f, Mathf.Sqrt(n)));
 
                 if (trailing) AddTrail(into, PathScratch, trail.interval, local, colour, order - 1);
@@ -492,7 +492,7 @@ namespace Laubrary.Chunks.Editor
                 var flight = Fly(offset, velocity, s.gravity, s.drag, local, false, 0f, 0f, 0f, false, null);
 
                 float t01 = Mathf.Clamp01(local / Mathf.Max(0.02f, life));
-                float alpha = s.alphaOverLife != null ? Mathf.Clamp01(s.alphaOverLife.Evaluate(t01)) : 1f;
+                float alpha = Mathf.Clamp01(ZUIEnvelopeEvaluator.Evaluate(s.alphaEnvelope, t01, 1f));
 
                 into.Guides.Add(new ChunkGuide
                 {

@@ -464,6 +464,44 @@ MonoBehaviour:
           m_PreInfinity: 2
           m_PostInfinity: 2
           m_RotationOrder: 4
+        curvesMigrated: 1
+        alphaEnvelope:
+        - time: 0
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.125
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.25
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.375
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.5
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.625
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.75
+          value: 0.9259259
+          exponent: 1
+          editState: 0
+        - time: 0.875
+          value: 0.37615734
+          exponent: 1
+          editState: 0
+        - time: 1
+          value: 0
+          exponent: 1
+          editState: 0
     - rid: 2235495221543567511
       type: {class: PaletteSplash, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
@@ -521,4 +559,42 @@ MonoBehaviour:
           m_PreInfinity: 2
           m_PostInfinity: 2
           m_RotationOrder: 4
+        curvesMigrated: 1
+        alphaEnvelope:
+        - time: 0
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.125
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.25
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.375
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.5
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.625
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.75
+          value: 0.9259259
+          exponent: 1
+          editState: 0
+        - time: 0.875
+          value: 0.37615734
+          exponent: 1
+          editState: 0
+        - time: 1
+          value: 0
+          exponent: 1
+          editState: 0
         seed: 3

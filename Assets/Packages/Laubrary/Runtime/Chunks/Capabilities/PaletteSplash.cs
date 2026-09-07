@@ -67,11 +67,25 @@ namespace Laubrary.Chunks
         [Tooltip("Longest particle lifetime, seconds.")]
         [Min(0.02f)] public float lifeMax = 0.4f;
 
+        // Legacy migration source ONLY (T-0261 — no native CurveField anywhere; ZUI Envelope is the only
+        // authored curve control). Never authored directly anymore — see alphaEnvelope below, which
+        // MigrateLegacyCurves() converts this into on first load.
+        [HideInInspector] public AnimationCurve alphaOverLife = DefaultAlphaCurve();
+        [SerializeField, HideInInspector] bool curvesMigrated;
+
         [Tooltip("Opacity across a particle's life, left (spawn) to right (death).")]
-        public AnimationCurve alphaOverLife = DefaultAlphaCurve();
+        public List<ZUIEnvelopePoint> alphaEnvelope = new List<ZUIEnvelopePoint>();
 
         [Tooltip("Fixes every random pick so the spray is identical every play. 0 = reroll every time.")]
         public int seed = 0;
+
+        public override bool MigrateLegacyCurves()
+        {
+            if (curvesMigrated) return false;
+            alphaEnvelope = SampleCurveToEnvelope(alphaOverLife, 1f);
+            curvesMigrated = true;
+            return true;
+        }
 
         public override float DurationSeconds(ChunkSpec spec) => Mathf.Max(0.02f, Mathf.Max(lifeMin, lifeMax));
 
@@ -204,7 +218,7 @@ namespace Laubrary.Chunks
                 // onto anything it does not own. It deliberately never fades or destroys its targets (wrong
                 // for the pooled blasts it also drives), so a particle we own outright gets its own rider.
                 runner.Move(t, velocity, gravity, drag, life);
-                go.AddComponent<ChunkSplashParticleFade>().Begin(sr, color, alphaOverLife, life);
+                go.AddComponent<ChunkSplashParticleFade>().Begin(sr, color, alphaEnvelope, life);
             }
         }
     }
@@ -219,15 +233,15 @@ namespace Laubrary.Chunks
     {
         SpriteRenderer sr;
         Color baseColor;
-        AnimationCurve alphaOverLife;
+        List<ZUIEnvelopePoint> alphaEnvelope;
         float life;
         float age;
 
-        public void Begin(SpriteRenderer renderer, Color color, AnimationCurve curve, float lifeSeconds)
+        public void Begin(SpriteRenderer renderer, Color color, List<ZUIEnvelopePoint> envelope, float lifeSeconds)
         {
             sr = renderer;
             baseColor = color;
-            alphaOverLife = curve;
+            alphaEnvelope = envelope;
             life = Mathf.Max(0.001f, lifeSeconds);
             age = 0f;
         }
@@ -238,7 +252,7 @@ namespace Laubrary.Chunks
             float t = Mathf.Clamp01(age / life);
             if (sr != null)
             {
-                float a = alphaOverLife != null ? alphaOverLife.Evaluate(t) : (1f - t);
+                float a = ZUIEnvelopeEvaluator.Evaluate(alphaEnvelope, t, 1f - t);
                 var c = baseColor; c.a *= Mathf.Clamp01(a);
                 sr.color = c;
             }

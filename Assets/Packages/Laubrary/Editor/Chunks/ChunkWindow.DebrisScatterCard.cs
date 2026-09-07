@@ -142,12 +142,18 @@ namespace Laubrary.Chunks.Editor
 
             body.Add(Z.Field("Size over life",
                 "Size multiplier across a chunk's life, left (spawn) to right (death).",
-                Z.Curve(cap.sizeOverLife, "Size multiplier across a chunk's life, left (spawn) to right (death).",
-                    v => Dial("Edit Size Over Life", () => cap.sizeOverLife = v))));
+                Z.Envelope(cap.sizeEnvelope,
+                    new ZuiEnvelopeOptions { xMin = 0f, xMax = 1f, yMin = 0f, yMax = 2f },
+                    "Size multiplier across a chunk's life, left (spawn) to right (death).",
+                    onChanged: EnvelopeChanged,
+                    onBeforeMutate: () => EnvelopeUndo("Edit Size Over Life"))));
             body.Add(Z.Field("Alpha over life",
                 "Opacity across a chunk's life, left (spawn) to right (death).",
-                Z.Curve(cap.alphaOverLife, "Opacity across a chunk's life, left (spawn) to right (death).",
-                    v => Dial("Edit Alpha Over Life", () => cap.alphaOverLife = v))));
+                Z.Envelope(cap.alphaEnvelope,
+                    new ZuiEnvelopeOptions { xMin = 0f, xMax = 1f, yMin = 0f, yMax = 1f },
+                    "Opacity across a chunk's life, left (spawn) to right (death).",
+                    onChanged: EnvelopeChanged,
+                    onBeforeMutate: () => EnvelopeUndo("Edit Alpha Over Life"))));
             body.Add(Z.Field("Colour over life",
                 "Tint multiplied onto each chunk across its life, left (spawn) to right (death).",
                 Z.Gradient(cap.colorOverLife, "Tint multiplied onto each chunk across its life.",

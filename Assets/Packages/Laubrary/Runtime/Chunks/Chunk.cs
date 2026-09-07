@@ -203,7 +203,7 @@ namespace Laubrary.Chunks
         // width and shade their colour per ChunkTumble, faking a lit 3D fragment turning in place.
         void ApplyLook(float t)
         {
-            float sizeMul = debris.sizeOverLife != null ? debris.sizeOverLife.Evaluate(t) : 1f;
+            float sizeMul = ZUIEnvelopeEvaluator.Evaluate(debris.sizeEnvelope, t, 1f);
             float scaleY = baseScale * Mathf.Max(0f, sizeMul);
             float scaleX = scaleY;
             float shade = 1f;
@@ -217,7 +217,7 @@ namespace Laubrary.Chunks
 
             if (sr == null) return;
             Color tint = debris.colorOverLife != null ? debris.colorOverLife.Evaluate(t) : Color.white;
-            float alpha = debris.alphaOverLife != null ? debris.alphaOverLife.Evaluate(t) : 1f;
+            float alpha = ZUIEnvelopeEvaluator.Evaluate(debris.alphaEnvelope, t, 1f);
             Color c = baseColor * tint * shade;
             c.a = baseColor.a * tint.a * Mathf.Clamp01(alpha);
             sr.color = c;

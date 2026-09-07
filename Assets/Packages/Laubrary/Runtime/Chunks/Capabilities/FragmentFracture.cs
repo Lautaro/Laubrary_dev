@@ -72,8 +72,22 @@ namespace Laubrary.Chunks
         [Tooltip("Longest lifetime, seconds.")]
         public float lifeMax = 2f;
 
+        // Legacy migration source ONLY (T-0261 — no native CurveField anywhere; ZUI Envelope is the only
+        // authored curve control). Never authored directly anymore — see alphaEnvelope below, which
+        // MigrateLegacyCurves() converts this into on first load.
+        [HideInInspector] public AnimationCurve alphaOverLife = DefaultAlphaCurve();
+        [SerializeField, HideInInspector] bool curvesMigrated;
+
         [Tooltip("Opacity across a piece's life, left (spawn) to right (death).")]
-        public AnimationCurve alphaOverLife = DefaultAlphaCurve();
+        public List<ZUIEnvelopePoint> alphaEnvelope = new List<ZUIEnvelopePoint>();
+
+        public override bool MigrateLegacyCurves()
+        {
+            if (curvesMigrated) return false;
+            alphaEnvelope = SampleCurveToEnvelope(alphaOverLife, 1f);
+            curvesMigrated = true;
+            return true;
+        }
 
         public override float DurationSeconds(ChunkSpec spec) => Mathf.Max(0.01f, Mathf.Max(lifeMin, lifeMax));
 
@@ -124,7 +138,7 @@ namespace Laubrary.Chunks
             float spread = Mathf.Clamp(spreadDeg, 0f, 180f);
             float coneCentre = useBurstDirection ? ctx.DirectionDeg : directionDeg;
             float ppu = Mathf.Max(1f, src.pixelsPerUnit);
-            var curve = alphaOverLife;
+            var curve = alphaEnvelope;
 
             // A second stream off the same seed, so a dial that only changes motion never re-rolls the cut.
             var rng = new ChunkRng(effectiveSeed, 1);
@@ -196,7 +210,7 @@ namespace Laubrary.Chunks
         /// and this simply stops, leaving those textures to Unity's own sweep. That is the accepted cost of
         /// not bolting a cleanup component onto every piece.
         static IEnumerator LiveAndDie(GameObject[] gos, SpriteRenderer[] srs, Sprite[] sprites,
-                                      float[] lives, float[] spins, AnimationCurve alpha,
+                                      float[] lives, float[] spins, List<ZUIEnvelopePoint> alpha,
                                       IChunkTrailSource trail, float trailInterval)
         {
             float t = 0f;
@@ -238,7 +252,7 @@ namespace Laubrary.Chunks
                     if (srs[i] != null)
                     {
                         var c = srs[i].color;
-                        c.a = alpha != null ? Mathf.Clamp01(alpha.Evaluate(t / lives[i])) : 1f;
+                        c.a = Mathf.Clamp01(ZUIEnvelopeEvaluator.Evaluate(alpha, t / lives[i], 1f));
                         srs[i].color = c;
                     }
                 }

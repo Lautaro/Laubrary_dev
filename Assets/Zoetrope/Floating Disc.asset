@@ -464,6 +464,44 @@ MonoBehaviour:
           m_PreInfinity: 2
           m_PostInfinity: 2
           m_RotationOrder: 4
+        curvesMigrated: 1
+        alphaEnvelope:
+        - time: 0
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.125
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.25
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.375
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.5
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.625
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.75
+          value: 0.9259259
+          exponent: 1
+          editState: 0
+        - time: 0.875
+          value: 0.37615734
+          exponent: 1
+          editState: 0
+        - time: 1
+          value: 0
+          exponent: 1
+          editState: 0
     - rid: 2235495221543567511
       type: {class: PaletteSplash, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
@@ -521,6 +559,44 @@ MonoBehaviour:
           m_PreInfinity: 2
           m_PostInfinity: 2
           m_RotationOrder: 4
+        curvesMigrated: 1
+        alphaEnvelope:
+        - time: 0
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.125
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.25
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.375
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.5
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.625
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.75
+          value: 0.9259259
+          exponent: 1
+          editState: 0
+        - time: 0.875
+          value: 0.37615734
+          exponent: 1
+          editState: 0
+        - time: 1
+          value: 0
+          exponent: 1
+          editState: 0
         seed: 3
 --- !u!114 &-5072484724575297892
 MonoBehaviour:
@@ -890,6 +966,81 @@ MonoBehaviour:
           m_PreInfinity: 2
           m_PostInfinity: 2
           m_RotationOrder: 4
+        curvesMigrated: 1
+        sizeEnvelope:
+        - time: 0
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.125
+          value: 0.5909878
+          exponent: 1
+          editState: 0
+        - time: 0.25
+          value: 0.16835594
+          exponent: 1
+          editState: 0
+        - time: 0.375
+          value: 0.16807352
+          exponent: 1
+          editState: 0
+        - time: 0.5
+          value: 0.16807352
+          exponent: 1
+          editState: 0
+        - time: 0.625
+          value: 0.16807352
+          exponent: 1
+          editState: 0
+        - time: 0.75
+          value: 0.16807352
+          exponent: 1
+          editState: 0
+        - time: 0.875
+          value: 0.16807352
+          exponent: 1
+          editState: 0
+        - time: 1
+          value: 0.16807352
+          exponent: 1
+          editState: 0
+        alphaEnvelope:
+        - time: 0
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.125
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.25
+          value: 0.99998176
+          exponent: 1
+          editState: 0
+        - time: 0.375
+          value: 0.9242037
+          exponent: 1
+          editState: 0
+        - time: 0.5
+          value: 0.73854434
+          exponent: 1
+          editState: 0
+        - time: 0.625
+          value: 0.49814904
+          exponent: 1
+          editState: 0
+        - time: 0.75
+          value: 0.25816303
+          exponent: 1
+          editState: 0
+        - time: 0.875
+          value: 0.07373166
+          exponent: 1
+          editState: 0
+        - time: 1
+          value: 0
+          exponent: 1
+          editState: 0
         colorOverLife:
           serializedVersion: 2
           key0: {r: 1, g: 1, b: 1, a: 1}
@@ -1294,6 +1445,81 @@ MonoBehaviour:
           m_PreInfinity: 2
           m_PostInfinity: 2
           m_RotationOrder: 4
+        curvesMigrated: 1
+        sizeEnvelope:
+        - time: 0
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.125
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.25
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.375
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.5
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.625
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.75
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.875
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 1
+          value: 1
+          exponent: 1
+          editState: 0
+        alphaEnvelope:
+        - time: 0
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.125
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.25
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.375
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.5
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.625
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.75
+          value: 0.8017492
+          exponent: 1
+          editState: 0
+        - time: 0.875
+          value: 0.29154515
+          exponent: 1
+          editState: 0
+        - time: 1
+          value: 0
+          exponent: 1
+          editState: 0
         colorOverLife:
           serializedVersion: 2
           key0: {r: 1, g: 1, b: 1, a: 1}

@@ -232,6 +232,28 @@ namespace Laubrary.Chunks.Editor
             SyncTiming();
         }
 
+        /// The Undo half of a Z.Envelope wiring: an envelope mutates its caller-owned point list IN PLACE
+        /// (there is no "new value" to hand to Dial's own apply callback), so undo must be recorded BEFORE
+        /// that mutation happens rather than wrapped around it. Pass this as onBeforeMutate and
+        /// <see cref="EnvelopeChanged"/> as onChanged — together they do exactly what Dial does for every
+        /// other control, just split across the two hooks Z.Envelope actually offers.
+        internal void EnvelopeUndo(string undoLabel)
+        {
+            var c = Current;
+            if (c == null) return;
+            Undo.RecordObject(c, undoLabel);
+        }
+
+        /// The after half of a Z.Envelope wiring — see <see cref="EnvelopeUndo"/>.
+        internal void EnvelopeChanged()
+        {
+            var c = Current;
+            if (c == null) return;
+            EditorUtility.SetDirty(c);
+            InvalidatePreview();
+            SyncTiming();
+        }
+
         /// Dial an edit that changes WHICH controls the card shows (a mode switch, a pattern change), so the
         /// card is rebuilt around the new answer. Only that card — the rest of the stack, the scroll position
         /// and the playhead all stay exactly where they were.

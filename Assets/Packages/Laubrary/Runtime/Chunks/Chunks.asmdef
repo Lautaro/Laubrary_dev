@@ -8,7 +8,8 @@
         "com.Lautaro-Arino.Laubrary.SpriteFx",
         "com.Lautaro-Arino.Laubrary.Layering",
         "com.Lautaro-Arino.Laubrary.BackSplash",
-        "com.Lautaro-Arino.Laubrary.PixelScale"
+        "com.Lautaro-Arino.Laubrary.PixelScale",
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -16,6 +16,12 @@ MonoBehaviour:
   capabilities:
   - rid: 1702917732139271074
   directionDeg: 90
+  previewBackSplash:
+    cameraColor: {r: 0.08, g: 0.08, b: 0.1, a: 1}
+    image: {fileID: 0}
+    imageTint: {r: 1, g: 1, b: 1, a: 1}
+    imageZoom: 1
+    imagePos: {x: 0, y: 0}
   countMin: 10
   countMax: 18
   speedMin: 3.5
@@ -275,7 +281,8 @@ MonoBehaviour:
         layerName: 
         visual: 0
         sprites: []
-        pixelsPerUnit: 32
+        useProjectPixelScale: 1
+        pixelsPerUnitOverride: 32
         sampleSource: {fileID: 0}
         samplePxMin: 5
         samplePxMax: 20
@@ -361,6 +368,81 @@ MonoBehaviour:
           m_PreInfinity: 2
           m_PostInfinity: 2
           m_RotationOrder: 4
+        curvesMigrated: 1
+        sizeEnvelope:
+        - time: 0
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.125
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.25
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.375
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.5
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.625
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.75
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.875
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 1
+          value: 1
+          exponent: 1
+          editState: 0
+        alphaEnvelope:
+        - time: 0
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.125
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.25
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.375
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.5
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.625
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.75
+          value: 0.8017492
+          exponent: 1
+          editState: 0
+        - time: 0.875
+          value: 0.29154515
+          exponent: 1
+          editState: 0
+        - time: 1
+          value: 0
+          exponent: 1
+          editState: 0
         colorOverLife:
           serializedVersion: 2
           key0: {r: 1, g: 1, b: 1, a: 1}

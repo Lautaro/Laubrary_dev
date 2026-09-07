@@ -164,7 +164,9 @@ namespace Laubrary.Chunks
             capabilities ??= new List<ChunkCapability>();
             if (schemaVersion >= CurrentSchemaVersion)
             {
-                if (!EnsureIds()) return false;
+                bool changed = EnsureIds();
+                changed |= MigrateCapabilityCurves();
+                if (!changed) return false;
                 _upgradedInMemory = true;
                 return true;
             }
@@ -176,6 +178,7 @@ namespace Laubrary.Chunks
             {
                 schemaVersion = CurrentSchemaVersion;
                 EnsureIds();
+                MigrateCapabilityCurves();
                 _upgradedInMemory = true;
                 return true;
             }
@@ -226,12 +229,29 @@ namespace Laubrary.Chunks
 
             schemaVersion = CurrentSchemaVersion;
             EnsureIds();
+            MigrateCapabilityCurves();
             _upgradedInMemory = true;
             return true;
         }
 
         /// Called once the upgraded form has actually been written to disk.
         public void MarkSaved() => _upgradedInMemory = false;
+
+        /// Runs each capability's own legacy-curve upgrade (T-0261 — AnimationCurve → List&lt;ZUIEnvelopePoint&gt;),
+        /// guarded per-capability so it costs nothing once migrated. True if any capability actually changed,
+        /// which is what tells <see cref="UpgradeIfNeeded"/> the asset needs re-saving even when the schema
+        /// version itself was already current.
+        bool MigrateCapabilityCurves()
+        {
+            if (capabilities == null) return false;
+            bool changed = false;
+            for (int i = 0; i < capabilities.Count; i++)
+            {
+                var c = capabilities[i];
+                if (c != null && c.MigrateLegacyCurves()) changed = true;
+            }
+            return changed;
+        }
 
         /// Mints an id for anything in the stack that has none (a capability built in code, an asset saved
         /// before ids existed). True when it changed something.
