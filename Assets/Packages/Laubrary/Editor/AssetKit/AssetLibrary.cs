@@ -18,7 +18,11 @@ namespace Laubrary.AssetKit.Editor
                 ? AssetDatabase.FindAssets(Filter)
                 : AssetDatabase.FindAssets(Filter, new[] { folder });
 
-        /// Every T asset in the project (or under <paramref name="folder"/> if given), sorted by name.
+        /// Every T asset in the project (or under <paramref name="folder"/> if given), sorted by name. Excludes
+        /// SUB-assets (e.g. a Zoe's embedded private Chunks, T-0250): when a path's main object is a different
+        /// type than T, LoadAssetAtPath&lt;T&gt; falls back to the first T-typed sub-asset at that path instead
+        /// of returning null (confirmed live) — without this guard, an asset meant to be embedded-and-hidden
+        /// would still show up in every browser/picker built on this enumeration.
         public static List<T> Enumerate(string folder = null)
         {
             var guids = FindGuids(folder);
@@ -26,7 +30,7 @@ namespace Laubrary.AssetKit.Editor
             foreach (var g in guids)
             {
                 var a = AssetDatabase.LoadAssetAtPath<T>(AssetDatabase.GUIDToAssetPath(g));
-                if (a != null) list.Add(a);
+                if (a != null && !AssetDatabase.IsSubAsset(a)) list.Add(a);
             }
             list.Sort((a, b) => string.Compare(a.name, b.name, System.StringComparison.OrdinalIgnoreCase));
             return list;

@@ -140,7 +140,7 @@ namespace Laubrary.AssetKit.Editor
             // reads as one of the tool's sections and — via the TagsSection field below — can be included in a
             // subclass's own ZuiSectionToggleBar right alongside its other sections.
             TagsSection = null;
-            if (asset != null && !string.IsNullOrEmpty(AssetLibrary<T>.PathOf(asset)))
+            if (asset != null && !string.IsNullOrEmpty(AssetLibrary<T>.PathOf(asset)) && !AssetDatabase.IsSubAsset(asset))
             {
                 var section = Z.Section("Tags", "Tags for this asset — filterable in the browser.");
                 var tagIsland = new IMGUIContainer(() => LauTagField.Draw(asset));
@@ -175,7 +175,12 @@ namespace Laubrary.AssetKit.Editor
                     () => { browsing = !browsing; creating = false; renaming = false; if (browsing) RefreshBrowse(); Rebuild(); }));
 
             string p = AssetLibrary<T>.PathOf(asset);
-            if (!string.IsNullOrEmpty(p))
+            // A sub-asset (e.g. a Zoe's embedded private Chunks, T-0250) shares its file PATH with whatever
+            // owns it — Duplicate/Rename/Delete below all operate on that FILE, so offering them here would
+            // duplicate/rename/delete the OWNING asset, not this sub-asset. Hide all three for a sub-asset;
+            // this window only ever reaches one via an external "Edit" entry point (LauAssetEditors.Open),
+            // never via its own New/Browse, so there's no in-window way to create one that needs them anyway.
+            if (!string.IsNullOrEmpty(p) && !AssetDatabase.IsSubAsset(asset))
             {
                 row.Add(Z.Button("Duplicate", $"Create a copy of this {TypeLabel} next to it and switch to editing the copy (undoable).", () =>
                 {

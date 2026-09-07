@@ -503,9 +503,11 @@ namespace Laubrary.Zoetrope.Editor
 
             host.Add(Z.Text(label, ZuiText.Subtle, tip));
             string path = child.propertyPath;
-            var row = Z.Row(LauAssetElement.Build(child.objectReferenceValue,
-                picked => { Commit(path, p => p.objectReferenceValue = picked); Rebuild(); },
-                field.FieldType, FieldThumbs, label, "Assets", tip));
+            var row = field.FieldType == typeof(ChunkSpec)
+                ? BuildChunksRefRow(child, label, tip)
+                : Z.Row(LauAssetElement.Build(child.objectReferenceValue,
+                    picked => { Commit(path, p => p.objectReferenceValue = picked); Rebuild(); },
+                    field.FieldType, FieldThumbs, label, "Assets", tip));
             if (pairedScalar != null)
             {
                 row.Add(Z.HSpace());
@@ -514,6 +516,80 @@ namespace Laubrary.Zoetrope.Editor
             }
             host.Add(row);
             return true;
+        }
+
+        // ── Chunks reference: Public (shared library) vs Private (embedded sub-asset) ──────────
+        // T-0250: a Chunks debris burst that's bespoke to one Zoe (Floating Disc's own debris spray, say)
+        // shouldn't clutter the shared Chunks browser. "Private" needs no new serialized flag: a private
+        // ChunkSpec is simply a SUB-ASSET embedded inside this Zoe's own .asset file (AddObjectToAsset), and
+        // AssetLibrary<T>.Enumerate/AssetLibraryUntyped.Enumerate — everything the shared browser walks — only
+        // ever surface a path's MAIN asset (LoadAssetAtPath<T>), never its sub-assets (verified live), so an
+        // embedded ChunkSpec is automatically invisible to every picker without any exclude-list. "Public" vs
+        // "Private" is therefore just read straight off where the currently-assigned asset physically lives.
+        VisualElement BuildChunksRefRow(SerializedProperty prop, string label, string tip)
+        {
+            // The incoming property is the shared, mutable iterator the caller's property-walk keeps advancing
+            // after this row is built — capturing it directly (instead of a .Copy()) into the click closures
+            // below means a click fires against whatever field the iterator has since moved PAST, not "chunks"
+            // (caught live, T-0250: clicking Private embedded a copy of the wrong field entirely, named after
+            // the next sibling property it had drifted onto). Every other LauAsset row in this file already
+            // copies for the same reason; this one just needs its own copy up front too.
+            prop = prop.Copy();
+            string path = prop.propertyPath;
+            var current = prop.objectReferenceValue as ChunkSpec;
+            Object owner = Current;
+            bool isPrivate = IsPrivateChunks(current, owner);
+
+            var row = Z.Row();
+            row.Add(Z.MiniRadio(isPrivate ? 1 : 0, new[] { "Public", "Private" },
+                "Public: pick a shared Chunks asset from the library. Private: an embedded copy that belongs " +
+                "only to this Zoe, hidden from the shared Chunks browser, and editable only from this row.",
+                i =>
+                {
+                    if (i == 1 && !isPrivate) MakeChunksPrivate(prop, owner, current);
+                    else if (i == 0) Rebuild();   // switching display back to Public never clears/deletes anything
+                }));
+
+            if (isPrivate)
+            {
+                row.Add(Z.Text(current.name, ZuiText.Body, tip));
+                row.Add(Z.Button("Edit", $"Open this private {label} for editing — it isn't in the shared " +
+                    "browser, so this row is the only place it can be edited from.",
+                    () => LauAssetEditors.Open(current)));
+            }
+            else
+            {
+                row.Add(LauAssetElement.Build(current,
+                    picked => { Commit(path, p => p.objectReferenceValue = picked); Rebuild(); },
+                    typeof(ChunkSpec), FieldThumbs, label, "Assets", tip));
+            }
+            return row;
+        }
+
+        static bool IsPrivateChunks(ChunkSpec current, Object owner) =>
+            current != null && owner != null && AssetDatabase.IsSubAsset(current) &&
+            AssetDatabase.GetAssetPath(current) == AssetDatabase.GetAssetPath(owner);
+
+        /// Embeds a brand-new ChunkSpec as a sub-asset of <paramref name="owner"/> (the Zoe being edited) and
+        /// assigns it. If a public asset was already referenced, its tuning is copied into the private asset
+        /// first (EditorUtility.CopySerialized) so switching modes never loses authored work — and the old
+        /// public asset itself is left completely untouched (not deleted, not cleared from wherever else
+        /// references it), matching the "don't silently destroy data" rule.
+        void MakeChunksPrivate(SerializedProperty prop, Object owner, ChunkSpec previous)
+        {
+            if (owner == null) return;
+            var made = ScriptableObject.CreateInstance<ChunkSpec>();
+            // CopySerialized also copies the source's OWN name (m_Name is serialized data, not exempt) — so
+            // it must run BEFORE we set the private asset's own name, or the copy silently overwrites it back
+            // to the public asset's name (caught live, T-0250: a "Sparks" copy came out named "Sparks").
+            if (previous != null) EditorUtility.CopySerialized(previous, made);
+            made.name = $"{owner.name} — {ObjectNames.NicifyVariableName(prop.name)} (Private)";
+            Undo.RegisterCreatedObjectUndo(made, "Create Private Chunks");
+            AssetDatabase.AddObjectToAsset(made, owner);
+            AssetDatabase.SaveAssets();
+            string path = prop.propertyPath;
+            Commit(path, p => p.objectReferenceValue = made);
+            Rebuild();
         }
 
         /// A scalar UnityEngine.Object-reference field (e.g. Zoe.faction) through the LauAsset row rather than

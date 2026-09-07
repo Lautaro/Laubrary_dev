@@ -11,6 +11,7 @@ namespace Laubrary.AssetKit.Editor
     /// its own T; this is purely read-side enumeration.
     public static class AssetLibraryUntyped
     {
+        /// Excludes SUB-assets — see the identical guard (and its rationale) on <see cref="AssetLibrary{T}.Enumerate"/>.
         public static List<Object> Enumerate(Type concreteType, string folder = null)
         {
             var guids = string.IsNullOrEmpty(folder)
@@ -20,7 +21,7 @@ namespace Laubrary.AssetKit.Editor
             foreach (var g in guids)
             {
                 var a = AssetDatabase.LoadAssetAtPath(AssetDatabase.GUIDToAssetPath(g), concreteType);
-                if (a != null) list.Add(a);
+                if (a != null && !AssetDatabase.IsSubAsset(a)) list.Add(a);
             }
             return list;
         }
