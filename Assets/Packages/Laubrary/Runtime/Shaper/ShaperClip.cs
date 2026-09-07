@@ -12,10 +12,10 @@ namespace Laubrary.Shaper
     ///
     /// <list type="number">
     /// <item><b>There is no document renderer to call.</b> Pyre has <c>PyreRenderer.GetFrames(spec)</c>.
-    /// Shaper has no equivalent at any level: <see cref="ShaperFrameCache.ComputeFrame"/> returns a
-    /// <see cref="ShaperFieldBuffer"/> -- a canvas-sized <c>float[]</c> DISTANCE field for ONE
-    /// <see cref="ShaperNode"/> tree, not colour and not a document; <see cref="ShaperResolve"/> is a ray
-    /// query, not a renderer; and <see cref="ShaperFillResolver.PaintTile"/> is the colour path but needs a
+    /// Shaper has no equivalent at any level: the T-0115 node cache (since deleted) returned a
+    /// canvas-sized <c>float[]</c> DISTANCE field for ONE <see cref="ShaperNode"/> tree, not colour and not a
+    /// document; the HS-9 resolve (also deleted) was a ray query, not a renderer; and
+    /// <see cref="ShaperFillResolver.PaintTile"/> is the colour path but needs a
     /// driver -- a caller that walks <see cref="ShaperDocument.layers"/>, evaluates each, paints each and
     /// composites the results -- which does not exist anywhere in Runtime or Editor. T-0115's own spec says
     /// so outright: "There is no document/window/canvas-grid-renderer layer in Laubrary's own Shaper yet."</item>

@@ -1833,6 +1833,7 @@ namespace Laubrary.Pyre.Editor
                 cyclic = cyclic,   // a wrapping angle (rotation / spin) → offer the Cycles envelope generator
                 // Show where each bake frame lands on the curve (numbers thin out when frames are dense).
                 frameCount = spec != null ? spec.frameCount : 0,
+                currentFrame = () => frame,   // a folded envelope reads out the value at the playhead
             };
             return Z.Value(label, v, o, tooltip, () => MarkDirty(), () => Undo.RecordObject(spec, "Edit Pyre Plus"));
         }

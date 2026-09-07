@@ -36,7 +36,7 @@ namespace Laubrary.PyreShaper
     /// same reason they are retired in Pyre — they live on as <c>PyreForm</c> plug-ins, which Shaper already hosts.
     /// </summary>
     [Serializable]
-    public sealed class PyreLayerCompositeSource : IShaperCompositeSource, IShaperCacheableSource
+    public sealed class PyreLayerCompositeSource : IShaperCompositeSource
     {
         /// <summary>
         /// The hosted layer — the real Pyre type, with its full dial set: the form's own geometry, the shared
@@ -140,21 +140,5 @@ namespace Laubrary.PyreShaper
             }
         }
 
-        /// <summary>
-        /// T-0115's cache capability. Without it a hosted layer falls back to reference identity, so dragging a
-        /// curve point on the Alpha envelope would repaint nothing until the phase happened to change. Every
-        /// authored field on the layer is folded in reflectively (through Pyre's own value mixer, so a field added
-        /// to <see cref="PyreLayer"/> later is covered without editing this) plus the frame count, which is
-        /// authored here rather than on the layer. Phase and seed are deliberately absent: the node's identity
-        /// already folds both in before this is consulted (<c>ShaperNodeIdentity.cs:77-78</c>).
-        /// </summary>
-        public ShaperCacheKey ContentHash()
-        {
-            var m = ShaperCacheMixer.Begin("shaper.pyreshaper.pyrelayercompositesource.v1");
-            m.MixInt(frames);
-            // The same FNV offset basis PyreForm.ContentHash seeds with, so the two hashes are the same family.
-            m.MixInt(layer != null ? PyreForm.MixValue(unchecked((int)2166136261u), layer) : 0);
-            return m.Key;
-        }
     }
 }

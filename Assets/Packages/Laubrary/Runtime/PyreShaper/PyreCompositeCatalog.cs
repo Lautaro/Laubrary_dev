@@ -155,6 +155,11 @@ namespace Laubrary.PyreShaper
         /// T-0173 — the same build for a source that is NOT a hosted <see cref="PyreForm"/> (the two stateful
         /// simulations today, anything else that implements the interface tomorrow). <see cref="Build"/> now goes
         /// through this too, so a composite def is stamped in exactly one place regardless of what it hosts.
+        ///
+        /// T-0254 — no longer stamps <c>entry.reason</c>/<c>entry.reasonNote</c> onto the def: those fields are
+        /// retired (<see cref="ShaperCompositeDef.reason"/>'s doc), and the classification this method used to
+        /// copy onto every instance is already read straight off <paramref name="entry"/> / this catalog by
+        /// whatever needs it (the audit, a future compliance pass) — one home instead of a home plus a copy.
         /// </summary>
         public static ShaperCompositeDef BuildSource(IShaperCompositeSource source,
                                                      in PyreCompositeCatalogEntry entry,
@@ -164,8 +169,6 @@ namespace Laubrary.PyreShaper
             return new ShaperCompositeDef
             {
                 source = source,
-                reason = entry.reason,
-                reasonNote = entry.reasonNote,
                 halfExtentX = halfExtentX,
                 halfExtentY = halfExtentY,
                 bakeWidth = bakeWidth,

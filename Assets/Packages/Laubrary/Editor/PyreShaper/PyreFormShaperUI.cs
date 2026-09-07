@@ -44,31 +44,30 @@ namespace Laubrary.PyreShaper.Editor
             {
                 var src = (PyreFormCompositeSource)source;
 
-                // A source authored before T-0202 deserializes with these null/zero, which reads on screen as a
+                // A source authored before T-0202 deserializes with these null, which reads on screen as a
                 // control with nothing behind it. Repairing here — inside the window's own Change, so it is one
                 // undoable step — is the same repair PyreLayerShaperUI makes for a null layer.
-                if (src.shapeFill == null || src.alpha == null || src.frames <= 0)
+                if (src.shapeFill == null || src.alpha == null)
                     ctx.Change(() =>
                     {
                         src.shapeFill ??= PyreFormCompositeSource.DefaultFill();
                         src.alpha ??= PyreFormCompositeSource.DefaultAlpha();
-                        if (src.frames <= 0) src.frames = PyreFormCompositeSource.DefaultFrames;
                     });
 
                 var box = Z.BoxKeyed(src.SourceLabel,
-                    "The paint, opacity and clock this generator is hosted with — the same three rows Pyre's own "
-                    + "Shape section shows above a form's dials.",
+                    "The paint and opacity this generator is hosted with — the same rows Pyre's own Shape "
+                    + "section shows above a form's dials. Its own frame count is no longer authored here: it "
+                    + "follows the document's own Frames, so a hosted generator has exactly one lifetime.",
                     "shaper.window.composite.pyreform");
 
-                // Frames first: it is the source's own dial and it decides what every envelope below is measured
-                // against, so it is drawn above them rather than lost among the form's own fields. The
-                // MicroSlider carries its own caption, so no Z.Field wrapper — a field labelled the same as the
-                // control inside it is the redundant title the layout rules forbid.
-                box.Add(Z.MicroSlider("Generator frames", src.frames, 1f, 120f,
-                    "How many frames this generator's own animation spans. Match the document's Frames for exact "
-                    + "one-to-one playback; a smaller number plays its whole life out sooner.",
-                    v => { ctx.Change(() => src.frames = Mathf.Max(1, Mathf.RoundToInt(v))); ctx.Rebuild(); },
-                    170f, showValue: true, decimals: 0));
+                // T-0254 — "Generator frames" is GONE, the same treatment T-0204 gave
+                // PyreLayerCompositeSource.frames: it used to author a SECOND, independent frame axis that
+                // could silently disagree with the document's own Frames. It is now silently kept in lock-step
+                // with the document instead of exposed as a dial — `frames` always mirrors ctx.FrameCount,
+                // which is what makes `phase01 · (frames − 1)` land on the SAME frame index the document's own
+                // clock is on. No Undo entry for this: it is bookkeeping that keeps two numbers equal, not an
+                // authored edit.
+                if (ctx.FrameCount > 0 && src.frames != ctx.FrameCount) { src.frames = ctx.FrameCount; ctx.Touch(); }
 
                 // Pyre draws no Fill row for a form that carries its own ramps (UsesFill == false,
                 // PyreWindow.cs:1263) because the control would be dead. Same test, same reason: of the nine,

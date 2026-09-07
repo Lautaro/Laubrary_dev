@@ -1123,28 +1123,13 @@ namespace Laubrary.Shaper.Editor
                 return;
             }
 
-            // The reasonNote sentence behind Reason's one-word classification is written by
-            // PyreCompositeCatalog (PyreCompositeCatalog.cs:168) and read by the audit
-            // (PyreShaperCompositeAudit.cs:276) — it is READ-ONLY here on purpose: SHAPER_THE_DESIGN §6.2's
-            // "monolithic must be a declared reason" makes the declaration the GENERATOR's to own, so a text
-            // field on the node would let one document quietly disagree with the catalog every other document
-            // reads. `HasDeclaration` is the engine's own non-blank test (ShaperCompositeDef.cs:134).
-            //
-            // T-0192 (PM addendum) — this sentence used to be its own on-screen "Note" paragraph body text
-            // below the row. The labeling rule is that an explanation lives in a tooltip, never as body text
-            // (ui-layout-rules), so the sentence now lives on the Reason chip's hover instead and there is no
-            // second row for it — a short chip, not a paragraph.
-            string reasonTooltip = "Why this is still a composite rather than split into primitives — a "
-                + "structural fact the audit checks, not an authored dial."
-                + (c.HasDeclaration ? "  ·  " + c.reasonNote : "");
-            // T-0191 — the Half extent X/Y and Bake W/H dials are GONE, on the owner's report that on
-            // Pyre › Disc they "scale the disc and make no sense to a human next to Pyre's Size". They were a
-            // second size authority sitting beside the generator's own, and an author turning one had no way
-            // to tell which of the two he was turning. The box is now fitted to the canvas by the renderer
-            // (ShaperCompositeDef.FitTo), so there is nothing left here to author — only the declaration.
-            box.Add(Z.HGroup(
-                Z.Field("Reason", reasonTooltip,
-                    Z.Text(c.reason.ToString(), ZuiText.Body, reasonTooltip))));
+            // T-0254 — the Reason row is GONE. §6.2's classification (why this generator bypasses the shape/fill
+            // split) is a fact about the SOURCE TYPE, not a per-document dial, and printing `NotYetSplit` — a
+            // note-to-self about technical debt — as an authoring control read as "an engineering annotation,
+            // not an authoring control" (analysis appendix 3 §4.2). It still exists for a compliance pass to
+            // check (PyreCompositeCatalogEntry.reason / ShaperCompositeSourceInfoAttribute.Reason), just never
+            // drawn here. T-0191's earlier removal of the Half extent X/Y and Bake W/H dials for the same "not
+            // an authored fact" reason is the precedent this follows.
 
             // A generator family with a DESIGNED card draws it instead of the reflected dump below (T-0183).
             // The window does not know which families those are — it asks the registry, so a hosted Pyre layer

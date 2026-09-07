@@ -6,18 +6,18 @@ namespace Laubrary.Shaper
     /// T-0144 -- the document's animation clock: the ONE place that answers "what phase is frame N?" and
     /// "how many frames have elapsed in this much wall time?".
     ///
-    /// <b>Why this file exists when <see cref="ShaperFrameCache.PhaseOfFrame"/> already answered the first
-    /// question.</b> It did, and its answer is kept verbatim -- but it lived on a transient CACHE object that
-    /// is constructed with a <c>frameCount</c> handed to it from outside. Design C1 says the DOCUMENT "has a
+    /// <b>Why this file exists when the T-0115 node cache's own <c>PhaseOfFrame</c> already answered the
+    /// first question.</b> It did, and its answer is kept verbatim -- but it lived on a transient CACHE object
+    /// that is constructed with a <c>frameCount</c> handed to it from outside. Design C1 says the DOCUMENT "has a
     /// canvas size, a frame count and a rate" (<c>SHAPER_THE_DESIGN.md:299</c>), so the authored frame count
     /// belongs on <see cref="ShaperDocument"/>, and once two types can answer the same question there must be
-    /// exactly one implementation behind both. <see cref="ShaperFrameCache.PhaseOfFrame"/> now delegates here;
-    /// its observable behaviour is unchanged.
+    /// exactly one implementation behind both. That cache (and its own <c>PhaseOfFrame</c>) has since been
+    /// deleted (T-0253); this is now the ONLY implementation.
     ///
     /// <b>The frame-to-phase convention, and why it was NOT changed.</b> Frame 0 is phase 0 and the LAST frame
     /// is phase 1: <c>phase = i / (N - 1)</c>, with a single-frame document pinned at phase 0. That convention
     /// was set by T-0115 and is already baked into every cache key ever produced
-    /// (<see cref="ShaperNodeIdentity"/> folds <c>phase01</c> into a node's identity), so it is not an open
+    /// (<see cref="ShaperLayerKey"/> folds <c>phase01</c> into a node's identity), so it is not an open
     /// choice any more -- it is a shipped one.
     ///
     /// It is worth recording the argument AGAINST it, because it is a real one and a future reader will

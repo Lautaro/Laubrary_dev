@@ -27,7 +27,7 @@ namespace Laubrary.PyreShaper
     /// (seed, phase) alone. A flame genuinely cannot: heat is carried by a velocity field, so frame N depends on
     /// frame N-1. It stays fully deterministic by being REACHED rather than evaluated — replayed from a fixed
     /// reset, the same discipline the sim's own header sets out (<c>FireSim.cs:7-19</c>). The replay is cached by
-    /// content (see <see cref="ContentHash"/>), so playing or baking forward costs one step per frame instead of
+    /// content, so playing or baking forward costs one step per frame instead of
     /// re-running the whole history for each one.
     ///
     /// <b>Emitters are the built-in fixed ones, and that is a limit worth naming.</b> Pyre can also source a
@@ -39,8 +39,8 @@ namespace Laubrary.PyreShaper
     /// swarm would need the composite contract itself widened, which is a bigger, separate decision than this.
     /// </summary>
     [Serializable]
-    [ShaperCompositeSourceInfo("Fire", "Simulations")]
-    public sealed class FireCompositeSource : IShaperCompositeSource, IShaperCacheableSource
+    [ShaperCompositeSourceInfo("Fire", "Simulations", ShaperCompositeReason.AuthoredData)]
+    public sealed class FireCompositeSource : IShaperCompositeSource
     {
         // Field ids only have to be DISTINCT and STABLE: they key the seeded draw a Min-Max dial makes
         // (PyreShaperEval.Eval → PyreRenderer.Hash), so two dials must never share one or they would draw the
@@ -284,19 +284,5 @@ namespace Laubrary.PyreShaper
             return m.Key;
         }
 
-        /// <summary>
-        /// T-0115's optional cache capability. Seed and phase are deliberately absent: the node's own identity
-        /// already folds both in before this is consulted (<c>ShaperNodeIdentity.cs:77-78</c>), so mixing them
-        /// again would be redundant. Canvas size is absent for the same reason — it is the node's, not the
-        /// source's. What is here is exactly what the AUTHOR can change, which is what the fallback
-        /// reference-identity path would otherwise miss entirely.
-        /// </summary>
-        public ShaperCacheKey ContentHash()
-        {
-            var m = ShaperCacheMixer.Begin("shaper.pyreshaper.firecompositesource.content.v1");
-            m.MixString(JsonUtility.ToJson(this));
-            m = PyreShaperSimSupport.MixGradient(m, ramp);
-            return m.Key;
-        }
     }
 }

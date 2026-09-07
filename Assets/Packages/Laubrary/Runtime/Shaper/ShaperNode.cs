@@ -326,9 +326,9 @@ namespace Laubrary.Shaper
             return node;
         }
 
-        /// <summary>A composite member (T-0112) — the monolithic escape hatch. <paramref name="def"/> must carry
-        /// a <see cref="ShaperCompositeDef.reason"/> and a non-empty <see cref="ShaperCompositeDef.reasonNote"/>;
-        /// <see cref="ShaperCompositeDef.HasDeclaration"/> is what a compliance pass checks.</summary>
+        /// <summary>A composite member (T-0112) — the monolithic escape hatch. Its source declares WHY it
+        /// bypasses the shape/fill split (<see cref="ShaperCompositeSourceInfoAttribute.Reason"/> or the
+        /// catalog entry that classifies it, T-0254 — no longer a field on <paramref name="def"/> itself).</summary>
         public static ShaperNode Composite(ShaperCompositeDef def, string name = "Composite",
                                            ShaperCombineMode mode = ShaperCombineMode.Add)
         {

@@ -186,8 +186,6 @@ namespace Laubrary.Shaper.Editor
             var def = new ShaperCompositeDef
             {
                 source = src,
-                reason = ShaperCompositeReason.NotYetSplit,
-                reasonNote = "T-0113 fixture -- a toy stateful heat sim, hosted to exercise the swarm native path.",
                 halfExtentX = 48f, halfExtentY = 48f, bakeWidth = bake, bakeHeight = bake,
             };
             return ShaperNode.Composite(def, name);
@@ -247,8 +245,6 @@ namespace Laubrary.Shaper.Editor
             var nonNativeDef = new ShaperCompositeDef
             {
                 source = new StubDisc(18f),
-                reason = ShaperCompositeReason.NotYetSplit,
-                reasonNote = "T-0113 fixture -- deliberately not native, to prove Generic works on Composite too.",
                 halfExtentX = 40f, halfExtentY = 40f, bakeWidth = 48, bakeHeight = 48,
             };
             var compNode = ShaperNode.Composite(nonNativeDef, "PlainComposite");
@@ -366,8 +362,6 @@ namespace Laubrary.Shaper.Editor
             var stubborn = ShaperNode.Composite(new ShaperCompositeDef
             {
                 source = new ToyStubbornSimSource(),
-                reason = ShaperCompositeReason.NotYetSplit,
-                reasonNote = "T-0113 fixture -- deliberately no native path, to prove the hard cap fires.",
                 halfExtentX = 40f, halfExtentY = 40f, bakeWidth = 32, bakeHeight = 32,
             }, "Stubborn");
             stubborn.swarm = new ShaperSwarmDef { enabled = true, count = 20 };

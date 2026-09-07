@@ -87,8 +87,8 @@ namespace Laubrary.Shaper
         /// (BC-3.7a). <see cref="ShaperHeight.Publishes"/> is the one place that choice is made.
         ///
         /// <c>Depth</c> is deliberately NOT in this set. BC-3.5's <c>depth</c> is the thickness of solid a
-        /// sampling ray traverses; it becomes real only through <see cref="ShaperResolve"/>'s crossing list
-        /// and is not published by the height stage directly.
+        /// sampling ray traverses; it becomes real only through a crossing-list resolve (the HS-9 resolve,
+        /// since deleted, T-0253) and is not published by the height stage directly.
         /// </summary>
         ShapeEngineWithHeight = Coverage | EdgeDistance | Height,
     }

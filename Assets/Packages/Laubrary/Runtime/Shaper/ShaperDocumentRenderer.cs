@@ -5,10 +5,11 @@
 // two independent agents reached it separately and T-0115's own spec says it outright: "There is no
 // document/window/canvas-grid-renderer layer in Laubrary's own Shaper yet" (T-0115/SPEC.md:11).
 //
-// What already existed, and why none of it was a renderer:
-//   • ShaperFrameCache.ComputeFrame returns a ShaperFieldBuffer — a canvas-sized float DISTANCE field for ONE
-//     node tree (ShaperNodeCache.cs:10-20). Not colour, not a document.
-//   • ShaperResolve.Query is a ray query against an ordered layer list, not a raster pass.
+// What already existed, and why none of it was a renderer (the first two, the T-0115 node cache and the
+// HS-9 resolve, were both deleted outright as dead weight, T-0253 — history kept for the record):
+//   • ShaperFrameCache.ComputeFrame returned a canvas-sized float DISTANCE field for ONE node tree. Not
+//     colour, not a document.
+//   • ShaperResolve.Query was a ray query against an ordered layer list, not a raster pass.
 //   • ShaperFillResolver.PaintTile (:899) + Encode (:1516) are the colour path, but they paint ONE layer into
 //     one ShaperFillBuffers and nothing walked ShaperDocument.layers to drive them and combine the results.
 //

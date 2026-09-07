@@ -7,8 +7,9 @@ using UnityEngine;
 namespace Laubrary.Shaper.Editor
 {
     /// <summary>
-    /// The height-stage audit: ten checks over the compiled extrusion/bevel stage, the normal provider's
-    /// <c>Profile</c> case and the general resolve, each returning a report string.
+    /// The height-stage audit: checks over the compiled extrusion/bevel stage and the normal provider's
+    /// <c>Profile</c> case, each returning a report string. (The general resolve, HS-9, was deleted outright
+    /// T-0253 along with the checks that exercised it -- H6, H12 and the tilted-conformance render.)
     ///
     /// Plain static methods, <b>no <c>[MenuItem]</c> and no <c>EditorWindow</c></b> — this is the stage's
     /// verification harness, invoked through the Unity CLI, not a tool. Same shape as
@@ -75,48 +76,6 @@ namespace Laubrary.Shaper.Editor
             ShaperBevelTechnique.None, ShaperBevelTechnique.Linear, ShaperBevelTechnique.Rounded,
             ShaperBevelTechnique.Cove, ShaperBevelTechnique.Ogee, ShaperBevelTechnique.Stepped,
         };
-
-        // ── T-0109 FIX V4 — the re-aimed omission fixture and the three named traps ───────────────────────
-
-        /// <summary>
-        /// The step counts H6's omission arm now sweeps. It used to run at 4 and only 4 — <c>OpFor</c>'s
-        /// default — which is a step count at which neither V1 nor V2 can arise, so the arm reported 0
-        /// omissions while four existed. Contiguous rather than a hand-picked set, because the point is that
-        /// the fixture no longer depends on knowing WHICH counts fail.
-        /// </summary>
-        const int SweepStepLo = 4;
-        const int SweepStepHi = 31;
-
-        /// <summary>
-        /// Both aims the swept omission arm runs: H6's original ray heights (fractions of the extent, which
-        /// land BETWEEN treads) and heights that are a tread of the step count under test. The second is
-        /// where the contained prism's proof and the exact predicate are entitled to disagree, and it found
-        /// twice as many omissions as the first against the pre-fix code (8 versus 4).
-        /// </summary>
-        static readonly bool[] AimedAtTread = { false, true };
-
-        /// <summary>V1's four truth crossings, in canvas px along the repro ray. Literals on purpose.</summary>
-        static readonly float[] V1Truth = { 314.4854f, 550.3496f, 552.3819f, 576.5567f };
-
-        /// <summary>
-        /// The PASS threshold on a trap's residual against its quoted truth. 0.05 canvas px — the same
-        /// threshold H6's omission arm uses to call a true crossing matched, and two orders above the
-        /// residual actually measured (4e-4 px), so a drift is visible long before it fails.
-        /// </summary>
-        const float TrapTolerance = 0.05f;
-
-        /// <summary>The 13 step counts at which the pre-fix contained-prism skip lost a true crossing.</summary>
-        static readonly int[] V1AffectedSteps = { 8, 12, 13, 14, 15, 18, 20, 22, 23, 26, 27, 29, 31 };
-
-        /// <summary>
-        /// The four <c>(n, k)</c> pairs where <c>⌊fl(k/n)·n⌋ &lt; k</c> over the authored step range — the
-        /// complete list, found exhaustively, not a sample.
-        /// </summary>
-        static readonly int[] V2LatentN = { 22, 23, 23, 29 };
-        static readonly int[] V2LatentK = { 13, 7, 14, 15 };
-
-        /// <summary>How many ulps either side of a tread's own ζ the V2 trap sweeps.</summary>
-        const int TrapUlps = 8;
 
         /// <summary>
         /// Build a compiled height op directly, with no shape program.
@@ -390,8 +349,8 @@ namespace Laubrary.Shaper.Editor
             sb.AppendLine("                   Unity's own runtime and measures " + ulpViolations + " there, so the two runtimes round");
             sb.AppendLine("                   the same expression differently and the DECLARATION must cover both.");
             sb.AppendLine("                   HS-5.2's containment argument survives at that magnitude either way:");
-            sb.AppendLine("                   1 ulp is six orders below the march's own SurfaceResolution of " +
-                          ShaperResolve.SurfaceResolution + " canvas px.");
+            sb.AppendLine("                   1 ulp is six orders below the (now-retired, T-0253) HS-9 march's own");
+            sb.AppendLine("                   SurfaceResolution of 0.02 canvas px.");
             return sb.ToString();
         }
 
@@ -995,467 +954,6 @@ namespace Laubrary.Shaper.Editor
         }
 
         // ═════════════════════════════════════════════════════════════════════════════════════════════════
-        // H6 — the two resolve branches agree.
-        // ═════════════════════════════════════════════════════════════════════════════════════════════════
-
-        /// <summary>
-        /// <b>H6 — the two resolve branches AGREE at zero tilt, to tolerance, on a shape with a bevel.</b>
-        /// HS-9.5: "that agreement is the real conformance test and the picture is the human-readable half of
-        /// it."
-        ///
-        /// The general branch cannot be asked for an EXACTLY vertical ray — the branch is chosen by the ray
-        /// (BC-2.3) and an exactly vertical one takes the closed form by definition — so the comparison is
-        /// made at a tilt just outside <see cref="ShaperResolve.StraightDownTolerance"/>, where the geometry
-        /// differs by a lateral offset of under a hundredth of a pixel. <b>The check ASSERTS which branch ran
-        /// rather than assuming it</b>, because a general-branch test that silently fell back to the closed
-        /// form would pass while proving nothing.
-        ///
-        /// A genuinely tilted ray is checked too, against a different oracle: the crossing must lie ON the
-        /// surface, i.e. <c>|(z − base) − body·G(t)| ≈ 0</c> evaluated independently at the returned point.
-        /// </summary>
-        public static string H6_BranchAgreement()
-        {
-            var sb = new StringBuilder("H6  the two resolve branches agree at zero tilt (HS-9.2, HS-9.5)\n");
-            bool all = true;
-
-            var node = Rect(38f, 28f, 9f);
-            var prog = ShaperCompiler.Compile(node);
-            var hop = OpFor(prog, ShaperExtrusionTechnique.Dome, ShaperBevelTechnique.Rounded, 16f, 0.35f, 0f);
-
-            var scene = new ShaperResolveScene();
-            scene.Add(prog, hop);
-
-            var a = new ShaperCrossing[64];
-            var b = new ShaperCrossing[64];
-
-            float worstZ = 0f, worstH = 0f, worstE = 0f;
-            int compared = 0, generalSeen = 0, downSeen = 0;
-            float eps = 4f * ShaperResolve.StraightDownTolerance;
-
-            for (int iy = -12; iy <= 12; iy++)
-            {
-                for (int ix = -16; ix <= 16; ix++)
-                {
-                    float x = ix * 2.2f, y = iy * 2.2f;
-                    var ra = ShaperResolve.Query(scene, x, y, 200f, 0f, 0f, -1f, a);
-                    var rb = ShaperResolve.Query(scene, x, y, 200f, eps, 0f, -1f, b);
-                    if (ra.branch == ShaperResolveBranch.StraightDown) downSeen++;
-                    if (rb.branch == ShaperResolveBranch.General) generalSeen++;
-                    if (ra.count == 0 && rb.count == 0) continue;
-                    if (ra.count != rb.count) continue;   // a genuine rim sample can differ; counted below
-
-                    for (int i = 0; i < ra.count; i++)
-                    {
-                        compared++;
-                        worstZ = Mathf.Max(worstZ, Mathf.Abs(a[i].rayT - b[i].rayT));
-                        worstH = Mathf.Max(worstH, Mathf.Abs(a[i].height - b[i].height));
-                        worstE = Mathf.Max(worstE, Mathf.Abs(a[i].edgeDistance - b[i].edgeDistance));
-                    }
-                }
-            }
-
-            bool branchOk = downSeen > 0 && generalSeen > 0;
-            bool agreeOk = compared > 0 && worstZ < 0.25f && worstH < 0.25f && worstE < 0.25f;
-            all &= branchOk && agreeOk;
-            sb.AppendLine("    branch ASSERTED, not assumed: straight-down taken " + downSeen +
-                          " times, general taken " + generalSeen + " times  " + Verdict(branchOk));
-            sb.AppendLine("    " + compared + " crossings compared. worst |d rayT| " + worstZ.ToString("F5") +
-                          ", |d height| " + worstH.ToString("F5") + ", |d edgeDistance| " + worstE.ToString("F5") +
-                          "  " + Verdict(agreeOk));
-
-            // A genuinely tilted ray, checked against the surface equation itself rather than against the
-            // other branch — a different oracle, so the two checks cannot both be wrong the same way.
-            {
-                float dx = 0.42f, dy = 0.19f, dz = -0.89f;
-                float inv = 1f / Mathf.Sqrt(dx * dx + dy * dy + dz * dz);
-                dx *= inv; dy *= inv; dz *= inv;
-                int hits = 0, onSurface = 0, walls = 0;
-                float worst = 0f;
-                var stack = prog.NewStack();
-                for (int iy = -10; iy <= 10; iy++)
-                    for (int ix = -14; ix <= 14; ix++)
-                    {
-                        // The origin is a point ON the shape's own mid-height plane pushed BACK along the
-                        // ray. Getting this wrong is silent: an origin plane at z = 120 rather than z = 8
-                        // slides every ray ~100 canvas pixels sideways before it reaches the solid, so the
-                        // grid misses the shape entirely and the check passes on 0 samples. It did, in the
-                        // first pass, and 76 stragglers were the only reason it was visible at all.
-                        float ox = ix * 2.6f - 120f * dx, oy = iy * 2.6f - 120f * dy, oz = 8f - 120f * dz;
-                        var r = ShaperResolve.Query(scene, ox, oy, oz, dx, dy, dz, a);
-                        if (r.branch != ShaperResolveBranch.General) { all = false; }
-                        for (int i = 0; i < r.count; i++)
-                        {
-                            hits++;
-                            if (a[i].kind == ShaperSurfaceKind.Wall) { walls++; continue; }
-                            float px = ox + a[i].rayT * dx, py = oy + a[i].rayT * dy;
-                            float d = ShaperEvaluator.Distance(prog, px, py, stack);
-                            float t = ShaperHeight.T(hop, d);
-                            float surface = hop.body * ShaperHeight.Composed(hop, t, 0f, 0f);
-                            float err = Mathf.Min(Mathf.Abs(a[i].height - surface), Mathf.Abs(a[i].height));
-                            if (err < 0.35f) onSurface++; else worst = Mathf.Max(worst, err);
-                        }
-                    }
-                bool capsOk = hits > 0 && onSurface >= (hits - walls) - 2;
-                all &= capsOk;
-                sb.AppendLine("    45-degree tilted ray: " + hits + " crossings, " + walls + " on a wall, " +
-                              onSurface + "/" + (hits - walls) + " cap crossings lie on the surface equation" +
-                              (worst > 0f ? " (worst miss " + worst.ToString("F3") + ")" : "") + "  " + Verdict(capsOk));
-                sb.AppendLine("      NOTE (T-0109 FIX F5): this sub-check asserts only that everything EMITTED lies");
-                sb.AppendLine("      on the surface, which structurally CANNOT detect an OMISSION, and its fixture is");
-                sb.AppendLine("      convex with nothing to omit. The OMISSION check below is the one that can fail.");
-            }
-
-            // ═════════════════════════════════════════════════════════════════════════════════════════════
-            // T-0109 FIX F5 — THE OMISSION CHECK. The gap defect F1 lived in, closed.
-            //
-            // Every pre-fix check that touched the resolve validated the crossings that WERE EMITTED. None
-            // compared the emitted list against an independently computed ground-truth list, so a march that
-            // jumped clean over a feature passed every one of them — and the pre-fix march did exactly that,
-            // losing 16 of 32 configurations and a 46.2 px feature.
-            //
-            // Three things are different here and each of them was a named weakness:
-            //   * the fixture is NON-CONVEX and its features are STRICTLY INSIDE the support box, so neither
-            //     the s0/s1 clip nor the empty-space skip can carry the marcher across them (the old
-            //     multi-span fixture was a hollow shell whose walls sat ON the box boundary, the one
-            //     geometry where the miss cannot fire — it passed 42/42 against the broken code);
-            //   * the ray count is raised from 7 to several hundred, over every profile x bevel combination;
-            //   * the assertion is the COUNT against ground truth, not the residual of what was emitted.
-            // ═════════════════════════════════════════════════════════════════════════════════════════════
-            {
-                var plate = ShaperNode.Bag("twinslot", ShaperCombineMode.Add,
-                    ShaperNode.Primitive(new ShaperPrimitiveDef { kind = ShaperPrimitiveKind.Rect, rectHalfW = 60f, rectHalfH = 60f }, "plate", ShaperCombineMode.Add),
-                    SlotAt(-18f, 3.5f, 36f),
-                    SlotAt(22f, 5.0f, 36f));
-                var pprog = ShaperCompiler.Compile(plate);
-                var pstack = pprog.NewStack();
-                var pbuf = new ShaperCrossing[128];
-
-                int rays = 0, omissions = 0, extraVerified = 0, extraSpurious = 0, capped = 0, exhausted = 0;
-                int extraDegenerate = 0;                                   // T-0109 FIX N3
-                float worstDegenerateWidth = 0f, narrowestVerified = float.MaxValue;
-                float worstGap = 0f;
-                string worstAt = "-";
-
-                foreach (var tech in AllTechniques)
-                foreach (var bev in AllBevels)
-                {
-                    var php = OpFor(pprog, tech, bev, 90f, 0.25f, 0f);
-                    var ps = new ShaperResolveScene();
-                    ps.Add(pprog, php);
-
-                    for (int r = 0; r < 12; r++)
-                    {
-                        float tilt = (r % 4) * 14f + 2f;                     // 2..44 degrees, never vertical
-                        float zf = 0.08f + 0.22f * (r / 4);                  // three heights through the extent
-                        float rad = tilt * Mathf.Deg2Rad;
-                        float ddx = Mathf.Cos(rad), ddy = 0f, ddz = -Mathf.Sin(rad);
-                        float ox = -130f, oy = (r % 3 - 1) * 14f;
-                        float oz = php.baseZ + zf * php.body * php.supG + 70f * Mathf.Tan(rad);
-
-                        var rr = ShaperResolve.Query(ps, ox, oy, oz, ddx, ddy, ddz, pbuf);
-                        if (rr.branch != ShaperResolveBranch.General) { all = false; continue; }
-                        capped += rr.bracketCapped;
-                        if (rr.stepsExhausted) exhausted++;
-                        rays++;
-
-                        var truth = TruthCrossings(pprog, pstack, php, ox, oy, oz, ddx, ddy, ddz, 400f, 120000);
-
-                        for (int j = 0; j < truth.Count; j++)
-                        {
-                            float best = float.MaxValue;
-                            for (int i = 0; i < rr.count; i++) best = Mathf.Min(best, Mathf.Abs(truth[j] - pbuf[i].rayT));
-                            if (best > worstGap) { worstGap = best; worstAt = N(tech) + "+" + N(bev) + " tilt " + tilt.ToString("F0"); }
-                            if (best > 0.05f) omissions++;
-                        }
-
-                        // Extra emissions are not automatically wrong: the uniform truth scan cannot see a
-                        // solid sliver thinner than its own 0.002 px spacing, and a Stepped riser genuinely
-                        // produces those. Each extra pair is therefore VERIFIED against the exact predicate
-                        // rather than counted as a mismatch — or counted as spurious if it fails.
-                        //
-                        // T-0109 FIX N3, the AUDIT half, and it is the more serious half.
-                        //
-                        // As first written, this arm certified the defect it was built to catch. A pair of
-                        // ZERO width has its midpoint equal to both of its endpoints, so `TruthInside(mid)`
-                        // asks whether the boundary point itself is inside — and under the old closed
-                        // convention, which TruthInside shared, the answer was unconditionally yes. Every one
-                        // of the 42 phantom base-plane pairs the march emitted was therefore counted as
-                        // "verified real" and printed under a line claiming they were "slivers finer than the
-                        // scan's spacing". They were exactly zero-width, which is not a sliver; it is nothing.
-                        //
-                        // A degenerate pair is now counted SEPARATELY and FAILS the check. A pair only
-                        // reaches the predicate when its midpoint is strictly interior in float, so the
-                        // predicate is genuinely sampled INSIDE the span rather than on its boundary — which
-                        // is the property that made the old arm a tautology, quite apart from the convention.
-                        if (rr.count != truth.Count)
-                            for (int i = 0; i + 1 < rr.count; i++)
-                            {
-                                if (!pbuf[i].entering || pbuf[i + 1].entering) continue;
-                                bool near = false;
-                                for (int j = 0; j < truth.Count; j++) if (Mathf.Abs(truth[j] - pbuf[i].rayT) < 0.05f) near = true;
-                                if (near) continue;
-                                float lo = pbuf[i].rayT, hi = pbuf[i + 1].rayT;
-                                float mid = 0.5f * (lo + hi);
-                                if (!(hi > lo) || !(mid > lo) || !(mid < hi))
-                                {
-                                    extraDegenerate++;
-                                    float w = hi - lo;
-                                    if (w > worstDegenerateWidth) worstDegenerateWidth = w;
-                                    continue;
-                                }
-                                float wid = hi - lo;
-                                if (wid < narrowestVerified) narrowestVerified = wid;
-                                if (TruthInside(pprog, pstack, php, ox, oy, oz, ddx, ddy, ddz, mid)) extraVerified++;
-                                else extraSpurious++;
-                            }
-                    }
-                }
-
-                // T-0109 FIX N3: a degenerate (zero-measure) extra pair is a FAILURE, not evidence.
-                bool omitOk = rays > 0 && omissions == 0 && extraSpurious == 0 && extraDegenerate == 0;
-                all &= omitOk;
-                sb.AppendLine();
-                sb.AppendLine("    OMISSION CHECK (T-0109 FIX F5) - a NON-CONVEX plate with two slots STRICTLY inside");
-                sb.AppendLine("    the support box, all 42 combinations, emitted COUNT vs an independent scan:");
-                sb.AppendLine("      rays                                 " + rays + " (all asserted General)");
-                sb.AppendLine("      true crossings with NO emitted one within 0.05 px   " + omissions +
-                              (omissions == 0 ? "" : "   worst gap " + worstGap.ToString("F4") + " at " + worstAt));
-                sb.AppendLine("      worst gap, true crossing -> nearest emitted         " + worstGap.ToString("E4") + " canvas px");
-                sb.AppendLine("      extra emitted pairs VERIFIED real by the predicate   " + extraVerified +
-                              (extraVerified > 0
-                                 ? "  (narrowest " + narrowestVerified.ToString("E4") + " px - a real sliver the 0.002 px scan cannot see)"
-                                 : "  (none - nothing was certified this run)"));
-                sb.AppendLine("      extra emitted pairs SPURIOUS                         " + extraSpurious);
-                sb.AppendLine("      extra emitted pairs DEGENERATE (zero measure)        " + extraDegenerate +
-                              "   T-0109 FIX N3: MUST be 0" +
-                              (extraDegenerate > 0 ? "   worst width " + worstDegenerateWidth.ToString("E4") + " px" : ""));
-                sb.AppendLine("      march diagnostics: bracketCapped " + capped + ", rays hitting the step guard " + exhausted);
-                sb.AppendLine("      VERDICT " + Verdict(omitOk));
-            }
-
-            // ═════════════════════════════════════════════════════════════════════════════════════════════
-            // T-0109 FIX V4 — THE OMISSION CHECK, RE-AIMED, AND THIS IS THE POINT OF THE WHOLE PASS.
-            //
-            // The arm above reported 0 omissions while FOUR existed, and it did so BY CONSTRUCTION rather
-            // than by luck. `OpFor` defaults `steps` to 4, the arm never overrides it, and the ray heights
-            // are FRACTIONS of the extent (0.08 / 0.30 / 0.52) — never a tread. Both defects the third
-            // verification pass found need exactly what that fixture excludes:
-            //
-            //   * V1 (the contained-prism solid skip taken while `mPrev` said air) needs a skip whose start
-            //     point sits ON a slab boundary the exact predicate reads as air, which is a Stepped riser
-            //     landing inside the marched interval — it cannot arise at n = 4 on these rays;
-            //   * V2 (`SteppedProfileInverseExact`'s DOWN walk asking the raw `(k−1)/n`) is latent at four
-            //     step counts only — n = 22 k = 13, n = 23 k = 7, n = 23 k = 14, n = 29 k = 15.
-            //
-            // Measured against the PRE-FIX code, H6's own rays with the step count swept 4..31: 4 omissions,
-            // worst gap 5.2395 px (n = 13, tilt 44 deg, zf 0.08). Aimed AT a tread with the same sweep:
-            // 8 omissions, worst 5.1270 px (n = 14, tilt 44 deg). Same march, same predicate, same 0.05 px
-            // threshold as the arm above — only the aim changed.
-            //
-            // A clean row here is therefore a statement about a fixture that CAN fail. That is the whole
-            // difference between this arm and the one above it before V4.
-            // ═════════════════════════════════════════════════════════════════════════════════════════════
-            {
-                // The W4E fixture that exposed the class: a wide plate with two subtracted slots strictly
-                // inside it, so interior air exists that only the march itself can find.
-                var swept = ShaperNode.Bag("sweptplate", ShaperCombineMode.Add,
-                    ShaperNode.Primitive(new ShaperPrimitiveDef { kind = ShaperPrimitiveKind.Rect, rectHalfW = 120f, rectHalfH = 60f }, "plate", ShaperCombineMode.Add),
-                    SlotAt(-50f, 8f, 120f),
-                    SlotAt(50f, 8f, 120f));
-                var sprog = ShaperCompiler.Compile(swept);
-                var sstack = sprog.NewStack();
-                var sbuf = new ShaperCrossing[256];
-
-                bool sweepAll = true;
-                bool[] matched = new bool[512];
-                foreach (bool aimed in AimedAtTread)
-                {
-                    int rays = 0, truths = 0, unmatched = 0, hard = 0, soft = 0, unpaired = 0;
-                    float worstHard = 0f, worstSoft = 0f, worstGap = 0f;
-                    string worstAt = "-", softAt = "-";
-                    for (int n = SweepStepLo; n <= SweepStepHi; n++)
-                    {
-                        var op = OpFor(sprog, ShaperExtrusionTechnique.Stepped, ShaperBevelTechnique.None,
-                                       90f, 0.25f, 0f, 45f, (float)n, 1f, 1f, 3f);
-                        var ss = new ShaperResolveScene();
-                        ss.Add(sprog, op);
-
-                        int rayCount = aimed ? 36 : 12;
-                        for (int r = 0; r < rayCount; r++)
-                        {
-                            float tilt = (r % 4) * 14f + 2f;                 // 2..44 degrees, never vertical
-                            float rad = tilt * Mathf.Deg2Rad;
-                            float ddx = Mathf.Cos(rad), ddz = -Mathf.Sin(rad);
-                            float ox = -130f, oy = (r % 3 - 1) * 14f;
-                            // AIMED: the ray's height IS a tread of this very step count, which is where the
-                            // contained prism's proof and the exact predicate are allowed to disagree.
-                            float zf = aimed
-                                ? ((r / 4) % Mathf.Max(1, n)) / (float)Mathf.Max(1, n - 1)
-                                : 0.08f + 0.22f * (r / 4);
-                            float oz = op.baseZ + zf * op.body * op.supG + 70f * Mathf.Tan(rad);
-
-                            var rr = ShaperResolve.Query(ss, ox, oy, oz, ddx, 0f, ddz, sbuf);
-                            if (rr.branch != ShaperResolveBranch.General) { sweepAll = false; continue; }
-                            rays++;
-
-                            var truth = TruthCrossings(sprog, sstack, op, ox, oy, oz, ddx, 0f, ddz, 400f, 100000);
-                            int tc = truth.Count;
-                            truths += tc;
-                            if (matched.Length < tc) matched = new bool[tc * 2];
-                            for (int j = 0; j < tc; j++)
-                            {
-                                float best = float.MaxValue;
-                                for (int i = 0; i < rr.count; i++) best = Mathf.Min(best, Mathf.Abs(truth[j] - sbuf[i].rayT));
-                                matched[j] = best <= 0.05f;
-                                if (!matched[j]) { unmatched++; if (best > worstGap) worstGap = best; }
-                            }
-
-                            // An unmatched truth crossing is not yet a defect: HS-5.5's guarantee is scoped
-                            // to features whose extent ALONG THE RAY is at least SurfaceResolution, and the
-                            // march is entitled to sample at that spacing wherever it could not prove the
-                            // step. So the extent is MEASURED rather than assumed. Unmatched crossings come
-                            // in consecutive runs, and the interval BETWEEN a consecutive pair of them is
-                            // exactly the region the march mis-classified - a lost solid span, or an unseen
-                            // air sliver. That interval's width is the feature extent, and it is the number
-                            // the guarantee is about. A run of ODD length cannot be paired, which means the
-                            // march's parity is wrong over an unbounded region; that is counted separately
-                            // and FAILS, because nothing bounds it.
-                            for (int j = 0; j < tc; )
-                            {
-                                if (matched[j]) { j++; continue; }
-                                int runStart = j;
-                                while (j < tc && !matched[j]) j++;
-                                int len = j - runStart;
-                                if ((len & 1) != 0) unpaired++;
-                                for (int q = runStart; q + 1 < runStart + len; q += 2)
-                                {
-                                    float w = truth[q + 1] - truth[q];
-                                    if (w >= ShaperResolve.SurfaceResolution)
-                                    {
-                                        hard++;
-                                        if (w > worstHard) { worstHard = w; worstAt = "n=" + n + " tilt " + tilt.ToString("F0") + " zf " + zf.ToString("F4") + " at t " + truth[q].ToString("F4"); }
-                                    }
-                                    else
-                                    {
-                                        soft++;
-                                        if (w > worstSoft) { worstSoft = w; softAt = "n=" + n + " tilt " + tilt.ToString("F0") + " zf " + zf.ToString("F4") + " at t " + truth[q].ToString("F4"); }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    bool ok = rays > 0 && hard == 0 && unpaired == 0;
-                    sweepAll &= ok;
-                    sb.AppendLine("      step count SWEPT " + SweepStepLo + ".." + SweepStepHi +
-                                  ", ray heights " + (aimed ? "AIMED AT A TREAD  " : "H6's own fractions") +
-                                  ": " + rays + " rays, " + truths + " true crossings");
-                    sb.AppendLine("        unmatched true crossings " + unmatched +
-                                  (unmatched == 0 ? "" : "   worst distance to an emitted one " + worstGap.ToString("F4") + " px"));
-                    sb.AppendLine("        of which features >= SurfaceResolution (" +
-                                  ShaperResolve.SurfaceResolution.ToString("F2") + " px) - A DEFECT BY HS-5.5: " + hard +
-                                  (hard == 0 ? "" : "   worst extent " + worstHard.ToString("F4") + " px at " + worstAt));
-                    sb.AppendLine("        of which features BELOW it - resolution-limited, inside HS-5.5: " + soft +
-                                  (soft == 0 ? "" : "   worst extent " + worstSoft.ToString("F5") + " px at " + softAt));
-                    sb.AppendLine("        unmatched runs of ODD length (parity wrong, extent unbounded): " + unpaired +
-                                  "  " + Verdict(ok));
-                }
-                all &= sweepAll;
-                sb.AppendLine("      (pre-fix, same two rows, counted the old way: 4 unmatched worst 5.2395 px, and 8 worst 5.1270 px)");
-                sb.AppendLine("      (post-fix the AIMED row still shows 2 unmatched crossings, and they are NOT a regression:");
-                sb.AppendLine("       n=27 tilt 30 zf 0.1923 has a 0.0154 px AIR SLIVER between two Stepped treads, which is");
-                sb.AppendLine("       below SurfaceResolution and so inside HS-5.5's declared limit. Counting the FEATURE");
-                sb.AppendLine("       EXTENT rather than the distance to the nearest emitted crossing is what makes that");
-                sb.AppendLine("       visible - 2.566 px was never the size of anything, only how far away the march's");
-                sb.AppendLine("       nearest answer happened to be.)");
-                sb.AppendLine("      VERDICT " + Verdict(sweepAll));
-            }
-
-            // HS-6.6: depth is the SUM of spans.
-            {
-                var r = ShaperResolve.Query(scene, 0f, 0f, 200f, 0f, 0f, -1f, a);
-                float depth = ShaperResolve.Depth(a, r.count, 0);
-                float expect = hop.body * ShaperHeight.Composed(hop, ShaperHeight.T(hop,
-                                   ShaperEvaluator.Distance(prog, 0f, 0f, prog.NewStack())), 0f, 0f);
-                bool ok = Mathf.Abs(depth - expect) < 1e-3f;
-                all &= ok;
-                sb.AppendLine("    HS-6.6 depth = sum of entry-to-exit spans: " + depth.ToString("F4") +
-                              " vs surface height " + expect.ToString("F4") + "  " + Verdict(ok));
-            }
-
-            // HS-6.6's ACTUAL case: several DISJOINT spans of ONE layer. BC-3.5 files this beside the
-            // side-wall question as a sibling T-0109 must answer, and answering it without exercising it
-            // would be a ruling with no evidence. A shelled node is the ordinary way it arises - a tilted ray
-            // through a hollow shell traverses two walls' worth of solid and no air, which is exactly why the
-            // answer is the SUM and not the outer envelope.
-            {
-                // T-0109 FIX F5 — THE FIXTURE CHANGED, and the old one was the problem.
-                //
-                // This used to be a hollow SHELL: a rect minus an inset rect, so the two walls the ray
-                // crosses sit ON the support-box boundary. That is precisely the geometry where a missed
-                // interior feature cannot fire, because the s0/s1 support-box clip catches both walls for
-                // free. The check therefore passed 42/42 against a march that was losing whole crossing
-                // pairs. The fixture is now a SOLID plate with two thin slots strictly INSIDE the box, so
-                // the air the sum must exclude is interior air that only the march itself can find, and the
-                // ray count is raised.
-                var slotted = ShaperNode.Bag("multispan", ShaperCombineMode.Add,
-                    ShaperNode.Primitive(new ShaperPrimitiveDef { kind = ShaperPrimitiveKind.Rect, rectHalfW = 46f, rectHalfH = 34f }, "plate", ShaperCombineMode.Add),
-                    SlotAt(-14f, 3f, 20f),
-                    SlotAt(16f, 4f, 20f));
-                var hp = ShaperCompiler.Compile(slotted);
-                var hstack = hp.NewStack();
-                var hh = OpFor(hp, ShaperExtrusionTechnique.Flat, ShaperBevelTechnique.None, 40f, 0f, 0f);
-                var hs = new ShaperResolveScene();
-                hs.Add(hp, hh);
-                var buf = new ShaperCrossing[64];
-
-                float dx = 0.80f, dy = 0.02f, dz = -0.60f;
-                float inv = 1f / Mathf.Sqrt(dx * dx + dy * dy + dz * dz); dx *= inv; dy *= inv; dz *= inv;
-
-                int multi = 0, sane = 0, envelopeWouldLie = 0, depthExact = 0;
-                float worstDepthErr = 0f;
-                for (int iy = -10; iy <= 10; iy++)
-                    for (int ix = -26; ix <= 26; ix++)
-                    {
-                        float ox = ix * 1.9f - 160f * dx, oy = iy * 2.6f - 160f * dy, oz = 18f - 160f * dz;
-                        var rr = ShaperResolve.Query(hs, ox, oy, oz, dx, dy, dz, buf);
-                        int entries = 0;
-                        for (int i = 0; i < rr.count; i++) if (buf[i].entering) entries++;
-                        if (entries < 2) continue;
-                        multi++;
-
-                        float sum = ShaperResolve.Depth(buf, rr.count, 0);
-                        float envelope = buf[rr.count - 1].rayT - buf[0].rayT;
-                        // The sum must be a real, positive thickness and STRICTLY less than the envelope -
-                        // the difference IS the air the envelope would have reported as solid.
-                        if (sum > 0f && sum < envelope - 1e-3f) sane++;
-                        if (envelope > sum * 1.05f) envelopeWouldLie++;
-
-                        // T-0109 FIX F5 — and the DEPTH ITSELF is now checked against ground truth, not only
-                        // against the envelope. Defect F1's whole consequence was Depth returning 400 where
-                        // the truth was 380: "less than the envelope" would have passed that too.
-                        var truth = TruthCrossings(hp, hstack, hh, ox, oy, oz, dx, dy, dz, 320f, 100000);
-                        float trueSolid = 0f;
-                        for (int i = 0; i + 1 < truth.Count; i += 2) trueSolid += truth[i + 1] - truth[i];
-                        float err = Mathf.Abs(sum - trueSolid);
-                        if (err < 0.05f) depthExact++; else worstDepthErr = Mathf.Max(worstDepthErr, err);
-                    }
-                bool ok = multi > 0 && sane == multi && envelopeWouldLie == multi && depthExact == multi;
-                all &= ok;
-                sb.AppendLine("    HS-6.6 MULTI-SPAN, a tilted ray through a SLOTTED plate (features strictly inside");
-                sb.AppendLine("      the support box - T-0109 FIX F5 replaced the hollow-shell fixture, whose walls");
-                sb.AppendLine("      sat ON the box boundary and could not expose a missed span): " + multi +
-                              " rays crossed 2+");
-                sb.AppendLine("      disjoint spans, " + sane + " report a summed depth strictly below the envelope,");
-                sb.AppendLine("      " + envelopeWouldLie + " would have been misreported by an envelope answer, and " + depthExact + "/" + multi);
-                sb.AppendLine("      match an INDEPENDENT scan of the true solid length to 0.05 px" +
-                              (worstDepthErr > 0f ? " (worst " + worstDepthErr.ToString("F4") + ")" : "") + "  " + Verdict(ok));
-            }
-
-            sb.AppendLine("    VERDICT " + Verdict(all));
-            return sb.ToString();
-        }
-
-        // ═════════════════════════════════════════════════════════════════════════════════════════════════
         // H7 — HS-6.4's five mechanical statements.
         // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -1567,35 +1065,9 @@ namespace Laubrary.Shaper.Editor
                 sb.AppendLine("    5  a wall exists exactly where G(0) > 0: " + agree + "/" + cases + "  " + Verdict(ok));
             }
 
-            // HS-6.1's ruling, at the one place it is observable: a Wall crossing publishes edgeDistance 0.
-            {
-                var node = Rect(34f, 26f, 6f);
-                var prog = ShaperCompiler.Compile(node);
-                var hop = OpFor(prog, ShaperExtrusionTechnique.Flat, ShaperBevelTechnique.None, 18f, 0f, 0f);
-                var scene = new ShaperResolveScene();
-                scene.Add(prog, hop);
-                var buf = new ShaperCrossing[64];
-                int walls = 0, zeroEdge = 0;
-                float dx = 0.72f, dy = 0.10f, dz = -0.68f;
-                float inv = 1f / Mathf.Sqrt(dx * dx + dy * dy + dz * dz); dx *= inv; dy *= inv; dz *= inv;
-                for (int iy = -10; iy <= 10; iy++)
-                    for (int ix = -18; ix <= 18; ix++)
-                    {
-                        // Aimed at the MIDDLE of the wall (z = 9 of a body of 18), pushed back along the ray.
-                        float ox = ix * 2.4f - 150f * dx, oy = iy * 2.4f - 150f * dy, oz = 9f - 150f * dz;
-                        var r = ShaperResolve.Query(scene, ox, oy, oz, dx, dy, dz, buf);
-                        for (int i = 0; i < r.count; i++)
-                            if (buf[i].kind == ShaperSurfaceKind.Wall)
-                            {
-                                walls++;
-                                if (buf[i].edgeDistance == 0f) zeroEdge++;
-                            }
-                    }
-                bool ok = walls > 0 && zeroEdge == walls;
-                all &= ok;
-                sb.AppendLine("    HS-6.1 every Wall crossing publishes edgeDistance EXACTLY 0: " +
-                              zeroEdge + "/" + walls + " (a tilted ray on a Flat solid)  " + Verdict(ok));
-            }
+            // HS-6.1's ruling ("every Wall crossing publishes edgeDistance EXACTLY 0") was checked here against
+            // the general resolve's own crossing list; that resolve (HS-9) was deleted outright (T-0253) along
+            // with this sub-check, since it was the only caller of ShaperResolve.Query in this method.
 
             sb.AppendLine("    VERDICT " + Verdict(all));
             return sb.ToString();
@@ -1637,9 +1109,6 @@ namespace Laubrary.Shaper.Editor
             var hgt = new float[W * H];
             var nrm = new float[W * H * 3];
             var bp = new float[ShaperHeight.MaxBreakpoints];
-            var scene = new ShaperResolveScene();
-            scene.Add(prog, hop);
-            var crossings = new ShaperCrossing[64];
 
             ShaperEvaluator.FillTile(prog, grid, 0, 0, W, H, dist, cov, 0, W, stack);
 
@@ -1652,8 +1121,6 @@ namespace Laubrary.Shaper.Editor
             ShaperHeight.FillTile(hop, grid, 0, 0, W, H, dist, hgt, 0, W, 0, W);
             ShaperNormals.FillTile(nop, grid, 0, 0, 8, 8, dist, null, nrm, 0, W, 0, W, prog, stack);
             ShaperHeight.Breakpoints(hop, bp);
-            ShaperResolve.Query(scene, 0f, 0f, 200f, 0f, 0f, -1f, crossings);
-            ShaperResolve.Query(scene, 0f, 0f, 200f, 0.3f, 0.1f, -0.9f, crossings);
 
             GC.Collect();
             GC.WaitForPendingFinalizers();
@@ -1679,14 +1146,6 @@ namespace Laubrary.Shaper.Editor
                 ShaperHeight.Inverse(hop, t, 0f, 0f);
                 samples += 3;
             }
-            // The resolve, both branches.
-            for (int i = 0; i < 4000; i++)
-            {
-                float x = ((i % 80) - 40) * 2f, y = ((i / 80) % 60 - 30) * 2f;
-                ShaperResolve.Query(scene, x, y, 200f, 0f, 0f, -1f, crossings);
-                ShaperResolve.Query(scene, x, y, 200f, 0.25f, 0.1f, -0.95f, crossings);
-                samples += 2;
-            }
             // The normal provider's Profile case over a real tile.
             ShaperNormals.FillTile(nop, grid, 0, 0, W, H, dist, null, nrm, 0, W, 0, W, prog, stack);
             samples += W * H;
@@ -1704,8 +1163,7 @@ namespace Laubrary.Shaper.Editor
             sb.AppendLine("    thread probe        " + (thread1 - thread0) +
                           " bytes - INERT on this Mono runtime, reported for completeness only");
             sb.AppendLine("    paths covered: ShaperHeight.FillTile, Composed, ComposedDerivative, Inverse,");
-            sb.AppendLine("                   Breakpoints, ShaperResolve.Query (both branches),");
-            sb.AppendLine("                   ShaperNormals.FillTile (Profile case).");
+            sb.AppendLine("                   Breakpoints, ShaperNormals.FillTile (Profile case).");
             sb.AppendLine("    VERDICT " + Verdict(ok) + (samples >= 500000 ? "" : "   (SAMPLE TARGET MISSED)"));
             return sb.ToString();
         }
@@ -2095,199 +1553,6 @@ namespace Laubrary.Shaper.Editor
             return sb.ToString();
         }
 
-
-        // ═════════════════════════════════════════════════════════════════════════════════════════════════
-        // H12 — the third fix pass's three defects, as FIXED, NAMED traps.
-        // ═════════════════════════════════════════════════════════════════════════════════════════════════
-
-        /// <summary>
-        /// <b>H12 — V1, V2 and V3 as named regression traps.</b>
-        ///
-        /// Each of the three was found by an adversarial pass and none of them was visible to any check in
-        /// this file, so each is pinned here by the EXACT configuration that exposed it rather than by a
-        /// family it belongs to. A trap that only tests the family can drift off the one ray that mattered;
-        /// these cannot, because the ray, the dials and the expected numbers are all literals.
-        ///
-        /// The three:
-        ///   <list type="bullet">
-        ///   <item><b>V1</b> — the contained-prism SOLID skip was taken while <c>mPrev</c> said air, so both
-        ///   sampled endpoints read air, the interior was never sampled and a whole 24.17 px solid span
-        ///   vanished. Both skips are now gated on <c>mPrev</c>.</item>
-        ///   <item><b>V2</b> — <c>SteppedProfileInverseExact</c>'s DOWN walk asked <c>SteppedE</c> at the raw
-        ///   <c>(k-1)/n</c>, the very float that needed the UP nudge, so at four step counts the containing
-        ///   prism over-reported by a whole tread and stopped containing (HS-5.2).</item>
-        ///   <item><b>V3</b> — <c>StraightDownTolerance</c> routed a NEARLY-vertical ray to the closed form,
-        ///   which is exact only ON the axis: measured 4.7018 px wrong at Flat+Ogee. The branch test is now
-        ///   exact equality, and no non-zero tolerance can be safe because every smooth bevel has unbounded
-        ///   <c>dG/dd</c> (HS-0.1).</item>
-        ///   </list>
-        /// </summary>
-        public static string H12_RegressionTraps()
-        {
-            var sb = new StringBuilder("H12  named regression traps: V1 contained-prism skip, V2 Stepped inverse, V3 branch test\n");
-            bool all = true;
-
-            // V1, the minimal repro, verbatim.
-            {
-                var prog = ShaperCompiler.Compile(Rect(200f, 200f, 0f));
-                var hop = OpFor(prog, ShaperExtrusionTechnique.Stepped, ShaperBevelTechnique.None,
-                                290f, 0f, 0f, 45f, 8f, 1f, 1f, 3f);
-                var scene = new ShaperResolveScene();
-                scene.Add(prog, hop);
-                var buf = new ShaperCrossing[64];
-
-                var r = ShaperResolve.Query(scene, -400f, 0f, 248.571732f, 0.95394f, 0f, -0.3f, buf);
-
-                bool ok = r.branch == ShaperResolveBranch.General && r.count == V1Truth.Length && !r.truncated;
-                float worst = 0f;
-                if (r.count == V1Truth.Length)
-                    for (int i = 0; i < V1Truth.Length; i++)
-                        worst = Mathf.Max(worst, Mathf.Abs(buf[i].rayT - V1Truth[i]));
-                else worst = float.NaN;
-                ok &= worst <= TrapTolerance;
-                all &= ok;
-
-                sb.AppendLine("    V1 TRAP - 400x400 plate, Stepped n=8, bevel None, depth 290,");
-                sb.AppendLine("      ray origin (-400, 0, 248.571732) direction (0.95394, 0, -0.3):");
-                sb.Append("      emitted " + r.count + " of 4 expected [");
-                for (int i = 0; i < r.count; i++) sb.Append((i > 0 ? " " : "") + buf[i].rayT.ToString("F4"));
-                sb.AppendLine("]");
-                sb.AppendLine("      expected [314.4854 550.3496 552.3819 576.5567], worst residual " +
-                              worst.ToString("F5") + " px, tolerance " + TrapTolerance.ToString("F2") + "  " + Verdict(ok));
-                sb.AppendLine("      (pre-fix: 2 crossings, the 24.1747 px span [552.3819, 576.5567] lost entirely)");
-            }
-
-            // V1 breadth: the thirteen step counts the pre-fix sweep lost a crossing at, against the oracle.
-            {
-                var prog = ShaperCompiler.Compile(Rect(200f, 200f, 0f));
-                var stack = prog.NewStack();
-                var buf = new ShaperCrossing[256];
-                int rays = 0, truths = 0, lost = 0;
-                float worst = 0f; string worstAt = "-";
-
-                for (int q = 0; q < V1AffectedSteps.Length; q++)
-                {
-                    int n = V1AffectedSteps[q];
-                    var hop = OpFor(prog, ShaperExtrusionTechnique.Stepped, ShaperBevelTechnique.None,
-                                    290f, 0f, 0f, 45f, (float)n, 1f, 1f, 3f);
-                    var scene = new ShaperResolveScene();
-                    scene.Add(prog, hop);
-
-                    for (int iz = 0; iz < 6; iz++)
-                    {
-                        float oz = 10f + iz * 48f;
-                        for (int ia = 0; ia < 3; ia++)
-                        {
-                            float ang = -0.12f - ia * 0.09f;
-                            float ddx = Mathf.Sqrt(1f - ang * ang);
-                            var rr = ShaperResolve.Query(scene, -400f, 0f, oz, ddx, 0f, ang, buf);
-                            if (rr.branch != ShaperResolveBranch.General) { all = false; continue; }
-                            rays++;
-                            var truth = TruthCrossings(prog, stack, hop, -400f, 0f, oz, ddx, 0f, ang, 1200f, 120000);
-                            truths += truth.Count;
-                            for (int j = 0; j < truth.Count; j++)
-                            {
-                                float best = float.MaxValue;
-                                for (int i = 0; i < rr.count; i++) best = Mathf.Min(best, Mathf.Abs(truth[j] - buf[i].rayT));
-                                if (best > 0.05f)
-                                {
-                                    lost++;
-                                    if (best > worst) { worst = best; worstAt = "n=" + n + " oz " + oz.ToString("F0") + " dz " + ang.ToString("F2"); }
-                                }
-                            }
-                        }
-                    }
-                }
-                bool ok = rays > 0 && lost == 0;
-                all &= ok;
-                sb.AppendLine("    V1 BREADTH - the 13 step counts the pre-fix sweep lost a crossing at:");
-                sb.AppendLine("      " + rays + " rays, " + truths + " true crossings, LOST " + lost +
-                              (lost == 0 ? "" : "   worst gap " + worst.ToString("F4") + " px at " + worstAt) + "  " + Verdict(ok));
-                sb.AppendLine("      (pre-fix: 26 of 7440 rays lost a true crossing, worst gap 26.207 px)");
-            }
-
-            // V2: HS-5.2 containment at the four float-latent risers, through the +/- ulp neighbourhood of
-            // each tread's own zeta. That neighbourhood is the whole point - two earlier passes measured 0
-            // over-reports on grids that never landed there.
-            {
-                var prog = ShaperCompiler.Compile(Rect(200f, 200f, 0f));
-                int probes = 0, violations = 0, skipped = 0;
-                float worst = 0f; string worstAt = "-";
-
-                for (int p = 0; p < V2LatentN.Length; p++)
-                {
-                    int n = V2LatentN[p], k = V2LatentK[p];
-                    var hop = OpFor(prog, ShaperExtrusionTechnique.Stepped, ShaperBevelTechnique.None,
-                                    290f, 0f, 0f, 45f, (float)n, 1f, 1f, 3f);
-                    float treadZeta = Mathf.Min(1f, k / (float)(n - 1));
-
-                    for (int u = -TrapUlps; u <= TrapUlps; u++)
-                    {
-                        float zeta = NextAfter(treadZeta, u);
-                        if (!(zeta > 0f) || zeta > 1f) { skipped++; continue; }
-                        float tauMin = ShaperHeight.InverseLowerBound(hop, zeta);
-                        if (ShaperHeight.IsNoCrossSection(tauMin)) { skipped++; continue; }
-                        probes++;
-
-                        for (int s = 0; s < 4096; s++)
-                        {
-                            float t = tauMin * s / 4096f;
-                            if (ShaperHeight.Composed(hop, t, 0f, 0f) >= zeta)
-                            {
-                                violations++;
-                                float over = tauMin - t;
-                                if (over > worst) { worst = over; worstAt = "n=" + n + " k=" + k + " zeta " + zeta.ToString("R"); }
-                                break;
-                            }
-                        }
-                    }
-                }
-                bool ok = probes > 0 && violations == 0;
-                all &= ok;
-                sb.AppendLine("    V2 TRAP - the four latent (n,k) risers (22,13) (23,7) (23,14) (29,15), each");
-                sb.AppendLine("      tread's own zeta swept +/-" + TrapUlps + " ulps, HS-5.2 containment {G>=zeta} inside {t>=tauMin}:");
-                sb.AppendLine("      " + probes + " probes (" + skipped + " out of range), containing-prism violations " + violations +
-                              (violations == 0 ? "" : "   worst over-report " + worst.ToString("E4") + " t-units at " + worstAt) +
-                              "  " + Verdict(ok));
-                sb.AppendLine("      (pre-fix: 12 violations in 520800 checks, worst 3.4481e-2 t-units - one whole tread -");
-                sb.AppendLine("       costing 1 of 58 aimed rays a crossing, worst gap 7.1227 px)");
-            }
-
-            // V3: the closed form is reachable ONLY on the exact axis.
-            {
-                var prog = ShaperCompiler.Compile(Rect(200f, 200f, 0f));
-                var hop = OpFor(prog, ShaperExtrusionTechnique.Flat, ShaperBevelTechnique.Ogee,
-                                150f, 0.35f, 0f, 45f, 4f, 1f, 1f, 3f);
-                var scene = new ShaperResolveScene();
-                scene.Add(prog, hop);
-                var buf = new ShaperCrossing[64];
-
-                var exact = ShaperResolve.Query(scene, -190f, 0f, 400f, 0f, 0f, -1f, buf);
-                float exactT = exact.count > 0 ? buf[0].rayT : float.NaN;
-                var off = ShaperResolve.Query(scene, -190f, 0f, 400f, 2e-5f, 0f, -1f, buf);
-                float offT = off.count > 0 ? buf[0].rayT : float.NaN;
-                // One ulp-scale offset too, two orders INSIDE the retired tolerance: "no tolerance at all" is
-                // the claim, so the smallest departure from the axis must already leave the closed form.
-                var tiny = ShaperResolve.Query(scene, -190f, 0f, 400f, 1e-6f, 0f, -1f, buf);
-                float tinyT = tiny.count > 0 ? buf[0].rayT : float.NaN;
-
-                bool ok = exact.branch == ShaperResolveBranch.StraightDown
-                       && off.branch == ShaperResolveBranch.General
-                       && tiny.branch == ShaperResolveBranch.General;
-                all &= ok;
-                sb.AppendLine("    V3 TRAP - Flat+Ogee at x=-190, the configuration the tolerance was worst at:");
-                sb.AppendLine("      direction (0,0,-1) exactly   branch " + exact.branch + "   first crossing " + exactT.ToString("F4"));
-                sb.AppendLine("      direction (2e-5,0,-1)        branch " + off.branch + "        first crossing " + offT.ToString("F4"));
-                sb.AppendLine("      direction (1e-6,0,-1)        branch " + tiny.branch + "        first crossing " + tinyT.ToString("F4"));
-                sb.AppendLine("      the retired StraightDownTolerance is " + ShaperResolve.StraightDownTolerance.ToString("E0") +
-                              ", so both off-axis rays used to take the closed form  " + Verdict(ok));
-                sb.AppendLine("      (pre-fix: the closed form was wrong 101 of 1008 branch-paired rays, worst 4.7018 px here)");
-            }
-
-            sb.AppendLine("    VERDICT " + Verdict(all));
-            return sb.ToString();
-        }
-
         // ═════════════════════════════════════════════════════════════════════════════════════════════════
         // Shared scene helpers, used by the checks above and by both renders below.
         // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -2312,10 +1577,9 @@ namespace Laubrary.Shaper.Editor
         /// <summary>
         /// <b>T-0109 FIX F5 — HS-1.1's membership predicate, written HERE.</b>
         ///
-        /// It is deliberately a SECOND implementation and not a call into <c>ShaperResolve</c>: the whole
-        /// point of the omission check is to compare the march against something that does not share the
-        /// march's own machinery, and <c>ShaperResolve.Member</c> is private precisely so that a check
-        /// cannot accidentally become a tautology by reaching for it. This reads the set definition
+        /// It is deliberately a SECOND implementation and not a call into the general resolve (the HS-9 march,
+        /// since deleted, T-0253): the whole point of the omission check is to compare the march against
+        /// something that does not share the march's own machinery. This reads the set definition
         /// literally — inside the silhouette, and below <c>base + body·G(t)</c> — and nothing else.
         /// </summary>
         static bool TruthInside(ShaperProgram field, float[] stack, in ShaperHeightOp op,
@@ -2602,178 +1866,6 @@ namespace Laubrary.Shaper.Editor
                 }
         }
 
-        /// <summary>
-        /// HS-9.5's tilted conformance render. BC-2.7 / BC-4.4, discharged.
-        ///
-        /// <b>What it is.</b> ONE deliberately tilted frame of an EXTRUDED, BEVELLED shape, rendered through
-        /// <see cref="ShaperResolve.Query"/> on the GENERAL branch, kept as an artefact in the task workspace
-        /// and re-rendered whenever the resolve changes. It is not a feature, no menu item is added, and it is
-        /// exposed nowhere.
-        ///
-        /// <b>How the tilt is obtained, and why that is the same thing.</b> HS-9.5 observes that tilting the
-        /// solid and tilting the ray are the same operation composed with a rotation of the whole scene, so
-        /// the disambiguation the contracts left open does not change the code. In Wave 2 a
-        /// <see cref="ShaperLayer"/> carries no orientation of its own, so the only place a tilt CAN be
-        /// expressed is the ray — which is the rotated-scene formulation of the same frame. The ray is
-        /// therefore off the layer's <c>−Z</c> axis and the general branch runs.
-        ///
-        /// <b>The check asserts the branch rather than assuming it.</b> A render that silently fell back to
-        /// the closed form would look identical and prove nothing, so the returned
-        /// <see cref="ShaperResolveResult.branch"/> is counted and reported, and a wall-pixel count is
-        /// reported alongside it — the frame must show a visible side wall (HS-6.5), which is the one thing in
-        /// all of Wave 2 that exercises HS-0.2's ruling at all.
-        /// </summary>
-        public static string TiltedConformance(string path)
-        {
-            const int W = 420, H = 300;
-
-            // Flat + Stepped bevel: the ONE bevel that does not remove the side wall (HS-6.4), on the one
-            // profile with a full-height one. Chosen so the wall is unmissable rather than technically present.
-            var shape = Rect(46f, 34f, 10f);
-            var prog = ShaperCompiler.Compile(shape);
-            var stack = prog.NewStack();
-            var hop = OpFor(prog, ShaperExtrusionTechnique.Flat, ShaperBevelTechnique.Stepped,
-                            30f, 0.45f, 0f, 45f, 4f, 1f, 1f, 4f);
-
-            // A second, DOMED layer at a Z offset, so HS-7's ordering base is in the picture too.
-            var shape2 = Star(28f, 6);
-            var prog2 = ShaperCompiler.Compile(shape2);
-            var hop2 = OpFor(prog2, ShaperExtrusionTechnique.Dome, ShaperBevelTechnique.None,
-                             22f, 0f, 34f, 45f, 4f, 1f, 1f, 3f);
-
-            var scene = new ShaperResolveScene();
-            scene.Add(prog, hop);
-            scene.Add(prog2, hop2);
-
-            // The tilt: 34 degrees off vertical, yawed 26 degrees. Well outside StraightDownTolerance, so the
-            // general branch is forced by the RAY and not by a flag.
-            float pitch = 34f * Mathf.Deg2Rad, yaw = 26f * Mathf.Deg2Rad;
-            float dx = Mathf.Sin(pitch) * Mathf.Cos(yaw);
-            float dy = Mathf.Sin(pitch) * Mathf.Sin(yaw);
-            float dz = -Mathf.Cos(pitch);
-
-            // An orthographic image plane perpendicular to the ray.
-            Vector3 dir = new Vector3(dx, dy, dz).normalized;
-            Vector3 up0 = Mathf.Abs(dir.z) > 0.95f ? Vector3.up : Vector3.forward;
-            Vector3 right = Vector3.Normalize(Vector3.Cross(up0, dir));
-            Vector3 up = Vector3.Cross(dir, right);
-            Vector3 centre = new Vector3(0f, 0f, 30f) - dir * 260f;
-            float scale = 150f / W;
-
-            var lightProg = ShaperLightCompiler.Compile(Rig(), 0f, 0u);
-            var resp = ShaperLightCompiler.CompileResponse(new ShaperLightResponse(), "tilt", 0f, 0u);
-            var stack2 = prog2.NewStack();
-
-            var tex = new Texture2D(W, H, TextureFormat.RGBA32, false);
-            var px = new Color32[W * H];
-            var crossings = new ShaperCrossing[64];
-
-            int generalBranch = 0, straightBranch = 0, wallPixels = 0, capPixels = 0, hitPixels = 0;
-            var albedo = new[] { new Color(0.80f, 0.52f, 0.30f), new Color(0.38f, 0.62f, 0.85f) };
-
-            for (int j = 0; j < H; j++)
-            {
-                for (int i = 0; i < W; i++)
-                {
-                    float u = (i - W * 0.5f) * scale;
-                    float v = (j - H * 0.5f) * scale;
-                    Vector3 o = centre + right * u + up * v;
-
-                    var r = ShaperResolve.Query(scene, o.x, o.y, o.z, dir.x, dir.y, dir.z, crossings);
-                    if (r.branch == ShaperResolveBranch.General) generalBranch++; else straightBranch++;
-
-                    float cr = 0.07f, cg = 0.075f, cb = 0.09f;
-
-                    // Front-most ENTRY wins the pixel. Every layer is reported (BC-2.2); this render simply
-                    // paints the first one, which is what makes "every layer, not the front-most" a property
-                    // of the QUERY rather than of the renderer.
-                    int best = -1;
-                    for (int k = 0; k < r.count; k++)
-                        if (crossings[k].entering) { best = k; break; }
-
-                    if (best >= 0)
-                    {
-                        hitPixels++;
-                        var c = crossings[best];
-                        bool wall = c.kind == ShaperSurfaceKind.Wall;
-                        if (wall) wallPixels++; else capPixels++;
-
-                        int li = c.layer;
-                        ShaperProgram lp = li == 0 ? prog : prog2;
-                        ShaperHeightOp lh = li == 0 ? hop : hop2;
-                        float[] lst = li == 0 ? stack : stack2;
-
-                        // HS-6.2 — a wall's outward normal is the SILHOUETTE gradient with a zero Z component,
-                        // taken by central difference of ShaperEvaluator.Distance (a pure function of a point,
-                        // LR-3.2's licence). A cap's normal is the profile normal of HS-8.2. The two
-                        // consequences LR-9.3 predicts are correct behaviour rather than defects: a vertical
-                        // wall genuinely IS lit differently from a horizontal cap.
-                        float nx, ny, nz;
-                        float hstep = 0.35f;
-                        float gx = (ShaperEvaluator.Distance(lp, c.localX + hstep, c.localY, lst) -
-                                    ShaperEvaluator.Distance(lp, c.localX - hstep, c.localY, lst)) / (2f * hstep);
-                        float gy = (ShaperEvaluator.Distance(lp, c.localX, c.localY + hstep, lst) -
-                                    ShaperEvaluator.Distance(lp, c.localX, c.localY - hstep, lst)) / (2f * hstep);
-                        if (wall)
-                        {
-                            float gl = Mathf.Sqrt(gx * gx + gy * gy);
-                            if (gl > 1e-6f) { nx = gx / gl; ny = gy / gl; nz = 0f; }
-                            else { nx = 0f; ny = 0f; nz = 1f; }
-                        }
-                        else
-                        {
-                            float d = ShaperEvaluator.Distance(lp, c.localX, c.localY, lst);
-                            float t = ShaperHeight.T(lh, d);
-                            float gp = ShaperHeight.ComposedDerivative(lh, t, 0f, 0f);
-                            float kf = lh.body * gp * (-lh.invSpan);
-                            float hx = kf * gx, hy = kf * gy;
-                            if (float.IsInfinity(hx) || float.IsInfinity(hy)) { nx = 0f; ny = 0f; nz = 1f; }
-                            else
-                            {
-                                float vx = -0.65f * hx, vy = -0.65f * hy, vz = 1.4f;
-                                float l = Mathf.Sqrt(vx * vx + vy * vy + vz * vz);
-                                nx = vx / l; ny = vy / l; nz = vz / l;
-                            }
-                        }
-
-                        var alb = albedo[Mathf.Min(li, albedo.Length - 1)];
-                        if (wall) alb *= 0.72f;   // so the wall reads as a distinct surface even in a still
-
-                        ShaperLightLaw.Shade(lightProg.rig, resp,
-                                             c.localX, c.localY, lh.baseZ + c.height,
-                                             nx, ny, nz, 0f, 0f, 1f,
-                                             out float lr, out float lg, out float lb,
-                                             out float sr, out float sg, out float sb2);
-                        cr = alb.r * lr + sr; cg = alb.g * lg + sg; cb = alb.b * lb + sb2;
-                    }
-
-                    px[j * W + i] = new Color32(
-                        (byte)Mathf.Clamp(Mathf.RoundToInt(Mathf.Sqrt(Mathf.Clamp01(cr)) * 255f), 0, 255),
-                        (byte)Mathf.Clamp(Mathf.RoundToInt(Mathf.Sqrt(Mathf.Clamp01(cg)) * 255f), 0, 255),
-                        (byte)Mathf.Clamp(Mathf.RoundToInt(Mathf.Sqrt(Mathf.Clamp01(cb)) * 255f), 0, 255), 255);
-                }
-            }
-
-            tex.SetPixels32(px);
-            tex.Apply();
-            System.IO.File.WriteAllBytes(path, tex.EncodeToPNG());
-            UnityEngine.Object.DestroyImmediate(tex);
-
-            bool ok = straightBranch == 0 && generalBranch == W * H && wallPixels > 0;
-            var sb = new StringBuilder("TILTED CONFORMANCE RENDER (HS-9.5, discharging BC-2.7 / BC-4.4)\n");
-            sb.AppendLine("  " + W + "x" + H + " px -> " + path);
-            sb.AppendLine("  tilt: 34 deg off vertical, yaw 26 deg. Two layers: Flat+Stepped-bevel at base 0,");
-            sb.AppendLine("  Dome star at zOffset-driven base 34 (HS-7.2), so the ordering base is in the picture.");
-            sb.AppendLine("  branch ASSERTED: general " + generalBranch + " rays, straight-down " + straightBranch +
-                          " rays (must be 0)  " + Verdict(straightBranch == 0));
-            sb.AppendLine("  surface hits: " + hitPixels + " pixels, of which WALL " + wallPixels +
-                          " and CAP " + capPixels + "  " + Verdict(wallPixels > 0));
-            sb.AppendLine("  A visible side wall is the point (HS-6.5): straight down a wall has zero screen area,");
-            sb.AppendLine("  so this frame is the only thing in Wave 2 that exercises HS-0.2's ruling at all.");
-            sb.AppendLine("  VERDICT " + Verdict(ok));
-            return sb.ToString();
-        }
-
         // A compact 3x5 digit font, so each contact-sheet cell carries its own index and the numbers map to
         // names in the text output. T-0105's contact sheet logged its names the same way.
         // Three column masks per glyph; bit r is row r counted from the BOTTOM, which is the direction
@@ -2820,7 +1912,9 @@ namespace Laubrary.Shaper.Editor
         // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
         /// <summary>Run every check and both renders, and return the whole report.</summary>
-        public static string RunAll(string contactSheetPath = null, string tiltedPath = null)
+        // H6 (branch agreement), H12 (V1/V2/V3 regression traps) and TiltedConformance all exercised the
+        // general resolve (HS-9); that resolve was deleted outright (T-0253) and so were they.
+        public static string RunAll(string contactSheetPath = null)
         {
             var sb = new StringBuilder();
             sb.AppendLine("T-0109 HEIGHT AUDIT - extrusion, bevel and Z offset");
@@ -2834,15 +1928,12 @@ namespace Laubrary.Shaper.Editor
             sb.AppendLine(H3_Divergence());
             sb.AppendLine(H4_InverseRoundTrip());
             sb.AppendLine(H5_BitIdentity());
-            sb.AppendLine(H6_BranchAgreement());
             sb.AppendLine(H7_WallStatements());
             sb.AppendLine(H8_Allocation());
             sb.AppendLine(H9_AnalyticDerivative());
             sb.AppendLine(H10_DialsAreRead());
             sb.AppendLine(H11_StageIsWired());
-            sb.AppendLine(H12_RegressionTraps());
             if (!string.IsNullOrEmpty(contactSheetPath)) sb.AppendLine(HeightContactSheet(contactSheetPath));
-            if (!string.IsNullOrEmpty(tiltedPath)) sb.AppendLine(TiltedConformance(tiltedPath));
             return sb.ToString();
         }
     }

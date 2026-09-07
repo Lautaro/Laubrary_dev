@@ -56,17 +56,13 @@ namespace Laubrary.PyreShaper.Editor
             (ShapeForm.Fireball, "Fireball", "fire"),
         };
 
-        // §6.2 requires a composite generator to DECLARE why it bypasses the shape/fill split, and requires that
-        // declaration to read as technical debt rather than architecture. This is the honest sentence: a Pyre
-        // layer paints its own lit, bordered, glowing picture in one pass, so there is no edge rule to hand
-        // Shaper's shape stage and no paint recipe to hand its fill stage — splitting it would mean rewriting
-        // sixteen renderers, which is a decision nobody has taken.
-        const string Declaration =
-            "Hosts a whole Pyre layer and lets Pyre's own renderer draw it, so animations authored in Pyre "
-            + "reproduce exactly. Its silhouette and its paint are computed together in one pass (lighting, "
-            + "facet lines, glows, border), so there is no edge rule to hand the shape stage and no paint "
-            + "recipe to hand the fill stage. Splitting it would mean re-implementing every legacy Pyre form "
-            + "against the shape/fill contract; until that is done this stays monolithic.";
+        // §6.2 requires a composite generator to bypass the shape/fill split only for a stated reason, which
+        // used to be an authored sentence on every document (ShaperCompositeDef.reasonNote, retired T-0254).
+        // The honest reason, kept here as a comment rather than a per-document field: a Pyre layer paints its
+        // own lit, bordered, glowing picture in one pass, so there is no edge rule to hand Shaper's shape stage
+        // and no paint recipe to hand its fill stage — splitting it would mean rewriting sixteen renderers,
+        // which is a decision nobody has taken. Same reason (and the same NotYetSplit classification) as the
+        // nine hosted PyreForms PyreCompositeCatalog declares.
 
         static IEnumerable<ShaperShapeEntry> PyreShapes()
         {
@@ -101,8 +97,6 @@ namespace Laubrary.PyreShaper.Editor
                         n.composite = new ShaperCompositeDef
                         {
                             source = src,
-                            reason = ShaperCompositeReason.NotYetSplit,
-                            reasonNote = Declaration,
                             // The bake box is carried across so picking a different shape never silently
                             // resizes the node's footprint (the same rule ShaperShapeCatalog.ApplyForm follows).
                             halfExtentX = n.composite?.halfExtentX ?? 64f,

@@ -1594,6 +1594,7 @@ namespace Laubrary.Shaper.Editor
                 // by moving Z off every row (BuildLayerRow's comment), not by fighting Val's own sizing.
                 controlWidth = 170f, grow = true, cyclic = cyclic, decimals = decimals,
                 frameCount = document != null ? document.frameCount : 0,
+                currentFrame = () => currentFrame,   // a folded envelope reads out the value at the playhead
             };
             // T-0165 — a ZUIValue edit is a data edit, so it takes the same post-edit path as Change(). Val()
             // never routes through Change() itself (Z.Value manages its own Undo timing via the second callback

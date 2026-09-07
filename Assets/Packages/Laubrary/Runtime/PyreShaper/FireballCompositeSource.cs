@@ -27,8 +27,8 @@ namespace Laubrary.PyreShaper
     /// all. Shaper's swarm still instances the finished burst like any other node.
     /// </summary>
     [Serializable]
-    [ShaperCompositeSourceInfo("Fireball", "Simulations")]
-    public sealed class FireballCompositeSource : IShaperCompositeSource, IShaperCacheableSource
+    [ShaperCompositeSourceInfo("Fireball", "Simulations", ShaperCompositeReason.AuthoredData)]
+    public sealed class FireballCompositeSource : IShaperCompositeSource
     {
         // Distinct, stable ids for the seeded Min-Max draw — see FireCompositeSource for the full reasoning.
         const int FldSource = 1, FldRadius = 2, FldCooling = 3, FldSharpness = 4, FldSpread = 5, FldReach = 6;
@@ -166,14 +166,5 @@ namespace Laubrary.PyreShaper
             return m.Key;
         }
 
-        /// <summary>T-0115's optional cache capability — see <see cref="FireCompositeSource.ContentHash"/> for
-        /// why seed, phase and canvas size are deliberately not folded in here.</summary>
-        public ShaperCacheKey ContentHash()
-        {
-            var m = ShaperCacheMixer.Begin("shaper.pyreshaper.fireballcompositesource.content.v1");
-            m.MixString(JsonUtility.ToJson(this));
-            m = PyreShaperSimSupport.MixGradient(m, ramp);
-            return m.Key;
-        }
     }
 }

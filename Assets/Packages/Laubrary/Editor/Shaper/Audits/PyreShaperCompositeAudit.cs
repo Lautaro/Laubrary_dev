@@ -80,8 +80,6 @@ namespace Laubrary.PyreShaper.Editor
             var def = new ShaperCompositeDef
             {
                 source = new SyntheticDiscSource { radiusTexels = radiusTexels },
-                reason = ShaperCompositeReason.NotYetSplit,
-                reasonNote = "CT0 test fixture — a hand-computed disc, not a hosted Pyre form.",
                 halfExtentX = boxHalfExtent,
                 halfExtentY = boxHalfExtent,
                 bakeWidth = bake,
@@ -264,7 +262,11 @@ namespace Laubrary.PyreShaper.Editor
         // ── CT-5 ──────────────────────────────────────────────────────────────────────────────────────────
 
         /// <summary>CT-5: every one of the nine catalog entries carries a non-empty declaration, and the
-        /// palette-indifferent/dependent split totals 4/5 as the task body states.</summary>
+        /// palette-indifferent/dependent split totals 4/5 as the task body states.
+        ///
+        /// T-0254 — reads the classification straight off the catalog entry (<see cref="PyreCompositeCatalogEntry.reason"/>),
+        /// not off a built <see cref="ShaperCompositeDef"/>: <c>ShaperCompositeDef.reason</c> is retired and
+        /// <c>PyreCompositeCatalog.BuildSource</c> no longer copies the entry onto it.</summary>
         public static string CT5_CatalogDeclarationComplete()
         {
             var sb = new StringBuilder("CT-5 all nine catalog entries are declared (§6.2 compliance pass)\n");
@@ -277,8 +279,7 @@ namespace Laubrary.PyreShaper.Editor
                 if (has) declared++;
                 if (e.paletteIndifferent) indifferent++; else dependent++;
 
-                var def = PyreCompositeCatalog.Build(null, e);
-                if (def.reason == ShaperCompositeReason.NotYetSplit && def.HasDeclaration) reason2++;
+                if (e.reason == ShaperCompositeReason.NotYetSplit && has) reason2++;
 
                 sb.AppendLine("  " + e.displayName.PadRight(16) + " declared=" + has +
                               "  paletteIndifferent=" + e.paletteIndifferent);

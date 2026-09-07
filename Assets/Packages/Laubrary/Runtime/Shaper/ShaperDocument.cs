@@ -25,8 +25,8 @@ namespace Laubrary.Shaper
     ///
     /// T-0144 then added the two C1 members that Wave 2 had deferred -- <see cref="frameCount"/> and
     /// <see cref="frameRate"/> -- so the document finally states its own animation clock rather than having a
-    /// frame count handed to a transient <see cref="ShaperFrameCache"/> from outside. The palette is still
-    /// C1's and still outstanding.
+    /// frame count handed to a transient cache from outside (the T-0115 node cache this once meant has since
+    /// been deleted, T-0253). The palette is still C1's and still outstanding.
     /// </summary>
     /// T-0152 made this a ScriptableObject. It had been a plain [Serializable] class, which meant Shaper had
     /// no document ASSET at all -- the only ScriptableObject in the whole runtime was ShaperHeightFieldPreset.
@@ -154,8 +154,8 @@ namespace Laubrary.Shaper
         /// </summary>
         [Min(0f)] public float loopDelaySeconds = 0f;
 
-        /// <summary><see cref="phase01"/> for a given frame of THIS document -- the single conversion, shared
-        /// with <see cref="ShaperFrameCache"/>. See <see cref="ShaperClock"/> for the convention.</summary>
+        /// <summary><see cref="phase01"/> for a given frame of THIS document -- the single conversion.
+        /// See <see cref="ShaperClock"/> for the convention.</summary>
         public float PhaseOfFrame(int frameIndex) => ShaperClock.PhaseOfFrame(frameIndex, frameCount);
 
         // ── Cherry framing (T-0143) ──────────────────────────────────────────────────────────────────────

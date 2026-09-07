@@ -20,11 +20,11 @@ namespace Laubrary.PyreShaper
     ///
     /// <b>Why the effect's own state hash is a caller-supplied <see cref="ShaperCacheKey"/>, not derived here.</b>
     /// <c>PixelModifier</c> (Laubrary.SpriteFx) has no generic, reflection-free way to enumerate "every field
-    /// that changes its output" the way <see cref="ShaperNodeIdentity"/> does for a <see cref="ShaperNode"/> --
+    /// that changes its output" the way <see cref="ShaperLayerKey"/> does for a <see cref="ShaperNode"/> --
     /// its concrete subclasses (posterise, contrast, colour replace, ...) each carry different fields with no
     /// shared contract for hashing them. Requiring each effect to publish its own <see cref="ShaperCacheKey"/>
-    /// (the same "declared capability" pattern as <see cref="IShaperCacheableSource"/>) is the honest answer;
-    /// reflecting over arbitrary fields here would be fragile and silently miss a field a future effect adds.
+    /// is the honest answer; reflecting over arbitrary fields here would be fragile and silently miss a field
+    /// a future effect adds.
     /// </summary>
     public static class ShaperEffectCacheKey
     {

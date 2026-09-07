@@ -51,7 +51,7 @@ namespace Laubrary.PyreShaper
     /// picture by construction and cannot drift apart when Pyre changes its defaults.
     /// </summary>
     [Serializable]
-    public sealed class PyreFormCompositeSource : IShaperCompositeSource, IShaperCacheableSource
+    public sealed class PyreFormCompositeSource : IShaperCompositeSource
     {
         [SerializeReference] public PyreForm form;
 
@@ -73,12 +73,20 @@ namespace Laubrary.PyreShaper
         /// How many frames the hosted form thinks its animation spans. A form that animates off the frame INDEX
         /// (Orb, Plasma Bloom, Arc Burst, the Jet family) needs a real count to move at all, and Shaper hands a
         /// source a continuous phase rather than a frame — so the phase is mapped onto this many frames with
-        /// <see cref="ShaperClock"/>'s own conversion read backwards. Same dial, same wording and same default as
-        /// <see cref="PyreLayerCompositeSource.frames"/>, because it answers the same question.
+        /// <see cref="ShaperClock"/>'s own conversion read backwards.
+        ///
+        /// <b>T-0254 — no longer an authored dial.</b> This used to be a user-facing "Generator frames" slider
+        /// that could disagree with the document's own Frames — exactly the second, independent lifetime axis
+        /// the owner objected to on <see cref="PyreLayerCompositeSource.frames"/>, and T-0204 already closed
+        /// that one for a hosted LAYER. The editor card (<c>Editor/PyreShaper/PyreFormShaperUI.cs</c>'s Drawer)
+        /// now silently keeps this equal to the document's own <c>frameCount</c> on every rebuild instead of
+        /// drawing a control for it — the field survives only because <see cref="Render"/> still needs a frame
+        /// count to convert phase into a frame index, and a headless bake (no editor window ever opened) must
+        /// still see something sane here.
         /// </summary>
         [Min(1)]
-        [Tooltip("How many frames this generator's own animation spans. Match the document's Frames for exact "
-               + "one-to-one playback; a smaller number plays the generator's whole life out sooner.")]
+        [Tooltip("How many frames this generator's own animation spans — kept equal to the document's own "
+               + "Frames automatically; no longer authored here.")]
         public int frames = DefaultFrames;
 
         /// <summary>What a source authored before these fields existed falls back to, so an old document animates
@@ -179,32 +187,5 @@ namespace Laubrary.PyreShaper
             }
         }
 
-        /// <summary>
-        /// T-0167 — <see cref="IShaperCacheableSource"/>: folds the form's own <c>ContentHash()</c>
-        /// (<c>PyreForm.cs:290-306</c>, reflects every serialized dial) into the key so editing a dial IN PLACE —
-        /// dragging a Curve point, retyping a MinMax bound — invalidates the composite's cache at the SAME phase,
-        /// not just when phase changes. Without this the node falls back to
-        /// <c>ShaperNodeIdentity.SourceContentHash</c>'s reference-identity path, which only notices a
-        /// reassigned form reference — exactly the staleness gap that method's own doc names (SPEC.md Part 5).
-        /// <c>phase01</c>/<c>seed</c> are NOT mixed here: <c>ShaperNodeIdentity.MixCommon</c> already folds both
-        /// into every node's key unconditionally before calling this (<c>ShaperNodeIdentity.cs:77-78</c>), so
-        /// mixing them a second time here would be redundant, not incorrect.
-        /// </summary>
-        public ShaperCacheKey ContentHash()
-        {
-            var m = ShaperCacheMixer.Begin("shaper.pyreshaper.pyreformcompositesource.v2");
-            m.MixBool(form != null);
-            if (form != null) m.MixInt(form.ContentHash());
-            // T-0202 — the fill, the alpha envelope and the frame count are authored on the SOURCE, not on the
-            // form, so the form's own ContentHash cannot see them. Without them here, dragging a gradient stop or
-            // an alpha curve point would repaint nothing until the phase happened to change — the same staleness
-            // gap this method exists to close for the form's dials. Folded through Pyre's own reflective value
-            // mixer (the basis PyreForm.ContentHash seeds with) so the two hashes stay one family.
-            const int Basis = unchecked((int)2166136261u);
-            m.MixInt(PyreForm.MixValue(Basis, shapeFill));
-            m.MixInt(PyreForm.MixValue(Basis, alpha));
-            m.MixInt(frames);
-            return m.Key;
-        }
     }
 }

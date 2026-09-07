@@ -181,8 +181,11 @@ namespace Laubrary.Shaper
     /// <see cref="ShaperNode.kind"/> is <see cref="ShaperNodeKind.Composite"/>.
     ///
     /// The whole contract is one line (SHAPER_THE_DESIGN.md B1): "it must publish coverage, and it may publish
-    /// nothing else." <see cref="reason"/>/<see cref="reasonNote"/> are the second half of §6.2's policy, which
-    /// matters as much as the first: "monolithic must be a DECLARED REASON, never a DECLARED EXEMPTION."
+    /// nothing else." §6.2's other half — "monolithic must be a DECLARED REASON, never a DECLARED EXEMPTION" —
+    /// used to be authored here too (<see cref="reason"/>/<see cref="reasonNote"/>, both retired T-0254); the
+    /// declaration now lives on the source TYPE (<see cref="ShaperCompositeSourceInfoAttribute"/> /
+    /// <c>Runtime/PyreShaper/PyreCompositeCatalog</c>), which is where a fact true of every document hosting
+    /// that source belongs.
     /// </summary>
     [Serializable]
     public class ShaperCompositeDef
@@ -193,18 +196,24 @@ namespace Laubrary.Shaper
         /// legal, if useless, authoring state, never a null-reference crash.</summary>
         [SerializeReference] public IShaperCompositeSource source;
 
-        /// <summary>WHY this generator bypasses the shape/fill split. Never omitted, never inferred — a
-        /// monolithic generator with no stated reason is exactly the "fatal hole" §6.1 warns the escape hatch
-        /// becomes without this field: "a second, undocumented model growing inside the first."</summary>
-        public ShaperCompositeReason reason = ShaperCompositeReason.NotYetSplit;
-
         /// <summary>
-        /// Free-text justification. REQUIRED for both reasons, verified by <see cref="HasDeclaration"/>:
-        /// <see cref="ShaperCompositeReason.AuthoredData"/> still has to say WHICH asset/bake it is;
-        /// <see cref="ShaperCompositeReason.NotYetSplit"/> "must read as technical debt, not architecture"
-        /// (§6.2), which needs a sentence, not a bare enum value.
+        /// T-0254 — RETIRED from the authored surface. §6.2's classification is a fact about the SOURCE TYPE,
+        /// not a per-document choice (every document hosting the same source gets the same answer), so it now
+        /// lives on <see cref="ShaperCompositeSourceInfoAttribute.Reason"/> (the two stateful simulations) or
+        /// in <c>Runtime/PyreShaper/PyreCompositeCatalog</c> (the nine hosted <c>PyreForm</c>s, all
+        /// <see cref="ShaperCompositeReason.NotYetSplit"/>) — never read from here any more. Kept, serialized
+        /// and defaulted exactly as before so a pre-T-0254 document still deserializes without complaint.
         /// </summary>
-        [TextArea(2, 5)] public string reasonNote = "";
+        [Obsolete("Retired T-0254 — the reason a generator is monolithic is now a fact about its TYPE, declared "
+                + "on ShaperCompositeSourceInfoAttribute / PyreCompositeCatalog, not authored per document. Kept "
+                + "serialized so existing documents still load; nothing reads this field any more.")]
+        [HideInInspector] public ShaperCompositeReason reason = ShaperCompositeReason.NotYetSplit;
+
+        /// <summary>T-0254 — RETIRED alongside <see cref="reason"/>, same reasoning: a hosted source's own
+        /// declaration (its catalog entry / attribute) is the one place this sentence is written now.</summary>
+        [Obsolete("Retired T-0254 — see reason. Kept serialized so existing documents still load; nothing reads "
+                + "this field any more.")]
+        [HideInInspector, TextArea(2, 5)] public string reasonNote = "";
 
         /// <summary>
         /// Half-extent, in the node's own local canvas units, of the box the generator's picture is baked into —
@@ -214,9 +223,18 @@ namespace Laubrary.Shaper
         /// boundary (see <see cref="ShaperEvaluator"/>'s CompositeSample case), so authoring too small a box
         /// smears the generator's own edge flat instead of cutting it — a visible authoring mistake, not a
         /// silent one.
+        ///
+        /// <b>T-0254 — never authored.</b> <see cref="FitTo"/> overwrites this on every render before
+        /// <see cref="ShaperCompiler"/> reads it (see that method's own doc), so nothing a user sets here would
+        /// ever survive to be drawn. <c>[NonSerialized]</c> rather than deleted outright: <c>ShaperCompiler</c>
+        /// reads this field directly at a dozen call sites and <c>ShaperCompiler.Compile</c>'s signature is
+        /// documented as frozen ("kept EXACTLY as shipped"), so there is no canvas-size channel into the
+        /// compiler except this instance field. Excluding it from serialization is the whole of "remove it from
+        /// the authored surface" that is safe to do without re-plumbing the compiler; see this task's handover
+        /// for the follow-up that would be needed to delete the field outright.
         /// </summary>
-        public float halfExtentX = 64f;
-        public float halfExtentY = 64f;
+        [NonSerialized] public float halfExtentX = 64f;
+        [NonSerialized] public float halfExtentY = 64f;
 
         /// <summary>
         /// Bake resolution in texels, independent of the canvas's own sampling resolution — a composite
@@ -224,13 +242,23 @@ namespace Laubrary.Shaper
         /// stage then samples that raster like a texture (bilinear). Raising this sharpens the generator's own
         /// silhouette; it does not sharpen with camera zoom the way an analytic primitive's edge does — a real,
         /// named limitation of the escape hatch, not an oversight.
+        ///
+        /// <b>T-0254 — never authored</b>, same reasoning as <see cref="halfExtentX"/>.
         /// </summary>
-        public int bakeWidth = 128;
-        public int bakeHeight = 128;
+        [NonSerialized] public int bakeWidth = 128;
+        [NonSerialized] public int bakeHeight = 128;
 
-        /// <summary>True when §6.2's declaration is actually present — a compliance pass (<c>ShaperCompositeAudit</c>)
-        /// counts this the same way <c>ShaperCompositeDef.HasDeclaration</c>'s doc promises.</summary>
-        public bool HasDeclaration => !string.IsNullOrWhiteSpace(reasonNote);
+        /// <summary>
+        /// T-0254 — the fitted box, returned rather than only stashed on the instance (see <see cref="FitTo"/>).
+        /// A plain readonly value: nothing on it is authored, it is recomputed fresh on every render.
+        /// </summary>
+        public readonly struct FittedBox
+        {
+            public readonly float halfExtentX, halfExtentY;
+            public readonly int bakeWidth, bakeHeight;
+            public FittedBox(float hx, float hy, int bw, int bh)
+            { halfExtentX = hx; halfExtentY = hy; bakeWidth = bw; bakeHeight = bh; }
+        }
 
         /// <summary>
         /// T-0191 — fit the bake box to the canvas. The four fields above stopped being AUTHORED here: the
@@ -241,8 +269,13 @@ namespace Laubrary.Shaper
         ///
         /// Called from <see cref="ShaperDocumentRenderer.RenderPhaseInto"/>, the one place that knows the
         /// canvas, before the layer resolves. A plain field write on a serializable sub-object: it dirties
-        /// nothing, and because <see cref="ShaperNodeIdentity"/> folds these fields into the composite's own
-        /// hash, resizing the canvas correctly invalidates every cached frame that was baked at the old size.
+        /// nothing, and resizing the canvas is already folded into every layer's cache key directly (the
+        /// document's own <c>canvasWidth</c>/<c>canvasHeight</c> are part of <c>ShaperLayerKey.DocumentPart</c>),
+        /// so a resize correctly invalidates every cached frame without this box needing to be hashed too.
+        ///
+        /// <b>T-0254 — returns the box.</b> <see cref="ShaperCompiler"/> still reads it off the instance fields
+        /// (see <see cref="halfExtentX"/>'s doc for why), so this still writes them; the return value is for a
+        /// caller that wants the fitted box without reaching back into the (now <c>[NonSerialized]</c>) fields.
         /// </summary>
         /// <param name="pixelSize">T-0198 — the canvas's own sample spacing (<see cref="ShaperDocument.pixelSize"/>).
         /// The half-extents are in CANVAS UNITS, not samples, and the canvas spans
@@ -250,7 +283,7 @@ namespace Laubrary.Shaper
         /// box sized in samples alone is only right while pixelSize is 1. At the owner's 2.49 it made every
         /// composite cover four tenths of the canvas it was supposed to fill, which reads as "the generator
         /// shrank" rather than as a unit error.</param>
-        public void FitTo(int canvasWidth, int canvasHeight, float pixelSize)
+        public FittedBox FitTo(int canvasWidth, int canvasHeight, float pixelSize)
         {
             int w = Mathf.Max(1, canvasWidth), h = Mathf.Max(1, canvasHeight);
             float ps = pixelSize > 0f ? pixelSize : 1f;
@@ -264,6 +297,7 @@ namespace Laubrary.Shaper
             // colours across without a filtering step nobody asked for.
             bakeWidth = w;
             bakeHeight = h;
+            return new FittedBox(halfExtentX, halfExtentY, bakeWidth, bakeHeight);
         }
 
         /// <summary>Fit every composite in a subtree. A no-op on a tree with none.</summary>

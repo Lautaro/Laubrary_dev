@@ -30,10 +30,23 @@ namespace Laubrary.Shaper
         /// scattering through one flat list.</summary>
         public string Group { get; }
 
-        public ShaperCompositeSourceInfoAttribute(string displayName, string group = "Sources")
+        /// <summary>
+        /// T-0254 — §6.2's classification, moved here off the per-document <c>ShaperCompositeDef.reason</c>
+        /// field it used to live on. A source's reason for bypassing the shape/fill split is a fact about the
+        /// SOURCE TYPE (every document hosting <c>FireCompositeSource</c> gets the same answer), not a
+        /// per-document authoring choice, so it belongs on the declaration that already says the type is
+        /// pickable at all. Defaults to <c>NotYetSplit</c> — every hosted <c>PyreForm</c> (the nine generators
+        /// <c>PyreCompositeCatalog</c> classifies, reached through <c>PyreFormCompositeSource</c> rather than
+        /// this attribute) is exactly that, so only the two stateful simulations need to say otherwise.
+        /// </summary>
+        public ShaperCompositeReason Reason { get; }
+
+        public ShaperCompositeSourceInfoAttribute(string displayName, string group = "Sources",
+                                                  ShaperCompositeReason reason = ShaperCompositeReason.NotYetSplit)
         {
             DisplayName = displayName;
             Group = group;
+            Reason = reason;
         }
     }
 }

@@ -210,49 +210,24 @@ namespace Laubrary.Shaper
         /// </summary>
         public float supE;
 
-        /// <summary>
-        /// <c>inf E</c> over the whole domain — <b>1 for every profile EXCEPT
-        /// <see cref="ShaperExtrusionTechnique.Linear"/></b>, where it is
-        /// <c>1 − 0.6(|cos θ| + |sin θ|) ≥ 1 − 0.6√2 = 0.15147</c>.
-        ///
-        /// <b>T-0109 FIX F1 added this, and its absence was a live unsoundness.</b>
-        /// <see cref="InverseLowerBound"/> inverts against <see cref="supE"/> to get a LOWER bound on
-        /// <c>Ginv</c>, which makes the CONTAINING prism conservatively large — the safe direction. The march
-        /// also skips SOLID space, and that mirrored skip needs the opposite bound: an UPPER bound on
-        /// <c>Ginv</c>, i.e. the inverse taken at the LEAST permissive <c>E</c>. Before the fix the solid skip
-        /// used the lower bound for both, so on <c>Linear</c> it could declare a point solid that was air and
-        /// skip a real crossing pair. See <see cref="InverseUpperBound"/>.
-        /// </summary>
-        public float infE;
-
-        /// <summary>
-        /// An upper bound on <c>|∇E|</c> in CANVAS pixels, for <see cref="ShaperExtrusionTechnique.Linear"/>
-        /// only; 0 for every other technique (where <c>E</c> does not depend on position at all).
-        ///
-        /// T-0109 FIX F1. The march's two-sided bracket needs to know how much <c>E</c> can change over one
-        /// candidate step, so that <c>Linear</c> gets a bracket that SHRINKS with the step rather than the
-        /// canvas-wide <c>[inf E, sup E]</c> one — without it, <c>Linear</c> would be the one technique whose
-        /// ambiguous shell never closes and which therefore always fell back to the resolution floor.
-        ///
-        /// It is the magnitude of <c>∂E/∂(x,y)</c> through <see cref="LocalNormalised"/>'s affine map:
-        /// <c>E = 1 + 0.6(cos θ·nx − sin θ·ny)</c>, <c>nx = (m00·x + m01·y + m02 − cx)/halfW</c>, and the
-        /// clamp in <c>LocalNormalised</c> can only REDUCE the variation, never increase it.
-        /// </summary>
-        public float linearEGrad;
+        // T-0253 -- infE and linearEGrad were the general resolve's (HS-9's) own two-sided march brackets;
+        // both were read ONLY by InverseUpperBound/LowerG, which had no caller left once ShaperResolve was
+        // deleted outright, so all three went together. supE stays: ComposedSlopeBound (HS-4.2, still exercised
+        // directly by ShaperHeightAudit's H2/H3) reads it independently of the march.
 
         /// <summary>
         /// <c>sup G = sup(E·B)</c>. Equal to <see cref="supE"/>, because <c>B ≡ 1</c> off the band and every
         /// profile reaches its own supremum there (<c>E(1) = 1</c> for the six <c>t</c>-profiles; <c>Linear</c>
-        /// is constant in <c>t</c>). This is the top of the layer's Z extent in HS-5.3's march.
+        /// is constant in <c>t</c>). This was the top of the layer's Z extent in the now-deleted HS-9 march;
+        /// it stays because <see cref="Breakpoints"/> (HS-5.5) reads it independently and is still exercised
+        /// directly by ShaperHeightAudit's H1/H7/H8.
         /// </summary>
         public float supG;
 
-        /// <summary><c>sup|dE/dt|</c>, HS-4.1. MAY be <c>+∞</c>, and that is a first-class answer.</summary>
-        public float extrusionSlope;
-        /// <summary><c>sup|dB/du|</c>, HS-4.1. MAY be <c>+∞</c>.</summary>
-        public float bevelSlope;
-        /// <summary>The HS-4.2 PRODUCT rule <c>L_E + supE·L_B/a</c> (off the band, just <c>L_E</c>). MAY be <c>+∞</c>.</summary>
-        public float composedSlope;
+        // T-0253 -- extrusionSlope/bevelSlope/composedSlope were write-only: ShaperHeightCompiler set them from
+        // ExtrusionSlopeBound/BevelSlopeBound/ComposedSlopeBound (HS-4, which still exist and are still called
+        // directly by ShaperHeightAudit), but nothing ever read the FIELDS themselves outside the deleted
+        // ShaperResolve. Deleted along with it.
     }
 
     /// <summary>
@@ -429,10 +404,9 @@ namespace Laubrary.Shaper
                     //
                     // T-0109 FIX F7 applies T-0105's already-established precedent, quoted: <i>"port Pyre
                     // angles unchanged, flip reference-app ones."</i> `Linear`'s angle is a REFERENCE-APP
-                    // angle, so the sign on `sin θ` is flipped here, in <see cref="LinearGradient"/>, in the
-                    // <c>Profile</c> normal provider's chain rule (<c>ShaperNormals.FillProfile</c>) and in
-                    // <see cref="ShaperHeightOp.linearEGrad"/>'s compile — all four, or the height and its
-                    // gradient would disagree about which way the slab leans.
+                    // angle, so the sign on `sin θ` is flipped here, in <see cref="LinearGradient"/> and in the
+                    // <c>Profile</c> normal provider's chain rule (<c>ShaperNormals.FillProfile</c>) — or the
+                    // height and its gradient would disagree about which way the slab leans.
                     //
                     // <b>Do not port it back.</b> A future reader diffing this line against
                     // <c>index.html:1148</c> will see a sign that does not match; that is deliberate and is
@@ -579,8 +553,8 @@ namespace Laubrary.Shaper
         /// The surface height above the layer's base plane, in canvas pixels: <c>body · G</c>.
         ///
         /// The <c>body ≤ 0</c> early-out of <c>index.html:1144</c> is kept (HS-2.2): a zero-thickness layer
-        /// publishes height 0 and no wall, and <see cref="ShaperResolve"/> skips it entirely. It is retained
-        /// as an EARLY-OUT and not left to <c>0 · G</c> so that H5's bit-identity claim is structural.
+        /// publishes height 0 and no wall, and the general resolve (retired, T-0253) skipped it entirely. It
+        /// is retained as an EARLY-OUT and not left to <c>0 · G</c> so that H5's bit-identity claim is structural.
         /// </summary>
         public static float Height(in ShaperHeightOp op, float t, float nx, float ny)
             => op.body <= 0f ? 0f : op.body * Composed(op, t, nx, ny);
@@ -835,8 +809,9 @@ namespace Laubrary.Shaper
                     // The replacement is not a smaller epsilon. It is to ASK THE FORWARD FUNCTION, which is
                     // exact by construction and scale-free by not having a scale: ceil, then walk the step
                     // index down while the step below already reaches ζ, and nudge up by ULPS (never by a
-                    // tread) if the candidate falls short. That is the same verify-and-nudge idiom
-                    // InverseUpperBound already uses, and it removes a defect generator rather than a symptom.
+                    // tread) if the candidate falls short. That is the same verify-and-nudge idiom the old
+                    // (now-deleted, T-0253) InverseUpperBound used, and it removes a defect generator rather
+                    // than a symptom.
                     if (zeta > 1f) return NoCrossSection;
                     if (zeta <= 0f) return 0f;
 
@@ -1126,77 +1101,12 @@ namespace Laubrary.Shaper
             => InverseAtE(op, zeta, op.supE);
 
         /// <summary>
-        /// The mirror of <see cref="InverseLowerBound"/>: an UPPER bound on <c>Ginv(ζ)</c> valid at every
-        /// <c>(nx,ny)</c>, obtained by inverting against <c>inf E</c> — the LEAST permissive value.
-        ///
-        /// <b>T-0109 FIX F1.</b> The march's solid-space skip is the mirror of its empty-space skip and needs
-        /// the mirrored bound: to declare a point provably INSIDE the solid it must know that every point of
-        /// the prism it is skipping through is inside, which needs <c>t ≥ τ ⟹ G(t) ≥ ζ</c> — an UPPER bound
-        /// on the inverse. Using the lower bound there (which the pre-fix code did) is unsound on exactly
-        /// <see cref="ShaperExtrusionTechnique.Linear"/>, the one technique whose <c>G</c> varies across the
-        /// canvas: it can declare air to be solid and skip a whole crossing pair.
-        /// </summary>
-        public static float InverseUpperBound(in ShaperHeightOp op, float zeta)
-        {
-            float e = op.technique == ShaperExtrusionTechnique.Linear
-                    ? (op.infE > 0f ? op.infE : Mathf.Max(0f, 1f - 0.6f * (Mathf.Abs(op.cosAngle) + Mathf.Abs(op.sinAngle))))
-                    : 1f;
-            return InverseAtEUpperBound(op, zeta, e);
-        }
-
-        /// <summary>
-        /// <b>T-0109 FIX N4</b> — <see cref="InverseUpperBound"/>'s verify-and-nudge, generalised to any
-        /// PINNED <c>E</c>, so the march's per-step contained prism gets the same guarantee its slab-wide
-        /// sibling already had.
-        ///
-        /// The F1 hardening was applied to <see cref="InverseUpperBound"/> only. The march calls that once
-        /// per slab, but the per-step adaptive bracket — the machinery the whole F1 rewrite exists for —
-        /// called raw <see cref="InverseAtE"/>, which is short by up to a few float roundings and therefore
-        /// is NOT an upper bound. Measured over 2 974 632 checks (42 combinations × 9 angles × 4 amounts ×
-        /// 400 ζ × 41 t) driving exactly what the march drives: <b>2 526 violations, worst shortfall
-        /// 3.3379e-6 in ζ</b>, against <see cref="InverseUpperBound"/>'s 40 / 1.1921e-7 on the same sweep.
-        /// The harm is self-limiting (the bogus "provably solid" step is at most δτ·span ≈ 1.2e-5 px on a
-        /// 200 px span, and is raised to <c>SurfaceResolution</c> anyway) and no behavioural failure was ever
-        /// produced from it — but it is the same unsound-direction class that produced F1's 278-million-
-        /// violation defect, and a bound that is not a bound is what T-0105 exists to eliminate.
-        ///
-        /// Returns the smallest <c>t</c> this function can PROVE reaches <paramref name="zeta"/> at
-        /// <paramref name="e"/>: the closed form, checked, and bisected UP if the check fails. It can only
-        /// move τ_max upward, i.e. shrink the contained prism, which is the conservative direction.
-        /// </summary>
-        public static float InverseAtEUpperBound(in ShaperHeightOp op, float zeta, float e)
-        {
-            float tau = InverseAtE(op, zeta, e);
-            if (IsNoCrossSection(tau)) return NoCrossSection;
-
-            if (LowerG(op, tau, e) >= zeta) return tau;
-
-            float hi = 1f;
-            if (LowerG(op, hi, e) < zeta) return NoCrossSection;   // nothing provably solid at this ζ
-            float lo = tau;
-            for (int i = 0; i < InverseIterations; i++)
-            {
-                float mid = 0.5f * (lo + hi);
-                if (LowerG(op, mid, e) >= zeta) hi = mid; else lo = mid;
-            }
-            return hi;
-        }
-
-        /// <summary>
-        /// T-0109 FIX F1 — the LEAST value <c>G</c> can take at <paramref name="t"/> anywhere on the canvas.
-        /// For every technique but <see cref="ShaperExtrusionTechnique.Linear"/> that is just <c>G(t)</c>,
-        /// which does not depend on position; for <c>Linear</c> it is <c>inf E · B(t/a)</c>.
-        /// </summary>
-        static float LowerG(in ShaperHeightOp op, float t, float e)
-            => op.technique == ShaperExtrusionTechnique.Linear ? e * Bevel(op, t) : Composed(op, t, 0f, 0f);
-
-        /// <summary>
         /// <c>Ginv(ζ)</c> evaluated with <see cref="ShaperExtrusionTechnique.Linear"/>'s position-dependent
         /// <c>E</c> pinned to a SPECIFIED value. For every other technique <c>E</c> is a function of <c>t</c>
         /// and <paramref name="e"/> is ignored, so this is exactly <see cref="Inverse"/>.
         ///
-        /// T-0109 FIX F1 — the shared body of <see cref="InverseLowerBound"/> and
-        /// <see cref="InverseUpperBound"/>, and of the march's per-step LOCAL bracket, which pins <c>E</c> to
+        /// T-0109 FIX F1 — the shared body of <see cref="InverseLowerBound"/> and the old (now-deleted,
+        /// T-0253) InverseUpperBound, and of the march's per-step LOCAL bracket, which pins <c>E</c> to
         /// the range it can reach over one candidate step rather than to the canvas-wide extremes.
         /// <c>Ginv</c> is non-increasing in <c>e</c>, so a larger <c>e</c> gives a smaller (more
         /// conservative, containing) <c>τ</c> and a smaller <c>e</c> gives a larger (contained) one.
@@ -1326,7 +1236,8 @@ namespace Laubrary.Shaper
         /// HS-4.3, recorded plainly: <b>nothing on the rendering path consumes this.</b> Its purpose is to make
         /// refusal MECHANICAL — a consumer that genuinely requires a finite Lipschitz height asks
         /// <see cref="IsLipschitz"/> and is refused by name for seven of the twelve techniques instead of
-        /// silently producing holes. <see cref="ShaperResolve"/> is explicitly NOT such a consumer; HS-5 is why.
+        /// silently producing holes. The general resolve (retired, T-0253) was explicitly NOT such a consumer;
+        /// HS-5 was why.
         /// </summary>
         public static float SlopeBound(in ShaperHeightOp op)
         {
@@ -1461,9 +1372,9 @@ namespace Laubrary.Shaper
         ///
         /// <b>Declared, not discovered</b> (BC-3.7a): the set follows from <see cref="ShaperHeightOp.present"/>,
         /// never from testing whether some array happened to be non-null. <c>Depth</c> (BC-3.3 #7) is
-        /// deliberately NOT added — it becomes real only through <see cref="ShaperResolve"/> and is not
-        /// published by the height stage directly. <c>Heat</c>, <c>Density</c>, <c>Soot</c> and <c>Age</c> stay
-        /// unpublished and are out of scope.
+        /// deliberately NOT added — it becomes real only through a crossing-list resolve (the general resolve,
+        /// retired T-0253) and is not published by the height stage directly. <c>Heat</c>, <c>Density</c>,
+        /// <c>Soot</c> and <c>Age</c> stay unpublished and are out of scope.
         /// </summary>
         public static ShaperQuantitySet Publishes(in ShaperHeightOp op)
             => op.present
@@ -1475,9 +1386,9 @@ namespace Laubrary.Shaper
         /// <summary>
         /// Fill a rectangular tile of the HEIGHT sheet in ONE call: 1 float per sample, canvas pixels,
         /// measured from the layer's own base plane (HS-1.3, BC-3.3 #2 — "0 = the base plane"). The layer's
-        /// <c>base</c> is HS-7's and belongs to <see cref="ShaperResolve"/>; it is deliberately NOT folded in
-        /// here, because a sheet that already contained it could not be summed with a fill's height delta
-        /// under FC-2.5 without double-counting the base.
+        /// <c>base</c> is HS-7's and belonged to the general resolve (retired, T-0253); it is deliberately NOT
+        /// folded in here, because a sheet that already contained it could not be summed with a fill's height
+        /// delta under FC-2.5 without double-counting the base.
         ///
         /// The signature mirrors <c>ShaperFillOps.FillTile</c> (<c>ShaperFillOps.cs:48-53</c>) and
         /// <c>ShaperNormals.FillTile</c> (<c>ShaperNormals.cs:121-126</c>) EXACTLY, including

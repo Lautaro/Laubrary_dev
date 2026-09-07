@@ -324,9 +324,11 @@ namespace Laubrary.Shaper.Editor
 
         // ── the two composite assignments (pure mutations) ───────────────────────────────────────────
         // The bake box (half extents + bake resolution) is carried across from whatever the node already
-        // had, so switching generator never silently resizes the node's footprint. The reason/note come
-        // from PyreCompositeCatalog by display name because that classification is the catalog's to own —
-        // re-deriving it here would be a second source of truth that could disagree with the audit.
+        // had, so switching generator never silently resizes the node's footprint — moot on the next render
+        // (ShaperCompositeDef.FitTo re-fits it to the canvas regardless) but keeps the fallback branch below
+        // sane before that first render happens. T-0254 — the reason/note are retired off ShaperCompositeDef
+        // entirely: §6.2's classification now lives on the catalog entry / ShaperCompositeSourceInfoAttribute,
+        // never copied onto the def here.
 
         /// Assign a generator that is a hosted PyreForm.
         public static void ApplyForm(ShaperNode node, Type formType)
@@ -340,7 +342,6 @@ namespace Laubrary.Shaper.Editor
                 : new ShaperCompositeDef
                 {
                     source = new PyreFormCompositeSource { form = form },
-                    reason = ShaperCompositeReason.NotYetSplit,
                     halfExtentX = node.composite.halfExtentX,
                     halfExtentY = node.composite.halfExtentY,
                     bakeWidth = node.composite.bakeWidth,
@@ -360,7 +361,6 @@ namespace Laubrary.Shaper.Editor
                 : new ShaperCompositeDef
                 {
                     source = source,
-                    reason = ShaperCompositeReason.NotYetSplit,
                     halfExtentX = node.composite.halfExtentX,
                     halfExtentY = node.composite.halfExtentY,
                     bakeWidth = node.composite.bakeWidth,

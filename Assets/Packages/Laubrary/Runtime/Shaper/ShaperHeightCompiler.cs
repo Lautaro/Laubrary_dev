@@ -58,7 +58,7 @@ namespace Laubrary.Shaper
                 m00 = 1f, m01 = 0f, m02 = 0f,
                 m10 = 0f, m11 = 1f, m12 = 0f,
                 invLocalHalfW = 0f, invLocalHalfH = 0f,
-                supE = 1f, supG = 1f, infE = 1f, linearEGrad = 0f,
+                supE = 1f, supG = 1f,
                 n = 2, invN1 = 1f,
                 bevelN = 2, invBevelN = 0.5f,
                 curve = 1f, domeExp = 0.5f, roundExp = 0.5f,
@@ -171,74 +171,13 @@ namespace Laubrary.Shaper
                 : 1f;
             op.supG = op.supE;
 
-            // ── inf E and |∇E|, T-0109 FIX F1 ─────────────────────────────────────────────────────────────
-            //
-            // inf E is sup E's mirror and exists for the same reason: the march's SOLID-space skip needs an
-            // UPPER bound on Ginv where the empty-space skip needs a lower one, and on Linear those are two
-            // different numbers because E varies across the canvas. It is never negative in practice
-            // (1 − 0.6√2 = 0.15147) but is floored at 0 so nothing downstream ever divides by a negative.
-            //
-            // linearEGrad bounds how much E can change over one canvas pixel of travel, which is what lets
-            // the march bracket Linear LOCALLY (a bracket that shrinks with the step) instead of using the
-            // canvas-wide [inf E, sup E].
-            //
-            // T-0109 FIX N5 — <b>the CLAMP does not only reduce the variation, and the old comment saying it
-            // did was false.</b> E = 1 + 0.6(cosθ·nx + sinθ·ny) with nx and ny clamped to [−1,1]
-            // INDEPENDENTLY, so ∇E has four regimes, not one: both axes live (the exact Jacobian of the
-            // unclamped map), nx pinned (only the sinθ·∇ny term survives), ny pinned (only the cosθ·∇nx term
-            // survives), and both pinned (zero). Where the two terms partially CANCEL, a surviving single
-            // term is LARGER than their sum — so the exact unclamped Jacobian, which is what was baked, is
-            // not an upper bound on |∇E| anywhere a support-box edge is crossed. Measured over 1650
-            // configurations (11 angles × 5 rotations × 5 skews × 3 scales × 2 aspects): the true sup
-            // exceeded the baked value in 385 of them, worst ratio 3.6235× (angle −135°, rotation 17°, skew
-            // 60°, scale 2.3 — unclamped 3.48485e-3, ny-clamped 1.26274e-2).
-            //
-            // The consequence is that the per-step E window `de = eGrad·σ·dxy` was too narrow near the local
-            // support-box boundary, so neither the containing nor the contained prism was guaranteed to
-            // bracket the true E over the step and both "proofs" lost their proof status there. No march
-            // failure was ever produced from it (5 184 targeted Linear rays, 0 omissions), but a bound that
-            // is not a bound is precisely what T-0105 was built to eliminate.
-            //
-            // The fix is the MAX over the regimes, which is the true supremum of |∇E| over the whole plane
-            // and is still one compile-time constant. It costs a wider window on the configurations where
-            // the terms cancel and NOTHING on the ones where they do not (the max is the old value whenever
-            // the sum dominates); a wider window only ever makes the march take shorter, still-provable
-            // steps, so this is a speed cost and never a correctness one.
-            if (op.technique == ShaperExtrusionTechnique.Linear)
-            {
-                op.infE = Mathf.Max(0f, 1f - 0.6f * (Mathf.Abs(op.cosAngle) + Mathf.Abs(op.sinAngle)));
-
-                // `+` on sinθ: the T-0109 FIX F7 frame flip. Must match ShaperHeight.Profile's Linear case.
-                // (ax, ay) is ∇(0.6·cosθ·nx); (bx, by) is ∇(0.6·sinθ·ny). Each vanishes where its own axis
-                // is clamped, which is what makes the three non-zero regimes below.
-                float ax = 0.6f * op.cosAngle * op.m00 * op.invLocalHalfW;
-                float ay = 0.6f * op.cosAngle * op.m01 * op.invLocalHalfW;
-                float bx = 0.6f * op.sinAngle * op.m10 * op.invLocalHalfH;
-                float by = 0.6f * op.sinAngle * op.m11 * op.invLocalHalfH;
-
-                float sx = ax + bx, sy = ay + by;
-                float gBoth = Mathf.Sqrt(sx * sx + sy * sy);   // neither axis clamped — the old baked value
-                float gNyOnly = Mathf.Sqrt(bx * bx + by * by); // nx clamped: only the sinθ term survives
-                float gNxOnly = Mathf.Sqrt(ax * ax + ay * ay); // ny clamped: only the cosθ term survives
-                                                               // both clamped: ∇E = 0, never the max
-
-                float g = gBoth;
-                if (gNyOnly > g) g = gNyOnly;
-                if (gNxOnly > g) g = gNxOnly;
-
-                op.linearEGrad = g;
-                if (float.IsNaN(op.linearEGrad) || float.IsInfinity(op.linearEGrad)) op.linearEGrad = 0f;
-            }
-            else
-            {
-                op.infE = 1f;
-                op.linearEGrad = 0f;
-            }
-
-            // ── the declared bounds (HS-4), baked so a consumer reads a float rather than calling a switch ─
-            op.extrusionSlope = ShaperHeight.ExtrusionSlopeBound(op);
-            op.bevelSlope = ShaperHeight.BevelSlopeBound(op);
-            op.composedSlope = ShaperHeight.ComposedSlopeBound(op);
+            // T-0253 — inf E, |∇E| (linearEGrad) and the baked extrusionSlope/bevelSlope/composedSlope fields
+            // were all HS-9 march inputs only (the two-sided bracket the general resolve needed to skip solid
+            // and empty space safely). ShaperResolve was deleted outright and none of the four fields had any
+            // other reader, so the computation that filled them (T-0109 FIXes F1/N5, a per-regime |∇E| bound
+            // over ~1650 configurations) went with it. ExtrusionSlopeBound/BevelSlopeBound/ComposedSlopeBound
+            // themselves are UNCHANGED and still callable directly (ShaperHeightAudit's H2/H3 do exactly that);
+            // only the baked-field convenience for a march that no longer exists is gone.
 
             return op;
         }

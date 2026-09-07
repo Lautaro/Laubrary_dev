@@ -407,6 +407,16 @@
     -unity-text-align: middle-right;
 }
 
+/* The shape badge on a FOLDED animated dial (ZuiValueControl's Curve/Steps/Oscillation fold): an 18px
+   thumbnail of the curve, staircase or wave, sitting at the right end of the folded MicroSlider track.
+   Only the LOOK lives here — it takes the painted surface from .zui-envelope (it is a miniature of the
+   editor it opens) and the track's corner radius, so the slider and its badge read as one control. Its
+   SIZE stays in C# (ZuiValueControl.BadgeSize/BadgeGap), which has to do arithmetic with it to size the
+   track beside it — the same split Z.MicroSlider already uses, look in USS and width inline. */
+.zui-value__badge {
+    border-radius: 3px;
+}
+
 /* Button-style Toggle — a button that stays pressed when on, no checkmark. */
 .zui-togglebutton {
     -unity-font-style: normal;

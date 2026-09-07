@@ -47,7 +47,7 @@ namespace Laubrary.Shaper
     /// to match); fold in every field that is part of an identity with the <c>Mix*</c> calls, in a FIXED
     /// order (order matters -- two different field orders are two different hashes, which is fine as long as
     /// every call site is internally consistent, which is why every node-hash function lives in ONE place,
-    /// <see cref="ShaperNodeIdentity"/>, rather than being reimplemented per call site); read the result with
+    /// <see cref="ShaperLayerKey"/>, rather than being reimplemented per call site); read the result with
     /// <see cref="Key"/>.
     ///
     /// A mutable struct on purpose -- each <c>Mix*</c> call mutates the two ulong lanes in place and is meant

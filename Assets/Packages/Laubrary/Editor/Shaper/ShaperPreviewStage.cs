@@ -29,8 +29,8 @@ namespace Laubrary.Shaper.Editor
 
         // ── frame cache + background pre-baker (T-0165) ─────────────────────────────────────────────────────
         // See ShaperPreviewFrameCache.cs's own header for why this is a new pixel-level cache rather than the
-        // Runtime geometry cache (ShaperFrameCache/ShaperNodeCache/ShaperCachedEvaluator) the task named --
-        // those cache a NODE's distance field, not the finished picture RenderFrame actually costs ~30ms for.
+        // old T-0115 Runtime geometry cache (since deleted, T-0253) the task named -- that cached a NODE's
+        // distance field, not the finished picture RenderFrame actually costs ~30ms for.
         readonly ShaperPreviewFrameCache _frameCache = new ShaperPreviewFrameCache();
         readonly ShaperPreviewFramePrebaker _prebaker;
 
