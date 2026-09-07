@@ -32,6 +32,7 @@ MonoBehaviour:
     rules: []
   hit:
     clip: Hurt
+    targetPart: 
     durationMode: 0
     loops: 1
     seconds: 0
@@ -43,7 +44,14 @@ MonoBehaviour:
       frame: 1
       placement: 0
       metaLayerId: 
+      bodyPart: 
+      localOffset: {x: 0, y: 0}
+      mirrorOffsetWithFacing: 1
       direction: 0
+      rotation: 0
+      angleOffsetDeg: 0
+      flipWithFacing: 0
+      fixedAngleDeg: 0
       scalar: 0
       follow: 0
       fx:
@@ -51,6 +59,7 @@ MonoBehaviour:
       overrides: []
   death:
     clip: Death
+    targetPart: 
     durationMode: 0
     loops: 1
     seconds: 0
@@ -62,7 +71,14 @@ MonoBehaviour:
       frame: 1
       placement: 0
       metaLayerId: 
+      bodyPart: 
+      localOffset: {x: 0, y: 0}
+      mirrorOffsetWithFacing: 1
       direction: 0
+      rotation: 0
+      angleOffsetDeg: 0
+      flipWithFacing: 0
+      fixedAngleDeg: 0
       scalar: 0
       follow: 0
       fx:
@@ -91,7 +107,7 @@ MonoBehaviour:
     - rid: 1452078234765099101
       type: {class: PyreChunksFx, ns: Laubrary.ZoetropePyre, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Pyre}
       data:
-        blast: {fileID: 11400000, guid: bfac73e8582796e4fa3d488fa3457f93, type: 2}
+        blast: {fileID: 0}
         blastFps: 24
         chunks: {fileID: 11400000, guid: c8649ffc24fd7b246b6e952e531c168a, type: 2}
         sortingOrder: 10
