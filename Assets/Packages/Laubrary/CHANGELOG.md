@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- Pyre forms: every dial caption now fits a 150 px MicroSlider (326 captions shortened across 12 form files, the longer wording moved into tooltips) (T-0262).
 - Pyre forms: Arc Burst, Fork Blast, Inferno, Torch and the Jet family's dials carry plain-language captions, groups and effect tooltips (serialized names untouched, render hashes unchanged); Explosive Jet's own dials are still to do (T-0255).
 - Shaper: deleted the dead T-0115 geometry-cache stack and the HS-9 general resolve (10 files, ~3,800 lines) together with the audit sections and height bound fields that existed only to serve them; no rendered pixel changes (T-0253).
 - Shaper: composite generators no longer author a per-document "Reason"/note (classification lives on the source's declaration) and a hosted Pyre form no longer authors a second "Generator frames" clock that could disagree with the document's Frames (T-0254).

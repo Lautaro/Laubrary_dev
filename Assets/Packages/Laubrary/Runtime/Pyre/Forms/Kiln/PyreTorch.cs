@@ -75,29 +75,29 @@ namespace Laubrary.Pyre.Forms.Kiln
     public sealed class TorchSettings
     {
         // ── envelope ──
-        [Tooltip("Reach of the flame in SOURCE px — the reference every other px value here is relative to (the canvas height comes from the shared Height dial: u = Height × canvas / this).")]
-        [ZUILabel("Flame reach (source px)")] [ZUIGroup("Shape", Tooltip = "The flame's silhouette: width, height and how each falls off.")]
+        [Tooltip("Full name: \"Flame reach (source px)\". Reach of the flame in SOURCE px — the reference every other px value here is relative to (the canvas height comes from the shared Height dial: u = Height × canvas / this).")]
+        [ZUILabel("Flame reach")] [ZUIGroup("Shape", Tooltip = "The flame's silhouette: width, height and how each falls off.")]
         [Range(10f, 200f)] public float hFlame = 74f;
-        [Tooltip("Half-width of the source at the base, px.")]
-        [ZUILabel("Base half-width")] [ZUIGroup("Shape")]
+        [Tooltip("Full name: \"Base half-width\". Half-width of the source at the base, px.")]
+        [ZUILabel("Base width")] [ZUIGroup("Shape")]
         [Range(1f, 60f)] public ZUIValue w0 = new ZUIValue(7f);
         [Tooltip("How fast the width collapses with height: w = w0·(1 − Hn)^wp — low = a near-parallel column, high = a cone.")]
         [ZUILabel("Taper rate")] [ZUIGroup("Shape")]
         [Range(0.02f, 2f)] public ZUIValue wp = new ZUIValue(0.12f);
-        [Tooltip("Width floor at the tip, px — a REAL fraction of w0, so the tip is as wide as a tongue (the needle fix).")]
-        [ZUILabel("Tip width floor")] [ZUIGroup("Shape")]
+        [Tooltip("Full name: \"Tip width floor\". Width floor at the tip, px — a REAL fraction of w0, so the tip is as wide as a tongue (the needle fix).")]
+        [ZUILabel("Tip floor")] [ZUIGroup("Shape")]
         [Range(0.5f, 20f)] public ZUIValue wmin = new ZUIValue(2.6f);
-        [Tooltip("Lateral falloff exponent: exp(−(u²)^uexp·ku), u = x / width.")]
-        [ZUILabel("Side falloff shape")] [ZUIGroup("Shape", Advanced = true)]
+        [Tooltip("Full name: \"Side falloff shape\". Lateral falloff exponent: exp(−(u²)^uexp·ku), u = x / width.")]
+        [ZUILabel("Side shape")] [ZUIGroup("Shape", Advanced = true)]
         [Range(0.5f, 3f)] public ZUIValue uexp = new ZUIValue(1.55f);
-        [Tooltip("Lateral falloff rate.")]
-        [ZUILabel("Side falloff rate")] [ZUIGroup("Shape", Advanced = true)]
+        [Tooltip("Full name: \"Side falloff rate\". Lateral falloff rate.")]
+        [ZUILabel("Side rate")] [ZUIGroup("Shape", Advanced = true)]
         [Range(0.2f, 4f)] public ZUIValue ku = new ZUIValue(1.75f);
-        [Tooltip("Vertical falloff exponent: exp(−Hn^vexp·kv). Must stay ABOVE wp's effect so intensity dies faster than width (the needle rule).")]
-        [ZUILabel("Height falloff shape")] [ZUIGroup("Shape", Advanced = true)]
+        [Tooltip("Full name: \"Height falloff shape\". Vertical falloff exponent: exp(−Hn^vexp·kv). Must stay ABOVE wp's effect so intensity dies faster than width (the needle rule).")]
+        [ZUILabel("Height shape")] [ZUIGroup("Shape", Advanced = true)]
         [Range(1f, 6f)] public ZUIValue vexp = new ZUIValue(3.6f);
-        [Tooltip("Vertical falloff rate.")]
-        [ZUILabel("Height falloff rate")] [ZUIGroup("Shape", Advanced = true)]
+        [Tooltip("Full name: \"Height falloff rate\". Vertical falloff rate.")]
+        [ZUILabel("Height rate")] [ZUIGroup("Shape", Advanced = true)]
         [Range(0.2f, 5f)] public ZUIValue kv = new ZUIValue(2.2f);
         [Tooltip("Heat at the heart; the band thresholds are compared against a field that peaks near this.")]
         [ZUILabel("Core heat")] [ZUIGroup("Shape")]
@@ -111,48 +111,48 @@ namespace Laubrary.Pyre.Forms.Kiln
         [Tooltip("Width at the very bottom relative to w0 (the root pinch: a torch grows out of something; a campfire sits flat at 1).")]
         [ZUILabel("Root width")] [ZUIGroup("Shape")]
         [Range(0.1f, 1f)] public ZUIValue rmin = new ZUIValue(0.55f);
-        [Tooltip("Height (fraction of the reach) over which the root pinch opens to full width.")]
-        [ZUILabel("Root opening height")] [ZUIGroup("Shape")]
+        [Tooltip("Full name: \"Root opening height\". Height (fraction of the reach) over which the root pinch opens to full width.")]
+        [ZUILabel("Root open")] [ZUIGroup("Shape")]
         [Range(0.02f, 0.6f)] public ZUIValue rh = new ZUIValue(0.14f);
-        [Tooltip("Noise cell size along x, px per lattice cell.")]
-        [ZUILabel("Noise cell size X")] [ZUIGroup("Texture", Advanced = true)]
+        [Tooltip("Full name: \"Noise cell size X\". Noise cell size along x, px per lattice cell.")]
+        [ZUILabel("Noise size X")] [ZUIGroup("Texture", Advanced = true)]
         [Range(2f, 40f)] public float xsc = 9f;
-        [Tooltip("Noise cell size along y, px per lattice cell.")]
-        [ZUILabel("Noise cell size Y")] [ZUIGroup("Texture", Advanced = true)]
+        [Tooltip("Full name: \"Noise cell size Y\". Noise cell size along y, px per lattice cell.")]
+        [ZUILabel("Noise size Y")] [ZUIGroup("Texture", Advanced = true)]
         [Range(2f, 40f)] public float ysc = 15f;
         [Tooltip("Bite taken out of the heat in the bottom rows (the light-bar fix): the fuel is not the hottest part of a fire, the gas above it is. Kept shallow so it never becomes a dark shelf.")]
         [ZUILabel("Foot bite")] [ZUIGroup("Shape")]
         [Range(0f, 0.8f)] public ZUIValue foot = new ZUIValue(0.22f);
-        [Tooltip("Height of the foot bite, px.")]
-        [ZUILabel("Foot bite height")] [ZUIGroup("Shape", Advanced = true)]
+        [Tooltip("Full name: \"Foot bite height\". Height of the foot bite, px.")]
+        [ZUILabel("Foot bite")] [ZUIGroup("Shape", Advanced = true)]
         [Range(0.5f, 8f)] public ZUIValue footH = new ZUIValue(2.0f);
 
         // ── reach (how high, varying along the base and over time) ──
-        [Tooltip("Reach-variation noise frequency along x (cells per Xsc): low Fry makes it almost a function of x alone, so neighbouring columns disagree and tongues of different heights stand side by side.")]
-        [ZUILabel("Reach variation frequency X")] [ZUIGroup("Breathing", Tooltip = "Slow variation of the flame's own height over the loop.", Advanced = true)]
+        [Tooltip("Full name: \"Reach variation frequency X\". Reach-variation noise frequency along x (cells per Xsc): low Fry makes it almost a function of x alone, so neighbouring columns disagree and tongues of different heights stand side by side.")]
+        [ZUILabel("Reach freq X")] [ZUIGroup("Breathing", Tooltip = "Slow variation of the flame's own height over the loop.", Advanced = true)]
         [Range(0.1f, 4f)] public float frx = 1.20f;
-        [Tooltip("Reach-variation noise frequency along y (cells per Ysc). The scroll period is round(12·Fry) lattice cells per loop.")]
-        [ZUILabel("Reach variation frequency Y")] [ZUIGroup("Breathing", Advanced = true)]
+        [Tooltip("Full name: \"Reach variation frequency Y\". Reach-variation noise frequency along y (cells per Ysc). The scroll period is round(12·Fry) lattice cells per loop.")]
+        [ZUILabel("Reach freq Y")] [ZUIGroup("Breathing", Advanced = true)]
         [Range(0.05f, 2f)] public float fry = 0.18f;
-        [Tooltip("Amplitude of the reach variation (± fraction of the reach).")]
-        [ZUILabel("Height variation")] [ZUIGroup("Breathing")]
+        [Tooltip("Full name: \"Height variation\". Amplitude of the reach variation (± fraction of the reach).")]
+        [ZUILabel("Height var.")] [ZUIGroup("Breathing")]
         [Range(0f, 1f)] public ZUIValue rvar = new ZUIValue(0.32f);
-        [Tooltip("Breathing of the whole body, first harmonic (± fraction of the reach, once per loop).")]
-        [ZUILabel("Breathing (slow)")] [ZUIGroup("Breathing")]
+        [Tooltip("Full name: \"Breathing (slow)\". Breathing of the whole body, first harmonic (± fraction of the reach, once per loop).")]
+        [ZUILabel("Breath slow")] [ZUIGroup("Breathing")]
         [Range(0f, 0.3f)] public ZUIValue breathe = new ZUIValue(0.07f);
-        [Tooltip("Breathing second harmonic (twice per loop) so the pulse is not a metronome.")]
-        [ZUILabel("Breathing (fast)")] [ZUIGroup("Breathing")]
+        [Tooltip("Full name: \"Breathing (fast)\". Breathing second harmonic (twice per loop) so the pulse is not a metronome.")]
+        [ZUILabel("Breath fast")] [ZUIGroup("Breathing")]
         [Range(0f, 0.2f)] public ZUIValue breathe2 = new ZUIValue(0.04f);
-        [Tooltip("Phase of the first breathing harmonic, radians.")]
-        [ZUILabel("Breathing phase")] [ZUIGroup("Breathing", Advanced = true)]
+        [Tooltip("Full name: \"Breathing phase\". Phase of the first breathing harmonic, radians.")]
+        [ZUILabel("Breath phase")] [ZUIGroup("Breathing", Advanced = true)]
         [Range(0f, 6.2832f)] public float bphase = 2.2f;
 
         // ── sway ──
-        [Tooltip("Sway noise frequency along x (cells per Xsc).")]
-        [ZUILabel("Sway noise frequency")] [ZUIGroup("Sway & lean", Tooltip = "Side-to-side motion of the flame.", Advanced = true)]
+        [Tooltip("Full name: \"Sway noise frequency\". Sway noise frequency along x (cells per Xsc).")]
+        [ZUILabel("Sway freq")] [ZUIGroup("Sway & lean", Tooltip = "Side-to-side motion of the flame.", Advanced = true)]
         [Range(0.1f, 3f)] public float fw = 0.70f;
-        [Tooltip("Vertical anisotropy of the sway noise (its y frequency = Fw × this); the scroll period is round(12·Fw·Yaniso) cells per loop.")]
-        [ZUILabel("Sway vertical stretch")] [ZUIGroup("Sway & lean", Advanced = true)]
+        [Tooltip("Full name: \"Sway vertical stretch\". Vertical anisotropy of the sway noise (its y frequency = Fw × this); the scroll period is round(12·Fw·Yaniso) cells per loop.")]
+        [ZUILabel("Sway stretch")] [ZUIGroup("Sway & lean", Advanced = true)]
         [Range(0.1f, 2f)] public float yaniso = 0.50f;
         [Tooltip("Noise-driven lateral displacement at the top, px — on the order of the flame's own WIDTH, not a fraction of it (a 2 px wiggle on an 11 px column reads as a jittering cone).")]
         [ZUILabel("Sway amount")] [ZUIGroup("Sway & lean")]
@@ -168,123 +168,123 @@ namespace Laubrary.Pyre.Forms.Kiln
         [Tooltip("Whip amplitude at the top, px. 0 = off. The wave travels UP the flame so the column takes an S and the tip cracks.")]
         [ZUILabel("Whip amount")] [ZUIGroup("Whip", Tooltip = "A travelling wave that whips the flame's tip — off by default.")]
         [Range(0f, 24f)] public ZUIValue lash = new ZUIValue(0f);
-        [Tooltip("Whip cycles per loop — an integer so the wave closes with the loop.")]
-        [ZUILabel("Whip cycles per loop")] [ZUIGroup("Whip", Advanced = true)]
+        [Tooltip("Full name: \"Whip cycles per loop\". Whip cycles per loop — an integer so the wave closes with the loop.")]
+        [ZUILabel("Whip cycles")] [ZUIGroup("Whip", Advanced = true)]
         [Range(1, 4)] public int lashK = 1;
-        [Tooltip("How far the whip's phase lags per unit height (radians per reach): the base is already returning while the top is still going out.")]
-        [ZUILabel("Whip lag with height")] [ZUIGroup("Whip", Advanced = true)]
+        [Tooltip("Full name: \"Whip lag with height\". How far the whip's phase lags per unit height (radians per reach): the base is already returning while the top is still going out.")]
+        [ZUILabel("Whip lag")] [ZUIGroup("Whip", Advanced = true)]
         [Range(0f, 8f)] public float lashWave = 2.6f;
         [Tooltip("Whip phase, radians.")]
         [ZUILabel("Whip phase")] [ZUIGroup("Whip", Advanced = true)]
         [Range(0f, 6.2832f)] public float lashPh = 0f;
 
         // ── surge (the fed torch) ──
-        [Tooltip("Reach jump per surge (fraction of the reach). 0 = no surge (calm draws cost nothing here).")]
-        [ZUILabel("Surge height jump")] [ZUIGroup("Surge", Tooltip = "A fed torch: periodic surges that jump the flame taller and hotter.")]
+        [Tooltip("Full name: \"Surge height jump\". Reach jump per surge (fraction of the reach). 0 = no surge (calm draws cost nothing here).")]
+        [ZUILabel("Surge jump")] [ZUIGroup("Surge", Tooltip = "A fed torch: periodic surges that jump the flame taller and hotter.")]
         [Range(0f, 1f)] public ZUIValue pulse = new ZUIValue(0f);
-        [Tooltip("Surges per loop — an integer so the loop closes.")]
-        [ZUILabel("Surges per loop")] [ZUIGroup("Surge", Advanced = true)]
+        [Tooltip("Full name: \"Surges per loop\". Surges per loop — an integer so the loop closes.")]
+        [ZUILabel("Surges")] [ZUIGroup("Surge", Advanced = true)]
         [Range(1, 6)] public int pulseN = 2;
-        [Tooltip("Where in the surge the loop seam falls (fraction of a surge). Put it in the slow decay (≈0.7), not the fast attack, or the wrap lands on the steepest frame.")]
-        [ZUILabel("Loop seam point")] [ZUIGroup("Surge", Advanced = true)]
+        [Tooltip("Full name: \"Loop seam point\". Where in the surge the loop seam falls (fraction of a surge). Put it in the slow decay (≈0.7), not the fast attack, or the wrap lands on the steepest frame.")]
+        [ZUILabel("Loop seam")] [ZUIGroup("Surge", Advanced = true)]
         [Range(0f, 1f)] public float pulsePh = 0f;
-        [Tooltip("Attack asymmetry: below 1 the peak comes early (≈28 % of the cycle at 0.55) — a jump then a settle, not a breath.")]
-        [ZUILabel("Surge attack shape")] [ZUIGroup("Surge", Advanced = true)]
+        [Tooltip("Full name: \"Surge attack shape\". Attack asymmetry: below 1 the peak comes early (≈28 % of the cycle at 0.55) — a jump then a settle, not a breath.")]
+        [ZUILabel("Surge attack")] [ZUIGroup("Surge", Advanced = true)]
         [Range(0.2f, 1f)] public float pulseSkew = 0.55f;
-        [Tooltip("Tail flattening: higher = the flame spends more of the cycle low and is only briefly tall.")]
-        [ZUILabel("Surge tail shape")] [ZUIGroup("Surge", Advanced = true)]
+        [Tooltip("Full name: \"Surge tail shape\". Tail flattening: higher = the flame spends more of the cycle low and is only briefly tall.")]
+        [ZUILabel("Surge tail")] [ZUIGroup("Surge", Advanced = true)]
         [Range(0.5f, 4f)] public float pulseSharp = 1.6f;
-        [Tooltip("Brightness jump per surge (fraction of Gain) — fire that surges gets hotter as well as taller.")]
-        [ZUILabel("Surge brightness jump")] [ZUIGroup("Surge")]
+        [Tooltip("Full name: \"Surge brightness jump\". Brightness jump per surge (fraction of Gain) — fire that surges gets hotter as well as taller.")]
+        [ZUILabel("Surge glow")] [ZUIGroup("Surge")]
         [Range(0f, 1f)] public ZUIValue pulseGain = new ZUIValue(0f);
-        [Tooltip("Heat of the lump that rides UP the column on each surge — what actually makes a surge legible (taller alone reads as a zoom).")]
-        [ZUILabel("Rising heat lump")] [ZUIGroup("Surge")]
+        [Tooltip("Full name: \"Rising heat lump\". Heat of the lump that rides UP the column on each surge — what actually makes a surge legible (taller alone reads as a zoom).")]
+        [ZUILabel("Heat lump")] [ZUIGroup("Surge")]
         [Range(0f, 1f)] public ZUIValue bulge = new ZUIValue(0f);
         [Tooltip("Height of the travelling lump, fraction of the reach.")]
         [ZUILabel("Lump height")] [ZUIGroup("Surge")]
         [Range(0.05f, 0.6f)] public ZUIValue bulgeW = new ZUIValue(0.22f);
 
         // ── curl warp ──
-        [Tooltip("RMS displacement of the divergence-free warp on the noise sampling coordinates, px. 0 = off. Lobes ROLL over instead of wobbling (the warp cannot compress anything).")]
-        [ZUILabel("Curl warp amount")] [ZUIGroup("Curl warp", Tooltip = "Rolls the flame's lobes over instead of just wobbling them.")]
+        [Tooltip("Full name: \"Curl warp amount\". RMS displacement of the divergence-free warp on the noise sampling coordinates, px. 0 = off. Lobes ROLL over instead of wobbling (the warp cannot compress anything).")]
+        [ZUILabel("Curl warp")] [ZUIGroup("Curl warp", Tooltip = "Rolls the flame's lobes over instead of just wobbling them.")]
         [Range(0f, 16f)] public float curl = 0f;
-        [Tooltip("Curl potential frequency along x (cells per Xsc).")]
-        [ZUILabel("Curl frequency X")] [ZUIGroup("Curl warp", Advanced = true)]
+        [Tooltip("Full name: \"Curl frequency X\". Curl potential frequency along x (cells per Xsc).")]
+        [ZUILabel("Curl freq X")] [ZUIGroup("Curl warp", Advanced = true)]
         [Range(0.1f, 3f)] public float curlX = 1.0f;
-        [Tooltip("Curl potential frequency along y (cells per Ysc); scroll period round(12·CurlY) cells per loop.")]
-        [ZUILabel("Curl frequency Y")] [ZUIGroup("Curl warp", Advanced = true)]
+        [Tooltip("Full name: \"Curl frequency Y\". Curl potential frequency along y (cells per Ysc); scroll period round(12·CurlY) cells per loop.")]
+        [ZUILabel("Curl freq Y")] [ZUIGroup("Curl warp", Advanced = true)]
         [Range(0.05f, 2f)] public float curlY = 0.55f;
 
         // ── noise contour ──
-        [Tooltip("Big-lobe noise frequency along x (cells per Xsc).")]
-        [ZUILabel("Big-lobe frequency X")] [ZUIGroup("Texture", Advanced = true)]
+        [Tooltip("Full name: \"Big-lobe frequency X\". Big-lobe noise frequency along x (cells per Xsc).")]
+        [ZUILabel("Lobe freq X")] [ZUIGroup("Texture", Advanced = true)]
         [Range(0.1f, 3f)] public float fbx = 0.75f;
-        [Tooltip("Big-lobe noise frequency along y (cells per Ysc); scroll period round(12·Fby).")]
-        [ZUILabel("Big-lobe frequency Y")] [ZUIGroup("Texture", Advanced = true)]
+        [Tooltip("Full name: \"Big-lobe frequency Y\". Big-lobe noise frequency along y (cells per Ysc); scroll period round(12·Fby).")]
+        [ZUILabel("Lobe freq Y")] [ZUIGroup("Texture", Advanced = true)]
         [Range(0.05f, 2f)] public float fby = 0.50f;
-        [Tooltip("Kind of the big-lobe noise (2 octaves).")]
-        [ZUILabel("Big-lobe noise kind")] [ZUIGroup("Texture", Tooltip = "The flame's noisy contour and licking tongues of texture.")]
+        [Tooltip("Full name: \"Big-lobe noise kind\". Kind of the big-lobe noise (2 octaves).")]
+        [ZUILabel("Lobe noise")] [ZUIGroup("Texture", Tooltip = "The flame's noisy contour and licking tongues of texture.")]
         public TorchNoiseKind bigKind = TorchNoiseKind.Fbm;
-        [Tooltip("Amplitude of the big-lobe noise (added to the envelope: the silhouette is a CONTOUR of source + noise).")]
-        [ZUILabel("Big-lobe strength")] [ZUIGroup("Texture")]
+        [Tooltip("Full name: \"Big-lobe strength\". Amplitude of the big-lobe noise (added to the envelope: the silhouette is a CONTOUR of source + noise).")]
+        [ZUILabel("Lobe amt.")] [ZUIGroup("Texture")]
         [Range(0f, 1.5f)] public ZUIValue abig = new ZUIValue(0.30f);
-        [Tooltip("Lick noise frequency along x (cells per Xsc).")]
-        [ZUILabel("Lick frequency X")] [ZUIGroup("Texture", Advanced = true)]
+        [Tooltip("Full name: \"Lick frequency X\". Lick noise frequency along x (cells per Xsc).")]
+        [ZUILabel("Lick freq X")] [ZUIGroup("Texture", Advanced = true)]
         [Range(0.1f, 5f)] public float ftx = 1.60f;
-        [Tooltip("Lick noise frequency along y (cells per Ysc); scroll period round(12·Fty).")]
-        [ZUILabel("Lick frequency Y")] [ZUIGroup("Texture", Advanced = true)]
+        [Tooltip("Full name: \"Lick frequency Y\". Lick noise frequency along y (cells per Ysc); scroll period round(12·Fty).")]
+        [ZUILabel("Lick freq Y")] [ZUIGroup("Texture", Advanced = true)]
         [Range(0.05f, 2f)] public float fty = 0.55f;
-        [Tooltip("Octaves of the lick noise (at most 4 with the 64-cell lattice).")]
-        [ZUILabel("Lick noise octaves")] [ZUIGroup("Texture", Advanced = true)]
+        [Tooltip("Full name: \"Lick noise octaves\". Octaves of the lick noise (at most 4 with the 64-cell lattice).")]
+        [ZUILabel("Lick octaves")] [ZUIGroup("Texture", Advanced = true)]
         [Range(1, 4)] public int toct = 2;
-        [Tooltip("Kind of the lick noise: ridged carves the upper flame into separate tongues; billow makes rounded lumps.")]
-        [ZUILabel("Lick noise kind")] [ZUIGroup("Texture")]
+        [Tooltip("Full name: \"Lick noise kind\". Kind of the lick noise: ridged carves the upper flame into separate tongues; billow makes rounded lumps.")]
+        [ZUILabel("Lick noise")] [ZUIGroup("Texture")]
         public TorchNoiseKind turbKind = TorchNoiseKind.Ridged;
         [Tooltip("Amplitude of the lick noise.")]
         [ZUILabel("Lick strength")] [ZUIGroup("Texture")]
         [Range(0f, 1.5f)] public ZUIValue alick = new ZUIValue(0.32f);
-        [Tooltip("Constant subtracted with the noise (field units) — erodes the contour so licks pinch off.")]
-        [ZUILabel("Noise erosion bias")] [ZUIGroup("Texture", Advanced = true)]
+        [Tooltip("Full name: \"Noise erosion bias\". Constant subtracted with the noise (field units) — erodes the contour so licks pinch off.")]
+        [ZUILabel("Erosion bias")] [ZUIGroup("Texture", Advanced = true)]
         [Range(0f, 0.6f)] public ZUIValue bias = new ZUIValue(0.10f);
-        [Tooltip("Exponent on the envelope that gates the noise (famp = shape^pexp): the noise lives where the source is, normalised so Gain moves colour, not shape.")]
-        [ZUILabel("Noise gating shape")] [ZUIGroup("Texture", Advanced = true)]
+        [Tooltip("Full name: \"Noise gating shape\". Exponent on the envelope that gates the noise (famp = shape^pexp): the noise lives where the source is, normalised so Gain moves colour, not shape.")]
+        [ZUILabel("Gate shape")] [ZUIGroup("Texture", Advanced = true)]
         [Range(0.1f, 1.5f)] public ZUIValue pexp = new ZUIValue(0.44f);
-        [Tooltip("Height (fraction of the reach) over which the noise fades in from the base — keeps the bottom rows quiet so the flame stays anchored.")]
-        [ZUILabel("Quiet base height")] [ZUIGroup("Texture", Advanced = true)]
+        [Tooltip("Full name: \"Quiet base height\". Height (fraction of the reach) over which the noise fades in from the base — keeps the bottom rows quiet so the flame stays anchored.")]
+        [ZUILabel("Base height")] [ZUIGroup("Texture", Advanced = true)]
         [Range(0.01f, 0.6f)] public ZUIValue still = new ZUIValue(0.09f);
 
         // ── fuel bed ──
         [Tooltip("Heat of the wide low pool under the flame, shimmering slowly. 0 = off. Keep it a THIN strip: too much and the whole draw is one glowing loaf.")]
         [ZUILabel("Bed glow")] [ZUIGroup("Fuel bed glow", Tooltip = "A wide shimmering pool of heat under the flame.")]
         [Range(0f, 1f)] public ZUIValue glow = new ZUIValue(0.24f);
-        [Tooltip("Half-width of the fuel-bed pool, px.")]
-        [ZUILabel("Bed glow width")] [ZUIGroup("Fuel bed glow")]
+        [Tooltip("Full name: \"Bed glow width\". Half-width of the fuel-bed pool, px.")]
+        [ZUILabel("Bed width")] [ZUIGroup("Fuel bed glow")]
         [Range(1f, 60f)] public ZUIValue glowW = new ZUIValue(6f);
-        [Tooltip("Height of the fuel-bed pool above Glow Y, px.")]
-        [ZUILabel("Bed glow height")] [ZUIGroup("Fuel bed glow")]
+        [Tooltip("Full name: \"Bed glow height\". Height of the fuel-bed pool above Glow Y, px.")]
+        [ZUILabel("Bed height")] [ZUIGroup("Fuel bed glow")]
         [Range(0.5f, 20f)] public ZUIValue glowH = new ZUIValue(4.5f);
-        [Tooltip("Height above the fuel bed where the pool starts, px.")]
-        [ZUILabel("Bed glow position")] [ZUIGroup("Fuel bed glow")]
+        [Tooltip("Full name: \"Bed glow position\". Height above the fuel bed where the pool starts, px.")]
+        [ZUILabel("Bed pos.")] [ZUIGroup("Fuel bed glow")]
         [Range(-10f, 20f)] public ZUIValue glowY = new ZUIValue(0f);
 
         // ── tongues ──
         [Tooltip("Discrete licks alive in the population — flame-shaped tongues that peel off the flanks, lean outward as they climb and burn out. 0 = off.")]
         [ZUILabel("Tongue count")] [ZUIGroup("Tongues", Tooltip = "Discrete licks peeling off the flanks.")]
         [Range(0, 40)] public int tongues = 26;
-        [Tooltip("Heat of a tongue at its peak.")]
-        [ZUILabel("Tongue brightness")] [ZUIGroup("Tongues")]
+        [Tooltip("Full name: \"Tongue brightness\". Heat of a tongue at its peak.")]
+        [ZUILabel("Tongue glow")] [ZUIGroup("Tongues")]
         [Range(0f, 1.5f)] public ZUIValue tongueGain = new ZUIValue(0.46f);
-        [Tooltip("Root distance from the axis, px (range, either side). MUST sit at the body's rim or the licks live inside the core and add nothing.")]
-        [ZUILabel("Tongue root spread")] [ZUIGroup("Tongues")]
+        [Tooltip("Full name: \"Tongue root spread\". Root distance from the axis, px (range, either side). MUST sit at the body's rim or the licks live inside the core and add nothing.")]
+        [ZUILabel("Root spread")] [ZUIGroup("Tongues")]
         [Range(0f, 40f)] public Vector2 tongueX = new Vector2(8f, 12f);
-        [Tooltip("Root height above the fuel bed, px (range).")]
-        [ZUILabel("Tongue root height")] [ZUIGroup("Tongues")]
+        [Tooltip("Full name: \"Tongue root height\". Root height above the fuel bed, px (range).")]
+        [ZUILabel("Root height")] [ZUIGroup("Tongues")]
         [Range(0f, 100f)] public Vector2 tongueY = new Vector2(8f, 62f);
         [Tooltip("How far a tongue climbs over its life, px (range).")]
         [ZUILabel("Tongue climb")] [ZUIGroup("Tongues")]
         [Range(0f, 60f)] public Vector2 tongueRise = new Vector2(9f, 22f);
-        [Tooltip("How far a tongue peels away sideways over its life, px (range).")]
-        [ZUILabel("Tongue peel-out")] [ZUIGroup("Tongues")]
+        [Tooltip("Full name: \"Tongue peel-out\". How far a tongue peels away sideways over its life, px (range).")]
+        [ZUILabel("Tongue peel")] [ZUIGroup("Tongues")]
         [Range(0f, 24f)] public Vector2 tongueOut = new Vector2(3f, 8f);
         [Tooltip("Tongue half-width, px (range).")]
         [ZUILabel("Tongue width")] [ZUIGroup("Tongues")]
@@ -292,8 +292,8 @@ namespace Laubrary.Pyre.Forms.Kiln
         [Tooltip("Tongue length, px (range).")]
         [ZUILabel("Tongue length")] [ZUIGroup("Tongues")]
         [Range(1f, 16f)] public Vector2 tongueL = new Vector2(3.5f, 7f);
-        [Tooltip("Tongue lifetime as a fraction of the loop (range).")]
-        [ZUILabel("Tongue lifetime")] [ZUIGroup("Tongues")]
+        [Tooltip("Full name: \"Tongue lifetime\". Tongue lifetime as a fraction of the loop (range).")]
+        [ZUILabel("Tongue life")] [ZUIGroup("Tongues")]
         [Range(0.05f, 1f)] public Vector2 tongueLife = new Vector2(0.30f, 0.60f);
         [Tooltip("How much a tongue's upper part leans outward as it ages (shear of its shape).")]
         [ZUILabel("Tongue lean")] [ZUIGroup("Tongues")]
@@ -303,8 +303,8 @@ namespace Laubrary.Pyre.Forms.Kiln
         [Tooltip("Sparks in the population — cooling fuel in world space, taking the same palette. 0 = off.")]
         [ZUILabel("Ember count")] [ZUIGroup("Embers", Tooltip = "Sparks that launch from the fuel bed and cool as they rise.")]
         [Range(0, 40)] public int embers = 9;
-        [Tooltip("Half-width of the ember launch zone across the axis, px.")]
-        [ZUILabel("Ember launch spread")] [ZUIGroup("Embers")]
+        [Tooltip("Full name: \"Ember launch spread\". Half-width of the ember launch zone across the axis, px.")]
+        [ZUILabel("Ember spread")] [ZUIGroup("Embers")]
         [Range(0f, 40f)] public float emberSpread = 6f;
         [Tooltip("How far an ember rises over its life, px (range).")]
         [ZUILabel("Ember rise")] [ZUIGroup("Embers")]
@@ -318,16 +318,16 @@ namespace Laubrary.Pyre.Forms.Kiln
         [Tooltip("Ember radius, px (range).")]
         [ZUILabel("Ember size")] [ZUIGroup("Embers")]
         [Range(0.2f, 4f)] public Vector2 emberSize = new Vector2(0.7f, 1.4f);
-        [Tooltip("Launch height above the fuel bed, px.")]
-        [ZUILabel("Ember launch height")] [ZUIGroup("Embers")]
+        [Tooltip("Full name: \"Ember launch height\". Launch height above the fuel bed, px.")]
+        [ZUILabel("Ember height")] [ZUIGroup("Embers")]
         [Range(0f, 80f)] public ZUIValue emberY0 = new ZUIValue(28f);
-        [Tooltip("Heat of an ember at its peak.")]
-        [ZUILabel("Ember brightness")] [ZUIGroup("Embers")]
+        [Tooltip("Full name: \"Ember brightness\". Heat of an ember at its peak.")]
+        [ZUILabel("Ember glow")] [ZUIGroup("Embers")]
         [Range(0f, 1.5f)] public ZUIValue emberGain = new ZUIValue(0.38f);
 
         // ── shade ──
-        [Tooltip("How much the colour field is cooled with height: C = H·(1 − cool·clip(Hn, 0, 1.4)) — tips go red while the heart stays white, without the silhouette changing.")]
-        [ZUILabel("Cooling with height")] [ZUIGroup("Colour", Tooltip = "The colour ramp and how the heat field maps onto it.")]
+        [Tooltip("Full name: \"Cooling with height\". How much the colour field is cooled with height: C = H·(1 − cool·clip(Hn, 0, 1.4)) — tips go red while the heart stays white, without the silhouette changing.")]
+        [ZUILabel("Height cool")] [ZUIGroup("Colour", Tooltip = "The colour ramp and how the heat field maps onto it.")]
         [Range(0f, 0.6f)] public ZUIValue cool = new ZUIValue(0.30f);
         [Tooltip("Heat where opacity lifts off (field units). Below it the pixel is transparent.")]
         [ZUILabel("Fade-in point")] [ZUIGroup("Colour")]

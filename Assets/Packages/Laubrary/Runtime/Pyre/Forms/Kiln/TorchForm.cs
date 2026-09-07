@@ -61,11 +61,11 @@ namespace Laubrary.Pyre.Forms.Kiln
         public Variant variant = Variant.Barbs;
 
         // ── placement (shared) ──
-        [Tooltip("Where the flame axis sits across the canvas, as a fraction of the width.")]
-        [ZUILabel("Flame position across")] [ZUIGroup("Placement", Tooltip = "Where the flame's own frame sits; every length inside the variant scales with these.")]
+        [Tooltip("Full name: \"Flame position across\". Where the flame axis sits across the canvas, as a fraction of the width.")]
+        [ZUILabel("Flame X")] [ZUIGroup("Placement", Tooltip = "Where the flame's own frame sits; every length inside the variant scales with these.")]
         [Range(0.1f, 0.9f)] public ZUIValue axisX = new ZUIValue(0.5f);
-        [Tooltip("Height of the fuel bed (the flame's root) above the canvas bottom, as a fraction of the canvas height. Nothing burns below it. Source: barbs' bed is 10 px up a 118 px frame.")]
-        [ZUILabel("Fuel bed height")] [ZUIGroup("Placement")]
+        [Tooltip("Full name: \"Fuel bed height\". Height of the fuel bed (the flame's root) above the canvas bottom, as a fraction of the canvas height. Nothing burns below it. Source: barbs' bed is 10 px up a 118 px frame.")]
+        [ZUILabel("Bed height")] [ZUIGroup("Placement")]
         [Range(0f, 0.5f)] public ZUIValue ground = new ZUIValue(10f / 118f);
         [Tooltip("Reach of the flame (the variant's h_flame) as a fraction of the canvas height; every length inside the variant scales with it. Source: barbs reaches 74 px on its 118 px frame.")]
         [ZUILabel("Flame reach")] [ZUIGroup("Placement")]
@@ -80,8 +80,8 @@ namespace Laubrary.Pyre.Forms.Kiln
 
         // ── swarm ──
         [PyreSwarmOnly]
-        [Tooltip("Height of each swarm particle's flame as a fraction of the solo Height (the swarm's own size / depth shading multiplies it).")]
-        [ZUILabel("Swarm flame size")] [ZUIGroup("Placement")]
+        [Tooltip("Full name: \"Swarm flame size\". Height of each swarm particle's flame as a fraction of the solo Height (the swarm's own size / depth shading multiplies it).")]
+        [ZUILabel("Swarm size")] [ZUIGroup("Placement")]
         [Range(0.1f, 1f)] public ZUIValue swarmSize = new ZUIValue(0.5f);
 
         // ── runtime ──

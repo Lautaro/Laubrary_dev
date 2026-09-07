@@ -26,11 +26,11 @@ namespace Laubrary.Pyre.Forms.Kiln
         [Tooltip("The blast's progress over the layer's life — a TIME REMAP as one envelope. The default straight line plays in real time; bend it to snap in and hold, slow the tail, or freeze a pose (a Static value).")]
         [ZUIGroup("Clock", Tooltip = "The blast's overall timing.")]
         [Range(0f, 1f)] public ZUIValue progress = IdentityCurve();
-        [Tooltip("How far the fastest puffs travel, as a fraction of the canvas half-extent, over life.")]
-        [ZUILabel("Travel distance")] [ZUIGroup("Clock")]
+        [Tooltip("Full name: \"Travel distance\". How far the fastest puffs travel, as a fraction of the canvas half-extent, over life.")]
+        [ZUILabel("Travel dist.")] [ZUIGroup("Clock")]
         [Range(0.1f, 1.5f)] public ZUIValue reach = new ZUIValue(0.85f);
-        [Tooltip("White-hot ignition flash at each blast's birth, over life. Tinted from the Fill's hot end.")]
-        [ZUILabel("Ignition flash")] [ZUIGroup("Clock")]
+        [Tooltip("Full name: \"Ignition flash\". White-hot ignition flash at each blast's birth, over life. Tinted from the Fill's hot end.")]
+        [ZUILabel("Ignition")] [ZUIGroup("Clock")]
         [Range(0f, 1f)] public ZUIValue flash = new ZUIValue(0.7f);
 
         // ── emission shape ──
@@ -51,11 +51,11 @@ namespace Laubrary.Pyre.Forms.Kiln
         [Tooltip("Higher decelerates a puff sooner, so it stalls closer to the source.")]
         [ZUIGroup("Puff physics", Tooltip = "How a single puff moves and grows as it travels.")]
         [Range(0.3f, 6f)] public float drag = 2.2f;
-        [Tooltip("Upward rise late in a puff's life.")]
-        [ZUILabel("Rise (buoyancy)")] [ZUIGroup("Puff physics")]
+        [Tooltip("Full name: \"Rise (buoyancy)\". Upward rise late in a puff's life.")]
+        [ZUILabel("Buoyancy")] [ZUIGroup("Puff physics")]
         [Range(0f, 0.4f)] public float buoyancy = 0.05f;
-        [Tooltip("Radius gained per pixel travelled (entrainment) — a puff fattens as it slows.")]
-        [ZUILabel("Growth by distance")] [ZUIGroup("Puff physics")]
+        [Tooltip("Full name: \"Growth by distance\". Radius gained per pixel travelled (entrainment) — a puff fattens as it slows.")]
+        [ZUILabel("Growth rate")] [ZUIGroup("Puff physics")]
         [Range(0f, 0.3f)] public float growth = 0.09f;
         [Tooltip("Radius gained per unit AGE rather than distance — fills a stalled centre so the fireball doesn't hollow into a smoke ring.")]
         [ZUILabel("Growth by age")] [ZUIGroup("Puff physics")]
@@ -66,11 +66,11 @@ namespace Laubrary.Pyre.Forms.Kiln
         [Tooltip("The age by which a puff has stopped stretching and is round again.")]
         [ZUILabel("Round by age")] [ZUIGroup("Puff physics")]
         [Range(0.02f, 0.9f)] public float roundAt = 0.3f;
-        [Tooltip("Per-puff variation in speed / size / amplitude / life.")]
-        [ZUILabel("Puff variation")] [ZUIGroup("Puff physics")]
+        [Tooltip("Full name: \"Puff variation\". Per-puff variation in speed / size / amplitude / life.")]
+        [ZUILabel("Puff var.")] [ZUIGroup("Puff physics")]
         [Range(0.3f, 4f)] public float jitter = 0.55f;
-        [Tooltip("0 = every puff leaves at one speed, which reads as a hollow expanding SHELL. Above 0 spreads the speeds so the middle fills in with slow-travelling gas instead of hollowing into a smoke ring.")]
-        [ZUILabel("Fill the centre")] [ZUIGroup("Puff physics")]
+        [Tooltip("Full name: \"Fill the centre\". 0 = every puff leaves at one speed, which reads as a hollow expanding SHELL. Above 0 spreads the speeds so the middle fills in with slow-travelling gas instead of hollowing into a smoke ring.")]
+        [ZUILabel("Fill centre")] [ZUIGroup("Puff physics")]
         [Range(0f, 1f)] public float fillVolume = 0.7f;
 
         // ── detonation clock ──
@@ -88,8 +88,8 @@ namespace Laubrary.Pyre.Forms.Kiln
         [Range(0f, 3f)] public float cool = 1.6f;
 
         // ── how it dies — hold the amplitude up, then contract rather than fade, closing inward from the fastest gas ──
-        [Tooltip("Above 0 holds a puff's amplitude up and drops it LATE instead of dimming from birth — the delay that keeps the body solid long enough for Shrink to be the thing you see.")]
-        [ZUILabel("Brightness hold")] [ZUIGroup("Death", Tooltip = "How the blast fades and closes at the end of its life.")]
+        [Tooltip("Full name: \"Brightness hold\". Above 0 holds a puff's amplitude up and drops it LATE instead of dimming from birth — the delay that keeps the body solid long enough for Shrink to be the thing you see.")]
+        [ZUILabel("Glow hold")] [ZUIGroup("Death", Tooltip = "How the blast fades and closes at the end of its life.")]
         [Range(0f, 3f)] public float hold = 1.7f;
         [Tooltip("Exponent on the Fill's own alpha ceiling. Below 1 pushes the body toward solid while doing least at the coolest, already-thin rim — so the body opens up without trading away the edge falloff.")]
         [ZUILabel("Solidity")] [ZUIGroup("Death")]
@@ -97,11 +97,11 @@ namespace Laubrary.Pyre.Forms.Kiln
         [Tooltip("How much of its radius a puff loses by the end of its life — dies by getting SMALLER, not more transparent. The kernel's peak is its amplitude, so a shrinking puff stays exactly as bright at its centre.")]
         [ZUILabel("Shrink amount")] [ZUIGroup("Death")]
         [Range(0f, 1f)] public float shrink = 0.8f;
-        [Tooltip("The age the contraction starts at.")]
-        [ZUILabel("Shrink starts at")] [ZUIGroup("Death")]
+        [Tooltip("Full name: \"Shrink starts at\". The age the contraction starts at.")]
+        [ZUILabel("Shrink start")] [ZUIGroup("Death")]
         [Range(0f, 0.95f)] public float shrinkAt = 0.5f;
-        [Tooltip("The fastest (outermost) gas dies first, so the silhouette closes INWARD as it collapses — shrinking every puff by the same amount alone leaves the outer shell in place and merely makes it smaller.")]
-        [ZUILabel("Outer dies first")] [ZUIGroup("Death")]
+        [Tooltip("Full name: \"Outer dies first\". The fastest (outermost) gas dies first, so the silhouette closes INWARD as it collapses — shrinking every puff by the same amount alone leaves the outer shell in place and merely makes it smaller.")]
+        [ZUILabel("Outer dies")] [ZUIGroup("Death")]
         [Range(0f, 1f)] public float leadDie = 0.42f;
 
         // ── shedding burning mass ──
@@ -120,11 +120,11 @@ namespace Laubrary.Pyre.Forms.Kiln
         [Tooltip("A gob's life, as a multiple of Puff life.")]
         [ZUILabel("Gob lifetime")] [ZUIGroup("Shed mass (gobs)")]
         [Range(0.5f, 3f)] public float gobLife = 1.3f;
-        [Tooltip("Gob brightness.")]
-        [ZUILabel("Gob brightness")] [ZUIGroup("Shed mass (gobs)")]
+        [Tooltip("Full name: \"Gob brightness\". Gob brightness.")]
+        [ZUILabel("Gob glow")] [ZUIGroup("Shed mass (gobs)")]
         [Range(0f, 3f)] public float gobAmount = 1.2f;
-        [Tooltip("Gobs are born inside this fraction of the birth span — the opening phase. A gob that leaves late just reads as a second, smaller explosion.")]
-        [ZUILabel("Gob birth window")] [ZUIGroup("Shed mass (gobs)")]
+        [Tooltip("Full name: \"Gob birth window\". Gobs are born inside this fraction of the birth span — the opening phase. A gob that leaves late just reads as a second, smaller explosion.")]
+        [ZUILabel("Gob window")] [ZUIGroup("Shed mass (gobs)")]
         [Range(0.05f, 1f)] public float gobTiming = 0.45f;
 
         // ── look — puff size at the source, turbulence, and the heat-field-to-pixel mapping ──

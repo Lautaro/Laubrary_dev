@@ -58,8 +58,8 @@ namespace Laubrary.Pyre.Forms.Kiln
 
         public enum Variant { Detonate, Backdraft, Chain, Frag, Fuelair, Lash, Muzzle, Shatter, Shockfront, Starshell }
 
-        [Tooltip("Which of the ten published detonations this is. Each is its own settings box below; switching keeps the shared placement dials.")]
-        [ZUILabel("Explosive jet type")]
+        [Tooltip("Full name: \"Explosive jet type\". Which of the ten published detonations this is. Each is its own settings box below; switching keeps the shared placement dials.")]
+        [ZUILabel("Jet type")]
         public Variant variant = Variant.Detonate;
 
         // ── the variants ──
