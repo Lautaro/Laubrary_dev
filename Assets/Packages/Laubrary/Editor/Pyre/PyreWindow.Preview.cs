@@ -135,6 +135,33 @@ namespace Laubrary.Pyre.Editor
             // playback (it only paints over the already-blitted frame texture). It authors that one layer's swarm.
             var sel = SelLayer;
             if (sel != null && sel.swarmEnabled) DrawSwarmOverlay(view, s, sel, life);
+
+            // The optional anchor marker — after the swarm overlay so the swarm's own handles win their hit
+            // tests; whatever they leave, the anchor takes (a click on empty canvas places it).
+            if (s.anchorEnabled) DrawAnchorOverlay(view, s, rct);
+        }
+
+        // ── anchor marker (PyreAnchor) ────────────────────────────────────────────────────
+        int anchorDragMode;                                                        // ZuiVectorMarker gesture state
+        static readonly Color AnchorColor = new Color(1f, 0.82f, 0.28f, 0.95f);     // amber, distinct from the swarm's cyan/warm dots
+
+        /// Draws + drags the Pyre's anchor through the shared marker (the same one Launimator's Vector
+        /// meta-layers use). Not a render input: Undo + SetDirty + repaint, never a frame-cache invalidation.
+        void DrawAnchorOverlay(Rect view, Pyre s, Rect rct)
+        {
+            var canvas = new Laubrary.Zui.ZuiVectorMarker.Canvas(view, rct.x, rct.y, swarmZoom, s.Width, s.Height);
+            var data = new Laubrary.Zui.ZuiVectorMarker.Data
+            { authored = true, origin01 = s.anchorOrigin, direction = s.anchorDirection, length = 1f };
+            var opts = new Laubrary.Zui.ZuiVectorMarker.Options
+            { arrow = s.anchorKind == PyreAnchorKind.Vector, length = false, erase = false, color = AnchorColor };
+
+            if (Event.current.type == EventType.Repaint) Laubrary.Zui.ZuiVectorMarker.Draw(canvas, data, opts);
+            if (!Laubrary.Zui.ZuiVectorMarker.Handle(canvas, ref data, opts, ref anchorDragMode,
+                    label => Undo.RecordObject(s, label))) return;
+            s.anchorOrigin = data.origin01;
+            s.anchorDirection = data.direction;
+            EditorUtility.SetDirty(s);
+            preview?.MarkDirtyRepaint();
         }
 
         // ── Playback 3D preview (PROOF OF CONCEPT) ──────────────────────────────────────

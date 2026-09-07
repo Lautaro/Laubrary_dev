@@ -2699,50 +2699,24 @@ namespace Laubrary.Launimator.Editor
         }
 
         /// <summary>Draws Vector mode's origin dot + aim arrow directly on the preview canvas, in the layer's
-        /// own colour — the same window Shape/Point paint into, not a separate box.</summary>
+        /// own colour — the same window Shape/Point paint into, not a separate box. The drawing and the gestures
+        /// are the shared <see cref="ZuiVectorMarker"/> (Pyre's anchor uses the same one).</summary>
         private void DrawVectorOverlay(Rect box, float ox, float oy, float z, int fw, int fh, MetaLayer layer, VectorMetaFrame vf)
         {
-            if (!vf.authored)
-            {
-                GUI.Label(box, "Click to place the origin, then drag to aim.\nRight-click erases.",
-                    new GUIStyle(EditorStyles.centeredGreyMiniLabel) { alignment = TextAnchor.MiddleCenter });
-                return;
-            }
-            Vector2 originScreen = VectorOriginToScreen(vf.origin, ox, oy, z, fw, fh);
-            Vector2 tipScreen = VectorTipScreen(originScreen, vf.direction, layer.vectorAllowLength ? vf.length : 1f, box, fh, z, layer.vectorAllowLength);
-
-            Handles.BeginGUI();
-            Handles.color = layer.color;
-            Handles.DrawAAPolyLine(3f, originScreen, tipScreen);
-            Vector2 back = (originScreen - tipScreen).normalized;
-            Vector2 perp = new Vector2(-back.y, back.x);
-            Handles.DrawAAConvexPolygon(tipScreen, tipScreen + back * 10f + perp * 5f, tipScreen + back * 10f - perp * 5f);
-
-            // Origin dot = exactly ONE source pixel, at the current zoom — big enough to see, small enough to
-            // actually pinpoint a pixel with, in the layer's own colour/opacity (not a fixed oversized blob).
-            float dotR = Mathf.Max(1f, z * 0.5f);
-            Handles.color = layer.color;
-            Handles.DrawSolidDisc(originScreen, Vector3.forward, dotR);
-            Handles.color = new Color(0f, 0f, 0f, layer.color.a);
-            Handles.DrawWireDisc(originScreen, Vector3.forward, dotR);
-            Handles.EndGUI();
+            var canvas = VectorCanvas(box, ox, oy, z, fw, fh);
+            var data = VectorData(vf);
+            ZuiVectorMarker.Draw(canvas, data, VectorOptions(layer));
         }
 
-        private static Vector2 VectorOriginToScreen(Vector2 origin01, float ox, float oy, float z, int fw, int fh)
-            => new Vector2(ox + origin01.x * fw * z, oy + (fh - origin01.y * fh) * z);
+        // Mouse positions inside GUI.BeginClip are clip-local, so the canvas box is the clip's own extent.
+        private static ZuiVectorMarker.Canvas VectorCanvas(Rect box, float ox, float oy, float z, int fw, int fh)
+            => new ZuiVectorMarker.Canvas(new Rect(0f, 0f, box.width, box.height), ox, oy, z, fw, fh);
 
-        private static Vector2 VectorScreenToOrigin(Vector2 s, float ox, float oy, float z, int fw, int fh)
-            => new Vector2(Mathf.Clamp01((s.x - ox) / (fw * z)), Mathf.Clamp01(1f - (s.y - oy) / (fh * z)));
+        private static ZuiVectorMarker.Data VectorData(VectorMetaFrame vf)
+            => new ZuiVectorMarker.Data { authored = vf.authored, origin01 = vf.origin, direction = vf.direction, length = vf.length };
 
-        /// <summary>Arrow length in screen px: a fixed, legible visual length when length isn't authorable, or
-        /// scaled from the authored length (1 = ~35% of the shorter box dimension) when it is.</summary>
-        private static Vector2 VectorTipScreen(Vector2 originScreen, Vector2 direction, float length, Rect box, int fh, float z, bool allowLength)
-        {
-            float baseLen = Mathf.Min(box.width, box.height) * 0.35f;
-            float px = allowLength ? baseLen * Mathf.Max(0.05f, length) : baseLen;
-            Vector2 dirScreen = direction.sqrMagnitude > 0.0001f ? new Vector2(direction.x, -direction.y).normalized : Vector2.up;
-            return originScreen + dirScreen * px;
-        }
+        private static ZuiVectorMarker.Options VectorOptions(MetaLayer layer)
+            => new ZuiVectorMarker.Options { arrow = true, length = layer.vectorAllowLength, erase = true, color = layer.color };
 
         /// <summary>Click-to-place, drag-the-dot-to-move, drag-the-arrowhead-to-aim, right-click-to-erase — all
         /// on the same preview canvas Shape/Point paint into. No pixel mask involved for Vector mode.</summary>
@@ -2760,53 +2734,12 @@ namespace Laubrary.Launimator.Editor
             else if (e.type == EventType.MouseUp && e.button == 2 && _metaPanning)
             { _metaPanning = false; e.Use(); return; }
 
-            if (!insideBox) return;
-
-            if (e.type == EventType.MouseDown && e.button == 1)
-            {
-                RecordUndo("Clear vector frame"); vf.authored = false; Dirty(); e.Use(); Repaint(); return;
-            }
-
-            const float hitR = 10f;
-            if (e.type == EventType.MouseDown && e.button == 0)
-            {
-                if (vf.authored)
-                {
-                    Vector2 originScreen = VectorOriginToScreen(vf.origin, ox, oy, z, fw, fh);
-                    Vector2 tipScreen = VectorTipScreen(originScreen, vf.direction, layer.vectorAllowLength ? vf.length : 1f, box, fh, z, layer.vectorAllowLength);
-                    if ((m - originScreen).sqrMagnitude <= hitR * hitR) { RecordUndo("Move vector origin"); _vecDragMode = 1; e.Use(); Repaint(); return; }
-                    if ((m - tipScreen).sqrMagnitude <= hitR * hitR) { RecordUndo("Aim vector"); _vecDragMode = 2; e.Use(); Repaint(); return; }
-                }
-                RecordUndo("Place vector");
-                vf.authored = true;
-                vf.origin = VectorScreenToOrigin(m, ox, oy, z, fw, fh);
-                vf.direction = Vector2.up;
-                if (layer.vectorAllowLength) vf.length = 1f;
-                _vecDragMode = 2; // start aiming immediately, matching "click to place, drag to aim"
-                Dirty(); e.Use(); Repaint();
-                return;
-            }
-
-            if (e.type == EventType.MouseDrag && _vecDragMode != 0)
-            {
-                if (_vecDragMode == 1) vf.origin = VectorScreenToOrigin(m, ox, oy, z, fw, fh);
-                else if (_vecDragMode == 2)
-                {
-                    Vector2 originScreen = VectorOriginToScreen(vf.origin, ox, oy, z, fw, fh);
-                    Vector2 fromOrigin = m - originScreen;
-                    if (fromOrigin.sqrMagnitude > 4f)
-                    {
-                        vf.direction = new Vector2(fromOrigin.x, -fromOrigin.y).normalized;
-                        if (layer.vectorAllowLength)
-                        {
-                            float baseLen = Mathf.Min(box.width, box.height) * 0.35f;
-                            vf.length = Mathf.Max(0.05f, fromOrigin.magnitude / baseLen);
-                        }
-                    }
-                }
-                Dirty(); e.Use(); Repaint();
-            }
-            else if (e.type == EventType.MouseUp && _vecDragMode != 0) { _vecDragMode = 0; e.Use(); }
+            var canvas = VectorCanvas(box, ox, oy, z, fw, fh);
+            var data = VectorData(vf);
+            bool changed = ZuiVectorMarker.Handle(canvas, ref data, VectorOptions(layer), ref _vecDragMode, RecordUndo);
+            if (!changed) return;
+            vf.authored = data.authored; vf.origin = data.origin01; vf.direction = data.direction; vf.length = data.length;
+            Dirty(); Repaint();
         }
 
         /// <summary>Stamp the brush footprint (anchored at cx,cy, growing right/up) into the mask.</summary>

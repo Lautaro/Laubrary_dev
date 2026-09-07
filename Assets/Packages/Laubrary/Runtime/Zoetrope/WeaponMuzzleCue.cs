@@ -128,8 +128,7 @@ namespace Laubrary.Zoetrope
                     }
                     else if (weapon != null)
                     {
-                        var m = muzzle != null ? muzzle : transform;
-                        _vfxHandler = _ => def.muzzle.Play(m.position);
+                        _vfxHandler = _ => PlayMuzzleFx(weapon.ResolvedAimDirection());
                         weapon.Fired += _vfxHandler;
                     }
                 }
@@ -138,9 +137,9 @@ namespace Laubrary.Zoetrope
                     // Default: fire on every successful shot, at wherever `muzzle` currently is — already kept
                     // live-tracked-or-fallback by MuzzleTracker/MuzzleVectorTracker (see this class's own doc
                     // comment). Same for every shooter, composite or not — no ICueSink branch needed here.
-                    var m = muzzle != null ? muzzle : transform;
-                    _vfxHandler = _ => def.muzzle.Play(m.position);
-                    _vfxHitscanHandler = (_, __) => def.muzzle.Play(m.position);
+                    _vfxHandler = _ => PlayMuzzleFx(weapon.ResolvedAimDirection());
+                    _vfxHitscanHandler = (target, __) =>
+                        PlayMuzzleFx(((Vector2)(target - MuzzleTransform.position)).normalized);
                     weapon.Fired += _vfxHandler;
                     weapon.HitscanFired += _vfxHitscanHandler;
                 }
@@ -166,6 +165,22 @@ namespace Laubrary.Zoetrope
                 weapon.Fired += _fireReactionHandler;
                 weapon.HitscanFired += _fireReactionHitscanHandler;
             }
+        }
+
+        Transform MuzzleTransform => muzzle != null ? muzzle : transform;
+
+        /// Play the weapon's OWN muzzle effect at the live muzzle, ORIENTED along the shot: turned to face
+        /// <paramref name="aimDir"/> and mirrored when the shot points left, so a left-facing shot shows the
+        /// mirrored flash rather than the right-facing one rotated upside down — the same orientation rule a
+        /// Zoe Fire event applies to its own effects (EventContext.ResolveOrientation), so whichever of the two
+        /// owns the flash, it points the same way. A zero aim plays it upright, as before.
+        void PlayMuzzleFx(Vector2 aimDir)
+        {
+            if (def == null || def.muzzle == null) return;
+            Vector2 at = MuzzleTransform.position;
+            if (aimDir.sqrMagnitude <= 1e-6f) { def.muzzle.Play(at); return; }
+            float aimDeg = Mathf.Atan2(aimDir.y, aimDir.x) * Mathf.Rad2Deg;
+            def.muzzle.PlayOriented(at, aimDeg, flipX: aimDir.x < 0f);
         }
 
         /// Ask the shooter to show its fire state for the shot that just happened — the whole of "let game

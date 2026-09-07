@@ -198,7 +198,11 @@ namespace Laubrary.Zoetrope
             w.projectilePrefab = ammo != null
                 ? BuildProjectileTemplate(ammo, projectileBlockers, shooter.transform) : null;
 
-            if (def.muzzle != null && !def.muzzle.IsEmpty)
+            // ALWAYS, not only when the weapon has its own muzzle effect: the cue is also what asks the
+            // character to show its Fire state on every shot (WeaponMuzzleCue.RaiseFireState), and a weapon whose
+            // flash is authored on the character's Fire event rather than on the weapon has no muzzle slot at
+            // all — gating the cue on the slot silently disabled that whole path. The cue itself treats a null
+            // muzzle as "no weapon-owned VFX", so this costs a weapon with neither nothing.
             {
                 var cue = shooter.GetComponent<WeaponMuzzleCue>();
                 if (cue == null) cue = shooter.AddComponent<WeaponMuzzleCue>();

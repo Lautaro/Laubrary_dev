@@ -27,7 +27,13 @@ namespace Laubrary.Zoetrope
         /// repositioning it (see <see cref="FxFollowTarget"/>) — or null if this effect has nothing single,
         /// ongoing to hand back (e.g. a chunk burst scatters into several independently-moving pieces; there's
         /// no one Transform to follow).
-        Transform PlayFollowable(Vector2 worldPos, float directionDeg = float.NaN);
+        Transform PlayFollowable(Vector2 worldPos, float directionDeg = float.NaN, bool flipX = false);
+
+        /// Play the effect ORIENTED: its spawned visual turned so its forward points along
+        /// <paramref name="aimDeg"/> (NaN = upright) and mirrored when <paramref name="flipX"/> — what a muzzle
+        /// flash wants, where <see cref="Play"/> only AIMS a directional burst and leaves a spawned sprite
+        /// upright. Default bridges to <see cref="Play"/>, so an effect with nothing to turn behaves as before.
+        void PlayOriented(Vector2 worldPos, float aimDeg, bool flipX) => Play(worldPos, aimDeg);
 
         /// Default <see cref="IEffect"/> bridge: an ICombatFx applies by spawning at the context's resolved
         /// position + direction — the point its picked placement param resolved to. A default interface

@@ -14,9 +14,12 @@ namespace Laubrary.ZoetropePyre
     /// its size from the <see cref="EventContext"/> the trigger fills — the new scalar-sizing capability over
     /// the fixed-size PyreChunksFx. Lives in the ZoetropePyre bridge module so Zoetrope core stays Pyre-free.
     /// Migrated 2026-08-23 from Pyre1 to Pyre as part of Pyre's retirement.
+    ///
+    /// <para>Placement honours the Pyre's optional anchor (<see cref="PyreAnchor"/>): the anchor lands on the
+    /// resolved position and a Vector anchor's direction is what "Face event direction" points along.</para>
     /// </summary>
     [System.Serializable]
-    public class SpawnPyreFx : IEffect, IEventParamUser
+    public class SpawnPyreFx : IEffect, IEventParamUser, IEffectOrientationHint
     {
         /// Reads a POSITION (where to spawn the blast), a DIRECTION (which way to ANGLE it — so an asymmetric blast
         /// can glance off a surface, and the Centre-Angle option can point it at the Zoe's middle) and a SCALAR (how
@@ -40,6 +43,8 @@ namespace Laubrary.ZoetropePyre
 
         public bool IsEmpty => blast == null;
 
+        public string OrientationHint => PyreOrientationHint.For(blast);
+
         /// The uniform scale this effect spawns the blast at for a given resolved scalar value:
         /// baseScale + scalePerAmount * scalar, clamped to a small minimum. Its own method so the sizing
         /// contract is unit-testable without a live (play-mode-only) blast pool.
@@ -51,11 +56,9 @@ namespace Laubrary.ZoetropePyre
             float scale = ResolveScale(ctx.Scalar);
 
             var bp = PyreBlastPool.Get();   // pooled: pooled=true already set by the pool's factory
-            bp.transform.position = new Vector3(ctx.Position.x, ctx.Position.y, 0f);
-            // Angle the blast by the resolved direction (task #12/#5): NaN (omni / None) leaves it upright.
-            bp.transform.rotation = float.IsNaN(ctx.DirectionDeg) ? Quaternion.identity
-                                                                  : Quaternion.Euler(0f, 0f, ctx.DirectionDeg);
-            bp.transform.localScale = Vector3.one * scale;
+            // Anchor on the point, forward along the resolved aim (NaN / None leaves it upright), mirrored when
+            // the event asked for it, at the resolved scale — one placement rule shared with PyreChunksFx.
+            PyreAnchor.Place(bp.transform, blast, ctx.Position, ctx.DirectionDeg, ctx.FlipX, scale);
             var sr = bp.GetComponent<SpriteRenderer>();
             if (sr != null) { sr.sortingOrder = sortingOrder; sr.flipX = ctx.FlipX; }
             bp.spec = blast;
@@ -74,6 +77,18 @@ namespace Laubrary.ZoetropePyre
             };
             bp.Finished += onFinished;
             bp.Play();
+        }
+    }
+
+    /// The one sentence both Pyre-spawning effects show beside the Zoe window's rotation picker.
+    internal static class PyreOrientationHint
+    {
+        public static string For(PyreAsset blast)
+        {
+            if (blast == null || !blast.anchorEnabled) return null;
+            return blast.anchorKind == PyreAnchorKind.Vector
+                ? "Rotates from the Pyre's anchor direction; the anchor lands on the spawn point."
+                : "The Pyre's anchor lands on the spawn point.";
         }
     }
 }

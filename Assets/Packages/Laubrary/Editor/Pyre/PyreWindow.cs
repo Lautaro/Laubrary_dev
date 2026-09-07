@@ -722,6 +722,27 @@ namespace Laubrary.Pyre.Editor
                 Z.MicroSlider("PPU", s.pixelsPerUnit, 1f, 64f,
                     "Pixels per unit for the baked sprite.",
                     v => Dirty(() => s.pixelsPerUnit = Mathf.Clamp(v, 1f, 64f)), 150f, showValue: true)));
+
+            // ── anchor (optional, OFF by default — see PyreAnchor). Not a render input: the marker lives on the
+            // preview canvas (PyreWindow.Preview.cs, DrawAnchorOverlay) and only appears while the toggle is on.
+            // The Kind control keeps its layout slot while hidden so switching the anchor on never reflows the
+            // section (stable-workspace rule).
+            const string anchorTip =
+                "Mark where this Pyre's base / start / centre is, so a system that places it (a Zoe event, a " +
+                "muzzle flash) puts THAT point on the spawn point instead of the canvas centre. The anchor does " +
+                "nothing by itself — it only tells placing systems how to treat this Pyre. While on: click the " +
+                "preview to place it, drag the dot to move it (and, for a Vector, drag the arrowhead to aim).";
+            var anchorKind = Z.Segmented((int)s.anchorKind, new[] { "Position", "Vector" },
+                "Position = one point (the base / start / centre). Vector = that point PLUS the direction the art " +
+                "faces, so an event that turns this Pyre toward a direction knows which way it already points.",
+                i => DirtyRepaintOnly(() => s.anchorKind = (PyreAnchorKind)i));
+            anchorKind.style.visibility = s.anchorEnabled ? Visibility.Visible : Visibility.Hidden;
+            var anchorToggle = Z.Toggle("Anchor", anchorTip, s.anchorEnabled, v =>
+            {
+                DirtyRepaintOnly(() => s.anchorEnabled = v);
+                anchorKind.style.visibility = v ? Visibility.Visible : Visibility.Hidden;
+            });
+            box.Add(WrapRow(anchorToggle, anchorKind));
             // Frames is a label-inside int MicroSlider (NOT a thumbed SliderInt): a thumbed slider here read as a
             // frame scrubber and the user kept grabbing it by mistake. The transport's frame SCRUBBER stays a
             // thumbed Z.SliderInt on purpose (Pyre1 parity) — this "how many frames to bake" count does not.

@@ -22,16 +22,11 @@ MonoBehaviour:
   ammoTypes:
   - {fileID: 11400000, guid: 90fb17f480489cc4fb40e04b2109be29, type: 2}
   muzzle:
-    rid: 1452078146085191871
+    rid: -2
   muzzleOffset: {x: 0.5, y: 0}
   fireZoundName: 
   references:
     version: 2
     RefIds:
-    - rid: 1452078146085191871
-      type: {class: PyreChunksFx, ns: Laubrary.ZoetropePyre, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Pyre}
-      data:
-        blast: {fileID: 11400000, guid: b3e94ba87271dd14db73846e7f970ed7, type: 2}
-        blastFps: 18
-        chunks: {fileID: 0}
-        sortingOrder: 10
+    - rid: -2
+      type: {class: , ns: , asm: }

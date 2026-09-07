@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### T-0245 — Pyre anchor
+- **A Pyre can carry an optional anchor.** Off by default, so every existing asset keeps its implicit origin (the canvas centre). Turned on in the Pyre window's Canvas section, the anchor is either a Position (the Pyre's base / start / centre) or a Vector (that point plus the direction the art faces), placed by clicking the preview and dragging the dot or the arrowhead — the same marker Launimator's Vector meta-layers use, now one shared implementation (`ZuiVectorMarker`) rather than two. The anchor does nothing by itself: it is the author telling placing systems how to treat the Pyre. Anchor and origin are deliberately ONE concept — when an anchor is set it IS the origin a placing system pins to the spawn point.
+- **Every Pyre-spawning Zoe effect and the weapon muzzle slot honour it.** A spawned blast lands its anchor (not its centre) on the resolved point, and "Face event direction" rotates a Vector anchor's direction along the event instead of assuming the art faces +X. A Pyre without an anchor is placed exactly as before.
+
+### T-0239 — Directional muzzle flash (rework)
+- **ProtoGuy fires ONE muzzle flash again.** Two flashes had always been authored on top of each other — the gun's own muzzle slot and the Zoe Fire event's Pyre row, both at the painted Muzzle point; the first attempt moved only one of them, which is what pulled the pair apart. The gun's slot is now empty and the Fire event's row is the one flash: at the painted Muzzle meta point, turned with the shot, mirrored for a left-facing shot.
+- **Rotation and mirroring are resolved together and mean the same thing on both spawn paths.** An effect card's rotation now defaults to None (nothing authored before it existed rotates); with "Mirror left" on, a result that points left shows the mirrored visual at a small angle rather than the right-facing art rotated 180° and drawn upside down — the effect compensates the angle through its Pyre anchor. A weapon's own muzzle slot plays oriented the same way (`ICombatFx.PlayOriented`), so whichever of the two owns the flash points it correctly.
+- **Zoe window.** Rotation controls read for the current mode (Offset° / Angle° as sliders, a per-mode "Mirror left" tooltip), and an effect whose Pyre has a Vector anchor says so beside the picker. A duplicated test file was removed and a data test now pins ProtoGuy's Fire to exactly one blast.
+
 ### T-0242
 - **ProtoGuy demo / Zoetrope.** The Floating Disc's declared hit reaction now combines its directional Pyre impact with a Sparks Chunks emission, while its declared death continues through the authored Floating Disc Blowup recipe: a multi-Pyre fracture burst with the recipe's small fire trails. The debris recipe now uses the shared 16 PPU world scale, and the demo keeps four lower-health flyers in a tighter, faster respawn loop so the hit and kill reads are encountered naturally in play.
 

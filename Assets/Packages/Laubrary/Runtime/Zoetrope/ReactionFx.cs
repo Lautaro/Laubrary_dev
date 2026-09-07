@@ -98,11 +98,16 @@ namespace Laubrary.Zoetrope
         [Tooltip("Which of the event's direction params aims this effect. HitDirection (default) reproduces the " +
                  "old behaviour; None fires omni-directionally.")]
         public DirectionParam direction = DirectionParam.HitDirection;
-        [Tooltip("How this effect is rotated. Face Event Direction keeps an asymmetric Pyre aligned with the event.")]
-        public FxRotationMode rotation = FxRotationMode.FaceEventDirection;
-        [Tooltip("Degrees added after the selected rotation, for art whose authored forward is not +X.")]
+        [Tooltip("How the spawned visual is rotated. None leaves it upright (what every effect authored before " +
+                 "this existed does); Face event direction points its forward along the chosen direction param; " +
+                 "Fixed angle uses one absolute angle.")]
+        public FxRotationMode rotation = FxRotationMode.None;
+        [Tooltip("Degrees added on top of Face event direction, for art whose forward is not where the Pyre's " +
+                 "anchor (or +X, when it has none) says.")]
         public float angleOffsetDeg;
-        [Tooltip("Use the selected body part's horizontal facing to mirror supporting effects such as Pyres.")]
+        [Tooltip("Mirror instead of over-rotating: a shot aimed left shows the MIRRORED visual at a small angle " +
+                 "rather than the right-facing one rotated 180° and drawn upside down. Without a rotation it " +
+                 "mirrors with the body's own facing instead.")]
         public bool flipWithFacing;
         [Tooltip("Absolute angle used when Rotation is Fixed Angle.")]
         public float fixedAngleDeg;

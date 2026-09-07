@@ -117,8 +117,11 @@ namespace Laubrary.Zoetrope
                     pos = TryResolveMetaPoint(metaLayerId, out var w) ? w : SpriteCenter;
                     return true;
                 case FxPlacementType.BodyPart:
-                    pos = ZoePosition;
-                    return false;
+                    // This overload carries no part name or offset — those live on the FxEntry (see the entry
+                    // overload below). Placed at the sprite centre, the same "still spawns somewhere" fallback an
+                    // unknown part gets there, rather than refusing to spawn.
+                    pos = SpriteCenter;
+                    return true;
                 default:
                     pos = default;
                     return false;
@@ -128,25 +131,32 @@ namespace Laubrary.Zoetrope
         /// Resolves an entry's complete placement, including its optional declared body-part anchor and offset.
         public bool TryResolvePosition(FxEntry entry, out Vector2 pos)
         {
-            if (entry != null && entry.placement == FxPlacementType.BodyPart)
-            {
-                var part = PartLookup != null ? PartLookup.FindPartTransform(entry.bodyPart) : null;
-                if (part == null) { pos = SpriteCenter; return true; }
-                var offset = entry.localOffset;
-                var renderer = part.GetComponent<SpriteRenderer>();
-                // TransformPoint already carries a transform-scale mirror. SpriteRenderer.flipX is draw-time only,
-                // so it alone needs to mirror the local authored offset here.
-                if (entry.mirrorOffsetWithFacing && renderer != null && renderer.flipX) offset.x = -offset.x;
-                pos = part.TransformPoint(offset);
-                return true;
-            }
-            return TryResolvePosition(entry != null ? entry.placement : FxPlacementType.TargetOrigin,
-                entry != null ? entry.metaLayerId : "", out pos);
+            if (entry == null) return TryResolvePosition(FxPlacementType.TargetOrigin, "", out pos);
+            if (entry.placement == FxPlacementType.BodyPart)
+                return TryResolveBodyPart(entry.bodyPart, entry.localOffset, entry.mirrorOffsetWithFacing, out pos);
+            return TryResolvePosition(entry.placement, entry.metaLayerId, out pos);
         }
 
-        public bool ResolveFlipX(FxEntry entry)
+        /// A declared body part's pivot plus a local offset (optionally mirrored with the part's facing). An
+        /// undeclared / unknown part falls back to the sprite centre — the effect still spawns SOMEWHERE, the
+        /// same rule MetaPoint applies to an unpainted layer.
+        bool TryResolveBodyPart(string partName, Vector2 localOffset, bool mirrorWithFacing, out Vector2 pos)
         {
-            if (entry == null || !entry.flipWithFacing) return false;
+            var part = PartLookup != null && !string.IsNullOrEmpty(partName) ? PartLookup.FindPartTransform(partName) : null;
+            if (part == null) { pos = SpriteCenter; return true; }
+            var offset = localOffset;
+            var renderer = part.GetComponent<SpriteRenderer>();
+            // TransformPoint already carries a transform-scale mirror. SpriteRenderer.flipX is draw-time only,
+            // so it alone needs to mirror the local authored offset here.
+            if (mirrorWithFacing && renderer != null && renderer.flipX) offset.x = -offset.x;
+            pos = part.TransformPoint(offset);
+            return true;
+        }
+
+        /// Does the body (or the entry's chosen part) currently face LEFT — a mirrored view, a mirrored
+        /// renderer, or a negative X scale.
+        bool BodyFacesLeft(FxEntry entry)
+        {
             Transform anchor = !string.IsNullOrEmpty(entry.bodyPart) && PartLookup != null
                 ? PartLookup.FindPartTransform(entry.bodyPart) : Transform;
             var renderer = anchor != null ? anchor.GetComponent<SpriteRenderer>() : null;
@@ -154,13 +164,36 @@ namespace Laubrary.Zoetrope
             return (View as IFlippableView)?.FlipX == true || (renderer != null && renderer.flipX) || (anchor != null && anchor.lossyScale.x < 0f);
         }
 
-        public float ResolveRotationDeg(FxEntry entry)
+        /// <summary>Resolve how an entry's spawned visual is ORIENTED, in one go: the world angle its forward
+        /// should point at (NaN = upright) and whether it is mirrored. One call, because a Random direction is
+        /// rolled per firing and the two answers must agree.
+        ///
+        /// <para>The flip rule: with a resolved rotation, "flip with facing" mirrors whenever that rotation
+        /// points LEFT — the effect then draws mirrored at a small angle instead of the right-facing art
+        /// rotated 180° and upside down (the effect compensates the angle for the mirror itself, e.g. through
+        /// its Pyre anchor). With no rotation, it mirrors with the body's own facing.</para></summary>
+        public void ResolveOrientation(FxEntry entry, out float rotationDeg, out bool flipX)
         {
-            if (entry == null || entry.rotation == FxRotationMode.None) return float.NaN;
-            if (entry.rotation == FxRotationMode.FixedAngle) return entry.fixedAngleDeg;
-            float angle = ResolveDirectionDeg(entry.direction);
-            return float.IsNaN(angle) ? angle : angle + entry.angleOffsetDeg;
+            rotationDeg = float.NaN;
+            flipX = false;
+            if (entry == null) return;
+            if (entry.rotation == FxRotationMode.FixedAngle) rotationDeg = entry.fixedAngleDeg;
+            else if (entry.rotation == FxRotationMode.FaceEventDirection)
+            {
+                float aim = ResolveDirectionDeg(entry.direction);
+                if (!float.IsNaN(aim)) rotationDeg = aim + entry.angleOffsetDeg;
+            }
+            if (!entry.flipWithFacing) return;
+            // Strictly left — a straight-up / straight-down result (cos ≈ 0 in float) stays unmirrored.
+            flipX = float.IsNaN(rotationDeg) ? BodyFacesLeft(entry)
+                                             : Mathf.Cos(rotationDeg * Mathf.Deg2Rad) < -1e-4f;
         }
+
+        /// The mirror half of <see cref="ResolveOrientation"/>.
+        public bool ResolveFlipX(FxEntry entry) { ResolveOrientation(entry, out _, out bool flip); return flip; }
+
+        /// The rotation half of <see cref="ResolveOrientation"/> (NaN = upright).
+        public float ResolveRotationDeg(FxEntry entry) { ResolveOrientation(entry, out float rot, out _); return rot; }
 
         /// Ask the DATA which kind of layer this is (Point or Vector — never both), then sample it via whichever
         /// *Nearest lookup falls back across frames, exactly the convention MuzzleTracker/MuzzleVectorTracker and

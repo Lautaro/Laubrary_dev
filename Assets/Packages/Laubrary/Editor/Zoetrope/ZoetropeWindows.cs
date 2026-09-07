@@ -1374,7 +1374,14 @@ namespace Laubrary.Zoetrope.Editor
             BuildTargetPartField(root, reactionProp, zoe);
 
             int clipFrames = GetFrameCount(zoe.view, clipProp.stringValue);
-            string[] pointLayerIds = GetPointLayerIds(zoe.view, clipProp.stringValue);
+            // The clip's own layers first, then every layer painted anywhere on the view: the runtime samples a
+            // MetaPoint by id across the whole view (nearest painted frame, any clip), so a Fire event with NO
+            // clip of its own can still spawn at a "Muzzle" painted on the aim clip — the picker must offer it.
+            // WeaponAttachmentLibrary walks a COMPOSITE view's parts too, which the duck-typed single-view
+            // lister cannot (a composite has no `version` of its own) — ProtoGuy's Muzzle lives on its Upper part.
+            var layerIdList = new List<string>(GetPointLayerIds(zoe.view, clipProp.stringValue));
+            foreach (var (id, _) in WeaponAttachmentLibrary.FindMuzzleLayerCandidates(zoe)) if (!layerIdList.Contains(id)) layerIdList.Add(id);
+            string[] pointLayerIds = layerIdList.ToArray();
 
             root.Add(Z.Text($"Effects  ({fxListProp.arraySize})", ZuiText.Subtle,
                 "Every effect this reaction fires, in order — each picks which of the event's params it reads."));
@@ -2298,7 +2305,8 @@ namespace Laubrary.Zoetrope.Editor
                 {
                     posRow.Add(Z.HSpace());
                     posRow.Add(StringDropdown(metaLayerIdProp, "Layer", pointLayerIds,
-                        "Which Point-mode meta-layer on the clip this effect spawns at."));
+                        "Which painted meta-layer (Point or Vector) this effect spawns at — the nearest painted " +
+                        "frame on any clip of the view, so a painted Muzzle works even for an event with no clip."));
                 }
                 if (bodyPartPlacement)
                 {
@@ -2331,25 +2339,49 @@ namespace Laubrary.Zoetrope.Editor
             if ((used & EventParam.Direction) != 0)
             {
                 paramRow = Group();
-                paramRow.Add(EnumPicker(rotationProp, "Rotate", "None leaves the effect upright; Face event direction aligns +X with the event; Fixed angle uses an absolute angle."));
                 var rotation = (FxRotationMode)rotationProp.enumValueIndex;
+                // The hint is the EFFECT's own word on how its asset orients (a Pyre with a Vector anchor says
+                // the rotation follows that anchor); it rides in the rotation tooltip AND, when present, as a
+                // subtle note at the end of the row — the row is the one place a reader looks for "which way".
+                string orientationHint = (effect as IEffectOrientationHint)?.OrientationHint;
+                string rotateTip = "How the spawned visual is turned. None leaves it upright; Face event direction " +
+                    "points its forward along the chosen direction; Fixed angle uses one absolute angle." +
+                    (orientationHint != null ? " " + orientationHint : " Without a Pyre anchor the forward is +X.");
+                paramRow.Add(EnumPicker(rotationProp, "Rotate", rotateTip));
                 if (rotation == FxRotationMode.FaceEventDirection)
                 {
                     paramRow.Add(Z.HSpace());
-                    paramRow.Add(EnumPicker(directionProp, "Direction", "Which general event direction to face.", rebuild: false));
+                    paramRow.Add(EnumPicker(directionProp, "Direction",
+                        "Which of the event's directions to face: the hit's push, the general event direction " +
+                        "(a shot's aim), the angle toward the Zoe's centre, or a fresh random angle.", rebuild: false));
                     paramRow.Add(Z.HSpace());
-                    paramRow.Add(ZuiSerialized.Field(angleOffsetProp.Copy(), width: 110f));
+                    // A degrees offset has a real, stable range — a slider, not a bare number.
+                    paramRow.Add(Z.MicroSlider("Offset°", angleOffsetProp.floatValue, -180f, 180f,
+                        "Degrees added on top of the faced direction, for art whose forward is not where its " +
+                        "anchor (or +X) says. 0 = face the direction exactly.",
+                        v => Commit(angleOffsetProp.propertyPath, p => p.floatValue = v), 150f, decimals: 0));
                 }
                 else if (rotation == FxRotationMode.FixedAngle)
                 {
                     paramRow.Add(Z.HSpace());
-                    paramRow.Add(ZuiSerialized.Field(fixedAngleProp.Copy(), width: 110f));
+                    paramRow.Add(Z.MicroSlider("Angle°", fixedAngleProp.floatValue, 0f, 360f,
+                        "The absolute angle the visual's forward points at, in degrees (0 = right, 90 = up).",
+                        v => Commit(fixedAngleProp.propertyPath, p => p.floatValue = v), 150f, decimals: 0));
                 }
-                if (bodyPartPlacement)
+                // Mirroring reads for the CURRENT rotation mode: with a rotation it mirrors a left-pointing
+                // result instead of over-rotating it; without one it mirrors with the body's facing.
+                string flipTip = rotation == FxRotationMode.None
+                    ? "Mirror the spawned visual when the body (or the chosen body part) faces left."
+                    : "Mirror instead of over-rotating: a result pointing left shows the MIRRORED visual at a " +
+                      "small angle rather than the right-facing art rotated 180° and drawn upside down.";
+                paramRow.Add(Z.HSpace());
+                paramRow.Add(Z.Toggle("Mirror left", flipTip, flipProp.boolValue,
+                    v => Commit(flipProp.propertyPath, p => p.boolValue = v)));
+                if (orientationHint != null)
                 {
                     paramRow.Add(Z.HSpace());
-                    paramRow.Add(Z.Toggle("Flip with body", "Mirror compatible spawned visuals when the chosen body part faces left.", flipProp.boolValue,
-                        v => Commit(flipProp.propertyPath, p => p.boolValue = v)));
+                    paramRow.Add(Z.Text(orientationHint, ZuiText.Subtle,
+                        "Set on the Pyre asset itself (Pyre window → Canvas → Anchor)."));
                 }
             }
             if ((used & EventParam.Scalar) != 0)
@@ -2661,8 +2693,9 @@ namespace Laubrary.Zoetrope.Editor
             return names.ToArray();
         }
 
-        /// Every Point-mode MetaLayer id on the named clip (Shape layers are excluded — their centroid isn't a
-        /// meaningful "the hit origin" marker).
+        /// Every Point- or Vector-mode MetaLayer id on the named clip — the two kinds a MetaPoint placement can
+        /// sample (EventContext.TryResolveMetaPoint asks the data which one it is). Shape layers are excluded —
+        /// their centroid isn't a meaningful "the hit origin" marker.
         static string[] GetPointLayerIds(object view, string clipName)
         {
             var anim = FindAnimationByName(view, clipName);
@@ -2673,7 +2706,7 @@ namespace Laubrary.Zoetrope.Editor
             {
                 var mode = GetFieldValue(L, "mode");
                 var id = GetFieldValue(L, "id") as string;
-                if (!string.IsNullOrEmpty(id) && mode != null && mode.ToString() == "Point") ids.Add(id);
+                if (!string.IsNullOrEmpty(id) && mode != null && (mode.ToString() == "Point" || mode.ToString() == "Vector")) ids.Add(id);
             }
             return ids.ToArray();
         }

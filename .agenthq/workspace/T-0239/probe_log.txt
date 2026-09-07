@@ -1,0 +1,7 @@
+right fired=True aim=(1.00, 0.00)
+right: activeBlasts=1 pos=(1.37, 0.96, 0.00) rotZ=270 flip=False shooter=(0.00, 1.31, 0.00)
+left fired=True aim=(-1.00, -0.01)
+left: activeBlasts=1 pos=(-1.28, 0.98, 0.00) rotZ=91 flip=True shooter=(0.00, 1.31, 0.00)
+upleft fired=True aim=(-0.79, 0.61)
+upleft: activeBlasts=1 pos=(-0.68, 1.56, 0.00) rotZ=52 flip=True shooter=(0.00, 1.31, 0.00)
+DONE

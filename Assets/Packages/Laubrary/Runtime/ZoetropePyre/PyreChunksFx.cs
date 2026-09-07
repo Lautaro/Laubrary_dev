@@ -16,9 +16,13 @@ namespace Laubrary.ZoetropePyre
     /// part of Pyre's retirement — real committed content (Hero Gun, ProtoGuy Gun) referenced this via `blast`
     /// pointing at a Pyre1 asset; those references were converted to equivalent Pyre assets and
     /// repointed, not left dangling.
+    ///
+    /// <para>The blast is placed through <see cref="PyreAnchor"/>: a Pyre with an anchor lands that anchor on
+    /// the point, and a Vector anchor's direction is what the event's aim rotates. A Pyre without one is
+    /// centred and rotated by its +X, exactly as before anchors existed.</para>
     /// </summary>
     [System.Serializable]
-    public class PyreChunksFx : ICombatFx
+    public class PyreChunksFx : ICombatFx, IEffectOrientationHint
     {
         [Tooltip("Pyre explosion to play once at the point (optional).")]
         public PyreAsset blast;
@@ -31,6 +35,8 @@ namespace Laubrary.ZoetropePyre
 
         public bool IsEmpty => blast == null && chunks == null;
 
+        public string OrientationHint => PyreOrientationHint.For(blast);
+
         /// Spawn the blast + debris at a world point. directionDeg (NaN = omni) aims directional chunk bursts.
         public void Play(Vector2 worldPos, float directionDeg = float.NaN)
         {
@@ -38,18 +44,26 @@ namespace Laubrary.ZoetropePyre
             if (chunks != null) ChunksFx.Burst(worldPos, chunks, directionDeg);
         }
 
+        /// The blast turned to face <paramref name="aimDeg"/> (through its anchor) and mirrored when asked; the
+        /// debris burst aims the same way. This is what a weapon's own muzzle slot plays.
+        public void PlayOriented(Vector2 worldPos, float aimDeg, bool flipX)
+        {
+            SpawnBlast(worldPos, aimDeg, flipX);
+            if (chunks != null) ChunksFx.Burst(worldPos, chunks, aimDeg);
+        }
+
         void IEffect.Apply(EventContext ctx)
         {
-            var bp = SpawnBlast(ctx.Position, ctx.DirectionDeg, ctx.FlipX);
+            SpawnBlast(ctx.Position, ctx.DirectionDeg, ctx.FlipX);
             if (chunks != null) ChunksFx.Burst(ctx.Position, chunks, ctx.DirectionDeg);
         }
 
         /// Same as <see cref="Play"/>, but returns the blast's Transform for follow-tracking (see
         /// <see cref="FxFollowTarget"/>). Chunks still burst once at the initial point regardless — a scatter
         /// of independently-moving debris has no single Transform to hand back. Null if no blast is configured.
-        public Transform PlayFollowable(Vector2 worldPos, float directionDeg = float.NaN)
+        public Transform PlayFollowable(Vector2 worldPos, float directionDeg = float.NaN, bool flipX = false)
         {
-            var bp = SpawnBlast(worldPos, directionDeg, false);
+            var bp = SpawnBlast(worldPos, directionDeg, flipX);
             if (chunks != null) ChunksFx.Burst(worldPos, chunks, directionDeg);
             return bp != null ? bp.transform : null;
         }
@@ -60,8 +74,7 @@ namespace Laubrary.ZoetropePyre
             if (blast == null) return null;
 
             var bp = PyreBlastPool.Get();   // pooled: pooled=true already set by the pool's factory
-            bp.transform.position = new Vector3(worldPos.x, worldPos.y, 0f);
-            bp.transform.rotation = float.IsNaN(directionDeg) ? Quaternion.identity : Quaternion.Euler(0f, 0f, directionDeg);
+            PyreAnchor.Place(bp.transform, blast, worldPos, directionDeg, flipX);
             var sr = bp.GetComponent<SpriteRenderer>();
             if (sr != null) { sr.sortingOrder = sortingOrder; sr.flipX = flipX; }
             bp.spec = blast;

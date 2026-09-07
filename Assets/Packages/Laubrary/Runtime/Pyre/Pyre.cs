@@ -1193,6 +1193,21 @@ namespace Laubrary.Pyre
         // is false (the default) the renderer fills every pixel with this exactly as before (byte-identical).
         public Color background = new Color(0f, 0f, 0f, 0f);
         public float pixelsPerUnit = 16f;
+
+        // ── anchor (optional) — see PyreAnchor. Off by default so every existing asset keeps its implicit origin
+        // (the canvas centre / sprite pivot). When set, the anchor IS the origin: a placing system puts it on the
+        // spawn point, and a Vector anchor also says which way the Pyre faces. Never read by the renderer.
+        [Tooltip("Mark where this Pyre's base / start / centre is, so a system that places it (a Zoe event, a " +
+                 "muzzle flash) can put THAT point on the spawn point instead of the canvas centre. The anchor " +
+                 "does nothing by itself — it only tells placing systems how to treat this Pyre.")]
+        public bool anchorEnabled = false;
+        [Tooltip("Position = one point (the base / start / centre). Vector = that point PLUS a facing, so an " +
+                 "event that rotates the Pyre toward a direction knows which way its art already points.")]
+        public PyreAnchorKind anchorKind = PyreAnchorKind.Position;
+        [Tooltip("Anchor point, normalized 0..1 across the canvas, bottom-left origin.")]
+        public Vector2 anchorOrigin = new Vector2(0.5f, 0.5f);
+        [Tooltip("Vector anchor only: the direction the Pyre's art faces, in its own space ((1,0) = +X).")]
+        public Vector2 anchorDirection = Vector2.right;
         // Background fill (F2): when backgroundUseFill is on, the renderer evaluates backgroundFill per pixel across
         // the whole canvas (u,v in -1..1) as the backdrop instead of the flat `background` clear — a gradient,
         // noise, grid, dots or a stamped sprite behind the layers. Default OFF + a Solid-transparent fill, so a

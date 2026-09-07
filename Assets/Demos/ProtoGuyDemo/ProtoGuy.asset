@@ -32,6 +32,7 @@ MonoBehaviour:
     rules: []
   hit:
     clip: 
+    targetPart: 
     durationMode: 0
     loops: 1
     seconds: 0
@@ -40,6 +41,7 @@ MonoBehaviour:
     fx: []
   death:
     clip: 
+    targetPart: 
     durationMode: 0
     loops: 1
     seconds: 0
@@ -48,8 +50,10 @@ MonoBehaviour:
     fx: []
   events:
   - id: Fire
+    role: 0
     reaction:
       clip: 
+      targetPart: 
       durationMode: 1
       loops: 1
       seconds: 0.15
@@ -59,10 +63,10 @@ MonoBehaviour:
       - enabled: 1
         trigger: 0
         frame: 0
-        placement: 4
+        placement: 3
         metaLayerId: Muzzle
-        bodyPart: Upper
-        localOffset: {x: 0.5, y: 0}
+        bodyPart: 
+        localOffset: {x: 0, y: 0}
         mirrorOffsetWithFacing: 1
         direction: 4
         rotation: 0
@@ -79,7 +83,14 @@ MonoBehaviour:
         frame: 0
         placement: 3
         metaLayerId: Muzzle
+        bodyPart: 
+        localOffset: {x: 0, y: 0}
+        mirrorOffsetWithFacing: 1
         direction: 1
+        rotation: 1
+        angleOffsetDeg: 0
+        flipWithFacing: 0
+        fixedAngleDeg: 0
         scalar: 0
         follow: 0
         fx:
@@ -192,3 +203,4 @@ MonoBehaviour:
         stack: {fileID: 11400000, guid: 1a284d1eac9d8c749ba89ebbb07fb642, type: 2}
         playback: 0
         fxSeconds: 0
+        targetPart: 

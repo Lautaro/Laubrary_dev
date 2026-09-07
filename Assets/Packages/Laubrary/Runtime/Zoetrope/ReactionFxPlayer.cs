@@ -723,8 +723,10 @@ namespace Laubrary.Zoetrope
             // Stamp the resolved params the effect reads. For an ICombatFx these are exactly the (pos, dir) the
             // old entry.fx.Play(...) received, so the spawn point is byte-for-byte unchanged.
             ctx.Position = pos;
-            ctx.DirectionDeg = ctx.ResolveRotationDeg(entry);
-            ctx.FlipX = ctx.ResolveFlipX(entry);
+            // Rotation + mirror resolved TOGETHER (a Random direction is rolled once and both agree).
+            ctx.ResolveOrientation(entry, out float rotationDeg, out bool flipX);
+            ctx.DirectionDeg = rotationDeg;
+            ctx.FlipX = flipX;
             ctx.Scalar = ctx.ResolveScalar(entry.scalar);
 
             if (!entry.follow) { effect.Apply(ctx); return; }
@@ -733,10 +735,8 @@ namespace Laubrary.Zoetrope
             // (PlayFollowable). A non-ICombatFx effect has no Transform to hand back, so it just applies once.
             if (!(effect is ICombatFx combat)) { effect.Apply(ctx); return; }
 
-            var t = combat.PlayFollowable(pos, ctx.DirectionDeg);
+            var t = combat.PlayFollowable(pos, ctx.DirectionDeg, ctx.FlipX);
             if (t == null) return;   // this effect has nothing single/ongoing to follow (see PlayFollowable's own doc comment)
-            var spawnedSprite = t.GetComponent<SpriteRenderer>();
-            if (spawnedSprite != null) spawnedSprite.flipX = ctx.FlipX;
             var follower = t.gameObject.AddComponent<FxFollowTarget>();
 
             if (entry.placement == FxPlacementType.HitPosition && ctx.Transform != null)
