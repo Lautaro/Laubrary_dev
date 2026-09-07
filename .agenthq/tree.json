@@ -120,6 +120,11 @@
       "id": "DotGen-2026-09-03",
       "name": "DotGen \u2014 port the Dot Foundry POC into Laubrary (Pyre-style ZUI window)",
       "parent": "DotGen"
+    },
+    {
+      "id": "ProtoGuy",
+      "name": "ProtoGuy",
+      "parent": null
     }
   ]
 }

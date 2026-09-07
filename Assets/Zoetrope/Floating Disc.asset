@@ -93,7 +93,7 @@ MonoBehaviour:
       data:
         blast: {fileID: 11400000, guid: bfac73e8582796e4fa3d488fa3457f93, type: 2}
         blastFps: 24
-        chunks: {fileID: 0}
+        chunks: {fileID: 11400000, guid: c8649ffc24fd7b246b6e952e531c168a, type: 2}
         sortingOrder: 10
     - rid: 1702917591583949365
       type: {class: SpawnChunkFx, ns: Laubrary.ZoetropePyre, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Pyre}

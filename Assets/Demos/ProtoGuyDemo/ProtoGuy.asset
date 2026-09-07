@@ -59,9 +59,16 @@ MonoBehaviour:
       - enabled: 1
         trigger: 0
         frame: 0
-        placement: 3
+        placement: 4
         metaLayerId: Muzzle
-        direction: 1
+        bodyPart: Upper
+        localOffset: {x: 0.5, y: 0}
+        mirrorOffsetWithFacing: 1
+        direction: 4
+        rotation: 0
+        angleOffsetDeg: 0
+        flipWithFacing: 1
+        fixedAngleDeg: 0
         scalar: 0
         follow: 0
         fx:

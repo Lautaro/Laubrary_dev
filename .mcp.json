@@ -4,7 +4,24 @@
       "type": "stdio",
       "command": "C:\\Users\\Lauta\\.local\\bin\\coplay-mcp-server.exe",
       "args": [],
-      "env": { "MCP_TOOL_TIMEOUT": "720000" }
+      "env": {
+        "MCP_TOOL_TIMEOUT": "720000"
+      }
+    },
+    "unity-mcp": {
+      "type": "stdio",
+      "command": "C:\\Users\\Lauta\\AppData\\Local\\Unity\\bin\\unity.exe",
+      "args": [
+        "mcp",
+        "--project-path",
+        "D:\\UNITY\\Laubrary Dev",
+        "--no-banner",
+        "--non-interactive"
+      ],
+      "env": {
+        "UNITY_NO_CONSENT_PROMPT": "1",
+        "UNITY_NO_CRASH_REPORT": "1"
+      }
     }
   }
 }

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Laubrary.Zoetrope
@@ -14,5 +15,10 @@ namespace Laubrary.Zoetrope
     {
         /// The named part's transform, or null if this host isn't composite or has no part by that name.
         Transform FindPartTransform(string partName);
+
+        /// Every declared composite body-part transform, in authored order. This intentionally excludes arbitrary
+        /// descendants such as equipped weapons and transient FX, so body-level effects can address the visual
+        /// body as one entity without accidentally styling everything parented below it.
+        IEnumerable<Transform> PartTransforms { get; }
     }
 }

@@ -49,6 +49,18 @@ namespace Laubrary.ZoetropeLaunimator
         /// <see cref="CompositeAnimatedView"/> to fan a whole-body claim out across the parts.</summary>
         public IReadOnlyList<GameObject> PartObjects => _ordered;
 
+        /// <summary>The declared body-part transforms in authored order. This is the composite body's explicit
+        /// renderer boundary: consumers that mean "the body" must use this rather than walking arbitrary
+        /// descendants, which would include equipped items and transient visuals.</summary>
+        public IEnumerable<Transform> PartTransforms
+        {
+            get
+            {
+                foreach (var part in _ordered)
+                    if (part != null) yield return part.transform;
+            }
+        }
+
         /// <summary>
         /// Build one child GameObject per part and wire non-root attachments. Call once, right after
         /// AddComponent. Returns the largest single part's own <see cref="ICharacterView.Build"/> size, as a

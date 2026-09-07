@@ -50,12 +50,12 @@ MonoBehaviour:
       data:
         enabled: 1
         heightSource: 0
-        depthRadius: 8
-        edgeThreshold: 0.25
-        soften: 2
+        depthRadius: 11
+        edgeThreshold: 0.23653
+        soften: 1
         relief:
           m_mode: 0
-          m_static: 4
+          m_static: 8.43114
           m_min: 0
           m_max: 1
           m_points: []
@@ -112,7 +112,7 @@ MonoBehaviour:
         metaLayerId: Muzzle
         lightX:
           m_mode: 0
-          m_static: 0
+          m_static: 1.19614
           m_min: 0
           m_max: 1
           m_points: []
@@ -130,7 +130,7 @@ MonoBehaviour:
           m_multiplierId: 
         lightY:
           m_mode: 0
-          m_static: 0
+          m_static: 1.32476
           m_min: 0
           m_max: 1
           m_points: []
@@ -148,7 +148,7 @@ MonoBehaviour:
           m_multiplierId: 
         lightHeight:
           m_mode: 0
-          m_static: 0.4
+          m_static: 0.9244
           m_min: 0
           m_max: 1
           m_points: []
@@ -166,7 +166,7 @@ MonoBehaviour:
           m_multiplierId: 
         radius:
           m_mode: 0
-          m_static: 1.1
+          m_static: 1.2006
           m_min: 0
           m_max: 1
           m_points: []
@@ -184,7 +184,7 @@ MonoBehaviour:
           m_multiplierId: 
         falloff:
           m_mode: 0
-          m_static: 2
+          m_static: 0.92365
           m_min: 0
           m_max: 1
           m_points: []
@@ -202,7 +202,7 @@ MonoBehaviour:
           m_multiplierId: 
         ambient:
           m_mode: 0
-          m_static: 0.5
+          m_static: 0.33333
           m_min: 0
           m_max: 1
           m_points: []
@@ -220,7 +220,7 @@ MonoBehaviour:
           m_multiplierId: 
         diffuse:
           m_mode: 0
-          m_static: 0.85
+          m_static: 0.73054
           m_min: 0
           m_max: 1
           m_points: []
@@ -238,7 +238,7 @@ MonoBehaviour:
           m_multiplierId: 
         specular:
           m_mode: 0
-          m_static: 0.35
+          m_static: 0.97006
           m_min: 0
           m_max: 1
           m_points: []
@@ -256,7 +256,7 @@ MonoBehaviour:
           m_multiplierId: 
         shine:
           m_mode: 0
-          m_static: 16
+          m_static: 44.13513
           m_min: 0
           m_max: 1
           m_points: []
@@ -272,10 +272,10 @@ MonoBehaviour:
           m_oscRate: []
           m_oscRateMax: 8
           m_multiplierId: 
-        lightColor: {r: 1, g: 0.75, b: 0.35, a: 1}
+        lightColor: {r: 0.903564, g: 0.6886912, b: 0.35328025, a: 1}
         shading:
           m_mode: 0
-          m_static: 1
+          m_static: 0
           m_min: 0
           m_max: 1
           m_points: []
@@ -293,7 +293,7 @@ MonoBehaviour:
           m_multiplierId: 
         tint:
           m_mode: 0
-          m_static: 0.45
+          m_static: 0.39339
           m_min: 0
           m_max: 1
           m_points: []

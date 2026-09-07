@@ -34,6 +34,8 @@ namespace Laubrary.Zoetrope
         /// A named MetaLayer's current point (Point or Vector mode — see <see cref="FxEntry.metaLayerId"/>),
         /// falling back to TargetPosition when nothing is authored under that id.
         MetaPoint,
+        /// A declared composite body part, plus <see cref="FxEntry.localOffset"/> in that part's local space.
+        BodyPart,
     }
 
     /// <summary>One optional named ALTERNATIVE to an <see cref="FxEntry"/>'s default effect: "when the request
@@ -87,10 +89,23 @@ namespace Laubrary.Zoetrope
                  "placement == MetaPoint. Falls back to the sprite's own visual centre if nothing is painted " +
                  "under this id anywhere — the effect still spawns, just not tracking a live point yet.")]
         public string metaLayerId = "";
+        [Tooltip("Declared body part to anchor this effect to when At is Body Part.")]
+        public string bodyPart = "";
+        [Tooltip("Local offset from the selected body part. It can mirror with that part's facing.")]
+        public Vector2 localOffset;
+        public bool mirrorOffsetWithFacing = true;
 
         [Tooltip("Which of the event's direction params aims this effect. HitDirection (default) reproduces the " +
                  "old behaviour; None fires omni-directionally.")]
         public DirectionParam direction = DirectionParam.HitDirection;
+        [Tooltip("How this effect is rotated. Face Event Direction keeps an asymmetric Pyre aligned with the event.")]
+        public FxRotationMode rotation = FxRotationMode.FaceEventDirection;
+        [Tooltip("Degrees added after the selected rotation, for art whose authored forward is not +X.")]
+        public float angleOffsetDeg;
+        [Tooltip("Use the selected body part's horizontal facing to mirror supporting effects such as Pyres.")]
+        public bool flipWithFacing;
+        [Tooltip("Absolute angle used when Rotation is Fixed Angle.")]
+        public float fixedAngleDeg;
 
         [Tooltip("Which of the event's scalar params this effect can size itself by (read by effect kinds that " +
                  "use it; the spawn-VFX kind ignores it). Additive — no existing effect changes.")]

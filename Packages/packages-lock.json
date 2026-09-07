@@ -18,6 +18,15 @@
       },
       "hash": "377ff5d3e14e1a095c30be8ef8e1d4c57dd0e322"
     },
+    "com.unity.2d.pixel-perfect": {
+      "version": "5.1.1",
+      "depth": 0,
+      "source": "registry",
+      "dependencies": {
+        "com.unity.modules.imgui": "1.0.0"
+      },
+      "url": "https://packages.unity.com"
+    },
     "com.unity.2d.sprite": {
       "version": "1.0.0",
       "depth": 0,

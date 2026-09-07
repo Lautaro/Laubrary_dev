@@ -38,30 +38,38 @@ namespace Laubrary.ZoetropePyre
             if (chunks != null) ChunksFx.Burst(worldPos, chunks, directionDeg);
         }
 
+        void IEffect.Apply(EventContext ctx)
+        {
+            var bp = SpawnBlast(ctx.Position, ctx.DirectionDeg, ctx.FlipX);
+            if (chunks != null) ChunksFx.Burst(ctx.Position, chunks, ctx.DirectionDeg);
+        }
+
         /// Same as <see cref="Play"/>, but returns the blast's Transform for follow-tracking (see
         /// <see cref="FxFollowTarget"/>). Chunks still burst once at the initial point regardless — a scatter
         /// of independently-moving debris has no single Transform to hand back. Null if no blast is configured.
         public Transform PlayFollowable(Vector2 worldPos, float directionDeg = float.NaN)
         {
-            var bp = SpawnBlast(worldPos);
+            var bp = SpawnBlast(worldPos, directionDeg, false);
             if (chunks != null) ChunksFx.Burst(worldPos, chunks, directionDeg);
             return bp != null ? bp.transform : null;
         }
 
-        PyreBlastPlayer SpawnBlast(Vector2 worldPos)
+        PyreBlastPlayer SpawnBlast(Vector2 worldPos) => SpawnBlast(worldPos, float.NaN, false);
+        PyreBlastPlayer SpawnBlast(Vector2 worldPos, float directionDeg, bool flipX)
         {
             if (blast == null) return null;
 
             var bp = PyreBlastPool.Get();   // pooled: pooled=true already set by the pool's factory
             bp.transform.position = new Vector3(worldPos.x, worldPos.y, 0f);
+            bp.transform.rotation = float.IsNaN(directionDeg) ? Quaternion.identity : Quaternion.Euler(0f, 0f, directionDeg);
             var sr = bp.GetComponent<SpriteRenderer>();
-            if (sr != null) sr.sortingOrder = sortingOrder;
+            if (sr != null) { sr.sortingOrder = sortingOrder; sr.flipX = flipX; }
             bp.spec = blast;
             bp.fps = blastFps > 0f ? blastFps : 24f;
             bp.loop = false;
 
             System.Action onFinished = null;
-            onFinished = () => { bp.Finished -= onFinished; PyreBlastPool.Release(bp); };
+            onFinished = () => { bp.Finished -= onFinished; bp.transform.rotation = Quaternion.identity; if (sr != null) sr.flipX = false; PyreBlastPool.Release(bp); };
             bp.Finished += onFinished;
             bp.Play();
             return bp;

@@ -478,7 +478,7 @@ MonoBehaviour:
         countMax: 16
         sizePxMin: 1
         sizePxMax: 3
-        pixelsPerUnit: 32
+        pixelsPerUnit: 16
         speedMin: 1.5
         speedMax: 5
         inheritBurstDirection: 0

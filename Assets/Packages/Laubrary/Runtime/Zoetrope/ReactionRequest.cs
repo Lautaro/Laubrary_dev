@@ -59,7 +59,7 @@ namespace Laubrary.Zoetrope
                                float amount = 0f, GameObject source = null, string overrideName = null)
         {
             Position = position;
-            Direction = direction;
+            Direction = direction.sqrMagnitude > 1e-6f ? direction.normalized : Vector2.zero;
             Amount = amount;
             Source = source;
             OverrideName = overrideName;

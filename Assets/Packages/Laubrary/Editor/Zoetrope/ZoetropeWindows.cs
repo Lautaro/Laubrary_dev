@@ -226,6 +226,7 @@ namespace Laubrary.Zoetrope.Editor
                 if (TryBuildClipDropdown(host, child, boxedValue, topLevelAsset)) continue;
                 if (TryBuildZoundPicker(host, child)) continue;
                 if (TryBuildPlaybackMode(host, child, boxedValue)) continue;
+                if (TryBuildBodySpriteFxTargetPart(host, child, boxedValue, topLevelAsset as Zoe)) continue;
                 if (TryBuildAssetRefField(host, child, boxedValue)) continue;
                 host.Add(ZuiSerialized.Field(child.Copy(), width: ScalarFieldWidth));
             }
@@ -307,6 +308,29 @@ namespace Laubrary.Zoetrope.Editor
                 child.NextVisible(false);   // consume fxSeconds — it is drawn here, beside its mode
             }
             host.Add(row);
+            return true;
+        }
+
+        // Body SpriteFx's optional restriction is a REFERENCE to a part declared on this Zoe, never a free-typed
+        // string. Empty means the intentional default: affect every declared body part.
+        bool TryBuildBodySpriteFxTargetPart(VisualElement host, SerializedProperty child, object boxedValue, Zoe zoe)
+        {
+            if (!(boxedValue is BodySpriteFxEffect) || child.name != "targetPart") return false;
+            var partNames = zoe != null ? WeaponAttachmentLibrary.FindPartNames(zoe) : null;
+            if (partNames == null || partNames.Count == 0) return true;
+
+            const string tip = "Which declared composite body part this stack affects. Whole body (the default) " +
+                "applies it to every declared part renderer; choosing one confines it to that part.";
+            var labels = new List<string>(partNames.Count + 1) { "(whole body)" };
+            labels.AddRange(partNames);
+            string current = child.stringValue ?? "";
+            var ids = new List<string>(partNames);
+            if (!string.IsNullOrEmpty(current) && !ids.Contains(current))
+            { ids.Insert(0, current); labels.Insert(1, $"{current} (unresolved)"); }
+            int currentIndex = string.IsNullOrEmpty(current) ? 0 : Mathf.Max(0, ids.IndexOf(current) + 1);
+            string path = child.propertyPath;
+            host.Add(Z.Field("Target Part", tip, Z.Dropdown(currentIndex, labels, tip,
+                value => Commit(path, p => p.stringValue = value <= 0 ? "" : ids[value - 1]), 200f)));
             return true;
         }
 
@@ -2144,10 +2168,18 @@ namespace Laubrary.Zoetrope.Editor
             var placementProp = entryProp.FindPropertyRelative("placement");
             var frameProp = entryProp.FindPropertyRelative("frame");
             var metaLayerIdProp = entryProp.FindPropertyRelative("metaLayerId");
+            var bodyPartProp = entryProp.FindPropertyRelative("bodyPart");
+            var localOffsetProp = entryProp.FindPropertyRelative("localOffset");
+            var mirrorOffsetProp = entryProp.FindPropertyRelative("mirrorOffsetWithFacing");
             var directionProp = entryProp.FindPropertyRelative("direction");
+            var rotationProp = entryProp.FindPropertyRelative("rotation");
+            var angleOffsetProp = entryProp.FindPropertyRelative("angleOffsetDeg");
+            var fixedAngleProp = entryProp.FindPropertyRelative("fixedAngleDeg");
+            var flipProp = entryProp.FindPropertyRelative("flipWithFacing");
             var scalarProp = entryProp.FindPropertyRelative("scalar");
             var followProp = entryProp.FindPropertyRelative("follow");
             var effectProp = entryProp.FindPropertyRelative("fx");
+            bool bodyPartPlacement = (FxPlacementType)placementProp.enumValueIndex == FxPlacementType.BodyPart;
             string followPath = followProp.propertyPath;
 
             object effect = effectProp.managedReferenceValue;
@@ -2255,7 +2287,8 @@ namespace Laubrary.Zoetrope.Editor
             // Position picker (+ conditional Layer, + Follow) — only when the effect reads a position.
             if ((used & EventParam.Position) != 0)
             {
-                bool isMetaPoint = (FxPlacementType)placementProp.enumValueIndex == FxPlacementType.MetaPoint;
+                var placement = (FxPlacementType)placementProp.enumValueIndex;
+                bool isMetaPoint = placement == FxPlacementType.MetaPoint;
 
                 const string posTip = "Which of the event's position params this effect spawns at — the hit point, " +
                     "the Zoe's origin, its sprite centre, or a named meta-layer point.";
@@ -2266,6 +2299,18 @@ namespace Laubrary.Zoetrope.Editor
                     posRow.Add(Z.HSpace());
                     posRow.Add(StringDropdown(metaLayerIdProp, "Layer", pointLayerIds,
                         "Which Point-mode meta-layer on the clip this effect spawns at."));
+                }
+                if (bodyPartPlacement)
+                {
+                    var names = WeaponAttachmentLibrary.FindPartNames(zoe).ToArray();
+                    posRow.Add(Z.HSpace());
+                    posRow.Add(StringDropdown(bodyPartProp, "Part", names,
+                        "Declared body part this effect anchors to. It is the simple muzzle-anchor seam; no extra anchor asset is needed."));
+                    posRow.Add(Z.HSpace());
+                    posRow.Add(ZuiSerialized.Field(localOffsetProp.Copy(), width: 130f));
+                    posRow.Add(Z.HSpace());
+                    posRow.Add(Z.Toggle("Mirror offset", "Mirror the local X offset when the selected body part faces left.", mirrorOffsetProp.boolValue,
+                        v => Commit(mirrorOffsetProp.propertyPath, p => p.boolValue = v)));
                 }
                 // Follow is now available for EVERY position, including Hit Position (task #4): for the fixed hit
                 // point it STICKS to the Zoe (the hit point captured in the Zoe's space, riding along as it moves);
@@ -2286,9 +2331,26 @@ namespace Laubrary.Zoetrope.Editor
             if ((used & EventParam.Direction) != 0)
             {
                 paramRow = Group();
-                paramRow.Add(EnumPicker(directionProp, "Aim",
-                    "Which of the event's direction params aims this effect. Hit Direction = away from the " +
-                    "attacker; None fires omni-directionally.", rebuild: false));
+                paramRow.Add(EnumPicker(rotationProp, "Rotate", "None leaves the effect upright; Face event direction aligns +X with the event; Fixed angle uses an absolute angle."));
+                var rotation = (FxRotationMode)rotationProp.enumValueIndex;
+                if (rotation == FxRotationMode.FaceEventDirection)
+                {
+                    paramRow.Add(Z.HSpace());
+                    paramRow.Add(EnumPicker(directionProp, "Direction", "Which general event direction to face.", rebuild: false));
+                    paramRow.Add(Z.HSpace());
+                    paramRow.Add(ZuiSerialized.Field(angleOffsetProp.Copy(), width: 110f));
+                }
+                else if (rotation == FxRotationMode.FixedAngle)
+                {
+                    paramRow.Add(Z.HSpace());
+                    paramRow.Add(ZuiSerialized.Field(fixedAngleProp.Copy(), width: 110f));
+                }
+                if (bodyPartPlacement)
+                {
+                    paramRow.Add(Z.HSpace());
+                    paramRow.Add(Z.Toggle("Flip with body", "Mirror compatible spawned visuals when the chosen body part faces left.", flipProp.boolValue,
+                        v => Commit(flipProp.propertyPath, p => p.boolValue = v)));
+                }
             }
             if ((used & EventParam.Scalar) != 0)
             {

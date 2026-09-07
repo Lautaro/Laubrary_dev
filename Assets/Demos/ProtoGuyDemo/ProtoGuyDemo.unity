@@ -150,10 +150,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Demos::Laubrary.Demos.ProtoGuyDemo.FlyingDiscSpawner
   discDef: {fileID: 11400000, guid: df6d774acf094b948b983102c9ef9a34, type: 2}
   choreography: {fileID: 11400000, guid: 64533a176305b9e4ea2a1040257636c5, type: 2}
-  discCount: 5
-  worldSize: {x: 10, y: 2.5}
-  respawnDelay: 1.5
-  overrideHealth: 30
+  discCount: 1
+  worldSize: {x: 10, y: 2.2}
+  respawnDelay: 1
+  overrideHealth: 24
 --- !u!4 &122828037
 Transform:
   m_ObjectHideFlags: 0
@@ -268,6 +268,8 @@ GameObject:
   m_Component:
   - component: {fileID: 1627808700}
   - component: {fileID: 1627808699}
+  - component: {fileID: 1627808701}
+  - component: {fileID: 1627808702}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -310,7 +312,7 @@ Camera:
   far clip plane: 1000
   field of view: 60
   orthographic: 1
-  orthographic size: 3
+  orthographic size: 6.25
   m_Depth: 0
   m_CullingMask:
     serializedVersion: 2
@@ -341,6 +343,42 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1627808701
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1627808698}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c9f5044809683d740bf3c6ba2284cd58, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.PixelScale::Laubrary.PixelScale.PixelScaleCamera
+  overrideProjectSettings: 0
+  overridePixelsPerUnit: 16
+  overrideTargetResolution: {x: 320, y: 200}
+  overrideReferenceHumanHeightPx: 32
+--- !u!114 &1627808702
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1627808698}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a160d838ff8b4b4693ac20007e008c7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.2D.PixelPerfect::UnityEngine.U2D.PixelPerfectCamera
+  m_AssetsPPU: 16
+  m_RefResolutionX: 320
+  m_RefResolutionY: 200
+  m_UpscaleRT: 0
+  m_PixelSnapping: 1
+  m_CropFrameX: 0
+  m_CropFrameY: 1
+  m_StretchFill: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

@@ -2,6 +2,7 @@
   "dependencies": {
     "com.coplaydev.coplay": "https://github.com/CoplayDev/coplay-unity-plugin.git#beta",
     "com.unity.2d.sprite": "1.0.0",
+    "com.unity.2d.pixel-perfect": "5.1.1",
     "com.unity.addressables": "2.9.0",
     "com.unity.ai.navigation": "2.0.10",
     "com.unity.burst": "1.8.28",

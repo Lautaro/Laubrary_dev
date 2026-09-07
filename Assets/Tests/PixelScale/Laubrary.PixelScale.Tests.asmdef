@@ -1,0 +1,14 @@
+{
+  "name": "Laubrary.PixelScale.Tests",
+  "rootNamespace": "Laubrary.PixelScale.Tests",
+  "references": ["UnityEngine.TestRunner", "UnityEditor.TestRunner", "com.Lautaro-Arino.Laubrary.PixelScale"],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": ["nunit.framework.dll"],
+  "autoReferenced": false,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

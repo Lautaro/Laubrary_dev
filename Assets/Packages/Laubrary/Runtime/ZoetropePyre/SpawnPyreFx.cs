@@ -57,7 +57,7 @@ namespace Laubrary.ZoetropePyre
                                                                   : Quaternion.Euler(0f, 0f, ctx.DirectionDeg);
             bp.transform.localScale = Vector3.one * scale;
             var sr = bp.GetComponent<SpriteRenderer>();
-            if (sr != null) sr.sortingOrder = sortingOrder;
+            if (sr != null) { sr.sortingOrder = sortingOrder; sr.flipX = ctx.FlipX; }
             bp.spec = blast;
             bp.fps = blastFps > 0f ? blastFps : 24f;
             bp.loop = false;
@@ -68,6 +68,8 @@ namespace Laubrary.ZoetropePyre
                 bp.Finished -= onFinished;
                 bp.transform.localScale = Vector3.one;      // hand the pooled blast back at unit scale
                 bp.transform.rotation = Quaternion.identity; // …and unrotated
+                var finishedRenderer = bp.GetComponent<SpriteRenderer>();
+                if (finishedRenderer != null) finishedRenderer.flipX = false;
                 PyreBlastPool.Release(bp);
             };
             bp.Finished += onFinished;

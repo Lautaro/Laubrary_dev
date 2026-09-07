@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using Laubrary.SpriteFx;
 
@@ -34,8 +35,8 @@ namespace Laubrary.Zoetrope
 
     /// <summary>
     /// A Zoe-event effect that applies a <see cref="SpriteFxSpec"/> (a "SpriteFx Stack") to the Zoe's OWN body
-    /// renderer — a hurt/death flash, tint or dissolve that RIDES the live animation via a
-    /// <see cref="SpriteFxFilter"/> on the body's <see cref="SpriteRenderer"/>. This is the same behaviour as the
+    /// renderers — a hurt/death flash, tint or dissolve that RIDES the live animation via a
+    /// <see cref="SpriteFxFilter"/> on each declared body <see cref="SpriteRenderer"/>. This is the same behaviour as the
     /// top-level <see cref="ReactionFx.bodyFx"/> slot (KEPT and still fired by
     /// <see cref="ReactionFxPlayer.PlayBodyFx"/>; this effect is purely additive), now promoted to a first-class,
     /// list-orderable palette effect (ZOE_EVENTS_DESIGN.md step 3). Lives in Zoetrope CORE: Zoetrope depends DOWN
@@ -66,22 +67,26 @@ namespace Laubrary.Zoetrope
                  "much time left. 0 = use the stack's own duration.")]
         [Min(0f)] public float fxSeconds = 0f;
 
+        [Tooltip("Optional declared composite body part to affect. Empty = the whole declared body. A simple Zoe " +
+                 "has no named parts and still uses its one body renderer.")]
+        public string targetPart;
+
         public bool IsEmpty => stack == null;
 
         public void Apply(EventContext ctx)
         {
             if (stack == null) return;
-            var sr = ctx.Renderer;
-            if (sr == null) return;
-            var filter = sr.GetComponent<SpriteFxFilter>();
-            if (filter == null) filter = sr.gameObject.AddComponent<SpriteFxFilter>();
-            filter.stack = stack;
-            // Same resolver ReactionFxPlayer.PlayBodyFx wires for the legacy slot this effect promotes: without
-            // it, a stack whose modifier reads an External/MetaLayer position (e.g. RelightModifier "Follow" a
-            // painted muzzle) silently falls back to a fixed spot the instant it's authored as a list card instead.
-            filter.externalPositionResolver = new ZoeMetaPositionResolver(ctx.View, sr);
-
             float remaining = ctx.EventSecondsRemaining;   // 0 = unknown → every timed mode degrades to a single play
+
+            foreach (var sr in TargetRenderers(ctx))
+            {
+                var filter = sr.GetComponent<SpriteFxFilter>();
+                if (filter == null) filter = sr.gameObject.AddComponent<SpriteFxFilter>();
+                filter.stack = stack;
+                // Same resolver ReactionFxPlayer.PlayBodyFx wires for the legacy slot this effect promotes: without
+                // it, a stack whose modifier reads an External/MetaLayer position (e.g. RelightModifier "Follow" a
+                // painted muzzle) silently falls back to a fixed spot the instant it's authored as a list card instead.
+                filter.externalPositionResolver = new ZoeMetaPositionResolver(ctx.View, sr);
 
             // WHO OWNS THE TIMEBASE. A stack is a SHAPE over normalized life, not a schedule — the same
             // reason it never references a visual. Its parameters run 0→1 and mean nothing in seconds, so
@@ -98,8 +103,8 @@ namespace Laubrary.Zoetrope
                           : fxSeconds > 0f ? fxSeconds
                           : Mathf.Max(0.001f, stack.duration);
 
-            switch (playback)
-            {
+                switch (playback)
+                {
                 default:
                 case FxPlaybackMode.Once:
                     filter.Play(passDur);   // the host's timebase, not the stack's
@@ -139,7 +144,32 @@ namespace Laubrary.Zoetrope
                     filter.SchedulePlay(remaining > 0f ? Mathf.Max(passDur, remaining - passDur) : passDur,
                                         passDur, reversed: true);
                     break;
+                }
             }
+        }
+
+        /// <summary>The declared body renderers this card affects. Empty <see cref="targetPart"/> means the
+        /// complete declared composite body; naming a part deliberately narrows it to that part alone.</summary>
+        public IEnumerable<SpriteRenderer> TargetRenderers(EventContext ctx)
+        {
+            if (ctx == null) yield break;
+            if (!string.IsNullOrEmpty(targetPart))
+            {
+                var part = ctx.PartLookup?.FindPartTransform(targetPart);
+                var renderer = part != null ? part.GetComponent<SpriteRenderer>() : null;
+                if (renderer != null) yield return renderer;
+                yield break;
+            }
+
+            if (ctx.BodyRenderers != null)
+            {
+                foreach (var renderer in ctx.BodyRenderers)
+                    if (renderer != null) yield return renderer;
+                yield break;
+            }
+
+            // Compatibility for manually-created contexts predating BodyRenderers.
+            if (ctx.Renderer != null) yield return ctx.Renderer;
         }
     }
 }

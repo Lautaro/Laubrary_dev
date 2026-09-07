@@ -430,16 +430,46 @@ namespace Laubrary.Zoetrope
         // and death convert theirs on the way in (ReactionRequest.From reproduces the old point!=zero fallback
         // byte for byte), so their effects land exactly where they always did — while a deliberately raised
         // state can finally say where it happened and which way it faced.
-        EventContext BuildContext(in ReactionRequest req) => new EventContext
+        EventContext BuildContext(in ReactionRequest req)
         {
-            Transform = transform,
-            Health = _health,
-            Renderer = GetComponentInChildren<SpriteRenderer>(),
-            View = AnimView,
-            HitPosition = req.Position ?? (Vector2)transform.position,
-            HitDirection = req.Direction,
-            Amount = req.Amount,
-        };
+            var parts = GetComponent<IPartLookup>();
+            var renderers = ResolveBodyRenderers(transform, parts);
+            return new EventContext
+            {
+                Transform = transform,
+                Health = _health,
+                Renderer = renderers.Count > 0 ? renderers[0] : null,
+                BodyRenderers = renderers,
+                PartLookup = parts,
+                View = AnimView,
+                HitPosition = req.Position ?? (Vector2)transform.position,
+                Direction = req.Direction,
+                Amount = req.Amount,
+            };
+        }
+
+        /// <summary>Resolves the visual body boundary. Composite hosts supply only their declared part transforms;
+        /// a simple Zoe retains the historical first-child-renderer fallback.</summary>
+        public static System.Collections.Generic.List<SpriteRenderer> ResolveBodyRenderers(
+            Transform root, IPartLookup parts)
+        {
+            var result = new System.Collections.Generic.List<SpriteRenderer>();
+            if (parts != null)
+            {
+                foreach (var part in parts.PartTransforms)
+                {
+                    var renderer = part != null ? part.GetComponent<SpriteRenderer>() : null;
+                    if (renderer != null) result.Add(renderer);
+                }
+            }
+
+            if (result.Count == 0 && root != null)
+            {
+                var renderer = root.GetComponentInChildren<SpriteRenderer>();
+                if (renderer != null) result.Add(renderer);
+            }
+            return result;
+        }
 
         // ── clip + frame-event arming ────────────────────────────────────────
 
@@ -667,17 +697,16 @@ namespace Laubrary.Zoetrope
         void PlayBodyFx(ReactionFx r, float eventSeconds)
         {
             if (r == null || r.bodyFx == null) return;
-            var sr = GetComponentInChildren<SpriteRenderer>();
-            if (sr == null) return;
-            var filter = sr.GetComponent<SpriteFxFilter>();
-            if (filter == null) filter = sr.gameObject.AddComponent<SpriteFxFilter>();
-            filter.stack = r.bodyFx;
-            // Re-created every play rather than cached: `sr` (the currently-relevant SpriteRenderer, e.g. a
-            // composite Zoe's active part) can change between reactions, and the resolver is a couple of field
-            // reads — not worth caching-invalidation bookkeeping.
-            filter.externalPositionResolver = new ZoeMetaPositionResolver(AnimView, sr);
-            if (eventSeconds > 0f) filter.Play(eventSeconds);
-            else filter.Play();   // unknown event length — the stack's own duration is the honest last resort
+            var renderers = ResolveBodyRenderers(transform, GetComponent<IPartLookup>());
+            foreach (var sr in renderers)
+            {
+                var filter = sr.GetComponent<SpriteFxFilter>();
+                if (filter == null) filter = sr.gameObject.AddComponent<SpriteFxFilter>();
+                filter.stack = r.bodyFx;
+                filter.externalPositionResolver = new ZoeMetaPositionResolver(AnimView, sr);
+                if (eventSeconds > 0f) filter.Play(eventSeconds);
+                else filter.Play();   // unknown event length — the stack's own duration is the honest last resort
+            }
         }
 
         // ── spawning ──────────────────────────────────────────────────────────
@@ -689,12 +718,13 @@ namespace Laubrary.Zoetrope
             // yielding entry.fx, so this is exactly the pre-override behaviour when nothing asked for a swap.
             var effect = entry.Resolve(_armedOverrideName);
             if (effect == null || effect.IsEmpty) return;
-            if (!ctx.TryResolvePosition(entry.placement, entry.metaLayerId, out var pos)) return;
+            if (!ctx.TryResolvePosition(entry, out var pos)) return;
 
             // Stamp the resolved params the effect reads. For an ICombatFx these are exactly the (pos, dir) the
             // old entry.fx.Play(...) received, so the spawn point is byte-for-byte unchanged.
             ctx.Position = pos;
-            ctx.DirectionDeg = ctx.ResolveDirectionDeg(entry.direction);
+            ctx.DirectionDeg = ctx.ResolveRotationDeg(entry);
+            ctx.FlipX = ctx.ResolveFlipX(entry);
             ctx.Scalar = ctx.ResolveScalar(entry.scalar);
 
             if (!entry.follow) { effect.Apply(ctx); return; }
@@ -705,6 +735,8 @@ namespace Laubrary.Zoetrope
 
             var t = combat.PlayFollowable(pos, ctx.DirectionDeg);
             if (t == null) return;   // this effect has nothing single/ongoing to follow (see PlayFollowable's own doc comment)
+            var spawnedSprite = t.GetComponent<SpriteRenderer>();
+            if (spawnedSprite != null) spawnedSprite.flipX = ctx.FlipX;
             var follower = t.gameObject.AddComponent<FxFollowTarget>();
 
             if (entry.placement == FxPlacementType.HitPosition && ctx.Transform != null)
@@ -719,7 +751,7 @@ namespace Laubrary.Zoetrope
             }
             else
             {
-                follower.Init(() => ctx.TryResolvePosition(entry.placement, entry.metaLayerId, out var p) ? (Vector3)p : t.position);
+                follower.Init(() => ctx.TryResolvePosition(entry, out var p) ? (Vector3)p : t.position);
             }
         }
     }

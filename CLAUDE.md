@@ -17,6 +17,10 @@ Unity editor, so before using any Coplay tool you MUST point the bridge at this 
 If `Application.dataPath` points elsewhere, `check_compile_errors` will look clean despite new code and
 reflection won't find new types — re-run steps 1–3. `set_unity_project_root` is per-session.
 
+## Unity MCP server (`unity-mcp`) — second bridge, no targeting dance needed
+
+This project's `.mcp.json` also registers Unity's own MCP server (`unity.exe mcp --project-path <this project>`), tools `mcp__unity-mcp__*`. It is pinned to this project, so it never needs `set_unity_project_root`. Prefer it for `eval`/`eval_file` (resolves `Laubrary.*`, returns a real value, no domain reload), `get_console_logs`, `get_scene_hierarchy` / `find_gameobjects` / `get_component_properties`, prefab edits and test status. Keep Coplay for UI construction, Input System, animator and generation tools. During a recompile/play-mode domain reload a call can time out — wait and retry, same as Coplay. Full rules: `D:\Unity\UNITY_DEV_GUIDE.md`, "`unity mcp`" bullet.
+
 ## Pyre — the rename is DONE, there is no "PyrePlus"
 
 **Executed 2026-08-23.** PyrePlus was renamed to plain **Pyre** and the ORIGINAL Pyre was deleted outright (not kept as a shim). `Runtime/Pyre/` + `Editor/Pyre/` hold the ex-PyrePlus code under plain-Pyre names — `PyreRenderer`, `PyreWindow`, `PyreBaker`, `PyreChunkAnimation`, asmdef `com.Lautaro-Arino.Laubrary.Pyre`, namespace `Laubrary.Pyre`. `[MovedFrom]` attributes were applied across the `SerializeReference` form types so existing authored assets still deserialize. `Runtime/PyrePlus/` and `Editor/PyrePlus/` are empty leftovers.
@@ -105,8 +109,9 @@ MiniRadio/CycleButton, Envelope/CurveField, Box/FoldoutBox/AreaBox, HRow/Flow/Fi
 Blocks/Form, spacing). Do NOT drop to raw `EditorGUILayout`/`GUILayout` for something ZUI already provides. **If no
 ZUI control fits, that's a smell** — surface it and consider EXPANDING ZUI (add the control there so every tool
 gains it) rather than silently hand-rolling raw IMGUI in one window. Known current ZUI gaps (legitimate raw
-fallbacks today, and prime expansion candidates): a **text-input field**, an **object/asset picker**, a **color
-field**, and an **enum popup/dropdown**. Genuinely bespoke *canvas painting* (a 2D preview stage, a thumbnail
+fallbacks today, and prime expansion candidates): a **text-input field**, an **object/asset picker**, and an
+**enum popup/dropdown**. (A **colour field** was listed here too until 2026-09-03 — that was stale: `Z.Color`
+exists in `Zui/Toolkit/Zui.cs` and is already what `ZuiReflect` draws every reflected `Color` with.) Genuinely bespoke *canvas painting* (a 2D preview stage, a thumbnail
 grid) stays raw — that's not a missing control. (Corrected 2026-07-21: a **scroll container** was listed here
 too, but `ZUI.ScrollView(ref scroll)`/`ZUI.ScrollScope` (`ZUIFields.cs`) already exists and is already used —
 e.g. `LaubraryAssetWindow`'s browser, `MirageWindow.DrawAsset`. Verify a claimed gap against the actual code
