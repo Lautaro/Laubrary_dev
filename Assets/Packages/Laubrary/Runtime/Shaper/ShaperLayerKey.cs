@@ -229,9 +229,14 @@ namespace Laubrary.Shaper
 
             var t = v.GetType();
             if (t.IsPrimitive) { m.MixInt(v.GetHashCode()); return; }
-            // Run the owner's own deserialization callback first, so the key reads the state every load, undo
-            // snapshot and Instantiate produces — a layer built in memory keys exactly like the asset it becomes.
-            if (v is ISerializationCallbackReceiver r) r.OnAfterDeserialize();
+            // Materialise null dials first, so the key reads the same state every load, undo snapshot and
+            // Instantiate produces — a layer built in memory keys exactly like the asset it becomes. Only the
+            // null-filling half of the owner's callback runs here: its migration half rewrites the dials from
+            // the legacy floats whenever the promoted flag is false, and on an object constructed in code that
+            // flag IS false, so hashing a freshly seeded layer used to erase its seeded curves (the new-document
+            // growth animation rendered as a static full-canvas rectangle).
+            if (v is IShaperDialOwner owner) owner.EnsureDials();
+            else if (v is ISerializationCallbackReceiver r) r.OnAfterDeserialize();
             // A plain [Serializable] class/struct (ZUIValue, a ShaperNode, a fill, a height def): its CONTENT,
             // never its reference — a clone must hash equal, an edited field must not. The type name is folded in
             // so two SerializeReference subclasses with identical field values still key apart.

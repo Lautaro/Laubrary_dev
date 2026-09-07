@@ -83,7 +83,7 @@ namespace Laubrary.Shaper
     /// lives in the transform block, where it goes through the <c>σ_min</c> rescale and stays bounded).
     /// </summary>
     [Serializable]
-    public class ShaperPrimitiveDef : ISerializationCallbackReceiver
+    public class ShaperPrimitiveDef : ISerializationCallbackReceiver, IShaperDialOwner
     {
         public ShaperPrimitiveKind kind = ShaperPrimitiveKind.Rect;
 

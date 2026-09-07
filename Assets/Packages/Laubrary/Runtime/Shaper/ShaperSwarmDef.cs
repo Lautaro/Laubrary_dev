@@ -108,7 +108,7 @@ namespace Laubrary.Shaper
     /// silently mis-declare its own implementation.
     /// </summary>
     [Serializable]
-    public class ShaperSwarmDef : ISerializationCallbackReceiver, IShaperPreviewOverlay
+    public class ShaperSwarmDef : ISerializationCallbackReceiver, IShaperDialOwner, IShaperPreviewOverlay
     {
         const uint FldPosJitterX = 0x7E00_0001u, FldPosJitterY = 0x7E00_0002u;
         const uint FldRotJitter = 0x7E00_0003u, FldScaleJitter = 0x7E00_0004u;

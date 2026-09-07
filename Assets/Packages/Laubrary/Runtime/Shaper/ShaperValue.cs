@@ -78,4 +78,17 @@ namespace Laubrary.Shaper
             else v.staticValue = value;
         }
     }
+
+    /// <summary>
+    /// A settings block whose animatable dials were promoted from plain floats and can still be null on an
+    /// object that was constructed in code rather than deserialized. Callers that need every dial to exist
+    /// (the layer-key hasher) ask for that and nothing more: the disk-to-memory migration in
+    /// <c>OnAfterDeserialize</c> must never run on a live object, because on a freshly constructed block the
+    /// "promoted" flag is still false and the migration would overwrite whatever the code just seeded
+    /// (the new-document growth curve was lost exactly that way).
+    /// </summary>
+    public interface IShaperDialOwner
+    {
+        void EnsureDials();
+    }
 }

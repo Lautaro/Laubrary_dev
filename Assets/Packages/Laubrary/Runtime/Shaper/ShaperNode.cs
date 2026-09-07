@@ -25,7 +25,7 @@ namespace Laubrary.Shaper
     /// quantities.
     /// </summary>
     [Serializable]
-    public class ShaperBlend : ISerializationCallbackReceiver
+    public class ShaperBlend : ISerializationCallbackReceiver, IShaperDialOwner
     {
         const uint FldWidth = 0x7B00_0001u, FldSharpness = 0x7B00_0002u, FldCarve = 0x7B00_0003u;
 
@@ -89,7 +89,7 @@ namespace Laubrary.Shaper
     /// identity default, so an enabled sweep with nothing authored is a no-op on either axis.
     /// </summary>
     [Serializable]
-    public class ShaperSweep : ISerializationCallbackReceiver
+    public class ShaperSweep : ISerializationCallbackReceiver, IShaperDialOwner
     {
         const uint FldStartDeg = 0x7C00_0001u, FldExtentDeg = 0x7C00_0002u;
         const uint FldStartFrac = 0x7C00_0003u, FldExtentFrac = 0x7C00_0004u;
@@ -155,7 +155,7 @@ namespace Laubrary.Shaper
     /// Its identity setting is <c>enabled == false</c>, which returns the child's value untouched.
     /// </summary>
     [Serializable]
-    public class ShaperShell : ISerializationCallbackReceiver
+    public class ShaperShell : ISerializationCallbackReceiver, IShaperDialOwner
     {
         const uint FldThickness = 0x7D00_0001u;
 

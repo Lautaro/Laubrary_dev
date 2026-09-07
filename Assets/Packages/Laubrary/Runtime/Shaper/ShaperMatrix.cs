@@ -114,7 +114,7 @@ namespace Laubrary.Shaper
     /// node's own centre), not as a 0..1 fraction of an extent, so it needs no knowledge of the node's size.
     /// </summary>
     [Serializable]
-    public class ShaperTransformBlock : ISerializationCallbackReceiver
+    public class ShaperTransformBlock : ISerializationCallbackReceiver, IShaperDialOwner
     {
         // Field ids, so each dial's Min-Max mode draws its own uncorrelated sample rather than every dial on a
         // node drawing the same one. Same discipline the star's dials already use (ShaperPrimitives.cs).
