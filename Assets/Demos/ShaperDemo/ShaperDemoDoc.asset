@@ -1844,10 +1844,6 @@ MonoBehaviour:
             rid: -2
           reason: 1
           reasonNote: 
-          halfExtentX: 64
-          halfExtentY: 64
-          bakeWidth: 128
-          bakeHeight: 128
         solid:
           form: 0
           size:
@@ -2167,7 +2163,7 @@ MonoBehaviour:
           solidColor: {r: 1, g: 1, b: 1, a: 1}
           gradientMode: 0
           gradient:
-            gradient:
+            legacyGradient:
               serializedVersion: 2
               key0: {r: 1, g: 0.75, b: 0.15, a: 1}
               key1: {r: 0.8, g: 0.1, b: 0.05, a: 1}
@@ -2197,6 +2193,13 @@ MonoBehaviour:
               m_ColorSpace: -1
               m_NumColorKeys: 2
               m_NumAlphaKeys: 2
+            stops:
+            - pos: 0
+              color: {r: 1, g: 0.75, b: 0.15, a: 1}
+            - pos: 1
+              color: {r: 0.8, g: 0.100000024, b: 0.049999997, a: 1}
+            space: 1
+            stopsAuthored: 1
             reverse: 0
             quantiseSteps: 0
             bandLocked: 0
@@ -2309,7 +2312,7 @@ MonoBehaviour:
             m_multiplierId: 
           rampQuantity: 0
           rampGradient:
-            gradient:
+            legacyGradient:
               serializedVersion: 2
               key0: {r: 0, g: 0, b: 0, a: 1}
               key1: {r: 1, g: 1, b: 1, a: 1}
@@ -2339,6 +2342,9 @@ MonoBehaviour:
               m_ColorSpace: -1
               m_NumColorKeys: 2
               m_NumAlphaKeys: 2
+            stops: []
+            space: 1
+            stopsAuthored: 0
             reverse: 0
             quantiseSteps: 0
             bandLocked: 0
@@ -2544,7 +2550,7 @@ MonoBehaviour:
             m_oscRateMax: 8
             m_multiplierId: 
           overPhaseGradient:
-            gradient:
+            legacyGradient:
               serializedVersion: 2
               key0: {r: 0, g: 0, b: 0, a: 1}
               key1: {r: 1, g: 1, b: 1, a: 1}
@@ -2574,6 +2580,13 @@ MonoBehaviour:
               m_ColorSpace: -1
               m_NumColorKeys: 2
               m_NumAlphaKeys: 2
+            stops:
+            - pos: 0
+              color: {r: 1, g: 0, b: 0, a: 1}
+            - pos: 1
+              color: {r: 0.25, g: 0.45, b: 1, a: 1}
+            space: 1
+            stopsAuthored: 1
             reverse: 0
             quantiseSteps: 0
             bandLocked: 0
@@ -2597,7 +2610,7 @@ MonoBehaviour:
           proceduralKind: 0
           noiseKind: 0
           proceduralGradient:
-            gradient:
+            legacyGradient:
               serializedVersion: 2
               key0: {r: 0, g: 0, b: 0, a: 1}
               key1: {r: 1, g: 1, b: 1, a: 1}
@@ -2627,6 +2640,9 @@ MonoBehaviour:
               m_ColorSpace: -1
               m_NumColorKeys: 2
               m_NumAlphaKeys: 2
+            stops: []
+            space: 1
+            stopsAuthored: 0
             reverse: 0
             quantiseSteps: 0
             bandLocked: 0
@@ -3048,7 +3064,7 @@ MonoBehaviour:
             solidColor: {r: 0.25, g: 0.05, b: 0.02, a: 1}
             gradientMode: 0
             gradient:
-              gradient:
+              legacyGradient:
                 serializedVersion: 2
                 key0: {r: 0, g: 0, b: 0, a: 1}
                 key1: {r: 1, g: 1, b: 1, a: 1}
@@ -3078,6 +3094,9 @@ MonoBehaviour:
                 m_ColorSpace: -1
                 m_NumColorKeys: 2
                 m_NumAlphaKeys: 2
+              stops: []
+              space: 1
+              stopsAuthored: 0
               reverse: 0
               quantiseSteps: 0
               bandLocked: 0
@@ -3190,7 +3209,7 @@ MonoBehaviour:
               m_multiplierId: 
             rampQuantity: 0
             rampGradient:
-              gradient:
+              legacyGradient:
                 serializedVersion: 2
                 key0: {r: 0, g: 0, b: 0, a: 1}
                 key1: {r: 1, g: 1, b: 1, a: 1}
@@ -3220,6 +3239,9 @@ MonoBehaviour:
                 m_ColorSpace: -1
                 m_NumColorKeys: 2
                 m_NumAlphaKeys: 2
+              stops: []
+              space: 1
+              stopsAuthored: 0
               reverse: 0
               quantiseSteps: 0
               bandLocked: 0
@@ -3425,7 +3447,7 @@ MonoBehaviour:
               m_oscRateMax: 8
               m_multiplierId: 
             overPhaseGradient:
-              gradient:
+              legacyGradient:
                 serializedVersion: 2
                 key0: {r: 0, g: 0, b: 0, a: 1}
                 key1: {r: 1, g: 1, b: 1, a: 1}
@@ -3455,6 +3477,13 @@ MonoBehaviour:
                 m_ColorSpace: -1
                 m_NumColorKeys: 2
                 m_NumAlphaKeys: 2
+              stops:
+              - pos: 0
+                color: {r: 1, g: 0, b: 0, a: 1}
+              - pos: 1
+                color: {r: 0.25, g: 0.45, b: 1, a: 1}
+              space: 1
+              stopsAuthored: 1
               reverse: 0
               quantiseSteps: 0
               bandLocked: 0
@@ -3478,7 +3507,7 @@ MonoBehaviour:
             proceduralKind: 0
             noiseKind: 0
             proceduralGradient:
-              gradient:
+              legacyGradient:
                 serializedVersion: 2
                 key0: {r: 0, g: 0, b: 0, a: 1}
                 key1: {r: 1, g: 1, b: 1, a: 1}
@@ -3508,6 +3537,9 @@ MonoBehaviour:
                 m_ColorSpace: -1
                 m_NumColorKeys: 2
                 m_NumAlphaKeys: 2
+              stops: []
+              space: 1
+              stopsAuthored: 0
               reverse: 0
               quantiseSteps: 0
               bandLocked: 0
@@ -5028,10 +5060,6 @@ MonoBehaviour:
             the palette lookup) but it has not been executed. Hosted unmodified via
             the T-0112 composite escape hatch in the meantime. Palette-INDIFFERENT
             (ArcBurstForm.cs:496-504)."
-          halfExtentX: 119.413445
-          halfExtentY: 189.07129
-          bakeWidth: 96
-          bakeHeight: 152
         solid:
           form: 0
           size:
@@ -5351,7 +5379,7 @@ MonoBehaviour:
           solidColor: {r: 1, g: 1, b: 1, a: 1}
           gradientMode: 0
           gradient:
-            gradient:
+            legacyGradient:
               serializedVersion: 2
               key0: {r: 0, g: 0, b: 0, a: 1}
               key1: {r: 1, g: 1, b: 1, a: 1}
@@ -5381,6 +5409,9 @@ MonoBehaviour:
               m_ColorSpace: -1
               m_NumColorKeys: 2
               m_NumAlphaKeys: 2
+            stops: []
+            space: 1
+            stopsAuthored: 0
             reverse: 0
             quantiseSteps: 0
             bandLocked: 0
@@ -5493,7 +5524,7 @@ MonoBehaviour:
             m_multiplierId: 
           rampQuantity: 0
           rampGradient:
-            gradient:
+            legacyGradient:
               serializedVersion: 2
               key0: {r: 0, g: 0, b: 0, a: 1}
               key1: {r: 1, g: 1, b: 1, a: 1}
@@ -5523,6 +5554,9 @@ MonoBehaviour:
               m_ColorSpace: -1
               m_NumColorKeys: 2
               m_NumAlphaKeys: 2
+            stops: []
+            space: 1
+            stopsAuthored: 0
             reverse: 0
             quantiseSteps: 0
             bandLocked: 0
@@ -5728,7 +5762,7 @@ MonoBehaviour:
             m_oscRateMax: 8
             m_multiplierId: 
           overPhaseGradient:
-            gradient:
+            legacyGradient:
               serializedVersion: 2
               key0: {r: 0, g: 0, b: 0, a: 1}
               key1: {r: 1, g: 1, b: 1, a: 1}
@@ -5758,6 +5792,13 @@ MonoBehaviour:
               m_ColorSpace: -1
               m_NumColorKeys: 2
               m_NumAlphaKeys: 2
+            stops:
+            - pos: 0
+              color: {r: 1, g: 0, b: 0, a: 1}
+            - pos: 1
+              color: {r: 0.25, g: 0.45, b: 1, a: 1}
+            space: 1
+            stopsAuthored: 1
             reverse: 0
             quantiseSteps: 0
             bandLocked: 0
@@ -5781,7 +5822,7 @@ MonoBehaviour:
           proceduralKind: 0
           noiseKind: 0
           proceduralGradient:
-            gradient:
+            legacyGradient:
               serializedVersion: 2
               key0: {r: 0, g: 0, b: 0, a: 1}
               key1: {r: 1, g: 1, b: 1, a: 1}
@@ -5811,6 +5852,9 @@ MonoBehaviour:
               m_ColorSpace: -1
               m_NumColorKeys: 2
               m_NumAlphaKeys: 2
+            stops: []
+            space: 1
+            stopsAuthored: 0
             reverse: 0
             quantiseSteps: 0
             bandLocked: 0
@@ -6232,7 +6276,7 @@ MonoBehaviour:
             solidColor: {r: 1, g: 1, b: 1, a: 1}
             gradientMode: 0
             gradient:
-              gradient:
+              legacyGradient:
                 serializedVersion: 2
                 key0: {r: 0, g: 0, b: 0, a: 1}
                 key1: {r: 1, g: 1, b: 1, a: 1}
@@ -6262,6 +6306,9 @@ MonoBehaviour:
                 m_ColorSpace: -1
                 m_NumColorKeys: 2
                 m_NumAlphaKeys: 2
+              stops: []
+              space: 1
+              stopsAuthored: 0
               reverse: 0
               quantiseSteps: 0
               bandLocked: 0
@@ -6374,7 +6421,7 @@ MonoBehaviour:
               m_multiplierId: 
             rampQuantity: 0
             rampGradient:
-              gradient:
+              legacyGradient:
                 serializedVersion: 2
                 key0: {r: 0, g: 0, b: 0, a: 1}
                 key1: {r: 1, g: 1, b: 1, a: 1}
@@ -6404,6 +6451,9 @@ MonoBehaviour:
                 m_ColorSpace: -1
                 m_NumColorKeys: 2
                 m_NumAlphaKeys: 2
+              stops: []
+              space: 1
+              stopsAuthored: 0
               reverse: 0
               quantiseSteps: 0
               bandLocked: 0
@@ -6609,7 +6659,7 @@ MonoBehaviour:
               m_oscRateMax: 8
               m_multiplierId: 
             overPhaseGradient:
-              gradient:
+              legacyGradient:
                 serializedVersion: 2
                 key0: {r: 0, g: 0, b: 0, a: 1}
                 key1: {r: 1, g: 1, b: 1, a: 1}
@@ -6639,6 +6689,13 @@ MonoBehaviour:
                 m_ColorSpace: -1
                 m_NumColorKeys: 2
                 m_NumAlphaKeys: 2
+              stops:
+              - pos: 0
+                color: {r: 1, g: 0, b: 0, a: 1}
+              - pos: 1
+                color: {r: 0.25, g: 0.45, b: 1, a: 1}
+              space: 1
+              stopsAuthored: 1
               reverse: 0
               quantiseSteps: 0
               bandLocked: 0
@@ -6662,7 +6719,7 @@ MonoBehaviour:
             proceduralKind: 0
             noiseKind: 0
             proceduralGradient:
-              gradient:
+              legacyGradient:
                 serializedVersion: 2
                 key0: {r: 0, g: 0, b: 0, a: 1}
                 key1: {r: 1, g: 1, b: 1, a: 1}
@@ -6692,6 +6749,9 @@ MonoBehaviour:
                 m_ColorSpace: -1
                 m_NumColorKeys: 2
                 m_NumAlphaKeys: 2
+              stops: []
+              space: 1
+              stopsAuthored: 0
               reverse: 0
               quantiseSteps: 0
               bandLocked: 0
@@ -7052,6 +7112,99 @@ MonoBehaviour:
       data:
         form:
           rid: 2235495212426461259
+        shapeFill:
+          mode: 1
+          color: {r: 1, g: 1, b: 1, a: 1}
+          gradient:
+            serializedVersion: 2
+            key0: {r: 1, g: 0.95, b: 0.7, a: 1}
+            key1: {r: 1, g: 0.5, b: 0.1, a: 1}
+            key2: {r: 0.5, g: 0.1, b: 0.05, a: 0}
+            key3: {r: 0, g: 0, b: 0, a: 0}
+            key4: {r: 0, g: 0, b: 0, a: 0}
+            key5: {r: 0, g: 0, b: 0, a: 0}
+            key6: {r: 0, g: 0, b: 0, a: 0}
+            key7: {r: 0, g: 0, b: 0, a: 0}
+            ctime0: 0
+            ctime1: 32768
+            ctime2: 65535
+            ctime3: 0
+            ctime4: 0
+            ctime5: 0
+            ctime6: 0
+            ctime7: 0
+            atime0: 0
+            atime1: 65535
+            atime2: 0
+            atime3: 0
+            atime4: 0
+            atime5: 0
+            atime6: 0
+            atime7: 0
+            m_Mode: 0
+            m_ColorSpace: -1
+            m_NumColorKeys: 3
+            m_NumAlphaKeys: 2
+          gradientAnim:
+            rid: 4065707203109847813
+          angleDeg: 0
+          zoom: 1
+          center: {x: 0, y: 0}
+          zoomAnim:
+            rid: 4065707203109847814
+          centerXAnim:
+            rid: 4065707203109847815
+          centerYAnim:
+            rid: 4065707203109847816
+          space: 0
+          fit: 0
+          texture: 0
+          textureSprite: {fileID: 0}
+          noiseKind: 0
+          gridAngle: 0
+          gridSpacing: 0.5
+          gridLineWidth: 0.08
+          gridVertical: 1
+          gridHorizontal: 1
+          dotSize: 0.5
+          dotSpacing: 0.35
+          dotStagger: 1
+          fillVersion: 1
+        alpha:
+          m_mode: 2
+          m_static: 1
+          m_min: 0
+          m_max: 1
+          m_points:
+          - time: 0
+            value: 0
+            exponent: 1
+            editState: 0
+          - time: 0.15
+            value: 1
+            exponent: 1
+            editState: 0
+          - time: 0.7
+            value: 1
+            exponent: 1
+            editState: 0
+          - time: 1
+            value: 0
+            exponent: 1
+            editState: 0
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        frames: 16
     - rid: 2235495212426461259
       type: {class: ArcBurstForm, ns: Laubrary.Pyre.Forms.Kiln, asm: com.Lautaro-Arino.Laubrary.Pyre.Forms.Kiln}
       data:
@@ -7204,7 +7357,7 @@ MonoBehaviour:
         ghostDeepHi: 0.13
         rerollPerFrame: 1
         palette:
-          gradient:
+          legacyGradient:
             serializedVersion: 2
             key0: {r: 0.20392157, g: 0.0627451, b: 0.3764706, a: 1}
             key1: {r: 0.4862745, g: 0.21176471, b: 0.8392157, a: 1}
@@ -7234,6 +7387,19 @@ MonoBehaviour:
             m_ColorSpace: -1
             m_NumColorKeys: 5
             m_NumAlphaKeys: 5
+          stops:
+          - pos: 0.044998854
+            color: {r: 0.20392157, g: 0.0627451, b: 0.3764706, a: 1}
+          - pos: 0.13000686
+            color: {r: 0.48627448, g: 0.2117647, b: 0.8392157, a: 1}
+          - pos: 0.30000764
+            color: {r: 0.7764706, g: 0.5411765, b: 1, a: 1}
+          - pos: 0.5799954
+            color: {r: 0.9411765, g: 0.8392157, b: 1, a: 1}
+          - pos: 0.919997
+            color: {r: 1, g: 1, b: 1, a: 1}
+          space: 1
+          stopsAuthored: 1
           reverse: 0
           quantiseSteps: 5
           bandLocked: 1
@@ -9966,3 +10132,224 @@ MonoBehaviour:
           m_oscRate: []
           m_oscRateMax: 8
           m_multiplierId: 
+    - rid: 4065707203109847813
+      type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        legacyGradient:
+          serializedVersion: 2
+          key0: {r: 1, g: 0.95, b: 0.7, a: 1}
+          key1: {r: 1, g: 0.5, b: 0.1, a: 1}
+          key2: {r: 0.5, g: 0.1, b: 0.05, a: 0}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 32768
+          ctime2: 65535
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 65535
+          atime2: 0
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 3
+          m_NumAlphaKeys: 2
+        stops:
+        - pos: 0
+          color: {r: 1, g: 0.95, b: 0.7, a: 1}
+        - pos: 0.5000076
+          color: {r: 1, g: 0.5, b: 0.100000024, a: 1}
+        - pos: 1
+          color: {r: 0.5, g: 0.099999994, b: 0.05, a: 1}
+        space: 1
+        stopsAuthored: 1
+        reverse: 0
+        quantiseSteps: 0
+        bandLocked: 0
+        hueShift: 0
+        saturation: 1
+        brightness: 1
+        contrast: 1
+        hueShiftAnim:
+          rid: 4065707203109847817
+        saturationAnim:
+          rid: 4065707203109847818
+        brightnessAnim:
+          rid: 4065707203109847819
+        contrastAnim:
+          rid: 4065707203109847820
+        phaseAnim:
+          rid: 4065707203109847821
+        cycle: 0
+        cycleSpeed: 0.5
+    - rid: 4065707203109847814
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4065707203109847815
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4065707203109847816
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4065707203109847817
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4065707203109847818
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4065707203109847819
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4065707203109847820
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4065707203109847821
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
