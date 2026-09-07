@@ -118,13 +118,28 @@ namespace Laubrary.Zui
             for (int k = i + 1; k < p.hierarchy.childCount; k++)
             {
                 var el = p.hierarchy.ElementAt(k);
-                if (el is ZuiSectionLabel || el is ZuiSection) break;   // the next block starts here
+                if (IsSectionStart(el)) break;   // the next block starts here
                 // Never hide a section's own structural chrome, whatever the nesting — a folded label must only
                 // hide CONTENT, never the header/body that owns it.
                 if (el.ClassListContains("zui-section__header") || el.ClassListContains("zui-section__body")) continue;
                 _hidden.Add((el, el.style.display));
                 el.style.display = DisplayStyle.None;
             }
+        }
+
+        // Whether `el` is itself the start of the NEXT block — a column-heading label/section, OR a
+        // "heading-in-a-row" wrapper (e.g. RoleHeaderRow's `Z.Row(Z.Text(.., ZuiText.Section, ..), ..)`)
+        // whose fold scope is the ROW, not the label inside it (see FoldScope above). Without the second
+        // check, folding one row-heading (e.g. Zoe's "Hit") walked straight past a SIBLING row-heading
+        // ("Death") — because that sibling is a plain VisualElement to this loop, its own label buried one
+        // level down — and kept hiding everything after it too, making Death visually vanish as if nested
+        // inside Hit's collapse (T-0248).
+        static bool IsSectionStart(VisualElement el)
+        {
+            if (el is ZuiSectionLabel || el is ZuiSection) return true;
+            foreach (var c in el.Children())
+                if (c is ZuiSectionLabel) return true;
+            return false;
         }
     }
 }
