@@ -31,6 +31,11 @@ namespace Laubrary.Chunks
         public readonly ChunkModuleRunner Runner;
         /// The palette sampled off the exploded object, or null when the caller supplied none.
         public readonly System.Collections.Generic.IList<Color32> Palette;
+        /// The sprite to cut sampled debris pieces out of, when the caller has one live (a Zoe's current
+        /// lauminary frame) — the Sprite counterpart to <see cref="Palette"/>. Null when the caller supplied
+        /// none, in which case a Sampled-visual capability falls back to its own authored source field, so a
+        /// standalone burst (no Zoe context) behaves exactly as before this existed.
+        public readonly Sprite SampleSourceOverride;
         /// Animated content the CALLER wants played for this burst only, outranking anything the recipe names.
         public readonly IChunkAnimation AnimationOverride;
         /// Who is dealing the damage when the recipe has a Hits capability. Null is a legitimate unowned hit.
@@ -39,7 +44,8 @@ namespace Laubrary.Chunks
         public ChunkModuleContext(Vector3 origin, Transform container, float directionDeg, ChunkSpec spec,
                                   LayerSpec layers, int sortingOrder, ChunkModuleRunner runner,
                                   System.Collections.Generic.IList<Color32> palette,
-                                  IChunkAnimation animationOverride = null, Combatant owner = null)
+                                  IChunkAnimation animationOverride = null, Combatant owner = null,
+                                  Sprite sampleSourceOverride = null)
         {
             Origin = origin;
             Container = container;
@@ -51,13 +57,14 @@ namespace Laubrary.Chunks
             Palette = palette;
             AnimationOverride = animationOverride;
             Owner = owner;
+            SampleSourceOverride = sampleSourceOverride;
         }
 
         /// The same context aimed at a different flat order — how the dispatch gives each capability its own
         /// place in stack order without every capability having to know its index.
         public ChunkModuleContext WithSortingOrder(int sortingOrder)
             => new ChunkModuleContext(Origin, Container, DirectionDeg, Spec, Layers, sortingOrder, Runner,
-                                      Palette, AnimationOverride, Owner);
+                                      Palette, AnimationOverride, Owner, SampleSourceOverride);
 
         /// The concrete sortingOrder a capability should stamp on what it spawns: the named layer slot when
         /// the stack declares one, else its own place in the recipe. This is the ONE place that decision is

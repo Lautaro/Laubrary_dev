@@ -1467,7 +1467,8 @@ namespace Laubrary.Zoetrope.Editor
             var listHost = new VisualElement();
             root.Add(listHost);
             for (int i = 0; i < fxListProp.arraySize; i++)
-                BuildFxEntry(listHost, fxListProp.GetArrayElementAtIndex(i), fxPath, i, clipFrames, pointLayerIds, zoe);
+                BuildFxEntry(listHost, fxListProp.GetArrayElementAtIndex(i), fxPath, i, clipFrames, pointLayerIds, zoe,
+                             clipProp.stringValue);
 
             // The Add-effect menu: a Z.Menu of icon rows listing every IEffect kind (grouped by module), so
             // picking one appends an entry with that effect already assigned — nicer than adding a blank entry and
@@ -2245,7 +2246,7 @@ namespace Laubrary.Zoetrope.Editor
         /// it), then the effect's own SerializeReference body. <paramref name="index"/> is the entry's slot in the
         /// fx array; <paramref name="listHost"/> is the reorder container (holds ONLY cards).
         void BuildFxEntry(VisualElement listHost, SerializedProperty entryProp, string fxPath, int index,
-            int clipFrames, string[] pointLayerIds, Zoe zoe)
+            int clipFrames, string[] pointLayerIds, Zoe zoe, string clip)
         {
             var triggerProp = entryProp.FindPropertyRelative("trigger");
             var placementProp = entryProp.FindPropertyRelative("placement");
@@ -2494,6 +2495,16 @@ namespace Laubrary.Zoetrope.Editor
                 // line, which is the shape to copy. Anything with more fields gets its own row, because five
                 // fields wrapped in behind a name and a trigger is the ragged mess this replaced.
                 BuildManagedRefChildren(compact ? picks : Group(), effectProp, effect, zoe);
+
+                // A Spawn Chunks (or the bundled Pyre + Chunks) effect samples its colours AND (T-0252) its
+                // debris pieces live off the Zoe's own current sprite — never authored data — so an author
+                // staring at this card cannot otherwise tell what will actually get cut/sampled at runtime.
+                // Matched by TYPE NAME, not the concrete type (see the s_effectMeta comment above): both live
+                // in the ZoetropePyre bridge module, which this core Zoetrope editor asmdef deliberately does
+                // not reference.
+                string typeName = effect.GetType().Name;
+                if (typeName == "SpawnChunkFx" || typeName == "PyreChunksFx")
+                    BuildSpawnChunkLivePreview(body, effect, zoe, clip);
             }
 
             BuildFxOverrides(body, entryProp, zoe);
@@ -2567,6 +2578,157 @@ namespace Laubrary.Zoetrope.Editor
                     Rebuild();
                 }).W(AddButtonWidth));
             body.Add(section);
+        }
+
+        // ── Spawn Chunks live-sample preview (T-0252) ───────────────────────────────────────────────────────
+        // What a Spawn Chunks effect actually pulls its colours AND its sampled debris pieces from is never
+        // authored — it is the Zoe's own CURRENT sprite at burst time (SpawnChunkFx.Apply / DebrisScatter.Fire,
+        // via ChunkModuleContext.SampleSourceOverride). Nothing showed that fact before this existed, for either
+        // the colour path (which predates this task) or the new sprite-pieces path, so both get one small
+        // preview here: the frame that stands in for "the Zoe's current sprite" while authoring (a representative
+        // mid-clip frame — there is no live game frame to read outside Play mode), the palette it would sample,
+        // and — only when the recipe has a Sampled-visual Debris Scatter — a few example cut pieces.
+        const int LivePreviewThumbPx = 48;
+
+        void BuildSpawnChunkLivePreview(VisualElement body, object spawnChunkFx, Zoe zoe, string clip)
+        {
+            var chunks = GetFieldValue(spawnChunkFx, "chunks") as ChunkSpec;
+            bool sampleColours = (bool)(GetFieldValue(spawnChunkFx, "sampleLauminaryColours") ?? true);
+            int sampleCount = Mathf.Max(1, (int)(GetFieldValue(spawnChunkFx, "sampleCount") ?? 6));
+
+            var box = Z.BoxKeyed("Live sample preview",
+                "What this effect will actually sample at burst time — the Zoe's own current sprite, never " +
+                "authored art. Read-only: it exists so the colours/pieces below are never a surprise in Play mode.",
+                "Zoetrope.fx." + (chunks != null ? chunks.GetInstanceID().ToString() : "none") + ".liveSample");
+
+            Sprite liveSprite = ResolveLiveSprite(zoe, clip);
+            if (liveSprite == null)
+            {
+                box.Add(Z.Text("No previewable frame on this Zoe's view yet — nothing to sample.", ZuiText.Subtle,
+                    "The Zoe's view has no clip/frame to preview, so the live sprite it would sample at runtime " +
+                    "can't be shown here."));
+                body.Add(box);
+                return;
+            }
+
+            var row = Z.Row();
+            row.Add(ThumbOf(liveSprite, "The frame standing in for the Zoe's CURRENT sprite while authoring — " +
+                "the runtime samples whatever frame is actually showing at burst time, which changes as the Zoe " +
+                "animates."));
+
+            var side = new VisualElement();
+            side.style.marginLeft = 6f;
+            row.Add(side);
+
+            if (sampleColours)
+            {
+                side.Add(Z.Text("Palette sampled from this frame:", ZuiText.Subtle,
+                    "The colours DebrisScatter tints its chunks with, sampled live off this sprite each burst."));
+                var swatches = Z.Row();
+                foreach (var c in SampleColours(liveSprite, sampleCount))
+                {
+                    var sw = new VisualElement();
+                    sw.style.width = 16f; sw.style.height = 16f; sw.style.marginRight = 2f;
+                    sw.style.backgroundColor = c;
+                    swatches.Add(sw);
+                }
+                if (swatches.childCount == 0)
+                    swatches.Add(Z.Text("(texture not Read/Write enabled)", ZuiText.Subtle,
+                        "Tick 'Read/Write Enabled' on the sprite's import settings to sample its pixels."));
+                side.Add(swatches);
+            }
+            else
+            {
+                side.Add(Z.Text("Colour sampling is off for this effect (uses the recipe's own colours).",
+                    ZuiText.Subtle, "'Sample lauminary colours' is unticked on this effect."));
+            }
+
+            var debris = FindSampledDebris(chunks);
+            if (debris != null)
+            {
+                side.Add(Z.Text("Example pieces this Debris Scatter would cut:", ZuiText.Subtle,
+                    "A few example sampled cuts — actual bursts pick fresh random spots each time."));
+                var pieces = Z.Row();
+                int ppu = Mathf.Max(1, Mathf.RoundToInt(debris.EffectivePixelsPerUnit));
+                for (int i = 0; i < 5; i++)
+                {
+                    var cut = SampledChunkSprites.Sample(liveSprite, debris.samplePxMin, debris.samplePxMax, ppu,
+                        debris.tintMode, debris.tintColor, debris.tintStrength, debris.edgeThicknessPx, debris.modifiers);
+                    if (cut == null) continue;
+                    pieces.Add(ThumbOf(cut, "One example cut. A real burst samples fresh random spots.", 28f));
+                }
+                if (pieces.childCount == 0)
+                    pieces.Add(Z.Text("(no opaque pixels found to cut)", ZuiText.Subtle,
+                        "Every attempted cut landed on empty space, or the texture isn't Read/Write enabled."));
+                side.Add(pieces);
+            }
+            else if (chunks != null)
+            {
+                side.Add(Z.Text("This recipe has no Sampled-visual Debris Scatter — nothing else to preview.",
+                    ZuiText.Subtle, "Add a Debris Scatter capability set to 'Sampled' to cut pieces from this sprite."));
+            }
+
+            box.Add(row);
+            body.Add(box);
+        }
+
+        // A representative frame standing in for "the Zoe's current sprite" while authoring — the reaction's own
+        // clip (mid-clip, so a directional/attack pose reads better than the very first frame) when it has one,
+        // else the view's own default preview. Same duck-typed view interfaces ZoeEventVisual.Of reads, without
+        // needing a full ReactionFx (only its clip name matters here).
+        static Sprite ResolveLiveSprite(Zoe zoe, string clip)
+        {
+            if (zoe == null || zoe.view == null) return null;
+            Sprite[] frames = zoe.view is IClipPreviewableView byClip ? byClip.PreviewFrames(clip ?? "")
+                             : zoe.view is IPreviewableView plain ? plain.PreviewFrames()
+                             : null;
+            if (frames == null || frames.Length == 0) return null;
+            return frames[frames.Length / 2];
+        }
+
+        /// The first enabled Sampled-visual Debris Scatter in the recipe, or null. Mirrors the priority a real
+        /// burst would give an ambiguous recipe (first match wins) without claiming to resolve which ONE the
+        /// runtime actually fires (a recipe can carry several).
+        static DebrisScatter FindSampledDebris(ChunkSpec chunks)
+        {
+            if (chunks == null || chunks.capabilities == null) return null;
+            foreach (var cap in chunks.capabilities)
+                if (cap is DebrisScatter d && d.enabled && d.visual == DebrisVisual.Sampled) return d;
+            return null;
+        }
+
+        /// Up to `count` opaque colours off a sprite's own pixels — the editor-preview twin of SpawnChunkFx's
+        /// private SampleRenderer, minus the SpriteRenderer tint (nothing live to read one from here). Returns
+        /// empty, never throws, when the texture isn't Read/Write enabled.
+        static List<Color> SampleColours(Sprite sprite, int count)
+        {
+            var out_ = new List<Color>(count);
+            if (sprite == null || sprite.texture == null || !sprite.texture.isReadable) return out_;
+            Rect tr = sprite.textureRect;
+            int x = Mathf.RoundToInt(tr.x), y = Mathf.RoundToInt(tr.y);
+            int w = Mathf.RoundToInt(tr.width), h = Mathf.RoundToInt(tr.height);
+            if (w <= 0 || h <= 0) return out_;
+            Color[] block;
+            try { block = sprite.texture.GetPixels(x, y, w, h); } catch (UnityException) { return out_; }
+            int stride = Mathf.Max(1, block.Length / (count * 8));
+            for (int i = 0; i < block.Length && out_.Count < count; i += stride)
+            {
+                var c = block[i];
+                if (c.a <= 40f / 255f) continue;
+                out_.Add(c);
+            }
+            return out_;
+        }
+
+        static VisualElement ThumbOf(Sprite sprite, string tooltip, float size = LivePreviewThumbPx)
+        {
+            var slot = new VisualElement { tooltip = tooltip };
+            slot.style.width = size; slot.style.height = size; slot.style.marginRight = 4f;
+            slot.style.backgroundColor = new Color(0.11f, 0.12f, 0.15f);
+            var image = new UnityEngine.UIElements.Image { scaleMode = ScaleMode.ScaleToFit, sprite = sprite };
+            image.style.width = size; image.style.height = size;
+            slot.Add(image);
+            return slot;
         }
 
         // EnumPicker moved to ZoetropeDefWindow (the base) 2026-08-02, so the base's generic managed-ref child

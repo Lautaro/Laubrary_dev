@@ -55,7 +55,16 @@ namespace Laubrary.ZoetropePyre
         void IEffect.Apply(EventContext ctx)
         {
             SpawnBlast(ctx.Position, ctx.DirectionDeg, ctx.FlipX);
-            if (chunks != null) ChunksFx.Burst(ctx.Position, chunks, ctx.DirectionDeg);
+            if (chunks == null) return;
+
+            // T-0252: as a Zoe-event effect (the only Apply overload with a renderer to read), the debris burst
+            // samples live off the Zoe's OWN current sprite — colours to tint with, and (for a Sampled-visual
+            // Debris Scatter) the sprite to cut pieces from — exactly like SpawnChunkFx's palette effect, via the
+            // shared ZoeLiveSampler. The other call sites (Play/PlayOriented/PlayFollowable, used by weapon
+            // muzzles with no Zoe renderer in scope) are unchanged — they never had a palette to sample from.
+            var palette = ZoeLiveSampler.SampleColours(ctx.Renderer, 6);
+            var liveSprite = ZoeLiveSampler.LiveSprite(ctx.Renderer);
+            ChunksFx.Burst(ctx.Position, chunks, palette, ctx.DirectionDeg, sampleSourceOverride: liveSprite);
         }
 
         /// Same as <see cref="Play"/>, but returns the blast's Transform for follow-tracking (see

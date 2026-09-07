@@ -36,13 +36,26 @@ namespace Laubrary.Chunks.Editor
             // Pixels/unit is the RESOLUTION of the generated sprite (the procedural square, or a Sampled cut)
             // — never its size on screen: Chunk.Init normalises whatever sprite it is given to the Size dial's
             // world units, so a chunk is exactly as big as Size says whatever this is set to. Irrelevant to
-            // Sprites/Animated, which bring their own artwork.
+            // Sprites/Animated, which bring their own artwork. Defaults to the project's own Pixel Scale
+            // setting (Laubrary/Pixel Scale Project Settings) so debris is blocky at the project's own density
+            // without any authoring; the override float only shows once that default is turned off.
             if (cap.visual == DebrisVisual.Squares || cap.visual == DebrisVisual.Sampled)
-                body.Add(Z.Field("Pixels/unit",
-                    "How many pixels across the generated chunk sprite is. Its size on screen is the Size " +
-                    "dial's, not this — a higher value is a crisper chunk, not a bigger one.",
-                    Z.Float(cap.pixelsPerUnit, "Resolution of the generated chunk sprite. Size on screen is the Size dial's.",
-                        v => Dial("Edit Pixels/Unit", () => cap.pixelsPerUnit = Mathf.Max(1f, v)), 70f)));
+            {
+                body.Add(Z.Toggle("Use project pixel scale",
+                    "Pull pixels-per-unit from the project's Pixel Scale Project Settings asset instead of the " +
+                    "override below. Off = always use the override, whatever the project says.",
+                    cap.useProjectPixelScale, v => DialAndRebuildCard(id, "Toggle Use Project Pixel Scale",
+                        () => cap.useProjectPixelScale = v)));
+                if (!cap.useProjectPixelScale)
+                    body.Add(Z.Field("Pixels/unit",
+                        "How many pixels across the generated chunk sprite is. Its size on screen is the Size " +
+                        "dial's, not this — a higher value is a crisper chunk, not a bigger one.",
+                        Z.Float(cap.pixelsPerUnitOverride, "Resolution of the generated chunk sprite. Size on screen is the Size dial's.",
+                            v => Dial("Edit Pixels/Unit", () => cap.pixelsPerUnitOverride = Mathf.Max(1f, v)), 70f)));
+                else
+                    body.Add(Z.Text($"Currently {cap.EffectivePixelsPerUnit:0.#} px/unit (project setting).",
+                        ZuiText.Subtle, "The live value read from the project's Pixel Scale Project Settings asset."));
+            }
 
             switch (cap.visual)
             {

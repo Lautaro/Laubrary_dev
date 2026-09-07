@@ -58,8 +58,14 @@ namespace Laubrary.ZoetropePyre
         {
             if (chunks == null) return;
 
-            List<Color32> palette = sampleLauminaryColours ? SampleRenderer(ctx.Renderer, sampleCount) : null;
-            var container = ChunksFx.Burst(ctx.Position, chunks, palette, ctx.DirectionDeg);
+            List<Color32> palette = sampleLauminaryColours ? ZoeLiveSampler.SampleColours(ctx.Renderer, sampleCount) : null;
+            // The Zoe's own live current sprite, handed on as the burst's SampleSourceOverride — a Sampled-visual
+            // DebrisScatter in the recipe cuts its pieces from THIS frame instead of its own authored sampleSource,
+            // same live-off-the-renderer spirit as the colour palette above. Always forwarded (not gated by
+            // sampleLauminaryColours, which is the palette's own toggle) — DebrisScatter decides for itself
+            // whether it wants a sample source at all.
+            Sprite liveSprite = ZoeLiveSampler.LiveSprite(ctx.Renderer);
+            var container = ChunksFx.Burst(ctx.Position, chunks, palette, ctx.DirectionDeg, sampleSourceOverride: liveSprite);
 
             if (container != null)
             {
@@ -69,58 +75,5 @@ namespace Laubrary.ZoetropePyre
             }
         }
 
-        static bool _warnedUnreadable;
-
-        /// Grab up to <paramref name="count"/> opaque colours from the renderer's CURRENT sprite (its live lauminary
-        /// frame), pre-multiplied by the renderer's tint so the debris matches what's on screen. Returns null when
-        /// there is nothing sampleable (no renderer/sprite, or an unreadable texture) — the burst then falls back
-        /// to the spec's own colours. Deterministic stride sampling, so the same frame yields the same palette.
-        static List<Color32> SampleRenderer(SpriteRenderer sr, int count)
-        {
-            if (sr == null || sr.sprite == null) return null;
-            var sprite = sr.sprite;
-            var tex = sprite.texture;
-            if (tex == null) return null;
-            if (!tex.isReadable)
-            {
-                if (!_warnedUnreadable)
-                {
-                    _warnedUnreadable = true;
-                    Debug.LogWarning($"[SpawnChunkFx] Sprite texture '{tex.name}' is not Read/Write enabled — cannot " +
-                                     "sample its pixels for debris colours, so the burst uses the spec's own colours. " +
-                                     "Tick 'Read/Write Enabled' on the sprite's import settings.");
-                }
-                return null;
-            }
-
-            Rect tr = sprite.textureRect;
-            int x = Mathf.RoundToInt(tr.x), y = Mathf.RoundToInt(tr.y);
-            int w = Mathf.RoundToInt(tr.width), h = Mathf.RoundToInt(tr.height);
-            if (w <= 0 || h <= 0) return null;
-
-            Color32[] block;
-            if (x == 0 && y == 0 && w == tex.width && h == tex.height)
-            {
-                block = tex.GetPixels32();   // whole-texture fast path
-            }
-            else
-            {
-                Color[] cols = tex.GetPixels(x, y, w, h);   // atlased sub-rect
-                block = new Color32[cols.Length];
-                for (int i = 0; i < cols.Length; i++) block[i] = (Color32)cols[i];
-            }
-            if (block.Length == 0) return null;
-
-            Color tint = sr.color;
-            var list = new List<Color32>(count);
-            int stride = Mathf.Max(1, block.Length / (count * 8));
-            for (int i = 0; i < block.Length && list.Count < count; i += stride)
-            {
-                Color32 c = block[i];
-                if (c.a <= 40) continue;           // skip (near-)transparent pixels
-                list.Add((Color32)((Color)c * tint));
-            }
-            return list.Count > 0 ? list : null;
-        }
     }
 }

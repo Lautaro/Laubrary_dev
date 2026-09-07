@@ -280,7 +280,12 @@ namespace Laubrary.Chunks
                        : (sprites != null && sprites.Count > 0) ? DebrisVisual.Sprites
                        : DebrisVisual.Squares,
                 sprites = sprites != null ? new List<Sprite>(sprites) : new List<Sprite>(),
-                pixelsPerUnit = pixelsPerUnit,
+                // A legacy recipe carries its OWN authored pixelsPerUnit, so migration preserves it as an
+                // explicit override rather than silently switching it onto the (newer) project pixel-scale
+                // default — that default is for freshly authored capabilities, not a reinterpretation of data
+                // someone already tuned.
+                useProjectPixelScale = false,
+                pixelsPerUnitOverride = pixelsPerUnit,
                 sampleSource = sampleSource,
                 samplePxMin = samplePxMin, samplePxMax = samplePxMax,
                 tumble = tumble, tumbleSpeedMin = tumbleSpeedMin, tumbleSpeedMax = tumbleSpeedMax,

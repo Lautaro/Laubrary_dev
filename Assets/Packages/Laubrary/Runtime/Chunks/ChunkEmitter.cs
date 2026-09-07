@@ -41,16 +41,20 @@ namespace Laubrary.Chunks
         public void Burst(Vector2 worldPos, float directionDegOverride = float.NaN, IChunkAnimation animationOverride = null)
             => SpawnBurst(worldPos, spec, null, directionDegOverride, transform, sortingOrder, animationOverride, owner);
 
-        /// Burst tinted to a supplied palette (e.g. colours sampled off the exploded object).
+        /// Burst tinted to a supplied palette (e.g. colours sampled off the exploded object). sampleSourceOverride,
+        /// if supplied, is the sprite a Sampled-visual DebrisScatter cuts its pieces from instead of its own
+        /// authored sampleSource — a Zoe's live current sprite, say.
         public void Burst(Vector2 worldPos, IList<Color32> tintPalette, float directionDegOverride = float.NaN,
-                          IChunkAnimation animationOverride = null)
-            => SpawnBurst(worldPos, spec, tintPalette, directionDegOverride, transform, sortingOrder, animationOverride, owner);
+                          IChunkAnimation animationOverride = null, Sprite sampleSourceOverride = null)
+            => SpawnBurst(worldPos, spec, tintPalette, directionDegOverride, transform, sortingOrder, animationOverride, owner, sampleSourceOverride);
 
         /// The one place a burst is actually created. Shared by the component and the static API. parent may
         /// be null (a temporary self-destroying container is made). Returns the container transform.
+        /// sampleSourceOverride, when supplied, is forwarded as the burst's ChunkModuleContext.SampleSourceOverride.
         public static Transform SpawnBurst(Vector2 worldPos, ChunkSpec spec, IList<Color32> palette,
                                            float directionDegOverride, Transform parent, int sortingOrder,
-                                           IChunkAnimation animationOverride = null, Combatant owner = null)
+                                           IChunkAnimation animationOverride = null, Combatant owner = null,
+                                           Sprite sampleSourceOverride = null)
         {
             if (spec == null) return null;
 
@@ -62,7 +66,8 @@ namespace Laubrary.Chunks
             // inherit the burst direction read exactly this.
             float centerDeg = float.IsNaN(directionDegOverride) ? spec.directionDeg : directionDegOverride;
 
-            ChunkModules.Run(spec, worldPos, container, sortingOrder, centerDeg, palette, animationOverride, owner);
+            ChunkModules.Run(spec, worldPos, container, sortingOrder, centerDeg, palette, animationOverride, owner,
+                             sampleSourceOverride);
 
             // If we own the container, tear it down once the recipe's clock has run out.
             if (parent == null)
@@ -94,8 +99,11 @@ namespace Laubrary.Chunks
             => ChunkEmitter.SpawnBurst(worldPos, spec, null, directionDeg, null, ChunkEmitter.DefaultSortingOrder, animationOverride);
 
         /// Throw a burst tinted to a supplied palette (e.g. colours sampled off the exploded object).
+        /// sampleSourceOverride, if supplied, is the sprite a Sampled-visual DebrisScatter cuts its pieces
+        /// from instead of its own authored sampleSource (e.g. a Zoe's live current sprite).
         public static Transform Burst(Vector2 worldPos, ChunkSpec spec, IList<Color32> tintPalette, float directionDeg = float.NaN,
-                                      IChunkAnimation animationOverride = null)
-            => ChunkEmitter.SpawnBurst(worldPos, spec, tintPalette, directionDeg, null, ChunkEmitter.DefaultSortingOrder, animationOverride);
+                                      IChunkAnimation animationOverride = null, Sprite sampleSourceOverride = null)
+            => ChunkEmitter.SpawnBurst(worldPos, spec, tintPalette, directionDeg, null, ChunkEmitter.DefaultSortingOrder,
+                                       animationOverride, null, sampleSourceOverride);
     }
 }

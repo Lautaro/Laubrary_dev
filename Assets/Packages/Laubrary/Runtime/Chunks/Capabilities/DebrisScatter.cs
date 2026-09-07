@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 using Laubrary.SpriteFx;
+using Laubrary.PixelScale;
 
 namespace Laubrary.Chunks
 {
@@ -41,11 +43,26 @@ namespace Laubrary.Chunks
         [Tooltip("Chunk sprites to pick from at random.")]
         public List<Sprite> sprites = new List<Sprite>();
 
-        [Tooltip("Pixels-per-unit for the procedural pixel-square.")]
-        [Min(1f)] public float pixelsPerUnit = 32f;
+        [Tooltip("Use the project's Pixel Scale Project Settings (Laubrary/Pixel Scale Project Settings asset) for " +
+                 "the pixels-per-unit below, instead of the explicit override — so debris is blocky at the " +
+                 "project's own pixel density by default. Off = always use the override, whatever the project says.")]
+        public bool useProjectPixelScale = true;
+        [FormerlySerializedAs("pixelsPerUnit")]
+        [Tooltip("Pixels-per-unit for the procedural pixel-square and the sampled-chunk texel density, used only " +
+                 "while 'Use project pixel scale' above is off.")]
+        [Min(1f)] public float pixelsPerUnitOverride = 32f;
 
-        [Tooltip("The sprite small chunks are cut out of, so the debris is made of the exploding object's own " +
-                 "pixels. Its texture must have Read/Write Enabled.")]
+        /// The pixels-per-unit this scatter actually fires with: the project's Pixel Scale setting by default,
+        /// or the explicit override when that's turned off — same override-toggle shape as PixelScaleCamera's
+        /// own overrideProjectSettings/overridePixelsPerUnit pair, so authors already know this control.
+        public float EffectivePixelsPerUnit
+            => useProjectPixelScale ? PixelScaleProjectSettings.Instance.pixelsPerUnit : pixelsPerUnitOverride;
+
+        [Tooltip("The sprite small chunks are cut out of, when no live sample source is supplied by the caller " +
+                 "(e.g. a Zoe's current sprite, forwarded automatically by a Zoe-attached Spawn Chunks effect) — " +
+                 "so the debris is made of the exploding object's own pixels. Its texture must have Read/Write " +
+                 "Enabled. Ignored while a live sample source is supplied; this is what a standalone burst with " +
+                 "no Zoe context uses.")]
         public Sprite sampleSource;
         [Tooltip("Smallest sampled chunk, in source-texture pixels.")]
         [Min(1)] public int samplePxMin = 5;
@@ -85,8 +102,18 @@ namespace Laubrary.Chunks
         /// animationSource cast to the contract Chunks actually needs, or null if unset/incompatible.
         public IChunkAnimation AnimationSource => animationSource as IChunkAnimation;
 
-        /// Whether chunks are cut out of a source sprite rather than drawn from art or built procedurally.
+        /// Whether chunks are cut out of a source sprite rather than drawn from art or built procedurally, going
+        /// only by this capability's OWN authored sampleSource — the shape the standalone editor preview reads,
+        /// unaware of any live caller-supplied override. <see cref="Fire"/> is where a live burst additionally
+        /// considers <see cref="ChunkModuleContext.SampleSourceOverride"/>, which can make Sampled-mode cutting
+        /// happen even with this false (an authored-empty sampleSource, filled in live by a Zoe at burst time).
         public bool UsesSampledDebris => visual == DebrisVisual.Sampled && sampleSource != null;
+
+        /// The sprite this scatter would actually cut pieces from RIGHT NOW: the caller's live override when the
+        /// burst has one, else this capability's own authored sampleSource — the ONE place that priority is
+        /// decided, so a live Zoe frame always outranks whatever is separately authored on the recipe.
+        public Sprite ResolvedSampleSource(in ChunkModuleContext ctx)
+            => ctx.SampleSourceOverride != null ? ctx.SampleSourceOverride : sampleSource;
 
         // ── emission ──────────────────────────────────────────────────────────────
         [Tooltip("Fewest chunks thrown.")]
@@ -129,10 +156,14 @@ namespace Laubrary.Chunks
         [Tooltip("Longest lifetime, seconds.")]
         [Min(0.01f)] public float lifeMax = 1.1f;
 
+        // Bumped from 0.08/0.18 (2026-09-07, T-0252): at the project's PPU-16 pixel scale those world sizes are
+        // 1.3-2.9 SCREEN pixels — sub-pixel, so debris read as fine noise instead of blocky pixel-art shrapnel.
+        // The new defaults land around 2.5-5.5 screen pixels at PPU 16, matched by eye against ProtoGuy's own
+        // sprite pixel density in Play mode. Still just a starting point — either dial is freely author-tunable.
         [Tooltip("Smallest chunk, world units.")]
-        [Min(0.001f)] public float sizeMin = 0.08f;
+        [Min(0.001f)] public float sizeMin = 0.16f;
         [Tooltip("Largest chunk, world units.")]
-        [Min(0.001f)] public float sizeMax = 0.18f;
+        [Min(0.001f)] public float sizeMax = 0.35f;
 
         [Tooltip("Size across a chunk's life, left (spawn) to right (death).")]
         public AnimationCurve sizeOverLife = DefaultSizeCurve();
@@ -187,6 +218,13 @@ namespace Laubrary.Chunks
             bool havePalette = palette != null && palette.Count > 0;
             float centerDeg = ctx.DirectionDeg;
 
+            // Resolved ONCE per burst, not per chunk: a live caller override (the Zoe's current frame) always
+            // outranks the authored sampleSource, and the effective PPU folds in the project's Pixel Scale
+            // setting unless this scatter deliberately overrides it — see EffectivePixelsPerUnit/ResolvedSampleSource.
+            Sprite resolvedSampleSource = ResolvedSampleSource(in ctx);
+            bool sampledMode = visual == DebrisVisual.Sampled && resolvedSampleSource != null;
+            float effectivePpu = EffectivePixelsPerUnit;
+
             for (int i = 0; i < count; i++)
             {
                 var chunk = ChunkPool.Get();
@@ -202,13 +240,13 @@ namespace Laubrary.Chunks
                 bool sampled = false;
                 if (anim == null)
                 {
-                    Sprite cut = UsesSampledDebris
-                        ? SampledChunkSprites.Sample(sampleSource, samplePxMin, samplePxMax, pixelsPerUnit,
+                    Sprite cut = sampledMode
+                        ? SampledChunkSprites.Sample(resolvedSampleSource, samplePxMin, samplePxMax, effectivePpu,
                                                      tintMode, tintColor, tintStrength, edgeThicknessPx, modifiers)
                         : null;
                     if (cut != null) { sr.sprite = cut; sampled = true; }
                     else if (haveSprites) sr.sprite = sprites[rng.Next(sprites.Count)];
-                    else sr.sprite = ChunkSprites.Get(rng.Next(ChunkSprites.Count), pixelsPerUnit);
+                    else sr.sprite = ChunkSprites.Get(rng.Next(ChunkSprites.Count), effectivePpu);
                 }
                 bool tumbling = sampled && tumble;
 

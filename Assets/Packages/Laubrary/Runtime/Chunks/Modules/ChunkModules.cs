@@ -14,7 +14,8 @@ namespace Laubrary.Chunks
         /// puts the runner on it). Safe for an empty recipe — it costs one null check and adds no component.
         public static void Run(ChunkSpec spec, Vector3 worldPos, Transform container, int sortingOrder,
                                float directionDeg, IList<Color32> palette = null,
-                               IChunkAnimation animationOverride = null, Combatant owner = null)
+                               IChunkAnimation animationOverride = null, Combatant owner = null,
+                               Sprite sampleSourceOverride = null)
         {
             if (spec == null || container == null) return;
             spec.UpgradeIfNeeded();
@@ -28,7 +29,8 @@ namespace Laubrary.Chunks
             // The Layer Plan is resolved BEFORE anything fires, not dispatched: it is context every producer
             // reads, so it cannot be something that happens at a moment.
             var ctx = new ChunkModuleContext(worldPos, container, directionDeg, spec, spec.ResolveLayers(),
-                                             sortingOrder, runner, palette, animationOverride, owner);
+                                             sortingOrder, runner, palette, animationOverride, owner,
+                                             sampleSourceOverride);
 
             for (int i = 0; i < stack.Count; i++)
             {
