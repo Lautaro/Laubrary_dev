@@ -55,14 +55,23 @@ namespace Laubrary.Zoetrope
         /// <see cref="FxEntry.Resolve"/> — never a missing effect.</summary>
         public readonly string OverrideName;
 
+        /// <summary>An ONGOING answer to "which way does this face", for a state whose facing keeps changing after
+        /// the raise — a weapon's live aim, which a muzzle flash still playing at the barrel needs to keep
+        /// pointing along. Null (the default, and what a hit or a death supplies) means <see cref="Direction"/>
+        /// is the final word, which is how every raise behaved before this existed. See
+        /// <see cref="EventContext.DirectionSource"/>, which this becomes.</summary>
+        public readonly System.Func<Vector2> DirectionSource;
+
         public ReactionRequest(Vector2? position = null, Vector2 direction = default,
-                               float amount = 0f, GameObject source = null, string overrideName = null)
+                               float amount = 0f, GameObject source = null, string overrideName = null,
+                               System.Func<Vector2> directionSource = null)
         {
             Position = position;
             Direction = direction.sqrMagnitude > 1e-6f ? direction.normalized : Vector2.zero;
             Amount = amount;
             Source = source;
             OverrideName = overrideName;
+            DirectionSource = directionSource;
         }
 
         /// <summary>The request a damage event makes — how Hit and Death reach the same code path a

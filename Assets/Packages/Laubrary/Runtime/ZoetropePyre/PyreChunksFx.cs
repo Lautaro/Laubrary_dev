@@ -68,6 +68,18 @@ namespace Laubrary.ZoetropePyre
             return bp != null ? bp.transform : null;
         }
 
+        /// <summary>Re-place a still-playing blast through the SAME <see cref="PyreAnchor"/> maths its spawn used,
+        /// so a followed flash keeps its authored anchor exactly on the moving muzzle point and its authored
+        /// forward exactly along the live aim — mirrored when the shot points left. Position-only following
+        /// would slide the sprite along the barrel while it still pointed where the shot originally left.</summary>
+        public void Reorient(Transform instance, Vector2 worldPos, float aimDeg, bool flipX)
+        {
+            if (instance == null) return;
+            PyreAnchor.Place(instance, blast, worldPos, aimDeg, flipX);
+            var sr = instance.GetComponent<SpriteRenderer>();
+            if (sr != null && sr.flipX != flipX) sr.flipX = flipX;
+        }
+
         PyreBlastPlayer SpawnBlast(Vector2 worldPos) => SpawnBlast(worldPos, float.NaN, false);
         PyreBlastPlayer SpawnBlast(Vector2 worldPos, float directionDeg, bool flipX)
         {

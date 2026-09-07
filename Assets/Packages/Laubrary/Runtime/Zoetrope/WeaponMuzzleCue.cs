@@ -85,6 +85,8 @@ namespace Laubrary.Zoetrope
         /// The frame the fire state was last raised on, so a multi-projectile shot raises it ONCE. -1 rather
         /// than 0 because frame 0 is a real frame and a shot on it would otherwise be swallowed.
         int _lastFireStateFrame = -1;
+        /// Cached so a raise doesn't allocate a closure per shot; see where it's built in RaiseFireState.
+        System.Func<Vector2> _aimSource;
         bool _configured;
 
         /// Call this right after AddComponent — OnEnable already ran before the caller could set fields the
@@ -220,7 +222,14 @@ namespace Laubrary.Zoetrope
                 ? ((Vector2)(hitscanTarget - m.position)).normalized
                 : (weapon != null ? weapon.ResolvedAimDirection() : Vector2.zero);
 
-            var req = new ReactionRequest(origin, dir, 0f, weapon != null ? weapon.gameObject : null);
+            // The shot's aim as an ONGOING answer, not just this frame's: a Fire effect that follows (a muzzle
+            // flash riding the barrel) re-asks it every frame while it plays, so turning mid-flash turns the
+            // flash. Allocated once per cue, not per shot. ResolvedAimDirection already prefers the live painted
+            // muzzle vector (IVectorAimSource) over the raw aim, so this is the same answer the gun itself uses.
+            if (_aimSource == null && weapon != null) _aimSource = () => weapon != null ? weapon.ResolvedAimDirection() : Vector2.zero;
+
+            var req = new ReactionRequest(origin, dir, 0f, weapon != null ? weapon.gameObject : null,
+                                          directionSource: _aimSource);
 
             // Re-resolved while null rather than cached once, and it MUST be lazy: ZoeSpawner builds this
             // component during weapon equipping, before the game has had any chance to add a chooser of its

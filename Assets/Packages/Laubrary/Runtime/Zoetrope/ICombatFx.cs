@@ -35,6 +35,21 @@ namespace Laubrary.Zoetrope
         /// upright. Default bridges to <see cref="Play"/>, so an effect with nothing to turn behaves as before.
         void PlayOriented(Vector2 worldPos, float aimDeg, bool flipX) => Play(worldPos, aimDeg);
 
+        /// <summary>Re-place an instance previously handed back by <see cref="PlayFollowable"/>, while it is still
+        /// playing — the follow half of <see cref="PlayOriented"/>. Called every frame by
+        /// <see cref="FxFollowTarget"/> so a followed effect tracks its whole pose (point, aim and mirror), not
+        /// just the point: a muzzle flash rides the barrel AND keeps pointing where the gun points if the
+        /// character turns mid-flash.
+        ///
+        /// <para>It exists as an effect-side hook rather than a plain transform write because only the effect
+        /// knows how its own visual meets a world point — a Pyre lands its authored anchor there and rotates
+        /// about it, which a generic follower cannot reproduce. The default just moves the instance, which is
+        /// exactly what following did before this existed, so an effect with nothing to turn is unchanged.</para></summary>
+        void Reorient(Transform instance, Vector2 worldPos, float aimDeg, bool flipX)
+        {
+            if (instance != null) instance.position = new Vector3(worldPos.x, worldPos.y, instance.position.z);
+        }
+
         /// Default <see cref="IEffect"/> bridge: an ICombatFx applies by spawning at the context's resolved
         /// position + direction — the point its picked placement param resolved to. A default interface
         /// implementation so every existing ICombatFx satisfies <see cref="IEffect"/> with no change.

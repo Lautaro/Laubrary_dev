@@ -2320,13 +2320,18 @@ namespace Laubrary.Zoetrope.Editor
                     posRow.Add(Z.Toggle("Mirror offset", "Mirror the local X offset when the selected body part faces left.", mirrorOffsetProp.boolValue,
                         v => Commit(mirrorOffsetProp.propertyPath, p => p.boolValue = v)));
                 }
-                // Follow is now available for EVERY position, including Hit Position (task #4): for the fixed hit
-                // point it STICKS to the Zoe (the hit point captured in the Zoe's space, riding along as it moves);
-                // for the other positions it re-samples that point each frame.
+                // Follow is available for EVERY position, including Hit Position (task #4): for the fixed hit point
+                // it STICKS to the Zoe (the hit point captured in the Zoe's space, riding along as it moves); for
+                // the other positions it re-samples that point each frame. It now tracks the whole POSE — the
+                // Rotate row below is re-resolved every frame too — so the tooltip has to say so, or an author
+                // reads "Follow" as position-only and never finds why a flash keeps the angle it left with.
                 var follow = Z.Toggle("Follow",
-                    "Keep the effect attached to the target instead of spawning once. Hit Position sticks the hit " +
-                    "point to the Zoe (it rides along, from where the hit landed); the other positions re-sample " +
-                    "every frame.",
+                    "Keep the effect attached to the target for as long as it plays, instead of spawning once and " +
+                    "letting it live on its own. It tracks the whole pose: the point re-samples every frame, and " +
+                    "the Rotate setting below is re-asked with it, so a muzzle flash rides the barrel AND keeps " +
+                    "pointing where the gun points if the character turns mid-flash. Hit Position sticks the hit " +
+                    "point to the Zoe (it rides along, from where the hit landed). A Random direction is rolled " +
+                    "once at spawn and held, so it scatters rather than spins.",
                     followProp.boolValue, v => Commit(followPath, p => p.boolValue = v));
                 posRow.Add(Z.HSpace());
                 posRow.Add(follow);

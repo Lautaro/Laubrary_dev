@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -167,6 +168,165 @@ namespace Laubrary.ZoeCharacter.Tests
             Assert.That(row.direction, Is.EqualTo(DirectionParam.EventDirection));
             Assert.That(row.rotation, Is.EqualTo(FxRotationMode.FaceEventDirection));
             Assert.That(row.flipWithFacing, Is.True);
+        }
+
+        // ── T-0239 rework: a followed effect tracks its whole POSE (position + aim + mirror), not just a point ──
+        // EventContext.DirectionSource / CurrentDirection let a resolver re-ask "which way NOW" instead of being
+        // stuck with the direction stamped at raise time. FxFollowTarget carries that pose to the instance every
+        // frame. DirectionParam.Random is deliberately excluded — see the last test in this section.
+
+        [Test]
+        public void CurrentDirection_ReturnsRaiseTimeDirection_WhenSourceIsNull()
+        {
+            var ctx = new EventContext { Direction = Vector2.right, DirectionSource = null };
+            Assert.That(ctx.CurrentDirection.x, Is.EqualTo(1f).Within(Eps));
+            Assert.That(ctx.CurrentDirection.y, Is.EqualTo(0f).Within(Eps));
+        }
+
+        [Test]
+        public void CurrentDirection_TracksTheLiveSource_NotTheRaiseTimeValue()
+        {
+            // The raise-time Direction is deliberately something the source never answers, so a pass here can only
+            // mean the source was actually consulted.
+            Vector2 live = Vector2.right;
+            var ctx = new EventContext { Direction = Vector2.up, DirectionSource = () => live };
+
+            Assert.That(ctx.CurrentDirection.x, Is.EqualTo(1f).Within(Eps));
+            Assert.That(ctx.CurrentDirection.y, Is.EqualTo(0f).Within(Eps));
+
+            // Re-asking after the source's answer changes must give the NEW answer — this is the whole point of a
+            // followed effect: it re-samples every frame rather than trusting a value frozen at spawn.
+            live = Vector2.down;
+            Assert.That(ctx.CurrentDirection.x, Is.EqualTo(0f).Within(Eps));
+            Assert.That(ctx.CurrentDirection.y, Is.EqualTo(-1f).Within(Eps));
+        }
+
+        [Test]
+        public void CurrentDirection_FallsBackToRaiseTimeDirection_WhenSourceGoesQuiet()
+        {
+            // A source answering zero means "nothing to say right now" (e.g. a weapon with no live aim this
+            // frame), which must never snap the effect to a meaningless atan2(0,0) angle.
+            var ctx = new EventContext { Direction = Vector2.up, DirectionSource = () => Vector2.zero };
+            Assert.That(ctx.CurrentDirection.x, Is.EqualTo(0f).Within(Eps));
+            Assert.That(ctx.CurrentDirection.y, Is.EqualTo(1f).Within(Eps));
+        }
+
+        [Test]
+        public void ResolveOrientation_ReResolvesFaceEventDirection_AsTheLiveSourceTurns()
+        {
+            Vector2 live = Vector2.right;
+            var ctx = new EventContext { Direction = Vector2.right, DirectionSource = () => live };
+            var entry = new FxEntry { rotation = FxRotationMode.FaceEventDirection, direction = DirectionParam.EventDirection };
+
+            ctx.ResolveOrientation(entry, out float rot, out _);
+            Assert.That(rot, Is.EqualTo(0f).Within(Eps));
+
+            // Same context, same entry, just a later read after the live source turned — this is what a follower's
+            // per-frame re-sample does.
+            live = Vector2.up;
+            ctx.ResolveOrientation(entry, out rot, out _);
+            Assert.That(rot, Is.EqualTo(90f).Within(Eps));
+        }
+
+        [Test]
+        public void ResolveOrientation_MirrorReResolvesWithTheLiveSourceToo()
+        {
+            // Per ResolveOrientation's own doc comment: with flipWithFacing on, a resolved rotation mirrors
+            // whenever it points strictly LEFT (cos < 0), regardless of whether that rotation came from the
+            // raise-time Direction or a live DirectionSource re-read later.
+            Vector2 live = Vector2.right;
+            var ctx = new EventContext { Direction = Vector2.right, DirectionSource = () => live };
+            var entry = new FxEntry { rotation = FxRotationMode.FaceEventDirection, direction = DirectionParam.EventDirection, flipWithFacing = true };
+
+            ctx.ResolveOrientation(entry, out float rot, out bool flip);
+            Assert.That(rot, Is.EqualTo(0f).Within(Eps));
+            Assert.That(flip, Is.False);
+
+            live = Vector2.left;
+            ctx.ResolveOrientation(entry, out rot, out flip);
+            Assert.That(Mathf.Abs(rot), Is.EqualTo(180f).Within(Eps));
+            Assert.That(flip, Is.True);
+
+            live = Vector2.right;
+            ctx.ResolveOrientation(entry, out rot, out flip);
+            Assert.That(rot, Is.EqualTo(0f).Within(Eps));
+            Assert.That(flip, Is.False);
+        }
+
+        [Test]
+        public void FxFollowTarget_AppliesEverySampledPose_UntilStopped()
+        {
+            // FxFollowTarget's LateUpdate is private (a normal MonoBehaviour message) and there is no Play mode
+            // here to drive Unity's update loop, so it is invoked directly by reflection — the same message Unity
+            // itself would send each frame once the object is actually playing.
+            var go = new GameObject("Follower");
+            try
+            {
+                var follower = go.AddComponent<FxFollowTarget>();
+                var lateUpdate = typeof(FxFollowTarget).GetMethod("LateUpdate", BindingFlags.NonPublic | BindingFlags.Instance);
+                Assert.That(lateUpdate, Is.Not.Null, "FxFollowTarget.LateUpdate not found by reflection");
+
+                FxPose sampled = new FxPose(new Vector3(1f, 2f, 3f), 45f, true);
+                FxPose? applied = null;
+                follower.Init(() => sampled, pose => applied = pose);
+
+                lateUpdate.Invoke(follower, null);
+                Assert.That(applied.HasValue, Is.True);
+                Assert.That(applied.Value.Position, Is.EqualTo(sampled.Position));
+                Assert.That(applied.Value.AimDeg, Is.EqualTo(45f).Within(Eps));
+                Assert.That(applied.Value.FlipX, Is.True);
+
+                // A later sample is applied too — the whole point of following is re-sampling every frame.
+                sampled = new FxPose(new Vector3(9f, 9f, 9f), -30f, false);
+                lateUpdate.Invoke(follower, null);
+                Assert.That(applied.Value.Position, Is.EqualTo(sampled.Position));
+                Assert.That(applied.Value.AimDeg, Is.EqualTo(-30f).Within(Eps));
+                Assert.That(applied.Value.FlipX, Is.False);
+
+                // Stop() must make LateUpdate a no-op — nothing further gets applied.
+                applied = null;
+                follower.Stop();
+                lateUpdate.Invoke(follower, null);
+                Assert.That(applied.HasValue, Is.False);
+
+                // OnDisable() must clear the follow too — that is what keeps a POOLED instance, reused later by a
+                // non-following effect, from still being dragged around by this one's sampler.
+                //
+                // Sent by reflection, like LateUpdate above, and for the same reason: measured in this editor
+                // (probe, 2026-09-07), GameObject.SetActive(false) does NOT deliver OnDisable to a plain
+                // MonoBehaviour outside Play mode, so driving it through SetActive here would assert an engine
+                // behaviour that only exists in Play mode and fail for a reason that has nothing to do with this
+                // class. What is testable HERE is the contract this class owns: receiving OnDisable disarms it.
+                // That it is actually received on pool release is a Play-mode fact, verified there instead.
+                var onDisable = typeof(FxFollowTarget).GetMethod("OnDisable", BindingFlags.NonPublic | BindingFlags.Instance);
+                Assert.That(onDisable, Is.Not.Null, "FxFollowTarget.OnDisable not found by reflection");
+                follower.Init(() => sampled, pose => applied = pose);
+                onDisable.Invoke(follower, null);
+                lateUpdate.Invoke(follower, null);
+                Assert.That(applied.HasValue, Is.False, "OnDisable did not clear the follow");
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void DirectionParam_Random_ReRollsPerCall_WhichIsWhyFollowMustFreezeIt()
+        {
+            // ReactionFxPlayer.Fire() freezes a Random direction's rotation/flip at spawn time (captured into
+            // local spawnRot/spawnFlip BEFORE follower.Init's closure is built) and never re-resolves it while
+            // following, precisely because DirectionParam.Random re-rolls a fresh angle on every ResolveDirectionDeg
+            // call — re-resolving it live would spin the effect every frame instead of scattering it once. Fire()
+            // itself is a private method on a MonoBehaviour that requires a fully armed ReactionFxPlayer + an
+            // ICombatFx's PlayFollowable/pooling machinery to reach, which is integration-test territory, not a
+            // pure edit-mode unit test — so this pins the one fact that actually justifies the freeze: Random is
+            // non-deterministic per call, unlike every other DirectionParam re-read in the tests above.
+            var ctx = new EventContext { Direction = Vector2.right };
+            float a = ctx.ResolveDirectionDeg(DirectionParam.Random);
+            float b = ctx.ResolveDirectionDeg(DirectionParam.Random);
+            float c = ctx.ResolveDirectionDeg(DirectionParam.Random);
+            Assert.That(a >= 0f && a <= 360f, Is.True);
+            Assert.That(b >= 0f && b <= 360f, Is.True);
+            Assert.That(c >= 0f && c <= 360f, Is.True);
+            Assert.That(a != b || b != c, Is.True, "Random direction did not vary across calls (astronomically unlikely if truly random)");
         }
     }
 }

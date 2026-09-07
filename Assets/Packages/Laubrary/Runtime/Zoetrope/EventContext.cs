@@ -74,6 +74,26 @@ namespace Laubrary.Zoetrope
         public Vector2 Direction;
         /// Legacy name for a direction carried by hit/death. General events use <see cref="Direction"/> too.
         public Vector2 HitDirection { get => Direction; set => Direction = value; }
+        /// <summary>An ONGOING source for this event's direction, when the thing that raised it has one that keeps
+        /// answering after the raise — a weapon's live aim, which is what a muzzle flash still riding the barrel
+        /// needs to point along. Null (the default, and what a hit or a death supplies) means the direction
+        /// stamped at raise time is final, exactly as before this existed. A source that answers zero is treated
+        /// as "nothing to say right now" and falls back to <see cref="Direction"/>, so a weapon that stops
+        /// reporting an aim never silently snaps an effect to a meaningless angle.</summary>
+        public System.Func<Vector2> DirectionSource;
+
+        /// The event's direction AS OF NOW: the ongoing source's answer when there is one, else the direction the
+        /// event was raised with. This is what direction pickers resolve against, so re-asking a resolver while an
+        /// effect plays gives the current answer rather than the one frozen at the raise.
+        public Vector2 CurrentDirection
+        {
+            get
+            {
+                if (DirectionSource == null) return Direction;
+                var live = DirectionSource();
+                return live.sqrMagnitude > 1e-6f ? live : Direction;
+            }
+        }
         /// The event's scalar magnitude (e.g. the damage amount).
         public float Amount;
         /// Seconds the driving event has left at the moment the current effect fires — the armed reaction
@@ -137,12 +157,28 @@ namespace Laubrary.Zoetrope
             return TryResolvePosition(entry.placement, entry.metaLayerId, out pos);
         }
 
+        /// <summary>Is an INTERFACE-typed live reference still usable? `!= null` on an interface never binds
+        /// Unity's fake-null operator — that overload only exists for a static type of <c>UnityEngine.Object</c> —
+        /// so a destroyed MonoBehaviour reached through <see cref="IAnimatedView"/> or <see cref="IPartLookup"/>
+        /// still reads as non-null and throws MissingReference on the next call into it.
+        ///
+        /// <para>Harmless while these were only ever read ONCE, synchronously, on the frame the event fired: the
+        /// Zoe that fired it was provably alive. A FOLLOWED effect re-asks them every frame for as long as it
+        /// plays, and by then the Zoe can be gone — shot down mid-flash — so the check has to be the real one.</para></summary>
+        static bool Alive(object o)
+        {
+            if (o == null) return false;
+            // Static type is right here, so this IS Unity's fake-null comparison.
+            if (o is UnityEngine.Object uo) return uo != null;
+            return true;   // a plain C# implementation lives as long as it is referenced
+        }
+
         /// A declared body part's pivot plus a local offset (optionally mirrored with the part's facing). An
         /// undeclared / unknown part falls back to the sprite centre — the effect still spawns SOMEWHERE, the
         /// same rule MetaPoint applies to an unpainted layer.
         bool TryResolveBodyPart(string partName, Vector2 localOffset, bool mirrorWithFacing, out Vector2 pos)
         {
-            var part = PartLookup != null && !string.IsNullOrEmpty(partName) ? PartLookup.FindPartTransform(partName) : null;
+            var part = Alive(PartLookup) && !string.IsNullOrEmpty(partName) ? PartLookup.FindPartTransform(partName) : null;
             if (part == null) { pos = SpriteCenter; return true; }
             var offset = localOffset;
             var renderer = part.GetComponent<SpriteRenderer>();
@@ -157,11 +193,12 @@ namespace Laubrary.Zoetrope
         /// renderer, or a negative X scale.
         bool BodyFacesLeft(FxEntry entry)
         {
-            Transform anchor = !string.IsNullOrEmpty(entry.bodyPart) && PartLookup != null
+            Transform anchor = !string.IsNullOrEmpty(entry.bodyPart) && Alive(PartLookup)
                 ? PartLookup.FindPartTransform(entry.bodyPart) : Transform;
             var renderer = anchor != null ? anchor.GetComponent<SpriteRenderer>() : null;
             if (renderer == null) renderer = Renderer;
-            return (View as IFlippableView)?.FlipX == true || (renderer != null && renderer.flipX) || (anchor != null && anchor.lossyScale.x < 0f);
+            return (Alive(View) ? (View as IFlippableView)?.FlipX == true : false)
+                   || (renderer != null && renderer.flipX) || (anchor != null && anchor.lossyScale.x < 0f);
         }
 
         /// <summary>Resolve how an entry's spawned visual is ORIENTED, in one go: the world angle its forward
@@ -202,7 +239,7 @@ namespace Laubrary.Zoetrope
         bool TryResolveMetaPoint(string metaLayerId, out Vector2 worldPos)
         {
             worldPos = default;
-            if (View == null || string.IsNullOrEmpty(metaLayerId)) return false;
+            if (!Alive(View) || string.IsNullOrEmpty(metaLayerId)) return false;
             switch (View.GetMetaLayerKind(metaLayerId))
             {
                 case MetaLayerKind.Point:  return View.TryGetMetaPointNearest(metaLayerId, out worldPos);
@@ -224,8 +261,11 @@ namespace Laubrary.Zoetrope
                 Vector2 toCentre = SpriteCenter - Position;
                 return toCentre.sqrMagnitude > 1e-6f ? Mathf.Atan2(toCentre.y, toCentre.x) * Mathf.Rad2Deg : float.NaN;
             }
-            return Direction.sqrMagnitude > 1e-6f
-                ? Mathf.Atan2(Direction.y, Direction.x) * Mathf.Rad2Deg
+            // CurrentDirection, not the raise-time field: an effect that re-asks while it plays (a followed muzzle
+            // flash) must get where the gun points NOW. With no ongoing source the two are the same value.
+            var dir = CurrentDirection;
+            return dir.sqrMagnitude > 1e-6f
+                ? Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg
                 : float.NaN;
         }
 

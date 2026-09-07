@@ -74,7 +74,7 @@ MonoBehaviour:
         flipWithFacing: 1
         fixedAngleDeg: 0
         scalar: 0
-        follow: 0
+        follow: 1
         fx:
           rid: 1702917591583948899
         overrides: []

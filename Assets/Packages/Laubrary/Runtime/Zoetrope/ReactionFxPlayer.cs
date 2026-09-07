@@ -444,6 +444,7 @@ namespace Laubrary.Zoetrope
                 View = AnimView,
                 HitPosition = req.Position ?? (Vector2)transform.position,
                 Direction = req.Direction,
+                DirectionSource = req.DirectionSource,
                 Amount = req.Amount,
             };
         }
@@ -737,22 +738,54 @@ namespace Laubrary.Zoetrope
 
             var t = combat.PlayFollowable(pos, ctx.DirectionDeg, ctx.FlipX);
             if (t == null) return;   // this effect has nothing single/ongoing to follow (see PlayFollowable's own doc comment)
-            var follower = t.gameObject.AddComponent<FxFollowTarget>();
 
+            // REUSED, not stacked: a pooled blast comes back with the component its previous user added, and
+            // AddComponent-ing a second one left every past follower still writing to the shared transform.
+            // FxFollowTarget clears itself on deactivate (pool release), so a reused instance starts unarmed.
+            var follower = t.GetComponent<FxFollowTarget>();
+            if (follower == null) follower = t.gameObject.AddComponent<FxFollowTarget>();
+
+            // WHERE, each frame. HitPosition + Follow STICKS the fixed hit point to the Zoe (task #4): capture
+            // where the hit landed in the Zoe's OWN space, then re-project it each frame so the effect rides along
+            // as the Zoe moves / turns, from the exact point the hit was detected. (TryResolvePosition can't —
+            // HitPosition is a fixed world point with nothing to re-sample.) Every other placement re-resolves
+            // through the same call the spawn used, so a MetaPoint follows the painted marker as it animates.
+            Func<Vector3> samplePosition;
             if (entry.placement == FxPlacementType.HitPosition && ctx.Transform != null)
             {
-                // HitPosition + Follow STICKS the fixed hit point to the Zoe (task #4): capture where the hit landed
-                // in the Zoe's OWN space, then re-project it each frame so the effect rides along as the Zoe moves /
-                // turns, from the exact point the hit was detected. (TryResolvePosition can't — HitPosition is a fixed
-                // world point with nothing to re-sample, which is why Follow used to be disabled for it.)
                 var zoeT = ctx.Transform;
                 Vector3 localHit = zoeT.InverseTransformPoint(pos);
-                follower.Init(() => zoeT != null ? zoeT.TransformPoint(localHit) : t.position);
+                samplePosition = () => zoeT != null ? zoeT.TransformPoint(localHit) : t.position;
             }
             else
             {
-                follower.Init(() => ctx.TryResolvePosition(entry, out var p) ? (Vector3)p : t.position);
+                samplePosition = () => ctx.TryResolvePosition(entry, out var p) ? (Vector3)p : t.position;
             }
+
+            // WHICH WAY, each frame. Re-resolved from the same entry, so an aim that keeps moving (a weapon's live
+            // aim reaching the context through EventContext.DirectionSource) keeps turning the effect, and a body
+            // that turns re-mirrors it. FROZEN for a Random direction only: re-rolling a fresh angle every frame
+            // would spin the effect instead of scattering it once, which is the opposite of what Random means.
+            // Read together with the rotation mode, not alone: the Direction picker is only consulted when the
+            // rotation is Face event direction, so a leftover Random on a card since switched to None/Fixed must
+            // not freeze a mirror that should still track the body turning.
+            bool liveOrientation = !(entry.rotation == FxRotationMode.FaceEventDirection
+                                     && entry.direction == DirectionParam.Random);
+            float spawnRot = ctx.DirectionDeg;
+            bool spawnFlip = ctx.FlipX;
+
+            follower.Init(
+                () =>
+                {
+                    Vector3 p = samplePosition();
+                    if (!liveOrientation) return new FxPose(p, spawnRot, spawnFlip);
+                    // Position first: CentreAngle resolves its angle FROM the spawn position, so the stamp has to
+                    // be current before the orientation is asked for — the same order Fire() itself uses above.
+                    ctx.Position = p;
+                    ctx.ResolveOrientation(entry, out float rot, out bool flip);
+                    return new FxPose(p, rot, flip);
+                },
+                pose => combat.Reorient(t, pose.Position, pose.AimDeg, pose.FlipX));
         }
     }
 }
