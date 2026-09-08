@@ -2004,7 +2004,15 @@ namespace Laubrary.Shaper.Editor
             // T-0257 — "Technique" is the engineer's word for the shape of the extrusion.
             box.Add(Inert(Z.Field("Profile", "How the silhouette is raised.",
                 Z.MiniRadio((int)h.technique, ShaperWords.Names(typeof(ShaperExtrusionTechnique)),
-                    "Flat leaves it unraised; the others differ in how the surface climbs from edge to centre.",
+                    // T-0293 — the old sentence promised that every profile but Flat climbs differently, and
+                    // Stepped does not: its terraces are piecewise-flat, so the shading normal is Flat's at
+                    // every sample and the picture is identical to Flat's (measured 0 of 4096 pixels different
+                    // on Rect, Ellipse and Star, at Raise 4/8/16/24/48 and Steps 2/4/16/32). Same engine gap
+                    // the Steps dial below already names — said here too, because the profile is picked here.
+                    "Flat leaves the surface level; the others differ in how it climbs from edge to centre. "
+                    + "Stepped is the exception today: its terraces have no wall for the light to catch, so it "
+                    + "paints exactly what Flat paints (measured: 0 pixels different at every Raise and every "
+                    + "step count) — the same engine gap the Steps dial below names.",
                     v => { Change(() => h.technique = (ShaperExtrusionTechnique)v); Rebuild(); }, wrap: true)),
                 NoHeightStageReason(layer.root)));
 
@@ -2181,8 +2189,14 @@ namespace Laubrary.Shaper.Editor
                     + "extruded, and Brightness reads how bright it is."
                     + (heightUnavailable ? "\n\n" + ShaperLayerMask.QuantityNotPublished : "");
 
-                var qRow = Z.HGroup(
-                    Z.Field("Quantity", qTip,
+                // T-0293 — this field is added to the box BODY, not to a Z.HGroup, and that is load-bearing.
+                // A wrapping MiniRadio only wraps where its width is bounded: `.zui-field` is `flex-shrink: 0`
+                // (ZuiToolkit.uss:331), so inside a row it keeps its full content width and the wrap never
+                // fires. Measured while it was in an HGroup: the field wanted 367.1 px in a 336.0 px row
+                // inside a 350.2 px box, so "Brightness" was drawn 24.0 px outside the card and painted as
+                // "Brightne". Every other wrapping radio in this window (Fill Kind, Ramp Quantity, Swarm
+                // Shape, Height Profile and Bevel) is already added to a box body for the same reason.
+                box.Add(Z.Field("Quantity", qTip,
                         InertOptions(
                             Z.MiniRadio((int)m.quantity, ShaperWords.Names(typeof(ShaperMaskQuantity)), qTip,
                                 v => { Change(() => m.quantity = (ShaperMaskQuantity)v); Rebuild(); },
@@ -2196,10 +2210,12 @@ namespace Laubrary.Shaper.Editor
                 // a second amplitude dial on a normalized quantity is the "two dials for one quantity"
                 // defect ShaperLight.range refuses by name.
                 if (m.quantity != ShaperMaskQuantity.Coverage)
-                    qRow.Add(Val("Fully masked at", "The source value that reads as a fully solid mask — canvas pixels "
+                    box.Add(Z.HGroup(Val("Fully masked at",
+                        "The source value that reads as a fully solid mask — canvas pixels "
                         + "for Height and Edge Distance, linear brightness for Luma. At 0 it becomes a hard "
-                        + "test with no ramp.", m.fullAt, 0f, 64f));
-                box.Add(qRow);
+                        + "test with no ramp. On Height it is why the default of 1 looks like Opacity: a "
+                        + "raised source is at least 1 pixel tall almost everywhere it covers, so raise this "
+                        + "to the source's own Raise to see the ramp.", m.fullAt, 0f, 64f)));
 
                 if (quantityUnavailable)
                     box.Add(Z.Text("Falling back to Opacity.", ZuiText.Subtle,

@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- Shaper: the Mask card's quantity radio no longer clips 'Brightness'; the Height Profile tooltip no longer claims Stepped differs from Flat (measured identical in 36 combinations); 'Fully masked at' says why Height reads as Opacity at its default (T-0293).
 - Cherry framing (Pyre and Shaper): a slot's Length and Min–Max grey whichever the Variable-length toggle makes dead, Min–Max is one two-handle control, nothing wraps under the MultiFrame button, and the strip control is 'Tile size' everywhere (T-0289, T-0290, T-0292).
 - ZUI: a MicroSlider pressed before layout never emits NaN, and Shaper's frame scrubber rejects a non-finite value (T-0291).
 - Shaper: the Lights card enforces its cap of eight (the renderer ignores lights past eight) and re-enables Add light when you drop under it; the transport's Tile size slider can be dragged (it rebuilt itself on the first press); the cherry Zound row no longer draws over the Bake box; Specular says it needs real normals; the picker's 'Image' entry says it draws nothing until a sprite is set; 'Ambient' is printed once (T-0288).
