@@ -136,7 +136,13 @@ namespace Laubrary.PyreShaper
         void Step(int frame, int frames, int sd)
         {
             float lp = ShaperClock.PhaseOfFrame(frame, frames);
-            _sim.Step(ParamsAt(lp, sd), sd, lp, frame);
+            // T-0272 — Pyre's own StepFireball (PyreRenderer.cs:765) hashes the sim's RNG seed from
+            // (spec.seed, layerSalt, 0, 0); this used to pass the raw dial-eval seed straight through, so the
+            // sim's internal randomness (and therefore the cellular field it produced) genuinely diverged from
+            // Pyre's even though every dial matched. Dial evaluation still uses the raw seed (Pyre's
+            // FireballParamsAt does the same), only the sim's own seed argument is hashed.
+            int simSeed = PyreRenderer.Hash(sd, PyreShaperSimSupport.LayerSalt, 0, 0);
+            _sim.Step(ParamsAt(lp, sd), simSeed, lp, frame);
         }
 
         /// The dials resolved at one phase. Mirrors Pyre's FireballParamsAt (PyreRenderer.cs:817-832) field for

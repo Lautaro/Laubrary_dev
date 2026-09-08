@@ -228,12 +228,18 @@ namespace Laubrary.PyreShaper
         {
             float lp = ShaperClock.PhaseOfFrame(frame, frames);
             var p = ParamsAt(lp, sd);
+            // T-0272 — Pyre's own RenderFireLayer (PyreRenderer.cs:408) hashes the sim's RNG seed from
+            // (spec.seed, layerSalt, 0, 0) before ever stepping it; this used to hand FireSim the raw dial-eval
+            // seed, so the turbulence field it stepped genuinely diverged from Pyre's even at matching dials —
+            // the measured cause of T-0202's "Differs" verdict. Dial evaluation still reads the raw seed (Pyre's
+            // FireParamsAt does the same), only the sim's own seed argument is hashed.
+            int simSeed = PyreRenderer.Hash(sd, PyreShaperSimSupport.LayerSalt, 0, 0);
             int steps = Mathf.Max(1, subSteps);
             for (int s = 0; s < steps; s++)
             {
                 // The tiny per-substep phase nudge advances the noise smoothly WITHIN a frame instead of
                 // sampling the same turbulence `steps` times; same nudge as Pyre's StepFire (PyreRenderer.cs:494).
-                _sim.Step(p, sd, lp + s / (float)steps * 0.01f, FrameDt / steps);
+                _sim.Step(p, simSeed, lp + s / (float)steps * 0.01f, FrameDt / steps);
             }
         }
 
