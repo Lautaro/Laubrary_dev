@@ -74,6 +74,12 @@ namespace Laubrary.Zui
         /// The standard tool-window shape: controls on the LEFT, workspace/preview on the RIGHT, with a
         /// user-draggable divider whose position persists per `stateKey` (EditorPrefs, machine-local view
         /// state). Wraps UITK's TwoPaneSplitView; the left pane is the fixed one.
+        // Minimum widths a clamped Z.Split never violates (T-0296): the fixed (left, controls) pane and the
+        // flexed (right, workspace/preview) pane each keep at least this much room, however narrow the window
+        // gets or however wide a divider was left dragged at a wider window.
+        const float kSplitMinLeftPane = 360f;
+        const float kSplitMinRightPane = 320f;
+
         public static TwoPaneSplitView Split(string stateKey, float initialLeftWidth,
             VisualElement left, VisualElement right)
         {
@@ -86,12 +92,76 @@ namespace Laubrary.Zui
             if (left != null) split.Add(left);
             if (right != null) split.Add(right);
 
-            // Persist the divider wherever the user leaves it. The fixed pane's width IS the state.
+            // A divider width restored from EditorPrefs (or legitimately dragged wide before the window was
+            // shrunk) is never clamped to the CONTAINER — TwoPaneSplitView hands it straight to the fixed pane,
+            // so a divider saved at 1400px survives verbatim into an 820px-minimum window and parks the whole
+            // right pane off-screen with no scroller and no reachable drag anchor to pull it back (T-0296).
+            //
+            // `desiredWidth` is the width the user actually WANTS — the persisted/restored value, or wherever
+            // they last dragged the divider — as opposed to whatever the CONTAINER currently has room for.
+            // Clamping always targets this, not the pane's live width, so a shrink-then-widen sequence GROWS
+            // the divider back out toward what the user asked for rather than leaving it stuck at whatever a
+            // narrower window once forced it down to.
+            float desiredWidth = width;
+            float lastClampTarget = float.NaN;
+            const float kSizeEpsilon = 1.5f; // above device-pixel rounding at any editor UI scale, below a real drag
+
+            Action clampToContainer = () =>
+            {
+                if (left == null) return;
+                float containerWidth = split.resolvedStyle.width;
+                if (float.IsNaN(containerWidth) || containerWidth <= 1f) return; // container not laid out yet
+                float current = left.resolvedStyle.width;
+                if (float.IsNaN(current) || current <= 1f) return; // pane not laid out yet
+
+                float maxLeft = Mathf.Max(kSplitMinLeftPane, containerWidth - kSplitMinRightPane);
+                float clamped = Mathf.Clamp(desiredWidth, kSplitMinLeftPane, maxLeft);
+                if (Mathf.Abs(clamped - current) > kSizeEpsilon)
+                {
+                    lastClampTarget = clamped;
+                    left.style.width = clamped;
+                }
+            };
+
+            // TwoPaneSplitView keeps the fixed pane's live width entirely in its own internal fields — it never
+            // touches the pane's public inline `style.width` (confirmed live: `left.style.width.keyword` stayed
+            // `Undefined` throughout, even while `left.resolvedStyle.width` was visibly changing) — so the only
+            // place to read OR correct that width from the outside is `resolvedStyle`, read after layout has
+            // actually settled rather than mid-transition (a resize can take more than one internal pass; a
+            // clamp that reads `resolvedStyle` synchronously inside the very event that changed it can measure
+            // a transient container size the window is only passing through, not the one it lands on — measured
+            // live as the left pane sticking ~60px wider than intended and the right pane pinned at its OWN
+            // minWidth instead of the safety margin here). Deferring the check by one editor tick, and
+            // collapsing any number of GeometryChangedEvents in the same frame into a single scheduled recheck,
+            // reads the settled geometry instead of a transient one; if that recheck itself changes the pane
+            // width, the resulting GeometryChangedEvent schedules one more recheck, so the whole thing converges
+            // rather than needing a fixed pass count.
+            bool clampScheduled = false;
+            Action scheduleClamp = () =>
+            {
+                if (clampScheduled) return;
+                clampScheduled = true;
+                split.schedule.Execute(() => { clampScheduled = false; clampToContainer(); });
+            };
+            split.RegisterCallback<GeometryChangedEvent>(_ => scheduleClamp());
+            right?.RegisterCallback<GeometryChangedEvent>(_ => scheduleClamp());
+            left?.RegisterCallback<GeometryChangedEvent>(_ => scheduleClamp());
+
+            // Adopt the divider wherever the user leaves it as the new `desiredWidth`, and persist it — except
+            // a width this clamp just forced (not a real drag) must NOT overwrite the wider intent, or widening
+            // the window back out would no longer grow the divider back to where the user actually left it. An
+            // ABSOLUTE tolerance, not Mathf.Approximately's tight relative one: resolvedStyle.width can differ
+            // from the exact value the clamp just assigned by a fraction of a pixel (device-pixel snapping under
+            // the editor's own UI scale), which is enough to fail Approximately and defeat the guard entirely.
             left?.RegisterCallback<GeometryChangedEvent>(_ =>
             {
                 float w = left.resolvedStyle.width;
-                if (w > 1f && !Mathf.Approximately(w, EditorPrefs.GetFloat(prefKey, -1f)))
-                    EditorPrefs.SetFloat(prefKey, w);
+                if (w > 1f && Mathf.Abs(w - lastClampTarget) > kSizeEpsilon)
+                {
+                    desiredWidth = w;
+                    if (Mathf.Abs(w - EditorPrefs.GetFloat(prefKey, -1f)) > kSizeEpsilon)
+                        EditorPrefs.SetFloat(prefKey, w);
+                }
             });
             return split;
         }
@@ -318,6 +388,14 @@ namespace Laubrary.Zui
         {
             var wrap = new VisualElement();
             wrap.AddToClassList("zui-field");
+            // A control that can itself wrap onto a second line (a MiniRadio built with wrap:true) needs its
+            // FIELD to be allowed to shrink too (T-0297) — `.zui-field` is flex-shrink:0 by default (a slider
+            // or toggle field must never be squeezed), but packed into a Z.Row/Z.HGroup that default keeps the
+            // field at its full unshrunk content width forever, so the control's own wrap never engages and
+            // the last option is clipped by whatever box/pane the row sits in. Detected from the control's own
+            // class rather than a caller flag, so every existing wrap:true call site is fixed automatically and
+            // a bounded control (slider, toggle, plain radio) is never affected.
+            if (control.ClassListContains("zui-radio--wrap")) wrap.AddToClassList("zui-field--wrap");
             var l = new Label(label);
             l.AddToClassList("zui-field__label");
             l.tooltip = tooltip;

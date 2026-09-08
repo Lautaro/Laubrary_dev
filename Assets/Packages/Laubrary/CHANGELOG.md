@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- ZUI: a split view clamps its divider to the window (min 360 px left, 320 px right) on restore, resize and drag, so the right pane can never sit off-screen at the minimum window size; a field wrapping a MiniRadio may shrink and wrap inside a row (T-0296, T-0297).
+- Shaper: a saved View now captures both panes, so Preview backdrop and Bake folds restore too (T-0295).
 - Shaper: the Mask card's quantity radio no longer clips 'Brightness'; the Height Profile tooltip no longer claims Stepped differs from Flat (measured identical in 36 combinations); 'Fully masked at' says why Height reads as Opacity at its default (T-0293).
 - Cherry framing (Pyre and Shaper): a slot's Length and Min–Max grey whichever the Variable-length toggle makes dead, Min–Max is one two-handle control, nothing wraps under the MultiFrame button, and the strip control is 'Tile size' everywhere (T-0289, T-0290, T-0292).
 - ZUI: a MicroSlider pressed before layout never emits NaN, and Shaper's frame scrubber rejects a non-finite value (T-0291).

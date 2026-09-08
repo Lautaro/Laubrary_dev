@@ -303,7 +303,7 @@ namespace Laubrary.Shaper.Editor
             var flow = Z.ColumnFlow(360f);
             left.contentContainer.Add(flow);
 
-            BuildViewsSection(flow);    // T-0190 — saved views, Pyre's own bar (Editor/Pyre/PyreWindow.cs:453)
+            BuildViewsSection(flow, root);   // T-0190/T-0295 — saved views, Pyre's own bar (Editor/Pyre/PyreWindow.cs:453)
             BuildCanvasSection(flow);
             BuildLightsSection(flow);   // ShaperWindow.Lights.cs (T-0164) — document-level, sits beside Canvas
             BuildLayersSection(flow);
@@ -395,15 +395,23 @@ namespace Laubrary.Shaper.Editor
         ZuiSection viewsSection;
         ZuiViewBar viewBar;
 
-        void BuildViewsSection(VisualElement root)
+        // T-0295 — `placeRoot` and `captureRoot` are deliberately different elements. The Views card itself
+        // still needs to sit at the top of the LEFT column flow (`placeRoot`), but `BuildViewBar`'s capture/
+        // apply must walk a root that contains BOTH panes, or every ZuiBox on the right (Preview backdrop,
+        // Bake) is invisible to it — that was the whole bug (measured live, T-0293 A22 fifth pass). `root` is
+        // BuildAsset's own host: `left`/`flow` and `right` are added under it (directly, or via the Z.Split at
+        // BuildAsset's end) before either closure below ever runs, and Query<ZuiBox>() walks the live tree at
+        // call time, not at BuildViewBar-time, so it sees both panes once the split exists. Mirrors PyreWindow
+        // (PyreWindow.cs:344), which already passes its BuildAsset `root` for the same reason.
+        void BuildViewsSection(VisualElement placeRoot, VisualElement captureRoot)
         {
-            viewBar = BuildViewBar(root);
+            viewBar = BuildViewBar(captureRoot);
             viewsSection = Z.Section("Views",
                 "Save and recall named layouts of this window — which cards are folded open and which optional "
                 + "controls are shown. View state only: no authored value is ever stored in a view.",
                 "shaper.window.views", icon: "bookmarks-simple");
             viewsSection.Add(viewBar);
-            root.Add(viewsSection);
+            placeRoot.Add(viewsSection);
         }
 
         /// Capture/apply aggregate every ZuiBox under <paramref name="paneRoot"/>, so a view round-trips every

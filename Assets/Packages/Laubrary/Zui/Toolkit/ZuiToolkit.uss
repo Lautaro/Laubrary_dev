@@ -334,6 +334,16 @@
     flex-shrink: 0;
 }
 
+/* Opt-in twin for a field wrapping a wrap-capable control (T-0297) — a wrapping MiniRadio can never wrap
+   inside a Z.Row/Z.HGroup while its field keeps flex-shrink:0, because the field then always claims its
+   full unshrunk content width and the radio is never squeezed. Z.Field stamps this class only when its
+   control carries `.zui-radio--wrap`, so an ordinary field (a slider, a toggle, a non-wrapping radio) is
+   untouched and still never shrinks or stretches. */
+.zui-field--wrap {
+    flex-shrink: 1;
+    min-width: 0;
+}
+
 .zui-field__label {
     margin-right: 4px;
     white-space: nowrap;
