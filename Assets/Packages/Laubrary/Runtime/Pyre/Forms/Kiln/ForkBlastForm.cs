@@ -25,7 +25,7 @@ namespace Laubrary.Pyre.Forms.Kiln
         // ── the blast's clock and envelopes ──
         [Tooltip("The blast's progress over the layer's life — a TIME REMAP as one envelope. The default straight line plays in real time; bend it to snap in and hold, slow the tail, or freeze a pose (a Static value).")]
         [ZUIGroup("Clock", Tooltip = "The blast's overall timing.")]
-        [Range(0f, 1f)] public ZUIValue progress = IdentityCurve();
+        [Range(0f, 1f)] [ZUILabel("Progress")] public ZUIValue progress = IdentityCurve();
         [Tooltip("Full name: \"Travel distance\". How far the fastest puffs travel, as a fraction of the canvas half-extent, over life.")]
         [ZUILabel("Travel dist.")] [ZUIGroup("Clock")]
         [Range(0.1f, 1.5f)] public ZUIValue reach = new ZUIValue(0.85f);
@@ -50,7 +50,7 @@ namespace Laubrary.Pyre.Forms.Kiln
         // ── puff physics — travel, growth, shape ──
         [Tooltip("Higher decelerates a puff sooner, so it stalls closer to the source.")]
         [ZUIGroup("Puff physics", Tooltip = "How a single puff moves and grows as it travels.")]
-        [Range(0.3f, 6f)] public float drag = 2.2f;
+        [Range(0.3f, 6f)] [ZUILabel("Drag")] public float drag = 2.2f;
         [Tooltip("Full name: \"Rise (buoyancy)\". Upward rise late in a puff's life.")]
         [ZUILabel("Buoyancy")] [ZUIGroup("Puff physics")]
         [Range(0f, 0.4f)] public float buoyancy = 0.05f;
@@ -146,7 +146,7 @@ namespace Laubrary.Pyre.Forms.Kiln
         [ZUIShowIf("autoExposure", "True")]
         [Tooltip("Multiplier on the measured peak of this frame's heat field. Lower = brighter/hotter overall (clips more of the field to the ramp's hot end); higher = dimmer, more rim.")]
         [ZUIGroup("Look & exposure")]
-        [Range(0.2f, 2f)] public float exposure = 0.85f;
+        [Range(0.2f, 2f)] [ZUILabel("Exposure")] public float exposure = 0.85f;
         [Tooltip("Heat-field value at the silhouette's outer edge — everything below this is fully transparent.")]
         [ZUILabel("Field floor")] [ZUIGroup("Look & exposure")]
         [Range(0f, 0.6f)] public float fieldLow = 0.22f;

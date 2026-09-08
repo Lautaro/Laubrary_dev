@@ -72,7 +72,7 @@ namespace Laubrary.PyreShaper
         [Min(1)]
         [Tooltip("How many frames this layer's own animation spans — kept equal to the document's own Frames "
                + "automatically; no longer authored here.")]
-        public int frames = 16;
+        [ZUILabel("Frames")] public int frames = 16;
 
         // The synthetic host spec. Pyre's renderer takes a whole Pyre asset, so hosting one layer means handing it
         // a one-layer spec — the case Pyre itself documents as byte-identical to its pre-layers renderer. Private

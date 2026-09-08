@@ -332,7 +332,7 @@ namespace Laubrary.Shaper
                     if (fdoc.owners == null || fdoc.owners.Count == 0) buf.ClearDestination(n);
                     var scene = ShaperLightCompiler.BindLayer(doc, li, prog, buf.sampleCapacity,
                                                               buf.ownerCapacity, RootProgram(fdoc), doc.pixelSize);
-                    BindSolids(fdoc, scene, phase01, doc.seed, prog);
+                    BindSolids(fdoc, scene, phase01, doc.seed, prog, lay.root);
                     ShaperFillResolver.PaintTile(fdoc, grid, 0, 0, w, h, buf,
                                                  new ShaperFillSheets { published = ShaperQuantitySet.ShippedShapeEngine },
                                                  scene);
@@ -452,7 +452,7 @@ namespace Laubrary.Shaper
 
             var sscene = ShaperLightCompiler.BindLayer(doc, si, prog, scratch.sampleCapacity,
                                                        scratch.ownerCapacity, RootProgram(sdoc), doc.pixelSize);
-            BindSolids(sdoc, sscene, phase01, doc.seed, prog);
+            BindSolids(sdoc, sscene, phase01, doc.seed, prog, src.root);
             ShaperFillResolver.PaintTile(sdoc, grid, 0, 0, w, h, scratch,
                                          new ShaperFillSheets { published = ShaperQuantitySet.ShippedShapeEngine },
                                          sscene);
@@ -572,15 +572,40 @@ namespace Laubrary.Shaper
         /// code nothing ever runs.
         /// </summary>
         static void BindSolids(ShaperFillDocument fdoc, ShaperLightScene scene, float phase01, uint seed,
-                               ShaperLightProgram prog)
+                               ShaperLightProgram prog, ShaperNode layerRoot = null)
         {
             if (fdoc == null || scene == null) return;
             for (int o = 0; o < fdoc.owners.Count && o < scene.ownerCapacity; o++)
             {
                 var node = fdoc.owners[o]?.node;
                 if (node == null || node.kind != ShaperNodeKind.Solid || node.solid == null) continue;
-                scene.SetSolid(o, ShaperSolids.Compile(node.solid, phase01, seed, prog));
+                var op = ShaperSolids.Compile(node.solid, phase01, seed, prog);
+                // T-0265 — the node's own Position box. The compiler folds the transform into the shape
+                // program, which a Solid never reads (it replaces the shape stage, LR-6.1), so it has to be
+                // handed to the generator here or Translate/Rotation/Scale move a solid by nothing at all.
+                // The chain is walked rather than read off the owner because a Solid can sit inside a bag,
+                // and its placement is then every ancestor's transform as well as its own — the same product
+                // ShaperCompiler.EmitNode accumulates.
+                if (NodeToCanvas(layerRoot, node, ShaperMatrix.Identity, phase01, seed, out var m))
+                    op = ShaperSolids.Place(op, m);
+                scene.SetSolid(o, op);
             }
+        }
+
+        /// <summary>The accumulated local→canvas matrix of <paramref name="target"/>, or false when it is not
+        /// in this tree. Composed exactly as <c>ShaperCompiler.EmitNode</c> composes it, so a solid can never
+        /// be placed anywhere but where the same node's bounding box already went.</summary>
+        static bool NodeToCanvas(ShaperNode n, ShaperNode target, in ShaperMatrix parent,
+                                 float phase01, uint seed, out ShaperMatrix found)
+        {
+            found = ShaperMatrix.Identity;
+            if (n == null || target == null) return false;
+            ShaperMatrix here = ShaperMatrix.Mul(parent, (n.transform ?? new ShaperTransformBlock()).ToMatrix(phase01, seed));
+            if (ReferenceEquals(n, target)) { found = here; return true; }
+            if (n.children != null)
+                for (int i = 0; i < n.children.Count; i++)
+                    if (NodeToCanvas(n.children[i], target, here, phase01, seed, out found)) return true;
+            return false;
         }
 
         /// <summary>Render one frame index into a caller-owned float destination. See <see cref="RenderPhaseInto"/>.</summary>

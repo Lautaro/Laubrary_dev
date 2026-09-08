@@ -61,105 +61,105 @@ namespace Laubrary.PyreShaper
 
         [Tooltip("Shapes the whole burn over the animation: 0 puts the emitter out, 1 drives it flat out. Scales "
                + "the heat and fuel injected, so one curve takes the flame from ignite through roar to nothing.")]
-        public ZUIValue intensity = PyreShaperSimSupport.IgniteHoldFade();
+        [ZUILabel("Intensity")] public ZUIValue intensity = PyreShaperSimSupport.IgniteHoldFade();
 
         [Min(1)]
         [Tooltip("How many flames radiate from the centre. 1 is a single directional flame; more open cold gaps "
                + "between pointed tongues.")]
-        public int arms = 1;
+        [ZUILabel("Arms")] public int arms = 1;
 
         [Tooltip("Mirror makes every arm emit identically, so the flame is symmetric. Vary gives each arm its own "
                + "flicker and pulse phase, so the arms move independently.")]
-        public FireArmMode armMode = FireArmMode.Mirror;
+        [ZUILabel("Arm Mode")] public FireArmMode armMode = FireArmMode.Mirror;
 
         [Tooltip("Which way the first arm points, in degrees. 90 sends the flame up the canvas.")]
-        public ZUIValue direction = new ZUIValue(90f);
+        [ZUILabel("Direction")] public ZUIValue direction = new ZUIValue(90f);
 
         [Tooltip("How wide the base of each flame is, in pixels. Wider gives a broader, slower-looking fire.")]
-        public ZUIValue emitterWidth = new ZUIValue(9f);
+        [ZUILabel("Emit Width")] public ZUIValue emitterWidth = new ZUIValue(9f);
 
         [Tooltip("Pushes each emitter out from the centre, in pixels, so the flames start off a ring rather than "
                + "a point.")]
-        public ZUIValue emitterInset = new ZUIValue(0f);
+        [ZUILabel("Emit Inset")] public ZUIValue emitterInset = new ZUIValue(0f);
 
         [Tooltip("How hot the emitter injects. High burns bright immediately; low needs fuel to build a body.")]
-        public ZUIValue heat = new ZUIValue(0.95f);
+        [ZUILabel("Heat")] public ZUIValue heat = new ZUIValue(0.95f);
 
         [Tooltip("Unburnt fuel injected alongside the heat. Fuel converting into heat is what gives the flame a "
                + "body instead of only a glow.")]
-        public ZUIValue fuel = new ZUIValue(0.75f);
+        [ZUILabel("Fuel")] public ZUIValue fuel = new ZUIValue(0.75f);
 
         [Tooltip("How much the emitter's output breathes in and out, so the base of the flame is never static.")]
-        public ZUIValue pulse = new ZUIValue(0.18f);
+        [ZUILabel("Pulse")] public ZUIValue pulse = new ZUIValue(0.18f);
 
         // ── how it moves ─────────────────────────────────────────────────────────────────────────────────
 
         [Tooltip("A steady outward push away from the centre — turns a lick into a jet.")]
-        public ZUIValue flow = new ZUIValue(1f);
+        [ZUILabel("Flow")] public ZUIValue flow = new ZUIValue(1f);
 
         [Tooltip("How strongly heat carries itself outward. This is what makes the flame CLIMB rather than merely "
                + "spread.")]
-        public ZUIValue buoyancy = new ZUIValue(4f);
+        [ZUILabel("Buoyancy")] public ZUIValue buoyancy = new ZUIValue(4f);
 
         [Tooltip("Swirl strength across the arm axis. Curls the tongues so they lick sideways instead of only "
                + "travelling straight.")]
-        public ZUIValue curl = new ZUIValue(1.5f);
+        [ZUILabel("Curl")] public ZUIValue curl = new ZUIValue(1.5f);
 
         [Tooltip("Size of the swirl. Small values give fine turbulence; large ones give slow broad rolls.")]
-        public ZUIValue curlScale = new ZUIValue(7f);
+        [ZUILabel("Curl Scale")] public ZUIValue curlScale = new ZUIValue(7f);
 
         [Tooltip("Sideways wobble of the tongues — how much they wave frame to frame.")]
-        public ZUIValue flicker = new ZUIValue(0.6f);
+        [ZUILabel("Flicker")] public ZUIValue flicker = new ZUIValue(0.6f);
 
         [Tooltip("Elongates the flame along its own direction, so it reads as a tongue rather than a bloom.")]
-        public ZUIValue stretch = new ZUIValue(3f);
+        [ZUILabel("Stretch")] public ZUIValue stretch = new ZUIValue(3f);
 
         [Tooltip("Tapers the sides to a point. Most of what makes this read as fire, and what keeps several arms "
                + "distinct from each other.")]
-        public ZUIValue pinch = new ZUIValue(0.6f);
+        [ZUILabel("Pinch")] public ZUIValue pinch = new ZUIValue(0.6f);
 
         [Tooltip("Eats the outer edge into wisps instead of a smooth silhouette. Bites the cool edge, not the "
                + "hot core.")]
-        public ZUIValue breakup = new ZUIValue(0.4f);
+        [ZUILabel("Breakup")] public ZUIValue breakup = new ZUIValue(0.4f);
 
         // ── how it dies ──────────────────────────────────────────────────────────────────────────────────
 
         [Tooltip("How fast heat fades once it leaves the emitter. High gives a short sharp flame.")]
-        public ZUIValue dissipation = new ZUIValue(0.35f);
+        [ZUILabel("Dissipation")] public ZUIValue dissipation = new ZUIValue(0.35f);
 
         [Tooltip("How fast fuel converts into heat. Slow burning carries the flame further before it lights.")]
-        public ZUIValue burn = new ZUIValue(1.5f);
+        [ZUILabel("Burn")] public ZUIValue burn = new ZUIValue(1.5f);
 
         [Tooltip("How far the flame may reach, as a fraction of the canvas half-size. It can never touch the "
                + "frame edge however hard the other dials are driven.")]
-        public ZUIValue reach = new ZUIValue(0.8f);
+        [ZUILabel("Reach")] public ZUIValue reach = new ZUIValue(0.8f);
 
         [Tooltip("How hard the flame is killed once it passes its reach, so the outer edge stops rather than "
                + "clipping.")]
-        public ZUIValue edgeCooling = new ZUIValue(0.9f);
+        [ZUILabel("Edge Cool")] public ZUIValue edgeCooling = new ZUIValue(0.9f);
 
         // ── how it is drawn and how it is simulated ──────────────────────────────────────────────────────
 
         [Tooltip("The smoke-to-fire ramp the flame is painted through. Its alpha is what this generator "
                + "publishes as coverage, so the transparent end of the ramp is also the flame's silhouette.")]
-        public Gradient ramp = PyreShaperSimSupport.DefaultRamp();
+        [ZUILabel("Ramp")] public Gradient ramp = PyreShaperSimSupport.DefaultRamp();
 
         [Range(0f, 0.9f)]
         [Tooltip("Heat below this reads as empty. Raise it for a crisper silhouette with less haze around it.")]
-        public float threshold = 0.06f;
+        [ZUILabel("Threshold")] public float threshold = 0.06f;
 
         [Tooltip("Contrast on the ramp lookup. Below 1 pushes more of the flame toward the hot end of the ramp.")]
-        public float contrast = 0.85f;
+        [ZUILabel("Contrast")] public float contrast = 0.85f;
 
         [Min(1)]
         [Tooltip("Simulation steps per animation frame. More gives smoother, faster-looking motion over the same "
                + "number of frames, at a proportional cost.")]
-        public int subSteps = 2;
+        [ZUILabel("Sub Steps")] public int subSteps = 2;
 
         [Min(1)]
         [Tooltip("How many simulation steps the whole animation spans. Set this to the document's frame count so "
                + "each frame advances the flame exactly once; a smaller number makes the burn play out sooner.")]
-        public int simFrames = 16;
+        [ZUILabel("Sim Frames")] public int simFrames = 16;
 
         /// <summary>
         /// T-0202 — overall opacity over the sim's life, the row Pyre's Shape section shows for a Fire layer.
@@ -171,7 +171,7 @@ namespace Laubrary.PyreShaper
         /// </summary>
         [Tooltip("Overall opacity across the flame's life, multiplied into what the simulation paints. "
                + "Fading it to nothing at the end is what makes the flame go out rather than stop.")]
-        public ZUIValue alpha = new PyreLayer().alpha;
+        [ZUILabel("Alpha")] public ZUIValue alpha = new PyreLayer().alpha;
 
         // ── replay state (never serialized, never drawn) ─────────────────────────────────────────────────
         // Private rather than [NonSerialized] public: Unity skips private fields anyway, and the window's

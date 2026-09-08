@@ -460,6 +460,42 @@ namespace Laubrary.Shaper
             return op;
         }
 
+        /// <summary>
+        /// T-0265 — fold the owning node's own placement into a compiled solid, so ONE control moves a shape
+        /// whatever kind of shape it is.
+        ///
+        /// A Solids generator replaces the shape stage for its owner (LR-6.1): it writes coverage over the
+        /// owner's slab from its own closed-form geometry and never reads the shape program, so the node
+        /// transform the compiler folds into every other node reached a Solid's BOUNDING BOX and nothing else —
+        /// Translate, Rotation and Scale moved a Solid by exactly zero pixels on all six forms (measured,
+        /// T-0265). The transform therefore has to be applied where the generator can see it, which is here,
+        /// on the compiled op, once per compile.
+        ///
+        /// The three parts of a 2D placement map onto the three parts a solid already has, so nothing new is
+        /// invented: the centre is the transformed centre POINT (which is what makes Origin and Skew act on a
+        /// solid exactly as they act on a primitive — they move the point the shape is drawn around), the
+        /// linear part's scale multiplies the radius and the aspect, and its rotation adds to the solid's own
+        /// model ROLL. Roll rather than a screen-space rotation because a solid has no screen-space rotation
+        /// to add one to: its silhouette is a projection of a rotated body, and roll is the axis of that body
+        /// which points at the viewer.
+        /// </summary>
+        public static ShaperSolidOp Place(ShaperSolidOp op, in ShaperMatrix m)
+        {
+            Vector2 c = m.TransformPoint(new Vector2(op.centreX, op.centreY));
+            op.centreX = Dial(c.x, -MaxSolidCoord, MaxSolidCoord, 0f);
+            op.centreY = Dial(c.y, -MaxSolidCoord, MaxSolidCoord, 0f);
+
+            float sx = Mathf.Sqrt(m.m00 * m.m00 + m.m10 * m.m10);
+            float sy = Mathf.Sqrt(m.m01 * m.m01 + m.m11 * m.m11);
+            if (sx > 1e-6f)
+            {
+                op.r = Dial(op.r * sx, 0f, MaxSolidCoord, op.r);
+                if (sy > 1e-6f) op.aspect = Dial(op.aspect * (sy / sx), 0f, MaxSolidScale, op.aspect);
+            }
+            op.roll += Mathf.Atan2(m.m10, m.m00);
+            return op;
+        }
+
         static void DeclareInertDials(ShaperSolidDef def, in ShaperSolidOp op, ShaperLightProgram prog)
         {
             Check(op.form, ShaperSolidDial.Aspect, op.aspect, prog);

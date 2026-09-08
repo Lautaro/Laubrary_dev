@@ -181,6 +181,12 @@ namespace Laubrary.PyreShaper.Editor
             // frames, which is exactly what the source's Frames dial declares.
             public int FrameCount => Mathf.Max(1, src.frames);
 
+            // T-0265 — the Shaper node hosting this layer has a Position box of its own, and its Translate and
+            // Rotation move and turn this very picture (measured: both move a hosted Pyre layer). So Pyre's
+            // own Offset pad and in-plane Spin are the same two controls said twice, and the hosted card drops
+            // them; the solids' depth rotations, which Shaper's 2D transform cannot express, stay.
+            public bool HostOwnsPlacement => true;
+
             public void Dirty(System.Action apply) => ctx.Change(apply);
             public void MarkDirty() => ctx.Touch();
             public void RecordUndo()

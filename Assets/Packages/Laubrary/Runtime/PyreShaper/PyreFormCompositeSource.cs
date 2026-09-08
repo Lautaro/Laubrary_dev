@@ -87,7 +87,7 @@ namespace Laubrary.PyreShaper
         [Min(1)]
         [Tooltip("How many frames this generator's own animation spans — kept equal to the document's own "
                + "Frames automatically; no longer authored here.")]
-        public int frames = DefaultFrames;
+        [ZUILabel("Frames")] public int frames = DefaultFrames;
 
         /// <summary>What a source authored before these fields existed falls back to, so an old document animates
         /// and paints on load instead of staying frozen on a deserialized 0/null.</summary>

@@ -134,7 +134,14 @@ namespace Laubrary.Shaper.Editor
             // Swarm card is the Shape card's "Swarm" box (BuildShapeSection adds it), so a composite node
             // skipping Fill now skips its edge with it — which is the same rule stated once instead of twice.
             if (node.kind != ShaperNodeKind.Composite) BuildFillSection(root, node);
-            BuildSwarmSection(root, node);
+
+            // T-0265 — A SWARM IS ABSENT WHERE EVERY SHAPE IS A SOLID, for the same reason Sweep and Shell
+            // are. A swarm fans the node's SHAPE PROGRAM out into N placed instances; a Solids generator
+            // replaces that program and writes one silhouette over its owner's whole slab (LR-6.1), so every
+            // instance is overwritten by the same single draw. Measured: all thirty-three swarm controls move
+            // 0 pixels on a Pyramid. Absent rather than greyed, because this is not "inert right now" — a
+            // swarm does not apply to this kind of shape at all.
+            if (!EveryLeafIs(node, false, true)) BuildSwarmSection(root, node);
 
             // T-0258 — Lighting moved out of here entirely: it is a LAYER property, so it is now a toggle plus
             // a folded box on the selected layer's own row (RefreshSelectedLayerCards, ShaperWindow.cs), where
@@ -263,6 +270,47 @@ namespace Laubrary.Shaper.Editor
         }
 
         /// <summary>
+        /// T-0265 — every leaf under this node is a kind that REPLACES a shipped stage, so nothing in the layer
+        /// reaches the stage named by <paramref name="composites"/>/<paramref name="solids"/>.
+        ///
+        /// Measured rather than assumed: on a layer whose only shape is a composite, all nine height dials,
+        /// all eleven light-response dials and the mask's own source picker change 0 pixels; on a layer whose
+        /// only shape is a solid, the nine height dials and the mask source change 0 pixels while the light
+        /// response still acts (a Solid publishes its own normals into the same sheets and goes through the
+        /// ordinary light law). A bag of primitives and one composite still has primitives to act on, which is
+        /// why this asks about EVERY leaf and not about the root's own kind.
+        /// </summary>
+        static bool EveryLeafIs(ShaperNode node, bool composites, bool solids)
+        {
+            if (node == null || !node.enabled) return true;
+            if (node.kind == ShaperNodeKind.Bag)
+            {
+                if (node.children == null || node.children.Count == 0) return true;
+                for (int i = 0; i < node.children.Count; i++)
+                    if (!EveryLeafIs(node.children[i], composites, solids)) return false;
+                return true;
+            }
+            if (node.kind == ShaperNodeKind.Composite) return composites;
+            if (node.kind == ShaperNodeKind.Solid) return solids;
+            return false;
+        }
+
+        /// <summary>
+        /// T-0265 — the height stage does not run for this layer at all, because every shape in it is a Solid.
+        ///
+        /// Structural, not circumstantial: <c>ShaperFillResolver.PaintTile</c> takes the Solids branch for such
+        /// an owner and returns before <c>ShaperHeight.FillTile</c> is reached, so no height op is ever
+        /// evaluated over its samples. Measured to agree — all nine dials move 0 pixels on a Pyramid and on an
+        /// Orb. A bag holding one primitive and one solid still has a primitive to extrude, which is why this
+        /// asks about EVERY leaf rather than about the root's own kind.
+        /// </summary>
+        static string NoHeightStageReason(ShaperNode root)
+            => EveryLeafIs(root, false, true)
+             ? "This layer's shape writes its own surface directly, so the height stage never runs for it and "
+             + "this changes nothing (measured: 0 pixels on every dial here)."
+             : null;
+
+        /// <summary>
         /// T-0203 — is the built-in key light standing in for an empty rig right now? Answered from the
         /// AUTHORED rig using the same test <see cref="ShaperLightCompiler"/> compiles with (an entry that is
         /// null or disabled is not a light), so the card cannot claim one thing while the renderer does
@@ -303,13 +351,16 @@ namespace Laubrary.Shaper.Editor
             // card's kind row, the Line width dial), not as an on-screen paragraph: explanation is tooltip
             // content. A Border is refused on a Solid (ShaperFillResolver.BindBorder), so it is not mentioned.
 
+            // T-0265 — CENTRE X / CENTRE Y AND ROLL ARE NO LONGER DRAWN. They were a second way to move and
+            // turn a shape, sitting beside the Shape card's own Position box on every other node kind, and the
+            // owner asked for exactly one. Position now reaches a solid for real (ShaperSolids.Place), so
+            // Translate does what Centre did and Rotation does what Roll did. The fields stay serialized and
+            // are still read by the engine, so an authored document keeps every value it had; nothing is lost,
+            // there is simply no second control offering the same move.
             box.Add(Z.HGroup(
-                SolidVal("Size", "The solid's radius, in canvas pixels.", s.size, 1f, 128f,
+                SolidVal("Size", "How big the solid is, in canvas pixels. The Position box's Scale multiplies "
+                    + "this rather than replacing it.", s.size, 1f, 128f,
                     s.form, ShaperSolidDial.Size),
-                SolidVal("Centre X", "Canvas position of the solid's centre.", s.centreX, -128f, 128f,
-                    s.form, ShaperSolidDial.Centre),
-                SolidVal("Centre Y", "Canvas position of the solid's centre.", s.centreY, -128f, 128f,
-                    s.form, ShaperSolidDial.Centre),
                 SolidVal("Aspect", "The Y half-extent multiplier.", s.aspect, 0.1f, 4f,
                     s.form, ShaperSolidDial.Aspect),
                 SolidVal("Depth", "The Z half-extent multiplier.", s.depth, 0.1f, 4f,
@@ -325,13 +376,15 @@ namespace Laubrary.Shaper.Editor
                 SolidVal("Ring inner", "Hole radius as a fraction of the radius.", s.ringInner, 0.1f, 0.92f,
                     s.form, ShaperSolidDial.RingInner)));
 
+            // Yaw and Tilt turn the BODY in depth — there is no 2D equivalent of them and the Position box
+            // cannot express one, so they stay here. Roll is the axis that points at the viewer, which IS the
+            // Position box's Rotation, so it is drawn there instead (T-0265).
             box.Add(Z.HGroup(
-                SolidVal("Yaw", "Rotation about Y, in degrees.", s.yaw, -180f, 180f,
+                SolidVal("Yaw", "Turns the solid about the vertical axis, in degrees — it swings away from "
+                    + "the viewer rather than turning on the canvas.", s.yaw, -180f, 180f,
                     s.form, ShaperSolidDial.Yaw, decimals: 0),
-                SolidVal("Tilt", "Rotation about X, in degrees.", s.tilt, -180f, 180f,
-                    s.form, ShaperSolidDial.Tilt, decimals: 0),
-                SolidVal("Roll", "Rotation about Z in model space, applied first, in degrees.", s.roll,
-                    -180f, 180f, s.form, ShaperSolidDial.Roll, decimals: 0)));
+                SolidVal("Tilt", "Leans the solid towards or away from the viewer, in degrees.", s.tilt,
+                    -180f, 180f, s.form, ShaperSolidDial.Tilt, decimals: 0)));
 
             // "A facet edge line and never a border" (BD-4.1): these trace INTERIOR facet seams, which are
             // nowhere in the zero set of any 2D field, so no border stage could produce them. The label says
@@ -1041,7 +1094,12 @@ namespace Laubrary.Shaper.Editor
         //
         // Every dial here is a ZUIValue on the engine side (ShaperNode.cs), so all Val — right-click one to
         // author a Curve and the join, the slice or the wall thickness moves over the document's frames.
-        internal void BuildShapeOpsBody(VisualElement box, ShaperNode node)
+        /// <param name="carves">T-0265 — false for a Solid. Sweep and Shell carve the node's own SHAPE
+        /// PROGRAM, and a Solids generator replaces that program outright (LR-6.1), so on a solid they change
+        /// nothing at all (measured: 0 pixels on all six forms, for a 120° sweep and a 4 px shell). Combine is
+        /// still drawn, because how a member folds into its bag is a property of the member, not of the shape
+        /// stage it happens to use.</param>
+        internal void BuildShapeOpsBody(VisualElement box, ShaperNode node, bool carves = true)
         {
             node.blend.EnsureDials();
             node.sweep.EnsureDials();
@@ -1068,6 +1126,8 @@ namespace Laubrary.Shaper.Editor
                         node.blend.carveStrengthDial, 0f, 1f)));
                 box.Add(combine);
             }
+
+            if (!carves) return;
 
             var sweep = Z.BoxKeyed("Sweep", "Keep only an angular or fractional slice of the shape.",
                 "shaper.window.sweep");
@@ -1261,8 +1321,13 @@ namespace Laubrary.Shaper.Editor
                 Val("Yaw", "Leans the arrangement about the vertical axis, in degrees.",
                     s.spawnerYawDegrees, -90f, 90f, decimals: 0)));
 
-            box.Add(Val2D("Centre offset",
-                "Where the figure's centre sits, relative to the node's own position, in canvas pixels.",
+            // T-0265 — "Spawn centre", not "Centre offset": this moves the ARRANGEMENT the instances sit on,
+            // not the shape, and a pad labelled with the word "offset" beside the Shape card's own Translate
+            // read as a second way to move the shape. There is one of those and it is Position > Translate.
+            box.Add(Val2D("Spawn centre",
+                "Where the figure the instances are arranged on sits, relative to the node's own position, in "
+                + "canvas pixels. This moves the ARRANGEMENT, not the shape — to move the shape itself use "
+                + "Translate in the Shape card's Position box.",
                 s.spawnerOffsetX, s.spawnerOffsetY,
                 // T-0186 — dropped the 110px WithPlotSize override; matches Pyre's default 140px plot.
                 new ZuiValue2DControl.Options().WithRange(-128f, 128f, -128f, 128f)
@@ -1576,29 +1641,65 @@ namespace Laubrary.Shaper.Editor
             // is not computed. The one exemption is a Solid, which keeps the built-in key light AND the
             // layer's own response (ShaperLightCompiler.cs:544-556) — so a layer holding one has live dials
             // and must not be greyed. Both halves of that are asked here rather than assumed.
-            string unlit = DocumentHasEnabledLight() || LayerHasSolid(layer.root) ? null
+            // T-0265 — a layer whose every shape is a COMPOSITE never reaches the light law at all: the
+            // generator hands the pipeline a finished, already-coloured raster, and all eleven dials below
+            // move 0 pixels on such a layer (measured on Arc Burst). That is a stronger reason than the empty
+            // rig below it, so it is asked first.
+            string ownPicture = EveryLeafIs(layer.root, true, false)
+                ? "This layer's shape is a generator that paints its own finished picture, so the light rig "
+                + "never touches it and this dial does nothing (measured: 0 pixels)."
+                : null;
+
+            string unlit = ownPicture ?? (DocumentHasEnabledLight() || LayerHasSolid(layer.root) ? null
                 : "The rig has no enabled light, so this layer renders unlit and this dial does nothing. Add "
-                + "a light in the Lights section.";
+                + "a light in the Lights section.");
 
             // Rim power shapes a term rim STRENGTH scales to nothing, so at strength 0 it is inert on its own
             // account, whatever the rig holds. An animated strength is never declared inert — see
             // DialAlwaysZero.
-            string noRim = unlit ?? (DialAlwaysZero(r.rimStrength)
+            // T-0265 — "Follow the surface" with NO HEIGHT STAGE reports the same flat direction Constant
+            // does, so the choice, the rim and the specular all move 0 pixels on such a layer (measured on a
+            // Star). This is the shape of complaint the owner has raised twice — a dial that does nothing
+            // until an unrelated switch elsewhere is on — so the switch is named on the control.
+            string flatSurface = r.normalKind == ShaperNormalKind.Profile && layer.height == null
+                ? "Normals are on “Follow the surface” but this layer has no Height stage, so the surface is "
+                + "flat and reports one direction everywhere. Add Height on the layer's own row first."
+                : null;
+
+            string noRim = unlit ?? flatSurface ?? (DialAlwaysZero(r.rimStrength)
                 ? "Rim strength is 0, so there is no rim light for this to shape. Raise Rim strength first."
                 : null);
 
             box.Add(Z.HGroup(
                 InertVal("Intensity ×", "Scales the rig's effect on this layer.", unlit,
                     r.intensityScale, 0f, 3f),
-                InertVal("Rim strength", "How strong the rim light is.", unlit, r.rimStrength, 0f, 2f),
+                InertVal("Rim strength", "How strong the rim light is.", unlit ?? flatSurface,
+                    r.rimStrength, 0f, 2f),
                 InertVal("Rim power", "How tightly the rim light hugs the silhouette.", noRim,
                     r.rimPower, 0.5f, 8f),
-                InertVal("Specular", "How strong the specular highlight is.", unlit, r.specular, 0f, 1f),
-                InertVal("Spec power", "How tight the specular highlight is.", unlit,
+                InertVal("Specular", "How strong the specular highlight is.", unlit ?? flatSurface,
+                    r.specular, 0f, 1f),
+                InertVal("Spec power", "How tight the specular highlight is.", unlit ?? flatSurface,
                     r.specularPower, 1f, 128f),
                 Inert(Z.Field("Spec tint", "Tints the specular highlight.",
                     Z.Color(r.specularTint, "Tints the specular highlight.",
-                        c => Change(() => r.specularTint = c), 90f)), unlit)));
+                        c => Change(() => r.specularTint = c), 90f)), unlit ?? flatSurface)));
+
+            // T-0265 — a Solid writes its own analytic surface normal over its slab (LR-6.1), so choosing where
+            // the layer's normals come from decides nothing for it: the choice and the Direction row below it
+            // both move 0 pixels on a solids-only layer (measured on Pyramid and Orb).
+            // The CHOICE itself is dead whichever way it is set while there is no height stage: with nothing
+            // extruded, "Follow the surface" resolves to the same flat direction "Flat" reports (measured on a
+            // Star: switching between them moves 0 pixels).
+            string noRelief = layer.height == null
+                ? "This layer has no Height stage, so there is no relief to follow and both settings report "
+                + "the same flat direction. Add Height on the layer's own row first."
+                : null;
+
+            string ownNormals = unlit ?? noRelief ?? (EveryLeafIs(layer.root, true, true)
+                ? "This layer's shape publishes its own surface directions, so this choice changes nothing "
+                + "for it (measured: 0 pixels)."
+                : null);
 
             box.Add(Inert(Z.Field("Normals", "Where this layer's surface directions come from.",
                 Z.Segmented((int)r.normalKind, ShaperWords.Names(typeof(ShaperNormalKind)),
@@ -1609,7 +1710,7 @@ namespace Laubrary.Shaper.Editor
                     // Direction row below appears/disappears with this choice, and a full Rebuild() here is
                     // what drops ZuiSectionToggleBar's solo/quick-view state (T-0197).
                     v => { Change(() => r.normalKind = (ShaperNormalKind)v); RefreshSelectedLayerCards(); })),
-                unlit));
+                ownNormals));
 
             // INVENTORY GAP CLOSED — normalConstant (ShaperLightRig.cs:295) is the ONLY parameter of the
             // DEFAULT normal path and had no UI at all, so the default lighting mode was unauthorable. Drawn
@@ -1623,11 +1724,11 @@ namespace Laubrary.Shaper.Editor
                             new Rect(-1f, -1f, 2f, 2f),
                             "The surface direction this layer reports, X and Y.",
                             v => Change(() =>
-                                r.normalConstant = new Vector3(v.x, v.y, r.normalConstant.z)))), unlit),
+                                r.normalConstant = new Vector3(v.x, v.y, r.normalConstant.z)))), ownNormals),
                     Inert(Dial("Direction Z", "The surface direction's Z. 1 faces the viewer.",
                         r.normalConstant.z, -1f, 1f,
                         v => r.normalConstant = new Vector3(r.normalConstant.x, r.normalConstant.y, v)),
-                        unlit)));
+                        ownNormals)));
             }
 
             parent.Add(box);
@@ -1664,31 +1765,60 @@ namespace Laubrary.Shaper.Editor
             if (s_layerCardDefaultedClosed.Add(key)) box.IsOpen = false;
             box.SetHeaderSuffix(() => ": " + ShaperWords.Of(h.technique));
             // T-0257 — "Technique" is the engineer's word for the shape of the extrusion.
-            box.Add(Z.Field("Profile", "How the silhouette is raised.",
+            box.Add(Inert(Z.Field("Profile", "How the silhouette is raised.",
                 Z.MiniRadio((int)h.technique, ShaperWords.Names(typeof(ShaperExtrusionTechnique)),
                     "Flat leaves it unraised; the others differ in how the surface climbs from edge to centre.",
-                    v => { Change(() => h.technique = (ShaperExtrusionTechnique)v); Rebuild(); }, wrap: true)));
+                    v => { Change(() => h.technique = (ShaperExtrusionTechnique)v); Rebuild(); }, wrap: true)),
+                NoHeightStageReason(layer.root)));
 
             // T-0257 — SIX DIALS BEHIND ONE. Every profile and bevel dial here is multiplied by the stage's
             // body, `max(0, depth)` (ShaperHeightOp.body, ShaperHeight.cs:145), so at depth 0 none of them can
             // move a pixel. That is the single largest "I turned it and nothing happened" in this window, and
             // it is now stated on each of them rather than left to be discovered.
-            string noDepth = DialAlwaysZero(h.depth)
+            // T-0265 — the stage reads each owner's own EDGE DISTANCE, which a Solid and a Composite never
+            // publish (they replace the shape stage outright), so on a layer holding only those every dial
+            // here — the profile included — moves 0 pixels. Asked before the depth gate because it is the
+            // stronger reason: raising Depth would not help.
+            string noShape = NoHeightStageReason(layer.root);
+
+            string noDepth = noShape ?? (DialAlwaysZero(h.depth)
                 ? "Raise is 0, so this layer is not extruded at all and this dial has nothing to shape. Raise "
                 + "it above 0 first."
-                : null;
+                : null);
+
+            // T-0265 — AND WHICH PROFILE IS CHOSEN. Measured, one technique at a time: Angle moves the picture
+            // on Linear only, Curve on Dome and Round only, Taper on Taper and Pyramid only. A dial that
+            // belongs to another profile is not "not yet"; it is not this profile's dial, and saying so is the
+            // difference between an author reading the card and an author turning a slider that cannot answer.
+            string forProfile(string mine, params ShaperExtrusionTechnique[] owners)
+            {
+                if (noDepth != null) return noDepth;
+                foreach (var t in owners) if (h.technique == t) return null;
+                return mine + " shapes the " + string.Join(" and ", System.Array.ConvertAll(owners, t => ShaperWords.Of(t)))
+                     + " profile" + (owners.Length > 1 ? "s" : "") + ", and this layer is set to "
+                     + ShaperWords.Of(h.technique) + " — so it changes nothing here (measured: 0 pixels).";
+            }
 
             box.Add(Z.HGroup(
                 // One of the three unrelated "Depth"s this window used to show, and the one the engine's own
                 // field doc warns is thickness rather than a Z position (ShaperHeight.cs:85-95).
-                Val("Raise", "How far the surface is raised, in canvas pixels.", h.depth, 0f, 64f),
-                InertVal("Angle", "The wall angle of the extrusion, in degrees.", noDepth,
+                InertVal("Raise", "How far the surface is raised, in canvas pixels.", noShape, h.depth, 0f, 64f),
+                InertVal("Angle", "The wall angle of the extrusion, in degrees.",
+                    forProfile("Angle", ShaperExtrusionTechnique.Linear),
                     h.angle, 0f, 90f, decimals: 0),
-                InertVal("Steps", "How many discrete steps a stepped profile uses.", noDepth,
+                // Steps moved NOTHING on any profile, Stepped included (measured across all seven): the
+                // terrace count reaches the compiled op and the op's terraces are not read. Reported rather
+                // than papered over — this is an engine gap, not a profile that ignores it.
+                InertVal("Steps", "How many discrete steps a stepped profile uses.",
+                    noDepth ?? "The step count does not reach the picture on any profile today (measured: 0 "
+                             + "pixels on all seven, Stepped included). Reported to the engine.",
                     h.steps, 1f, 32f, decimals: 0),
-                InertVal("Curve", "How the climb is shaped between edge and centre.", noDepth,
+                InertVal("Curve", "How the climb is shaped between edge and centre.",
+                    forProfile("Curve", ShaperExtrusionTechnique.Dome, ShaperExtrusionTechnique.Round),
                     h.curve, 0f, 4f),
-                InertVal("Taper", "How much the surface narrows as it rises.", noDepth, h.taper, 0f, 2f)));
+                InertVal("Taper", "How much the surface narrows as it rises.",
+                    forProfile("Taper", ShaperExtrusionTechnique.Taper, ShaperExtrusionTechnique.Pyramid),
+                    h.taper, 0f, 2f)));
 
             box.Add(Z.Field("Bevel", "An additional bevel applied at the edge.",
                 Z.MiniRadio((int)h.bevel, ShaperWords.Names(typeof(ShaperBevelTechnique)),
@@ -1699,7 +1829,11 @@ namespace Laubrary.Shaper.Editor
                 box.Add(Z.HGroup(
                     InertVal("Bevel amount", "How far the bevel reaches in from the edge.", noDepth,
                         h.bevelAmount, 0f, 16f),
-                    InertVal("Bevel steps", "How many discrete steps a stepped bevel uses.", noDepth,
+                    // Same gap as Steps above, measured the same way: the bevel's terrace count changes nothing
+                    // on a Stepped bevel or any other.
+                    InertVal("Bevel steps", "How many discrete steps a stepped bevel uses.",
+                        noDepth ?? "The bevel's step count does not reach the picture on any bevel today "
+                                 + "(measured: 0 pixels, Stepped included). Reported to the engine.",
                         h.bevelSteps, 1f, 16f, decimals: 0)));
 
             // T-0204 — RefreshSelectedLayerCards(), not Rebuild(): this button turns the layer's own Height

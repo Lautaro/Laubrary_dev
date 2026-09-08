@@ -971,22 +971,21 @@ namespace Laubrary.Shaper.Editor
             // ahead of the optional carves below it: every node has a placement, while Combine/Sweep/Shell
             // and Swarm are things a node may or may not do. Pyre groups the same fields into one collapsible
             // "Position" box on its Shape card (Editor/Pyre/PyreShapeCards.cs:232), which is what this is.
-            // A Solid node places, turns and sizes itself with its own dials (Centre, Size, Yaw/Tilt/Roll), and
-            // ShaperSolids writes its silhouette over the node's shape program in full — so Position, Sweep and
-            // Shell, which act on that program, change nothing on it (measured: 0 pixels for translate, rotate,
-            // scale, a 180° sweep and a 4 px shell). Absent rather than greyed: they are not "inert right now",
-            // they do not apply to this kind of node at all, the same rule a composite gets for Fill.
-            if (node.kind != ShaperNodeKind.Solid)
-            {
-                BuildPositionBox(box, node);
+            //
+            // T-0265 — AND IT IS DRAWN FOR EVERY NODE KIND, SOLIDS INCLUDED. The owner: "If I want to move my
+            // shape, is there ONE place to do it, or are there several position parameters scattered in
+            // different sections?" There is now one: this box. A Solid used to be the exception, because its
+            // generator replaces the shape stage and so never read the node transform (measured: 0 pixels for
+            // translate, rotate and scale on all six forms) — that is fixed in the engine instead
+            // (ShaperSolids.Place, called from ShaperDocumentRenderer.BindSolids), and the solid's own
+            // Centre X / Centre Y / Roll dials are gone from its card so there is no second answer.
+            BuildPositionBox(box, node);
 
-                // The combine op and the join dials only mean something for a node that has siblings to combine
-                // WITH, so they are drawn only for a bag member; the sweep and shell carve this node's own
-                // geometry and apply wherever it sits, so they are not gated. (Both used to live in a card
-                // called "Modifiers", which they never were — a modifier is an effect on the picture, these
-                // are part of the shape.)
-                BuildShapeOpsBody(box, node);
-            }
+            // Sweep and Shell carve the node's own SHAPE PROGRAM, which is exactly what a Solids generator
+            // replaces (LR-6.1), so they still have nothing to act on there — absent rather than greyed, the
+            // same rule a composite gets for Fill. The combine op and the join dials only mean something for a
+            // node that has siblings to combine WITH, so they are drawn only for a bag member.
+            BuildShapeOpsBody(box, node, carves: node.kind != ShaperNodeKind.Solid);
 
             root.Add(box);
         }
@@ -1109,6 +1108,39 @@ namespace Laubrary.Shaper.Editor
         /// its title changed. The state key is DELIBERATELY still "shaper.window.transform" — a key names the
         /// data, never the label, so a saved view that folded this away keeps folding it away.
         /// </summary>
+        /// <summary>
+        /// T-0265 — what this node's OWN size control is called, for the Scale tooltip.
+        ///
+        /// "How big is this shape" is answerable on two controls of every card — the shape's own dial and the
+        /// Position box's Scale — and the owner's question was whether those are one setting or several. They
+        /// are one setting and one multiplier, so Scale says which dial it multiplies rather than leaving the
+        /// author to work out that a Star at Radius 20 and Scale 2 is a star of radius 40.
+        /// </summary>
+        static string SizeDialName(ShaperNode node)
+        {
+            if (node == null) return "its size";
+            switch (node.kind)
+            {
+                case ShaperNodeKind.Solid: return "Size";
+                case ShaperNodeKind.Bag: return "each member's own size";
+                case ShaperNodeKind.Composite: return "the generator's own size dials";
+                default:
+                    switch (node.primitive != null ? node.primitive.kind : ShaperPrimitiveKind.Rect)
+                    {
+                        case ShaperPrimitiveKind.Rect: return "Half width and Half height";
+                        case ShaperPrimitiveKind.Ellipse: return "Radius X and Radius Y";
+                        case ShaperPrimitiveKind.Diamond: return "Radius X and Radius Y";
+                        case ShaperPrimitiveKind.Triangle: return "Base and Height";
+                        case ShaperPrimitiveKind.Capsule: return "Half length and Radius";
+                        case ShaperPrimitiveKind.NGon: return "Radius";
+                        case ShaperPrimitiveKind.Star: return "Radius";
+                        case ShaperPrimitiveKind.Sprite: return "Half width and Half height";
+                        case ShaperPrimitiveKind.Text: return "Size";
+                        default: return "its size";
+                    }
+            }
+        }
+
         void BuildPositionBox(VisualElement parent, ShaperNode node)
         {
             // Closes the inventory's worst gap: ShaperTransformBlock (ShaperMatrix.cs) is on EVERY node and had
@@ -1121,6 +1153,18 @@ namespace Laubrary.Shaper.Editor
 
             float ext = Mathf.Max(document.canvasWidth, document.canvasHeight);
             t.EnsureDials();
+
+            // T-0265 — a Solid's placement runs through its own compiled op (ShaperSolids.Place), so this box
+            // inherits that op's inertness EXACTLY: the Y half of Scale and Skew rides on the solid's Aspect,
+            // and Rotation rides on its Roll. Where the engine's own table says a form ignores one of those,
+            // this box says so too — Ring's Rotation and Gem/Orb/Ring's Scale Y are measured at 0 pixels, and
+            // the sentence is the engine's own rather than a second opinion about the same geometry.
+            bool solid = node.kind == ShaperNodeKind.Solid;
+            var form = solid && node.solid != null ? node.solid.form : default(ShaperSolidForm);
+            string aspectInert = solid ? ShaperSolids.InertReason(form, ShaperSolidDial.Aspect) : null;
+            string rollInert = solid ? ShaperSolids.InertReason(form, ShaperSolidDial.Roll) : null;
+            string yNote = aspectInert == null ? ""
+                : "\n\nThe Y axis does nothing on a " + form + ": " + aspectInert;
 
             // Spatial X/Y pairs are one 2D control, never two packed float fields — dragging two 1D fields to
             // aim one 2D value is the ergonomics problem, and packing them into a row fixes only the width.
@@ -1147,18 +1191,26 @@ namespace Laubrary.Shaper.Editor
                     t.originX, t.originY,
                     new ZuiValue2DControl.Options().WithRange(-ext, ext, -ext, ext)
                         .WithPrefKey("shaper.transform.origin")),
-                Val2D("Scale", "Scale this node's content on each axis. 1 is unscaled. Animate it to make the "
-                    + "node grow or shrink over the document's frames.",
+                // T-0265 — says which dial it multiplies, because "how big is this shape" is answered twice on
+                // every card (the shape's own size dial, and this) and only one of them is the shape's size.
+                Val2D("Scale", "Multiplies the size the shape's own dials give it — " + SizeDialName(node)
+                    + " — on each axis. 1 leaves it at that size. Animate it to make the node grow or shrink "
+                    + "over the document's frames." + yNote,
                     t.scaleX, t.scaleY,
                     new ZuiValue2DControl.Options().WithRange(0.05f, 4f, 0.05f, 4f)
                         .WithDefault(Vector2.one).WithPrefKey("shaper.transform.scale")),
-                Val2D("Skew", "Slant this node's content on each axis, in degrees.",
+                Val2D("Skew", "Slant this node's content on each axis, in degrees." + yNote,
                     t.skewX, t.skewY,
                     new ZuiValue2DControl.Options().WithRange(-80f, 80f, -80f, 80f)
                         .WithPrefKey("shaper.transform.skew"))));
 
-            box.Add(Val("Rotation", "Rotate this node's content around its origin, in degrees. Animate it to "
-                + "make the node spin over the document's frames.",
+            box.Add(InertVal("Rotation", node.kind == ShaperNodeKind.Solid
+                ? "Turns the solid on the canvas, around its origin, in degrees — the roll axis, the one that "
+                  + "points at the viewer. Yaw and Tilt above turn it in depth instead. Animate it to make the "
+                  + "node spin over the document's frames."
+                : "Rotate this node's content around its origin, in degrees. Animate it to "
+                  + "make the node spin over the document's frames.",
+                rollInert == null ? null : "Does nothing on a " + form + ": " + rollInert,
                 t.rotationDegrees, -720f, 720f, cyclic: true, decimals: 0));
 
             // T-0220 — folding the card away turns the pivot cross off too (ShowOrigin reads IsOpen); this is
@@ -1458,7 +1510,7 @@ namespace Laubrary.Shaper.Editor
             if (!previewStrip) return;
 
             // T-0257 — "Tile px" was an abbreviation of a unit, not a name for the thing it sizes.
-            transportHost.Add(Z.MicroSlider("Strip tile size", previewStripTile, 24f, 128f,
+            transportHost.Add(Z.MicroSlider("Tile size", previewStripTile, 24f, 128f,
                 "How big each frame tile in the contact sheet is, in screen pixels. Only changes how the "
                 + "strip is drawn — no frame is re-rendered and no bake is affected.",
                 v => { previewStripTile = Mathf.Clamp(v, 24f, 128f); FillTransport(); }, 185f, decimals: 0));

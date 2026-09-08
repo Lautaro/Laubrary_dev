@@ -375,17 +375,17 @@ namespace Laubrary.Pyre.Forms.Kiln
 
         // ── fracture (gen 6 / 7) and debris (gen 4 / 5 / 6) ──
         [Tooltip("THE CRACK: past Fracture › At the body is cut into uneven wedges that close towards their own bisectors, slide apart along a constant-width cut, kick, spin and drift — a displacement of the gas already there, never a second emitter, which is what makes it read as one object breaking.")]
-        public ExplosiveFracture fracture = new ExplosiveFracture();
+        [ZUILabel("Fracture")] public ExplosiveFracture fracture = new ExplosiveFracture();
         [Tooltip("THE SECOND CRACK: every piece is split at its own random seam (0.30..0.70 of its width) and rolls whether that seam opens later, so four pieces become up to eight, staggered.")]
-        public ExplosiveFracture2 fracture2 = new ExplosiveFracture2();
+        [ZUILabel("Fracture 2")] public ExplosiveFracture2 fracture2 = new ExplosiveFracture2();
         [Tooltip("THE INSTANT: a hard bright core at the seat of each detonation, gone in a few frames — in the field, under the gas, not an overlay.")]
-        public ExplosiveFlash flash = new ExplosiveFlash();
+        [ZUILabel("Flash")] public ExplosiveFlash flash = new ExplosiveFlash();
         [Tooltip("BURNING FRAGMENTS thrown clear of the fireball with trails: they outrun the gas, arc over under gravity and go out on their own against an empty frame.")]
-        public ExplosiveChunks chunks = new ExplosiveChunks();
+        [ZUILabel("Chunks")] public ExplosiveChunks chunks = new ExplosiveChunks();
         [Tooltip("SHED BURNING MASS: lumps torn off the opening front in the blast's first phase that balloon and thin as they die.")]
-        public ExplosiveGobs gobs = new ExplosiveGobs();
+        [ZUILabel("Gobs")] public ExplosiveGobs gobs = new ExplosiveGobs();
         [Tooltip("PARTICLES shed off the burning body's own skin, continuously, at the radius it has actually reached.")]
-        public ExplosiveDust dust = new ExplosiveDust();
+        [ZUILabel("Dust")] public ExplosiveDust dust = new ExplosiveDust();
 
         public bool HasSchedule => blasts != null && blasts.Count > 0;
     }

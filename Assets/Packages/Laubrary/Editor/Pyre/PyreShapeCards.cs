@@ -80,6 +80,16 @@ namespace Laubrary.Pyre.Editor
         /// Playback3D's card. Editor-preview-only and wired to the host's own preview island, so it is a
         /// hook rather than a shared card; a host that does not offer Playback3D draws nothing.
         void BuildPlaybackBox(PyreLayer s);
+
+        /// <summary>
+        /// Whether the HOST already owns where this layer sits (T-0265). Pyre's own window does not — the
+        /// Position box below is the only placement a Pyre layer has, so PyreWindow answers false. A window
+        /// that hosts this layer inside a shape tree of its own does: Shaper's node has a Position box with a
+        /// Translate that moves this very picture, and drawing Pyre's Offset pad beside it would be a second
+        /// control for one move. When true the Position box keeps only what the host CANNOT express — the
+        /// solids' Turn and Tilt, which swing the body in depth — and drops the in-plane Spin and the Offset.
+        /// </summary>
+        bool HostOwnsPlacement { get; }
     }
 
     /// <summary>
@@ -235,12 +245,30 @@ namespace Laubrary.Pyre.Editor
             s.particlePathX ??= new ZUIValue(0f);
             s.particlePathY ??= new ZUIValue(0f);
 
-            var box = Z.BoxKeyed("Position",
-                "Where the particle sits and how it is turned, over its own life: its rotation (Turn / Tilt / Roll "
+            // T-0265 — hosted inside another window's shape tree, this box says only what that window cannot:
+            // the depth rotations of a 3D solid. The in-plane Spin and the Offset pad are the host's own
+            // Rotation and Translate said twice, and a flat form has nothing left once they are gone.
+            bool hosted = host.HostOwnsPlacement;
+            if (hosted && !IsSolidForm(s.shapeForm)) return;
+
+            var box = Z.BoxKeyed(hosted ? "Orientation" : "Position",
+                hosted
+                ? "How the solid is turned in DEPTH over its own life. Where it sits and how it turns on the "
+                  + "canvas are the node's own Position box, above."
+                : "Where the particle sits and how it is turned, over its own life: its rotation (Turn / Tilt / Roll "
                 + "for a 3D solid, Spin for a flat form) and its Offset from the position the swarm spawned it at. "
                 + "Every field defaults to no rotation and no offset, so a fresh shape sits exactly where it was "
                 + "placed.",
                 "pyreplus.position");
+
+            if (hosted)
+            {
+                s.gemTilt ??= new ZUIValue(18f);
+                box.Add(host.Val("Turn °", TurnTooltip(s.shapeForm), s.particleSpin, -1440f, 1440f, cyclic: true));
+                box.Add(host.Val("Tilt °", TiltTooltip(s.shapeForm), s.gemTilt, -1440f, 1440f, cyclic: true));
+                host.Body.Add(box);
+                return;
+            }
 
             if (IsSolidForm(s.shapeForm))
             {

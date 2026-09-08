@@ -29,7 +29,7 @@ namespace Laubrary.Pyre.Forms.Kiln
         // ── the explosion's clock ──
         [Tooltip("The explosion's progress over the layer's life — a TIME REMAP as one envelope. The default straight line plays in real time; bend it to snap in and hold at full bloom, slow the smoky tail, or play sections at different speeds. A Static value freezes the explosion at that moment as a pose.")]
         [ZUIGroup("Clock", Tooltip = "The explosion's overall timing — a time remap over the layer's life.")]
-        [Range(0f, 1f)] public ZUIValue progress = IdentityCurve();
+        [Range(0f, 1f)] [ZUILabel("Progress")] public ZUIValue progress = IdentityCurve();
 
         // ── multi-blast character (only meaningful when the swarm ignites several blasts) ──
         [PyreSwarmOnly, Tooltip("Full name: \"Per-blast variation\". Per-blast variation of size, torque, heat and jaggedness — 0 makes every blast a twin.")]

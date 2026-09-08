@@ -940,14 +940,20 @@ namespace Laubrary.Shaper
 
             float r = Mathf.Max(1e-4f, op.r);
             float reach = r * Mathf.Max(1f, Mathf.Abs(op.aspect));
-            float hx = Mathf.Abs(op.centreX) + reach;
-            float hy = Mathf.Abs(op.centreY) + reach;
+
+            // T-0265 — SQUARE, and sized by the DISTANCE of the centre rather than by each axis separately.
+            // The solid occupies a disc of radius `reach` about (centreX, centreY), so it lies inside the disc
+            // of radius |centre| + reach about the node's own origin, and a square of that half-side contains
+            // that disc under ANY rotation of the node — which the per-axis box did not, so a Position
+            // Rotation could clip the very solid it was turning. A box that is too large costs bounding work;
+            // one that is too small loses pixels.
+            float half = Mathf.Sqrt(op.centreX * op.centreX + op.centreY * op.centreY) + reach;
 
             var carrier = new ShaperPrimitiveDef
             {
                 kind = ShaperPrimitiveKind.Rect,
-                rectHalfW = hx,
-                rectHalfH = hy,
+                rectHalfW = half,
+                rectHalfH = half,
             };
             return EmitLeafFrom(carrier, forward, inverse, sigmaMin, st);
         }

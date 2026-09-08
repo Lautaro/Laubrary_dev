@@ -149,220 +149,220 @@ namespace Laubrary.Pyre.Forms.Kiln
 
         // ── clock ──
         [Tooltip("Where on the blast's own clock the clip's FIRST frame sits (the source renders t = 1/30 first; 0 is the instant before detonation, which is empty).")]
-        [Range(0f, 0.3f)] public float clockStart = 1f / 30f;
+        [Range(0f, 0.3f)] [ZUILabel("Clock Start")] public float clockStart = 1f / 30f;
         [Tooltip("Where on the blast clock the clip's LAST frame sits. The source trims trailing frames whose peak alpha is under 22/255; detonate kept 27 of 30 = 0.9. Lower cuts the dim tail, 1.0 ends on an empty frame.")]
-        [Range(0.2f, 1f)] public float clockEnd = 0.9f;
+        [Range(0.2f, 1f)] [ZUILabel("Clock End")] public float clockEnd = 0.9f;
 
         // ── fit: where the source sits and how big the blast is ──
         [Tooltip("Solve placement and size from the field itself (the source's _place + _fit): the visible extent in each of the four directions is measured over the whole clip and the blast is scaled to the tightest edge, then shrunk until nothing above Border cap touches the frame. Off = hand-set Scale / Org X / Org Y.")]
-        public bool autoFit = true;
+        [ZUILabel("Auto Fit")] public bool autoFit = true;
         [ZUIShowIf("autoFit", "True")]
         [Tooltip("Share of the room (source-to-edge distance, per direction) the VISIBLE mass is fitted to. Above 1 lets the faint skirt cross the edge; Border cap still guards it.")]
-        [Range(0.5f, 1.3f)] public float fill = 1.0f;
+        [Range(0.5f, 1.3f)] [ZUILabel("Fit Fill")] public float fill = 1.0f;
         [ZUIShowIf("autoFit", "True")]
         [Tooltip("What counts as visible for the fit: a fraction of the way up the alpha ramp (0 = any opacity at all, which would spend the frame on an invisible halo).")]
-        [Range(0.1f, 0.9f)] public float fitVis = 0.45f;
+        [Range(0.1f, 0.9f)] [ZUILabel("Fit Visible")] public float fitVis = 0.45f;
         [ZUIShowIf("autoFit", "True")]
         [Tooltip("Highest alpha (0..255) allowed anywhere on the frame's border ring, over every frame — the containment promise.")]
-        [Range(0, 40)] public int borderCap = 14;
+        [Range(0, 40)] [ZUILabel("Border Cap")] public int borderCap = 14;
         [ZUIShowIf("autoFit", "True")]
         [Tooltip("How much of the solved source offset to apply (room behind / room ahead = extent behind / extent ahead). 1 = a thrown blast starts near the back edge; 0 = always centred.")]
-        [Range(0f, 1f)] public float autoOrg = 1.0f;
+        [Range(0f, 1f)] [ZUILabel("Origin Bias")] public float autoOrg = 1.0f;
         [ZUIShowIf("autoFit", "False")]
         [Tooltip("Blast radius as a fraction of the canvas half-size (detonate solved 1.56 at 128 px).")]
-        [Range(0.2f, 2.5f)] public float scale = 1.56f;
+        [Range(0.2f, 2.5f)] [ZUILabel("Blast Scale")] public float scale = 1.56f;
         [ZUIShowIf("autoFit", "False")]
         [Tooltip("Source position across the canvas, −1 = left edge, +1 = right edge (Auto fit off).")]
-        [Range(-0.55f, 0.55f)] public float orgX = 0.114f;
+        [Range(-0.55f, 0.55f)] [ZUILabel("Origin X")] public float orgX = 0.114f;
         [ZUIShowIf("autoFit", "False")]
         [Tooltip("Source position down the canvas, −1 = top edge, +1 = bottom edge (Auto fit off).")]
-        [Range(-0.55f, 0.55f)] public float orgY = 0.054f;
+        [Range(-0.55f, 0.55f)] [ZUILabel("Origin Y")] public float orgY = 0.054f;
 
         // ── the shell (the coherent body) ──
         [Tooltip("How sharply the expansion decelerates: high = the slam, most of the distance in the first few frames.")]
-        [Range(3f, 14f)] public float expRate = 7.6f;
+        [Range(3f, 14f)] [ZUILabel("Expand Rate")] public float expRate = 7.6f;
         [Tooltip("Linear share of the shell's travel, so the front never fully stops.")]
-        [Range(0f, 0.6f)] public float shellLin = 0.20f;
+        [Range(0f, 0.6f)] [ZUILabel("Shell Linear")] public float shellLin = 0.20f;
         [Tooltip("Shell thickness as a fraction of its CURRENT radius (so the body is a dot on frame 1 and thick later, not a constant-width ring).")]
-        [Range(0.05f, 0.8f)] public ZUIValue w0 = new ZUIValue(0.34f);
+        [Range(0.05f, 0.8f)] [ZUILabel("Shell Width")] public ZUIValue w0 = new ZUIValue(0.34f);
         [Tooltip("Thickness gained per unit clock, as a fraction of the blast radius (negative = the body thins as it dissolves into pieces).")]
-        [Range(-0.2f, 0.2f)] public float wGrow = -0.05f;
+        [Range(-0.2f, 0.2f)] [ZUILabel("Width Grow")] public float wGrow = -0.05f;
 
         // ── direction ──
         [Tooltip("Cosine bias of the reach: the shell (and every piece's speed and amount) is stretched this much toward Bias dir and shrunk away from it. Reach only — the GATE is what makes a blast read as thrown.")]
-        [Range(0f, 1f)] public ZUIValue biasAmt = new ZUIValue(0f);
+        [Range(0f, 1f)] [ZUILabel("Bias Amount")] public ZUIValue biasAmt = new ZUIValue(0f);
         [Tooltip("Direction of the bias, radians (0 = right, +π/2 = down).")]
-        [Range(-3.1416f, 3.1416f)] public ZUIValue biasDir = new ZUIValue(0f);
+        [Range(-3.1416f, 3.1416f)] [ZUILabel("Bias Dir")] public ZUIValue biasDir = new ZUIValue(0f);
         [Tooltip("Harmonic of the bias: 1 = one lobe (a thrown blast), 2 = two opposite lobes (a bipolar jet with a thin waist).")]
-        [Range(1f, 3f)] public float biasK = 1f;
+        [Range(1f, 3f)] [ZUILabel("Bias Lobes")] public float biasK = 1f;
         [Tooltip("Soft half-plane gate: how much of the BACK of the blast is removed (the empty side is what reads as direction).")]
-        [Range(0f, 1f)] public ZUIValue halfAmt = new ZUIValue(0f);
+        [Range(0f, 1f)] [ZUILabel("Gate Amount")] public ZUIValue halfAmt = new ZUIValue(0f);
         [Tooltip("Direction the gate keeps, radians.")]
-        [Range(-3.1416f, 3.1416f)] public ZUIValue halfDir = new ZUIValue(0f);
+        [Range(-3.1416f, 3.1416f)] [ZUILabel("Gate Dir")] public ZUIValue halfDir = new ZUIValue(0f);
         [Tooltip("Width of the gate's transition: small = a WALL (flat face, hard corner — an impact), large = a CONE thinning smoothly to nothing behind.")]
-        [Range(0.02f, 1.5f)] public ZUIValue halfSoft = new ZUIValue(0.35f);
+        [Range(0.02f, 1.5f)] [ZUILabel("Gate Soft")] public ZUIValue halfSoft = new ZUIValue(0.35f);
         [Tooltip("Harmonic of the gate: 2 keeps two opposite jets and empties the waist between them.")]
-        [Range(1f, 3f)] public float halfK = 1f;
+        [Range(1f, 3f)] [ZUILabel("Gate Lobes")] public float halfK = 1f;
         [Tooltip("Drift direction X (−1..1): the whole burst is CARRIED this way as it expands (0,0 = no drift).")]
-        [Range(-1f, 1f)] public ZUIValue driftX = new ZUIValue(0f);
+        [Range(-1f, 1f)] [ZUILabel("Drift X")] public ZUIValue driftX = new ZUIValue(0f);
         [Tooltip("Drift direction Y (−1..1, +1 = down).")]
-        [Range(-1f, 1f)] public ZUIValue driftY = new ZUIValue(0f);
+        [Range(-1f, 1f)] [ZUILabel("Drift Y")] public ZUIValue driftY = new ZUIValue(0f);
         [Tooltip("How far the source travels over the clock, as a fraction of the blast radius.")]
-        [Range(0f, 1.5f)] public ZUIValue driftAmt = new ZUIValue(0f);
+        [Range(0f, 1.5f)] [ZUILabel("Drift Amount")] public ZUIValue driftAmt = new ZUIValue(0f);
         [Tooltip("Multiplier on Exp rate for the drift's easing.")]
-        [Range(0.2f, 2f)] public float driftEase = 0.9f;
+        [Range(0.2f, 2f)] [ZUILabel("Drift Ease")] public float driftEase = 0.9f;
         [Tooltip("Linear share of the drift.")]
-        [Range(0f, 1f)] public float driftLin = 0.5f;
+        [Range(0f, 1f)] [ZUILabel("Drift Linear")] public float driftLin = 0.5f;
         [Tooltip("THE WAKE: a piece is let go where the source was at its birth and lags behind by this share of the distance the source has travelled since — a trail, falling out of the staggered births.")]
-        [Range(0f, 1f)] public ZUIValue driftLag = new ZUIValue(0f);
+        [Range(0f, 1f)] [ZUILabel("Drift Lag")] public ZUIValue driftLag = new ZUIValue(0f);
 
         // ── turbulence and warp ──
         [Tooltip("How much the polar noise modulates the body's brightness (ramps in over the first 7% of the clock so frame 1 is a smooth ball).")]
-        [Range(0f, 1.2f)] public ZUIValue turb = new ZUIValue(0.82f);
+        [Range(0f, 1.2f)] [ZUILabel("Turbulence")] public ZUIValue turb = new ZUIValue(0.82f);
         [Tooltip("Contrast of the noise (noise^power): higher eats darker holes between the billows.")]
-        [Range(0.5f, 3f)] public ZUIValue turbPow = new ZUIValue(1.5f);
+        [Range(0.5f, 3f)] [ZUILabel("Turb Power")] public ZUIValue turbPow = new ZUIValue(1.5f);
         [Tooltip("Noise cells around the angle (the texture wraps seamlessly on this period).")]
-        [Range(2, 16)] public int ku = 7;
+        [Range(2, 16)] [ZUILabel("Angle Cells")] public int ku = 7;
         [Tooltip("Noise cells per blast radius along the ray.")]
-        [Range(0.5f, 6f)] public float kv = 2.6f;
+        [Range(0.5f, 6f)] [ZUILabel("Radial Cells")] public float kv = 2.6f;
         [Tooltip("Noise octaves.")]
-        [Range(1, 6)] public int oct = 4;
+        [Range(1, 6)] [ZUILabel("Octaves")] public int oct = 4;
         [Tooltip("How fast the billows are carried OUTWARD, in noise cells per unit clock.")]
-        [Range(0f, 4f)] public float flow = 1.6f;
+        [Range(0f, 4f)] [ZUILabel("Noise Flow")] public float flow = 1.6f;
         [Tooltip("Rotation of the whole field with time, radians per unit clock at the blast radius (the noise, the pieces and the gate all turn) — the 'skew' look.")]
-        [Range(-6f, 6f)] public float swirl = 0f;
+        [ZUILabel("Swirl")] [Range(-6f, 6f)] public float swirl = 0f;
         [Tooltip("Displacement of the front's RADIUS by a low-frequency angular noise — a ragged front whose parts travelled different distances, not a circle with brightness painted on.")]
-        [Range(0f, 0.6f)] public ZUIValue warp = new ZUIValue(0.26f);
+        [Range(0f, 0.6f)] [ZUILabel("Front Warp")] public ZUIValue warp = new ZUIValue(0.26f);
         [Tooltip("How much the warp grows over the clock.")]
-        [Range(0f, 3f)] public float warpGrow = 1.7f;
+        [Range(0f, 3f)] [ZUILabel("Warp Grow")] public float warpGrow = 1.7f;
         [Tooltip("Angular period of the warp noise (its own integer period, so it closes on itself).")]
-        [Range(2, 12)] public int warpK = 5;
+        [Range(2, 12)] [ZUILabel("Warp Period")] public int warpK = 5;
 
         // ── lobes / plume ──
         [Tooltip("Bloom = one shell. Plume = tongues are ADDED as a second, longer shell gated by angle (needs Lobes ≥ 2).")]
-        public Mode mode = Mode.Bloom;
+        [ZUILabel("Bloom Mode")] public Mode mode = Mode.Bloom;
         [Tooltip("Angular lobes: 0 or 1 = none; 2 or more gates the shell (Bloom) or shapes the tongues (Plume).")]
-        [Range(0, 16)] public int lobes = 0;
+        [Range(0, 16)] [ZUILabel("Lobe Count")] public int lobes = 0;
         [ZUIShowIf("lobes", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16")]
         [Tooltip("Cos = evenly spaced lobes. Noise = lobes cut by an angular noise (unequal, irregular).")]
-        public LobeMode lobeMode = LobeMode.Cos;
+        [ZUILabel("Lobe Mode")] public LobeMode lobeMode = LobeMode.Cos;
         [ZUIShowIf("lobes", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16")]
         [Tooltip("How much the lobe gate darkens the shell between lobes (Bloom mode only).")]
-        [Range(0f, 1f)] public ZUIValue lobeAmp = new ZUIValue(0f);
+        [Range(0f, 1f)] [ZUILabel("Lobe Amount")] public ZUIValue lobeAmp = new ZUIValue(0f);
         [ZUIShowIf("lobes", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16")]
         [Tooltip("Sharpness of the lobes (gate^power): never flat-tops, so the silhouette curves everywhere.")]
-        [Range(0.3f, 3f)] public ZUIValue lobePow = new ZUIValue(1f);
+        [Range(0.3f, 3f)] [ZUILabel("Lobe Power")] public ZUIValue lobePow = new ZUIValue(1f);
         [ZUIShowIf("lobes", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16")]
         [Tooltip("Angular phase of the lobes, radians.")]
-        [Range(-3.1416f, 3.1416f)] public ZUIValue lobePh = new ZUIValue(0f);
+        [Range(-3.1416f, 3.1416f)] [ZUILabel("Lobe Phase")] public ZUIValue lobePh = new ZUIValue(0f);
         [ZUIShowIf("lobeMode", "Noise")]
         [Tooltip("Gain on the noise lobe gate before clipping to 0..1.")]
-        [Range(0.5f, 2f)] public ZUIValue gateGain = new ZUIValue(1.25f);
+        [Range(0.5f, 2f)] [ZUILabel("Gate Gain")] public ZUIValue gateGain = new ZUIValue(1.25f);
         [ZUIShowIf("mode", "Plume")]
         [Tooltip("Brightness of the tongues.")]
-        [Range(0f, 2f)] public ZUIValue plumeAmp = new ZUIValue(0f);
+        [Range(0f, 2f)] [ZUILabel("Plume Amount")] public ZUIValue plumeAmp = new ZUIValue(0f);
         [ZUIShowIf("mode", "Plume")]
         [Tooltip("How far the tongues reach, as a multiple of the shell radius.")]
-        [Range(0.8f, 2f)] public ZUIValue plumeReach = new ZUIValue(1.0f);
+        [Range(0.8f, 2f)] [ZUILabel("Plume Reach")] public ZUIValue plumeReach = new ZUIValue(1.0f);
         [ZUIShowIf("mode", "Plume")]
         [Tooltip("Radial width of a tongue's tip, in shell thicknesses.")]
-        [Range(0.2f, 2f)] public ZUIValue plumeW = new ZUIValue(0.8f);
+        [Range(0.2f, 2f)] [ZUILabel("Plume Width")] public ZUIValue plumeW = new ZUIValue(0.8f);
         [ZUIShowIf("mode", "Plume")]
         [Tooltip("Unequal tongue reach from the warp noise (equal tongues are a snowflake).")]
-        [Range(0f, 1f)] public ZUIValue plumeVary = new ZUIValue(0f);
+        [Range(0f, 1f)] [ZUILabel("Plume Vary")] public ZUIValue plumeVary = new ZUIValue(0f);
 
         // ── the fracture ──
         [Tooltip("When the body starts coming apart into chunks, on the blast clock.")]
-        [Range(0f, 0.5f)] public float fracT0 = 0.02f;
+        [Range(0f, 0.5f)] [ZUILabel("Break Start")] public float fracT0 = 0.02f;
         [Tooltip("When the body has finished coming apart (a smoothstep between the two, so it stops being able to hold itself over several frames rather than popping).")]
-        [Range(0.02f, 0.8f)] public float fracT1 = 0.18f;
+        [Range(0.02f, 0.8f)] [ZUILabel("Break End")] public float fracT1 = 0.18f;
         [Tooltip("How much of the mass ends up as pieces: 1 = the body stops existing and the gaps between chunks go to zero.")]
-        [Range(0f, 1f)] public ZUIValue fracMax = new ZUIValue(0.88f);
+        [Range(0f, 1f)] [ZUILabel("Break Amount")] public ZUIValue fracMax = new ZUIValue(0.88f);
 
         // ── populations ──
         [Tooltip("The CHUNKS the body fractures into (crossfaded with the shell, chewed by the same noise).")]
-        public PlasmaPopulation chunks = new PlasmaPopulation(26, 0.05f, 1.00f, 0.079f, 0.12f, 1.14f, 0.18f, 0.40f, 0.88f, 0.20f, 1.30f, 0.85f, 0.58f, 0.45f, 1.12f, 0.02f, 0.18f, 0.80f, 0.10f, 1.2f, 1.0f, 0f, 0, 0.6f);
+        [ZUILabel("Chunks")] public PlasmaPopulation chunks = new PlasmaPopulation(26, 0.05f, 1.00f, 0.079f, 0.12f, 1.14f, 0.18f, 0.40f, 0.88f, 0.20f, 1.30f, 0.85f, 0.58f, 0.45f, 1.12f, 0.02f, 0.18f, 0.80f, 0.10f, 1.2f, 1.0f, 0f, 0, 0.6f);
         [Tooltip("The EMBERS: fast streaking spray thrown off the fracture (additive).")]
-        public PlasmaPopulation embers = new PlasmaPopulation(32, 0.35f, 1.05f, 0.046f, 0.05f, 1.60f, 0.60f, 0.35f, 0.78f, 0.26f, 0.90f, 0.75f, 0.62f, 1.05f, 1.24f, 0.04f, 0.32f, 0.74f, 0.12f, 1.5f, 1.0f, 0f, 0, 0.6f);
+        [ZUILabel("Embers")] public PlasmaPopulation embers = new PlasmaPopulation(32, 0.35f, 1.05f, 0.046f, 0.05f, 1.60f, 0.60f, 0.35f, 0.78f, 0.26f, 0.90f, 0.75f, 0.62f, 1.05f, 1.24f, 0.04f, 0.32f, 0.74f, 0.12f, 1.5f, 1.0f, 0f, 0, 0.6f);
         [Tooltip("The MOTES: many tiny round specks shed over most of the clip, the only thing on screen in the last third (additive).")]
-        public PlasmaPopulation motes = new PlasmaPopulation(96, 0.20f, 1.00f, 0.024f, -0.16f, 1.05f, 0.25f, 0.00f, 0.94f, 0.34f, 0.95f, 0.70f, 0.66f, 1.45f, 1.30f, 0.03f, 0.64f, 0.58f, 0.16f, 1.5f, 1.0f, 0f, 0, 0.6f);
+        [ZUILabel("Motes")] public PlasmaPopulation motes = new PlasmaPopulation(96, 0.20f, 1.00f, 0.024f, -0.16f, 1.05f, 0.25f, 0.00f, 0.94f, 0.34f, 0.95f, 0.70f, 0.66f, 1.45f, 1.30f, 0.03f, 0.64f, 0.58f, 0.16f, 1.5f, 1.0f, 0f, 0, 0.6f);
 
         // ── core, remnant, ghost ring ──
         [Tooltip("Brightness of the white-hot core flash at the source (additive, so it drives the middle past the top of the ramp).")]
-        [Range(0f, 4f)] public ZUIValue coreGain = new ZUIValue(2.0f);
+        [Range(0f, 4f)] [ZUILabel("Core Gain")] public ZUIValue coreGain = new ZUIValue(2.0f);
         [Tooltip("Core radius as a fraction of the blast radius.")]
-        [Range(0.01f, 0.3f)] public ZUIValue coreR = new ZUIValue(0.055f);
+        [Range(0.01f, 0.3f)] [ZUILabel("Core Radius")] public ZUIValue coreR = new ZUIValue(0.055f);
         [Tooltip("How much the core grows with the front's travel.")]
-        [Range(0f, 1f)] public ZUIValue coreFollow = new ZUIValue(0.30f);
+        [Range(0f, 1f)] [ZUILabel("Core Follow")] public ZUIValue coreFollow = new ZUIValue(0.30f);
         [Tooltip("Time constant of the core's decay on the blast clock (gone in three or four frames).")]
-        [Range(0.01f, 0.3f)] public float coreTau = 0.040f;
+        [Range(0.01f, 0.3f)] [ZUILabel("Core Decay")] public float coreTau = 0.040f;
         [Tooltip("Extra spike on the core at the instant of detonation (spatially bounded — never on the whole field).")]
-        [Range(0f, 2f)] public ZUIValue flash = new ZUIValue(0.90f);
+        [Range(0f, 2f)] [ZUILabel("Flash")] public ZUIValue flash = new ZUIValue(0.90f);
         [Tooltip("Time constant of the flash spike.")]
-        [Range(0.01f, 0.3f)] public float flashTau = 0.05f;
+        [Range(0.01f, 0.3f)] [ZUILabel("Flash Decay")] public float flashTau = 0.05f;
         [Tooltip("A dim, slow core that arrives as the body leaves (it rides the fracture) and keeps the place the explosion came from warm. 0 = a hollow middle.")]
-        [Range(0f, 1f)] public ZUIValue remnant = new ZUIValue(0.40f);
+        [Range(0f, 1f)] [ZUILabel("Remnant")] public ZUIValue remnant = new ZUIValue(0.40f);
         [Tooltip("Remnant radius as a fraction of the blast radius.")]
-        [Range(0.05f, 0.6f)] public ZUIValue remnantR = new ZUIValue(0.26f);
+        [Range(0.05f, 0.6f)] [ZUILabel("Remnant Rad")] public ZUIValue remnantR = new ZUIValue(0.26f);
         [Tooltip("Time constant of the remnant's decay.")]
-        [Range(0.05f, 2f)] public float remnantTau = 0.95f;
+        [Range(0.05f, 2f)] [ZUILabel("Remnant Decay")] public float remnantTau = 0.95f;
         [Tooltip("Brightness of the ghost ring — a second, faster, much thinner front, the only thing moving at a different speed (0 = none).")]
-        [Range(0f, 1f)] public ZUIValue ring2 = new ZUIValue(0.45f);
+        [Range(0f, 1f)] [ZUILabel("Ghost Ring")] public ZUIValue ring2 = new ZUIValue(0.45f);
         [Tooltip("How far the ring travels, as a multiple of the blast radius.")]
-        [Range(0.5f, 2f)] public ZUIValue ring2R = new ZUIValue(1.25f);
+        [Range(0.5f, 2f)] [ZUILabel("Ring Reach")] public ZUIValue ring2R = new ZUIValue(1.25f);
         [Tooltip("The ring's life as a fraction of the blast clock.")]
-        [Range(0.1f, 1f)] public float ring2Life = 0.50f;
+        [Range(0.1f, 1f)] [ZUILabel("Ring Life")] public float ring2Life = 0.50f;
         [Tooltip("Ring thickness as a fraction of the blast radius.")]
-        [Range(0.01f, 0.2f)] public ZUIValue ring2W = new ZUIValue(0.05f);
+        [Range(0.01f, 0.2f)] [ZUILabel("Ring Width")] public ZUIValue ring2W = new ZUIValue(0.05f);
         [Tooltip("Linear share of the ring's travel.")]
-        [Range(0f, 1f)] public float ring2Lin = 0.26f;
+        [Range(0f, 1f)] [ZUILabel("Ring Linear")] public float ring2Lin = 0.26f;
         [Tooltip("How strongly the ring BEADS — an angular noise eats holes in it until only lumps travel on the old circle.")]
-        [Range(0f, 1f)] public ZUIValue ring2Bead = new ZUIValue(1.0f);
+        [Range(0f, 1f)] [ZUILabel("Ring Beading")] public ZUIValue ring2Bead = new ZUIValue(1.0f);
         [Tooltip("Angular period of the bead noise.")]
-        [Range(3, 20)] public int ring2K = 11;
+        [Range(3, 20)] [ZUILabel("Ring Period")] public int ring2K = 11;
         [Tooltip("When the beading starts, on the blast clock.")]
-        [Range(0f, 0.5f)] public float beadT0 = 0.02f;
+        [Range(0f, 0.5f)] [ZUILabel("Bead Start")] public float beadT0 = 0.02f;
         [Tooltip("When the beading is at full strength.")]
-        [Range(0.02f, 0.8f)] public float beadT1 = 0.16f;
+        [Range(0.02f, 0.8f)] [ZUILabel("Bead Full")] public float beadT1 = 0.16f;
 
         // ── gain: the dissipation curve ──
         [Tooltip("Rise time of the whole field, on the blast clock.")]
-        [Range(0.005f, 0.2f)] public float rise = 0.022f;
+        [Range(0.005f, 0.2f)] [ZUILabel("Rise Time")] public float rise = 0.022f;
         [Tooltip("How long the field holds at peak before the decay begins.")]
-        [Range(0f, 0.3f)] public float hold = 0.05f;
+        [Range(0f, 0.3f)] [ZUILabel("Hold Time")] public float hold = 0.05f;
         [Tooltip("Exponent of the FAST decay term (the blowout — over in three or four frames).")]
-        [Range(1f, 6f)] public float tailFast = 3.6f;
+        [Range(1f, 6f)] [ZUILabel("Fast Decay")] public float tailFast = 3.6f;
         [Tooltip("Exponent of the SLOW decay term (the glow left behind — under 1 holds a legible tail on screen for most of the clip).")]
-        [Range(0.1f, 1.5f)] public float tailSlow = 0.44f;
+        [Range(0.1f, 1.5f)] [ZUILabel("Slow Decay")] public float tailSlow = 0.44f;
         [Tooltip("Share of the decay carried by the fast term (the rest by the slow one). Both reach exactly zero at the end of the clock.")]
-        [Range(0f, 1f)] public float tailMix = 0.58f;
+        [Range(0f, 1f)] [ZUILabel("Decay Mix")] public float tailMix = 0.58f;
 
         // ── colour ──
         [Tooltip("The core ramp (position 0 = the faintest energy, 1 = white-hot). Presets: PyreRampPresets.PlasmaIon / Cryo / Volt / Toxin / Flare.")]
-        public PyreRamp hueA = PyreRampPresets.PlasmaIon();
+        [ZUILabel("Core Ramp")] public PyreRamp hueA = PyreRampPresets.PlasmaIon();
         [Tooltip("The rim ramp the colour crossfades into by RADIUS over the travelling front — the cool skirt round a hot core.")]
-        public PyreRamp hueB = PyreRampPresets.PlasmaCryo();
+        [ZUILabel("Rim Ramp")] public PyreRamp hueB = PyreRampPresets.PlasmaCryo();
         [Tooltip("How much of the rim ramp shows at the outer edge (0 = Hue A only).")]
-        [Range(0f, 1f)] public ZUIValue rimMix = new ZUIValue(0.62f);
+        [Range(0f, 1f)] [ZUILabel("Rim Mix")] public ZUIValue rimMix = new ZUIValue(0.62f);
         [Tooltip("Where the crossfade to Hue B starts, as a multiple of the front's radius.")]
-        [Range(0f, 1.5f)] public ZUIValue rimLo = new ZUIValue(0.40f);
+        [Range(0f, 1.5f)] [ZUILabel("Rim Start")] public ZUIValue rimLo = new ZUIValue(0.40f);
         [Tooltip("Where the crossfade to Hue B is complete, as a multiple of the front's radius.")]
-        [Range(0.2f, 2f)] public ZUIValue rimHi = new ZUIValue(1.08f);
+        [Range(0.2f, 2f)] [ZUILabel("Rim End")] public ZUIValue rimHi = new ZUIValue(1.08f);
         [Tooltip("Energy that reaches the TOP of the colour ramp (lower = hotter / whiter overall). Hand-set in the source, not fitted — the field's amplitude is fixed by the dials above.")]
-        [Range(0.3f, 3f)] public ZUIValue eNorm = new ZUIValue(1.22f);
+        [Range(0.3f, 3f)] [ZUILabel("Energy Norm")] public ZUIValue eNorm = new ZUIValue(1.22f);
         [Tooltip("Gamma on the ramp coordinate: below 1 spends more of the ramp on the faint skirt.")]
-        [Range(0.3f, 2f)] public ZUIValue cGamma = new ZUIValue(0.78f);
+        [Range(0.3f, 2f)] [ZUILabel("Ramp Gamma")] public ZUIValue cGamma = new ZUIValue(0.78f);
         [Tooltip("Energy at which alpha lifts off (everything below is fully transparent).")]
-        [Range(0f, 0.3f)] public float aLo = 0.06f;
+        [Range(0f, 0.3f)] [ZUILabel("Alpha Start")] public float aLo = 0.06f;
         [Tooltip("Energy at which alpha reaches 1 (a smoothstep between the two — a falloff that spans pixels, not a cutoff).")]
-        [Range(0.1f, 1f)] public float aHi = 0.40f;
+        [Range(0.1f, 1f)] [ZUILabel("Alpha End")] public float aHi = 0.40f;
         [Tooltip("Gamma on the alpha ramp.")]
-        [Range(0.3f, 2f)] public float aGamma = 0.85f;
+        [Range(0.3f, 2f)] [ZUILabel("Alpha Gamma")] public float aGamma = 0.85f;
 
         // ── swarm ──
         [PyreSwarmOnly]
         [Tooltip("Size of each swarm particle's bloom as a fraction of the solo blast's solved radius (the swarm's own size/depth shading multiplies it).")]
-        [Range(0.1f, 1f)] public ZUIValue swarmSize = new ZUIValue(0.5f);
+        [Range(0.1f, 1f)] [ZUILabel("Swarm Size")] public ZUIValue swarmSize = new ZUIValue(0.5f);
 
         // ── runtime ──
         /// The animatable dials resolved at one layer life — what the algorithm reads (never the ZUIValues above).

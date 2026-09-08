@@ -1809,6 +1809,8 @@ namespace Laubrary.Pyre.Editor
         void IPyreShapeCardHost.Dirty(System.Action apply) => Dirty(apply);
         void IPyreShapeCardHost.MarkDirty() => MarkDirty();
         void IPyreShapeCardHost.RecordUndo() { if (spec != null) Undo.RecordObject(spec, "Edit Pyre Plus"); }
+        // Pyre's own window has no shape tree above the layer, so this box IS the layer's placement (T-0265).
+        bool IPyreShapeCardHost.HostOwnsPlacement => false;
         void IPyreShapeCardHost.RebuildShape() => RebuildShape();
         void IPyreShapeCardHost.RebuildSwarm() => RebuildSwarm();
         VisualElement IPyreShapeCardHost.Val(string label, string tooltip, ZUIValue v, float lo, float hi, bool cyclic)

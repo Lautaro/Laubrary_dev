@@ -124,7 +124,7 @@ namespace Laubrary.Pyre.Forms.Kiln
         // ── the argument between the push and the air ──
         [Tooltip("Exponential drag: > 0 decelerates, the higher the sooner the puff stalls. Travel = reach·(1 − e^(−drag·s))/(1 − e^(−drag)).")]
         [ZUIGroup("Puff physics", Tooltip = "How a single puff moves and grows as it travels.")]
-        [Range(0.01f, 6f)] public float drag = 2.2f;
+        [Range(0.01f, 6f)] [ZUILabel("Drag")] public float drag = 2.2f;
         [Tooltip("Full name: \"Rise (buoyancy)\". Upward rise by the end of a puff's life, canvas widths — applied as s^2.4, so the root runs flat and only the slowed tip rolls over.")]
         [ZUILabel("Buoyancy")] [ZUIGroup("Puff physics")]
         [Range(0f, 1f)] public float buoy = 0.10f;

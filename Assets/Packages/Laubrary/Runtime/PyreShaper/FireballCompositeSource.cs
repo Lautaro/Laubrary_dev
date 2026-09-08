@@ -35,51 +35,51 @@ namespace Laubrary.PyreShaper
 
         [Tooltip("Shapes the whole burst over the animation: how hot the centre injects, from nothing through "
                + "full blast and back. One curve takes the fireball from ignition to burnt out.")]
-        public ZUIValue source = PyreShaperSimSupport.IgniteHoldFade();
+        [ZUILabel("Source")] public ZUIValue source = PyreShaperSimSupport.IgniteHoldFade();
 
         [Tooltip("Radius of the hot core at the centre, in pixels. Wider gives a fatter fireball with a bigger "
                + "solid heart.")]
-        public ZUIValue sourceRadius = new ZUIValue(4f);
+        [ZUILabel("Core Radius")] public ZUIValue sourceRadius = new ZUIValue(4f);
 
         [Tooltip("How fast heat is lost travelling outward. This alone sets arm LENGTH — low cooling lets heat "
                + "survive further out, so the arms reach.")]
-        public ZUIValue cooling = new ZUIValue(0.03f);
+        [ZUILabel("Cooling")] public ZUIValue cooling = new ZUIValue(0.03f);
 
         [Tooltip("How hard cells off a wedge axis are cooled. This sets arm THINNESS independently of length, so "
                + "long and thin is reachable rather than only long and fat.")]
-        public ZUIValue sharpness = new ZUIValue(0.2f);
+        [ZUILabel("Sharpness")] public ZUIValue sharpness = new ZUIValue(0.2f);
 
         [Tooltip("Sideways waver as heat travels out, so the tongues lick instead of running as straight spokes.")]
-        public ZUIValue spread = new ZUIValue(0.5f);
+        [ZUILabel("Spread")] public ZUIValue spread = new ZUIValue(0.5f);
 
         [Tooltip("How far the burst may reach, as a fraction of the canvas half-size. It can never touch the "
                + "frame edge however hard the other dials are driven.")]
-        public ZUIValue reach = new ZUIValue(0.95f);
+        [ZUILabel("Reach")] public ZUIValue reach = new ZUIValue(0.95f);
 
         [Min(1)]
         [Tooltip("How many wedges the burst is folded into. 1 is a plain outward ball; more gives the pointed "
                + "kaleidoscope star.")]
-        public int arms = 1;
+        [ZUILabel("Arms")] public int arms = 1;
 
         [Tooltip("On, alternate wedges are reflected so neighbours meet at a seam. Off, every wedge is the same "
                + "one rotated.")]
-        public bool mirror = true;
+        [ZUILabel("Mirror")] public bool mirror = true;
 
         [Tooltip("The smoke-to-fire ramp the burst is painted through. Its alpha is what this generator publishes "
                + "as coverage, so the transparent end of the ramp is also the burst's silhouette.")]
-        public Gradient ramp = PyreShaperSimSupport.DefaultRamp();
+        [ZUILabel("Ramp")] public Gradient ramp = PyreShaperSimSupport.DefaultRamp();
 
         [Range(0f, 0.9f)]
         [Tooltip("Heat below this reads as empty. Raise it for a crisper silhouette with less haze around it.")]
-        public float threshold = 0.06f;
+        [ZUILabel("Threshold")] public float threshold = 0.06f;
 
         [Tooltip("Contrast on the ramp lookup. Below 1 pushes more of the burst toward the hot end of the ramp.")]
-        public float contrast = 0.85f;
+        [ZUILabel("Contrast")] public float contrast = 0.85f;
 
         [Min(1)]
         [Tooltip("How many simulation steps the whole animation spans. Set this to the document's frame count so "
                + "each frame advances the burst exactly once; a smaller number makes it play out sooner.")]
-        public int simFrames = 8;
+        [ZUILabel("Sim Frames")] public int simFrames = 8;
 
         /// <summary>
         /// T-0202 — overall opacity over the burst's life, the row Pyre's Shape section shows for a Fireball
@@ -90,7 +90,7 @@ namespace Laubrary.PyreShaper
         /// </summary>
         [Tooltip("Overall opacity across the burst's life, multiplied into what the simulation paints. "
                + "Fading it to nothing at the end is what makes the burst go out rather than stop.")]
-        public ZUIValue alpha = new PyreLayer().alpha;
+        [ZUILabel("Alpha")] public ZUIValue alpha = new PyreLayer().alpha;
 
         // Replay state — private so neither Unity's serializer nor the window's reflection drawer can see it.
         FireballSim _sim;
