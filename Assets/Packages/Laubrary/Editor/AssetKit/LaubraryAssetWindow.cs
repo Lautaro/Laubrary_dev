@@ -196,7 +196,9 @@ namespace Laubrary.AssetKit.Editor
                     {
                         InitializeNewAsset(created);
                         EditorUtility.SetDirty(created);
-                        AssetDatabase.SaveAssets();
+                        // T-0282 — flush THIS asset, never the project. AssetDatabase.SaveAssets() writes every
+                        // dirty asset in the project (see the identical T-0276 fix in ZuiAssetWindow.cs/AssetLibrary.cs).
+                        AssetDatabase.SaveAssetIfDirty(created);
                         Undo.RegisterCreatedObjectUndo(created, "Create " + TypeLabel);   // New is undoable (delete needs the confirm dialog)
                         browsing = false;
                         SetAsset(created);

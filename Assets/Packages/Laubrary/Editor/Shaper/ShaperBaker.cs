@@ -294,6 +294,8 @@ namespace Laubrary.Shaper.Editor
                 clipPath = UniquePath(dir, name, "anim");
                 AssetDatabase.CreateAsset(clip, clipPath);
                 clipKeyCount = keys.Count;
+                // T-0282 — flush THIS asset, never the project. See the note after the ShaperClip block below.
+                AssetDatabase.SaveAssetIfDirty(clip);
             }
 
             // 6) the ShaperClip (T-0154). The AnimationClip above and this are NOT equivalent outputs, and the
@@ -337,10 +339,19 @@ namespace Laubrary.Shaper.Editor
 
                 shaperClipPath = UniquePath(dir, name + " Clip", "asset");
                 AssetDatabase.CreateAsset(shaperClip, shaperClipPath);
+                // T-0282 — flush only the asset THIS bake just made, never the whole project.
+                // AssetDatabase.SaveAssets() writes every dirty asset there is (the same class of bug T-0276
+                // fixed on the New/Duplicate/Rename path); a Bake press was doing it too, and this call plus
+                // the AnimationClip's own SaveAssetIfDirty above replace BOTH the old AssetDatabase.SaveAssets()
+                // and the AssetDatabase.Refresh() that used to sit after this block. The sheet PNG was already
+                // written to disk and force-reimported earlier in this method (File.WriteAllBytes + ImportAsset
+                // + importer.SaveAndReimport, :205-243) — that path never touched SaveAssets/Refresh and still
+                // doesn't. Refresh() is dropped outright: everything this method writes (PNG, importer, clip,
+                // ShaperClip) is already registered with the AssetDatabase by the explicit ImportAsset/
+                // CreateAsset/SaveAndReimport calls, so a project-wide re-scan added nothing here — re-verified
+                // against T-0275's bake-parity table (workspace/T-0275/bake-parity-table.md) after this change.
+                AssetDatabase.SaveAssetIfDirty(shaperClip);
             }
-
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
 
             result.ok = true;
             result.sheetPath = pngPath;

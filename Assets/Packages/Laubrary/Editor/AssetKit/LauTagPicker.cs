@@ -216,8 +216,9 @@ namespace Laubrary.AssetKit.Editor
             if (!EditorUtility.DisplayDialog("Delete key", $"Delete '{key}' and every 'value' under it ({toDelete.Count} tag(s))? Removes them from every asset.", "Delete", "Cancel")) return;
             foreach (var t in toDelete) { _lib.DeleteTag(t.id); _selected.Remove(t.id); }
             if (string.Equals(_key, key, StringComparison.OrdinalIgnoreCase)) { _key = ""; _value = ""; }
+            // T-0282 — flush THIS asset (the tag library), never the project. See Commit() below.
             EditorUtility.SetDirty(_lib);
-            AssetDatabase.SaveAssets();
+            AssetDatabase.SaveAssetIfDirty(_lib);
             Commit();
         }
 
@@ -235,8 +236,9 @@ namespace Laubrary.AssetKit.Editor
             if (!EditorUtility.DisplayDialog("Delete tag", $"Delete tag '{t.name}'? Removes it from every asset.", "Delete", "Cancel")) return;
             _lib.DeleteTag(id);
             _selected.Remove(id);
+            // T-0282 — flush THIS asset (the tag library), never the project. See Commit() below.
             EditorUtility.SetDirty(_lib);
-            AssetDatabase.SaveAssets();
+            AssetDatabase.SaveAssetIfDirty(_lib);
             Commit();
             GUIUtility.ExitGUI();
         }
@@ -252,8 +254,11 @@ namespace Laubrary.AssetKit.Editor
 
         void Commit()
         {
+            // T-0282 — flush THIS asset (the project's one LauTagLibrary), never the whole project.
+            // AssetDatabase.SaveAssets() writes every dirty asset there is; every tag edit (add/remove/rename
+            // a key or value on ANY asset) funnels through here, so it ran on every keystroke-adjacent commit.
             EditorUtility.SetDirty(_lib);
-            AssetDatabase.SaveAssets();
+            AssetDatabase.SaveAssetIfDirty(_lib);
             _onChanged?.Invoke(_selected.ToList());
         }
     }

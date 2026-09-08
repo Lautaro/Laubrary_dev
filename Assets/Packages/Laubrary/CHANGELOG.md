@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- AssetKit, LauTag and the Shaper baker save only the asset they just made (six remaining project-wide SaveAssets calls narrowed); a dirty, unrelated asset stays dirty and unwritten through New, Rename, Delete, Bake and GIF export (T-0282).
 - Shaper: a bag member's Combine dials grey with their condition (Cut out / Add / Keep overlap each use a different pair); Posterise greys on the fill kinds it cannot band; Text's Line spacing and Align grey until the text has a second line; Loop gap, Frame, Lifetime, Duplicate, Delete and 'Start ƒ' no longer name two different things (the Layers card's second Duplicate is gone) (T-0276).
 - AssetKit: New, Duplicate and Rename save only the asset they just made instead of running a project-wide SaveAssets twice, which had been silently writing other dirty assets (the Shaper demo document among them) (T-0276).
 - SpriteFX: all 26 effects that can run were measured live at both the layer and whole-picture stage with every parameter acting; the 15 the catalog refuses are refused for true reasons; Ordered dither strength and Posterize's affect-alpha say they act only on soft alpha (T-0274).

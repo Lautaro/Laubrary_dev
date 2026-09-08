@@ -29,7 +29,8 @@ namespace Laubrary.AssetKit.Editor
             AssetFolders.EnsureFolder("Assets/LauTag");
             _cached = ScriptableObject.CreateInstance<LauTagLibrary>();
             AssetDatabase.CreateAsset(_cached, Path);
-            AssetDatabase.SaveAssets();
+            // T-0282 — flush THIS asset (the one it just created), never the project. See AssetLibrary.Create (T-0276).
+            AssetDatabase.SaveAssetIfDirty(_cached);
             return _cached;
         }
     }
