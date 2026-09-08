@@ -148,9 +148,16 @@ namespace Laubrary.Zui
             _valueLabel.text = _value.ToString(fmt);
         }
 
+        // T-0291 — before this element's first layout pass, contentRect.width is NaN; Mathf.Max(1f, NaN) is
+        // itself NaN (the comparison is false), which poisons Clamp01 and then Lerp, handing the caller's
+        // callback a NaN it has no reason to expect. Resolve to a safe width instead, and never return NaN
+        // even if localX itself is somehow non-finite.
+        static bool HasValidWidth(float w) => !float.IsNaN(w) && !float.IsInfinity(w);
+
         float ValueFromX(float localX)
         {
-            float w = Mathf.Max(1f, contentRect.width);
+            if (float.IsNaN(localX) || float.IsInfinity(localX)) return _value;
+            float w = HasValidWidth(contentRect.width) ? Mathf.Max(1f, contentRect.width) : 1f;
             return Mathf.Lerp(_min, _max, Mathf.Clamp01(localX / w));
         }
 
@@ -183,8 +190,12 @@ namespace Laubrary.Zui
             this.CapturePointer(e.pointerId);
             OpenGesture();
             // Shift = gentle: start a relative fine drag from the CURRENT value (no jump to the press point);
-            // a normal press jumps the value to where you clicked (absolute).
-            if (!e.shiftKey) SetValue(ValueFromX(e.localPosition.x), notify: true);
+            // a normal press jumps the value to where you clicked (absolute). T-0291 — before this element's
+            // first layout pass contentRect.width is NaN, so a press landing in that window is deferred
+            // rather than resolved against a bogus width: the drag stays open (OnMove) and will jump on the
+            // next move, by which point layout has normally run.
+            if (!e.shiftKey && HasValidWidth(contentRect.width))
+                SetValue(ValueFromX(e.localPosition.x), notify: true);
             e.StopPropagation();
         }
 
@@ -195,6 +206,8 @@ namespace Laubrary.Zui
             if (e.shiftKey)
             {
                 // Fine/relative: nudge by a fraction of the normal value-per-pixel, accumulated from the last x.
+                // T-0291 — same NaN-width guard as ValueFromX; skip the nudge rather than poison _value.
+                if (!HasValidWidth(contentRect.width)) { _lastMoveX = x; e.StopPropagation(); return; }
                 float span = _max - _min;
                 float w = Mathf.Max(1f, contentRect.width);
                 SetValue(_value + (x - _lastMoveX) / w * span * FineFactor, notify: true);

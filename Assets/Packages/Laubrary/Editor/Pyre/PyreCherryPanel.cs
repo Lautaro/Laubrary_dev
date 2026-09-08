@@ -88,9 +88,13 @@ namespace Laubrary.Pyre.Editor
             + "selection, Ctrl/Cmd+D duplicates it.";
         public string slotBoxKey = "pyreplus.cherry.slots";
 
+        // T-0290/T-0292 — caption and wording kept identical to the transport's own "Tile size" slider
+        // (ShaperWindow.cs), since both controls do exactly the same thing to a different grid. Shaper's
+        // own chrome (ShaperWindow.Cherry.cs) already overrides this with the same text for its host; this
+        // default is what Pyre itself draws, unchanged since Pyre supplies no override.
         public string tileSizeTooltip =
-            "Thumbnail size in the source/cherry grids below (32–256px). Only changes layout — frames "
-            + "aren't re-rendered.";
+            "How big each frame tile is drawn, in screen pixels. Only changes layout — no frame is "
+            + "re-rendered and no bake is affected.";
         public string sourceFrameTooltip = "Which baked frame this slot plays (when MultiFrame is off).";
 
         /// True when a thumbnail's aspect can differ from the square tile it is drawn in. Pyre's canvas is
@@ -240,7 +244,7 @@ namespace Laubrary.Pyre.Editor
             sourceGridHost = new VisualElement();
             sourceBox.Add(sourceGridHost);
             sourceBox.Add(PyreShapeCards.WrapRow(
-                Z.MicroSlider("Tile px", host.CherryTileSize, MinTileSize, MaxTileSize, c.tileSizeTooltip,
+                Z.MicroSlider("Tile size", host.CherryTileSize, MinTileSize, MaxTileSize, c.tileSizeTooltip,
                     v =>
                     {
                         host.SetCherryTileSize(Mathf.Clamp(v, MinTileSize, MaxTileSize));
@@ -522,23 +526,57 @@ namespace Laubrary.Pyre.Editor
                         },
                         180f, showValue: true, decimals: 0));
 
+                // T-0289: exactly one of Length x / Min-Max can ever act (ShaperCherryFrame.ResolveLength
+                // reads lengthMultiplier while useMinMaxLength is off, Min-Max while it is on — never both).
+                // Both dials are declared and drawn regardless, per the project's "grey with a reason, never
+                // hide" convention; the reason lives on the dead one and is re-synced live when the toggle
+                // below flips, without rebuilding the popover (which would close it under the cursor).
+                VisualElement lengthXControl = null, minMaxControl = null;
+
+                void SyncLengthInertness(bool useMinMax)
+                {
+                    SetInert(lengthXControl, useMinMax
+                        ? "Ignored while Variable length is on — untoggle it to use a fixed length instead."
+                        : null);
+                    SetInert(minMaxControl, useMinMax
+                        ? null
+                        : "Only used while Variable length is on — toggle it on to draw a length between Min and Max instead.");
+                }
+
                 panel.Add(Z.Toggle("Variable length",
                     "Randomise how many beats this slot holds each time it plays, between Min and Max below.",
                     first.useMinMaxLength,
-                    v => EditAll((s, idx) => { s.useMinMaxLength = v; host.WriteCherrySlot(idx, s); })));
+                    v =>
+                    {
+                        EditAll((s, idx) => { s.useMinMaxLength = v; host.WriteCherrySlot(idx, s); });
+                        SyncLengthInertness(v);
+                    }));
 
-                panel.Add(Z.MicroSlider("Length ×", first.lengthMultiplier, 0.25f, 8f,
+                lengthXControl = Z.MicroSlider("Length ×", first.lengthMultiplier, 0.25f, 8f,
                     "Fixed beats this slot holds. 1 = normal. Ignored when Variable length is on.",
                     v => EditAll((s, idx) => { s.lengthMultiplier = v; host.WriteCherrySlot(idx, s); }),
-                    180f, showValue: true));
+                    180f, showValue: true);
+                CaptureTooltips(lengthXControl);
+                panel.Add(lengthXControl);
 
-                panel.Add(PyreShapeCards.WrapRow(
-                    Z.MicroSlider("Min", first.minLengthMultiplier, 0.25f, 8f, "Variable-length lower bound.",
-                        v => EditAll((s, idx) => { s.minLengthMultiplier = v; host.WriteCherrySlot(idx, s); }),
-                        100f, showValue: true),
-                    Z.MicroSlider("Max", first.maxLengthMultiplier, 0.25f, 8f, "Variable-length upper bound.",
-                        v => EditAll((s, idx) => { s.maxLengthMultiplier = v; host.WriteCherrySlot(idx, s); }),
-                        100f, showValue: true)));
+                // T-0290: was a Z.Row of two 100px MicroSliders, which wrapped at this popover's width
+                // without the row's own height growing to match, so the MultiFrame toggle below painted over
+                // the wrapped Max slider. One Z.MicroMinMax draws Min and Max as a single non-wrapping
+                // control (label + "low - high" inside the track), which removes the wrap entirely rather
+                // than widening the row to dodge it.
+                minMaxControl = Z.MicroMinMax("Min – Max", first.minLengthMultiplier, first.maxLengthMultiplier,
+                    0.25f, 8f,
+                    "Variable-length bounds — how many beats this slot holds each time it plays, drawn between these.",
+                    (lo, hi) => EditAll((s, idx) =>
+                    {
+                        s.minLengthMultiplier = lo; s.maxLengthMultiplier = hi;
+                        host.WriteCherrySlot(idx, s);
+                    }),
+                    200f, showValue: true);
+                CaptureTooltips(minMaxControl);
+                panel.Add(minMaxControl);
+
+                SyncLengthInertness(first.useMinMaxLength);
 
                 // The host's extra rows can DEPEND on a value this popover edits (Shaper shows a MultiFrame
                 // slot's candidate-frame list only while MultiFrame is on), so they live in their own
@@ -609,6 +647,42 @@ namespace Laubrary.Pyre.Editor
             slotPrimary = insertAt; slotAnchor = insertAt;
             host.ResetCherryPlayback();
             Rebuild();
+        }
+
+        // ── inertness (T-0289) ───────────────────────────────────────────────────────────────────────────
+        // The project's "grey with a reason, never hide" convention (ShaperWindow.Sections.cs' own
+        // Inert/InertVal/StampReason), reimplemented here because this file is shared Pyre/Shaper code and
+        // cannot reach a Shaper-only helper. Unlike that one-shot version, a slot's Variable-length toggle
+        // can flip the SAME control between live and dead repeatedly within one popover visit without the
+        // popover rebuilding, so the original tooltip text is captured once per control and restored (not
+        // just overwritten) whenever a reason is lifted.
+        static readonly System.Runtime.CompilerServices.ConditionalWeakTable<VisualElement, string> originalTooltips
+            = new System.Runtime.CompilerServices.ConditionalWeakTable<VisualElement, string>();
+
+        static void CaptureTooltips(VisualElement el)
+        {
+            if (el == null) return;
+            if (!string.IsNullOrEmpty(el.tooltip) && !originalTooltips.TryGetValue(el, out _))
+                originalTooltips.Add(el, el.tooltip);
+            for (int i = 0; i < el.childCount; i++) CaptureTooltips(el[i]);
+        }
+
+        /// <paramref name="reason"/> null means "this control can act" — re-enable it and restore every
+        /// captured tooltip. A non-null reason disables it and prepends the reason to each captured tooltip
+        /// (the pointer lands on whichever descendant the control is actually built from — a caption Label,
+        /// a value box — so the reason has to reach all of them, same as StampReason in ShaperWindow).
+        static void SetInert(VisualElement el, string reason)
+        {
+            if (el == null) return;
+            el.SetEnabled(reason == null);
+            ApplyReason(el, reason);
+        }
+
+        static void ApplyReason(VisualElement el, string reason)
+        {
+            if (originalTooltips.TryGetValue(el, out var orig))
+                el.tooltip = reason == null ? orig : reason + "  ·  " + orig;
+            for (int i = 0; i < el.childCount; i++) ApplyReason(el[i], reason);
         }
 
         void OnKeyDown(KeyDownEvent e)

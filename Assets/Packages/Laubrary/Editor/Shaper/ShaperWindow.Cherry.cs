@@ -129,9 +129,12 @@ namespace Laubrary.Shaper.Editor
 
                 slotBoxKey = "shaper.window.cherry.slots",
 
+                // T-0292 — matches the transport's own "Tile size" tooltip verbatim (ShaperWindow.cs); the
+                // caption itself ("Tile px" in PyreCherryPanel.cs) is Pyre's own chrome and not this file's to
+                // rename — see T-0292's handover for why.
                 tileSizeTooltip =
-                    "Thumbnail size in the source/cherry grids (32–256px). Only changes layout — frames aren't "
-                    + "re-rendered.",
+                    "How big each frame tile is drawn, in screen pixels. Only changes layout — no frame is "
+                    + "re-rendered and no bake is affected.",
                 sourceFrameTooltip = "Which of this document's own frames this slot plays.",
 
                 // A Shaper canvas is authored width × height and is often not square, so a thumbnail drawn

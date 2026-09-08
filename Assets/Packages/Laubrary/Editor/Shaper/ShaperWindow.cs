@@ -1489,6 +1489,11 @@ namespace Laubrary.Shaper.Editor
                       + "the Canvas card to give it a timeline.",
                 v =>
                 {
+                    // T-0291 — a NaN/Infinity v (e.g. a press landing before ZuiMicroSlider's first layout
+                    // pass) must never reach currentFrame: Mathf.RoundToInt(NaN) is int.MinValue, which then
+                    // reads back as a nonsense frame until the next FillTransport clamp. Reject it outright
+                    // rather than let a bad frame briefly go live.
+                    if (float.IsNaN(v) || float.IsInfinity(v)) return;
                     currentFrame = Mathf.RoundToInt(v);
                     playing = false;
                     // Hand control back to the scrubber. Without this the cherry sequencer would still be
@@ -1564,9 +1569,12 @@ namespace Laubrary.Shaper.Editor
             if (!previewStrip) return;
 
             // T-0257 — "Tile px" was an abbreviation of a unit, not a name for the thing it sizes.
+            // T-0292 — tooltip text kept identical to the cherry panel's own "Tile size" slider
+            // (ShaperWindow.Cherry.cs' tileSizeTooltip) since both controls do exactly the same thing to a
+            // different grid; keep them in sync if either wording changes.
             transportHost.Add(Z.MicroSlider("Tile size", previewStripTile, 24f, 128f,
-                "How big each frame tile in the contact sheet is, in screen pixels. Only changes how the "
-                + "strip is drawn — no frame is re-rendered and no bake is affected.",
+                "How big each frame tile is drawn, in screen pixels. Only changes layout — no frame is "
+                + "re-rendered and no bake is affected.",
                 // T-0288 — the strip is restyled in place, never re-filled. FillTransport() clears the whole
                 // transport, so answering this slider's own value change with it detached the slider on the
                 // first press of a drag and every further move went nowhere: the control could be clicked
