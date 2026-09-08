@@ -125,6 +125,11 @@ namespace Laubrary.Zui
                 _library = Z.Button("★", "This project's saved gradients — apply one to this ramp (every stop, "
                                       + "whatever the count), or save this ramp's stops under a new name.",
                                     OpenLibrary).W(BtnWidth);
+                // T-0311 — same clipped "★" as ZuiGradientEditor's: a 22px slot less the button's default
+                // 6+6 padding and 1+1 border leaves 8.0px for a 12.9px glyph. Zeroing the horizontal padding
+                // buys the room without touching the row's width budget.
+                _library.style.paddingLeft = 0f;
+                _library.style.paddingRight = 0f;
                 _library.style.marginLeft = 4f;
                 _row.Add(_library);
             }

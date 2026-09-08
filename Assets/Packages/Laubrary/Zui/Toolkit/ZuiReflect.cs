@@ -524,9 +524,21 @@ namespace Laubrary.Zui
                 // ranges). Unbounded stays the plain X/Y row.
                 if (range != null)
                 {
+                    // T-0312 — the EMBEDDED range control (label + "low – high" inside the track), not
+                    // Z.MinMax's slider flanked by two typed fields. Two reasons, both measured rather than
+                    // stylistic. (1) Width: `opt.ControlWidth` is the width of Z.MinMax's SLIDER, not of the
+                    // composite, so the drawn control came out ControlWidth + two 42px fields + gaps = 252.9px
+                    // and the `.zui-field` around it (label 84px, flex-shrink:0) reached 340.9px inside a
+                    // 313.3px box — every Torch range dial (Root spread, Root height, Tongue climb/peel/
+                    // width/length/life, Ember rise, Ember size) overhung its box by 8–28px. MicroMinMax
+                    // carries its own label inside the track, so it costs exactly ControlWidth and needs no
+                    // Z.Field wrapper at all. (2) Consistency: the reflected bounded SCALAR beside it is
+                    // already a Z.MicroSlider, and ui-layout-rules names MicroMinMax the preferred pair
+                    // control ("prefer this one"), keeping Z.MinMax for where typed precision outweighs
+                    // footprint — which a form dial with a declared [Range] is not.
                     var pair = (Vector2)v;
-                    return Z.Field(nice, tip, Z.MinMax(pair.x, pair.y, range.min, range.max, tip,
-                        (lo, hi) => Set(new Vector2(lo, hi)), opt.ControlWidth));
+                    return Z.MicroMinMax(nice, pair.x, pair.y, range.min, range.max, tip,
+                        (lo, hi) => Set(new Vector2(lo, hi)), opt.ControlWidth);
                 }
                 return Vector2Row(nice, (Vector2)v, tip, nv => Set(nv));
             }

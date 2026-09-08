@@ -81,6 +81,13 @@ namespace Laubrary.Zui
             // controls and Fill's gradient picker share the same saved palette.
             Library = Z.Button("★", "This project's saved gradients — click to apply one, or save the CURRENT "
                               + "ramp under a new name.", OpenLibrary).W(22f);
+            // T-0311 — the glyph was drawn clipped in every gradient in every tool: a 22px slot, less the
+            // button's default 6+6 padding and 1+1 border, leaves 8.0px of content for a 12.9px "★".
+            // Zeroed rather than widened, following the same call the dirty dot got in T-0307: the button
+            // sits on the ramp's Output row beside a flex-grow preview strip, so 22px is the width the row
+            // was designed around, and a 20px content box is comfortably more than the glyph needs.
+            Library.style.paddingLeft = 0f;
+            Library.style.paddingRight = 0f;
 
             Adjust = Z.Box("Adjust",
                 "Non-destructive transforms applied on top of the base ramp. Hue / Saturation / Brightness / Contrast "

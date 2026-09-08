@@ -85,7 +85,14 @@ namespace Laubrary.BackSplash.Editor
 
             box.Add(Z.Row(recall, save));
 
-            box.Add(Z.Row(
+            // T-0312 — this pair overhangs its box by 18.7px whenever the host's settings pane sits at the
+            // 320px minimum a Z.Split allows (measured in Shaper's right pane: Colour 137.3 + Image 167.1 +
+            // the row's 6.7px gap = 311.1 inside a 292.0 content box), which clipped the right edge of the
+            // sprite picker. Both fields carry explicit widths and `.zui-field` is flex-shrink:0, so nothing
+            // in the row can give: the honest answer is to let the row fold. Wrapping costs nothing at any
+            // width that already fits — flex-wrap only engages on overflow — and this is a static settings
+            // row, not a contextual toolbar, so folding it moves no workspace under the pointer.
+            var colourImageRow = Z.Row(
                 Z.Field("Colour", "Solid background fill behind the image.",
                     Z.Color(settings.cameraColor, "Solid background fill behind the image.",
                         v => Changed(() => settings.cameraColor = v), 90f)),
@@ -97,7 +104,9 @@ namespace Laubrary.BackSplash.Editor
                             // A fresh image starts at the default view — an old zoom/offset tuned for the
                             // PREVIOUS image's aspect ratio just as often shows nothing recognisable at all.
                             if (v != null) { settings.imageZoom = 1f; settings.imagePos = Vector2.zero; }
-                        }), 120f))));
+                        }), 120f)));
+            colourImageRow.style.flexWrap = Wrap.Wrap;
+            box.Add(colourImageRow);
 
             // Position/zoom/tint describe an image; with no image they'd be dials over nothing.
             if (settings.image != null)

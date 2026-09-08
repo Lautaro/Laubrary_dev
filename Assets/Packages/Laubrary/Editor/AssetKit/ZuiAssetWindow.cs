@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using Laubrary.Zui;
 using UnityEditor;
+using UnityEditor.UIElements;   // ObjectField — the asset field the toolbar sizes to its own name (T-0309)
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -186,6 +187,7 @@ namespace Laubrary.AssetKit.Editor
         // forbids.
         VisualElement _dirtyDot;
         Button _saveButton;
+        ObjectField _assetField;
 
         bool AssetIsDirty => asset != null && EditorUtility.IsDirty(asset);
 
@@ -205,7 +207,50 @@ namespace Laubrary.AssetKit.Editor
                         ? $"Write this {TypeLabel}'s edits to disk now."
                         : $"This {TypeLabel} matches what is on disk — nothing to save.";
             }
+            RefreshAssetFieldName();
         }
+
+        /// T-0309 — the asset field showed its name CLIPPED in every Laubrary asset window: Unity draws an
+        /// ObjectField as "Name (Type)", and `ShaperDemoDoc (Shaper Document)` measured 210.2px against the
+        /// 161.8px the 200px field leaves its label, so anything past ~14 characters was cut off. Two halves,
+        /// both measured rather than guessed, and neither buys width from the buttons beside it:
+        ///
+        ///   • The "(Type)" suffix is dropped. Every asset this window can hold is a <typeparamref name="T"/>
+        ///     — the window itself is the type label — so the parenthetical is 110px of redundancy in the one
+        ///     place the row has none to spare. Unity rewrites the display label on every value change, so it
+        ///     is re-stamped here, off the 250ms poll the dirty dot already runs.
+        ///   • The field then SIZES TO ITS CONTENT instead of sitting at a fixed 200. The row already ends in
+        ///     a Z.Flexible spacer holding 197.3px of slack at the declared 820px minimum window (measured,
+        ///     T-0307/T-0312), so growing the field takes space from the spacer, never from Delete: flex-grow
+        ///     shares that spare, and a max-width of exactly what the name needs stops the field from growing
+        ///     past its own content on a wide window. `minWidth` keeps the empty state at the old 200px.
+        ///
+        /// The max-width write is gated by the same 1.5px absolute tolerance StampFieldHeight uses, and for
+        /// the same reason: Yoga rounds to the device-pixel grid, so a write that MOVES the row can change the
+        /// measurement it came from, and a relative epsilon re-writes forever (T-0304's layout-struggle loop).
+        void RefreshAssetFieldName()
+        {
+            if (_assetField == null) return;
+            var label = _assetField.Q<Label>(className: "unity-object-field-display__label");
+            if (label == null) return;
+
+            string want = asset == null ? $"None ({TypeLabel})" : asset.name;
+            if (label.text != want) label.text = want;
+
+            float need = label.MeasureTextSize(want, 0f, VisualElement.MeasureMode.Undefined,
+                                                     0f, VisualElement.MeasureMode.Undefined).x;
+            float have = label.contentRect.width;
+            if (float.IsNaN(need) || float.IsNaN(have) || have <= 0f) return;
+            // Everything in the field that is not the name: the type icon, the picker button, padding.
+            float chrome = _assetField.resolvedStyle.width - have;
+            if (float.IsNaN(chrome) || chrome < 0f) return;
+            float px = Mathf.Max(AssetFieldMinWidth, need + chrome + 2f);
+            var cur = _assetField.style.maxWidth;
+            if (cur.keyword == StyleKeyword.Undefined && Mathf.Abs(cur.value.value - px) <= 1.5f) return;
+            _assetField.style.maxWidth = px;
+        }
+
+        const float AssetFieldMinWidth = 200f;
 
         VisualElement BuildToolbar()
         {
@@ -229,9 +274,16 @@ namespace Laubrary.AssetKit.Editor
             });
             _saveButton.style.width = 52f;
 
+            _assetField = Z.Object<T>(asset,
+                $"The {TypeLabel} asset being edited — assign one directly, or use Browse.",
+                v => SetAsset(v), AssetFieldMinWidth);
+            // See RefreshAssetFieldName: the field grows into the row's own flexible spare width (and no
+            // further than its content needs), instead of clipping every name past ~14 characters at 200px.
+            _assetField.style.flexGrow = 1f;
+            _assetField.style.minWidth = AssetFieldMinWidth;
+
             var row = Z.Row(
-                Z.Object<T>(asset, $"The {TypeLabel} asset being edited — assign one directly, or use Browse.",
-                    v => SetAsset(v), 200f),
+                _assetField,
                 _dirtyDot,
                 _saveButton,
                 Z.Button("New", $"Create a brand new {TypeLabel} asset (undoable).",
@@ -262,7 +314,13 @@ namespace Laubrary.AssetKit.Editor
                 row.Add(Z.Button("Delete", "Delete this asset's file (asks first — file deletion cannot be undone).",
                     DeleteCurrent));
             }
-            row.Add(Z.Flexible());
+            // T-0309 — the trailing Z.Flexible() that used to end this row is gone. It existed only to hold
+            // the row's tail, and a Row already leaves its leftover space at the end (justify-content is
+            // flex-start), so it changed nothing visually — but it took an equal share of the spare width
+            // with the asset field, which halved how much of a long name the field could show at the 820px
+            // minimum (measured: a 49-character name got 260.4px of 307.1 with the spacer competing, 309.3
+            // without). The field is now the row's only flexible item and is capped at its own content, so
+            // it can never grow past the name it is showing and can never push Delete off the edge.
 
             // Dirtiness is set from wherever an edit happens (a dial callback, a nested control's own hook, an
             // Undo), not from a place this base can hook, so the state is POLLED rather than pushed. 4/second is

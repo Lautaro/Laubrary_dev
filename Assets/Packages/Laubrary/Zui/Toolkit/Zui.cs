@@ -395,7 +395,21 @@ namespace Laubrary.Zui
             // the last option is clipped by whatever box/pane the row sits in. Detected from the control's own
             // class rather than a caller flag, so every existing wrap:true call site is fixed automatically and
             // a bounded control (slider, toggle, plain radio) is never affected.
-            if (control.ClassListContains("zui-radio--wrap")) wrap.AddToClassList("zui-field--wrap");
+            // Same rule, second cause (T-0312): a control that sizes itself to the FULL width available —
+            // a gradient/ramp STRIP, whose inner row is `width: 100%` — resolves that percentage against the
+            // space the whole box has, not against what is left beside the label. The field then measures
+            // label + full-box-width and, being flex-shrink:0, overhangs its box by exactly the label's width.
+            // Measured live at HEAD: Shaper's `Colour bands` field 496.9px inside a 415.1px box (81.8 over) and
+            // Pyre's Torch `Colour ramp` 389.3px inside 313.3px (76.0 over). Letting the FIELD shrink lets the
+            // strip shrink with it (both carry flex-shrink 1), so the strip ends up label-width narrower and
+            // nothing is clipped. Detected from the control's own class, like the wrap case above, so every
+            // reflected ZuiGradient / IZuiRamp field in every tool is fixed at once.
+            if (control.ClassListContains("zui-radio--wrap")
+                || control.ClassListContains("zui-gradient-control")
+                || control.ClassListContains("zui-ramp")
+                || control.Q(className: "zui-gradient-control") != null
+                || control.Q(className: "zui-ramp") != null)
+                wrap.AddToClassList("zui-field--wrap");
             var l = new Label(label);
             l.AddToClassList("zui-field__label");
             l.tooltip = tooltip;
