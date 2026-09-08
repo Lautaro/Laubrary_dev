@@ -23,10 +23,10 @@ namespace Laubrary.Pyre.Forms.Kiln
         public override bool UsesFill => false;
 
         // ── placement (shared) ──
-        [Tooltip("Full name: \"Nozzle across frame\". Where the nozzle (or, for a radial jet, the centre) sits across the canvas, as a fraction of the width.")]
+        [Tooltip("Full name: \"Nozzle across frame\". Where the nozzle (or, for a radial jet, the centre) sits across the canvas, as a fraction of the width. This is an offset WITHIN the jet's own drawing frame, relative to the node's own Position — it is not a second placement; the node's Position box still moves the whole jet.")]
         [ZUILabel("Nozzle X")] [ZUIGroup("Placement & size", Tooltip = "Where the jet sits and how big it is.")]
         [Range(0f, 1f)] public ZUIValue anchorX = new ZUIValue(0.5f);
-        [Tooltip("Full name: \"Nozzle down frame\". Where the nozzle (or centre) sits down the canvas, as a fraction of the height from the TOP (the source's y-down frame: a positive Aim points down).")]
+        [Tooltip("Full name: \"Nozzle down frame\". Where the nozzle (or centre) sits down the canvas, as a fraction of the height from the TOP (the source's y-down frame: a positive Aim points down). This is an offset WITHIN the jet's own drawing frame, relative to the node's own Position — it is not a second placement.")]
         [ZUILabel("Nozzle Y")] [ZUIGroup("Placement & size")]
         [Range(0f, 1f)] public ZUIValue anchorY = new ZUIValue(0.5f);
         [Tooltip("Scale of the jet: the variant's source frame width as a fraction of the canvas width; every length inside the variant scales with it (1 = the source frame spans the canvas).")]

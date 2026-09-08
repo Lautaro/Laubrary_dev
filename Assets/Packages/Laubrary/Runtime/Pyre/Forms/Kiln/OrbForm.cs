@@ -57,7 +57,7 @@ namespace Laubrary.Pyre.Forms.Kiln
         public Variant variant = Variant.Emberdrift;
 
         // ── placement (shared) ──
-        [Tooltip("Full name: \"Nose across frame\". Where the orb's nose (the core centre) sits across the canvas, as a fraction of the width. The wake trails to the LEFT of it (travel is toward +x). Source: 0.755 of a 192 px frame.")]
+        [Tooltip("Full name: \"Nose across frame\". Where the orb's nose (the core centre) sits across the canvas, as a fraction of the width. The wake trails to the LEFT of it (travel is toward +x). Source: 0.755 of a 192 px frame. This is an offset WITHIN the orb's own drawing frame, relative to the node's own Position — it is not a second placement; the node's Position box still moves the whole orb.")]
         [ZUILabel("Nose X")] [ZUIGroup("Placement & size", Tooltip = "Where the orb sits inside its own frame and how big it is — every length the variant draws is measured against these.")]
         [Range(0.2f, 0.95f)] public ZUIValue noseX = new ZUIValue(0.755f);
         [Tooltip("The travel axis down the canvas, as a fraction of the height (0 = top). Source: 0.52.")]
