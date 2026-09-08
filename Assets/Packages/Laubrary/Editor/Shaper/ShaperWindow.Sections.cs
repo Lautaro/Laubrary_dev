@@ -1297,7 +1297,24 @@ namespace Laubrary.Shaper.Editor
             }
 
             sweep.SetHeaderToggle(node.sweep.enabled, "Apply the sweep.",
-                v => Change(() => node.sweep.enabled = v));
+                v => Change(() =>
+                {
+                    node.sweep.enabled = v;
+                    // T-0267 — 360°/fraction 1 is the sweep's own IDENTITY (ShaperNode.cs:102,107: "the
+                    // default is the identity"), so switching the toggle on left the picture unchanged —
+                    // measured 0 changed pixels across 3 frames on a fresh document. Seeded here, only while
+                    // the dials are still untouched (both at their identity), so an author who already dialled
+                    // a real slice and toggled off/on keeps it.
+                    if (v)
+                    {
+                        if (node.sweep.extentDegreesDial.mode == ZUIValue.Mode.Static
+                            && node.sweep.extentDegreesDial.staticValue >= 359.9f)
+                            node.sweep.extentDegreesDial.staticValue = 270f;
+                        if (node.sweep.extentFractionDial.mode == ZUIValue.Mode.Static
+                            && node.sweep.extentFractionDial.staticValue >= 0.999f)
+                            node.sweep.extentFractionDial.staticValue = 0.75f;
+                    }
+                }));
             sweep.Add(Z.HGroup(
                 InertVal("Start", "Where the kept slice begins, in degrees.", degreeReason,
                     node.sweep.startDegreesDial, 0f, 360f, cyclic: true, decimals: 0),
@@ -1742,7 +1759,7 @@ namespace Laubrary.Shaper.Editor
                 Change(() =>
                 {
                     if (node.children == null) node.children = new List<ShaperNode>();
-                    node.children.Add(new ShaperNode { name = "Member " + (node.children.Count + 1) });
+                    node.children.Add(NewBagMember("Member " + (node.children.Count + 1), document));
                 });
                 RebuildChildren();
             }));

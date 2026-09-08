@@ -47,6 +47,7 @@ namespace Laubrary.Zui
         readonly ZuiSegmented _mode;
         readonly Button _library;
         readonly string _tip;
+        readonly string[] _honoured;     // T-0281: null = every knob honoured; see Honours() below
         ZuiBox _adjust;                  // null when the ramp offers no Adjust knobs of its own
         Image _preview;                  // objective strip (the ramp WITH its knobs); only exists alongside _adjust
         Texture2D _previewTex;
@@ -60,9 +61,19 @@ namespace Laubrary.Zui
         /// <param name="showLibrary">Draw this control's own "★" saved-gradient button. A host that already
         /// carries one for the same ramp (ZuiGradientEditor puts it on the Output row) passes false, so a
         /// gradient shows one library button, not two.</param>
-        public ZuiRampControl(IZuiRamp ramp, string tooltip = null, bool showLibrary = true)
+        /// <param name="honouredKnobs">T-0281 — which of this ramp's own knobs the CONSUMER baking it actually
+        /// reads: "space" for the blend-mode row above, plus any <see cref="ZuiRampAdjust"/> field name
+        /// ("reverse","phase","quantiseSteps","hueShift","saturation","brightness","contrast","cycle"). Null
+        /// (every existing call site) means every knob is honoured, so nothing here changes for a ramp sampled
+        /// live via Eval() or a Fill's own gradient — only a host that declares this (ZuiReflect's
+        /// RampHonouredKnobs, wired for Jet/Orb's baked LUTs) greys the rest, with a reason naming what ignores
+        /// them. A knob this control does not draw at all (cycleSpeed has none here — see BuildAdjust) is simply
+        /// never checked, so leaving it out of a caller's declared set costs nothing.</param>
+        public ZuiRampControl(IZuiRamp ramp, string tooltip = null, bool showLibrary = true,
+            string[] honouredKnobs = null)
         {
             _ramp = ramp ?? throw new ArgumentNullException(nameof(ramp));
+            _honoured = honouredKnobs;
             _tip = string.IsNullOrEmpty(tooltip)
                 ? "The colour ramp. Click it for Unity's gradient editor — click under the bar to add a stop, drag "
                 + "to move it, and set its colour; the row of keys above the bar is opacity."
@@ -129,6 +140,7 @@ namespace Laubrary.Zui
                     i => Mutate(() => _ramp.BlendMode = i));
                 _mode.style.marginLeft = 6f;
                 _mode.style.flexShrink = 0f;
+                ApplyCapability(_mode, "space", "Blend space");
                 _row.Add(_mode);
             }
 
@@ -175,37 +187,62 @@ namespace Laubrary.Zui
                 "Non-destructive adjustments applied on top of the ramp above. The stops themselves are never "
               + "rewritten — turn a knob back and the exact original ramp returns.");
 
-            _adjust.Add(Z.HGroup(
-                Z.MicroSlider("Hue", a.hueShift, -1f, 1f,
-                    "Rotate the hue of every colour in the ramp (±1 = ±180°).",
-                    v => Mutate(() => a.hueShift = v), prefsKey: "ramp.hue"),
-                Z.MicroSlider("Saturation", a.saturation, 0f, 2f,
-                    "Multiply how colourful the ramp is (1 = unchanged, 0 = grey).",
-                    v => Mutate(() => a.saturation = v), prefsKey: "ramp.sat"),
-                Z.MicroSlider("Brightness", a.brightness, 0f, 2f,
-                    "Multiply how bright the ramp is (1 = unchanged).",
-                    v => Mutate(() => a.brightness = v), prefsKey: "ramp.bri")));
+            var hueCtrl = Z.MicroSlider("Hue", a.hueShift, -1f, 1f,
+                "Rotate the hue of every colour in the ramp (±1 = ±180°).",
+                v => Mutate(() => a.hueShift = v), prefsKey: "ramp.hue");
+            var satCtrl = Z.MicroSlider("Saturation", a.saturation, 0f, 2f,
+                "Multiply how colourful the ramp is (1 = unchanged, 0 = grey).",
+                v => Mutate(() => a.saturation = v), prefsKey: "ramp.sat");
+            var briCtrl = Z.MicroSlider("Brightness", a.brightness, 0f, 2f,
+                "Multiply how bright the ramp is (1 = unchanged).",
+                v => Mutate(() => a.brightness = v), prefsKey: "ramp.bri");
+            ApplyCapability(hueCtrl, "hueShift", "Hue");
+            ApplyCapability(satCtrl, "saturation", "Saturation");
+            ApplyCapability(briCtrl, "brightness", "Brightness");
+            _adjust.Add(Z.HGroup(hueCtrl, satCtrl, briCtrl));
 
-            _adjust.Add(Z.HGroup(
-                Z.MicroSlider("Contrast", a.contrast, 0f, 2f,
-                    "Push the ramp's colours away from mid-grey (1 = unchanged, above 1 = harder edges between them).",
-                    v => Mutate(() => a.contrast = v), prefsKey: "ramp.con"),
-                Z.MicroSlider("Phase", a.phase, 0f, 2f,
-                    "Scroll the ramp along its own length. 0→1 runs it forward, 1→2 runs it back mirrored, so 2 lands "
-                  + "exactly where 0 did and an animated phase never jumps at the wrap.",
-                    v => Mutate(() => a.phase = v), prefsKey: "ramp.phase")));
+            var conCtrl = Z.MicroSlider("Contrast", a.contrast, 0f, 2f,
+                "Push the ramp's colours away from mid-grey (1 = unchanged, above 1 = harder edges between them).",
+                v => Mutate(() => a.contrast = v), prefsKey: "ramp.con");
+            var phaCtrl = Z.MicroSlider("Phase", a.phase, 0f, 2f,
+                "Scroll the ramp along its own length. 0→1 runs it forward, 1→2 runs it back mirrored, so 2 lands "
+              + "exactly where 0 did and an animated phase never jumps at the wrap.",
+                v => Mutate(() => a.phase = v), prefsKey: "ramp.phase");
+            ApplyCapability(conCtrl, "contrast", "Contrast");
+            ApplyCapability(phaCtrl, "phase", "Phase");
+            _adjust.Add(Z.HGroup(conCtrl, phaCtrl));
 
-            _adjust.Add(Z.HGroup(
-                Z.MicroSlider("Quantise", a.quantiseSteps, 0, 16,
-                    "Snap the ramp to N flat bands instead of a smooth blend (0 = smooth).",
-                    v => Mutate(() => a.quantiseSteps = Mathf.RoundToInt(v)), decimals: 0, prefsKey: "ramp.quantise"),
-                Z.Toggle("Cycle", "Mark this ramp as wanting to colour-cycle — a driver advances its phase at "
-                                + "runtime. A still frame looks the same either way.",
-                    a.cycle, v => Mutate(() => a.cycle = v)),
-                Z.Toggle("Reverse", "Read the ramp end-to-start, so the hot core colour lands where the cold edge was.",
-                    a.reverse, v => Mutate(() => a.reverse = v))));
+            var quantCtrl = Z.MicroSlider("Quantise", a.quantiseSteps, 0, 16,
+                "Snap the ramp to N flat bands instead of a smooth blend (0 = smooth).",
+                v => Mutate(() => a.quantiseSteps = Mathf.RoundToInt(v)), decimals: 0, prefsKey: "ramp.quantise");
+            var cycleCtrl = Z.Toggle("Cycle", "Mark this ramp as wanting to colour-cycle — a driver advances its phase at "
+                            + "runtime. A still frame looks the same either way.",
+                a.cycle, v => Mutate(() => a.cycle = v));
+            var reverseCtrl = Z.Toggle("Reverse", "Read the ramp end-to-start, so the hot core colour lands where the cold edge was.",
+                a.reverse, v => Mutate(() => a.reverse = v));
+            ApplyCapability(quantCtrl, "quantiseSteps", "Quantise");
+            ApplyCapability(cycleCtrl, "cycle", "Cycle");
+            ApplyCapability(reverseCtrl, "reverse", "Reverse");
+            _adjust.Add(Z.HGroup(quantCtrl, cycleCtrl, reverseCtrl));
 
             Add(_adjust);
+        }
+
+        // ── T-0281: capability declaration ───────────────────────────────────────────────────────────────
+        // A consumer that bakes this ramp into a fixed-frame lookup table may read only SOME of its knobs —
+        // Jet's JetShade.Bake and Orb's PyreOrb.BakeLut apply every ZuiRampAdjust knob (measured T-0280/T-0281)
+        // but never branch on the blend-mode row: both interpolate stops directly in linear light regardless of
+        // `space`. `_honoured` null (every call site that does not pass `honouredKnobs`) means "honour
+        // everything", so a live-sampled ramp or a Fill's own gradient (never routed through this parameter)
+        // draws exactly as it always did.
+        bool Honours(string knob) => _honoured == null || Array.IndexOf(_honoured, knob) >= 0;
+
+        void ApplyCapability(VisualElement el, string knob, string label)
+        {
+            if (el == null || Honours(knob)) return;
+            el.SetEnabled(false);
+            el.tooltip = $"{label} is ignored here — this ramp is baked into a fixed lookup table that reads "
+                        + "only its colour stops, so nothing else on this control changes what is drawn.";
         }
 
         /// Re-read the ramp (an undo, an external edit) — the field, the mode row and the Adjust knobs redraw from

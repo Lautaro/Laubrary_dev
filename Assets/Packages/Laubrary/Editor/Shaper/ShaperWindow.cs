@@ -520,6 +520,30 @@ namespace Laubrary.Shaper.Editor
             return layer;
         }
 
+        /// <summary>
+        /// T-0267 — a bag member added by "+ Add member" (BuildChildrenList, ShaperWindow.Sections.cs) used to
+        /// come out of <c>new ShaperNode { name = ... }</c> verbatim: <c>ShaperPrimitiveDef</c>'s own defaults
+        /// (rectHalfWDial/H = 50, ShaperPrimitives.cs:91-92) exceed a fresh 96×64 document's half-extents, so
+        /// EVERY member landed as the exact full-canvas rectangle this programme has already retired at every
+        /// other creation site (T-0257's NewLayer). Same fix, same reasoning, at this creation site instead:
+        /// a member's primitive is seeded to a quarter of the CANVAS (not a fixed pixel count), so it settles
+        /// at a visible, proportionate size wherever the document's canvas is sized. No growth animation here
+        /// (unlike NewLayer's SeededGrowth) — a member appearing mid-air while its siblings sit still would
+        /// read as a glitch, not an entrance.
+        /// </summary>
+        internal static ShaperNode NewBagMember(string name, ShaperDocument doc)
+        {
+            var m = new ShaperNode { name = name };
+            var p = m.primitive;
+            if (doc != null && p != null)
+            {
+                p.EnsureDials();
+                p.rectHalfWDial.staticValue = Mathf.Max(2f, doc.canvasWidth * 0.25f);
+                p.rectHalfHDial.staticValue = Mathf.Max(2f, doc.canvasHeight * 0.25f);
+            }
+            return m;
+        }
+
         /// Pyre's DefaultSize curve shape (grow, overshoot, settle), rescaled to a canvas-relative settle
         /// value: 0.55 → overshoot 1.15 → settle 1.0, as fractions of <paramref name="settle"/>.
         ///
@@ -732,7 +756,18 @@ namespace Laubrary.Shaper.Editor
             // appears ONLY while its toggle is on — see the calls below.
             row.Add(Z.Toggle("Height", "Extrude this layer's silhouette into relief. The card below appears "
                 + "while this is on.", lay.height != null,
-                v => { Change(() => lay.height = v ? NewHeightStage() : null); RefreshSelectedLayerCards(); }));
+                v => { Change(() =>
+                {
+                    lay.height = v ? NewHeightStage() : null;
+                    // T-0267 — turning Height on seeded a visible depth (T-0257), but the picture only reads
+                    // relief through ShaperLightResponse.normalKind (ShaperLightRig.cs:320), whose own default
+                    // is Constant — a flat, authored-direction normal that never looks at the height profile
+                    // at all (ShaperLightCompiler.cs:653). So a fresh Height toggle changed a real depth value
+                    // that nothing downstream ever read: measured 0 changed pixels across 3 frames with the
+                    // default light rig, vs 3911 once normalKind is Profile. Seeded here, at the one place
+                    // this window turns height ON, exactly as NewHeightStage seeds the depth itself.
+                    if (v) (lay.response ?? (lay.response = new ShaperLightResponse())).normalKind = ShaperNormalKind.Profile;
+                }); RefreshSelectedLayerCards(); }));
 
             row.Add(Z.Toggle("Mask", "Cut this layer with another layer of the same document. Turning this on "
                 + "opens the source picker; the card below appears once a source is picked.",

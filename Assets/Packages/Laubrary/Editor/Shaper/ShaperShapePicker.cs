@@ -245,6 +245,21 @@ namespace Laubrary.Shaper.Editor
                 {
                     n.kind = ShaperNodeKind.Bag;
                     if (n.children == null) n.children = new List<ShaperNode>();
+                    // T-0267 — picking "Combine children" on a node that has none left the picture BLANK
+                    // (measured: 4168 opaque px -> 0) until the author found "+ Add member" themselves, the
+                    // same "does nothing" failure this programme has already fixed at every other affordance.
+                    // Seeded with the same quarter-canvas member ShaperWindow.NewBagMember gives "+ Add
+                    // member" — this provider has no window/document to size against, so a fixed 24px radius
+                    // (Pyre's own DefaultSize convention, ShaperWindow.cs:507) stands in; visible at every
+                    // canvas size this tool authors (32-256) without needing one.
+                    if (n.children.Count == 0)
+                    {
+                        var seed = new ShaperNode { name = "Member 1" };
+                        seed.primitive.EnsureDials();
+                        seed.primitive.rectHalfWDial.staticValue = 24f;
+                        seed.primitive.rectHalfHDial.staticValue = 24f;
+                        n.children.Add(seed);
+                    }
                 },
             };
         }

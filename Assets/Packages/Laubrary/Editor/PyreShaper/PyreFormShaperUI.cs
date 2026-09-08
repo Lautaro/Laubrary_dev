@@ -15,6 +15,7 @@
 // family by name. The cost is that a drawer replaces the reflected dump rather than sitting beside it, so the
 // dump is reproduced below — with the window's own options, so the two cannot look different.
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using Laubrary.Pyre;
@@ -104,6 +105,9 @@ namespace Laubrary.PyreShaper.Editor
                     ControlWidth = 140f,
                     ReorderFields = OrbNoseAxisReorder,
                     TooltipFor = DialTooltip,
+                    InertReason = DialInertReason,
+                    IsInertGuard = IsDialInertGuard,
+                    RampHonouredKnobs = RampHonouredKnobs,
                     // T-0279 — a [PyreSwarmOnly] dial only ever reads `ctx.swarm` (PyreForm.Prepare/Render), and
                     // this bridge's own Render (above) always calls form.Render with a PyreFormCtx built from
                     // `null, null, null` for the swarm slots — a composite node hosts exactly one form with no
@@ -236,6 +240,156 @@ namespace Laubrary.PyreShaper.Editor
                 var attr = (TooltipAttribute)Attribute.GetCustomAttribute(f, typeof(TooltipAttribute));
                 return string.IsNullOrEmpty(attr?.tooltip) ? why : attr.tooltip + " " + why;
             }
+
+            // ── grey the 54 (T-0281) ──────────────────────────────────────────────────────────────────────
+            // ConditionOf above only ever appends TEXT — it cannot disable a control, because it has no idea
+            // what the guard's CURRENT value is. This table adds that: for each conditional dial that CAN be
+            // checked safely, a live read of its guard sibling(s) on the SAME owner instance, straight off the
+            // engine's own `if` (the file:line citations in ConditionOf's comments).
+            //
+            // "Safely" excludes two real traps found while building this table, both confirmed against the
+            // engine source, not guessed:
+            //   • MUTUAL pairs — JetSettings.pulseN needs pulseDepth>0 and pulseDepth needs pulseN!=0
+            //     (PyreJetEngine.cs:587), and shockN/shockDepth the same (PyreJetEngine.cs:601). Disabling
+            //     BOTH sides of a mutual pair the moment the OTHER is at its shipped-zero default would grey
+            //     them PERMANENTLY — neither could ever be dragged open again through this drawer. Left
+            //     enabled; T-0280's tooltip text still names the condition.
+            //   • CIRCULAR triples — RadialJet/ExplosiveJet's lobes/lobeDepth/lobeKick: lobes is gated on
+            //     (lobeDepth OR lobeKick), and both of THOSE are gated on lobes (RadialJetProgram.cs:128,133;
+            //     ExplosiveJetProgram.cs:468,472). All three ship at 0, so all three would grey each other
+            //     forever. Same treatment: left enabled, tooltip-only.
+            //   • ExplosiveJetSettings.rootK's second condition ("the Blast schedule is empty") and
+            //     ExplosiveBlast.share's ("the schedule holds 2+ blasts") both read a LIST on a different
+            //     object than the field itself — resolvable (ScheduleEmpty below does it for rootK), but
+            //     share's guard is the enclosing LIST's Count, not a sibling FIELD, which this table has no
+            //     shape for; left tooltip-only rather than invented.
+            //
+            // Every entry a boolean CAN be computed for is registered under "DeclaringType.FieldName", the
+            // same key ConditionOf uses, so the reason shown when disabled is exactly the sentence T-0280
+            // already wrote — a disabled control and its own tooltip can never disagree.
+            static readonly Dictionary<string, Func<object, bool>> LiveIf = new Dictionary<string, Func<object, bool>>
+            {
+                // JetSettings — shared by Jet, Radial Jet and Explosive Jet. pulseN/pulseDepth and
+                // shockN/shockDepth are the mutual pairs above and are deliberately absent from this table.
+                { "JetSettings.sweepN",    o => NonZero(o, "sweep") },
+                { "JetSettings.ringK",     o => NonZero(o, "ringN") },
+                { "JetSettings.ringR0",    o => NonZero(o, "ringN") },
+                { "JetSettings.ringGrow",  o => NonZero(o, "ringN") },
+                { "JetSettings.ringLife",  o => NonZero(o, "ringN") },
+                { "JetSettings.ringReach", o => NonZero(o, "ringN") },
+                { "JetSettings.ringAmp",   o => NonZero(o, "ringN") },
+                { "JetSettings.rootAmp",   o => NonZero(o, "rootR") },
+
+                // RadialJetSettings — lobes/lobeDepth/lobeKick are the circular triple above, absent here.
+                { "RadialJetSettings.rootK",    o => NonZero(o, "srcR") },
+                { "RadialJetSettings.ringFlat", o => NonZero(o, "ringN") },
+
+                // ExplosiveJetSettings — lobes/lobeDepth/lobeKick absent (same circular triple); rootK's
+                // SECOND condition needs the schedule list, resolvable on this owner (the schedule sits on the
+                // same settings box as rootK), so rootK stays live-checked unlike RadialJetSettings' plainer one.
+                { "ExplosiveJetSettings.ringFlat", o => NonZero(o, "ringN") },
+                { "ExplosiveJetSettings.ringArc",  o => NonZero(o, "ringFlat") && NonZero(o, "ringN") },
+                { "ExplosiveJetSettings.rootK",    o => NonZero(o, "srcR") && ScheduleEmpty(o, "schedule") },
+
+                // TorchSettings — every one of these is one-directional (PyreTorch.cs:638,657; none of lash/
+                // pulse/pulseGain/bulge/curl is itself gated by the dial it guards).
+                { "TorchSettings.lashK",    o => NonZero(o, "lash") },
+                { "TorchSettings.lashWave", o => NonZero(o, "lash") },
+                { "TorchSettings.lashPh",   o => NonZero(o, "lash") },
+                { "TorchSettings.pulseN",   o => NonZero(o, "pulse") || NonZero(o, "pulseGain") || NonZero(o, "bulge") },
+                { "TorchSettings.pulsePh",  o => NonZero(o, "pulse") || NonZero(o, "pulseGain") || NonZero(o, "bulge") },
+                { "TorchSettings.bulgeW",   o => NonZero(o, "bulge") },
+                { "TorchSettings.curlX",    o => NonZero(o, "curl") },
+                { "TorchSettings.curlY",    o => NonZero(o, "curl") },
+            };
+
+            // The field names LiveIf's checks read — editing ANY of these has to rebuild the card (T-0281),
+            // the same way a [ZUIShowIf] gate already does, or a dial that just became reachable stays greyed
+            // until something unrelated happens to rebuild it. Keyed the same way (DeclaringType.FieldName) so
+            // an inherited guard (ringN lives on JetSettings even when read through a RadialJetSettings/
+            // ExplosiveJetSettings instance) is named once regardless of which subtype owns the instance.
+            static readonly HashSet<string> InertGuardFields = new HashSet<string>
+            {
+                "JetSettings.sweep", "JetSettings.ringN", "JetSettings.rootR",
+                "RadialJetSettings.srcR",
+                "ExplosiveJetSettings.srcR", "ExplosiveJetSettings.ringFlat", "ExplosiveJetSettings.schedule",
+                "TorchSettings.lash", "TorchSettings.pulse", "TorchSettings.pulseGain", "TorchSettings.bulge",
+                "TorchSettings.curl",
+            };
+
+            static bool IsDialInertGuard(FieldInfo f)
+                => f.DeclaringType != null && InertGuardFields.Contains(f.DeclaringType.Name + "." + f.Name);
+
+            static string DialInertReason(FieldInfo f, object owner)
+            {
+                if (f.DeclaringType == null) return null;
+                string key = f.DeclaringType.Name + "." + f.Name;
+                if (!LiveIf.TryGetValue(key, out var isLive)) return null;   // not a live-checkable guard — tooltip only
+                if (isLive(owner)) return null;                             // guard open — the dial can act
+                return ConditionOf.TryGetValue(key, out var why) ? why : "Nothing until its guard dial is above 0.";
+            }
+
+            /// Reads sibling field `name` on `owner` (walking the owner's OWN inheritance chain via ZuiReflect's
+            /// own field cache, so an inherited guard like JetSettings.ringN is found through a
+            /// RadialJetSettings/ExplosiveJetSettings instance too) and asks whether it is "on": non-zero for a
+            /// number, true for a bool, non-zero staticValue for a ZUIValue. An unknown name fails OPEN (treated
+            /// as live) — the same "a stale reference shows the control rather than silently hiding it" posture
+            /// VisibleNow takes for [ZUIShowIf].
+            static bool NonZero(object owner, string name)
+            {
+                var f = FindSibling(owner, name);
+                if (f == null) return true;
+                object v = f.GetValue(owner);
+                switch (v)
+                {
+                    case ZUIValue zv: return zv.staticValue != 0f;
+                    case float fl: return fl != 0f;
+                    case int i: return i != 0;
+                    case bool b: return b;
+                    default: return true;
+                }
+            }
+
+            /// ExplosiveJetSettings.rootK's second condition — the Blast schedule (a List<ExplosiveBlast> on the
+            /// SAME settings box) holding no detonations. Empty/null/missing all read as "empty".
+            static bool ScheduleEmpty(object owner, string name)
+            {
+                var f = FindSibling(owner, name);
+                return f?.GetValue(owner) is not IList list || list.Count == 0;
+            }
+
+            static FieldInfo FindSibling(object owner, string name)
+            {
+                foreach (var f in ZuiReflect.FieldsOf(owner.GetType()))
+                    if (f.Name == name) return f;
+                return null;
+            }
+
+            // ── ramp knobs Jet/Orb's bake ignores (T-0281) ────────────────────────────────────────────────
+            // JetShade.Bake (PyreJetEngine.cs) and PyreOrb.BakeLut (PyreOrb.cs) each fold a ramp's Adjust
+            // knobs into the baked table (their own ApplyAdjust) — reverse/phase/quantiseSteps/hueShift/
+            // saturation/brightness/contrast all reach the picture — but BOTH interpolate the stops directly
+            // in linear light and never branch on `space`: measured T-0280, flipping it changes 0 of 1024 LUT
+            // entries in JetShade.Bake and 0 of 768 in PyreOrb.BakeLut. `cycle` is correctly never read at
+            // bake time either — it is an instruction to a runtime driver, not a still-frame knob
+            // (ZuiRampAdjust's own doc); `cycleSpeed` has no control on ZuiRampControl at all, so there is
+            // nothing to grey for it here.
+            //
+            // Plasma Bloom's hueA/hueB are NOT listed: PlasmaBloomForm samples them with EvalStops/Evaluate
+            // directly (PlasmaBloomForm.cs:419, PyreShade.EvalStops), never through a baked LUT, so every knob
+            // including the blend mode reaches the picture there and stays fully live.
+            static readonly string[] BakedRampHonoured =
+                { "reverse", "phase", "quantiseSteps", "hueShift", "saturation", "brightness", "contrast" };
+
+            static readonly HashSet<string> BakedRampFields = new HashSet<string>
+            {
+                "JetSettings.ramp", "JetSettings.sootRamp",   // shared by Jet, Radial Jet, Explosive Jet
+                "StyleSettings.ramp",                          // Orb — Emberdrift/Wisp/Coronal/Membrane/Voltcore
+            };
+
+            static string[] RampHonouredKnobs(FieldInfo f, object owner)
+                => f.DeclaringType != null && BakedRampFields.Contains(f.DeclaringType.Name + "." + f.Name)
+                    ? BakedRampHonoured : null;
         }
     }
 }

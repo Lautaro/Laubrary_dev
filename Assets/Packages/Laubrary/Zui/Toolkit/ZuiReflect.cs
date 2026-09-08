@@ -115,6 +115,26 @@ namespace Laubrary.Zui
             /// host hides that mode (allowMinMax = false) and the meaningless runtime Duration/Warmup/Loop
             /// row (hideCurveTiming = true) instead of offering controls that do nothing.
             public Action<FieldInfo, ZuiValueControl.Options> ConfigureValue;
+            /// Per-field inertness (T-0281): given the field and the OWNER instance currently holding it, a
+            /// reason string when the field does nothing right now, or null when it can act normally. When it
+            /// returns a reason, the control BuildField already produced is drawn disabled with that reason as
+            /// its tooltip — the same "declare, don't hide" convention ShaperWindow's own Inert helper uses for
+            /// Solids, generalised here so every reflected host gets it once rather than reinventing it. Checked
+            /// AFTER the control is built (wraps whatever type case produced it), so it costs nothing for a host
+            /// that never sets it.
+            public Func<FieldInfo, object, string> InertReason;
+            /// Whether editing THIS field can change some OTHER field's InertReason — i.e. it is a guard.
+            /// InertReason has no declarative attribute ZuiReflect can inspect the way [ZUIShowIf] gates do
+            /// (IsGate below), so a host that supplies InertReason names its own guards here too; only a
+            /// declared guard's edit pays for a card rebuild, so a form with 190 fields and a handful of guards
+            /// still repaints one control for most edits.
+            public Func<FieldInfo, bool> IsInertGuard;
+            /// For a reflected IZuiRamp field baked into a fixed-frame lookup table by its host: which of the
+            /// ramp's own knobs (its blend-mode row, keyed "space", plus any ZuiRampAdjust field name) the bake
+            /// actually reads. Null (the default) means every knob is honoured — a ramp sampled live via
+            /// Eval(), or a Fill's own gradient, needs no declaration at all. See ZuiRampControl's own capability
+            /// parameter, which this simply feeds per-field.
+            public Func<FieldInfo, object, string[]> RampHonouredKnobs;
             /// Re-order a type's own declaration order before it is drawn — the field set and every other
             /// per-field hook (Skip/TooltipFor/ConfigureValue) are unaffected, only where a control LANDS in
             /// the flow. Exists for a host that dumps a generator's dials wholesale (a hosted PyreForm,
@@ -385,10 +405,24 @@ namespace Laubrary.Zui
         /// Where the object currently being drawn SITS, for fold-state keys — see EmitGroup.
         [ThreadStatic] static string _groupKeyPath;
 
-        /// Build one control for `field` on `owner`, or null when the type isn't renderable.
+        /// Build one control for `field` on `owner`, or null when the type isn't renderable. A thin wrapper over
+        /// <see cref="BuildFieldControl"/> that applies <see cref="Options.InertReason"/> (T-0281) to whatever
+        /// comes back — kept OUTSIDE that method's many type-branch return points so declaring inertness never
+        /// has to be repeated per branch.
         public static VisualElement BuildField(object owner, FieldInfo field, Options opt)
         {
             opt ??= new Options();
+            var ve = BuildFieldControl(owner, field, opt);
+            if (ve != null && opt.InertReason != null)
+            {
+                string reason = opt.InertReason(field, owner);
+                if (reason != null) { ve.SetEnabled(false); ve.tooltip = reason; }
+            }
+            return ve;
+        }
+
+        static VisualElement BuildFieldControl(object owner, FieldInfo field, Options opt)
+        {
             string nice = LabelOf(field);
             // A field's own [Tooltip] is the AUTHORED description of what it does — always better than a
             // generated sentence that only restates the label, so it outranks the fallback.
@@ -407,6 +441,10 @@ namespace Laubrary.Zui
                 // redraw the card — otherwise the dials it just made relevant stay hidden until something
                 // unrelated happens to rebuild, which reads as the switch not working.
                 if (IsGate(owner.GetType(), field.Name)) opt.OnStructureChanged?.Invoke();
+                // A field some InertReason reads to grey ANOTHER field decides whether that other control can
+                // act, so editing it has to redraw the card too — same reasoning as the [ZUIShowIf] case just
+                // above, driven by the host's own IsInertGuard since InertReason carries no attribute to read.
+                if (opt.IsInertGuard != null && opt.IsInertGuard(field)) opt.OnStructureChanged?.Invoke();
             }
 
             // A hue in degrees gets a colour swatch beside its slider: pick a colour, the field takes its hue.
@@ -624,7 +662,9 @@ namespace Laubrary.Zui
                     field.SetValue(owner, fresh);
                     ramp = (IZuiRamp)fresh;
                 }
-                var rc = new ZuiRampControl(ramp, tip) { OnBeforeMutate = opt.OnBeforeChange, OnChanged = opt.OnChanged };
+                var honoured = opt.RampHonouredKnobs?.Invoke(field, owner);
+                var rc = new ZuiRampControl(ramp, tip, honouredKnobs: honoured)
+                    { OnBeforeMutate = opt.OnBeforeChange, OnChanged = opt.OnChanged };
                 return Z.Field(nice, tip, rc);
             }
 
