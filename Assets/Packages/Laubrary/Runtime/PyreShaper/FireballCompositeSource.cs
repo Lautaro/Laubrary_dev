@@ -46,7 +46,8 @@ namespace Laubrary.PyreShaper
         [ZUILabel("Cooling")] public ZUIValue cooling = new ZUIValue(0.03f);
 
         [Tooltip("How hard cells off a wedge axis are cooled. This sets arm THINNESS independently of length, so "
-               + "long and thin is reachable rather than only long and fat.")]
+               + "long and thin is reachable rather than only long and fat. Has no effect at the default "
+               + "Arms = 1 (a single wedge has no off-axis to cool) — measured, T-0280.")]
         [ZUILabel("Sharpness")] public ZUIValue sharpness = new ZUIValue(0.2f);
 
         [Tooltip("Sideways waver as heat travels out, so the tongues lick instead of running as straight spokes.")]

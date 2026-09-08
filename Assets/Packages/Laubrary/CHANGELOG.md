@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- Shaper hosted generators: 92 dials reported dead on the Jets, Torch, Orb and Fireball were resolved by a curve-aware sweep — none is broken; 54 act only when a guard dial is non-zero and now say so in their tooltip (Ring count, Surges, Shock count, Sweep angle, Tongue count, Whip amount, Curl warp, Arms), Fireball's sharpness needs more than one arm (T-0280).
 - Shaper hosted generators: swarm-only dials (swarm size and kin) are no longer drawn on a hosted Pyre form, since Shaper never hands a swarm to a hosted form; Fire's arm mode and Fireball's mirror say they act only with more than one arm (T-0279).
 - Shaper: a saved document renders exactly as it did in memory — fills and borders carry an 'authored' flag (set when you add one; pre-existing edited fills are promoted on load), so the default objects Unity materialises on every saved node no longer paint over a bag's fill or show as 'Remove fill' on nodes that never had one; 33 window-built documents round-trip pixel-identical (T-0271).
 - Shaper fills: Posterise now bands every fill kind (it was applied by Brushed metal alone); the four ramp Tints that could never act are gone from the card (fields kept); Tiles, Frames, Plain colour, Height change, slot Height and Height-field scale grey out with the reason when their condition is not met; measured on saved documents across Primitive, Solid and Bag (T-0277).

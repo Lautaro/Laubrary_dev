@@ -103,7 +103,7 @@ namespace Laubrary.PyreShaper.Editor
                     OnStructureChanged = ctx.Rebuild,
                     ControlWidth = 140f,
                     ReorderFields = OrbNoseAxisReorder,
-                    TooltipFor = OrbNoseAxisTooltip,
+                    TooltipFor = DialTooltip,
                     // T-0279 — a [PyreSwarmOnly] dial only ever reads `ctx.swarm` (PyreForm.Prepare/Render), and
                     // this bridge's own Render (above) always calls form.Render with a PyreFormCtx built from
                     // `null, null, null` for the swarm slots — a composite node hosts exactly one form with no
@@ -164,6 +164,77 @@ namespace Laubrary.PyreShaper.Editor
                 if (Array.IndexOf(NoseAxisFields, f.Name) < 0) return null;
                 var attr = (TooltipAttribute)Attribute.GetCustomAttribute(f, typeof(TooltipAttribute));
                 return "Within the orb's own frame: " + (attr?.tooltip ?? f.Name);
+            }
+
+            // ── conditional dials say what they are waiting for (T-0280) ────────────────────────────────────
+            // A dial the engine reads only inside an `if` looks broken when its gate is shut: it is a live
+            // control that repaints nothing, and the author has no way to tell that apart from a bug. T-0280
+            // swept all four families curve-aware at their own native frame across three phases and found 54
+            // such dials — every one measured dead at the variant's own defaults and measured LIVE the moment
+            // the guard named below was opened, so the condition is the engine's own `if`, not a guess.
+            //
+            // The condition is APPENDED to the dial's own tooltip rather than drawn as chrome: ZuiReflect
+            // exposes no per-field disable hook, and inventing one would be a new control this programme is
+            // not allowed to add. The companion is named by its ZUILabel, not its field name, because that is
+            // what the author sees on the card next to it.
+            //
+            // Keyed by declaring type as well as name because the same name carries different conditions on
+            // different engines — JetSettings.pulseN gates on Surge depth, TorchSettings.pulseN on Surge jump.
+            static readonly Dictionary<string, string> ConditionOf = new Dictionary<string, string>
+            {
+                // JetSettings — shared by Jet, Radial Jet and Explosive Jet (PyreJetEngine.cs:585-628)
+                { "JetSettings.pulseN",      "Nothing until Surge depth is above 0." },
+                { "JetSettings.pulseDepth",  "Nothing until Surges is above 0." },
+                { "JetSettings.sweepN",      "Nothing until Sweep angle is above 0." },
+                { "JetSettings.shockN",      "Nothing until Shock amt. is above 0." },
+                { "JetSettings.shockDepth",  "Nothing until Shock count is above 0." },
+                { "JetSettings.ringK",       "Nothing until Ring count is above 0." },
+                { "JetSettings.ringR0",      "Nothing until Ring count is above 0." },
+                { "JetSettings.ringGrow",    "Nothing until Ring count is above 0." },
+                { "JetSettings.ringLife",    "Nothing until Ring count is above 0." },
+                { "JetSettings.ringReach",   "Nothing until Ring count is above 0." },
+                { "JetSettings.ringAmp",     "Nothing until Ring count is above 0." },
+                { "JetSettings.rootAmp",     "Nothing until Lump size is above 0 — there is no lump to light." },
+
+                // RadialJetSettings (RadialJetProgram.cs:128-134, 189)
+                { "RadialJetSettings.lobes",     "Nothing until Tongue clump or Tongue kick is above 0." },
+                { "RadialJetSettings.lobeDepth", "Nothing until Tongue count is above 0." },
+                { "RadialJetSettings.lobeKick",  "Nothing until Tongue count is above 0." },
+                { "RadialJetSettings.rootK",     "Nothing until Burn radius is above 0." },
+                { "RadialJetSettings.ringFlat",  "Nothing until Ring count is above 0 — there are no rings to turn face-on." },
+
+                // ExplosiveJetSettings (ExplosiveJetProgram.cs:468-473, 683-706, 843-871)
+                { "ExplosiveJetSettings.lobes",     "Nothing until Tongue clump or Tongue kick is above 0." },
+                { "ExplosiveJetSettings.lobeDepth", "Nothing until Tongue count is above 0." },
+                { "ExplosiveJetSettings.lobeKick",  "Nothing until Tongue count is above 0." },
+                { "ExplosiveJetSettings.rootK",     "Nothing until Burn radius is above 0 AND the Blast schedule is empty — a scheduled detonation has no standing source, so its seat is one lump per blast." },
+                { "ExplosiveJetSettings.ringFlat",  "Nothing until Ring count is above 0 — there are no rings to turn face-on." },
+                { "ExplosiveJetSettings.ringArc",   "Nothing until Rings face-on is on and Ring count is above 0." },
+                { "ExplosiveBlast.share",           "Nothing until the Blast schedule holds two or more blasts — a lone blast owns every slot whatever its share." },
+
+                // TorchSettings (PyreTorch.cs:581, 589-594, 638-657)
+                { "TorchSettings.lashK",    "Nothing until Whip amount is above 0." },
+                { "TorchSettings.lashWave", "Nothing until Whip amount is above 0." },
+                { "TorchSettings.lashPh",   "Nothing until Whip amount is above 0." },
+                { "TorchSettings.pulseN",   "Nothing until Surge jump, Surge glow or Heat lump is above 0 — the surge is computed either way, but nothing reads it." },
+                { "TorchSettings.pulsePh",  "Nothing until Surge jump, Surge glow or Heat lump is above 0." },
+                { "TorchSettings.bulgeW",   "Nothing until Heat lump is above 0." },
+                { "TorchSettings.curlX",    "Nothing until Curl warp is above 0." },
+                { "TorchSettings.curlY",    "Nothing until Curl warp is above 0." },
+
+                // OrbForm (PyreOrb.cs:654-668) — content-dependent rather than gated, but the same trap
+                { "OrbForm.despeckle",      "Only drops pixels that are BOTH faint and isolated. Measured over Emberdrift, Wisp, Coronal and Membrane at three seeds: those variants never produce one, so this changes nothing on them; on Voltcore it clears 5-10 px a frame." },
+                { "OrbForm.despeckleBelow", "Only reaches pixels that are also isolated, so it changes nothing on the variants that have none (Emberdrift, Wisp, Coronal, Membrane) — measured." },
+            };
+
+            static string DialTooltip(FieldInfo f)
+            {
+                string nose = OrbNoseAxisTooltip(f);
+                if (nose != null) return nose;
+                if (f.DeclaringType == null) return null;
+                if (!ConditionOf.TryGetValue(f.DeclaringType.Name + "." + f.Name, out var why)) return null;
+                var attr = (TooltipAttribute)Attribute.GetCustomAttribute(f, typeof(TooltipAttribute));
+                return string.IsNullOrEmpty(attr?.tooltip) ? why : attr.tooltip + " " + why;
             }
         }
     }
