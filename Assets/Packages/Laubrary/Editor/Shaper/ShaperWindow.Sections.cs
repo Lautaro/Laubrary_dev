@@ -1645,17 +1645,21 @@ namespace Laubrary.Shaper.Editor
                   + "arrangement of positions left to re-order. Pick a Shape above to bring it back."
                 : null;
             var appearanceOrder = Inert(
+                // T-0307 — 156px, not the 140px default: this caption needs 93.8px and a 140px dial reserves
+                // only 83.1px for it, so at the default the word was drawn as "Appearance orde…". Same reason
+                // the Canvas card's "Depth between layers" carries its own width.
                 Dial("Appearance order", orderReason ?? "0 brings in neighbouring positions one after "
                     + "another; 1 reveals them in a scrambled order.", s.spawnOrderChaos, 0f, 1f,
-                    v => s.spawnOrderChaos = v),
+                    v => s.spawnOrderChaos = v, width: 156f),
                 orderReason);
 
             if (s.timing == ShaperSwarmTiming.Stagger)
             {
                 // The stagger decides how the per-instance clocks are DRAWN, so animating it over those same
                 // clocks would be circular — it stays a plain dial deliberately.
+                // T-0307 — 148px: the caption needs 84.9px against the 140px dial's 83.1px reserve.
                 kids.Add(Dial("Lifetime stagger", "How much each instance's clock is offset from the others.",
-                    s.lifetimeStagger, 0f, 1f, v => s.lifetimeStagger = v));
+                    s.lifetimeStagger, 0f, 1f, v => s.lifetimeStagger = v, width: 148f));
                 kids.Add(appearanceOrder);
                 box.Add(Z.HGroup(kids.ToArray()));
                 parent.Add(box);

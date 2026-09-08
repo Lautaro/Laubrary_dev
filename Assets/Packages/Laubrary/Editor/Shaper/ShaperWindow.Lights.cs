@@ -46,7 +46,7 @@ namespace Laubrary.Shaper.Editor
                 LightsSectionTooltip(rig), "shaper.window.lights", icon: "sun");
 
             box.Add(Z.HGroup(
-                Z.Field("Ambient", "The rig's one ambient term (LR-1.3), added once before any light and never "
+                Z.Field("Ambient", "The rig's one ambient term, added once before any light and never "
                     + "scaled by a layer's Intensity ×. Per-light ambient would let switching one lamp off "
                     + "darken shadows that lamp was never pointed at — this document has exactly one.",
                     Z.Color(rig.ambientColour, "The ambient's colour.",
@@ -55,7 +55,7 @@ namespace Laubrary.Shaper.Editor
                 // the colour swatch it shares this row with, and printing it twice in one row says nothing
                 // the row's own grouping did not already say.
                 Val("Strength", "How much of the ambient colour is added. Default 0.18 reproduces Pyre's own "
-                    + "ReliefLight ambient default (ShaperLightRig.cs:121-131).",
+                    + "ReliefLight ambient default.",
                     rig.ambientIntensity, 0f, 2f)));
 
             lightListHost = new VisualElement();
@@ -86,7 +86,7 @@ namespace Laubrary.Shaper.Editor
             var rig = document?.lightRig;
             bool atCap = rig != null && rig.lights.Count >= ShaperLightRig.MaxLights;
             addLightButton.tooltip = atCap
-                ? $"The rig is already at its cap of {ShaperLightRig.MaxLights} lights (LR-1.4), and a light "
+                ? $"The rig is already at its cap of {ShaperLightRig.MaxLights} lights, and a light "
                   + "past the cap would never reach the picture — remove one before adding another."
                 : "Add a new light to the rig, lighting every layer in the document.";
             addLightButton.SetEnabled(!atCap);
@@ -119,7 +119,7 @@ namespace Laubrary.Shaper.Editor
                 for (int i = 0; i < rig.lights.Count; i++)
                     if (rig.lights[i] != null && rig.lights[i].enabled) { anyEnabled = true; break; }
             if (!anyEnabled) return ShaperLightRig.NoLightsRenderUnlit;
-            return "The document's one light rig (LR-1.1): a single ambient term plus an ordered list of lights. "
+            return "The document's one light rig: a single ambient term plus an ordered list of lights. "
                 + "No light is owned by a layer or a fill — every layer is lit by this same rig, which is what "
                 + "keeps a multi-layer picture reading as one scene rather than several independently-lit ones.";
         }
@@ -135,10 +135,10 @@ namespace Laubrary.Shaper.Editor
             // for BoxKeyed elsewhere in this tool. Low cost here — at most 8 lights, and drift only affects
             // which cards are folded, never any authored value.
             var card = Z.BoxKeyed(string.IsNullOrEmpty(light.name) ? "Light" : light.name,
-                "One authored light (LR-1.2). No light is owned by a layer — this same rig lights every layer "
+                "One authored light. No light is owned by a layer — this same rig lights every layer "
                 + "in the document.", "shaper.window.light." + li);
 
-            var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder this light. Rig order is authored (LR-2.3) — "
+            var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder this light. Rig order is authored — "
                 + "lights shade in this order, and floating-point summation is not associative, so reordering "
                 + "can change the result.");
             grip.style.unityFontStyleAndWeight = FontStyle.Bold;
@@ -159,7 +159,7 @@ namespace Laubrary.Shaper.Editor
                 + "to the rig.", light.enabled, v => { Change(() => light.enabled = v); RebuildLightList(); }));
 
             card.AddHeaderContent(Z.Segmented((int)light.kind, ShaperWords.Names(typeof(ShaperLightKind)),
-                "Directional has no position — it shades from a fixed direction with no falloff (LR-2.4). "
+                "Directional has no position — it shades from a fixed direction with no falloff. "
                 + "Point has a position and falls off with range.",
                 v => { Change(() => light.kind = (ShaperLightKind)v); RebuildLightList(); }));
 
@@ -176,7 +176,7 @@ namespace Laubrary.Shaper.Editor
             card.Add(Z.HGroup(
                 Z.Field("Colour", "This light's colour, authored in sRGB and decoded once at compile. There is "
                     + "no second specular colour on a light — the highlight's tint lives on the receiving "
-                    + "layer's Spec tint instead (LR-4.4, ShaperLightRig.cs:26-36).",
+                    + "layer's Spec tint instead.",
                     Z.Color(light.colour, "This light's colour.",
                         c => Change(() => light.colour = c), 90f)),
                 Val("Intensity", "Multiplies this light's contribution.", light.intensity, 0f, 4f),
@@ -194,8 +194,8 @@ namespace Laubrary.Shaper.Editor
             bool isDirectional = light.kind == ShaperLightKind.Directional;
             string dirReason = "Yaw and pitch only steer a Directional light's fixed direction. This light is "
                 + "Point, whose direction is implied by its position each sample rather than an authored aim.";
-            string posReason = "Position and range only apply to a Point light, which falls off with distance "
-                + "(LR-2.4). This light is Directional, which has no location — only a direction it comes from.";
+            string posReason = "Position and range only apply to a Point light, which falls off with distance. "
+                + "This light is Directional, which has no location — only a direction it comes from.";
 
             // Direction/Position are spatial X/Y pairs of animatable ZUIValues (ShaperLightRig.cs:46,55,58,60),
             // so they take Val2D — the SAME shared helper and control T-0168 (commit cc02e986) promoted the
@@ -232,7 +232,7 @@ namespace Laubrary.Shaper.Editor
                     : "This Point light's Z position, canvas pixels, +Z toward the viewer.",
                 light.posZ, -256f, 256f);
             var range = Val("Range", isDirectional ? posReason
-                    : "The distance at which this Point light's attenuation reaches 1/2 (LR-2.4). There is no "
+                    : "The distance at which this Point light's attenuation reaches 1/2. There is no "
                       + "separate falloff-exponent dial — a harder falloff is a second light at a shorter range.",
                 light.range, 1f, 512f);
             if (isDirectional) { posZ.SetEnabled(false); range.SetEnabled(false); }

@@ -213,6 +213,13 @@ namespace Laubrary.AssetKit.Editor
             _dirtyDot = Z.Text("●", ZuiText.Body, $"This {TypeLabel} has unsaved edits.");
             _dirtyDot.style.width = 12f;
             _dirtyDot.style.flexShrink = 0f;
+            // T-0307 — the default Label padding (0.89 left + 2.22 right at this UI scale) left 8.89px of
+            // content for an 11.11px glyph, so the dot was drawn clipped in every asset window. Zeroing the
+            // padding rather than widening the slot: the toolbar row is NoWrap and has only 10.2px of slack
+            // at the declared 820px minimum window, so buying width here would push Delete off the edge.
+            _dirtyDot.style.paddingLeft = 0f;
+            _dirtyDot.style.paddingRight = 0f;
+            _dirtyDot.style.unityTextAlign = TextAnchor.MiddleCenter;
 
             _saveButton = Z.Button("Save", $"Write this {TypeLabel}'s edits to disk now.", () =>
             {

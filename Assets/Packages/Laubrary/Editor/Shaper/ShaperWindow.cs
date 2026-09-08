@@ -601,20 +601,25 @@ namespace Laubrary.Shaper.Editor
             // One continuous HGroup rather than several: an overflowing field then lands beside the NEXT
             // field instead of alone on a line of its own.
             box.Add(Z.HGroup(
-                Dial("Width", "Canvas width in samples. B9's authorable range is 32–256.",
+                Dial("Width", "Canvas width in samples. This dial covers 32–256.",
                     document.canvasWidth, 32f, 256f, v => document.canvasWidth = Mathf.RoundToInt(v), decimals: 0),
                 Dial("Height", "Canvas height in samples.",
                     document.canvasHeight, 32f, 256f, v => document.canvasHeight = Mathf.RoundToInt(v), decimals: 0),
                 // T-0257 — "Pixel size" read as "how big is a pixel"; it is how much canvas one sample covers.
                 Dial("Canvas scale", "Canvas units per sample. 1 makes a \"canvas pixel\" in a dial equal one "
-                    + "sample (LR-1.5).", document.pixelSize, 0.1f, 8f, v => document.pixelSize = v),
+                    + "sample.", document.pixelSize, 0.1f, 8f, v => document.pixelSize = v),
                 // T-0257 — "Layer spacing" never said what it spaced them along; the per-layer Z dial in the
                 // Layers card is the other end of this same axis. Given the extra width its own name needs,
                 // since the group wraps rather than clipping.
+                // T-0307 — the second sentence named the wrong neighbour: a layer is already this far above
+                // the one below it, so rising cannot break through downwards. Measured on a two-layer
+                // document at spacing 4 (red under, blue over): raising the BOTTOM layer 24 flips the picture
+                // to 468 red / 0 blue, raising the TOP layer 24 changes nothing, and the same 24 under a
+                // spacing of 64 changes nothing either.
                 Dial("Depth between layers", "Canvas pixels between consecutive layers' base planes, and so "
-                    + "how far apart in depth they sit: layers are composited by which surface is nearest, and "
-                    + "a layer whose height rises more than this above the one below it breaks through it. 0 "
-                    + "puts every base plane together, where list order decides.",
+                    + "how far apart in depth they sit: layers are composited by which surface is nearest, so "
+                    + "a layer that rises more than this above its own base plane pushes through the layer "
+                    + "ABOVE it. 0 puts every base plane together, where list order decides.",
                     document.layerSpacing, 0f, 8f, v => document.layerSpacing = v, width: 190f)));
 
             box.Add(Z.HGroup(
@@ -632,9 +637,16 @@ namespace Laubrary.Shaper.Editor
                     }, decimals: 0),
                 // T-0257 — "Rate" was here AND in the transport, same label, same field, two cards. The
                 // transport is the natural home (it is where playback lives), so this copy is gone.
+                // T-0307 — the enumeration named two consumers and read as the whole list. The seed is handed
+                // to the geometry compile, the fill resolver, the solids, the height stage and the effects
+                // pass (ShaperDocumentRenderer.cs:134, :297, :315, :335, :358), so it reaches EVERY Min-Max
+                // dial in the document. Measured, one Min-Max dial at a time, seed 1 -> 777 over frames
+                // 0/4/8/12: shape half-extents 8832 px, fill Veil 5536 px, layer Intensity x 5716 px,
+                // Translate X 3642 px.
                 Z.Field("Document seed",
-                    "The seed every deterministic draw in this document derives from — Min-Max light dials and "
-                    + "cherry-frame picks. Same seed, same result, every time.\n\n"
+                    "The seed every deterministic draw in this document derives from — every Min-Max dial "
+                    + "anywhere in it (shape, transform, fill, lighting) and the cherry-frame picks. Same "
+                    + "seed, same result, every time.\n\n"
                     + "The document stores this as a uint; this control covers 0…2147483647, so the top half of "
                     + "that range is not reachable from here. That is deliberate: a scrub-draggable number is "
                     + "far more useful for a seed than a hex box, and no authored workflow needs the high half.",
@@ -665,9 +677,14 @@ namespace Laubrary.Shaper.Editor
 
         void BuildLayersSection(VisualElement root)
         {
+            // T-0307 — "what you see here is the stacking order" was true only while nothing contradicts it
+            // in depth. Layers composite by which surface is nearest (ShaperDocumentRenderer.CompositeDepth),
+            // so a raised layer or a pushed Z can come through the one above it — measured: at spacing 4, a
+            // bottom layer raised 24 covers the layer above it outright (468 px of it, 0 px of the other).
             var box = layersSection = Z.Section("Layers",
-                "The document's layers, bottom-most first. Order is authored data — no stage reorders it, so "
-                + "what you see here is the stacking order.",
+                "The document's layers, bottom-most first. Order is authored data — no stage reorders it, and "
+                + "it is the stacking order wherever nothing contradicts it in depth: a layer raised, or its "
+                + "Z pushed, past Depth between layers comes through the one above.",
                 "shaper.window.layers", icon: "stack");
 
             layerListHost = new VisualElement();
