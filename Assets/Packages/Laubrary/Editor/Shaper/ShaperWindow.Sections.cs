@@ -941,7 +941,7 @@ namespace Laubrary.Shaper.Editor
         void BuildEdgeBox(VisualElement parent, ShaperNode node)
         {
             var box = Z.BoxKeyed("Edge", "A derived strip around this node's edge, with its own fill.",
-                "shaper.window.border", "square");
+                "shaper.window.border");
 
             if (node.border == null)
             {
@@ -957,9 +957,10 @@ namespace Laubrary.Shaper.Editor
             // own toggle used to do from the bar.
             box.SetHeaderSuffix(() => b.enabled ? "" : " — off");
 
+            // The switch lives on the header, like a section's: the header names the strip and turns it on.
+            box.SetHeaderToggle(b.enabled, "Draw this edge strip.",
+                v => { Change(() => b.enabled = v); Rebuild(); });
             box.Add(Z.HGroup(
-                Z.Toggle("Enabled", "Draw this edge strip.", b.enabled,
-                    v => { Change(() => b.enabled = v); Rebuild(); }),
                 Val("Width", "How thick the border strip is, in canvas pixels.", b.width, 0f, 32f),
                 // T-0257 — "Alignment" was the label on two unrelated cards (this and the Shell); this one
                 // says where the strip SITS relative to the edge it traces.
@@ -1091,9 +1092,9 @@ namespace Laubrary.Shaper.Editor
                 if (longitudinal) degreeReason = inert; else fractionReason = inert;
             }
 
+            sweep.SetHeaderToggle(node.sweep.enabled, "Apply the sweep.",
+                v => Change(() => node.sweep.enabled = v));
             sweep.Add(Z.HGroup(
-                Z.Toggle("Enabled", "Apply the sweep.", node.sweep.enabled,
-                    v => Change(() => node.sweep.enabled = v)),
                 InertVal("Start", "Where the kept slice begins, in degrees.", degreeReason,
                     node.sweep.startDegreesDial, 0f, 360f, cyclic: true, decimals: 0),
                 InertVal("Extent", "How much of the shape is kept, in degrees. Animate it to wipe the shape "
@@ -1107,9 +1108,9 @@ namespace Laubrary.Shaper.Editor
 
             var shell = Z.BoxKeyed("Shell", "Hollow the shape into a shell of a given thickness.",
                 "shaper.window.shell");
+            shell.SetHeaderToggle(node.shell.enabled, "Hollow this shape.",
+                v => Change(() => node.shell.enabled = v));
             shell.Add(Z.HGroup(
-                Z.Toggle("Enabled", "Hollow this shape.", node.shell.enabled,
-                    v => Change(() => node.shell.enabled = v)),
                 Val("Thickness", "How thick the remaining shell is, in canvas pixels.",
                     node.shell.thicknessDial, 0f, 32f),
                 Z.Field("Taken from", "Which side of the surface the shell is taken from.",
@@ -1134,13 +1135,13 @@ namespace Laubrary.Shaper.Editor
             var box = Z.BoxKeyed("Swarm",
                 "Repeat this node's own content many times with per-instance jitter.",
                 "shaper.window.swarm", "copy");
-            // Sweep and Shell put their Enabled toggle first in the body; this matches them rather than
-            // inventing a second idiom two boxes down the same card. The suffix is what a FOLDED box says.
+            // The switch sits on the header like Sweep's and Shell's; off, the box is just its header. The
+            // suffix is what a FOLDED box says.
             box.SetHeaderSuffix(() => s.enabled ? " — " + s.count : "");
-            var enable = Z.Toggle("Enabled", "Repeat this node as a swarm.", s.enabled,
+            box.SetHeaderToggle(s.enabled, "Repeat this node as a swarm.",
                 v => { Change(() => s.enabled = v); Rebuild(); });
 
-            if (!s.enabled) { box.Add(enable); parent.Add(box); return; }
+            if (!s.enabled) { parent.Add(box); return; }
 
             // The hard cap is a real engine rule (ShaperSwarmDef.cs:163) and the reason a large count can
             // silently do less than it says. It goes in the CONTROL'S OWN TOOLTIP, composed for the current
@@ -1153,7 +1154,6 @@ namespace Laubrary.Shaper.Editor
                 : "How many instances. 1 is a legal identity — one instance, itself.";
 
             box.Add(Z.HGroup(
-                enable,
                 Dial("Count", countTip,
                     s.count, 1f, 64f, v => { s.count = Mathf.RoundToInt(v); Rebuild(); }, decimals: 0),
                 // uint seed, same clamp reasoning the shell used for the document seed: an int control cannot

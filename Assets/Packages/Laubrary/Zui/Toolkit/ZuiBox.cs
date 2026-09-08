@@ -189,6 +189,44 @@ namespace Laubrary.Zui
                 _title.text = _titleText + (open ? string.Empty : (_headerSuffix?.Invoke() ?? string.Empty));
         }
 
+        // ── optional header checkbox (created lazily by SetHeaderToggle) ──
+        Toggle _headerToggle;
+        Action<bool> _headerToggleChanged;
+
+        /// Put the "is this on?" checkbox IN the title row, just left of the title, instead of as an
+        /// "Enabled" toggle in the body. A box that holds an optional feature (a sweep, a shell, a swarm, an
+        /// edge strip, a border) then reads like a section with a header toggle: the header both names the
+        /// thing and switches it, and the body holds only its dials. Clicking the checkbox never folds the
+        /// box (pointer-down is stopped before the row's fold Clickable, the trick the gear uses); the rest
+        /// of the row stays the fold zone. Idempotent: a second call rebinds and refreshes. No-op on an
+        /// untitled box. Same shape as ZuiSection.SetHeaderToggle, so both containers behave alike.
+        public void SetHeaderToggle(bool value, string tooltip, Action<bool> onChanged)
+        {
+            if (_titleRow == null || _title == null) return;
+            _headerToggleChanged = onChanged;
+            if (_headerToggle == null)
+            {
+                _headerToggle = new Toggle { tooltip = tooltip };
+                _headerToggle.AddToClassList("zui-audit-allow-toggle");   // a header switch, not a checkbox setting
+                _headerToggle.AddToClassList("zui-box__toggle");
+                _headerToggle.style.marginTop = 0f;
+                _headerToggle.style.marginBottom = 0f;
+                _headerToggle.style.marginLeft = 0f;
+                _headerToggle.style.marginRight = 4f;
+                _headerToggle.RegisterCallback<PointerDownEvent>(e => e.StopPropagation());
+                _headerToggle.RegisterValueChangedCallback(e => _headerToggleChanged?.Invoke(e.newValue));
+                int idx = _titleRow.IndexOf(_title);
+                if (idx < 0) idx = _titleRow.childCount;
+                _titleRow.Insert(idx, _headerToggle);
+            }
+            else if (!string.IsNullOrEmpty(tooltip)) _headerToggle.tooltip = tooltip;
+            _headerToggle.SetValueWithoutNotify(value);
+        }
+
+        /// Refresh the header checkbox from outside WITHOUT firing onChanged (after an undo, say). No-op if
+        /// SetHeaderToggle was never called.
+        public void SetHeaderToggleWithoutNotify(bool value) => _headerToggle?.SetValueWithoutNotify(value);
+
         /// Give the box header a suffix shown ONLY while the box is COLLAPSED — for surfacing
         /// hidden-but-active content (e.g. "(on)" when a folded box holds an enabled feature). `provider`
         /// returns the whole suffix string; return "" for none. DEFAULTS to no suffix (a box that never

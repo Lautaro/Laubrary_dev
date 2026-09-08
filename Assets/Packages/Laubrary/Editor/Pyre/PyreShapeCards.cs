@@ -961,9 +961,10 @@ namespace Laubrary.Pyre.Editor
                 "pyreplus.border", "bounding-box");
             // Collapsed, the box hides an active rim — mark it so folding away the border doesn't hide that it's on.
             box.SetHeaderSuffix(() => s.borderEnabled ? " (on)" : "");
-            box.Add(Z.Toggle("Enable",
+            // The rim's switch is the box header's own checkbox, so the header names the rim and turns it on.
+            box.SetHeaderToggle(s.borderEnabled,
                 "Draw the rim. Off = no border (the shape is unchanged, byte-identical to no border).",
-                s.borderEnabled, v => { host.Dirty(() => s.borderEnabled = v); host.RebuildShape(); }));
+                v => { host.Dirty(() => s.borderEnabled = v); host.RebuildShape(); });
             box.Add(host.Val("Width (px)",
                 "Rim thickness in pixels, over the layer's life — the outermost N px of the shape's silhouette are "
                 + "recoloured to the Border fill (the rim keeps the shape's anti-aliased edge).",
