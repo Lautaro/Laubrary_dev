@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- SpriteFX: all 26 effects that can run were measured live at both the layer and whole-picture stage with every parameter acting; the 15 the catalog refuses are refused for true reasons; Ordered dither strength and Posterize's affect-alpha say they act only on soft alpha (T-0274).
 - Shaper hosted Fire and Fireball step their simulation with Pyre's own salted seed, so a hosted fire matches the same fire in Pyre frame for frame; all 27 hosted sources re-measured against Pyre's renderer (16 byte-identical, 9 within one bit of premultiply rounding) (T-0272).
 - Shaper: switching Height on is visible at once (the layer's normals follow the profile), enabling Sweep shows a sweep (270°/0.75 seeded only from an untouched identity), and a new bag member or 'Combine children' pick starts as a quarter-canvas shape instead of a full-canvas rectangle; 49 add/enable affordances measured (T-0267).
 - ZUI: a reflected dial can be greyed with a reason (`ZuiReflect.Options.InertReason`); hosted Pyre forms grey 20 guarded dials until their guard dial is non-zero; a ramp host can declare which Adjust knobs it honours, and Jet/Orb's baked ramps hide the blend-mode row and Cycle their LUT ignores (T-0281).

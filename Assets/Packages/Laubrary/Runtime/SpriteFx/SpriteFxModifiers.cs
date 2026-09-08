@@ -901,7 +901,9 @@ namespace Laubrary.SpriteFx
         [ZUIWholeNumber] public ZUIValue levelsValue = new ZUIValue(5f);
         public ZUIValue Levels { get { if (!levelsUpgraded) { levelsValue = new ZUIValue(levels); levelsUpgraded = true; } return levelsValue; } }
 
-        [Tooltip("Also quantize alpha into the same number of steps (hard transparency bands instead of a smooth fade).")]
+        [Tooltip("Also quantize alpha into the same number of steps (hard transparency bands instead of a smooth fade). " +
+                 "Only visible where alpha is already soft (a feathered edge, a glow falloff) — a hard-edged " +
+                 "silhouette has no partial alpha to band.")]
         public bool affectAlpha = false;
 
         int lv = 5;
@@ -927,7 +929,9 @@ namespace Laubrary.SpriteFx
     {
         [Range(0f, 1f)]
         [Tooltip("How much the ordered dither replaces the smooth alpha. 0 = untouched; 1 = fully hard-dithered " +
-                 "(a classic retro stipple edge). Animatable — rise it as a shape settles into its final silhouette.")]
+                 "(a classic retro stipple edge). Animatable — rise it as a shape settles into its final silhouette. " +
+                 "No visible effect on a hard-edged silhouette by itself — stack this after something that softens " +
+                 "alpha first (Outline's Outer softness, Bloom, a churned Turbulence edge).")]
         public ZUIValue strength = new ZUIValue(1f);
 
         float amt;
