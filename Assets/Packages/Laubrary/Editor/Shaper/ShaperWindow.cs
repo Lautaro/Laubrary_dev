@@ -971,14 +971,22 @@ namespace Laubrary.Shaper.Editor
             // ahead of the optional carves below it: every node has a placement, while Combine/Sweep/Shell
             // and Swarm are things a node may or may not do. Pyre groups the same fields into one collapsible
             // "Position" box on its Shape card (Editor/Pyre/PyreShapeCards.cs:232), which is what this is.
-            BuildPositionBox(box, node);
+            // A Solid node places, turns and sizes itself with its own dials (Centre, Size, Yaw/Tilt/Roll), and
+            // ShaperSolids writes its silhouette over the node's shape program in full — so Position, Sweep and
+            // Shell, which act on that program, change nothing on it (measured: 0 pixels for translate, rotate,
+            // scale, a 180° sweep and a 4 px shell). Absent rather than greyed: they are not "inert right now",
+            // they do not apply to this kind of node at all, the same rule a composite gets for Fill.
+            if (node.kind != ShaperNodeKind.Solid)
+            {
+                BuildPositionBox(box, node);
 
-            // The combine op and the join dials only mean something for a node that has siblings to combine
-            // WITH, so they are drawn only for a bag member; the sweep and shell carve this node's own
-            // geometry and apply wherever it sits, so they are not gated. (Both used to live in a card
-            // called "Modifiers", which they never were — a modifier is an effect on the picture, these
-            // are part of the shape.)
-            BuildShapeOpsBody(box, node);
+                // The combine op and the join dials only mean something for a node that has siblings to combine
+                // WITH, so they are drawn only for a bag member; the sweep and shell carve this node's own
+                // geometry and apply wherever it sits, so they are not gated. (Both used to live in a card
+                // called "Modifiers", which they never were — a modifier is an effect on the picture, these
+                // are part of the shape.)
+                BuildShapeOpsBody(box, node);
+            }
 
             root.Add(box);
         }

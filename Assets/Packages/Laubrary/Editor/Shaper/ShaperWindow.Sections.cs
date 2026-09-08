@@ -491,8 +491,8 @@ namespace Laubrary.Shaper.Editor
                         () => { Change(() => node.fill = new ShaperFillDef()); Rebuild(); })));
                 // T-0258 — an edge is authorable whether or not the node owns a fill of its own: a layer root
                 // with an empty slot is still painted (FC-3.2 substitutes a default), so the box goes in on
-                // both paths rather than being stranded behind the Add-fill affordance.
-                BuildEdgeBox(box, node);
+                // both paths rather than being stranded behind the Add-fill affordance. Not on a Solid (see below).
+                if (node.kind != ShaperNodeKind.Solid) BuildEdgeBox(box, node);
                 root.Add(box);
                 return;
             }
@@ -505,7 +505,10 @@ namespace Laubrary.Shaper.Editor
             BuildFillBody(box, node.fill, "shaper.window.fill");
             box.Add(Z.Button("Remove fill", "Drop this node's own fill and fall back to the default/inherited one.",
                 () => { Change(() => node.fill = null); Rebuild(); }));
-            BuildEdgeBox(box, node);
+            // A Solid has no analytic edge for a strip to trace (its silhouette is written by ShaperSolids over
+            // the node's carrier box), so the resolver refuses a border on it exactly as on a composite, and the
+            // card offers none: the solid's own Line width IS its edge.
+            if (node.kind != ShaperNodeKind.Solid) BuildEdgeBox(box, node);
             root.Add(box);
         }
 
@@ -951,7 +954,7 @@ namespace Laubrary.Shaper.Editor
             {
                 box.Add(Z.Field("Edge", "This node has no edge strip.",
                     Z.Button("Add edge", "Give this node an edge strip.",
-                        () => { Change(() => node.border = new ShaperBorderDef { fill = SeededBorderFill(node) }); Rebuild(); })));
+                        () => { Change(() => node.border = new ShaperBorderDef { enabled = true, fill = SeededBorderFill(node) }); Rebuild(); })));
                 parent.Add(box);
                 return;
             }

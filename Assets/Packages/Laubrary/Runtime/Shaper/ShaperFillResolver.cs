@@ -500,6 +500,12 @@ namespace Laubrary.Shaper
             // painting the FC-3.2 default over the generator's own picture and cutting a 608-colour gem down
             // to 51 flat-looking ones.
             if (node.kind == ShaperNodeKind.Composite) return -1;
+            // A SOLID NODE HAS NO BORDER EITHER, for the same structural reason one level over: its shape program
+            // is only a conservative carrier BOX (ShaperCompiler.EmitSolid), and ShaperSolids writes the real
+            // silhouette over it afterwards. A strip traced on the carrier is a rectangle around the solid, and
+            // with joinsCoverage it becomes the solid's whole picture — measured on a saved Pyramid: 238 colours
+            // (facets, lines, glow) collapsed to 4 while the phantom border was live.
+            if (node.kind == ShaperNodeKind.Solid) return -1;
 
             // BD-1.5 — null, disabled or zero-width is an EXACT no-op: no owner, no strip, nothing recorded.
             ShaperResolvedBorder border = ShaperBorder.Resolve(node.border, phase01, seed);

@@ -32,8 +32,15 @@ namespace Laubrary.Shaper
         /// The border's one structural identity. <c>false</c> emits nothing at all — no strip program, no owner,
         /// no dilation of the node's published field (BD-1.5). It is tested BEFORE the strip is compiled, so it
         /// is an exact no-op rather than a strip painted with zero alpha.
+        ///
+        /// OFF by default, and this default is load-bearing: <c>ShaperNode.border</c> is a plain [Serializable]
+        /// class field, and Unity's serializer never writes null for one, so every node saved to an asset comes
+        /// back carrying a border object nobody authored. With the old default of <c>true</c> that phantom was a
+        /// live 2 px strip on every saved shape — and on a Solid it traced the solid's carrier box instead of the
+        /// solid, painting a flat rectangle over the lit facets, lines and glow (a Pyramid fell from 238 colours
+        /// to 4). The window's "Add edge" sets this true at the moment a person asks for an edge.
         /// </summary>
-        public bool enabled = true;
+        public bool enabled = false;
 
         /// <summary>
         /// Where the strip sits relative to the node's edge.
