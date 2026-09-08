@@ -325,6 +325,25 @@ namespace Laubrary.Zui
             if (string.IsNullOrEmpty(control.tooltip)) control.tooltip = tooltip;
             wrap.Add(control);
             ZuiScrub.AttachToLabel(l, control);
+
+            // A control that WRAPS its own content onto a second line (a MiniRadio with `wrap:true` whose
+            // options exceed the row) grows taller than one text line — but a `.zui-field` sits inside the
+            // reflected FLOW container (ZuiReflect.FlowSubset), which is ITSELF a flex-wrap row. Yoga does not
+            // reliably re-measure a flex-wrap container's own auto height across two nested wrap levels in one
+            // pass: the field correctly resolves to its full wrapped height, but the FLOW around it keeps the
+            // single-line height it estimated before the control's internal wrap happened, so the next card
+            // (or box header) below is positioned as if this row were still one line tall and gets painted
+            // over. Measured live on Pyre's Torch "Flame type" row (5 options, wraps 4+1): field height
+            // resolved to 40 (correct) while its flow parent stayed at 24 — the exact 16px overflow T-0287
+            // reports. Stamping an EXPLICIT height here (instead of leaving it to auto/implicit sizing)
+            // forces Yoga to treat it as an authoritative constraint, which correctly re-propagates to the
+            // flow's own auto-height on the next layout pass. No-op for every field that never changes height
+            // (the vast majority) — the callback only writes when the measured height actually moves.
+            wrap.RegisterCallback<GeometryChangedEvent>(evt =>
+            {
+                if (!Mathf.Approximately(evt.newRect.height, evt.oldRect.height))
+                    wrap.style.height = evt.newRect.height;
+            });
             return wrap;
         }
 

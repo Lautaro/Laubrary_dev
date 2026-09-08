@@ -88,8 +88,12 @@ namespace Laubrary.Zui
 
             _picker = new DropdownField
             {
+                // T-0286 — picking a DIFFERENT view applies it immediately; re-picking the one already
+                // shown raises no change event and does nothing, so the tooltip now says where the
+                // re-apply gesture lives instead of implying every pick acts.
                 tooltip = "Pick a saved view to apply it. Switching a view changes only how the window is "
-                    + "arranged — never the asset's authored values — and never dirties the views asset."
+                    + "arranged — never the asset's authored values — and never dirties the views asset. "
+                    + "Re-selecting the view already shown does nothing by itself — press Apply for that."
             };
             _picker.style.minWidth = 150f;
             _picker.style.marginRight = 6f;
@@ -100,6 +104,16 @@ namespace Laubrary.Zui
                 if (!string.IsNullOrEmpty(ev.newValue)) ApplyPreset(ev.newValue);
             });
             Add(_picker);
+
+            // T-0286 — the dropdown only applies a view when its VALUE CHANGES, so re-selecting the view
+            // that is already showing (or restoring it after rearranging the window by hand) raises no
+            // ChangeEvent and does nothing. "Apply" is the same gesture as picking it, made reachable when
+            // the value does not change — it never overwrites the saved view, only re-pushes it onto the
+            // window.
+            Add(Z.Button("Apply", "Re-apply the selected view to the window as it is currently saved. Use "
+                + "this to put the window back after moving folds/gears around, or the first time you "
+                + "pick a view the dropdown was already showing (a re-select alone applies nothing).",
+                () => { if (!string.IsNullOrEmpty(_picker.value)) ApplyPreset(_picker.value); }));
 
             Add(Z.Button("Update", "Overwrite the selected view with the window's current arrangement.",
                 () => { if (!string.IsNullOrEmpty(_picker.value)) SaveInto(_picker.value); }));
