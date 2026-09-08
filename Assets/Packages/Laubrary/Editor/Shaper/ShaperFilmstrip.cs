@@ -30,7 +30,7 @@ namespace Laubrary.Shaper.Editor
         // T-0190 — the tile size is the host's to set (Pyre's own "Tile px" slider,
         // Editor/Pyre/PyreWindow.cs:549). Purely how the strip is DRAWN: every tile's source texture is the
         // full canvas either way (see this file's header), so changing it re-renders nothing.
-        readonly float _tile;
+        float _tile;
         static readonly Color CurrentColor = new Color(1f, 0.84f, 0.22f, 1f);
         static readonly Color EdgeColor = new Color(0f, 0f, 0f, 0.25f);
 
@@ -62,6 +62,27 @@ namespace Laubrary.Shaper.Editor
         {
             _prebaker.Stop();
             DestroyTextures();
+        }
+
+        /// Redraw the strip at a new tile size WITHOUT rebuilding it (T-0288). The size is pure presentation
+        /// — every tile's source texture is the full canvas whatever it is drawn at — so the tiles, their
+        /// textures and the pre-baker all stay exactly as they are. This exists because the host's Tile-size
+        /// slider used to answer its own value change by rebuilding the whole transport, which destroyed the
+        /// slider mid-drag: the press applied, the element was detached the same instant, and every further
+        /// PointerMove of that drag went to a dead element. Measured: a press at 90% set 118 and then three
+        /// moves across the whole track left it at 118. The slider is only draggable if it survives its own
+        /// callback.
+        public void SetTileSize(float tileSize)
+        {
+            float t = Mathf.Clamp(tileSize, 16f, 256f);
+            if (Mathf.Approximately(t, _tile)) return;
+            _tile = t;
+            style.height = _tile + 6f;
+            for (int i = 0; i < _row.childCount; i++)
+            {
+                _row[i].style.width = _tile;
+                _row[i].style.height = _tile;
+            }
         }
 
         void DestroyTextures()

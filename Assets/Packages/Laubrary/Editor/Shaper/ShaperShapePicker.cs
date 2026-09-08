@@ -160,7 +160,11 @@ namespace Laubrary.Shaper.Editor
                 { ShaperPrimitiveKind.Capsule, "Draw a stadium — a straight segment with a round cap at each end." },
                 { ShaperPrimitiveKind.NGon, "Draw a regular polygon with as many sides as you set." },
                 { ShaperPrimitiveKind.Star, "Draw a star whose arms you control for count, reach, width and twist." },
-                { ShaperPrimitiveKind.Sprite, "Take the shape from a sprite's alpha, so any drawn artwork becomes the outline." },
+                // T-0288 — the second sentence exists because this is the ONE entry in the whole picker
+                // that draws nothing when it is picked: all 43 others put a picture on the canvas at their
+                // own defaults, this one renders 0 lit pixels until a sprite is assigned. Without saying so
+                // the blank canvas reads as a broken pick.
+                { ShaperPrimitiveKind.Sprite, "Take the shape from a sprite's alpha, so any drawn artwork becomes the outline. Nothing is drawn until you assign a Sprite in the Shape card below." },
                 { ShaperPrimitiveKind.Text, "Make the glyphs of a line of text the shape itself, so fill, border and light apply to the letters." },
             };
 

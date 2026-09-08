@@ -33,6 +33,7 @@ namespace Laubrary.Shaper.Editor
     {
         ZuiSection lightsSection;
         VisualElement lightListHost;
+        Button addLightButton;
 
         /// The document's Lights card: the rig's one ambient term, then every ShaperLight in authored order.
         /// Called by the shell (ShaperWindow.cs BuildAsset) beside BuildCanvasSection.
@@ -50,27 +51,45 @@ namespace Laubrary.Shaper.Editor
                     + "darken shadows that lamp was never pointed at — this document has exactly one.",
                     Z.Color(rig.ambientColour, "The ambient's colour.",
                         c => Change(() => rig.ambientColour = c), 90f)),
-                Val("Ambient ×", "The ambient's strength. Default 0.18 reproduces Pyre's own ReliefLight "
-                    + "ambient default (ShaperLightRig.cs:121-131).", rig.ambientIntensity, 0f, 2f)));
+                // T-0288 — captioned "Strength", not "Ambient ×": the word Ambient is already the label of
+                // the colour swatch it shares this row with, and printing it twice in one row says nothing
+                // the row's own grouping did not already say.
+                Val("Strength", "How much of the ambient colour is added. Default 0.18 reproduces Pyre's own "
+                    + "ReliefLight ambient default (ShaperLightRig.cs:121-131).",
+                    rig.ambientIntensity, 0f, 2f)));
 
             lightListHost = new VisualElement();
             box.Add(lightListHost);
             RebuildLightList();
 
-            bool atCap = rig.lights.Count >= ShaperLightRig.MaxLights;
-            var addBtn = Z.Button("+ Add light", atCap
-                    ? $"The rig is already at its cap of {ShaperLightRig.MaxLights} lights (LR-1.4) — remove "
-                      + "one before adding another."
-                    : "Add a new light to the rig, lighting every layer in the document.",
+            addLightButton = Z.Button("+ Add light", string.Empty,
                 () =>
                 {
                     Change(() => rig.lights.Add(new ShaperLight { name = "Light " + (rig.lights.Count + 1) }));
                     RebuildLightList();
                 });
-            addBtn.SetEnabled(!atCap);
-            box.Add(addBtn);
+            box.Add(addLightButton);
+            RefreshAddLightButton();
 
             root.Add(box);
+        }
+
+        /// The cap (LR-1.4) has to be re-read every time the list changes, not once when the card is built.
+        /// <see cref="ShaperLightLaw"/> clamps to <see cref="ShaperLightRig.MaxLights"/> when it shades, so a
+        /// ninth light is authored, saved and drawn on the card while contributing exactly nothing to the
+        /// picture — measured: the 8th light moves 504 px, the 9th and 10th move 0. Computing this once in
+        /// BuildLightsSection let both halves drift: the button never disabled as the rig grew past the cap,
+        /// and once it HAD been built at the cap it stayed disabled after the lights were removed again.
+        void RefreshAddLightButton()
+        {
+            if (addLightButton == null) return;
+            var rig = document?.lightRig;
+            bool atCap = rig != null && rig.lights.Count >= ShaperLightRig.MaxLights;
+            addLightButton.tooltip = atCap
+                ? $"The rig is already at its cap of {ShaperLightRig.MaxLights} lights (LR-1.4), and a light "
+                  + "past the cap would never reach the picture — remove one before adding another."
+                : "Add a new light to the rig, lighting every layer in the document.";
+            addLightButton.SetEnabled(!atCap);
         }
 
         void RebuildLightList()
@@ -86,6 +105,7 @@ namespace Laubrary.Shaper.Editor
             // again), so this is the ONE place that needs to re-check "does the rig still have zero enabled
             // lights" rather than a refresh wired into each of those three call sites separately.
             lightsSection?.SetTooltip(LightsSectionTooltip(rig));
+            RefreshAddLightButton();
         }
 
         /// T-0200 — the Lights section's header tooltip, honest about whether the rig is currently doing
@@ -160,7 +180,15 @@ namespace Laubrary.Shaper.Editor
                     Z.Color(light.colour, "This light's colour.",
                         c => Change(() => light.colour = c), 90f)),
                 Val("Intensity", "Multiplies this light's contribution.", light.intensity, 0f, 4f),
-                Val("Specular", "This light's own Blinn-Phong strength. Applies to either kind.",
+                // T-0288 — the second sentence is measured, not decorative. A Blinn-Phong highlight needs the
+                // surface normal to TURN. On a layer whose Normals are Flat (the default) a Directional
+                // light's half-vector is the same at every pixel, so this dial moves 0 px over its whole
+                // range; give that layer a Height stage with Normals on "Follow the surface" and the same
+                // sweep moves 164 px. A Point light's direction varies per pixel, so it shows on a flat
+                // layer too (504 px).
+                Val("Specular", "This light's own Blinn-Phong highlight strength. It needs a surface that "
+                    + "turns: on a layer whose Normals are Flat, a Directional light's highlight is the same "
+                    + "everywhere and never shows — a Point light's still does.",
                     light.specular, 0f, 1f)));
 
             bool isDirectional = light.kind == ShaperLightKind.Directional;

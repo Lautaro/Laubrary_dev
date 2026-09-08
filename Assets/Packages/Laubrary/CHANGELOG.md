@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- Shaper: the Lights card enforces its cap of eight (the renderer ignores lights past eight) and re-enables Add light when you drop under it; the transport's Tile size slider can be dragged (it rebuilt itself on the first press); the cherry Zound row no longer draws over the Bake box; Specular says it needs real normals; the picker's 'Image' entry says it draws nothing until a sprite is set; 'Ambient' is printed once (T-0288).
+- ZUI: a field's wrapped height is driven by its control's geometry, not its own (the earlier fix pinned itself after one measurement and froze Pyre's Colour ramp field 40 px short) (T-0288).
 - ZUI: the Views bar has an Apply button, so the view already selected can be re-applied (T-0286); a radio whose options wrap no longer paints over the box below it — a field's wrapped height now reaches its flow container (Pyre's Torch 'Flame type' and every hosted variant radio) (T-0287).
 - Shaper: a Solid's Position box says which axis of Scale and Skew is inert on each form (it named the wrong one); six doubled captions on the Torch, Orb, Jet, Inferno and Fire cards are distinct again; a greyed control carries its reason on its caption as well as its value (T-0284).
 - ZUI: saving a named View saves only the view store instead of every dirty asset in the project, and its tooltip no longer promises section folds a view never stored (T-0284).

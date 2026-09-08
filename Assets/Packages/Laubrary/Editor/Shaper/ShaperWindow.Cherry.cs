@@ -365,8 +365,17 @@ namespace Laubrary.Shaper.Editor
                     cherryPanel?.RebuildSlotGrid();   // the ♪ badge moved to a different card
                 }, 150f, decimals: 0);
 
+            // T-0288 — this row must not wrap. Measured at the pane width it is drawn at: the slider and the
+            // picker need 335.56 px of a 335.56 px group, and Yoga rounded that tie into a wrap — putting
+            // the "(none)" button on a second line the group never reserved height for, so it was drawn
+            // 18.7 px outside its own row, over the Bake box below it. Two controls that both carry an
+            // explicit width, inside a field with 828 px to spend, have nothing to gain from wrapping, and
+            // the tie is a sub-pixel accident that will land differently at another DPI or pane width.
+            var zoundRow = Z.HGroup(slider, BuildZoundPickerButton());
+            zoundRow.style.flexShrink = 0f;
+            zoundRow.style.flexWrap = Wrap.NoWrap;
             return Z.Field("Zound cue", "A preview-only sound cue tied to one cherry slot. Never baked.",
-                Z.HGroup(slider, BuildZoundPickerButton()));
+                zoundRow);
         }
 
         VisualElement BuildZoundPickerButton()

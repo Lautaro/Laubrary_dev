@@ -1567,7 +1567,16 @@ namespace Laubrary.Shaper.Editor
             transportHost.Add(Z.MicroSlider("Tile size", previewStripTile, 24f, 128f,
                 "How big each frame tile in the contact sheet is, in screen pixels. Only changes how the "
                 + "strip is drawn — no frame is re-rendered and no bake is affected.",
-                v => { previewStripTile = Mathf.Clamp(v, 24f, 128f); FillTransport(); }, 185f, decimals: 0));
+                // T-0288 — the strip is restyled in place, never re-filled. FillTransport() clears the whole
+                // transport, so answering this slider's own value change with it detached the slider on the
+                // first press of a drag and every further move went nowhere: the control could be clicked
+                // but not dragged. Pyre's cherry panel already takes this shape (its Tile px slider rebuilds
+                // the GRIDS, not the box the slider lives in).
+                v =>
+                {
+                    previewStripTile = Mathf.Clamp(v, 24f, 128f);
+                    filmstrip?.SetTileSize(previewStripTile);
+                }, 185f, decimals: 0));
 
             filmstrip = new ShaperFilmstripElement(() => document,
                 () => currentFrame,

@@ -339,12 +339,35 @@ namespace Laubrary.Zui
             // forces Yoga to treat it as an authoritative constraint, which correctly re-propagates to the
             // flow's own auto-height on the next layout pass. No-op for every field that never changes height
             // (the vast majority) — the callback only writes when the measured height actually moves.
-            wrap.RegisterCallback<GeometryChangedEvent>(evt =>
-            {
-                if (!Mathf.Approximately(evt.newRect.height, evt.oldRect.height))
-                    wrap.style.height = evt.newRect.height;
-            });
+            //
+            // The stamp is driven by the CONTROL's geometry, never by the wrapper's own (T-0288). A wrapper
+            // whose height has been pinned no longer changes size when its content does, so a callback that
+            // watched the wrapper fired exactly once and then went deaf: a control that grows LATER — a ramp
+            // opening its Adjust box, an envelope expanding, a 2D pad unfolding — was left overhanging a
+            // frozen row. Measured on Pyre's own Colour ramp field: pinned at 187.1px around a 227.6px
+            // ZuiGradientControl, painting 20px over the row above and 20px over the row below; clearing the
+            // stamp resolved it to 227.6 immediately. The control keeps reporting its own geometry whatever
+            // the wrapper is pinned to, so watching it is what makes the stamp track rather than freeze.
+            wrap.RegisterCallback<GeometryChangedEvent>(_ => StampFieldHeight(wrap, l, control));
+            control.RegisterCallback<GeometryChangedEvent>(_ => StampFieldHeight(wrap, l, control));
             return wrap;
+        }
+
+        /// The height a `.zui-field` must reserve for its own two children, and the one place that writes it.
+        /// Taken from the CHILDREN rather than from the wrapper, because the wrapper's height is the thing
+        /// being pinned and so stops reporting what its content needs (see Field's own comment).
+        static void StampFieldHeight(VisualElement wrap, VisualElement label, VisualElement control)
+        {
+            float ch = control.resolvedStyle.height;
+            float lh = label.resolvedStyle.height;
+            if (float.IsNaN(ch) || float.IsNaN(lh)) return;
+            float need = Mathf.Max(ch + control.resolvedStyle.marginTop + control.resolvedStyle.marginBottom,
+                                   lh + label.resolvedStyle.marginTop + label.resolvedStyle.marginBottom);
+            need += wrap.resolvedStyle.paddingTop + wrap.resolvedStyle.paddingBottom;
+            if (need <= 0f || float.IsNaN(need)) return;
+            var cur = wrap.style.height;
+            if (cur.keyword == StyleKeyword.Undefined && Mathf.Approximately(cur.value.value, need)) return;
+            wrap.style.height = need;
         }
 
         // ── controls (tooltip is always a required parameter) ───────────────────────
