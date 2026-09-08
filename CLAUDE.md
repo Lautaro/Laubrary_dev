@@ -28,6 +28,10 @@ This project has a project-scoped `coplay-mcp` server (`.mcp.json`). The Coplay 
 
 If `Application.dataPath` points anywhere else — above all if it points at `D:\UNITY\Laubrary Dev`, the main copy — you are driving the wrong editor, and `check_compile_errors` will look clean despite new code while reflection won't find new types. Re-run steps 1–3. `set_unity_project_root` is per-session.
 
+## Unity MCP server (`unity-mcp`) — second bridge, no targeting dance needed
+
+This project's `.mcp.json` also registers Unity's own MCP server (`unity.exe mcp --project-path <this project>`), tools `mcp__unity-mcp__*`. It is pinned to this project, so it never needs `set_unity_project_root`. Prefer it for `eval`/`eval_file` (resolves `Laubrary.*`, returns a real value, no domain reload), `get_console_logs`, `get_scene_hierarchy` / `find_gameobjects` / `get_component_properties`, prefab edits and test status. Keep Coplay for UI construction, Input System, animator and generation tools. During a recompile/play-mode domain reload a call can time out — wait and retry, same as Coplay. Full rules: `D:\Unity\UNITY_DEV_GUIDE.md`, "`unity mcp`" bullet.
+
 ## Pyre — the rename is DONE, there is no "PyrePlus"
 
 **Executed 2026-08-23.** PyrePlus was renamed to plain **Pyre** and the ORIGINAL Pyre was deleted outright (not kept as a shim). `Runtime/Pyre/` + `Editor/Pyre/` hold the ex-PyrePlus code under plain-Pyre names — `PyreRenderer`, `PyreWindow`, `PyreBaker`, `PyreChunkAnimation`, asmdef `com.Lautaro-Arino.Laubrary.Pyre`, namespace `Laubrary.Pyre`. `[MovedFrom]` attributes were applied across the `SerializeReference` form types so existing authored assets still deserialize. `Runtime/PyrePlus/` and `Editor/PyrePlus/` are empty leftovers.
@@ -48,9 +52,10 @@ Both projects have an identical `productName`, so **nothing inside the editor te
 Load-bearing facts, each verified against source rather than docs (2026-09-01):
 
 - **`ShaperDocument` is a `ScriptableObject`** with `[CreateAssetMenu("Laubrary/Shaper Document")]`, matching Pyre's own spec-asset pattern. It has no custom `name` field — use `Object.name`. It carries `frameCount` + `frameRate` (the animation clock) alongside `phase01`.
-- **The frame→phase mapping is `i/(N-1)`, and is NOT open for revision.** `ShaperNodeIdentity` folds `phase01` into every cache key, so changing it silently invalidates every key and re-points every authored Curve dial. `ShaperClock` is the single home for that conversion; never write a second one.
+- **The frame→phase mapping is `i/(N-1)`, and is NOT open for revision.** It is fixed by design and by `ShaperClock` (the single home for that conversion — never write a second one): every authored Curve dial is pointed at the key `ShaperClock`'s conversion produces, so changing the mapping would silently re-point every authored dial. (`ShaperNodeIdentity`, the type that used to fold `phase01` into the cache key, was deleted by T-0253; the surviving key is `Runtime/Shaper/ShaperLayerKey.cs`.)
 - **`ZUIValue` vs plain float is per-field, never a category rule.** The engine mixes both inside one struct (Star's sides/radius are plain, its length/baseWidth/skew are `ZUIValue`). Always check the real field before drawing a control.
-- **The nine composite generators expose ~775 authored fields** (ArcBurst alone 187). Any generator UI must be reflection-driven over the assigned `PyreForm`; hand-listing dials is not maintainable and will silently expose a fraction of the engine.
+- **The nine composite generators expose ~775 authored fields.** Any generator UI must be reflection-driven over the assigned `PyreForm`; hand-listing dials is not maintainable and will silently expose a fraction of the engine.
+- **Fills and borders carry an `authored` flag since T-0271.** Set when you add a fill/border; pre-existing edited fills are promoted on load. This is what stops the default objects Unity materialises on every saved node from painting over a bag's fill or showing as "Remove fill" on a node that never had one — a saved document round-trips pixel-identical.
 - Deterministic draws only: `UnityEngine.Random` and `System.Random` are banned in generator paths (BC-1.3). Hash from `seed` instead.
 
 ## Tool conventions (mirror for every Laubrary tool)
