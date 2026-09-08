@@ -59,7 +59,7 @@ namespace Laubrary.Shaper.Editor
         // T-0258 — Border, Swarm and Lighting stopped being sections (they are boxes inside the card whose
         // subject they belong to now: Fill, Shape and the selected layer's row), and the two effect lists
         // collapsed into one SpriteFX section, so only two of the six survive as bar entries.
-        ZuiSection fillSection, effectsSection;
+        ZuiSection fillSection, swarmSection, effectsSection;
 
         // T-0187 — Height and Mask stopped being toggle-bar ZuiSections (the owner: "I get the feeling you
         // shouldn't make them into sections... perhaps part of the layer item in the layer list") and became
@@ -115,9 +115,11 @@ namespace Laubrary.Shaper.Editor
             // genuinely absent for the current one (a composite node has no Fill). Without this the bar kept
             // offering a segment whose section no longer existed anywhere in the tree, so toggling it did
             // nothing — "Fill and Border are selectable but don't show up in the UI" (owner).
-            // T-0258 — Fill is the only one left: Border, Swarm and Lighting are boxes now, and a box is
-            // owned by the card that draws it rather than by the bar.
+            // T-0258 — Border and Lighting are boxes now, and a box is owned by the card that draws it rather
+            // than by the bar. Swarm is a section again (owner, 2026-09-08: Pyre keeps it in the bar, and a
+            // section header is where its on/off checkbox reads as a section's).
             fillSection = null;
+            swarmSection = null;
 
             // The per-shape bodies (generator dials, bag members, solid dials) and the combine/sweep/shell
             // ops moved INTO the Shape card in T-0182 — see ShaperWindow.BuildShapeSection. They are drawn
@@ -132,6 +134,7 @@ namespace Laubrary.Shaper.Editor
             // Swarm card is the Shape card's "Swarm" box (BuildShapeSection adds it), so a composite node
             // skipping Fill now skips its edge with it — which is the same rule stated once instead of twice.
             if (node.kind != ShaperNodeKind.Composite) BuildFillSection(root, node);
+            BuildSwarmSection(root, node);
 
             // T-0258 — Lighting moved out of here entirely: it is a LAYER property, so it is now a toggle plus
             // a folded box on the selected layer's own row (RefreshSelectedLayerCards, ShaperWindow.cs), where
@@ -144,6 +147,7 @@ namespace Laubrary.Shaper.Editor
         internal (string, ZuiSection)[] SectionBarEntries() => new[]
         {
             ("Fill", fillSection),
+            ("Swarm", swarmSection),
             ("SpriteFX", effectsSection),
         };
 
@@ -1123,25 +1127,23 @@ namespace Laubrary.Shaper.Editor
         // ── Swarm ────────────────────────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// T-0258 — the ex-Swarm SECTION, now a box on the Shape card beside Sweep and Shell, and gone from
-        /// the toggle bar. It is the same kind of thing they are: an optional operation on this node's own
-        /// content, off by default, whose dials are absent until its Enabled toggle is on. Same controls, same
-        /// ranges, same state key ("shaper.window.swarm"), so a saved view keeps folding it exactly as before.
+        /// Swarm is its own SECTION with a bar entry, as in Pyre (owner, 2026-09-08 — T-0258 had folded it into
+        /// the Shape card as a box). Its on/off switch is the section header's checkbox; off, the section is
+        /// just its header. Same controls, same ranges, same state key ("shaper.window.swarm"), so a saved view
+        /// keeps folding it exactly as before.
         /// </summary>
-        void BuildSwarmBox(VisualElement parent, ShaperNode node)
+        void BuildSwarmSection(VisualElement root, ShaperNode node)
         {
             var s = node.swarm;
             s.EnsureDials();
-            var box = Z.BoxKeyed("Swarm",
+            var box = swarmSection = Z.Section("Swarm",
                 "Repeat this node's own content many times with per-instance jitter.",
-                "shaper.window.swarm", "copy");
-            // The switch sits on the header like Sweep's and Shell's; off, the box is just its header. The
-            // suffix is what a FOLDED box says.
+                "shaper.window.swarm", icon: "copy");
             box.SetHeaderSuffix(() => s.enabled ? " — " + s.count : "");
             box.SetHeaderToggle(s.enabled, "Repeat this node as a swarm.",
                 v => { Change(() => s.enabled = v); Rebuild(); });
 
-            if (!s.enabled) { parent.Add(box); return; }
+            if (!s.enabled) { root.Add(box); return; }
 
             // The hard cap is a real engine rule (ShaperSwarmDef.cs:163) and the reason a large count can
             // silently do less than it says. It goes in the CONTROL'S OWN TOOLTIP, composed for the current
@@ -1222,7 +1224,7 @@ namespace Laubrary.Shaper.Editor
                     s.merge.sharpnessDial, 0f, 1f),
                 mergeCarve));
 
-            parent.Add(box);
+            root.Add(box);
         }
 
         // T-0169 — WHERE the instances land. Every control here is inert while the shape is None, so the box

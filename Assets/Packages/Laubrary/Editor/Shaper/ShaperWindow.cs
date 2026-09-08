@@ -351,11 +351,12 @@ namespace Laubrary.Shaper.Editor
         //                  property, and those two already moved there in T-0187/T-0204)
         //   • Global SpriteFX → merged into SpriteFX; an entry's "Whole picture" toggle moves it between the
         //                  layer list and the document list, so one card holds both
-        //   • Swarm      → the Shape card's "Swarm" box, beside Sweep and Shell
+        //   • Swarm      → stayed a section after all (owner, 2026-09-08): Pyre keeps it in its bar, and its
+        //                  on/off checkbox belongs on a green section header, not a box title
         // A bar segment is the promise that a card is a place you go; a part of a card is not.
         static readonly string[] ToggleBarOrder =
         {
-            "Views", "Canvas", "Layers", "Shape", "Fill", "SpriteFX", "Lights", "Tags",
+            "Views", "Canvas", "Layers", "Shape", "Fill", "Swarm", "SpriteFX", "Lights", "Tags",
         };
 
         void RefreshToggleBar()
@@ -978,11 +979,6 @@ namespace Laubrary.Shaper.Editor
             // called "Modifiers", which they never were — a modifier is an effect on the picture, these
             // are part of the shape.)
             BuildShapeOpsBody(box, node);
-
-            // T-0258 — Swarm was a bar section of its own; it is a box beside Sweep and Shell now, because it
-            // is the same kind of thing they are: an optional operation on THIS node's content, off by
-            // default, whose dials are absent until it is switched on.
-            BuildSwarmBox(box, node);
 
             root.Add(box);
         }

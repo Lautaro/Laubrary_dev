@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- Shaper: Swarm is its own bar section again (green header with its on/off checkbox), between Fill and SpriteFX, as in Pyre; the bar has nine entries (owner request 2026-09-08).
 - ZUI: a box can carry its on/off switch as a header checkbox (ZuiBox.SetHeaderToggle, the same idiom sections had); Shaper's Sweep, Shell, Swarm and Edge boxes and the shared Pyre Border box use it instead of an Enabled toggle in the body (owner request 2026-09-08).
 - Shaper: a new document's seeded growth animation no longer collapses into a static full-canvas rectangle — the layer-key hasher now only materialises null dials on a live object instead of re-running the legacy-float migration over freshly seeded curves (found by the harmony handover walk, T-0259).
 - Shaper: the window sits in Pyre's frame — eight bar sections (Views, Canvas, Layers, Shape, Fill, SpriteFX, Lights, Tags); Transform is the Shape card's Position box, Border is the Fill card's Edge box, per-layer Lighting is a folded box on the layer row, Swarm is a box on the Shape card, and layer and whole-picture SpriteFX share one card with a Whole picture toggle per entry (T-0258).
