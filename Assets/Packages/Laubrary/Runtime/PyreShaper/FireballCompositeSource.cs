@@ -62,7 +62,8 @@ namespace Laubrary.PyreShaper
         [ZUILabel("Arms")] public int arms = 1;
 
         [Tooltip("On, alternate wedges are reflected so neighbours meet at a seam. Off, every wedge is the same "
-               + "one rotated.")]
+               + "one rotated. Has no effect at the default Arms = 1 (one wedge has no neighbour to alternate "
+               + "against) — measured, T-0279.")]
         [ZUILabel("Mirror")] public bool mirror = true;
 
         [Tooltip("The smoke-to-fire ramp the burst is painted through. Its alpha is what this generator publishes "

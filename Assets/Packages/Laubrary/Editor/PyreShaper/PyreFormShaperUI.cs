@@ -104,6 +104,15 @@ namespace Laubrary.PyreShaper.Editor
                     ControlWidth = 140f,
                     ReorderFields = OrbNoseAxisReorder,
                     TooltipFor = OrbNoseAxisTooltip,
+                    // T-0279 — a [PyreSwarmOnly] dial only ever reads `ctx.swarm` (PyreForm.Prepare/Render), and
+                    // this bridge's own Render (above) always calls form.Render with a PyreFormCtx built from
+                    // `null, null, null` for the swarm slots — a composite node hosts exactly one form with no
+                    // swarm wired in at all, unlike Pyre's own window, which only hides these dials when the
+                    // layer's swarm is OFF (PyreWindow.Forms.cs:127) because there it CAN be turned on. Measured
+                    // 0 changed pixels on every one of them (swarmSize on Orb/Torch/Jet/RadialJet/ExplosiveJet/
+                    // ArcBurst, InfernoForm's four blast-variation dials) at every value tried — dead by
+                    // construction here, not by authoring, so the dial is absented rather than drawn inert.
+                    Skip = f => System.Attribute.IsDefined(f, typeof(PyreSwarmOnlyAttribute)),
                 });
                 dials.Add(host);
                 box.Add(dials);

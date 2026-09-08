@@ -69,7 +69,8 @@ namespace Laubrary.PyreShaper
         [ZUILabel("Arms")] public int arms = 1;
 
         [Tooltip("Mirror makes every arm emit identically, so the flame is symmetric. Vary gives each arm its own "
-               + "flicker and pulse phase, so the arms move independently.")]
+               + "flicker and pulse phase, so the arms move independently. Has no effect at the default Arms = 1 "
+               + "(one arm has nothing else to mirror or vary against) — measured, T-0279.")]
         [ZUILabel("Arm Mode")] public FireArmMode armMode = FireArmMode.Mirror;
 
         [Tooltip("Which way the first arm points, in degrees. 90 sends the flame up the canvas.")]
