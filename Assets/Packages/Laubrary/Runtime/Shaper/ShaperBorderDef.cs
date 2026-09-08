@@ -29,6 +29,40 @@ namespace Laubrary.Shaper
     public class ShaperBorderDef
     {
         /// <summary>
+        /// T-0271 — the same question <see cref="ShaperFillDef.authored"/> answers: did a person ask for this
+        /// border, or is it the object Unity materialises in place of a null <see cref="ShaperNode.border"/>
+        /// on every save? <see cref="enabled"/> already makes the phantom render nothing, so this flag changes
+        /// no pixels; what it fixes is the CARD, which read <c>border == null</c> and therefore offered
+        /// "Remove edge" on every node of a saved document — including every node nobody had given an edge.
+        ///
+        /// Same migration as the fill's: a deserialized border that differs from a default-constructed one is
+        /// real authored data and is promoted. The only case that cannot be told apart is a border that was
+        /// added and then switched off with no other change, which reads as absent — the same picture, and the
+        /// Add-edge button back.
+        /// </summary>
+        [HideInInspector] public bool authored = false;
+
+        [NonSerialized] bool m_phantomChecked;
+
+        /// <summary>
+        /// T-0271 — "does this node own an edge strip?", replacing <c>border != null</c>. See
+        /// <see cref="ShaperFillDef.IsAuthored"/>, which this mirrors exactly, for why the comparison is a
+        /// JsonUtility one rather than a hand-written field list.
+        /// </summary>
+        public static bool IsAuthored(ShaperBorderDef def)
+        {
+            if (def == null) return false;
+            if (def.authored) return true;
+            if (def.m_phantomChecked) return false;
+            s_defaultJson ??= JsonUtility.ToJson(new ShaperBorderDef());
+            if (JsonUtility.ToJson(def) != s_defaultJson) { def.authored = true; return true; }
+            def.m_phantomChecked = true;
+            return false;
+        }
+
+        static string s_defaultJson;
+
+        /// <summary>
         /// The border's one structural identity. <c>false</c> emits nothing at all — no strip program, no owner,
         /// no dilation of the node's published field (BD-1.5). It is tested BEFORE the strip is compiled, so it
         /// is an exact no-op rather than a strip painted with zero alpha.

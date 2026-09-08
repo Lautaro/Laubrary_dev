@@ -377,7 +377,12 @@ namespace Laubrary.Shaper
         {
             if (node == null || !node.enabled) return;
 
-            ShaperFillDef def = node.fill;
+            // T-0271 — NOT `node.fill`. Unity materialises a default-constructed ShaperFillDef in place of a
+            // null one on every save, so on a SAVED document every node owns a fill nobody authored, and the
+            // ownership rule below ("a child that owns a fill wins inside its own coverage") then hands each
+            // bag member a phantom white Solid and leaves the bag's own authored fill painting nothing.
+            // ShaperFillDef.Authored is the phantom-safe read; see ShaperFillDef.authored for the whole story.
+            ShaperFillDef def = ShaperFillDef.Authored(node.fill);
 
             // FC-3.2: A SHAPE LAYER'S ROOT NODE ALWAYS OWNS A FILL, and it cannot be removed, only edited.
             // Design B2 settles this without appearing to — "Add a layer. You get a disc in one flat colour" —
@@ -483,7 +488,7 @@ namespace Laubrary.Shaper
                               float canvasHalfW, float canvasHalfH,
                               ShaperQuantitySet leafPublished, Func<ShaperNode, ShaperQuantitySet> perLeaf)
         {
-            if (node.border == null) return -1;
+            if (!ShaperBorderDef.IsAuthored(node.border)) return -1;   // T-0271 — phantom-safe; see ShaperCompiler.
 
             // T-0191 — A COMPOSITE NODE HAS NO BORDER, and this is a structural fact rather than a refusal to
             // report. A border is ShaperOps.Shell applied to the node's field (BD-1.3), and a composite's field
@@ -543,7 +548,11 @@ namespace Laubrary.Shaper
 
             // BD-3.1 — a border whose fill is null uses the FC-3.2 default Solid rather than a second default of
             // its own, so a border which is switched on always draws something and can never be silently inert.
-            ShaperFillDef def = node.border.fill ?? ShaperFillDef.DefaultRootFill();
+            // T-0271 — same phantom rule as the node's own fill: a saved border's null fill comes back as a
+            // default-constructed one, which is bit-identical to the DefaultRootFill substituted here, so this
+            // one changes no pixels either way. It is written phantom-safe anyway so that the window's Edge
+            // card and the engine agree about whether a border fill was ever authored.
+            ShaperFillDef def = ShaperFillDef.Authored(node.border.fill) ?? ShaperFillDef.DefaultRootFill();
 
             // BD-3.8 — the border's FILL goes through the ordinary availability gate, unchanged, against the
             // NODE's published set (a border does not change what its node publishes). The label makes the

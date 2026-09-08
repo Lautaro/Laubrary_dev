@@ -1336,7 +1336,10 @@ namespace Laubrary.Shaper
             // reach many pixels out. Refusing here means an authored border on a Composite node is INERT rather
             // than drawing a strip from a saturated, meaningless field.
             if (node.kind == ShaperNodeKind.Composite) return child;
-            if (node.border == null) return child;
+            // T-0271 — IsAuthored rather than a null test: a saved node carries a phantom ShaperBorderDef.
+            // Its `enabled` already defaults to false so this changes no pixels, but the engine and the card
+            // must answer "does this node have an edge?" the same way, or one of them is lying.
+            if (!ShaperBorderDef.IsAuthored(node.border)) return child;
             if (!isRoot && node.mode == ShaperCombineMode.Subtract) return child;   // BD-3.7
 
             ShaperResolvedBorder border = ShaperBorder.Resolve(node.border, st.phase01, st.seed);

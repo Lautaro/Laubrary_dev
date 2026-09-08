@@ -569,18 +569,23 @@ namespace Laubrary.Shaper.Editor
         // authored state: FC-3.2 makes the resolver substitute a default fill for a layer ROOT with an empty
         // slot, which is why a fresh layer renders at all without anyone touching this card. So the card
         // offers add/remove rather than pretending a fill always exists.
+        //
+        // T-0271 — "empty" is ShaperFillDef.IsAuthored, never `== null`: Unity writes a default-constructed
+        // fill in place of a null one on every save, so on a SAVED document the null test says every node owns
+        // a fill. This card would then offer Remove-fill on a node nobody had given one, and — worse — the
+        // engine would paint with it. Same test on both sides, so the card and the picture agree.
         void BuildFillSection(VisualElement root, ShaperNode node)
         {
             var box = fillSection = Z.Section("Fill", "How this node's coverage is coloured.",
                 "shaper.window.fill", icon: "paint-bucket");
 
-            if (node.fill == null)
+            if (!ShaperFillDef.IsAuthored(node.fill))
             {
                 box.Add(Z.Field("Fill",
                     "This node has no fill of its own. A layer root without one is painted with the "
                     + "engine's default fill; a child without one inherits from its owner.",
                     Z.Button("Add fill", "Give this node its own fill.",
-                        () => { Change(() => node.fill = new ShaperFillDef()); Rebuild(); })));
+                        () => { Change(() => node.fill = new ShaperFillDef { authored = true }); Rebuild(); })));
                 // T-0258 — an edge is authorable whether or not the node owns a fill of its own: a layer root
                 // with an empty slot is still painted (FC-3.2 substitutes a default), so the box goes in on
                 // both paths rather than being stranded behind the Add-fill affordance. Not on a Solid (see below).
@@ -1132,11 +1137,13 @@ namespace Laubrary.Shaper.Editor
             var box = Z.BoxKeyed("Edge", "A derived strip around this node's edge, with its own fill.",
                 "shaper.window.border");
 
-            if (node.border == null)
+            // T-0271 — IsAuthored, not `== null`: a saved node carries a phantom ShaperBorderDef, and the null
+            // test made this card offer "Remove edge" on every node of every saved document.
+            if (!ShaperBorderDef.IsAuthored(node.border))
             {
                 box.Add(Z.Field("Edge", "This node has no edge strip.",
                     Z.Button("Add edge", "Give this node an edge strip.",
-                        () => { Change(() => node.border = new ShaperBorderDef { enabled = true, fill = SeededBorderFill(node) }); Rebuild(); })));
+                        () => { Change(() => node.border = new ShaperBorderDef { authored = true, enabled = true, fill = SeededBorderFill(node) }); Rebuild(); })));
                 parent.Add(box);
                 return;
             }
@@ -1168,7 +1175,8 @@ namespace Laubrary.Shaper.Editor
 
             // The border carries a full ShaperFillDef of its own, so it gets the same editor rather than a
             // reduced copy that would drift.
-            if (b.fill == null)
+            // T-0271 — IsAuthored, not `== null`, for the same reason the node's own Fill card uses it.
+            if (!ShaperFillDef.IsAuthored(b.fill))
             {
                 box.Add(Z.Field("Edge fill", "The edge strip has no fill of its own yet.",
                     Z.Button("Add edge fill", "Give the edge strip its own fill.",
@@ -1215,8 +1223,8 @@ namespace Laubrary.Shaper.Editor
         /// </summary>
         internal static ShaperFillDef SeededBorderFill(ShaperNode node)
         {
-            var fill = ShaperFillDef.DefaultRootFill();
-            if (node?.fill != null && node.fill.veil != null && node.fill.veil.mode == ZUIValue.Mode.Curve)
+            var fill = ShaperFillDef.DefaultRootFill();   // T-0271 — DefaultRootFill sets authored itself.
+            if (ShaperFillDef.IsAuthored(node?.fill) && node.fill.veil != null && node.fill.veil.mode == ZUIValue.Mode.Curve)
                 fill.veil = SeededVeil();
             return fill;
         }

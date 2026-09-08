@@ -48,6 +48,45 @@ namespace Laubrary.Shaper
     [Serializable]
     public class ShaperFillDef
     {
+        /// <summary>
+        /// T-0271 — <b>did a person ask for this fill, or did Unity's serializer conjure it?</b>
+        ///
+        /// <see cref="ShaperNode.fill"/> is a plain <c>[Serializable]</c> class field, and Unity NEVER writes
+        /// null for one: on save it materialises a DEFAULT-CONSTRUCTED instance in its place (measured on a
+        /// saved document — the phantom comes back with <c>veil</c> static 1 and <c>solidColor</c> white, the
+        /// C# initialiser values, not zeroes). So every node of every SAVED document comes back owning a fill
+        /// nobody authored. That is not cosmetic: a child that owns a fill wins inside its own coverage, so on
+        /// a saved bag each member is painted by its own phantom white Solid and the bag's authored fill paints
+        /// nothing at all — measured 1754 changed pixels in memory, 0 after a save and reload (T-0277).
+        ///
+        /// The border closed the same hole with <see cref="ShaperBorderDef.enabled"/> defaulting to false,
+        /// which works there because a border is meaningless until switched on. A fill is not: there is no
+        /// "off" state for one, and the phantom is bit-identical to a legitimately authored white Solid.
+        /// Hence an explicit flag, false by default so a phantom carries false, set true by every place that
+        /// creates a fill because someone asked for one — <see cref="DefaultRootFill"/>, the window's
+        /// "Add fill" and its seeded border fill.
+        ///
+        /// <b>Documents authored before this flag existed keep their fills.</b> <see cref="IsAuthored"/>
+        /// treats a deserialized fill whose serialized state DIFFERS from a default-constructed one as real
+        /// authored data and promotes it in place, so nothing is lost and nothing needs re-saving. The one
+        /// case that cannot be told apart — a pre-flag fill that was added and then left at every default —
+        /// is read as absent; on a layer ROOT that is invisible (FC-3.2 substitutes the identical
+        /// <see cref="DefaultRootFill"/>), and on a child it means the child inherits its owner's paint
+        /// instead of covering it with white, which is what the author saw anyway on every kind of document
+        /// this project could find. Turning the field into <c>[SerializeReference]</c> would tell them apart
+        /// perfectly and is the wrong trade: it changes the field's storage, and every fill in every existing
+        /// document would deserialize as null.
+        /// </summary>
+        [HideInInspector] public bool authored = false;
+
+        /// <summary>
+        /// Set once <see cref="IsAuthored"/> has answered "phantom" for this instance, so the JSON comparison
+        /// below is paid at most once per deserialized object rather than once per node per rendered frame.
+        /// Not serialized, and deliberately only caches the NEGATIVE answer: the positive one promotes
+        /// <see cref="authored"/> itself, which is both the cache and the migration.
+        /// </summary>
+        [NonSerialized] bool m_phantomChecked;
+
         public ShaperFillKind kind = ShaperFillKind.Solid;
 
         // ── common to all four (FC-6, "common to all four and not repeated per kind") ──────────────────────
@@ -478,6 +517,54 @@ namespace Laubrary.Shaper
                 kind = ShaperFillKind.Solid,
                 solidColor = Color.white,
                 composite = ShaperFillComposite.Over,
+                // T-0271 — the engine's own substituted default IS a real fill, and the window hands this same
+                // object to the author as the fill of a new layer (ShaperWindow.NewLayer), so it is authored.
+                authored = true,
             };
+
+        /// <summary>
+        /// T-0271 — the ONE test for "does this node own a fill?", replacing every <c>fill != null</c>.
+        ///
+        /// A saved document's null fill comes back as a default-constructed phantom (see <see cref="authored"/>),
+        /// so null-checking answers the wrong question on exactly the documents an author actually has. This
+        /// answers it for both: an unauthored instance whose serialized state equals a default-constructed
+        /// one's is the phantom and is absent; anything else is real.
+        ///
+        /// The comparison is <see cref="JsonUtility.ToJson"/> against a cached default rather than a
+        /// hand-written field list ON PURPOSE: this class carries 60-odd authorable fields and gains more, and
+        /// a hand-written comparison silently stops migrating the day someone adds one it does not know about.
+        /// JsonUtility walks exactly the fields Unity serializes — the same set that produced the phantom —
+        /// so the two can never drift apart. Cost is paid at most once per instance (see
+        /// <see cref="m_phantomChecked"/>), on the main thread, where every caller already is.
+        /// </summary>
+        public static bool IsAuthored(ShaperFillDef def)
+        {
+            if (def == null) return false;
+            if (def.authored) return true;
+            if (def.m_phantomChecked) return false;
+            if (def.DiffersFromDefault())
+            {
+                // Migration, in place: a pre-flag authored fill is promoted the first time it is read, so it
+                // survives being re-saved and never has to be examined again.
+                def.authored = true;
+                return true;
+            }
+            def.m_phantomChecked = true;
+            return false;
+        }
+
+        /// <summary>
+        /// T-0271 — <see cref="IsAuthored"/> as a null-coalescible value, for the call sites that want the def
+        /// or nothing: <c>ShaperFillDef.Authored(node.fill)</c> is the phantom-safe <c>node.fill</c>.
+        /// </summary>
+        public static ShaperFillDef Authored(ShaperFillDef def) => IsAuthored(def) ? def : null;
+
+        static string s_defaultJson;
+
+        bool DiffersFromDefault()
+        {
+            s_defaultJson ??= JsonUtility.ToJson(new ShaperFillDef());
+            return JsonUtility.ToJson(this) != s_defaultJson;
+        }
     }
 }

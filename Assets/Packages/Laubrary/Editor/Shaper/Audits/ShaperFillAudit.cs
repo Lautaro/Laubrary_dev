@@ -108,6 +108,10 @@ namespace Laubrary.Shaper.Editor
                                    ShaperFillComposite composite = ShaperFillComposite.Over)
             => new ShaperFillDef
             {
+                // T-0271 — Solid(Color.white) with the default veil/height/composite IS a default-constructed
+                // fill, which the engine now reads as the phantom Unity writes for a null one. An audit
+                // fixture is authored by definition, so it says so.
+                authored = true,
                 kind = ShaperFillKind.Solid,
                 solidColor = c,
                 veil = new ZUIValue(veil),
