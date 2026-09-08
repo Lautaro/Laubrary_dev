@@ -268,7 +268,11 @@ namespace Laubrary.AssetKit.Editor
                 {
                     InitializeNewAsset(created);
                     EditorUtility.SetDirty(created);
-                    AssetDatabase.SaveAssets();
+                    // T-0276 — flush THIS asset, never the project. AssetDatabase.SaveAssets() writes every
+                    // dirty asset in the project, so pressing New here also published whatever unsaved edits
+                    // another window happened to be holding — measured as a real incident during T-0265,
+                    // where the Shaper demo document was written to disk by a task that never touched it.
+                    AssetDatabase.SaveAssetIfDirty(created);
                     Undo.RegisterCreatedObjectUndo(created, "Create " + TypeLabel);
                     browsing = false;
                     SetAsset(created);

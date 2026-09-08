@@ -678,8 +678,38 @@ namespace Laubrary.Shaper.Editor
             // T-0277 — Posterise is genuinely cross-kind now (ShaperFillOps.Sample applies it after the
             // per-kind switch). Before this it was applied by TapestrySteel alone, so on the other eight kinds
             // the dial did nothing at all.
-            box.Add(Val("Posterise", "Snap this fill's colour to this many discrete bands. 0 leaves it smooth.",
-                f.quantiseLevels, 0f, 32f, decimals: 0));
+            // T-0276 — cross-kind is not every kind. Banding needs a RANGE of colour to band, and three kinds
+            // paint one colour across the whole shape at any one frame: Solid, Height field (which emits
+            // height and a flat authored tint for albedo, ShaperFillContract.cs:245-254) and Colour over
+            // phase (one ramp sample per frame). Measured on a 34x13 ellipse, Posterise 0 -> 3:
+            // Solid 0, Height field 0, Over phase 0, against Gradient 1456, Colour bands 1456,
+            // Brushed metal 1456, Pattern 1456, Texture 96, Ramp 136. Solid is the DEFAULT fill kind, so
+            // before this the dial was dead on every fresh document.
+            box.Add(InertVal("Posterise", "Snap this fill's colour to this many discrete bands. 0 leaves it "
+                + "smooth.", PosteriseReason(f), f.quantiseLevels, 0f, 32f, decimals: 0));
+        }
+
+        /// <summary>
+        /// T-0276 — why <see cref="ShaperFillDef.quantiseLevels"/> cannot act, or null when it can. The test
+        /// is whether the kind paints more than one colour across the shape: banding a single flat colour
+        /// returns that same colour whatever the band count.
+        /// </summary>
+        static string PosteriseReason(ShaperFillDef f)
+        {
+            switch (f.kind)
+            {
+                case ShaperFillKind.Solid:
+                    return "A single colour has no range to band — every band lands on the same colour. Pick "
+                         + "a fill kind that paints more than one colour and this becomes available.";
+                case ShaperFillKind.HeightField:
+                    return "A height field paints one flat tint and carries its detail as height, not colour, "
+                         + "so there is no colour range to band.";
+                case ShaperFillKind.OverPhase:
+                    return "“One colour over time” paints a single colour per frame, so at any one frame "
+                         + "there is no colour range to band.";
+                default:
+                    return null;
+            }
         }
 
         /// <summary>
@@ -1253,6 +1283,22 @@ namespace Laubrary.Shaper.Editor
             // join dials are drawn only for a bag member (drillPath non-empty = editing a member).
             if (drillPath.Count > 0)
             {
+                // T-0276 — two of these three dials are always dead, and which two depends on the Combine
+                // choice sitting beside them: the softened join is built by the Add and Keep-overlap
+                // operators alone (ShaperBlend.widthDial's own declaration, ShaperNode.cs:32) and the carve
+                // amount by Cut out alone. Measured on a saved two-member bag, per mode:
+                // Add 364 / 764 / 0, Cut out 0 / 0 / 1048, Keep overlap 260 / 512 / 0. Each now says which
+                // Combine choice it is waiting for, in the word the control beside it uses.
+                string joinReason = node.mode == ShaperCombineMode.Subtract
+                    ? "A softened join belongs to Add and Keep overlap. “Cut out” removes this member's area "
+                      + "outright — use Carve strength to soften how much it removes."
+                    : null;
+                string carveReason = node.mode == ShaperCombineMode.Subtract
+                    ? null
+                    : "Carve strength is how much a “Cut out” removes. This member is set to "
+                      + ShaperWords.Names(typeof(ShaperCombineMode))[(int)node.mode]
+                      + ", which carves nothing away — use Blend width to soften its join instead.";
+
                 var combine = Z.BoxKeyed("Combine",
                     "How this member folds into the bag it belongs to.", "shaper.window.combine");
                 combine.Add(Z.HGroup(
@@ -1260,13 +1306,13 @@ namespace Laubrary.Shaper.Editor
                         Z.Segmented((int)node.mode, ShaperWords.Names(typeof(ShaperCombineMode)),
                             "Add unions; “Cut out” carves this member away; “Keep overlap” keeps only the "
                             + "part both cover.",
-                            v => Change(() => node.mode = (ShaperCombineMode)v))),
-                    Val("Blend width", "How far the join between this node and its neighbours is softened, "
-                        + "in canvas pixels. 0 is a hard edge.",
+                            v => { Change(() => node.mode = (ShaperCombineMode)v); Rebuild(); })),
+                    InertVal("Blend width", "How far the join between this node and its neighbours is softened, "
+                        + "in canvas pixels. 0 is a hard edge.", joinReason,
                         node.blend.widthDial, 0f, 32f),
-                    Val("Sharpness", "How abruptly the softened join falls off.",
+                    InertVal("Sharpness", "How abruptly the softened join falls off.", joinReason,
                         node.blend.sharpnessDial, 0f, 1f),
-                    Val("Carve strength", "How strongly a Subtract carves. 1 removes fully.",
+                    InertVal("Carve strength", "How strongly a Cut out carves. 1 removes fully.", carveReason,
                         node.blend.carveStrengthDial, 0f, 1f)));
                 box.Add(combine);
             }
@@ -1280,7 +1326,7 @@ namespace Laubrary.Shaper.Editor
             // SHAPE's own answer, not an authored choice (ShaperPrimitives.SweepAxis: a Capsule is
             // Longitudinal, every other primitive is Radial — ShaperPrimitives.cs:329-330), and the compiler
             // reads the degree pair on a Radial axis and the fraction pair on a Longitudinal one
-            // (ShaperCompiler.EmitSweep). So on a disc the two "ƒ" dials moved nothing and said nothing.
+            // (ShaperCompiler.EmitSweep). So on a disc the two "along" dials moved nothing and said nothing.
             // Answered ONLY for a Primitive, where the axis is exactly known; a bag folds its members' axes
             // and disagreement falls back to Radial, so claiming an answer there would be a guess.
             string degreeReason = null, fractionReason = null;
@@ -1321,9 +1367,13 @@ namespace Laubrary.Shaper.Editor
                 InertVal("Extent", "How much of the shape is kept, in degrees. Animate it to wipe the shape "
                     + "on or off over the document's frames.", degreeReason,
                     node.sweep.extentDegreesDial, 0f, 360f, decimals: 0),
-                InertVal("Start ƒ", "Where the kept slice begins as a fraction of the shape's length.",
+                // T-0276 — these two were captioned "Start ƒ" and "Extent ƒ". The florin stood for "fraction"
+                // and said so nowhere on the control; a caption has to be readable without a key. "along" is
+                // the word the tooltips already use — these measure along the shape's LENGTH, where the two
+                // above measure an angle around its centre.
+                InertVal("Start along", "Where the kept slice begins, as a fraction of the shape's length.",
                     fractionReason, node.sweep.startFractionDial, 0f, 1f),
-                InertVal("Extent ƒ", "How much is kept as a fraction of the shape's length.",
+                InertVal("Extent along", "How much is kept, as a fraction of the shape's length.",
                     fractionReason, node.sweep.extentFractionDial, 0f, 1f)));
             box.Add(sweep);
 

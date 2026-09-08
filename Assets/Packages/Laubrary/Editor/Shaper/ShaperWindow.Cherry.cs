@@ -269,7 +269,11 @@ namespace Laubrary.Shaper.Editor
                     // T-0257 — this and the transport's own gap were BOTH labelled "Loop gap" and are two
                     // different fields (cherryLoopDelaySeconds here, loopDelaySeconds there): one is the gap
                     // between passes through the SEQUENCE, the other between passes through the FRAMES.
-                    Z.MicroSlider("Loop gap", Doc.cherryLoopDelaySeconds, 0f, 4f,
+                    // T-0276 — and they must STAY differently named: this panel and the transport are both in
+                    // the right pane, so the two captions are on screen together. A previous pass shortened
+                    // this one back to "Loop gap" for a caption-length rule and re-created the collision; the
+                    // name says which pass it gaps, and is 12 characters.
+                    Z.MicroSlider("Sequence gap", Doc.cherryLoopDelaySeconds, 0f, 4f,
                         "Seconds of blank between one pass through the CHERRY SEQUENCE and the next — a "
                         + "different gap from the transport's, which is between passes through the frames. 0 "
                         + "loops with no gap. A gap plays as nothing on screen, not as a held frame.",

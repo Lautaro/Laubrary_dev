@@ -98,7 +98,11 @@ namespace Laubrary.Zui
 
             Add(Z.Button("Update", "Overwrite the selected view with the window's current arrangement.",
                 () => { if (!string.IsNullOrEmpty(_picker.value)) SaveInto(_picker.value); }));
-            Add(Z.Button("Delete", "Remove the selected view from the shared views asset.",
+            // T-0276 — "Delete view", not "Delete". Every ZuiAssetWindow puts a "Delete" in its toolbar that
+            // deletes the ASSET FILE and cannot be undone, and this bar sits in the same window a few rows
+            // below it: one word, two nouns, one of them irreversible. The noun is what tells them apart.
+            Add(Z.Button("Delete view", "Remove the selected view from the shared views asset. The asset "
+                + "itself and everything authored in it are untouched.",
                 () => { if (!string.IsNullOrEmpty(_picker.value)) DeletePreset(_picker.value); }));
 
             _newName = Z.TextInput("",

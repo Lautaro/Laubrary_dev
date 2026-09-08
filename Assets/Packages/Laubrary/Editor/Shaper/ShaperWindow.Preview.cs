@@ -73,7 +73,10 @@ namespace Laubrary.Shaper.Editor
         /// currentFrame/jump plumbing, not this chrome row's cosmetic-only state.
         VisualElement BuildPreviewChrome()
         {
-            var frameToggle = Z.Toggle("Frame",
+            // T-0276 — named for what it draws, not for what it draws AROUND. This toggle and the transport's
+            // frame-number scrubber sit in the same pane a few rows apart, and both were captioned "Frame":
+            // one meant the canvas outline, the other meant which frame of the animation is showing.
+            var frameToggle = Z.Toggle("Canvas edge",
                 "Draw a thin outline around the canvas edge in the preview. Cosmetic only — it is drawn by "
                 + "the editor over the picture and never reaches a bake.",
                 previewShowFrame, v =>

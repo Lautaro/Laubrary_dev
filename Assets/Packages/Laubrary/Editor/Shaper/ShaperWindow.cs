@@ -666,25 +666,17 @@ namespace Laubrary.Shaper.Editor
             box.Add(layerListHost);
             RebuildLayerList();
 
+            // T-0276 — "+ Add layer" is alone here now. A second button captioned "Duplicate" used to sit
+            // beside it, duplicating the SELECTED layer — which is exactly what the selected row's own "Dup"
+            // already does, one row above and pointed at the layer you can see. Two controls for one action,
+            // and worse, the word collided with the asset toolbar's own "Duplicate" (which copies the whole
+            // DOCUMENT) three rows higher, both on screen at once. The per-row button is the one that names
+            // which layer it acts on, so it is the one that stays.
             box.Add(Z.HGroup(
                 Z.Button("+ Add layer", "Add a new layer above the current top layer.", () =>
                 {
                     Change(() => document.layers.Add(NewLayer("Layer " + (document.layers.Count + 1), document)));
                     selectedLayer = document.layers.Count - 1;
-                    Rebuild();
-                }),
-                Z.Button("Duplicate", "Duplicate the selected layer just after itself (undoable).", () =>
-                {
-                    var src = CurrentLayer;
-                    if (src == null) return;
-                    Change(() =>
-                    {
-                        var copy = src.Clone();
-                        copy.name = (src.name ?? "Layer") + " copy";
-                        int at = Mathf.Clamp(selectedLayer + 1, 0, document.layers.Count);
-                        document.layers.Insert(at, copy);
-                        selectedLayer = at;
-                    });
                     Rebuild();
                 })));
 
@@ -727,12 +719,13 @@ namespace Laubrary.Shaper.Editor
             {
                 int lo = lay.startFrame;
                 int hi = lay.endFrame < 0 ? document.frameCount - 1 : lay.endFrame;
-                row.Add(Z.Field("Lifetime",
-                    "The SELECTED layer's (“" + (lay.name ?? "Layer") + "”) frame lifetime window — "
-                    + "the frames it contributes to. Outside this range the layer renders nothing, exactly as a "
-                    + "disabled layer does.",
-                    Z.MicroMinMax("Lifetime", lo, hi, 0f, document.frameCount - 1,
-                        "The selected layer's frame lifetime window — the frames it contributes to.",
+                // T-0276 — the control draws its OWN caption, so wrapping it in a Z.Field printed "Lifetime"
+                // twice side by side in the same row. Same reasoning, and the same fix, as the transport's
+                // Frame scrubber below (:1463). The Field's fuller sentence moves onto the control.
+                row.Add(Z.MicroMinMax("Lifetime", lo, hi, 0f, document.frameCount - 1,
+                        "The SELECTED layer's (“" + (lay.name ?? "Layer") + "”) frame lifetime window — "
+                        + "the frames it contributes to. Outside this range the layer renders nothing, exactly "
+                        + "as a disabled layer does.",
                         (newLo, newHi) => Change(() =>
                         {
                             lay.startFrame = Mathf.RoundToInt(newLo);
@@ -740,7 +733,7 @@ namespace Laubrary.Shaper.Editor
                             // unauthored window at its -1 default through a later frameCount change.
                             int rh = Mathf.RoundToInt(newHi);
                             lay.endFrame = rh >= document.frameCount - 1 ? -1 : rh;
-                        }), 200f, decimals: 0)));
+                        }), 200f, decimals: 0));
             }
 
             // T-0192 — the SELECTED layer's Z (depth) dial. Not gated on frameCount — depth ordering matters
@@ -1117,18 +1110,32 @@ namespace Laubrary.Shaper.Editor
                             f => { Change(() => p.textFont = f); Rebuild(); }, 200f)));
                     box.Add(Z.Field("Text", "The characters this shape draws. A new line starts another line of text.",
                         Z.TextInput(p.textString, "The characters this shape draws. A new line starts another "
-                            + "line of text.", s => Change(() => p.textString = s), 200f)));
-                    box.Add(Z.Field("Align", "How the lines line up with each other when the text runs to more "
-                        + "than one line.",
+                            + "line of text.", s => { Change(() => p.textString = s); Rebuild(); }, 200f)));
+
+                    // T-0276 — both of these arrange LINES against each other, and the default string
+                    // ("TEXT") is one line, so out of the box neither could do anything: measured 0 changed
+                    // pixels for Line spacing across its whole range and 0 for all three Align choices on a
+                    // one-line string, against 1129 and 301/312 the moment the string has two lines. They now
+                    // say what they are waiting for instead of sitting there live and inert.
+                    bool oneLine = (p.textString ?? "").IndexOf('\n') < 0;
+                    string linesReason = oneLine
+                        ? "This is one line of text, so there is nothing to space or line up against. Press "
+                          + "Return in the Text field above to start a second line."
+                        : null;
+
+                    box.Add(Inert(Z.Field("Align", linesReason ?? "How the lines line up with each other when "
+                        + "the text runs to more than one line.",
                         Z.MiniRadio((int)p.textAlign, ShaperWords.Names(typeof(ShaperTextAlign)),
-                            "How the lines line up with each other when the text runs to more than one line.",
-                            v => Change(() => p.textAlign = (ShaperTextAlign)v))));
+                            linesReason ?? "How the lines line up with each other when the text runs to more "
+                                + "than one line.",
+                            v => Change(() => p.textAlign = (ShaperTextAlign)v))), linesReason));
                     box.Add(Z.HGroup(
                         Val("Size", "Character height, canvas pixels. The shape sizes itself from the font's own "
                             + "metrics, so there is no box to set.", p.textSizeDial, 4f, ext),
                         Val("Letter spacing", "Adds space after every character. Negative tightens the word up.",
                             p.textLetterSpacingDial, -ext * 0.1f, ext * 0.25f),
-                        Val("Line spacing", "Adds space between lines, on top of the font's own line height.",
+                        InertVal("Line spacing", "Adds space between lines, on top of the font's own line "
+                            + "height.", linesReason,
                             p.textLineSpacingDial, -ext * 0.1f, ext * 0.5f),
                         Val("Weight", "Where the letter's edge is cut. Below 0.5 fattens the letters, above 0.5 "
                             + "thins them.", p.textWeightDial, 0.05f, 0.95f)));

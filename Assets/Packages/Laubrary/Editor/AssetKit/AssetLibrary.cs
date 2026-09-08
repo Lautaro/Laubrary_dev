@@ -42,7 +42,11 @@ namespace Laubrary.AssetKit.Editor
             string path = AssetDatabase.GenerateUniqueAssetPath($"{folder}/{name}.asset");
             var asset = ScriptableObject.CreateInstance<T>();
             AssetDatabase.CreateAsset(asset, path);
-            AssetDatabase.SaveAssets();
+            // T-0276 — flush THIS asset, never the project. AssetDatabase.SaveAssets() writes every dirty
+            // asset there is, so pressing New in any AssetKit window also published whatever unsaved edits
+            // some other window was holding. That is not a theory: during T-0265 the Shaper demo document
+            // was written to disk by a task that never edited it, and this is the shape of call that does it.
+            AssetDatabase.SaveAssetIfDirty(asset);
             return asset;
         }
 
@@ -53,8 +57,9 @@ namespace Laubrary.AssetKit.Editor
             if (string.IsNullOrEmpty(path)) return null;
             string copy = AssetDatabase.GenerateUniqueAssetPath(path);
             if (!AssetDatabase.CopyAsset(path, copy)) return null;
-            AssetDatabase.SaveAssets();
-            return AssetDatabase.LoadAssetAtPath<T>(copy);
+            var made = AssetDatabase.LoadAssetAtPath<T>(copy);
+            AssetDatabase.SaveAssetIfDirty(made);   // T-0276 — this asset, not the project. See Create above.
+            return made;
         }
 
         public static bool Rename(T asset, string newName)
@@ -64,7 +69,7 @@ namespace Laubrary.AssetKit.Editor
             if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(newName)) return false;
             string err = AssetDatabase.RenameAsset(path, newName);
             if (!string.IsNullOrEmpty(err)) { Debug.LogWarning($"[AssetKit] rename failed: {err}"); return false; }
-            AssetDatabase.SaveAssets();
+            AssetDatabase.SaveAssetIfDirty(asset);   // T-0276 — this asset, not the project. See Create above.
             return true;
         }
 
