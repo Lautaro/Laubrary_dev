@@ -299,17 +299,9 @@ namespace Laubrary.Shaper.Editor
                 box.Add(Z.Text(ShaperLightRig.BuiltInSolidKeyActive, ZuiText.Subtle,
                                ShaperLightRig.BuiltInSolidKeyActive));
 
-            // T-0203 — what the ORDINARY stages do to a Solid, stated once here rather than left for the
-            // author to test one control at a time. All three are live and none of them is a special case:
-            // a Solid is an owner like any other from the moment it publishes coverage (LR-6.1).
-            box.Add(Z.Text(
-                "This node's Fill tints the solid's albedo — the colour the light is applied to — so a "
-                + "gradient or ramp fill shades in 3D rather than replacing the shading. A Border draws around "
-                + "the solid's silhouette (not its facet seams, which are the Line width control below) and is "
-                + "lit by this same light. The layer's Height stage is a separate authority and does not move "
-                + "the solid's own geometry; only a Height-field fill on this node tilts its surface.",
-                ZuiText.Subtle,
-                "How Fill, Border and Height behave on a solid."));
+            // What the ordinary stages do to a Solid is said in the tooltips of the controls concerned (the Fill
+            // card's kind row, the Line width dial), not as an on-screen paragraph: explanation is tooltip
+            // content. A Border is refused on a Solid (ShaperFillResolver.BindBorder), so it is not mentioned.
 
             box.Add(Z.HGroup(
                 SolidVal("Size", "The solid's radius, in canvas pixels.", s.size, 1f, 128f,
@@ -345,7 +337,8 @@ namespace Laubrary.Shaper.Editor
             // nowhere in the zero set of any 2D field, so no border stage could produce them. The label says
             // line, not border, for that reason.
             box.Add(Z.HGroup(
-                SolidVal("Line width", "Facet edge line half-width, in canvas pixels.", s.lineWidth, 0f, 8f,
+                SolidVal("Line width", "Facet seam line half-width, in canvas pixels. This is a solid's edge; the Fill "
+                    + "card's Edge strip does not apply to a solid.", s.lineWidth, 0f, 8f,
                     s.form, ShaperSolidDial.LineWidth),
                 Z.Field("Line colour", "The facet edge line's colour.",
                     Z.Color(s.lineColour, "The facet edge line's colour.",
