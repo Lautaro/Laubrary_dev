@@ -142,7 +142,15 @@ namespace Laubrary.AssetKit.Editor
             TagsSection = null;
             if (asset != null && !string.IsNullOrEmpty(AssetLibrary<T>.PathOf(asset)))
             {
-                var section = Z.Section("Tags", "Tags for this asset — filterable in the browser.");
+                // Says only what is true HERE. The tags go into the shared LauTagLibrary side-table, and
+                // LauAssetBrowser (the IMGUI browser) does filter by them through LauTagFilter — but THIS
+                // window's own grid (BuildBrowser below) enumerates every asset and has no tag filter at all,
+                // so the old "filterable in the browser" pointed a reader at an affordance this browser does
+                // not have. Measured live: tagging round-trips, and no control in this window mentions tags
+                // or filtering outside this section.
+                var section = Z.Section("Tags",
+                    "Tags for this asset, shared with the rest of Laubrary. This window's own browser lists "
+                    + "every asset and does not filter by them.");
                 var tagIsland = new IMGUIContainer(() => LauTagField.Draw(asset));
                 tagIsland.style.flexShrink = 0f;
                 section.Add(tagIsland);
@@ -371,7 +379,11 @@ namespace Laubrary.AssetKit.Editor
             cell.style.width = CellSize;
             bool selected = ReferenceEquals(asset, item);
             if (selected) cell.AddToClassList("zui-cell--selected");
-            cell.tooltip = $"{item.name} — click to select, double-click to open.";
+            // Says what the two clicks actually DO. A single click already binds this asset to the window
+            // (SetAsset below) — there is no select-without-open state to promise — and the only thing the
+            // second click adds is closing the browser, which the old wording ("click to select, double-click
+            // to open") described as the difference between looking and opening.
+            cell.tooltip = $"{item.name} — click to open it here, double-click to open it and close the browser.";
 
             var thumbBox = new VisualElement();
             thumbBox.AddToClassList("zui-cell__thumb");

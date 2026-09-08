@@ -20,7 +20,13 @@ namespace Laubrary.Pyre.Editor
     public partial class PyreWindow : ZuiAssetWindow<Pyre>, IPyreShapeCardHost
     {
         [MenuItem("Laubrary/Pyre")]
-        public static void Open() => GetWindow<PyreWindow>("Pyre");
+        public static void Open()
+        {
+            // The same floor Shaper declares: below it the split's two minimum panes (360 + 320) cannot both
+            // fit, so a smaller window would clamp the divider into an unusable layout (T-0302).
+            var w = GetWindow<PyreWindow>("Pyre");
+            w.minSize = new Vector2(820f, 520f);
+        }
 
         /// Open the window ON a particular Pyre. Not a menu item — the entry point a reference chip's "Edit"
         /// and a sibling tool's "open the thing this points at" both need. Several files across the package
@@ -102,6 +108,12 @@ namespace Laubrary.Pyre.Editor
         // window, so reopening the window or coming back to an asset lands on the layer you were working on
         // instead of resetting. SelLayer clamps, so a stale index (a deleted layer) is always safe. Cosmetic:
         // the setter marks the asset dirty but never repaints the render.
+        //
+        // The dirty flag belongs to a USER's choice of layer, never to housekeeping. Merely showing an asset —
+        // loading it, rebuilding the window, repairing an out-of-range index — must leave the file alone, or the
+        // asset is unsaved-dirty the instant it is opened and the next flush (Ctrl+S, the quit prompt, the
+        // toolbar's own Save) rewrites a file the author never edited. Hence the two doors below: `layerSel`
+        // for a real selection, `ClampLayerSel` for a repair.
         int layerSel
         {
             get => spec != null ? spec.previewLayerSel : 0;
@@ -112,13 +124,25 @@ namespace Laubrary.Pyre.Editor
                 EditorUtility.SetDirty(spec);
             }
         }
+
+        /// Bring a stored selection back into range WITHOUT dirtying the asset. A stale index (its layer was
+        /// deleted, or an older build wrote a sentinel) is repaired in memory so every section reads a valid
+        /// layer; the corrected value reaches disk on the author's next real edit, not on a mere open.
+        void ClampLayerSel()
+        {
+            if (spec == null || spec.layers == null) return;
+            int clamped = Mathf.Clamp(spec.previewLayerSel, 0, Mathf.Max(0, spec.layers.Count - 1));
+            if (clamped != spec.previewLayerSel) spec.previewLayerSel = clamped;
+        }
+
         PyreLayer SelLayer
         {
             get
             {
                 if (spec == null || spec.layers == null || spec.layers.Count == 0) return null;
+                // Read-only: a getter that writes to the asset is a write nobody asked for. The stored value is
+                // repaired by ClampLayerSel on load/rebuild; here we only clamp what we return.
                 int clamped = Mathf.Clamp(spec.previewLayerSel, 0, spec.layers.Count - 1);
-                if (clamped != spec.previewLayerSel) spec.previewLayerSel = clamped;
                 return spec.layers[clamped];
             }
         }
@@ -148,7 +172,12 @@ namespace Laubrary.Pyre.Editor
         protected override void OnAssetChanged()
         {
             frame = 0; previewDirty = true; DestroyFrameCache(); DestroyCherryStripCache();
-            layerSel = int.MaxValue;   // a NEW asset defaults to its last layer (BuildAsset clamps)
+            // The asset's OWN stored selection is what "come back to where you were" means, so loading one must
+            // not overwrite it. This used to write int.MaxValue here and let BuildAsset clamp it back, which
+            // dirtied every asset the moment it was shown (net data change: nothing) and, if anything flushed
+            // between the two, persisted the raw sentinel — which is how a shipped asset came to carry
+            // previewLayerSel: 2147483647. A brand-new asset has one layer, so its stored 0 is already its last.
+            ClampLayerSel();
             NormalizeSolidDefaultFills();   // FIX 1 (initial build): once-per-load steady-fill migration for solids
             ResetCherryPlayback();
         }
@@ -317,7 +346,7 @@ namespace Laubrary.Pyre.Editor
             // splits into two columns, past 1080 into three, and so on (up to the maxWidth four-column cap).
             var left = new ScrollView(ScrollViewMode.Vertical);
             leftPane = left;
-            left.style.width = Mathf.Clamp(leftPaneWidth, 360f, 4f * 360f + 3f * 6f);
+            left.style.width = ClampedLeftPaneWidth();
             left.style.flexShrink = 0f;                  // fixed — the preview takes the remaining width
             left.style.minHeight = 0f;
             var dials = left.contentContainer;
@@ -349,7 +378,7 @@ namespace Laubrary.Pyre.Editor
             // Selection is STICKY across rebuilds — only clamped to a valid index. (Defaulting to the
             // last layer on every rebuild silently jumped the overlay/sections to another layer after
             // any undo or structural edit; a fresh ASSET picks its last layer via OnAssetChanged.)
-            if (s.layers != null) layerSel = Mathf.Clamp(layerSel, 0, Mathf.Max(0, s.layers.Count - 1));
+            ClampLayerSel();   // repair only — a rebuild is not an edit, so it must not dirty the asset
 
             BuildCanvas(flow, s);      // Canvas first — the output settings sit at the top of the dials
             BuildLayerList(flow);      // the compact layer stack — under the views bar, below Canvas
@@ -391,6 +420,16 @@ namespace Laubrary.Pyre.Editor
             split.Add(left);
             split.Add(BuildVerticalSplitter());   // drag to resize the dial pane (and change its column count)
             split.Add(rightPane);
+            // Re-clamp on every resize, not only on rebuild: shrinking the window does not rebuild this tree,
+            // so without this the pane would keep the width it was built at and push the right-hand pane off
+            // the edge until something else happened to trigger a rebuild. Re-reading the persisted intent
+            // each time is also what lets the pane grow BACK when the window is widened again.
+            split.RegisterCallback<GeometryChangedEvent>(_ =>
+            {
+                if (leftPane == null) return;
+                float want = ClampedLeftPaneWidth();
+                if (!Mathf.Approximately(leftPane.resolvedStyle.width, want)) leftPane.style.width = want;
+            });
             root.style.flexGrow = 1f;
             root.style.minHeight = 0f;
             // T-0065 — the section toggle bar sits ABOVE everything else, spanning the full window width, so
@@ -410,6 +449,21 @@ namespace Laubrary.Pyre.Editor
         // A 6px draggable divider between the dial pane and the preview (mirrors Pyre1's splitter). Dragging sets
         // leftPaneWidth + the pane's fixed width live; the ColumnFlow reads that width, so a wider pane = more
         // columns. Clamped between one column (360) and the four-column cap (or the window width, whichever is less).
+        /// The dial pane's width as it may actually be APPLIED, as opposed to the width the user asked for.
+        /// The persisted intent (leftPaneWidth) is kept untouched so the pane regrows to it when the window is
+        /// widened again; only what reaches `style.width` is clamped. `position.width - 260f` is the same
+        /// reserve the drag handler below uses, so the two can no longer disagree: before this existed, the
+        /// drag clamped against the window but the BUILD clamped only against the four-column cap, so a
+        /// divider legitimately dragged wide at a large window parked the entire preview/transport/bake pane
+        /// off the right edge the next time the window was rebuilt at a smaller size, with no scroller and no
+        /// reachable drag anchor. Measured at 900x700 with leftPaneWidth 1458: 11 of 27 buttons — the whole
+        /// transport, GIF and Bake — sat entirely outside the window. Same class as Z.Split's T-0296 defect.
+        float ClampedLeftPaneWidth()
+        {
+            float cap = Mathf.Min(4f * 360f + 3f * 6f, Mathf.Max(360f, position.width - 260f));
+            return Mathf.Clamp(leftPaneWidth, 360f, cap);
+        }
+
         VisualElement BuildVerticalSplitter()
         {
             var s = new VisualElement { tooltip = "Drag to resize the dial pane (wider = more control columns)." };
@@ -420,9 +474,11 @@ namespace Laubrary.Pyre.Editor
             s.RegisterCallback<PointerMoveEvent>(e =>
             {
                 if (!s.HasPointerCapture(e.pointerId)) return;
+                // A real drag IS the user's intent, so it updates the persisted width; ClampedLeftPaneWidth
+                // then decides what that means at the current window size.
                 float cap = Mathf.Min(4f * 360f + 3f * 6f, Mathf.Max(360f, position.width - 260f));
                 leftPaneWidth = Mathf.Clamp(leftPaneWidth + e.deltaPosition.x, 360f, cap);
-                if (leftPane != null) leftPane.style.width = leftPaneWidth;
+                if (leftPane != null) leftPane.style.width = ClampedLeftPaneWidth();
                 e.StopPropagation();
             });
             s.RegisterCallback<PointerUpEvent>(e => { if (s.HasPointerCapture(e.pointerId)) s.ReleasePointer(e.pointerId); });
