@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- Shaper: a Solid's Position box says which axis of Scale and Skew is inert on each form (it named the wrong one); six doubled captions on the Torch, Orb, Jet, Inferno and Fire cards are distinct again; a greyed control carries its reason on its caption as well as its value (T-0284).
+- ZUI: saving a named View saves only the view store instead of every dirty asset in the project, and its tooltip no longer promises section folds a view never stored (T-0284).
+- AssetKit: Duplicate copies the asset in memory and creates the new one, instead of CopyAsset, which flushed every dirty asset in the project as a side effect (T-0285).
 - AssetKit, LauTag and the Shaper baker save only the asset they just made (six remaining project-wide SaveAssets calls narrowed); a dirty, unrelated asset stays dirty and unwritten through New, Rename, Delete, Bake and GIF export (T-0282).
 - Shaper: a bag member's Combine dials grey with their condition (Cut out / Add / Keep overlap each use a different pair); Posterise greys on the fill kinds it cannot band; Text's Line spacing and Align grey until the text has a second line; Loop gap, Frame, Lifetime, Duplicate, Delete and 'Start ƒ' no longer name two different things (the Layers card's second Duplicate is gone) (T-0276).
 - AssetKit: New, Duplicate and Rename save only the asset they just made instead of running a project-wide SaveAssets twice, which had been silently writing other dirty assets (the Shaper demo document among them) (T-0276).

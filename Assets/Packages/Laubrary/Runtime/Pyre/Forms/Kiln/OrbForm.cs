@@ -170,19 +170,23 @@ namespace Laubrary.Pyre.Forms.Kiln
             [ZUILabel("Tear seed")] [ZUIGroup("Noise detail", Advanced = true)]
             [Range(0, 99)] public int turbSeedOff = 7;
             [Tooltip("Full name: \"Fine tear size\". Secondary wake turbulence frequency (radians per source px) — a second field at another scale so no single octave can comb the wake.")]
-            [ZUILabel("Tear size")] [ZUIGroup("Wake")]
+            // T-0284 — the four secondary-texture dials carried the SAME labels as their primaries, and three
+            // of the pairs land on consecutive rows of one box (measured 23 px apart in Noise detail). Each
+            // now uses its own declared full name, which is how turbW2 was already disambiguated as
+            // "Tear amount" beside turbW's "Tear strength" — this finishes that pass.
+            [ZUILabel("Fine tear size")] [ZUIGroup("Wake")]
             [Range(0.05f, 1f)] public float turbScale2 = 0.17f;
             [Tooltip("Full name: \"Fine tear detail\". How much fine structure the second texture carries: more shows smaller detail riding on the tongues, fewer leaves them smooth.")]
-            [ZUILabel("Tear detail")] [ZUIGroup("Noise detail", Advanced = true)]
+            [ZUILabel("Fine tear detail")] [ZUIGroup("Noise detail", Advanced = true)]   // T-0284
             [Range(1, 8)] public int turbOct2 = 3;
             [Tooltip("Full name: \"Fine tear stretch\". Stretches the second texture along the travel axis: higher draws long streaks, 1 draws round cells.")]
-            [ZUILabel("Tear stretch")] [ZUIGroup("Noise detail", Advanced = true)]
+            [ZUILabel("Fine tear stretch")] [ZUIGroup("Noise detail", Advanced = true)]   // T-0284
             [Range(0.5f, 6f)] public float turbAniso2 = 1.5f;
             [Tooltip("Full name: \"Fine tear strength\". Weight of the secondary wake turbulence in the tearing mix.")]
             [ZUILabel("Tear amount")] [ZUIGroup("Wake")]
             [Range(0f, 1.5f)] public ZUIValue turbW2 = new ZUIValue(0.55f);
             [Tooltip("Full name: \"Fine tear seed\". A different random draw of the same texture — the character of the wake is unchanged, only which tongues land where.")]
-            [ZUILabel("Tear seed")] [ZUIGroup("Noise detail", Advanced = true)]
+            [ZUILabel("Fine tear seed")] [ZUIGroup("Noise detail", Advanced = true)]   // T-0284
             [Range(0, 99)] public int turbSeedOff2 = 23;
             [Tooltip("Full name: \"Wake smear length\". Speed smudge of the wake: taps in source px (9 at decay 0.80 ≈ 4 px of exposure trail — enough to pull every tongue into a streak without dissolving the tearing). The core is NOT smeared: the crisp nose / torn tail asymmetry is how a still frame shows direction.")]
             [ZUILabel("Wake smear")] [ZUIGroup("Wake")]

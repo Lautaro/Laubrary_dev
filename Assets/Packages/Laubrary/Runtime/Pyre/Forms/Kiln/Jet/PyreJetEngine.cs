@@ -104,10 +104,14 @@ namespace Laubrary.Pyre.Forms.Kiln
         [ZUILabel("Src height")] [ZUIGroup("Source frame", Advanced = true)]
         [Range(16, 400)] public int h = 80;
         [Tooltip("Full name: \"Nozzle across frame\". Where the nozzle sits across the source frame, as a fraction of its width (contract `nozzle` x).")]
-        [ZUILabel("Nozzle X")] [ZUIGroup("Source frame", Advanced = true)]
+        // T-0284 — "Src nozzle X/Y", not "Nozzle X/Y": JetFormBase.anchorX/anchorY are ALSO labelled
+        // "Nozzle X"/"Nozzle Y", and on a Shaper generator card both pairs are drawn at once, one placing the
+        // nozzle on the CANVAS and one inside the SOURCE frame. The prefix is the one this group already uses
+        // for its two siblings (Src width / Src height), so the source-frame block now names itself throughout.
+        [ZUILabel("Src nozzle X")] [ZUIGroup("Source frame", Advanced = true)]
         [Range(0f, 1f)] public float nozzleX = 0.08f;
         [Tooltip("Full name: \"Nozzle down frame\". Where the nozzle sits down the source frame, as a fraction of its height from the TOP (contract `nozzle` y; the source is y-down).")]
-        [ZUILabel("Nozzle Y")] [ZUIGroup("Source frame", Advanced = true)]
+        [ZUILabel("Src nozzle Y")] [ZUIGroup("Source frame", Advanced = true)]   // T-0284, see nozzleX above
         [Range(0f, 1f)] public float nozzleY = 0.55f;
 
         // ── where it goes ──

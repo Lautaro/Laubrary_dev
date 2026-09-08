@@ -73,9 +73,14 @@ namespace Laubrary.Zui
 
             var label = new Label("Views")
             {
-                tooltip = "Saved arrangements of this window's view state — which sections are folded, "
-                    + "which gear settings are open, which optional controls are shown. Never an authored "
-                    + "value; the shared views asset only stores view state."
+                // T-0284 — this said "which sections are folded", which a view has never stored: both hosts
+                // capture through paneRoot.Query<ZuiBox>() (ShaperWindow.cs:418, PyreWindow.cs:467) and
+                // ZuiSection is not a ZuiBox, so a section's fold state is neither captured nor restored.
+                // Measured: applying a view moved 9 of 9 cards and 0 of 11 sections.
+                tooltip = "Saved arrangements of this window's view state — which CARDS are folded, "
+                    + "which gear settings are open, which optional controls are shown. Section folding is "
+                    + "not part of a view. Never an authored value; the shared views asset only stores "
+                    + "view state."
             };
             label.style.unityFontStyleAndWeight = FontStyle.Bold;
             label.style.marginRight = 6f;
@@ -147,7 +152,12 @@ namespace Laubrary.Zui
                 foreach (var kv in captured)
                     preset.entries.Add(new ZuiViewEntry { key = kv.Key, val = kv.Value });
             EditorUtility.SetDirty(store);
-            AssetDatabase.SaveAssets();
+            // T-0284 — flush the VIEWS asset, never the project. AssetDatabase.SaveAssets() writes every dirty
+            // asset there is, so saving a view committed whatever unsaved edits happened to be open in the
+            // window beside it — measured here: an unrelated document with an unsaved edit was written to disk
+            // and left clean by pressing Save as. Same narrowing T-0276/T-0282 made on the asset toolbar; a
+            // view is pure view state and has even less business publishing someone else's work.
+            AssetDatabase.SaveAssetIfDirty(store);
 
             EditorPrefs.SetString(_prefsKey, name);
             RefreshPicker(name);
@@ -172,7 +182,7 @@ namespace Laubrary.Zui
             Undo.RecordObject(store, "Delete Zui View");
             store.presets.Remove(preset);
             EditorUtility.SetDirty(store);
-            AssetDatabase.SaveAssets();
+            AssetDatabase.SaveAssetIfDirty(store);   // T-0284 — this asset, not the project. See SaveInto.
 
             if (EditorPrefs.GetString(_prefsKey, "") == name) EditorPrefs.DeleteKey(_prefsKey);
             RefreshPicker("");

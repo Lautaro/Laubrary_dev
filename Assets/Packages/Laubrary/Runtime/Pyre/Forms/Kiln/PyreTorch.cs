@@ -76,7 +76,10 @@ namespace Laubrary.Pyre.Forms.Kiln
     {
         // ── envelope ──
         [Tooltip("Full name: \"Flame reach (source px)\". Reach of the flame in SOURCE px — the reference every other px value here is relative to (the canvas height comes from the shared Height dial: u = Height × canvas / this).")]
-        [ZUILabel("Flame reach")] [ZUIGroup("Shape", Tooltip = "The flame's silhouette: width, height and how each falls off.")]
+        // T-0284 — "Src reach", not "Flame reach": TorchForm.height is ALSO labelled "Flame reach" and both are
+        // drawn on one Shaper card 81 px apart, one a fraction of the CANVAS and one a count of SOURCE px.
+        // The prefix matches the Jet family's own Src width / Src height convention for source-frame dials.
+        [ZUILabel("Src reach")] [ZUIGroup("Shape", Tooltip = "The flame's silhouette: width, height and how each falls off.")]
         [Range(10f, 200f)] public float hFlame = 74f;
         [Tooltip("Full name: \"Base half-width\". Half-width of the source at the base, px.")]
         [ZUILabel("Base width")] [ZUIGroup("Shape")]
@@ -124,7 +127,10 @@ namespace Laubrary.Pyre.Forms.Kiln
         [ZUILabel("Foot bite")] [ZUIGroup("Shape")]
         [Range(0f, 0.8f)] public ZUIValue foot = new ZUIValue(0.22f);
         [Tooltip("Full name: \"Foot bite height\". Height of the foot bite, px.")]
-        [ZUILabel("Foot bite")] [ZUIGroup("Shape", Advanced = true)]
+        // T-0284 — "Foot bite ht", not "Foot bite": `foot` above carries that exact label and the two land
+        // SIDE BY SIDE in one row of the Shape group (measured at x 172 and x 312 of the same row). This is
+        // the field's own declared full name, shortened to the row width.
+        [ZUILabel("Foot bite ht")] [ZUIGroup("Shape", Advanced = true)]
         [Range(0.5f, 8f)] public ZUIValue footH = new ZUIValue(2.0f);
 
         // ── reach (how high, varying along the base and over time) ──
@@ -261,7 +267,10 @@ namespace Laubrary.Pyre.Forms.Kiln
         [ZUILabel("Bed width")] [ZUIGroup("Fuel bed glow")]
         [Range(1f, 60f)] public ZUIValue glowW = new ZUIValue(6f);
         [Tooltip("Full name: \"Bed glow height\". Height of the fuel-bed pool above Glow Y, px.")]
-        [ZUILabel("Bed height")] [ZUIGroup("Fuel bed glow")]
+        // T-0284 — "Bed glow ht", not "Bed height": TorchForm.ground is ALSO labelled "Bed height" and both are
+        // on one Shaper card, one a fraction of the canvas and one a count of source px. This is the field's
+        // own declared full name; its siblings keep Bed width / Bed pos., which collide with nothing.
+        [ZUILabel("Bed glow ht")] [ZUIGroup("Fuel bed glow")]
         [Range(0.5f, 20f)] public ZUIValue glowH = new ZUIValue(4.5f);
         [Tooltip("Full name: \"Bed glow position\". Height above the fuel bed where the pool starts, px.")]
         [ZUILabel("Bed pos.")] [ZUIGroup("Fuel bed glow")]

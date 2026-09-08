@@ -1197,16 +1197,28 @@ namespace Laubrary.Shaper.Editor
             t.EnsureDials();
 
             // T-0265 — a Solid's placement runs through its own compiled op (ShaperSolids.Place), so this box
-            // inherits that op's inertness EXACTLY: the Y half of Scale and Skew rides on the solid's Aspect,
-            // and Rotation rides on its Roll. Where the engine's own table says a form ignores one of those,
-            // this box says so too — Ring's Rotation and Gem/Orb/Ring's Scale Y are measured at 0 pixels, and
-            // the sentence is the engine's own rather than a second opinion about the same geometry.
+            // inherits that op's inertness EXACTLY, and Rotation rides on the solid's Roll. Where the engine's
+            // own table says a form ignores one of those, this box says so too, in the engine's own sentence
+            // rather than a second opinion about the same geometry.
+            //
+            // T-0284 — the axis differs between Scale and Skew, and saying "Y" for both was wrong for Skew.
+            // ShaperSolids.Place reads the composed matrix as sx = |(m00,m10)| (the solid's radius),
+            // sy = |(m01,m11)| (its ASPECT), and roll += atan2(m10, m00) (ShaperSolids.cs:488-495), while
+            // ShaperMatrix.Skew(kx, ky) puts Skew X in m01 alone and Skew Y in m10 (ShaperMatrix.cs:34-35).
+            // So Scale's Y half is the one that only feeds aspect, but Skew's X half is — Skew Y still moves
+            // the radius and the roll. Measured on a 96x64 canvas: Orb / Gem / Ring read Scale Y 0/0/0 and
+            // Skew X 0/0/0, against Skew Y 1473/619/1068. Naming Y on the Skew pad sent the reader to the
+            // half that works.
             bool solid = node.kind == ShaperNodeKind.Solid;
             var form = solid && node.solid != null ? node.solid.form : default(ShaperSolidForm);
             string aspectInert = solid ? ShaperSolids.InertReason(form, ShaperSolidDial.Aspect) : null;
             string rollInert = solid ? ShaperSolids.InertReason(form, ShaperSolidDial.Roll) : null;
-            string yNote = aspectInert == null ? ""
+            string scaleNote = aspectInert == null ? ""
                 : "\n\nThe Y axis does nothing on a " + form + ": " + aspectInert;
+            string skewNote = aspectInert == null ? ""
+                : "\n\nThe X axis does nothing on a " + form + " — slanting on X reaches the solid only as its "
+                  + "Y proportion, and " + char.ToLowerInvariant(aspectInert[0]) + aspectInert.Substring(1)
+                  + " The Y axis still acts: it changes the solid's size and its roll.";
 
             // Spatial X/Y pairs are one 2D control, never two packed float fields — dragging two 1D fields to
             // aim one 2D value is the ergonomics problem, and packing them into a row fixes only the width.
@@ -1237,11 +1249,11 @@ namespace Laubrary.Shaper.Editor
                 // every card (the shape's own size dial, and this) and only one of them is the shape's size.
                 Val2D("Scale", "Multiplies the size the shape's own dials give it — " + SizeDialName(node)
                     + " — on each axis. 1 leaves it at that size. Animate it to make the node grow or shrink "
-                    + "over the document's frames." + yNote,
+                    + "over the document's frames." + scaleNote,
                     t.scaleX, t.scaleY,
                     new ZuiValue2DControl.Options().WithRange(0.05f, 4f, 0.05f, 4f)
                         .WithDefault(Vector2.one).WithPrefKey("shaper.transform.scale")),
-                Val2D("Skew", "Slant this node's content on each axis, in degrees." + yNote,
+                Val2D("Skew", "Slant this node's content on each axis, in degrees." + skewNote,
                     t.skewX, t.skewY,
                     new ZuiValue2DControl.Options().WithRange(-80f, 80f, -80f, 80f)
                         .WithPrefKey("shaper.transform.skew"))));

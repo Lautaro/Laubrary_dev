@@ -56,8 +56,13 @@ namespace Laubrary.AssetKit.Editor
             string path = PathOf(src);
             if (string.IsNullOrEmpty(path)) return null;
             string copy = AssetDatabase.GenerateUniqueAssetPath(path);
-            if (!AssetDatabase.CopyAsset(path, copy)) return null;
-            var made = AssetDatabase.LoadAssetAtPath<T>(copy);
+            // T-0285 — AssetDatabase.CopyAsset flushes EVERY dirty asset in the project as a Unity-internal
+            // side effect (measured by T-0282), independent of any SaveAssets/SaveAssetIfDirty call nearby.
+            // Object.Instantiate deep-copies the ScriptableObject (including its [SerializeReference] graph)
+            // in memory instead, so CreateAsset below only ever touches the one asset being made.
+            var made = Object.Instantiate(src);
+            made.name = System.IO.Path.GetFileNameWithoutExtension(copy);
+            AssetDatabase.CreateAsset(made, copy);
             AssetDatabase.SaveAssetIfDirty(made);   // T-0276 — this asset, not the project. See Create above.
             return made;
         }

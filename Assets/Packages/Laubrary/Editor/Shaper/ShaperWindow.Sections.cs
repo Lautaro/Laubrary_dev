@@ -192,7 +192,33 @@ namespace Laubrary.Shaper.Editor
             if (el == null || reason == null) return el;
             el.SetEnabled(false);
             el.tooltip = reason;
+            StampReason(el, reason);
             return el;
+        }
+
+        /// <summary>
+        /// T-0284 — the reason has to be on whatever the pointer actually lands on. UI Toolkit shows the
+        /// tooltip of the element UNDER the cursor, and a <c>Z.Field</c>/<c>Z.MiniRadio</c> wrapper keeps its
+        /// own caption Label with its own tooltip, so putting the reason on the wrapper alone left the
+        /// caption — the first thing anyone hovers — saying what the control does and never why it is dead.
+        /// Measured on the Lighting card of a primitive layer with no Height stage: "Rim power" explained
+        /// itself (it is built through <see cref="InertVal"/>, which hands the reason in as the control's OWN
+        /// tip) while "Normals", "Direction XY" and "Direction Z" one row below did not. Doing it here covers
+        /// every control shape instead of one, so there is still exactly one convention.
+        ///
+        /// The reason is PREPENDED rather than substituted: a MicroSlider's own tooltip carries its
+        /// interaction hints ("Drag to set; Shift = fine"), which are still true of a disabled control the
+        /// moment its guard opens, and dropping them would trade one missing sentence for another.
+        /// </summary>
+        static void StampReason(VisualElement el, string reason)
+        {
+            for (int i = 0; i < el.childCount; i++)
+            {
+                var c = el[i];
+                if (!string.IsNullOrEmpty(c.tooltip) && !c.tooltip.StartsWith(reason, StringComparison.Ordinal))
+                    c.tooltip = reason + "  ·  " + c.tooltip;
+                StampReason(c, reason);
+            }
         }
 
         /// <summary>

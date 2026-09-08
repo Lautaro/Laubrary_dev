@@ -113,7 +113,11 @@ namespace Laubrary.Pyre.Forms.Kiln
         [ZUILabel("Churn")] [ZUIGroup("Churn & motion", Tooltip = "Internal roiling and turning.")]
         [Range(0f, 1f)] public ZUIValue churn = new ZUIValue(0.68f);
         [Tooltip("Full name: \"Rotation torque\". Rotational torque, either way (−1..1), over the layer's life; 0 = none.")]
-        [ZUILabel("Rotation")] [ZUIGroup("Churn & motion")]
+        // T-0284 — "Torque", not "Rotation": every Shaper node's own Position box draws a "Rotation" dial in
+        // degrees, and on an Inferno card the two were on screen together meaning different things (a spin
+        // angle vs a torque over life). "Torque" is this field's own declared full name, minus the word that
+        // collided.
+        [ZUILabel("Torque")] [ZUIGroup("Churn & motion")]
         [Range(-1f, 1f)] public ZUIValue rotation = new ZUIValue(0.22f);
         [Tooltip("Full name: \"Secondary pulse\". A secondary compression wave that breathes the SAME blast in and out after the bang — it does not add a second explosion (use more swarm particles for that).")]
         [ZUILabel("2nd pulse")] [ZUIGroup("Churn & motion")]

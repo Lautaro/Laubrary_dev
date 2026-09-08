@@ -61,7 +61,10 @@ namespace Laubrary.PyreShaper
 
         [Tooltip("Shapes the whole burn over the animation: 0 puts the emitter out, 1 drives it flat out. Scales "
                + "the heat and fuel injected, so one curve takes the flame from ignite through roar to nothing.")]
-        [ZUILabel("Intensity")] public ZUIValue intensity = PyreShaperSimSupport.IgniteHoldFade();
+        // T-0284 — "Burn strength", not "Intensity": every document has a light rig, and each light's own
+        // "Intensity" is drawn in the Lights section of the same pane (ShaperWindow.Lights.cs). Measured on a
+        // Fire card with one key light, the two captions sat 512 px apart in one scroll column.
+        [ZUILabel("Burn strength")] public ZUIValue intensity = PyreShaperSimSupport.IgniteHoldFade();
 
         [Min(1)]
         [Tooltip("How many flames radiate from the centre. 1 is a single directional flame; more open cold gaps "
@@ -74,7 +77,9 @@ namespace Laubrary.PyreShaper
         [ZUILabel("Arm Mode")] public FireArmMode armMode = FireArmMode.Mirror;
 
         [Tooltip("Which way the first arm points, in degrees. 90 sends the flame up the canvas.")]
-        [ZUILabel("Direction")] public ZUIValue direction = new ZUIValue(90f);
+        // T-0284 — "Arm direction", not "Direction": a Directional light's own "Direction" pad is drawn in the
+        // Lights section of the same pane, 532 px above this on the same card. Names the thing it aims.
+        [ZUILabel("Arm direction")] public ZUIValue direction = new ZUIValue(90f);
 
         [Tooltip("How wide the base of each flame is, in pixels. Wider gives a broader, slower-looking fire.")]
         [ZUILabel("Emit Width")] public ZUIValue emitterWidth = new ZUIValue(9f);
