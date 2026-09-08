@@ -22,7 +22,11 @@ namespace Laubrary.Chunks.Editor
     public partial class ChunkWindow : ZuiAssetWindow<ChunkSpec>
     {
         [MenuItem("Laubrary/Chunks")]
-        public static void Open() => GetWindow<ChunkWindow>("Chunks");
+        public static void Open()
+        {
+            var w = GetWindow<ChunkWindow>("Chunks");
+            w.minSize = new Vector2(820f, 520f);   // the same floor Pyre and Shaper declare (T-0306)
+        }
 
         /// Same entry-point shape as PyreWindow.OpenFor/MirageWindow.OpenFor — lets a LauAssetField's Edit
         /// button jump straight into this ChunkSpec's own editor.

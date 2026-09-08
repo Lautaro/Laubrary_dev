@@ -39,8 +39,12 @@ namespace Laubrary.Pyre.Editor
         }
 
         Pyre spec => Current;
-        protected override string TypeLabel => "Pyre Plus";
-        protected override string NewAssetName => "New Pyre Plus";
+        // The tool is called Pyre. "Pyre Plus" was the pre-2026-08-23 name and this window was the last place
+        // it still reached the user: TypeLabel is threaded through fifteen visible strings (the Save tooltip,
+        // the browser header, the New/Duplicate/Delete wording and their Undo entries), so every one of them
+        // said a name the project no longer uses. Existing assets keep the file names they were saved under.
+        protected override string TypeLabel => "Pyre";
+        protected override string NewAssetName => "New Pyre";
         protected override string DefaultFolder => "Assets/Pyre";
 
         protected override Texture2D RenderThumbnail(Pyre item)
@@ -562,7 +566,7 @@ namespace Laubrary.Pyre.Editor
                 AssetDatabase.CreateFolder("Assets", "Pyre");
             var store = ScriptableObject.CreateInstance<ZuiViewStore>();
             AssetDatabase.CreateAsset(store, ViewStorePath);
-            Undo.RegisterCreatedObjectUndo(store, "Create Pyre Plus Views");
+            Undo.RegisterCreatedObjectUndo(store, "Create Pyre Views");
             return store;
         }
 
@@ -621,7 +625,7 @@ namespace Laubrary.Pyre.Editor
                 v =>
                 {
                     if (spec == null) return;
-                    Undo.RecordObject(spec, "Edit Pyre Plus");
+                    Undo.RecordObject(spec, "Edit Pyre");
                     s.previewGifScale = Mathf.Clamp(Mathf.RoundToInt(v), 1, 8);
                     EditorUtility.SetDirty(spec);
                 }, 150f, showValue: true, decimals: 0));
@@ -634,7 +638,7 @@ namespace Laubrary.Pyre.Editor
                 v =>
                 {
                     if (spec == null) return;
-                    Undo.RecordObject(spec, "Edit Pyre Plus");
+                    Undo.RecordObject(spec, "Edit Pyre");
                     s.previewGifDither = v;
                     EditorUtility.SetDirty(spec);
                 }));
@@ -816,7 +820,7 @@ namespace Laubrary.Pyre.Editor
                 + "grid, dots, or a stamped sprite. Cosmetic backdrops for the PREVIEW only live in the backdrop "
                 + "panel below — this one IS baked into the frames.",
                 onChanged: () => { s.backgroundUseFill = true; if (spec != null) EditorUtility.SetDirty(spec); MarkDirty(); },
-                onBeforeMutate: () => { if (spec != null) Undo.RecordObject(spec, "Edit Pyre Plus"); },
+                onBeforeMutate: () => { if (spec != null) Undo.RecordObject(spec, "Edit Pyre"); },
                 new ZuiFillControl.Options().WithWidth(190f).WithGrow(2.2f));
         }
 
@@ -959,7 +963,7 @@ namespace Laubrary.Pyre.Editor
 
             row.Add(Z.Button("✕", "Delete this layer (undoable).", () =>
             {
-                if (spec.layers.Count <= 1) { ShowNotification(new GUIContent("A Pyre Plus asset needs at least one layer.")); return; }
+                if (spec.layers.Count <= 1) { ShowNotification(new GUIContent("A Pyre asset needs at least one layer.")); return; }
                 Dirty(() => spec.layers.RemoveAt(li));
                 layerSel = Mathf.Clamp(layerSel, 0, spec.layers.Count - 1);
                 RebuildAllForSelection();
@@ -1864,7 +1868,7 @@ namespace Laubrary.Pyre.Editor
         int IPyreShapeCardHost.FrameCount => spec != null ? spec.frameCount : 0;
         void IPyreShapeCardHost.Dirty(System.Action apply) => Dirty(apply);
         void IPyreShapeCardHost.MarkDirty() => MarkDirty();
-        void IPyreShapeCardHost.RecordUndo() { if (spec != null) Undo.RecordObject(spec, "Edit Pyre Plus"); }
+        void IPyreShapeCardHost.RecordUndo() { if (spec != null) Undo.RecordObject(spec, "Edit Pyre"); }
         // Pyre's own window has no shape tree above the layer, so this box IS the layer's placement (T-0265).
         bool IPyreShapeCardHost.HostOwnsPlacement => false;
         void IPyreShapeCardHost.RebuildShape() => RebuildShape();
@@ -1897,7 +1901,7 @@ namespace Laubrary.Pyre.Editor
                 frameCount = spec != null ? spec.frameCount : 0,
                 currentFrame = () => frame,   // a folded envelope reads out the value at the playhead
             };
-            return Z.Value(label, v, o, tooltip, () => MarkDirty(), () => Undo.RecordObject(spec, "Edit Pyre Plus"));
+            return Z.Value(label, v, o, tooltip, () => MarkDirty(), () => Undo.RecordObject(spec, "Edit Pyre"));
         }
 
         // Val variant for an INDEX-mapped curve — X axis is a particle INDEX (0…last), not time. Swaps the
@@ -1916,12 +1920,12 @@ namespace Laubrary.Pyre.Editor
                 indexMarkerCount = Mathf.Max(0, indexCount),
                 xAxisLabel = xAxisLabel, yAxisLabel = yAxisLabel,
             };
-            return Z.Value(label, v, o, tooltip, () => MarkDirty(), () => Undo.RecordObject(spec, "Edit Pyre Plus"));
+            return Z.Value(label, v, o, tooltip, () => MarkDirty(), () => Undo.RecordObject(spec, "Edit Pyre"));
         }
 
         // 2D analog of Val — an animatable XY pair, same Undo-record + preview-dirty wiring.
         VisualElement Val2D(string label, string tooltip, ZUIValue x, ZUIValue y, ZuiValue2DControl.Options o)
-            => Z.Value2D(label, x, y, o, tooltip, () => MarkDirty(), () => Undo.RecordObject(spec, "Edit Pyre Plus"));
+            => Z.Value2D(label, x, y, o, tooltip, () => MarkDirty(), () => Undo.RecordObject(spec, "Edit Pyre"));
 
         // A Z.Fill row (ZuiFill editor) wired to the same Undo/dirty/preview contract as Val: record the asset once
         // per gesture (onBeforeMutate), then dirty + repaint (onChanged). The control mutates the ZuiFill instance
@@ -1929,7 +1933,7 @@ namespace Laubrary.Pyre.Editor
         ZuiFillControl FillRow(string label, string tooltip, ZuiFill fill, ZuiFillControl.Options opt = null)
             => Z.Fill(label, fill, tooltip,
                 () => { if (spec != null) EditorUtility.SetDirty(spec); MarkDirty(); },
-                () => { if (spec != null) Undo.RecordObject(spec, "Edit Pyre Plus"); },
+                () => { if (spec != null) Undo.RecordObject(spec, "Edit Pyre"); },
                 opt);
 
         // Compact Z.Fill for the Solid box's slot fills (spec / line / edge / inner), packed beside their sliders.
@@ -2021,7 +2025,7 @@ namespace Laubrary.Pyre.Editor
         void Dirty(System.Action apply)
         {
             if (spec == null) return;
-            Undo.RecordObject(spec, "Edit Pyre Plus");
+            Undo.RecordObject(spec, "Edit Pyre");
             apply();
             EditorUtility.SetDirty(spec);
             MarkDirty();
@@ -2034,7 +2038,7 @@ namespace Laubrary.Pyre.Editor
         void DirtyRepaintOnly(System.Action apply)
         {
             if (spec == null) return;
-            Undo.RecordObject(spec, "Edit Pyre Plus");
+            Undo.RecordObject(spec, "Edit Pyre");
             apply();
             EditorUtility.SetDirty(spec);
             preview?.MarkDirtyRepaint();

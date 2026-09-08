@@ -120,7 +120,7 @@ namespace Laubrary.Pyre.Editor
 
         ZuiReflect.Options FormDrawerOptions(PyreLayer s) => new ZuiReflect.Options
         {
-            OnBeforeChange = () => { if (spec != null) Undo.RecordObject(spec, "Edit Pyre Plus form"); },
+            OnBeforeChange = () => { if (spec != null) Undo.RecordObject(spec, "Edit Pyre form"); },
             OnChanged = () => { if (spec != null) EditorUtility.SetDirty(spec); MarkDirty(); },
             OnStructureChanged = RebuildShape,
             // A dial that only acts when the swarm ignites several instances is hidden while the swarm is off.

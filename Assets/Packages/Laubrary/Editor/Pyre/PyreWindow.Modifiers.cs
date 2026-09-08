@@ -326,7 +326,7 @@ namespace Laubrary.Pyre.Editor
         // after), plus a rebuild when a nested list gains/loses an element.
         ZuiReflect.Options ModifierDrawerOptions(PyreModifier m, Action rebuild) => new ZuiReflect.Options
         {
-            OnBeforeChange = () => { if (spec != null) Undo.RecordObject(spec, "Edit Pyre Plus modifier"); },
+            OnBeforeChange = () => { if (spec != null) Undo.RecordObject(spec, "Edit Pyre modifier"); },
             OnChanged = () => { if (spec != null) EditorUtility.SetDirty(spec); MarkDirty(); },
             OnStructureChanged = rebuild,
             // The enable toggle lives in the header row, so hide the base `enabled` field the drawer would

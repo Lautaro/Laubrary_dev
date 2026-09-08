@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- Pyre: the window says 'Pyre' everywhere it still said 'Pyre Plus' (15 strings: Save/New/Browse/Duplicate/Delete wording, browser header, default asset name, Undo entries); Chunks has a minimum window size (T-0303, T-0306).
 - Pyre: opening the window no longer leaves the spec dirty (a preview-only layer selection was written on every load and rewritten to disk on the next domain reload); the preview splitter clamps to the window on build as well as on drag; the window has a minimum size (T-0299, T-0302).
 - AssetKit: the Tags tooltip no longer promises a browser filter that does not exist, and the browse-cell tooltip describes what a click does (T-0299).
 - ZUI: a split view clamps its divider to the window (min 360 px left, 320 px right) on restore, resize and drag, so the right pane can never sit off-screen at the minimum window size; a field wrapping a MiniRadio may shrink and wrap inside a row (T-0296, T-0297).
