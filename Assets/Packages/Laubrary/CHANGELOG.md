@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- ZUI/Pyre/Shaper/Chunks/Launimator: preview zoom means one thing everywhere — zoom 1 draws a simulated pixel at the game's own scale (4 screen pixels: 320x200 on a 1280x800 Steam Deck), zooms are whole numbers snapped to device pixels, and Fit is an explicit button that writes its answer into the zoom control; the scale comes from PixelScaleProjectSettings when present, else 4 (T-0264).
 - Shaper: Swarm is its own bar section again (green header with its on/off checkbox), between Fill and SpriteFX, as in Pyre; the bar has nine entries (owner request 2026-09-08).
 - ZUI: a box can carry its on/off switch as a header checkbox (ZuiBox.SetHeaderToggle, the same idiom sections had); Shaper's Sweep, Shell, Swarm and Edge boxes and the shared Pyre Border box use it instead of an Enabled toggle in the body (owner request 2026-09-08).
 - Shaper: a new document's seeded growth animation no longer collapses into a static full-canvas rectangle — the layer-key hasher now only materialises null dials on a live object instead of re-running the legacy-float migration over freshly seeded curves (found by the harmony handover walk, T-0259).

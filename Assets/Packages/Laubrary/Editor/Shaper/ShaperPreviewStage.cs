@@ -13,6 +13,7 @@
 using System;
 using Laubrary.BackSplash.Editor;
 using Laubrary.PyreShaper;
+using Laubrary.Zui;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -46,7 +47,12 @@ namespace Laubrary.Shaper.Editor
         /// Cosmetic view state, owned by the window and pushed in — see ShaperWindow.Preview.cs for why these
         /// live on the window rather than the document.
         public bool ShowFrameBorder;
-        public float Zoom = 1f;
+
+        /// Whole zoom levels, in the package-wide sense (ZuiPixelStage): 1 draws a canvas pixel at the size it
+        /// has in game. It used to be a free float multiplying an automatic ScaleToFit, which meant zoom 1
+        /// answered "however big this pane happens to make it" and the same number showed a different size
+        /// after every window resize.
+        public int Zoom = 1;
 
         // ── on-canvas position handle (T-0168) ──────────────────────────────────────────────────────────────
         // The node being edited is the window's business, so the stage asks for it rather than tracking a
@@ -141,9 +147,15 @@ namespace Laubrary.Shaper.Editor
             _backdrop.StretchToParentSize();
             Add(_backdrop);
 
+            // The image layer is placed EXPLICITLY at the canvas rect rather than stretched over the stage and
+            // fitted by ScaleToFit. ScaleToFit picks whatever fractional scale the pane's current size implies,
+            // which is how "zoom 1" here came to mean something different in every window size — and a
+            // fractional scale also rasterizes a point-filtered pixel as alternately N and N+1 screen pixels.
+            // The rect comes from ZuiPixelStage, in whole device pixels, so the picture is a whole number of
+            // identical blocks and the box is exactly the picture (hence StretchToFill, not ScaleToFit).
             _image = new VisualElement { pickingMode = PickingMode.Ignore };
-            _image.style.unityBackgroundScaleMode = ScaleMode.ScaleToFit;
-            _image.StretchToParentSize();
+            _image.style.unityBackgroundScaleMode = ScaleMode.StretchToFill;
+            _image.style.position = Position.Absolute;
             Add(_image);
 
             // The canvas-edge outline, as a styled border rather than four EditorGUI.DrawRect calls. Absolute
@@ -202,7 +214,7 @@ namespace Laubrary.Shaper.Editor
             _originCross.Add(_originCrossV);
             Add(_originCross);
 
-            RegisterCallback<GeometryChangedEvent>(_ => { LayoutFrameBorder(); LayoutHandle(); LayoutOriginCross(); });
+            RegisterCallback<GeometryChangedEvent>(_ => { LayoutImage(); LayoutFrameBorder(); LayoutHandle(); LayoutOriginCross(); });
             ApplyHoverVisibility(); // start hidden: nothing paints until the pointer is over the stage
             RegisterCallback<PointerEnterEvent>(_ => { _hover = true; ApplyHoverVisibility(); });
             RegisterCallback<PointerLeaveEvent>(_ => { _hover = false; ApplyHoverVisibility(); });
@@ -227,7 +239,10 @@ namespace Laubrary.Shaper.Editor
             float vw = resolvedStyle.width, vh = resolvedStyle.height;
             if (float.IsNaN(vw) || float.IsNaN(vh) || vw <= 0f || vh <= 0f) return;
 
-            var r = FittedCanvasRect(new Rect(0f, 0f, vw, vh), doc);
+            // The SAME rect the picture is placed at — including zoom. It used to be the un-zoomed fit, so a
+            // zoomed preview drew its "canvas edge" somewhere inside the picture.
+            var r = ZoomedCanvasRect(doc);
+            if (r.width <= 0f || r.height <= 0f) { _frameBorder.style.display = DisplayStyle.None; return; }
             _frameBorder.style.display = DisplayStyle.Flex;
             _frameBorder.style.left = r.x;
             _frameBorder.style.top = r.y;
@@ -237,17 +252,43 @@ namespace Laubrary.Shaper.Editor
 
         // ── the position handle ─────────────────────────────────────────────────────────────────────────────
 
-        /// Where the picture actually is, INCLUDING zoom. Zoom is applied as a negative percentage inset on the
-        /// image layer, so the image's own box is the stage grown by (zoom−1)/2 on every side; the canvas is
-        /// then fitted inside that. Anything drawn over the picture has to use the same box or it drifts off
-        /// the thing it is marking as soon as the user zooms.
+        /// Where the picture actually is, in this element's own points — the ONE rect the image, the frame
+        /// border, the handle and the pivot cross all read, so a mark can never drift off the thing it marks.
+        /// It comes from the shared stage rule: a whole number of device pixels per canvas pixel (zoom ×the
+        /// game's own screen scale), centred, corner snapped onto a device pixel.
         Rect ZoomedCanvasRect(ShaperDocument doc)
         {
             float vw = resolvedStyle.width, vh = resolvedStyle.height;
             if (float.IsNaN(vw) || float.IsNaN(vh) || vw <= 0f || vh <= 0f) return Rect.zero;
-            float z = Mathf.Max(1f, Zoom);
-            var view = new Rect(-(z - 1f) * 0.5f * vw, -(z - 1f) * 0.5f * vh, vw * z, vh * z);
-            return FittedCanvasRect(view, doc);
+            int w = Mathf.Max(1, doc.canvasWidth), h = Mathf.Max(1, doc.canvasHeight);
+            return ZuiPixelStage.Place(new Rect(0f, 0f, vw, vh), this, w, h, Zoom).rect;
+        }
+
+        /// The largest whole zoom this stage can show the current document at — what the window's Fit button
+        /// asks for. The stage owns it because only the stage knows how big it is right now.
+        public int FitZoom()
+        {
+            var doc = _doc?.Invoke();
+            float vw = resolvedStyle.width, vh = resolvedStyle.height;
+            if (doc == null || float.IsNaN(vw) || float.IsNaN(vh) || vw <= 0f || vh <= 0f)
+                return ZuiPixelStage.MinZoom;
+            return ZuiPixelStage.FitZoom(new Rect(0f, 0f, vw, vh),
+                Mathf.Max(1, doc.canvasWidth), Mathf.Max(1, doc.canvasHeight));
+        }
+
+        /// Put the image layer exactly on that rect. Called on every geometry change and after every refresh,
+        /// because the placement depends on the stage's size, on where the stage sits inside the window (a
+        /// device-pixel snap is relative to the panel, not to the element) and on the zoom.
+        void LayoutImage()
+        {
+            var doc = _doc?.Invoke();
+            if (doc == null) return;
+            var r = ZoomedCanvasRect(doc);
+            if (r.width <= 0f || r.height <= 0f) return;
+            _image.style.left = r.x;
+            _image.style.top = r.y;
+            _image.style.width = r.width;
+            _image.style.height = r.height;
         }
 
         /// A point in canvas units to a point in this element's own pixels. Canvas units are centred on the
@@ -449,16 +490,6 @@ namespace Laubrary.Shaper.Editor
             Changed?.Invoke();
         }
 
-        /// Where the canvas actually lands inside `view` under ScaleToFit + Zoom — the border has to follow
-        /// the picture, not the panel, or it stops meaning "this is the canvas edge".
-        static Rect FittedCanvasRect(Rect view, ShaperDocument doc)
-        {
-            float cw = Mathf.Max(1, doc.canvasWidth), ch = Mathf.Max(1, doc.canvasHeight);
-            float scale = Mathf.Min(view.width / cw, view.height / ch);
-            float w = cw * scale, h = ch * scale;
-            return new Rect(view.x + (view.width - w) * 0.5f, view.y + (view.height - h) * 0.5f, w, h);
-        }
-
         public void Dispose()
         {
             _prebaker.Stop();
@@ -495,6 +526,7 @@ namespace Laubrary.Shaper.Editor
             // than being told to repaint. (As an IMGUIContainer this needed a manual MarkDirtyRepaint — one
             // of the small frictions that came with the island.)
             _backdrop.SetSettings(doc?.previewBackSplash);
+            LayoutImage();
             LayoutFrameBorder();
             LayoutHandle();
             LayoutOriginCross();
@@ -568,14 +600,9 @@ namespace Laubrary.Shaper.Editor
             _tex.Apply(false);
             _image.style.backgroundImage = Background.FromTexture2D(_tex);
 
-            // Zoom magnifies the fitted picture only. It is applied as a LAYOUT inset on the image layer, so
-            // it cannot reach the renderer: the same Color32[] is displayed larger, never re-rendered at a
-            // different size. That is what keeps zoom cosmetic and the bake unaffected.
-            float inset = Zoom <= 1f ? 0f : -(Zoom - 1f) * 50f;
-            _image.style.left = Length.Percent(inset);
-            _image.style.right = Length.Percent(inset);
-            _image.style.top = Length.Percent(inset);
-            _image.style.bottom = Length.Percent(inset);
+            // Zoom only decides how big the picture is DRAWN: the same Color32[] is placed on a larger box,
+            // never re-rendered at another size, so nothing a baker would produce can change with it.
+            LayoutImage();
         }
     }
 }

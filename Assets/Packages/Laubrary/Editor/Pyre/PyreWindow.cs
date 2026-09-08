@@ -616,11 +616,15 @@ namespace Laubrary.Pyre.Editor
             // filmstrip → DirtyRepaintOnly), rounded to an integer like Pyre1. Speed drives the preview frame rate
             // (previewFps) — an absolute fps rather than Pyre1's 0.1–3× multiplier, since previewFps IS Pyre's
             // playback rate; it also sets the exported GIF's rate. The readout mirrors Pyre1's "frame N/M" label.
-            var zoomMs = Z.MicroSlider("Zoom", s.previewZoom, 1f, 16f,
-                "Magnification of the single-frame preview (canvas pixels × zoom). Does not affect the filmstrip or "
-                + "the baked frames.",
-                v => DirtyRepaintOnly(() => s.previewZoom = Mathf.Max(1f, Mathf.Round(v))), 150f,
-                showValue: true, decimals: 0);
+            // Zoom is the package-wide rule (ZuiPixelStage): an integer, where 1 draws a canvas pixel at the
+            // size it has in game rather than at one GUI point, and Fit is an explicit press that writes the
+            // zoom it chose back into the slider. The stored float is migrated to the nearest whole zoom on
+            // read; previewZoom stays preview-only state on the spec, exactly as it was.
+            var zoomMs = ZuiPixelStage.ZoomControl(
+                ZuiPixelStage.Migrate(s.previewZoom),
+                z => DirtyRepaintOnly(() => s.previewZoom = z),
+                () => ZuiPixelStage.FitZoom(lastPreviewView, Mathf.Max(1, s.Width), Mathf.Max(1, s.Height)),
+                "the single-frame preview", out _, 150f);
             var speedMs = Z.MicroSlider("Speed", s.previewFps, 1f, 30f,
                 "Preview playback rate in frames per second — how fast the loop plays (also the exported GIF's rate).",
                 v => DirtyRepaintOnly(() => s.previewFps = Mathf.Clamp(Mathf.Round(v), 1f, 30f)), 150f,

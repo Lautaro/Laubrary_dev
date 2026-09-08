@@ -179,7 +179,13 @@ namespace Laubrary.Launimator.Editor
         private int _paintValue = 5;           // current 1–10 palette value (5 = default). Erase = right-click.
         private bool _metaShowValues;          // reveal the 1–10 value palette (off = always paint value 5)
         private int _brushW = 1, _brushH = 1;  // paint brush footprint (1×1, 1×2, 2×1, 2×2)
-        private float _metaZoom = 6f;          // paint-editor zoom (screen px per source px)
+        // Paint-editor zoom, in the package-wide sense (ZuiPixelStage): a whole zoom LEVEL, where 1 draws a
+        // source pixel at the size it has in game. It used to be "screen points per source pixel", floored at
+        // 2 and defaulting to 6 — a number that meant a different physical size on every display scaling and
+        // had no relation to how big the pixel would ever actually be.
+        private float _metaZoom = 2f;
+        private Rect _lastMetaBox;             // the paint viewport as last drawn — what Fit measures against
+        private int _lastMetaFrameW, _lastMetaFrameH;
         private Vector2 _metaPan;              // paint-editor pan (middle-drag), screen px
         private bool _metaPainting; private int _metaLastX = -1, _metaLastY = -1;
         private bool _metaPanning; private Vector2 _metaPanLast;
@@ -216,8 +222,14 @@ namespace Laubrary.Launimator.Editor
         private AnimationAsset _pendingOrphan;
 
         // ── Canvas / view ────────────────────────────────────────────────────
+        // Sheet-canvas zoom, in the package-wide sense (ZuiPixelStage): a whole zoom LEVEL, where 1 draws a
+        // source pixel at the size it has in game. It used to be a free multiplier over GUI points whose
+        // starting value was whatever fitted the viewport, so "1" here and "1" in every other Laubrary preview
+        // were different sizes. Fit still exists and still runs on first sight of a sheet — it now writes the
+        // zoom it chose into the control instead of being an unnamed baseline.
         private float _zoom = 1f;
         private bool _zoomInitialized;
+        private ZuiMicroSlider _zoomSlider;   // so Fit (and the first auto-fit) can say what it chose
         private Vector2 _canvasScroll;
         private Rect _lastImageRect;
 
@@ -908,13 +920,11 @@ namespace Laubrary.Launimator.Editor
                 s.Add(boxRow);
             }
 
-            // Zoom row (shared).
-            s.Add(WrapRow(
-                Z.Field("Zoom", "Canvas magnification (source pixels × zoom).",
-                    Z.Slider(_zoom, 0.5f, 8f, "Canvas magnification (source pixels × zoom).",
-                        v => { _zoom = v; Dirty(); }, 150f)),
-                Z.Button("Fit", "Re-fit the sheet to the canvas viewport.",
-                    () => { _zoomInitialized = false; Refresh(); }).W(40f)));
+            // Zoom row (shared) — the package-wide control, so the number means here what it means in Pyre,
+            // Shaper and Chunks. Fit measures the canvas island's own width (the sheet scrolls vertically, so
+            // only the width binds, which is what the old fit did too) and writes its answer into the slider.
+            s.Add(ZuiPixelStage.ZoomControl(SheetZoomLevel, z => { _zoom = z; Dirty(); }, SheetFitZoom,
+                                            "the sheet", out _zoomSlider, 150f));
 
             root.Add(s);
 
@@ -949,11 +959,18 @@ namespace Laubrary.Launimator.Editor
 
             if (!_zoomInitialized && _texW > 0)
             {
-                _zoom = Mathf.Clamp((viewport.width - 18f) / _texW, 0.25f, 8f);
+                SetSheetZoom(SheetFitZoom());
                 _zoomInitialized = true;
             }
 
-            float contentW = _texW * _zoom, contentH = _texH * _zoom;
+            // The content is an exact whole number of DEVICE pixels per source pixel (SheetZoomPoints), and
+            // the scroll offset is snapped so the content's origin lands on a device-pixel boundary — without
+            // both, a "1 pixel" cell rasterizes alternately N and N+1 pixels wide on a scaled display and a
+            // 1px marquee outline smears into the art it is drawn on. Snapped BEFORE BeginScrollView so this
+            // frame already draws snapped rather than converging on the next one.
+            float pointsPerPixel = SheetZoomPoints;
+            float contentW = _texW * pointsPerPixel, contentH = _texH * pointsPerPixel;
+            _canvasScroll = SnapCanvasScroll(_canvasScroll, viewport);
             _canvasScroll = GUI.BeginScrollView(viewport, _canvasScroll, new Rect(0, 0, contentW, contentH));
 
             Rect imageRect = new Rect(0, 0, contentW, contentH);
@@ -2519,9 +2536,8 @@ namespace Laubrary.Launimator.Editor
         private void BuildMetaViewRow(VisualElement root)
         {
             root.Add(WrapRow(
-                Z.Field("Zoom", "Paint-editor magnification (screen px per source px).",
-                    Z.Slider(_metaZoom, 2f, 24f, "Paint-editor magnification (screen px per source px).",
-                        v => { _metaZoom = Mathf.Round(v); Dirty(); }, 110f)),
+                ZuiPixelStage.ZoomControl(MetaZoomLevel, z => { _metaZoom = z; Dirty(); }, MetaFitZoom,
+                                          "the paint canvas", out _, 110f),
                 Z.Button("Center", "Recentre the paint view.",
                     () => { _metaPan = Vector2.zero; Dirty(); }).W(56f)));
         }
@@ -2618,9 +2634,19 @@ namespace Laubrary.Launimator.Editor
             MetaFrame mf = null;
             if (!isVector && layer != null && f < layer.frames.Count) { mf = layer.frames[f]; mf.EnsureSize(fw, fh); }
 
-            float z = _metaZoom, dw = fw * z, dh = fh * z;
+            // The paint view's own scale, from the same rule: a whole number of device pixels per source
+            // pixel, expressed in points for the IMGUI draw and for every hit test below (which all take `z`).
+            float z = MetaZoomPoints, dw = fw * z, dh = fh * z;
+            _lastMetaBox = box; _lastMetaFrameW = fw; _lastMetaFrameH = fh;   // what Fit measures against
             GUI.BeginClip(box);
-            float ox = Mathf.Round((box.width - dw) * 0.5f + _metaPan.x), oy = Mathf.Round((box.height - dh) * 0.5f + _metaPan.y);
+            // Snapped in DEVICE pixels, not points: the picture is an exact whole number of device pixels
+            // across, and rounding its corner to a whole POINT (which is 2.25 device pixels on a 225% display)
+            // puts that whole number back on a fraction, which is what makes one authored pixel a block wider
+            // than its neighbour. Taken against where this island sits in the panel, since a local coordinate
+            // only lands on a device pixel if the box it is local to does.
+            Vector2 clipOrigin = ZuiPixel.PanelOrigin(_playIM) + box.position;
+            float ox = SnapMetaOffset((box.width - dw) * 0.5f + _metaPan.x, clipOrigin.x);
+            float oy = SnapMetaOffset((box.height - dh) * 0.5f + _metaPan.y, clipOrigin.y);
 
             var sp = _previewFrames[f];
             if (sp != null && sp.texture != null)
@@ -3886,9 +3912,72 @@ namespace Laubrary.Launimator.Editor
             _thumbCache.Clear();
         }
 
-        private Vector2 ContentToTex(Vector2 content) => new Vector2(content.x / _zoom, _texH - content.y / _zoom);
+        // ── the paint editor's zoom, same rule, its own viewport ──────────────────────────────────────────
+        private int MetaZoomLevel => ZuiPixelStage.Clamp(Mathf.RoundToInt(_metaZoom));
+        private float MetaZoomPoints => ZuiPixelStage.PointsPerPixel(MetaZoomLevel);
+
+        /// One coordinate inside the paint clip, snapped so it lands on a whole device pixel once the clip's
+        /// own panel position is added back in.
+        private static float SnapMetaOffset(float local, float clipOrigin)
+        {
+            float ppp = Mathf.Max(0.01f, EditorGUIUtility.pixelsPerPoint);
+            return Mathf.Round((clipOrigin + local) * ppp) / ppp - clipOrigin;
+        }
+
+        /// The largest whole zoom at which the current baked frame fits the paint viewport. Measured off the
+        /// box as last drawn, because that box is user-resizable (the grip in its corner) and its size is only
+        /// known at paint time.
+        private int MetaFitZoom()
+        {
+            if (_lastMetaBox.width < 4f || _lastMetaFrameW <= 0 || _lastMetaFrameH <= 0)
+                return ZuiPixelStage.MinZoom;
+            return ZuiPixelStage.FitZoom(_lastMetaBox, _lastMetaFrameW, _lastMetaFrameH);
+        }
+
+        // ── the sheet canvas's zoom, in the one package-wide meaning ──────────────────────────────────────
+        // `_zoom` holds the zoom LEVEL (a whole number); everything geometric multiplies by SheetZoomPoints,
+        // the GUI points one source pixel occupies at that level. The two are deliberately different numbers:
+        // the level is what the user reads and dials, the points are a display-scaling detail nobody should
+        // have to think about, and mixing them up is exactly how "zoom 1" came to mean four different things.
+        private int SheetZoomLevel => ZuiPixelStage.Clamp(Mathf.RoundToInt(_zoom));
+        private float SheetZoomPoints => ZuiPixelStage.PointsPerPixel(SheetZoomLevel);
+
+        private void SetSheetZoom(int level)
+        {
+            _zoom = ZuiPixelStage.Clamp(level);
+            if (_zoomSlider != null) _zoomSlider.value = _zoom;
+        }
+
+        /// The largest whole zoom at which the sheet's WIDTH fits the canvas island — the sheet scrolls
+        /// vertically, so height is not a constraint and is given a bound that can never bind.
+        private int SheetFitZoom()
+        {
+            float width = (_canvasIM != null ? _canvasIM.layout.width : 0f) - 18f;   // 18 = the scrollbar gutter
+            if (!(width > 10f) || _texW <= 0 || _texH <= 0) return ZuiPixelStage.MinZoom;
+            float unbounded = _texH * ZuiPixelStage.PointsPerPixel(ZuiPixelStage.MaxZoom);
+            return ZuiPixelStage.FitZoom(new Rect(0f, 0f, width, unbounded), _texW, _texH);
+        }
+
+        /// Put the scrolled content's origin on a whole device pixel. A scroll offset is otherwise an
+        /// arbitrary fractional number of points, which undoes the device-exact content size above.
+        private Vector2 SnapCanvasScroll(Vector2 scroll, Rect viewport)
+        {
+            float ppp = Mathf.Max(0.01f, EditorGUIUtility.pixelsPerPoint);
+            Vector2 island = ZuiPixel.PanelOrigin(_canvasIM) + viewport.position;
+            return new Vector2(island.x - Mathf.Round((island.x - scroll.x) * ppp) / ppp,
+                               island.y - Mathf.Round((island.y - scroll.y) * ppp) / ppp);
+        }
+
+        private Vector2 ContentToTex(Vector2 content)
+        {
+            float z = SheetZoomPoints;
+            return new Vector2(content.x / z, _texH - content.y / z);
+        }
         private Rect TexRectToContent(Rect texRect)
-            => new Rect(texRect.x * _zoom, (_texH - texRect.yMax) * _zoom, texRect.width * _zoom, texRect.height * _zoom);
+        {
+            float z = SheetZoomPoints;
+            return new Rect(texRect.x * z, (_texH - texRect.yMax) * z, texRect.width * z, texRect.height * z);
+        }
         private Vector2 SnapTex(Vector2 t) => new Vector2(Mathf.Round(t.x), Mathf.Round(t.y));
         private Rect ClampBox(Rect b)
         {

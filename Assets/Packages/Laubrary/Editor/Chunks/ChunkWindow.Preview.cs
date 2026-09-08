@@ -41,6 +41,14 @@ namespace Laubrary.Chunks.Editor
         Texture2D _stageTex;              // pooled compose target: subject pixels + cut outlines (Point-filtered)
         readonly List<Sprite> _debris = new List<Sprite>();   // owned sampled sprites (each owns its own texture)
 
+        // The stage's zoom, in the package-wide sense (ZuiPixelStage): 1 draws a source pixel at the size it
+        // has in game. 0 is the "not chosen yet" sentinel — the stage had no zoom control at all before this
+        // and always blew the subject up to whatever fitted, so a newly-picked subject still ARRIVES fitted;
+        // the difference is that the fit is now a real zoom number, written into the control the moment it is
+        // chosen, instead of a magnification nothing on screen accounted for.
+        int _stageZoom;
+        ZuiMicroSlider _stageZoomSlider;
+
         // live element refs (re-created every BuildPreview; nulled in OnBeforeRebuild)
         IMGUIContainer _stageView;        // the bespoke pixel-art canvas island (see DrawStage)
         Label _stageHint;
@@ -126,15 +134,27 @@ namespace Laubrary.Chunks.Editor
             // source can never masquerade as a detailed preview: it names the subject's real pixel size and
             // the whole-number zoom it is being shown at.
             _stageReadout = Z.Text("—", ZuiText.Subtle,
-                "The subject's real size in its own pixels, and the whole-number zoom the stage is showing it " +
-                "at. A small number here means the preview is coarse because the SOURCE is small, not because " +
-                "the preview is blurred.");
+                "The subject's real size in its own pixels, the zoom the stage is showing it at, and how many " +
+                "screen pixels one of its pixels therefore covers. A small size here means the preview is " +
+                "coarse because the SOURCE is small, not because the preview is blurred.");
             _stageReadout.style.height = 14f;
             _stageReadout.style.whiteSpace = WhiteSpace.NoWrap;
             _stageReadout.style.overflow = Overflow.Hidden;
             _stageReadout.style.flexShrink = 0f;
-            _stageReadout.style.width = StageBox;
+            // Wider than the stage box it sits under: the line now carries three facts, and a width chosen for
+            // the old two truncated the third mid-word (measured, 2026-09-08). It reserves the same fixed
+            // height either way, so nothing moves.
+            _stageReadout.style.width = 300f;
             s.Add(_stageReadout);
+
+            // The zoom the rest of the package uses, on the stage that used to have none. Fit is the explicit
+            // way back to "show me all of it"; the number it picks lands in the slider, so what the stage is
+            // doing is always readable rather than implied.
+            s.Add(ZuiPixelStage.ZoomControl(
+                _stageZoom > 0 ? _stageZoom : ZuiPixelStage.MinZoom,
+                z => { _stageZoom = z; _stageView?.MarkDirtyRepaint(); },
+                StageFitZoom,
+                "the subject", out _stageZoomSlider, 150f));
 
             s.Add(Z.VSpace(4f));
 
@@ -183,8 +203,28 @@ namespace Laubrary.Chunks.Editor
             if (_stageView == null || _stageTex == null) return;
             var r = _stageView.contentRect;
             if (float.IsNaN(r.width) || r.width < 1f || r.height < 1f) return;
-            var placement = Z.DrawPixels(new Rect(0f, 0f, r.width, r.height), _stageView, _stageTex);
+            var placement = ZuiPixelStage.Draw(new Rect(0f, 0f, r.width, r.height), _stageView, _stageTex,
+                                               _stageZoom > 0 ? _stageZoom : ZuiPixelStage.MinZoom);
             SetStageReadout(_stageTex.width, _stageTex.height, placement.zoom);
+        }
+
+        /// The largest whole zoom the fixed stage box can hold the current subject at — the Fit answer. The
+        /// box is a fixed square (it never resizes with content, by design), so this needs no laid-out
+        /// geometry and can answer before the first repaint, which is what lets a newly-picked subject arrive
+        /// already fitted.
+        int StageFitZoom()
+        {
+            if (_stageTex == null) return ZuiPixelStage.MinZoom;
+            float box = StageBox - 4f;
+            return ZuiPixelStage.FitZoom(new Rect(0f, 0f, box, box), _stageTex.width, _stageTex.height);
+        }
+
+        /// Set the stage zoom and make the control say so. Used by the auto-fit on a new subject; a zoom the
+        /// user dialled is never overwritten by it.
+        void SetStageZoom(int zoom)
+        {
+            _stageZoom = ZuiPixelStage.Clamp(zoom);
+            if (_stageZoomSlider != null) _stageZoomSlider.value = _stageZoom;
         }
 
         /// One debris thumbnail's paint, by index into the fixed strip. A slot with no cut simply paints
@@ -201,13 +241,19 @@ namespace Laubrary.Chunks.Editor
             Z.DrawPixels(new Rect(0f, 0f, r.width, r.height), view, tex);
         }
 
-        /// Set the stage readout from what was ACTUALLY drawn — the buffer's own size and the zoom ZuiPixel
-        /// settled on. Guarded on change so a repaint that re-states the same numbers does not dirty the
-        /// label and ask for another repaint.
-        void SetStageReadout(int w, int h, int zoom)
+        /// Set the stage readout from what was ACTUALLY drawn — the buffer's own size and the screen pixels per
+        /// source pixel it was drawn at. It names BOTH numbers, because they are different and the difference
+        /// is the point: the Zoom control says 2, the screen shows 8 pixels per source pixel, and the factor
+        /// between them is the game's own scale. Printing only the second (which is what it used to do) put a
+        /// number on screen that contradicted the control right below it. Guarded on change so a repaint that
+        /// re-states the same numbers does not dirty the label and ask for another repaint.
+        void SetStageReadout(int w, int h, int devicePixelsPerPixel)
         {
             if (_stageReadout == null) return;
-            string t = zoom > 0 ? "Subject " + w + " x " + h + " px  ·  " + zoom + "x" : "—";
+            int level = Mathf.Max(1, devicePixelsPerPixel / Mathf.Max(1, ZuiPixelStage.TargetScale));
+            string t = devicePixelsPerPixel > 0
+                ? w + " × " + h + " px · zoom " + level + " · " + devicePixelsPerPixel + " screen px each"
+                : "—";
             if (_stageReadout.text != t) _stageReadout.text = t;
         }
 
@@ -223,6 +269,7 @@ namespace Laubrary.Chunks.Editor
         void OnPickSubject(Sprite s)
         {
             _subject = s;
+            _stageZoom = 0;   // a different subject is a different size: fit it, and say what zoom that is
             PreviewSpritePrefs.Remember(SubjectPrefKey, _subjectSpecGuid, s);
             RefreshChunkPreview();
         }
@@ -292,6 +339,7 @@ namespace Laubrary.Chunks.Editor
                 EnsureStageTex(W, H);
                 _stageTex.SetPixels32(px);
                 _stageTex.Apply(false);
+                if (_stageZoom <= 0) SetStageZoom(StageFitZoom());   // first sight of this subject
                 _stageView.MarkDirtyRepaint();
                 _stageHint.Shown(false);
                 _stageView.Shown(true);
@@ -369,6 +417,7 @@ namespace Laubrary.Chunks.Editor
             _stageView = null;
             _stageHint = null;
             _stageReadout = null;
+            _stageZoomSlider = null;
             _stageEl = null;
             _debrisCells.Clear();
         }

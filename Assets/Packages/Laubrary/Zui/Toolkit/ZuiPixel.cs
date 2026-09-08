@@ -156,6 +156,30 @@ namespace Laubrary.Zui
         /// since the texture is the only honest record of what a renderer actually produced.</summary>
         public ZuiPixelPlacement Place(Texture buffer)
             => buffer == null ? default : Place(buffer.width, buffer.height);
+
+        /// <summary>Place a buffer at EXACTLY the given whole-device-pixel zoom, snapped the same way
+        /// <see cref="Place(int,int)"/> snaps but with no fit clamp of any kind.
+        ///
+        /// <see cref="Place(int,int)"/> silently shrinks the zoom to whatever the viewport can hold, which is
+        /// right for a stage whose only mode is "as big as it goes" — and wrong for a stage where the user
+        /// dialled the zoom, because a dial that quietly reads as a different number than it shows is the
+        /// hidden multiplier a user cannot reason about. A picture too big for the pane is drawn too big and
+        /// clipped by the container, which is what a zoom means everywhere else. Reached through
+        /// <see cref="ZuiPixelStage"/>, which owns what a zoom NUMBER means; this is only the placement.</summary>
+        public ZuiPixelPlacement PlaceExact(int bufferWidth, int bufferHeight, int devicePixelsPerPixel)
+        {
+            int bw = Mathf.Max(1, bufferWidth), bh = Mathf.Max(1, bufferHeight);
+            int z = Mathf.Max(1, devicePixelsPerPixel);
+            float ppp = Mathf.Max(0.01f, pixelsPerPoint);
+
+            float wDev = bw * z, hDev = bh * z;
+            float xDev = Mathf.Round((panelOrigin.x + viewport.x) * ppp + (deviceSize.x - wDev) * 0.5f);
+            float yDev = Mathf.Round((panelOrigin.y + viewport.y) * ppp + (deviceSize.y - hDev) * 0.5f);
+
+            return new ZuiPixelPlacement(
+                new Rect(xDev / ppp - panelOrigin.x, yDev / ppp - panelOrigin.y, wDev / ppp, hDev / ppp),
+                z, bw, bh);
+        }
     }
 
     /// <summary>Pixel-exact image drawing for a bespoke IMGUI preview canvas — the shared answer to "my

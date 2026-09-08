@@ -8,6 +8,7 @@
 using System.Collections.Generic;
 using UnityEditor;
 using Laubrary.BackSplash.Editor;
+using Laubrary.Zui;
 using UnityEngine;
 
 namespace Laubrary.Pyre.Editor
@@ -100,10 +101,17 @@ namespace Laubrary.Pyre.Editor
             // Filmstrip mode: the whole animation as a contact sheet instead of the single zoomed frame + overlay.
             if (s.previewStrip) { DrawFilmstrip(view, s); return; }
 
-            float zoom = Mathf.Max(1f, s.previewZoom);
-            float w = s.Width * zoom, h = s.Height * zoom;
-            var rct = new Rect(view.center.x - w * 0.5f, view.center.y - h * 0.5f, w, h);
-            swarmRect = rct; swarmZoom = zoom;   // feed the one mapping (used by drawing AND hit-testing below)
+            // Zoom is the package-wide rule now (ZuiPixelStage): zoom 1 draws one canvas pixel at the size it
+            // will have in game — a whole block of device pixels — instead of one GUI point, and the rect is
+            // snapped in device space so every block is identical rather than alternately 13 and 14 pixels
+            // wide on a scaled display. swarmZoom stays POINTS per canvas pixel because every overlay hit test
+            // below works in the IMGUI island's own point space; it is now read off the placed rect rather than
+            // assumed, so the outline and the dots follow the picture wherever the snap put it.
+            var placement = ZuiPixelStage.Place(view, preview, s.Width, s.Height,
+                                                ZuiPixelStage.Migrate(s.previewZoom));
+            var rct = placement.rect;
+            swarmRect = rct;
+            swarmZoom = rct.width / Mathf.Max(1, s.Width);   // the one mapping (drawing AND hit-testing below)
 
             // The frame currently on screen, and its normalized life — computed with the SAME formula the renderer
             // uses (frameIndex → life), so the overlay's outline/handle transform snapshots at the same life the
@@ -117,7 +125,7 @@ namespace Laubrary.Pyre.Editor
                 DrawBackdrop(view);
                 // The shared frame cache (PyreWindow.FrameCache.cs): a cache hit costs nothing, a miss renders
                 // just this frame now — playback only ever lands on cached frames, so a miss here is a scrub or an edit.
-                GUI.DrawTexture(rct, CachedFrame(s, cur), ScaleMode.StretchToFill, true);
+                Z.DrawPixels(placement, CachedFrame(s, cur));
                 if (s.previewShowFrame)
                 {
                     // A thin border around the canvas edge (cosmetic — never baked). Toggled by the transport's Frame.
@@ -161,18 +169,16 @@ namespace Laubrary.Pyre.Editor
             if (sel.playbackPixelated)
             {
                 tex.filterMode = FilterMode.Point;
-                // Draw the pixel grid at a WHOLE-NUMBER scale, centred. ScaleToFit picks a fractional scale, and a
-                // point-filtered texture drawn at (say) 7.6x gives some cells 7 screen pixels and some 8 — the grid
-                // visibly wobbles and stops reading as a pixel-art canvas. Falls back to ScaleToFit if the grid is
-                // somehow larger than the island (scale < 1).
-                float scale = Mathf.Floor(Mathf.Min(view.width / tex.width, view.height / tex.height));
-                if (scale >= 1f)
-                {
-                    float dw = tex.width * scale, dh = tex.height * scale;
-                    GUI.DrawTexture(new Rect(Mathf.Round(view.center.x - dw * 0.5f),
-                                             Mathf.Round(view.center.y - dh * 0.5f), dw, dh),
-                                    tex, ScaleMode.StretchToFill, true);
-                }
+                // Draw the pixel grid at a WHOLE-NUMBER scale, centred. A fractional scale gives some cells 7
+                // screen pixels and some 8 — the grid visibly wobbles and stops reading as a pixel-art canvas.
+                // The whole number is chosen in DEVICE pixels by the shared stage rule, not in points, so the
+                // grid is uniform on a scaled display too; this sub-mode has no zoom dial of its own (the 3D
+                // sim has no authored canvas size to dial against), so it always fits, which is what
+                // FitZoom answers. Falls back to ScaleToFit when even one game-scale copy will not fit.
+                int gridZoom = ZuiPixelStage.FitZoom(view, tex.width, tex.height);
+                var gridPlacement = ZuiPixelStage.Place(view, preview, tex.width, tex.height, gridZoom);
+                if (gridPlacement.rect.width <= view.width && gridPlacement.rect.height <= view.height)
+                    Z.DrawPixels(gridPlacement, tex);
                 else GUI.DrawTexture(view, tex, ScaleMode.ScaleToFit, true);
             }
             else GUI.DrawTexture(view, tex, ScaleMode.ScaleToFit, true);

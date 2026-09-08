@@ -83,15 +83,20 @@ namespace Laubrary.Shaper.Editor
                     RefreshPreview();
                 });
 
-            var zoom = Z.MicroSlider("Zoom", previewZoom, 1f, 8f,
-                "Magnify the preview. Cosmetic only: the same rendered frame is displayed larger, never "
-                + "re-rendered at another size, so the bake is unaffected.",
-                v =>
+            // Zoom is the package-wide rule now (ZuiPixelStage): a whole number where 1 shows a canvas pixel
+            // at the size it will have in game, and Fit is an explicit press that writes the zoom it chose
+            // into the slider. It used to be a free float multiplying an automatic fit-to-pane, so the same
+            // number meant a different size in every window layout and 1 never meant "as in game".
+            var zoom = ZuiPixelStage.ZoomControl(
+                ZuiPixelStage.Migrate(previewZoom),
+                z =>
                 {
-                    previewZoom = Mathf.Max(1f, v);
-                    if (stage != null) { stage.Zoom = previewZoom; }
+                    previewZoom = z;
+                    if (stage != null) { stage.Zoom = z; }
                     RefreshPreview();
-                }, 140f, decimals: 1);
+                },
+                () => stage != null ? stage.FitZoom() : ZuiPixelStage.MinZoom,
+                "the preview", out _, 140f);
 
             // T-0190 (PM vet of T-0188): the status line is NOT in this row any more. It shared the row with
             // Frame and Zoom, and a long cherry message ("Cherry framing: Play follows 2 slots…") ran straight
@@ -239,7 +244,9 @@ namespace Laubrary.Shaper.Editor
         {
             if (stage == null) return;
             stage.ShowFrameBorder = previewShowFrame;
-            stage.Zoom = previewZoom;
+            // Migrated on read: the field survives a domain reload as a float, and a zoom left over from
+            // before the whole-number rule (3.4, say) has to arrive at the stage as a zoom level.
+            stage.Zoom = ZuiPixelStage.Migrate(previewZoom);
         }
 
         // ── backdrop panel ───────────────────────────────────────────────────────────────────────────────
