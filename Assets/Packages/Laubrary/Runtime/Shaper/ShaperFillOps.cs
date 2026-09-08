@@ -154,6 +154,24 @@ namespace Laubrary.Shaper
         public static void Sample(in ShaperFillOp op, float[] bulk, float x, float y, float edge, float q,
                                   out float r, out float g, out float b, out float veil, out float height)
         {
+            SampleKind(in op, bulk, x, y, edge, q, out r, out g, out b, out veil, out height);
+
+            // T-0277 — Posterise is a CROSS-KIND dial: it is declared on the shared block of
+            // <see cref="ShaperFillDef"/> (`quantiseLevels`, :413, beside `veil` and `heightDelta`), sampled
+            // once in the shared compile path, and drawn once by the card outside the per-kind switch. It was
+            // applied by exactly ONE kind, TapestrySteel, so on the other eight it silently did nothing — a
+            // user document in this project authors Posterise 13 on a Gradient fill and gets a smooth ramp.
+            // Applying it here, after the switch, is what the shared declaration always claimed. Steel's own
+            // result is unchanged: this is the same call, one frame later in the same expression, and no other
+            // kind wrote a colour after the point Steel used to quantise at.
+            if (op.quantiseLevels > 1) Quantise(op.quantiseLevels, ref r, ref g, ref b);
+        }
+
+        /// <summary>The per-kind switch itself. Split out of <see cref="Sample"/> only so the cross-kind
+        /// Posterise step can run after every kind without threading it through nine <c>return</c>s.</summary>
+        static void SampleKind(in ShaperFillOp op, float[] bulk, float x, float y, float edge, float q,
+                               out float r, out float g, out float b, out float veil, out float height)
+        {
             veil = op.veil;
             height = op.emitsHeight != 0 ? op.height : 0f;
 
@@ -425,9 +443,8 @@ namespace Laubrary.Shaper
                         b = Mathf.Clamp01(b + gAmt);
                     }
 
-                    if (op.quantiseLevels > 1)
-                        Quantise(op.quantiseLevels, ref r, ref g, ref b);
-
+                    // T-0277: Posterise used to be applied HERE, on this kind alone. It is now applied by
+                    // Sample() for every kind, which is what the shared dial always said it did.
                     return;
                 }
 

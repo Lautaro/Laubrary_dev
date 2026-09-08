@@ -309,6 +309,13 @@ namespace Laubrary.Shaper
             // heightDelta 3 does. The host allocates the height sheet only if some fill declared it.
             op.emitsHeight = op.height != 0f ? 1 : 0;
 
+            // T-0277 — Posterise is sampled HERE, in the shared block beside veil and heightDelta, because it
+            // is a shared dial: ShaperFillDef declares it outside every per-kind group (:413) and the card
+            // draws it outside the per-kind switch. It used to be sampled inside BakeTapestrySteel alone, so
+            // op.quantiseLevels was 0 for the other eight kinds however the document was authored, and
+            // ShaperFillOps' quantise step could never fire for them.
+            op.quantiseLevels = Mathf.RoundToInt(ShaperValue.Sample(def.quantiseLevels, p, seed, 0f));
+
             // ── the anchor (FC-1.5 / FC-1.6) ──────────────────────────────────────────────────────────────
 
             op.positional = (def.kind == ShaperFillKind.Gradient &&
@@ -826,8 +833,7 @@ namespace Laubrary.Shaper
             op.steelInvRustReach = 1f / reachPixels;
             op.steelGrain = Mathf.Max(0f, ShaperValue.Sample(def.steelGrain, p, seed, 0.06f));
 
-            int levels = Mathf.RoundToInt(ShaperValue.Sample(def.quantiseLevels, p, seed, 0f));
-            op.quantiseLevels = levels;
+            // T-0277: quantiseLevels is sampled once in the shared block above, for every kind.
         }
 
         // ── OverPhase (T-0172, FC-6.10) ──────────────────────────────────────────────────────────────────

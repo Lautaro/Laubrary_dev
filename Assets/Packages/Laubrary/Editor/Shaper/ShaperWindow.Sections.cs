@@ -234,9 +234,55 @@ namespace Laubrary.Shaper.Editor
         /// frame on screen, so it is never declared inert — greying a curve because the playhead happens to
         /// sit on its zero would be a worse lie than the one this fixes.
         /// </summary>
+        /// <summary>
+        /// T-0277 — a sprite-sheet grid dial's static cell count, or 2 ("more than one, do not declare it
+        /// inert") for an animated one. Mirrors <see cref="DialAlwaysZero"/>'s refusal to grey an animated
+        /// dial on the strength of the value at the frame on screen.
+        /// </summary>
+        static int StaticGridSpan(ZUIValue v)
+            => v != null && v.mode == ZUIValue.Mode.Static
+             ? Mathf.Max(1, Mathf.RoundToInt(ShaperValue.Sample(v, 0f, 0u, 1f)))
+             : 2;
+
+        /// <summary>
+        /// T-0277 — whether an IndexedStrip's Reach saturates over the whole shape, which is what makes its
+        /// plain colour unreachable. The coverage rule is <c>clamp01(2 + edge · invReach)</c> with the reach
+        /// resolved against the node's own half-extent, so anything at or above 1 patterns every interior
+        /// sample (T-0110's own derivation, ShaperFillOps.cs). Animated dials are never declared inert, same
+        /// rule as <see cref="DialAlwaysZero"/>.
+        /// </summary>
+        static bool StripReachCoversEverything(ZUIValue v)
+            => v == null
+            || (v.mode == ZUIValue.Mode.Static && ShaperValue.Sample(v, 0f, 0u, 1f) >= 1f);
+
         static bool DialAlwaysZero(ZUIValue v)
             => v == null
             || (v.mode == ZUIValue.Mode.Static && Mathf.Approximately(ShaperValue.Sample(v, 0f, 0u), 0f));
+
+        /// <summary>
+        /// T-0277 — why a fill's HEIGHT dials cannot move this document's picture, or null when they can.
+        ///
+        /// A fill's height (the shared <c>heightDelta</c>, IndexedStrip's per-slot height, a HeightField's
+        /// scaled sample) accumulates into <c>ShaperFillBuffers.height</c> — and that buffer is read by exactly
+        /// ONE consumer in the shipped engine: <see cref="ShaperDocumentRenderer.CompositeDepth"/>
+        /// (<c>ShaperDocumentRenderer.cs:367</c>), which decides which LAYER wins where two layers overlap.
+        /// The normal providers are forbidden from reading it (<c>ShaperNormals.cs:118-131</c>, LR-3.3/LR-3.4),
+        /// so it never reaches the shading of the layer it was painted on. With one contributing layer the
+        /// depth composite has nothing to order and the whole height path is a no-op — measured: the same
+        /// height change moves 484 pixels with a second layer present and 0 without it.
+        /// </summary>
+        string HeightOnlyOrdersLayersReason()
+        {
+            int contributing = 0;
+            var layers = document != null ? document.layers : null;
+            if (layers != null)
+                for (int i = 0; i < layers.Count; i++)
+                    if (layers[i] != null && layers[i].enabled && layers[i].contributesToPicture) contributing++;
+            return contributing >= 2 ? null
+                : "A fill's height only decides which LAYER shows through where two layers overlap — nothing "
+                  + "in the shading of this layer reads it. This document has one layer that paints, so there "
+                  + "is nothing for it to order.";
+        }
 
         /// <summary>
         /// T-0257 — does the document's rig hold a light the compiler will actually use? The same test
@@ -548,7 +594,7 @@ namespace Laubrary.Shaper.Editor
             string refused = FillRefusalFor(node.name);
             if (refused != null) box.Add(RefusalLine(refused));
 
-            BuildFillBody(box, node.fill, "shaper.window.fill");
+            BuildFillBody(box, node.fill, "shaper.window.fill", node);
             box.Add(Z.Button("Remove fill", "Drop this node's own fill and fall back to the default/inherited one.",
                 () => { Change(() => node.fill = null); Rebuild(); }));
             // A Solid has no analytic edge for a strip to trace (its silhouette is written by ShaperSolids over
@@ -561,7 +607,7 @@ namespace Laubrary.Shaper.Editor
         /// The fill editor, reused verbatim for a node's own fill and for a border's fill — they are the same
         /// ShaperFillDef type (ShaperBorderDef.fill:107), so one builder is the only honest way to keep them
         /// from drifting apart.
-        void BuildFillBody(VisualElement box, ShaperFillDef f, string keyPrefix)
+        void BuildFillBody(VisualElement box, ShaperFillDef f, string keyPrefix, ShaperNode owner)
         {
             box.Add(Z.Field("Kind", "Which fill this is. Switching it changes the dials below.",
                 Z.MiniRadio((int)f.kind, ShaperWords.Names(typeof(ShaperFillKind)),
@@ -582,18 +628,29 @@ namespace Laubrary.Shaper.Editor
                         "“Moves with the shape” stamps the fill onto it; “Stays put” holds the fill still "
                         + "while the shape moves through it.",
                         v => Change(() => f.space = (ShaperFillSpace)v))),
-                Z.Field("Fit", "How the fill is fitted to the shape's bounds.",
+                // T-0277 — Fit only ever decides ONE thing: whether the fill's own anchor box is divided by
+                // one extent (Uniform, so a radial ramp on a wide shape stays a true circle) or by each axis
+                // separately (Stretch). Two consequences the card now states rather than hiding: a fill kind
+                // that never reads the anchor cannot be fitted at all, and on a shape whose box is square the
+                // two divisors are equal so the choice is a no-op. Measured: 968 pixels on a 34x13 ellipse,
+                // 0 on a 34x34 one, 0 on a Solid fill.
+                Inert(Z.Field("Fit", "Whether the fill is squeezed to the shape's bounds or keeps its own "
+                    + "proportions. Only differs on a shape that is not square.",
                     Z.Segmented((int)f.fit, ShaperWords.Names(typeof(ShaperFillFit)),
-                        "“Keep proportions” preserves aspect; “Stretch to fit” fills the bounds exactly.",
-                        v => Change(() => f.fit = (ShaperFillFit)v))),
+                        "“Keep proportions” divides by the shape's longer half-extent on both axes, so a "
+                        + "round pattern stays round; “Stretch to fit” divides each axis by its own, so the "
+                        + "pattern is squeezed into the bounds. Identical on a square shape.",
+                        v => Change(() => f.fit = (ShaperFillFit)v))), FitReason(f)),
                 // INVENTORY GAP CLOSED — veil (:60) and heightDelta (:68) apply to every fill kind and had
-                // no UI anywhere. heightDelta is the input the relief shading of T-0110/T-0127 reads, so
-                // without it relief could not be authored at all.
+                // no UI anywhere.
                 Val("Fade", "Multiplies this fill's own transparency — the fade the palette applies on top "
                     + "of whatever edge rule the fill computed.", f.veil, 0f, 1f),
-                Val("Height change", "How much this fill raises or lowers the surface it paints. This is the "
-                    + "input the relief shading reads, so a non-zero value is what makes a fill sculpt "
-                    + "rather than merely colour.", f.heightDelta, -32f, 32f)));
+                // T-0277 — this used to say it was "the input the relief shading reads". It is not: the
+                // normal providers are forbidden from reading the fill height buffer (LR-3.3/LR-3.4), and the
+                // only consumer is the cross-layer depth composite.
+                InertVal("Height change", "How far in front of its layer's own plane this fill sits, which "
+                    + "decides whether it shows through where another layer overlaps it.",
+                    HeightOnlyOrdersLayersReason(), f.heightDelta, -32f, 32f)));
 
             switch (f.kind)
             {
@@ -607,15 +664,39 @@ namespace Laubrary.Shaper.Editor
                 case ShaperFillKind.RampByQuantity: BuildRampFill(box, f); break;
                 case ShaperFillKind.Texture: BuildTextureFill(box, f); break;
                 case ShaperFillKind.IndexedStrip: BuildStripFill(box, f, keyPrefix); break;
-                case ShaperFillKind.HeightField: BuildHeightFieldFill(box, f); break;
+                case ShaperFillKind.HeightField: BuildHeightFieldFill(box, f, owner); break;
                 case ShaperFillKind.TapestrySteel: BuildSteelFill(box, f); break;
                 case ShaperFillKind.OverPhase: BuildOverPhaseFill(box, f); break;
                 case ShaperFillKind.Procedural: BuildProceduralFill(box, f); break;
             }
 
-            // quantiseLevels (:292) is ZUIValue, and applies whatever the kind is.
-            box.Add(Val("Posterise", "Snap the result to this many discrete colour bands. 0 leaves it smooth.",
+            // T-0277 — Posterise is genuinely cross-kind now (ShaperFillOps.Sample applies it after the
+            // per-kind switch). Before this it was applied by TapestrySteel alone, so on the other eight kinds
+            // the dial did nothing at all.
+            box.Add(Val("Posterise", "Snap this fill's colour to this many discrete bands. 0 leaves it smooth.",
                 f.quantiseLevels, 0f, 32f, decimals: 0));
+        }
+
+        /// <summary>
+        /// T-0277 — why <see cref="ShaperFillDef.fit"/> cannot act, or null when it can. The test is the
+        /// engine's own <c>op.positional</c> (<c>ShaperFillCompiler.cs:317-324</c>): Fit only sets the anchor
+        /// divisors, and a kind that never calls <c>Anchor()</c> never reads them.
+        /// </summary>
+        static string FitReason(ShaperFillDef f)
+        {
+            bool readsAnchor = (f.kind == ShaperFillKind.Gradient &&
+                                f.gradientMode != ShaperGradientMode.ByEdgeDistance)
+                            || f.kind == ShaperFillKind.Texture
+                            || f.kind == ShaperFillKind.IndexedStrip
+                            || f.kind == ShaperFillKind.HeightField
+                            || f.kind == ShaperFillKind.TapestrySteel
+                            || f.kind == ShaperFillKind.Procedural;
+            if (readsAnchor) return null;
+            return f.kind == ShaperFillKind.Gradient
+                ? "“From the edge inwards” measures distance from the silhouette, not position across the "
+                  + "shape, so there is no box to fit. Pick another Mode and this becomes available."
+                : "This fill paints without reading a position across the shape, so there is no box to fit it "
+                  + "to.";
         }
 
         void BuildGradientFill(VisualElement box, ShaperFillDef f)
@@ -632,13 +713,20 @@ namespace Laubrary.Shaper.Editor
             // INVENTORY GAP CLOSED — centre/size/depth (:116-129) had no UI, which made Radial and Angular
             // unusable: both are defined by a centre the user could not move. Only drawn for the modes that
             // actually read them, per the absence rule.
+            // T-0277 — "Tint" is gone from this card, and from Ramp, Colour over phase and Procedural/Noise
+            // with it. Its tooltip claimed it multiplied the sampled ramp colour; it does not. Every one of
+            // those four colours is read by exactly one line in the compiler — the DEGENERATE path taken when
+            // the fill's gradient is null (ShaperFillCompiler.cs:487, :558, :848, and Procedural's Noise
+            // fallback), where the fill collapses to a flat Solid of that colour. And the gradient is never
+            // null: ShaperFillDef declares `gradient = new ZuiGradient()` (:107, and :141/:221/:249 for the
+            // other three) and the ramp control has no way to clear one. So the dial could not be made to act
+            // by any authoring action — measured 0 pixels with a ramp present, 1032 with the field forced to
+            // null in code. The FIELDS stay, still serialized and still read on that degenerate path, so no
+            // authored document loses a value; only the control that could never do anything is gone.
             var rows = new List<VisualElement>
             {
                 Val("Angle", "The direction the gradient sweeps, in degrees.",
                     f.gradientAngleDegrees, 0f, 360f, cyclic: true, decimals: 0),
-                Z.Field("Tint", "Multiplies the sampled ramp colour.",
-                    Z.Color(f.gradientTint, "Multiplies the sampled ramp colour.",
-                        c => Change(() => f.gradientTint = c), 90f)),
             };
             if (f.gradientMode == ShaperGradientMode.Radial || f.gradientMode == ShaperGradientMode.Angular)
             {
@@ -701,10 +789,8 @@ namespace Laubrary.Shaper.Editor
                 Val("Input low", "The quantity value that maps to the START of the ramp.",
                     f.rampInputLow, -1f, 2f),
                 Val("Input high", "The quantity value that maps to the END of the ramp.",
-                    f.rampInputHigh, -1f, 2f),
-                Z.Field("Tint", "Multiplies the sampled ramp colour.",
-                    Z.Color(f.rampTint, "Multiplies the sampled ramp colour.",
-                        c => Change(() => f.rampTint = c), 90f))));
+                    f.rampInputHigh, -1f, 2f)));
+            // T-0277 — "Tint" removed here for the reason spelled out in BuildGradientFill.
         }
 
         /// <summary>
@@ -743,9 +829,18 @@ namespace Laubrary.Shaper.Editor
                 Z.Segmented((int)f.textureMapping, ShaperWords.Names(typeof(ShaperTextureMapping)),
                     "“Fit once” stretches a single copy to the bounds; “Repeat” tiles it.",
                     v => Change(() => f.textureMapping = (ShaperTextureMapping)v))));
+            // T-0277 — the tile counts are read by the Tiled branch of ShaperFillOps.Sample alone
+            // (`uu = ru * op.tilesX + op.offsetU`); the Fitted branch maps the anchor box to 0..1 once and
+            // never multiplies by them. Mapping defaults to Fit once, so out of the box both dials were dead.
+            // Measured: 819/398 pixels under Repeat, 0/0 under Fit once.
+            string tilesReason = f.textureMapping == ShaperTextureMapping.Tiled ? null
+                : "“Fit once” maps one copy of the image to the shape and never repeats, so there is nothing "
+                  + "to count. Switch Mapping to “Repeat” and this becomes available.";
             box.Add(Z.HGroup(
-                Val("Tiles X", "How many times the texture repeats horizontally.", f.textureTilesX, 0.1f, 16f),
-                Val("Tiles Y", "How many times the texture repeats vertically.", f.textureTilesY, 0.1f, 16f),
+                InertVal("Tiles X", "How many times the texture repeats horizontally.", tilesReason,
+                    f.textureTilesX, 0.1f, 16f),
+                InertVal("Tiles Y", "How many times the texture repeats vertically.", tilesReason,
+                    f.textureTilesY, 0.1f, 16f),
                 Val("Offset U", "Slides the texture horizontally, in UV.", f.textureOffsetU, -1f, 1f),
                 Val("Offset V", "Slides the texture vertically, in UV.", f.textureOffsetV, -1f, 1f),
                 Val("Angle", "Rotates the texture, in degrees.",
@@ -756,17 +851,34 @@ namespace Laubrary.Shaper.Editor
 
             // T-0172 — a sprite-sheet stepped by phase, distinct from the continuous scroll Offset U/V above
             // already give (FC-6.4e).
+            // T-0277 — switching this on with the grid still at its 1x1 default changes NOTHING: one cell is
+            // the whole image, so the cell rectangle is the identity (measured 0 pixels). The tooltip says so
+            // rather than leaving the author to conclude the feature is broken.
             box.Add(Z.Toggle("Animated", "Treat the texture as a sprite-sheet grid and step to one cell per "
-                + "the node's own phase, instead of sampling the whole image.",
+                + "the node's own phase, instead of sampling the whole image. Nothing changes until Columns "
+                + "or Rows is raised above 1 — a one-cell grid is the whole image.",
                 f.textureAnimated, v => { Change(() => f.textureAnimated = v); Rebuild(); }));
             if (f.textureAnimated)
+            {
+                // Frames is CLAMPED to columns x rows (ShaperFillCompiler.cs:653), so on a one-cell grid it
+                // can only ever be 1 whatever the dial says. Measured: 784 pixels at Columns 4, 0 at 1x1.
+                // Only a STATIC one-cell grid is declared inert, for the same reason DialAlwaysZero refuses to
+                // grey an animated dial: an animated Columns is above 1 somewhere on the timeline even when
+                // the playhead sits on 1.
+                bool oneCell = StaticGridSpan(f.textureFrameColumns) == 1 && StaticGridSpan(f.textureFrameRows) == 1;
+                int cells = oneCell ? 1 : 2;
                 box.Add(Z.HGroup(
                     Val("Columns", "How many frames the sheet is divided into horizontally.",
                         f.textureFrameColumns, 1f, 32f, decimals: 0),
                     Val("Rows", "How many frames the sheet is divided into vertically.",
                         f.textureFrameRows, 1f, 32f, decimals: 0),
-                    Val("Frames", "How many of the grid's cells are used frames, in order from the bottom-left.",
+                    InertVal("Frames", "How many of the grid's cells are used frames, in order from the "
+                        + "bottom-left.",
+                        cells > 1 ? null
+                            : "The grid is one cell, so there is exactly one frame however high this is set. "
+                              + "Raise Columns or Rows first.",
                         f.textureFrameCount, 1f, 1024f, decimals: 0)));
+            }
         }
 
         void BuildStripFill(VisualElement box, ShaperFillDef f, string keyPrefix)
@@ -782,14 +894,27 @@ namespace Laubrary.Shaper.Editor
                     f.stripRepeats, 0.1f, 16f),
                 Val("Orientation", "Rotates where the strip starts, in degrees.",
                     f.stripOrientationDegrees, 0f, 360f, cyclic: true, decimals: 0),
-                Val("Offset", "Slides the strip along itself.", f.stripOffset, -1f, 1f),
+                // The offset WRAPS (op.stripOffset = offset - floor(offset), ShaperFillCompiler.cs:694), so a
+                // whole number is the identity — which is why T-0265's sweep, whose candidates were 16, 1,
+                // −16 and 64, measured this live dial as dead. Measured here: 0 pixels at 16, 1048 at 0.5.
+                Val("Offset", "Slides the strip along itself. One whole step lands back where it started.",
+                    f.stripOffset, -1f, 1f),
                 Val("Reach", "How far in from the edge the strip is applied.", f.stripReach, 0f, 1f),
-                Z.Field("Plain colour", "Painted where no slot applies.",
-                    Z.Color(f.stripPlainColor, "Painted where no slot applies.",
-                        c => Change(() => f.stripPlainColor = c), 90f))));
+                // T-0277 — the plain colour shows only where the strip has NOT reached, and at the default
+                // Reach of 1 the strip's coverage saturates over the whole shape by construction (T-0110's
+                // `clamp01(2 + edge * invReach)`, ShaperFillOps.cs:~360). Measured: 0 pixels at Reach 1,
+                // 596 at Reach 0.2.
+                Inert(Z.Field("Plain colour", "Painted where the strip has not reached.",
+                    Z.Color(f.stripPlainColor, "Painted where the strip has not reached.",
+                        c => Change(() => f.stripPlainColor = c), 90f)),
+                    StripReachCoversEverything(f.stripReach)
+                        ? "At this Reach the strip covers the whole shape, so nothing is left plain. Lower "
+                          + "Reach and this becomes the colour of what the strip does not cover."
+                        : null)));
 
             // The strip's per-slot colour + height IS the authored content of this fill kind, and each slot's
             // height is what T-0110 restored protrusion with — so the list is editable, not a summary.
+            string slotHeightReason = HeightOnlyOrdersLayersReason();
             var slots = Z.BoxKeyed("Slots", "Each slot paints one band of the strip, with its own height.",
                 keyPrefix + ".slots");
             var listHost = new VisualElement();
@@ -820,8 +945,12 @@ namespace Laubrary.Shaper.Editor
                     row.Add(grip);
                     row.Add(Z.Color(slot.color, "This slot's colour.",
                         c => Change(() => slot.color = c), 90f));
-                    row.Add(Dial("Height", "How far this slot's band protrudes.", slot.height, -32f, 32f,
-                        v => slot.height = v));
+                    // T-0277 — a slot's height goes the same one place every fill height goes: the cross-layer
+                    // depth composite. Measured 242 pixels with a second layer present, 0 without one.
+                    row.Add(Inert(Dial("Height", slotHeightReason
+                            ?? "How far in front of its layer's plane this band sits, which decides whether "
+                             + "it shows through where another layer overlaps it.",
+                        slot.height, -32f, 32f, v => slot.height = v), slotHeightReason));
                     row.Add(Z.Flexible());
                     row.Add(Z.Button("×", "Remove this slot.",
                         () => { Change(() => f.stripSlots.RemoveAt(si)); RebuildSlots(); }));
@@ -841,13 +970,23 @@ namespace Laubrary.Shaper.Editor
             box.Add(slots);
         }
 
-        void BuildHeightFieldFill(VisualElement box, ShaperFillDef f)
+        void BuildHeightFieldFill(VisualElement box, ShaperFillDef f, ShaperNode owner)
         {
             box.Add(Z.Field("Height field", "The imported height field this fill reads.",
                 Z.Object<Texture2D>(f.heightField, "The imported height field this fill reads.",
                     t => Change(() => f.heightField = t), 200f)));
+            // T-0277 — this is the ONE fill height that reaches shading, and only on a Solid: T-0127 lets
+            // ShaperSolids perturb its own analytic normal by central-differencing a HeightField fill
+            // (ShaperSolids.cs:833-875), which is licensed precisely because that fill is a pure function of a
+            // point. On every other node kind the scaled height goes where all fill height goes — the
+            // cross-layer depth composite. Measured on a proper RFloat field: 746 pixels on a Pyramid solid
+            // with one layer, 3 on a primitive with two layers, 0 on a primitive with one.
+            string scaleReason = owner != null && owner.kind == ShaperNodeKind.Solid
+                ? null : HeightOnlyOrdersLayersReason();
             box.Add(Z.HGroup(
-                Val("Scale", "Multiplies the sampled height.", f.heightFieldScale, 0f, 8f),
+                InertVal("Scale", "Multiplies the sampled height. On a Solid this tilts the surface the light "
+                    + "rig shades; elsewhere it only decides which layer shows through where two overlap.",
+                    scaleReason, f.heightFieldScale, 0f, 8f),
                 Z.Field("Tint", "Multiplies the resulting colour.",
                     Z.Color(f.heightFieldTint, "Multiplies the resulting colour.",
                         c => Change(() => f.heightFieldTint = c), 90f))));
@@ -881,9 +1020,7 @@ namespace Laubrary.Shaper.Editor
             box.Add(Z.Field("Ramp", "The whole shape paints this ramp's colour at the node's own phase — a "
                 + "flash of red at phase 0 sliding to blue at phase 1, for instance, never a spatial pattern.",
                 Gradient(f.overPhaseGradient, "The ramp this fill's flat colour is drawn from, over the node's phase.")));
-            box.Add(Z.Field("Tint", "The flat colour painted while no ramp is authored.",
-                Z.Color(f.overPhaseTint, "The flat colour painted while no ramp is authored.",
-                    c => Change(() => f.overPhaseTint = c), 90f)));
+            // T-0277 — "Tint" removed here for the reason spelled out in BuildGradientFill.
         }
 
         void BuildProceduralFill(VisualElement box, ShaperFillDef f)
@@ -913,9 +1050,8 @@ namespace Laubrary.Shaper.Editor
                             v => Change(() => f.noiseKind = (ShaperNoiseKind)v))));
                     box.Add(Z.Field("Ramp", "The colour ramp the noise value is mapped through.",
                         Gradient(f.proceduralGradient, "The colour ramp the noise value is mapped through.")));
-                    box.Add(Z.Field("Tint", "The flat colour painted while no ramp is authored.",
-                        Z.Color(f.proceduralTint, "The flat colour painted while no ramp is authored.",
-                            c => Change(() => f.proceduralTint = c), 90f)));
+                    // T-0277 — "Tint" removed here for the reason spelled out in BuildGradientFill. It stays
+                    // on Grid and Dots below, where the same field is the INK and is genuinely live.
                     break;
 
                 case ShaperProceduralKind.Grid:
@@ -1042,7 +1178,7 @@ namespace Laubrary.Shaper.Editor
             {
                 var fillBox = Z.BoxKeyed("Edge fill", "How the edge strip itself is coloured.",
                     "shaper.window.border.fill");
-                BuildFillBody(fillBox, b.fill, "shaper.window.border.fill");
+                BuildFillBody(fillBox, b.fill, "shaper.window.border.fill", node);
                 box.Add(fillBox);
             }
 
