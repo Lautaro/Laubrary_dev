@@ -434,8 +434,24 @@ namespace Laubrary.Zui
         /// The height a `.zui-field` must reserve for its own two children, and the one place that writes it.
         /// Taken from the CHILDREN rather than from the wrapper, because the wrapper's height is the thing
         /// being pinned and so stops reporting what its content needs (see Field's own comment).
+        ///
+        /// The re-stamp threshold is an ABSOLUTE tolerance, for the same reason Z.Split's is (see kSizeEpsilon
+        /// above) and it is load-bearing, not a tidy-up. Yoga rounds every element to the device-pixel grid,
+        /// and what it rounds is the element's absolute EDGES — so a child's resolved height depends on the
+        /// fractional y-position it inherits from everything stacked above it, and a stamp that MOVES the row
+        /// can change the very height it was computed from. Measured live in Pyre at dial-pane widths 540-620
+        /// (T-0304): the Torch "Colour ramp" field alternated `need` between 167.111 and 166.667 forever,
+        /// 0.44px apart, because its ZuiGradientControl carries a 22px-tall Image preview whose rounded height
+        /// flipped with the row's own sub-pixel offset. Mathf.Approximately's relative epsilon (~2e-5 here) is
+        /// far below that, so every pass wrote a new height, every write re-ran layout, and the panel logged
+        /// "Layout update is struggling to process current layout (consider simplifying to avoid recursive
+        /// layout)" tens of times a second, forever, while the editor sat idle — ~380 errors per 4s of nothing.
+        /// A tolerance of one-and-a-half layout pixels is above device-pixel rounding at any editor UI scale
+        /// and two orders of magnitude below the 16-20px overflows T-0287/T-0288 introduced this stamp to fix,
+        /// so the stamp still tracks a control that genuinely grows and no longer chases the rounding.
         static void StampFieldHeight(VisualElement wrap, VisualElement label, VisualElement control)
         {
+            const float kStampEpsilon = 1.5f;
             float ch = control.resolvedStyle.height;
             float lh = label.resolvedStyle.height;
             if (float.IsNaN(ch) || float.IsNaN(lh)) return;
@@ -444,7 +460,7 @@ namespace Laubrary.Zui
             need += wrap.resolvedStyle.paddingTop + wrap.resolvedStyle.paddingBottom;
             if (need <= 0f || float.IsNaN(need)) return;
             var cur = wrap.style.height;
-            if (cur.keyword == StyleKeyword.Undefined && Mathf.Approximately(cur.value.value, need)) return;
+            if (cur.keyword == StyleKeyword.Undefined && Mathf.Abs(cur.value.value - need) <= kStampEpsilon) return;
             wrap.style.height = need;
         }
 

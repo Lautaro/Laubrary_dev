@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- ZUI: a field's height stamp ignores sub-1.5 px rounding flips, ending a layout loop Pyre fell into at pane widths between 540 and 620 px (0 layout errors across 360–1400 px in both Pyre and Shaper) (T-0304).
+- Shaper: Swarm's 'Appearance order' is drawn in every timing and greyed with its reason when no spawn shape is set, matching where the engine reads it (T-0305).
 - Pyre: the window says 'Pyre' everywhere it still said 'Pyre Plus' (15 strings: Save/New/Browse/Duplicate/Delete wording, browser header, default asset name, Undo entries); Chunks has a minimum window size (T-0303, T-0306).
 - Pyre: opening the window no longer leaves the spec dirty (a preview-only layer selection was written on every load and rewritten to disk on the next domain reload); the preview splitter clamps to the window on build as well as on drag; the window has a minimum size (T-0299, T-0302).
 - AssetKit: the Tags tooltip no longer promises a browser filter that does not exist, and the browse-cell tooltip describes what a click does (T-0299).

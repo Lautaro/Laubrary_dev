@@ -1629,12 +1629,34 @@ namespace Laubrary.Shaper.Editor
                         v => { Change(() => s.timing = (ShaperSwarmTiming)v); Rebuild(); }))
             };
 
+            // T-0305 — "Appearance order" is a fact about the SPAWN SHAPE, not about the timing, so it is
+            // built once here and added to every branch instead of living inside two of the three. The
+            // permutation it drives is built whenever a spawn shape exists (ShaperCompiler.cs:465,
+            // `placed || swarm.spawnOrderChaos > 0f`), so with a shape authored it re-assigns which instance
+            // sits at which position under EVERY timing — including Stagger, where each instance still
+            // carries its own clock offset and its own index-driven size, so swapping them is visible.
+            // Measured live: Circle spawn + Stagger (the state a new swarm with a shape starts in) moves
+            // 4224 pixels while this card hid the dial outright, and shape = None moves 0 pixels under both
+            // Window and FrameStep while this card drew it live and ungreyed. Both halves of that rule were
+            // inverted; the field's own doc comment ("Observable only when timing gives instances distinct
+            // birth moments") is what the old placement followed.
+            string orderReason = s.shape == ShaperSwarmShape.None
+                ? "Does nothing without a spawn shape: every instance sits on the same spot, so there is no "
+                  + "arrangement of positions left to re-order. Pick a Shape above to bring it back."
+                : null;
+            var appearanceOrder = Inert(
+                Dial("Appearance order", orderReason ?? "0 brings in neighbouring positions one after "
+                    + "another; 1 reveals them in a scrambled order.", s.spawnOrderChaos, 0f, 1f,
+                    v => s.spawnOrderChaos = v),
+                orderReason);
+
             if (s.timing == ShaperSwarmTiming.Stagger)
             {
                 // The stagger decides how the per-instance clocks are DRAWN, so animating it over those same
                 // clocks would be circular — it stays a plain dial deliberately.
                 kids.Add(Dial("Lifetime stagger", "How much each instance's clock is offset from the others.",
                     s.lifetimeStagger, 0f, 1f, v => s.lifetimeStagger = v));
+                kids.Add(appearanceOrder);
                 box.Add(Z.HGroup(kids.ToArray()));
                 parent.Add(box);
                 return;
@@ -1666,9 +1688,7 @@ namespace Laubrary.Shaper.Editor
             kids.Add(Z.Toggle("Die together", "Clear the whole swarm at one moment rather than letting each "
                 + "instance expire on its own schedule.", s.dieTogether,
                 v => Change(() => s.dieTogether = v)));
-            kids.Add(Dial("Appearance order", "0 brings in neighbouring positions one after another; 1 "
-                + "reveals them in a scrambled order.", s.spawnOrderChaos, 0f, 1f,
-                v => s.spawnOrderChaos = v));
+            kids.Add(appearanceOrder);
 
             box.Add(Z.HGroup(kids.ToArray()));
             parent.Add(box);

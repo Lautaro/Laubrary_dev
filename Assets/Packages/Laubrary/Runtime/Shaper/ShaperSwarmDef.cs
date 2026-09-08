@@ -186,7 +186,11 @@ namespace Laubrary.Shaper
         public bool gridReverse = false;
 
         /// <summary>Which position each spawn moment reveals: 0 walks spatial neighbours, 1 is a full seeded
-        /// shuffle. Observable only when <see cref="timing"/> gives instances distinct birth moments.</summary>
+        /// shuffle. Observable whenever <see cref="shape"/> places the instances anywhere — the compiler
+        /// builds the permutation from the SHAPE, not from the timing (ShaperCompiler.cs:465), so it swaps
+        /// which instance sits at which position under every timing mode, Stagger included (measured 4224
+        /// changed pixels on a Circle spawn under Stagger, T-0305). With no shape every instance sits on the
+        /// same spot, so re-ordering them is invisible whatever the timing.</summary>
         [Range(0f, 1f)] public float spawnOrderChaos = 0f;
 
         /// <summary>Path mode: where along the outline the arrangement sits. Closed shapes WRAP, so animating
