@@ -2200,6 +2200,13 @@ namespace Laubrary.Launimator.Editor
                 _playToggleButton.text = _animPlaying ? "❚❚" : "▶";
                 _playIM?.MarkDirtyRepaint();
             }).W(36f);
+            // T-0313 — the pause glyph is WIDER than the play glyph, and the button's default 6+6 padding
+            // plus 1+1 border left 21.8px of content for a "❚❚" that measures 24.0: measured clipped by
+            // 2.2px in the running window. Zero the horizontal padding rather than widen the slot — the same
+            // call the Library star got in T-0311 and the unsaved-edits dot in T-0307 — which leaves 34.0px
+            // of content in a 36px transport button the row was already designed around.
+            _playToggleButton.style.paddingLeft = 0f;
+            _playToggleButton.style.paddingRight = 0f;
             s.Add(WrapRow(
                 _playToggleButton,
                 Z.Field("FPS", "Preview playback speed — also what the saved animation plays at.",

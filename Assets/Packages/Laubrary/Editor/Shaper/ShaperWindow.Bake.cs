@@ -68,13 +68,29 @@ namespace Laubrary.Shaper.Editor
 
         VisualElement BuildBakeBox()
         {
+            // T-0313 — the readout is a folder PATH, and a path is as long as the project's folders are.
+            // Measured at the right pane's 260px minimum (ShaperWindow.cs:321): the demo document's
+            // "Assets/Demos/ShaperDemo" needs 160.0px and fits, but a document five folders down —
+            // "Assets/Shaper/AuditT0313/Characters/Bosses/Final Boss", 53 characters — needs 325.8px against
+            // the 288.9px it has and was cut by 36.9px with text-overflow:Clip, i.e. cut mid-word with
+            // nothing on screen saying it had been cut. Two things follow, neither of them a new control:
+            // the cut is now SIGNALLED (ellipsis), and the whole path is readable on hover, because a
+            // truncated destination is exactly the thing a bake gets wrong silently.
+            string destination = BakeDestinationFolder();
+            var destinationText = Z.Text(destination, ZuiText.Body,
+                $"This bake will land in \"{destination}\" — beside the document's own asset once it has "
+                + "been saved, or \"Assets\" for an in-memory document that has not been saved yet.");
+            destinationText.style.overflow = Overflow.Hidden;
+            destinationText.style.textOverflow = TextOverflow.Ellipsis;
+            // Ellipsis also buys the hover for free: a TextElement whose text is ELIDED returns its full
+            // text as its tooltip (UI Toolkit's own displayTooltipWhenElided, on by default), which is why
+            // the readout's own hover shows the whole path rather than the sentence passed above — measured
+            // live, both before and after this edit, with a sentinel string that never appeared.
             var destinationRow = Z.Field("Destination",
-                "Where a bake lands: beside the document's own asset once it has been saved, or \"Assets\" "
-                + "for an in-memory document that has not been saved yet. Read-only here — save the document "
-                + "to move it.",
-                Z.Text(BakeDestinationFolder(), ZuiText.Body,
-                    "Where a bake lands: beside the document's own asset once it has been saved, or "
-                    + "\"Assets\" for an in-memory document that has not been saved yet."));
+                $"Where a bake lands — currently \"{destination}\": beside the document's own asset once it "
+                + "has been saved, or \"Assets\" for an in-memory document that has not been saved yet. "
+                + "Read-only here — save the document to move it.",
+                destinationText);
 
             // T-0257 — this is now the ONLY place the field is authored. The Canvas card used to carry a
             // second copy of it labelled "PPU", and this tooltip used to admit the duplication instead of

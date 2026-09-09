@@ -250,6 +250,11 @@ namespace Laubrary.Launimator.Editor
                 if (_selected == null) return;
                 LauminaryRepo.Rename(_selected, _renameBuffer); Refresh(); Rebuild();
             }).W(64f);
+            // T-0313 — 170 + 6.2 gap + 64 does not fit the 240px left column: the Rename button's right edge
+            // measured 3.6px past the row's content box at every window width. The name field gives up those
+            // pixels instead of the button hanging over the edge — the same "let the field shrink" default
+            // T-0312 applied to a ramp field, rather than a new hand-picked width.
+            renameField.style.flexShrink = 1f;
             var renameRow = Z.Row(renameField, renameButton);
             renameRow.SetEnabled(_selected != null);
             root.Add(renameRow);
@@ -554,6 +559,10 @@ namespace Laubrary.Launimator.Editor
                 _playing = !_playing;
                 _playButton.text = _playing ? "❚❚" : "▶";
             }).W(36f);
+            // T-0313 — same 36px transport button, same clipped pause glyph as the Laumination Builder's
+            // (content 21.8px for a 24.0px "❚❚"): the padding goes rather than the width.
+            _playButton.style.paddingLeft = 0f;
+            _playButton.style.paddingRight = 0f;
             _previewLabel = Z.Text(_previewing != null ? $"Preview: {_previewing.name}" : "Select an animation to preview",
                 ZuiText.Subtle, "Which animation the box below is playing.");
             root.Add(Z.Row(_playButton, _previewLabel));
