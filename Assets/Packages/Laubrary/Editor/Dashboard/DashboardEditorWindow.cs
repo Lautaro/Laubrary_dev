@@ -147,35 +147,26 @@ namespace Laubrary.Dashboards
                 windowLogEntries.Add("[DASHBOARD]", ownerlessLogList);
 
             scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
+            if (windowLogEntries.Count == 0)
+                GUILayout.Label("Nothing is being tracked. Mark a MonoBehaviour field with [Dashboard] " +
+                                "or call Dashboard.Log, and it appears here.", EditorStyles.wordWrappedMiniLabel);
             foreach (var windowLog in windowLogEntries)
             {
                 var owner = windowLog.Key;
                 var windowLogList = windowLog.Value;
                 var ownerName = $"{owner}";
 
-                GUIStyle ownerStyle = new GUIStyle(GUI.skin.label)
-                {
-                    fontStyle = FontStyle.Bold,
-                    fontSize = 14
-                };
-
-                GUIStyle backgroundStyle = new GUIStyle(GUI.skin.box);
-                backgroundStyle.normal.background = MakeTexture(2, 2, Color.gray);
-
-                EditorGUILayout.BeginVertical(backgroundStyle);
-                GUILayout.Label(ownerName, style: ownerStyle);
+                EditorGUILayout.BeginVertical(GroupBoxStyle);
+                GUILayout.Label(ownerName, style: OwnerStyle);
                 DrawHorizontalLine(Color.gray, 1f);
 
 
                 foreach (var entry in windowLogList)
                 {
-                    var valueText = entry.text;
-                    GUIStyle valueStyle = new GUIStyle(GUI.skin.label)
-                    {
-                        fontSize = entry.textSize,
-                        normal = { textColor = entry.textColor }
-                    };
-                    GUILayout.Label(valueText, style: valueStyle);
+                    var style = ValueStyle;
+                    style.fontSize = entry.textSize;
+                    style.normal.textColor = entry.textColor;
+                    GUILayout.Label(entry.text, style: style);
                 }
                 EditorGUILayout.EndVertical();
                 EditorGUILayout.Space(15);
@@ -237,28 +228,57 @@ namespace Laubrary.Dashboards
 
         void DrawHorizontalLine(Color color, float height = 1.0f)
         {
-            GUIStyle horizontalLine = new GUIStyle();
-            horizontalLine.normal.background = EditorGUIUtility.whiteTexture;
-            horizontalLine.margin = new RectOffset(0, 0, 4, 4);
-            horizontalLine.fixedHeight = height;
+            lineStyle ??= new GUIStyle
+            {
+                normal = { background = EditorGUIUtility.whiteTexture },
+                margin = new RectOffset(0, 0, 4, 4)
+            };
+            lineStyle.fixedHeight = height;
 
             var c = GUI.color;
             GUI.color = color;
-            GUILayout.Box(GUIContent.none, horizontalLine);
+            GUILayout.Box(GUIContent.none, lineStyle);
             GUI.color = c;
         }
 
-        Texture2D MakeTexture(int width, int height, Color col)
+        // OnGUI repaints unconditionally (it ends with Repaint()), so anything built per pass is built
+        // dozens of times a second for as long as the window is open. The group background used to be a
+        // fresh 2x2 Texture2D on every group on every pass, and a Texture2D is an engine object nothing
+        // ever released: 3046 of them accumulated over 60 repaints of a single log line. Styles and the
+        // texture are therefore built once and reused; the texture is HideAndDontSave so it survives
+        // repaints without being saved into anything.
+        GUIStyle ownerStyle, boxStyle, lineStyle, entryStyle;
+        Texture2D groupBg;
+
+        GUIStyle ValueStyle => entryStyle ??= new GUIStyle(GUI.skin.label);
+
+        GUIStyle OwnerStyle => ownerStyle ??= new GUIStyle(GUI.skin.label)
         {
-            Color[] pix = new Color[width * height];
-            for (int i = 0; i < pix.Length; ++i)
+            fontStyle = FontStyle.Bold,
+            fontSize = 14
+        };
+
+        GUIStyle GroupBoxStyle
+        {
+            get
             {
-                pix[i] = col; // Fill the array with the background color
+                if (groupBg == null)
+                {
+                    groupBg = new Texture2D(2, 2) { hideFlags = HideFlags.HideAndDontSave };
+                    var pix = new Color[4];
+                    for (int i = 0; i < pix.Length; ++i) pix[i] = Color.gray;
+                    groupBg.SetPixels(pix);
+                    groupBg.Apply();
+                    boxStyle = null;
+                }
+                return boxStyle ??= new GUIStyle(GUI.skin.box) { normal = { background = groupBg } };
             }
-            Texture2D result = new Texture2D(width, height);
-            result.SetPixels(pix);
-            result.Apply();
-            return result;
+        }
+
+        void OnDestroy()
+        {
+            if (groupBg != null) DestroyImmediate(groupBg);
+            groupBg = null;
         }
     }
 }

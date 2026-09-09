@@ -1201,12 +1201,36 @@ namespace Laubrary.Zoetrope.Editor
             var offsetProp = anchorProp.FindPropertyRelative("offset");
             var xProp = offsetProp.FindPropertyRelative("x");
             var yProp = offsetProp.FindPropertyRelative("y");
-            host.Add(Z.Row(
-                NumField("Offset X", xProp.propertyPath, xProp.floatValue,
-                    "Fine-tune nudge in world units, added on top of the computed/painted point."),
-                Z.HSpace(),
-                NumField("Offset Y", yProp.propertyPath, yProp.floatValue,
-                    "Fine-tune nudge in world units, added on top of the computed/painted point.")));
+            // A spatial pair is aimed, not typed twice: the pad IS the control and the two fields stay beside
+            // it for exact entry, the shape BackSplash's Position row already uses. The pad's ±3 world units
+            // covers a character-scale nudge; a value beyond it is still typeable in the fields, the dot just
+            // sits at the edge.
+            const string offsetTip = "Fine-tune nudge in world units, added on top of the computed/painted point.";
+            const float offsetRange = 3f;
+            string xPath = xProp.propertyPath, yPath = yProp.propertyPath;
+            UnityEngine.UIElements.FloatField offX = null, offY = null;
+            ZuiPad offsetPad = null;
+            offsetPad = Z.Pad(new Vector2(xProp.floatValue, yProp.floatValue),
+                new Rect(-offsetRange, -offsetRange, offsetRange * 2f, offsetRange * 2f), offsetTip,
+                v =>
+                {
+                    Commit(xPath, p => p.floatValue = v.x);
+                    Commit(yPath, p => p.floatValue = v.y);
+                    offX?.SetValueWithoutNotify(v.x);
+                    offY?.SetValueWithoutNotify(v.y);
+                }, 68f);
+            offX = Z.Float(xProp.floatValue, offsetTip, v =>
+            {
+                Commit(xPath, p => p.floatValue = v);
+                if (offsetPad != null) offsetPad.Value = new Vector2(v, offsetPad.Value.y);
+            }, NumFieldWidth);
+            offY = Z.Float(yProp.floatValue, offsetTip, v =>
+            {
+                Commit(yPath, p => p.floatValue = v);
+                if (offsetPad != null) offsetPad.Value = new Vector2(offsetPad.Value.x, v);
+            }, NumFieldWidth);
+            host.Add(Z.Field("Offset", offsetTip, Z.Row(offsetPad,
+                Z.Field("X", offsetTip, offX), Z.HSpace(), Z.Field("Y", offsetTip, offY))));
         }
 
         void BuildRigSchematic(VisualElement root, CompositeLauminaryView composite)

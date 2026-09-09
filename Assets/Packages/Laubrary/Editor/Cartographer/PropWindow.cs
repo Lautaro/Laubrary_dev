@@ -161,7 +161,7 @@ namespace Laubrary.Cartographer.Editor
                     v => { gridH = Mathf.RoundToInt(v); stage?.Refresh(); }, 150f, decimals: 0)));
 
             tagList = new VisualElement();
-            root.Add(Z.Box("Tags", "Gameplay labels this prop carries. Cartographer stores them; the game decides what they mean.",
+            root.Add(Z.Box("Tile tags", "Gameplay labels this prop carries. Cartographer stores them; the game decides what they mean.",
                 tagList,
                 Z.Button("+ Add tag", "Append an empty tag slot.",
                     () => Dial("Add prop tag", () => prop.tags.Add(null)))));

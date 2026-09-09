@@ -260,8 +260,8 @@ namespace Laubrary.Choreographer.Editor
             root.Add(selectionBoxHost);
             RebuildSelectionBox();
 
-            root.Add(Z.Text("Spread (start line → circle)", ZuiText.Section,
-                "How the N dancers fan out around the shared path."));
+            root.Add(Z.Text("Spread", ZuiText.Section,
+                "How the N dancers fan out around the shared path — from a straight start line to a full circle."));
             root.Add(Z.MicroSlider("Length", choreo.spreadLength, 0f, 4f,
                 "Total width of the dancer fan, in path-space units.",
                 v => Dial("Spread length", () => choreo.spreadLength = v)));
@@ -301,8 +301,8 @@ namespace Laubrary.Choreographer.Editor
             root.Add(Z.Toggle("Loop", "Restart the cycle when it completes instead of stopping at the end.",
                 choreo.loop, v => Dial("Loop", () => choreo.loop = v)));
 
-            root.Add(Z.Text("Anchors (Launcher / Target)", ZuiText.Section,
-                "Optional live transforms the path is stretched between at runtime."));
+            root.Add(Z.Text("Anchors", ZuiText.Section,
+                "Optional live transforms — a launcher and a target — the path is stretched between at runtime."));
             var launchBlendField = Z.MicroSlider("Launch blend", choreo.launchBlend, 0.01f, 1f,
                 "Fraction of the journey spent blending out from the launcher point.",
                 v => Dial("Launch blend", () => choreo.launchBlend = v));
@@ -325,8 +325,8 @@ namespace Laubrary.Choreographer.Editor
 
         void BuildPreviewSection(VisualElement root)
         {
-            root.Add(Z.Text("Preview — shows only what's ticked", ZuiText.Section,
-                "Preview-only visualisation switches; nothing here is saved into the asset."));
+            root.Add(Z.Text("Preview", ZuiText.Section,
+                "Preview-only visualisation switches — the stage shows only what is ticked here, and nothing in this section is saved into the asset."));
             root.Add(Z.MicroSlider("Preview count", previewCount, 0f, 200f,
                 "Dancer count for THIS preview only — 0 falls back to the asset's default count.",
                 v => { previewCount = Mathf.Clamp(Mathf.RoundToInt(v), 0, 200); RefreshInfoLabel(); RepaintStage(); },

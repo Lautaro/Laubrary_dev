@@ -321,11 +321,11 @@ namespace Laubrary.Cartographer.Editor
             RebuildToolBox();
 
             tagsList = new VisualElement();
-            var tagsSection = Z.Section("Tags", "Gameplay labels on the ACTIVE layer, and the scene overlay that makes tagged cells visible — invisible metadata is unverifiable metadata.",
+            var tagsSection = Z.Section("Tile tags", "Gameplay labels on the ACTIVE layer, and the scene overlay that makes tagged cells visible — invisible metadata is unverifiable metadata.",
                 "cartographer.tags");
             tagsSection.Add(tagsList);
             body.Add(tagsSection);
-            _barUnits.Add(("Tags", tagsSection));
+            _barUnits.Add(("Tile tags", tagsSection));
             RebuildTagsBox();
 
             var bar = new ZuiSectionToggleBar("Cartographer", _barUnits.ToArray());

@@ -35,6 +35,11 @@ namespace Laubrary.Cartographer.Editor
         protected override string TypeLabel => "Tileset";
         protected override string NewAssetName => "Tileset";
         protected override string DefaultFolder => "Assets/Cartographer/Tilesets";
+
+        // Measured: at the shared 820 floor the library header's last toggle ("Osc frame") is pushed 38.7 px
+        // out of its own row, because that header carries three view dials and four mode buttons on one line.
+        // 880 is the first width at which the whole header fits.
+        protected override Vector2 MinWindowSize => new Vector2(880f, 520f);
         protected override Texture2D RenderThumbnail(Tileset item) => item != null ? item.RenderPreviewTexture() : null;
         protected override void InitializeNewAsset(Tileset item) => item.displayName = item.name;
 
@@ -261,10 +266,10 @@ namespace Laubrary.Cartographer.Editor
                 v => { tilesetCellZoom = v; tilesGrid?.RebuildCells(); clumpsGrid?.RebuildCells(); }, 90f));
             libraryBox.AddHeaderContent(Z.MicroSlider("Lines", tilesetGridBrightness, 0f, 1f,
                 "Grid line colour, black to white — same dial as the sheet canvas.",
-                v => { tilesetGridBrightness = v; tilesGrid?.RepaintOverlay(); clumpsGrid?.RepaintOverlay(); }, 70f));
+                v => { tilesetGridBrightness = v; tilesGrid?.RepaintOverlay(); clumpsGrid?.RepaintOverlay(); }, 95f));
             libraryBox.AddHeaderContent(Z.MicroSlider("Alpha", tilesetGridAlpha, 0f, 1f,
                 "Grid line opacity.",
-                v => { tilesetGridAlpha = v; tilesGrid?.RepaintOverlay(); clumpsGrid?.RepaintOverlay(); }, 70f));
+                v => { tilesetGridAlpha = v; tilesGrid?.RepaintOverlay(); clumpsGrid?.RepaintOverlay(); }, 95f));
             var marksToggle = Z.ToggleButton("Osc frame",
                 "In seamless view: pulse an oscillating frame around the hovered and selected cells, so " +
                 "editing stays possible without the grid. Off = a pure, uninterrupted preview.",

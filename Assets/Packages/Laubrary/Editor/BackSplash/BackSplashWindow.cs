@@ -92,9 +92,8 @@ namespace Laubrary.BackSplash.Editor
                 Z.Color(bs.imageTint, tintTip, v => Dial("Edit BackSplash tint", () => bs.imageTint = v), 110f)));
 
             const string zoomTip = "How much of the viewport the image fills — 1 fits the viewport exactly.";
-            body.Add(Z.Field("Zoom", zoomTip,
-                Z.Slider(bs.imageZoom, 0.05f, 16f, zoomTip,
-                    v => Dial("Edit BackSplash zoom", () => bs.imageZoom = v), 150f)));
+            body.Add(Z.MicroSlider("Zoom", bs.imageZoom, 0.05f, 16f, zoomTip,
+                v => Dial("Edit BackSplash zoom", () => bs.imageZoom = v), 170f, showValue: true, decimals: 2));
 
             body.Add(BuildPositionRow(bs));
 
@@ -122,7 +121,11 @@ namespace Laubrary.BackSplash.Editor
 
             posPad = Z.Pad(bs.imagePos, new Rect(-max, -max, max * 2f, max * 2f), posTip, v =>
             {
-                Dial("Reposition BackSplash image", () => bs.imagePos = BackSplash.ClampImagePos(v));
+                // A drag produces seven decimals of mouse noise, which then prints past the edge of the
+                // numeric field beside it. Round where the value is produced, at a precision finer than one
+                // pixel of the pad, rather than widening a field to fit noise nobody typed.
+                var snapped = new Vector2(Mathf.Round(v.x * 1000f) / 1000f, Mathf.Round(v.y * 1000f) / 1000f);
+                Dial("Reposition BackSplash image", () => bs.imagePos = BackSplash.ClampImagePos(snapped));
                 posXField?.SetValueWithoutNotify(bs.imagePos.x);
                 posYField?.SetValueWithoutNotify(bs.imagePos.y);
             }, 68f);
@@ -131,12 +134,12 @@ namespace Laubrary.BackSplash.Editor
             {
                 Dial("Reposition BackSplash image", () => bs.imagePos = BackSplash.ClampImagePos(new Vector2(v, bs.imagePos.y)));
                 if (posPad != null) posPad.Value = bs.imagePos;
-            }, 68f);
+            }, 84f);
             posYField = Z.Float(bs.imagePos.y, "Vertical offset in the viewport's own units.", v =>
             {
                 Dial("Reposition BackSplash image", () => bs.imagePos = BackSplash.ClampImagePos(new Vector2(bs.imagePos.x, v)));
                 if (posPad != null) posPad.Value = bs.imagePos;
-            }, 68f);
+            }, 84f);
 
             return Z.Field("Position", posTip, Z.Row(posPad,
                 Z.Field("X", "Horizontal offset in the viewport's own units.", posXField),
