@@ -1197,9 +1197,11 @@ namespace Laubrary.Shaper.Editor
             // test made this card offer "Remove edge" on every node of every saved document.
             if (!ShaperBorderDef.IsAuthored(node.border))
             {
-                box.Add(Z.Field("Edge", "This node has no edge strip.",
-                    Z.Button("Add edge", "Give this node an edge strip.",
-                        () => { Change(() => node.border = new ShaperBorderDef { authored = true, enabled = true, fill = SeededBorderFill(node) }); Rebuild(); })));
+                // T-0320 — the button alone, not a field labelled "Edge" inside a box titled "Edge": three
+                // "Edge"s in one 24px row said the same thing three times (UI guide, "never title a box that
+                // holds exactly one field ... says nothing twice"). The field's sentence moved to the button.
+                box.Add(Z.Button("Add edge", "Give this node an edge strip — it has none yet, so the shape draws with no outline.",
+                    () => { Change(() => node.border = new ShaperBorderDef { authored = true, enabled = true, fill = SeededBorderFill(node) }); Rebuild(); }));
                 parent.Add(box);
                 return;
             }

@@ -274,6 +274,9 @@ namespace Laubrary.Zui
             _tooltip = tooltip;
             this.tooltip = tooltip
                 + "  ·  Tab to focus, arrows to nudge the point, Shift = coarse.";
+            // T-0320 — `zui-value2d` reserves the focus ring's 2px border transparently, so taking focus
+            // colours the border instead of growing the control and shoving the rest of the card down.
+            AddToClassList("zui-value2d");
             AddToClassList("zui-kbd-focus");
             // T-0316 — neither the collapsed thumbnail nor the expanded plot carried a field of any kind
             // (the numeric X/Y block is optional and absent in curve mode), so the control could never

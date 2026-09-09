@@ -100,6 +100,11 @@ namespace Laubrary.Zui
 
         public override VisualElement contentContainer => _body;
 
+        /// The title this box was given, without the collapsed-state suffix the label may be carrying —
+        /// null for an untitled box. Read by ZuiReflect so a reflected group does not draw a second box
+        /// with the same title inside this one.
+        public string TitleText => _titleText;
+
         public bool IsOpen
         {
             get => _key == null || !s_open.TryGetValue(_key, out bool open) || open;   // default: open

@@ -20,6 +20,7 @@
 // after building its UI so the window opens on the view the user left it in.
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -36,6 +37,7 @@ namespace Laubrary.Zui
 
         DropdownField _picker;
         TextField _newName;
+        Button _renameBtn;
 
         public ZuiViewBar(Func<ZuiViewStore> getStore, Func<ZuiViewStore> createStore,
             Func<Dictionary<string, bool>> capture, Action<IReadOnlyDictionary<string, bool>> apply,
@@ -71,6 +73,15 @@ namespace Laubrary.Zui
             style.flexWrap = Wrap.Wrap;          // wraps onto a second line in a narrow dials pane
             style.marginBottom = 6f;
 
+            // T-0310 — the host (ZuiAssetWindow) rebuilds its whole UI on EditorApplication.projectChanged,
+            // and the FIRST Save-as creates the views asset, which is itself a project change: the bar that
+            // ends up on screen is built mid-CreateAsset, before the preset exists, and nothing ever told it
+            // to look again — the view the author just saved was not in the picker until the window was
+            // reopened (measured: choices=[] with the store holding the preset). So the bar re-reads the
+            // store on every later project change and when the picker is pressed, keeping the current pick.
+            RegisterCallback<AttachToPanelEvent>(_ => { Live.Add(this); EditorApplication.projectChanged += OnProjectChanged; });
+            RegisterCallback<DetachFromPanelEvent>(_ => { Live.Remove(this); EditorApplication.projectChanged -= OnProjectChanged; });
+
             var label = new Label("Views")
             {
                 // T-0284 — this said "which sections are folded", which a view has never stored: both hosts
@@ -97,11 +108,13 @@ namespace Laubrary.Zui
             };
             _picker.style.minWidth = 150f;
             _picker.style.marginRight = 6f;
+            _picker.RegisterCallback<PointerDownEvent>(_ => ResyncPicker(), TrickleDown.TrickleDown);
             _picker.choices = PresetNames();
             if (_picker.choices.Count > 0) _picker.SetValueWithoutNotify(_picker.choices[0]);
             _picker.RegisterValueChangedCallback(ev =>
             {
                 if (!string.IsNullOrEmpty(ev.newValue)) ApplyPreset(ev.newValue);
+                RefreshRenameState();
             });
             Add(_picker);
 
@@ -124,12 +137,30 @@ namespace Laubrary.Zui
                 + "itself and everything authored in it are untouched.",
                 () => { if (!string.IsNullOrEmpty(_picker.value)) DeletePreset(_picker.value); }));
 
+            // T-0310 — the name field and the two buttons that consume it wrap as ONE unit in a narrow pane,
+            // rather than "Delete view | name" on one row and "Rename | Save as" orphaned on the next.
+            var nameRow = new VisualElement();
+            nameRow.style.flexDirection = FlexDirection.Row;
+            nameRow.style.alignItems = Align.Center;
+            nameRow.style.flexShrink = 0f;
+            Add(nameRow);
+
             _newName = Z.TextInput("",
-                "Type a name, then Save as, to store the current arrangement as a new view.",
-                _ => { }, 120f);
+                "Type a name, then Save as to store the current arrangement as a new view, or Rename to "
+                + "give the SELECTED view this name.",
+                _ => RefreshRenameState(), 120f);
             _newName.style.marginLeft = 10f;
-            Add(_newName);
-            Add(Z.Button("Save as",
+            nameRow.Add(_newName);
+
+            // T-0310 — renaming a saved view used to be Save-as-under-new-name then Delete-view-on-the-old,
+            // a two-step the author had to invent. Rename is that pair as one operation, reusing the same
+            // name field Save-as already uses. Greyed with a reason (ZuiReflect's SetEnabled+tooltip
+            // pattern) rather than silently doing nothing, for: nothing picked, nothing typed, the typed
+            // name already IS the picked view's name, or the typed name collides with a different view.
+            _renameBtn = Z.Button("Rename", "", () => RenamePreset(_picker.value, _newName.value));
+            nameRow.Add(_renameBtn);
+
+            nameRow.Add(Z.Button("Save as",
                 "Save the window's current arrangement as a new view under the typed name (creates the "
                 + "views asset the first time).",
                 () =>
@@ -137,7 +168,10 @@ namespace Laubrary.Zui
                     if (string.IsNullOrWhiteSpace(_newName.value)) return;
                     SaveInto(_newName.value);
                     _newName.SetValueWithoutNotify("");
+                    RefreshRenameState();
                 }));
+
+            RefreshRenameState();
         }
 
         // ── preset CRUD (Save-as / Update / Delete are the sanctioned save path) ─────
@@ -175,6 +209,7 @@ namespace Laubrary.Zui
 
             EditorPrefs.SetString(_prefsKey, name);
             RefreshPicker(name);
+            ResyncAll();
         }
 
         void ApplyPreset(string name)
@@ -200,6 +235,57 @@ namespace Laubrary.Zui
 
             if (EditorPrefs.GetString(_prefsKey, "") == name) EditorPrefs.DeleteKey(_prefsKey);
             RefreshPicker("");
+            ResyncAll();
+        }
+
+        // T-0310 — the rename half of the pair; SaveInto/DeletePreset above are the other two thirds of
+        // the preset CRUD this bar owns. Renames the preset itself (not a save-as-then-delete), so it
+        // never touches `entries` and keeps the picker on the SAME entry under its new name.
+        void RenamePreset(string oldName, string newName)
+        {
+            newName = newName?.Trim();
+            var store = Store;
+            var preset = Find(store, oldName);
+            if (store == null || preset == null || string.IsNullOrEmpty(oldName)
+                || string.IsNullOrEmpty(newName) || newName == oldName || Find(store, newName) != null)
+                return;   // the Rename button is greyed for all of these; this is the belt-and-braces guard
+
+            Undo.RecordObject(store, "Rename Zui View");
+            preset.name = newName;
+            EditorUtility.SetDirty(store);
+            AssetDatabase.SaveAssetIfDirty(store);   // T-0284 — this asset, not the project. See SaveInto.
+
+            if (EditorPrefs.GetString(_prefsKey, "") == oldName) EditorPrefs.SetString(_prefsKey, newName);
+
+            _newName.SetValueWithoutNotify("");
+            RefreshPicker(newName);
+            ResyncAll();
+        }
+
+        void OnProjectChanged() => ResyncPicker();
+
+        // T-0310 — every bar currently on screen. A store write from THIS bar can land while the host is
+        // rebuilding (the first Save-as does: creating the asset is a project change), so the bar that
+        // wrote is no longer the bar the author sees; measured: no projectChanged reached the new bar even
+        // a tick later, and the saved view stayed out of the picker until it was pressed. Every write
+        // therefore ends by making all live bars re-read the store — synchronously, because the host's
+        // rebuild has already happened by then (and an EditorApplication.delayCall measured as never
+        // arriving before the author's next interaction).
+        static readonly HashSet<ZuiViewBar> Live = new HashSet<ZuiViewBar>();
+        static void ResyncAll()
+        {
+            foreach (var b in Live.ToArray()) b.ResyncPicker();
+        }
+
+        /// Re-read the store's names without applying anything: the pick survives if it still exists,
+        /// otherwise the picker falls back the way RefreshPicker does. Never raises the picker's change
+        /// event, so a resync can never re-apply a view behind the author's back.
+        void ResyncPicker()
+        {
+            if (_picker == null) return;
+            var names = PresetNames();
+            if (names.SequenceEqual(_picker.choices)) return;
+            RefreshPicker(_picker.value);
         }
 
         void RefreshPicker(string select)
@@ -210,6 +296,26 @@ namespace Laubrary.Zui
                 !string.IsNullOrEmpty(select) && names.Contains(select) ? select
                 : names.Count > 0 ? names[0]
                 : "");
+            RefreshRenameState();
+        }
+
+        // T-0310 — greys the Rename button with a reason (rather than a silent no-op) whenever activating
+        // it right now would do nothing or something surprising: nothing picked, nothing typed, the typed
+        // text already IS the picked view's name, or it collides with a DIFFERENT saved view.
+        void RefreshRenameState()
+        {
+            if (_renameBtn == null) return;
+            string picked = _picker.value;
+            string typed = _newName?.value?.Trim() ?? "";
+            string reason;
+            if (string.IsNullOrEmpty(picked)) reason = "No view is selected to rename.";
+            else if (string.IsNullOrEmpty(typed)) reason = "Type the new name above first.";
+            else if (typed == picked) reason = "That is already this view's name.";
+            else if (PresetNames().Contains(typed)) reason = $"A view named \"{typed}\" already exists.";
+            else reason = null;
+
+            _renameBtn.SetEnabled(reason == null);
+            _renameBtn.tooltip = reason ?? $"Rename the selected view \"{picked}\" to \"{typed}\".";
         }
 
         /// Re-apply this user's last-used view. The host calls it once after building its UI so a window
@@ -222,6 +328,7 @@ namespace Laubrary.Zui
             if (string.IsNullOrEmpty(last) || Find(store, last) == null) return;
             _picker.SetValueWithoutNotify(last);
             ApplyPreset(last);
+            RefreshRenameState();
         }
     }
 }

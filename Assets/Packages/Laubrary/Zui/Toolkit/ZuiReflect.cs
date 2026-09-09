@@ -335,6 +335,24 @@ namespace Laubrary.Zui
             // (a Plasma Bloom's chunks / embers / motes) would otherwise fold all three together — the exact
             // reason BoxKeyed exists.
             string key = $"reflect.group.{_groupKeyPath}{owner.GetType().Name}.{b.Name}";
+
+            // T-0320 — a nested settings field carries its own title ([ZUILabel("Fracture")] on the field
+            // draws a box called "Fracture"), and its members name the same concern in their [ZUIGroup], so
+            // the group drew a SECOND box with the identical title inside the first: measured live on
+            // Explosive Jet as six "X inside X" nestings (Fracture, Fracture 2, Flash, Chunks, Gobs, Dust),
+            // one of which — Fracture 2, whose inner box is Advanced and therefore folded — shrank the outer
+            // box to a 94px stub holding nothing but a repeat of its own name. The UI guide's "never a
+            // redundant title" applies; the box that is already there becomes the group's box, so its
+            // Advanced fold still folds and its tooltip is kept.
+            var enclosing = EnclosingBox(host);
+            if (enclosing != null && !string.IsNullOrEmpty(b.Name) && b.Name == enclosing.TitleText)
+            {
+                var inline = FlowSubset(host, owner, opt, b.Fields.ToArray(), all);
+                if (inline.childCount == 0) { host.Remove(inline); return; }
+                if (b.Advanced && s_advancedFolded.Add(key)) enclosing.IsOpen = false;
+                return;
+            }
+
             var box = Z.BoxKeyed(b.Name, b.Tooltip, key);
             var flow = FlowSubset(box, owner, opt, b.Fields.ToArray(), all);
             // Every dial in the group is currently gated off (a [ZUIShowIf] the owner does not satisfy) — an
@@ -342,6 +360,16 @@ namespace Laubrary.Zui
             if (flow.childCount == 0) return;
             host.Add(box);
             if (b.Advanced && s_advancedFolded.Add(key)) box.IsOpen = false;
+        }
+
+        /// The titled ZuiBox this host draws inside, if any — `host` is usually the box itself (a nested
+        /// settings field flows its members straight into the box it just made), otherwise the nearest
+        /// titled ancestor. Untitled boxes are transparent here: they name nothing to collide with.
+        static ZuiBox EnclosingBox(VisualElement host)
+        {
+            for (var e = host; e != null; e = e.hierarchy.parent)
+                if (e is ZuiBox b && !string.IsNullOrEmpty(b.TitleText)) return b;
+            return null;
         }
 
         static VisualElement FlowSubset(VisualElement host, object owner, Options opt,

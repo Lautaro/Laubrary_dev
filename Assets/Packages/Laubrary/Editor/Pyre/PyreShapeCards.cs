@@ -120,15 +120,20 @@ namespace Laubrary.Pyre.Editor
             int winLo = Mathf.Clamp(s.startFrame, 0, fcMax);
             int winHi = s.endFrame < 0 ? fcMax : Mathf.Clamp(s.endFrame, 0, fcMax);
             const string framesTip = "The frame window this layer is alive. Its life is lerped 0→1 across [start, end]; before Start / after End the layer contributes nothing (blank). Full range = the whole timeline.";
-            host.Body.Add(Z.Field("Life (frames)", framesTip,
-                Z.MinMax(winLo, winHi, 0f, fcMax, framesTip,
-                    (lo, hi) => host.Dirty(() =>
-                    {
-                        int a = Mathf.Clamp(Mathf.RoundToInt(lo), 0, fcMax);
-                        int b = Mathf.Clamp(Mathf.RoundToInt(hi), a, fcMax);
-                        s.startFrame = a;
-                        s.endFrame = b >= fcMax ? -1 : b;   // far-right restores the "last frame" sentinel (auto-tracks frameCount)
-                    }), 130f, isInt: true)));
+            // T-0320 — one embedded range control, not the flanked Z.MinMax this used to draw. The layout
+            // rules prefer Z.MicroMinMax ("label + low – high both drawn INSIDE the track") and keep
+            // Z.MinMax for pairs whose typed precision matters; a whole-frame index over 0..frameCount-1
+            // has none to lose, and every other range in this window (Root spread, Tongue climb, Ember
+            // rise, Shaper's own Lifetime) is already a MicroMinMax — this row was the only native-looking
+            // slider left on the card. `decimals: 0` also gives it the whole-number arrow nudge T-0318 fixed.
+            host.Body.Add(Z.MicroMinMax("Life (frames)", winLo, winHi, 0f, fcMax, framesTip,
+                (lo, hi) => host.Dirty(() =>
+                {
+                    int a = Mathf.Clamp(Mathf.RoundToInt(lo), 0, fcMax);
+                    int b = Mathf.Clamp(Mathf.RoundToInt(hi), a, fcMax);
+                    s.startFrame = a;
+                    s.endFrame = b >= fcMax ? -1 : b;   // far-right restores the "last frame" sentinel (auto-tracks frameCount)
+                }), 200f, decimals: 0));
         }
 
         /// Every card a built-in <see cref="ShapeForm"/> layer shows: the shared Fill / Alpha / Size rows,

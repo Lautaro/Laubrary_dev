@@ -849,6 +849,17 @@
    exactly as unmistakably as tabbing into a native field already does. */
 /* UI Toolkit has no outline-* properties (they break the whole sheet with "Unknown style property"); a
    border in the accent colour is the focus ring. */
+/* T-0320 — a border is part of the box, so widening one on :focus RESIZES the control. ZuiPad and
+   ZuiMicroMinMax already declare a 1px border and an explicit width/height, so their outer box does not
+   move; ZuiValue2DControl declares neither, and measured live it grew 184.4x21.8 -> 188.9x26.2 on focus
+   and pushed the control below it down 4.44px — a Tab across a card shuffled the card. The 2px is
+   therefore RESERVED transparent on that control at all times (the stable-workspace rule: reserve the
+   space up front, never reflow), and :focus only colours it. */
+.zui-value2d {
+    border-width: 2px;
+    border-color: rgba(0, 0, 0, 0);
+}
+
 .zui-kbd-focus:focus {
     border-color: var(--zui-accent);
     border-width: 2px;

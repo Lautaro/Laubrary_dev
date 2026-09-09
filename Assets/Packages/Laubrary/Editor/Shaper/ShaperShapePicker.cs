@@ -118,8 +118,17 @@ namespace Laubrary.Shaper.Editor
                 }
                 list.Add(e);
             }
-            return order.Select(c => new KeyValuePair<string, List<ShaperShapeEntry>>(c, byCat[c])).ToList();
+            // T-0320 — a form's [PyreFormInfo] group is a PATH ("Kiln/Energy Explosion"), which Pyre's own
+            // picker nests. Shaper draws one flat column per group, so the raw string was printed verbatim
+            // and three headers read as file paths — "Kiln/Energy Explosion", "Kiln/Energy Projectile",
+            // "Kiln/Flame" — beside six plain words. The separator is shown the way this window already
+            // writes a path in its own prose ("Fracture › Chance"); the grouping key itself is untouched.
+            return order.Select(c => new KeyValuePair<string, List<ShaperShapeEntry>>(HeaderFor(c), byCat[c])).ToList();
         }
+
+        /// A category's on-screen column header: its path separators shown as "›", never a bare slash.
+        static string HeaderFor(string category)
+            => string.IsNullOrEmpty(category) ? category : category.Replace("/", " › ");
 
         /// The entry this node currently IS, or null when nothing matches (a Composite with no source
         /// assigned yet is the real case — it is a state the document can hold, so the picker says so

@@ -149,7 +149,35 @@ namespace Laubrary.Zui
             if (_closed || _scrim == null || _panel == null) return;
             Rect host = _scrim.contentRect;
             if (host.width <= 0f || host.height <= 0f) return;
-            float pw = _panel.resolvedStyle.width;
+
+            // T-0320 — POSITION alone cannot rescue a panel WIDER THAN THE WINDOW: the clamp below pins its
+            // left edge to the margin and everything past the right edge is simply unreachable. Measured on
+            // Shaper's shape picker at the window's own declared minimum (820): the menu asks for a 1060px
+            // minimum, resolved 1163 wide, and spilled 349px — three of its nine columns, Kiln › Flame,
+            // Simulations and Pyre, entirely off-window with no scroller and no way to reach them. The menu's
+            // own column row already declares flex-wrap for exactly this case; the fixed minimum was what
+            // stopped it wrapping. So the window's width wins over a requested minimum, and the maximum is
+            // capped to it as well, which lets a wrapping menu fold and a non-wrapping one clip visibly at
+            // the window edge instead of extending past it.
+            float avail = Mathf.Max(0f, host.width - 2f * _opt.edgeMargin);
+            if (avail > 0f)
+            {
+                bool changed = false;
+                var minStyle = _panel.style.minWidth;
+                if (minStyle.keyword == StyleKeyword.Undefined && minStyle.value.value > avail)
+                { _panel.style.minWidth = avail; changed = true; }
+                var maxStyle = _panel.style.maxWidth;
+                if (maxStyle.keyword != StyleKeyword.Undefined
+                    || Mathf.Abs(maxStyle.value.value - avail) > 0.5f)
+                { _panel.style.maxWidth = avail; changed = true; }
+                // A cap that actually narrows the panel re-lays it out and fires GeometryChanged, which calls
+                // Place() again with the settled size. A cap that changes nothing fires NOTHING — so this must
+                // NOT return early on `changed` alone, or a panel that already fits would be placed never and
+                // stay hidden, which is a menu that opens and cannot be clicked (measured, this session).
+                if (changed && _panel.resolvedStyle.width > avail + 0.5f) return;
+            }
+
+            float pw = Mathf.Min(_panel.resolvedStyle.width, avail > 0f ? avail : _panel.resolvedStyle.width);
             float ph = _panel.resolvedStyle.height;
             if (pw <= 0f || ph <= 0f) return;
 
