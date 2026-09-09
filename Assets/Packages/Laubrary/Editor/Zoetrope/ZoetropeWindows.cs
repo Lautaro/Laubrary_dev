@@ -918,6 +918,7 @@ namespace Laubrary.Zoetrope.Editor
 
             var partNames = WeaponAttachmentLibrary.FindPartNames(zoe);
             var layerCandidates = WeaponAttachmentLibrary.FindMuzzleLayerCandidates(zoe);
+            var eventCandidates = AllFrameEventNames(zoe.view);
 
             for (int i = 0; i < listProp.arraySize; i++)
             {
@@ -968,10 +969,43 @@ namespace Laubrary.Zoetrope.Editor
                         v => Commit(layerProp.propertyPath, p => p.stringValue = v <= 0 ? "" : ids[v - 1]), 200f)));
                 }
 
-                const string eventTip = "Alternative to Layer Id — a FrameEvent name (an authored pixel " +
-                    "position). Takes priority over Layer Id for the muzzle-flash VFX cue specifically.";
-                card.Add(Z.Field("Muzzle Event Name", eventTip, Z.TextInput(eventProp.stringValue, eventTip,
-                    v => Commit(eventProp.propertyPath, p => p.stringValue = v), ScalarFieldWidth)));
+                // A FrameEvent name is a REFERENCE to something the character's own animation declares, so it
+                // is picked, exactly like the Layer Id above it — it was the one typed name left on this card,
+                // and a misspelling here compiles, saves, looks authored and fires nothing. Same three-part
+                // shape as the layer picker: "(none)", the declared names, and any authored value that no
+                // longer resolves kept and marked rather than silently swapped for the first option.
+                {
+                    const string eventTip = "Alternative to Layer Id — a FrameEvent name authored on this " +
+                        "character's own animation (an authored pixel position). Takes priority over Layer Id " +
+                        "for the muzzle-flash VFX cue specifically.";
+                    string current = eventProp.stringValue;
+                    if (eventCandidates.Length == 0 && string.IsNullOrEmpty(current))
+                    {
+                        // Not a text field: "degrading to a text field when the option list is empty is the
+                        // failure mode, not the graceful fallback" — say so and name what would fill it.
+                        var empty = Z.Dropdown(0, new List<string> { "None declared" },
+                            "No FrameEvents to choose from: this character's animations declare none yet. " +
+                            "Paint one in the Laumination Builder, then pick it here.", _ => { }, ScalarFieldWidth);
+                        empty.SetEnabled(false);
+                        var field = Z.Field("Muzzle Event Name",
+                            "No FrameEvents to choose from: this character's animations declare none yet. " +
+                            "Paint one in the Laumination Builder, then pick it here.", empty);
+                        field.tooltip = empty.tooltip;   // a disabled control does not reliably resolve its own
+                        card.Add(field);
+                    }
+                    else
+                    {
+                        var ids = new List<string>(eventCandidates);
+                        var options = new List<string>(ids.Count + 2) { "(none)" };
+                        options.AddRange(ids);
+                        if (!string.IsNullOrEmpty(current) && !ids.Contains(current))
+                        { ids.Insert(0, current); options.Insert(1, $"{current} (unresolved)"); }
+                        int currentIdx = string.IsNullOrEmpty(current) ? 0 : Mathf.Max(0, ids.IndexOf(current) + 1);
+                        card.Add(Z.Field("Muzzle Event Name", eventTip, Z.Dropdown(currentIdx, options, eventTip,
+                            v => Commit(eventProp.propertyPath, p => p.stringValue = v <= 0 ? "" : ids[v - 1]),
+                            ScalarFieldWidth)));
+                    }
+                }
 
                 var (lauminary, animName) = WeaponAttachmentLibrary.ResolveLauminary(zoe, attachProp.stringValue);
                 var editBtn = Z.Button("Paint Muzzle...",
@@ -1038,10 +1072,18 @@ namespace Laubrary.Zoetrope.Editor
                             "without this the order is a tie the engine breaks arbitrarily. Torso over legs " +
                             "is torso 1, legs 0."));
 
-                    if (parentAnchorProp != null) BuildAnchorRow(card, parentAnchorProp, part.parentAnchor);
+                    // Each side resolves against a DIFFERENT part's own animation, so each side's MetaLayer
+                    // picker is derived from that part's view — the parent's for the parent side, this
+                    // part's own for the child side.
+                    object parentView = null;
+                    foreach (var other in composite.parts)
+                        if (other != null && string.Equals(other.name, part.parentPartName, StringComparison.OrdinalIgnoreCase))
+                        { parentView = other.view; break; }
+
+                    if (parentAnchorProp != null) BuildAnchorRow(card, parentAnchorProp, part.parentAnchor, parentView);
                     card.Add(Z.Text("This part's side", ZuiText.Small,
                         $"Where on '{part.name}''s own current frame the connection lands."));
-                    if (childAnchorProp != null) BuildAnchorRow(card, childAnchorProp, part.childAnchor);
+                    if (childAnchorProp != null) BuildAnchorRow(card, childAnchorProp, part.childAnchor, part.view);
                     rig.Add(card);
                 }
 
@@ -1105,7 +1147,7 @@ namespace Laubrary.Zoetrope.Editor
             MirageWindow.OpenFor(view);
         }
 
-        void BuildAnchorRow(VisualElement host, SerializedProperty anchorProp, AttachAnchor anchor)
+        void BuildAnchorRow(VisualElement host, SerializedProperty anchorProp, AttachAnchor anchor, object ownerView)
         {
             var modeProp = anchorProp.FindPropertyRelative("mode");
             host.Add(EnumPicker(modeProp, "Mode", "Pivot = the part's own registered origin (its baked sprite " +
@@ -1121,10 +1163,39 @@ namespace Laubrary.Zoetrope.Editor
             }
             else if (anchor.mode == AttachAnchorMode.MetaLayer)
             {
+                // PICKED, not typed: the layer is declared on this side's own animation, so the owner is
+                // known and the list is derivable — the same rule the Muzzle Layer Id picker follows. All
+                // modes are offered and labelled with theirs, because the anchor resolver reads a layer's
+                // painted frames whatever mode it was painted in.
                 var layerProp = anchorProp.FindPropertyRelative("metaLayerId");
-                host.Add(Z.Field("MetaLayer Id", "The painted point's layer id (e.g. \"Waist\").",
-                    Z.TextInput(layerProp.stringValue, "The painted point's layer id (e.g. \"Waist\").",
-                        v => Commit(layerProp.propertyPath, p => p.stringValue = v), ScalarFieldWidth)));
+                var candidates = AllMetaLayers(ownerView);
+                string currentId = layerProp.stringValue;
+                if (candidates.Length == 0 && string.IsNullOrEmpty(currentId))
+                {
+                    const string noneTip = "No painted layers to choose from: this part's animation declares " +
+                        "none yet. Paint one in the Laumination Builder, then pick it here — or use Pivot or " +
+                        "Edge, which need no painting.";
+                    var empty = Z.Dropdown(0, new List<string> { "None declared" }, noneTip, _ => { }, ScalarFieldWidth);
+                    empty.SetEnabled(false);
+                    var field = Z.Field("MetaLayer Id", noneTip, empty);
+                    field.tooltip = noneTip;   // a disabled control does not reliably resolve its own tooltip
+                    host.Add(field);
+                }
+                else
+                {
+                    const string layerTip = "Which painted layer on this side's own animation the connection " +
+                        "reads its point from.";
+                    var ids = new List<string>();
+                    var options = new List<string>();
+                    foreach (var c in candidates) { ids.Add(c.id); options.Add($"{c.id} ({c.mode})"); }
+                    if (!string.IsNullOrEmpty(currentId) && !ids.Contains(currentId))
+                    { ids.Insert(0, currentId); options.Insert(0, $"{currentId} (unresolved)"); }
+                    int currentIdx = Mathf.Max(0, ids.IndexOf(currentId));
+                    host.Add(Z.Field("MetaLayer Id", layerTip, Z.Dropdown(currentIdx, options, layerTip,
+                        v => Commit(layerProp.propertyPath,
+                                    p => p.stringValue = ids[Mathf.Clamp(v, 0, ids.Count - 1)]),
+                        ScalarFieldWidth)));
+                }
             }
 
             var offsetProp = anchorProp.FindPropertyRelative("offset");
@@ -2205,6 +2276,30 @@ namespace Laubrary.Zoetrope.Editor
             return ids.ToArray();
         }
 
+        /// Every MetaLayer authored on ANY clip of the view, de-duplicated, each with its mode. Unlike
+        /// <see cref="AllPointLayerIds"/> this keeps every mode: a rig anchor reads a layer's painted frames
+        /// whatever it was painted as, so restricting it to Point would hide layers that do resolve.
+        static (string id, string mode)[] AllMetaLayers(object view)
+        {
+            var found = new List<(string id, string mode)>();
+            var clips = GetClipNameOptions(view);
+            if (clips == null) return found.ToArray();
+            foreach (var clip in clips)
+                foreach (var anim in FindAnimationsByName(view, clip))
+                {
+                    if (!(GetFieldValue(anim, "metaLayers") is IEnumerable layers)) continue;
+                    foreach (var L in layers)
+                    {
+                        var id = GetFieldValue(L, "id") as string;
+                        if (string.IsNullOrEmpty(id)) continue;
+                        bool seen = false;
+                        foreach (var f in found) if (f.id == id) { seen = true; break; }
+                        if (!seen) found.Add((id, GetFieldValue(L, "mode")?.ToString() ?? "?"));
+                    }
+                }
+            return found.ToArray();
+        }
+
         /// Every FrameEvent name authored on ANY clip of the view, de-duplicated.
         static string[] AllFrameEventNames(object view)
         {
@@ -2634,15 +2729,35 @@ namespace Laubrary.Zoetrope.Editor
 
         VisualElement StringDropdown(SerializedProperty prop, string label, string[] options, string tooltip)
         {
-            if (options == null || options.Length == 0)
-                return Z.Field(label, tooltip, Z.Text("(none authored)", ZuiText.Subtle, tooltip));
+            var choices = options == null ? new List<string>() : options.ToList();
 
-            var choices = options.ToList();
-            int current = choices.IndexOf(prop.stringValue);
+            // An authored value the option list does not contain must still SHOW. `IndexOf` returns -1 for one,
+            // and clamping that to 0 drew the first option instead — a picker quietly claiming the asset holds
+            // a value it does not, on the one control whose job is to say which value it holds. It is reachable
+            // by ordinary authoring: a reaction's layer list is scoped to its CURRENT clip, so changing the clip
+            // strands whatever was picked under the old one. Keep it, mark it, and let it be replaced.
+            string current = prop.stringValue ?? "";
+            if (!string.IsNullOrEmpty(current) && !choices.Contains(current))
+                choices.Insert(0, current);
+            var shown = new List<string>(choices);
+            for (int i = 0; i < shown.Count; i++)
+                if (options == null || Array.IndexOf(options, shown[i]) < 0) shown[i] = shown[i] + " (unresolved)";
+
+            if (choices.Count == 0)
+            {
+                // Same greyed-picker empty state the Clip control uses, rather than a third rendering of
+                // "there is nothing here" — one concept, one look.
+                var empty = Z.Dropdown(0, new List<string> { "None declared" }, tooltip, _ => { }, FitWidth(new List<string> { "None declared" }));
+                empty.SetEnabled(false);
+                var emptyField = Z.Field(label, tooltip, empty);
+                emptyField.tooltip = tooltip;   // a disabled control does not reliably resolve its own tooltip
+                return emptyField;
+            }
+
             string path = prop.propertyPath;
-            return Z.Field(label, tooltip, Z.Dropdown(Mathf.Max(current, 0), choices, tooltip,
+            return Z.Field(label, tooltip, Z.Dropdown(Mathf.Max(choices.IndexOf(current), 0), shown, tooltip,
                 i => Commit(path, p => p.stringValue = choices[Mathf.Clamp(i, 0, choices.Count - 1)]),
-                FitWidth(choices)));
+                FitWidth(shown)));
         }
 
         /// Size a dropdown against its OWN longest option, so nothing clips whichever one is picked — the
@@ -2666,21 +2781,26 @@ namespace Laubrary.Zoetrope.Editor
         /// an author picks a frame that EXISTS instead of typing a number into the dark.
         static int GetFrameCount(object view, string clipName)
         {
-            var anim = FindAnimationByName(view, clipName);
-            var frames = anim != null ? GetFieldValue(anim, "frames") as System.Collections.ICollection : null;
-            return frames?.Count ?? 0;
+            int most = 0;
+            foreach (var anim in FindAnimationsByName(view, clipName))
+            {
+                var frames = GetFieldValue(anim, "frames") as System.Collections.ICollection;
+                if (frames != null && frames.Count > most) most = frames.Count;
+            }
+            return most;
         }
 
         static string[] GetEventNames(object view, string clipName)
         {
-            var anim = FindAnimationByName(view, clipName);
-            var events = anim != null ? GetFieldValue(anim, "events") as IEnumerable : null;
-            if (events == null) return Array.Empty<string>();
             var names = new List<string>();
-            foreach (var e in events)
+            foreach (var anim in FindAnimationsByName(view, clipName))
             {
-                var n = GetFieldValue(e, "name") as string;
-                if (!string.IsNullOrEmpty(n) && !names.Contains(n)) names.Add(n);
+                if (!(GetFieldValue(anim, "events") is IEnumerable events)) continue;
+                foreach (var e in events)
+                {
+                    var n = GetFieldValue(e, "name") as string;
+                    if (!string.IsNullOrEmpty(n) && !names.Contains(n)) names.Add(n);
+                }
             }
             return names.ToArray();
         }
@@ -2689,29 +2809,48 @@ namespace Laubrary.Zoetrope.Editor
         /// meaningful "the hit origin" marker).
         static string[] GetPointLayerIds(object view, string clipName)
         {
-            var anim = FindAnimationByName(view, clipName);
-            var layers = anim != null ? GetFieldValue(anim, "metaLayers") as IEnumerable : null;
-            if (layers == null) return Array.Empty<string>();
             var ids = new List<string>();
-            foreach (var L in layers)
+            foreach (var anim in FindAnimationsByName(view, clipName))
             {
-                var mode = GetFieldValue(L, "mode");
-                var id = GetFieldValue(L, "id") as string;
-                if (!string.IsNullOrEmpty(id) && mode != null && mode.ToString() == "Point") ids.Add(id);
+                if (!(GetFieldValue(anim, "metaLayers") is IEnumerable layers)) continue;
+                foreach (var L in layers)
+                {
+                    var mode = GetFieldValue(L, "mode");
+                    var id = GetFieldValue(L, "id") as string;
+                    if (!string.IsNullOrEmpty(id) && mode != null && mode.ToString() == "Point" && !ids.Contains(id))
+                        ids.Add(id);
+                }
             }
             return ids.ToArray();
         }
 
-        static object FindAnimationByName(object view, string clipName)
+        /// Every animation declared under this name, across a view AND — for a composite character — across
+        /// its parts. A composite keeps its animations on its parts and carries no `version` of its own, so
+        /// looking one up through `view.version` alone finds nothing: the same hole T-0324 closed one level
+        /// up for the clip LIST, still open for everything that resolves a named CLIP. Measured on ProtoGuy,
+        /// which the demos are built around: the clip picker offered its 5 clips while the frame count came
+        /// back 0 (so the On Frame picker, whose whole job is to stop an author typing a frame into the dark,
+        /// was bounded to nothing) and the point-layer picker read "(none authored)" although the parts
+        /// declare 8- and 16-frame clips and a Point layer called "Waist".
+        ///
+        /// Several parts can declare the same clip name — ProtoGuy's Legs and Upper both do — so this yields
+        /// every match and the callers above union what they find rather than taking the first.
+        static IEnumerable<object> FindAnimationsByName(object view, string clipName)
         {
-            if (view == null || string.IsNullOrEmpty(clipName)) return null;
-            var version = GetFieldValue(view, "version");
-            var animations = version != null ? GetFieldValue(version, "animations") as IEnumerable : null;
-            if (animations == null) return null;
-            foreach (var a in animations)
-                if (string.Equals(GetFieldValue(a, "name") as string, clipName, StringComparison.OrdinalIgnoreCase))
-                    return a;
-            return null;
+            if (view == null || string.IsNullOrEmpty(clipName)) yield break;
+
+            if (GetFieldValue(view, "version") is object version
+                && GetFieldValue(version, "animations") is IEnumerable animations)
+            {
+                foreach (var a in animations)
+                    if (string.Equals(GetFieldValue(a, "name") as string, clipName, StringComparison.OrdinalIgnoreCase))
+                        yield return a;
+            }
+
+            if (!(GetFieldValue(view, "parts") is IEnumerable parts)) yield break;
+            foreach (var part in parts)
+                foreach (var a in FindAnimationsByName(GetFieldValue(part, "view"), clipName))
+                    yield return a;
         }
     }
 

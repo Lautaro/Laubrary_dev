@@ -195,9 +195,7 @@ namespace Laubrary.AssetKit.Editor
             // already `cell` wide, so those extra pixels were reserved and unused — and it is elided rather
             // than left to IMGUI's hard clip. Measured on the browser Mirage's "Add Previewable" opens
             // (T-0324, the first pass to see it): 16 of 47 names were wider than the label, cut mid-word with
-            // nothing to say they continued, and three of them cut to the identical visible string
-            // ("Directional Grenade Blast 1 Plus" / "… 2 Plus" / "… Side Blast Plus"). The full name stays on
-            // the tooltip, which is what tells the three apart on hover.
+            // nothing to say they continued. The full name stays on the tooltip.
             GUILayout.Label(new GUIContent(Elide(item.name, EditorStyles.miniLabel, cell), item.name),
                 EditorStyles.miniLabel, GUILayout.Width(cell));
             EditorGUILayout.EndVertical();
@@ -207,14 +205,23 @@ namespace Laubrary.AssetKit.Editor
         /// Shorten a string to an ellipsis that FITS the given width in the given style. IMGUI has no
         /// text-overflow, so a fixed-width Label just stops drawing mid-glyph; the layout rules ask for the
         /// string to be truncated by hand instead, exactly as `.zui-chip__label` does in the retained-mode half.
+        ///
+        /// The ellipsis goes in the MIDDLE, because in a PICKER the point of the name is to tell one row from
+        /// the next, and this project names assets family-first with the variant at the END. Measured over
+        /// every ScriptableObject name in the project (421 names, 29 of them too wide for the 104px cell):
+        /// cutting the tail collapsed 9 of those onto a name another asset already showed — three assets all
+        /// reading "Directional Grenade…", four reading "New Universal Ren…"/"UniversalRenderPip…" — while
+        /// keeping both ends leaves 2, and those two differ only past the room a cell has at any cut. Six
+        /// further duplicates are assets that genuinely share a full name, which no truncation can fix.
         static string Elide(string s, GUIStyle style, float width)
         {
             if (string.IsNullOrEmpty(s)) return s;
             var probe = new GUIContent(s);
             if (style.CalcSize(probe).x <= width) return s;
-            for (int keep = s.Length - 1; keep > 0; keep--)
+            for (int keep = s.Length - 1; keep >= 2; keep--)
             {
-                probe.text = s.Substring(0, keep) + "…";
+                int head = (keep + 1) / 2;                       // odd budget favours the head, which usually names the family
+                probe.text = s.Substring(0, head) + "…" + s.Substring(s.Length - (keep - head));
                 if (style.CalcSize(probe).x <= width) return probe.text;
             }
             return "…";

@@ -27,7 +27,10 @@ namespace Laubrary.TextSplash.Editor
         /// Same entry-point shape as the other tools — lets a LauAsset Edit button jump straight in.
         public static void OpenFor(TextSplash s) { var w = GetWindow<TextSplashWindow>("Text Splash"); w.SetAsset(s); }
 
-        protected override string DefaultFolder => "Assets";
+        // Its own folder, like all seventeen sibling tool windows. It used to be the project ROOT, and the
+        // New row's own sentence then called the root "this tool's default folder" — so a first splash landed
+        // loose in Assets/ among the project settings assets. AssetLibrary.Create makes the folder on demand.
+        protected override string DefaultFolder => "Assets/TextSplash";
         protected override string NewAssetName => "New Splash";
 
         // Option labels — index order MUST match the enums in TextSplash.cs.
