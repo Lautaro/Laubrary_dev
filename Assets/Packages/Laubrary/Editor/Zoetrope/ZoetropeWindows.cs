@@ -948,9 +948,11 @@ namespace Laubrary.Zoetrope.Editor
         {
             var ai = Z.Section("AI / Control", "Optional decision-making OR player input attached at spawn — " +
                 "a Brain drives the character itself (enemies); a Player Controller hands it to a person " +
-                "(gamepad/keyboard). Whichever is set is what any spawner, Mirage's Preview included, attaches.");
+                "(gamepad/keyboard); Aiming decides where its shots start and which way they go. Whichever is " +
+                "set is what any spawner, Mirage's Preview included, attaches.");
             BuildManagedRef(ai, So.FindProperty("brain"), "Brain", zoe);
             BuildManagedRef(ai, So.FindProperty("playerController"), "Player Controller", zoe);
+            BuildManagedRef(ai, So.FindProperty("aiming"), "Aiming", zoe);
             root.Add(ai);
         }
 

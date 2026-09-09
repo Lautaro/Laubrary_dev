@@ -227,7 +227,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c3397ac2511c5a44a955110f59472a56, type: 3}
   m_Name: 
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Demos::Laubrary.Demos.ProtoGuyDemo.FireDirectionVisualizer
-  enableVisualizer: 0
+  enableVisualizer: 1
   lineLength: 6
   lineColor: {r: 1, g: 0, b: 0, a: 1}
   lineWidth: 0.03
@@ -277,7 +277,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3ea71831e7a06164bb6d36ed12d62344, type: 3}
   m_Name: 
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Demos::Laubrary.Demos.ProtoGuyDemo.ProtoGuySpawner
-  zoeDef: {fileID: 11400000, guid: 29e5104593a1376479445b0902ba1078, type: 2}
+  zoeDef: {fileID: 11400000, guid: e844095d12df854448dee74dab60affa, type: 2}
 --- !u!4 &1432643070
 Transform:
   m_ObjectHideFlags: 0

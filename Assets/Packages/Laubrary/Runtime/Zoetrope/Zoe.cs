@@ -164,6 +164,11 @@ namespace Laubrary.Zoetrope
                  "this Zoe has a player controller configured.")]
         [SerializeReference] public IPlayerControllerSpec playerController;
 
+        [Tooltip("Which aiming technique this character's weapons use — where a shot starts and which way it " +
+                 "goes. Pluggable, one shelf entry per technique (see IAimSpec). Unset = the muzzle painted on " +
+                 "the animation, the long-standing behaviour.")]
+        [SerializeReference] public IAimSpec aiming;
+
         [Header("Loadout")]
         [Tooltip("Pluggable weapons + abilities the character can activate; triggered by the brain (enemies) " +
                  "or input (player) via the LoadoutController.")]

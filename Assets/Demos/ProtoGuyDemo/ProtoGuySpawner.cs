@@ -18,6 +18,8 @@ namespace Laubrary.Demos.ProtoGuyDemo
     /// </summary>
     public class ProtoGuySpawner : MonoBehaviour
     {
+        [Tooltip("Which character to spawn. Several ProtoGuy variants exist, each declaring a different aiming " +
+                 "technique on the character asset itself — swap this to run the scene with another one.")]
         public Zoe zoeDef;
 
         void Start()
