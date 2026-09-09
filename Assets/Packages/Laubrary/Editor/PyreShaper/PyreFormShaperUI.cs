@@ -97,6 +97,12 @@ namespace Laubrary.PyreShaper.Editor
                     + "own phase, so animating one animates the picture.",
                     "shaper.window.composite.dials");
                 var host = new VisualElement();
+                // T-0337 — a nested settings object cannot see the form that owns it, and one guard needs to
+                // (a population's Swirl follow is a share of the form's own Swirl). Named for exactly the span
+                // of this synchronous build and cleared in a finally, so nothing outside a card ever reads it.
+                _reflectingForm = src.form;
+                try
+                {
                 ZuiReflect.FlowFields(host, src.form, new ZuiReflect.Options
                 {
                     OnBeforeChange = () => RecordUndo(ctx),
@@ -118,6 +124,8 @@ namespace Laubrary.PyreShaper.Editor
                     // construction here, not by authoring, so the dial is absented rather than drawn inert.
                     Skip = f => System.Attribute.IsDefined(f, typeof(PyreSwarmOnlyAttribute)),
                 });
+                }
+                finally { _reflectingForm = null; }
                 dials.Add(host);
                 box.Add(dials);
 
@@ -255,6 +263,65 @@ namespace Laubrary.PyreShaper.Editor
                 { "ForkBlastForm.gobLife",   "Nothing until Gob count is above 0." },
                 { "ForkBlastForm.gobAmount", "Nothing until Gob count is above 0." },
                 { "ForkBlastForm.gobTiming", "Nothing until Gob count is above 0." },
+
+                // ── T-0337 — the twenty round 20 named but did not trace ─────────────────────────────────
+                // Thirteen of them turned out to be guarded by a named sibling and are greyed below; the
+                // other seven are LIVE and get a sentence only, because what makes them look dead is the
+                // frame the picture is sampled at, the seed, or the Fill above them — never a guard.
+
+                // ArcBurstForm — the deep-ghost pair is gated by the ACTIVE arc pattern's own Deep ghost
+                // share (PyreArcBurst.cs:403, `if (rng.Random() < deepP) return rng.Uniform(deepLo, deepHi);`),
+                // which ships at 0 on Bolt, Cage, Stipple and Pinch and does not exist at all on Crown and
+                // Lattice — those two never call Ghost (PyreArcBurst.cs:639, 688).
+                { "ArcBurstForm.ghostDeepLo",
+                  "Nothing until Deep ghost, in the arc pattern's own Ghosts group, is above 0 — and the Crown and Lattice patterns draw no ghosts at all." },
+                { "ArcBurstForm.ghostDeepHi",
+                  "Nothing until Deep ghost, in the arc pattern's own Ghosts group, is above 0 — and the Crown and Lattice patterns draw no ghosts at all." },
+                // Not gated, content-dependent — the OrbForm.despeckle shape. KeepHue is unconditional
+                // (PyreArcBurst.cs:273) but only ever sees a stroke that came out a ghost (:402).
+                { "ArcBurstForm.keepHueFloor",
+                  "Only reaches strokes that came out as ghosts, which Ghost share decides. Measured on the Bolt pattern at its shipped five trunks: at that seed not one stroke is a ghost, so this changes nothing there; with six more trunks it moves 798 pixels." },
+                // Live, but late: the escape speeds are multiplied by a ramp that is 0 until Net breaks at
+                // (PyreArcBurst.cs:725-727), so every frame before it is identical whatever they say.
+                { "LatticeSettings.flyLo", "Only acts after Net breaks at — every frame before it looks the same whatever this says." },
+                { "LatticeSettings.flyHi", "Only acts after Net breaks at — every frame before it looks the same whatever this says." },
+                // Live, but later still, and short documents can step over the window entirely: Cool is
+                // Pow(1 − Ramp(t, coolStart, 1), k) (PyreArcBurst.cs:274), which is 1 at or before Cool start
+                // and exactly 0 at the last frame — so only a frame strictly between them reads this at all.
+                { "CageSettings.coolK",
+                  "Only shapes the fade between Cool start and the last frame, and it is exactly 0 on the last frame itself — so a short document can hold no frame that reads this. Measured: nothing at all over 8 frames, 455 pixels over 16." },
+
+                // PlasmaBloomForm — the drift trio sits behind the mutual drift pair. DriftOf returns early
+                // while Drift X and Drift Y are both 0 (PyrePlasmaBloom.cs:206) and multiplies by Drift
+                // Amount on the next line (:207), so BOTH have to be open before any of the three is read.
+                { "PlasmaBloomForm.driftEase", "Nothing until Drift Amount is above 0 and Drift X or Drift Y is non-zero — with no drift there is nothing to ease." },
+                { "PlasmaBloomForm.driftLin",  "Nothing until Drift Amount is above 0 and Drift X or Drift Y is non-zero." },
+                { "PlasmaBloomForm.driftLag",  "Nothing until Drift Amount is above 0 and Drift X or Drift Y is non-zero — the wake lags behind a source that has not moved." },
+                // The lobe/plume cluster. `plume` is Plume AND at least two lobes (PyrePlasmaBloom.cs:327-328);
+                // the lobe gate is only computed at all inside `if (lobes)` (:383); and both branches that read
+                // it are scaled by an amount that ships at 0 — Plume Amount (:403) and Lobe Amount (:405) —
+                // so with neither raised the two modes paint the identical picture.
+                { "PlasmaBloomForm.mode",
+                  "Nothing until Lobe Count is 2 or more and either Lobe Amount or Plume Amount is above 0 — below that, Plume paints exactly what Bloom does." },
+                { "PlasmaBloomForm.gateGain",
+                  "Nothing until Lobe Count is 2 or more and either Lobe Amount or Plume Amount is above 0 — the lobe gate this sharpens is not read otherwise." },
+                { "PlasmaBloomForm.plumeAmp",
+                  "Nothing until Lobe Count is 2 or more — the tongues are cut out of the lobes, so with fewer there are none to brighten." },
+                { "PlasmaBloomForm.plumeReach", "Nothing until Lobe Count is 2 or more and Plume Amount is above 0 — there is no tongue to reach." },
+                { "PlasmaBloomForm.plumeW",     "Nothing until Lobe Count is 2 or more and Plume Amount is above 0 — there is no tongue to widen." },
+                { "PlasmaBloomForm.plumeVary",
+                  "Nothing until Lobe Count is 2 or more, Plume Amount is above 0 and Front Warp is above 0 — the unevenness is read off the warp noise." },
+                // Every population's "Swirl follow" is its share of the form's own Swirl, multiplied by it
+                // (PyrePlasmaBloom.cs:245), and that ships at 0.
+                { "PlasmaPopulation.swirl",
+                  "Nothing until Swirl, on the generator itself, is non-zero — this is only that turn's share for this population." },
+
+                // ForkBlastForm — neither of these is gated by a dial. The flash is real but brief, and the
+                // solidity exponent is real but reads the Fill drawn above these dials, not a sibling.
+                { "ForkBlastForm.flash",
+                  "Its whole life is the first eighth of a blast's own (PyreForkBlast.cs:418), so a short document can step straight over it: measured, nothing at all over 8 frames and 936 pixels over 16." },
+                { "ForkBlastForm.opacity",
+                  "It does nothing at all while that ceiling is 1, which is what the Fill above ships as: give the Fill an alpha below 1 and this takes hold." },
             };
 
             static string DialTooltip(FieldInfo f)
@@ -351,6 +418,32 @@ namespace Laubrary.PyreShaper.Editor
                 { "ForkBlastForm.gobLife",   o => NonZero(o, "gobs") },
                 { "ForkBlastForm.gobAmount", o => NonZero(o, "gobs") },
                 { "ForkBlastForm.gobTiming", o => NonZero(o, "gobs") },
+
+                // ── T-0337 ───────────────────────────────────────────────────────────────────────────────
+                // Thirteen of round 20's twenty. Seven of that twenty are deliberately absent from this
+                // table and carry a sentence only: ArcBurstForm.keepHueFloor (content-dependent, not gated),
+                // LatticeSettings.flyLo/flyHi and CageSettings.coolK (live, but only late in the clock — and
+                // for coolK, whether ANY frame lands in its window depends on the document's frame count,
+                // which is not a field on the owner and must not decide a greyed control), ForkBlastForm.flash
+                // (brief, not gated) and ForkBlastForm.opacity (its condition is the Fill drawn ABOVE these
+                // dials, not a sibling field — and the Fill row does not rebuild the card, so greying on it
+                // would leave a dial stuck grey after the author had already fixed it).
+                { "ArcBurstForm.ghostDeepLo", o => LayoutDeepGhost(o) },
+                { "ArcBurstForm.ghostDeepHi", o => LayoutDeepGhost(o) },
+
+                { "PlasmaBloomForm.driftEase", o => DriftOpen(o) },
+                { "PlasmaBloomForm.driftLin",  o => DriftOpen(o) },
+                { "PlasmaBloomForm.driftLag",  o => DriftOpen(o) },
+
+                { "PlasmaBloomForm.mode",       o => AtLeast(o, "lobes", 2f) && (NonZero(o, "lobeAmp") || NonZero(o, "plumeAmp")) },
+                { "PlasmaBloomForm.gateGain",   o => AtLeast(o, "lobes", 2f) && (NonZero(o, "lobeAmp") || NonZero(o, "plumeAmp")) },
+                { "PlasmaBloomForm.plumeAmp",   o => AtLeast(o, "lobes", 2f) },
+                { "PlasmaBloomForm.plumeReach", o => AtLeast(o, "lobes", 2f) && NonZero(o, "plumeAmp") },
+                { "PlasmaBloomForm.plumeW",     o => AtLeast(o, "lobes", 2f) && NonZero(o, "plumeAmp") },
+                { "PlasmaBloomForm.plumeVary",  o => AtLeast(o, "lobes", 2f) && NonZero(o, "plumeAmp") && NonZero(o, "warp") },
+
+                // the only guard on this list that does not live on the dial's own owner
+                { "PlasmaPopulation.swirl", o => RootNonZero("swirl") },
             };
 
             // The field names LiveIf's checks read — editing ANY of these has to rebuild the card (T-0281),
@@ -368,6 +461,14 @@ namespace Laubrary.PyreShaper.Editor
                 // T-0336
                 "PlasmaBloomForm.biasAmt", "PlasmaBloomForm.halfAmt", "PlasmaBloomForm.lobeAmp",
                 "ForkBlastForm.gobs", "ForkBlastForm.spread",
+                // T-0337 — `layout` is already a [ZUIShowIf] gate and rebuilds on its own, but each pattern's
+                // own Deep ghost share is not, and neither is anything in the drift/lobe/plume cluster.
+                "CoreSettings.ghostDeepP", "WeaveSettings.ghostDeepP", "BoltSettings.ghostDeepP",
+                "TerminalSettings.ghostDeepP", "CageSettings.ghostDeepP", "StippleSettings.ghostDeepP",
+                "PinchSettings.ghostDeepP", "LichtenSettings.ghostDeepP",
+                "PlasmaBloomForm.driftX", "PlasmaBloomForm.driftY", "PlasmaBloomForm.driftAmt",
+                "PlasmaBloomForm.lobes", "PlasmaBloomForm.plumeAmp", "PlasmaBloomForm.warp",
+                "PlasmaBloomForm.swirl",
             };
 
             static bool IsDialInertGuard(FieldInfo f)
@@ -419,6 +520,65 @@ namespace Laubrary.PyreShaper.Editor
                     default: return true;
                 }
             }
+
+            /// T-0337 — the mirror of <see cref="Below"/>: a guard whose "open" state is a value AT OR ABOVE a
+            /// limit rather than merely non-zero. Plasma Bloom's lobe gate is not computed at all below two
+            /// lobes (<c>PyrePlasmaBloom.cs:327</c>, <c>bool lobes = f.lobes &gt;= 2;</c>), so "non-zero" would
+            /// wrongly free every dial behind it at a single lobe. Fails OPEN on an unknown name.
+            static bool AtLeast(object owner, string name, float limit)
+            {
+                var f = FindSibling(owner, name);
+                if (f == null) return true;
+                object v = f.GetValue(owner);
+                switch (v)
+                {
+                    case ZUIValue zv: return zv.staticValue >= limit;
+                    case float fl: return fl >= limit;
+                    case int i: return i >= limit;
+                    default: return true;
+                }
+            }
+
+            /// T-0337 — Plasma Bloom's drift trio (Ease / Linear / Lag). `DriftOf` returns early while Drift X
+            /// and Drift Y are BOTH zero (<c>PyrePlasmaBloom.cs:206</c>) and multiplies by Drift Amount on the
+            /// next line, so the three dials downstream of it need both halves open. The two halves are each
+            /// other's mutual pair and are deliberately left live themselves (see the note above), which is
+            /// what stops this from locking anything shut: a greyed Ease is always one drag away from live.
+            static bool DriftOpen(object owner)
+                => (NonZero(owner, "driftX") || NonZero(owner, "driftY")) && NonZero(owner, "driftAmt");
+
+            /// T-0337 — Arc Burst's deep-ghost pair is declared on the FORM, but the share that gates it lives
+            /// on whichever pattern's settings box is currently in use (<c>PyreArcBurst.cs:403</c>). Crown and
+            /// Lattice never call Ghost at all and carry no such field, so an absent one reads as shut. Fails
+            /// OPEN if the layout field or its settings object cannot be resolved.
+            static readonly Dictionary<string, string> ArcLayoutSettings = new Dictionary<string, string>
+            {
+                { "Core", "core" }, { "Weave", "weave" }, { "Bolt", "bolt" }, { "Terminal", "terminal" },
+                { "Cage", "cage" }, { "Stipple", "stipple" }, { "Pinch", "pinch" }, { "Lichten", "lichten" },
+            };
+
+            static bool LayoutDeepGhost(object owner)
+            {
+                var layoutField = FindSibling(owner, "layout");
+                if (layoutField == null) return true;
+                string layout = layoutField.GetValue(owner)?.ToString();
+                if (layout == null) return true;
+                if (!ArcLayoutSettings.TryGetValue(layout, out var settingsName)) return false;  // Crown / Lattice
+                var settingsField = FindSibling(owner, settingsName);
+                object settings = settingsField?.GetValue(owner);
+                return settings == null || NonZero(settings, "ghostDeepP");
+            }
+
+            /// T-0337 — the one guard on this card that does not sit on the dial's own owner: a population's
+            /// "Swirl follow" is multiplied by the FORM's own Swirl (<c>PyrePlasmaBloom.cs:245</c>), and the
+            /// population object has no way back to the form. The drawer therefore names the form it is
+            /// currently reflecting for the duration of the FlowFields call, which is synchronous — the whole
+            /// card is built inside <see cref="Drawer.Build"/> before anything else can run. Unset means no
+            /// card is being built, and like every other read here that fails OPEN.
+            [ThreadStatic] static object _reflectingForm;
+
+            static bool RootNonZero(string name)
+                => _reflectingForm == null || NonZero(_reflectingForm, name);
 
             /// ExplosiveJetSettings.rootK's second condition — the Blast schedule (a List<ExplosiveBlast> on the
             /// SAME settings box) holding no detonations. Empty/null/missing all read as "empty".

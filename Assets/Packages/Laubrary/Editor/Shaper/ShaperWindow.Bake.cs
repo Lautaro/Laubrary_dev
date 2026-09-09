@@ -53,6 +53,20 @@ namespace Laubrary.Shaper.Editor
 
         Button bakeButton;
         VisualElement gifOptionsRow;
+        VisualElement gifScaleControl, gifDitherControl;
+        string gifScaleBaseTip, gifDitherBaseTip;
+
+        /// The two GIF settings are greyed out rather than hidden while GIF is unticked, so their values stay
+        /// visible — but a greyed control has to say why it will not take a drag, and these two used to carry
+        /// only their own "what this does" text (T-0337). The reason is appended while they are disabled and
+        /// removed the moment GIF is ticked, so neither tooltip can ever read for the wrong state.
+        void SetGifOptionsEnabled(bool on)
+        {
+            gifOptionsRow?.SetEnabled(on);
+            const string why = " Greyed out because GIF is not one of the outputs above — tick GIF to use it.";
+            if (gifScaleControl != null) gifScaleControl.tooltip = on ? gifScaleBaseTip : gifScaleBaseTip + why;
+            if (gifDitherControl != null) gifDitherControl.tooltip = on ? gifDitherBaseTip : gifDitherBaseTip + why;
+        }
 
         /// The destination folder a bake will land in — mirrors ShaperBaker.cs:182-190 exactly (beside the
         /// document's own asset when it is saved, else "Assets"), so the readout can never disagree with
@@ -127,7 +141,7 @@ namespace Laubrary.Shaper.Editor
                 {
                     bakeGif = v;
                     RefreshBakeButtonTooltip();
-                    gifOptionsRow?.SetEnabled(v);
+                    SetGifOptionsEnabled(v);
                 });
 
             // One row for the four output toggles (ui-layout-rules "Space economy": one set of options over
@@ -149,7 +163,15 @@ namespace Laubrary.Shaper.Editor
                 + "turns a feathered edge into a hard silhouette. Export only — the live preview is unaffected.",
                 previewGifDither, v => previewGifDither = v);
             gifOptionsRow = Z.HGroup(gifScale, gifDither);
-            gifOptionsRow.SetEnabled(bakeGif);
+            // T-0337 — greyed out is only honest if the control says WHY. Both of these were disabled with
+            // their own tooltip unchanged, so hovering a dead GIF scale explained what the dial does and
+            // nothing about why it would not take a drag. The reason is appended to each control's own
+            // tooltip and removed again when GIF is ticked, so it can never read for the wrong state.
+            gifScaleBaseTip = gifScale.tooltip;
+            gifDitherBaseTip = gifDither.tooltip;
+            gifScaleControl = gifScale;
+            gifDitherControl = gifDither;
+            SetGifOptionsEnabled(bakeGif);
 
             bakeButton = Z.Button("Bake", BakeButtonTooltip(), DoBake);
 
