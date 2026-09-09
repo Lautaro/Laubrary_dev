@@ -146,6 +146,9 @@ namespace Laubrary.Lathe.Editor
             name.style.width = StyleKeyword.Auto;
             name.style.flexGrow = 1f;
             name.style.minWidth = 50f;
+            // The rulebook's own exception — a NAME field may take the row's slack rather than truncate the
+            // name — declared to the audit instead of showing up as an unexplained stretched control.
+            name.AddToClassList("zui-audit-allow-stretch");
             name.RegisterCallback<PointerDownEvent>(_ => { if (nodeSel != i) { nodeSel = i; Rebuild(); } });
             row.Add(name);
 

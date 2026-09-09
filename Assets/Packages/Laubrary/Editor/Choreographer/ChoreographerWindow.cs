@@ -107,7 +107,12 @@ namespace Laubrary.Choreographer.Editor
         {
             if (choreo == null) return 0f;
             float cyc = Mathf.Max(0.0001f, choreo.CycleSeconds);
-            return choreo.loop ? Mathf.Repeat(previewTime, cyc) / cyc : Mathf.Clamp01(previewTime / cyc);
+            float p = choreo.loop ? Mathf.Repeat(previewTime, cyc) / cyc : Mathf.Clamp01(previewTime / cyc);
+            // Three decimals, because this number is DISPLAYED in the scrubber's own input while playback
+            // drives it: the raw phase arrives through SetValueWithoutNotify, which skips the slider's own
+            // rounding, and "0.6388855" needs 62px in a 44px box — the value was clipped mid-digit on every
+            // frame of playback (measured). Three decimals is finer than a single pixel of a 150px track.
+            return (float)System.Math.Round(p, 3);
         }
 
         ChoreoAnchors PreviewAnchors()
@@ -213,6 +218,12 @@ namespace Laubrary.Choreographer.Editor
             split.Add(left);
 
             stage = new ChoreoStage(this);
+            // What used to be a four-line instruction paragraph in the left column. It describes the stage's
+            // own gestures, so it belongs on the stage as a tooltip rather than as body text the author
+            // re-reads on every visit.
+            stage.tooltip = "Drag a handle to move it · click the curve to add a point · right-click a handle "
+                + "to remove. Marquee-drag empty space to select many · shift-click to add · drag any selected "
+                + "handle to move them together.";
             split.Add(stage);
             stage.UpdateOverlay();
         }
@@ -245,22 +256,18 @@ namespace Laubrary.Choreographer.Editor
                     OnPathOrSelectionEdited();
                 }),
                 removePointButton));
-            root.Add(Z.Text("Drag a handle to move it · click the curve to add a point · right-click a handle to remove. " +
-                "Marquee-drag empty space to select many · shift-click to add · drag any selected handle to move them together.",
-                ZuiText.Subtle));
-
             selectionBoxHost = new VisualElement();
             root.Add(selectionBoxHost);
             RebuildSelectionBox();
 
             root.Add(Z.Text("Spread (start line → circle)", ZuiText.Section,
                 "How the N dancers fan out around the shared path."));
-            root.Add(Z.Field("Length", "Total width of the dancer fan, in path-space units.",
-                Z.Slider(choreo.spreadLength, 0f, 4f, "Total width of the dancer fan, in path-space units.",
-                    v => Dial("Spread length", () => choreo.spreadLength = v))));
-            root.Add(Z.Field("Bend", "0 = straight start line, 1 = fully bent into a circle around the path.",
-                Z.Slider(choreo.spreadBend, 0f, 1f, "0 = straight start line, 1 = fully bent into a circle around the path.",
-                    v => Dial("Spread bend", () => choreo.spreadBend = v))));
+            root.Add(Z.MicroSlider("Length", choreo.spreadLength, 0f, 4f,
+                "Total width of the dancer fan, in path-space units.",
+                v => Dial("Spread length", () => choreo.spreadLength = v)));
+            root.Add(Z.MicroSlider("Bend", choreo.spreadBend, 0f, 1f,
+                "0 = straight start line, 1 = fully bent into a circle around the path.",
+                v => Dial("Spread bend", () => choreo.spreadBend = v)));
 
             root.Add(Z.Text("Facing", ZuiText.Section, "Which way each dancer points while travelling."));
             root.Add(Z.MiniRadio((int)choreo.facing, new[] { "Fixed", "Radial" },
@@ -270,24 +277,24 @@ namespace Laubrary.Choreographer.Editor
                     Dial("Facing mode", () => choreo.facing = (FacingMode)v);
                     if (angleFieldLabel != null) angleFieldLabel.text = choreo.facing == FacingMode.Radial ? "Angle offset" : "Angle";
                 }));
-            var angleField = Z.Field(choreo.facing == FacingMode.Radial ? "Angle offset" : "Angle",
+            var angleField = Z.MicroSlider(choreo.facing == FacingMode.Radial ? "Angle offset" : "Angle",
+                choreo.facingAngle, -180f, 180f,
                 "Facing angle in degrees — absolute in Fixed mode, added to the travel direction in Radial mode.",
-                Z.Slider(choreo.facingAngle, -180f, 180f,
-                    "Facing angle in degrees — absolute in Fixed mode, added to the travel direction in Radial mode.",
-                    v => Dial("Facing angle", () => choreo.facingAngle = v)));
-            angleFieldLabel = angleField.Q<Label>();
+                v => Dial("Facing angle", () => choreo.facingAngle = v));
+            angleFieldLabel = angleField.Q<Label>(className: "zui-microslider__caption");
             root.Add(angleField);
 
             root.Add(Z.Text("Population & timing", ZuiText.Section, "How many dancers, and how the cycle plays out in time."));
-            root.Add(Z.Field("Default count", "Dancer count a ChoreographyPlayer uses unless told otherwise.",
-                Z.SliderInt(choreo.defaultCount, 1, 200, "Dancer count a ChoreographyPlayer uses unless told otherwise.",
-                    v => Dial("Default count", () => choreo.defaultCount = v))));
-            root.Add(Z.Field("Duration (s)", "Seconds one full travel of the path takes.",
-                Z.Slider(choreo.duration, 0.1f, 10f, "Seconds one full travel of the path takes.",
-                    v => Dial("Duration", () => choreo.duration = v))));
-            root.Add(Z.Field("Stagger", "0 = all dancers move together, 1 = starts spread evenly across the whole cycle.",
-                Z.Slider(choreo.stagger, 0f, 1f, "0 = all dancers move together, 1 = starts spread evenly across the whole cycle.",
-                    v => Dial("Stagger", () => choreo.stagger = v))));
+            root.Add(Z.MicroSlider("Default count", choreo.defaultCount, 1f, 200f,
+                "Dancer count a ChoreographyPlayer uses unless told otherwise.",
+                v => Dial("Default count", () => choreo.defaultCount = Mathf.Clamp(Mathf.RoundToInt(v), 1, 200)),
+                150f, decimals: 0));
+            root.Add(Z.MicroSlider("Duration (s)", choreo.duration, 0.1f, 10f,
+                "Seconds one full travel of the path takes.",
+                v => Dial("Duration", () => choreo.duration = v)));
+            root.Add(Z.MicroSlider("Stagger", choreo.stagger, 0f, 1f,
+                "0 = all dancers move together, 1 = starts spread evenly across the whole cycle.",
+                v => Dial("Stagger", () => choreo.stagger = v)));
             root.Add(Z.MiniRadio((int)choreo.direction, new[] { "Scatter", "Gather" },
                 "Scatter = dancers travel outward from the path start. Gather = they run it in reverse, converging.",
                 v => Dial("Direction", () => choreo.direction = (Direction)v)));
@@ -296,15 +303,15 @@ namespace Laubrary.Choreographer.Editor
 
             root.Add(Z.Text("Anchors (Launcher / Target)", ZuiText.Section,
                 "Optional live transforms the path is stretched between at runtime."));
-            var launchBlendField = Z.Field("Launch blend", "Fraction of the journey spent blending out from the launcher point.",
-                Z.Slider(choreo.launchBlend, 0.01f, 1f, "Fraction of the journey spent blending out from the launcher point.",
-                    v => Dial("Launch blend", () => choreo.launchBlend = v)));
-            var releaseField = Z.Field("Release", "Progress at which each dancer commits to (freezes) its target position.",
-                Z.Slider(choreo.releaseAt, 0f, 0.99f, "Progress at which each dancer commits to (freezes) its target position.",
-                    v => Dial("Release", () => choreo.releaseAt = v)));
-            var targetBlendField = Z.Field("Target blend", "Fraction of the journey spent blending in toward the target point.",
-                Z.Slider(choreo.targetBlend, 0.01f, 1f, "Fraction of the journey spent blending in toward the target point.",
-                    v => Dial("Target blend", () => choreo.targetBlend = v)));
+            var launchBlendField = Z.MicroSlider("Launch blend", choreo.launchBlend, 0.01f, 1f,
+                "Fraction of the journey spent blending out from the launcher point.",
+                v => Dial("Launch blend", () => choreo.launchBlend = v));
+            var releaseField = Z.MicroSlider("Release", choreo.releaseAt, 0f, 0.99f,
+                "Progress at which each dancer commits to (freezes) its target position.",
+                v => Dial("Release", () => choreo.releaseAt = v));
+            var targetBlendField = Z.MicroSlider("Target blend", choreo.targetBlend, 0.01f, 1f,
+                "Fraction of the journey spent blending in toward the target point.",
+                v => Dial("Target blend", () => choreo.targetBlend = v));
             root.Add(Z.Toggle("Use launcher", "Anchor the path start to a live Launcher transform at runtime.",
                 choreo.useLauncher, v => { Dial("Use launcher", () => choreo.useLauncher = v); launchBlendField.Shown(v); }));
             root.Add(launchBlendField.Shown(choreo.useLauncher));
@@ -320,19 +327,20 @@ namespace Laubrary.Choreographer.Editor
         {
             root.Add(Z.Text("Preview — shows only what's ticked", ZuiText.Section,
                 "Preview-only visualisation switches; nothing here is saved into the asset."));
-            root.Add(Z.Field("Preview count", "Dancer count for THIS preview only — 0 falls back to the asset's default count.",
-                Z.SliderInt(previewCount, 0, 200, "Dancer count for THIS preview only — 0 falls back to the asset's default count.",
-                    v => { previewCount = v; RefreshInfoLabel(); RepaintStage(); })));
+            root.Add(Z.MicroSlider("Preview count", previewCount, 0f, 200f,
+                "Dancer count for THIS preview only — 0 falls back to the asset's default count.",
+                v => { previewCount = Mathf.Clamp(Mathf.RoundToInt(v), 0, 200); RefreshInfoLabel(); RepaintStage(); },
+                150f, decimals: 0));
 
-            var onionField = Z.Field("Onion frames", "How many ghosted time-steps the onion skin shows.",
-                Z.SliderInt(onionCount, 2, 20, "How many ghosted time-steps the onion skin shows.",
-                    v => { onionCount = v; RepaintStage(); }));
-            var trailField = Z.Field("Trail length", "How far back each dancer's trail reaches, as a fraction of the journey.",
-                Z.Slider(trailFraction, 0.02f, 1f, "How far back each dancer's trail reaches, as a fraction of the journey.",
-                    v => { trailFraction = v; RepaintStage(); }));
-            var spriteSizeField = Z.Field("Sprite size", "On-stage size of the sample sprites, in pixels.",
-                Z.Slider(spriteSize, 8f, 96f, "On-stage size of the sample sprites, in pixels.",
-                    v => { spriteSize = v; RepaintStage(); }));
+            var onionField = Z.MicroSlider("Onion frames", onionCount, 2f, 20f,
+                "How many ghosted time-steps the onion skin shows.",
+                v => { onionCount = Mathf.Clamp(Mathf.RoundToInt(v), 2, 20); RepaintStage(); }, 150f, decimals: 0);
+            var trailField = Z.MicroSlider("Trail length", trailFraction, 0.02f, 1f,
+                "How far back each dancer's trail reaches, as a fraction of the journey.",
+                v => { trailFraction = v; RepaintStage(); });
+            var spriteSizeField = Z.MicroSlider("Sprite size", spriteSize, 8f, 96f,
+                "On-stage size of the sample sprites, in pixels.",
+                v => { spriteSize = v; RepaintStage(); });
             spriteListHost = new VisualElement();
 
             ZuiToggleButton Tg(string label, string tooltip, bool value, System.Action<bool> set) =>
@@ -429,8 +437,8 @@ namespace Laubrary.Choreographer.Editor
                         RepaintStage();
                     }).W(32f),
                     phaseSlider),
-                Z.Field("Speed", "Preview playback speed multiplier.",
-                    Z.Slider(previewSpeed, 0.1f, 3f, "Preview playback speed multiplier.", v => previewSpeed = v)));
+                Z.MicroSlider("Speed", previewSpeed, 0.1f, 3f, "Preview playback speed multiplier.",
+                    v => previewSpeed = v));
         }
 
         void RebuildSpriteList()

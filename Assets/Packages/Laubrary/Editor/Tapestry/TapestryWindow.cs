@@ -279,7 +279,7 @@ namespace Laubrary.Tapestry.Editor
                 lastTime = EditorApplication.timeSinceStartup;
                 acc = 0f;
                 if (playButton != null) playButton.text = playing ? "❚❚ Pause" : "▶ Play";
-            });
+            }).W(88f);
             transportHost.Add(playButton);
 
             int fcHigh = Mathf.Max(1, s.frameCount);

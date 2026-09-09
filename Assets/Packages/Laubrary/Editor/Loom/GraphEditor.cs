@@ -8,6 +8,7 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using Laubrary.Loom;
 using Laubrary.GraphViewKit;
+using Laubrary.Zui;
 using GV = UnityEditor.Experimental.GraphView;
 using LEdge = Laubrary.Loom.Edge;
 
@@ -29,38 +30,48 @@ namespace Laubrary.Loom.Editor
 
         public void OpenAsset(IGraphAsset asset)
         {
-            titleContent = new GUIContent(WindowTitle);
             Load(asset);
             Show();
         }
 
         void OnEnable()
         {
+            // The tab is named here rather than in OpenAsset, because opening the window from its own menu
+            // item with nothing selected never goes through OpenAsset and left the tab reading the class
+            // name ("BrainGraphWindow") — measured live, on both graph tools.
+            titleContent = new GUIContent(WindowTitle);
             rootVisualElement.Clear();
             var toolbar = new VisualElement { style = { flexDirection = FlexDirection.Row, paddingLeft = 6, paddingTop = 4, paddingBottom = 4 } };
+            // This window is not a ZuiWindow, so nothing has attached the shared stylesheet for it and every
+            // Z.* control below would render unstyled (a MicroSlider collapses to zero height). It is attached
+            // to the TOOLBAR rather than the window root deliberately: the sheet's `.zui-root` rules reach
+            // every descendant, and the rest of this window is a GraphView whose own look is not ours.
+            Z.Attach(toolbar);
             _header = new Label("No graph loaded") { style = { unityFontStyleAndWeight = FontStyle.Bold, marginRight = 12, alignSelf = Align.Center } };
+            _header.tooltip = "The graph asset this window is editing. Select one in the Project window to load it.";
             toolbar.Add(_header);
-            toolbar.Add(new Button(() => { _view?.SaveToAsset(); AssetDatabase.SaveAssets(); }) { text = "Save" });
-            toolbar.Add(new Button(() => _view?.FrameAll()) { text = "Frame All" });
+            toolbar.Add(Z.Button("Save", "Write the node positions, wiring and field values back to the graph asset.",
+                () => { _view?.SaveToAsset(); AssetDatabase.SaveAssets(); }));
+            toolbar.Add(Z.Button("Frame All", "Zoom and pan the canvas so every node in the graph is on screen.",
+                () => _view?.FrameAll()));
 
-            var fadeLabel = new Label("Fade") { style = { alignSelf = Align.Center, marginLeft = 12, marginRight = 4, opacity = 0.8f } };
-            toolbar.Add(fadeLabel);
-            var fadeSlider = new Slider(0.1f, 5f) { value = EditorPrefs.GetFloat("Laubrary.Loom.FadeSeconds", 1.5f), style = { width = 100, alignSelf = Align.Center } };
-            var fadeValueLabel = new Label(fadeSlider.value.ToString("0.0") + "s") { style = { alignSelf = Align.Center, marginLeft = 4, marginRight = 8, opacity = 0.7f, minWidth = 30 } };
-            fadeSlider.RegisterValueChangedCallback(e =>
-            {
-                if (_view != null) _view.FadeSeconds = e.newValue;
-                EditorPrefs.SetFloat("Laubrary.Loom.FadeSeconds", e.newValue);
-                fadeValueLabel.text = e.newValue.ToString("0.0") + "s";
-            });
-            toolbar.Add(fadeSlider);
-            toolbar.Add(fadeValueLabel);
-
-            toolbar.Add(new Label("  Add nodes: right-click the canvas.  Edit field values in-node or the Inspector.")
-            { style = { alignSelf = Align.Center, opacity = 0.7f } });
+            var fade = Z.MicroSlider("Fade", EditorPrefs.GetFloat("Laubrary.Loom.FadeSeconds", 1.5f), 0.1f, 5f,
+                "How long a node or edge keeps glowing after a running graph passes through it, in seconds.",
+                v =>
+                {
+                    if (_view != null) _view.FadeSeconds = v;
+                    EditorPrefs.SetFloat("Laubrary.Loom.FadeSeconds", v);
+                }, 150f, decimals: 1);
+            fade.style.alignSelf = Align.Center;
+            fade.style.marginLeft = 12;
+            fade.style.marginRight = 8;
+            toolbar.Add(fade);
             rootVisualElement.Add(toolbar);
 
             _view = new LoomGraphView { style = { flexGrow = 1 } };
+            // What used to be a permanent instruction line across the toolbar. It describes the canvas, so it
+            // belongs on the canvas as a tooltip rather than as body text re-read on every visit.
+            _view.tooltip = "Right-click to add a node. Field values edit in the node itself or in the Inspector.";
             rootVisualElement.Add(_view);
             if (_asset != null) Load(_asset);
 

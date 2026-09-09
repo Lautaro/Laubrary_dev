@@ -91,8 +91,17 @@ namespace Laubrary.AssetKit.Editor
         double _lastThumbTick;
         Action _unwatchInvalidation;
 
+        /// The floor every asset tool's layout is written against. Shaper and Pyre already declared exactly
+        /// this; every other tool sat at Unity's 50×50 default, so a drag could take it to a width where the
+        /// layout has no floor at all. Measured across nine tools at 400/520/620/720/820 px: at 400 the audit
+        /// reports up to 21 elements off the window and 10 controls spilling their parent; 820 is the first
+        /// width at which EVERY one of them is clean on every counter. A tool whose content genuinely needs
+        /// less may lower it.
+        protected virtual Vector2 MinWindowSize => new Vector2(820f, 520f);
+
         protected virtual void OnEnable()
         {
+            minSize = MinWindowSize;
             EditorApplication.projectChanged += OnProjectChanged;
             if (AnimateThumbnails) EditorApplication.update += TickThumbAnimation;
             // So an edited asset's browser thumbnail refreshes immediately instead of showing a stale
@@ -505,7 +514,16 @@ namespace Laubrary.AssetKit.Editor
 
             var name = new Label(item.name);
             name.AddToClassList("zui-cell__name");
-            if (reserveThumb) name.style.maxWidth = CellSize - 4f;
+            if (reserveThumb)
+            {
+                // A FIXED width, not a max-width: the cell centres its children, so a max-width leaves the
+                // label sized to its own text and there is then no stable budget to elide against — measuring
+                // the label's own box makes every name "too wide" for itself. The text stays centred under the
+                // thumbnail because the label centres it internally instead of the cell centring the label.
+                name.style.width = CellSize - 4f;
+                name.style.unityTextAlign = TextAnchor.MiddleCenter;
+                ElideMiddleWhenLaidOut(name, item.name);
+            }
             cell.Add(name);
 
             cell.RegisterCallback<PointerDownEvent>(e =>
@@ -518,6 +536,48 @@ namespace Laubrary.AssetKit.Editor
             });
             return cell;
         }
+
+        /// A cell name too long for its square is truncated in the MIDDLE, not at the tail.
+        ///
+        /// The stylesheet's `text-overflow: ellipsis` cuts the END, which is the worst half to lose in a
+        /// picker: this project names assets family-first with the variant last, so three different Pyres
+        /// all read "Directional Grenad…" in the very control whose job is to tell one from the next
+        /// (measured live on Pyre's own library: 7 of 32 cells too wide, 2 of the 3 identical-looking pairs
+        /// caused purely by the cut). `LauAssetGridGUI.Elide` reached the same conclusion for the immediate-
+        /// mode grid; this is the retained-mode half of it, and the full name stays on the cell's tooltip.
+        ///
+        /// It runs on the first layout because a Label has no resolved font before then, and against the
+        /// cell's FIXED budget rather than the label's own box, so shortening the text can never feed back
+        /// into a narrower measurement on the next pass.
+        static void ElideMiddleWhenLaidOut(Label label, string full)
+        {
+            EventCallback<GeometryChangedEvent> once = null;
+            once = _ =>
+            {
+                label.UnregisterCallback(once);
+                float budget = label.contentRect.width;
+                if (float.IsNaN(budget) || budget <= 0f) return;
+                string shown = ElideMiddle(label, full, budget);
+                if (label.text != shown) label.text = shown;
+            };
+            label.RegisterCallback(once);
+        }
+
+        static string ElideMiddle(TextElement te, string s, float width)
+        {
+            if (string.IsNullOrEmpty(s) || Measure(te, s) <= width) return s;
+            for (int keep = s.Length - 1; keep >= 2; keep--)
+            {
+                int head = (keep + 1) / 2;               // an odd budget favours the head, which names the family
+                string cand = s.Substring(0, head) + "…" + s.Substring(s.Length - (keep - head));
+                if (Measure(te, cand) <= width) return cand;
+            }
+            return "…";
+        }
+
+        static float Measure(TextElement te, string s)
+            => te.MeasureTextSize(s, 0f, VisualElement.MeasureMode.Undefined,
+                                     0f, VisualElement.MeasureMode.Undefined).x;
 
         Texture2D Thumb(T item)
         {
