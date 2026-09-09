@@ -277,7 +277,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3ea71831e7a06164bb6d36ed12d62344, type: 3}
   m_Name: 
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Demos::Laubrary.Demos.ProtoGuyDemo.ProtoGuySpawner
-  zoeDef: {fileID: 11400000, guid: e844095d12df854448dee74dab60affa, type: 2}
+  zoeDef: {fileID: 11400000, guid: 4b40ce07da0df0044a1bcb27c64f58e4, type: 2}
 --- !u!4 &1432643070
 Transform:
   m_ObjectHideFlags: 0

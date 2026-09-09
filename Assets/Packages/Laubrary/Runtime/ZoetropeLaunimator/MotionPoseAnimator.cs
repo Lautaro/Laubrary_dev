@@ -17,7 +17,7 @@ namespace Laubrary.ZoetropeLaunimator
     /// the old two-clip Locomotion otherwise, so an existing Zoe with no MotionPose authored is unaffected.
     /// </summary>
     [RequireComponent(typeof(Transform))]
-    public class MotionPoseAnimator : MonoBehaviour
+    public class MotionPoseAnimator : MonoBehaviour, IResolvedFacing
     {
         // The ladder lives on AnimationArbiter — named there once, referenced here, so this and
         // LocomotionAnimator cannot end up claiming at different levels.
@@ -41,6 +41,17 @@ namespace Laubrary.ZoetropeLaunimator
 
         MotionCondition? _overrideBucket;
         float _overrideAngle;
+
+        float _facingDeg, _facingBaseRotDeg;
+        bool _hasFacing;
+
+        /// <inheritdoc/>
+        public bool TryGetResolvedFacing(out float facingAngleDeg, out float baseRotationDeg)
+        {
+            facingAngleDeg = _facingDeg;
+            baseRotationDeg = _facingBaseRotDeg;
+            return _hasFacing;
+        }
 
         /// Freezes this part onto an EXPLICIT (bucket, angle) pose instead of resolving from the character's
         /// real, live MotionState — the Mirage "pick a named pose and hold it" preview
@@ -148,6 +159,13 @@ namespace Laubrary.ZoetropeLaunimator
                 res = MotionPoseResolver.Resolve(_pose, _version, state, _latch);
             }
             if (res.Laumination == null) return;
+
+            // Published for IResolvedFacing: the angle the art on screen is drawn at, and the rotation that
+            // facing already asks for. Recorded here, where the resolution is authoritative, so a consumer
+            // never has to re-derive the direction table for itself.
+            _facingDeg = res.ResolvedAngleDeg;
+            _facingBaseRotDeg = res.RotationDeg;
+            _hasFacing = true;
 
             if (_flippable != null) _flippable.FlipX = res.FlipX;
             _view?.SetPlaybackReversed(ShouldBackpedal());
