@@ -603,6 +603,29 @@ namespace Laubrary.Zoetrope.Editor
         /// all, so a caller can tell "no clip picker makes sense here" from "picker applies, no clips yet."
         protected static string[] GetClipNameOptions(object owner)
         {
+            if (owner == null) return null;
+
+            // A COMPOSITE character keeps its animations on its PARTS, not on itself. Measured T-0324:
+            // ProtoGuy's view is a CompositeLauminaryView, whose shape carries no `version` at all, so this
+            // returned null and the clip control fell all the way through to a typed string on every
+            // composite in the project — the reference rule's own worked example ("a Zoe knows its events,
+            // its view knows its lauminations"), failing on the character the demos are built around. The
+            // owner is still known, so the list is still derivable: union what the parts declare, in
+            // first-seen order, and only claim the composite shape when at least one part answered.
+            if (GetFieldValue(owner, "parts") is IEnumerable parts)
+            {
+                var union = new List<string>();
+                bool anyPartAnswered = false;
+                foreach (var part in parts)
+                {
+                    var sub = GetClipNameOptions(GetFieldValue(part, "view"));
+                    if (sub == null) continue;
+                    anyPartAnswered = true;
+                    foreach (var n in sub) if (!union.Contains(n)) union.Add(n);
+                }
+                if (anyPartAnswered) return union.ToArray();
+            }
+
             var version = GetFieldValue(owner, "version");
             if (version == null) return null;
 
@@ -812,12 +835,12 @@ namespace Laubrary.Zoetrope.Editor
             reactions.Add(RoleHeaderRow("Hit", "HURT",
                 "What happens on a non-killing hit. This is the built-in row Laubrary's own \"which hurt " +
                 "look?\" question falls back to — see Custom events below for role-chipped alternatives.",
-                () => ZoePalettePreview.PreviewHit(zoe)));
+                () => ZoePalettePreview.PreviewHit(zoe), zoe));
             BuildReactionFx(reactions, So.FindProperty("hit"), zoe);
             reactions.Add(RoleHeaderRow("Death", "DEATH",
                 "What happens on the killing blow. This is the built-in row Laubrary's own \"which death " +
                 "look?\" question falls back to — see Custom events below for role-chipped alternatives.",
-                () => ZoePalettePreview.PreviewDeath(zoe)));
+                () => ZoePalettePreview.PreviewDeath(zoe), zoe));
             BuildReactionFx(reactions, So.FindProperty("death"), zoe);
             // Custom events live INSIDE Reactions, under Hit and Death, because they are the same kind of
             // thing — same ReactionFx, same editor — and only differ in being raised by a name you choose.
@@ -831,7 +854,7 @@ namespace Laubrary.Zoetrope.Editor
         /// Also carries this row's Preview button (T-0096: "a play/preview button on each row so a state can
         /// be previewed without the game running") — Hit/Death play automatically, never by name, so they get
         /// no usage chip or copy-name button, only the preview every row gets.
-        VisualElement RoleHeaderRow(string title, string roleLabel, string tip, System.Action preview)
+        VisualElement RoleHeaderRow(string title, string roleLabel, string tip, System.Action preview, Zoe zoe)
         {
             var row = Z.Row();
             row.Add(Z.Text(title, ZuiText.Section, tip));
@@ -839,8 +862,25 @@ namespace Laubrary.Zoetrope.Editor
             var chip = Z.Text($"[{roleLabel}]", ZuiText.Subtle, tip);
             row.Add(chip);
             row.Add(Z.Flexible());
-            row.Add(Z.Button("▶", $"Preview {title} — spawns a throwaway character in the open scene and " +
-                "plays this reaction for real, without needing Play mode.", preview).W(28f));
+
+            // A character that declares no animation has nothing this can put on screen: the spawn succeeds,
+            // the real Health path runs, and an invisible object appears and disappears — a press that does
+            // nothing and says nothing, which is exactly what Chunks' own Preview button greys itself to
+            // avoid ("Nothing to preview: this spec spawns no chunks…"). Measured T-0324 on a brand-new Zoe:
+            // pressing ▶ changed nothing on screen, wrote nothing, and logged nothing.
+            var declared = zoe != null && zoe.view != null ? GetClipNameOptions(zoe.view) : null;
+            bool canShow = declared != null && declared.Length > 0;
+            string btnTip = canShow
+                ? $"Preview {title} — spawns a throwaway character in the open scene and plays this reaction " +
+                  "for real, without needing Play mode."
+                : "Nothing to preview yet: this character declares no animations, so the throwaway spawn would "
+                  + "be invisible. Give it a View with at least one animation under Look first.";
+            var btn = Z.Button("▶", btnTip, preview).W(28f);
+            btn.SetEnabled(canShow);
+            // A disabled element does not reliably resolve its own tooltip, and the disabled case is the one
+            // where the reason matters; the row stays enabled and carries it.
+            row.tooltip = canShow ? tip : btnTip;
+            row.Add(btn);
             return row;
         }
 
@@ -938,7 +978,10 @@ namespace Laubrary.Zoetrope.Editor
                     lauminary != null
                         ? $"Open the Laumination Builder on '{lauminary.name}' to paint this part's Muzzle MetaLayer."
                         : "This part has no reachable Lauminary to open yet.",
-                    () => Laubrary.Launimator.Editor.LauminationBuilderWindow.OpenForEdit(lauminary, animName));
+                    () => Laubrary.Launimator.Editor.LauminationBuilderWindow.OpenForEdit(lauminary, animName))
+                    // Sized, not left to fill the pane: a button in a Z.Section body stretches across the
+                    // cross axis, and this one measured 859px on a 900px window (T-0324).
+                    .W(130f);
                 editBtn.SetEnabled(lauminary != null);
                 card.Add(editBtn);
 
@@ -970,7 +1013,7 @@ namespace Laubrary.Zoetrope.Editor
                 "see the real composited art (not just the schematic boxes above) and check alignment across " +
                 "every direction. The preview view is created in memory only — it is never saved as a project " +
                 "asset, so it never appears in Mirage's own Browse list or anywhere else; open this button again " +
-                "any time for a fresh one.", () => PreviewInMirage(zoe)));
+                "any time for a fresh one.", () => PreviewInMirage(zoe)).W(170f));   // Chunks' own width for the same action
 
             var viewProp = So.FindProperty("view");
             var partsProp = viewProp?.FindPropertyRelative("parts");
@@ -1343,8 +1386,27 @@ namespace Laubrary.Zoetrope.Editor
             }
             else
             {
-                clipField = Z.Field("Clip", clipTip, Z.TextInput(clipProp.stringValue ?? "", clipTip,
-                    v => Commit(clipPath, p => p.stringValue = v), 200f));
+                // NOT a text field. A clip name is a REFERENCE, and the rule about references has no empty-list
+                // exception: "degrading to a text field when the option list is empty is the failure mode, not
+                // the graceful fallback — say 'None declared' and offer the way to declare one". This is the
+                // FIRST screen a new Zoe shows (a fresh one has no view, so the list is always empty here), so
+                // the typed name that compiles, saves, looks authored and silently plays nothing was the very
+                // first thing on offer. Same control as the populated branch, greyed, carrying its reason.
+                string stored = clipProp.stringValue ?? "";
+                // An authored name still SHOWS even when nothing can vouch for it — the value is the asset's,
+                // not this window's, and hiding it would be worse than being unable to edit it here.
+                string shownOne = string.IsNullOrEmpty(stored) ? "None declared" : stored;
+                string whyTip = zoe.view == null
+                    ? "No animations to choose from: this character has no View yet, and a View is what "
+                      + "declares its animations. Set one under Look, then pick the animation here."
+                    + (string.IsNullOrEmpty(stored) ? "" : "  The name saved on this reaction is \"" + stored + "\".")
+                    : "No animations to choose from: this character's View declares none yet. Author one on the "
+                      + "View, then pick it here."
+                    + (string.IsNullOrEmpty(stored) ? "" : "  The name saved on this reaction is \"" + stored + "\".");
+                var empty = Z.Dropdown(0, new List<string> { shownOne }, whyTip, _ => { }, 200f);
+                empty.SetEnabled(false);
+                clipField = Z.Field("Clip", whyTip, empty);
+                clipField.tooltip = whyTip;   // a disabled control does not reliably resolve its own tooltip
             }
             BuildEventDuration(root, reactionProp, clipField, zoe);
             BuildTargetPartField(root, reactionProp, zoe);
@@ -1469,7 +1531,19 @@ namespace Laubrary.Zoetrope.Editor
                       $"({visual.ClipSeconds:0.###} s at {visual.Fps:0.#} fps)."
                     : $"Lasts {visual.EventSeconds:0.###} s — one play of {named} at {visual.Fps:0.#} fps.";
             else if (string.IsNullOrEmpty(clip))
-                text = "No clip — pick one above, or switch to Fixed seconds to give this event a length.";
+            {
+                // "Pick one above" is only true when there IS something to pick: on a fresh character the
+                // clip control is correctly greyed, and telling the reader to use it would send them at a
+                // dead control (the same reason the picker beside it names its own blocker).
+                var opts = zoe != null && zoe.view != null ? GetClipNameOptions(zoe.view) : null;
+                text = opts != null && opts.Length > 0
+                    ? "No clip — pick one above, or switch to Fixed seconds to give this event a length."
+                    : zoe != null && zoe.view == null
+                        ? "No clip — this character has no View yet, so it declares no animations. Set one "
+                          + "under Look, or switch to Fixed seconds to give this event a length."
+                        : "No clip — this character's View declares no animations yet. Author one on the View, "
+                          + "or switch to Fixed seconds to give this event a length.";
+            }
             else
                 text = $"Length unknown — {named} has no measurable end, so switch to Fixed seconds.";
 
@@ -1654,14 +1728,26 @@ namespace Laubrary.Zoetrope.Editor
             // Preview (T-0096: "a play/preview button on each row so a state can be previewed without the
             // game running"). Reads the LIVE id off the asset, not idAtBuild, so it always fires whatever is
             // currently typed even before a FocusOut rebuild.
-            header.Add(Z.Button("▶", "Preview this event — spawns a throwaway character in the open scene and " +
-                "raises this event for real, without needing Play mode.", () =>
+            // …and greyed with its reason on a character that declares no animation, for the same reason the
+            // Hit/Death rows are: the spawn would be invisible, so the press would do nothing visible and say
+            // nothing (T-0324; ChunkWindow.MiragePreview is the pattern).
+            var declaredHere = zoe != null && zoe.view != null ? GetClipNameOptions(zoe.view) : null;
+            bool canShowHere = declaredHere != null && declaredHere.Length > 0;
+            string evTip = canShowHere
+                ? "Preview this event — spawns a throwaway character in the open scene and raises this event " +
+                  "for real, without needing Play mode."
+                : "Nothing to preview yet: this character declares no animations, so the throwaway spawn would "
+                  + "be invisible. Give it a View with at least one animation under Look first.";
+            var evBtn = Z.Button("▶", evTip, () =>
                 {
                     string liveId = zoe.events != null && index < zoe.events.Count && zoe.events[index] != null
                         ? zoe.events[index].id : idAtBuild;
                     ZoePalettePreview.PreviewEvent(zoe, liveId);
                     RunValidators();   // refresh this row's usage chip immediately rather than on next rebuild
-                }).W(28f));
+                }).W(28f);
+            evBtn.SetEnabled(canShowHere);
+            if (!canShowHere) header.tooltip = evTip;
+            header.Add(evBtn);
 
             // Copy-name (T-0096: "a copy-name button for pasting a state's name into code" — the project's
             // standing rule is a name is typed ONCE where declared, so this is how it gets into hand-typed

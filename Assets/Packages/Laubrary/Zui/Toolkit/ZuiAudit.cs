@@ -11,7 +11,9 @@
 //                      resolved to flex-grow > 0 (the "fills whatever's left" failure class
 //                      ZuiToolkit.uss globally forbids);
 //   • over-width     — a plain field control wider than a generous cap (600px), excluding
-//                      containers/plots, per the no-infinite-width-controls rule.
+//                      containers/plots, per the no-infinite-width-controls rule;
+//   • clipped-input  — a text/numeric field printing a string wider than the box it prints it in, so an
+//                      authored value is silently cut (the truncated-text rule, applied to inputs).
 // Row-packing waste, redundant titles, and explanatory labels stay a human's job — same as always.
 using System.Collections.Generic;
 using UnityEditor;
@@ -142,6 +144,26 @@ namespace Laubrary.Zui
                 float w = ve.worldBound.width;
                 if ((ve is not Foldout || ve is PropertyField) && w > OverWidthCap)
                     findings.Add(New("over-width", ve, $"{w:0}px wide (cap {OverWidthCap})"));
+            }
+
+            // A text/numeric INPUT printing more than it can show. This was a blind spot that hid a real
+            // defect for fourteen passes (T-0324): the usual "does this string fit its box" test compares a
+            // TextElement's needed width against its OWN content box, and a UITK text field's inner text
+            // element GROWS to its text — so it always fits itself and no check ever fires, while the input
+            // box around it clips the overflow. Compare against the INPUT's box, which is what can be read.
+            // The input element is neither a BaseField nor anything in InteractiveTypes, so this sits
+            // outside the interactive block on purpose.
+            if (ve.ClassListContains("unity-base-text-field__input"))
+            {
+                var te = ve.Q<TextElement>();
+                if (te != null && !string.IsNullOrEmpty(te.text))
+                {
+                    float need = te.MeasureTextSize(te.text, 0f, VisualElement.MeasureMode.Undefined, 0f, VisualElement.MeasureMode.Undefined).x;
+                    float have = ve.contentRect.width;
+                    if (!float.IsNaN(need) && !float.IsNaN(have) && have > 0f && need > have + 1.5f)
+                        findings.Add(New("clipped-input", ve,
+                            $"\"{Truncate(te.text)}\" needs {need:0.#}px, the field shows {have:0.#}px"));
+                }
             }
 
             if ((interactive || ve is Label) && ve.worldBound.width > 0f && ve.worldBound.xMax > windowRight

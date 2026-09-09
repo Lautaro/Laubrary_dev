@@ -191,9 +191,33 @@ namespace Laubrary.AssetKit.Editor
                 onPick?.Invoke(item, e.clickCount);
                 e.Use();
             }
-            GUILayout.Label(new GUIContent(item.name, item.name), EditorStyles.miniLabel, GUILayout.Width(thumb));
+            // The name gets the whole CELL, not just the thumbnail's width — the surrounding vertical group is
+            // already `cell` wide, so those extra pixels were reserved and unused — and it is elided rather
+            // than left to IMGUI's hard clip. Measured on the browser Mirage's "Add Previewable" opens
+            // (T-0324, the first pass to see it): 16 of 47 names were wider than the label, cut mid-word with
+            // nothing to say they continued, and three of them cut to the identical visible string
+            // ("Directional Grenade Blast 1 Plus" / "… 2 Plus" / "… Side Blast Plus"). The full name stays on
+            // the tooltip, which is what tells the three apart on hover.
+            GUILayout.Label(new GUIContent(Elide(item.name, EditorStyles.miniLabel, cell), item.name),
+                EditorStyles.miniLabel, GUILayout.Width(cell));
             EditorGUILayout.EndVertical();
             return isHover;
+        }
+
+        /// Shorten a string to an ellipsis that FITS the given width in the given style. IMGUI has no
+        /// text-overflow, so a fixed-width Label just stops drawing mid-glyph; the layout rules ask for the
+        /// string to be truncated by hand instead, exactly as `.zui-chip__label` does in the retained-mode half.
+        static string Elide(string s, GUIStyle style, float width)
+        {
+            if (string.IsNullOrEmpty(s)) return s;
+            var probe = new GUIContent(s);
+            if (style.CalcSize(probe).x <= width) return s;
+            for (int keep = s.Length - 1; keep > 0; keep--)
+            {
+                probe.text = s.Substring(0, keep) + "…";
+                if (style.CalcSize(probe).x <= width) return probe.text;
+            }
+            return "…";
         }
     }
 }

@@ -42,6 +42,21 @@ namespace Laubrary.Zui
         // convention (Shift = gentle everywhere).
         const float FineFactor = 0.15f;
 
+        /// The numeric input's RESTING width, and the number `.zui-microslider__caption--reserve` reserves for
+        /// it in USS — T-0314's row arithmetic for every reflected card is written against exactly this ("a
+        /// MicroSlider's caption ends 56.9px short of its own width: 6px inset plus the 46px value reserve"),
+        /// so it is the width a dial returns to whenever its value fits, and the vast majority never leave it.
+        const float NumFieldWidth = 46f;
+
+        /// …and the caption keeps at least this much of the track when a long value does push the field wider.
+        /// A dial whose caption has been squeezed to nothing is not a better trade than a clipped number.
+        const float CaptionFloor = 46f;
+
+        // The inner text element of the numeric input, hooked lazily: it does not exist when the field is
+        // built, and it is the only element whose geometry changes when the VALUE changes without the field's
+        // own box changing — so it, not the field, is what has to be watched.
+        TextElement _numText;
+
         public float value
         {
             get => _value;
@@ -84,13 +99,14 @@ namespace Laubrary.Zui
             _numField.AddToClassList("zui-microslider__numfield");
             _numField.style.position = Position.Absolute;
             _numField.style.right = 2; _numField.style.top = 1; _numField.style.bottom = 1;
-            _numField.style.width = 46; _numField.style.marginLeft = 0; _numField.style.marginRight = 0;
+            _numField.style.width = NumFieldWidth; _numField.style.marginLeft = 0; _numField.style.marginRight = 0;
             _numField.RegisterCallback<PointerDownEvent>(ev => ev.StopPropagation());
             _numField.RegisterValueChangedCallback(ev => { _onBeforeMutate?.Invoke(); SetValue(ev.newValue, notify: true); });
             Add(_numField);
 
             ApplyDisplay();
             generateVisualContent += OnGenerate;
+            RegisterCallback<GeometryChangedEvent>(_ => FitNumField());
             RegisterCallback<PointerDownEvent>(OnDown);
             RegisterCallback<PointerMoveEvent>(OnMove);
             RegisterCallback<PointerUpEvent>(OnUp);
@@ -135,6 +151,70 @@ namespace Laubrary.Zui
             return this;
         }
 
+        /// Keep the numeric input wide enough for the number it is PRINTING.
+        ///
+        /// Measured on shipped data (T-0324): Pyre's `Proper Blast` carries a Size of 1.366666, which needs
+        /// 53.3px of text inside a 39.6px input box — the string ran 12px past the slider's own right edge and
+        /// `.zui-microslider` clips at that edge, so the field you type an exact value into showed "1.3666"
+        /// with nothing to say it continued. The three ways out are not equal:
+        ///   · widening the reserve for everyone re-points T-0314's row arithmetic in every reflected card,
+        ///     for a case that at rest is one dial in a project;
+        ///   · rounding the printed text is the one thing this must never do — the field is an EDITABLE,
+        ///     isDelayed FloatField, so a rounded display commits the rounded number the next time it is
+        ///     touched, quietly rewriting an authored value;
+        ///   · eliding leaves a number that can be neither read nor trusted.
+        /// So the field grows to the value, the way FitCaption above grows a dial to a caption nobody sized it
+        /// for, and returns to NumFieldWidth the moment the value fits again. The caption's reserve follows it
+        /// inline (the USS class's 46px is the resting value), so the two can never print over each other.
+        void FitNumField()
+        {
+            if (_numField == null || _caption == null) return;
+            if (!_showNumInput)
+            {
+                // Nothing is drawn at the right end, so hand the whole track back to the USS class.
+                if (_numField.resolvedStyle.width > NumFieldWidth + 0.5f) _numField.style.width = NumFieldWidth;
+                _caption.style.right = StyleKeyword.Null;
+                return;
+            }
+
+            HookNumText();
+            var input = _numText != null ? _numText.hierarchy.parent : null;
+            if (_numText == null || input == null) return;
+
+            float need = _numText.MeasureTextSize(_numText.text ?? string.Empty, 0f,
+                             MeasureMode.Undefined, 0f, MeasureMode.Undefined).x;
+            float have = input.contentRect.width;
+            float own = _numField.resolvedStyle.width;
+            float track = resolvedStyle.width;
+            if (float.IsNaN(need) || float.IsNaN(have) || float.IsNaN(own) || float.IsNaN(track) || have <= 0f) return;
+
+            // The width is computed from the TEXT, never from the current width plus a delta: a
+            // delta-and-recheck formulation flips between "clipped" and "fits" every layout pass, because
+            // growing the field is exactly what ends the condition that asked for it. `chrome` (the field's
+            // padding and border) does not change with width, so this expression is stable in both
+            // directions — it returns to NumFieldWidth by itself when the value gets shorter.
+            float chrome = Mathf.Max(0f, own - have);
+            // A track with no room to give keeps the resting width — growing past it would only move the clip
+            // from the field's edge to the slider's, which is not an improvement.
+            float ceiling = Mathf.Max(NumFieldWidth, track - CaptionFloor - 12f);
+            float want = need + 1.5f <= NumFieldWidth - chrome ? NumFieldWidth : need + chrome + 4f;
+            want = Mathf.Clamp(want, NumFieldWidth, ceiling);
+
+            if (Mathf.Abs(want - own) > 0.5f) _numField.style.width = want;
+            if (want > NumFieldWidth + 0.5f) _caption.style.right = want + 2f;
+            else _caption.style.right = StyleKeyword.Null;
+        }
+
+        void HookNumText()
+        {
+            if (_numText != null || _numField == null) return;
+            var input = _numField.Q(className: "unity-base-text-field__input") ?? _numField;
+            _numText = input.Q<TextElement>();
+            // The value's own text element is what resizes when the value changes while the field's box does
+            // not, so the recheck has to hang off it rather than off the slider's layout.
+            if (_numText != null) _numText.RegisterCallback<GeometryChangedEvent>(_ => FitNumField());
+        }
+
         float Round(float v) => _decimals >= 0 ? (float)Math.Round(v, _decimals)
                                                : (float)Math.Round(v, 5);
 
@@ -163,6 +243,7 @@ namespace Laubrary.Zui
             _caption.EnableInClassList("zui-microslider__caption--reserve", showVal || _showNumInput);
             if (_showNumInput) _numField.SetValueWithoutNotify(_value);
             if (showVal) UpdateValueLabel();
+            FitNumField();
             MarkDirtyRepaint();
         }
 

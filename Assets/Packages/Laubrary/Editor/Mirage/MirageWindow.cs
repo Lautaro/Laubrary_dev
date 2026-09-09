@@ -335,7 +335,79 @@ namespace Laubrary.Mirage.Editor
                     v => Dial("Display PPU", () => view.displayPixelsPerUnit = Mathf.Max(1f, v)), 60f)),
                 addButton,
                 spriteBrowse,
+                BuildStageRow(),
                 Z.Flexible()));
+        }
+
+        // ── the route to the thing that actually renders this view ──────────────────────────
+        // Nothing arranged in this window appears anywhere until a MirageRig is in an open scene, and until
+        // now the only place that said so was a section TOOLTIP — which is the Handover Walk's own definition
+        // of a missing feature ("a step that requires hunting…, knowing a magic string, or being TOLD by you,
+        // is a missing feature, not a workflow"). Chunks already carries the fix for its own preview button
+        // (ChunkWindow.MiragePreview.cs's EnsureMirageStageOpen); this is the same behaviour, unchanged, on
+        // the window whose entire job it is. It is one fixed row in three states — live / openable / no
+        // stage in the project — so the row never appears or disappears under the user's cursor; only the
+        // caption's enabled state and the reason change.
+        VisualElement BuildStageRow()
+        {
+            var rig = Object.FindFirstObjectByType<MirageRig>();
+            string stagePath = FindStageScenePath();
+            bool openable = rig == null && !string.IsNullOrEmpty(stagePath);
+
+            string tip;
+            if (rig != null)
+                tip = "Already open: the scene \"" + rig.gameObject.scene.name + "\" carries the MirageRig " +
+                      "that renders this view, so everything below is on screen right now. Look at the Game " +
+                      "view; the Mirage HUD there is where you click to place and drag a previewable. In Edit " +
+                      "mode each previewable stands still on its first frame — press Play to see it animate.";
+            else if (string.IsNullOrEmpty(stagePath))
+                tip = "No preview stage in this project. Mirage renders through a MirageRig in an open scene, " +
+                      "and no scene here provides one — so nothing arranged below can be shown until a scene " +
+                      "with a MirageRig exists.";
+            else
+                tip = "Opens " + stagePath + ", the scene whose MirageRig renders this view. Nothing you " +
+                      "arrange below appears anywhere until that rig is in an open scene. Your current scene " +
+                      "is yours to save or discard first.";
+
+            var button = Z.Button("Open preview stage", tip, OpenStageScene).W(150f);
+            button.SetEnabled(openable);
+
+            // A disabled UI Toolkit element does not reliably receive the pointer events a tooltip resolves
+            // from, and the disabled case is precisely the one where the reason matters — so the enclosing
+            // row, which stays enabled, carries the same text (the pattern ChunkWindow.MiragePreview uses).
+            var row = Z.Row(button);
+            row.tooltip = tip;
+            return row;
+        }
+
+        /// The stage is found by content, not by name at runtime: any scene providing a MirageRig will do,
+        /// but only a scene asset can be searched without opening it, so the project's own stage scene is
+        /// the one thing that can be offered.
+        static string FindStageScenePath()
+        {
+            foreach (var guid in AssetDatabase.FindAssets("MirageStage t:Scene"))
+            {
+                var p = AssetDatabase.GUIDToAssetPath(guid);
+                if (!string.IsNullOrEmpty(p)) return p;
+            }
+            return null;
+        }
+
+        void OpenStageScene()
+        {
+            string path = FindStageScenePath();
+            if (string.IsNullOrEmpty(path)) return;
+
+            // The user pressed a button that opens a scene, so a save prompt is expected and theirs to
+            // answer; a cancel means leave their scene alone and open nothing.
+            if (!UnityEditor.SceneManagement.EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+            UnityEditor.SceneManagement.EditorSceneManager.OpenScene(
+                path, UnityEditor.SceneManagement.OpenSceneMode.Single);
+
+            // The rig reads whichever view this window has active, so hand it over rather than making the
+            // user re-pick what they were already editing.
+            if (Current != null) MirageActiveView.Set(Current);
+            RebuildBody();
         }
 
         // ── backsplash ───────────────────────────────────────────────────────────
@@ -388,10 +460,15 @@ namespace Laubrary.Mirage.Editor
             // The count lives in the title, so the fold state needs an explicit key — the default
             // (title + tooltip) would forget the fold every time an entry is added or removed.
             var section = Z.Section($"Previewables ({view.previewables.Count})",
-                "Everything this view places into the preview scene. A MirageRig in the open scene shows " +
-                "them live and stays in sync with edits here, in Edit mode or Play mode. Click-to-place/drag " +
-                "still needs the Mirage HUD in the Game view — only the real preview camera shows the true " +
-                "pixel-perfect result.",
+                // "live" used to mean two different things in one sentence here, and only one of them was
+                // true in Edit mode: an entry's POSITION does follow this window immediately, but its
+                // animation does not — ZonedAnimationPlayer is plain gameplay infrastructure with no
+                // [ExecuteAlways], so a previewable stands on its first frame until Play. Measured T-0324:
+                // three renders of the rig's own camera 3.4s apart returned the identical frame hash.
+                "Everything this view places into the preview scene. A MirageRig in the open scene draws " +
+                "them and follows every edit here at once, in Edit mode as well as Play mode; they only " +
+                "ANIMATE in Play mode. Click-to-place/drag still needs the Mirage HUD in the Game view — " +
+                "only the real preview camera shows the true pixel-perfect result.",
                 stateKey: "Mirage.Previewables");
 
             foreach (var entry in view.previewables.ToArray())
