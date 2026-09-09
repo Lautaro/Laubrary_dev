@@ -105,6 +105,7 @@ namespace Laubrary.Zui
             float desiredWidth = width;
             float lastClampTarget = float.NaN;
             const float kSizeEpsilon = 1.5f; // above device-pixel rounding at any editor UI scale, below a real drag
+            var dragLineAnchor = split.Q(className: "unity-two-pane-split-view__dragline-anchor");
 
             Action clampToContainer = () =>
             {
@@ -120,7 +121,22 @@ namespace Laubrary.Zui
                 {
                     lastClampTarget = clamped;
                     left.style.width = clamped;
+                    current = clamped;
                 }
+
+                // The divider the user SEES is a separate absolutely-positioned anchor, and its offset is the
+                // one thing TwoPaneSplitView does not re-derive from the pane it belongs to: it is written only
+                // by a real drag and by the split's own resize pass, which reads the pane size from BEFORE the
+                // clamp above ran. So a window narrow enough to trip the clamp leaves the 11px grab strip — and
+                // the 2px rule it draws — standing in the middle of the right pane's CONTENT, and widening the
+                // window again strands it inside the left pane instead. Measured in Shaper at its own 820x520
+                // minimum: pane 492 wide, anchor still at 551 (59px into the right pane, drawn over the
+                // filmstrip, the Preview backdrop box and Cherry Framing); back at 1500, pane 551, anchor 492.
+                // The invariant is simply anchor offset == fixed pane width, so it is restored unconditionally,
+                // not just when this pass changed the width — the stale-by-one case above never changes it.
+                if (dragLineAnchor != null && !float.IsNaN(current)
+                    && Mathf.Abs(dragLineAnchor.resolvedStyle.left - current) > kSizeEpsilon)
+                    dragLineAnchor.style.left = current;
             };
 
             // TwoPaneSplitView keeps the fixed pane's live width entirely in its own internal fields — it never
@@ -593,6 +609,7 @@ namespace Laubrary.Zui
             // on TextSplash: "Splash Demo (LiberationSans SDF) Border Font" needed 372px in a 192px slot, so
             // two thirds of the name was unreadable). So measure the drawn name and grow to fit it — never
             // past the room the parent actually has, which keeps a wider field from spilling its row.
+            string baseTooltip = tooltip;
             Action fit = () =>
             {
                 var lab = f.Q<Label>(className: "unity-object-field-display__label");
@@ -603,10 +620,62 @@ namespace Laubrary.Zui
                 float own = f.resolvedStyle.width;
                 if (float.IsNaN(need) || float.IsNaN(have) || float.IsNaN(own) || have <= 0f) return;
                 float chrome = own - have;                       // type icon + picker button + paddings
-                float room = f.parent.contentRect.width;
-                if (float.IsNaN(room) || room <= 0f) room = width;
-                float want = Mathf.Clamp(Mathf.Ceil(need) + chrome + 2f, width, room);
+
+                // The room this field may grow into is NOT its parent's width. The row a reference field
+                // sits in content-sizes, so it widens along with the field, and the cap measured against it
+                // is a cap against something this very growth just moved: measured in Shaper's Preview
+                // backdrop at 820x520 with a 78-character sprite name, the field grew to 508px inside a row
+                // that had itself grown to 556px inside a 292px box — 264px of horizontal spill, and 240px
+                // of it outside the window, reachable only by the horizontal scrollbar the layout rules call
+                // a bug signal. The honest bound is the PANE: the nearest ScrollView's viewport (else the
+                // window root) does not grow with its content, so the room is the distance from this field's
+                // own left edge to that viewport's right edge.
+                // Only a container that does NOT grow with its content may be asked how much room there is.
+                // Every box and row between this field and the pane widens as the field widens, so measuring
+                // against one of them is measuring against something this growth just moved — and using it as
+                // a shrink bound ratchets: a narrower field makes a narrower row makes a narrower bound, all
+                // the way to a 33px field with no label at all (measured). The pane's scroll viewport is the
+                // one width in the chain that is fixed, so the room is the distance from this field's left
+                // edge to it, less the right-hand padding/border/margin of everything in between — quantities
+                // that do not depend on how wide this field is, so the calculation cannot feed back.
+                float room = float.MaxValue, chromeRight = 0f;
+                VisualElement stop = null;
+                for (var p = f.hierarchy.parent; p != null; p = p.hierarchy.parent)
+                {
+                    var sv = p as ScrollView;
+                    if (sv != null) { stop = sv.contentViewport; break; }
+                    var rs = p.resolvedStyle;
+                    chromeRight += rs.paddingRight + rs.borderRightWidth + rs.marginRight;
+                    stop = p;
+                }
+                if (stop != null)
+                {
+                    var sc = stop.contentRect;
+                    if (!float.IsNaN(sc.width) && sc.width > 0f)
+                    {
+                        float bound = stop.worldBound.x + sc.x + sc.width - f.worldBound.xMin - chromeRight - 4f;
+                        if (!float.IsNaN(bound) && bound > 0f) room = bound;
+                    }
+                }
+                if (room == float.MaxValue)
+                {
+                    room = f.parent.contentRect.width;
+                    if (float.IsNaN(room) || room <= 0f) room = width;
+                }
+
+                float want = Mathf.Clamp(Mathf.Ceil(need) + chrome + 2f, Mathf.Min(width, room), room);
                 if (Mathf.Abs(want - own) > 0.5f) f.style.width = want;
+
+                // When the pane genuinely has no room for the name, the field stops growing and Unity's own
+                // `text-overflow: ellipsis` cuts the tail — so the one thing this control exists to say, WHICH
+                // asset is bound, becomes unreadable with nothing else on screen carrying it. The full name
+                // joins the field's own sentence on the tooltip for exactly that case, and leaves again when
+                // it fits (a tooltip has to read for the state it is in).
+                string full = lab.text;
+                string wantTip = need > have + 1.5f && !string.IsNullOrEmpty(full)
+                    ? (string.IsNullOrEmpty(baseTooltip) ? full : full + " — " + baseTooltip)
+                    : baseTooltip;
+                if (f.tooltip != wantTip) f.tooltip = wantTip;
             };
             f.RegisterCallback<GeometryChangedEvent>(_ => fit());
             f.RegisterValueChangedCallback(_ => fit());

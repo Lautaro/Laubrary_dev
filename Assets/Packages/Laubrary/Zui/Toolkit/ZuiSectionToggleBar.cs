@@ -154,6 +154,22 @@ namespace Laubrary.Zui
             _bar.style.marginLeft = 8f;
             Add(_bar);
 
+            // A segment whose section does not exist for what is currently being edited must SAY so. A tool
+            // lists every card it can ever draw and hands a null for the ones this subject has none of (a
+            // hosted generator has no Fill card at all, for instance), and until now that segment drew
+            // exactly like a section the user had hidden: enabled, pressable, and silent when pressed.
+            // It is greyed rather than removed because this bar is the window's contextual toolbar and the
+            // layout rules reserve a toolbar's space up front — dropping a segment would reflow the rest of
+            // the row under the cursor every time the subject changed kind.
+            for (int i = 0; i < _sections.Length; i++)
+            {
+                if (_sections[i].section != null) continue;
+                var seg = _bar.SegmentAt(i);
+                seg.SetEnabled(false);
+                seg.tooltip = "There is no " + _sections[i].label + " section for what is open here, so "
+                            + "there is nothing to show or hide.";
+            }
+
             // Right-click a segment to solo it. Clickable (the button's own click tracking) only engages
             // for the LEFT mouse button, so a right-click PointerDownEvent never reaches it — safe to fully
             // own here.
@@ -362,11 +378,21 @@ namespace Laubrary.Zui
         /// restoring it would show the wrong ones with nothing to detect the mismatch.
         void SaveUserSelection()
         {
+            // A section that does not EXIST for what is open right now is not a section the user has hidden,
+            // and writing it as hidden loses a real choice made against a different subject: this key is one
+            // string shared by every asset the window opens, so on a hosted generator (which has no Fill card
+            // at all) pressing ANY segment used to write "Fill=0" as a side effect, and the next primitive
+            // opened came up with its Fill card gone and nothing to say why. Measured live before the fix.
+            // An absent section therefore carries its stored value forward, and defaults to open.
+            var stored = LoadUserSelection();
             var sb = new System.Text.StringBuilder();
             foreach (var (label, section) in _sections)
             {
                 if (sb.Length > 0) sb.Append(';');
-                sb.Append(label).Append('=').Append(section != null && section.IsOpen ? '1' : '0');
+                bool open = section != null
+                    ? section.IsOpen
+                    : stored == null || !stored.TryGetValue(label, out bool was) || was;
+                sb.Append(label).Append('=').Append(open ? '1' : '0');
             }
             EditorPrefs.SetString(_userSelKey, sb.ToString());
         }
