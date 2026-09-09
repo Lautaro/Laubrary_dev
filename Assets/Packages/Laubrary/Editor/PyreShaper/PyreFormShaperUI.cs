@@ -229,6 +229,32 @@ namespace Laubrary.PyreShaper.Editor
                 // OrbForm (PyreOrb.cs:654-668) — content-dependent rather than gated, but the same trap
                 { "OrbForm.despeckle",      "Only drops pixels that are BOTH faint and isolated. Measured over Emberdrift, Wisp, Coronal and Membrane at three seeds: those variants never produce one, so this changes nothing on them; on Voltcore it clears 5-10 px a frame." },
                 { "OrbForm.despeckleBelow", "Only reaches pixels that are also isolated, so it changes nothing on the variants that have none (Emberdrift, Wisp, Coronal, Membrane) — measured." },
+
+                // ── T-0336 — the three forms this table never covered ────────────────────────────────────
+                // T-0280/T-0281 wrote the sentences and the greying for the Jet family, Torch and Orb. A
+                // declared-dial sweep of the three LARGEST forms (round 20 §2) then measured, at frames 2-4
+                // of 8 where all three actually paint, fifteen more dials that move EXACTLY 0 pixels at their
+                // own form's factory defaults and come alive the moment ONE named sibling is raised. Each
+                // condition below is the engine's own `if`, cited, not an inference from the measurement.
+
+                // PlasmaBloomForm (PyrePlasmaBloom.cs:324, 329, 405)
+                { "PlasmaBloomForm.biasDir",  "Nothing until Bias Amount is above 0." },
+                { "PlasmaBloomForm.biasK",    "Nothing until Bias Amount is above 0." },
+                { "PlasmaBloomForm.halfDir",  "Nothing until Gate Amount is above 0." },
+                { "PlasmaBloomForm.halfSoft", "Nothing until Gate Amount is above 0." },
+                { "PlasmaBloomForm.halfK",    "Nothing until Gate Amount is above 0." },
+                { "PlasmaBloomForm.lobeMode", "Nothing until Lobe Amount is above 0 — the lobe gate is multiplied by it, so at 0 the whole term drops out." },
+                { "PlasmaBloomForm.lobePow",  "Nothing until Lobe Amount is above 0." },
+                { "PlasmaBloomForm.lobePh",   "Nothing until Lobe Amount is above 0." },
+
+                // ForkBlastForm (PyreForkBlast.cs:215, 305)
+                { "ForkBlastForm.aim",       "Nothing while Spread angle is at 180: a full circle has no facing, so the arc's centre direction is dropped outright." },
+                { "ForkBlastForm.gobSizePx", "Nothing until Gob count is above 0." },
+                { "ForkBlastForm.gobReach",  "Nothing until Gob count is above 0." },
+                { "ForkBlastForm.gobSwell",  "Nothing until Gob count is above 0." },
+                { "ForkBlastForm.gobLife",   "Nothing until Gob count is above 0." },
+                { "ForkBlastForm.gobAmount", "Nothing until Gob count is above 0." },
+                { "ForkBlastForm.gobTiming", "Nothing until Gob count is above 0." },
             };
 
             static string DialTooltip(FieldInfo f)
@@ -301,6 +327,30 @@ namespace Laubrary.PyreShaper.Editor
                 { "TorchSettings.bulgeW",   o => NonZero(o, "bulge") },
                 { "TorchSettings.curlX",    o => NonZero(o, "curl") },
                 { "TorchSettings.curlY",    o => NonZero(o, "curl") },
+
+                // ── T-0336 ───────────────────────────────────────────────────────────────────────────────
+                // Every one of these is ONE-DIRECTIONAL, which is what makes it safe to disable: the guard is
+                // itself live at the form's own defaults and is never gated by the dial it guards, so a greyed
+                // dial can always be un-greyed from the control right beside it. The MUTUAL pairs this sweep
+                // also found (Drift X / Drift Y ↔ Drift Amount, and Lobe Count ↔ Lobe Amount, both of which
+                // ship at 0 and each of which is dead while the other is) are deliberately absent, exactly as
+                // JetSettings' pulseN/pulseDepth are — greying both sides would lock the pair shut for good.
+                { "PlasmaBloomForm.biasDir",  o => NonZero(o, "biasAmt") },
+                { "PlasmaBloomForm.biasK",    o => NonZero(o, "biasAmt") },
+                { "PlasmaBloomForm.halfDir",  o => NonZero(o, "halfAmt") },
+                { "PlasmaBloomForm.halfSoft", o => NonZero(o, "halfAmt") },
+                { "PlasmaBloomForm.halfK",    o => NonZero(o, "halfAmt") },
+                { "PlasmaBloomForm.lobeMode", o => NonZero(o, "lobeAmp") },
+                { "PlasmaBloomForm.lobePow",  o => NonZero(o, "lobeAmp") },
+                { "PlasmaBloomForm.lobePh",   o => NonZero(o, "lobeAmp") },
+
+                { "ForkBlastForm.aim",       o => Below(o, "spread", 179.9f) },
+                { "ForkBlastForm.gobSizePx", o => NonZero(o, "gobs") },
+                { "ForkBlastForm.gobReach",  o => NonZero(o, "gobs") },
+                { "ForkBlastForm.gobSwell",  o => NonZero(o, "gobs") },
+                { "ForkBlastForm.gobLife",   o => NonZero(o, "gobs") },
+                { "ForkBlastForm.gobAmount", o => NonZero(o, "gobs") },
+                { "ForkBlastForm.gobTiming", o => NonZero(o, "gobs") },
             };
 
             // The field names LiveIf's checks read — editing ANY of these has to rebuild the card (T-0281),
@@ -315,6 +365,9 @@ namespace Laubrary.PyreShaper.Editor
                 "ExplosiveJetSettings.srcR", "ExplosiveJetSettings.ringFlat", "ExplosiveJetSettings.schedule",
                 "TorchSettings.lash", "TorchSettings.pulse", "TorchSettings.pulseGain", "TorchSettings.bulge",
                 "TorchSettings.curl",
+                // T-0336
+                "PlasmaBloomForm.biasAmt", "PlasmaBloomForm.halfAmt", "PlasmaBloomForm.lobeAmp",
+                "ForkBlastForm.gobs", "ForkBlastForm.spread",
             };
 
             static bool IsDialInertGuard(FieldInfo f)
@@ -346,6 +399,23 @@ namespace Laubrary.PyreShaper.Editor
                     case float fl: return fl != 0f;
                     case int i: return i != 0;
                     case bool b: return b;
+                    default: return true;
+                }
+            }
+
+            /// T-0336 — the same read as <see cref="NonZero"/>, for a guard whose "open" state is a value BELOW
+            /// a limit rather than above zero: Fork Blast drops the aim direction outright at a full-circle
+            /// spread (<c>PyreForkBlast.cs:215</c>). Fails OPEN on an unknown name, exactly as NonZero does.
+            static bool Below(object owner, string name, float limit)
+            {
+                var f = FindSibling(owner, name);
+                if (f == null) return true;
+                object v = f.GetValue(owner);
+                switch (v)
+                {
+                    case ZUIValue zv: return zv.staticValue < limit;
+                    case float fl: return fl < limit;
+                    case int i: return i < limit;
                     default: return true;
                 }
             }

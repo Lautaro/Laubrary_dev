@@ -37,7 +37,7 @@ namespace Laubrary.Pyre.Forms.Kiln
         [Tooltip("Half-angle of the emission arc, degrees. 180 = a full circle (a true radial blast).")]
         [ZUILabel("Spread angle")] [ZUIGroup("Emission shape", Tooltip = "How the puffs are thrown outward at birth.")]
         [Range(0f, 180f)] public float spread = 180f;
-        [Tooltip("The arc's centre direction, degrees. Only visible when Spread is below 180 (a full circle has no facing).")]
+        [Tooltip("The arc's centre direction, degrees. Only has an effect when Spread is below 180 (a full circle has no facing). T-0336: it said \"only visible\", which is not what happens — the dial is always drawn, and at Spread 180 the engine drops the value outright (PyreForkBlast.cs:215).")]
         [ZUILabel("Aim direction")] [ZUIGroup("Emission shape")]
         [Range(-180f, 180f)] public float aim = 0f;
         [Tooltip("Angle-distribution power across the arc. 1 = uniform coverage — keep this near 1 on a full circle, or the puffs pile back into a beam.")]
