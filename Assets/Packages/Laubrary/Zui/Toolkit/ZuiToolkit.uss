@@ -847,9 +847,11 @@
    need their own. Same accent colour used everywhere else in this sheet for "this is the active/selected
    thing" (a toggled button, a hovered chip, a selected asset cell) — Tab-focusing one of these now reads
    exactly as unmistakably as tabbing into a native field already does. */
+/* UI Toolkit has no outline-* properties (they break the whole sheet with "Unknown style property"); a
+   border in the accent colour is the focus ring. */
 .zui-kbd-focus:focus {
-    outline-color: var(--zui-accent);
-    outline-width: 2px;
+    border-color: var(--zui-accent);
+    border-width: 2px;
 }
 
 /* The 3D-direction control's draggable lit-sphere gizmo (and its preview twin) — a dark rounded inset the

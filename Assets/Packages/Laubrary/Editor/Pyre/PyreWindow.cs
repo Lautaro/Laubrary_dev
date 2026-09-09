@@ -76,6 +76,7 @@ namespace Laubrary.Pyre.Editor
         // reloads. The ColumnFlow reads this width, so dragging the divider wider adds columns.
         [SerializeField] float leftPaneWidth = 360f;
         ScrollView leftPane;
+        VisualElement verticalSplitter;   // set once, in BuildAsset — read back by ReservedRightWidth (T-0319)
 
         // preview state
         IMGUIContainer preview;
@@ -422,7 +423,8 @@ namespace Laubrary.Pyre.Editor
             BuildCherryPanel(rightPane, s);
 
             split.Add(left);
-            split.Add(BuildVerticalSplitter());   // drag to resize the dial pane (and change its column count)
+            verticalSplitter = BuildVerticalSplitter();
+            split.Add(verticalSplitter);          // drag to resize the dial pane (and change its column count)
             split.Add(rightPane);
             // Re-clamp on every resize, not only on rebuild: shrinking the window does not rebuild this tree,
             // so without this the pane would keep the width it was built at and push the right-hand pane off
@@ -455,17 +457,51 @@ namespace Laubrary.Pyre.Editor
         // columns. Clamped between one column (360) and the four-column cap (or the window width, whichever is less).
         /// The dial pane's width as it may actually be APPLIED, as opposed to the width the user asked for.
         /// The persisted intent (leftPaneWidth) is kept untouched so the pane regrows to it when the window is
-        /// widened again; only what reaches `style.width` is clamped. `position.width - 260f` is the same
-        /// reserve the drag handler below uses, so the two can no longer disagree: before this existed, the
+        /// widened again; only what reaches `style.width` is clamped. `CapFor(position.width)` is the same
+        /// expression the drag handler below uses, so the two can no longer disagree: before this existed, the
         /// drag clamped against the window but the BUILD clamped only against the four-column cap, so a
         /// divider legitimately dragged wide at a large window parked the entire preview/transport/bake pane
         /// off the right edge the next time the window was rebuilt at a smaller size, with no scroller and no
         /// reachable drag anchor. Measured at 900x700 with leftPaneWidth 1458: 11 of 27 buttons — the whole
         /// transport, GIF and Bake — sat entirely outside the window. Same class as Z.Split's T-0296 defect.
+        ///
+        /// T-0319 — the cap above used to subtract only the right pane's own 260px minWidth from the
+        /// window width, but the dial pane does not get the whole rest of the window: the root also
+        /// spends its own horizontal padding, and the divider between the two panes spends its own width.
+        /// Both were missing (14.2px total — measured: 8px root padding + ~6.2px resolved divider width),
+        /// so a divider dragged to (or past) the cap pushed the preview pane, its transport and 23 drawn
+        /// elements off the window at any width below ~1718px. ReservedRightWidth() reads both back from
+        /// the live elements so this cap can't drift from them again, and CapFor() is the one place both
+        /// this method and the drag handler below compute the cap, so they can no longer disagree either.
         float ClampedLeftPaneWidth()
         {
-            float cap = Mathf.Min(4f * 360f + 3f * 6f, Mathf.Max(360f, position.width - 260f));
-            return Mathf.Clamp(leftPaneWidth, 360f, cap);
+            return Mathf.Clamp(leftPaneWidth, 360f, CapFor(position.width));
+        }
+
+        float CapFor(float windowWidth)
+        {
+            return Mathf.Min(4f * 360f + 3f * 6f, Mathf.Max(360f, windowWidth - 260f - ReservedRightWidth()));
+        }
+
+        /// What the cap must ALSO give back beyond the right pane's own 260px minWidth: the root's own
+        /// horizontal padding, and the vertical splitter's own width. Read back from the live elements
+        /// when they exist (so a stylesheet or splitter-width change is picked up for free); otherwise
+        /// fall back to the values those elements are declared with, named at their source so nobody has
+        /// to re-derive them: `.zui-root { padding: 4px }` in
+        /// `Assets/Packages/Laubrary/Zui/Toolkit/ZuiToolkit.uss` (left + right = 8px), and
+        /// `BuildVerticalSplitter()`'s own `s.style.width = 6f` a few lines below.
+        float ReservedRightWidth()
+        {
+            var root = rootVisualElement;
+            float rootPadding = root != null
+                ? root.resolvedStyle.paddingLeft + root.resolvedStyle.paddingRight
+                : 8f; // .zui-root padding: 4px, both sides (ZuiToolkit.uss) — before the root has laid out
+            float dividerWidth = verticalSplitter != null
+                ? verticalSplitter.resolvedStyle.width
+                : 6f; // BuildVerticalSplitter()'s own declared width — before the splitter has laid out
+            if (float.IsNaN(rootPadding) || rootPadding <= 0f) rootPadding = 8f;
+            if (float.IsNaN(dividerWidth) || dividerWidth <= 0f) dividerWidth = 6f;
+            return rootPadding + dividerWidth;
         }
 
         VisualElement BuildVerticalSplitter()
@@ -479,9 +515,9 @@ namespace Laubrary.Pyre.Editor
             {
                 if (!s.HasPointerCapture(e.pointerId)) return;
                 // A real drag IS the user's intent, so it updates the persisted width; ClampedLeftPaneWidth
-                // then decides what that means at the current window size.
-                float cap = Mathf.Min(4f * 360f + 3f * 6f, Mathf.Max(360f, position.width - 260f));
-                leftPaneWidth = Mathf.Clamp(leftPaneWidth + e.deltaPosition.x, 360f, cap);
+                // then decides what that means at the current window size. CapFor() is the same expression
+                // ClampedLeftPaneWidth() uses (T-0319) — there is only one copy of this arithmetic now.
+                leftPaneWidth = Mathf.Clamp(leftPaneWidth + e.deltaPosition.x, 360f, CapFor(position.width));
                 if (leftPane != null) leftPane.style.width = ClampedLeftPaneWidth();
                 e.StopPropagation();
             });
