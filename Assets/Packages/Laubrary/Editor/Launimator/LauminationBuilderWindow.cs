@@ -2185,7 +2185,11 @@ namespace Laubrary.Launimator.Editor
 
             var toolsCol = new VisualElement();
             toolsCol.style.flexGrow = 0f;
-            toolsCol.style.flexShrink = 0f;
+            // T-0318 — 380 is the width this column WANTS, not a floor: at the window's own declared
+            // minimum (900) the scroll column gives it 375.56, and with flex-shrink 0 the extra 4.4px
+            // simply hung outside. Allowed to shrink instead of picking a smaller fixed number, the same
+            // call the ramp field got in T-0312 and the Rename row in T-0313.
+            toolsCol.style.flexShrink = 1f;
             toolsCol.style.width = 380f;
             toolsCol.style.marginRight = 4f;
             // T-0084 — both are structurally separate from the play-area CANVAS (_playIM is a sibling added

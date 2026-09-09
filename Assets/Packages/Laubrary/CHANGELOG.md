@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- ZUI/Pyre/Chunks/Launimator: a whole-number MinMax nudges by one with the arrow keys (Shaper's Lifetime); Chunks' sprite list foldout shows the window's reason rather than the field's own tooltip; Pyre's matte and delete glyphs fit at every width; the Laumination Builder's tools column fits at its minimum (T-0318).
 - ZUI: a reflected list row wraps its dials inside the card (Explosive Jet's blast rows sat 300 px outside it); a section toggle bar breaks onto a second row when the window is narrower than its entries (Chunks' four unreachable sections at 820 px); MicroMinMax, Pad and Value2D take keyboard focus and nudge with the arrow keys (T-0314, T-0315, T-0316).
 - Chunks and Launimator: every greyed control says why it is greyed, not just what it does (21 controls) (T-0317).
 - Shaper: the Bake box's Destination path ellipsises at narrow widths with the folder in its tooltip; Launimator's pause glyph and Rename row fit their boxes (T-0313).

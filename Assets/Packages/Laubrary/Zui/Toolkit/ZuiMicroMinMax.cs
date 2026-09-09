@@ -234,7 +234,12 @@ namespace Laubrary.Zui
                 default: return;
             }
             Grab target = e.shiftKey ? (_lastHandle == Grab.Low ? Grab.High : Grab.Low) : _lastHandle;
+            // T-0318 — the 1% step has to survive SetValues' own rounding, or the key does nothing at all.
+            // A frame-index MinMax (Shaper's Lifetime: range 0..15, decimals 0) rounds a 0.15 step straight
+            // back to where it started, so Left/Right were dead keys on exactly the control whose tooltip
+            // now promises them. Never step less than one of this control's own quantums.
             float step = (_max - _min) * 0.01f;
+            if (_decimals >= 0) step = Mathf.Max(step, Mathf.Pow(10f, -_decimals));
             OpenGesture();
             if (target == Grab.Low) SetValues(_low + dir * step, _high, notify: true);
             else SetValues(_low, _high + dir * step, notify: true);

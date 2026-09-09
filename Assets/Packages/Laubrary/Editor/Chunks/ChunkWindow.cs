@@ -289,11 +289,25 @@ namespace Laubrary.Chunks.Editor
             // Both used to inherit listField's tooltip verbatim, which describes what the list is FOR, never
             // why the header/size controls are currently dead. Kept live via TrackPropertyValue since growing
             // the list (via the ListView's own + footer button) doesn't rebuild this window.
-            void UpdateSpritesTooltip(SerializedProperty p) => listField.tooltip = p.arraySize == 0
-                ? "The list is empty, so there is nothing here to fold or resize by typing — use the + below to add a sprite."
-                : spritesTip;
+            // T-0318 — setting listField.tooltip alone reached the size field and NOT the foldout header:
+            // a PropertyField copies its own tooltip onto the ListView it generates when it binds, and
+            // ChunkSpec.sprites carries a [Tooltip] besides, so the header and its Toggle resolved that
+            // nearer tooltip instead and went on describing what the list is FOR. The inner ListView has to
+            // be told too, and it only exists after Bind, so the walk runs on every update rather than once.
+            void UpdateSpritesTooltip(SerializedProperty p)
+            {
+                string tip = p.arraySize == 0
+                    ? "The list is empty, so there is nothing here to fold or resize by typing — use the + below to add a sprite."
+                    : spritesTip;
+                listField.tooltip = tip;
+                listField.Query<VisualElement>().ForEach(e => { if (e is ListView || e is Foldout) e.tooltip = tip; });
+            }
             UpdateSpritesTooltip(spritesProp);
             listField.TrackPropertyValue(spritesProp, UpdateSpritesTooltip);
+            // A PropertyField builds its inner ListView when it binds, which is after this method returns,
+            // so the one-time call above can only ever reach the PropertyField itself. Re-run once the
+            // generated tree actually exists — the first layout is the earliest point at which it does.
+            listField.RegisterCallback<GeometryChangedEvent>(_ => UpdateSpritesTooltip(spritesProp));
             // A PropertyField's inner ListView is not a BaseField, so the stylesheet's flex-grow:0 guard
             // doesn't reach it and ZuiAudit's stretch check doesn't see it — left alone it spans the whole
             // window and parks its size field against the far edge. Cap it like any other control.

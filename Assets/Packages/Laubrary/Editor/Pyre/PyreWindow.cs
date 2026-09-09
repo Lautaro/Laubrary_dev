@@ -930,7 +930,11 @@ namespace Laubrary.Pyre.Editor
             // the same block as the ●/○ select glyphs that already render. Turning it OFF also resets the layer to
             // inert (Draw + no clip) so a previously-configured matte stops acting; the box appears/disappears via
             // RebuildLayerList (same as a role change).
-            row.Add(Z.Button(layer.matteEnabled ? "▦" : "□",
+            // T-0318 — the glyph is clipped by the button's own padding, not by the row: a 24px button's
+            // default 6+6 padding and 1+1 border leave 9.8px of content for a "□"/"▦" that measures 12.0.
+            // Horizontal padding zeroed rather than the slot widened, the same call the Library star got in
+            // T-0311 and the transport's pause glyph in T-0313.
+            var matteBtn = Z.Button(layer.matteEnabled ? "▦" : "□",
                 "Toggle matte for this layer — write a mask channel, or clip this layer by one.", () =>
             {
                 Dirty(() =>
@@ -942,7 +946,10 @@ namespace Laubrary.Pyre.Editor
                     layer.matteEnabled = !layer.matteEnabled;
                 });
                 RebuildLayerList();
-            }).W(24f));
+            }).W(24f);
+            matteBtn.style.paddingLeft = 0f;
+            matteBtn.style.paddingRight = 0f;
+            row.Add(matteBtn);
 
             // Per-row Duplicate — sits right after the Matte toggle (mirrors Pyre1's per-row "Dup"). Deep-clones
             // THIS row's layer via Clone(), inserts the copy just after it, and selects the copy. Undo-safe (one
@@ -961,13 +968,18 @@ namespace Laubrary.Pyre.Editor
                 RebuildAllForSelection();
             }).W(40f));
 
-            row.Add(Z.Button("✕", "Delete this layer (undoable).", () =>
+            // T-0318 — same clipped-glyph case as the matte toggle above, worse here: a 22px button leaves
+            // 8.0px of content for a "✕" that measures 12.0, so the delete glyph was cut at every width.
+            var delBtn = Z.Button("✕", "Delete this layer (undoable).", () =>
             {
                 if (spec.layers.Count <= 1) { ShowNotification(new GUIContent("A Pyre asset needs at least one layer.")); return; }
                 Dirty(() => spec.layers.RemoveAt(li));
                 layerSel = Mathf.Clamp(layerSel, 0, spec.layers.Count - 1);
                 RebuildAllForSelection();
-            }).W(22f));
+            }).W(22f);
+            delBtn.style.paddingLeft = 0f;
+            delBtn.style.paddingRight = 0f;
+            row.Add(delBtn);
 
             wrap.Add(row);
             // The Matte box folds out ONLY when this layer has matte enabled (mirrors Pyre1, where the box shows
