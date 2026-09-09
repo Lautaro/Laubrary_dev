@@ -332,7 +332,16 @@ namespace Laubrary.AssetKit.Editor
 
         VisualElement BuildCreateRow()
         {
-            TextField nameField = Z.TextInput(createText, "File name for the new asset.", v => createText = v, 200f);
+            // T-0321 — say WHERE. FolderForNew() puts the new asset beside the one currently open and falls back
+            // to DefaultFolder only when nothing is open, so the destination moves with whatever the author last
+            // browsed to — and nothing in this row said so. Measured live: with the shipped ShaperDemo document
+            // open, pressing New wrote the new document into Assets/Demos/ShaperDemo, a package demo folder,
+            // silently. The folder is the operand of this row, not an explanation of it, so it belongs in the
+            // tooltips of the field you type into and the button that acts.
+            string folder = FolderForNew();
+            string where = $"Creates {folder}/<name>.asset — beside the {TypeLabel} that is currently open.";
+            TextField nameField = Z.TextInput(createText, "File name for the new asset. " + where,
+                v => createText = v, 200f);
             void Confirm()
             {
                 var created = AssetLibrary<T>.Create(createText, FolderForNew());
@@ -359,9 +368,9 @@ namespace Laubrary.AssetKit.Editor
             nameField.schedule.Execute(() => nameField.Focus());
 
             return Z.Row(
-                Z.Text("Asset name", ZuiText.Body, "File name for the new asset."),
+                Z.Text("Asset name", ZuiText.Body, "File name for the new asset. " + where),
                 nameField,
-                Z.Button("Create", "Create the asset with this name.", Confirm),
+                Z.Button("Create", "Create the asset with this name. " + where, Confirm),
                 Z.Button("Cancel", "Abandon creating a new asset.", () => { creating = false; Rebuild(); }));
         }
 

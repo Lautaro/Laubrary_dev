@@ -29,9 +29,16 @@ namespace Laubrary.AssetKit.Editor
                     var names = ids.Select(id => lib.Tags.FirstOrDefault(t => t.id == id)?.name).Where(n => n != null);
                     GUILayout.Label(string.Join(", ", names), EditorStyles.miniLabel, GUILayout.MaxWidth(240));
                 }
-                GUILayout.FlexibleSpace();
+                // T-0321 — the button sits BESIDE the names, and the leftover room trails after it. It used to
+                // be pushed to the far right by a FlexibleSpace, which is only sane when the island is about as
+                // wide as the row's content: Pyre parents this section above its split, so the island is the
+                // whole 812pt window and the button landed ~780pt from the "Tags" label it belongs to, out over
+                // the preview. "Variable-width content goes LAST in its row" — so the slack goes last, not the
+                // control.
+                GUILayout.Space(6f);
                 bool open = GUILayout.Button("Tags…", GUILayout.Width(56));
                 Rect r = GUILayoutUtility.GetLastRect();
+                GUILayout.FlexibleSpace();
                 if (open)
                     LauTagPicker.Show(r, ids, newIds => lib.SetTagIds(guid, newIds), asset.name);
             }

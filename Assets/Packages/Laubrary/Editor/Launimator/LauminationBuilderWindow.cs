@@ -969,12 +969,18 @@ namespace Laubrary.Launimator.Editor
             // The "3 · Canvas" header stays OUTSIDE the section (a plain sibling, exactly as before) — the
             // canvas it introduces is itself a sibling added by BuildUI, so this label must never disappear
             // along with step 2's settings when the bar hides them.
-            root.Add(Z.Text(
-                _pickingBgColor ? "3 · Canvas — click a background pixel to set the transparent colour"
-                : _toolMode == ToolMode.Grid ? "3 · Canvas — drag to marquee; drag interior/edges to move/resize"
-                : _toolMode == ToolMode.Box ? "3 · Canvas — drag a box around one sprite (added on release)"
-                : "3 · Canvas — click a sprite to extract it", ZuiText.Section,
-                "The sheet viewport below, and what a click/drag does in the current mode."));
+            // T-0321 — the title is "3 · Canvas"; what a click or drag does in the current mode is the
+            // TOOLTIP's job, not the header's. It used to be glued onto the title with an em dash, so the
+            // section printed a sentence of instructions the author re-read on every visit — the case the
+            // layout rules name outright ("Box/section titles … stay short and literal … no title explains
+            // WHY — that's the tooltip's job"). The sentence still varies with the mode, so the tooltip reads
+            // for the state it is actually in.
+            root.Add(Z.Text("3 · Canvas", ZuiText.Section,
+                "The sheet viewport below. " + (
+                    _pickingBgColor ? "Click a background pixel to set the transparent colour."
+                    : _toolMode == ToolMode.Grid ? "Drag to marquee; drag the interior or an edge to move or resize it."
+                    : _toolMode == ToolMode.Box ? "Drag a box around one sprite — it is added on release."
+                    : "Click a sprite to extract it.")));
         }
 
         /// The two labels/fields that mirror the live marquee — updated in place while dragging so the
@@ -3325,8 +3331,19 @@ namespace Laubrary.Launimator.Editor
                 // but then CLEAR the regions: LoadSheet restores the sheet's saved slicing sidecar, which holds
                 // the LAST-edited animation's working set — leaving it would append the previous animation's
                 // sprites in front of this one's (the reported bug). The recipe below repopulates #4 cleanly.
-                var tex = !string.IsNullOrEmpty(def.sourceTextureGuid)
-                    ? AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath(def.sourceTextureGuid))
+                // T-0321 — fall back to the FRAMES' own texture when the animation's summary guid is empty.
+                // Measured on the shipped ProtoGuy lauminary: 3 of its 5 draft animations (LegsWalk_N/_E/_S)
+                // carry `sourceTextureGuid = ""` while every recipe frame carries a real one, so opening one
+                // for editing left `_sheet` null — the Builder showed `None (Texture 2D)`, a blank canvas and
+                // no palette, under a status line reading "Loaded 'LegsWalk_N' (8 frames) for editing." The
+                // summary field is a convenience, not the record; the recipe is the record. Read-only: the
+                // asset is not rewritten, so nothing authored changes.
+                string texGuid = def.sourceTextureGuid;
+                if (string.IsNullOrEmpty(texGuid))
+                    foreach (var f in def.recipe)
+                        if (!string.IsNullOrEmpty(f.sourceTextureGuid)) { texGuid = f.sourceTextureGuid; break; }
+                var tex = !string.IsNullOrEmpty(texGuid)
+                    ? AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath(texGuid))
                     : null;
                 if (tex != null) LoadSheet(tex);
                 _regions.Clear();

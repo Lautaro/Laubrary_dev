@@ -865,10 +865,30 @@ namespace Laubrary.Zui
             if (_opt.allowOscillation) { modes.Add(ZUIValue.Mode.Oscillation); modeLabels.Add("Oscillation"); }
             int modeSel = modes.IndexOf(_v.mode);
             if (hasMultiplier) menu.Section("Mode");
-            menu.Radio(null, modeLabels.ToArray(), modeSel,
-                "How this value is produced: a Static point, a random Min-Max range, an Envelope over time, " +
-                "held Steps, or an Oscillation — a sine swinging between two envelopes at an animatable rate.",
-                i => SetMode(modes[i]), closeOnSelect: true);
+            // T-0321 — the sentence is composed from the modes ACTUALLY offered. It used to be a fixed string
+            // ending "…or an Oscillation — a sine swinging between two envelopes at an animatable rate", while
+            // Oscillation is opt-in per host (`_opt.allowOscillation`, default false): measured live on a Shaper
+            // dial, the menu showed four buttons and its tooltip described five. A tooltip has to read for the
+            // state it is in — naming a mode the control cannot reach is a hunt for an affordance that is not
+            // there.
+            var modeBlurbs = new System.Collections.Generic.Dictionary<ZUIValue.Mode, string>
+            {
+                { ZUIValue.Mode.Static, "a Static point" },
+                { ZUIValue.Mode.MinMax, "a random Min-Max range" },
+                { ZUIValue.Mode.Curve, "an Envelope over time" },
+                { ZUIValue.Mode.Steps, "held Steps" },
+                { ZUIValue.Mode.Oscillation,
+                    "an Oscillation — a sine swinging between two envelopes at an animatable rate" },
+            };
+            var offered = modes.ConvertAll(m => modeBlurbs[m]);
+            string modeTip = offered.Count == 0
+                ? "How this value is produced."
+                : "How this value is produced: " + (offered.Count == 1
+                    ? offered[0]
+                    : string.Join(", ", offered.GetRange(0, offered.Count - 1))
+                      + ", or " + offered[offered.Count - 1])
+                  + ".";
+            menu.Radio(null, modeLabels.ToArray(), modeSel, modeTip, i => SetMode(modes[i]), closeOnSelect: true);
 
             // Curve-display options → persistent toggle rows (stay open so several can be flipped in one visit).
             if (_v.mode == ZUIValue.Mode.Curve)

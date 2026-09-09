@@ -412,6 +412,13 @@ namespace Laubrary.Zui
         {
             var val = e as ZuiValueControl ?? e.Q<ZuiValueControl>();
             if (val != null) return val.IsCurveShaped;
+            // T-0321 — a titled BOX is wide by nature: it is a card in a stack, not a control on a row. Without
+            // this it took `flexBasis: Auto` and content-sized, which is invisible while it is open (its own
+            // inner flow already fills the row) and obvious the moment it FOLDS: measured on Explosive Jet,
+            // the folded "Fracture 2" card sat at 94.2pt among 323.1pt siblings — a narrow orphan in the
+            // stack. A box in a body that is already a Column (the usual case) was never affected, which is
+            // why only the reflected flow showed it.
+            if (e is ZuiBox) return true;
             // A ramp strip is wide by nature — leave it out of this list and it gets squeezed into the flow beside
             // a slider, which is exactly the clipping the deleted bands control had to be re-fitted for.
             return e is ZuiValue2DControl || e is ZuiGradientControl || e is ZuiRampControl ||

@@ -38,6 +38,11 @@ namespace Laubrary.Zui
         DropdownField _picker;
         TextField _newName;
         Button _renameBtn;
+        // T-0321 — the three buttons that also need a SELECTED view. They used to stay enabled with nothing
+        // picked and silently return (`if (!string.IsNullOrEmpty(_picker.value))`), which is reachable in three
+        // clicks: Delete view the last saved view and the picker goes empty while all three still look live.
+        // Rename already greyed itself with a reason; its siblings now do the same, from the same place.
+        Button _applyBtn, _updateBtn, _deleteBtn, _saveAsBtn;
 
         public ZuiViewBar(Func<ZuiViewStore> getStore, Func<ZuiViewStore> createStore,
             Func<Dictionary<string, bool>> capture, Action<IReadOnlyDictionary<string, bool>> apply,
@@ -114,7 +119,7 @@ namespace Laubrary.Zui
             _picker.RegisterValueChangedCallback(ev =>
             {
                 if (!string.IsNullOrEmpty(ev.newValue)) ApplyPreset(ev.newValue);
-                RefreshRenameState();
+                RefreshButtonStates();
             });
             Add(_picker);
 
@@ -123,19 +128,16 @@ namespace Laubrary.Zui
             // ChangeEvent and does nothing. "Apply" is the same gesture as picking it, made reachable when
             // the value does not change — it never overwrites the saved view, only re-pushes it onto the
             // window.
-            Add(Z.Button("Apply", "Re-apply the selected view to the window as it is currently saved. Use "
-                + "this to put the window back after moving folds/gears around, or the first time you "
-                + "pick a view the dropdown was already showing (a re-select alone applies nothing).",
-                () => { if (!string.IsNullOrEmpty(_picker.value)) ApplyPreset(_picker.value); }));
+            _applyBtn = Z.Button("Apply", "", () => { if (!string.IsNullOrEmpty(_picker.value)) ApplyPreset(_picker.value); });
+            Add(_applyBtn);
 
-            Add(Z.Button("Update", "Overwrite the selected view with the window's current arrangement.",
-                () => { if (!string.IsNullOrEmpty(_picker.value)) SaveInto(_picker.value); }));
+            _updateBtn = Z.Button("Update", "", () => { if (!string.IsNullOrEmpty(_picker.value)) SaveInto(_picker.value); });
+            Add(_updateBtn);
             // T-0276 — "Delete view", not "Delete". Every ZuiAssetWindow puts a "Delete" in its toolbar that
             // deletes the ASSET FILE and cannot be undone, and this bar sits in the same window a few rows
             // below it: one word, two nouns, one of them irreversible. The noun is what tells them apart.
-            Add(Z.Button("Delete view", "Remove the selected view from the shared views asset. The asset "
-                + "itself and everything authored in it are untouched.",
-                () => { if (!string.IsNullOrEmpty(_picker.value)) DeletePreset(_picker.value); }));
+            _deleteBtn = Z.Button("Delete view", "", () => { if (!string.IsNullOrEmpty(_picker.value)) DeletePreset(_picker.value); });
+            Add(_deleteBtn);
 
             // T-0310 — the name field and the two buttons that consume it wrap as ONE unit in a narrow pane,
             // rather than "Delete view | name" on one row and "Rename | Save as" orphaned on the next.
@@ -148,7 +150,7 @@ namespace Laubrary.Zui
             _newName = Z.TextInput("",
                 "Type a name, then Save as to store the current arrangement as a new view, or Rename to "
                 + "give the SELECTED view this name.",
-                _ => RefreshRenameState(), 120f);
+                _ => RefreshButtonStates(), 120f);
             _newName.style.marginLeft = 10f;
             nameRow.Add(_newName);
 
@@ -157,21 +159,24 @@ namespace Laubrary.Zui
             // name field Save-as already uses. Greyed with a reason (ZuiReflect's SetEnabled+tooltip
             // pattern) rather than silently doing nothing, for: nothing picked, nothing typed, the typed
             // name already IS the picked view's name, or the typed name collides with a different view.
-            _renameBtn = Z.Button("Rename", "", () => RenamePreset(_picker.value, _newName.value));
+            // T-0321 — "Rename view", not "Rename". This is T-0276's finding one noun over: every
+            // ZuiAssetWindow puts a "Rename" in its toolbar that renames the ASSET FILE, and this bar sits a
+            // couple of rows below it — measured live in Shaper, both were drawn, ~90pt apart, spelled
+            // identically. "Delete view" already carries the noun for exactly this reason; its sibling now
+            // does too.
+            _renameBtn = Z.Button("Rename view", "", () => RenamePreset(_picker.value, _newName.value));
             nameRow.Add(_renameBtn);
 
-            nameRow.Add(Z.Button("Save as",
-                "Save the window's current arrangement as a new view under the typed name (creates the "
-                + "views asset the first time).",
-                () =>
-                {
-                    if (string.IsNullOrWhiteSpace(_newName.value)) return;
-                    SaveInto(_newName.value);
-                    _newName.SetValueWithoutNotify("");
-                    RefreshRenameState();
-                }));
+            _saveAsBtn = Z.Button("Save as", "", () =>
+            {
+                if (string.IsNullOrWhiteSpace(_newName.value)) return;
+                SaveInto(_newName.value);
+                _newName.SetValueWithoutNotify("");
+                RefreshButtonStates();
+            });
+            nameRow.Add(_saveAsBtn);
 
-            RefreshRenameState();
+            RefreshButtonStates();
         }
 
         // ── preset CRUD (Save-as / Update / Delete are the sanctioned save path) ─────
@@ -296,26 +301,54 @@ namespace Laubrary.Zui
                 !string.IsNullOrEmpty(select) && names.Contains(select) ? select
                 : names.Count > 0 ? names[0]
                 : "");
-            RefreshRenameState();
+            RefreshButtonStates();
         }
 
         // T-0310 — greys the Rename button with a reason (rather than a silent no-op) whenever activating
         // it right now would do nothing or something surprising: nothing picked, nothing typed, the typed
         // text already IS the picked view's name, or it collides with a DIFFERENT saved view.
-        void RefreshRenameState()
+        // T-0321 — and every OTHER button in the bar on the same principle. Apply / Update / Delete view all
+        // read `_picker.value` and all returned in silence when it was empty; Save as returned in silence with
+        // an empty name field. A control that looks live and does nothing is worse than a greyed one, because
+        // the author's next move is to press it again.
+        void RefreshButtonStates()
         {
-            if (_renameBtn == null) return;
-            string picked = _picker.value;
+            string picked = _picker?.value ?? "";
             string typed = _newName?.value?.Trim() ?? "";
-            string reason;
-            if (string.IsNullOrEmpty(picked)) reason = "No view is selected to rename.";
-            else if (string.IsNullOrEmpty(typed)) reason = "Type the new name above first.";
-            else if (typed == picked) reason = "That is already this view's name.";
-            else if (PresetNames().Contains(typed)) reason = $"A view named \"{typed}\" already exists.";
-            else reason = null;
+            bool hasPick = !string.IsNullOrEmpty(picked);
 
-            _renameBtn.SetEnabled(reason == null);
-            _renameBtn.tooltip = reason ?? $"Rename the selected view \"{picked}\" to \"{typed}\".";
+            const string noPick = "No view is saved yet — type a name and press Save as to make one.";
+
+            Set(_applyBtn, hasPick ? null : noPick,
+                "Re-apply the selected view to the window as it is currently saved. Use this to put the "
+                + "window back after moving folds/gears around, or the first time you pick a view the "
+                + "dropdown was already showing (a re-select alone applies nothing).");
+            Set(_updateBtn, hasPick ? null : noPick,
+                "Overwrite the selected view with the window's current arrangement.");
+            Set(_deleteBtn, hasPick ? null : noPick,
+                "Remove the selected view from the shared views asset. The asset itself and everything "
+                + "authored in it are untouched.");
+            Set(_saveAsBtn, string.IsNullOrEmpty(typed) ? "Type a name for the new view above first." : null,
+                "Save the window's current arrangement as a new view under the typed name (creates the "
+                + "views asset the first time).");
+
+            if (_renameBtn != null)
+            {
+                string reason;
+                if (!hasPick) reason = "No view is selected to rename.";
+                else if (string.IsNullOrEmpty(typed)) reason = "Type the new name above first.";
+                else if (typed == picked) reason = "That is already this view's name.";
+                else if (PresetNames().Contains(typed)) reason = $"A view named \"{typed}\" already exists.";
+                else reason = null;
+                Set(_renameBtn, reason, $"Rename the selected view \"{picked}\" to \"{typed}\".");
+            }
+
+            void Set(Button b, string reason, string whenEnabled)
+            {
+                if (b == null) return;
+                b.SetEnabled(reason == null);
+                b.tooltip = reason ?? whenEnabled;
+            }
         }
 
         /// Re-apply this user's last-used view. The host calls it once after building its UI so a window
@@ -328,7 +361,7 @@ namespace Laubrary.Zui
             if (string.IsNullOrEmpty(last) || Find(store, last) == null) return;
             _picker.SetValueWithoutNotify(last);
             ApplyPreset(last);
-            RefreshRenameState();
+            RefreshButtonStates();
         }
     }
 }

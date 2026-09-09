@@ -407,6 +407,17 @@ namespace Laubrary.Pyre.Editor
             preview.style.flexGrow = 0f;
             preview.style.flexShrink = 0f;
             preview.style.minWidth = 200f;
+            // T-0321 — the island CLIPS its own painting. The stage rule deliberately honours the zoom the
+            // author dialled rather than shrinking to fit ("a pane too small … gets a clipped picture, which
+            // is honest" — ZuiPixelStage.FitZoom), so `placement.rect` is routinely bigger than this element:
+            // measured at Zoom 6 on a 64×64 canvas, a 682×682pt picture inside a 445×320pt island. Neither
+            // GUI.DrawTexture (ZuiPixel.Draw) nor EditorGUI.DrawRect (the canvas-edge outline below) clips to
+            // the container on its own, so without this the frame painted straight over the transport, the
+            // Preview backdrop box and the Bake box, and the outline drew two window-wide rules across the
+            // Frame row and the Tags band. Seen in a capture, invisible to every element-geometry probe —
+            // every element was exactly where it belonged. Shaper's stage already clips (its picture is a
+            // UITK child whose worldClip is the stage rect); this gives the IMGUI stage the same guarantee.
+            preview.style.overflow = Overflow.Hidden;
             preview.AddToClassList("zui-stage");
             rightPane.Add(preview);
             rightPane.Add(BuildPreviewResizeBar());
