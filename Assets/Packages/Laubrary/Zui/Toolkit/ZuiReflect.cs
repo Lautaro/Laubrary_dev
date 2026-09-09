@@ -746,16 +746,37 @@ namespace Laubrary.Zui
                 {
                     var elem = list[idx];
                     if (elem == null) { elem = Activator.CreateInstance(elemType); list[idx] = elem; }
+                    // THREE parts, and only the middle one wraps: "#n" │ the dials │ ×. The outer row stays
+                    // NoWrap so the remove button can never be pushed onto a line of its own (the "confusing
+                    // empty space" failure the card-layout rule warns about), and the dials sit in their own
+                    // wrapping strip that takes whatever width is left over, breaking onto further lines when
+                    // the column is too narrow to hold them side by side.
+                    //
+                    // T-0314: before this, all of it was ONE NoWrap row with a flexible gap, on the belief that
+                    // "the dials shrink instead". They cannot — every child of the row resolves flex-shrink:0
+                    // and ZuiMicroSlider's min-width is 60 — so a five-dial ExplosiveJet blast measured 599px
+                    // against a 293.8px card at the pane width Pyre opens at, putting its last three dials and
+                    // its × outside the dial pane's clipping viewport: not drawn, not clickable, so an authored
+                    // blast could not be removed at all. Wrapping the dials cannot overflow at any width — the
+                    // worst case is one dial per line.
                     var row = Z.Row();
-                    // NO wrap: a flexible gap in a wrapping row pushes the × onto a line of its own, which is the
-                    // "confusing empty space" failure the card-layout rule warns about. The dials shrink instead.
                     row.style.flexDirection = FlexDirection.Row;
                     row.style.flexWrap = Wrap.NoWrap;
-                    row.style.alignItems = Align.Center;
+                    // FlexStart, not Center: the index and the × belong on the FIRST line of dials, not floating
+                    // half way down a three-line block.
+                    row.style.alignItems = Align.FlexStart;
                     row.Add(Z.Text($"#{idx + 1}", ZuiText.Small,
                         $"{Singular(nice)} {idx + 1} of {nice}.").W(26f));
-                    BuildFields(row, elem, elemOpt);
-                    row.Add(Z.Flexible());
+                    // A Z.Row so the dials keep the standard 6px gap between them; grow:1 is what still pins the
+                    // × to the right edge now that the flexible spacer is gone.
+                    var dials = Z.Row();
+                    dials.style.flexWrap = Wrap.Wrap;
+                    dials.style.flexGrow = 1f;
+                    dials.style.flexShrink = 1f;
+                    dials.style.minWidth = 0f;
+                    dials.style.marginBottom = 0f;
+                    BuildFields(dials, elem, elemOpt);
+                    row.Add(dials);
                     row.Add(remove);
                     card.Add(row);
                     box.Add(card);
@@ -839,8 +860,13 @@ namespace Laubrary.Zui
         }
 
         /// The element options for a compact row: identical to the host's, but with narrower dials so several fit
-        /// one line. They still shrink further in a narrow pane rather than overflowing (UITK's default flexShrink),
-        /// which is what keeps this from producing the horizontal scrollbar the layout rules call a bug signal.
+        /// one line. They do NOT shrink (a ZuiMicroSlider resolves flex-shrink:0 and carries a 60px min-width);
+        /// what keeps the row inside its card is that the dials WRAP — see the compact branch above.
+        ///
+        /// 105, not 100 (T-0314): a MicroSlider's caption ends 56.9px short of its own width (6px inset plus the
+        /// 46px value reserve), so at 100 the caption had 43.1px for a "Violence" that needs 44.9 and was clipped.
+        /// 105 gives it 48.1. The line arithmetic still holds at the width Pyre opens at: a 360px column leaves the
+        /// dial strip 233.8px, and two dials cost 2 × (105 + 6) = 222.
         static Options CompactOptions(Options o) => new Options
         {
             OnBeforeChange = o.OnBeforeChange,
@@ -850,7 +876,7 @@ namespace Laubrary.Zui
             Skip = o.Skip,
             FloatWrapperProperty = o.FloatWrapperProperty,
             ConfigureValue = o.ConfigureValue,
-            ControlWidth = 100f,
+            ControlWidth = 105f,
         };
 
         static VisualElement BuildElement(IList list, int idx, Type elemType, string tip, Options opt)

@@ -538,6 +538,26 @@
     border-color: #e0a030;
 }
 
+/* A segmented group that has opted in (ZuiSegmented.Wrapping) to breaking onto further rows rather
+   than running off the end of its host — T-0315, filed on a seventeen-section Chunks bar that ran
+   206px off an 820px window and put four sections permanently out of reach. It must be allowed to
+   SHRINK as well as wrap: a wrap container's own preferred width is still the single-line sum, so
+   with flex-shrink:0 the wrap could never engage. */
+.zui-segmented--wrap {
+    flex-wrap: wrap;
+    flex-shrink: 1;
+}
+
+/* In wrap mode every segment carries its own left border, so the first segment of a broken row is not
+   left hanging open where the strip's leading border used to be. The 1px is taken back out of the left
+   padding (8 → 7), so the swap is width-neutral by construction — measured live at 820px: Pyre's nine
+   sections went 475.6 → 473.8 and Shaper's 471.6 → 477.3, i.e. sub-pixel rounding either way rather
+   than real growth, and a bar that can wrap absorbs a pixel by definition. */
+.zui-segmented--wrap > .zui-segmented__seg {
+    border-left-width: 1px;
+    padding-left: 7px;
+}
+
 /* ZuiSectionToggleBar — full-width mode-switch + per-section toggle row (T-0065). */
 .zui-section-togglebar {
     padding: 4px 6px;
@@ -820,6 +840,16 @@
     height: 6px;
     border-radius: 3px;
     background-color: rgb(102, 217, 255);
+}
+
+/* Keyboard focus ring (T-0316) — the three controls that carry no field of their own (ZuiMicroMinMax,
+   ZuiPad, ZuiValue2DControl) draw no native focus visual the way a FloatField does automatically, so they
+   need their own. Same accent colour used everywhere else in this sheet for "this is the active/selected
+   thing" (a toggled button, a hovered chip, a selected asset cell) — Tab-focusing one of these now reads
+   exactly as unmistakably as tabbing into a native field already does. */
+.zui-kbd-focus:focus {
+    outline-color: var(--zui-accent);
+    outline-width: 2px;
 }
 
 /* The 3D-direction control's draggable lit-sphere gizmo (and its preview twin) — a dark rounded inset the

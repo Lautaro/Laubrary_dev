@@ -280,11 +280,20 @@ namespace Laubrary.Chunks.Editor
             // The sprite list stays Unity's own list UI — a bound PropertyField. ZUI has no reorderable-list
             // control, and this is one place where reimplementing one buys nothing.
             var so = new SerializedObject(c);
-            var listField = new PropertyField(so.FindProperty("sprites"), "Sprites")
-            {
-                tooltip = "Chunk sprites picked from at random. Leave empty to use a procedural tinted pixel-square instead.",
-            };
+            var spritesProp = so.FindProperty("sprites");
+            const string spritesTip = "Chunk sprites picked from at random. Leave empty to use a procedural tinted pixel-square instead.";
+            var listField = new PropertyField(spritesProp, "Sprites") { tooltip = spritesTip };
             listField.Bind(so);
+            // T-0317 — Unity's own ListView disables its foldout header (and, cascading, the size field
+            // inside it) when the bound list has zero elements — there's nothing to fold or type a size for.
+            // Both used to inherit listField's tooltip verbatim, which describes what the list is FOR, never
+            // why the header/size controls are currently dead. Kept live via TrackPropertyValue since growing
+            // the list (via the ListView's own + footer button) doesn't rebuild this window.
+            void UpdateSpritesTooltip(SerializedProperty p) => listField.tooltip = p.arraySize == 0
+                ? "The list is empty, so there is nothing here to fold or resize by typing — use the + below to add a sprite."
+                : spritesTip;
+            UpdateSpritesTooltip(spritesProp);
+            listField.TrackPropertyValue(spritesProp, UpdateSpritesTooltip);
             // A PropertyField's inner ListView is not a BaseField, so the stylesheet's flex-grow:0 guard
             // doesn't reach it and ZuiAudit's stretch check doesn't see it — left alone it spans the whole
             // window and parks its size field against the far edge. Cap it like any other control.

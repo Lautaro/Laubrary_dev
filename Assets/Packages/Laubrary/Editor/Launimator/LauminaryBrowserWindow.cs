@@ -236,12 +236,19 @@ namespace Laubrary.Launimator.Editor
                 list.Add(b);
             }
 
+            // T-0317 — these four controls are greyed by the same condition (nothing selected in the list
+            // above), but each said only what pressing it would DO, never why it currently can't be pressed.
+            // Same posture Shaper's Inert() takes: while disabled, the tooltip is overwritten with the reason
+            // ("X, so Y"); the original action description comes back the moment a lauminary is selected.
+            bool hasSelection = _selected != null;
+
             var dup = Z.Button("Duplicate", "Create a copy of the selected lauminary (draft only).", () =>
             {
                 var d = LauminaryRepo.Duplicate(_selected, _selected.lauminaryName + " Copy");
                 Refresh(); _selected = d; _versionSel = 0; _animSel = -1; Rebuild();
             });
-            dup.SetEnabled(_selected != null);
+            dup.SetEnabled(hasSelection);
+            if (!hasSelection) dup.tooltip = "No lauminary is selected, so there is nothing to duplicate.";
             root.Add(dup);
 
             var renameField = Z.TextInput(_renameBuffer, "New name for the selected lauminary.", v => _renameBuffer = v, 170f);
@@ -255,8 +262,14 @@ namespace Laubrary.Launimator.Editor
             // pixels instead of the button hanging over the edge — the same "let the field shrink" default
             // T-0312 applied to a ramp field, rather than a new hand-picked width.
             renameField.style.flexShrink = 1f;
+            if (!hasSelection)
+            {
+                const string noSel = "No lauminary is selected, so there is nothing to rename.";
+                renameField.tooltip = noSel;
+                renameButton.tooltip = noSel;
+            }
             var renameRow = Z.Row(renameField, renameButton);
-            renameRow.SetEnabled(_selected != null);
+            renameRow.SetEnabled(hasSelection);
             root.Add(renameRow);
 
             var del = Z.Button("Delete…", "Delete the selected lauminary and every one of its versions (asks first).", () =>
@@ -270,7 +283,8 @@ namespace Laubrary.Launimator.Editor
                     _selected = null; _animSel = -1; _previewing = null; Refresh(); Rebuild();
                 }
             });
-            del.SetEnabled(_selected != null);
+            del.SetEnabled(hasSelection);
+            if (!hasSelection) del.tooltip = "No lauminary is selected, so there is nothing to delete.";
             root.Add(del);
         }
 

@@ -36,9 +36,13 @@ namespace Laubrary.Zui
             _value = Clamp(initial);
 
             AddToClassList("zui-pad");
+            AddToClassList("zui-kbd-focus");
             style.width = size;
             style.height = size;
-            this.tooltip = tooltip;
+            this.tooltip = tooltip + "  ·  Drag to set. Tab to focus, arrows to nudge, Shift = coarse.";
+            // T-0316 — a pad had no field of any kind, so it could never take keyboard focus at all.
+            focusable = true;
+            tabIndex = 0;
 
             _dot = new VisualElement();
             _dot.AddToClassList("zui-pad__dot");
@@ -49,6 +53,7 @@ namespace Laubrary.Zui
             {
                 if (e.button != 0) return;
                 this.CapturePointer(e.pointerId);
+                this.Focus();
                 SetFromLocal(e.localPosition);
                 e.StopPropagation();
             });
@@ -63,6 +68,36 @@ namespace Laubrary.Zui
                 if (this.HasPointerCapture(e.pointerId)) this.ReleasePointer(e.pointerId);
             });
             RegisterCallback<GeometryChangedEvent>(_ => PlaceDot());
+            RegisterCallback<KeyDownEvent>(OnKeyDown);
+        }
+
+        // Arrow keys nudge the point the same way a drag does — a fraction of the pad's own range per
+        // press, Shift = a coarser nudge (matches ZuiValue2DControl's pad). Goes through the SAME
+        // `OnChanged` event a pointer drag fires (SetFromLocal, below) — there is no separate
+        // "before mutate" hook on this control (its only mutation notification IS OnChanged), so a caller's
+        // Undo wrapper sees a key-nudge exactly like a drag step.
+        const float StepFrac = 0.02f, CoarseStepFrac = 0.1f;
+
+        void OnKeyDown(KeyDownEvent e)
+        {
+            float dx = 0f, dy = 0f;
+            switch (e.keyCode)
+            {
+                case KeyCode.LeftArrow: dx = -1f; break;
+                case KeyCode.RightArrow: dx = 1f; break;
+                case KeyCode.UpArrow: dy = _flipY ? 1f : -1f; break;
+                case KeyCode.DownArrow: dy = _flipY ? -1f : 1f; break;
+                default: return;
+            }
+            float frac = e.shiftKey ? CoarseStepFrac : StepFrac;
+            Vector2 next = Clamp(_value + new Vector2(dx * _range.width * frac, dy * _range.height * frac));
+            if (next != _value)
+            {
+                _value = next;
+                PlaceDot();
+                OnChanged?.Invoke(_value);
+            }
+            e.StopPropagation();
         }
 
         void SetFromLocal(Vector3 local)

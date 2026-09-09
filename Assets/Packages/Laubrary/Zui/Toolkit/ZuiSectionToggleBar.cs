@@ -103,8 +103,15 @@ namespace Laubrary.Zui
             AddToClassList("zui-section-togglebar");
             style.width = new StyleLength(Length.Percent(100));
             style.flexDirection = FlexDirection.Row;
-            style.flexWrap = Wrap.Wrap;
-            style.alignItems = Align.Center;
+            // NoWrap here, and the per-section bar wraps INSIDE ITSELF instead (T-0315). This container used
+            // to wrap, which sounds like the same thing and is not: the bar is one child, so the only break
+            // this container could ever make is "mode switch on line 1, the whole bar on line 2" — it could
+            // never break the bar's own buttons, which is where the width actually goes. Keeping the two side
+            // by side also costs a row less at a narrow window.
+            style.flexWrap = Wrap.NoWrap;
+            // FlexStart, not Center: once the bar is two rows tall the mode switch belongs beside its FIRST
+            // row, not floating half way down it.
+            style.alignItems = Align.FlexStart;
 
             var labels = new string[sections.Length];
             for (int i = 0; i < sections.Length; i++) labels[i] = sections[i].label;
@@ -141,6 +148,9 @@ namespace Laubrary.Zui
                     Quick = QuickView.UserSelection;
                     RefreshQuickCue();
                 });
+            // The roster is as long as the tool's section list, so it is the one segmented group in ZUI that
+            // has to be able to break onto a second row — see ZuiSegmented.Wrapping (T-0315).
+            _bar.Wrapping();
             _bar.style.marginLeft = 8f;
             Add(_bar);
 

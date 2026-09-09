@@ -31,6 +31,10 @@ namespace Laubrary.Zui
         Grab _grab;
         float _lastMoveX;
         float _panLow, _panHigh; // low/high at gesture start, for a Both (pan) drag's relative math
+        // T-0316 — the handle a keyboard arrow nudges when nothing has been dragged yet in this session;
+        // updated to whichever handle a pointer press actually grabbed (never Both — a pan doesn't pick
+        // one), so "last-touched" tracks the pointer path exactly. Arbitrary until first touch.
+        Grab _lastHandle = Grab.Low;
 
         // Same fine-drag factor as ZuiMicroSlider/ZuiScrub — Shift always means "gentle" across ZUI.
         const float FineFactor = 0.15f;
@@ -52,10 +56,17 @@ namespace Laubrary.Zui
             _onBeforeMutate = onBeforeMutate; _showValue = showValue; _decimals = decimals;
 
             this.tooltip = tooltip + "  ·  Drag an edge to move one handle, the middle to pan both; Shift = fine"
-                + ((_lowDefault.HasValue || _highDefault.HasValue) ? "; double-click resets to default." : ".");
+                + ((_lowDefault.HasValue || _highDefault.HasValue) ? "; double-click resets to default." : ".")
+                + "  ·  Tab to focus, Left/Right to nudge the last-touched handle, Shift = the other handle.";
 
             AddToClassList("zui-microslider");
             AddToClassList("zui-microminmax");
+            AddToClassList("zui-kbd-focus");
+            // T-0316 — this control carries no field of any kind (unlike its scalar sibling
+            // ZuiMicroSlider, which is reachable via its embedded FloatField), so it could never take
+            // keyboard focus at all.
+            focusable = true;
+            tabIndex = 0;
 
             _caption = new Label(label) { pickingMode = PickingMode.Ignore, tooltip = tooltip };
             _caption.AddToClassList("zui-microslider__caption");
@@ -70,6 +81,7 @@ namespace Laubrary.Zui
             RegisterCallback<PointerDownEvent>(OnDown);
             RegisterCallback<PointerMoveEvent>(OnMove);
             RegisterCallback<PointerUpEvent>(OnUp);
+            RegisterCallback<KeyDownEvent>(OnKeyDown);
         }
 
         float Round(float v) => _decimals >= 0 ? (float)Math.Round(v, _decimals) : (float)Math.Round(v, 5);
@@ -132,6 +144,9 @@ namespace Laubrary.Zui
                   : x > xLo && x < xHi ? Grab.Both
                   // Outside the band: jump the nearer handle straight to the press point.
                   : Mathf.Abs(x - xLo) <= Mathf.Abs(x - xHi) ? Grab.Low : Grab.High;
+            // T-0316 — remember which handle a real drag grabbed (never Both — a pan isn't "one handle")
+            // so a keyboard arrow that follows picks up from where the pointer left off.
+            if (_grab != Grab.Both) _lastHandle = _grab;
 
             _dragging = true;
             _lastMoveX = x;
@@ -200,6 +215,31 @@ namespace Laubrary.Zui
             _dragging = false;
             _gestureOpen = false;
             this.ReleasePointer(e.pointerId);
+            e.StopPropagation();
+        }
+
+        // T-0316 — Left/Right nudges the last-touched handle (see _lastHandle) by a 1% step; Shift
+        // targets the OTHER handle instead (the MinMax equivalent of the pointer path's per-edge grab —
+        // there is no "coarse" here because there's already a second, explicit target to reach for).
+        // Goes through the exact same _onBeforeMutate/SetValues(notify:true) pair the pointer drag uses,
+        // one full mutation per key press (matching a native field's own arrow-key step), so a caller's
+        // Undo wrapper sees a key-nudge exactly like a drag.
+        void OnKeyDown(KeyDownEvent e)
+        {
+            float dir;
+            switch (e.keyCode)
+            {
+                case KeyCode.LeftArrow: dir = -1f; break;
+                case KeyCode.RightArrow: dir = 1f; break;
+                default: return;
+            }
+            Grab target = e.shiftKey ? (_lastHandle == Grab.Low ? Grab.High : Grab.Low) : _lastHandle;
+            float step = (_max - _min) * 0.01f;
+            OpenGesture();
+            if (target == Grab.Low) SetValues(_low + dir * step, _high, notify: true);
+            else SetValues(_low, _high + dir * step, notify: true);
+            _gestureOpen = false;
+            _lastHandle = target;
             e.StopPropagation();
         }
 

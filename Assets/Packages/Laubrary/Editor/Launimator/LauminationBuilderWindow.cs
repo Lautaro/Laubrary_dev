@@ -709,6 +709,17 @@ namespace Laubrary.Launimator.Editor
             bool hasSidecar = _sheet != null && RegionSlicerPersistence.Exists(_sheetPath);
             restoreButton.SetEnabled(hasSidecar);
             clearButton.SetEnabled(hasSidecar);
+            // T-0317 — Restore/Clear used to say only what pressing them does; while greyed they now say WHY:
+            // this sheet has never had a Save, so there is no sidecar for either to act on. The moment Save
+            // writes one, hasSidecar flips true and the original action tooltip comes back on the next Rebuild.
+            if (!hasSidecar)
+            {
+                string noSidecar = _sheet == null
+                    ? "No sheet is loaded, so there is no saved slicing to restore or clear."
+                    : "This sheet has no saved slicing sidecar yet — nothing has been Saved for it.";
+                restoreButton.tooltip = noSidecar;
+                clearButton.tooltip = noSidecar;
+            }
 
             root.Add(WrapRow(
                 Z.Text("1 · Sheet", ZuiText.Section, "The source image every sprite in this animation is cut from."),
@@ -731,8 +742,16 @@ namespace Laubrary.Launimator.Editor
             urlField.AddToClassList("zui-audit-allow-stretch");   // a URL is arbitrarily long — the rulebook's exception
             var downloadButton = Z.Button("Download", "Save the image to Assets/SpriteSheets and load it as the sheet.",
                 () => { DownloadSheetFromUrl(); Refresh(); }).W(80f);
-            downloadButton.SetEnabled(!string.IsNullOrWhiteSpace(_sheetUrl));
-            urlField.RegisterValueChangedCallback(e => downloadButton.SetEnabled(!string.IsNullOrWhiteSpace(e.newValue)));
+            const string noUrl = "Type a URL above first — there is nothing to download yet.";
+            void SetDownloadEnabled(string url)
+            {
+                bool has = !string.IsNullOrWhiteSpace(url);
+                downloadButton.SetEnabled(has);
+                downloadButton.tooltip = has
+                    ? "Save the image to Assets/SpriteSheets and load it as the sheet." : noUrl;
+            }
+            SetDownloadEnabled(_sheetUrl); // T-0317 — greyed-with-no-reason at construction too, not just on edit
+            urlField.RegisterValueChangedCallback(e => SetDownloadEnabled(e.newValue));
             root.Add(Z.Row(
                 Z.Text("URL", ZuiText.Body, "Download an image straight into Assets/SpriteSheets and load it.").W(40f),
                 urlField,
@@ -867,6 +886,14 @@ namespace Laubrary.Launimator.Editor
                 v => { _bgTolerance = Mathf.Clamp(v, 0, 255); KeyChanged(); }, 52f);
             keyColor.SetEnabled(_bgKeyEnabled);
             keyTol.SetEnabled(_bgKeyEnabled);
+            // T-0317 — both said only what they ARE, not why they're greyed: "BG color" below is off, so no
+            // background colour is being keyed at all.
+            if (!_bgKeyEnabled)
+            {
+                const string bgOff = "\"BG color\" below is off, so no background colour is being keyed.";
+                keyColor.tooltip = bgOff;
+                keyTol.tooltip = bgOff;
+            }
 
             var contentRow = WrapRow();
             if (_toolMode == ToolMode.Grid)
@@ -907,14 +934,25 @@ namespace Laubrary.Launimator.Editor
                 // buttons act on exactly the rect the fields describe, so splitting them read as unrelated.
                 // Both halves share the same _hasBox gate, which is the giveaway that they are one control
                 // group. Four 52px fields plus two buttons fit a normal pane comfortably.
+                var clearBoxButton = Z.Button("Clear Box", "Drop the current marquee.",
+                    () => { _hasBox = false; _box = default; Refresh(); }).W(74f);
+                // T-0317 — these six controls (the four rect fields, Clear Box, Add Region) all share the one
+                // gate, _hasBox, and all six used to say only what they DO, never why they're greyed together:
+                // nothing has been marquee-dragged on the canvas yet.
+                if (!_hasBox)
+                {
+                    const string noBox = "No marquee is drawn on the canvas yet — drag one out first.";
+                    _boxLField.tooltip = noBox; _boxTField.tooltip = noBox;
+                    _boxWField.tooltip = noBox; _boxHField.tooltip = noBox;
+                    clearBoxButton.tooltip = noBox; _addRegionButton.tooltip = noBox;
+                }
                 var boxRow = WrapRow(
                     Z.Text("Box", ZuiText.Small, "The current marquee's exact rect — type to place it precisely."),
                     Z.Field("L", "Marquee left edge, in source pixels.", _boxLField),
                     Z.Field("T", "Marquee top edge, in source pixels (from the sheet's top).", _boxTField),
                     Z.Field("W", "Marquee width, in source pixels.", _boxWField),
                     Z.Field("H", "Marquee height, in source pixels.", _boxHField),
-                    Z.Button("Clear Box", "Drop the current marquee.",
-                        () => { _hasBox = false; _box = default; Refresh(); }).W(74f),
+                    clearBoxButton,
                     _addRegionButton);
                 boxRow.SetEnabled(_hasBox);
                 s.Add(boxRow);
@@ -1197,11 +1235,15 @@ namespace Laubrary.Launimator.Editor
             var aseButton = Z.Button("Edit in Aseprite",
                 "Export the selected sprite(s) to an owned .aseprite and open Aseprite to edit them.",
                 () => { OpenSelectionInAseprite(); Refresh(); }).W(112f);
-            aseButton.SetEnabled(HasSelectedCell());
+            bool hasCellSel = HasSelectedCell();
+            aseButton.SetEnabled(hasCellSel);
+            if (!hasCellSel) aseButton.tooltip = "No sprite is selected in the palette below, so there's nothing to send to Aseprite.";
             var syncButton = Z.Button("Sync edits",
                 "Pull the edited .aseprite back into the palette (writes into an owned copy of the sheet).",
                 () => { SyncFromAseprite(); Refresh(); }).W(78f);
-            syncButton.SetEnabled(!string.IsNullOrEmpty(_editAsePath));
+            bool hasAseFile = !string.IsNullOrEmpty(_editAsePath);
+            syncButton.SetEnabled(hasAseFile);
+            if (!hasAseFile) syncButton.tooltip = "Nothing has been sent to Aseprite yet with 'Edit in Aseprite', so there's nothing to sync back.";
             var clearButton = Z.Button("Clear all", "Empty the sprite palette and the sequence (undoable).",
                 () => { ClearAllCells(); Refresh(); }).W(72f);
             clearButton.SetEnabled(total > 0);
@@ -2238,6 +2280,12 @@ namespace Laubrary.Launimator.Editor
             var reverse = Z.Button("Reverse", "Reverse the order of the selected frames.",
                 () => { ReverseSelectedFrames(); Refresh(); }).W(74f);
             reverse.SetEnabled(selCount >= 2);
+            // T-0317 — reversing a single frame (or none) is a no-op, and the button used to say only what
+            // reversing DOES; it now says why it's greyed for the two cases that land here.
+            if (selCount < 2)
+                reverse.tooltip = selCount == 0
+                    ? "No frames are selected in the sequence below, so there's nothing to reverse."
+                    : "Only one frame is selected — reversing needs at least two.";
             var dupFrames = Z.Button(selCount > 1 ? $"Duplicate ({selCount})" : "Duplicate",
                 "Copy the selected frames in as a block just after the selection.",
                 () => { DuplicateSelectedFrames(); Refresh(); }).W(96f);

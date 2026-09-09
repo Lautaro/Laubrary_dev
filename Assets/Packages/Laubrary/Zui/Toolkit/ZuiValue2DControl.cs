@@ -253,6 +253,12 @@ namespace Laubrary.Zui
         public Action OnBeforeMutate;
         public Action OnChanged;
 
+        // T-0316 — which curve point a keyboard arrow nudges. Static mode has only one point (the source's
+        // own Static value) so this is unused there; curve mode has no persistent "selection" concept
+        // otherwise, so this tracks whichever point the pointer last grabbed (Plot2D.OnPointerDown sets
+        // it), defaulting to the first point until something has been touched.
+        int _focusIndex;
+
         /// Animatable XY pair.
         public ZuiValue2DControl(string label, ZUIValue x, ZUIValue y, Options options, string tooltip)
             : this(label, new ZuiValuePairSource(x, y), x, options, tooltip) { }
@@ -266,7 +272,17 @@ namespace Laubrary.Zui
             _opt = options ?? new Options();
             _label = label;
             _tooltip = tooltip;
-            this.tooltip = tooltip;
+            this.tooltip = tooltip
+                + "  ·  Tab to focus, arrows to nudge the point, Shift = coarse.";
+            AddToClassList("zui-kbd-focus");
+            // T-0316 — neither the collapsed thumbnail nor the expanded plot carried a field of any kind
+            // (the numeric X/Y block is optional and absent in curve mode), so the control could never
+            // take keyboard focus at all. Focus lives on THIS outer element rather than the inner Plot2D
+            // because Build() below tears the Plot2D down and rebuilds it on every fold/mode change —
+            // an inner focus target would drop focus on the very first edit.
+            focusable = true;
+            tabIndex = 0;
+            RegisterCallback<KeyDownEvent>(OnKeyDown);
 
             var fold = GetFold(_key);
             if (!fold.seeded) { fold.seeded = true; fold.expanded = _opt.startExpanded; }
@@ -287,6 +303,13 @@ namespace Laubrary.Zui
                 ShowMenu(this);
                 e.StopPropagation();
             });
+            // T-0316 — any click anywhere in this control (the plot, its numeric X/Y fields, the fold
+            // label) focuses THIS outer element first, TrickleDown so it runs ahead of the click's own
+            // target-specific handling; a native field's own click then re-focuses itself as UI Toolkit
+            // normally does, so this only matters for the plot/thumbnail, which have nothing of their own
+            // to grab focus. Without it, a mouse-only user could resize/drag the pad all day and Tab would
+            // still never have landed here.
+            RegisterCallback<PointerDownEvent>(_ => Focus(), TrickleDown.TrickleDown);
 
             Build();
         }
@@ -294,6 +317,45 @@ namespace Laubrary.Zui
         string PrefsKey => "ZuiValue2D." + (string.IsNullOrEmpty(_opt.prefKey) ? (_label ?? "") : _opt.prefKey);
 
         void Mutate(Action apply) { OnBeforeMutate?.Invoke(); apply(); OnChanged?.Invoke(); }
+
+        // T-0316 — arrow keys nudge the point exactly like a drag would, just without a pointer: a
+        // fraction of the plot's own axis range per press, Shift = a coarser nudge. Routes through the
+        // SAME Mutate() (OnBeforeMutate/OnChanged pair) every pointer-driven edit in this file uses, so a
+        // caller's Undo wrapper sees a key-nudge exactly like a drag step. Static mode moves the source's
+        // one Static value; curve mode moves whichever point _focusIndex names (see its own comment).
+        void OnKeyDown(KeyDownEvent e)
+        {
+            float dx = 0f, dy = 0f;
+            switch (e.keyCode)
+            {
+                case KeyCode.LeftArrow: dx = -1f; break;
+                case KeyCode.RightArrow: dx = 1f; break;
+                case KeyCode.UpArrow: dy = 1f; break;
+                case KeyCode.DownArrow: dy = -1f; break;
+                default: return;
+            }
+            float frac = e.shiftKey ? 0.1f : 0.02f;
+            Vector2 delta = new Vector2(dx * (_opt.xMax - _opt.xMin) * frac, dy * (_opt.yMax - _opt.yMin) * frac);
+
+            if (_src.IsCurve && _src.PointCount > 0)
+            {
+                int idx = Mathf.Clamp(_focusIndex, 0, _src.PointCount - 1);
+                Vector2 next = ClampToRange(_src.GetPoint(idx) + delta);
+                Mutate(() => _src.SetPoint(idx, next));
+                _focusIndex = idx;
+            }
+            else
+            {
+                Vector2 next = ClampToRange(_src.Static + delta);
+                Mutate(() => _src.Static = next);
+            }
+            Build();   // same refresh path ResetToDefault/the mode menu already use after a data change
+            e.StopPropagation();
+        }
+
+        Vector2 ClampToRange(Vector2 v) => new Vector2(
+            Mathf.Clamp(v.x, _opt.xMin, _opt.xMax),
+            Mathf.Clamp(v.y, _opt.yMin, _opt.yMax));
 
         void Build()
         {
@@ -722,6 +784,7 @@ namespace Laubrary.Zui
                 {
                     c.OnBeforeMutate?.Invoke();
                     _dragIndex = point;
+                    c._focusIndex = point;   // T-0316 — a keyboard nudge afterward picks up this point
                     this.CapturePointer(e.pointerId);
                     e.StopPropagation();
                     return;
@@ -732,6 +795,7 @@ namespace Laubrary.Zui
                     Vector2 val = FromPlot(local);
                     c.Mutate(() => c._src.AddPoint(val));
                     _dragIndex = c._src.PointCount - 1;
+                    c._focusIndex = _dragIndex;   // T-0316 — same, for the point just created
                     this.CapturePointer(e.pointerId);
                     MarkDirtyRepaint();
                     OnPlotEdited?.Invoke();

@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- ZUI: a reflected list row wraps its dials inside the card (Explosive Jet's blast rows sat 300 px outside it); a section toggle bar breaks onto a second row when the window is narrower than its entries (Chunks' four unreachable sections at 820 px); MicroMinMax, Pad and Value2D take keyboard focus and nudge with the arrow keys (T-0314, T-0315, T-0316).
+- Chunks and Launimator: every greyed control says why it is greyed, not just what it does (21 controls) (T-0317).
 - Shaper: the Bake box's Destination path ellipsises at narrow widths with the folder in its tooltip; Launimator's pause glyph and Rename row fit their boxes (T-0313).
 - ZUI: a gradient or ramp field may shrink to its row; a `[Range]` Vector2 reflects as one MicroMinMax (nine Torch dials overhung their box); the gradient Library star draws whole; the asset toolbar shows the whole asset name at the minimum window width; BackSplash's colour row folds instead of clipping in a narrow pane. Audited with hierarchy-walking probes: 0 missing tooltips, 0 overflows, 0 clipped captions, 0 greyed controls without a reason in Shaper and Pyre (T-0309, T-0311, T-0312).
 - Shaper: 'Depth between layers', the Layers header and 'Document seed' tooltips say what the engine does (measured); twelve tooltips no longer print internal rule codes or file lines; Swarm's 'Appearance order' caption fits; every asset window's unsaved dot draws whole (T-0307).
