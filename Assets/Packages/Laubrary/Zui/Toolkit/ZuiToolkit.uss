@@ -48,6 +48,17 @@
     margin-right: 4px;
 }
 
+/* An ObjectField's asset name is arbitrarily long and Z.Object already grows the field to every pixel
+   its row has; when the name is still longer than the pane (a generated name like
+   "Splash Demo (LiberationSans SDF) Border Font" wants 372px in a 372px pane, chrome included) UITK's
+   default `text-overflow: clip` hard-cuts it mid-word, so nothing on screen says the name continues.
+   Elide it instead — the same promise `.zui-chip__label` already makes for the same content. */
+.zui-root .unity-object-field-display__label {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
 /* flex-grow:0 only governs the MAIN axis. A control sitting in a column still stretches across the
    CROSS axis (its width) unless told otherwise — which for a Toggle means a 700px-wide click target
    for a 12px checkbox, and an over-width audit finding. Size it to its own content instead. Inside a
@@ -943,6 +954,24 @@
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+}
+
+/* A library whose asset type has NO picture at all: the cell is the name itself, in a chip, rather than a
+   name under an empty square — "a LauAsset that is not a visual asset must not reserve space for a
+   thumbnail". The selected state moves onto the chip, since there is no thumb box left to tint. */
+.zui-cell--nothumb {
+    background-color: var(--zui-bg-inset);
+    padding-left: 6px;
+    padding-right: 6px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+    border-radius: 3px;
+}
+
+.zui-cell--selected.zui-cell--nothumb {
+    background-color: var(--zui-accent-soft);
+    border-width: 1px;
+    border-color: var(--zui-accent);
 }
 
 /* Stage / canvas --------------------------------------------------------- */

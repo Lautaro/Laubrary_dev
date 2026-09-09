@@ -508,7 +508,7 @@ namespace Laubrary.Zui
                 // The MicroSlider carries its OWN caption, so it is NOT wrapped in a Z.Field (that prints twice).
                 return range != null
                     ? (VisualElement)Z.MicroSlider(nice, (float)v, range.min, range.max, tip,
-                        nv => Set(nv), opt.ControlWidth, showValue: true)
+                        nv => Set(nv), opt.ControlWidth, showValue: true).FitCaption(opt.ControlWidth)
                     : Z.Field(nice, tip, Z.Float((float)v, tip, nv => Set(nv), 80f));
 
             if (t == typeof(int))
@@ -518,6 +518,7 @@ namespace Laubrary.Zui
                 return range != null
                     ? (VisualElement)Z.MicroSlider(nice, (int)v, range.min, range.max, tip,
                         nv => Set(Mathf.RoundToInt(nv)), opt.ControlWidth, showValue: true, decimals: 0)
+                        .FitCaption(opt.ControlWidth)
                     : Z.Field(nice, tip, Z.Int((int)v, tip, nv => Set(nv), 80f));
 
             if (t == typeof(bool))
@@ -664,7 +665,7 @@ namespace Laubrary.Zui
                 // unbounded → a scrub Float wrapped for its external label.
                 return range != null
                     ? (VisualElement)Z.MicroSlider(nice, cur, range.min, range.max, tip,
-                        SetWrapped, opt.ControlWidth, showValue: true)
+                        SetWrapped, opt.ControlWidth, showValue: true).FitCaption(opt.ControlWidth)
                     : Z.Field(nice, tip, Z.Float(cur, tip, SetWrapped, 80f));
             }
 

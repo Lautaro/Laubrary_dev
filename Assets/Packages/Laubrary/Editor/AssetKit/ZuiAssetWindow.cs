@@ -447,17 +447,30 @@ namespace Laubrary.AssetKit.Editor
             grid.style.flexDirection = FlexDirection.Row;
             grid.style.flexWrap = Wrap.Wrap;
             scroll.Add(grid);
+            // "A LauAsset that is a VISUAL asset must guarantee a thumbnail; a LauAsset that is not must not
+            // reserve space for one" — an empty square takes the width, adds nothing, and reads as "this has a
+            // picture and it failed to load". Whether this TYPE has a picture at all is a property of the type,
+            // not of one asset, so it is decided ONCE per browser: if nothing in the library resolves a
+            // thumbnail there is no picture to show and the grid is a list of names; if some do, every cell
+            // keeps its slot so the one that failed still reads as a failure rather than silently shrinking.
+            bool anyThumb = false;
             foreach (var item in _browse)
-                if (item != null) grid.Add(BuildCell(item));
+                if (item != null && Thumb(item) != null) { anyThumb = true; break; }
+            foreach (var item in _browse)
+                if (item != null) grid.Add(BuildCell(item, anyThumb));
             col.Add(scroll);
             return col;
         }
 
-        VisualElement BuildCell(T item)
+        VisualElement BuildCell(T item, bool reserveThumb)
         {
             var cell = new VisualElement();
             cell.AddToClassList("zui-cell");
-            cell.style.width = CellSize;
+            // With a picture the cell is a fixed square so the grid reads as a grid; without one it is its own
+            // NAME and sizes to it, which is also what stops a 19-character name being clipped to 100px by a
+            // width that only existed to line thumbnails up.
+            if (reserveThumb) cell.style.width = CellSize;
+            else cell.AddToClassList("zui-cell--nothumb");
             bool selected = ReferenceEquals(asset, item);
             if (selected) cell.AddToClassList("zui-cell--selected");
             // Says what the two clicks actually DO. A single click already binds this asset to the window
@@ -466,30 +479,33 @@ namespace Laubrary.AssetKit.Editor
             // to open") described as the difference between looking and opening.
             cell.tooltip = $"{item.name} — click to open it here, double-click to open it and close the browser.";
 
-            var thumbBox = new VisualElement();
-            thumbBox.AddToClassList("zui-cell__thumb");
-            thumbBox.style.width = ThumbSize;
-            thumbBox.style.height = ThumbSize;
-
-            var tex = Thumb(item);
-            if (tex != null)
+            if (reserveThumb)
             {
-                var img = new Image { image = tex, scaleMode = ScaleMode.ScaleToFit };
-                img.style.width = ThumbSize - 6f;
-                img.style.height = ThumbSize - 6f;
-                thumbBox.Add(img);
-                if (_thumbs.ContainsKey(item)) _thumbImages.Add(img);
-                img.RegisterCallback<PointerEnterEvent>(_ => SetHoveredThumb(item));
-                img.RegisterCallback<PointerLeaveEvent>(_ =>
+                var thumbBox = new VisualElement();
+                thumbBox.AddToClassList("zui-cell__thumb");
+                thumbBox.style.width = ThumbSize;
+                thumbBox.style.height = ThumbSize;
+
+                var tex = Thumb(item);
+                if (tex != null)
                 {
-                    if (EqualityComparer<T>.Default.Equals(_hoveredThumb, item)) SetHoveredThumb(null);
-                });
+                    var img = new Image { image = tex, scaleMode = ScaleMode.ScaleToFit };
+                    img.style.width = ThumbSize - 6f;
+                    img.style.height = ThumbSize - 6f;
+                    thumbBox.Add(img);
+                    if (_thumbs.ContainsKey(item)) _thumbImages.Add(img);
+                    img.RegisterCallback<PointerEnterEvent>(_ => SetHoveredThumb(item));
+                    img.RegisterCallback<PointerLeaveEvent>(_ =>
+                    {
+                        if (EqualityComparer<T>.Default.Equals(_hoveredThumb, item)) SetHoveredThumb(null);
+                    });
+                }
+                cell.Add(thumbBox);
             }
-            cell.Add(thumbBox);
 
             var name = new Label(item.name);
             name.AddToClassList("zui-cell__name");
-            name.style.maxWidth = CellSize - 4f;
+            if (reserveThumb) name.style.maxWidth = CellSize - 4f;
             cell.Add(name);
 
             cell.RegisterCallback<PointerDownEvent>(e =>

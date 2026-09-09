@@ -96,6 +96,45 @@ namespace Laubrary.Zui
             RegisterCallback<PointerUpEvent>(OnUp);
         }
 
+        /// Grow to hold this slider's own CAPTION when the caption is a name nobody chose a width for — a
+        /// REFLECTED field name, which is where a 20-character label meets the 150px default. That is T-0257's
+        /// remedy (widen the control rather than shorten the name back into jargon) applied automatically
+        /// instead of one dial at a time. Measured live: SpriteFx's Outline modifier drew "Inner Softness" and
+        /// "Inner Softness Curve" as two dials whose captions both elided to "Inner Softness …", so the word
+        /// that told them apart was the one that got cut.
+        ///
+        /// It only ever GROWS a clipped dial and never past the room its parent gives, so a row that already
+        /// fits cannot start spilling, and the growth converges (a wider caption box ends the condition that
+        /// asked for it). Measured after layout, because a caption's width is unknowable before the panel has
+        /// a font.
+        public ZuiMicroSlider FitCaption(float floor)
+        {
+            RegisterCallback<GeometryChangedEvent>(_ =>
+            {
+                if (_caption == null || parent == null || _caption.resolvedStyle.display == DisplayStyle.None) return;
+                float need = _caption.MeasureTextSize(_caption.text ?? string.Empty, 0f,
+                                 MeasureMode.Undefined, 0f, MeasureMode.Undefined).x;
+                float have = _caption.contentRect.width;
+                float own = resolvedStyle.width;
+                if (float.IsNaN(need) || float.IsNaN(have) || float.IsNaN(own) || have <= 0f) return;
+                if (need <= have + 1.5f) return;
+                // The room a dial has is NOT its immediate parent's width: a ZuiValueControl wraps its slider in
+                // a Z.Row that shrink-wraps to the slider itself, so the parent measures exactly `own` and would
+                // cap the growth at zero. A shrink-wrapping ancestor imposes no constraint — it follows its
+                // child — so walk up past those to the first one that is genuinely wider, and let THAT be the cap.
+                float room = own;
+                for (var p = parent; p != null; p = p.hierarchy.parent)
+                {
+                    float pw = p.contentRect.width;
+                    if (float.IsNaN(pw) || pw <= 0f) continue;
+                    if (pw > own + 1f) { room = pw; break; }
+                }
+                float want = Mathf.Clamp(own + (need - have) + 2f, Mathf.Max(floor, own), room);
+                if (want > own + 0.5f) style.width = want;
+            });
+            return this;
+        }
+
         float Round(float v) => _decimals >= 0 ? (float)Math.Round(v, _decimals)
                                                : (float)Math.Round(v, 5);
 

@@ -272,6 +272,9 @@ namespace Laubrary.Zui
                     var slider = Z.MicroSlider(inside ? _label : "", _v.staticValue, _opt.absMin, _opt.absMax,
                         _tooltip, val => Mutate(() => _v.staticValue = val), _opt.controlWidth, showValue: true,
                         defaultValue: _opt.staticDefault, decimals: _opt.decimals);
+                    // The caption is inside the track, so a long one has nowhere to go but under the value.
+                    // Reflected hosts name a dial after its FIELD, and nobody sized the control for that name.
+                    if (inside) slider.FitCaption(_opt.controlWidth);
                     AddHeaderRow(inside ? null : _label, slider);
                     break;
                 }

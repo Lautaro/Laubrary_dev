@@ -342,10 +342,13 @@ namespace Laubrary.Lathe.Editor
                     preview?.MarkDirtyRepaint();
                     RefreshTransportReadout();
                 }, 200f);
-            transportHost.Add(Z.Field("Frame", "Scrub the turntable to an exact frame.", scrubSlider));
-
+            // The readout goes IN the scrubber's row, last (variable-width content trails), not on a row of its
+            // own: it is the same scalar the slider is showing, and a whole line for "frame 14/24" is a line the
+            // transport does not get back. Shaper packs its scrubber and readout into one row for the same
+            // reason (ShaperWindow.cs, "the 'frame N/M' readout goes LAST in the row").
             frameReadout = Z.Text("", ZuiText.Subtle, "The turntable frame currently shown / the total frame count.");
-            transportHost.Add(frameReadout);
+            transportHost.Add(Z.Field("Frame", "Scrub the turntable to an exact frame.",
+                Z.Row(scrubSlider, frameReadout)));
             RefreshTransportReadout();
         }
 

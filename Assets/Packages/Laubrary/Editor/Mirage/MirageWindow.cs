@@ -833,8 +833,10 @@ namespace Laubrary.Mirage.Editor
                 root.Add(Z.Text("This Lauminary has no authored animations.", ZuiText.Subtle));
                 return root;
             }
-            if (!zoeHasWeapons)
-                root.Add(Z.Text("This Zoe has no weapons configured — Fire Weapon toggles below are disabled.", ZuiText.Subtle));
+            // No banner for "this Zoe has no weapons": the disabled Fire Weapon toggle it describes already says
+            // exactly that in its own tooltip (below), and the Zoe options section above says it once more for the
+            // Weapon picker that is missing entirely. A third copy is body text the reader re-reads on every visit,
+            // which is what the labelling rule sends to a tooltip — and the tooltip is already there.
 
             for (int i = 0; i < entry.clips.Count; i++)
             {
