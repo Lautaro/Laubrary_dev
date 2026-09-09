@@ -530,11 +530,14 @@ namespace Laubrary.Cartographer.Editor
                             typeof(Tileset), _fieldThumbs, "Tileset", "Assets/Cartographer/Tilesets",
                             "Tileset the palette shows while this layer is active.")));
 
+                    // The tile picker is the WIDE control here (label + type icon + an asset name that varies
+                    // with whatever is bound), so it takes the line and the two short dials share the next —
+                    // the card-layout rule. Packed onto one row it needed 438.7px of a 396.4px pane and hung
+                    // the Opacity slider 42.2px out over the divider, measured at the 900px window.
+                    card.Add(Z.Field("Default tile", "Fills every unpainted cell inside the level's bounds — a floor layer needs no painting at all.",
+                        Z.Object<LevelTile>(layer.defaultTile, "Tile shown in every unpainted cell within bounds.",
+                            v => Dial("Set default tile", () => layer.defaultTile = v), 150f)));
                     card.Add(Z.Row(
-                        Z.Field("Default tile", "Fills every unpainted cell inside the level's bounds — a floor layer needs no painting at all.",
-                            Z.Object<LevelTile>(layer.defaultTile, "Tile shown in every unpainted cell within bounds.",
-                                v => Dial("Set default tile", () => layer.defaultTile = v), 150f)),
-                        Z.HSpace(),
                         Z.Field("Sort", "Draw order among the level's layers. Higher draws in front.",
                             Z.Int(layer.sortingOrder, "Draw order among the level's layers. Higher draws in front.",
                                 v => Dial("Set layer sorting", () => layer.sortingOrder = v), 46f)),

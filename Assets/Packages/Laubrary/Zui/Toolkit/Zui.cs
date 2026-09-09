@@ -585,7 +585,31 @@ namespace Laubrary.Zui
                 allowSceneObjects = allowSceneObjects
             };
             f.style.width = width;
+            f.style.flexShrink = 1f;   // a row that runs out of room shrinks this back rather than spilling
             f.RegisterValueChangedCallback(e => onChanged?.Invoke(e.newValue as T));
+
+            // `width` is a STARTING point, not a promise that the name fits: an asset name varies at runtime
+            // and a reference field whose whole job is to say WHICH asset is bound must not clip it (measured
+            // on TextSplash: "Splash Demo (LiberationSans SDF) Border Font" needed 372px in a 192px slot, so
+            // two thirds of the name was unreadable). So measure the drawn name and grow to fit it — never
+            // past the room the parent actually has, which keeps a wider field from spilling its row.
+            Action fit = () =>
+            {
+                var lab = f.Q<Label>(className: "unity-object-field-display__label");
+                if (lab == null || f.parent == null) return;
+                float need = lab.MeasureTextSize(lab.text ?? string.Empty, 0f, VisualElement.MeasureMode.Undefined,
+                                                 0f, VisualElement.MeasureMode.Undefined).x;
+                float have = lab.contentRect.width;
+                float own = f.resolvedStyle.width;
+                if (float.IsNaN(need) || float.IsNaN(have) || float.IsNaN(own) || have <= 0f) return;
+                float chrome = own - have;                       // type icon + picker button + paddings
+                float room = f.parent.contentRect.width;
+                if (float.IsNaN(room) || room <= 0f) room = width;
+                float want = Mathf.Clamp(Mathf.Ceil(need) + chrome + 2f, width, room);
+                if (Mathf.Abs(want - own) > 0.5f) f.style.width = want;
+            };
+            f.RegisterCallback<GeometryChangedEvent>(_ => fit());
+            f.RegisterValueChangedCallback(_ => fit());
             return f;
         }
 

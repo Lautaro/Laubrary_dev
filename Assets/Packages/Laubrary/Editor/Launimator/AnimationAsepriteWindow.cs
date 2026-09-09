@@ -59,16 +59,30 @@ namespace Laubrary.Launimator.Editor
                 "The owned .aseprite this animation's pixels round-trip through, once promoted."));
 
             root.Add(Z.VSpace());
+            // The round-trip's contract used to be a permanent paragraph under these two buttons, re-read on
+            // every visit. It is what these buttons DO, so it belongs on them (the layout rules put an
+            // explanation in a tooltip, never in on-screen body text).
+            const string roundTrip =
+                " Pixels only: authored events and meta-layers survive the round-trip (paint those in the "
+                + "Laumination Builder). Keep each sprite where it sits on the Aseprite canvas — that canvas is the "
+                + "animation's frame box, so moving art down makes it render lower while the pivot stays put.";
             var editButton = Z.Button(hasSource ? "Re-open in Aseprite" : "Edit in Aseprite",
-                "Promote this animation to an owned editable .aseprite in the lauminary's Source/ folder and open Aseprite.",
+                (hasSource
+                    ? "Open this animation's owned .aseprite in Aseprite again."
+                    : "Promote this animation to an owned editable .aseprite in the lauminary's Source/ folder and "
+                      + "open Aseprite.") + roundTrip,
                 () =>
                 {
                     if (AnimationAseprite.Promote(def, LauminaryRepo.DraftFolder(_lauminary), out _status))
                         LauminaryRepo.SaveAnimationToDraft(_lauminary, def);
                     Rebuild();
                 });
+            // A greyed control has to say WHY it is greyed, not restate what it would otherwise do.
             var syncButton = Z.Button("Sync from Aseprite",
-                "Pull the edited .aseprite back into the lauminary's own source and re-bake.",
+                hasSource
+                    ? "Pull the edited .aseprite back into the lauminary's own source and re-bake." + roundTrip
+                    : "Nothing to sync yet — this animation has no owned .aseprite. Press \"Edit in Aseprite\" "
+                      + "first; that promotes it and makes this live.",
                 () =>
                 {
                     if (AnimationAseprite.Sync(def, LauminaryRepo.DraftFolder(_lauminary), out _status))
@@ -84,11 +98,6 @@ namespace Laubrary.Launimator.Editor
                 root.Add(Z.Text(_status, ZuiText.Subtle, "Result of the last promote/sync."));
             }
 
-            root.Add(Z.VSpace());
-            root.Add(Z.Help(
-                "Pixels only — authored events and meta-layers are preserved across the round-trip (paint those in " +
-                "the Laumination Builder). Keep each sprite at its position on the Aseprite canvas; the canvas is the " +
-                "animation's frame box, so moving art down makes it render lower while the pivot stays put."));
         }
     }
 }

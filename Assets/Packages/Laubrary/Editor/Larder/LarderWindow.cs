@@ -118,24 +118,25 @@ namespace Laubrary.Larder.Editor
                 Z.Text($"Seed {spec.seed}", ZuiText.Body, "The seed every random detail of this ware derives from."),
                 Z.Button("Randomize seed", "Roll a new seed, keeping every other dial as-is.",
                     () => DialAndRebuild("Randomize seed", () => spec.seed = Random.Range(int.MinValue, int.MaxValue)))));
-            identity.Add(Z.MiniRadio((int)spec.kind, KindLabels, "The kind of product — decides its proportions and default decoration.",
-                v => DialAndRebuild("Ware kind", () => spec.kind = (WareKind)v)));
-            identity.Add(Z.MiniRadio((int)spec.shape, ShapeLabels, "The silhouette's basic shape.",
-                v => Dial("Ware shape", () => spec.shape = (WareShape)v)));
+            identity.Add(Z.Field("Kind", "The kind of product — decides its proportions and default decoration.",
+                Z.MiniRadio((int)spec.kind, KindLabels, "The kind of product — decides its proportions and default decoration.",
+                    v => DialAndRebuild("Ware kind", () => spec.kind = (WareKind)v))));
+            identity.Add(Z.Field("Shape", "The silhouette's basic shape.",
+                Z.MiniRadio((int)spec.shape, ShapeLabels, "The silhouette's basic shape.",
+                    v => Dial("Ware shape", () => spec.shape = (WareShape)v))));
             root.Add(identity);
 
             var silhouette = Z.Section("Silhouette", "The ware's proportions within its canvas.");
-            silhouette.Add(Z.Field("Width", "Ware width as a fraction of the canvas.",
-                Z.Slider(spec.widthRatio, 0.2f, 1f, "Ware width as a fraction of the canvas.",
-                    v => Dial("Width", () => spec.widthRatio = v), 150f)));
-            silhouette.Add(Z.Field("Height", "Ware height as a fraction of the canvas.",
-                Z.Slider(spec.heightRatio, 0.2f, 1f, "Ware height as a fraction of the canvas.",
-                    v => Dial("Height", () => spec.heightRatio = v), 150f)));
+            silhouette.Add(Z.MicroSlider("Width", spec.widthRatio, 0.2f, 1f,
+                "Ware width as a fraction of the canvas.", v => Dial("Width", () => spec.widthRatio = v)));
+            silhouette.Add(Z.MicroSlider("Height", spec.heightRatio, 0.2f, 1f,
+                "Ware height as a fraction of the canvas.", v => Dial("Height", () => spec.heightRatio = v)));
             root.Add(silhouette);
 
             var body = Z.Section("Body", "How the ware's body is filled and coloured.");
-            body.Add(Z.MiniRadio((int)spec.fill, FillLabels, "How the body is shaded: flat, a gradient, a glow, or a drop shadow.",
-                v => Dial("Fill mode", () => spec.fill = (FillMode)v)));
+            body.Add(Z.Field("Fill", "How the body is shaded: flat, a gradient, a glow, or a drop shadow.",
+                Z.MiniRadio((int)spec.fill, FillLabels, "How the body is shaded: flat, a gradient, a glow, or a drop shadow.",
+                    v => Dial("Fill mode", () => spec.fill = (FillMode)v))));
             body.Add(Z.Toggle("Custom colours", "Pick every colour by hand instead of using one of the built-in palettes.",
                 spec.useCustomColors, v => DialAndRebuild("Custom colours", () => spec.useCustomColors = v)));
             if (spec.useCustomColors)
@@ -149,41 +150,44 @@ namespace Laubrary.Larder.Editor
             }
             else
             {
-                body.Add(Z.Field("Palette", "Which built-in colour palette this ware uses.",
-                    Z.SliderInt(spec.paletteIndex, 0, WarePalettes.Count - 1, "Which built-in colour palette this ware uses.",
-                        v => Dial("Palette", () => spec.paletteIndex = v), 150f)));
+                body.Add(Z.MicroSlider("Palette", spec.paletteIndex, 0f, WarePalettes.Count - 1,
+                    "Which built-in colour palette this ware uses.",
+                    v => Dial("Palette", () => spec.paletteIndex = Mathf.RoundToInt(v)), decimals: 0));
             }
             root.Add(body);
 
             var deco = Z.Section("Decoration", "Labels, corners, bands and spots painted onto the body.");
-            deco.Add(Z.MiniRadio((int)spec.label, LabelLabels, "The label patch's placement.",
-                v => Dial("Label style", () => spec.label = (LabelStyle)v)));
-            deco.Add(Z.Field("Label width", "How wide the label patch is across the body.",
-                Z.Slider(spec.labelWidth, 0.2f, 1f, "How wide the label patch is across the body.",
-                    v => Dial("Label width", () => spec.labelWidth = v), 150f)));
-            deco.Add(Z.MiniRadio((int)spec.corner, CornerLabels, "How the ware's corners are cut or rounded.",
-                v => Dial("Corner style", () => spec.corner = (CornerStyle)v)));
-            deco.Add(Z.MiniRadio((int)spec.bands, BandLabels, "Direction of the decorative bands, if any.",
-                v => Dial("Band mode", () => spec.bands = (BandMode)v)));
-            deco.Add(Z.Field("Band count", "How many decorative bands are drawn.",
-                Z.SliderInt(spec.bandCount, 1, 6, "How many decorative bands are drawn.",
-                    v => Dial("Band count", () => spec.bandCount = v), 150f)));
-            deco.Add(Z.MiniRadio((int)spec.spots, SpotLabels, "Spot decoration: none, one circle, or scattered spots.",
-                v => Dial("Spot mode", () => spec.spots = (SpotMode)v)));
+            deco.Add(Z.Field("Label", "The label patch's placement.",
+                Z.MiniRadio((int)spec.label, LabelLabels, "The label patch's placement.",
+                    v => Dial("Label style", () => spec.label = (LabelStyle)v))));
+            deco.Add(Z.MicroSlider("Label width", spec.labelWidth, 0.2f, 1f,
+                "How wide the label patch is across the body.", v => Dial("Label width", () => spec.labelWidth = v)));
+            deco.Add(Z.Field("Corners", "How the ware's corners are cut or rounded.",
+                Z.MiniRadio((int)spec.corner, CornerLabels, "How the ware's corners are cut or rounded.",
+                    v => Dial("Corner style", () => spec.corner = (CornerStyle)v))));
+            deco.Add(Z.Field("Bands", "Direction of the decorative bands, if any.",
+                Z.MiniRadio((int)spec.bands, BandLabels, "Direction of the decorative bands, if any.",
+                    v => Dial("Band mode", () => spec.bands = (BandMode)v))));
+            deco.Add(Z.MicroSlider("Band count", spec.bandCount, 1f, 6f,
+                "How many decorative bands are drawn.",
+                v => Dial("Band count", () => spec.bandCount = Mathf.RoundToInt(v)), decimals: 0));
+            deco.Add(Z.Field("Spots", "Spot decoration: none, one circle, or scattered spots.",
+                Z.MiniRadio((int)spec.spots, SpotLabels, "Spot decoration: none, one circle, or scattered spots.",
+                    v => Dial("Spot mode", () => spec.spots = (SpotMode)v))));
             deco.Add(Z.Toggle("Lid strip", "Draw a lid/cap strip across the top.", spec.hasLid,
                 v => Dial("Lid strip", () => spec.hasLid = v)));
             root.Add(deco);
 
             var output = Z.Section("Output", "Canvas size and what gets baked.");
-            output.Add(Z.Field("Resolution", "Canvas size in pixels for the baked sprite.",
-                Z.SliderInt(spec.resolution, 24, 64, "Canvas size in pixels for the baked sprite.",
-                    v => Dial("Resolution", () => spec.resolution = v), 150f)));
-            output.Add(Z.Field("Damage stages", "How many progressively-damaged versions get baked.",
-                Z.SliderInt(spec.damageStages, 2, 4, "How many progressively-damaged versions get baked.",
-                    v => Dial("Damage stages", () => spec.damageStages = v), 150f)));
-            output.Add(Z.Field("Pixels/unit", "Pixels-per-unit stamped onto the baked sprite.",
-                Z.Slider(spec.pixelsPerUnit, 8f, 128f, "Pixels-per-unit stamped onto the baked sprite.",
-                    v => Dial("Pixels per unit", () => spec.pixelsPerUnit = v), 150f)));
+            output.Add(Z.MicroSlider("Resolution", spec.resolution, 24f, 64f,
+                "Canvas size in pixels for the baked sprite.",
+                v => Dial("Resolution", () => spec.resolution = Mathf.RoundToInt(v)), decimals: 0));
+            output.Add(Z.MicroSlider("Damage stages", spec.damageStages, 2f, 4f,
+                "How many progressively-damaged versions get baked.",
+                v => Dial("Damage stages", () => spec.damageStages = Mathf.RoundToInt(v)), decimals: 0));
+            output.Add(Z.MicroSlider("Pixels/unit", spec.pixelsPerUnit, 8f, 128f,
+                "Pixels-per-unit stamped onto the baked sprite.",
+                v => Dial("Pixels per unit", () => spec.pixelsPerUnit = v)));
             root.Add(output);
 
             var actions = Z.Section("Actions", "Randomize this ware, or bake it to sprite assets.");

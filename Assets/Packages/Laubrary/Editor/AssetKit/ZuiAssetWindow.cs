@@ -338,8 +338,15 @@ namespace Laubrary.AssetKit.Editor
             // open, pressing New wrote the new document into Assets/Demos/ShaperDemo, a package demo folder,
             // silently. The folder is the operand of this row, not an explanation of it, so it belongs in the
             // tooltips of the field you type into and the button that acts.
+            // T-0322 — and say it for the state it is IN. "Beside the one currently open" is false on the empty
+            // state, which is where New is pressed most: nothing is open, so the destination is the default
+            // folder. Measured live in Cartographer with 0 Levels in the project, where the row promised a
+            // folder "beside the Level that is currently open" with no Level open at all.
             string folder = FolderForNew();
-            string where = $"Creates {folder}/<name>.asset — beside the {TypeLabel} that is currently open.";
+            bool beside = !string.IsNullOrEmpty(AssetLibrary<T>.PathOf(asset));
+            string where = beside
+                ? $"Creates {folder}/<name>.asset — beside the {TypeLabel} that is currently open."
+                : $"Creates {folder}/<name>.asset — this tool's default folder, since no {TypeLabel} is open.";
             TextField nameField = Z.TextInput(createText, "File name for the new asset. " + where,
                 v => createText = v, 200f);
             void Confirm()

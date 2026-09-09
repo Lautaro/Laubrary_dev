@@ -148,8 +148,8 @@ namespace Laubrary.Zui
             Add(nameRow);
 
             _newName = Z.TextInput("",
-                "Type a name, then Save as to store the current arrangement as a new view, or Rename to "
-                + "give the SELECTED view this name.",
+                "Type a name, then Save as to store the current arrangement as a new view, or Rename view "
+                + "to give the SELECTED view this name.",
                 _ => RefreshButtonStates(), 120f);
             _newName.style.marginLeft = 10f;
             nameRow.Add(_newName);

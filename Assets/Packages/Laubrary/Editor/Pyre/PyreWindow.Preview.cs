@@ -135,8 +135,9 @@ namespace Laubrary.Pyre.Editor
                     EditorGUI.DrawRect(new Rect(rct.x, rct.y, 1f, rct.height), frameCol);
                     EditorGUI.DrawRect(new Rect(rct.xMax - 1f, rct.y, 1f, rct.height), frameCol);
                 }
-                GUI.Label(new Rect(view.x + 6, view.yMax - 20, 200, 18),
-                    $"frame {cur + 1}/{s.frameCount}", EditorStyles.whiteMiniLabel);
+                // No frame readout is painted here: the transport's own `frame N/M` label carries it, and a
+                // second copy over the picture would both repeat itself and cover the artwork being judged
+                // (Shaper's stage has never drawn one). The strip view keeps its own label — it says more.
             }
 
             // The overlay draws + interacts on every event when the SELECTED layer's swarm is on; it never fights
