@@ -619,23 +619,20 @@ namespace Laubrary.Zounds {
             };
 
             if (sideBy) {
-                // Manual flex-space vertical centering inside a horizontal row. ZUI.Blocks would
-                // truncate widths because it appends a trailing FlexibleSpace that competes with
-                // ExpandWidth cells; here we want both children to share the full row width.
+                // Both cells are 26px tall, so a plain row already lines them up. Never centre them
+                // with vertical FlexibleSpaces: those make the row stretch to swallow all spare
+                // window height, shoving the toolbar and the zound list down to the bottom.
+                // (ZUI.Blocks isn't used because its trailing FlexibleSpace truncates ExpandWidth cells.)
                 GUILayout.BeginHorizontal();
                 if (settings.showSearch) {
                     GUILayout.BeginVertical(GUILayout.ExpandWidth(true));
-                    GUILayout.FlexibleSpace();
                     drawSearch();
-                    GUILayout.FlexibleSpace();
                     GUILayout.EndVertical();
                 }
                 if (showBoth) GUILayout.Space(8f);
                 if (settings.showMasterVolume) {
                     GUILayout.BeginVertical(GUILayout.ExpandWidth(true));
-                    GUILayout.FlexibleSpace();
                     drawMasterVolume();
-                    GUILayout.FlexibleSpace();
                     GUILayout.EndVertical();
                 }
                 GUILayout.EndHorizontal();

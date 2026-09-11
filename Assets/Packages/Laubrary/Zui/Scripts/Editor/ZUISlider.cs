@@ -1163,6 +1163,7 @@ public static partial class ZUI
                 : labelMode;
 
             string displayText = null;
+            string fallbackText = null;
             switch (resolvedMode)
             {
                 case MicroSliderLabelMode.None: break;
@@ -1173,7 +1174,8 @@ public static partial class ZUI
                     displayText = valueStr;
                     break;
                 case MicroSliderLabelMode.LabelAndValue:
-                    displayText = string.IsNullOrEmpty(label) ? valueStr : $"{label}: {valueStr}";
+                    displayText  = string.IsNullOrEmpty(label) ? valueStr : $"{label}: {valueStr}";
+                    fallbackText = valueStr;
                     break;
             }
 
@@ -1181,7 +1183,7 @@ public static partial class ZUI
             {
                 var textStyle = def.GetLabelStyle(ActiveSheet);
                 textStyle.alignment = TextAnchor.MiddleCenter;
-                GUI.Label(trackRect, displayText, textStyle);
+                DrawFittedTrackLabel(trackRect, displayText, fallbackText, textStyle);
             }
         }
 
@@ -1518,6 +1520,7 @@ public static partial class ZUI
                 : labelMode;
 
             string display = null;
+            string fallback = null;
             switch (resolvedMode)
             {
                 case MicroMinMaxLabelMode.None: break;
@@ -1536,12 +1539,13 @@ public static partial class ZUI
                     string minStr = minVal.ToString(fmt);
                     string maxStr = maxVal.ToString(fmt);
                     string values = minStr == maxStr ? minStr : $"{minStr}-{maxStr}";
-                    display = string.IsNullOrEmpty(label) ? values : $"{label} {values}";
+                    display  = string.IsNullOrEmpty(label) ? values : $"{label} {values}";
+                    fallback = values;
                     break;
                 }
             }
             if (!string.IsNullOrEmpty(display))
-                GUI.Label(trackRect, display, textStyle);
+                DrawFittedTrackLabel(trackRect, display, fallback, textStyle);
         }
 
         // Value input fields. When collapsed, collapse the two reserved boxes into a single wide
@@ -1587,6 +1591,52 @@ public static partial class ZUI
             CollectSliderDebugInfo(def, styleName, trackRect, isRange: true);
 
         DrawFlashOverlayIfNeeded(trackRect, styleName, 0, FlashDefType.Slider);
+    }
+
+    static readonly GUIContent s_fitLabelContent = new GUIContent();
+
+    // Draws a Micro track's readout, shrinking the font step by step when the text is wider than
+    // the track, down to 70% of its size (never below 8px). If `fallback` is given (the bare value
+    // readout without its label) and the full text still doesn't fit at that floor, the fallback is
+    // drawn instead, because a whole number reads better than a label clipped at both ends.
+    // The style's font size is restored afterwards: it is the def's cached style, shared by
+    // every row.
+    static void DrawFittedTrackLabel(Rect rect, string text, string fallback, GUIStyle style)
+    {
+        s_fitLabelContent.text = text;
+        if (style.CalcSize(s_fitLabelContent).x <= rect.width)
+        {
+            GUI.Label(rect, s_fitLabelContent, style);
+            return;
+        }
+
+        int original = style.fontSize;
+        // 0 means "inherit the skin's size"; 12 is the editor label default, close enough as the
+        // starting point for the shrink search.
+        int baseSize = original > 0 ? original : 12;
+        int floor    = Mathf.Max(8, Mathf.FloorToInt(baseSize * 0.7f));
+
+        bool Shrink(string candidate)
+        {
+            s_fitLabelContent.text = candidate;
+            for (int size = baseSize; size >= floor; size--)
+            {
+                style.fontSize = size;
+                if (style.CalcSize(s_fitLabelContent).x <= rect.width) return true;
+            }
+            return false;
+        }
+
+        try
+        {
+            if (!Shrink(text) && !string.IsNullOrEmpty(fallback) && fallback != text && !Shrink(fallback))
+                s_fitLabelContent.text = fallback;   // still too wide at the floor: clip the value, not the label
+            GUI.Label(rect, s_fitLabelContent, style);
+        }
+        finally
+        {
+            style.fontSize = original;
+        }
     }
 
     static float InverseLerpSafe(float min, float max, float v)
