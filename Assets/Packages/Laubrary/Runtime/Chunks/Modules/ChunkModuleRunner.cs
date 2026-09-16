@@ -25,6 +25,14 @@ namespace Laubrary.Chunks
             public float age;
             public float life;
             public bool faceVelocity;
+            /// Degrees/sec. Accumulates into spinAngle every frame regardless of faceVelocity, so the two
+            /// combine: a piece can face its own travel direction AND tumble on top of that.
+            public float spinDegPerSec;
+            public float spinAngle;
+            /// The rotation captured the moment this entry started — what a spin-only (no faceVelocity) entry
+            /// turns FROM, so a spawn's own authored rotation (a Pyre Blast's rotationMode) is respected
+            /// rather than overwritten with a rotation of zero.
+            public Quaternion baseRotation;
             /// The frame this entry was handed over. Flight starts on the NEXT one — see Update.
             public int bornFrame;
         }
@@ -34,13 +42,15 @@ namespace Laubrary.Chunks
         /// Start driving target with the given physics for life seconds. A null target is ignored. life <= 0
         /// means "until the target dies", which is the right default for a Pyre blast that ends itself.
         public void Move(Transform target, Vector3 velocity, float gravity, float drag, float life,
-                         bool faceVelocity = false)
+                         bool faceVelocity = false, float spinDegPerSec = 0f)
         {
             if (target == null) return;
             _motion.Add(new MotionEntry
             {
                 target = target, velocity = velocity, gravity = gravity, drag = drag,
-                age = 0f, life = life, faceVelocity = faceVelocity, bornFrame = Time.frameCount
+                age = 0f, life = life, faceVelocity = faceVelocity,
+                spinDegPerSec = spinDegPerSec, spinAngle = 0f, baseRotation = target.rotation,
+                bornFrame = Time.frameCount
             });
         }
 
@@ -81,9 +91,14 @@ namespace Laubrary.Chunks
                 e.velocity.y -= e.gravity * dt;
                 if (e.drag > 0f) e.velocity *= Mathf.Exp(-e.drag * dt);
                 e.target.position += e.velocity * dt;
+
+                if (e.spinDegPerSec != 0f) e.spinAngle += e.spinDegPerSec * dt;
+
                 if (e.faceVelocity && e.velocity.sqrMagnitude > 1e-6f)
                     e.target.rotation = Quaternion.Euler(0f, 0f,
-                        Mathf.Atan2(e.velocity.y, e.velocity.x) * Mathf.Rad2Deg);
+                        Mathf.Atan2(e.velocity.y, e.velocity.x) * Mathf.Rad2Deg + e.spinAngle);
+                else if (e.spinDegPerSec != 0f)
+                    e.target.rotation = e.baseRotation * Quaternion.Euler(0f, 0f, e.spinAngle);
 
                 _motion[i] = e;
             }
