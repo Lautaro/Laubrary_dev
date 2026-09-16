@@ -74,6 +74,8 @@ namespace Laubrary.Chunks.Editor
             base.OnEnable();
             lastTick = EditorApplication.timeSinceStartup;
             EditorApplication.update += Tick;
+            rootVisualElement.RegisterCallback<PointerDownEvent>(OnAnyPointerDown, TrickleDown.TrickleDown);
+            rootVisualElement.RegisterCallback<PointerUpEvent>(OnAnyPointerUp, TrickleDown.TrickleDown);
         }
 
         protected override void OnDisable()
@@ -82,6 +84,9 @@ namespace Laubrary.Chunks.Editor
             // Without this a closed window keeps ticking against destroyed elements — the "no console errors
             // after close" half of the transport contract.
             EditorApplication.update -= Tick;
+            rootVisualElement.UnregisterCallback<PointerDownEvent>(OnAnyPointerDown, TrickleDown.TrickleDown);
+            rootVisualElement.UnregisterCallback<PointerUpEvent>(OnAnyPointerUp, TrickleDown.TrickleDown);
+            pointerHeld = false;
         }
 
         protected override void OnAssetChanged()
@@ -91,12 +96,19 @@ namespace Laubrary.Chunks.Editor
             previewTime = 0f;
             playing = false;
             leftScroll = Vector2.zero;
+            shownReach = -1f;   // a new recipe is framed at once, not zoomed into from the last one
         }
 
         protected override void OnBeforeRebuild()
         {
             base.OnBeforeRebuild();
+            // A rebuild is the one moment worth re-measuring, re-cutting and re-sampling the assets the cards
+            // point at: a Pyre's frames are a real render and a cut is a full pass over a texture, far too
+            // expensive per dial edit and far too stale to keep for the life of the editor. Dropped HERE,
+            // before the cards are built, because a card's state line reads the same caches the stage does.
+            ChunkPreviewSim.ClearCaches();
             // Every element reference below is about to be destroyed with the tree.
+            cardStates.Clear();
             cards.Clear();
             cardBodies.Clear();
             cardChips.Clear();
@@ -273,6 +285,8 @@ namespace Laubrary.Chunks.Editor
             // counter is for the one thing that CANNOT be redone per frame — how far the recipe reaches, which
             // sets the stage's zoom — and which must not go stale after an edit either.
             previewGeneration++;
+            ChunkPreviewSim.ForgetResolutions();
+            RefreshCardStates();
             stage?.MarkDirtyRepaint();
         }
 
