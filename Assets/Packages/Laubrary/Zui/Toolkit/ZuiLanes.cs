@@ -17,7 +17,7 @@
 //     "0.00s" renders as ".00s" clipped against the left edge;
 //   * a tick number that would land under the playhead's own readout is DROPPED, not drawn behind it.
 //
-// Bands can be DRAGGED in time once a host sets OnLaneMoved (T-0355). The control reports "lane i now starts at
+// Bands can be DRAGGED in time once a host sets OnLaneMoved. The control reports "lane i now starts at
 // t" and nothing else — what a start means (a capability's delay, a clip's offset) is the host's business. Three
 // rules keep that drag honest:
 //   * one drag is ONE Undo step (ZuiUndoGesture, the same collapse every ZUI drag control uses), opened only
@@ -240,7 +240,7 @@ namespace Laubrary.Zui
             Add(_body);
 
             // No fixed width: the column takes the width of its longest name, capped at the host's
-            // gutterWidth, beyond which a name is cut with an ellipsis (T-0355 / H8).
+            // gutterWidth, beyond which a name is cut with an ellipsis.
             _gutter = new VisualElement();
             _gutter.AddToClassList("zui-lanes__gutter");
             _gutter.style.flexDirection = FlexDirection.Column;

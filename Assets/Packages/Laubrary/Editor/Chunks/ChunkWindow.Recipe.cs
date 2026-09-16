@@ -19,7 +19,7 @@ namespace Laubrary.Chunks.Editor
         VisualElement stackHost;   // the cards + the Add button; rebuilt on any structural change
         readonly Dictionary<string, ZuiBox> cards = new Dictionary<string, ZuiBox>();
         readonly Dictionary<string, VisualElement> cardBodies = new Dictionary<string, VisualElement>();
-        // Each card's Delay field, by capability id — what a Timing band drag writes back into (T-0355).
+        // Each card's Delay field, by capability id — what a Timing band drag writes back into.
         readonly Dictionary<string, BaseField<float>> delayFields = new Dictionary<string, BaseField<float>>();
 
         // The nine kinds, in the catalogue's order — the order the Add menu lists them and the order a reader
