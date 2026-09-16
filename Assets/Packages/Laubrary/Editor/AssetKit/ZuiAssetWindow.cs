@@ -24,7 +24,7 @@ namespace Laubrary.AssetKit.Editor
         [SerializeField] bool browsing;          // browser explicitly toggled on (also shown when asset == null)
 
         // transient inline-prompt state
-        bool creating; string createText = "";
+        bool creating; string createText = ""; string createFolder = "";
         bool renaming; string renameText = "";
 
         // browser state
@@ -90,6 +90,21 @@ namespace Laubrary.AssetKit.Editor
         // keyed by concrete type AND this project's path (EditorPrefs is machine-global, not project-
         // scoped, so two Laubrary projects — or two window types — must not clobber each other's key).
         static string LastAssetPrefsKey => $"Laubrary.AssetKit.LastAsset.{typeof(T).FullName}.{Application.dataPath}";
+
+        // ── remembered New folder (T-0361) ───────────────────────────────────────────
+        // New used to silently drop the file in FolderForNew() (the currently-open asset's folder, or
+        // DefaultFolder) with no way to see or change that before the file existed — F9 in T-0344's walk.
+        // The chosen folder is remembered per window TYPE (same EditorPrefs pattern as LastAssetPrefsKey),
+        // so picking a folder once for this tool sticks across New calls and across window reopens.
+        static string NewFolderPrefsKey => $"Laubrary.AssetKit.NewFolder.{typeof(T).FullName}.{Application.dataPath}";
+
+        static string RememberedNewFolder()
+        {
+            string f = EditorPrefs.GetString(NewFolderPrefsKey, "");
+            return !string.IsNullOrEmpty(f) && AssetDatabase.IsValidFolder(f) ? f : null;
+        }
+
+        static void RememberNewFolder(string folder) => EditorPrefs.SetString(NewFolderPrefsKey, folder);
 
         static void RememberLastAsset(T item)
         {
@@ -211,7 +226,8 @@ namespace Laubrary.AssetKit.Editor
                 Z.Object<T>(asset, $"The {TypeLabel} asset being edited — assign one directly, or use Browse.",
                     v => SetAsset(v), 200f),
                 Z.Button("New", $"Create a brand new {TypeLabel} asset (undoable).",
-                    () => { creating = true; renaming = false; createText = NewAssetName; Rebuild(); }),
+                    () => { creating = true; renaming = false; createText = NewAssetName;
+                             createFolder = RememberedNewFolder() ?? FolderForNew(); Rebuild(); }),
                 Z.Button(browsing ? "Close browser" : "Browse",
                     $"Toggle the thumbnail browser of every {TypeLabel} in the project.",
                     () => { browsing = !browsing; creating = false; renaming = false; if (browsing) RefreshBrowse(); Rebuild(); }));
@@ -252,10 +268,11 @@ namespace Laubrary.AssetKit.Editor
             TextField nameField = Z.TextInput(createText, "File name for the new asset.", v => createText = v, 200f);
             void Confirm()
             {
-                var created = AssetLibrary<T>.Create(createText, FolderForNew());
+                var created = AssetLibrary<T>.Create(createText, createFolder);
                 creating = false;
                 if (created != null)
                 {
+                    RememberNewFolder(createFolder);
                     InitializeNewAsset(created);
                     EditorUtility.SetDirty(created);
                     AssetDatabase.SaveAssets();
@@ -271,11 +288,46 @@ namespace Laubrary.AssetKit.Editor
             });
             nameField.schedule.Execute(() => nameField.Focus());
 
+            var folderLabel = new Label(MiddleElide(createFolder, 40)) { tooltip = createFolder };
+            folderLabel.style.overflow = Overflow.Hidden;
+            folderLabel.style.whiteSpace = WhiteSpace.NoWrap;
+
             return Z.Row(
                 Z.Text("Asset name", ZuiText.Body, "File name for the new asset."),
                 nameField,
+                Z.Text("in", ZuiText.Subtle, "The folder the new asset will be created in."),
+                folderLabel,
+                Z.Button("Folder…", $"Choose where the new {TypeLabel} asset is created (remembered for next time).",
+                    ChooseCreateFolder),
                 Z.Button("Create", "Create the asset with this name.", Confirm),
                 Z.Button("Cancel", "Abandon creating a new asset.", () => { creating = false; Rebuild(); }));
+        }
+
+        void ChooseCreateFolder()
+        {
+            string startAbs = Path.GetFullPath(createFolder);
+            string picked = EditorUtility.OpenFolderPanel($"Choose folder for new {TypeLabel}", startAbs, "");
+            if (string.IsNullOrEmpty(picked)) return;   // cancelled
+
+            string dataPathAbs = Path.GetFullPath(Application.dataPath).Replace('\\', '/').TrimEnd('/');
+            string pickedNorm = Path.GetFullPath(picked).Replace('\\', '/').TrimEnd('/');
+            if (!pickedNorm.StartsWith(dataPathAbs, StringComparison.OrdinalIgnoreCase))
+            {
+                Debug.LogWarning($"'{picked}' is outside this project's Assets folder — keeping '{createFolder}'.");
+                return;
+            }
+            string rel = "Assets" + pickedNorm.Substring(dataPathAbs.Length);
+            createFolder = rel;
+            Rebuild();
+        }
+
+        // A folder path like ".../Editor/AssetKit/..." is more useful truncated in the MIDDLE (keeps both
+        // the project-relative root and the leaf folder name legible) than at either end alone.
+        static string MiddleElide(string text, int maxChars)
+        {
+            if (string.IsNullOrEmpty(text) || text.Length <= maxChars) return text;
+            int keep = Math.Max(1, (maxChars - 1) / 2);
+            return text.Substring(0, keep) + "…" + text.Substring(text.Length - keep);
         }
 
         VisualElement BuildRenameRow()

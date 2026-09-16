@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### T-0361 — New shows and lets you choose where it creates the asset
+- **`ZuiAssetWindow<T>`'s New row now shows the target folder (middle-elided, full path in the tooltip) plus a "Folder…" button** that opens the OS folder picker, constrained to inside this project's `Assets/` (a folder picked outside it is rejected with a console warning and the previous folder is kept). Every tool on this shared base gets it at once — Chunks, Pyre, and the rest of `ZuiAssetWindow<T>`'s subclasses (BackSplash, Cartographer, Choreographer, DotGen, Larder, Lathe, SpriteCatalog, Mirage, SpriteFx, Tapestry, TextSplash, Zoetrope…) — with no per-tool changes. No modal dialog appears on every New: the row defaults to the same folder New always used (the currently-open asset's folder, or the tool's `DefaultFolder`) and only prompts when the Folder… button is clicked.
+- **The chosen folder is remembered per window TYPE** in `EditorPrefs` (same pattern as T-0350's remembered-last-asset), so picking a folder once for a tool sticks across every later New in that tool, including after closing and reopening the window. `Undo.RegisterCreatedObjectUndo` still fires on create, unchanged.
+- `Editor/AssetKit/ZuiAssetWindow.cs` only — the older IMGUI `LaubraryAssetWindow<T>` base currently has zero subclasses in the package, so it was left alone.
+
 ### T-0352 — Chunks: Fragment Fracture honours a Zoe's live current frame, same override as Debris Scatter
 - **Fragment Fracture now cuts a Zoe's live on-screen sprite when a Zoe triggers it, instead of always taking the authored source's first frame.** It reads `ChunkModuleContext.SampleSourceOverride` — the exact plumbing Debris Scatter's `ResolvedSampleSource` already used (T-0252), forwarded automatically by `SpawnChunkFx`/`PyreChunksFx` off a Zoe's current lauminary frame — through a new `FragmentFracture.ResolveSource(in ChunkModuleContext)` overload. No second mechanism was added.
 - The authored `Source`/`Fallback sprite` fields remain the fallback for a standalone (non-Zoe) burst and are still what the editor's swatch/thumbnail preview reads, unaware of any live override — the parameterless `ResolveSource()` keeps that authored-only behaviour.
