@@ -32,53 +32,61 @@ namespace Laubrary.Chunks.Editor
             string id = cap.id;
 
             // ── what gets spawned ────────────────────────────────────────────────
+            // Picker and Pattern come FIRST and stay in that order regardless of which pattern is chosen —
+            // the "rows above the switch never move" stable-workspace rule — so everything that only makes
+            // sense once several points exist (alternates, placement dials, order, pattern seed) lives BELOW
+            // the Pattern row and is absent, not disabled, for a Single blast (T-0360, F7/F11).
             body.Add(Z.Field("Blast",
                 "The effect spawned at each point of the pattern. Ignored while the alternates below hold anything.",
                 AssetPicker(cap.source, o => DialAndRebuildCard(id, "Set Blast", () => cap.source = o),
                             typeof(IChunkEffectSpawner), "Blast",
                             "The effect spawned at each point of the pattern.")));
 
-            int poolCount = cap.pool != null ? cap.pool.Count : 0;
-            var alternates = new VisualElement();
-            for (int i = 0; i < poolCount; i++)
-            {
-                int index = i;
-                var row = Z.Row(
-                    AssetPicker(cap.pool[index], o => DialAndRebuildCard(id, "Set Blast Alternate",
-                                                                        () => cap.pool[index] = o),
-                                typeof(IChunkEffectSpawner), "Blast",
-                                "One of the effects each spawn picks between."),
-                    SmallButton("×", "Take this one out of the alternates.", true,
-                        () => DialAndRebuildCard(id, "Remove Blast Alternate", () => cap.pool.RemoveAt(index))));
-                alternates.Add(row);
-            }
-            var addAlternate = Z.Button("Add alternate",
-                "Let each spawn pick between several effects instead of always using the one above. While " +
-                "this list holds anything it wins outright.",
-                () => DialAndRebuildCard(id, "Add Blast Alternate", () =>
-                {
-                    cap.pool ??= new System.Collections.Generic.List<Object>();
-                    cap.pool.Add(null);
-                }));
-            addAlternate.style.width = 120f;
-            addAlternate.style.alignSelf = Align.FlexStart;
-            alternates.Add(addAlternate);
-            // Boxed only once there is a list to group. An empty pool is one button, and a box titled for a
-            // single control says the same thing twice.
-            body.Add(poolCount > 0
-                ? (VisualElement)Z.Box("Alternates",
-                    "A pool each spawn picks one entry from, so a repeated blast does not read as the same " +
-                    "picture over and over. While it holds anything it wins over the single blast above.",
-                    alternates)
-                : alternates);
-
-            // ── the pattern, and only its own fields ─────────────────────────────
             body.Add(Z.Field("Pattern",
                 "One blast, several along a line, or several around a ring.",
                 Z.Segmented((int)cap.Pattern, new[] { "Single", "Line", "Ring" },
                     "One blast, several along a line, or several around a ring.",
                     i => DialAndRebuildCard(id, "Set Blast Pattern",
                                             () => cap.Pattern = (PyreBlastPattern)i))));
+
+            // Alternates only earn their row once there is more than one spawn point to vary across, or once
+            // a pool has actually been authored (so switching back to Single never strands existing data).
+            int poolCount = cap.pool != null ? cap.pool.Count : 0;
+            if (cap.UsesPattern || poolCount > 0)
+            {
+                var alternates = new VisualElement();
+                for (int i = 0; i < poolCount; i++)
+                {
+                    int index = i;
+                    var row = Z.Row(
+                        AssetPicker(cap.pool[index], o => DialAndRebuildCard(id, "Set Blast Alternate",
+                                                                            () => cap.pool[index] = o),
+                                    typeof(IChunkEffectSpawner), "Blast",
+                                    "One of the effects each spawn picks between."),
+                        SmallButton("×", "Take this one out of the alternates.", true,
+                            () => DialAndRebuildCard(id, "Remove Blast Alternate", () => cap.pool.RemoveAt(index))));
+                    alternates.Add(row);
+                }
+                var addAlternate = Z.Button("Add alternate",
+                    "Let each spawn pick between several effects instead of always using the one above. While " +
+                    "this list holds anything it wins outright.",
+                    () => DialAndRebuildCard(id, "Add Blast Alternate", () =>
+                    {
+                        cap.pool ??= new System.Collections.Generic.List<Object>();
+                        cap.pool.Add(null);
+                    }));
+                addAlternate.style.width = 120f;
+                addAlternate.style.alignSelf = Align.FlexStart;
+                alternates.Add(addAlternate);
+                // Boxed only once there is a list to group. An empty pool is one button, and a box titled for a
+                // single control says the same thing twice.
+                body.Add(poolCount > 0
+                    ? (VisualElement)Z.Box("Alternates",
+                        "A pool each spawn picks one entry from, so a repeated blast does not read as the same " +
+                        "picture over and over. While it holds anything it wins over the single blast above.",
+                        alternates)
+                    : alternates);
+            }
 
             if (cap.UsesPattern && cap.formation != null)
             {
