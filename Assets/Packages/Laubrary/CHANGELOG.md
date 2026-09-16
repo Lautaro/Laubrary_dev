@@ -8,8 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 
 
 ### T-0364 (J5) — Zoe window: "Public" on a private Chunks row now actually converts it
@@ -23,22 +21,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **One burst, one frame.** Within `PaletteSplash.Fire`, the fallback tier that borrows a sibling Debris Scatter's sample source now reads `DebrisScatter.ResolvedSampleSource(in ctx)` (its own live-override-aware resolve) instead of its raw authored `sampleSource` field, so every sampling producer in one recipe agrees on the same frame instead of Debris Scatter cutting the live frame while Palette Splash quietly fell back to whatever was authored (D9). When no live override exists and Palette Splash is following a Fragment Fracture in the same recipe, it now calls the fracture's own `ResolveSource(in ChunkModuleContext)` (previously the context-free `ResolveSource()`), so both use exactly the same authored/override precedence.
 - **A standalone burst with nothing authored at all still sprays something, deliberately, not nothing:** no live override, no Source, no Sprite, no sibling Fracture with a source, no supplied palette → plain white specks from the origin (the pre-existing "never silently no-op" floor, now reached via the same waterfall as before — unchanged behaviour, just re-documented on the class).
 - **Palette Splash's Sprite field accepts a Zoe (or any `IChunkAnimation`)** — a new `sourceVisual` (Object) field, same two-tier shape as Fragment Fracture's Source/Fallback sprite: an animated source's first usable frame wins, else the plain `sprite` field (renamed on the card to "Fallback sprite"; the serialized field itself is still `sprite`, so no data migration). The card's new "Source" row uses the same `AssetPicker(..., typeof(IChunkAnimation), ...)` Fragment Fracture's Source already uses, so a Zoe now shows up in the picker **by name** — the T-0347/T-0364 J1 finding that searching "Floating Disc" found nothing, because only a raw-Sprite field existed. `ChunkSpec.ResolvePreviewSource` (the recipe-thumbnail picker) was updated the same way as its Fragment Fracture branch, so a Palette Splash pointed at a Zoe can also drive an animated thumbnail.
->>>>>>> worktree-agent-afd8021e92cf7e676
 
 
-
-### T-0357 — Chunks: Trajectory reads as "Fling", flies outward from a pattern's centre, shows its inherited aim, and can spin
-=======
 
 ### T-0360 — Chunks: less to scroll — a compact Single-blast card, and ZUI's min–max gets a Fixed/Range mode
 - **The Pyre Blast card's alternates row is now pattern-only.** "Add alternate" (and the Alternates box once a pool exists) used to sit between Blast and Pattern on every card, whether or not the recipe ever used it — F7's walk found it repeated, unused, across four Single-blast cards. It now appears only once a pattern is chosen (Line/Ring) or a pool was already authored, so a fresh Single blast is Blast → Pattern → Offset → Rotation → Scale/On screen → Tint/Alpha → Seed, with nothing in between. The Blast and Pattern rows stay in the same position regardless of pattern (`ChunkWindow.PyreBlastCard.cs`), so switching Single↔Line/Ring never moves anything above the switch (ui-rules §6 stable workspace).
 - **`Z.MicroMinMax` gets a Fixed/Range mode (F8).** Right-click opens a Fixed/Range menu, the same gesture `Z.Value`'s mode menu already uses. Range is the existing two-handle band; Fixed collapses the control to a single MicroSlider-style drag, so setting one value is one drag instead of dragging both handles onto the same spot. A control constructed with `low == high` starts in Fixed; anything else starts in Range — no new constructor argument, so every existing caller (16 call sites across Chunks' Debris Scatter, Fragment Fracture, Palette Splash, Trajectory/Fling and Pyre Blast cards) is unaffected, and several (Pyre Blast's default Scale 1–1 and Alpha 1–1, Fling's default Spin 0–0) now open in the compact Fixed shape out of the box.
->>>>>>> worktree-agent-ae3ca4afd0671ec49
 - **The menu entry, card title and tooltips now say "Fling"** instead of "Trajectory" (the class and its serialized fields are unchanged, so every existing asset still loads) — the owner's own use-case walk could not find the word "fling" anywhere near the capability that does it (WALK.md row G1).
 - **A new Direction mode — Burst / Fixed / Outward from pattern centre.** Outward points each spawn away from where its own producer's pattern started, so a Ring of Pyre Blasts flies outward like an explosion instead of every point sharing one cone (G3). `Trajectory.ResolveCentreDeg` is the one place this is decided; the runtime (`Apply`) and the editor preview (`ChunkPreviewSim.LaunchOf`) both call it, so they can never disagree. `PyreBlast.SpawnOne` now threads its pattern's own centre through to the Trajectory it applies.
 - **Burst mode shows the inherited value on the card** — a read-only mirror of the "Burst direction" dial, with a tooltip naming exactly where that dial lives (under the preview, on the stage pane) — instead of hiding the fact that a dial elsewhere is what actually aims the flight (G4).
 - **A Spin band** (degrees/sec, seeded like Speed) makes a flung blast tumble, and **an orientation tick now draws on a Fling'd blast's disc** in the preview — the only way a round footprint can show it is oriented at all — combining with Face velocity rather than replacing it (G5). `ChunkModuleRunner.Move` gained an optional `spinDegPerSec` parameter; 0 (the default) reproduces the exact old no-rotation behaviour.
 - An existing Trajectory asset's old `inheritBurstDirection` choice is folded into the new `directionMode` once, in memory, the same guarded one-time-upgrade shape every other capability already uses for its own migration.
+
+### T-0357 — Chunks: Trajectory reads as "Fling", flies outward from a pattern's centre, shows its inherited aim, and can spin
+=======
+
 
 
 
