@@ -7,23 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-
-
-
-### T-0364 (J5) — Zoe window: "Public" on a private Chunks row now actually converts it
-- **Clicking Public on a private (embedded) Spawn Chunks row used to do nothing** — the only way back to a shared library recipe was adding a second row and switching the first off (WALK.md row J5). `BuildChunksRefRow` now handles that direction: it creates a new library asset in `Assets/Chunks` (the same default T-0250 uses for Private), copies the embedded recipe's authored tuning into it with `EditorUtility.CopySerialized` **before** removing anything, re-points the field at the new asset, and only then removes the now-orphaned embedded sub-asset from the Zoe's own file. The new asset's path is logged. Every step is folded into one Undo group (`Undo.CollapseUndoOperations`), matching Private→Public's own one-undo contract. The Zoe asset itself is only ever touched to drop its own embedded sub-asset — never renamed, never has any other field rewritten.
-=======
-
-
-### T-0363/T-0364(J1) — Chunks: Palette Splash follows a Zoe's live frame, Spread agrees with the other producers, one burst samples one frame
-- **Palette Splash now reads the live caller override.** `PaletteSplash.Fire` resolves its sample sprite through a new `ResolveSprite(in ChunkModuleContext ctx)` — the "sampled sprite for this burst" — which checks `ChunkModuleContext.SampleSourceOverride` FIRST, exactly as Debris Scatter's `ResolvedSampleSource` and Fragment Fracture's `ResolveSource(in ChunkModuleContext)` already do. Before this, Palette Splash never looked at the override at all, so a Zoe-triggered spray with its Sprite field cleared emitted plain white from one point instead of the Zoe's live colours (J2). The standalone-preview overload `ResolveSprite(ChunkSpec)` (no live burst) is unchanged in shape and still what the editor's static preview uses.
-- **Palette Splash's Spread now means what Debris Scatter's and Fragment Fracture's Spread mean.** Its runtime picked an angle from `±spreadDeg * 0.5`, silently halving the cone versus the other two producers (which use `±spreadDeg`), so the shared tooltip "0 = a tight jet; 180 = a full circle" was true on those two cards and false on this one — a Spread of 180 sprayed only a half circle (J3/D6). Fixed to `±spreadDeg`, so 180 now reaches a full 360° circle on ONE card, no second Palette Splash aimed the other way needed. The editor preview's cone gizmo and its schematic particle angles (`ChunkPreviewSim.Splash`) were fixed to match. **This changes the on-screen spread of any existing Palette Splash asset with Spread < 180** (the cone is now twice as wide) — that was the bug, not a preserved feature, so no back-compat shim was added; an asset that specifically wanted the old half-width can simply halve its authored Spread value.
-- **One burst, one frame.** Within `PaletteSplash.Fire`, the fallback tier that borrows a sibling Debris Scatter's sample source now reads `DebrisScatter.ResolvedSampleSource(in ctx)` (its own live-override-aware resolve) instead of its raw authored `sampleSource` field, so every sampling producer in one recipe agrees on the same frame instead of Debris Scatter cutting the live frame while Palette Splash quietly fell back to whatever was authored (D9). When no live override exists and Palette Splash is following a Fragment Fracture in the same recipe, it now calls the fracture's own `ResolveSource(in ChunkModuleContext)` (previously the context-free `ResolveSource()`), so both use exactly the same authored/override precedence.
-- **A standalone burst with nothing authored at all still sprays something, deliberately, not nothing:** no live override, no Source, no Sprite, no sibling Fracture with a source, no supplied palette → plain white specks from the origin (the pre-existing "never silently no-op" floor, now reached via the same waterfall as before — unchanged behaviour, just re-documented on the class).
-- **Palette Splash's Sprite field accepts a Zoe (or any `IChunkAnimation`)** — a new `sourceVisual` (Object) field, same two-tier shape as Fragment Fracture's Source/Fallback sprite: an animated source's first usable frame wins, else the plain `sprite` field (renamed on the card to "Fallback sprite"; the serialized field itself is still `sprite`, so no data migration). The card's new "Source" row uses the same `AssetPicker(..., typeof(IChunkAnimation), ...)` Fragment Fracture's Source already uses, so a Zoe now shows up in the picker **by name** — the T-0347/T-0364 J1 finding that searching "Floating Disc" found nothing, because only a raw-Sprite field existed. `ChunkSpec.ResolvePreviewSource` (the recipe-thumbnail picker) was updated the same way as its Fragment Fracture branch, so a Palette Splash pointed at a Zoe can also drive an animated thumbnail.
-
-
-
 ### T-0360 — Chunks: less to scroll — a compact Single-blast card, and ZUI's min–max gets a Fixed/Range mode
 - **The Pyre Blast card's alternates row is now pattern-only.** "Add alternate" (and the Alternates box once a pool exists) used to sit between Blast and Pattern on every card, whether or not the recipe ever used it — F7's walk found it repeated, unused, across four Single-blast cards. It now appears only once a pattern is chosen (Line/Ring) or a pool was already authored, so a fresh Single blast is Blast → Pattern → Offset → Rotation → Scale/On screen → Tint/Alpha → Seed, with nothing in between. The Blast and Pattern rows stay in the same position regardless of pattern (`ChunkWindow.PyreBlastCard.cs`), so switching Single↔Line/Ring never moves anything above the switch (ui-rules §6 stable workspace).
 - **`Z.MicroMinMax` gets a Fixed/Range mode (F8).** Right-click opens a Fixed/Range menu, the same gesture `Z.Value`'s mode menu already uses. Range is the existing two-handle band; Fixed collapses the control to a single MicroSlider-style drag, so setting one value is one drag instead of dragging both handles onto the same spot. A control constructed with `low == high` starts in Fixed; anything else starts in Range — no new constructor argument, so every existing caller (16 call sites across Chunks' Debris Scatter, Fragment Fracture, Palette Splash, Trajectory/Fling and Pyre Blast cards) is unaffected, and several (Pyre Blast's default Scale 1–1 and Alpha 1–1, Fling's default Spin 0–0) now open in the compact Fixed shape out of the box.
@@ -33,16 +16,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A Spin band** (degrees/sec, seeded like Speed) makes a flung blast tumble, and **an orientation tick now draws on a Fling'd blast's disc** in the preview — the only way a round footprint can show it is oriented at all — combining with Face velocity rather than replacing it (G5). `ChunkModuleRunner.Move` gained an optional `spinDegPerSec` parameter; 0 (the default) reproduces the exact old no-rotation behaviour.
 - An existing Trajectory asset's old `inheritBurstDirection` choice is folded into the new `directionMode` once, in memory, the same guarded one-time-upgrade shape every other capability already uses for its own migration.
 
+### T-0364 (J5) — Zoe window: "Public" on a private Chunks row now actually converts it
+- **Clicking Public on a private (embedded) Spawn Chunks row used to do nothing** — the only way back to a shared library recipe was adding a second row and switching the first off (WALK.md row J5). `BuildChunksRefRow` now handles that direction: it creates a new library asset in `Assets/Chunks` (the same default T-0250 uses for Private), copies the embedded recipe's authored tuning into it with `EditorUtility.CopySerialized` **before** removing anything, re-points the field at the new asset, and only then removes the now-orphaned embedded sub-asset from the Zoe's own file. The new asset's path is logged. Every step is folded into one Undo group (`Undo.CollapseUndoOperations`), matching Private→Public's own one-undo contract. The Zoe asset itself is only ever touched to drop its own embedded sub-asset — never renamed, never has any other field rewritten.
+
+### T-0363/T-0364(J1) — Chunks: Palette Splash follows a Zoe's live frame, Spread agrees with the other producers, one burst samples one frame
+- **Palette Splash now reads the live caller override.** `PaletteSplash.Fire` resolves its sample sprite through a new `ResolveSprite(in ChunkModuleContext ctx)` — the "sampled sprite for this burst" — which checks `ChunkModuleContext.SampleSourceOverride` FIRST, exactly as Debris Scatter's `ResolvedSampleSource` and Fragment Fracture's `ResolveSource(in ChunkModuleContext)` already do. Before this, Palette Splash never looked at the override at all, so a Zoe-triggered spray with its Sprite field cleared emitted plain white from one point instead of the Zoe's live colours (J2). The standalone-preview overload `ResolveSprite(ChunkSpec)` (no live burst) is unchanged in shape and still what the editor's static preview uses.
+- **Palette Splash's Spread now means what Debris Scatter's and Fragment Fracture's Spread mean.** Its runtime picked an angle from `±spreadDeg * 0.5`, silently halving the cone versus the other two producers (which use `±spreadDeg`), so the shared tooltip "0 = a tight jet; 180 = a full circle" was true on those two cards and false on this one — a Spread of 180 sprayed only a half circle (J3/D6). Fixed to `±spreadDeg`, so 180 now reaches a full 360° circle on ONE card, no second Palette Splash aimed the other way needed. The editor preview's cone gizmo and its schematic particle angles (`ChunkPreviewSim.Splash`) were fixed to match. **This changes the on-screen spread of any existing Palette Splash asset with Spread < 180** (the cone is now twice as wide) — that was the bug, not a preserved feature, so no back-compat shim was added; an asset that specifically wanted the old half-width can simply halve its authored Spread value.
+- **One burst, one frame.** Within `PaletteSplash.Fire`, the fallback tier that borrows a sibling Debris Scatter's sample source now reads `DebrisScatter.ResolvedSampleSource(in ctx)` (its own live-override-aware resolve) instead of its raw authored `sampleSource` field, so every sampling producer in one recipe agrees on the same frame instead of Debris Scatter cutting the live frame while Palette Splash quietly fell back to whatever was authored (D9). When no live override exists and Palette Splash is following a Fragment Fracture in the same recipe, it now calls the fracture's own `ResolveSource(in ChunkModuleContext)` (previously the context-free `ResolveSource()`), so both use exactly the same authored/override precedence.
+- **A standalone burst with nothing authored at all still sprays something, deliberately, not nothing:** no live override, no Source, no Sprite, no sibling Fracture with a source, no supplied palette → plain white specks from the origin (the pre-existing "never silently no-op" floor, now reached via the same waterfall as before — unchanged behaviour, just re-documented on the class).
+- **Palette Splash's Sprite field accepts a Zoe (or any `IChunkAnimation`)** — a new `sourceVisual` (Object) field, same two-tier shape as Fragment Fracture's Source/Fallback sprite: an animated source's first usable frame wins, else the plain `sprite` field (renamed on the card to "Fallback sprite"; the serialized field itself is still `sprite`, so no data migration). The card's new "Source" row uses the same `AssetPicker(..., typeof(IChunkAnimation), ...)` Fragment Fracture's Source already uses, so a Zoe now shows up in the picker **by name** — the T-0347/T-0364 J1 finding that searching "Floating Disc" found nothing, because only a raw-Sprite field existed. `ChunkSpec.ResolvePreviewSource` (the recipe-thumbnail picker) was updated the same way as its Fragment Fracture branch, so a Palette Splash pointed at a Zoe can also drive an animated thumbnail.
+
+
 ### T-0357 — Chunks: Trajectory reads as "Fling", flies outward from a pattern's centre, shows its inherited aim, and can spin
-=======
-
-
-
+- **The menu entry, card title and tooltips now say "Fling"** instead of "Trajectory" (the class and its serialized fields are unchanged, so every existing asset still loads) — the owner's own use-case walk could not find the word "fling" anywhere near the capability that does it (WALK.md row G1).
+- **A new Direction mode — Burst / Fixed / Outward from pattern centre.** Outward points each spawn away from where its own producer's pattern started, so a Ring of Pyre Blasts flies outward like an explosion instead of every point sharing one cone (G3). `Trajectory.ResolveCentreDeg` is the one place this is decided; the runtime (`Apply`) and the editor preview (`ChunkPreviewSim.LaunchOf`) both call it, so they can never disagree. `PyreBlast.SpawnOne` now threads its pattern's own centre through to the Trajectory it applies.
+- **Burst mode shows the inherited value on the card** — a read-only mirror of the "Burst direction" dial, with a tooltip naming exactly where that dial lives (under the preview, on the stage pane) — instead of hiding the fact that a dial elsewhere is what actually aims the flight (G4).
+- **A Spin band** (degrees/sec, seeded like Speed) makes a flung blast tumble, and **an orientation tick now draws on a Fling'd blast's disc** in the preview — the only way a round footprint can show it is oriented at all — combining with Face velocity rather than replacing it (G5). `ChunkModuleRunner.Move` gained an optional `spinDegPerSec` parameter; 0 (the default) reproduces the exact old no-rotation behaviour.
+- An existing Trajectory asset's old `inheritBurstDirection` choice is folded into the new `directionMode` once, in memory, the same guarded one-time-upgrade shape every other capability already uses for its own migration.
 
 ### T-0354 — Chunks cards have an identity: duplicate, drag to reorder, one colour per card, every blast numbered
 - **Chunks: each card keeps its own colour** on its header edge, its Timing lane and its outline on the preview stage; the colour stays with the card through a reorder (stored as `ChunkCapability.colorSlot`, assigned lowest-free on add or duplicate, and resolved in stack order for older recipes without dirtying them). A header chip in that colour shows the card's firing numbers. Cards now have a **Duplicate** button (a deep copy with a fresh id and colour, inserted right after, one undo step) and are **reordered by dragging the ≡ grip** (`ZuiReorder`) instead of ▲/▼. The stage numbers **every** blast by firing order across the whole recipe (single blasts too). Each number is a chip in its card's colour that fades with its disc and moves aside when it would land on another. Clicking a lane's name scrolls to its card and unfolds it. A lone card now reserves its hidden Delay slot, so adding a second card no longer reflows the first. ZUI gains `ZuiBox.AddHeaderLead` / `ZuiBox.SetAccent` and `ZuiLanes.OnLaneLabelClicked` / `LaneLabelHint`.
-
-
 
 
 ### T-0355 — Chunks Timing lanes are editable: drag a band to change that card's delay
@@ -51,22 +44,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Chunks' Timing section uses both.** Dragging a band writes that capability's Delay through the window's normal `Dial` path (one Undo step per drag). The card's Delay field and the stage follow live, and no card or window is rebuilt per move. The gutter cap is 120 pt, and the section's tooltip now says what dragging a band does.
 
 
-
-
 ### T-0358 — ZUI: Z.PadRow gives a spatial X/Y pair an exact readout; Chunks' Pyre Blast Offset drags on the stage
 - **New `Z.PadRow`** (`Zui/Toolkit/Zui.cs`) extends `Z.Pad` with a value readout: two labelled, scrub-and-type X/Y fields beside the dot, each tooltip stating the range it accepts — the fix for the F3/H2 walk finding that a bare pad's ±range was invisible and its drag resolution far too coarse to land an exact value (ui-rules §1/§3). `Z.Pad` itself is untouched, so its 8 existing callers (BackSplash ×2, Mirage ×2, Pyre, Zoetrope, ZuiGallery, ShaperMock) are unaffected. `Z.PadRow` generalises the pad+fields row BackSplashWindow.BuildPositionRow already worked out by hand for a plain (non-animatable) Vector2 — `Z.Value2D` remains the analog for an *animatable* ZUIValue pair and is not a fit here. It hands back a `sync` delegate so a driver other than the row itself (a value dragged directly on a preview stage) can push its own change into the dot and both fields without re-firing `onChanged`.
 - **Chunks' Pyre Blast card's Offset row now uses `Z.PadRow`** instead of a bare `Z.Pad`, so its pattern centre can be typed or scrub-dragged exactly, not just eyeballed on a 56px square.
 - **A blast's disc (or its not-yet-fired ring) can now be dragged directly on the Chunks preview stage** to set that Pyre Blast's Offset — one Undo step per drag (`Undo.RecordObject` once at mouse-down, direct mutation after, the same shape as `BackSplashWindow.HandleDrag`), never rebuilding the card or the window (the drag only pushes the new value into the card's retained pad/fields via a new `SyncBlastOffsetRow`, keyed by capability id since a recipe can hold more than one Pyre Blast). The stage's world→pixel mapping is now two static `ChunkWindow` helpers, `WorldToScreen`/`ScreenToWorld`, shared by both the paint pass (`DrawGuides`) and the drag hit-test, so a dragged disc tracks the cursor under the exact transform it was drawn with. `ChunkGuide` gained a `capId` field (Pyre Blast's own producer, `ChunkPreviewSim.cs`) so the hit-test knows which capability a dragged disc belongs to.
 
 
-
-
 ### T-0361 — New shows and lets you choose where it creates the asset
 - **`ZuiAssetWindow<T>`'s New row now shows the target folder (middle-elided, full path in the tooltip) plus a "Folder…" button** that opens the OS folder picker, constrained to inside this project's `Assets/` (a folder picked outside it is rejected with a console warning and the previous folder is kept). Every tool on this shared base gets it at once — Chunks, Pyre, and the rest of `ZuiAssetWindow<T>`'s subclasses (BackSplash, Cartographer, Choreographer, DotGen, Larder, Lathe, SpriteCatalog, Mirage, SpriteFx, Tapestry, TextSplash, Zoetrope…) — with no per-tool changes. No modal dialog appears on every New: the row defaults to the same folder New always used (the currently-open asset's folder, or the tool's `DefaultFolder`) and only prompts when the Folder… button is clicked.
 - **The chosen folder is remembered per window TYPE** in `EditorPrefs` (same pattern as T-0350's remembered-last-asset), so picking a folder once for a tool sticks across every later New in that tool, including after closing and reopening the window. `Undo.RegisterCreatedObjectUndo` still fires on create, unchanged.
 - `Editor/AssetKit/ZuiAssetWindow.cs` only — the older IMGUI `LaubraryAssetWindow<T>` base currently has zero subclasses in the package, so it was left alone.
-
-
 
 
 ### T-0352 — Chunks: Fragment Fracture honours a Zoe's live current frame, same override as Debris Scatter
@@ -76,13 +63,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Field tooltips on `Source`/`Fallback sprite` (runtime attribute and the Fragment Fracture card) now say a live Zoe frame outranks both when one is supplied.
 
 
-
-
 ### T-0350 — every AssetKit window remembers the asset it was editing when reopened
 - **Closing and reopening any `ZuiAssetWindow<T>` tool (Chunks, Pyre, and every other tool on that shared base — BackSplash, Cartographer, Choreographer, DotGen, Larder, Lathe, SpriteCatalog, Mirage, SpriteFx, Tapestry, TextSplash, Zoetrope…) no longer drops to the asset browser.** `[SerializeField] asset` only survives a domain reload of a window left OPEN; a closed-then-reopened window is a brand-new instance with every field back at its default, which is why it always fell back to the browser. `ZuiAssetWindow<T>` now mirrors the last non-sub-asset it edited into `EditorPrefs`, keyed by concrete window type and this project's path, and restores it (by GUID → path → `LoadAssetAtPath<T>`) on `OnEnable`, only when the window comes up with no asset and isn't already showing the browser on purpose. Falls back silently to the browser if the remembered asset was since deleted or moved out from under the GUID. Never fights a caller's explicit `SetAsset` right after `GetWindow` (double-clicking an asset, a Mirage handoff, etc. — those run after `OnEnable` and win outright), and never fights Unity's own field serialization across a plain recompile of an already-open window.
 - `Editor/AssetKit/ZuiAssetWindow.cs` only — the older IMGUI `LaubraryAssetWindow<T>` base (used by Lazor) has the identical gap but was out of this task's scope; flagged for a follow-up if wanted.
-
-
 
 
 ### T-0343 — Zounds: the old Zounds look is back (style sheet ships with the package)
@@ -95,15 +78,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Consumer projects: delete the stale empty `Assets/Zounds/ZUI Assets/ZOUNDS ZUI Style Sheet.asset` after updating (it no longer wins, but it is dead weight).
 
 
-
-
 ### T-0261 — Chunks: ZUI Envelope replaces every native CurveField
 - **No native `CurveField` anywhere in Chunks — `Z.Envelope` (ZUI's own draggable multi-point editor) is now the only curve control**, project-wide policy restated with zero exceptions for AnimationCurve specifically. `DebrisScatter.sizeOverLife`/`alphaOverLife`, `FragmentFracture.alphaOverLife` and `PaletteSplash.alphaOverLife` are now `List<ZUIEnvelopePoint>` (`sizeEnvelope`/`alphaEnvelope`), sampled at runtime via `ZUIEnvelopeEvaluator.Evaluate` instead of `AnimationCurve.Evaluate`. The three editor cards (Debris Scatter, Fragment Fracture, Palette Splash) draw `Z.Envelope` instead of `Z.Curve`, wired through two new `ChunkWindow` helpers (`EnvelopeUndo`/`EnvelopeChanged`) that split the existing `Dial` undo contract across Envelope's before/after mutation hooks, since an envelope mutates its point list in place rather than handing back a new value.
 - **No authored curve data is lost.** Each affected capability keeps its old `AnimationCurve` field as a `[HideInInspector]` migration source and adds `ChunkCapability.MigrateLegacyCurves()` (new virtual hook, guarded by a per-capability `curvesMigrated` flag), which densely samples the old curve into 9 evenly-spaced `ZUIEnvelopePoint`s — visually equivalent to the original Hermite curve without needing exponent-fitting. `ChunkSpec.UpgradeIfNeeded` now runs this migration on every load (cheap once done) and reports it via the existing `NeedsSaving`/`ChunkSpecMigration.UpgradeAllAssets` asset-walk, so opening the project quietly upgrades every recipe on disk exactly like the schema-version upgrade already did. Verified against a real authored asset (`Sparks.asset`): the migrated envelope reproduces its source curve within ~0.06 (out of a 0–1 range) at the worst sample point.
 - Chunks' runtime asmdef (`Runtime/Chunks/Chunks.asmdef`) now references `com.Lautaro-Arino.Laubrary.ZuiRuntime` for `ZUIEnvelopePoint`/`ZUIEnvelopeEvaluator`.
 - Follow-up (out of scope here): `ZuiReflect.cs` still falls back to `Z.Curve` when reflecting a bare `AnimationCurve` field — that's the generic reflection drawer used by every tool, not Chunks-specific, and was left alone per this task's scope.
-
-
 
 
 ### T-0252 — Debris Scatter: live Zoe-sprite sampling + project pixel scale default
@@ -114,13 +93,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Debris piece size (`sizeMin`/`sizeMax`) defaults bumped** from 0.08–0.18 to 0.16–0.35 world units — at the project's PPU-16 scale the old range was 1.3–2.9 SCREEN pixels (sub-pixel), which read as fine noise rather than blocky pixel-art shrapnel; the new range was matched by eye against ProtoGuy's own sprite density in Play mode. Freely author-tunable either way. Floating Disc's private Hit debris asset was updated to the new size range as the real-world test case (its pixel-scale fields already picked up the new project-setting default automatically via the migration above).
 
 
-
-
 ### T-0251 — Screen-edge visualiser + BackSplash runtime backdrop
 - **Screen-edge visualiser** (`Runtime/PixelScale/ScreenEdgeVisualizer.cs`) — a generic, reusable helper (originally scoped as Life Manager task T-0007) that draws where the game screen's edges fall, in world units, derived entirely from `PixelScaleProjectSettings`: the core rectangle at the project's target resolution (320x200 by default), and an outer rectangle showing the extra area a larger display (a configurable `outerResolution`, default 1920x1080) reveals around that core, computed via the project's own integer-upscale rule so it stays consistent with what a real pixel-perfect camera renders. One on/off toggle, nothing else configurable. Draws via Gizmos in the editor and via runtime `LineRenderer`s during Play (visible in the Game view too), matching the debug-line pattern T-0247's `FireDirectionVisualizer` established. Wired onto ProtoGuyDemo's Main Camera.
 - **BackSplash runtime backdrop** (`Runtime/BackSplash/BackSplashBackdrop.cs`) — the runtime counterpart the package didn't have yet (only editor-side IMGUI preview painting existed). Renders a `BackSplash` asset as a live Play-mode background: sets the target camera's clear colour from `cameraColor` and positions/scales a `SpriteRenderer` from `image`/`imageZoom`/`imagePos`, reusing the asset's own fields with no parallel data model. ProtoGuyDemo now has a `ProtoGuyDemo Background.asset` BackSplash using `Assets/BackSplash/Source/Background22.png` (imported as a Sprite), and a debug-only OnGUI zoom slider (`Assets/Demos/ProtoGuyDemo/BackSplashZoomSlider.cs`, same plain-game-code pattern as `FireDirectionVisualizer`) for tuning `imageZoom` live by eye.
-
-
 
 
 ### T-0250 — Private (embedded) Chunks reference
@@ -130,13 +105,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fixes (AssetKit).** `AssetLibrary<T>.Enumerate` / `AssetLibraryUntyped.Enumerate` — the shared read paths behind every LauAsset browser/picker — now exclude sub-assets. `AssetDatabase.LoadAssetAtPath<T>` falls back to a matching sub-asset when the file's main asset is a different type, so without this an asset meant to be embedded-and-hidden would still surface everywhere. `ZuiAssetWindow<T>`'s Duplicate/Rename/Delete toolbar buttons (and its Tags section) are now hidden for a sub-asset too — those actions operate on the asset's FILE, which a sub-asset shares with whatever owns it.
 
 
-
-
 ### T-0245 — Pyre anchor
 - **A Pyre can carry an optional anchor.** Off by default, so every existing asset keeps its implicit origin (the canvas centre). Turned on in the Pyre window's Canvas section, the anchor is either a Position (the Pyre's base / start / centre) or a Vector (that point plus the direction the art faces), placed by clicking the preview and dragging the dot or the arrowhead — the same marker Launimator's Vector meta-layers use, now one shared implementation (`ZuiVectorMarker`) rather than two. The anchor does nothing by itself: it is the author telling placing systems how to treat the Pyre. Anchor and origin are deliberately ONE concept — when an anchor is set it IS the origin a placing system pins to the spawn point.
 - **Every Pyre-spawning Zoe effect and the weapon muzzle slot honour it.** A spawned blast lands its anchor (not its centre) on the resolved point, and "Face event direction" rotates a Vector anchor's direction along the event instead of assuming the art faces +X. A Pyre without an anchor is placed exactly as before.
-
-
 
 
 ### T-0239 — Muzzle flash follows the muzzle (rework 2)
@@ -145,30 +116,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fixes.** A pooled blast no longer accumulates a follower per reuse — the follow is re-armed on the existing component and cleared when the pool deactivates the instance. The Zoe's animated view and body-part lookup are now checked for real liveness before being re-read, so an effect still playing when its character is destroyed stops where it is instead of throwing every frame.
 
 
-
-
 ### T-0239 — Directional muzzle flash (rework)
 - **ProtoGuy fires ONE muzzle flash again.** Two flashes had always been authored on top of each other — the gun's own muzzle slot and the Zoe Fire event's Pyre row, both at the painted Muzzle point; the first attempt moved only one of them, which is what pulled the pair apart. The gun's slot is now empty and the Fire event's row is the one flash: at the painted Muzzle meta point, turned with the shot, mirrored for a left-facing shot.
 - **Rotation and mirroring are resolved together and mean the same thing on both spawn paths.** An effect card's rotation now defaults to None (nothing authored before it existed rotates); with "Mirror left" on, a result that points left shows the mirrored visual at a small angle rather than the right-facing art rotated 180° and drawn upside down — the effect compensates the angle through its Pyre anchor. A weapon's own muzzle slot plays oriented the same way (`ICombatFx.PlayOriented`), so whichever of the two owns the flash points it correctly.
 - **Zoe window.** Rotation controls read for the current mode (Offset° / Angle° as sliders, a per-mode "Mirror left" tooltip), and an effect whose Pyre has a Vector anchor says so beside the picker. A duplicated test file was removed and a data test now pins ProtoGuy's Fire to exactly one blast.
 
 
-
-
 ### T-0242
 - **ProtoGuy demo / Zoetrope.** The Floating Disc's declared hit reaction now combines its directional Pyre impact with a Sparks Chunks emission, while its declared death continues through the authored Floating Disc Blowup recipe: a multi-Pyre fracture burst with the recipe's small fire trails. The debris recipe now uses the shared 16 PPU world scale, and the demo keeps four lower-health flyers in a tighter, faster respawn loop so the hit and kill reads are encountered naturally in play.
-
-
 
 ### Added
 - **Zoetrope — directional event effects.** Named events now carry a normalized general direction, and each event effect can anchor to a declared body part with a local offset, choose no/event-facing/fixed rotation with an art offset, and mirror compatible Pyre flashes with body facing. ProtoGuy's Fire flash uses the Upper part and the shot direction.
 
-
-
 ### Fixed
 - **Zoetrope / SpriteFx.** Body SpriteFx now treats a composite Zoe as its declared body-part renderer set rather than selecting the first descendant renderer, so a body flash, tint or relight reaches the whole figure without affecting equipped or transient child FX. Body SpriteFx cards can optionally restrict themselves to one declared part; single-sprite Zoes preserve their existing fallback.
-
-
 
 ### Added
 - **Pixel Scale** (`Runtime/PixelScale/`, asmdef `com.Lautaro-Arino.Laubrary.PixelScale`) — a host-project asset establishes the pixel-art tile scale, low-resolution world canvas, human-height reference and display reference once. `PixelScale` derives camera size and integer preview/display scale from it, while `PixelScaleCamera` makes an orthographic world camera follow those values by default or explicitly override them in one scene. It leaves UI cameras and canvases alone, and configures an already-installed Pixel Perfect Camera without adding a render-pipeline dependency.
@@ -187,8 +148,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **DotGen ships with two demonstrations, both authored through the window itself (T-0231).** `Assets/Demos/DotGenDemo/DotGen Demo.asset` is the tool's own reference composition — a lattice carrying two child generators, 308 visible dots across 32 evaluated areas — created with nothing more than the window's own New button. `Three Rows of Buildings.asset` reproduces the tool's worked example end to end, one real control at a time: a one-column, three-row Root Area; a Box Row generator standing each box on its own bottom edge and letting it grow past its row into whatever is behind it, which is how a nearer row's tall buildings climb up through the row standing behind them with no special case anywhere in the renderer; a Fill drawer painting every box; and a child Grid attached to each box's own cell, narrowed by a Margin selector to a safe interior and painted by a second Fill drawer — window panes that never touch a wall edge. Both documents export straight to PNG from the window, and `Laubrary Dev/Copy Demos to Package` carries them into `Samples~/Demos/DotGenDemo/` alongside every other tool's demo.
 - **A Pyre Blast can tint and fade what it spawns, per instance (T-0222).** One effect asset, several looks: the blast's `Tint` multiplies onto every renderer of what it spawns, and an `Alpha` range gives each individual blast of a pattern its own opacity, drawn from the same seeded sequence the angle and the size come from — so a ring of five can come out as five differently faded blasts of one Pyre without authoring five assets. Colour is per-USE, deliberately: it lives on the recipe's blast, not on the effect, so the same Pyre picked into three recipes still looks like itself in the other two. Existing recipes are untouched (white, fully solid, and no extra draw off the sequence). The editor preview's discs take the tint and each instance's own alpha, so the dials change the picture rather than only the burst.
 
-
-
 ### Fixed
 - **A reflected choice of three or fewer options now looks like the ones written by hand (T-0232).** Every window that draws an object's own fields — Pyre, Chunks, SpriteFx, Lathe, DotGen — used to render a short enum as a wrapping row of mini radios while the same window's hand-written choices used the joined segmented control, so two identical kinds of choice sat side by side looking like two different controls. Short sets are now segmented everywhere; longer ones still wrap, because a joined row of six would run off the pane.
 - **Double-clicking a dial whose default depends on where it is used now restores the right number (T-0232).** A reflected slider resets to the value its type was written with, which is correct until one type serves two roles — a DotGen lattice is 8×7 on a root generator and 4×4 on a child, and the reset offered 4 in both. A dial's owner can now answer the question itself, so the reset and the creation can never give different answers.
@@ -203,8 +162,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Debris Scatter no longer shows a Spin dial that does nothing.** A tumbling sampled cut takes its rate from Tumble speed, and Spin is not read at all in that mode.
 - **The Follow Emitter's Sorting Order field no longer runs off the edge of the inspector**, taking a horizontal scrollbar with it.
 
-
-
 ### Changed
 - **One drag of a ZUI slider, range slider, pad or scrub field is now ONE undo step (T-0216).** It used to record a step per pointer move, so Ctrl+Z after a two-second drag walked back through the drag frame by frame instead of undoing it. The controls know where a gesture starts and ends, so the fix lives in them and every tool gets it without changing a call site.
 - **The Chunks preview now decides what is in FRONT the same way the burst does (T-0216).** It used to draw anything without a named layer slot behind everything slotted; the burst does the opposite, because an unslotted output takes the emitter's own draw order (500 by default) plus its place in the recipe, which is a bigger number than any slot's. The preview now asks the runtime's own resolver, so a composition mixing slotted and unslotted producers previews the depth it will actually have. The slot picker's wording and the four producers' Layer tooltips said the old thing and now say the true one.
@@ -218,8 +175,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A multi-projectile shot now asks for its fire state ONCE, not once per projectile (T-0093).** `ProjectileWeapon.FireInternal` raises `Fired` for every projectile, so a three-pellet shotgun asked its character for the fire state three times in one frame — the arbiter refused two of the three clips while all three still fired the reaction's Immediate effects. This reads as a fix, but it IS a visible difference for anyone who tuned an effect against the tripled version. Deliberately scoped to the state raise only: the muzzle VFX and the fire zound are still per-projectile, and de-duplicating those is a separate change nobody asked for.
 - **`PlayLauminationEffect` says plainly that it plays a bare clip.** Its tooltip and doc comment now state that it carries no duration, no body flash and no effect list, and that raising a named state is the way to get those. (It already routed through the `AnimationArbiter` rather than the view; that is unchanged.)
 
-
-
 ### Added
 - **ZUI can draw a clock whose parts overlap, and a divider you dragged too far can be put back (T-0209).** `Z.Lanes` is a new multi-lane clock: N named bands, each placed by its own ABSOLUTE start and end on ONE shared ruler, with named instants and a single draggable playhead. `Z.Timeline` remains what it always was — a strip of CONSECUTIVE bands — which means an absolute "starts at 0.15 s" dial drawn on it silently reads as "0.15 s after the previous one ended", so any tool whose parts run together (a chunk recipe's sparks and its debris) needs the new control instead. Three of its behaviours are corrections to measured defects rather than decoration: the ruler's length is set by the HOST over every band including the switched-off ones (otherwise disabling one rescales the ruler and slides the rest sideways), a switched-off band keeps its lane drawn dim (removing it changes the control's height and moves what sits above), and the first and last ruler numbers are pulled inside the bar (centred on their own tick, `0.00s` renders as `.00s` against the edge). Two smaller fixes ride along: a ruler number the playhead's readout covers is now **dropped out of the lane** in `Z.Timeline` too, rather than left in the tree invisible and still answering hit tests from underneath; and **double-clicking a `Z.Split` divider resets the pane to the width the tool asks for and forgets the saved one** — because that width persists, a cold open was never a first run, and a pane dragged to an extreme had no route back for any Laubrary tool.
 - **The palette's honesty / bypass-resistance surface (T-0096).** A small set of visibility tools so nobody — including an AI writing game code — quietly starts making a character show something without going through its declared list. `ZoeReactionTelemetry.Requested` (Runtime, no Editor reference — same shape as `ChunkTimelineEvents.HasListeners`) reports every attempt to raise a name against a character's palette, matched or not; `ZoePaletteUsageLog` (Editor, `[InitializeOnLoad]`) persists what it hears to a Library-folder cache across domain reloads and editor restarts. Zoe window: every custom event row now shows a usage chip ("● requested N×" / "○ never requested"), a ▶ Preview button (spawns a throwaway character via `ZoeSpawner.SpawnCharacter` — the same path Mirage's own edit-mode preview uses — and fires the reaction for real through `ReactionFxPlayer`/`Health`, no Play mode needed), and a copy-name button (for pasting into a hand-typed `Raise("...")` call, per the project's "a name is typed once where declared" rule); the built-in Hit/Death rows get the same Preview button. Deleting an event now warns (`EditorUtility.DisplayDialog`) if a cue on the same character still raises it or if it has ever been observed requested. New `Laubrary/Zoetrope/Palette Health` window (one more item in the existing Zoetrope submenu) aggregates two project-wide checks: **names requested that no character declares** (the collected form of `ReactionFxPlayer.WarnNoSuchState`'s existing per-instance console warning), and the REVERSE check per ZOE_PALETTE_TAKE.md's "bypass question" — **a character showing something that did NOT come from its declared palette** — a heuristic text scan (`ZoePaletteBypassAudit`) for direct `PyreBlastPool.Get`/`ChunkPool.Get`/`.PlayFollowable`/`.AddComponent<SpriteFxFilter>`/`.PlayClip` calls outside Laubrary's own package, always shown as a review prompt rather than a verdict. `Zoe.DescribeDeclaredStates()` prints a character's whole declared list as plain text, for writing gameplay code away from the editor. CLAUDE.md's Zoe palette section now names these tools explicitly, next to the rule they exist to help enforce.
@@ -229,8 +184,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`IFireStateSource` — game code chooses what firing looks like (T-0093).** A component on the character (or any parent of the weapon) implementing `string FireStateFor(in FireShot shot)` is asked for the name of the state to show on every shot, receiving the weapon, its `WeaponDef`, the live muzzle origin, the shot's aim and whether it was hitscan. With no such component the weapon asks for the reserved `"Fire"` exactly as before, quietly, so every existing project is untouched. With one, its answer is the name and there is **no fallback**: an empty or null answer means show nothing at all, because a hidden fallback would play a state in answer to a decision to play none. A chosen name that the character does not declare warns and lists the alternatives. Discovered via `GetComponentInParent`, matching `ICueSink`/`IVectorAimSource`/`IActiveWeaponSource`. Coverage does not depend on the game's perspective: the hook is on `ProjectileWeapon.Fired`/`HitscanFired`, downstream of `Combatant.aimDirection`, so player input, `autoFire`, a Daemon brain, Mirage's preview step and Target Practice are all covered by one path.
 - **Zoe window: a reaction's `Stun` is finally visible and editable**, beside Clip / Lasts / Loops·Seconds on the same wrapping row. The field has existed on every reaction since reactions did and was reachable only through Unity's default inspector — which stopped being acceptable the moment it started being obeyed.
 - **`ProjectileWeapon.ResolvedAimDirection()` is public.** It is the SHOT's aim (a sibling `IVectorAimSource`'s drawn barrel angle, then the owner's `aimDirection`, then the weapon's own field) — the right answer for a fire pose, where reading a spawned projectile's own direction would give one pellet's spread-jittered heading instead. Purely additive.
-
-
 
 ### Added
 - **Pluggable `Zoe.playerController` (`IPlayerControllerSpec`), and move/aim/fire split into three independent driver components (T-0087).** A Zoe can now optionally declare a player controller the same way it already declares an AI brain (`[SerializeReference]`, same pattern as `IBrainSpec`) — `ZoeSpawner.SpawnCharacter` attaches it automatically for every caller, Mirage's Preview-in-Mirage included, so a character configured this way is driven by real input instead of Mirage's mouse-slider hand-control panel with zero per-tool wiring. The optional `Zoetrope.ZoeCharacter` bridge module supplies `TopDownPlayerControllerSpec`, which attaches `NewInputSystemSource` + `TopDownMotionDriver` + `AimDriver` + `ZoeWeaponDriver`. Move, aim and fire are three separate, independently swappable components (mirroring the existing `IZoeInputSource` split for raw input reading) rather than one bundle — `TopDownMotionDriver` used to also resolve aim direction, but aim reads identically in every 2D perspective (twin-stick/cursor aim doesn't care whether the mover below it has gravity), so it's now its own `AimDriver`, matching how `ZoeWeaponDriver` (fire) was already split out. A future perspective supplies its own `IPlayerControllerSpec` + motion driver while reusing `AimDriver`/`ZoeWeaponDriver` verbatim; a future aim style is a new component playing `AimDriver`'s role, with nothing downstream (fire, animation) needing to change.
@@ -266,8 +219,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`PlusFieldOps.SmearShiftX`** (whole-pixel −x shift smear with geometric weights, zero-filled, normalise on/off — the Kiln "speed smudge") and **`PlusFieldOps.BinomialBlur`** (zero-padded [¼ ½ ¼] separable soften), with tests. **`PlusRampPresets.OrbEmber / OrbFrost / OrbGold / OrbToxin / OrbVolt` + `Orb(name)`**: the orb signatures verbatim (8 sRGB control points each).
 - **`PlusParityDump.DumpOptions.cropW / cropH`**: dump the centred window of the square canvas, for contracts whose frames are not square (the orb's 192 × 96) — off by default.
 
-
-
 ### Fixed
 - **A character with no death animation was destroyed the instant it died, so `deathLinger` never ran (T-0090).** `ReactionFxPlayer.OnDeath` announces `DeathFinished` synchronously when there is nothing to play, and `ZoeState` subscribes to it — but `ZoeSpawner` adds `ReactionFxPlayer` BEFORE `ZoeState`, so that synchronous signal arrived (and disposed the body) before `ZoeState.OnDied` had even run to schedule the linger. `ZoeState` now only disposes on `DeathFinished` when it is actually waiting for a death clip (`_awaitingDeathClip`), which is set from the new `ReactionFxPlayer.DeathClipArmed`. That flag reports whether a clip GENUINELY started, not whether one was configured: `TryArmClip` used to return true on the strength of a non-empty clip name alone and discard `IAnimatedView.PlayClip`'s real result, so a death clip whose name the view did not know armed "successfully", never completed, and left the body standing forever — the mirror-image bug, now closed by the same change. `AnimatedViewRelay.PlayClip` also stopped recording a completion callback for a clip that was refused, which used to fire it at the end of whatever WAS playing.
 - **A revived character could never be hit again (T-0091).** `ZoeState.OnDied` disables every child `Collider2D`, and nothing turned them back on — `Health.Revive()` wrote fields and fired no C# event, so no listener could react. `Health` now has a `Revived` event (plus an `onRevived` UnityEvent for designer wiring) fired at the end of `Revive()`, and `ZoeState` records exactly which colliders IT disabled and re-enables that set on revival — never "enable everything", which would switch on colliders another system deliberately disabled (an unequipped weapon slot, the inactive projectile template). Revival also cancels the pending disposal timer, clears the dead/disposing/stun flags, and (in `ReactionFxPlayer`) releases the death animation's arbiter claim, without which a respawned body stayed frozen on its last death frame. **Correction:** that last clause did not actually hold as first shipped — the release was written but could never run, because the token it needed had already been thrown away; see the revived-character-animation-locked entry below, which is what makes it true. Mirage's Target Practice, the shipped tool this broke, additionally now sets `ZoeState.disposal = Leave` on its dummy: the default 1.5s death linger is shorter than the default 2s respawn delay, so the object being revived was destroyed first, taking its own respawn coroutine with it.
@@ -291,12 +242,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ZUI — a reflected enum's radio row now wraps inside the pane** instead of running off its right edge and summoning a horizontal scrollbar: `ZuiReflect` lets the enum's field row shrink (`flexShrink 1`), which is what the wrapped `Z.MiniRadio` inside it needs to see a narrower container (found by the Orb's five-option Variant row; every reflected enum benefits).
 - **Pyre — a Swarm's Area+Distribution-0 fill on a polygon shape (Triangle/Square/Pentagon/Hexagon) could read as an arbitrary, unevenly-spaced cluster instead of the shape it was supposed to fill (T-0070).** Two earlier attempts under this same Unreleased entry (both superseded here) shared one flaw: a single generic construction for every polygon kind — first a row-by-row raster grid clipped to the shape (settled on a small off-centre cluster at low `n`), then one concentric-ring "dartboard" scaled to the polygon's own boundary (fixed the low-`n` case, but scaling one ring's constant radial step by a boundary distance that swings sharply with angle does not hold equal-area bands, which read as visibly uneven clumping on a TRIANGLE specifically — reported at 27 particles, Distribution 0). Replaced with a DEDICATED layout per polygon kind, in `GridLayoutPolygon`'s new dispatch (`Runtime/Pyre/PyreRenderer.cs`): Triangle gets a true triangular lattice (the "bowling pin rack" — rows of 1, 2, 3… points, apex to base); Square gets an axis-aligned grid rotated into the shape's own diamond orientation; Hexagon gets a true hex/triangular lattice (the hexagon's own natural, densest tiling); Pentagon — no regular polygon tiling exists for it — falls back to the ring idea redone with equal-AREA bands (radius ∝ √k, not linear) and perimeter-uniform spacing (walking each ring by actual outline progress, not by angle) instead of the constant-count, angle-uniform version that caused the unevenness. `n == sides` lands every particle exactly on the shape's own (scaled) vertices for all four kinds. Verified per shape at three particle counts each (n = sides, 27, 50): rendered against the true outline and checked both by eye and by each layout's nearest-neighbour-distance spread (coefficient of variation 0.04–0.19, all tight), plus confirmed live on the actual reported Triangle asset ("Green Lantern") through the tool's own thumbnail renderer.
 
-
-
 ### Changed
 - **PyrePlus — shapes are now plug-ins (`PlusForm`), and the first two live in their own assembly.** A layer can hold a `[SerializeReference] PlusForm form` (`Runtime/PyrePlus/PlusForm.cs`) instead of a `ShapeForm` enum case: the form is a self-contained class whose public fields ARE its dials (`[Range]`/`[Tooltip]`/`[PlusSwarmOnly]`/`[ZUIShowIf]` drive the editor through `ZuiReflect.FlowFields` — a form needs zero editor code), discovered by assembly scan (`[PlusFormInfo(name, group, icon)]` places it in the Shape picker, which now shows one column per group beside 3D / 2D / Special), evaluated through the renderer's one deterministic Eval funnel with auto-derived field ids (`FldForm - slot`), rendered by ONE dispatch at the top of `RenderLayer` that hands over the fill, alpha, prepared geometry/pixel modifiers and the full swarm-instance list (position with live spin/scale, own life, spawn life, index, orientation, depth, size/brightness), deep-copied and content-hashed by reflection. **Inferno and Fork Blast are migrated** into `InfernoForm` / `ForkBlastForm` in the new family assembly `com.Lautaro-Arino.Laubrary.PyrePlus.Forms.Kiln` (`Runtime/PyrePlus/Forms/Kiln/`, which the core never references — the template for every future family), verified byte-identical against the enum path they replaced (0 differing pixels over 12 frames, swarm off and on, defaults and ~35 tweaked dials each) before that path was deleted. Their ~80 `inferno*`/`fork*` fields, hand-written `Clone()` lines, `Fld*` ids, renderer branches and the two hand-written editor boxes are gone from the core; the two enum slots stay (`[Obsolete]`) so every other serialized int keeps its meaning, and a layer still carrying one without a form draws as a Disc. The two project assets that used Fork Blast were pointed at a `ForkBlastForm` carrying their authored values (0 px difference). Design + the "add a form = one file" recipe: `PYREPLUS_DESIGN.md` § Plug-in forms.
-
-
 
 ### Added
 - **PyrePlus — Arc Burst renders through a Burst rasteriser; Lichten 356 → 77 ms per frame at 128 px (T-0062).** Step one, bit-exact and managed: `ArcField.Seg` skips any pixel whose energy and alpha planes already sit at or above the most the stroke could deposit there (the composite is a pure maximum; the bound comes from monotone tables widened by 1e-5), and `Blob` scans only the bbox of its largest radius — every layout's bytes unchanged, every layout ~2× faster. Step two: `ArcField` became a collector of blittable stroke / blob records and `ArcRaster.Run` (`Forms/Kiln/ArcRaster.cs`, `[BurstCompile]` Strict / High / CompileSynchronously, reached by direct call on the calling thread so worker-thread fills need no job handle) deposits them with maximum compositing through `fixed` pointers over the existing planes — the only path, no managed twin, because Burst's exp/pow differ from Mono's by a last bit. The Kiln family asmdef references `Unity.Burst` / `Unity.Collections` / `Unity.Mathematics` and allows unsafe code; the PyrePlus core does not (legacy Disc FNV unchanged). Parity: all ten contract draws PASS every stage (IoU 1.000, field MAD ≤ 1.5e-6, pixel rgb MAD ≤ 0.083); Bolt / Terminal / Stipple / Pinch byte-identical to before, the other six moved by a last bit. Per-layout table, serial-vs-parallel identity and the recipe in `PYREPLUS_DESIGN.md` § "Burst-boosting a form". With Burst compilation disabled in the editor the same source runs under Mono (correct, slower) and a one-time warning says so.
@@ -339,13 +286,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Cartographer rebuild, phase 8 — procgen composes onto the asset, and hybrid levels fall out of it.** `LevelGenerator.Generate` gains a `LevelAsset` overload: same wandering-ground + banded-scatter algorithm, but every clump goes through the same `Place` call the editor uses, stamped `Origin.Generated`, with its prefab alternative chosen from the run's seed and STORED on the placement. Its "clear" step is `ClearGenerated()` — so regeneration replaces only what a generator made, and hand-authored paints, stamps and decals survive, which is the hybrid-level contract §3.9 demanded the model carry from day one. The recipe's rooms only replace the level's when the recipe actually has some, and the asset's explicit bounds are never touched — where a level ends is an authored decision. The window's Level box gains the ported Generate section (recipe, seed, roll, generate — replacing generated content only). Probe-verified: generated flags exact, authored content intact after three regenerations, same seed → identical placement list, different seed → different level. — metadata becomes queryable and VISIBLE.** The query API from the design lands on both sides of the asset/instance split: `LevelAsset.TagsAt(cell, layer)` (the resolved tile's tags + the source clump's tags + the layer's own tags), `HasTag(cell, tag)` across all layers, and `CellsWith(tag)` — pure functions of the asset — with instance-side twins that read the already-resolved build so gameplay can ask per-frame without re-resolving the level (probe-verified to agree with the asset exactly, including the whole-bounds case of a tag on a default-filled layer). The window gains the **Tags** box: attach/remove tags on the active layer, plus a **Show in scene** overlay that tints every tagged cell with its tag's editor colour (multi-tagged cells draw inset outlines per extra tag) and lists the hovered cell's tag names at the cursor — invisible metadata is unverifiable metadata, so the overlay is the phase's point, not a nicety. Overlay data is cached and recomputed on edit, never per-repaint. — the Scene view becomes the canvas.** The window's Tool box arms scene-view editing: **Paint** (click or drag; a drag never spams the undo stack), **Erase** (a cell's paint first, else the most recent stamped clump covering it — removing the whole placement and rebuilding, because two overlapping stamps share cells and erasing by footprint would punch holes in the other), **Line** (Bresenham, committed on release so the span can be adjusted mid-drag), **Rect** fill, **Pick** (eyedrops the resolved tile back into the palette; Ctrl-click picks from any tool), **Stamp** (the selected clump with rotation/mirror settings, drag-repeat tiling stamps edge-to-edge by footprint-overlap rejection — the old stamper's hard-won rule, ported), and **Decal** (drops the chosen sprite at the exact fractional click point on the active layer). A ghost outlines exactly the cells a gesture would write — preview and commit share the same cell lists so they cannot drift. Alt always erases, a locked layer refuses edits, and every commit is one `Undo.RecordObject` on the ASSET. Supporting it: `LevelAsset.ResolveCell` (the single-cell twin of `ResolveLayer`, probe-verified to agree with it on every cell) and `LevelInstance.RefreshCell` (re-resolves one cell in place — painting drags update one tile instead of rebuilding the level; the variant dict it updates is the same object the tile render reads). Probe-verified: paint lands the exact variant sprite with zero rebuild, erase falls back to the default fill, line cells are contiguous and endpoint-exact, rect fills are complete. The pointer gestures themselves are a faithful port of the old stamper's proven interaction and still owed a hands-on pass. — the window, with THE LEVEL as its subject.** `Laubrary ▸ Cartographer` now opens `CartographerWindow`, a `ZuiAssetWindow<LevelAsset>`: a thumbnail browser of levels, and for the open level a **Level** box (name, biome, explicit bounds, collision mode, and a *Preview in scene* button that builds/rebuilds a `LevelInstance` so the Scene view shows the real level), a **Layers** box (drag-to-reorder cards; the ACTIVE layer expands accordion-style to its tileset, default-fill tile, sorting, opacity and collision cluster — active is also what painting will affect and what the palette shows), a **Palette** box (the active layer's tileset as clickable swatches, variant tiles badged with their count), a **Clumps** box (the biome's structures as stamps, with *Edit clump…* jumping to the clump editor), and a **Decals** box listing placed free sprites. Every edit routes through one undoable `Dial` that also rebuilds the scene instance, so the Scene view tracks the asset live, including through undo/redo. **The old window loses its menu item and becomes the Clump Editor**, opened from the Clumps box — the fix for the old tool's core defect, where the "level editor" asked which *clump* you wanted and kept the level as a field inside a box. Verified with the window open and laid out: `ZuiAudit` reports zero findings at working width (the base asset-toolbar needs ~530px before its Rename/Delete buttons fit — a pre-existing `ZuiAssetWindow` trait, not new), and an eyeball pass of a real level built from warehouse art confirmed thumbnails, pickers, the accordion, the variant badge and empty-states render correctly. — variant policies resolve at paint time from the asset's own history, and tiles + decals animate.** `LevelAsset.Paint()` is now the everyday painting entry: it resolves the tile's variant policy and stores the result per cell (`SetPaint` stays for hand-overriding one cell's variant). Every policy is a **pure function of the asset's data** — RoundRobin cycles by how many paints of that tile exist, NeverRepeatLast excludes the most recent paint record's variant, Random/Weighted roll from an explicit stable hash of the cell (not `Vector2Int.GetHashCode`, which is an engine implementation detail) — so there is no hidden authoring cursor to lose to a domain reload, identical edit histories give identical levels, and repainting a cell lands the same variant. Verified in-editor: RoundRobin cycles exactly, NeverRepeatLast never repeats consecutively, a same-cell repaint is stable, degenerate weight lists are honoured absolutely, and a painted cell's sprite survives both `RefreshAllTiles` and a full instance rebuild unchanged — the flicker the design document warns about cannot happen. Animation: an animated `LevelTile` hands Unity its frames through `GetTileAnimationData` (a static tile declines), and an animated decal gets a `DecalAnimator` whose frame is a pure function of time — verified frame-exact including the wrap. Play-mode animation still owed an eyeball pass alongside the window work. — `LevelInstance` builds a `LevelAsset` into a scene, in the editor and at runtime.** One `[ExecuteAlways]` component on a Grid object constructs everything the asset describes: a Tilemap per layer (sorting, opacity, visibility), the default-fill floor, placed clumps, hand paints, decals (bare SpriteRenderers inheriting their layer's sorting, or prefabs in Play mode), per-layer colliders (composite merge, one-way effectors only in side-scroll levels), published named spots, and the per-cell variant registrations that let a shared tile asset render the exact variant each paint stored. Everything built is marked derived and **never saved with the scene** — the asset is the single source of truth, so a stale built copy in the scene file cannot become a second one. Collision narrowing now composes both tag sources: on a solid layer with a `solidTag`, a cell collides if its TILE or its source CLUMP carries the tag, and a tile whose own shape is None never collides. `ClumpPlacement` additionally stores which prefab choice it resolved to at place time (same determinism rule as paint-time variants — a rebuild must never re-roll a level), and the collision mode (top-down vs side-scroll) moved onto the level asset where the legacy scene component used to keep it. Verified in-editor against a hand-constructed level: default fill, stored-variant rendering, clump cells landing on their layer, tag narrowing, collider presence only where solid, spot world positions, decal sorting, and rebuild idempotence all asserted.
 - **Cartographer rebuild, phase 1 — the level becomes an ASSET and the data model gains tilesets, variants, animation, decals and per-element authorship.** Per `CARTOGRAPHER_DESIGN.md` (the 2026-07-31 first-principles rebrief): **`LevelAsset`** is now the authoring truth — a browsable, previewable, pickable asset holding layers, painted cells, clump placements, free-floating **`Decal`s** and the level's Rooms, with explicit `RectInt` bounds; a scene will consume it through a `LevelInstance` (phase 2) instead of owning the level as a MonoBehaviour. **`LevelTile`** is the new atom: one tile asset carrying interchangeable **variants** with a pick policy (Random / RoundRobin / NeverRepeatLast / Weighted — resolved at PAINT time and stored per cell, never re-rolled at draw time where chunk refreshes would flicker), frame **animation** via `GetTileAnimationData`, a collider shape, and gameplay tags. **`Tileset`** is the palette a layer paints from, and a biome now lists tilesets (its old flat tile list stays until the generator is ported). The new **`LevelLayer`** is pure asset data (tileset, default-fill tile, sorting, opacity, visibility, lock, collision flags) — the Tilemap that renders it belongs to the scene instance. Every paint, placement and decal records **`Origin` (Authored / Generated)**, so a hybrid level can regenerate by removing only generated content (`ClearGenerated`) — one byte per element now instead of a rewrite later. `ClumpTag` is promoted to **`LevelTag`** (same asset GUIDs, tags now attach to tiles, decals and layers too), `Clump` itself survives unchanged as the multi-tile structure, and the old scene-bound `CartographerLevel` keeps compiling (its inline layer type renamed `LegacyLevelLayer`) until the migration phase retires it. Level thumbnails rasterise the level itself through the shared preview path — a too-big level renders a centred 1:1 crop rather than a smear — and `CartographerPreview` now reads non-CPU-readable (normally imported) sprites through `PreviewTex` instead of silently skipping them, so tile/clump/level thumbnails survive meeting real art. Verified in-editor: the full model round-trips through serialization (variant bytes, Origin flags, rooms, bounds all present in the saved YAML), layer resolution honours default-fill → placements → paints order, and generated-only clearing leaves authored content alone.
 
-
-
 ### Changed
 - **Combat2D — hit filters COMPOSE instead of competing, and a weapon can be given a per-shot motion factory.** Two small changes, both driven by building a real depth shooter on top of Combat2D. **(1) `Combatant.HitFilters`** replaces a single `GetComponent<IHitFilter>()` with `GetComponents`, and `Combat.TryDamage` now requires **every** filter to agree — a filter is a *veto*, so more than one can apply to the same hit. This was a latent bug, not just a limitation: whichever `IHitFilter` component happened to be found first silently won and any other never ran at all. It matters now because the filters answer different questions and both are true at once — `ReelHitFilter` asks "did the sprites really touch", while a depth-band filter asks "are these two even at the same distance", which a depth shooter needs because **Combat2D collides on XY only** and two things at different depths share a collider position. `Combatant.HitFilter` (singular) is kept, returning the first, so existing callers are unaffected. **(2) `ProjectileWeapon.motionFactory`** — an optional `Func<IProjectileMotion>` consulted per shot, overriding whatever the ammo template carries. Deliberately a **factory, not an instance**, because `IProjectileMotion` holds per-shot state (`Init` stores origin/direction/target) and one shared instance would have every projectile in flight fighting over the same fields. It lets a *scene* decide how shots travel — a depth shooter wanting `DepthMotion` — without duplicating the ammo asset per level type, which is what keeps a looted weapon carryable between scene types. Re-read every shot rather than baked into the pooled template, so flipping a mode mid-play takes effect immediately instead of only for projectiles pooled afterwards.
 - **Cartographer — `RoomDirector` is renamed `Arena`.** An **Arena is where a scene's play happens**, whatever its size, shape or genre — a single walled room, a scrolling stretch of street, or a peaceful platforming stroll are all Arenas; the old name described the mechanism (it directs Rooms) rather than the thing. **`Room` survives as the sub-unit**: an Arena *contains* Rooms, each carrying its own exit condition, scroll behaviour and camera mode. This fixes the division of labour the tool trio rests on — **Cartographer builds the space, the Arena decides how play moves through it, and the game supplies what play actually is.** `RoomCameraBinder` deliberately keeps its name (what it reads is the *Room's* camera mode; the Arena is only where it looks that up) but its field is now `arena`, not `director`. **Done while the rename was free:** no scene, prefab or asset in this repo or in OutBurner referenced the type, so no `[MovedFrom]` shim was needed — and the window was about to close, since OutBurner's Scavenge scene is next to adopt it. The file kept its GUID via `git mv`, so any reference that did exist would have survived regardless. No behaviour change: the class body is byte-identical apart from its declaration.
-
-
 
 ### Fixed
 - **PyrePlus `Playback3D` — the 3D preview now looks like the VFX pack it is previewing, and the pixelated preview is no longer squashed.** Reported as "the 3D looked nothing like what I would expect that VFX pack to look like, and the pixelated version looked like it was squashed together into one line". Six separate causes, all verified against the *Vefects Fire VFX (URP)* pack and its own demo scene (which the new reference rig `Assets/Dev/PyrePlusPlayback3D/Playback3DVfxTest.unity` reproduces): **(1)** the preview rendered raw with no colour grade, but these packs author their fire materials at emissive intensities of 33–123 and ship a Volume with Bloom + ACES Tonemapping — a `PreviewRenderUtility` scene gets neither, and a global Volume cannot be added to one without leaking into every other editor camera, so the grade is now reproduced explicitly (HDR `ARGBHalf` render target + a new `PyrePlusPlayback3DPost.shader` doing threshold/downsample/upsample bloom, exposure, tint and a full ACES matrix fit; the cheap per-channel Narkowicz approximation was tried first and is wrong here — it leaves a core measured at RGB (24.9, 14.4, 0.0) as flat saturated yellow instead of desaturating it to white-hot). **(2)** `Tint` was assigned straight into every `ParticleSystem` main module's `startColor`, REPLACING the pack's authored per-particle colour gradients with one flat colour; it is now a multiply on the finished image, so white leaves the prefab untouched. **(3)** The preview cleared to `PreviewRenderUtility`'s default grey, on which additive fire loses its glow and black smoke reads as a dirty blob; it now clears to black with alpha 0, so the result also composites over the PyrePlus backdrop like every other shape. **(4)** `Simulate` was called on EVERY `ParticleSystem` including nested children, re-running each child a second time from t=0 — the Vefects hero prefabs have 5–11 systems each; only the top-most systems are driven now (`withChildren: true` already covers the rest). **(5)** The camera was at a hand-tuned fixed position that clipped tall effects; it now auto-frames from real particle positions (`ParticleSystemRenderer.bounds` comes back wildly oversized on these packs) using a **percentile** of the particle spread rather than the maximum, so the dense body of the effect fills the frame instead of being shrunk to a dot to accommodate the smoke column and stray sparks, and it satisfies both axes so a narrow preview island no longer crops the sides. A new **Zoom** dial scales that automatic fit. **(6)** The pixelated grid was forced SQUARE regardless of the preview island's aspect and then drawn back with `ScaleToFit` — that is the "squashed into one line"; the grid now takes the requested size on the long edge and follows the island's aspect on the short one.
@@ -366,8 +309,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ZUI section-label — a foldable `Z.Text(.., ZuiText.Section)` heading placed INSIDE a `ZuiSection` no longer destroys the whole section when folded.** The Zoe editor's "Reactions" section (which holds "Hit"/"Death" section-label sub-headings) vanished irrecoverably when its "Hit" heading was folded — leaving no header to click to reopen it. Cause: `ZuiSectionLabel.Apply()` walked `parent.hierarchy` to hide its following siblings, but a label inside a ZuiSection has `parent` = the section (its LOGICAL owner via `contentContainer`) while the label physically lives in the section's `_body`. So `parent.hierarchy` = `[header, body]` didn't contain the label, `IndexOf` returned −1, and the hide-loop (from index 0) hid the section's OWN header + body. Fixed by iterating the label's PHYSICAL parent (`hierarchy.parent`, the element that actually holds it) so it hides its real content siblings — plus a guard (bail if the label isn't among its parent's children) and a defensive skip of any `zui-section__header`/`__body`. Verified: folding "Hit" now hides only the hit content (clip / effects / add-button) and the Reactions section stays intact and reopenable. Flat heading usage (Pyre / Choreographer / Launimator / Rulesets, where `parent == hierarchy.parent`) is unchanged.
 - **Zoetrope Target Practice — a clip-less death now TRULY shows nothing (the earlier #6 hide was defeated by the animation player).** A death with no death clip is meant to blank the body so it can be replaced by an explosion FX — but the Floating Disc (a Zoned Launimator view) still flashed back to its idle first frame on death. `TargetPracticeController` only disabled the body's `SpriteRenderer`s, and the STILL-RUNNING idle animation's `ZonedAnimationPlayer.PushSprite` re-asserts `renderer.enabled` every frame, so the hide was undone on the very next tick. Fixed by adding a real "show nothing" capability rather than a one-shot toggle: `IAnimatedView.Hide()` (stop playback + blank), implemented by `AnimatedViewRelay` → new `ZonedAnimationPlayer.Hide()` (Stop + disable the base/layer renderers — the **Stop** is what makes it stick, since a stopped player's `Tick` early-returns and no longer re-asserts visibility). `TargetPracticeController` now calls `view.Hide()` before `SetBodyVisible(false)` on a clip-less death (the latter still covers a plain `SpriteView` with no `IAnimatedView`); a later Idle/respawn `PlayClip` re-shows it. Verified against the real Floating Disc reel: disabling the renderer mid-play gets re-enabled by the next tick (the bug), whereas `Hide()` stays blank across five ticks and respawn re-shows.
 - **ZUI — a tool's editor arrangement now persists WITH THE PROJECT (`ZuiToolStateStore`).** Window arrangement lived in `[SerializeField]` fields and `EditorPrefs`, so it was per-machine and invisible to everyone else — set a preview backdrop, and a teammate (or you, next clone) saw a different tool. There is now one committed store asset in the host project (`Assets/Laubrary/ZuiToolState.asset`, created on demand — no menu item) holding each tool's live arrangement, keyed by the tool's own stable slug so a window retitle can't orphan it. Values are generic (flags / numbers / vectors / colours / object refs) so the toolkit never has to reference a consumer to store its state. Sibling to `ZuiViewStore`, and the split is deliberate: that one holds NAMED presets a user picks, this one holds the single arrangement nobody names. TextSplash's preview backdrop is the first adopter. **Global per tool, not per asset** — the arrangement worth restoring is "how I like this window", and per-asset state would need a GUID-keyed sidecar for much less benefit. Verified by writing every supported type, forcing the asset to disk and re-reading it from the file: all survive, including a `Sprite` reference as a real serialized reference (a JSON store in `UserSettings/` could not do that without a GUID codec, which is the main reason committed won). Every getter takes the caller's own default, so a tool with no saved state behaves exactly as before.
-
-
 
 ### Fixed
 - **ZUI fill — the Size dial moved the preview and not the output (cache keyed on state the renderer no longer read).** `SplashPlayer.FillHash` decided when to re-bake the cached fill texture by hashing a hand-written list of fields — and that list read the LEGACY `zoom` scalar, while the renderer evaluates the `zoomAnim` companion which is what the Size dial actually edits. So Size never invalidated the bake, the render froze, and the editor's own swatch (uncached, calling `Evaluate` directly) kept updating: the tool showed one thing and rendered another. `gradient`/`gradientAnim` were hashed by REFERENCE too, so editing the ramp's keys did not invalidate either — the same bug, unreported. Replaced by **`ZuiFill.ContentHash(life)`**, which SAMPLES the fill instead of enumerating its fields. A field list is only ever as correct as its author's memory and fails silently when wrong; sampling cannot drift, because anything that changes the picture changes the samples and anything that does not, correctly does not re-bake.
@@ -392,8 +333,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Pixel font** rasterizes the FACE at the sampling size the splash actually renders at (`fontSize / pixelSize`, so one font pixel lands on one cell) with `RASTER_HINTED` grid fitting, and is the only mode that produces true 1-bit output. Baked automatically into a committed project asset beside the splash, on the same unattended maintenance the border font already rides — no button.
 - **TextSplash — a premultiplied bitmap shader ships in the package's own Resources.** TMP's `TextMeshPro/Mobile/Bitmap` breaks the rig's contract twice: it outputs straight colour under a `SrcAlpha OneMinusSrcAlpha` blend, so into a transparent-black buffer it stores alpha SQUARED — on a different scale from the RGB beside it and from everything downstream (`Crisp` un-premultiplies by that alpha, the palette lock matches the result, `fixEdgeAlpha` presents through a premultiplied blend) — and a perfectly binary mask HIDES the bug, because 0 and 1 are the fixed points of squaring. It is also stripped from player builds, being in no Resources folder and referenced by no shipped material. Living in the package fixes both.
 
-
-
 ### Fixed
 - **TextSplash — a bevel can no longer be applied to a bitmap face.** `ApplyBevel` unconditionally assigned the SDF shader and enabled `BEVEL_ON`, which over a 1-bit atlas reads the mask as a distance field and lights the glyph from noise. Bevel and the dilated border (which needs a distance field to dilate) are both gated off in Pixel-font mode, and the window says so rather than letting the dials look live.
 - **Mirage — every Pyre (and Sprite) edit now refreshes the preview INSTANTLY (combat batch #7).** A Pyre previewed in Mirage is a bare `BlastPlayer` that fetches its frames ONCE and never re-fetches; the invalidation bus only cleared the static frame cache, so an edit didn't show until the next Play/Stop or view switch — "you tweak a setting, it seems to do nothing, then it shows up later." `MirageRig` now subscribes to `AssetCacheInvalidation.Invalidated` and — deferred one tick, to stay out of Unity's reentrant ObjectChange dispatch (the "Access version should be odd" trap) — DESTROYS + re-realizes any live entry whose content is the edited asset, the same destroy+respawn approach `MirageSubject` already uses for a Zoe, done at the one `[ExecuteAlways]` choke point that runs in edit mode. It rides the general ObjectChangeEvents-fed bus, so it can't be forgotten by a future dial and covers edits made in the plain Inspector or via Undo too. (Zoe entries are skipped — their own `MirageSubject` already handles them.)
@@ -404,8 +343,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ZUI fill layout now matches the target mockup, and the Fill card's fold caret is removed (#2).** The Fill header lays out as the mockup drew it: row 1 = [preview square][Fill label][objective output ramp →][⋯], row 2 = the editable source ramp (full width, starting under the label), the square spanning BOTH rows on the left; and the fold ▾ caret is dropped — the header still folds the Adjust / Placement body on click, it just carries no glyph (`ZuiFoldCard.Wire` gains a `showCaret:false` overload). Verified by a layout probe: row 1 holds label | output | menu on one line, the source ramp sits below and wider, and the square spans both rows.
 - **ZUI layout-rules compliance for the colour-recolour UI (`ZuiGradientControl`, the recolour inspectors).** Two real violations, both against `ui-layout-rules.md`: (1) `ZuiGradientControl`'s Hue / Saturation / Brightness / Contrast / Quantise rows used `Z.Slider` + a SEPARATE external value field (the named "pre-MicroSlider" anti-pattern) — switched to `Z.MicroSlider` (label + value inside the track), so every gradient editor (Pyre fills, the ColorRemap region tables, the gallery) now reads as the ZUI standard. (2) `SpriteFxRecolorEditor` / `ColorRemapGpuEditor` (custom `CreateInspectorGUI` roots) never called `Z.Attach(root)`, so the ZUI stylesheet was absent and every control rendered UNSTYLED — MicroSliders collapsed/overlapped, the fill's "Placement" divider mis-positioned; adding `Z.Attach(root)` fixes both (this rule is now codified in the layout guide). Also gave `ColorRemapGpu.speed` and `ColorRemapRegion.cycleSpeed` real `[Range(0,4)]`s so `ZuiReflect` renders them as sliders, not bare number fields.
 
-
-
 ### Added
 - **ZUI shape recall is now INLINE in the menu — a "Recall shape" button that only opened another panel was improper UX.** A control labelled with an action ("Recall shape") must DO that action on press, not open a separate panel where you then pick — pressing it recalled nothing, so it read as broken. Fixed by bringing the choices to where the label is: the shape/step thumbnails now sit DIRECTLY in the value's right-click config menu under the **Shape** section (Built-in / User toggles + ＋ Save + a "Click a shape to apply it." hint + the thumbnail grid), so one click on a thumbnail applies it immediately and closes the menu — no intermediate button. Implemented via `ZuiMenu.Custom((body, close) => …)` (the `close` action dismisses the menu on apply). The old `ZuiEnvelopePresetPopover` is renamed **`ZuiShapeBrowser`** with a `BuildBrowser(...)` element builder (it's no longer a standalone popover). The generators (Oscillation… / Cycles…) stay as menu items opening their own parameter popovers — those genuinely need their own space. This class of mismatch (action-label that just opens a chooser) is now codified in the UI-layout rules.
 - **ZUI right-click config menu extended to `ZuiFill` and `ZuiBox` — and the redundant ⋯ button dropped.** Following the `ZuiValueControl` right-click work, the fill/texture menu on `ZuiFillControl` now opens on a **right-click anywhere on the control** (the ⋯ button is gone — the row tooltip hints "right-click to configure"), and right-clicking a `ZuiBox` title row toggles its gear panel (the ⚙ stays, since a toggle needs a visible on/off state). Every ⋯-style ZUI menu is now reachable by right-click, matching `ZuiSection`'s header menu.
@@ -415,13 +352,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ZUI MultiCont — a Steps mode, envelope Shape generators (Oscillation, Cycles), and a redesigned shape browser.** `ZUIValue` gains a fourth mode, **Steps** — a step sequencer: the envelope splits into N held sections you click/drag to set (`ZuiStepSequencer`), evaluated as held values over the same Dur/Warmup/Loop timing as an Envelope (`EvaluateSteps` / `SetStepCount` / `EnsureStepsDefaults`; copy-paste + Undo included). The ⋯ mode picker is now **Static · Min-Max · Envelope · Steps** (Curve relabelled "Envelope"; Steps is a peer via `Options.allowSteps`, default on). Under Envelope, a new **Shape** menu section adds two point-pattern GENERATORS — they WRITE the curve's points, so the result stays hand-editable — each in a live-preview popover: **Oscillation** (a wave between start/end with N peaks + a smoothness slider, 0 hard-triangle → 1 rounded/sine, reusing the existing `smoothness`) and **Cycles** (a snap-back sawtooth for a WRAPPING value — a rotation/hue — that reads as continuous motion and turns Loop on; gated behind a per-field `cyclic` opt-in, `Options.WithCyclic()`). The shape browser (`ZuiShapeBrowser`, the UITK successor to the IMGUI `ZUIEnvelopePresetPopup` — a tracked TODO now closed) is a **thumbnail browser shown inline in the Shape menu section**: two filter toggles (Built-in / User), a **one-click ＋ Save** (no name prompt — a shape is identified by its thumbnail, not a name), and a wrapping grid of clickable curve thumbnails that apply on click (user ones deletable; the library asset is created only on Save). The generator popovers use `ZuiPopover` (inherit the ZUI stylesheet, no separate OS window). The Toolkit asmdef references `ZUI.Editor` (cycle-free) for the preset data. Verified in-editor: Steps held-value eval (0/4/8 across sections), Oscillate/Sawtooth point math, Steps copy-paste round-trip, the recall popover builds + styles correctly (8 built-ins + toggles + save). (Slice-1 followed user feedback: dropped the name-gated Save that blocked saving, dropped shape names, added the Built-in/User toggles.)
 - **TextSplash — a real SDF border, TMP's bevel, extruded 3D letters, and pixel-art-grade pixelation (Slice 6).** Four capabilities, all driven by one enabling change. (1) **The border is a TRUE equidistant outline.** The previous approach scaled each glyph QUAD, which is structurally wrong in three ways the user could see: a counter gets NO border at all (the twin's hole is bigger than the face's, so `o e a B D 8 0` had no inner edge), thickness is proportional to distance from the glyph centroid (the crossbar of `H`/`A` got almost none), and side thickness scales with quad aspect (`i l !` got a third the side thickness of their top). It is now `_FaceDilate`, which offsets the SDF `bias` itself and is therefore a pure outward translation with no bite into the face. Deriving it from the shader: the 50 % contour is `c = 0.5 − weight`, the AA band `Δc = 1` spans `_GradientScale` texels, so `_FaceDilate = 2·bw·samplingPointSize / _GradientScale − _WeightNormal/4`, with `RATIOS_OFF` + `_ScaleRatioA = 1` pinned so TMP's auto-normaliser stops capping it and `_WeightBold = 0` so the bold term stops eating ~15 % of the padding budget. (2) **`SplashFontBaker`** makes that reachable at all: TMP's outline saturates at `atlasPadding ÷ (2 × samplingPointSize)` of an em — about **4 % of the font size** on a stock asset, ten times short of the tool's 0.5 em range — so the border pass gets its own font asset rasterised from the same font at much larger padding, mirroring face metrics, kerning and OpenType features so the two lay out identically (a drift there slides the border out from under its letters). (3) **Bevel** — TMP ships per-pixel relief lighting (`_Bevel`, `_BevelOffset/Width/Roundness/Clamp`, `_LightAngle`, specular, ambient, diffuse) that the default material cannot reach, because `LiberationSans SDF Material` points at `TMP_SDF-Mobile` and every Mobile variant strips shading; enabling it swaps to `TextMeshPro/Distance Field` + `BEVEL_ON`. It survives a per-letter spin, because the effect lives inside the SDF rather than in screen space; its honest limit is that the light angle is fixed in GLYPH space. (4) **`SplashDepth`** stacks N copies stepped along each letter's own local −Z **after** its spin, giving real extruded block letters — TMP has no extrusion of its own (glyph z is hard-coded 0 at four sites and the vestigial `isVolumetric` path has zero call sites). The sides carry their own `ZuiFill` plus `sideBrightness`/`sideSaturation` (a luminance-weighted lerp, not an HSV round-trip) and either ramp into the face with `darken` or take the side colour outright with `flatSides` — the flat form is what reads as a solid block rather than a soft shadow. Each layer paints its own fill first and the side shading grades over it, so a gradient face gets an extrusion OF that gradient. Depth needs a camera-space canvas (an overlay canvas discards z), and that canvas now borrows `Camera.main` rather than adding a second URP Base camera, which was visibly hijacking the screen clear. (5) **Pixelation became actual pixel art.** The grid alone leaves a gradient a smooth ramp and leaves TMP's antialiased edge as a whole visible pixel of mush, so `colorSteps` (palette banding) and the new `alphaCutoff` (every pixel fully on or fully off, un-premultiplying a promoted pixel so it does not come out dark) do the work the grid cannot, with `_Sharpness` pushed to maximum so the threshold gets a cleaner buffer. **Verified in play mode**, by inspecting live objects and by measurement, not by eye: the border twin runs on a freshly baked atlas at **padding 128** (the face's is 9) with `_GradientScale` 129 and `_ScaleRatioA` pinned to 1 on the non-Mobile shader; `ApplyCpuStage` collapses a synthetic 64-colour gradient to **4 colours** and leaves alpha as **only 0 or 255**; and a captured 1280×800 frame at pixel size 8 contains **0 of 16 000 blocks that are not a single flat colour**. **Build hardening**, because three of these worked in the editor and would have silently degraded in a player build: the premultiplied presentation shader and a `BEVEL_ON` preset material both ship inside the package's own `Resources` (a shader in no Resources folder, no Always-Included list and no material is stripped, and a `shader_feature` variant survives only if an included MATERIAL enables it); the padded border font can be baked at author time into a committed asset, because TMP nulls `sourceFontFile` on a Static font asset so a runtime bake can only find the font through the AssetDatabase; and that committed asset has TMP's `clearDynamicDataOnBuild` unticked, or `TMP_PreBuildProcessor` would wipe exactly the glyph data the bake exists to commit. **Known limits, stated rather than hidden:** `borderWidth.perLetter` is driven line-wide (`_FaceDilate` is a per-material float) and warns once instead of silently falling back to the broken quad-scaling; borrowing the scene camera means opaque geometry nearer than the canvas plane can occlude the splash and it composites before that camera's post-processing; and the auto-derived border padding is sized from the width dial's MAXIMUM rather than the value in use, so it over-reserves atlas.
 
-
-
 ### Fixed
 - **TextSplash — the per-letter toggles now actually do something, and five other corrections from live use (Slice 5).** Everything here came out of the user driving Slice 4 and finding it wrong. (1) **The per-letter scope toggles did nothing at all.** Every per-letter path was gated behind one master `perLetter` bool, so ticking "per letter" on Size by itself could not engage anything. `TextSplash.PerLetter` is now a DERIVED property — true whenever a spawn stagger exists or any `SplashScalar` is scoped per letter — so a scope toggle works standalone. What remains of the old master is `perLetterMotion`, which only forces per-letter MOTION when there is no stagger. (2) **Stagger is one `spawnStagger` + `order` on the asset**, not a knob on each transition: a letter needs ONE unambiguous lifetime for its per-letter curves to run over, which two independent staggers cannot give it. `order` cascades LeftToRight / RightToLeft / **CentreOut** / **EdgesIn** / **Random**; symmetric orders deliberately give a mirrored PAIR the same turn (`CentreRank`), because ranking them one apart reads as a lopsided animation. The exit then got its own `exitStagger` + `exitOrder` behind an `exitSameAsEntrance` switch, so a line can arrive left-to-right and leave centre-out while each letter still has exactly one lifetime (`LetterStart` uses `RankIn`, `LetterEnd` uses `RankOut`). (3) **Min-Max scalars rolled every frame** — `ZUIValue.Evaluate` calls `Random.Range` on each call, so a random size strobed instead of being a random size. `SplashScalar.Evaluate(life, rollKey)` now rolls ONCE per play (or per letter, when the scalar is per-letter) off `Sfx.Hash01`, the package's frozen deterministic hash, so a roll is stable across the preview, the runtime and a reload — and a per-scalar SALT keeps a random size and a random alpha from drawing the same number and moving in lockstep. (4) **`slideDistance` was a meaningless multiple of the screen**; it is now 0..1 where **0 = starts fully outside the viewport edge** (measured against the text's real extents, so it is genuinely hidden) and **1 = starts at its resting place**, via the shared `SplashGeometry.SlideExtreme`. (5) **`fade` is gone from both transitions** — the `alpha` MultCont already owns opacity and two independent fades just fought. (6) **`ZuiFill.Mode.OverLife` rendered as a vertical gradient that never changed over time**, which is not what the mode means: it now samples one flat colour at the current life, per letter when scoped that way, so a staggered line becomes a travelling colour sweep for free. TMP's vertex gradient is no longer used anywhere in the tool. Also: **Radial/Linear fills are sampled PER VERTEX** in the [-1,1] space `ZuiFill` actually expects (its radial branch is `sqrt(u²+v²)`) rather than baked into a top-to-bottom gradient, with one shared divisor so a radial fill stays CIRCULAR instead of squashing to the glyph's aspect — and `FillSpace.Stamped`/`Fixed` map to one gradient per letter / one across the whole line. And the transport's **pause no longer rewinds to 0** — only a play resuming from the very end restarts. **Verified in-editor:** compiles clean; the schedule and ordering reproduce exact expected values (ranks `0..7` / `7..0` / `3 2 1 0 0 1 2 3` / `0 1 2 3 3 2 1 0` / a valid permutation; with 8 letters at 0.1 stagger `OutBase` 2.0 and `Total` 3.0; split cascade at exit 0.05 gives `Total` 2.65 with `rankIn` 0..7 against `rankOut` 7..0, and letter 0 correctly holds the LONGEST lifetime because it enters first and leaves last); per-letter lifetimes genuinely differ (0.652 vs 0.348 at t=1.5); `slideDistance` 0/0.5/1 yields −600/−300/0 against a 1080-tall frame and a 120-tall text; a Min-Max scalar returns the identical value at life 0 and life 0.7 (78.25) but differs per letter (108.35) and is line-constant when line-scoped (98.24), with size and alpha rolling unrelated values; and `ZuiAudit` reports **0 findings with all 11 boxes open**.
 - **TextSplash — pixelation genuinely works now, in the preview as well as at runtime (Slice 5).** The user reported "pixelation doesn't seem to do anything", and it didn't: it ran ONLY at runtime while the authoring preview — the whole point of the tool — never showed it, and the rig itself had never been executed once. The preview now renders through `LiveScenePreview.Render(rect ÷ pixelSize)` and point-scales the result back, which is genuine low-resolution rasterization rather than a filter, and it shares the runtime's CPU stage through the new public static `SplashPixelRig.ApplyCpuStage` so the two cannot drift. Four real runtime bugs were found and fixed in the never-run rig: **a near/far of 0.05/100 clipped away spinning glyphs** (a whole-line spin swings vertices in Z by half the line's width — hundreds of units), the **first frame rendered at the default orthographic size 5** because `Init` never applied the canvas scale, **`Attach` bailed out when only a SpriteFx stack was set**, and **two concurrent splashes claimed the same layer** and rendered each other into their own buffers. The premultiplied-alpha edge fringe is fixed behind an optional `fixEdgeAlpha`: TMP's SDF shader blends `One OneMinusSrcAlpha` so the buffer holds premultiplied colour, and uGUI's default material multiplied by alpha a second time, compositing the antialiased rim as `C·a²`. The `Hidden/Laubrary/TextSplash/PremultipliedUI` shader ships inside the package's OWN `Resources` folder rather than relying on `Shader.Find`, because a shader in no Resources folder, no Always-Included list and no material is stripped from a player build — it would have worked in the editor and silently switched itself off in builds. **Verified in play mode** by inspecting the live objects: the splash canvas is `ScreenSpaceCamera` on `[TextSplash] Pixel Camera` (orthographic, near/far 0.05/6000), its target is a **160×100 Point-filtered buffer** — exactly 1280×800 ÷ 8 — holding 117 lit pixels at full alpha, presented by a `[TextSplash] Pixel Presenter` overlay canvas whose `RawImage` draws that 160×100 texture into a 1280×800 rect through the `Hidden/Laubrary/TextSplash/PremultipliedUI` material, and the shader loads from the package `Resources` so the build path holds. (Note: `FindObjectsByType` cannot see any of this — the splash host is `HideAndDontSave`, so `Resources.FindObjectsOfTypeAll` is required.)
-
-
 
 ### Added
 - **TextSplash — two independent transitions, animatable (MultCont) scalars, a filled wide border, and real pixelation (Slice 4).** The authoring model is reshaped around four asks. (1) **Two transitions instead of one shared setting.** `inTransition` / `outTransition` are `SplashTransition`s carrying their OWN `duration`, `direction`, `slideDistance`, `ease` (+ `easeCurve`), `spinDegrees`, `spinAxis`, `scale`, `fade` and per-letter `stagger` — so an entrance and an exit can differ completely (fly in from the left with a spin, fade straight out in place). The old `slideInDuration`/`slideOutDuration`/`inFrom`/`outTo`/`ease`/`slideDistance`/`spinDegrees`/`spinAxis`/`letterStagger` fields are gone. (2) **Better easing**: Linear / SmoothStep / EaseIn / EaseOut / EaseInOut / **Back** (overshoot-and-settle) / **Elastic** / **Bounce**, plus **Custom**, which reveals the transition's own `ZUIValue` envelope so the easing shape is drawn by hand. Offsets, scale and spin lerp **unclamped** so Back/Elastic/a hand-drawn curve actually overshoot instead of being silently flattened; only alpha is clamped. (3) **`alpha`, `size` and `borderWidth` are `SplashScalar`s** — a ZUI `ZUIValue` "MultCont" (Static / Min-Max / Curve + the ⋯ multiplier menu) plus a **per-letter scope toggle** that chooses whether a curve reads the WHOLE line's life or each letter's own, so a staggered line can ripple. Curves are authored on a normalized 0..1 life (`OnValidate` pins their period to 1s), so a shape survives a change of hold. A per-letter `size` would re-flow the line, so it is applied as a per-quad scale about each glyph's centre instead of a point-size change. (4) **The border is a real filled outline.** `borderColor` becomes `borderFill`, a full `ZuiFill` (solid or gradient, same system as the face), and `borderWidth` is now a fraction of the font size with no 1.0 ceiling. This required abandoning TMP's built-in outline, which **cannot** do either: `TMP_Text.SetOutlineThickness` runs `Mathf.Clamp01(thickness)` (`TextMeshProUGUI.cs:1624`, `TextMeshPro.cs:1317`), so a width past 1 is impossible, and its colour is a single material uniform, so it could never carry a gradient. The border is instead a **duplicate TMP twin** drawn behind the face (a nested `Canvas` at `sortingOrder − 1` for UGUI — uGUI draws children AFTER their parent, so sorting is the only way to put a child behind it), whose FACE carries `borderFill`, and whose glyph quads are dilated. The dilation factor is normalised by `lineHeight ÷ quadHeight` so every glyph grows by the same absolute amount — a bare scale factor would give a short 'o' a visibly thinner border than a tall 'H'. It is still a uniform scale, not a true equidistant offset (a uniform scale cannot be one on a non-square shape); the exact version wants the render-texture path below. (5) **`SplashSchedule`**, a pure struct, now owns ALL timing (per-letter windows, `OutBase`, `Total`, `LetterLife`, `InProgress`/`OutProgress`), so the runtime player and the editor preview cannot drift. (6) **Pixelation that actually pixelates** — `SplashPixelRig` routes the splash Canvas through a dedicated orthographic camera into a `RenderTexture` of `ceil(screen ÷ pixelSize)` at `FilterMode.Point`, presented by an overlay `RawImage` sized to an exact integer multiple. Rasterization genuinely happens at that resolution (1080p at `pixelSize 4` is a real 480×270 image), rather than a shader faking chunky pixels — which is precisely what lets a CPU stack consume it. Plus `colorSteps` (channel quantization via a cached LUT) and `snapMotion` (motion rounded onto the pixel grid). An overlay Canvas composites outside the SRP, so the presenter works on Built-in, URP and HDRP alike — deliberately not `OnRenderImage` (never called under an SRP) nor a URP Renderer Feature (URP-only, needs renderer-asset config a package can't ship). (7) **SpriteFx runs on the pixelated buffer**, with no refactor needed: the Sprite coupling in SpriteFx lives entirely in the component, never in the stack API, so `SpriteFxStack.Resolve`/`Schedule` run straight over `Texture2D.GetRawTextureData<Color32>()` in place, zero copies. The rig forces the **Burst** path rather than honouring `SpriteFxSettings.UseBurstJobs`, whose inline default is justified for a 64×64 sprite frame (4,096 px) and is the wrong call for a buffer 8–30× larger. The window gains **Entrance** / **Exit** boxes built by one shared helper (so they cannot drift), scalar rows pairing a `Z.Value` with its scope toggle, a `Z.Vector2Field` 2D pad for the rest anchor (it was two sliders — a spatial pair, against the layout rules), and a **Pixelation** box. **Verified in-editor:** compiles clean; the window's schedule/pose math reproduces exact expected values at seven sample times (whole-line `OutBase` 1.85 / `Total` 2.2; per-letter with 8 letters and 0.05 stagger → `OutBase` 2.2 / `Total` 2.9, letter 0 window [0, 2.55] and letter 7 [0.35, 2.9], staggered in-progress 0.57 / 0.14 / 0 at t=0.20); `Back(0.5)` returns 1.088, confirming the overshoot survives; the border twin is created as the face's own concrete TMP type parented to the face, dilates the first glyph quad from 6.87 to 12.43 units at width 0.25, and correctly returns null at width 0; `ZuiAudit` reports **0 findings** with all 8 boxes open (a probe confirmed the 38 skipped subtrees are ZUI control internals — a `ZuiValueControl`'s Curve panel while it sits in Static, colour-field HDR chrome — not unaudited content). **NOT yet verified:** no Play-mode run, so `SplashPixelRig` is unexercised at runtime, and the window has not been eyeballed visually. **Known limitation:** TMP's SDF shader writes premultiplied alpha while the presenter blends `SrcAlpha OneMinusSrcAlpha`, so the pixelated splash's antialiased rim composites as `C·a²` — a faint one-pixel darkening at the edges, invisible on interior pixels and largely hidden by a dark border; the fix is a small premultiplied (`Blend One OneMinusSrcAlpha`) UI shader for the RawImage.
@@ -470,8 +403,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **PyrePlus — a 2D POLYGON form + a subgrouped form picker (task #59).** New `ShapeForm.Polygon` (regular N-gon, `polygonSides` 3–12; 3=triangle, 4=square, 6=hexagon) appended to the enum. The Shape form picker is regrouped into Flat-2D / 3D-solid / Text-Sprite / Sim subgroups. Append-only enum ⇒ existing specs unchanged.
 - **PyrePlus — swarm ergonomics (task #62):** scale-by-index gains an Index/Scale-labelled envelope (index numbers on the index axis, no frame numbers — it's a per-index result, not a timeline); Orient greys out where it's a no-op; live SwarmScale shows a preview trace. **PyrePlus layout (task #63):** Canvas above Layers, both as green-header containers, per-row Dup beside the Matte toggle, collapsed sections show a count. **ZUI controls (task #64):** slider double-click resets to default; Shift = gentle (0.1×) / Ctrl = coarse (10×) drag; the fill control shows a preview swatch; `ZuiFill`'s zoom+centre became animatable (`ZUIValue`) via a lossless byte-identical migration; the 2D pad's numeric inputs work in curve mode.
 
-
-
 ### Fixed
 - **Launimator — sliced sprite sheets no longer import lossily compressed or rescaled, which was silently degrading every sliced pixel-art sheet.** `RegionSlicer` set texture type / import mode / point filter / PPU / mipmaps / readability but left `textureCompression` and `npotScale` at Unity's defaults — so a sliced sheet came back DXT-compressed (blocky, colour-bled artefacts on hard-edged pixel art) and, for a non-power-of-two sheet, potentially rescaled off its exact pixel grid. Now forces `TextureImporterCompression.Uncompressed` and `TextureImporterNPOTScale.None` alongside the existing settings. **Rescued from the retired PreviewLab dev host**, where the fix had been made but never merged back when that project's work was folded into this one on 2026-07-23 — an audit of PreviewLab before deleting it found this was the only genuine code gap left behind.
 - **PyrePlus matte — disabling a Matte role no longer wipes its settings (task #57).** The renderer honours a `matteEnabled` gate (default true), so toggling a layer's Matte off keeps its channel / clip / relief / luma settings for when it's turned back on — no data loss.
@@ -479,8 +410,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **PyrePlus render bugs (task #61):** textured Dots now spin; Circle/Area swarm no longer draws a star artifact (uniform-disc RNG); Fire supports an off-centre emitter (`fireEmitterOffset`, byte-identical at 0,0); the Canvas-size slider drags; the preview "Scale" (a GIF-export upscale, no-op on the live preview) is relabelled "GIF scale"; the Outline modifier's faint-fill default lowered to 0.08.
 
 ## [0.9.0] - 2026-07-25
-
-
 
 ### Added
 - **Laubrary.SpriteFx — a Burst BATCHED alpha-mask overlap utility for pixel hit-detection, verified equivalent to a managed reference (task #49, the last slice of the batch).** An ADDITIVE, OPT-IN utility (`Runtime/SpriteFx/SpriteFxHit.cs`) that tests MANY candidate mask-vs-mask overlaps at once on Burst. It does NOT rewire the live combat flow — the immediate per-hit path (`Combat.TryDamage` → `Hitbox` → `ReelHitFilter.ConfirmHit` → `ZonedAnimationPlayer.PixelOverlaps`, in `Runtime/Combat2D` + `Runtime/ReelCombat` + `Runtime/Launimator`) is already cheap (coarse MetaLayer cells gated by the Physics2D collider broad-phase) and is left byte-for-byte intact; NO combat file was touched. Burst pays off only at HIGH candidate-pair counts or FULL-RESOLUTION alpha masks, where the immediate per-pair managed test would stall the main thread — so adopting it is a decision left to the user. **Packing model (many pairs pack into flat NativeArrays):** `masks` is ONE flat `NativeArray<byte>` holding every instance's coverage bytes end-to-end (alpha 0..255 per cell, row-major, bottom-left origin — GetPixels32 layout; a cell is "covered" when its byte ≥ the pair's threshold, min 1); an `SfxMask` is one instance's placement (its byte offset + w/h length into `masks`, plus its bottom-left cell position x/y and size w/h in a SHARED integer grid, so mixed-PPU sprites resolve in one world-pixel space); an `SfxMaskPair` carries the two masks inline BY VALUE + the PRECOMPUTED overlap AABB (loX..hiX, loY..hiY, exclusive upper) so the job walks ONLY the intersection region + the byte threshold; `SfxMaskHit` is the per-pair result — a hit flag + the first coincident cell in shared-grid coords (row-major scan, so it matches the reference exactly), Miss ⇒ (−1,−1). A managed `SfxMaskBuilder` concatenates per-instance coverage into the one flat buffer and hands back each `SfxMask` handle. **Job structure:** `MaskOverlapJob : IJobParallelFor` — ONE work item per PAIR, `[BurstCompile(CompileSynchronously = true)]` — broad-phase-skips a disjoint AABB immediately, else walks the intersection region reporting the first pair of coincident covered cells; both the job and the inline path call the SAME Burst-legal `SpriteFxHit.TestPair(in pair, in masks)` so they can't drift (pure integer/byte math ⇒ the job is byte-EXACT vs the managed path, not merely "within 1/255"). **Clean static API:** `SpriteFxHit.BatchOverlap(pairs, masks, out results, alloc, useBurst, batch)` (inline OR job, blocking on Complete), plus `BatchOverlapInline`/`Schedule` for finer control, an overload that follows the project toggle (`SpriteFxSettings.UseBurstJobs`, mirroring #47 — default inline since job scheduling costs more than the loop for small pixel-art masks), `MakePair(a, b, threshold)` (precomputes the AABB), the independent managed reference oracle `MaskOverlap(a, b, masks, threshold, out hitX, out hitY)`, and mask-build helpers (`CoverageFromColors` for a sprite's alpha, `CoverageFromCells` for MetaLayer-style int cells — SpriteFx must not reference Launimator so it takes the raw `int[]`, value>0 ⇒ covered — and `CoverageFromSprite` reading a readable sprite's rect alpha). **Verified rigorously (edit-mode probe):** compiles clean; the Burst job actually compiles + runs (`Schedule().Complete()`); EQUIVALENCE over **1200 random pairs** (varied sizes 1..40px, varied placements from near-coincident to far apart, varied coverage density 0→solid, thresholds {1,64,128,200}; 209 genuine hits / 991 genuine misses) — the Burst job's per-pair hit/no-hit AND first-hit-point EQUAL the managed reference oracle for EVERY pair (**0 mismatches, 0 first-point mismatches**), the inline path == the job (**0**), and the job re-run (different batch size) == the job (**self-deterministic, 0**); a **1000-pair** batch runs through the job in one shot with **0 mismatches** vs the reference (scale sanity, correctness not a benchmark); and the shared render is provably untouched — the canonical PyrePlus Gem still hashes **`0xB113DC81E4DE442B`** (default 16-frame spec, FNV-1a-64 over RGBA). **Adoption path (the integration step, deliberately NOT wired here — rewiring the working combat flow autonomously risks destabilizing it):** each frame, collect the candidate pairs that already survived the cheap broad-phase (distance + collider overlap + faction) into a `NativeArray<SfxMaskPair>` over a shared packed-mask buffer (built with the `CoverageFrom*` helpers from the same painted-silhouette coverage the meta-layer carries, or a sprite's full-resolution alpha), then in **LateUpdate** call `SpriteFxHit.BatchOverlap(...)` ONCE and read the per-pair results — replacing the per-pair inline `PixelOverlaps` calls only when the candidate-pair count or mask resolution justifies it.
@@ -541,8 +470,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Envelope presets — saved curve shapes, two tiers, on both `ZUI.CurveField` and `ZUIValueControl`'s Curve mode.** A new "★" button next to the fold arrow (always visible, folded or expanded) opens `ZUIEnvelopePresetPopup`: a picker over ZUI's own hard-coded `ZUIEnvelopeBuiltInPresets` (Linear, Ease In/Out, Ease In-Out, Hold Then Rise, Spike, Bell, Full Then Fall — literal code, `Zui/Scripts/Editor/ZUIEnvelopeBuiltInPresets.cs`, not `.asset` files, so this doesn't break the "tools ship zero assets" rule) plus the current project's own saved shapes (`ZUIEnvelopePresetLibrary`, auto-created under `Assets/ZUI/` on first save, same pattern as `PyreLayerLibrary`). Every row shows a live thumbnail via the existing `ZUI.DrawCurveThumbnail` renderer. A preset's points (`ZUIEnvelopePreset`, reusing `ZUIEnvelopePoint`) are stored normalized to `[0,1]` on both axes — a SHAPE independent of any one field's range — and get remapped onto the target field's actual `yMin`/`yMax` on apply (and the inverse on save), so the same "Spike" preset looks right on a 0–1 alpha curve or a –200–200 spawn-rate curve alike. Verified: a headless test (built-in set validity, apply/normalize remap math, project-library add/remove round-trip) all passed; the popup's own IMGUI rendering wasn't independently screenshotted (Unity's transient `PopupWindowContent` closes on focus loss, uncooperative to script-drive) but structurally mirrors `PyreLayerLibraryPopup`, an already-shipped, working control of the same shape.
 - **`ZUIValue2DControl`: configurable Static-mode value display + copy/paste, on both it and `ZUIValueControl`.** New `Options.showValueText` (small "(x, y)" text beside the drag dot) and `Options.showNumericInputs` (a compact "label Y / input Y / label X / input X" numeric block, replacing the old always-on side-panel X/Y fields) — both are code-set defaults (`Options.WithValueDisplay(...)`) that a user can independently override per control from the existing "⋯" right-click menu, persisted for the session. New code-only `Options.WithVerticalStack()` stacks the numeric block above the plot instead of beside it (not exposed on the menu — a layout call for the window author, not a per-user preference). Both `ZUIValueControl` and `ZUIValue2DControl`'s context menus gained Copy/Paste of the field's full value (mode + all mode-specific data, including a Curve's whole point list — not just a sampled number), via new `ZUIValue.ToClipboardString()`/`TryFromClipboardString()`/`CopyFrom()` (JSON on the system clipboard, prefix-validated so the two controls' payloads and unrelated clipboard text can't be silently cross-pasted; Paste greys out when the clipboard doesn't match). Verified: a headless round-trip test (Static and Curve modes, plus prefix-rejection) and a live visual check of all four new Options combinations via Coplay.
 
-
-
 ### Fixed
 - **ZuiAudit was blind to two whole classes of problem, both found by eye on windows it had just passed clean.** A `PropertyField` was invisible to every check: it is not in the interactive-type list, and the over-width check exempts `Foldout`s as containers — which is exactly what a list `PropertyField` renders as. The Chunks sprite list therefore spanned 812px against a 600px cap with a clean audit, its size field stranded at the far edge of the window. It is now checked (proven by removing the fix and watching the finding appear), and `ZuiSerialized.Property` bounds an unspecified-width PropertyField rather than letting it fill the window. Separately, the walker skips hidden branches — sensible until every section heading and box title became foldable, at which point a window sitting with half its blocks closed could report zero findings having barely been looked at. `Audit` now reports how many subtrees it could not see, and `ZuiAudit.ExpandAll` opens everything first so a clean result means something.
 - **Pyre: `PixelFluidModifier`'s vortex/shockwave/viscosity sliders looked almost inert while the preview was
@@ -569,8 +496,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hashed on the raw, POST-composite screen (x, y), by which point any geometry warp has already been baked into
   final pixel positions with no way back to "what local position was this before the warp." Not fixed in place
   (see `LayerDissolveModifier` under Added, and Changed below for how the two now split).
-
-
 
 ### Added
 - **`ZUI.Box(title, styleName, tooltip)` gains an optional tooltip param** that draws a `HelpIcon` sharing the title's own row (right-aligned, sheet-styled) instead of needing a separate row below it — new canonical rule: a hover icon explaining an area belongs on that area's title row, never on a row of its own or buried in a content row. Fixed the two real violations this rule was written against: Pyre's "Preview backdrop" (icon was stuck mid-way down a Save/Recall content row, not the title) and "Reel Preview" (icon had its own blank row right below the title). `ZUIWindow`'s instance `Box(...)` wrappers gained the same param. See `ui-layout-rules.md`'s "Labeling" section.
@@ -641,8 +566,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   them. Verified: softness=0 matches the original formula exactly across sampled inputs; softness=1 reproduces
   the raw continuous value; intermediate softness falls strictly between the hard and raw values.
 
-
-
 ### Changed
 - **Pyre: `DissolveModifier` — removed Fade and Bleed modes, added a Smoothness slider for Erase/Scatter**
   (reported: "Fade and bleed mode... not useful"). Converted from a per-pixel `PixelModifier` to a `PostModifier`
@@ -662,8 +585,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stack to be "local" to across a whole composited frame; a LAYER's own list instead offers "Alpha/Layer dissolve
   (follows this layer's own geometry warps)". `ShowAddModifierMenu`/`DrawModifiers` gained an `isGlobal` flag to
   pick the right one.
-
-
 
 ### Fixed
 - **Pyre: `EdgeSmoothModifier` mostly smoothed the WHOLE shape, not just its edges** (reported: "even on the
@@ -685,8 +606,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     not a fixed pixel wavelength, so it isn't a pure duplicate of Ring wave. Strength is now a pixel push
     distance rather than a 0..1 colour delta (default changed from 0.5 to 3px accordingly).
   - Both moved from the Colour menu category to Geometry to match.
-
-
 
 ### Added
 - **Pyre: `BallisticShockwaveModifier` ("Ballistic shockwave")** — a richer sibling to Cloud projectile, modelled
@@ -711,8 +630,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   active wave/vortex counts match the closed-form spawn math; vortex spin alternates correctly. Kept alongside
   the simpler Cloud projectile rather than replacing it.
 
-
-
 ### Fixed
 - **Pyre: two Add-modifier menu entries were silently buried under spurious nested submenus** ("Edge warp
   (jagged/wavy silhouette only)" and "Blast (disc/arc/line)") — Unity's `GenericMenu` splits on EVERY "/" in a
@@ -722,14 +639,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   modifier. Audited every Add-modifier label for the same mistake (none of the other 34 have a second "/") and
   reworded these two with commas instead.
 
-
-
 ### Removed
 - **Pyre: "X" (formerly LineForceModifier) and `PiercingModifier` removed entirely** — neither delivered the
   piercing feel asked for. Also removed the `PierceMode` enum and the `IExtraPost` interface (X was its only
   implementer), and both of its dispatch sites in `BlastRenderer`.
-
-
 
 ### Added
 - **Pyre: `SunburstWobbleModifier` ("Sunburst wobble")** — Wobble's radial sibling: instead of a fixed
@@ -811,8 +724,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   softer one (lower), independent of Crack width and working in every Spread mode including Uniform — verified
   numerically: raising it from 1 to 6 cut the "still bleeding" pixel fraction by roughly half.
 
-
-
 ### Fixed
 - **Pyre: `EdgeWarpModifier` ("Edge warp") silently did almost nothing** (reported: "doesn't seem to do
   anything"). Root cause: Disc/Crescent/SparkleField's own outer-softness alpha fade computed its "distance
@@ -833,8 +744,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   strong/characterful as +1, just pushed the other way (verified: -1 now varies ~38% corner-to-corner). 0..1
   (the fisheye side the user already found useful) is completely unchanged; widened the slider to -5..5 too so
   the exaggerated end of the mirrored range is reachable.
-
-
 
 ### Added
 - **Pyre: Noise fill gained a Gradient position field** (MultiCont, 0..1, wraps) — shifts which part of the
@@ -871,8 +780,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Does NOT include "X"'s actual alpha-carve/gap toggle (ShapeAware/Always Pierce) — this one is push-only for
     now; ask if a genuine divide/gap should be added on top.
 
-
-
 ### Changed
 - **Pyre: `LineForceModifier` renamed to "X"** (a temporary placeholder label) — its own Pierce toggle never
   quite delivered a convincing piercing feel, so `PiercingModifier` (above) is a fresh attempt at that concept
@@ -885,8 +792,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to do in two steps: seeds a fresh asset from whatever's currently showing if nothing's loaded yet, otherwise
   just re-saves in place — one action that saves the WHOLE preset (this box's mode/colour/gradient/image AND
   Test background's sprites together), not two separate save flows for what was always one recallable unit.
-
-
 
 ### Fixed
 - **`ZUI.SliderStacked` silently rounded plain 0..1 float fields to just 0 or 1** — RoseRing's Radius and Birth
@@ -942,8 +847,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   these used before, without competing with a full `SectionHeader` ("Blast", "Modifiers"). Applied to both of
   Pyre's "Gradient" group labels.
 
-
-
 ### Added
 - **Pyre: `CurlProgressModifier` ("Vortex field (progress)")** — a standalone sibling to Curl's vortices, added
   non-invasively (CurlModifier itself is untouched) so the two driving models can be compared directly: instead
@@ -987,8 +890,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   frame (usually fully transparent) — distinct from "Preview backdrop" further down, which is cosmetic-only
   and never baked, a real point of confusion between two similarly-named but different things.
 
-
-
 ### Fixed
 - **Pyre: the preview transport row's "frame X/XX" counter had a fixed 70px width that was right at the edge
   of what its own worst-case text ("frame 64/64") needs — wrapping/reflowing depending on exact digit count
@@ -1025,8 +926,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   displacement at the tip and far behind it — the smoking gun) before either shipped in a commit. Both switched
   to `Mathf.LerpUnclamped`; re-verified: tip displacement now measures notably larger (7.65 vs 2.55) than the
   already-pierced shaft, as intended.
-
-
 
 ### Added
 - **Pyre: `LineForceModifier` — Reach/Length/Tip strength model the rod as a genuinely finite, animatable
@@ -1161,8 +1060,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   exists, falling back to the legacy per-`BlastSpec` fields when it doesn't — zero migration, no data loss
   for any already-authored blast that never touches Save/Recall.
 
-
-
 ### Removed
 - **Pyre: `LayerShape.NoiseField`** (a standalone "single domain-warped noise cloud" shape). It duplicated
   capability that already existed compositionally: `ColorMode.NoiseFill` already paints the identical
@@ -1174,8 +1071,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `noiseRotation`/`noiseDriftX`/`Y`/`noiseWarp`/`noiseBands` kept (still `ColorMode.NoiseFill`'s own params).
   One existing demo asset, `Assets/Demos/PyreDemo/NoiseField Ball.asset`, has a layer using the removed shape
   and needs manual attention (repurpose or remove) — flagged, not touched.
-
-
 
 ### Fixed
 - **Pyre: Ring/Rosing's "keep shape on screen" containment clamp was silently coupling Size to ring
@@ -1273,8 +1168,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Still pending: promoting `ZUIDemo`'s throwaway scene/scripts into a real `Assets/Demos/` entry (see
   `ZUI_API_AND_RUNTIME_ROADMAP.md` Task 2's remaining item).
 
-
-
 ### Changed
 - **Renamed the Zoetrope/Bestiarium/Zoe naming triangle: `Zoetrope`→`Launimator`, `Bestiarium`→`Zoetrope`,
   `CharacterDef`→`Zoe`.** The old `Zoetrope` (sprite-sheet animation module) is now **Launimator**, freeing
@@ -1328,8 +1221,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to 198px (correct), with the ambient value confirmed restored after the scope closes. See
   `EDITOR_TOOL_CONVENTIONS.md`'s new note on this.
 
-
-
 ### Added
 - **`ZUI.Popover(activatorRect, size, drawContent)`** (`ZUIPopover.cs`) and **`ZUI.ContextMenu(params
   ZUIMenuItem[])`** with **`ZUI.MenuItem`/`ZUI.MenuSeparator`** (`ZUIContextMenu.cs`) — generic wrappers
@@ -1357,8 +1248,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pane (the preview viewport + all its settings sections) is the first adopter: `using (ZUI.PaddedArea())
   DrawPreview();` around the existing call, so its controls no longer start flush against the window edge.
 
-
-
 ### Fixed
 - **Pyre's "Zoe Preview" Attach id field rendered garbled/overlapping controls, including the unrelated Asset
   field above it.** Root cause: Attach id conditionally drew either a `Popup` or a `TextField` depending on
@@ -1380,8 +1269,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a completely separate interaction path with its own float accumulation that the track fix did nothing for.
   `DrawMicroSlider` now rounds both paths. Verified via the round-trip (`"R"`) format, which shows the full
   precision needed to exactly reconstruct a float (i.e. would expose any hidden noise) — prints a clean `0.4`.
-
-
 
 ### Added
 - **`ZUI.MicroSlider(value, min, max, label, decimals, ...)`** — an overload taking an explicit `int decimals`
@@ -1501,8 +1388,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   references a specific asset, clip, or layer name anywhere in the mechanism — it works for any
   BlastSpec/ZoeVersion/clip/MetaLayer combination.
 
-
-
 ### Added
 - **`Laubrary.PreviewKit.Editor.LiveScenePreview`** — a generic, Pyre-agnostic utility any IMGUI editor window
   can use to preview real gameplay objects with a structural guarantee they render exactly as they would
@@ -1544,8 +1429,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `HelpIcon` tooltip instead of printed into the UI itself. Pyre's "Preview backdrop"/"Live preview subject"
   boxes are the first adopters (previously titled `"... (not baked)"`, which was exactly this problem).
 
-
-
 ### Fixed
 - **Zoe Browser: "New animation" could silently overwrite an existing animation of the same name.**
   `_newAnimName` never cleared after a successful create, so a stray second click (or a value left over from
@@ -1555,16 +1438,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   name collision with an existing animation prompts a confirmation dialog first (matching the project's own
   convention of confirming before an edit Undo can't reliably cover).
 
-
-
 ### Added
 - **`ZonedZoeView`** (`Bestiarium.Zoetrope`) — a second `ICharacterView` alongside `ZoeView`, backed by
   `ZonedAnimationPlayer` instead of the simpler `ZoePlayer`. For characters that need a one-shot clip to
   auto-hold on its last frame (`Play(clip, loop: false)` — no zone authoring needed, that's already
   `ZonedAnimationPlayer`'s plain-clip behavior) and/or `TryGetMetaPoint` to read a named MetaLayer's painted
   point each frame (a muzzle exit point, a blade position, ...).
-
-
 
 ### Fixed
 - **Zoetrope: colour-key background removal left a bright, tinted fringe around sprites on anti-aliased
@@ -1580,8 +1459,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sheet's actual palette. Verified with a synthetic red-on-white test sheet: the 40 pixels that were fully
   opaque while touching background all now fade to partial alpha; sprite interior and far background pixels
   are untouched.
-
-
 
 ### Added
 - **Editor bridges for Bestiarium's optional presentation modules** (`Bestiarium.Zoetrope.Editor`,
@@ -1835,14 +1712,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   float sliders (not `ZUIValue`s) since they're a different underlying data type — a plain-Vector2 variant of this
   control for non-animatable X/Y pairs is a candidate follow-up, not done here.
 
-
-
 ### Removed
 - **Pyre: Wind drift** (`Layer.windX`/`windY`) removed — a directional push applied to every shape, growing with
   its age. Redundant with existing, more controllable tools (Position X/Y drift, Ground's grow-angle, per-shape
   Curve envelopes) and never found a use. UI box and backing fields both removed.
-
-
 
 ### Changed
 - **Pyre: MetaBlob's gradient now has the same Over life / Fill / Flow fill options as Disc/Crescent** (`ColorMode`,
@@ -1860,8 +1733,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is active, so this is a no-op unless one is stacked before Voronoi crack). Other canvas-anchored modifiers
   (Sunburst — deliberately canvas-centred; Dissolve; OrderedDither, whose Bayer matrix needs raw screen alignment
   to work at all) are unchanged; only Voronoi crack's own pattern-sampling switched to `wx`/`wy`.
-
-
 
 ### Fixed
 - **Pyre: an animated Spawn radius moved shapes that had ALREADY spawned, instead of only affecting where NEW
@@ -2039,8 +1910,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.8.0] - 2026-07-09
 
-
-
 ### Added (converged from Asteroid+)
 - **Lazor** — vector line-art ("laser") shape authoring + rendering: `LazorShape` SO + layers/paths, a Shapes-free
   geometry/rasterizer core, and an editor window (grid canvas, per-layer mirror/symmetry, CRUD browser, SVG import).
@@ -2049,8 +1918,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (Rulesets) discovers rule types + their exposed params (public scalars + `staticValue`/ZUIValue wrappers, duck-typed
   so Rulesets stays ZUI-free); `[GraphDropdown]` (Loom) + GraphEditor render annotated string fields as dependent
   dropdowns; PlotTwistPage rule/field are dropdowns; RulesEditorWindow renders ZUIValue tunables.
-
-
 
 ### Changed
 - **Lazor window modernized to `ZUIWindow` + AssetKit.** `LazorWindow` now derives from `LaubraryAssetWindow<LazorShape>`,
@@ -2061,8 +1928,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   references `AssetKit.Editor`, `ZUI.Editor`, `ZuiRuntime`.
 - **Lazor canvas navigation:** middle-drag pans the canvas; a middle click (no drag) opens a quick popover at the cursor
   with Pen / Edit / Erase and **Undo / Redo** (Ctrl+Z can miss while the pointer is over the drawing surface).
-
-
 
 ### Fixed
 - **Lazor canvas: strokes reaching off-screen points now draw (zoom-in fixed).** The canvas draws each segment as a
@@ -2095,8 +1960,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.7.0] - 2026-07-08
 
-
-
 ### Changed (BREAKING)
 - **Colosseum → `Combat2D`.** The combat backbone (Health/Factions/Hitbox-Hurtbox/Projectiles) has no authoring UI,
   so it's plainly named now (new rule: only systems with a visual UI get cool names). Namespace `Laubrary.Colosseum`
@@ -2109,8 +1972,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Bestiarium.Pyre`. `CodexArsenal` → `Bestiary`. So a project with only Combat2D (no Pyre/Chunks) can use Bestiarium
   with a sprite view and no effects. New editor hub (AssetKit): **Laubrary/Bestiarium/{Characters, Weapons, Projectiles}**.
 
-
-
 ### Added
 - **ZUI rollout complete + expanded.** Every IMGUI editor window is now on `ZUIWindow` (added the Rulesets editor,
   the Zoetrope Zoe Browser / Animation Builder / Animation↔Aseprite, and the AssetKit-based tools). ZUI gained the
@@ -2119,8 +1980,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **AssetKit** browsers now auto-refresh on `EditorApplication.projectChanged`, and New/Duplicate are Undo-able.
 
 ## [0.6.0] - 2026-07-08
-
-
 
 ### Added
 - **ZoeCombat — the Zoetrope ⇄ Colosseum pixel-perfect bridge.** A tiny integration module (`Runtime/ZoeCombat/`,
@@ -2138,15 +1997,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.0] - 2026-07-07
 
-
-
 ### Removed
 - **Pyre: the per-layer Directional emission system** (origin line / bend / angle, emit angle / spread, travel) is
   gone — it predated and is superseded by the **Ground** modifier (directional growth) and **Bars**. Layers now use
   the simple radial scatter (Count + Spawn radius + Position) only; the "Emission" box is removed. (Old assets that
   used Directional emission now render as radial.)
-
-
 
 ### Changed
 - **Pyre: Bloom + Outline post-effects (energy FX).** A new **PostModifier** family runs as a whole-frame pass
@@ -2174,8 +2029,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   handle** in the preview) to a directional blast's muzzle/back edge, and the runtime `BlastPlayer` + the baked
   sprites pivot there, so a game (Colosseum/Codex) aligns the blast to the exact hit pixel instead of its centre.
   The ✛ marker has an **opacity slider** and **oscillates white↔black** so it stays visible over any backdrop.
-
-
 
 ### Added
 - **Pyre: MetaBlob layer — click-placed fusing orbs (SDF metaballs).** A new layer shape where you **click the
@@ -2214,8 +2067,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   runtime-built (Codex) projectile templates work as well as project-asset prefabs.
 
 ## [0.4.0] - 2026-07-06
-
-
 
 ### Changed
 - **Gradient fill: position + zoom now work in plain Fill mode too** (not just Flow fill), and a new **movable
@@ -2296,8 +2147,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.3.0] - 2026-07-06
 
-
-
 ### Added
 - **Colosseum** — a reusable **2D-combat backbone**: the generalised health/damage/factions/projectiles
   foundation the shmup, arena and store games all share. Adds `Runtime/Colosseum/`
@@ -2315,8 +2164,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shoot back; deaths spawn Pyre explosions + Chunks debris; in-game tuning panel + HUD) — the intended
   replacement for the ChoreographerShmup. Ships zero art (shared DemoSprites).
 
-
-
 ### Changed
 - **Pyre** — major bar/star pass: a **Star** on/off spread (bar arms share the centre and radiate outward as
   an asterisk; canvas auto-fits) replacing the old inward "orbit" circular spread; a **Taper** slider for the
@@ -2327,8 +2174,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   size, alpha). Bars no longer masquerade with a length curve; Global deform is hidden for all-bars blasts.
 
 ## [0.2.0] - 2026-07-04
-
-
 
 ### Added
 - **Larder** — a tool for procedurally generating endless variations of pixel-art **shelf products**
@@ -2377,8 +2222,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`com.Lautaro-Arino.Laubrary.Chunks`, namespace `Laubrary.Chunks`); depends on neither Pyre nor Larder but can
   play any sprite they bake. Ships zero assets. Demo: click to spark-burst, Space for a directional wall burst.
 
-
-
 ### New ZUI controls (used by these tools)
 - **`ZUIValueControl` / `ZUIValue`** multicontrol (a slider whose `⋯` menu switches to Min-Max random or an
   animation curve; the Curve mode folds to a thumbnail; optional flags hide the timing/range chrome).
@@ -2389,15 +2232,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0] - 2026-07-04
 
-
-
 ### Added
 - **ZUI** — the editor UI framework (the `ZUI` global type: style sheets, sliders, colour pickers,
   envelopes, the Style Editor / Zeditor and the Zhowcase gallery) now ships **inside Laubrary** at
   `Zui/` instead of being hand-copied into each project's `Assets/ZUI/`. Install-path auto-detection
   resolves to the package location, so its SystemAssets (sheets, icons, fonts) travel with it.
-
-
 
 ### Changed
 - **Runtime assemblies merged.** The editor toolkit's data layer (`ZUI.Runtime` — style defs,
@@ -2410,8 +2249,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   global `ZUI` types collide.
 
 ## [0.0.19] - 2026-07-03
-
-
 
 ### Added
 - **Choreographer** (first slice) — a tool for authoring the collective motion of N **Dancers** as one
@@ -2473,8 +2310,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.0.18] - 2026-07-03
 
-
-
 ### Added
 - **UIAudit** — a vision-free UI linter that reports layout problems from the UI's own metrics
   (rects, text sizes) so an agent or test can catch them without a screenshot. Adds
@@ -2497,8 +2332,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.0.17] - 2026-07-03
 
-
-
 ### Added
 - **ZuiRuntime** — the runtime sibling of the editor ZUI toolkit: trap-aware immediate-mode
   (OnGUI) UI helpers for prototypes, adopted from TrueEye's nucleus and grown in ClaudeUI. Adds
@@ -2513,8 +2346,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.0.16] - 2026-06-28
 
-
-
 ### Added
 - **Zoetrope** — a new tool for authoring versioned 2D characters/animations (a *Zoe*) from
   sprite sheets, extracted from the retired AssetScavenge project. Adds `Runtime/Zoetrope/`
@@ -2522,8 +2353,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`com.Lautaro-Arino.Laubrary.Zoetrope.Editor`), including the Zoe Browser, Animation Builder,
   atlas baking, pixel-accurate meta-layer collision, and an Aseprite import/round-trip pipeline.
   Zoes are authored into the host project's `Assets/Zoetrope/…`; the package ships zero assets.
-
-
 
 ### Dependencies
 - Added `com.unity.2d.sprite` and `com.unity.nuget.newtonsoft-json` (required by Zoetrope).
