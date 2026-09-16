@@ -46,7 +46,11 @@ namespace Laubrary.AssetKit.Editor
             string path = AssetDatabase.GenerateUniqueAssetPath($"{folder}/{name}.asset");
             var asset = ScriptableObject.CreateInstance<T>();
             AssetDatabase.CreateAsset(asset, path);
-            AssetDatabase.SaveAssets();
+            // T-0369: SaveAssetIfDirty(asset), not SaveAssets() — the plain SaveAssets() call here saved
+            // EVERY dirty asset in the project, which is how an unrelated Create rewrote two of the owner's
+            // own tracked assets mid-session (T-0361/T-0366 verification incident). Scope the save to the
+            // one asset this call actually created.
+            AssetDatabase.SaveAssetIfDirty(asset);
             return asset;
         }
 
@@ -56,9 +60,13 @@ namespace Laubrary.AssetKit.Editor
             string path = PathOf(src);
             if (string.IsNullOrEmpty(path)) return null;
             string copy = AssetDatabase.GenerateUniqueAssetPath(path);
+            // AssetDatabase.CopyAsset already writes the copy to disk directly; T-0369 replaces the trailing
+            // save-everything call with SaveAssetIfDirty on the loaded copy alone (a no-op today, since
+            // CopyAsset leaves nothing dirty in memory, but scoped correctly if that ever changes).
             if (!AssetDatabase.CopyAsset(path, copy)) return null;
-            AssetDatabase.SaveAssets();
-            return AssetDatabase.LoadAssetAtPath<T>(copy);
+            var dup = AssetDatabase.LoadAssetAtPath<T>(copy);
+            if (dup != null) AssetDatabase.SaveAssetIfDirty(dup);
+            return dup;
         }
 
         public static bool Rename(T asset, string newName)
@@ -68,7 +76,9 @@ namespace Laubrary.AssetKit.Editor
             if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(newName)) return false;
             string err = AssetDatabase.RenameAsset(path, newName);
             if (!string.IsNullOrEmpty(err)) { Debug.LogWarning($"[AssetKit] rename failed: {err}"); return false; }
-            AssetDatabase.SaveAssets();
+            // T-0369: RenameAsset already renames the file on disk directly; scope the save to this asset
+            // alone instead of the removed SaveAssets() (see Create's note above for why that mattered).
+            AssetDatabase.SaveAssetIfDirty(asset);
             return true;
         }
 
