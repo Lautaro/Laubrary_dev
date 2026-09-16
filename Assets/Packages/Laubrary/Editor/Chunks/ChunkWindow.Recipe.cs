@@ -35,7 +35,10 @@ namespace Laubrary.Chunks.Editor
             ("Fragment Fracture", "scissors", () => new FragmentFracture()),
             ("Palette Splash",    "palette",  () => new PaletteSplash()),
             ("Pyre Blast",        "flame",    () => new PyreBlast()),
-            ("Fling",             "path",     () => new Trajectory()),
+            // Born migrated (T-0368/2): a freshly-added Fling has no legacy inheritBurstDirection choice to
+            // convert, so MarkBornMigrated() stops MigrateLegacyCurves() from ever touching it — the user's
+            // Direction-mode pick then survives every domain reload instead of reverting to Burst.
+            ("Fling",             "path",     () => { var t = new Trajectory(); t.MarkBornMigrated(); return t; }),
             ("Trail",             "cloud",    () => new Trail()),
             ("Hits",              "target",   () => new Hits()),
             ("Layer Plan",        "stack",    () => new LayerPlan()),

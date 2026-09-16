@@ -159,5 +159,14 @@ namespace Laubrary.Chunks
             directionModeMigrated = true;
             return true;
         }
+
+        /// Called ONLY by the Add-menu factory (ChunkWindow.Recipe.cs) right after `new Trajectory()`, never
+        /// by deserialization. A capability built this way has no legacy <see cref="inheritBurstDirection"/>
+        /// choice to convert — it is born already migrated, so <see cref="MigrateLegacyCurves"/> no-ops for it
+        /// forever and whatever <see cref="directionMode"/> the user later picks on the card survives every
+        /// domain reload instead of being silently reset back to Burst on the next load (T-0368/2). An asset
+        /// saved before this flag existed never runs through this method — it deserializes with
+        /// directionModeMigrated at the C# default (false) and still migrates exactly once, as before.
+        public void MarkBornMigrated() => directionModeMigrated = true;
     }
 }
