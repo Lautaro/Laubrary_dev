@@ -9,6 +9,13 @@
 // the nearer handle to the press point (an absolute jump, matching MicroSlider's own click-to-set). Shift
 // held during any of these drags is the same "fine" relative nudge MicroSlider and ZuiScrub use everywhere
 // else. Double-click resets both handles to the given defaults, or the full min/max span if none were given.
+//
+// Fixed/Range mode (T-0360): RIGHT-CLICK opens a Fixed/Range menu, same gesture as Z.Value's mode menu.
+// Range is the two-handle band above; Fixed collapses the control to a single MicroSlider-style fill so
+// setting one value is one drag instead of two (dragging both handles onto the same spot). Switching mode
+// keeps the low value and either collapses high to match it (→ Fixed) or nudges high off it so there is a
+// band to grab again (→ Range). A caller that constructs the control with low == high starts in Fixed;
+// anything else starts in Range — no new constructor argument, so every existing caller is unaffected.
 using System;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -17,6 +24,9 @@ namespace Laubrary.Zui
 {
     public class ZuiMicroMinMax : VisualElement
     {
+        /// Fixed = one value, one drag (drawn as a single MicroSlider-style fill). Range = the two-handle band.
+        public enum RangeMode { Fixed, Range }
+
         float _low, _high, _min, _max;
         readonly float? _lowDefault, _highDefault;
         readonly Action<float, float> _onChanged;
@@ -24,8 +34,12 @@ namespace Laubrary.Zui
         readonly Label _caption, _valueLabel;
         readonly bool _showValue;
         readonly int _decimals;
+        readonly string _baseTooltip;
 
-        // Which handle a drag gesture is moving: both == a pan (span held fixed).
+        RangeMode _mode;
+        public RangeMode Mode => _mode;
+
+        // Which handle a drag gesture is moving: both == a pan (span held fixed). Only used in Range mode.
         enum Grab { Low, High, Both }
         bool _dragging, _gestureOpen;
         int _undoGroup = -1;   // the Undo group the open gesture collapses into — see ZuiUndoGesture
@@ -51,9 +65,12 @@ namespace Laubrary.Zui
             _high = Mathf.Clamp(Mathf.Max(high, _low), _min, _max);
             _onChanged = onChanged; _lowDefault = lowDefault; _highDefault = highDefault;
             _onBeforeMutate = onBeforeMutate; _showValue = showValue; _decimals = decimals;
+            _baseTooltip = tooltip;
+            // Range by default — UNLESS both ends already came in equal, which reads as "this was already a
+            // fixed value" (T-0360).
+            _mode = Mathf.Approximately(_low, _high) ? RangeMode.Fixed : RangeMode.Range;
 
-            this.tooltip = tooltip + "  ·  Drag an edge to move one handle, the middle to pan both; Shift = fine"
-                + ((_lowDefault.HasValue || _highDefault.HasValue) ? "; double-click resets to default." : ".");
+            UpdateTooltip();
 
             AddToClassList("zui-microslider");
             AddToClassList("zui-microminmax");
@@ -91,7 +108,51 @@ namespace Laubrary.Zui
             if (!_showValue) return;
             float span = _max - _min;
             string fmt = _decimals >= 0 ? "F" + _decimals : span <= 3f ? "0.##" : span <= 40f ? "0.#" : "0";
-            _valueLabel.text = _low.ToString(fmt) + " – " + _high.ToString(fmt);
+            _valueLabel.text = _mode == RangeMode.Fixed
+                ? _low.ToString(fmt)
+                : _low.ToString(fmt) + " – " + _high.ToString(fmt);
+        }
+
+        void UpdateTooltip()
+        {
+            string hint = _mode == RangeMode.Fixed
+                ? "Drag to set one value; Shift = fine"
+                : "Drag an edge to move one handle, the middle to pan both; Shift = fine";
+            this.tooltip = _baseTooltip + "  ·  " + hint
+                + ((_lowDefault.HasValue || _highDefault.HasValue) ? "; double-click resets to default." : ".")
+                + "  ·  Right-click for Fixed/Range mode.";
+        }
+
+        void ShowModeMenu()
+        {
+            var menu = Z.Menu(this);
+            menu.Radio(null, new[] { "Fixed", "Range" }, (int)_mode,
+                "Fixed sets one value with a single drag. Range sets a low–high band with two handles.",
+                i => SetMode((RangeMode)i), closeOnSelect: true);
+            menu.Show();
+        }
+
+        void SetMode(RangeMode mode)
+        {
+            if (_mode == mode) return;
+            OpenGesture();
+            _mode = mode;
+            if (_mode == RangeMode.Fixed)
+            {
+                // Collapse to the low value — the same value the band's low edge already showed.
+                SetValues(_low, _low, notify: true);
+            }
+            else
+            {
+                // Nudge high off low so there is a band to grab again, instead of handing back a control
+                // whose only usable gesture is the razor-thin "outside the band" jump.
+                float nudge = Mathf.Max((_max - _min) * 0.05f, 1e-3f);
+                SetValues(_low, Mathf.Min(_max, _low + nudge), notify: true);
+            }
+            CloseGesture();
+            UpdateTooltip();
+            UpdateValueLabel();
+            MarkDirtyRepaint();
         }
 
         float XFromValue(float v)
@@ -124,24 +185,42 @@ namespace Laubrary.Zui
 
         void OnDown(PointerDownEvent e)
         {
+            // Right-click opens the Fixed/Range mode menu — same gesture as Z.Value's mode menu.
+            if (e.button == 1)
+            {
+                ShowModeMenu();
+                e.StopPropagation();
+                return;
+            }
             if (e.button != 0) return;
             if (e.clickCount == 2)
             {
                 OpenGesture();
-                float rlo = _lowDefault ?? _min, rhi = _highDefault ?? _max;
-                SetValues(rlo, rhi, notify: true);
+                if (_mode == RangeMode.Fixed)
+                {
+                    float rv = _lowDefault ?? _highDefault ?? _min;
+                    SetValues(rv, rv, notify: true);
+                }
+                else
+                {
+                    float rlo = _lowDefault ?? _min, rhi = _highDefault ?? _max;
+                    SetValues(rlo, rhi, notify: true);
+                }
                 CloseGesture();
                 e.StopPropagation();
                 return;
             }
 
             float x = e.localPosition.x;
-            float xLo = XFromValue(_low), xHi = XFromValue(_high);
-            _grab = Mathf.Abs(x - xLo) <= Mathf.Abs(x - xHi) && Mathf.Abs(x - xLo) <= HandleGrabPx ? Grab.Low
-                  : Mathf.Abs(x - xHi) <= HandleGrabPx ? Grab.High
-                  : x > xLo && x < xHi ? Grab.Both
-                  // Outside the band: jump the nearer handle straight to the press point.
-                  : Mathf.Abs(x - xLo) <= Mathf.Abs(x - xHi) ? Grab.Low : Grab.High;
+            if (_mode == RangeMode.Range)
+            {
+                float xLo = XFromValue(_low), xHi = XFromValue(_high);
+                _grab = Mathf.Abs(x - xLo) <= Mathf.Abs(x - xHi) && Mathf.Abs(x - xLo) <= HandleGrabPx ? Grab.Low
+                      : Mathf.Abs(x - xHi) <= HandleGrabPx ? Grab.High
+                      : x > xLo && x < xHi ? Grab.Both
+                      // Outside the band: jump the nearer handle straight to the press point.
+                      : Mathf.Abs(x - xLo) <= Mathf.Abs(x - xHi) ? Grab.Low : Grab.High;
+            }
 
             _dragging = true;
             _lastMoveX = x;
@@ -163,6 +242,12 @@ namespace Laubrary.Zui
 
         void ApplyDrag(float x, bool absolute)
         {
+            if (_mode == RangeMode.Fixed)
+            {
+                float v = absolute ? ValueFromX(x) : _low + FineDelta(x);
+                SetValues(v, v, notify: true);
+                return;
+            }
             switch (_grab)
             {
                 case Grab.Low:
@@ -217,10 +302,21 @@ namespace Laubrary.Zui
         {
             var r = contentRect;
             if (r.width <= 1f || r.height <= 1f) return;
-            float xLo = XFromValue(_low), xHi = XFromValue(_high);
 
             var p = mgc.painter2D;
             FillRect(p, 0f, 0f, r.width, r.height, TrackColor);
+
+            if (_mode == RangeMode.Fixed)
+            {
+                // Same "fill from the left up to the value" picture as a plain ZuiMicroSlider — one handle,
+                // one drag — so switching Fixed/Range reads as the same control changing shape, not a
+                // different control replacing it.
+                float split = Mathf.Round(XFromValue(_low));
+                if (split > 0.5f) FillGradientH(p, 0f, split, r.height, FillLeft, FillRight);
+                return;
+            }
+
+            float xLo = XFromValue(_low), xHi = XFromValue(_high);
             if (xHi - xLo > 0.5f) FillGradientH(p, xLo, xHi - xLo, r.height, FillLeft, FillRight);
         }
 

@@ -6,10 +6,17 @@ namespace Laubrary.Chunks
     /// A spray of tiny pixel particles thrown out of a sprite's own opaque footprint, tinted with that
     /// sprite's own pixel colours — "a splash of the character's own colours" with nothing else involved.
     ///
-    /// Its source never silently no-ops: explicit sprite → whatever a Fragment Fracture in the same recipe is
-    /// cutting → the burst's own supplied palette → plain white from the origin. The fracture tier is what
-    /// lets an author point ONE field at a Zoe and get both the fracture and a splash of that Zoe's colours,
-    /// with no second field to keep in sync.
+    /// Its source never silently no-ops: a live caller override (a Zoe's current on-screen frame, forwarded
+    /// through ChunkModuleContext.SampleSourceOverride exactly as Debris Scatter and Fragment Fracture read it)
+    /// → explicit animated source (Source) → explicit plain sprite → whatever a Fragment Fracture in the same
+    /// recipe resolves for ITSELF → the burst's own supplied palette → plain white from the origin, all from
+    /// one point. That last floor is deliberate, not an accident: a standalone burst with nothing authored at
+    /// all (no Source, no Sprite, no sibling Fracture, no supplied palette) still sprays something rather than
+    /// firing nothing, and it fails LOUDLY (visibly white, not a silently empty burst) rather than quietly. The
+    /// fracture tier is what lets an author point ONE field at a Zoe and get both the fracture and a splash of
+    /// that Zoe's colours, with no second field to keep in sync — and, since the live override is checked
+    /// before either authored field, a Zoe-triggered burst gets the Zoe's LIVE frame even with both fields left
+    /// empty, not the frame that happened to be authored on the recipe.
     [System.Serializable]
     public class PaletteSplash : ChunkCapability
     {
@@ -21,8 +28,16 @@ namespace Laubrary.Chunks
 
         public override string LayerName => layerName;
 
-        [Tooltip("Sprite to sample colours AND the emission footprint from. Empty uses whatever a Fragment " +
-                 "Fracture in this recipe is cutting.")]
+        [Tooltip("Animated content to sample colours AND the emission footprint from — a Zoe, a Pyre, anything " +
+                 "that can hand over frames. Its FIRST frame is what gets sampled. Outranks the plain sprite " +
+                 "below. When a Zoe triggers this burst, its live current sprite outranks both this and the " +
+                 "fallback sprite below — this is what a standalone burst uses instead.")]
+        public Object sourceVisual;
+
+        [Tooltip("The plain sprite to sample colours AND the emission footprint from, when Source above is " +
+                 "empty and no live sample source is supplied by the caller. Empty uses whatever a Fragment " +
+                 "Fracture in this recipe is cutting; when a Zoe triggers this burst, its live current sprite " +
+                 "outranks this too.")]
         public Sprite sprite;
 
         [Tooltip("Spawn each particle from a random opaque pixel of the source, instead of all from one point.")]
@@ -89,15 +104,54 @@ namespace Laubrary.Chunks
 
         public override float DurationSeconds(ChunkSpec spec) => Mathf.Max(0.02f, Mathf.Max(lifeMin, lifeMax));
 
-        /// The sprite this splash actually samples: its own, else whatever a Fragment Fracture in the recipe
-        /// is cutting. The fallback exists because the two describe the SAME event — a thing coming apart — so
-        /// making the author set the same art twice bought nothing but a second place to keep in sync, and the
-        /// failure was silent (a splash in the old character's colours beside fragments of the new one).
+        /// The AUTHORED source only, animated first (its first usable frame) then the plain fallback sprite —
+        /// the same two-tier shape as FragmentFracture.ResolveSource(). Falls THROUGH to the plain sprite when
+        /// the animation yields no usable frame, so a half-authored source degrades to whatever art was already
+        /// there rather than to nothing.
+        Sprite ResolveAuthoredSprite()
+        {
+            if (sourceVisual != null && sourceVisual is IChunkAnimation animation)
+            {
+                var frames = animation.GetFrames();
+                if (frames != null)
+                    for (int i = 0; i < frames.Length; i++)
+                        if (frames[i] != null) return frames[i];
+            }
+            return sprite;
+        }
+
+        /// The sprite this splash would sample with NO live burst to ask — its own authored source, else
+        /// whatever a Fragment Fracture in the recipe resolves for itself. This is what the standalone editor
+        /// preview (no <see cref="ChunkModuleContext"/> to read a live override from) uses; a real Fire uses
+        /// <see cref="ResolveSprite(in ChunkModuleContext)"/> below instead. The fracture fallback exists
+        /// because the two describe the SAME event — a thing coming apart — so making the author set the same
+        /// art twice bought nothing but a second place to keep in sync, and the failure was silent (a splash in
+        /// the old character's colours beside fragments of the new one).
         public Sprite ResolveSprite(ChunkSpec spec)
         {
-            if (sprite != null) return sprite;
+            var authored = ResolveAuthoredSprite();
+            if (authored != null) return authored;
             var fracture = spec != null ? spec.FirstEnabled<FragmentFracture>() : null;
             return fracture != null ? fracture.ResolveSource() : null;
+        }
+
+        /// The "sampled sprite for this burst" — the ONE method a live Fire (and any live-aware preview, e.g.
+        /// T-0359) asks for the sprite this splash actually samples RIGHT NOW: the caller's live override when
+        /// the burst has one (a Zoe's current on-screen frame, forwarded through
+        /// <see cref="ChunkModuleContext.SampleSourceOverride"/> — same plumbing DebrisScatter's
+        /// ResolvedSampleSource and FragmentFracture's ResolveSource(in ChunkModuleContext) use), else this
+        /// capability's own authored source, else whatever a Fragment Fracture in the same recipe resolves for
+        /// ITSELF (via its own ResolveSource(in ChunkModuleContext), so it too checks the override first) — so
+        /// within one burst every sampling producer agrees on one frame: all use the live override when one
+        /// exists, and a Splash following a Fracture uses the exact frame the Fracture cuts when neither has a
+        /// live override.
+        public Sprite ResolveSprite(in ChunkModuleContext ctx)
+        {
+            if (ctx.SampleSourceOverride != null) return ctx.SampleSourceOverride;
+            var authored = ResolveAuthoredSprite();
+            if (authored != null) return authored;
+            var fracture = ctx.Spec != null ? ctx.Spec.FirstEnabled<FragmentFracture>() : null;
+            return fracture != null ? fracture.ResolveSource(ctx) : null;
         }
 
         static AnimationCurve DefaultAlphaCurve() =>
@@ -151,7 +205,7 @@ namespace Laubrary.Chunks
             // unreadable, fully transparent), so an authored-but-broken sprite still degrades through the
             // palette tier rather than jumping straight to white.
             var pixelScratch = new List<PixelSample>(64);
-            var resolved = ResolveSprite(ctx.Spec);
+            var resolved = ResolveSprite(in ctx);
             bool haveFootprint = resolved != null && TrySamplePixels(resolved, pixelScratch);
             IList<Color32> palette = null;
             if (!haveFootprint)
@@ -159,9 +213,13 @@ namespace Laubrary.Chunks
                 if (ctx.Palette != null && ctx.Palette.Count > 0) palette = ctx.Palette;
                 else
                 {
+                    // Same-frame-as-the-burst tier: a Debris Scatter sibling's OWN resolved sample source (its
+                    // live override if any, else its authored one) — never its authored field read directly,
+                    // so this floor agrees with every other producer in the burst about which frame is live.
                     var debris = ctx.Spec != null ? ctx.Spec.FirstEnabled<DebrisScatter>() : null;
-                    if (debris != null && debris.sampleSource != null)
-                        haveFootprint = TrySamplePixels(debris.sampleSource, pixelScratch);
+                    var debrisSource = debris != null ? debris.ResolvedSampleSource(in ctx) : null;
+                    if (debrisSource != null)
+                        haveFootprint = TrySamplePixels(debrisSource, pixelScratch);
                 }
             }
 
@@ -208,8 +266,13 @@ namespace Laubrary.Chunks
                 sr.color = color;
                 ctx.ApplyOrder(sr, LayerName, i);
 
+                // Same half-angle meaning as DebrisScatter/FragmentFracture: 0 = a tight jet, 180 = every
+                // direction (the ± range totals 360 at the slider's max), not half of that — matches this
+                // field's own tooltip and lets one card spray a full circle instead of needing a second one
+                // aimed the other way (T-0363 J3/D6). The old ×0.5 here was the bug: it silently halved the
+                // cone versus every other producer, so 180 read as a half-circle only on this card.
                 float centreDeg = inheritBurstDirection ? ctx.DirectionDeg : directionDeg;
-                float rad = (centreDeg + rng.Range(-spreadDeg * 0.5f, spreadDeg * 0.5f)) * Mathf.Deg2Rad;
+                float rad = (centreDeg + rng.Range(-spreadDeg, spreadDeg)) * Mathf.Deg2Rad;
                 float speed = rng.Range(speedLo, speedHi);
                 Vector3 velocity = new Vector3(Mathf.Cos(rad), Mathf.Sin(rad), 0f) * speed;
                 float life = rng.Range(lifeLo, lifeHi);

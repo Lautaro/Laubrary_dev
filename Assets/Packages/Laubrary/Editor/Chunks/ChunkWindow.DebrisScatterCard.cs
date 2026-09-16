@@ -182,10 +182,7 @@ namespace Laubrary.Chunks.Editor
                 cap.restOnFloor, v => Dial("Toggle Rest On Floor", () => cap.restOnFloor = v)));
             body.Add(floor);
 
-            body.Add(Z.Field("Seed",
-                "Fixes every random pick so the scatter is identical every play. 0 rerolls.",
-                Z.Int(cap.seed, "Fixes every random pick so the scatter is identical every play.",
-                      v => Dial("Edit Debris Seed", () => cap.seed = v), 70f)));
+            body.Add(SeedField(cap.seed, "the scatter's random picks", "Edit Debris Seed", v => cap.seed = v));
 
             var slot = LayerSlotRow(c, () => cap.layerName, v => cap.layerName = v);
             if (slot != null) body.Add(slot);

@@ -44,8 +44,26 @@ namespace Laubrary.Chunks.Editor
         internal int previewGeneration;
 
         float cachedReach = 1f;
+        float cachedRequired = 1f;
         int cachedReachGeneration = -1;
         int cachedReachSpec;
+
+        // ── zoom that does not jump ──────────────────────────────────────────────────────────────────────
+        // The stage draws at shownReach, which follows the measured reach smoothly rather than snapping to
+        // it. While any pointer is held in the window (a dial being dragged) it only ever widens, and only as
+        // far as the recipe's placements and flight peaks demand, so nothing leaves the picture and nothing
+        // zooms in under the drag; the rest of the change lands once the pointer is released. While a blast
+        // is dragged on the stage itself it does not move at all — the drag is measured in the stage's own
+        // pixels, and a zoom under it would feed back into the drag.
+        float shownReach = -1f;
+        int shownReachSpec;
+        bool pointerHeld;
+        const float ZoomRate = 10f;   // per second; ~0.3 s to settle
+
+        const string StageTooltipBase =
+            "What this recipe puts on screen at the transport's time, worked out the way the burst works it " +
+            "out. Drag a blast to move it.";
+        int stageTipKey;
 
         // ── dragging a blast's disc on the stage ─────────────────────────────────────────────────────────
         // Direct-mutate-and-dirty rather than routing through Dial — a drag is a single continuous gesture
@@ -82,13 +100,13 @@ namespace Laubrary.Chunks.Editor
             previewSection = Z.Section("Preview",
                 "What this recipe puts on screen, over its own clock.", "Chunks.preview", "eye");
 
-            // A rebuild is the one moment worth re-measuring the assets the cards point at: a Pyre's own size
-            // is asked for by rendering its first frame, which is far too expensive to redo per dial edit, and
-            // far too stale to keep for the life of the editor.
-            ChunkPreviewSim.ClearCaches();
+            // The sim's caches were dropped in OnBeforeRebuild, before the cards read them; only the zoom
+            // measurement is left to invalidate here.
             previewGeneration++;
 
             stage = new IMGUIContainer(() => DrawStage(c));
+            stage.tooltip = StageTooltipBase;
+            stageTipKey = 0;
             stage.style.height = Mathf.Clamp(previewHeight, PreviewHeightMin, PreviewHeightMax);
             stage.style.flexGrow = 0f;
             stage.style.flexShrink = 0f;
@@ -238,7 +256,9 @@ namespace Laubrary.Chunks.Editor
             float dt = (float)(now - lastTick);
             lastTick = now;
 
-            if (!playing || this == null || Current == null) return;
+            if (this == null || Current == null) return;
+            EaseZoom(Mathf.Clamp(dt, 0f, 0.1f));
+            if (!playing) return;
             float length = ChunkClock.Length(Current);
             previewTime += Mathf.Clamp(dt, 0f, 0.25f);   // a stalled editor must not jump the whole clock
             if (previewTime >= length)
@@ -267,7 +287,7 @@ namespace Laubrary.Chunks.Editor
             var field = new Rect(0f, 0f, view.width, Mathf.Max(24f, view.height - StripHeight));
             var centre = field.center;
 
-            float reach = StageReach(c);
+            float reach = ShownReach(c);
             float scale = Mathf.Min(field.width, field.height) / (2f * Mathf.Max(0.01f, reach) * StageMargin);
 
             var cross = new Color(1f, 1f, 1f, 0.35f);
@@ -289,6 +309,7 @@ namespace Laubrary.Chunks.Editor
 
             frame ??= new ChunkPreviewFrame();
             ChunkPreviewSim.Build(c, previewTime, frame);
+            UpdateStageTooltip(frame);
             // A cone says WHICH WAY, not how far, so it is the one thing allowed to be cut down to fit: the
             // framing is now sized to the composition rather than to its furthest particle, and a fast
             // long-lived producer's wedge would otherwise be drawn straight off the edge with its arrowhead
@@ -309,10 +330,79 @@ namespace Laubrary.Chunks.Editor
             if (cachedReachGeneration == previewGeneration && cachedReachSpec == id) return cachedReach;
 
             reachScratch ??= new ChunkPreviewFrame();
-            cachedReach = ChunkPreviewSim.Reach(c, reachScratch);
+            cachedReach = ChunkPreviewSim.Reach(c, reachScratch, out cachedRequired);
             cachedReachGeneration = previewGeneration;
             cachedReachSpec = id;
             return cachedReach;
+        }
+
+        /// The reach the stage is drawn at right now. A recipe seen for the first time is framed at once;
+        /// after that the frame only moves through <see cref="EaseZoom"/>.
+        float ShownReach(ChunkSpec c)
+        {
+            int id = c != null ? c.GetInstanceID() : 0;
+            if (shownReach <= 0f || shownReachSpec != id)
+            {
+                shownReach = StageReach(c);
+                shownReachSpec = id;
+            }
+            return shownReach;
+        }
+
+        /// Walk the shown reach toward where it should be — see the note on <see cref="shownReach"/>.
+        void EaseZoom(float dt)
+        {
+            var c = Current;
+            if (c == null || stage == null || shownReach <= 0f) return;
+            if (draggingBlastCap != null) return;
+
+            float target = StageReach(c);
+            float goal = pointerHeld ? Mathf.Max(shownReach, cachedRequired) : target;
+            float gap = goal - shownReach;
+            if (Mathf.Approximately(gap, 0f)) return;
+
+            if (Mathf.Abs(gap) <= goal * 0.002f) shownReach = goal;
+            else shownReach += gap * (1f - Mathf.Exp(-ZoomRate * dt));
+            stage.MarkDirtyRepaint();
+        }
+
+        // Any pointer held anywhere in the window — a slider, a scrubbed number, a stage drag. Registered
+        // trickle-down on the window's root, which every pointer event passes through, captured or not.
+        void OnAnyPointerDown(PointerDownEvent e) => pointerHeld = true;
+
+        void OnAnyPointerUp(PointerUpEvent e)
+        {
+            pointerHeld = false;
+            // A stage drag released outside the stage never reaches its IMGUI MouseUp; without this the
+            // blast would stay "held" (and the zoom frozen) until the next press on the stage.
+            draggingBlastCap = null;
+        }
+
+        /// The stage's tooltip admits what the picture cannot show: that an unseeded capability rolls afresh
+        /// on every real burst, and any source whose pixels the preview could not read. Recomposed only when
+        /// the set of admissions changes.
+        void UpdateStageTooltip(ChunkPreviewFrame f)
+        {
+            if (stage == null) return;
+            int key = f.Unseeded ? 2 : 1;
+            unchecked
+            {
+                for (int i = 0; i < f.Notes.Count; i++) key = key * 31 + f.Notes[i].GetHashCode();
+            }
+            if (key == stageTipKey) return;
+            stageTipKey = key;
+
+            var tip = new System.Text.StringBuilder(StageTooltipBase);
+            if (f.Unseeded)
+                tip.Append("\n\nA Seed of 0 rolls afresh on every real burst: the picture is one example of it, " +
+                           "not the burst you will get.");
+            for (int i = 0; i < f.Notes.Count; i++)
+            {
+                bool repeat = false;
+                for (int j = 0; j < i && !repeat; j++) repeat = ReferenceEquals(f.Notes[j], f.Notes[i]);
+                if (!repeat) tip.Append("\n\n").Append(f.Notes[i]);
+            }
+            stage.tooltip = tip.ToString();
         }
 
         /// A blast's disc (or its not-yet-fired ring) dragged straight on the stage, set its card's Offset —
@@ -434,6 +524,10 @@ namespace Laubrary.Chunks.Editor
 
             switch (g.shape)
             {
+                case ChunkGuideShape.Square when g.texture != null:
+                    // A real fracture piece: the picture itself, turned by its spin.
+                    DrawPicture(g, at, scale, g.angleDeg);
+                    break;
                 case ChunkGuideShape.Square:
                 {
                     // An oriented square rather than a dot, so a spinning chunk reads as spinning: the
@@ -459,9 +553,16 @@ namespace Laubrary.Chunks.Editor
                     // size and the fade; the fill only says "something is here".
                     // The rim wears the owning card's colour, so a disc says which card it belongs to even
                     // when its fill has been tinted into something else.
-                    Handles.color = Fade(g.color, g.alpha * 0.3f);
-                    Handles.DrawSolidDisc(new Vector3(at.x, at.y, 0f), Vector3.forward, r);
-                    Handles.color = Fade(RimOf(g), Mathf.Min(1f, g.alpha * 1.1f));
+                    // With a real frame the picture IS the fill (the blast as it will look, tint and all);
+                    // a blast whose frames have run out keeps only its rim.
+                    if (g.texture != null)
+                        DrawPicture(g, at, scale, g.showAngle ? g.angleDeg : 0f);
+                    else if (!g.hollow)
+                    {
+                        Handles.color = Fade(g.color, g.alpha * 0.3f);
+                        Handles.DrawSolidDisc(new Vector3(at.x, at.y, 0f), Vector3.forward, r);
+                    }
+                    Handles.color = Fade(RimOf(g), Mathf.Min(1f, g.alpha * (g.texture != null ? 0.6f : 1.1f)));
                     Handles.DrawWireDisc(new Vector3(at.x, at.y, 0f), Vector3.forward, r, 2f);
 
                     // Orientation tick: a round footprint otherwise cannot show which way it faces at all — a
@@ -479,6 +580,29 @@ namespace Laubrary.Chunks.Editor
                     Handles.DrawWireDisc(new Vector3(at.x, at.y, 0f), Vector3.forward, r);
                     break;
             }
+        }
+
+        /// A guide's picture, centred where the renderer would put it and turned by <paramref name="angleDeg"/>
+        /// (world degrees, counter-clockwise), multiplied by the guide's picture colour.
+        static void DrawPicture(ChunkGuide g, Vector2 at, float scale, float angleDeg)
+        {
+            var size = g.picSize * scale;
+            if (size.x < 0.5f || size.y < 0.5f) return;
+
+            // The pivot offset turns with the picture; screen y runs down, so both flip.
+            float rad = angleDeg * Mathf.Deg2Rad;
+            float cos = Mathf.Cos(rad), sin = Mathf.Sin(rad);
+            var o = g.picOffset * scale;
+            var centre = new Vector2(at.x + (o.x * cos - o.y * sin), at.y - (o.x * sin + o.y * cos));
+            var rect = new Rect(centre.x - size.x * 0.5f, centre.y - size.y * 0.5f, size.x, size.y);
+
+            var matrix = GUI.matrix;
+            var colour = GUI.color;
+            if (Mathf.Abs(angleDeg) > 0.01f) GUIUtility.RotateAroundPivot(-angleDeg, centre);
+            GUI.color = g.picColor;
+            GUI.DrawTextureWithTexCoords(rect, g.texture, g.uv, true);
+            GUI.color = colour;
+            GUI.matrix = matrix;
         }
 
         static void DrawCone(ChunkGuideCone cone, Func<Vector2, Vector2> toScreen, float scale, float maxPixels)

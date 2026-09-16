@@ -91,10 +91,7 @@ namespace Laubrary.Chunks.Editor
                     v => Dial("Edit Fling Life", () => cap.lifeSeconds = Mathf.Max(0.01f, v)),
                     150f, showValue: true, decimals: 2));
 
-            body.Add(Z.Field("Seed",
-                "Fixes the random speed, angle and spin so every play is identical. 0 rerolls.",
-                Z.Int(cap.seed, "Fixes the random speed, angle and spin so every play is identical.",
-                      v => Dial("Edit Fling Seed", () => cap.seed = v), 70f)));
+            body.Add(SeedField(cap.seed, "the flight's speed, angle and spin", "Edit Fling Seed", v => cap.seed = v));
         }
     }
 }
