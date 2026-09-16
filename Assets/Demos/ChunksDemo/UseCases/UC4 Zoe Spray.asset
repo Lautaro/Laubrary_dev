@@ -275,10 +275,12 @@ MonoBehaviour:
       type: {class: PaletteSplash, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: d159e69bdffc45eea1b51bb9616e72f9
+        colorSlot: -1
         enabled: 1
         displayName: Disc spray
         delay: 0
         layerName: 
+        sourceVisual: {fileID: 0}
         sprite: {fileID: -1647070275, guid: 3ac51fd348b04b84e8f2c53cf762cc3c, type: 3}
         emitFromFootprint: 1
         countMin: 30
@@ -290,7 +292,7 @@ MonoBehaviour:
         speedMax: 6
         inheritBurstDirection: 0
         directionDeg: 90
-        spreadDeg: 180
+        spreadDeg: 90
         gravity: 6
         drag: 0.4
         lifeMin: 0.4
@@ -329,6 +331,7 @@ MonoBehaviour:
           m_PostInfinity: 2
           m_RotationOrder: 4
         curvesMigrated: 1
+        spreadMigrated: 1
         alphaEnvelope:
         - time: 0
           value: 1

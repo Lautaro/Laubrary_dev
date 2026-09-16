@@ -397,6 +397,7 @@ MonoBehaviour:
       type: {class: LayerPlan, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: 91f04acaed50482c9e920bb6792a1aaa
+        colorSlot: -1
         enabled: 1
         displayName: 
         delay: 0
@@ -411,6 +412,7 @@ MonoBehaviour:
       type: {class: FragmentFracture, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: 0712169ed7484892b6e3b1a8dd0fd67e
+        colorSlot: -1
         enabled: 1
         displayName: 
         delay: 0
@@ -506,10 +508,12 @@ MonoBehaviour:
       type: {class: PaletteSplash, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: 343f1fc4a5534fa6bdc0c4c52b9ab7ac
+        colorSlot: -1
         enabled: 1
         displayName: 
         delay: 0
         layerName: Splash
+        sourceVisual: {fileID: 0}
         sprite: {fileID: 0}
         emitFromFootprint: 1
         countMin: 8
@@ -521,7 +525,7 @@ MonoBehaviour:
         speedMax: 5
         inheritBurstDirection: 0
         directionDeg: 90
-        spreadDeg: 180
+        spreadDeg: 90
         gravity: 6
         drag: 0.4
         lifeMin: 0.15
@@ -560,6 +564,7 @@ MonoBehaviour:
           m_PostInfinity: 2
           m_RotationOrder: 4
         curvesMigrated: 1
+        spreadMigrated: 1
         alphaEnvelope:
         - time: 0
           value: 1
@@ -873,6 +878,7 @@ MonoBehaviour:
       type: {class: DebrisScatter, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: 3d68197f58b64ccc88a12c21f4956d46
+        colorSlot: -1
         enabled: 1
         displayName: 
         delay: 0
@@ -1352,6 +1358,7 @@ MonoBehaviour:
       type: {class: DebrisScatter, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: 3d68197f58b64ccc88a12c21f4956d46
+        colorSlot: -1
         enabled: 1
         displayName: 
         delay: 0

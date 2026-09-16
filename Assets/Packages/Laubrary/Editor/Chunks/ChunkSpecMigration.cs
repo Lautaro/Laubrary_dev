@@ -12,10 +12,12 @@ namespace Laubrary.Chunks.Editor
     /// sees a recipe that does not match what the game runs. This walks every recipe in the project once and
     /// saves the upgraded form through the normal asset pipeline.
     ///
-    /// It must go through <see cref="AssetDatabase.SaveAssets"/> and nothing else: a stack of managed
-    /// references is only written correctly by the editor's own serializer, and saving one from outside it
-    /// destroys the reference ids — which are the keys every modifier target and every card's view state hang
-    /// off, so losing them silently unpicks the recipe rather than failing loudly.
+    /// It must go through the editor's own asset save and nothing else: a stack of managed references is only
+    /// written correctly by the editor's own serializer, and saving one from outside it destroys the reference
+    /// ids — which are the keys every modifier target and every card's view state hang off, so losing them
+    /// silently unpicks the recipe rather than failing loudly. It saves only the recipes it upgraded:
+    /// <see cref="AssetDatabase.SaveAssets"/> would also write every other unsaved asset in the project,
+    /// behind the author's back.
     ///
     /// Self-limiting: an already-current recipe is skipped, so this costs one asset search per domain load and
     /// writes nothing ever again.
@@ -35,6 +37,7 @@ namespace Laubrary.Chunks.Editor
         {
             var guids = AssetDatabase.FindAssets("t:" + nameof(ChunkSpec));
             var upgraded = new List<string>();
+            var toSave = new List<ChunkSpec>();
 
             foreach (var guid in guids)
             {
@@ -49,15 +52,15 @@ namespace Laubrary.Chunks.Editor
 
                 EditorUtility.SetDirty(spec);
                 upgraded.Add(path);
+                toSave.Add(spec);
             }
 
             if (upgraded.Count == 0) return "ChunkSpec migration: nothing to upgrade.";
 
-            AssetDatabase.SaveAssets();
-            foreach (var guid in guids)
+            foreach (var spec in toSave)
             {
-                var spec = AssetDatabase.LoadAssetAtPath<ChunkSpec>(AssetDatabase.GUIDToAssetPath(guid));
-                if (spec != null) spec.MarkSaved();
+                AssetDatabase.SaveAssetIfDirty(spec);
+                spec.MarkSaved();
             }
 
             string report = $"ChunkSpec migration: upgraded {upgraded.Count} recipe(s) — {string.Join(", ", upgraded)}";

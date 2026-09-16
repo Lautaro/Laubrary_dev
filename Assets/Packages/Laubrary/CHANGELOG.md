@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ChunkSpec auto-upgrade saves only the recipes it upgraded
+- The on-load recipe upgrade (`ChunkSpecMigration`) used `AssetDatabase.SaveAssets()`, which also wrote every other unsaved asset in the project; it now saves each upgraded recipe on its own (`SaveAssetIfDirty`). Found when the Palette Splash spread migration (T-0373) was written to disk on the next script reload, as designed.
+
 ### T-0371 — Zoetrope: a Zoe's Chunks Public/Private switch is safe to undo and redo
 - **Undo and redo after a Public/Private switch now always leave the row on a loadable recipe with its tuning, and never leave an unloadable file.** Before, one Ctrl+Z after Private → Public destroyed the new library asset's in-memory object (the file then loaded as a DefaultAsset) while the row pointed at the embedded copy the switch had already destroyed. Creating the library asset or the embedded copy is now plain, permanent asset work outside the undo stack, the switch never removes or destroys the recipe the row leaves, and the only undoable step is the row's re-point, as its own "Make Chunks Public/Private" step. Repeated switching reuses a copy it made earlier with identical tuning (library `<Zoe> — Chunks[ n].asset`, or an unreferenced embedded copy) instead of minting another, and both directions save only the Zoe and the library asset they touched (`SaveAssetIfDirty`, no project-wide `SaveAssets()`). Trade-off: a private copy the row switched away from stays hidden inside the Zoe's file so undo can return to it.
 

@@ -280,6 +280,7 @@ MonoBehaviour:
       type: {class: LayerPlan, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: 0ad898f9034044b1b8d05ac9fcd5f322
+        colorSlot: -1
         enabled: 1
         displayName: 
         delay: 0
@@ -296,6 +297,7 @@ MonoBehaviour:
       type: {class: PyreBlast, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: e15b7084c3d64275b5588643799da45f
+        colorSlot: -1
         enabled: 1
         displayName: Big pyre
         delay: 0
@@ -332,6 +334,7 @@ MonoBehaviour:
       type: {class: FragmentFracture, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: 06763c5d415f4367b90a29e01a1c9c25
+        colorSlot: -1
         enabled: 1
         displayName: Disc pieces
         delay: 0
@@ -427,10 +430,12 @@ MonoBehaviour:
       type: {class: PaletteSplash, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: 225b402634214ee09ea714624bd619be
+        colorSlot: -1
         enabled: 1
         displayName: Particles up
         delay: 0
         layerName: Particles
+        sourceVisual: {fileID: 0}
         sprite: {fileID: 0}
         emitFromFootprint: 1
         countMin: 20
@@ -442,7 +447,7 @@ MonoBehaviour:
         speedMax: 6
         inheritBurstDirection: 0
         directionDeg: 90
-        spreadDeg: 180
+        spreadDeg: 90
         gravity: 6
         drag: 0.4
         lifeMin: 0.4
@@ -481,6 +486,7 @@ MonoBehaviour:
           m_PostInfinity: 2
           m_RotationOrder: 4
         curvesMigrated: 1
+        spreadMigrated: 1
         alphaEnvelope:
         - time: 0
           value: 1
@@ -523,10 +529,12 @@ MonoBehaviour:
       type: {class: PaletteSplash, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: e2060ec4279740309d1ebbb65235f295
+        colorSlot: -1
         enabled: 1
         displayName: Particles down
         delay: 0
         layerName: Particles
+        sourceVisual: {fileID: 0}
         sprite: {fileID: 0}
         emitFromFootprint: 1
         countMin: 20
@@ -538,7 +546,7 @@ MonoBehaviour:
         speedMax: 6
         inheritBurstDirection: 0
         directionDeg: 270
-        spreadDeg: 180
+        spreadDeg: 90
         gravity: 6
         drag: 0.4
         lifeMin: 0.4
@@ -577,6 +585,7 @@ MonoBehaviour:
           m_PostInfinity: 2
           m_RotationOrder: 4
         curvesMigrated: 1
+        spreadMigrated: 1
         alphaEnvelope:
         - time: 0
           value: 1
@@ -619,6 +628,7 @@ MonoBehaviour:
       type: {class: PyreBlast, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: 7786c856a22841dfa03141e20bb3e485
+        colorSlot: -1
         enabled: 1
         displayName: Small pyres
         delay: 0.1
