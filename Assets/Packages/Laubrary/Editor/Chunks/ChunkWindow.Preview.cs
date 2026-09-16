@@ -570,9 +570,20 @@ namespace Laubrary.Chunks.Editor
                     if (g.showAngle)
                     {
                         float rad = -g.angleDeg * Mathf.Deg2Rad;   // screen y runs down, so the turn inverts
-                        var tip = new Vector3(at.x + Mathf.Cos(rad) * r, at.y + Mathf.Sin(rad) * r, 0f);
-                        Handles.color = Fade(g.color, Mathf.Min(1f, g.alpha * 1.3f));
-                        Handles.DrawAAPolyLine(2.5f, new Vector3(at.x, at.y, 0f), tip);
+                        var dir = new Vector3(Mathf.Cos(rad), Mathf.Sin(rad), 0f);
+                        // A firing-number chip (T-0354) is centred on this exact point whenever this guide
+                        // carries a label, and DrawGuideLabels paints every chip AFTER every disc — so a tick
+                        // that starts at the centre draws first and then vanishes under the chip (T-0368/3).
+                        // Starting just outside the chip's footprint keeps the tick entirely off the number
+                        // instead of fighting it for the same pixels, in either draw order.
+                        float startDist = !string.IsNullOrEmpty(g.label) ? Mathf.Min(r * 0.9f, ChipHalfDiagonal) : 0f;
+                        if (r - startDist >= 2f)   // still a visible stroke once past the chip
+                        {
+                            var from = new Vector3(at.x, at.y, 0f) + dir * startDist;
+                            var tip = new Vector3(at.x, at.y, 0f) + dir * r;
+                            Handles.color = Fade(g.color, Mathf.Min(1f, g.alpha * 1.3f));
+                            Handles.DrawAAPolyLine(2.5f, from, tip);
+                        }
                     }
                     break;
                 case ChunkGuideShape.Ring:
@@ -647,6 +658,11 @@ namespace Laubrary.Chunks.Editor
         static Color RimOf(ChunkGuide g) => g.outline.a > 0f ? g.outline : g.color;
 
         static readonly System.Collections.Generic.List<Rect> PlacedLabels = new System.Collections.Generic.List<Rect>();
+
+        // Half the diagonal of the smallest firing-number chip DrawGuideLabels ever draws (14 × 13, its own
+        // floors below) — how far an orientation tick has to start from a guide's centre to clear a label
+        // chip centred on that same point, regardless of which one is painted on top.
+        const float ChipHalfDiagonal = 9.6f;
 
         // Every blast carries its firing number across the whole recipe, so changing a delay or a stagger
         // renumbers the picture rather than leaving the labels describing an order that no longer happens.

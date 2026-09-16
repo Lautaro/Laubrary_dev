@@ -25,6 +25,11 @@ namespace Laubrary.AssetKit.Editor
 
         // transient inline-prompt state
         bool creating; string createText = ""; string createFolder = "";
+        // T-0369: set only inside ChooseCreateFolder — the folder is remembered across New calls ONLY when
+        // the user explicitly picked one via Folder…, never just because a Create happened to succeed while
+        // showing the open asset's folder or DefaultFolder (that silently hijacked every other tool's New
+        // once any tool's Folder… was ever used — same EditorPrefs key is per window TYPE, not per session).
+        bool createFolderExplicit;
         bool renaming; string renameText = "";
 
         // browser state
@@ -227,7 +232,7 @@ namespace Laubrary.AssetKit.Editor
                     v => SetAsset(v), 200f),
                 Z.Button("New", $"Create a brand new {TypeLabel} asset (undoable).",
                     () => { creating = true; renaming = false; createText = NewAssetName;
-                             createFolder = RememberedNewFolder() ?? FolderForNew(); Rebuild(); }),
+                             createFolder = RememberedNewFolder() ?? FolderForNew(); createFolderExplicit = false; Rebuild(); }),
                 Z.Button(browsing ? "Close browser" : "Browse",
                     $"Toggle the thumbnail browser of every {TypeLabel} in the project.",
                     () => { browsing = !browsing; creating = false; renaming = false; if (browsing) RefreshBrowse(); Rebuild(); }));
@@ -263,6 +268,11 @@ namespace Laubrary.AssetKit.Editor
             return row;
         }
 
+        // T-0369: Name/Create/Cancel — the controls that must always stay reachable — are their own row,
+        // never sharing a row with the folder chrome. The folder row below it is allowed to elide harder
+        // (down to a floor) and to wrap if it still doesn't fit, but it can never push Create/Cancel
+        // off-screen the way one shared row did at a tool's narrow width (T-0361 ZuiAudit: 3 off-screen at
+        // 560 pt). See MiddleElide's caller below for how the elide length adapts to the window width.
         VisualElement BuildCreateRow()
         {
             TextField nameField = Z.TextInput(createText, "File name for the new asset.", v => createText = v, 200f);
@@ -272,10 +282,13 @@ namespace Laubrary.AssetKit.Editor
                 creating = false;
                 if (created != null)
                 {
-                    RememberNewFolder(createFolder);
+                    // Only remember the folder when the user explicitly picked one via Folder… this session —
+                    // otherwise New would silently hijack every future tool-open with whatever folder an
+                    // unrelated asset happened to be sitting in (T-0361 finding 2/5).
+                    if (createFolderExplicit) RememberNewFolder(createFolder);
                     InitializeNewAsset(created);
                     EditorUtility.SetDirty(created);
-                    AssetDatabase.SaveAssets();
+                    AssetDatabase.SaveAssetIfDirty(created);   // T-0369: only THIS asset, not every dirty asset in the project
                     Undo.RegisterCreatedObjectUndo(created, "Create " + TypeLabel);
                     browsing = false;
                     SetAsset(created);
@@ -288,19 +301,33 @@ namespace Laubrary.AssetKit.Editor
             });
             nameField.schedule.Execute(() => nameField.Focus());
 
-            var folderLabel = new Label(MiddleElide(createFolder, 40)) { tooltip = createFolder };
-            folderLabel.style.overflow = Overflow.Hidden;
-            folderLabel.style.whiteSpace = WhiteSpace.NoWrap;
-
-            return Z.Row(
+            var nameRow = Z.Row(
                 Z.Text("Asset name", ZuiText.Body, "File name for the new asset."),
                 nameField,
+                Z.Button("Create", "Create the asset with this name.", Confirm),
+                Z.Button("Cancel", "Abandon creating a new asset.", () => { creating = false; Rebuild(); }));
+
+            // The elide length adapts to the actual window width instead of a fixed 40 chars, so the folder
+            // label can't be the thing that pushes Folder… off-screen at a narrow window — it was measured
+            // fixed at 40 chars regardless of window width (T-0361/1). ~120 pt is a rough budget for the
+            // "in" label + Folder… button + row margins at this control's font; ~6 px/char is this Body
+            // label's rough glyph width. Floored at 8 so a very narrow window still shows something readable.
+            float avail = position.width - 120f;
+            int maxChars = Mathf.Clamp(Mathf.FloorToInt(avail / 6f), 8, 40);
+
+            var folderLabel = new Label(MiddleElide(createFolder, maxChars)) { tooltip = createFolder };
+            folderLabel.style.overflow = Overflow.Hidden;
+            folderLabel.style.whiteSpace = WhiteSpace.NoWrap;
+            folderLabel.style.flexShrink = 1f;   // backstop: CSS-level clip if the estimate above still runs long
+
+            var folderRow = Z.Row(
                 Z.Text("in", ZuiText.Subtle, "The folder the new asset will be created in."),
                 folderLabel,
                 Z.Button("Folder…", $"Choose where the new {TypeLabel} asset is created (remembered for next time).",
-                    ChooseCreateFolder),
-                Z.Button("Create", "Create the asset with this name.", Confirm),
-                Z.Button("Cancel", "Abandon creating a new asset.", () => { creating = false; Rebuild(); }));
+                    ChooseCreateFolder));
+            folderRow.style.flexWrap = Wrap.Wrap;   // last-resort: Folder… drops to its own line rather than going off-screen
+
+            return Z.Column(nameRow, folderRow);
         }
 
         void ChooseCreateFolder()
@@ -311,13 +338,19 @@ namespace Laubrary.AssetKit.Editor
 
             string dataPathAbs = Path.GetFullPath(Application.dataPath).Replace('\\', '/').TrimEnd('/');
             string pickedNorm = Path.GetFullPath(picked).Replace('\\', '/').TrimEnd('/');
-            if (!pickedNorm.StartsWith(dataPathAbs, StringComparison.OrdinalIgnoreCase))
+            // Compare by path SEGMENT, not raw string prefix — a plain StartsWith let a sibling folder like
+            // "<project>/AssetsOld" pass as "AssetsOld/…" because "AssetsOld" also starts with "Assets"
+            // (T-0361 finding 3). Equal, or the next character after the prefix must be the separator.
+            bool inside = pickedNorm.Equals(dataPathAbs, StringComparison.OrdinalIgnoreCase)
+                || pickedNorm.StartsWith(dataPathAbs + "/", StringComparison.OrdinalIgnoreCase);
+            if (!inside)
             {
                 Debug.LogWarning($"'{picked}' is outside this project's Assets folder — keeping '{createFolder}'.");
                 return;
             }
             string rel = "Assets" + pickedNorm.Substring(dataPathAbs.Length);
             createFolder = rel;
+            createFolderExplicit = true;
             Rebuild();
         }
 

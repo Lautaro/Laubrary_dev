@@ -47,13 +47,27 @@ namespace Laubrary.Chunks.Editor
                     _ => { }, 150f, showValue: true, decimals: 0);
                 mirror.SetEnabled(false);
                 body.Add(mirror);
+
+                // The Burst-direction dial this mirrors lives on the Preview pane, not this card, so dragging
+                // it Dials the whole window but never rebuilds THIS card — without a live hook the mirror kept
+                // showing whatever value the card happened to be built with (T-0368/1). Every Dial() already
+                // calls RefreshCardStates() for exactly this reason (see the source-state line above); reuse
+                // that same per-card refresh hook here instead of inventing a second notification path.
+                void RefreshMirror() => mirror.value = (Current != null ? Current : c).directionDeg;
+                RefreshMirror();
+                cardStates[id] = RefreshMirror;
             }
-            else if (cap.directionMode == TrajectoryDirectionMode.Fixed)
+            else
             {
-                body.Add(Z.MicroSlider("Direction", cap.directionDeg, 0f, 360f,
-                    "Centre of the launch cone in degrees. 0 = right, 90 = up.",
-                    v => Dial("Edit Fling Direction", () => cap.directionDeg = v),
-                    150f, showValue: true, decimals: 0));
+                // No mirror on this build of the card — drop any refresh left over from a previous build
+                // where the mode WAS Burst, so RefreshCardStates() never calls into a detached element.
+                cardStates.Remove(id);
+
+                if (cap.directionMode == TrajectoryDirectionMode.Fixed)
+                    body.Add(Z.MicroSlider("Direction", cap.directionDeg, 0f, 360f,
+                        "Centre of the launch cone in degrees. 0 = right, 90 = up.",
+                        v => Dial("Edit Fling Direction", () => cap.directionDeg = v),
+                        150f, showValue: true, decimals: 0));
             }
 
             body.Add(Z.MicroSlider("Spread", cap.spreadDeg, 0f, 180f,

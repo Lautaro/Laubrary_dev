@@ -196,7 +196,7 @@ namespace Laubrary.AssetKit.Editor
                     {
                         InitializeNewAsset(created);
                         EditorUtility.SetDirty(created);
-                        AssetDatabase.SaveAssets();
+                        AssetDatabase.SaveAssetIfDirty(created);   // T-0369: only THIS asset, not every dirty asset in the project
                         Undo.RegisterCreatedObjectUndo(created, "Create " + TypeLabel);   // New is undoable (delete needs the confirm dialog)
                         browsing = false;
                         SetAsset(created);
