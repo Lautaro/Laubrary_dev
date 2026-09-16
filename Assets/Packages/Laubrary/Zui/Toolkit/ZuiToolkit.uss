@@ -863,6 +863,13 @@
     color: rgba(255, 255, 255, 0.72);
 }
 
+/* A name that jumps to its owner reads as a link on hover, so the click is found without being told.
+   Colour only — a bolder weight would widen the gutter, and the gutter's width moves every band. */
+.zui-lanes__gutter-label--link:hover {
+    color: rgba(255, 255, 255, 1);
+    background-color: var(--zui-accent-soft);
+}
+
 .zui-lanes__ruler {
     /* Flush under the bar; the ruler's height is reserved in code so the bar never moves when a number is
        dropped for the playhead's readout. */

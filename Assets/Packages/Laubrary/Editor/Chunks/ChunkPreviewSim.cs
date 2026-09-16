@@ -50,7 +50,8 @@ namespace Laubrary.Chunks.Editor
         public Color color;
         public ChunkGuideShape shape;
         public int order;         // painted low-to-high; layer slot first, stack position second
-        public string label;      // a formation point's firing number, else null
+        public string label;      // a blast's firing number across the whole recipe, else null
+        public Color outline;     // the owning card's identity colour for a disc/ring rim; alpha 0 = use color
     }
 
     /// A producer's aim: where it throws and how wide. Drawn under everything as context.
@@ -112,8 +113,8 @@ namespace Laubrary.Chunks.Editor
         const float Step = 1f / 60f;       // the runtime integrates once per frame; 60 is the reference rate
         const int TrailPuffs = 24;         // most recent puffs kept per trailed piece
 
-        /// Colours a guide takes from its Layer-Plan slot. Same six as the Timing lanes, so a lane and the
-        /// thing it stands for read as the same object.
+        /// Colours a guide takes from its Layer-Plan slot. Without a plan a guide wears its card's own colour
+        /// (ChunkCardColors), the same one its card and its Timing lane wear.
         internal static readonly Color[] SlotColors =
         {
             new Color(0.36f, 0.62f, 0.92f), new Color(0.95f, 0.62f, 0.25f),
@@ -159,19 +160,18 @@ namespace Laubrary.Chunks.Editor
             var stack = spec.capabilities;
 
             int budget = DotsPerFrame;
-            int timedIndex = 0;
+            CollectFiringRanks(spec);
 
             for (int i = 0; i < stack.Count && budget > 0; i++)
             {
                 var cap = stack[i];
                 if (cap == null) continue;
                 if (!cap.OccupiesTime) continue;          // coordinators and modifiers draw through their target
-                int slot = timedIndex++;
-                // Switched off draws nothing, but it keeps its place in the colour and lane order — the same
-                // reason ChunkClock counts it: turning one off must not renumber or restyle the others.
+                // Switched off draws nothing, but it keeps its firing numbers — the same reason ChunkClock
+                // counts it: turning one off must not renumber the others.
                 if (!cap.enabled && !includeDisabled) continue;
 
-                var colour = ColorFor(cap, layers, planned, slot);
+                var colour = ColorFor(spec, cap, layers, planned);
                 int order = OrderFor(cap, layers, i);
 
                 float delay = Mathf.Max(0f, cap.delay);
@@ -540,19 +540,20 @@ namespace Laubrary.Chunks.Editor
 
             float blast = Mathf.Max(0.05f, b.blastSeconds);
             var flight = spec != null ? spec.FindModifier<Trajectory>(b) : null;
+            // The rim says WHICH CARD even when a Layer Plan has taken the fill for its slot colour.
+            var identity = ChunkCardColors.For(spec, b);
+            RanksByCap.TryGetValue(b, out var ranks);
             if (flight != null && !flight.enabled) flight = null;
 
-            // Firing order, so the numbers say when rather than where. Ties (a FromCentre pair) share a number
-            // because they really do go off together.
+            // Numbered by firing order across the WHOLE recipe (see CollectFiringRanks), so the numbers say
+            // when rather than where, and a single blast is numbered as well as a pattern's points.
             int drawn = 0;
             for (int i = 0; i < Placements.Count && drawn < budget; i++)
             {
                 var placement = Placements[i];
                 var at = (Vector2)placement.Position;
                 float fires = placement.Delay;
-                int rank = 1;
-                for (int k = 0; k < Placements.Count; k++)
-                    if (Placements[k].Delay < fires - 0.0001f) rank++;
+                string number = ranks != null && i < ranks.Count ? ranks[i].ToString() : null;
 
                 float since = local - fires;
                 if (pending || since < 0f)
@@ -564,7 +565,7 @@ namespace Laubrary.Chunks.Editor
                     {
                         pos = at, radius = radius, alpha = PendingAlpha, color = tinted,
                         shape = ChunkGuideShape.Ring, order = order,
-                        label = Placements.Count > 1 ? rank.ToString() : null,
+                        label = number, outline = identity,
                     });
                     drawn++;
                     continue;
@@ -594,11 +595,100 @@ namespace Laubrary.Chunks.Editor
                     // authored length — the same three multiplied onto the renderer at runtime.
                     alpha = (1f - Mathf.Clamp01(since / blast)) * tintAlpha * BlastAlpha(b, seed, placement.Index),
                     color = tinted, shape = ChunkGuideShape.Disc, order = order,
-                    label = Placements.Count > 1 ? rank.ToString() : null,
+                    label = number, outline = identity,
                 });
                 drawn++;
             }
             return drawn;
+        }
+
+        // ── firing order ──────────────────────────────────────────────────────────────────────────────────
+        // Every blast the recipe sets off — each Single, each pattern point — ranked by the moment it goes off
+        // (its card's delay plus the point's own stagger). Ties share a number, because they really do go off
+        // together. Switched-off cards are ranked too, so turning one off does not renumber the rest.
+
+        static readonly Dictionary<ChunkCapability, List<int>> RanksByCap = new Dictionary<ChunkCapability, List<int>>();
+        static readonly List<List<int>> RankListPool = new List<List<int>>();
+        static readonly List<float> FireTimes = new List<float>(64);
+        static readonly List<float> SortedFireTimes = new List<float>(64);
+
+        static void CollectFiringRanks(ChunkSpec spec)
+        {
+            foreach (var used in RanksByCap.Values) { used.Clear(); RankListPool.Add(used); }
+            RanksByCap.Clear();
+            FireTimes.Clear();
+            var stack = spec != null ? spec.capabilities : null;
+            if (stack == null) return;
+
+            // Pass one: every firing time, in stack order, then point order.
+            for (int i = 0; i < stack.Count; i++)
+            {
+                if (!(stack[i] is PyreBlast b)) continue;
+                ResolvePlacements(b);
+                float delay = Mathf.Max(0f, b.delay);
+                for (int k = 0; k < Placements.Count; k++) FireTimes.Add(delay + Placements[k].Delay);
+            }
+            SortedFireTimes.Clear();
+            SortedFireTimes.AddRange(FireTimes);
+            SortedFireTimes.Sort();
+
+            // Pass two, in the same order: a time's rank is one more than the number of times before it.
+            int at = 0;
+            for (int i = 0; i < stack.Count; i++)
+            {
+                if (!(stack[i] is PyreBlast b)) continue;
+                ResolvePlacements(b);
+                List<int> ranks;
+                if (RankListPool.Count > 0)
+                {
+                    ranks = RankListPool[RankListPool.Count - 1];
+                    RankListPool.RemoveAt(RankListPool.Count - 1);
+                }
+                else ranks = new List<int>();
+                for (int k = 0; k < Placements.Count && at < FireTimes.Count; k++)
+                    ranks.Add(1 + CountBefore(FireTimes[at++] - 0.0001f));
+                RanksByCap[b] = ranks;
+            }
+        }
+
+        /// How many firing times are strictly below <paramref name="t"/>.
+        static int CountBefore(float t)
+        {
+            int lo = 0, hi = SortedFireTimes.Count;
+            while (lo < hi)
+            {
+                int mid = (lo + hi) >> 1;
+                if (SortedFireTimes[mid] < t) lo = mid + 1; else hi = mid;
+            }
+            return lo;
+        }
+
+        /// A blast's placements into Placements, resolved exactly as <see cref="Blast"/> resolves them.
+        static void ResolvePlacements(PyreBlast b)
+        {
+            int seed = Seed(b, b.seed);
+            var centre = (Vector2)b.offset;
+            if (b.UsesPattern && b.formation != null)
+                b.formation.Resolve(centre, Placements, b.formation.seed != 0 ? b.formation.seed : seed);
+            else
+            {
+                Placements.Clear();
+                Placements.Add(new SpawnPlacement(centre, 0f, 0));
+            }
+        }
+
+        /// Rank every blast in <paramref name="spec"/> once, for the <see cref="FiringNumbers"/> calls that
+        /// follow it. Any later Build re-ranks, so call this right before reading.
+        internal static void RankFirings(ChunkSpec spec) => CollectFiringRanks(spec);
+
+        /// The firing numbers one blast card sets off, lowest first, as of the last RankFirings — what its card
+        /// header shows, so the card and its discs on the stage carry the same numbers. Empty for anything that
+        /// is not a blast.
+        internal static void FiringNumbers(ChunkCapability cap, List<int> into)
+        {
+            into.Clear();
+            if (cap is PyreBlast && RanksByCap.TryGetValue(cap, out var ranks)) into.AddRange(ranks);
+            into.Sort();
         }
 
         /// The launch one blast gets from a Trajectory, mirroring Trajectory.Apply's own draws.
@@ -735,12 +825,12 @@ namespace Laubrary.Chunks.Editor
         // ── colour, order, sizes ──────────────────────────────────────────────────────────────────────────
 
         /// A capability's colour: its Layer-Plan slot's when it has one, grey when a plan exists and it is in
-        /// no slot, and its place in the stack when there is no plan at all. Colour says which SLOT, never
+        /// no slot, and its card's own colour when there is no plan at all. Colour says which SLOT, never
         /// which depth — depth is the runtime's own answer (see OrderFor), and grey is exactly the reading
         /// "this one is not in the plan", which is the thing worth seeing at a glance.
-        static Color ColorFor(ChunkCapability cap, LayerSpec layers, bool planned, int stackSlot)
+        static Color ColorFor(ChunkSpec spec, ChunkCapability cap, LayerSpec layers, bool planned)
         {
-            if (!planned) return SlotColors[stackSlot % SlotColors.Length];
+            if (!planned) return ChunkCardColors.For(spec, cap);
             int index = layers != null ? layers.IndexOf(cap.LayerName) : -1;
             return index < 0 ? UnslottedColor : SlotColors[index % SlotColors.Length];
         }

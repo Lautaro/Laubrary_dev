@@ -20,14 +20,9 @@ namespace Laubrary.Chunks.Editor
         // card it belongs to. Ids, not references, so a stale entry can only miss, never write elsewhere.
         readonly List<string> laneCapIds = new List<string>();
 
-        // Lanes are coloured by their place in the stack rather than by kind: what a reader needs from the
-        // colour is "which card is this", and two Pyre Blasts in one recipe is the normal case.
-        static readonly Color[] LaneColors =
-        {
-            new Color(0.36f, 0.62f, 0.92f), new Color(0.95f, 0.62f, 0.25f),
-            new Color(0.45f, 0.83f, 0.52f), new Color(0.86f, 0.45f, 0.72f),
-            new Color(0.85f, 0.82f, 0.36f), new Color(0.55f, 0.55f, 0.95f),
-        };
+        // Lanes wear their card's own colour rather than a kind's or a position's: what a reader needs from
+        // the colour is "which card is this", two Pyre Blasts in one recipe is the normal case, and a colour
+        // tied to a position would change owner on every reorder.
 
         void BuildTimingSection(VisualElement parent, ChunkSpec c)
         {
@@ -46,6 +41,8 @@ namespace Laubrary.Chunks.Editor
                 v => { previewTime = v; playing = false; UpdatePlayButton(); SyncTransport(); },
                 gutterWidth: 120f,
                 onLaneMoved: OnLaneMoved);
+            lanes.LaneLabelHint = "Click the name to go to its card.";
+            lanes.OnLaneLabelClicked = OnLaneLabelClicked;
             timingSection.Add(lanes);
             FillLanes(c);
             parent.Add(timingSection);
@@ -64,7 +61,6 @@ namespace Laubrary.Chunks.Editor
             var marks = new List<ZuiLaneMarker>();
             laneCapIds.Clear();
             var stack = c.capabilities;
-            int colour = 0;
             if (stack != null)
                 for (int i = 0; i < stack.Count; i++)
                 {
@@ -75,12 +71,11 @@ namespace Laubrary.Chunks.Editor
                     {
                         float start = Mathf.Max(0f, cap.delay);
                         float end = start + Mathf.Max(0f, cap.DurationSeconds(c));
-                        bands.Add(new ZuiLane(cap.Title, start, end, LaneColors[colour % LaneColors.Length],
+                        bands.Add(new ZuiLane(cap.Title, start, end, ChunkCardColors.For(c, cap),
                             dim: !cap.enabled,
                             tooltip: $"{cap.KindName} — fires at {start:0.00}s and is gone by {end:0.00}s." +
                                      (cap.enabled ? "" : " Switched off, so it puts nothing on screen.")));
                         laneCapIds.Add(cap.EnsureId());
-                        colour++;
                     }
 
                     if (cap is Cues cues && cues.cues != null && cap.enabled)
@@ -116,6 +111,14 @@ namespace Laubrary.Chunks.Editor
             if (delayFields.TryGetValue(id, out var field) && field != null) field.SetValueWithoutNotify(delay);
         }
 
+        /// A lane's name leads to its card: the card is unfolded if it was folded, scrolled to the top of the
+        /// recipe pane, and lit for a moment so the eye lands on the right one in a stack of look-alikes.
+        void OnLaneLabelClicked(int laneIndex)
+        {
+            if (laneIndex < 0 || laneIndex >= laneCapIds.Count) return;
+            RevealCard(laneCapIds[laneIndex]);
+        }
+
         /// Keep the clock surface agreeing with the recipe after any edit. A change that makes the surface
         /// APPEAR or DISAPPEAR is a change to which sections the window has, so it rebuilds the window; a
         /// change to what the lanes say is pushed into the live control, which keeps the playhead and any
@@ -127,6 +130,7 @@ namespace Laubrary.Chunks.Editor
             bool need = ChunkClock.NeedsTimingSurface(c);
             if (need != (timingSection != null)) { Rebuild(); return; }
             FillLanes(c);
+            RefreshCardChips();
             SyncTransport();
         }
     }

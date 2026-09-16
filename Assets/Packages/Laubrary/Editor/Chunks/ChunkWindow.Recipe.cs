@@ -21,6 +21,10 @@ namespace Laubrary.Chunks.Editor
         readonly Dictionary<string, VisualElement> cardBodies = new Dictionary<string, VisualElement>();
         // Each card's Delay field, by capability id — what a Timing band drag writes back into.
         readonly Dictionary<string, BaseField<float>> delayFields = new Dictionary<string, BaseField<float>>();
+        // Each card's colour chip, by capability id — its text is the card's firing numbers, which any delay or
+        // pattern edit can change without the card being rebuilt.
+        readonly Dictionary<string, Label> cardChips = new Dictionary<string, Label>();
+        static readonly List<int> NumberScratch = new List<int>();
 
         // The nine kinds, in the catalogue's order — the order the Add menu lists them and the order a reader
         // of the design doc expects. A kind is a name, an icon and a way to make one; everything else about
@@ -64,15 +68,21 @@ namespace Laubrary.Chunks.Editor
             cards.Clear();
             cardBodies.Clear();
             delayFields.Clear();
+            cardChips.Clear();
 
+            // The cards get a host of their own, so the drag-reorder's drop index counts cards and nothing
+            // else (not the Add button below them).
+            var cardList = new VisualElement();
+            stackHost.Add(cardList);
+
+            var shown = new List<ChunkCapability>();
             var stack = c.capabilities;
-            int count = stack != null ? stack.Count : 0;
-            for (int i = 0; i < count; i++)
-            {
-                var cap = stack[i];
-                if (cap == null) continue;
-                stackHost.Add(BuildCard(c, cap, i, count));
-            }
+            if (stack != null)
+                for (int i = 0; i < stack.Count; i++)
+                    if (stack[i] != null) shown.Add(stack[i]);
+            for (int i = 0; i < shown.Count; i++)
+                cardList.Add(BuildCard(c, shown[i], cardList, shown));
+            RefreshCardChips();
 
             var add = Z.Button("Add capability…",
                 "Put another capability in this recipe — a producer that throws something, a modifier that " +
@@ -98,14 +108,28 @@ namespace Laubrary.Chunks.Editor
 
         // ── one card ──────────────────────────────────────────────────────────────────────────────────────
 
-        VisualElement BuildCard(ChunkSpec c, ChunkCapability cap, int index, int count)
+        VisualElement BuildCard(ChunkSpec c, ChunkCapability cap, VisualElement cardList,
+                                List<ChunkCapability> shown)
         {
             string id = cap.EnsureId();
 
             var box = Z.BoxKeyed(cap.Title, KindTooltip(cap), "Chunks.card." + id, IconFor(cap));
+            var colour = ChunkCardColors.For(c, cap);
+            box.SetAccent(colour);
 
-            // The header carries identity and the one control every card has, and nothing else: on/off, the
-            // two moves, and the remove. A dial in a header would be a dial the fold cannot hide.
+            // The header carries identity and the one control every card has, and nothing else. Identity
+            // leads — the grip, then the chip in the card's own colour carrying its firing numbers — and the
+            // actions trail: on/off, duplicate, remove. A dial in a header would be a dial the fold cannot hide.
+            var grip = Z.Text("≡", ZuiText.Body,
+                "Drag to move this card in the recipe. Its place is also its drawing order: a card lower " +
+                "down draws in front of the ones above it, unless a Layer Plan puts it in a slot.");
+            grip.style.unityFontStyleAndWeight = FontStyle.Bold;
+            grip.style.width = 14f;
+            grip.style.unityTextAlign = TextAnchor.MiddleCenter;
+            ZuiReorder.MakeGrip(grip, box, cardList, (from, to) => MoveShown(c, shown, from, to));
+            box.AddHeaderLead(grip);
+            box.AddHeaderLead(CardChip(cap, colour));
+
             box.AddHeaderContent(Z.Toggle("On",
                 "Take part in this recipe. Off keeps every value here but puts nothing on screen.",
                 cap.enabled, v => Dial("Toggle Capability", () =>
@@ -114,10 +138,9 @@ namespace Laubrary.Chunks.Editor
                     SetCardEnabled(id, v);
                 })));
 
-            box.AddHeaderContent(SmallButton("▲", "Move this capability one place earlier in the recipe.",
-                index > 0, () => Move(c, index, index - 1)));
-            box.AddHeaderContent(SmallButton("▼", "Move this capability one place later in the recipe.",
-                index < count - 1, () => Move(c, index, index + 1)));
+            box.AddHeaderContent(IconButton("copy", "⧉",
+                "Duplicate this card: a copy with every value, placed right after it, in a colour of its own " +
+                "(undoable).", () => Duplicate(c, cap)));
             box.AddHeaderContent(SmallButton("×", "Remove this capability from the recipe (undoable).",
                 true, () => Remove(c, cap)));
 
@@ -137,6 +160,100 @@ namespace Laubrary.Chunks.Editor
             b.style.width = 22f;
             b.SetEnabled(enabled);
             return b;
+        }
+
+        /// A header-sized button showing a ZUI icon, or the glyph when the icon set has no such name.
+        static Button IconButton(string icon, string fallbackGlyph, string tooltip, Action onClick)
+        {
+            var b = SmallButton("", tooltip, true, onClick);
+            var glyph = Z.Icon(icon, 12f);
+            if (glyph == null) { b.text = fallbackGlyph; return b; }
+            b.style.alignItems = Align.Center;
+            b.style.justifyContent = Justify.Center;
+            b.Add(glyph);
+            return b;
+        }
+
+        /// The card's identity chip: a swatch in the colour its lane and its preview outline wear, carrying the
+        /// numbers its blasts go off as on the preview. A card that sets off no blasts shows the colour alone.
+        Label CardChip(ChunkCapability cap, Color colour)
+        {
+            var chip = new Label();
+            chip.AddToClassList("chunks-card-chip");
+            chip.style.backgroundColor = colour;
+            chip.style.color = ChunkCardColors.InkOn(colour);
+            chip.style.minWidth = 14f;
+            chip.style.height = 14f;
+            chip.style.flexShrink = 0f;
+            chip.style.marginLeft = 2f;
+            chip.style.marginRight = 5f;
+            chip.style.paddingLeft = 3f;
+            chip.style.paddingRight = 3f;
+            chip.style.paddingTop = 0f;
+            chip.style.paddingBottom = 0f;
+            chip.style.fontSize = 10f;
+            chip.style.unityFontStyleAndWeight = FontStyle.Bold;
+            chip.style.unityTextAlign = TextAnchor.MiddleCenter;
+            chip.style.borderTopLeftRadius = 3f;
+            chip.style.borderTopRightRadius = 3f;
+            chip.style.borderBottomLeftRadius = 3f;
+            chip.style.borderBottomRightRadius = 3f;
+            chip.tooltip = cap is PyreBlast
+                ? "This card's colour — its Timing lane and its outlines on the preview wear it too. The " +
+                  "numbers are the order its blasts go off in across the whole recipe, the same numbers the " +
+                  "preview prints on them."
+                : "This card's colour — its Timing lane and what it draws on the preview wear it too.";
+            cardChips[cap.EnsureId()] = chip;
+            return chip;
+        }
+
+        /// Rewrite every card chip's numbers from the recipe as it is now — a delay or a pattern edit reorders
+        /// the whole recipe's firing, not just the card that was edited.
+        internal void RefreshCardChips()
+        {
+            var c = Current;
+            if (c == null || cardChips.Count == 0) return;
+            ChunkPreviewSim.RankFirings(c);
+            foreach (var pair in cardChips)
+            {
+                var cap = Find(c, pair.Key);
+                if (cap == null || pair.Value == null) continue;
+                ChunkPreviewSim.FiringNumbers(cap, NumberScratch);
+                string text = FormatNumbers(NumberScratch);
+                if (pair.Value.text != text) pair.Value.text = text;
+            }
+        }
+
+        /// "3", "1–6" for a run, "2…9" for a scattered set (the preview shows each one).
+        static string FormatNumbers(List<int> sorted)
+        {
+            if (sorted == null || sorted.Count == 0) return "";
+            int first = sorted[0], last = sorted[sorted.Count - 1];
+            if (first == last) return first.ToString();
+            bool run = true;
+            for (int i = 1; i < sorted.Count && run; i++)
+                run = sorted[i] - sorted[i - 1] <= 1;
+            return run ? first + "–" + last : first + "…" + last;
+        }
+
+        /// Bring one card into view: unfold it, scroll it to the top of the recipe pane and light it for a
+        /// moment, so the eye lands on the right card in a stack of look-alikes.
+        internal void RevealCard(string capabilityId)
+        {
+            if (string.IsNullOrEmpty(capabilityId) || leftPane == null) return;
+            if (!cards.TryGetValue(capabilityId, out var box) || box == null) return;
+            box.IsOpen = true;
+
+            var pane = leftPane;
+            // One frame late: an unfolded card has no laid-out position until the pane has run its layout.
+            pane.schedule.Execute(() =>
+            {
+                if (box.panel == null || pane.panel == null) return;
+                float y = box.ChangeCoordinatesTo(pane.contentContainer, Vector2.zero).y;
+                pane.scrollOffset = new Vector2(pane.scrollOffset.x, Mathf.Max(0f, y - 4f));
+                box.AddToClassList("zui-card--gizmo");
+                box.schedule.Execute(() => box.RemoveFromClassList("zui-card--gizmo")).ExecuteLater(1200);
+            }).ExecuteLater(0);
         }
 
         /// Rebuild ONE card's body — what a dial that changes which controls exist calls, so a mode switch
@@ -220,7 +337,31 @@ namespace Laubrary.Chunks.Editor
             Undo.RegisterCompleteObjectUndo(c, "Add " + cap.KindName);
             cap.EnsureId();
             c.capabilities ??= new List<ChunkCapability>();
+            cap.colorSlot = ChunkCardColors.NextFree(c);
             c.capabilities.Add(cap);
+            EditorUtility.SetDirty(c);
+            RebuildStack();
+            InvalidatePreview();
+        }
+
+        /// A copy of one card, right after it, as ONE undo step. The copy gets its own id (so its fold, its
+        /// lane and any modifier's target are its own) and its own colour; every value, every picked asset
+        /// and every managed reference inside it is copied, not shared. A modifier aimed at the original
+        /// stays aimed at the original.
+        void Duplicate(ChunkSpec c, ChunkCapability cap)
+        {
+            var stack = c != null ? c.capabilities : null;
+            int at = stack != null ? stack.IndexOf(cap) : -1;
+            if (at < 0) return;
+
+            var copy = ChunkCapabilityCopy.Of(cap);
+            if (copy == null) return;
+
+            Undo.RegisterCompleteObjectUndo(c, "Duplicate " + cap.KindName);
+            copy.id = ChunkCapability.NewId();
+            copy.colorSlot = ChunkCardColors.NextFree(c);
+            if (!string.IsNullOrEmpty(copy.displayName)) copy.displayName += " copy";
+            stack.Insert(at + 1, copy);
             EditorUtility.SetDirty(c);
             RebuildStack();
             InvalidatePreview();
@@ -230,6 +371,8 @@ namespace Laubrary.Chunks.Editor
         {
             if (c == null || cap == null || c.capabilities == null) return;
             Undo.RegisterCompleteObjectUndo(c, "Remove " + cap.KindName);
+            // Pinned first, so the cards that stay keep the colours they had on screen.
+            ChunkCardColors.AssignMissing(c);
             c.capabilities.Remove(cap);
             // A modifier pointed at what just left would otherwise keep a target that cannot be reached from
             // any picker — silently applying to nothing, or to everything, depending on which. Clearing it
@@ -241,14 +384,36 @@ namespace Laubrary.Chunks.Editor
             InvalidatePreview();
         }
 
-        void Move(ChunkSpec c, int from, int to)
+        /// A drag-reorder drop: <paramref name="from"/> and <paramref name="to"/> index the cards as they were
+        /// SHOWN, which skips any empty entry the stack may hold. The shown order is rewritten into the
+        /// stack's non-empty positions, so an empty entry stays where it was rather than shifting under it.
+        void MoveShown(ChunkSpec c, List<ChunkCapability> shown, int from, int to)
         {
             var stack = c != null ? c.capabilities : null;
-            if (stack == null || from < 0 || to < 0 || from >= stack.Count || to >= stack.Count) return;
+            if (stack == null || shown == null || from < 0 || to < 0 || from >= shown.Count || to >= shown.Count)
+                return;
+
+            // The cards on screen must still be the recipe's cards; anything else (an undo landed between the
+            // build and the drop) is answered by showing the recipe as it now is.
+            int live = 0;
+            for (int i = 0; i < stack.Count; i++)
+                if (stack[i] != null)
+                {
+                    if (live >= shown.Count || !ReferenceEquals(stack[i], shown[live])) { RebuildStack(); return; }
+                    live++;
+                }
+            if (live != shown.Count) { RebuildStack(); return; }
+
             Undo.RegisterCompleteObjectUndo(c, "Reorder Capability");
-            var cap = stack[from];
-            stack.RemoveAt(from);
-            stack.Insert(to, cap);
+            // Pinned first: a colour still resolved from stack order would otherwise change with the move.
+            ChunkCardColors.AssignMissing(c);
+            var order = new List<ChunkCapability>(shown);
+            var moved = order[from];
+            order.RemoveAt(from);
+            order.Insert(to, moved);
+            int k = 0;
+            for (int i = 0; i < stack.Count; i++)
+                if (stack[i] != null) stack[i] = order[k++];
             EditorUtility.SetDirty(c);
             RebuildStack();
             InvalidatePreview();
@@ -338,24 +503,27 @@ namespace Laubrary.Chunks.Editor
             return row;
         }
 
-        /// When this capability fires, in seconds from the start of the recipe — or NULL when the recipe has
-        /// nothing to be timed against. A lone capability owns the whole clock, so a Delay dial there would
-        /// offer to move the only thing on screen relative to nothing at all.
+        /// When this capability fires, in seconds from the start of the recipe — or NULL when it has no moment
+        /// of its own. A lone capability owns the whole clock, so a Delay dial there would offer to move the
+        /// only thing on screen relative to nothing at all: the dial is then built HIDDEN rather than left out,
+        /// so its space is already held and the card does not reflow when a second card brings the clock in.
         ///
         /// It is a number rather than a slider on purpose: a delay's ceiling is the clock's own length, which
         /// this dial is one of the things that decides, so any range would clamp exactly the edit that was
         /// meant to extend it. The field scrubs on drag like every other ZUI number.
         internal VisualElement DelayRow(ChunkSpec c, ChunkCapability cap)
         {
-            if (cap == null || !cap.OccupiesTime || !ChunkClock.NeedsTimingSurface(c)) return null;
+            if (cap == null || !cap.OccupiesTime) return null;
             var field = Z.Float(cap.delay,
                 "Seconds from the start of the recipe before this fires. You can also drag its band on the " +
                 "Timing lanes.",
                 v => Dial("Edit Delay", () => cap.delay = Mathf.Max(0f, v)), 70f);
             // Remembered so a band drag on the Timing lanes can move this number with it, live.
             delayFields[cap.EnsureId()] = field;
-            return Z.Field("Delay",
+            var row = Z.Field("Delay",
                 "Seconds from the start of the recipe before this fires. Capabilities overlap freely.", field);
+            if (!ChunkClock.NeedsTimingSurface(c)) row.style.visibility = Visibility.Hidden;
+            return row;
         }
 
         /// Which named depth slot this capability draws in — or NULL when the recipe has no Layer Plan, in

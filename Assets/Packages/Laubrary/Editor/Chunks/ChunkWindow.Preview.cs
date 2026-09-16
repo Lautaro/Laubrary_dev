@@ -370,12 +370,15 @@ namespace Laubrary.Chunks.Editor
                     // Footprint, not a solid object: a recipe's whole point is several blasts overlapping,
                     // and an opaque disc would hide every one behind the last one drawn. The rim carries the
                     // size and the fade; the fill only says "something is here".
+                    // The rim wears the owning card's colour, so a disc says which card it belongs to even
+                    // when its fill has been tinted into something else.
                     Handles.color = Fade(g.color, g.alpha * 0.3f);
                     Handles.DrawSolidDisc(new Vector3(at.x, at.y, 0f), Vector3.forward, r);
-                    Handles.color = Fade(g.color, Mathf.Min(1f, g.alpha * 1.1f));
-                    Handles.DrawWireDisc(new Vector3(at.x, at.y, 0f), Vector3.forward, r);
+                    Handles.color = Fade(RimOf(g), Mathf.Min(1f, g.alpha * 1.1f));
+                    Handles.DrawWireDisc(new Vector3(at.x, at.y, 0f), Vector3.forward, r, 2f);
                     break;
                 case ChunkGuideShape.Ring:
+                    Handles.color = Fade(RimOf(g), g.alpha);
                     Handles.DrawWireDisc(new Vector3(at.x, at.y, 0f), Vector3.forward, r);
                     break;
             }
@@ -420,19 +423,76 @@ namespace Laubrary.Chunks.Editor
                 new Vector3(tip.x - Mathf.Cos(rad + 0.4f) * head, tip.y + Mathf.Sin(rad + 0.4f) * head, 0f));
         }
 
-        // A formation's numbers say the order the points GO OFF in, so changing the stagger order renumbers
-        // the picture rather than leaving the labels describing a sweep that no longer happens.
+        static Color RimOf(ChunkGuide g) => g.outline.a > 0f ? g.outline : g.color;
+
+        static readonly System.Collections.Generic.List<Rect> PlacedLabels = new System.Collections.Generic.List<Rect>();
+
+        // Every blast carries its firing number across the whole recipe, so changing a delay or a stagger
+        // renumbers the picture rather than leaving the labels describing an order that no longer happens.
+        //
+        // A number is a small chip in its card's colour, and it lives and fades WITH its disc: a label drawn at
+        // full strength over a disc that has faded out reads as a thing that is still there. Where discs crowd
+        // (a tight ring, two blasts at one spot) a chip that would land on one already placed is moved out to
+        // the nearest free spot, outward from the stage centre first, so every number stays readable.
         void DrawGuideLabels(ChunkPreviewFrame f, Func<Vector2, Vector2> toScreen)
         {
-            var style = new GUIStyle(EditorStyles.miniLabel) { alignment = TextAnchor.MiddleCenter };
-            style.normal.textColor = new Color(1f, 1f, 1f, 0.9f);
+            var style = new GUIStyle(EditorStyles.miniBoldLabel) { alignment = TextAnchor.MiddleCenter };
+            style.padding = new RectOffset(0, 0, 0, 0);
+            var origin = toScreen(Vector2.zero);
+            PlacedLabels.Clear();
+
             for (int i = 0; i < f.Guides.Count; i++)
             {
                 var g = f.Guides[i];
                 if (string.IsNullOrEmpty(g.label)) continue;
+                // A pending outline is faint on purpose, but its number still has to read; a fading disc takes
+                // its number down with it.
+                float a = Mathf.Clamp01(g.alpha * 3f);
+                if (a < 0.05f) continue;
+
                 var at = toScreen(g.pos);
-                GUI.Label(new Rect(at.x - 12f, at.y - 8f, 24f, 16f), g.label, style);
+                float w = Mathf.Max(14f, style.CalcSize(new GUIContent(g.label)).x + 6f);
+                const float h = 13f;
+                var rect = FreeLabelRect(at, origin, w, h);
+                PlacedLabels.Add(rect);
+
+                var rim = RimOf(g);
+                EditorGUI.DrawRect(rect, Fade(rim, 0.9f * a));
+                style.normal.textColor = Fade(ChunkCardColors.InkOn(rim), a);
+                GUI.Label(rect, g.label, style);
             }
+        }
+
+        /// The first spot near <paramref name="at"/> where a w×h chip overlaps no chip already placed: the
+        /// point itself, then rings of eight candidates, starting from the direction away from the centre.
+        static Rect FreeLabelRect(Vector2 at, Vector2 centre, float w, float h)
+        {
+            var rect = new Rect(at.x - w * 0.5f, at.y - h * 0.5f, w, h);
+            if (!Overlaps(rect)) return rect;
+
+            var away = at - centre;
+            float start = away.sqrMagnitude > 0.01f ? Mathf.Atan2(away.y, away.x) : -Mathf.PI * 0.5f;
+            for (int ring = 1; ring <= 4; ring++)
+            {
+                float d = ring * (h + 1f);
+                for (int k = 0; k < 8; k++)
+                {
+                    // 0, +45, -45, +90, -90 … so the outward spot is tried first and the inward one last.
+                    int step = (k + 1) / 2 * (k % 2 == 0 ? -1 : 1);
+                    float ang = start + step * Mathf.PI * 0.25f;
+                    var c = at + new Vector2(Mathf.Cos(ang) * d * 1.4f, Mathf.Sin(ang) * d);
+                    var candidate = new Rect(c.x - w * 0.5f, c.y - h * 0.5f, w, h);
+                    if (!Overlaps(candidate)) return candidate;
+                }
+            }
+            return rect;   // nowhere free nearby: overlap in place rather than wander off
+        }
+
+        static bool Overlaps(Rect r)
+        {
+            for (int i = 0; i < PlacedLabels.Count; i++)
+                if (PlacedLabels[i].Overlaps(r)) return true;
+            return false;
         }
 
         /// The clock along the bottom edge: how far through the recipe we are, plus a tick for every cue.

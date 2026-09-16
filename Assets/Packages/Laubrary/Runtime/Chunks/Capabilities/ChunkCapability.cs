@@ -21,6 +21,13 @@ namespace Laubrary.Chunks
         /// swapping its asset can never orphan what points at it — which an index or a display name would.
         [HideInInspector] public string id = "";
 
+        /// Which entry of the authoring window's card palette this capability wears — on its card, its timing
+        /// lane and its outline on the preview stage. Stored rather than derived from the stack position so a
+        /// card keeps its colour through a reorder, and stored rather than hashed from the id so two cards in
+        /// one recipe never land on the same colour by chance. -1 = not assigned yet; the window resolves it
+        /// in stack order and writes it on the next structural edit. Nothing at runtime reads it.
+        [HideInInspector] public int colorSlot = -1;
+
         [Tooltip("Take part in the recipe. Off keeps every authored value but puts nothing on screen.")]
         public bool enabled = true;
 

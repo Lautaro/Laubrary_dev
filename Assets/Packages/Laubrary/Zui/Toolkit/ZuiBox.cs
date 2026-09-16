@@ -94,6 +94,44 @@ namespace Laubrary.Zui
             _headerContent.Add(e);
         }
 
+        /// Host an element at the START of the title row, right after the fold caret and before the icon —
+        /// where a repeating card keeps its identity (a drag grip, a colour chip), per the card-layout rule.
+        /// Elements are kept in the order they are added. Like AddHeaderContent, a press inside never folds
+        /// the box — a drag grip that folded its card on every grab would be unusable.
+        public void AddHeaderLead(VisualElement e)
+        {
+            if (_titleRow == null || e == null) return;
+            if (_headerLead == null)
+            {
+                _headerLead = new VisualElement();
+                _headerLead.AddToClassList("zui-box__headerlead");
+                _headerLead.style.flexDirection = FlexDirection.Row;
+                _headerLead.style.alignItems = Align.Center;
+                _headerLead.style.flexShrink = 0f;
+                _headerLead.RegisterCallback<PointerDownEvent>(ev => ev.StopPropagation());
+                _titleRow.Insert(_caret != null ? _titleRow.IndexOf(_caret) + 1 : 0, _headerLead);
+            }
+            _headerLead.Add(e);
+        }
+        VisualElement _headerLead;
+
+        /// Mark the box with an identity colour: a thicker left edge in that colour. Null puts the plain
+        /// border back. A colour, not a class, because the identity is per instance (one card in a stack of
+        /// several), which a stylesheet cannot know.
+        public void SetAccent(Color? color)
+        {
+            if (color.HasValue)
+            {
+                style.borderLeftColor = color.Value;
+                style.borderLeftWidth = 3f;
+            }
+            else
+            {
+                style.borderLeftColor = StyleKeyword.Null;
+                style.borderLeftWidth = StyleKeyword.Null;
+            }
+        }
+
         /// Raised after any toggle/gear/fold change the USER makes (never on a programmatic ApplyView),
         /// so a host window can persist the view immediately.
         public event Action ViewChanged;
