@@ -975,9 +975,15 @@ namespace Laubrary.Zui
         /// <c>SetTime</c>, never the <c>Seconds</c> setter, or a play tick re-enters
         /// <paramref name="onTimeChanged"/>. A lane whose owner is disabled is passed with <c>dim: true</c>,
         /// never omitted — omitting it changes the control's height and moves whatever sits above it.
+        ///
+        /// Pass <paramref name="onLaneMoved"/> (lane index, new START in seconds) to let the user drag a band's
+        /// body in time; the host decides what a start means and writes it. One drag is one Undo step, the
+        /// ruler keeps scrubbing, and a dim lane stays put. <paramref name="gutterWidth"/> is the gutter's
+        /// MAXIMUM — the gutter sizes itself to its longest name up to that.
         public static ZuiLanes Lanes(float lengthSeconds, string tooltip, Action<float> onTimeChanged = null,
-            float laneHeight = 16f, float gutterWidth = 96f)
-            => new ZuiLanes(lengthSeconds, tooltip, onTimeChanged, laneHeight, gutterWidth);
+            float laneHeight = 16f, float gutterWidth = 96f, Action<int, float> onLaneMoved = null)
+            => new ZuiLanes(lengthSeconds, tooltip, onTimeChanged, laneHeight, gutterWidth)
+                { OnLaneMoved = onLaneMoved };
 
         // ── pixel-exact drawing (a bespoke IMGUI preview canvas) ─────────────────────
 

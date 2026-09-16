@@ -245,7 +245,8 @@ namespace Laubrary.Zui
         static StyleCursor s_slideCursor;
         static bool s_cursorOk;
 
-        static void ApplyCursor(VisualElement zone)
+        // internal so other ZUI drag surfaces (ZuiLanes' draggable bands) show the same sideways cursor.
+        internal static void ApplyCursor(VisualElement zone)
         {
             if (zone == null || !ResolveCursor()) return;
             zone.style.cursor = s_slideCursor;

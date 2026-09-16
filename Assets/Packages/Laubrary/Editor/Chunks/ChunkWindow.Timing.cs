@@ -16,6 +16,9 @@ namespace Laubrary.Chunks.Editor
     public partial class ChunkWindow
     {
         ZuiLanes lanes;
+        // Which capability each lane draws, by lane index, as of the last FillLanes — how a band drag finds the
+        // card it belongs to. Ids, not references, so a stale entry can only miss, never write elsewhere.
+        readonly List<string> laneCapIds = new List<string>();
 
         // Lanes are coloured by their place in the stack rather than by kind: what a reader needs from the
         // colour is "which card is this", and two Pyre Blasts in one recipe is the normal case.
@@ -37,9 +40,12 @@ namespace Laubrary.Chunks.Editor
                 "Chunks.timing", "clock");
 
             lanes = Z.Lanes(ChunkClock.Length(c),
-                "Every timed capability on one clock. Drag anywhere to move the playhead — it is the same " +
-                "instant the transport shows.",
-                v => { previewTime = v; playing = false; UpdatePlayButton(); SyncTransport(); });
+                "Every timed capability on one clock. Drag a band to change when that capability fires; " +
+                "click or drag on the ruler or an empty stretch to move the playhead — it is the same instant " +
+                "the transport shows.",
+                v => { previewTime = v; playing = false; UpdatePlayButton(); SyncTransport(); },
+                gutterWidth: 120f,
+                onLaneMoved: OnLaneMoved);
             timingSection.Add(lanes);
             FillLanes(c);
             parent.Add(timingSection);
@@ -56,6 +62,7 @@ namespace Laubrary.Chunks.Editor
 
             var bands = new List<ZuiLane>();
             var marks = new List<ZuiLaneMarker>();
+            laneCapIds.Clear();
             var stack = c.capabilities;
             int colour = 0;
             if (stack != null)
@@ -72,6 +79,7 @@ namespace Laubrary.Chunks.Editor
                             dim: !cap.enabled,
                             tooltip: $"{cap.KindName} — fires at {start:0.00}s and is gone by {end:0.00}s." +
                                      (cap.enabled ? "" : " Switched off, so it puts nothing on screen.")));
+                        laneCapIds.Add(cap.EnsureId());
                         colour++;
                     }
 
@@ -88,6 +96,24 @@ namespace Laubrary.Chunks.Editor
             lanes.SetLanes(bands);
             lanes.SetMarkers(marks);
             lanes.SetTime(previewTime);
+        }
+
+        /// A band dragged on the lanes IS an edit of that capability's Delay: it goes through Dial like the
+        /// card's own field (the lanes collapse the whole drag into one Undo step), the card's field is moved
+        /// without re-raising its callback, and Dial's SyncTiming pushes the lanes and the stage — no card and
+        /// no window is rebuilt per move.
+        void OnLaneMoved(int laneIndex, float start)
+        {
+            var c = Current;
+            if (c == null || laneIndex < 0 || laneIndex >= laneCapIds.Count) return;
+            string id = laneCapIds[laneIndex];
+            var cap = Find(c, id);
+            if (cap == null || !cap.enabled) return;
+
+            float delay = Mathf.Max(0f, start);
+            if (Mathf.Approximately(cap.delay, delay)) return;
+            Dial("Edit Delay", () => cap.delay = delay);
+            if (delayFields.TryGetValue(id, out var field) && field != null) field.SetValueWithoutNotify(delay);
         }
 
         /// Keep the clock surface agreeing with the recipe after any edit. A change that makes the surface
