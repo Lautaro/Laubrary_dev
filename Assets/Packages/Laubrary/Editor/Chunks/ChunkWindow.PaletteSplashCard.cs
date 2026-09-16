@@ -24,6 +24,9 @@ namespace Laubrary.Chunks.Editor
                 Z.Object<Sprite>(cap.sprite, "Sprite to sample colours and the emission footprint from.",
                     v => Dial("Set Splash Sprite", () => cap.sprite = v), 200f)));
 
+            // Says so when the spray will come out plain white (no sprite anywhere, unreadable pixels).
+            body.Add(SourceStateLine(c, cap));
+
             body.Add(Z.Toggle("From footprint",
                 "Spawn each particle from a random opaque pixel of the source, instead of all from one point.",
                 cap.emitFromFootprint, v => Dial("Toggle From Footprint", () => cap.emitFromFootprint = v)));
@@ -83,10 +86,7 @@ namespace Laubrary.Chunks.Editor
                     "Particle lifetime, seconds.",
                     (lo, hi) => Dial("Edit Life", () => { cap.lifeMin = Mathf.Max(0.02f, lo); cap.lifeMax = Mathf.Max(cap.lifeMin, hi); }),
                     150f, showValue: true, decimals: 2),
-                Z.Field("Seed",
-                    "Fixes every random pick so the spray is identical every play. 0 rerolls.",
-                    Z.Int(cap.seed, "Fixes every random pick so the spray is identical every play.",
-                        v => Dial("Edit Splash Seed", () => cap.seed = v), 70f))));
+                SeedField(cap.seed, "the spray's random picks", "Edit Splash Seed", v => cap.seed = v)));
 
             body.Add(Z.Field("Alpha over life",
                 "Opacity across a particle's life, left (spawn) to right (death).",

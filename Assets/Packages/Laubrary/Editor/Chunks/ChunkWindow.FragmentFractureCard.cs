@@ -35,6 +35,9 @@ namespace Laubrary.Chunks.Editor
                 Z.Object<Sprite>(cap.source, "The plain sprite that gets cut when Source above is empty.",
                     v => Dial("Set Fracture Sprite", () => cap.source = v), 200f)));
 
+            // Says so when nothing will be cut (no source, unreadable pixels); absent otherwise.
+            body.Add(SourceStateLine(c, cap));
+
             // The bounds are the cutter's own (it clamps to exactly this band), so the dial cannot offer a
             // number the cut then silently rewrites — the old field accepted 1 and 40 alike and quietly got 2
             // and 12.
@@ -48,10 +51,7 @@ namespace Laubrary.Chunks.Editor
                     "of becoming a fragment nobody can see.",
                     Z.Int(cap.minPieceAreaPx, "Smallest piece, in source pixels.",
                         v => Dial("Edit Min Piece Area", () => cap.minPieceAreaPx = Mathf.Max(1, v)), 70f)),
-                Z.Field("Seed",
-                    "Fixes which pieces the cut produces and how they fly. 0 rerolls every time.",
-                    Z.Int(cap.seed, "Fixes which pieces the cut produces and how they fly.",
-                        v => Dial("Edit Fracture Seed", () => cap.seed = v), 70f))));
+                SeedField(cap.seed, "the cut and the pieces' flight", "Edit Fracture Seed", v => cap.seed = v)));
 
             // ── how it flies ──────────────────────────────────────────────────────
             body.Add(Z.HGroup(
