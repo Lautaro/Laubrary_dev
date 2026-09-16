@@ -547,7 +547,8 @@ namespace Laubrary.Zoetrope.Editor
                 i =>
                 {
                     if (i == 1 && !isPrivate) MakeChunksPrivate(prop, owner, current);
-                    else if (i == 0) Rebuild();   // switching display back to Public never clears/deletes anything
+                    else if (i == 0 && isPrivate) MakeChunksPublic(prop, owner, current, label);
+                    else if (i == 0) Rebuild();   // already Public — nothing to clear/delete
                 }));
 
             if (isPrivate)
@@ -590,6 +591,57 @@ namespace Laubrary.Zoetrope.Editor
             string path = prop.propertyPath;
             Commit(path, p => p.objectReferenceValue = made);
             Rebuild();
+        }
+
+        /// Reverse of <see cref="MakeChunksPrivate"/>: turns an embedded private ChunkSpec back into a normal
+        /// library asset. Creates a brand-new asset in the shared Chunks folder (T-0250's own default,
+        /// "Assets/Chunks"), copies the embedded recipe's tuning into it (EditorUtility.CopySerialized, same
+        /// direction as MakeChunksPrivate runs in reverse) so the new asset is a fully independent, complete
+        /// copy of the authored data BEFORE anything is removed — "no data lost" holds even if the removal
+        /// step below can't be perfectly undone, because the data already has a second, permanent home. Then
+        /// re-points the field at the new asset and removes the now-orphaned sub-asset. Every step (asset
+        /// creation, the field re-point, the sub-asset removal) is folded into one Undo group so Ctrl+Z reads
+        /// back as a single "Make Chunks Public" step, matching MakeChunksPrivate's own one-undo contract.
+        /// The OWNER asset (the Zoe) itself is only ever touched to drop its own embedded sub-asset — never
+        /// renamed, never had its own serialized fields rewritten beyond the one field this row owns.
+        void MakeChunksPublic(SerializedProperty prop, Object owner, ChunkSpec current, string label)
+        {
+            if (owner == null || current == null) return;
+            int group = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName("Make Chunks Public");
+
+            const string folder = "Assets/Chunks";
+            if (!AssetDatabase.IsValidFolder(folder)) AssetDatabase.CreateFolder("Assets", "Chunks");
+
+            const string privateSuffix = " (Private)";
+            string niceName = current.name.EndsWith(privateSuffix)
+                ? current.name.Substring(0, current.name.Length - privateSuffix.Length)
+                : current.name;
+            string newPath = AssetDatabase.GenerateUniqueAssetPath($"{folder}/{niceName}.asset");
+
+            var made = ScriptableObject.CreateInstance<ChunkSpec>();
+            // Copy BEFORE naming/creating on disk — CopySerialized also copies the source's own m_Name, so
+            // running it first (then overwriting the name from the final path) avoids MakeChunksPrivate's own
+            // caught-live bug of the copy silently taking the source's name.
+            EditorUtility.CopySerialized(current, made);
+            made.name = System.IO.Path.GetFileNameWithoutExtension(newPath);
+            Undo.RegisterCreatedObjectUndo(made, "Create Public Chunks");
+            AssetDatabase.CreateAsset(made, newPath);
+
+            string path = prop.propertyPath;
+            Commit(path, p => p.objectReferenceValue = made);
+
+            // AssetDatabase-level sub-asset removal isn't Undo-tracked (matching this codebase's own admission,
+            // AssetKit's asset Delete, that an asset removal can't be undone) — but the embedded copy's data
+            // already survives independently in `made` above, so removing it here never loses authored work
+            // even though this one step of the group can't itself be reversed by Ctrl+Z.
+            AssetDatabase.RemoveObjectFromAsset(current);
+            Object.DestroyImmediate(current, true);
+            AssetDatabase.SaveAssets();
+
+            Undo.CollapseUndoOperations(group);
+            Rebuild();
+            Debug.Log($"[Zoetrope] {label} made public: {newPath}");
         }
 
         /// A scalar UnityEngine.Object-reference field (e.g. Zoe.faction) through the LauAsset row rather than
