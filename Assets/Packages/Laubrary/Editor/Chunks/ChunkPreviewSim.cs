@@ -51,6 +51,11 @@ namespace Laubrary.Chunks.Editor
         public ChunkGuideShape shape;
         public int order;         // painted low-to-high; layer slot first, stack position second
         public string label;      // a formation point's firing number, else null
+
+        /// The capability this guide belongs to (its EnsureId()), or null for a guide with nothing to drag
+        /// (a chunk, a splash particle). Only Pyre Blast sets this today — the stage's drag hit-test
+        /// (ChunkWindow.Preview.cs) uses it to find which capability's offset a dragged disc/ring belongs to.
+        public string capId;
     }
 
     /// A producer's aim: where it throws and how wide. Drawn under everything as context.
@@ -565,6 +570,7 @@ namespace Laubrary.Chunks.Editor
                         pos = at, radius = radius, alpha = PendingAlpha, color = tinted,
                         shape = ChunkGuideShape.Ring, order = order,
                         label = Placements.Count > 1 ? rank.ToString() : null,
+                        capId = b.id,
                     });
                     drawn++;
                     continue;
@@ -595,6 +601,7 @@ namespace Laubrary.Chunks.Editor
                     alpha = (1f - Mathf.Clamp01(since / blast)) * tintAlpha * BlastAlpha(b, seed, placement.Index),
                     color = tinted, shape = ChunkGuideShape.Disc, order = order,
                     label = Placements.Count > 1 ? rank.ToString() : null,
+                    capId = b.id,
                 });
                 drawn++;
             }

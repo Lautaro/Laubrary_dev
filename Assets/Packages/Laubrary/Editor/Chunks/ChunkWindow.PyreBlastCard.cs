@@ -8,6 +8,7 @@
 //
 // Every write goes through Dial (or DialAndRebuildCard where the answer changes which controls exist). The
 // card never touches the stack, the clock, the preview or undo directly.
+using System.Collections.Generic;
 using Laubrary.Zui;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -16,6 +17,16 @@ namespace Laubrary.Chunks.Editor
 {
     public partial class ChunkWindow
     {
+        // The offset pattern's own bounds — shared with the stage's drag hit-test (ChunkWindow.Preview.cs)
+        // so a dragged disc clamps to exactly the same box the pad itself clamps to.
+        internal static readonly Rect BlastOffsetRange = new Rect(-8f, -8f, 16f, 16f);
+
+        // One sync delegate per Pyre Blast card, so a drag on the PREVIEW STAGE (ChunkWindow.Preview.cs) can
+        // push the new offset into this card's pad + X/Y fields without rebuilding the card — same reason
+        // BackSplashWindow keeps posPad/posXField/posYField as retained fields, just keyed by capability id
+        // because a recipe can hold more than one Pyre Blast.
+        readonly Dictionary<string, System.Action<Vector2>> blastOffsetSyncs = new Dictionary<string, System.Action<Vector2>>();
+
         void BuildPyreBlastCard(VisualElement body, ChunkSpec c, PyreBlast cap)
         {
             string id = cap.id;
@@ -132,11 +143,16 @@ namespace Laubrary.Chunks.Editor
             }
 
             // ── where, and how each one comes out ────────────────────────────────
+            // Z.PadRow (not a bare Z.Pad) — the pattern's centre also needs to be settable exactly, and by
+            // dragging its disc directly on the preview stage (see ChunkWindow.Preview.cs), so the row keeps
+            // a sync delegate the stage drag can push into without rebuilding this card.
             body.Add(Z.Field("Offset",
-                "Where the pattern's centre sits relative to the recipe's origin, in world units.",
-                Z.Pad(cap.offset, new Rect(-8f, -8f, 16f, 16f),
-                      "Where the pattern's centre sits relative to the recipe's origin, in world units.",
-                      v => Dial("Edit Blast Offset", () => cap.offset = v))));
+                "Where the pattern's centre sits relative to the recipe's origin, in world units. Drag the " +
+                "pad, type/scrub X and Y, or drag the blast's own disc on the preview stage below.",
+                Z.PadRow(out var offsetSync, cap.offset, BlastOffsetRange,
+                    "Where the pattern's centre sits relative to the recipe's origin, in world units.",
+                    v => Dial("Edit Blast Offset", () => cap.offset = v))));
+            blastOffsetSyncs[id] = offsetSync;
 
             body.Add(Z.Field("Rotation",
                 "Whether each blast follows the recipe's aim, sits at a fixed angle, or picks one at random.",
@@ -197,6 +213,14 @@ namespace Laubrary.Chunks.Editor
 
             var slot = LayerSlotRow(c, () => cap.layerName, v => cap.layerName = v);
             if (slot != null) body.Add(slot);
+        }
+
+        /// Push an offset dragged directly on the preview stage (ChunkWindow.Preview.cs) into this
+        /// capability's own Offset pad + X/Y fields, without rebuilding the card. A no-op once the stack is
+        /// rebuilt and the id's sync delegate is gone (the card itself already shows the new value then).
+        internal void SyncBlastOffsetRow(string capabilityId, Vector2 value)
+        {
+            if (blastOffsetSyncs.TryGetValue(capabilityId, out var sync)) sync(value);
         }
     }
 }

@@ -61,6 +61,7 @@ namespace Laubrary.Chunks.Editor
             stackHost.Clear();
             cards.Clear();
             cardBodies.Clear();
+            blastOffsetSyncs.Clear();
 
             var stack = c.capabilities;
             int count = stack != null ? stack.Count : 0;
