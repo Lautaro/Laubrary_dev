@@ -17,6 +17,20 @@
 //     "0.00s" renders as ".00s" clipped against the left edge;
 //   * a tick number that would land under the playhead's own readout is DROPPED, not drawn behind it.
 //
+// Bands can be DRAGGED in time once a host sets OnLaneMoved. The control reports "lane i now starts at
+// t" and nothing else — what a start means (a capability's delay, a clip's offset) is the host's business. Three
+// rules keep that drag honest:
+//   * one drag is ONE Undo step (ZuiUndoGesture, the same collapse every ZUI drag control uses), opened only
+//     once the pointer has really moved, so a plain click on a band opens nothing;
+//   * the ruler's scale is FROZEN for the duration of the drag — a band dragged past the end would otherwise
+//     grow the clock, rescale every lane and slide the band out from under the pointer — and the host's new
+//     length lands on release;
+//   * the ruler (and the empty track, and the playhead itself) still scrub the playhead, and a click on a band
+//     that never moves scrubs too, so nothing the old control did has been taken away.
+//
+// The gutter is sized to its LONGEST name (capped by the host's gutterWidth), not to a fixed width, so short
+// names do not leave the bar a third narrower than it could be.
+//
 // Two things this control deliberately does NOT do, because they belong to the host:
 //   * it never owns the clock — the host sets the length and pushes the time in with SetTime (which does
 //     NOT notify, so a play tick cannot feed itself back through the callback and stop its own playback);
@@ -102,12 +116,20 @@ namespace Laubrary.Zui
 
     /// <summary>A stack of <see cref="ZuiLane"/> bands over one shared ruler of <see cref="Length"/> seconds,
     /// with <see cref="ZuiLaneMarker"/> flags and a single draggable playhead. Click or drag anywhere to move
-    /// the playhead. Reach for it via <c>Z.Lanes(...)</c>.</summary>
+    /// the playhead; with <see cref="OnLaneMoved"/> set, drag a band's body to move that band in time.
+    /// Reach for it via <c>Z.Lanes(...)</c>.</summary>
     public sealed class ZuiLanes : VisualElement
     {
         /// Fires on every USER-driven move of the playhead (click or drag), with the new time in SECONDS. It
         /// does NOT fire for <see cref="SetTime"/> — that is the whole point of that method.
         public Action<float> OnTimeChanged;
+
+        /// Fires on every move of a BAND drag with (lane index, the band's new START in seconds, clamped at 0
+        /// and rounded to 0.01 s). Setting it is what makes bands draggable; left null, a press on a band
+        /// scrubs like anywhere else. A dim (switched-off) lane is never draggable. The control moves the band
+        /// itself, so a host only has to write its own data — and, if it pushes SetLanes back, the drag carries
+        /// on untouched. Every change raised within one drag collapses into ONE Undo step.
+        public Action<int, float> OnLaneMoved;
 
         const float LaneGap = 3f;
         const float RulerHeight = 14f;
@@ -121,6 +143,14 @@ namespace Laubrary.Zui
         const float PlayWidth = 46f;
         // A band narrower than this cannot show its own edges apart; it is widened rather than vanishing.
         const float MinBandWidth = 2f;
+        // How far the pointer must travel before a press on a band becomes a drag — below it, it is a click.
+        const float DragThreshold = 3f;
+        // A dragged start is rounded to this, so a drag writes 0.30 and not 0.2999871.
+        const float DragSnap = 0.01f;
+        // Extra reach either side of a band, so a hairline band can still be grabbed.
+        const float BandSlop = 3f;
+        // A press this close to the playhead grabs the playhead, not the band under it.
+        const float PlayheadGrab = 4f;
 
         // Painted tones. Painter2D cannot read a USS variable, so these live here — the same compromise
         // ZuiTimeline makes. Element-level styling (the bar's fill, the gutter/tick text) is in ZuiToolkit.uss.
@@ -129,6 +159,7 @@ namespace Laubrary.Zui
         static readonly Color MarkerColor = new Color(1f, 0.85f, 0.3f, 0.85f);
         static readonly Color PlayheadCore = new Color(1f, 1f, 1f, 0.95f);
         static readonly Color PlayheadEdge = new Color(0f, 0f, 0f, 0.75f);
+        static readonly Color DragOutline = new Color(1f, 1f, 1f, 0.9f);
         // A step from the 1/2/5 family, so the ruler never prints numbers closer together than they read.
         static readonly float[] Steps = { 0.01f, 0.02f, 0.05f, 0.1f, 0.2f, 0.25f, 0.5f, 1f, 2f, 5f, 10f, 15f, 30f, 60f };
 
@@ -136,6 +167,7 @@ namespace Laubrary.Zui
         readonly VisualElement _gutter;    // the lane names
         readonly VisualElement _bar;       // the painted lanes; its local x IS the time axis
         readonly VisualElement _ruler;     // the ruler row (a gutter-width pad + the numbers)
+        readonly VisualElement _rulerPad;  // under the gutter, as wide as the gutter turns out to be
         readonly VisualElement _rulerLane; // the numbers themselves, aligned with _bar
         readonly Label _playLabel;         // the playhead's own readout, riding in the ruler
 
@@ -151,6 +183,16 @@ namespace Laubrary.Zui
         float _seconds;
         bool _dragging;
         float _laidOutWidth = -1f;
+
+        // The band drag in progress: -1 = none. A press on a band sets the index; it becomes a real drag (and
+        // opens its Undo gesture) only once it crosses DragThreshold.
+        int _bandIndex = -1;
+        bool _bandMoving;
+        float _bandDownX;          // bar-space x of the press
+        float _bandStartAtDown;    // the band's start at the press — every move is measured from here
+        float _dragSpan;           // the ruler's seconds, frozen for the drag
+        float _dragBarWidth;       // the bar's width at the press
+        int _undoGroup = -1;       // see ZuiUndoGesture
 
         /// The ruler's length in seconds — the host's number when it set one, otherwise the furthest lane end
         /// or marker (and finally 1, so an empty control still draws a ruler instead of nothing).
@@ -197,10 +239,13 @@ namespace Laubrary.Zui
             _body.style.flexShrink = 0f;
             Add(_body);
 
+            // No fixed width: the column takes the width of its longest name, capped at the host's
+            // gutterWidth, beyond which a name is cut with an ellipsis.
             _gutter = new VisualElement();
             _gutter.AddToClassList("zui-lanes__gutter");
             _gutter.style.flexDirection = FlexDirection.Column;
-            _gutter.style.width = _gutterWidth;
+            _gutter.style.maxWidth = _gutterWidth;
+            if (_gutterWidth <= 1f) _gutter.style.display = DisplayStyle.None;
             _gutter.style.flexGrow = 0f;
             _gutter.style.flexShrink = 0f;
             _gutter.style.overflow = Overflow.Hidden;
@@ -225,13 +270,13 @@ namespace Laubrary.Zui
             Add(_ruler);
 
             // A pad exactly as wide as the gutter, so a number under x=0 sits under the BAR's zero and not
-            // under the lane names.
-            var pad = new VisualElement();
-            pad.style.width = _gutterWidth;
-            pad.style.flexGrow = 0f;
-            pad.style.flexShrink = 0f;
-            pad.pickingMode = PickingMode.Ignore;
-            _ruler.Add(pad);
+            // under the lane names. The gutter sizes itself to its names, so the pad follows its laid-out width.
+            _rulerPad = new VisualElement();
+            _rulerPad.style.width = 0f;
+            _rulerPad.style.flexGrow = 0f;
+            _rulerPad.style.flexShrink = 0f;
+            _rulerPad.pickingMode = PickingMode.Ignore;
+            _ruler.Add(_rulerPad);
 
             _rulerLane = new VisualElement();
             _rulerLane.AddToClassList("zui-lanes__ruler-lane");
@@ -256,7 +301,11 @@ namespace Laubrary.Zui
             RegisterCallback<PointerDownEvent>(OnDown);
             RegisterCallback<PointerMoveEvent>(OnMove);
             RegisterCallback<PointerUpEvent>(OnUp);
+            RegisterCallback<PointerCaptureOutEvent>(OnCaptureOut);
             RegisterCallback<GeometryChangedEvent>(OnGeometry);
+            // The bar can change width without the root doing so (the gutter resizing to a new name).
+            _bar.RegisterCallback<GeometryChangedEvent>(OnGeometry);
+            _gutter.RegisterCallback<GeometryChangedEvent>(OnGutterGeometry);
 
             Recompute();
         }
@@ -308,6 +357,9 @@ namespace Laubrary.Zui
                 for (int i = 0; i < _lanes.Count; i++) span = Mathf.Max(span, _lanes[i].End);
                 for (int i = 0; i < _markers.Count; i++) span = Mathf.Max(span, _markers[i].Time);
             }
+            // While a band is being dragged the scale stays what it was at the press (see the header); the
+            // host's length, which SetLength has already stored, takes over on release.
+            if (_bandIndex >= 0) span = _dragSpan;
             _span = span > 0.0001f ? span : 1f;
             _seconds = Mathf.Clamp(_seconds, 0f, _span);
 
@@ -350,14 +402,47 @@ namespace Laubrary.Zui
         void OnDown(PointerDownEvent e)
         {
             if (e.button != 0) return;
-            _dragging = true;
             this.CapturePointer(e.pointerId);
-            Seconds = T(LocalX(e.position));
+            float x = LocalX(e.position);
+            int band = BandAt(_bar.WorldToLocal(e.position));
+            if (band >= 0)
+            {
+                // Not a drag yet — only a press. OnMove promotes it once the pointer really travels.
+                _bandIndex = band;
+                _bandMoving = false;
+                _bandDownX = x;
+                _bandStartAtDown = _lanes[band].Start;
+                _dragSpan = _span;
+                _dragBarWidth = Mathf.Max(1f, BarWidth);
+            }
+            else
+            {
+                _dragging = true;
+                Seconds = T(x);
+            }
             e.StopPropagation();
         }
 
         void OnMove(PointerMoveEvent e)
         {
+            if (_bandIndex >= 0)
+            {
+                float dx = LocalX(e.position) - _bandDownX;
+                if (!_bandMoving)
+                {
+                    if (Mathf.Abs(dx) < DragThreshold) { e.StopPropagation(); return; }
+                    _bandMoving = true;
+                    _undoGroup = ZuiUndoGesture.Begin();   // one drag is one Undo step
+                }
+                // Measured from the press with the frozen scale, so the band stays under the pointer however
+                // often the host pushes its data back mid-drag.
+                float raw = _bandStartAtDown + dx / _dragBarWidth * _dragSpan;
+                float start = Mathf.Max(0f, Mathf.Round(raw / DragSnap) * DragSnap);
+                MoveBand(_bandIndex, start);
+                e.StopPropagation();
+                return;
+            }
+
             if (!_dragging) return;
             Seconds = T(LocalX(e.position));
             e.StopPropagation();
@@ -365,11 +450,77 @@ namespace Laubrary.Zui
 
         void OnUp(PointerUpEvent e)
         {
+            if (_bandIndex >= 0)
+            {
+                bool moved = _bandMoving;
+                float x = LocalX(e.position);
+                EndBandDrag();
+                if (this.HasPointerCapture(e.pointerId)) this.ReleasePointer(e.pointerId);
+                // A band pressed and released in place was a click: it scrubs, as it always did.
+                if (!moved) Seconds = T(x);
+                e.StopPropagation();
+                return;
+            }
+
             if (!_dragging) return;
             _dragging = false;
             this.ReleasePointer(e.pointerId);
             e.StopPropagation();
         }
+
+        /// Capture taken away mid-gesture (the window lost focus, another element grabbed it): close whatever
+        /// was open, so the Undo gesture cannot be left dangling and the ruler does not stay frozen.
+        void OnCaptureOut(PointerCaptureOutEvent e)
+        {
+            _dragging = false;
+            if (_bandIndex >= 0) EndBandDrag();
+        }
+
+        void EndBandDrag()
+        {
+            _bandIndex = -1;
+            if (_bandMoving)
+            {
+                _bandMoving = false;
+                ZuiUndoGesture.End(_undoGroup);
+                _undoGroup = -1;
+            }
+            Recompute();   // the frozen scale gives way to the host's length
+        }
+
+        /// Move lane `index` to start at `start`, keeping its length, and tell the host. The control moves the
+        /// band itself first, so a host that only writes its own data still sees the band follow the pointer.
+        void MoveBand(int index, float start)
+        {
+            if (index < 0 || index >= _lanes.Count) return;
+            var lane = _lanes[index];
+            if (Mathf.Abs(lane.Start - start) < 0.0001f) return;
+            float length = lane.End - lane.Start;
+            _lanes[index] = new ZuiLane(lane.Label, start, start + length, lane.Color, lane.Dim, lane.Tooltip);
+            Relayout();
+            OnLaneMoved?.Invoke(index, start);
+        }
+
+        /// The draggable band under a bar-space point, or -1. Nothing is draggable without a host listening,
+        /// a dim lane is never draggable, and a press right on the playhead grabs the playhead instead.
+        int BandAt(Vector2 p)
+        {
+            if (OnLaneMoved == null) return -1;
+            float w = BarWidth;
+            if (w <= 1f || p.y < 0f || p.x < -BandSlop || p.x > w + BandSlop) return -1;
+            if (Mathf.Abs(p.x - X(_seconds)) <= PlayheadGrab) return -1;
+
+            float row = _laneHeight + LaneGap;
+            int i = Mathf.FloorToInt(p.y / row);
+            if (i < 0 || i >= _lanes.Count || p.y - i * row > _laneHeight) return -1;
+            if (!IsDraggable(_lanes[i])) return -1;
+
+            float x0 = X(_lanes[i].Start);
+            float x1 = Mathf.Max(x0 + MinBandWidth, X(_lanes[i].End));
+            return p.x >= x0 - BandSlop && p.x <= x1 + BandSlop ? i : -1;
+        }
+
+        bool IsDraggable(ZuiLane lane) => OnLaneMoved != null && !lane.Dim;
 
         /// The pointer's x in the BAR's own space. Deliberately not `e.localPosition`: the event's target may
         /// be one of the absolutely-positioned band or marker overlays, whose local space starts at that
@@ -385,6 +536,18 @@ namespace Laubrary.Zui
             if (Mathf.Abs(w - _laidOutWidth) < 0.5f) return;
             _laidOutWidth = w;
             Relayout();
+        }
+
+        /// Keep the ruler's pad as wide as the gutter actually laid out, so the ruler's zero stays under the
+        /// bar's zero whatever the longest name is. The tolerance guard stops the pad's own layout pass from
+        /// feeding back in.
+        void OnGutterGeometry(GeometryChangedEvent _)
+        {
+            float gw = _gutterWidth <= 1f ? 0f : _gutter.layout.width;
+            if (float.IsNaN(gw)) return;
+            float current = _rulerPad.resolvedStyle.width;
+            if (!float.IsNaN(current) && Mathf.Abs(current - gw) < 0.5f) return;
+            _rulerPad.style.width = gw;
         }
 
         void Relayout()
@@ -441,7 +604,10 @@ namespace Laubrary.Zui
                 hit.style.top = i * (_laneHeight + LaneGap);
                 hit.style.width = bw;
                 hit.style.height = _laneHeight;
-                hit.tooltip = LaneTooltip(lane);
+                bool draggable = IsDraggable(lane);
+                hit.tooltip = LaneTooltip(lane, draggable);
+                // The slide cursor is the "this moves sideways" sign ZUI's numeric fields already use.
+                if (draggable) ZuiScrub.ApplyCursor(hit);
                 _bar.Add(hit);
             }
 
@@ -459,7 +625,13 @@ namespace Laubrary.Zui
             }
         }
 
-        string LaneTooltip(ZuiLane lane)
+        string LaneTooltip(ZuiLane lane, bool draggable)
+        {
+            string head = LaneTooltipHead(lane);
+            return draggable ? head + " Drag the band sideways to change when it starts." : head;
+        }
+
+        string LaneTooltipHead(ZuiLane lane)
         {
             string when = $"{Format(lane.Start)} → {Format(lane.End)}";
             bool hasName = !string.IsNullOrEmpty(lane.Label);
@@ -494,6 +666,14 @@ namespace Laubrary.Zui
             _playLabel.style.left = playLeft;
             _playLabel.style.width = PlayWidth;
             _spans.Add(new Vector2(playLeft, playLeft + PlayWidth));
+
+            // A band being dragged says where it now starts, right under its left edge — the number the drag
+            // is changing outranks every number that is merely there.
+            if (_bandMoving && _bandIndex >= 0 && _bandIndex < _lanes.Count)
+            {
+                var dragged = _lanes[_bandIndex];
+                AddTick(dragged.Start, w, Format(dragged.Start), dragged.Color.a > 0f ? dragged.Color : BandColor);
+            }
 
             AddTick(0f, w, null, default(Color));
             AddTick(_span, w, null, default(Color));
@@ -570,6 +750,7 @@ namespace Laubrary.Zui
                 // change this control's height and move whatever sits above it.
                 if (lane.Dim) c = new Color(c.r, c.g, c.b, 0.22f);
                 Fill(p, x0, top, bw, _laneHeight, c);
+                if (_bandMoving && i == _bandIndex) Outline(p, x0, top, bw, _laneHeight, DragOutline);
             }
 
             // Markers run through every lane so the moment reads across the whole stack, not just one band.
@@ -606,6 +787,16 @@ namespace Laubrary.Zui
             p.ClosePath();
             p.Fill();
             p.Stroke();
+        }
+
+        static void Outline(Painter2D p, float x, float y, float w, float h, Color c)
+        {
+            p.strokeColor = c;
+            p.lineWidth = 1f;
+            p.BeginPath();
+            p.MoveTo(new Vector2(x + 0.5f, y + 0.5f)); p.LineTo(new Vector2(x + w - 0.5f, y + 0.5f));
+            p.LineTo(new Vector2(x + w - 0.5f, y + h - 0.5f)); p.LineTo(new Vector2(x + 0.5f, y + h - 0.5f));
+            p.ClosePath(); p.Stroke();
         }
 
         static void Fill(Painter2D p, float x, float y, float w, float h, Color c)

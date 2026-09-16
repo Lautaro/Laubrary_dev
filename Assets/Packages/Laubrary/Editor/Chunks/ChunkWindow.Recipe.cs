@@ -19,6 +19,8 @@ namespace Laubrary.Chunks.Editor
         VisualElement stackHost;   // the cards + the Add button; rebuilt on any structural change
         readonly Dictionary<string, ZuiBox> cards = new Dictionary<string, ZuiBox>();
         readonly Dictionary<string, VisualElement> cardBodies = new Dictionary<string, VisualElement>();
+        // Each card's Delay field, by capability id — what a Timing band drag writes back into.
+        readonly Dictionary<string, BaseField<float>> delayFields = new Dictionary<string, BaseField<float>>();
 
         // The nine kinds, in the catalogue's order — the order the Add menu lists them and the order a reader
         // of the design doc expects. A kind is a name, an icon and a way to make one; everything else about
@@ -61,6 +63,7 @@ namespace Laubrary.Chunks.Editor
             stackHost.Clear();
             cards.Clear();
             cardBodies.Clear();
+            delayFields.Clear();
 
             var stack = c.capabilities;
             int count = stack != null ? stack.Count : 0;
@@ -345,10 +348,14 @@ namespace Laubrary.Chunks.Editor
         internal VisualElement DelayRow(ChunkSpec c, ChunkCapability cap)
         {
             if (cap == null || !cap.OccupiesTime || !ChunkClock.NeedsTimingSurface(c)) return null;
+            var field = Z.Float(cap.delay,
+                "Seconds from the start of the recipe before this fires. You can also drag its band on the " +
+                "Timing lanes.",
+                v => Dial("Edit Delay", () => cap.delay = Mathf.Max(0f, v)), 70f);
+            // Remembered so a band drag on the Timing lanes can move this number with it, live.
+            delayFields[cap.EnsureId()] = field;
             return Z.Field("Delay",
-                "Seconds from the start of the recipe before this fires. Capabilities overlap freely.",
-                Z.Float(cap.delay, "Seconds from the start of the recipe before this fires.",
-                        v => Dial("Edit Delay", () => cap.delay = Mathf.Max(0f, v)), 70f));
+                "Seconds from the start of the recipe before this fires. Capabilities overlap freely.", field);
         }
 
         /// Which named depth slot this capability draws in — or NULL when the recipe has no Layer Plan, in
