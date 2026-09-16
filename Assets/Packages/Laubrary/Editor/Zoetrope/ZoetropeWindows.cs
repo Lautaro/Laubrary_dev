@@ -542,8 +542,11 @@ namespace Laubrary.Zoetrope.Editor
 
             var row = Z.Row();
             row.Add(Z.MiniRadio(isPrivate ? 1 : 0, new[] { "Public", "Private" },
-                "Public: pick a shared Chunks asset from the library. Private: an embedded copy that belongs " +
-                "only to this Zoe, hidden from the shared Chunks browser, and editable only from this row.",
+                "Public: pick a shared Chunks asset from the library; switching a private recipe to Public saves " +
+                "it as a library asset in Assets/Chunks (or reuses an identical one already there). Private: an " +
+                "embedded copy that belongs only to this Zoe, hidden from the shared Chunks browser, and editable " +
+                "only from this row. Undo switches the row back; the copy a switch made is kept, so undo and redo " +
+                "never lose a recipe.",
                 i =>
                 {
                     if (i == 1 && !isPrivate) MakeChunksPrivate(prop, owner, current);
@@ -571,78 +574,159 @@ namespace Laubrary.Zoetrope.Editor
             current != null && owner != null && AssetDatabase.IsSubAsset(current) &&
             AssetDatabase.GetAssetPath(current) == AssetDatabase.GetAssetPath(owner);
 
-        /// Embeds a brand-new ChunkSpec as a sub-asset of <paramref name="owner"/> (the Zoe being edited) and
-        /// assigns it. If a public asset was already referenced, its tuning is copied into the private asset
-        /// first (EditorUtility.CopySerialized) so switching modes never loses authored work — and the old
-        /// public asset itself is left completely untouched (not deleted, not cleared from wherever else
-        /// references it), matching the "don't silently destroy data" rule.
+        // Undo contract for the Public/Private switch (T-0371). Unity's Undo cannot safely reverse
+        // AssetDatabase work: undoing a RegisterCreatedObjectUndo destroys the in-memory object of an asset
+        // that is already on disk (a created .asset then loads as a DefaultAsset, a sub-asset vanishes from
+        // its file), redo brings back a copy that belongs to no file, and RemoveObjectFromAsset/DestroyImmediate
+        // are not recorded at all, so an older record can re-point the row at a destroyed object. So:
+        //  * creating the library asset or the embedded sub-asset is never recorded — it is plain,
+        //    permanent asset work, saved at once;
+        //  * nothing asset-backed is ever removed or destroyed by the switch — the recipe the row leaves
+        //    stays where it was (a public asset in the library, a private one inside this Zoe's file);
+        //  * the ONLY recorded step is re-pointing this one field, as its own named undo group.
+        // Every value any undo or redo record can put back is therefore a live, persistent recipe. To keep
+        // repeated switching from piling up copies, each direction first looks for a recipe it made earlier
+        // with identical tuning and re-points to that instead of making another.
+
+        /// Switches the row to an embedded ChunkSpec inside <paramref name="owner"/> (the Zoe being edited),
+        /// carrying over the tuning of the public asset it was pointing at. The public asset itself is left
+        /// untouched. Reuses an unreferenced private copy with the same name and tuning if the file has one
+        /// (left there by an earlier Public switch), otherwise embeds a new one.
         void MakeChunksPrivate(SerializedProperty prop, Object owner, ChunkSpec previous)
         {
             if (owner == null) return;
+            string ownerPath = AssetDatabase.GetAssetPath(owner);
+            if (string.IsNullOrEmpty(ownerPath)) return;
+
             var made = ScriptableObject.CreateInstance<ChunkSpec>();
-            // CopySerialized also copies the source's OWN name (m_Name is serialized data, not exempt) — so
-            // it must run BEFORE we set the private asset's own name, or the copy silently overwrites it back
-            // to the public asset's name (caught live, T-0250: a "Sparks" copy came out named "Sparks").
+            // CopySerialized also copies the source's own m_Name, so it runs BEFORE the name is set.
             if (previous != null) EditorUtility.CopySerialized(previous, made);
             made.name = $"{owner.name} — {ObjectNames.NicifyVariableName(prop.name)} (Private)";
-            Undo.RegisterCreatedObjectUndo(made, "Create Private Chunks");
-            AssetDatabase.AddObjectToAsset(made, owner);
-            AssetDatabase.SaveAssets();
-            string path = prop.propertyPath;
-            Commit(path, p => p.objectReferenceValue = made);
+
+            var target = FindSparePrivateChunks(owner, ownerPath, made);
+            if (target != null)
+                Object.DestroyImmediate(made);   // a never-persisted scratch copy, in no file and no undo record
+            else
+            {
+                AssetDatabase.AddObjectToAsset(made, owner);
+                target = made;
+            }
+
+            RepointChunks(prop.propertyPath, target, "Make Chunks Private");
+            EditorUtility.SetDirty(owner);
+            AssetDatabase.SaveAssetIfDirty(owner);
             Rebuild();
         }
 
-        /// Reverse of <see cref="MakeChunksPrivate"/>: turns an embedded private ChunkSpec back into a normal
-        /// library asset. Creates a brand-new asset in the shared Chunks folder (T-0250's own default,
-        /// "Assets/Chunks"), copies the embedded recipe's tuning into it (EditorUtility.CopySerialized, same
-        /// direction as MakeChunksPrivate runs in reverse) so the new asset is a fully independent, complete
-        /// copy of the authored data BEFORE anything is removed — "no data lost" holds even if the removal
-        /// step below can't be perfectly undone, because the data already has a second, permanent home. Then
-        /// re-points the field at the new asset and removes the now-orphaned sub-asset. Every step (asset
-        /// creation, the field re-point, the sub-asset removal) is folded into one Undo group so Ctrl+Z reads
-        /// back as a single "Make Chunks Public" step, matching MakeChunksPrivate's own one-undo contract.
-        /// The OWNER asset (the Zoe) itself is only ever touched to drop its own embedded sub-asset — never
-        /// renamed, never had its own serialized fields rewritten beyond the one field this row owns.
+        /// Switches the row from its embedded ChunkSpec to a library asset in Assets/Chunks (T-0250's default
+        /// folder) holding the same tuning. Reuses a library asset this switch made earlier for the same
+        /// recipe name if its tuning is identical, otherwise creates a new one. The embedded copy stays in
+        /// the Zoe's file, so an undo can always point the row back at it.
         void MakeChunksPublic(SerializedProperty prop, Object owner, ChunkSpec current, string label)
         {
             if (owner == null || current == null) return;
-            int group = Undo.GetCurrentGroup();
-            Undo.SetCurrentGroupName("Make Chunks Public");
 
             const string folder = "Assets/Chunks";
-            if (!AssetDatabase.IsValidFolder(folder)) AssetDatabase.CreateFolder("Assets", "Chunks");
-
             const string privateSuffix = " (Private)";
             string niceName = current.name.EndsWith(privateSuffix)
                 ? current.name.Substring(0, current.name.Length - privateSuffix.Length)
                 : current.name;
-            string newPath = AssetDatabase.GenerateUniqueAssetPath($"{folder}/{niceName}.asset");
 
             var made = ScriptableObject.CreateInstance<ChunkSpec>();
-            // Copy BEFORE naming/creating on disk — CopySerialized also copies the source's own m_Name, so
-            // running it first (then overwriting the name from the final path) avoids MakeChunksPrivate's own
-            // caught-live bug of the copy silently taking the source's name.
-            EditorUtility.CopySerialized(current, made);
-            made.name = System.IO.Path.GetFileNameWithoutExtension(newPath);
-            Undo.RegisterCreatedObjectUndo(made, "Create Public Chunks");
-            AssetDatabase.CreateAsset(made, newPath);
+            EditorUtility.CopySerialized(current, made);   // before naming: it copies m_Name too
+            made.name = niceName;
 
-            string path = prop.propertyPath;
-            Commit(path, p => p.objectReferenceValue = made);
+            string outcome;
+            var target = FindLibraryCopy(folder, niceName, made);
+            if (target != null)
+            {
+                Object.DestroyImmediate(made);   // a never-persisted scratch copy, in no file and no undo record
+                outcome = "reused";
+            }
+            else
+            {
+                if (!AssetDatabase.IsValidFolder(folder)) AssetDatabase.CreateFolder("Assets", "Chunks");
+                string newPath = AssetDatabase.GenerateUniqueAssetPath($"{folder}/{niceName}.asset");
+                made.name = System.IO.Path.GetFileNameWithoutExtension(newPath);
+                AssetDatabase.CreateAsset(made, newPath);
+                AssetDatabase.SaveAssetIfDirty(made);
+                target = made;
+                outcome = "saved as";
+            }
 
-            // AssetDatabase-level sub-asset removal isn't Undo-tracked (matching this codebase's own admission,
-            // AssetKit's asset Delete, that an asset removal can't be undone) — but the embedded copy's data
-            // already survives independently in `made` above, so removing it here never loses authored work
-            // even though this one step of the group can't itself be reversed by Ctrl+Z.
-            AssetDatabase.RemoveObjectFromAsset(current);
-            Object.DestroyImmediate(current, true);
-            AssetDatabase.SaveAssets();
-
-            Undo.CollapseUndoOperations(group);
+            RepointChunks(prop.propertyPath, target, "Make Chunks Public");
+            EditorUtility.SetDirty(owner);
+            AssetDatabase.SaveAssetIfDirty(owner);
             Rebuild();
-            Debug.Log($"[Zoetrope] {label} made public: {newPath}");
+            Debug.Log($"[Zoetrope] {label} made public ({outcome}): {AssetDatabase.GetAssetPath(target)}");
         }
+
+        /// The one undoable step of a Public/Private switch: this field's re-point, as its own named group.
+        void RepointChunks(string path, ChunkSpec target, string undoName)
+        {
+            Undo.IncrementCurrentGroup();
+            int group = Undo.GetCurrentGroup();
+            Commit(path, p => p.objectReferenceValue = target);
+            Undo.SetCurrentGroupName(undoName);
+            Undo.CollapseUndoOperations(group);
+        }
+
+        /// An embedded ChunkSpec in the owner's file that nothing on the owner references, with the wanted
+        /// name and identical tuning — safe to point the row at instead of embedding another copy.
+        static ChunkSpec FindSparePrivateChunks(Object owner, string ownerPath, ChunkSpec wanted)
+        {
+            var inUse = ReferencedObjects(owner);
+            string json = RecipeJson(wanted);
+            foreach (var o in AssetDatabase.LoadAllAssetsAtPath(ownerPath))
+            {
+                if (o is ChunkSpec spec && spec != owner && AssetDatabase.IsSubAsset(spec)
+                    && spec.name == wanted.name && !inUse.Contains(spec) && RecipeJson(spec) == json)
+                    return spec;
+            }
+            return null;
+        }
+
+        /// A library ChunkSpec in <paramref name="folder"/> named like the ones Public makes for this recipe
+        /// ("stem", "stem 1", "stem 2"…) whose tuning is identical to <paramref name="wanted"/>.
+        static ChunkSpec FindLibraryCopy(string folder, string stem, ChunkSpec wanted)
+        {
+            if (!AssetDatabase.IsValidFolder(folder)) return null;
+            var namePattern = new System.Text.RegularExpressions.Regex(
+                "^" + System.Text.RegularExpressions.Regex.Escape(stem) + "( \\d+)?$");
+            string json = RecipeJson(wanted);
+            foreach (var guid in AssetDatabase.FindAssets("t:ChunkSpec", new[] { folder }))
+            {
+                string assetPath = AssetDatabase.GUIDToAssetPath(guid);
+                if (!namePattern.IsMatch(System.IO.Path.GetFileNameWithoutExtension(assetPath))) continue;
+                if (AssetDatabase.LoadMainAssetAtPath(assetPath) is ChunkSpec spec && RecipeJson(spec) == json)
+                    return spec;
+            }
+            return null;
+        }
+
+        /// Every object an ObjectReference field anywhere on <paramref name="owner"/> currently points at.
+        static HashSet<Object> ReferencedObjects(Object owner)
+        {
+            var set = new HashSet<Object>();
+            using (var so = new SerializedObject(owner))
+            {
+                var it = so.GetIterator();
+                while (it.Next(true))
+                {
+                    if (it.propertyType == SerializedPropertyType.ObjectReference && it.objectReferenceValue != null)
+                        set.Add(it.objectReferenceValue);
+                }
+            }
+            return set;
+        }
+
+        /// A recipe's tuning as JSON, minus the object's own name and hide flags, which differ between a
+        /// library asset and an embedded copy of the same recipe. A mismatch only costs one extra copy.
+        static string RecipeJson(ChunkSpec spec) => RecipeIdentityFields.Replace(EditorJsonUtility.ToJson(spec), "");
+
+        static readonly System.Text.RegularExpressions.Regex RecipeIdentityFields =
+            new System.Text.RegularExpressions.Regex(
+                "\"(?:m_Name\"\\s*:\\s*\"(?:[^\"\\\\]|\\\\.)*\"|m_ObjectHideFlags\"\\s*:\\s*\\d+),?");
 
         /// A scalar UnityEngine.Object-reference field (e.g. Zoe.faction) through the LauAsset row rather than
         /// a bare ObjectField — used both by the generic loop above and by a hand-curated BuildBody override.
