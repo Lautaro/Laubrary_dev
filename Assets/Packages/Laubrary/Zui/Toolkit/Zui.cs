@@ -859,6 +859,54 @@ namespace Laubrary.Zui
             return pad;
         }
 
+        /// The SAME pad (see Z.Pad above), WITH a value readout: two labelled scrub/type X/Y fields beside
+        /// it, each tooltip stating the range it accepts. A bare Z.Pad has no readout at all and its own
+        /// drag resolution is far too coarse to land an exact number (ui-rules §1 "a numeric input must be
+        /// drag-scrubbable, never keyboard-only"; §3 legible) — this is the fix, generalised from the
+        /// pad+fields row BackSplashWindow.BuildPositionRow worked out by hand before this existed. Reach
+        /// for this wherever a PLAIN (non-animatable) spatial X/Y pair needs a control — Z.Value2D is the
+        /// animatable-value analog (Static/Curve modes, a ZUIValue pair) and is not a fit for a plain
+        /// Vector2 like a placement offset.
+        /// `sync` is handed back so a driver OTHER than this row — a value dragged directly on a preview
+        /// stage, say — can push its own change into the dot AND both fields without re-firing `onChanged`,
+        /// the same job BackSplashWindow.PushPosition already does by hand for its own pad.
+        public static VisualElement PadRow(out Action<Vector2> sync, Vector2 value, Rect range, string tooltip,
+            Action<Vector2> onChanged, float padSize = 56f, float fieldWidth = 60f, bool flipY = true)
+        {
+            FloatField xField = null, yField = null;
+            var pad = new ZuiPad(value, range, tooltip, padSize, flipY);
+            pad.OnChanged += v =>
+            {
+                onChanged?.Invoke(v);
+                xField?.SetValueWithoutNotify(v.x);
+                yField?.SetValueWithoutNotify(v.y);
+            };
+
+            string xTip = $"{tooltip} Ranges {range.xMin:0.##} to {range.xMax:0.##}.";
+            string yTip = $"{tooltip} Ranges {range.yMin:0.##} to {range.yMax:0.##}.";
+            xField = Float(value.x, xTip, v =>
+            {
+                var nv = new Vector2(v, pad.Value.y);
+                pad.Value = nv;
+                onChanged?.Invoke(nv);
+            }, fieldWidth);
+            yField = Float(value.y, yTip, v =>
+            {
+                var nv = new Vector2(pad.Value.x, v);
+                pad.Value = nv;
+                onChanged?.Invoke(nv);
+            }, fieldWidth);
+
+            sync = v =>
+            {
+                pad.Value = v;
+                xField.SetValueWithoutNotify(v.x);
+                yField.SetValueWithoutNotify(v.y);
+            };
+
+            return Row(pad, Field("X", xTip, xField), Field("Y", yTip, yField));
+        }
+
         /// A "3D direction / orientation" control: a small draggable LIT SPHERE that sets a direction as yaw
         /// (azimuth) + pitch (elevation), optionally with a distance, plus numeric fallback fields and a larger
         /// 3D preview that opens on hover (a non-modal Z.Popover) or pins open. The lit hotspot on the sphere IS

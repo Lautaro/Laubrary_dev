@@ -47,6 +47,13 @@ namespace Laubrary.Chunks.Editor
         int cachedReachGeneration = -1;
         int cachedReachSpec;
 
+        // ── dragging a blast's disc on the stage ─────────────────────────────────────────────────────────
+        // Direct-mutate-and-dirty rather than routing through Dial — a drag is a single continuous gesture
+        // (one Undo step bracketed by MouseDown/MouseUp), the same shape as BackSplashWindow.HandleDrag.
+        PyreBlast draggingBlastCap;
+        Vector2 dragStartGuideWorld;
+        Vector2 dragStartOffset;
+
         /// Room left round the outermost thing the recipe throws, so a chunk at full reach is inside the
         /// stage rather than clipped by its edge.
         const float StageMargin = 1.18f;
@@ -269,6 +276,15 @@ namespace Laubrary.Chunks.Editor
 
             DrawClockStrip(c, view);
 
+            // Dragging works off every event type (MouseDown/Drag/Up), not just Repaint, so it has to sit
+            // before the repaint-only return below — same reason BackSplashWindow.HandleDrag is called
+            // unconditionally from its own IMGUI island.
+            if (HandleBlastDrag(c, field, centre, scale))
+            {
+                EditorUtility.SetDirty(c);
+                InvalidatePreview();
+            }
+
             if (Event.current.type != EventType.Repaint) return;
 
             frame ??= new ChunkPreviewFrame();
@@ -299,15 +315,86 @@ namespace Laubrary.Chunks.Editor
             return cachedReach;
         }
 
+        /// A blast's disc (or its not-yet-fired ring) dragged straight on the stage, set its card's Offset —
+        /// the F3/H2 walk finding's other half, alongside the pad+fields row (Z.PadRow, PyreBlastCard.cs).
+        /// Hit-tests against the LAST Repaint's guides (`frame` only gets rebuilt on Repaint, so this lags by
+        /// at most one event — invisible in practice) and reuses WorldToScreen/ScreenToWorld so the disc
+        /// tracks the cursor under the exact transform it was painted with. Direct-mutate-and-dirty, one
+        /// Undo.RecordObject at MouseDown and none after — one drag, one Undo step, same shape as
+        /// BackSplashWindow.HandleDrag. Never rebuilds the card or the window; it only pushes the new value
+        /// into the retained pad/fields via SyncBlastOffsetRow, so a drag never costs more than a repaint.
+        bool HandleBlastDrag(ChunkSpec c, Rect field, Vector2 centre, float scale)
+        {
+            var e = Event.current;
+            if (e.type == EventType.MouseDown && e.button == 0 && field.Contains(e.mousePosition))
+            {
+                PyreBlast hit = null;
+                Vector2 hitWorld = default;
+                float bestSqrDist = float.MaxValue;
+                if (frame != null)
+                    for (int i = 0; i < frame.Guides.Count; i++)
+                    {
+                        var g = frame.Guides[i];
+                        if (string.IsNullOrEmpty(g.capId)) continue;
+                        if (g.shape != ChunkGuideShape.Disc && g.shape != ChunkGuideShape.Ring) continue;
+
+                        var screen = WorldToScreen(g.pos, centre, scale);
+                        float hitRadius = Mathf.Max(8f, g.radius * scale + 3f);
+                        float sqrDist = (screen - e.mousePosition).sqrMagnitude;
+                        if (sqrDist > hitRadius * hitRadius || sqrDist >= bestSqrDist) continue;
+
+                        bestSqrDist = sqrDist;
+                        hitWorld = g.pos;
+                        hit = Find(c, g.capId) as PyreBlast;
+                    }
+                if (hit == null) return false;
+
+                Undo.RecordObject(c, "Drag Blast Offset");
+                draggingBlastCap = hit;
+                dragStartGuideWorld = hitWorld;
+                dragStartOffset = hit.offset;
+                e.Use();
+                return false;
+            }
+
+            if (draggingBlastCap != null && e.type == EventType.MouseDrag)
+            {
+                var world = ScreenToWorld(e.mousePosition, centre, scale);
+                var offset = dragStartOffset + (world - dragStartGuideWorld);
+                offset.x = Mathf.Clamp(offset.x, BlastOffsetRange.xMin, BlastOffsetRange.xMax);
+                offset.y = Mathf.Clamp(offset.y, BlastOffsetRange.yMin, BlastOffsetRange.yMax);
+                draggingBlastCap.offset = offset;
+                SyncBlastOffsetRow(draggingBlastCap.id, offset);
+                e.Use();
+                return true;
+            }
+
+            if (draggingBlastCap != null && e.type == EventType.MouseUp)
+            {
+                draggingBlastCap = null;
+                e.Use();
+            }
+            return false;
+        }
+
         // Painted back to front: aim cones, then flight paths, then the things themselves. Within each, the
         // capability's own order — its Layer-Plan slot first, its place in the stack second — decides depth,
         // so what draws in front on the stage is what will draw in front in the burst.
         static readonly Comparison<ChunkGuide> ByOrder = (a, b) => a.order.CompareTo(b.order);
         static readonly Comparison<ChunkGuidePath> PathsByOrder = (a, b) => a.order.CompareTo(b.order);
 
+        /// World (origin at the recipe's own (0,0), Y up) to stage pixels — the one mapping every guide is
+        /// painted with. The drag hit-test (HandleBlastDrag) reuses this exact pair rather than re-deriving
+        /// it, so a dragged disc tracks the cursor under the same transform it was drawn with.
+        static Vector2 WorldToScreen(Vector2 world, Vector2 centre, float scale)
+            => new Vector2(centre.x + world.x * scale, centre.y - world.y * scale);
+
+        static Vector2 ScreenToWorld(Vector2 screen, Vector2 centre, float scale)
+            => new Vector2((screen.x - centre.x) / scale, (centre.y - screen.y) / scale);
+
         void DrawGuides(ChunkPreviewFrame f, Vector2 centre, float scale, float maxConePixels)
         {
-            Vector2 ToScreen(Vector2 p) => new Vector2(centre.x + p.x * scale, centre.y - p.y * scale);
+            Vector2 ToScreen(Vector2 p) => WorldToScreen(p, centre, scale);
 
             f.Guides.Sort(ByOrder);
             f.Paths.Sort(PathsByOrder);
