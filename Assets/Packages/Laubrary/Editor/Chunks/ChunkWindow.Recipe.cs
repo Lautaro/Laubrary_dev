@@ -31,7 +31,7 @@ namespace Laubrary.Chunks.Editor
             ("Fragment Fracture", "scissors", () => new FragmentFracture()),
             ("Palette Splash",    "palette",  () => new PaletteSplash()),
             ("Pyre Blast",        "flame",    () => new PyreBlast()),
-            ("Trajectory",        "path",     () => new Trajectory()),
+            ("Fling",             "path",     () => new Trajectory()),
             ("Trail",             "cloud",    () => new Trail()),
             ("Hits",              "target",   () => new Hits()),
             ("Layer Plan",        "stack",    () => new LayerPlan()),
@@ -189,7 +189,7 @@ namespace Laubrary.Chunks.Editor
                 case FragmentFracture _: return "Cuts a picture into pieces and flings them.";
                 case PaletteSplash _:    return "Sprays small particles in the colours of a picture.";
                 case PyreBlast _:        return "Spawns an effect — one, or a whole pattern of them.";
-                case Trajectory _:       return "Flies what a blast spawned along an arc.";
+                case Trajectory _:       return "Flings what a Pyre Blast spawned along an arc.";
                 case Trail _:            return "Leaves puffs behind the pieces another capability throws.";
                 case Hits _:             return "Lets the pieces another capability throws deal damage.";
                 case LayerPlan _:        return "The named depth slots this recipe's output draws in.";
@@ -292,7 +292,7 @@ namespace Laubrary.Chunks.Editor
                         if (stack[i] != null && mod.CanTarget(stack[i])) return null;
 
                 return mod is Trajectory
-                    ? "Nothing to fly yet — a trajectory moves what a Pyre Blast spawned, so add a Pyre Blast first."
+                    ? "Nothing to fling yet — a fling moves what a Pyre Blast spawned, so add a Pyre Blast first."
                     : "Nothing to decorate yet — this acts on the pieces a Debris Scatter or a Fragment " +
                       "Fracture throws, so add one of those first.";
             }

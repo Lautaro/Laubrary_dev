@@ -27,7 +27,7 @@ namespace Laubrary.Chunks
             for (int i = 0; i < placements.Count; i++)
             {
                 var p = placements[i];
-                if (p.Delay <= 0f) { blast.SpawnOne(ctx, p.Position, p.Index); continue; }
+                if (p.Delay <= 0f) { blast.SpawnOne(ctx, p.Position, p.Index, centre); continue; }
                 (delayed ??= new List<SpawnPlacement>()).Add(p);
             }
 
@@ -37,10 +37,11 @@ namespace Laubrary.Chunks
             if (delayed == null) return;
 
             delayed.Sort((a, b) => a.Delay.CompareTo(b.Delay));
-            ctx.Runner.StartCoroutine(FireStaggered(ctx, blast, delayed));
+            ctx.Runner.StartCoroutine(FireStaggered(ctx, blast, delayed, centre));
         }
 
-        static IEnumerator FireStaggered(ChunkModuleContext ctx, PyreBlast blast, List<SpawnPlacement> delayed)
+        static IEnumerator FireStaggered(ChunkModuleContext ctx, PyreBlast blast, List<SpawnPlacement> delayed,
+                                         Vector3 centre)
         {
             float elapsed = 0f;
             for (int i = 0; i < delayed.Count; i++)
@@ -51,7 +52,7 @@ namespace Laubrary.Chunks
                 // The container can be gone by the time a later point wakes (a short burst, a scene change) —
                 // bail rather than spawn into a destroyed parent.
                 if (ctx.Container == null) yield break;
-                blast.SpawnOne(ctx, delayed[i].Position, delayed[i].Index);
+                blast.SpawnOne(ctx, delayed[i].Position, delayed[i].Index, centre);
             }
         }
     }

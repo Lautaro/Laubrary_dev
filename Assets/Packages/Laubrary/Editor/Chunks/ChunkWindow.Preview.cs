@@ -374,6 +374,16 @@ namespace Laubrary.Chunks.Editor
                     Handles.DrawSolidDisc(new Vector3(at.x, at.y, 0f), Vector3.forward, r);
                     Handles.color = Fade(g.color, Mathf.Min(1f, g.alpha * 1.1f));
                     Handles.DrawWireDisc(new Vector3(at.x, at.y, 0f), Vector3.forward, r);
+
+                    // Orientation tick: a round footprint otherwise cannot show which way it faces at all — a
+                    // Fling with Face velocity or Spin turned on is invisible without this (WALK.md G5).
+                    if (g.showAngle)
+                    {
+                        float rad = -g.angleDeg * Mathf.Deg2Rad;   // screen y runs down, so the turn inverts
+                        var tip = new Vector3(at.x + Mathf.Cos(rad) * r, at.y + Mathf.Sin(rad) * r, 0f);
+                        Handles.color = Fade(g.color, Mathf.Min(1f, g.alpha * 1.3f));
+                        Handles.DrawAAPolyLine(2.5f, new Vector3(at.x, at.y, 0f), tip);
+                    }
                     break;
                 case ChunkGuideShape.Ring:
                     Handles.DrawWireDisc(new Vector3(at.x, at.y, 0f), Vector3.forward, r);

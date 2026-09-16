@@ -45,7 +45,8 @@ namespace Laubrary.Chunks.Editor
     {
         public Vector2 pos;
         public float radius;      // world units: half-extent of a square, radius of a dot/disc/ring
-        public float angleDeg;    // squares only
+        public float angleDeg;    // squares always; discs only when showAngle is set (a Fling orientation tick)
+        public bool showAngle;    // discs only — a square always draws its angle, so this has no effect there
         public float alpha;
         public Color color;
         public ChunkGuideShape shape;
@@ -572,9 +573,14 @@ namespace Laubrary.Chunks.Editor
                 if (since > blast) continue;   // gone, not held on its last frame
 
                 var pos = at;
+                // Orientation tick: the only way a round footprint can show it is flying oriented at all
+                // (Face velocity and/or Spin — G5). false leaves the disc's angleDeg unused, same as before
+                // this existed.
+                bool oriented = false;
+                float discAngleDeg = 0f;
                 if (flight != null)
                 {
-                    var velocity = LaunchOf(flight, spec, placement.Index);
+                    var velocity = LaunchOf(flight, spec, placement.Index, centre, at, out float spinDegPerSec);
                     var path = Fly(at, velocity, flight.gravity, flight.drag,
                                    flight.untilTargetEnds ? since : Mathf.Min(since, Mathf.Max(0.01f, flight.lifeSeconds)),
                                    false, 0f, 0f, 0f, false, PathScratch);
@@ -585,6 +591,18 @@ namespace Laubrary.Chunks.Editor
                             points = Thin(PathScratch),
                             alpha = 0.65f, color = tinted, order = order - 1,
                         });
+
+                    oriented = flight.faceVelocity || spinDegPerSec != 0f;
+                    if (oriented)
+                    {
+                        float spinAngle = spinDegPerSec * since;
+                        // Preview never models a Pyre Blast's OWN spawn rotation (rotationMode) for a Disc —
+                        // only what Fling itself contributes, matching the runtime baseline captured at the
+                        // moment ChunkModuleRunner.Move starts driving the spawn.
+                        discAngleDeg = flight.faceVelocity
+                            ? Mathf.Atan2(path.velocity.y, path.velocity.x) * Mathf.Rad2Deg + spinAngle
+                            : spinAngle;
+                    }
                 }
 
                 into.Guides.Add(new ChunkGuide
@@ -594,6 +612,7 @@ namespace Laubrary.Chunks.Editor
                     // authored length — the same three multiplied onto the renderer at runtime.
                     alpha = (1f - Mathf.Clamp01(since / blast)) * tintAlpha * BlastAlpha(b, seed, placement.Index),
                     color = tinted, shape = ChunkGuideShape.Disc, order = order,
+                    angleDeg = discAngleDeg, showAngle = oriented,
                     label = Placements.Count > 1 ? rank.ToString() : null,
                 });
                 drawn++;
@@ -601,16 +620,24 @@ namespace Laubrary.Chunks.Editor
             return drawn;
         }
 
-        /// The launch one blast gets from a Trajectory, mirroring Trajectory.Apply's own draws.
-        static Vector2 LaunchOf(Trajectory t, ChunkSpec spec, int index)
+        /// The launch one blast gets from a Trajectory (a.k.a. Fling), mirroring Trajectory.Apply's own draws
+        /// — same three rng draws, same order (speed, direction spread, spin), same ResolveCentreDeg — so the
+        /// preview can never show a direction or a spin the burst will not actually take.
+        static Vector2 LaunchOf(Trajectory t, ChunkSpec spec, int index, Vector2 patternCentre, Vector2 point,
+                                out float spinDegPerSec)
         {
             var rng = new ChunkRng(Seed(t, t.seed), index);
             float lo = Mathf.Min(t.speedMin, t.speedMax), hi = Mathf.Max(t.speedMin, t.speedMax);
             float speed = rng.Range(lo, hi);
-            float centreDeg = t.inheritBurstDirection ? (spec != null ? spec.directionDeg : 0f) : t.directionDeg;
+            float burstDeg = spec != null ? spec.directionDeg : 0f;
+            float centreDeg = Trajectory.ResolveCentreDeg(t.directionMode, t.directionDeg, burstDeg,
+                                                          patternCentre, point);
             float rad = (centreDeg + rng.Range(-t.spreadDeg, t.spreadDeg)) * Mathf.Deg2Rad;
             var velocity = new Vector2(Mathf.Cos(rad), Mathf.Sin(rad)) * speed;
             velocity.y += t.upwardBias;
+
+            float spinLo = Mathf.Min(t.spinDegMin, t.spinDegMax), spinHi = Mathf.Max(t.spinDegMin, t.spinDegMax);
+            spinDegPerSec = rng.Range(spinLo, spinHi);
             return velocity;
         }
 

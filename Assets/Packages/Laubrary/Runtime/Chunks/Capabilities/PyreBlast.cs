@@ -261,7 +261,13 @@ namespace Laubrary.Chunks
         ///
         /// orderOffset sub-orders several blasts of one fire within their shared layer slot, and doubles as
         /// the per-instance index so a Trajectory can fan them out instead of flying them identically.
-        public Transform SpawnOne(in ChunkModuleContext ctx, Vector3 worldPos, int orderOffset = 0)
+        ///
+        /// patternCentre is where THIS blast's own pattern is centred (its offset from the recipe origin) —
+        /// null for a lone spawn with no pattern of its own, in which case worldPos stands in for it (a
+        /// Trajectory's Outward mode then has no distance to fly away from, and falls back to the burst's own
+        /// aim — see Trajectory.ResolveCentreDeg).
+        public Transform SpawnOne(in ChunkModuleContext ctx, Vector3 worldPos, int orderOffset = 0,
+                                  Vector3? patternCentre = null)
         {
             var spawner = PickSpawner();
             if (spawner == null) return null;
@@ -280,7 +286,7 @@ namespace Laubrary.Chunks
 
             // Flight is a DECORATION on a spawn rather than a spawn of its own, so it is applied at the one
             // point in Chunks that ever holds a freshly spawned blast's transform.
-            ctx.Spec?.FindModifier<Trajectory>(this)?.Apply(ctx, spawned, orderOffset);
+            ctx.Spec?.FindModifier<Trajectory>(this)?.Apply(ctx, spawned, orderOffset, patternCentre ?? worldPos);
 
             return spawned;
         }
