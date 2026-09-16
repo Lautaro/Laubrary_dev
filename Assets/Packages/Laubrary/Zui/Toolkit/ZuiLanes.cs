@@ -131,6 +131,15 @@ namespace Laubrary.Zui
         /// on untouched. Every change raised within one drag collapses into ONE Undo step.
         public Action<int, float> OnLaneMoved;
 
+        /// Fires with the lane index when its NAME in the gutter is clicked — the route from a lane to the
+        /// thing it stands for (a host scrolls to that lane's card). Left null, the names stay a legend and a
+        /// press on them scrubs like anywhere else. <see cref="LaneLabelHint"/> is added to each name's
+        /// tooltip so the click is discoverable.
+        public Action<int> OnLaneLabelClicked;
+
+        /// What clicking a lane's name does, in the host's words ("Click to go to this card.").
+        public string LaneLabelHint;
+
         const float LaneGap = 3f;
         const float RulerHeight = 14f;
         const float TickFontSize = 9f;
@@ -580,6 +589,23 @@ namespace Laubrary.Zui
                 l.style.whiteSpace = WhiteSpace.NoWrap;
                 l.style.textOverflow = TextOverflow.Ellipsis;
                 if (lane.Dim) l.style.opacity = 0.45f;
+                if (OnLaneLabelClicked != null)
+                {
+                    int index = i;
+                    l.pickingMode = PickingMode.Position;
+                    l.AddToClassList("zui-lanes__gutter-label--link");
+                    l.tooltip = string.IsNullOrEmpty(lane.Tooltip)
+                        ? LaneLabelHint
+                        : string.IsNullOrEmpty(LaneLabelHint) ? lane.Tooltip : lane.Tooltip + " " + LaneLabelHint;
+                    // Stopped here so the root's scrub never sees the press: a click on a name is a jump,
+                    // not a seek.
+                    l.RegisterCallback<PointerDownEvent>(e =>
+                    {
+                        if (e.button != 0) return;
+                        e.StopPropagation();
+                        OnLaneLabelClicked?.Invoke(index);
+                    });
+                }
                 _gutter.Add(l);
             }
         }

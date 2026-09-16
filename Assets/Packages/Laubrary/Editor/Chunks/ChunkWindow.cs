@@ -99,6 +99,7 @@ namespace Laubrary.Chunks.Editor
             // Every element reference below is about to be destroyed with the tree.
             cards.Clear();
             cardBodies.Clear();
+            cardChips.Clear();
             lanes = null;
             stage = null;
             playButton = null;
