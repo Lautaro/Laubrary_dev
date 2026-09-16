@@ -22,11 +22,16 @@ namespace Laubrary.Chunks
 
         // ── what gets cut ─────────────────────────────────────────────────────────
         [Tooltip("Animated content to fracture — a Zoe, a Pyre, anything that can hand over frames. Its FIRST " +
-                 "frame is the picture that gets cut, so a character comes apart in the pose it was in.")]
+                 "frame is the picture that gets cut, so a character comes apart in the pose it was in. Ignored " +
+                 "while a live sample source is supplied by the caller (e.g. a Zoe's current sprite, forwarded " +
+                 "automatically by a Zoe-attached Spawn Chunks effect) — that live frame outranks this and the " +
+                 "fallback sprite below; this is what a standalone burst with no Zoe context uses.")]
         public Object sourceVisual;
 
-        [Tooltip("The plain sprite that gets cut, used when no animated source is set. Its texture needs " +
-                 "Read/Write Enabled or nothing can be cut.")]
+        [Tooltip("The plain sprite that gets cut when Source above has nothing to offer and no live sample " +
+                 "source is supplied by the caller. Its texture needs Read/Write Enabled or nothing can be cut. " +
+                 "Ignored while a live sample source is supplied; this is what a standalone burst with no Zoe " +
+                 "context falls back to.")]
         public Sprite source;
 
         [Tooltip("How many pieces the picture is cut into. 2–6 keeps each piece recognisable as part of it.")]
@@ -91,8 +96,11 @@ namespace Laubrary.Chunks
 
         public override float DurationSeconds(ChunkSpec spec) => Mathf.Max(0.01f, Mathf.Max(lifeMin, lifeMax));
 
-        /// The ONE place the source precedence is decided — animated content first, plain sprite second — so
-        /// no caller (the fire, the preview, a Palette Splash borrowing it) re-derives it and drifts.
+        /// The ONE place the AUTHORED source precedence is decided — animated content first, plain sprite
+        /// second — so no caller (the standalone editor preview, a Palette Splash borrowing it) re-derives it
+        /// and drifts. This is also what a burst falls back to when the caller supplied no live override; see
+        /// <see cref="ResolveSource(in ChunkModuleContext)"/> for the live-override-aware version a real Fire
+        /// actually uses.
         ///
         /// Animated content wins because it is what the thing WAS at the instant it broke, and only its first
         /// usable frame is taken. It deliberately falls THROUGH to the plain sprite when the animation yields
@@ -112,15 +120,27 @@ namespace Laubrary.Chunks
             return source;
         }
 
-        /// Whether this is actually pointed at anything — what a UI asks before warning that a burst will
-        /// produce no fragments.
+        /// The picture this fracture would actually cut RIGHT NOW: the caller's live override when the burst
+        /// has one (a Zoe's current on-screen frame, forwarded through <see cref="ChunkModuleContext.SampleSourceOverride"/>
+        /// exactly the way DebrisScatter's own ResolvedSampleSource reads it — same plumbing, no second
+        /// mechanism), else the authored source above. This is the ONE place that priority is decided for a
+        /// real burst, so a live Zoe frame always outranks whatever art is separately authored on the recipe.
+        public Sprite ResolveSource(in ChunkModuleContext ctx)
+            => ctx.SampleSourceOverride != null ? ctx.SampleSourceOverride : ResolveSource();
+
+        /// Whether the AUTHORED source is actually pointed at anything — what a UI asks before warning that a
+        /// standalone burst will produce no fragments. Deliberately unaware of any live caller override, the
+        /// same shape as DebrisScatter's UsesSampledDebris: the standalone editor preview has no live burst to
+        /// read one from.
         public bool HasSource => ResolveSource() != null;
 
         public override void Fire(in ChunkModuleContext ctx)
         {
             if (ctx.Container == null || ctx.Runner == null) return;
 
-            var src = ResolveSource();
+            // A live caller override (the Zoe's current frame) always outranks the authored source, the same
+            // priority DebrisScatter's ResolvedSampleSource gives it — see ResolveSource(in ChunkModuleContext).
+            var src = ResolveSource(in ctx);
             if (src == null) return;   // no art, no honest output, and a log per burst would be noise
 
             // Seed 0 means "reroll every play", which also means the cut can never be cached (its key would

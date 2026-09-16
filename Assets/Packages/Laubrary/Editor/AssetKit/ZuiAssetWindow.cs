@@ -75,8 +75,49 @@ namespace Laubrary.AssetKit.Editor
         {
             if (ReferenceEquals(asset, next)) return;
             asset = next; creating = false; renaming = false;
+            if (next != null) RememberLastAsset(next);
             OnAssetChanged();
             Rebuild();
+        }
+
+        // ── remember / restore the last-open asset (T-0350) ─────────────────────────────
+        // [SerializeField] `asset` above only survives a domain reload of a window that stayed OPEN —
+        // Unity re-serializes an open EditorWindow's fields into the current layout across a recompile.
+        // Closing the window discards that instance entirely; reopening via the menu item creates a
+        // brand-new instance with every field back at its default, which is why Chunks/Pyre/every other
+        // ZuiAssetWindow dropped straight to the browser on reopen. EditorPrefs is the only thing that
+        // outlives a closed window, so the last non-sub-asset this window type edited is mirrored there,
+        // keyed by concrete type AND this project's path (EditorPrefs is machine-global, not project-
+        // scoped, so two Laubrary projects — or two window types — must not clobber each other's key).
+        static string LastAssetPrefsKey => $"Laubrary.AssetKit.LastAsset.{typeof(T).FullName}.{Application.dataPath}";
+
+        static void RememberLastAsset(T item)
+        {
+            // A sub-asset (e.g. a Zoe's embedded private Chunks) shares its file with whatever owns it and
+            // is only ever reached via an external "Edit" entry point (LauAssetEditors.Open) that explicitly
+            // calls SetAsset right after opening — never worth restoring on a cold reopen of the plain window.
+            if (AssetDatabase.IsSubAsset(item)) return;
+            string path = AssetDatabase.GetAssetPath(item);
+            if (string.IsNullOrEmpty(path)) return;
+            string guid = AssetDatabase.AssetPathToGUID(path);
+            if (!string.IsNullOrEmpty(guid)) EditorPrefs.SetString(LastAssetPrefsKey, guid);
+        }
+
+        // Only called from OnEnable when `asset` is still at its default AND the window isn't already
+        // showing the browser on purpose — both true for a genuine cold reopen, both already correctly
+        // populated by Unity's own field serialization for a domain-reload of a window that was left
+        // open, so this never fights that path or a caller's explicit SetAsset right after GetWindow
+        // (e.g. double-clicking an asset, or a Mirage handoff — both run AFTER OnEnable and win outright).
+        void TryRestoreLastAsset()
+        {
+            string guid = EditorPrefs.GetString(LastAssetPrefsKey, "");
+            if (string.IsNullOrEmpty(guid)) return;
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            if (string.IsNullOrEmpty(path)) return;   // asset deleted/moved since — fall back silently to the browser
+            var restored = AssetDatabase.LoadAssetAtPath<T>(path);
+            if (restored == null) return;             // wrong type at that path, or failed to load — same silent fallback
+            asset = restored;
+            OnAssetChanged();
         }
 
         protected void RefreshBrowse()
@@ -92,6 +133,7 @@ namespace Laubrary.AssetKit.Editor
 
         protected virtual void OnEnable()
         {
+            if (asset == null && !browsing) TryRestoreLastAsset();
             EditorApplication.projectChanged += OnProjectChanged;
             if (AnimateThumbnails) EditorApplication.update += TickThumbAnimation;
             // So an edited asset's browser thumbnail refreshes immediately instead of showing a stale

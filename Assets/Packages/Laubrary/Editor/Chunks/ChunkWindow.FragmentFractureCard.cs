@@ -18,7 +18,8 @@ namespace Laubrary.Chunks.Editor
             body.Add(Z.Field("Source",
                 "Animated content to fracture — a Zoe, a Pyre, anything that can hand over frames. Its FIRST " +
                 "frame is the picture that gets cut, so a character comes apart in the pose it was in. Outranks " +
-                "the plain sprite below.",
+                "the plain sprite below. When a Zoe triggers this burst, its live current sprite outranks both " +
+                "this and the fallback sprite below — this is what a standalone burst uses instead.",
                 AssetPicker(cap.sourceVisual,
                             o => DialAndRebuildCard(id, "Set Fracture Source", () => cap.sourceVisual = o),
                             typeof(IChunkAnimation), "Source",
@@ -28,7 +29,9 @@ namespace Laubrary.Chunks.Editor
             // codebase (Pyre, BackSplash, Cartographer, SpriteFx); AssetPicker's LauAsset chip only browses
             // registered LauAsset types and would show nothing for a plain imported sprite.
             body.Add(Z.Field("Fallback sprite",
-                "The plain sprite that gets cut when Source above is empty. Its texture needs Read/Write Enabled.",
+                "The plain sprite that gets cut when Source above is empty. Its texture needs Read/Write " +
+                "Enabled. When a Zoe triggers this burst, its live current sprite outranks this too — this is " +
+                "what a standalone burst uses instead.",
                 Z.Object<Sprite>(cap.source, "The plain sprite that gets cut when Source above is empty.",
                     v => Dial("Set Fracture Sprite", () => cap.source = v), 200f)));
 
