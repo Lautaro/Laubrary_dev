@@ -449,15 +449,16 @@ namespace Laubrary.Chunks.Editor
         }
 
         // ── Palette Splash ────────────────────────────────────────────────────────────────────────────────
-        // Same shape of compromise as the fracture: the counts, sizes, speeds, cone (half-spread, as
-        // PaletteSplash.Fire uses it) and lives are exact; the footprint the particles are emitted FROM is a
-        // scatter inside the source's bounds rather than a per-pixel scan, which needs GetPixels.
+        // Same shape of compromise as the fracture: the counts, sizes, speeds, cone (half-angle, matching
+        // PaletteSplash.Fire's ± spreadDeg — T-0363 fixed both to agree with Debris Scatter/Fragment Fracture)
+        // and lives are exact; the footprint the particles are emitted FROM is a scatter inside the source's
+        // bounds rather than a per-pixel scan, which needs GetPixels.
 
         static int Splash(ChunkSpec spec, PaletteSplash s, float local, bool pending,
                           Color colour, int order, int budget, ChunkPreviewFrame into)
         {
             float centreDeg = s.inheritBurstDirection ? (spec != null ? spec.directionDeg : 0f) : s.directionDeg;
-            AddCone(into, Vector2.zero, centreDeg, s.spreadDeg * 0.5f, ConeRadius(s.speedMax, s.lifeMax),
+            AddCone(into, Vector2.zero, centreDeg, s.spreadDeg, ConeRadius(s.speedMax, s.lifeMax),
                     pending ? PendingAlpha : 0.5f, colour, order);
             if (pending) return 0;
 
@@ -486,7 +487,7 @@ namespace Laubrary.Chunks.Editor
                 }
                 rng.Next(ShapeCount);                      // the shard shape pick
                 float px = Mathf.Max(0.1f, rng.Range(sizeLo, sizeHi));
-                float rad = (centreDeg + rng.Range(-s.spreadDeg * 0.5f, s.spreadDeg * 0.5f)) * Mathf.Deg2Rad;
+                float rad = (centreDeg + rng.Range(-s.spreadDeg, s.spreadDeg)) * Mathf.Deg2Rad;
                 float speed = rng.Range(speedLo, speedHi);
                 float life = rng.Range(lifeLo, lifeHi);
 

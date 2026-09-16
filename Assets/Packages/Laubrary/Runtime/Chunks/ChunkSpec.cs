@@ -510,7 +510,14 @@ namespace Laubrary.Chunks
                     continue;
                 }
 
-                if (c is PaletteSplash splash && splash.sprite != null) { still = splash.sprite; return; }
+                if (c is PaletteSplash splash)
+                {
+                    var sampled = splash.ResolveSprite(this);
+                    if (splash.sourceVisual != null && splash.sourceVisual is IVisualPreview splashVp)
+                    { animated = splashVp; still = sampled; return; }
+                    if (sampled != null) { still = sampled; return; }
+                    continue;
+                }
 
                 if (c is PyreBlast blast)
                 {

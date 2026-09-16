@@ -15,13 +15,30 @@ namespace Laubrary.Chunks.Editor
             string id = cap.id;
 
             // ── what gets sampled ─────────────────────────────────────────────────
+            // Same two-field shape as FragmentFractureCard's Source/Fallback sprite: a reference is always a
+            // picker (never a typed name), so a Zoe shows up here by NAME, found the same way Fracture's
+            // Source already finds one (T-0363/T-0364 J1 — searching "Floating Disc" used to find nothing
+            // because only a raw Sprite field existed).
+            body.Add(Z.Field("Source",
+                "Animated content to sample colours AND the emission footprint from — a Zoe, a Pyre, anything " +
+                "that can hand over frames. Its FIRST frame is what gets sampled. Outranks the plain sprite " +
+                "below. When a Zoe triggers this burst, its live current sprite outranks both this and the " +
+                "fallback sprite below — this is what a standalone burst uses instead.",
+                AssetPicker(cap.sourceVisual,
+                            o => DialAndRebuildCard(id, "Set Splash Source", () => cap.sourceVisual = o),
+                            typeof(IChunkAnimation), "Source",
+                            "Animated content to sample colours and the emission footprint from. Its first " +
+                            "frame is what gets sampled.")));
+
             // A plain Sprite, not a LauAsset — Z.Object<T>, matching every other raw-Sprite field in the
             // codebase (Pyre, BackSplash, Cartographer, SpriteFx); AssetPicker's LauAsset chip only browses
             // registered LauAsset types and would show nothing for a plain imported sprite.
-            body.Add(Z.Field("Sprite",
-                "Sprite to sample colours AND the emission footprint from. Empty uses whatever a Fragment " +
-                "Fracture in this recipe is cutting.",
-                Z.Object<Sprite>(cap.sprite, "Sprite to sample colours and the emission footprint from.",
+            body.Add(Z.Field("Fallback sprite",
+                "The plain sprite to sample colours AND the emission footprint from, when Source above is " +
+                "empty and no live sample source is supplied by the caller. Empty uses whatever a Fragment " +
+                "Fracture in this recipe is cutting; when a Zoe triggers this burst, its live current sprite " +
+                "outranks this too.",
+                Z.Object<Sprite>(cap.sprite, "The plain sprite to sample colours and the emission footprint from.",
                     v => Dial("Set Splash Sprite", () => cap.sprite = v), 200f)));
 
             body.Add(Z.Toggle("From footprint",
