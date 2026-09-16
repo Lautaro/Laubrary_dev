@@ -88,6 +88,17 @@ namespace Laubrary.Chunks
         [HideInInspector] public AnimationCurve alphaOverLife = DefaultAlphaCurve();
         [SerializeField, HideInInspector] bool curvesMigrated;
 
+        // Legacy migration source ONLY (T-0373) — MigrateLegacyCurves() below (reused as this capability's
+        // general one-time-upgrade hook, same guarded pattern as Trajectory's directionModeMigrated) halves
+        // spreadDeg once for a splash saved before the runtime fix (commit 84973994) changed Spread's meaning
+        // from a silently-halved half-angle to a true ± half-angle spray — Spread 180 used to read as an
+        // upward half circle and now reads as a full circle, so an old recipe's on-screen cone would silently
+        // double without this. Never read directly again. Guarded so it costs nothing once migrated, and
+        // independent of curvesMigrated so either upgrade can land without waiting on the other. A brand-new
+        // splash is born migrated (see MarkBornMigrated) and authors spreadDeg under the corrected meaning
+        // directly, with no halving ever applied.
+        [SerializeField, HideInInspector] bool spreadMigrated;
+
         [Tooltip("Opacity across a particle's life, left (spawn) to right (death).")]
         public List<ZUIEnvelopePoint> alphaEnvelope = new List<ZUIEnvelopePoint>();
 
@@ -96,11 +107,35 @@ namespace Laubrary.Chunks
 
         public override bool MigrateLegacyCurves()
         {
-            if (curvesMigrated) return false;
-            alphaEnvelope = SampleCurveToEnvelope(alphaOverLife, 1f);
-            curvesMigrated = true;
-            return true;
+            bool changed = false;
+            if (!curvesMigrated)
+            {
+                alphaEnvelope = SampleCurveToEnvelope(alphaOverLife, 1f);
+                curvesMigrated = true;
+                changed = true;
+            }
+            if (!spreadMigrated)
+            {
+                // In-memory only — this never saves the asset itself (ChunkSpec.UpgradeIfNeeded just marks
+                // NeedsSaving; the owner's own edit/save is what actually persists it), exactly like every
+                // other capability's legacy-curve upgrade.
+                spreadDeg *= 0.5f;
+                spreadMigrated = true;
+                changed = true;
+            }
+            return changed;
         }
+
+        /// Called ONLY by the Add-menu factory (ChunkWindow.Recipe.cs) right after `new PaletteSplash()`, never
+        /// by deserialization — same born-migrated pattern as <see cref="Trajectory.MarkBornMigrated"/>
+        /// (T-0368/2). A capability built this way has no legacy pre-fix spread to convert, so this marks
+        /// spreadMigrated up front: MigrateLegacyCurves() then never halves spreadDeg for it, and whatever the
+        /// user authors on the card survives every domain reload under the corrected meaning. It deliberately
+        /// does NOT touch curvesMigrated — a fresh splash still wants its default alphaOverLife converted into
+        /// alphaEnvelope on first load, the same as before this change. An asset saved before spreadMigrated
+        /// existed never runs through this method — it deserializes with the flag at the C# default (false)
+        /// and still migrates exactly once, as before.
+        public void MarkBornMigrated() => spreadMigrated = true;
 
         public override float DurationSeconds(ChunkSpec spec) => Mathf.Max(0.02f, Mathf.Max(lifeMin, lifeMax));
 

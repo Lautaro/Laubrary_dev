@@ -33,7 +33,11 @@ namespace Laubrary.Chunks.Editor
         {
             ("Debris Scatter",    "star",     () => new DebrisScatter()),
             ("Fragment Fracture", "scissors", () => new FragmentFracture()),
-            ("Palette Splash",    "palette",  () => new PaletteSplash()),
+            // Born migrated (T-0373): a freshly-added splash has no legacy pre-fix spread to convert, so
+            // MarkBornMigrated() stops MigrateLegacyCurves() from ever halving spreadDeg for it — the user's
+            // authored Spread then means exactly what the slider says instead of being silently doubled-then-
+            // corrected on the next load. Same pattern as Fling below.
+            ("Palette Splash",    "palette",  () => { var p = new PaletteSplash(); p.MarkBornMigrated(); return p; }),
             ("Pyre Blast",        "flame",    () => new PyreBlast()),
             // Born migrated (T-0368/2): a freshly-added Fling has no legacy inheritBurstDirection choice to
             // convert, so MarkBornMigrated() stops MigrateLegacyCurves() from ever touching it — the user's
