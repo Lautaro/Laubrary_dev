@@ -129,6 +129,7 @@ GameObject:
   m_Component:
   - component: {fileID: 122828037}
   - component: {fileID: 122828036}
+  - component: {fileID: 122828038}
   m_Layer: 0
   m_Name: Disc Spawner
   m_TagString: Untagged
@@ -169,6 +170,31 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &122828038
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 122828035}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b02b5a0f5407a8047aaec136e9f72964, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Demos::Laubrary.Demos.ProtoGuyDemo.ChunksUCDeathSwitcher
+  spawner: {fileID: 122828036}
+  entries:
+  - recipe: {fileID: 11400000, guid: 8a2347c27e0269441b1485fa580166b1, type: 2}
+    key: 4
+    label: UC4 Zoe Spray
+  - recipe: {fileID: 11400000, guid: 1be0311e0ee86164fae2ba7cce16fa24, type: 2}
+    key: 5
+    label: UC5 Disc Fracture
+  - recipe: {fileID: 11400000, guid: 930b1be39ad6e4449af078af73355b8b, type: 2}
+    key: 6
+    label: UC6 Disc Breakup
+  restoreKey: 0
+  showKeyLegend: 1
 --- !u!1 &1395470066
 GameObject:
   m_ObjectHideFlags: 0
