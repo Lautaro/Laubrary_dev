@@ -6,10 +6,16 @@
 // not have them; the rest pack into rows of short controls; the layer slot is last because it answers "where
 // does this draw", not "what is this".
 //
-// Every write goes through Dial (or DialAndRebuildCard where the answer changes which controls exist). The
-// card never touches the stack, the clock, the preview or undo directly.
+// Every write goes through Dial (or DialAndRebuildCard where the answer changes which controls exist), with
+// ONE deliberate exception: keeping "On screen" equal to the blast's own real play length while Auto is on
+// (T-0356) is a data-CONSISTENCY correction, not a user edit, so it is applied directly (see the top of
+// BuildPyreBlastCard) rather than through Dial — it must not create its own Undo step or fire a repaint/
+// timing cascade every time this card is merely built, only when the number it corrects to actually changes.
+// Every EXPLICIT edit that can change the answer (picking a Blast, adding/removing/setting an alternate)
+// still re-syncs it inside that edit's own Dial call, so the common case never depends on the passive path.
 using System.Collections.Generic;
 using Laubrary.Zui;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -31,6 +37,8 @@ namespace Laubrary.Chunks.Editor
         {
             string id = cap.id;
 
+            SyncAutoBlastSeconds(c, cap);
+
             // ── what gets spawned ────────────────────────────────────────────────
             // Picker and Pattern come FIRST and stay in that order regardless of which pattern is chosen —
             // the "rows above the switch never move" stable-workspace rule — so everything that only makes
@@ -38,8 +46,11 @@ namespace Laubrary.Chunks.Editor
             // the Pattern row and is absent, not disabled, for a Single blast (T-0360, F7/F11).
             body.Add(Z.Field("Blast",
                 "The effect spawned at each point of the pattern. Ignored while the alternates below hold anything.",
-                AssetPicker(cap.source, o => DialAndRebuildCard(id, "Set Blast", () => cap.source = o),
-                            typeof(IChunkEffectSpawner), "Blast",
+                AssetPicker(cap.source, o => DialAndRebuildCard(id, "Set Blast", () =>
+                {
+                    cap.source = o;
+                    TrySyncBlastSeconds(cap);
+                }), typeof(IChunkEffectSpawner), "Blast",
                             "The effect spawned at each point of the pattern.")));
 
             body.Add(Z.Field("Pattern",
@@ -59,12 +70,18 @@ namespace Laubrary.Chunks.Editor
                 {
                     int index = i;
                     var row = Z.Row(
-                        AssetPicker(cap.pool[index], o => DialAndRebuildCard(id, "Set Blast Alternate",
-                                                                            () => cap.pool[index] = o),
-                                    typeof(IChunkEffectSpawner), "Blast",
+                        AssetPicker(cap.pool[index], o => DialAndRebuildCard(id, "Set Blast Alternate", () =>
+                        {
+                            cap.pool[index] = o;
+                            TrySyncBlastSeconds(cap);
+                        }), typeof(IChunkEffectSpawner), "Blast",
                                     "One of the effects each spawn picks between."),
                         SmallButton("×", "Take this one out of the alternates.", true,
-                            () => DialAndRebuildCard(id, "Remove Blast Alternate", () => cap.pool.RemoveAt(index))));
+                            () => DialAndRebuildCard(id, "Remove Blast Alternate", () =>
+                            {
+                                cap.pool.RemoveAt(index);
+                                TrySyncBlastSeconds(cap);
+                            })));
                     alternates.Add(row);
                 }
                 var addAlternate = Z.Button("Add alternate",
@@ -74,6 +91,9 @@ namespace Laubrary.Chunks.Editor
                     {
                         cap.pool ??= new System.Collections.Generic.List<Object>();
                         cap.pool.Add(null);
+                        // No TrySyncBlastSeconds here — the new slot starts empty (RealSeconds returns null
+                        // for it), so it cannot lengthen the pool's longest, only the next asset picked into
+                        // it can (handled above, in that picker's own callback).
                     }));
                 addAlternate.style.width = 120f;
                 addAlternate.style.alignSelf = Align.FlexStart;
@@ -180,6 +200,31 @@ namespace Laubrary.Chunks.Editor
                                      () => { cap.randomAngleMinDeg = lo; cap.randomAngleMaxDeg = hi; }),
                     200f, showValue: true, decimals: 0));
 
+            // "On screen" — the recipe's clock, its timing bands and the preview flight are all sized from
+            // this ONE number (see PyreBlast.DurationSeconds and ChunkPreviewSim), so keeping it true is what
+            // makes every one of those agree with what the chosen Blast actually plays (T-0356). Auto (the
+            // default) reads it straight from the Blast/Alternates above; the slider goes read-only and shows
+            // that measured number so nothing here can drift from the picker above it. Off hands the number
+            // back to typing, for the two real cases where Auto cannot be trusted: a source it cannot measure
+            // (the tooltip says so), or a deliberate pacing choice.
+            float? measured = ChunkPyreBlastLength.RealSeconds(cap);
+            bool autoShowsMeasured = cap.blastSecondsAuto && measured.HasValue;
+            string onScreenTooltip = cap.blastSecondsAuto
+                ? (measured.HasValue
+                    ? "The chosen Blast's own real play length (the longest of the Alternates, once there is " +
+                      "more than one), read automatically. Turn Auto off to type a number by hand instead."
+                    : "Auto is on, but this picker's source is not one this window can read a length from, so " +
+                      "the number below is whatever was last typed. Turn Auto off to make that explicit, or " +
+                      "pick a Pyre / Pyre Spawn Source to measure one.")
+                : "Typed by hand. This sizes the recipe's clock, its timing bands and the preview flight only " +
+                  "— it never cuts a blast short. Turn Auto on to match the chosen Blast's own real play " +
+                  "length instead.";
+            var onScreenSlider = Z.MicroSlider("On screen", autoShowsMeasured ? measured.Value : cap.blastSeconds,
+                0f, 8f, onScreenTooltip,
+                v => Dial("Edit Blast Length", () => cap.blastSeconds = Mathf.Max(0f, v)),
+                150f, showValue: true, decimals: 2);
+            onScreenSlider.SetEnabled(!cap.blastSecondsAuto);
+
             body.Add(Z.HGroup(
                 Z.MicroMinMax("Scale", cap.scaleMin, cap.scaleMax, 0.01f, 8f,
                     "The size band a blast comes out at. 1 is the effect's own authored size; both ends equal " +
@@ -187,11 +232,18 @@ namespace Laubrary.Chunks.Editor
                     (lo, hi) => Dial("Edit Blast Scale",
                                      () => { cap.scaleMin = Mathf.Max(0.01f, lo); cap.scaleMax = Mathf.Max(cap.scaleMin, hi); }),
                     180f, showValue: true, decimals: 2),
-                Z.MicroSlider("On screen", cap.blastSeconds, 0f, 8f,
-                    "Roughly how long one blast lasts. This sizes the recipe's clock only — it never cuts a " +
-                    "blast short.",
-                    v => Dial("Edit Blast Length", () => cap.blastSeconds = Mathf.Max(0f, v)),
-                    150f, showValue: true, decimals: 2)));
+                onScreenSlider,
+                Z.ToggleButton("Auto",
+                    cap.blastSecondsAuto
+                        ? "On screen matches the chosen Blast's own real play length automatically. Click to " +
+                          "type a number by hand instead."
+                        : "On screen is typed by hand. Click to match the chosen Blast's own real play length " +
+                          "automatically instead.",
+                    cap.blastSecondsAuto, v => DialAndRebuildCard(id, "Set Blast Length Auto", () =>
+                    {
+                        cap.blastSecondsAuto = v;
+                        TrySyncBlastSeconds(cap);
+                    }))));
 
             // Colour sits with Scale rather than with the pattern, because both answer "how does one blast
             // come out" — the pattern above answers "how many, and where".
@@ -221,6 +273,38 @@ namespace Laubrary.Chunks.Editor
 
             var slot = LayerSlotRow(c, () => cap.layerName, v => cap.layerName = v);
             if (slot != null) body.Add(slot);
+        }
+
+        /// While Auto is on, write the chosen Blast/Alternates' own real length into blastSeconds — a no-op
+        /// when Auto is off, the source's length cannot be measured, or the stored number already matches
+        /// (T-0356). Called from INSIDE an edit's own Dial `apply` (Blast/Alternates/Auto-toggle callbacks
+        /// above), so it rides that edit's existing Undo/dirty/SyncTiming — it never records an Undo step of
+        /// its own.
+        static void TrySyncBlastSeconds(PyreBlast cap)
+        {
+            if (cap == null || !cap.blastSecondsAuto) return;
+            float? real = ChunkPyreBlastLength.RealSeconds(cap);
+            if (real.HasValue) cap.blastSeconds = real.Value;
+        }
+
+        /// The passive twin of <see cref="TrySyncBlastSeconds"/>, run once whenever this card is BUILT rather
+        /// than only when it is explicitly edited — so a capability that has never been touched since T-0356
+        /// shipped (an old recipe authored against the 0.6s default, or one whose picked Pyre's own
+        /// frameCount/fps changed from outside this window) self-corrects the moment its card is next drawn,
+        /// instead of silently keeping a stale number until someone happens to re-pick its Blast. Written
+        /// directly rather than through Dial (see this file's header comment) — SetDirty only, no Undo, and
+        /// only when the number actually changes, so opening a window that has nothing to correct touches
+        /// nothing. RebuildStack calls SyncTiming AFTER every card finishes building, so a correction made
+        /// here during that pass still reaches the timing lanes for the initial build/open case; the
+        /// DialAndRebuildCard-driven edits above additionally self-sync inline because THEIR SyncTiming runs
+        /// before this card is rebuilt, not after.
+        static void SyncAutoBlastSeconds(ChunkSpec c, PyreBlast cap)
+        {
+            if (cap == null || !cap.blastSecondsAuto) return;
+            float? real = ChunkPyreBlastLength.RealSeconds(cap);
+            if (!real.HasValue || Mathf.Approximately(real.Value, cap.blastSeconds)) return;
+            cap.blastSeconds = real.Value;
+            if (c != null) EditorUtility.SetDirty(c);
         }
 
         /// Push an offset dragged directly on the preview stage (ChunkWindow.Preview.cs) into this

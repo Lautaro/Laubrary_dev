@@ -94,8 +94,10 @@ namespace Laubrary.Chunks.Editor
                 cap.faceVelocity, v => Dial("Set Fling Face Velocity", () => cap.faceVelocity = v)));
 
             body.Add(Z.Toggle("Until target ends",
-                "Fly until the blast ends itself, rather than for a fixed time. The right answer for anything " +
-                "that already knows when it is done.",
+                "Fly until the target's own 'On screen' length runs out (its Pyre Blast card, above 'On " +
+                "screen' — auto-matched to the blast's real play length unless that card's Auto is off), " +
+                "rather than for a fixed time here. The right answer for anything that already knows when it " +
+                "is done. Targeting Everything: whichever of the recipe's Pyre Blasts a spawn belongs to.",
                 cap.untilTargetEnds,
                 v => DialAndRebuildCard(id, "Set Fling Life Mode", () => cap.untilTargetEnds = v)));
 

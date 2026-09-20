@@ -121,9 +121,26 @@ namespace Laubrary.Chunks
         // answer a question only the recipe's clock cares about. So the length one blast reads as is authored
         // here, and it is used ONLY to size the clock — never to cut playback short.
         [Min(0f)]
-        [Tooltip("Roughly how long one blast stays on screen. Sizes the recipe's clock only; it never cuts a " +
-                 "blast short.")]
+        [Tooltip("How long one blast stays on screen. Sizes the recipe's clock, its timing bands and the " +
+                 "preview flight only; it never cuts a blast short.")]
         public float blastSeconds = 0.6f;
+
+        // T-0356: the walk found this drifting from the blast's own real length by a wide margin (a 0.6s
+        // guess against a Pyre that actually plays 1.33-1.67s) because nothing ever kept it in sync. Auto ON
+        // (the default, for capabilities old and new alike — see Editor/Chunks/ChunkWindow.PyreBlastCard.cs
+        // for why this is deliberately NOT gated to "new capabilities only") means the EDITOR keeps
+        // blastSeconds equal to the chosen source's own measured play length (longest of the pool's
+        // alternates, once it has more than one) every time it can measure one; Auto OFF is the escape hatch
+        // for the two real cases where that number is either wrong or unknowable: a source type the editor
+        // cannot read a length from (only Pyre and PyreSpawnSource are understood today), or a deliberate
+        // pacing choice — ending the recipe's clock before a long trailing fade actually finishes, or holding
+        // it open a beat after a short blast before the next thing fires. This field itself carries no Pyre
+        // dependency (a plain bool), so Chunks' runtime asmdef stays exactly as decoupled from Pyre as it always
+        // was; only the Editor assembly (which already references Pyre — see the asmdef) reads it.
+        [Tooltip("On: kept equal to the chosen Blast's own real play length automatically (the longest, once " +
+                 "the Alternates pool holds more than one). Off: type On screen by hand — for a source this " +
+                 "cannot measure a length for, or a deliberate pacing choice.")]
+        public bool blastSecondsAuto = true;
 
         /// source cast to the contract Chunks actually needs, or null if unset/incompatible.
         public IChunkEffectSpawner Source => source as IChunkEffectSpawner;

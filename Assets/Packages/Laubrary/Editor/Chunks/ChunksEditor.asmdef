@@ -13,7 +13,8 @@
         "com.Lautaro-Arino.Laubrary.Zui.Editor",
         "com.Lautaro-Arino.Laubrary.Layering",
         "com.Lautaro-Arino.Laubrary.BackSplash",
-        "com.Lautaro-Arino.Laubrary.BackSplash.Editor"
+        "com.Lautaro-Arino.Laubrary.BackSplash.Editor",
+        "com.Lautaro-Arino.Laubrary.Pyre"
     ],
     "includePlatforms": [
         "Editor"
