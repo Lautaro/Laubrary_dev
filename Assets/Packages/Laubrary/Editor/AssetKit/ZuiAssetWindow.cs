@@ -32,6 +32,13 @@ namespace Laubrary.AssetKit.Editor
         bool createFolderExplicit;
         bool renaming; string renameText = "";
 
+        // T-0379: filter typed into the toolbar's search field, applied to the browser grid only (transient
+        // UI state, not asset data — never [SerializeField]). _filterFocusPending is set right before a
+        // filter-driven Rebuild() so the freshly-rebuilt field can reclaim focus/caret without the toolbar
+        // stealing focus on every OTHER rebuild (asset switch, undo, project change, …).
+        string _browseFilter = "";
+        bool _filterFocusPending;
+
         // browser state
         List<T> _browse;
         readonly Dictionary<T, Texture2D> _thumbs = new Dictionary<T, Texture2D>();
@@ -264,6 +271,24 @@ namespace Laubrary.AssetKit.Editor
                 row.Add(Z.Button("Delete", "Delete this asset's file (asks first — file deletion cannot be undone).",
                     DeleteCurrent));
             }
+
+            var filterField = Z.TextInput(_browseFilter, "Filter the library below by name.", v =>
+            {
+                _browseFilter = v;
+                _filterFocusPending = true;
+                Rebuild();
+            }, 140f);
+            if (_filterFocusPending)
+            {
+                _filterFocusPending = false;
+                filterField.schedule.Execute(() =>
+                {
+                    filterField.Focus();
+                    filterField.SelectRange(_browseFilter.Length, _browseFilter.Length);
+                });
+            }
+            row.Add(filterField);
+
             row.Add(Z.Flexible());
             return row;
         }
@@ -406,12 +431,16 @@ namespace Laubrary.AssetKit.Editor
         {
             if (_browse == null) RefreshBrowse();
 
+            List<T> shown = FilteredBrowse();
+
             var col = new VisualElement();
             col.style.flexGrow = 1f;
 
+            string countLabel = string.IsNullOrEmpty(_browseFilter)
+                ? $"{TypeLabel} library ({_browse.Count})"
+                : $"{TypeLabel} library ({shown.Count} of {_browse.Count})";
             var headerRow = Z.Row(
-                Z.Text($"{TypeLabel} library ({_browse.Count})", ZuiText.Section,
-                    $"Every {TypeLabel} asset found in the project."),
+                Z.Text(countLabel, ZuiText.Section, $"Every {TypeLabel} asset found in the project."),
                 Z.Flexible());
             if (AnimateThumbnails)
                 headerRow.Add(Z.Toggle("▶ Animate all",
@@ -422,6 +451,8 @@ namespace Laubrary.AssetKit.Editor
 
             if (_browse.Count == 0)
                 col.Add(Z.Text($"No {TypeLabel} assets yet — hit New to make one.", ZuiText.Subtle));
+            else if (shown.Count == 0)
+                col.Add(Z.Text($"No {TypeLabel} assets match \"{_browseFilter}\".", ZuiText.Subtle));
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.style.flexGrow = 1f;
@@ -429,10 +460,21 @@ namespace Laubrary.AssetKit.Editor
             grid.style.flexDirection = FlexDirection.Row;
             grid.style.flexWrap = Wrap.Wrap;
             scroll.Add(grid);
-            foreach (var item in _browse)
+            foreach (var item in shown)
                 if (item != null) grid.Add(BuildCell(item));
             col.Add(scroll);
             return col;
+        }
+
+        // Case-insensitive substring match on name — empty filter = unchanged behavior (whole library).
+        List<T> FilteredBrowse()
+        {
+            if (string.IsNullOrEmpty(_browseFilter)) return _browse;
+            var result = new List<T>();
+            foreach (var item in _browse)
+                if (item != null && item.name.IndexOf(_browseFilter, StringComparison.OrdinalIgnoreCase) >= 0)
+                    result.Add(item);
+            return result;
         }
 
         VisualElement BuildCell(T item)

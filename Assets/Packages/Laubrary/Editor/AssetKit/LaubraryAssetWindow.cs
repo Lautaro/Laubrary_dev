@@ -25,6 +25,9 @@ namespace Laubrary.AssetKit.Editor
         // transient inline-prompt state
         bool creating; string createText = ""; bool focusNew;
         bool renaming; string renameText = "";
+        // T-0379: filter typed into the toolbar's search field, applied to the browser grid only (transient
+        // UI state, not asset data — never [SerializeField]).
+        string _browseFilter = "";
 
         // browser state
         List<T> _browse;
@@ -171,6 +174,10 @@ namespace Laubrary.AssetKit.Editor
                     if (row.Button("Rename")) { renaming = !renaming; creating = false; renameText = Path.GetFileNameWithoutExtension(p); }
                     if (row.Button("Delete")) DeleteCurrent();
                 }
+
+                _browseFilter = EditorGUILayout.TextField(new GUIContent("", "Filter the library below by name."),
+                    _browseFilter, EditorStyles.toolbarSearchField, GUILayout.Width(140));
+
                 row.Flexible();
             }
 
@@ -241,9 +248,14 @@ namespace Laubrary.AssetKit.Editor
         {
             if (_browse == null) RefreshBrowse();
 
+            List<T> shown = FilteredBrowse();
+
             using (var row = ZUI.HRow())
             {
-                Label($"{TypeLabel} library ({_browse.Count})", ZUI.ZTextStyle.SectionHeader);
+                string countLabel = string.IsNullOrEmpty(_browseFilter)
+                    ? $"{TypeLabel} library ({_browse.Count})"
+                    : $"{TypeLabel} library ({shown.Count} of {_browse.Count})";
+                Label(countLabel, ZUI.ZTextStyle.SectionHeader);
                 row.Flexible();
                 if (AnimateThumbnails)
                 {
@@ -257,10 +269,12 @@ namespace Laubrary.AssetKit.Editor
 
             if (_browse.Count == 0)
                 Label($"No {TypeLabel} assets yet — hit New to make one.", ZUI.ZTextStyle.Subtle);
+            else if (shown.Count == 0)
+                Label($"No {TypeLabel} assets match \"{_browseFilter}\".", ZUI.ZTextStyle.Subtle);
 
             using (ScrollView(ref _browseScroll))
             {
-                var hovered = LauAssetGridGUI.DrawGrid(position.width, _browse.ConvertAll(t => (Object)t), asset, (item, clickCount) =>
+                var hovered = LauAssetGridGUI.DrawGrid(position.width, shown.ConvertAll(t => (Object)t), asset, (item, clickCount) =>
                 {
                     bool open = clickCount == 2;
                     SetAsset((T)item);
@@ -279,5 +293,16 @@ namespace Laubrary.AssetKit.Editor
         }
 
         void ClearThumbs() => LauAssetGridGUI.ClearCache(_thumbs);
+
+        // Case-insensitive substring match on name — empty filter = unchanged behavior (whole library).
+        List<T> FilteredBrowse()
+        {
+            if (string.IsNullOrEmpty(_browseFilter)) return _browse;
+            var result = new List<T>();
+            foreach (var item in _browse)
+                if (item != null && item.name.IndexOf(_browseFilter, System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    result.Add(item);
+            return result;
+        }
     }
 }
