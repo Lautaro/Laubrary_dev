@@ -41,8 +41,14 @@ namespace Laubrary.Chunks
                 if (capability is ChunkModifier || capability is LayerPlan) continue;
 
                 // Its place in the recipe IS its flat draw order, so an unslotted output stacks in the order
-                // it was authored rather than every one of them landing on the same number.
-                var own = ctx.WithSortingOrder(sortingOrder + i);
+                // it was authored rather than every one of them landing on the same number. Spaced by a whole
+                // ChunkModuleContext.CardOrderSpan rather than a flat 1: a capability with its own pattern
+                // (e.g. a PyreBlast's Ring formation) hands out its OWN sequential offsets to every point it
+                // spawns (see PyreBlast.SpawnOne -> ctx.OrderFor), up to SpawnFormation.MaxCount wide, and a
+                // spacing of 1 let that spread reach straight into a neighbouring card's own numbers — so
+                // reordering two cards in the stack looked like it did nothing, because the wide card's points
+                // still bracketed the narrow card's single new value either way.
+                var own = ctx.WithSortingOrder(sortingOrder + i * ChunkModuleContext.CardOrderSpan);
 
                 float delay = Mathf.Max(0f, capability.delay);
                 if (delay <= 0f) { capability.Fire(own); continue; }

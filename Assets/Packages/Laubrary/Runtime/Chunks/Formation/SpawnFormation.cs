@@ -38,9 +38,16 @@ namespace Laubrary.Chunks
         [Tooltip("Line = points along a straight segment; Ring = points around a circle or an arc of one.")]
         public FormationShape shape = FormationShape.Ring;
 
+        /// The real ceiling on <see cref="count"/> — also the widest a single pattern's own draw-order spread
+        /// can ever be, since each point's sortingOrder offset (<see cref="SpawnPlacement.Index"/>) runs
+        /// 0..count-1. <see cref="ChunkModuleContext.CardOrderSpan"/> is sized off this number specifically so
+        /// that a card's own pattern can never reach into a neighbouring card's band — keep the two in sync if
+        /// this ever changes.
+        public const int MaxCount = 64;
+
         /// <summary>How many spawn points the formation lays out. 1 puts a single point on the origin.</summary>
         [Tooltip("How many spawn points the formation lays out. 1 = a single point on the origin.")]
-        [Range(1, 64)] public int count = 5;
+        [Range(1, MaxCount)] public int count = 5;
 
         // ── Line ──────────────────────────────────────────────────────────────────
         /// <summary>Line only: the segment's total length in world units. Points sit evenly along it, centred on the origin.</summary>
@@ -127,7 +134,11 @@ namespace Laubrary.Chunks
             if (results == null) return;
             results.Clear();
 
-            int n = Mathf.Max(1, count);
+            // Clamped, not just floored: [Range] is an Inspector-only constraint and does not stop a script or
+            // a hand-edited asset from setting count above MaxCount, which is the exact number
+            // ChunkModuleContext.CardOrderSpan relies on to stay a PROVABLE ceiling rather than a usually-true
+            // one — see that constant's doc comment.
+            int n = Mathf.Clamp(count, 1, MaxCount);
             // One draw off Unity's shared generator when the layout is unseeded ("reroll every play"), then
             // everything downstream comes off ChunkRng — so the whole arrangement is reproducible from one
             // integer, which is what lets a preview draw exactly the formation a burst will make.

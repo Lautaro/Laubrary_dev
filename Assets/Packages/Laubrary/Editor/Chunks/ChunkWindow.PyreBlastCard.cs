@@ -94,10 +94,10 @@ namespace Laubrary.Chunks.Editor
                 bool ring = cap.Pattern == PyreBlastPattern.Ring;
 
                 var placement = Z.HGroup(
-                    Z.MicroSlider("Count", f.count, 1f, 64f,
+                    Z.MicroSlider("Count", f.count, 1f, SpawnFormation.MaxCount,
                         "How many blasts the pattern lays out.",
                         v => DialAndRebuildCard(id, "Edit Pattern",
-                                                () => f.count = Mathf.Clamp(Mathf.RoundToInt(v), 1, 64)),
+                                                () => f.count = Mathf.Clamp(Mathf.RoundToInt(v), 1, SpawnFormation.MaxCount)),
                         150f, showValue: true, decimals: 0),
                     ring
                         ? Z.MicroSlider("Radius", f.radius, 0.1f, 20f,

@@ -1028,13 +1028,16 @@ namespace Laubrary.Chunks.Editor
         /// rather than behind it. The preview has to assume a default emitter, since a recipe does not know
         /// which one will fire it.
         ///
-        /// Multiplied by four only to leave room underneath each capability for the things drawn beneath its
-        /// own output (a trajectory arc, a trail), which the runtime has no equivalent of: consecutive
-        /// unslotted capabilities resolve one apart, so without the gap a trail would sort onto its
-        /// neighbour's own number and the two would interleave unpredictably.
+        /// Each card's own place in the stack is spaced by a whole ChunkModuleContext.CardOrderSpan, not a
+        /// flat 1 — the SAME constant ChunkModules.Run spaces cards by at runtime, so the preview and the real
+        /// burst never disagree about what draws in front of what. The gap matters for two things: a
+        /// capability's own trajectory arc / trail draws just beneath its base (order - 1, see Blast below),
+        /// and a Pyre Blast pattern hands out its own sequential offset to every point it places (up to
+        /// SpawnFormation.MaxCount wide) — either one landing on a spacing of 1 would sort onto (or inside)
+        /// a neighbouring card's own numbers.
         static int OrderFor(ChunkCapability cap, LayerSpec layers, int stackIndex)
             => ChunkModuleContext.ResolveOrder(layers, cap.LayerName,
-                                               ChunkEmitter.DefaultSortingOrder + stackIndex) * 4;
+                ChunkEmitter.DefaultSortingOrder + stackIndex * ChunkModuleContext.CardOrderSpan);
 
         /// The uniform scale a blast comes out at, on its own stream so a scale can never shift the layout.
         static float BlastScale(PyreBlast b, int seed)

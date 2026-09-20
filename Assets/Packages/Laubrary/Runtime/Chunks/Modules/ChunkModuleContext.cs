@@ -9,6 +9,16 @@ namespace Laubrary.Chunks
     /// different numbers changes its own fields, never the burst's.
     public readonly struct ChunkModuleContext
     {
+        /// How much sortingOrder space one CARD (a capability's own place in the recipe stack) reserves for
+        /// itself before the next card's band begins. Sized to <see cref="SpawnFormation.MaxCount"/> — the
+        /// widest a single Pyre Blast pattern's own point-by-point spread (<see cref="OrderFor"/> called once
+        /// per placement, offset 0..count-1) can ever be — so that spread can never reach far enough to land
+        /// inside a neighbouring card's own numbers, however the recipe is reordered. <see
+        /// cref="ChunkModules.Run"/> (runtime) and the Chunks editor preview's own OrderFor both derive a
+        /// card's base sortingOrder from this ONE constant so they never disagree about what draws in front of
+        /// what — do not let a second copy of this number exist anywhere else.
+        public const int CardOrderSpan = SpawnFormation.MaxCount;
+
         /// World position the whole burst happens at.
         public readonly Vector3 Origin;
         /// The burst's own container transform — everything a capability spawns should parent under this (or
