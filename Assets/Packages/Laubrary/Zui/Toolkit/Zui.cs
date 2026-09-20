@@ -387,6 +387,35 @@ namespace Laubrary.Zui
             return b;
         }
 
+        /// A compact ICON-ONLY button: one ZUI glyph in a square, for an action that must be visible on a row
+        /// too tight for a word (the "open this reference in its editor" pencil beside a ZuiChip). It is the
+        /// exception, not the default — a button with room for a label gets the label, because a glyph alone
+        /// is only readable once you have hovered it. The tooltip is therefore REQUIRED, and carries the verb.
+        /// A name that does not resolve falls back to "…" rather than an empty square.
+        public static Button IconButton(string icon, string tooltip, Action onClick, float size = 20f)
+        {
+            var b = new Button(onClick) { tooltip = tooltip };
+            b.AddToClassList("zui-iconbtn");
+            FillButton(b, null, icon);
+            if (b.childCount == 0) b.text = "…";
+            b.style.width = size;
+            b.style.height = size;
+            return b;
+        }
+
+        /// The latching twin of <see cref="IconButton"/> — a ZuiToggleButton showing one glyph and no label,
+        /// for a boolean whose name does not fit the row. Same rule: the tooltip carries the meaning, and it
+        /// must be composed per STATE so it never describes the opposite of what clicking will do.
+        public static ZuiToggleButton IconToggle(string icon, string tooltip, bool value, Action<bool> onChanged,
+            float size = 20f)
+        {
+            var t = new ZuiToggleButton(null, tooltip, value, onChanged, icon);
+            t.AddToClassList("zui-iconbtn");
+            t.style.width = size;
+            t.style.height = size;
+            return t;
+        }
+
         /// The old-ZUI MicroSlider: a filled track whose fill is the value, label+value inside, no thumb.
         /// Half the height of a vanilla Slider and needs no separate value field.
         public static ZuiMicroSlider MicroSlider(string label, float value, float min, float max,

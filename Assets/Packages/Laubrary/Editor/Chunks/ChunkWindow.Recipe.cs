@@ -588,10 +588,16 @@ namespace Laubrary.Chunks.Editor
         }
 
         /// A reference to another asset, as a chip that browses — never a typed name.
+        ///
+        /// The recipe being edited is passed as the chip's OWNER (T-0381), which is what lets a card keep a
+        /// bespoke Pyre/Chunks/SpriteFx of its own INSIDE this recipe's asset file instead of adding a
+        /// one-off nobody else will ever pick to the shared browser. Passed explicitly rather than relying on
+        /// ZuiAssetWindow's ambient scope, because a card is also rebuilt on its own (DialAndRebuildCard),
+        /// outside the window's full body build.
         internal VisualElement AssetPicker(UnityEngine.Object current, Action<UnityEngine.Object> onPick,
                                            Type constraint, string suggestedName, string tooltip)
             => LauAssetElement.Build(current, onPick, constraint, thumbCache, suggestedName,
-                                     DefaultFolder, tooltip);
+                                     DefaultFolder, tooltip, Current);
 
         internal static T FirstOfKind<T>(ChunkSpec c) where T : ChunkCapability
         {

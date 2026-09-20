@@ -706,6 +706,63 @@
     -unity-font-style: normal;
 }
 
+/* Chip group — a chip PLUS its visible actions (T-0381) ------------------- */
+
+/* The chip stays the reference control; a couple of icon-sized actions may sit beside it when the
+   reference can actually do something (open it in its own editor; make it a private copy inside the
+   asset being edited). It is a GROUP, not the "thumbnail + Recall… + New ▾ + ✎" button ROW the sweep
+   deleted: two 20px squares, no labels, and only for actions that exist for this value right now.
+   Everything rarer still lives on the chip's right-click card.
+   Same cross-axis guard as .zui-chip itself — the group is a bare VisualElement, so in a COLUMN body it
+   would otherwise stretch to the whole pane and drag the chip's actions to the far edge with it. */
+.zui-chipgroup {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.zui-root .zui-chipgroup {
+    align-self: flex-start;
+}
+
+.zui-root .zui-row .zui-chipgroup,
+.zui-root .zui-field .zui-chipgroup,
+.zui-root .zui-hgroup .zui-chipgroup,
+.zui-root .zui-box__titlerow .zui-chipgroup,
+.zui-root .zui-section__header .zui-chipgroup {
+    align-self: center;
+}
+
+/* Inside the group the cross axis is height, so the chip centres against the buttons rather than
+   taking the column rule above (which would top-align it by a pixel or two). */
+.zui-root .zui-chipgroup > .zui-chip {
+    align-self: center;
+}
+
+.zui-chipgroup__act {
+    margin-left: 3px;
+    margin-right: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+/* Icon-only button/toggle (Z.IconButton / Z.IconToggle) ------------------- */
+
+.zui-iconbtn {
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+}
+
+/* FillButton's glyph reserves 4px for a label that an icon-only button does not have. */
+.zui-iconbtn > .zui-btn__icon {
+    margin-right: 0;
+}
+
 /* A PropertyField built through ZuiSerialized already carries the label we gave it, so the field's
    own [Header] decorator would draw that same word a second time, right above it. */
 .zui-no-decorators > .unity-decorator-drawers-container {

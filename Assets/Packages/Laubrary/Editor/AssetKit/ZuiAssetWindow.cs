@@ -225,7 +225,12 @@ namespace Laubrary.AssetKit.Editor
                 var host = new VisualElement();
                 host.style.flexGrow = 1f;
                 host.style.minHeight = 0f;   // flexbox: without this, content height becomes a floor and overflows the window
-                BuildAsset(host, asset);
+                // T-0381: tell every LauAsset chip built in here what this window is editing, so "make this
+                // reference a private copy that lives inside the thing I am editing" is available on a
+                // reflected field too — not only where a tool remembered to pass the owner by hand. Scoped
+                // and restored synchronously, so it can never be read by another window's build.
+                using (LauAssetElement.OwnerScope(asset))
+                    BuildAsset(host, asset);
                 root.Add(host);
             }
         }

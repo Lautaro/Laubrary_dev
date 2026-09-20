@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -502,12 +502,15 @@ namespace Laubrary.Zoetrope.Editor
             }
 
             host.Add(Z.Text(label, ZuiText.Subtle, tip));
+            // The incoming property is the shared, mutable iterator the caller's property-walk keeps advancing
+            // after this row is built — capturing it directly (instead of the copied propertyPath) into the
+            // click closures below would make a click fire against whatever field the iterator has since moved
+            // PAST (caught live, T-0250: Private embedded a copy of the wrong field entirely, named after the
+            // next sibling property it had drifted onto).
             string path = child.propertyPath;
-            var row = field.FieldType == typeof(ChunkSpec)
-                ? BuildChunksRefRow(child, label, tip)
-                : Z.Row(LauAssetElement.Build(child.objectReferenceValue,
-                    picked => { Commit(path, p => p.objectReferenceValue = picked); Rebuild(); },
-                    field.FieldType, FieldThumbs, label, "Assets", tip));
+            var row = Z.Row(LauAssetElement.Build(child.objectReferenceValue,
+                picked => { Commit(path, p => p.objectReferenceValue = picked); Rebuild(); },
+                field.FieldType, FieldThumbs, label, "Assets", tip, Current));
             if (pairedScalar != null)
             {
                 row.Add(Z.HSpace());
@@ -518,215 +521,6 @@ namespace Laubrary.Zoetrope.Editor
             return true;
         }
 
-        // ── Chunks reference: Public (shared library) vs Private (embedded sub-asset) ──────────
-        // T-0250: a Chunks debris burst that's bespoke to one Zoe (Floating Disc's own debris spray, say)
-        // shouldn't clutter the shared Chunks browser. "Private" needs no new serialized flag: a private
-        // ChunkSpec is simply a SUB-ASSET embedded inside this Zoe's own .asset file (AddObjectToAsset), and
-        // AssetLibrary<T>.Enumerate/AssetLibraryUntyped.Enumerate — everything the shared browser walks — only
-        // ever surface a path's MAIN asset (LoadAssetAtPath<T>), never its sub-assets (verified live), so an
-        // embedded ChunkSpec is automatically invisible to every picker without any exclude-list. "Public" vs
-        // "Private" is therefore just read straight off where the currently-assigned asset physically lives.
-        VisualElement BuildChunksRefRow(SerializedProperty prop, string label, string tip)
-        {
-            // The incoming property is the shared, mutable iterator the caller's property-walk keeps advancing
-            // after this row is built — capturing it directly (instead of a .Copy()) into the click closures
-            // below means a click fires against whatever field the iterator has since moved PAST, not "chunks"
-            // (caught live, T-0250: clicking Private embedded a copy of the wrong field entirely, named after
-            // the next sibling property it had drifted onto). Every other LauAsset row in this file already
-            // copies for the same reason; this one just needs its own copy up front too.
-            prop = prop.Copy();
-            string path = prop.propertyPath;
-            var current = prop.objectReferenceValue as ChunkSpec;
-            Object owner = Current;
-            bool isPrivate = IsPrivateChunks(current, owner);
-
-            var row = Z.Row();
-            row.Add(Z.MiniRadio(isPrivate ? 1 : 0, new[] { "Public", "Private" },
-                "Public: pick a shared Chunks asset from the library; switching a private recipe to Public saves " +
-                "it as a library asset in Assets/Chunks (or reuses an identical one already there). Private: an " +
-                "embedded copy that belongs only to this Zoe, hidden from the shared Chunks browser, and editable " +
-                "only from this row. Undo switches the row back; the copy a switch made is kept, so undo and redo " +
-                "never lose a recipe.",
-                i =>
-                {
-                    if (i == 1 && !isPrivate) MakeChunksPrivate(prop, owner, current);
-                    else if (i == 0 && isPrivate) MakeChunksPublic(prop, owner, current, label);
-                    else if (i == 0) Rebuild();   // already Public — nothing to clear/delete
-                }));
-
-            if (isPrivate)
-            {
-                row.Add(Z.Text(current.name, ZuiText.Body, tip));
-                row.Add(Z.Button("Edit", $"Open this private {label} for editing — it isn't in the shared " +
-                    "browser, so this row is the only place it can be edited from.",
-                    () => LauAssetEditors.Open(current)));
-            }
-            else
-            {
-                row.Add(LauAssetElement.Build(current,
-                    picked => { Commit(path, p => p.objectReferenceValue = picked); Rebuild(); },
-                    typeof(ChunkSpec), FieldThumbs, label, "Assets", tip));
-            }
-            return row;
-        }
-
-        static bool IsPrivateChunks(ChunkSpec current, Object owner) =>
-            current != null && owner != null && AssetDatabase.IsSubAsset(current) &&
-            AssetDatabase.GetAssetPath(current) == AssetDatabase.GetAssetPath(owner);
-
-        // Undo contract for the Public/Private switch (T-0371). Unity's Undo cannot safely reverse
-        // AssetDatabase work: undoing a RegisterCreatedObjectUndo destroys the in-memory object of an asset
-        // that is already on disk (a created .asset then loads as a DefaultAsset, a sub-asset vanishes from
-        // its file), redo brings back a copy that belongs to no file, and RemoveObjectFromAsset/DestroyImmediate
-        // are not recorded at all, so an older record can re-point the row at a destroyed object. So:
-        //  * creating the library asset or the embedded sub-asset is never recorded — it is plain,
-        //    permanent asset work, saved at once;
-        //  * nothing asset-backed is ever removed or destroyed by the switch — the recipe the row leaves
-        //    stays where it was (a public asset in the library, a private one inside this Zoe's file);
-        //  * the ONLY recorded step is re-pointing this one field, as its own named undo group.
-        // Every value any undo or redo record can put back is therefore a live, persistent recipe. To keep
-        // repeated switching from piling up copies, each direction first looks for a recipe it made earlier
-        // with identical tuning and re-points to that instead of making another.
-
-        /// Switches the row to an embedded ChunkSpec inside <paramref name="owner"/> (the Zoe being edited),
-        /// carrying over the tuning of the public asset it was pointing at. The public asset itself is left
-        /// untouched. Reuses an unreferenced private copy with the same name and tuning if the file has one
-        /// (left there by an earlier Public switch), otherwise embeds a new one.
-        void MakeChunksPrivate(SerializedProperty prop, Object owner, ChunkSpec previous)
-        {
-            if (owner == null) return;
-            string ownerPath = AssetDatabase.GetAssetPath(owner);
-            if (string.IsNullOrEmpty(ownerPath)) return;
-
-            var made = ScriptableObject.CreateInstance<ChunkSpec>();
-            // CopySerialized also copies the source's own m_Name, so it runs BEFORE the name is set.
-            if (previous != null) EditorUtility.CopySerialized(previous, made);
-            made.name = $"{owner.name} — {ObjectNames.NicifyVariableName(prop.name)} (Private)";
-
-            var target = FindSparePrivateChunks(owner, ownerPath, made);
-            if (target != null)
-                Object.DestroyImmediate(made);   // a never-persisted scratch copy, in no file and no undo record
-            else
-            {
-                AssetDatabase.AddObjectToAsset(made, owner);
-                target = made;
-            }
-
-            RepointChunks(prop.propertyPath, target, "Make Chunks Private");
-            EditorUtility.SetDirty(owner);
-            AssetDatabase.SaveAssetIfDirty(owner);
-            Rebuild();
-        }
-
-        /// Switches the row from its embedded ChunkSpec to a library asset in Assets/Chunks (T-0250's default
-        /// folder) holding the same tuning. Reuses a library asset this switch made earlier for the same
-        /// recipe name if its tuning is identical, otherwise creates a new one. The embedded copy stays in
-        /// the Zoe's file, so an undo can always point the row back at it.
-        void MakeChunksPublic(SerializedProperty prop, Object owner, ChunkSpec current, string label)
-        {
-            if (owner == null || current == null) return;
-
-            const string folder = "Assets/Chunks";
-            const string privateSuffix = " (Private)";
-            string niceName = current.name.EndsWith(privateSuffix)
-                ? current.name.Substring(0, current.name.Length - privateSuffix.Length)
-                : current.name;
-
-            var made = ScriptableObject.CreateInstance<ChunkSpec>();
-            EditorUtility.CopySerialized(current, made);   // before naming: it copies m_Name too
-            made.name = niceName;
-
-            string outcome;
-            var target = FindLibraryCopy(folder, niceName, made);
-            if (target != null)
-            {
-                Object.DestroyImmediate(made);   // a never-persisted scratch copy, in no file and no undo record
-                outcome = "reused";
-            }
-            else
-            {
-                if (!AssetDatabase.IsValidFolder(folder)) AssetDatabase.CreateFolder("Assets", "Chunks");
-                string newPath = AssetDatabase.GenerateUniqueAssetPath($"{folder}/{niceName}.asset");
-                made.name = System.IO.Path.GetFileNameWithoutExtension(newPath);
-                AssetDatabase.CreateAsset(made, newPath);
-                AssetDatabase.SaveAssetIfDirty(made);
-                target = made;
-                outcome = "saved as";
-            }
-
-            RepointChunks(prop.propertyPath, target, "Make Chunks Public");
-            EditorUtility.SetDirty(owner);
-            AssetDatabase.SaveAssetIfDirty(owner);
-            Rebuild();
-            Debug.Log($"[Zoetrope] {label} made public ({outcome}): {AssetDatabase.GetAssetPath(target)}");
-        }
-
-        /// The one undoable step of a Public/Private switch: this field's re-point, as its own named group.
-        void RepointChunks(string path, ChunkSpec target, string undoName)
-        {
-            Undo.IncrementCurrentGroup();
-            int group = Undo.GetCurrentGroup();
-            Commit(path, p => p.objectReferenceValue = target);
-            Undo.SetCurrentGroupName(undoName);
-            Undo.CollapseUndoOperations(group);
-        }
-
-        /// An embedded ChunkSpec in the owner's file that nothing on the owner references, with the wanted
-        /// name and identical tuning — safe to point the row at instead of embedding another copy.
-        static ChunkSpec FindSparePrivateChunks(Object owner, string ownerPath, ChunkSpec wanted)
-        {
-            var inUse = ReferencedObjects(owner);
-            string json = RecipeJson(wanted);
-            foreach (var o in AssetDatabase.LoadAllAssetsAtPath(ownerPath))
-            {
-                if (o is ChunkSpec spec && spec != owner && AssetDatabase.IsSubAsset(spec)
-                    && spec.name == wanted.name && !inUse.Contains(spec) && RecipeJson(spec) == json)
-                    return spec;
-            }
-            return null;
-        }
-
-        /// A library ChunkSpec in <paramref name="folder"/> named like the ones Public makes for this recipe
-        /// ("stem", "stem 1", "stem 2"…) whose tuning is identical to <paramref name="wanted"/>.
-        static ChunkSpec FindLibraryCopy(string folder, string stem, ChunkSpec wanted)
-        {
-            if (!AssetDatabase.IsValidFolder(folder)) return null;
-            var namePattern = new System.Text.RegularExpressions.Regex(
-                "^" + System.Text.RegularExpressions.Regex.Escape(stem) + "( \\d+)?$");
-            string json = RecipeJson(wanted);
-            foreach (var guid in AssetDatabase.FindAssets("t:ChunkSpec", new[] { folder }))
-            {
-                string assetPath = AssetDatabase.GUIDToAssetPath(guid);
-                if (!namePattern.IsMatch(System.IO.Path.GetFileNameWithoutExtension(assetPath))) continue;
-                if (AssetDatabase.LoadMainAssetAtPath(assetPath) is ChunkSpec spec && RecipeJson(spec) == json)
-                    return spec;
-            }
-            return null;
-        }
-
-        /// Every object an ObjectReference field anywhere on <paramref name="owner"/> currently points at.
-        static HashSet<Object> ReferencedObjects(Object owner)
-        {
-            var set = new HashSet<Object>();
-            using (var so = new SerializedObject(owner))
-            {
-                var it = so.GetIterator();
-                while (it.Next(true))
-                {
-                    if (it.propertyType == SerializedPropertyType.ObjectReference && it.objectReferenceValue != null)
-                        set.Add(it.objectReferenceValue);
-                }
-            }
-            return set;
-        }
-
-        /// A recipe's tuning as JSON, minus the object's own name and hide flags, which differ between a
-        /// library asset and an embedded copy of the same recipe. A mismatch only costs one extra copy.
-        static string RecipeJson(ChunkSpec spec) => RecipeIdentityFields.Replace(EditorJsonUtility.ToJson(spec), "");
-
-        static readonly System.Text.RegularExpressions.Regex RecipeIdentityFields =
-            new System.Text.RegularExpressions.Regex(
-                "\"(?:m_Name\"\\s*:\\s*\"(?:[^\"\\\\]|\\\\.)*\"|m_ObjectHideFlags\"\\s*:\\s*\\d+),?");
 
         /// A scalar UnityEngine.Object-reference field (e.g. Zoe.faction) through the LauAsset row rather than
         /// a bare ObjectField — used both by the generic loop above and by a hand-curated BuildBody override.
@@ -739,7 +533,7 @@ namespace Laubrary.Zoetrope.Editor
             root.Add(Z.Text(label, ZuiText.Subtle, tip));
             root.Add(LauAssetElement.Build(prop.objectReferenceValue,
                 picked => { Commit(path, p => p.objectReferenceValue = picked); Rebuild(); },
-                fieldType, FieldThumbs, label, "Assets", tip));
+                fieldType, FieldThumbs, label, "Assets", tip, Current));
         }
 
         /// A list of LauAsset elements (WeaponDef.ammoTypes, Zoe.weapons — any List&lt;T&gt; where T is a
@@ -769,7 +563,7 @@ namespace Laubrary.Zoetrope.Editor
                 string elemPath = elemProp.propertyPath;
                 var row = Z.Row(LauAssetElement.Build(elemProp.objectReferenceValue,
                     picked => { Commit(elemPath, p => p.objectReferenceValue = picked); Rebuild(); },
-                    elemType, FieldThumbs, $"{label} {idx}", folder, $"{label} slot {idx}."));
+                    elemType, FieldThumbs, $"{label} {idx}", folder, $"{label} slot {idx}.", Current));
                 row.Add(Z.Button("X", $"Remove this {label} entry.", () =>
                 {
                     Commit(listPath, p =>
@@ -1130,7 +924,8 @@ namespace Laubrary.Zoetrope.Editor
 
                 var weaponRow = Z.Row(LauAssetElement.Build(weaponProp.objectReferenceValue,
                     picked => { Commit(weaponProp.propertyPath, p => p.objectReferenceValue = picked); Rebuild(); },
-                    typeof(WeaponDef), FieldThumbs, $"Weapon {idx}", DefaultFolder, "Which WeaponDef this slot equips."));
+                    typeof(WeaponDef), FieldThumbs, $"Weapon {idx}", DefaultFolder,
+                    "Which WeaponDef this slot equips.", Current));
                 weaponRow.Add(Z.Button("X", "Remove this weapon slot.", () =>
                 {
                     Commit(listProp.propertyPath, p => p.DeleteArrayElementAtIndex(idx));
@@ -3204,7 +2999,7 @@ namespace Laubrary.Zoetrope.Editor
                 picked => { Commit("visual", p => p.objectReferenceValue = picked); Rebuild(); },
                 typeof(IChunkAnimation), FieldThumbs,
                 string.IsNullOrWhiteSpace(a.displayName) ? a.name : a.displayName,
-                "Assets/Zoetrope/AmmoVisuals", visualTip));
+                "Assets/Zoetrope/AmmoVisuals", visualTip, Current));
 
             visual.Add(NumField("Scale", "scale", a.scale, "Size multiplier applied to the projectile's sprite."));
             visual.Add(Z.Row(
