@@ -1,0 +1,215 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0413ec766917e0b4bb054a79ec22ed07, type: 3}
+  m_Name: ProtoGuy New FreeAim
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Zoetrope::Laubrary.Zoetrope.Zoe
+  displayName: ProtoGuy New FreeAim
+  maxHealth: 100
+  faction: {fileID: 0}
+  invulnerableAfterHit: 0
+  view:
+    rid: 1702917371834400849
+  deathDisposal: 1
+  deathLinger: 1.5
+  pixelPerfectHits: 0
+  locomotion:
+    idleClip: 
+    moveClip: 
+    moveThreshold: 0.15
+  motionPose:
+    channel: 0
+    moveThreshold: 0.15
+    fixedAngleDeg: 0
+    rules: []
+  hit:
+    clip: 
+    targetPart: 
+    durationMode: 0
+    loops: 1
+    seconds: 0
+    stunSeconds: 0
+    bodyFx: {fileID: 0}
+    fx: []
+  death:
+    clip: 
+    targetPart: 
+    durationMode: 0
+    loops: 1
+    seconds: 0
+    stunSeconds: 0
+    bodyFx: {fileID: 0}
+    fx: []
+  events:
+  - id: Fire
+    role: 0
+    reaction:
+      clip: 
+      targetPart: 
+      durationMode: 1
+      loops: 1
+      seconds: 0.15
+      stunSeconds: 0
+      bodyFx: {fileID: 0}
+      fx:
+      - enabled: 1
+        trigger: 0
+        frame: 0
+        placement: 3
+        metaLayerId: Muzzle
+        bodyPart: 
+        localOffset: {x: 0, y: 0}
+        mirrorOffsetWithFacing: 1
+        direction: 4
+        rotation: 0
+        angleOffsetDeg: 0
+        flipWithFacing: 1
+        fixedAngleDeg: 0
+        scalar: 0
+        follow: 1
+        fx:
+          rid: 1702917591583948899
+        overrides: []
+      - enabled: 1
+        trigger: 0
+        frame: 0
+        placement: 3
+        metaLayerId: Muzzle
+        bodyPart: 
+        localOffset: {x: 0, y: 0}
+        mirrorOffsetWithFacing: 1
+        direction: 1
+        rotation: 1
+        angleOffsetDeg: 0
+        flipWithFacing: 0
+        fixedAngleDeg: 0
+        scalar: 0
+        follow: 0
+        fx:
+          rid: 1702917591583948904
+        overrides: []
+  brain:
+    rid: -2
+  playerController:
+    rid: 1702917589271840520
+  aiming:
+    rid: 4065707203510665287
+  loadout: []
+  weapons:
+  - weapon: {fileID: 11400000, guid: 30aaf3dc11627dd4f8b668e2944b0f3d, type: 2}
+    attachToPartName: Upper
+    muzzleLayerId: Muzzle
+    muzzleEventName: 
+  - weapon: {fileID: 11400000, guid: 131a063c524930545b7322c63bb64232, type: 2}
+    attachToPartName: Upper
+    muzzleLayerId: Muzzle
+    muzzleEventName: 
+  defaultActiveWeapon: 0
+  cues: []
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
+    - rid: 1702917371834400849
+      type: {class: CompositeLauminaryView, ns: Laubrary.ZoetropeLaunimator, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Launimator}
+      data:
+        parts:
+        - name: Legs
+          view:
+            rid: 1702917371834400850
+          parentPartName: 
+          parentAnchor:
+            mode: 0
+            edge: 0
+            metaLayerId: 
+            offset: {x: 0, y: 0}
+          childAnchor:
+            mode: 0
+            edge: 0
+            metaLayerId: 
+            offset: {x: 0, y: 0}
+          sortingOrder: 0
+          motionPose:
+            channel: 0
+            moveThreshold: 0.15
+            fixedAngleDeg: 0
+            rules:
+            - condition: 2
+              setName: LegsIdle16
+              overrideChannel: 1
+              channel: 1
+            - condition: 1
+              setName: LegsWalk3
+              overrideChannel: 1
+              channel: 1
+        - name: Upper
+          view:
+            rid: 1702917371834400851
+          parentPartName: Legs
+          parentAnchor:
+            mode: 2
+            edge: 1
+            metaLayerId: 
+            offset: {x: 0, y: 0}
+          childAnchor:
+            mode: 2
+            edge: 2
+            metaLayerId: 
+            offset: {x: 0, y: 0}
+          sortingOrder: 1
+          motionPose:
+            channel: 1
+            moveThreshold: 0.15
+            fixedAngleDeg: 0
+            rules:
+            - condition: 0
+              setName: UpperAim16
+              overrideChannel: 0
+              channel: 0
+    - rid: 1702917371834400850
+      type: {class: ZonedLauminaryView, ns: Laubrary.ZoetropeLaunimator, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Launimator}
+      data:
+        version: {fileID: 11400000, guid: b45876abec7491743aaeb642714e7587, type: 2}
+        idleClip: LegsIdleRotation
+        height: 0
+    - rid: 1702917371834400851
+      type: {class: ZonedLauminaryView, ns: Laubrary.ZoetropeLaunimator, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Launimator}
+      data:
+        version: {fileID: 11400000, guid: b45876abec7491743aaeb642714e7587, type: 2}
+        idleClip: UpperAimRotation
+        height: 0
+    - rid: 1702917589271840520
+      type: {class: TopDownPlayerControllerSpec, ns: Laubrary.ZoetropeZoeCharacter, asm: com.Lautaro-Arino.Laubrary.Zoetrope.ZoeCharacter}
+      data:
+        controls: {fileID: -944628639613478452, guid: f07f564b8fae19e4480da06f0437a047, type: 3}
+        moveSpeed: 3
+    - rid: 1702917591583948899
+      type: {class: PyreChunksFx, ns: Laubrary.ZoetropePyre, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Pyre}
+      data:
+        blast: {fileID: 11400000, guid: b3e94ba87271dd14db73846e7f970ed7, type: 2}
+        blastFps: 18
+        chunks: {fileID: 0}
+        sortingOrder: 10
+    - rid: 1702917591583948904
+      type: {class: BodySpriteFxEffect, ns: Laubrary.Zoetrope, asm: com.Lautaro-Arino.Laubrary.Zoetrope}
+      data:
+        stack: {fileID: 11400000, guid: 1a284d1eac9d8c749ba89ebbb07fb642, type: 2}
+        playback: 0
+        fxSeconds: 0
+        targetPart: 
+    - rid: 4065707203510665287
+      type: {class: FreeAimRotateAimSpec, ns: Laubrary.Zoetrope, asm: com.Lautaro-Arino.Laubrary.Zoetrope}
+      data:
+        directionCount: 0
+        maxRotationDeg: 0
+        rotationSnapDeg: 0
+        pivotOffset: {x: 0, y: 0}

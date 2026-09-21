@@ -1,0 +1,2472 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f47c6b625f5940a4983f47cb1f8f879d, type: 3}
+  m_Name: ProtoGuy New_draft
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Launimator::Laubrary.Launimator.LauminaryVersion
+  versionNumber: 0
+  createdUtc: 2026-09-21T21:50:12.1055565Z
+  animations:
+  - name: LegsWalk_N
+    fps: 10
+    recipe:
+    - sourceTextureGuid: bc452219d72a72a49b689329455ccc6e
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: bc452219d72a72a49b689329455ccc6e
+      cell:
+        serializedVersion: 2
+        x: 50
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: bc452219d72a72a49b689329455ccc6e
+      cell:
+        serializedVersion: 2
+        x: 100
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: bc452219d72a72a49b689329455ccc6e
+      cell:
+        serializedVersion: 2
+        x: 150
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: bc452219d72a72a49b689329455ccc6e
+      cell:
+        serializedVersion: 2
+        x: 200
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: bc452219d72a72a49b689329455ccc6e
+      cell:
+        serializedVersion: 2
+        x: 250
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: bc452219d72a72a49b689329455ccc6e
+      cell:
+        serializedVersion: 2
+        x: 300
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: bc452219d72a72a49b689329455ccc6e
+      cell:
+        serializedVersion: 2
+        x: 350
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 7625353642974752303, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: -2992149269904028791, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 4380423772799078753, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: -8079936417545438962, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 7744173869180012509, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: -8132939431954792645, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: -2581692415788340439, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: -1601596505656613747, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 2800000, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    sourceTextureGuid: bc452219d72a72a49b689329455ccc6e
+    clip: {fileID: 7400000, guid: 05517835f728cde45aff0e3a24683d20, type: 2}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: LegsWalk_E
+    fps: 10
+    recipe:
+    - sourceTextureGuid: b654328b742c75a42816ad9025641bab
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: b654328b742c75a42816ad9025641bab
+      cell:
+        serializedVersion: 2
+        x: 50
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: b654328b742c75a42816ad9025641bab
+      cell:
+        serializedVersion: 2
+        x: 100
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: b654328b742c75a42816ad9025641bab
+      cell:
+        serializedVersion: 2
+        x: 150
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: b654328b742c75a42816ad9025641bab
+      cell:
+        serializedVersion: 2
+        x: 200
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: b654328b742c75a42816ad9025641bab
+      cell:
+        serializedVersion: 2
+        x: 250
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: b654328b742c75a42816ad9025641bab
+      cell:
+        serializedVersion: 2
+        x: 300
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: b654328b742c75a42816ad9025641bab
+      cell:
+        serializedVersion: 2
+        x: 350
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: -7547975583332683562, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 6642023921975925791, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: -3213947272084201502, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 3683261985718490363, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: -4308503013214318697, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: -5764143536469989782, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: -6217495546354138823, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 2656628738997907869, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 2800000, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    sourceTextureGuid: b654328b742c75a42816ad9025641bab
+    clip: {fileID: 7400000, guid: 7152fcb517228d54eb63f8f190cddd81, type: 2}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: LegsWalk_S
+    fps: 10
+    recipe:
+    - sourceTextureGuid: 478573a97ce67824fb9f466f06ae3671
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 478573a97ce67824fb9f466f06ae3671
+      cell:
+        serializedVersion: 2
+        x: 50
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 478573a97ce67824fb9f466f06ae3671
+      cell:
+        serializedVersion: 2
+        x: 100
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 478573a97ce67824fb9f466f06ae3671
+      cell:
+        serializedVersion: 2
+        x: 150
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 478573a97ce67824fb9f466f06ae3671
+      cell:
+        serializedVersion: 2
+        x: 200
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 478573a97ce67824fb9f466f06ae3671
+      cell:
+        serializedVersion: 2
+        x: 250
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 478573a97ce67824fb9f466f06ae3671
+      cell:
+        serializedVersion: 2
+        x: 300
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 478573a97ce67824fb9f466f06ae3671
+      cell:
+        serializedVersion: 2
+        x: 350
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 4182495383254442156, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 5444371381045419032, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 2927270964821656390, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 5766709239393123052, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: -6685668192395559160, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: -7285430028584789868, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 5627367484652728055, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 3394478202789590621, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 2800000, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    sourceTextureGuid: 478573a97ce67824fb9f466f06ae3671
+    clip: {fileID: 7400000, guid: a670272e4aec49948ad6cc4b335e17cc, type: 2}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: LegsIdleRotation
+    fps: 12
+    recipe:
+    - sourceTextureGuid: b026844e68965594c99ea03c3266226f
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: a788eaf994c70234ea7e43389c242004
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 6fac3b4c61b57174981c05e92b6f0481
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 9a1ff48c714036847b3cc17f971c5257
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: a7f511421e14eac4185f3b4ce5346ffa
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 838927d5799b35042879c694b010096b
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: dd5e29a3edee3e747b6c7394faaec8d6
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 2640c3b9f2f57674dbe544e2ae9ced85
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 087a3a3af6e0fec4c8c78666a74c2d0e
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: c21706b511487f9489739328f23d98b2
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 90d8d117f4a30fc4da369b93471fc01c
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: c0c834e7efebc644abe6e1ef1842486b
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 2a9ac32eeba7f2240949e25d3b4d0826
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: fdfdf3cdca876ae4c8eb568555053a88
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 06080fc972e5a4b4b8cfd54752682a61
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 6ca9add6c5ed80241acb704be7e1d462
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: -6547075014006627773, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 1843800683345282423, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: -7981487555666157104, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 8374382311106426359, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: -4767001101679781952, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 7549354426586216120, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: -738915426039143411, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 5995018510096200328, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 2999516896756697356, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 445664672483915349, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: -2740289884897651079, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 6964965083523577192, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 3479565467732239201, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: -2371649780985693966, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 5731262843004722346, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 5811346204228297362, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 2800000, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    sourceTextureGuid: b026844e68965594c99ea03c3266226f
+    clip: {fileID: 7400000, guid: 0260d0fb3170a7c4c8b9c241278fe1aa, type: 2}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: UpperAimRotation
+    fps: 12
+    recipe:
+    - sourceTextureGuid: bc65bccd503350d4da325a0825de491f
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: d40777357aa5b974395e394a9197211f
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 4fc48b0c9f92aee4d9c682274ae0e731
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 87504ae34ccd56c4590af591777ebb3a
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 393f4fdc0c3a1954e98540a1912d904e
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 6cba9f723d089ed49b4c711f86c7e2f6
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: a9a0aed7a3ef0b3488af96749f4be288
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 80488d7e9505bab47a8a82e5c18697dd
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 60fcb5b889b933549bd9871a406378cb
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 421956392a9484146b032062976e9b0c
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 0dce0db6a9472a64b9b4ec33e6858df4
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 4f5fb2e9478343049b10fa6683726657
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: c94a129ac7a558e4280643c1371f0554
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: e6abd7b500f9ff84b8b08c655caad5af
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: 5bf7e97d2e8e9554a94c6e66d1895922
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    - sourceTextureGuid: b53e47272d8c8b14d9427a7c4400ac91
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 50
+        height: 50
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 2375666797642668340, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 5943746651921447992, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 8020801591492741098, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 4282239347739718915, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: -6477925974116854792, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 1789001641594031975, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 6562469743352452308, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 4345443088671117522, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: -3899591223141291906, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 6327418846055705497, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 3164300150037095534, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 6274065208954949611, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: -1070716902629409899, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 3864288322783800103, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: 1503762013697922900, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    - {fileID: -2957725807584898279, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 2800000, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+    sourceTextureGuid: bc65bccd503350d4da325a0825de491f
+    clip: {fileID: 7400000, guid: be81e086f7d607342b3a0358191f67a1, type: 2}
+    metaLayersEnabled: 1
+    metaLayers:
+    - id: Muzzle
+      mode: 2
+      color: {r: 1, g: 0.3, b: 0.3, a: 1}
+      frames:
+      - param: 
+        w: 0
+        h: 0
+        cells: 
+      - param: 
+        w: 43
+        h: 32
+        cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+      - param: 
+        w: 0
+        h: 0
+        cells: 
+      - param: 
+        w: 0
+        h: 0
+        cells: 
+      - param: 
+        w: 0
+        h: 0
+        cells: 
+      - param: 
+        w: 0
+        h: 0
+        cells: 
+      - param: 
+        w: 0
+        h: 0
+        cells: 
+      - param: 
+        w: 0
+        h: 0
+        cells: 
+      - param: 
+        w: 0
+        h: 0
+        cells: 
+      - param: 
+        w: 0
+        h: 0
+        cells: 
+      - param: 
+        w: 0
+        h: 0
+        cells: 
+      - param: 
+        w: 0
+        h: 0
+        cells: 
+      - param: 
+        w: 0
+        h: 0
+        cells: 
+      - param: 
+        w: 0
+        h: 0
+        cells: 
+      - param: 
+        w: 0
+        h: 0
+        cells: 
+      - param: 
+        w: 0
+        h: 0
+        cells: 
+      vectorFrames: []
+      vectorAllowLength: 0
+    - id: Waist
+      mode: 1
+      color: {r: 0.4, g: 0.85, b: 0.45, a: 1}
+      frames:
+      - param: 
+        w: 43
+        h: 32
+        cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+      - param: 
+        w: 43
+        h: 32
+        cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+      - param: 
+        w: 43
+        h: 32
+        cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+      - param: 
+        w: 43
+        h: 32
+        cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+      - param: 
+        w: 43
+        h: 32
+        cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+      - param: 
+        w: 43
+        h: 32
+        cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+      - param: 
+        w: 43
+        h: 32
+        cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+      - param: 
+        w: 43
+        h: 32
+        cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+      - param: 
+        w: 43
+        h: 32
+        cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+      - param: 
+        w: 43
+        h: 32
+        cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+      - param: 
+        w: 43
+        h: 32
+        cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+      - param: 
+        w: 43
+        h: 32
+        cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+      - param: 
+        w: 43
+        h: 32
+        cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+      - param: 
+        w: 43
+        h: 32
+        cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+      - param: 
+        w: 43
+        h: 32
+        cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+      - param: 
+        w: 43
+        h: 32
+        cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+      vectorFrames: []
+      vectorAllowLength: 0
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  sets:
+  - name: LegsIdle16
+    directionMode: 5
+    members:
+    - angleDegrees: 0
+      laumination:
+        name: LegsIdleRotation
+        fps: 12
+        recipe:
+        - sourceTextureGuid: b026844e68965594c99ea03c3266226f
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: a788eaf994c70234ea7e43389c242004
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 6fac3b4c61b57174981c05e92b6f0481
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 9a1ff48c714036847b3cc17f971c5257
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: a7f511421e14eac4185f3b4ce5346ffa
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 838927d5799b35042879c694b010096b
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: dd5e29a3edee3e747b6c7394faaec8d6
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 2640c3b9f2f57674dbe544e2ae9ced85
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 087a3a3af6e0fec4c8c78666a74c2d0e
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: c21706b511487f9489739328f23d98b2
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 90d8d117f4a30fc4da369b93471fc01c
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: c0c834e7efebc644abe6e1ef1842486b
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 2a9ac32eeba7f2240949e25d3b4d0826
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: fdfdf3cdca876ae4c8eb568555053a88
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 06080fc972e5a4b4b8cfd54752682a61
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 6ca9add6c5ed80241acb704be7e1d462
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: -6547075014006627773, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 1843800683345282423, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: -7981487555666157104, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 8374382311106426359, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: -4767001101679781952, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 7549354426586216120, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: -738915426039143411, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 5995018510096200328, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 2999516896756697356, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 445664672483915349, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: -2740289884897651079, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 6964965083523577192, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 3479565467732239201, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: -2371649780985693966, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 5731262843004722346, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 5811346204228297362, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 2800000, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        sourceTextureGuid: b026844e68965594c99ea03c3266226f
+        clip: {fileID: 7400000, guid: 0260d0fb3170a7c4c8b9c241278fe1aa, type: 2}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+      zoneName: 
+    mirrorBuiltIn: 0
+    snapStepDeg: 0
+    framePivot: {x: 0.5, y: 0}
+  - name: LegsWalk3
+    directionMode: 2
+    members:
+    - angleDegrees: 0
+      laumination:
+        name: LegsWalk_N
+        fps: 10
+        recipe:
+        - sourceTextureGuid: bc452219d72a72a49b689329455ccc6e
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: bc452219d72a72a49b689329455ccc6e
+          cell:
+            serializedVersion: 2
+            x: 50
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: bc452219d72a72a49b689329455ccc6e
+          cell:
+            serializedVersion: 2
+            x: 100
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: bc452219d72a72a49b689329455ccc6e
+          cell:
+            serializedVersion: 2
+            x: 150
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: bc452219d72a72a49b689329455ccc6e
+          cell:
+            serializedVersion: 2
+            x: 200
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: bc452219d72a72a49b689329455ccc6e
+          cell:
+            serializedVersion: 2
+            x: 250
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: bc452219d72a72a49b689329455ccc6e
+          cell:
+            serializedVersion: 2
+            x: 300
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: bc452219d72a72a49b689329455ccc6e
+          cell:
+            serializedVersion: 2
+            x: 350
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 7625353642974752303, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: -2992149269904028791, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 4380423772799078753, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: -8079936417545438962, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 7744173869180012509, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: -8132939431954792645, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: -2581692415788340439, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: -1601596505656613747, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 2800000, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        sourceTextureGuid: bc452219d72a72a49b689329455ccc6e
+        clip: {fileID: 7400000, guid: 05517835f728cde45aff0e3a24683d20, type: 2}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+      zoneName: 
+    - angleDegrees: 90
+      laumination:
+        name: LegsWalk_E
+        fps: 10
+        recipe:
+        - sourceTextureGuid: b654328b742c75a42816ad9025641bab
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: b654328b742c75a42816ad9025641bab
+          cell:
+            serializedVersion: 2
+            x: 50
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: b654328b742c75a42816ad9025641bab
+          cell:
+            serializedVersion: 2
+            x: 100
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: b654328b742c75a42816ad9025641bab
+          cell:
+            serializedVersion: 2
+            x: 150
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: b654328b742c75a42816ad9025641bab
+          cell:
+            serializedVersion: 2
+            x: 200
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: b654328b742c75a42816ad9025641bab
+          cell:
+            serializedVersion: 2
+            x: 250
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: b654328b742c75a42816ad9025641bab
+          cell:
+            serializedVersion: 2
+            x: 300
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: b654328b742c75a42816ad9025641bab
+          cell:
+            serializedVersion: 2
+            x: 350
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: -7547975583332683562, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 6642023921975925791, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: -3213947272084201502, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 3683261985718490363, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: -4308503013214318697, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: -5764143536469989782, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: -6217495546354138823, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 2656628738997907869, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 2800000, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        sourceTextureGuid: b654328b742c75a42816ad9025641bab
+        clip: {fileID: 7400000, guid: 7152fcb517228d54eb63f8f190cddd81, type: 2}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+      zoneName: 
+    - angleDegrees: 180
+      laumination:
+        name: LegsWalk_S
+        fps: 10
+        recipe:
+        - sourceTextureGuid: 478573a97ce67824fb9f466f06ae3671
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 478573a97ce67824fb9f466f06ae3671
+          cell:
+            serializedVersion: 2
+            x: 50
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 478573a97ce67824fb9f466f06ae3671
+          cell:
+            serializedVersion: 2
+            x: 100
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 478573a97ce67824fb9f466f06ae3671
+          cell:
+            serializedVersion: 2
+            x: 150
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 478573a97ce67824fb9f466f06ae3671
+          cell:
+            serializedVersion: 2
+            x: 200
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 478573a97ce67824fb9f466f06ae3671
+          cell:
+            serializedVersion: 2
+            x: 250
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 478573a97ce67824fb9f466f06ae3671
+          cell:
+            serializedVersion: 2
+            x: 300
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 478573a97ce67824fb9f466f06ae3671
+          cell:
+            serializedVersion: 2
+            x: 350
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 4182495383254442156, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 5444371381045419032, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 2927270964821656390, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 5766709239393123052, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: -6685668192395559160, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: -7285430028584789868, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 5627367484652728055, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 3394478202789590621, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 2800000, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        sourceTextureGuid: 478573a97ce67824fb9f466f06ae3671
+        clip: {fileID: 7400000, guid: a670272e4aec49948ad6cc4b335e17cc, type: 2}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+      zoneName: 
+    mirrorBuiltIn: 1
+    snapStepDeg: 0
+    framePivot: {x: 0.5, y: 0}
+  - name: UpperAim16
+    directionMode: 5
+    members:
+    - angleDegrees: 0
+      laumination:
+        name: UpperAimRotation
+        fps: 12
+        recipe:
+        - sourceTextureGuid: bc65bccd503350d4da325a0825de491f
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: d40777357aa5b974395e394a9197211f
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 4fc48b0c9f92aee4d9c682274ae0e731
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 87504ae34ccd56c4590af591777ebb3a
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 393f4fdc0c3a1954e98540a1912d904e
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 6cba9f723d089ed49b4c711f86c7e2f6
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: a9a0aed7a3ef0b3488af96749f4be288
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 80488d7e9505bab47a8a82e5c18697dd
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 60fcb5b889b933549bd9871a406378cb
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 421956392a9484146b032062976e9b0c
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 0dce0db6a9472a64b9b4ec33e6858df4
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 4f5fb2e9478343049b10fa6683726657
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: c94a129ac7a558e4280643c1371f0554
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: e6abd7b500f9ff84b8b08c655caad5af
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: 5bf7e97d2e8e9554a94c6e66d1895922
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        - sourceTextureGuid: b53e47272d8c8b14d9427a7c4400ac91
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 50
+            height: 50
+          pivot: {x: 0.5, y: 0.5}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 2375666797642668340, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 5943746651921447992, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 8020801591492741098, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 4282239347739718915, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: -6477925974116854792, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 1789001641594031975, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 6562469743352452308, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 4345443088671117522, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: -3899591223141291906, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 6327418846055705497, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 3164300150037095534, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 6274065208954949611, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: -1070716902629409899, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 3864288322783800103, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: 1503762013697922900, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        - {fileID: -2957725807584898279, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 2800000, guid: 107dfc0a3ce2d124da3c1517421dc557, type: 3}
+        sourceTextureGuid: bc65bccd503350d4da325a0825de491f
+        clip: {fileID: 7400000, guid: be81e086f7d607342b3a0358191f67a1, type: 2}
+        metaLayersEnabled: 1
+        metaLayers:
+        - id: Muzzle
+          mode: 2
+          color: {r: 1, g: 0.3, b: 0.3, a: 1}
+          frames:
+          - param: 
+            w: 0
+            h: 0
+            cells: 
+          - param: 
+            w: 43
+            h: 32
+            cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+          - param: 
+            w: 0
+            h: 0
+            cells: 
+          - param: 
+            w: 0
+            h: 0
+            cells: 
+          - param: 
+            w: 0
+            h: 0
+            cells: 
+          - param: 
+            w: 0
+            h: 0
+            cells: 
+          - param: 
+            w: 0
+            h: 0
+            cells: 
+          - param: 
+            w: 0
+            h: 0
+            cells: 
+          - param: 
+            w: 0
+            h: 0
+            cells: 
+          - param: 
+            w: 0
+            h: 0
+            cells: 
+          - param: 
+            w: 0
+            h: 0
+            cells: 
+          - param: 
+            w: 0
+            h: 0
+            cells: 
+          - param: 
+            w: 0
+            h: 0
+            cells: 
+          - param: 
+            w: 0
+            h: 0
+            cells: 
+          - param: 
+            w: 0
+            h: 0
+            cells: 
+          - param: 
+            w: 0
+            h: 0
+            cells: 
+          vectorFrames: []
+          vectorAllowLength: 0
+        - id: Waist
+          mode: 1
+          color: {r: 0.4, g: 0.85, b: 0.45, a: 1}
+          frames:
+          - param: 
+            w: 43
+            h: 32
+            cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+          - param: 
+            w: 43
+            h: 32
+            cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+          - param: 
+            w: 43
+            h: 32
+            cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+          - param: 
+            w: 43
+            h: 32
+            cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+          - param: 
+            w: 43
+            h: 32
+            cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+          - param: 
+            w: 43
+            h: 32
+            cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+          - param: 
+            w: 43
+            h: 32
+            cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+          - param: 
+            w: 43
+            h: 32
+            cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+          - param: 
+            w: 43
+            h: 32
+            cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+          - param: 
+            w: 43
+            h: 32
+            cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+          - param: 
+            w: 43
+            h: 32
+            cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+          - param: 
+            w: 43
+            h: 32
+            cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+          - param: 
+            w: 43
+            h: 32
+            cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+          - param: 
+            w: 43
+            h: 32
+            cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+          - param: 
+            w: 43
+            h: 32
+            cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+          - param: 
+            w: 43
+            h: 32
+            cells: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+          vectorFrames: []
+          vectorAllowLength: 0
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+      zoneName: 
+    mirrorBuiltIn: 0
+    snapStepDeg: 0
+    framePivot: {x: 0.5, y: 0}
+  prefab: {fileID: 3634951553262977007, guid: 6379d3ca5ed0959429d0a103eee14ee1, type: 3}
+  controller: {fileID: 9100000, guid: 8faeaba98d4148c49a79e453a32b1043, type: 2}

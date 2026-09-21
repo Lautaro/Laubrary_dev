@@ -198,6 +198,56 @@ MonoBehaviour:
     label: UC7 Bullet Hole
   restoreKey: 0
   showKeyLegend: 1
+--- !u!1 &388000100
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 388000101}
+  - component: {fileID: 388000102}
+  m_Layer: 0
+  m_Name: Chunks UC Hit Targets
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &388000101
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 388000100}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &388000102
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 388000100}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5c27db9f47c841ab88e59c963de5d951, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Demos::Laubrary.Demos.ProtoGuyDemo.ChunksUCHitTargets
+  targets:
+  - zoe: {fileID: 11400000, guid: 1280dbf861da82a448676b5ed1e5897d, type: 2}
+    position: {x: -3, y: 2}
+  - zoe: {fileID: 11400000, guid: b4c363c9f2234f708ac5f10739ce0906, type: 2}
+    position: {x: 3, y: 2}
+  health: 100000
 --- !u!1 &1395470066
 GameObject:
   m_ObjectHideFlags: 0
@@ -256,7 +306,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c3397ac2511c5a44a955110f59472a56, type: 3}
   m_Name: 
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Demos::Laubrary.Demos.ProtoGuyDemo.FireDirectionVisualizer
-  enableVisualizer: 1
+  enableVisualizer: 0
   lineLength: 6
   lineColor: {r: 1, g: 0, b: 0, a: 1}
   lineWidth: 0.03
@@ -306,7 +356,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3ea71831e7a06164bb6d36ed12d62344, type: 3}
   m_Name: 
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Demos::Laubrary.Demos.ProtoGuyDemo.ProtoGuySpawner
-  zoeDef: {fileID: 11400000, guid: 4b40ce07da0df0044a1bcb27c64f58e4, type: 2}
+  zoeDef: {fileID: 11400000, guid: 274caf83063e4f9bacdde7542d2b804d, type: 2}
 --- !u!4 &1432643070
 Transform:
   m_ObjectHideFlags: 0
@@ -479,56 +529,6 @@ MonoBehaviour:
   targetCamera: {fileID: 0}
   distance: 10
   sortingOrder: -1000
---- !u!1 &388000100
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 388000101}
-  - component: {fileID: 388000102}
-  m_Layer: 0
-  m_Name: Chunks UC Hit Targets
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &388000101
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 388000100}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &388000102
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 388000100}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5c27db9f47c841ab88e59c963de5d951, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Demos::Laubrary.Demos.ProtoGuyDemo.ChunksUCHitTargets
-  targets:
-  - zoe: {fileID: 11400000, guid: 1280dbf861da82a448676b5ed1e5897d, type: 2}
-    position: {x: -3, y: 2}
-  - zoe: {fileID: 11400000, guid: b4c363c9f2234f708ac5f10739ce0906, type: 2}
-    position: {x: 3, y: 2}
-  health: 100000
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
