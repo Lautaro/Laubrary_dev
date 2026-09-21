@@ -84,10 +84,11 @@ namespace Laubrary.BackSplash
                             + camTransform.up * (normalizedOffset.y * viewHeight * 0.5f);
             _spriteTransform.position = camTransform.position + camTransform.forward * distance + offset;
 
+            // Cover fit, uniform on both axes — see BackSplash.CoverScale's own header for why this must never
+            // go back to independent scaleX/scaleY (that was the stretch-to-fill distortion bug, T-0387).
             var spriteSize = _renderer.sprite.bounds.size;
-            float scaleX = spriteSize.x > 0.0001f ? viewWidth * backSplash.imageZoom / spriteSize.x : 1f;
-            float scaleY = spriteSize.y > 0.0001f ? viewHeight * backSplash.imageZoom / spriteSize.y : 1f;
-            _spriteTransform.localScale = new Vector3(scaleX, scaleY, 1f);
+            float scale = BackSplash.CoverScale(viewWidth, viewHeight, spriteSize.x, spriteSize.y, backSplash.imageZoom);
+            _spriteTransform.localScale = new Vector3(scale, scale, 1f);
         }
 
         void EnsureRenderer()

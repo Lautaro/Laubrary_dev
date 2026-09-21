@@ -41,7 +41,10 @@ namespace Laubrary.BackSplash.Editor
             // Clipped so a zoomed-in image cannot paint outside the viewport it belongs to, and so the rect below
             // can be expressed in view-local coordinates (which is what makes the centring read).
             GUI.BeginClip(view);
-            float w = view.width * bs.imageZoom, h = view.height * bs.imageZoom;
+            // Cover fit, uniform on both axes (BackSplash.CoverScale) — never scaleX/scaleY off view.width/
+            // view.height independently, which stretched every non-view-shaped image (T-0387).
+            float scale = BackSplash.CoverScale(view.width, view.height, r.width, r.height, bs.imageZoom);
+            float w = r.width * scale, h = r.height * scale;
             // Centred, then offset. `imagePos.y` is NEGATED because the pad authors +y as UP while IMGUI's rects
             // measure +y DOWN.
             var imgRect = new Rect((view.width - w) * 0.5f + bs.imagePos.x,

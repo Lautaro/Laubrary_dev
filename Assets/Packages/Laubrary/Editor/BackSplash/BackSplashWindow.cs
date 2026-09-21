@@ -172,7 +172,10 @@ namespace Laubrary.BackSplash.Editor
             var r = bs.image.textureRect;
             var tc = new Rect(r.x / tex.width, r.y / tex.height, r.width / tex.width, r.height / tex.height);
 
-            float w = view.width * bs.imageZoom, h = view.height * bs.imageZoom;
+            // Cover fit, uniform on both axes (BackSplash.CoverScale) — never scaleX/scaleY off view.width/
+            // view.height independently, which stretched every non-view-shaped image (T-0387).
+            float scale = BackSplash.CoverScale(view.width, view.height, r.width, r.height, bs.imageZoom);
+            float w = r.width * scale, h = r.height * scale;
             var imgRect = new Rect(view.x + (view.width - w) * 0.5f + bs.imagePos.x,
                                     view.y + (view.height - h) * 0.5f - bs.imagePos.y, w, h);
 

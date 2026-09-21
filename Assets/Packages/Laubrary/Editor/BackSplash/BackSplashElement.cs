@@ -85,11 +85,15 @@ namespace Laubrary.BackSplash.Editor
             float vw = resolvedStyle.width, vh = resolvedStyle.height;
             if (float.IsNaN(vw) || float.IsNaN(vh) || vw <= 0f || vh <= 0f) return;
 
-            // Identical arithmetic to BackSplashPainter.cs:43-48, deliberately: size is a fraction of the view,
-            // centred, then offset. imagePos.y is NEGATED because the authoring pad treats +y as UP while both
-            // IMGUI rects and UITK's top/left measure +y DOWN. Keeping the negation here rather than "fixing" it
-            // is what makes a backdrop authored in one toolkit look identical in the other.
-            float w = vw * _settings.imageZoom, h = vh * _settings.imageZoom;
+            // Identical arithmetic to BackSplashPainter.cs, deliberately: cover-fit (BackSplash.CoverScale) —
+            // uniform scale preserving the sprite's own aspect ratio, never independent width/height fractions
+            // of the view (that stretched every non-view-shaped image, T-0387) — centred, then offset.
+            // imagePos.y is NEGATED because the authoring pad treats +y as UP while both IMGUI rects and UITK's
+            // top/left measure +y DOWN. Keeping the negation here rather than "fixing" it is what makes a
+            // backdrop authored in one toolkit look identical in the other.
+            var rect = _settings.image.rect;
+            float scale = BackSplash.CoverScale(vw, vh, rect.width, rect.height, _settings.imageZoom);
+            float w = rect.width * scale, h = rect.height * scale;
             _image.style.width = w;
             _image.style.height = h;
             _image.style.left = (vw - w) * 0.5f + _settings.imagePos.x;

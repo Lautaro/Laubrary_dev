@@ -35,6 +35,23 @@ namespace Laubrary.BackSplash
             Mathf.Clamp(pos.x, -MaxImageOffset, MaxImageOffset),
             Mathf.Clamp(pos.y, -MaxImageOffset, MaxImageOffset));
 
+        // The ONE cover-fit formula every renderer of a backdrop image must use — written here once because it
+        // was previously written four times, independently, each computing scaleX and scaleY off the view's
+        // width/height alone with no shared ratio: a stretch-to-fill, not a zoom, silently distorting the
+        // aspect ratio of every backdrop whose shape didn't happen to match its view (BackSplashBackdrop.cs,
+        // BackSplashPainter.cs, BackSplashElement.cs, BackSplashWindow.cs — same bug, four copies).
+        //
+        // "Cover" fit: preserve the content's own aspect ratio, scale UNIFORMLY (never scaleX/scaleY
+        // independently) so the content covers the whole view with no gap on either axis — the larger-
+        // overflowing axis crops rather than the smaller axis leaving empty space. zoom multiplies on top of
+        // that cover scale, so zoom == 1 is exactly "the smallest zoom where both edges are filled" — the
+        // natural, non-distorting baseline every field's own default (and every caller below) already assumes.
+        public static float CoverScale(float viewWidth, float viewHeight, float contentWidth, float contentHeight, float zoom)
+        {
+            if (contentWidth <= 0.0001f || contentHeight <= 0.0001f) return zoom;
+            return Mathf.Max(viewWidth / contentWidth, viewHeight / contentHeight) * zoom;
+        }
+
         // Static-only preview: colour fill + the image roughly centred at its own aspect ratio. Deliberately not
         // pixel-matching the editor's own imagePos/zoom viewport math (that's IMGUI Rect space, this is baked
         // texture space) — a thumbnail only needs to be recognisable, not a precise re-render.
