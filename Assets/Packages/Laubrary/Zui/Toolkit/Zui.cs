@@ -913,17 +913,25 @@ namespace Laubrary.Zui
 
             string xTip = $"{tooltip} Ranges {range.xMin:0.##} to {range.xMax:0.##}.";
             string yTip = $"{tooltip} Ranges {range.yMin:0.##} to {range.yMax:0.##}.";
+            // `pad.Value`'s setter clamps to `range` — read it straight back after the assignment (rather
+            // than trusting the typed/scrubbed `v`) so a field that ran past the range shows the SAME clamped
+            // number the pad and the asset now hold, on both axes, instead of a stale typed value the pad
+            // silently disagrees with (T-0358/1, T-0367).
             xField = Float(value.x, xTip, v =>
             {
-                var nv = new Vector2(v, pad.Value.y);
-                pad.Value = nv;
-                onChanged?.Invoke(nv);
+                pad.Value = new Vector2(v, pad.Value.y);
+                var clamped = pad.Value;
+                xField.SetValueWithoutNotify(clamped.x);
+                yField?.SetValueWithoutNotify(clamped.y);
+                onChanged?.Invoke(clamped);
             }, fieldWidth);
             yField = Float(value.y, yTip, v =>
             {
-                var nv = new Vector2(pad.Value.x, v);
-                pad.Value = nv;
-                onChanged?.Invoke(nv);
+                pad.Value = new Vector2(pad.Value.x, v);
+                var clamped = pad.Value;
+                xField?.SetValueWithoutNotify(clamped.x);
+                yField.SetValueWithoutNotify(clamped.y);
+                onChanged?.Invoke(clamped);
             }, fieldWidth);
 
             sync = v =>

@@ -164,10 +164,8 @@ namespace Laubrary.Chunks.Editor
                         "The order the blasts go off in once they are staggered.",
                         i => Dial("Edit Pattern", () => f.staggerOrder = (FormationStaggerOrder)i), true)));
 
-                body.Add(Z.Field("Pattern seed",
-                    "Fixes the wander and the drift so the pattern comes out the same every time. 0 rerolls.",
-                    Z.Int(f.seed, "Fixes the wander and the drift so the pattern comes out the same every time.",
-                          v => Dial("Edit Pattern", () => f.seed = v), 70f)));
+                body.Add(SeedField(f.seed, "the wander and the drift", "Edit Pattern", v => f.seed = v,
+                                   "Pattern seed"));
             }
 
             // ── where, and how each one comes out ────────────────────────────────
@@ -264,12 +262,8 @@ namespace Laubrary.Chunks.Editor
                     }),
                     180f, showValue: true, decimals: 2)));
 
-            body.Add(Z.Field("Seed",
-                "Fixes which alternate, which angle, which size and which opacity each spawn draws, so the " +
-                "blast comes out the same every time. 0 rerolls.",
-                Z.Int(cap.seed, "Fixes the picking, angle, size and opacity so the blast comes out the same " +
-                                "every time.",
-                      v => Dial("Edit Blast Seed", () => cap.seed = v), 70f)));
+            body.Add(SeedField(cap.seed, "which alternate, which angle, which size and which opacity each spawn " +
+                               "draws", "Edit Blast Seed", v => cap.seed = v));
 
             var slot = LayerSlotRow(c, () => cap.layerName, v => cap.layerName = v);
             if (slot != null) body.Add(slot);

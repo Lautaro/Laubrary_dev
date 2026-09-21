@@ -57,8 +57,21 @@ namespace Laubrary.Chunks.Editor
         // pixels, and a zoom under it would feed back into the drag.
         float shownReach = -1f;
         int shownReachSpec;
-        bool pointerHeld;
+        // [NonSerialized]: mid-gesture bookkeeping, same reason as draggingBlastCap below — a stale `true`
+        // surviving a domain reload would freeze the zoom wide exactly like the drag-cap bug did (T-0372).
+        [NonSerialized] bool pointerHeld;
         const float ZoomRate = 10f;   // per second; ~0.3 s to settle
+
+        // A pointer-up on a control that captures the pointer (a slider, a MicroMinMax drag) does not always
+        // reach OnAnyPointerUp on the window root — confirmed live (T-0359 check 6): the zoom stayed at its
+        // widened "held" reach for 1.5 s after release until an unrelated later click finally cleared
+        // pointerHeld. Rather than trust the release event alone, Tick also watches previewGeneration (bumped
+        // by every Dial edit, i.e. every value the drag actually produced) and self-releases once it has gone
+        // this long without a fresh one — a real drag keeps bumping it every frame it moves, so this only ever
+        // fires once the drag has genuinely stopped producing values.
+        [NonSerialized] int lastSeenPreviewGeneration = -1;
+        [NonSerialized] double lastValueChangeTick;
+        const double PointerReleaseGrace = 0.35;   // seconds of no new value before a held pointer is assumed gone
 
         const string StageTooltipBase =
             "What this recipe puts on screen at the transport's time, worked out the way the burst works it " +
@@ -68,7 +81,11 @@ namespace Laubrary.Chunks.Editor
         // ── dragging a blast's disc on the stage ─────────────────────────────────────────────────────────
         // Direct-mutate-and-dirty rather than routing through Dial — a drag is a single continuous gesture
         // (one Undo step bracketed by MouseDown/MouseUp), the same shape as BackSplashWindow.HandleDrag.
-        PyreBlast draggingBlastCap;
+        // [NonSerialized]: this is purely mid-gesture state, never data — a domain reload (recompile, entering
+        // Play) always happens between events, so without this it comes back as a stale default PyreBlast
+        // (empty id) instead of null, and a press on an empty stage would then drag that phantom (T-0367).
+        [NonSerialized] PyreBlast draggingBlastCap;
+        [NonSerialized] int dragUndoGroup = -1;
         Vector2 dragStartGuideWorld;
         Vector2 dragStartOffset;
 
@@ -257,6 +274,7 @@ namespace Laubrary.Chunks.Editor
             lastTick = now;
 
             if (this == null || Current == null) return;
+            ReleaseStalePointerHold(now);
             EaseZoom(Mathf.Clamp(dt, 0f, 0.1f));
             if (!playing) return;
             float length = ChunkClock.Length(Current);
@@ -349,6 +367,22 @@ namespace Laubrary.Chunks.Editor
             return shownReach;
         }
 
+        /// Fallback release detection — see the field comment on <see cref="lastValueChangeTick"/>. The real
+        /// PointerUp path (<see cref="OnAnyPointerUp"/>) still runs and clears pointerHeld immediately whenever
+        /// it does reach the root; this only ever has to fire when that event was swallowed by whatever control
+        /// captured the pointer.
+        void ReleaseStalePointerHold(double now)
+        {
+            if (!pointerHeld) return;
+            if (previewGeneration != lastSeenPreviewGeneration)
+            {
+                lastSeenPreviewGeneration = previewGeneration;
+                lastValueChangeTick = now;
+                return;
+            }
+            if (now - lastValueChangeTick > PointerReleaseGrace) pointerHeld = false;
+        }
+
         /// Walk the shown reach toward where it should be — see the note on <see cref="shownReach"/>.
         void EaseZoom(float dt)
         {
@@ -368,14 +402,23 @@ namespace Laubrary.Chunks.Editor
 
         // Any pointer held anywhere in the window — a slider, a scrubbed number, a stage drag. Registered
         // trickle-down on the window's root, which every pointer event passes through, captured or not.
-        void OnAnyPointerDown(PointerDownEvent e) => pointerHeld = true;
+        void OnAnyPointerDown(PointerDownEvent e)
+        {
+            pointerHeld = true;
+            // Give a fresh press its own full grace window rather than inheriting a stale clock from
+            // whatever the previous gesture last bumped previewGeneration at.
+            lastSeenPreviewGeneration = previewGeneration;
+            lastValueChangeTick = EditorApplication.timeSinceStartup;
+        }
 
         void OnAnyPointerUp(PointerUpEvent e)
         {
             pointerHeld = false;
             // A stage drag released outside the stage never reaches its IMGUI MouseUp; without this the
-            // blast would stay "held" (and the zoom frozen) until the next press on the stage.
+            // blast would stay "held" (and the zoom frozen) until the next press on the stage, and the drag's
+            // Undo group would never collapse.
             draggingBlastCap = null;
+            if (dragUndoGroup >= 0) { Undo.CollapseUndoOperations(dragUndoGroup); dragUndoGroup = -1; }
         }
 
         /// The stage's tooltip admits what the picture cannot show: that an unseeded capability rolls afresh
@@ -409,10 +452,16 @@ namespace Laubrary.Chunks.Editor
         /// the F3/H2 walk finding's other half, alongside the pad+fields row (Z.PadRow, PyreBlastCard.cs).
         /// Hit-tests against the LAST Repaint's guides (`frame` only gets rebuilt on Repaint, so this lags by
         /// at most one event — invisible in practice) and reuses WorldToScreen/ScreenToWorld so the disc
-        /// tracks the cursor under the exact transform it was painted with. Direct-mutate-and-dirty, one
-        /// Undo.RecordObject at MouseDown and none after — one drag, one Undo step, same shape as
-        /// BackSplashWindow.HandleDrag. Never rebuilds the card or the window; it only pushes the new value
-        /// into the retained pad/fields via SyncBlastOffsetRow, so a drag never costs more than a repaint.
+        /// tracks the cursor under the exact transform it was painted with. Direct-mutate-and-dirty, one Undo
+        /// step for the whole gesture — but via Undo.RegisterCompleteObjectUndo at MouseDown bracketed by
+        /// IncrementCurrentGroup/CollapseUndoOperations (ZoundsWindow.BeginDragUndo/EndDragUndo's own pattern),
+        /// NOT Undo.RecordObject: RecordObject diffs against the object's state at the END of the SAME frame,
+        /// and MouseDown changes nothing, so a record taken there was silently dropped before the MouseDrag
+        /// frames ever moved the asset — the bug this replaces (T-0367/T2), and the exact shape of
+        /// BackSplashWindow.HandleDrag's own bug, tracked separately as T-0382 since BackSplash is a shared
+        /// cross-tool dependency this programme doesn't own. Never rebuilds the card or the window; it only
+        /// pushes the new value into the retained pad/fields via SyncBlastOffsetRow, so a drag never costs
+        /// more than a repaint.
         bool HandleBlastDrag(ChunkSpec c, Rect field, Vector2 centre, float scale)
         {
             var e = Event.current;
@@ -439,7 +488,12 @@ namespace Laubrary.Chunks.Editor
                     }
                 if (hit == null) return false;
 
-                Undo.RecordObject(c, "Drag Blast Offset");
+                // RegisterCompleteObjectUndo, not RecordObject — see the method comment. This stores the
+                // pre-drag state immediately rather than deferring to an end-of-frame diff, so it survives to
+                // be compared against whatever the MouseDrag frames below go on to change.
+                Undo.IncrementCurrentGroup();
+                dragUndoGroup = Undo.GetCurrentGroup();
+                Undo.RegisterCompleteObjectUndo(c, "Drag Blast Offset");
                 draggingBlastCap = hit;
                 dragStartGuideWorld = hitWorld;
                 dragStartOffset = hit.offset;
@@ -462,6 +516,7 @@ namespace Laubrary.Chunks.Editor
             if (draggingBlastCap != null && e.type == EventType.MouseUp)
             {
                 draggingBlastCap = null;
+                if (dragUndoGroup >= 0) { Undo.CollapseUndoOperations(dragUndoGroup); dragUndoGroup = -1; }
                 e.Use();
             }
             return false;

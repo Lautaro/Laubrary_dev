@@ -76,6 +76,10 @@ namespace Laubrary.Chunks.Editor
             EditorApplication.update += Tick;
             rootVisualElement.RegisterCallback<PointerDownEvent>(OnAnyPointerDown, TrickleDown.TrickleDown);
             rootVisualElement.RegisterCallback<PointerUpEvent>(OnAnyPointerUp, TrickleDown.TrickleDown);
+            // A domain reload always lands between pointer events, so a mid-drag never survives one to be
+            // continued — belt-and-suspenders alongside [NonSerialized] on draggingBlastCap (T-0367).
+            draggingBlastCap = null;
+            dragUndoGroup = -1;
         }
 
         protected override void OnDisable()

@@ -53,18 +53,20 @@ namespace Laubrary.Chunks.Editor
         }
 
         /// A Seed field. <paramref name="pins"/> names what the seed fixes, as a plural noun phrase ("the cut and
-        /// the pieces' flight"); the tooltip is rewritten whenever the value changes so it always describes the value shown.
-        VisualElement SeedField(int value, string pins, string undoLabel, Action<int> apply)
+        /// the pieces' flight"); the tooltip is rewritten whenever the value changes so it always describes the
+        /// value shown. <paramref name="label"/> defaults to "Seed" — pass a different one for the rare card
+        /// that carries more than one seed field and has to tell them apart (Pyre Blast's own "Pattern seed").
+        VisualElement SeedField(int value, string pins, string undoLabel, Action<int> apply, string label = "Seed")
         {
             var input = Z.Int(value, SeedTooltip(value, pins), null, 70f);
-            var field = Z.Field("Seed", SeedTooltip(value, pins), input);
-            var label = field.Q<Label>(className: "zui-field__label");
+            var field = Z.Field(label, SeedTooltip(value, pins), input);
+            var labelEl = field.Q<Label>(className: "zui-field__label");
             input.RegisterValueChangedCallback(e =>
             {
                 Dial(undoLabel, () => apply(e.newValue));
                 string tip = SeedTooltip(e.newValue, pins);
                 input.tooltip = tip;
-                if (label != null) label.tooltip = tip;
+                if (labelEl != null) labelEl.tooltip = tip;
             });
             return field;
         }
