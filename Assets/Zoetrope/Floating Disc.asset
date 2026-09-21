@@ -896,19 +896,19 @@ MonoBehaviour:
         animationSource: {fileID: 0}
         countMin: 15
         countMax: 31
-        speedMin: 3.44
-        speedMax: 8.53
-        spreadDeg: 117
-        upwardBias: -3.87
-        gravity: 18
-        drag: 2.16
+        speedMin: 1
+        speedMax: 2
+        spreadDeg: 180
+        upwardBias: 0
+        gravity: 0.2
+        drag: 0.3
         angularSpeedMin: 90
         angularSpeedMax: 480
         faceVelocity: 0
-        lifeMin: 0.35
-        lifeMax: 0.6
-        sizeMin: 0.16
-        sizeMax: 0.35
+        lifeMin: 6
+        lifeMax: 8
+        sizeMin: 0.0625
+        sizeMax: 0.375
         sizeOverLife:
           serializedVersion: 2
           m_Curve:
