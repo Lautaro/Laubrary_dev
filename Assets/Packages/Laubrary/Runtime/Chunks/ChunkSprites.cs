@@ -59,6 +59,45 @@ namespace Laubrary.Chunks
         /// priming the cache at a hardcoded ppu was half of the T-0391 bug.
         public static int Count => Shapes.Length;
 
+        /// One shard, chosen by <paramref name="pick"/> from among ONLY those whose native pixel width fits
+        /// within <paramref name="targetPx"/> (game pixels) — still a random shape, just drawn from the subset
+        /// that does not have to be shrunk to reach the target. Scaling one to size therefore never shrinks it
+        /// BELOW its own texel grid: a 3×3 shard squashed to a 1px target renders each of its texels at a THIRD
+        /// of a game pixel, which is precisely "sub-pixel" in the reader's own sense — fine, smooth-edged noise
+        /// instead of the crisp single/double-pixel specks the target size promised (T-0393). Only ever scales
+        /// a shard UP or leaves it 1:1.
+        /// Falls back to the smallest shard (always 1×1) when targetPx is below even that — the one case some
+        /// downscale is unavoidable, and harmless there since a single texel has no internal grid to subdivide.
+        /// ⚠ Knock-on effect, by design: a size range narrows the shape library. The comparison is a strict fit
+        /// with no tolerance, so a recipe authored at 1–3 px never reaches the three 3-wide shards (the 3×3, the
+        /// 3×2 and the diagonal sliver) — they need targetPx to land on exactly 3, which a continuous roll never
+        /// does. Crispness was chosen over shape variety here; widen the size range, or give this a fit epsilon,
+        /// if a spray ever needs the bigger shapes back.
+        /// RNG-agnostic on purpose (a caller supplies its own random int, e.g. ChunkRng.Next(int.MaxValue)) so
+        /// this has no opinion about which generator a capability uses.
+        public static Sprite GetFitting(float targetPx, float ppu, int pick)
+        {
+            int n = Shapes.Length;
+            int qualifying = 0;
+            for (int i = 0; i < n; i++) if (Shapes[i].w <= targetPx) qualifying++;
+
+            if (qualifying == 0)
+            {
+                int smallest = 0, smallestW = int.MaxValue;
+                for (int i = 0; i < n; i++) if (Shapes[i].w < smallestW) { smallestW = Shapes[i].w; smallest = i; }
+                return Get(smallest, ppu);
+            }
+
+            int idx = ((pick % qualifying) + qualifying) % qualifying;
+            for (int i = 0; i < n; i++)
+            {
+                if (Shapes[i].w > targetPx) continue;
+                if (idx == 0) return Get(i, ppu);
+                idx--;
+            }
+            return Get(0, ppu);   // unreachable — qualifying > 0 guarantees the loop above returns
+        }
+
         static Sprite[] Ensure(float ppu)
         {
             ppu = Mathf.Max(1f, ppu);

@@ -303,10 +303,24 @@ namespace Laubrary.Chunks
                 color.a = 255;   // the particle's own alpha rides alphaOverLife, not the sampled pixel's
 
                 // Every ChunkSprites shape is a shared, statically cached pixel sprite, so this allocates no
-                // texture per particle and there is nothing to clean up on death. It also gives the random
-                // shard shape for free instead of hand-rolling per-particle geometry.
-                var shape = ChunkSprites.Get(rng.Next(ChunkSprites.Count), ppu);
+                // texture per particle and there is nothing to clean up on death.
+                //
+                // The shape-pick draw stays in its ORIGINAL rng-stream position. ChunkPreviewSim.Splash draws
+                // its own matching "shard shape pick" at this exact point, so a seeded splash stays
+                // reproducible between the editor preview and a real Fire, and the bound swap below (Count →
+                // int.MaxValue) is safe because ChunkRng.Next(int) costs exactly one NextUInt() step for ANY
+                // bound ABOVE 1 — measured, not assumed. ⚠ That is NOT "any bound": Next(int) short-circuits
+                // to 0 and consumes NOTHING when the bound is <= 1, so never swap a bound here for one that
+                // could be 0 or 1 without re-checking the preview's matching draw, or the two silently desync.
+                // The draw's result now feeds GetFitting instead of Get, so it
+                // only ever picks AMONG shards that fit inside the target size rolled just after it — a
+                // particle authored as "1-3 game pixels" must never end up built from a 3×3 shard squashed
+                // down to 1px, which would render each of that shard's OWN texels at a third of a game pixel:
+                // crisp confetti reading as smooth noise instead (T-0393), the actual cause behind "most
+                // particles are still sub-pixel" surviving the PPU fix in T-0391.
+                int shapePick = rng.Next(int.MaxValue);
                 float targetPx = Mathf.Max(0.1f, rng.Range(sizeLo, sizeHi));
+                var shape = ChunkSprites.GetFitting(targetPx, ppu, shapePick);
                 float nativeShapePx = Mathf.Max(0.01f, shape.rect.width);
 
                 var go = new GameObject("SplashParticle");
