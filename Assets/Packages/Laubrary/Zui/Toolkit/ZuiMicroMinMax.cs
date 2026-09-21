@@ -8,14 +8,20 @@
 // the high handle; press INSIDE the band pans both together (span held fixed); press OUTSIDE the band jumps
 // the nearer handle to the press point (an absolute jump, matching MicroSlider's own click-to-set). Shift
 // held during any of these drags is the same "fine" relative nudge MicroSlider and ZuiScrub use everywhere
-// else. Double-click resets both handles to the given defaults, or the full min/max span if none were given.
+// else. Double-click in Range resets both handles to the given defaults, or the full min/max span if none
+// were given; in Fixed it resets to the given default (low, or high if only that was given) and does nothing
+// at all if neither was given — the same "no default, no-op" contract as ZuiMicroSlider (T-0372: it used to
+// invent a reset-to-track-minimum instead, which read as the value collapsing).
 //
 // Fixed/Range mode (T-0360): RIGHT-CLICK opens a Fixed/Range menu, same gesture as Z.Value's mode menu.
 // Range is the two-handle band above; Fixed collapses the control to a single MicroSlider-style fill so
 // setting one value is one drag instead of two (dragging both handles onto the same spot). Switching mode
-// keeps the low value and either collapses high to match it (→ Fixed) or nudges high off it so there is a
-// band to grab again (→ Range). A caller that constructs the control with low == high starts in Fixed;
-// anything else starts in Range — no new constructor argument, so every existing caller is unaffected.
+// collapses high to the low value (→ Fixed) or, going the other way, nudges high off low so there is a band
+// to grab again — unless low is already at the top of the track, where nothing is left to nudge high INTO,
+// in which case low is nudged down instead so the band still has width (→ Range; T-0372, a value already at
+// max used to switch to Range as an empty-looking zero-width band). A caller that constructs the control with
+// low == high starts in Fixed; anything else starts in Range — no new constructor argument, so every existing
+// caller is unaffected.
 using System;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -145,9 +151,13 @@ namespace Laubrary.Zui
             else
             {
                 // Nudge high off low so there is a band to grab again, instead of handing back a control
-                // whose only usable gesture is the razor-thin "outside the band" jump.
+                // whose only usable gesture is the razor-thin "outside the band" jump. At the very top of the
+                // track low + nudge clamps straight back down to low (T-0372: Alpha 1.00 -> Fixed -> Range gave
+                // "1.00 - 1.00", an empty-looking band) — nudge the LOW end down instead whenever the high end
+                // has nowhere left to go.
                 float nudge = Mathf.Max((_max - _min) * 0.05f, 1e-3f);
-                SetValues(_low, Mathf.Min(_max, _low + nudge), notify: true);
+                if (_low + nudge <= _max) SetValues(_low, _low + nudge, notify: true);
+                else SetValues(Mathf.Max(_min, _low - nudge), _low, notify: true);
             }
             CloseGesture();
             UpdateTooltip();
@@ -195,18 +205,27 @@ namespace Laubrary.Zui
             if (e.button != 0) return;
             if (e.clickCount == 2)
             {
-                OpenGesture();
                 if (_mode == RangeMode.Fixed)
                 {
-                    float rv = _lowDefault ?? _highDefault ?? _min;
+                    // Same contract as ZuiMicroSlider: double-click resets to the caller's default, and does
+                    // NOTHING when none was given — it must never invent one by falling back to the track's
+                    // minimum, which read as "the value nearly vanished" for a control like Scale where 0.01
+                    // is just the bottom of the track, not a meaningful value (T-0372).
+                    if (!_lowDefault.HasValue && !_highDefault.HasValue) return;
+                    OpenGesture();
+                    float rv = _lowDefault ?? _highDefault.Value;
                     SetValues(rv, rv, notify: true);
+                    CloseGesture();
                 }
                 else
                 {
+                    // Range has no single "the default" to fall back to doing nothing for, so an unset side
+                    // resets to that side of the whole track — the band a fresh control already opens with.
+                    OpenGesture();
                     float rlo = _lowDefault ?? _min, rhi = _highDefault ?? _max;
                     SetValues(rlo, rhi, notify: true);
+                    CloseGesture();
                 }
-                CloseGesture();
                 e.StopPropagation();
                 return;
             }
@@ -318,6 +337,15 @@ namespace Laubrary.Zui
 
             float xLo = XFromValue(_low), xHi = XFromValue(_high);
             if (xHi - xLo > 0.5f) FillGradientH(p, xLo, xHi - xLo, r.height, FillLeft, FillRight);
+            else
+            {
+                // A band that collapsed to zero width (both handles on the same value) still needs to read as
+                // "there is a band here", not as an empty track that looks broken or unset — a thin fixed-width
+                // tick at the shared value, same idea as the Fixed-mode fill's own single edge (T-0372).
+                const float tick = 2f;
+                FillRect(p, Mathf.Clamp(xLo - tick * 0.5f, 0f, Mathf.Max(0f, r.width - tick)), 0f, tick, r.height,
+                    Color.Lerp(FillLeft, FillRight, 0.5f));
+            }
         }
 
         static void FillRect(Painter2D p, float x, float y, float w, float h, Color c)

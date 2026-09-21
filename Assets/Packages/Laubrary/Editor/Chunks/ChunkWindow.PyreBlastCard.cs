@@ -229,7 +229,7 @@ namespace Laubrary.Chunks.Editor
                     "makes every blast the same size.",
                     (lo, hi) => Dial("Edit Blast Scale",
                                      () => { cap.scaleMin = Mathf.Max(0.01f, lo); cap.scaleMax = Mathf.Max(cap.scaleMin, hi); }),
-                    180f, showValue: true, decimals: 2),
+                    180f, showValue: true, lowDefault: 1f, highDefault: 1f, decimals: 2),
                 onScreenSlider,
                 Z.ToggleButton("Auto",
                     cap.blastSecondsAuto
@@ -260,7 +260,7 @@ namespace Laubrary.Chunks.Editor
                         cap.alphaMin = Mathf.Clamp01(lo);
                         cap.alphaMax = Mathf.Clamp01(Mathf.Max(cap.alphaMin, hi));
                     }),
-                    180f, showValue: true, decimals: 2)));
+                    180f, showValue: true, lowDefault: 1f, highDefault: 1f, decimals: 2)));
 
             body.Add(SeedField(cap.seed, "which alternate, which angle, which size and which opacity each spawn " +
                                "draws", "Edit Blast Seed", v => cap.seed = v));
