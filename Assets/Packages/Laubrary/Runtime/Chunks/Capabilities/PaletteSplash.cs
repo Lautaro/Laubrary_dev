@@ -92,14 +92,18 @@ namespace Laubrary.Chunks
 
         [Tooltip("Sampled crops only: smallest cut, in SOURCE-texture pixels. A cut is drawn at exactly this " +
                  "many game pixels — its texel count and its on-screen size are the same number by " +
-                 "construction, so a crop can never be squashed below its own pixel grid.")]
+                 "construction, so a crop can never be squashed below its own pixel grid. Anything above 1 " +
+                 "comes out as an asymmetric connected blob of pixels within that square, never the square " +
+                 "itself.")]
         [Min(1)] public int cropPxMin = 1;
-        [Tooltip("Sampled crops only: largest cut, in SOURCE-texture pixels, inclusive.")]
+        [Tooltip("Sampled crops only: largest cut, in SOURCE-texture pixels, inclusive. The cut is the square " +
+                 "a blob is grown inside, so this is the widest a fragment can get, not how many pixels it " +
+                 "will have.")]
         [Min(1)] public int cropPxMax = 4;
 
-        [Tooltip("Sampled crops only: eat each cut's square outline away toward transparency, so a fragment " +
-                 "reads as a torn scrap rather than a crisp little rectangle of the art. Off = a hard-edged " +
-                 "crop, byte-identical to no masking at all.")]
+        [Tooltip("Sampled crops only: eat each cut further away toward transparency, on top of the asymmetric " +
+                 "blob shape every multi-pixel cut already has — rounds it off and thins it out. Off = the " +
+                 "blob's own hard pixel edges, byte-identical to no masking at all.")]
         public bool maskCropEdges = false;
         [Range(0f, 1f)]
         [Tooltip("How far in the fade eats. 0 = nothing; low values just round the corners off; 1 leaves " +
@@ -395,6 +399,12 @@ namespace Laubrary.Chunks
         /// One sampled crop: a <paramref name="cropPx"/>-wide square of the source's own pixels, centred on the
         /// pixel that was picked, optionally rim-tinted and edge-masked, built at <paramref name="particlePpu"/>
         /// so it lands on screen at exactly cropPx game pixels.
+        ///
+        /// SQUARE is how much art is READ, not what is flung: SampleAt carves an asymmetric connected blob out
+        /// of it (T-0398) whenever cropPx &gt; 1, off <paramref name="cropSeed"/> — the same per-particle seed
+        /// that drives the torn-edge jitter, which ChunkRng's two-stream constructor keeps independent of it.
+        /// So the crop is still exactly cropPx game pixels wide and a seeded splash still reproduces itself in
+        /// the editor preview draw for draw, while no particle is a little square of somebody's sprite.
         ///
         /// The cut is delegated whole to <see cref="SampledChunkSprites.SampleAt"/> rather than reimplemented:
         /// that is where "cut a piece out of the thing that broke" already lives (Debris Scatter's Sampled

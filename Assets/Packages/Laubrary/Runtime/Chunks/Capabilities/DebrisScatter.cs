@@ -66,11 +66,13 @@ namespace Laubrary.Chunks
         public Sprite sampleSource;
         [Tooltip("Smallest sampled chunk, in source-texture pixels. An UPPER BOUND on detail, not an absolute " +
                  "size: a cut is never given more source pixels than the Size dial leaves room to show them " +
-                 "in, so widen Size to get bigger, more detailed pieces.")]
+                 "in, so widen Size to get bigger, more detailed pieces. Anything above 1 comes out as an " +
+                 "asymmetric connected blob of pixels within that square, never the square itself.")]
         [Min(1)] public int samplePxMin = 5;
         [Tooltip("Largest sampled chunk, in source-texture pixels. An UPPER BOUND on detail, not an absolute " +
                  "size: a cut is never given more source pixels than the Size dial leaves room to show them " +
-                 "in, so widen Size to get bigger, more detailed pieces.")]
+                 "in, so widen Size to get bigger, more detailed pieces. The cut is the square a blob is grown " +
+                 "inside, so this is the widest a piece can get, not how many pixels it will have.")]
         [Min(1)] public int samplePxMax = 20;
         [Tooltip("Turn each sampled piece with a squash+shade trick that reads as a lit 3D fragment, instead " +
                  "of a flat 2D spin.")]

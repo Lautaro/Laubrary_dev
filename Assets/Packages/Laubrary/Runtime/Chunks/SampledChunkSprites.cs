@@ -9,6 +9,11 @@ namespace Laubrary.Chunks
     /// counts as "edge", since a cut piece's rectangle border reads as its edge just as much as a genuine
     /// alpha transition does. EdgesOnly reads as a burned/glowing rim; ExcludingEdges keeps the rim clean
     /// and tints only the interior (a scorched core, clean edge).
+    ///
+    /// Since T-0398 a multi-texel cut is carved into a blob before this runs, so the transparent-neighbour
+    /// half of that test is what usually answers: the rim these modes follow is the piece's own torn outline,
+    /// not the rectangle it was read out of. ExcludingEdges consequently has little to tint on a very small
+    /// piece, where nearly every texel is on the rim — which was already true of a 2–3 texel rectangle.
     public enum ChunkTintMode
     {
         None,
@@ -38,7 +43,14 @@ namespace Laubrary.Chunks
         /// Cuts a random square sub-rect (minPx–maxPx wide, clamped to the sprite's own size) out of
         /// source's texture, biased toward opaque pixels so chunks aren't blank cut-outs of empty space.
         /// Returns null if source is null, its texture isn't readable, or every sampled attempt came back
-        /// (almost) fully transparent. tintMode/tintColor/tintStrength/edgeThicknessPx optionally recolour
+        /// (almost) fully transparent.
+        ///
+        /// A cut of more than one texel is then carved down to an asymmetric, randomly-grown CONNECTED blob
+        /// (<see cref="ChunkBlobMask"/>, T-0398) so debris reads as torn scraps rather than little squares of
+        /// the source art. That pass is alpha-only and leaves the cut's texel COUNT alone, so the size-vs-
+        /// resolution coupling T-0397 established is unaffected; a 1×1 cut is a byte-for-byte no-op.
+        ///
+        /// tintMode/tintColor/tintStrength/edgeThicknessPx optionally recolour
         /// the cut pixels before the sprite is built — see ChunkTintMode for what each mode covers.
         /// modifiers, if any of them are shaped + enabled, run as a one-time SpriteFx pass baked into the cut
         /// texture at spawn (see ApplyModifiers) — an empty/null/all-inert stack is skipped, byte-identically.
@@ -87,6 +99,7 @@ namespace Laubrary.Chunks
                 if (coverage >= MinAcceptableAlphaCoverage)
                 {
                     cutRect = new RectInt(ox - texX, oy - texY, size, size);
+                    CarveBlob(pixels, size, ox, oy);
                     ApplyTint(pixels, size, tintMode, tintColor, tintStrength, edgeThicknessPx);
                     return Build(pixels, size, pixelsPerUnit, source.name, modifiers);
                 }
@@ -98,8 +111,37 @@ namespace Laubrary.Chunks
             // than a guaranteed-blank chunk, unless even that was essentially nothing.
             if (bestCoverage <= 0.02f) return null;
             cutRect = new RectInt(bestOx - texX, bestOy - texY, size, size);
+            CarveBlob(best, size, bestOx, bestOy);
             ApplyTint(best, size, tintMode, tintColor, tintStrength, edgeThicknessPx);
             return Build(best, size, pixelsPerUnit, source.name, modifiers);
+        }
+
+        /// Turns this cut's rectangle into an asymmetric connected blob (see <see cref="ChunkBlobMask"/>).
+        ///
+        /// ⚠ WHERE THE SEED COMES FROM, and why that is safe. <see cref="Sample"/> is the UNSEEDED entry point:
+        /// it already rolls its own size and position off <c>UnityEngine.Random</c>, and already draws one more
+        /// from it per chunk for the modifier pass (see ApplyModifiers). One further draw here keeps the shape
+        /// varying per chunk in the same way. It cannot desync any preview, because nothing mirrors this
+        /// stream — DebrisScatter.Fire's own reproducible stream is a <see cref="ChunkRng"/> held in Fire, and
+        /// ChunkPreviewSim.Debris mirrors THAT; neither one is read or advanced by anything in this file. The
+        /// preview draws its chunks as dots and never cuts a crop, so a crop's shape is not part of what it
+        /// reproduces. The seeded sibling <see cref="SampleAt"/> deliberately takes its seed as an argument
+        /// instead, because PaletteSplash's preview does reproduce its bursts draw for draw.
+        ///
+        /// The rect's own origin is folded in so two cuts that happen to draw the same seed value at different
+        /// places in the art still come out as different shapes.
+        static void CarveBlob(Color[] pixels, int size, int ox, int oy)
+        {
+            if (pixels == null || size <= 1) return;
+            int seed = Random.Range(int.MinValue, int.MaxValue);
+            ChunkBlobMask.Apply(pixels, size, size, MixSeed(seed, ox, oy));
+        }
+
+        /// Folds a cut's position into its seed, so the same seed at two places in the art gives two shapes.
+        /// The multipliers are the standard large odd primes this file's Hash01 already spreads coordinates by.
+        static int MixSeed(int seed, int x, int y)
+        {
+            unchecked { return seed ^ (x * 73856093) ^ (y * 19349663); }
         }
 
         /// The square cut rect, in the sprite's OWN pixel space (relative to its textureRect, bottom-left
@@ -129,17 +171,23 @@ namespace Laubrary.Chunks
         /// to reproduce a burst draw-for-draw off one authored seed) cannot inherit a generator it does not
         /// own. Nothing in here touches any random generator — same pixels in, same pixels out, always.
         ///
+        /// A cut of more than one texel is carved down to an asymmetric, randomly-grown CONNECTED blob
+        /// (<see cref="ChunkBlobMask"/>, T-0398) before anything else touches it, off <paramref name="cutSeed"/>
+        /// — so this method's "same pixels in, same pixels out" contract holds for the shape too, and a seeded
+        /// preview reproduces it. The pass is alpha-only and never changes the cut's texel COUNT, so the crop
+        /// still lands on screen at exactly cut.width game pixels; a 1×1 cut is a byte-for-byte no-op.
+        ///
         /// tintMode/tintColor/tintStrength/edgeThicknessPx recolour the cut exactly as <see cref="Sample"/>
-        /// does. <paramref name="edgeMaskStrength"/> then optionally eats the cut's own rectangle away toward
-        /// transparency (see <see cref="ApplyEdgeMask"/>) so a sampled fragment reads as an organic scrap rather
-        /// than a crisp little rectangle of somebody's art; 0 skips that pass entirely and leaves the pixels
-        /// byte-identical to an unmasked cut.
+        /// does, and run AFTER the blob, so an EdgesOnly rim tint follows the blob's own torn rim rather than
+        /// the rectangle it was cut from. <paramref name="edgeMaskStrength"/> then optionally eats the cut
+        /// further away toward transparency (see <see cref="ApplyEdgeMask"/>); 0 skips that pass entirely and
+        /// leaves the pixels byte-identical to an unmasked cut.
         ///
         /// Null when the source is missing, the rect is empty, or the texture is not Read/Write enabled — the
         /// caller is expected to fall back to whatever it would have drawn without a cut, never to nothing.
         public static Sprite SampleAt(Sprite source, RectInt cut, float pixelsPerUnit,
             ChunkTintMode tintMode = ChunkTintMode.None, Color tintColor = default, float tintStrength = 0f,
-            int edgeThicknessPx = 1, float edgeMaskStrength = 0f, float edgeMaskJitter = 0f, int maskSeed = 0,
+            int edgeThicknessPx = 1, float edgeMaskStrength = 0f, float edgeMaskJitter = 0f, int cutSeed = 0,
             IReadOnlyList<PixelModifier> modifiers = null)
         {
             if (source == null || source.texture == null) return null;
@@ -156,8 +204,12 @@ namespace Laubrary.Chunks
             catch (UnityException) { return null; }   // texture not Read/Write enabled — nothing we can do
             if (pixels == null || pixels.Length < size * size) return null;
 
+            // The cut's position is folded in so a caller that reuses one seed across a burst still gets a
+            // different shape per crop, and ChunkBlobMask draws on ChunkRng's SECOND stream, so the blob and
+            // the torn-edge jitter below — which both ride on cutSeed — never move together.
+            ChunkBlobMask.Apply(pixels, size, size, MixSeed(cutSeed, cut.x, cut.y));
             ApplyTint(pixels, size, tintMode, tintColor, tintStrength, edgeThicknessPx);
-            ApplyEdgeMask(pixels, size, edgeMaskStrength, edgeMaskJitter, maskSeed);
+            ApplyEdgeMask(pixels, size, edgeMaskStrength, edgeMaskJitter, cutSeed);
             return Build(pixels, size, pixelsPerUnit, source.name, modifiers);
         }
 
@@ -173,6 +225,16 @@ namespace Laubrary.Chunks
         /// same way every run and a seeded preview can reproduce it — which is what keeps the boundary ragged
         /// rather than a machined circle.
         ///
+        /// ⚠ WHICH CENTRE (T-0398). "The cut's centre" is the CENTROID OF WHAT IS STILL THERE, not the middle
+        /// of the rectangle. The two were the same thing while every crop was a fully-opaque rectangle, and are
+        /// arithmetically identical in that case — the mean of (x+0.5) over a full size×size block IS size/2, so
+        /// this is a byte-for-byte no-op for the shapes T-0394 was tuned against. They stop being the same as
+        /// soon as the crop is irregular, which is now every multi-texel crop (the blob) and was already true
+        /// for any cut straddling the art's own silhouette. Measuring from the rectangle's middle there aims the
+        /// falloff at empty space: it eats one whole side of the piece while leaving the opposite side
+        /// untouched, and the rescue below could pick a pixel that is nowhere near the piece. The normaliser
+        /// stays the inscribed-circle radius, so the Bite dial keeps the strength it has always had.
+        ///
         /// ⚠ It can never mask a cut out of existence: if the pass would leave nothing visible, the cut's
         /// most central originally-opaque pixel is put back at its original alpha. A fully-masked crop would be
         /// an invisible particle that still costs a GameObject — the silent no-op this module's whole source
@@ -187,6 +249,18 @@ namespace Laubrary.Chunks
             float inner = Mathf.Lerp(1f, 0.15f, strength);
             float band = Mathf.Max(0.0001f, 1f - inner);
 
+            // Pass one: where the surviving pixels actually are. Nothing opaque left means nothing to mask.
+            float sumX = 0f, sumY = 0f;
+            int opaqueCount = 0;
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    if (px[y * size + x].a <= 0.001f) continue;
+                    sumX += x + 0.5f; sumY += y + 0.5f; opaqueCount++;
+                }
+            if (opaqueCount == 0) return;
+            float cx = sumX / opaqueCount, cy = sumY / opaqueCount;
+
             int centreIdx = -1;
             float centreDistSq = float.MaxValue, centreAlpha = 0f, maxAlpha = 0f;
 
@@ -197,7 +271,7 @@ namespace Laubrary.Chunks
                     float a0 = px[i].a;
                     if (a0 <= 0.001f) continue;
 
-                    float dx = (x + 0.5f) - radius, dy = (y + 0.5f) - radius;
+                    float dx = (x + 0.5f) - cx, dy = (y + 0.5f) - cy;
                     float distSq = dx * dx + dy * dy;
                     if (distSq < centreDistSq) { centreDistSq = distSq; centreIdx = i; centreAlpha = a0; }
 
