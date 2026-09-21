@@ -880,6 +880,13 @@ namespace Laubrary.Chunks.Editor
             var view = ScriptableObject.CreateInstance<MirageView>();
             view.name = $"{spec.name} (Burst Preview)";
             view.AddEntry(spec, Vector2.zero);
+
+            // Carry the recipe's own tuned preview backdrop over to Mirage, so the burst shows against the
+            // same backdrop it was tuned against instead of Mirage's own default. A recipe whose backdrop
+            // panel was never opened has previewBackSplash == null — leave Mirage's default untouched then.
+            if (spec.previewBackSplash != null)
+                view.backSplash.CopyFrom(spec.previewBackSplash);
+
             MirageWindow.OpenFor(view);
         }
     }

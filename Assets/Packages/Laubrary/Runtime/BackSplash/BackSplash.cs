@@ -125,6 +125,19 @@ namespace Laubrary.BackSplash
             imagePos = src.imagePos;
         }
 
+        /// Same field copy as <see cref="CopyFrom(BackSplash)"/>, but from another owned (non-asset)
+        /// BackSplashSettings instance — e.g. handing a recipe's own tuned backdrop to a throwaway preview
+        /// view without the two ever sharing a reference.
+        public void CopyFrom(BackSplashSettings src)
+        {
+            if (src == null) return;
+            cameraColor = src.cameraColor;
+            image = src.image;
+            imageTint = src.imageTint;
+            imageZoom = src.imageZoom;
+            imagePos = src.imagePos;
+        }
+
         public void CopyTo(BackSplash dst)
         {
             if (dst == null) return;

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### T-0384 — Chunks "Preview in Mirage" now carries the recipe's own preview backdrop over
+- **Mirage now opens showing the SAME backdrop the recipe was tuned against**, instead of always starting on Mirage's own default. `ChunkWindow.PreviewInMirage` copies the recipe's `previewBackSplash` into the throwaway `MirageView`'s `backSplash` when the recipe has one set; a recipe whose backdrop panel was never opened (`previewBackSplash == null`) is unaffected and Mirage keeps its usual default.
+- **Added `BackSplashSettings.CopyFrom(BackSplashSettings)`** alongside the existing `CopyFrom(BackSplash)`/`CopyTo(BackSplash)` — a plain field copy between two owned (non-asset) settings instances, for handing tuned backdrop values to a preview view without the two sharing a reference. No prior settings-to-settings copy helper existed anywhere in the codebase (checked BackSplash's own GUI/painter/element files, Pyre/DotGen/Zoetrope's preview-handoff code) — this is a new, narrowly-scoped addition, not a duplicate of an existing one.
+- **Code-only task — not live-verified.** The PM verifies live once the editor is free (T-0383 currently holds editor rights).
+
 ### T-0372 — ZUI `MicroMinMax`: Fixed-mode double-click resets to the control's default, not the track minimum; a zero-width Range stays visible
 - **Fixed-mode double-click no longer invents a reset value.** With no `lowDefault`/`highDefault` given (e.g. Chunks' Pyre Blast card's Scale and Alpha), a double-click used to fall back to the track's own minimum — Scale 3.06 double-clicked to 0.01, practically vanishing the blast (T-0360/3). It now follows the same contract `ZuiMicroSlider` already uses: reset to the given default if one exists, otherwise do nothing. Range mode's double-click is unchanged (still resets to the given default or the full min/max span) since that already read as correct.
 - **Chunks' Pyre Blast Scale and Alpha now carry a real default (1.0, "the effect's own authored size"/"fully solid" per their own tooltips)**, so double-click in Fixed mode is useful again instead of a no-op.
