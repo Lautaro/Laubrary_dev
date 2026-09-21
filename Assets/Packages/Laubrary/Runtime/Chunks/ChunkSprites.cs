@@ -59,7 +59,7 @@ namespace Laubrary.Chunks
         /// priming the cache at a hardcoded ppu was half of the T-0391 bug.
         public static int Count => Shapes.Length;
 
-        /// One shard, chosen by <paramref name="pick"/> from among ONLY those whose native pixel width fits
+        /// One shard, chosen by <paramref name="pick"/> from among ONLY those whose native pixel footprint fits
         /// within <paramref name="targetPx"/> (game pixels) — still a random shape, just drawn from the subset
         /// that does not have to be shrunk to reach the target. Scaling one to size therefore never shrinks it
         /// BELOW its own texel grid: a 3×3 shard squashed to a 1px target renders each of its texels at a THIRD
@@ -68,35 +68,52 @@ namespace Laubrary.Chunks
         /// a shard UP or leaves it 1:1.
         /// Falls back to the smallest shard (always 1×1) when targetPx is below even that — the one case some
         /// downscale is unavoidable, and harmless there since a single texel has no internal grid to subdivide.
+        /// ⚠ The fit is measured on a shard's LARGER axis, not its width (fixed in T-0397 — it was width-only,
+        /// and that was a live bug, caught by measuring real chunks rather than by reading the code). Both
+        /// consumers divide the target by a different reference: PaletteSplash scales by `targetPx/rect.width`,
+        /// while a DebrisScatter chunk scales by `worldSize / max(bounds.x, bounds.y)`. A width-only fit let the
+        /// non-square shards (2×3 and 3×2) through on their short side while their LONG side set the chunk's
+        /// scale — so a 2×3 shard on a 2px target rendered at 1/3 scale, each texel a third of a game pixel.
+        /// Fitting on the larger axis satisfies both consumers at once (width ≤ max axis ≤ targetPx), which is
+        /// why there is one rule here and not a per-caller mode.
         /// ⚠ Knock-on effect, by design: a size range narrows the shape library. The comparison is a strict fit
-        /// with no tolerance, so a recipe authored at 1–3 px never reaches the three 3-wide shards (the 3×3, the
-        /// 3×2 and the diagonal sliver) — they need targetPx to land on exactly 3, which a continuous roll never
-        /// does. Crispness was chosen over shape variety here; widen the size range, or give this a fit epsilon,
-        /// if a spray ever needs the bigger shapes back.
+        /// with no tolerance, so a recipe authored at 1–3 px never reaches any 3-tall or 3-wide shard (the 3×3,
+        /// the 3×2, the 2×3 and the diagonal sliver) — they need targetPx to land on exactly 3, which a
+        /// continuous roll never does. Crispness was chosen over shape variety here; widen the size range, or
+        /// give this a fit epsilon, if a spray ever needs the bigger shapes back.
         /// RNG-agnostic on purpose (a caller supplies its own random int, e.g. ChunkRng.Next(int.MaxValue)) so
         /// this has no opinion about which generator a capability uses.
         public static Sprite GetFitting(float targetPx, float ppu, int pick)
         {
             int n = Shapes.Length;
             int qualifying = 0;
-            for (int i = 0; i < n; i++) if (Shapes[i].w <= targetPx) qualifying++;
+            for (int i = 0; i < n; i++) if (Footprint(Shapes[i]) <= targetPx) qualifying++;
 
             if (qualifying == 0)
             {
-                int smallest = 0, smallestW = int.MaxValue;
-                for (int i = 0; i < n; i++) if (Shapes[i].w < smallestW) { smallestW = Shapes[i].w; smallest = i; }
+                int smallest = 0, smallestSpan = int.MaxValue;
+                for (int i = 0; i < n; i++)
+                {
+                    int span = Footprint(Shapes[i]);
+                    if (span < smallestSpan) { smallestSpan = span; smallest = i; }
+                }
                 return Get(smallest, ppu);
             }
 
             int idx = ((pick % qualifying) + qualifying) % qualifying;
             for (int i = 0; i < n; i++)
             {
-                if (Shapes[i].w > targetPx) continue;
+                if (Footprint(Shapes[i]) > targetPx) continue;
                 if (idx == 0) return Get(i, ppu);
                 idx--;
             }
             return Get(0, ppu);   // unreachable — qualifying > 0 guarantees the loop above returns
         }
+
+        /// A shard's native footprint in texels: its LARGER axis. This is the single quantity every fit and
+        /// every consumer's scale reference has to agree on — see GetFitting's own warning for what happened
+        /// when they disagreed.
+        static int Footprint(in ShapeDef d) => d.w > d.h ? d.w : d.h;
 
         static Sprite[] Ensure(float ppu)
         {

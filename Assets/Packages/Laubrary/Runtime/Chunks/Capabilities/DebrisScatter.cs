@@ -64,9 +64,13 @@ namespace Laubrary.Chunks
                  "Enabled. Ignored while a live sample source is supplied; this is what a standalone burst with " +
                  "no Zoe context uses.")]
         public Sprite sampleSource;
-        [Tooltip("Smallest sampled chunk, in source-texture pixels.")]
+        [Tooltip("Smallest sampled chunk, in source-texture pixels. An UPPER BOUND on detail, not an absolute " +
+                 "size: a cut is never given more source pixels than the Size dial leaves room to show them " +
+                 "in, so widen Size to get bigger, more detailed pieces.")]
         [Min(1)] public int samplePxMin = 5;
-        [Tooltip("Largest sampled chunk, in source-texture pixels.")]
+        [Tooltip("Largest sampled chunk, in source-texture pixels. An UPPER BOUND on detail, not an absolute " +
+                 "size: a cut is never given more source pixels than the Size dial leaves room to show them " +
+                 "in, so widen Size to get bigger, more detailed pieces.")]
         [Min(1)] public int samplePxMax = 20;
         [Tooltip("Turn each sampled piece with a squash+shade trick that reads as a lit 3D fragment, instead " +
                  "of a flat 2D spin.")]
@@ -114,6 +118,35 @@ namespace Laubrary.Chunks
         /// decided, so a live Zoe frame always outranks whatever is separately authored on the recipe.
         public Sprite ResolvedSampleSource(in ChunkModuleContext ctx)
             => ctx.SampleSourceOverride != null ? ctx.SampleSourceOverride : sampleSource;
+
+        /// The sample-crop size range this scatter may actually cut for a chunk that will be DISPLAYED at
+        /// <paramref name="worldSize"/> world units: the authored samplePxMin/samplePxMax, each capped so a cut
+        /// can never contain more source texels than the chunk has room to show them in.
+        ///
+        /// ⚠ This is the same rule <see cref="ChunkSprites.GetFitting"/> applies to procedural shards (T-0393),
+        /// stated for real crops (T-0397). A crop of S texels built at <paramref name="ppu"/> is S/ppu world
+        /// units across; displaying it at worldSize means scaling by worldSize·ppu/S, so S &gt; worldSize·ppu is
+        /// a DOWNSCALE below the crop's own texel grid — every one of its texels rendering as a fraction of a
+        /// game pixel. That is not a small speck; it is a detailed image compressed far below the resolution it
+        /// was captured at, which reads as blur and noise rather than pixel art. Capping S at ⌊worldSize·ppu⌋
+        /// makes the scale ≥ 1 by construction, so a cut is only ever scaled UP or left 1:1.
+        ///
+        /// Knock-on effect, by design and matching GetFitting's: a small Size range narrows the detail a cut can
+        /// carry. The Floating Disc hit recipe's authored 5–20 becomes 2–5 at its authored 0.16–0.35 size. The
+        /// lever for big detailed pieces is the SIZE range — the crop follows it automatically. Both dials stay
+        /// meaningful: Size is how big on screen, Sample px is how much detail, bounded by the first.
+        ///
+        /// Always at least 1×1, so a target below one pixel still yields a real (single-texel) cut rather than
+        /// nothing — the one case a further downscale is unavoidable, and harmless, since one texel has no
+        /// internal grid left to subdivide.
+        public void FitSampleRange(float worldSize, float ppu, out int minPx, out int maxPx)
+        {
+            int fit = Mathf.Max(1, Mathf.FloorToInt(Mathf.Max(0f, worldSize) * Mathf.Max(1f, ppu)));
+            int authoredLo = Mathf.Max(1, Mathf.Min(samplePxMin, samplePxMax));
+            int authoredHi = Mathf.Max(1, Mathf.Max(samplePxMin, samplePxMax));
+            maxPx = Mathf.Min(authoredHi, fit);
+            minPx = Mathf.Min(authoredLo, maxPx);
+        }
 
         // ── emission ──────────────────────────────────────────────────────────────
         [Tooltip("Fewest chunks thrown.")]
@@ -253,16 +286,45 @@ namespace Laubrary.Chunks
                 // sixteen of them would spend the whole slot's band on debris nobody can tell apart.
                 ctx.ApplyOrder(sr, LayerName);
 
+                // ⚠ ROLLED FIRST, before the sprite is built — this ORDER is the whole fix (T-0397). A chunk's
+                // on-screen size and the amount of source art it is made of used to be two independent random
+                // numbers with nothing coupling them, so a 20-texel crop could land on a 2.5-pixel target and
+                // render ~8 of its own texels inside one game pixel. The size has to exist BEFORE anything picks
+                // how many texels to cut or which shard shape to use. ChunkPreviewSim.Debris draws this same
+                // roll at this same point in its mirrored stream — move one and you MUST move the other, or a
+                // seeded preview silently stops matching the burst it is previewing.
+                float size = rng.Range(sizeMin, sizeMax);
+
                 bool sampled = false;
+                // True only for a sprite WE built at effectivePpu (a cut or a procedural shard), i.e. one whose
+                // texels are the project's own pixels and which the two fits below guarantee is never downscaled.
+                // Authored art (Sprites/Animated) is deliberately false: an author's sprite resolution is their
+                // choice, and a chunk must never be silently enlarged to "protect" a sprite they sized themselves.
+                bool pixelExact = false;
                 if (anim == null)
                 {
+                    // The cut is capped to what this chunk can actually show — see FitSampleRange.
+                    FitSampleRange(size, effectivePpu, out int fitMinPx, out int fitMaxPx);
                     Sprite cut = sampledMode
-                        ? SampledChunkSprites.Sample(resolvedSampleSource, samplePxMin, samplePxMax, effectivePpu,
+                        ? SampledChunkSprites.Sample(resolvedSampleSource, fitMinPx, fitMaxPx, effectivePpu,
                                                      tintMode, tintColor, tintStrength, edgeThicknessPx, modifiers)
                         : null;
-                    if (cut != null) { sr.sprite = cut; sampled = true; }
+                    if (cut != null) { sr.sprite = cut; sampled = true; pixelExact = true; }
                     else if (haveSprites) sr.sprite = sprites[rng.Next(sprites.Count)];
-                    else sr.sprite = ChunkSprites.Get(rng.Next(ChunkSprites.Count), effectivePpu);
+                    else
+                    {
+                        // GetFitting, not Get (T-0397). T-0393 introduced GetFitting for exactly this reason and
+                        // its own commit message recorded that DebrisScatter's Get call was left alone — this is
+                        // that sibling, closed. A 3×3 shard squashed onto a 1px target renders each of its texels
+                        // at a third of a game pixel; GetFitting picks only among shards that already fit.
+                        // ⚠ The bound swap (ChunkSprites.Count → int.MaxValue) keeps the rng stream intact:
+                        // ChunkRng.Next(int) costs exactly one step for ANY bound above 1, and Count is 6. It
+                        // would NOT be safe for a bound that can be 0 or 1 — Next short-circuits and consumes
+                        // nothing there — which is why ChunkPreviewSim's matching draw is left exactly as it is.
+                        sr.sprite = ChunkSprites.GetFitting(size * effectivePpu, effectivePpu,
+                                                            rng.Next(int.MaxValue));
+                        pixelExact = true;
+                    }
                 }
                 bool tumbling = sampled && tumble;
 
@@ -275,9 +337,12 @@ namespace Laubrary.Chunks
                 float angular = (tumbling ? rng.Range(tumbleSpeedMin, tumbleSpeedMax)
                                           : rng.Range(angularSpeedMin, angularSpeedMax)) * rng.NextSign();
                 float life = rng.Range(lifeMin, lifeMax);
-                float size = rng.Range(sizeMin, sizeMax);
+                // (size was rolled at the top of this iteration — see the note there. The stream's LENGTH and
+                // composition are unchanged, so ChunkPreviewSim.Debris stays in lockstep by moving its own
+                // matching draw to the same new position; only which rolled value lands on which chunk differs.)
 
-                chunk.Init(this, vel, angular, life, size, baseColor, anim, tumbling, ctx.Owner, trail, hits);
+                chunk.Init(this, vel, angular, life, size, baseColor, anim, tumbling, ctx.Owner, trail, hits,
+                           pixelExact);
 
                 System.Action onFinished = null;
                 onFinished = () => { chunk.Finished -= onFinished; ChunkPool.Release(chunk); };

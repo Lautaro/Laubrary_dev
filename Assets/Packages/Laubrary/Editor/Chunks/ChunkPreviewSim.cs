@@ -369,10 +369,22 @@ namespace Laubrary.Chunks.Editor
             bool haveSprites = d.visual == DebrisVisual.Sprites && d.sprites != null && d.sprites.Count > 0;
             bool cut = d.UsesSampledDebris;   // a successful cut takes no draw; see DebrisScatter.Fire
 
+            float effPpu = Mathf.Max(1f, d.EffectivePixelsPerUnit);
+
             int drawn = 0;
             for (int i = 0; i < count; i++)
             {
-                // 1. the sprite pick, mirrored so every later draw lands where the runtime's does
+                // 0. the size roll. MOVED TO THE FRONT to mirror DebrisScatter.Fire, which now needs the chunk's
+                //    on-screen size BEFORE it decides how many source texels to cut or which shard fits (T-0397).
+                //    The stream's length and composition are unchanged — only the position of this one draw —
+                //    so a seeded preview still matches a seeded burst draw-for-draw. Move one, move the other.
+                float size = rng.Range(d.sizeMin, d.sizeMax);
+                // 1. the sprite pick, mirrored so every later draw lands where the runtime's does.
+                //    Left EXACTLY as it is on purpose: the runtime swapped its own bound (ChunkSprites.Count →
+                //    int.MaxValue) to feed GetFitting, and ChunkRng.Next(int) costs exactly one step for any
+                //    bound above 1, so the two streams still line up. Do not "tidy" this to match the runtime's
+                //    literal bound — if d.sprites.Count can be 0 or 1, Next consumes nothing and the mirror
+                //    would desync.
                 if (!animated && !cut) rng.Next(haveSprites ? d.sprites.Count : ShapeCount);
                 // 2. the palette pick — a preview burst carries no palette, so the runtime takes no draw either
 
@@ -384,7 +396,7 @@ namespace Laubrary.Chunks.Editor
                 float spin = (tumbling ? rng.Range(d.tumbleSpeedMin, d.tumbleSpeedMax)
                                        : rng.Range(d.angularSpeedMin, d.angularSpeedMax)) * rng.NextSign();
                 float life = rng.Range(d.lifeMin, d.lifeMax);
-                float size = rng.Range(d.sizeMin, d.sizeMax);
+                // (size was rolled at the top of this iteration — see note 0 there.)
 
                 if (drawn >= budget || drawn >= DotsPerCapability) continue;   // keep drawing NOTHING, not a wrong dot
                 if (local > life) continue;
@@ -403,7 +415,19 @@ namespace Laubrary.Chunks.Editor
                 float sizeMul = Mathf.Max(0f, ZUIEnvelopeEvaluator.Evaluate(d.sizeEnvelope, t01, 1f));
                 float alpha = Mathf.Clamp01(ZUIEnvelopeEvaluator.Evaluate(d.alphaEnvelope, t01, 1f));
                 Color tint = d.colorOverLife != null ? d.colorOverLife.Evaluate(t01) : Color.white;
-                float radius = Mathf.Max(0.002f, size * 0.5f * sizeMul);
+                // The runtime floors a chunk at its own native resolution once its sprite is one the scatter
+                // built at the effective pixel scale (Chunk.ApplyLook, T-0397), so a preview that kept shrinking
+                // the dot would be showing a burst the game no longer produces. Smallest piece a real burst can
+                // hand this chunk: the fitted crop's own minimum for a Sampled cut, one texel for a procedural
+                // shard. Authored art (Sprites/Animated) has no such floor in the runtime either, so it gets
+                // none here — the two stay in step whichever way the visual dial is set.
+                float floorWorld = 0f;
+                if (!animated)
+                {
+                    if (cut) { d.FitSampleRange(size, effPpu, out int fitMinPx, out _); floorWorld = fitMinPx / effPpu; }
+                    else if (!haveSprites) floorWorld = 1f / effPpu;
+                }
+                float radius = Mathf.Max(0.002f, Mathf.Max(size * sizeMul, floorWorld) * 0.5f);
 
                 float facing = d.faceVelocity
                     ? Mathf.Atan2(flight.velocity.y, flight.velocity.x) * Mathf.Rad2Deg

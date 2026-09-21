@@ -27,6 +27,7 @@ namespace Laubrary.Chunks
         float maxLife;         // seconds total
         float baseScale;       // local scale that yields the requested world size at sizeMul == 1
         float spriteUnit = 1f; // the sprite's own native bounds (the larger axis) baseScale was derived from
+        bool nativeExact;      // sprite built at the project's pixel scale AND spawned at scale >= 1 (see Init)
         Color baseColor;       // per-chunk tint (palette colour or white), before the gradient/alpha
         bool settled;          // came to rest on the floor
 
@@ -58,9 +59,16 @@ namespace Laubrary.Chunks
         /// pseudo-3D squash+shade mode (see ChunkTumble) instead of a flat 2D spin/faceVelocity — the scatter
         /// only ever passes true for a chunk it actually sourced via SampledChunkSprites. trailModifier and
         /// hitsModifier are whichever of those the recipe aimed at this scatter, or null.
+        /// pixelExact says this chunk's sprite is one the scatter BUILT at its effective pixel scale (a sampled
+        /// cut or a procedural shard), so its texels are the project's own pixels and the scatter has already
+        /// guaranteed it is not downscaled at spawn. Those chunks get the strict native-resolution floor in
+        /// <see cref="ApplyLook"/>; authored art (a Sprites pool, an animation) passes false and keeps only the
+        /// weaker one-game-pixel floor, because an author's own sprite resolution is their choice and a chunk
+        /// must never be silently ENLARGED to protect a sprite they sized deliberately.
         public void Init(DebrisScatter debris, Vector2 velocity, float angularVel, float life, float worldSize,
                          Color baseColor, IChunkAnimation animation = null, bool tumble = false,
-                         Combatant owner = null, Trail trailModifier = null, Hits hitsModifier = null)
+                         Combatant owner = null, Trail trailModifier = null, Hits hitsModifier = null,
+                         bool pixelExact = false)
         {
             this.debris = debris;
             this.velocity = velocity;
@@ -87,6 +95,11 @@ namespace Laubrary.Chunks
             if (sr != null && sr.sprite != null)
                 spriteUnit = Mathf.Max(sr.sprite.bounds.size.x, sr.sprite.bounds.size.y);
             baseScale = Mathf.Max(0.0001f, worldSize) / Mathf.Max(0.0001f, spriteUnit);
+
+            // The belt-and-braces half of the native-resolution floor: trust pixelExact only if the spawn scale
+            // actually came out at or above 1, so a future visual mode that forgets to fit its sprite degrades
+            // to the old weaker floor instead of blowing its chunks up to native size.
+            nativeExact = pixelExact && baseScale >= 1f;
 
             transform.localScale = Vector3.one * baseScale;
             ApplyLook(0f);
@@ -216,18 +229,39 @@ namespace Laubrary.Chunks
                 shade = tumbleShade;
             }
 
-            // The hard floor: whatever sizeOverLife/tumble does to a chunk, it must never render smaller than
-            // ONE game pixel on either axis — a chunk shrinking toward 0 as it settles/fades must snap out of
-            // existence at full pixel size, not fade through a smaller-than-a-pixel blur that reads as noise
-            // (owner report, 2026-09-21: a Floating Disc hit spray's own authored sizeOverLife curve shrank
-            // debris to ~17% of their base size, well under a pixel, well before their life actually ended).
-            // Always the PROJECT's own pixel grid, not this recipe's (possibly overridden) sampling PPU — "one
-            // game pixel" means one pixel of the game's actual screen, the same floor every capability now
-            // shares. spriteUnit can't be 0 (Init clamps it), so this never divides by zero.
-            // squashX (from ChunkTumble.Evaluate, above) is Mathf.Abs(cos(...)) — always >= 0 — so scaleX is
-            // never negative here and a plain Max is enough for both axes.
-            float minPx = 1f / Mathf.Max(1f, PixelScaleProjectSettings.Instance.pixelsPerUnit);
-            float minScale = minPx / spriteUnit;
+            // ── THE FLOOR: never render below the sprite's OWN texel grid ────────────────────────────────────
+            // T-0395 put a floor here and it was the right idea in the wrong UNIT. It floored the chunk's outer
+            // BOUNDING BOX at one game pixel, which is exactly correct for a 1-texel shard and under-protects an
+            // S-texel sampled crop by a factor of S: the box dutifully stops at one pixel while all S of the
+            // crop's texels are crushed inside it. That is why the owner still saw debris that were roughly the
+            // right SIZE but internally "textured and blurry", and why they got worse as the pieces rotated —
+            // tumble squashes X by |cos(phase)|, sweeping toward zero several times a second, so a 5-texel-wide
+            // crop had its whole width repeatedly crammed into a single pixel. A box floor cannot see that; a
+            // SCALE floor can, because scale is the ratio the texels themselves are resized by (T-0397).
+            //
+            // So for a chunk whose sprite we built at the project's pixel scale (nativeExact — a sampled cut or
+            // a procedural shard, both now fitted to the target at spawn), the floor is scale 1.0 on each axis
+            // independently: one source texel is never allowed to render as less than one whole game pixel,
+            // whatever sizeOverLife or the tumble asks for. Per-axis is what also retires T-0395's own recorded
+            // caveat about a strongly non-square sprite starving on its thin axis — there is no larger-axis
+            // assumption left in here to fail.
+            //
+            // Authored art keeps ONLY the old one-game-pixel box floor. An author who put a 32×32 sprite in a
+            // pool and asked for 3-pixel debris chose that; enlarging their chunk 10× to "protect" it would be a
+            // far worse bug than the blur, so the strict floor is deliberately not applied there.
+            //
+            // Consequence, accepted deliberately: the tumble's width squash is now bounded by how many whole
+            // pixels a chunk actually has to squash into. A 3-pixel fragment barely squashes and reads as a turn
+            // through ChunkTumble's shade swing alone, which is untouched. That is not avoidable by any clamp —
+            // a continuous |cos| squash of an S-texel crop IS sub-pixel crushing. More visible tumble comes from
+            // a larger authored Size range (more headroom above scale 1), not from a smaller floor.
+            //
+            // spriteUnit can't be 0 (Init clamps it), so this never divides by zero. squashX (from
+            // ChunkTumble.Evaluate, above) is Mathf.Abs(cos(...)) — always >= 0 — so scaleX is never negative
+            // here and a plain Max is enough for both axes.
+            float minScale = nativeExact
+                ? 1f
+                : (1f / Mathf.Max(1f, PixelScaleProjectSettings.Instance.pixelsPerUnit)) / spriteUnit;
             scaleX = Mathf.Max(scaleX, minScale);
             scaleY = Mathf.Max(scaleY, minScale);
 

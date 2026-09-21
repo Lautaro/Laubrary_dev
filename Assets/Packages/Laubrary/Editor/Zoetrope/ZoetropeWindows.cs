@@ -2585,7 +2585,14 @@ namespace Laubrary.Zoetrope.Editor
                 int ppu = Mathf.Max(1, Mathf.RoundToInt(debris.EffectivePixelsPerUnit));
                 for (int i = 0; i < 5; i++)
                 {
-                    var cut = SampledChunkSprites.Sample(liveSprite, debris.samplePxMin, debris.samplePxMax, ppu,
+                    // Through the SAME coupling a real burst uses (DebrisScatter.FitSampleRange, T-0397), not the
+                    // raw authored samplePx range: a cut is capped at what the chunk's on-screen size can show, so
+                    // quoting the authored 5-20 here would advertise pieces the burst will never make. The five
+                    // examples walk the authored Size range so the row shows the real span, smallest to largest.
+                    float exampleSize = Mathf.Lerp(Mathf.Min(debris.sizeMin, debris.sizeMax),
+                                                   Mathf.Max(debris.sizeMin, debris.sizeMax), i / 4f);
+                    debris.FitSampleRange(exampleSize, ppu, out int fitMinPx, out int fitMaxPx);
+                    var cut = SampledChunkSprites.Sample(liveSprite, fitMinPx, fitMaxPx, ppu,
                         debris.tintMode, debris.tintColor, debris.tintStrength, debris.edgeThicknessPx, debris.modifiers);
                     if (cut == null) continue;
                     pieces.Add(ThumbOf(cut, "One example cut. A real burst samples fresh random spots.", 28f));
