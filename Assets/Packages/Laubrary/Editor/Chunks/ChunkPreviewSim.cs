@@ -565,7 +565,7 @@ namespace Laubrary.Chunks.Editor
             float sizeLo = Mathf.Min(s.sizePxMin, s.sizePxMax), sizeHi = Mathf.Max(s.sizePxMin, s.sizePxMax);
             float speedLo = Mathf.Min(s.speedMin, s.speedMax), speedHi = Mathf.Max(s.speedMin, s.speedMax);
             float lifeLo = Mathf.Min(s.lifeMin, s.lifeMax), lifeHi = Mathf.Max(s.lifeMin, s.lifeMax);
-            float ppu = Mathf.Max(1f, s.pixelsPerUnit);
+            float ppu = Mathf.Max(1f, s.EffectivePixelsPerUnit);
 
             int drawn = 0;
             for (int i = 0; i < count; i++)

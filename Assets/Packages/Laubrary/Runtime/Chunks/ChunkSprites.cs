@@ -1,50 +1,82 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Laubrary.Chunks
 {
     /// The procedural fallback used when a <see cref="ChunkSpec"/> ships no sprites: a handful of tiny white pixel
-    /// shapes (1–4 px squares and little shards) built once and cached, tinted per-chunk via SpriteRenderer.color —
-    /// exactly the "explosion from a single white pixel" trick in Larder's WareDebris and the demo sprites. Because
-    /// the emitter scales each chunk to a world size, pixels-per-unit only affects the sprite's native footprint;
-    /// the shapes are cached once at the first requested ppu.
+    /// shapes (1–4 px squares and little shards) built once per pixels-per-unit and cached, tinted per-chunk via
+    /// SpriteRenderer.color — exactly the "explosion from a single white pixel" trick in Larder's WareDebris and
+    /// the demo sprites.
+    ///
+    /// ⚠ The cache is keyed BY PPU, and that is load-bearing, not a micro-optimisation (T-0391). It used to be one
+    /// flat cache built at whatever ppu was asked for FIRST and never rebuilt, which silently pinned every shard in
+    /// the domain to that first value. <see cref="Count"/> made that worse: it primed the cache with a hardcoded 32
+    /// whenever nothing had built it yet, and since PaletteSplash.Fire (and DebrisScatter) read
+    /// `Get(rng.Next(Count), ppu)` — where C# evaluates `Count` BEFORE the call — every cold domain built the shards
+    /// at 32 and then ignored the ppu actually passed in. That made a splash's particle size (`sizePx / ppu`, since
+    /// Fire scales by `targetPx / nativeShapePx`) come out at 32 ppu no matter what the recipe asked for, which is
+    /// precisely the half-size bug T-0391 set out to fix — the capability-side fix alone would have been a runtime
+    /// no-op while the editor preview (which divides by ppu directly) showed the corrected size, so preview and game
+    /// would have disagreed. Count therefore no longer builds anything, and a new ppu gets its own set.
     public static class ChunkSprites
     {
-        static Sprite[] cache;
-        static float cachedPpu;
+        // The shard shapes, as descriptors rather than built sprites, so Count can answer without building a set at
+        // some invented ppu and the two can never drift apart.
+        enum ShapeKind { Rect, DiagonalShard }
+        readonly struct ShapeDef
+        {
+            public readonly ShapeKind kind; public readonly int w, h;
+            public ShapeDef(ShapeKind kind, int w, int h) { this.kind = kind; this.w = w; this.h = h; }
+        }
 
-        /// A random shard from the cached set (built at the given ppu on first use).
+        static readonly ShapeDef[] Shapes =
+        {
+            new ShapeDef(ShapeKind.Rect, 1, 1),           // single pixel
+            new ShapeDef(ShapeKind.Rect, 2, 2),           // 2×2 bit
+            new ShapeDef(ShapeKind.Rect, 3, 3),           // 3×3 bit
+            new ShapeDef(ShapeKind.Rect, 2, 3),           // tall shard
+            new ShapeDef(ShapeKind.Rect, 3, 2),           // wide shard
+            new ShapeDef(ShapeKind.DiagonalShard, 3, 3),  // little triangle-ish sliver
+        };
+
+        static readonly Dictionary<float, Sprite[]> Caches = new Dictionary<float, Sprite[]>();
+
+        /// A random shard from the set for this ppu (built on first use at that ppu).
         public static Sprite Random(float ppu)
         {
-            Ensure(ppu);
-            return cache[UnityEngine.Random.Range(0, cache.Length)];
+            var set = Ensure(ppu);
+            return set[UnityEngine.Random.Range(0, set.Length)];
         }
 
         /// The shard at index i (wrapped), for callers that want a stable pick.
         public static Sprite Get(int i, float ppu)
         {
-            Ensure(ppu);
-            return cache[((i % cache.Length) + cache.Length) % cache.Length];
+            var set = Ensure(ppu);
+            return set[((i % set.Length) + set.Length) % set.Length];
         }
 
-        public static int Count { get { Ensure(cachedPpu <= 0f ? 32f : cachedPpu); return cache.Length; } }
+        /// How many distinct shard shapes exist. Deliberately builds NOTHING — see the type comment: this getter
+        /// priming the cache at a hardcoded ppu was half of the T-0391 bug.
+        public static int Count => Shapes.Length;
 
-        static void Ensure(float ppu)
+        static Sprite[] Ensure(float ppu)
         {
-            if (cache != null && cache.Length > 0 && cache[0] != null) return;
             ppu = Mathf.Max(1f, ppu);
-            cachedPpu = ppu;
-            cache = new[]
-            {
-                MakeSquare(1, ppu),          // single pixel
-                MakeSquare(2, ppu),          // 2×2 bit
-                MakeSquare(3, ppu),          // 3×3 bit
-                MakeRect(2, 3, ppu),         // tall shard
-                MakeRect(3, 2, ppu),         // wide shard
-                MakeDiagonalShard(3, ppu),   // little triangle-ish sliver
-            };
-        }
+            // A cached set can come back with destroyed sprites (Sprite.Create output is not marked DontSave, so
+            // leaving Play mode can take it with it) — the same guard the single-cache version carried, per set.
+            if (Caches.TryGetValue(ppu, out var set) && set != null && set.Length > 0 && set[0] != null) return set;
 
-        static Sprite MakeSquare(int size, float ppu) => MakeRect(size, size, ppu);
+            set = new Sprite[Shapes.Length];
+            for (int i = 0; i < Shapes.Length; i++)
+            {
+                var d = Shapes[i];
+                set[i] = d.kind == ShapeKind.DiagonalShard
+                    ? MakeDiagonalShard(d.w, ppu)
+                    : MakeRect(d.w, d.h, ppu);
+            }
+            Caches[ppu] = set;
+            return set;
+        }
 
         static Sprite MakeRect(int w, int h, float ppu)
         {

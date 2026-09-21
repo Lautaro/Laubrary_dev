@@ -340,7 +340,11 @@ namespace Laubrary.Chunks
             emitFromFootprint = particleSplash.emitFromFootprint,
             countMin = particleSplash.countMin, countMax = particleSplash.countMax,
             sizePxMin = particleSplash.sizePxMin, sizePxMax = particleSplash.sizePxMax,
-            pixelsPerUnit = pixelsPerUnit,
+            // Same reasoning as MigrateDebris above (T-0391): a legacy recipe carries its OWN authored
+            // pixelsPerUnit, so migration pins it as an explicit override rather than silently reinterpreting
+            // already-tuned data as "follow the project pixel scale". Only the field's NAME changed here.
+            useProjectPixelScale = false,
+            pixelsPerUnitOverride = pixelsPerUnit,
             speedMin = particleSplash.speedMin, speedMax = particleSplash.speedMax,
             inheritBurstDirection = particleSplash.inheritBurstDirection,
             directionDeg = particleSplash.directionDeg, spreadDeg = particleSplash.spreadDeg,

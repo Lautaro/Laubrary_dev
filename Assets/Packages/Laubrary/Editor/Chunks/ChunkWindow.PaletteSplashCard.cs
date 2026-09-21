@@ -64,10 +64,19 @@ namespace Laubrary.Chunks.Editor
                         cap.sizePxMax = Mathf.Max(cap.sizePxMin, hi);
                     }), 150f, showValue: true, decimals: 1)));
 
-            body.Add(Z.Field("Pixels/unit",
-                "Pixels-per-unit the particle sizes above are measured in.",
-                Z.Float(cap.pixelsPerUnit, "Pixels-per-unit the particle sizes are measured in.",
-                    v => Dial("Edit Pixels/Unit", () => cap.pixelsPerUnit = Mathf.Max(1f, v)), 70f)));
+            body.Add(Z.Toggle("Use project pixel scale",
+                "Pull the particle sizes' pixels-per-unit from the project's Pixel Scale Project Settings asset " +
+                "instead of the override below. Off = always use the override, whatever the project says.",
+                cap.useProjectPixelScale, v => DialAndRebuildCard(id, "Toggle Use Project Pixel Scale",
+                    () => cap.useProjectPixelScale = v)));
+            if (!cap.useProjectPixelScale)
+                body.Add(Z.Field("Pixels/unit",
+                    "Pixels-per-unit the particle sizes above are measured in.",
+                    Z.Float(cap.pixelsPerUnitOverride, "Pixels-per-unit the particle sizes are measured in.",
+                        v => Dial("Edit Pixels/Unit", () => cap.pixelsPerUnitOverride = Mathf.Max(1f, v)), 70f)));
+            else
+                body.Add(Z.Text($"Currently {cap.EffectivePixelsPerUnit:0.#} px/unit (project setting).",
+                    ZuiText.Subtle, "The live value read from the project's Pixel Scale Project Settings asset."));
 
             // ── how it flies ──────────────────────────────────────────────────────
             body.Add(Z.HGroup(

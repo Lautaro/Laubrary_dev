@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
+using Laubrary.PixelScale;
 
 namespace Laubrary.Chunks
 {
@@ -53,8 +55,25 @@ namespace Laubrary.Chunks
         [Tooltip("Largest particle, in pixels at the Pixels/Unit below.")]
         [Min(0.1f)] public float sizePxMax = 3f;
 
-        [Tooltip("Pixels-per-unit the particle sizes above are measured in.")]
-        [Min(1f)] public float pixelsPerUnit = 32f;
+        [Tooltip("Use the project's Pixel Scale Project Settings (Laubrary/Pixel Scale Project Settings asset) for " +
+                 "the particle sizes above, instead of the override below. Off = always use the override, " +
+                 "whatever the project says — same Auto-pattern as Debris Scatter (T-0383) and Fragment " +
+                 "Fracture (T-0390). This field previously had NO project-setting link at all and defaulted to " +
+                 "32 while this project's own Pixel Scale is 16 — every existing splash (including UC4 Zoe " +
+                 "Spray) was rendering its particles at half their intended size (T-0391).")]
+        public bool useProjectPixelScale = true;
+        [FormerlySerializedAs("pixelsPerUnit")]
+        [Tooltip("Pixels-per-unit the particle sizes above are measured in, used only while 'Use project pixel " +
+                 "scale' above is off.")]
+        [Min(1f)] public float pixelsPerUnitOverride = 32f;
+
+        /// The pixels-per-unit a splash's particles actually render at: the project's Pixel Scale setting by
+        /// default, or the explicit override when that's turned off. Existing assets carry their old flat
+        /// `pixelsPerUnit` value here under the renamed field (FormerlySerializedAs), but it is now DORMANT
+        /// unless the author explicitly turns the toggle off — see this field's own tooltip for why that
+        /// dormant value was wrong for every real splash in the project.
+        public float EffectivePixelsPerUnit
+            => useProjectPixelScale ? PixelScaleProjectSettings.Instance.pixelsPerUnit : pixelsPerUnitOverride;
 
         [Tooltip("Slowest launch speed, world units/sec.")]
         public float speedMin = 1.5f;
@@ -264,7 +283,7 @@ namespace Laubrary.Chunks
             float sizeLo = Mathf.Min(sizePxMin, sizePxMax), sizeHi = Mathf.Max(sizePxMin, sizePxMax);
             float speedLo = Mathf.Min(speedMin, speedMax), speedHi = Mathf.Max(speedMin, speedMax);
             float lifeLo = Mathf.Min(lifeMin, lifeMax), lifeHi = Mathf.Max(lifeMin, lifeMax);
-            float ppu = Mathf.Max(1f, pixelsPerUnit);
+            float ppu = Mathf.Max(1f, EffectivePixelsPerUnit);
 
             for (int i = 0; i < count; i++)
             {
