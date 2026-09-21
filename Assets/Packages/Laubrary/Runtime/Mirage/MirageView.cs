@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 using Laubrary.Zoetrope;
 using Laubrary.Choreographer;
 using Laubrary.PixelScale;
@@ -22,24 +23,33 @@ namespace Laubrary.Mirage
     {
         [Tooltip("Every previewable is scaled so its source content's own PPU maps to this — the \"no mixels\" " +
                  "guarantee. A 16-PPU Zoe and a 64-PPU Pyre blast render at the same apparent pixel size. " +
-                 "A view made by Mirage or by a tool's Preview button starts this at the PROJECT's own Pixel " +
-                 "Scale setting (see CreateTransient / MirageWindow.InitializeNewAsset); editing it here " +
-                 "overrides that for this view alone.")]
-        [Min(1f)] public float displayPixelsPerUnit = 16f;
+                 "Defaults to following the project's own Pixel Scale setting (below); turn that off to pin " +
+                 "this view to a display PPU of its own regardless of future project changes.")]
+        public bool useProjectPixelScale = true;
+        [FormerlySerializedAs("displayPixelsPerUnit")]
+        [Tooltip("Display PPU used only while 'Use project pixel scale' above is off.")]
+        [Min(1f)] public float displayPixelsPerUnitOverride = 16f;
+
+        /// The display PPU this view actually normalizes every previewable to: the project's Pixel Scale
+        /// setting by default — same Auto-pattern DebrisScatter (T-0383), FragmentFracture and PaletteSplash
+        /// (T-0390/T-0391) already use — or the explicit override when that's turned off. Previously this was
+        /// a plain field seeded ONCE from the project setting at creation (CreateTransient / InitializeNewAsset)
+        /// and never revisited, so an authored MirageView asset silently went stale the moment the project's
+        /// own Pixel Scale setting was ever touched again — exactly the drift class this whole session kept
+        /// finding and fixing elsewhere. Read this, never the raw field, anywhere a display PPU is needed.
+        public float EffectivePixelsPerUnit
+            => useProjectPixelScale ? Mathf.Max(1f, PixelScaleProjectSettings.Instance.pixelsPerUnit) : Mathf.Max(1f, displayPixelsPerUnitOverride);
 
         /// The one way a throwaway "preview this asset" view is made (ChunkWindow / ZoetropeWindows' own
-        /// PreviewInMirage). It exists so the seeding rule lives in ONE place: a fresh view normalizes to the
-        /// PROJECT's own pixels-per-unit (Pixel Scale Project Settings), not to the hardcoded 16 this field
-        /// happens to default to. Without it the preview sprite and the stage camera — which already sizes
-        /// itself from that same setting, via PixelScaleCamera — disagreed the moment the project ran at any
-        /// other PPU, and a blast came out wildly too big or too small for the simulated screen (T-0383).
-        /// An AUTHORED MirageView asset is untouched by this: its saved Display PPU stays its own per-view
-        /// override, which is the whole point of that field in MirageWindow.
+        /// PreviewInMirage). `useProjectPixelScale` already defaults to true, so a transient view needs no
+        /// extra seeding to track the project's setting — this only fills the override field with a sane
+        /// starting point for whoever later turns the toggle off. An AUTHORED MirageView asset is untouched
+        /// by this: its own saved toggle/override stay exactly as the author left them.
         public static MirageView CreateTransient(string viewName)
         {
             var view = CreateInstance<MirageView>();
             view.name = viewName;
-            view.displayPixelsPerUnit = Mathf.Max(1f, PixelScaleProjectSettings.Instance.pixelsPerUnit);
+            view.displayPixelsPerUnitOverride = Mathf.Max(1f, PixelScaleProjectSettings.Instance.pixelsPerUnit);
             return view;
         }
 
@@ -110,7 +120,7 @@ namespace Laubrary.Mirage
         public UnityEngine.Object content;
 
         public Vector2 position;
-        [Tooltip("Author-chosen multiplier ON TOP OF the displayPixelsPerUnit normalization, not instead of it.")]
+        [Tooltip("Author-chosen multiplier ON TOP OF the view's EffectivePixelsPerUnit normalization, not instead of it.")]
         public float scale = 1f;
 
         [Header("Zoe-only")]

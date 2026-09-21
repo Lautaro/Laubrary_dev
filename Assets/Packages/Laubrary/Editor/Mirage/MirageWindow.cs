@@ -65,14 +65,13 @@ namespace Laubrary.Mirage.Editor
         protected override string NewAssetName => "MirageView";
         protected override string DefaultFolder => "Assets/Mirage";
 
-        /// A view created here starts at the PROJECT's own pixels-per-unit rather than MirageView's hardcoded
-        /// 16 default, for the same reason MirageView.CreateTransient does it for throwaway preview views
-        /// (T-0383): the stage camera already sizes itself from that setting, so anything else makes the two
-        /// disagree from the first frame. Display PPU below stays a per-view override once it is authored.
+        /// MirageView.useProjectPixelScale already defaults to true, so a fresh asset tracks the project's own
+        /// Pixel Scale setting with no seeding needed — this only fills the override field with a sane
+        /// starting point for whoever later turns the toggle off (T-0392).
         protected override void InitializeNewAsset(MirageView item)
         {
             if (item != null)
-                item.displayPixelsPerUnit =
+                item.displayPixelsPerUnitOverride =
                     Mathf.Max(1f, Laubrary.PixelScale.PixelScaleProjectSettings.Instance.pixelsPerUnit);
         }
 
@@ -317,10 +316,11 @@ namespace Laubrary.Mirage.Editor
         // ── view-level row ──────────────────────────────────────────────────────────────────
         void BuildViewRow(VisualElement root, MirageView view)
         {
-            const string ppuTip = "Every previewable is scaled so its own source PPU maps to this — the " +
+            const string ppuToggleTip = "Every previewable is scaled so its own source PPU maps to this — the " +
                 "\"no mixels\" guarantee. A 16-PPU Zoe and a 64-PPU Pyre blast render at the same pixel size. " +
-                "Starts at the project's own Pixel Scale setting, so the stage camera and what it shows agree; " +
-                "change it here to override that for this view alone.";
+                "On (default): follows the project's own Pixel Scale setting, so this view can never drift " +
+                "from it even if that setting changes later. Off: pin this view to a display PPU of its own.";
+            const string ppuTip = "Display PPU for this view, used only while 'Use project pixel scale' is off.";
             const string spriteTip = "Browse every Sprite in the project (search-driven — nothing loads until " +
                 "you type a name) to add as a background previewable. Not a LauAsset-registered type, so it's " +
                 "kept out of the Add Previewable browser above.";
@@ -343,9 +343,18 @@ namespace Laubrary.Mirage.Editor
                     picked => { if (picked != null) { AddEntry(view, picked); RebuildBody(); } }, null);
             };
 
+            var ppuToggle = Z.Toggle("Use project pixel scale", ppuToggleTip, view.useProjectPixelScale,
+                v => { Dial("Toggle Use Project Pixel Scale", () => view.useProjectPixelScale = v); RebuildBody(); });
+
+            VisualElement ppuControl = view.useProjectPixelScale
+                ? Z.Text($"{view.EffectivePixelsPerUnit:0.#} px/unit (project)", ZuiText.Subtle,
+                    "The live value read from the project's Pixel Scale Project Settings asset.")
+                : Z.Field("Display PPU", ppuTip, Z.Float(view.displayPixelsPerUnitOverride, ppuTip,
+                    v => Dial("Display PPU", () => view.displayPixelsPerUnitOverride = Mathf.Max(1f, v)), 60f));
+
             root.Add(WrapRow(
-                Z.Field("Display PPU", ppuTip, Z.Float(view.displayPixelsPerUnit, ppuTip,
-                    v => Dial("Display PPU", () => view.displayPixelsPerUnit = Mathf.Max(1f, v)), 60f)),
+                ppuToggle,
+                ppuControl,
                 addButton,
                 spriteBrowse,
                 Z.Flexible()));

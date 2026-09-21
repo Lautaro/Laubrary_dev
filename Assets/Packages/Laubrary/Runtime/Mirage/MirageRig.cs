@@ -221,7 +221,7 @@ namespace Laubrary.Mirage
             // pad doesn't center the image" bug.
             Vector3 camCenter = previewCamera != null ? previewCamera.transform.position : Vector3.zero;
             _backdrop.transform.position = new Vector3(camCenter.x + bs.imagePos.x, camCenter.y + bs.imagePos.y, 0f);
-            float displayPpu = view != null ? view.displayPixelsPerUnit : 64f;
+            float displayPpu = view != null ? view.EffectivePixelsPerUnit : 64f;
             float srcPpu = bs.image.pixelsPerUnit;
             float ppuScale = displayPpu > 0f ? srcPpu / displayPpu : 1f;
             _backdrop.transform.localScale = Vector3.one * (ppuScale * Mathf.Max(0.01f, bs.imageZoom));
@@ -229,7 +229,7 @@ namespace Laubrary.Mirage
 
         void ApplyScale(GameObject go, float sourcePixelsPerUnit, float authorScale)
         {
-            float displayPpu = view != null ? view.displayPixelsPerUnit : 64f;
+            float displayPpu = view != null ? view.EffectivePixelsPerUnit : 64f;
             float ppuScale = displayPpu > 0f ? sourcePixelsPerUnit / displayPpu : 1f;
             go.transform.localScale = Vector3.one * (ppuScale * Mathf.Max(0.01f, authorScale));
         }
@@ -288,7 +288,7 @@ namespace Laubrary.Mirage
                     // draws the Replay control that does so. See that class for why replay beats auto-looping.
                     //
                     // Deliberately NOT ApplyScale'd, and this is the one real asymmetry with the cases above.
-                    // They normalize to the view's displayPixelsPerUnit because their size comes from a source
+                    // They normalize to the view's EffectivePixelsPerUnit because their size comes from a source
                     // sprite's PPU. A ChunkSpec is authored in WORLD units instead — sizeMin/sizeMax ARE world
                     // sizes, and spec.pixelsPerUnit only sets the PPU of the procedural sprite it generates so
                     // that world size comes out right. Scaling this container would resize the debris sprites
