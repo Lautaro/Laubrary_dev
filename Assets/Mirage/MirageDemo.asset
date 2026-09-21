@@ -116,6 +116,6 @@ MonoBehaviour:
     cameraColor: {r: 0.2830189, g: 0.25048652, b: 0.35686275, a: 1}
     image: {fileID: 21300000, guid: 866c877b4deb2864d99414e91ef88449, type: 3}
     imageTint: {r: 0.6283537, g: 0.59410226, b: 0.6771488, a: 1}
-    imageZoom: 11.41844
+    imageZoom: 0.22
     imagePos: {x: -3.5816975, y: 5}
   thumbnail: {fileID: -5555989063998786557}

@@ -50,7 +50,7 @@ MonoBehaviour:
     cameraColor: {r: 0.2830189, g: 0.25048652, b: 0.35686275, a: 1}
     image: {fileID: 21300000, guid: 48f100589f04cee4c9dda1c77396c114, type: 3}
     imageTint: {r: 0.6491362, g: 0.5955439, b: 0.72746336, a: 1}
-    imageZoom: 10.85311
+    imageZoom: 0.20838
     imagePos: {x: 1.6993484, y: 1.3725483}
   thumbnail: {fileID: 5245589007457730950}
 --- !u!28 &5245589007457730950
