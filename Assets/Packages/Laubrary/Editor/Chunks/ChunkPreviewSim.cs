@@ -1242,6 +1242,7 @@ namespace Laubrary.Chunks.Editor
             // The cut's own inputs; any of them changing recuts.
             public bool attempted;
             public int pieces, minArea, seed;
+            public float ppu;
             public CutPart[] parts;
 
             public string cardNote, stageNote;
@@ -1282,7 +1283,8 @@ namespace Laubrary.Chunks.Editor
 
             int pieces = Mathf.Clamp(f.pieceCount, FragmentCutter.MinPieces, FragmentCutter.MaxPieces);
             int minArea = Mathf.Max(1, f.minPieceAreaPx);
-            if (look.attempted && look.pieces == pieces && look.minArea == minArea && look.seed == seed)
+            float ppu = f.EffectivePixelsPerUnit;
+            if (look.attempted && look.pieces == pieces && look.minArea == minArea && look.seed == seed && look.ppu == ppu)
                 return look;
 
             look.ReleaseParts();
@@ -1290,6 +1292,7 @@ namespace Laubrary.Chunks.Editor
             look.pieces = pieces;
             look.minArea = minArea;
             look.seed = seed;
+            look.ppu = ppu;
             look.cardNote = null;
             look.stageNote = null;
 
@@ -1297,7 +1300,7 @@ namespace Laubrary.Chunks.Editor
             IReadOnlyList<FragmentPiece> cut;
             // Uncached on purpose: the runtime cache is a small hot-repeat store for real bursts, and a
             // preview dragging Pieces through its range would only churn it.
-            try { cut = FragmentCutter.Cut(src, pieces, minArea, seed, cache: false); }
+            try { cut = FragmentCutter.Cut(src, pieces, minArea, seed, cache: false, pixelsPerUnit: ppu); }
             catch (System.Exception) { cut = null; }
 
             if (cut == null || cut.Count == 0)
@@ -1310,8 +1313,7 @@ namespace Laubrary.Chunks.Editor
                 return look;
             }
 
-            // Fire builds each piece at the source's own pixels-per-unit, so the pieces here are that size.
-            float ppu = Mathf.Max(1f, src.pixelsPerUnit);
+            // Fire builds each piece at this same EffectivePixelsPerUnit (T-0390), so the pieces here are that size.
             var parts = new List<CutPart>(cut.Count);
             for (int i = 0; i < cut.Count; i++)
             {

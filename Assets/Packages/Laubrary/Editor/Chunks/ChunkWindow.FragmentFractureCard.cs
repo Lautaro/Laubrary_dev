@@ -53,6 +53,24 @@ namespace Laubrary.Chunks.Editor
                         v => Dial("Edit Min Piece Area", () => cap.minPieceAreaPx = Mathf.Max(1, v)), 70f)),
                 SeedField(cap.seed, "the cut and the pieces' flight", "Edit Fracture Seed", v => cap.seed = v)));
 
+            // Same Auto-pattern as Debris Scatter (T-0383): the cut pieces' own pixels-per-unit defaults to
+            // the project's Pixel Scale setting rather than the source sprite's own baked import value, which
+            // can drift from it (T-0390 — that drift was rendering fragments sub-pixel tiny).
+            body.Add(Z.Toggle("Use project pixel scale",
+                "Pull the cut pieces' pixels-per-unit from the project's Pixel Scale Project Settings asset " +
+                "instead of the override below. Off = always use the override, whatever the project says.",
+                cap.useProjectPixelScale, v => DialAndRebuildCard(id, "Toggle Use Project Pixel Scale",
+                    () => cap.useProjectPixelScale = v)));
+            if (!cap.useProjectPixelScale)
+                body.Add(Z.Field("Pixels/unit",
+                    "Pixels-per-unit for the cut pieces. Affects how crisp/blocky they are, not their size on " +
+                    "screen — a piece is always exactly the size it was in the source picture.",
+                    Z.Float(cap.pixelsPerUnitOverride, "Pixels-per-unit for the cut pieces.",
+                        v => Dial("Edit Pixels/Unit", () => cap.pixelsPerUnitOverride = Mathf.Max(1f, v)), 70f)));
+            else
+                body.Add(Z.Text($"Currently {cap.EffectivePixelsPerUnit:0.#} px/unit (project setting).",
+                    ZuiText.Subtle, "The live value read from the project's Pixel Scale Project Settings asset."));
+
             // ── how it flies ──────────────────────────────────────────────────────
             body.Add(Z.HGroup(
                 Z.MicroMinMax("Speed", cap.speedMin, cap.speedMax, 0f, 20f,

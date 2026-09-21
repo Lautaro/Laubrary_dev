@@ -86,15 +86,15 @@ namespace Laubrary.Chunks
         // repeat and the cache would just grow), and the store is a bounded MRU that evicts the oldest entry.
         readonly struct CutKey : System.IEquatable<CutKey>
         {
-            readonly int _sprite, _pieces, _minArea, _seed;
-            public CutKey(int sprite, int pieces, int minArea, int seed)
-            { _sprite = sprite; _pieces = pieces; _minArea = minArea; _seed = seed; }
+            readonly int _sprite, _pieces, _minArea, _seed, _ppuBits;
+            public CutKey(int sprite, int pieces, int minArea, int seed, float ppu)
+            { _sprite = sprite; _pieces = pieces; _minArea = minArea; _seed = seed; _ppuBits = System.BitConverter.SingleToInt32Bits(ppu); }
             public bool Equals(CutKey o) => _sprite == o._sprite && _pieces == o._pieces
-                                         && _minArea == o._minArea && _seed == o._seed;
+                                         && _minArea == o._minArea && _seed == o._seed && _ppuBits == o._ppuBits;
             public override bool Equals(object o) => o is CutKey k && Equals(k);
             public override int GetHashCode()
             {
-                unchecked { return (((_sprite * 397) ^ _pieces) * 397 ^ _minArea) * 397 ^ _seed; }
+                unchecked { return ((((_sprite * 397) ^ _pieces) * 397 ^ _minArea) * 397 ^ _seed) * 397 ^ _ppuBits; }
             }
         }
 
@@ -114,17 +114,18 @@ namespace Laubrary.Chunks
         /// <paramref name="cache"/> should be false for an unseeded (reroll-every-time) cut and for editor
         /// previews, both of which would otherwise fill the cache with keys that never repeat.
         public static IReadOnlyList<FragmentPiece> Cut(Sprite source, int pieceCount, int minPieceAreaPx,
-                                                       int seed, bool cache)
+                                                       int seed, bool cache, float pixelsPerUnit)
         {
             if (source == null || source.texture == null) return null;
 
             pieceCount = Mathf.Clamp(pieceCount, MinPieces, MaxPieces);
             minPieceAreaPx = Mathf.Max(1, minPieceAreaPx);
+            pixelsPerUnit = Mathf.Max(1f, pixelsPerUnit);
 
-            var key = new CutKey(source.GetInstanceID(), pieceCount, minPieceAreaPx, seed);
+            var key = new CutKey(source.GetInstanceID(), pieceCount, minPieceAreaPx, seed, pixelsPerUnit);
             if (cache && _cache.TryGetValue(key, out var hit)) return hit;
 
-            var cut = CutUncached(source, pieceCount, minPieceAreaPx, seed);
+            var cut = CutUncached(source, pieceCount, minPieceAreaPx, seed, pixelsPerUnit);
             if (cut == null) return null;
 
             if (cache)
@@ -140,7 +141,7 @@ namespace Laubrary.Chunks
             return cut;
         }
 
-        static FragmentPiece[] CutUncached(Sprite source, int pieceCount, int minPieceAreaPx, int seed)
+        static FragmentPiece[] CutUncached(Sprite source, int pieceCount, int minPieceAreaPx, int seed, float pixelsPerUnit)
         {
             var texRect = source.textureRect;   // the sprite's own region inside a possibly-shared atlas texture
             int texX = Mathf.RoundToInt(texRect.x), texY = Mathf.RoundToInt(texRect.y);
@@ -183,7 +184,7 @@ namespace Laubrary.Chunks
 
             MergeUndersizedCells(label, counts, opaque, W, sx, sy, minPieceAreaPx);
 
-            return BuildPieces(px, label, counts, W, H, source);
+            return BuildPieces(px, label, counts, W, H, source, pixelsPerUnit);
         }
 
         /// A sprite's own pixels (atlas sub-rect aware), bottom-left origin, row-major. Null when the sprite,
@@ -287,7 +288,7 @@ namespace Laubrary.Chunks
             }
         }
 
-        static FragmentPiece[] BuildPieces(Color32[] px, int[] label, int[] counts, int W, int H, Sprite source)
+        static FragmentPiece[] BuildPieces(Color32[] px, int[] label, int[] counts, int W, int H, Sprite source, float pixelsPerUnit)
         {
             int n = counts.Length;
             var minX = new int[n]; var minY = new int[n]; var maxX = new int[n]; var maxY = new int[n];
@@ -305,7 +306,7 @@ namespace Laubrary.Chunks
             }
 
             Vector2 pivotPx = source.pivot;                      // pixels, relative to the sprite rect's bottom-left
-            float ppu = Mathf.Max(1f, source.pixelsPerUnit);
+            float ppu = Mathf.Max(1f, pixelsPerUnit);
 
             var result = new List<FragmentPiece>(n);
             for (int s = 0; s < n; s++)

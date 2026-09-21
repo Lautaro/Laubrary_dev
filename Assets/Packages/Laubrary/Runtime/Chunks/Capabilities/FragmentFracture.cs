@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Laubrary.PixelScale;
 
 namespace Laubrary.Chunks
 {
@@ -36,6 +37,25 @@ namespace Laubrary.Chunks
 
         [Tooltip("How many pieces the picture is cut into. 2–6 keeps each piece recognisable as part of it.")]
         public int pieceCount = 3;
+
+        [Tooltip("Use the project's Pixel Scale Project Settings (Laubrary/Pixel Scale Project Settings asset) for " +
+                 "the cut pieces' pixels-per-unit, instead of the source sprite's own baked import value. " +
+                 "Off = always use the override below, whatever the project says — same Auto-pattern as " +
+                 "Debris Scatter. The source sprite's own pixelsPerUnit is never read either way: letting it " +
+                 "through is exactly the drift that rendered fragments sub-pixel tiny (T-0390).")]
+        public bool useProjectPixelScale = true;
+        [Tooltip("Pixels-per-unit for the cut pieces, used only while 'Use project pixel scale' above is off.")]
+        [Min(1f)] public float pixelsPerUnitOverride = 32f;
+
+        /// The pixels-per-unit this fracture actually cuts and flies its pieces at: the project's Pixel Scale
+        /// setting by default — same override-toggle shape DebrisScatter already has (T-0383) — or the explicit
+        /// override when that's turned off. Deliberately NEVER the source sprite's own baked pixelsPerUnit: a
+        /// live Zoe sprite's import PPU can drift from the project's own density (the same class of bug T-0383
+        /// through T-0386 found and fixed across Pyre/Mirage/BackSplash), and a fragment cut from it used to
+        /// silently inherit that drift, rendering sub-pixel-tiny against every other Chunks capability that
+        /// already reads the project setting.
+        public float EffectivePixelsPerUnit
+            => useProjectPixelScale ? PixelScaleProjectSettings.Instance.pixelsPerUnit : pixelsPerUnitOverride;
 
         [Tooltip("Smallest piece, in source pixels. Anything below this is merged into its neighbour instead " +
                  "of becoming a fragment nobody can see.")]
@@ -147,8 +167,9 @@ namespace Laubrary.Chunks
             // never repeat) — so the cache is asked for only when the author actually pinned a seed.
             bool seeded = seed != 0;
             int effectiveSeed = seeded ? seed : Random.Range(1, int.MaxValue);
+            float ppu = EffectivePixelsPerUnit;
 
-            var pieces = FragmentCutter.Cut(src, pieceCount, minPieceAreaPx, effectiveSeed, cache: seeded);
+            var pieces = FragmentCutter.Cut(src, pieceCount, minPieceAreaPx, effectiveSeed, cache: seeded, pixelsPerUnit: ppu);
             if (pieces == null || pieces.Count == 0) { WarnUncuttableOnce(src); return; }
 
             float spdMin = Mathf.Max(0f, speedMin), spdMax = Mathf.Max(spdMin, speedMax);
@@ -157,7 +178,6 @@ namespace Laubrary.Chunks
             float grav = Mathf.Max(0f, gravity), air = Mathf.Clamp(drag, 0f, 20f);
             float spread = Mathf.Clamp(spreadDeg, 0f, 180f);
             float coneCentre = useBurstDirection ? ctx.DirectionDeg : directionDeg;
-            float ppu = Mathf.Max(1f, src.pixelsPerUnit);
             var curve = alphaEnvelope;
 
             // A second stream off the same seed, so a dial that only changes motion never re-rolls the cut.
