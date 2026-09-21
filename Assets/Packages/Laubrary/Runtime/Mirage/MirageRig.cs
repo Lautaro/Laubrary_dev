@@ -223,14 +223,14 @@ namespace Laubrary.Mirage
             _backdrop.transform.position = new Vector3(camCenter.x + bs.imagePos.x, camCenter.y + bs.imagePos.y, 0f);
             float displayPpu = view != null ? view.displayPixelsPerUnit : 64f;
             float srcPpu = bs.image.pixelsPerUnit;
-            float ppuScale = srcPpu > 0f ? displayPpu / srcPpu : 1f;
+            float ppuScale = displayPpu > 0f ? srcPpu / displayPpu : 1f;
             _backdrop.transform.localScale = Vector3.one * (ppuScale * Mathf.Max(0.01f, bs.imageZoom));
         }
 
         void ApplyScale(GameObject go, float sourcePixelsPerUnit, float authorScale)
         {
             float displayPpu = view != null ? view.displayPixelsPerUnit : 64f;
-            float ppuScale = sourcePixelsPerUnit > 0f ? displayPpu / sourcePixelsPerUnit : 1f;
+            float ppuScale = displayPpu > 0f ? sourcePixelsPerUnit / displayPpu : 1f;
             go.transform.localScale = Vector3.one * (ppuScale * Mathf.Max(0.01f, authorScale));
         }
 
