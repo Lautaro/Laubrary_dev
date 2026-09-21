@@ -193,6 +193,9 @@ MonoBehaviour:
   - recipe: {fileID: 11400000, guid: 930b1be39ad6e4449af078af73355b8b, type: 2}
     key: 6
     label: UC6 Disc Breakup
+  - recipe: {fileID: 11400000, guid: ef6700b0a94360f479de02b76eb32956, type: 2}
+    key: 7
+    label: UC7 Bullet Hole
   restoreKey: 0
   showKeyLegend: 1
 --- !u!1 &1395470066
