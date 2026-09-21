@@ -1688,12 +1688,13 @@ MonoBehaviour:
         idleClip: Idle
         height: 0.96
     - rid: 1452078234765099101
-      type: {class: PyreChunksFx, ns: Laubrary.ZoetropePyre, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Pyre}
+      type: {class: SpawnChunkFx, ns: Laubrary.ZoetropePyre, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Pyre}
       data:
-        blast: {fileID: 0}
-        blastFps: 24
         chunks: {fileID: 11400000, guid: 8a2347c27e0269441b1485fa580166b1, type: 2}
-        sortingOrder: 10
+        sampleLauminaryColours: 1
+        sampleCount: 6
+        baseScale: 1
+        scalePerAmount: 0
     - rid: 1702917591583949365
       type: {class: SpawnChunkFx, ns: Laubrary.ZoetropePyre, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Pyre}
       data:
