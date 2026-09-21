@@ -25,6 +25,9 @@
 // a preview loop nobody spawns, not the real play length this file exists to report.
 using UnityEngine;
 using Laubrary.Pyre;
+using PyreAsset = Laubrary.Pyre.Pyre;   // the class is shadowed by the namespace inside a Laubrary.* namespace
+                                        // (same alias MirageRig.cs carries, for the same reason) — writing the
+                                        // bare name here is CS0118, which is how this file landed (T-0383).
 
 namespace Laubrary.Chunks.Editor
 {
@@ -43,7 +46,7 @@ namespace Laubrary.Chunks.Editor
                 // advances `clock` by `fps` per second and stops once `Mathf.FloorToInt(clock) >= frames.Length`
                 // (frames.Length == frameCount, PyreRenderer.GetFrames) — so it takes exactly
                 // frameCount / fps seconds to finish, which is exactly this division.
-                case Pyre p:
+                case PyreAsset p:
                     return p.frameCount / p.DirectFps;
 
                 // The wrapper carries its OWN per-use fps/loop/loopSeconds (PyreSpawnSource.SpawnEffect calls

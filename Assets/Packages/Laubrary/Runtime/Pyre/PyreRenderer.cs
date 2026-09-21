@@ -5158,6 +5158,10 @@ namespace Laubrary.Pyre
         // Pyre1's own Bake button) for dragging into an Animator elsewhere; it is NOT what other Laubrary tools
         // pick through, so its baked sub-sprites never need to appear in this path at all.
         static readonly Dictionary<int, Sprite[]> chunkFrameCache = new();
+        // The PPU each cached array was actually stamped with. With Auto on (T-0383) a spec's effective PPU can
+        // change without the spec itself changing — someone edits the project's Pixel Scale asset — and a cache
+        // keyed on instance id alone would then hand back sprites built at the old density forever.
+        static readonly Dictionary<int, float> chunkFrameCachePpu = new();
 
         /// Build (or reuse) the per-frame Sprite array for a spec. Cached by instance id so the same spec renders
         /// once. Pyre has no per-shape pivot field (unlike Pyre1's `origin`), so every frame pivots at
@@ -5166,7 +5170,9 @@ namespace Laubrary.Pyre
         {
             if (spec == null) return null;
             int key = spec.GetInstanceID();
-            if (chunkFrameCache.TryGetValue(key, out var cached) && cached != null && cached.Length > 0)
+            float ppu = spec.EffectivePixelsPerUnit;
+            if (chunkFrameCache.TryGetValue(key, out var cached) && cached != null && cached.Length > 0
+                && chunkFrameCachePpu.TryGetValue(key, out float cachedPpu) && Mathf.Approximately(cachedPpu, ppu))
                 return cached;
 
             int n = Mathf.Max(1, spec.frameCount);
@@ -5175,17 +5181,20 @@ namespace Laubrary.Pyre
             for (int f = 0; f < n; f++)
             {
                 var tex = RenderFrameTexture(spec, f);
-                built[f] = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), pivot, spec.pixelsPerUnit);
+                built[f] = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), pivot, ppu);
                 built[f].name = "pyreplus_" + f;
             }
             chunkFrameCache[key] = built;
+            chunkFrameCachePpu[key] = ppu;
             return built;
         }
 
         /// Drop a spec's cached frames (call after editing a spec at runtime so the next GetFrames re-renders).
         public static void ClearFrameCache(Pyre spec)
         {
-            if (spec != null) chunkFrameCache.Remove(spec.GetInstanceID());
+            if (spec == null) return;
+            chunkFrameCache.Remove(spec.GetInstanceID());
+            chunkFrameCachePpu.Remove(spec.GetInstanceID());
         }
     }
 }

@@ -1192,7 +1192,32 @@ namespace Laubrary.Pyre
         // The flat clear colour. KEPT as the serialized render-clear field for compatibility: when backgroundUseFill
         // is false (the default) the renderer fills every pixel with this exactly as before (byte-identical).
         public Color background = new Color(0f, 0f, 0f, 0f);
+        // T-0383: this number is not a preview setting — it is stamped straight onto every real Sprite this
+        // Pyre ever produces (PyreRenderer.GetFrames' Sprite.Create, PyreBaker's spritePixelsPerUnit), so two
+        // Pyres carrying different values render their pixels at genuinely different apparent sizes side by
+        // side. Nothing ever synced it to the project's own Pixel Scale setting, so a Pyre authored before a
+        // project-wide PPU change (or copied in from another project) kept its old value forever. Auto ON is
+        // the default for assets old and new alike — the same "nobody chose the drift on purpose" reasoning
+        // T-0356 used for PyreBlast.blastSecondsAuto — and makes this track
+        // PixelScaleProjectSettings.pixelsPerUnit. Read EffectivePixelsPerUnit, never this field, anywhere the
+        // answer actually renders something; the stored field is what Auto OFF hands back to the author.
+        [Tooltip("Pixels per unit stamped onto every sprite this Pyre bakes. Used only while Auto is off.")]
         public float pixelsPerUnit = 16f;
+
+        [Tooltip("On: pixels per unit follows the project's Pixel Scale Project Settings asset, so this Pyre's " +
+                 "pixels come out the same apparent size as every other piece of art in the game. Off: the " +
+                 "value beside it is used instead — a deliberate per-asset override, e.g. an intentionally " +
+                 "hi-res glow layer under low-res sprites.")]
+        public bool pixelsPerUnitAuto = true;
+
+        /// The pixels-per-unit this Pyre actually bakes with: the project's Pixel Scale setting while Auto is
+        /// on, the per-asset override once it is off — same override-toggle shape as DebrisScatter's
+        /// useProjectPixelScale/pixelsPerUnitOverride pair and PixelScaleCamera's own. Everything that stamps
+        /// or measures a real sprite PPU goes through this.
+        public float EffectivePixelsPerUnit
+            => Mathf.Max(0.01f, pixelsPerUnitAuto
+                ? Laubrary.PixelScale.PixelScaleProjectSettings.Instance.pixelsPerUnit
+                : pixelsPerUnit);
 
         // ── anchor (optional) — see PyreAnchor. Off by default so every existing asset keeps its implicit origin
         // (the canvas centre / sprite pivot). When set, the anchor IS the origin: a placing system puts it on the

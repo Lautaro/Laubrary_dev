@@ -877,8 +877,10 @@ namespace Laubrary.Chunks.Editor
             if (spec == null) return;
             EnsureMirageStageOpen();
 
-            var view = ScriptableObject.CreateInstance<MirageView>();
-            view.name = $"{spec.name} (Burst Preview)";
+            // CreateTransient, not CreateInstance: a throwaway preview view normalizes to the PROJECT's own
+            // pixels-per-unit rather than MirageView's hardcoded 16 default, so the preview sprite and the
+            // stage camera agree at any project PPU (T-0383).
+            var view = MirageView.CreateTransient($"{spec.name} (Burst Preview)");
             view.AddEntry(spec, Vector2.zero);
 
             // Carry the recipe's own tuned preview backdrop over to Mirage, so the burst shows against the

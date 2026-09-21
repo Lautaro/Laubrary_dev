@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Laubrary.Zoetrope;
 using Laubrary.Choreographer;
+using Laubrary.PixelScale;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -21,8 +22,26 @@ namespace Laubrary.Mirage
     {
         [Tooltip("Every previewable is scaled so its source content's own PPU maps to this — the \"no mixels\" " +
                  "guarantee. A 16-PPU Zoe and a 64-PPU Pyre blast render at the same apparent pixel size. " +
-                 "Default 16 matches the project's chosen PPU convention (see ppu-convention-gap memory).")]
+                 "A view made by Mirage or by a tool's Preview button starts this at the PROJECT's own Pixel " +
+                 "Scale setting (see CreateTransient / MirageWindow.InitializeNewAsset); editing it here " +
+                 "overrides that for this view alone.")]
         [Min(1f)] public float displayPixelsPerUnit = 16f;
+
+        /// The one way a throwaway "preview this asset" view is made (ChunkWindow / ZoetropeWindows' own
+        /// PreviewInMirage). It exists so the seeding rule lives in ONE place: a fresh view normalizes to the
+        /// PROJECT's own pixels-per-unit (Pixel Scale Project Settings), not to the hardcoded 16 this field
+        /// happens to default to. Without it the preview sprite and the stage camera — which already sizes
+        /// itself from that same setting, via PixelScaleCamera — disagreed the moment the project ran at any
+        /// other PPU, and a blast came out wildly too big or too small for the simulated screen (T-0383).
+        /// An AUTHORED MirageView asset is untouched by this: its saved Display PPU stays its own per-view
+        /// override, which is the whole point of that field in MirageWindow.
+        public static MirageView CreateTransient(string viewName)
+        {
+            var view = CreateInstance<MirageView>();
+            view.name = viewName;
+            view.displayPixelsPerUnit = Mathf.Max(1f, PixelScaleProjectSettings.Instance.pixelsPerUnit);
+            return view;
+        }
 
         public List<PreviewableEntry> previewables = new List<PreviewableEntry>();
 

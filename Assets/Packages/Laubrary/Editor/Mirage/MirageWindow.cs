@@ -65,6 +65,17 @@ namespace Laubrary.Mirage.Editor
         protected override string NewAssetName => "MirageView";
         protected override string DefaultFolder => "Assets/Mirage";
 
+        /// A view created here starts at the PROJECT's own pixels-per-unit rather than MirageView's hardcoded
+        /// 16 default, for the same reason MirageView.CreateTransient does it for throwaway preview views
+        /// (T-0383): the stage camera already sizes itself from that setting, so anything else makes the two
+        /// disagree from the first frame. Display PPU below stays a per-view override once it is authored.
+        protected override void InitializeNewAsset(MirageView item)
+        {
+            if (item != null)
+                item.displayPixelsPerUnit =
+                    Mathf.Max(1f, Laubrary.PixelScale.PixelScaleProjectSettings.Instance.pixelsPerUnit);
+        }
+
         PreviewableEntry _selected;
         [SerializeField] bool _choreographyExpanded = true;
 
@@ -307,7 +318,9 @@ namespace Laubrary.Mirage.Editor
         void BuildViewRow(VisualElement root, MirageView view)
         {
             const string ppuTip = "Every previewable is scaled so its own source PPU maps to this — the " +
-                "\"no mixels\" guarantee. A 16-PPU Zoe and a 64-PPU Pyre blast render at the same pixel size.";
+                "\"no mixels\" guarantee. A 16-PPU Zoe and a 64-PPU Pyre blast render at the same pixel size. " +
+                "Starts at the project's own Pixel Scale setting, so the stage camera and what it shows agree; " +
+                "change it here to override that for this view alone.";
             const string spriteTip = "Browse every Sprite in the project (search-driven — nothing loads until " +
                 "you type a name) to add as a background previewable. Not a LauAsset-registered type, so it's " +
                 "kept out of the Add Previewable browser above.";

@@ -25,7 +25,7 @@ namespace Laubrary.Pyre
         public static Vector2 AnchorLocal(Pyre spec)
         {
             if (spec == null || !spec.anchorEnabled) return Vector2.zero;
-            float ppu = Mathf.Max(0.01f, spec.pixelsPerUnit);
+            float ppu = spec.EffectivePixelsPerUnit;
             return new Vector2((spec.anchorOrigin.x - 0.5f) * spec.Width / ppu,
                                (spec.anchorOrigin.y - 0.5f) * spec.Height / ppu);
         }

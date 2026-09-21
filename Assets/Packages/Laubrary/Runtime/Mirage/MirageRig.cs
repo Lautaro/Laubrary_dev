@@ -270,7 +270,7 @@ namespace Laubrary.Mirage
                     bp.spec = blast;
                     bp.loop = true;
                     bp.Play();
-                    ApplyScale(go, blast.pixelsPerUnit, entry.scale);
+                    ApplyScale(go, blast.EffectivePixelsPerUnit, entry.scale);   // T-0383: the PPU its sprites are actually stamped with
                     break;
                 }
                 case Sprite sprite:

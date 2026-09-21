@@ -56,7 +56,7 @@ namespace Laubrary.Pyre.Editor
             importer.filterMode = FilterMode.Point;
             importer.mipmapEnabled = false;
             importer.textureCompression = TextureImporterCompression.Uncompressed;
-            importer.spritePixelsPerUnit = spec.pixelsPerUnit;
+            importer.spritePixelsPerUnit = spec.EffectivePixelsPerUnit;   // T-0383: follows the project's Pixel Scale while Auto is on
             importer.userData = BakedMarker;   // lets LauAssetBrowser (and anything else) filter this out of a raw-Sprite browse
 
             int frames = Mathf.Max(1, spec.frameCount);

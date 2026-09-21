@@ -717,11 +717,48 @@ namespace Laubrary.Pyre.Editor
                 v => Dirty(() => s.canvasSize = Mathf.Clamp(Mathf.RoundToInt(v), 16, 256)), 150f,
                 showValue: true, decimals: 0);
             sizeSlider.RegisterCallback<PointerUpEvent>(_ => ScheduleRangeRebuild());
+            // PPU is stamped onto every sprite this Pyre bakes, so two Pyres carrying different values render
+            // their pixels at different apparent sizes side by side (T-0383). Auto — the default, for assets
+            // old and new alike, same reasoning as T-0356's blastSecondsAuto — makes it follow the project's
+            // own Pixel Scale Project Settings asset; the slider then shows that live number and goes
+            // read-only, so nothing here can silently disagree with the rest of the game's art. Off hands the
+            // stored per-asset value back (it is never overwritten while Auto is on, so toggling off restores
+            // exactly what was authored) for the rare deliberate override — a hi-res glow layer under low-res
+            // sprites. The toggle shares Size's row rather than starting one of its own — vertical space is the
+            // scarce resource.
+            float shownPpu = s.EffectivePixelsPerUnit;
+            float ppuMax = Mathf.Max(64f, Mathf.Ceil(shownPpu));
+            var ppuSlider = Z.MicroSlider("PPU", s.pixelsPerUnitAuto ? shownPpu : s.pixelsPerUnit, 1f, ppuMax,
+                s.pixelsPerUnitAuto
+                    ? "The project's own pixels-per-unit, read from its Pixel Scale Project Settings asset, so " +
+                      "this Pyre's pixels come out the same apparent size as the rest of the game's art. Turn " +
+                      "Auto off to stamp a value of your own instead."
+                    : "Pixels per unit stamped onto every sprite this Pyre bakes. Turn Auto on to follow the " +
+                      "project's own Pixel Scale setting instead.",
+                v => Dirty(() => s.pixelsPerUnit = Mathf.Clamp(v, 1f, ppuMax)), 150f, showValue: true);
+            ppuSlider.SetEnabled(!s.pixelsPerUnitAuto);
+            // PPU and its Auto toggle go into the row as ONE nested group, not as two loose children: this row
+            // wraps, and at the pane width this window actually gets, loose children put Auto on a line of its
+            // own underneath Size, reading as a toggle belonging to nothing (seen by eye, T-0383). Grouped,
+            // they wrap together and the toggle stays beside the slider it governs.
             box.Add(WrapRow(
                 sizeSlider,
-                Z.MicroSlider("PPU", s.pixelsPerUnit, 1f, 64f,
-                    "Pixels per unit for the baked sprite.",
-                    v => Dirty(() => s.pixelsPerUnit = Mathf.Clamp(v, 1f, 64f)), 150f, showValue: true)));
+                Z.HGroup(
+                    ppuSlider,
+                    Z.ToggleButton("Auto",
+                        s.pixelsPerUnitAuto
+                            ? "PPU follows the project's Pixel Scale setting. Click to stamp a value of your " +
+                              "own on this Pyre instead."
+                            : "PPU is this Pyre's own stamped value. Click to follow the project's Pixel Scale " +
+                              "setting instead.",
+                        s.pixelsPerUnitAuto, v =>
+                        {
+                            Dirty(() => s.pixelsPerUnitAuto = v);
+                            // The slider beside it changes both its value and its read-only state, so the row
+                            // has to be rebuilt — deferred to the next frame (see ScheduleRangeRebuild) so the
+                            // tree is torn down AFTER this click finishes dispatching, not under it.
+                            ScheduleRangeRebuild();
+                        }))));
 
             // ── anchor (optional, OFF by default — see PyreAnchor). Not a render input: the marker lives on the
             // preview canvas (PyreWindow.Preview.cs, DrawAnchorOverlay) and only appears while the toggle is on.

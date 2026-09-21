@@ -9,6 +9,7 @@
         "com.Lautaro-Arino.Laubrary.PreviewKit",
         "com.Lautaro-Arino.Laubrary.Pooling",
         "com.Lautaro-Arino.Laubrary.Caching",
+        "com.Lautaro-Arino.Laubrary.PixelScale",
         "Unity.TextMeshPro"
     ],
     "includePlatforms": [],

@@ -11,6 +11,7 @@
         "com.Lautaro-Arino.Laubrary.BackSplash",
         "com.Lautaro-Arino.Laubrary.ZuiRuntime",
         "com.Lautaro-Arino.Laubrary.Caching",
+        "com.Lautaro-Arino.Laubrary.PixelScale",
         "com.Lautaro-Arino.Laubrary.Zoetrope.Launimator"
     ],
     "includePlatforms": [],
