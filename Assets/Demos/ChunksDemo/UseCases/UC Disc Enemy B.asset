@@ -1573,9 +1573,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0413ec766917e0b4bb054a79ec22ed07, type: 3}
-  m_Name: UC Floating Disc (walk copy)
+  m_Name: UC Disc Enemy B
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Zoetrope::Laubrary.Zoetrope.Zoe
-  displayName: Floating Disc
+  displayName: UC Disc Enemy B
   maxHealth: 100
   faction: {fileID: 0}
   invulnerableAfterHit: 0
@@ -1684,7 +1684,7 @@ MonoBehaviour:
     - rid: 1452078146085191898
       type: {class: ZonedLauminaryView, ns: Laubrary.ZoetropeLaunimator, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Launimator}
       data:
-        version: {fileID: 11400000, guid: 3053bccd246a7154d9dc96df6a1a2c1b, type: 2}
+        version: {fileID: 11400000, guid: addb9195291e46cc9c7b0ba0fb25ce9e, type: 2}
         idleClip: Idle
         height: 0.96
     - rid: 1452078234765099101
