@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using Laubrary.Combat2D;
+using Laubrary.PixelScale;
 
 namespace Laubrary.Chunks
 {
@@ -25,6 +26,7 @@ namespace Laubrary.Chunks
         float life;            // seconds elapsed
         float maxLife;         // seconds total
         float baseScale;       // local scale that yields the requested world size at sizeMul == 1
+        float spriteUnit = 1f; // the sprite's own native bounds (the larger axis) baseScale was derived from
         Color baseColor;       // per-chunk tint (palette colour or white), before the gradient/alpha
         bool settled;          // came to rest on the floor
 
@@ -81,7 +83,7 @@ namespace Laubrary.Chunks
             if (animFrames != null && animFrames.Length > 0 && sr != null)
                 sr.sprite = animFrames[0];
 
-            float spriteUnit = 1f;
+            spriteUnit = 1f;
             if (sr != null && sr.sprite != null)
                 spriteUnit = Mathf.Max(sr.sprite.bounds.size.x, sr.sprite.bounds.size.y);
             baseScale = Mathf.Max(0.0001f, worldSize) / Mathf.Max(0.0001f, spriteUnit);
@@ -213,6 +215,22 @@ namespace Laubrary.Chunks
                 scaleX = scaleY * squashX;
                 shade = tumbleShade;
             }
+
+            // The hard floor: whatever sizeOverLife/tumble does to a chunk, it must never render smaller than
+            // ONE game pixel on either axis — a chunk shrinking toward 0 as it settles/fades must snap out of
+            // existence at full pixel size, not fade through a smaller-than-a-pixel blur that reads as noise
+            // (owner report, 2026-09-21: a Floating Disc hit spray's own authored sizeOverLife curve shrank
+            // debris to ~17% of their base size, well under a pixel, well before their life actually ended).
+            // Always the PROJECT's own pixel grid, not this recipe's (possibly overridden) sampling PPU — "one
+            // game pixel" means one pixel of the game's actual screen, the same floor every capability now
+            // shares. spriteUnit can't be 0 (Init clamps it), so this never divides by zero.
+            // squashX (from ChunkTumble.Evaluate, above) is Mathf.Abs(cos(...)) — always >= 0 — so scaleX is
+            // never negative here and a plain Max is enough for both axes.
+            float minPx = 1f / Mathf.Max(1f, PixelScaleProjectSettings.Instance.pixelsPerUnit);
+            float minScale = minPx / spriteUnit;
+            scaleX = Mathf.Max(scaleX, minScale);
+            scaleY = Mathf.Max(scaleY, minScale);
+
             transform.localScale = new Vector3(scaleX, scaleY, 1f);
 
             if (sr == null) return;
