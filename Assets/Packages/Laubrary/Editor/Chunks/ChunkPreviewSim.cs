@@ -560,6 +560,22 @@ namespace Laubrary.Chunks.Editor
             bool footprint = pixels != null;
             bool fromFootprint = footprint && s.emitFromFootprint;
 
+            // ── the hit disc, mirrored (T-0394) ───────────────────────────────────────────────────────────
+            // Fire filters its pixel scan the same way, in the same offset space, so the bound handed to
+            // rng.Next below is the same number on both sides and the streams stay aligned. A disc that
+            // catches nothing degrades to the whole footprint there, so it degrades to it here too.
+            float sourcePpu = look.sampledFrom != null && look.sampledFrom.pixelsPerUnit > 0f
+                ? look.sampledFrom.pixelsPerUnit : 32f;
+            Vector2 centreOffset = s.hitOffsetPx / sourcePpu;
+            int[] disc = footprint ? DiscOf(look, s, centreOffset, sourcePpu) : null;
+            bool discActive = disc != null;
+            int pickBound = discActive ? disc.Length : (footprint ? pixels.count : 0);
+
+            bool cropMode = s.particleLook == SplashParticleLook.SampledCrops
+                            && footprint && look.sampledFrom != null;
+            int cropLo = Mathf.Max(1, Mathf.Min(s.cropPxMin, s.cropPxMax));
+            int cropHi = Mathf.Max(1, Mathf.Max(s.cropPxMin, s.cropPxMax));
+
             int count = Mathf.Max(0, rng.RangeInclusive(Mathf.Min(s.countMin, s.countMax),
                                                         Mathf.Max(s.countMin, s.countMax)));
             float sizeLo = Mathf.Min(s.sizePxMin, s.sizePxMax), sizeHi = Mathf.Max(s.sizePxMin, s.sizePxMax);
@@ -574,16 +590,26 @@ namespace Laubrary.Chunks.Editor
                 var tone = Color.white;
                 if (footprint)
                 {
-                    int pick = rng.Next(pixels.count);
+                    int raw = rng.Next(pickBound);
+                    int pick = discActive ? disc[raw] : raw;
+                    // A sampled crop is a whole little patch of art, not one colour; the dot shows the colour
+                    // of the pixel the crop is CENTRED on, which is the closest a one-colour dot can get.
                     tone = pixels.colors[pick];
                     tone.a = 1f;   // the particle's own alpha rides the envelope, not the pixel's
-                    if (fromFootprint) offset = pixels.offsets[pick];
+                    if (fromFootprint)
+                        offset = discActive ? pixels.offsets[pick] - centreOffset : pixels.offsets[pick];
                 }
                 rng.Next(ShapeCount);                      // the shard shape pick
-                float px = Mathf.Max(0.1f, rng.Range(sizeLo, sizeHi));
+                float sizeRoll = cropMode ? rng.Range(cropLo, cropHi + 0.999f) : rng.Range(sizeLo, sizeHi);
                 float rad = (centreDeg + rng.Range(-s.spreadDeg, s.spreadDeg)) * Mathf.Deg2Rad;
                 float speed = rng.Range(speedLo, speedHi);
                 float life = rng.Range(lifeLo, lifeHi);
+                if (cropMode) rng.Next(int.MaxValue);      // the crop's own mask/jitter seed
+                // A crop is drawn at exactly its texel count in game pixels; a shard is floored at one game
+                // pixel, matching Fire — no splash particle is ever allowed to render sub-pixel.
+                float px = cropMode
+                    ? Mathf.Clamp(Mathf.FloorToInt(sizeRoll), cropLo, cropHi)
+                    : Mathf.Max(1f, sizeRoll);
 
                 if (drawn >= budget || drawn >= DotsPerCapability) continue;
                 if (local > life) continue;
@@ -1361,7 +1387,20 @@ namespace Laubrary.Chunks.Editor
 
             public Sprite resolved;
             public PixelSamples samples;
+            /// The sprite the samples ACTUALLY came from — `resolved`, or the Debris Scatter fallback when that
+            /// is the tier that answered. PaletteSplash.Fire tracks the same thing (its `footprintSprite`) for
+            /// the same reason: a sampled crop is cut out of this sprite, and its own pixels-per-unit is what
+            /// the hit disc's radius is measured in.
+            public Sprite sampledFrom;
             public string cardNote, stageNote;
+
+            // The hit disc, filtered once and re-filtered only when one of its own dials moves. A preview frame
+            // must not re-test every opaque pixel of a big sprite, and the filter cannot live in the sample
+            // cache above because that is keyed by sprite and shared between capabilities.
+            public int[] discIndices;
+            public bool discOn;
+            public float discRadiusPx;
+            public Vector2 discOffsetPx;
         }
 
         const string WhiteSpray = "No sprite: sprays plain white from the origin, unless a Zoe fires it with its own colours.";
@@ -1394,7 +1433,13 @@ namespace Laubrary.Chunks.Editor
             catch (System.Exception) { look.resolved = null; }
 
             // Then the rest of PaletteSplash.Fire's waterfall: a Debris Scatter's sample source, else white.
-            look.samples = SamplesOf(look.resolved) ?? SamplesOf(debrisSource);
+            look.samples = SamplesOf(look.resolved);
+            look.sampledFrom = look.samples != null ? look.resolved : null;
+            if (look.samples == null)
+            {
+                look.samples = SamplesOf(debrisSource);
+                if (look.samples != null) look.sampledFrom = debrisSource;
+            }
             if (look.samples == null)
             {
                 if (look.resolved == null)
@@ -1411,6 +1456,32 @@ namespace Laubrary.Chunks.Editor
             }
             Splashes[s] = look;
             return look;
+        }
+
+        /// The indices of the sampled pixels the hit disc covers, or null when the disc is off OR covers none —
+        /// which is exactly the "fall back to the whole footprint" case PaletteSplash.Fire takes, expressed the
+        /// same way so both sides reach for the same list. Re-filtered only when one of the disc's own dials
+        /// moves; the sample scan it filters is already cached per sprite.
+        static int[] DiscOf(SplashLook look, PaletteSplash s, Vector2 centreOffset, float sourcePpu)
+        {
+            if (!s.useHitRadius || look.samples == null) { look.discOn = false; look.discIndices = null; return null; }
+            if (look.discOn && look.discIndices != null
+                && Mathf.Approximately(look.discRadiusPx, s.hitRadiusPx)
+                && look.discOffsetPx == s.hitOffsetPx)
+                return look.discIndices.Length > 0 ? look.discIndices : null;
+
+            float r = Mathf.Max(0.01f, s.hitRadiusPx) / sourcePpu;
+            float rSq = r * r;
+            var list = new List<int>(64);
+            var offsets = look.samples.offsets;
+            for (int i = 0; i < look.samples.count; i++)
+                if ((offsets[i] - centreOffset).sqrMagnitude <= rSq) list.Add(i);
+
+            look.discOn = true;
+            look.discRadiusPx = s.hitRadiusPx;
+            look.discOffsetPx = s.hitOffsetPx;
+            look.discIndices = list.ToArray();
+            return look.discIndices.Length > 0 ? look.discIndices : null;
         }
 
         /// Every opaque pixel of a sprite as an offset from its pivot plus its colour — PaletteSplash's own

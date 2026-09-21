@@ -102,6 +102,130 @@ namespace Laubrary.Chunks
             return Build(best, size, pixelsPerUnit, source.name, modifiers);
         }
 
+        /// The square cut rect, in the sprite's OWN pixel space (relative to its textureRect, bottom-left
+        /// origin), centred as closely as possible on the pixel (<paramref name="centreX"/>,
+        /// <paramref name="centreY"/>). A square that would run off the sprite is SHIFTED back inside, not
+        /// shrunk — a cut taken next to the silhouette's edge stays exactly the size the recipe asked for, so
+        /// "1-5 px" never silently becomes 1 px near a border. Only a sprite smaller than the requested size
+        /// shrinks it, and then to the sprite's own smaller dimension. Returns a zero-size rect for a null
+        /// source, which <see cref="SampleAt"/> treats as "no cut".
+        public static RectInt CutRectAround(Sprite source, int centreX, int centreY, int size)
+        {
+            if (source == null || source.texture == null) return default;
+            var texRect = source.textureRect;
+            int texW = Mathf.Max(1, Mathf.FloorToInt(texRect.width));
+            int texH = Mathf.Max(1, Mathf.FloorToInt(texRect.height));
+
+            size = Mathf.Clamp(size, 1, Mathf.Min(texW, texH));
+            int x = Mathf.Clamp(centreX - size / 2, 0, texW - size);
+            int y = Mathf.Clamp(centreY - size / 2, 0, texH - size);
+            return new RectInt(x, y, size, size);
+        }
+
+        /// Cuts the EXPLICIT sub-rect <paramref name="cut"/> (sprite-own pixel space, as
+        /// <see cref="CutRectAround"/> returns) out of source's texture. The caller chooses where and how big,
+        /// which is the whole reason this exists beside <see cref="Sample"/>: Sample rolls its own size and
+        /// position off <c>UnityEngine.Random</c>, and a seeded caller (PaletteSplash, whose editor preview has
+        /// to reproduce a burst draw-for-draw off one authored seed) cannot inherit a generator it does not
+        /// own. Nothing in here touches any random generator — same pixels in, same pixels out, always.
+        ///
+        /// tintMode/tintColor/tintStrength/edgeThicknessPx recolour the cut exactly as <see cref="Sample"/>
+        /// does. <paramref name="edgeMaskStrength"/> then optionally eats the cut's own rectangle away toward
+        /// transparency (see <see cref="ApplyEdgeMask"/>) so a sampled fragment reads as an organic scrap rather
+        /// than a crisp little rectangle of somebody's art; 0 skips that pass entirely and leaves the pixels
+        /// byte-identical to an unmasked cut.
+        ///
+        /// Null when the source is missing, the rect is empty, or the texture is not Read/Write enabled — the
+        /// caller is expected to fall back to whatever it would have drawn without a cut, never to nothing.
+        public static Sprite SampleAt(Sprite source, RectInt cut, float pixelsPerUnit,
+            ChunkTintMode tintMode = ChunkTintMode.None, Color tintColor = default, float tintStrength = 0f,
+            int edgeThicknessPx = 1, float edgeMaskStrength = 0f, float edgeMaskJitter = 0f, int maskSeed = 0,
+            IReadOnlyList<PixelModifier> modifiers = null)
+        {
+            if (source == null || source.texture == null) return null;
+            int size = Mathf.Min(cut.width, cut.height);
+            if (size < 1) return null;
+
+            var texRect = source.textureRect;
+            int ox = Mathf.FloorToInt(texRect.x) + cut.x;
+            int oy = Mathf.FloorToInt(texRect.y) + cut.y;
+
+            Color[] pixels;
+            // GetPixels32 has no sub-rect overload (only whole-texture); GetPixels does.
+            try { pixels = source.texture.GetPixels(ox, oy, size, size, 0); }
+            catch (UnityException) { return null; }   // texture not Read/Write enabled — nothing we can do
+            if (pixels == null || pixels.Length < size * size) return null;
+
+            ApplyTint(pixels, size, tintMode, tintColor, tintStrength, edgeThicknessPx);
+            ApplyEdgeMask(pixels, size, edgeMaskStrength, edgeMaskJitter, maskSeed);
+            return Build(pixels, size, pixelsPerUnit, source.name, modifiers);
+        }
+
+        /// Fades the cut's own square outline away toward transparency, so the fragment reads as a torn scrap
+        /// instead of a rectangle of somebody's art. Alpha only — the RGB the source art supplied is never
+        /// touched, so a masked cut is still made of the real pixels.
+        ///
+        /// A pixel's distance from the cut's centre, normalised so 1.0 is the inscribed circle, drives the
+        /// falloff: full alpha inside <c>inner</c>, linearly to zero at 1.0, where inner walks from 1.0 (only
+        /// the corners clipped) down to 0.15 (barely a dot left) as <paramref name="strength"/> goes 0 → 1.
+        /// <paramref name="jitter"/> then pushes each pixel's distance by up to ±jitter/2 from a HASH of its own
+        /// coordinates and <paramref name="maskSeed"/> — never a random generator, so the same crop masks the
+        /// same way every run and a seeded preview can reproduce it — which is what keeps the boundary ragged
+        /// rather than a machined circle.
+        ///
+        /// ⚠ It can never mask a cut out of existence: if the pass would leave nothing visible, the cut's
+        /// most central originally-opaque pixel is put back at its original alpha. A fully-masked crop would be
+        /// an invisible particle that still costs a GameObject — the silent no-op this module's whole source
+        /// waterfall exists to avoid.
+        static void ApplyEdgeMask(Color[] px, int size, float strength, float jitter, int maskSeed)
+        {
+            if (px == null || size <= 1 || strength <= 0f) return;
+            strength = Mathf.Clamp01(strength);
+            jitter = Mathf.Clamp01(jitter);
+
+            float radius = size * 0.5f;
+            float inner = Mathf.Lerp(1f, 0.15f, strength);
+            float band = Mathf.Max(0.0001f, 1f - inner);
+
+            int centreIdx = -1;
+            float centreDistSq = float.MaxValue, centreAlpha = 0f, maxAlpha = 0f;
+
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    int i = y * size + x;
+                    float a0 = px[i].a;
+                    if (a0 <= 0.001f) continue;
+
+                    float dx = (x + 0.5f) - radius, dy = (y + 0.5f) - radius;
+                    float distSq = dx * dx + dy * dy;
+                    if (distSq < centreDistSq) { centreDistSq = distSq; centreIdx = i; centreAlpha = a0; }
+
+                    float d = Mathf.Sqrt(distSq) / radius + (Hash01(x, y, maskSeed) - 0.5f) * jitter;
+                    float keep = d <= inner ? 1f : 1f - Mathf.Clamp01((d - inner) / band);
+
+                    px[i].a = a0 * keep;
+                    if (px[i].a > maxAlpha) maxAlpha = px[i].a;
+                }
+
+            if (maxAlpha < 0.08f && centreIdx >= 0) px[centreIdx].a = centreAlpha;
+        }
+
+        /// A deterministic 0..1 value from two pixel coordinates and a seed — the same murmur3-style finalising
+        /// avalanche ChunkRng uses, so neighbouring pixels (and neighbouring seeds) land in completely different
+        /// places instead of producing a visible diagonal pattern across the cut.
+        static float Hash01(int x, int y, int seed)
+        {
+            unchecked
+            {
+                uint h = (uint)(x * 73856093) ^ (uint)(y * 19349663) ^ (uint)(seed * 83492791);
+                h ^= h >> 16; h *= 0x7FEB352Du;
+                h ^= h >> 15; h *= 0x846CA68Bu;
+                h ^= h >> 16;
+                return (h >> 8) * (1f / 16777216f);
+            }
+        }
+
         static float AlphaCoverage(Color[] pixels)
         {
             if (pixels == null || pixels.Length == 0) return 0f;
