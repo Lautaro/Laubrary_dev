@@ -502,8 +502,22 @@ namespace Laubrary.Launimator.Editor
                 ? d.zones.Select(z => new AnimZone { name = z.name, startFrame = z.startFrame, endFrame = z.endFrame, behavior = z.behavior }).ToList()
                 : new List<AnimZone>(),
             metaLayersEnabled = d.metaLayersEnabled,
+            // EVERY authored field of a meta-layer, deliberately exhaustive: this copy predates Vector mode and
+            // silently dropped `mode`, `vectorFrames` and the vector options, so committing a version of — or
+            // duplicating — an animation turned its Vector layers back into empty Shape layers and threw away
+            // every painted origin/direction. T-0400 hit the `mode` half of that and restored it by hand.
             metaLayers = d.metaLayers != null
-                ? d.metaLayers.Select(ml => new MetaLayer { id = ml.id, color = ml.color, frames = ml.frames.Select(mf => mf.Clone()).ToList() }).ToList()
+                ? d.metaLayers.Select(ml => new MetaLayer
+                {
+                    id = ml.id,
+                    mode = ml.mode,
+                    color = ml.color,
+                    frames = ml.frames != null ? ml.frames.Select(mf => mf.Clone()).ToList() : new List<MetaFrame>(),
+                    vectorFrames = ml.vectorFrames != null ? ml.vectorFrames.Select(vf => vf.Clone()).ToList() : new List<VectorMetaFrame>(),
+                    vectorAllowLength = ml.vectorAllowLength,
+                    vectorSnapAngle = ml.vectorSnapAngle,
+                    vectorSnapDivisions = ml.vectorSnapDivisions,
+                }).ToList()
                 : new List<MetaLayer>(),
             asepriteSourcePath = d.asepriteSourcePath,
         };
