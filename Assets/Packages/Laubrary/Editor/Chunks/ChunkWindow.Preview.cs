@@ -523,8 +523,10 @@ namespace Laubrary.Chunks.Editor
         }
 
         // Painted back to front: aim cones, then flight paths, then the things themselves. Within each, the
-        // capability's own order — its Layer-Plan slot first, its place in the stack second — decides depth,
-        // so what draws in front on the stage is what will draw in front in the burst.
+        // order the RUNTIME would stamp decides depth — the recipe's Depth list when it has one, its place in
+        // the stack when it does not — so what draws in front on the stage is what will draw in front in the
+        // burst. Since T-0403 that order is resolved PER INSTANCE for a fracture's pieces and a pattern's
+        // points, so a split card's pieces sort against each other here exactly as they will on screen.
         static readonly Comparison<ChunkGuide> ByOrder = (a, b) => a.order.CompareTo(b.order);
         static readonly Comparison<ChunkGuidePath> PathsByOrder = (a, b) => a.order.CompareTo(b.order);
 
