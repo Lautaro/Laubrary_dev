@@ -45,6 +45,17 @@ namespace Laubrary.Launimator
         [Tooltip("Vector mode only: does this layer's authored length mean anything, or should consumers treat every vector as normalized (length 1)?")]
         public bool vectorAllowLength = false;
 
+        [Tooltip("Vector mode only, AUTHORING AID: while aiming, the direction can only land on one of " +
+                 "vectorSnapDivisions evenly-spaced angles. Purely an editor gesture constraint — nothing at " +
+                 "runtime reads it, and already-authored frames keep whatever direction they have until they " +
+                 "are re-aimed.")]
+        public bool vectorSnapAngle = false;
+
+        [Tooltip("Vector mode only: how many evenly-spaced angles the aim snaps to when vectorSnapAngle is on. " +
+                 "16 is one every 22.5°. Keep it a multiple of 4 so up, down, left and right stay exactly on " +
+                 "the ring.")]
+        [Range(2, 64)] public int vectorSnapDivisions = 16;
+
         /// <summary>Display colour for a cell value (0 = fully transparent). Value 5 = the layer colour; values
         /// ramp the BRIGHTNESS so they read apart visually — 1 = almost black, 5 = the layer colour, 10 = almost
         /// white. Alpha = the layer colour's alpha (the per-layer transparency).</summary>

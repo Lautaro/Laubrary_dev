@@ -2548,6 +2548,30 @@ namespace Laubrary.Launimator.Editor
                 Z.Flexible(),
                 Z.Text($"F{f + 1}/{_sequence.Count}", ZuiText.Subtle, "Current frame.")));
 
+            // Angle snap. The divisions slider is always present and merely DISABLED while the snap is off, so
+            // turning it on never reflows the panel and the count you'll get is readable before you commit to it.
+            const string snapTip = "While you aim, the arrow can only land on one of a ring of evenly-spaced " +
+                "angles — it detents as you drag instead of pointing anywhere in between. An authoring aid " +
+                "only: frames you already aimed keep their direction until you re-aim them, and nothing at " +
+                "runtime reads this.";
+            const string divTip = "How many evenly-spaced angles that ring holds. 16 is one every 22.5°. Keep " +
+                "it a multiple of 4 so up, down, left and right stay exactly on the ring.";
+            var divSlider = Z.SliderInt(Mathf.Clamp(layer.vectorSnapDivisions, 2, 64), 2, 64, divTip,
+                v => { RecordUndo("Snap divisions"); layer.vectorSnapDivisions = v; Dirty(); }, 120f);
+            divSlider.SetEnabled(layer.vectorSnapAngle);
+            root.Add(WrapRow(
+                Z.Toggle("Snap Angle", snapTip, layer.vectorSnapAngle,
+                    v =>
+                    {
+                        RecordUndo("Snap angle");
+                        layer.vectorSnapAngle = v;
+                        // "Defaults to 16 when turned on" — and a layer saved before this existed reads 0.
+                        if (v && (layer.vectorSnapDivisions < 2 || layer.vectorSnapDivisions > 64))
+                            layer.vectorSnapDivisions = 16;
+                        Refresh();
+                    }),
+                Z.Field("Divisions", divTip, divSlider)));
+
             var vf = layer.vectorFrames[f];
             root.Add(WrapRow(
                 Z.Button("Clear frame", "Erase this layer's vector on the current frame.", () =>
@@ -2716,7 +2740,15 @@ namespace Laubrary.Launimator.Editor
             => new ZuiVectorMarker.Data { authored = vf.authored, origin01 = vf.origin, direction = vf.direction, length = vf.length };
 
         private static ZuiVectorMarker.Options VectorOptions(MetaLayer layer)
-            => new ZuiVectorMarker.Options { arrow = true, length = layer.vectorAllowLength, erase = true, color = layer.color };
+            => new ZuiVectorMarker.Options
+            {
+                arrow = true,
+                length = layer.vectorAllowLength,
+                erase = true,
+                // 0 = the marker snaps nothing, which is what every layer that hasn't opted in reports.
+                angleSnapDivisions = layer.vectorSnapAngle ? Mathf.Clamp(layer.vectorSnapDivisions, 2, 64) : 0,
+                color = layer.color
+            };
 
         /// <summary>Click-to-place, drag-the-dot-to-move, drag-the-arrowhead-to-aim, right-click-to-erase — all
         /// on the same preview canvas Shape/Point paint into. No pixel mask involved for Vector mode.</summary>

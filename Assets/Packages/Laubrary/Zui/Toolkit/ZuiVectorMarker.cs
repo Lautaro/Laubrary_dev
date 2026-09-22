@@ -53,6 +53,11 @@ namespace Laubrary.Zui
             public bool length;
             /// Right-click clears the marker (authored = false).
             public bool erase;
+            /// Aim can only land on one of this many evenly-spaced angles around the circle — 16 = one every
+            /// 22.5°. 0 (the default) = off, aim anywhere; every host that doesn't set it is unaffected.
+            /// The ring is measured from East, so it contains up/down/left/right exactly when the count is a
+            /// multiple of 4 — the same convention <c>EvenDirectionsAimer</c> snaps a live aim with.
+            public int angleSnapDivisions;
             public Color color;
         }
 
@@ -77,6 +82,24 @@ namespace Laubrary.Zui
         }
 
         static float BaseLength(in Canvas c) => Mathf.Min(c.box.width, c.box.height) * ArrowBaseFraction;
+
+        /// <summary>Round <paramref name="dir"/> onto the nearest of <paramref name="divisions"/> evenly-spaced
+        /// directions. <paramref name="divisions"/> &lt; 2 returns <paramref name="dir"/> untouched (snapping
+        /// off). Measured from East (+X) plus <paramref name="offsetDeg"/>, so the default ring contains
+        /// 0/90/180/270 — right, up, left, down — exactly whenever the count is a multiple of 4. This is the
+        /// same rounding <c>EvenDirectionsAimer.Resolve</c> snaps a live aim with, kept identical on purpose so
+        /// a painted direction and a geometrically-aimed one land on the same ring.
+        /// <para><paramref name="offsetDeg"/> exists so "let the first position be any number" is a one-line
+        /// follow-up; nothing passes it yet.</para></summary>
+        public static Vector2 SnapDirection(Vector2 dir, int divisions, float offsetDeg = 0f)
+        {
+            if (divisions < 2 || dir.sqrMagnitude < 1e-8f) return dir;
+            float step = 360f / divisions;
+            float deg = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+            float snapped = Mathf.Round((deg - offsetDeg) / step) * step + offsetDeg;
+            float rad = snapped * Mathf.Deg2Rad;
+            return new Vector2(Mathf.Cos(rad), Mathf.Sin(rad));
+        }
 
         /// Draw the marker (or the placement hint when nothing is authored yet).
         public static void Draw(in Canvas c, in Data d, in Options o)
@@ -133,7 +156,11 @@ namespace Laubrary.Zui
                     Vector2 fromOrigin = m - originScreen;
                     if (fromOrigin.sqrMagnitude > 4f)
                     {
-                        d.direction = new Vector2(fromOrigin.x, -fromOrigin.y).normalized;
+                        // Snapped HERE, inside the drag, not on release: the stored direction is the snapped one
+                        // from the first moved pixel on, so the drawn arrow visibly detents between the allowed
+                        // angles while the mouse is still down instead of jumping once at the end.
+                        d.direction = SnapDirection(new Vector2(fromOrigin.x, -fromOrigin.y).normalized,
+                                                    o.angleSnapDivisions);
                         if (o.length) d.length = Mathf.Max(0.05f, fromOrigin.magnitude / BaseLength(c));
                     }
                 }
@@ -170,7 +197,9 @@ namespace Laubrary.Zui
             d.origin01 = ScreenToOrigin(m, c);
             if (o.arrow)
             {
-                d.direction = Vector2.up;
+                // Snapped too, so a click that never drags can't leave an off-ring direction on a division
+                // count that doesn't contain straight up (anything not a multiple of 4).
+                d.direction = SnapDirection(Vector2.up, o.angleSnapDivisions);
                 if (o.length) d.length = 1f;
                 dragMode = 2;   // start aiming immediately: "click to place, drag to aim"
             }
