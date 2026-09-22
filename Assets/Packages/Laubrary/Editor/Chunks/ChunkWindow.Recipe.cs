@@ -71,6 +71,13 @@ namespace Laubrary.Chunks.Editor
 
         void FillStack(ChunkSpec c)
         {
+            // Every structural change (a card added, removed, reordered) can leave the Depth list addressing
+            // something that is no longer there, or missing a row for something new. Reconciling HERE, on the
+            // one path every structural change already goes through, is what keeps "the rows fill in from the
+            // cards on their own" true without a second mechanism per edit. It is derived housekeeping, not an
+            // authored edit — it rides the structural edit's own undo record, exactly as colour slots do.
+            ReconcileDepth(c);
+
             stackHost.Clear();
             cards.Clear();
             cardBodies.Clear();
@@ -129,8 +136,11 @@ namespace Laubrary.Chunks.Editor
             // leads — the grip, then the chip in the card's own colour carrying its firing numbers — and the
             // actions trail: on/off, duplicate, remove. A dial in a header would be a dial the fold cannot hide.
             var grip = Z.Text("≡", ZuiText.Body,
-                "Drag to move this card in the recipe. Its place is also its drawing order: a card lower " +
-                "down draws in front of the ones above it, unless a Layer Plan puts it in a slot.");
+                FirstOfKind<LayerPlan>(c) != null
+                    ? "Drag to move this card in the recipe. It changes when this fires relative to the others, " +
+                      "not what draws in front: the Depth card owns that."
+                    : "Drag to move this card in the recipe. Its place is ALSO its drawing order — a card lower " +
+                      "down draws in front of the ones above it. Add a Depth card to author that separately.");
             grip.style.unityFontStyleAndWeight = FontStyle.Bold;
             grip.style.width = 14f;
             grip.style.unityTextAlign = TextAnchor.MiddleCenter;
@@ -290,7 +300,8 @@ namespace Laubrary.Chunks.Editor
         // no card yet still gets its delay row, so the stack reads consistently while the rest lands.
         void FillCardBody(VisualElement body, ChunkSpec c, ChunkCapability cap)
         {
-            body.Add(IdentityRow(c, cap));
+            var identity = IdentityRow(c, cap);
+            if (identity != null) body.Add(identity);
 
             switch (cap)
             {
@@ -493,6 +504,13 @@ namespace Laubrary.Chunks.Editor
         /// Enter or blur, since the card's header title is rebuilt from it.
         internal VisualElement IdentityRow(ChunkSpec c, ChunkCapability cap)
         {
+            // The Depth list is the one card with nothing to name. It is a coordinator, there is only ever one
+            // of it, and its name appears nowhere that matters — nothing references it, no picker offers it,
+            // no lane carries it (T-0349 D8). A card that draws several Pyre Blasts needs "Flash" and "Ring"
+            // to tell them apart; this one does not, so the field was pure surface on the busiest card in the
+            // window and is not drawn.
+            if (cap is LayerPlan) return null;
+
             var name = Z.TextInput(cap.displayName,
                 "A name of your own for this card. Empty uses the kind's name (" + cap.KindName + ").",
                 v =>
@@ -534,32 +552,47 @@ namespace Laubrary.Chunks.Editor
             return row;
         }
 
-        /// Which named depth slot this capability draws in — or NULL when the recipe has no Layer Plan, in
-        /// which case there are no slots to pick from and everything draws in stack order anyway.
-        /// `(stack order)` is offered first because it is the honest name for an empty slot: unslotted output
-        /// takes the emitter's own draw order plus its place in the stack, which sits IN FRONT of the plan's
-        /// slots rather than behind them.
-        internal VisualElement LayerSlotRow(ChunkSpec c, Func<string> get, Action<string> set)
+        /// Where this producer sits in the recipe's Depth list — or NULL when the recipe has none, in which
+        /// case everything draws in stack order and there is nothing to report.
+        ///
+        /// Read-only ON PURPOSE. Depth is dragged in ONE place, the Depth card, because that is the only place
+        /// the whole order is visible; a per-card control could only ever say "which slot", which is exactly
+        /// the shape that could not express the owner's own layering (T-0349 D1). This is a way BACK to the
+        /// list, not a second way to author it — so it is a button that jumps there, labelled for its
+        /// destination, never a line of text taking a row of its own (ui-rules §2, §3).
+        internal VisualElement DepthHint(ChunkSpec c, ChunkCapability cap)
         {
             var plan = FirstOfKind<LayerPlan>(c);
-            var layers = plan != null && plan.layers != null ? plan.layers.layers : null;
-            if (layers == null || layers.Count == 0) return null;
+            if (plan == null || plan.RowCount == 0 || cap == null || !cap.DrawsOutput) return null;
 
-            var options = new string[layers.Count + 1];
-            options[0] = "(stack order)";
-            for (int i = 0; i < layers.Count; i++) options[i + 1] = layers[i];
+            int row = plan.RowIndexFor(cap.id, -1, out _);
+            if (row < 0) return null;
 
-            string current = get();
-            int index = 0;
-            for (int i = 0; i < layers.Count; i++)
-                if (layers[i] == current) { index = i + 1; break; }
+            bool split = plan.IsSplit(cap.id);
+            int last = row;
+            for (int i = plan.rows.Count - 1; i >= 0; i--)
+                if (plan.rows[i].capabilityId == cap.id) { last = i; break; }
 
-            return Z.Field("Layer",
-                "Which named depth slot this draws in. (stack order) leaves it out of the plan: it draws in " +
-                "front of every slotted output, in the order the recipe is authored.",
-                Z.MiniRadio(index, options,
-                    "Which named depth slot this draws in.",
-                    i => Dial("Set Layer Slot", () => set(i <= 0 ? "" : layers[i - 1])), true));
+            string where = split && last > row ? (row + 1) + "–" + (last + 1) : (row + 1).ToString();
+            var button = Z.Button("Depth " + where + "/" + plan.RowCount,
+                split
+                    ? "This card's pieces are on rows " + (row + 1) + "–" + (last + 1) + " of " + plan.RowCount +
+                      ", counting from the back. Click to open the Depth list, where the order is dragged."
+                    : "This card draws on row " + (row + 1) + " of " + plan.RowCount + ", counting from the " +
+                      "back. Click to open the Depth list, where the order is dragged.",
+                () => RevealCard(plan.id));
+            button.W(100f);
+            button.style.alignSelf = Align.FlexStart;
+            return button;
+        }
+
+        /// Bring the Depth list back in line with the stack after a structural change. Silent and idempotent:
+        /// it only ever writes when a card was added, removed or resized past its rows.
+        void ReconcileDepth(ChunkSpec c)
+        {
+            var plan = FirstOfKind<LayerPlan>(c);
+            if (plan == null || c == null) return;
+            if (plan.Reconcile(c.capabilities)) EditorUtility.SetDirty(c);
         }
 
         /// Which producer a modifier acts on — `Everything` first, because that is what a modifier with no

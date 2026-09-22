@@ -1,0 +1,60 @@
+// T-0403 AFTER probe: the exact same enumeration as the pre-change baseline probe
+// (.agenthq/workspace/T-0403/pre-change-draw-orders-probe.cs.txt), asked of the NEW Depth-list resolver.
+// Same asset order, same cards, same (instance, sub) tuples, same columns — so the two files diff row for row.
+var guids = UnityEditor.AssetDatabase.FindAssets("t:Laubrary.Chunks.ChunkSpec");
+var sb = new System.Text.StringBuilder();
+sb.Append("asset\tstackIndex\tkind\ttitle\tcapId\tinstance\tsub\tlayerName\torder");
+sb.Append((char)10);
+int assets = 0, outputs = 0;
+System.Array.Sort(guids);
+foreach (var g in guids)
+{
+    var path = UnityEditor.AssetDatabase.GUIDToAssetPath(g);
+    var spec = UnityEditor.AssetDatabase.LoadAssetAtPath<Laubrary.Chunks.ChunkSpec>(path);
+    if (spec == null) continue;
+    spec.UpgradeIfNeeded();
+    var plan = spec.ResolveDepthPlan();
+    var stack = spec.capabilities;
+    if (stack == null) continue;
+    assets++;
+    int burst = Laubrary.Chunks.ChunkEmitter.DefaultSortingOrder;
+    for (int i = 0; i < stack.Count; i++)
+    {
+        var cap = stack[i];
+        if (cap == null || !cap.enabled) continue;
+        if (cap is Laubrary.Chunks.ChunkModifier) continue;
+        if (cap is Laubrary.Chunks.LayerPlan) continue;
+        int flat = burst + i * Laubrary.Chunks.ChunkModuleContext.CardOrderSpan;
+        int n = 1;
+        bool perInstance = false;
+        var fr = cap as Laubrary.Chunks.FragmentFracture;
+        var pb = cap as Laubrary.Chunks.PyreBlast;
+        var ps = cap as Laubrary.Chunks.PaletteSplash;
+        if (fr != null) { n = UnityEngine.Mathf.Max(1, fr.pieceCount); perInstance = true; }
+        else if (pb != null)
+        {
+            n = (pb.UsesPattern && pb.formation != null)
+                ? UnityEngine.Mathf.Clamp(pb.formation.count, 1, Laubrary.Chunks.SpawnFormation.MaxCount) : 1;
+            perInstance = true;
+        }
+        else if (ps != null)
+        {
+            n = UnityEngine.Mathf.Max(1, UnityEngine.Mathf.Max(ps.countMin, ps.countMax));
+            perInstance = false;
+        }
+        for (int k = 0; k < n; k++)
+        {
+            int instance = perInstance ? k : -1;
+            int sub = perInstance ? k : k;
+            int order = Laubrary.Chunks.ChunkModuleContext.ResolveOrder(plan, cap.id, instance, burst, flat, sub);
+            sb.Append(path).Append((char)9).Append(i).Append((char)9).Append(cap.KindName).Append((char)9)
+              .Append(cap.Title).Append((char)9).Append(cap.id).Append((char)9).Append(instance).Append((char)9)
+              .Append(perInstance ? 0 : k).Append((char)9).Append(cap.LayerName == null ? "(null)" : cap.LayerName)
+              .Append((char)9).Append(order).Append((char)10);
+            outputs++;
+        }
+    }
+}
+var outPath = "C:/Users/Lauta/AppData/Local/Temp/claude/D--UNITY-Laubrary-Dev/251d961d-a4a9-49be-8966-8fd070d14ffc/scratchpad/after_orders.tsv";
+System.IO.File.WriteAllText(outPath, sb.ToString());
+return "assets=" + assets + " outputs=" + outputs;

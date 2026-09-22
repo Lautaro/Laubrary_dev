@@ -37,11 +37,20 @@ namespace Laubrary.Chunks
     {
         public override string KindName => "Pyre Blast";
 
-        [Tooltip("Which layer-stack slot the blasts draw in. Empty leaves them out of the plan, drawing " +
-                 "in stack order in FRONT of every slotted output.")]
-        public string layerName = "";
+        // LEGACY (T-0403): the named depth slot this used to pick. Read once, by LayerPlan.MigrateRows, and
+        // never written again — depth is authored in the recipe's Depth list now.
+        [HideInInspector] public string layerName = "";
 
         public override string LayerName => layerName;
+
+        public override bool DrawsOutput => true;
+
+        /// One addressable instance per point the pattern places, so "Small pyres 1" and "Small pyres 2" can
+        /// sit at different depths. A lone blast (no pattern) has exactly one thing to draw, so it cannot
+        /// split.
+        public override int DepthInstanceCount
+            => useFormation && formation != null
+                 ? Mathf.Clamp(formation.count, 1, SpawnFormation.MaxCount) : 1;
 
         // ── what gets spawned ─────────────────────────────────────────────────────
         // A serialized reference to an INTERFACE is not something Unity can do, so this is an Object field
@@ -294,8 +303,10 @@ namespace Laubrary.Chunks
             // The layer stack owns draw order — this passes the slot's name and lets the context decide, which
             // is what keeps "layering is optional" true without a fallback living in every capability.
             string sortingLayer = ctx.Layers != null ? ctx.Layers.sortingLayerName : null;
+            // The point number is BOTH halves of the depth question: it addresses this point's own row in the
+            // Depth list when the card is split, and it sub-orders the points inside one row when it is not.
             var spawned = spawner.SpawnEffect(worldPos, rotation, scale, sortingLayer,
-                                              ctx.OrderFor(LayerName, orderOffset));
+                                              ctx.OrderFor(this, orderOffset, orderOffset));
 
             // Colour is applied here, on the one thing the spawner handed back, for the same reason scale and
             // rotation are passed in: this is the single place in Chunks that ever holds a fresh blast.

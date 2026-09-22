@@ -265,8 +265,8 @@ namespace Laubrary.Chunks.Editor
             body.Add(SeedField(cap.seed, "which alternate, which angle, which size and which opacity each spawn " +
                                "draws", "Edit Blast Seed", v => cap.seed = v));
 
-            var slot = LayerSlotRow(c, () => cap.layerName, v => cap.layerName = v);
-            if (slot != null) body.Add(slot);
+            var depth = DepthHint(c, cap);
+            if (depth != null) body.Add(depth);
         }
 
         /// While Auto is on, write the chosen Blast/Alternates' own real length into blastSeconds — a no-op

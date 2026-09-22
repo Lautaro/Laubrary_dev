@@ -1,0 +1,167 @@
+// T-0403 synthetic tests: the Depth-list paths NO real asset in the project exercises —
+// a producer that is not in the plan, Split/Join, Reconcile after a card resize, and the
+// clockwise-from-12 piece numbering. Built in memory; nothing is written to disk.
+var log = new System.Text.StringBuilder();
+int pass = 0, fail = 0;
+System.Action<string, bool> Check = (what, ok) =>
+{
+    if (ok) pass++; else fail++;
+    log.Append(ok ? "PASS  " : "FAIL  ").Append(what).Append((char)10);
+};
+
+var spec = UnityEngine.ScriptableObject.CreateInstance<Laubrary.Chunks.ChunkSpec>();
+spec.schemaVersion = Laubrary.Chunks.ChunkSpec.CurrentSchemaVersion;
+spec.capabilities = new System.Collections.Generic.List<Laubrary.Chunks.ChunkCapability>();
+
+var plan = new Laubrary.Chunks.LayerPlan();
+var blast = new Laubrary.Chunks.PyreBlast { useFormation = true };
+blast.formation = new Laubrary.Chunks.SpawnFormation { count = 3 };
+var frac = new Laubrary.Chunks.FragmentFracture { pieceCount = 3 };
+var splash = new Laubrary.Chunks.PaletteSplash();
+spec.capabilities.Add(plan);
+spec.capabilities.Add(blast);
+spec.capabilities.Add(frac);
+spec.capabilities.Add(splash);
+foreach (var cc in spec.capabilities) cc.EnsureId();
+
+int burst = Laubrary.Chunks.ChunkEmitter.DefaultSortingOrder;
+
+// ── 1. Reconcile gives every producer exactly one row, in stack order ─────────────────────────────────
+plan.Reconcile(spec.capabilities);
+Check("Reconcile gives one row per producer (3)", plan.RowCount == 3);
+Check("rows are blast, fracture, splash in stack order",
+      plan.rows[0].capabilityId == blast.id && plan.rows[1].capabilityId == frac.id
+      && plan.rows[2].capabilityId == splash.id);
+Check("every row is a whole-card row", plan.rows[0].IsWholeCard && plan.rows[2].IsWholeCard);
+
+// ── 2. the NOT-IN-THE-PLAN fallback: a producer with no row draws IN FRONT of every row ───────────────
+var orphan = new Laubrary.Chunks.DebrisScatter();
+orphan.EnsureId();
+int orphanOrder = plan.OrderFor(orphan.id, -1, burst, 0);
+int frontRow = plan.OrderFor(plan.rows[plan.RowCount - 1].capabilityId, -1, burst, 0);
+Check("a producer with no row draws in FRONT of the frontmost row", orphanOrder > frontRow);
+Check("that fallback is exactly one row past the end", orphanOrder == burst + plan.RowCount * plan.Step);
+
+// ── 3. no plan at all leaves stack-order behaviour untouched ──────────────────────────────────────────
+int flat = burst + 7 * Laubrary.Chunks.ChunkModuleContext.CardOrderSpan;
+Check("ResolveOrder with a null plan falls through to the flat order",
+      Laubrary.Chunks.ChunkModuleContext.ResolveOrder(null, frac.id, 1, burst, flat, 4) == flat + 4);
+var emptyPlan = new Laubrary.Chunks.LayerPlan();
+Check("ResolveOrder with an EMPTY plan also falls through",
+      Laubrary.Chunks.ChunkModuleContext.ResolveOrder(emptyPlan, frac.id, 1, burst, flat, 4) == flat + 4);
+
+// ── 4. a JOINED card sub-orders its own pieces inside its row, and cannot reach the next one ──────────
+int rowFrac = burst + 1 * plan.Step;
+Check("joined fracture piece 0 sits on its card's row", plan.OrderFor(frac.id, 0, burst, 0) == rowFrac);
+Check("joined fracture piece 2 sub-orders inside the row", plan.OrderFor(frac.id, 2, burst, 2) == rowFrac + 2);
+Check("a sub-order far past the step CANNOT reach the next row",
+      plan.OrderFor(frac.id, 99, burst, 99) < burst + 2 * plan.Step);
+
+// ── 5. SPLIT: in place, and nothing moves until something is dragged ──────────────────────────────────
+int beforeFrac0 = plan.OrderFor(frac.id, 0, burst, 0);
+bool splitOk = plan.Split(frac);
+Check("Split() reports it split the fracture", splitOk);
+Check("Split() turned 3 rows into 5 (1 card row -> 3 piece rows)", plan.RowCount == 5);
+Check("the piece rows landed where the card row was",
+      plan.rows[1].instance == 0 && plan.rows[2].instance == 1 && plan.rows[3].instance == 2);
+Check("piece 0 still draws exactly where the whole card did",
+      plan.OrderFor(frac.id, 0, burst, 0) == beforeFrac0);
+Check("split pieces are one step apart",
+      plan.OrderFor(frac.id, 1, burst, 1) == beforeFrac0 + plan.Step
+      && plan.OrderFor(frac.id, 2, burst, 2) == beforeFrac0 + 2 * plan.Step);
+Check("IsSplit reports it", plan.IsSplit(frac.id) && !plan.IsSplit(splash.id));
+Check("a splash can never split (Q4)", splash.DepthInstanceCount == 1);
+Check("a patterned blast CAN split, one row per point", blast.DepthInstanceCount == 3);
+
+// ── 6. THE WHOLE POINT: something can sit strictly BETWEEN two pieces of one fracture ─────────────────
+plan.Split(blast);
+// drag blast point 0 to sit immediately AFTER fracture piece 0 (Move uses remove-then-insert semantics,
+// so a forward move's target index shifts down by one once the row is lifted out).
+int fromIdx = -1, afterIdx = -1;
+for (int i = 0; i < plan.rows.Count; i++)
+{
+    if (plan.rows[i].capabilityId == blast.id && plan.rows[i].instance == 0) fromIdx = i;
+    if (plan.rows[i].capabilityId == frac.id && plan.rows[i].instance == 0) afterIdx = i;
+}
+int target = fromIdx < afterIdx ? afterIdx : afterIdx + 1;
+plan.Move(fromIdx, target);
+int p0 = plan.OrderFor(frac.id, 0, burst, 0);
+int b0 = plan.OrderFor(blast.id, 0, burst, 0);
+int p1 = plan.OrderFor(frac.id, 1, burst, 1);
+Check("a blast point now sits STRICTLY between two pieces of one fracture (" + p0 + " < " + b0 + " < " + p1 + ")",
+      p0 < b0 && b0 < p1);
+
+// ── 7. Reconcile after the card resizes ───────────────────────────────────────────────────────────────
+frac.pieceCount = 5;
+plan.Reconcile(spec.capabilities);
+Check("growing Pieces gives the new pieces rows", plan.RowCount == 5 + 3 + 1 && plan.IsSplit(frac.id));
+frac.pieceCount = 2;
+plan.Reconcile(spec.capabilities);
+int fracRows = 0;
+foreach (var r in plan.rows) if (r.capabilityId == frac.id) fracRows++;
+Check("shrinking Pieces drops the rows past the new count", fracRows == 2);
+
+// ── 8. Join puts them back at the BACKMOST place they drew ────────────────────────────────────────────
+int backmost = int.MaxValue;
+for (int i = 0; i < plan.rows.Count; i++)
+    if (plan.rows[i].capabilityId == frac.id) { backmost = i; break; }
+int expected = burst + backmost * plan.Step;
+plan.Join(frac);
+Check("Join() collapses the fracture to one row", !plan.IsSplit(frac.id));
+Check("the joined row is at the backmost place its pieces drew",
+      plan.OrderFor(frac.id, 0, burst, 0) == expected);
+
+// ── 9. removing a card removes its rows ───────────────────────────────────────────────────────────────
+spec.capabilities.Remove(splash);
+plan.Reconcile(spec.capabilities);
+bool anySplash = false;
+foreach (var r in plan.rows) if (r.capabilityId == splash.id) anySplash = true;
+Check("removing a card removes its rows", !anySplash);
+
+// ── 10. clockwise-from-12 numbering, on a synthetic readable picture ─────────────────────────────────
+// Four solid blobs, one per quadrant, on a readable texture. Whatever the partition does inside, the
+// pieces must come back ordered by their angle measured CLOCKWISE from straight up.
+{
+    int S = 64;
+    var tex = new UnityEngine.Texture2D(S, S, UnityEngine.TextureFormat.RGBA32, false);
+    var px = new UnityEngine.Color32[S * S];
+    for (int i = 0; i < px.Length; i++) px[i] = new UnityEngine.Color32(0, 0, 0, 0);
+    // centres at 12, 3, 6 and 9 o'clock, deliberately added in a scrambled order
+    int[] cx = { 48, 16, 32, 32 };
+    int[] cy = { 32, 32, 48, 16 };
+    for (int b = 0; b < 4; b++)
+        for (int y = cy[b] - 9; y <= cy[b] + 9; y++)
+            for (int x = cx[b] - 9; x <= cx[b] + 9; x++)
+                if (x >= 0 && x < S && y >= 0 && y < S)
+                    px[y * S + x] = new UnityEngine.Color32(255, 255, 255, 255);
+    tex.SetPixels32(px);
+    tex.Apply();
+    var sp = UnityEngine.Sprite.Create(tex, new UnityEngine.Rect(0, 0, S, S),
+                                       new UnityEngine.Vector2(0.5f, 0.5f), 32f);
+    var cut = Laubrary.Chunks.FragmentCutter.Cut(sp, 4, 16, 11, false, 32f);
+    if (cut == null || cut.Count < 2) { Check("synthetic cut produced pieces", false); }
+    else
+    {
+        var angles = new System.Collections.Generic.List<float>();
+        for (int i = 0; i < cut.Count; i++)
+        {
+            var o = cut[i].offsetUnits;
+            float a = UnityEngine.Mathf.Atan2(o.x, o.y) * UnityEngine.Mathf.Rad2Deg;
+            if (a < 0f) a += 360f;
+            angles.Add(a);
+        }
+        bool ascending = true;
+        for (int i = 1; i < angles.Count; i++) if (angles[i] < angles[i - 1] - 0.001f) ascending = false;
+        string shown = "";
+        for (int i = 0; i < angles.Count; i++) shown += UnityEngine.Mathf.RoundToInt(angles[i]) + "deg ";
+        Check("FragmentCutter numbers pieces clockwise from 12 o'clock [" + shown + "]", ascending);
+        // NOT asserted: that some piece lands near 12 o'clock. The partition picks its seeds among the
+        // opaque pixels, so where the regions fall is the picture's business — the contract is only that
+        // the pieces come back ORDERED clockwise starting from straight up, which is what is checked above.
+    }
+    UnityEngine.Object.DestroyImmediate(sp);
+    UnityEngine.Object.DestroyImmediate(tex);
+}
+
+UnityEngine.Object.DestroyImmediate(spec);
+return "pass=" + pass + " fail=" + fail + (char)10 + log.ToString();

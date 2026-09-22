@@ -284,6 +284,25 @@ MonoBehaviour:
         enabled: 1
         displayName: 
         delay: 0
+        rows:
+        - capabilityId: e15b7084c3d64275b5588643799da45f
+          instance: -1
+        - capabilityId: 06763c5d415f4367b90a29e01a1c9c25
+          instance: 0
+        - capabilityId: 7786c856a22841dfa03141e20bb3e485
+          instance: 0
+        - capabilityId: 06763c5d415f4367b90a29e01a1c9c25
+          instance: 1
+        - capabilityId: 7786c856a22841dfa03141e20bb3e485
+          instance: 1
+        - capabilityId: 7786c856a22841dfa03141e20bb3e485
+          instance: 2
+        - capabilityId: 225b402634214ee09ea714624bd619be
+          instance: -1
+        - capabilityId: e2060ec4279740309d1ebbb65235f295
+          instance: -1
+        - capabilityId: 06763c5d415f4367b90a29e01a1c9c25
+          instance: 2
         layers:
           sortingLayerName: Default
           baseOrder: 0
@@ -293,6 +312,7 @@ MonoBehaviour:
           - Fragments
           - Small pyres
           - Particles
+        rowsMigrated: 1
     - rid: 4065707408484729616
       type: {class: PyreBlast, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
@@ -329,7 +349,8 @@ MonoBehaviour:
         alphaMin: 1
         alphaMax: 1
         seed: 0
-        blastSeconds: 1.67
+        blastSeconds: 1.6666666
+        blastSecondsAuto: 1
     - rid: 4065707408484729617
       type: {class: FragmentFracture, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
@@ -342,6 +363,8 @@ MonoBehaviour:
         sourceVisual: {fileID: 11400000, guid: df6d774acf094b948b983102c9ef9a34, type: 2}
         source: {fileID: 0}
         pieceCount: 3
+        useProjectPixelScale: 1
+        pixelsPerUnitOverride: 32
         minPieceAreaPx: 24
         seed: 7
         speedMin: 3
@@ -438,11 +461,55 @@ MonoBehaviour:
         sourceVisual: {fileID: 0}
         sprite: {fileID: 0}
         emitFromFootprint: 1
+        particleLook: 0
+        cropPxMin: 1
+        cropPxMax: 4
+        maskCropEdges: 0
+        edgeMaskStrength: 0.55
+        edgeMaskJitter: 0.4
+        useHitRadius: 0
+        hitRadiusPx: 6
+        hitOffsetPx: {x: 0, y: 0}
+        tintCropEdges: 0
+        edgeTintPreset: 0
+        customEdgeTint:
+          serializedVersion: 2
+          key0: {r: 0.34, g: 0.15, b: 0.05, a: 1}
+          key1: {r: 0.72, g: 0.36, b: 0.12, a: 0.7}
+          key2: {r: 0.5, g: 0.33, b: 0.18, a: 0.25}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 32768
+          ctime2: 65535
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 32768
+          atime2: 65535
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 3
+          m_NumAlphaKeys: 3
+        edgeTintStrength: 0.7
+        edgeTintThicknessPx: 1
         countMin: 20
         countMax: 28
         sizePxMin: 1
         sizePxMax: 3
-        pixelsPerUnit: 32
+        useProjectPixelScale: 1
+        pixelsPerUnitOverride: 32
         speedMin: 2
         speedMax: 6
         inheritBurstDirection: 0
@@ -537,11 +604,55 @@ MonoBehaviour:
         sourceVisual: {fileID: 0}
         sprite: {fileID: 0}
         emitFromFootprint: 1
+        particleLook: 0
+        cropPxMin: 1
+        cropPxMax: 4
+        maskCropEdges: 0
+        edgeMaskStrength: 0.55
+        edgeMaskJitter: 0.4
+        useHitRadius: 0
+        hitRadiusPx: 6
+        hitOffsetPx: {x: 0, y: 0}
+        tintCropEdges: 0
+        edgeTintPreset: 0
+        customEdgeTint:
+          serializedVersion: 2
+          key0: {r: 0.34, g: 0.15, b: 0.05, a: 1}
+          key1: {r: 0.72, g: 0.36, b: 0.12, a: 0.7}
+          key2: {r: 0.5, g: 0.33, b: 0.18, a: 0.25}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 32768
+          ctime2: 65535
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 32768
+          atime2: 65535
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 3
+          m_NumAlphaKeys: 3
+        edgeTintStrength: 0.7
+        edgeTintThicknessPx: 1
         countMin: 20
         countMax: 28
         sizePxMin: 1
         sizePxMax: 3
-        pixelsPerUnit: 32
+        useProjectPixelScale: 1
+        pixelsPerUnitOverride: 32
         speedMin: 2
         speedMax: 6
         inheritBurstDirection: 0
@@ -654,10 +765,11 @@ MonoBehaviour:
         fixedAngleDeg: 0
         randomAngleMinDeg: 0
         randomAngleMaxDeg: 360
-        scaleMin: 0.5
-        scaleMax: 0.5
+        scaleMin: 1.2
+        scaleMax: 1.2
         tint: {r: 1, g: 1, b: 1, a: 1}
         alphaMin: 1
         alphaMax: 1
         seed: 0
-        blastSeconds: 1.33
+        blastSeconds: 1.3333334
+        blastSecondsAuto: 1

@@ -1,0 +1,531 @@
+asset	stackIndex	kind	title	capId	instance	sub	layerName	order
+Assets/Demos/ChunksDemo/UseCases/Scratch/V2 Flung Pyres.asset	0	Pyre Blast	Six blasts	465f5326c718433bb34ce59e1b1ef4ec	0	0		500
+Assets/Demos/ChunksDemo/UseCases/Scratch/V2 Flung Pyres.asset	0	Pyre Blast	Six blasts	465f5326c718433bb34ce59e1b1ef4ec	1	0		501
+Assets/Demos/ChunksDemo/UseCases/Scratch/V2 Flung Pyres.asset	0	Pyre Blast	Six blasts	465f5326c718433bb34ce59e1b1ef4ec	2	0		502
+Assets/Demos/ChunksDemo/UseCases/Scratch/V2 Flung Pyres.asset	0	Pyre Blast	Six blasts	465f5326c718433bb34ce59e1b1ef4ec	3	0		503
+Assets/Demos/ChunksDemo/UseCases/Scratch/V2 Flung Pyres.asset	0	Pyre Blast	Six blasts	465f5326c718433bb34ce59e1b1ef4ec	4	0		504
+Assets/Demos/ChunksDemo/UseCases/Scratch/V2 Flung Pyres.asset	0	Pyre Blast	Six blasts	465f5326c718433bb34ce59e1b1ef4ec	5	0		505
+Assets/Demos/ArenaDemo/ArenaDebris.asset	0	Debris Scatter	Debris Scatter	0ea22cfeb64040eea05a38bada698c9a	-1	0		500
+Assets/Demos/ChunksDemo/UseCases/UC Floating Disc (walk copy).asset	1	Fragment Fracture	Fragment Fracture	0712169ed7484892b6e3b1a8dd0fd67e	0	0	Fragments	10
+Assets/Demos/ChunksDemo/UseCases/UC Floating Disc (walk copy).asset	1	Fragment Fracture	Fragment Fracture	0712169ed7484892b6e3b1a8dd0fd67e	1	0	Fragments	11
+Assets/Demos/ChunksDemo/UseCases/UC Floating Disc (walk copy).asset	1	Fragment Fracture	Fragment Fracture	0712169ed7484892b6e3b1a8dd0fd67e	2	0	Fragments	12
+Assets/Demos/ChunksDemo/UseCases/UC Floating Disc (walk copy).asset	1	Fragment Fracture	Fragment Fracture	0712169ed7484892b6e3b1a8dd0fd67e	3	0	Fragments	13
+Assets/Demos/ChunksDemo/UseCases/UC Floating Disc (walk copy).asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	0	Splash	0
+Assets/Demos/ChunksDemo/UseCases/UC Floating Disc (walk copy).asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	1	Splash	1
+Assets/Demos/ChunksDemo/UseCases/UC Floating Disc (walk copy).asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	2	Splash	2
+Assets/Demos/ChunksDemo/UseCases/UC Floating Disc (walk copy).asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	3	Splash	3
+Assets/Demos/ChunksDemo/UseCases/UC Floating Disc (walk copy).asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	4	Splash	4
+Assets/Demos/ChunksDemo/UseCases/UC Floating Disc (walk copy).asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	5	Splash	5
+Assets/Demos/ChunksDemo/UseCases/UC Floating Disc (walk copy).asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	6	Splash	6
+Assets/Demos/ChunksDemo/UseCases/UC Floating Disc (walk copy).asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	7	Splash	7
+Assets/Demos/ChunksDemo/UseCases/UC Floating Disc (walk copy).asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	8	Splash	8
+Assets/Demos/ChunksDemo/UseCases/UC Floating Disc (walk copy).asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	9	Splash	9
+Assets/Demos/ChunksDemo/UseCases/UC Floating Disc (walk copy).asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	10	Splash	9
+Assets/Demos/ChunksDemo/UseCases/UC Floating Disc (walk copy).asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	11	Splash	9
+Assets/Demos/ChunksDemo/UseCases/UC Floating Disc (walk copy).asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	12	Splash	9
+Assets/Demos/ChunksDemo/UseCases/UC Floating Disc (walk copy).asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	13	Splash	9
+Assets/Demos/ChunksDemo/UseCases/UC Floating Disc (walk copy).asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	14	Splash	9
+Assets/Demos/ChunksDemo/UseCases/UC Floating Disc (walk copy).asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	15	Splash	9
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	1	Pyre Blast	Big pyre	e15b7084c3d64275b5588643799da45f	0	0	Big pyre	0
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	2	Fragment Fracture	Disc pieces	06763c5d415f4367b90a29e01a1c9c25	0	0	Fragments	10
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	2	Fragment Fracture	Disc pieces	06763c5d415f4367b90a29e01a1c9c25	1	0	Fragments	11
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	2	Fragment Fracture	Disc pieces	06763c5d415f4367b90a29e01a1c9c25	2	0	Fragments	12
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	0	Particles	30
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	1	Particles	31
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	2	Particles	32
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	3	Particles	33
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	4	Particles	34
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	5	Particles	35
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	6	Particles	36
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	7	Particles	37
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	8	Particles	38
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	9	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	10	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	11	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	12	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	13	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	14	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	15	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	16	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	17	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	18	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	19	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	20	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	21	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	22	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	23	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	24	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	25	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	26	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	27	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	0	Particles	30
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	1	Particles	31
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	2	Particles	32
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	3	Particles	33
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	4	Particles	34
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	5	Particles	35
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	6	Particles	36
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	7	Particles	37
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	8	Particles	38
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	9	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	10	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	11	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	12	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	13	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	14	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	15	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	16	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	17	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	18	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	19	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	20	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	21	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	22	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	23	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	24	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	25	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	26	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	27	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	5	Pyre Blast	Small pyres	7786c856a22841dfa03141e20bb3e485	0	0	Small pyres	20
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	5	Pyre Blast	Small pyres	7786c856a22841dfa03141e20bb3e485	1	0	Small pyres	21
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	5	Pyre Blast	Small pyres	7786c856a22841dfa03141e20bb3e485	2	0	Small pyres	22
+Assets/Demos/ChunksDemo/UseCases/UC5 Disc Fracture.asset	0	Fragment Fracture	Disc pieces	cecf72109a3748d68ec0e6363dcaeb89	0	0		500
+Assets/Demos/ChunksDemo/UseCases/UC5 Disc Fracture.asset	0	Fragment Fracture	Disc pieces	cecf72109a3748d68ec0e6363dcaeb89	1	0		501
+Assets/Demos/ChunksDemo/UseCases/UC5 Disc Fracture.asset	0	Fragment Fracture	Disc pieces	cecf72109a3748d68ec0e6363dcaeb89	2	0		502
+Assets/Demos/ChunksDemo/UseCases/UC5 Disc Fracture.asset	0	Fragment Fracture	Disc pieces	cecf72109a3748d68ec0e6363dcaeb89	3	0		503
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Fracture.asset	0	Fragment Fracture	Disc pieces	cecf72109a3748d68ec0e6363dcaeb89	0	0		500
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Fracture.asset	0	Fragment Fracture	Disc pieces	cecf72109a3748d68ec0e6363dcaeb89	1	0		501
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Fracture.asset	0	Fragment Fracture	Disc pieces	cecf72109a3748d68ec0e6363dcaeb89	2	0		502
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Fracture.asset	0	Fragment Fracture	Disc pieces	cecf72109a3748d68ec0e6363dcaeb89	3	0		503
+Assets/Demos/ColosseumDemo/Debris.asset	0	Debris Scatter	Debris Scatter	872e99fd40734357a16f100002e8a12e	-1	0		500
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	0		500
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	1		501
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	2		502
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	3		503
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	4		504
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	5		505
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	6		506
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	7		507
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	8		508
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	9		509
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	10		510
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	11		511
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	12		512
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	13		513
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	14		514
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	15		515
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	16		516
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	17		517
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	18		518
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	19		519
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	20		520
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	21		521
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	22		522
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	23		523
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	24		524
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	25		525
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	26		526
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	27		527
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	28		528
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	29		529
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	30		530
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	31		531
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	32		532
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	33		533
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	34		534
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	35		535
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	36		536
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	37		537
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	38		538
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	39		539
+Assets/Demos/ChunksDemo/UseCases/Scratch/V Debris Mods.asset	0	Debris Scatter	Debris Scatter	719fd69fbce74d6bb89b2a43af44ac37	-1	0		500
+Assets/Demos/ChunksDemo/UseCases/Scratch/V Debris Mods.asset	1	Debris Scatter	Debris Scatter	8114a394bf834b8f8a5be1d62cfc081a	-1	0		564
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	1	Pyre Blast	Big pyre	e15b7084c3d64275b5588643799da45f	0	0	Big pyre	0
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	2	Fragment Fracture	Disc pieces	06763c5d415f4367b90a29e01a1c9c25	0	0	Fragments	10
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	2	Fragment Fracture	Disc pieces	06763c5d415f4367b90a29e01a1c9c25	1	0	Fragments	11
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	2	Fragment Fracture	Disc pieces	06763c5d415f4367b90a29e01a1c9c25	2	0	Fragments	12
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	0	Particles	30
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	1	Particles	31
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	2	Particles	32
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	3	Particles	33
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	4	Particles	34
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	5	Particles	35
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	6	Particles	36
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	7	Particles	37
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	8	Particles	38
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	9	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	10	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	11	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	12	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	13	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	14	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	15	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	16	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	17	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	18	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	19	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	20	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	21	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	22	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	23	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	24	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	25	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	26	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	27	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	0	Particles	30
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	1	Particles	31
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	2	Particles	32
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	3	Particles	33
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	4	Particles	34
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	5	Particles	35
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	6	Particles	36
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	7	Particles	37
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	8	Particles	38
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	9	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	10	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	11	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	12	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	13	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	14	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	15	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	16	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	17	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	18	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	19	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	20	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	21	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	22	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	23	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	24	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	25	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	26	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	27	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	5	Pyre Blast	Small pyres	7786c856a22841dfa03141e20bb3e485	0	0	Small pyres	20
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	5	Pyre Blast	Small pyres	7786c856a22841dfa03141e20bb3e485	1	0	Small pyres	21
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	5	Pyre Blast	Small pyres	7786c856a22841dfa03141e20bb3e485	2	0	Small pyres	22
+Assets/Demos/ChunksDemo/Ring Blast.asset	0	Pyre Blast	Pyre Blast	6f1b1667d73641bb82b4b269887941b4	0	0		500
+Assets/Demos/ChunksDemo/Ring Blast.asset	0	Pyre Blast	Pyre Blast	6f1b1667d73641bb82b4b269887941b4	1	0		501
+Assets/Demos/ChunksDemo/Ring Blast.asset	0	Pyre Blast	Pyre Blast	6f1b1667d73641bb82b4b269887941b4	2	0		502
+Assets/Demos/ChunksDemo/Ring Blast.asset	0	Pyre Blast	Pyre Blast	6f1b1667d73641bb82b4b269887941b4	3	0		503
+Assets/Demos/ChunksDemo/Ring Blast.asset	0	Pyre Blast	Pyre Blast	6f1b1667d73641bb82b4b269887941b4	4	0		504
+Assets/Demos/ChunksDemo/Ring Blast.asset	2	Cues	Cues	d47bc661be71461aa903cbfa88484cfa	-1	0	(null)	628
+Assets/Demos/ChunksDemo/UseCases/Scratch/V Fling.asset	0	Pyre Blast	Pyre Blast	6adae2f8ec7d408ab05593da1f0e4b5a	0	0		500
+Assets/Demos/ChunksDemo/UseCases/Scratch/V Fling.asset	0	Pyre Blast	Pyre Blast	6adae2f8ec7d408ab05593da1f0e4b5a	1	0		501
+Assets/Demos/ChunksDemo/UseCases/Scratch/V Fling.asset	0	Pyre Blast	Pyre Blast	6adae2f8ec7d408ab05593da1f0e4b5a	2	0		502
+Assets/Demos/ChunksDemo/UseCases/Scratch/V Fling.asset	0	Pyre Blast	Pyre Blast	6adae2f8ec7d408ab05593da1f0e4b5a	3	0		503
+Assets/Demos/ChunksDemo/UseCases/Scratch/V Fling.asset	0	Pyre Blast	Pyre Blast	6adae2f8ec7d408ab05593da1f0e4b5a	4	0		504
+Assets/Demos/ChunksDemo/UseCases/Scratch/V Fling.asset	0	Pyre Blast	Pyre Blast	6adae2f8ec7d408ab05593da1f0e4b5a	5	0		505
+Assets/Demos/ChunksDemo/SampledDebris.asset	0	Debris Scatter	Debris Scatter	719fd69fbce74d6bb89b2a43af44ac37	-1	0		500
+Assets/_T0075_Probe/ProbeChunk.asset	0	Debris Scatter	Debris Scatter	d80269406dcd477ba285c691524a038a	-1	0		500
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B.asset	1	Fragment Fracture	Fragment Fracture	0712169ed7484892b6e3b1a8dd0fd67e	0	0	Fragments	10
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B.asset	1	Fragment Fracture	Fragment Fracture	0712169ed7484892b6e3b1a8dd0fd67e	1	0	Fragments	11
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B.asset	1	Fragment Fracture	Fragment Fracture	0712169ed7484892b6e3b1a8dd0fd67e	2	0	Fragments	12
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B.asset	1	Fragment Fracture	Fragment Fracture	0712169ed7484892b6e3b1a8dd0fd67e	3	0	Fragments	13
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	0	Splash	0
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	1	Splash	1
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	2	Splash	2
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	3	Splash	3
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	4	Splash	4
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	5	Splash	5
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	6	Splash	6
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	7	Splash	7
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	8	Splash	8
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	9	Splash	9
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	10	Splash	9
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	11	Splash	9
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	12	Splash	9
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	13	Splash	9
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	14	Splash	9
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	15	Splash	9
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	0		500
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	1		501
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	2		502
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	3		503
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	4		504
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	5		505
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	6		506
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	7		507
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	8		508
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	9		509
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	10		510
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	11		511
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	12		512
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	13		513
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	14		514
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	15		515
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	16		516
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	17		517
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	18		518
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	19		519
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	20		520
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	21		521
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	22		522
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	23		523
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	24		524
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	25		525
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	26		526
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	27		527
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	28		528
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	29		529
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	30		530
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	31		531
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	32		532
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	33		533
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	34		534
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	35		535
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	36		536
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	37		537
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	38		538
+Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	39		539
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	1	Pyre Blast	Big pyre	e15b7084c3d64275b5588643799da45f	0	0	Big pyre	0
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	2	Fragment Fracture	Disc pieces	06763c5d415f4367b90a29e01a1c9c25	0	0	Fragments	10
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	2	Fragment Fracture	Disc pieces	06763c5d415f4367b90a29e01a1c9c25	1	0	Fragments	11
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	2	Fragment Fracture	Disc pieces	06763c5d415f4367b90a29e01a1c9c25	2	0	Fragments	12
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	0	Particles	30
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	1	Particles	31
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	2	Particles	32
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	3	Particles	33
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	4	Particles	34
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	5	Particles	35
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	6	Particles	36
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	7	Particles	37
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	8	Particles	38
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	9	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	10	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	11	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	12	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	13	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	14	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	15	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	16	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	17	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	18	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	19	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	20	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	21	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	22	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	23	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	24	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	25	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	26	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	27	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	0	Particles	30
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	1	Particles	31
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	2	Particles	32
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	3	Particles	33
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	4	Particles	34
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	5	Particles	35
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	6	Particles	36
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	7	Particles	37
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	8	Particles	38
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	9	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	10	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	11	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	12	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	13	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	14	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	15	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	16	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	17	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	18	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	19	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	20	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	21	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	22	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	23	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	24	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	25	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	26	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	27	Particles	39
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	5	Pyre Blast	Small pyres	7786c856a22841dfa03141e20bb3e485	0	0	Small pyres	20
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	5	Pyre Blast	Small pyres	7786c856a22841dfa03141e20bb3e485	1	0	Small pyres	21
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	5	Pyre Blast	Small pyres	7786c856a22841dfa03141e20bb3e485	2	0	Small pyres	22
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	1	Pyre Blast	Big pyre	e15b7084c3d64275b5588643799da45f	0	0	Big pyre	0
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	2	Fragment Fracture	Disc pieces	06763c5d415f4367b90a29e01a1c9c25	0	0	Fragments	10
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	2	Fragment Fracture	Disc pieces	06763c5d415f4367b90a29e01a1c9c25	1	0	Fragments	11
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	2	Fragment Fracture	Disc pieces	06763c5d415f4367b90a29e01a1c9c25	2	0	Fragments	12
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	0	Particles	30
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	1	Particles	31
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	2	Particles	32
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	3	Particles	33
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	4	Particles	34
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	5	Particles	35
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	6	Particles	36
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	7	Particles	37
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	8	Particles	38
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	9	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	10	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	11	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	12	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	13	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	14	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	15	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	16	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	17	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	18	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	19	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	20	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	21	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	22	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	23	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	24	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	25	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	26	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	3	Palette Splash	Particles up	225b402634214ee09ea714624bd619be	-1	27	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	0	Particles	30
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	1	Particles	31
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	2	Particles	32
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	3	Particles	33
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	4	Particles	34
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	5	Particles	35
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	6	Particles	36
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	7	Particles	37
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	8	Particles	38
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	9	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	10	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	11	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	12	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	13	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	14	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	15	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	16	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	17	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	18	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	19	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	20	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	21	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	22	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	23	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	24	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	25	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	26	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	4	Palette Splash	Particles down	e2060ec4279740309d1ebbb65235f295	-1	27	Particles	39
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	5	Pyre Blast	Small pyres	7786c856a22841dfa03141e20bb3e485	0	0	Small pyres	20
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	5	Pyre Blast	Small pyres	7786c856a22841dfa03141e20bb3e485	1	0	Small pyres	21
+Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	5	Pyre Blast	Small pyres	7786c856a22841dfa03141e20bb3e485	2	0	Small pyres	22
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	0		500
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	1		501
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	2		502
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	3		503
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	4		504
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	5		505
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	6		506
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	7		507
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	8		508
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	9		509
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	10		510
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	11		511
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	12		512
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	13		513
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	14		514
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	15		515
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	16		516
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	17		517
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	18		518
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	19		519
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	20		520
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	21		521
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	22		522
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	23		523
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	24		524
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	25		525
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	26		526
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	27		527
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	28		528
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	29		529
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	30		530
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	31		531
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	32		532
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	33		533
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	34		534
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	35		535
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	36		536
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	37		537
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	38		538
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	0	Palette Splash	Disc spray	d159e69bdffc45eea1b51bb9616e72f9	-1	39		539
+Assets/Demos/ChunksDemo/UseCases/Scratch/V3 Timed Sequence.asset	0	Pyre Blast	B	c32bdd9cc1f14777a740a10b7cfc64a6	0	0		500
+Assets/Demos/ChunksDemo/UseCases/Scratch/V3 Timed Sequence.asset	0	Pyre Blast	B	c32bdd9cc1f14777a740a10b7cfc64a6	1	0		501
+Assets/Demos/ChunksDemo/UseCases/Scratch/V3 Timed Sequence.asset	0	Pyre Blast	B	c32bdd9cc1f14777a740a10b7cfc64a6	2	0		502
+Assets/Demos/ChunksDemo/UseCases/Scratch/V3 Timed Sequence.asset	0	Pyre Blast	B	c32bdd9cc1f14777a740a10b7cfc64a6	3	0		503
+Assets/Demos/ChunksDemo/UseCases/Scratch/V3 Timed Sequence.asset	0	Pyre Blast	B	c32bdd9cc1f14777a740a10b7cfc64a6	4	0		504
+Assets/Demos/ChunksDemo/UseCases/Scratch/V3 Timed Sequence.asset	1	Pyre Blast	A	e39282ea6cc84968b25f8b48b8237505	0	0		564
+Assets/Demos/ChunksDemo/UseCases/Scratch/V Name Row.asset	0	Pyre Blast	Pyre Blast	9a9468abb27745829dd07db8018927d2	0	0		500
+Assets/Demos/ChunksDemo/UseCases/Scratch/V Name Row.asset	1	Pyre Blast	Pyre Blast	58730622b3ea42b6a5b3d3277ea579d9	0	0		564
+Assets/Demos/ChunksDemo/UseCases/UC1 Several Pyres.asset	0	Pyre Blast	Small	df33e389ff9c461587cc46d043f27b15	0	0		500
+Assets/Demos/ChunksDemo/UseCases/UC1 Several Pyres.asset	0	Pyre Blast	Small	df33e389ff9c461587cc46d043f27b15	1	0		501
+Assets/Demos/ChunksDemo/UseCases/UC1 Several Pyres.asset	0	Pyre Blast	Small	df33e389ff9c461587cc46d043f27b15	2	0		502
+Assets/Demos/ChunksDemo/UseCases/UC1 Several Pyres.asset	0	Pyre Blast	Small	df33e389ff9c461587cc46d043f27b15	3	0		503
+Assets/Demos/ChunksDemo/UseCases/UC1 Several Pyres.asset	0	Pyre Blast	Small	df33e389ff9c461587cc46d043f27b15	4	0		504
+Assets/Demos/ChunksDemo/UseCases/UC1 Several Pyres.asset	1	Pyre Blast	Left	6d3d4978882a4d68a901fd599dd7e710	0	0		564
+Assets/Demos/ChunksDemo/UseCases/UC Disc Enemy B.asset	1	Fragment Fracture	Fragment Fracture	0712169ed7484892b6e3b1a8dd0fd67e	0	0	Fragments	10
+Assets/Demos/ChunksDemo/UseCases/UC Disc Enemy B.asset	1	Fragment Fracture	Fragment Fracture	0712169ed7484892b6e3b1a8dd0fd67e	1	0	Fragments	11
+Assets/Demos/ChunksDemo/UseCases/UC Disc Enemy B.asset	1	Fragment Fracture	Fragment Fracture	0712169ed7484892b6e3b1a8dd0fd67e	2	0	Fragments	12
+Assets/Demos/ChunksDemo/UseCases/UC Disc Enemy B.asset	1	Fragment Fracture	Fragment Fracture	0712169ed7484892b6e3b1a8dd0fd67e	3	0	Fragments	13
+Assets/Demos/ChunksDemo/UseCases/UC Disc Enemy B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	0	Splash	0
+Assets/Demos/ChunksDemo/UseCases/UC Disc Enemy B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	1	Splash	1
+Assets/Demos/ChunksDemo/UseCases/UC Disc Enemy B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	2	Splash	2
+Assets/Demos/ChunksDemo/UseCases/UC Disc Enemy B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	3	Splash	3
+Assets/Demos/ChunksDemo/UseCases/UC Disc Enemy B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	4	Splash	4
+Assets/Demos/ChunksDemo/UseCases/UC Disc Enemy B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	5	Splash	5
+Assets/Demos/ChunksDemo/UseCases/UC Disc Enemy B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	6	Splash	6
+Assets/Demos/ChunksDemo/UseCases/UC Disc Enemy B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	7	Splash	7
+Assets/Demos/ChunksDemo/UseCases/UC Disc Enemy B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	8	Splash	8
+Assets/Demos/ChunksDemo/UseCases/UC Disc Enemy B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	9	Splash	9
+Assets/Demos/ChunksDemo/UseCases/UC Disc Enemy B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	10	Splash	9
+Assets/Demos/ChunksDemo/UseCases/UC Disc Enemy B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	11	Splash	9
+Assets/Demos/ChunksDemo/UseCases/UC Disc Enemy B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	12	Splash	9
+Assets/Demos/ChunksDemo/UseCases/UC Disc Enemy B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	13	Splash	9
+Assets/Demos/ChunksDemo/UseCases/UC Disc Enemy B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	14	Splash	9
+Assets/Demos/ChunksDemo/UseCases/UC Disc Enemy B.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	15	Splash	9
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Preview.asset	0	Pyre Blast	Pyre Blast	9a9468abb27745829dd07db8018927d2	0	0		500
+Assets/Demos/ChunksDemo/UseCases/Scratch/W Preview.asset	1	Pyre Blast	Pyre Blast	58730622b3ea42b6a5b3d3277ea579d9	0	0		564
+Assets/Demos/ChunksDemo/Sparks.asset	0	Debris Scatter	Debris Scatter	3d68197f58b64ccc88a12c21f4956d46	-1	0		500
+Assets/Zoetrope/Floating Disc.asset	0	Debris Scatter	Debris Scatter	3d68197f58b64ccc88a12c21f4956d46	-1	0		500
+Assets/Demos/ChunksDemo/UseCases/UC3 Timed Sequence.asset	0	Pyre Blast	A	e39282ea6cc84968b25f8b48b8237505	0	0		500
+Assets/Demos/ChunksDemo/UseCases/UC3 Timed Sequence.asset	1	Pyre Blast	B	c32bdd9cc1f14777a740a10b7cfc64a6	0	0		564
+Assets/Demos/ChunksDemo/UseCases/UC3 Timed Sequence.asset	2	Pyre Blast	D	50cf177484e541d69d47af69c77fc68b	0	0		628
+Assets/Demos/ChunksDemo/UseCases/UC3 Timed Sequence.asset	3	Pyre Blast	C	9adc7d776c7742e2a2a5b27df50d86ed	0	0		692
+Assets/Demos/ChunksDemo/Floating Disc Blowup.asset	1	Fragment Fracture	Fragment Fracture	0712169ed7484892b6e3b1a8dd0fd67e	0	0	Fragments	10
+Assets/Demos/ChunksDemo/Floating Disc Blowup.asset	1	Fragment Fracture	Fragment Fracture	0712169ed7484892b6e3b1a8dd0fd67e	1	0	Fragments	11
+Assets/Demos/ChunksDemo/Floating Disc Blowup.asset	1	Fragment Fracture	Fragment Fracture	0712169ed7484892b6e3b1a8dd0fd67e	2	0	Fragments	12
+Assets/Demos/ChunksDemo/Floating Disc Blowup.asset	1	Fragment Fracture	Fragment Fracture	0712169ed7484892b6e3b1a8dd0fd67e	3	0	Fragments	13
+Assets/Demos/ChunksDemo/Floating Disc Blowup.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	0	Splash	0
+Assets/Demos/ChunksDemo/Floating Disc Blowup.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	1	Splash	1
+Assets/Demos/ChunksDemo/Floating Disc Blowup.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	2	Splash	2
+Assets/Demos/ChunksDemo/Floating Disc Blowup.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	3	Splash	3
+Assets/Demos/ChunksDemo/Floating Disc Blowup.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	4	Splash	4
+Assets/Demos/ChunksDemo/Floating Disc Blowup.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	5	Splash	5
+Assets/Demos/ChunksDemo/Floating Disc Blowup.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	6	Splash	6
+Assets/Demos/ChunksDemo/Floating Disc Blowup.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	7	Splash	7
+Assets/Demos/ChunksDemo/Floating Disc Blowup.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	8	Splash	8
+Assets/Demos/ChunksDemo/Floating Disc Blowup.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	9	Splash	9
+Assets/Demos/ChunksDemo/Floating Disc Blowup.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	10	Splash	9
+Assets/Demos/ChunksDemo/Floating Disc Blowup.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	11	Splash	9
+Assets/Demos/ChunksDemo/Floating Disc Blowup.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	12	Splash	9
+Assets/Demos/ChunksDemo/Floating Disc Blowup.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	13	Splash	9
+Assets/Demos/ChunksDemo/Floating Disc Blowup.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	14	Splash	9
+Assets/Demos/ChunksDemo/Floating Disc Blowup.asset	2	Palette Splash	Palette Splash	343f1fc4a5534fa6bdc0c4c52b9ab7ac	-1	15	Splash	9
+Assets/Demos/ChunksDemo/UseCases/UC7 Bullet Hole.asset	0	Palette Splash	Bullet hole	d65af9c80ad841cab7abc299389b0a56	-1	0		500
+Assets/Demos/ChunksDemo/UseCases/UC7 Bullet Hole.asset	0	Palette Splash	Bullet hole	d65af9c80ad841cab7abc299389b0a56	-1	1		501
+Assets/Demos/ChunksDemo/UseCases/UC7 Bullet Hole.asset	0	Palette Splash	Bullet hole	d65af9c80ad841cab7abc299389b0a56	-1	2		502
+Assets/Demos/ChunksDemo/UseCases/UC7 Bullet Hole.asset	0	Palette Splash	Bullet hole	d65af9c80ad841cab7abc299389b0a56	-1	3		503
+Assets/Demos/ChunksDemo/UseCases/UC7 Bullet Hole.asset	0	Palette Splash	Bullet hole	d65af9c80ad841cab7abc299389b0a56	-1	4		504
+Assets/Demos/ChunksDemo/UseCases/UC7 Bullet Hole.asset	0	Palette Splash	Bullet hole	d65af9c80ad841cab7abc299389b0a56	-1	5		505
+Assets/Demos/ChunksDemo/UseCases/UC7 Bullet Hole.asset	0	Palette Splash	Bullet hole	d65af9c80ad841cab7abc299389b0a56	-1	6		506
+Assets/Demos/ChunksDemo/UseCases/UC7 Bullet Hole.asset	0	Palette Splash	Bullet hole	d65af9c80ad841cab7abc299389b0a56	-1	7		507
+Assets/Demos/ChunksDemo/UseCases/UC7 Bullet Hole.asset	0	Palette Splash	Bullet hole	d65af9c80ad841cab7abc299389b0a56	-1	8		508
+Assets/Demos/ChunksDemo/UseCases/UC7 Bullet Hole.asset	0	Palette Splash	Bullet hole	d65af9c80ad841cab7abc299389b0a56	-1	9		509
+Assets/Demos/ChunksDemo/UseCases/UC7 Bullet Hole.asset	0	Palette Splash	Bullet hole	d65af9c80ad841cab7abc299389b0a56	-1	10		510
+Assets/Demos/ChunksDemo/UseCases/UC7 Bullet Hole.asset	0	Palette Splash	Bullet hole	d65af9c80ad841cab7abc299389b0a56	-1	11		511
+Assets/Demos/ChunksDemo/UseCases/UC7 Bullet Hole.asset	0	Palette Splash	Bullet hole	d65af9c80ad841cab7abc299389b0a56	-1	12		512
+Assets/Demos/ChunksDemo/UseCases/UC7 Bullet Hole.asset	0	Palette Splash	Bullet hole	d65af9c80ad841cab7abc299389b0a56	-1	13		513
+Assets/Demos/ChunksDemo/UseCases/UC7 Bullet Hole.asset	0	Palette Splash	Bullet hole	d65af9c80ad841cab7abc299389b0a56	-1	14		514
+Assets/Demos/ChunksDemo/UseCases/UC7 Bullet Hole.asset	0	Palette Splash	Bullet hole	d65af9c80ad841cab7abc299389b0a56	-1	15		515
+Assets/Demos/ChunksDemo/UseCases/UC7 Bullet Hole.asset	0	Palette Splash	Bullet hole	d65af9c80ad841cab7abc299389b0a56	-1	16		516
+Assets/Demos/ChunksDemo/UseCases/UC7 Bullet Hole.asset	0	Palette Splash	Bullet hole	d65af9c80ad841cab7abc299389b0a56	-1	17		517
+Assets/Demos/ChunksDemo/UseCases/UC2 Flung Pyres.asset	0	Pyre Blast	Six blasts	465f5326c718433bb34ce59e1b1ef4ec	0	0		500
+Assets/Demos/ChunksDemo/UseCases/UC2 Flung Pyres.asset	0	Pyre Blast	Six blasts	465f5326c718433bb34ce59e1b1ef4ec	1	0		501
+Assets/Demos/ChunksDemo/UseCases/UC2 Flung Pyres.asset	0	Pyre Blast	Six blasts	465f5326c718433bb34ce59e1b1ef4ec	2	0		502
+Assets/Demos/ChunksDemo/UseCases/UC2 Flung Pyres.asset	0	Pyre Blast	Six blasts	465f5326c718433bb34ce59e1b1ef4ec	3	0		503
+Assets/Demos/ChunksDemo/UseCases/UC2 Flung Pyres.asset	0	Pyre Blast	Six blasts	465f5326c718433bb34ce59e1b1ef4ec	4	0		504
+Assets/Demos/ChunksDemo/UseCases/UC2 Flung Pyres.asset	0	Pyre Blast	Six blasts	465f5326c718433bb34ce59e1b1ef4ec	5	0		505

@@ -339,7 +339,41 @@ namespace Laubrary.Chunks
                 });
             }
 
-            return result.Count > 0 ? result.ToArray() : null;
+            if (result.Count == 0) return null;
+            SortClockwiseFromTop(result);
+            return result.ToArray();
+        }
+
+        /// Numbers the pieces CLOCKWISE FROM 12 O'CLOCK by where each one sat in the picture (owner's decision,
+        /// T-0365 Q3). Before this the order was whatever the nearest-seed partition happened to produce —
+        /// stable for one seed, but meaning nothing: "piece 2" named a different part of the picture the
+        /// moment a seed, a piece count or a live frame changed, so a Depth row pointing at it pointed
+        /// somewhere else. Clockwise-from-the-top gives "piece 1" a meaning a human can find on screen — the
+        /// piece that was at the top — and it survives a different live frame being cut.
+        ///
+        /// A piece sitting exactly on the pivot has no angle; it sorts first, then by area (largest first),
+        /// then by its rect, so the whole order stays deterministic for one cut.
+        static void SortClockwiseFromTop(List<FragmentPiece> pieces)
+        {
+            pieces.Sort((a, b) =>
+            {
+                int c = ClockAngle(a.offsetUnits).CompareTo(ClockAngle(b.offsetUnits));
+                if (c != 0) return c;
+                c = b.areaPx.CompareTo(a.areaPx);
+                if (c != 0) return c;
+                c = a.rect.y.CompareTo(b.rect.y);
+                return c != 0 ? c : a.rect.x.CompareTo(b.rect.x);
+            });
+        }
+
+        /// The piece's angle measured CLOCKWISE from straight up: 0 at 12 o'clock, π/2 at 3 o'clock. Atan2(x, y)
+        /// — the arguments deliberately swapped from the usual Atan2(y, x) — is exactly that rotation, and the
+        /// wrap keeps it in [0, 2π). A piece on the centre returns -1, which sorts it ahead of everything.
+        static float ClockAngle(Vector2 offset)
+        {
+            if (offset.sqrMagnitude <= 1e-10f) return -1f;
+            float a = Mathf.Atan2(offset.x, offset.y);
+            return a < 0f ? a + Mathf.PI * 2f : a;
         }
 
         /// Turns one cut piece into a live sprite pivoted at its own centre. The texture and the sprite are

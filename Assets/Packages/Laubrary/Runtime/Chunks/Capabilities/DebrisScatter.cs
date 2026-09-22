@@ -30,11 +30,16 @@ namespace Laubrary.Chunks
     {
         public override string KindName => "Debris Scatter";
 
-        [Tooltip("Which layer-stack slot the debris draws in. Empty leaves it out of the plan, drawing " +
-                 "in stack order in FRONT of every slotted output.")]
-        public string layerName = "";
+        // LEGACY (T-0403): the named depth slot this used to pick. Read once, by LayerPlan.MigrateRows, and
+        // never written again — depth is authored in the recipe's Depth list now.
+        [HideInInspector] public string layerName = "";
 
         public override string LayerName => layerName;
+
+        public override bool DrawsOutput => true;
+
+        // DepthInstanceCount stays 1: every chunk in one scatter already sits at the SAME depth (see Fire), a
+        // chunk is not a layer, and the count varies per burst.
 
         // ── what a chunk looks like ───────────────────────────────────────────────
         [Tooltip("What each chunk is made of. Only the chosen kind's own dials are authored.")]
@@ -286,7 +291,7 @@ namespace Laubrary.Chunks
                 var sr = go.GetComponent<SpriteRenderer>();
                 // Every chunk in one scatter sits at the SAME depth — a chunk is not a layer, and sub-ordering
                 // sixteen of them would spend the whole slot's band on debris nobody can tell apart.
-                ctx.ApplyOrder(sr, LayerName);
+                ctx.ApplyOrder(sr, this, -1);
 
                 // ⚠ ROLLED FIRST, before the sprite is built — this ORDER is the whole fix (T-0397). A chunk's
                 // on-screen size and the amount of source art it is made of used to be two independent random

@@ -212,8 +212,7 @@ namespace Laubrary.Chunks.Editor
             into.Clear();
             if (spec == null || spec.capabilities == null) return;
 
-            var layers = spec.ResolveLayers();
-            bool planned = spec.FirstEnabled<LayerPlan>() != null;
+            var plan = spec.ResolveDepthPlan();
             var stack = spec.capabilities;
 
             int budget = DotsPerFrame;
@@ -228,8 +227,9 @@ namespace Laubrary.Chunks.Editor
                 // counts it: turning one off must not renumber the others.
                 if (!cap.enabled && !includeDisabled) continue;
 
-                var colour = ColorFor(spec, cap, layers, planned);
-                int order = OrderFor(cap, layers, i);
+                var colour = ColorFor(spec, cap, plan);
+                var depth = new Depth(plan, cap, i);
+                int order = depth.Card;
 
                 // Where a blast's pattern and flights reach is true whatever the clock says, so framing
                 // measures it before the "is it on screen now" test rather than only when it happens to be.
@@ -248,13 +248,13 @@ namespace Laubrary.Chunks.Editor
                         budget -= Debris(spec, debris, local, pending, colour, order, budget, into);
                         break;
                     case FragmentFracture fracture:
-                        budget -= Fracture(spec, fracture, local, pending, colour, order, budget, into);
+                        budget -= Fracture(spec, fracture, local, pending, colour, order, depth, budget, into);
                         break;
                     case PaletteSplash splash:
                         budget -= Splash(spec, splash, local, pending, colour, order, budget, into);
                         break;
                     case PyreBlast blast:
-                        budget -= Blast(spec, blast, local, pending, colour, order, budget, into);
+                        budget -= Blast(spec, blast, local, pending, colour, order, depth, budget, into);
                         break;
                 }
             }
@@ -470,7 +470,7 @@ namespace Laubrary.Chunks.Editor
         // source, or pixels that cannot be read — draws nothing at all, because that is what the burst does.
 
         static int Fracture(ChunkSpec spec, FragmentFracture f, float local, bool pending,
-                            Color colour, int order, int budget, ChunkPreviewFrame into)
+                            Color colour, int order, in Depth depth, int budget, ChunkPreviewFrame into)
         {
             int seed = Seed(f, f.seed);
             var cut = CutOf(f, seed);
@@ -487,7 +487,7 @@ namespace Laubrary.Chunks.Editor
                 for (int i = 0; i < cut.parts.Length; i++)
                 {
                     var part = cut.parts[i];
-                    into.Guides.Add(PieceGuide(part, part.offset, 0f, PendingAlpha, order));
+                    into.Guides.Add(PieceGuide(part, part.offset, 0f, PendingAlpha, depth.At(i), i + 1));
                 }
                 return 0;
             }
@@ -527,7 +527,12 @@ namespace Laubrary.Chunks.Editor
                 float t01 = Mathf.Clamp01(local / Mathf.Max(0.01f, life));
                 float alpha = Mathf.Clamp01(ZUIEnvelopeEvaluator.Evaluate(f.alphaEnvelope, t01, 1f));
 
-                if (trailing) AddTrail(into, PathScratch, trail.interval, local, colour, order - 1);
+                // Per PIECE, not per card: a split fracture puts each piece on its own Depth row, so the stage
+                // has to draw them at their own depths or it shows an order the burst will contradict — the
+                // one thing the preview exists not to do.
+                int pieceOrder = depth.At(i);
+
+                if (trailing) AddTrail(into, PathScratch, trail.interval, local, colour, pieceOrder - 1);
                 if (hitting)
                     into.Guides.Add(new ChunkGuide
                     {
@@ -535,16 +540,21 @@ namespace Laubrary.Chunks.Editor
                         pos = flight.position,
                         radius = Mathf.Max(0.006f, part.size.magnitude * 0.5f * Mathf.Max(0.01f, hits.radiusScale)),
                         alpha = alpha * 0.25f, color = colour,
-                        shape = ChunkGuideShape.Ring, order = order,
+                        shape = ChunkGuideShape.Ring, order = pieceOrder,
                     });
 
-                into.Guides.Add(PieceGuide(part, flight.position, spin * local, alpha, order));
+                into.Guides.Add(PieceGuide(part, flight.position, spin * local, alpha, pieceOrder, i + 1));
                 drawn++;
             }
             return drawn;
         }
 
-        static ChunkGuide PieceGuide(in CutPart part, Vector2 at, float angleDeg, float alpha, int order)
+        /// <paramref name="number"/> is the piece's own 1-based number, the one the Depth list addresses it by
+        /// (clockwise from 12 o'clock — see FragmentCutter). It is drawn on the piece for the same reason a
+        /// pattern's points are numbered: "Disc pieces 2" has to be findable on the stage, or the row naming
+        /// it is a magic string.
+        static ChunkGuide PieceGuide(in CutPart part, Vector2 at, float angleDeg, float alpha, int order,
+                                     int number = 0)
             => new ChunkGuide
             {
                 pos = at,
@@ -554,6 +564,7 @@ namespace Laubrary.Chunks.Editor
                 color = Color.white,
                 shape = ChunkGuideShape.Square,
                 order = order,
+                label = number > 0 ? number.ToString() : null,
                 texture = part.texture,
                 uv = new Rect(0f, 0f, 1f, 1f),
                 picSize = part.size,
@@ -665,7 +676,7 @@ namespace Laubrary.Chunks.Editor
         // dark here as it does in the burst. A blast with nothing picked draws nothing.
 
         static int Blast(ChunkSpec spec, PyreBlast b, float local, bool pending,
-                         Color colour, int order, int budget, ChunkPreviewFrame into)
+                         Color colour, int order, in Depth depth, int budget, ChunkPreviewFrame into)
         {
             int seed = Seed(b, b.seed);
             var picked = PickSource(b, seed);
@@ -706,6 +717,10 @@ namespace Laubrary.Chunks.Editor
                 var at = (Vector2)placement.Position;
                 float fires = placement.Delay;
                 string number = ranks != null && i < ranks.Count ? ranks[i].ToString() : null;
+                // Per POINT, not per card: a split Pyre Blast puts each of its points on its own Depth row,
+                // so the stage must draw them at their own depths or it shows an order the burst contradicts.
+                // placement.Index is the same number the runtime hands ctx.OrderFor for this point.
+                int pointOrder = depth.At(placement.Index);
 
                 float since = local - fires;
                 if (pending || since < 0f)
@@ -716,7 +731,7 @@ namespace Laubrary.Chunks.Editor
                     into.Guides.Add(new ChunkGuide
                     {
                         pos = at, radius = radius, alpha = PendingAlpha, color = tinted,
-                        shape = ChunkGuideShape.Ring, order = order,
+                        shape = ChunkGuideShape.Ring, order = pointOrder,
                         label = number, outline = identity,
                         capId = b.id,
                     });
@@ -742,7 +757,7 @@ namespace Laubrary.Chunks.Editor
                         into.Paths.Add(new ChunkGuidePath
                         {
                             points = Thin(PathScratch),
-                            alpha = 0.65f, color = tinted, order = order - 1,
+                            alpha = 0.65f, color = tinted, order = pointOrder - 1,
                         });
 
                     oriented = flight.faceVelocity || spinDegPerSec != 0f;
@@ -765,7 +780,7 @@ namespace Laubrary.Chunks.Editor
                     // The outline fades over the authored length so a finished blast lets go of its spot; the
                     // picture below does not, because the frames carry the blast's own fade.
                     alpha = (1f - Mathf.Clamp01(since / blast)) * pointAlpha,
-                    color = tinted, shape = ChunkGuideShape.Disc, order = order,
+                    color = tinted, shape = ChunkGuideShape.Disc, order = pointOrder,
                     label = number, outline = identity,
                     capId = b.id,
                     angleDeg = discAngleDeg, showAngle = oriented,
@@ -1060,14 +1075,13 @@ namespace Laubrary.Chunks.Editor
 
         // ── colour, order, sizes ──────────────────────────────────────────────────────────────────────────
 
-        /// A capability's colour: its Layer-Plan slot's when it has one, grey when a plan exists and it is in
-        /// no slot, and its card's own colour when there is no plan at all. Colour says which SLOT, never
-        /// which depth — depth is the runtime's own answer (see OrderFor), and grey is exactly the reading
-        /// "this one is not in the plan", which is the thing worth seeing at a glance.
-        static Color ColorFor(ChunkSpec spec, ChunkCapability cap, LayerSpec layers, bool planned)
+        /// A capability's colour: its Depth ROW's when the recipe has a Depth list, grey when one exists and
+        /// this card is not in it, and its card's own colour when there is no list at all. Grey is exactly the
+        /// reading "this one is not in the plan", which is the thing worth seeing at a glance.
+        static Color ColorFor(ChunkSpec spec, ChunkCapability cap, LayerPlan plan)
         {
-            if (!planned) return ChunkCardColors.For(spec, cap);
-            int index = layers != null ? layers.IndexOf(cap.LayerName) : -1;
+            if (plan == null || plan.RowCount == 0) return ChunkCardColors.For(spec, cap);
+            int index = cap != null ? plan.RowIndexFor(cap.id, -1, out _) : -1;
             return index < 0 ? UnslottedColor : SlotColors[index % SlotColors.Length];
         }
 
@@ -1085,9 +1099,30 @@ namespace Laubrary.Chunks.Editor
         /// and a Pyre Blast pattern hands out its own sequential offset to every point it places (up to
         /// SpawnFormation.MaxCount wide) — either one landing on a spacing of 1 would sort onto (or inside)
         /// a neighbouring card's own numbers.
-        static int OrderFor(ChunkCapability cap, LayerSpec layers, int stackIndex)
-            => ChunkModuleContext.ResolveOrder(layers, cap.LayerName,
-                ChunkEmitter.DefaultSortingOrder + stackIndex * ChunkModuleContext.CardOrderSpan);
+        static int OrderFor(ChunkCapability cap, LayerPlan plan, int stackIndex, int instance = -1, int sub = 0)
+            => ChunkModuleContext.ResolveOrder(plan, cap != null ? cap.id : null, instance,
+                ChunkEmitter.DefaultSortingOrder,
+                ChunkEmitter.DefaultSortingOrder + stackIndex * ChunkModuleContext.CardOrderSpan, sub);
+
+        /// One capability's depth question, carried as a value so a producer's per-INSTANCE order (a fracture
+        /// piece's own Depth row, a pattern point's own) can be asked inside its draw loop without re-deriving
+        /// the emitter defaults or allocating a closure per card per repaint.
+        readonly struct Depth
+        {
+            readonly LayerPlan _plan;
+            readonly ChunkCapability _cap;
+            readonly int _stackIndex;
+
+            public Depth(LayerPlan plan, ChunkCapability cap, int stackIndex)
+            { _plan = plan; _cap = cap; _stackIndex = stackIndex; }
+
+            /// The whole card's own order — what everything that has no instance of its own draws at.
+            public int Card => OrderFor(_cap, _plan, _stackIndex);
+
+            /// One instance's order. Falls back to the card's row exactly as the runtime does, so a joined
+            /// card's pieces sub-order inside one row and a split card's pieces each get their own.
+            public int At(int instance) => OrderFor(_cap, _plan, _stackIndex, instance, instance);
+        }
 
         /// The uniform scale a blast comes out at, on its own stream so a scale can never shift the layout.
         static float BlastScale(PyreBlast b, int seed)

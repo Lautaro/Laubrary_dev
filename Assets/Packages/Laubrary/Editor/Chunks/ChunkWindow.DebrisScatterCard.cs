@@ -184,8 +184,8 @@ namespace Laubrary.Chunks.Editor
 
             body.Add(SeedField(cap.seed, "the scatter's random picks", "Edit Debris Seed", v => cap.seed = v));
 
-            var slot = LayerSlotRow(c, () => cap.layerName, v => cap.layerName = v);
-            if (slot != null) body.Add(slot);
+            var depth = DepthHint(c, cap);
+            if (depth != null) body.Add(depth);
         }
 
         // ── Sprites mode: the sprite pool stays Unity's own bound list UI ────────────────────────────────────

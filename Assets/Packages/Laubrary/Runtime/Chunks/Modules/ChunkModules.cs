@@ -26,11 +26,13 @@ namespace Laubrary.Chunks
             var runner = container.GetComponent<ChunkModuleRunner>();
             if (runner == null) runner = container.gameObject.AddComponent<ChunkModuleRunner>();
 
-            // The Layer Plan is resolved BEFORE anything fires, not dispatched: it is context every producer
-            // reads, so it cannot be something that happens at a moment.
+            // The Depth list is resolved BEFORE anything fires, not dispatched: it is context every producer
+            // reads, so it cannot be something that happens at a moment. The burst's OWN sortingOrder rides
+            // along unchanged (BurstOrder) because that is the floor every depth row is built on — the
+            // per-card flat order below only decides depth for a recipe that has no Depth list at all.
             var ctx = new ChunkModuleContext(worldPos, container, directionDeg, spec, spec.ResolveLayers(),
                                              sortingOrder, runner, palette, animationOverride, owner,
-                                             sampleSourceOverride);
+                                             sampleSourceOverride, spec.ResolveDepthPlan(), sortingOrder);
 
             for (int i = 0; i < stack.Count; i++)
             {

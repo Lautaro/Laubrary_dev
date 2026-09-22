@@ -146,8 +146,8 @@ namespace Laubrary.Chunks.Editor
                     onChanged: EnvelopeChanged,
                     onBeforeMutate: () => EnvelopeUndo("Edit Alpha Over Life"))));
 
-            var slot = LayerSlotRow(c, () => cap.layerName, v => cap.layerName = v);
-            if (slot != null) body.Add(slot);
+            var depth = DepthHint(c, cap);
+            if (depth != null) body.Add(depth);
         }
 
         // ── the hit disc: WHICH patch of the art comes loose ─────────────────────────────────────────────────

@@ -33,8 +33,15 @@ namespace Laubrary.Chunks
         /// The recipe's layer stack. Never null — a recipe with no Layer Plan still gets an empty LayerSpec,
         /// whose resolver degrades every name to the flat order below.
         public readonly LayerSpec Layers;
-        /// The flat sortingOrder this capability falls back to when the stack has no slot for it. Carries the
-        /// capability's own position in the recipe, so an unslotted output draws in stack order.
+        /// The recipe's Depth list, or null when it has none. When it exists it decides the draw order of
+        /// everything the burst puts on screen, and the recipe's stack order stops affecting depth entirely.
+        public readonly LayerPlan Plan;
+        /// The BURST's own sortingOrder — the number the emitter was authored with, before any card's place in
+        /// the stack is added to it. It is the floor the Depth list builds its rows on, which is what keeps a
+        /// planned burst sitting where the emitter put it instead of dropping to 0 (T-0349 D3).
+        public readonly int BurstOrder;
+        /// The flat sortingOrder this capability falls back to when the recipe has no Depth list. Carries the
+        /// capability's own position in the recipe, so an unplanned output draws in stack order.
         public readonly int SortingOrder;
         /// A live MonoBehaviour on the burst container, for anything that needs coroutines or externally
         /// driven motion. Never null.
@@ -55,13 +62,16 @@ namespace Laubrary.Chunks
                                   LayerSpec layers, int sortingOrder, ChunkModuleRunner runner,
                                   System.Collections.Generic.IList<Color32> palette,
                                   IChunkAnimation animationOverride = null, Combatant owner = null,
-                                  Sprite sampleSourceOverride = null)
+                                  Sprite sampleSourceOverride = null,
+                                  LayerPlan plan = null, int? burstOrder = null)
         {
             Origin = origin;
             Container = container;
             DirectionDeg = directionDeg;
             Spec = spec;
             Layers = layers;
+            Plan = plan;
+            BurstOrder = burstOrder ?? sortingOrder;
             SortingOrder = sortingOrder;
             Runner = runner;
             Palette = palette;
@@ -74,33 +84,41 @@ namespace Laubrary.Chunks
         /// place in stack order without every capability having to know its index.
         public ChunkModuleContext WithSortingOrder(int sortingOrder)
             => new ChunkModuleContext(Origin, Container, DirectionDeg, Spec, Layers, sortingOrder, Runner,
-                                      Palette, AnimationOverride, Owner, SampleSourceOverride);
+                                      Palette, AnimationOverride, Owner, SampleSourceOverride, Plan, BurstOrder);
 
-        /// The concrete sortingOrder a capability should stamp on what it spawns: the named layer slot when
-        /// the stack declares one, else its own place in the recipe. This is the ONE place that decision is
-        /// made, so "a Layer Plan is optional" stays true without every capability re-implementing it.
-        public int OrderFor(string layerName, int offset = 0) => ResolveOrder(Layers, layerName, SortingOrder, offset);
+        /// The concrete sortingOrder a capability should stamp on what it spawns: its row in the recipe's
+        /// Depth list when there is one, else its own place in the recipe. This is the ONE place that decision
+        /// is made, so "a Depth list is optional" stays true without every capability re-implementing it.
+        ///
+        /// <paramref name="instance"/> addresses ONE piece/point of the capability (0-based), or -1 for "all
+        /// of it on one row". <paramref name="sub"/> sub-orders renderers that share a row and is confined to
+        /// that row's own gap.
+        public int OrderFor(ChunkCapability capability, int instance, int sub = 0)
+            => ResolveOrder(Plan, capability != null ? capability.id : null, instance, BurstOrder,
+                            SortingOrder, sub);
 
         /// The same decision as <see cref="OrderFor"/>, asked without a live burst. It exists because the
         /// editor preview has to answer "what is in front of what?" before anything has been spawned, and a
         /// preview that decided depth by its own rule would confidently show an order the burst then
-        /// contradicts. <paramref name="flatOrder"/> is what an unslotted output falls back to — the emitter's
+        /// contradicts. <paramref name="flatOrder"/> is what an unplanned output falls back to — the emitter's
         /// own sortingOrder plus the capability's place in the stack.
-        public static int ResolveOrder(LayerSpec layers, string layerName, int flatOrder, int offset = 0)
+        public static int ResolveOrder(LayerPlan plan, string capabilityId, int instance, int burstOrder,
+                                       int flatOrder, int sub = 0)
         {
-            if (layers != null && layers.Has(layerName)) return layers.OrderOf(layerName, offset);
-            return flatOrder + offset;
+            if (plan != null && plan.RowCount > 0)
+                return plan.OrderFor(capabilityId, instance, burstOrder, sub);
+            return flatOrder + sub;
         }
 
         /// Applies OrderFor plus the stack's sorting LAYER (when it names a real one) to a renderer. No-op for
         /// a null renderer, so a capability never has to null-check before calling.
-        public void ApplyOrder(Renderer renderer, string layerName, int offset = 0)
+        public void ApplyOrder(Renderer renderer, ChunkCapability capability, int instance, int sub = 0)
         {
             if (renderer == null) return;
             if (Layers != null && !string.IsNullOrEmpty(Layers.sortingLayerName)
                 && LayerSpec.IsValidSortingLayer(Layers.sortingLayerName))
                 renderer.sortingLayerName = Layers.sortingLayerName;
-            renderer.sortingOrder = OrderFor(layerName, offset);
+            renderer.sortingOrder = OrderFor(capability, instance, sub);
         }
     }
 }

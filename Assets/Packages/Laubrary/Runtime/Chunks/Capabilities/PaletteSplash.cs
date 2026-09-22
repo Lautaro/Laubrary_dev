@@ -62,11 +62,16 @@ namespace Laubrary.Chunks
     {
         public override string KindName => "Palette Splash";
 
-        [Tooltip("Which layer-stack slot the particles draw in. Empty leaves them out of the plan, " +
-                 "drawing in stack order in FRONT of every slotted output.")]
-        public string layerName = "";
+        // LEGACY (T-0403): the named depth slot this used to pick. Read once, by LayerPlan.MigrateRows, and
+        // never written again — depth is authored in the recipe's Depth list now.
+        [HideInInspector] public string layerName = "";
 
         public override string LayerName => layerName;
+
+        public override bool DrawsOutput => true;
+
+        // DepthInstanceCount stays 1: a splash's particles NEVER split across the depth stack (owner's answer
+        // to T-0365 Q4). Their count varies per burst and "particle 7" addresses nothing anyone can see.
 
         [Tooltip("Animated content to sample colours AND the emission footprint from — a Zoe, a Pyre, anything " +
                  "that can hand over frames. Its FIRST frame is what gets sampled. Outranks the plain sprite " +
@@ -655,7 +660,9 @@ namespace Laubrary.Chunks
                 var sr = go.AddComponent<SpriteRenderer>();
                 sr.sprite = shape;
                 sr.color = color;
-                ctx.ApplyOrder(sr, LayerName, i);
+                // -1: one row for the whole card. The particle index only sub-orders the specks inside that
+                // one row's own gap, exactly as it did inside a named slot's band.
+                ctx.ApplyOrder(sr, this, -1, i);
 
                 // The runner drives POSITION only — the shared contract, so Chunks never bolts a component
                 // onto anything it does not own. It deliberately never fades or destroys its targets (wrong

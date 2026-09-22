@@ -140,6 +140,11 @@ namespace Laubrary.Chunks
 
         static readonly LayerSpec EmptyLayers = new LayerSpec();
 
+        /// The recipe's Depth list, or null when it has none — in which case every producer draws in stack
+        /// order, exactly as it did before depth was authorable. The ONE place that question is asked, so the
+        /// runtime and the editor preview can never disagree about whether a recipe is planned.
+        public LayerPlan ResolveDepthPlan() => FirstEnabled<LayerPlan>();
+
         /// Seconds from start to the moment the last thing this recipe produces is gone.
         public float ClockLength => ChunkClock.Length(this);
 
@@ -164,8 +169,11 @@ namespace Laubrary.Chunks
             capabilities ??= new List<ChunkCapability>();
             if (schemaVersion >= CurrentSchemaVersion)
             {
+                // Ids first: the Depth rows address capabilities BY id, so a recipe whose capabilities have
+                // none yet would migrate into a list of rows pointing at empty strings.
                 bool changed = EnsureIds();
                 changed |= MigrateCapabilityCurves();
+                changed |= MigrateDepthRows();
                 if (!changed) return false;
                 _upgradedInMemory = true;
                 return true;
@@ -179,6 +187,7 @@ namespace Laubrary.Chunks
                 schemaVersion = CurrentSchemaVersion;
                 EnsureIds();
                 MigrateCapabilityCurves();
+                MigrateDepthRows();
                 _upgradedInMemory = true;
                 return true;
             }
@@ -230,8 +239,25 @@ namespace Laubrary.Chunks
             schemaVersion = CurrentSchemaVersion;
             EnsureIds();
             MigrateCapabilityCurves();
+            MigrateDepthRows();
             _upgradedInMemory = true;
             return true;
+        }
+
+        /// Turns a Layer Plan's old named slots into Depth rows, once, reproducing the order the recipe
+        /// already drew in (T-0403). Guarded by the plan's own flag, so it costs one bool read once migrated
+        /// and needs no schema-version bump. True when it actually changed something.
+        ///
+        /// It runs on LOAD, in memory, like every other upgrade here — so a build and a play session behave
+        /// correctly whether or not the asset on disk has been re-saved, and the editor's own save pass then
+        /// pays it once rather than on every load forever.
+        bool MigrateDepthRows()
+        {
+            if (capabilities == null) return false;
+            bool changed = false;
+            for (int i = 0; i < capabilities.Count; i++)
+                if (capabilities[i] is LayerPlan plan && plan.MigrateRows(capabilities)) changed = true;
+            return changed;
         }
 
         /// Called once the upgraded form has actually been written to disk.

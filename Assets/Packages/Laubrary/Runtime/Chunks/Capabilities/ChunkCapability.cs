@@ -51,8 +51,23 @@ namespace Laubrary.Chunks
         /// the only place that rule lives.
         public virtual float DurationSeconds(ChunkSpec spec) => 0f;
 
-        /// Which named slot of the recipe's Layer Plan this draws in, or null when it draws nothing.
+        /// Which named slot of the recipe's old Layer Plan this drew in. LEGACY: read once, by
+        /// <see cref="LayerPlan.MigrateRows"/>, to reproduce an existing recipe's order as Depth rows. Depth
+        /// is authored in the Depth list now and nothing writes this again.
         public virtual string LayerName => null;
+
+        /// Whether this capability puts renderers on screen — the producers (debris, fragments, particles,
+        /// blasts), and nothing else. It is what decides which capabilities get a row in the recipe's Depth
+        /// list: a coordinator draws nothing and a modifier draws through the producer it decorates, so
+        /// neither has a depth of its own to author.
+        public virtual bool DrawsOutput => false;
+
+        /// How many separately addressable things one fire of this capability draws — the pieces a fracture
+        /// cuts, the points a pattern places. <b>1 means it cannot be split</b> across the Depth list, which is
+        /// the honest answer for output whose count varies per burst and whose individual members have no
+        /// identity worth naming (a splash's particles, a scatter's debris: "particle 7" means nothing, and
+        /// the owner's own answer to T-0365 Q4 was that particles never split).
+        public virtual int DepthInstanceCount => 1;
 
         /// Do the thing, once, at this capability's moment. Empty by default because coordinators and
         /// modifiers legitimately fire nothing.

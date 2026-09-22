@@ -21,6 +21,14 @@ namespace Laubrary.Chunks
 
         public override string LayerName => layerName;
 
+        public override bool DrawsOutput => true;
+
+        /// One addressable piece per cut piece, numbered CLOCKWISE FROM 12 O'CLOCK by where it sat in the
+        /// picture (owner's answer to T-0365 Q3) — see FragmentCutter, which sorts them that way so "piece 1"
+        /// means "the piece that was at the top" even when a different live frame is cut.
+        public override int DepthInstanceCount
+            => Mathf.Clamp(pieceCount, FragmentCutter.MinPieces, FragmentCutter.MaxPieces);
+
         // ── what gets cut ─────────────────────────────────────────────────────────
         [Tooltip("Animated content to fracture — a Zoe, a Pyre, anything that can hand over frames. Its FIRST " +
                  "frame is the picture that gets cut, so a character comes apart in the pose it was in. Ignored " +
@@ -208,8 +216,10 @@ namespace Laubrary.Chunks
 
                 var sr = go.AddComponent<SpriteRenderer>();
                 sr.sprite = sprite;
-                // The per-piece offset is what lets several fragments sub-order inside one named slot.
-                ctx.ApplyOrder(sr, layerName, i);
+                // The piece number is BOTH halves of the depth question: it addresses this piece's own row in
+                // the Depth list when the card is split, and it sub-orders the pieces inside one row when it
+                // is not. Pieces arrive clockwise from 12 o'clock, so piece 0 is the one that was at the top.
+                ctx.ApplyOrder(sr, this, i, i);
 
                 hits?.Attach(go, sprite.bounds.size.magnitude * 0.5f, ctx.Owner);
 

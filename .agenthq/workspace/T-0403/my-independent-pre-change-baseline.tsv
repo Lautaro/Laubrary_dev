@@ -1,0 +1,160 @@
+SPEC	Assets/Demos/ArenaDemo/ArenaDebris.asset	plan=0	slots=0
+  CARD	0	Debris Scatter	Debris Scatter	on	slot=
+    ORD	500	501	502	503	504	505	506	507	508	509	510	511	512	513	514	515
+SPEC	Assets/Demos/ChunksDemo/Floating Disc Blowup.asset	plan=1	slots=2
+  CARD	0	Layer Plan	Layer Plan	on	slot=
+  CARD	1	Fragment Fracture	Fragment Fracture	on	slot=Fragments
+    ORD	10	11	12	13	14	15	16	17	18	19	19	19	19	19	19	19
+  CARD	2	Palette Splash	Palette Splash	on	slot=Splash
+    ORD	0	1	2	3	4	5	6	7	8	9	9	9	9	9	9	9
+SPEC	Assets/Demos/ChunksDemo/Ring Blast.asset	plan=0	slots=0
+  CARD	0	Pyre Blast	Pyre Blast	on	slot=
+    ORD	500	501	502	503	504	505	506	507	508	509	510	511	512	513	514	515
+  CARD	1	Fling	Fling	on	slot=
+  CARD	2	Cues	Cues	on	slot=
+    ORD	628	629	630	631	632	633	634	635	636	637	638	639	640	641	642	643
+SPEC	Assets/Demos/ChunksDemo/SampledDebris.asset	plan=0	slots=0
+  CARD	0	Debris Scatter	Debris Scatter	on	slot=
+    ORD	500	501	502	503	504	505	506	507	508	509	510	511	512	513	514	515
+SPEC	Assets/Demos/ChunksDemo/Sparks.asset	plan=0	slots=0
+  CARD	0	Debris Scatter	Debris Scatter	on	slot=
+    ORD	500	501	502	503	504	505	506	507	508	509	510	511	512	513	514	515
+SPEC	Assets/Demos/ChunksDemo/UseCases/Scratch/V Debris Mods.asset	plan=0	slots=0
+  CARD	0	Debris Scatter	Debris Scatter	on	slot=
+    ORD	500	501	502	503	504	505	506	507	508	509	510	511	512	513	514	515
+  CARD	1	Debris Scatter	Debris Scatter	on	slot=
+    ORD	564	565	566	567	568	569	570	571	572	573	574	575	576	577	578	579
+SPEC	Assets/Demos/ChunksDemo/UseCases/Scratch/V Fling.asset	plan=0	slots=0
+  CARD	0	Pyre Blast	Pyre Blast	on	slot=
+    ORD	500	501	502	503	504	505	506	507	508	509	510	511	512	513	514	515
+  CARD	1	Fling	Fling	on	slot=
+SPEC	Assets/Demos/ChunksDemo/UseCases/Scratch/V Name Row.asset	plan=0	slots=0
+  CARD	0	Pyre Blast	Pyre Blast	on	slot=
+    ORD	500	501	502	503	504	505	506	507	508	509	510	511	512	513	514	515
+  CARD	1	Pyre Blast	Pyre Blast	on	slot=
+    ORD	564	565	566	567	568	569	570	571	572	573	574	575	576	577	578	579
+SPEC	Assets/Demos/ChunksDemo/UseCases/Scratch/V2 Flung Pyres.asset	plan=0	slots=0
+  CARD	0	Pyre Blast	Six blasts	on	slot=
+    ORD	500	501	502	503	504	505	506	507	508	509	510	511	512	513	514	515
+  CARD	1	Fling	Fling	on	slot=
+SPEC	Assets/Demos/ChunksDemo/UseCases/Scratch/V3 Timed Sequence.asset	plan=0	slots=0
+  CARD	0	Pyre Blast	B	on	slot=
+    ORD	500	501	502	503	504	505	506	507	508	509	510	511	512	513	514	515
+  CARD	1	Pyre Blast	A	on	slot=
+    ORD	564	565	566	567	568	569	570	571	572	573	574	575	576	577	578	579
+SPEC	Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 1.asset	plan=1	slots=4
+  CARD	0	Layer Plan	Layer Plan	on	slot=
+  CARD	1	Pyre Blast	Big pyre	on	slot=Big pyre
+    ORD	0	1	2	3	4	5	6	7	8	9	9	9	9	9	9	9
+  CARD	2	Fragment Fracture	Disc pieces	on	slot=Fragments
+    ORD	10	11	12	13	14	15	16	17	18	19	19	19	19	19	19	19
+  CARD	3	Palette Splash	Particles up	on	slot=Particles
+    ORD	30	31	32	33	34	35	36	37	38	39	39	39	39	39	39	39
+  CARD	4	Palette Splash	Particles down	on	slot=Particles
+    ORD	30	31	32	33	34	35	36	37	38	39	39	39	39	39	39	39
+  CARD	5	Pyre Blast	Small pyres	on	slot=Small pyres
+    ORD	20	21	22	23	24	25	26	27	28	29	29	29	29	29	29	29
+SPEC	Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks 2.asset	plan=1	slots=4
+  CARD	0	Layer Plan	Layer Plan	on	slot=
+  CARD	1	Pyre Blast	Big pyre	on	slot=Big pyre
+    ORD	0	1	2	3	4	5	6	7	8	9	9	9	9	9	9	9
+  CARD	2	Fragment Fracture	Disc pieces	on	slot=Fragments
+    ORD	10	11	12	13	14	15	16	17	18	19	19	19	19	19	19	19
+  CARD	3	Palette Splash	Particles up	on	slot=Particles
+    ORD	30	31	32	33	34	35	36	37	38	39	39	39	39	39	39	39
+  CARD	4	Palette Splash	Particles down	on	slot=Particles
+    ORD	30	31	32	33	34	35	36	37	38	39	39	39	39	39	39	39
+  CARD	5	Pyre Blast	Small pyres	on	slot=Small pyres
+    ORD	20	21	22	23	24	25	26	27	28	29	29	29	29	29	29	29
+SPEC	Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B — Chunks.asset	plan=1	slots=4
+  CARD	0	Layer Plan	Layer Plan	on	slot=
+  CARD	1	Pyre Blast	Big pyre	on	slot=Big pyre
+    ORD	0	1	2	3	4	5	6	7	8	9	9	9	9	9	9	9
+  CARD	2	Fragment Fracture	Disc pieces	on	slot=Fragments
+    ORD	10	11	12	13	14	15	16	17	18	19	19	19	19	19	19	19
+  CARD	3	Palette Splash	Particles up	on	slot=Particles
+    ORD	30	31	32	33	34	35	36	37	38	39	39	39	39	39	39	39
+  CARD	4	Palette Splash	Particles down	on	slot=Particles
+    ORD	30	31	32	33	34	35	36	37	38	39	39	39	39	39	39	39
+  CARD	5	Pyre Blast	Small pyres	on	slot=Small pyres
+    ORD	20	21	22	23	24	25	26	27	28	29	29	29	29	29	29	29
+SPEC	Assets/Demos/ChunksDemo/UseCases/Scratch/W Disc Zoe B.asset	plan=1	slots=2
+  CARD	0	Layer Plan	Layer Plan	on	slot=
+  CARD	1	Fragment Fracture	Fragment Fracture	on	slot=Fragments
+    ORD	10	11	12	13	14	15	16	17	18	19	19	19	19	19	19	19
+  CARD	2	Palette Splash	Palette Splash	on	slot=Splash
+    ORD	0	1	2	3	4	5	6	7	8	9	9	9	9	9	9	9
+SPEC	Assets/Demos/ChunksDemo/UseCases/Scratch/W Fracture.asset	plan=0	slots=0
+  CARD	0	Fragment Fracture	Disc pieces	on	slot=
+    ORD	500	501	502	503	504	505	506	507	508	509	510	511	512	513	514	515
+SPEC	Assets/Demos/ChunksDemo/UseCases/Scratch/W Preview.asset	plan=0	slots=0
+  CARD	0	Pyre Blast	Pyre Blast	on	slot=
+    ORD	500	501	502	503	504	505	506	507	508	509	510	511	512	513	514	515
+  CARD	1	Pyre Blast	Pyre Blast	on	slot=
+    ORD	564	565	566	567	568	569	570	571	572	573	574	575	576	577	578	579
+SPEC	Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash Live.asset	plan=0	slots=0
+  CARD	0	Palette Splash	Disc spray	on	slot=
+    ORD	500	501	502	503	504	505	506	507	508	509	510	511	512	513	514	515
+SPEC	Assets/Demos/ChunksDemo/UseCases/Scratch/W Splash.asset	plan=0	slots=0
+  CARD	0	Palette Splash	Disc spray	on	slot=
+    ORD	500	501	502	503	504	505	506	507	508	509	510	511	512	513	514	515
+SPEC	Assets/Demos/ChunksDemo/UseCases/UC Disc Enemy B.asset	plan=1	slots=2
+  CARD	0	Layer Plan	Layer Plan	on	slot=
+  CARD	1	Fragment Fracture	Fragment Fracture	on	slot=Fragments
+    ORD	10	11	12	13	14	15	16	17	18	19	19	19	19	19	19	19
+  CARD	2	Palette Splash	Palette Splash	on	slot=Splash
+    ORD	0	1	2	3	4	5	6	7	8	9	9	9	9	9	9	9
+SPEC	Assets/Demos/ChunksDemo/UseCases/UC Floating Disc (walk copy).asset	plan=1	slots=2
+  CARD	0	Layer Plan	Layer Plan	on	slot=
+  CARD	1	Fragment Fracture	Fragment Fracture	on	slot=Fragments
+    ORD	10	11	12	13	14	15	16	17	18	19	19	19	19	19	19	19
+  CARD	2	Palette Splash	Palette Splash	on	slot=Splash
+    ORD	0	1	2	3	4	5	6	7	8	9	9	9	9	9	9	9
+SPEC	Assets/Demos/ChunksDemo/UseCases/UC1 Several Pyres.asset	plan=0	slots=0
+  CARD	0	Pyre Blast	Small	on	slot=
+    ORD	500	501	502	503	504	505	506	507	508	509	510	511	512	513	514	515
+  CARD	1	Pyre Blast	Left	on	slot=
+    ORD	564	565	566	567	568	569	570	571	572	573	574	575	576	577	578	579
+SPEC	Assets/Demos/ChunksDemo/UseCases/UC2 Flung Pyres.asset	plan=0	slots=0
+  CARD	0	Pyre Blast	Six blasts	on	slot=
+    ORD	500	501	502	503	504	505	506	507	508	509	510	511	512	513	514	515
+  CARD	1	Fling	Fling	on	slot=
+SPEC	Assets/Demos/ChunksDemo/UseCases/UC3 Timed Sequence.asset	plan=0	slots=0
+  CARD	0	Pyre Blast	A	on	slot=
+    ORD	500	501	502	503	504	505	506	507	508	509	510	511	512	513	514	515
+  CARD	1	Pyre Blast	B	on	slot=
+    ORD	564	565	566	567	568	569	570	571	572	573	574	575	576	577	578	579
+  CARD	2	Pyre Blast	D	on	slot=
+    ORD	628	629	630	631	632	633	634	635	636	637	638	639	640	641	642	643
+  CARD	3	Pyre Blast	C	on	slot=
+    ORD	692	693	694	695	696	697	698	699	700	701	702	703	704	705	706	707
+SPEC	Assets/Demos/ChunksDemo/UseCases/UC4 Zoe Spray.asset	plan=0	slots=0
+  CARD	0	Palette Splash	Disc spray	on	slot=
+    ORD	500	501	502	503	504	505	506	507	508	509	510	511	512	513	514	515
+SPEC	Assets/Demos/ChunksDemo/UseCases/UC5 Disc Fracture.asset	plan=0	slots=0
+  CARD	0	Fragment Fracture	Disc pieces	on	slot=
+    ORD	500	501	502	503	504	505	506	507	508	509	510	511	512	513	514	515
+SPEC	Assets/Demos/ChunksDemo/UseCases/UC6 Disc Breakup.asset	plan=1	slots=4
+  CARD	0	Layer Plan	Layer Plan	on	slot=
+  CARD	1	Pyre Blast	Big pyre	on	slot=Big pyre
+    ORD	0	1	2	3	4	5	6	7	8	9	9	9	9	9	9	9
+  CARD	2	Fragment Fracture	Disc pieces	on	slot=Fragments
+    ORD	10	11	12	13	14	15	16	17	18	19	19	19	19	19	19	19
+  CARD	3	Palette Splash	Particles up	on	slot=Particles
+    ORD	30	31	32	33	34	35	36	37	38	39	39	39	39	39	39	39
+  CARD	4	Palette Splash	Particles down	on	slot=Particles
+    ORD	30	31	32	33	34	35	36	37	38	39	39	39	39	39	39	39
+  CARD	5	Pyre Blast	Small pyres	on	slot=Small pyres
+    ORD	20	21	22	23	24	25	26	27	28	29	29	29	29	29	29	29
+SPEC	Assets/Demos/ChunksDemo/UseCases/UC7 Bullet Hole.asset	plan=0	slots=0
+  CARD	0	Palette Splash	Bullet hole	on	slot=
+    ORD	500	501	502	503	504	505	506	507	508	509	510	511	512	513	514	515
+SPEC	Assets/Demos/ColosseumDemo/Debris.asset	plan=0	slots=0
+  CARD	0	Debris Scatter	Debris Scatter	on	slot=
+    ORD	500	501	502	503	504	505	506	507	508	509	510	511	512	513	514	515
+SPEC	Assets/Zoetrope/Floating Disc.asset	plan=0	slots=0
+  CARD	0	Debris Scatter	Debris Scatter	on	slot=
+    ORD	500	501	502	503	504	505	506	507	508	509	510	511	512	513	514	515
+SPEC	Assets/_T0075_Probe/ProbeChunk.asset	plan=0	slots=0
+  CARD	0	Debris Scatter	Debris Scatter	on	slot=
+    ORD	500	501	502	503	504	505	506	507	508	509	510	511	512	513	514	515

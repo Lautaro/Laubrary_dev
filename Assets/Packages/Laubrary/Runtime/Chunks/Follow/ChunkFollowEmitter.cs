@@ -349,7 +349,8 @@ namespace Laubrary.Chunks
         /// module in one place.
         ChunkModuleContext BuildContext(Vector3 pos, float dirDeg)
             => new ChunkModuleContext(pos, _container, dirDeg, spec, spec.ResolveLayers(), sortingOrder,
-                                      _runner, _palette);
+                                      _runner, _palette, null, null, null,
+                                      spec != null ? spec.ResolveDepthPlan() : null, sortingOrder);
 
 #if UNITY_EDITOR
         /// The aim is the single most likely thing to LOOK broken (a spray pointing the wrong way reads as a
