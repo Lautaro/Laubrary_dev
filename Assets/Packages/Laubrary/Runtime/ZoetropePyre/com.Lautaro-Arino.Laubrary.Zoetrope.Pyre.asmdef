@@ -4,7 +4,8 @@
     "references": [
         "com.Lautaro-Arino.Laubrary.Zoetrope",
         "com.Lautaro-Arino.Laubrary.Pyre",
-        "com.Lautaro-Arino.Laubrary.Chunks"
+        "com.Lautaro-Arino.Laubrary.Chunks",
+        "com.Lautaro-Arino.Laubrary.SpriteFx"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
