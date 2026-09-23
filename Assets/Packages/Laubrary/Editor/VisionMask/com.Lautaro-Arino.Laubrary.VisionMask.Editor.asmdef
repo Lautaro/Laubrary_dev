@@ -1,0 +1,18 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.VisionMask.Editor",
+    "rootNamespace": "Laubrary.VisionMask.Editor",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.VisionMask"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
