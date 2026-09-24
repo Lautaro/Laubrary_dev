@@ -51,6 +51,93 @@ namespace Laubrary.Randomizers
             return list[index];
         }
 
+        /// <summary>
+        /// Selects a random item from a collection using the caller's own <see cref="System.Random"/> stream.
+        /// Use this overload (instead of the unseeded one above) whenever a consumer needs deterministic,
+        /// reproducible results from its own seeded stream — e.g. one <see cref="System.Random"/> per module
+        /// derived from a shared run seed. The unseeded overloads remain for casual, non-deterministic use.
+        /// </summary>
+        /// <returns>A uniformly random item, or <c>default</c> if the collection is empty.</returns>
+        public static T GetRandomItem<T>(this IList<T> collection, System.Random rng)
+        {
+            if (collection == null) throw new ArgumentNullException(nameof(collection));
+            if (rng == null) throw new ArgumentNullException(nameof(rng));
+            if (collection.Count == 0) return default;
+
+            int index = rng.Next(collection.Count);
+            return collection[index];
+        }
+
+        /// <summary>
+        /// Rolls a weighted index using the caller's own <see cref="System.Random"/> stream, so the result is
+        /// reproducible from a seed instead of drawing from the global/unseeded random state. Weights &lt;= 0
+        /// can never win. Rolls <c>rng.NextDouble() * total</c> and walks the weights to find where it lands.
+        /// </summary>
+        /// <returns>The chosen index, or -1 if the total weight is &lt;= 0 (nothing can win).</returns>
+        public static int PickWeightedIndex(IReadOnlyList<float> weights, System.Random rng)
+        {
+            if (weights == null) throw new ArgumentNullException(nameof(weights));
+            if (rng == null) throw new ArgumentNullException(nameof(rng));
+
+            float total = 0f;
+            for (int i = 0; i < weights.Count; i++)
+            {
+                if (weights[i] > 0f) total += weights[i];
+            }
+
+            if (total <= 0f) return -1;
+
+            double roll = rng.NextDouble() * total;
+            double cumulative = 0d;
+            for (int i = 0; i < weights.Count; i++)
+            {
+                if (weights[i] <= 0f) continue;
+                cumulative += weights[i];
+                if (roll < cumulative) return i;
+            }
+
+            return -1;
+        }
+
+        /// <summary>
+        /// Selects a weighted item using the caller's own <see cref="System.Random"/> stream. Built on
+        /// <see cref="PickWeightedIndex"/> so the same deterministic-per-seed guarantee applies.
+        /// </summary>
+        /// <returns>The chosen item, or <c>default</c> if nothing can win (all weights &lt;= 0 or the list is empty).</returns>
+        public static T PickWeighted<T>(IReadOnlyList<T> items, System.Func<T, float> weightOf, System.Random rng)
+        {
+            if (items == null) throw new ArgumentNullException(nameof(items));
+            if (weightOf == null) throw new ArgumentNullException(nameof(weightOf));
+            if (rng == null) throw new ArgumentNullException(nameof(rng));
+
+            var weights = new List<float>(items.Count);
+            for (int i = 0; i < items.Count; i++)
+            {
+                weights.Add(weightOf(items[i]));
+            }
+
+            int index = PickWeightedIndex(weights, rng);
+            return index < 0 ? default : items[index];
+        }
+
+        /// <summary>
+        /// In-place Fisher-Yates shuffle using the caller's own <see cref="System.Random"/> stream, so the
+        /// result is reproducible from a seed instead of Unity's global random state. Exact convention (state
+        /// this precisely — a caller replacing a hand-rolled shuffle needs a byte-identical sequence): walks
+        /// i from <c>list.Count - 1</c> down to 1, swapping <c>list[i]</c> with <c>list[rng.Next(i + 1)]</c>.
+        /// </summary>
+        public static void Shuffle<T>(this IList<T> list, System.Random rng)
+        {
+            if (list == null) throw new ArgumentNullException(nameof(list));
+            if (rng == null) throw new ArgumentNullException(nameof(rng));
+
+            for (int i = list.Count - 1; i > 0; i--)
+            {
+                int j = rng.Next(i + 1);
+                (list[i], list[j]) = (list[j], list[i]);
+            }
+        }
+
 
         /// <param name="vignette">Value 0-1f. Removes space for the possible random position starting from the border.  </param>
         /// <returns></returns>

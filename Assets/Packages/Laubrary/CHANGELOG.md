@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Randomizers — seed-taking overloads so a consumer's own deterministic stream can use the tool
+
+- **`GetRandomItem<T>(this IList<T>, System.Random rng)`, `PickWeightedIndex`/`PickWeighted(..., System.Random rng)`, `Shuffle<T>(this IList<T>, System.Random rng)`.** Every existing method built its own unseeded `new System.Random()` or drew from `UnityEngine.Random`'s global state, so nothing in the tool could be used by a consumer that needs reproducible results from its own per-module seeded stream. These new overloads take the caller's `rng` instead; the unseeded ones are unchanged and remain for casual use.
+- Motivated by OutBurner's `LootTable.Roll` and `AisleGateBehaviour`'s shuffle, both of which self-flagged as candidates for this while hand-rolling their own seeded logic in the meantime.
+
 ### VisionMask — new tool: per-PIXEL vision cones (a sprite half in the light is half drawn)
 
 - **What it is.** `Runtime/VisionMask/`: `VisionCone` (an eye: angle, range, omni "body glow" disc, optional occluder layers), `VisionMask` (publishes up to 8 live cones as global shader parameters right before each camera renders, on the XY or XZ plane), `VisionMasked` (puts every stock-material sprite of a rig on the shared mask material, now and as the rig grows renderers; restores on disable) and `Resources/VisionMaskSprite.shader` + `VisionMask.hlsl` — the fragment shader tests **each pixel's own world position** against the cones and draws it or not. A sprite straddling a cone edge, a range arc or a wall's shadow is cut along that exact line. Nothing anywhere decides visibility per object.
