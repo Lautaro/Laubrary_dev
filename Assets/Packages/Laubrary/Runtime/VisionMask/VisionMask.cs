@@ -179,7 +179,7 @@ namespace Laubrary.VisionMask
                 if (r2 <= b[i].z * b[i].z) return true;
                 if (r2 > b[i].y * b[i].y || r2 <= 1e-10f) continue;
                 var dir = d / Mathf.Sqrt(r2);
-                if (Vector2.Dot(dir, f) < b[i].x) continue;
+                if (b[i].w < 3.14159f && Vector2.Dot(dir, f) < b[i].x) continue;   // 360°: no angle limit (see VisionMask.hlsl)
                 if (c[i].x < 0.5f) return true;
                 float ang = Mathf.Atan2(f.x * dir.y - f.y * dir.x, Vector2.Dot(f, dir));
                 float u = (ang / Mathf.Max(b[i].w, 1e-6f) + 1f) * 0.5f;

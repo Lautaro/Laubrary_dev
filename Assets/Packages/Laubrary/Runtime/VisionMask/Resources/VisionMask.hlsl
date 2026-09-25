@@ -39,7 +39,10 @@ bool VisionMaskInCone(int i, float2 p)
 
     float2 dir = d * rsqrt(r2);
     float2 f = a.zw;
-    if (dot(dir, f) < b.x) return false;          // outside the cone's angle
+    // Outside the cone's angle. A full 360° cone (half angle π) has no angle limit at all: comparing against
+    // cos(π) = -1 would let rounding (dot = -1.0000001) reject the pixels lying exactly behind its facing — a
+    // one-pixel straight cut through a round light. So the test is skipped outright for it.
+    if (b.w < 3.14159 && dot(dir, f) < b.x) return false;
 
     float4 c = _VisionMaskC[i];
     if (c.x < 0.5) return true;                   // no occlusion: inside angle + range is enough
