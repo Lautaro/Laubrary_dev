@@ -18,6 +18,7 @@ namespace Laubrary.Zounds {
         float parentVolume { get; set; }
         int playedEntryIndex { get; }
         bool isRealtime { get; }
+        System.Action onPlayStarted { get; set; }
         List<AudioSource> GetAudioSources();
         void Init();
         bool IsMutedOrExcluded();
@@ -34,6 +35,8 @@ namespace Laubrary.Zounds {
         /// <param name="deltaDspTime"></param>
         /// <returns>Continue, Kill, or Pause.</returns>
         ZoundUpdateResult OnUpdate(float deltaDspTime);
+        void SetToken(ZoundToken token);
+        int dspParentGroup { get; set; }
     }
 
     internal class ZoundHandler<TZound> : IZoundHandler where TZound : Zound {
@@ -64,6 +67,7 @@ namespace Laubrary.Zounds {
 
         public float parentVolume { get; set; } = 1f;
         public virtual bool isRealtime => false;
+        public System.Action onPlayStarted { get; set; }
 
         public virtual List<AudioSource> GetAudioSources() { return new List<AudioSource> { m_audioSource }; }
 
@@ -102,6 +106,11 @@ namespace Laubrary.Zounds {
             parentVolume = 1f;
         }
 
+        /// <summary>Grows the resolved duration (never shrinks it): a repeat train whose real length turned out longer than estimated.</summary>
+        protected void ExtendDuration(float newDuration) {
+            if (newDuration > m_totalDuration) m_totalDuration = newDuration;
+        }
+
         public virtual void ApplyMixerGroupToChildren(AudioMixerGroup mixerGroup) {
             audioSource.outputAudioMixerGroup = mixerGroup;
         }
@@ -137,6 +146,12 @@ namespace Laubrary.Zounds {
                 fadeState = FadeState.None;
             }
         }
+
+        /// <summary>The token that owns this handler; set before Init so voices can be registered to it.</summary>
+        public virtual void SetToken(ZoundToken token) { }
+
+        /// <summary>The DSP group node this zound's output sums into (-1 = the bus). Set by the parent Zequence before Start.</summary>
+        public int dspParentGroup { get; set; } = -1;
 
         public virtual void OnPause() {
             isPaused = true;
@@ -191,28 +206,30 @@ namespace Laubrary.Zounds {
             if (!m_isDelayFinished) {
                 if (fadeState == FadeState.FadingOut && killOnFadeOut) return ZoundUpdateResult.Kill;
 
-                if (delayTimer >= args.delay - Mathf.Epsilon) {
-                    float timeStartOffset = Mathf.Max(0, delayTimer - args.delay);
-                    float childFadeDuration;
-                    if (fadeState == FadeState.FadingIn) childFadeDuration = fadeDuration;
-                    else childFadeDuration = 0f;
-                    OnPlayReady(timeStartOffset, childFadeDuration);
-                    m_isDelayFinished = true;
-
-                    if (!args.ignoreCooldown) {
-                        if (ZoundEngine.IsCoolingDownAtTime(zound, Time.realtimeSinceStartup)) {
-                            OnKill();
-                            return ZoundUpdateResult.Kill;
-                        }
-                        ZoundEngine.RecordLastPlayedTime(zound);
-                    }
-
-                }
-                else {
+                if (delayTimer < args.delay - Mathf.Epsilon) {
                     delayTimer += deltaDspTime;
                     if (delayTimer > args.delay) delayTimer = args.delay;
-                    return ZoundUpdateResult.Continue;
+                    if (delayTimer < args.delay - Mathf.Epsilon) return ZoundUpdateResult.Continue;
+
+                    // Delay ran out mid-update: begin playback now instead of waiting for the next update,
+                    // and don't count the time already spent on the delay towards playback.
+                    deltaDspTime = 0f;
                 }
+
+                m_isDelayFinished = true;
+
+                // Refused before anything plays, so a refused Zequence never starts (and never puts in cooldown) its children.
+                if (!args.ignoreCooldown) {
+                    if (ZoundEngine.IsCoolingDownAtTime(zound, Time.realtimeSinceStartup)) {
+                        OnKill();
+                        return ZoundUpdateResult.Kill;
+                    }
+                    ZoundEngine.RecordLastPlayedTime(zound);
+                }
+
+                float timeStartOffset = Mathf.Max(0, delayTimer - args.delay);
+                float childFadeDuration = fadeState == FadeState.FadingIn ? fadeDuration : 0f;
+                OnPlayReady(timeStartOffset, childFadeDuration);
             }
 
             return OnPlayUpdate(deltaDspTime);
@@ -330,6 +347,7 @@ namespace Laubrary.Zounds {
 
             if (m_audioSource.gameObject.activeInHierarchy && m_audioSource.enabled) {
                 m_audioSource.Play();
+                onPlayStarted?.Invoke();
             }
             else {
                 Debug.LogWarning($"[Zounds] Could not play AudioSource for {zound.name}. GameObject active: {m_audioSource.gameObject.activeInHierarchy}, Component enabled: {m_audioSource.enabled}");

@@ -142,7 +142,16 @@ namespace Laubrary.Zounds {
                 Init();
             }
             if (targetZoundID == 0) {
-                Close(); 
+                Close();
+                return;
+            }
+
+            // The target lives in the library, which can be reloaded or lose this zound while the
+            // window is open; resolve it fresh rather than drawing against a stale or missing object.
+            targetZound = FindZoundTarget();
+            if (targetZound == null) {
+                EditorGUILayout.LabelField(typeof(TZound).Name + " no longer exists in the project.");
+                if (GUILayout.Button("Close")) Close();
                 return;
             }
 

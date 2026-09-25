@@ -407,6 +407,7 @@ namespace Laubrary.Zounds {
                     if (referencedZound is Klip referencedKlip) {
                         var duplicatedKlip = new Klip(ZoundLibrary.GetUniqueZoundId(), referencedKlip);
                         duplicatedKlip.parentId = parentZound.id;
+                        duplicatedKlip.tags.Clear();
                         duplicated.zoundId = duplicatedKlip.id;
                         parentZound.localKlips.Add(duplicatedKlip);
 
@@ -423,6 +424,7 @@ namespace Laubrary.Zounds {
                     else if (referencedZound is Zequence referencedZequence) {
                         var duplicatedZequence = new Zequence(ZoundLibrary.GetUniqueZoundId(), referencedZequence);
                         duplicatedZequence.parentId = parentZound.id;
+                        duplicatedZequence.tags.Clear();
                         duplicated.zoundId = duplicatedZequence.id;
                         parentZound.localZequences.Add(new CompositeZound.LocalZequence(duplicatedZequence));
                     }
@@ -520,6 +522,8 @@ namespace Laubrary.Zounds {
         private static void BreakEntryAsLocal(CompositeZound parentZound, CompositeZound.ZoundEntry entryToConvert, Zound zoundToConvert, Zound convertedZound) {
             convertedZound.originalId = zoundToConvert.id;
             convertedZound.parentId = parentZound.id;
+            // Tags describe a zound to the rest of the project; a local copy is known only to its parent.
+            convertedZound.tags.Clear();
 
             if (entryToConvert.overrideVolume) {
                 convertedZound.minVolume = entryToConvert.volume;

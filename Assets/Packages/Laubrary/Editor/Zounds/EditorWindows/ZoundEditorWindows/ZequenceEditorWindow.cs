@@ -218,7 +218,7 @@ namespace Laubrary.Zounds {
             });
 
             var token = ZoundEngine.PlayZound(targetZound, new ZoundArgs() {
-                startImmediately = true,
+                startImmediately = false,
                 delay = 0f,
                 volumeOverride = 1f,
                 pitchOverride = 1f,
@@ -253,6 +253,8 @@ namespace Laubrary.Zounds {
                     targetZound.renderedClipRef = audioRef;
                 });
             });
+            // Start after the recorder is running so the render captures the very first samples.
+            token.Play();
         }
 
         private void OpenMixerGroupDropdown(System.Action<AudioMixerGroup> onSelectMixerGroup) {

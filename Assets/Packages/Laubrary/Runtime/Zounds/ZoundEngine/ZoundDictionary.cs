@@ -60,6 +60,9 @@ namespace Laubrary.Zounds {
         }
 
         public static AudioClip GetOrLoadClip(AssetReference clipRef) {
+            // A klip that has no clip yet (just created from an external file, not promoted) has no
+            // reference at all; that is not an error, there is simply nothing to load.
+            if (clipRef == null) return null;
 #if UNITY_EDITOR
             if (!Application.isPlaying) {
                 try { return clipRef.editorAsset as AudioClip; } catch { return null; }
@@ -73,6 +76,15 @@ namespace Laubrary.Zounds {
                 }
                 else {
                     if (clipRef.RuntimeKeyIsValid()) {
+#if UNITY_EDITOR
+                        // An entry registered after Addressables initialised (a clip created during
+                        // Play) is unknown to the running locators; the asset database still has it.
+                        if (!AddressablesKnowsKey(clipRef.RuntimeKey)) {
+                            clip = clipRef.editorAsset as AudioClip;
+                            inst.loadedClips.Add(clipRef.RuntimeKey.ToString(), clip);
+                            return clip;
+                        }
+#endif
                         var handle = clipRef.LoadAssetAsync<AudioClip>();
                         clip = handle.WaitForCompletion();
                         inst.loadedClips.Add(clipRef.RuntimeKey.ToString(), clip);
@@ -85,6 +97,15 @@ namespace Laubrary.Zounds {
             }
             return clip;
         }
+
+#if UNITY_EDITOR
+        private static bool AddressablesKnowsKey(object runtimeKey) {
+            foreach (var locator in Addressables.ResourceLocators) {
+                if (locator.Locate(runtimeKey, typeof(AudioClip), out _)) return true;
+            }
+            return false;
+        }
+#endif
 
         private static bool GetOrLoadClipAsync(List<Task> tasks, Zound zound, AssetReference clipRef) {
             var inst = ZoundEngine.Instance;

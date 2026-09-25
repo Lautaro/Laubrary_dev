@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — runtime toggle between the managed engine and the experimental native-DSP engine
+
+- Added `ZoundsProject.projectSettings.useNativeDsp` (default `false`), a runtime switch decided once per playing Klip/Zequence/ClipZound and never changed mid-flight, so a consumer can flip between the long-proven managed engine (Unity `AudioSource` plays clips directly) and the experimental native-DSP engine (a native voice renders through a per-Klip/Zequence effect chain; the `AudioSource` becomes a control surface only) without maintaining two forked packages.
+- `KlipHandler`, `ZequenceHandler` and `ClipZoundHandler` each now run two fully separate, isolated pipelines dispatched from one cached decision per instance — never interleaved — ported from HH2Lab's `x/audio-effect-chains-native` branch (its own architecture memory: all 16 native effects, native graph rendering, 58/58 verification checks passing there).
+- Brought in the supporting native-DSP subsystem as pure additions alongside the existing managed engine: the whole `ZoundEngine/Dsp/` graph/voice/effect-chain layer, per-voice DSP hooks on `ZoundEngine` (created only on first use — untouched when the toggle is off), new `ZoundToken` events (`onZoundEnd` replacing `onComplete`, kept as an obsolete forwarder for source compatibility; a new `onAudioEnd` for effect-tail-aware completion), effect-chain/time-stretch/repeat schema fields on `Zound`/`Klip`/`CompositeZound.ZoundEntry`, 8 per-bus native mixer assets, and the native plugin (`audiopluginZoundsNative.dll`; C++ source at `NativeAudio/ZoundsNative/` at the project root, build via `NativeAudio/build.ps1`).
+- Two general (pipeline-agnostic) fixes landed alongside, since they apply to the same shared children-token code both pipelines can run through: Round Robin no longer allows the same entry to repeat immediately across a full-cycle reset, and a Zequence's own timing clock no longer double-applies its pitch to the already-pitch-adjusted resolved duration/child delays.
+- Compile-verified in the running editor; not yet Play-mode tested. Editor-side effect-chain authoring tooling (the routing/rules window, chain presets) is intentionally not part of this change — see `Assets/ZoundsNativeExperimental/README.md` and the roadmap doc it references for what's deferred and why.
+
+### InputGuide — device-aware control legends and persistent runtime rebinding
+
+- Added a reusable Input System-backed `ControlCatalog` and runtime owner: games attach player-facing names, descriptions and categories to ordinary `InputActionReference`s while InputGuide clones the authored action asset, exposes the live actions to native gameplay code, and saves binding overrides without mutating source assets.
+- Active keyboard/mouse versus gamepad state now changes only when a bound action actually receives input. Native code can query the active scheme and live binding strings or subscribe to scheme, binding and rebinding events.
+- Added stable-binding-ID interactive rebinding (including individual composite parts), cancel/reset handling and PlayerPrefs JSON persistence, plus an asset-free ZUI runtime overlay for the active-device legend and a separate, stable scheme view for rebinding.
+- Reused ZUI's existing procedural twin-stick gamepad map and added a procedural keyboard-and-mouse map; unsupported controls remain visible in an overflow list instead of disappearing.
+- Declared the Input System package dependency that InputGuide requires (and that existing ZoeCharacter/StatefulUI runtime code already referenced without declaring at package level).
+
+### Zounds — upgraded to the HH2Lab `x/combat-lab` vanilla-audio baseline
+
+- Synced the lifetime and cleanup fixes, Monitor and recent-history tooling, routing editor, multi-file external WAV importing, immediate playback-state updates, clickable nested controls, Music Off support, missing-clip tolerance, naming migration utilities and related editor responsiveness improvements from HH2Lab.
+- Kept Laubrary's `Laubrary/Zounds` menu location and packaged ZUI styling. This baseline intentionally contains no `OnAudioFilterRead`, managed DSP effect chain or native audio plugin integration.
+- Added the ZUI envelope runtime's full-data x-domain fields required by the upgraded zoomable Zounds spectrum editor while retaining the visible viewport bounds separately.
+
 ### Randomizers — seed-taking overloads so a consumer's own deterministic stream can use the tool
 
 - **`GetRandomItem<T>(this IList<T>, System.Random rng)`, `PickWeightedIndex`/`PickWeighted(..., System.Random rng)`, `Shuffle<T>(this IList<T>, System.Random rng)`.** Every existing method built its own unseeded `new System.Random()` or drew from `UnityEngine.Random`'s global state, so nothing in the tool could be used by a consumer that needs reproducible results from its own per-module seeded stream. These new overloads take the caller's `rng` instead; the unseeded ones are unchanged and remain for casual use.

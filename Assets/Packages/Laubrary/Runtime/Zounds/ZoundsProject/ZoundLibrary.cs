@@ -245,6 +245,15 @@ namespace Laubrary.Zounds
 
         public AssetReference manuallySetMixerGroupRef;
 
+        // Native-DSP pipeline only (see ZoundsProject.projectSettings.useNativeDsp): per-voice DSP chain,
+        // inline or a library preset by live reference plus sparse parameter overrides. Shared/local follows
+        // the same pattern as originalId/parentId. Harmless, unread data when the managed pipeline is active.
+        public ZoundEffectChain effectChain = new ZoundEffectChain();
+        public int chainPresetId;
+        /// <summary>The preset a Detach broke away from, so Reconnect can restore the link.</summary>
+        public int detachedChainPresetId;
+        public List<ChainParamOverride> chainOverrides = new List<ChainParamOverride>();
+
         public Zound(int id) { this.id = id; }
         public Zound(int id, Zound source)
         {
@@ -259,6 +268,10 @@ namespace Laubrary.Zounds
             mute = source.mute;
             solo = source.solo;
             manuallySetMixerGroupRef = source.manuallySetMixerGroupRef;
+            effectChain = source.effectChain != null ? source.effectChain.DeepCopy() : new ZoundEffectChain();
+            chainPresetId = source.chainPresetId;
+            detachedChainPresetId = source.detachedChainPresetId;
+            chainOverrides = source.chainOverrides != null ? new List<ChainParamOverride>(source.chainOverrides) : new List<ChainParamOverride>();
         }
 
         public bool IsClipOrLocalZound() {
@@ -321,6 +334,9 @@ namespace Laubrary.Zounds
     [System.Serializable]
     public class Klip : Zound, IZoundAudioClip
     {
+
+        /// <summary>Native-DSP pipeline only: duration change without pitch change, applied to the cached sample data ahead of the chain.</summary>
+        public ZoundTimeStretch timeStretch = new ZoundTimeStretch();
 
         public float gain = 1f;
         public bool gainEnabled = false;
@@ -418,6 +434,8 @@ namespace Laubrary.Zounds
         public Klip(int id) : base(id) { }
         public Klip(int id, Klip source) : base(id, source)
         {
+            timeStretch = source.timeStretch != null ? source.timeStretch.DeepCopy() : new ZoundTimeStretch();
+
             gain = source.gain;
             gainEnabled = source.gainEnabled;
             showRenderedWaveform = source.showRenderedWaveform;
@@ -479,6 +497,13 @@ namespace Laubrary.Zounds
             Playlist = 3
         }
 
+        /// <summary>Native-DSP pipeline only: how a repeating entry re-triggers from one voice (see Dsp/DspVoice).</summary>
+        public enum RepeatMode
+        {
+            FixedCount = 0,
+            FixedDuration = 1
+        }
+
         public Mode mode = Mode.Parallel;
         public int noPlayWeight = 0;
         public List<ZoundEntry> zoundEntries = new List<ZoundEntry>();
@@ -501,6 +526,8 @@ namespace Laubrary.Zounds
         /// Used to track Playlist.
         /// </summary>
         public int currentEntryIndexToPlay { get; set; } = 0;
+        /// <summary>Round Robin: the entry played last, excluded from the first pick after the set resets.</summary>
+        public int lastRoundRobinIndex { get; set; } = -1;
 
         public CompositeZound(int id) : base(id) { }
         public CompositeZound(int id, CompositeZound source) : base(id, source)
@@ -640,6 +667,18 @@ namespace Laubrary.Zounds
             /// Only used for Randomizer
             /// </summary>
             public int chanceWeight = 1;
+
+            // Native-DSP pipeline only: Repeater, this track plays its zound N times in sequence from one
+            // voice (see Dsp/DspVoice). Harmless, unread data when the managed pipeline is active.
+            public bool repeatEnabled;
+            /// <summary>false = identical repeats; true = each repeat re-rolls the zound's random pitch and volume.</summary>
+            public bool repeatRetrigger;
+            public CompositeZound.RepeatMode repeatMode = CompositeZound.RepeatMode.FixedCount;
+            public int repeatCount = 3;
+            public float repeatTotalDuration = 2f;
+            /// <summary>Seconds between repeats: from each repeat's start, or from its end when repeatSpaceFromEnd is set.</summary>
+            public float repeatInterval = 0.25f;
+            public bool repeatSpaceFromEnd;
 
 #if UNITY_EDITOR
             [HideInInspector] public int editor_instanceID;

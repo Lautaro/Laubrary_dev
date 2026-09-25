@@ -11,6 +11,16 @@ namespace Laubrary.Zounds {
 
         private static AudioSource s_audioSource;
 
+        // The hidden previewer is HideAndDontSave, so it outlives a domain reload while the static
+        // reference does not. Destroy it before the reload instead of leaking one per recompile.
+        [InitializeOnLoadMethod]
+        private static void HookReload() {
+            AssemblyReloadEvents.beforeAssemblyReload += () => {
+                if (s_audioSource != null) Object.DestroyImmediate(s_audioSource.gameObject);
+                s_audioSource = null;
+            };
+        }
+
         private static AudioSource AudioSource {
             get {
                 if (s_audioSource == null) {

@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Audio;
+using Laubrary.Zounds.Dsp;
 
 namespace Laubrary.Zounds {
 
@@ -10,7 +11,10 @@ namespace Laubrary.Zounds {
         public class RuntimeZoundEntry {
             public ZoundToken token;
             public Zequence.ZoundEntry entryData;
+            public float delay; // resolved start delay of this entry, in this Zequence's time
         }
+
+        private readonly bool useNative;
 
         private List<RuntimeZoundEntry> runtimeZoundEntries;
 
@@ -20,6 +24,18 @@ namespace Laubrary.Zounds {
         public override int playedEntryIndex => entryIndexToPlay;
 
         public override bool isRealtime => m_isRealtime;
+
+        // ── Native pipeline only: DSP group node. A Zequence with a chain sums its children into one
+        // buffer and processes that; without a chain the children sum straight into this Zequence's own
+        // parent (or the bus). ──
+        private Laubrary.Zounds.Dsp.Native.NativeNode m_group;
+        private long m_groupTokenId;
+        private ZoundToken m_token;
+        private bool m_groupReleased;
+
+        public override void SetToken(ZoundToken token) { m_token = token; }
+
+        private bool GroupAlive() => m_group != null && m_group.tokenId == m_groupTokenId && m_group.State != VoiceState.Free;
 
         internal ZoundToken GetEntryToken(CompositeZound.ZoundEntry entry) {
             foreach (var runtimeEntry in runtimeZoundEntries) {
@@ -62,9 +78,17 @@ namespace Laubrary.Zounds {
         }
 
         public ZequenceHandler(Zequence zequence, AudioSource audioSource, ZoundArgs zoundArgs) : base(zequence, audioSource, zoundArgs) {
-            var renderedClip = zequence.renderedClipRef == null || !zequence.renderedClipRef.RuntimeKeyIsValid() ? null : ZoundDictionary.GetOrLoadClip(zequence.renderedClipRef);
-            m_isRealtime = ReferenceEquals(renderedClip, null);
-            audioSource.clip = renderedClip;
+            useNative = ZoundsProject.Instance.projectSettings.useNativeDsp;
+
+            if (useNative) {
+                // A Zequence is always realtime: its children play as voices, its own carrier AudioSource holds no clip.
+                m_isRealtime = true;
+                audioSource.clip = null;
+            } else {
+                var renderedClip = zequence.renderedClipRef == null || !zequence.renderedClipRef.RuntimeKeyIsValid() ? null : ZoundDictionary.GetOrLoadClip(zequence.renderedClipRef);
+                m_isRealtime = ReferenceEquals(renderedClip, null);
+                audioSource.clip = renderedClip;
+            }
 
             // In real-time mode, ensure the audioSource.pitch (from browser slider) is initialized
             if (m_isRealtime && args.pitchOverride < 0f) {
@@ -122,18 +146,24 @@ namespace Laubrary.Zounds {
                     }
                 }
                 else if (zequence.mode == CompositeZound.Mode.RoundRobin) {
+                    // When every entry has played the set resets; the first pick of the new cycle then
+                    // excludes the entry that played last, so the same entry never plays twice in a row
+                    // across the seam.
+                    int excluded = -1;
                     if (zequence.playedEntries.Count >= runtimeZoundEntries.Count) {
                         zequence.playedEntries.Clear();
+                        if (runtimeZoundEntries.Count > 1) excluded = zequence.lastRoundRobinIndex;
                     }
-                    
+
                     if (runtimeZoundEntries.Count > 0) {
                         int attempts = 0;
                         do {
                             entryIndexToPlay = Random.Range(0, runtimeZoundEntries.Count);
                             attempts++;
-                        } while (zequence.playedEntries.Contains(entryIndexToPlay) && attempts < 100);
-                        
+                        } while ((zequence.playedEntries.Contains(entryIndexToPlay) || entryIndexToPlay == excluded) && attempts < 100);
+
                         zequence.playedEntries.Add(entryIndexToPlay);
+                        zequence.lastRoundRobinIndex = entryIndexToPlay;
                     }
                     else {
                         entryIndexToPlay = -1;
@@ -151,6 +181,7 @@ namespace Laubrary.Zounds {
 
         public override void OnPause() {
             base.OnPause();
+            if (useNative && GroupAlive()) m_group.SetPaused(true);
             if (!m_isRealtime) return;
             foreach (var runtimeEntry in runtimeZoundEntries) {
                 if (runtimeEntry.token != null && runtimeEntry.token.state != ZoundToken.State.Killed) {
@@ -161,6 +192,7 @@ namespace Laubrary.Zounds {
 
         public override void OnResume(float fadeDuration, System.Action onFadeComplete) {
             base.OnResume(fadeDuration, onFadeComplete);
+            if (useNative && GroupAlive()) m_group.SetPaused(false);
             if (!m_isRealtime) return;
             if (zound.mode == CompositeZound.Mode.Parallel) {
                 foreach (var runtimeEntry in runtimeZoundEntries) {
@@ -199,6 +231,7 @@ namespace Laubrary.Zounds {
                 }
             }
             base.OnKill();
+            if (useNative && GroupAlive()) m_group.RequestKill();
         }
 
         public override void OnFadeAndKill(float fadeDuration, System.Action onFadeComplete) {
@@ -241,27 +274,27 @@ namespace Laubrary.Zounds {
                 float sequencePitch = audioSource.pitch;
                 float parentPitchOverride = args.pitchOverride >= 0f ? args.pitchOverride : sequencePitch;
                 
-                float parentChanceOverride = args.chanceOverride >= 0f ? args.chanceOverride : zound.chance;
-
-                // Apply Browser slider chance (zound.chance) to sequence playback
-                if (Random.value > parentChanceOverride) {
-                    continue;
-                }
-
+                // This Zequence's own chance was already rolled once, in ZoundEngine.PlayZound, before this
+                // handler existed. Each child rolls only its entry chance and its own chance, so a chance
+                // is applied exactly once per zound in the tree.
                 float volumeOverride;
+                float volumeRandomFactor = 1f;
                 if (data.overrideVolume) {
                     volumeOverride = parentVolumeOverride * data.volume;
                 }
                 else {
-                    volumeOverride = parentVolumeOverride * data.volume * Random.Range(childZound.minVolume, childZound.maxVolume);
+                    volumeRandomFactor = Random.Range(childZound.minVolume, childZound.maxVolume);
+                    volumeOverride = parentVolumeOverride * data.volume * volumeRandomFactor;
                 }
 
                 float pitchOverride;
+                float pitchRandomFactor = 1f;
                 if (data.overridePitch) {
                     pitchOverride = parentPitchOverride * data.pitch;
                 }
                 else {
-                    pitchOverride = parentPitchOverride * data.pitch * Random.Range(childZound.minPitch, childZound.maxPitch);
+                    pitchRandomFactor = Random.Range(childZound.minPitch, childZound.maxPitch);
+                    pitchOverride = parentPitchOverride * data.pitch * pitchRandomFactor;
                 }
 
                 CompositeZound.ZoundEntry soloOverride = null;
@@ -274,14 +307,18 @@ namespace Laubrary.Zounds {
                     delay = data.delay / parentPitchOverride,
                     volumeOverride = volumeOverride,
                     pitchOverride = pitchOverride,
-                    chanceOverride = data.overrideChance ? parentChanceOverride * data.chance : parentChanceOverride * data.chance * childZound.chance,
+                    chanceOverride = data.overrideChance ? data.chance : data.chance * childZound.chance,
                     isChild = true,
                     soloOverride = soloOverride,
                     bypassGlobalSolo = true,
-                    ignoreCooldown = args.ignoreCooldown
+                    ignoreCooldown = args.ignoreCooldown,
+                    repeatEntry = data.repeatEnabled ? data : null,
+                    pitchRandomFactor = pitchRandomFactor,
+                    volumeRandomFactor = volumeRandomFactor
                 };
 
                 runtimeEntry.token = ZoundEngine.PlayZound(childZound, entryArgs);
+                runtimeEntry.delay = entryArgs.delay;
                 float effectiveDuration;
                 if (runtimeEntry.token == null) {
                     effectiveDuration = 0f;
@@ -310,6 +347,26 @@ namespace Laubrary.Zounds {
         protected override void OnPlayReady(float timeStartOffset, float childFadeDuration) {
             base.OnPlayReady(timeStartOffset, childFadeDuration);
             if (!m_isRealtime) return;
+
+            // Children begin playing inside Start now, so their mute state must be set before they start.
+            UpdateChildrenMute();
+
+            if (useNative) {
+                m_group = ZoundDspPlayback.StartGroup(m_token, zound, audioSource.outputAudioMixerGroup, totalDuration, dspParentGroup);
+                m_groupReleased = false;
+                int childParent = dspParentGroup;
+                if (m_group != null) {
+                    m_groupTokenId = m_group.tokenId;
+                    childParent = m_group.index;
+                    m_token?.NotifyVoiceStarted();
+                }
+                foreach (var runtimeEntry in runtimeZoundEntries) {
+                    if (runtimeEntry.token == null) continue;
+                    runtimeEntry.token.dspParentGroup = childParent;
+                    m_token?.AttachChildAudioEnd(runtimeEntry.token);
+                }
+            }
+
             if (zound.mode == CompositeZound.Mode.Parallel) {
                 foreach (var runtimeEntry in runtimeZoundEntries) {
                     if (runtimeEntry.token != null && runtimeEntry.token.state != ZoundToken.State.Killed) {
@@ -332,55 +389,72 @@ namespace Laubrary.Zounds {
                 return base.OnUpdate(deltaDspTime);
             }
 
-            // Apply Browser's Pitch slider to the sequence timing
-            deltaDspTime *= audioSource.pitch;
+            // The resolved duration and every child delay are already in real seconds (the children's
+            // pitch overrides carry this Zequence's pitch, and delays were divided by it), so this clock
+            // runs in real time too. Scaling it by the pitch again made Zound End fire early for a pitch
+            // above 1 and late below it.
 
             UpdateChildrenEnvelopeVolumes();
+
+            // A child whose duration grew (a repeat train that ran long) grows this Zequence too, never shrinks it.
+            // Harmless no-op for the managed pipeline, whose children never grow past their computed duration.
+            foreach (var runtimeEntry in runtimeZoundEntries) {
+                if (runtimeEntry.token != null) ExtendDuration(runtimeEntry.token.duration + runtimeEntry.delay);
+            }
 
             ZoundUpdateResult nextTreatment = base.OnUpdate(deltaDspTime);
             bool killed = nextTreatment == ZoundUpdateResult.Kill;
             if (!killed) {
-                if (args.soloOverride != null) {
-                    foreach (var runtimeEntry in runtimeZoundEntries) {
-                        if (runtimeEntry.token != null && runtimeEntry.token.state != ZoundToken.State.Killed) {
-                            bool shouldMute = runtimeEntry.entryData != args.soloOverride;
-                            if (shouldMute) {
-                                if (zound.TryGetEntryZound(runtimeEntry.entryData, out var childZound) && childZound is Zequence childZeq) {
-                                    if (childZeq.zoundEntries.Find(e => e == args.soloOverride) != null) {
-                                        shouldMute = false;
-                                    }
+                UpdateChildrenMute();
+            }
+            else if (useNative && !m_groupReleased) {
+                // Zound End: the group stops accepting new children and rings out once the live ones are done.
+                m_groupReleased = true;
+                if (GroupAlive()) m_group.RequestRelease();
+            }
+            return nextTreatment;
+        }
+
+        private void UpdateChildrenMute() {
+            if (args.soloOverride != null) {
+                foreach (var runtimeEntry in runtimeZoundEntries) {
+                    if (runtimeEntry.token != null && runtimeEntry.token.state != ZoundToken.State.Killed) {
+                        bool shouldMute = runtimeEntry.entryData != args.soloOverride;
+                        if (shouldMute) {
+                            if (zound.TryGetEntryZound(runtimeEntry.entryData, out var childZound) && childZound is Zequence childZeq) {
+                                if (childZeq.zoundEntries.Find(e => e == args.soloOverride) != null) {
+                                    shouldMute = false;
                                 }
                             }
-                            runtimeEntry.token.audioSource.mute = shouldMute;
+                        }
+                        runtimeEntry.token.audioSource.mute = shouldMute;
+                    }
+                }
+            }
+            else {
+                bool hasAnySolo = false;
+                foreach (var runtimeEntry in runtimeZoundEntries) {
+                    if (runtimeEntry.entryData.solo) {
+                        hasAnySolo = true;
+                        break;
+                    }
+                }
+
+                if (hasAnySolo) {
+                    foreach (var runtimeEntry in runtimeZoundEntries) {
+                        if (runtimeEntry.token != null && runtimeEntry.token.state != ZoundToken.State.Killed) {
+                            runtimeEntry.token.audioSource.mute = audioSource.mute || !runtimeEntry.entryData.solo;
                         }
                     }
                 }
                 else {
-                    bool hasAnySolo = false;
                     foreach (var runtimeEntry in runtimeZoundEntries) {
-                        if (runtimeEntry.entryData.solo) {
-                            hasAnySolo = true;
-                            break;
-                        }
-                    }
-
-                    if (hasAnySolo) {
-                        foreach (var runtimeEntry in runtimeZoundEntries) {
-                            if (runtimeEntry.token != null && runtimeEntry.token.state != ZoundToken.State.Killed) {
-                                runtimeEntry.token.audioSource.mute = audioSource.mute || !runtimeEntry.entryData.solo;
-                            }
-                        }
-                    }
-                    else {
-                        foreach (var runtimeEntry in runtimeZoundEntries) {
-                            if (runtimeEntry.token != null && runtimeEntry.token.state != ZoundToken.State.Killed) {
-                                runtimeEntry.token.audioSource.mute = audioSource.mute || runtimeEntry.entryData.mute;
-                            }
+                        if (runtimeEntry.token != null && runtimeEntry.token.state != ZoundToken.State.Killed) {
+                            runtimeEntry.token.audioSource.mute = audioSource.mute || runtimeEntry.entryData.mute;
                         }
                     }
                 }
             }
-            return nextTreatment;
         }
 
         private void UpdateChildrenEnvelopeVolumes() {

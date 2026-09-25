@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -37,6 +38,19 @@ namespace Laubrary.Zounds {
         [SerializeField] private AudioClip m_clip;
         [SerializeField] private AudioClip m_renderedClip;
         [SerializeField] private AudioSource m_audioSource;
+        private AudioClip m_sourceClip;
+        private AudioClip m_ownedExternalClip;
+        private object m_sourceReference;
+        private string m_externalSourcePath;
+        private System.DateTime m_externalSourceWriteTimeUtc;
+
+        public AudioClip sourceClip => m_sourceClip;
+
+        public bool NeedsSourceRefresh(Klip klip) {
+            if (klip == null || !ReferenceEquals(m_sourceReference, klip.audioClipRef) || m_externalSourcePath != klip.externalSourcePath) return true;
+            if (!string.IsNullOrEmpty(m_externalSourcePath)) return File.GetLastWriteTimeUtc(m_externalSourcePath) != m_externalSourceWriteTimeUtc;
+            return m_sourceClip == null && klip.audioClipRef != null && klip.audioClipRef.RuntimeKeyIsValid();
+        }
 
         // When set, DrawWaveformSpectrum shows this instead of the source clip.
         public AudioClip renderedClip {
@@ -60,6 +74,82 @@ namespace Laubrary.Zounds {
         private bool isTrimBothDragged = false;
         private float dragTrimDistance = 0f;
         private float dragMouseOffset = 0f;
+        private float zoomFactor = 1f;
+        private float viewStart;
+        private float viewEnd;
+        private double lastViewportChangeTime;
+        private Texture2D zoomTexture;
+        private int zoomTextureClipId;
+        private int zoomTextureWidth;
+        private int zoomTextureHeight;
+        private float zoomTextureStart;
+        private float zoomTextureEnd;
+        private Color zoomTextureColor;
+        private bool zoomTextureHighQuality;
+        private bool zoomTextureAttempted;
+        private RangeWaveformJob rangeJob;
+        private bool zoomBuildRequested;
+
+        private sealed class RangeWaveformJob {
+            private const int ChunkFrames = 16384;
+            public readonly AudioClip clip;
+            public readonly int width;
+            public readonly int height;
+            public readonly float start;
+            public readonly float end;
+            public readonly Color color;
+            public readonly bool highQuality;
+            public readonly float[] peaks;
+            public bool failed;
+            private readonly int firstFrame;
+            private readonly int frameCount;
+            private readonly int channels;
+            private readonly float[] buffer;
+            private int nextFrame;
+            private int lastPixel = -1;
+
+            public RangeWaveformJob(AudioClip clip, int width, int height, float start, float end, Color color, bool highQuality) {
+                this.clip = clip;
+                this.width = width;
+                this.height = height;
+                this.start = start;
+                this.end = end;
+                this.color = color;
+                this.highQuality = highQuality;
+                firstFrame = Mathf.Clamp(Mathf.FloorToInt(start * clip.frequency), 0, clip.samples - 1);
+                int lastFrame = Mathf.Clamp(Mathf.CeilToInt(end * clip.frequency), firstFrame + 1, clip.samples);
+                frameCount = lastFrame - firstFrame;
+                channels = clip.channels;
+                buffer = new float[Mathf.Min(ChunkFrames, frameCount) * channels];
+                peaks = new float[width];
+            }
+
+            public bool Matches(AudioClip otherClip, int otherWidth, int otherHeight, float otherStart, float otherEnd, Color otherColor, bool otherHighQuality) {
+                return clip == otherClip && width == otherWidth && height == otherHeight &&
+                    Mathf.Approximately(start, otherStart) && Mathf.Approximately(end, otherEnd) &&
+                    color == otherColor && highQuality == otherHighQuality;
+            }
+
+            public bool ProcessChunk() {
+                int frames = Mathf.Min(ChunkFrames, frameCount - nextFrame);
+                float[] data = frames * channels == buffer.Length ? buffer : new float[frames * channels];
+                if (!clip.GetData(data, firstFrame + nextFrame)) { failed = true; return true; }
+                for (int frame = 0; frame < frames; frame++) {
+                    int pixel = (int)((long)(nextFrame + frame) * width / frameCount);
+                    if (highQuality) {
+                        for (int channel = 0; channel < channels; channel++) {
+                            peaks[pixel] = Mathf.Max(peaks[pixel], Mathf.Abs(data[frame * channels + channel]));
+                        }
+                    }
+                    else if (pixel != lastPixel) {
+                        peaks[pixel] = Mathf.Abs(data[frame * channels]);
+                        lastPixel = pixel;
+                    }
+                }
+                nextFrame += frames;
+                return nextFrame >= frameCount;
+            }
+        }
         // Per-envelope ZUI runtime state (domain, callbacks, interaction flags).
         // Stable stateKeys keep each envelope's drag/selection state isolated
         // inside ZUI.Envelope's state dictionary.
@@ -133,6 +223,7 @@ namespace Laubrary.Zounds {
 
         public AudioSpectrumView(EditorWindow window) {
             m_window = window;
+            EditorApplication.update += ProcessRangeWaveform;
             var audioSourceGO = new GameObject("AudioSpectrumPreviewer");
             audioSourceGO.hideFlags = HideFlags.HideAndDontSave;
             m_audioSource = audioSourceGO.AddComponent<AudioSource>();
@@ -158,6 +249,18 @@ namespace Laubrary.Zounds {
         }
 
         public void Destroy() {
+            EditorApplication.update -= ProcessRangeWaveform;
+            rangeJob = null;
+            zoomBuildRequested = false;
+            ClearZoomTexture();
+            if (m_audioSource != null) {
+                m_audioSource.Stop();
+                m_audioSource.clip = null;
+            }
+            if (m_ownedExternalClip != null) {
+                Object.DestroyImmediate(m_ownedExternalClip);
+                m_ownedExternalClip = null;
+            }
             if (m_audioSource != null) {
                 if (Application.isPlaying) {
                     GameObject.Destroy(m_audioSource.gameObject);
@@ -168,6 +271,7 @@ namespace Laubrary.Zounds {
                 m_audioSource = null;
             }
             m_clip = null;
+            m_sourceClip = null;
         }
 
         public float trimStart {
@@ -187,26 +291,57 @@ namespace Laubrary.Zounds {
         }
 
         public void InitFromKlip(Klip klip) {
+            m_sourceReference = klip.audioClipRef;
+            m_externalSourcePath = klip.externalSourcePath;
+            m_externalSourceWriteTimeUtc = string.IsNullOrEmpty(m_externalSourcePath) ? default : File.GetLastWriteTimeUtc(m_externalSourcePath);
             AudioClip newClip = null;
+            AudioClip newExternalClip = null;
+            AudioClip resolvedSource = null;
+            originalClip = null;
+            m_sourceClip = null;
             try {
                 // Load source clip — external or internal.
                 if (!string.IsNullOrEmpty(klip.externalSourcePath)) {
-                    originalClip = WavDecoder.LoadFromDisk(klip.externalSourcePath);
+                    newExternalClip = WavDecoder.LoadFromDisk(klip.externalSourcePath);
+                    originalClip = newExternalClip;
                 }
                 else {
                     try { originalClip = klip.audioClipRef.editorAsset as AudioClip; } catch { }
                 }
+                resolvedSource = originalClip;
                 // Output clip for playback.
                 try { newClip = klip.GetAudioClipReference().editorAsset as AudioClip; } catch { }
                 // Fall back: source if no output, or output if no source (non-audio machine).
                 if (newClip == null) newClip = originalClip;
                 if (originalClip == null) originalClip = newClip;
             } catch { }
+            m_sourceClip = resolvedSource;
 
-            if (newClip == null) return;
+            if (m_ownedExternalClip != null && m_ownedExternalClip != newExternalClip) {
+                if (m_audioSource != null && m_audioSource.clip == m_ownedExternalClip) {
+                    m_audioSource.Stop();
+                    m_audioSource.clip = null;
+                }
+                Object.DestroyImmediate(m_ownedExternalClip);
+            }
+            m_ownedExternalClip = newExternalClip;
+
+            if (newClip == null) {
+                rangeJob = null;
+                zoomBuildRequested = false;
+                ClearZoomTexture();
+                m_clip = null;
+                m_audioSource.clip = null;
+                return;
+            }
 
             if (m_clip != newClip) {
+                rangeJob = null;
+                zoomBuildRequested = false;
                 AudioWaveformUtility.ClearCache(newClip);
+                zoomFactor = 1f;
+                viewStart = 0f;
+                ClearZoomTexture();
             }
             m_clip = newClip;
             m_audioSource.clip = m_clip;
@@ -216,6 +351,89 @@ namespace Laubrary.Zounds {
             m_clampToTrim = klip.clampToTrim;
             m_volumeEnvelope = klip.volumeEnvelope;
             m_pitchEnvelope = klip.pitchEnvelope;
+            ConstrainView();
+        }
+
+        private void ConstrainView() {
+            float previousStart = viewStart;
+            float previousEnd = viewEnd;
+            float duration = originalClip == null ? 0f : originalClip.length;
+            if (duration <= 0f) { viewStart = viewEnd = 0f; return; }
+            if (!m_trimEnabled || m_trimEnd <= m_trimStart) zoomFactor = 1f;
+            else {
+                float minVisible = Mathf.Min(duration, Mathf.Max(m_trimEnd - m_trimStart, 1f / originalClip.frequency, duration * 0.000001f));
+                zoomFactor = Mathf.Clamp(zoomFactor, 1f, duration / minVisible);
+            }
+            float visibleDuration = duration / zoomFactor;
+            float minStart = Mathf.Max(0f, m_trimEnd - visibleDuration);
+            float maxStart = Mathf.Min(m_trimStart, duration - visibleDuration);
+            viewStart = Mathf.Clamp(viewStart, minStart, Mathf.Max(minStart, maxStart));
+            viewEnd = viewStart + visibleDuration;
+            if (!Mathf.Approximately(previousStart, viewStart) || !Mathf.Approximately(previousEnd, viewEnd)) {
+                lastViewportChangeTime = EditorApplication.timeSinceStartup;
+            }
+        }
+
+        private void ClearZoomTexture() {
+            if (zoomTexture != null) Object.DestroyImmediate(zoomTexture);
+            zoomTexture = null;
+            zoomTextureAttempted = false;
+        }
+
+        private void ProcessRangeWaveform() {
+            double idle = EditorApplication.timeSinceStartup - lastViewportChangeTime;
+            if (rangeJob == null) {
+                if (zoomBuildRequested && idle >= 0.25) {
+                    zoomBuildRequested = false;
+                    if (m_window != null) m_window.Repaint();
+                }
+                return;
+            }
+            if (idle < 0.1) return;
+            if (rangeJob.clip == null) { rangeJob = null; return; }
+            try {
+                // Spend only a few milliseconds per update, but use the whole budget on long clips.
+                double deadline = EditorApplication.timeSinceStartup + 0.003;
+                bool done;
+                do {
+                    done = rangeJob.ProcessChunk();
+                } while (!done && EditorApplication.timeSinceStartup < deadline);
+                if (!done) return;
+            }
+            catch {
+                rangeJob.failed = true;
+            }
+            var completed = rangeJob;
+            rangeJob = null;
+            ClearZoomTexture();
+            if (!completed.failed) zoomTexture = AudioWaveformUtility.CreatePeakTexture(completed.peaks,
+                completed.width, completed.height, completed.color);
+            zoomTextureClipId = completed.clip.GetInstanceID();
+            zoomTextureWidth = completed.width;
+            zoomTextureHeight = completed.height;
+            zoomTextureStart = completed.start;
+            zoomTextureEnd = completed.end;
+            zoomTextureColor = completed.color;
+            zoomTextureHighQuality = completed.highQuality;
+            zoomTextureAttempted = true;
+            if (m_window != null) m_window.Repaint();
+        }
+
+        private float TimeToX(float time, Rect rect) => rect.x + (time - viewStart) / (viewEnd - viewStart) * rect.width;
+        private float XToTime(float x, Rect rect) => viewStart + (x - rect.x) / rect.width * (viewEnd - viewStart);
+
+        private void HandleWheelZoom(Rect rect) {
+            var e = Event.current;
+            if (!m_trimEnabled || e.type != EventType.ScrollWheel || !rect.Contains(e.mousePosition)) return;
+            float trimDuration = m_trimEnd - m_trimStart;
+            if (trimDuration <= 0f || originalClip.length <= trimDuration) return;
+            float anchor = XToTime(e.mousePosition.x, rect);
+            float fraction = Mathf.Clamp01((e.mousePosition.x - rect.x) / rect.width);
+            zoomFactor = Mathf.Clamp(zoomFactor * Mathf.Pow(1.25f, -e.delta.y), 1f, originalClip.length / trimDuration);
+            viewStart = anchor - fraction * originalClip.length / zoomFactor;
+            ConstrainView();
+            e.Use();
+            m_window.Repaint();
         }
 
         public void ResetStates() {
@@ -228,6 +446,13 @@ namespace Laubrary.Zounds {
 
         public void DrawLayout(IEnumerable<ZoundToken> playingTokens = null) {
             if (originalClip == null) return;
+            ConstrainView();
+            var input = Event.current.type;
+            if (zoomFactor > 1.5f && (input == EventType.MouseMove || input == EventType.MouseDrag ||
+                                      input == EventType.MouseDown || input == EventType.ScrollWheel ||
+                                      input == EventType.KeyDown)) {
+                lastViewportChangeTime = EditorApplication.timeSinceStartup;
+            }
 
             var editorStyle = ZoundsProject.Instance.projectSettings.editorStyle;
 
@@ -294,10 +519,10 @@ namespace Laubrary.Zounds {
             Rect trimmedRect = spectrumTotalRect;
 
             if (m_trimEnabled) {
-                trimStartHandleArea = DrawTrimStartDim(originalClip.length, spectrumTotalRect);
-                trimEndHandleArea = DrawTrimEndDim(originalClip.length, ref spectrumTotalRect);
-                trimmedRect = new Rect(trimStartHandleArea.x, spectrumTotalRect.y,
-                    trimEndHandleArea.x - trimStartHandleArea.x, spectrumTotalRect.height);
+                trimStartHandleArea = DrawTrimStartDim(spectrumTotalRect);
+                trimEndHandleArea = DrawTrimEndDim(spectrumTotalRect);
+                trimmedRect = Rect.MinMaxRect(TimeToX(trimStart, spectrumTotalRect), spectrumTotalRect.y,
+                    TimeToX(trimEnd, spectrumTotalRect), spectrumTotalRect.yMax);
                 
                 // Right-click-drag to move both trim handles at once. Only
                 // starts when hovering one of the thin handle lines (with a
@@ -317,7 +542,7 @@ namespace Laubrary.Zounds {
                         isTrimStartDragged = false;
                         isTrimEndDragged = false;
                         dragTrimDistance = trimEnd - trimStart;
-                        float mouseTime = ((e.mousePosition.x - spectrumTotalRect.x) / spectrumTotalRect.width) * originalClip.length;
+                        float mouseTime = XToTime(e.mousePosition.x, spectrumTotalRect);
                         dragMouseOffset = mouseTime - trimStart;
                         GUI.changed = true;
                         e.Use();
@@ -404,8 +629,10 @@ namespace Laubrary.Zounds {
                 DrawTrimHandles(spectrumTotalRect, trimStartHandleArea, trimEndHandleArea);
             }
             if (m_volumeEnvelope.enabled) {
-                volumeRuntime.xMin = m_volumeEnvelope.xMin;
-                volumeRuntime.xMax = m_volumeEnvelope.xMax;
+                volumeRuntime.xMin = m_clampToTrim ? m_volumeEnvelope.xMin : Mathf.Lerp(m_volumeEnvelope.xMin, m_volumeEnvelope.xMax, viewStart / originalClip.length);
+                volumeRuntime.xMax = m_clampToTrim ? m_volumeEnvelope.xMax : Mathf.Lerp(m_volumeEnvelope.xMin, m_volumeEnvelope.xMax, viewEnd / originalClip.length);
+                volumeRuntime.dataXMin = m_volumeEnvelope.xMin;
+                volumeRuntime.dataXMax = m_volumeEnvelope.xMax;
                 volumeRuntime.yMin = m_volumeEnvelope.yMin;
                 volumeRuntime.yMax = m_volumeEnvelope.yMax;
                 volumeRuntime.editable       = m_showVolumeEnvelopeHandles;
@@ -422,8 +649,10 @@ namespace Laubrary.Zounds {
             }
 
             if (m_pitchEnvelope.enabled) {
-                pitchRuntime.xMin = m_pitchEnvelope.xMin;
-                pitchRuntime.xMax = m_pitchEnvelope.xMax;
+                pitchRuntime.xMin = m_clampToTrim ? m_pitchEnvelope.xMin : Mathf.Lerp(m_pitchEnvelope.xMin, m_pitchEnvelope.xMax, viewStart / originalClip.length);
+                pitchRuntime.xMax = m_clampToTrim ? m_pitchEnvelope.xMax : Mathf.Lerp(m_pitchEnvelope.xMin, m_pitchEnvelope.xMax, viewEnd / originalClip.length);
+                pitchRuntime.dataXMin = m_pitchEnvelope.xMin;
+                pitchRuntime.dataXMax = m_pitchEnvelope.xMax;
                 pitchRuntime.yMin = m_pitchEnvelope.yMin;
                 pitchRuntime.yMax = m_pitchEnvelope.yMax;
                 pitchRuntime.editable       = m_showPitchEnvelopeHandles;
@@ -478,19 +707,53 @@ namespace Laubrary.Zounds {
             GUI.color = editorStyle.klipWaveformBGColor;
             GUI.DrawTexture(textureRect, EditorGUIUtility.whiteTexture);
             GUI.color = guiColor;
+            HandleWheelZoom(textureRect);
             // Show rendered output clip if available, otherwise fall back to source clip.
             var displayClip = m_renderedClip != null ? m_renderedClip : audioClip;
-            var cacheKey = m_renderedClip != null ? "rendered_" + displayClip.GetInstanceID() : null;
-            var audioTexture = AudioWaveformUtility.GetWaveformSpectrumTexture(displayClip, Mathf.FloorToInt(textureRect.width), Mathf.FloorToInt(textureRect.height), editorStyle.waveformColor, cacheKey);
-            GUI.DrawTexture(textureRect, audioTexture);
+            int textureWidth = Mathf.FloorToInt(textureRect.width);
+            int textureHeight = Mathf.FloorToInt(textureRect.height);
+            bool highQuality = ZoundsProject.Instance?.browserSettings?.highQualityWaveform ?? false;
+            bool needsDetailedTexture = zoomFactor > 1.5f;
+            bool rangeKeyMatches = zoomTextureAttempted && zoomTextureClipId == displayClip.GetInstanceID() &&
+                zoomTextureWidth == textureWidth && zoomTextureHeight == textureHeight &&
+                Mathf.Approximately(zoomTextureStart, viewStart) && Mathf.Approximately(zoomTextureEnd, viewEnd) &&
+                zoomTextureColor == editorStyle.waveformColor && zoomTextureHighQuality == highQuality;
+            bool buildingCurrentRange = rangeJob != null && rangeJob.Matches(displayClip, textureWidth, textureHeight,
+                viewStart, viewEnd, editorStyle.waveformColor, highQuality);
+            if (rangeJob != null && (!needsDetailedTexture || !buildingCurrentRange)) rangeJob = null;
+            if (!needsDetailedTexture || rangeKeyMatches) zoomBuildRequested = false;
+            bool detailedTextureMatches = rangeKeyMatches && zoomTexture != null;
+            if (needsDetailedTexture && !rangeKeyMatches && !buildingCurrentRange &&
+                !isTrimStartDragged && !isTrimEndDragged && !isTrimBothDragged &&
+                EditorApplication.timeSinceStartup - lastViewportChangeTime >= 0.25 && Event.current.type == EventType.Repaint) {
+                ClearZoomTexture();
+                rangeJob = new RangeWaveformJob(displayClip, textureWidth, textureHeight, viewStart, viewEnd,
+                    editorStyle.waveformColor, highQuality);
+                buildingCurrentRange = true;
+                zoomBuildRequested = false;
+            }
+            if (needsDetailedTexture && detailedTextureMatches) {
+                GUI.DrawTexture(textureRect, zoomTexture);
+            }
+            else {
+                var cacheKey = m_renderedClip != null ? "rendered_" + displayClip.GetInstanceID() : null;
+                var audioTexture = AudioWaveformUtility.GetWaveformSpectrumTexture(displayClip, textureWidth, textureHeight, editorStyle.waveformColor, cacheKey);
+                if (audioTexture != null) {
+                    var uv = new Rect(viewStart / audioClip.length, 0f, (viewEnd - viewStart) / audioClip.length, 1f);
+                    GUI.DrawTextureWithTexCoords(textureRect, audioTexture, uv);
+                }
+                if (needsDetailedTexture && !rangeKeyMatches && !buildingCurrentRange &&
+                    !isTrimStartDragged && !isTrimEndDragged && !isTrimBothDragged) zoomBuildRequested = true;
+            }
+            GUI.Label(textureRect, new GUIContent("", "Mouse wheel: zoom within the trimmed range."));
 
             return textureRect;
         }
 
-        private Rect DrawTrimStartDim(float clipDuration, Rect spectrumRect) {
-            float trimStartWidth = (trimStart / clipDuration) * spectrumRect.width;
+        private Rect DrawTrimStartDim(Rect spectrumRect) {
+            float trimStartWidth = TimeToX(trimStart, spectrumRect) - spectrumRect.x;
             var trimStartHandleArea = spectrumRect;
-            trimStartHandleArea.x += trimStartWidth;
+            trimStartHandleArea.x = Mathf.Clamp(spectrumRect.x + trimStartWidth, spectrumRect.x, spectrumRect.xMax - ZoundsProject.Instance.projectSettings.editorStyle.trimHandleThickness);
             trimStartHandleArea.width = ZoundsProject.Instance.projectSettings.editorStyle.trimHandleThickness;
 
             Color guiColor = GUI.color;
@@ -501,14 +764,14 @@ namespace Laubrary.Zounds {
             return trimStartHandleArea;
         }
 
-        private Rect DrawTrimEndDim(float clipDuration, ref Rect spectrumRect) {
-            float trimEndWidth = (trimEnd / clipDuration) * spectrumRect.width;
+        private Rect DrawTrimEndDim(Rect spectrumRect) {
+            float trimEndWidth = TimeToX(trimEnd, spectrumRect) - spectrumRect.x;
             var trimEndHandleArea = spectrumRect;
-            trimEndHandleArea.x += trimEndWidth;
+            trimEndHandleArea.x = Mathf.Clamp(spectrumRect.x + trimEndWidth - ZoundsProject.Instance.projectSettings.editorStyle.trimHandleThickness, spectrumRect.x, spectrumRect.xMax - ZoundsProject.Instance.projectSettings.editorStyle.trimHandleThickness);
             trimEndHandleArea.width = ZoundsProject.Instance.projectSettings.editorStyle.trimHandleThickness;
 
             Color guiColor = GUI.color;
-            var trimmedRect = new Rect(trimEndHandleArea.x, spectrumRect.y, (spectrumRect.width - trimEndWidth), spectrumRect.height);
+            var trimmedRect = new Rect(spectrumRect.x + trimEndWidth, spectrumRect.y, spectrumRect.width - trimEndWidth, spectrumRect.height);
             GUI.color = ZoundsProject.Instance.projectSettings.editorStyle.trimAreaColor;
             GUI.DrawTexture(trimmedRect, EditorGUIUtility.whiteTexture);
             GUI.color = guiColor;
@@ -571,7 +834,7 @@ namespace Laubrary.Zounds {
                             isTrimStartDragged = false;
                             isTrimEndDragged = false;
                             dragTrimDistance = trimEnd - trimStart;
-                            float mouseTime = ((e.mousePosition.x - spectrumRect.x) / spectrumRect.width) * clipDuration;
+                            float mouseTime = XToTime(e.mousePosition.x, spectrumRect);
                             dragMouseOffset = mouseTime - trimStart;
                             GUI.changed = true;
                             e.Use();
@@ -587,8 +850,7 @@ namespace Laubrary.Zounds {
 
                 case EventType.MouseDrag:
                     if (isTrimStartDragged) {
-                        var newPosX = e.mousePosition.x - spectrumRect.x;
-                        var newTrimStart = (newPosX / spectrumRect.width) * clipDuration;
+                        var newTrimStart = XToTime(e.mousePosition.x, spectrumRect);
 
                         if (newTrimStart < 0) newTrimStart = 0;
                         else if (newTrimStart >= trimEnd) newTrimStart = trimEnd;
@@ -597,8 +859,7 @@ namespace Laubrary.Zounds {
                         e.Use();
                     }
                     else if (isTrimBothDragged) {
-                        var newPosX = e.mousePosition.x - spectrumRect.x;
-                        var mouseTime = (newPosX / spectrumRect.width) * clipDuration;
+                        var mouseTime = XToTime(e.mousePosition.x, spectrumRect);
                         var newTrimStart = mouseTime - dragMouseOffset;
 
                         if (newTrimStart < 0) newTrimStart = 0;
@@ -643,7 +904,7 @@ namespace Laubrary.Zounds {
                             isTrimStartDragged = false;
                             isTrimEndDragged = false;
                             dragTrimDistance = trimEnd - trimStart;
-                            float mouseTime = ((e.mousePosition.x - spectrumRect.x) / spectrumRect.width) * clipDuration;
+                            float mouseTime = XToTime(e.mousePosition.x, spectrumRect);
                             dragMouseOffset = mouseTime - trimStart;
                             GUI.changed = true;
                             e.Use();
@@ -659,8 +920,7 @@ namespace Laubrary.Zounds {
 
                 case EventType.MouseDrag:
                     if (isTrimEndDragged) {
-                        var newPosX = e.mousePosition.x - spectrumRect.x;
-                        var newTrimEnd = (newPosX / spectrumRect.width) * clipDuration;
+                        var newTrimEnd = XToTime(e.mousePosition.x, spectrumRect);
 
                         if (newTrimEnd < trimStart) newTrimEnd = trimStart;
                         else if (newTrimEnd >= clipDuration) newTrimEnd = clipDuration;
@@ -669,8 +929,7 @@ namespace Laubrary.Zounds {
                         e.Use();
                     }
                     else if (isTrimBothDragged) {
-                        var newPosX = e.mousePosition.x - spectrumRect.x;
-                        var mouseTime = (newPosX / spectrumRect.width) * clipDuration;
+                        var mouseTime = XToTime(e.mousePosition.x, spectrumRect);
                         var newTrimStart = mouseTime - dragMouseOffset;
 
                         if (newTrimStart < 0) newTrimStart = 0;

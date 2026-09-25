@@ -79,7 +79,10 @@ namespace Laubrary.Zounds {
 
             float playButtonWidth = 18f;
 
-            var labelRect = new Rect(leftSection.x, currentY, (contentRect.width - playButtonWidth) * 0.8f, lineHeight);
+            // The header stays inside the left section: the right section draws this local Zequence's
+            // own volume/pitch/chance controls on the same row, and a foldout header laid over them
+            // would take their clicks.
+            var labelRect = new Rect(leftSection.x, currentY, Mathf.Min((contentRect.width - playButtonWidth) * 0.8f, leftSection.width), lineHeight);
             if (entry.editor_isRenaming) {
                 labelRect.width = 14f;
             }

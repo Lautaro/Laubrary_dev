@@ -201,7 +201,7 @@ namespace Laubrary.Zounds {
                 return zounds;
             }
 #endif
-            return ZoundEngine.Instance.zoundDictionary.Values.ToList();
+            return ZoundEngine.Instance.zoundDictionary.Values.Where(z => z.parentId == 0).ToList();
         }
 
         public static Zound GetZound(string zoundName) {
@@ -228,11 +228,14 @@ namespace Laubrary.Zounds {
             return zoundTags.Select(t => t.name);
         }
 
+        // Tag queries only ever answer with top-level zounds. A local zound (parentId != 0) exists for
+        // its parent alone; it is not addressable by name, cannot be routed to and must not show up in
+        // any list of zounds, whatever tags it may still carry.
         public static List<Zound> GetAllZoundsByTag(string tagName) {
             var zoundLibrary = ZoundsProject.Instance.zoundLibrary;
             var result = new List<Zound>();
             if (ZoundsProject.Instance.zoundLibrary.TryGetTag(tagName, out var tag)) {
-                result.AddRange(zoundLibrary.FindAllZounds(z => z.tags.Contains(tag.id)));
+                result.AddRange(zoundLibrary.FindAllZounds(z => z.parentId == 0 && z.tags.Contains(tag.id)));
             }
 
             // add other kvp tags which key match the specified tag
@@ -243,7 +246,7 @@ namespace Laubrary.Zounds {
                     if (tag != null && otherTag == tag) continue;
                     var otherNameSplit = otherTag.name.Split(':');
                     if (otherNameSplit.Length > 1 && otherNameSplit[0] == keyTag) {
-                        result.AddRange(zoundLibrary.FindAllZounds(z => z.tags.Contains(otherTag.id)));
+                        result.AddRange(zoundLibrary.FindAllZounds(z => z.parentId == 0 && z.tags.Contains(otherTag.id)));
                     }
                 }
             }
@@ -255,6 +258,7 @@ namespace Laubrary.Zounds {
             var zoundLibrary = ZoundsProject.Instance.zoundLibrary;
 
             var result = zoundLibrary.FindAllZounds(zound => {
+                if (zound.parentId != 0) return false;
                 bool include = true;
                 foreach (var tagName in tagNames) {
                     if (ZoundsProject.Instance.zoundLibrary.TryGetTag(tagName, out var tag)) {

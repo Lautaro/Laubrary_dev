@@ -94,6 +94,25 @@ namespace Laubrary.Zounds {
             return tex;
         }
 
+        // Rasterize peaks already gathered over several editor update ticks. The caller owns the texture.
+        public static Texture2D CreatePeakTexture(float[] peaks, int width, int height, Color color) {
+            if (peaks == null || peaks.Length != width || width < 1 || height < 1) return null;
+            var pixels = new Color32[width * height];
+            Color32 waveColor = color;
+            int center = height / 2;
+            for (int x = 0; x < width; x++) {
+                int radius = Mathf.Min(center, Mathf.RoundToInt(peaks[x] * height * 0.375f));
+                for (int y = center - radius; y <= center + radius && y < height; y++) {
+                    if (y >= 0) pixels[y * width + x] = waveColor;
+                }
+            }
+
+            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear };
+            texture.SetPixels32(pixels);
+            texture.Apply(false);
+            return texture;
+        }
+
         private static Texture2D CreateNewTexture(AudioClip audioClip, int width, int height, Color color, string key) {
             if (width < 1 || height < 1) {
                 return null;

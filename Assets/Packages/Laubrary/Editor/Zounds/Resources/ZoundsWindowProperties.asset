@@ -12,11 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 522dd23e7ea5caf4fab1e918ae12ddb8, type: 3}
   m_Name: ZoundsWindowProperties
   m_EditorClassIdentifier: 
-  selectedMainTab: 0
+  selectedMainTab: 2
   selectedZoundTab: 0
   zoundTabProperties:
-  - searchText: 
-    selectedTypes: 3
+  - searchText: demon
+    selectedTypes: 0
     selectedFolders: []
     selectedTags: []
     selectedReferences: 
@@ -42,3 +42,4 @@ MonoBehaviour:
   showActiveZounds: 0
   showManuallySetRoutings: 1
   autoSave: 1
+  captureCallers: 1

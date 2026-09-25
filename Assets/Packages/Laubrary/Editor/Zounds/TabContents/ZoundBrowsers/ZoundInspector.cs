@@ -119,6 +119,7 @@ namespace Laubrary.Zounds {
 
                 float baseRemoveRectWidth = 0f;
                 if (browserSettings.showRouting)   baseRemoveRectWidth += buttonWidth;
+                if (browserSettings.showConvertToZequence) baseRemoveRectWidth += buttonWidth;
                 if (browserSettings.showDuplicate) baseRemoveRectWidth += buttonWidth;
                 if (browserSettings.showRemove)    baseRemoveRectWidth += buttonWidth;
 
@@ -167,7 +168,7 @@ namespace Laubrary.Zounds {
         // ──────────────────────────────────────────────────────────────────────────
         // SINGLECOLUMN INSPECTOR
         // Row-1 order (left → right):
-        //   [Edit] [Mute|Solo] [ZoundBtn] [NameInput] [V] [P] [C] [Route|Dup|Del] [Tags if fits]
+        //   [Edit] [Mute|Solo] [ZoundBtn] [NameInput] [V] [P] [C] [Route|Conv|Dup|Del] [Tags if fits]
         // Tags overflow to a dedicated row 2 when they cannot fit on row 1.
         // All rects are pre-computed by BrowserTab.DrawSinglecolumnRow.
         // ──────────────────────────────────────────────────────────────────────────
@@ -200,7 +201,7 @@ namespace Laubrary.Zounds {
                     DrawChanceField(layout.chanceRect, zoundToInspect);
             }
 
-            if ((browserSettings.showRouting || browserSettings.showDuplicate || browserSettings.showRemove)
+            if ((browserSettings.showRouting || browserSettings.showConvertToZequence || browserSettings.showDuplicate || browserSettings.showRemove)
                 && layout.rightGroupRect.width > 0f) {
                 DrawRemoveButton(layout.rightGroupRect, zoundToInspect, isMissingZound);
             }
@@ -279,7 +280,7 @@ namespace Laubrary.Zounds {
                 DrawMuteSoloButtonsVertical(drawMsRect, zoundToInspect);
             }
 
-            if ((browserSettings.showRouting || browserSettings.showDuplicate || browserSettings.showRemove) && removeRect.width > 0f) {
+            if ((browserSettings.showRouting || browserSettings.showConvertToZequence || browserSettings.showDuplicate || browserSettings.showRemove) && removeRect.width > 0f) {
                 DrawRemoveButton(drawRemoveRect, zoundToInspect, isMissingZound);
             }
 
@@ -551,22 +552,26 @@ namespace Laubrary.Zounds {
             });
         }
 
-        // ── Right action button group: Route / Duplicate / Remove ──
+        // ── Right action button group: Route / Convert / Duplicate / Remove ──
         // All buttons share the same rect, divided equally with ZoundItem_spacing gaps.
         // Button count is calculated first so each slot gets the same width.
         // isMissingZound suppresses all buttons except Remove (which clears the missing entry).
         // Buttons are disabled during play mode (removing/duplicating at runtime is unsafe).
-        // Note: Convert-to-Zequence is intentionally absent here — it lives in the Klip editor.
+        // Convert-to-Zequence always reserves its slot (so every row's buttons stay the same
+        // width whether or not this particular zound can use it — see the large-list UI rule
+        // against uneven button widths), but only Klips get a live button; it is greyed out
+        // for Zequences (a Zequence can't itself be "converted to a Zequence").
         private void DrawRemoveButton(Rect rect, Zound zoundToInspect, bool isMissingZound) {
             var browserSettings = ZoundsProject.Instance.browserSettings;
             bool guiEnabled = GUI.enabled;
             if (isMissingZound) GUI.enabled = true;
             else GUI.enabled = guiEnabled && !Application.isPlaying;
 
-            // Convert-to-Zequence is intentionally excluded from the list view — it will be
-            // accessible from the Klip editor instead. This keeps Klip and Zeq rows identical.
+            bool canConvertToZequence = !isMissingZound && zoundToInspect is Klip klipToConvert && klipToConvert.parentId == 0;
+
             int buttonCount = 0;
             if (!isMissingZound && browserSettings.showRouting) buttonCount++;
+            if (!isMissingZound && browserSettings.showConvertToZequence) buttonCount++;
             if (!isMissingZound && browserSettings.showDuplicate) buttonCount++;
             if (browserSettings.showRemove) buttonCount++;
 
@@ -588,6 +593,21 @@ namespace Laubrary.Zounds {
                     if (ZUI.Button(new Rect(currentX, rect.y, buttonWidth, rect.height), zoundToInspect.editor_hasManuallySetRouting ? icon_routingOn : icon_routingOff, ZUI.Style.ZoundBtnFlat, MaskFor(buttonIndex))) {
                         OpenManualRoutingDropdown(zoundToInspect);
                     }
+                    currentX += buttonWidth + gap; buttonIndex++;
+                }
+                if (browserSettings.showConvertToZequence) {
+                    bool prevEnabledForConvert = GUI.enabled;
+                    GUI.enabled = prevEnabledForConvert && canConvertToZequence;
+                    if (ZUI.Button(new Rect(currentX, rect.y, buttonWidth, rect.height), icon_convertToZequence, ZUI.Style.ZoundBtnFlat, MaskFor(buttonIndex))) {
+                        if (EditorUtility.DisplayDialog("Convert to Zequence: " + zoundToInspect.name,
+                            "Convert this Klip into a Zequence containing it as a local klip?\n" + zoundToInspect.name, "Convert", "Cancel")) {
+                            // Deferred (like Remove/Duplicate below) — mutating zoundLibrary.klips/
+                            // zequences immediately here would modify the list this row is being
+                            // drawn from mid-iteration.
+                            parentTab.zoundToConvertToZequence = (Klip)zoundToInspect;
+                        }
+                    }
+                    GUI.enabled = prevEnabledForConvert;
                     currentX += buttonWidth + gap; buttonIndex++;
                 }
                 if (browserSettings.showDuplicate) {

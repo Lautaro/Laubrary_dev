@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -11,6 +12,24 @@ namespace Laubrary.Zounds {
         public ProjectSettings projectSettings = new ProjectSettings();
         public ZoundLibrary zoundLibrary = new ZoundLibrary();
         public ZoundRoutings zoundRoutings = new ZoundRoutings();
+
+        // Native-DSP pipeline only. NOTE: not yet wired into project save/load (JSON round-trip) - a preset
+        // added here at runtime does not persist yet. Fine for chainPresetId == 0 (inline effect chains,
+        // which need none of this); flagged as a follow-up before shared chain presets are authored for real.
+        public List<ZoundChainPreset> chainPresets = new List<ZoundChainPreset>();
+
+        public ZoundChainPreset FindChainPreset(int id) {
+            if (id == 0 || chainPresets == null) return null;
+            for (int i = 0; i < chainPresets.Count; i++) if (chainPresets[i].id == id) return chainPresets[i];
+            return null;
+        }
+
+        /// <summary>How many zounds reference a preset by live reference.</summary>
+        public int CountChainPresetUsers(int presetId) {
+            int n = 0;
+            zoundLibrary.ForEachZound(z => { if (z.chainPresetId == presetId) n++; });
+            return n;
+        }
 
         [System.Serializable]
         public class BrowserSettings {
@@ -39,6 +58,8 @@ namespace Laubrary.Zounds {
             public bool showMute = true;
             public bool showSolo = true;
             public bool showOpenEditor = true;
+            // Gates the "Convert to Zeq" button in the Klip editor window (not a Browser row button —
+            // converting a Klip to a Zequence is only offered there, for top-level Klips).
             public bool showConvertToZequence = true;
             public bool showRouting = true;
             public bool showDuplicate = true;
@@ -87,6 +108,13 @@ namespace Laubrary.Zounds {
             public float cooldownDuration = 0.1f;
             public int maxPlayedZoundInstances = 10;
             public float cullFadeDuration = 0.4f;
+
+            // Runtime toggle between the managed engine (Unity AudioSource plays clips directly) and the
+            // experimental native-DSP engine (a native voice renders through the per-Klip effect chain; the
+            // AudioSource becomes a volume/pitch control surface only). The two pipelines are fully isolated
+            // per handler instance, decided once when a zound starts playing and never switched mid-flight.
+            // Default false (managed) until the native engine is proven - see the Laubrary Dev roadmap memory.
+            public bool useNativeDsp = false;
 
             public string workFolderPath => systemFolderPath + "/WorkFiles";
             public string zoundFilesFolderPath => systemFolderPath + "/ZoundFiles";
@@ -157,6 +185,10 @@ namespace Laubrary.Zounds {
 
         public static event System.Action onProjectLoaded;
 
+        /// <summary>Raised after an editor-side edit of the in-memory project (see ZoundsWindow.ModifyZoundsProject).</summary>
+        public static event System.Action onProjectModified;
+        public static void NotifyModified() => onProjectModified?.Invoke();
+
         public static void LoadFromJSON(string jsonContent) {
             ProjectSerializer deserialized;
             try {
@@ -173,13 +205,23 @@ namespace Laubrary.Zounds {
             inst.zoundLibrary = deserialized.zoundLibrary;
             inst.zoundRoutings = deserialized.zoundRoutings;
 
+            // A local zound belongs to its parent alone and carries no tags. Older data can still hold
+            // tags on locals (copies made before the editor cleared them); strip them so tag lookups and
+            // routing never see a local.
+            int localTagsCleared = 0;
+            inst.zoundLibrary.ForEachZound(z => {
+                if (z.parentId != 0 && z.tags.Count > 0) { z.tags.Clear(); localTagsCleared++; }
+            });
+            if (localTagsCleared > 0)
+                Debug.Log("[Zounds] Cleared tags from " + localTagsCleared + " local zound(s); tags belong to top-level zounds only.");
+
             // Clear the runtime engine caches so we don't hold onto stale sounds
             // after the JSON has been reloaded or reverted.
             ZoundEngine.ClearEngineCaches();
 
-#if UNITY_EDITOR
-            GenerateDefaultFiles();
-#endif
+            // Folder creation moved out of here: this runs from a static startup hook and from asset
+            // re-imports, and creating folders + refreshing the AssetDatabase there fires mid-import.
+            // ZoundsWindow ensures the folders when it opens and when a new project is created.
             isJSONLoaded = true;
             onProjectLoaded?.Invoke();
         }

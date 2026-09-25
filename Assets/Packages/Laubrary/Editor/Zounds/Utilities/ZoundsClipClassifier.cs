@@ -172,6 +172,24 @@ namespace Laubrary.Zounds {
 
             return Classify(folder, isReferenced, isOutput).shouldShip;
         }
+
+        /// <summary>
+        /// Whether a Klip needs an output clip of its own in ZoundFiles/ before it can ship.
+        /// A Klip whose source already ships as-is (a Library clip) plays that source directly;
+        /// its edits, if any, are handled by rendering, not by promotion. Only a source that cannot
+        /// ship (an external file, or a clip in the non-shipping Sources/Work folders) needs a copy.
+        /// The automatic save-time and pre-build sweeps must use this; a blanket "no output yet"
+        /// check duplicated every untouched Library clip into ZoundFiles/.
+        /// </summary>
+        public static bool NeedsOutputClip(Klip klip, ZoundsProject.ProjectSettings settings) {
+            if (klip == null) return false;
+            if (klip.outputClipRef != null && klip.outputClipRef.RuntimeKeyIsValid()) return false;
+            if (!string.IsNullOrEmpty(klip.externalSourcePath)) return true;
+            if (klip.audioClipRef == null || !klip.audioClipRef.RuntimeKeyIsValid()) return false;
+            string sourcePath = AssetDatabase.GUIDToAssetPath(klip.audioClipRef.AssetGUID);
+            if (string.IsNullOrEmpty(sourcePath)) return false;
+            return GetFolder(sourcePath, settings) != ClipFolder.Library;
+        }
     }
 }
 #endif

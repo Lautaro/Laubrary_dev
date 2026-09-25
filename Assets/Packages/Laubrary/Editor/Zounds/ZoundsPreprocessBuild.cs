@@ -56,14 +56,13 @@ namespace Laubrary.Zounds {
 
         private static void AutoPromoteUnpromotedKlips() {
             var library = ZoundsProject.Instance.zoundLibrary;
+            var settings = ZoundsProject.Instance.projectSettings;
             int promoted = 0;
             library.ForEachZound(z => {
-                if (z is Klip klip) {
-                    bool needsPromote = klip.outputClipRef == null || !klip.outputClipRef.RuntimeKeyIsValid();
-                    if (needsPromote) {
-                        KlipEditorWindow.PromoteOutputClip(klip);
-                        promoted++;
-                    }
+                // Only sources that cannot ship as-is need a copy; Library sources play directly.
+                if (z is Klip klip && ZoundsClipClassifier.NeedsOutputClip(klip, settings)) {
+                    KlipEditorWindow.PromoteOutputClip(klip);
+                    promoted++;
                 }
                 return false;
             });

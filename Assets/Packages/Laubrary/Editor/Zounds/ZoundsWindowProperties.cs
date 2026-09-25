@@ -27,6 +27,7 @@ namespace Laubrary.Zounds {
         [HideInInspector] public bool showActiveZounds = false;
         [HideInInspector] public bool showManuallySetRoutings = true;
         [HideInInspector] public bool autoSave = false;
+        [HideInInspector] public bool captureCallers = true;
 
         public static void DirtyAll() {
             foreach (var tabProperty in Instance.zoundTabProperties) {

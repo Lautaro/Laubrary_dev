@@ -47,6 +47,8 @@ namespace Laubrary.Zounds {
         internal static float INSPECTOR_TO_REMOVE_GAP => ZoundItem_spacing;
 
         // ── Browser state ──────────────────────────────────────────────────────
+        private enum BrowserDisplayMode { All, Recent }
+        private BrowserDisplayMode displayMode = BrowserDisplayMode.All;
         private Zound selectedZound;
         private Vector2 scrollPos;
         internal ZUI.AnimatedFloat inspectorAnimFloat = new ZUI.AnimatedFloat(0f);
@@ -56,6 +58,10 @@ namespace Laubrary.Zounds {
 
         private GUIContent icon_addNew;
         private GUIContent[] icon_columns;
+        private readonly GUIContent[] modeToggleLabels = {
+            new GUIContent("All", "Show every Zound in the library."),
+            new GUIContent("Recent", "Show only Zounds triggered this editor session, newest first.")
+        };
         private GUIContent filterLabel = new GUIContent("Filter:");
         private GUIContent tagsRowLabel = new GUIContent("T", "Tags on own row(s). When on, all tags wrap below the row. When off, tags share row 1 in a fixed area (clipped if too long).");
 
@@ -75,6 +81,7 @@ namespace Laubrary.Zounds {
 
         public Zound zoundToRemove { get; set; } = null;
         public Zound zoundToDuplicate { get; set; } = null;
+        public Klip zoundToConvertToZequence { get; set; } = null;
 
         // ── Settings panel state ───────────────────────────────────────────────
         private bool showSettings = false;
@@ -125,10 +132,27 @@ namespace Laubrary.Zounds {
             icon_duplicate  = new GUIContent(ZUI.FindIcon("duplicate") ?? Resources.Load<Texture>("ZoundsWindowIcons/duplicate"),   "Toggle duplication button visibility.");
             icon_remove     = new GUIContent(ZUI.FindIcon("remove") ?? Resources.Load<Texture>("ZoundsWindowIcons/remove"),      "Toggle remove button visibility.");
             icon_settings   = new GUIContent(EditorGUIUtility.IconContent("SettingsIcon").image, "Toggle browser settings.");
+
+            ZoundsRecentHistory.onRecentHistoryChanged += OnRecentHistoryChanged;
         }
 
         ~BrowserTab() {
             if (instance == this) instance = null;
+        }
+
+        // Deterministic cleanup, called from ZoundsWindow.OnDisable(). The finalizer above cannot
+        // be relied on to unsubscribe this instance from the static onRecentHistoryChanged event:
+        // as long as the subscription is live, the static event holds a strong reference to this
+        // BrowserTab, so it never becomes GC-eligible and the finalizer never runs.
+        public void Dispose() {
+            ZoundsRecentHistory.onRecentHistoryChanged -= OnRecentHistoryChanged;
+        }
+
+        private void OnRecentHistoryChanged() {
+            if (displayMode == BrowserDisplayMode.Recent) {
+                filterCache = null;
+            }
+            ZoundsWindow.RepaintWindow();
         }
 
         public override void OnTabOpened() {
@@ -152,7 +176,9 @@ namespace Laubrary.Zounds {
                 var selectedTypes  = tabProps.selectedTypes;
 
                 if (selectedTypes == ZoundType.None || selectedTypes.HasFlag(ZoundType.Klip)) {
-                    result.AddRange(zoundLibrary.klips);
+                    // Local klips belong to their parent composite zound, not the top-level browsable list.
+                    foreach (var klip in zoundLibrary.klips)
+                        if (klip.parentId == 0) result.Add(klip);
                 }
                 else {
                     foreach (var kvp in ZoundEngine.CullingGroups)
@@ -160,7 +186,9 @@ namespace Laubrary.Zounds {
                 }
 
                 if (selectedTypes == ZoundType.None || selectedTypes.HasFlag(ZoundType.Zequence)) {
-                    result.AddRange(zoundLibrary.zequences);
+                    // Local zequences belong to their parent composite zound, not the top-level browsable list.
+                    foreach (var zequence in zoundLibrary.zequences)
+                        if (zequence.parentId == 0) result.Add(zequence);
                 }
                 else {
                     foreach (var kvp in ZoundEngine.CullingGroups)
@@ -187,9 +215,32 @@ namespace Laubrary.Zounds {
                     foreach (var z in ZoundEngine.MissingZounds.Values) result.Add(z);
                 }
 
+                if (displayMode == BrowserDisplayMode.Recent) {
+                    return FilterToRecent(result);
+                }
+
                 result = result.OrderBy(it => it.name).ToList();
                 return result;
             }
+        }
+
+        // Narrows the full candidate set down to only the Zounds present in the recent-triggered
+        // history, newest first. A recorded name that no longer resolves to a live Zound (e.g. it
+        // was deleted from the library) is silently skipped rather than erroring.
+        private static List<Zound> FilterToRecent(List<Zound> candidates) {
+            var byKey = new Dictionary<string, Zound>();
+            foreach (var z in candidates) {
+                if (z == null) continue;
+                string key = ZoundDictionary.ZoundNameToKey(z.name);
+                if (!byKey.ContainsKey(key)) byKey.Add(key, z);
+            }
+
+            var recentResult = new List<Zound>();
+            foreach (var name in ZoundsRecentHistory.GetRecentZoundNames()) {
+                string key = ZoundDictionary.ZoundNameToKey(name);
+                if (byKey.TryGetValue(key, out var z)) recentResult.Add(z);
+            }
+            return recentResult;
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -841,6 +892,21 @@ namespace Laubrary.Zounds {
                 }
             }
 
+            // ── Recent-triggered mode ──
+            ToolbarGap();
+            int currentDisplayMode = displayMode == BrowserDisplayMode.Recent ? 1 : 0;
+            int newDisplayMode = GUILayout.Toolbar(currentDisplayMode, modeToggleLabels, GUILayout.Height(tbH), GUILayout.Width(100f));
+            if (newDisplayMode != currentDisplayMode) {
+                displayMode = newDisplayMode == 1 ? BrowserDisplayMode.Recent : BrowserDisplayMode.All;
+                filterCache = null;
+            }
+            if (displayMode == BrowserDisplayMode.Recent) {
+                ToolbarGap();
+                if (ZUI.Button(new GUIContent("Clear recent", "Clear the recently-triggered Zounds list."), ZUI.Style.Flat, ZUICornerMask.All, GUILayout.Height(tbH))) {
+                    ZoundsRecentHistory.ClearRecent();
+                }
+            }
+
             EndToolbarRow();
 
             ZUI.RowSpace();
@@ -848,19 +914,37 @@ namespace Laubrary.Zounds {
             int selectedIndex = selectedZound != null ? filteredZounds.IndexOf(selectedZound) : -1;
 
             ZUI.RowSpace();
-            GUILayout.BeginHorizontal();
-            GUILayout.Space(5f);
-            if (ZoundsProject.Instance.browserSettings.multicolumn) {
-                DrawZoundsMulticolumn(contentRect.size, selectedIndex, filteredZounds);
+            if (displayMode == BrowserDisplayMode.Recent && filteredZounds.Count == 0) {
+                GUILayout.Space(5f);
+                EditorGUILayout.HelpBox("No Zounds triggered since the list was cleared.", MessageType.Info);
+                GUILayout.Space(5f);
             }
             else {
-                DrawZoundsSinglecolumn(contentRect.size, selectedIndex, filteredZounds);
+                GUILayout.BeginHorizontal();
+                GUILayout.Space(5f);
+                if (ZoundsProject.Instance.browserSettings.multicolumn) {
+                    DrawZoundsMulticolumn(contentRect.size, selectedIndex, filteredZounds);
+                }
+                else {
+                    DrawZoundsSinglecolumn(contentRect.size, selectedIndex, filteredZounds);
+                }
+                GUILayout.Space(5f);
+                GUILayout.EndHorizontal();
+                GUILayout.Space(5f);
             }
-            GUILayout.Space(5f);
-            GUILayout.EndHorizontal();
-            GUILayout.Space(5f);
 
-            // Deferred mutations
+            ApplyDeferredRowMutations();
+        }
+
+        /// <summary>
+        /// Applies mutations queued by a row drawn via <see cref="DrawListRow"/> — Remove/Duplicate/
+        /// Convert set <see cref="zoundToRemove"/>/<see cref="zoundToDuplicate"/>/
+        /// <see cref="zoundToConvertToZequence"/> during the row's own draw call rather than mutating
+        /// the project mid-layout. The Browser calls this right after its own draw pass; any other tab
+        /// drawing Browser rows (e.g. the Monitor tab) must call this once after its own draw pass too,
+        /// or a Remove/Duplicate/Convert click from that tab would be a silent no-op.
+        /// </summary>
+        internal void ApplyDeferredRowMutations() {
             if (zoundToRemove != null) {
                 ZoundsWindow.ModifyZoundsProject("remove zound", () => {
                     AudioAssetUtility.RemoveZound(zoundToRemove);
@@ -876,6 +960,10 @@ namespace Laubrary.Zounds {
                     filterCache = null;
                 });
                 zoundToDuplicate = null;
+            }
+            if (zoundToConvertToZequence != null) {
+                ConvertKlipToZequence(zoundToConvertToZequence);
+                zoundToConvertToZequence = null;
             }
         }
 
@@ -979,7 +1067,7 @@ namespace Laubrary.Zounds {
 
             // Browse-and-import option — always available. Lets the user pick any WAV from outside
             // the project, copies it into the Sources folder as a first-class AudioClip asset, then
-            // builds a Klip from it. Unlike "From External File..." below (which keeps the file
+            // builds a Klip from it. Unlike the "External" button in the folder bar (which keeps the file
             // external via Klip.externalSourcePath), this makes the file a real in-project source.
             genericMenu.AddSeparator("");
             genericMenu.AddItem(new GUIContent("Import External File to Sources..."), false, () => {
@@ -1018,36 +1106,14 @@ namespace Laubrary.Zounds {
                     capturedOnKlipAdded?.Invoke(CreateEmptyPlaceholderKlip(capturedNameOverride));
                 }, true);
             });
-            // External source option — only shown when the machine has an external source root configured.
-            if (ProjectSettingsTab.HasExternalSourceRoot) {
-                genericMenu.AddSeparator("");
-                genericMenu.AddItem(new GUIContent("From External File..."), false, () => {
-                    // Defer the modal file dialog to avoid corrupting the IMGUI layout stack.
-                    var capturedOnKlipAdded = onKlipAdded;
-                    var capturedNameOverride = nameOverride;
-                    EditorApplication.delayCall += () => {
-                        string startDir = ProjectSettingsTab.ExternalSourceRoot;
-                        string selected = EditorUtility.OpenFilePanel("Select External Audio File", startDir, "wav");
-                        if (!string.IsNullOrEmpty(selected)) {
-                            var tempClip = WavDecoder.LoadFromDisk(selected);
-                            if (tempClip != null) {
-                                string klipName = capturedNameOverride ?? System.IO.Path.GetFileNameWithoutExtension(selected);
-                                var newKlip = ZoundAPI.CreateKlipFromExternalSource(selected, tempClip.length, klipName);
-                                if (newKlip != null) {
-                                    // Immediately copy the external file to ZoundFiles/ so it's ready to commit.
-                                    KlipEditorWindow.PromoteOutputClip(newKlip);
-                                    capturedOnKlipAdded?.Invoke(newKlip);
-                                }
-                            }
-                            else {
-                                EditorUtility.DisplayDialog("Error", "Could not decode WAV file:\n" + selected, "OK");
-                            }
-                        }
-                    };
-                });
-            }
+            // The external file option is not a menu entry: it is the "External" button in the
+            // folder bar above the list (see DrawFolderFilterButtons), so it is visible without
+            // scrolling through the clip list.
 
-            GenericMenuPopup.Show(genericMenu, "Add New Klip(s)", mousePosition, new List<string>(), searchText, newSearch => onSearchTextChanged?.Invoke(newSearch), userData => PlayAudioClip(userData), 3, false, null, (updateFilter) => DrawFolderFilterButtons(updateFilter));
+            // The popup lists this menu flat and sorted by name, which buried the actions among
+            // hundreds of clips; starring pins them above the list while the search box is empty.
+            var pinnedActions = new List<string> { "Import External File to Sources...", "Import & Trim External File...", "Empty Klip (Placeholder)" };
+            GenericMenuPopup.Show(genericMenu, "Add New Klip(s)", mousePosition, pinnedActions, searchText, newSearch => onSearchTextChanged?.Invoke(newSearch), userData => PlayAudioClip(userData), 3, false, null, (updateFilter) => DrawFolderFilterButtons(updateFilter, () => AddKlipFromExternalFile(nameOverride, onKlipAdded)));
         }
 
         public void OpenZoundEditor(Zound zound) {
@@ -1084,8 +1150,20 @@ namespace Laubrary.Zounds {
                 var existingID = klip.id;
                 var newZeq = new Zequence(existingID);
                 newZeq.name = klip.name;
+                // Tags (including any routing tags) belong to the top-level zound that represents
+                // this sound to the rest of the project — move them onto the new Zequence and clear
+                // them off the demoted Klip. Leaving them on the Klip would be a silent trap: since
+                // ForEachZound/GetAllZoundsByTag recurse into localKlips, a stale tag left behind
+                // would still be found by tag lookups (e.g. ZoundRouter) even though the Klip is now
+                // buried inside a Zequence, so the lookup could keep resolving to the old inner Klip
+                // instead of the new Zequence that's actually meant to represent this sound.
+                newZeq.tags.AddRange(klip.tags);
+                klip.tags.Clear();
                 klip.id = ZoundLibrary.GetUniqueZoundId();
                 klip.parentId = newZeq.id;
+                // The Klip keeps its old name by default, which is now identical to its new parent
+                // Zequence's name — confusing when browsing inside the Zequence editor. Distinguish it.
+                klip.name = klip.name + " (Source)";
                 newZeq.localKlips.Add(klip);
                 var newEntry = new CompositeZound.ZoundEntry();
                 newEntry.zoundId = klip.id;
@@ -1233,7 +1311,7 @@ namespace Laubrary.Zounds {
         // SINGLECOLUMN (LIST MODE)
         // ═══════════════════════════════════════════════════════════════════════
 
-        // Row-1 order (left→right): [Edit][Mute|Solo][ZoundBtn][NameInput][V][P][C][Route|Dup|Del][Tags if fits]
+        // Row-1 order (left→right): [Edit][Mute|Solo][ZoundBtn][NameInput][V][P][C][Route|Conv|Dup|Del][Tags if fits]
         // Row 2 (optional): full-width tag strip, drawn only when tags overflow row 1.
         private ZoundListRowLayout ComputeListRowLayout(float itemWidth, ZoundsProject.BrowserSettings browserSettings) {
             var layout = new ZoundListRowLayout();
@@ -1242,6 +1320,7 @@ namespace Laubrary.Zounds {
             float buttonWidth = ROW_BUTTON_WIDTH;
             int rightBtnCount = 0;
             if (browserSettings.showRouting)   rightBtnCount++;
+            if (browserSettings.showConvertToZequence) rightBtnCount++;
             if (browserSettings.showDuplicate) rightBtnCount++;
             if (browserSettings.showRemove)    rightBtnCount++;
             layout.rightGroupWidth = rightBtnCount * buttonWidth;
@@ -1281,7 +1360,11 @@ namespace Laubrary.Zounds {
         // Text longer than this is clipped.
         internal const float TAGS_INLINE_AREA_WIDTH = 140f;
 
-        private void DrawZoundsSinglecolumn(Vector2 contentSize, int selectedIndex, List<Zound> filteredZounds) {
+        // Extracted so a row can be drawn for an arbitrary Zound from outside the Browser's own
+        // list pass (e.g. the Monitor tab): computes the per-pass geometry (auto-sized ZoundBtn
+        // width, auto-sized NameInput width, the rest via ComputeListRowLayout) for the given
+        // candidate set, without touching _listRowLayout or drawing anything.
+        internal ZoundListRowLayout PrepareListRowLayout(List<Zound> zounds) {
             var browserSettings = ZoundsProject.Instance.browserSettings;
             var sizeMode = browserSettings.buttonSizeMode;
             float itemWidth = browserSettings.itemWidth;
@@ -1289,7 +1372,8 @@ namespace Laubrary.Zounds {
             if (sizeMode != ZoundsProject.BrowserSettings.ButtonSizeMode.Fixed) {
                 var btnStyle = ZUI.GetButtonStyle(ZUI.Style.ZoundBtn);
                 float maxW = 0f;
-                foreach (var z in filteredZounds) {
+                foreach (var z in zounds) {
+                    if (z == null) continue;
                     zoundButtonContent.text = z.name;
                     maxW = Mathf.Max(maxW, btnStyle.CalcSize(zoundButtonContent).x);
                 }
@@ -1305,7 +1389,7 @@ namespace Laubrary.Zounds {
             if (browserSettings.showNameField) {
                 var textFieldStyle = EditorStyles.textField;
                 float maxNameW = 0f;
-                foreach (var z in filteredZounds) {
+                foreach (var z in zounds) {
                     if (z == null) continue;
                     tempContent.text = z.name;
                     maxNameW = Mathf.Max(maxNameW, textFieldStyle.CalcSize(tempContent).x);
@@ -1313,8 +1397,13 @@ namespace Laubrary.Zounds {
                 nameInputW = Mathf.Clamp(maxNameW + NAME_INPUT_PADDING, MIN_NAME_INPUT_WIDTH, MAX_NAME_INPUT_WIDTH);
             }
 
-            _listRowLayout = ComputeListRowLayout(itemWidth, browserSettings);
-            _listRowLayout.nameInputWidth = nameInputW;
+            var layout = ComputeListRowLayout(itemWidth, browserSettings);
+            layout.nameInputWidth = nameInputW;
+            return layout;
+        }
+
+        private void DrawZoundsSinglecolumn(Vector2 contentSize, int selectedIndex, List<Zound> filteredZounds) {
+            _listRowLayout = PrepareListRowLayout(filteredZounds);
 
             scrollPos = GUILayout.BeginScrollView(scrollPos);
             {
@@ -1326,7 +1415,7 @@ namespace Laubrary.Zounds {
                         foreach (var z in kvp.Value) {
                             if (i >= filteredZounds.Count) break;
                             if (filteredZounds[i] == selectedZound) selectedIndex = i;
-                            DrawSinglecolumnRow(filteredZounds, selectedIndex, i);
+                            DrawListRow(filteredZounds[i], ref _listRowLayout);
                             if (i < filteredZounds.Count - 1) ZUI.RowSpace(0.5f);
                             i++;
                         }
@@ -1334,7 +1423,7 @@ namespace Laubrary.Zounds {
                 }
                 else {
                     for (int i = 0; i < filteredZounds.Count; i++) {
-                        DrawSinglecolumnRow(filteredZounds, selectedIndex, i);
+                        DrawListRow(filteredZounds[i], ref _listRowLayout);
                         if (i < filteredZounds.Count - 1) ZUI.RowSpace(0.5f);
                     }
                 }
@@ -1348,7 +1437,7 @@ namespace Laubrary.Zounds {
             public float nameInputWidth;     // fixed width for the NameInput field (auto-sized from longest name, or 0 if not shown)
             public float editRectWidth;      // 0 or ROW_BUTTON_WIDTH
             public float muteSoloWidth;      // always-horizontal M/S pair width
-            public float rightGroupWidth;    // Route+Dup+Del sum
+            public float rightGroupWidth;    // Route+Conv+Dup+Del sum
             public Vector2 lastValidSize;
 
             // Per-row (computed in DrawSinglecolumnRow from row width)
@@ -1362,7 +1451,7 @@ namespace Laubrary.Zounds {
             public Rect volumeRect;
             public Rect pitchRect;
             public Rect chanceRect;
-            public Rect rightGroupRect;   // Route / Dup / Del cluster
+            public Rect rightGroupRect;   // Route / Conv / Dup / Del cluster
             public Rect tagsInlineRect;   // tags on row 1 (when they fit)
 
             // Row 2+ (only when tagsOnSeparateRow). Height can exceed ROW_HEIGHT when tags wrap.
@@ -1375,10 +1464,15 @@ namespace Laubrary.Zounds {
 
         private ZoundListRowLayout _listRowLayout;
 
-        protected void DrawSinglecolumnRow(List<Zound> filteredList, int selectedIndex, int currentIndex) {
-            var currentZound    = filteredList[currentIndex];
+        // Draws one full Browser row for an arbitrary Zound, through the exact same
+        // ZoundListItemView.Draw path (and so the same mute/solo, name button, name field,
+        // VPC sliders, route/duplicate/delete, tags) the Browser itself uses. `layout` is the
+        // per-pass geometry from PrepareListRowLayout — callers outside the Browser's own draw
+        // loop keep their own local instance rather than sharing _listRowLayout, and must call
+        // ApplyDeferredRowMutations() once after their draw pass (Remove/Duplicate are deferred).
+        internal void DrawListRow(Zound zound, ref ZoundListRowLayout layout) {
+            var currentZound    = zound;
             var browserSettings = ZoundsProject.Instance.browserSettings;
-            ref var layout      = ref _listRowLayout;
 
             bool isMissingZound = !(currentZound is ClipZound) && currentZound.id == 0;
             bool tagsOwnRowMode = browserSettings.showTags && browserSettings.tagsOnOwnRow;
@@ -1653,11 +1747,60 @@ namespace Laubrary.Zounds {
         }
 #endif
 
+        /// <summary>
+        /// Makes one Klip per chosen WAV file outside the project; the dialog allows several files.
+        /// Needs the per-machine external source root; when none is set yet the user is asked for it first.
+        /// </summary>
+        private static void AddKlipFromExternalFile(string nameOverride, System.Action<Klip> onKlipAdded) {
+            // Defer the modal file dialog to avoid corrupting the IMGUI layout stack.
+            EditorApplication.delayCall += () => {
+                if (!ProjectSettingsTab.HasExternalSourceRoot) {
+                    string root = EditorUtility.OpenFolderPanel("Select External Audio Source Root (kept per machine)", "", "");
+                    if (string.IsNullOrEmpty(root)) return;
+                    ProjectSettingsTab.ExternalSourceRoot = root;
+                }
+                string startDir = ProjectSettingsTab.ExternalSourceRoot;
+                var selected = ExternalFileDialog.OpenFiles("Select External Audio Files", startDir, "wav");
+                CreateKlipsFromExternalFiles(selected, nameOverride, onKlipAdded);
+            };
+        }
+
+        /// <summary>
+        /// One Klip per file. A name override applies to the first file; the rest keep their file names,
+        /// since one override cannot name several klips. Files that do not decode are reported together
+        /// and skipped, the others are still created.
+        /// </summary>
+        internal static List<Klip> CreateKlipsFromExternalFiles(IReadOnlyList<string> paths, string nameOverride, System.Action<Klip> onKlipAdded) {
+            var created = new List<Klip>();
+            if (paths == null || paths.Count == 0) return created;
+
+            var failed = new List<string>();
+            for (int i = 0; i < paths.Count; i++) {
+                string path = paths[i];
+                var tempClip = WavDecoder.LoadFromDisk(path);
+                if (tempClip == null) {
+                    failed.Add(path);
+                    continue;
+                }
+                string klipName = i == 0 && nameOverride != null ? nameOverride : System.IO.Path.GetFileNameWithoutExtension(path);
+                var newKlip = ZoundAPI.CreateKlipFromExternalSource(path, tempClip.length, klipName);
+                if (newKlip == null) continue;
+                // Immediately copy the external file to ZoundFiles/ so it's ready to commit.
+                KlipEditorWindow.PromoteOutputClip(newKlip);
+                created.Add(newKlip);
+                onKlipAdded?.Invoke(newKlip);
+            }
+
+            if (failed.Count > 0)
+                EditorUtility.DisplayDialog("Error", "Could not decode WAV file" + (failed.Count > 1 ? "s" : "") + ":\n" + string.Join("\n", failed), "OK");
+            return created;
+        }
+
         private static void PlayAudioClip(object userData) {
             if (userData is AudioClip audioClip) AudioPreviewUtility.PlayPreviewClip(audioClip);
         }
 
-        private static void DrawFolderFilterButtons(System.Action<string, bool> updateFilter) {
+        private static void DrawFolderFilterButtons(System.Action<string, bool> updateFilter, System.Action onExternalFile) {
             var projectSettings = ZoundsProject.Instance.projectSettings;
             string libraryPath = projectSettings.libraryFolderPath;
             string sourcesPath = projectSettings.sourcesFolderPath;
@@ -1686,6 +1829,13 @@ namespace Laubrary.Zounds {
                 EditorGUILayout.BeginHorizontal();
                 GUILayout.Label("Folders:", EditorStyles.miniLabel, GUILayout.Width(50));
                 currentX += 55f;
+
+                if (GUILayout.Button(new GUIContent("External", "Pick a WAV file outside the project as a new Klip."), EditorStyles.miniButton, GUILayout.ExpandWidth(false))) {
+                    // The picker is modal, so the popup goes away first.
+                    if (EditorWindow.focusedWindow is GenericMenuEditorWindow popupWindow) popupWindow.Close();
+                    onExternalFile?.Invoke();
+                }
+                currentX += 65f;
 
                 if (GUILayout.Button("All", EditorStyles.miniButton, GUILayout.ExpandWidth(false))) {
                     updateFilter?.Invoke("", true);

@@ -76,17 +76,37 @@ namespace Laubrary.Zounds {
 
             titleContent.text = "Zounds";
             minSize = new Vector2(414f, 151f);
+            saveChangesMessage = "The Zounds project has unsaved changes.";
+            if (ZoundsProject.isJSONLoaded) {
+                // Deferred so the folder creation + AssetDatabase.Refresh never runs inside a domain reload.
+                EditorApplication.delayCall += () => { if (ZoundsProject.isJSONLoaded) ZoundsProject.GenerateDefaultFiles(); };
+            }
             zoundsProject.zoundLibrary.Validate();
             projectSO = new SerializedObject(zoundsProject);
 
             mainTabView = new TabViewIMGUI(new TabContent[] {
                 new BrowserTab(),
-new RoutingTab(),
+                new MonitorTab(),
+                new RoutingTab(),
                 new DependencyMapTab(),
                 new ProjectSettingsTab() { name = "Settings" },
             });
 
             EditorApplication.playModeStateChanged += EditorApplication_playModeStateChanged;
+            AssemblyReloadEvents.beforeAssemblyReload += SaveIfDirtyBeforeReload;
+        }
+
+        // Domain reload wipes the in-memory project and re-reads the file, so an unsaved edit would be
+        // lost silently. Saving here is the lesser evil; git keeps the previous file state.
+        private static void SaveIfDirtyBeforeReload() {
+            if (!zoundsProjectDirty) return;
+            Debug.Log("[Zounds] Saving unsaved project edits before the domain reload.");
+            SaveToJSON();
+        }
+
+        public override void SaveChanges() {
+            SaveToJSON();
+            base.SaveChanges();
         }
 
         private void Update() {
@@ -134,12 +154,19 @@ new RoutingTab(),
         }
 
         private void OnDisable() {
+            AssemblyReloadEvents.beforeAssemblyReload -= SaveIfDirtyBeforeReload;
             EditorApplication.playModeStateChanged -= EditorApplication_playModeStateChanged;
             Undo.undoRedoPerformed -= PerformUndoRedo;
+            mainTabView?.GetTab<BrowserTab>(0)?.Dispose();
+            mainTabView?.GetTab<MonitorTab>(0)?.Dispose();
         }
 
         private void EditorApplication_playModeStateChanged(PlayModeStateChange stateChange) {
             editorState = stateChange;
+            if (editorState == PlayModeStateChange.ExitingEditMode && zoundsProjectDirty) {
+                // On projects that reload the domain on Play, the in-memory project would be lost here.
+                SaveIfDirtyBeforeReload();
+            }
             if (editorState == PlayModeStateChange.ExitingPlayMode) {
                 ZoundEngine.PersistMissingZounds();
             }
@@ -319,6 +346,7 @@ new RoutingTab(),
 
         public static void SetZoundsProjectDirty() {
             zoundsProjectDirty = true;
+            if (instance != null) instance.hasUnsavedChanges = true;
         }
 
         private static bool s_isModifying = false;
@@ -379,6 +407,7 @@ new RoutingTab(),
                 Undo.RecordObject(zoundsProject, undoMessage);
                 action.Invoke();
                 EditorUtility.SetDirty(zoundsProject);
+                ZoundsProject.NotifyModified();
                 if (forceSave || ZoundsWindowProperties.Instance.autoSave) {
                     SaveToJSON();
                 }
@@ -407,12 +436,28 @@ new RoutingTab(),
         }
 
         public static void SaveToJSON() {
-            if (s_projectJSONAsset == null) return;
+            // The asset reference is set by the Zounds window while it is open. Another tool (the Zound
+            // Routing window, a probe) can modify the project while it is closed, so fall back to the
+            // project path the initialization keeps; a save that cannot find its file is an error, not a no-op.
+            if (!ZoundsProject.isJSONLoaded) {
+                Debug.LogError("[Zounds] Project modified before any project JSON was loaded, so nothing was saved: writing now would replace the file with an empty project.");
+                return;
+            }
+            if (s_projectJSONAsset == null) {
+                string configuredPath = ZoundsProjectInitialization.GetZoundsProjectPath();
+                if (!string.IsNullOrWhiteSpace(configuredPath))
+                    s_projectJSONAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(configuredPath);
+                if (s_projectJSONAsset == null) {
+                    Debug.LogError("[Zounds] Project modified but no project JSON asset is known, so nothing was saved. Configured path: '" + configuredPath + "'.");
+                    return;
+                }
+            }
 
             // Ensure all Klips have output clips in ZoundFiles/ before persisting.
             EnsureAllKlipOutputs();
 
             zoundsProjectDirty = false;
+            if (instance != null) instance.hasUnsavedChanges = false;
             string assetPath = AssetDatabase.GetAssetPath(s_projectJSONAsset);
 
             var zoundsProject = ZoundsProject.Instance;
@@ -439,23 +484,26 @@ new RoutingTab(),
         private static bool s_isEnsuringOutputs = false;
 
         /// <summary>
-        /// Sweeps all Klips and ensures each has an output clip in ZoundFiles/.
-        /// Skips Klips that already have a valid output — only the first run does real work.
-        /// Called automatically before every JSON save.
+        /// Sweeps all Klips and ensures each one whose source cannot ship as-is has an output clip
+        /// in ZoundFiles/ (see <see cref="ZoundsClipClassifier.NeedsOutputClip"/>). Klips with a
+        /// Library source are left alone: they play the source directly.
+        /// Called automatically before every edit-mode JSON save.
         /// </summary>
         private static void EnsureAllKlipOutputs() {
+            // File copies + AssetDatabase imports freeze the editor; defer to the next edit-mode save
+            // and the pre-build audit (ZoundsPreprocessBuild) instead of running mid-Play.
+            if (EditorApplication.isPlayingOrWillChangePlaymode) return;
             if (s_isEnsuringOutputs) return; // Guard against re-entry from PromoteOutputClip's ModifyZoundsProject calls.
             s_isEnsuringOutputs = true;
             try {
 #if ADDRESSABLES_INSTALLED
                 var library = ZoundsProject.Instance.zoundLibrary;
+                var settings = ZoundsProject.Instance.projectSettings;
                 int promoted = 0;
                 library.ForEachZound(z => {
-                    if (z is Klip klip) {
-                        if (klip.outputClipRef == null || !klip.outputClipRef.RuntimeKeyIsValid()) {
-                            KlipEditorWindow.PromoteOutputClip(klip);
-                            promoted++;
-                        }
+                    if (z is Klip klip && ZoundsClipClassifier.NeedsOutputClip(klip, settings)) {
+                        KlipEditorWindow.PromoteOutputClip(klip);
+                        promoted++;
                     }
                     return false;
                 });

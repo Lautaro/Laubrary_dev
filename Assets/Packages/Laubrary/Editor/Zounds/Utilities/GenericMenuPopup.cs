@@ -49,6 +49,9 @@ namespace Laubrary.Zounds {
             string[] searchSplits = ObjectNames.NicifyVariableName(lowerSearch).ToLower().Split(' ');
 
             foreach (var node in Nodes) {
+                // A separator is a childless node with no content; listed flat it would draw as an
+                // empty entry and picking it would put a content-less node into the selection.
+                if (node.separator) continue;
 
                 if (node.Nodes.Count == 0 || includeFolders) {
                     bool found = string.IsNullOrEmpty(lowerSearch) || node.name.ToLower().Contains(lowerSearch);
@@ -652,7 +655,7 @@ namespace Laubrary.Zounds {
         private void DrawQuickBar(Rect viewportRect) {
             if (selectedNodesNeedRecache || selectedNodesOrdered == null) {
                 selectedNodesNeedRecache = false;
-                selectedNodesOrdered = selectedNodes.OrderBy(_node => _node.content.text);
+                selectedNodesOrdered = selectedNodes.OrderBy(_node => _node.content != null ? _node.content.text : _node.name);
             }
 
             float closeButtonWidth = 22f;

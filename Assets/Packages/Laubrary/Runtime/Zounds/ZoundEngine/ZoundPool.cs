@@ -21,7 +21,11 @@ namespace Laubrary.Zounds {
 
             if (audioSource == null) {
                 var go = new GameObject("ZoundSource");
-                go.transform.parent = ZoundEngine.Instance.transform;
+                var engine = ZoundEngine.Instance;
+                go.transform.parent = engine.transform;
+                // Inherit the engine's flags explicitly (HideAndDontSave in edit mode) instead of relying
+                // on the parent to keep this object out of scene saves.
+                go.hideFlags = engine.gameObject.hideFlags;
                 audioSource = go.AddComponent<AudioSource>();
                 audioSource.playOnAwake = false;
                 allAudioSources.Add(audioSource);
@@ -42,11 +46,15 @@ namespace Laubrary.Zounds {
         }
 
         public void ReturnAudioSource(AudioSource audioSource) {
-            if (audioSource != null) {
-                audioSource.Stop();
-                audioSource.clip = null;
-                audioSource.gameObject.SetActive(false);
+            if (audioSource == null) {
+                // Destroyed under us: forget it rather than pooling a dead reference.
+                allAudioSources.RemoveAll(s => s == null);
+                sourcePool.RemoveAll(s => s == null);
+                return;
             }
+            audioSource.Stop();
+            audioSource.clip = null;
+            audioSource.gameObject.SetActive(false);
             if (!sourcePool.Contains(audioSource)) {
                 sourcePool.Add(audioSource);
             }
@@ -56,7 +64,7 @@ namespace Laubrary.Zounds {
         public void StopAllSources(bool cleanupPool = false) {
             if (cleanupPool) {
                 foreach (var source in allAudioSources) {
-                    source.Stop();
+                    if (source != null) source.Stop();
                 }
                 CleanupAllSources();
             }
@@ -65,6 +73,7 @@ namespace Laubrary.Zounds {
                     tempAudioSourceSet.Add(source);
                 }
                 foreach (var source in allAudioSources) {
+                    if (source == null) continue;
                     source.Stop();
                     if (!tempAudioSourceSet.Contains(source)) {
                         ReturnAudioSource(source);
@@ -94,6 +103,7 @@ namespace Laubrary.Zounds {
             else destroyHandler = GameObject.DestroyImmediate;
 
             foreach (var source in allAudioSources) {
+                if (source == null) continue;
                 destroyHandler(source.gameObject);
             }
             sourcePool.Clear();

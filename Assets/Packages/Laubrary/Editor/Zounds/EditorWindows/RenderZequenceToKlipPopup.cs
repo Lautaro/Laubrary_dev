@@ -153,7 +153,7 @@ namespace Laubrary.Zounds {
             EnsureAllKlipsRendered(zequence);
 
             var token = ZoundEngine.PlayZound(zequence, new ZoundArgs() {
-                startImmediately = true,
+                startImmediately = false,
                 delay = 0f,
                 volumeOverride = 1f,
                 pitchOverride = 1f,
@@ -210,6 +210,8 @@ namespace Laubrary.Zounds {
                     BrowserTab.Instance?.OpenZoundEditor(newKlip);
                 }, true);
             });
+            // Start after the recorder is running so the render captures the very first samples.
+            token.Play();
         }
 
         public static void EnsureAllKlipsRendered(Zequence zeq) {
