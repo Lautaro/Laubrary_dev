@@ -26,8 +26,20 @@ namespace Laubrary.Zounds.Dsp {
         // generous fixed budget instead of a derived one; overflow is clamped the same way node/param
         // overflow already is below, rather than left to silently corrupt neighbouring modulators' slices.
         public const int MAX_MOD_PARAMS_PER = 8;
-        public const int MAX_MOD_CURVE_POINTS_PER = 64;
-        public const int MAX_MOD_STEPS_PER = 64;
+        // Curve points and step values are author-controlled and had no limit before this layout was
+        // flattened, so these two are CHOSEN, not derived — deliberately far above anything a human
+        // would draw or type (a 256-point hand-drawn envelope is not a real case). They are set
+        // generously on purpose: too tight silently truncates someone's authored content, whereas too
+        // loose only costs memory. The cost is bounded and small: at 256, the two backing arrays add
+        // about 32 KB per distinct chain layout.
+        //
+        // The principled fix is to stop having a per-modifier ceiling at all, by sizing these arrays
+        // from the chain's actual content the way the per-voice state container already sizes its
+        // effect state — "sized to the chain's real need, not a fixed worst-case arena". Until then
+        // these caps are a stopgap, and over-long content is clamped with a visible error rather than
+        // being dropped silently.
+        public const int MAX_MOD_CURVE_POINTS_PER = 256;
+        public const int MAX_MOD_STEPS_PER = 256;
         public const int MAX_MOD_PARAMS = ZoundDspConstants.MAX_MODIFIERS * MAX_MOD_PARAMS_PER;
         public const int MAX_MOD_CURVE_POINTS = ZoundDspConstants.MAX_MODIFIERS * MAX_MOD_CURVE_POINTS_PER;
         public const int MAX_MOD_STEPS = ZoundDspConstants.MAX_MODIFIERS * MAX_MOD_STEPS_PER;
