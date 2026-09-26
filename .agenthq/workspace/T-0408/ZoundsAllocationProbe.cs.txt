@@ -1,0 +1,109 @@
+// TEMPORARY probe — establishes whether the audio render allocates, properly.
+//
+// Why this exists separately from the baseline probe: that one renders six chains in a row and
+// builds a text report between them, so its allocation figure also catches its own garbage and
+// any editor activity. The same unchanged engine code reported anywhere from 0 to 184320 bytes
+// across runs, which is useless as evidence. This probe measures ONE chain per call on as quiet
+// a heap as can be arranged, and repeats it so a single noisy sample cannot be mistaken for a
+// result.
+//
+// Usage: copy to Assets/Editor/, run it, read the report, then delete it from Assets again.
+// Expected result if the engine behaves as designed: allocated bytes are zero, or within a few
+// tens of bytes, and — most importantly — DO NOT GROW with the number of blocks rendered.
+// Growth proportional to blocks is the real failure signal; a small constant is not.
+using System.Text;
+using UnityEngine;
+using Laubrary.Zounds;
+using Laubrary.Zounds.Dsp;
+
+public static class ZoundsAllocationProbe {
+
+    const int SR = 48000;
+    const int SRC_RATE = 48000;
+
+    public static string Execute() {
+        var sb = new StringBuilder();
+        sb.Append("=== ALLOCATION DURING RENDER ===\n");
+        sb.Append("Reading: bytes allocated across the render loop only. What matters is whether it\n");
+        sb.Append("GROWS with block count, not whether it is exactly zero.\n\n");
+
+        var src = BuildSource();
+
+        // Same chain, three different durations. If the engine allocates per block, the figure rises
+        // roughly in proportion; if it allocates once (or not at all), it stays flat.
+        foreach (float seconds in new[] { 0.25f, 1.0f, 4.0f }) {
+            Measure(sb, "delay", DelayChain(), src, seconds);
+        }
+        sb.Append('\n');
+        foreach (float seconds in new[] { 0.25f, 1.0f, 4.0f }) {
+            Measure(sb, "reverb", ReverbChain(), src, seconds);
+        }
+        sb.Append('\n');
+        foreach (float seconds in new[] { 0.25f, 1.0f, 4.0f }) {
+            Measure(sb, "modulated", ModulatedChain(), src, seconds);
+        }
+
+        var result = sb.ToString();
+        Debug.Log("[ZoundsAllocationProbe]\n" + result);
+        return result;
+    }
+
+    static void Measure(StringBuilder sb, string name, ZoundEffectChain chain, float[] src, float seconds) {
+        // Render once first so any one-time setup, static initialisation and code warm-up is already
+        // done and cannot be counted as per-render allocation.
+        ZoundDspOffline.Render(src, 2, SRC_RATE, SR, chain, 1f, 1f, seconds, 0f, 0f, 1024, false, null);
+
+        // Settle the heap, then measure. Repeated, because a single sample can catch unrelated activity.
+        long best = long.MaxValue; int bestBlocks = 0;
+        for (int attempt = 0; attempt < 3; attempt++) {
+            var r = ZoundDspOffline.Render(src, 2, SRC_RATE, SR, chain, 1f, 1f, seconds, 0f, 0f, 1024, true, null);
+            if (r.gcBytesDelta < best) { best = r.gcBytesDelta; bestBlocks = r.blocks; }
+        }
+        // The MINIMUM across attempts is the honest figure: noise can only add, never subtract.
+        sb.Append(name).Append(" ").Append(seconds.ToString("0.00")).Append("s: blocks=").Append(bestBlocks)
+          .Append("  bytes(min of 3)=").Append(best)
+          .Append("  bytes/block=").Append(bestBlocks > 0 ? (best / (double)bestBlocks).ToString("0.0") : "-")
+          .Append('\n');
+    }
+
+    static float[] BuildSource() {
+        int frames = SRC_RATE / 2;
+        var src = new float[frames * 2];
+        for (int i = 0; i < frames; i++) {
+            float s = (i == 0) ? 1f : 0f;
+            s += 0.25f * Mathf.Sin(2f * Mathf.PI * 440f * i / SRC_RATE);
+            src[i * 2] = s; src[i * 2 + 1] = s * 0.5f;
+        }
+        return src;
+    }
+
+    static ZoundEffectChain DelayChain() {
+        var c = new ZoundEffectChain();
+        var n = new ZoundEffectNode(ZoundEffectType.Delay);
+        n.p[0] = 250f; n.p[1] = 0.4f; n.p[2] = 0.5f; n.p[3] = 500f; n.p[4] = 0f;
+        c.nodes.Add(n);
+        return c;
+    }
+
+    static ZoundEffectChain ReverbChain() {
+        var c = new ZoundEffectChain();
+        var n = new ZoundEffectNode(ZoundEffectType.Reverb);
+        n.p[0] = 0.5f; n.p[1] = 0.5f; n.p[2] = 1f; n.p[3] = 0.5f;
+        c.nodes.Add(n);
+        return c;
+    }
+
+    /// A modulated chain, because modifier evaluation is a separate per-block code path from the
+    /// effect chain and could allocate independently of it.
+    static ZoundEffectChain ModulatedChain() {
+        var c = new ZoundEffectChain();
+        c.nodes.Add(new ZoundEffectNode(ZoundEffectType.Gain));
+        var m = new ZoundModifier(ZoundModifierType.Lfo);
+        m.p[0] = 0.5f; m.p[1] = 7f;
+        c.modifiers.Add(m);
+        c.bindings.Add(new ZoundModifierBinding {
+            modifierIndex = 0, nodeIndex = 0, paramIndex = 0, op = ModifierOp.Multiply, depth = 1f
+        });
+        return c;
+    }
+}
