@@ -218,7 +218,7 @@ namespace Laubrary.Zounds.Dsp {
             ZoundEffects.ResetChain(layout, arena, sampleRate);
         }
 
-        /// <summary>Main-thread bookkeeping: realtime when this node was first seen Tailing (0 = not tailing). See ZoundDspGraph.SweepStaleTails.</summary>
+        /// <summary>Main-thread bookkeeping: realtime when this node was first seen Tailing (0 = not tailing). Read by whichever main-thread sweep reclaims voices whose tail never finished.</summary>
         internal float tailingSeenAt;
 
         /// <summary>
@@ -233,8 +233,8 @@ namespace Laubrary.Zounds.Dsp {
 
         // ── onset tracking (audio thread): a "machine gun" is many onsets from ONE node in a short time,
         // whatever produced them (a delay feeding back, repeat slots, a gated modifier). An onset is a
-        // block whose peak jumps ≥ 12 dB above the node's own decaying envelope. Read by
-        // ZoundDspGraph.SweepRapidOnsets on the main thread. ──
+        // block whose peak jumps ≥ 12 dB above the node's own decaying envelope. Read on the main thread by
+        // whichever sweep watches for runaway retriggering. ──
         private const int ONSET_RING = 16;
         private readonly long[] onsetAt = new long[ONSET_RING];
         private int onsetHead;

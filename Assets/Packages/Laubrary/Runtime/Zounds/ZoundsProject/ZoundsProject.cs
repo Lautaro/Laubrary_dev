@@ -109,13 +109,6 @@ namespace Laubrary.Zounds {
             public int maxPlayedZoundInstances = 10;
             public float cullFadeDuration = 0.4f;
 
-            // Runtime toggle between the managed engine (Unity AudioSource plays clips directly) and the
-            // experimental native-DSP engine (a native voice renders through the per-Klip effect chain; the
-            // AudioSource becomes a volume/pitch control surface only). The two pipelines are fully isolated
-            // per handler instance, decided once when a zound starts playing and never switched mid-flight.
-            // Default false (managed) until the native engine is proven - see the Laubrary Dev roadmap memory.
-            public bool useNativeDsp = false;
-
             public string workFolderPath => systemFolderPath + "/WorkFiles";
             public string zoundFilesFolderPath => systemFolderPath + "/ZoundFiles";
 

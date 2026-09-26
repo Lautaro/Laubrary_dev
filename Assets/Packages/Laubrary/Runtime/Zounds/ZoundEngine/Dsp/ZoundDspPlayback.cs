@@ -1,15 +1,12 @@
 using System.Collections.Generic;
-using System.Threading;
 using UnityEngine;
-using UnityEngine.Audio;
-using Laubrary.Zounds.Dsp.Native;
 
 namespace Laubrary.Zounds.Dsp {
 
     /// <summary>
-    /// Main-thread side of starting a voice: resolves PCM, chain layout and bus, allocates a voice,
-    /// resolves trigger-time modifiers, publishes it and registers the owning token.
-    /// Also owns the per-Zound layout cache and the per-Zound persistent modifier state.
+    /// Resolves which effect chain a Zound plays with and turns it into the flat parameter/state layout
+    /// any engine consumes (<see cref="GetLayout"/>), and rolls the trigger-time-only source duration math.
+    /// Also owns the per-Zound layout cache.
     /// </summary>
     public static class ZoundDspPlayback {
 
@@ -23,58 +20,12 @@ namespace Laubrary.Zounds.Dsp {
 
         private static readonly Dictionary<Zound, LayoutEntry> layouts = new Dictionary<Zound, LayoutEntry>();
 
-        // Per-Zound persistent trigger-time state (Step cursors and round-robin masks), keyed by zound
-        // and modifier index — the same place CompositeZound.playedEntries lives for the same reason.
-        private struct StepState { public int index; public int usedMask; public bool started; }
-        private static readonly Dictionary<Zound, StepState[]> stepStates = new Dictionary<Zound, StepState[]>();
-
         public static void InvalidateLayouts() {
             layouts.Clear();
         }
 
         public static void InvalidateLayout(Zound zound) {
             if (zound != null) layouts.Remove(zound);
-        }
-
-        /// <summary>
-        /// Pushes a parameter edit into every voice or group currently playing this zound's chain, so a
-        /// slider drag is heard on the playing sound. Only parameter VALUES travel this way (single float
-        /// writes, atomic); a structural edit (nodes, modifiers, bindings) is heard on the next play.
-        /// </summary>
-        public static void PushLiveParam(Zound zound, ZoundEffectChain chain, int nodeIndex, int paramIndex, float value) {
-            var g = ZoundEngine.DspIfAny;
-            if (g == null) return;
-            for (int i = 0; i < g.voices.Length; i++) {
-                if (g.voiceZounds[i] == zound) PushInto(g.voices[i], chain, nodeIndex, paramIndex, value);
-            }
-            for (int i = 0; i < g.groups.Length; i++) {
-                if (g.groupZounds[i] == zound) PushInto(g.groups[i], chain, nodeIndex, paramIndex, value);
-            }
-            // Zounds sharing the preset by live reference hear it too.
-            if (zound.chainPresetId != 0) {
-                for (int i = 0; i < g.voices.Length; i++) {
-                    var z = g.voiceZounds[i];
-                    if (z != null && z != zound && z.chainPresetId == zound.chainPresetId) PushInto(g.voices[i], chain, nodeIndex, paramIndex, value);
-                }
-                for (int i = 0; i < g.groups.Length; i++) {
-                    var z = g.groupZounds[i];
-                    if (z != null && z != zound && z.chainPresetId == zound.chainPresetId) PushInto(g.groups[i], chain, nodeIndex, paramIndex, value);
-                }
-            }
-        }
-
-        private static void PushInto(NativeNode v, ZoundEffectChain chain, int nodeIndex, int paramIndex, float value) {
-            if (v.State == VoiceState.Free) return;
-            var L = v.layout;
-            if (L == null) return;
-            if (nodeIndex >= 0) {
-                if (nodeIndex >= L.nodeCount || nodeIndex >= chain.nodes.Count) return;
-                if (L.nodeType[nodeIndex] != chain.nodes[nodeIndex].type || paramIndex >= L.paramCountOf[nodeIndex]) return;
-            }
-            else if (paramIndex >= SourceStageParam.Count) return;
-            // The clamp and the "is it modulated" test live on the native side too; the
-            // value is handed over as-is and refused there if a modifier owns it.
-            v.PushLiveParam(L.FlatIndex(nodeIndex, paramIndex), value);
         }
 
         /// <summary>The chain a Zound plays with: its preset by live reference, else its inline chain.</summary>
@@ -133,136 +84,6 @@ namespace Laubrary.Zounds.Dsp {
                 total += (sourceSeconds / steps) / pitch;
             }
             return (float)total;
-        }
-
-        /// <summary>
-        /// Starts a voice for a token. Returns null (and plays nothing) when the clip cannot be read or the
-        /// pool is exhausted; the reason is logged once per clip through the PCM cache's problem field.
-        /// </summary>
-        public static NativeNode StartVoice(ZoundToken token, Zound zound, AudioClip clip, AudioMixerGroup mixerGroup,
-                                          float startSeconds, float endSeconds, float basePitch, float outGain, float sourceDuration, bool loop,
-                                          int parentGroup = -1, RepeatPlan repeat = default, PcmClip pcmOverride = null) {
-            var graph = ZoundEngine.Dsp;
-            var pcm = pcmOverride ?? ZoundPcmCache.Get(clip);
-            if (pcm == null || !pcm.valid) {
-                if (pcm != null && !pcm.problemLogged) {
-                    pcm.problemLogged = true;
-                    Debug.LogWarning("[Zounds] Cannot play '" + (clip != null ? clip.name : "null") + "' through the DSP engine: " + pcm.problem);
-                }
-                return null;
-            }
-            var layout = GetLayout(zound, graph.sampleRate);
-            int pcmId = NativePcm.IdFor(pcm);
-            int layoutId = NativeChainBlob.IdFor(layout);
-            if (pcmId == 0 || layoutId == 0) return null;
-            var voice = graph.AllocateVoice(layout.heavy);
-            if (voice == null) return null;
-            int bus = graph.GetOrCreateBus(mixerGroup);
-            if (bus < 0) return null;
-            double startFrame = Mathf.Clamp(startSeconds, 0f, pcm.LengthSeconds) * pcm.frequency;
-            double endFrame = endSeconds > startSeconds ? Mathf.Min(endSeconds, pcm.LengthSeconds) * pcm.frequency : pcm.frames;
-            if (endFrame > pcm.frames) endFrame = pcm.frames;
-            if (endFrame <= startFrame + 1) { endFrame = pcm.frames; startFrame = 0; }
-            if (parentGroup >= 0 && parentGroup < graph.groups.Length && graph.groups[parentGroup].State != VoiceState.Free) {
-                bus = graph.groups[parentGroup].BusIndex; // a subtree renders on its root's bus
-            }
-            else parentGroup = -1;
-            // A chain whose state does not fit the node's arena is refused by the native
-            // side rather than indexing past it on the audio thread; that is the same last
-            // line of defence the managed ArenaFits check used to be.
-            if (!voice.Prepare(graph.NewTokenId(), bus, pcmId, layout, layoutId,
-                               startFrame, endFrame, basePitch, outGain, sourceDuration, loop, parentGroup)) {
-                Debug.LogError("[Zounds] '" + zound.name + "': the native engine refused the voice (chain state "
-                    + layout.stateFloats + " floats, " + (voice.heavyTier ? "heavy" : "light") + " node); played nothing.");
-                return null;
-            }
-            if (repeat.enabled) voice.SetRepeat(in repeat);
-            ResolveTriggerTimeModifiers(zound, layout, voice);
-            graph.RegisterVoiceToken(voice, token, zound);
-            voice.Publish();
-            return voice;
-        }
-
-        /// <summary>
-        /// Starts a group node for a Zequence that carries a chain. Returns null when the Zequence has no
-        /// chain (children then sum straight into the parent) or no group slot is free.
-        /// </summary>
-        public static NativeNode StartGroup(ZoundToken token, Zound zound, AudioMixerGroup mixerGroup, float duration, int parentGroup) {
-            var graph = ZoundEngine.Dsp;
-            var layout = GetLayout(zound, graph.sampleRate);
-            if (layout.IsEmptyChain) return null;
-            int layoutId = NativeChainBlob.IdFor(layout);
-            if (layoutId == 0) return null;
-            var group = graph.AllocateGroup(layout.heavy);
-            if (group == null) return null;
-            int bus = graph.GetOrCreateBus(mixerGroup);
-            if (bus < 0) return null;
-            int depth = 0;
-            if (parentGroup >= 0 && parentGroup < graph.groups.Length && graph.groups[parentGroup].State != VoiceState.Free) {
-                bus = graph.groups[parentGroup].BusIndex;
-                depth = graph.groups[parentGroup].Depth + 1;
-                if (depth > ZoundDspGraph.MAX_GROUP_DEPTH) { parentGroup = graph.groups[parentGroup].GroupIndex; depth = ZoundDspGraph.MAX_GROUP_DEPTH; }
-            }
-            else parentGroup = -1;
-            if (!group.PrepareGroup(graph.NewTokenId(), bus, parentGroup, depth, layout, layoutId, duration)) {
-                Debug.LogError("[Zounds] '" + zound.name + "': the native engine refused the group node (chain state "
-                    + layout.stateFloats + " floats); the Zequence plays without its chain.");
-                return null;
-            }
-            ResolveTriggerTimeModifiers(zound, layout, group);
-            graph.RegisterGroupToken(group, token, zound);
-            group.Publish();
-            return group;
-        }
-
-        /// <summary>Random values, per-trigger Step advances and free-running LFO phases are settled here, on the main thread.</summary>
-        private static void ResolveTriggerTimeModifiers(Zound zound, ChainLayout layout, NativeNode voice) {
-            for (int m = 0; m < layout.modCount; m++) {
-                var mp = layout.modParams[m];
-                switch (layout.modType[m]) {
-                    case ZoundModifierType.Random: {
-                        float min = mp[0], max = mp[1], bias = mp.Length > 2 ? mp[2] : 1f;
-                        float r = Random.value;
-                        if (bias > 0f && !Mathf.Approximately(bias, 1f)) r = Mathf.Pow(r, bias);
-                        voice.SeedModifierState(m, 0, Mathf.Lerp(min, max, r));
-                        break;
-                    }
-                    case ZoundModifierType.Lfo: {
-                        bool resetPhase = mp[3] >= 0.5f;
-                        if (!resetPhase) voice.SeedModifierState(m, 0, (float)((AudioSettings.dspTime * mp[1]) % 1.0));
-                        break;
-                    }
-                    case ZoundModifierType.Step: {
-                        var steps = layout.modSteps[m];
-                        bool roundRobin = (int)mp[2] == (int)StepOrder.RoundRobinNoRepeat;
-                        bool startRandom = mp[3] >= 0.5f;
-                        bool resetOnTrigger = mp[4] >= 0.5f;
-                        bool perTrigger = (int)mp[0] == (int)StepTiming.PerTrigger;
-                        if (!stepStates.TryGetValue(zound, out var states) || states.Length < layout.modCount) {
-                            states = new StepState[ZoundDspConstants.MAX_MODIFIERS];
-                            stepStates[zound] = states;
-                        }
-                        ref var st = ref states[m];
-                        int count = steps.Length;
-                        if (!st.started || resetOnTrigger) {
-                            int last = st.started ? st.index : -1;
-                            st.index = startRandom ? Random.Range(0, count) : 0;
-                            st.usedMask = 0;
-                            if (roundRobin && last >= 0 && count > 1) {
-                                while (st.index == last) st.index = Random.Range(0, count);
-                            }
-                            st.usedMask |= 1 << st.index;
-                            st.started = true;
-                        }
-                        else if (perTrigger) {
-                            st.index = NextStepIndex(st.index, count, roundRobin, ref st.usedMask);
-                        }
-                        voice.SeedModifierState(m, 0, st.index);
-                        voice.SeedModifierState(m, 2, st.usedMask);
-                        break;
-                    }
-                }
-            }
         }
 
         // Round-robin without repeats across the cycle seam: when every step has been used the set is

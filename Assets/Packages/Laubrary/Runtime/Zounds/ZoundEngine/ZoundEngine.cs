@@ -107,53 +107,10 @@ namespace Laubrary.Zounds {
         }
         private static float masterVolume;
 
-        // ── Per-voice DSP graph (Dsp/). Native-DSP pipeline only - created on first use (only when a
-        // KlipHandler/ZequenceHandler running the native pipeline actually asks for it), torn down with the
-        // engine. Never touched when ZoundsProject.projectSettings.useNativeDsp is false. ──
-        private Dsp.ZoundDspGraph dsp;
-        private bool dspHooksInstalled;
-
-        /// <summary>The DSP graph of the live engine, created on first use.</summary>
-        internal static Dsp.ZoundDspGraph Dsp => Instance.GetOrCreateDsp();
-
-        /// <summary>The DSP graph if the engine exists, without creating either.</summary>
-        internal static Dsp.ZoundDspGraph DspIfAny => instance != null ? instance.dsp : null;
-
-        private Dsp.ZoundDspGraph GetOrCreateDsp() {
-            if (dsp == null) {
-                dsp = new Dsp.ZoundDspGraph(transform, gameObject.hideFlags);
-                if (!dspHooksInstalled) {
-                    dspHooksInstalled = true;
-                    AudioSettings.OnAudioConfigurationChanged += OnAudioConfigurationChanged;
-                }
-            }
-            return dsp;
-        }
-
-        private void TeardownDsp() {
-            if (dsp == null) return;
-            dsp.Teardown();
-            dsp = null;
-        }
-
-        // AudioSettings.Reset (buffer size / sample rate change) stops every AudioSource and re-establishes
-        // the filters, so the graph is rebuilt from scratch on next use. Playing tokens are stopped too:
-        // their voices would otherwise refer to buses that no longer exist.
-        private void OnAudioConfigurationChanged(bool deviceWasChanged) {
-            if (instance != this) return;
-            foreach (var token in tokens) token.Kill();
-            TeardownDsp();
-        }
-
         private void OnDestroy() {
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.update -= OnEditorUpdateMode;
 #endif
-            if (dspHooksInstalled) {
-                dspHooksInstalled = false;
-                AudioSettings.OnAudioConfigurationChanged -= OnAudioConfigurationChanged;
-            }
-            TeardownDsp();
             if (instance == this) instance = null;
         }
 
@@ -178,7 +135,6 @@ namespace Laubrary.Zounds {
             instance.cullingGroups.Clear();
             instance.tokens.Clear();
             instance.zoundLastPlayedTimes.Clear();
-            instance.dsp?.FlushAllVoices();
             Laubrary.Zounds.Dsp.ZoundPcmCache.Clear();
             Laubrary.Zounds.Dsp.ZoundDspPlayback.InvalidateLayouts();
         }
@@ -295,8 +251,6 @@ namespace Laubrary.Zounds {
             foreach (var token in inst.tokens) {
                 token.Kill();
             }
-            // Every chain is flushed too: a reverb tail or a pending repeat must not outlive a stop-all.
-            inst.dsp?.FlushAllVoices();
             inst.tokens.Clear();
             foreach (var cullingGroup in inst.cullingGroups.Values) {
                 cullingGroup.Clear();
@@ -504,10 +458,6 @@ namespace Laubrary.Zounds {
             hasAnySoloZoundThisFrame = zoundsProject.zoundLibrary.HasAnySoloZound();
             Laubrary.Zounds.Dsp.ZoundTriggerWatch.OnEngineUpdate();
 
-            // Audio End events from the DSP graph are delivered before the tokens tick, so a token that
-            // reaches Zound End this frame sees its tail state up to date.
-            dsp?.DrainEvents();
-
             List<int> removedIndices = null; // only allocate the list if there's at least 1 token being killed.
 
             for (int i = 0; i < tokens.Count; i++) {
@@ -553,10 +503,6 @@ namespace Laubrary.Zounds {
         [InitializeOnLoadMethod]
         private static void InitializeEditMode() {
             AssemblyReloadEvents.afterAssemblyReload += DetermineUpdater;
-            // The audio thread must be out of managed DSP code before the domain goes away. The engine
-            // object itself survives the reload (HideAndDontSave), so this is the one place its graph is
-            // torn down ahead of the reload rather than by OnDestroy.
-            AssemblyReloadEvents.beforeAssemblyReload += () => { if (instance != null) instance.TeardownDsp(); };
             EditorApplication.playModeStateChanged += EditorApplication_playModeStateChanged;
             ZoundsProject.onProjectModified += InvalidateLookups;
             ZoundsProject.onProjectModified += Laubrary.Zounds.Dsp.ZoundDspPlayback.InvalidateLayouts;

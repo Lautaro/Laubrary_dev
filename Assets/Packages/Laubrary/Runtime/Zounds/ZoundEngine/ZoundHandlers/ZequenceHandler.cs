@@ -2,7 +2,6 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Audio;
-using Laubrary.Zounds.Dsp;
 
 namespace Laubrary.Zounds {
 
@@ -14,8 +13,6 @@ namespace Laubrary.Zounds {
             public float delay; // resolved start delay of this entry, in this Zequence's time
         }
 
-        private readonly bool useNative;
-
         private List<RuntimeZoundEntry> runtimeZoundEntries;
 
         private int entryIndexToPlay;
@@ -24,18 +21,6 @@ namespace Laubrary.Zounds {
         public override int playedEntryIndex => entryIndexToPlay;
 
         public override bool isRealtime => m_isRealtime;
-
-        // ── Native pipeline only: DSP group node. A Zequence with a chain sums its children into one
-        // buffer and processes that; without a chain the children sum straight into this Zequence's own
-        // parent (or the bus). ──
-        private Laubrary.Zounds.Dsp.Native.NativeNode m_group;
-        private long m_groupTokenId;
-        private ZoundToken m_token;
-        private bool m_groupReleased;
-
-        public override void SetToken(ZoundToken token) { m_token = token; }
-
-        private bool GroupAlive() => m_group != null && m_group.tokenId == m_groupTokenId && m_group.State != VoiceState.Free;
 
         internal ZoundToken GetEntryToken(CompositeZound.ZoundEntry entry) {
             foreach (var runtimeEntry in runtimeZoundEntries) {
@@ -78,17 +63,9 @@ namespace Laubrary.Zounds {
         }
 
         public ZequenceHandler(Zequence zequence, AudioSource audioSource, ZoundArgs zoundArgs) : base(zequence, audioSource, zoundArgs) {
-            useNative = ZoundsProject.Instance.projectSettings.useNativeDsp;
-
-            if (useNative) {
-                // A Zequence is always realtime: its children play as voices, its own carrier AudioSource holds no clip.
-                m_isRealtime = true;
-                audioSource.clip = null;
-            } else {
-                var renderedClip = zequence.renderedClipRef == null || !zequence.renderedClipRef.RuntimeKeyIsValid() ? null : ZoundDictionary.GetOrLoadClip(zequence.renderedClipRef);
-                m_isRealtime = ReferenceEquals(renderedClip, null);
-                audioSource.clip = renderedClip;
-            }
+            var renderedClip = zequence.renderedClipRef == null || !zequence.renderedClipRef.RuntimeKeyIsValid() ? null : ZoundDictionary.GetOrLoadClip(zequence.renderedClipRef);
+            m_isRealtime = ReferenceEquals(renderedClip, null);
+            audioSource.clip = renderedClip;
 
             // In real-time mode, ensure the audioSource.pitch (from browser slider) is initialized
             if (m_isRealtime && args.pitchOverride < 0f) {
@@ -181,7 +158,6 @@ namespace Laubrary.Zounds {
 
         public override void OnPause() {
             base.OnPause();
-            if (useNative && GroupAlive()) m_group.SetPaused(true);
             if (!m_isRealtime) return;
             foreach (var runtimeEntry in runtimeZoundEntries) {
                 if (runtimeEntry.token != null && runtimeEntry.token.state != ZoundToken.State.Killed) {
@@ -192,7 +168,6 @@ namespace Laubrary.Zounds {
 
         public override void OnResume(float fadeDuration, System.Action onFadeComplete) {
             base.OnResume(fadeDuration, onFadeComplete);
-            if (useNative && GroupAlive()) m_group.SetPaused(false);
             if (!m_isRealtime) return;
             if (zound.mode == CompositeZound.Mode.Parallel) {
                 foreach (var runtimeEntry in runtimeZoundEntries) {
@@ -231,7 +206,6 @@ namespace Laubrary.Zounds {
                 }
             }
             base.OnKill();
-            if (useNative && GroupAlive()) m_group.RequestKill();
         }
 
         public override void OnFadeAndKill(float fadeDuration, System.Action onFadeComplete) {
@@ -351,22 +325,6 @@ namespace Laubrary.Zounds {
             // Children begin playing inside Start now, so their mute state must be set before they start.
             UpdateChildrenMute();
 
-            if (useNative) {
-                m_group = ZoundDspPlayback.StartGroup(m_token, zound, audioSource.outputAudioMixerGroup, totalDuration, dspParentGroup);
-                m_groupReleased = false;
-                int childParent = dspParentGroup;
-                if (m_group != null) {
-                    m_groupTokenId = m_group.tokenId;
-                    childParent = m_group.index;
-                    m_token?.NotifyVoiceStarted();
-                }
-                foreach (var runtimeEntry in runtimeZoundEntries) {
-                    if (runtimeEntry.token == null) continue;
-                    runtimeEntry.token.dspParentGroup = childParent;
-                    m_token?.AttachChildAudioEnd(runtimeEntry.token);
-                }
-            }
-
             if (zound.mode == CompositeZound.Mode.Parallel) {
                 foreach (var runtimeEntry in runtimeZoundEntries) {
                     if (runtimeEntry.token != null && runtimeEntry.token.state != ZoundToken.State.Killed) {
@@ -403,14 +361,8 @@ namespace Laubrary.Zounds {
             }
 
             ZoundUpdateResult nextTreatment = base.OnUpdate(deltaDspTime);
-            bool killed = nextTreatment == ZoundUpdateResult.Kill;
-            if (!killed) {
+            if (nextTreatment != ZoundUpdateResult.Kill) {
                 UpdateChildrenMute();
-            }
-            else if (useNative && !m_groupReleased) {
-                // Zound End: the group stops accepting new children and rings out once the live ones are done.
-                m_groupReleased = true;
-                if (GroupAlive()) m_group.RequestRelease();
             }
             return nextTreatment;
         }

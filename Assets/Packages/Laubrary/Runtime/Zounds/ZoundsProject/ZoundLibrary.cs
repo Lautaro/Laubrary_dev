@@ -245,9 +245,10 @@ namespace Laubrary.Zounds
 
         public AssetReference manuallySetMixerGroupRef;
 
-        // Native-DSP pipeline only (see ZoundsProject.projectSettings.useNativeDsp): per-voice DSP chain,
-        // inline or a library preset by live reference plus sparse parameter overrides. Shared/local follows
-        // the same pattern as originalId/parentId. Harmless, unread data when the managed pipeline is active.
+        // Per-voice effect chain: inline, or a library preset by live reference plus sparse parameter
+        // overrides. Shared/local follows the same pattern as originalId/parentId. This data is
+        // pipeline-agnostic and is deliberately kept: it is currently unread at play time (the engine that
+        // consumed it has been removed) and is the authored input the Burst generator path will consume.
         public ZoundEffectChain effectChain = new ZoundEffectChain();
         public int chainPresetId;
         /// <summary>The preset a Detach broke away from, so Reconnect can restore the link.</summary>

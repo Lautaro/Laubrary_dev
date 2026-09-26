@@ -190,13 +190,6 @@ namespace Laubrary.Zounds.Dsp {
                 if (h.zoundNames[k] != null) sb.Append("  via '").Append(h.zoundNames[k]).Append('\'');
                 sb.Append('\n');
             });
-            var graph = ZoundEngine.DspIfAny;
-            if (graph != null) {
-                sb.Append(ZoundDspDebug.Report()).Append(ZoundDspDebug.VoiceReport());
-                for (int i = 0; i < ZoundDspConstants.MAX_VOICES; i++) { var s = ZoundDspDebug.GetVoiceDebug(i); if (!s.StartsWith("state=Free")) sb.Append("  v").Append(i).Append(' ').Append(s).Append('\n'); }
-                for (int i = 0; i < ZoundDspConstants.MAX_GROUPS; i++) { var s = ZoundDspDebug.GetGroupDebug(i); if (!s.StartsWith("state=Free")) sb.Append("  g").Append(i).Append(' ').Append(s).Append('\n'); }
-            }
-            else sb.Append("(no DSP graph)\n");
             if (ZoundEngine.CullingGroups.TryGetValue(zound, out var tokens)) {
                 sb.Append("live tokens of this zound: ").Append(tokens.Count).Append('\n');
                 foreach (var t in tokens) if (t != null) sb.Append("  state=").Append(t.state).Append(" time=").Append(t.time.ToString("F3")).Append(" duration=").Append(t.duration.ToString("F3")).Append('\n');
