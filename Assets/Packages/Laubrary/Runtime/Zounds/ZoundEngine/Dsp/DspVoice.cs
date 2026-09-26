@@ -80,6 +80,8 @@ namespace Laubrary.Zounds.Dsp {
         internal int liveChildren;
         internal PcmClip pcm;
         internal ChainLayout layout;
+        /// <summary>Burst-readable copy of <see cref="layout"/> for this play; the audio thread reads only this. Built in Prepare/PrepareGroup, disposed in Dispose (and before a new one replaces it — a voice can be set up more than once).</summary>
+        internal SapChainLayout sapLayout;
         internal float sourceDuration;   // seconds, resolved on the main thread
         internal double clipRate;        // pcm.frequency / sampleRate
         internal bool protectedFromSteal;
@@ -146,6 +148,7 @@ namespace Laubrary.Zounds.Dsp {
             if (pStep.IsCreated) pStep.Dispose();
             if (pTarget.IsCreated) pTarget.Dispose();
             if (modValue.IsCreated) modValue.Dispose();
+            if (sapLayout.IsCreated) sapLayout.Dispose();
         }
 
         public VoiceState State => (VoiceState)Volatile.Read(ref state);
@@ -160,6 +163,8 @@ namespace Laubrary.Zounds.Dsp {
             groupIndex = -1;
             this.pcm = pcm;
             this.layout = layout;
+            if (sapLayout.IsCreated) sapLayout.Dispose();
+            sapLayout = SapChainLayout.Create(layout, Allocator.Persistent);
             this.sourceDuration = sourceDuration;
             clipRate = (double)pcm.frequency / sampleRate;
             basePitchTarget = basePitch; basePitchLive = basePitch;
@@ -184,7 +189,7 @@ namespace Laubrary.Zounds.Dsp {
             }
             tailBudgetSamples = (long)(layout.tailSeconds * sampleRate);
             hangoverSamples = ZoundDspConstants.HANGOVER_MS * sampleRate / 1000;
-            ZoundEffects.ResetChain(layout, arena, sampleRate);
+            ZoundEffects.ResetChain(sapLayout, arena, sampleRate);
         }
 
         /// <summary>Arms the repeat schedule (call after Prepare, before Publish).</summary>
@@ -221,6 +226,8 @@ namespace Laubrary.Zounds.Dsp {
             this.depth = depth;
             pcm = null;
             this.layout = layout;
+            if (sapLayout.IsCreated) sapLayout.Dispose();
+            sapLayout = SapChainLayout.Create(layout, Allocator.Persistent);
             sourceDuration = duration;
             clipRate = 1.0;
             basePitchTarget = 1f; basePitchLive = 1f;
@@ -243,7 +250,7 @@ namespace Laubrary.Zounds.Dsp {
             }
             tailBudgetSamples = (long)(layout.tailSeconds * sampleRate);
             hangoverSamples = ZoundDspConstants.HANGOVER_MS * sampleRate / 1000;
-            ZoundEffects.ResetChain(layout, arena, sampleRate);
+            ZoundEffects.ResetChain(sapLayout, arena, sampleRate);
         }
 
         /// <summary>Main-thread bookkeeping: realtime when this node was first seen Tailing (0 = not tailing). Read by whichever main-thread sweep reclaims voices whose tail never finished.</summary>
@@ -367,7 +374,7 @@ namespace Laubrary.Zounds.Dsp {
                 Release(sampleRate);
             }
 
-            var L = layout;
+            ref var L = ref sapLayout;   // by reference: copying ~30 buffer handles per block is pure waste
             float invN;
             int off = 0;
             float basePitchTargetNow = Volatile.Read(ref basePitchTarget);
@@ -644,7 +651,7 @@ namespace Laubrary.Zounds.Dsp {
             return (rng & 0xFFFFFF) / 16777216f;
         }
 
-        private void EvaluateModifiers(ChainLayout L, int sampleRate, int blockSamples, float elapsed, int lookaheadSamples) {
+        private void EvaluateModifiers(in SapChainLayout L, int sampleRate, int blockSamples, float elapsed, int lookaheadSamples) {
             float blockSeconds = (float)blockSamples / sampleRate;
             for (int m = 0; m < L.modCount; m++) {
                 int so = L.modStateOffset[m];

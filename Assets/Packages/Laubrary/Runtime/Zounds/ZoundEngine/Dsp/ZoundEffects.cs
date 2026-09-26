@@ -14,7 +14,7 @@ namespace Laubrary.Zounds.Dsp {
     public static class ZoundEffects {
 
         /// <summary>Resets every node's state for a fresh play (the arena region is already zeroed).</summary>
-        public static void ResetChain(ChainLayout L, NativeArray<float> state, int sampleRate) {
+        public static void ResetChain(in SapChainLayout L, NativeArray<float> state, int sampleRate) {
             for (int i = 0; i < L.nodeCount; i++) {
                 int s = L.stateOffset[i];
                 int q = L.paramOffset[i];
@@ -30,7 +30,7 @@ namespace Laubrary.Zounds.Dsp {
             }
         }
 
-        public static void ProcessChain(ChainLayout L, NativeArray<float> state, NativeArray<float> pStart, NativeArray<float> pStep,
+        public static void ProcessChain(in SapChainLayout L, NativeArray<float> state, NativeArray<float> pStart, NativeArray<float> pStep,
                                         NativeArray<float> bufL, NativeArray<float> bufR, int off, int n, in VoiceContext ctx) {
             for (int i = 0; i < L.nodeCount; i++) {
                 if (!L.enabled[i]) continue;
@@ -311,7 +311,7 @@ namespace Laubrary.Zounds.Dsp {
     public static class DelayEffect {
         private const int HEADER = 4;
 
-        public static void Reset(NativeArray<float> st, int s, float[] pBase, int q, int sr) {
+        public static void Reset(NativeArray<float> st, int s, NativeArray<float> pBase, int q, int sr) {
             float maxMs = Mathf.Clamp(pBase[q + 3], 10f, ZoundEffectDescriptors.MAX_DELAY_MS);
             int ring = Mathf.CeilToInt(maxMs * 0.001f * sr) + 4;
             st[s] = 0f;

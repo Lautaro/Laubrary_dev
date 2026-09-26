@@ -1,4 +1,4 @@
-using Unity.Collections;
+﻿using Unity.Collections;
 
 namespace Laubrary.Zounds.Dsp {
 
@@ -72,12 +72,12 @@ namespace Laubrary.Zounds.Dsp {
         public bool pitchModulated;
 
         /// <summary>Flat parameter index of (node, param); nodeIndex -1 is the source stage. Mirrors ChainLayout.</summary>
-        public int FlatIndex(int nodeIndex, int paramIndex) {
+        public readonly int FlatIndex(int nodeIndex, int paramIndex) {
             if (nodeIndex < 0) return paramIndex;
             return paramOffset[nodeIndex] + paramIndex;
         }
 
-        public bool IsCreated => nodeType.IsCreated;
+        public readonly bool IsCreated => nodeType.IsCreated;
 
         /// <summary>Copies a managed layout into native buffers. The source is not retained.</summary>
         public static SapChainLayout Create(ChainLayout L, Allocator allocator) {

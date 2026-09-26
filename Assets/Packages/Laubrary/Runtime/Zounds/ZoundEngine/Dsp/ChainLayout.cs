@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Unity.Collections;
 using UnityEngine;
 
 namespace Laubrary.Zounds.Dsp {
@@ -240,9 +241,10 @@ namespace Laubrary.Zounds.Dsp {
         /// <summary>
         /// Envelope.Evaluate's maths, over a slice [offset, offset+count) of a flat modulator-curve array,
         /// with a cached segment index (O(1) amortised). Takes offset/count instead of its own array so the
-        /// audio thread never allocates or copies a slice — it indexes straight into ChainLayout.modCurveFlat.
+        /// audio thread never allocates or copies a slice — it indexes straight into the native snapshot's
+        /// modCurveFlat (SapChainLayout), the only caller of this method.
         /// </summary>
-        public static float EvaluateEnvelope(EnvPoint[] pts, int offset, int count, float time, ref int segment) {
+        public static float EvaluateEnvelope(NativeArray<EnvPoint> pts, int offset, int count, float time, ref int segment) {
             if (count == 0) return 1f;
             if (count == 1) return pts[offset].value;
             if (time <= pts[offset].time) { segment = 0; return pts[offset].value; }
