@@ -30,8 +30,9 @@ namespace Laubrary.VisionMask
     {
         /// The shader's VISION_MASK_MAX_CONES. Cones beyond this are ignored (the first eight registered win).
         public const int MaxCones = 8;
-        /// Widest occlusion shadow row. A cone's own `rays` is clamped to this.
-        public const int MaxRays = 1024;
+        /// Widest occlusion shadow row. A cone's own `rays` is clamped to this. 2048 since the edge fade
+        /// (2026-09-26): a fading cone's row also covers a margin beyond each edge at the same angular density.
+        public const int MaxRays = 2048;
         public const string SpriteShaderName = "Laubrary/VisionMaskSprite";
 
         static readonly List<VisionCone> cones = new();
@@ -109,12 +110,13 @@ namespace Laubrary.VisionMask
                 a[n] = new Vector4(eye.x, eye.y, fwd.x, fwd.y);
                 b[n] = new Vector4(Mathf.Cos(halfRad), range, omni, halfRad);
                 bool occ = k.occluders.value != 0 && range > 0f;
-                int rays = Mathf.Clamp(k.rays, 1, MaxRays);
-                c[n] = new Vector4(occ ? 1f : 0f, rays, 0f, 0f);
+                float fade = Mathf.Max(0f, k.edgeFade);
+                k.ShadowLayout(halfRad, out float coverHalf, out int rays);
+                c[n] = new Vector4(occ ? 1f : 0f, rays, coverHalf, fade);
                 if (occ)
                 {
                     if (reach[n] == null || reach[n].Length != MaxRays) reach[n] = new float[MaxRays];
-                    k.CastShadow(eye, fwd, halfRad, range, rays, reach[n]);
+                    k.CastShadow(eye, fwd, coverHalf, range + fade, rays, reach[n]);
                     anyOccluded = true;
                 }
                 k.publishedSlot = n;
@@ -165,30 +167,72 @@ namespace Laubrary.VisionMask
         public static Vector2 PlaneCoords(Vector3 world) => Plane == VisionPlane.XY
             ? new Vector2(world.x, world.y) : new Vector2(world.x, world.z);
 
-        /// CPU twin of the shader's VisionMaskVisibility, over the LAST PUBLISHED state (same cones, same
-        /// shadow rows, same maths). For gameplay questions ("can the player see this point?").
+        /// Hard CPU verdict over the LAST PUBLISHED state: is the point INSIDE vision (the edge-fade band does not
+        /// count)? For gameplay questions ("can the player see this point?").
         public static bool IsVisible(Vector3 world)
         {
             if (Bypass) return true;
             var p = PlaneCoords(world);
             for (int i = 0; i < publishedCount; i++)
+                if (ConeVisibility(i, p, 0f) >= 1f) return true;
+            return false;
+        }
+
+        /// CPU twin of the shader's VisionMaskVisibility over the LAST PUBLISHED state (same cones, same shadow
+        /// rows, same maths): 1 inside vision, 0 outside, between only in a cone's edge-fade band. What a masked
+        /// pixel at this point is drawn with (before hiddenAlpha). Not a test oracle — probes must use geometry.
+        public static float Visibility(Vector3 world)
+        {
+            if (Bypass) return 1f;
+            var p = PlaneCoords(world);
+            float best = 0f;
+            for (int i = 0; i < publishedCount && best < 1f; i++)
+                best = Mathf.Max(best, ConeVisibility(i, p, c[i].w));
+            return best;
+        }
+
+        static float Fade(float dist, float fade)
+        {
+            if (dist <= 0f) return 1f;
+            if (fade <= 0f || dist >= fade) return 0f;
+            return 1f - Mathf.SmoothStep(0f, 1f, dist / fade);
+        }
+
+        /// Line for line the shader's VisionMaskConeVisibility (see VisionMask.hlsl for the reasoning).
+        static float ConeVisibility(int i, Vector2 p, float fade)
+        {
+            Vector2 eye = new Vector2(a[i].x, a[i].y), f = new Vector2(a[i].z, a[i].w);
+            Vector2 d = p - eye;
+            float r2 = d.sqrMagnitude;
+            if (r2 <= b[i].z * b[i].z) return 1f;
+            float vis = b[i].z > 0f ? Fade(Mathf.Sqrt(r2) - b[i].z, fade) : 0f;
+            float outer = b[i].y + fade;
+            if (r2 > outer * outer || r2 <= 1e-10f) return vis;
+            float r = Mathf.Sqrt(r2);
+            var dir = d / r;
+            float dist;
+            if (b[i].w >= 3.14159f || Vector2.Dot(dir, f) >= b[i].x)
+                dist = r2 <= b[i].y * b[i].y ? 0f : r - b[i].y;
+            else
             {
-                Vector2 eye = new Vector2(a[i].x, a[i].y), f = new Vector2(a[i].z, a[i].w);
-                Vector2 d = p - eye;
-                float r2 = d.sqrMagnitude;
-                if (r2 <= b[i].z * b[i].z) return true;
-                if (r2 > b[i].y * b[i].y || r2 <= 1e-10f) continue;
-                var dir = d / Mathf.Sqrt(r2);
-                if (b[i].w < 3.14159f && Vector2.Dot(dir, f) < b[i].x) continue;   // 360°: no angle limit (see VisionMask.hlsl)
-                if (c[i].x < 0.5f) return true;
+                if (fade <= 0f) return vis;
+                float side = (f.x * d.y - f.y * d.x) >= 0f ? 1f : -1f;
+                float sn = Mathf.Sin(b[i].w) * side, cs = Mathf.Cos(b[i].w);
+                var e = new Vector2(f.x * cs - f.y * sn, f.x * sn + f.y * cs);
+                float t = Mathf.Clamp(Vector2.Dot(d, e), 0f, b[i].y);
+                dist = (d - e * t).magnitude;
+            }
+            if (dist > 0f && dist >= fade) return vis;
+            if (c[i].x >= 0.5f)
+            {
                 float ang = Mathf.Atan2(f.x * dir.y - f.y * dir.x, Vector2.Dot(f, dir));
-                float u = (ang / Mathf.Max(b[i].w, 1e-6f) + 1f) * 0.5f;
+                float u = (ang / Mathf.Max(c[i].z, 1e-6f) + 1f) * 0.5f;
                 int rays = (int)c[i].y;
                 int col = Mathf.Clamp(Mathf.FloorToInt(u * rays), 0, rays - 1);
-                float r = reach[i][col];
-                if (r2 <= r * r) return true;
+                float rr = reach[i][col];
+                if (r2 > rr * rr) return vis;
             }
-            return false;
+            return Mathf.Max(vis, Fade(dist, fade));
         }
 
         /// The shared masking material (one per hidden-alpha value, so every masked sprite batches).

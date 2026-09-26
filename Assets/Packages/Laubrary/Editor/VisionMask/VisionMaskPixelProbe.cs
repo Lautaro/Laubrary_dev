@@ -159,6 +159,228 @@ namespace Laubrary.VisionMask.Editor
             return res;
         }
 
+        // ------------------------------------------------------------------ the edge fade (graded alpha)
+
+        public struct AlphaResult
+        {
+            public string name;
+            public int spritePx, insidePx, bandPx, beyondPx, mismatch, jumpMismatch, hardMismatch;
+            public float insideMinAlpha, beyondMaxAlpha, bandMeanErr, bandMaxErr, tol;
+            public bool pass, monotonic, informational;
+            public string profile, pngPath;
+            public override string ToString() =>
+                $"{(informational ? "INFO" : pass ? "PASS" : "FAIL")}  {name}: sprite px {spritePx} = inside {insidePx} (min alpha {insideMinAlpha:F3}) " +
+                $"+ fade band {bandPx} (|measured-expected| mean {bandMeanErr:F4}, max {bandMaxErr:F4}) + beyond {beyondPx} (max alpha {beyondMaxAlpha:F3}); " +
+                $"off by > {tol:F3}+quantisation: {mismatch} (at a hard jump, within the px tolerance {jumpMismatch}, elsewhere {hardMismatch})" +
+                (profile != null ? $"; profile {(monotonic ? "MONOTONIC" : "NOT MONOTONIC")}: {profile}" : "");
+        }
+
+        /// Measure one sprite's RENDERED alpha per pixel against a caller-computed EXPECTED visibility (0..1) at
+        /// that pixel's world point (from independent geometry, e.g. <see cref="VisionFadeTruth"/> — never from
+        /// VisionMask's own maths). Rendered alpha = masked brightness / bypassed brightness (black clear, so
+        /// masked = colour × alpha). Every sprite pixel must match within `tol` plus 8-bit quantisation; only where
+        /// the expectation itself JUMPS (a wall's hard shadow line, a hard edge) is a pixel allowed to take a
+        /// neighbour's value within `jumpPx`. Pixels are also sorted into inside (expected 1), band (between) and
+        /// beyond (expected 0), so "fully lit stays 1, fully dark stays 0" is reported on its own.
+        /// Optional profile: `profileFrom`→`profileTo` (world), sampled at 24 points, printed measured/expected,
+        /// and checked for monotonic non-increase when the expectation is non-increasing along it.
+        public static AlphaResult MeasureAlpha(string name, SpriteRenderer sr, Func<Vector3, float> expected, VisionPlane plane,
+                                               int resolution = 256, string pngDir = null, int jumpPx = BoundaryPx, float tol = 0.02f,
+                                               Vector3? profileFrom = null, Vector3? profileTo = null, float fadeWidth = 0f)
+        {
+            var res = new AlphaResult { name = name, tol = tol, insideMinAlpha = 1f, monotonic = true };
+            var go = sr.gameObject;
+            int oldLayer = go.layer;
+            bool oldBypass = VisionMask.Bypass;
+            var camGo = new GameObject("VisionMaskProbeCam") { hideFlags = HideFlags.HideAndDontSave };
+            var rt = new RenderTexture(resolution, resolution, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
+            try
+            {
+                go.layer = ProbeLayer;
+                var b = sr.bounds;
+                var cam = camGo.AddComponent<Camera>();
+                cam.orthographic = true;
+                cam.cullingMask = 1 << ProbeLayer;
+                cam.clearFlags = CameraClearFlags.SolidColor;
+                cam.backgroundColor = new Color(0f, 0f, 0f, 0f);
+                cam.nearClipPlane = 0.01f; cam.farClipPlane = 100f;
+                cam.enabled = false;
+                const float dist = 20f;
+                if (plane == VisionPlane.XY)
+                {
+                    cam.orthographicSize = Mathf.Max(b.extents.x, b.extents.y) * 1.15f;
+                    camGo.transform.SetPositionAndRotation(b.center - Vector3.forward * dist, Quaternion.identity);
+                }
+                else
+                {
+                    cam.orthographicSize = Mathf.Max(b.extents.x, b.extents.z) * 1.15f;
+                    camGo.transform.SetPositionAndRotation(b.center + Vector3.up * dist, Quaternion.LookRotation(Vector3.down, Vector3.forward));
+                }
+                cam.targetTexture = rt;
+
+                VisionMask.Bypass = true;
+                var full = Grab(cam, rt, resolution);
+                VisionMask.Bypass = false;
+                var masked = Grab(cam, rt, resolution);
+
+                int n = resolution * resolution;
+                var isSprite = new bool[n];
+                var exp = new float[n];
+                var meas = new float[n];
+                var lum = new float[n];
+                double bandErr = 0;
+                for (int y = 0; y < resolution; y++)
+                for (int x = 0; x < resolution; x++)
+                {
+                    int i = y * resolution + x;
+                    var f = full[i];
+                    float fl = Mathf.Max(f.r, Mathf.Max(f.g, f.b));
+                    if (fl < 0.08f) continue;
+                    isSprite[i] = true; lum[i] = fl;
+                    res.spritePx++;
+                    var w = cam.ViewportToWorldPoint(new Vector3((x + 0.5f) / resolution, (y + 0.5f) / resolution, dist));
+                    exp[i] = Mathf.Clamp01(expected(w));
+                    var m = masked[i];
+                    meas[i] = Mathf.Clamp01(Mathf.Max(m.r, Mathf.Max(m.g, m.b)) / fl);
+                    if (exp[i] >= 1f) { res.insidePx++; res.insideMinAlpha = Mathf.Min(res.insideMinAlpha, meas[i]); }
+                    else if (exp[i] <= 0f) { res.beyondPx++; res.beyondMaxAlpha = Mathf.Max(res.beyondMaxAlpha, meas[i]); }
+                    else
+                    {
+                        res.bandPx++;
+                        float e = Mathf.Abs(meas[i] - exp[i]);
+                        bandErr += e; res.bandMaxErr = Mathf.Max(res.bandMaxErr, e);
+                    }
+                }
+                res.bandMeanErr = res.bandPx > 0 ? (float)(bandErr / res.bandPx) : 0f;
+
+                // Where is the expectation DISCONTINUOUS (a wall's shadow line, a hard edge)? Between two adjacent
+                // pixels the smooth fade can change by at most its steepest slope (1.5 / fade per unit, the
+                // smoothstep's peak) — anything well above that is a jump, however faint the band is there.
+                float pxPerUnit = resolution / (2f * cam.orthographicSize);
+                float jumpDelta = fadeWidth > 0f ? Mathf.Max(0.03f, 2.5f * 1.5f / (fadeWidth * pxPerUnit)) : 0.03f;
+                var jumpy = new bool[n];
+                for (int y = 0; y < resolution; y++)
+                for (int x = 0; x < resolution; x++)
+                {
+                    int i = y * resolution + x;
+                    if (!isSprite[i]) continue;
+                    if (x + 1 < resolution && isSprite[i + 1] && Mathf.Abs(exp[i + 1] - exp[i]) > jumpDelta) jumpy[i] = jumpy[i + 1] = true;
+                    if (y + 1 < resolution && isSprite[i + resolution] && Mathf.Abs(exp[i + resolution] - exp[i]) > jumpDelta) jumpy[i] = jumpy[i + resolution] = true;
+                }
+
+                var verdict = pngDir != null ? new Color[n] : null;
+                for (int y = 0; y < resolution; y++)
+                for (int x = 0; x < resolution; x++)
+                {
+                    int i = y * resolution + x;
+                    if (!isSprite[i]) continue;
+                    float allow = tol + 2f / (255f * lum[i]);   // 8-bit steps in both renders, relative to this pixel's brightness
+                    float err = Mathf.Abs(meas[i] - exp[i]);
+                    if (err <= allow)
+                    {
+                        if (verdict != null) verdict[i] = exp[i] >= 1f ? new Color(0.1f, 0.85f, 0.2f)
+                                                        : exp[i] <= 0f ? new Color(0.45f, 0.05f, 0.05f)
+                                                        : Color.Lerp(new Color(0.1f, 0.2f, 0.6f), new Color(0.3f, 0.7f, 1f), exp[i]);
+                        continue;
+                    }
+                    res.mismatch++;
+                    // A jump in the expectation within jumpPx (a wall's shadow line) whose other side explains this value?
+                    // Only next to a real discontinuity — never inside the smooth band, where every pixel must match.
+                    bool atJump = false;
+                    for (int dy = -jumpPx; dy <= jumpPx && !atJump; dy++)
+                    for (int dx = -jumpPx; dx <= jumpPx && !atJump; dx++)
+                    {
+                        int xx = x + dx, yy = y + dy;
+                        if (xx < 0 || yy < 0 || xx >= resolution || yy >= resolution) continue;
+                        int j = yy * resolution + xx;
+                        if (!isSprite[j]) continue;
+                        if (jumpy[j] && Mathf.Abs(meas[i] - exp[j]) <= allow) atJump = true;
+                    }
+                    if (atJump) res.jumpMismatch++; else res.hardMismatch++;
+                    if (verdict != null) verdict[i] = atJump ? Color.yellow : Color.magenta;
+                }
+
+                // Profile along a world line: measured vs expected; monotonic where the expectation is.
+                if (profileFrom.HasValue && profileTo.HasValue)
+                {
+                    // Every render pixel the line crosses (a sprite with holes — a character silhouette — would starve
+                    // a fixed handful of samples), only sprite pixels count; at least 12 are required.
+                    // NINE parallel lines across the sprite (a silhouette can leave one line almost empty), each checked on
+                    // its own; together they must cross at least 12 sprite pixels. The fullest line is printed.
+                    var vA = cam.WorldToViewportPoint(profileFrom.Value); var vB = cam.WorldToViewportPoint(profileTo.Value);
+                    Vector2 along = (Vector2)(vB - vA), perp = new Vector2(-along.y, along.x);
+                    perp = perp.sqrMagnitude > 1e-12f ? perp.normalized : Vector2.zero;
+                    int steps = Mathf.Max(24, Mathf.CeilToInt(along.magnitude * resolution * 2f));
+                    List<(float m, float e)> best = null;
+                    int total = 0;
+                    for (int line = -4; line <= 4; line++)
+                    {
+                        var shift = (Vector3)(perp * (line * 0.08f));   // ±0.32 of the frame across the edge direction
+                        var pts = new List<(float m, float e)>();
+                        float prevM = float.MaxValue, prevE = float.MaxValue;
+                        int lastI = -1;
+                        for (int k = 0; k <= steps; k++)
+                        {
+                            var vp = Vector3.Lerp(vA, vB, (float)k / steps) + shift;
+                            int x = Mathf.FloorToInt(vp.x * resolution), y = Mathf.FloorToInt(vp.y * resolution);
+                            if (x < 0 || y < 0 || x >= resolution || y >= resolution) continue;
+                            int i = y * resolution + x;
+                            if (!isSprite[i] || i == lastI) continue;
+                            lastI = i;
+                            float allow = tol + 2f / (255f * lum[i]);
+                            if (exp[i] <= prevE + 1e-4f && meas[i] > prevM + allow) res.monotonic = false;
+                            prevM = meas[i]; prevE = exp[i];
+                            pts.Add((meas[i], exp[i]));
+                        }
+                        total += pts.Count;
+                        if (best == null || pts.Count > best.Count) best = pts;
+                    }
+                    if (total < 12) res.monotonic = false;
+                    var sbp = new StringBuilder();
+                    int shown = Mathf.Min(24, best.Count);
+                    for (int k = 0; k < shown; k++)
+                    {
+                        var q = best[shown > 1 ? Mathf.RoundToInt(k * (best.Count - 1f) / (shown - 1f)) : 0];
+                        sbp.Append($"{q.m:F2}/{q.e:F2} ");
+                    }
+                    res.profile = $"(measured/expected; 9 lines, {total} sprite px; fullest line {best.Count} px, {shown} shown) " + sbp.ToString().TrimEnd();
+                }
+
+                res.pass = res.spritePx > 0 && res.hardMismatch == 0 && res.monotonic;
+
+                if (pngDir != null)
+                {
+                    Directory.CreateDirectory(pngDir);
+                    // Left: the masked render. Middle: EXPECTED alpha as grey. Right: verdict — green inside, dark red
+                    // beyond, blue→cyan fade band (correct), MAGENTA wrong, yellow wrong only at a hard jump.
+                    var img = new Texture2D(resolution * 3, resolution, TextureFormat.RGBA32, false);
+                    for (int y = 0; y < resolution; y++)
+                    for (int x = 0; x < resolution; x++)
+                    {
+                        int i = y * resolution + x;
+                        var m = masked[i]; m.a = 1f;
+                        img.SetPixel(x, y, m);
+                        img.SetPixel(resolution + x, y, isSprite[i] ? new Color(exp[i], exp[i], exp[i]) : new Color(0.1f, 0f, 0.1f));
+                        img.SetPixel(2 * resolution + x, y, isSprite[i] ? verdict[i] : Color.black);
+                    }
+                    img.Apply();
+                    res.pngPath = Path.Combine(pngDir, Sanitize(name) + ".png");
+                    File.WriteAllBytes(res.pngPath, img.EncodeToPNG());
+                    UnityEngine.Object.DestroyImmediate(img);
+                }
+            }
+            finally
+            {
+                VisionMask.Bypass = oldBypass;
+                VisionMask.Publish();
+                go.layer = oldLayer;
+                UnityEngine.Object.DestroyImmediate(camGo);
+                rt.Release();
+                UnityEngine.Object.DestroyImmediate(rt);
+            }
+            return res;
+        }
+
         /// Chebyshev distance (pixels) from (x,y) to the nearest sprite pixel whose ground truth differs — i.e.
         /// how far this pixel is from the true edge. `max`+1 when there is none that close.
         static int EdgeDistance(bool[] isSprite, bool[] tr, int x, int y, int r, int max)
@@ -323,6 +545,8 @@ namespace Laubrary.VisionMask.Editor
                 sprite.flipX = false;
                 sprite.sprite = Sprite.Create(white, new Rect(0, 0, 64, 64), new Vector2(0.5f, 0.5f), 64f);
 
+                RunFadeCases(root, cone, sprite, O, occLayer, dir, results, sb);
+
                 // G. The XZ plane (top-down 3D): a flat sprite on the ground, the cone's facing along +X/+Z.
                 VisionMask.Plane = VisionPlane.XZ;
                 var O3 = new Vector3(5000f, 0f, 5000f);
@@ -361,6 +585,11 @@ namespace Laubrary.VisionMask.Editor
                 counted++;
                 if (r.pass) pass++;
             }
+            int fadePass = 0;
+            sb.AppendLine("EDGE FADE (expected alpha per pixel from VisionFadeTruth — raw geometry, never the shader):");
+            foreach (var r in fadeResults) { sb.AppendLine("  " + r); if (r.pass) fadePass++; }
+            sb.AppendLine($"FADE VERDICT: {fadePass}/{fadeResults.Count} fade cases pass");
+            pass += fadePass; counted += fadeResults.Count;
             sb.AppendLine($"VERDICT: {pass}/{counted} cases pass (INFO rows are not counted: they show that the occlusion " +
                           "error shrinks with the shadow resolution, i.e. it is quantisation along the edge).");
             sb.AppendLine("  Note: A whole-object rule could only ever show 0 % or 100 % " +
@@ -369,6 +598,141 @@ namespace Laubrary.VisionMask.Editor
             sb.AppendLine("PNGs: " + dir);
             File.WriteAllText(Path.Combine(dir, "report.txt"), sb.ToString());
             return sb.ToString();
+        }
+
+        static readonly List<AlphaResult> fadeResults = new();
+
+        static Vector2 Dir(float deg) => new Vector2(Mathf.Cos(deg * Mathf.Deg2Rad), Mathf.Sin(deg * Mathf.Deg2Rad));
+
+        /// H. The EDGE FADE, every boundary kind, at off-axis angles, judged per pixel against VisionFadeTruth.
+        /// Sprite is 1x1 world unit; fade 0.4 u, so each placement holds inside, band and beyond pixels at once.
+        static void RunFadeCases(GameObject root, VisionCone cone, SpriteRenderer sprite, Vector3 O, int occLayer, string dir,
+                                 List<Result> results, StringBuilder sb)
+        {
+            fadeResults.Clear();
+            const float F = 0.4f;
+            var O2 = (Vector2)O;
+            var live = new List<VisionCone> { cone };
+            Func<Vector3, float> Exp()
+            {
+                var spec = VisionFadeTruth.FromLive(live, VisionPlane.XY);   // snapshot of the cones' own fields
+                return w => VisionFadeTruth.Value(spec, new Vector2(w.x, w.y));
+            }
+            void Place(Vector2 c) { sprite.transform.position = new Vector3(c.x, c.y, 0f); Physics2D.SyncTransforms(); }
+            Vector3 P(Vector2 v) => new Vector3(v.x, v.y, 0f);
+            float pxPerUnit = 256f / (2f * 0.5f * 1.15f);
+
+            // The oracle checks itself first: analytic distance vs brute-force dense boundary sampling.
+            foreach (var (label, half, range) in new[] { ("60° r20", 30f, 20f), ("360° r2.25", 180f, 2.25f), ("250° r6", 125f, 6f) })
+            {
+                var c = new VisionFadeTruth.Cone { eye = Vector2.zero, facing = Dir(37f), halfDeg = half, range = range, fade = F };
+                float worst = VisionFadeTruth.CrossCheck(c, 600, 1.5f, 100000, 7, out float spacing);
+                sb.AppendLine($"  oracle cross-check {label}: analytic vs brute-force distance, worst {worst:0.00000} u (sampling spacing {spacing:0.00000} u) {(worst <= spacing ? "OK" : "DISAGREES")}");
+            }
+
+            cone.edgeFade = F; cone.angle = 60f; cone.range = 100f; cone.omniRadius = 0f; cone.occluders = 0;
+            try
+            {
+                // H1 angular edge, TILTED (lower edge at 20°), inside / straddling / outside the band.
+                SetFacing(cone, 50f);
+                Vector2 e1 = Dir(20f), nOut = new Vector2(e1.y, -e1.x);
+                foreach (float off in new[] { -0.2f, 0.25f, 0.5f })
+                {
+                    var c = O2 + e1 * 20f + nOut * off;
+                    Place(c);
+                    fadeResults.Add(MeasureAlpha($"H1 tilted cone edge, centre {off:+0.00;-0.00} u past it", sprite, Exp(), VisionPlane.XY, 256, dir, fadeWidth: F,
+                        profileFrom: P(c - nOut * 0.45f), profileTo: P(c + nOut * 0.45f)));
+                }
+
+                // H2 range arc on a diagonal (facing 135°, pixel direction 150°).
+                SetFacing(cone, 135f); cone.range = 20f;
+                foreach (float off in new[] { 0f, 0.3f })
+                {
+                    var c = O2 + Dir(150f) * (20f + off);
+                    Place(c);
+                    fadeResults.Add(MeasureAlpha($"H2 range arc at 150°, centre {off:+0.00} u past it", sprite, Exp(), VisionPlane.XY, 256, dir, fadeWidth: F,
+                        profileFrom: P(c - Dir(150f) * 0.45f), profileTo: P(c + Dir(150f) * 0.45f)));
+                }
+
+                // H3 omni disc rim, far from the (narrow, turned away) cone.
+                SetFacing(cone, 0f); cone.angle = 10f; cone.range = 100f; cone.omniRadius = 20f;
+                {
+                    var c = O2 + Dir(225f) * 20.25f;
+                    Place(c);
+                    fadeResults.Add(MeasureAlpha("H3 omni rim at 225°", sprite, Exp(), VisionPlane.XY, 256, dir, fadeWidth: F,
+                        profileFrom: P(c - Dir(225f) * 0.45f), profileTo: P(c + Dir(225f) * 0.45f)));
+                }
+                cone.omniRadius = 0f;
+
+                // H4 a 360° cone's radial edge (the body-glow shape), incl. exactly BEHIND its facing.
+                cone.angle = 360f; cone.range = 20f;
+                foreach (float deg in new[] { 180f, 245f, 315f })
+                {
+                    var c = O2 + Dir(deg) * 20.2f;
+                    Place(c);
+                    fadeResults.Add(MeasureAlpha($"H4 360° cone rim at {deg:0}°", sprite, Exp(), VisionPlane.XY, 256, dir, fadeWidth: F,
+                        profileFrom: P(c - Dir(deg) * 0.45f), profileTo: P(c + Dir(deg) * 0.45f)));
+                }
+
+                // Occlusion cases: the shadow line is exact to one shadow texel, so that is the jump tolerance.
+                int occMask = 1 << occLayer;
+                cone.occluders = occMask; cone.angle = 60f; cone.rays = 1024;
+                int TexelTolPx(float atDist)
+                {
+                    float half = 30f, cover = Mathf.Min(180f, half + VisionCone.FadeShadowMarginDeg);
+                    int texels = Mathf.Clamp(Mathf.CeilToInt(1024 * cover / half), 1024, VisionMask.MaxRays);
+                    return Mathf.Max(BoundaryPx, Mathf.CeilToInt(2f * cover * Mathf.Deg2Rad / texels * atDist * pxPerUnit) + 1);
+                }
+                GameObject Wall(Vector2 centre, Vector2 size)
+                {
+                    var w = new GameObject("Wall") { hideFlags = HideFlags.DontSave, layer = occLayer };
+                    w.transform.SetParent(root.transform, false);
+                    w.transform.position = new Vector3(centre.x, centre.y, 0f);
+                    w.AddComponent<BoxCollider2D>().size = size;
+                    Physics2D.SyncTransforms();
+                    return w;
+                }
+
+                // H5 a wall's shadow line crossing the RADIAL fade band: band pixels behind the wall must be 0.
+                SetFacing(cone, 0f); cone.range = 19.8f;
+                var wall = Wall(O2 + new Vector2(10f, 2.7f), new Vector2(0.2f, 5f));   // y 0.2..5.2 at x 10
+                Place(O2 + new Vector2(20f, 0f));
+                fadeResults.Add(MeasureAlpha("H5 wall shadow across the radial band (hard shadow)", sprite, Exp(), VisionPlane.XY, 256, dir, TexelTolPx(20f), fadeWidth: F));
+                UnityEngine.Object.DestroyImmediate(wall);
+
+                // H6 a wall just PAST the range, inside the band: what is behind it must stay hidden (the shadow is
+                // cast to range + fade).
+                cone.range = 19.6f;
+                wall = Wall(O2 + new Vector2(19.85f, -2.5f), new Vector2(0.1f, 5f));   // x 19.8..19.9, y -5..0
+                Place(O2 + new Vector2(20f, 0f));
+                fadeResults.Add(MeasureAlpha("H6 wall inside the band just past the range", sprite, Exp(), VisionPlane.XY, 256, dir, TexelTolPx(20f), fadeWidth: F,
+                    profileFrom: P(O2 + new Vector2(19.55f, 0.3f)), profileTo: P(O2 + new Vector2(20.45f, 0.3f))));
+                UnityEngine.Object.DestroyImmediate(wall);
+
+                // H7 a wall OUTSIDE the cone's angle, shadowing part of the ANGULAR band (the shadow row's margin).
+                SetFacing(cone, 30f); cone.range = 100f;
+                wall = Wall(O2 + new Vector2(12f, -0.3f), new Vector2(0.2f, 0.4f));    // y -0.5..-0.1 at x 12
+                Place(O2 + new Vector2(20f, -0.25f));
+                fadeResults.Add(MeasureAlpha("H7 wall shadowing the angular band outside the cone", sprite, Exp(), VisionPlane.XY, 256, dir, TexelTolPx(20f), fadeWidth: F));
+                UnityEngine.Object.DestroyImmediate(wall);
+                cone.occluders = 0;
+
+                // H8 two fading cones: the union is the brighter of the two, pixel by pixel.
+                SetFacing(cone, 30f);
+                var eye2 = O + new Vector3(20f, 30f, 0f);
+                var cone2 = NewCone(root, eye2, 1f, 100f, 0f);
+                cone2.edgeFade = F;
+                SetFacing(cone2, -90f);
+                live.Add(cone2);
+                Place(O2 + new Vector2(20f, -0.2f));
+                fadeResults.Add(MeasureAlpha("H8 two fading cones (union = max)", sprite, Exp(), VisionPlane.XY, 256, dir, fadeWidth: F));
+                live.Remove(cone2);
+                UnityEngine.Object.DestroyImmediate(cone2.gameObject);
+            }
+            finally
+            {
+                cone.edgeFade = 0f; cone.angle = 60f; cone.range = 100f; cone.omniRadius = 0f; cone.occluders = 0; cone.rays = 1024;
+            }
         }
 
         /// The sprite's left half is red, right half green; flipped, the leftmost visible column must be GREEN.

@@ -1,6 +1,7 @@
 // A sprite clipped by vision, PIXEL BY PIXEL: each fragment tests its own world position against the
 // published vision cones (VisionMask.hlsl). Fragments inside a cone draw exactly like URP's
-// Sprite-Unlit-Default; fragments outside draw at _HiddenAlpha (0 = invisible, a small value = a ghost).
+// Sprite-Unlit-Default; fragments outside draw at _HiddenAlpha (0 = invisible, a small value = a ghost);
+// fragments in a cone's edge-fade band (VisionCone.edgeFade) blend between the two.
 //
 // Built on URP's own 2D sprite path (Core2D.hlsl) rather than a bare vertex shader, so everything a
 // SpriteRenderer does on the GPU still happens: flipX/flipY (UnityFlipSprite + unity_SpriteProps — a
@@ -84,7 +85,8 @@ Shader "Laubrary/VisionMaskSprite"
             {
                 half4 c = i.color * SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv);
                 // The whole mechanism: THIS fragment's own world position decides THIS fragment's alpha.
-                c.a *= VisionMaskVisibility(i.positionWS) > 0.5 ? 1.0 : _HiddenAlpha;
+                // Visibility is 1 inside vision, 0 outside, and between only in a cone's edge-fade band.
+                c.a *= lerp(_HiddenAlpha, 1.0, VisionMaskVisibility(i.positionWS));
                 return c;
             }
             ENDHLSL

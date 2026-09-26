@@ -10,7 +10,9 @@ namespace Laubrary.VisionMask.Editor
     /// currently partly inside a cone is measured pixel by pixel (VisionMaskPixelProbe.Measure) against
     /// ground truth rebuilt from the live cones' raw geometry — angle, range, omni disc, and a physics
     /// linecast per pixel for occluders — and a capture of the given camera is saved. Writes
-    /// <project>/Temp/VisionMaskProbe/live-report.txt and returns the report.
+    /// <project>/Temp/VisionMaskProbe/live-report.txt and returns the report. When any live cone has an edge
+    /// fade, sprites are graded instead (VisionMaskPixelProbe.MeasureAlpha against VisionFadeTruth): rendered
+    /// alpha per pixel vs the independent expected fade.
     public static class VisionMaskLiveCheck
     {
         [MenuItem("Laubrary/VisionMask/Measure Live Scene (Play mode)")]
@@ -35,12 +37,30 @@ namespace Laubrary.VisionMask.Editor
             }
 
             int measured = 0, passed = 0, whole = 0, none = 0;
+            float maxFade = 0f;
+            foreach (var k in VisionMask.Cones) if (k != null && k.isActiveAndEnabled) maxFade = Mathf.Max(maxFade, k.edgeFade);
+            var spec = VisionFadeTruth.FromLive(VisionMask.Cones, VisionMask.Plane);
+            bool xyPlane = VisionMask.Plane == VisionPlane.XY;
+            if (maxFade > 0f) sb.AppendLine($"edge fade up to {maxFade:0.00} u: graded per pixel against VisionFadeTruth");
             foreach (var masked in UnityEngine.Object.FindObjectsByType<VisionMasked>(FindObjectsSortMode.None))
             {
                 foreach (var sr in masked.GetComponentsInChildren<SpriteRenderer>())
                 {
                     if (!VisionMask.IsMaskMaterial(sr.sharedMaterial) || sr.sprite == null || !sr.enabled) continue;
                     if (masked.hiddenAlpha > 0f) continue;   // floors/ghosts: not an actor
+                    if (maxFade > 0f)
+                    {
+                        var ra = VisionMaskPixelProbe.MeasureAlpha($"{tag} {sr.name}", sr,
+                            w => VisionFadeTruth.Value(spec, xyPlane ? new Vector2(w.x, w.y) : new Vector2(w.x, w.z)),
+                            VisionMask.Plane, 128, dir, Tolerance(sr), 0.03f, null, null, maxFade);
+                        if (ra.insidePx == ra.spritePx) { whole++; continue; }
+                        if (ra.beyondPx == ra.spritePx) { none++; continue; }
+                        measured++;
+                        if (ra.pass) passed++;
+                        sb.AppendLine("  " + ra);
+                        if (measured >= maxSprites) break;
+                        continue;
+                    }
                     var r = VisionMaskPixelProbe.Measure($"{tag} {sr.name}", sr, Truth, VisionMask.Plane, 128, dir, Tolerance(sr));
                     if (r.truthPx == 0) { none++; continue; }
                     if (r.truthPx == r.spritePx) { whole++; continue; }
