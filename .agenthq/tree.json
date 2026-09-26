@@ -125,6 +125,26 @@
       "id": "ProtoGuy",
       "name": "ProtoGuy",
       "parent": null
+    },
+    {
+      "id": "ShaperHarmony-2026-09-07",
+      "name": "Shaper harmony \u2014 remove, hide, rename, re-default (2026-09-07 analysis)",
+      "parent": "Shaper"
+    },
+    {
+      "id": "ChunksUseCases-2026-09-16",
+      "name": "ChunksUseCases-2026-09-16",
+      "parent": "Chunks"
+    },
+    {
+      "id": "AssetKit",
+      "name": "AssetKit",
+      "parent": null
+    },
+    {
+      "id": "ZoundsSap-2026-09-26",
+      "name": "Zounds SAP — move audio generation off the managed callback onto Burst-compiled generators",
+      "parent": "Zounds"
     }
   ]
 }

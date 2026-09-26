@@ -46,6 +46,16 @@ Load-bearing facts, each verified against source rather than docs (2026-09-01):
 - **The nine composite generators expose ~775 authored fields** (ArcBurst alone 187). Any generator UI must be reflection-driven over the assigned `PyreForm`; hand-listing dials is not maintainable and will silently expose a fraction of the engine.
 - Deterministic draws only: `UnityEngine.Random` and `System.Random` are banned in generator paths (BC-1.3). Hash from `seed` instead.
 
+## Zounds — developed HERE again as of 2026-09-26; HH2Lab's copy is frozen
+
+**This reverses the 2026-09-11 decision that sent Zounds development to HH2Lab.** That earlier rule said "do not develop Zounds features here first" and pointed at HH2Lab's copy as the newer one. As of 2026-09-26 the owner's direction is the opposite: **this project is the active home for Zounds, and specifically for the Scriptable-Audio-Pipeline work on branch `x/zounds-sap`.** HH2Lab wound its audio work down the same day and settles on what it already has; do not start new Zounds work there, and do not treat its copy as the authority for new features.
+
+The current programme is tracked in this project's own task list under the Zounds SAP node (T-0406 is the umbrella). Read that before touching audio code — it records the plan, the current half-finished state of the branch, and what "finished" has been defined to mean.
+
+The point of the work, in one paragraph: Unity's ordinary way of generating audio in C# attaches the audio mixer thread to the scripting runtime, and from then on any garbage collection anywhere in the game freezes that thread and produces an audible click. Removing allocations reduces how often that happens but cannot eliminate it. The fix is structural — move audio generation onto Burst-compiled code that the mixer thread reaches through a plain function pointer, never touching the managed runtime. **A single remaining use of the managed audio callback anywhere in the project re-attaches the thread and silently destroys the benefit for the whole application**, so removing the last use matters as much as adding the replacement, and the result can only be proven in a real player build — in the editor, with Burst compilation off, the immunity is not there at all.
+
+Background documents: the authoritative technical foundation is `D:/Claude@GDrive/Zounds GC-Stutter-Free Audio Architecture Research 2026-09-26.md` (sections 1 and 7 for the plan, 8 for the validation test). `D:/Claude@GDrive/HH2 Audio Effect Chains Architecture.md` describes the existing engine the new path has to match. The 2026-09-25 native-DSP roadmap is **partly superseded** — its phases assume a hand-written C++ plugin as the target, which the 2026-09-26 research replaces; read it for history, not direction. The 2026-09-11 lifetime health report is at `D:/Claude@GDrive/Zounds Lifetime Health Report 2026-09-11.md`.
+
 ## Tool conventions (mirror for every Laubrary tool)
 
 - Runtime tool: `Runtime/<Tool>/` → asmdef `com.Lautaro-Arino.Laubrary.<Tool>`, rootNamespace `Laubrary.<Tool>`.
