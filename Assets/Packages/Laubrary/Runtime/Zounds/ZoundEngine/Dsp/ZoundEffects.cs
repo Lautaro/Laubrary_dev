@@ -1,9 +1,10 @@
+﻿using Unity.Collections;
 using UnityEngine;
 
 namespace Laubrary.Zounds.Dsp {
 
     /// <summary>
-    /// Effect processing: one static method per effect over float[] spans, a packed parameter block
+    /// Effect processing: one static method per effect over NativeArray<float> spans, a packed parameter block
     /// (block-start value + per-sample step for each parameter) and a per-voice state arena. Dispatch
     /// is a switch on the type enum. Nothing here allocates, calls Unity APIs or touches managed
     /// object graphs; each node is written so it would port to C unchanged.
@@ -13,7 +14,7 @@ namespace Laubrary.Zounds.Dsp {
     public static class ZoundEffects {
 
         /// <summary>Resets every node's state for a fresh play (the arena region is already zeroed).</summary>
-        public static void ResetChain(ChainLayout L, float[] state, int sampleRate) {
+        public static void ResetChain(ChainLayout L, NativeArray<float> state, int sampleRate) {
             for (int i = 0; i < L.nodeCount; i++) {
                 int s = L.stateOffset[i];
                 int q = L.paramOffset[i];
@@ -29,8 +30,8 @@ namespace Laubrary.Zounds.Dsp {
             }
         }
 
-        public static void ProcessChain(ChainLayout L, float[] state, float[] pStart, float[] pStep,
-                                        float[] bufL, float[] bufR, int off, int n, in VoiceContext ctx) {
+        public static void ProcessChain(ChainLayout L, NativeArray<float> state, NativeArray<float> pStart, NativeArray<float> pStep,
+                                        NativeArray<float> bufL, NativeArray<float> bufR, int off, int n, in VoiceContext ctx) {
             for (int i = 0; i < L.nodeCount; i++) {
                 if (!L.enabled[i]) continue;
                 int s = L.stateOffset[i];
@@ -87,14 +88,14 @@ namespace Laubrary.Zounds.Dsp {
     }
 
     public static class GainEffect {
-        public static void Process(float[] pStart, float[] pStep, int q, float[] L, float[] R, int off, int n) {
+        public static void Process(NativeArray<float> pStart, NativeArray<float> pStep, int q, NativeArray<float> L, NativeArray<float> R, int off, int n) {
             float g = pStart[q], step = pStep[q];
             for (int i = 0; i < n; i++) { L[off + i] *= g; R[off + i] *= g; g += step; }
         }
     }
 
     public static class NormalizeEffect {
-        public static void Process(float[] pStart, int q, float[] L, float[] R, int off, int n, float sourcePeak) {
+        public static void Process(NativeArray<float> pStart, int q, NativeArray<float> L, NativeArray<float> R, int off, int n, float sourcePeak) {
             if (sourcePeak <= 0.0001f) return;
             float g = ZoundEffects.DbToLinear(pStart[q]) / sourcePeak;
             for (int i = 0; i < n; i++) { L[off + i] *= g; R[off + i] *= g; }
@@ -103,7 +104,7 @@ namespace Laubrary.Zounds.Dsp {
 
     public static class FadeEffect {
         // Fade in from the source start, fade out into the source end (absolute seconds, like the old bake).
-        public static void Process(float[] pStart, int q, float[] L, float[] R, int off, int n, in VoiceContext ctx) {
+        public static void Process(NativeArray<float> pStart, int q, NativeArray<float> L, NativeArray<float> R, int off, int n, in VoiceContext ctx) {
             float fadeIn = pStart[q], fadeOut = pStart[q + 1];
             bool sCurve = pStart[q + 2] >= 0.5f;
             float t0 = ctx.elapsedSeconds;
@@ -124,7 +125,7 @@ namespace Laubrary.Zounds.Dsp {
 
     // ── Dynamics: linked-stereo peak follower. State: [0] envelope. ──
     public static class DynamicsEffect {
-        public static void ProcessCompressor(float[] state, int s, float[] p, int q, float[] L, float[] R, int off, int n, int sr) {
+        public static void ProcessCompressor(NativeArray<float> state, int s, NativeArray<float> p, int q, NativeArray<float> L, NativeArray<float> R, int off, int n, int sr) {
             float thrDb = p[q], ratio = Mathf.Max(p[q + 1], 1f);
             float attack = Mathf.Exp(-1f / (Mathf.Max(p[q + 2], 0.1f) * 0.001f * sr));
             float release = Mathf.Exp(-1f / (Mathf.Max(p[q + 3], 1f) * 0.001f * sr));
@@ -152,7 +153,7 @@ namespace Laubrary.Zounds.Dsp {
         // the fast one sits above the slow one is the transient signal t in 0..1 (saturating at 12 dB);
         // gain = Attack dB scaled by t plus Sustain dB scaled by 1 - t. Level independent: a quiet hit
         // and a loud hit shape the same. State: [0] fast envelope, [1] slow envelope.
-        public static void ProcessTransientShaper(float[] state, int s, float[] p, int q, float[] L, float[] R, int off, int n, int sr) {
+        public static void ProcessTransientShaper(NativeArray<float> state, int s, NativeArray<float> p, int q, NativeArray<float> L, NativeArray<float> R, int off, int n, int sr) {
             float attackDb = p[q], sustainDb = p[q + 1];
             float fastA = Mathf.Exp(-1f / (0.0002f * sr));
             float slowA = Mathf.Exp(-1f / (Mathf.Max(p[q + 2], 2f) * 0.001f * sr));
@@ -181,7 +182,7 @@ namespace Laubrary.Zounds.Dsp {
         }
 
         // Zero-latency feedback limiter: instant attack, parameterized release, hard ceiling.
-        public static void ProcessLimiter(float[] state, int s, float[] p, int q, float[] L, float[] R, int off, int n, int sr) {
+        public static void ProcessLimiter(NativeArray<float> state, int s, NativeArray<float> p, int q, NativeArray<float> L, NativeArray<float> R, int off, int n, int sr) {
             float ceiling = ZoundEffects.DbToLinear(p[q]);
             float release = Mathf.Exp(-1f / (Mathf.Max(p[q + 1], 1f) * 0.001f * sr));
             float env = state[s];
@@ -203,9 +204,9 @@ namespace Laubrary.Zounds.Dsp {
     public static class BiquadEffect {
         public const int FLOATS = 16;
 
-        public static void Reset(float[] st, int s) { st[s + 13] = -1f; }
+        public static void Reset(NativeArray<float> st, int s) { st[s + 13] = -1f; }
 
-        public static void SetLowPass(float[] st, int s, float cutoff, float qf, int sr) {
+        public static void SetLowPass(NativeArray<float> st, int s, float cutoff, float qf, int sr) {
             cutoff = Mathf.Clamp(cutoff, 10f, sr * 0.45f);
             float w = 2f * Mathf.PI * cutoff / sr;
             float alpha = Mathf.Sin(w) / (2f * Mathf.Max(qf, 0.05f));
@@ -218,7 +219,7 @@ namespace Laubrary.Zounds.Dsp {
             st[s + 12] = (1f - alpha) * norm;
         }
 
-        public static void SetHighPass(float[] st, int s, float cutoff, float qf, int sr) {
+        public static void SetHighPass(NativeArray<float> st, int s, float cutoff, float qf, int sr) {
             cutoff = Mathf.Clamp(cutoff, 10f, sr * 0.45f);
             float w = 2f * Mathf.PI * cutoff / sr;
             float alpha = Mathf.Sin(w) / (2f * Mathf.Max(qf, 0.05f));
@@ -231,7 +232,7 @@ namespace Laubrary.Zounds.Dsp {
             st[s + 12] = (1f - alpha) * norm;
         }
 
-        public static void SetPeaking(float[] st, int s, float freq, float gainDb, float qf, int sr) {
+        public static void SetPeaking(NativeArray<float> st, int s, float freq, float gainDb, float qf, int sr) {
             freq = Mathf.Clamp(freq, 10f, sr * 0.45f);
             float a = Mathf.Pow(10f, gainDb / 40f);
             float w = 2f * Mathf.PI * freq / sr;
@@ -246,7 +247,7 @@ namespace Laubrary.Zounds.Dsp {
         }
 
         /// <summary>Runs one stereo biquad (Direct Form I) over the block.</summary>
-        public static void Run(float[] st, int s, float[] L, float[] R, int off, int n) {
+        public static void Run(NativeArray<float> st, int s, NativeArray<float> L, NativeArray<float> R, int off, int n) {
             float b0 = st[s + 8], b1 = st[s + 9], b2 = st[s + 10], a1 = st[s + 11], a2 = st[s + 12];
             float lx1 = st[s], lx2 = st[s + 1], ly1 = st[s + 2], ly2 = st[s + 3];
             float rx1 = st[s + 4], rx2 = st[s + 5], ry1 = st[s + 6], ry2 = st[s + 7];
@@ -264,7 +265,7 @@ namespace Laubrary.Zounds.Dsp {
 
         // Coefficients are recomputed at control rate (block start) when cutoff or Q moved; the block is
         // short enough (64 samples) that a swept cutoff sounds continuous.
-        public static void Process(float[] st, int s, float[] p, int q, float[] L, float[] R, int off, int n, int sr, bool highPass) {
+        public static void Process(NativeArray<float> st, int s, NativeArray<float> p, int q, NativeArray<float> L, NativeArray<float> R, int off, int n, int sr, bool highPass) {
             float cutoff = p[q], qf = p[q + 1];
             if (st[s + 13] != cutoff || st[s + 14] != qf) {
                 if (highPass) SetHighPass(st, s, cutoff, qf, sr); else SetLowPass(st, s, cutoff, qf, sr);
@@ -279,11 +280,11 @@ namespace Laubrary.Zounds.Dsp {
         private static readonly float[] bandFreq = { 60f, 150f, 400f, 1000f, 2500f, 6000f, 12000f };
         private static readonly float[] bandQ = { 0.7f, 0.8f, 1.0f, 1.0f, 1.0f, 0.8f, 0.7f };
 
-        public static void Reset(float[] st, int s) {
+        public static void Reset(NativeArray<float> st, int s) {
             for (int b = 0; b < 9; b++) st[s + b * BiquadEffect.FLOATS + 13] = float.NaN;
         }
 
-        public static void Process(float[] st, int s, float[] p, int q, float[] L, float[] R, int off, int n, int sr) {
+        public static void Process(NativeArray<float> st, int s, NativeArray<float> p, int q, NativeArray<float> L, NativeArray<float> R, int off, int n, int sr) {
             for (int b = 0; b < 7; b++) {
                 float gain = p[q + b];
                 if (gain > -0.01f && gain < 0.01f) continue;
@@ -310,14 +311,14 @@ namespace Laubrary.Zounds.Dsp {
     public static class DelayEffect {
         private const int HEADER = 4;
 
-        public static void Reset(float[] st, int s, float[] pBase, int q, int sr) {
+        public static void Reset(NativeArray<float> st, int s, float[] pBase, int q, int sr) {
             float maxMs = Mathf.Clamp(pBase[q + 3], 10f, ZoundEffectDescriptors.MAX_DELAY_MS);
             int ring = Mathf.CeilToInt(maxMs * 0.001f * sr) + 4;
             st[s] = 0f;
             st[s + 1] = ring;
         }
 
-        public static void Process(float[] st, int s, float[] pStart, float[] pStep, int q, float[] L, float[] R, int off, int n, int sr) {
+        public static void Process(NativeArray<float> st, int s, NativeArray<float> pStart, NativeArray<float> pStep, int q, NativeArray<float> L, NativeArray<float> R, int off, int n, int sr) {
             int ring = (int)st[s + 1];
             if (ring < 8) return;
             int w = (int)st[s];
@@ -373,13 +374,13 @@ namespace Laubrary.Zounds.Dsp {
         private static int AllpassLen(int i, int ch, int sr) => Mathf.CeilToInt(ZoundEffectDescriptors.ReverbAllpassTuning[i] * (sr / 44100f)) + (ch == 1 ? ZoundEffectDescriptors.ReverbStereoSpread : 0);
 
         // Header layout: [0..31] comb (index, filterstore) ×16, [32..39] allpass index ×8, [40..55] comb lengths ×16, [56..63] allpass lengths ×8.
-        public static void Reset(float[] st, int s, int sr) {
+        public static void Reset(NativeArray<float> st, int s, int sr) {
             for (int i = 0; i < HEADER; i++) st[s + i] = 0f;
             for (int c = 0; c < 8; c++) for (int ch = 0; ch < 2; ch++) st[s + 40 + c * 2 + ch] = CombLen(c, ch, sr);
             for (int a = 0; a < 4; a++) for (int ch = 0; ch < 2; ch++) st[s + 56 + a * 2 + ch] = AllpassLen(a, ch, sr);
         }
 
-        public static void Process(float[] st, int s, float[] p, int q, float[] L, float[] R, int off, int n, int sr) {
+        public static void Process(NativeArray<float> st, int s, NativeArray<float> p, int q, NativeArray<float> L, NativeArray<float> R, int off, int n, int sr) {
             float room = p[q] * SCALE_ROOM + OFFSET_ROOM;
             float damp = p[q + 1] * SCALE_DAMP;
             float width = p[q + 2];
@@ -449,13 +450,13 @@ namespace Laubrary.Zounds.Dsp {
     public static class ModDelayEffect {
         private const int HEADER = 4;
 
-        public static void Reset(float[] st, int s, float maxMs, int sr) {
+        public static void Reset(NativeArray<float> st, int s, float maxMs, int sr) {
             st[s] = 0f;
             st[s + 1] = ZoundEffectDescriptors.ModDelayFrames(maxMs, sr);
             st[s + 2] = 0f;
         }
 
-        private static float ReadTap(float[] st, int baseIdx, int ring, int w, float delaySamples) {
+        private static float ReadTap(NativeArray<float> st, int baseIdx, int ring, int w, float delaySamples) {
             if (delaySamples < 1f) delaySamples = 1f; else if (delaySamples > ring - 3) delaySamples = ring - 3;
             float rp = w - delaySamples; if (rp < 0f) rp += ring;
             int r0 = (int)rp; float t = rp - r0;
@@ -463,7 +464,7 @@ namespace Laubrary.Zounds.Dsp {
             return st[baseIdx + r0] + (st[baseIdx + r1] - st[baseIdx + r0]) * t;
         }
 
-        public static void ProcessFlanger(float[] st, int s, float[] p, int q, float[] L, float[] R, int off, int n, int sr) {
+        public static void ProcessFlanger(NativeArray<float> st, int s, NativeArray<float> p, int q, NativeArray<float> L, NativeArray<float> R, int off, int n, int sr) {
             int ring = (int)st[s + 1]; if (ring < 8) return;
             int w = (int)st[s];
             float phase = st[s + 2];
@@ -487,7 +488,7 @@ namespace Laubrary.Zounds.Dsp {
             st[s] = w; st[s + 2] = phase;
         }
 
-        public static void ProcessChorus(float[] st, int s, float[] p, int q, float[] L, float[] R, int off, int n, int sr) {
+        public static void ProcessChorus(NativeArray<float> st, int s, NativeArray<float> p, int q, NativeArray<float> L, NativeArray<float> R, int off, int n, int sr) {
             int ring = (int)st[s + 1]; if (ring < 8) return;
             int w = (int)st[s];
             float phase = st[s + 2];
@@ -522,7 +523,7 @@ namespace Laubrary.Zounds.Dsp {
 
     // ── Phaser: first-order all-pass cascade swept by an LFO. State: [0] phase, [1] fbL, [2] fbR, [4 + (stage*2+ch)*2 ..] x1, y1. ──
     public static class PhaserEffect {
-        public static void Process(float[] st, int s, float[] p, int q, float[] L, float[] R, int off, int n, int sr) {
+        public static void Process(NativeArray<float> st, int s, NativeArray<float> p, int q, NativeArray<float> L, NativeArray<float> R, int off, int n, int sr) {
             float rate = p[q], depth = p[q + 1];
             int stages = (int)p[q + 2]; if (stages < 2) stages = 2; else if (stages > 12) stages = 12;
             float fb = p[q + 3], mix = p[q + 4];
@@ -557,7 +558,7 @@ namespace Laubrary.Zounds.Dsp {
 
     // ── Bit crusher: quantize to N bits, hold samples for a downsample factor. State: [0] holdL, [1] holdR, [2] counter. ──
     public static class BitCrushEffect {
-        public static void Process(float[] st, int s, float[] p, int q, float[] L, float[] R, int off, int n) {
+        public static void Process(NativeArray<float> st, int s, NativeArray<float> p, int q, NativeArray<float> L, NativeArray<float> R, int off, int n) {
             float bits = p[q]; if (bits < 1f) bits = 1f;
             float levels = Mathf.Pow(2f, bits - 1f);
             float invLevels = 1f / levels;
@@ -581,7 +582,7 @@ namespace Laubrary.Zounds.Dsp {
 
     // ── Distortion: drive into a soft clipper, tone as a one-pole low-pass, DC blocker. State: [0] lpL, [1] lpR, [2..5] DC x1/y1 per channel. ──
     public static class DistortionEffect {
-        public static void Process(float[] st, int s, float[] p, int q, float[] L, float[] R, int off, int n, int sr) {
+        public static void Process(NativeArray<float> st, int s, NativeArray<float> p, int q, NativeArray<float> L, NativeArray<float> R, int off, int n, int sr) {
             float drive = p[q], tone = p[q + 1], mix = p[q + 2];
             float dry = 1f - mix;
             float norm = 1f / SoftClip(drive); // unity for a full-scale input

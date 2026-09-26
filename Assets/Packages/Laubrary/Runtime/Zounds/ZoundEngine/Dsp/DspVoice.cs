@@ -1,4 +1,5 @@
-using System.Threading;
+﻿using System.Threading;
+using Unity.Collections;
 using UnityEngine;
 
 namespace Laubrary.Zounds.Dsp {
@@ -41,9 +42,14 @@ namespace Laubrary.Zounds.Dsp {
     }
 
     /// <summary>
-    /// One playing source with its chain, modifier stack and output routing. Preallocated by the graph
-    /// and reused by index; the main thread fills a Free voice and publishes it by writing its state,
-    /// the audio thread renders it and frees it. Nothing in Render allocates.
+    /// One playing source with its chain, modifier stack and output routing. The main thread fills a Free
+    /// voice and publishes it by writing its state, the audio thread renders it and frees it. Nothing in
+    /// Render allocates.
+    ///
+    /// Its buffers are native memory, so a voice OWNS them and must be disposed — unlike the managed
+    /// arrays it used to hold, which the collector reclaimed on its own. Whoever constructs a voice is
+    /// responsible for disposing it; today that is only the offline renderer, which does so in a finally
+    /// block, but the generator path will need the same discipline designed in rather than added later.
     /// </summary>
     public sealed class DspVoice {
 
@@ -51,16 +57,16 @@ namespace Laubrary.Zounds.Dsp {
         public readonly bool heavyTier;
         /// <summary>A group node: children sum into bufL/bufR instead of a source stage reading PCM.</summary>
         public readonly bool isGroup;
-        public readonly float[] arena;
-        public readonly float[] bufL = new float[ZoundDspConstants.MAX_DSP_BUFFER];
-        public readonly float[] bufR = new float[ZoundDspConstants.MAX_DSP_BUFFER];
-        public readonly SourceSlot[] slots = new SourceSlot[ZoundDspConstants.MAX_SOURCE_SLOTS];
+        public NativeArray<float> arena;
+        public NativeArray<float> bufL;
+        public NativeArray<float> bufR;
+        public NativeArray<SourceSlot> slots;
 
         // Flat parameter block: live value, block-start value and per-sample step.
-        public readonly float[] pLive = new float[ChainLayout.MAX_PARAMS];
-        public readonly float[] pStart = new float[ChainLayout.MAX_PARAMS];
-        public readonly float[] pStep = new float[ChainLayout.MAX_PARAMS];
-        private readonly float[] pTarget = new float[ChainLayout.MAX_PARAMS];
+        public NativeArray<float> pLive;
+        public NativeArray<float> pStart;
+        public NativeArray<float> pStep;
+        private NativeArray<float> pTarget;
 
         // ── published on allocation (main thread), read-only afterwards ──
         internal int state;              // VoiceState, Volatile
@@ -100,7 +106,7 @@ namespace Laubrary.Zounds.Dsp {
         private bool released;
         private uint rng = 2463534242u;
         // Modifier scratch
-        private readonly float[] modValue = new float[ZoundDspConstants.MAX_MODIFIERS];
+        private NativeArray<float> modValue;
 
         // Repeater: the schedule lives on the voice so Release can cancel it and the Monitor can show 3/8.
         internal RepeatPlan repeat;
@@ -117,7 +123,29 @@ namespace Laubrary.Zounds.Dsp {
             this.index = index;
             heavyTier = heavy;
             this.isGroup = isGroup;
-            arena = new float[heavy ? ZoundDspConstants.HEAVY_ARENA_FLOATS : ZoundDspConstants.LIGHT_ARENA_FLOATS];
+            int arenaFloats = heavy ? ZoundDspConstants.HEAVY_ARENA_FLOATS : ZoundDspConstants.LIGHT_ARENA_FLOATS;
+            arena = new NativeArray<float>(arenaFloats, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+            bufL = new NativeArray<float>(ZoundDspConstants.MAX_DSP_BUFFER, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+            bufR = new NativeArray<float>(ZoundDspConstants.MAX_DSP_BUFFER, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+            slots = new NativeArray<SourceSlot>(ZoundDspConstants.MAX_SOURCE_SLOTS, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+            pLive = new NativeArray<float>(ChainLayout.MAX_PARAMS, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+            pStart = new NativeArray<float>(ChainLayout.MAX_PARAMS, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+            pStep = new NativeArray<float>(ChainLayout.MAX_PARAMS, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+            pTarget = new NativeArray<float>(ChainLayout.MAX_PARAMS, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+            modValue = new NativeArray<float>(ZoundDspConstants.MAX_MODIFIERS, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+        }
+
+        /// <summary>Releases every native buffer this voice owns. Safe to call more than once.</summary>
+        public void Dispose() {
+            if (arena.IsCreated) arena.Dispose();
+            if (bufL.IsCreated) bufL.Dispose();
+            if (bufR.IsCreated) bufR.Dispose();
+            if (slots.IsCreated) slots.Dispose();
+            if (pLive.IsCreated) pLive.Dispose();
+            if (pStart.IsCreated) pStart.Dispose();
+            if (pStep.IsCreated) pStep.Dispose();
+            if (pTarget.IsCreated) pTarget.Dispose();
+            if (modValue.IsCreated) modValue.Dispose();
         }
 
         public VoiceState State => (VoiceState)Volatile.Read(ref state);
@@ -150,7 +178,7 @@ namespace Laubrary.Zounds.Dsp {
             for (int i = 0; i < slots.Length; i++) slots[i] = default;
             slots[0] = new SourceSlot { active = true, cursor = startFrame, startFrame = startFrame, endFrame = endFrame, gain = 1f, pitchMul = 1f, loop = loop };
 
-            System.Array.Clear(arena, 0, Mathf.Min(arena.Length, Mathf.Max(layout.stateFloats, 1)));
+            { int clearLen = Mathf.Min(arena.Length, Mathf.Max(layout.stateFloats, 1)); for (int ci = 0; ci < clearLen; ci++) arena[ci] = 0f; }
             for (int i = 0; i < layout.paramCount; i++) {
                 pLive[i] = layout.pBase[i]; pStart[i] = layout.pBase[i]; pStep[i] = 0f; pTarget[i] = layout.pBase[i];
             }
@@ -209,7 +237,7 @@ namespace Laubrary.Zounds.Dsp {
             rng = 2463534242u ^ (uint)tokenId;
             ResetOnsets();
             for (int i = 0; i < slots.Length; i++) slots[i] = default;
-            System.Array.Clear(arena, 0, Mathf.Min(arena.Length, Mathf.Max(layout.stateFloats, 1)));
+            { int clearLen = Mathf.Min(arena.Length, Mathf.Max(layout.stateFloats, 1)); for (int ci = 0; ci < clearLen; ci++) arena[ci] = 0f; }
             for (int i = 0; i < layout.paramCount; i++) {
                 pLive[i] = layout.pBase[i]; pStart[i] = layout.pBase[i]; pStep[i] = 0f; pTarget[i] = layout.pBase[i];
             }
@@ -274,8 +302,8 @@ namespace Laubrary.Zounds.Dsp {
 
         /// <summary>Audio-thread emergency stop after a render fault: silence this block, report Audio End, free the slot.</summary>
         internal void FaultFree(ZoundDspEventRing events, long dspSample) {
-            System.Array.Clear(bufL, 0, bufL.Length);
-            System.Array.Clear(bufR, 0, bufR.Length);
+            for (int ci = 0; ci < bufL.Length; ci++) bufL[ci] = 0f;
+            for (int ci = 0; ci < bufR.Length; ci++) bufR[ci] = 0f;
             lastPeak = 0f;
             Finish(events, dspSample);
         }
@@ -387,8 +415,8 @@ namespace Laubrary.Zounds.Dsp {
                 // ── source stage (a group's input is the children's sum, already in bufL/bufR) ──
                 if (!isGroup) {
                     if (repeatsPending > 0) ArmRepeats(n, basePitchStart);
-                    System.Array.Clear(bufL, off, n);
-                    System.Array.Clear(bufR, off, n);
+                    for (int ci = 0; ci < n; ci++) bufL[off + ci] = 0f;
+                    for (int ci = 0; ci < n; ci++) bufR[off + ci] = 0f;
                     ReadSource(off, n, basePitchStart, basePitchStep);
                 }
 
@@ -493,14 +521,18 @@ namespace Laubrary.Zounds.Dsp {
             if (isGroup) return;
             int graceFrames = sampleRate / 10;
             int fadeSamples = (int)(ZoundDspConstants.STOP_FADE_MS * 0.001f * sampleRate);
+            // A native buffer's indexer returns a copy, so a slot is read into a local, mutated, and
+            // written back. Same values in the same order as the previous direct element writes.
             for (int s = 0; s < slots.Length; s++) {
-                if (!slots[s].active) continue;
-                slots[s].loop = false;
-                double remaining = (slots[s].endFrame - slots[s].cursor) / (clipRate * Mathf.Max(basePitchLive * slots[s].pitchMul, 0.01f));
-                if (remaining > graceFrames && slots[s].fadeSamplesLeft == 0) {
-                    slots[s].fadeSamplesLeft = fadeSamples;
-                    slots[s].fadeSamplesTotal = fadeSamples;
+                var sl = slots[s];
+                if (!sl.active) continue;
+                sl.loop = false;
+                double remaining = (sl.endFrame - sl.cursor) / (clipRate * Mathf.Max(basePitchLive * sl.pitchMul, 0.01f));
+                if (remaining > graceFrames && sl.fadeSamplesLeft == 0) {
+                    sl.fadeSamplesLeft = fadeSamples;
+                    sl.fadeSamplesTotal = fadeSamples;
                 }
+                slots[s] = sl;
             }
         }
 
@@ -514,29 +546,33 @@ namespace Laubrary.Zounds.Dsp {
             float pitchParamStart = pStart[SourceStageParam.Pitch], pitchParamStep = pStep[SourceStageParam.Pitch];
             double rateBase = clipRate;
 
+            // As in Release: a native buffer's indexer returns a copy, so the slot is held in a local for
+            // the duration and written back once at the end. The early-out below writes back before it
+            // continues, because it advances startAt.
             for (int s = 0; s < slots.Length; s++) {
-                if (!slots[s].active) continue;
+                var sl = slots[s];
+                if (!sl.active) continue;
                 anyActive = true;
-                int i0Start = slots[s].startAt;
-                if (i0Start >= n) { slots[s].startAt -= n; continue; }
-                slots[s].startAt = 0;
-                double cur = slots[s].cursor;
-                double start = slots[s].startFrame;
-                double end = slots[s].endFrame;
+                int i0Start = sl.startAt;
+                if (i0Start >= n) { sl.startAt -= n; slots[s] = sl; continue; }
+                sl.startAt = 0;
+                double cur = sl.cursor;
+                double start = sl.startFrame;
+                double end = sl.endFrame;
                 int lastFrame = (int)end - 1;
                 int firstFrame = (int)start;
-                float slotGain = slots[s].gain;
-                float pitchMul = slots[s].pitchMul;
-                int fadeLeft = slots[s].fadeSamplesLeft;
-                int fadeTotal = slots[s].fadeSamplesTotal;
+                float slotGain = sl.gain;
+                float pitchMul = sl.pitchMul;
+                int fadeLeft = sl.fadeSamplesLeft;
+                int fadeTotal = sl.fadeSamplesTotal;
                 float basePitch = basePitchStart + basePitchStep * i0Start;
                 float pitchParam = pitchParamStart + pitchParamStep * i0Start;
                 float srcGain = srcGainStart + srcGainStep * i0Start;
 
                 for (int i = i0Start; i < n; i++) {
                     if (cur >= end) {
-                        if (slots[s].loop && end > start + 1) { cur = start + (cur - end); }
-                        else { slots[s].active = false; break; }
+                        if (sl.loop && end > start + 1) { cur = start + (cur - end); }
+                        else { sl.active = false; break; }
                     }
                     int i1 = (int)cur;
                     float t = (float)(cur - i1);
@@ -547,7 +583,7 @@ namespace Laubrary.Zounds.Dsp {
                     if (fadeLeft > 0) {
                         gain *= (float)fadeLeft / fadeTotal;
                         fadeLeft--;
-                        if (fadeLeft == 0) { slots[s].active = false; }
+                        if (fadeLeft == 0) { sl.active = false; }
                     }
                     float t2 = t * t, t3 = t2 * t;
                     if (ch == 1) {
@@ -563,14 +599,15 @@ namespace Laubrary.Zounds.Dsp {
                         p0 = samples[b0 + 1]; p1 = samples[b1 + 1]; p2 = samples[b2 + 1]; p3 = samples[b3 + 1];
                         bufR[off + i] += gain * 0.5f * ((2f * p1) + (-p0 + p2) * t + (2f * p0 - 5f * p1 + 4f * p2 - p3) * t2 + (-p0 + 3f * p1 - 3f * p2 + p3) * t3);
                     }
-                    if (!slots[s].active) break;
+                    if (!sl.active) break;
                     cur += rateBase * basePitch * pitchParam * pitchMul;
                     basePitch += basePitchStep;
                     pitchParam += pitchParamStep;
                     srcGain += srcGainStep;
                 }
-                slots[s].cursor = cur;
-                slots[s].fadeSamplesLeft = fadeLeft;
+                sl.cursor = cur;
+                sl.fadeSamplesLeft = fadeLeft;
+                slots[s] = sl;
             }
 
             if (!anyActive || !AnySlotActive()) {

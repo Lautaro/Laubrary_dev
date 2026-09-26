@@ -38,29 +38,38 @@ namespace Laubrary.Zounds.Dsp {
             float sourceDuration = (float)((endFrame - startFrame) / frequency) / Mathf.Max(pitch, 0.01f);
             int totalFrames = Mathf.CeilToInt(seconds * sampleRate);
             var result = new Result { left = new float[totalFrames], right = new float[totalFrames], sampleRate = sampleRate };
-            voice.Prepare(1, 0, pcm, layout, sampleRate, startFrame, endFrame, pitch, outGain, sourceDuration, false);
-            voice.Publish();
+            try {
+                voice.Prepare(1, 0, pcm, layout, sampleRate, startFrame, endFrame, pitch, outGain, sourceDuration, false);
+                voice.Publish();
 
-            long before = 0;
-            if (measureAllocation) { System.GC.Collect(); System.GC.WaitForPendingFinalizers(); System.GC.Collect(); before = System.GC.GetTotalMemory(false); }
-            int written = 0;
-            int blocks = 0;
-            while (written < totalFrames && voice.State != VoiceState.Free) {
-                int n = Mathf.Min(blockFrames, totalFrames - written);
-                perBlock?.Invoke(voice, written);
-                voice.Render(n, sampleRate, events, written);
-                blocks++;
-                System.Array.Copy(voice.bufL, 0, result.left, written, n);
-                System.Array.Copy(voice.bufR, 0, result.right, written, n);
-                written += n;
+                long before = 0;
+                if (measureAllocation) { System.GC.Collect(); System.GC.WaitForPendingFinalizers(); System.GC.Collect(); before = System.GC.GetTotalMemory(false); }
+                int written = 0;
+                int blocks = 0;
+                while (written < totalFrames && voice.State != VoiceState.Free) {
+                    int n = Mathf.Min(blockFrames, totalFrames - written);
+                    perBlock?.Invoke(voice, written);
+                    voice.Render(n, sampleRate, events, written);
+                    blocks++;
+                    // NativeArray<T>.CopyTo(T[]) requires the destination array's length to match exactly,
+                    // so it cannot target a `written`-offset slice of result.left/right in one call the way
+                    // Array.Copy(src, 0, dst, offset, n) could. A plain indexed loop copies exactly indices
+                    // 0..n-1 of voice.bufL/bufR into result.left/right starting at `written`, which is the
+                    // same range and the same values the original Array.Copy calls moved.
+                    for (int i = 0; i < n; i++) { result.left[written + i] = voice.bufL[i]; result.right[written + i] = voice.bufR[i]; }
+                    written += n;
+                }
+                if (measureAllocation) result.gcBytesDelta = System.GC.GetTotalMemory(false) - before;
+                result.frames = written;
+                result.blocks = blocks;
+                float op = 0f;
+                for (int i = 0; i < written; i++) { float a = result.left[i] < 0 ? -result.left[i] : result.left[i]; if (a > op) op = a; }
+                result.peak = op;
+                return result;
             }
-            if (measureAllocation) result.gcBytesDelta = System.GC.GetTotalMemory(false) - before;
-            result.frames = written;
-            result.blocks = blocks;
-            float op = 0f;
-            for (int i = 0; i < written; i++) { float a = result.left[i] < 0 ? -result.left[i] : result.left[i]; if (a > op) op = a; }
-            result.peak = op;
-            return result;
+            finally {
+                voice.Dispose();
+            }
         }
     }
 
