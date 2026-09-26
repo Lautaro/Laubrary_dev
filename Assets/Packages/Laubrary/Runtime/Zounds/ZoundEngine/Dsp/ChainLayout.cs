@@ -19,6 +19,19 @@ namespace Laubrary.Zounds.Dsp {
 
         public const int MAX_PARAMS = SourceStageParam.Count + ZoundDspConstants.MAX_NODES * 12;
 
+        // Per-modifier capacities for the flat modulator arrays below. All four modifier types have a
+        // fixed, known parameter count (LFO is the widest, at 7), so MAX_MOD_PARAMS_PER is a true bound,
+        // not a heuristic. Envelope-curve point counts and step-list lengths are author-controlled (a
+        // ZUI envelope or a step list can in principle hold any number of entries), so those two get a
+        // generous fixed budget instead of a derived one; overflow is clamped the same way node/param
+        // overflow already is below, rather than left to silently corrupt neighbouring modulators' slices.
+        public const int MAX_MOD_PARAMS_PER = 8;
+        public const int MAX_MOD_CURVE_POINTS_PER = 64;
+        public const int MAX_MOD_STEPS_PER = 64;
+        public const int MAX_MOD_PARAMS = ZoundDspConstants.MAX_MODIFIERS * MAX_MOD_PARAMS_PER;
+        public const int MAX_MOD_CURVE_POINTS = ZoundDspConstants.MAX_MODIFIERS * MAX_MOD_CURVE_POINTS_PER;
+        public const int MAX_MOD_STEPS = ZoundDspConstants.MAX_MODIFIERS * MAX_MOD_STEPS_PER;
+
         // ── nodes ──
         public int nodeCount;
         public readonly ZoundEffectType[] nodeType = new ZoundEffectType[ZoundDspConstants.MAX_NODES];
@@ -39,10 +52,19 @@ namespace Laubrary.Zounds.Dsp {
         // ── modifiers ──
         public int modCount;
         public readonly ZoundModifierType[] modType = new ZoundModifierType[ZoundDspConstants.MAX_MODIFIERS];
-        public readonly float[][] modParams = new float[ZoundDspConstants.MAX_MODIFIERS][];
         public readonly int[] modStateOffset = new int[ZoundDspConstants.MAX_MODIFIERS];
-        public readonly EnvPoint[][] modCurve = new EnvPoint[ZoundDspConstants.MAX_MODIFIERS][];
-        public readonly float[][] modSteps = new float[ZoundDspConstants.MAX_MODIFIERS][];
+        // Flat, Burst-friendly replacement for what used to be float[MAX_MODIFIERS][]: one shared backing
+        // array per field, plus a per-modifier offset/count pair — the same pattern paramOffset/paramCountOf
+        // already use for node parameters above.
+        public readonly float[] modParamFlat = new float[MAX_MOD_PARAMS];
+        public readonly int[] modParamOffset = new int[ZoundDspConstants.MAX_MODIFIERS];
+        public readonly int[] modParamCountOf = new int[ZoundDspConstants.MAX_MODIFIERS];
+        public readonly EnvPoint[] modCurveFlat = new EnvPoint[MAX_MOD_CURVE_POINTS];
+        public readonly int[] modCurveOffset = new int[ZoundDspConstants.MAX_MODIFIERS];
+        public readonly int[] modCurveCountOf = new int[ZoundDspConstants.MAX_MODIFIERS];
+        public readonly float[] modStepFlat = new float[MAX_MOD_STEPS];
+        public readonly int[] modStepOffset = new int[ZoundDspConstants.MAX_MODIFIERS];
+        public readonly int[] modStepCountOf = new int[ZoundDspConstants.MAX_MODIFIERS];
         /// <summary>Per-modifier extra seconds past the source end over which an Envelope keeps evolving.</summary>
         public readonly float[] modExtraSeconds = new float[ZoundDspConstants.MAX_MODIFIERS];
 
@@ -117,18 +139,48 @@ namespace Laubrary.Zounds.Dsp {
                 }
 
                 int mods = Mathf.Min(chain.modifiers.Count, ZoundDspConstants.MAX_MODIFIERS);
+                int modParamPos = 0, modCurvePos = 0, modStepPos = 0;
                 for (int i = 0; i < mods; i++) {
                     var m = chain.modifiers[i];
                     var d = ZoundEffectDescriptors.GetModifier(m.type);
                     L.modType[i] = m.type;
-                    var mp = new float[d.parameters.Length];
-                    for (int k = 0; k < mp.Length; k++) mp[k] = m.p != null && k < m.p.Length ? m.p[k] : d.parameters[k].def;
-                    L.modParams[i] = mp;
+
+                    int pCount = d.parameters.Length;
+                    if (pCount > MAX_MOD_PARAMS_PER) {
+                        pCount = MAX_MOD_PARAMS_PER;
+                        L.error = "Modifier has more than " + MAX_MOD_PARAMS_PER + " parameters; extra parameters are ignored.";
+                    }
+                    L.modParamOffset[i] = modParamPos;
+                    L.modParamCountOf[i] = pCount;
+                    for (int k = 0; k < pCount; k++) L.modParamFlat[modParamPos + k] = m.p != null && k < m.p.Length ? m.p[k] : d.parameters[k].def;
+                    modParamPos += pCount;
+
                     L.modStateOffset[i] = state;
                     state += d.stateFloats;
-                    L.modCurve[i] = Snapshot(m.curve);
-                    L.modSteps[i] = m.steps != null && m.steps.Length > 0 ? (float[])m.steps.Clone() : new float[] { 1f };
-                    L.modExtraSeconds[i] = m.type == ZoundModifierType.Envelope ? mp[0] : 0f;
+
+                    var curveSnapshot = Snapshot(m.curve);
+                    int cCount = curveSnapshot.Length;
+                    if (cCount > MAX_MOD_CURVE_POINTS_PER) {
+                        cCount = MAX_MOD_CURVE_POINTS_PER;
+                        L.error = "Modifier envelope has more than " + MAX_MOD_CURVE_POINTS_PER + " points; extra points are ignored.";
+                    }
+                    L.modCurveOffset[i] = modCurvePos;
+                    L.modCurveCountOf[i] = cCount;
+                    for (int k = 0; k < cCount; k++) L.modCurveFlat[modCurvePos + k] = curveSnapshot[k];
+                    modCurvePos += cCount;
+
+                    float[] stepsSrc = m.steps != null && m.steps.Length > 0 ? m.steps : new float[] { 1f };
+                    int sCount = stepsSrc.Length;
+                    if (sCount > MAX_MOD_STEPS_PER) {
+                        sCount = MAX_MOD_STEPS_PER;
+                        L.error = "Modifier has more than " + MAX_MOD_STEPS_PER + " steps; extra steps are ignored.";
+                    }
+                    L.modStepOffset[i] = modStepPos;
+                    L.modStepCountOf[i] = sCount;
+                    for (int k = 0; k < sCount; k++) L.modStepFlat[modStepPos + k] = stepsSrc[k];
+                    modStepPos += sCount;
+
+                    L.modExtraSeconds[i] = m.type == ZoundModifierType.Envelope && pCount > 0 ? L.modParamFlat[L.modParamOffset[i]] : 0f;
                 }
                 L.modCount = mods;
 
@@ -173,21 +225,24 @@ namespace Laubrary.Zounds.Dsp {
             return r;
         }
 
-        /// <summary>Envelope.Evaluate's maths, over the snapshot, with a cached segment index (O(1) amortised).</summary>
-        public static float EvaluateEnvelope(EnvPoint[] pts, float time, ref int segment) {
-            int count = pts.Length;
+        /// <summary>
+        /// Envelope.Evaluate's maths, over a slice [offset, offset+count) of a flat modulator-curve array,
+        /// with a cached segment index (O(1) amortised). Takes offset/count instead of its own array so the
+        /// audio thread never allocates or copies a slice — it indexes straight into ChainLayout.modCurveFlat.
+        /// </summary>
+        public static float EvaluateEnvelope(EnvPoint[] pts, int offset, int count, float time, ref int segment) {
             if (count == 0) return 1f;
-            if (count == 1) return pts[0].value;
-            if (time <= pts[0].time) { segment = 0; return pts[0].value; }
-            if (time >= pts[count - 1].time) { segment = count - 2; return pts[count - 1].value; }
+            if (count == 1) return pts[offset].value;
+            if (time <= pts[offset].time) { segment = 0; return pts[offset].value; }
+            if (time >= pts[offset + count - 1].time) { segment = count - 2; return pts[offset + count - 1].value; }
             if (segment < 0 || segment >= count - 1) segment = 0;
-            while (segment > 0 && pts[segment].time > time) segment--;
-            while (segment < count - 2 && pts[segment + 1].time <= time) segment++;
-            float x1 = pts[segment].time, x2 = pts[segment + 1].time;
+            while (segment > 0 && pts[offset + segment].time > time) segment--;
+            while (segment < count - 2 && pts[offset + segment + 1].time <= time) segment++;
+            float x1 = pts[offset + segment].time, x2 = pts[offset + segment + 1].time;
             float t = x2 > x1 ? (time - x1) / (x2 - x1) : 1f;
-            float exp = pts[segment + 1].exponent;
+            float exp = pts[offset + segment + 1].exponent;
             if (exp <= 0f) exp = 0.000001f;
-            float a = pts[segment].value, b = pts[segment + 1].value;
+            float a = pts[offset + segment].value, b = pts[offset + segment + 1].value;
             return a + (b - a) * Mathf.Pow(t, exp);
         }
     }

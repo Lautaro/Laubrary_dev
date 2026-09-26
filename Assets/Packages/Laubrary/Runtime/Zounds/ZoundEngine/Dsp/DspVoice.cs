@@ -611,12 +611,16 @@ namespace Laubrary.Zounds.Dsp {
             float blockSeconds = (float)blockSamples / sampleRate;
             for (int m = 0; m < L.modCount; m++) {
                 int so = L.modStateOffset[m];
-                var mp = L.modParams[m];
+                int mpo = L.modParamOffset[m];
+                int mpc = L.modParamCountOf[m];
+                var mp = L.modParamFlat;
+                int mco = L.modCurveOffset[m];
+                int mcc = L.modCurveCountOf[m];
                 switch (L.modType[m]) {
                     case ZoundModifierType.Envelope: {
                         float total = sourceDuration + L.modExtraSeconds[m];
                         float tn;
-                        bool sourceBase = !isGroup && !repeat.enabled && (mp.Length < 2 || mp[1] < 0.5f);
+                        bool sourceBase = !isGroup && !repeat.enabled && (mpc < 2 || mp[mpo + 1] < 0.5f);
                         if (sourceBase && !sourceExhausted && total > 0f) {
                             // Follow the waveform: normalized position of the read cursor over the trimmed region
                             // at the end of this block, scaled so the extra-time band still sits past the source end.
@@ -627,21 +631,21 @@ namespace Laubrary.Zounds.Dsp {
                         }
                         if (tn > 1f) tn = 1f;
                         int seg = (int)arena[so];
-                        modValue[m] = ChainLayout.EvaluateEnvelope(L.modCurve[m], tn, ref seg);
+                        modValue[m] = ChainLayout.EvaluateEnvelope(L.modCurveFlat, mco, mcc, tn, ref seg);
                         arena[so] = seg;
                         break;
                     }
                     case ZoundModifierType.Lfo: {
-                        float amount = mp[0], rate = mp[1];
-                        int shape = (int)mp[2];
-                        int mode = (int)mp[4];
-                        float offset = mp.Length > 6 ? mp[6] : 0f;
+                        float amount = mp[mpo], rate = mp[mpo + 1];
+                        int shape = (int)mp[mpo + 2];
+                        int mode = (int)mp[mpo + 4];
+                        float offset = mpc > 6 ? mp[mpo + 6] : 0f;
                         float ramp = 1f;
-                        if (L.modCurve[m] != null && L.modCurve[m].Length > 0) {
+                        if (mcc > 0) {
                             float total = sourceDuration;
                             float tn = total > 0f ? elapsed / total : 1f; if (tn > 1f) tn = 1f;
                             int seg = (int)arena[so + 6];
-                            ramp = ChainLayout.EvaluateEnvelope(L.modCurve[m], tn, ref seg);
+                            ramp = ChainLayout.EvaluateEnvelope(L.modCurveFlat, mco, mcc, tn, ref seg);
                             arena[so + 6] = seg;
                         }
                         if (mode == (int)LfoMode.Oscillate) {
@@ -660,7 +664,7 @@ namespace Laubrary.Zounds.Dsp {
                         }
                         else {
                             // Random: glide from current toward a target; pick a new target on a timer.
-                            float every = mp.Length > 5 ? mp[5] : 0.5f;
+                            float every = mpc > 5 ? mp[mpo + 5] : 0.5f;
                             if (arena[so + 7] == 0f) {
                                 arena[so + 7] = 1f;
                                 arena[so + 1] = NextRandom01() * 2f - 1f;
@@ -690,19 +694,20 @@ namespace Laubrary.Zounds.Dsp {
                         modValue[m] = arena[so];
                         break;
                     case ZoundModifierType.Step: {
-                        var steps = L.modSteps[m];
-                        int timing = (int)mp[0];
+                        int sso = L.modStepOffset[m];
+                        int ssc = L.modStepCountOf[m];
+                        int timing = (int)mp[mpo];
                         if (timing == (int)StepTiming.PerInterval) {
-                            float interval = mp[1] * 0.001f;
+                            float interval = mp[mpo + 1] * 0.001f;
                             arena[so + 1] += blockSeconds;
                             if (arena[so + 1] >= interval) {
                                 arena[so + 1] -= interval;
-                                AdvanceStep(steps, (int)mp[2] == (int)StepOrder.RoundRobinNoRepeat, so);
+                                AdvanceStep(ssc, (int)mp[mpo + 2] == (int)StepOrder.RoundRobinNoRepeat, so);
                             }
                         }
                         int idx = (int)arena[so];
-                        if (idx < 0 || idx >= steps.Length) idx = 0;
-                        modValue[m] = steps[idx];
+                        if (idx < 0 || idx >= ssc) idx = 0;
+                        modValue[m] = L.modStepFlat[sso + idx];
                         break;
                     }
                     default: modValue[m] = 0f; break;
@@ -713,8 +718,7 @@ namespace Laubrary.Zounds.Dsp {
         // Round-robin over the step list with a used-mask in state[2] (up to 24 steps). When every step has
         // been used the mask clears and the first pick of the new cycle excludes the last-played index, so
         // the seam can never repeat and every step still plays once per cycle.
-        private void AdvanceStep(float[] steps, bool roundRobin, int so) {
-            int count = steps.Length;
+        private void AdvanceStep(int count, bool roundRobin, int so) {
             if (count <= 1) { arena[so] = 0f; return; }
             int last = (int)arena[so];
             if (!roundRobin) { arena[so] = (last + 1) % count; return; }
