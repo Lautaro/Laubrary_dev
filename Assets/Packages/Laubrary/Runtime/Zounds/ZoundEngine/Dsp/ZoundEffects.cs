@@ -61,9 +61,9 @@ namespace Laubrary.Zounds.Dsp {
         /// <summary>log2 accurate to ~0.005 (bit-trick plus one polynomial term); positive input only.</summary>
         public static float FastLog2(float x) {
             if (x <= 1e-30f) return -100f;
-            int bits = System.BitConverter.SingleToInt32Bits(x);
+            int bits = Unity.Mathematics.math.asint(x);
             int e = ((bits >> 23) & 0xFF) - 127;
-            float m = System.BitConverter.Int32BitsToSingle((bits & 0x007FFFFF) | 0x3F800000); // 1..2
+            float m = Unity.Mathematics.math.asfloat((bits & 0x007FFFFF) | 0x3F800000); // 1..2
             // minimax quadratic for log2(m) on [1,2)
             return e + (-0.34484843f * m + 2.02466578f) * m - 1.67487759f;
         }
@@ -74,7 +74,7 @@ namespace Laubrary.Zounds.Dsp {
             int xi = x >= 0f ? (int)x : (int)x - 1;
             float f = x - xi;
             float p = 1f + f * (0.6931f + f * (0.2402f + f * 0.0558f));
-            return System.BitConverter.Int32BitsToSingle(System.BitConverter.SingleToInt32Bits(p) + (xi << 23));
+            return Unity.Mathematics.math.asfloat(Unity.Mathematics.math.asint(p) + (xi << 23));
         }
 
         /// <summary>Flushes denormals and NaNs a feedback loop could otherwise carry forever.</summary>
