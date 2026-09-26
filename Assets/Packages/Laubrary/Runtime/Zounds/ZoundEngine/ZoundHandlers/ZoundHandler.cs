@@ -16,6 +16,9 @@ namespace Laubrary.Zounds {
         float currentTime { get; }
         bool isDelayFinished { get; }
         float parentVolume { get; set; }
+        // A live, externally-driven volume multiplier (OutBurner 2026-09-26, its engine sound): defaults to 1 so
+        // every existing sound is unchanged. Managed pipeline only - a native-DSP voice does not read it yet.
+        float liveVolume { get; set; }
         int playedEntryIndex { get; }
         bool isRealtime { get; }
         System.Action onPlayStarted { get; set; }
@@ -66,6 +69,8 @@ namespace Laubrary.Zounds {
         private bool m_isDelayFinished;
 
         public float parentVolume { get; set; } = 1f;
+        // See the interface member and ZoundToken.liveVolume. Multiplied into every managed volume write below.
+        public float liveVolume { get; set; } = 1f;
         public virtual bool isRealtime => false;
         public System.Action onPlayStarted { get; set; }
 
@@ -254,7 +259,7 @@ namespace Laubrary.Zounds {
             if (fadeState == FadeState.FadingOut) {
                 float t = (currentTime - fadeStartTime) / fadeDuration;
                 t = Mathf.Clamp01(t);
-                m_audioSource.volume = parentVolume * Mathf.Lerp(fadeInitialVolume * ZoundEngine.GetMasterVolume(), 0, t);
+                m_audioSource.volume = parentVolume * liveVolume * Mathf.Lerp(fadeInitialVolume * ZoundEngine.GetMasterVolume(), 0, t);
                 float endTime = fadeStartTime + fadeDuration - Mathf.Epsilon;
                 if (killOnFadeOut) {
                     if (currentTime >= endTime) {
@@ -274,14 +279,14 @@ namespace Laubrary.Zounds {
                 float t = (currentTime - fadeStartTime) / fadeDuration;
                 t = Mathf.Clamp01(t);
                 float masterVolume = ZoundEngine.GetMasterVolume();
-                m_audioSource.volume = parentVolume * Mathf.Lerp(fadeInitialVolume * masterVolume, m_selfVolume * masterVolume, t);
+                m_audioSource.volume = parentVolume * liveVolume * Mathf.Lerp(fadeInitialVolume * masterVolume, m_selfVolume * masterVolume, t);
                 if (t >= 1f - Mathf.Epsilon) {
                     fadeState = FadeState.None;
                     CompleteFade();
                 }
             }
             else {
-                m_audioSource.volume = parentVolume * m_selfVolume * ZoundEngine.GetMasterVolume();
+                m_audioSource.volume = parentVolume * liveVolume * m_selfVolume * ZoundEngine.GetMasterVolume();
             }
 
             if (IsMutedOrExcluded()) {

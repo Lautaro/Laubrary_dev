@@ -89,6 +89,15 @@ namespace Laubrary.Zounds {
         public bool isAudioLive => m_liveVoices > 0;
 
         internal float parentVolume { set => m_handler.parentVolume = value; }
+
+        /// A live volume multiplier any holder of the token may drive every frame (a looping engine note faded
+        /// by speed and throttle). The handler rewrites AudioSource.volume every tick from a value fixed at start,
+        /// so writing the source directly was stomped; this is one extra factor in that same write. Defaults to 1
+        /// (every existing sound unchanged). Managed pipeline only for now. From OutBurner, 2026-09-26.
+        public float liveVolume {
+            get => m_handler != null ? m_handler.liveVolume : 1f;
+            set { if (m_handler != null) m_handler.liveVolume = value; }
+        }
         internal bool isRealtime => m_handler.isRealtime;
 
         internal CompositeZound.ZoundEntry soloOverride => m_soloOverride;

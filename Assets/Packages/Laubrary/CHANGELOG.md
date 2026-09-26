@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — a token now exposes a live volume multiplier, for sounds a consumer drives every frame
+
+- **What.** `ZoundToken.liveVolume` (public float, default `1f`). One extra factor in `ZoundHandler.OnPlayUpdate`'s three volume-write sites (steady state, fade-in, fade-out), alongside the existing `parentVolume`. Every existing sound leaves it untouched and is therefore byte-for-byte unchanged.
+- **Why.** A looping engine sound needs its volume driven every frame from something outside the tool (road speed, throttle) — and the handler already overwrites the `AudioSource`'s volume every tick from a value fixed at play start, so writing the source's volume from outside gets stomped the very next frame. There was no setter at all before this. `parentVolume` is `internal` and means something specific (a composite zound's own child weighting); this is a plain public multiplier for anyone holding a token.
+- **Motivated by** OutBurner's car-engine-audio component (`CarEngineAudio`, RACING_IMPROVEMENT_PLAN.md §3.1, D4), which needs to fade an engine loop's volume with speed and throttle without fighting the handler for control of the `AudioSource`.
+
+### VisionMask — edge fade: a pixel just outside vision fades out instead of being cut off
+- **Managed pipeline only.** The native-DSP voice path (`useNativeDsp`) does not read it yet; wire it into the voice gain when that engine needs live-faded sounds.
+
 ### VisionMask — edge fade: a pixel just outside vision fades out instead of being cut off
 
 - **What.** `VisionCone.edgeFade` (world units, default `0` = the exact hard edge, unchanged). With it set, a masked pixel OUTSIDE the cone is drawn with `1 - smoothstep(0, edgeFade, d)`, where `d` is its true Euclidean distance to the cone's lit region (the sector past its angle or range, and the omni disc) — full at the edge, gone `edgeFade` past it. Measured as a plane distance, never an angle, so the band is equally wide at angular edges, the range arc and the omni rim, at any distance from the eye. Still decided per fragment at its own world position. `VisionMaskSprite` now draws `lerp(hiddenAlpha, 1, visibility)`; `VisionMaskVisibility` returns 0..1 (union = max over cones).
