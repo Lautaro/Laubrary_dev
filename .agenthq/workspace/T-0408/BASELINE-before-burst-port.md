@@ -22,17 +22,32 @@ Note: the delay ring came out at 24005, not the 24004 a plain "ceiling of the pr
 
 ## Whole-render checksums — the fast regression detector
 
-| Chain | Frames | Blocks | Peak | Non-zero | Allocated during render | Checksum |
-|---|---|---|---|---|---|---|
-| dry (no effects) | 24576 | 24 | 1 | 24000 | 40960 bytes | 0.62498872469826772 |
-| delay | 48000 | 47 | 0.500000834 | 47998 | **0** | 0.80033948923215359 |
-| reverb | 48000 | 47 | 0.5 | 48000 | **0** | 2.240136952959034 |
+**The checksum is the reliable signal. Use it.** It reproduced bit-identically across separate runs and across a change proven neutral, so any movement in it is real.
 
-Two things worth reading off this table:
+| Chain | Frames | Blocks | Peak | Non-zero | Checksum |
+|---|---|---|---|---|---|
+| dry (no effects) | 24576 | 24 | 1 | 24000 | 0.62498872469826772 |
+| delay | 48000 | 47 | 0.500000834 | 47998 | 0.80033948923215359 |
+| reverb | 48000 | 47 | 0.5 | 48000 | 2.240136952959034 |
+| modulator — oscillator | 24576 | 24 | 1 | 13818 | 3.7184298986113289 |
+| modulator — envelope | 24576 | 24 | 1 | 24000 | 0.62498872469826772 |
+| modulator — step list | 24576 | 24 | 1 | 23996 | 3.0997783891205772 |
 
-**The zero-allocation guarantee is real and now measured.** Both effect renders allocated nothing at all across 47 blocks. That property must survive the port — it is half the reason this engine was written the way it was. The dry render's 40960 bytes is first-call warm-up, not per-block churn; compare like with like.
+### Why the modulator rows exist
 
-**The frame counts differ on purpose.** The dry voice stops at 24576 because its source is exhausted and the voice frees itself; the effect chains keep the voice alive to 48000 so their tails ring out. A port that made these equal would have broken tail handling.
+The layout holds three variable-length-per-modulator arrays — each modulator's own parameters, its curve, and its step list — and those are the one part of the layout that is not already a flat indexed structure, so they are the part the port has to reshape. **Without these rows, that reshaping would be an unverifiable change.** The oscillator and step-list rows have clearly distinct checksums, so those two arrays are genuinely exercised.
+
+**One weakness to be aware of rather than trust:** the envelope row's checksum is *identical to dry*, because a default envelope multiplies by one throughout and so has no audible effect. It does **not**, on its own, prove the curve data reaches the render. The curve is nevertheless covered, because the oscillator modulator also uses it as a ramp over time and that row does differ from dry. If you want a direct check, give the envelope a non-flat shape first.
+
+### The frame counts differ on purpose
+
+The dry and modulator voices stop at 24576 because their source is exhausted and the voice frees itself; the delay and reverb chains keep the voice alive to 48000 so their tails ring out. A port that made these equal would have broken tail handling.
+
+### Do NOT trust this probe's allocation figure
+
+An earlier version of this document claimed the zero-allocation guarantee was "measured" here. **That was an overclaim and is retracted.** The figure comes from sampling total managed heap around the render loop, which also catches anything else allocating at the same time — including the probe's own text building between captures, and ordinary editor activity. Observed values for the *same unchanged engine code* ranged from 0 to 184320 bytes across runs purely depending on what else was happening.
+
+The engine almost certainly does not allocate per block — it was written not to, and the offline renderer has a dedicated facility for checking exactly that. But **proving it needs that facility used deliberately on a quiet heap, one chain at a time, not this multi-capture probe.** Treat the property as an unverified claim until then, and do not let a low reading here be mistaken for evidence.
 
 ## Exact samples at the boundaries that matter
 

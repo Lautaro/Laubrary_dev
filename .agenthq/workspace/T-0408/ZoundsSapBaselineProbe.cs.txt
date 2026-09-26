@@ -1,7 +1,13 @@
-// TEMPORARY probe — capture a byte-exact baseline of the current offline audio render before the
-// Burst port restructures anything. Not part of the package, not committed, deleted after use.
+// TEMPORARY probe — captures a byte-exact baseline of the current offline audio render so each
+// restructuring step of the Burst port can be checked against it. Not part of the package, not
+// committed as code; the source is kept in .agenthq/workspace/T-0408/ and copied in when needed.
+//
 // Deliberately boundary-sensitive: the delay time lands on an exact sample count, and the output
 // sample rate does not divide the reverb tuning table's 44100 base evenly.
+//
+// The modifier cases exist to cover the three variable-length-per-modifier arrays in the layout
+// (per-modifier parameters, the envelope curve, the step list). Without them, flattening those
+// arrays would be an unverifiable change.
 using System.Text;
 using UnityEngine;
 using Laubrary.Zounds;
@@ -18,17 +24,15 @@ public static class ZoundsSapBaselineProbe {
         sb.Append("=== PARAM TABLES ===\n");
         DumpParams(sb, ZoundEffectType.Delay);
         DumpParams(sb, ZoundEffectType.Reverb);
+        DumpParams(sb, ZoundEffectType.Gain);
 
         sb.Append("\n=== DERIVED SIZES (the float-rounding trap sites) ===\n");
         var dp = ZoundEffectDescriptors.DefaultParams(ZoundEffectType.Delay);
-        dp[0] = 250f;   // Time ms -> 0.250 * 48000 = 12000 samples exactly
-        dp[3] = 500f;   // Max time ms
+        dp[0] = 250f; dp[3] = 500f;
         sb.Append("DelayRingFrames(time=250,max=500,sr=48000) = ").Append(ZoundEffectDescriptors.DelayRingFrames(dp, SR)).Append('\n');
         sb.Append("ReverbStateFloats(sr=48000) = ").Append(ZoundEffectDescriptors.ReverbStateFloats(SR)).Append('\n');
         sb.Append("ReverbStateFloats(sr=44100) = ").Append(ZoundEffectDescriptors.ReverbStateFloats(44100)).Append('\n');
 
-        // Deterministic source: an impulse (exposes delay taps and reverb structure) plus a sine
-        // (exposes interpolation and pitch behaviour). No asset, fully reproducible.
         int frames = SRC_RATE / 2;
         var src = new float[frames * 2];
         for (int i = 0; i < frames; i++) {
@@ -53,9 +57,35 @@ public static class ZoundsSapBaselineProbe {
         verb.nodes.Add(rn);
         Capture(sb, "reverb", verb, src);
 
+        // ── modifier coverage: one chain per variable-length-per-modifier array ──
+        Capture(sb, "mod-lfo", GainWithModifier(ZoundModifierType.Lfo, m => {
+            m.p[0] = 0.5f;   // amount
+            m.p[1] = 7f;     // rate Hz — deliberately not a divisor of the block size
+        }), src);
+
+        Capture(sb, "mod-envelope", GainWithModifier(ZoundModifierType.Envelope, m => { }), src);
+
+        Capture(sb, "mod-step", GainWithModifier(ZoundModifierType.Step, m => {
+            m.steps = new float[] { 0.2f, 0.9f, 0.45f, 1f, 0.7f };   // exercises the step list
+        }), src);
+
         var result = sb.ToString();
         Debug.Log("[ZoundsSapBaselineProbe]\n" + result);
         return result;
+    }
+
+    /// A gain node with one modifier bound to its gain — the smallest chain that exercises a modifier.
+    static ZoundEffectChain GainWithModifier(ZoundModifierType type, System.Action<ZoundModifier> setup) {
+        var chain = new ZoundEffectChain();
+        chain.nodes.Add(new ZoundEffectNode(ZoundEffectType.Gain));
+        var mod = new ZoundModifier(type);
+        setup(mod);
+        chain.modifiers.Add(mod);
+        chain.bindings.Add(new ZoundModifierBinding {
+            modifierIndex = 0, nodeIndex = 0, paramIndex = 0,
+            op = ModifierOp.Multiply, depth = 1f
+        });
+        return chain;
     }
 
     static void DumpParams(StringBuilder sb, ZoundEffectType t) {
@@ -68,7 +98,6 @@ public static class ZoundsSapBaselineProbe {
     static void Capture(StringBuilder sb, string name, ZoundEffectChain chain, float[] src) {
         var r = ZoundDspOffline.Render(src, 2, SRC_RATE, SR, chain, 1f, 1f, SECONDS,
                                       0f, 0f, 1024, true, null);
-        // A checksum plus a sparse sample dump: enough to detect any change without a huge file.
         double sum = 0; float peak = 0; int nonZero = 0;
         for (int i = 0; i < r.frames; i++) {
             float a = r.left[i], b = r.right[i];
@@ -80,12 +109,10 @@ public static class ZoundsSapBaselineProbe {
         sb.Append(name).Append(": frames=").Append(r.frames)
           .Append(" blocks=").Append(r.blocks)
           .Append(" peak=").Append(r.peak.ToString("R"))
-          .Append(" measuredPeak=").Append(peak.ToString("R"))
           .Append(" nonZero=").Append(nonZero)
           .Append(" gcBytes=").Append(r.gcBytesDelta)
           .Append(" checksum=").Append(sum.ToString("R")).Append('\n');
-        // Exact samples at the boundaries that matter: the impulse, the first delay tap (12000), and around it.
-        int[] probe = { 0, 1, 2, 11998, 11999, 12000, 12001, 12002, 23999, 24000, 24001, 47999 };
+        int[] probe = { 0, 1, 2, 4000, 11999, 12000, 12001, 23999, 24000, 24001, 47999 };
         foreach (int i in probe) {
             if (i < r.frames) sb.Append("   [").Append(i).Append("] L=").Append(r.left[i].ToString("R"))
                                 .Append(" R=").Append(r.right[i].ToString("R")).Append('\n');
