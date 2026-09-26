@@ -297,6 +297,30 @@ namespace Laubrary.Zounds.Dsp {
             Volatile.Write(ref state, (int)VoiceState.Active);
         }
 
+        /// <summary>Main thread: asks this voice to stop hard (declick, flush) at the next render.</summary>
+        internal void RequestKill() {
+            Volatile.Write(ref killRequest, 1);
+        }
+
+        /// <summary>Main thread: asks this voice to stop feeding new source material and let its tail ring out.</summary>
+        internal void RequestRelease() {
+            Volatile.Write(ref releaseRequest, 1);
+        }
+
+        /// <summary>
+        /// Main thread: pushes one live parameter edit (a slider drag) into this voice only — the shared
+        /// layout is never touched, since other voices may be playing the same chain. A parameter a
+        /// modifier binding owns is refused: the next control block would just overwrite it anyway.
+        /// </summary>
+        internal void PushLiveParam(int flatIndex, float value) {
+            if (flatIndex < 0 || flatIndex >= layout.paramCount) return;
+            for (int r = 0; r < layout.rampedCount; r++) if (layout.ramped[r] == flatIndex) return;
+            float clamped = value < layout.pMin[flatIndex] ? layout.pMin[flatIndex] : value > layout.pMax[flatIndex] ? layout.pMax[flatIndex] : value;
+            pLive[flatIndex] = clamped;
+            pStart[flatIndex] = clamped;
+            pStep[flatIndex] = 0f;
+        }
+
         // ───────────────────────────── audio thread ─────────────────────────────
 
         /// <summary>

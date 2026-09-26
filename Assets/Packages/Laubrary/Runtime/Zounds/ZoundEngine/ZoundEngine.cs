@@ -180,11 +180,6 @@ namespace Laubrary.Zounds {
             instance.zoundLastPlayedTimes.Clear();
             instance.dsp?.FlushAllVoices();
             Laubrary.Zounds.Dsp.ZoundPcmCache.Clear();
-            // The native engine holds its own copy of every clip it has been asked to
-            // play, so dropping the managed cache has to drop those too or they would
-            // outlive the clips they came from.
-            Laubrary.Zounds.Dsp.Native.NativePcm.Clear();
-            Laubrary.Zounds.Dsp.Native.NativeChainBlob.Clear();
             Laubrary.Zounds.Dsp.ZoundDspPlayback.InvalidateLayouts();
         }
 
