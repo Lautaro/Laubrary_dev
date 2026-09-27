@@ -94,110 +94,167 @@ namespace Laubrary.Zounds.Dsp {
             effects = new EffectDesc[16];
             Def(ZoundEffectType.Gain, "Gain", "Level. Position matters: before a distortion it drives it, after it only scales.",
                 false, false, (p, sr) => 0, p => 0f, p => 1f,
-                new ParamDesc("Gain", "x", 0f, 4f, 1f, ParamCurve.Linear, true, ModifierOp.Multiply));
+                new ParamDesc("Gain", "x", 0f, 4f, 1f, ParamCurve.Linear, true, ModifierOp.Multiply, null, null,
+                    "How much louder or quieter, as a multiplier. Where it sits in the chain matters: ahead of a distortion it decides how hard that distortion is pushed, after one it only changes the level."));
 
             Def(ZoundEffectType.Limiter, "Limiter", "Fast zero-latency peak limiter (no lookahead, so timing never drifts).",
                 true, false, (p, sr) => 4, p => 0f, p => 1f,
-                new ParamDesc("Ceiling", "dB", -40f, 0f, -1f, ParamCurve.Decibel),
-                new ParamDesc("Release", "ms", 1f, 1000f, 50f, ParamCurve.Logarithmic));
+                new ParamDesc("Ceiling", "dB", -40f, 0f, -1f, ParamCurve.Decibel, true, ModifierOp.Add, null, null,
+                    "The level nothing is allowed to exceed. Peaks above it are pushed down; everything below it passes untouched."),
+                new ParamDesc("Release", "ms", 1f, 1000f, 50f, ParamCurve.Logarithmic, true, ModifierOp.Add, null, null,
+                    "How quickly it stops holding the level down after a peak has passed. Short sounds lively but can pump audibly; long sounds smoother but ducks the sound for longer after each hit."));
 
             Def(ZoundEffectType.Compressor, "Compressor", "Dynamics compressor with makeup gain.",
                 true, false, (p, sr) => 4, p => 0f, p => 1f,
-                new ParamDesc("Threshold", "dB", -60f, 0f, -10f, ParamCurve.Decibel),
-                new ParamDesc("Ratio", ":1", 1f, 20f, 4f, ParamCurve.Logarithmic),
-                new ParamDesc("Attack", "ms", 0.1f, 200f, 10f, ParamCurve.Logarithmic),
-                new ParamDesc("Release", "ms", 1f, 2000f, 100f, ParamCurve.Logarithmic),
-                new ParamDesc("Makeup", "dB", -12f, 24f, 0f, ParamCurve.Decibel));
+                new ParamDesc("Threshold", "dB", -60f, 0f, -10f, ParamCurve.Decibel, true, ModifierOp.Add, null, null,
+                    "The level above which the sound starts being held back. Nothing quieter than this is touched at all."),
+                new ParamDesc("Ratio", ":1", 1f, 20f, 4f, ParamCurve.Logarithmic, true, ModifierOp.Add, null, null,
+                    "How hard it holds back what is above the threshold. Four to one means four decibels over becomes one; very high settings stop it getting louder at all."),
+                new ParamDesc("Attack", "ms", 0.1f, 200f, 10f, ParamCurve.Logarithmic, true, ModifierOp.Add, null, null,
+                    "How fast it clamps down once the sound gets loud. Fast catches the initial hit and softens it; slow lets the hit through and only controls what follows, which keeps a sound punchy."),
+                new ParamDesc("Release", "ms", 1f, 2000f, 100f, ParamCurve.Logarithmic, true, ModifierOp.Add, null, null,
+                    "How fast it lets go again once the sound drops. Too short on a sustained sound audibly breathes."),
+                new ParamDesc("Makeup", "dB", -12f, 24f, 0f, ParamCurve.Decibel, true, ModifierOp.Add, null, null,
+                    "A level change applied afterwards, to bring the sound back up to where it was before the compression pulled it down."));
 
             Def(ZoundEffectType.Delay, "Delay", "Stereo delay line with feedback. Max time sizes the buffer.",
                 true, true, (p, sr) => 2 * DelayRingFrames(p, sr) + 8,
                 p => DelayTail(p), p => 1f + DelayTail(p) * 0.5f,
-                new ParamDesc("Time", "ms", 1f, MAX_DELAY_MS, 250f, ParamCurve.Logarithmic),
-                new ParamDesc("Feedback", "", 0f, 0.98f, 0.4f),
-                new ParamDesc("Mix", "", 0f, 1f, 0.3f),
-                new ParamDesc("Max time", "ms", 10f, MAX_DELAY_MS, 500f, ParamCurve.Logarithmic, false),
-                new ParamDesc("Ping-pong", "", 0f, 1f, 0f, ParamCurve.Toggle, false));
+                new ParamDesc("Time", "ms", 1f, MAX_DELAY_MS, 250f, ParamCurve.Logarithmic, true, ModifierOp.Add, null, null,
+                    "The gap before each echo. Below about thirty it stops being heard as an echo and starts colouring the tone instead."),
+                new ParamDesc("Feedback", "", 0f, 0.98f, 0.4f, ParamCurve.Linear, true, ModifierOp.Add, null, null,
+                    "How much of each echo is fed back in to make the next one. Zero gives a single repeat; near the top the repeats take a very long time to die away."),
+                new ParamDesc("Mix", "", 0f, 1f, 0.3f, ParamCurve.Linear, true, ModifierOp.Add, null, null,
+                    "How much of the echoing is heard against the original. Nought is dry, one is echo only."),
+                new ParamDesc("Max time", "ms", 10f, MAX_DELAY_MS, 500f, ParamCurve.Logarithmic, false, ModifierOp.Add, null, null,
+                    "The longest gap this delay can ever be set to. It reserves memory, so it cannot be changed while the sound plays — set it above the longest Time you intend to use and leave it."),
+                new ParamDesc("Ping-pong", "", 0f, 1f, 0f, ParamCurve.Toggle, false, ModifierOp.Add, null, null,
+                    "Bounces each successive echo between left and right instead of keeping it in place."));
 
             Def(ZoundEffectType.Reverb, "Reverb", "Freeverb-style stereo reverb.",
                 true, true, (p, sr) => ReverbStateFloats(sr),
                 p => ReverbTail(p), p => 1f + ReverbTail(p) * 0.5f,
-                new ParamDesc("Room size", "", 0f, 1f, 0.5f),
-                new ParamDesc("Damping", "", 0f, 1f, 0.5f),
-                new ParamDesc("Width", "", 0f, 1f, 1f),
-                new ParamDesc("Mix", "", 0f, 1f, 0.3f));
+                new ParamDesc("Room size", "", 0f, 1f, 0.5f, ParamCurve.Linear, true, ModifierOp.Add, null, null,
+                    "How big the imagined space is, which is mostly how long the tail takes to fade. Small reads as a room, large as a hall."),
+                new ParamDesc("Damping", "", 0f, 1f, 0.5f, ParamCurve.Linear, true, ModifierOp.Add, null, null,
+                    "How quickly the high frequencies disappear from the tail. High settings sound like soft furnishings and curtains; low settings sound like tile and glass."),
+                new ParamDesc("Width", "", 0f, 1f, 1f, ParamCurve.Linear, true, ModifierOp.Add, null, null,
+                    "How far the tail spreads across the stereo field. Nought collapses it to the centre."),
+                new ParamDesc("Mix", "", 0f, 1f, 0.3f, ParamCurve.Linear, true, ModifierOp.Add, null, null,
+                    "How much of the space is heard against the original. Nought is dry, one is tail only."));
 
             Def(ZoundEffectType.LowPass, "Low pass", "12 dB/oct resonant low-pass filter.",
                 true, false, (p, sr) => 16, p => 0f, p => 1f,
-                new ParamDesc("Cutoff", "Hz", 20f, 20000f, 20000f, ParamCurve.Logarithmic),
-                new ParamDesc("Resonance", "Q", 0.1f, 10f, 0.707f, ParamCurve.Logarithmic));
+                new ParamDesc("Cutoff", "Hz", 20f, 20000f, 20000f, ParamCurve.Logarithmic, true, ModifierOp.Add, null, null,
+                    "Everything above this is progressively removed, so lowering it makes the sound duller and more distant. At the top it does nothing at all."),
+                new ParamDesc("Resonance", "Q", 0.1f, 10f, 0.707f, ParamCurve.Logarithmic, true, ModifierOp.Add, null, null,
+                    "Emphasises the frequencies right at the cutoff, giving the filter a vocal, whistling quality. High settings make a sweep sing; the default is the neutral setting that adds no emphasis."));
 
             Def(ZoundEffectType.HighPass, "High pass", "12 dB/oct resonant high-pass filter.",
                 true, false, (p, sr) => 16, p => 0f, p => 1f,
-                new ParamDesc("Cutoff", "Hz", 20f, 20000f, 20f, ParamCurve.Logarithmic),
-                new ParamDesc("Resonance", "Q", 0.1f, 10f, 0.707f, ParamCurve.Logarithmic));
+                new ParamDesc("Cutoff", "Hz", 20f, 20000f, 20f, ParamCurve.Logarithmic, true, ModifierOp.Add, null, null,
+                    "Everything below this is progressively removed, so raising it thins the sound out and takes the weight away. At the bottom it does nothing at all."),
+                new ParamDesc("Resonance", "Q", 0.1f, 10f, 0.707f, ParamCurve.Logarithmic, true, ModifierOp.Add, null, null,
+                    "Emphasises the frequencies right at the cutoff. High settings make a sweep sing; the default is the neutral setting that adds no emphasis."));
 
             Def(ZoundEffectType.Flanger, "Flanger", "Short modulated delay with feedback.",
                 true, false, (p, sr) => 2 * ModDelayFrames(12f, sr) + 8, p => 0.012f, p => 1f,
-                new ParamDesc("Rate", "Hz", 0.01f, 10f, 0.5f, ParamCurve.Logarithmic),
-                new ParamDesc("Depth", "ms", 0.1f, 10f, 2f),
-                new ParamDesc("Feedback", "", -0.95f, 0.95f, 0.5f),
-                new ParamDesc("Mix", "", 0f, 1f, 0.5f));
+                new ParamDesc("Rate", "Hz", 0.01f, 10f, 0.5f, ParamCurve.Logarithmic, true, ModifierOp.Add, null, null,
+                    "How fast the sweep goes back and forth. Slow gives a long jet-plane whoosh; fast becomes a warble."),
+                new ParamDesc("Depth", "ms", 0.1f, 10f, 2f, ParamCurve.Linear, true, ModifierOp.Add, null, null,
+                    "How far the sweep travels. Larger covers more of the spectrum and sounds more dramatic."),
+                new ParamDesc("Feedback", "", -0.95f, 0.95f, 0.5f, ParamCurve.Linear, true, ModifierOp.Add, null, null,
+                    "Feeds the effect back into itself, sharpening the swept peaks into a much more metallic, ringing sound. Negative values invert it, which shifts where the peaks sit."),
+                new ParamDesc("Mix", "", 0f, 1f, 0.5f, ParamCurve.Linear, true, ModifierOp.Add, null, null,
+                    "How much of the effect is heard against the original. A flanger needs both to work at all, so the strongest sound is near the middle, not at one."));
 
             Def(ZoundEffectType.Chorus, "Chorus", "Two to four detuned copies from modulated delays.",
                 true, false, (p, sr) => 2 * ModDelayFrames(40f, sr) + 16, p => 0.04f, p => 1f,
-                new ParamDesc("Rate", "Hz", 0.01f, 5f, 0.8f, ParamCurve.Logarithmic),
-                new ParamDesc("Depth", "ms", 1f, 30f, 8f),
-                new ParamDesc("Voices", "", 1f, 4f, 2f, ParamCurve.Integer, false),
-                new ParamDesc("Mix", "", 0f, 1f, 0.5f));
+                new ParamDesc("Rate", "Hz", 0.01f, 5f, 0.8f, ParamCurve.Logarithmic, true, ModifierOp.Add, null, null,
+                    "How fast the copies drift in and out of tune with the original. Slow and gentle sounds natural; fast sounds seasick."),
+                new ParamDesc("Depth", "ms", 1f, 30f, 8f, ParamCurve.Linear, true, ModifierOp.Add, null, null,
+                    "How far out of tune the copies are allowed to drift. Small is a subtle thickening; large is an obvious wobble."),
+                new ParamDesc("Voices", "", 1f, 4f, 2f, ParamCurve.Integer, false, ModifierOp.Add, null, null,
+                    "How many detuned copies are added. More sounds like a bigger group playing together, at more processing cost."),
+                new ParamDesc("Mix", "", 0f, 1f, 0.5f, ParamCurve.Linear, true, ModifierOp.Add, null, null,
+                    "How much of the copies is heard against the original."));
 
             Def(ZoundEffectType.Phaser, "Phaser", "All-pass cascade swept by an LFO.",
                 true, false, (p, sr) => 64, p => 0f, p => 1f,
-                new ParamDesc("Rate", "Hz", 0.01f, 10f, 0.5f, ParamCurve.Logarithmic),
-                new ParamDesc("Depth", "", 0f, 1f, 0.7f),
-                new ParamDesc("Stages", "", 2f, 12f, 4f, ParamCurve.Integer, false),
-                new ParamDesc("Feedback", "", -0.9f, 0.9f, 0.3f),
-                new ParamDesc("Mix", "", 0f, 1f, 0.5f));
+                new ParamDesc("Rate", "Hz", 0.01f, 10f, 0.5f, ParamCurve.Logarithmic, true, ModifierOp.Add, null, null,
+                    "How fast the notches sweep up and down the spectrum."),
+                new ParamDesc("Depth", "", 0f, 1f, 0.7f, ParamCurve.Linear, true, ModifierOp.Add, null, null,
+                    "How far the notches travel. Larger sweeps across more of the sound."),
+                new ParamDesc("Stages", "", 2f, 12f, 4f, ParamCurve.Integer, false, ModifierOp.Add, null, null,
+                    "How many notches there are. Few sounds gentle and watery; many sounds thick and obviously electronic."),
+                new ParamDesc("Feedback", "", -0.9f, 0.9f, 0.3f, ParamCurve.Linear, true, ModifierOp.Add, null, null,
+                    "Feeds the effect back into itself, making the notches sharper and more pronounced. Negative values shift where they sit."),
+                new ParamDesc("Mix", "", 0f, 1f, 0.5f, ParamCurve.Linear, true, ModifierOp.Add, null, null,
+                    "How much of the effect is heard against the original. Like a flanger, it needs both, so the strongest sound is near the middle."));
 
             Def(ZoundEffectType.BitCrush, "Bit crush", "Bit-depth and sample-rate reduction.",
                 true, false, (p, sr) => 8, p => 0f, p => 1f,
-                new ParamDesc("Bits", "", 1f, 16f, 8f, ParamCurve.Linear),
-                new ParamDesc("Downsample", "x", 1f, 64f, 1f, ParamCurve.Logarithmic),
-                new ParamDesc("Mix", "", 0f, 1f, 1f));
+                new ParamDesc("Bits", "", 1f, 16f, 8f, ParamCurve.Linear, true, ModifierOp.Add, null, null,
+                    "How finely the level is measured. Fewer steps means the quiet parts turn grainy and gritty first, the way very old game hardware sounded."),
+                new ParamDesc("Downsample", "x", 1f, 64f, 1f, ParamCurve.Logarithmic, true, ModifierOp.Add, null, null,
+                    "Throws away samples, holding each one for longer. This dulls the top end and folds it back as a harsh metallic ring, quite different from the grit that fewer bits gives."),
+                new ParamDesc("Mix", "", 0f, 1f, 1f, ParamCurve.Linear, true, ModifierOp.Add, null, null,
+                    "How much of the degraded version is heard against the original."));
 
             Def(ZoundEffectType.Distortion, "Distortion", "Soft-clip waveshaper with tone control.",
                 true, false, (p, sr) => 8, p => 0f, p => 1f,
-                new ParamDesc("Drive", "", 1f, 100f, 10f, ParamCurve.Logarithmic),
-                new ParamDesc("Tone", "", 0f, 1f, 0.5f),
-                new ParamDesc("Mix", "", 0f, 1f, 1f));
+                new ParamDesc("Drive", "", 1f, 100f, 10f, ParamCurve.Logarithmic, true, ModifierOp.Add, null, null,
+                    "How hard the sound is pushed into the shaping. Low adds warmth and thickness; high flattens it into something aggressive and buzzing."),
+                new ParamDesc("Tone", "", 0f, 1f, 0.5f, ParamCurve.Linear, true, ModifierOp.Add, null, null,
+                    "Tilts the balance of what comes out, from dark and thick at nought to bright and biting at one."),
+                new ParamDesc("Mix", "", 0f, 1f, 1f, ParamCurve.Linear, true, ModifierOp.Add, null, null,
+                    "How much of the distorted version is heard against the original. Blending some clean sound back in keeps the attack readable."));
 
             Def(ZoundEffectType.EQ, "EQ", "Seven peaking bands (60 Hz to 12 kHz) plus low and high cut.",
                 true, false, (p, sr) => 9 * 2 * 8, p => 0f, p => 1f,
-                new ParamDesc("Sub 60", "dB", -24f, 24f, 0f, ParamCurve.Decibel),
-                new ParamDesc("Low 150", "dB", -24f, 24f, 0f, ParamCurve.Decibel),
-                new ParamDesc("Low-mid 400", "dB", -24f, 24f, 0f, ParamCurve.Decibel),
-                new ParamDesc("Mid 1k", "dB", -24f, 24f, 0f, ParamCurve.Decibel),
-                new ParamDesc("High-mid 2.5k", "dB", -24f, 24f, 0f, ParamCurve.Decibel),
-                new ParamDesc("High 6k", "dB", -24f, 24f, 0f, ParamCurve.Decibel),
-                new ParamDesc("Air 12k", "dB", -24f, 24f, 0f, ParamCurve.Decibel),
-                new ParamDesc("Low cut", "Hz", 10f, 20000f, 10f, ParamCurve.Logarithmic),
-                new ParamDesc("High cut", "Hz", 20f, 22000f, 22000f, ParamCurve.Logarithmic));
+                new ParamDesc("Sub 60", "dB", -24f, 24f, 0f, ParamCurve.Decibel, true, ModifierOp.Add, null, null,
+                    "The deepest weight, felt more than heard. Boosting adds rumble and power; cutting tightens a sound that booms."),
+                new ParamDesc("Low 150", "dB", -24f, 24f, 0f, ParamCurve.Decibel, true, ModifierOp.Add, null, null,
+                    "Body and fullness. Too much here is what makes a sound muddy."),
+                new ParamDesc("Low-mid 400", "dB", -24f, 24f, 0f, ParamCurve.Decibel, true, ModifierOp.Add, null, null,
+                    "Warmth, and also where boxiness lives. Cutting a little here often clears a sound up more than boosting anything else."),
+                new ParamDesc("Mid 1k", "dB", -24f, 24f, 0f, ParamCurve.Decibel, true, ModifierOp.Add, null, null,
+                    "The core of most sounds, and the range the ear is most sensitive to. Changes here are the most obvious of any band."),
+                new ParamDesc("High-mid 2.5k", "dB", -24f, 24f, 0f, ParamCurve.Decibel, true, ModifierOp.Add, null, null,
+                    "Presence and attack, which is what makes a sound cut through a mix. Boosting too far gets harsh and tiring quickly."),
+                new ParamDesc("High 6k", "dB", -24f, 24f, 0f, ParamCurve.Decibel, true, ModifierOp.Add, null, null,
+                    "Detail, edge and sibilance. Boosting adds definition; cutting softens something spiky."),
+                new ParamDesc("Air 12k", "dB", -24f, 24f, 0f, ParamCurve.Decibel, true, ModifierOp.Add, null, null,
+                    "The open, airy top. A boost here adds sparkle without making a sound louder in any obvious way."),
+                new ParamDesc("Low cut", "Hz", 10f, 20000f, 10f, ParamCurve.Logarithmic, true, ModifierOp.Add, null, null,
+                    "Removes everything below this outright, rather than merely turning it down. Useful for clearing out rumble the sound never needed."),
+                new ParamDesc("High cut", "Hz", 20f, 22000f, 22000f, ParamCurve.Logarithmic, true, ModifierOp.Add, null, null,
+                    "Removes everything above this outright. Bringing it down pushes a sound into the background, or makes it feel like it is heard through a wall."));
 
             Def(ZoundEffectType.Normalize, "Normalize", "Scales the source so its peak lands on the target level (peak read from the sample data).",
                 false, false, (p, sr) => 0, p => 0f, p => 1f,
-                new ParamDesc("Target", "dB", -30f, 0f, -0.5f, ParamCurve.Decibel, false));
+                new ParamDesc("Target", "dB", -30f, 0f, -0.5f, ParamCurve.Decibel, false, ModifierOp.Add, null, null,
+                    "The level the loudest moment of the source is brought to. It is worked out from the sample data, so it evens out sounds recorded at different levels without touching their dynamics."));
 
             Def(ZoundEffectType.Fade, "Fade", "Fade in from the start and fade out into the end of the source.",
                 false, false, (p, sr) => 0, p => 0f, p => 1f,
-                new ParamDesc("Fade in", "s", 0f, 10f, 0f, ParamCurve.Linear, false),
-                new ParamDesc("Fade out", "s", 0f, 10f, 0f, ParamCurve.Linear, false),
-                new ParamDesc("S-curve", "", 0f, 1f, 0f, ParamCurve.Toggle, false));
+                new ParamDesc("Fade in", "s", 0f, 10f, 0f, ParamCurve.Linear, false, ModifierOp.Add, null, null,
+                    "How long the sound takes to come up from silence at its start. A few thousandths of a second is enough to stop a click on a sound that begins abruptly."),
+                new ParamDesc("Fade out", "s", 0f, 10f, 0f, ParamCurve.Linear, false, ModifierOp.Add, null, null,
+                    "How long the sound takes to fall to silence before its end, measured back from the end of the source."),
+                new ParamDesc("S-curve", "", 0f, 1f, 0f, ParamCurve.Toggle, false, ModifierOp.Add, null, null,
+                    "Eases the fade in and out of its start and end instead of ramping at a constant rate. Smoother on long fades, and almost indistinguishable on very short ones."));
 
             Def(ZoundEffectType.TransientShaper, "Transient shaper", "Boosts or cuts the hit and the body separately (broadband, level independent).",
                 true, false, (p, sr) => 4, p => 0f, p => 1f,
-                new ParamDesc("Attack", "dB", -24f, 24f, 0f, ParamCurve.Decibel),
-                new ParamDesc("Sustain", "dB", -24f, 24f, 0f, ParamCurve.Decibel),
-                new ParamDesc("Speed", "ms", 2f, 100f, 20f, ParamCurve.Logarithmic),
-                new ParamDesc("Release", "ms", 10f, 1000f, 100f, ParamCurve.Logarithmic));
+                new ParamDesc("Attack", "dB", -24f, 24f, 0f, ParamCurve.Decibel, true, ModifierOp.Add, null, null,
+                    "Boosts or cuts the initial hit of the sound without touching what follows. Boosting makes it snappier and more percussive; cutting softens the impact."),
+                new ParamDesc("Sustain", "dB", -24f, 24f, 0f, ParamCurve.Decibel, true, ModifierOp.Add, null, null,
+                    "Boosts or cuts the body and tail after the hit. Boosting makes a sound feel longer and roomier; cutting makes it tight and dry."),
+                new ParamDesc("Speed", "ms", 2f, 100f, 20f, ParamCurve.Logarithmic, true, ModifierOp.Add, null, null,
+                    "Where it draws the line between the hit and the body. Short counts only the very first moment as the hit; long counts more of the sound as attack."),
+                new ParamDesc("Release", "ms", 10f, 1000f, 100f, ParamCurve.Logarithmic, true, ModifierOp.Add, null, null,
+                    "How quickly it returns to normal after shaping a hit, which sets how much of the following sound is still affected."));
 
             modifiers = new ModifierDesc[4];
             // Time base: 0 = source position (the curve follows the waveform it is drawn over, as the old
