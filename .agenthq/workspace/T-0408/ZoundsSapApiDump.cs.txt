@@ -1,0 +1,70 @@
+// TEMPORARY probe — dumps the audio-graph scripting API's own members, so the live-control wiring is
+// written against what actually exists rather than against a guess. Reading it this way is deliberate:
+// driving this API by hand on a wrong assumption crashed the editor outright earlier in this work, so the
+// surface is enumerated before anything is called.
+using System;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+
+public static class ZoundsSapApiDump {
+
+    public static string Execute() {
+        var sb = new StringBuilder();
+        foreach (var name in new[] {
+            "UnityEngine.Audio.ProcessorInstance+Pipe",
+            "UnityEngine.Audio.ProcessorInstance+Message",
+            "UnityEngine.Audio.ProcessorInstance+Response",
+            "UnityEngine.Audio.ControlContext",
+            "UnityEngine.Audio.UpdatedDataContext",
+            "UnityEngine.Audio.GeneratorInstance+Properties",
+            "UnityEngine.Audio.GeneratorInstance+Setup",
+            "UnityEngine.Audio.GeneratorInstance+Arguments",
+            "UnityEngine.Audio.RealtimeContext",
+            "UnityEngine.Audio.AvailableData",
+            "UnityEngine.Audio.ProcessorInstance+AvailableData",
+            "UnityEngine.Audio.UpdatedDataContext",
+            "UnityEngine.Audio.ProcessorInstance+UpdatedDataContext",
+            "UnityEngine.Audio.GeneratorInstance",
+            "UnityEngine.Audio.ProcessorInstance+AvailableData+Element",
+            "UnityEngine.Audio.ProcessorInstance+Element",
+        }) {
+            Dump(sb, name);
+        }
+        var result = sb.ToString();
+        UnityEngine.Debug.Log("[ZoundsSapApiDump]\n" + result);
+        return result;
+    }
+
+    static void Dump(StringBuilder sb, string fullName) {
+        Type t = AppDomain.CurrentDomain.GetAssemblies()
+            .Select(a => a.GetType(fullName, false))
+            .FirstOrDefault(x => x != null);
+        sb.Append("\n### ").Append(fullName).Append(t == null ? "  NOT FOUND\n" : "\n");
+        if (t == null) return;
+
+        foreach (var m in t.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static)
+                           .Where(m => m.DeclaringType == t)
+                           .OrderBy(m => m.Name)) {
+            sb.Append("  ").Append(Short(m.ReturnType)).Append(' ').Append(m.Name).Append('(')
+              .Append(string.Join(", ", m.GetParameters().Select(p =>
+                  (p.IsOut ? "out " : p.ParameterType.IsByRef ? "ref " : "") + Short(p.ParameterType) + " " + p.Name)))
+              .Append(")\n");
+        }
+        foreach (var p in t.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static)
+                           .Where(p => p.DeclaringType == t).OrderBy(p => p.Name)) {
+            sb.Append("  prop ").Append(Short(p.PropertyType)).Append(' ').Append(p.Name).Append('\n');
+        }
+        foreach (var f in t.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static)
+                           .Where(f => f.DeclaringType == t).OrderBy(f => f.Name)) {
+            sb.Append("  field ").Append(Short(f.FieldType)).Append(' ').Append(f.Name).Append('\n');
+        }
+    }
+
+    static string Short(Type t) {
+        if (t == null) return "?";
+        var n = t.Name.Replace("&", "");
+        if (t.IsGenericType) n = n.Split('`')[0] + "<" + string.Join(",", t.GetGenericArguments().Select(Short)) + ">";
+        return n;
+    }
+}

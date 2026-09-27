@@ -159,15 +159,8 @@ namespace Laubrary.Zounds.Dsp {
 
         /// <summary>Arms the repeat schedule (call after Prepare, before Publish).</summary>
         internal void SetRepeat(in RepeatPlan plan) {
-            sap.repeat = plan;
-            if (!plan.enabled) return;
-            sap.repeatsTotal = plan.count;
-            sap.repeatsDone = 1;
-            sap.repeatsPending = plan.count == int.MaxValue ? int.MaxValue : plan.count - 1;
-            sap.lastRepeatEndSample = plan.nominalLengthSamples;
-            sap.nextRepeatSample = plan.spaceFromEnd ? sap.lastRepeatEndSample + plan.intervalSamples : plan.intervalSamples;
-            protectedFromSteal = sap.repeatsPending > 0;
-            SapVoiceRender.ProjectTrainEnd(ref sap);
+            SapVoiceSetup.ArmRepeats(ref sap, in plan, out bool protect);
+            if (plan.enabled) protectedFromSteal = protect;
         }
 
         /// <summary>Prepares a Free group node: no source stage, children sum into its buffers.</summary>
@@ -288,12 +281,7 @@ namespace Laubrary.Zounds.Dsp {
         /// modifier binding owns is refused: the next control block would just overwrite it anyway.
         /// </summary>
         internal void PushLiveParam(int flatIndex, float value) {
-            if (flatIndex < 0 || flatIndex >= layout.paramCount) return;
-            for (int r = 0; r < layout.rampedCount; r++) if (layout.ramped[r] == flatIndex) return;
-            float clamped = value < layout.pMin[flatIndex] ? layout.pMin[flatIndex] : value > layout.pMax[flatIndex] ? layout.pMax[flatIndex] : value;
-            sap.pLive[flatIndex] = clamped;
-            sap.pStart[flatIndex] = clamped;
-            sap.pStep[flatIndex] = 0f;
+            SapVoiceRender.ApplyLiveParam(ref sap, in sapLayout, flatIndex, value);
         }
 
         // ───────────────────────────── audio thread ─────────────────────────────

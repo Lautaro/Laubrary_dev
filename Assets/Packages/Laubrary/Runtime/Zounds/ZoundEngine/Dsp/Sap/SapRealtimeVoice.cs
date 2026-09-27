@@ -129,6 +129,41 @@ namespace Laubrary.Zounds.Dsp {
             return true;
         }
 
+        /// <summary>
+        /// Arms a repeat train: the sound replaying itself a number of times, optionally re-rolling its pitch
+        /// and loudness each time. Call after creation and before the first block. The per-block machinery that
+        /// executes the train already exists in the shared render — this only sets its opening state, through
+        /// the same shared function the long-lived voice uses.
+        /// </summary>
+        public void SetRepeat(in RepeatPlan plan) {
+            SapVoiceSetup.ArmRepeats(ref sap, in plan, out bool protect);
+            if (plan.enabled) protectedFromSteal = protect;
+        }
+
+        /// <summary>
+        /// Applies one live change. Safe to call on whichever thread the change arrives on, including from
+        /// inside compiled code on the audio thread, because it only writes native memory this voice owns.
+        /// </summary>
+        public void Apply(in SapVoiceCommand command) {
+            switch (command.kind) {
+                case SapVoiceCommandKind.SetParameter:
+                    SapVoiceRender.ApplyLiveParam(ref sap, in chain, command.index, command.value);
+                    break;
+                case SapVoiceCommandKind.SetPitch:
+                    basePitch = command.value;
+                    break;
+                case SapVoiceCommandKind.SetGain:
+                    outGain = command.value;
+                    break;
+                case SapVoiceCommandKind.Stop:
+                    killRequested = 1;
+                    break;
+                case SapVoiceCommandKind.Release:
+                    releaseRequested = 1;
+                    break;
+            }
+        }
+
         public void Dispose() {
             sap.Dispose();
             if (chain.IsCreated) chain.Dispose();
@@ -137,7 +172,20 @@ namespace Laubrary.Zounds.Dsp {
 
         // ───────────────────────── the audio graph's own entry points ─────────────────────────
 
-        public void Update(UpdatedDataContext context, Pipe pipe) { }
+        /// <summary>
+        /// Drains whatever live changes arrived since the last block and applies them in the order they were
+        /// sent. The graph calls this on the audio side, so this is where a change actually reaches a playing
+        /// sound — nothing else may write to this voice from another thread.
+        ///
+        /// Every change in the batch is applied, not just the newest, because the kinds are not all
+        /// idempotent: a stop and a release mean different things and both matter, and a caller streaming a
+        /// value expects the last one it sent to win, which it does by arriving last.
+        /// </summary>
+        public void Update(UpdatedDataContext context, Pipe pipe) {
+            foreach (var element in pipe.GetAvailableData(context)) {
+                if (element.TryGetData(out SapVoiceCommand command)) Apply(in command);
+            }
+        }
 
         /// <summary>
         /// The graph's per-block call. Renders one block and writes it out, or writes silence once the sound

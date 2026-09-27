@@ -36,6 +36,37 @@ namespace Laubrary.Zounds.Dsp {
     internal static class SapVoiceRender {
 
         /// <summary>
+        /// Applies one live parameter change to a playing voice — a slider being dragged, or gameplay driving
+        /// a filter. Works entirely on native data, so it can be applied on whichever thread the change
+        /// arrives on, including from inside compiled code.
+        ///
+        /// Two rules, both carried over unchanged from the long-lived voice's version of this:
+        ///
+        /// A parameter that a modifier is driving is REFUSED rather than written. Accepting it would look like
+        /// it worked for a fraction of a second and then be overwritten by the modifier at the next control
+        /// block, which is worse than visibly doing nothing.
+        ///
+        /// The value is clamped to the parameter's own declared range before it lands anywhere, so a caller
+        /// cannot push an effect into a state the layout never sized for.
+        ///
+        /// It writes the live value, the block-start value and a zero slope together, so the change takes
+        /// effect immediately rather than being smoothed towards from wherever the last block left off.
+        /// Anything wanting a smooth change should send a stream of values rather than one jump.
+        /// </summary>
+        public static void ApplyLiveParam(ref SapVoiceState sap, in SapChainLayout L, int flatIndex, float value) {
+            if (flatIndex < 0 || flatIndex >= L.paramCount) return;
+            for (int r = 0; r < L.rampedCount; r++) if (L.ramped[r] == flatIndex) return;
+
+            float min = L.pMin[flatIndex];
+            float max = L.pMax[flatIndex];
+            float clamped = value < min ? min : value > max ? max : value;
+
+            sap.pLive[flatIndex] = clamped;
+            sap.pStart[flatIndex] = clamped;
+            sap.pStep[flatIndex] = 0f;
+        }
+
+        /// <summary>
         /// Renders one callback's worth of frames into sap.bufL/sap.bufR. Mirrors the old
         /// <c>DspVoice.Render</c> body exactly, minus the pause short-circuit (the caller already handled
         /// it) and minus the Finish()/TrackOnsets() calls (the caller does those after this returns).

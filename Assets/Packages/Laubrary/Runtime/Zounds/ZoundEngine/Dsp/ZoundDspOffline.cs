@@ -23,9 +23,16 @@ namespace Laubrary.Zounds.Dsp {
         /// pitch is the base pitch (the carrier's), outGain the output gain; the chain is laid out from
         /// <paramref name="chain"/>; source-stage trim from startSeconds/endSeconds (0 = full clip).
         /// </summary>
+        /// <param name="repeat">
+        /// Optionally arms a repeat train, so the retriggering path can be rendered here too. Without this the
+        /// offline renderer could only ever produce single plays, which would leave retriggering with no
+        /// reference to be checked against — and retriggering is precisely the kind of schedule-driven
+        /// behaviour that is easy to get subtly wrong.
+        /// </param>
         public static Result Render(float[] interleaved, int channels, int frequency, int sampleRate, ZoundEffectChain chain,
                                     float pitch, float outGain, float seconds, float startSeconds = 0f, float endSeconds = 0f,
-                                    int blockFrames = 1024, bool measureAllocation = false, System.Action<DspVoice, int> perBlock = null) {
+                                    int blockFrames = 1024, bool measureAllocation = false, System.Action<DspVoice, int> perBlock = null,
+                                    RepeatPlan? repeat = null) {
             var pcm = new PcmClip { channels = channels, frequency = frequency, frames = interleaved.Length / channels, samples = interleaved, valid = true };
             float peak = 0f;
             for (int i = 0; i < interleaved.Length; i++) { float a = interleaved[i] < 0 ? -interleaved[i] : interleaved[i]; if (a > peak) peak = a; }
@@ -40,6 +47,7 @@ namespace Laubrary.Zounds.Dsp {
             var result = new Result { left = new float[totalFrames], right = new float[totalFrames], sampleRate = sampleRate };
             try {
                 voice.Prepare(1, 0, pcm, layout, sampleRate, startFrame, endFrame, pitch, outGain, sourceDuration, false);
+                if (repeat.HasValue) { var plan = repeat.Value; voice.SetRepeat(in plan); }
                 voice.Publish();
 
                 long before = 0;

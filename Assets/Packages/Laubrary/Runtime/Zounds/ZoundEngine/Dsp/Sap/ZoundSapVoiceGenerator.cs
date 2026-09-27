@@ -57,6 +57,17 @@ namespace Laubrary.Zounds.Dsp {
         private bool created;
         private bool handedOff;
 
+        /// <summary>
+        /// The graph's handle to the running instance. Kept because it is the ONLY way to reach a sound that is
+        /// already playing: once the graph has the voice, the copy this component still holds is a dead copy of
+        /// the scalars, and writing to it would change nothing audible. Live changes must go through the graph.
+        /// </summary>
+        private GeneratorInstance instance;
+        private bool hasInstance;
+
+        /// <summary>The repeat train to arm, if any. Applied when the voice is created.</summary>
+        private RepeatPlan repeat;
+
         public bool isFinite => false;
         public bool isRealtime => false;
         public DiscreteTime? length => null;
@@ -101,9 +112,55 @@ namespace Laubrary.Zounds.Dsp {
             voice = SapRealtimeVoice.Create(clip, layout, preparedSampleRate, startFrame, endFrame,
                                             basePitch, outGain, sourceDuration, loop, tokenId, heavyTier,
                                             Allocator.Persistent);
+            if (repeat.enabled) voice.SetRepeat(in repeat);
             created = true;
             handedOff = true;
-            return context.AllocateGenerator(voice, new Control { declaredSampleRate = preparedSampleRate });
+            instance = context.AllocateGenerator(voice, new Control { declaredSampleRate = preparedSampleRate });
+            hasInstance = true;
+            return instance;
+        }
+
+        /// <summary>Arms a repeat train for the next play. Has no effect on a sound already started.</summary>
+        public void SetRepeat(in RepeatPlan plan) {
+            repeat = plan;
+        }
+
+        // ───────────────────────── reaching a sound that is already playing ─────────────────────────
+        //
+        // All of these go through the graph's own value channel rather than writing to this component's copy
+        // of the voice, which the graph no longer reads. Each returns false when there is nothing playing to
+        // change, so a caller can tell "too late" apart from "done".
+
+        /// <summary>Changes one chain parameter live, by its flat index in the layout. A parameter a modifier
+        /// is already driving is ignored at the receiving end — see the note on the receiving function.</summary>
+        public bool SetParameterLive(int flatIndex, float value) => Send(SapVoiceCommand.Parameter(flatIndex, value));
+
+        /// <summary>Changes the playing sound's pitch.</summary>
+        public bool SetPitchLive(float pitch) => Send(SapVoiceCommand.Pitch(pitch));
+
+        /// <summary>Changes the playing sound's output gain.</summary>
+        public bool SetGainLive(float gain) => Send(SapVoiceCommand.Gain(gain));
+
+        /// <summary>Stops hard at the next block: declick and flush, without waiting for the tail.</summary>
+        public bool StopLive() => Send(SapVoiceCommand.Stop());
+
+        /// <summary>Stops feeding source material and lets the tail ring out naturally.</summary>
+        public bool ReleaseLive() => Send(SapVoiceCommand.Release());
+
+        /// <summary>
+        /// Sends one change down the two-hop route the graph provides. There is no single call that reaches the
+        /// audio side directly: a message goes to the generator's control half, which forwards it into the
+        /// value channel that the audio side drains at the start of each block. The forwarding hop is what puts
+        /// the change on the right thread; skipping it and writing the audio state from here would be a data
+        /// race.
+        ///
+        /// Returns false when there is nothing playing any more, so a caller can tell "too late" from "done".
+        /// </summary>
+        private bool Send(SapVoiceCommand command) {
+            if (!hasInstance) return false;
+            var control = ControlContext.builtIn;
+            if (!control.Exists(instance)) { hasInstance = false; return false; }
+            return control.SendMessage(instance, ref command) == Response.Handled;
         }
 
         private void OnDestroy() {
@@ -140,7 +197,20 @@ namespace Laubrary.Zounds.Dsp {
 
             public void Update(ControlContext context, Pipe pipe) { }
 
-            public Response OnMessage(ControlContext context, Pipe pipe, Message message) => default;
+            /// <summary>
+            /// Receives a live change on the control side and forwards it into the value channel, which the
+            /// audio side drains at the start of its next block. This hop exists to get the change onto the
+            /// right thread — the control half cannot reach the audio state itself, and that is the point.
+            ///
+            /// Anything that is not one of our own changes is reported as unhandled rather than swallowed, so
+            /// the graph can pass it to whoever it was actually meant for.
+            /// </summary>
+            public Response OnMessage(ControlContext context, Pipe pipe, Message message) {
+                if (!message.Is<SapVoiceCommand>()) return Response.Unhandled;
+                var command = message.Get<SapVoiceCommand>();
+                pipe.SendData(context, command);
+                return Response.Handled;
+            }
         }
     }
 }

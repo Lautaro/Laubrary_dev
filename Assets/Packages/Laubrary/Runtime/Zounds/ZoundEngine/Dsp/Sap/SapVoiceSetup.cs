@@ -96,6 +96,35 @@ namespace Laubrary.Zounds.Dsp {
         }
 
         /// <summary>
+        /// Arms a repeat train — the sound replaying itself a number of times, optionally re-rolling its
+        /// pitch and loudness per repeat. Call after <see cref="Reset"/> and before the first block.
+        ///
+        /// Shared between both hosts for the same reason the rest of the setup is: the schedule's opening
+        /// state is derived from the plan in a few non-obvious ways (the first repeat is counted as already
+        /// done because the original play IS the first, an unlimited train is marked by the largest possible
+        /// pending count rather than by a flag, and spacing measured from the end of the previous repeat
+        /// starts from one nominal play length rather than from zero), and a second copy of that reasoning
+        /// would drift.
+        ///
+        /// <paramref name="protectedFromSteal"/> comes back true while repeats are still outstanding, so
+        /// whatever reclaims voices under pressure leaves a train that has not finished alone.
+        /// </summary>
+        internal static void ArmRepeats(ref SapVoiceState sap, in RepeatPlan plan, out bool protectedFromSteal) {
+            sap.repeat = plan;
+            if (!plan.enabled) { protectedFromSteal = false; return; }
+
+            sap.repeatsTotal = plan.count;
+            sap.repeatsDone = 1;
+            sap.repeatsPending = plan.count == int.MaxValue ? int.MaxValue : plan.count - 1;
+            sap.lastRepeatEndSample = plan.nominalLengthSamples;
+            sap.nextRepeatSample = plan.spaceFromEnd
+                ? sap.lastRepeatEndSample + plan.intervalSamples
+                : plan.intervalSamples;
+            protectedFromSteal = sap.repeatsPending > 0;
+            SapVoiceRender.ProjectTrainEnd(ref sap);
+        }
+
+        /// <summary>
         /// Builds (or rebuilds) the two per-play native snapshots a voice reads on the audio thread: the
         /// chain layout and the source samples. Releases any previous pair first, so a host may set the same
         /// voice up more than once without leaking.
