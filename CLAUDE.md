@@ -54,6 +54,22 @@ The current programme is tracked in this project's own task list under the Zound
 
 The point of the work, in one paragraph: Unity's ordinary way of generating audio in C# attaches the audio mixer thread to the scripting runtime, and from then on any garbage collection anywhere in the game freezes that thread and produces an audible click. Removing allocations reduces how often that happens but cannot eliminate it. The fix is structural — move audio generation onto Burst-compiled code that the mixer thread reaches through a plain function pointer, never touching the managed runtime. **A single remaining use of the managed audio callback anywhere in the project re-attaches the thread and silently destroys the benefit for the whole application**, so removing the last use matters as much as adding the replacement, and the result can only be proven in a real player build — in the editor, with Burst compilation off, the immunity is not there at all.
 
+### How audio actually plays here, as of 2026-09-27 — read this before touching playback
+
+**A sound plays from its ORIGINAL audio, with its effect chain applied as it goes. There is no rendered-in-advance file in the path, and nothing renders one automatically.** If you find yourself reaching for a pre-rendered file, or adding something that writes one, you are working against the architecture.
+
+The pooled audio source deliberately holds **no clip**. It still matters, because it is what carries the sound into the mixer — bus routing, group volume, distance attenuation and 3D position all come from it. That is also why there is no separate mixing graph here: the earlier native version of this engine needed one, with its own voice pool and buses, because it produced audio outside Unity's mixer and had to do its own summing. These voices go through an audio source, so the mixer provides all of it and concurrency is bounded by the existing source pool. **Do not port a voice graph into this.**
+
+Three consequences worth knowing before they surprise you:
+
+- **A source clip must be imported as Decompress On Load.** Unity will not expose samples for a streaming or compressed-in-memory clip, so such a sound cannot go through the chain; it falls back to a rendered file and says why, once per session. There is a menu check under Laubrary > Zounds > Checks that reports this per sound, and it is the first thing to run when a chain appears to do nothing.
+- **An edit is heard on a sound that is already playing.** The authoring UI pushes each parameter change to every voice playing that sound. Each voice resolves the change against the layout IT started with, never the sound's current layout, because the edit being delivered may already have rebuilt that.
+- **A chain's declared decay is added to a sound's length.** A delay or reverb still sounds after the source runs out, and without this the sound would be declared over and its audio source recycled mid-tail.
+
+**The seven old per-sound effect settings (gain, equaliser, compression, normalisation, fade, volume and pitch curves) are no longer an authoring surface.** They only ever worked by being rendered into a file. They are still readable, because a sound that still carries them has them converted to an equivalent chain — on the fly at play time, or permanently through the conversion action in the Zounds menu. Do not reintroduce UI for editing them directly; the chain editor is where that belongs.
+
+Rendering to a file still exists as something you can ask for, because bouncing a sound is occasionally wanted. It is no longer something that happens as a side effect of an edit.
+
 Background documents: the authoritative technical foundation is `D:/Claude@GDrive/Zounds GC-Stutter-Free Audio Architecture Research 2026-09-26.md` (sections 1 and 7 for the plan, 8 for the validation test). `D:/Claude@GDrive/HH2 Audio Effect Chains Architecture.md` describes the existing engine the new path has to match. The 2026-09-25 native-DSP roadmap is **partly superseded** — its phases assume a hand-written C++ plugin as the target, which the 2026-09-26 research replaces; read it for history, not direction. The 2026-09-11 lifetime health report is at `D:/Claude@GDrive/Zounds Lifetime Health Report 2026-09-11.md`.
 
 ## Tool conventions (mirror for every Laubrary tool)
