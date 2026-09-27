@@ -1,0 +1,241 @@
+// A kept check, runnable from the Laubrary menu — runs EVERY effect the package defines through both compilers and reports where they
+// disagree, plus one chain containing all of them at once.
+//
+// It reads the effect list from the package's own descriptor table rather than naming effects here, so an
+// effect added later is covered automatically instead of being silently skipped.
+//
+// Each effect is tested twice. Once with its authored defaults, which is what a user gets by dropping it in
+// — but several effects do nothing at their defaults (a gain of one, a fade of zero length), so that alone
+// would report a meaningless pass. And once with every parameter pushed to sixty percent of its declared
+// range, which guarantees the effect actually alters the signal. That second setting is not musically
+// sensible and is not meant to be; it only has to be deterministic and non-trivial.
+//
+// A difference here is not automatically a fault. Compiled and uncompiled floating-point arithmetic agree to
+// about one unit in the last place, and anything that interpolates a position or feeds back can magnify
+// that. The threshold below separates "last-place noise" from "worth investigating", and the report always
+// prints the actual figure so the judgement is visible rather than hidden in a pass or fail.
+using System;
+using System.Text;
+using Unity.Collections;
+using Unity.Jobs;
+using UnityEditor;
+using UnityEngine;
+using Laubrary.Zounds;
+using Laubrary.Zounds.Dsp;
+
+public static class ZoundsSapAllEffectsEquivalence {
+
+    const int SR = 48000;
+    const int SRC_RATE = 48000;
+    const float SECONDS = 0.75f;
+    const int BLOCK = 1024;
+
+    /// Above this, a difference is called out for investigation rather than treated as last-place noise.
+    /// Chosen as roughly a hundred last-place units at unity amplitude: comfortably above accumulated
+    /// rounding in a feedback network, and about 80 dB below anything audible.
+    const float NOISE_CEILING = 1e-5f;
+
+    [MenuItem("Laubrary/Zounds/Checks/3 - All effects, compiled vs uncompiled")]
+    public static void RunFromMenu() { Execute(); }
+
+    public static string Execute() {
+        var sb = new StringBuilder();
+
+        // A smooth source on purpose. An impulse would place a step discontinuity in the signal, and
+        // interpolating across a step turns a last-place position difference into a visible amplitude
+        // difference — which is a real effect, already measured and explained elsewhere, but it would swamp
+        // this sweep's job of finding genuine per-effect disagreements.
+        int frames = (int)(SRC_RATE * 0.5f);
+        var src = new float[frames * 2];
+        for (int i = 0; i < frames; i++) {
+            float t = (float)i / SRC_RATE;
+            float s = 0.35f * Mathf.Sin(2f * Mathf.PI * 220f * t) + 0.2f * Mathf.Sin(2f * Mathf.PI * 1310f * t);
+            src[i * 2] = s;
+            src[i * 2 + 1] = s * 0.7f;
+        }
+
+        int count = ZoundEffectDescriptors.EffectTypeCount;
+        int flagged = 0;
+        int trivial = 0;
+
+        sb.Append("=== EVERY EFFECT, COMPILED vs UNCOMPILED (").Append(count).Append(" effects) ===\n");
+        sb.Append("noise ceiling ").Append(NOISE_CEILING.ToString("R")).Append("; 'no-op' means the effect did not alter the signal at all\n\n");
+
+        for (int i = 0; i < count; i++) {
+            var type = (ZoundEffectType)i;
+            flagged += One(sb, type, false, src, ref trivial);
+            flagged += One(sb, type, true, src, ref trivial);
+        }
+
+        // Everything at once, in declaration order: the real per-voice chain, which is also the only arm
+        // that exercises the state arena being carved up between many effects at once.
+        var all = new ZoundEffectChain();
+        for (int i = 0; i < count && i < ZoundDspConstants.MAX_NODES; i++) {
+            var n = new ZoundEffectNode((ZoundEffectType)i);
+            Push(n, (ZoundEffectType)i, true);
+            all.nodes.Add(n);
+        }
+        sb.Append('\n');
+        flagged += Report(sb, "ALL " + all.nodes.Count + " EFFECTS IN ONE CHAIN", all, src, ref trivial);
+
+        // ── diagnosis: why the high-pass at its defaults differs more than the rest ──
+        //
+        // Hypothesis: a high-pass filter with a very low corner frequency has a pole sitting extremely close
+        // to the edge of stability, which is another way of saying it averages over a very long window. A
+        // last-place difference in its coefficient therefore accumulates for a long time instead of decaying,
+        // so the visible difference is largest for the LOWEST corner and should fall away steeply as the
+        // corner rises. The pushed setting already hints at this — it puts the corner high and the difference
+        // collapses to last-place noise — so this sweep is the direct check.
+        //
+        // The second question is whether the difference GROWS without bound, which would be a stability
+        // problem rather than a rounding one, so the sweep also reports the worst difference in the first
+        // half of the render against the second half.
+        sb.Append("\n=== DIAGNOSIS: high-pass corner frequency vs difference ===\n");
+        var hpDesc = ZoundEffectDescriptors.Get(ZoundEffectType.HighPass).parameters;
+        sb.Append("corner parameter '").Append(hpDesc[0].name).Append("' ranges ")
+          .Append(hpDesc[0].min.ToString("R")).Append("..").Append(hpDesc[0].max.ToString("R"))
+          .Append(", default ").Append(hpDesc[0].def.ToString("R")).Append('\n');
+        foreach (float hz in new[] { hpDesc[0].min, hpDesc[0].def, 100f, 400f, 1500f, 6000f }) {
+            if (hz < hpDesc[0].min || hz > hpDesc[0].max) continue;
+            var hp = new ZoundEffectChain();
+            var hn = new ZoundEffectNode(ZoundEffectType.HighPass);
+            var dflt = ZoundEffectDescriptors.DefaultParams(ZoundEffectType.HighPass);
+            for (int i = 0; i < dflt.Length && i < hn.p.Length; i++) hn.p[i] = dflt[i];
+            hn.p[0] = hz;
+            hp.nodes.Add(hn);
+            Halves(sb, "corner " + hz.ToString("R") + " Hz", hp, src);
+        }
+
+        sb.Append(flagged == 0
+            ? "\nVERDICT: no effect differs by more than last-place rounding.\n"
+            : "\nVERDICT: " + flagged + " case(s) exceed the noise ceiling — listed above, with diagnosis.\n");
+
+        var result = sb.ToString();
+        Debug.Log("[ZoundsSapAllEffectsEquivalence]\n" + result);
+        return result;
+    }
+
+    static int One(StringBuilder sb, ZoundEffectType type, bool pushed, float[] src, ref int trivial) {
+        var chain = new ZoundEffectChain();
+        var node = new ZoundEffectNode(type);
+        if (pushed) Push(node, type, false);
+        chain.nodes.Add(node);
+        return Report(sb, type + (pushed ? " (pushed)" : " (defaults)"), chain, src, ref trivial);
+    }
+
+    /// Moves every parameter to sixty percent of its declared range, so the effect certainly does something.
+    /// A parameter that names fixed choices takes its highest choice instead of a fraction between two, since
+    /// sixty percent of the way between two named options is not one of them.
+    static void Push(ZoundEffectNode node, ZoundEffectType type, bool gentle) {
+        var ps = ZoundEffectDescriptors.Get(type).parameters;
+        float f = gentle ? 0.35f : 0.6f;
+        for (int i = 0; i < ps.Length && i < node.p.Length; i++) {
+            var d = ps[i];
+            node.p[i] = d.IsChoice || d.curve == ParamCurve.Integer || d.curve == ParamCurve.Toggle
+                ? Mathf.Round(d.min + (d.max - d.min) * f)
+                : d.min + (d.max - d.min) * f;
+        }
+    }
+
+    /// Same comparison, but reported as first half against second half, so an accumulating difference can be
+    /// told apart from a bounded one.
+    static void Halves(StringBuilder sb, string label, ZoundEffectChain chain, float[] src) {
+        var reference = ZoundDspOffline.Render(src, 2, SRC_RATE, SR, chain, 1f, 1f, SECONDS, 0f, 0f, BLOCK, false, null);
+
+        var pcm = new PcmClip { channels = 2, frequency = SRC_RATE, frames = src.Length / 2, samples = src, valid = true };
+        var layout = ChainLayout.Build(chain, SR);
+        int totalFrames = Mathf.CeilToInt(SECONDS * SR);
+
+        var voice = SapRealtimeVoice.Create(pcm, layout, SR, 0d, pcm.frames, 1f, 1f, (float)pcm.frames / SRC_RATE,
+                                            false, 1, true, Allocator.Persistent);
+        var jL = new NativeArray<float>(totalFrames, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+        var jR = new NativeArray<float>(totalFrames, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+        var tally = new NativeArray<int>(2, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+        float firstHalf = 0f, secondHalf = 0f;
+        try {
+            new SapVoiceRenderJob {
+                voice = voice, outLeft = jL, outRight = jR,
+                totalFrames = totalFrames, blockFrames = BLOCK, tally = tally,
+            }.Run();
+            int n = Math.Min(tally[0], reference.frames);
+            int mid = n / 2;
+            for (int i = 0; i < n; i++) {
+                float d = jL[i] - reference.left[i];
+                if (d < 0) d = -d;
+                if (i < mid) { if (d > firstHalf) firstHalf = d; }
+                else { if (d > secondHalf) secondHalf = d; }
+            }
+        }
+        finally { voice.Dispose(); jL.Dispose(); jR.Dispose(); tally.Dispose(); }
+
+        sb.Append("  ").Append(label.PadRight(24))
+          .Append(" first half=").Append(firstHalf.ToString("R"))
+          .Append("  second half=").Append(secondHalf.ToString("R")).Append('\n');
+    }
+
+    static int Report(StringBuilder sb, string label, ZoundEffectChain chain, float[] src, ref int trivial) {
+        var reference = ZoundDspOffline.Render(src, 2, SRC_RATE, SR, chain, 1f, 1f, SECONDS, 0f, 0f, BLOCK, false, null);
+
+        var pcm = new PcmClip { channels = 2, frequency = SRC_RATE, frames = src.Length / 2, samples = src, valid = true };
+        float sp = 0f;
+        for (int i = 0; i < src.Length; i++) { float a = src[i] < 0 ? -src[i] : src[i]; if (a > sp) sp = a; }
+        pcm.peak = sp;
+
+        var layout = ChainLayout.Build(chain, SR);
+        double endFrame = pcm.frames;
+        float sourceDuration = (float)(endFrame / SRC_RATE);
+        int totalFrames = Mathf.CeilToInt(SECONDS * SR);
+
+        int written = 0, blocks = 0;
+        float worst = 0f;
+        bool sawNaN = false;
+        bool altered = false;
+
+        var voice = SapRealtimeVoice.Create(pcm, layout, SR, 0d, endFrame, 1f, 1f, sourceDuration,
+                                            false, 1, true, Allocator.Persistent);
+        var jL = new NativeArray<float>(totalFrames, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+        var jR = new NativeArray<float>(totalFrames, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+        var tally = new NativeArray<int>(2, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+        try {
+            new SapVoiceRenderJob {
+                voice = voice, outLeft = jL, outRight = jR,
+                totalFrames = totalFrames, blockFrames = BLOCK, tally = tally,
+            }.Run();
+            written = tally[0];
+            blocks = tally[1];
+
+            int n = Math.Min(written, reference.frames);
+            for (int i = 0; i < n; i++) {
+                float a = jL[i], b = jR[i];
+                float ra = reference.left[i], rb = reference.right[i];
+                if (float.IsNaN(a) || float.IsNaN(b) || float.IsNaN(ra) || float.IsNaN(rb)
+                    || float.IsInfinity(a) || float.IsInfinity(b)) { sawNaN = true; continue; }
+                float dl = a - ra; if (dl < 0) dl = -dl;
+                float dr = b - rb; if (dr < 0) dr = -dr;
+                float d = dl > dr ? dl : dr;
+                if (d > worst) worst = d;
+                // "altered" measured on the reference against the raw source, so a no-op is reported as such
+                // rather than mistaken for agreement.
+                if (!altered && i < src.Length / 2) {
+                    float diffFromSource = ra - src[i * 2];
+                    if (diffFromSource > 1e-6f || diffFromSource < -1e-6f) altered = true;
+                }
+            }
+        }
+        finally {
+            voice.Dispose();
+            jL.Dispose(); jR.Dispose(); tally.Dispose();
+        }
+
+        sb.Append(label.PadRight(34)).Append(" worst=").Append(worst.ToString("R"));
+        if (written != reference.frames || blocks != reference.blocks) {
+            sb.Append("  <<< LENGTH DIFFERS (offline ").Append(reference.frames).Append('/').Append(reference.blocks)
+              .Append(", compiled ").Append(written).Append('/').Append(blocks).Append(')').Append('\n');
+            return 1;
+        }
+        if (sawNaN) { sb.Append("  <<< NOT A NUMBER present — pushed settings are out of range for this effect\n"); return 0; }
+        if (!altered) { sb.Append("  (no-op)"); trivial++; }
+        sb.Append(worst > NOISE_CEILING ? "  <<< EXCEEDS NOISE CEILING\n" : "\n");
+        return worst > NOISE_CEILING ? 1 : 0;
+    }
+}

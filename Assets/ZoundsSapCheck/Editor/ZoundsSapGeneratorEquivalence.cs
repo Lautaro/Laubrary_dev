@@ -1,0 +1,230 @@
+// A kept check, runnable from the Laubrary menu — checks that the voice the audio graph will run produces EXACTLY what the offline
+// renderer produces, for the same chains the baseline covers.
+//
+// Both paths call the same per-block render function, so what this actually tests is everything around it:
+// the start-of-play setup, the native snapshots of the chain and the source samples, the buffer plumbing,
+// and the stop condition. Those are the parts that differ between the two hosts, so those are the parts
+// that can drift.
+//
+// It deliberately never touches the audio graph's own setup machinery. Driving that by hand was tried and
+// crashed the editor outright rather than raising an error, so the voice was built as a plain value type
+// precisely so it could be exercised from here instead.
+using System.Text;
+using Unity.Burst;
+using Unity.Collections;
+using Unity.Jobs;
+using UnityEditor;
+using UnityEngine;
+using Laubrary.Zounds;
+using Laubrary.Zounds.Dsp;
+
+public static class ZoundsSapGeneratorEquivalence {
+
+    // The compiled arm uses SapVoiceRenderJob from the package, NOT a copy declared here. A job type
+    // declared in this file would live in the assembly this probe is compiled into on the fly, and the
+    // compiler does not register entry points from such an assembly — it would silently run uncompiled and
+    // the comparison would pass while proving nothing. That is exactly what happened on the first attempt.
+
+    const int SR = 48000;
+    const int SRC_RATE = 48000;
+    const float SECONDS = 1.0f;
+    const int BLOCK = 1024;
+
+    [MenuItem("Laubrary/Zounds/Checks/2 - Graph voice vs offline renderer")]
+    public static void RunFromMenu() { Execute(); }
+
+    public static string Execute() {
+        var sb = new StringBuilder();
+
+        int frames = SRC_RATE / 2;
+        var src = new float[frames * 2];
+        for (int i = 0; i < frames; i++) {
+            float s = (i == 0) ? 1f : 0f;
+            s += 0.25f * Mathf.Sin(2f * Mathf.PI * 440f * i / SRC_RATE);
+            src[i * 2] = s;
+            src[i * 2 + 1] = s * 0.5f;
+        }
+
+        sb.Append("=== OFFLINE VOICE  vs  GENERATOR VOICE ===\n");
+        int mismatches = 0;
+
+        mismatches += Compare(sb, "dry", null, src);
+
+        var delay = new ZoundEffectChain();
+        var dn = new ZoundEffectNode(ZoundEffectType.Delay);
+        dn.p[0] = 250f; dn.p[1] = 0.4f; dn.p[2] = 0.5f; dn.p[3] = 500f; dn.p[4] = 0f;
+        delay.nodes.Add(dn);
+        mismatches += Compare(sb, "delay", delay, src);
+
+        var verb = new ZoundEffectChain();
+        var rn = new ZoundEffectNode(ZoundEffectType.Reverb);
+        rn.p[0] = 0.5f; rn.p[1] = 0.5f; rn.p[2] = 1f; rn.p[3] = 0.5f;
+        verb.nodes.Add(rn);
+        mismatches += Compare(sb, "reverb", verb, src);
+
+        mismatches += Compare(sb, "mod-lfo", GainWithModifier(ZoundModifierType.Lfo, m => {
+            m.p[0] = 0.5f;
+            m.p[1] = 7f;
+        }), src);
+
+        mismatches += Compare(sb, "mod-envelope", GainWithModifier(ZoundModifierType.Envelope, m => { }), src);
+
+        mismatches += Compare(sb, "mod-step", GainWithModifier(ZoundModifierType.Step, m => {
+            m.steps = new float[] { 0.2f, 0.9f, 0.45f, 1f, 0.7f };
+        }), src);
+
+        // ── diagnosis arms for the delay, whose difference is ~1000x the others ──
+        //
+        // Hypothesis: all three differences are ordinary floating-point differences between the two
+        // compilers, and the delay's looks huge only because its read position is interpolated, and the
+        // source has an impulse sitting exactly where the delayed copy is read. Interpolating a tiny
+        // position error across a step from 1.0 down to 0.014 turns a difference of ~0.001 of a SAMPLE into
+        // a difference of ~0.0005 in AMPLITUDE. Against a smooth signal the same position error should show
+        // up roughly seventy times smaller, because the signal only changes by ~0.014 per sample there.
+        //
+        // If the smooth-source arm collapses to that scale, the explanation holds and nothing is wrong with
+        // the logic. If it stays large, the read position itself is being computed differently and that is a
+        // real defect.
+        var smooth = new float[frames * 2];
+        for (int i = 0; i < frames; i++) {
+            float s = 0.25f * Mathf.Sin(2f * Mathf.PI * 440f * i / SRC_RATE);
+            smooth[i * 2] = s;
+            smooth[i * 2 + 1] = s * 0.5f;
+        }
+        sb.Append("\n=== DIAGNOSIS: is the delay's difference just precision, magnified? ===\n");
+        Compare(sb, "delay/smooth-source (no impulse)", delay, smooth);
+
+        var offGrid = new ZoundEffectChain();
+        var og = new ZoundEffectNode(ZoundEffectType.Delay);
+        og.p[0] = 249.7f; og.p[1] = 0.4f; og.p[2] = 0.5f; og.p[3] = 500f; og.p[4] = 0f;
+        offGrid.nodes.Add(og);
+        Compare(sb, "delay/off-grid time, impulse source", offGrid, src);
+        Compare(sb, "delay/off-grid time, smooth source", offGrid, smooth);
+
+        sb.Append(mismatches == 0
+            ? "\nVERDICT: identical on every chain, every sample.\n"
+            : "\nVERDICT: " + mismatches + " chain(s) DIFFER — see above (diagnosis arms excluded).\n");
+
+        var result = sb.ToString();
+        Debug.Log("[ZoundsSapGeneratorEquivalence]\n" + result);
+        return result;
+    }
+
+    static ZoundEffectChain GainWithModifier(ZoundModifierType type, System.Action<ZoundModifier> setup) {
+        var chain = new ZoundEffectChain();
+        chain.nodes.Add(new ZoundEffectNode(ZoundEffectType.Gain));
+        var mod = new ZoundModifier(type);
+        setup(mod);
+        chain.modifiers.Add(mod);
+        chain.bindings.Add(new ZoundModifierBinding {
+            modifierIndex = 0, nodeIndex = 0, paramIndex = 0,
+            op = ModifierOp.Multiply, depth = 1f
+        });
+        return chain;
+    }
+
+    /// Returns 0 when the two paths agree exactly, 1 otherwise.
+    static int Compare(StringBuilder sb, string name, ZoundEffectChain chain, float[] src) {
+        // ── reference: the existing offline renderer, unchanged ──
+        var reference = ZoundDspOffline.Render(src, 2, SRC_RATE, SR, chain, 1f, 1f, SECONDS,
+                                               0f, 0f, BLOCK, false, null);
+
+        // ── candidate: the voice the audio graph will run, set up the same way ──
+        var pcm = new PcmClip {
+            channels = 2, frequency = SRC_RATE, frames = src.Length / 2, samples = src, valid = true,
+        };
+        float sp = 0f;
+        for (int i = 0; i < src.Length; i++) { float a = src[i] < 0 ? -src[i] : src[i]; if (a > sp) sp = a; }
+        pcm.peak = sp;
+
+        var layout = chain != null && !chain.IsEmpty ? ChainLayout.Build(chain, SR) : ChainLayout.Empty;
+        double startFrame = 0d;
+        double endFrame = pcm.frames;
+        float sourceDuration = (float)((endFrame - startFrame) / SRC_RATE) / Mathf.Max(1f, 0.01f);
+        int totalFrames = Mathf.CeilToInt(SECONDS * SR);
+
+        var left = new float[totalFrames];
+        var right = new float[totalFrames];
+        int written = 0;
+        int blocks = 0;
+
+        // tokenId 1 and the heavy state tier, matching exactly what the offline renderer uses, because the
+        // token seeds the per-voice random generator and the tier decides the state arena's size.
+        var voice = SapRealtimeVoice.Create(pcm, layout, SR, startFrame, endFrame, 1f, 1f, sourceDuration,
+                                            false, 1, true, Allocator.Persistent);
+        try {
+            while (written < totalFrames && !voice.finished) {
+                int n = Mathf.Min(BLOCK, totalFrames - written);
+                voice.RenderBlock(n);
+                blocks++;
+                for (int i = 0; i < n; i++) { left[written + i] = voice.sap.bufL[i]; right[written + i] = voice.sap.bufR[i]; }
+                written += n;
+            }
+        }
+        finally { voice.Dispose(); }
+
+        // ── third arm: the very same voice, rendered inside compiled native code ──
+        var cL = new float[totalFrames];
+        var cR = new float[totalFrames];
+        int cWritten = 0, cBlocks = 0;
+        var jobVoice = SapRealtimeVoice.Create(pcm, layout, SR, startFrame, endFrame, 1f, 1f, sourceDuration,
+                                               false, 1, true, Allocator.Persistent);
+        var jL = new NativeArray<float>(totalFrames, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+        var jR = new NativeArray<float>(totalFrames, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+        var tally = new NativeArray<int>(2, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+        try {
+            new SapVoiceRenderJob {
+                voice = jobVoice, outLeft = jL, outRight = jR,
+                totalFrames = totalFrames, blockFrames = BLOCK, tally = tally,
+            }.Run();
+            cWritten = tally[0];
+            cBlocks = tally[1];
+            for (int i = 0; i < totalFrames; i++) { cL[i] = jL[i]; cR[i] = jR[i]; }
+        }
+        finally {
+            jobVoice.Dispose();
+            jL.Dispose(); jR.Dispose(); tally.Dispose();
+        }
+
+        // ── compare ──
+        sb.Append(name)
+          .Append(": offline ").Append(reference.frames).Append('/').Append(reference.blocks)
+          .Append(", interpreted ").Append(written).Append('/').Append(blocks)
+          .Append(", compiled ").Append(cWritten).Append('/').Append(cBlocks);
+
+        int bad = 0;
+        if (written != reference.frames || blocks != reference.blocks) {
+            sb.Append("  <<< INTERPRETED LENGTH DIFFERS"); bad = 1;
+        }
+        if (cWritten != reference.frames || cBlocks != reference.blocks) {
+            sb.Append("  <<< COMPILED LENGTH DIFFERS"); bad = 1;
+        }
+        if (bad != 0) { sb.Append('\n'); return 1; }
+
+        bad += Diff(sb, "interpreted", reference.left, reference.right, left, right, written);
+        bad += Diff(sb, "compiled", reference.left, reference.right, cL, cR, cWritten);
+        sb.Append(bad == 0 ? "  BOTH IDENTICAL\n" : "\n");
+        return bad > 0 ? 1 : 0;
+    }
+
+    /// Reports how a candidate render differs from the reference, or says nothing when it does not.
+    static int Diff(StringBuilder sb, string what, float[] refL, float[] refR, float[] gotL, float[] gotR, int n) {
+        int firstBad = -1;
+        float worst = 0f;
+        for (int i = 0; i < n; i++) {
+            float dl = gotL[i] - refL[i];
+            float dr = gotR[i] - refR[i];
+            if (dl < 0) dl = -dl;
+            if (dr < 0) dr = -dr;
+            float d = dl > dr ? dl : dr;
+            if (d > worst) worst = d;
+            if (d != 0f && firstBad < 0) firstBad = i;
+        }
+        if (firstBad < 0) return 0;
+        sb.Append("\n   ").Append(what).Append(" DIFFERS: first at frame ").Append(firstBad)
+          .Append(" (reference L=").Append(refL[firstBad].ToString("R"))
+          .Append(" got L=").Append(gotL[firstBad].ToString("R"))
+          .Append("), largest absolute difference ").Append(worst.ToString("R"));
+        return 1;
+    }
+}

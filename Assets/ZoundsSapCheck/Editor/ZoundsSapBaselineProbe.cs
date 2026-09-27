@@ -1,0 +1,125 @@
+// A kept check, runnable from the Laubrary menu — captures a byte-exact baseline of the current offline audio render so each
+// restructuring step of the Burst port can be checked against it. Not part of the package, not
+// committed as code; the source is kept in .agenthq/workspace/T-0408/ and copied in when needed.
+//
+// Deliberately boundary-sensitive: the delay time lands on an exact sample count, and the output
+// sample rate does not divide the reverb tuning table's 44100 base evenly.
+//
+// The modifier cases exist to cover the three variable-length-per-modifier arrays in the layout
+// (per-modifier parameters, the envelope curve, the step list). Without them, flattening those
+// arrays would be an unverifiable change.
+using System.Text;
+using UnityEditor;
+using UnityEngine;
+using Laubrary.Zounds;
+using Laubrary.Zounds.Dsp;
+
+public static class ZoundsSapBaselineProbe {
+
+    const int SR = 48000;          // 48000/44100 is fractional -> exercises reverb length scaling
+    const int SRC_RATE = 48000;
+    const float SECONDS = 1.0f;
+
+    [MenuItem("Laubrary/Zounds/Checks/1 - Offline render baseline")]
+    public static void RunFromMenu() { Execute(); }
+
+    public static string Execute() {
+        var sb = new StringBuilder();
+        sb.Append("=== PARAM TABLES ===\n");
+        DumpParams(sb, ZoundEffectType.Delay);
+        DumpParams(sb, ZoundEffectType.Reverb);
+        DumpParams(sb, ZoundEffectType.Gain);
+
+        sb.Append("\n=== DERIVED SIZES (the float-rounding trap sites) ===\n");
+        var dp = ZoundEffectDescriptors.DefaultParams(ZoundEffectType.Delay);
+        dp[0] = 250f; dp[3] = 500f;
+        sb.Append("DelayRingFrames(time=250,max=500,sr=48000) = ").Append(ZoundEffectDescriptors.DelayRingFrames(dp, SR)).Append('\n');
+        sb.Append("ReverbStateFloats(sr=48000) = ").Append(ZoundEffectDescriptors.ReverbStateFloats(SR)).Append('\n');
+        sb.Append("ReverbStateFloats(sr=44100) = ").Append(ZoundEffectDescriptors.ReverbStateFloats(44100)).Append('\n');
+
+        int frames = SRC_RATE / 2;
+        var src = new float[frames * 2];
+        for (int i = 0; i < frames; i++) {
+            float s = (i == 0) ? 1f : 0f;
+            s += 0.25f * Mathf.Sin(2f * Mathf.PI * 440f * i / SRC_RATE);
+            src[i * 2] = s;
+            src[i * 2 + 1] = s * 0.5f;
+        }
+
+        sb.Append("\n=== RENDERS ===\n");
+        Capture(sb, "dry", null, src);
+
+        var delay = new ZoundEffectChain();
+        var dn = new ZoundEffectNode(ZoundEffectType.Delay);
+        dn.p[0] = 250f; dn.p[1] = 0.4f; dn.p[2] = 0.5f; dn.p[3] = 500f; dn.p[4] = 0f;
+        delay.nodes.Add(dn);
+        Capture(sb, "delay", delay, src);
+
+        var verb = new ZoundEffectChain();
+        var rn = new ZoundEffectNode(ZoundEffectType.Reverb);
+        rn.p[0] = 0.5f; rn.p[1] = 0.5f; rn.p[2] = 1f; rn.p[3] = 0.5f;
+        verb.nodes.Add(rn);
+        Capture(sb, "reverb", verb, src);
+
+        // ── modifier coverage: one chain per variable-length-per-modifier array ──
+        Capture(sb, "mod-lfo", GainWithModifier(ZoundModifierType.Lfo, m => {
+            m.p[0] = 0.5f;   // amount
+            m.p[1] = 7f;     // rate Hz — deliberately not a divisor of the block size
+        }), src);
+
+        Capture(sb, "mod-envelope", GainWithModifier(ZoundModifierType.Envelope, m => { }), src);
+
+        Capture(sb, "mod-step", GainWithModifier(ZoundModifierType.Step, m => {
+            m.steps = new float[] { 0.2f, 0.9f, 0.45f, 1f, 0.7f };   // exercises the step list
+        }), src);
+
+        var result = sb.ToString();
+        Debug.Log("[ZoundsSapBaselineProbe]\n" + result);
+        return result;
+    }
+
+    /// A gain node with one modifier bound to its gain — the smallest chain that exercises a modifier.
+    static ZoundEffectChain GainWithModifier(ZoundModifierType type, System.Action<ZoundModifier> setup) {
+        var chain = new ZoundEffectChain();
+        chain.nodes.Add(new ZoundEffectNode(ZoundEffectType.Gain));
+        var mod = new ZoundModifier(type);
+        setup(mod);
+        chain.modifiers.Add(mod);
+        chain.bindings.Add(new ZoundModifierBinding {
+            modifierIndex = 0, nodeIndex = 0, paramIndex = 0,
+            op = ModifierOp.Multiply, depth = 1f
+        });
+        return chain;
+    }
+
+    static void DumpParams(StringBuilder sb, ZoundEffectType t) {
+        var def = ZoundEffectDescriptors.DefaultParams(t);
+        sb.Append(t).Append(" defaults: ");
+        for (int i = 0; i < def.Length; i++) sb.Append('[').Append(i).Append("]=").Append(def[i].ToString("R")).Append(' ');
+        sb.Append('\n');
+    }
+
+    static void Capture(StringBuilder sb, string name, ZoundEffectChain chain, float[] src) {
+        var r = ZoundDspOffline.Render(src, 2, SRC_RATE, SR, chain, 1f, 1f, SECONDS,
+                                      0f, 0f, 1024, true, null);
+        double sum = 0; float peak = 0; int nonZero = 0;
+        for (int i = 0; i < r.frames; i++) {
+            float a = r.left[i], b = r.right[i];
+            sum += a * 0.5 + b * 0.25;
+            float m = Mathf.Max(Mathf.Abs(a), Mathf.Abs(b));
+            if (m > peak) peak = m;
+            if (m > 1e-7f) nonZero++;
+        }
+        sb.Append(name).Append(": frames=").Append(r.frames)
+          .Append(" blocks=").Append(r.blocks)
+          .Append(" peak=").Append(r.peak.ToString("R"))
+          .Append(" nonZero=").Append(nonZero)
+          .Append(" gcBytes=").Append(r.gcBytesDelta)
+          .Append(" checksum=").Append(sum.ToString("R")).Append('\n');
+        int[] probe = { 0, 1, 2, 4000, 11999, 12000, 12001, 23999, 24000, 24001, 47999 };
+        foreach (int i in probe) {
+            if (i < r.frames) sb.Append("   [").Append(i).Append("] L=").Append(r.left[i].ToString("R"))
+                                .Append(" R=").Append(r.right[i].ToString("R")).Append('\n');
+        }
+    }
+}
