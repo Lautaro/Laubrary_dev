@@ -120,6 +120,34 @@ namespace Laubrary.Zounds.Dsp {
             return layout.paramOffset[nodeIndex] + paramIndex;
         }
 
+        /// <summary>
+        /// The value a playing voice is currently using for one of <paramref name="zound"/>'s effect parameters, after its
+        /// modifiers. False means nothing is playing that sound, which is the normal answer most of the time.
+        ///
+        /// Addressed the same way a live change is, and translated through the layout THAT VOICE started with for the same
+        /// reason: an edit may already have rebuilt the sound's current layout, and the two can disagree about where a
+        /// parameter sits.
+        ///
+        /// When several voices of the same sound overlap this answers with the newest, because a display can only show one
+        /// number and the newest is the one whose start the listener just heard. It is a display aid, so "one of them,
+        /// predictably chosen" is the right trade rather than refusing to answer.
+        /// </summary>
+        public static bool TryReadLiveParam(Zound zound, int nodeIndex, int paramIndex, out float value) {
+            value = 0f;
+            if (zound == null) return false;
+            for (int i = live.Count - 1; i >= 0; i--) {
+                var g = live[i];
+                if (g == null) { live.RemoveAt(i); continue; }
+                if (!ReferenceEquals(g.playingZound, zound)) continue;
+                if (!g.IsPlaying) continue;
+
+                int flat = FlatIndexOf(g.playingLayout, nodeIndex, paramIndex);
+                if (flat < 0) continue;
+                if (g.TryReadLiveParam(flat, out value)) return true;
+            }
+            return false;
+        }
+
         /// <summary>Drops entries whose sound has ended or whose object has been destroyed.</summary>
         public static void Prune() {
             for (int i = live.Count - 1; i >= 0; i--) {

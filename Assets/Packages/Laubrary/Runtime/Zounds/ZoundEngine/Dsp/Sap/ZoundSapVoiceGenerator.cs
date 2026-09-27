@@ -268,6 +268,30 @@ namespace Laubrary.Zounds.Dsp {
             return true;
         }
 
+        /// <summary>
+        /// The value the engine is CURRENTLY using for one flat parameter — after every modifier bound to it has had its
+        /// say — or false when there is nothing playing to ask.
+        ///
+        /// This works for the same reason the monitor does: the graph took a copy of the voice, but a copy's native arrays
+        /// are handles onto the same memory, so a value the audio thread writes is visible through the copy this component
+        /// kept. It is a read of a float being written by another thread without any synchronisation, which is acceptable
+        /// precisely because of what it is for: a display that is redrawn many times a second and where a single frame
+        /// reading a half-updated value is invisible and harmless. Do not build anything that must be correct on it.
+        ///
+        /// Note what this is NOT. It is not the value the user typed, which the editor already has; it is not the value
+        /// stored anywhere; and it is only meaningful while the sound is playing, because a modifier's output only exists
+        /// while there is a voice evaluating it.
+        /// </summary>
+        public bool TryReadLiveParam(int flatIndex, out float value) {
+            value = 0f;
+            if (!created || flatIndex < 0) return false;
+            var p = voice.sap.pLive;
+            if (!p.IsCreated || flatIndex >= p.Length) return false;
+            if (!IsPlaying) return false;
+            value = p[flatIndex];
+            return true;
+        }
+
         private void OnDestroy() {
             SapVoiceRegistry.Unregister(this);
             ReleaseOwnVoice();

@@ -40,8 +40,12 @@ namespace Laubrary.Zounds {
 
         readonly EditorTools.ChainAnalyserPanel analyser = new EditorTools.ChainAnalyserPanel();
 
-        /// <summary>True while the analyser is showing something live, so the hosting window must keep repainting.</summary>
-        public bool wantsContinuousRepaint => analyser.wantsContinuousRepaint;
+        /// <summary>
+        /// True while something on screen is moving on its own and the hosting window must keep repainting: a live analyser
+        /// view, or a modulated parameter whose engine value is being tracked. Both switch themselves off — the overlay only
+        /// reports movement while a sound is actually playing — so an idle editor costs nothing.
+        /// </summary>
+        public bool wantsContinuousRepaint => analyser.wantsContinuousRepaint || liveParamsAnimating;
 
         // ───────────────────────────── entry ─────────────────────────────
 
@@ -49,7 +53,14 @@ namespace Laubrary.Zounds {
             var chain = ZoundDspPlayback.ResolveChain(zound, out var preset);
             bool linked = preset != null;
             var evt = Event.current;
-            if (evt.type == EventType.Repaint) { ZoundsEditorDiagnostics.chainEditorRepaints++; ZoundsEditorDiagnostics.BeginChainEditor(new Rect(0, 0, EditorGUIUtility.currentViewWidth, 0)); }
+            if (evt.type == EventType.Repaint) {
+                ZoundsEditorDiagnostics.chainEditorRepaints++;
+                ZoundsEditorDiagnostics.BeginChainEditor(new Rect(0, 0, EditorGUIUtility.currentViewWidth, 0));
+                // Cleared only on a repaint, and before the rows that set it, so it always describes the most recent frame
+                // that actually drew. Clearing it on layout passes too would drop the flag between frames and stall the
+                // animation the moment it started.
+                liveParamsAnimating = false;
+            }
 
             DrawLibraryBar(zound, chain, preset);
 
@@ -378,6 +389,7 @@ namespace Laubrary.Zounds {
 
             ZoundsEditorDiagnostics.Record("param.control " + pd.name, ctrl);
             if (bound) {
+                DrawLiveValueOverlay(zound, ctrl, pd, nodeIndex, paramIndex, value);
                 var tag = new Rect(ctrl.xMax + 4f, row.y, TagW, row.height);
                 ZoundsEditorDiagnostics.Record("param.tag " + pd.name, tag);
                 GUI.Label(tag, new GUIContent("~ " + BoundBy(chain, nodeIndex, paramIndex), "Modulated by this modifier; the slider sets the base value the modifier acts on."), EditorStyles.miniLabel);
@@ -387,6 +399,81 @@ namespace Laubrary.Zounds {
                 ShowParamMenu(zound, chain, nodeIndex, paramIndex, pd, overridden);
                 evt.Use();
             }
+        }
+
+        /// <summary>
+        /// Set while at least one modulated parameter had a live value to draw this frame, so the window knows to keep
+        /// redrawing — and, just as importantly, knows to STOP when nothing is playing.
+        /// </summary>
+        private bool liveParamsAnimating;
+
+        /// <summary>
+        /// Draws, on top of a modulated parameter's slider, what the engine is actually using for it right now.
+        ///
+        /// **Why a slider needs this at all.** Attaching an oscillator to a parameter turns the number on the slider into
+        /// only half the story: the slider says where the value was placed, and the engine is somewhere else entirely, moving.
+        /// Before this the only way to find out where was to listen and infer, which is exactly the kind of guessing the rest
+        /// of this editor exists to remove. So the authored value stays visible as a thin bright marker — it is still the
+        /// thing being edited, and it must not move while being dragged — and the live value is shown as fill either extending
+        /// past the marker or eaten back from it.
+        ///
+        /// **Extending and eating back are drawn differently on purpose.** When the engine is above the authored value there
+        /// is nothing underneath to cover, so a brighter block is added from the marker outwards. When it is below, the
+        /// slider has already drawn fill that is now wrong, so that stretch is dimmed back down. Both end up reading the same
+        /// way: colour reaches as far as the engine has taken the value, and the marker stays where the value was set.
+        ///
+        /// Dimming rather than repainting in the track's colour is deliberate. The track's colour lives in a style sheet
+        /// asset, so copying it here would mean a hard-coded colour that silently stops matching the moment the theme is
+        /// retouched — and a "cleared" stretch in slightly the wrong shade looks like a rendering fault. A translucent dark
+        /// pass reads as "not filled" over whatever the track happens to be, and cannot fall out of step with it.
+        ///
+        /// Nothing is drawn when the sound is not playing. A modifier's output exists only while a voice is evaluating it,
+        /// so inventing a position for it while silent would be decoration pretending to be data.
+        /// </summary>
+        private void DrawLiveValueOverlay(Zound zound, Rect ctrl, ParamDesc pd, int nodeIndex, int paramIndex, float authored) {
+            // Modifier parameters are drawn by the same row helper but are not engine parameters, and a choice strip or a
+            // toggle has no fill to extend. Only a real slider on a real effect parameter can show this.
+            if (nodeIndex < 0 || pd.IsChoice || pd.curve == ParamCurve.Toggle) return;
+            if (Event.current.type != EventType.Repaint) return;
+            if (!ZoundDspPlayback.TryReadLiveParam(zound, nodeIndex, paramIndex, out float liveValue)) return;
+
+            liveParamsAnimating = true;
+
+            float tAuthored = Normalised(pd, authored);
+            float tLive = Normalised(pd, liveValue);
+            if (Mathf.Abs(tLive - tAuthored) < 0.001f) { DrawMarker(ctrl, tAuthored); return; }
+
+            // Inset so the overlay sits inside the slider's own border rather than on top of it.
+            var inner = new Rect(ctrl.x + 1f, ctrl.y + 1f, ctrl.width - 2f, ctrl.height - 2f);
+            float xAuthored = inner.x + inner.width * tAuthored;
+            float xLive = inner.x + inner.width * tLive;
+
+            if (tLive > tAuthored)
+                EditorGUI.DrawRect(new Rect(xAuthored, inner.y, xLive - xAuthored, inner.height), new Color(0.45f, 0.75f, 1f, 0.5f));
+            else
+                EditorGUI.DrawRect(new Rect(xLive, inner.y, xAuthored - xLive, inner.height), new Color(0.04f, 0.04f, 0.06f, 0.72f));
+
+            DrawMarker(ctrl, tAuthored);
+        }
+
+        /// <summary>The thin line showing where the value was placed, which stays put however far the engine wanders.</summary>
+        private static void DrawMarker(Rect ctrl, float t) {
+            var inner = new Rect(ctrl.x + 1f, ctrl.y + 1f, ctrl.width - 2f, ctrl.height - 2f);
+            float x = Mathf.Clamp(inner.x + inner.width * t, inner.x, inner.xMax - 1f);
+            EditorGUI.DrawRect(new Rect(x, inner.y, 1f, inner.height), new Color(0.98f, 0.98f, 1f, 0.9f));
+        }
+
+        /// <summary>
+        /// Where a value sits along its slider, 0 to 1. This has to match how each control maps its travel or the overlay
+        /// would disagree with the fill underneath it — which is why the log case is spelled out again here rather than
+        /// assumed linear.
+        /// </summary>
+        private static float Normalised(ParamDesc pd, float value) {
+            if (pd.curve == ParamCurve.Logarithmic) {
+                float lmin = Mathf.Log(Mathf.Max(pd.min, 1e-4f)), lmax = Mathf.Log(Mathf.Max(pd.max, 1e-4f));
+                return Mathf.Clamp01(Mathf.InverseLerp(lmin, lmax, Mathf.Log(Mathf.Max(value, 1e-4f))));
+            }
+            return Mathf.Clamp01(Mathf.InverseLerp(pd.min, pd.max, value));
         }
 
         private static string BoundBy(ZoundEffectChain chain, int nodeIndex, int paramIndex) {

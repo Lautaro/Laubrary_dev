@@ -45,6 +45,15 @@ namespace Laubrary.Zounds.Dsp {
             return SapVoiceRegistry.PushLiveParam(zound, nodeIndex, paramIndex, value);
         }
 
+        /// <summary>
+        /// The value a playing voice is using for one parameter right now, modifiers included; false when nothing is
+        /// playing this sound. The counterpart to <see cref="PushLiveParam"/>: that one sends the authored value down,
+        /// this one reads back what the engine made of it.
+        /// </summary>
+        public static bool TryReadLiveParam(Zound zound, int nodeIndex, int paramIndex, out float value) {
+            return SapVoiceRegistry.TryReadLiveParam(zound, nodeIndex, paramIndex, out value);
+        }
+
         /// <summary>The chain a Zound plays with: its preset by live reference, else its inline chain.</summary>
         public static ZoundEffectChain ResolveChain(Zound zound, out ZoundChainPreset preset) {
             preset = null;
