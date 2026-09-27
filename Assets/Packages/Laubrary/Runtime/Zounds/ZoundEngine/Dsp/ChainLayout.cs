@@ -118,6 +118,9 @@ namespace Laubrary.Zounds.Dsp {
             L.paramCount = SourceStageParam.Count;
             int state = 0;
             int derivedPos = 0;
+            // One scratch buffer reused for every node, holding that node's clamped parameters in the 0-based
+            // form the sizing helpers expect. Sized to the most parameters any single effect declares.
+            var clampedParams = new float[16];
             if (chain != null) {
                 L.sourceVersion = chain.version;
                 int nodes = Mathf.Min(chain.nodes.Count, ZoundDspConstants.MAX_NODES);
@@ -138,7 +141,17 @@ namespace Laubrary.Zounds.Dsp {
                     }
                     L.paramCount += d.parameters.Length;
                     L.stateOffset[i] = state;
-                    if (d.isStateful) state += d.stateFloats(n.p, sampleRate);
+
+                    // Sized from the CLAMPED parameters, not the authored ones. The render only ever sees the
+                    // clamped values, so sizing from the raw authored values means the amount of memory an
+                    // effect gets and the amount it behaves as though it has are derived from two different
+                    // numbers. They happen to agree today, but only because each effect's declared range and
+                    // the clamps inside its sizing helper were written to match by hand, in separate places —
+                    // and if they ever stop matching, the symptom is an effect indexing past its own buffer.
+                    for (int k = 0; k < d.parameters.Length && k < clampedParams.Length; k++) {
+                        clampedParams[k] = L.pBase[L.paramOffset[i] + k];
+                    }
+                    if (d.isStateful) state += d.stateFloats(clampedParams, sampleRate);
                     if (d.heavy) L.heavy = true;
 
                     // Precompute the derived values this node's Reset/Process need at render time, using the
@@ -155,6 +168,13 @@ namespace Laubrary.Zounds.Dsp {
                     }
                     else if (n.type == ZoundEffectType.Chorus) {
                         L.derivedFlat[derivedPos++] = ZoundEffectDescriptors.ModDelayFrames(40f, sampleRate);
+                    }
+                    else if (n.type == ZoundEffectType.Delay) {
+                        // From the clamped longest-delay parameter, through the one function that also sizes the
+                        // buffer just above — so the length the delay indexes with and the length it was given
+                        // are now provably the same number rather than two calculations that agree by hand.
+                        L.derivedFlat[derivedPos++] =
+                            ZoundEffectDescriptors.DelayRingFramesFromMaxMs(L.pBase[L.paramOffset[i] + 3], sampleRate);
                     }
                     L.derivedCountOf[i] = derivedPos - L.derivedOffset[i];
                 }

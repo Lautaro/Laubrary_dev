@@ -240,6 +240,19 @@ namespace Laubrary.Zounds.Dsp {
 
         public static int DelayRingFrames(float[] p, int sr) {
             float maxMs = p != null && p.Length > 3 ? p[3] : 500f;
+            return DelayRingFramesFromMaxMs(maxMs, sr);
+        }
+
+        /// <summary>
+        /// The delay's ring length, from its longest permitted delay time. **This is the single definition.**
+        ///
+        /// It exists separately because the same number decides two different things — how much memory the
+        /// delay is given, and which positions inside that memory it reads and writes — and those two are
+        /// computed at different times, from different places. Writing the arithmetic out twice is how a delay
+        /// ends up reading past the end of its own buffer, which is a memory fault rather than a wrong sound.
+        /// The same trap was already found and removed in the reverb; this is the last effect that had it.
+        /// </summary>
+        public static int DelayRingFramesFromMaxMs(float maxMs, int sr) {
             maxMs = Mathf.Clamp(maxMs, 10f, MAX_DELAY_MS);
             return Mathf.CeilToInt(maxMs * 0.001f * sr) + 4;
         }

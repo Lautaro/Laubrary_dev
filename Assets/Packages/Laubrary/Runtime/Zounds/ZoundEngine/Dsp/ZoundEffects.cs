@@ -19,7 +19,7 @@ namespace Laubrary.Zounds.Dsp {
                 int s = L.stateOffset[i];
                 int q = L.paramOffset[i];
                 switch (L.nodeType[i]) {
-                    case ZoundEffectType.Delay: DelayEffect.Reset(state, s, L.pBase, q, sampleRate); break;
+                    case ZoundEffectType.Delay: DelayEffect.Reset(state, s, L.derivedFlat, L.derivedOffset[i]); break;
                     case ZoundEffectType.Reverb: ReverbEffect.Reset(state, s, L.derivedFlat, L.derivedOffset[i]); break;
                     case ZoundEffectType.Flanger: ModDelayEffect.Reset(state, s, L.derivedFlat[L.derivedOffset[i]]); break;
                     case ZoundEffectType.Chorus: ModDelayEffect.Reset(state, s, L.derivedFlat[L.derivedOffset[i]]); break;
@@ -311,11 +311,15 @@ namespace Laubrary.Zounds.Dsp {
     public static class DelayEffect {
         private const int HEADER = 4;
 
-        public static void Reset(NativeArray<float> st, int s, NativeArray<float> pBase, int q, int sr) {
-            float maxMs = Mathf.Clamp(pBase[q + 3], 10f, ZoundEffectDescriptors.MAX_DELAY_MS);
-            int ring = Mathf.CeilToInt(maxMs * 0.001f * sr) + 4;
+        /// <summary>
+        /// Takes the ring length from the layout's precomputed table rather than recalculating it. It used to
+        /// recalculate, which meant the length deciding how much memory this delay was GIVEN and the length
+        /// deciding which positions it READS were two separate calculations that agreed only because they were
+        /// written to match by hand. They now come from one function, called once when the chain is laid out.
+        /// </summary>
+        public static void Reset(NativeArray<float> st, int s, NativeArray<int> derived, int dOff) {
             st[s] = 0f;
-            st[s + 1] = ring;
+            st[s + 1] = derived[dOff];
         }
 
         public static void Process(NativeArray<float> st, int s, NativeArray<float> pStart, NativeArray<float> pStep, int q, NativeArray<float> L, NativeArray<float> R, int off, int n, int sr) {
