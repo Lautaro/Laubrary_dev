@@ -269,7 +269,9 @@ namespace Laubrary.Zounds.Dsp {
                         "Play time: the curve follows the clock instead, so it takes the same real time whatever the pitch is doing."
                     },
                     "Whether the curve is measured against the audio being read or against elapsed time. They differ as soon as pitch is not one."));
-            ModDef(ZoundModifierType.Lfo, "LFO", "Oscillates, or glides between random targets.", 8,
+            // State: 0 phase, 1 current random value, 2 random target, 3 time to next target, 4 glide start, 5 glide
+            // progress, 6 strength-curve segment, 7 random walk started, 8 shared walk's interval number, 9 its seed.
+            ModDef(ZoundModifierType.Lfo, "LFO", "Oscillates, or glides between random targets.", 10,
                 new ParamDesc("Amount", "", -4f, 4f, 1f, ParamCurve.Linear, false, ModifierOp.Add, null, null,
                     "How big a swing this oscillator produces before the binding's own depth scales it. One is a full swing; a negative value turns the wave upside down."),
                 new ParamDesc("Rate", "Hz", 0f, 50f, 1f, ParamCurve.Logarithmic, false, ModifierOp.Add, null, null,
@@ -282,8 +284,16 @@ namespace Laubrary.Zounds.Dsp {
                         "Saw: climbs steadily, then drops instantly back. Good for a repeated fall or rise that restarts.",
                         "Square: jumps between the two extremes with nothing in between — a hard alternation, not a sweep."
                     }),
-                new ParamDesc("Reset phase", "", 0f, 1f, 1f, ParamCurve.Toggle, false, ModifierOp.Add, null, null,
-                    "On: every play starts at the same point in the wave, so repeated plays sound identical. Off: the wave runs continuously in the background and each play catches it wherever it happens to be, which makes repeats differ from each other."),
+                // Stored as 0/1 exactly as the old "Reset phase" toggle was (1 = restart), so every existing sound keeps
+                // its behaviour; only the way it is presented changed. The owner asked for these two as named modes
+                // (2026-09-27, T-0428) and did not recognise them behind an unexplained on/off.
+                new ParamDesc("Runs", "", 0f, 1f, 1f, ParamCurve.Integer, false, ModifierOp.Add,
+                    new[] { "Always", "Per play" },
+                    new[] {
+                        "Always: the oscillator runs all the time on its own clock, whether or not anything is playing, and each play picks it up wherever it has got to. Repeats differ from each other; two plays at once hear the same movement. In Random mode every play follows the same continuous random walk. Changing the rate moves where the oscillator is, since it is worked out from the clock.",
+                        "Per play: the oscillator starts from the beginning of its cycle every time the sound is triggered, so every play moves identically. In Random mode each play starts its own fresh random walk."
+                    },
+                    "Whether the oscillator restarts each time the sound plays, or keeps running between plays. (An envelope always starts with the play, so it has no such choice.)"),
                 new ParamDesc("Mode", "", 0f, 1f, 0f, ParamCurve.Integer, false, ModifierOp.Add,
                     new[] { "Oscillate", "Random" },
                     new[] {

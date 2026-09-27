@@ -401,6 +401,24 @@ namespace Laubrary.Zounds.Dsp {
 
         // ── modifiers (control rate) ──
 
+        /// <summary>
+        /// The shared random walk's target for one interval: a fixed function of the interval's number and the walk's
+        /// seed, so every play of the same oscillator — whenever it started, on whichever thread — computes the same walk
+        /// without sharing any state. Integer hashing only, so it gives identical answers compiled and managed.
+        /// </summary>
+        public static float LfoWalkTarget(int interval, int seed) {
+            uint h = (uint)interval * 0x9E3779B1u ^ (uint)seed * 0x85EBCA77u;
+            h ^= h >> 16; h *= 0x7FEB352Du; h ^= h >> 15; h *= 0x846CA68Bu; h ^= h >> 16;
+            return (h & 0xFFFFFF) / 16777216f * 2f - 1f;
+        }
+
+        /// <summary>
+        /// The interval counter is kept in a float, which counts whole numbers exactly only up to about sixteen million,
+        /// so it wraps well before that. At the shortest interval (a hundredth of a second) that is a wrap every
+        /// twenty-three hours, invisible except as a new stretch of random walk, which is what the walk is anyway.
+        /// </summary>
+        public const float LfoWalkWrap = 8388608f;
+
         private static float NextRandom01(ref SapVoiceState sap) {
             sap.rng ^= sap.rng << 13; sap.rng ^= sap.rng >> 17; sap.rng ^= sap.rng << 5;
             return (sap.rng & 0xFFFFFF) / 16777216f;
@@ -477,7 +495,17 @@ namespace Laubrary.Zounds.Dsp {
                             if (sap.arena[so + 3] <= 0f) {
                                 sap.arena[so + 3] += every;
                                 sap.arena[so + 4] = sap.arena[so + 1];
-                                sap.arena[so + 2] = NextRandom01(ref sap) * 2f - 1f;
+                                // "Keeps running": the next target is the shared walk's next value, the same one every
+                                // other play of this oscillator draws, so overlapping plays stay in step. "Per play":
+                                // this play's own fresh draw.
+                                bool keepsRunning = mpc > 3 && mp[mpo + 3] < 0.5f;
+                                if (keepsRunning) {
+                                    float next = sap.arena[so + 8] + 1f;
+                                    if (next >= LfoWalkWrap) next -= LfoWalkWrap;
+                                    sap.arena[so + 8] = next;
+                                    sap.arena[so + 2] = LfoWalkTarget((int)next, (int)sap.arena[so + 9]);
+                                }
+                                else sap.arena[so + 2] = NextRandom01(ref sap) * 2f - 1f;
                                 sap.arena[so + 5] = 0f;
                             }
                             if (rate <= 0f) sap.arena[so + 1] = sap.arena[so + 2];

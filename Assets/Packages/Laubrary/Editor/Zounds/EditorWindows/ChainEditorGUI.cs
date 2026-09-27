@@ -782,7 +782,7 @@ namespace Laubrary.Zounds {
             rowNoteTip = "One cycle at this rate takes " + (1f / rate).ToString("0.0") + " s, but a play of this sound lasts "
                        + play.ToString("0.00") + " s, so each play hears only " + Mathf.RoundToInt(cycles * 100f)
                        + "% of one cycle. That sounds like a slow sweep, not a wobble, whatever the shape."
-                       + (freeRunning ? " With Reset phase off, each play also starts wherever the oscillator has got to, so every play hears a different part of the cycle." : "")
+                       + (freeRunning ? " Because it runs Always, each play also picks it up wherever it has got to, so every play hears a different part of the cycle." : " Because it runs Per play, every play hears the same opening part of the cycle.")
                        + " For at least one full cycle per play, set the rate above " + (1f / play).ToString("0.0#") + " Hz.";
         }
 

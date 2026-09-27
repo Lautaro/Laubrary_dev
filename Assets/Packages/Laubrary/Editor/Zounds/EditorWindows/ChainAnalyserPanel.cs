@@ -297,6 +297,9 @@ namespace Laubrary.Zounds.EditorTools {
                 GUI.Label(labelRect, new GUIContent(label, have
                     ? label + ", across one play from start (left) to end (right). The line is where the engine actually puts it, as a position along its slider; the faint level is where you set it; the upright line is the moment shown in the bars below."
                       + (following ? " The dot is its value in the playing sound right now." : " Press play to see the playing sound's own value as a dot.")
+                      + (RunsAlways(lanes[r].modifierIndex)
+                          ? " Its oscillator runs Always, so a real play picks it up wherever it has got to; this line shows a play that happened to start at the top of the cycle, and the dot shows where a real one is."
+                          : "")
                     : ""), labelStyle);
                 if (Event.current.type != EventType.Repaint) continue;
 
@@ -338,6 +341,13 @@ namespace Laubrary.Zounds.EditorTools {
                     EditorGUI.DrawRect(new Rect(xNow - 3f, yl - 3f, 6f, 6f), new Color(1f, 0.85f, 0.35f));
                 }
             }
+        }
+
+        bool RunsAlways(int modifierIndex) {
+            var mods = measuredChain?.modifiers;
+            if (mods == null || modifierIndex < 0 || modifierIndex >= mods.Count) return false;
+            var m = mods[modifierIndex];
+            return m.type == ZoundModifierType.Lfo && m.p != null && m.p.Length > 3 && m.p[3] < 0.5f;
         }
 
         static bool TryLivePosition(Zound zound, ChainSpectrumProbe.Lane lane, out float position01) {

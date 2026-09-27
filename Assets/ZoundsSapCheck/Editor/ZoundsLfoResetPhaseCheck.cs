@@ -1,5 +1,6 @@
-// A kept check, runnable from the Laubrary menu — proves that an oscillating modulator's "reset phase" setting
-// actually does something, by reading the phase the engine starts each play at.
+// A kept check, runnable from the Laubrary menu — proves that an oscillating modulator's "Runs" setting (formerly
+// "Reset phase": Per play = reset on, Always = reset off) actually does something, by reading the phase the engine starts
+// each play at, and, for Random mode, that a later play joins the same random walk an earlier one is following.
 //
 // The behaviour under test, in plain terms: with reset ON, every play of a sound should start its oscillation at the
 // same point, so the sound is identical each time. With reset OFF the oscillation is meant to run continuously whether
@@ -23,7 +24,7 @@ public static class ZoundsLfoResetPhaseCheck {
     const int SR = 48000;
     const float RATE_HZ = 1f;
 
-    [MenuItem("Laubrary/Zounds/Checks/9 - Does an oscillator's reset-phase setting work")]
+    [MenuItem("Laubrary/Zounds/Checks/9 - Does an oscillator's Runs (always or per play) setting work")]
     public static void RunFromMenu() { Debug.Log("[ZoundsLfoResetPhaseCheck]\n" + Execute()); }
 
     public static string Execute() {
@@ -62,6 +63,30 @@ public static class ZoundsLfoResetPhaseCheck {
             sb.Append("   ok: different, so each play catches the oscillation where it currently is\n");
         }
 
+        // "Always" in Random mode (T-0428): the oscillator glides between random targets on ONE walk that runs all the
+        // time, so a play started later must pick up exactly where an earlier play has got to, not start a walk of its
+        // own. Checked by rendering an earlier play for a while and comparing it with a later play's first value.
+        sb.Append("\n\n=== RANDOM MODE, 'ALWAYS': DOES A LATER PLAY JOIN THE SAME WALK? ===\n");
+        var walkChain = RandomWalkChain();
+        double earlierStart = Time.realtimeSinceStartupAsDouble;
+        var earlier = RenderModifierOutput(walkChain, 1f);
+        WaitForTheClockToMove();
+        double laterStart = Time.realtimeSinceStartupAsDouble;
+        var later = RenderModifierOutput(walkChain, 0.02f);
+        int at = Mathf.Clamp((int)System.Math.Round((laterStart - earlierStart) * SR / ZoundDspConstants.CONTROL_BLOCK) - 1, 1, earlier.Count - 2);
+        // Timing is only known to within one control step either side (reading the clock and starting a render are not
+        // the same instant), so the later play must fall inside what the earlier play covered around that moment.
+        float lo = Mathf.Min(earlier[at - 1], Mathf.Min(earlier[at], earlier[at + 1])) - 0.002f;
+        float hi = Mathf.Max(earlier[at - 1], Mathf.Max(earlier[at], earlier[at + 1])) + 0.002f;
+        float wanderLo = float.MaxValue, wanderHi = float.MinValue;
+        foreach (var v in earlier) { wanderLo = Mathf.Min(wanderLo, v); wanderHi = Mathf.Max(wanderHi, v); }
+        sb.Append("later play starts at ").Append(later[0].ToString("0.0000")).Append("; earlier play at that moment ")
+          .Append(earlier[at].ToString("0.0000")).Append("   (").Append((laterStart - earlierStart).ToString("F3"))
+          .Append(" s later; the walk covered ").Append(wanderLo.ToString("0.00")).Append(" to ").Append(wanderHi.ToString("0.00")).Append(")\n");
+        if (wanderHi - wanderLo < 0.05f) { sb.Append("   <<< FAILED: the walk barely moves, so this proves nothing\n"); failures++; }
+        else if (later[0] < lo || later[0] > hi) { sb.Append("   <<< FAILED: the later play started a walk of its own\n"); failures++; }
+        else sb.Append("   ok: the later play joined the walk the earlier one was following\n");
+
         // The same class of bug affected a step list set to advance once per play: its position also lived in state that
         // is wiped before every play, so it took the first step every time. Checked here because it is the same fix.
         sb.Append("\n=== DOES A STEP LIST ADVANCE FROM ONE PLAY TO THE NEXT? ===\n");
@@ -79,6 +104,36 @@ public static class ZoundsLfoResetPhaseCheck {
         sb.Append(failures == 0 ? "\nVERDICT: both settings behave as described.\n"
                                 : "\nVERDICT: " + failures + " check(s) FAILED.\n");
         return sb.ToString();
+    }
+
+    /// A Random-mode oscillator set to "Always", gliding only part of the way between targets, so a later play lands on
+    /// the right value only if it also replays the unfinished glides before it, which is the hard part.
+    static ZoundEffectChain RandomWalkChain() {
+        var chain = new ZoundEffectChain();
+        chain.nodes.Add(new ZoundEffectNode(ZoundEffectType.LowPass));
+        var lfo = new ZoundModifier(ZoundModifierType.Lfo);
+        lfo.p[0] = 1f;       // amount
+        lfo.p[1] = 3f;       // glide rate: 60% of the way per interval, so glides are left unfinished
+        lfo.p[3] = 0f;       // runs: always
+        lfo.p[4] = 1f;       // random
+        lfo.p[5] = 0.2f;     // new target every 0.2 s
+        lfo.p[6] = 0f;       // offset
+        lfo.curve = null;
+        chain.modifiers.Add(lfo);
+        chain.bindings.Add(new ZoundModifierBinding {
+            modifierIndex = 0, nodeIndex = 0, paramIndex = 0, combine = ModulationCombine.Shift, depth = 0.25f,
+            schema = ChainModulationCompat.CURRENT_SCHEMA,
+        });
+        return chain;
+    }
+
+    /// The modifier's own output after every engine control step of an offline render.
+    static System.Collections.Generic.List<float> RenderModifierOutput(ZoundEffectChain chain, float seconds) {
+        var values = new System.Collections.Generic.List<float>();
+        var input = new float[(int)(seconds * SR) * 2];
+        ZoundDspOffline.Render(input, 2, SR, SR, chain, 1f, 1f, seconds, 0f, 0f, ZoundDspConstants.CONTROL_BLOCK, false,
+                               (voice, written) => { if (written > 0) values.Add(voice.modValues[0]); });
+        return values;
     }
 
     /// The step a fresh play of this sound starts on. Called repeatedly with the SAME sound, because the position is

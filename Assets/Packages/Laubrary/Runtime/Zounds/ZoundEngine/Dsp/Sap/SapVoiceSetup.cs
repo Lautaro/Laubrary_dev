@@ -129,6 +129,73 @@ namespace Laubrary.Zounds.Dsp {
         /// play is on, and a clean slate always says "the first". So without this stage both silently do the opposite of
         /// what their setting says — and the failure looks like the feature not working rather than like a bug.
         /// </summary>
+        /// <summary>
+        /// Puts a play of a Random-mode oscillator set to "Always" onto the one random walk that oscillator follows all
+        /// the time, at the point the walk has reached now.
+        ///
+        /// **The walk is a function of the clock, not of anyone's history.** Time is cut into intervals of the "New target
+        /// every" length, numbered from the clock; each interval's target is a fixed hash of its number, so every play
+        /// works out the same targets without sharing state. The value between targets is a glide, and a glide that has
+        /// not finished when the next target arrives carries its unfinished position forward — so the value now depends
+        /// on the glides before it. Rather than store that history anywhere, it is replayed here from far enough back
+        /// that where the replay started no longer shows (each interval closes at least the glide's share of the gap, so
+        /// the starting point fades geometrically); a play started now and a play that has been running for a minute then
+        /// agree to within a thousandth.
+        ///
+        /// The seed is taken from the sound's name and the oscillator's position in its list: two oscillators in the same
+        /// sound wander independently, and the same one wanders the same way wherever that sound is played.
+        /// </summary>
+        private static void SeedSharedRandomWalk(ref SapVoiceState sap, ChainLayout layout, int m, int po, int pc, int so,
+                                                 Zound zound, double now) {
+            float rate = pc > 1 ? layout.modParamFlat[po + 1] : 1f;
+            float every = pc > 5 ? layout.modParamFlat[po + 5] : 0.5f;
+            if (every < 0.001f) every = 0.001f;
+            int seed = StableSeed(zound != null ? zound.name : null, m);
+
+            double intervals = now / every;
+            double whole = System.Math.Floor(intervals);
+            float intoInterval = (float)((intervals - whole) * every);
+            long k = (long)whole;
+
+            // How much of the remaining gap one interval's glide closes. A rate of zero jumps straight to the target.
+            float share = rate <= 0f ? 1f : System.Math.Min(1f, rate * every);
+            int replay = share >= 1f ? 1 : (int)System.Math.Min(4000, System.Math.Ceiling(7.0 / share));
+
+            float current = SapVoiceRender.LfoWalkTarget(Wrap(k - replay - 1), seed);
+            for (long i = k - replay; i < k; i++) {
+                float target = SapVoiceRender.LfoWalkTarget(Wrap(i), seed);
+                current += (target - current) * share;
+            }
+            // Now inside interval k: gliding from where the last one left off towards this interval's target.
+            float from = current;
+            float to = SapVoiceRender.LfoWalkTarget(Wrap(k), seed);
+            float progress = rate <= 0f ? 1f : System.Math.Min(1f, rate * intoInterval);
+
+            sap.arena[so + 1] = from + (to - from) * progress;
+            sap.arena[so + 2] = to;
+            sap.arena[so + 3] = every - intoInterval;
+            sap.arena[so + 4] = from;
+            sap.arena[so + 5] = rate <= 0f ? 0f : rate * intoInterval;
+            sap.arena[so + 7] = 1f;          // started: the render must not draw its own first targets over this
+            sap.arena[so + 8] = Wrap(k);
+            sap.arena[so + 9] = seed;
+        }
+
+        private static int Wrap(long interval) {
+            long w = interval % (long)SapVoiceRender.LfoWalkWrap;
+            if (w < 0) w += (long)SapVoiceRender.LfoWalkWrap;
+            return (int)w;
+        }
+
+        /// <summary>A seed that is the same in every session for the same sound and oscillator, and small enough to be
+        /// held exactly in the float state the audio side reads it from.</summary>
+        private static int StableSeed(string name, int modifierIndex) {
+            uint h = 2166136261u;
+            if (name != null) for (int i = 0; i < name.Length; i++) { h ^= name[i]; h *= 16777619u; }
+            h ^= (uint)modifierIndex * 0x9E3779B1u;
+            return (int)(h & 0xFFFFF);
+        }
+
         private static void SeedModifiersAtTrigger(ref SapVoiceState sap, ChainLayout layout, Zound zound) {
             for (int m = 0; m < layout.modCount && m < ZoundDspConstants.MAX_MODIFIERS; m++) {
                 int po = layout.modParamOffset[m];
@@ -157,9 +224,13 @@ namespace Laubrary.Zounds.Dsp {
                         bool resetPhase = pc > 3 ? layout.modParamFlat[po + 3] >= 0.5f : true;
                         if (resetPhase) break;
                         float rate = pc > 1 ? layout.modParamFlat[po + 1] : 1f;
-                        double phase = (UnityEngine.Time.realtimeSinceStartupAsDouble * rate) % 1.0;
+                        double now = UnityEngine.Time.realtimeSinceStartupAsDouble;
+                        double phase = (now * rate) % 1.0;
                         if (phase < 0d) phase += 1d;
                         sap.arena[so] = (float)phase;
+
+                        bool random = pc > 4 && (int)layout.modParamFlat[po + 4] == (int)LfoMode.Random;
+                        if (random && so + 9 < sap.arena.Length) SeedSharedRandomWalk(ref sap, layout, m, po, pc, so, zound, now);
                         break;
                     }
 

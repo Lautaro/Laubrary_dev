@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — an LFO either restarts on every play or keeps running between plays, and says which
+
+- **The choice is now a named control**, `Runs: Always | Per play`, replacing the unexplained `Reset phase` on/off. Stored values are unchanged (1 = Per play, 0 = Always), so every existing sound behaves exactly as before.
+- **Oscillate** already did both, now verified: Per play starts every play at the top of the cycle; Always derives each play's phase from elapsed real time × rate, so a play picks the oscillation up where a continuously running one would be (measured to within one 64-sample control step).
+- **Random mode gains a real "Always".** It used to start a fresh random walk every play whatever the setting said. Now, with Always, every play follows one shared walk: each target is a fixed hash of its interval number (intervals counted from the clock) and a seed from the sound's name and the oscillator's position, and a play joining mid-walk replays the unfinished glides before it, so it lands on the value an already-running play has. LFO state grows from 8 to 10 floats.
+- Envelopes are unchanged: they always follow the sound's own trigger.
+- Kept check 9 (`Laubrary > Zounds > Checks`) now also proves a later Random/Always play joins the earlier play's walk, and fails when it does not.
+
 ### Zounds — the chain editor's analyser, modulated sliders and modifier curves show what is actually happening
 
 - **Analyser follows the sound.** The combined view measures across the sound's real play length (it measured a fixed 1.5 s before, which misplaced anything laid out "over the play" and, with a slow oscillator, looped a slice of one cycle that looked like a ramp). While the sound plays it shows the moment being heard; otherwise it loops the play at real speed. It keeps redrawing while anything moves (before, it stopped after each measurement and advanced only when something else redrew the window), and moves smoothly between readings instead of stepping at about three frames a second, at half speed.
