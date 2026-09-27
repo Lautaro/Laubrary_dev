@@ -94,7 +94,7 @@ namespace Laubrary.Zounds.EditorTools {
         static void StatusLine(string message) {
             var row = GUILayoutUtility.GetRect(10f, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
             if (string.IsNullOrEmpty(message)) return;
-            var style = new GUIStyle(EditorStyles.miniLabel) { wordWrap = false, clipping = TextClipping.Clip };
+            var style = new GUIStyle(EditorStyles.miniLabel) { wordWrap = false, clipping = TextClipping.Ellipsis };
             style.normal.textColor = new Color(0.62f, 0.62f, 0.68f);
             GUI.Label(row, new GUIContent(message, message), style);
         }
@@ -251,14 +251,17 @@ namespace Laubrary.Zounds.EditorTools {
 
                 var desc = Dsp.ZoundEffectDescriptors.Get(node.type);
                 string name = desc != null && !string.IsNullOrEmpty(desc.displayName) ? desc.displayName : node.type.ToString();
-                string verdict = verdicts
-                    ? ChainEffectFidelity.Explain(node.type)
-                    : "in the chain — the views on this tab read the real output, so every effect is in what you are seeing";
-                string text = name + (node.enabled ? "" : " (off)") + " — " + verdict;
+                // Only the combined view needs a verdict per effect, because only it INTERPRETS them. The live views read the
+                // real output, where every effect is present by definition and there is nothing to qualify — so they show
+                // the names alone. Repeating one identical sentence down every row, as a first attempt did, filled the space
+                // without adding anything and made four different effects look like four copies of the same thing.
+                string text = name + (node.enabled ? "" : " (off)")
+                            + (verdicts ? " — " + ChainEffectFidelity.Explain(node.type) : "");
+                string tip = name + " — " + ChainEffectFidelity.Explain(node.type);
 
-                var style = new GUIStyle(EditorStyles.miniLabel) { wordWrap = false, clipping = TextClipping.Clip };
+                var style = new GUIStyle(EditorStyles.miniLabel) { wordWrap = false, clipping = TextClipping.Ellipsis };
                 if (!node.enabled) style.normal.textColor = new Color(0.5f, 0.5f, 0.5f);
-                GUI.Label(new Rect(row.x + 13f, row.y, row.width - 13f, row.height), new GUIContent(text, text), style);
+                GUI.Label(new Rect(row.x + 13f, row.y, row.width - 13f, row.height), new GUIContent(text, tip), style);
             }
         }
 
