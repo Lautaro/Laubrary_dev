@@ -47,7 +47,12 @@ The layout holds three variable-length-per-modulator arrays — each modulator's
 
 The dry and modulator voices stop at 24576 because their source is exhausted and the voice frees itself; the delay and reverb chains keep the voice alive to 48000 so their tails ring out. A port that made these equal would have broken tail handling.
 
-### Do NOT trust this probe's allocation figure
+### Do NOT trust this probe's allocation figure — but the property itself is now MEASURED elsewhere
+
+**Settled 2026-09-27.** The zero-allocation property has since been established properly, on a quiet heap, one chain at a time, with a discarded warm-up measurement and a long enough run that a per-block allocation of even a few bytes would accumulate into an obvious number. Result: **zero bytes, on five chains including all sixteen effects at once and a modulated chain, on two independent runs each.** The retraction below still applies to THIS probe's figure, which remains too noisy to use — it just no longer means the property is unknown.
+
+The earlier retraction, kept because the reasoning still matters:
+
 
 An earlier version of this document claimed the zero-allocation guarantee was "measured" here. **That was an overclaim and is retracted.** The figure comes from sampling total managed heap around the render loop, which also catches anything else allocating at the same time — including the probe's own text building between captures, and ordinary editor activity. Observed values for the *same unchanged engine code* ranged from 0 to 184320 bytes across runs purely depending on what else was happening.
 
