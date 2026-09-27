@@ -27,7 +27,7 @@ namespace Laubrary.Zounds.Dsp {
         /// Returns true when this block finished the voice (the caller must then push AudioEnd and free it).
         /// </summary>
         public static bool Render(ref SapVoiceState sap, in SapChainLayout L, int frames, int sampleRate,
-                                   PcmClip pcm, bool isGroup, double clipRate, float sourceDuration, int liveChildren,
+                                   in SapPcm pcm, bool isGroup, double clipRate, float sourceDuration, int liveChildren,
                                    bool killRequested, bool releaseRequested,
                                    float basePitchTargetNow, float outGainTargetRaw,
                                    ref int state, ref bool protectedFromSteal) {
@@ -44,7 +44,7 @@ namespace Laubrary.Zounds.Dsp {
             float invN;
             int off = 0;
             float outGainTargetNow = sap.stopping ? 0f : outGainTargetRaw;
-            var ctx = new VoiceContext { sampleRate = sampleRate, sourceDuration = sourceDuration, sourcePeak = pcm != null ? pcm.peak : 1f };
+            var ctx = new VoiceContext { sampleRate = sampleRate, sourceDuration = sourceDuration, sourcePeak = pcm.IsCreated ? pcm.peak : 1f };
             if (isGroup && sap.released && liveChildren == 0 && !sap.sourceExhausted) { sap.sourceExhausted = true; sap.samplesSinceSourceEnd = 0; sap.silentSamples = 0; }
 
             while (off < frames) {
@@ -214,7 +214,7 @@ namespace Laubrary.Zounds.Dsp {
 
         // ── source stage: Catmull-Rom cubic Hermite, per-sample pitch ──
 
-        private static void ReadSource(ref SapVoiceState sap, PcmClip pcm, double clipRate, int off, int n, float basePitchStart, float basePitchStep) {
+        private static void ReadSource(ref SapVoiceState sap, in SapPcm pcm, double clipRate, int off, int n, float basePitchStart, float basePitchStep) {
             var samples = pcm.samples;
             int ch = pcm.channels;
             bool anyActive = false;

@@ -88,6 +88,8 @@ namespace Laubrary.Zounds.Dsp {
         internal ChainLayout layout;
         /// <summary>Burst-readable copy of <see cref="layout"/> for this play; the audio thread reads only this. Built in Prepare/PrepareGroup, disposed in Dispose (and before a new one replaces it — a voice can be set up more than once).</summary>
         internal SapChainLayout sapLayout;
+        /// <summary>Burst-readable copy of <see cref="pcm"/>'s samples for this play; the audio thread reads only this. Built in Prepare (empty/not created for a group, which has no source stage), disposed in Dispose (and before a new one replaces it — a voice can be set up more than once). <see cref="pcm"/> itself is kept only for anything main-thread-side that still needs the managed clip (see Prepare).</summary>
+        internal SapPcm sapPcm;
         internal float sourceDuration;   // seconds, resolved on the main thread
         internal double clipRate;        // pcm.frequency / sampleRate
         internal bool protectedFromSteal;
@@ -126,6 +128,7 @@ namespace Laubrary.Zounds.Dsp {
         public void Dispose() {
             sap.Dispose();
             if (sapLayout.IsCreated) sapLayout.Dispose();
+            if (sapPcm.IsCreated) sapPcm.Dispose();
         }
 
         public VoiceState State => (VoiceState)Volatile.Read(ref state);
@@ -142,6 +145,8 @@ namespace Laubrary.Zounds.Dsp {
             this.layout = layout;
             if (sapLayout.IsCreated) sapLayout.Dispose();
             sapLayout = SapChainLayout.Create(layout, Allocator.Persistent);
+            if (sapPcm.IsCreated) sapPcm.Dispose();
+            sapPcm = SapPcm.Create(pcm, Allocator.Persistent);
             this.sourceDuration = sourceDuration;
             clipRate = (double)pcm.frequency / sampleRate;
             basePitchTarget = basePitch; sap.basePitchLive = basePitch;
@@ -192,6 +197,8 @@ namespace Laubrary.Zounds.Dsp {
             this.layout = layout;
             if (sapLayout.IsCreated) sapLayout.Dispose();
             sapLayout = SapChainLayout.Create(layout, Allocator.Persistent);
+            if (sapPcm.IsCreated) sapPcm.Dispose();
+            sapPcm = default;
             sourceDuration = duration;
             clipRate = 1.0;
             basePitchTarget = 1f; sap.basePitchLive = 1f;
@@ -342,7 +349,7 @@ namespace Laubrary.Zounds.Dsp {
             float outGainTargetRaw = Volatile.Read(ref outGainTarget);
 
             bool voiceFinished = SapVoiceRender.Render(ref sap, in sapLayout, frames, sampleRate,
-                pcm, isGroup, clipRate, sourceDuration, liveChildren,
+                in sapPcm, isGroup, clipRate, sourceDuration, liveChildren,
                 killRequested, releaseRequested, basePitchTargetNow, outGainTargetRaw,
                 ref state, ref protectedFromSteal);
 
