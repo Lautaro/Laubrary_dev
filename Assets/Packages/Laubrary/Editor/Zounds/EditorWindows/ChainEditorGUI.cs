@@ -843,7 +843,9 @@ namespace Laubrary.Zounds {
                     u.icons = new Texture[] { ZUIWaveIcons.Get(ZUIWave.Sine), ZUIWaveIcons.Get(ZUIWave.Random) };
                 if (mod.type == ZoundModifierType.Random && k == 0) {
                     u.pdHigh = desc.parameters[1];
-                    u.valueHigh = mod.p[1];
+                    // Shown as the engine uses them: a value saved under the old -4..4 range is held to -1..1 when drawn (T-0447).
+                    u.value = Mathf.Clamp(mod.p[0], pd.min, pd.max);
+                    u.valueHigh = Mathf.Clamp(mod.p[1], u.pdHigh.min, u.pdHigh.max);
                     u.onRange = (lo, hi) => ModifyContinuous(zound, "change modifier range", () => { mod.p[0] = lo; mod.p[1] = hi; chain.Touch(); });
                 }
                 if (mod.type == ZoundModifierType.Lfo && k == 1 && (int)mod.p[4] == (int)LfoMode.Oscillate)

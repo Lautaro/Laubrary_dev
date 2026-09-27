@@ -307,12 +307,16 @@ namespace Laubrary.Zounds.Dsp {
                 new ParamDesc("Offset", "", -1f, 1f, 0f, ParamCurve.Linear, false, ModifierOp.Add, null, null,
                     "Which way the swing goes. Middle: evenly above and below where the parameter is set. All the way right: only above it. All the way left: only below it. In between leans that way. The swing never reaches further than Amount, whatever this is set to, so no setting pushes a parameter into the end of its range that the middle setting would not."));
             ModDef(ZoundModifierType.Random, "Random", "One value per play, held for the whole play.", 1,
-                new ParamDesc("Min", "", -4f, 4f, 0.9f, ParamCurve.Linear, false, ModifierOp.Add, null, null,
-                    "The lowest value this can pick. One value is drawn when the sound starts and held for the whole play."),
-                new ParamDesc("Max", "", -4f, 4f, 1.1f, ParamCurve.Linear, false, ModifierOp.Add, null, null,
+                // -1..1 since T-0447, the same swing every other modifier outputs: under Shift -1 is all the way down from
+                // where the parameter is set and +1 all the way up; under Set -1 is the bottom of its range and +1 the top.
+                // The old -4..4 (default 0.9..1.1) only meant anything under Scale; under Shift or Set most of it pinned the
+                // parameter against an end. Stored values outside -1..1 are held to it when drawn.
+                new ParamDesc("Min", "", -1f, 1f, -0.25f, ParamCurve.Linear, false, ModifierOp.Add, null, null,
+                    "The lowest value this can pick. One value is drawn each time the sound starts and held for the whole play. With Shift, -1 is as far down as the parameter can go from where you set it, 0 is where you set it, and +1 as far up; with Set, -1 is the bottom of its range and +1 the top."),
+                new ParamDesc("Max", "", -1f, 1f, 0.25f, ParamCurve.Linear, false, ModifierOp.Add, null, null,
                     "The highest value this can pick. Keeping Min and Max close gives subtle variation between plays; spreading them wide makes every play noticeably different."),
                 new ParamDesc("Bias", "", 0.1f, 10f, 1f, ParamCurve.Logarithmic, false, ModifierOp.Add, null, null,
-                    "Which end of the range the draw favours. One is even; below one leans towards the minimum, above one towards the maximum."));
+                    "Which end of the range the draw favours. One is even; below one leans towards Min, above one towards Max."));
             // State: 0 step, 1 time into step, 2 round-robin used mask, 3 free-running step number, 4 glide start value,
             // 5 free-running, 6 seed, 7 glide start set.
             ModDef(ZoundModifierType.Step, "Step", "Steps through a list of values, per play or on a timer.", 8,

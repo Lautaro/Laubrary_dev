@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — the Random modifier draws again, in the same terms as every other modifier
+
+- **Fix: Random never drew anything.** Its one-value-per-play draw lived in the native voice's start-up code and was lost when that path was removed; the new engine's start-up never took it over, so every play held nought. Measured before: 15 of 15 plays output exactly 0 whatever Min, Max and Bias said — under Set that parked the parameter at the middle of its range, under Shift it did nothing. Now drawn at every play start on every engine path (real plays, bounces, the analyser).
+- **Min and Max now run -1..1** (default -0.25..0.25), the same swing every other modifier outputs: under Shift, -1 is as far down as the parameter can go from where it is set and +1 as far up; under Set, the bottom and top of its range. The old -4..4 (default 0.9..1.1) only meant something under Scale; under Shift or Set most of it pinned the parameter against an end. Values saved outside -1..1 are held to it when drawn and shown that way.
+- **Fix: Bias leaned the wrong way.** Above one favoured Min, the opposite of what it says. Measured mean of a 0..1 draw now: 0.50 at Bias 1, 0.75 at 3, 0.25 at 0.33.
+- The analyser's lane during a play shows the value the real play drew (a re-created play reuses it rather than drawing its own); measured equal to the playing voice on 4 of 4 plays. Between plays a Random is held at none, per the T-0446 rule.
+
 ### Zounds — while a sound is not playing, the analyser works out nothing that a play fires
 
 - **The owner's rule, now what the idle analyser does:** while nothing plays, modifiers fired by a play (an Envelope, an LFO or Step list set to run per play, a Random value) are not worked out at all; only modifiers that keep running between plays (an LFO set to Always, a timed Step list with Retrigger off) still move a parameter. The previous version switched looping on for the whole chain as soon as one free-running modifier was present, so a chain holding an Envelope and an Always LFO showed the Envelope re-firing on every idle loop. The idle series is now taken from a copy of the chain in which every binding of a play-fired modifier has depth none (exactly the set value, in every mode), so its lane stays in place, flat where it was set.

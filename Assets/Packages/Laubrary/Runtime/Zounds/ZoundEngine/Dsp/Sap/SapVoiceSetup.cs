@@ -30,6 +30,14 @@ namespace Laubrary.Zounds.Dsp {
     public static class ZoundTriggerClock {
         public static double? overrideTime;
         public static double Now => overrideTime ?? UnityEngine.Time.realtimeSinceStartupAsDouble;
+
+        /// <summary>
+        /// True while a display re-creates a play rather than a sound really playing. A re-created play takes the value
+        /// the real play of that sound drew for each Random modifier, instead of drawing its own (which would draw a
+        /// different line from the one heard), and never records a draw of its own. Set and cleared around one call on
+        /// the main thread, like <see cref="overrideTime"/>.
+        /// </summary>
+        public static bool recreating;
     }
 
     internal static class SapVoiceSetup {
@@ -130,6 +138,26 @@ namespace Laubrary.Zounds.Dsp {
         /// <summary>Forgets every remembered step position. For a cache clear or a project reload.</summary>
         internal static void ForgetStepPositions() {
             stepStates.Clear();
+            lastRandomDraw.Clear();
+        }
+
+        /// <summary>The value each sound's Random modifiers drew on its latest real play, by sound name and modifier, so a
+        /// display re-creating that play shows the value actually heard.</summary>
+        private static readonly System.Collections.Generic.Dictionary<(string, int), float> lastRandomDraw
+            = new System.Collections.Generic.Dictionary<(string, int), float>();
+
+        /// <summary>
+        /// A Random modifier's draw. The value is a swing like every other modifier's output: -1 is as far down as the
+        /// binding reaches, +1 as far up (under Set, the bottom and top of the range). Min and Max are held to that, since
+        /// anything beyond it only pins the parameter against an end. Bias bends the draw towards one end: above one
+        /// towards Max, below one towards Min — the old draw had this backwards (raising to the power of Bias, which
+        /// favours the minimum for a Bias above one, the opposite of what the setting says).
+        /// </summary>
+        internal static float DrawRandom(float min, float max, float bias, float r01) {
+            min = UnityEngine.Mathf.Clamp(min, -1f, 1f);
+            max = UnityEngine.Mathf.Clamp(max, -1f, 1f);
+            if (bias > 0f && System.Math.Abs(bias - 1f) > 1e-4f) r01 = UnityEngine.Mathf.Pow(r01, 1f / bias);
+            return min + (max - min) * r01;
         }
 
         /// <summary>
@@ -218,6 +246,22 @@ namespace Laubrary.Zounds.Dsp {
                 if (so < 0 || so >= sap.arena.Length) continue;
 
                 switch (layout.modType[m]) {
+                    case ZoundModifierType.Random: {
+                        // One value per play, drawn here and held by the render for the whole play. This draw was lost
+                        // when the native voice's start-up code was removed (f500b5fd) and never carried over, so every
+                        // play held nought: under Set that parked the parameter at the middle of its range whatever Min
+                        // and Max said, and under Shift it did nothing (T-0447).
+                        float v;
+                        string key = zound != null ? zound.name : null;
+                        if (ZoundTriggerClock.recreating && key != null && lastRandomDraw.TryGetValue((key, m), out float drawn)) v = drawn;
+                        else {
+                            v = DrawRandom(pc > 0 ? layout.modParamFlat[po] : -0.25f, pc > 1 ? layout.modParamFlat[po + 1] : 0.25f,
+                                           pc > 2 ? layout.modParamFlat[po + 2] : 1f, UnityEngine.Random.value);
+                            if (!ZoundTriggerClock.recreating && key != null) lastRandomDraw[(key, m)] = v;
+                        }
+                        sap.arena[so] = v;
+                        break;
+                    }
                     case ZoundModifierType.Lfo: {
                         // Parameter 3 is "reset phase". When it is ON the clean slate is correct and there is nothing
                         // to do. When it is OFF the oscillation is meant to run continuously whether or not anything

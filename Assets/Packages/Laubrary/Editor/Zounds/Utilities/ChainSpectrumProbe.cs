@@ -447,11 +447,13 @@ namespace Laubrary.Zounds.EditorTools {
                 var silence = new PcmClip { channels = 1, frequency = SAMPLE_RATE, frames = frames, samples = feed, valid = true, peak = 0.9f };
                 SapRealtimeVoice voice;
                 ZoundTriggerClock.overrideTime = triggeredAt;
+                // A re-created play, never a real one: a Random modifier takes what the real play drew (T-0447).
+                ZoundTriggerClock.recreating = true;
                 try {
                     voice = SapRealtimeVoice.Create(silence, layout, SAMPLE_RATE, 0d, silence.frames, 1f, 1f, play, false, 7,
                                                     layout.heavy, Unity.Collections.Allocator.Persistent, startsNowAs);
                 }
-                finally { ZoundTriggerClock.overrideTime = null; }
+                finally { ZoundTriggerClock.overrideTime = null; ZoundTriggerClock.recreating = false; }
                 try {
                     int blocks = (int)(MaxSeconds * SAMPLE_RATE) / block;
                     for (int b = 0; b < blocks && !voice.finished; b++) {
