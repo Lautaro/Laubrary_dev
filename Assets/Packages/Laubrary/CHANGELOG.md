@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — Depth means 0 = none, 1 = full, in every mode; Shift / Set / Scale explained on hover
+
+- **Shift's depth is now a share of the room the parameter has** in the direction it is being moved: 1 reaches the ends of its range and never pins against them (was: a share of the whole range each way, which from mid-slider pinned the parameter 67% of the time — measured). Set and Scale already ran 0 = no effect … 1 = full. New bindings default to Depth 1 (was 0.25, a workaround for the old scale). Bindings saved before this keep their exact old behaviour (`ModulationCombine.ShiftWholeRange`, `ChainModulationCompat` schema 2) until their mode or depth is edited; the depth tooltip says so.
+- **Shift / Set / Scale tooltips** rewritten with what each does and a concrete example; Depth's tooltip now depends on the mode.
+- **ZUI:** buttons and toggles register their tooltip on their own rect, so an icon-only button (drawn as a bare picture, which registers nothing) shows its tooltip too. Text buttons already did.
+
 ### Zounds — the analyser's bars are live: every frame they show what the chain does at that instant
 
 - **Before:** the bars were a looped measurement of one simulated play, a few third-of-a-second readings long. For a short sound that was 3 readings; anything after half a second was never read, a slow step list never changed inside a play, and the simulated play ignored lists and oscillators that keep running between plays. Owner-reported: a 1 s step list left the bars still (measured 0.02 dB of movement).

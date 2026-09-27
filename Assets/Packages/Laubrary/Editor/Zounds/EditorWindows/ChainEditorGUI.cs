@@ -595,9 +595,11 @@ namespace Laubrary.Zounds {
         private static void AddBinding(ZoundEffectChain chain, int modifierIndex, int nodeIndex, int paramIndex, ParamDesc pd) {
             chain.bindings.Add(new ZoundModifierBinding {
                 modifierIndex = modifierIndex, nodeIndex = nodeIndex, paramIndex = paramIndex,
-                // A quarter of the parameter's control: clearly audible on anything without slamming it into an end stop,
-                // and it means the same thing whichever parameter this was dropped on.
-                combine = Dsp.ModulationCombine.Shift, depth = 0.25f, schema = Dsp.ChainModulationCompat.CURRENT_SCHEMA });
+                // Full strength. Since Shift's depth became a share of the room the parameter has (T-0436), one reaches
+                // the ends of the range without ever pinning against them, so the modifier is heard at once and in full;
+                // turn it down from there. (It was a quarter of the whole control before, because a whole control each
+                // way pinned the parameter two thirds of the time — the owner rightly found a quarter an odd default.)
+                combine = Dsp.ModulationCombine.Shift, depth = 1f, schema = Dsp.ChainModulationCompat.CURRENT_SCHEMA });
             chain.Touch();
         }
 
@@ -941,9 +943,9 @@ namespace Laubrary.Zounds {
         // parameter. These say what happens to the sound.
         private static readonly string[] combineLabels = { "Shift", "Set", "Scale" };
         private static readonly string[] combineTips = {
-            "Shift: moves the parameter away from where you set it, by up to the depth shown as a share of this parameter's own range. An oscillator swings it both ways around your value.",
-            "Set: the modulator takes over this parameter entirely, across its whole range. Depth blends between your value and the modulator's.",
-            "Scale: multiplies your value. Only meaningful on a level that does not rest at zero — multiplying zero leaves zero, however the modulator moves."
+            "Shift: moves the parameter away from where you set it. The slider stays your starting point and the modifier pushes it up or down from there — an oscillator swings it both ways around your value, a step list moves it to a different offset on each step. At full depth it can reach all the way to either end of the parameter's range but never past it. Example: a low-pass set to 1 kHz with an oscillator on Shift sweeps up towards 20 kHz and down towards 20 Hz around your 1 kHz.",
+            "Set: the modifier takes the parameter over completely and drives it across its whole range, ignoring where the slider is; the modifier's lowest output is the bottom of the range, its highest the top. Depth blends between your slider value (nought) and the modifier's (one). Example: a step list on Set picks the cutoff outright for each step.",
+            "Scale: multiplies your value by the modifier's output — one leaves it unchanged, a half halves it, nought silences it. Depth blends from no effect (nought) to the full multiplication (one). Best for levels such as gain or a mix, for a proportional tremolo; offered only where the parameter does not rest at zero, since multiplying zero leaves zero."
         };
 
         /// <summary>
@@ -1002,6 +1004,10 @@ namespace Laubrary.Zounds {
                 // Read through the compatibility layer so a chain saved in the old form shows what it will actually DO,
                 // not the stale setting it was saved with. Touching any control here writes it back in the current form.
                 var currentCombine = Dsp.ChainModulationCompat.CombineOf(b);
+                // A binding saved before Shift became room-relative still behaves the old way; it shows as Shift, and
+                // becomes the current Shift the moment its mode or depth is changed.
+                bool legacyShift = currentCombine == Dsp.ModulationCombine.ShiftWholeRange;
+                if (legacyShift) currentCombine = Dsp.ModulationCombine.Shift;
                 bool scaleWorks = ScaleIsMeaningfulFor(chain, b);
                 for (int o = 0; o < 3; o++) {
                     var r = new Rect(x + o * 42f, row.y + 1f, 42f, row.height - 2f);
@@ -1028,7 +1034,13 @@ namespace Laubrary.Zounds {
                 float shownDepth = Dsp.ChainModulationCompat.DepthOf(b, DepthMinOf(chain, b), DepthMaxOf(chain, b), DepthRatioOf(chain, b));
                 float nd = ZUI.MicroSlider(depthRect, shownDepth, 0f, 1f, "Depth", ZUI.SliderStyle.Default, false, ZUI.MicroSliderLabelMode.LabelAndValue, 0.25f);
                 if (!Mathf.Approximately(nd, shownDepth)) { var bb = b; ModifyContinuous(zound, "change depth", () => { WriteBinding(chain, bb, currentCombine, nd); }); }
-                GUI.Label(depthRect, new GUIContent("", "How far this modulator may move the parameter, as a share of that parameter's own range. Half means half its travel, whatever the parameter's units are."));
+                GUI.Label(depthRect, new GUIContent("", currentCombine == Dsp.ModulationCombine.Shift
+                    ? (legacyShift
+                        ? "How far this modifier may move the parameter. This binding was made before depth changed meaning and still uses the old one: a share of the parameter's WHOLE range each way, so high values pin it against the ends. Change the depth or the mode and it switches to the current meaning, where one reaches the ends but never pins."
+                        : "How far this modifier may move the parameter. Nought: not at all. One: all the way to the ends of its range, never past them. A half: half of the room there is in whichever direction it is being pushed.")
+                    : currentCombine == Dsp.ModulationCombine.Set
+                        ? "How much the modifier takes over. Nought: your slider value, unchanged. One: entirely the modifier's value. In between: a blend of the two."
+                        : "How much the multiplication applies. Nought: no effect. One: your value times the modifier's output. In between: part of the way."));
                 var xRect = new Rect(depthRect.xMax + 4f, row.y + 1f, RemoveW, row.height - 2f);
                 if (ZUI.Button(xRect, new GUIContent("×", "Removes this binding."), ZUI.Style.RichButton, ZUI.Tint.Danger)) {
                     var bb = b;

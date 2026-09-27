@@ -314,6 +314,8 @@ public static partial class ZUI
             return false;
         }
 
+        RegisterTooltip(rect, content);
+
         bool iconOnly = IsIconOnly(content, def, icon);
 
         if (!GUI.enabled)
@@ -530,6 +532,21 @@ public static partial class ZUI
     }
 
     // Draws the button label, handling icon placement when an icon is present.
+    /// <summary>
+    /// Makes a control's tooltip actually appear on hover.
+    ///
+    /// ZUI draws its buttons and toggles by painting them itself, and a style painted straight onto the screen never
+    /// registers a hover tooltip — only Unity's own label and button calls do. So every tooltip handed to a ZUI button or
+    /// toggle was silently dropped: written, reviewed, and never seen. Found when the owner asked for tooltips on a
+    /// strip of choices that already had them (Zounds T-0435). An empty label carrying just the tooltip, over the
+    /// control's own rect, is the smallest thing Unity treats as having one; it draws nothing and takes no clicks.
+    /// </summary>
+    internal static void RegisterTooltip(Rect rect, GUIContent content)
+    {
+        if (content == null || string.IsNullOrEmpty(content.tooltip)) return;
+        GUI.Label(rect, new GUIContent(string.Empty, content.tooltip), GUIStyle.none);
+    }
+
     internal static void DrawButtonLabel(Rect rect, GUIContent content, GUIStyle labelStyle,
                                          Texture2D icon, ZIconPlacement placement, ZUIButtonDef def,
                                          ZUITextDef textDef = null)

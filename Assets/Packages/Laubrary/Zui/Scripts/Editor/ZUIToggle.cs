@@ -194,6 +194,8 @@ public static partial class ZUI
             return value;
         }
 
+        RegisterTooltip(rect, content);
+
         // Resolve icon for the current toggle state (true = onIcon, false = offIcon).
         // Falls back to content.image when no dual-icon pair is provided.
         Texture ResolveIcon(bool isOn)

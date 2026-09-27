@@ -97,9 +97,22 @@ namespace Laubrary.Zounds.Dsp {
                     float factor = 1f + (signal - 1f) * Mathf.Clamp01(depth);
                     return Mathf.Clamp(baseValue * factor, min, max);
                 }
-                default: {
+                case ModulationCombine.ShiftWholeRange: {
+                    // A binding saved before Shift became room-relative: depth is a share of the WHOLE control, so one
+                    // swings a full range each way and pins against the ends. Kept exactly, so an old sound does not change
+                    // until someone touches that binding.
                     float p = ToPosition(baseValue, min, max, ratioSpaced) + signal * depth;
                     return FromPosition(p, min, max, ratioSpaced);
+                }
+                default: {
+                    // SHIFT, as a share of the ROOM the parameter has in the direction it is being moved (T-0436): one is
+                    // "can travel all the way to that end, never past it", nought is "does not move". So a full-strength
+                    // swing reaches the ends without ever pinning against them, and one is a setting worth leaving on —
+                    // which a share of the whole control never was: from mid-slider it pinned two thirds of the time.
+                    float pos = ToPosition(baseValue, min, max, ratioSpaced);
+                    float move = signal * depth;
+                    float room = move >= 0f ? 1f - pos : pos;
+                    return FromPosition(pos + move * room, min, max, ratioSpaced);
                 }
             }
         }
@@ -132,5 +145,11 @@ namespace Laubrary.Zounds.Dsp {
         Set = 1,
         /// <summary>Multiply the value that was set. Only meaningful where the parameter is a level that does not rest at nought.</summary>
         Scale = 2,
+        /// <summary>
+        /// Shift as it was before depth became a share of the available room (bindings saved with schema 1 or earlier):
+        /// a share of the parameter's whole control. Never offered in the interface; an old binding shows as Shift and
+        /// becomes the current Shift the first time its mode or depth is changed.
+        /// </summary>
+        ShiftWholeRange = 3,
     }
 }

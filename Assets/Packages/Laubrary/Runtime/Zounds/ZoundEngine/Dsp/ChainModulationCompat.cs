@@ -22,16 +22,22 @@ namespace Laubrary.Zounds.Dsp {
     public static class ChainModulationCompat {
 
         /// <summary>Bindings saved with this schema number or higher already speak in fractions of the control.</summary>
-        public const int CURRENT_SCHEMA = 1;
+        public const int CURRENT_SCHEMA = 2;
+
+        /// <summary>The schema at which depth became a fraction of the control (before that it was in the parameter's
+        /// own units). Schema 2 made Shift's depth a share of the room available rather than of the whole control.</summary>
+        public const int FRACTION_SCHEMA = 1;
 
         public static ModulationCombine CombineOf(ZoundModifierBinding b) {
             if (b.schema >= CURRENT_SCHEMA) return b.combine;
+            // Saved as a fraction of the whole control: its Shift keeps that meaning until it is edited.
+            if (b.schema >= FRACTION_SCHEMA) return b.combine == ModulationCombine.Shift ? ModulationCombine.ShiftWholeRange : b.combine;
             switch (b.op) {
                 // Replacing the value outright is the one old operation with a direct successor.
                 case ModifierOp.Replace: return ModulationCombine.Set;
                 // Both adding and multiplying were reaching for "move this parameter about while it plays", and both did it
                 // in units that made the amount unguessable. They land on the same operation, which does it properly.
-                default: return ModulationCombine.Shift;
+                default: return ModulationCombine.ShiftWholeRange;
             }
         }
 
@@ -44,7 +50,7 @@ namespace Laubrary.Zounds.Dsp {
         /// is the closest a single number can get to something that was never consistent.
         /// </summary>
         public static float DepthOf(ZoundModifierBinding b, float min, float max, bool ratioSpaced) {
-            if (b.schema >= CURRENT_SCHEMA) return Mathf.Clamp(b.depth, -1f, 1f);
+            if (b.schema >= FRACTION_SCHEMA) return Mathf.Clamp(b.depth, -1f, 1f);
 
             float d = Mathf.Abs(b.depth);
             switch (b.op) {
