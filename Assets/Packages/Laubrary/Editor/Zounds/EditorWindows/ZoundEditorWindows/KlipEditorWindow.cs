@@ -475,25 +475,20 @@ namespace Laubrary.Zounds {
 
                     GUILayout.FlexibleSpace();
 
-                    // Group 2: Effect chain toggles — generated from KlipEffectChain
-                    var effects = KlipEffectChain.Effects;
-                    for (int ei = 0; ei < effects.Length; ei++) {
-                        var effect = effects[ei];
-                        var corner = ei == 0 ? ZUICornerMask.Left
-                                   : ei == effects.Length - 1 ? ZUICornerMask.Right
-                                   : ZUICornerMask.None;
-                        bool wasEnabled = effect.IsEnabled(targetZound);
-                        float toggleW = EditorStyles.label.CalcSize(new GUIContent(effect.ToggleLabel)).x + 20f;
-                        bool newEnabled = ZUI.Toggle(wasEnabled, effect.ToggleLabel, ZUI.Style.RichToggle, corner, GUILayout.Height(btnHeight), GUILayout.Width(toggleW));
-                        if (newEnabled != wasEnabled) {
-                            var fx = effect; // capture for closure
-                            ZoundsWindow.ModifyAndSaveZoundsProject($"toggle klip {fx.Name}", () => {
-                                fx.SetEnabled(targetZound, newEnabled);
-                                targetZound.needsRender = true;
-                            });
-                            QueueAutoRender();
-                        }
-                    }
+                    // The row of fixed on/off toggles for the seven built-in effects used to be here, and it is
+                    // deliberately gone. Those effects only ever existed by being rendered into a new audio file
+                    // ahead of time, which is why every one of them marked the sound as needing a re-render and why
+                    // a project accumulated a small file per sound per revision.
+                    //
+                    // The effect chain below replaces them and is strictly more capable: any of sixteen effects in
+                    // any order and any number, each with modulators driving its parameters, applied as the sound
+                    // plays so an edit is heard immediately. Keeping both would have meant two authoring surfaces
+                    // for overlapping jobs, only one of which could be heard without re-rendering -- and the old one
+                    // sitting at the top is exactly why this window still looked like the version before chains.
+                    //
+                    // A sound authored with the old settings does not lose them: they are converted to an equivalent
+                    // chain, either permanently through the migration action in the Zounds menu, or on the fly when
+                    // the sound plays. Either way they become visible and editable in the chain editor.
 
                     // Restore GUI.enabled for display toggles and play button.
                     GUI.enabled = prevGuiEnabled;
