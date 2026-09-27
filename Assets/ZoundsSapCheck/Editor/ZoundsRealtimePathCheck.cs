@@ -83,10 +83,26 @@ public static class ZoundsRealtimePathCheck {
                 failures += Check(sb, "an editor's (effect, parameter) pair resolves to a real engine slot", flat >= 0);
                 sb.Append("     effect 0 parameter 0 resolves to flat slot ").Append(flat).Append('\n');
 
+                // Does the audio graph actually take a voice in EDIT mode? This decides how the result gets
+                // listened to: if it does, someone can press play on a sound in the editor and hear a chain edit
+                // immediately; if it does not, hearing it requires running the game. It is worth knowing which,
+                // because the whole point of a real-time chain is the tight edit-and-listen loop.
+                carrier.Play();
+                bool taken = voice.IsPlaying;
+                sb.Append("  the audio graph took the voice in EDIT mode: ").Append(taken ? "YES" : "no").Append('\n');
                 sb.Append("  voices the registry is tracking: ").Append(SapVoiceRegistry.Count).Append('\n');
-                sb.Append("  NOT checked here, needs a running game and a person: whether it is audible, and\n")
-                  .Append("  whether a live change is delivered — delivery needs the audio graph to have really\n")
-                  .Append("  taken the voice, which edit mode does not guarantee.\n");
+
+                if (taken) {
+                    // Then a live change should reach it, which is the behaviour the editor depends on.
+                    int delivered = ZoundDspPlayback.PushLiveParam(klip, klip.effectChain, 0, 0, 0.9f);
+                    failures += Check(sb, "a live parameter change was delivered to the playing voice", delivered > 0);
+                    sb.Append("     voices that took the change: ").Append(delivered).Append('\n');
+                    sb.Append("  => a chain edit can be heard in the editor, without running the game\n");
+                }
+                else {
+                    sb.Append("  => listening has to happen with the game running; edit mode did not take it\n");
+                }
+                carrier.Stop();
             }
         }
         finally {
