@@ -290,7 +290,14 @@ namespace Laubrary.Zounds {
             }
         }
 
-        public void InitFromKlip(Klip klip) {
+        /// <param name="useChainEnvelopes">
+        /// True for a Klip that lives in the project (the normal Klip editor case): the overlay reads and
+        /// writes the chain modulators via <see cref="KlipChainEnvelopes"/>, which is what real-time
+        /// playback actually consults. False for a throwaway Klip that isn't part of any chain yet (the
+        /// import-and-trim popup's temporary Klip) — the overlay falls back to the Klip's own legacy
+        /// <c>volumeEnvelope</c>/<c>pitchEnvelope</c> fields, which is what that caller reads back afterward.
+        /// </param>
+        public void InitFromKlip(Klip klip, bool useChainEnvelopes) {
             m_sourceReference = klip.audioClipRef;
             m_externalSourcePath = klip.externalSourcePath;
             m_externalSourceWriteTimeUtc = string.IsNullOrEmpty(m_externalSourcePath) ? default : File.GetLastWriteTimeUtc(m_externalSourcePath);
@@ -349,8 +356,18 @@ namespace Laubrary.Zounds {
             m_trimStart = klip.trimStart;
             m_trimEnd = klip.trimEnd;
             m_clampToTrim = klip.clampToTrim;
-            m_volumeEnvelope = klip.volumeEnvelope;
-            m_pitchEnvelope = klip.pitchEnvelope;
+            if (useChainEnvelopes) {
+                // KlipChainEnvelopes hands back the modulator's own curve object (or null when the Klip
+                // has no volume/pitch modifier yet) — ZUI mutates it in place, same as the legacy fields
+                // used to be mutated in place below. Falls back to a shared, permanently-disabled curve so
+                // the toggle/overlay code below never has to null-check; it is never edited while disabled.
+                m_volumeEnvelope = KlipChainEnvelopes.VolumeCurve(klip, create: false) ?? KlipChainEnvelopes.Disabled;
+                m_pitchEnvelope = KlipChainEnvelopes.PitchCurve(klip, create: false) ?? KlipChainEnvelopes.Disabled;
+            }
+            else {
+                m_volumeEnvelope = klip.volumeEnvelope;
+                m_pitchEnvelope = klip.pitchEnvelope;
+            }
             ConstrainView();
         }
 
@@ -477,7 +494,10 @@ namespace Laubrary.Zounds {
                 GUILayout.Space(6f);
                 var volEnabled = ZUI.Toggle(m_volumeEnvelope.enabled, "Volume", ZUI.Style.RichToggle, ZUICornerMask.Left, GUILayout.Height(lineHeight), GUILayout.Width(75f));
                 if (volEnabled != m_volumeEnvelope.enabled) {
-                    m_volumeEnvelope.enabled = volEnabled;
+                    // Don't flip m_volumeEnvelope.enabled here directly: in chain mode this may still be
+                    // the shared disabled-placeholder curve (no modifier created yet), and mutating that
+                    // would wrongly "enable" it for every other Klip that has no modifier either. The
+                    // callback owns creating/enabling the real curve; InitFromKlip re-reads it afterward.
                     onVolumeEnabledChanged?.Invoke(volEnabled);
                 }
                 var newShowVolumeHandles = ZUI.Toggle(m_showVolumeEnvelopeHandles, "", editIcon, editIcon, ZUI.Style.RichToggle, ZUICornerMask.Right, GUILayout.Width(25f), GUILayout.Height(lineHeight));
@@ -490,7 +510,7 @@ namespace Laubrary.Zounds {
                 GUILayout.Space(6f);
                 var pitchEnabled = ZUI.Toggle(m_pitchEnvelope.enabled, "Pitch", ZUI.Style.RichToggle, ZUICornerMask.Left, GUILayout.Height(lineHeight), GUILayout.Width(65f));
                 if (pitchEnabled != m_pitchEnvelope.enabled) {
-                    m_pitchEnvelope.enabled = pitchEnabled;
+                    // See the volume toggle above: the callback owns creating/enabling the real curve.
                     onPitchEnabledChanged?.Invoke(pitchEnabled);
                 }
                 var newShowPitchHandles = ZUI.Toggle(m_showPitchEnvelopeHandles, "", editIcon, editIcon, ZUI.Style.RichToggle, ZUICornerMask.Right, GUILayout.Width(25f), GUILayout.Height(lineHeight));

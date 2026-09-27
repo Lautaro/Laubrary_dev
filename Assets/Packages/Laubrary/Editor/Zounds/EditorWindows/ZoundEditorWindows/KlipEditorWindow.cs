@@ -86,7 +86,7 @@ namespace Laubrary.Zounds {
             outputCacheValid = false;
             if (targetZound != null && spectrumView != null) {
                 ValidateKlip();
-                spectrumView.InitFromKlip(targetZound);
+                spectrumView.InitFromKlip(targetZound, useChainEnvelopes: true);
             }
         }
 
@@ -201,10 +201,12 @@ namespace Laubrary.Zounds {
 
             spectrumView.onVolumeEnvelopeChanged = envelope => {
                 if (targetZound != null) {
-                    // Continuous drag — mutate in memory, persist on mouseUp via autoRender path.
-                    targetZound.volumeEnvelope = envelope;
-                    targetZound.needsRender = true;
-                    QueueAutoRender();
+                    // The envelope handed back here IS the chain modulator's own curve object
+                    // (KlipChainEnvelopes hands out the live reference), already mutated in place by the
+                    // drag — there's nothing to copy back. It's a structural change to the chain rather
+                    // than a single live-pushable parameter, so it takes effect on the next play, not
+                    // mid-drag: just mark the chain dirty so playback rebuilds its layout next time.
+                    KlipChainEnvelopes.Touch(targetZound);
                     Repaint();
                 }
             };
@@ -212,19 +214,18 @@ namespace Laubrary.Zounds {
             spectrumView.onVolumeEnabledChanged = enabled => {
                 if (targetZound != null) {
                     ZoundsWindow.ModifyAndSaveZoundsProject("toggle klip volume", () => {
-                        targetZound.volumeEnvelope.enabled = enabled;
-                        targetZound.needsRender = true;
-                        QueueAutoRender();
+                        KlipChainEnvelopes.SetVolumeEnabled(targetZound, enabled);
                     });
+                    // The toggle may have just created the volume modifier — re-read it so the overlay
+                    // (and the next drag) reference the real curve instead of the disabled placeholder.
+                    RefreshSpectrumView();
                 }
             };
 
             spectrumView.onPitchEnvelopeChanged = envelope => {
                 if (targetZound != null) {
-                    // Continuous drag — mutate in memory, persist on mouseUp via autoRender path.
-                    targetZound.pitchEnvelope = envelope;
-                    targetZound.needsRender = true;
-                    QueueAutoRender();
+                    // See onVolumeEnvelopeChanged above.
+                    KlipChainEnvelopes.Touch(targetZound);
                     Repaint();
                 }
             };
@@ -232,10 +233,9 @@ namespace Laubrary.Zounds {
             spectrumView.onPitchEnabledChanged = enabled => {
                 if (targetZound != null) {
                     ZoundsWindow.ModifyAndSaveZoundsProject("toggle klip pitch", () => {
-                        targetZound.pitchEnvelope.enabled = enabled;
-                        targetZound.needsRender = true;
-                        QueueAutoRender();
+                        KlipChainEnvelopes.SetPitchEnabled(targetZound, enabled);
                     });
+                    RefreshSpectrumView();
                 }
             };
 
@@ -1053,35 +1053,51 @@ namespace Laubrary.Zounds {
 
             // === PHASE 1: Trim + Envelopes (mode-dependent ordering) ===
 
+            // The volume and pitch curves drawn on the waveform now live on the sound's effect chain, because that is
+            // what real-time playback reads. This render has to read the same place or it would quietly bake a
+            // different sound than the one you hear — which is worse than not rendering at all, since the output looks
+            // authoritative.
+            //
+            // A sound that has never been opened in the chain editor still keeps its curves in the older per-sound
+            // fields, so those remain the fallback. The distinction that matters is "has no chain curve at all" versus
+            // "has one that is switched off": the second must win, or turning a curve off here would silently revive
+            // whatever the old field happened to hold.
+            var chainVolumeCurve = KlipChainEnvelopes.VolumeCurve(klipToRender, false);
+            var chainPitchCurve = KlipChainEnvelopes.PitchCurve(klipToRender, false);
+            var volumeCurve = (chainVolumeCurve != null && !ReferenceEquals(chainVolumeCurve, KlipChainEnvelopes.Disabled))
+                ? chainVolumeCurve : klipToRender.volumeEnvelope;
+            var pitchCurve = (chainPitchCurve != null && !ReferenceEquals(chainPitchCurve, KlipChainEnvelopes.Disabled))
+                ? chainPitchCurve : klipToRender.pitchEnvelope;
+
             if (klipToRender.clampToTrim && klipToRender.trimEnabled) {
                 // Clamped mode: trim first, then apply envelopes to the trimmed segment
                 samples = AudioRenderUtility.Trim(samples, channels, sampleRate,
                     klipToRender.trimStart, klipToRender.trimEnd, out sampleCount);
                 float segmentLength = (float)sampleCount / sampleRate;
 
-                if (klipToRender.volumeEnvelope.enabled) {
-                    AudioRenderUtility.VolumeEnvelope(samples, channels, sampleRate, sampleCount, klipToRender.volumeEnvelope);
+                if (volumeCurve.enabled) {
+                    AudioRenderUtility.VolumeEnvelope(samples, channels, sampleRate, sampleCount, volumeCurve);
                 }
-                if (klipToRender.pitchEnvelope.enabled) {
+                if (pitchCurve.enabled) {
                     samples = AudioRenderUtility.PitchEnvelope(samples, channels, sampleRate, sampleCount,
-                        klipToRender.pitchEnvelope, segmentLength, out sampleCount, 0, segmentLength);
+                        pitchCurve, segmentLength, out sampleCount, 0, segmentLength);
                 }
             } else {
                 // Global mode: apply envelopes to full clip, then trim
-                if (klipToRender.volumeEnvelope.enabled) {
-                    AudioRenderUtility.VolumeEnvelope(samples, channels, sampleRate, sampleCount, klipToRender.volumeEnvelope);
+                if (volumeCurve.enabled) {
+                    AudioRenderUtility.VolumeEnvelope(samples, channels, sampleRate, sampleCount, volumeCurve);
                 }
-                if (klipToRender.pitchEnvelope.enabled) {
+                if (pitchCurve.enabled) {
                     samples = AudioRenderUtility.PitchEnvelope(samples, channels, sampleRate, sampleCount,
-                        klipToRender.pitchEnvelope, clipLength, out sampleCount, 0, clipLength);
+                        pitchCurve, clipLength, out sampleCount, 0, clipLength);
                 }
                 if (klipToRender.trimEnabled) {
                     float finalTrimStart = klipToRender.trimStart;
                     float finalTrimEnd = klipToRender.trimEnd;
 
-                    if (klipToRender.pitchEnvelope.enabled) {
-                        finalTrimStart = AudioRenderUtility.GetOutputTimeForSourceTime(klipToRender.trimStart, klipToRender.pitchEnvelope, clipLength);
-                        finalTrimEnd = AudioRenderUtility.GetOutputTimeForSourceTime(klipToRender.trimEnd, klipToRender.pitchEnvelope, clipLength);
+                    if (pitchCurve.enabled) {
+                        finalTrimStart = AudioRenderUtility.GetOutputTimeForSourceTime(klipToRender.trimStart, pitchCurve, clipLength);
+                        finalTrimEnd = AudioRenderUtility.GetOutputTimeForSourceTime(klipToRender.trimEnd, pitchCurve, clipLength);
                     }
 
                     samples = AudioRenderUtility.Trim(samples, channels, sampleRate, finalTrimStart, finalTrimEnd, out sampleCount);

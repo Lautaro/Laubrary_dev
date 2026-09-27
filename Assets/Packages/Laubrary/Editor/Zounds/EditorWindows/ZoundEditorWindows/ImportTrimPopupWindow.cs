@@ -59,7 +59,9 @@ namespace Laubrary.Zounds {
             spectrumView.onClampToTrimChanged = v => tempKlip.clampToTrim = v;
             spectrumView.onVolumeEnabledChanged = v => tempKlip.volumeEnvelope.enabled = v;
             spectrumView.onPitchEnabledChanged = v => tempKlip.pitchEnvelope.enabled = v;
-            spectrumView.InitFromKlip(tempKlip);
+            // This Klip is a throwaway created just to drive the popup and isn't part of any chain, so
+            // the overlay keeps reading/writing its legacy fields directly (DoImport below bakes them).
+            spectrumView.InitFromKlip(tempKlip, useChainEnvelopes: false);
             initialized = true;
         }
 

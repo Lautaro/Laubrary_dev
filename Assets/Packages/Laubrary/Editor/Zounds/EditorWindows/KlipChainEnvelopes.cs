@@ -4,18 +4,22 @@ using Laubrary.Zounds.Dsp;
 namespace Laubrary.Zounds {
 
     /// <summary>
-    /// Ported utility: locates (or creates) the two chain modifiers that would drive a Klip's volume and
-    /// pitch over its play length — an Envelope bound to a Gain node for volume, and an Envelope bound to
-    /// the source stage's pitch — the same way the source project's waveform overlay curves are really
-    /// just ordinary chain modifiers under the hood.
+    /// Locates (or creates) the two chain modifiers that drive a Klip's volume and pitch over its play
+    /// length — an Envelope bound to a Gain node for volume, and an Envelope bound to the source stage's
+    /// pitch — the same way the waveform overlay's curves are really just ordinary chain modifiers under
+    /// the hood.
     ///
-    /// This project's Klip editor does not use that wiring: a Klip's volume/pitch-over-time curves are
-    /// its own <c>volumeEnvelope</c>/<c>pitchEnvelope</c> fields, baked into the rendered audio by
-    /// <see cref="KlipEditorWindow.RenderToAudioClip"/> rather than applied live by a per-voice modifier.
-    /// Rewiring the waveform overlay to use chain modifiers instead would be an architecture change, not
-    /// a compile fix, so this class is kept as a standalone utility against the (already-present) chain
-    /// data model: it compiles and works correctly against any zound's chain, it is simply not called
-    /// from the Klip editor's spectrum-view events the way it was in the source project.
+    /// The Klip editor's waveform overlay (<see cref="KlipEditorWindow"/> + <see cref="AudioSpectrumView"/>)
+    /// reads and writes curves exclusively through this class. That matters because real-time playback
+    /// (<see cref="ZoundDspPlayback"/> / <c>ZoundSapPlayback.ResolveChainForPlayback</c>) only converts a
+    /// Klip's legacy <c>volumeEnvelope</c>/<c>pitchEnvelope</c> fields into a chain when the Klip has no
+    /// chain of its own — the moment any effect is added through the chain editor, those legacy fields stop
+    /// being consulted. Editing through this class instead of the legacy fields means a curve affects
+    /// playback whether or not the Klip already has other effects.
+    ///
+    /// The legacy fields themselves are left alone: a one-time project migration still converts them for
+    /// Klips nobody has opened in this editor yet, and a handful of older editor-only paths (importing with
+    /// a bake, Zequence-entry mixing) still use them directly for their own, unrelated purposes.
     /// </summary>
     internal static class KlipChainEnvelopes {
 
@@ -46,7 +50,12 @@ namespace Laubrary.Zounds {
             if (m < 0) {
                 if (!create) return null;
                 chain.nodes.Add(new ZoundEffectNode(ZoundEffectType.Gain));
-                var env = new ZoundModifier(ZoundModifierType.Envelope) { name = "Volume", curve = new Envelope(Zound.MinVolumeRange, Zound.MaxVolumeRange) };
+                // Seed the new modifier from the Klip's legacy curve, if it drew one, so switching a Klip
+                // over to the chain (by giving it its first modifier) doesn't discard existing curve work.
+                Envelope seed = zound is Klip legacyKlip && legacyKlip.volumeEnvelope != null
+                    ? legacyKlip.volumeEnvelope.DeepCopy()
+                    : new Envelope(Zound.MinVolumeRange, Zound.MaxVolumeRange);
+                var env = new ZoundModifier(ZoundModifierType.Envelope) { name = "Volume", curve = seed };
                 chain.modifiers.Add(env);
                 chain.bindings.Add(new ZoundModifierBinding { modifierIndex = chain.modifiers.Count - 1, nodeIndex = chain.nodes.Count - 1, paramIndex = 0, op = ModifierOp.Multiply, depth = 1f });
                 chain.Touch();
@@ -61,7 +70,11 @@ namespace Laubrary.Zounds {
             int m = PitchModifier(chain);
             if (m < 0) {
                 if (!create) return null;
-                var env = new ZoundModifier(ZoundModifierType.Envelope) { name = "Pitch", curve = new Envelope(Zound.MinPitchRange, Zound.MaxPitchRange) };
+                // Same carry-over as VolumeCurve: keep the shape of any existing legacy pitch curve.
+                Envelope seed = zound is Klip legacyKlip && legacyKlip.pitchEnvelope != null
+                    ? legacyKlip.pitchEnvelope.DeepCopy()
+                    : new Envelope(Zound.MinPitchRange, Zound.MaxPitchRange);
+                var env = new ZoundModifier(ZoundModifierType.Envelope) { name = "Pitch", curve = seed };
                 chain.modifiers.Add(env);
                 chain.bindings.Add(new ZoundModifierBinding { modifierIndex = chain.modifiers.Count - 1, nodeIndex = -1, paramIndex = SourceStageParam.Pitch, op = ModifierOp.Multiply, depth = 1f });
                 chain.Touch();
