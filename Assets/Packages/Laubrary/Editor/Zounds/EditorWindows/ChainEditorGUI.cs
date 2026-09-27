@@ -21,11 +21,42 @@ namespace Laubrary.Zounds {
         private const float OnW = 30f;
         private const float RemoveW = 20f;
         private const float LabelW = 88f;
-        private const float SliderW = 150f;
-        private const float ChoiceW = 68f;
-        private const float TagW = 56f;
-        // One numeric parameter: indent + label + control + modulation tag. Two fit side by side when the row allows.
-        private const float ParamColW = GripW + 6f + LabelW + 4f + SliderW + 4f + TagW;
+        /// <summary>
+        /// The effect-name column, as wide as the longest effect name and no wider — measured, because a fixed guess clipped
+        /// "Transient shaper" to "Transient shape" (seen on screen). Every row shares it, so the controls start in one column.
+        /// </summary>
+        private static float NameW {
+            get {
+                if (nameW > 0f) return nameW;
+                float w = 60f;
+                for (int t = 0; t < ZoundEffectDescriptors.EffectTypeCount; t++)
+                    w = Mathf.Max(w, EditorStyles.boldLabel.CalcSize(new GUIContent(ZoundEffectDescriptors.Get((ZoundEffectType)t).displayName)).x + 6f);
+                return nameW = w;
+            }
+        }
+        private static float nameW;
+
+        // ── the wide-not-tall layout (T-0437) ──
+        // The chain editor is used WIDE: horizontal room is cheap and vertical room is the scarce thing. So every setting
+        // is a self-labelled unit of known width, and units flow left to right, starting a new row only when the next one
+        // does not fit. A slider carries its name and value inside its own track; a toggle's face is its name; a choice
+        // strip speaks through its options (the setting's name is on hover); a choice between shapes is icons. There is no
+        // separate label column any more — that column is what forced one setting per row.
+        private const float Gap = 6f;
+        private const float SliderUnitW = 158f;
+        private const float TagIconW = 14f;
+        private const float WarnIconW = 16f;
+
+        /// <summary>
+        /// How much narrower the rows really are than the window, measured on a paint pass and used on every pass after.
+        ///
+        /// Wrapping has to be decided identically in IMGUI's layout pass and its paint pass, and only the paint pass knows
+        /// the real width of a row. So the difference is remembered from the paint pass and the window's own width, which
+        /// both passes know, is used with it — a row decision can then never differ between the two passes.
+        /// </summary>
+        private float widthDelta = 40f;
+        private float AvailableWidth => Mathf.Max(200f, EditorGUIUtility.currentViewWidth - widthDelta);
+        private float HeaderLeadW => GripW + 2f + OnW + 6f + NameW + Gap;
 
         private int selectedNode = -1;
         private int dragNode = -1;
@@ -213,6 +244,8 @@ namespace Laubrary.Zounds {
                 node.EnsureParams();
                 var desc = ZoundEffectDescriptors.Get(node.type);
                 var row = GUILayoutUtility.GetRect(1f, RowH, GUILayout.ExpandWidth(true));
+                if (evt.type == EventType.Repaint && row.width > 50f)
+                    widthDelta = Mathf.Clamp(EditorGUIUtility.currentViewWidth - row.width, 0f, 400f);
                 nodeRowRects.Add(row);
                 bool selected = selectedNode == i;
                 ZoundsEditorDiagnostics.Record("row node " + i, row);
@@ -236,14 +269,35 @@ namespace Laubrary.Zounds {
                 bool on = ZUI.Toggle(onRect, wasOn, new GUIContent("On", wasOn ? "Bypass this effect (its state is kept)." : "Enable this effect."), ZUI.Style.RichToggle);
                 if (on != wasOn) { int ni = i; Modify(zound, on ? "enable effect" : "bypass effect", () => { chain.nodes[ni].enabled = on; chain.Touch(); }); }
 
-                // name + summary (click selects)
-                var nameRect = new Rect(onRect.xMax + 6f, row.y, 90f, row.height);
-                var summaryRect = new Rect(nameRect.xMax, row.y, row.width - (nameRect.xMax - row.x) - RemoveW - 4f, row.height);
-                ZoundsEditorDiagnostics.Record("node.name", nameRect); ZoundsEditorDiagnostics.Record("node.summary", summaryRect);
+                // name, then either every setting inline on this row, or a summary that expands.
+                //
+                // An effect whose settings fit on its own row at the window's current width shows them right there, with
+                // no expand step — the owner's ask for the few-slider effects, applied by width rather than by a list, so a
+                // wide window inlines more and a narrow one expands more, and nothing is ever squeezed. Only an effect that
+                // does not fit keeps the summary-and-expand pattern, and its settings then flow across the whole width.
+                var nameRect = new Rect(onRect.xMax + 6f, row.y, NameW, row.height);
+                ZoundsEditorDiagnostics.Record("node.name", nameRect);
                 GUI.Label(nameRect, new GUIContent(desc.displayName, desc.summary), EditorStyles.boldLabel);
-                GUI.Label(summaryRect, new GUIContent(Summary(zound, chain, i, node, desc), "Click to edit the parameters."), EditorStyles.miniLabel);
-                if (evt.type == EventType.MouseDown && evt.button == 0 && (nameRect.Contains(evt.mousePosition) || summaryRect.Contains(evt.mousePosition))) {
-                    selectedNode = selected ? -1 : i; evt.Use();
+
+                var units = NodeUnits(zound, chain, i, node, desc, linked);
+                float inlineRoom = AvailableWidth - HeaderLeadW - RemoveW - Gap;
+                bool inline = ZUI.WrapRow.OneRowWidth(Gap, Widths(units)) <= inlineRoom;
+                if (inline) {
+                    float x = nameRect.xMax + Gap;
+                    foreach (var u in units) {
+                        DrawUnit(zound, chain, u, new Rect(x, row.y + 1f, u.width, row.height - 2f));
+                        x += u.width + Gap;
+                    }
+                    if (selected) selectedNode = -1;
+                }
+                else {
+                    var summaryRect = new Rect(nameRect.xMax, row.y, row.width - (nameRect.xMax - row.x) - RemoveW - 4f, row.height);
+                    ZoundsEditorDiagnostics.Record("node.summary", summaryRect);
+                    GUI.Label(summaryRect, new GUIContent((selected ? "▾ " : "▸ ") + Summary(zound, chain, i, node, desc),
+                        selected ? "Click to fold the settings away." : "Click to show all " + units.Count + " settings. They do not fit on this row at the window's current width."), EditorStyles.miniLabel);
+                    if (evt.type == EventType.MouseDown && evt.button == 0 && (nameRect.Contains(evt.mousePosition) || summaryRect.Contains(evt.mousePosition))) {
+                        selectedNode = selected ? -1 : i; evt.Use();
+                    }
                 }
 
                 // remove
@@ -255,7 +309,10 @@ namespace Laubrary.Zounds {
                     GUIUtility.ExitGUI();
                 }
 
-                if (selected) DrawNodeParams(zound, chain, i, node, desc, linked);
+                if (!inline && selectedNode == i) {
+                    var flow = new ZUI.WrapRow(AvailableWidth, GripW + 6f, RowH, Gap);
+                    foreach (var u in units) DrawUnit(zound, chain, u, Inset(flow.Next(u.width)));
+                }
             }
 
             // drop indicator
@@ -344,107 +401,161 @@ namespace Laubrary.Zounds {
 
         // ───────────────────────────── parameters ─────────────────────────────
 
-        // Short parameters share a row two by two when the pane is wide enough; a choice strip takes a row.
-        private Rect paramRow; private int paramColumn = -1;
-        private Rect NextParamSlot(bool wide) {
-            float width = EditorGUIUtility.currentViewWidth;
-            bool twoColumns = !wide && width >= 2f * ParamColW;
-            if (wide || paramColumn != 0 || !twoColumns) {
-                paramRow = GUILayoutUtility.GetRect(1f, RowH, GUILayout.ExpandWidth(true));
-                paramColumn = wide || !twoColumns ? -1 : 0;
-                return paramRow;
-            }
-            paramColumn = -1;
-            return new Rect(paramRow.x + paramRow.width * 0.5f, paramRow.y, paramRow.width * 0.5f, paramRow.height);
+        /// <summary>One setting, ready to be drawn as a self-labelled control of a known width.</summary>
+        private sealed class ParamUnit {
+            public ParamDesc pd;
+            public int nodeIndex, paramIndex;
+            public float value;
+            public bool overridden, bound;
+            public Texture[] icons;
+            public string warning, warningTip;
+            public float width;
+            public System.Action<float> onDrag, onSet;
+            // A two-handled range made of two settings (a Random modifier's Min and Max).
+            public ParamDesc pdHigh; public float valueHigh; public System.Action<float, float> onRange;
         }
-        private void EndParamRows() { paramColumn = -1; }
 
-        private void DrawNodeParams(Zound zound, ZoundEffectChain chain, int nodeIndex, ZoundEffectNode node, EffectDesc desc, bool linked) {
-            EndParamRows();
+        private static List<float> Widths(List<ParamUnit> units) {
+            var w = new List<float>(units.Count);
+            foreach (var u in units) w.Add(u.width);
+            return w;
+        }
+
+        private static Rect Inset(Rect r) => new Rect(r.x, r.y + 1f, r.width, r.height - 2f);
+
+        private static readonly GUIStyle measureStyle = new GUIStyle(EditorStyles.label) { fontSize = 12 };
+
+        /// <summary>How wide a setting's control is: fixed for a slider, sized to its words for a toggle or a choice.</summary>
+        private static float UnitWidth(ParamUnit u) {
+            float w;
+            if (u.icons != null) w = u.icons.Length * ZUI.IconChoiceCellWidth;
+            else if (u.pdHigh.name != null) w = SliderUnitW + 60f;
+            else if (u.pd.IsChoice) {
+                w = 0f;
+                foreach (var o in u.pd.options) w += Mathf.Max(38f, measureStyle.CalcSize(new GUIContent(o)).x + 14f);
+            }
+            else if (u.pd.curve == ParamCurve.Toggle) w = Mathf.Max(64f, measureStyle.CalcSize(new GUIContent(u.pd.name)).x + 20f);
+            else w = SliderUnitW;
+            if (u.bound) w += TagIconW;
+            if (u.warning != null) w += WarnIconW;
+            return w;
+        }
+
+        private List<ParamUnit> NodeUnits(Zound zound, ZoundEffectChain chain, int nodeIndex, ZoundEffectNode node, EffectDesc desc, bool linked) {
+            var list = new List<ParamUnit>(desc.parameters.Length);
             for (int k = 0; k < desc.parameters.Length; k++) {
-                var pd = desc.parameters[k];
                 int pk = k;
-                float current = EffectiveValue(zound, chain, nodeIndex, k, node.p[k]);
-                bool overridden = linked && ZoundChainLibrary.TryGetOverride(zound, nodeIndex, k, out _);
-                DrawParamRow(zound, chain, nodeIndex, k, pd, current, overridden,
-                    v => {
+                var u = new ParamUnit {
+                    pd = desc.parameters[k], nodeIndex = nodeIndex, paramIndex = k,
+                    value = EffectiveValue(zound, chain, nodeIndex, k, node.p[k]),
+                    overridden = linked && ZoundChainLibrary.TryGetOverride(zound, nodeIndex, k, out _),
+                    bound = IsBound(chain, nodeIndex, k),
+                    onDrag = v => {
                         if (linked) ModifyContinuous(zound, "override chain parameter", () => ZoundChainLibrary.SetOverride(zound, nodeIndex, pk, v));
                         else ModifyContinuous(zound, "change effect parameter", () => { node.p[pk] = v; chain.Touch(); });
                         ZoundDspPlayback.PushLiveParam(zound, chain, nodeIndex, pk, v);
                     },
-                    v => {
+                    onSet = v => {
                         if (linked) Modify(zound, "override chain parameter", () => ZoundChainLibrary.SetOverride(zound, nodeIndex, pk, v));
                         else Modify(zound, "change effect parameter", () => { node.p[pk] = v; chain.Touch(); });
                         ZoundDspPlayback.PushLiveParam(zound, chain, nodeIndex, pk, v);
-                    });
+                    },
+                };
+                u.width = UnitWidth(u);
+                list.Add(u);
             }
+            return list;
         }
 
-        /// <summary>One parameter: label, the control the descriptor calls for, a modulation tag; right-click for modulation and overrides.</summary>
-        private void DrawParamRow(Zound zound, ZoundEffectChain chain, int nodeIndex, int paramIndex, ParamDesc pd, float value, bool overridden,
-                                  System.Action<float> onDrag, System.Action<float> onSet) {
-            var row = NextParamSlot(pd.IsChoice);
-            var evt = Event.current;
-            var labelRect = new Rect(row.x + GripW + 6f, row.y, LabelW, row.height);
-            ZoundsEditorDiagnostics.Record("row param " + pd.name, row); ZoundsEditorDiagnostics.Record("param.label " + pd.name, labelRect);
-            // What it DOES first, then how to reach it. The old hover read back the parameter's own name with its units
-            // appended, which is only useful to somebody who already knew — a name is a handle for a thing you understand,
-            // not an explanation of it. Parameters that have not been described yet still fall back to the old wording, so
-            // this is never worse than it was and gets better one description at a time.
+        /// <summary>What a setting does, for its hover text. What it DOES first, then how to reach it.</summary>
+        private static string ParamTip(ParamDesc pd, bool overridden, bool modulatable) {
             string what = string.IsNullOrEmpty(pd.desc)
                 ? pd.name + (string.IsNullOrEmpty(pd.unit) ? "" : " (" + pd.unit + ")") + "."
-                : pd.desc + (string.IsNullOrEmpty(pd.unit) ? "" : "  Measured in " + pd.unit + ".");
-            string tip = what + " Right-click to modulate it" + (overridden ? " or revert the override." : ".");
-            GUI.Label(labelRect, new GUIContent(pd.name + (overridden ? " •" : ""), tip + (overridden ? " Overridden on this zound; the preset's value is not used here." : "")));
+                : pd.name + ": " + pd.desc + (string.IsNullOrEmpty(pd.unit) ? "" : "  Measured in " + pd.unit + ".");
+            if (modulatable) what += " Right-click to modulate it" + (overridden ? " or revert the override." : ".");
+            if (overridden) what += " Overridden on this sound; the preset's value is not used here.";
+            return what;
+        }
 
-            var ctrl = new Rect(labelRect.xMax + 4f, row.y + 1f, SliderW, row.height - 2f);
-            bool bound = IsBound(chain, nodeIndex, paramIndex);
-            if (pd.IsChoice) {
-                float w = Mathf.Min(ChoiceW, (row.width - (ctrl.x - row.x) - 30f) / pd.options.Length);
-                int cur = Mathf.Clamp(Mathf.RoundToInt(value), 0, pd.options.Length - 1);
-                for (int o = 0; o < pd.options.Length; o++) {
-                    var r = new Rect(ctrl.x + o * w, ctrl.y, w, ctrl.height);
-                    var corner = o == 0 ? ZUICornerMask.Left : o == pd.options.Length - 1 ? ZUICornerMask.Right : ZUICornerMask.None;
-                    if (ZUI.Toggle(r, cur == o, new GUIContent(pd.options[o], pd.OptionTip(o)), ZUI.Style.RichToggle, null, corner) && cur != o) onSet(o);
+        /// <summary>
+        /// Draws one setting as its own labelled control inside <paramref name="r"/>: a slider with its name and value in the
+        /// track, a toggle whose face is its name, a choice strip, or a strip of icons. Right-click opens its modulation menu.
+        /// </summary>
+        private void DrawUnit(Zound zound, ZoundEffectChain chain, ParamUnit u, Rect r) {
+            var evt = Event.current;
+            var pd = u.pd;
+            var ctrl = r;
+            if (u.bound) ctrl.width -= TagIconW;
+            if (u.warning != null) ctrl.width -= WarnIconW;
+            bool isEffect = u.nodeIndex != int.MinValue;
+            string tip = ParamTip(pd, u.overridden, isEffect && pd.automatable);
+            ZoundsEditorDiagnostics.Record("param.control " + pd.name, ctrl);
+
+            if (u.pdHigh.name != null) {
+                float lo = u.value, hi = u.valueHigh, lo0 = lo, hi0 = hi;
+                ZUI.MicroMinMax(ctrl, ref lo, ref hi, pd.min, pd.max, pd.name + "–" + u.pdHigh.name);
+                if (!Mathf.Approximately(lo, lo0) || !Mathf.Approximately(hi, hi0)) u.onRange(lo, hi);
+                GUI.Label(ctrl, new GUIContent("", pd.name + " and " + u.pdHigh.name + ": the range a value is drawn from, one per play. " + pd.desc));
+            }
+            else if (u.icons != null) {
+                int cur = Mathf.Clamp(Mathf.RoundToInt(u.value), 0, pd.options.Length - 1);
+                var tips = new string[pd.options.Length];
+                for (int o = 0; o < tips.Length; o++) tips[o] = pd.name + ": " + (pd.OptionTip(o) ?? pd.options[o]);
+                int now = ZUI.IconChoice(ctrl, cur, u.icons, tips);
+                if (now != cur) u.onSet(now);
+            }
+            else if (pd.IsChoice) {
+                int cur = Mathf.Clamp(Mathf.RoundToInt(u.value), 0, pd.options.Length - 1);
+                float total = 0f; var ow = new float[pd.options.Length];
+                for (int o = 0; o < ow.Length; o++) { ow[o] = Mathf.Max(38f, measureStyle.CalcSize(new GUIContent(pd.options[o])).x + 14f); total += ow[o]; }
+                float x = ctrl.x, scale = ctrl.width / Mathf.Max(1f, total);
+                for (int o = 0; o < ow.Length; o++) {
+                    var or = new Rect(x, ctrl.y, ow[o] * scale, ctrl.height);
+                    x += or.width;
+                    var corner = ow.Length == 1 ? ZUICornerMask.All : o == 0 ? ZUICornerMask.Left : o == ow.Length - 1 ? ZUICornerMask.Right : ZUICornerMask.None;
+                    string otip = pd.name + ": " + (pd.OptionTip(o) ?? pd.options[o]);
+                    if (ZUI.Toggle(or, cur == o, new GUIContent(pd.options[o], otip), ZUI.Style.RichToggle, null, corner) && cur != o) u.onSet(o);
                 }
-                ctrl.width = w * pd.options.Length;
             }
             else if (pd.curve == ParamCurve.Toggle) {
-                ctrl.width = 60f;
-                bool on = value >= 0.5f;
-                bool now = ZUI.Toggle(ctrl, on, on ? "On" : "Off", ZUI.Style.RichToggle);
-                if (now != on) onSet(now ? 1f : 0f);
-            }
-            else if (pd.curve == ParamCurve.Logarithmic) {
-                // Log-mapped: the slider travels 0..1 in log space and the label carries the real value.
-                float lmin = Mathf.Log(Mathf.Max(pd.min, 1e-4f)), lmax = Mathf.Log(Mathf.Max(pd.max, 1e-4f));
-                float t = Mathf.InverseLerp(lmin, lmax, Mathf.Log(Mathf.Max(value, 1e-4f)));
-                float nt = ZUI.MicroSlider(ctrl, t, 0f, 1f, Format(pd, value), ZUI.SliderStyle.Default, false, ZUI.MicroSliderLabelMode.LabelOnly, Mathf.InverseLerp(lmin, lmax, Mathf.Log(Mathf.Max(pd.def, 1e-4f))));
-                if (!Mathf.Approximately(nt, t)) onDrag(Mathf.Exp(Mathf.Lerp(lmin, lmax, nt)));
+                // The toggle's own face is its name, latching when on. No "On/Off" beside a separate label.
+                bool on = u.value >= 0.5f;
+                bool now = ZUI.Toggle(ctrl, on, new GUIContent(pd.name + (u.overridden ? " •" : ""), tip), ZUI.Style.RichToggle);
+                if (now != on) u.onSet(now ? 1f : 0f);
             }
             else {
-                int decimals = pd.curve == ParamCurve.Integer ? 0 : (pd.max - pd.min) > 20f ? 1 : 2;
-                float nv = ZUI.MicroSlider(ctrl, value, pd.min, pd.max, pd.name, ZUI.SliderStyle.Default, false, ZUI.MicroSliderLabelMode.LabelAndValue, pd.def);
-                if (pd.curve == ParamCurve.Integer) nv = Mathf.Round(nv);
-                if (!Mathf.Approximately(nv, value)) onDrag(nv);
+                // Name and value inside the track, in the parameter's own units.
+                string label = pd.name + (u.overridden ? " •" : "") + "  " + Format(pd, u.value);
+                if (pd.curve == ParamCurve.Logarithmic) {
+                    float lmin = Mathf.Log(Mathf.Max(pd.min, 1e-4f)), lmax = Mathf.Log(Mathf.Max(pd.max, 1e-4f));
+                    float t = Mathf.InverseLerp(lmin, lmax, Mathf.Log(Mathf.Max(u.value, 1e-4f)));
+                    float nt = ZUI.MicroSlider(ctrl, t, 0f, 1f, label, ZUI.SliderStyle.Default, false, ZUI.MicroSliderLabelMode.LabelOnly, Mathf.InverseLerp(lmin, lmax, Mathf.Log(Mathf.Max(pd.def, 1e-4f))));
+                    if (!Mathf.Approximately(nt, t)) u.onDrag(Mathf.Exp(Mathf.Lerp(lmin, lmax, nt)));
+                }
+                else {
+                    float nv = ZUI.MicroSlider(ctrl, u.value, pd.min, pd.max, label, ZUI.SliderStyle.Default, false, ZUI.MicroSliderLabelMode.LabelOnly, pd.def);
+                    if (pd.curve == ParamCurve.Integer) nv = Mathf.Round(nv);
+                    if (!Mathf.Approximately(nv, u.value)) u.onDrag(nv);
+                }
+                GUI.Label(ctrl, new GUIContent("", tip));
             }
 
-            ZoundsEditorDiagnostics.Record("param.control " + pd.name, ctrl);
-            if (rowNote != null) {
-                var noteRect = new Rect(ctrl.xMax + 4f, row.y, Mathf.Max(TagW, row.xMax - ctrl.xMax - 8f), row.height);
-                var ns = new GUIStyle(EditorStyles.miniLabel) { wordWrap = false, clipping = TextClipping.Ellipsis };
-                ns.normal.textColor = new Color(0.97f, 0.8f, 0.4f);
-                GUI.Label(noteRect, new GUIContent(rowNote, rowNoteTip), ns);
-            }
-            if (bound) {
-                DrawLiveValueOverlay(zound, ctrl, pd, nodeIndex, paramIndex, value);
-                var tag = new Rect(ctrl.xMax + 4f, row.y, TagW, row.height);
+            float right = ctrl.xMax;
+            if (u.bound) {
+                DrawLiveValueOverlay(zound, ctrl, pd, u.nodeIndex, u.paramIndex, u.value);
+                var tag = new Rect(right, r.y, TagIconW, r.height);
                 ZoundsEditorDiagnostics.Record("param.tag " + pd.name, tag);
-                GUI.Label(tag, new GUIContent("~ " + BoundBy(chain, nodeIndex, paramIndex), "Modulated by this modifier; the slider sets the base value the modifier acts on."), EditorStyles.miniLabel);
+                GUI.Label(tag, new GUIContent("~", "Modulated by " + BoundBy(chain, u.nodeIndex, u.paramIndex) + ". The slider sets where the modifier starts from; the thin line marks it, and the fill shows where the engine has it right now."), EditorStyles.centeredGreyMiniLabel);
+                right += TagIconW;
+            }
+            if (u.warning != null) {
+                var ws = new GUIStyle(EditorStyles.label) { alignment = TextAnchor.MiddleCenter };
+                ws.normal.textColor = new Color(0.97f, 0.8f, 0.4f);
+                GUI.Label(new Rect(right, r.y, WarnIconW, r.height), new GUIContent("⚠", u.warning + ". " + u.warningTip), ws);
             }
 
-            if (evt.type == EventType.MouseDown && evt.button == 1 && row.Contains(evt.mousePosition)) {
-                ShowParamMenu(zound, chain, nodeIndex, paramIndex, pd, overridden);
+            if (evt.type == EventType.MouseDown && evt.button == 1 && r.Contains(evt.mousePosition)) {
+                ShowParamMenu(zound, chain, u.nodeIndex, u.paramIndex, pd, u.overridden);
                 evt.Use();
             }
         }
@@ -705,7 +816,7 @@ namespace Laubrary.Zounds {
         }
 
         private void DrawModifierBody(Zound zound, ZoundEffectChain chain, int m, ZoundModifier mod, ModifierDesc desc) {
-            EndParamRows();
+            var units = new List<ParamUnit>(desc.parameters.Length);
             for (int k = 0; k < desc.parameters.Length; k++) {
                 var pd = desc.parameters[k];
                 int pk = k;
@@ -717,13 +828,32 @@ namespace Laubrary.Zounds {
                 if (mod.type == ZoundModifierType.Step && k == 5 && (int)mod.p[0] != (int)StepTiming.PerInterval) continue;
                 // Step: a list running on its own clock (per interval, Retrigger off) has no start to randomise.
                 if (mod.type == ZoundModifierType.Step && k == 3 && (int)mod.p[0] == (int)StepTiming.PerInterval && mod.p[4] < 0.5f) continue;
-                if (mod.type == ZoundModifierType.Lfo && k == 1 && (int)mod.p[4] == (int)LfoMode.Oscillate) SetSlowRateNote(zound, chain, mod);
-                DrawParamRow(zound, chain, int.MinValue, k, pd, mod.p[k], false,
-                    v => ModifyContinuous(zound, "change modifier parameter", () => { mod.p[pk] = v; chain.Touch(); }),
-                    v => Modify(zound, "change modifier parameter", () => { mod.p[pk] = v; chain.Touch(); }));
-                rowNote = null; rowNoteTip = null;
+                // Random: Max is drawn together with Min, as one two-handled range.
+                if (mod.type == ZoundModifierType.Random && k == 1) continue;
+
+                var u = new ParamUnit {
+                    pd = pd, nodeIndex = int.MinValue, paramIndex = k, value = mod.p[k],
+                    onDrag = v => ModifyContinuous(zound, "change modifier parameter", () => { mod.p[pk] = v; chain.Touch(); }),
+                    onSet = v => Modify(zound, "change modifier parameter", () => { mod.p[pk] = v; chain.Touch(); }),
+                };
+                // A choice between shapes is shown as the shapes.
+                if (mod.type == ZoundModifierType.Lfo && k == 2)
+                    u.icons = new Texture[] { ZUIWaveIcons.Get(ZUIWave.Sine), ZUIWaveIcons.Get(ZUIWave.Triangle), ZUIWaveIcons.Get(ZUIWave.Saw), ZUIWaveIcons.Get(ZUIWave.Square) };
+                if (mod.type == ZoundModifierType.Lfo && k == 4)
+                    u.icons = new Texture[] { ZUIWaveIcons.Get(ZUIWave.Sine), ZUIWaveIcons.Get(ZUIWave.Random) };
+                if (mod.type == ZoundModifierType.Random && k == 0) {
+                    u.pdHigh = desc.parameters[1];
+                    u.valueHigh = mod.p[1];
+                    u.onRange = (lo, hi) => ModifyContinuous(zound, "change modifier range", () => { mod.p[0] = lo; mod.p[1] = hi; chain.Touch(); });
+                }
+                if (mod.type == ZoundModifierType.Lfo && k == 1 && (int)mod.p[4] == (int)LfoMode.Oscillate)
+                    SlowRateWarning(zound, chain, mod, out u.warning, out u.warningTip);
+                u.width = UnitWidth(u);
+                units.Add(u);
             }
-            EndParamRows();
+            var flow = new ZUI.WrapRow(AvailableWidth, GripW + 6f, RowH, Gap);
+            foreach (var u in units) DrawUnit(zound, chain, u, Inset(flow.Next(u.width)));
+
             if (mod.type == ZoundModifierType.Envelope || mod.type == ZoundModifierType.Lfo) {
                 if (mod.curve == null) mod.curve = new Envelope(0f, 1f);
                 if (!envelopeGuis.TryGetValue(mod, out var gui)) { gui = new EnvelopeGUI { name = "mod" + m }; envelopeGuis.Add(mod, gui); }
@@ -738,20 +868,17 @@ namespace Laubrary.Zounds {
                 // the wobble itself stays whichever of the four was chosen. It starts flat, so it does nothing until it
                 // is drawn on.
                 bool isLfoRamp = mod.type == ZoundModifierType.Lfo;
-                string caption = isLfoRamp ? "Strength over the play" : "Shape over the play";
+                string caption = isLfoRamp ? "strength over the play" : "shape over the play";
                 string curveTip = isLfoRamp
                     ? "How strongly this oscillator applies as the sound plays, from its start on the left to its end on the right. It does NOT change the wave's shape — that is the Shape buttons above. Flat at the top means full strength throughout, which is how it starts. Drag points; double-click to add one."
                     : "The value this envelope produces across the play, from its start on the left to its end on the right (plus any extra time). Drag points; double-click to add one.";
-                var capRect = GUILayoutUtility.GetRect(200f, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
-                capRect.xMin += GripW + 6f;
-                GUI.Label(capRect, new GUIContent(caption, curveTip), EditorStyles.miniLabel);
-
+                // The caption sits INSIDE the graph, at its top-left, rather than on a row of its own above it.
                 var rect = GUILayoutUtility.GetRect(200f, 56f, GUILayout.ExpandWidth(true));
                 rect.xMin += GripW + 6f;
                 var evt = Event.current;
                 if (evt.type == EventType.Repaint) {
                     EnsureModulationMeasured(zound, chain);
-                    DrawCurveBackdrop(rect, m, mod, isLfoRamp);
+                    DrawCurveBackdrop(rect, m, mod, isLfoRamp, caption);
                 }
                 GUI.Label(rect, new GUIContent("", curveTip + (isLfoRamp
                     ? " Behind the curve, faintly: what the oscillator actually puts out across the play, measured from the engine — the curve is the ceiling that wobble can reach."
@@ -767,10 +894,6 @@ namespace Laubrary.Zounds {
             if (mod.type == ZoundModifierType.Step) DrawSteps(zound, chain, mod);
         }
 
-        // A short warning drawn beside the next parameter row, with its explanation on hover. Set just before that row is
-        // drawn and cleared straight after, so it can never end up beside the wrong control.
-        private string rowNote, rowNoteTip;
-
         /// <summary>
         /// Warns, beside an oscillator's rate, when one cycle takes longer than a play of the sound.
         ///
@@ -779,7 +902,8 @@ namespace Laubrary.Zounds {
         /// listener gets. Nothing about the oscillator is wrong, so nothing should silently change; but the reason is
         /// invisible from the settings alone, so it is said here, where the rate is set.
         /// </summary>
-        private void SetSlowRateNote(Zound zound, ZoundEffectChain chain, ZoundModifier mod) {
+        private void SlowRateWarning(Zound zound, ZoundEffectChain chain, ZoundModifier mod, out string note, out string noteTip) {
+            note = null; noteTip = null;
             EnsureModulationMeasured(zound, chain);
             float play = modulation.playSeconds;
             float rate = mod.p[1];
@@ -787,8 +911,8 @@ namespace Laubrary.Zounds {
             float cycles = rate * play;
             if (cycles >= 1f) return;
             bool freeRunning = mod.p.Length > 3 && mod.p[3] < 0.5f;
-            rowNote = "⚠ " + Mathf.Max(1, Mathf.RoundToInt(cycles * 100f)) + "% of a cycle per play";
-            rowNoteTip = "One cycle at this rate takes " + (1f / rate).ToString("0.0") + " s, but a play of this sound lasts "
+            note = Mathf.Max(1, Mathf.RoundToInt(cycles * 100f)) + "% of a cycle per play";
+            noteTip = "One cycle at this rate takes " + (1f / rate).ToString("0.0") + " s, but a play of this sound lasts "
                        + play.ToString("0.00") + " s, so each play hears only " + Mathf.RoundToInt(cycles * 100f)
                        + "% of one cycle. That sounds like a slow sweep, not a wobble, whatever the shape."
                        + (freeRunning ? " Because it runs Always, each play also picks it up wherever it has got to, so every play hears a different part of the cycle." : " Because it runs Per play, every play hears the same opening part of the cycle.")
@@ -804,7 +928,7 @@ namespace Laubrary.Zounds {
         /// curve then reads as what it is, the ceiling that wobble is allowed to reach, instead of as a mysterious second
         /// wave. Measured from the engine, not re-derived here, so it cannot disagree with what is heard.
         /// </summary>
-        private void DrawCurveBackdrop(Rect rect, int modifierIndex, ZoundModifier mod, bool isLfoRamp) {
+        private void DrawCurveBackdrop(Rect rect, int modifierIndex, ZoundModifier mod, bool isLfoRamp, string caption) {
             EditorGUI.DrawRect(rect, new Color(0.10f, 0.10f, 0.12f));
             var grid = new Color(1f, 1f, 1f, 0.06f);
             for (int q = 1; q < 4; q++) {
@@ -835,12 +959,14 @@ namespace Laubrary.Zounds {
 
             var style = new GUIStyle(EditorStyles.miniLabel) { alignment = TextAnchor.UpperLeft, fontSize = 9 };
             style.normal.textColor = new Color(0.62f, 0.62f, 0.68f);
-            GUI.Label(new Rect(rect.x + 9f, rect.y, 60f, 12f), isLfoRamp ? "full" : "top", style);
+            var capStyle = new GUIStyle(style) { fontSize = 10 };
+            capStyle.normal.textColor = new Color(0.8f, 0.8f, 0.86f);
+            GUI.Label(new Rect(rect.x + 9f, rect.y, 200f, 13f), caption, capStyle);
+            var topRight = new GUIStyle(style) { alignment = TextAnchor.UpperRight };
+            GUI.Label(new Rect(rect.xMax - 62f, rect.y, 60f, 12f), isLfoRamp ? "full" : "top", topRight);
             GUI.Label(new Rect(rect.x + 9f, rect.yMax - 13f, 60f, 12f), isLfoRamp ? "none" : "bottom", style);
-            if (modulation.playSeconds > 0f) {
-                var right = new GUIStyle(style) { alignment = TextAnchor.UpperRight };
-                GUI.Label(new Rect(rect.xMax - 62f, rect.yMax - 13f, 60f, 12f), modulation.playSeconds.ToString("0.00") + " s", right);
-            }
+            if (modulation.playSeconds > 0f)
+                GUI.Label(new Rect(rect.xMax - 62f, rect.yMax - 13f, 60f, 12f), modulation.playSeconds.ToString("0.00") + " s", topRight);
         }
 
         /// <summary>
@@ -885,33 +1011,28 @@ namespace Laubrary.Zounds {
             if (mod.steps == null || mod.steps.Length == 0) mod.steps = new float[] { 1f };
             int n = mod.steps.Length;
 
-            GUILayout.BeginHorizontal(GUILayout.Height(RowH));
-            GUILayout.Space(GripW + 6f);
-            GUI.Label(GUILayoutUtility.GetRect(LabelW, RowH, GUILayout.Width(LabelW)),
-                      new GUIContent("Steps", "The values this modifier steps through, one bar each, played left to right (or shuffled, in round-robin order). Drag a bar up or down to set it, or sweep across several to set them all at once; double-click a bar to put it back in the middle."));
-            var countRect = GUILayoutUtility.GetRect(52f, RowH, GUILayout.Width(52f));
-            GUI.Label(countRect, new GUIContent(n + (n == 1 ? " step" : " steps"), "How many values the list holds."), EditorStyles.miniLabel);
+            // The bars, with the add and remove buttons beside them on the same row. Each bar gets up to a fixed width rather
+            // than a share of the whole pane, so a two-step list is two bars, not two slabs; a long list narrows to fit.
+            var row = GUILayoutUtility.GetRect(10f, StepBandH, GUILayout.ExpandWidth(true));
+            row.xMin += GripW + 6f;
+            float buttonsW = 22f * 2f + Gap;
+            float barW = Mathf.Min(StepBarMaxW, (row.width - buttonsW) / n);
+            var band = new Rect(row.x, row.y + 2f, barW * n, StepBandH - 4f);
+            var addRect = new Rect(band.xMax + Gap, band.y + (band.height - (RowH - 2f)) * 0.5f, 22f, RowH - 2f);
+            var removeRect = new Rect(addRect.xMax, addRect.y, 22f, RowH - 2f);
+            GUI.Label(band, new GUIContent("", "Steps: " + n + (n == 1 ? " value" : " values") + " this modifier steps through, one bar each, played left to right (or shuffled, in round-robin order). Drag a bar up or down to set it, or sweep across several to set them all at once; double-click a bar to put it back on the line."));
             var prev = GUI.enabled;
             GUI.enabled = prev && n < MaxSteps;
-            if (ZUI.Button(new GUIContent("+", n < MaxSteps ? "Adds a step at the end, copying the last one." : "A list holds at most " + MaxSteps + " steps: round-robin order cannot keep track of more."),
-                           ZUI.Style.RichButton, ZUICornerMask.Left, GUILayout.Width(22f), GUILayout.Height(RowH - 2f))) {
+            if (ZUI.Button(addRect, new GUIContent("+", n < MaxSteps ? "Adds a step at the end, copying the last one." : "A list holds at most " + MaxSteps + " steps: round-robin order cannot keep track of more."),
+                           ZUI.Style.RichButton, ZUICornerMask.Left)) {
                 Modify(zound, "add step", () => { var s = new List<float>(mod.steps); s.Add(s[s.Count - 1]); mod.steps = s.ToArray(); chain.Touch(); });
             }
             GUI.enabled = prev && n > 1;
-            if (ZUI.Button(new GUIContent("−", n > 1 ? "Removes the last step." : "A list needs at least one step."),
-                           ZUI.Style.RichButton, ZUICornerMask.Right, GUILayout.Width(22f), GUILayout.Height(RowH - 2f))) {
+            if (ZUI.Button(removeRect, new GUIContent("−", n > 1 ? "Removes the last step." : "A list needs at least one step."),
+                           ZUI.Style.RichButton, ZUICornerMask.Right)) {
                 Modify(zound, "remove step", () => { var s = new List<float>(mod.steps); s.RemoveAt(s.Count - 1); mod.steps = s.ToArray(); chain.Touch(); });
             }
             GUI.enabled = prev;
-            GUILayout.FlexibleSpace();
-            GUILayout.EndHorizontal();
-
-            // Each bar gets up to a fixed width rather than a share of the whole pane, so a two-step list is two bars, not
-            // two slabs; a long list narrows its bars to fit.
-            var row = GUILayoutUtility.GetRect(10f, StepBandH, GUILayout.ExpandWidth(true));
-            row.xMin += GripW + 6f;
-            float barW = Mathf.Min(StepBarMaxW, row.width / n);
-            var band = new Rect(row.x, row.y + 2f, barW * n, StepBandH - 4f);
             var steps = mod.steps;
             // What "no change" is depends on how the list is bound. Shifting or setting a parameter: nought. Scaling it:
             // one — times one leaves it alone, times nought silences it. So when every binding of this list scales, the

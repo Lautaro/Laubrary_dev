@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — the chain editor is laid out wide, not tall
+
+- **Every setting is a self-labelled control** of known width: sliders carry name and value inside the track, toggles show their name on their own face (Ping-pong, S-curve, Retrigger, Start random), choice strips speak through their options with the setting's name on hover, and wave shapes are icons. The separate label column that forced one setting per row is gone.
+- **Settings flow left to right and wrap only when a row is full**, decided from the window's real width (`ZUI.WrapRow`).
+- **An effect whose settings fit on its own row shows them there with no expand step**; one that does not fit shows a summary and expands, its settings flowing across the full width. At a typical wide window, every effect except EQ is inline; narrow the window and the bigger ones collapse to summaries.
+- Modifiers: all settings on one or two flowing rows; LFO Shape and Mode as icons; Random's Min and Max as one two-handled range; Step's count and add/remove beside its bars; curve captions inside their graphs; the slow-rate warning is an inline ⚠ with its text on hover. The effect-name column fits the longest name.
+- **New ZUI:** `ZUI.IconChoice` (icon strip), `ZUIWaveIcons` (generated sine/triangle/saw/square/random icons), `ZUI.WrapRow` (wrapping row layout).
+
 ### Zounds — Depth means 0 = none, 1 = full, in every mode; Shift / Set / Scale explained on hover
 
 - **Shift's depth is now a share of the room the parameter has** in the direction it is being moved: 1 reaches the ends of its range and never pins against them (was: a share of the whole range each way, which from mid-slider pinned the parameter 67% of the time — measured). Set and Scale already ran 0 = no effect … 1 = full. New bindings default to Depth 1 (was 0.25, a workaround for the old scale). Bindings saved before this keep their exact old behaviour (`ModulationCombine.ShiftWholeRange`, `ChainModulationCompat` schema 2) until their mode or depth is edited; the depth tooltip says so.

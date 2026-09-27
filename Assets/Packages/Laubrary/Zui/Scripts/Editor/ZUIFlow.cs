@@ -20,6 +20,81 @@ public static partial class ZUI
     // accident you get from ExpandWidth.
     public const float DefaultFieldWidth = 220f;
 
+    /// <summary>
+    /// Places fixed-width controls left to right and starts a new row only when the next one would not fit — the layout
+    /// for a window used wide, where vertical room is the scarce thing.
+    ///
+    /// Wrapping is decided from <paramref name="available"/>, a width the caller supplies, and never from the rects
+    /// Unity hands back — because in IMGUI's layout pass those rects are placeholders, and deciding from them would put
+    /// controls on different rows in the layout pass than in the paint pass, which corrupts the whole window's layout.
+    /// Pass a width that is the same in both passes (for example the window's width less a remembered margin).
+    ///
+    ///   var row = new ZUI.WrapRow(available, indent: 20f, rowHeight: 20f, gap: 6f);
+    ///   foreach (var w in widths) Draw(row.Next(w));
+    /// </summary>
+    public sealed class WrapRow
+    {
+        readonly float available, indent, rowHeight, gap;
+        Rect row;
+        float used;
+        bool open;
+
+        /// <summary>How many rows have been started.</summary>
+        public int rows { get; private set; }
+
+        public WrapRow(float available, float indent, float rowHeight, float gap)
+        {
+            this.available = Mathf.Max(1f, available - indent);
+            this.indent = indent;
+            this.rowHeight = rowHeight;
+            this.gap = gap;
+        }
+
+        /// <summary>The rect for the next control of this width, on the current row if it fits, else on a new one.</summary>
+        public Rect Next(float width)
+        {
+            float need = open && used > 0f ? gap + width : width;
+            if (!open || used + need > available + 0.01f) { NewRow(); need = width; }
+            var r = new Rect(row.x + used + (need - width), row.y, width, rowHeight);
+            used += need;
+            return r;
+        }
+
+        /// <summary>Forces the next control onto a fresh row.</summary>
+        public void Break() { open = false; }
+
+        void NewRow()
+        {
+            row = GUILayoutUtility.GetRect(10f, rowHeight, GUILayout.ExpandWidth(true));
+            row.xMin += indent;
+            used = 0f;
+            open = true;
+            rows++;
+        }
+
+        /// <summary>How many rows these widths would take at this available width, computed the same way as placing them.</summary>
+        public static int CountRows(float available, float gap, System.Collections.Generic.IList<float> widths)
+        {
+            if (widths == null || widths.Count == 0) return 0;
+            int rows = 1; float used = 0f;
+            for (int i = 0; i < widths.Count; i++)
+            {
+                float need = used > 0f ? gap + widths[i] : widths[i];
+                if (used + need > available + 0.01f && used > 0f) { rows++; used = widths[i]; }
+                else used += need;
+            }
+            return rows;
+        }
+
+        /// <summary>The width these controls take on one row, gaps included.</summary>
+        public static float OneRowWidth(float gap, System.Collections.Generic.IList<float> widths)
+        {
+            float w = 0f;
+            for (int i = 0; i < widths.Count; i++) w += (i > 0 ? gap : 0f) + widths[i];
+            return w;
+        }
+    }
+
     /// <summary>Begin a row that groups narrow controls left-to-right (instead of one per row). Trailing
     /// space is pushed right so the next row's controls don't drift. Dispose ends the row.</summary>
     public static FlowScope Flow()
