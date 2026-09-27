@@ -12,8 +12,15 @@ namespace Laubrary.Zounds.Dsp {
     /// duplicated once per voice playing it), accepted for now because it makes the lifetime trivially
     /// safe: nothing is shared, so nothing can be freed out from under a reader. The later, cheaper design
     /// is one shared native buffer per cached <see cref="PcmClip"/>, kept alive only while at least one
-    /// voice is still playing it — that needs a live-voice registry that does not exist yet, so it is not
-    /// attempted here.
+    /// voice is still playing it.
+    ///
+    /// A registry of playing sounds now exists, and the cache clear asks them all to stop before it frees
+    /// anything — but that is still not enough to make sharing safe, and the difference is the whole point:
+    /// **asking every sound to stop is not the same as knowing they have stopped.** A stop request reaches a
+    /// sound at the start of its next block, so for a moment afterwards sounds are still reading. Sharing turns
+    /// that moment from a harmless inconsistency into reading freed memory. Sharing therefore waits on a barrier
+    /// that confirms completion, not merely a request — and until that exists, the wasteful copies are the thing
+    /// keeping this correct.
     /// </summary>
     public struct SapPcm {
         public NativeArray<float> samples;

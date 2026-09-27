@@ -117,7 +117,22 @@ namespace Laubrary.Zounds.Dsp {
             handedOff = true;
             instance = context.AllocateGenerator(voice, new Control { declaredSampleRate = preparedSampleRate });
             hasInstance = true;
+            SapVoiceRegistry.Register(this);
             return instance;
+        }
+
+        /// <summary>
+        /// Whether the graph still has a live instance for this component. Checked against the graph rather than
+        /// remembered, because a sound can end without telling this component — the graph disposes it on its own
+        /// thread. A false answer also clears the stale handle, so this is cheap to poll.
+        /// </summary>
+        public bool IsPlaying {
+            get {
+                if (!hasInstance) return false;
+                if (ControlContext.builtIn.Exists(instance)) return true;
+                hasInstance = false;
+                return false;
+            }
         }
 
         /// <summary>Arms a repeat train for the next play. Has no effect on a sound already started.</summary>
@@ -164,6 +179,7 @@ namespace Laubrary.Zounds.Dsp {
         }
 
         private void OnDestroy() {
+            SapVoiceRegistry.Unregister(this);
             ReleaseOwnVoice();
         }
 
