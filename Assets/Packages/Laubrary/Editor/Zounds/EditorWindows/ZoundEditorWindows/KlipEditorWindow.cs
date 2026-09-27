@@ -541,6 +541,17 @@ namespace Laubrary.Zounds {
 
                 ZUI.RowSpace(2f);
 
+                // === Time-stretch (source material: duration without pitch change) ===
+                ZUI.RowSpace();
+                if (stretchEditor == null) stretchEditor = new TimeStretchGUI();
+                stretchEditor.Draw(targetZound, sourceAsset);
+
+                // === Effect chain (per-voice DSP: nodes, modifiers, library presets) ===
+                ZUI.RowSpace();
+                if (chainEditor == null) chainEditor = new ChainEditorGUI();
+                chainEditor.Draw(targetZound);
+                isDraggingSlider = isDraggingSlider || chainEditor.isDragging || stretchEditor.isDragging;
+
                 // === Effect sections — only drawn when enabled (no layout groups, safe) ===
                 for (int ei = 0; ei < KlipEffectChain.Effects.Length; ei++) {
                     var effect = KlipEffectChain.Effects[ei];
@@ -604,6 +615,8 @@ namespace Laubrary.Zounds {
         }
 
         [SerializeField] private Vector2 scrollPos;
+        private ChainEditorGUI chainEditor;
+        private TimeStretchGUI stretchEditor;
 
         internal static float DrawEQBandSlider(Rect colRect, string label, float value, GUIStyle labelStyle) {
             float labelH  = EditorGUIUtility.singleLineHeight;
