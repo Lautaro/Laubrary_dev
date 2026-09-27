@@ -68,6 +68,27 @@ namespace Laubrary.Zounds.Dsp {
         /// <summary>How many blocks have been rendered. Diagnostics only; nothing reads it to make a decision.</summary>
         public int blocksRendered;
 
+        /// <summary>
+        /// A rolling copy of recent output, for a visualiser to read. Not created unless somebody asked for it.
+        ///
+        /// **Why the engine has to provide this at all.** Unity's own facilities for reading a playing sound's samples
+        /// were tried first and return silence for audio produced this way — both per-source and at the final mix — because
+        /// they tap the ordinary clip-playback route that this deliberately bypasses. So a visualiser cannot see anything
+        /// unless the engine hands it the samples.
+        ///
+        /// **It costs nothing when unused.** The buffer is only allocated when monitoring was requested, and the per-block
+        /// cost otherwise is a single check that it does not exist. A visualiser that slowed down the thing it visualises
+        /// would be a poor trade, so the default is off.
+        /// </summary>
+        public NativeArray<float> monitor;
+
+        /// <summary>
+        /// Where the next monitor sample goes. A single-element buffer rather than a plain number on purpose: this struct
+        /// is copied when the audio graph takes it, so an ordinary field written on the audio side would never be seen by
+        /// the reader. A native buffer is shared by handle, so both sides see the same one.
+        /// </summary>
+        public NativeArray<int> monitorCursor;
+
         // The audio graph asks these three of every generator. A sound of unknown final length (a tail can
         // outlast the source, and a repeat train can extend it) answers "not finite, no length", the same
         // answer the working reference implementation gives.
@@ -89,7 +110,7 @@ namespace Laubrary.Zounds.Dsp {
                                               double startFrame, double endFrame,
                                               float basePitch, float outGain, float sourceDuration,
                                               bool loop, long tokenId, bool heavyTier, Allocator allocator,
-                                              Zound zound = null) {
+                                              Zound zound = null, int monitorSamples = 0) {
             int arenaFloats = heavyTier ? ZoundDspConstants.HEAVY_ARENA_FLOATS : ZoundDspConstants.LIGHT_ARENA_FLOATS;
 
             var v = new SapRealtimeVoice {
@@ -101,6 +122,11 @@ namespace Laubrary.Zounds.Dsp {
                 outGain = outGain,
                 clipRate = clip != null ? (double)clip.frequency / sampleRate : 1.0,
             };
+
+            if (monitorSamples > 0) {
+                v.monitor = new NativeArray<float>(monitorSamples, allocator, NativeArrayOptions.ClearMemory);
+                v.monitorCursor = new NativeArray<int>(1, allocator, NativeArrayOptions.ClearMemory);
+            }
 
             SapVoiceSetup.BuildSnapshots(ref v.chain, ref v.pcm, layout, clip, allocator);
             SapVoiceSetup.Reset(ref v.sap, in v.chain, layout, sampleRate, basePitch, outGain, tokenId,
@@ -169,6 +195,8 @@ namespace Laubrary.Zounds.Dsp {
             sap.Dispose();
             if (chain.IsCreated) chain.Dispose();
             if (pcm.IsCreated) pcm.Dispose();
+            if (monitor.IsCreated) monitor.Dispose();
+            if (monitorCursor.IsCreated) monitorCursor.Dispose();
         }
 
         // ───────────────────────── the audio graph's own entry points ─────────────────────────
@@ -205,7 +233,24 @@ namespace Laubrary.Zounds.Dsp {
 
             bool produced = RenderBlock(frames);
             WriteTo(buffer, frames, produced);
+            if (monitor.IsCreated && produced) CopyToMonitor(frames);
             return buffer.frameCount;
+        }
+
+        /// <summary>
+        /// Appends this block to the rolling monitor copy, oldest overwritten. One channel only, because a visualiser
+        /// showing a spectrum or a waveform gains nothing from the second and it would double the cost.
+        /// </summary>
+        private void CopyToMonitor(int frames) {
+            int size = monitor.Length;
+            if (size <= 0) return;
+            int cursor = monitorCursor[0];
+            for (int i = 0; i < frames; i++) {
+                monitor[cursor] = sap.bufL[i];
+                cursor++;
+                if (cursor >= size) cursor = 0;
+            }
+            monitorCursor[0] = cursor;
         }
 
         /// <summary>

@@ -40,6 +40,11 @@ namespace Laubrary.Zounds {
         private bool showRange = true;
         private float dbRange = 12f;
 
+        /// <summary>Which question the window is answering. The first is interpreted; the rest are the raw signal.</summary>
+        private enum View { WhatTheChainDoes, LiveSpectrum, LiveSpectrogram, LiveWaveform }
+        private View view = View.WhatTheChainDoes;
+        private readonly LiveOutputView live = new LiveOutputView();
+
         private readonly List<Zound> candidates = new List<Zound>();
         private readonly List<string> candidateNames = new List<string>();
 
@@ -53,11 +58,29 @@ namespace Laubrary.Zounds {
 
         /// <summary>Repaints while animating, so the bars move without the mouse having to.</summary>
         private void Tick() {
+            // The live views must repaint constantly or they are not live; the chain view only needs to when animating.
+            if (view != View.WhatTheChainDoes) { Repaint(); return; }
             if (animate && measurement.bands != null) Repaint();
         }
 
         private void OnGUI() {
             RefreshCandidates();
+
+            using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar)) {
+                DrawViewTab(View.WhatTheChainDoes, "What the chain does");
+                DrawViewTab(View.LiveSpectrum, "Live spectrum");
+                DrawViewTab(View.LiveSpectrogram, "Live over time");
+                DrawViewTab(View.LiveWaveform, "Live waveform");
+                GUILayout.FlexibleSpace();
+                if (view != View.WhatTheChainDoes) {
+                    GUILayout.Label("gain", EditorStyles.miniLabel);
+                    live.gain = EditorGUILayout.Slider(live.gain, 0.25f, 16f, GUILayout.Width(110f));
+                    live.logFrequency = GUILayout.Toggle(live.logFrequency, "By octave", EditorStyles.toolbarButton,
+                                                        GUILayout.Width(74f));
+                }
+            }
+
+            if (view != View.WhatTheChainDoes) { DrawLive(); return; }
 
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar)) {
                 if (candidates.Count == 0) {
@@ -106,6 +129,45 @@ namespace Laubrary.Zounds {
             DrawBars();
             DrawScaleNote();
             DrawFidelityPanel(chain);
+        }
+
+        private void DrawViewTab(View which, string label) {
+            bool on = view == which;
+            if (GUILayout.Toggle(on, label, EditorStyles.toolbarButton) != on) view = which;
+        }
+
+        /// <summary>
+        /// The raw signal, with nothing interpreted. Worth reaching for whenever the chain view's honesty panel says it
+        /// cannot describe an effect: this one always can, because it is not describing anything — it is the sound.
+        /// </summary>
+        private void DrawLive() {
+            bool playing = live.Sample(out string sourceName);
+            var area = GUILayoutUtility.GetRect(10f, 260f, GUILayout.ExpandWidth(true));
+            var mode = view == View.LiveSpectrum ? LiveOutputView.Mode.Spectrum
+                     : view == View.LiveSpectrogram ? LiveOutputView.Mode.Spectrogram
+                     : LiveOutputView.Mode.Waveform;
+            live.Draw(area, mode, playing, sourceName);
+
+            EditorGUILayout.Space(4f);
+            switch (view) {
+                case View.LiveSpectrum:
+                    EditorGUILayout.LabelField("Where the energy is right now. Height is loudness on a decibel scale; "
+                        + "the floor is 80 dB below full.", EditorStyles.miniLabel);
+                    break;
+                case View.LiveSpectrogram:
+                    EditorGUILayout.LabelField("The same thing written out as it happens, newest on the right and low "
+                        + "frequencies at the bottom. This is the view that reveals a pattern — a repeating modulation, "
+                        + "a tail decaying — which a single instant cannot.", EditorStyles.miniLabel);
+                    break;
+                default:
+                    EditorGUILayout.LabelField("The waveform itself. The peak reading falls back slowly so a brief "
+                        + "overload is still visible a moment after it happened.", EditorStyles.miniLabel);
+                    break;
+            }
+            if (!playing) {
+                EditorGUILayout.HelpBox("Nothing is playing. Press play on a sound and this fills in — it reads the real "
+                    + "output, so it needs something to read.", MessageType.Info);
+            }
         }
 
         /// <summary>Re-measures when the chain has been edited, so the display follows the editor without a button press.</summary>

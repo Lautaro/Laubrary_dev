@@ -69,6 +69,15 @@ namespace Laubrary.Zounds.Dsp {
         private RepeatPlan repeat;
 
         /// <summary>
+        /// How many recent samples each new voice should keep for a visualiser, or zero for none.
+        ///
+        /// Off by default and set only while something is actually looking, so a shipped game never pays for it. Unity's
+        /// own sample readers cannot see audio produced this way — measured, not assumed — so a visualiser has no other
+        /// way to obtain it.
+        /// </summary>
+        public static int monitorSamples;
+
+        /// <summary>
         /// Which sound this is playing. Remembered so that an edit made in the editor can be delivered to exactly
         /// the voices playing the sound being edited, rather than to everything currently audible.
         /// </summary>
@@ -125,7 +134,7 @@ namespace Laubrary.Zounds.Dsp {
 
             voice = SapRealtimeVoice.Create(clip, layout, preparedSampleRate, startFrame, endFrame,
                                             basePitch, outGain, sourceDuration, loop, tokenId, heavyTier,
-                                            Allocator.Persistent, playingZound);
+                                            Allocator.Persistent, playingZound, monitorSamples);
             if (repeat.enabled) voice.SetRepeat(in repeat);
             created = true;
             handedOff = true;
@@ -224,6 +233,39 @@ namespace Laubrary.Zounds.Dsp {
             var control = ControlContext.builtIn;
             if (!control.Exists(instance)) { hasInstance = false; return false; }
             return control.SendMessage(instance, ref command) == Response.Handled;
+        }
+
+        /// <summary>
+        /// How far the monitor has been written, or -1 when this voice is not being monitored.
+        ///
+        /// Diagnostic, and a pointed one: if this never advances while the graph claims the sound is playing, then the
+        /// graph is not calling the render at all, which is a completely different problem from the render producing
+        /// silence. Worth being able to tell those apart without guessing.
+        /// </summary>
+        public int MonitorWritePosition =>
+            created && voice.monitorCursor.IsCreated ? voice.monitorCursor[0] : -1;
+
+        /// <summary>
+        /// Copies the most recent output into <paramref name="dest"/>, oldest first, and reports whether there was any.
+        /// Returns false when this voice is not being monitored or has produced nothing yet.
+        /// </summary>
+        public bool ReadMonitor(float[] dest) {
+            if (dest == null || !created) return false;
+            var ring = voice.monitor;
+            if (!ring.IsCreated || !voice.monitorCursor.IsCreated) return false;
+
+            int size = ring.Length;
+            int cursor = voice.monitorCursor[0];
+            int want = dest.Length;
+            // Walk backwards from the write position so the newest sample lands at the end of the destination, which is
+            // what both a waveform and a scrolling display expect.
+            for (int i = 0; i < want; i++) {
+                int idx = cursor - want + i;
+                idx %= size;
+                if (idx < 0) idx += size;
+                dest[i] = ring[idx];
+            }
+            return true;
         }
 
         private void OnDestroy() {
