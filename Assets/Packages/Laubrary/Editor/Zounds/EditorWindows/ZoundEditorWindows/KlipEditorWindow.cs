@@ -544,6 +544,9 @@ namespace Laubrary.Zounds {
                 if (chainEditor == null) chainEditor = new ChainEditorGUI();
                 chainEditor.Draw(targetZound);
                 isDraggingSlider = isDraggingSlider || chainEditor.isDragging || stretchEditor.isDragging;
+                // A live analyser view is only live if the window keeps redrawing; without this it would freeze on
+                // whatever was on screen when the mouse last moved, which looks like a broken meter.
+                if (chainEditor.wantsContinuousRepaint) Repaint();
 
                 // The bodies of the seven built-in effects used to be drawn here, one section per enabled effect —
                 // the gain boost, the equaliser and so on. Gone for the same reason their toggles went: they existed

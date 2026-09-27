@@ -38,6 +38,11 @@ namespace Laubrary.Zounds {
 
         public bool isDragging => dragUndoOpen || dragNode >= 0;
 
+        readonly EditorTools.ChainAnalyserPanel analyser = new EditorTools.ChainAnalyserPanel();
+
+        /// <summary>True while the analyser is showing something live, so the hosting window must keep repainting.</summary>
+        public bool wantsContinuousRepaint => analyser.wantsContinuousRepaint;
+
         // ───────────────────────────── entry ─────────────────────────────
 
         public void Draw(Zound zound) {
@@ -56,6 +61,14 @@ namespace Laubrary.Zounds {
             DrawNodes(zound, chain, linked);
             ZUI.RowSpace(0.5f);
             DrawModifiers(zound, chain, linked);
+
+            // The analyser lives HERE rather than in a window of its own, and that is the whole fix. As a separate window
+            // it had to be told which sound to look at, which meant it was usually looking at the wrong one — and it could
+            // not see a sound nested inside a sequence at all. Underneath the effects it describes, there is nothing to
+            // point it at: it is always the chain in front of you, and it refreshes as you edit because the chain's own
+            // revision counter tells it something changed.
+            ZUI.RowSpace(0.5f);
+            analyser.Draw(zound, chain);
 
             if (evt.rawType == EventType.MouseUp || evt.rawType == EventType.MouseLeaveWindow) {
                 if (dragUndoOpen) { dragUndoOpen = false; ZoundsWindow.EndDragUndo(); }
