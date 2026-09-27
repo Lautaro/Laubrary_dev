@@ -57,16 +57,22 @@ namespace Laubrary.Zounds.Dsp {
         public readonly bool heavyTier;
         /// <summary>A group node: children sum into bufL/bufR instead of a source stage reading PCM.</summary>
         public readonly bool isGroup;
-        public NativeArray<float> arena;
-        public NativeArray<float> bufL;
-        public NativeArray<float> bufR;
-        public NativeArray<SourceSlot> slots;
+
+        // Buffers plus every per-block render scalar now live in one struct (see SapVoiceState) so the
+        // same render code can run over either this class's owned instance or a future value-type
+        // generator's own instance. The public/internal accessors below forward into it unchanged, so
+        // nothing outside this class needed to change.
+        private SapVoiceState sap;
+
+        public NativeArray<float> arena => sap.arena;
+        public NativeArray<float> bufL => sap.bufL;
+        public NativeArray<float> bufR => sap.bufR;
+        public NativeArray<SourceSlot> slots => sap.slots;
 
         // Flat parameter block: live value, block-start value and per-sample step.
-        public NativeArray<float> pLive;
-        public NativeArray<float> pStart;
-        public NativeArray<float> pStep;
-        private NativeArray<float> pTarget;
+        public NativeArray<float> pLive => sap.pLive;
+        public NativeArray<float> pStart => sap.pStart;
+        public NativeArray<float> pStep => sap.pStep;
 
         // ── published on allocation (main thread), read-only afterwards ──
         internal int state;              // VoiceState, Volatile
@@ -94,60 +100,31 @@ namespace Laubrary.Zounds.Dsp {
         internal int killRequest;        // 1 = hard stop (declick, flush)
         internal int releaseRequest;     // 1 = stop feeding, let the tail ring
 
-        // ── audio-thread state ──
-        private float basePitchLive = 1f;
-        private float outGainLive;
-        private bool sourceExhausted;
-        private long elapsedSamples;
-        private long samplesSinceSourceEnd;
-        private int silentSamples;
-        private long tailBudgetSamples;
-        private int hangoverSamples;
-        internal float lastPeak;
-        private bool stopping;
-        private bool released;
-        private uint rng = 2463534242u;
-        // Modifier scratch
-        private NativeArray<float> modValue;
+        // ── audio-thread state ── now lives in `sap` (SapVoiceState); these forward to it unchanged so
+        // any internal reader elsewhere in this class (or a future Monitor) still sees the same names.
+        internal float lastPeak => sap.lastPeak;
 
         // Repeater: the schedule lives on the voice so Release can cancel it and the Monitor can show 3/8.
-        internal RepeatPlan repeat;
-        internal int repeatsPending;
-        internal int repeatsDone;
-        internal int repeatsTotal;
-        private long nextRepeatSample;
-        private long lastRepeatEndSample;
+        internal RepeatPlan repeat => sap.repeat;
+        internal int repeatsPending => sap.repeatsPending;
+        internal int repeatsDone => sap.repeatsDone;
+        internal int repeatsTotal => sap.repeatsTotal;
         /// <summary>Output sample (voice time) at which the last armed repeat ends; the main thread grows the duration from it.</summary>
-        internal long trainEndSample;
-        internal int slotsStolen;
+        internal long trainEndSample => Volatile.Read(ref sap.trainEndSample);
+        internal int slotsStolen => sap.slotsStolen;
 
         public DspVoice(int index, bool heavy, bool isGroup = false) {
             this.index = index;
             heavyTier = heavy;
             this.isGroup = isGroup;
             int arenaFloats = heavy ? ZoundDspConstants.HEAVY_ARENA_FLOATS : ZoundDspConstants.LIGHT_ARENA_FLOATS;
-            arena = new NativeArray<float>(arenaFloats, Allocator.Persistent, NativeArrayOptions.ClearMemory);
-            bufL = new NativeArray<float>(ZoundDspConstants.MAX_DSP_BUFFER, Allocator.Persistent, NativeArrayOptions.ClearMemory);
-            bufR = new NativeArray<float>(ZoundDspConstants.MAX_DSP_BUFFER, Allocator.Persistent, NativeArrayOptions.ClearMemory);
-            slots = new NativeArray<SourceSlot>(ZoundDspConstants.MAX_SOURCE_SLOTS, Allocator.Persistent, NativeArrayOptions.ClearMemory);
-            pLive = new NativeArray<float>(ChainLayout.MAX_PARAMS, Allocator.Persistent, NativeArrayOptions.ClearMemory);
-            pStart = new NativeArray<float>(ChainLayout.MAX_PARAMS, Allocator.Persistent, NativeArrayOptions.ClearMemory);
-            pStep = new NativeArray<float>(ChainLayout.MAX_PARAMS, Allocator.Persistent, NativeArrayOptions.ClearMemory);
-            pTarget = new NativeArray<float>(ChainLayout.MAX_PARAMS, Allocator.Persistent, NativeArrayOptions.ClearMemory);
-            modValue = new NativeArray<float>(ZoundDspConstants.MAX_MODIFIERS, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+            sap = SapVoiceState.Create(arenaFloats, ChainLayout.MAX_PARAMS, ZoundDspConstants.MAX_SOURCE_SLOTS,
+                                        ZoundDspConstants.MAX_MODIFIERS, ZoundDspConstants.MAX_DSP_BUFFER, Allocator.Persistent);
         }
 
         /// <summary>Releases every native buffer this voice owns. Safe to call more than once.</summary>
         public void Dispose() {
-            if (arena.IsCreated) arena.Dispose();
-            if (bufL.IsCreated) bufL.Dispose();
-            if (bufR.IsCreated) bufR.Dispose();
-            if (slots.IsCreated) slots.Dispose();
-            if (pLive.IsCreated) pLive.Dispose();
-            if (pStart.IsCreated) pStart.Dispose();
-            if (pStep.IsCreated) pStep.Dispose();
-            if (pTarget.IsCreated) pTarget.Dispose();
-            if (modValue.IsCreated) modValue.Dispose();
+            sap.Dispose();
             if (sapLayout.IsCreated) sapLayout.Dispose();
         }
 
@@ -167,55 +144,42 @@ namespace Laubrary.Zounds.Dsp {
             sapLayout = SapChainLayout.Create(layout, Allocator.Persistent);
             this.sourceDuration = sourceDuration;
             clipRate = (double)pcm.frequency / sampleRate;
-            basePitchTarget = basePitch; basePitchLive = basePitch;
-            outGainTarget = outGain; outGainLive = outGain;
+            basePitchTarget = basePitch; sap.basePitchLive = basePitch;
+            outGainTarget = outGain; sap.outGainLive = outGain;
             pauseRequest = 0; killRequest = 0; releaseRequest = 0;
-            stopping = false; released = false;
-            sourceExhausted = false;
-            elapsedSamples = 0; samplesSinceSourceEnd = 0; silentSamples = 0;
-            lastPeak = 0f;
+            sap.stopping = false; sap.released = false;
+            sap.sourceExhausted = false;
+            sap.elapsedSamples = 0; sap.samplesSinceSourceEnd = 0; sap.silentSamples = 0;
+            sap.lastPeak = 0f;
             protectedFromSteal = false;
-            repeat = default; repeatsPending = 0; repeatsDone = 1; repeatsTotal = 1; nextRepeatSample = 0; lastRepeatEndSample = 0; trainEndSample = 0; slotsStolen = 0;
+            sap.repeat = default; sap.repeatsPending = 0; sap.repeatsDone = 1; sap.repeatsTotal = 1; sap.nextRepeatSample = 0; sap.lastRepeatEndSample = 0; sap.trainEndSample = 0; sap.slotsStolen = 0;
             allocatedAtDsp = AudioSettings.dspTime;
-            rng = 2463534242u ^ (uint)tokenId;
+            sap.rng = 2463534242u ^ (uint)tokenId;
             ResetOnsets();
 
-            for (int i = 0; i < slots.Length; i++) slots[i] = default;
-            slots[0] = new SourceSlot { active = true, cursor = startFrame, startFrame = startFrame, endFrame = endFrame, gain = 1f, pitchMul = 1f, loop = loop };
+            for (int i = 0; i < sap.slots.Length; i++) sap.slots[i] = default;
+            sap.slots[0] = new SourceSlot { active = true, cursor = startFrame, startFrame = startFrame, endFrame = endFrame, gain = 1f, pitchMul = 1f, loop = loop };
 
-            { int clearLen = Mathf.Min(arena.Length, Mathf.Max(layout.stateFloats, 1)); for (int ci = 0; ci < clearLen; ci++) arena[ci] = 0f; }
+            { int clearLen = Mathf.Min(sap.arena.Length, Mathf.Max(layout.stateFloats, 1)); for (int ci = 0; ci < clearLen; ci++) sap.arena[ci] = 0f; }
             for (int i = 0; i < layout.paramCount; i++) {
-                pLive[i] = layout.pBase[i]; pStart[i] = layout.pBase[i]; pStep[i] = 0f; pTarget[i] = layout.pBase[i];
+                sap.pLive[i] = layout.pBase[i]; sap.pStart[i] = layout.pBase[i]; sap.pStep[i] = 0f; sap.pTarget[i] = layout.pBase[i];
             }
-            tailBudgetSamples = (long)(layout.tailSeconds * sampleRate);
-            hangoverSamples = ZoundDspConstants.HANGOVER_MS * sampleRate / 1000;
-            ZoundEffects.ResetChain(sapLayout, arena, sampleRate);
+            sap.tailBudgetSamples = (long)(layout.tailSeconds * sampleRate);
+            sap.hangoverSamples = ZoundDspConstants.HANGOVER_MS * sampleRate / 1000;
+            ZoundEffects.ResetChain(sapLayout, sap.arena, sampleRate);
         }
 
         /// <summary>Arms the repeat schedule (call after Prepare, before Publish).</summary>
         internal void SetRepeat(in RepeatPlan plan) {
-            repeat = plan;
+            sap.repeat = plan;
             if (!plan.enabled) return;
-            repeatsTotal = plan.count;
-            repeatsDone = 1;
-            repeatsPending = plan.count == int.MaxValue ? int.MaxValue : plan.count - 1;
-            lastRepeatEndSample = plan.nominalLengthSamples;
-            nextRepeatSample = plan.spaceFromEnd ? lastRepeatEndSample + plan.intervalSamples : plan.intervalSamples;
-            protectedFromSteal = repeatsPending > 0;
-            ProjectTrainEnd();
-        }
-
-        // Where the train ends if every repeat still pending plays at the nominal length; the main thread
-        // grows the token's duration from this (never shrinks it), so Zound End waits for the last repeat.
-        private void ProjectTrainEnd() {
-            long end = lastRepeatEndSample;
-            if (repeatsPending > 0 && repeatsPending != int.MaxValue) {
-                long nominal = repeat.nominalLengthSamples;
-                if (repeat.spaceFromEnd) end = lastRepeatEndSample + repeatsPending * (repeat.intervalSamples + nominal);
-                else end = nextRepeatSample + (repeatsPending - 1) * repeat.intervalSamples + nominal;
-                if (end < lastRepeatEndSample) end = lastRepeatEndSample;
-            }
-            Volatile.Write(ref trainEndSample, end);
+            sap.repeatsTotal = plan.count;
+            sap.repeatsDone = 1;
+            sap.repeatsPending = plan.count == int.MaxValue ? int.MaxValue : plan.count - 1;
+            sap.lastRepeatEndSample = plan.nominalLengthSamples;
+            sap.nextRepeatSample = plan.spaceFromEnd ? sap.lastRepeatEndSample + plan.intervalSamples : plan.intervalSamples;
+            protectedFromSteal = sap.repeatsPending > 0;
+            SapVoiceRender.ProjectTrainEnd(ref sap);
         }
 
         /// <summary>Prepares a Free group node: no source stage, children sum into its buffers.</summary>
@@ -230,27 +194,27 @@ namespace Laubrary.Zounds.Dsp {
             sapLayout = SapChainLayout.Create(layout, Allocator.Persistent);
             sourceDuration = duration;
             clipRate = 1.0;
-            basePitchTarget = 1f; basePitchLive = 1f;
-            outGainTarget = 1f; outGainLive = 1f;
+            basePitchTarget = 1f; sap.basePitchLive = 1f;
+            outGainTarget = 1f; sap.outGainLive = 1f;
             pauseRequest = 0; killRequest = 0; releaseRequest = 0;
-            stopping = false; released = false;
-            sourceExhausted = false;
-            elapsedSamples = 0; samplesSinceSourceEnd = 0; silentSamples = 0;
-            lastPeak = 0f;
+            sap.stopping = false; sap.released = false;
+            sap.sourceExhausted = false;
+            sap.elapsedSamples = 0; sap.samplesSinceSourceEnd = 0; sap.silentSamples = 0;
+            sap.lastPeak = 0f;
             liveChildren = 0;
             protectedFromSteal = true;
-            repeatsPending = 0; repeatsDone = 0; repeatsTotal = 1;
+            sap.repeatsPending = 0; sap.repeatsDone = 0; sap.repeatsTotal = 1;
             allocatedAtDsp = AudioSettings.dspTime;
-            rng = 2463534242u ^ (uint)tokenId;
+            sap.rng = 2463534242u ^ (uint)tokenId;
             ResetOnsets();
-            for (int i = 0; i < slots.Length; i++) slots[i] = default;
-            { int clearLen = Mathf.Min(arena.Length, Mathf.Max(layout.stateFloats, 1)); for (int ci = 0; ci < clearLen; ci++) arena[ci] = 0f; }
+            for (int i = 0; i < sap.slots.Length; i++) sap.slots[i] = default;
+            { int clearLen = Mathf.Min(sap.arena.Length, Mathf.Max(layout.stateFloats, 1)); for (int ci = 0; ci < clearLen; ci++) sap.arena[ci] = 0f; }
             for (int i = 0; i < layout.paramCount; i++) {
-                pLive[i] = layout.pBase[i]; pStart[i] = layout.pBase[i]; pStep[i] = 0f; pTarget[i] = layout.pBase[i];
+                sap.pLive[i] = layout.pBase[i]; sap.pStart[i] = layout.pBase[i]; sap.pStep[i] = 0f; sap.pTarget[i] = layout.pBase[i];
             }
-            tailBudgetSamples = (long)(layout.tailSeconds * sampleRate);
-            hangoverSamples = ZoundDspConstants.HANGOVER_MS * sampleRate / 1000;
-            ZoundEffects.ResetChain(sapLayout, arena, sampleRate);
+            sap.tailBudgetSamples = (long)(layout.tailSeconds * sampleRate);
+            sap.hangoverSamples = ZoundDspConstants.HANGOVER_MS * sampleRate / 1000;
+            ZoundEffects.ResetChain(sapLayout, sap.arena, sampleRate);
         }
 
         /// <summary>Main-thread bookkeeping: realtime when this node was first seen Tailing (0 = not tailing). Read by whichever main-thread sweep reclaims voices whose tail never finished.</summary>
@@ -285,7 +249,7 @@ namespace Laubrary.Zounds.Dsp {
         private void TrackOnsets(float peak, int frames, int sampleRate) {
             if (peak < onsetLastPeak * 0.5f) onsetArmed = true;
             if (onsetArmed && peak > 0.005f && peak > onsetPrevPeak * 2f) {
-                onsetAt[onsetHead] = elapsedSamples;
+                onsetAt[onsetHead] = sap.elapsedSamples;
                 onsetHead = (onsetHead + 1) % ONSET_RING;
                 onsetTotal++;
                 onsetLastPeak = peak;
@@ -296,7 +260,7 @@ namespace Laubrary.Zounds.Dsp {
 
         /// <summary>Main thread: onsets inside the last <paramref name="windowSamples"/> of this node's own clock.</summary>
         internal int OnsetsInLast(long windowSamples) {
-            long now = Volatile.Read(ref elapsedSamples);
+            long now = Volatile.Read(ref sap.elapsedSamples);
             int c = 0;
             for (int i = 0; i < ONSET_RING; i++) if (onsetAt[i] > 0 && now - onsetAt[i] <= windowSamples) c++;
             return c;
@@ -309,23 +273,23 @@ namespace Laubrary.Zounds.Dsp {
 
         /// <summary>Audio-thread emergency stop after a render fault: silence this block, report Audio End, free the slot.</summary>
         internal void FaultFree(ZoundDspEventRing events, long dspSample) {
-            for (int ci = 0; ci < bufL.Length; ci++) bufL[ci] = 0f;
-            for (int ci = 0; ci < bufR.Length; ci++) bufR[ci] = 0f;
-            lastPeak = 0f;
+            for (int ci = 0; ci < sap.bufL.Length; ci++) sap.bufL[ci] = 0f;
+            for (int ci = 0; ci < sap.bufR.Length; ci++) sap.bufR[ci] = 0f;
+            sap.lastPeak = 0f;
             Finish(events, dspSample);
         }
 
         /// <summary>Main-thread diagnostic snapshot of the completion state (values may be a block stale).</summary>
         internal string DebugCompletionState() {
-            return "state=" + State + " bus=" + busIndex + " parent=" + groupIndex + " released=" + released + " stopping=" + stopping
-                + " sourceExhausted=" + sourceExhausted + " elapsed=" + elapsedSamples + " sinceSourceEnd=" + samplesSinceSourceEnd
-                + " tailBudget=" + tailBudgetSamples + " silent=" + silentSamples + "/" + hangoverSamples + " pause=" + pauseRequest
-                + " release=" + releaseRequest + " kill=" + killRequest + " liveChildren=" + liveChildren + " lastPeak=" + lastPeak.ToString("F4");
+            return "state=" + State + " bus=" + busIndex + " parent=" + groupIndex + " released=" + sap.released + " stopping=" + sap.stopping
+                + " sourceExhausted=" + sap.sourceExhausted + " elapsed=" + sap.elapsedSamples + " sinceSourceEnd=" + sap.samplesSinceSourceEnd
+                + " tailBudget=" + sap.tailBudgetSamples + " silent=" + sap.silentSamples + "/" + sap.hangoverSamples + " pause=" + pauseRequest
+                + " release=" + releaseRequest + " kill=" + killRequest + " liveChildren=" + liveChildren + " lastPeak=" + sap.lastPeak.ToString("F4");
         }
 
         /// <summary>Seeds a modifier's per-voice state (trigger-time values resolved on the main thread).</summary>
         internal void SeedModifierState(int modifierIndex, int slot, float value) {
-            arena[layout.modStateOffset[modifierIndex] + slot] = value;
+            sap.arena[layout.modStateOffset[modifierIndex] + slot] = value;
         }
 
         internal void Publish() {
@@ -351,9 +315,9 @@ namespace Laubrary.Zounds.Dsp {
             if (flatIndex < 0 || flatIndex >= layout.paramCount) return;
             for (int r = 0; r < layout.rampedCount; r++) if (layout.ramped[r] == flatIndex) return;
             float clamped = value < layout.pMin[flatIndex] ? layout.pMin[flatIndex] : value > layout.pMax[flatIndex] ? layout.pMax[flatIndex] : value;
-            pLive[flatIndex] = clamped;
-            pStart[flatIndex] = clamped;
-            pStep[flatIndex] = 0f;
+            sap.pLive[flatIndex] = clamped;
+            sap.pStart[flatIndex] = clamped;
+            sap.pStep[flatIndex] = 0f;
         }
 
         // ───────────────────────────── audio thread ─────────────────────────────
@@ -361,117 +325,30 @@ namespace Laubrary.Zounds.Dsp {
         /// <summary>
         /// Renders this voice's output for one callback into bufL/bufR (frames valid). Returns false when
         /// the voice produced nothing (paused). Frees itself and reports through the ring when finished.
+        ///
+        /// Thin wrapper: the actual per-block render is <see cref="SapVoiceRender.Render"/>, a static
+        /// function over <see cref="SapVoiceState"/> shared with the future value-type generator. What
+        /// stays here is exactly what cannot move — the cross-thread request flags and targets (read once,
+        /// their VALUES passed in, per the port plan) and the two things that touch managed objects: the
+        /// onset-tracking bookkeeping (a plain array, not native) and pushing the AudioEnd event once the
+        /// static call reports the voice finished.
         /// </summary>
         internal bool Render(int frames, int sampleRate, ZoundDspEventRing events, long dspSample) {
             if (Volatile.Read(ref pauseRequest) != 0) return false;
 
-            if (Volatile.Read(ref killRequest) != 0 && !stopping) {
-                stopping = true;
-                Volatile.Write(ref state, (int)VoiceState.Stopping);
-            }
-            if (Volatile.Read(ref releaseRequest) != 0 && !released) {
-                released = true;
-                Release(sampleRate);
-            }
-
-            ref var L = ref sapLayout;   // by reference: copying ~30 buffer handles per block is pure waste
-            float invN;
-            int off = 0;
+            bool killRequested = Volatile.Read(ref killRequest) != 0;
+            bool releaseRequested = Volatile.Read(ref releaseRequest) != 0;
             float basePitchTargetNow = Volatile.Read(ref basePitchTarget);
-            float outGainTargetNow = stopping ? 0f : Volatile.Read(ref outGainTarget);
-            var ctx = new VoiceContext { sampleRate = sampleRate, sourceDuration = sourceDuration, sourcePeak = pcm != null ? pcm.peak : 1f };
-            if (isGroup && released && liveChildren == 0 && !sourceExhausted) { sourceExhausted = true; samplesSinceSourceEnd = 0; silentSamples = 0; }
+            float outGainTargetRaw = Volatile.Read(ref outGainTarget);
 
-            while (off < frames) {
-                int n = frames - off;
-                if (n > ZoundDspConstants.CONTROL_BLOCK) n = ZoundDspConstants.CONTROL_BLOCK;
-                invN = 1f / n;
+            bool voiceFinished = SapVoiceRender.Render(ref sap, in sapLayout, frames, sampleRate,
+                pcm, isGroup, clipRate, sourceDuration, liveChildren,
+                killRequested, releaseRequested, basePitchTargetNow, outGainTargetRaw,
+                ref state, ref protectedFromSteal);
 
-                // ── control block: targets, clamps, per-sample slopes ──
-                float basePitchStart = basePitchLive;
-                float basePitchStep = (basePitchTargetNow - basePitchLive) * invN;
-                float outGainStart = outGainLive;
-                float outGainStep = (outGainTargetNow - outGainLive) * invN;
-                ctx.elapsedSeconds = (float)elapsedSamples / sampleRate;
-                ctx.sourceExhausted = sourceExhausted;
+            TrackOnsets(sap.lastPeak, frames, sampleRate);
 
-                if (L.bindCount > 0) {
-                    for (int r = 0; r < L.rampedCount; r++) pTarget[L.ramped[r]] = L.pBase[L.ramped[r]];
-                    // Targets are evaluated for the END of this block: the per-sample ramp then lands on the
-                    // right value exactly when the block ends, so the reconstruction is a true piecewise-linear
-                    // interpolation of the modulator rather than one lagging by a block.
-                    EvaluateModifiers(L, sampleRate, n, ctx.elapsedSeconds + (float)n / sampleRate, n);
-                    for (int b = 0; b < L.bindCount; b++) {
-                        int t = L.bindTarget[b];
-                        float m = modValue[L.bindModifier[b]] * L.bindDepth[b];
-                        switch (L.bindOp[b]) {
-                            case ModifierOp.Multiply: pTarget[t] *= m; break;
-                            case ModifierOp.Add: pTarget[t] += m; break;
-                            default: pTarget[t] = m; break;
-                        }
-                    }
-                    for (int r = 0; r < L.rampedCount; r++) {
-                        int t = L.ramped[r];
-                        float target = pTarget[t];
-                        if (target < L.pMin[t]) target = L.pMin[t]; else if (target > L.pMax[t]) target = L.pMax[t];
-                        pStart[t] = pLive[t];
-                        pStep[t] = (target - pLive[t]) * invN;
-                    }
-                }
-
-                // ── source stage (a group's input is the children's sum, already in bufL/bufR) ──
-                if (!isGroup) {
-                    if (repeatsPending > 0) ArmRepeats(n, basePitchStart);
-                    for (int ci = 0; ci < n; ci++) bufL[off + ci] = 0f;
-                    for (int ci = 0; ci < n; ci++) bufR[off + ci] = 0f;
-                    ReadSource(off, n, basePitchStart, basePitchStep);
-                }
-
-                // ── chain ──
-                if (L.nodeCount > 0) ZoundEffects.ProcessChain(L, arena, pStart, pStep, bufL, bufR, off, n, in ctx);
-
-                // ── output gain ──
-                float g = outGainStart;
-                for (int i = 0; i < n; i++) {
-                    bufL[off + i] *= g; bufR[off + i] *= g; g += outGainStep;
-                }
-
-                // ── advance live values ──
-                basePitchLive = basePitchStart + basePitchStep * n;
-                outGainLive = outGainStart + outGainStep * n;
-                for (int r = 0; r < L.rampedCount; r++) { int t = L.ramped[r]; pLive[t] = pStart[t] + pStep[t] * n; }
-                elapsedSamples += n;
-                if (sourceExhausted) samplesSinceSourceEnd += n;
-                off += n;
-            }
-
-            // ── completion ──
-            float peak = 0f;
-            for (int i = 0; i < frames; i++) {
-                float a = bufL[i] < 0f ? -bufL[i] : bufL[i]; if (a > peak) peak = a;
-                float b = bufR[i] < 0f ? -bufR[i] : bufR[i]; if (b > peak) peak = b;
-            }
-            lastPeak = peak;
-            TrackOnsets(peak, frames, sampleRate);
-
-            if (stopping) {
-                Finish(events, dspSample);
-                return true;
-            }
-            if (sourceExhausted) {
-                if (Volatile.Read(ref state) == (int)VoiceState.Active) Volatile.Write(ref state, (int)VoiceState.Tailing);
-                bool done = false;
-                if (tailBudgetSamples <= 0) done = true;
-                else {
-                    if (peak < ZoundDspConstants.SILENCE_LINEAR) {
-                        silentSamples += frames;
-                        if (silentSamples >= hangoverSamples) done = true;
-                    }
-                    else silentSamples = 0;
-                    if (samplesSinceSourceEnd >= tailBudgetSamples) done = true;
-                }
-                if (done) Finish(events, dspSample);
-            }
+            if (voiceFinished) Finish(events, dspSample);
             return true;
         }
 
@@ -479,307 +356,6 @@ namespace Laubrary.Zounds.Dsp {
             events.TryPush(new ZoundDspEvent { type = ZoundDspEventType.AudioEnd, nodeId = isGroup ? index + ZoundDspConstants.MAX_VOICES : index, tokenId = tokenId, dspSample = dspSample });
             pcm = null;
             Volatile.Write(ref state, (int)VoiceState.Free);
-        }
-
-        // Arms every repeat whose start falls inside the next n samples, sample-accurately, into a free slot
-        // (the oldest slot is taken over when all four are busy).
-        private void ArmRepeats(int n, float basePitch) {
-            while (repeatsPending > 0 && nextRepeatSample < elapsedSamples + n) {
-                if (repeat.durationLimitSamples > 0 && nextRepeatSample + repeat.nominalLengthSamples > repeat.durationLimitSamples) { repeatsPending = 0; break; }
-                int slot = -1;
-                double oldest = double.MaxValue;
-                for (int s = 0; s < slots.Length; s++) {
-                    if (!slots[s].active) { slot = s; break; }
-                    if (slots[s].cursor < oldest) { oldest = slots[s].cursor; }
-                }
-                if (slot < 0) {
-                    // Steal the slot that has been playing longest (furthest along its region).
-                    double furthest = -1;
-                    for (int s = 0; s < slots.Length; s++) {
-                        double progress = slots[s].cursor - slots[s].startFrame;
-                        if (progress > furthest) { furthest = progress; slot = s; }
-                    }
-                    slotsStolen++;
-                }
-                var first = slots[0];
-                float pitchMul = 1f, gainMul = 1f;
-                if (repeat.retrigger) {
-                    pitchMul = repeat.pitchMulMin + (repeat.pitchMulMax - repeat.pitchMulMin) * NextRandom01();
-                    gainMul = repeat.gainMulMin + (repeat.gainMulMax - repeat.gainMulMin) * NextRandom01();
-                }
-                slots[slot] = new SourceSlot {
-                    active = true, startAt = (int)(nextRepeatSample - elapsedSamples), cursor = first.startFrame,
-                    startFrame = first.startFrame, endFrame = first.endFrame, gain = gainMul, pitchMul = pitchMul, loop = false
-                };
-                repeatsDone++;
-                if (repeatsPending != int.MaxValue) repeatsPending--;
-                double rate = clipRate * Mathf.Max(basePitch, 0.01f) * pitchMul;
-                long lengthSamples = (long)((first.endFrame - first.startFrame) / rate);
-                lastRepeatEndSample = nextRepeatSample + lengthSamples;
-                nextRepeatSample = repeat.spaceFromEnd ? lastRepeatEndSample + repeat.intervalSamples : nextRepeatSample + repeat.intervalSamples;
-                if (repeatsPending == 0) protectedFromSteal = false;
-                ProjectTrainEnd();
-            }
-        }
-
-        private void Release(int sampleRate) {
-            repeatsPending = 0;
-            protectedFromSteal = false;
-            if (isGroup) return;
-            int graceFrames = sampleRate / 10;
-            int fadeSamples = (int)(ZoundDspConstants.STOP_FADE_MS * 0.001f * sampleRate);
-            // A native buffer's indexer returns a copy, so a slot is read into a local, mutated, and
-            // written back. Same values in the same order as the previous direct element writes.
-            for (int s = 0; s < slots.Length; s++) {
-                var sl = slots[s];
-                if (!sl.active) continue;
-                sl.loop = false;
-                double remaining = (sl.endFrame - sl.cursor) / (clipRate * Mathf.Max(basePitchLive * sl.pitchMul, 0.01f));
-                if (remaining > graceFrames && sl.fadeSamplesLeft == 0) {
-                    sl.fadeSamplesLeft = fadeSamples;
-                    sl.fadeSamplesTotal = fadeSamples;
-                }
-                slots[s] = sl;
-            }
-        }
-
-        // ── source stage: Catmull-Rom cubic Hermite, per-sample pitch ──
-
-        private void ReadSource(int off, int n, float basePitchStart, float basePitchStep) {
-            var samples = pcm.samples;
-            int ch = pcm.channels;
-            bool anyActive = false;
-            float srcGainStart = pStart[SourceStageParam.Gain], srcGainStep = pStep[SourceStageParam.Gain];
-            float pitchParamStart = pStart[SourceStageParam.Pitch], pitchParamStep = pStep[SourceStageParam.Pitch];
-            double rateBase = clipRate;
-
-            // As in Release: a native buffer's indexer returns a copy, so the slot is held in a local for
-            // the duration and written back once at the end. The early-out below writes back before it
-            // continues, because it advances startAt.
-            for (int s = 0; s < slots.Length; s++) {
-                var sl = slots[s];
-                if (!sl.active) continue;
-                anyActive = true;
-                int i0Start = sl.startAt;
-                if (i0Start >= n) { sl.startAt -= n; slots[s] = sl; continue; }
-                sl.startAt = 0;
-                double cur = sl.cursor;
-                double start = sl.startFrame;
-                double end = sl.endFrame;
-                int lastFrame = (int)end - 1;
-                int firstFrame = (int)start;
-                float slotGain = sl.gain;
-                float pitchMul = sl.pitchMul;
-                int fadeLeft = sl.fadeSamplesLeft;
-                int fadeTotal = sl.fadeSamplesTotal;
-                float basePitch = basePitchStart + basePitchStep * i0Start;
-                float pitchParam = pitchParamStart + pitchParamStep * i0Start;
-                float srcGain = srcGainStart + srcGainStep * i0Start;
-
-                for (int i = i0Start; i < n; i++) {
-                    if (cur >= end) {
-                        if (sl.loop && end > start + 1) { cur = start + (cur - end); }
-                        else { sl.active = false; break; }
-                    }
-                    int i1 = (int)cur;
-                    float t = (float)(cur - i1);
-                    int i0 = i1 - 1; if (i0 < firstFrame) i0 = firstFrame;
-                    int i2 = i1 + 1; if (i2 > lastFrame) i2 = lastFrame;
-                    int i3 = i1 + 2; if (i3 > lastFrame) i3 = lastFrame;
-                    float gain = slotGain * srcGain;
-                    if (fadeLeft > 0) {
-                        gain *= (float)fadeLeft / fadeTotal;
-                        fadeLeft--;
-                        if (fadeLeft == 0) { sl.active = false; }
-                    }
-                    float t2 = t * t, t3 = t2 * t;
-                    if (ch == 1) {
-                        float p0 = samples[i0], p1 = samples[i1], p2 = samples[i2], p3 = samples[i3];
-                        float v = 0.5f * ((2f * p1) + (-p0 + p2) * t + (2f * p0 - 5f * p1 + 4f * p2 - p3) * t2 + (-p0 + 3f * p1 - 3f * p2 + p3) * t3);
-                        v *= gain;
-                        bufL[off + i] += v; bufR[off + i] += v;
-                    }
-                    else {
-                        int b0 = i0 * ch, b1 = i1 * ch, b2 = i2 * ch, b3 = i3 * ch;
-                        float p0 = samples[b0], p1 = samples[b1], p2 = samples[b2], p3 = samples[b3];
-                        bufL[off + i] += gain * 0.5f * ((2f * p1) + (-p0 + p2) * t + (2f * p0 - 5f * p1 + 4f * p2 - p3) * t2 + (-p0 + 3f * p1 - 3f * p2 + p3) * t3);
-                        p0 = samples[b0 + 1]; p1 = samples[b1 + 1]; p2 = samples[b2 + 1]; p3 = samples[b3 + 1];
-                        bufR[off + i] += gain * 0.5f * ((2f * p1) + (-p0 + p2) * t + (2f * p0 - 5f * p1 + 4f * p2 - p3) * t2 + (-p0 + 3f * p1 - 3f * p2 + p3) * t3);
-                    }
-                    if (!sl.active) break;
-                    cur += rateBase * basePitch * pitchParam * pitchMul;
-                    basePitch += basePitchStep;
-                    pitchParam += pitchParamStep;
-                    srcGain += srcGainStep;
-                }
-                sl.cursor = cur;
-                sl.fadeSamplesLeft = fadeLeft;
-                slots[s] = sl;
-            }
-
-            if (!anyActive || !AnySlotActive()) {
-                if (repeatsPending > 0) return; // Repeater: the next repeat is armed by the schedule (Phase 6)
-                if (!sourceExhausted) { sourceExhausted = true; samplesSinceSourceEnd = 0; silentSamples = 0; }
-            }
-        }
-
-        /// <summary>
-        /// Normalized position (0..1) of the most recently armed active read slot over its region,
-        /// predicted <paramref name="aheadSamples"/> output samples from now at the current rate.
-        /// </summary>
-        private float SourceProgress(int aheadSamples) {
-            for (int s = slots.Length - 1; s >= 0; s--) {
-                if (!slots[s].active) continue;
-                double len = slots[s].endFrame - slots[s].startFrame;
-                if (len <= 0) return 1f;
-                double ahead = aheadSamples * clipRate * basePitchLive * pLive[SourceStageParam.Pitch] * slots[s].pitchMul;
-                float p = (float)((slots[s].cursor + ahead - slots[s].startFrame) / len);
-                return p < 0f ? 0f : (p > 1f ? 1f : p);
-            }
-            return 1f;
-        }
-
-        private bool AnySlotActive() {
-            for (int s = 0; s < slots.Length; s++) if (slots[s].active) return true;
-            return false;
-        }
-
-        // ── modifiers (control rate) ──
-
-        private float NextRandom01() {
-            rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5;
-            return (rng & 0xFFFFFF) / 16777216f;
-        }
-
-        private void EvaluateModifiers(in SapChainLayout L, int sampleRate, int blockSamples, float elapsed, int lookaheadSamples) {
-            float blockSeconds = (float)blockSamples / sampleRate;
-            for (int m = 0; m < L.modCount; m++) {
-                int so = L.modStateOffset[m];
-                int mpo = L.modParamOffset[m];
-                int mpc = L.modParamCountOf[m];
-                var mp = L.modParamFlat;
-                int mco = L.modCurveOffset[m];
-                int mcc = L.modCurveCountOf[m];
-                switch (L.modType[m]) {
-                    case ZoundModifierType.Envelope: {
-                        float total = sourceDuration + L.modExtraSeconds[m];
-                        float tn;
-                        bool sourceBase = !isGroup && !repeat.enabled && (mpc < 2 || mp[mpo + 1] < 0.5f);
-                        if (sourceBase && !sourceExhausted && total > 0f) {
-                            // Follow the waveform: normalized position of the read cursor over the trimmed region
-                            // at the end of this block, scaled so the extra-time band still sits past the source end.
-                            tn = SourceProgress(lookaheadSamples) * (sourceDuration / total);
-                        }
-                        else {
-                            tn = total > 0f ? elapsed / total : 1f;
-                        }
-                        if (tn > 1f) tn = 1f;
-                        int seg = (int)arena[so];
-                        modValue[m] = ChainLayout.EvaluateEnvelope(L.modCurveFlat, mco, mcc, tn, ref seg);
-                        arena[so] = seg;
-                        break;
-                    }
-                    case ZoundModifierType.Lfo: {
-                        float amount = mp[mpo], rate = mp[mpo + 1];
-                        int shape = (int)mp[mpo + 2];
-                        int mode = (int)mp[mpo + 4];
-                        float offset = mpc > 6 ? mp[mpo + 6] : 0f;
-                        float ramp = 1f;
-                        if (mcc > 0) {
-                            float total = sourceDuration;
-                            float tn = total > 0f ? elapsed / total : 1f; if (tn > 1f) tn = 1f;
-                            int seg = (int)arena[so + 6];
-                            ramp = ChainLayout.EvaluateEnvelope(L.modCurveFlat, mco, mcc, tn, ref seg);
-                            arena[so + 6] = seg;
-                        }
-                        if (mode == (int)LfoMode.Oscillate) {
-                            // Phase is advanced first so the value is the one at the end of the block (see Render).
-                            float phase = arena[so] + rate * blockSeconds;
-                            if (phase >= 1f) phase -= (int)phase;
-                            float w;
-                            switch (shape) {
-                                case (int)LfoShape.Triangle: w = phase < 0.5f ? (phase * 4f - 1f) : (3f - phase * 4f); break;
-                                case (int)LfoShape.Saw: w = phase * 2f - 1f; break;
-                                case (int)LfoShape.Square: w = phase < 0.5f ? 1f : -1f; break;
-                                default: w = Mathf.Sin(phase * 6.2831853f); break;
-                            }
-                            modValue[m] = offset + amount * w * ramp;
-                            arena[so] = phase;
-                        }
-                        else {
-                            // Random: glide from current toward a target; pick a new target on a timer.
-                            float every = mpc > 5 ? mp[mpo + 5] : 0.5f;
-                            if (arena[so + 7] == 0f) {
-                                arena[so + 7] = 1f;
-                                arena[so + 1] = NextRandom01() * 2f - 1f;
-                                arena[so + 2] = NextRandom01() * 2f - 1f;
-                                arena[so + 4] = arena[so + 1];
-                                arena[so + 3] = every;
-                                arena[so + 5] = 0f;
-                            }
-                            arena[so + 3] -= blockSeconds;
-                            if (arena[so + 3] <= 0f) {
-                                arena[so + 3] += every;
-                                arena[so + 4] = arena[so + 1];
-                                arena[so + 2] = NextRandom01() * 2f - 1f;
-                                arena[so + 5] = 0f;
-                            }
-                            if (rate <= 0f) arena[so + 1] = arena[so + 2];
-                            else {
-                                arena[so + 5] += rate * blockSeconds;
-                                float gt = arena[so + 5] > 1f ? 1f : arena[so + 5];
-                                arena[so + 1] = arena[so + 4] + (arena[so + 2] - arena[so + 4]) * gt;
-                            }
-                            modValue[m] = offset + amount * arena[so + 1] * ramp;
-                        }
-                        break;
-                    }
-                    case ZoundModifierType.Random:
-                        modValue[m] = arena[so];
-                        break;
-                    case ZoundModifierType.Step: {
-                        int sso = L.modStepOffset[m];
-                        int ssc = L.modStepCountOf[m];
-                        int timing = (int)mp[mpo];
-                        if (timing == (int)StepTiming.PerInterval) {
-                            float interval = mp[mpo + 1] * 0.001f;
-                            arena[so + 1] += blockSeconds;
-                            if (arena[so + 1] >= interval) {
-                                arena[so + 1] -= interval;
-                                AdvanceStep(ssc, (int)mp[mpo + 2] == (int)StepOrder.RoundRobinNoRepeat, so);
-                            }
-                        }
-                        int idx = (int)arena[so];
-                        if (idx < 0 || idx >= ssc) idx = 0;
-                        modValue[m] = L.modStepFlat[sso + idx];
-                        break;
-                    }
-                    default: modValue[m] = 0f; break;
-                }
-            }
-        }
-
-        // Round-robin over the step list with a used-mask in state[2] (up to 24 steps). When every step has
-        // been used the mask clears and the first pick of the new cycle excludes the last-played index, so
-        // the seam can never repeat and every step still plays once per cycle.
-        private void AdvanceStep(int count, bool roundRobin, int so) {
-            if (count <= 1) { arena[so] = 0f; return; }
-            int last = (int)arena[so];
-            if (!roundRobin) { arena[so] = (last + 1) % count; return; }
-            int used = (int)arena[so + 2];
-            int all = count >= 24 ? 0xFFFFFF : (1 << count) - 1;
-            used |= 1 << last;
-            int exclude = 0;
-            if ((used & all) == all) { used = 0; exclude = 1 << last; }
-            int free = 0;
-            for (int i = 0; i < count && i < 24; i++) if (((used | exclude) & (1 << i)) == 0) free++;
-            int pick = (int)(NextRandom01() * free);
-            for (int i = 0; i < count && i < 24; i++) {
-                if (((used | exclude) & (1 << i)) != 0) continue;
-                if (pick == 0) { arena[so] = i; arena[so + 2] = used | (1 << i); return; }
-                pick--;
-            }
-            arena[so] = (last + 1) % count;
         }
     }
 
