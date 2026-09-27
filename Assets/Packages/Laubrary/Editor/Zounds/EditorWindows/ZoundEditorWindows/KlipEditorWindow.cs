@@ -101,6 +101,7 @@ namespace Laubrary.Zounds {
         protected override void OnDestroy() {
             EditorApplication.update -= ProcessPendingAutoRender;
             EditorApplication.update -= TickContinuousRepaint;
+            chainEditor?.Dispose();
             if (spectrumView != null) {
                 spectrumView.Destroy();
                 spectrumView = null;

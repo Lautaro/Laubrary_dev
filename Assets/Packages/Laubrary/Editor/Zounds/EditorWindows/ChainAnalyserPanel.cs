@@ -35,6 +35,19 @@ namespace Laubrary.Zounds.EditorTools {
         double measuredAt;
         Zound drawnZound;
 
+        // ── the live picture: what the chain does at this instant (T-0434) ──
+        readonly ChainDisplayVoice display = new ChainDisplayVoice();
+        readonly System.Collections.Generic.Dictionary<long, ChainSpectrumProbe.Snapshot> snapshots =
+            new System.Collections.Generic.Dictionary<long, ChainSpectrumProbe.Snapshot>();
+        ChainSpectrumProbe.Snapshot shown;
+        float[] seenMin, seenMax;
+        float[] nowPositions;
+        float lastLoopTime = -1f;
+        int snapshotsTaken;
+
+        /// <summary>Releases the display voice's native memory. The host calls this when its window closes.</summary>
+        public void Dispose() { display.Dispose(); }
+
         /// <summary>
         /// Used when a sound's length cannot be worked out (its source is not loaded). Only then — every sound that can
         /// be played is measured over its own real length.
@@ -72,15 +85,7 @@ namespace Laubrary.Zounds.EditorTools {
         /// happened to redraw the window, which is what made it look stuck or jerky. A chain that genuinely changes nothing
         /// over time still stops redrawing, so an idle editor still costs nothing.
         /// </summary>
-        bool CombinedMoves {
-            get {
-                if (measurement.lanes != null && measurement.lanes.Length > 0) return true;
-                if (measurement.bands == null || measurement.windows < 2) return false;
-                for (int b = 0; b < measurement.bands.Length; b++)
-                    if (measurement.bands[b].measurable && measurement.bands[b].maxDb - measurement.bands[b].minDb > 0.1f) return true;
-                return false;
-            }
-        }
+        bool CombinedMoves => measurement.lanes != null && measurement.lanes.Length > 0;
 
         public void Draw(Zound zound, ZoundEffectChain chain, float height = 170f) {
             lastAnalysed = zound;
@@ -108,14 +113,14 @@ namespace Laubrary.Zounds.EditorTools {
                     // Fixed width and a single line. Left to size itself, this wrapped onto a second line in a narrow
                     // panel and grew the toolbar by a row — which the layout-stability check caught immediately, having
                     // been built for exactly this. The detail moves to the hover text, where length costs nothing.
-                    int bandCount = measurement.bands != null ? measurement.bands.Length : BANDS;
+                    int bandCount = BANDS;
                     var note = GUILayoutUtility.GetRect(150f, EditorGUIUtility.singleLineHeight,
                                                         GUILayout.Width(150f), GUILayout.ExpandWidth(false));
                     var noteStyle = new GUIStyle(EditorStyles.miniLabel) { wordWrap = false, clipping = TextClipping.Ellipsis };
                     noteStyle.normal.textColor = new Color(0.62f, 0.62f, 0.68f);
                     GUI.Label(note, new GUIContent(bandCount + " bands, 20 Hz–20 kHz",
                         "The whole range of hearing, 20 Hz to 20 kHz, in " + bandCount + " bands, with the vertical scale fitted to whatever was "
-                      + "measured. There is nothing to adjust: it re-measures itself whenever the chain changes."), noteStyle);
+                      + "measured. The bars are live: every frame they show what the chain does at that instant."), noteStyle);
                 }
                 else {
                     ZUI.Label("gain", ZUI.ZTextStyle.Subtle);
@@ -164,17 +169,16 @@ namespace Laubrary.Zounds.EditorTools {
         /// without it, a half-decibel ripple would be drawn full height and read as a huge effect, which is the same
         /// dishonesty as the fixed scale, just pointing the other way.
         /// </summary>
-        static float FitScale(ChainSpectrumProbe.Measurement m) {
-            if (m.bands == null) return 12f;
+        float FitScale() {
+            if (seenMin == null || shown.measurable == null) return 12f;
             float worst = 0f;
-            for (int b = 0; b < m.bands.Length; b++) {
-                if (!m.bands[b].measurable) continue;
-                float lo = Mathf.Abs(m.bands[b].minDb), hi = Mathf.Abs(m.bands[b].maxDb);
-                if (lo > worst) worst = lo;
-                if (hi > worst) worst = hi;
+            for (int b = 0; b < seenMin.Length; b++) {
+                if (!shown.measurable[b]) continue;
+                worst = Mathf.Max(worst, Mathf.Max(Mathf.Abs(seenMin[b]), Mathf.Abs(seenMax[b])));
             }
             if (worst < 6f) return 6f;
-            // Up to the next sensible step, so the scale does not twitch by a decibel on every re-measure.
+            // Up to the next sensible step, and never shrinking while the chain is unchanged, so the scale does not
+            // twitch as the bars move.
             float[] steps = { 6f, 12f, 18f, 24f, 36f, 48f, 60f, 80f };
             for (int i = 0; i < steps.Length; i++) if (worst <= steps[i]) return steps[i];
             return Mathf.Ceil(worst / 20f) * 20f;
@@ -189,26 +193,19 @@ namespace Laubrary.Zounds.EditorTools {
 
         void DrawCombined(Zound zound, ZoundEffectChain chain, float height) {
 
-            // Exactly one status line, always occupying the same row, whichever of these is worth saying. Ordered by which
-            // matters most to see: an empty chain, then a first measurement in flight, then a chain that provably does
-            // nothing.
-            //
-            // **There is deliberately no "edited, re-measuring" message.** It used to be here, on the reasoning that a
-            // reading which looks current when it is not is a dishonesty. The owner's judgement, which is the right one, is
-            // that it was not worth its line: it appeared during a drag, when the reader is looking at the slider under
-            // their hand rather than at a sentence, and it said nothing they could act on. If a "working on it" signal is
-            // ever genuinely wanted, it belongs as a small visual indicator next to the thing that is recalculating, not
-            // as prose — but the honest default is to say nothing and simply show the new reading when it arrives.
+            // Exactly one status line, always occupying the same row, whichever of these is worth saying. There is
+            // deliberately no "edited, re-measuring" message: the owner's judgement is that it is not worth its line.
             bool empty = chain == null || chain.IsEmpty;
+            float playTime = PlayTime(zound, out bool following);
+            if (!empty && Event.current.type == EventType.Repaint) UpdateLive(zound, chain, playTime, following, true);
+
+            bool still = shown.db != null && (measurement.lanes == null || measurement.lanes.Length == 0) && MaxAbs(shown) < 0.05f;
             string status =
                   empty ? "Nothing to measure yet — add an effect above."
-                : measurement.bands == null ? "Measuring…"
-                : measurement.silentOrUnchanged && (measurement.lanes == null || measurement.lanes.Length == 0)
-                    ? "This chain measurably changes nothing — every effect is off or sitting at a neutral setting."
+                : shown.db == null ? "Measuring…"
+                : still ? "This chain measurably changes nothing — every effect is off or sitting at a neutral setting."
                 : null;
             StatusLine(status);
-
-            float playTime = PlayTime(zound, out bool following);
 
             // One lane per modulated parameter, sized from the CHAIN rather than from the measurement, so the panel keeps
             // the same height while a measurement is in flight and does not jump when it lands.
@@ -216,28 +213,27 @@ namespace Laubrary.Zounds.EditorTools {
             DrawLanes(zound, laneRows, playTime, following);
 
             // The graph's slot is reserved even with nothing to draw in it, so adding the first effect does not make the
-            // panel jump to a different size, and neither does the brief moment while the first measurement runs.
+            // panel jump to a different size.
             var area = GUILayoutUtility.GetRect(10f, height, GUILayout.ExpandWidth(true));
-            if (empty || measurement.bands == null) DrawEmptyGraph(area);
-            else DrawBars(area, playTime);
+            if (empty || shown.db == null) DrawEmptyGraph(area);
+            else DrawBars(area);
 
-            // The time readout, in its own reserved row: which moment of the play the bars are showing, and whether that
-            // is the sound actually playing or the play being looped for inspection.
-            // When the bars can only show an average, that is said FIRST on this line, where it is seen, with the reason on
-            // hover — a picture that holds still while the sound is plainly stepping needs a word of explanation.
-            string time = measurement.bands == null ? null
+            // Which moment the bars are showing, and where it comes from.
+            string time = shown.db == null ? null
                 : playTime.ToString("0.00") + " s of " + measurement.playSeconds.ToString("0.00") + " s"
                   + (measurement.truncated ? " (the first " + ChainSpectrumProbe.MaxSeconds.ToString("0") + " s)" : "")
-                  + (following ? "  ·  following the sound as it plays" : "  ·  looping the play; press play to follow it");
-            if (time != null && BarsAreAveraged)
-                StatusLine("⚠ bars show the average of fast changes; the lane shows the changes  ·  " + time,
-                    "Something in this chain changes about " + changesPerSecond.ToString("0") + " times a second. One reading of the bars covers "
-                    + ChainSpectrumProbe.ReadingSeconds.ToString("0.00") + " s, long enough to tell deep bass notes apart but far too long to "
-                    + "separate changes that close together, so each bar is the average of what the chain does across them, and it is drawn "
-                    + "holding still rather than wobbling (any wobble would come from how the readings happen to fall, not from the sound). "
-                    + "To see the changes themselves, read the lane above the graph: that line is the modulated parameter, taken from the "
-                    + "engine at its own update rate, so every step or swing is on it.");
-            else StatusLine(time);
+                  + (following ? "  ·  live, from the sound playing now" : "  ·  live, from a silent run of this chain's modifiers; press play to follow the real sound");
+            StatusLine(time, time == null ? null
+                : "The bars show what the chain does to each part of the sound at this very moment, redrawn every frame. "
+                  + (following ? "The moment is taken from the sound as it plays: its parameters are read from the engine while you listen. "
+                               : "Nothing is playing, so the moment comes from a silent run of this chain's modifiers, looping the play in real time. Modifiers that keep running between plays (an oscillator set to Always, a timed step list with Retrigger off) run on their own clocks here exactly as they would for a real play. ")
+                  + "To get the whole range of hearing down to the deepest bass, each picture is measured with the chain held still at that moment's settings.");
+        }
+
+        static float MaxAbs(ChainSpectrumProbe.Snapshot s) {
+            float m = 0f;
+            for (int b = 0; b < s.db.Length; b++) if (s.measurable[b]) m = Mathf.Max(m, Mathf.Abs(s.db[b]));
+            return m;
         }
 
         /// <summary>
@@ -307,7 +303,7 @@ namespace Laubrary.Zounds.EditorTools {
                 string label = have ? lanes[r].label : "";
                 GUI.Label(labelRect, new GUIContent(label, have
                     ? label + ", across one play from start (left) to end (right). The line is where the engine actually puts it, as a position along its slider; the faint level is where you set it; the upright line is the moment shown in the bars below."
-                      + (following ? " The dot is its value in the playing sound right now." : " Press play to see the playing sound's own value as a dot.")
+                      + (following ? " The dot is its value in the playing sound right now; the bars below show the chain at exactly that value." : " The dot is its value right now in a silent run of the modifiers (press play to follow the real sound); the bars below show the chain at exactly that value.")
                       + (RunsAlways(lanes[r].modifierIndex)
                           ? " Its modifier keeps running between plays (an oscillator set to Always, or a timed step list with Retrigger off), so a real play picks it up wherever it has got to; this line shows a play that happened to start at the beginning, and the dot shows where a real one is."
                           : "")
@@ -346,9 +342,8 @@ namespace Laubrary.Zounds.EditorTools {
                 // Now.
                 float xNow = g.x + Mathf.Clamp01(playTime / len) * g.width;
                 EditorGUI.DrawRect(new Rect(xNow - 0.5f, g.y, 1.5f, g.height), new Color(1f, 1f, 1f, following ? 0.9f : 0.45f));
-                if (following && Dsp.SapVoiceRegistry.TryReadPlayPosition(zound, out _, out _)
-                    && TryLivePosition(zound, lane, out float live01)) {
-                    float yl = yOf(live01);
+                if (nowPositions != null && r < nowPositions.Length && nowPositions[r] >= 0f) {
+                    float yl = yOf(nowPositions[r]);
                     EditorGUI.DrawRect(new Rect(xNow - 3f, yl - 3f, 6f, 6f), new Color(1f, 0.85f, 0.35f));
                 }
             }
@@ -362,22 +357,6 @@ namespace Laubrary.Zounds.EditorTools {
             if (m.type == ZoundModifierType.Lfo) return m.p.Length > 3 && m.p[3] < 0.5f;
             if (m.type == ZoundModifierType.Step) return m.p.Length > 4 && (int)m.p[0] == (int)StepTiming.PerInterval && m.p[4] < 0.5f;
             return false;
-        }
-
-        static bool TryLivePosition(Zound zound, ChainSpectrumProbe.Lane lane, out float position01) {
-            position01 = 0f;
-            if (!Dsp.ZoundDspPlayback.TryReadLiveParam(zound, lane.nodeIndex, lane.paramIndex, out float v)) return false;
-            Dsp.ParamDesc pd;
-            if (lane.nodeIndex < 0) pd = Dsp.ZoundEffectDescriptors.SourceStageParams[lane.paramIndex];
-            else {
-                var chain = Dsp.ZoundDspPlayback.ResolveChain(zound, out _);
-                if (chain == null || lane.nodeIndex >= chain.nodes.Count) return false;
-                var d = Dsp.ZoundEffectDescriptors.Get(chain.nodes[lane.nodeIndex].type);
-                if (d == null || lane.paramIndex >= d.parameters.Length) return false;
-                pd = d.parameters[lane.paramIndex];
-            }
-            position01 = ChainSpectrumProbe.Position01(pd, v);
-            return true;
         }
 
         /// <summary>A lane's value at a fractional block index, joining neighbouring blocks with a straight line — which is
@@ -397,31 +376,13 @@ namespace Laubrary.Zounds.EditorTools {
             GUILayoutUtility.GetRect(10f, 13f, GUILayout.ExpandWidth(true));
         }
 
-        float changesPerSecond;
-
-        /// <summary>
-        /// True when something in the chain changes more than twice within one per-band reading. The bars can then only
-        /// show the AVERAGE over those changes, and they are drawn that way on purpose.
-        ///
-        /// Found on the owner's own chain: a three-step list at 52 ms a step put six and a half steps into every reading.
-        /// Each bar came out as the time-average of the three steps — measured to within a tenth of a decibel — which is
-        /// correct but looks like a faint dip, not like steps. Worse, six and a half is not a whole number, so each reading
-        /// held a slightly different mix of steps and the bars wobbled by up to a decibel: movement that looked like the
-        /// modulator and was only the readings' own spacing. So in this case the bars hold still at the average, the
-        /// "range over the play" blocks are left out (they would claim a band moves one decibel when the steps really move
-        /// it sixteen), and a note says where the real movement is: the lane above, read at the engine's own rate.
-        /// </summary>
-        bool BarsAreAveraged => changesPerSecond * ChainSpectrumProbe.ReadingSeconds > 2f;
-
         int pendingVersion = int.MinValue;
         double pendingSince;
 
         /// <summary>
-        /// Re-measures after an edit, but only once the edits have STOPPED for a moment.
-        ///
-        /// The chain bumps its revision counter on every frame of a slider drag, and measuring means rendering a play of
-        /// audio twice over and transforming it. Measuring on each bump would make dragging crawl — the visualiser would ruin
-        /// the very editing it exists to support. Waiting for a short lull turns a whole drag into one measurement at the end.
+        /// Re-reads the chain's modulation after an edit, once the edits have stopped for a moment, and forgets every
+        /// picture taken of the old settings. The bars themselves are not measured here any more — they are taken live, per
+        /// frame, in <see cref="UpdateLive"/>.
         /// </summary>
         void EnsureMeasured(Zound zound, ZoundEffectChain chain) {
             const double settleSeconds = 0.25;
@@ -432,39 +393,119 @@ namespace Laubrary.Zounds.EditorTools {
 
             double now = EditorApplication.timeSinceStartup;
             if (pendingVersion != version) { pendingVersion = version; pendingSince = now; return; }
-            if (now - pendingSince < settleSeconds && measurement.bands != null) return;
+            if (now - pendingSince < settleSeconds && shown.db != null) return;
 
             measuredChain = chain;
             measuredZound = zound;
             measuredVersion = version;
             measuredAt = now;
-            if (chain == null || chain.IsEmpty) { measurement = default; dbRange = 12f; return; }
+            snapshots.Clear();
+            seenMin = seenMax = null;
+            lastLoopTime = -1f;
+            display.Dispose();
+            if (chain == null || chain.IsEmpty) { measurement = default; shown = default; dbRange = 12f; return; }
             if (!Dsp.ZoundSapPlayback.TryGetPlayLength(zound, out float play)) play = FallbackPlaySeconds;
-            measurement = ChainSpectrumProbe.Measure(chain, play, BANDS);
-            changesPerSecond = ChainSpectrumProbe.FastestChangesPerSecond(chain);
-            dbRange = FitScale(measurement);
+            measurement = ChainSpectrumProbe.MeasureModulation(chain, play);
+        }
+
+        /// <summary>
+        /// Works out the parameter values the chain has at this instant and shows the chain's response at those values.
+        ///
+        /// **Where "this instant" comes from.** While the sound plays, the values are read from the engine's own playing
+        /// voice — exactly what is being heard. Otherwise a silent display voice runs this chain's modifiers in real time,
+        /// looping the play, so the picture still moves as it would; modifiers that keep running between plays join their
+        /// own clocks there, as a real play would. Either way the values come from the engine, never re-derived here.
+        ///
+        /// **Why a picture per set of values, cached.** The response of a chain whose settings are held still is fixed, so
+        /// it is measured once per distinct set of values and re-used whenever those values come round again — a three-step
+        /// list needs three pictures in total, an oscillator a few dozen positions per sweep. At most one new picture is
+        /// taken per frame, so the editor never stalls; until a position has been measured, the nearest earlier picture
+        /// stays on screen for that frame.
+        /// </summary>
+        void UpdateLive(Zound zound, ZoundEffectChain chain, float playTime, bool following, bool wantPicture) {
+            var lanes = measurement.lanes;
+            int n = lanes != null ? lanes.Length : 0;
+            if (nowPositions == null || nowPositions.Length != n) nowPositions = new float[n];
+            var values = new float[n];
+            var have = new bool[n];
+
+            if (!following && n > 0) {
+                // Restart the silent run at the start of each loop, so per-play modifiers restart as a real play would and
+                // running clocks are joined afresh.
+                if (!display.isRunning || playTime < lastLoopTime) display.Start(chain, measurement.playSeconds, zound);
+                display.AdvanceTo(playTime);
+            }
+            lastLoopTime = playTime;
+
+            for (int i = 0; i < n; i++) {
+                var lane = lanes[i];
+                bool ok = following
+                    ? Dsp.ZoundDspPlayback.TryReadLiveParam(zound, lane.nodeIndex, lane.paramIndex, out values[i])
+                    : display.TryGetParam(lane.nodeIndex, lane.paramIndex, out values[i]);
+                have[i] = ok && lane.nodeIndex >= 0;
+                nowPositions[i] = ok ? PositionOf(chain, lane, values[i]) : -1f;
+            }
+            if (!wantPicture) return;
+
+            // The picture's identity: each modulated parameter's position along its slider, to a thousandth. Closer than
+            // that no one can see, and it bounds how many pictures a sweep can ask for.
+            long key = 17;
+            for (int i = 0; i < n; i++) key = key * 1000003L + (have[i] ? Mathf.RoundToInt(nowPositions[i] * 1000f) : -1);
+
+            if (!snapshots.TryGetValue(key, out var snap)) {
+                // At most one new picture per redraw, which this is called once per. (A first version limited it with
+                // Unity's frame counter, which does not advance in the editor outside Play mode, so after the first
+                // picture every later one was refused and the bars froze — caught by watching them, T-0434.)
+                snapshotsTaken++;
+                var frozen = chain.DeepCopy();
+                frozen.modifiers.Clear();
+                frozen.bindings.Clear();
+                for (int i = 0; i < n; i++) {
+                    if (!have[i]) continue;
+                    var node = frozen.nodes[lanes[i].nodeIndex];
+                    node.EnsureParams();
+                    node.p[lanes[i].paramIndex] = values[i];
+                }
+                snap = ChainSpectrumProbe.MeasureFrozen(frozen, BANDS);
+                if (snap.db == null) return;
+                if (snapshots.Count > 4000) snapshots.Clear();
+                snapshots[key] = snap;
+            }
+            shown = snap;
+
+            // Every band's lowest and highest reading among the pictures shown since the last edit: the faint block.
+            if (seenMin == null) { seenMin = (float[])snap.db.Clone(); seenMax = (float[])snap.db.Clone(); dbRange = FitScale(); }
+            bool grew = false;
+            for (int b = 0; b < snap.db.Length; b++) {
+                if (snap.db[b] < seenMin[b]) { seenMin[b] = snap.db[b]; grew = true; }
+                if (snap.db[b] > seenMax[b]) { seenMax[b] = snap.db[b]; grew = true; }
+            }
+            if (grew) dbRange = Mathf.Max(dbRange, FitScale());
+        }
+
+        static float PositionOf(ZoundEffectChain chain, ChainSpectrumProbe.Lane lane, float value) {
+            Dsp.ParamDesc pd;
+            if (lane.nodeIndex < 0) {
+                if (lane.paramIndex < 0 || lane.paramIndex >= SourceStageParam.Count) return -1f;
+                pd = Dsp.ZoundEffectDescriptors.SourceStageParams[lane.paramIndex];
+            }
+            else {
+                if (chain == null || lane.nodeIndex >= chain.nodes.Count) return -1f;
+                var d = Dsp.ZoundEffectDescriptors.Get(chain.nodes[lane.nodeIndex].type);
+                if (d == null || lane.paramIndex >= d.parameters.Length) return -1f;
+                pd = d.parameters[lane.paramIndex];
+            }
+            return ChainSpectrumProbe.Position01(pd, value);
         }
 
         /// <summary>The frequencies worth a label: round numbers anyone can place, rather than the bands' own centres.</summary>
         static readonly float[] freqTicks = { 20f, 50f, 100f, 200f, 500f, 1000f, 2000f, 5000f, 10000f, 20000f };
+        static ChainSpectrumProbe.Band[] bandInfo;
 
-        void DrawBars(Rect area, float playTime) {
-            var bands = measurement.bands;
-            var readings = measurement.readingSeconds;
+        void DrawBars(Rect area) {
+            if (bandInfo == null || bandInfo.Length != BANDS) bandInfo = ChainSpectrumProbe.SnapshotBands(BANDS);
+            var bands = bandInfo;
             EditorGUI.DrawRect(area, new Color(0.12f, 0.12f, 0.14f));
-
-            // Where between two readings "now" falls. Readings are a third of a second apart; the bars move smoothly between
-            // them rather than jumping, so the motion reads as motion instead of as a slideshow.
-            int w0 = 0, w1 = 0; float f = 0f;
-            if (readings != null && readings.Length > 1) {
-                if (playTime <= readings[0]) { w0 = w1 = 0; }
-                else if (playTime >= readings[readings.Length - 1]) { w0 = w1 = readings.Length - 1; }
-                else {
-                    for (int i = 0; i < readings.Length - 1; i++) {
-                        if (playTime < readings[i + 1]) { w0 = i; w1 = i + 1; f = (playTime - readings[i]) / (readings[i + 1] - readings[i]); break; }
-                    }
-                }
-            }
 
             float mid = area.y + area.height * 0.5f;
             // Faint uprights at the labelled frequencies, so a bar can be placed without counting.
@@ -479,29 +520,23 @@ namespace Laubrary.Zounds.EditorTools {
 
             float slot = area.width / bands.Length;
             int unmeasurable = 0;
-            float hoveredDb = 0f;
             for (int b = 0; b < bands.Length; b++) {
                 float x = area.x + b * slot;
                 float bw = Mathf.Max(1f, slot - 1f);
-                if (!bands[b].measurable) {
+                if (!shown.measurable[b]) {
                     unmeasurable++;
                     EditorGUI.DrawRect(new Rect(x, mid - 1f, bw, 2f), new Color(0.32f, 0.32f, 0.36f));
                     continue;
                 }
                 if (b == hovered) EditorGUI.DrawRect(new Rect(x, area.y, bw, area.height), new Color(1f, 1f, 1f, 0.06f));
 
-                bool averaged = BarsAreAveraged;
-                if (!averaged) {
-                    float top = mid - Mathf.Clamp(bands[b].maxDb / dbRange, -1f, 1f) * area.height * 0.5f;
-                    float bot = mid - Mathf.Clamp(bands[b].minDb / dbRange, -1f, 1f) * area.height * 0.5f;
-                    if (bot < top) (top, bot) = (bot, top);
+                if (seenMin != null) {
+                    float top = mid - Mathf.Clamp(seenMax[b] / dbRange, -1f, 1f) * area.height * 0.5f;
+                    float bot = mid - Mathf.Clamp(seenMin[b] / dbRange, -1f, 1f) * area.height * 0.5f;
                     EditorGUI.DrawRect(new Rect(x, top, bw, Mathf.Max(1f, bot - top)), new Color(0.3f, 0.45f, 0.6f, 0.35f));
                 }
 
-                var ot = bands[b].overTime;
-                float db = averaged ? bands[b].averageDb
-                                    : Mathf.Lerp(ot[Mathf.Min(w0, ot.Length - 1)], ot[Mathf.Min(w1, ot.Length - 1)], f);
-                if (b == hovered) hoveredDb = db;
+                float db = shown.db[b];
                 float h = Mathf.Abs(Mathf.Clamp(db / dbRange, -1f, 1f)) * area.height * 0.5f;
                 var colour = db >= 0f ? new Color(0.45f, 0.8f, 0.5f) : new Color(0.85f, 0.5f, 0.4f);
                 EditorGUI.DrawRect(db >= 0f ? new Rect(x, mid - h, bw, h) : new Rect(x, mid, bw, h), colour);
@@ -514,25 +549,23 @@ namespace Laubrary.Zounds.EditorTools {
             GUI.Label(new Rect(area.x + 3f, mid - 15f, 70f, 14f), "0 dB", scaleStyle);
             GUI.Label(new Rect(area.x + 3f, area.yMax - 15f, 70f, 14f), "−" + dbRange.ToString("0") + " dB", scaleStyle);
 
-            // The band under the mouse, named in plain numbers, drawn at the top-right of the graph so it never covers
-            // the bar being read.
+            // The band under the mouse, named in plain numbers, at the top-right of the graph.
             if (hovered >= 0) {
                 var hb = bands[hovered];
                 string text = FormatHz(hb.lowHz) + "–" + FormatHz(hb.highHz) + ":  "
-                            + (hb.measurable ? (hoveredDb >= 0f ? "+" : "") + hoveredDb.ToString("0.0") + " dB now,  "
-                                               + hb.minDb.ToString("0") + " to " + hb.maxDb.ToString("0") + " dB over the play"
-                                             : "too low to measure");
+                            + (shown.measurable[hovered]
+                                ? (shown.db[hovered] >= 0f ? "+" : "") + shown.db[hovered].ToString("0.0") + " dB now"
+                                  + (seenMin != null ? ",  " + seenMin[hovered].ToString("0") + " to " + seenMax[hovered].ToString("0") + " dB so far" : "")
+                                : "too low to measure");
                 var hs = new GUIStyle(EditorStyles.miniLabel) { alignment = TextAnchor.UpperRight };
                 hs.normal.textColor = new Color(0.95f, 0.95f, 1f);
                 GUI.Label(new Rect(area.xMax - 360f, area.y + 1f, 356f, 14f), text, hs);
             }
 
-            // The whole explanation of how to read the graph lives on hover, not on screen.
-            GUI.Label(area, new GUIContent("", "What this chain does to each part of the sound's frequency range, from the deepest bass on the left (20 Hz) to the highest treble on the right (20 kHz). "
+            GUI.Label(area, new GUIContent("", "What this chain is doing to each part of the sound's frequency range RIGHT NOW, redrawn every frame, from the deepest bass on the left (20 Hz) to the highest treble on the right (20 kHz). "
                 + "Middle line = unchanged. Green above it = louder, red below it = quieter; full height is " + dbRange.ToString("0") + " dB. "
-                + (BarsAreAveraged
-                    ? "Something in this chain changes about " + changesPerSecond.ToString("0") + " times a second, more often than one reading can separate (a reading covers " + ChainSpectrumProbe.ReadingSeconds.ToString("0.00") + " s), so each bar shows the AVERAGE of what the chain does over those changes and holds still. The changes themselves are in the lane above the graph. "
-                    : "The faint block behind each bar is the whole range that band moves through over the play. ")
+                + "As modifiers move the chain's settings, the bars move with them — a step list jumps from one shape to the next, an oscillator sweeps. "
+                + "The faint block behind each bar is every level that band has reached since the chain was last edited. "
                 + (unmeasurable > 0 ? "A flat grey stub is a band this measurement cannot resolve. " : "")
                 + "Point at a bar to read its numbers."));
 
@@ -599,6 +632,7 @@ namespace Laubrary.Zounds.EditorTools {
             // earns the space by naming what is being listened to, which is the one thing these views cannot show.
             StatusLine(playing && !string.IsNullOrEmpty(sourceName) ? "reading: " + sourceName : null);
             float playTime = PlayTime(zound, out bool following);
+            if (chain != null && !chain.IsEmpty && Event.current.type == EventType.Repaint) UpdateLive(zound, chain, playTime, following, false);
             DrawLanes(zound, CountModulatedParams(chain), playTime, following);
             var mode = view == View.LiveSpectrum ? LiveOutputView.Mode.Spectrum
                      : view == View.LiveOverTime ? LiveOutputView.Mode.Spectrogram

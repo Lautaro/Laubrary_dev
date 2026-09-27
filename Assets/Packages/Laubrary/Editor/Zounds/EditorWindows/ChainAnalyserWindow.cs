@@ -45,6 +45,7 @@ namespace Laubrary.Zounds {
 
         void OnDisable() {
             EditorApplication.update -= Tick;
+            panel.Dispose();
         }
 
         // Only redraw when something on screen is actually moving. Repainting unconditionally on every editor update kept a

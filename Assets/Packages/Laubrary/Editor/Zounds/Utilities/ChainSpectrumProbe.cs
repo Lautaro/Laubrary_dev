@@ -81,37 +81,6 @@ namespace Laubrary.Zounds.EditorTools {
         const int WINDOW = 16384;
         const int SAMPLE_RATE = 48000;
 
-        /// <summary>How much time one per-band reading describes. Anything that changes several times within this is
-        /// averaged in the bars; the lanes, read from the engine at its own control step, are what show such changes.</summary>
-        public const float ReadingSeconds = (float)WINDOW / SAMPLE_RATE;
-
-        /// <summary>
-        /// How many times a second the fastest modifier in the chain changes what it outputs: twice per cycle for an
-        /// oscillator (up, then down), once per new target for a random oscillator, once per step for a timed step list.
-        /// An envelope moves once over the whole play and a per-play value not at all, so neither counts.
-        /// Only modifiers that are on and drive something are considered.
-        /// </summary>
-        public static float FastestChangesPerSecond(ZoundEffectChain chain) {
-            float fastest = 0f;
-            if (chain?.modifiers == null) return 0f;
-            for (int m = 0; m < chain.modifiers.Count; m++) {
-                var mod = chain.modifiers[m];
-                if (!mod.enabled || mod.p == null) continue;
-                bool drives = false;
-                foreach (var b in chain.bindings) if (b.modifierIndex == m) drives = true;
-                if (!drives) continue;
-                float perSecond = 0f;
-                if (mod.type == ZoundModifierType.Lfo && mod.p.Length > 4)
-                    perSecond = (int)mod.p[4] == (int)LfoMode.Random
-                        ? (mod.p.Length > 5 && mod.p[5] > 0f ? 1f / mod.p[5] : 0f)
-                        : 2f * mod.p[1];
-                else if (mod.type == ZoundModifierType.Step && mod.p.Length > 1 && (int)mod.p[0] == (int)StepTiming.PerInterval && mod.p[1] > 0f)
-                    perSecond = 1000f / mod.p[1];
-                if (perSecond > fastest) fastest = perSecond;
-            }
-            return fastest;
-        }
-
         /// <summary>
         /// The length of the pattern the test signal repeats, and also how far the analysis window moves between readings.
         ///
@@ -169,6 +138,99 @@ namespace Laubrary.Zounds.EditorTools {
             result.costMs = sw.Elapsed.TotalMilliseconds;
             return result;
         }
+
+        /// <summary>What a chain does to each band at one instant: decibels per band, and which bands can be read.</summary>
+        public struct Snapshot {
+            public float[] db;
+            public bool[] measurable;
+            public double costMs;
+        }
+
+        static float[] frozenNoise;
+        static float[] frozenDryMag;
+        static int frozenDryOffset = -1;
+        static Band[] frozenBands;
+        static int[] frozenLo, frozenHi;
+
+        /// <summary>
+        /// What a chain with NOTHING moving does to each band: its parameters are fixed, so one reading describes it
+        /// exactly, however long the reading is.
+        ///
+        /// **This is how the analyser shows the chain as it is right now, frame by frame, without losing the bass.** A
+        /// reading has to span about a third of a second to tell the lowest bands apart. Taken of a chain whose parameters
+        /// move during that third of a second, it can only report their average — that is what made the bars sit still
+        /// under a stepping modifier. Taken of a chain FROZEN at this instant's parameter values, the same long reading is
+        /// the exact response at this instant. So the caller freezes the chain at the values being applied now (read from
+        /// the playing sound, or from a display voice running the modifiers in real time) and this measures it; the result
+        /// depends only on those values, so it can be cached and re-used whenever the same values come round again.
+        ///
+        /// The chain is run long enough first for anything with memory (a delay, a reverb) to settle, up to two seconds.
+        /// </summary>
+        public static Snapshot MeasureFrozen(ZoundEffectChain frozen, int bandCount = 72) {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var snap = new Snapshot();
+            if (frozen == null || frozen.IsEmpty) return snap;
+
+            float tail = Math.Min(2f, Math.Max(0f, ZoundEffectDescriptors.TailBudgetSeconds(frozen)));
+            int settle = PERIOD * Math.Max(2, (int)Math.Ceiling(tail * SAMPLE_RATE / PERIOD));
+            int frames = settle + WINDOW;
+            int maxFrames = PERIOD * (int)Math.Ceiling(2f * SAMPLE_RATE / PERIOD) + WINDOW + PERIOD * 2;
+
+            if (frozenNoise == null) {
+                // One period of noise, repeated — the same signal, same seed, as the measurement over a play, so a still
+                // chain reads identically either way.
+                frozenNoise = new float[maxFrames * 2];
+                var rng = new System.Random(12345);
+                var period = new float[PERIOD];
+                for (int i = 0; i < PERIOD; i++) period[i] = (float)(rng.NextDouble() * 2.0 - 1.0) * 0.25f;
+                for (int i = 0; i < maxFrames; i++) { float s = period[i % PERIOD]; frozenNoise[i * 2] = s; frozenNoise[i * 2 + 1] = s; }
+            }
+            var input = new float[frames * 2];
+            Array.Copy(frozenNoise, input, input.Length);
+            float seconds = (float)frames / SAMPLE_RATE;
+
+            // The dry side is the same test signal at the same point of its repeat every time, so it is taken once.
+            if (frozenDryMag == null || frozenDryOffset != 0) {
+                var dry = ZoundDspOffline.Render(input, 2, SAMPLE_RATE, SAMPLE_RATE, null, 1f, 1f, seconds);
+                if (dry == null) return snap;
+                frozenDryMag = new float[WINDOW / 2];
+                Spectrum(dry.left, settle, frozenDryMag);
+                frozenDryOffset = 0;
+            }
+            if (frozenBands == null || frozenBands.Length != bandCount) {
+                frozenBands = MakeBands(bandCount);
+                frozenLo = new int[bandCount]; frozenHi = new int[bandCount];
+                for (int b = 0; b < bandCount; b++) {
+                    int lo = BinOf(frozenBands[b].lowHz), hi = BinOf(frozenBands[b].highHz);
+                    if (!ContainsLine(lo, hi)) { int nearest = (int)Math.Round(frozenBands[b].centreHz / LINE_HZ) * 2; lo = nearest; hi = nearest + 1; }
+                    frozenLo[b] = lo; frozenHi[b] = hi;
+                }
+            }
+
+            var wet = ZoundDspOffline.Render(input, 2, SAMPLE_RATE, SAMPLE_RATE, frozen, 1f, 1f, seconds);
+            if (wet == null || wet.frames < settle + WINDOW) return snap;
+            var wetMag = new float[WINDOW / 2];
+            Spectrum(wet.left, settle, wetMag);
+
+            snap.db = new float[bandCount];
+            snap.measurable = new bool[bandCount];
+            for (int b = 0; b < bandCount; b++) {
+                double wetE = 0, dryE = 0;
+                for (int k = frozenLo[b]; k < frozenHi[b] && k < wetMag.Length; k++) {
+                    dryE += (double)frozenDryMag[k] * frozenDryMag[k];
+                    wetE += (double)wetMag[k] * wetMag[k];
+                }
+                if (dryE < BIN_FLOOR * BIN_FLOOR) continue;
+                snap.measurable[b] = true;
+                float db = wetE < BIN_FLOOR * BIN_FLOOR ? FLOOR_DB : (float)(10.0 * Math.Log10(wetE / dryE));
+                snap.db[b] = db > 40f ? 40f : db < FLOOR_DB ? FLOOR_DB : db;
+            }
+            snap.costMs = sw.Elapsed.TotalMilliseconds;
+            return snap;
+        }
+
+        /// <summary>The centre frequency of each band the snapshots are taken in.</summary>
+        public static Band[] SnapshotBands(int bandCount = 72) => MakeBands(bandCount);
 
         /// <summary>
         /// Only the modulation half of <see cref="Measure"/>: what every modifier outputs, and what every modulated

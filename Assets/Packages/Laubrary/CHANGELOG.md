@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — the analyser's bars are live: every frame they show what the chain does at that instant
+
+- **Before:** the bars were a looped measurement of one simulated play, a few third-of-a-second readings long. For a short sound that was 3 readings; anything after half a second was never read, a slow step list never changed inside a play, and the simulated play ignored lists and oscillators that keep running between plays. Owner-reported: a 1 s step list left the bars still (measured 0.02 dB of movement).
+- **Now:** each redraw takes the modulated parameters' values at this instant — from the playing sound while it plays, otherwise from a silent display voice running the chain's modifiers in real time (`ChainDisplayVoice`, which joins every running clock as a real play would) — freezes the chain at those values and shows its response (`ChainSpectrumProbe.MeasureFrozen`). A frozen chain does not move during the reading, so the full-length reading that resolves the bass is now exact for that instant. Responses are cached per distinct set of values; about 11 ms for a new one.
+- The faint block behind each bar is now every level the band has reached since the last edit. The lanes' dot marks the value the bars are drawn at, playing or not.
+- Removes the T-0433 "bars show the average" hold, which no longer applies: bars are instantaneous.
+
 ### Zounds — Step modifier: Smooth, a working Retrigger, and an analyser that says when it is averaging
 
 - **Smooth** (Step, Per interval only): the share of each step spent gliding from the previous value to the new one, 0 = jump, 1 = glide the whole step. A share rather than a time, so the pattern keeps its shape however short the steps. Applied in the engine's modifier output, a glide cut short carries on from where it was.

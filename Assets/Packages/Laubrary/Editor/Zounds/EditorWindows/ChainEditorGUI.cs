@@ -40,6 +40,9 @@ namespace Laubrary.Zounds {
 
         readonly EditorTools.ChainAnalyserPanel analyser = new EditorTools.ChainAnalyserPanel();
 
+        /// <summary>Releases what the embedded analyser holds natively. The hosting window calls this when it closes.</summary>
+        public void Dispose() => analyser.Dispose();
+
         /// <summary>
         /// True while something on screen is moving on its own and the hosting window must keep repainting: a live analyser
         /// view, or a modulated parameter whose engine value is being tracked. Both switch themselves off — the overlay only
