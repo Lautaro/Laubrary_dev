@@ -537,6 +537,11 @@ namespace Laubrary.Zounds {
                     // that no longer happens on an edit. A control that does nothing when clicked is worse than one
                     // that is absent: it invites someone to conclude the feature behind it is broken.
 
+                    // The owner's stutter test on demand (T-0448): a forced collection while this plays.
+                    if (ZUI.Button(new GUIContent("Force GC", EditorTools.ZoundGcStressTest.Tooltip + "\n\n" + EditorTools.ZoundGcStressTest.lastResult),
+                            ZUI.Style.RichButton, null, ZUICornerMask.All, GUILayout.Height(btnHeight), GUILayout.Width(72f)))
+                        EditorTools.ZoundGcStressTest.Run(IsCurrentTokenPlaying());
+
                     GUILayout.Space(8f);
 
                     // Group 4: Play

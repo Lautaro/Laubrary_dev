@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — a Force GC button, and a measured answer to "is the audio thread still immune?"
+
+- **Force GC** in the Klip and Zequence editor windows: forces a full collection while a sound plays, and reports how long it froze the editor and whether any of the engine's audio has ever run as managed code this session (tooltip and console).
+- **`ZoundAudioThreadGuard`** (runtime): every real-time block counts itself, and counts again only when it is running as managed code (a call Burst removes when it compiles the block). Nought managed blocks after many is proof the engine has not attached the audio thread; above nought is proof it has. Works in builds.
+- **A load-time scan** warns if any component type anywhere declares the managed audio callback (`OnAudioFilterRead`); silent when there is none. Together with the counter this is the guard T-0406 asked for.
+- **The standalone stutter check** (`Assets/ZoundsSapCheck`) gains a Trigger GC button and a per-press verdict measured from the engine's own block count (audio kept running / stalled), plus an unattended `-zoundsGcReport` mode for builds. Measured: editor Play mode stalled on 5 of 5 collections; the built player kept running through 10 of 10 (up to 1.4 s each), 0 of 605 blocks managed.
+
 ### Zounds — the Random modifier draws again, in the same terms as every other modifier
 
 - **Fix: Random never drew anything.** Its one-value-per-play draw lived in the native voice's start-up code and was lost when that path was removed; the new engine's start-up never took it over, so every play held nought. Measured before: 15 of 15 plays output exactly 0 whatever Min, Max and Bias said — under Set that parked the parameter at the middle of its range, under Shift it did nothing. Now drawn at every play start on every engine path (real plays, bounces, the analyser).

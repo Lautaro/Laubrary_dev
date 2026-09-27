@@ -68,8 +68,71 @@ namespace Laubrary.Zounds.Checks {
         }
 
         private void Start() {
+            if (HasArg("-zoundsGcReport")) { StartCoroutine(GcReport()); return; }
             if (WantsHeadlessReport()) { WriteHeadlessReport(); return; }
             Play();
+        }
+
+        private static bool HasArg(string flag) {
+            foreach (var arg in System.Environment.GetCommandLineArgs()) if (arg == flag) return true;
+            return false;
+        }
+
+        // ── Did audio keep flowing through the collection? (T-0448) ──
+        // Measured, not judged by ear alone: the engine counts every real-time block it renders. Across a collection
+        // that the audio survives, about as many blocks are rendered as the running rate says are due; across one that
+        // freezes the audio, almost none are — just the few already queued in the device's buffers.
+        private double rateBlocksPerSecond;
+        private long rateBlocks = -1;
+        private float rateSince;
+        private string lastVerdict;
+        private int stalls, survived;
+
+        private void SampleRate() {
+            long b = ZoundAudioThreadGuard.Blocks;
+            float now = Time.realtimeSinceStartup;
+            if (rateBlocks < 0) { rateBlocks = b; rateSince = now; return; }
+            if (now - rateSince < 0.5f) return;
+            rateBlocksPerSecond = (b - rateBlocks) / (now - rateSince);
+            rateBlocks = b; rateSince = now;
+        }
+
+        /// <summary>Judges one collection from the blocks rendered across it. Resets the rate window after.</summary>
+        private string Judge(long blocksAcross, double ms) {
+            double expected = rateBlocksPerSecond * ms / 1000.0;
+            rateBlocks = -1;
+            if (expected < 3) return "collection too short (" + ms.ToString("F0") + " ms) to judge — press again";
+            bool ok = blocksAcross >= expected * 0.7;
+            if (ok) survived++; else stalls++;
+            return (ok ? "AUDIO KEPT RUNNING" : "AUDIO STALLED") + ": " + blocksAcross + " of ~" + expected.ToString("F0")
+                   + " blocks rendered during the " + ms.ToString("F0") + " ms collection";
+        }
+
+        /// <summary>
+        /// Unattended version of the test, for a build run without anyone listening: plays the tone quietly, forces ten
+        /// collections and writes each verdict to a file next to the build, then quits.
+        /// </summary>
+        private System.Collections.IEnumerator GcReport() {
+            AudioListener.volume = 0.05f;
+            Play();
+            var sb = new System.Text.StringBuilder("Zounds GC stutter report\n");
+            sb.Append("editor: ").Append(Application.isEditor).Append("   platform: ").Append(Application.platform)
+              .Append("   compiler enabled: ").Append(BurstCompiler.IsEnabled).Append('\n');
+            AudioSettings.GetDSPBufferSize(out int len, out int num);
+            sb.Append("audio buffer: ").Append(len).Append(" x ").Append(num).Append(" @ ").Append(AudioSettings.outputSampleRate).Append('\n');
+            for (float t = 0; t < 1.5f; t += Time.unscaledDeltaTime) { SampleRate(); yield return null; }
+            for (int i = 0; i < 10; i++) {
+                for (float t = 0; t < 0.8f; t += Time.unscaledDeltaTime) { SampleRate(); yield return null; }
+                ForceCollection();
+                sb.Append(i + 1).Append(": ").Append(lastVerdict).Append('\n');
+            }
+            sb.Append("survived ").Append(survived).Append(", stalled ").Append(stalls)
+              .Append("; audio blocks run as managed code: ").Append(ZoundAudioThreadGuard.ManagedBlocks)
+              .Append(" of ").Append(ZoundAudioThreadGuard.Blocks).Append('\n');
+            string path = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Application.dataPath) ?? ".", "zounds-gc-report.txt");
+            try { System.IO.File.WriteAllText(path, sb.ToString()); } catch (System.Exception e) { Debug.LogError(e.Message); }
+            Debug.Log("[Zounds] " + sb);
+            Application.Quit(stalls == 0 ? 0 : 4);
         }
 
         /// <summary>
@@ -175,17 +238,22 @@ namespace Laubrary.Zounds.Checks {
             }
             kept.Add(nodes);
 
+            long before = ZoundAudioThreadGuard.Blocks;
             var sw = Stopwatch.StartNew();
             System.GC.Collect(System.GC.MaxGeneration, System.GCCollectionMode.Forced, true, true);
             sw.Stop();
+            long across = ZoundAudioThreadGuard.Blocks - before;
             lastCollectionMs = sw.Elapsed.TotalMilliseconds;
             collections++;
+            lastVerdict = Judge(across, lastCollectionMs);
+            Debug.Log("[Zounds] Forced collection " + collections + ": " + lastVerdict);
         }
 
         private sealed class Node { public object a, b; public int tag; }
         private readonly System.Collections.Generic.List<object> kept = new System.Collections.Generic.List<object>();
 
         private void Update() {
+            SampleRate();
             if (Input.GetKeyDown(KeyCode.Alpha1)) Play();
             if (Input.GetKeyDown(KeyCode.Alpha2)) ForceCollection();
             if (Input.GetKeyDown(KeyCode.Alpha3)) { sweeping = !sweeping; }
@@ -204,11 +272,21 @@ namespace Laubrary.Zounds.Checks {
 
         private void OnGUI() {
             const int pad = 14;
-            var area = new Rect(pad, pad, 640, 320);
+            var area = new Rect(pad, pad, 700, 440);
             GUI.Box(area, GUIContent.none);
             GUILayout.BeginArea(new Rect(area.x + pad, area.y + pad, area.width - pad * 2, area.height - pad * 2));
 
-            GUILayout.Label("Zounds native effect-chain check");
+            GUILayout.Label("Zounds GC stutter test (diagnostic)  ·  " + (Application.isEditor ? "EDITOR" : "BUILT PLAYER"));
+            GUILayout.Space(6);
+
+            // The owner's A/B test (T-0448): the same button in editor Play mode and in a build.
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button(new GUIContent("Trigger GC", "Builds a wave of garbage, then forces a full collection while the tone plays. Listen for a gap; the line below says whether audio kept running."), GUILayout.Width(140), GUILayout.Height(34))) ForceCollection();
+            if (GUILayout.Button(new GUIContent("Restart tone", "Starts the looping tone again."), GUILayout.Width(110), GUILayout.Height(34))) Play();
+            GUILayout.EndHorizontal();
+            GUILayout.Label(lastVerdict ?? "Press Trigger GC while the tone plays.");
+            GUILayout.Label("collections survived: " + survived + "   stalled: " + stalls
+                            + "   ·   audio blocks run as managed code: " + ZoundAudioThreadGuard.ManagedBlocks + " of " + ZoundAudioThreadGuard.Blocks);
             GUILayout.Space(6);
 
             if (listenerMissing) {

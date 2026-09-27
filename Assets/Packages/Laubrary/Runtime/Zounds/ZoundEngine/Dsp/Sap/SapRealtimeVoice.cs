@@ -262,6 +262,8 @@ namespace Laubrary.Zounds.Dsp {
             // "finished" while a block was still running, which is the one answer that must never be wrong.
             bool ticketed = renderTicket.IsCreated;
             if (ticketed) renderTicket[0] = renderTicket[0] + 1;   // now odd: inside a block
+            // Counts this block, and separately counts it again only if it is running as managed code (T-0448).
+            ZoundAudioThreadGuard.CountBlock();
 
             int frames = buffer.frameCount;
             if (frames > sap.bufL.Length) frames = sap.bufL.Length;
