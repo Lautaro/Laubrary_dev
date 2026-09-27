@@ -33,6 +33,8 @@ namespace Laubrary.Zounds.EditorTools {
             /// <summary>Change in decibels per time window. Positive is louder than the dry signal.</summary>
             public float[] overTime;
             public float minDb, maxDb, averageDb;
+            /// <summary>False when the test signal had too little energy here to divide by, so no honest reading exists.</summary>
+            public bool measurable;
         }
 
         public struct Measurement {
@@ -45,8 +47,27 @@ namespace Laubrary.Zounds.EditorTools {
             public float[] broadbandDbOverTime;
         }
 
-        const int WINDOW = 1024;               // about 21 ms at 48 kHz: short enough to catch a modulator moving
+        // Four thousand samples, about 85 ms at 48 kHz. The first version used a quarter of that and the low bands were
+        // unusable for it: a 1024-sample window resolves only about 47 Hz, so a band spanning 30 to 39 Hz was NARROWER
+        // THAN ONE BIN and what it actually reported was spectral leakage from the loud passband — which depends on the
+        // random phases of the test signal and therefore changed every window. That is where the flicker came from, and no
+        // amount of smoothing would have fixed it, because the number was never measuring the band in the first place.
+        //
+        // The cost is time resolution: 85 ms cannot resolve a modulation faster than a few cycles per second. That is an
+        // acceptable trade here, since the modulators worth watching move at a few hertz, and the alternative was a low end
+        // that lied.
+        const int WINDOW = 4096;
         const int SAMPLE_RATE = 48000;
+
+        /// <summary>
+        /// Below this, a bin of the dry signal is too quiet to divide by. Chosen well above rounding noise: the whole
+        /// reason bars used to swing to the extremes was dividing near-silence by near-silence and believing the answer.
+        /// </summary>
+        const float BIN_FLOOR = 1e-5f;
+
+        /// <summary>The most negative reading reported. Anything cut below the floor reports exactly this, so that a band
+        /// which is simply gone reads as a steady "gone" rather than as a flickering estimate of nothing.</summary>
+        const float FLOOR_DB = -80f;
 
         /// <summary>
         /// Runs noise through <paramref name="chain"/> and reports what it did, band by band, window by window.
@@ -61,10 +82,22 @@ namespace Laubrary.Zounds.EditorTools {
 
             // The SAME noise for both renders, so the comparison isolates the chain rather than two different signals.
             // Seeded fixed: a measurement that jitters because its own test signal changed would be unreadable.
+            // One window's worth of noise, REPEATED, rather than continuous noise.
+            //
+            // This is what makes the reading stable, and it is worth understanding why. With continuous noise every analysis
+            // window sees different samples, so the energy in each bin differs window to window, and in a band that an
+            // effect has cut deeply what remains is leakage from whatever is loud nearby — which depends on those samples.
+            // The reading then moves by tens of decibels while the effect sits perfectly still. Repeating one period means
+            // every window sees the IDENTICAL signal, so the input side of the comparison is exactly the same each time and
+            // any variation left in the result is the effect genuinely doing something different.
+            //
+            // The windows line up with the repeats by construction, since the period is the window length.
             var noise = new float[frames * 2];
             var rng = new System.Random(12345);
+            var period = new float[WINDOW];
+            for (int i = 0; i < WINDOW; i++) period[i] = (float)(rng.NextDouble() * 2.0 - 1.0) * level;
             for (int i = 0; i < frames; i++) {
-                float s = (float)(rng.NextDouble() * 2.0 - 1.0) * level;
+                float s = period[i % WINDOW];
                 noise[i * 2] = s;
                 noise[i * 2 + 1] = s;
             }
@@ -96,10 +129,61 @@ namespace Laubrary.Zounds.EditorTools {
 
                 for (int b = 0; b < bands.Length; b++) {
                     int lo = BinOf(bands[b].lowHz), hi = BinOf(bands[b].highHz);
-                    if (hi <= lo) hi = lo + 1;
-                    double d = 0, t = 0;
-                    for (int k = lo; k < hi && k < dryMag.Length; k++) { d += dryMag[k]; t += wetMag[k]; }
-                    float db = ToDb(t, d);
+
+                    // A band narrower than two bins cannot be measured, only guessed at, and the guess is leakage from
+                    // whatever is loud nearby. Refused outright rather than reported — a blank is honest where a number
+                    // would be fiction.
+                    if (hi - lo < 2) {
+                        bands[b].overTime[w] = 0f;
+                        bands[b].measurable = false;
+                        continue;
+                    }
+
+                    // One ratio PER BIN, averaged in decibels — not one ratio for the summed band.
+                    //
+                    // This is the difference between a stable reading and a flickering one, and the first version got it
+                    // wrong. Summing the band first makes the answer a noise-WEIGHTED average of the effect's response:
+                    // whichever frequencies the random test signal happened to put energy into that window dominate the
+                    // result, so the number moves from window to window even when the effect is completely static. Taken
+                    // per bin, the ratio is the effect's response at that frequency and the test signal cancels out of it
+                    // entirely, so a static effect reads the same every time.
+                    //
+                    // Bins where the dry signal is too weak are skipped rather than divided by. Dividing near-silence by
+                    // near-silence is what produced bars slamming to full scale for bands that simply had nothing in them.
+                    double sumDb = 0;
+                    int binsUsed = 0;
+                    for (int k = lo; k < hi && k < dryMag.Length; k++) {
+                        if (dryMag[k] < BIN_FLOOR) continue;
+
+                        // The OUTPUT needs a floor as well as the input, and leaving it out was the rest of the flicker.
+                        // Where an effect cuts a band almost completely, what remains is rounding noise, and a ratio
+                        // computed from rounding noise is a different random number every window — which showed up as
+                        // twenty decibels of phantom movement on a filter that was not moving at all. Below the floor the
+                        // honest answer is not a number but "cut past what this can measure", so it reports the floor
+                        // itself, identically every time.
+                        double binDb;
+                        if (wetMag[k] < BIN_FLOOR) binDb = FLOOR_DB;
+                        else {
+                            double r = wetMag[k] / dryMag[k];
+                            binDb = 20.0 * Math.Log10(r);
+                            if (binDb < FLOOR_DB) binDb = FLOOR_DB;
+                        }
+                        sumDb += binDb;
+                        binsUsed++;
+                    }
+
+                    if (binsUsed == 0) {
+                        // Nothing measurable here. Recorded as such so the display can leave the band blank instead of
+                        // inventing a value for it.
+                        bands[b].overTime[w] = 0f;
+                        bands[b].measurable = false;
+                        continue;
+                    }
+                    bands[b].measurable = true;
+
+                    float db = (float)(sumDb / binsUsed);
+                    if (db > 40f) db = 40f;
+                    if (db < FLOOR_DB) db = FLOOR_DB;
                     bands[b].overTime[w] = db;
                     if (Math.Abs(db) > 0.05f) anyChange = true;
                 }
@@ -131,7 +215,9 @@ namespace Laubrary.Zounds.EditorTools {
         /// though the second is a hundred times wider.
         /// </summary>
         static Band[] MakeBands(int count) {
-            const float low = 30f, high = 18000f;
+                // Starting at 60 rather than 30 Hz, because below that a band would be narrower than this window can resolve
+            // even at 4096 samples, and there is no point creating bands that have to be discarded.
+            const float low = 60f, high = 18000f;
             var bands = new Band[count];
             double ratio = Math.Pow(high / low, 1.0 / count);
             double edge = low;

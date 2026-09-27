@@ -11,9 +11,9 @@ namespace Laubrary.Zounds.EditorTools {
         /// <summary>Its gain depends on how loud the signal is, so the reading describes what it did to THIS test
         /// signal, not a fixed property of the effect. Your own audio will get different numbers.</summary>
         LevelDependent,
-        /// <summary>Energy really does move, but it arrives LATE rather than being shaped. The bars do show something
-        /// real and useful — repeats landing, a tail building and decaying — it just is not a frequency curve, and its
-        /// average over time says little.</summary>
+        /// <summary>Energy really does move, but it arrives LATE rather than being shaped. What the bars settle on is
+        /// real — the comb pattern repeats create — but it is a steady state, not a frequency curve, and it does not
+        /// show you the repeats arriving or the tail decaying.</summary>
         TimeSmeared,
         /// <summary>A per-band loudness number does not describe this effect. Reading one is worse than reading
         /// nothing, because it looks like an answer.</summary>
@@ -35,12 +35,17 @@ namespace Laubrary.Zounds.EditorTools {
     /// - A compressor's gain depends on the signal, so the answer fits but only for the signal it was measured with.
     /// - A waveshaper does not change the level of a band; it manufactures new content that was not there. Energy does
     ///   appear in bands that were quiet, and calling that "boost" invites exactly the wrong mental model.
-    /// - A delay and a reverb were expected to show nothing, and measurement proved that WRONG, which is why the
-    ///   expectation was tested instead of asserted. Their fine comb structure does average away, so their long-run
-    ///   average per band is close to meaningless — but the time-resolved view shows plenty: a delay moved a band by
-    ///   nearly 28 dB across a measurement and a reverb by nearly 48. That is the repeats arriving and the tail
-    ///   decaying, which is real and worth seeing. So they get their own verdict: trust the movement, ignore the
-    ///   average.
+    /// - A delay and a reverb do leave a real mark — repeats reinforce some frequencies and cancel others, so the bars
+    ///   settle into a comb — but that is a settled state, not a curve, and it does not show the thing these effects
+    ///   are actually for. So they get their own verdict: the shape is real, the timing is invisible.
+    ///
+    /// **One of these verdicts was wrong for a while, and how it was wrong is worth keeping.** Delay and reverb were
+    /// first measured as moving a band by tens of decibels over a measurement, which read as "the repeats arriving,"
+    /// and they were classified around that. When the measurement's own noise floor was later fixed — by driving it
+    /// with a signal that repeats exactly once per analysis window, so every window sees identical input — that
+    /// movement collapsed to under half a decibel while the effects' actual depth stayed put. The movement had been
+    /// mostly the measurement, not the effect. The lesson is not about delays: any reading that moves is worth
+    /// distrusting until the measurement has been shown to hold still on something that genuinely does not move.
     /// </summary>
     public static class ChainEffectFidelity {
 
@@ -89,7 +94,7 @@ namespace Laubrary.Zounds.EditorTools {
                 case EffectFidelity.LevelDependent:
                     return "shown for this test signal only — its gain depends on how loud the input is, so your own audio will differ";
                 case EffectFidelity.TimeSmeared:
-                    return "the movement is real, the average is not — you are watching energy arrive late, not a frequency curve";
+                    return "the shape is real, the timing is invisible — repeats reinforce and cancel frequencies, but you cannot see them arrive";
                 default:
                     switch (type) {
                         case ZoundEffectType.Distortion:

@@ -75,6 +75,28 @@ namespace Laubrary.Zounds.EditorTools {
 
             if (view == View.Combined) DrawCombined(zound, chain, height);
             else DrawLive(height);
+
+            // Drawn in EVERY view, not just the combined one, so switching tabs cannot change the panel's height. When the
+            // panel is embedded in a scrolling editor, a height change on a tab flip drags the content under the reader's
+            // cursor; keeping the footprint identical across views removes that entirely.
+            DrawChainRoster(chain);
+        }
+
+        /// <summary>
+        /// One fixed-height line for a message that may or may not be there.
+        ///
+        /// The slot is reserved whether or not there is anything to say, and the text is clipped to it rather than wrapped.
+        /// Both halves of that matter. A line that appears and disappears pushes everything below it down and lets it snap
+        /// back — and the message that does this most is "re-measuring", which appears WHILE a slider is being dragged, so
+        /// the graph would hop up and down under the hand that is adjusting it. Clipping rather than wrapping keeps the
+        /// height fixed at narrow widths too, where a sentence that fits on one line in a wide panel would take three.
+        /// </summary>
+        static void StatusLine(string message) {
+            var row = GUILayoutUtility.GetRect(10f, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
+            if (string.IsNullOrEmpty(message)) return;
+            var style = new GUIStyle(EditorStyles.miniLabel) { wordWrap = false, clipping = TextClipping.Clip };
+            style.normal.textColor = new Color(0.62f, 0.62f, 0.68f);
+            GUI.Label(row, new GUIContent(message, message), style);
         }
 
         void Tab(View which, string label) {
@@ -87,26 +109,33 @@ namespace Laubrary.Zounds.EditorTools {
         void DrawCombined(Zound zound, ZoundEffectChain chain, float height) {
             EnsureMeasured(chain);
 
-            if (chain == null || chain.IsEmpty) {
-                ZUI.Label("Nothing to measure yet — add an effect above.", ZUI.ZTextStyle.Subtle);
-                return;
-            }
-            if (measurement.bands == null) {
-                ZUI.Label("Measuring…", ZUI.ZTextStyle.Subtle);
-                return;
-            }
-            if (measuredVersion != chain.version) {
-                // Still showing the previous result while the edits settle. Said out loud, because a stale reading that
-                // looks current is exactly the kind of quiet dishonesty this whole panel is trying to avoid.
-                ZUI.Label("edited — re-measuring in a moment", ZUI.ZTextStyle.Subtle);
-            }
-            if (measurement.silentOrUnchanged) {
-                ZUI.Label("This chain measurably changes nothing — every effect is off or sitting at a neutral setting.",
-                          ZUI.ZTextStyle.Subtle);
-            }
+            // Exactly one status line, always occupying the same row, whichever of these is worth saying. Ordered by which
+            // matters most to see: an empty chain, then a first measurement in flight, then a stale reading, then a chain
+            // that provably does nothing. A stale reading is called out rather than shown silently — a reading that looks
+            // current when it is not is the one dishonesty this whole panel exists to avoid.
+            bool empty = chain == null || chain.IsEmpty;
+            string status =
+                  empty ? "Nothing to measure yet — add an effect above."
+                : measurement.bands == null ? "Measuring…"
+                : measuredVersion != chain.version ? "edited — re-measuring in a moment"
+                : measurement.silentOrUnchanged ? "This chain measurably changes nothing — every effect is off or sitting at a neutral setting."
+                : null;
+            StatusLine(status);
 
-            DrawBars(GUILayoutUtility.GetRect(10f, height, GUILayout.ExpandWidth(true)));
-            DrawFidelity(chain);
+            // The graph's slot is reserved even with nothing to draw in it, so adding the first effect does not make the
+            // panel jump to a different size, and neither does the brief moment while the first measurement runs.
+            var area = GUILayoutUtility.GetRect(10f, height, GUILayout.ExpandWidth(true));
+            if (empty || measurement.bands == null) DrawEmptyGraph(area);
+            else DrawBars(area);
+        }
+
+        static void DrawEmptyGraph(Rect area) {
+            EditorGUI.DrawRect(area, new Color(0.12f, 0.12f, 0.14f));
+            float mid = area.y + area.height * 0.5f;
+            EditorGUI.DrawRect(new Rect(area.x, mid - 1f, area.width, 2f), new Color(0.3f, 0.3f, 0.34f));
+            // The legend slot is reserved here too, for the same reason the graph is.
+            GUILayoutUtility.GetRect(10f, 13f, GUILayout.ExpandWidth(true));
+            StatusLine(null);
         }
 
         int pendingVersion = int.MinValue;
@@ -150,9 +179,23 @@ namespace Laubrary.Zounds.EditorTools {
             EditorGUI.DrawRect(new Rect(area.x, mid - 1f, area.width, 2f), new Color(0.45f, 0.45f, 0.5f));
 
             float slot = area.width / bands.Length;
+            int unmeasurable = 0;
             for (int b = 0; b < bands.Length; b++) {
                 float x = area.x + b * slot;
                 float bw = Mathf.Max(2f, slot - 2f);
+
+                // A band the analysis cannot resolve gets a flat grey stub instead of a value.
+                //
+                // This is the other half of the jitter fix. The lowest bands are narrower in hertz than the analysis can
+                // distinguish, so whatever appeared in them was not their own content — it was loud neighbouring content
+                // bleeding in, which moves with the signal and made those bars swing wildly while the effect sat still.
+                // Drawing zero would be a lie in the opposite direction, implying "unaffected" where the honest answer is
+                // "too low for this measurement to speak about."
+                if (!bands[b].measurable) {
+                    unmeasurable++;
+                    EditorGUI.DrawRect(new Rect(x, mid - 1f, bw, 2f), new Color(0.32f, 0.32f, 0.36f));
+                    continue;
+                }
 
                 if (showRange) {
                     float top = mid - Mathf.Clamp(bands[b].maxDb / dbRange, -1f, 1f) * area.height * 0.5f;
@@ -176,8 +219,9 @@ namespace Laubrary.Zounds.EditorTools {
                 GUI.Label(new Rect(labels.x + b * slot - slot, labels.y, slot * 3f, labels.height),
                           hz >= 1000f ? (hz / 1000f).ToString("0.#") + "k" : hz.ToString("0"), style);
             }
-            ZUI.Label("Middle line = unchanged. Full height = " + dbRange.ToString("0")
-                      + " dB. Faint block = the range each band moves through.", ZUI.ZTextStyle.Subtle);
+            StatusLine("Middle line = unchanged. Full height = " + dbRange.ToString("0")
+                       + " dB. Faint block = the range each band moves through."
+                       + (unmeasurable > 0 ? "  Grey stub = too low a frequency for this measurement to resolve." : ""));
         }
 
         /// <summary>
@@ -185,8 +229,9 @@ namespace Laubrary.Zounds.EditorTools {
         /// shape of answer for a filter and the wrong shape for a waveshaper, and a display that prints a confident number
         /// either way gets believed and tuned against.
         /// </summary>
-        void DrawFidelity(ZoundEffectChain chain) {
+        void DrawChainRoster(ZoundEffectChain chain) {
             if (chain?.nodes == null) return;
+            bool verdicts = view == View.Combined;
             for (int i = 0; i < chain.nodes.Count; i++) {
                 var node = chain.nodes[i];
                 var fidelity = ChainEffectFidelity.Of(node.type);
@@ -195,17 +240,25 @@ namespace Laubrary.Zounds.EditorTools {
                            : fidelity == EffectFidelity.LevelDependent ? new Color(0.9f, 0.85f, 0.5f)
                            : fidelity == EffectFidelity.TimeSmeared ? new Color(0.7f, 0.6f, 0.9f)
                            : new Color(0.95f, 0.55f, 0.5f);
-                using (new EditorGUILayout.HorizontalScope()) {
-                    var dot = GUILayoutUtility.GetRect(9f, 9f, GUILayout.Width(9f), GUILayout.Height(9f));
-                    dot.y += 4f;
-                    EditorGUI.DrawRect(dot, colour);
-                    var style = new GUIStyle(EditorStyles.miniLabel) { wordWrap = true };
-                    if (!node.enabled) style.normal.textColor = new Color(0.5f, 0.5f, 0.5f);
-                    var desc = Dsp.ZoundEffectDescriptors.Get(node.type);
-                    string name = desc != null && !string.IsNullOrEmpty(desc.displayName) ? desc.displayName : node.type.ToString();
-                    EditorGUILayout.LabelField(name + (node.enabled ? "" : " (off)") + " — "
-                                               + ChainEffectFidelity.Explain(node.type), style);
-                }
+
+                // Exactly one line per effect, always. The verdict sentences run from six words to thirty, so wrapping them
+                // made this list's height depend on which effects were in the chain AND on how wide the panel happened to
+                // be — the panel would grow and shrink as effects were added, reordered or the window resized. Clipped to
+                // one line with the whole sentence on hover, the list is a fixed number of fixed-height rows.
+                var row = GUILayoutUtility.GetRect(10f, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
+                var dot = new Rect(row.x, row.y + (row.height - 9f) * 0.5f, 9f, 9f);
+                EditorGUI.DrawRect(dot, node.enabled ? colour : colour * 0.45f);
+
+                var desc = Dsp.ZoundEffectDescriptors.Get(node.type);
+                string name = desc != null && !string.IsNullOrEmpty(desc.displayName) ? desc.displayName : node.type.ToString();
+                string verdict = verdicts
+                    ? ChainEffectFidelity.Explain(node.type)
+                    : "in the chain — the views on this tab read the real output, so every effect is in what you are seeing";
+                string text = name + (node.enabled ? "" : " (off)") + " — " + verdict;
+
+                var style = new GUIStyle(EditorStyles.miniLabel) { wordWrap = false, clipping = TextClipping.Clip };
+                if (!node.enabled) style.normal.textColor = new Color(0.5f, 0.5f, 0.5f);
+                GUI.Label(new Rect(row.x + 13f, row.y, row.width - 13f, row.height), new GUIContent(text, text), style);
             }
         }
 
@@ -213,14 +266,20 @@ namespace Laubrary.Zounds.EditorTools {
 
         void DrawLive(float height) {
             bool playing = live.Sample(out string sourceName);
+            // A leading status row, matching the combined view's, so switching tabs does not shift the panel by a line. It
+            // earns the space by naming what is being listened to, which is the one thing these views cannot show.
+            StatusLine(playing && !string.IsNullOrEmpty(sourceName) ? "reading: " + sourceName : null);
             var mode = view == View.LiveSpectrum ? LiveOutputView.Mode.Spectrum
                      : view == View.LiveOverTime ? LiveOutputView.Mode.Spectrogram
                      : LiveOutputView.Mode.Waveform;
             live.Draw(GUILayoutUtility.GetRect(10f, height, GUILayout.ExpandWidth(true)), mode, playing, sourceName);
-            ZUI.Label(playing
+            // Matches the combined view's footprint: a legend row plus a status row, both fixed. The two messages below are
+            // very different lengths, and swapping between them the moment playback starts or stops is precisely the kind of
+            // reflow that would jog the panel while somebody is auditioning a sound.
+            GUILayoutUtility.GetRect(10f, 13f, GUILayout.ExpandWidth(true));
+            StatusLine(playing
                 ? "The real signal, with nothing interpreted — when this and the combined view disagree, this one is right."
-                : "Press play on this sound and it fills in. It reads the real output, so it needs something to read.",
-                ZUI.ZTextStyle.Subtle);
+                : "Press play on this sound and it fills in. It reads the real output, so it needs something to read.");
         }
     }
 }

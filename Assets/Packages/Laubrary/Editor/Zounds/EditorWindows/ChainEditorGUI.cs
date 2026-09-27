@@ -53,9 +53,21 @@ namespace Laubrary.Zounds {
 
             DrawLibraryBar(zound, chain, preset);
 
+            // A reserved single line rather than a help box that comes and goes.
+            //
+            // This check runs on every repaint against the current parameter values, so an error can appear and vanish
+            // mid-drag — and a help box appearing mid-drag shoves the entire effect list, the modifiers and the analyser
+            // down by two rows, then yanks them back up. The row is therefore always there, the message is clipped into it
+            // with the full text on hover, and the warning reads as a warning through its colour and marker instead of
+            // through taking up space it only sometimes needs.
             var layoutError = ChainLayout.Build(chain, AudioSettings.outputSampleRate, linked ? zound.chainOverrides : null).error;
+            var errorRow = GUILayoutUtility.GetRect(10f, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
             if (layoutError != null) {
-                EditorGUILayout.HelpBox(layoutError, MessageType.Warning);
+                EditorGUI.DrawRect(new Rect(errorRow.x, errorRow.y, 3f, errorRow.height), new Color(0.95f, 0.75f, 0.3f));
+                var warn = new GUIStyle(EditorStyles.miniLabel) { wordWrap = false, clipping = TextClipping.Clip };
+                warn.normal.textColor = new Color(0.97f, 0.8f, 0.4f);
+                GUI.Label(new Rect(errorRow.x + 7f, errorRow.y, errorRow.width - 7f, errorRow.height),
+                          new GUIContent("⚠ " + layoutError, layoutError), warn);
             }
 
             DrawNodes(zound, chain, linked);

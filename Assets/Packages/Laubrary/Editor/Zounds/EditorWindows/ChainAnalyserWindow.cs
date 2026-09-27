@@ -31,6 +31,13 @@ namespace Laubrary.Zounds {
         bool followEditor = true;
         int selected;
 
+        /// <summary>
+        /// Kept in a field, which is the whole trick to a scroll position that survives a redraw: the offset handed to the
+        /// scroll view each frame is the one it gave back last frame. Rebuilding it from zero — or recreating the scope on a
+        /// state change — is what makes a view snap to the top the moment a toggle is flipped.
+        /// </summary>
+        [SerializeField] Vector2 scroll;
+
         void OnEnable() {
             panel.open = true;
             EditorApplication.update += Tick;
@@ -40,7 +47,9 @@ namespace Laubrary.Zounds {
             EditorApplication.update -= Tick;
         }
 
-        void Tick() => Repaint();
+        // Only redraw when something on screen is actually moving. Repainting unconditionally on every editor update kept a
+        // core busy for a window that is usually showing a still measurement.
+        void Tick() { if (panel.wantsContinuousRepaint) Repaint(); }
 
         void OnGUI() {
             RefreshCandidates();
@@ -67,8 +76,12 @@ namespace Laubrary.Zounds {
             }
 
             var chain = Dsp.ZoundDspPlayback.ResolveChain(target, out _);
+            // Scrollable, because the per-effect list under the graph grows with the chain and a long chain otherwise ran off
+            // the bottom of the window with no way to reach it.
+            scroll = EditorGUILayout.BeginScrollView(scroll);
             // Taller than the inline copy, since having the room is the only reason to open a separate window for this.
             panel.Draw(target, chain, Mathf.Max(160f, position.height - 230f));
+            EditorGUILayout.EndScrollView();
         }
 
         /// <summary>
