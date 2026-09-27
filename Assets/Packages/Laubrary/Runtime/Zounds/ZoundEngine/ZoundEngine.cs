@@ -265,6 +265,13 @@ namespace Laubrary.Zounds {
                 cullingGroup.Clear();
             }
             inst.pool.StopAllSources(cleanupPool);
+
+            // Also stop the chain voices. Killing a token and stopping its audio source covers a sound that plays a
+            // file, but a sound playing through its effect chain is being rendered by a voice the audio graph owns,
+            // and that voice needs telling directly — otherwise "stop everything" would leave chain-played sounds
+            // running, which is the opposite of what anyone pressing it wants. Done here rather than at each call
+            // site so every existing way of stopping everything picks it up.
+            Laubrary.Zounds.Dsp.SapVoiceRegistry.StopAll();
         }
 
         /// <summary>Returns a token for this zound without playing it. Call token.Play() to start.</summary>
