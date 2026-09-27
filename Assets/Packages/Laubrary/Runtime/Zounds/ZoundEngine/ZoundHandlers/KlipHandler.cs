@@ -71,6 +71,14 @@ namespace Laubrary.Zounds {
                                                      zound.id, out string reason, out m_chainDuration);
             if (m_voice != null) {
                 m_chainPath = true;
+                // A chain can go on making sound after the source has run out -- a delay still repeating, a reverb
+                // still decaying. The source's own length says nothing about that, so counting only the source would
+                // have this handler declare the sound over and hand its audio source back to the pool while the tail
+                // was still ringing, chopping it off. The chain already declares how long it can ring for, so that
+                // is added on. The engine stops the voice by itself once the tail has actually died away, so this is
+                // an upper bound rather than a fixed wait.
+                var laidOut = m_voice.playingLayout;
+                if (laidOut != null) m_chainDuration += laidOut.tailSeconds;
                 return;
             }
 

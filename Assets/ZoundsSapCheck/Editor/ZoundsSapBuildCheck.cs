@@ -61,6 +61,15 @@ namespace Laubrary.Zounds.Checks.EditorTools {
                 // It is reported rather than fixed on purpose. Saving someone's open scene to get a build through
                 // is not this check's decision to make — and in the case that prompted this, the unsaved scene
                 // belonged to an entirely different project on disk.
+                // Saved here, immediately before the check, rather than beforehand. Something in this project marks
+                // the open scene as modified again within a frame or two of it being saved, so saving it earlier and
+                // then building loses a race and the build stops for a scene that was clean a moment ago.
+                //
+                // Only ever OUR scene. A scene belonging to anyone else is reported, never saved, however
+                // inconvenient that is — which is the whole reason this stopped rather than proceeding the first
+                // time it ran.
+                SaveOurOwnScene();
+
                 string unsaved = UnsavedScenes();
                 if (unsaved != null) {
                     File.AppendAllText(StatusPath,
@@ -98,6 +107,14 @@ namespace Laubrary.Zounds.Checks.EditorTools {
             }
             catch (Exception e) {
                 File.AppendAllText(StatusPath, "FAILED with an exception: " + e.GetType().Name + ": " + e.Message + "\nDONE\n");
+            }
+        }
+
+        /// <summary>Saves the check scene if it is open and modified. Never touches any other scene.</summary>
+        private static void SaveOurOwnScene() {
+            for (int i = 0; i < SceneManager.sceneCount; i++) {
+                var s = SceneManager.GetSceneAt(i);
+                if (s.isDirty && s.path == ScenePath) EditorSceneManager.SaveScene(s);
             }
         }
 
