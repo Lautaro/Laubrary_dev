@@ -97,10 +97,15 @@ public static class ZoundsRealtimePathCheck {
                     int delivered = ZoundDspPlayback.PushLiveParam(klip, klip.effectChain, 0, 0, 0.9f);
                     failures += Check(sb, "a live parameter change was delivered to the playing voice", delivered > 0);
                     sb.Append("     voices that took the change: ").Append(delivered).Append('\n');
-                    sb.Append("  => a chain edit can be heard in the editor, without running the game\n");
+                    // Stated carefully, because an earlier version of this check overstated it. Everything above shows the
+                    // graph ACCEPTED the voice and will accept a change for it. None of it shows the graph ever asks that
+                    // voice for audio, which is a separate question and the one that decides whether anything is audible.
+                    sb.Append("  NOT shown here: whether the graph renders this voice at all. Accepting a voice and\n")
+                      .Append("  asking it for audio are different things — check 10 answers that by reading the samples\n")
+                      .Append("  the voice actually produced.\n");
                 }
                 else {
-                    sb.Append("  => listening has to happen with the game running; edit mode did not take it\n");
+                    sb.Append("  the graph did not take it here, so a live change has nowhere to go\n");
                 }
                 carrier.Stop();
             }
