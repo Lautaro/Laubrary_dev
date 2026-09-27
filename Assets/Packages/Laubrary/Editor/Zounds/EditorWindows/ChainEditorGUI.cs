@@ -363,7 +363,7 @@ namespace Laubrary.Zounds {
                 for (int o = 0; o < pd.options.Length; o++) {
                     var r = new Rect(ctrl.x + o * w, ctrl.y, w, ctrl.height);
                     var corner = o == 0 ? ZUICornerMask.Left : o == pd.options.Length - 1 ? ZUICornerMask.Right : ZUICornerMask.None;
-                    if (ZUI.Toggle(r, cur == o, pd.options[o], ZUI.Style.RichToggle, null, corner) && cur != o) onSet(o);
+                    if (ZUI.Toggle(r, cur == o, new GUIContent(pd.options[o], pd.OptionTip(o)), ZUI.Style.RichToggle, null, corner) && cur != o) onSet(o);
                 }
                 ctrl.width = w * pd.options.Length;
             }
@@ -525,7 +525,11 @@ namespace Laubrary.Zounds {
         }
 
         private static void AddBinding(ZoundEffectChain chain, int modifierIndex, int nodeIndex, int paramIndex, ParamDesc pd) {
-            chain.bindings.Add(new ZoundModifierBinding { modifierIndex = modifierIndex, nodeIndex = nodeIndex, paramIndex = paramIndex, op = pd.defaultOp, depth = 1f });
+            chain.bindings.Add(new ZoundModifierBinding {
+                modifierIndex = modifierIndex, nodeIndex = nodeIndex, paramIndex = paramIndex,
+                // A quarter of the parameter's control: clearly audible on anything without slamming it into an end stop,
+                // and it means the same thing whichever parameter this was dropped on.
+                combine = Dsp.ModulationCombine.Shift, depth = 0.25f, schema = Dsp.ChainModulationCompat.CURRENT_SCHEMA });
             chain.Touch();
         }
 
@@ -649,11 +653,26 @@ namespace Laubrary.Zounds {
                 if (!envelopeGuis.TryGetValue(mod, out var gui)) { gui = new EnvelopeGUI { name = "mod" + m }; envelopeGuis.Add(mod, gui); }
                 var editorStyle = ZoundsProject.Instance.projectSettings.editorStyle;
                 var color = mod.type == ZoundModifierType.Envelope ? editorStyle.volumeEnvelopeColor : editorStyle.pitchEnvelopeColor;
+                // A caption, because without one this graph was being read as the oscillator's WAVEFORM.
+                //
+                // That misreading is entirely the interface's fault: an unlabelled curve drawn directly beneath a row of
+                // buttons called Sine, Triangle, Saw and Square looks like the place you go to draw your own shape. It is
+                // not. On an oscillator this curve is a second, slower control that sets HOW STRONGLY the oscillation
+                // applies as the sound plays — so the wobble can fade in, fade away, or come and go — while the shape of
+                // the wobble itself stays whichever of the four was chosen. It starts flat, so it does nothing until it
+                // is drawn on.
+                bool isLfoRamp = mod.type == ZoundModifierType.Lfo;
+                string caption = isLfoRamp ? "Strength over the play" : "Shape over the play";
+                string curveTip = isLfoRamp
+                    ? "How strongly this oscillator applies as the sound plays, from its start on the left to its end on the right. It does NOT change the wave's shape — that is the Shape buttons above. Flat at the top means full strength throughout, which is how it starts. Drag points; double-click to add one."
+                    : "The value this envelope produces across the play, from its start on the left to its end on the right (plus any extra time). Drag points; double-click to add one.";
+                var capRect = GUILayoutUtility.GetRect(200f, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
+                capRect.xMin += GripW + 6f;
+                GUI.Label(capRect, new GUIContent(caption, curveTip), EditorStyles.miniLabel);
+
                 var rect = GUILayoutUtility.GetRect(200f, 56f, GUILayout.ExpandWidth(true));
                 rect.xMin += GripW + 6f;
-                GUI.Label(rect, new GUIContent("", mod.type == ZoundModifierType.Envelope
-                    ? "The curve over the play (0 = start, 1 = end plus the extra time). Drag points; double-click to add one."
-                    : "Ramp: scales the LFO's output over the play (0 = start, 1 = end). Drag points; double-click to add one."));
+                GUI.Label(rect, new GUIContent("", curveTip));
                 var evt = Event.current;
                 if (evt.type == EventType.MouseDown && rect.Contains(evt.mousePosition) && !dragUndoOpen) { dragUndoOpen = true; ZoundsWindow.BeginDragUndo("edit modifier curve"); }
                 if (gui.Draw(rect, mod.curve, color, 1.5f, true, true)) {
@@ -687,12 +706,62 @@ namespace Laubrary.Zounds {
             GUILayout.EndHorizontal();
         }
 
-        private static readonly string[] opLabels = { "×", "+", "=" };
-        private static readonly string[] opTips = {
-            "Multiply: the parameter's value is multiplied by the modifier's output × depth.",
-            "Add: the modifier's output × depth is added to the parameter's value.",
-            "Replace: the parameter takes the modifier's output × depth."
+        // The three ways a modulator can combine, in the order the enum declares them.
+        //
+        // The old labels were the arithmetic symbols, which described what the code did rather than what the user gets, and
+        // two of the three were traps: multiplying by an oscillator drove parameters to their end stops, and both of the
+        // others took an amount in the parameter's own units, so the number to type was unguessable and different on every
+        // parameter. These say what happens to the sound.
+        private static readonly string[] combineLabels = { "Shift", "Set", "Scale" };
+        private static readonly string[] combineTips = {
+            "Shift: moves the parameter away from where you set it, by up to the depth shown as a share of this parameter's own range. An oscillator swings it both ways around your value.",
+            "Set: the modulator takes over this parameter entirely, across its whole range. Depth blends between your value and the modulator's.",
+            "Scale: multiplies your value. Only meaningful on a level that does not rest at zero — multiplying zero leaves zero, however the modulator moves."
         };
+
+        /// <summary>
+        /// The parameter a binding drives, or a harmless stand-in when it points at something that is no longer there.
+        ///
+        /// A binding can outlive its target — remove an effect and the bindings onto it are left addressing a parameter
+        /// that has gone. The row still has to draw, so a missing target answers with a plain nought-to-one range rather
+        /// than throwing in the middle of a repaint.
+        /// </summary>
+        private static bool TryTargetParam(ZoundEffectChain chain, ZoundModifierBinding b, out ParamDesc pd) {
+            pd = default;
+            if (b.nodeIndex < 0) {
+                if (b.paramIndex < 0 || b.paramIndex >= SourceStageParam.Count) return false;
+                pd = ZoundEffectDescriptors.SourceStageParams[b.paramIndex];
+                return true;
+            }
+            if (chain?.nodes == null || b.nodeIndex >= chain.nodes.Count) return false;
+            var desc = ZoundEffectDescriptors.Get(chain.nodes[b.nodeIndex].type);
+            if (desc == null || b.paramIndex < 0 || b.paramIndex >= desc.parameters.Length) return false;
+            pd = desc.parameters[b.paramIndex];
+            return true;
+        }
+
+        private static float DepthMinOf(ZoundEffectChain chain, ZoundModifierBinding b) => TryTargetParam(chain, b, out var pd) ? pd.min : 0f;
+        private static float DepthMaxOf(ZoundEffectChain chain, ZoundModifierBinding b) => TryTargetParam(chain, b, out var pd) ? pd.max : 1f;
+        private static bool DepthRatioOf(ZoundEffectChain chain, ZoundModifierBinding b)
+            => TryTargetParam(chain, b, out var pd) && ModulationMath.IsRatioSpaced(pd.curve);
+
+        /// <summary>Whether multiplying could do anything at all to this binding's target — see the enum's own note.</summary>
+        private static bool ScaleIsMeaningfulFor(ZoundEffectChain chain, ZoundModifierBinding b)
+            => TryTargetParam(chain, b, out var pd) && ModulationMath.ScaleIsMeaningful(pd.def, pd.min);
+
+        /// <summary>
+        /// Writes a binding in the current form, whatever form it was in before.
+        ///
+        /// Touching either control is what converts an old binding for good. Doing it here rather than in a separate
+        /// migration pass means the conversion happens exactly when somebody looks at the thing and adjusts it, with the
+        /// result visible and audible immediately, instead of silently rewriting a whole project's chains at once.
+        /// </summary>
+        private static void WriteBinding(ZoundEffectChain chain, ZoundModifierBinding b, ModulationCombine combine, float depth) {
+            b.combine = combine;
+            b.depth = Mathf.Clamp01(depth);
+            b.schema = ChainModulationCompat.CURRENT_SCHEMA;
+            chain.Touch();
+        }
 
         private void DrawBindings(Zound zound, ZoundEffectChain chain, int modifierIndex) {
             for (int i = 0; i < chain.bindings.Count; i++) {
@@ -703,20 +772,36 @@ namespace Laubrary.Zounds {
                 ZoundsEditorDiagnostics.Record("row binding", row); ZoundsEditorDiagnostics.Record("bind.label", labelRect);
                 GUI.Label(labelRect, new GUIContent("→ " + TargetLabel(chain, b), "The parameter this binding drives."), EditorStyles.miniLabel);
                 float x = labelRect.xMax + 4f;
+                // Read through the compatibility layer so a chain saved in the old form shows what it will actually DO,
+                // not the stale setting it was saved with. Touching any control here writes it back in the current form.
+                var currentCombine = Dsp.ChainModulationCompat.CombineOf(b);
+                bool scaleWorks = ScaleIsMeaningfulFor(chain, b);
                 for (int o = 0; o < 3; o++) {
-                    var r = new Rect(x + o * 24f, row.y + 1f, 24f, row.height - 2f);
+                    var r = new Rect(x + o * 42f, row.y + 1f, 42f, row.height - 2f);
                     var corner = o == 0 ? ZUICornerMask.Left : o == 2 ? ZUICornerMask.Right : ZUICornerMask.None;
-                    bool isOp = (int)b.op == o;
-                    if (ZUI.Toggle(r, isOp, new GUIContent(opLabels[o], opTips[o]), ZUI.Style.RichToggle, null, corner) && !isOp) {
-                        var op = (ModifierOp)o; var bb = b;
-                        Modify(zound, "change binding operator", () => { bb.op = op; chain.Touch(); });
+                    bool isOp = (int)currentCombine == o;
+                    // Scaling is offered only where it can do something. Showing it greyed with the reason beats offering
+                    // it everywhere and having it silently do nothing on the parameters that rest at zero.
+                    bool offered = o != (int)Dsp.ModulationCombine.Scale || scaleWorks;
+                    bool prevEnabled = GUI.enabled;
+                    GUI.enabled = prevEnabled && offered;
+                    string tip = offered ? combineTips[o]
+                               : "Scale does nothing on this parameter: it rests at zero, or can go negative, and multiplying either leaves it where it is or flips its sign.";
+                    if (ZUI.Toggle(r, isOp, new GUIContent(combineLabels[o], tip), ZUI.Style.RichToggle, null, corner) && !isOp) {
+                        var combine = (Dsp.ModulationCombine)o; var bb = b;
+                        Modify(zound, "change how the modulator combines", () => { WriteBinding(chain, bb, combine, bb.depth); });
                     }
+                    GUI.enabled = prevEnabled;
                 }
-                var depthRect = new Rect(x + 76f, row.y + 1f, 120f, row.height - 2f);
-                ZoundsEditorDiagnostics.Record("bind.ops", new Rect(x, row.y + 1f, 72f, row.height - 2f)); ZoundsEditorDiagnostics.Record("bind.depth", depthRect); ZoundsEditorDiagnostics.Record("bind.remove", new Rect(depthRect.xMax + 4f, row.y + 1f, RemoveW, row.height - 2f));
-                float nd = ZUI.MicroSlider(depthRect, b.depth, -4f, 4f, "Depth", ZUI.SliderStyle.Default, false, ZUI.MicroSliderLabelMode.LabelAndValue, 1f);
-                if (!Mathf.Approximately(nd, b.depth)) { var bb = b; ModifyContinuous(zound, "change binding depth", () => { bb.depth = nd; chain.Touch(); }); }
-                GUI.Label(depthRect, new GUIContent("", "Scales the modifier's output before the operator applies it."));
+                var depthRect = new Rect(x + 134f, row.y + 1f, 120f, row.height - 2f);
+                ZoundsEditorDiagnostics.Record("bind.ops", new Rect(x, row.y + 1f, 126f, row.height - 2f)); ZoundsEditorDiagnostics.Record("bind.depth", depthRect); ZoundsEditorDiagnostics.Record("bind.remove", new Rect(depthRect.xMax + 4f, row.y + 1f, RemoveW, row.height - 2f));
+                // Nought to one, because depth is now a share of THIS parameter's own range rather than an amount in its
+                // units. That is what makes the same number mean the same thing on a cutoff and on a mix, and it is why the
+                // slider no longer runs to four — there is no such thing as four times a parameter's whole range.
+                float shownDepth = Dsp.ChainModulationCompat.DepthOf(b, DepthMinOf(chain, b), DepthMaxOf(chain, b), DepthRatioOf(chain, b));
+                float nd = ZUI.MicroSlider(depthRect, shownDepth, 0f, 1f, "Depth", ZUI.SliderStyle.Default, false, ZUI.MicroSliderLabelMode.LabelAndValue, 0.25f);
+                if (!Mathf.Approximately(nd, shownDepth)) { var bb = b; ModifyContinuous(zound, "change depth", () => { WriteBinding(chain, bb, currentCombine, nd); }); }
+                GUI.Label(depthRect, new GUIContent("", "How far this modulator may move the parameter, as a share of that parameter's own range. Half means half its travel, whatever the parameter's units are."));
                 var xRect = new Rect(depthRect.xMax + 4f, row.y + 1f, RemoveW, row.height - 2f);
                 if (ZUI.Button(xRect, new GUIContent("×", "Removes this binding."), ZUI.Style.RichButton, ZUI.Tint.Danger)) {
                     var bb = b;

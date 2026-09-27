@@ -1,0 +1,136 @@
+using UnityEngine;
+
+namespace Laubrary.Zounds.Dsp {
+
+    /// <summary>
+    /// How far along its own control a parameter's value sits, and back again.
+    ///
+    /// **This is the whole answer to "a modulator's depth means something different on every parameter".** A filter cutoff
+    /// runs from 20 to 20000 and a resonance runs from 0 to 1. Expressing how far a modulator should move them as a raw
+    /// amount in the parameter's own units means the same authored number is a barely audible nudge on one and slams the
+    /// other into its end stop — and there is no way to guess the right number without knowing an internal range the
+    /// interface never shows. So modulation is not expressed in the parameter's units at all. It is expressed as a
+    /// FRACTION OF THE CONTROL'S TRAVEL, which means the same thing on every parameter of every effect: a quarter is a
+    /// quarter of the slider.
+    ///
+    /// **Doing it in the control's own curve is what makes it sound right, not just tidy.** A cutoff's slider is
+    /// logarithmic, because that is how pitch and frequency are heard: the distance from 100 Hz to 200 Hz sounds like the
+    /// distance from 1000 Hz to 2000 Hz, though one is a hundredth of the other in raw hertz. Moving a fixed fraction of a
+    /// logarithmic control is therefore moving by a fixed RATIO, so a sweep covers the same musical distance wherever it
+    /// starts. A fixed offset in hertz cannot do that — it is enormous at the bottom of the range and inaudible at the top,
+    /// which is exactly the complaint that "these numbers make no sense for what they are modifying".
+    ///
+    /// **And it removes a whole class of nonsense for free.** Because the position is clamped between nought and one
+    /// BEFORE it is turned back into a value, a modulator can never ask for something outside the parameter's legal range.
+    /// The old arrangement let a modulator produce a wild number and truncated it afterwards, which is why an oscillator
+    /// attached the obvious way spent half of every cycle pinned against an end stop rather than sweeping.
+    ///
+    /// Everything here needs only a minimum, a maximum and which kind of control the parameter gets — all three of which
+    /// every parameter of all sixteen effects already declares. There is nothing per-effect to write, now or when the
+    /// seventeenth is added.
+    /// </summary>
+    public static class ModulationMath {
+
+        /// <summary>Below this a logarithmic control cannot be mapped, since the logarithm of nought is undefined.</summary>
+        private const float LOG_FLOOR = 1e-4f;
+
+        /// <summary>
+        /// Whether a parameter's control is spaced by ratio rather than by amount.
+        ///
+        /// Decibels are deliberately treated as linear: a decibel scale is ALREADY logarithmic in the underlying quantity,
+        /// so its slider is evenly spaced and taking a logarithm of it a second time would bend it the wrong way.
+        /// </summary>
+        public static bool IsRatioSpaced(ParamCurve curve) => curve == ParamCurve.Logarithmic;
+
+        /// <summary>Where <paramref name="value"/> sits along its control, from nought at the minimum to one at the maximum.</summary>
+        public static float ToPosition(float value, float min, float max, bool ratioSpaced) {
+            if (ratioSpaced) {
+                float lo = Mathf.Log(Mathf.Max(min, LOG_FLOOR));
+                float hi = Mathf.Log(Mathf.Max(max, LOG_FLOOR));
+                if (hi - lo < 1e-6f) return 0f;
+                return Mathf.Clamp01((Mathf.Log(Mathf.Max(value, LOG_FLOOR)) - lo) / (hi - lo));
+            }
+            if (max - min < 1e-9f) return 0f;
+            return Mathf.Clamp01((value - min) / (max - min));
+        }
+
+        /// <summary>The value at a given position along the control. The inverse of <see cref="ToPosition"/>.</summary>
+        public static float FromPosition(float position, float min, float max, bool ratioSpaced) {
+            position = Mathf.Clamp01(position);
+            if (ratioSpaced) {
+                float lo = Mathf.Log(Mathf.Max(min, LOG_FLOOR));
+                float hi = Mathf.Log(Mathf.Max(max, LOG_FLOOR));
+                return Mathf.Exp(lo + (hi - lo) * position);
+            }
+            return min + (max - min) * position;
+        }
+
+        /// <summary>
+        /// Applies one modulator to one parameter and returns the new value.
+        ///
+        /// <paramref name="signal"/> is the modulator's output. <paramref name="depth"/> is the fraction of the control's
+        /// travel it may move the parameter through, so one means "this modulator can drive the parameter from one end of
+        /// its range to the other" on every parameter alike.
+        ///
+        /// The three ways of combining are deliberately all expressed as movement along the control:
+        ///
+        /// * SHIFT moves the parameter away from where it was set, by the signal. An oscillator swings both ways around the
+        ///   authored value, which is what attaching an oscillator is supposed to do and what multiplying by one never did.
+        /// * SET ignores where the parameter was set and hands the whole control to the modulator, with depth blending
+        ///   between the two so that a partial amount is still meaningful rather than a jump.
+        /// * SCALE is the one genuinely proportional operation — a true tremolo, where doubling means doubling. It is kept
+        ///   because on a level it is what is actually wanted, and it is the caller's job not to offer it where it means
+        ///   nothing (see <see cref="ScaleIsMeaningful"/>).
+        /// </summary>
+        public static float Apply(ModulationCombine combine, float baseValue, float signal, float depth,
+                                  float min, float max, bool ratioSpaced) {
+            switch (combine) {
+                case ModulationCombine.Set: {
+                    float target = FromPosition(SignalToPosition(signal), min, max, ratioSpaced);
+                    float p = Mathf.Lerp(ToPosition(baseValue, min, max, ratioSpaced),
+                                         ToPosition(target, min, max, ratioSpaced), Mathf.Clamp01(depth));
+                    return FromPosition(p, min, max, ratioSpaced);
+                }
+                case ModulationCombine.Scale: {
+                    // Proportional, in the parameter's own units, because that is the entire point of scaling. Depth fades
+                    // between no scaling and the modulator's full effect so the control still behaves at small settings.
+                    float factor = 1f + (signal - 1f) * Mathf.Clamp01(depth);
+                    return Mathf.Clamp(baseValue * factor, min, max);
+                }
+                default: {
+                    float p = ToPosition(baseValue, min, max, ratioSpaced) + signal * depth;
+                    return FromPosition(p, min, max, ratioSpaced);
+                }
+            }
+        }
+
+        /// <summary>A modulator's output read as a position, for the case where it takes the control over entirely.</summary>
+        private static float SignalToPosition(float signal) => Mathf.Clamp01(signal * 0.5f + 0.5f);
+
+        /// <summary>
+        /// Whether multiplying is worth offering for a parameter at all.
+        ///
+        /// Multiplying a value that rests at nought leaves it at nought however the modulator moves, so the modulator
+        /// appears attached, reports a depth and does absolutely nothing. Several effects have parameters that rest there —
+        /// a mix or an amount usually starts at none — so this is not a corner case, it is a trap the interface used to set
+        /// for people. A parameter that can go negative is equally unsuited, since scaling flips its sign halfway.
+        /// </summary>
+        public static bool ScaleIsMeaningful(float restValue, float min) => min >= 0f && Mathf.Abs(restValue) > 1e-6f;
+    }
+
+    /// <summary>
+    /// How a modulator's output is combined with the value a parameter was set to.
+    ///
+    /// This replaces an earlier add/multiply/replace trio whose meanings were defined in the parameter's raw units, which
+    /// is what made a depth unguessable and made multiplying by an oscillator drive parameters to their end stops. The
+    /// number is serialized; append only, never renumber.
+    /// </summary>
+    public enum ModulationCombine {
+        /// <summary>Move away from the value that was set, by a fraction of the control's travel.</summary>
+        Shift = 0,
+        /// <summary>Hand the control to the modulator outright, blended in by depth.</summary>
+        Set = 1,
+        /// <summary>Multiply the value that was set. Only meaningful where the parameter is a level that does not rest at nought.</summary>
+        Scale = 2,
+    }
+}

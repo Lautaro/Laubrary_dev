@@ -58,6 +58,13 @@ namespace Laubrary.Zounds.Dsp {
         public readonly float[] pBase = new float[MAX_PARAMS];
         public readonly float[] pMin = new float[MAX_PARAMS];
         public readonly float[] pMax = new float[MAX_PARAMS];
+        /// <summary>
+        /// Whether each parameter's control is spaced by ratio rather than by amount — carried down to the render so a
+        /// modulator can move a parameter by a fraction of its control rather than by an amount in its own units. Without
+        /// it the render would have to guess, and guessing linear for a frequency is what makes a sweep enormous at the
+        /// bottom of the range and inaudible at the top.
+        /// </summary>
+        public readonly bool[] pRatio = new bool[MAX_PARAMS];
         /// <summary>Flat indices of parameters that ramp per sample (binding targets). Others hold pBase.</summary>
         public int rampedCount;
         public readonly int[] ramped = new int[MAX_PARAMS];
@@ -88,6 +95,8 @@ namespace Laubrary.Zounds.Dsp {
         public readonly int[] bindModifier = new int[ZoundDspConstants.MAX_BINDINGS];
         public readonly int[] bindTarget = new int[ZoundDspConstants.MAX_BINDINGS];
         public readonly ModifierOp[] bindOp = new ModifierOp[ZoundDspConstants.MAX_BINDINGS];
+        /// <summary>How each binding combines, already converted from whatever the saved chain used.</summary>
+        public readonly ModulationCombine[] bindCombine = new ModulationCombine[ZoundDspConstants.MAX_BINDINGS];
         public readonly float[] bindDepth = new float[ZoundDspConstants.MAX_BINDINGS];
 
         // ── totals ──
@@ -114,6 +123,7 @@ namespace Laubrary.Zounds.Dsp {
             for (int i = 0; i < SourceStageParam.Count; i++) {
                 var d = ZoundEffectDescriptors.SourceStageParams[i];
                 L.pBase[i] = d.def; L.pMin[i] = d.min; L.pMax[i] = d.max;
+                L.pRatio[i] = ModulationMath.IsRatioSpaced(d.curve);
             }
             L.paramCount = SourceStageParam.Count;
             int state = 0;
@@ -138,6 +148,7 @@ namespace Laubrary.Zounds.Dsp {
                         int f = L.paramCount + k;
                         L.pBase[f] = Mathf.Clamp(v, pd.min, pd.max);
                         L.pMin[f] = pd.min; L.pMax[f] = pd.max;
+                        L.pRatio[f] = ModulationMath.IsRatioSpaced(pd.curve);
                     }
                     L.paramCount += d.parameters.Length;
                     L.stateOffset[i] = state;
@@ -258,7 +269,12 @@ namespace Laubrary.Zounds.Dsp {
                     L.bindModifier[binds] = b.modifierIndex;
                     L.bindTarget[binds] = f;
                     L.bindOp[binds] = b.op;
-                    L.bindDepth[binds] = b.depth;
+                    // Chains saved before modulation moved onto the control's own travel stored a raw amount in the
+                    // parameter's units, so their depth is converted here rather than reinterpreted. Reinterpreting would
+                    // be silent and catastrophic in both directions: a cutoff's depth of three thousand read as a fraction
+                    // would peg it at maximum forever, and a resonance's depth of a fifth read as raw units would vanish.
+                    L.bindCombine[binds] = ChainModulationCompat.CombineOf(b);
+                    L.bindDepth[binds] = ChainModulationCompat.DepthOf(b, L.pMin[f], L.pMax[f], L.pRatio[f]);
                     binds++;
                     bool already = false;
                     for (int r = 0; r < L.rampedCount; r++) if (L.ramped[r] == f) { already = true; break; }

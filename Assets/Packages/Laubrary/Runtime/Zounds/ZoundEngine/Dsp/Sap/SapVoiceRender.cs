@@ -114,14 +114,20 @@ namespace Laubrary.Zounds.Dsp {
                     // right value exactly when the block ends, so the reconstruction is a true piecewise-linear
                     // interpolation of the modulator rather than one lagging by a block.
                     EvaluateModifiers(ref sap, L, sampleRate, n, ctx.elapsedSeconds + (float)n / sampleRate, n, isGroup, sourceDuration, clipRate);
+                    // Each modulator moves its parameter along that parameter's OWN control, by a fraction of the control's
+                    // travel, rather than by an amount in the parameter's units. That one change is what makes a depth mean
+                    // the same thing on a cutoff measured in thousands of hertz and on a resonance measured from nought to
+                    // one, makes a sweep of a frequency cover the same musical distance wherever it starts, and makes it
+                    // impossible for a modulator to ask for a value outside the parameter's range — the position is clamped
+                    // before it is turned back into a value, instead of a wild value being produced and then truncated.
+                    //
+                    // Several modulators may target the same parameter; each one moves it further from where the last left
+                    // it, which is why this reads and writes the running target rather than the authored value.
                     for (int b = 0; b < L.bindCount; b++) {
                         int t = L.bindTarget[b];
-                        float m = sap.modValue[L.bindModifier[b]] * L.bindDepth[b];
-                        switch (L.bindOp[b]) {
-                            case ModifierOp.Multiply: sap.pTarget[t] *= m; break;
-                            case ModifierOp.Add: sap.pTarget[t] += m; break;
-                            default: sap.pTarget[t] = m; break;
-                        }
+                        sap.pTarget[t] = ModulationMath.Apply(L.bindCombine[b], sap.pTarget[t],
+                                                              sap.modValue[L.bindModifier[b]], L.bindDepth[b],
+                                                              L.pMin[t], L.pMax[t], L.pRatio[t]);
                     }
                     for (int r = 0; r < L.rampedCount; r++) {
                         int t = L.ramped[r];

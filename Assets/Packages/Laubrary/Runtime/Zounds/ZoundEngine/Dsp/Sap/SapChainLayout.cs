@@ -44,6 +44,8 @@ namespace Laubrary.Zounds.Dsp {
         public NativeArray<float> pBase;
         public NativeArray<float> pMin;
         public NativeArray<float> pMax;
+        /// <summary>Per parameter: is its control spaced by ratio? Lets the render modulate by a fraction of the control.</summary>
+        public NativeArray<bool> pRatio;
         public int rampedCount;
         public NativeArray<int> ramped;
 
@@ -67,6 +69,8 @@ namespace Laubrary.Zounds.Dsp {
         public NativeArray<int> bindModifier;
         public NativeArray<int> bindTarget;
         public NativeArray<ModifierOp> bindOp;
+        /// <summary>How each binding combines, already translated from whatever form the saved chain used.</summary>
+        public NativeArray<ModulationCombine> bindCombine;
         public NativeArray<float> bindDepth;
 
         // ── totals the render path reads ──
@@ -106,6 +110,7 @@ namespace Laubrary.Zounds.Dsp {
                 pBase = Copy(L.pBase, allocator),
                 pMin = Copy(L.pMin, allocator),
                 pMax = Copy(L.pMax, allocator),
+                pRatio = Copy(L.pRatio, allocator),
                 ramped = Copy(L.ramped, allocator),
 
                 modType = Copy(L.modType, allocator),
@@ -124,6 +129,7 @@ namespace Laubrary.Zounds.Dsp {
                 bindModifier = Copy(L.bindModifier, allocator),
                 bindTarget = Copy(L.bindTarget, allocator),
                 bindOp = Copy(L.bindOp, allocator),
+                bindCombine = Copy(L.bindCombine, allocator),
                 bindDepth = Copy(L.bindDepth, allocator),
             };
             return s;
@@ -155,6 +161,7 @@ namespace Laubrary.Zounds.Dsp {
             if (pBase.IsCreated) pBase.Dispose();
             if (pMin.IsCreated) pMin.Dispose();
             if (pMax.IsCreated) pMax.Dispose();
+            if (pRatio.IsCreated) pRatio.Dispose();
             if (ramped.IsCreated) ramped.Dispose();
 
             if (modType.IsCreated) modType.Dispose();
@@ -173,6 +180,7 @@ namespace Laubrary.Zounds.Dsp {
             if (bindModifier.IsCreated) bindModifier.Dispose();
             if (bindTarget.IsCreated) bindTarget.Dispose();
             if (bindOp.IsCreated) bindOp.Dispose();
+            if (bindCombine.IsCreated) bindCombine.Dispose();
             if (bindDepth.IsCreated) bindDepth.Dispose();
         }
     }

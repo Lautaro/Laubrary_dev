@@ -121,12 +121,15 @@ namespace Laubrary.Zounds.Dsp {
                     // The curve spans the source plus its extra time (see DspVoice.EvaluateModifiers).
                     float extra = Mathf.Max(m.Param(0), 0f);
                     float tn = sourceSeconds + extra > 0f ? t * sourceSeconds / (sourceSeconds + extra) : t;
-                    float v = m.curve.Evaluate(tn) * bind.depth;
-                    switch (bind.op) {
-                        case ModifierOp.Multiply: pitch *= v; break;
-                        case ModifierOp.Add: pitch += v; break;
-                        default: pitch = v; break;
-                    }
+                    // Combined exactly as the render combines it. These two must agree or the sound's declared length and
+                    // the length it actually takes to play come apart — the handler would recycle its audio source early
+                    // and chop the end off, or hold one open long after the sound finished.
+                    var pd = ZoundEffectDescriptors.SourceStageParams[SourceStageParam.Pitch];
+                    bool ratio = ModulationMath.IsRatioSpaced(pd.curve);
+                    pitch = ModulationMath.Apply(ChainModulationCompat.CombineOf(bind), pitch,
+                                                 m.curve.Evaluate(tn),
+                                                 ChainModulationCompat.DepthOf(bind, pd.min, pd.max, ratio),
+                                                 pd.min, pd.max, ratio);
                 }
                 pitch = Mathf.Clamp(pitch, ZoundEffectDescriptors.SourceStageParams[SourceStageParam.Pitch].min, ZoundEffectDescriptors.SourceStageParams[SourceStageParam.Pitch].max);
                 total += (sourceSeconds / steps) / pitch;
@@ -236,12 +239,16 @@ namespace Laubrary.Zounds.Dsp {
                 chain.nodes.Add(gain);
                 var env = new ZoundModifier(ZoundModifierType.Envelope) { name = "Volume envelope", curve = k.volumeEnvelope.DeepCopy() };
                 chain.modifiers.Add(env);
-                chain.bindings.Add(new ZoundModifierBinding { modifierIndex = chain.modifiers.Count - 1, nodeIndex = chain.nodes.Count - 1, paramIndex = 0, op = ModifierOp.Multiply, depth = 1f });
+                chain.bindings.Add(new ZoundModifierBinding {
+                    modifierIndex = chain.modifiers.Count - 1, nodeIndex = chain.nodes.Count - 1, paramIndex = 0,
+                    combine = ModulationCombine.Set, depth = 1f, schema = ChainModulationCompat.CURRENT_SCHEMA });
             }
             if (k.pitchEnvelope != null && k.pitchEnvelope.enabled) {
                 var env = new ZoundModifier(ZoundModifierType.Envelope) { name = "Pitch envelope", curve = k.pitchEnvelope.DeepCopy() };
                 chain.modifiers.Add(env);
-                chain.bindings.Add(new ZoundModifierBinding { modifierIndex = chain.modifiers.Count - 1, nodeIndex = -1, paramIndex = SourceStageParam.Pitch, op = ModifierOp.Multiply, depth = 1f });
+                chain.bindings.Add(new ZoundModifierBinding {
+                    modifierIndex = chain.modifiers.Count - 1, nodeIndex = -1, paramIndex = SourceStageParam.Pitch,
+                    combine = ModulationCombine.Set, depth = 1f, schema = ChainModulationCompat.CURRENT_SCHEMA });
             }
             return chain;
         }

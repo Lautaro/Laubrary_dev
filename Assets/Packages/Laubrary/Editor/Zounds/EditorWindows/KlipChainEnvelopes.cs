@@ -57,7 +57,10 @@ namespace Laubrary.Zounds {
                     : new Envelope(Zound.MinVolumeRange, Zound.MaxVolumeRange);
                 var env = new ZoundModifier(ZoundModifierType.Envelope) { name = "Volume", curve = seed };
                 chain.modifiers.Add(env);
-                chain.bindings.Add(new ZoundModifierBinding { modifierIndex = chain.modifiers.Count - 1, nodeIndex = chain.nodes.Count - 1, paramIndex = 0, op = ModifierOp.Multiply, depth = 1f });
+                chain.bindings.Add(new ZoundModifierBinding {
+                    modifierIndex = chain.modifiers.Count - 1, nodeIndex = chain.nodes.Count - 1, paramIndex = 0,
+                    // The drawn curve owns the level outright, which is what a volume curve has always meant.
+                    combine = Dsp.ModulationCombine.Set, depth = 1f, schema = Dsp.ChainModulationCompat.CURRENT_SCHEMA });
                 chain.Touch();
                 m = chain.modifiers.Count - 1;
             }
@@ -76,7 +79,9 @@ namespace Laubrary.Zounds {
                     : new Envelope(Zound.MinPitchRange, Zound.MaxPitchRange);
                 var env = new ZoundModifier(ZoundModifierType.Envelope) { name = "Pitch", curve = seed };
                 chain.modifiers.Add(env);
-                chain.bindings.Add(new ZoundModifierBinding { modifierIndex = chain.modifiers.Count - 1, nodeIndex = -1, paramIndex = SourceStageParam.Pitch, op = ModifierOp.Multiply, depth = 1f });
+                chain.bindings.Add(new ZoundModifierBinding {
+                    modifierIndex = chain.modifiers.Count - 1, nodeIndex = -1, paramIndex = SourceStageParam.Pitch,
+                    combine = Dsp.ModulationCombine.Set, depth = 1f, schema = Dsp.ChainModulationCompat.CURRENT_SCHEMA });
                 chain.Touch();
                 m = chain.modifiers.Count - 1;
             }

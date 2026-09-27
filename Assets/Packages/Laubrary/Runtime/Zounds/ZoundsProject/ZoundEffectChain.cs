@@ -129,11 +129,44 @@ namespace Laubrary.Zounds {
         public int modifierIndex;
         public int nodeIndex = -1;
         public int paramIndex;
+
+        /// <summary>
+        /// How the modulator combines with the authored value. Only meaningful once <see cref="schema"/> says so; before
+        /// that, <see cref="op"/> holds the answer and is translated on load.
+        /// </summary>
+        public Dsp.ModulationCombine combine = Dsp.ModulationCombine.Shift;
+
+        /// <summary>
+        /// How far the modulator may move the parameter, as a fraction of that parameter's own control — so one means
+        /// "from one end of this parameter's range to the other", and the same number means the same thing on a cutoff
+        /// measured in thousands of hertz as on a mix measured from nought to one.
+        ///
+        /// Before <see cref="schema"/> reached its current value this was a raw amount in the parameter's units instead,
+        /// which is precisely what made it unguessable and is why the schema number exists.
+        /// </summary>
+        public float depth = 0.5f;
+
+        /// <summary>
+        /// Which meaning the numbers above carry. Zero is the original form, where the combining was in <see cref="op"/>
+        /// and the depth was a raw amount. A binding still at zero is translated every time it is used, and can be
+        /// rewritten in place to stop that.
+        ///
+        /// **It defaults to zero deliberately, and that is load-bearing.** Saved chains predate this field, so they arrive
+        /// with nothing to put in it — and a field left alone keeps whatever the type declares. Declaring the current
+        /// value here would therefore make every old chain announce itself as already converted, and its raw amounts would
+        /// be read as fractions: a sweep authored as three thousand hertz would peg its parameter at maximum forever.
+        /// Code that creates a NEW binding must say so explicitly.
+        /// </summary>
+        public int schema;
+
+        /// <summary>The original way of combining. Kept only so chains saved before the change can still be read.</summary>
         public ModifierOp op = ModifierOp.Multiply;
-        public float depth = 1f;
 
         public ZoundModifierBinding DeepCopy() {
-            return new ZoundModifierBinding { modifierIndex = modifierIndex, nodeIndex = nodeIndex, paramIndex = paramIndex, op = op, depth = depth };
+            return new ZoundModifierBinding {
+                modifierIndex = modifierIndex, nodeIndex = nodeIndex, paramIndex = paramIndex,
+                op = op, depth = depth, combine = combine, schema = schema
+            };
         }
     }
 

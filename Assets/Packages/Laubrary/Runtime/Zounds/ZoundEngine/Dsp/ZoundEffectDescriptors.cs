@@ -14,10 +14,26 @@ namespace Laubrary.Zounds.Dsp {
         /// <summary>For an Integer parameter that names a few fixed choices: the option labels (index = value).</summary>
         public string[] options;
 
+        /// <summary>
+        /// What each option actually does, for hovering. A one-word label on a button says what it is CALLED, not what it
+        /// does to the sound, and the difference matters most exactly where the words are jargon — telling somebody a
+        /// waveform is a "saw" explains nothing about why they would pick it.
+        /// </summary>
+        public string[] optionTips;
+
         public ParamDesc(string name, string unit, float min, float max, float def, ParamCurve curve = ParamCurve.Linear,
-                         bool automatable = true, ModifierOp defaultOp = ModifierOp.Add, string[] options = null) {
+                         bool automatable = true, ModifierOp defaultOp = ModifierOp.Add, string[] options = null,
+                         string[] optionTips = null) {
             this.name = name; this.unit = unit; this.min = min; this.max = max; this.def = def;
-            this.curve = curve; this.automatable = automatable; this.defaultOp = defaultOp; this.options = options;
+            this.curve = curve; this.automatable = automatable; this.defaultOp = defaultOp;
+            this.options = options; this.optionTips = optionTips;
+        }
+
+        /// <summary>The hover text for one option, falling back to its label when nobody has written one.</summary>
+        public string OptionTip(int index) {
+            if (optionTips != null && index >= 0 && index < optionTips.Length && !string.IsNullOrEmpty(optionTips[index]))
+                return optionTips[index];
+            return options != null && index >= 0 && index < options.Length ? options[index] : "";
         }
 
         public bool IsChoice => options != null && options.Length > 0;
@@ -182,9 +198,21 @@ namespace Laubrary.Zounds.Dsp {
             ModDef(ZoundModifierType.Lfo, "LFO", "Oscillates, or glides between random targets.", 8,
                 new ParamDesc("Amount", "", -4f, 4f, 1f, ParamCurve.Linear, false),
                 new ParamDesc("Rate", "Hz", 0f, 50f, 1f, ParamCurve.Logarithmic, false),
-                new ParamDesc("Shape", "", 0f, 3f, 0f, ParamCurve.Integer, false, ModifierOp.Add, new[] { "Sine", "Triangle", "Saw", "Square" }),
+                new ParamDesc("Shape", "", 0f, 3f, 0f, ParamCurve.Integer, false, ModifierOp.Add,
+                    new[] { "Sine", "Triangle", "Saw", "Square" },
+                    new[] {
+                        "Sine: a smooth swing with no corners — the natural choice for vibrato or a gentle sweep.",
+                        "Triangle: rises and falls at a constant rate, turning sharply at each end. Slightly more insistent than a sine.",
+                        "Saw: climbs steadily, then drops instantly back. Good for a repeated fall or rise that restarts.",
+                        "Square: jumps between the two extremes with nothing in between — a hard alternation, not a sweep."
+                    }),
                 new ParamDesc("Reset phase", "", 0f, 1f, 1f, ParamCurve.Toggle, false),
-                new ParamDesc("Mode", "", 0f, 1f, 0f, ParamCurve.Integer, false, ModifierOp.Add, new[] { "Oscillate", "Random" }),
+                new ParamDesc("Mode", "", 0f, 1f, 0f, ParamCurve.Integer, false, ModifierOp.Add,
+                    new[] { "Oscillate", "Random" },
+                    new[] {
+                        "Oscillate: repeats the chosen shape at the chosen rate, forever and predictably.",
+                        "Random: ignores the shape and glides to a new random value every so often, set by 'New target every'."
+                    }),
                 new ParamDesc("New target every", "s", 0.01f, 10f, 0.5f, ParamCurve.Logarithmic, false),
                 new ParamDesc("Offset", "", -4f, 4f, 0f, ParamCurve.Linear, false));
             ModDef(ZoundModifierType.Random, "Random", "One value per play, held for the whole play.", 1,
