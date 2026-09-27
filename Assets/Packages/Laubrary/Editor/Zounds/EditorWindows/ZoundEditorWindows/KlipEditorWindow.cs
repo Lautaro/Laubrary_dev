@@ -8,7 +8,6 @@ namespace Laubrary.Zounds {
     public class KlipEditorWindow : BaseZoundEditorWindow<Klip, KlipEditorWindow> {
 
         [SerializeField] private AudioSpectrumView spectrumView;
-        [SerializeField] private bool _showPreview = true;
 
 
         private bool notFoundErrorAlreadyShown;
@@ -400,17 +399,13 @@ namespace Laubrary.Zounds {
                 }
             }
 
-            GUI.enabled = false;
-
-            if (ReferenceEquals(outputAsset, null)) {
-                GUILayout.BeginHorizontal();
-                EditorGUILayout.LabelField("Output:", GUILayout.Width(EditorGUIUtility.labelWidth));
-                EditorGUILayout.LabelField("Same as Source (Unmodified)");
-                GUILayout.EndHorizontal();
-            }
-            else {
-                EditorGUILayout.ObjectField("Output:", outputAsset, typeof(AudioClip), false);
-            }
+            // An "Output" row used to sit here, naming the rendered file — because that file was what playback
+            // actually played, so which one it was mattered. It is removed rather than relabelled: playback now reads
+            // the source and applies the chain as it goes, so pointing at a rendered file would state something
+            // untrue about how the sound is produced, and a stale one would look authoritative.
+            //
+            // The rendered file is still looked up, for one narrow reason kept just below: when the SOURCE is missing,
+            // it is the only audio left to draw a waveform from, and showing that beats showing nothing.
 
             GUI.enabled = guiEnabled;
             EditorGUIUtility.labelWidth = labelWidth;
@@ -507,19 +502,10 @@ namespace Laubrary.Zounds {
 
                     GUILayout.Space(4f);
 
-                    // Group 3: Display toggles
-                    var editorStyle = ZoundsProject.Instance.projectSettings.editorStyle;
-
-                    bool newShowPreview = ZUI.Toggle(_showPreview, "Preview", ZUI.Style.RichToggle, ZUICornerMask.Left, GUILayout.Height(btnHeight), GUILayout.Width(65f));
-                    if (newShowPreview != _showPreview) _showPreview = newShowPreview;
-
-                    bool newAutoRender = ZUI.Toggle(editorStyle.autoRender, "Auto Render", ZUI.Style.RichToggle, ZUICornerMask.Right, GUILayout.Height(btnHeight), GUILayout.Width(95f));
-                    if (newAutoRender != editorStyle.autoRender) {
-                        ZoundsWindow.ModifyAndSaveZoundsProject("toggle auto render", () => {
-                            editorStyle.autoRender = newAutoRender;
-                        });
-                        if (newAutoRender && targetZound.needsRender) QueueAutoRender();
-                    }
+                    // Two toggles used to sit here and both are removed, because each had stopped controlling anything.
+                    // "Preview" showed the second waveform that is gone, and "Auto Render" switched on a re-render
+                    // that no longer happens on an edit. A control that does nothing when clicked is worse than one
+                    // that is absent: it invites someone to conclude the feature behind it is broken.
 
                     GUILayout.Space(8f);
 
@@ -559,53 +545,18 @@ namespace Laubrary.Zounds {
                 chainEditor.Draw(targetZound);
                 isDraggingSlider = isDraggingSlider || chainEditor.isDragging || stretchEditor.isDragging;
 
-                // === Effect sections — only drawn when enabled (no layout groups, safe) ===
-                for (int ei = 0; ei < KlipEffectChain.Effects.Length; ei++) {
-                    var effect = KlipEffectChain.Effects[ei];
-                    if (!effect.IsEnabled(targetZound)) continue;
-                    ZUI.RowSpace();
-                    EditorGUILayout.LabelField(effect.Name, EditorStyles.boldLabel);
-                    bool changed = effect.DrawUI(targetZound, ref isDraggingSlider, sourceAsset);
-                    if (changed) {
-                        if (!isDraggingSlider) {
-                            isDraggingSlider = true;
-                            ZoundsWindow.BeginDragUndo($"change klip {effect.Name}");
-                        }
-                        QueueAutoRender();
-                        EditorUtility.SetDirty(ZoundsProject.Instance);
-                    }
-                }
-
-                // Preview waveform — animated foldout
-                {
-                    var previewAF = ZUI.GetOrCreateAnimFloat("KlipEditor_preview", _showPreview ? 1f : 0f);
-                    float previewTarget = _showPreview ? 1f : 0f;
-                    if (!Mathf.Approximately(previewAF.target, previewTarget))
-                        previewAF.SetTarget(previewTarget, 10f);
-                    float previewH = 46f * previewAF.value; // 40px waveform + 6px spacing
-                    if (previewH > 0.5f) {
-                        ZUI.RowSpace();
-                        var editorStyle2 = ZoundsProject.Instance.projectSettings.editorStyle;
-                        var audioClip   = outputAsset != null ? outputAsset : sourceAsset;
-                        var waveRect    = GUILayoutUtility.GetRect(10f, previewH - 6f, GUILayout.ExpandWidth(true));
-                        var prevColor   = GUI.color;
-                        GUI.color = editorStyle2.klipWaveformBGColor;
-                        GUI.DrawTexture(waveRect, EditorGUIUtility.whiteTexture);
-                        if (audioClip != null) {
-                            var tex = AudioWaveformUtility.GetWaveformSpectrumTexture(
-                                audioClip,
-                                Mathf.FloorToInt(waveRect.width),
-                                Mathf.FloorToInt(waveRect.height),
-                                editorStyle2.waveformColor,
-                                targetZound.id.ToString());
-                            if (tex != null) {
-                                GUI.color = Color.white;
-                                GUI.DrawTexture(waveRect, tex);
-                            }
-                        }
-                        GUI.color = prevColor;
-                    }
-                }
+                // The bodies of the seven built-in effects used to be drawn here, one section per enabled effect —
+                // the gain boost, the equaliser and so on. Gone for the same reason their toggles went: they existed
+                // only to be rendered into a file, the chain above expresses all of them and more, and keeping two
+                // editors for overlapping jobs meant one of them could not be heard without re-rendering. The chain's
+                // own Gain effect is the replacement for the gain boost, and it is heard as you drag it.
+                //
+                // The second waveform that used to sit below here is gone too. It drew the RENDERED file when one
+                // existed and the source otherwise, so its whole purpose was to show what the bake had produced. With
+                // no bake in the playback path it could only show one of two unhelpful things: the same source the
+                // waveform above already shows, or a stale rendered file from before the current edits — which looks
+                // authoritative and is not. The waveform above shows the source with the trim and the curves drawn on
+                // it, which is what is actually about to be played.
 
                 EditorGUILayout.EndScrollView();
             }
@@ -1028,6 +979,30 @@ namespace Laubrary.Zounds {
             // If all edits are disabled, fall back to the source clip and clean up any orphan rendered file.
             if (!klipToRender.HasActiveEdits()) {
                 DeleteRenderedClip(klipToRender);
+                return null;
+            }
+
+            // Refuse rather than mislead, when the sound has effects this renderer cannot reproduce.
+            //
+            // This renderer predates the effect chain. It knows how to apply a trim and the two waveform curves, and
+            // nothing else — so for a sound with a delay, a reverb or any other chain effect it would cheerfully write
+            // a file WITHOUT them and hand it back looking finished. A file that silently differs from what you hear is
+            // the worst possible output here, because nothing about it looks wrong.
+            //
+            // Applying the chain properly is not a matter of bolting a step on the end: the curves are themselves part
+            // of the chain now, so running both would apply them twice. Doing it correctly means routing this through
+            // the same engine that plays the sound, which is a change worth making deliberately and verifying by ear
+            // rather than slipping into a clean-up.
+            //
+            // Trimming still works, and that is the case worth keeping: a trim reduces what has to ship, and it is a
+            // region of the source rather than an effect, so a trimmed file remains a perfectly good SOURCE for the
+            // chain to play from.
+            var authoredChain = Dsp.ZoundDspPlayback.ResolveChain(klipToRender, out _);
+            if (authoredChain != null && authoredChain.nodes != null && authoredChain.nodes.Count > 0) {
+                Debug.LogWarning("[Zounds] Not rendering '" + klipToRender.name + "' to a file: it has " +
+                                 authoredChain.nodes.Count + " effect(s) in its chain, and this renderer cannot apply " +
+                                 "them — the file would be missing them without saying so. The chain is applied as the " +
+                                 "sound plays, so no file is needed for it to be heard.");
                 return null;
             }
 
