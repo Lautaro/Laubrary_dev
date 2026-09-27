@@ -273,7 +273,7 @@ namespace Laubrary.Zounds.Dsp {
                     // parameter's units, so their depth is converted here rather than reinterpreted. Reinterpreting would
                     // be silent and catastrophic in both directions: a cutoff's depth of three thousand read as a fraction
                     // would peg it at maximum forever, and a resonance's depth of a fifth read as raw units would vanish.
-                    L.bindCombine[binds] = ChainModulationCompat.CombineOf(b);
+                    L.bindCombine[binds] = ChainModulationCompat.EffectiveCombine(chain, b);
                     L.bindDepth[binds] = ChainModulationCompat.DepthOf(b, L.pMin[f], L.pMax[f], L.pRatio[f]);
                     binds++;
                     bool already = false;

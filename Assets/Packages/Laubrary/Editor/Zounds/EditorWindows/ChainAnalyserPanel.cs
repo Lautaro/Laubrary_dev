@@ -43,6 +43,7 @@ namespace Laubrary.Zounds.EditorTools {
         double lastPlayStart = double.MinValue;
         ZoundEffectChain seriesChain;
         float nominalPlay;
+        float scrubTime = -1f;
         readonly System.Collections.Generic.Dictionary<long, ChainSpectrumProbe.Snapshot> snapshots =
             new System.Collections.Generic.Dictionary<long, ChainSpectrumProbe.Snapshot>();
         ChainSpectrumProbe.Snapshot shown;
@@ -226,11 +227,15 @@ namespace Laubrary.Zounds.EditorTools {
                 : playTime.ToString("0.00") + " s of " + Mathf.Max(measurement.totalSeconds, measurement.playSeconds).ToString("0.00") + " s"
                   + (measurement.totalSeconds > measurement.playSeconds + 0.01f ? " (source " + measurement.playSeconds.ToString("0.00") + " s, then its tail)" : "")
                   + (measurement.truncated ? " (the first " + ChainSpectrumProbe.MaxSeconds.ToString("0") + " s)" : "")
-                  + (following ? "  ·  live, from the sound playing now" : "  ·  live, from a silent run of this chain's modifiers; press play to follow the real sound");
+                  + (following ? "  ·  live, from the sound playing now"
+                     : RunsBetweenPlays(seriesChain) ? "  ·  looping plays back to back (each loop is a new play); press play to follow the real sound"
+                     : "  ·  one play's shape, nothing here repeats; point at the lane for any moment, or press play");
             StatusLine(time, time == null ? null
                 : "The bars show what the chain does to each part of the sound at this very moment, redrawn every frame. "
                   + (following ? "The moment is taken from the sound as it plays: its parameters are read from the engine while you listen. "
-                               : "Nothing is playing, so the moment comes from a silent run of this chain's modifiers, looping the play in real time. Modifiers that keep running between plays (an oscillator set to Always, a timed step list with Retrigger off) run on their own clocks here exactly as they would for a real play. ")
+                               : RunsBetweenPlays(seriesChain)
+                                   ? "Nothing is playing, and something in this chain keeps running between plays (an oscillator set to Always, or a timed step list with Retrigger off), so plays are shown back to back, each started afresh where those clocks have got to — exactly as successive real plays would be. Anything that only fires once per play (an envelope, say) is shown firing once in each of those plays. "
+                                   : "Nothing is playing, and everything in this chain fires once per play and then rests (an envelope, a per-play oscillator or step list), so nothing moves: the lane shows one play's shape and the bars show the chain at the moment you point at on the lane, or at the start. Nothing here repeats in real use. ")
                   + "To get the whole range of hearing down to the deepest bass, each picture is measured with the chain held still at that moment's settings.");
         }
 
@@ -268,6 +273,13 @@ namespace Laubrary.Zounds.EditorTools {
             }
             // Looped for the play's whole life, source plus tail — the time a real play takes before the next one would.
             float len = measurement.totalSeconds > 0f ? measurement.totalSeconds : nominalPlay > 0f ? nominalPlay : FallbackPlaySeconds;
+
+            // Nothing here runs between plays (T-0445): an envelope, a per-play oscillator or step list, a per-play random
+            // value each fire once per play and then rest. Looping plays for them would draw one-shot behaviour as if it
+            // repeated — the owner rightly called that out. So nothing moves: the lane shows the one play's shape, and the
+            // bars show whichever moment of it the mouse points at on the lane (the start, otherwise).
+            if (!RunsBetweenPlays(seriesChain)) return scrubTime >= 0f ? Mathf.Min(scrubTime, len) : 0f;
+
             double since = now - measuredAt;
             int loop = (int)System.Math.Floor(since / len);
             if (loop != loopIndex) {
@@ -288,6 +300,25 @@ namespace Laubrary.Zounds.EditorTools {
             if (seriesChain == null || seriesChain.IsEmpty) return;
             var fresh = ChainSpectrumProbe.MeasureModulation(seriesChain, seconds, StandIn(zound), triggeredAt);
             if (fresh.lanes != null) measurement = fresh;
+        }
+
+        /// <summary>
+        /// Whether anything in the chain keeps running between plays — an oscillator set to Always, a timed step list with
+        /// Retrigger off. Only then does the idle view animate, looping plays back to back, because only then does anything
+        /// actually change while nothing is playing.
+        /// </summary>
+        static bool RunsBetweenPlays(ZoundEffectChain chain) {
+            if (chain?.modifiers == null) return false;
+            for (int m = 0; m < chain.modifiers.Count; m++) {
+                var mod = chain.modifiers[m];
+                if (!mod.enabled || mod.p == null) continue;
+                bool drives = false;
+                foreach (var b in chain.bindings) if (b.modifierIndex == m) drives = true;
+                if (!drives) continue;
+                if (mod.type == ZoundModifierType.Lfo && mod.p.Length > 3 && mod.p[3] < 0.5f) return true;
+                if (mod.type == ZoundModifierType.Step && mod.p.Length > 4 && (int)mod.p[0] == (int)StepTiming.PerInterval && mod.p[4] < 0.5f) return true;
+            }
+            return false;
         }
 
         Zound StandIn(Zound zound) {
@@ -334,6 +365,8 @@ namespace Laubrary.Zounds.EditorTools {
         /// </summary>
         void DrawLanes(Zound zound, int rows, float playTime, bool following) {
             if (rows <= 0) return;
+            bool still = !following && !RunsBetweenPlays(seriesChain);
+            if (Event.current.type == EventType.Repaint) scrubTime = -1f;
             var lanes = measurement.lanes;
             float len = measurement.totalSeconds > 0f ? measurement.totalSeconds : measurement.playSeconds > 0f ? measurement.playSeconds : FallbackPlaySeconds;
             float sourceEnds = measurement.playSeconds;
@@ -389,9 +422,14 @@ namespace Laubrary.Zounds.EditorTools {
                     prevY = y;
                 }
 
-                // Now.
+                // Pointing at a still lane picks the moment the bars show.
+                if (still && g.Contains(Event.current.mousePosition))
+                    scrubTime = Mathf.Clamp01((Event.current.mousePosition.x - g.x) / g.width) * len;
+
+                // Now — or, when nothing moves, the moment being inspected (hidden until something is pointed at).
                 float xNow = g.x + Mathf.Clamp01(playTime / len) * g.width;
-                EditorGUI.DrawRect(new Rect(xNow - 0.5f, g.y, 1.5f, g.height), new Color(1f, 1f, 1f, following ? 0.9f : 0.45f));
+                bool showHead = !still || scrubTime >= 0f || playTime > 0f;
+                if (showHead) EditorGUI.DrawRect(new Rect(xNow - 0.5f, g.y, 1.5f, g.height), new Color(1f, 1f, 1f, following ? 0.9f : 0.45f));
                 if (nowPositions != null && r < nowPositions.Length && nowPositions[r] >= 0f) {
                     float yl = yOf(nowPositions[r]);
                     EditorGUI.DrawRect(new Rect(xNow - 3f, yl - 3f, 6f, 6f), new Color(1f, 0.85f, 0.35f));

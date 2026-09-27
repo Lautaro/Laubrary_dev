@@ -85,8 +85,13 @@ namespace Laubrary.Zounds.Dsp {
         public static float Apply(ModulationCombine combine, float baseValue, float signal, float depth,
                                   float min, float max, bool ratioSpaced) {
             switch (combine) {
+                case ModulationCombine.SetFromZero:
                 case ModulationCombine.Set: {
-                    float target = FromPosition(SignalToPosition(signal), min, max, ratioSpaced);
+                    // A modifier that swings both ways (-1..1) spans the control with its whole swing; one that only ever
+                    // outputs 0..1 (an envelope) spans it with that. Read as a swing, an envelope's 0 landed on the MIDDLE
+                    // of the control, so under Set it could only ever reach the top half (T-0444).
+                    float at = combine == ModulationCombine.SetFromZero ? Mathf.Clamp01(signal) : SignalToPosition(signal);
+                    float target = FromPosition(at, min, max, ratioSpaced);
                     float p = Mathf.Lerp(ToPosition(baseValue, min, max, ratioSpaced),
                                          ToPosition(target, min, max, ratioSpaced), Mathf.Clamp01(depth));
                     return FromPosition(p, min, max, ratioSpaced);
@@ -151,5 +156,11 @@ namespace Laubrary.Zounds.Dsp {
         /// becomes the current Shift the first time its mode or depth is changed.
         /// </summary>
         ShiftWholeRange = 3,
+        /// <summary>
+        /// Set, for a modifier whose output runs 0..1 rather than -1..1 (an envelope): nought is the bottom of the control,
+        /// one the top. Never stored; chosen when a chain is laid out, from the kind of modifier bound. The interface shows
+        /// it as Set.
+        /// </summary>
+        SetFromZero = 4,
     }
 }

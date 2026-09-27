@@ -28,6 +28,20 @@ namespace Laubrary.Zounds.Dsp {
         /// own units). Schema 2 made Shift's depth a share of the room available rather than of the whole control.</summary>
         public const int FRACTION_SCHEMA = 1;
 
+        /// <summary>
+        /// How a binding combines, given what kind of modifier drives it: <see cref="CombineOf"/>, except that Set on a
+        /// modifier whose output runs 0..1 (an envelope) becomes <see cref="ModulationCombine.SetFromZero"/>, so the
+        /// envelope spans the parameter's whole range instead of only its top half. Every place that hands a binding to the
+        /// engine goes through this.
+        /// </summary>
+        public static ModulationCombine EffectiveCombine(ZoundEffectChain chain, ZoundModifierBinding b) {
+            var c = CombineOf(b);
+            if (c == ModulationCombine.Set && chain?.modifiers != null && b.modifierIndex >= 0 && b.modifierIndex < chain.modifiers.Count
+                && chain.modifiers[b.modifierIndex].type == ZoundModifierType.Envelope)
+                return ModulationCombine.SetFromZero;
+            return c;
+        }
+
         public static ModulationCombine CombineOf(ZoundModifierBinding b) {
             if (b.schema >= CURRENT_SCHEMA) return b.combine;
             // Saved as a fraction of the whole control: its Shift keeps that meaning until it is edited.

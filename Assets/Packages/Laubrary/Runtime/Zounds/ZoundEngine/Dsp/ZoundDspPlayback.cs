@@ -126,7 +126,7 @@ namespace Laubrary.Zounds.Dsp {
                     // and chop the end off, or hold one open long after the sound finished.
                     var pd = ZoundEffectDescriptors.SourceStageParams[SourceStageParam.Pitch];
                     bool ratio = ModulationMath.IsRatioSpaced(pd.curve);
-                    pitch = ModulationMath.Apply(ChainModulationCompat.CombineOf(bind), pitch,
+                    pitch = ModulationMath.Apply(ChainModulationCompat.EffectiveCombine(chain, bind), pitch,
                                                  m.curve.Evaluate(tn),
                                                  ChainModulationCompat.DepthOf(bind, pd.min, pd.max, ratio),
                                                  pd.min, pd.max, ratio);

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — an Envelope under Set spans the whole range; the idle analyser only animates what really runs between plays
+
+- **Set on an Envelope** mapped the envelope's 0..1 as if it were a -1..1 swing, so 0 landed on the middle of the parameter and only the top half was reachable — measured on a cutoff: Set 633 Hz..12.9 kHz against Shift's 195 Hz..11 kHz, which is why the two looked alike. Now 0 is the bottom and 1 the top (`ModulationCombine.SetFromZero`, chosen at layout from the modifier type; stored bindings unchanged): Set 20 Hz..8.3 kHz, following the envelope's own shape.
+- **The idle analyser no longer loops one-shot modifiers.** An Envelope fires once per play and then holds. When nothing in the chain runs between plays, the idle view shows one play's shape, still, with the bars at the moment pointed at on the lane (the start otherwise). Only when something genuinely keeps running between plays (an LFO set to Always, a timed Step list with Retrigger off) are plays shown back to back, and the status line says each loop is a new play.
+
 ### Zounds — the analyser's lane and bars read one series; pitched chain plays no longer pitched twice
 
 - **One pipeline for the modulation lane, its dot and the live bars.** They came from two separate simulations (a fixed play starting on step 1, and a live run joining the modifiers' clocks), which disagreed in half of measured moments and drifted apart loop by loop. Now the engine runs one play of the modifiers, joining clocks exactly as a real play would, and every display reads that series; it is re-taken at every loop and at the moment a real play starts, seeded at that play's own start time. Measured: 16/16 agreement idle and playing at pitch 1.
