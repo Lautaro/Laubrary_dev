@@ -37,8 +37,9 @@ namespace Laubrary.Zounds.Dsp {
         /// </summary>
         public static ZoundSapVoiceGenerator StartVoice(Zound zound, AudioSource carrier, AudioClip sourceClip,
                                                        float basePitch, float outGain, long tokenId,
-                                                       out string reason) {
+                                                       out string reason, out float duration) {
             reason = null;
+            duration = 0f;
             if (zound == null || carrier == null) { reason = "no sound or no audio source"; return null; }
             if (sourceClip == null) { reason = "the source audio is not loaded"; return null; }
 
@@ -67,21 +68,48 @@ namespace Laubrary.Zounds.Dsp {
             }
             if (endFrame <= startFrame) { reason = "the trimmed region is empty"; return null; }
 
-            float sourceSeconds = (float)((endFrame - startFrame) / pcm.frequency);
             // A pitch curve on the chain consumes the source at a changing rate, so the play length is the
             // integral of that rate rather than the plain length. The engine already knows how to work this out.
-            float duration = ZoundDspPlayback.DurationUnderPitchModulation(zound, sourceSeconds)
-                             / Mathf.Max(basePitch, 0.01f);
+            duration = DurationOf(zound, pcm, startFrame, endFrame, basePitch);
 
             var generator = EnsureGenerator(carrier);
             generator.SetPlay(pcm, layout, startFrame, endFrame, basePitch, outGain, duration,
                               loop: false, tokenId: tokenId, heavyTier: layout.heavy, zound: zound);
 
             // No file. The audio source carries the sound into the mixer and nothing else.
+            //
+            // Deliberately NOT started here. The existing playback lifecycle starts the audio source itself, once
+            // it has applied the delay, the start offset and any fade-in. Starting it here as well would play the
+            // sound twice and bypass all of that.
             carrier.clip = null;
             carrier.generator = generator;
-            carrier.Play();
             return generator;
+        }
+
+        /// <summary>
+        /// The sound's ORIGINAL audio — the file the author imported, not the rendered one.
+        ///
+        /// This is the whole difference between the two eras: the old path deliberately asked for the rendered
+        /// file, because that was where the author's edits lived. Real-time playback wants the untouched source and
+        /// applies those edits as it goes, which is what makes the rendered file unnecessary.
+        /// </summary>
+        public static AudioClip LoadSourceClip(Zound zound) {
+            if (zound == null) return null;
+#if ADDRESSABLES_INSTALLED
+            var klip = zound as Klip;
+            if (klip != null && klip.audioClipRef != null) {
+                var clip = ZoundDictionary.GetOrLoadClip(klip.audioClipRef);
+                if (clip != null) return clip;
+            }
+#endif
+            return null;
+        }
+
+        /// <summary>The play length this voice was set up with, for a caller that has to report a duration.</summary>
+        public static float DurationOf(Zound zound, PcmClip pcm, double startFrame, double endFrame, float basePitch) {
+            if (pcm == null || pcm.frequency <= 0) return 0f;
+            float sourceSeconds = (float)((endFrame - startFrame) / pcm.frequency);
+            return ZoundDspPlayback.DurationUnderPitchModulation(zound, sourceSeconds) / Mathf.Max(basePitch, 0.01f);
         }
 
         /// <summary>
