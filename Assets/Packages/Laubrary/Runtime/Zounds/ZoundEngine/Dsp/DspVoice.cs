@@ -351,7 +351,17 @@ namespace Laubrary.Zounds.Dsp {
             bool voiceFinished = SapVoiceRender.Render(ref sap, in sapLayout, frames, sampleRate,
                 in sapPcm, isGroup, clipRate, sourceDuration, liveChildren,
                 killRequested, releaseRequested, basePitchTargetNow, outGainTargetRaw,
-                ref state, ref protectedFromSteal);
+                ref protectedFromSteal, out VoiceStateTransition transition);
+
+            // Render can no longer perform these publications itself (Burst cannot call the volatile-write
+            // helper), so it reports what it wants and this replays the exact same writes, in the exact
+            // same order and under the exact same condition, that used to happen inside Render.
+            if (transition == VoiceStateTransition.Stopping) {
+                Volatile.Write(ref state, (int)VoiceState.Stopping);
+            }
+            else if (transition == VoiceStateTransition.BecameTailing) {
+                if (Volatile.Read(ref state) == (int)VoiceState.Active) Volatile.Write(ref state, (int)VoiceState.Tailing);
+            }
 
             TrackOnsets(sap.lastPeak, frames, sampleRate);
 

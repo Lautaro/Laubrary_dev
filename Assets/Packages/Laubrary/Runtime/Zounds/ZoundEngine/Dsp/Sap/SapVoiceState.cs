@@ -54,7 +54,10 @@ namespace Laubrary.Zounds.Dsp {
         public int repeatsTotal;
         public long nextRepeatSample;
         public long lastRepeatEndSample;
-        /// <summary>Output sample (voice time) at which the last armed repeat ends; Volatile like the field it replaces.</summary>
+        /// <summary>Output sample (voice time) at which the last armed repeat ends. Written as a plain
+        /// value (the volatile-write helper is unavailable to Burst) and read by the main thread through
+        /// a volatile read (see DspVoice.trainEndSample); see SapVoiceRender.ProjectTrainEnd for why that
+        /// is safe today and what still needs to happen before it is safe in general.</summary>
         public long trainEndSample;
         public int slotsStolen;
 

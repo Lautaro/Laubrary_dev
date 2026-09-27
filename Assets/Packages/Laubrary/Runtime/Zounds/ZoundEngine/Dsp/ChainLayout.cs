@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Unity.Collections;
 using UnityEngine;
 
 namespace Laubrary.Zounds.Dsp {
@@ -238,27 +237,11 @@ namespace Laubrary.Zounds.Dsp {
             return r;
         }
 
-        /// <summary>
-        /// Envelope.Evaluate's maths, over a slice [offset, offset+count) of a flat modulator-curve array,
-        /// with a cached segment index (O(1) amortised). Takes offset/count instead of its own array so the
-        /// audio thread never allocates or copies a slice — it indexes straight into the native snapshot's
-        /// modCurveFlat (SapChainLayout), the only caller of this method.
-        /// </summary>
-        public static float EvaluateEnvelope(NativeArray<EnvPoint> pts, int offset, int count, float time, ref int segment) {
-            if (count == 0) return 1f;
-            if (count == 1) return pts[offset].value;
-            if (time <= pts[offset].time) { segment = 0; return pts[offset].value; }
-            if (time >= pts[offset + count - 1].time) { segment = count - 2; return pts[offset + count - 1].value; }
-            if (segment < 0 || segment >= count - 1) segment = 0;
-            while (segment > 0 && pts[offset + segment].time > time) segment--;
-            while (segment < count - 2 && pts[offset + segment + 1].time <= time) segment++;
-            float x1 = pts[offset + segment].time, x2 = pts[offset + segment + 1].time;
-            float t = x2 > x1 ? (time - x1) / (x2 - x1) : 1f;
-            float exp = pts[offset + segment + 1].exponent;
-            if (exp <= 0f) exp = 0.000001f;
-            float a = pts[offset + segment].value, b = pts[offset + segment + 1].value;
-            return a + (b - a) * Mathf.Pow(t, exp);
-        }
+        // EvaluateEnvelope used to live here. It has been moved to SapVoiceRender (Dsp/Sap/SapVoiceRender.cs)
+        // so it can be reached from Burst-compiled code: this class is a managed sealed class (List<>,
+        // string, arrays sized for the worst case) and cannot be seen from a Burst job, while the method's
+        // body only ever touched a NativeArray<EnvPoint> and plain values. Its only callers were the two
+        // envelope-modifier evaluations inside SapVoiceRender's per-block render.
     }
 
 }

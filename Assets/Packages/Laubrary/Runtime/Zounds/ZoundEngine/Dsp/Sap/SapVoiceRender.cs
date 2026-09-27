@@ -1,8 +1,23 @@
-using System.Threading;
 using Unity.Collections;
 using UnityEngine;
 
 namespace Laubrary.Zounds.Dsp {
+
+    /// <summary>
+    /// What state transition a <see cref="SapVoiceRender.Render"/> call wants published. Render itself
+    /// cannot perform the publication (the write needs the volatile-write helper, which Burst cannot call),
+    /// so it reports the transition here and the caller — which still owns the plain <c>state</c> field —
+    /// performs the actual write, in the same place and under the same condition the render used to.
+    /// </summary>
+    internal enum VoiceStateTransition {
+        /// <summary>No transition to publish this block.</summary>
+        None,
+        /// <summary>Publish VoiceState.Stopping unconditionally (mirrors the old unconditional write).</summary>
+        Stopping,
+        /// <summary>Publish VoiceState.Tailing, but only if the currently-published state is still Active
+        /// (mirrors the old read-then-conditional-write).</summary>
+        BecameTailing,
+    }
 
     /// <summary>
     /// The per-block voice render, lifted out of <see cref="DspVoice"/> into static functions over
@@ -30,11 +45,13 @@ namespace Laubrary.Zounds.Dsp {
                                    in SapPcm pcm, bool isGroup, double clipRate, float sourceDuration, int liveChildren,
                                    bool killRequested, bool releaseRequested,
                                    float basePitchTargetNow, float outGainTargetRaw,
-                                   ref int state, ref bool protectedFromSteal) {
+                                   ref bool protectedFromSteal, out VoiceStateTransition transition) {
+
+            transition = VoiceStateTransition.None;
 
             if (killRequested && !sap.stopping) {
                 sap.stopping = true;
-                Volatile.Write(ref state, (int)VoiceState.Stopping);
+                transition = VoiceStateTransition.Stopping;
             }
             if (releaseRequested && !sap.released) {
                 sap.released = true;
@@ -122,7 +139,7 @@ namespace Laubrary.Zounds.Dsp {
                 return true;
             }
             if (sap.sourceExhausted) {
-                if (Volatile.Read(ref state) == (int)VoiceState.Active) Volatile.Write(ref state, (int)VoiceState.Tailing);
+                transition = VoiceStateTransition.BecameTailing;
                 bool done = false;
                 if (sap.tailBudgetSamples <= 0) done = true;
                 else {
@@ -138,7 +155,8 @@ namespace Laubrary.Zounds.Dsp {
             return false;
         }
 
-        /// <summary>Records this voice's train-end projection, Volatile like the field it writes.</summary>
+        /// <summary>Records this voice's train-end projection. See the comment at the write below for why
+        /// it is a plain write rather than Volatile.</summary>
         public static void ProjectTrainEnd(ref SapVoiceState sap) {
             long end = sap.lastRepeatEndSample;
             if (sap.repeatsPending > 0 && sap.repeatsPending != int.MaxValue) {
@@ -147,7 +165,13 @@ namespace Laubrary.Zounds.Dsp {
                 else end = sap.nextRepeatSample + (sap.repeatsPending - 1) * sap.repeat.intervalSamples + nominal;
                 if (end < sap.lastRepeatEndSample) end = sap.lastRepeatEndSample;
             }
-            Volatile.Write(ref sap.trainEndSample, end);
+            // Plain write: the volatile-write helper is unavailable to Burst. This value is read by the
+            // main thread through a volatile read (DspVoice.trainEndSample). Render currently has exactly
+            // one caller on one thread, so there is no live race here today. The proper cross-thread
+            // publication of this value — a real barrier or an explicit handshake — is owed to the step
+            // that introduces the audio framework's own message and data channels; this plain write is
+            // not a substitute for that and is not safe once a second thread is actually involved.
+            sap.trainEndSample = end;
         }
 
         // Arms every repeat whose start falls inside the next n samples, sample-accurately, into a free slot
@@ -313,6 +337,31 @@ namespace Laubrary.Zounds.Dsp {
             return false;
         }
 
+        /// <summary>
+        /// Envelope.Evaluate's maths, over a slice [offset, offset+count) of a flat modulator-curve array,
+        /// with a cached segment index (O(1) amortised). Takes offset/count instead of its own array so the
+        /// audio thread never allocates or copies a slice — it indexes straight into the native snapshot's
+        /// modCurveFlat (SapChainLayout). Relocated from ChainLayout (unchanged arithmetic) so it can be
+        /// reached from Burst-compiled code: ChainLayout is a managed class and cannot be seen from a
+        /// Burst job, while this method only ever touched a NativeArray&lt;EnvPoint&gt; and plain values.
+        /// Its only callers are the two envelope-modifier evaluations in <see cref="EvaluateModifiers"/> below.
+        /// </summary>
+        private static float EvaluateEnvelope(NativeArray<EnvPoint> pts, int offset, int count, float time, ref int segment) {
+            if (count == 0) return 1f;
+            if (count == 1) return pts[offset].value;
+            if (time <= pts[offset].time) { segment = 0; return pts[offset].value; }
+            if (time >= pts[offset + count - 1].time) { segment = count - 2; return pts[offset + count - 1].value; }
+            if (segment < 0 || segment >= count - 1) segment = 0;
+            while (segment > 0 && pts[offset + segment].time > time) segment--;
+            while (segment < count - 2 && pts[offset + segment + 1].time <= time) segment++;
+            float x1 = pts[offset + segment].time, x2 = pts[offset + segment + 1].time;
+            float t = x2 > x1 ? (time - x1) / (x2 - x1) : 1f;
+            float exp = pts[offset + segment + 1].exponent;
+            if (exp <= 0f) exp = 0.000001f;
+            float a = pts[offset + segment].value, b = pts[offset + segment + 1].value;
+            return a + (b - a) * Mathf.Pow(t, exp);
+        }
+
         // ── modifiers (control rate) ──
 
         private static float NextRandom01(ref SapVoiceState sap) {
@@ -345,7 +394,7 @@ namespace Laubrary.Zounds.Dsp {
                         }
                         if (tn > 1f) tn = 1f;
                         int seg = (int)sap.arena[so];
-                        sap.modValue[m] = ChainLayout.EvaluateEnvelope(L.modCurveFlat, mco, mcc, tn, ref seg);
+                        sap.modValue[m] = EvaluateEnvelope(L.modCurveFlat, mco, mcc, tn, ref seg);
                         sap.arena[so] = seg;
                         break;
                     }
@@ -359,7 +408,7 @@ namespace Laubrary.Zounds.Dsp {
                             float total = sourceDuration;
                             float tn = total > 0f ? elapsed / total : 1f; if (tn > 1f) tn = 1f;
                             int seg = (int)sap.arena[so + 6];
-                            ramp = ChainLayout.EvaluateEnvelope(L.modCurveFlat, mco, mcc, tn, ref seg);
+                            ramp = EvaluateEnvelope(L.modCurveFlat, mco, mcc, tn, ref seg);
                             sap.arena[so + 6] = seg;
                         }
                         if (mode == (int)LfoMode.Oscillate) {
