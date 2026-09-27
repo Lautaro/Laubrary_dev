@@ -63,9 +63,18 @@ namespace Laubrary.Zounds {
         }
 
         public ZequenceHandler(Zequence zequence, AudioSource audioSource, ZoundArgs zoundArgs) : base(zequence, audioSource, zoundArgs) {
-            var renderedClip = zequence.renderedClipRef == null || !zequence.renderedClipRef.RuntimeKeyIsValid() ? null : ZoundDictionary.GetOrLoadClip(zequence.renderedClipRef);
-            m_isRealtime = ReferenceEquals(renderedClip, null);
-            audioSource.clip = renderedClip;
+            // Always real time now, even when a rendered file of this whole sequence exists.
+            //
+            // A sequence has two ways to play: flatten it into one audio file in advance, or schedule its parts and
+            // let each play itself. It used to prefer the flattened file whenever one existed. That is now the wrong
+            // preference, because each part plays through its effect chain from its own original audio, and a
+            // flattened file was made before any of those chains were applied — so playing it would ignore every
+            // chain in the sequence and silently serve a stale mix, which is far more confusing than a missing file.
+            //
+            // Scheduling the parts is also what makes an edit inside the sequence audible, for the same reason it
+            // does for a single sound. Any flattened file a sequence still carries is now simply unused.
+            m_isRealtime = true;
+            audioSource.clip = null;
 
             // In real-time mode, ensure the audioSource.pitch (from browser slider) is initialized
             if (m_isRealtime && args.pitchOverride < 0f) {
