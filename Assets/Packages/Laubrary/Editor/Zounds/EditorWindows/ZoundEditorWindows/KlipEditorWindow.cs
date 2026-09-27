@@ -109,10 +109,22 @@ namespace Laubrary.Zounds {
             return cachedOutputAsset;
         }
 
+        /// <summary>
+        /// Deliberately does nothing now.
+        ///
+        /// Editing a sound used to quietly schedule a re-render, writing a new audio file with the edits burnt into
+        /// it, because that file was the only thing playback ever played. Playback now reads the sound's original
+        /// audio and applies its chain as it goes, so that file is no longer consumed by anything — and writing one
+        /// per edit was the direct cause of a project filling up with small near-duplicate audio files.
+        ///
+        /// Rendering itself is kept and still works, because bouncing a sound to a file is occasionally genuinely
+        /// wanted. It is simply no longer something that happens to you as a side effect of moving a slider: it has
+        /// to be asked for.
+        ///
+        /// The call sites are left in place rather than removed. They mark the points where an edit changes the
+        /// audible result, which is information worth keeping if this ever needs to invalidate something again.
+        /// </summary>
         private void QueueAutoRender() {
-            if (!ZoundsProject.Instance.projectSettings.editorStyle.autoRender) return;
-            autoRenderPending = true;
-            lastRenderEditTime = EditorApplication.timeSinceStartup;
         }
 
         private void ProcessPendingAutoRender() {
