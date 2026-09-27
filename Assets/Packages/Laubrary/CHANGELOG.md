@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — LFO Offset is useful across its whole range; Step lists are a row of bars
+
+- **LFO Offset now says which way the swing goes** (-1 only below the set value, 0 evenly both ways, +1 only above), range -1..1, instead of shoving the wave by up to four whole swings. The swing never reaches beyond Amount whatever the Offset, and the strength curve now scales the Offset too, so strength "none" leaves the parameter alone. Measured on a cutoff set mid-slider: usable Offset travel went from 27% to 100% at the default depth, and from 3% to 100% under Set. An Offset saved under the old meaning is read under the new one; values beyond ±1 read as fully one way.
+- **Step modifier: one bar per step** instead of a number box per step. Drag a bar to set its step, sweep across several to paint them, double-click to reset one. Bars run -1..1 about a middle line (the scale an oscillator uses at Amount 1). Up to 24 steps, the most round-robin order can track.
+- **New ZUI control, `ZUI.BandSliders`** (IMGUI): a row of bars set by dragging their height, filled from a baseline, drawn with the active sheet's slider colours; returns a changed copy so callers record Undo first. Added to ZUI rather than drawn inside Zounds, since ZUI's vertical slider is a thin groove with a knob, and a row of those neither reads as one shape nor supports a sweep.
+
 ### Zounds — an LFO either restarts on every play or keeps running between plays, and says which
 
 - **The choice is now a named control**, `Runs: Always | Per play`, replacing the unexplained `Reset phase` on/off. Stored values are unchanged (1 = Per play, 0 = Always), so every existing sound behaves exactly as before.

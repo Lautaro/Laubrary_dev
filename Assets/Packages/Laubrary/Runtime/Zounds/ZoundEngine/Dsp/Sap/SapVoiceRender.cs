@@ -402,6 +402,31 @@ namespace Laubrary.Zounds.Dsp {
         // ── modifiers (control rate) ──
 
         /// <summary>
+        /// An oscillator's output from its raw wave (-1 to 1), its Amount, its Offset and its strength at this moment.
+        ///
+        /// **Offset says which way the swing goes, not how far to shove it.** Minus one swings only below the set value,
+        /// nought swings evenly either side, plus one swings only above; in between leans one way. The swing's reach is
+        /// never more than Amount in either direction, whatever the Offset — so no Offset can push a parameter further
+        /// than an evenly balanced swing already does.
+        ///
+        /// It used to be added straight onto the wave in Amount's own units, on a slider running to four either way. Four
+        /// whole swings of shove, applied before a binding's depth, pushed the swing past the end of the parameter's
+        /// range: measured on a cutoff set mid-slider, 27% of that slider's travel was usable at the default depth, 3%
+        /// with the modulator in charge (Set), none at full depth — everything else pinned the cutoff against an end stop.
+        /// It was also added after the strength curve, so a strength of "none" still shoved the parameter.
+        ///
+        /// Strength scales the whole result here, Offset included: "none" means the parameter is left where it was set.
+        /// </summary>
+        public static float LfoOutput(float wave, float amount, float bias, float strength) {
+            float a = bias < 0f ? -bias : bias;
+            return amount * strength * (wave + bias) / (1f + a);
+        }
+
+        /// <summary>Offset limited to its meaningful range. A value saved under the old meaning (up to four either way)
+        /// becomes "entirely one way", which is the closest the new meaning has to what such a value did.</summary>
+        public static float LfoBias(float offset) => offset < -1f ? -1f : offset > 1f ? 1f : offset;
+
+        /// <summary>
         /// The shared random walk's target for one interval: a fixed function of the interval's number and the walk's
         /// seed, so every play of the same oscillator — whenever it started, on whichever thread — computes the same walk
         /// without sharing any state. Integer hashing only, so it gives identical answers compiled and managed.
@@ -457,7 +482,7 @@ namespace Laubrary.Zounds.Dsp {
                         float amount = mp[mpo], rate = mp[mpo + 1];
                         int shape = (int)mp[mpo + 2];
                         int mode = (int)mp[mpo + 4];
-                        float offset = mpc > 6 ? mp[mpo + 6] : 0f;
+                        float bias = LfoBias(mpc > 6 ? mp[mpo + 6] : 0f);
                         float ramp = 1f;
                         if (mcc > 0) {
                             float total = sourceDuration;
@@ -477,7 +502,7 @@ namespace Laubrary.Zounds.Dsp {
                                 case (int)LfoShape.Square: w = phase < 0.5f ? 1f : -1f; break;
                                 default: w = Mathf.Sin(phase * 6.2831853f); break;
                             }
-                            sap.modValue[m] = offset + amount * w * ramp;
+                            sap.modValue[m] = LfoOutput(w, amount, bias, ramp);
                             sap.arena[so] = phase;
                         }
                         else {
@@ -514,7 +539,7 @@ namespace Laubrary.Zounds.Dsp {
                                 float gt = sap.arena[so + 5] > 1f ? 1f : sap.arena[so + 5];
                                 sap.arena[so + 1] = sap.arena[so + 4] + (sap.arena[so + 2] - sap.arena[so + 4]) * gt;
                             }
-                            sap.modValue[m] = offset + amount * sap.arena[so + 1] * ramp;
+                            sap.modValue[m] = LfoOutput(sap.arena[so + 1], amount, bias, ramp);
                         }
                         break;
                     }

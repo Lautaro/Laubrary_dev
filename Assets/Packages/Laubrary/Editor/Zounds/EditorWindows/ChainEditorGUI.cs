@@ -807,8 +807,9 @@ namespace Laubrary.Zounds {
             var outputs = modulation.modifierOutput;
             if (isLfoRamp && outputs != null && modifierIndex < outputs.Length && outputs[modifierIndex] != null && outputs[modifierIndex].Length > 1) {
                 var v = outputs[modifierIndex];
+                // The output never reaches beyond Amount × strength, whatever the Offset, so dividing by Amount gives a
+                // height that the strength curve is exactly the ceiling of.
                 float amount = Mathf.Abs(mod.p[0]);
-                float offset = mod.p.Length > 6 ? mod.p[6] : 0f;
                 if (amount > 1e-6f) {
                     // One column per real screen pixel, so the columns neither overlap nor leave gaps on a dense display.
                     float px = 1f / Mathf.Max(1f, EditorGUIUtility.pixelsPerPoint);
@@ -817,7 +818,7 @@ namespace Laubrary.Zounds {
                         float idx = (c + 0.5f) / cols * (v.Length - 1);
                         int i = Mathf.FloorToInt(idx);
                         float s = i >= v.Length - 1 ? v[v.Length - 1] : Mathf.Lerp(v[i], v[i + 1], idx - i);
-                        float h = Mathf.Clamp01(Mathf.Abs(s - offset) / amount) * rect.height;
+                        float h = Mathf.Clamp01(Mathf.Abs(s) / amount) * rect.height;
                         EditorGUI.DrawRect(new Rect(rect.x + c * px, rect.yMax - h, px, h), new Color(0.6f, 0.75f, 1f, 0.16f));
                     }
                 }
@@ -851,26 +852,63 @@ namespace Laubrary.Zounds {
             }
         }
 
+        /// <summary>
+        /// The most steps a list can hold. The engine itself has no limit, but round-robin order remembers which steps it
+        /// has used in a 24-slot mask, so a longer list would quietly stop being shuffled properly.
+        /// </summary>
+        private const int MaxSteps = 24;
+        private const float StepBarMaxW = 44f;
+        private const float StepBandH = 64f;
+
+        /// <summary>
+        /// The step list, as a row of bars you drag to set — one bar per step, like a step sequencer or an equaliser.
+        ///
+        /// It used to be a number box per step, which the owner rejected outright: a list of values that play one after
+        /// another is a SHAPE, and typing numbers into boxes shows none of it. As bars it reads at a glance (which steps are
+        /// high, which low, where the pattern jumps), and a sweep of the mouse across the row sets several at once.
+        ///
+        /// The bars run from -1 to +1 about a middle line, the same scale an oscillator's output uses at Amount 1, so a step
+        /// at the top moves a bound parameter exactly as far as an oscillator's peak would: under Shift, up by the binding's
+        /// depth; under Set, to the top of the parameter's range. A value saved outside that range (possible with the old
+        /// number boxes) is shown with a bright cap at the edge and kept as it is until that bar is dragged.
+        /// </summary>
         private void DrawSteps(Zound zound, ZoundEffectChain chain, ZoundModifier mod) {
             if (mod.steps == null || mod.steps.Length == 0) mod.steps = new float[] { 1f };
+            int n = mod.steps.Length;
+
             GUILayout.BeginHorizontal(GUILayout.Height(RowH));
             GUILayout.Space(GripW + 6f);
-            GUI.Label(GUILayoutUtility.GetRect(LabelW, RowH), new GUIContent("Steps", "The values the modifier steps through, in order (or random order for round robin)."));
-            for (int i = 0; i < mod.steps.Length; i++) {
-                int si = i;
-                float nv = EditorGUI.FloatField(GUILayoutUtility.GetRect(46f, RowH - 2f, GUILayout.Width(46f)), mod.steps[i]);
-                if (!Mathf.Approximately(nv, mod.steps[i])) Modify(zound, "change step value", () => { mod.steps[si] = nv; chain.Touch(); });
-            }
-            if (ZUI.Button(new GUIContent("+", "Adds a step."), ZUI.Style.RichButton, ZUICornerMask.Left, GUILayout.Width(22f), GUILayout.Height(RowH - 2f))) {
+            GUI.Label(GUILayoutUtility.GetRect(LabelW, RowH, GUILayout.Width(LabelW)),
+                      new GUIContent("Steps", "The values this modifier steps through, one bar each, played left to right (or shuffled, in round-robin order). Drag a bar up or down to set it, or sweep across several to set them all at once; double-click a bar to put it back in the middle."));
+            var countRect = GUILayoutUtility.GetRect(52f, RowH, GUILayout.Width(52f));
+            GUI.Label(countRect, new GUIContent(n + (n == 1 ? " step" : " steps"), "How many values the list holds."), EditorStyles.miniLabel);
+            var prev = GUI.enabled;
+            GUI.enabled = prev && n < MaxSteps;
+            if (ZUI.Button(new GUIContent("+", n < MaxSteps ? "Adds a step at the end, copying the last one." : "A list holds at most " + MaxSteps + " steps: round-robin order cannot keep track of more."),
+                           ZUI.Style.RichButton, ZUICornerMask.Left, GUILayout.Width(22f), GUILayout.Height(RowH - 2f))) {
                 Modify(zound, "add step", () => { var s = new List<float>(mod.steps); s.Add(s[s.Count - 1]); mod.steps = s.ToArray(); chain.Touch(); });
             }
-            var prev = GUI.enabled; GUI.enabled = prev && mod.steps.Length > 1;
-            if (ZUI.Button(new GUIContent("−", "Removes the last step."), ZUI.Style.RichButton, ZUICornerMask.Right, GUILayout.Width(22f), GUILayout.Height(RowH - 2f))) {
+            GUI.enabled = prev && n > 1;
+            if (ZUI.Button(new GUIContent("−", n > 1 ? "Removes the last step." : "A list needs at least one step."),
+                           ZUI.Style.RichButton, ZUICornerMask.Right, GUILayout.Width(22f), GUILayout.Height(RowH - 2f))) {
                 Modify(zound, "remove step", () => { var s = new List<float>(mod.steps); s.RemoveAt(s.Count - 1); mod.steps = s.ToArray(); chain.Touch(); });
             }
             GUI.enabled = prev;
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
+
+            // Each bar gets up to a fixed width rather than a share of the whole pane, so a two-step list is two bars, not
+            // two slabs; a long list narrows its bars to fit.
+            var row = GUILayoutUtility.GetRect(10f, StepBandH, GUILayout.ExpandWidth(true));
+            row.xMin += GripW + 6f;
+            float barW = Mathf.Min(StepBarMaxW, row.width / n);
+            var band = new Rect(row.x, row.y + 2f, barW * n, StepBandH - 4f);
+            var steps = mod.steps;
+            if (ZUI.BandSliders(band, steps, -1f, 1f, 0f, out var edited, ZUI.SliderStyle.Default, 0f,
+                                i => "Step " + (i + 1) + ": " + steps[i].ToString("+0.00;-0.00;0.00")
+                                   + (steps[i] > 1f || steps[i] < -1f ? " (beyond the bars' range; dragging it brings it back inside)" : ""))) {
+                ModifyContinuous(zound, "change step value", () => { mod.steps = edited; chain.Touch(); });
+            }
         }
 
         // The three ways a modulator can combine, in the order the enum declares them.

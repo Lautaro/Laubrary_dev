@@ -302,8 +302,10 @@ namespace Laubrary.Zounds.Dsp {
                     }),
                 new ParamDesc("New target every", "s", 0.01f, 10f, 0.5f, ParamCurve.Logarithmic, false, ModifierOp.Add, null, null,
                     "In Random mode only: how often it picks a new value to glide towards. It always glides rather than jumping, so a short setting sounds restless and a long one sounds like slow drift."),
-                new ParamDesc("Offset", "", -4f, 4f, 0f, ParamCurve.Linear, false, ModifierOp.Add, null, null,
-                    "Shifts the whole wave up or down, so it no longer swings evenly about the middle. Use it to make an oscillator push mostly one way."));
+                // -1..1 since T-0429: which way the swing goes, never how far. See SapVoiceRender.LfoOutput for why the old
+                // -4..4 shove had to go (most of its travel pinned the parameter against an end stop).
+                new ParamDesc("Offset", "", -1f, 1f, 0f, ParamCurve.Linear, false, ModifierOp.Add, null, null,
+                    "Which way the swing goes. Middle: evenly above and below where the parameter is set. All the way right: only above it. All the way left: only below it. In between leans that way. The swing never reaches further than Amount, whatever this is set to, so no setting pushes a parameter into the end of its range that the middle setting would not."));
             ModDef(ZoundModifierType.Random, "Random", "One value per play, held for the whole play.", 1,
                 new ParamDesc("Min", "", -4f, 4f, 0.9f, ParamCurve.Linear, false, ModifierOp.Add, null, null,
                     "The lowest value this can pick. One value is drawn when the sound starts and held for the whole play."),
