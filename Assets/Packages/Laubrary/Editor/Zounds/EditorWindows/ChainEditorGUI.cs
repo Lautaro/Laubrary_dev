@@ -352,7 +352,14 @@ namespace Laubrary.Zounds {
             var evt = Event.current;
             var labelRect = new Rect(row.x + GripW + 6f, row.y, LabelW, row.height);
             ZoundsEditorDiagnostics.Record("row param " + pd.name, row); ZoundsEditorDiagnostics.Record("param.label " + pd.name, labelRect);
-            string tip = pd.name + (string.IsNullOrEmpty(pd.unit) ? "" : " (" + pd.unit + ")") + ". Right-click to modulate it" + (overridden ? " or revert the override." : ".");
+            // What it DOES first, then how to reach it. The old hover read back the parameter's own name with its units
+            // appended, which is only useful to somebody who already knew — a name is a handle for a thing you understand,
+            // not an explanation of it. Parameters that have not been described yet still fall back to the old wording, so
+            // this is never worse than it was and gets better one description at a time.
+            string what = string.IsNullOrEmpty(pd.desc)
+                ? pd.name + (string.IsNullOrEmpty(pd.unit) ? "" : " (" + pd.unit + ")") + "."
+                : pd.desc + (string.IsNullOrEmpty(pd.unit) ? "" : "  Measured in " + pd.unit + ".");
+            string tip = what + " Right-click to modulate it" + (overridden ? " or revert the override." : ".");
             GUI.Label(labelRect, new GUIContent(pd.name + (overridden ? " •" : ""), tip + (overridden ? " Overridden on this zound; the preset's value is not used here." : "")));
 
             var ctrl = new Rect(labelRect.xMax + 4f, row.y + 1f, SliderW, row.height - 2f);

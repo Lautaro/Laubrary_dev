@@ -21,12 +21,22 @@ namespace Laubrary.Zounds.Dsp {
         /// </summary>
         public string[] optionTips;
 
+        /// <summary>
+        /// What this parameter does to the sound, for hovering.
+        ///
+        /// The hover text used to be the parameter's own name read back with the units appended, which told a reader who
+        /// did not already know exactly nothing. A name is a handle for something you understand; it is not an
+        /// explanation. Where this is left empty the hover falls back to that old behaviour, so filling one in is always
+        /// an improvement and never a regression.
+        /// </summary>
+        public string desc;
+
         public ParamDesc(string name, string unit, float min, float max, float def, ParamCurve curve = ParamCurve.Linear,
                          bool automatable = true, ModifierOp defaultOp = ModifierOp.Add, string[] options = null,
-                         string[] optionTips = null) {
+                         string[] optionTips = null, string desc = null) {
             this.name = name; this.unit = unit; this.min = min; this.max = max; this.def = def;
             this.curve = curve; this.automatable = automatable; this.defaultOp = defaultOp;
-            this.options = options; this.optionTips = optionTips;
+            this.options = options; this.optionTips = optionTips; this.desc = desc;
         }
 
         /// <summary>The hover text for one option, falling back to its label when nobody has written one.</summary>
@@ -193,11 +203,20 @@ namespace Laubrary.Zounds.Dsp {
             // Time base: 0 = source position (the curve follows the waveform it is drawn over, as the old
             // baked envelopes did), 1 = play time (elapsed over the resolved duration; what a Zequence uses).
             ModDef(ZoundModifierType.Envelope, "Envelope", "A curve over the play length (plus extra time past the end).", 4,
-                new ParamDesc("Extra time", "s", 0f, 30f, 0f, ParamCurve.Linear, false),
-                new ParamDesc("Time base", "", 0f, 1f, 0f, ParamCurve.Integer, false, ModifierOp.Add, new[] { "Waveform", "Play time" }));
+                new ParamDesc("Extra time", "s", 0f, 30f, 0f, ParamCurve.Linear, false, ModifierOp.Add, null, null,
+                    "Stretches the curve past the end of the source audio, so it can keep working while a delay or reverb tail rings out. Zero means the curve ends when the audio does."),
+                new ParamDesc("Time base", "", 0f, 1f, 0f, ParamCurve.Integer, false, ModifierOp.Add,
+                    new[] { "Waveform", "Play time" },
+                    new[] {
+                        "Waveform: the curve follows the position of the read head through the source audio, so it stays aligned with the sound even if the pitch changes.",
+                        "Play time: the curve follows the clock instead, so it takes the same real time whatever the pitch is doing."
+                    },
+                    "Whether the curve is measured against the audio being read or against elapsed time. They differ as soon as pitch is not one."));
             ModDef(ZoundModifierType.Lfo, "LFO", "Oscillates, or glides between random targets.", 8,
-                new ParamDesc("Amount", "", -4f, 4f, 1f, ParamCurve.Linear, false),
-                new ParamDesc("Rate", "Hz", 0f, 50f, 1f, ParamCurve.Logarithmic, false),
+                new ParamDesc("Amount", "", -4f, 4f, 1f, ParamCurve.Linear, false, ModifierOp.Add, null, null,
+                    "How big a swing this oscillator produces before the binding's own depth scales it. One is a full swing; a negative value turns the wave upside down."),
+                new ParamDesc("Rate", "Hz", 0f, 50f, 1f, ParamCurve.Logarithmic, false, ModifierOp.Add, null, null,
+                    "How many times a second it goes round. A few per second reads as a wobble; above about twenty it stops being heard as movement and starts colouring the tone itself."),
                 new ParamDesc("Shape", "", 0f, 3f, 0f, ParamCurve.Integer, false, ModifierOp.Add,
                     new[] { "Sine", "Triangle", "Saw", "Square" },
                     new[] {
@@ -206,25 +225,46 @@ namespace Laubrary.Zounds.Dsp {
                         "Saw: climbs steadily, then drops instantly back. Good for a repeated fall or rise that restarts.",
                         "Square: jumps between the two extremes with nothing in between — a hard alternation, not a sweep."
                     }),
-                new ParamDesc("Reset phase", "", 0f, 1f, 1f, ParamCurve.Toggle, false),
+                new ParamDesc("Reset phase", "", 0f, 1f, 1f, ParamCurve.Toggle, false, ModifierOp.Add, null, null,
+                    "On: every play starts at the same point in the wave, so repeated plays sound identical. Off: the wave runs continuously in the background and each play catches it wherever it happens to be, which makes repeats differ from each other."),
                 new ParamDesc("Mode", "", 0f, 1f, 0f, ParamCurve.Integer, false, ModifierOp.Add,
                     new[] { "Oscillate", "Random" },
                     new[] {
                         "Oscillate: repeats the chosen shape at the chosen rate, forever and predictably.",
                         "Random: ignores the shape and glides to a new random value every so often, set by 'New target every'."
                     }),
-                new ParamDesc("New target every", "s", 0.01f, 10f, 0.5f, ParamCurve.Logarithmic, false),
-                new ParamDesc("Offset", "", -4f, 4f, 0f, ParamCurve.Linear, false));
+                new ParamDesc("New target every", "s", 0.01f, 10f, 0.5f, ParamCurve.Logarithmic, false, ModifierOp.Add, null, null,
+                    "In Random mode only: how often it picks a new value to glide towards. It always glides rather than jumping, so a short setting sounds restless and a long one sounds like slow drift."),
+                new ParamDesc("Offset", "", -4f, 4f, 0f, ParamCurve.Linear, false, ModifierOp.Add, null, null,
+                    "Shifts the whole wave up or down, so it no longer swings evenly about the middle. Use it to make an oscillator push mostly one way."));
             ModDef(ZoundModifierType.Random, "Random", "One value per play, held for the whole play.", 1,
-                new ParamDesc("Min", "", -4f, 4f, 0.9f, ParamCurve.Linear, false),
-                new ParamDesc("Max", "", -4f, 4f, 1.1f, ParamCurve.Linear, false),
-                new ParamDesc("Bias", "", 0.1f, 10f, 1f, ParamCurve.Logarithmic, false));
+                new ParamDesc("Min", "", -4f, 4f, 0.9f, ParamCurve.Linear, false, ModifierOp.Add, null, null,
+                    "The lowest value this can pick. One value is drawn when the sound starts and held for the whole play."),
+                new ParamDesc("Max", "", -4f, 4f, 1.1f, ParamCurve.Linear, false, ModifierOp.Add, null, null,
+                    "The highest value this can pick. Keeping Min and Max close gives subtle variation between plays; spreading them wide makes every play noticeably different."),
+                new ParamDesc("Bias", "", 0.1f, 10f, 1f, ParamCurve.Logarithmic, false, ModifierOp.Add, null, null,
+                    "Which end of the range the draw favours. One is even; below one leans towards the minimum, above one towards the maximum."));
             ModDef(ZoundModifierType.Step, "Step", "Steps through a list of values, per play or on a timer.", 4,
-                new ParamDesc("Timing", "", 0f, 1f, 0f, ParamCurve.Integer, false, ModifierOp.Add, new[] { "Per play", "Per interval" }),
-                new ParamDesc("Interval", "ms", 1f, 10000f, 250f, ParamCurve.Logarithmic, false),
-                new ParamDesc("Order", "", 0f, 1f, 0f, ParamCurve.Integer, false, ModifierOp.Add, new[] { "Sequential", "Round robin" }),
-                new ParamDesc("Start random", "", 0f, 1f, 0f, ParamCurve.Toggle, false),
-                new ParamDesc("Reset on trigger", "", 0f, 1f, 0f, ParamCurve.Toggle, false));
+                new ParamDesc("Timing", "", 0f, 1f, 0f, ParamCurve.Integer, false, ModifierOp.Add,
+                    new[] { "Per play", "Per interval" },
+                    new[] {
+                        "Per play: advances one step each time the sound is played, and holds that value for the whole play.",
+                        "Per interval: advances on a timer while the sound plays, so a single play can step through several values."
+                    },
+                    "When the list moves on to its next value."),
+                new ParamDesc("Interval", "ms", 1f, 10000f, 250f, ParamCurve.Logarithmic, false, ModifierOp.Add, null, null,
+                    "In Per interval mode only: how long each value is held before moving to the next."),
+                new ParamDesc("Order", "", 0f, 1f, 0f, ParamCurve.Integer, false, ModifierOp.Add,
+                    new[] { "Sequential", "Round robin" },
+                    new[] {
+                        "Sequential: walks the list top to bottom, then starts again — fully predictable.",
+                        "Round robin: shuffles, but plays every value once before any repeats, so it sounds random without ever landing on the same one twice running."
+                    },
+                    "How it moves through the list."),
+                new ParamDesc("Start random", "", 0f, 1f, 0f, ParamCurve.Toggle, false, ModifierOp.Add, null, null,
+                    "Begins somewhere in the middle of the list rather than always at the top, so a scene that starts fresh does not always open on the same value."),
+                new ParamDesc("Reset on trigger", "", 0f, 1f, 0f, ParamCurve.Toggle, false, ModifierOp.Add, null, null,
+                    "Returns to the start of the list every time the sound is played, instead of carrying on from where it left off."));
         }
 
         private static void Def(ZoundEffectType type, string name, string summary, bool stateful, bool heavy,
