@@ -27,6 +27,7 @@ namespace Laubrary.Zounds.Dsp {
     /// this shape. It also does not do the onset bookkeeping the long-lived voice object does, because that
     /// is diagnostics kept in a managed array and has no place in native per-block work.
     /// </summary>
+    [BurstCompile(CompileSynchronously = true, FloatMode = FloatMode.Strict)]
     public struct SapRealtimeVoice : GeneratorInstance.IRealtime {
 
         /// <summary>Buffers, per-effect state and every per-block scalar.</summary>
