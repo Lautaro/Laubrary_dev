@@ -78,6 +78,48 @@ namespace Laubrary.Zounds.Dsp {
             return destroyed;
         }
 
+        /// <summary>
+        /// Delivers one live parameter change to every voice currently playing <paramref name="zound"/>, and
+        /// returns how many received it. Zero is a normal answer — it means nothing is playing that sound right
+        /// now, so there is nothing to update and the change simply applies the next time it plays.
+        ///
+        /// The change is addressed by which effect in the chain and which of its parameters, because that is what
+        /// an editor knows. Turning that into the single flat position the engine uses is done per voice, from the
+        /// layout THAT VOICE started with — deliberately not from the sound's current layout, which an edit may
+        /// already have rebuilt underneath us. Using the wrong one would move the right value into the wrong slot.
+        ///
+        /// A parameter belonging to the source stage rather than to an effect is addressed with an effect index of
+        /// -1, matching how bindings refer to it.
+        /// </summary>
+        public static int PushLiveParam(Zound zound, int nodeIndex, int paramIndex, float value) {
+            if (zound == null) return 0;
+            int delivered = 0;
+            for (int i = live.Count - 1; i >= 0; i--) {
+                var g = live[i];
+                if (g == null) { live.RemoveAt(i); continue; }
+                if (!ReferenceEquals(g.playingZound, zound)) continue;
+                if (!g.IsPlaying) continue;
+
+                int flat = FlatIndexOf(g.playingLayout, nodeIndex, paramIndex);
+                if (flat < 0) continue;
+                if (g.SetParameterLive(flat, value)) delivered++;
+            }
+            return delivered;
+        }
+
+        /// <summary>
+        /// Where an effect's parameter sits in the flat parameter block, or -1 when the pair does not name anything
+        /// in this layout (an effect that has since been removed, for instance).
+        /// </summary>
+        public static int FlatIndexOf(ChainLayout layout, int nodeIndex, int paramIndex) {
+            if (layout == null || paramIndex < 0) return -1;
+            // The source stage's own parameters sit at the very start of the block, before any effect's.
+            if (nodeIndex < 0) return paramIndex < SourceStageParam.Count ? paramIndex : -1;
+            if (nodeIndex >= layout.nodeCount) return -1;
+            if (paramIndex >= layout.paramCountOf[nodeIndex]) return -1;
+            return layout.paramOffset[nodeIndex] + paramIndex;
+        }
+
         /// <summary>Drops entries whose sound has ended or whose object has been destroyed.</summary>
         public static void Prune() {
             for (int i = live.Count - 1; i >= 0; i--) {

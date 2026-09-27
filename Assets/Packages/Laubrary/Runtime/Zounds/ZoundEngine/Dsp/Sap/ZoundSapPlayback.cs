@@ -1,0 +1,129 @@
+using UnityEngine;
+
+namespace Laubrary.Zounds.Dsp {
+
+    /// <summary>
+    /// Plays a sound through the real-time effect chain, from its ORIGINAL source audio, with no pre-rendered
+    /// file involved.
+    ///
+    /// **This is the point of the whole exercise.** Until now a sound was played by handing an ordinary audio
+    /// source a file that had been rendered in advance, with the author's edits already burnt into it. Every
+    /// change meant rendering a new file, so a project accumulated one small file per sound per revision, and
+    /// nothing could be altered while a sound was playing. Here the source audio is read as-is and the edits are
+    /// applied as it plays, which removes the rendering step, removes the files, and makes a change audible
+    /// immediately.
+    ///
+    /// **How the edits survive that change.** The older editing surface put its effects on the sound itself as
+    /// named settings — a gain, an equaliser, compression, normalisation, a fade, volume and pitch curves — and
+    /// only the offline render ever applied them. Those are exactly the things the chain system can express, and
+    /// a converter for them already exists, so a sound that has never been touched by the new editor still
+    /// sounds the way its author intended: its old settings are turned into an equivalent chain on the way to
+    /// the engine. Nothing has to be re-authored.
+    ///
+    /// **What the ordinary audio source is still for.** It no longer holds a file, but it is not redundant: it
+    /// is what places the sound in the mixer, and therefore what gives us bus routing, group volumes, distance
+    /// attenuation and 3D position for free. The engine renders the sound; the audio source decides where it
+    /// goes. This is why no separate mixing graph is needed here — an earlier version of this engine had to
+    /// build one because it produced audio outside the mixer entirely and had to do its own summing and routing.
+    /// </summary>
+    public static class ZoundSapPlayback {
+
+        /// <summary>
+        /// Starts <paramref name="zound"/> playing through the chain on the given pooled audio source, and hands
+        /// back the object that controls it while it plays. Returns null when the sound cannot be played this
+        /// way, with the reason in <paramref name="reason"/> — the caller is then free to fall back.
+        ///
+        /// Main thread only.
+        /// </summary>
+        public static ZoundSapVoiceGenerator StartVoice(Zound zound, AudioSource carrier, AudioClip sourceClip,
+                                                       float basePitch, float outGain, long tokenId,
+                                                       out string reason) {
+            reason = null;
+            if (zound == null || carrier == null) { reason = "no sound or no audio source"; return null; }
+            if (sourceClip == null) { reason = "the source audio is not loaded"; return null; }
+
+            // The engine reads raw samples, which means the clip has to be one Unity will let us read. A clip set
+            // to stream or to stay compressed cannot be, and the failure would otherwise be silence with no
+            // explanation, so it is reported as a reason rather than attempted.
+            string clipProblem = ZoundPcmCache.Validate(sourceClip);
+            if (!string.IsNullOrEmpty(clipProblem)) { reason = sourceClip.name + ": " + clipProblem; return null; }
+
+            var pcm = ZoundPcmCache.Get(sourceClip);
+            if (pcm == null || !pcm.valid) { reason = sourceClip.name + ": its samples could not be read"; return null; }
+
+            int sampleRate = AudioSettings.outputSampleRate;
+            var chain = ResolveChainForPlayback(zound);
+            var layout = chain != null && !chain.IsEmpty ? ZoundDspPlayback.GetLayoutFor(chain, zound, sampleRate)
+                                                        : ChainLayout.Empty;
+
+            // Trim is part of the chain era's source stage rather than something baked into a file: it simply
+            // decides where reading starts and stops.
+            double startFrame = 0d;
+            double endFrame = pcm.frames;
+            if (zound is Klip klip && klip.trimEnabled) {
+                double rate = pcm.frequency;
+                startFrame = Mathf.Clamp(klip.trimStart, 0f, pcm.LengthSeconds) * rate;
+                if (klip.trimEnd > klip.trimStart) endFrame = Mathf.Min(klip.trimEnd, pcm.LengthSeconds) * rate;
+            }
+            if (endFrame <= startFrame) { reason = "the trimmed region is empty"; return null; }
+
+            float sourceSeconds = (float)((endFrame - startFrame) / pcm.frequency);
+            // A pitch curve on the chain consumes the source at a changing rate, so the play length is the
+            // integral of that rate rather than the plain length. The engine already knows how to work this out.
+            float duration = ZoundDspPlayback.DurationUnderPitchModulation(zound, sourceSeconds)
+                             / Mathf.Max(basePitch, 0.01f);
+
+            var generator = EnsureGenerator(carrier);
+            generator.SetPlay(pcm, layout, startFrame, endFrame, basePitch, outGain, duration,
+                              loop: false, tokenId: tokenId, heavyTier: layout.heavy, zound: zound);
+
+            // No file. The audio source carries the sound into the mixer and nothing else.
+            carrier.clip = null;
+            carrier.generator = generator;
+            carrier.Play();
+            return generator;
+        }
+
+        /// <summary>
+        /// The chain a sound should play with, including the conversion of an older sound's named settings into
+        /// an equivalent chain when it has no chain of its own. Returns null when there is genuinely nothing to
+        /// apply, in which case the sound plays clean.
+        /// </summary>
+        public static ZoundEffectChain ResolveChainForPlayback(Zound zound) {
+            var chain = ZoundDspPlayback.ResolveChain(zound, out _);
+            if (chain != null && !chain.IsEmpty) return chain;
+
+            // Nothing authored. If this is an older sound whose edits still live as named settings, convert them
+            // rather than ignoring them -- otherwise moving to real-time playback would silently drop the author's
+            // work, which is the one outcome that would make this change worse than what it replaces.
+            if (zound is Klip klip && ChainMigration.HasLegacyEdits(klip)) {
+                return ChainMigration.SynthesizeFromLegacy(klip);
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Whether this sound can play through the chain, and why not when it cannot. Lets a caller decide
+        /// between real-time playback and any older path without having to attempt it first.
+        /// </summary>
+        public static bool CanPlayRealtime(Zound zound, AudioClip sourceClip, out string reason) {
+            reason = null;
+            if (zound == null) { reason = "no sound"; return false; }
+            if (sourceClip == null) { reason = "the source audio is not loaded"; return false; }
+            string problem = ZoundPcmCache.Validate(sourceClip);
+            if (!string.IsNullOrEmpty(problem)) { reason = problem; return false; }
+            return true;
+        }
+
+        /// <summary>
+        /// One chain player per pooled audio source, created once and reused. The pool hands the same audio
+        /// sources out repeatedly, so attaching a fresh one per play would add a component every time a sound
+        /// started and never remove it.
+        /// </summary>
+        public static ZoundSapVoiceGenerator EnsureGenerator(AudioSource carrier) {
+            var generator = carrier.GetComponent<ZoundSapVoiceGenerator>();
+            if (generator == null) generator = carrier.gameObject.AddComponent<ZoundSapVoiceGenerator>();
+            return generator;
+        }
+    }
+}

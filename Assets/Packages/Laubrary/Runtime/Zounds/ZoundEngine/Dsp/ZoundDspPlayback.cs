@@ -28,6 +28,23 @@ namespace Laubrary.Zounds.Dsp {
             if (zound != null) layouts.Remove(zound);
         }
 
+        /// <summary>
+        /// Pushes one parameter change straight into every voice currently playing this sound, so that dragging a
+        /// slider in the editor is heard immediately instead of on the next play.
+        ///
+        /// **This is what makes the editor feel live**, and it is the reason the effect chain is worth having as a
+        /// real-time system at all rather than as something baked into a file beforehand. Returns how many voices
+        /// took the change; zero simply means the sound is not playing at that moment.
+        ///
+        /// The <paramref name="chain"/> argument is accepted for call-site clarity and is not required to resolve
+        /// anything: each voice already knows the layout it started with, which is the only correct place to work
+        /// out where the value belongs. Passing the sound's current chain would be wrong precisely when it matters,
+        /// because the edit being pushed may already have changed it.
+        /// </summary>
+        public static int PushLiveParam(Zound zound, ZoundEffectChain chain, int nodeIndex, int paramIndex, float value) {
+            return SapVoiceRegistry.PushLiveParam(zound, nodeIndex, paramIndex, value);
+        }
+
         /// <summary>The chain a Zound plays with: its preset by live reference, else its inline chain.</summary>
         public static ZoundEffectChain ResolveChain(Zound zound, out ZoundChainPreset preset) {
             preset = null;
@@ -36,6 +53,28 @@ namespace Laubrary.Zounds.Dsp {
                 if (preset != null) return preset.chain;
             }
             return zound.effectChain;
+        }
+
+        /// <summary>
+        /// The flat layout for a chain that is not necessarily the one stored on the sound.
+        ///
+        /// This exists for the case where an older sound's named settings have been converted into an equivalent
+        /// chain on the way to the engine: that chain belongs to nobody, so it cannot be looked up or cached by
+        /// the sound it came from. It is laid out fresh each time instead, which is the correct trade — the
+        /// conversion only happens for sounds nobody has opened in the new editor yet, and it stops as soon as
+        /// one is saved with a real chain.
+        /// </summary>
+        public static ChainLayout GetLayoutFor(ZoundEffectChain chain, Zound zound, int sampleRate) {
+            if (chain == null || chain.IsEmpty) return ChainLayout.Empty;
+
+            // A chain that IS the sound's own goes through the cache, so repeated plays of the same sound do not
+            // re-lay it out.
+            var own = ResolveChain(zound, out _);
+            if (ReferenceEquals(own, chain)) return GetLayout(zound, sampleRate);
+
+            var layout = ChainLayout.Build(chain, sampleRate);
+            if (layout.error != null) Debug.LogWarning("[Zounds] " + (zound != null ? zound.name : "(chain)") + ": " + layout.error);
+            return layout;
         }
 
         public static ChainLayout GetLayout(Zound zound, int sampleRate) {

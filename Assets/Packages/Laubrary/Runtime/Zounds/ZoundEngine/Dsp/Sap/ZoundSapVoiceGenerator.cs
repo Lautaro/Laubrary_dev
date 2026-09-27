@@ -68,6 +68,19 @@ namespace Laubrary.Zounds.Dsp {
         /// <summary>The repeat train to arm, if any. Applied when the voice is created.</summary>
         private RepeatPlan repeat;
 
+        /// <summary>
+        /// Which sound this is playing. Remembered so that an edit made in the editor can be delivered to exactly
+        /// the voices playing the sound being edited, rather than to everything currently audible.
+        /// </summary>
+        public Zound playingZound { get; private set; }
+
+        /// <summary>
+        /// The layout this voice was started with. An edit arrives as an effect index and a parameter index, and
+        /// turning that pair into the single flat position the engine uses requires the layout it was built with --
+        /// not the sound's current layout, which may already have been rebuilt by the edit itself.
+        /// </summary>
+        public ChainLayout playingLayout => layout;
+
         public bool isFinite => false;
         public bool isRealtime => false;
         public DiscreteTime? length => null;
@@ -75,7 +88,8 @@ namespace Laubrary.Zounds.Dsp {
         /// <summary>Describes the next play. Does not allocate; resolution happens when the graph asks.</summary>
         public void SetPlay(PcmClip clip, ChainLayout layout, double startFrame, double endFrame,
                            float basePitch, float outGain, float sourceDuration, bool loop,
-                           long tokenId, bool heavyTier) {
+                           long tokenId, bool heavyTier, Zound zound = null) {
+            playingZound = zound;
             this.clip = clip;
             this.layout = layout;
             this.startFrame = startFrame;
