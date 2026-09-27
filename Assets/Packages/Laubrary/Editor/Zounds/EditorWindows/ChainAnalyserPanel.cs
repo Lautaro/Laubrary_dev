@@ -197,7 +197,7 @@ namespace Laubrary.Zounds.EditorTools {
             // deliberately no "edited, re-measuring" message: the owner's judgement is that it is not worth its line.
             bool empty = chain == null || chain.IsEmpty;
             float playTime = PlayTime(zound, out bool following);
-            if (!empty && Event.current.type == EventType.Repaint) UpdateLive(zound, chain, playTime, following, true);
+            if (!empty && Event.current.type == EventType.Repaint) SafeUpdateLive(zound, chain, playTime, following, true);
 
             bool still = shown.db != null && (measurement.lanes == null || measurement.lanes.Length == 0) && MaxAbs(shown) < 0.05f;
             string status =
@@ -422,6 +422,27 @@ namespace Laubrary.Zounds.EditorTools {
         /// taken per frame, so the editor never stalls; until a position has been measured, the nearest earlier picture
         /// stays on screen for that frame.
         /// </summary>
+        int liveFailedVersion = int.MinValue;
+
+        /// <summary>
+        /// <see cref="UpdateLive"/>, made unable to take the window down with it.
+        ///
+        /// An exception thrown from inside a window's drawing leaves Unity's layout half-built, so the whole window breaks
+        /// and the error repeats on every redraw — the owner's "some fx ui causes constant exceptions" (T-0442) was exactly
+        /// that. Whatever the cause, the live picture is an extra: if taking it fails, it is reported ONCE, with the full
+        /// exception, and not attempted again until the chain is edited; the rest of the editor keeps working.
+        /// </summary>
+        void SafeUpdateLive(Zound zound, ZoundEffectChain chain, float playTime, bool following, bool wantPicture) {
+            int version = chain != null ? chain.version : int.MinValue + 1;
+            if (liveFailedVersion == version) return;
+            try { UpdateLive(zound, chain, playTime, following, wantPicture); }
+            catch (System.Exception e) {
+                liveFailedVersion = version;
+                display.Dispose();
+                Debug.LogWarning("[Zounds] The analyser's live picture failed and is paused until this chain is edited. " + e);
+            }
+        }
+
         void UpdateLive(Zound zound, ZoundEffectChain chain, float playTime, bool following, bool wantPicture) {
             var lanes = measurement.lanes;
             int n = lanes != null ? lanes.Length : 0;
@@ -632,7 +653,7 @@ namespace Laubrary.Zounds.EditorTools {
             // earns the space by naming what is being listened to, which is the one thing these views cannot show.
             StatusLine(playing && !string.IsNullOrEmpty(sourceName) ? "reading: " + sourceName : null);
             float playTime = PlayTime(zound, out bool following);
-            if (chain != null && !chain.IsEmpty && Event.current.type == EventType.Repaint) UpdateLive(zound, chain, playTime, following, false);
+            if (chain != null && !chain.IsEmpty && Event.current.type == EventType.Repaint) SafeUpdateLive(zound, chain, playTime, following, false);
             DrawLanes(zound, CountModulatedParams(chain), playTime, following);
             var mode = view == View.LiveSpectrum ? LiveOutputView.Mode.Spectrum
                      : view == View.LiveOverTime ? LiveOutputView.Mode.Spectrogram

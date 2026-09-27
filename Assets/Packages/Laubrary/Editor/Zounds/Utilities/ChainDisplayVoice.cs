@@ -50,7 +50,12 @@ namespace Laubrary.Zounds.EditorTools {
             if (silence == null || silence.frames != frames)
                 silence = new PcmClip { channels = 1, frequency = SR, frames = frames, samples = new float[frames], valid = true, peak = 0f };
 
-            voice = SapRealtimeVoice.Create(silence, layout, SR, 0d, frames, 1f, 1f, playSeconds, false, 7, false,
+            // The voice's working memory must be sized the way playback sizes it: from the layout, which knows how much state
+            // the chain needs. This first asked for the small size unconditionally, and a chain with a reverb (about 28,000
+            // floats of state against the small size's 8,192) then indexed past the end on every redraw — the owner's
+            // "some fx ui causes constant exceptions" (T-0442). Switching the effects off in this copy does not shrink it,
+            // because the layout still reserves their state.
+            voice = SapRealtimeVoice.Create(silence, layout, SR, 0d, frames, 1f, 1f, playSeconds, false, 7, layout.heavy,
                                             Allocator.Persistent, zound);
             created = true;
             renderedSteps = 0;
