@@ -143,35 +143,18 @@ namespace Laubrary.Zounds.Dsp {
             groupIndex = -1;
             this.pcm = pcm;
             this.layout = layout;
-            if (sapLayout.IsCreated) sapLayout.Dispose();
-            sapLayout = SapChainLayout.Create(layout, Allocator.Persistent);
-            if (sapPcm.IsCreated) sapPcm.Dispose();
-            sapPcm = SapPcm.Create(pcm, Allocator.Persistent);
+            SapVoiceSetup.BuildSnapshots(ref sapLayout, ref sapPcm, layout, pcm, Allocator.Persistent);
             this.sourceDuration = sourceDuration;
             clipRate = (double)pcm.frequency / sampleRate;
-            basePitchTarget = basePitch; sap.basePitchLive = basePitch;
-            outGainTarget = outGain; sap.outGainLive = outGain;
+            basePitchTarget = basePitch;
+            outGainTarget = outGain;
             pauseRequest = 0; killRequest = 0; releaseRequest = 0;
-            sap.stopping = false; sap.released = false;
-            sap.sourceExhausted = false;
-            sap.elapsedSamples = 0; sap.samplesSinceSourceEnd = 0; sap.silentSamples = 0;
-            sap.lastPeak = 0f;
             protectedFromSteal = false;
-            sap.repeat = default; sap.repeatsPending = 0; sap.repeatsDone = 1; sap.repeatsTotal = 1; sap.nextRepeatSample = 0; sap.lastRepeatEndSample = 0; sap.trainEndSample = 0; sap.slotsStolen = 0;
             allocatedAtDsp = AudioSettings.dspTime;
-            sap.rng = 2463534242u ^ (uint)tokenId;
             ResetOnsets();
 
-            for (int i = 0; i < sap.slots.Length; i++) sap.slots[i] = default;
-            sap.slots[0] = new SourceSlot { active = true, cursor = startFrame, startFrame = startFrame, endFrame = endFrame, gain = 1f, pitchMul = 1f, loop = loop };
-
-            { int clearLen = Mathf.Min(sap.arena.Length, Mathf.Max(layout.stateFloats, 1)); for (int ci = 0; ci < clearLen; ci++) sap.arena[ci] = 0f; }
-            for (int i = 0; i < layout.paramCount; i++) {
-                sap.pLive[i] = layout.pBase[i]; sap.pStart[i] = layout.pBase[i]; sap.pStep[i] = 0f; sap.pTarget[i] = layout.pBase[i];
-            }
-            sap.tailBudgetSamples = (long)(layout.tailSeconds * sampleRate);
-            sap.hangoverSamples = ZoundDspConstants.HANGOVER_MS * sampleRate / 1000;
-            ZoundEffects.ResetChain(sapLayout, sap.arena, sampleRate);
+            SapVoiceSetup.Reset(ref sap, in sapLayout, layout, sampleRate, basePitch, outGain, tokenId,
+                                armSource: true, startFrame, endFrame, loop);
         }
 
         /// <summary>Arms the repeat schedule (call after Prepare, before Publish).</summary>
@@ -195,33 +178,19 @@ namespace Laubrary.Zounds.Dsp {
             this.depth = depth;
             pcm = null;
             this.layout = layout;
-            if (sapLayout.IsCreated) sapLayout.Dispose();
-            sapLayout = SapChainLayout.Create(layout, Allocator.Persistent);
-            if (sapPcm.IsCreated) sapPcm.Dispose();
-            sapPcm = default;
+            SapVoiceSetup.BuildSnapshots(ref sapLayout, ref sapPcm, layout, null, Allocator.Persistent);
             sourceDuration = duration;
             clipRate = 1.0;
-            basePitchTarget = 1f; sap.basePitchLive = 1f;
-            outGainTarget = 1f; sap.outGainLive = 1f;
+            basePitchTarget = 1f;
+            outGainTarget = 1f;
             pauseRequest = 0; killRequest = 0; releaseRequest = 0;
-            sap.stopping = false; sap.released = false;
-            sap.sourceExhausted = false;
-            sap.elapsedSamples = 0; sap.samplesSinceSourceEnd = 0; sap.silentSamples = 0;
-            sap.lastPeak = 0f;
             liveChildren = 0;
             protectedFromSteal = true;
-            sap.repeatsPending = 0; sap.repeatsDone = 0; sap.repeatsTotal = 1;
             allocatedAtDsp = AudioSettings.dspTime;
-            sap.rng = 2463534242u ^ (uint)tokenId;
             ResetOnsets();
-            for (int i = 0; i < sap.slots.Length; i++) sap.slots[i] = default;
-            { int clearLen = Mathf.Min(sap.arena.Length, Mathf.Max(layout.stateFloats, 1)); for (int ci = 0; ci < clearLen; ci++) sap.arena[ci] = 0f; }
-            for (int i = 0; i < layout.paramCount; i++) {
-                sap.pLive[i] = layout.pBase[i]; sap.pStart[i] = layout.pBase[i]; sap.pStep[i] = 0f; sap.pTarget[i] = layout.pBase[i];
-            }
-            sap.tailBudgetSamples = (long)(layout.tailSeconds * sampleRate);
-            sap.hangoverSamples = ZoundDspConstants.HANGOVER_MS * sampleRate / 1000;
-            ZoundEffects.ResetChain(sapLayout, sap.arena, sampleRate);
+
+            SapVoiceSetup.Reset(ref sap, in sapLayout, layout, sampleRate, 1f, 1f, tokenId,
+                                armSource: false, 0d, 0d, false);
         }
 
         /// <summary>Main-thread bookkeeping: realtime when this node was first seen Tailing (0 = not tailing). Read by whichever main-thread sweep reclaims voices whose tail never finished.</summary>
