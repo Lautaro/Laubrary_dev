@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — the chain editor's analyser, modulated sliders and modifier curves show what is actually happening
+
+- **Analyser follows the sound.** The combined view measures across the sound's real play length (it measured a fixed 1.5 s before, which misplaced anything laid out "over the play" and, with a slow oscillator, looped a slice of one cycle that looked like a ramp). While the sound plays it shows the moment being heard; otherwise it loops the play at real speed. It keeps redrawing while anything moves (before, it stopped after each measurement and advanced only when something else redrew the window), and moves smoothly between readings instead of stepping at about three frames a second, at half speed.
+- **Frequency range 20 Hz – 20 kHz** (was 60 Hz – 18 kHz, labelled 62 – 13.6k), labelled at round frequencies with gridlines, a dB scale on the graph, and the band under the mouse read out in numbers. Each band is now read as energy in over energy out, which halves the false jaggedness a fast modulator used to produce and still reads a still effect as exactly still.
+- **Modulation lanes.** One line per modulated parameter, across one play, read from the engine at its own 64-sample control step: where the parameter actually goes (including where a deep swing pins it to the end of its range), where it was set, a playhead, and the playing sound's live value. Shown in every analyser view.
+- **Modulated sliders** show the live value while the sound plays. The editor now asks the engine each tick whether its sound is playing; before, its first drawing after Play came before the sound had started, so it never began redrawing. The "set here" marker is drawn whether or not anything plays.
+- **"Strength over the play" / envelope curves** get a readable background (grid, ends labelled), the oscillator's measured output drawn behind its strength curve, and a playhead with the live value while the sound plays. An oscillator whose cycle is longer than a play of the sound says so beside its Rate.
+- The sound editor redraws its live views from the editor's own tick, so they animate without focus. The "edited, re-measuring…" line is gone.
+- Engine additions (read-only, for displays): `SapVoiceRegistry.IsPlaying`, `TryReadPlayPosition`, `TryReadLiveModifier`; `ZoundSapPlayback.TryGetPlayLength`; `DspVoice.modValues`.
+
 ### Zounds — a token now exposes a live volume multiplier, for sounds a consumer drives every frame
 
 - **What.** `ZoundToken.liveVolume` (public float, default `1f`). One extra factor in `ZoundHandler.OnPlayUpdate`'s three volume-write sites (steady state, fade-in, fade-out), alongside the existing `parentVolume`. Every existing sound leaves it untouched and is therefore byte-for-byte unchanged.

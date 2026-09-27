@@ -141,6 +141,27 @@ namespace Laubrary.Zounds.Dsp {
             return null;
         }
 
+        /// <summary>
+        /// How long one play of <paramref name="zound"/> lasts at its nominal pitch, worked out exactly the way
+        /// <see cref="StartVoice"/> works it out — same source, same trim, same allowance for a pitch curve — so that a
+        /// display drawn along "the play" lines up with what is heard. False when the source cannot be read.
+        /// </summary>
+        public static bool TryGetPlayLength(Zound zound, out float seconds) {
+            seconds = 0f;
+            var clip = LoadSourceClip(zound, out bool alreadyTrimmed);
+            if (clip == null || !string.IsNullOrEmpty(ZoundPcmCache.Validate(clip))) return false;
+            var pcm = ZoundPcmCache.Get(clip);
+            if (pcm == null || !pcm.valid) return false;
+            double startFrame = 0d, endFrame = pcm.frames;
+            if (!alreadyTrimmed && zound is Klip klip && klip.trimEnabled) {
+                startFrame = Mathf.Clamp(klip.trimStart, 0f, pcm.LengthSeconds) * pcm.frequency;
+                if (klip.trimEnd > klip.trimStart) endFrame = Mathf.Min(klip.trimEnd, pcm.LengthSeconds) * pcm.frequency;
+            }
+            if (endFrame <= startFrame) return false;
+            seconds = DurationOf(zound, pcm, startFrame, endFrame, 1f);
+            return seconds > 0f;
+        }
+
         /// <summary>The play length this voice was set up with, for a caller that has to report a duration.</summary>
         public static float DurationOf(Zound zound, PcmClip pcm, double startFrame, double endFrame, float basePitch) {
             if (pcm == null || pcm.frequency <= 0) return 0f;

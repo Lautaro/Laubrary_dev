@@ -56,10 +56,38 @@ namespace Laubrary.Zounds {
             RegisterSpectrumViewEvents();
             EditorApplication.update -= ProcessPendingAutoRender;
             EditorApplication.update += ProcessPendingAutoRender;
+            EditorApplication.update -= TickContinuousRepaint;
+            EditorApplication.update += TickContinuousRepaint;
         }
+
+        /// <summary>
+        /// Asks for a redraw once per editor tick, while anything in the chain editor is actually moving.
+        ///
+        /// **Why a redraw cannot be requested from inside the drawing, which is what this replaces.** A window that draws
+        /// itself, notices something is moving and asks to be drawn again only keeps going for as long as it is being
+        /// drawn — and a window without focus is drawn rarely and at the editor's convenience. So the request inherited
+        /// exactly the rate it was trying to escape: the analyser animated slowly, unevenly, sped up when the mouse was
+        /// over it, and sometimes stopped altogether. Asking from the editor's own tick instead is outside that loop, and
+        /// runs whether this window has focus or not. The standalone analyser window has always done it this way; this is
+        /// that same pattern, not a new one.
+        ///
+        /// Still gated on something actually moving, which the chain editor already knows and reports, so an idle editor
+        /// costs nothing.
+        /// </summary>
+        void TickContinuousRepaint() {
+            if (chainEditor == null || !chainEditor.wantsContinuousRepaint) return;
+            // Sixty times a second is smooth motion; the editor's own tick can run far faster than that, and redrawing a
+            // whole editor window on every one of them would cost real time for no visible gain.
+            double now = EditorApplication.timeSinceStartup;
+            if (now - lastContinuousRepaint < 1.0 / 60.0) return;
+            lastContinuousRepaint = now;
+            Repaint();
+        }
+        double lastContinuousRepaint;
 
         protected override void OnBaseDisable() {
             EditorApplication.update -= ProcessPendingAutoRender;
+            EditorApplication.update -= TickContinuousRepaint;
             if (isDraggingWaveform || isDraggingSlider) {
                 isDraggingWaveform = false;
                 isDraggingSlider = false;
@@ -72,6 +100,7 @@ namespace Laubrary.Zounds {
 
         protected override void OnDestroy() {
             EditorApplication.update -= ProcessPendingAutoRender;
+            EditorApplication.update -= TickContinuousRepaint;
             if (spectrumView != null) {
                 spectrumView.Destroy();
                 spectrumView = null;
@@ -544,9 +573,9 @@ namespace Laubrary.Zounds {
                 if (chainEditor == null) chainEditor = new ChainEditorGUI();
                 chainEditor.Draw(targetZound);
                 isDraggingSlider = isDraggingSlider || chainEditor.isDragging || stretchEditor.isDragging;
-                // A live analyser view is only live if the window keeps redrawing; without this it would freeze on
-                // whatever was on screen when the mouse last moved, which looks like a broken meter.
-                if (chainEditor.wantsContinuousRepaint) Repaint();
+                // Deliberately NOT asking for a redraw from here. Keeping a live view alive is done from the editor's own
+                // tick instead (see TickContinuousRepaint), because a redraw requested from inside a draw only happens as
+                // often as the window is already being drawn — which, without focus, is barely at all.
 
                 // The bodies of the seven built-in effects used to be drawn here, one section per enabled effect —
                 // the gain boost, the equaliser and so on. Gone for the same reason their toggles went: they existed

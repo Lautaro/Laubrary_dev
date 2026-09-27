@@ -73,6 +73,8 @@ namespace Laubrary.Zounds.Dsp {
         public NativeArray<float> pLive => sap.pLive;
         public NativeArray<float> pStart => sap.pStart;
         public NativeArray<float> pStep => sap.pStep;
+        /// <summary>Each modifier's most recent output. Read by the editor's analyser to draw what the modifiers do over a play.</summary>
+        public NativeArray<float> modValues => sap.modValue;
 
         // ── published on allocation (main thread), read-only afterwards ──
         internal int state;              // VoiceState, Volatile

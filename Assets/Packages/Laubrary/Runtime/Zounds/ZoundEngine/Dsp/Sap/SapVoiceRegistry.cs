@@ -290,6 +290,56 @@ namespace Laubrary.Zounds.Dsp {
             return false;
         }
 
+        /// <summary>
+        /// Whether any voice is currently playing <paramref name="zound"/>. Cheap enough to ask every editor tick, which is
+        /// what it is for: a window has to know a sound STARTED before it can know to keep redrawing, and it cannot learn
+        /// that from its own previous drawing, which may well have happened a moment before the sound began.
+        /// </summary>
+        public static bool IsPlaying(Zound zound) {
+            if (zound == null) return false;
+            for (int i = live.Count - 1; i >= 0; i--) {
+                var g = live[i];
+                if (g == null) { live.RemoveAt(i); continue; }
+                if (ReferenceEquals(g.playingZound, zound) && g.IsPlaying) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// How far the most recently started play of <paramref name="zound"/> has got: seconds since it started, and the
+        /// play's length. False when nothing is playing it. When several plays overlap, the newest one answers, because
+        /// that is the one the listener just triggered.
+        /// </summary>
+        public static bool TryReadPlayPosition(Zound zound, out float elapsedSeconds, out float durationSeconds) {
+            elapsedSeconds = 0f; durationSeconds = 0f;
+            if (zound == null) return false;
+            ZoundSapVoiceGenerator newest = null;
+            for (int i = live.Count - 1; i >= 0; i--) {
+                var g = live[i];
+                if (g == null) { live.RemoveAt(i); continue; }
+                if (!ReferenceEquals(g.playingZound, zound) || !g.IsPlaying) continue;
+                if (newest == null || g.playStartedAt > newest.playStartedAt) newest = g;
+            }
+            if (newest == null) return false;
+            elapsedSeconds = (float)(UnityEngine.Time.realtimeSinceStartupAsDouble - newest.playStartedAt);
+            durationSeconds = newest.playDuration;
+            return true;
+        }
+
+        /// <summary>The live output of one modifier on the newest play of <paramref name="zound"/>, for a display.</summary>
+        public static bool TryReadLiveModifier(Zound zound, int modifierIndex, out float value) {
+            value = 0f;
+            if (zound == null) return false;
+            ZoundSapVoiceGenerator newest = null;
+            for (int i = live.Count - 1; i >= 0; i--) {
+                var g = live[i];
+                if (g == null) continue;
+                if (!ReferenceEquals(g.playingZound, zound) || !g.IsPlaying) continue;
+                if (newest == null || g.playStartedAt > newest.playStartedAt) newest = g;
+            }
+            return newest != null && newest.TryReadLiveModifier(modifierIndex, out value);
+        }
+
         /// <summary>Drops entries whose sound has ended or whose object has been destroyed.</summary>
         public static void Prune() {
             for (int i = live.Count - 1; i >= 0; i--) {

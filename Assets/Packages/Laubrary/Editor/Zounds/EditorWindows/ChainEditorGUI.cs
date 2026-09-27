@@ -45,13 +45,45 @@ namespace Laubrary.Zounds {
         /// view, or a modulated parameter whose engine value is being tracked. Both switch themselves off — the overlay only
         /// reports movement while a sound is actually playing — so an idle editor costs nothing.
         /// </summary>
-        public bool wantsContinuousRepaint => analyser.wantsContinuousRepaint || liveParamsAnimating;
+        public bool wantsContinuousRepaint => analyser.wantsContinuousRepaint || liveParamsAnimating
+                                              || Dsp.SapVoiceRegistry.IsPlaying(drawnZound);
+
+        /// <summary>
+        /// The sound drawn most recently, so the hosting window can be told to keep redrawing the moment it STARTS playing.
+        ///
+        /// Without this the editor could only learn a sound was playing from its own previous drawing — and the drawing
+        /// right after Play is pressed happens before the sound has actually begun, so it saw nothing, decided nothing was
+        /// moving, and stopped redrawing. The live fill on a modulated slider was then never drawn at all, which is exactly
+        /// the "reported done, nothing on screen" the owner hit. Asking the engine each tick removes the chicken-and-egg.
+        /// </summary>
+        private Zound drawnZound;
+
+        // What every modifier outputs across one play, measured from the engine and cached against the chain's revision, so
+        // a modifier's own graph can show what it actually produces. Cheap (one short control-rate render), and re-taken
+        // only after edits settle for a moment, the same way the analyser does.
+        private EditorTools.ChainSpectrumProbe.Measurement modulation;
+        private int modulationVersion = int.MinValue, modulationPending = int.MinValue;
+        private double modulationPendingSince;
+        private Zound modulationZound;
+
+        private void EnsureModulationMeasured(Zound zound, ZoundEffectChain chain) {
+            if (chain == null) return;
+            if (modulationVersion == chain.version && ReferenceEquals(modulationZound, zound)) return;
+            double now = EditorApplication.timeSinceStartup;
+            if (modulationPending != chain.version) { modulationPending = chain.version; modulationPendingSince = now; }
+            if (now - modulationPendingSince < 0.15 && modulation.modifierOutput != null) return;
+            modulationVersion = chain.version;
+            modulationZound = zound;
+            if (!Dsp.ZoundSapPlayback.TryGetPlayLength(zound, out float play)) play = 1.5f;
+            modulation = EditorTools.ChainSpectrumProbe.MeasureModulation(chain, play);
+        }
 
         // ───────────────────────────── entry ─────────────────────────────
 
         public void Draw(Zound zound) {
             var chain = ZoundDspPlayback.ResolveChain(zound, out var preset);
             bool linked = preset != null;
+            drawnZound = zound;
             var evt = Event.current;
             if (evt.type == EventType.Repaint) {
                 ZoundsEditorDiagnostics.chainEditorRepaints++;
@@ -395,6 +427,12 @@ namespace Laubrary.Zounds {
             }
 
             ZoundsEditorDiagnostics.Record("param.control " + pd.name, ctrl);
+            if (rowNote != null) {
+                var noteRect = new Rect(ctrl.xMax + 4f, row.y, Mathf.Max(TagW, row.xMax - ctrl.xMax - 8f), row.height);
+                var ns = new GUIStyle(EditorStyles.miniLabel) { wordWrap = false, clipping = TextClipping.Ellipsis };
+                ns.normal.textColor = new Color(0.97f, 0.8f, 0.4f);
+                GUI.Label(noteRect, new GUIContent(rowNote, rowNoteTip), ns);
+            }
             if (bound) {
                 DrawLiveValueOverlay(zound, ctrl, pd, nodeIndex, paramIndex, value);
                 var tag = new Rect(ctrl.xMax + 4f, row.y, TagW, row.height);
@@ -434,19 +472,30 @@ namespace Laubrary.Zounds {
         /// retouched — and a "cleared" stretch in slightly the wrong shade looks like a rendering fault. A translucent dark
         /// pass reads as "not filled" over whatever the track happens to be, and cannot fall out of step with it.
         ///
-        /// Nothing is drawn when the sound is not playing. A modifier's output exists only while a voice is evaluating it,
-        /// so inventing a position for it while silent would be decoration pretending to be data.
+        /// **The marker is drawn whether or not a sound is playing; only the moving fill needs a voice.** An earlier version
+        /// drew nothing at all while silent, on the reasoning that a modifier's output does not exist without a voice to
+        /// evaluate it — which is true of the FILL and false of the marker. The marker is the authored value, which exists
+        /// at all times because it is the thing being edited. Leaving it out while silent made the whole feature invisible
+        /// in the state the editor spends most of its life in: open, with a chain on screen and nothing playing. Somebody
+        /// who had been told the feature was finished would look straight at it and see no change whatsoever, which is
+        /// exactly what happened. Drawn always, it also earns its keep while silent, by marking at a glance which sliders
+        /// have a modifier on them.
         /// </summary>
         private void DrawLiveValueOverlay(Zound zound, Rect ctrl, ParamDesc pd, int nodeIndex, int paramIndex, float authored) {
             // Modifier parameters are drawn by the same row helper but are not engine parameters, and a choice strip or a
             // toggle has no fill to extend. Only a real slider on a real effect parameter can show this.
             if (nodeIndex < 0 || pd.IsChoice || pd.curve == ParamCurve.Toggle) return;
             if (Event.current.type != EventType.Repaint) return;
-            if (!ZoundDspPlayback.TryReadLiveParam(zound, nodeIndex, paramIndex, out float liveValue)) return;
+
+            float tAuthored = Normalised(pd, authored);
+            if (!ZoundDspPlayback.TryReadLiveParam(zound, nodeIndex, paramIndex, out float liveValue)) {
+                // Silent: the fill already ends exactly where the value was placed, so the marker sits on its right edge.
+                DrawMarker(ctrl, tAuthored);
+                return;
+            }
 
             liveParamsAnimating = true;
 
-            float tAuthored = Normalised(pd, authored);
             float tLive = Normalised(pd, liveValue);
             if (Mathf.Abs(tLive - tAuthored) < 0.001f) { DrawMarker(ctrl, tAuthored); return; }
 
@@ -463,11 +512,20 @@ namespace Laubrary.Zounds {
             DrawMarker(ctrl, tAuthored);
         }
 
-        /// <summary>The thin line showing where the value was placed, which stays put however far the engine wanders.</summary>
+        /// <summary>
+        /// The thin line showing where the value was placed, which stays put however far the engine wanders.
+        ///
+        /// It is a bright line with a dark one immediately behind it, and that is not decoration: this line has to be
+        /// visible both against a filled track and against an empty one, and those are opposite backgrounds. A single
+        /// near-white line vanishes into a pale fill; a single dark one vanishes into the empty track. One of each,
+        /// side by side, means one of the two is always the one you can see — at the cost of two units instead of one,
+        /// which still reads as a thin edge rather than a band.
+        /// </summary>
         private static void DrawMarker(Rect ctrl, float t) {
             var inner = new Rect(ctrl.x + 1f, ctrl.y + 1f, ctrl.width - 2f, ctrl.height - 2f);
-            float x = Mathf.Clamp(inner.x + inner.width * t, inner.x, inner.xMax - 1f);
-            EditorGUI.DrawRect(new Rect(x, inner.y, 1f, inner.height), new Color(0.98f, 0.98f, 1f, 0.9f));
+            float x = Mathf.Clamp(inner.x + inner.width * t, inner.x + 1f, inner.xMax - 1f);
+            EditorGUI.DrawRect(new Rect(x - 1f, inner.y, 1f, inner.height), new Color(0.05f, 0.05f, 0.08f, 0.85f));
+            EditorGUI.DrawRect(new Rect(x, inner.y, 1f, inner.height), new Color(0.99f, 0.99f, 1f, 0.95f));
         }
 
         /// <summary>
@@ -650,9 +708,11 @@ namespace Laubrary.Zounds {
                 if (mod.type == ZoundModifierType.Lfo && k == 5 && (int)mod.p[4] != (int)LfoMode.Random) continue;
                 // Step: the interval only matters per interval.
                 if (mod.type == ZoundModifierType.Step && k == 1 && (int)mod.p[0] != (int)StepTiming.PerInterval) continue;
+                if (mod.type == ZoundModifierType.Lfo && k == 1 && (int)mod.p[4] == (int)LfoMode.Oscillate) SetSlowRateNote(zound, chain, mod);
                 DrawParamRow(zound, chain, int.MinValue, k, pd, mod.p[k], false,
                     v => ModifyContinuous(zound, "change modifier parameter", () => { mod.p[pk] = v; chain.Touch(); }),
                     v => Modify(zound, "change modifier parameter", () => { mod.p[pk] = v; chain.Touch(); }));
+                rowNote = null; rowNoteTip = null;
             }
             EndParamRows();
             if (mod.type == ZoundModifierType.Envelope || mod.type == ZoundModifierType.Lfo) {
@@ -679,16 +739,116 @@ namespace Laubrary.Zounds {
 
                 var rect = GUILayoutUtility.GetRect(200f, 56f, GUILayout.ExpandWidth(true));
                 rect.xMin += GripW + 6f;
-                GUI.Label(rect, new GUIContent("", curveTip));
                 var evt = Event.current;
+                if (evt.type == EventType.Repaint) {
+                    EnsureModulationMeasured(zound, chain);
+                    DrawCurveBackdrop(rect, m, mod, isLfoRamp);
+                }
+                GUI.Label(rect, new GUIContent("", curveTip + (isLfoRamp
+                    ? " Behind the curve, faintly: what the oscillator actually puts out across the play, measured from the engine — the curve is the ceiling that wobble can reach."
+                    : "") + " While the sound plays, an upright line marks the moment being heard."));
                 if (evt.type == EventType.MouseDown && rect.Contains(evt.mousePosition) && !dragUndoOpen) { dragUndoOpen = true; ZoundsWindow.BeginDragUndo("edit modifier curve"); }
                 if (gui.Draw(rect, mod.curve, color, 1.5f, true, true)) {
                     chain.Touch();
                     ZoundDspPlayback.InvalidateLayout(zound);
                     EditorUtility.SetDirty(ZoundsProject.Instance);
                 }
+                if (evt.type == EventType.Repaint) DrawCurvePlayhead(zound, rect, mod, isLfoRamp);
             }
             if (mod.type == ZoundModifierType.Step) DrawSteps(zound, chain, mod);
+        }
+
+        // A short warning drawn beside the next parameter row, with its explanation on hover. Set just before that row is
+        // drawn and cleared straight after, so it can never end up beside the wrong control.
+        private string rowNote, rowNoteTip;
+
+        /// <summary>
+        /// Warns, beside an oscillator's rate, when one cycle takes longer than a play of the sound.
+        ///
+        /// This is the answer to "I chose a sine and it looks like a ramp". At a tenth of a hertz one cycle takes ten
+        /// seconds; a sound that plays for under a second hears a sliver of it — which IS a ramp, and is exactly what the
+        /// listener gets. Nothing about the oscillator is wrong, so nothing should silently change; but the reason is
+        /// invisible from the settings alone, so it is said here, where the rate is set.
+        /// </summary>
+        private void SetSlowRateNote(Zound zound, ZoundEffectChain chain, ZoundModifier mod) {
+            EnsureModulationMeasured(zound, chain);
+            float play = modulation.playSeconds;
+            float rate = mod.p[1];
+            if (play <= 0f || rate <= 0f) return;
+            float cycles = rate * play;
+            if (cycles >= 1f) return;
+            bool freeRunning = mod.p.Length > 3 && mod.p[3] < 0.5f;
+            rowNote = "⚠ " + Mathf.Max(1, Mathf.RoundToInt(cycles * 100f)) + "% of a cycle per play";
+            rowNoteTip = "One cycle at this rate takes " + (1f / rate).ToString("0.0") + " s, but a play of this sound lasts "
+                       + play.ToString("0.00") + " s, so each play hears only " + Mathf.RoundToInt(cycles * 100f)
+                       + "% of one cycle. That sounds like a slow sweep, not a wobble, whatever the shape."
+                       + (freeRunning ? " With Reset phase off, each play also starts wherever the oscillator has got to, so every play hears a different part of the cycle." : "")
+                       + " For at least one full cycle per play, set the rate above " + (1f / play).ToString("0.0#") + " Hz.";
+        }
+
+        /// <summary>
+        /// A readable ground for a curve over the play: a dark field, quarter lines across and along, and the ends labelled.
+        ///
+        /// The curve used to be drawn straight onto the window's own background, a thin line with nothing around it — so
+        /// there was no telling where "none" and "full" were, or where along the play a point sat. For an oscillator's
+        /// strength curve it also draws what the oscillator actually puts out across the play, rectified and faint: the
+        /// curve then reads as what it is, the ceiling that wobble is allowed to reach, instead of as a mysterious second
+        /// wave. Measured from the engine, not re-derived here, so it cannot disagree with what is heard.
+        /// </summary>
+        private void DrawCurveBackdrop(Rect rect, int modifierIndex, ZoundModifier mod, bool isLfoRamp) {
+            EditorGUI.DrawRect(rect, new Color(0.10f, 0.10f, 0.12f));
+            var grid = new Color(1f, 1f, 1f, 0.06f);
+            for (int q = 1; q < 4; q++) {
+                EditorGUI.DrawRect(new Rect(rect.x, rect.y + rect.height * q / 4f, rect.width, 1f), grid);
+                EditorGUI.DrawRect(new Rect(rect.x + rect.width * q / 4f, rect.y, 1f, rect.height), grid);
+            }
+            EditorGUI.DrawRect(new Rect(rect.x, rect.yMax - 1f, rect.width, 1f), new Color(1f, 1f, 1f, 0.12f));
+
+            var outputs = modulation.modifierOutput;
+            if (isLfoRamp && outputs != null && modifierIndex < outputs.Length && outputs[modifierIndex] != null && outputs[modifierIndex].Length > 1) {
+                var v = outputs[modifierIndex];
+                float amount = Mathf.Abs(mod.p[0]);
+                float offset = mod.p.Length > 6 ? mod.p[6] : 0f;
+                if (amount > 1e-6f) {
+                    // One column per real screen pixel, so the columns neither overlap nor leave gaps on a dense display.
+                    float px = 1f / Mathf.Max(1f, EditorGUIUtility.pixelsPerPoint);
+                    int cols = Mathf.Max(1, Mathf.FloorToInt(rect.width / px));
+                    for (int c = 0; c < cols; c++) {
+                        float idx = (c + 0.5f) / cols * (v.Length - 1);
+                        int i = Mathf.FloorToInt(idx);
+                        float s = i >= v.Length - 1 ? v[v.Length - 1] : Mathf.Lerp(v[i], v[i + 1], idx - i);
+                        float h = Mathf.Clamp01(Mathf.Abs(s - offset) / amount) * rect.height;
+                        EditorGUI.DrawRect(new Rect(rect.x + c * px, rect.yMax - h, px, h), new Color(0.6f, 0.75f, 1f, 0.16f));
+                    }
+                }
+            }
+
+            var style = new GUIStyle(EditorStyles.miniLabel) { alignment = TextAnchor.UpperLeft, fontSize = 9 };
+            style.normal.textColor = new Color(0.62f, 0.62f, 0.68f);
+            GUI.Label(new Rect(rect.x + 9f, rect.y, 60f, 12f), isLfoRamp ? "full" : "top", style);
+            GUI.Label(new Rect(rect.x + 9f, rect.yMax - 13f, 60f, 12f), isLfoRamp ? "none" : "bottom", style);
+            if (modulation.playSeconds > 0f) {
+                var right = new GUIStyle(style) { alignment = TextAnchor.UpperRight };
+                GUI.Label(new Rect(rect.xMax - 62f, rect.yMax - 13f, 60f, 12f), modulation.playSeconds.ToString("0.00") + " s", right);
+            }
+        }
+
+        /// <summary>
+        /// The moment of the play being heard, while the sound plays: an upright line across the curve and a dot where it
+        /// crosses it. Uses the same time the engine uses for this curve — the play's length for an oscillator's strength,
+        /// the play plus the envelope's extra time for an envelope — so the dot is on the value actually being applied.
+        /// </summary>
+        private static void DrawCurvePlayhead(Zound zound, Rect rect, ZoundModifier mod, bool isLfoRamp) {
+            if (!Dsp.SapVoiceRegistry.TryReadPlayPosition(zound, out float elapsed, out float duration) || duration <= 0f) return;
+            float extra = !isLfoRamp && mod.p != null && mod.p.Length > 0 ? Mathf.Max(0f, mod.p[0]) : 0f;
+            float frac = Mathf.Clamp01(elapsed / (duration + extra));
+            float x = rect.x + frac * rect.width;
+            EditorGUI.DrawRect(new Rect(x - 0.5f, rect.y, 1.5f, rect.height), new Color(1f, 1f, 1f, 0.9f));
+            if (mod.curve != null) {
+                float y01 = Mathf.InverseLerp(0f, 1f, mod.curve.Evaluate(frac));
+                float y = rect.yMax - y01 * rect.height;
+                EditorGUI.DrawRect(new Rect(x - 3f, y - 3f, 6f, 6f), new Color(1f, 0.85f, 0.35f));
+            }
         }
 
         private void DrawSteps(Zound zound, ZoundEffectChain chain, ZoundModifier mod) {

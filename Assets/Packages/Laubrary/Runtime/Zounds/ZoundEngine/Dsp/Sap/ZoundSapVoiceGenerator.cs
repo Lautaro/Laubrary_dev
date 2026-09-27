@@ -120,6 +120,34 @@ namespace Laubrary.Zounds.Dsp {
         /// </summary>
         public ChainLayout playingLayout => layout;
 
+        /// <summary>
+        /// When the current play was handed to the audio graph, on the editor's real-time clock.
+        ///
+        /// **Why a timestamp and not the voice's own sample counter.** The voice does count the samples it has rendered,
+        /// but that counter is a plain field of a structure the graph took a COPY of, so the copy this component kept never
+        /// sees it move. The native arrays are different — a copy of one is a handle onto the same memory — which is why
+        /// live parameter values can be read back and this cannot. A clock started at the same moment is accurate to within
+        /// an audio block, which is all a playhead drawn on screen needs.
+        /// </summary>
+        public double playStartedAt { get; private set; }
+
+        /// <summary>The length of the current play, in seconds, as the engine was told it (source length under pitch).</summary>
+        public float playDuration => sourceDuration;
+
+        /// <summary>
+        /// The value one modifier produced on its most recent evaluation, read from the voice the graph is playing. Same
+        /// shared-memory reasoning, and the same caveat, as <see cref="TryReadLiveParam"/>: for a display only.
+        /// </summary>
+        public bool TryReadLiveModifier(int modifierIndex, out float value) {
+            value = 0f;
+            if (!created || modifierIndex < 0) return false;
+            var m = voice.sap.modValue;
+            if (!m.IsCreated || modifierIndex >= m.Length) return false;
+            if (!IsPlaying) return false;
+            value = m[modifierIndex];
+            return true;
+        }
+
         public bool isFinite => false;
         public bool isRealtime => false;
         public DiscreteTime? length => null;
@@ -172,6 +200,7 @@ namespace Laubrary.Zounds.Dsp {
             handedOff = true;
             instance = context.AllocateGenerator(voice, new Control { declaredSampleRate = preparedSampleRate });
             hasInstance = true;
+            playStartedAt = Time.realtimeSinceStartupAsDouble;
             SapVoiceRegistry.Register(this);
             return instance;
         }
