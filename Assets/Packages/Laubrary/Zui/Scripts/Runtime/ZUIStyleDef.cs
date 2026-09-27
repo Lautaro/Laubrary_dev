@@ -1461,7 +1461,16 @@ public class ZUIButtonDef : ISerializationCallbackReceiver
     static void SetState(GUIStyleState state, Texture2D tex, Color textColor)
     {
         state.background        = tex;
+#if UNITY_EDITOR
+        // Editor only, because this member does not exist in a player build and its absence was the single
+        // remaining thing stopping this project from building one at all.
+        //
+        // Nothing is lost by leaving it out at runtime. It holds higher-resolution variants of the background for
+        // high-density displays, and it is being handed exactly one texture -- the same one just assigned as the
+        // background on the line above -- so there is no extra detail in it to lose. In the editor the assignment
+        // is kept, so editor rendering is unchanged.
         state.scaledBackgrounds = new Texture2D[] { tex };
+#endif
         state.textColor         = textColor;
     }
 }
