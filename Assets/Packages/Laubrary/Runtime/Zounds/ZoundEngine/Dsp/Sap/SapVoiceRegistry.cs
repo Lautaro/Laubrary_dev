@@ -321,8 +321,31 @@ namespace Laubrary.Zounds.Dsp {
                 if (newest == null || g.playStartedAt > newest.playStartedAt) newest = g;
             }
             if (newest == null) return false;
-            elapsedSeconds = (float)(UnityEngine.Time.realtimeSinceStartupAsDouble - newest.playStartedAt);
+            // The play's own clock (frames the engine has rendered) when there is one; the wall clock since the play was
+            // handed over only as a fallback. They differ by however long the audio took to start, and by up to a block.
+            elapsedSeconds = newest.TryReadRenderedSeconds(out double rendered)
+                ? (float)rendered
+                : (float)(UnityEngine.Time.realtimeSinceStartupAsDouble - newest.playStartedAt);
             durationSeconds = newest.playDuration;
+            return true;
+        }
+
+        /// <summary>
+        /// When the newest play of <paramref name="zound"/> was started, on the real-time clock — the moment its modifiers
+        /// joined their running clocks. False when nothing is playing it.
+        /// </summary>
+        public static bool TryReadPlayStart(Zound zound, out double startedAt) {
+            startedAt = 0d;
+            if (zound == null) return false;
+            ZoundSapVoiceGenerator newest = null;
+            for (int i = live.Count - 1; i >= 0; i--) {
+                var g = live[i];
+                if (g == null) continue;
+                if (!ReferenceEquals(g.playingZound, zound) || !g.IsPlaying) continue;
+                if (newest == null || g.playStartedAt > newest.playStartedAt) newest = g;
+            }
+            if (newest == null) return false;
+            startedAt = newest.playStartedAt;
             return true;
         }
 

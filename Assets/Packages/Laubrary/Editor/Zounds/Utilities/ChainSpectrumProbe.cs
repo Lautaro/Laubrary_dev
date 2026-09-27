@@ -55,8 +55,13 @@ namespace Laubrary.Zounds.EditorTools {
             public int windows;
             /// <summary>The moment within the play each reading describes: the middle of the stretch it was taken over.</summary>
             public float[] readingSeconds;
-            /// <summary>How long the measured play is. Readings and lanes both run along this.</summary>
+            /// <summary>How long the measured play's SOURCE lasts: what "over the play" means to envelopes and strength curves.</summary>
             public float playSeconds;
+            /// <summary>
+            /// How long the lanes run: the source, plus the tail the chain rings for after it (a reverb, a delay), during which
+            /// the engine keeps moving every modulated parameter. Equal to <see cref="playSeconds"/> when no tail was measured.
+            /// </summary>
+            public float totalSeconds;
             /// <summary>True when the play was longer than is worth measuring and only its start was measured.</summary>
             public bool truncated;
             /// <summary>True when the chain turned out to do nothing measurable at all.</summary>
@@ -237,14 +242,25 @@ namespace Laubrary.Zounds.EditorTools {
         /// parameter does, across one play. A few milliseconds, so it can run for a modifier's own editor whether or not
         /// the analyser is open.
         /// </summary>
-        public static Measurement MeasureModulation(ZoundEffectChain chain, float playSeconds) {
+        /// <param name="startsNowAs">
+        /// When given, the play is started exactly as a real play of that sound would start RIGHT NOW: every modifier that
+        /// keeps running between plays (an oscillator set to Always, a timed step list with Retrigger off) joins its own
+        /// clock where it has got to, and a per-play step list takes its next step. Pass a stand-in carrying the real
+        /// sound's name — the name is what the clocks are keyed on — so the real sound's own remembered state is never
+        /// touched. Without it the play is a fixed reference: every oscillator starts at the top of its cycle.
+        /// </param>
+        /// <param name="triggeredAt">For re-creating a play that has already started: when it started, on the engine's
+        /// real-time clock, so running clocks are joined where that play joined them rather than where they are now.</param>
+        public static Measurement MeasureModulation(ZoundEffectChain chain, float playSeconds, Zound startsNowAs = null,
+                                                    double? triggeredAt = null) {
             var result = new Measurement();
             if (chain == null || chain.IsEmpty) return result;
             var measured = chain.DeepCopy();
-            foreach (var m in measured.modifiers) if (m.type == ZoundModifierType.Lfo && m.p != null && m.p.Length > 3) m.p[3] = 1f;
+            if (startsNowAs == null)
+                foreach (var m in measured.modifiers) if (m.type == ZoundModifierType.Lfo && m.p != null && m.p.Length > 3) m.p[3] = 1f;
             result.truncated = playSeconds > MaxSeconds;
             result.playSeconds = Math.Min(Math.Max(playSeconds, 0.05f), MaxSeconds);
-            MeasureLanes(measured, result.playSeconds, ref result);
+            MeasureLanes(measured, result.playSeconds, ref result, startsNowAs, triggeredAt);
             return result;
         }
 
@@ -365,7 +381,7 @@ namespace Laubrary.Zounds.EditorTools {
         /// listener gets is what is drawn, including where a modulator's swing is pinned against the end of a parameter's
         /// range, which no amount of looking at the modulator's own settings would reveal.
         /// </summary>
-        static void MeasureLanes(ZoundEffectChain chain, float play, ref Measurement result) {
+        static void MeasureLanes(ZoundEffectChain chain, float play, ref Measurement result, Zound startsNowAs = null, double? triggeredAt = null) {
             // Rendered in steps of exactly the engine's own control step, so every value the engine applies is seen.
             // Reading once per larger block and joining the dots with straight lines draws a shape the engine never
             // produces — at ten cycles a second, a polygon of five corners where the engine applies a clean sine. That
@@ -385,7 +401,11 @@ namespace Laubrary.Zounds.EditorTools {
             // every modifier and moves every parameter exactly as it would — checked, the lanes came out value-for-value
             // identical with the effects on and off.
             chain = chain.DeepCopy();
-            foreach (var n in chain.nodes) n.enabled = false;
+            // A play that joins clocks (startsNowAs) keeps its effects ON: it has to live exactly as long as a real play
+            // does, ringing on through a reverb's or delay's tail after its source ends — and the engine keeps moving every
+            // modulated parameter through that tail. With the effects off it would stop dead at the end of its source, and
+            // the analyser's lane was then shorter than the sound being heard (T-0443).
+            if (startsNowAs == null) foreach (var n in chain.nodes) n.enabled = false;
             var layout = ChainLayout.Build(chain, SAMPLE_RATE);
             var lanes = new List<Lane>();
             var flats = new List<int>();
@@ -416,19 +436,51 @@ namespace Laubrary.Zounds.EditorTools {
             var outputs = new List<float>[chain.modifiers.Count];
             for (int m = 0; m < outputs.Length; m++) outputs[m] = new List<float>(frames / block + 2);
 
-            var final = ZoundDspOffline.Render(input, 2, SAMPLE_RATE, SAMPLE_RATE, chain, 1f, 1f, (float)frames / SAMPLE_RATE,
-                                               0f, 0f, block, false, (voice, written) => {
-                if (written == 0) return;
-                var live = voice.pLive;
-                var mods = voice.modValues;
-                for (int m = 0; m < outputs.Length; m++) outputs[m].Add(m < mods.Length ? mods[m] : 0f);
-                for (int l = 0; l < lanes.Count; l++)
-                    values[l].Add(flats[l] < live.Length ? Position01(descs[l], live[flats[l]]) : lanes[l].authored01);
-            });
-            if (final == null) { result.lanes = new Lane[0]; return; }
+            if (startsNowAs != null) {
+                // Started the way a real play starts, through the same setup the playing voice gets, so clocks are joined.
+                // Its working memory is sized from the layout, as playback does (T-0442: a fixed small size overran as
+                // soon as the chain held a reverb).
+                // A steady signal for the source's length, so the chain has something to ring with after it ends.
+                var feed = new float[frames];
+                // At full level, so its tail rings as long as a real sound's does before the engine hears it as silence.
+                for (int i = 0; i < feed.Length; i++) feed[i] = (i & 1) == 0 ? 0.9f : -0.9f;
+                var silence = new PcmClip { channels = 1, frequency = SAMPLE_RATE, frames = frames, samples = feed, valid = true, peak = 0.9f };
+                SapRealtimeVoice voice;
+                ZoundTriggerClock.overrideTime = triggeredAt;
+                try {
+                    voice = SapRealtimeVoice.Create(silence, layout, SAMPLE_RATE, 0d, silence.frames, 1f, 1f, play, false, 7,
+                                                    layout.heavy, Unity.Collections.Allocator.Persistent, startsNowAs);
+                }
+                finally { ZoundTriggerClock.overrideTime = null; }
+                try {
+                    int blocks = (int)(MaxSeconds * SAMPLE_RATE) / block;
+                    for (int b = 0; b < blocks && !voice.finished; b++) {
+                        voice.RenderBlock(block);
+                        var live = voice.sap.pLive;
+                        var mods = voice.sap.modValue;
+                        for (int m = 0; m < outputs.Length; m++) outputs[m].Add(m < mods.Length ? mods[m] : 0f);
+                        for (int l = 0; l < lanes.Count; l++)
+                            values[l].Add(flats[l] < live.Length ? Position01(descs[l], live[flats[l]]) : lanes[l].authored01);
+                    }
+                }
+                finally { voice.Dispose(); }
+            }
+            else {
+                var final = ZoundDspOffline.Render(input, 2, SAMPLE_RATE, SAMPLE_RATE, chain, 1f, 1f, (float)frames / SAMPLE_RATE,
+                                                   0f, 0f, block, false, (voice, written) => {
+                    if (written == 0) return;
+                    var live = voice.pLive;
+                    var mods = voice.modValues;
+                    for (int m = 0; m < outputs.Length; m++) outputs[m].Add(m < mods.Length ? mods[m] : 0f);
+                    for (int l = 0; l < lanes.Count; l++)
+                        values[l].Add(flats[l] < live.Length ? Position01(descs[l], live[flats[l]]) : lanes[l].authored01);
+                });
+                if (final == null) { result.lanes = new Lane[0]; return; }
+            }
 
             var arr = lanes.ToArray();
             for (int l = 0; l < arr.Length; l++) arr[l].position01 = values[l].ToArray();
+            result.totalSeconds = Math.Max(play, (values.Length > 0 ? values[0].Count : outputs.Length > 0 ? outputs[0].Count : 0) * (float)block / SAMPLE_RATE);
             result.lanes = arr;
             result.modifierOutput = new float[outputs.Length][];
             for (int m = 0; m < outputs.Length; m++) result.modifierOutput[m] = outputs[m].ToArray();

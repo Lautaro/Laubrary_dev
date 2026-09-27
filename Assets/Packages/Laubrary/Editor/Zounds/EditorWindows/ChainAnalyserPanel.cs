@@ -36,7 +36,13 @@ namespace Laubrary.Zounds.EditorTools {
         Zound drawnZound;
 
         // ── the live picture: what the chain does at this instant (T-0434) ──
-        readonly ChainDisplayVoice display = new ChainDisplayVoice();
+        // The one play every display reads from while nothing is playing: re-taken at the start of every loop, and the
+        // moment a real play starts, so running clocks are joined afresh each time (T-0443).
+        Zound standIn;
+        int loopIndex = -1;
+        double lastPlayStart = double.MinValue;
+        ZoundEffectChain seriesChain;
+        float nominalPlay;
         readonly System.Collections.Generic.Dictionary<long, ChainSpectrumProbe.Snapshot> snapshots =
             new System.Collections.Generic.Dictionary<long, ChainSpectrumProbe.Snapshot>();
         ChainSpectrumProbe.Snapshot shown;
@@ -45,8 +51,8 @@ namespace Laubrary.Zounds.EditorTools {
         float lastLoopTime = -1f;
         int snapshotsTaken;
 
-        /// <summary>Releases the display voice's native memory. The host calls this when its window closes.</summary>
-        public void Dispose() { display.Dispose(); }
+        /// <summary>Kept for the hosts that call it on close. The panel no longer holds anything native between redraws.</summary>
+        public void Dispose() { }
 
         /// <summary>
         /// Used when a sound's length cannot be worked out (its source is not loaded). Only then — every sound that can
@@ -54,9 +60,6 @@ namespace Laubrary.Zounds.EditorTools {
         /// </summary>
         const float FallbackPlaySeconds = 1.5f;
 
-        /// <summary>A short rest at the end of each loop while nothing is playing, so the loop's seam is visible as a pause
-        /// rather than reading as part of what the chain does.</summary>
-        const float LoopRestSeconds = 0.4f;
 
         /// <summary>
         /// The vertical scale, worked out from the measurement itself rather than set by hand.
@@ -220,7 +223,8 @@ namespace Laubrary.Zounds.EditorTools {
 
             // Which moment the bars are showing, and where it comes from.
             string time = shown.db == null ? null
-                : playTime.ToString("0.00") + " s of " + measurement.playSeconds.ToString("0.00") + " s"
+                : playTime.ToString("0.00") + " s of " + Mathf.Max(measurement.totalSeconds, measurement.playSeconds).ToString("0.00") + " s"
+                  + (measurement.totalSeconds > measurement.playSeconds + 0.01f ? " (source " + measurement.playSeconds.ToString("0.00") + " s, then its tail)" : "")
                   + (measurement.truncated ? " (the first " + ChainSpectrumProbe.MaxSeconds.ToString("0") + " s)" : "")
                   + (following ? "  ·  live, from the sound playing now" : "  ·  live, from a silent run of this chain's modifiers; press play to follow the real sound");
             StatusLine(time, time == null ? null
@@ -237,21 +241,59 @@ namespace Laubrary.Zounds.EditorTools {
         }
 
         /// <summary>
-        /// Which moment of the play to show. While the sound is playing, the moment it has actually reached — so what is
-        /// drawn is what is being heard right now. Otherwise the play is looped at real speed, with a short rest at the end.
+        /// Which moment of the play to show, keeping the series every display reads from in step with it.
+        ///
+        /// While the sound is playing: the moment it has reached. Otherwise the play is looped back to back at real speed —
+        /// with no rest between loops (a first version paused at the end of each loop, which the owner rightly read as the
+        /// plot stalling), and a fresh series at the start of every loop, because a real play started then would join the
+        /// running clocks at a new place (T-0443).
         /// </summary>
         float PlayTime(Zound zound, out bool following) {
             following = false;
-            float len = measurement.playSeconds > 0f ? measurement.playSeconds : FallbackPlaySeconds;
+            double now = EditorApplication.timeSinceStartup;
             if (Dsp.SapVoiceRegistry.TryReadPlayPosition(zound, out float elapsed, out float duration) && duration > 0f) {
                 following = true;
-                // By fraction of the play, so a play that was pitched up or down still lines up start to end.
-                float t = measurement.truncated ? elapsed : elapsed / duration * len;
-                return Mathf.Clamp(t, 0f, len);
+                // A new real play: take the series now, as that play started, and for THAT play's length — a play pitched
+                // up or down lasts a different time, while timed modifiers run in real seconds, so reading a nominal-length
+                // series by fraction would put the line out of step with what is heard.
+                // Joined at the moment the real play was started, when its modifiers joined their clocks — not when this
+                // panel happened to notice it, nor when its audio began (they differ by the audio's start-up delay).
+                if (Dsp.SapVoiceRegistry.TryReadPlayStart(zound, out double started) && System.Math.Abs(started - lastPlayStart) > 0.001) {
+                    lastPlayStart = started;
+                    RetakeSeries(zound, duration, started);
+                    loopIndex = -1;
+                }
+                float life = measurement.totalSeconds > 0f ? measurement.totalSeconds : duration;
+                return Mathf.Clamp(elapsed, 0f, life);
             }
-            double period = len + LoopRestSeconds;
-            float loop = (float)((EditorApplication.timeSinceStartup - measuredAt) % period);
-            return Mathf.Min(loop, len);
+            // Looped for the play's whole life, source plus tail — the time a real play takes before the next one would.
+            float len = measurement.totalSeconds > 0f ? measurement.totalSeconds : nominalPlay > 0f ? nominalPlay : FallbackPlaySeconds;
+            double since = now - measuredAt;
+            int loop = (int)System.Math.Floor(since / len);
+            if (loop != loopIndex) {
+                if (loopIndex >= 0 || !Mathf.Approximately(measurement.playSeconds, Mathf.Min(nominalPlay, ChainSpectrumProbe.MaxSeconds)))
+                    RetakeSeries(zound, nominalPlay);
+                loopIndex = loop;
+            }
+            return (float)(since - loop * len);
+        }
+
+        /// <summary>
+        /// Takes the one series every display of this panel reads: this chain's modifiers, run by the engine for one whole
+        /// play started NOW, joining their clocks as a real play would — as a stand-in carrying the sound's name, so the
+        /// real sound's own remembered state (a per-play step list's position) is never advanced by the analyser. The
+        /// earlier live view ran as the real sound and did advance it, once per loop.
+        /// </summary>
+        void RetakeSeries(Zound zound, float seconds, double? triggeredAt = null) {
+            if (seriesChain == null || seriesChain.IsEmpty) return;
+            var fresh = ChainSpectrumProbe.MeasureModulation(seriesChain, seconds, StandIn(zound), triggeredAt);
+            if (fresh.lanes != null) measurement = fresh;
+        }
+
+        Zound StandIn(Zound zound) {
+            if (zound == null) return null;
+            if (standIn == null || standIn.name != zound.name) standIn = new Klip(-424242) { name = zound.name };
+            return standIn;
         }
 
         static int CountModulatedParams(ZoundEffectChain chain) {
@@ -293,7 +335,8 @@ namespace Laubrary.Zounds.EditorTools {
         void DrawLanes(Zound zound, int rows, float playTime, bool following) {
             if (rows <= 0) return;
             var lanes = measurement.lanes;
-            float len = measurement.playSeconds > 0f ? measurement.playSeconds : FallbackPlaySeconds;
+            float len = measurement.totalSeconds > 0f ? measurement.totalSeconds : measurement.playSeconds > 0f ? measurement.playSeconds : FallbackPlaySeconds;
+            float sourceEnds = measurement.playSeconds;
             var labelStyle = new GUIStyle(EditorStyles.miniLabel) { wordWrap = false, clipping = TextClipping.Ellipsis };
             for (int r = 0; r < rows; r++) {
                 var row = GUILayoutUtility.GetRect(10f, LaneH, GUILayout.ExpandWidth(true));
@@ -302,7 +345,7 @@ namespace Laubrary.Zounds.EditorTools {
                 bool have = lanes != null && r < lanes.Length && lanes[r].position01 != null && lanes[r].position01.Length > 0;
                 string label = have ? lanes[r].label : "";
                 GUI.Label(labelRect, new GUIContent(label, have
-                    ? label + ", across one play from start (left) to end (right). The line is where the engine actually puts it, as a position along its slider; the faint level is where you set it; the upright line is the moment shown in the bars below."
+                    ? label + ", across one play from start (left) to end (right), including the tail the chain rings on for after its source ends (the faint upright mark is where the source ends). The line is where the engine actually puts it, as a position along its slider; the faint level is where you set it; the upright line is the moment shown in the bars below."
                       + (following ? " The dot is its value in the playing sound right now; the bars below show the chain at exactly that value." : " The dot is its value right now in a silent run of the modifiers (press play to follow the real sound); the bars below show the chain at exactly that value.")
                       + (RunsAlways(lanes[r].modifierIndex)
                           ? " Its modifier keeps running between plays (an oscillator set to Always, or a timed step list with Retrigger off), so a real play picks it up wherever it has got to; this line shows a play that happened to start at the beginning, and the dot shows where a real one is."
@@ -314,6 +357,12 @@ namespace Laubrary.Zounds.EditorTools {
                 if (!have) continue;
                 var lane = lanes[r];
                 float yOf(float p) => g.yMax - 1f - p * (g.height - 2f);
+
+                // Where the source ends and the chain's tail rings on — the engine keeps moving the parameter through it.
+                if (sourceEnds > 0f && sourceEnds < len - 0.01f) {
+                    float xs = g.x + sourceEnds / len * g.width;
+                    EditorGUI.DrawRect(new Rect(xs, g.y, 1f, g.height), new Color(1f, 1f, 1f, 0.18f));
+                }
 
                 // Where it was set.
                 float ya = yOf(lane.authored01);
@@ -329,7 +378,8 @@ namespace Laubrary.Zounds.EditorTools {
                 float prevY = yOf(vals[0]);
                 for (int c = 0; c < cols; c++) {
                     float t = (c + 0.5f) / cols * len;
-                    float p = SampleLane(vals, t / step);
+                    // Value i describes the end of engine step i, i.e. time (i + 1) x step; the dot reads it the same way.
+                    float p = SampleLane(vals, t / step - 1f);
                     float y = yOf(p);
                     float x = g.x + c * px;
                     float top = Mathf.Min(y, ya), bot = Mathf.Max(y, ya);
@@ -402,10 +452,13 @@ namespace Laubrary.Zounds.EditorTools {
             snapshots.Clear();
             seenMin = seenMax = null;
             lastLoopTime = -1f;
-            display.Dispose();
-            if (chain == null || chain.IsEmpty) { measurement = default; shown = default; dbRange = 12f; return; }
+            if (chain == null || chain.IsEmpty) { measurement = default; shown = default; dbRange = 12f; seriesChain = null; return; }
             if (!Dsp.ZoundSapPlayback.TryGetPlayLength(zound, out float play)) play = FallbackPlaySeconds;
-            measurement = ChainSpectrumProbe.MeasureModulation(chain, play);
+            seriesChain = chain;
+            nominalPlay = play;
+            measurement = ChainSpectrumProbe.MeasureModulation(chain, play, StandIn(zound));
+            loopIndex = -1;
+            lastPlayStart = double.MinValue;
         }
 
         /// <summary>
@@ -438,7 +491,6 @@ namespace Laubrary.Zounds.EditorTools {
             try { UpdateLive(zound, chain, playTime, following, wantPicture); }
             catch (System.Exception e) {
                 liveFailedVersion = version;
-                display.Dispose();
                 Debug.LogWarning("[Zounds] The analyser's live picture failed and is paused until this chain is edited. " + e);
             }
         }
@@ -450,21 +502,24 @@ namespace Laubrary.Zounds.EditorTools {
             var values = new float[n];
             var have = new bool[n];
 
-            if (!following && n > 0) {
-                // Restart the silent run at the start of each loop, so per-play modifiers restart as a real play would and
-                // running clocks are joined afresh.
-                if (!display.isRunning || playTime < lastLoopTime) display.Start(chain, measurement.playSeconds, zound);
-                display.AdvanceTo(playTime);
-            }
             lastLoopTime = playTime;
+            float step = measurement.laneStepSeconds > 0f ? measurement.laneStepSeconds : 0.01f;
 
             for (int i = 0; i < n; i++) {
                 var lane = lanes[i];
-                bool ok = following
-                    ? Dsp.ZoundDspPlayback.TryReadLiveParam(zound, lane.nodeIndex, lane.paramIndex, out values[i])
-                    : display.TryGetParam(lane.nodeIndex, lane.paramIndex, out values[i]);
+                bool ok;
+                if (following) {
+                    ok = Dsp.ZoundDspPlayback.TryReadLiveParam(zound, lane.nodeIndex, lane.paramIndex, out values[i]);
+                    nowPositions[i] = ok ? PositionOf(chain, lane, values[i]) : -1f;
+                }
+                else {
+                    // Read off the very series the line is drawn from, at the very moment the line's playhead marks — so the
+                    // dot sits on the line and the bars show the chain at exactly that point of it.
+                    ok = lane.position01 != null && lane.position01.Length > 0;
+                    nowPositions[i] = ok ? SampleLane(lane.position01, playTime / step - 1f) : -1f;
+                    values[i] = ok ? ValueAt(chain, lane, nowPositions[i]) : 0f;
+                }
                 have[i] = ok && lane.nodeIndex >= 0;
-                nowPositions[i] = ok ? PositionOf(chain, lane, values[i]) : -1f;
             }
             if (!wantPicture) return;
 
@@ -502,6 +557,15 @@ namespace Laubrary.Zounds.EditorTools {
                 if (snap.db[b] > seenMax[b]) { seenMax[b] = snap.db[b]; grew = true; }
             }
             if (grew) dbRange = Mathf.Max(dbRange, FitScale());
+        }
+
+        /// <summary>The value at a position along a parameter's slider — the inverse of <see cref="PositionOf"/>.</summary>
+        static float ValueAt(ZoundEffectChain chain, ChainSpectrumProbe.Lane lane, float position01) {
+            if (chain == null || lane.nodeIndex < 0 || lane.nodeIndex >= chain.nodes.Count) return 0f;
+            var d = Dsp.ZoundEffectDescriptors.Get(chain.nodes[lane.nodeIndex].type);
+            if (d == null || lane.paramIndex >= d.parameters.Length) return 0f;
+            var pd = d.parameters[lane.paramIndex];
+            return Dsp.ModulationMath.FromPosition(position01, pd.min, pd.max, Dsp.ModulationMath.IsRatioSpaced(pd.curve));
         }
 
         static float PositionOf(ZoundEffectChain chain, ChainSpectrumProbe.Lane lane, float value) {

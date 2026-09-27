@@ -72,6 +72,12 @@ namespace Laubrary.Zounds {
                                                      sourceAlreadyTrimmed);
             if (m_voice != null) {
                 m_chainPath = true;
+                // The voice applies the pitch itself, as it reads the source (basePitch above), so the audio source that
+                // carries it into the mixer must play at one. Left at the play's pitch, it resampled the voice's output a
+                // SECOND time: measured at pitch 0.5, both were 0.5, the sound came out two octaves down instead of one, it
+                // was still sounding at 2.5 s against a declared 1.54 s, and every modifier's timing ran at half speed
+                // (T-0443). Only pitches other than one were affected, which is why it went unnoticed.
+                audioSource.pitch = 1f;
                 // A chain can go on making sound after the source has run out -- a delay still repeating, a reverb
                 // still decaying. The source's own length says nothing about that, so counting only the source would
                 // have this handler declare the sound over and hand its audio source back to the pool while the tail

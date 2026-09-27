@@ -131,6 +131,17 @@ namespace Laubrary.Zounds.Dsp {
         /// </summary>
         public double playStartedAt { get; private set; }
 
+        /// <summary>
+        /// How much of the current play the engine has actually rendered, in seconds — the play's own clock, exact to the
+        /// frame. False when nothing is playing. For displays: it is read without synchronisation.
+        /// </summary>
+        public bool TryReadRenderedSeconds(out double seconds) {
+            seconds = 0d;
+            if (!renderTicket.IsCreated || renderTicket.Length < 2 || !IsPlaying || preparedSampleRate <= 0) return false;
+            seconds = renderTicket[1] / (double)preparedSampleRate;
+            return true;
+        }
+
         /// <summary>The length of the current play, in seconds, as the engine was told it (source length under pitch).</summary>
         public float playDuration => sourceDuration;
 
@@ -357,7 +368,8 @@ namespace Laubrary.Zounds.Dsp {
                 retiredTickets.Add(renderTicket);
                 retiredLastSeen.Add(renderTicket[0]);
             }
-            renderTicket = new NativeArray<long>(1, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+            // [0]: the in-block counter the stopped-for-sure barrier reads. [1]: frames rendered, this play's own clock.
+            renderTicket = new NativeArray<long>(2, Allocator.Persistent, NativeArrayOptions.ClearMemory);
         }
 
         // ───────────────────────── knowing a sound has actually stopped ─────────────────────────

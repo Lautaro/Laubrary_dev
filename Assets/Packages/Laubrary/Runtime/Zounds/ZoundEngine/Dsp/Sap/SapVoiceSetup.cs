@@ -18,6 +18,20 @@ namespace Laubrary.Zounds.Dsp {
     /// Everything here runs on the main thread and may allocate, so it is deliberately NOT part of the
     /// per-block render path. Nothing here is Burst-compiled and nothing here should ever need to be.
     /// </summary>
+    /// <summary>
+    /// The moment a play counts as triggered, for modifiers that join a running clock (an oscillator set to Always, a timed
+    /// step list with Retrigger off). Normally just now.
+    ///
+    /// The one other caller is the editor's analyser, which re-creates a play that has ALREADY started — it only notices a
+    /// play a frame or more after it began — and has to join the clocks where that play joined them, or its picture runs
+    /// ahead of the sound by that much (measured: with 0.6 s steps, the analyser's line and the playing sound disagreed
+    /// until this existed, T-0443). Set only for the duration of that one call, on the main thread, then cleared.
+    /// </summary>
+    public static class ZoundTriggerClock {
+        public static double? overrideTime;
+        public static double Now => overrideTime ?? UnityEngine.Time.realtimeSinceStartupAsDouble;
+    }
+
     internal static class SapVoiceSetup {
 
         /// <summary>
@@ -224,7 +238,7 @@ namespace Laubrary.Zounds.Dsp {
                         bool resetPhase = pc > 3 ? layout.modParamFlat[po + 3] >= 0.5f : true;
                         if (resetPhase) break;
                         float rate = pc > 1 ? layout.modParamFlat[po + 1] : 1f;
-                        double now = UnityEngine.Time.realtimeSinceStartupAsDouble;
+                        double now = ZoundTriggerClock.Now;
                         double phase = (now * rate) % 1.0;
                         if (phase < 0d) phase += 1d;
                         sap.arena[so] = (float)phase;
@@ -256,7 +270,7 @@ namespace Laubrary.Zounds.Dsp {
                         // over would mean reading a finished voice's memory, which may already have been released.
                         if (!perPlay && !resetOnTrigger && so + 7 < sap.arena.Length) {
                             float interval = System.Math.Max(0.0005f, (pc > 1 ? layout.modParamFlat[po + 1] : 250f) * 0.001f);
-                            double now = UnityEngine.Time.realtimeSinceStartupAsDouble;
+                            double now = ZoundTriggerClock.Now;
                             double stepsSoFar = now / interval;
                             double whole = System.Math.Floor(stepsSoFar);
                             int k = Wrap((long)whole);

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — the analyser's lane and bars read one series; pitched chain plays no longer pitched twice
+
+- **One pipeline for the modulation lane, its dot and the live bars.** They came from two separate simulations (a fixed play starting on step 1, and a live run joining the modifiers' clocks), which disagreed in half of measured moments and drifted apart loop by loop. Now the engine runs one play of the modifiers, joining clocks exactly as a real play would, and every display reads that series; it is re-taken at every loop and at the moment a real play starts, seeded at that play's own start time. Measured: 16/16 agreement idle and playing at pitch 1.
+- **The lane covers the sound's whole life,** source plus the tail the chain rings for (the engine keeps modulating through it), with a faint mark where the source ends. The idle loop spans that life, with no pause between loops (the 0.4 s rest is gone).
+- **A playing sound is followed by its own clock:** frames the engine has rendered (a second slot on the per-play render counter), not the wall clock, which was off by the audio start-up delay.
+- The analyser runs as a stand-in with the sound's name, so it no longer advances the real sound's remembered per-play step position (the previous live view did, once per loop). `ChainDisplayVoice` removed.
+- **Fix: a chain-path Klip at a pitch other than 1 was pitched twice** — by the voice reading its source and again by the audio source resampling the output (measured: both 0.5 at pitch 0.5, and modifier timing ran at half speed). The audio source now plays at 1 on the chain path.
+- `ZoundTriggerClock` (runtime): the trigger time modifiers join clocks at; overridable only for re-creating an already-started play.
+
 ### Zounds — the chain editor is laid out wide, not tall
 
 - **Every setting is a self-labelled control** of known width: sliders carry name and value inside the track, toggles show their name on their own face (Ping-pong, S-curve, Retrigger, Start random), choice strips speak through their options with the setting's name on hover, and wave shapes are icons. The separate label column that forced one setting per row is gone.

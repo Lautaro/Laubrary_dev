@@ -270,6 +270,10 @@ namespace Laubrary.Zounds.Dsp {
             WriteTo(buffer, frames, produced);
             if (monitor.IsCreated && produced) CopyToMonitor(frames);
 
+            // The second slot counts frames rendered: this play's own clock, readable from the main thread, which is what
+            // the editor's displays follow a playing sound by. The wall clock is not the same thing — audio starts a moment
+            // after the voice is created and is produced in blocks — and following it put the analyser out of step (T-0443).
+            if (ticketed && renderTicket.Length > 1) renderTicket[1] = renderTicket[1] + frames;
             if (ticketed) renderTicket[0] = renderTicket[0] + 1;   // now even: between blocks
             return buffer.frameCount;
         }
