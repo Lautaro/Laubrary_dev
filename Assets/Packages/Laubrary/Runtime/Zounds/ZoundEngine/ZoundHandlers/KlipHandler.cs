@@ -66,9 +66,10 @@ namespace Laubrary.Zounds {
             baseVolume = audioSource.volume;
 
             // Try the chain first, reading the sound's ORIGINAL audio rather than the rendered file.
-            var sourceClip = Dsp.ZoundSapPlayback.LoadSourceClip(zound);
+            var sourceClip = Dsp.ZoundSapPlayback.LoadSourceClip(zound, out bool sourceAlreadyTrimmed);
             m_voice = Dsp.ZoundSapPlayback.StartVoice(zound, audioSource, sourceClip, basePitch, baseVolume,
-                                                     zound.id, out string reason, out m_chainDuration);
+                                                     zound.id, out string reason, out m_chainDuration,
+                                                     sourceAlreadyTrimmed);
             if (m_voice != null) {
                 m_chainPath = true;
                 // A chain can go on making sound after the source has run out -- a delay still repeating, a reverb

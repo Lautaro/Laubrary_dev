@@ -37,7 +37,8 @@ namespace Laubrary.Zounds.Dsp {
         /// </summary>
         public static ZoundSapVoiceGenerator StartVoice(Zound zound, AudioSource carrier, AudioClip sourceClip,
                                                        float basePitch, float outGain, long tokenId,
-                                                       out string reason, out float duration) {
+                                                       out string reason, out float duration,
+                                                       bool sourceAlreadyTrimmed = false) {
             reason = null;
             duration = 0f;
             if (zound == null || carrier == null) { reason = "no sound or no audio source"; return null; }
@@ -61,7 +62,9 @@ namespace Laubrary.Zounds.Dsp {
             // decides where reading starts and stops.
             double startFrame = 0d;
             double endFrame = pcm.frames;
-            if (zound is Klip klip && klip.trimEnabled) {
+            // Skipped when the audio handed to us is already the trimmed copy: trimming it again would cut a second
+            // time into an already-cut region and lose the end of the sound.
+            if (!sourceAlreadyTrimmed && zound is Klip klip && klip.trimEnabled) {
                 double rate = pcm.frequency;
                 startFrame = Mathf.Clamp(klip.trimStart, 0f, pcm.LengthSeconds) * rate;
                 if (klip.trimEnd > klip.trimStart) endFrame = Mathf.Min(klip.trimEnd, pcm.LengthSeconds) * rate;
@@ -94,12 +97,45 @@ namespace Laubrary.Zounds.Dsp {
         /// applies those edits as it goes, which is what makes the rendered file unnecessary.
         /// </summary>
         public static AudioClip LoadSourceClip(Zound zound) {
+            return LoadSourceClip(zound, out _);
+        }
+
+        /// <summary>
+        /// The audio to play, and whether it has already had the sound's trim applied to it.
+        ///
+        /// **Why there are two candidates and this has to choose.** A sound's original file may live anywhere in the
+        /// project, including somewhere that does not ship. To make such a sound playable in a built game, the editor
+        /// copies it into a folder that does ship — and when the sound is trimmed, it writes the trimmed region rather
+        /// than the whole file, so only the part actually used gets shipped. That shipped copy is not an effects bake
+        /// and never was; it is a packaging step, and it is still wanted.
+        ///
+        /// So: prefer the original, because it is the unmodified truth and lets the trim be applied as the sound plays.
+        /// Fall back to the shipped copy when the original cannot be loaded, which is exactly the case a built game
+        /// hits when the original was never shippable. **Getting this wrong would not be subtle — the sound would
+        /// simply be silent in a build while working perfectly in the editor.**
+        ///
+        /// <paramref name="alreadyTrimmed"/> comes back true for the shipped copy, because the trim is baked into it.
+        /// Trimming it again would cut a second time into an already-cut region and lose the end of the sound.
+        /// </summary>
+        public static AudioClip LoadSourceClip(Zound zound, out bool alreadyTrimmed) {
+            alreadyTrimmed = false;
             if (zound == null) return null;
 #if ADDRESSABLES_INSTALLED
             var klip = zound as Klip;
-            if (klip != null && klip.audioClipRef != null) {
-                var clip = ZoundDictionary.GetOrLoadClip(klip.audioClipRef);
-                if (clip != null) return clip;
+            if (klip == null) return null;
+
+            if (klip.audioClipRef != null) {
+                var original = ZoundDictionary.GetOrLoadClip(klip.audioClipRef);
+                if (original != null) return original;
+            }
+
+            if (klip.outputClipRef != null) {
+                var shipped = ZoundDictionary.GetOrLoadClip(klip.outputClipRef);
+                if (shipped != null) {
+                    // Only a trimmed sound gets a trimmed copy; an untrimmed one is copied whole.
+                    alreadyTrimmed = klip.trimEnabled;
+                    return shipped;
+                }
             }
 #endif
             return null;
