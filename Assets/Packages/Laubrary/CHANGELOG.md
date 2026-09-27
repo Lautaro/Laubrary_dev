@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — while a sound is not playing, the analyser works out nothing that a play fires
+
+- **The owner's rule, now what the idle analyser does:** while nothing plays, modifiers fired by a play (an Envelope, an LFO or Step list set to run per play, a Random value) are not worked out at all; only modifiers that keep running between plays (an LFO set to Always, a timed Step list with Retrigger off) still move a parameter. The previous version switched looping on for the whole chain as soon as one free-running modifier was present, so a chain holding an Envelope and an Always LFO showed the Envelope re-firing on every idle loop. The idle series is now taken from a copy of the chain in which every binding of a play-fired modifier has depth none (exactly the set value, in every mode), so its lane stays in place, flat where it was set.
+- The series a real play leaves behind (which includes what that play fired) is dropped the moment the play ends, instead of looping on.
+- A chain with nothing free-running is simply still at its set values while idle; the one-play preview and pointing at the lane to pick a moment (added the previous round) are gone, since they worked out play-fired modifiers while nothing played. Press play to see what a play does.
+
 ### Zounds — an Envelope under Set spans the whole range; the idle analyser only animates what really runs between plays
 
 - **Set on an Envelope** mapped the envelope's 0..1 as if it were a -1..1 swing, so 0 landed on the middle of the parameter and only the top half was reachable — measured on a cutoff: Set 633 Hz..12.9 kHz against Shift's 195 Hz..11 kHz, which is why the two looked alike. Now 0 is the bottom and 1 the top (`ModulationCombine.SetFromZero`, chosen at layout from the modifier type; stored bindings unchanged): Set 20 Hz..8.3 kHz, following the envelope's own shape.
-- **The idle analyser no longer loops one-shot modifiers.** An Envelope fires once per play and then holds. When nothing in the chain runs between plays, the idle view shows one play's shape, still, with the bars at the moment pointed at on the lane (the start otherwise). Only when something genuinely keeps running between plays (an LFO set to Always, a timed Step list with Retrigger off) are plays shown back to back, and the status line says each loop is a new play.
+- **The idle analyser no longer loops one-shot modifiers** when nothing in the chain runs between plays. (Superseded by the entry above: that version still re-fired them in every loop when some other modifier did run between plays.)
 
 ### Zounds — the analyser's lane and bars read one series; pitched chain plays no longer pitched twice
 
