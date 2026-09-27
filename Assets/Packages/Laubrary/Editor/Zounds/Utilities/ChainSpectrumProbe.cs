@@ -56,8 +56,34 @@ namespace Laubrary.Zounds.EditorTools {
         // The cost is time resolution: 85 ms cannot resolve a modulation faster than a few cycles per second. That is an
         // acceptable trade here, since the modulators worth watching move at a few hertz, and the alternative was a low end
         // that lied.
-        const int WINDOW = 4096;
+        const int WINDOW = 16384;
         const int SAMPLE_RATE = 48000;
+
+        /// <summary>
+        /// The length of the pattern the test signal repeats, and also how far the analysis window moves between readings.
+        ///
+        /// **These two being the same number is what keeps the reading steady, and getting it wrong cost a regression.**
+        /// The window is longer than the repeat — it holds two of them — which is what buys the fine frequency detail. The
+        /// obvious next step is to slide that long window in small steps to also get frequent readings, and the argument
+        /// for it sounds airtight: a window taken part way along holds the same material merely started at a different
+        /// point, and starting point does not change how much of each frequency is present.
+        ///
+        /// That argument is wrong, because the window is not a plain cut. Before the frequencies are read, the samples are
+        /// faded up and down across the window to stop its own edges registering as a click. Fading weights the beginning
+        /// and end of the window differently from its middle — so material that has slid along sits under a different part
+        /// of the fade and comes out slightly different. Slightly is enough: where an effect has cut a band almost to
+        /// nothing, a slight change in a tiny number is a large change in the RATIO, which is what the display shows. It
+        /// was caught by measurement, not by reasoning — a waveshaper, which cannot vary over time because it has no
+        /// memory at all, was reported as moving by five and a half decibels.
+        ///
+        /// Moving the window by exactly one whole repeat removes it completely: the samples under the fade are then not
+        /// merely similar but identical, because the signal has come all the way round. The cost is that readings come one
+        /// repeat apart rather than more often, which is the honest price of a reading that does not lie.
+        /// </summary>
+        const int PERIOD = 8192;
+
+        /// <summary>How far the window moves between readings. One whole repeat, for the reason above.</summary>
+        const int HOP = PERIOD;
 
         /// <summary>
         /// Below this, a bin of the dry signal is too quiet to divide by. Chosen well above rounding noise: the whole
@@ -75,7 +101,7 @@ namespace Laubrary.Zounds.EditorTools {
         /// <paramref name="seconds"/> should cover at least one full cycle of the slowest modulator in the chain, or the
         /// movement it produces will be sampled too briefly to see.
         /// </summary>
-        public static Measurement Measure(ZoundEffectChain chain, int bandCount = 24, float seconds = 2f,
+        public static Measurement Measure(ZoundEffectChain chain, int bandCount = 72, float seconds = 2f,
                                           float level = 0.25f) {
             var result = new Measurement();
             int frames = Math.Max(WINDOW * 2, (int)(seconds * SAMPLE_RATE));
@@ -91,13 +117,15 @@ namespace Laubrary.Zounds.EditorTools {
             // every window sees the IDENTICAL signal, so the input side of the comparison is exactly the same each time and
             // any variation left in the result is the effect genuinely doing something different.
             //
-            // The windows line up with the repeats by construction, since the period is the window length.
+            // The windows line up with the repeats by construction, since the period is the window length — and because
+            // only the AMOUNT of each frequency is read and never its alignment, a window that starts part way through a
+            // repeat still sees the same thing. That is what makes the overlapping windows above safe.
             var noise = new float[frames * 2];
             var rng = new System.Random(12345);
-            var period = new float[WINDOW];
-            for (int i = 0; i < WINDOW; i++) period[i] = (float)(rng.NextDouble() * 2.0 - 1.0) * level;
+            var period = new float[PERIOD];
+            for (int i = 0; i < PERIOD; i++) period[i] = (float)(rng.NextDouble() * 2.0 - 1.0) * level;
             for (int i = 0; i < frames; i++) {
-                float s = period[i % WINDOW];
+                float s = period[i % PERIOD];
                 noise[i * 2] = s;
                 noise[i * 2 + 1] = s;
             }
@@ -107,7 +135,7 @@ namespace Laubrary.Zounds.EditorTools {
             if (dry == null || wet == null) return result;
 
             int usable = Math.Min(dry.frames, wet.frames);
-            int windows = usable / WINDOW;
+            int windows = usable >= WINDOW ? (usable - WINDOW) / HOP + 1 : 0;
             if (windows < 1) return result;
 
             var bands = MakeBands(bandCount);
@@ -119,7 +147,7 @@ namespace Laubrary.Zounds.EditorTools {
             bool anyChange = false;
 
             for (int w = 0; w < windows; w++) {
-                int off = w * WINDOW;
+                int off = w * HOP;
                 Spectrum(dry.left, off, dryMag);
                 Spectrum(wet.left, off, wetMag);
 
@@ -130,14 +158,13 @@ namespace Laubrary.Zounds.EditorTools {
                 for (int b = 0; b < bands.Length; b++) {
                     int lo = BinOf(bands[b].lowHz), hi = BinOf(bands[b].highHz);
 
-                    // A band narrower than two bins cannot be measured, only guessed at, and the guess is leakage from
-                    // whatever is loud nearby. Refused outright rather than reported — a blank is honest where a number
-                    // would be fiction.
-                    if (hi - lo < 2) {
-                        bands[b].overTime[w] = 0f;
-                        bands[b].measurable = false;
-                        continue;
-                    }
+                    // A band is measurable when the test signal actually put something in it, which the per-bin loop below
+                    // decides for itself by finding nothing to divide. The old rule here — refuse any band narrower than
+                    // two bins — belonged to the era of random noise, where a narrow band's contents were leakage from its
+                    // loud neighbours and changed every window. A signal that repeats has energy at fixed, exact
+                    // frequencies and nothing in between, so a band holding even one of them yields that frequency's true
+                    // response, identically every time. Keeping the old rule at this resolution would have blanked the
+                    // whole bass end for no reason.
 
                     // One ratio PER BIN, averaged in decibels — not one ratio for the summed band.
                     //

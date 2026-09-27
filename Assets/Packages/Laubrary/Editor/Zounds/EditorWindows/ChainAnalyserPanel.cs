@@ -33,8 +33,18 @@ namespace Laubrary.Zounds.EditorTools {
         int measuredVersion = int.MinValue;
         double measuredAt;
         float seconds = 1.5f;
+
+        /// <summary>
+        /// The vertical scale, worked out from the measurement itself rather than set by hand.
+        ///
+        /// **There used to be a control for this, and it had to go.** A display whose accuracy depends on the reader first
+        /// tuning it is not a measurement, it is a drawing — and a fixed scale is the same fault with the tuning frozen at
+        /// one guess. At twelve decibels, which is what it was fixed at, almost any real chain drove most bands hard
+        /// against the top of the graph, so a filter that cut a band by fifteen decibels and one that annihilated it by
+        /// sixty looked exactly alike. Fitting the scale to the strongest thing actually measured means the picture is
+        /// always the true one, and the number it was fitted to is printed underneath so the scale is never a mystery.
+        /// </summary>
         float dbRange = 12f;
-        bool showRange = true;
 
         /// <summary>
         /// True while the host must keep redrawing: a live view is only live if it is repainted, and a measurement waiting
@@ -62,10 +72,21 @@ namespace Laubrary.Zounds.EditorTools {
                 Tab(View.LiveWaveform, "Waveform");
                 GUILayout.FlexibleSpace();
                 if (view == View.Combined) {
-                    showRange = ZUI.Toggle(showRange, "Range", ZUI.Style.RichToggle, ZUICornerMask.All, GUILayout.Width(56f));
-                    if (ZUI.Button("Re-measure", ZUI.Style.RichButton, ZUICornerMask.All, GUILayout.Width(86f))) {
-                        measuredVersion = int.MinValue;
-                    }
+                    // Nothing to set. The two controls that used to sit here — a toggle for the range block and a button to
+                    // measure again — both asked the reader to manage the display in order to trust it. The range block is
+                    // always drawn now because it is information, not decoration, and measuring again happens by itself
+                    // whenever the chain changes, which is the only time the answer can differ.
+                    // Fixed width and a single line. Left to size itself, this wrapped onto a second line in a narrow
+                    // panel and grew the toolbar by a row — which the layout-stability check caught immediately, having
+                    // been built for exactly this. The detail moves to the hover text, where length costs nothing.
+                    int bandCount = measurement.bands != null ? measurement.bands.Length : BANDS;
+                    var note = GUILayoutUtility.GetRect(150f, EditorGUIUtility.singleLineHeight,
+                                                        GUILayout.Width(150f), GUILayout.ExpandWidth(false));
+                    var noteStyle = new GUIStyle(EditorStyles.miniLabel) { wordWrap = false, clipping = TextClipping.Ellipsis };
+                    noteStyle.normal.textColor = new Color(0.62f, 0.62f, 0.68f);
+                    GUI.Label(note, new GUIContent(bandCount + " bands, auto scale",
+                        "The whole spectrum in " + bandCount + " bands, with the vertical scale fitted to whatever was "
+                      + "measured. There is nothing to adjust: it re-measures itself whenever the chain changes."), noteStyle);
                 }
                 else {
                     ZUI.Label("gain", ZUI.ZTextStyle.Subtle);
@@ -97,6 +118,33 @@ namespace Laubrary.Zounds.EditorTools {
             var style = new GUIStyle(EditorStyles.miniLabel) { wordWrap = false, clipping = TextClipping.Ellipsis };
             style.normal.textColor = new Color(0.62f, 0.62f, 0.68f);
             GUI.Label(row, new GUIContent(message, message), style);
+        }
+
+        /// <summary>How many bands the spectrum is divided into. Three times what it was, on the owner's ask for detail.</summary>
+        const int BANDS = 72;
+
+        /// <summary>
+        /// A vertical scale that fits what was actually measured, rounded up to a tidy number.
+        ///
+        /// Only bands the measurement could actually speak about are considered, so a blank band cannot stretch the scale.
+        /// The floor of six decibels exists so that a chain doing almost nothing is not magnified into looking dramatic —
+        /// without it, a half-decibel ripple would be drawn full height and read as a huge effect, which is the same
+        /// dishonesty as the fixed scale, just pointing the other way.
+        /// </summary>
+        static float FitScale(ChainSpectrumProbe.Measurement m) {
+            if (m.bands == null) return 12f;
+            float worst = 0f;
+            for (int b = 0; b < m.bands.Length; b++) {
+                if (!m.bands[b].measurable) continue;
+                float lo = Mathf.Abs(m.bands[b].minDb), hi = Mathf.Abs(m.bands[b].maxDb);
+                if (lo > worst) worst = lo;
+                if (hi > worst) worst = hi;
+            }
+            if (worst < 6f) return 6f;
+            // Up to the next sensible step, so the scale does not twitch by a decibel on every re-measure.
+            float[] steps = { 6f, 12f, 18f, 24f, 36f, 48f, 60f, 80f };
+            for (int i = 0; i < steps.Length; i++) if (worst <= steps[i]) return steps[i];
+            return Mathf.Ceil(worst / 20f) * 20f;
         }
 
         void Tab(View which, string label) {
@@ -163,7 +211,8 @@ namespace Laubrary.Zounds.EditorTools {
             measuredChain = chain;
             measuredVersion = version;
             measuredAt = now;
-            measurement = chain == null || chain.IsEmpty ? default : ChainSpectrumProbe.Measure(chain, 24, seconds);
+            measurement = chain == null || chain.IsEmpty ? default : ChainSpectrumProbe.Measure(chain, BANDS, seconds);
+            dbRange = FitScale(measurement);
         }
 
         void DrawBars(Rect area) {
@@ -197,7 +246,7 @@ namespace Laubrary.Zounds.EditorTools {
                     continue;
                 }
 
-                if (showRange) {
+                {
                     float top = mid - Mathf.Clamp(bands[b].maxDb / dbRange, -1f, 1f) * area.height * 0.5f;
                     float bot = mid - Mathf.Clamp(bands[b].minDb / dbRange, -1f, 1f) * area.height * 0.5f;
                     if (bot < top) (top, bot) = (bot, top);
