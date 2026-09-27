@@ -146,6 +146,10 @@ namespace Laubrary.Zounds {
             Laubrary.Zounds.Dsp.SapVoiceRegistry.DestroyAll();
             Laubrary.Zounds.Dsp.ZoundPcmCache.Clear();
             Laubrary.Zounds.Dsp.ZoundDspPlayback.InvalidateLayouts();
+            // A stepping modulator's position is remembered per sound so that "advance one step per play" can work at
+            // all. Those entries hold onto the sound objects, so they have to be dropped when the library is, or they
+            // would both keep dead sounds alive and resume a sequence belonging to a project that is no longer loaded.
+            Laubrary.Zounds.Dsp.SapVoiceSetup.ForgetStepPositions();
         }
 
         public static void Initialize() {

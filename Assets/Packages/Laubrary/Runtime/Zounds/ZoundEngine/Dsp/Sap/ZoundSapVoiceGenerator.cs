@@ -125,7 +125,7 @@ namespace Laubrary.Zounds.Dsp {
 
             voice = SapRealtimeVoice.Create(clip, layout, preparedSampleRate, startFrame, endFrame,
                                             basePitch, outGain, sourceDuration, loop, tokenId, heavyTier,
-                                            Allocator.Persistent);
+                                            Allocator.Persistent, playingZound);
             if (repeat.enabled) voice.SetRepeat(in repeat);
             created = true;
             handedOff = true;

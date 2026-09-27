@@ -32,7 +32,8 @@ namespace Laubrary.Zounds.Dsp {
         /// </summary>
         internal static void Reset(ref SapVoiceState sap, in SapChainLayout sapLayout, ChainLayout layout,
                                   int sampleRate, float basePitch, float outGain, long tokenId,
-                                  bool armSource, double startFrame, double endFrame, bool loop) {
+                                  bool armSource, double startFrame, double endFrame, bool loop,
+                                  Zound zound = null) {
             sap.basePitchLive = basePitch;
             sap.outGainLive = outGain;
             sap.stopping = false;
@@ -93,6 +94,117 @@ namespace Laubrary.Zounds.Dsp {
             // LAST, deliberately: resetting the effects reads the state arena and the parameter block this
             // function has just filled in.
             ZoundEffects.ResetChain(sapLayout, sap.arena, sampleRate);
+
+            SeedModifiersAtTrigger(ref sap, layout, zound);
+        }
+
+        /// <summary>
+        /// Where a stepping modulator had got to, remembered PER SOUND rather than per play.
+        ///
+        /// A step list that advances one step per play cannot possibly work from per-voice state, because a voice is
+        /// wiped clean before every play — it would take the first step every time and never move. The position has to
+        /// outlive the play, and it belongs to the sound rather than to any one playing copy of it, so that two
+        /// overlapping plays of the same sound continue the same sequence instead of each running their own.
+        ///
+        /// Keyed weakly in effect: an entry costs a handful of numbers and is only created for a sound that actually
+        /// has a step list, so this does not grow with the size of the project.
+        /// </summary>
+        private struct StepState { public int index; public int usedMask; public bool started; }
+        private static readonly System.Collections.Generic.Dictionary<Zound, StepState[]> stepStates
+            = new System.Collections.Generic.Dictionary<Zound, StepState[]>();
+
+        /// <summary>Forgets every remembered step position. For a cache clear or a project reload.</summary>
+        internal static void ForgetStepPositions() {
+            stepStates.Clear();
+        }
+
+        /// <summary>
+        /// Gives a modulator the starting state it can only be given at the moment a sound is triggered, on the main
+        /// thread, where the clock and a random number generator are available.
+        ///
+        /// **Why this stage has to exist at all.** Everything in the reset above brings a voice to a clean slate, which
+        /// is exactly right for a modulator meant to behave identically on every play, and exactly wrong for one meant
+        /// NOT to. An oscillator whose phase should not restart has to be told where the oscillation currently is, and a
+        /// clean slate always says "at the beginning". A step list that advances per play has to be told which step this
+        /// play is on, and a clean slate always says "the first". So without this stage both silently do the opposite of
+        /// what their setting says — and the failure looks like the feature not working rather than like a bug.
+        /// </summary>
+        private static void SeedModifiersAtTrigger(ref SapVoiceState sap, ChainLayout layout, Zound zound) {
+            for (int m = 0; m < layout.modCount && m < ZoundDspConstants.MAX_MODIFIERS; m++) {
+                int po = layout.modParamOffset[m];
+                int pc = layout.modParamCountOf[m];
+                int so = layout.modStateOffset[m];
+                if (so < 0 || so >= sap.arena.Length) continue;
+
+                switch (layout.modType[m]) {
+                    case ZoundModifierType.Lfo: {
+                        // Parameter 3 is "reset phase". When it is ON the clean slate is correct and there is nothing
+                        // to do. When it is OFF the oscillation is meant to run continuously whether or not anything
+                        // is playing, so the phase it should start at is wherever that continuous oscillation has got
+                        // to by now — which is the wall clock multiplied by the rate, keeping only the fraction.
+                        //
+                        // Deriving it from the clock rather than remembering it between plays is deliberate: two
+                        // sounds playing at once then agree about where the oscillation is, without sharing any
+                        // mutable state between voices that are rendered on the audio thread.
+                        //
+                        // The clock is ordinary elapsed real time, NOT the audio clock. The audio clock is the more
+                        // natural choice and is what the earlier version of this engine used, but it stands still in
+                        // the editor whenever nothing is playing — so two plays a few seconds apart would be handed the
+                        // same phase, and the setting would appear to do nothing in exactly the place where somebody is
+                        // trying it out. Elapsed real time advances whether or not audio is running, in the editor and
+                        // in a built game alike. The audio clock's extra precision buys nothing here, because all this
+                        // needs is roughly where in the cycle we are.
+                        bool resetPhase = pc > 3 ? layout.modParamFlat[po + 3] >= 0.5f : true;
+                        if (resetPhase) break;
+                        float rate = pc > 1 ? layout.modParamFlat[po + 1] : 1f;
+                        double phase = (UnityEngine.Time.realtimeSinceStartupAsDouble * rate) % 1.0;
+                        if (phase < 0d) phase += 1d;
+                        sap.arena[so] = (float)phase;
+                        break;
+                    }
+
+                    case ZoundModifierType.Step: {
+                        // A step list set to advance "per play" has to be told which step this play is on, because the
+                        // position is the one thing about it that must survive the play ending. Without this it took the
+                        // first step every time and never moved — the whole point of the modulator, lost silently.
+                        if (zound == null) break;       // no sound to remember against, e.g. an offline render
+                        int count = layout.modStepCountOf[m];
+                        if (count <= 0) break;
+
+                        bool roundRobin = pc > 2 && (int)layout.modParamFlat[po + 2] == (int)StepOrder.RoundRobinNoRepeat;
+                        bool startRandom = pc > 3 && layout.modParamFlat[po + 3] >= 0.5f;
+                        bool resetOnTrigger = pc > 4 && layout.modParamFlat[po + 4] >= 0.5f;
+                        bool perPlay = pc > 0 && (int)layout.modParamFlat[po] == (int)StepTiming.PerTrigger;
+
+                        if (!stepStates.TryGetValue(zound, out var states) || states.Length < layout.modCount) {
+                            states = new StepState[ZoundDspConstants.MAX_MODIFIERS];
+                            stepStates[zound] = states;
+                        }
+
+                        if (!states[m].started || resetOnTrigger) {
+                            int last = states[m].started ? states[m].index : -1;
+                            states[m].index = startRandom ? UnityEngine.Random.Range(0, count) : 0;
+                            states[m].usedMask = 0;
+                            // Avoid opening on the step that just played, which would be heard as a stutter rather
+                            // than as a new pick.
+                            if (roundRobin && last >= 0 && count > 1) {
+                                while (states[m].index == last) states[m].index = UnityEngine.Random.Range(0, count);
+                            }
+                            states[m].usedMask |= 1 << states[m].index;
+                            states[m].started = true;
+                        }
+                        else if (perPlay) {
+                            int used = states[m].usedMask;
+                            states[m].index = ZoundDspPlayback.NextStepIndex(states[m].index, count, roundRobin, ref used);
+                            states[m].usedMask = used;
+                        }
+
+                        sap.arena[so] = states[m].index;
+                        if (so + 2 < sap.arena.Length) sap.arena[so + 2] = states[m].usedMask;
+                        break;
+                    }
+                }
+            }
         }
 
         /// <summary>

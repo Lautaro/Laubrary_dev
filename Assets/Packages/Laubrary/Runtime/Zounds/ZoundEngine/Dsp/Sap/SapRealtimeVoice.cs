@@ -88,7 +88,8 @@ namespace Laubrary.Zounds.Dsp {
         public static SapRealtimeVoice Create(PcmClip clip, ChainLayout layout, int sampleRate,
                                               double startFrame, double endFrame,
                                               float basePitch, float outGain, float sourceDuration,
-                                              bool loop, long tokenId, bool heavyTier, Allocator allocator) {
+                                              bool loop, long tokenId, bool heavyTier, Allocator allocator,
+                                              Zound zound = null) {
             int arenaFloats = heavyTier ? ZoundDspConstants.HEAVY_ARENA_FLOATS : ZoundDspConstants.LIGHT_ARENA_FLOATS;
 
             var v = new SapRealtimeVoice {
@@ -103,7 +104,7 @@ namespace Laubrary.Zounds.Dsp {
 
             SapVoiceSetup.BuildSnapshots(ref v.chain, ref v.pcm, layout, clip, allocator);
             SapVoiceSetup.Reset(ref v.sap, in v.chain, layout, sampleRate, basePitch, outGain, tokenId,
-                                armSource: true, startFrame, endFrame, loop);
+                                armSource: true, startFrame, endFrame, loop, zound);
             return v;
         }
 
