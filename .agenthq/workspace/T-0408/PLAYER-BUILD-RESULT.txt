@@ -1,0 +1,15 @@
+Zounds native audio check, headless report
+platform: WindowsPlayer   editor: False
+unity: 6000.3.10f1
+output rate: 48000 Hz
+audio buffer: 1024 frames x 4
+
+=== IS THE AUDIO CHAIN REALLY COMPILED? ===
+compiler reports itself enabled: yes
+(a perfect match below is the FAILURE signal - see the note in this file)
+
+  delay on a sample boundary     difference=0.000481254421   (differs - good)
+  reverb                         difference=7.4505806E-08   (differs - good)
+  gain driven by an oscillator   difference=3.7252903E-09   (differs - good)
+
+VERDICT: COMPILED. The two paths differ, which only happens when one of them is genuinely compiled.
