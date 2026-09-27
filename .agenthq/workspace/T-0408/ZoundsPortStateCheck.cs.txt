@@ -1,0 +1,39 @@
+// TEMPORARY: confirms the editor has actually recompiled the Zounds runtime assembly with the current
+// source, so a "no compile errors" result cannot be mistaken for a stale one. Reports whether the newest
+// types exist in the loaded assembly and when that assembly was built.
+using System;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+
+public static class ZoundsPortStateCheck {
+
+    public static string Execute() {
+        var sb = new StringBuilder();
+        var asm = AppDomain.CurrentDomain.GetAssemblies()
+            .FirstOrDefault(a => a.GetName().Name == "com.Lautaro-Arino.Laubrary.Zounds");
+        if (asm == null) { sb.Append("ZOUNDS ASSEMBLY NOT LOADED\n"); return sb.ToString(); }
+
+        sb.Append("assembly: ").Append(asm.GetName().Name).Append('\n');
+        try {
+            var loc = asm.Location;
+            sb.Append("built: ").Append(System.IO.File.GetLastWriteTime(loc).ToString("yyyy-MM-dd HH:mm:ss")).Append('\n');
+        }
+        catch (Exception e) { sb.Append("built: unknown (").Append(e.GetType().Name).Append(")\n"); }
+
+        foreach (var n in new[] { "SapVoiceSetup", "SapVoiceRender", "SapVoiceState", "SapChainLayout", "SapPcm", "DspVoice",
+                                  "SapRealtimeVoice", "ZoundSapVoiceGenerator" }) {
+            var t = asm.GetType("Laubrary.Zounds.Dsp." + n, false);
+            sb.Append(n).Append(": ").Append(t != null ? "present" : "MISSING").Append('\n');
+        }
+
+        var setup = asm.GetType("Laubrary.Zounds.Dsp.SapVoiceSetup", false);
+        if (setup != null) {
+            sb.Append("SapVoiceSetup methods: ");
+            sb.Append(string.Join(", ", setup.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
+                .Where(m => m.DeclaringType == setup).Select(m => m.Name)));
+            sb.Append('\n');
+        }
+        return sb.ToString();
+    }
+}

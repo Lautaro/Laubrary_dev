@@ -1,0 +1,158 @@
+// TEMPORARY probe — checks that the voice the audio graph will run produces EXACTLY what the offline
+// renderer produces, for the same chains the baseline covers.
+//
+// Both paths call the same per-block render function, so what this actually tests is everything around it:
+// the start-of-play setup, the native snapshots of the chain and the source samples, the buffer plumbing,
+// and the stop condition. Those are the parts that differ between the two hosts, so those are the parts
+// that can drift.
+//
+// It deliberately never touches the audio graph's own setup machinery. Driving that by hand was tried and
+// crashed the editor outright rather than raising an error, so the voice was built as a plain value type
+// precisely so it could be exercised from here instead.
+using System.Text;
+using Unity.Collections;
+using UnityEngine;
+using Laubrary.Zounds;
+using Laubrary.Zounds.Dsp;
+
+public static class ZoundsSapGeneratorEquivalence {
+
+    const int SR = 48000;
+    const int SRC_RATE = 48000;
+    const float SECONDS = 1.0f;
+    const int BLOCK = 1024;
+
+    public static string Execute() {
+        var sb = new StringBuilder();
+
+        int frames = SRC_RATE / 2;
+        var src = new float[frames * 2];
+        for (int i = 0; i < frames; i++) {
+            float s = (i == 0) ? 1f : 0f;
+            s += 0.25f * Mathf.Sin(2f * Mathf.PI * 440f * i / SRC_RATE);
+            src[i * 2] = s;
+            src[i * 2 + 1] = s * 0.5f;
+        }
+
+        sb.Append("=== OFFLINE VOICE  vs  GENERATOR VOICE ===\n");
+        int mismatches = 0;
+
+        mismatches += Compare(sb, "dry", null, src);
+
+        var delay = new ZoundEffectChain();
+        var dn = new ZoundEffectNode(ZoundEffectType.Delay);
+        dn.p[0] = 250f; dn.p[1] = 0.4f; dn.p[2] = 0.5f; dn.p[3] = 500f; dn.p[4] = 0f;
+        delay.nodes.Add(dn);
+        mismatches += Compare(sb, "delay", delay, src);
+
+        var verb = new ZoundEffectChain();
+        var rn = new ZoundEffectNode(ZoundEffectType.Reverb);
+        rn.p[0] = 0.5f; rn.p[1] = 0.5f; rn.p[2] = 1f; rn.p[3] = 0.5f;
+        verb.nodes.Add(rn);
+        mismatches += Compare(sb, "reverb", verb, src);
+
+        mismatches += Compare(sb, "mod-lfo", GainWithModifier(ZoundModifierType.Lfo, m => {
+            m.p[0] = 0.5f;
+            m.p[1] = 7f;
+        }), src);
+
+        mismatches += Compare(sb, "mod-envelope", GainWithModifier(ZoundModifierType.Envelope, m => { }), src);
+
+        mismatches += Compare(sb, "mod-step", GainWithModifier(ZoundModifierType.Step, m => {
+            m.steps = new float[] { 0.2f, 0.9f, 0.45f, 1f, 0.7f };
+        }), src);
+
+        sb.Append(mismatches == 0
+            ? "\nVERDICT: identical on every chain, every sample.\n"
+            : "\nVERDICT: " + mismatches + " chain(s) DIFFER — see above.\n");
+
+        var result = sb.ToString();
+        Debug.Log("[ZoundsSapGeneratorEquivalence]\n" + result);
+        return result;
+    }
+
+    static ZoundEffectChain GainWithModifier(ZoundModifierType type, System.Action<ZoundModifier> setup) {
+        var chain = new ZoundEffectChain();
+        chain.nodes.Add(new ZoundEffectNode(ZoundEffectType.Gain));
+        var mod = new ZoundModifier(type);
+        setup(mod);
+        chain.modifiers.Add(mod);
+        chain.bindings.Add(new ZoundModifierBinding {
+            modifierIndex = 0, nodeIndex = 0, paramIndex = 0,
+            op = ModifierOp.Multiply, depth = 1f
+        });
+        return chain;
+    }
+
+    /// Returns 0 when the two paths agree exactly, 1 otherwise.
+    static int Compare(StringBuilder sb, string name, ZoundEffectChain chain, float[] src) {
+        // ── reference: the existing offline renderer, unchanged ──
+        var reference = ZoundDspOffline.Render(src, 2, SRC_RATE, SR, chain, 1f, 1f, SECONDS,
+                                               0f, 0f, BLOCK, false, null);
+
+        // ── candidate: the voice the audio graph will run, set up the same way ──
+        var pcm = new PcmClip {
+            channels = 2, frequency = SRC_RATE, frames = src.Length / 2, samples = src, valid = true,
+        };
+        float sp = 0f;
+        for (int i = 0; i < src.Length; i++) { float a = src[i] < 0 ? -src[i] : src[i]; if (a > sp) sp = a; }
+        pcm.peak = sp;
+
+        var layout = chain != null && !chain.IsEmpty ? ChainLayout.Build(chain, SR) : ChainLayout.Empty;
+        double startFrame = 0d;
+        double endFrame = pcm.frames;
+        float sourceDuration = (float)((endFrame - startFrame) / SRC_RATE) / Mathf.Max(1f, 0.01f);
+        int totalFrames = Mathf.CeilToInt(SECONDS * SR);
+
+        var left = new float[totalFrames];
+        var right = new float[totalFrames];
+        int written = 0;
+        int blocks = 0;
+
+        // tokenId 1 and the heavy state tier, matching exactly what the offline renderer uses, because the
+        // token seeds the per-voice random generator and the tier decides the state arena's size.
+        var voice = SapRealtimeVoice.Create(pcm, layout, SR, startFrame, endFrame, 1f, 1f, sourceDuration,
+                                            false, 1, true, Allocator.Persistent);
+        try {
+            while (written < totalFrames && !voice.finished) {
+                int n = Mathf.Min(BLOCK, totalFrames - written);
+                voice.RenderBlock(n);
+                blocks++;
+                for (int i = 0; i < n; i++) { left[written + i] = voice.sap.bufL[i]; right[written + i] = voice.sap.bufR[i]; }
+                written += n;
+            }
+        }
+        finally { voice.Dispose(); }
+
+        // ── compare ──
+        sb.Append(name).Append(": offline frames=").Append(reference.frames).Append('/').Append(reference.blocks)
+          .Append(" blocks, generator frames=").Append(written).Append('/').Append(blocks).Append(" blocks");
+
+        if (written != reference.frames || blocks != reference.blocks) {
+            sb.Append("  <<< LENGTH DIFFERS\n");
+            return 1;
+        }
+
+        int firstBad = -1;
+        float worst = 0f;
+        for (int i = 0; i < written; i++) {
+            float dl = left[i] - reference.left[i];
+            float dr = right[i] - reference.right[i];
+            if (dl < 0) dl = -dl;
+            if (dr < 0) dr = -dr;
+            float d = dl > dr ? dl : dr;
+            if (d > worst) worst = d;
+            if (d != 0f && firstBad < 0) firstBad = i;
+        }
+
+        if (firstBad < 0) {
+            sb.Append("  IDENTICAL\n");
+            return 0;
+        }
+        sb.Append("  <<< DIFFERS: first at frame ").Append(firstBad)
+          .Append(" (offline L=").Append(reference.left[firstBad].ToString("R"))
+          .Append(" generator L=").Append(left[firstBad].ToString("R"))
+          .Append("), largest difference ").Append(worst.ToString("R")).Append('\n');
+        return 1;
+    }
+}
