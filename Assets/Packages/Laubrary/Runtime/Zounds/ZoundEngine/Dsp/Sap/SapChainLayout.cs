@@ -35,6 +35,9 @@ namespace Laubrary.Zounds.Dsp {
         public NativeArray<int> stateOffset;
         public NativeArray<int> paramOffset;
         public NativeArray<int> paramCountOf;
+        public NativeArray<int> derivedFlat;
+        public NativeArray<int> derivedOffset;
+        public NativeArray<int> derivedCountOf;
 
         // ── flat parameters (source stage first) ──
         public int paramCount;
@@ -96,6 +99,9 @@ namespace Laubrary.Zounds.Dsp {
                 stateOffset = Copy(L.stateOffset, allocator),
                 paramOffset = Copy(L.paramOffset, allocator),
                 paramCountOf = Copy(L.paramCountOf, allocator),
+                derivedFlat = Copy(L.derivedFlat, allocator),
+                derivedOffset = Copy(L.derivedOffset, allocator),
+                derivedCountOf = Copy(L.derivedCountOf, allocator),
 
                 pBase = Copy(L.pBase, allocator),
                 pMin = Copy(L.pMin, allocator),
@@ -142,6 +148,9 @@ namespace Laubrary.Zounds.Dsp {
             if (stateOffset.IsCreated) stateOffset.Dispose();
             if (paramOffset.IsCreated) paramOffset.Dispose();
             if (paramCountOf.IsCreated) paramCountOf.Dispose();
+            if (derivedFlat.IsCreated) derivedFlat.Dispose();
+            if (derivedOffset.IsCreated) derivedOffset.Dispose();
+            if (derivedCountOf.IsCreated) derivedCountOf.Dispose();
 
             if (pBase.IsCreated) pBase.Dispose();
             if (pMin.IsCreated) pMin.Dispose();

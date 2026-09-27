@@ -41,6 +41,18 @@ namespace Laubrary.Zounds.Dsp {
         public readonly int[] paramOffset = new int[ZoundDspConstants.MAX_NODES];
         public readonly int[] paramCountOf = new int[ZoundDspConstants.MAX_NODES];
 
+        // Per-node derived integer values computed once here, at build time, so the render path never has to
+        // recompute them from ZoundEffectDescriptors' static tuning tables (that recomputation is exactly what
+        // blocks Burst from compiling the render: touching any static member of that type forces Burst to also
+        // compile its static constructor, which builds managed delegates and cannot be compiled). Same flat
+        // array + per-node offset/count shape as modParamFlat below. Only Reverb (8 comb + 4 allpass lengths,
+        // one per channel) and Flanger/Chorus (1 ring length) populate any entries; every other node has count 0.
+        public const int MAX_DERIVED_PER_NODE = 24; // worst case: Reverb's 8 comb + 4 allpass lengths × 2 channels
+        public const int MAX_DERIVED = ZoundDspConstants.MAX_NODES * MAX_DERIVED_PER_NODE;
+        public readonly int[] derivedFlat = new int[MAX_DERIVED];
+        public readonly int[] derivedOffset = new int[ZoundDspConstants.MAX_NODES];
+        public readonly int[] derivedCountOf = new int[ZoundDspConstants.MAX_NODES];
+
         // ── flat parameters (source stage first: pitch, source gain) ──
         public int paramCount;
         public readonly float[] pBase = new float[MAX_PARAMS];
@@ -105,6 +117,7 @@ namespace Laubrary.Zounds.Dsp {
             }
             L.paramCount = SourceStageParam.Count;
             int state = 0;
+            int derivedPos = 0;
             if (chain != null) {
                 L.sourceVersion = chain.version;
                 int nodes = Mathf.Min(chain.nodes.Count, ZoundDspConstants.MAX_NODES);
@@ -127,6 +140,23 @@ namespace Laubrary.Zounds.Dsp {
                     L.stateOffset[i] = state;
                     if (d.isStateful) state += d.stateFloats(n.p, sampleRate);
                     if (d.heavy) L.heavy = true;
+
+                    // Precompute the derived values this node's Reset/Process need at render time, using the
+                    // exact same helpers the arena sizing above derives from (ZoundEffectDescriptors.ReverbStateFloats
+                    // calls ReverbEffect.CombLen/AllpassLen too) — one calculation, read twice, never duplicated.
+                    L.derivedOffset[i] = derivedPos;
+                    if (n.type == ZoundEffectType.Reverb) {
+                        // Same order Reset()/Process() expect: comb lengths (c=0..7, ch=0..1) then allpass lengths (a=0..3, ch=0..1).
+                        for (int c = 0; c < 8; c++) for (int ch = 0; ch < 2; ch++) L.derivedFlat[derivedPos++] = ReverbEffect.CombLen(c, ch, sampleRate);
+                        for (int a = 0; a < 4; a++) for (int ch = 0; ch < 2; ch++) L.derivedFlat[derivedPos++] = ReverbEffect.AllpassLen(a, ch, sampleRate);
+                    }
+                    else if (n.type == ZoundEffectType.Flanger) {
+                        L.derivedFlat[derivedPos++] = ZoundEffectDescriptors.ModDelayFrames(12f, sampleRate);
+                    }
+                    else if (n.type == ZoundEffectType.Chorus) {
+                        L.derivedFlat[derivedPos++] = ZoundEffectDescriptors.ModDelayFrames(40f, sampleRate);
+                    }
+                    L.derivedCountOf[i] = derivedPos - L.derivedOffset[i];
                 }
                 L.nodeCount = nodes;
 

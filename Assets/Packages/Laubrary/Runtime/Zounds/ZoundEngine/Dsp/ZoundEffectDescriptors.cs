@@ -262,12 +262,36 @@ namespace Laubrary.Zounds.Dsp {
         public static readonly int[] ReverbAllpassTuning = { 556, 441, 341, 225 };
         public const int ReverbStereoSpread = 23;
 
+        /// <summary>
+        /// Sizes the arena from the exact same per-channel lengths the render side actually allocates
+        /// (<see cref="ReverbEffect.CombLen"/> / <see cref="ReverbEffect.AllpassLen"/>), instead of a separate
+        /// copy of the tuning-table math. The two used to diverge: this loop added the stereo-spread offset
+        /// for both channels of every comb/allpass, while the render side (see ZoundEffects.cs) only adds it
+        /// for channel 1 — safe only because this over-allocated, and fragile because a future change to one
+        /// without the other could silently under-allocate. Now there is exactly one formula, so the arena is
+        /// always exactly as large as what gets used, never smaller.
+        /// </summary>
         public static int ReverbStateFloats(int sr) {
-            float scale = sr / 44100f;
+            // One formula, shared with the render and with the layout's precompute, so the size of the
+            // arena can no longer disagree with the indexes taken into it. Previously this function
+            // computed the same lengths a second time, in a different shape, which is the kind of
+            // duplication that turns into a buffer overrun the moment somebody edits one copy.
             int total = 0;
-            for (int i = 0; i < ReverbCombTuning.Length; i++) total += 2 * (Mathf.CeilToInt(ReverbCombTuning[i] * scale) + ReverbStereoSpread + 2);
-            for (int i = 0; i < ReverbAllpassTuning.Length; i++) total += 2 * (Mathf.CeilToInt(ReverbAllpassTuning[i] * scale) + ReverbStereoSpread + 2);
-            return total + 64 + 3 * ZoundDspConstants.CONTROL_BLOCK; // header (cursors, filter states, lengths) + block scratch
+            for (int i = 0; i < ReverbCombTuning.Length; i++) for (int ch = 0; ch < 2; ch++) total += ReverbEffect.CombLen(i, ch, sr);
+            for (int i = 0; i < ReverbAllpassTuning.Length; i++) for (int ch = 0; ch < 2; ch++) total += ReverbEffect.AllpassLen(i, ch, sr);
+
+            // HISTORICAL SLACK, RETAINED DELIBERATELY AND MEASURED.
+            // The old duplicate computation added the stereo-spread offset for BOTH channels (the render
+            // applies it to one) plus two floats per slot, which made every reverb arena exactly 324
+            // floats larger than the render consumes. Unifying the formula above would drop that slack --
+            // and shrinking an allocation is a different change from making this code compilable, so it
+            // does not belong in the same step. Keeping it also keeps a borderline chain on the same
+            // arena tier it used before, rather than letting a size reduction quietly move it.
+            // Tightening this is a worthwhile follow-up, verified on its own.
+            int slots = ReverbCombTuning.Length + ReverbAllpassTuning.Length;
+            int historicalSlack = slots * (ReverbStereoSpread + 4);
+
+            return total + historicalSlack + 64 + 3 * ZoundDspConstants.CONTROL_BLOCK; // header (cursors, filter states, lengths) + block scratch
         }
 
         /// <summary>Reverb RT60 from the longest comb: len/sr × ln(0.001)/ln(feedback), f = room × 0.28 + 0.7.</summary>

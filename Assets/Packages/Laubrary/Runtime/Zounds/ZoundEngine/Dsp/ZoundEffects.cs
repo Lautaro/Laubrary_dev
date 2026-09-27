@@ -20,9 +20,9 @@ namespace Laubrary.Zounds.Dsp {
                 int q = L.paramOffset[i];
                 switch (L.nodeType[i]) {
                     case ZoundEffectType.Delay: DelayEffect.Reset(state, s, L.pBase, q, sampleRate); break;
-                    case ZoundEffectType.Reverb: ReverbEffect.Reset(state, s, sampleRate); break;
-                    case ZoundEffectType.Flanger: ModDelayEffect.Reset(state, s, 12f, sampleRate); break;
-                    case ZoundEffectType.Chorus: ModDelayEffect.Reset(state, s, 40f, sampleRate); break;
+                    case ZoundEffectType.Reverb: ReverbEffect.Reset(state, s, L.derivedFlat, L.derivedOffset[i]); break;
+                    case ZoundEffectType.Flanger: ModDelayEffect.Reset(state, s, L.derivedFlat[L.derivedOffset[i]]); break;
+                    case ZoundEffectType.Chorus: ModDelayEffect.Reset(state, s, L.derivedFlat[L.derivedOffset[i]]); break;
                     case ZoundEffectType.LowPass:
                     case ZoundEffectType.HighPass: BiquadEffect.Reset(state, s); break;
                     case ZoundEffectType.EQ: EqEffect.Reset(state, s); break;
@@ -47,7 +47,7 @@ namespace Laubrary.Zounds.Dsp {
                     case ZoundEffectType.HighPass: BiquadEffect.Process(state, s, pStart, q, bufL, bufR, off, n, ctx.sampleRate, true); break;
                     case ZoundEffectType.EQ: EqEffect.Process(state, s, pStart, q, bufL, bufR, off, n, ctx.sampleRate); break;
                     case ZoundEffectType.Delay: DelayEffect.Process(state, s, pStart, pStep, q, bufL, bufR, off, n, ctx.sampleRate); break;
-                    case ZoundEffectType.Reverb: ReverbEffect.Process(state, s, pStart, q, bufL, bufR, off, n, ctx.sampleRate); break;
+                    case ZoundEffectType.Reverb: ReverbEffect.Process(state, s, pStart, q, bufL, bufR, off, n, L.derivedFlat, L.derivedOffset[i]); break;
                     case ZoundEffectType.Flanger: ModDelayEffect.ProcessFlanger(state, s, pStart, q, bufL, bufR, off, n, ctx.sampleRate); break;
                     case ZoundEffectType.Chorus: ModDelayEffect.ProcessChorus(state, s, pStart, q, bufL, bufR, off, n, ctx.sampleRate); break;
                     case ZoundEffectType.Phaser: PhaserEffect.Process(state, s, pStart, q, bufL, bufR, off, n, ctx.sampleRate); break;
@@ -370,17 +370,24 @@ namespace Laubrary.Zounds.Dsp {
         private const float SCALE_ROOM = 0.28f;
         private const float OFFSET_ROOM = 0.7f;
 
-        private static int CombLen(int i, int ch, int sr) => Mathf.CeilToInt(ZoundEffectDescriptors.ReverbCombTuning[i] * (sr / 44100f)) + (ch == 1 ? ZoundEffectDescriptors.ReverbStereoSpread : 0);
-        private static int AllpassLen(int i, int ch, int sr) => Mathf.CeilToInt(ZoundEffectDescriptors.ReverbAllpassTuning[i] * (sr / 44100f)) + (ch == 1 ? ZoundEffectDescriptors.ReverbStereoSpread : 0);
+        // Called only from main-thread layout building (ChainLayout.Build) and from ZoundEffectDescriptors'
+        // sizing helper — never from the Burst-compiled render/reset path below, which only ever reads the
+        // values these produce back out of the precomputed SapChainLayout.derivedFlat table. That split is
+        // what lets Burst compile Reset/Process without reaching ZoundEffectDescriptors' static tables.
+        internal static int CombLen(int i, int ch, int sr) => Mathf.CeilToInt(ZoundEffectDescriptors.ReverbCombTuning[i] * (sr / 44100f)) + (ch == 1 ? ZoundEffectDescriptors.ReverbStereoSpread : 0);
+        internal static int AllpassLen(int i, int ch, int sr) => Mathf.CeilToInt(ZoundEffectDescriptors.ReverbAllpassTuning[i] * (sr / 44100f)) + (ch == 1 ? ZoundEffectDescriptors.ReverbStereoSpread : 0);
 
         // Header layout: [0..31] comb (index, filterstore) ×16, [32..39] allpass index ×8, [40..55] comb lengths ×16, [56..63] allpass lengths ×8.
-        public static void Reset(NativeArray<float> st, int s, int sr) {
+        // The lengths themselves are precomputed once on the main thread (ChainLayout.Build, via CombLen/AllpassLen
+        // above) and handed in here as `derived`/`dOff`; this keeps the render path from ever touching
+        // ZoundEffectDescriptors' static tuning tables, which is what blocked Burst compilation.
+        public static void Reset(NativeArray<float> st, int s, NativeArray<int> derived, int dOff) {
             for (int i = 0; i < HEADER; i++) st[s + i] = 0f;
-            for (int c = 0; c < 8; c++) for (int ch = 0; ch < 2; ch++) st[s + 40 + c * 2 + ch] = CombLen(c, ch, sr);
-            for (int a = 0; a < 4; a++) for (int ch = 0; ch < 2; ch++) st[s + 56 + a * 2 + ch] = AllpassLen(a, ch, sr);
+            for (int c = 0; c < 8; c++) for (int ch = 0; ch < 2; ch++) st[s + 40 + c * 2 + ch] = derived[dOff + c * 2 + ch];
+            for (int a = 0; a < 4; a++) for (int ch = 0; ch < 2; ch++) st[s + 56 + a * 2 + ch] = derived[dOff + 16 + a * 2 + ch];
         }
 
-        public static void Process(NativeArray<float> st, int s, NativeArray<float> p, int q, NativeArray<float> L, NativeArray<float> R, int off, int n, int sr) {
+        public static void Process(NativeArray<float> st, int s, NativeArray<float> p, int q, NativeArray<float> L, NativeArray<float> R, int off, int n, NativeArray<int> derived, int dOff) {
             float room = p[q] * SCALE_ROOM + OFFSET_ROOM;
             float damp = p[q + 1] * SCALE_DAMP;
             float width = p[q + 2];
@@ -391,7 +398,7 @@ namespace Laubrary.Zounds.Dsp {
             float dry = 1f - mix;
             float damp1 = damp, damp2 = 1f - damp;
 
-            if (st[s + 40] == 0f) Reset(st, s, sr); // lengths not laid out yet (layout built before Reset ran)
+            if (st[s + 40] == 0f) Reset(st, s, derived, dOff); // lengths not laid out yet (layout built before Reset ran)
             // Scratch (mono input, accL, accR) lives at the end of the header region; blocks never exceed
             // CONTROL_BLOCK samples. Each comb/allpass is then run over the whole block with local cursors.
             int inp = s + HEADER, accL = inp + SCRATCH, accR = accL + SCRATCH;
@@ -450,9 +457,12 @@ namespace Laubrary.Zounds.Dsp {
     public static class ModDelayEffect {
         private const int HEADER = 4;
 
-        public static void Reset(NativeArray<float> st, int s, float maxMs, int sr) {
+        // ringFrames is precomputed once on the main thread (ChainLayout.Build, via ZoundEffectDescriptors.ModDelayFrames)
+        // and handed in here, so the render/reset path never calls into ZoundEffectDescriptors — that call was the
+        // other reach into its static tables that blocked Burst compilation.
+        public static void Reset(NativeArray<float> st, int s, int ringFrames) {
             st[s] = 0f;
-            st[s + 1] = ZoundEffectDescriptors.ModDelayFrames(maxMs, sr);
+            st[s + 1] = ringFrames;
             st[s + 2] = 0f;
         }
 

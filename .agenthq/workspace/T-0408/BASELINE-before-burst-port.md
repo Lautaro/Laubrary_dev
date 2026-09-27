@@ -13,8 +13,12 @@ This is the reference the restructure is checked against. It was produced by run
 | Quantity | Value |
 |---|---|
 | Delay ring frames (time 250, max 500, rate 48000) | **24005** |
-| Reverb state floats at 48000 | **28266** |
-| Reverb state floats at 44100 | **26030** |
+| Reverb state floats at 48000 | **28266** → **28264** after unifying the formula, see below |
+| Reverb state floats at 44100 | **26030** (unchanged) |
+
+**Why the 48 kHz reverb figure moved by two floats, and why that is the right answer.** The reverb's buffer length used to be computed in two places with two different expressions; they have since been unified so the sizing and the render share one function. At 44.1 kHz the result is identical. At 48 kHz the new figure is **two floats smaller**, and the cause is precisely the float-rounding trap this document exists to guard against: the old sizing hoisted the sample-rate ratio into a local variable before multiplying, while the shared function computes it inline — and C# is permitted to evaluate the inline form at wider precision, so the ceiling lands differently for two of the twelve slots.
+
+So the two-float drop is not a regression. It is the removal of an artefact of the *old duplicate's* different rounding. The new figure is, by construction, at least what the render consumes, because both now call the same function — which the old pair could never guarantee. **Treat 28264 as the reference from now on**, and treat a return to 28266 as a sign that someone has reintroduced a second copy of the calculation.
 
 The reverb figures are the dangerous pair. That number decides how much per-voice state is allocated, so if the ported code computes it even one float differently from the code that allocated the buffer, the result is a memory error rather than a wrong sound. The two rates differ by a ratio of about 1.0859 against a rate ratio of 1.0884, which confirms the per-stage ceiling is doing real work and is rate-sensitive.
 
