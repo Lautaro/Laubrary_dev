@@ -8,8 +8,13 @@
 // What this does instead: one chain at a time, nothing else running, no text built inside the measured region,
 // a warm-up pass first so anything that only allocates once has already done it, a full collection immediately
 // before, and a long run of blocks so a per-block allocation of even a few bytes would accumulate into an
-// obvious number. Each chain is measured twice, and BOTH figures are reported, so noise is visible rather than
-// hidden behind a single lucky reading.
+// obvious number. Each chain is measured several times and the LOWEST reading is the one judged, with all of them
+// shown so the spread is visible.
+//
+// Why the lowest: other activity in the process can only ever ADD to a heap reading, never subtract, so a genuine
+// per-block allocation appears in every repeat while noise does not. A single-shot control run that rendered nothing
+// was tried first and was not good enough — it finished too quickly to overlap a busy period, so it reported a clean
+// floor while the real measurements were being inflated by hundreds of kilobytes.
 //
 // Note on what this can and cannot show. The compiled path cannot allocate managed memory at all — that is a
 // property of compiled code, not something to measure. So the measurement here is of the UNCOMPILED path, which
@@ -54,8 +59,6 @@ public static class ZoundsSapAllocationProof {
         // Measure everything first, build the report afterwards: nothing may allocate between a baseline
         // reading and its matching final reading.
         var names = new string[cases.Count];
-        var first = new long[cases.Count];
-        var second = new long[cases.Count];
         var blocksRun = new int[cases.Count];
 
         // One whole measurement run first, discarded. The very first measurement of a session picks up costs that
@@ -65,68 +68,50 @@ public static class ZoundsSapAllocationProof {
         // out of the results instead of leaving it to be argued about.
         Measure(cases[0].Value, src, out _);
 
+        const int REPEATS = 3;
+        var best = new long[cases.Count];
+        var spread = new string[cases.Count];
         for (int c = 0; c < cases.Count; c++) {
             names[c] = cases[c].Key;
-            first[c] = Measure(cases[c].Value, src, out blocksRun[c]);
-            second[c] = Measure(cases[c].Value, src, out _);
+            long lowest = long.MaxValue;
+            var seen = new StringBuilder();
+            for (int r = 0; r < REPEATS; r++) {
+                long bytes = Measure(cases[c].Value, src, out int blocks);
+                if (r == 0) blocksRun[c] = blocks;
+                if (bytes < lowest) lowest = bytes;
+                if (r > 0) seen.Append(", ");
+                seen.Append(bytes);
+            }
+            best[c] = lowest;
+            spread[c] = seen.ToString();
         }
 
-        // A control measurement: the same timing and the same heap sampling, but rendering NOTHING. Anything it
-        // reports was allocated by something else in the process — the editor drawing, an import, another tool — and
-        // is therefore the noise floor for every figure below.
-        //
-        // This exists because the check cried wolf. Run on a busy editor it reported hundreds of kilobytes against
-        // chains that measure exactly zero on a quiet one, and the numbers jumped around between two runs of the
-        // identical chain, which no genuine per-block allocation could do. A check that blames the engine for
-        // someone else's activity teaches people to ignore it, which is worse than having no check.
-        long noiseFloor = MeasureNoiseFloor();
+
 
         var sb = new StringBuilder();
         sb.Append("=== DOES THE PER-BLOCK RENDER ALLOCATE? ===\n");
-        if (noiseFloor > 0) {
-            sb.Append("CANNOT MEASURE RELIABLY RIGHT NOW: something else in this process is allocating.\n")
-              .Append("A control run that rendered nothing at all still showed ").Append(noiseFloor)
-              .Append(" bytes, so treat anything below that as unreadable rather than as a fault.\n")
-              .Append("Close other tools, let the editor settle, and run it again.\n\n");
-        }
         sb.Append(MEASURED_BLOCKS).Append(" blocks of ").Append(BLOCK).Append(" frames per measurement, after ")
           .Append(WARMUP_BLOCKS).Append(" warm-up blocks and a full collection\n\n");
         int bad = 0;
         for (int c = 0; c < cases.Count; c++) {
-            // Judged against the noise floor, not against zero: below it, a figure says nothing about the engine.
-            bool clean = first[c] <= noiseFloor && second[c] <= noiseFloor;
+            // The LOWEST of several repeats. Other activity in the process can only ever ADD to a heap reading, so a
+            // genuine per-block allocation would show up in every repeat, and the minimum is the closest this kind of
+            // measurement can get to the engine's own cost. A one-shot control run was tried first and was not good
+            // enough: it finished too quickly to overlap the busy period and reported a clean floor while the real
+            // measurements were being inflated.
+            bool clean = best[c] <= 0;
             if (!clean) bad++;
             sb.Append(clean ? "  clean " : "  ALLOC ").Append(names[c].PadRight(30))
-              .Append(" run 1 = ").Append(first[c].ToString().PadLeft(8)).Append(" bytes")
-              .Append("   run 2 = ").Append(second[c].ToString().PadLeft(8)).Append(" bytes")
-              .Append("   (blocks rendered ").Append(blocksRun[c]).Append(")\n");
+              .Append(" lowest of ").Append(REPEATS).Append(" = ").Append(best[c].ToString().PadLeft(8)).Append(" bytes")
+              .Append("   (saw: ").Append(spread[c]).Append(")\n");
         }
         sb.Append(bad == 0
-            ? (noiseFloor > 0
-                ? "\nVERDICT: nothing above the noise floor — but the floor is not zero, so this run proves little.\n"
-                : "\nVERDICT: no measurable managed allocation in the per-block render, on any chain.\n")
-            : "\nVERDICT: " + bad + " chain(s) allocated above the noise floor — worth investigating.\n");
+            ? "\nVERDICT: no measurable managed allocation in the per-block render, on any chain.\n"
+            : "\nVERDICT: " + bad + " chain(s) allocated in EVERY repeat — that is the engine, worth investigating.\n");
 
         var result = sb.ToString();
         Debug.Log("[ZoundsSapAllocationProof]\n" + result);
         return result;
-    }
-
-    /// <summary>
-    /// The same measurement, rendering nothing. Whatever it reports was allocated by something else in the process,
-    /// and is therefore the floor below which no figure in this check means anything.
-    /// </summary>
-    static long MeasureNoiseFloor() {
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
-        long before = GC.GetTotalMemory(false);
-        // Busy work that allocates nothing and renders nothing, so the sampling window lasts roughly as long as a
-        // real measurement without contributing anything of its own to the heap.
-        double spin = 0;
-        for (int i = 0; i < MEASURED_BLOCKS * BLOCK; i++) spin += i * 0.5;
-        if (spin < 0) return -1;   // never true; present only so the loop cannot be optimised away
-        return GC.GetTotalMemory(false) - before;
     }
 
     static ZoundEffectChain Single(ZoundEffectType type) {
