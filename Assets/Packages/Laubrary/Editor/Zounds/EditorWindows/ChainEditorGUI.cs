@@ -708,6 +708,10 @@ namespace Laubrary.Zounds {
                 if (mod.type == ZoundModifierType.Lfo && k == 5 && (int)mod.p[4] != (int)LfoMode.Random) continue;
                 // Step: the interval only matters per interval.
                 if (mod.type == ZoundModifierType.Step && k == 1 && (int)mod.p[0] != (int)StepTiming.PerInterval) continue;
+                // Step: Smooth glides between steps within a play, so it only exists per interval.
+                if (mod.type == ZoundModifierType.Step && k == 5 && (int)mod.p[0] != (int)StepTiming.PerInterval) continue;
+                // Step: a list running on its own clock (per interval, Retrigger off) has no start to randomise.
+                if (mod.type == ZoundModifierType.Step && k == 3 && (int)mod.p[0] == (int)StepTiming.PerInterval && mod.p[4] < 0.5f) continue;
                 if (mod.type == ZoundModifierType.Lfo && k == 1 && (int)mod.p[4] == (int)LfoMode.Oscillate) SetSlowRateNote(zound, chain, mod);
                 DrawParamRow(zound, chain, int.MinValue, k, pd, mod.p[k], false,
                     v => ModifyContinuous(zound, "change modifier parameter", () => { mod.p[pk] = v; chain.Touch(); }),
@@ -904,9 +908,24 @@ namespace Laubrary.Zounds {
             float barW = Mathf.Min(StepBarMaxW, row.width / n);
             var band = new Rect(row.x, row.y + 2f, barW * n, StepBandH - 4f);
             var steps = mod.steps;
-            if (ZUI.BandSliders(band, steps, -1f, 1f, 0f, out var edited, ZUI.SliderStyle.Default, 0f,
-                                i => "Step " + (i + 1) + ": " + steps[i].ToString("+0.00;-0.00;0.00")
-                                   + (steps[i] > 1f || steps[i] < -1f ? " (beyond the bars' range; dragging it brings it back inside)" : ""))) {
+            // What "no change" is depends on how the list is bound. Shifting or setting a parameter: nought. Scaling it:
+            // one — times one leaves it alone, times nought silences it. So when every binding of this list scales, the
+            // bars run from nought to two about a line at one; drawn about nought instead, the middle of the band would
+            // read as "unchanged" while it actually multiplied by zero (found on the owner's own chain, T-0433).
+            int mi = chain.modifiers.IndexOf(mod);
+            bool anyBinding = false, allScale = true;
+            foreach (var b in chain.bindings) {
+                if (b.modifierIndex != mi) continue;
+                anyBinding = true;
+                if (Dsp.ChainModulationCompat.CombineOf(b) != Dsp.ModulationCombine.Scale) allScale = false;
+            }
+            bool scaling = anyBinding && allScale;
+            float lo = scaling ? 0f : -1f, hi = scaling ? 2f : 1f, rest = scaling ? 1f : 0f;
+            if (ZUI.BandSliders(band, steps, lo, hi, rest, out var edited, ZUI.SliderStyle.Default, rest,
+                                i => "Step " + (i + 1) + ": " + (scaling ? "×" + steps[i].ToString("0.00") : steps[i].ToString("+0.00;-0.00;0.00"))
+                                   + (scaling ? "  (this list scales what it is bound to: the line is ×1, unchanged; the bottom is ×0" + (steps[i] < 0f ? "; below zero pins the parameter at its minimum" : "") + ")"
+                                              : "  (the line is no change; top and bottom are the furthest this list moves what it is bound to)")
+                                   + (steps[i] > hi || steps[i] < lo ? ". Beyond the bars' range; dragging it brings it back inside." : ""))) {
                 ModifyContinuous(zound, "change step value", () => { mod.steps = edited; chain.Touch(); });
             }
         }

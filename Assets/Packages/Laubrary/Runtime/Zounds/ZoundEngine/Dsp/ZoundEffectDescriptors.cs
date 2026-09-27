@@ -313,7 +313,9 @@ namespace Laubrary.Zounds.Dsp {
                     "The highest value this can pick. Keeping Min and Max close gives subtle variation between plays; spreading them wide makes every play noticeably different."),
                 new ParamDesc("Bias", "", 0.1f, 10f, 1f, ParamCurve.Logarithmic, false, ModifierOp.Add, null, null,
                     "Which end of the range the draw favours. One is even; below one leans towards the minimum, above one towards the maximum."));
-            ModDef(ZoundModifierType.Step, "Step", "Steps through a list of values, per play or on a timer.", 4,
+            // State: 0 step, 1 time into step, 2 round-robin used mask, 3 free-running step number, 4 glide start value,
+            // 5 free-running, 6 seed, 7 glide start set.
+            ModDef(ZoundModifierType.Step, "Step", "Steps through a list of values, per play or on a timer.", 8,
                 new ParamDesc("Timing", "", 0f, 1f, 0f, ParamCurve.Integer, false, ModifierOp.Add,
                     new[] { "Per play", "Per interval" },
                     new[] {
@@ -332,8 +334,14 @@ namespace Laubrary.Zounds.Dsp {
                     "How it moves through the list."),
                 new ParamDesc("Start random", "", 0f, 1f, 0f, ParamCurve.Toggle, false, ModifierOp.Add, null, null,
                     "Begins somewhere in the middle of the list rather than always at the top, so a scene that starts fresh does not always open on the same value."),
-                new ParamDesc("Reset on trigger", "", 0f, 1f, 0f, ParamCurve.Toggle, false, ModifierOp.Add, null, null,
-                    "Returns to the start of the list every time the sound is played, instead of carrying on from where it left off."));
+                // Stored exactly as "Reset on trigger" was, so saved sounds keep their setting; renamed at the owner's
+                // request (T-0432), when it was also found to do nothing at all in Per interval timing.
+                new ParamDesc("Retrigger", "", 0f, 1f, 0f, ParamCurve.Toggle, false, ModifierOp.Add, null, null,
+                    "On: every play starts the list again from its first step (or a random one, with Start random). Off, Per play: each play moves on to the next step. Off, Per interval: the list keeps stepping on its own clock whether or not anything is playing, and each play joins it wherever it has got to, like an oscillator set to run Always."),
+                // T-0431. A share of the step rather than a time: a fixed glide would swallow steps shorter than itself,
+                // while a share keeps the pattern's shape however fast it runs.
+                new ParamDesc("Smooth", "", 0f, 1f, 0f, ParamCurve.Linear, false, ModifierOp.Add, null, null,
+                    "In Per interval timing: how much of each step is spent gliding from the previous value to the new one, instead of jumping. Nought jumps instantly; one glides for the whole step, which turns the steps into a continuous wave through the values. Useful for very short steps, where instant jumps can click."));
         }
 
         private static void Def(ZoundEffectType type, string name, string summary, bool stateful, bool heavy,

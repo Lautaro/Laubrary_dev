@@ -101,6 +101,27 @@ public static class ZoundsLfoResetPhaseCheck {
         if (movedOn) sb.Append("   ok: it moves on, so consecutive plays use different values\n");
         else { sb.Append("   <<< FAILED: every play took the same step, so the list never advances\n"); failures++; }
 
+        // A timed step list with Retrigger OFF keeps stepping on its own clock, and each play joins it where it has got to
+        // (T-0432). It used to start every play on the first step, exactly as if Retrigger were on. Checked by comparing
+        // each play's starting step with the step the clock says it should be on, over several plays at odd spacings.
+        sb.Append("\n=== TIMED STEP LIST, RETRIGGER OFF: DOES A PLAY JOIN THE LIST'S OWN CLOCK? ===\n");
+        var joinSound = new Klip(-4343) { name = "(step clock check)" };
+        int joined = 0, tries = 0;
+        var startsSeen = new System.Collections.Generic.HashSet<int>();
+        foreach (int gap in new[] { 37, 53, 71, 29, 61 }) {
+            System.Threading.Thread.Sleep(gap);
+            double before = Time.realtimeSinceStartupAsDouble;
+            int start = TimedStepStart(joinSound, out double after);
+            int expectBefore = (int)(System.Math.Floor(before / 0.05) % 3), expectAfter = (int)(System.Math.Floor(after / 0.05) % 3);
+            if (start == expectBefore || start == expectAfter) joined++;
+            startsSeen.Add(start);
+            tries++;
+        }
+        sb.Append("plays joined the clock's step ").Append(joined).Append("/").Append(tries).Append("; distinct starting steps seen: ").Append(startsSeen.Count).Append("\n");
+        if (joined != tries) { sb.Append("   <<< FAILED: a play did not start on the step the list's clock was on\n"); failures++; }
+        else if (startsSeen.Count < 2) { sb.Append("   <<< FAILED: every play started on the same step, which is what Retrigger ON does\n"); failures++; }
+        else sb.Append("   ok: each play joins the list where its clock has got to\n");
+
         sb.Append(failures == 0 ? "\nVERDICT: both settings behave as described.\n"
                                 : "\nVERDICT: " + failures + " check(s) FAILED.\n");
         return sb.ToString();
@@ -134,6 +155,33 @@ public static class ZoundsLfoResetPhaseCheck {
         ZoundDspOffline.Render(input, 2, SR, SR, chain, 1f, 1f, seconds, 0f, 0f, ZoundDspConstants.CONTROL_BLOCK, false,
                                (voice, written) => { if (written > 0) values.Add(voice.modValues[0]); });
         return values;
+    }
+
+    /// The step a fresh play starts on, for a three-step list stepping every 50 ms with Retrigger off.
+    static int TimedStepStart(Klip sound, out double createdAt) {
+        var chain = new ZoundEffectChain();
+        chain.nodes.Add(new ZoundEffectNode(ZoundEffectType.Gain));
+        var step = new ZoundModifier(ZoundModifierType.Step);
+        step.EnsureParams();
+        step.p[0] = 1f;   // timing: per interval
+        step.p[1] = 50f;  // every 50 ms
+        step.p[2] = 0f;   // sequential
+        step.p[3] = 0f;   // no random start
+        step.p[4] = 0f;   // Retrigger off
+        step.steps = new float[] { 0.2f, 0.4f, 0.6f };
+        chain.modifiers.Add(step);
+        chain.bindings.Add(new ZoundModifierBinding {
+            modifierIndex = 0, nodeIndex = 0, paramIndex = 0, combine = ModulationCombine.Shift, depth = 0.25f,
+            schema = ChainModulationCompat.CURRENT_SCHEMA,
+        });
+        sound.effectChain = chain;
+        var layout = ChainLayout.Build(chain, SR);
+        var pcm = SilentClip();
+        var voice = SapRealtimeVoice.Create(pcm, layout, SR, 0d, pcm.frames, 1f, 1f,
+                                            (float)pcm.frames / SR, false, 1, true, Allocator.Persistent, sound);
+        createdAt = Time.realtimeSinceStartupAsDouble;
+        try { return (int)voice.sap.arena[layout.modStateOffset[0]]; }
+        finally { voice.Dispose(); }
     }
 
     /// The step a fresh play of this sound starts on. Called repeatedly with the SAME sound, because the position is

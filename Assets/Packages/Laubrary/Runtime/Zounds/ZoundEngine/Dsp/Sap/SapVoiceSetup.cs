@@ -247,6 +247,35 @@ namespace Laubrary.Zounds.Dsp {
                         bool resetOnTrigger = pc > 4 && layout.modParamFlat[po + 4] >= 0.5f;
                         bool perPlay = pc > 0 && (int)layout.modParamFlat[po] == (int)StepTiming.PerTrigger;
 
+                        // Per interval with Retrigger OFF: the list keeps stepping on its own clock whether or not
+                        // anything plays, and this play joins it wherever it has got to — the same meaning "Always" has
+                        // for an oscillator. This case used to fall through the code below untouched, so every play
+                        // started on the first step exactly as if Retrigger were on: the setting did nothing (T-0432).
+                        //
+                        // Worked out from the clock rather than carried over from the previous play, because carrying it
+                        // over would mean reading a finished voice's memory, which may already have been released.
+                        if (!perPlay && !resetOnTrigger && so + 7 < sap.arena.Length) {
+                            float interval = System.Math.Max(0.0005f, (pc > 1 ? layout.modParamFlat[po + 1] : 250f) * 0.001f);
+                            double now = UnityEngine.Time.realtimeSinceStartupAsDouble;
+                            double stepsSoFar = now / interval;
+                            double whole = System.Math.Floor(stepsSoFar);
+                            int k = Wrap((long)whole);
+                            int seed = StableSeed(zound.name, m);
+                            int sso = layout.modStepOffset[m];
+                            int idx = SapVoiceRender.FreeRunStep(k, count, roundRobin, seed);
+                            int prev = SapVoiceRender.FreeRunStep(k > 0 ? k - 1 : 0, count, roundRobin, seed);
+                            sap.arena[so] = idx;
+                            sap.arena[so + 1] = (float)((stepsSoFar - whole) * interval);
+                            sap.arena[so + 3] = k;
+                            // A glide into this step started from the previous step's value (a glide always finishes by
+                            // the end of its step), so a play joining mid-glide lands on the same value as one already running.
+                            sap.arena[so + 4] = layout.modStepFlat[sso + prev];
+                            sap.arena[so + 5] = 1f;
+                            sap.arena[so + 6] = seed;
+                            sap.arena[so + 7] = 1f;
+                            break;
+                        }
+
                         if (!stepStates.TryGetValue(zound, out var states) || states.Length < layout.modCount) {
                             states = new StepState[ZoundDspConstants.MAX_MODIFIERS];
                             stepStates[zound] = states;

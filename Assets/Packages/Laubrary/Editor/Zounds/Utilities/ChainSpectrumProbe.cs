@@ -81,6 +81,37 @@ namespace Laubrary.Zounds.EditorTools {
         const int WINDOW = 16384;
         const int SAMPLE_RATE = 48000;
 
+        /// <summary>How much time one per-band reading describes. Anything that changes several times within this is
+        /// averaged in the bars; the lanes, read from the engine at its own control step, are what show such changes.</summary>
+        public const float ReadingSeconds = (float)WINDOW / SAMPLE_RATE;
+
+        /// <summary>
+        /// How many times a second the fastest modifier in the chain changes what it outputs: twice per cycle for an
+        /// oscillator (up, then down), once per new target for a random oscillator, once per step for a timed step list.
+        /// An envelope moves once over the whole play and a per-play value not at all, so neither counts.
+        /// Only modifiers that are on and drive something are considered.
+        /// </summary>
+        public static float FastestChangesPerSecond(ZoundEffectChain chain) {
+            float fastest = 0f;
+            if (chain?.modifiers == null) return 0f;
+            for (int m = 0; m < chain.modifiers.Count; m++) {
+                var mod = chain.modifiers[m];
+                if (!mod.enabled || mod.p == null) continue;
+                bool drives = false;
+                foreach (var b in chain.bindings) if (b.modifierIndex == m) drives = true;
+                if (!drives) continue;
+                float perSecond = 0f;
+                if (mod.type == ZoundModifierType.Lfo && mod.p.Length > 4)
+                    perSecond = (int)mod.p[4] == (int)LfoMode.Random
+                        ? (mod.p.Length > 5 && mod.p[5] > 0f ? 1f / mod.p[5] : 0f)
+                        : 2f * mod.p[1];
+                else if (mod.type == ZoundModifierType.Step && mod.p.Length > 1 && (int)mod.p[0] == (int)StepTiming.PerInterval && mod.p[1] > 0f)
+                    perSecond = 1000f / mod.p[1];
+                if (perSecond > fastest) fastest = perSecond;
+            }
+            return fastest;
+        }
+
         /// <summary>
         /// The length of the pattern the test signal repeats, and also how far the analysis window moves between readings.
         ///

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — Step modifier: Smooth, a working Retrigger, and an analyser that says when it is averaging
+
+- **Smooth** (Step, Per interval only): the share of each step spent gliding from the previous value to the new one, 0 = jump, 1 = glide the whole step. A share rather than a time, so the pattern keeps its shape however short the steps. Applied in the engine's modifier output, a glide cut short carries on from where it was.
+- **"Reset on trigger" is now "Retrigger", and it works in Per interval timing.** Measured: with it off, every play still started on the first step, exactly as if on. Off now means the list keeps stepping on its own clock and a play joins it where it has got to (the same meaning "Always" has for an LFO; round-robin order stays a no-repeat shuffle, derived from the clock). Stored values unchanged. Step state grows 4 → 8 floats. Kept check 9 covers it.
+- **Analyser:** when something in the chain changes more than twice within one per-band reading (0.34 s), the bars hold still at the average and drop the range blocks, and the time row says "⚠ bars show the average of fast changes; the lane shows the changes", with the explanation on hover. Before, a fast step list showed as the correct average but wobbling by up to 1 dB, a sampling artefact that looked like the modulator. The lane was already exact.
+- **Step bars under Scale** run 0–2 about ×1 instead of −1–1 about 0, since under Scale the middle of the old band meant ×0.
+
 ### Zounds — LFO Offset is useful across its whole range; Step lists are a row of bars
 
 - **LFO Offset now says which way the swing goes** (-1 only below the set value, 0 evenly both ways, +1 only above), range -1..1, instead of shoving the wave by up to four whole swings. The swing never reaches beyond Amount whatever the Offset, and the strength curve now scales the Offset too, so strength "none" leaves the parameter alone. Measured on a cutoff set mid-slider: usable Offset travel went from 27% to 100% at the default depth, and from 3% to 100% under Set. An Offset saved under the old meaning is read under the new one; values beyond ±1 read as fully one way.

@@ -438,6 +438,49 @@ namespace Laubrary.Zounds.Dsp {
         }
 
         /// <summary>
+        /// Which step a free-running list (Per interval, Retrigger off) is on at step number <paramref name="k"/> of its
+        /// own clock. A fixed function of the step number, so every play of the list agrees without sharing state.
+        ///
+        /// Sequential: simply k modulo the list length. Round robin: each pass through the list is its own shuffle, drawn
+        /// from the pass number and the list's seed — ranking the steps by a hash, which needs no scratch memory — and the
+        /// first two of a pass are swapped when the pass would otherwise open on the step the previous pass ended on, so a
+        /// value never plays twice running, the same promise round robin makes when it restarts with every play.
+        /// </summary>
+        public static int FreeRunStep(int k, int count, bool roundRobin, int seed) {
+            if (count <= 1) return 0;
+            if (k < 0) k = 0;
+            int pass = k / count, pos = k - pass * count;
+            // With two steps, never-twice-running leaves exactly one order: alternate. (The seam swap below touches a
+            // pass's first two entries, which for a two-step list is the whole pass — measured to repeat without this.)
+            if (!roundRobin || count == 2) return pos;
+            int e = StepAtRank(pass, pos, count, seed);
+            if (pos <= 1 && pass > 0) {
+                int prevLast = StepAtRank(pass - 1, count - 1, count, seed);
+                if (StepAtRank(pass, 0, count, seed) == prevLast) e = StepAtRank(pass, pos == 0 ? 1 : 0, count, seed);
+            }
+            return e;
+        }
+
+        private static int StepAtRank(int pass, int rank, int count, int seed) {
+            for (int i = 0; i < count; i++) {
+                uint ki = StepKey(pass, i, seed);
+                int below = 0;
+                for (int j = 0; j < count; j++) {
+                    uint kj = StepKey(pass, j, seed);
+                    if (kj < ki || (kj == ki && j < i)) below++;
+                }
+                if (below == rank) return i;
+            }
+            return 0;
+        }
+
+        private static uint StepKey(int pass, int i, int seed) {
+            uint h = (uint)pass * 0x9E3779B1u ^ (uint)i * 0x85EBCA77u ^ (uint)seed * 0xC2B2AE3Du;
+            h ^= h >> 16; h *= 0x7FEB352Du; h ^= h >> 15; h *= 0x846CA68Bu; h ^= h >> 16;
+            return h;
+        }
+
+        /// <summary>
         /// The interval counter is kept in a float, which counts whole numbers exactly only up to about sixteen million,
         /// so it wraps well before that. At the shortest interval (a hundredth of a second) that is a wrap every
         /// twenty-three hours, invisible except as a new stretch of random walk, which is what the walk is anyway.
@@ -550,17 +593,45 @@ namespace Laubrary.Zounds.Dsp {
                         int sso = L.modStepOffset[m];
                         int ssc = L.modStepCountOf[m];
                         int timing = (int)mp[mpo];
+                        bool roundRobin = (int)mp[mpo + 2] == (int)StepOrder.RoundRobinNoRepeat;
                         if (timing == (int)StepTiming.PerInterval) {
                             float interval = mp[mpo + 1] * 0.001f;
+                            if (interval < 0.0005f) interval = 0.0005f;
+                            int cur = (int)sap.arena[so];
+                            if (cur < 0 || cur >= ssc) cur = 0;
+                            if (sap.arena[so + 7] == 0f) { sap.arena[so + 7] = 1f; sap.arena[so + 4] = L.modStepFlat[sso + cur]; }
                             sap.arena[so + 1] += blockSeconds;
-                            if (sap.arena[so + 1] >= interval) {
+                            while (sap.arena[so + 1] >= interval) {
                                 sap.arena[so + 1] -= interval;
-                                AdvanceStep(ref sap, ssc, (int)mp[mpo + 2] == (int)StepOrder.RoundRobinNoRepeat, so);
+                                // The glide into the next step starts from wherever the output is now, so a step cut
+                                // short mid-glide carries on smoothly rather than jumping to its own start.
+                                sap.arena[so + 4] = sap.modValue[m];
+                                if (sap.arena[so + 5] > 0.5f) {
+                                    // Retrigger off: the list follows its own clock (see SeedModifiersAtTrigger).
+                                    float k = sap.arena[so + 3] + 1f;
+                                    if (k >= LfoWalkWrap) k -= LfoWalkWrap;
+                                    sap.arena[so + 3] = k;
+                                    sap.arena[so] = FreeRunStep((int)k, ssc, roundRobin, (int)sap.arena[so + 6]);
+                                }
+                                else AdvanceStep(ref sap, ssc, roundRobin, so);
                             }
+                            int idx = (int)sap.arena[so];
+                            if (idx < 0 || idx >= ssc) idx = 0;
+                            float target = L.modStepFlat[sso + idx];
+                            // Smooth: the share of each step spent gliding from the previous value to this one. A share
+                            // rather than a time, so the pattern keeps its shape however short the steps are made.
+                            float smooth = mpc > 5 ? mp[mpo + 5] : 0f;
+                            float glide = smooth * interval;
+                            float into = sap.arena[so + 1];
+                            sap.modValue[m] = glide > 0f && into < glide
+                                ? sap.arena[so + 4] + (target - sap.arena[so + 4]) * (into / glide)
+                                : target;
                         }
-                        int idx = (int)sap.arena[so];
-                        if (idx < 0 || idx >= ssc) idx = 0;
-                        sap.modValue[m] = L.modStepFlat[sso + idx];
+                        else {
+                            int idx = (int)sap.arena[so];
+                            if (idx < 0 || idx >= ssc) idx = 0;
+                            sap.modValue[m] = L.modStepFlat[sso + idx];
+                        }
                         break;
                     }
                     default: sap.modValue[m] = 0f; break;
