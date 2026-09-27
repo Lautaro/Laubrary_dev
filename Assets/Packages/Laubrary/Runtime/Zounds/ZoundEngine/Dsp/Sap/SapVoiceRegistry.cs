@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Laubrary.Zounds.Dsp {
 
@@ -15,9 +16,22 @@ namespace Laubrary.Zounds.Dsp {
     /// currently holds its own private copy of the audio it is reading, which is wasteful but makes its lifetime
     /// trivially safe: nothing is shared, so nothing can be freed out from under a reader. The intended saving is
     /// one shared copy per cached sound instead of one per voice — and at that point freeing the cache while a
-    /// voice is still reading stops being an inconsistency and becomes reading freed memory. **So the sharing
-    /// must not be attempted until stopping is not just requested but CONFIRMED COMPLETE, which needs a barrier
-    /// this does not yet have.** Asking every voice to stop is not the same as knowing they have.
+    /// voice is still reading stops being an inconsistency and becomes reading freed memory. Asking every voice to
+    /// stop is not the same as knowing they have.
+    ///
+    /// **That barrier now exists: <see cref="DestroyAllAndConfirm"/>.** It tears every playing sound down and then
+    /// waits until the audio side has been observed to stop rendering, and it reports whether it actually saw that
+    /// happen rather than assuming it. Three points about it are worth knowing before relying on it:
+    ///
+    /// - It is an OBSERVATION, not a promise extracted from the graph. Each voice bumps a counter on its way into
+    ///   and out of every block, in memory the voice does not own so that it outlives the voice; quiet means that
+    ///   counter has stopped moving and is not mid-block. Nothing here reasons about what the graph's teardown
+    ///   guarantees, because on this branch confident reasoning about this engine has been wrong three times and
+    ///   each time only measurement caught it.
+    /// - It can fail, and says so. A caller freeing memory must treat "not confirmed" as "do not free yet", not as
+    ///   a warning to log and carry on past.
+    /// - It costs a wait of a couple of audio blocks, paid once per call rather than per voice, and only at the rare
+    ///   moments something invalidates the library. It is not on any playback path.
     ///
     /// Registration is deliberately forgiving. A sound may end without telling anyone, because the graph
     /// disposes it on its own thread, so entries can go stale. Every pass therefore drops entries that have
@@ -60,23 +74,151 @@ namespace Laubrary.Zounds.Dsp {
         }
 
         /// <summary>
-        /// Tears every playing sound down through the graph, and returns how many were torn down.
-        ///
-        /// Use this, not <see cref="StopAll"/>, before anything that FREES what sounds are reading. Stopping is a
-        /// request that takes effect a block later; tearing down ends with the graph having released the sound.
-        /// The difference is the whole reason both exist.
+        /// Tears every playing sound down, and returns how many were torn down. Whether they were all actually seen to
+        /// stop is discarded — use <see cref="DestroyAllAndConfirm"/> when anything is about to be freed.
         /// </summary>
-        public static int DestroyAll() {
-            int destroyed = 0;
-            // Backwards, because tearing a sound down removes it from this list.
+        public static int DestroyAll() => DestroyAllAndConfirm(out _);
+
+        // ───────────────────────── confirmed stopped, not merely asked ─────────────────────────
+
+        /// <summary>
+        /// How long a voice has to have been between blocks before it counts as finished, by default: a little over two
+        /// of the audio output's own blocks.
+        ///
+        /// **Why it is measured in blocks rather than being a fixed number of milliseconds.** The only thing that can
+        /// make the counter move again is another block starting, and blocks arrive one output buffer apart. Waiting
+        /// two of them means a block would have had to start and be missed twice over. A fixed millisecond figure
+        /// would be either wasteful on a small buffer or unsafe on a large one, and buffer size is a user setting.
+        ///
+        /// Clamped at both ends so that an unreported or absurd buffer size cannot turn this into either a
+        /// meaningless zero wait or a visible stall.
+        /// </summary>
+        public static double DefaultSettleSeconds {
+            get {
+                AudioSettings.GetDSPBufferSize(out int bufferLength, out int _);
+                int rate = AudioSettings.outputSampleRate;
+                double block = rate > 0 && bufferLength > 0 ? (double)bufferLength / rate : 0.021d;
+                double settle = block * 2.2d;
+                if (settle < 0.005d) settle = 0.005d;
+                if (settle > 0.060d) settle = 0.060d;
+                return settle;
+            }
+        }
+
+        /// <summary>
+        /// Tears every playing sound down and then waits until none of them is rendering any more, reporting through
+        /// <paramref name="confirmed"/> whether that was actually observed. Returns how many were torn down.
+        ///
+        /// **This is the call to use before freeing anything a sound might be reading.** <see cref="DestroyAll"/> asks
+        /// the graph to let go and returns; this one additionally watches until the audio side has visibly stopped.
+        /// The distinction is small in the ordinary case and total in the bad one, and there is no way to tell which
+        /// case you are in without looking.
+        ///
+        /// A false <paramref name="confirmed"/> means one of two things, neither of which is safe to free past: a
+        /// voice is still being rendered after being torn down, or one stopped in the middle of a block and never
+        /// came out. Either way the honest response is to keep the memory.
+        /// </summary>
+        public static int DestroyAllAndConfirm(out bool confirmed, double settleSeconds = 0d,
+                                               double timeoutSeconds = 0.5d) {
+            // Phase one: silence everything, so that nothing is still pulling on a sound that is about to go away.
+            // Snapshotted as we go, because destroying a sound removes it from this list and the question afterwards is
+            // precisely about the ones that were removed.
+            snapshot.Clear();
             for (int i = live.Count - 1; i >= 0; i--) {
                 var g = live[i];
                 if (g == null) { live.RemoveAt(i); continue; }
-                if (g.DestroyNow()) destroyed++;
-                else if (i < live.Count && live[i] == g) live.RemoveAt(i);
+                if (g.SilenceForTeardown()) snapshot.Add(g);
+                else live.RemoveAt(i);   // nothing playing any more; the entry was stale
             }
+
+            // Phase two: ONE wait for all of them. Waiting per sound would cost a settle window each, so a cache clear
+            // with twenty sounds playing would stall for twenty of them instead of one.
+            confirmed = WaitUntilQuiet(snapshot, settleSeconds, timeoutSeconds);
+
+            // Phase three: destroy, now that nothing is reading. A refusal is honoured for every sound rather than
+            // sound by sound, because the wait cannot say WHICH one is still going, only that one of them is — and
+            // destroying the innocent ones would not make the guilty one safe.
+            int destroyed = 0;
+            for (int i = 0; i < snapshot.Count; i++) {
+                if (confirmed) { if (snapshot[i].DestroyAfterQuiet()) destroyed++; }
+                else snapshot[i].WarnNotQuiet();
+            }
+            snapshot.Clear();
             return destroyed;
         }
+
+        /// <summary>
+        /// Waits until every voice in <paramref name="voices"/> has stopped rendering, or until the timeout. True means
+        /// quiet was observed; false means it was not, within the time allowed.
+        ///
+        /// **What "quiet" means and why one reading is never enough.** Each voice's counter is odd while a block is
+        /// running and even between blocks, so a single even reading only says no block was running at that instant —
+        /// another could start immediately after. Quiet therefore requires the counters to be even AND unchanged for a
+        /// settle window, which is long enough that a block would have had to begin within it if any were still coming.
+        ///
+        /// **It sleeps rather than spins, and that is not a detail.** An earlier measurement on this engine concluded
+        /// nothing was being rendered when in fact it had held the main thread at full tilt and starved the thing it
+        /// was watching. Sleeping in short slices leaves the machine free to carry on, so what is observed is the
+        /// engine's behaviour rather than the observer's interference. Whether the audio side runs at all while the
+        /// main thread sleeps is itself something the kept check measures, because the barrier would be worthless if
+        /// waiting were what caused the quiet.
+        /// </summary>
+        public static bool WaitUntilQuiet(List<ZoundSapVoiceGenerator> voices, double settleSeconds = 0d,
+                                          double timeoutSeconds = 0.5d) {
+            if (voices == null || voices.Count == 0) return true;
+            if (settleSeconds <= 0d) settleSeconds = DefaultSettleSeconds;
+
+            int n = voices.Count;
+            var last = new long[n];
+            for (int i = 0; i < n; i++) last[i] = TicketOf(voices[i]);
+
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            double quietSince = -1d;
+
+            while (true) {
+                bool still = true;
+                for (int i = 0; i < n; i++) {
+                    long now = TicketOf(voices[i]);
+                    // Moved, or caught mid-block: either way this is not quiet, and the new reading becomes the
+                    // baseline the settle window is measured from.
+                    if (now != last[i] || (now & 1L) != 0L) { still = false; last[i] = now; }
+                }
+
+                double elapsed = clock.Elapsed.TotalSeconds;
+                if (!still) quietSince = -1d;
+                else if (quietSince < 0d) quietSince = elapsed;
+                else if (elapsed - quietSince >= settleSeconds) return true;
+
+                if (elapsed >= timeoutSeconds) return false;
+                System.Threading.Thread.Sleep(1);
+            }
+        }
+
+        /// <summary>Waits on a single voice. Same meaning, same caveats.</summary>
+        public static bool WaitUntilQuiet(ZoundSapVoiceGenerator voice, double settleSeconds = 0d,
+                                          double timeoutSeconds = 0.5d) {
+            if (voice == null) return true;
+            var one = new List<ZoundSapVoiceGenerator>(1) { voice };
+            return WaitUntilQuiet(one, settleSeconds, timeoutSeconds);
+        }
+
+        /// <summary>
+        /// A voice's block counter, with "never started one" reported as a quiet, unchanging zero rather than as the
+        /// -1 the component uses to mean "nothing to report" — which, being odd, would otherwise read as permanently
+        /// mid-block and make every wait time out.
+        /// </summary>
+        private static long TicketOf(ZoundSapVoiceGenerator generator) {
+            if (generator == null) return 0L;
+            long ticket = generator.RenderTicket;
+            return ticket < 0L ? 0L : ticket;
+        }
+
+        /// <summary>
+        /// The voices a teardown-and-confirm is watching. Reused rather than allocated per call, because the call
+        /// happens at moments when the editor is already doing something expensive and adding garbage to it is free
+        /// to avoid.
+        /// </summary>
+        private static readonly List<ZoundSapVoiceGenerator> snapshot = new List<ZoundSapVoiceGenerator>();
 
         /// <summary>
         /// Delivers one live parameter change to every voice currently playing <paramref name="zound"/>, and

@@ -89,6 +89,28 @@ namespace Laubrary.Zounds.Dsp {
         /// </summary>
         public NativeArray<int> monitorCursor;
 
+        /// <summary>
+        /// A counter bumped once when a block starts and once when it ends, so a reader can tell not only HOW MANY
+        /// blocks have happened but whether one is happening right now: an odd value means the audio side is inside
+        /// a block, an even value means it is between blocks.
+        ///
+        /// **This is deliberately NOT owned by the voice, and that is the entire reason it exists separately from the
+        /// block count already on this struct.** The question it answers is "has the audio side finished with this
+        /// voice's memory", and every other piece of bookkeeping lives in that same memory — so reading it after the
+        /// voice has been released would be reading exactly the thing whose safety is in doubt. This counter is
+        /// allocated by whoever hosts the voice, outlives the voice on purpose, and is never disposed here.
+        ///
+        /// **Why one counter and not a count plus a busy flag.** Two separate values can be seen half-updated, and the
+        /// half that arrives first decides whether a reader believes the wrong thing. One counter with the even/odd
+        /// convention cannot disagree with itself: any single value read is either clearly mid-block or clearly
+        /// between blocks, and a value that is both even and unchanged over a whole block's worth of time means no
+        /// block has begun in that time.
+        ///
+        /// Costs two additions per block when present and one check when absent, so it is affordable to leave on
+        /// permanently — which matters, because a barrier nobody switched on is not a barrier.
+        /// </summary>
+        public NativeArray<long> renderTicket;
+
         // The audio graph asks these three of every generator. A sound of unknown final length (a tail can
         // outlast the source, and a repeat train can extend it) answers "not finite, no length", the same
         // answer the working reference implementation gives.
@@ -110,7 +132,8 @@ namespace Laubrary.Zounds.Dsp {
                                               double startFrame, double endFrame,
                                               float basePitch, float outGain, float sourceDuration,
                                               bool loop, long tokenId, bool heavyTier, Allocator allocator,
-                                              Zound zound = null, int monitorSamples = 0) {
+                                              Zound zound = null, int monitorSamples = 0,
+                                              NativeArray<long> renderTicket = default) {
             int arenaFloats = heavyTier ? ZoundDspConstants.HEAVY_ARENA_FLOATS : ZoundDspConstants.LIGHT_ARENA_FLOATS;
 
             var v = new SapRealtimeVoice {
@@ -121,6 +144,8 @@ namespace Laubrary.Zounds.Dsp {
                 basePitch = basePitch,
                 outGain = outGain,
                 clipRate = clip != null ? (double)clip.frequency / sampleRate : 1.0,
+                // Borrowed, not created here: it belongs to the host so that it survives this voice.
+                renderTicket = renderTicket,
             };
 
             if (monitorSamples > 0) {
@@ -197,6 +222,9 @@ namespace Laubrary.Zounds.Dsp {
             if (pcm.IsCreated) pcm.Dispose();
             if (monitor.IsCreated) monitor.Dispose();
             if (monitorCursor.IsCreated) monitorCursor.Dispose();
+            // renderTicket is deliberately NOT released here. Its whole purpose is to be readable AFTER this voice is
+            // gone, so that whoever wants to free what the voice was reading can first confirm it has stopped reading.
+            // Freeing it here would destroy the only evidence available at exactly the moment it is needed.
         }
 
         // ───────────────────────── the audio graph's own entry points ─────────────────────────
@@ -228,12 +256,21 @@ namespace Laubrary.Zounds.Dsp {
         /// </summary>
         public GeneratorInstance.Result Process(in RealtimeContext context, Pipe pipe,
                                                 ChannelBuffer buffer, GeneratorInstance.Arguments args) {
+            // Opened before anything is touched and closed after everything is, so that the window the counter
+            // describes is wider than the window in which this voice's memory is actually in use, never narrower.
+            // Erring wide only makes a waiting barrier wait slightly longer; erring narrow would let it conclude
+            // "finished" while a block was still running, which is the one answer that must never be wrong.
+            bool ticketed = renderTicket.IsCreated;
+            if (ticketed) renderTicket[0] = renderTicket[0] + 1;   // now odd: inside a block
+
             int frames = buffer.frameCount;
             if (frames > sap.bufL.Length) frames = sap.bufL.Length;
 
             bool produced = RenderBlock(frames);
             WriteTo(buffer, frames, produced);
             if (monitor.IsCreated && produced) CopyToMonitor(frames);
+
+            if (ticketed) renderTicket[0] = renderTicket[0] + 1;   // now even: between blocks
             return buffer.frameCount;
         }
 

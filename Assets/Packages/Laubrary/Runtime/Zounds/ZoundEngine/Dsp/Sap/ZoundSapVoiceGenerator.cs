@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Unity.Collections;
 using Unity.IntegerTime;
 using UnityEngine;
@@ -69,6 +70,35 @@ namespace Laubrary.Zounds.Dsp {
         private RepeatPlan repeat;
 
         /// <summary>
+        /// The block counter every voice this component starts bumps on its way in and out of a block — see the field
+        /// of the same purpose on the voice for the even/odd convention.
+        ///
+        /// **Owned here, not by the voice, and that is the point.** It has to still be readable after the voice has
+        /// been released, because the only useful moment to ask "has the audio side finished with that voice" is after
+        /// asking it to finish.
+        ///
+        /// **One per voice, not one per component, and that distinction was learned the hard way.** A single shared
+        /// counter cannot answer the question that matters: it keeps moving when ANY voice this component has started
+        /// is rendering, so a still-running old voice and a freshly started new one are indistinguishable. The first
+        /// version of this shared one counter across plays and produced a reading that looked exactly like "the voice
+        /// we just tore down is still being rendered" when the truthful reading may have been "a different voice
+        /// started". A barrier that cannot tell those apart is not a barrier.
+        /// </summary>
+        private NativeArray<long> renderTicket;
+
+        /// <summary>
+        /// Counters belonging to voices this component started earlier and has not yet seen go quiet.
+        ///
+        /// **Why they cannot simply be released when the voice is replaced.** A sound with a long tail can still be
+        /// rendering when the pool hands its audio source to the next sound, so the previous voice's counter may still
+        /// be being written. Releasing it then is the very use-after-free the counter exists to detect. Instead each
+        /// one is kept, with the last value seen beside it, and released on a later pass once it has been observed not
+        /// to have moved — which, since passes happen a whole play apart, is a generous margin.
+        /// </summary>
+        private readonly List<NativeArray<long>> retiredTickets = new List<NativeArray<long>>();
+        private readonly List<long> retiredLastSeen = new List<long>();
+
+        /// <summary>
         /// How many recent samples each new voice should keep for a visualiser, or zero for none.
         ///
         /// Off by default and set only while something is actually looking, so a shipped game never pays for it. Unity's
@@ -132,9 +162,11 @@ namespace Laubrary.Zounds.Dsp {
                 layout = ChainLayout.Empty;
             }
 
+            RotateRenderTicket();
+
             voice = SapRealtimeVoice.Create(clip, layout, preparedSampleRate, startFrame, endFrame,
                                             basePitch, outGain, sourceDuration, loop, tokenId, heavyTier,
-                                            Allocator.Persistent, playingZound, monitorSamples);
+                                            Allocator.Persistent, playingZound, monitorSamples, renderTicket);
             if (repeat.enabled) voice.SetRepeat(in repeat);
             created = true;
             handedOff = true;
@@ -186,27 +218,65 @@ namespace Laubrary.Zounds.Dsp {
         public bool ReleaseLive() => Send(SapVoiceCommand.Release());
 
         /// <summary>
-        /// Tears the sound down through the graph immediately, rather than asking it to stop and hoping.
+        /// Tears the sound down through the graph, in the only order that is safe: silence what is pulling on it,
+        /// wait until the audio side has been seen to stop, and only then destroy it.
         ///
-        /// **The difference between this and stopping matters, and it is the reason this exists.** A stop is a
-        /// request that reaches the sound at the start of its next block, so for a moment afterwards the sound is
-        /// still reading its audio. Tearing down goes through the graph's own destroy call, which is the only
-        /// thing on offer that ends with the graph having released the sound's memory rather than merely having
-        /// been told to. Anything about to FREE what a sound is reading needs this, not a stop.
+        /// **This order is not caution, it is the fix for a crash that was reproduced and diagnosed from the engine's
+        /// own logs.** Destroying the sound while its audio source was still playing left the mixer pulling on a
+        /// processor that no longer existed. It did that once per audio block, complaining each time, for
+        /// twenty-seven seconds, and then the engine's own thread-safety validation faulted and took the editor down.
+        /// Three things follow from that, and each is a step below:
         ///
-        /// The pending-work flush before it is there so a change sent a moment ago cannot still be in flight
-        /// towards something that no longer exists.
+        /// - **Silencing has to come first.** Destroying the sound does not stop the audio source carrying it, and an
+        ///   audio source that is still playing will keep asking for audio — either from the corpse of what was just
+        ///   destroyed, or by starting a fresh sound behind you. Neither is wanted.
+        /// - **The destroy has to come last, and only once nothing is reading.** This is the reverse of the obvious
+        ///   order and the whole point: a destroy issued while a block is in flight is exactly what crashed.
+        /// - **A refusal has to be honoured.** When the audio side cannot be seen to go quiet, this does NOT destroy
+        ///   the sound. Leaving it playing wastes a voice; destroying it takes the editor with it.
         ///
-        /// Note what is still unproven: that the graph's destroy call does not return until its audio side has
-        /// genuinely let go. It would be a strange design if it did not, and it is the strongest guarantee the
-        /// documented surface offers — but it has not been watched happening, which is why sharing one copy of
-        /// decoded audio between sounds is still not switched on.
+        /// Returns false when there was nothing playing. <paramref name="confirmed"/> is false when the sound could not
+        /// be seen to stop, in which case nothing was destroyed and nothing it is reading may be freed.
         /// </summary>
-        public bool DestroyNow() {
+        public bool DestroyAndConfirm(out bool confirmed, double settleSeconds = 0d, double timeoutSeconds = 0.5d) {
+            confirmed = true;
             if (!hasInstance) return false;
             var control = ControlContext.builtIn;
             if (!control.Exists(instance)) { hasInstance = false; return false; }
 
+            SilenceForTeardown();
+            confirmed = SapVoiceRegistry.WaitUntilQuiet(this, settleSeconds, timeoutSeconds);
+            if (confirmed) DestroyAfterQuiet();
+            else WarnNotQuiet();
+            return true;
+        }
+
+        /// <summary>
+        /// Step one of a teardown: stops the audio source from pulling on the sound. Returns whether there is still an
+        /// instance to destroy afterwards.
+        ///
+        /// Separate from the destroy so that many sounds can be silenced first and then waited for ONCE, instead of
+        /// each paying its own settle window. Tearing down twenty sounds one at a time would be twenty waits.
+        /// </summary>
+        internal bool SilenceForTeardown() {
+            if (!hasInstance) return false;
+            if (!ControlContext.builtIn.Exists(instance)) { hasInstance = false; return false; }
+            var carrier = GetComponent<AudioSource>();
+            if (carrier != null && carrier.isPlaying) carrier.Stop();
+            return true;
+        }
+
+        /// <summary>
+        /// The last step of a teardown, to be called ONLY once the sound has been observed to have stopped being
+        /// rendered. Calling it before that is the crash this whole sequence exists to avoid.
+        /// </summary>
+        internal bool DestroyAfterQuiet() {
+            if (!hasInstance) return false;
+            var control = ControlContext.builtIn;
+            if (!control.Exists(instance)) { hasInstance = false; return false; }
+
+            // Flushed first, so a change sent a moment ago cannot still be in flight towards something that is about
+            // to stop existing.
             ControlContext.WaitForBuiltInQueueFlush();
             control.Destroy(instance);
             hasInstance = false;
@@ -218,6 +288,68 @@ namespace Laubrary.Zounds.Dsp {
             SapVoiceRegistry.Unregister(this);
             return true;
         }
+
+        /// <summary>Says plainly that a voice is being wasted on purpose, and why that is the better of two bad options.</summary>
+        internal void WarnNotQuiet() {
+            Debug.LogWarning("[Zounds] " + name + ": a sound would not stop being rendered after its audio source was " +
+                             "silenced, so it has deliberately been left alone rather than destroyed. Destroying a " +
+                             "sound the mixer is still reading is what crashes the editor, so the voice is being " +
+                             "wasted on purpose. Nothing this sound is reading may be freed.");
+        }
+
+        /// <summary>
+        /// Tears the sound down, without telling the caller whether it worked. Kept for callers that only want the
+        /// sound gone and have nothing to free, and it goes through exactly the same safe sequence — there is
+        /// deliberately no version of this that destroys a sound without first silencing it and watching it stop,
+        /// because that version is what crashed the editor.
+        /// </summary>
+        public bool DestroyNow() => DestroyAndConfirm(out _);
+
+        /// <summary>
+        /// Gives the next voice its own counter, and releases the counters of earlier voices that have been observed to
+        /// have stopped. Called when a new voice is created, which is the natural moment: it is at least one whole play
+        /// since the last pass, so anything still moving really is still running.
+        /// </summary>
+        private void RotateRenderTicket() {
+            for (int i = retiredTickets.Count - 1; i >= 0; i--) {
+                var ticket = retiredTickets[i];
+                if (!ticket.IsCreated) { retiredTickets.RemoveAt(i); retiredLastSeen.RemoveAt(i); continue; }
+                long now = ticket[0];
+                // Unchanged since the last look and not mid-block: that voice is finished with it.
+                if (now == retiredLastSeen[i] && (now & 1L) == 0L) {
+                    ticket.Dispose();
+                    retiredTickets.RemoveAt(i);
+                    retiredLastSeen.RemoveAt(i);
+                }
+                else retiredLastSeen[i] = now;
+            }
+
+            if (renderTicket.IsCreated) {
+                retiredTickets.Add(renderTicket);
+                retiredLastSeen.Add(renderTicket[0]);
+            }
+            renderTicket = new NativeArray<long>(1, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+        }
+
+        // ───────────────────────── knowing a sound has actually stopped ─────────────────────────
+        //
+        // Everything above can ASK a sound to stop. None of it can tell you that it HAS. The three members below are
+        // the difference, and they exist because that difference is the only thing standing between the engine and
+        // sharing one copy of a sound's audio between every voice playing it: sharing is safe exactly when freeing can
+        // wait for the readers to finish, and unsafe when it can only ask them to.
+
+        /// <summary>
+        /// The raw block counter. Odd means a block is running right now, even means none is. -1 when this component
+        /// has never started a voice, so there is nothing to have finished.
+        ///
+        /// Read without any synchronisation, on purpose and safely: a single value is either odd or even, so no read
+        /// can see a state that never existed. The value may of course be out of date by the time it is looked at —
+        /// which is why nothing decides anything from ONE reading, only from a reading that has stopped changing.
+        /// </summary>
+        public long RenderTicket => renderTicket.IsCreated ? renderTicket[0] : -1L;
+
+        /// <summary>True while the audio side is inside a block for this component's voice.</summary>
+        public bool RenderInProgress => renderTicket.IsCreated && (renderTicket[0] & 1L) != 0L;
 
         /// <summary>
         /// Sends one change down the two-hop route the graph provides. There is no single call that reaches the
@@ -293,8 +425,27 @@ namespace Laubrary.Zounds.Dsp {
         }
 
         private void OnDestroy() {
+            // The sound is silenced and seen to stop FIRST, because everything after this releases memory the audio
+            // side may otherwise still be reading. Only a component that actually had something playing pays the wait.
+            bool quiet = true;
+            if (hasInstance) DestroyAndConfirm(out quiet, timeoutSeconds: 0.25d);
             SapVoiceRegistry.Unregister(this);
             ReleaseOwnVoice();
+
+            // A counter is released only when its voice has been seen to stop. When it has not, it is deliberately
+            // LEAKED — eight bytes, reported by the leak detector, against a crash. That is not a close call: freeing
+            // this is the one thing guaranteed to fault, because the audio side writes to it on every block.
+            if (quiet && renderTicket.IsCreated) renderTicket.Dispose();
+            // Each earlier voice is judged on its own counter rather than on the current one's verdict, because an
+            // earlier voice can still be ringing out its tail on a source the pool has already moved on from.
+            for (int i = 0; i < retiredTickets.Count; i++) {
+                var ticket = retiredTickets[i];
+                if (!ticket.IsCreated) continue;
+                long now = ticket[0];
+                if (now == retiredLastSeen[i] && (now & 1L) == 0L) ticket.Dispose();
+            }
+            retiredTickets.Clear();
+            retiredLastSeen.Clear();
         }
 
         /// <summary>Releases the voice only while this component is still the owner (see <see cref="handedOff"/>).</summary>

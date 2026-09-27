@@ -141,9 +141,20 @@ namespace Laubrary.Zounds {
             //
             // Tearing down rather than merely asking to stop, deliberately: a stop request only takes effect a
             // block later, so the sounds would still be reading while the next lines free what they are reading
-            // from. That is survivable today only because each sound holds its own copy. Going through the
-            // graph's own teardown is the strongest guarantee available that it has let go first.
-            Laubrary.Zounds.Dsp.SapVoiceRegistry.DestroyAll();
+            // from. And tearing down is followed by WAITING until the audio side has visibly stopped, rather than
+            // trusting that it has -- because the moment a sound's audio is shared between voices instead of copied
+            // per voice, the difference between those two stops being a cosmetic inconsistency and becomes a read of
+            // freed memory. Getting the barrier right while it is still harmless is the cheap moment to do it.
+            Laubrary.Zounds.Dsp.SapVoiceRegistry.DestroyAllAndConfirm(out bool voicesStopped);
+            if (!voicesStopped) {
+                // The sounds were deliberately left playing rather than destroyed, so they carry on from data the
+                // engine is about to drop. That is audible and wrong, and it is still the better outcome: destroying a
+                // sound the mixer is still reading has been observed to take the editor down with it.
+                Debug.LogWarning("[Zounds] The library was invalidated while a sound could not be seen to stop, so " +
+                                 "that sound was left playing rather than destroyed. It will finish playing from " +
+                                 "settings the engine has already dropped, so the edit will seem not to have taken " +
+                                 "effect until it ends. Destroying it instead would have risked the editor.");
+            }
             Laubrary.Zounds.Dsp.ZoundPcmCache.Clear();
             Laubrary.Zounds.Dsp.ZoundDspPlayback.InvalidateLayouts();
             // A stepping modulator's position is remembered per sound so that "advance one step per play" can work at
