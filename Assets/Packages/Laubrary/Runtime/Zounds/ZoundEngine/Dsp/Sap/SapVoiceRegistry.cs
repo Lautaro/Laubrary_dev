@@ -59,6 +59,25 @@ namespace Laubrary.Zounds.Dsp {
             return asked;
         }
 
+        /// <summary>
+        /// Tears every playing sound down through the graph, and returns how many were torn down.
+        ///
+        /// Use this, not <see cref="StopAll"/>, before anything that FREES what sounds are reading. Stopping is a
+        /// request that takes effect a block later; tearing down ends with the graph having released the sound.
+        /// The difference is the whole reason both exist.
+        /// </summary>
+        public static int DestroyAll() {
+            int destroyed = 0;
+            // Backwards, because tearing a sound down removes it from this list.
+            for (int i = live.Count - 1; i >= 0; i--) {
+                var g = live[i];
+                if (g == null) { live.RemoveAt(i); continue; }
+                if (g.DestroyNow()) destroyed++;
+                else if (i < live.Count && live[i] == g) live.RemoveAt(i);
+            }
+            return destroyed;
+        }
+
         /// <summary>Drops entries whose sound has ended or whose object has been destroyed.</summary>
         public static void Prune() {
             for (int i = live.Count - 1; i >= 0; i--) {

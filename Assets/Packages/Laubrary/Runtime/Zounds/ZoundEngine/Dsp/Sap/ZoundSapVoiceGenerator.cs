@@ -163,6 +163,40 @@ namespace Laubrary.Zounds.Dsp {
         public bool ReleaseLive() => Send(SapVoiceCommand.Release());
 
         /// <summary>
+        /// Tears the sound down through the graph immediately, rather than asking it to stop and hoping.
+        ///
+        /// **The difference between this and stopping matters, and it is the reason this exists.** A stop is a
+        /// request that reaches the sound at the start of its next block, so for a moment afterwards the sound is
+        /// still reading its audio. Tearing down goes through the graph's own destroy call, which is the only
+        /// thing on offer that ends with the graph having released the sound's memory rather than merely having
+        /// been told to. Anything about to FREE what a sound is reading needs this, not a stop.
+        ///
+        /// The pending-work flush before it is there so a change sent a moment ago cannot still be in flight
+        /// towards something that no longer exists.
+        ///
+        /// Note what is still unproven: that the graph's destroy call does not return until its audio side has
+        /// genuinely let go. It would be a strange design if it did not, and it is the strongest guarantee the
+        /// documented surface offers — but it has not been watched happening, which is why sharing one copy of
+        /// decoded audio between sounds is still not switched on.
+        /// </summary>
+        public bool DestroyNow() {
+            if (!hasInstance) return false;
+            var control = ControlContext.builtIn;
+            if (!control.Exists(instance)) { hasInstance = false; return false; }
+
+            ControlContext.WaitForBuiltInQueueFlush();
+            control.Destroy(instance);
+            hasInstance = false;
+
+            // The graph disposed the voice as part of destroying it, and this component's copy shares that same
+            // memory — so it must NOT be disposed again here. Marking it handed off is what prevents that.
+            handedOff = true;
+            created = false;
+            SapVoiceRegistry.Unregister(this);
+            return true;
+        }
+
+        /// <summary>
         /// Sends one change down the two-hop route the graph provides. There is no single call that reaches the
         /// audio side directly: a message goes to the generator's control half, which forwards it into the
         /// value channel that the audio side drains at the start of each block. The forwarding hop is what puts

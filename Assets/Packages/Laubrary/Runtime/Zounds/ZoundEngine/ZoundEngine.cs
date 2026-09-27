@@ -135,12 +135,15 @@ namespace Laubrary.Zounds {
             instance.cullingGroups.Clear();
             instance.tokens.Clear();
             instance.zoundLastPlayedTimes.Clear();
-            // Stop what is playing BEFORE throwing away what it is playing from. Without this, a cache clear
+            // Tear down what is playing BEFORE throwing away what it is playing from. Without this, a cache clear
             // leaves sounds running from decoded audio and effect chains the engine believes it has dropped --
             // so an edit in the Zounds window appears to have done nothing until the old sound happens to end.
-            // Note this REQUESTS a stop rather than waiting for one; see the note on the voice registry for why
-            // that distinction matters before the per-voice copies of decoded audio are ever shared.
-            Laubrary.Zounds.Dsp.SapVoiceRegistry.StopAll();
+            //
+            // Tearing down rather than merely asking to stop, deliberately: a stop request only takes effect a
+            // block later, so the sounds would still be reading while the next lines free what they are reading
+            // from. That is survivable today only because each sound holds its own copy. Going through the
+            // graph's own teardown is the strongest guarantee available that it has let go first.
+            Laubrary.Zounds.Dsp.SapVoiceRegistry.DestroyAll();
             Laubrary.Zounds.Dsp.ZoundPcmCache.Clear();
             Laubrary.Zounds.Dsp.ZoundDspPlayback.InvalidateLayouts();
         }

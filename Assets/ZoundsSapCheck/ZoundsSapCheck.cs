@@ -1,4 +1,4 @@
-using System.Diagnostics;
+using Stopwatch = System.Diagnostics.Stopwatch;
 using Unity.Burst;
 using UnityEngine;
 using Laubrary.Zounds;
@@ -58,6 +58,7 @@ namespace Laubrary.Zounds.Checks {
         private bool listenerMissing;
         private float liveSweep;
         private bool sweeping;
+        private string witnessVerdict;
 
         private void Awake() {
             source = GetComponent<AudioSource>();
@@ -67,7 +68,40 @@ namespace Laubrary.Zounds.Checks {
         }
 
         private void Start() {
+            if (WantsHeadlessReport()) { WriteHeadlessReport(); return; }
             Play();
+        }
+
+        /// <summary>
+        /// A built player launched with no graphics, or with the flag below, answers the one question a build can
+        /// answer without a person present and writes it to a file. Everything else about this scene needs ears.
+        /// </summary>
+        private static bool WantsHeadlessReport() {
+            if (Application.isBatchMode) return true;
+            foreach (var arg in System.Environment.GetCommandLineArgs()) {
+                if (arg == "-zoundsCheckReport") return true;
+            }
+            return false;
+        }
+
+        private void WriteHeadlessReport() {
+            var witness = ZoundsSapCompiledWitness.Run();
+            var sb = new System.Text.StringBuilder();
+            sb.Append("Zounds native audio check, headless report\n");
+            sb.Append("platform: ").Append(Application.platform).Append("   editor: ").Append(Application.isEditor).Append('\n');
+            sb.Append("unity: ").Append(Application.unityVersion).Append('\n');
+            sb.Append("output rate: ").Append(AudioSettings.outputSampleRate).Append(" Hz\n");
+            AudioSettings.GetDSPBufferSize(out int bufferLength, out int numBuffers);
+            sb.Append("audio buffer: ").Append(bufferLength).Append(" frames x ").Append(numBuffers).Append('\n');
+            sb.Append('\n').Append(witness.report);
+
+            string path = System.IO.Path.Combine(
+                System.IO.Path.GetDirectoryName(Application.dataPath) ?? ".", "zounds-check-report.txt");
+            try { System.IO.File.WriteAllText(path, sb.ToString()); }
+            catch (System.Exception e) { Debug.LogError("[Zounds] could not write the report: " + e.Message); }
+
+            Debug.Log("[Zounds] headless report written to " + path + "\n" + sb);
+            Application.Quit(witness.compiled ? 0 : 3);
         }
 
         /// <summary>Starts (or restarts) the looping tone through the chain.</summary>
@@ -183,7 +217,15 @@ namespace Laubrary.Zounds.Checks {
                 GUILayout.Space(6);
             }
 
-            GUILayout.Label("compiled audio path enabled: " + (BurstCompiler.IsEnabled ? "YES" : "NO — this will stutter"));
+            GUILayout.Label("compiler reports itself enabled: " + (BurstCompiler.IsEnabled ? "yes" : "NO — this will stutter"));
+            if (witnessVerdict == null && GUILayout.Button("Check whether the chain is REALLY compiled")) {
+                var w = ZoundsSapCompiledWitness.Run();
+                witnessVerdict = w.compiled
+                    ? "REALLY COMPILED (paths differ by " + w.largestDifference.ToString("R") + ")"
+                    : "NOT COMPILED — running as ordinary code, audio will freeze during collection";
+                Debug.Log("[Zounds] " + w.report);
+            }
+            if (witnessVerdict != null) GUILayout.Label("chain is: " + witnessVerdict);
             GUILayout.Label("state: " + status + (generator != null && generator.IsPlaying ? "  (graph reports it playing)" : ""));
             GUILayout.Label("sounds registered as playing: " + SapVoiceRegistry.Count);
             GUILayout.Label("output rate: " + AudioSettings.outputSampleRate + " Hz");
