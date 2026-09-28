@@ -117,6 +117,64 @@ namespace Laubrary.Zounds.Dsp {
         }
 
         /// <summary>
+        /// How long one pass through <paramref name="sourceSeconds"/> of source lasts under the chain's curves (T-0481):
+        /// the source consumed at the pitch the pitch curves give times, when <paramref name="stretched"/>, the speed the
+        /// time curves give. With <paramref name="keepLength"/> the pitch curves no longer change the length (the voice
+        /// compensates their pitch with speed; T-0482). Not included: the sound's own pitch and speed, which the caller
+        /// divides by. Curves are read against the source position, as a waveform-following curve is.
+        /// </summary>
+        public static float PlayLengthOverSource(ZoundEffectChain chain, float sourceSeconds, bool stretched, bool keepLength) {
+            if (chain == null || chain.IsEmpty) return sourceSeconds;
+            const int steps = 400;
+            double total = 0;
+            for (int i = 0; i < steps; i++) {
+                float t = (i + 0.5f) / steps;
+                float rate = keepLength && stretched ? 1f : PitchAtSource(chain, t, sourceSeconds);
+                if (stretched) rate *= SpeedAtSource(chain, t, sourceSeconds);
+                total += (sourceSeconds / steps) / Mathf.Max(rate, 1e-3f);
+            }
+            return (float)total;
+        }
+
+        /// <summary>The speed multiplier the chain's time curves (envelopes bound to Speed) give at <paramref name="t"/>
+        /// (0..1) through the source, combined exactly as the render combines them.</summary>
+        public static float SpeedAtSource(ZoundEffectChain chain, float t, float sourceSeconds) {
+            var pd = ZoundEffectDescriptors.SourceStageParams[SourceStageParam.Speed];
+            float speed = pd.def;
+            if (chain == null || chain.IsEmpty) return speed;
+            bool ratio = ModulationMath.IsRatioSpaced(pd.curve);
+            for (int b = 0; b < chain.bindings.Count; b++) {
+                var bind = chain.bindings[b];
+                if (bind.nodeIndex != -1 || bind.paramIndex != SourceStageParam.Speed) continue;
+                if (bind.modifierIndex < 0 || bind.modifierIndex >= chain.modifiers.Count) continue;
+                var m = chain.modifiers[bind.modifierIndex];
+                if (!m.enabled || m.type != ZoundModifierType.Envelope || m.curve == null) continue;
+                float extra = Mathf.Max(m.Param(0), 0f);
+                float tn = sourceSeconds + extra > 0f ? t * sourceSeconds / (sourceSeconds + extra) : t;
+                speed = ModulationMath.Apply(ChainModulationCompat.EffectiveCombine(chain, bind), speed, m.curve.Evaluate(tn),
+                                             ChainModulationCompat.DepthOf(bind, pd.min, pd.max, ratio), pd.min, pd.max, ratio);
+            }
+            return Mathf.Clamp(speed, pd.min, pd.max);
+        }
+
+        /// <summary>Whether the chain has an enabled curve driving Speed (so the live stretcher must run).</summary>
+        public static bool HasTimeCurve(ZoundEffectChain chain) => HasEnabledEnvelopeOn(chain, SourceStageParam.Speed);
+
+        /// <summary>Whether the chain has an enabled curve driving the source's pitch.</summary>
+        public static bool HasPitchCurve(ZoundEffectChain chain) => HasEnabledEnvelopeOn(chain, SourceStageParam.Pitch);
+
+        static bool HasEnabledEnvelopeOn(ZoundEffectChain chain, int sourceParam) {
+            if (chain == null || chain.IsEmpty) return false;
+            foreach (var bind in chain.bindings) {
+                if (bind.nodeIndex != -1 || bind.paramIndex != sourceParam) continue;
+                if (bind.modifierIndex < 0 || bind.modifierIndex >= chain.modifiers.Count) continue;
+                var m = chain.modifiers[bind.modifierIndex];
+                if (m.enabled && m.type == ZoundModifierType.Envelope && m.curve != null) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
         /// The pitch multiplier the chain's pitch curves give at <paramref name="t"/> (0..1) through the source, combined
         /// exactly as the render combines them. The one place a display or a length calculation reads "what pitch is heard
         /// here" from, so none of them treats a curve's raw value as a multiplier (it has not been one since the curves

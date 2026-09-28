@@ -17,6 +17,8 @@ namespace Laubrary.Zounds.Dsp {
         public bool keepHits;
         /// <summary>How long after each detected hit is protected, in milliseconds (the offline stretcher's default is 40).</summary>
         public float keepMs;
+        /// <summary>The pitch parameter changes pitch only, not length: the speed is divided by it (T-0482).</summary>
+        public bool keepLength;
 
         public static SapStretchConfig Off => new SapStretchConfig { enabled = false };
     }
@@ -57,6 +59,8 @@ namespace Laubrary.Zounds.Dsp {
     /// </summary>
     public struct SapStretch {
         public bool enabled;
+        /// <summary>The pitch parameter changes pitch only: speed is divided by it (T-0482).</summary>
+        public bool keepLength;
         public int algorithm;
         public bool keepHits;
         /// <summary>Window and hop, in OUTPUT frames.</summary>
@@ -80,7 +84,8 @@ namespace Laubrary.Zounds.Dsp {
 
         /// <summary>Main thread: sizes everything and finds the clip's hits (the offline stretcher's rule).</summary>
         public static SapStretch Create(SapStretchConfig cfg, PcmClip clip, int outputSampleRate, int slots, Allocator a) {
-            var st = new SapStretch { enabled = cfg.enabled && clip != null && clip.frames > 0, algorithm = cfg.algorithm, keepHits = cfg.keepHits };
+            var st = new SapStretch { enabled = cfg.enabled && clip != null && clip.frames > 0, algorithm = cfg.algorithm, keepHits = cfg.keepHits,
+                                      keepLength = cfg.keepLength };
             if (!st.enabled) return st;
             float windowMs = cfg.windowMs > 5f ? cfg.windowMs : 30f;
             st.N = math.max(64, (int)(windowMs * 0.001f * outputSampleRate)) & ~1;

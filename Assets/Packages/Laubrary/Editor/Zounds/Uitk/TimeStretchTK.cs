@@ -7,20 +7,31 @@ using UnityEngine.UIElements;
 namespace Laubrary.Zounds.Uitk {
 
     /// <summary>
-    /// UI Toolkit twin of TimeStretchGUI, the Klip editor's time-stretch strip (T-0461): row one (Stretch, the algorithm
-    /// strip, Uniform/Region/Curve, the resulting length), the Live speed row, and — while Stretch is on — the factor,
-    /// region and algorithm parameters. Same controls, same sizes, same order, same edits through the same project
-    /// paths (and the same one-step Undo per drag). The speed curve's editor arrives with the envelope twin (T-0459).
+    /// The Klip editor's speed strip (T-0481; twin of TimeStretchGUI): everything that decides how fast a play moves
+    /// through its source, and how long the play lasts.
+    ///
+    /// Row one is the live stretcher: Live speed (the sound's own speed, and game code's), and -- whenever the stretcher
+    /// will run for this sound, whatever switched it on (Live speed, a time curve, keep length, an old stretch setting) --
+    /// its window, Keep hits and algorithm. At the right, the length a play will actually have, from the same plan the
+    /// engine plays from.
+    ///
+    /// Row two appears only for a Klip that still carries an old Uniform / Region / Curve stretch. Those settings used to
+    /// be computed only for the editor and were never heard; they are now played through the live stretcher at every
+    /// play, and this row says so, with Convert (make it permanent as a Speed or a time curve) and Remove. They are no
+    /// longer edited here: the time curve on the waveform and the Speed slider are where that is done now.
     /// </summary>
     public class TimeStretchTK : VisualElement {
 
         const float RowH = 20f;
         readonly Klip klip;
+        Label length;
 
         public TimeStretchTK(Klip klip) {
             this.klip = klip;
             style.flexShrink = 0;
             Build();
+            // The real length follows every edit anywhere in the window (trim, pitch and time curves, speed).
+            schedule.Execute(UpdateLength).Every(250);
         }
 
         ZoundTimeStretch TS {
@@ -28,14 +39,9 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         void Set(string undo, System.Action a) {
-            ZoundsWindow.ModifyAndSaveZoundsProject(undo, () => { a(); ZoundTimeStretcher.Clear(); });
-            Prewarm();
+            ZoundsWindow.ModifyAndSaveZoundsProject(undo, a);
             Rebuild();
         }
-
-        /// <summary>Renders the stretched buffer now, as the old strip does after a change or at the end of a drag, so the
-        /// cost does not land on the next Play press.</summary>
-        void Prewarm() => TimeStretchGUI.Prewarm(klip, ZoundSapPlayback.LoadSourceClip(klip));
 
         void Rebuild() { Clear(); Build(); }
 
@@ -47,149 +53,108 @@ namespace Laubrary.Zounds.Uitk {
         static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.style.flexShrink = 0; return e; }
         static VisualElement Flex() { var e = new VisualElement(); e.style.flexGrow = 1; return e; }
 
-        void Build() {
-            var ts = TS;
-            ts.EnsureParams();
+        /// <summary>Whether the live stretcher runs for a play of this sound, and why (for the tooltips).</summary>
+        internal static bool StretcherRuns(Klip klip, out string why) {
+            why = null;
             var clip = ZoundSapPlayback.LoadSourceClip(klip);
-            float clipLength = clip != null ? clip.length : 0f;
-            float trimStart = klip.trimEnabled ? klip.trimStart : 0f;
-            float trimEnd = klip.trimEnabled && klip.trimEnd > klip.trimStart ? Mathf.Min(klip.trimEnd, clipLength) : clipLength;
-
-            // ── row one ──
-            var r1 = Row();
-            r1.Add(ZS.Toggle("Stretch", ts.enabled ? "Stop changing the duration; the source plays at its own length." : "Change how long the source lasts without changing its pitch (computed once per setting, ahead of the effect chain).",
-                             ts.enabled, on => Set(on ? "enable time stretch" : "disable time stretch", () => ts.enabled = on), "RichToggle", ZUICornerMask.All, 64f, RowH));
-            r1.Add(Gap(6f));
-            for (int a = 0; a < TimeStretchDescriptors.Count; a++) {
-                var d = TimeStretchDescriptors.Get((TimeStretchAlgorithm)a);
-                var corner = a == 0 ? ZUICornerMask.Left : a == TimeStretchDescriptors.Count - 1 ? ZUICornerMask.Right : ZUICornerMask.None;
-                var alg = d.algorithm;
-                var t = ZS.Toggle(d.displayName, d.summary, ts.algorithm == d.algorithm, on => {
-                    if (ts.algorithm != alg && d.available) Set("time stretch algorithm", () => { ts.algorithm = alg; ts.algorithmParams = new float[0]; ts.EnsureParams(); });
-                    else Rebuild();
-                }, "RichToggle", corner, EditorStyles.label.CalcSize(new GUIContent(d.displayName)).x + 16f, RowH);   // the old strip's own width rule
-                t.SetEnabled(d.available);
-                r1.Add(t);
-            }
-            r1.Add(Gap(6f));
-            string[] modes = { "Uniform", "Region", "Curve" };
-            string[] modeTips = {
-                "One factor over the whole (trimmed) source.",
-                "Only a span of the source is stretched by the factor; the rest plays unchanged.",
-                "A speed curve over the source: 1 = unchanged, 0.5 = half speed (twice as long), 2 = double speed."
-            };
-            for (int m = 0; m < 3; m++) {
-                var corner = m == 0 ? ZUICornerMask.Left : m == 2 ? ZUICornerMask.Right : ZUICornerMask.None;
-                var mode = (TimeStretchMode)m;
-                r1.Add(ZS.Toggle(modes[m], modeTips[m], (int)ts.mode == m, _ => {
-                    if (ts.mode != mode) Set("time stretch mode", () => { ts.mode = mode; if (mode == TimeStretchMode.Region && ts.regionEnd <= ts.regionStart) { ts.regionStart = trimStart; ts.regionEnd = trimEnd; } });
-                    else Rebuild();
-                }, "RichToggle", corner, 62f, RowH));
-            }
-            r1.Add(Flex());
-            if (ts.enabled && clip != null && ts.IsEffective(clipLength)) {
-                var len = new Label((trimEnd - trimStart).ToString("0.00") + " s → " + EstimateLength(ts, trimStart, trimEnd).ToString("0.00") + " s") { tooltip = "Source length → stretched length at pitch 1." };
-                len.AddToClassList("zs-minilabel");
-                len.style.width = 110f;
-                r1.Add(len);
-            }
-            Add(r1);
-
-            Add(BuildLive(ts));
-
-            if (!ts.enabled) return;
-
-            // ── row two: factor / region / algorithm parameters ──
-            var r2 = Row();
-            if (ts.mode != TimeStretchMode.Envelope) {
-                float lmin = Mathf.Log(0.25f), lmax = Mathf.Log(4f);
-                float t = Mathf.InverseLerp(lmin, lmax, Mathf.Log(Mathf.Clamp(ts.factor, 0.25f, 4f)));
-                ZuiSkinSlider s = null;
-                var undo = ZS.DragUndo(r2, "time stretch factor", Prewarm);
-                s = ZS.Slider("Length ×" + ts.factor.ToString("0.00"), t, 0f, 1f, "Duration multiplier: 2 = twice as long, 0.5 = half as long. Double-click resets to 1.",
-                    nt => { undo(); float f = Mathf.Exp(Mathf.Lerp(lmin, lmax, nt)); ts.factor = f; ZoundTimeStretcher.Clear(); EditorUtility.SetDirty(ZoundsProject.Instance); s.text = "Length ×" + f.ToString("0.00"); },
-                    ZuiSkinSlider.LabelMode.LabelOnly, 0.5f, "Default", 160f, RowH - 2f);
-                r2.Add(s);
-                r2.Add(Gap(8f));
-            }
-            if (ts.mode == TimeStretchMode.Region && clipLength > 0f) {
-                var undo = ZS.DragUndo(r2, "time stretch region", Prewarm);
-                r2.Add(ZS.MinMax("Region s", Mathf.Clamp(ts.regionStart, trimStart, trimEnd), Mathf.Clamp(ts.regionEnd, trimStart, trimEnd), trimStart, trimEnd,
-                    "The span (seconds into the source) that is stretched; everything outside plays unchanged.",
-                    (lo, hi) => { undo(); ts.regionStart = lo; ts.regionEnd = hi; ZoundTimeStretcher.Clear(); EditorUtility.SetDirty(ZoundsProject.Instance); },
-                    "Default", ZuiSkinMinMax.LabelMode.LabelAndValues, false, 220f, RowH - 2f));
-                r2.Add(Gap(8f));
-            }
-            var desc = TimeStretchDescriptors.Get(ts.algorithm);
-            for (int k = 0; k < desc.parameters.Length; k++) {
-                var pd = desc.parameters[k];
-                int pk = k;
-                float v = ts.algorithmParams[k];
-                var undo = ZS.DragUndo(r2, "time stretch parameter", Prewarm);
-                ZuiSkinSlider s = null;
-                if (pd.curve == ParamCurve.Logarithmic) {
-                    float lmin = Mathf.Log(pd.min), lmax = Mathf.Log(pd.max);
-                    float t = Mathf.InverseLerp(lmin, lmax, Mathf.Log(Mathf.Max(v, pd.min)));
-                    s = ZS.Slider(pd.name + " " + v.ToString("0") + " " + pd.unit, t, 0f, 1f, ParamTip(ts.algorithm, k),
-                        nt => { undo(); float nv = Mathf.Exp(Mathf.Lerp(lmin, lmax, nt)); ts.algorithmParams[pk] = nv; ZoundTimeStretcher.Clear(); EditorUtility.SetDirty(ZoundsProject.Instance); s.text = pd.name + " " + nv.ToString("0") + " " + pd.unit; },
-                        ZuiSkinSlider.LabelMode.LabelOnly, Mathf.InverseLerp(lmin, lmax, Mathf.Log(pd.def)), "Default", 120f, RowH - 2f);
-                }
-                else {
-                    s = ZS.Slider(pd.name, v, pd.min, pd.max, ParamTip(ts.algorithm, k),
-                        nv => { undo(); ts.algorithmParams[pk] = nv; ZoundTimeStretcher.Clear(); EditorUtility.SetDirty(ZoundsProject.Instance); },
-                        ZuiSkinSlider.LabelMode.LabelAndValue, pd.def, "Default", 120f, RowH - 2f);
-                }
-                r2.Add(s);
-                r2.Add(Gap(4f));
-            }
-            r2.Add(Flex());
-            Add(r2);
-
-            if (ts.mode == TimeStretchMode.Envelope) {
-                // The speed curve (56 px, full width), drawn by the envelope editor's twin in the pitch colour.
-                if (ts.speedEnvelope == null) ts.speedEnvelope = new Envelope(0.25f, 4f);
-                var curve = new EnvelopeTK(ts.speedEnvelope, ZoundsProject.Instance.projectSettings.editorStyle.pitchEnvelopeColor) {
-                    tooltip = "Playback speed over the source (left = start, right = end): 1 = unchanged, below 1 = slower and longer, above 1 = faster and shorter. Drag points; double-click to add one."
-                };
-                curve.style.height = 56f; curve.style.flexShrink = 0;
-                var curveUndo = ZS.DragUndo(curve, "edit stretch curve", Prewarm);
-                curve.onBegin = curveUndo;
-                curve.onChanged = () => { ZoundTimeStretcher.Clear(); EditorUtility.SetDirty(ZoundsProject.Instance); };
-                Add(curve);
-            }
+            double freq = clip != null && clip.frequency > 0 ? clip.frequency : 48000;
+            double frames = clip != null ? clip.samples : freq;
+            var plan = ZoundSapPlayback.Plan(klip, 0, frames, freq);
+            if (!plan.stretched) return false;
+            var ts = klip.timeStretch;
+            if (ts != null && ts.liveEnabled) why = "Live speed is on";
+            else if (plan.legacyStretch) why = "an old stretch setting is being played";
+            else if (plan.keepLength) why = "the pitch curve keeps the length";
+            else why = "a time curve is on";
+            return true;
         }
 
-        /// <summary>The Live speed row (TimeStretchGUI.DrawLive).</summary>
+        /// <summary>"Plays 0.54 s" and what that is made of -- the length the engine will give a play (at the sound's
+        /// own pitch of one; its Pitch range and game code's speed scale it further).</summary>
+        internal static bool PlayLengthText(Klip klip, out string text, out string tip) {
+            text = ""; tip = "";
+            if (klip.IsLooper) { text = "Loops"; tip = "A Looper plays until it is stopped."; return true; }
+            if (!ZoundSapPlayback.TryGetPlayLength(klip, out float seconds)) return false;
+            text = "Plays " + seconds.ToString("0.00") + " s";
+            bool runs = StretcherRuns(klip, out string why);
+            tip = "How long one play lasts, as the engine will play it: the (trimmed) source, through the pitch curve"
+                + (runs ? ", the time curve and the speed (the live stretcher runs: " + why + ")" : " (tape-style: raising the pitch shortens the sound)")
+                + ". At the sound's own pitch of one; its Pitch setting" + (runs ? " and game code's speed" : "") + " scale it further.";
+            return true;
+        }
+
+        bool builtRuns, builtLegacy;
+
+        void UpdateLength() {
+            if (length == null || panel == null) return;
+            // Something elsewhere in the window (a time curve, keep length, trim) can start or stop the stretcher.
+            if (StretcherRuns(klip, out _) != builtRuns || (KlipChainEnvelopes.DescribeLegacyStretch(klip) != null) != builtLegacy) { Rebuild(); return; }
+            if (PlayLengthText(klip, out string t, out string tip)) { length.text = t; length.tooltip = tip; }
+            else { length.text = ""; length.tooltip = ""; }
+        }
+
+        void Build() {
+            var ts = TS;
+            builtRuns = StretcherRuns(klip, out _);
+            string old = KlipChainEnvelopes.DescribeLegacyStretch(klip);
+            builtLegacy = old != null;
+            Add(BuildLive(ts));
+            if (old != null) Add(BuildLegacy(old));
+        }
+
+        /// <summary>The old stretch setting's row: what it does, that it is now heard, Convert and Remove.</summary>
+        VisualElement BuildLegacy(string what) {
+            var r = Row();
+            var l = new Label("Old stretch: " + what) {
+                tooltip = "This sound carries a stretch setting from before the live stretcher. It used to be computed only for the editor and was never heard when the sound played; it is now played through the live stretcher at every play, so this is what you hear. It is not edited here any more: Convert moves it into the Speed slider (Uniform) or the time curve on the waveform (Region and Curve), where it can be edited."
+            };
+            l.AddToClassList("zs-lbl");
+            l.style.width = 300f; l.style.flexShrink = 0; l.style.unityTextAlign = TextAnchor.MiddleLeft;
+            r.Add(l);
+            r.Add(Gap(6f));
+            r.Add(ZS.Button("Convert", "Makes it permanent in the current controls, sounding the same: a Uniform stretch becomes this sound's Speed (Live speed on), a Region or Curve stretch becomes its time curve following the waveform. The old setting is then switched off.", "RichButton",
+                () => Set("convert old stretch", () => KlipChainEnvelopes.ConvertLegacyStretch(klip)), ZUICornerMask.Left, 70f, RowH - 2f));
+            r.Add(ZS.Button("Remove", "Switches the old stretch setting off: the sound plays at its own length again.", "RichButton",
+                () => Set("remove old stretch", () => { TS.enabled = false; ZoundDspPlayback.InvalidateLayout(klip); }), ZUICornerMask.Right, 70f, RowH - 2f));
+            r.Add(Flex());
+            return r;
+        }
+
+        /// <summary>The live stretcher's row.</summary>
         VisualElement BuildLive(ZoundTimeStretch ts) {
             var r = Row();
+            bool runs = StretcherRuns(klip, out string why);
             r.Add(ZS.Toggle("Live speed", ts.liveEnabled
-                    ? "Stop the live stretcher: the sound reads its source directly again, and Speed, game code's speed and any modifier on Speed are no longer heard."
-                    : "Let this sound's speed change while it plays without changing its pitch — from the Speed setting, a modifier on Speed, or game code (a bullet-time slowdown). Costs about one percent of a CPU core per playing copy.",
+                    ? "Stop using this sound's own Speed and game code's speed. The live stretcher still runs if a time curve, keep length or an old stretch setting needs it."
+                    : "Give this sound its own speed, and let game code change it while it plays (a bullet-time slowdown) -- without changing its pitch. Costs about one percent of a CPU core per playing copy.",
                 ts.liveEnabled, on => Set(on ? "enable live speed" : "disable live speed", () => ts.liveEnabled = on), "RichToggle", ZUICornerMask.All, 84f, RowH));
             if (ts.liveEnabled) {
                 r.Add(Gap(6f));
                 var spd = ZoundEffectDescriptors.SourceStageParams[SourceStageParam.Speed];
                 float lmin = Mathf.Log(spd.min), lmax = Mathf.Log(spd.max);
                 float t = Mathf.InverseLerp(lmin, lmax, Mathf.Log(Mathf.Clamp(ts.liveSpeed, spd.min, spd.max)));
-                var undo = ZS.DragUndo(r, "live speed", Prewarm);
+                var undo = ZS.DragUndo(r, "live speed");
                 ZuiSkinSlider s = null;
                 s = ZS.Slider("Speed ×" + ts.liveSpeed.ToString("0.00"), t, 0f, 1f,
-                    "How fast the sound moves through its source, without changing its pitch: 0.5 is half speed (twice as long), 2 is double. Heard immediately, even on a sound already playing. Game code's speed multiplies on top. Right-click to drive it with a modifier. Double-click resets to 1.",
+                    "How fast the sound moves through its source, without changing its pitch: 0.5 is half speed (twice as long), 2 is double. Heard immediately, even on a sound already playing. Game code's speed and the time curve multiply on top. Double-click resets to 1.",
                     nt => { undo(); float sp = Mathf.Exp(Mathf.Lerp(lmin, lmax, nt)); ts.liveSpeed = sp; EditorUtility.SetDirty(ZoundsProject.Instance); SapVoiceRegistry.PushAuthoredSpeed(klip, sp); s.text = "Speed ×" + sp.ToString("0.00"); },
                     ZuiSkinSlider.LabelMode.LabelOnly, Mathf.InverseLerp(lmin, lmax, 0f), "Default", 150f, RowH - 2f);
                 r.Add(s);
+            }
+            if (runs) {
+                string from = " (The live stretcher runs for this sound because " + why + ".)";
                 r.Add(Gap(6f));
-                var wundo = ZS.DragUndo(r, "live stretch window", Prewarm);
+                var wundo = ZS.DragUndo(r, "live stretch window");
                 ZuiSkinSlider ws = null;
                 ws = ZS.Slider("Window " + ts.liveWindowMs.ToString("0") + " ms", ts.liveWindowMs, 10f, 100f,
-                    "Length of the pieces the sound is cut into to stretch it. 20-30 ms suits speech and hits; 40-50 ms suits pads, chords and engines. Applies from the next play.",
+                    "Length of the pieces the sound is cut into to stretch it. 20-30 ms suits speech and hits; 40-50 ms suits pads, chords and engines. Applies from the next play." + from,
                     w => { wundo(); ts.liveWindowMs = Mathf.Round(w); EditorUtility.SetDirty(ZoundsProject.Instance); ws.text = "Window " + ts.liveWindowMs.ToString("0") + " ms"; },
                     ZuiSkinSlider.LabelMode.LabelOnly, 30f, "Default", 120f, RowH - 2f);
                 r.Add(ws);
                 r.Add(Gap(6f));
-                r.Add(ZS.Toggle("Keep hits", ts.liveKeepHits
+                r.Add(ZS.Toggle("Keep hits", (ts.liveKeepHits
                         ? "Stretch hits too: attacks are then smeared, and at slow speeds can repeat like a machine gun. Applies from the next play."
-                        : "Play each hit (attack) once, whole, at normal speed, and stretch only the material between hits, so shots and clicks stay sharp and never double. Applies from the next play.",
+                        : "Play each hit (attack) once, whole, at normal speed, and stretch only the material between hits, so shots and clicks stay sharp and never double. Applies from the next play.") + from,
                     ts.liveKeepHits, on => Set("live stretch keep hits", () => ts.liveKeepHits = on), "RichToggle", ZUICornerMask.All, 72f, RowH));
                 r.Add(Gap(6f));
                 string[] names = { "WSOLA", "Granular" };
@@ -199,47 +164,18 @@ namespace Laubrary.Zounds.Uitk {
                 };
                 for (int a = 0; a < 2; a++) {
                     var alg = (LiveStretchAlgorithm)a;
-                    r.Add(ZS.Toggle(names[a], tips[a], (int)ts.liveAlgorithm == a, _ => {
+                    r.Add(ZS.Toggle(names[a], tips[a] + from, (int)ts.liveAlgorithm == a, _ => {
                         if (ts.liveAlgorithm != alg) Set("live stretch algorithm", () => ts.liveAlgorithm = alg); else Rebuild();
                     }, "RichToggle", a == 0 ? ZUICornerMask.Left : ZUICornerMask.Right, a == 0 ? 60f : 70f, RowH));
                 }
             }
             r.Add(Flex());
+            length = new Label();
+            length.AddToClassList("zs-minilabel");
+            length.style.width = 110f; length.style.flexShrink = 0; length.style.unityTextAlign = TextAnchor.MiddleRight;
+            r.Add(length);
+            UpdateLength();
             return r;
-        }
-
-        const string KeepHitsTip = "Every hit (attack) is kept intact for this long and only the material between hits is stretched, so a percussive sound is not repeated like a machine gun. 0 stretches everything.";
-
-        static string ParamTip(TimeStretchAlgorithm a, int k) {
-            if (a == TimeStretchAlgorithm.Granular) {
-                switch (k) {
-                    case 0: return "Grain length. Short grains follow fast material; long grains sound smoother on sustained sounds.";
-                    case 1: return "How much consecutive grains overlap. More overlap is smoother and costlier.";
-                    case 2: return "Random offset of each grain's read position, to break the buzz long stretches get at the grain rate.";
-                    default: return KeepHitsTip;
-                }
-            }
-            switch (k) {
-                case 0: return "Analysis window. Longer keeps low frequencies intact; shorter follows transients.";
-                case 1: return "How far each window may shift to line up with the previous one.";
-                default: return KeepHitsTip;
-            }
-        }
-
-        static float EstimateLength(ZoundTimeStretch ts, float trimStart, float trimEnd) {
-            float len = trimEnd - trimStart;
-            switch (ts.mode) {
-                case TimeStretchMode.Uniform: return len * ts.factor;
-                case TimeStretchMode.Region: {
-                    float region = Mathf.Max(0f, Mathf.Min(ts.regionEnd, trimEnd) - Mathf.Max(ts.regionStart, trimStart));
-                    return len - region + region * ts.factor;
-                }
-                default: {
-                    double sum = 0; const int n = 200;
-                    for (int i = 0; i < n; i++) sum += (len / n) / Mathf.Clamp(ts.speedEnvelope.Evaluate((i + 0.5f) / n), 0.05f, 20f);
-                    return (float)sum;
-                }
-            }
         }
     }
 }

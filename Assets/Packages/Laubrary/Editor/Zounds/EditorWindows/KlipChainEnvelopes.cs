@@ -94,6 +94,94 @@ namespace Laubrary.Zounds {
             return chain.modifiers[m].curve;
         }
 
+        // ── the time curve (T-0481/T-0482): an Envelope driving Speed on the Ratio scale, following the waveform ──
+
+        private static int TimeModifier(ZoundEffectChain chain) =>
+            FindEnvelopeModifier(chain, b => b.nodeIndex == -1 && b.paramIndex == SourceStageParam.Speed);
+
+        /// <summary>The Klip's time curve (the first envelope bound to Speed), created flat (x1) when asked.</summary>
+        public static Envelope TimeCurve(Zound zound, bool create) {
+            var chain = Chain(zound);
+            if (chain == null) {
+                if (!create || !(zound is Klip)) return null;
+                zound.effectChain = chain = new ZoundEffectChain();
+            }
+            int m = TimeModifier(chain);
+            if (m < 0) {
+                if (!create) return null;
+                Dsp.LegacyStretch.AddTimeCurve(chain, NewRatioCurve(), "Time");
+                chain.Touch();
+                m = chain.modifiers.Count - 1;
+            }
+            if (chain.modifiers[m].curve == null) chain.modifiers[m].curve = NewRatioCurve();
+            return chain.modifiers[m].curve;
+        }
+
+        public static void SetTimeEnabled(Zound zound, bool enabled) {
+            var chain = Chain(zound);
+            var curve = TimeCurve(zound, enabled);
+            if (curve == null) return;
+            chain = Chain(zound);
+            int m = TimeModifier(chain);
+            if (m >= 0) chain.modifiers[m].enabled = enabled;
+            curve.enabled = enabled;
+            chain.Touch();
+            ZoundDspPlayback.InvalidateLayout(zound);
+        }
+
+        /// <summary>
+        /// Makes a Klip's old stretch setting permanent in the current controls (T-0481), so it no longer needs converting
+        /// at every play: Uniform becomes the sound's Speed (Live speed on), Region and Curve become its time curve
+        /// following the waveform (a separate "Old stretch" curve if the Klip already has a time curve switched on, so
+        /// neither is lost). The old setting is then switched off. Plays exactly as it did through the live stretcher.
+        /// The caller records Undo first. Returns a line saying what it did, or null when there was nothing to convert.
+        /// </summary>
+        public static string ConvertLegacyStretch(Klip k) {
+            if (!Dsp.LegacyStretch.IsActive(k)) return null;
+            var ts = k.timeStretch;
+            string done;
+            if (ts.mode == TimeStretchMode.Uniform) {
+                float s = Dsp.LegacyStretch.UniformSpeed(k);
+                ts.liveSpeed = Mathf.Clamp((ts.liveEnabled ? ts.liveSpeed : 1f) * s, Dsp.SapStretch.MinSpeed, Dsp.SapStretch.MaxSpeed);
+                ts.liveEnabled = true;
+                done = "Speed ×" + ts.liveSpeed.ToString("0.00");
+            }
+            else {
+                var clip = Dsp.ZoundSapPlayback.LoadSourceClip(k);
+                float from = k.trimEnabled ? k.trimStart : 0f;
+                float to = k.trimEnabled && k.trimEnd > k.trimStart ? k.trimEnd : (clip != null ? clip.length : from + 1f);
+                var curve = Dsp.LegacyStretch.ToTimeCurve(k, from, to);
+                var chain = Chain(k);
+                bool timeOn = chain != null && Dsp.ZoundDspPlayback.HasTimeCurve(chain);
+                if (timeOn) {
+                    Dsp.LegacyStretch.AddTimeCurve(chain, curve, "Old stretch");
+                    chain.Touch();
+                    done = "a second time curve, \"Old stretch\"";
+                }
+                else {
+                    var target = TimeCurve(k, true);
+                    target.GetPointsList().Clear();
+                    target.GetPointsList().AddRange(curve.GetPointsList());
+                    SetTimeEnabled(k, true);
+                    done = "the time curve";
+                }
+            }
+            ts.enabled = false;
+            ZoundDspPlayback.InvalidateLayout(k);
+            return done;
+        }
+
+        /// <summary>What an old stretch setting does, in words (for the strip's summary line).</summary>
+        public static string DescribeLegacyStretch(Klip k) {
+            if (!Dsp.LegacyStretch.IsActive(k)) return null;
+            var ts = k.timeStretch;
+            switch (ts.mode) {
+                case TimeStretchMode.Uniform: return "length ×" + ts.factor.ToString("0.00");
+                case TimeStretchMode.Region: return "length ×" + ts.factor.ToString("0.00") + " from " + ts.regionStart.ToString("0.00") + " to " + ts.regionEnd.ToString("0.00") + " s";
+                default: return "a speed curve";
+            }
+        }
+
         /// <summary>At the start of an edit of <paramref name="mod"/>'s curve from the chain card: if it is the Klip's pitch
         /// curve on the old scale, convert it first (inside the edit's Undo step), as the waveform overlay does.</summary>
         public static void EnsurePitchRatioIfPitchCurve(Zound zound, ZoundModifier mod) {

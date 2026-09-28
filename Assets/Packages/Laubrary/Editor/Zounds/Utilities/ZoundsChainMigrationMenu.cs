@@ -20,6 +20,10 @@ namespace Laubrary.Zounds.EditorTools {
     ///
     /// It is safe to run more than once: converting a sound clears the old settings, so a second run finds nothing
     /// left to do.
+    ///
+    /// **Old stretch settings too (T-0481).** A Uniform / Region / Curve stretch is converted the same way: into the
+    /// sound's Speed (Uniform) or its time curve following the waveform (Region and Curve), which is how playback has
+    /// been playing it on the fly.
     /// </summary>
     public static class ZoundsChainMigrationMenu {
 
@@ -31,36 +35,40 @@ namespace Laubrary.Zounds.EditorTools {
                 return;
             }
 
-            int pending = 0;
+            int pending = 0, pendingStretch = 0;
             var klips = project.zoundLibrary.klips;
             for (int i = 0; i < klips.Count; i++) {
                 if (klips[i] != null && ChainMigration.HasLegacyEdits(klips[i])) pending++;
+                if (klips[i] != null && LegacyStretch.IsActive(klips[i])) pendingStretch++;
             }
 
-            if (pending == 0) {
+            if (pending == 0 && pendingStretch == 0) {
                 EditorUtility.DisplayDialog("Nothing to convert",
                     "No sound is still using the older effect settings. Everything is already on chains.", "OK");
                 return;
             }
 
-            if (!EditorUtility.DisplayDialog("Convert " + pending + " sound(s) to effect chains?",
+            if (!EditorUtility.DisplayDialog("Convert " + Mathf.Max(pending, pendingStretch) + " sound(s) to effect chains?",
                     "Each one's gain, equaliser, compression, normalisation, fade and volume/pitch curves become an " +
-                    "equivalent chain, and the old settings are cleared.\n\n" +
+                    "equivalent chain, and the old settings are cleared." +
+                    (pendingStretch > 0 ? " " + pendingStretch + " old stretch setting(s) become a Speed or a time curve." : "") + "\n\n" +
                     "They will then be visible and editable in the chain editor, applied as the sound plays, with no " +
                     "rendered file needed. This rewrites authored data.",
                     "Convert", "Cancel")) {
                 return;
             }
 
-            int migrated = 0;
+            int migrated = 0, stretched = 0;
             ZoundsWindow.ModifyAndSaveZoundsProject("convert old effects to chains", () => {
                 migrated = ChainMigration.MigrateProject(project.zoundLibrary);
+                foreach (var k in project.zoundLibrary.klips)
+                    if (k != null && KlipChainEnvelopes.ConvertLegacyStretch(k) != null) stretched++;
             });
 
             // The cached layouts were built from the pre-conversion state, so they no longer describe these sounds.
             ZoundDspPlayback.InvalidateLayouts();
 
-            Debug.Log("[Zounds] Converted " + migrated + " sound(s) from the older effect settings to effect chains.");
+            Debug.Log("[Zounds] Converted " + migrated + " sound(s) from the older effect settings to effect chains, and " + stretched + " old stretch setting(s).");
             EditorUtility.DisplayDialog("Converted", "Converted " + migrated + " sound(s). Their effects are now in " +
                                         "the chain editor and are applied as the sound plays.", "OK");
         }

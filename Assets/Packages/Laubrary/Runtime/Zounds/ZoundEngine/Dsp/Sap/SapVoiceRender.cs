@@ -666,6 +666,14 @@ namespace Laubrary.Zounds.Dsp {
                 float rate = (float)(clipRate * (basePitchStart + basePitchStep * i0) * (pitchParamStart + pitchParamStep * i0) * sl.pitchMul);
                 float speedA = (baseSpeedStart + baseSpeedStep * i0) * (speedParamStart + speedParamStep * i0);
                 float speedB = (baseSpeedStart + baseSpeedStep * n) * (speedParamStart + speedParamStep * n);
+                if (sap.stretch.keepLength) {
+                    // Keep length (T-0482): the pitch curve changes pitch only. The read rate already carries it (tape
+                    // style), so the time-scale is divided by exactly the same value at exactly the same moments -- the
+                    // compensation is derived from the pitch itself and cannot drift from it.
+                    float pa = pitchParamStart + pitchParamStep * i0, pb = pitchParamStart + pitchParamStep * n;
+                    speedA /= pa > 1e-3f ? pa : 1e-3f;
+                    speedB /= pb > 1e-3f ? pb : 1e-3f;
+                }
                 int wrote = sap.stretch.Render(s, in pcm, sl.startFrame, sl.endFrame, sl.loop, rate, speedA, speedB,
                                                sap.stretchScratchL, sap.stretchScratchR, 0, count);
 

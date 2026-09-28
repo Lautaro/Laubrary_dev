@@ -16,6 +16,9 @@ namespace Laubrary.Zounds.Checks.EditorTools {
     ///    half depth x2 at the top); a new pitch curve is flat at x1 and leaves the play length alone; converting an
     ///    old-scale (Set) curve to the Ratio scale leaves every point's multiplier AND the rendered audio unchanged;
     ///    rendering with a Ratio pitch curve gives the same samples whatever the block size.
+    /// 2. **Old stretch settings are heard.** A Klip's old Uniform / Region / Curve stretch, played through the live
+    ///    stretcher as the engine plays it (the same plan StartVoice uses): the declared length and the length a real
+    ///    voice actually renders both change by the stretch (x0.5 -> half as long, x2 -> twice), and agree.
     /// </summary>
     public static class ZoundsCurvesCheck {
 
@@ -28,6 +31,7 @@ namespace Laubrary.Zounds.Checks.EditorTools {
             var sb = new StringBuilder("=== PITCH AND TIME CURVES CHECK ===\n");
             bool allPass = true;
             allPass &= PitchScale(sb);
+            allPass &= OldStretch(sb);
             sb.Append(allPass ? "\nALL PASS\n" : "\nSOMETHING FAILED (see above)\n");
             return sb.ToString();
         }
@@ -113,6 +117,64 @@ namespace Laubrary.Zounds.Checks.EditorTools {
             sb.Append(sliceOk ? "  PASS\n" : "  FAIL\n");
             ok &= sliceOk;
             return ok;
+        }
+
+        // ── 2. old stretch settings are heard ──
+
+        static bool OldStretch(StringBuilder sb) {
+            bool ok = true;
+            var tone = Tone(2.2f, 440f, 0.5f);
+            double frames = 2.0 * SR;   // a 2.0 s source
+            sb.Append("\n2. Old stretch settings through the live stretcher (2.00 s source; declared / rendered, and ratio to no stretch):\n");
+            float baseDeclared = 0f, baseRendered = 0f;
+            var cases = new (string label, TimeStretchMode mode, float factor, float expected)[] {
+                ("no stretch          ", TimeStretchMode.Uniform, 1f, 1f),
+                ("Uniform length x0.5 ", TimeStretchMode.Uniform, 0.5f, 0.5f),
+                ("Uniform length x2   ", TimeStretchMode.Uniform, 2f, 2f),
+                ("Region x2 (middle ½)", TimeStretchMode.Region, 2f, 1.5f),
+                ("Curve speed 0.5     ", TimeStretchMode.Envelope, 2f, 2f),
+            };
+            foreach (var c in cases) {
+                var k = new Klip(0) { effectChain = new ZoundEffectChain() };
+                k.timeStretch.enabled = c.factor != 1f;
+                k.timeStretch.mode = c.mode;
+                k.timeStretch.factor = c.factor;
+                k.timeStretch.regionStart = 0.5f; k.timeStretch.regionEnd = 1.5f;
+                if (c.mode == TimeStretchMode.Envelope) foreach (var pt in k.timeStretch.speedEnvelope.GetPointsList()) pt.value = 0.5f;
+                var plan = ZoundSapPlayback.Plan(k, 0, frames, SR);
+                float declared = ZoundSapPlayback.PlayLength(in plan, frames / SR, 1f, false);
+                float rendered = RenderPlan(tone, plan, frames, 256, 6f) / (float)SR;
+                if (c.factor == 1f) { baseDeclared = declared; baseRendered = rendered; }
+                float ratioD = declared / baseDeclared, ratioR = rendered / baseRendered;
+                // The stretcher ends within a window or so of the requested length (check 15 measured +37..+43 ms).
+                bool pass = (c.factor == 1f || plan.stretched) && Mathf.Abs(ratioD - c.expected) < 0.01f
+                            && Mathf.Abs(rendered - declared) < 0.08f;
+                sb.Append("   ").Append(c.label).Append(": declared ").Append(declared.ToString("0.000")).Append(" s, rendered ")
+                  .Append(rendered.ToString("0.000")).Append(" s, x").Append(ratioD.ToString("0.00")).Append(" / x").Append(ratioR.ToString("0.00"))
+                  .Append(" (expected x").Append(c.expected.ToString("0.00")).Append(")").Append(plan.stretched ? ", live stretcher" : ", direct read")
+                  .Append(pass ? "  PASS\n" : "  FAIL\n");
+                ok &= pass;
+            }
+            return ok;
+        }
+
+        /// <summary>Renders a play made to <paramref name="plan"/> until the voice ends; returns the samples up to the last sound.</summary>
+        static int RenderPlan(PcmClip clip, ZoundSapPlayback.PlayPlan plan, double endFrame, int block, float maxSeconds) {
+            var layout = plan.chain != null && !plan.chain.IsEmpty ? ChainLayout.Build(plan.chain, SR) : ChainLayout.Empty;
+            float sourceSeconds = (float)(endFrame / SR);
+            var v = SapRealtimeVoice.Create(clip, layout, SR, 0, endFrame, 1f, 1f, sourceSeconds, false, 1, layout.heavy, Allocator.Persistent,
+                                            stretch: plan.stretch, baseSpeed: plan.authoredSpeed);
+            int total = (int)(maxSeconds * SR), wrote = 0, last = 0;
+            try {
+                while (wrote < total && !v.finished) {
+                    int n = Mathf.Min(block, total - wrote);
+                    v.RenderBlock(n);
+                    for (int i = 0; i < n; i++) if (Mathf.Abs(v.sap.bufL[i]) > 1e-5f) last = wrote + i + 1;
+                    wrote += n;
+                }
+            }
+            finally { v.Dispose(); }
+            return last;
         }
 
         // ── helpers ──

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — Stretch is heard: old Uniform / Region / Curve settings play through the live stretcher (T-0481)
+
+- **Fix: Stretch was silently ignored.** Its result was computed only for the editor, so a real play read the original audio. Measured before: a Klip at Uniform ×0.5 and ×2 both played 0.537 s.
+- **The old settings are now converted at every play,** following the precedent of the seven old per-sound effect settings:
+  - Uniform plays as a constant speed (one over the length factor).
+  - Region plays as a time curve that steps to 1/factor across the region.
+  - Curve plays as its speed curve, sampled densely so its shape survives.
+- **The speed strip, in both Klip windows:**
+  - "Plays X.XX s" shows the length a play will really have, from the same plan the engine plays from.
+  - The live stretcher's window, Keep hits and algorithm show whenever the stretcher will run (Live speed, a time curve, keep length or an old stretch setting), with the reason in their tooltips.
+  - A Klip still carrying an old stretch gets a one-line summary with **Convert**, which makes it permanent as the Speed or the time curve, and **Remove**.
+  - The old Uniform / Region / Curve editing controls are gone.
+- **The existing project-wide action** (Laubrary/Zounds/Convert old per-sound effects into chains) converts old stretch settings too.
+- Rendering to a file is unchanged: it only happens when asked for.
+- **Measured (kept check 17, section 2), on a 2.00 s source, declared / rendered:** Uniform ×0.5 1.000 / 1.010 s, ×2 4.000 / 3.995 s, Region ×2 over the middle half 3.000 / 2.990 s, Curve at half speed 4.000 / 3.980 s, no stretch 2.000 / 2.000 s on the direct read. On a copy of "New Klip2": ×1 0.537 s, ×0.5 0.269 / 0.275 s, ×2 1.075 / 1.081 s.
+
 ### Zounds — a pitch curve's middle is "no change" (T-0480)
 
 - **Fix: a newly switched-on pitch curve played two octaves up.** Its flat default line was read as a position across the whole pitch range, so it played ×4, and the entire top half of its display also played ×4.

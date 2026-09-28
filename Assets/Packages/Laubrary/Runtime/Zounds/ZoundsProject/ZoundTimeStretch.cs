@@ -39,8 +39,19 @@ namespace Laubrary.Zounds {
         /// <summary>Lay each detected hit down once, whole, at speed 1, so hits stay sharp and never double.</summary>
         public bool liveKeepHits = true;
 
+        /// <summary>
+        /// The pitch curve changes pitch without changing length (T-0482): the voice runs the live stretcher and
+        /// compensates the curve's pitch with speed (one over it), so the two can never drift apart. Off -- the default,
+        /// and how every existing sound behaves -- the pitch curve is tape-style: raising it also shortens the sound.
+        /// </summary>
+        public bool pitchKeepsLength;
+
         /// <summary>The live stretcher's setup for a play of this sound, or off.</summary>
-        public Dsp.SapStretchConfig LiveConfig() => !liveEnabled ? Dsp.SapStretchConfig.Off : new Dsp.SapStretchConfig {
+        public Dsp.SapStretchConfig LiveConfig() => !liveEnabled ? Dsp.SapStretchConfig.Off : StretcherConfig();
+
+        /// <summary>The live stretcher's setup from this sound's window, hit and algorithm settings, whatever switched it
+        /// on (Live speed, a time curve, an old stretch setting, or keep length; T-0481).</summary>
+        public Dsp.SapStretchConfig StretcherConfig() => new Dsp.SapStretchConfig {
             enabled = true, algorithm = (int)liveAlgorithm, windowMs = Mathf.Clamp(liveWindowMs, 10f, 100f),
             keepHits = liveKeepHits, keepMs = 40f,
         };
@@ -48,7 +59,7 @@ namespace Laubrary.Zounds {
         public ZoundTimeStretch DeepCopy() {
             return new ZoundTimeStretch {
                 liveEnabled = liveEnabled, liveSpeed = liveSpeed, liveAlgorithm = liveAlgorithm,
-                liveWindowMs = liveWindowMs, liveKeepHits = liveKeepHits,
+                liveWindowMs = liveWindowMs, liveKeepHits = liveKeepHits, pitchKeepsLength = pitchKeepsLength,
                 enabled = enabled, algorithm = algorithm, mode = mode, factor = factor,
                 speedEnvelope = speedEnvelope != null ? speedEnvelope.DeepCopy() : new Envelope(0.25f, 4f),
                 regionStart = regionStart, regionEnd = regionEnd,
