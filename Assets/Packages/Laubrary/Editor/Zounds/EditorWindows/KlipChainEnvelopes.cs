@@ -73,20 +73,125 @@ namespace Laubrary.Zounds {
             int m = PitchModifier(chain);
             if (m < 0) {
                 if (!create) return null;
-                // Same carry-over as VolumeCurve: keep the shape of any existing legacy pitch curve.
-                Envelope seed = zound is Klip legacyKlip && legacyKlip.pitchEnvelope != null
-                    ? legacyKlip.pitchEnvelope.DeepCopy()
-                    : new Envelope(Zound.MinPitchRange, Zound.MaxPitchRange);
+                // Same carry-over as VolumeCurve: keep the shape of any existing legacy pitch curve. That curve has always
+                // been played as Set (a position across the whole pitch range), so it is added that way and converted to
+                // the Ratio scale exactly, keeping what it sounds like; a new curve starts flat in the middle, which on
+                // the Ratio scale is exactly "no change" (T-0479).
+                bool legacy = zound is Klip legacyKlip && legacyKlip.pitchEnvelope != null;
+                Envelope seed = legacy ? ((Klip)zound).pitchEnvelope.DeepCopy() : NewRatioCurve();
                 var env = new ZoundModifier(ZoundModifierType.Envelope) { name = "Pitch", curve = seed };
                 chain.modifiers.Add(env);
-                chain.bindings.Add(new ZoundModifierBinding {
+                var bind = new ZoundModifierBinding {
                     modifierIndex = chain.modifiers.Count - 1, nodeIndex = -1, paramIndex = SourceStageParam.Pitch,
-                    combine = Dsp.ModulationCombine.Set, depth = 1f, schema = Dsp.ChainModulationCompat.CURRENT_SCHEMA });
+                    combine = legacy ? Dsp.ModulationCombine.Set : Dsp.ModulationCombine.Ratio, depth = 1f,
+                    schema = Dsp.ChainModulationCompat.CURRENT_SCHEMA };
+                chain.bindings.Add(bind);
+                if (legacy) Dsp.ChainModulationCompat.ConvertSetToRatio(chain, bind, out _);
                 chain.Touch();
                 m = chain.modifiers.Count - 1;
             }
-            if (chain.modifiers[m].curve == null) chain.modifiers[m].curve = new Envelope(Zound.MinPitchRange, Zound.MaxPitchRange);
+            if (chain.modifiers[m].curve == null) chain.modifiers[m].curve = NewRatioCurve();
             return chain.modifiers[m].curve;
+        }
+
+        /// <summary>At the start of an edit of <paramref name="mod"/>'s curve from the chain card: if it is the Klip's pitch
+        /// curve on the old scale, convert it first (inside the edit's Undo step), as the waveform overlay does.</summary>
+        public static void EnsurePitchRatioIfPitchCurve(Zound zound, ZoundModifier mod) {
+            if (zound == null || mod == null) return;
+            var chain = Chain(zound);
+            int m = PitchModifier(chain);
+            if (m >= 0 && chain.modifiers[m] == mod) EnsurePitchRatio(zound);
+        }
+
+        /// <summary>
+        /// What the top, middle and bottom of a modifier's curve mean, for the axis labels on a curve display (T-0479):
+        /// on the Ratio scale semitones for a pitch (+24 / 0 / -24 st) and ratios otherwise (x4 / x1 / x1/4); on Set over
+        /// a single parameter, that parameter's own ends; otherwise the plain "top" and "bottom". <paramref name="mid"/>
+        /// is null where the middle means nothing in particular.
+        /// </summary>
+        public static void CurveAxis(ZoundEffectChain chain, ZoundModifier mod, out string top, out string mid, out string bottom) {
+            top = "top"; bottom = "bottom"; mid = null;
+            if (chain == null || mod == null || mod.type != ZoundModifierType.Envelope) return;
+            int mi = chain.modifiers.IndexOf(mod);
+            ZoundModifierBinding only = null; int n = 0;
+            foreach (var b in chain.bindings) if (b.modifierIndex == mi) { only = b; n++; }
+            if (n != 1) return;
+            var c = Dsp.ChainModulationCompat.CombineOf(only);
+            bool pitch = only.nodeIndex == -1 && only.paramIndex == SourceStageParam.Pitch;
+            if (c == Dsp.ModulationCombine.Ratio) {
+                if (pitch) { top = "+24 st"; mid = "0 st"; bottom = "-24 st"; }
+                else { top = "×4"; mid = "×1"; bottom = "×¼"; }
+                return;
+            }
+            // Under Set the curve's 0..1 spans the parameter's range, so its ends are the parameter's ends -- but only for a
+            // curve that runs 0..1 (an old-scale pitch curve runs 0.1..2 and its upper half is all the top).
+            if (c == Dsp.ModulationCombine.Set && mod.curve != null && mod.curve.yMin == 0f && mod.curve.yMax == 1f
+                && Dsp.ChainModulationCompat.TryParam(chain, only, out var pd, out _)) {
+                top = Fmt(pd.max, pd); bottom = Fmt(pd.min, pd);
+            }
+        }
+
+        /// <summary>The waveform overlay's pitch axis: <see cref="CurveAxis"/> for the Klip's pitch curve, plus whether it
+        /// is still on the old scale (then no axis is shown, only a warning; see <see cref="OldScaleTip"/>).</summary>
+        public static bool PitchAxis(Zound zound, out string top, out string mid, out string bottom, out bool oldScale) {
+            top = mid = bottom = null; oldScale = false;
+            var chain = Chain(zound);
+            int m = PitchModifier(chain);
+            if (m < 0) return false;
+            oldScale = PitchIsOldScale(zound);
+            if (oldScale) return true;
+            CurveAxis(chain, chain.modifiers[m], out top, out mid, out bottom);
+            return true;
+        }
+
+        public const string OldScaleTip =
+            "This pitch curve is still on the scale it was saved with: a height across the whole pitch range, where the " +
+            "middle of the display is about x4 and everything in its upper half is x4. It plays exactly as it always has. " +
+            "The first time you edit it, it moves to the current scale (middle = no change, top +24 semitones, bottom -24) " +
+            "without changing how it sounds.";
+
+        static string Fmt(float v, Dsp.ParamDesc pd) =>
+            pd.curve == Dsp.ParamCurve.Logarithmic && pd.unit == "" ? "×" + v.ToString("0.##") : v.ToString("0.##") + (string.IsNullOrEmpty(pd.unit) ? "" : " " + pd.unit);
+
+        /// <summary>A flat curve on the Ratio scale: range 0..1, both points in the middle, i.e. x1 throughout.</summary>
+        public static Envelope NewRatioCurve() {
+            var e = new Envelope(0f, 1f);
+            foreach (var p in e.GetPointsList()) p.value = 0.5f;
+            return e;
+        }
+
+        /// <summary>The binding of the Klip's pitch curve (the first envelope bound to the source's pitch), or null.</summary>
+        public static ZoundModifierBinding PitchBinding(Zound zound) {
+            var chain = Chain(zound);
+            int m = PitchModifier(chain);
+            if (m < 0) return null;
+            foreach (var b in chain.bindings) if (b.modifierIndex == m && b.nodeIndex == -1 && b.paramIndex == SourceStageParam.Pitch) return b;
+            return null;
+        }
+
+        /// <summary>
+        /// Whether the Klip's pitch curve is still on the scale it was saved with before T-0479 (Set: a position across the
+        /// whole pitch range, where a flat line in the middle is about x4). It plays exactly as it always has until it is
+        /// edited; <see cref="EnsurePitchRatio"/> converts it then.
+        /// </summary>
+        public static bool PitchIsOldScale(Zound zound) {
+            var b = PitchBinding(zound);
+            return b != null && Dsp.ChainModulationCompat.CombineOf(b) == Dsp.ModulationCombine.Set;
+        }
+
+        /// <summary>
+        /// Converts the Klip's pitch curve to the Ratio scale if it is still on the old one, so an edit lands on the new
+        /// scale; what it plays is unchanged (see <see cref="Dsp.ChainModulationCompat.ConvertSetToRatio"/>). Called at the
+        /// start of every edit of the curve, inside that edit's Undo step. Returns whether anything changed.
+        /// </summary>
+        public static bool EnsurePitchRatio(Zound zound) {
+            var b = PitchBinding(zound);
+            if (b == null || Dsp.ChainModulationCompat.CombineOf(b) != Dsp.ModulationCombine.Set) return false;
+            var chain = Chain(zound);
+            if (!Dsp.ChainModulationCompat.ConvertSetToRatio(chain, b, out int clamped)) return false;
+            if (clamped > 0) Debug.LogWarning("[Zounds] " + zound.name + ": " + clamped + " pitch-curve point(s) were beyond two octaves and are now held at x4 or x1/4.");
+            ZoundDspPlayback.InvalidateLayout(zound);
+            return true;
         }
 
         public static void SetVolumeEnabled(Zound zound, bool enabled) {
@@ -104,6 +209,8 @@ namespace Laubrary.Zounds {
             var chain = Chain(zound);
             var curve = PitchCurve(zound, enabled);
             if (curve == null) return;
+            // Switching it on is an edit: an old-scale curve moves to the Ratio scale here, sounding the same (T-0479).
+            if (enabled) EnsurePitchRatio(zound);
             int m = PitchModifier(chain);
             if (m >= 0) chain.modifiers[m].enabled = enabled;
             curve.enabled = enabled;

@@ -824,6 +824,28 @@ namespace Laubrary.Zounds.Uitk {
             bottom.style.position = Position.Absolute; bottom.style.left = 9f; bottom.style.bottom = 1f; bottom.style.width = 60f; bottom.style.height = 12f;
             var secs = Text("", "", "zs-curvelabel", "zs-right");
             secs.style.position = Position.Absolute; secs.style.right = 2f; secs.style.bottom = 1f; secs.style.width = 60f; secs.style.height = 12f;
+            // What the curve's top, middle and bottom mean for what it drives (T-0479): semitones on a pitch curve, ratios
+            // on another Ratio curve, the parameter's own ends under Set. A centre line marks "no change" where there is one.
+            var mid = Text("", "", "zs-curvelabel");
+            mid.style.position = Position.Absolute; mid.style.left = 9f; mid.style.width = 60f; mid.style.height = 12f;
+            var midLine = new VisualElement { pickingMode = PickingMode.Ignore };
+            midLine.style.position = Position.Absolute; midLine.style.left = 0; midLine.style.right = 0; midLine.style.height = 1f;
+            midLine.style.backgroundColor = new Color(1f, 1f, 1f, 0.18f);
+            void Axis() {
+                if (isLfoRamp) return;
+                KlipChainEnvelopes.CurveAxis(ZoundDspPlayback.ResolveChain(zound, out _), mod, out string t, out string mText, out string bText);
+                top.text = t; bottom.text = bText;
+                bool hasMid = mText != null;
+                mid.style.display = midLine.style.display = hasMid ? DisplayStyle.Flex : DisplayStyle.None;
+                if (hasMid) {
+                    mid.text = mText;
+                    float h = ground.contentRect.height;
+                    if (h > 1f) { midLine.style.top = Mathf.Round(h * 0.5f); mid.style.top = Mathf.Round(h * 0.5f) - 13f; }
+                }
+            }
+            ground.RegisterCallback<GeometryChangedEvent>(_ => Axis());
+            refreshers.Add(Axis);
+            ground.Add(midLine); ground.Add(mid);
             ground.Add(cap); ground.Add(top); ground.Add(bottom); ground.Add(secs);
 
             // The curve itself, on top of the ground and under the playhead, as the old editor paints them.
@@ -832,7 +854,13 @@ namespace Laubrary.Zounds.Uitk {
             var curve = new EnvelopeTK(mod.curve, mod.type == ZoundModifierType.Envelope ? es.volumeEnvelopeColor : es.pitchEnvelopeColor);
             curve.style.position = Position.Absolute; curve.style.left = 0; curve.style.right = 0; curve.style.top = 0; curve.style.bottom = 0;
             curve.tooltip = ground.tooltip;
-            curve.onBegin = () => { if (!dragUndoOpen) { dragUndoOpen = true; ZoundsWindow.BeginDragUndo("edit modifier curve"); } };
+            curve.onBegin = () => {
+                if (dragUndoOpen) return;
+                dragUndoOpen = true;
+                ZoundsWindow.BeginDragUndo("edit modifier curve");
+                // Editing the Klip's pitch curve moves it off the old scale first, sounding the same (T-0479).
+                KlipChainEnvelopes.EnsurePitchRatioIfPitchCurve(zound, mod);
+            };
             curve.onChanged = () => {
                 ZoundDspPlayback.ResolveChain(zound, out _)?.Touch();
                 ZoundDspPlayback.InvalidateLayout(zound);
@@ -901,40 +929,36 @@ namespace Laubrary.Zounds.Uitk {
                 bool legacyShift = currentCombine == ModulationCombine.ShiftWholeRange;
                 if (legacyShift) currentCombine = ModulationCombine.Shift;
                 bool scaleWorks = G.ScaleIsMeaningfulFor(chain, b);
-                var ops = new ZuiToggleButton[3];
-                for (int o = 0; o < 3; o++) {
+                bool ratioWorks = G.RatioOfferedFor(chain, b);
+                var ops = new ZuiToggleButton[4];
+                for (int o = 0; o < 4; o++) {
                     int oi = o;
-                    var corner = o == 0 ? ZUICornerMask.Left : o == 2 ? ZUICornerMask.Right : ZUICornerMask.None;
-                    bool offered = o != (int)ModulationCombine.Scale || scaleWorks;
+                    var corner = o == 0 ? ZUICornerMask.Left : o == 3 ? ZUICornerMask.Right : ZUICornerMask.None;
+                    bool offered = o == 2 ? scaleWorks : o == 3 ? ratioWorks : true;
                     string tip = offered ? G.combineTips[o]
+                               : o == 3 ? G.RatioNotOfferedTip
                                : "Scale does nothing on this parameter: it rests at zero, or can go negative, and multiplying either leaves it where it is or flips its sign.";
                     ZuiToggleButton t = null;
-                    t = ZS.Toggle(G.combineLabels[o], tip, (int)currentCombine == o, v => {
-                        if ((int)currentCombine == oi) { t.SetValueWithoutNotify(true); return; }
-                        var combine = (ModulationCombine)oi;
-                        Modify("change how the modulator combines", () => G.WriteBinding(chain, bb, combine, bb.depth));
+                    t = ZS.Toggle(G.combineLabels[o], tip, G.OptionOf(currentCombine) == o, v => {
+                        if (G.OptionOf(currentCombine) == oi) { t.SetValueWithoutNotify(true); return; }
+                        var combine = G.OptionCombine(oi);
+                        Modify("change how the modulator combines", () => G.ChooseCombine(chain, bb, combine));
                     }, "RichToggle", corner, 42f, G.RowH - 2f);
                     t.SetEnabled(offered);
                     ops[o] = t;
                     r.Add(Place(t, x + o * 42f, 1f, 42f, G.RowH - 2f));
                 }
                 float shownDepth = ChainModulationCompat.DepthOf(b, G.DepthMinOf(chain, b), G.DepthMaxOf(chain, b), G.DepthRatioOf(chain, b));
-                string depthTip = currentCombine == ModulationCombine.Shift
-                    ? (legacyShift
-                        ? "How far this modifier may move the parameter. This binding was made before depth changed meaning and still uses the old one: a share of the parameter's WHOLE range each way, so high values pin it against the ends. Change the depth or the mode and it switches to the current meaning, where one reaches the ends but never pins."
-                        : "How far this modifier may move the parameter. Nought: not at all. One: all the way to the ends of its range, never past them. A half: half of the room there is in whichever direction it is being pushed.")
-                    : currentCombine == ModulationCombine.Set
-                        ? "How much the modifier takes over. Nought: your slider value, unchanged. One: entirely the modifier's value. In between: a blend of the two."
-                        : "How much the multiplication applies. Nought: no effect. One: your value times the modifier's output. In between: part of the way.";
+                string depthTip = G.DepthTip(currentCombine, legacyShift);
                 var combineNow = currentCombine;
                 var depth = ZS.Slider("Depth", shownDepth, 0f, 1f, depthTip,
                                       nd => ModifyContinuous("change depth", () => G.WriteBinding(chain, bb, combineNow, nd)),
                                       ZuiSkinSlider.LabelMode.LabelAndValue, 0.25f, "Default", 120f, G.RowH - 2f);
-                r.Add(Place(depth, x + 134f, 1f, 120f, G.RowH - 2f));
+                r.Add(Place(depth, x + 176f, 1f, 120f, G.RowH - 2f));
                 refreshers.Add(() => depth.SetValueWithoutNotify(ChainModulationCompat.DepthOf(bb, G.DepthMinOf(chain, bb), G.DepthMaxOf(chain, bb), G.DepthRatioOf(chain, bb))));
                 r.Add(Place(ZS.Button("×", "Removes this binding.", "RichButton",
                     () => Modify("remove binding", () => { chain.bindings.Remove(bb); chain.Touch(); }), ZUICornerMask.All, G.RemoveW, G.RowH - 2f),
-                    x + 134f + 120f + 4f, 1f, G.RemoveW, G.RowH - 2f));
+                    x + 176f + 120f + 4f, 1f, G.RemoveW, G.RowH - 2f));
                 Add(r);
             }
         }

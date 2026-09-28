@@ -67,6 +67,9 @@ namespace Laubrary.Zounds {
         [SerializeField] private bool m_clampToTrim = true;
         [SerializeField] private Envelope m_volumeEnvelope;
         [SerializeField] private Envelope m_pitchEnvelope;
+        /// <summary>The Klip whose chain curves this view shows (null for a view of legacy curves): what the pitch heard at
+        /// a point is read from (T-0479). Not saved: re-set by every InitFromKlip.</summary>
+        [System.NonSerialized] private Klip m_klip;
 
         private AudioClip originalClip;
         private bool isTrimStartDragged = false;
@@ -356,6 +359,7 @@ namespace Laubrary.Zounds {
             m_trimStart = klip.trimStart;
             m_trimEnd = klip.trimEnd;
             m_clampToTrim = klip.clampToTrim;
+            m_klip = useChainEnvelopes ? klip : null;
             if (useChainEnvelopes) {
                 // KlipChainEnvelopes hands back the modulator's own curve object (or null when the Klip
                 // has no volume/pitch modifier yet) — ZUI mutates it in place, same as the legacy fields
@@ -582,8 +586,12 @@ namespace Laubrary.Zounds {
                     float totalTime = trimEnd - trimStart;
                     float step = totalTime / AudioRenderUtility.GetOptimalIntegrationSteps(totalTime);
                     float t = 0f, renderedTime = 0f;
+                    // The pitch actually heard at each point (a chain curve's value is not a multiplier; T-0479).
+                    var pitchChain = m_klip != null ? Dsp.ZoundDspPlayback.ResolveChain(m_klip, out _) : null;
                     while (t <= totalTime && renderedTime < m_audioSource.time) {
-                        renderedTime += step / Mathf.Max(0.01f, m_pitchEnvelope.Evaluate(t / totalTime));
+                        float heard = pitchChain != null ? Dsp.ZoundDspPlayback.PitchAtSource(pitchChain, t / totalTime, totalTime)
+                                                         : m_pitchEnvelope.Evaluate(t / totalTime);
+                        renderedTime += step / Mathf.Max(0.01f, heard);
                         t += step;
                     }
                     list.Add(t / totalTime);
@@ -827,6 +835,21 @@ namespace Laubrary.Zounds {
             var pitDef = PrepareOverlay(false, out var pitRt, out var pitPts, out var pitColour);
             if (pitDef != null && ZUI.Envelope(envelopeRect, pitPts, new ZUIColorRef(pitColour), pitDef, pitRt, pitchStateKey)) {
                 onPitchEnvelopeChanged?.Invoke(m_pitchEnvelope);
+            }
+            // The pitch curve's axis (T-0479), as the UI Toolkit twin shows it: what its top, middle and bottom mean and
+            // the "no change" line; for a curve still on its old scale only a warning, explained in its tooltip.
+            if (m_klip != null && m_pitchEnvelope.enabled
+                && KlipChainEnvelopes.PitchAxis(m_klip, out string pTop, out string pMid, out string pBottom, out bool pOld)) {
+                var axisStyle = new GUIStyle(EditorStyles.miniLabel) { fontSize = 9 };
+                axisStyle.normal.textColor = new Color(pitColour.r, pitColour.g, pitColour.b, 0.9f);
+                if (pOld) GUI.Label(new Rect(envelopeRect.x + 3f, envelopeRect.y + 1f, 16f, 14f), new GUIContent("⚠", KlipChainEnvelopes.OldScaleTip), axisStyle);
+                else if (pTop != null) {
+                    float my = Mathf.Round(envelopeRect.y + envelopeRect.height * 0.5f);
+                    if (pMid != null && Event.current.type == EventType.Repaint) EditorGUI.DrawRect(new Rect(envelopeRect.x, my, envelopeRect.width, 1f), new Color(pitColour.r, pitColour.g, pitColour.b, 0.35f));
+                    GUI.Label(new Rect(envelopeRect.x + 3f, envelopeRect.y + 1f, 60f, 13f), pTop, axisStyle);
+                    if (pMid != null) GUI.Label(new Rect(envelopeRect.x + 3f, my - 14f, 60f, 13f), pMid, axisStyle);
+                    GUI.Label(new Rect(envelopeRect.x + 3f, envelopeRect.yMax - 14f, 60f, 13f), pBottom, axisStyle);
+                }
             }
 
             if (needsRepaint) {

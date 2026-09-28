@@ -96,6 +96,14 @@ namespace Laubrary.Zounds.Dsp {
                                          ToPosition(target, min, max, ratioSpaced), Mathf.Clamp01(depth));
                     return FromPosition(p, min, max, ratioSpaced);
                 }
+                case ModulationCombine.Ratio: {
+                    // Multiplies the value that was set by a ratio read from the curve on a symmetric, evenly spaced
+                    // scale: the middle is x1 (no change), the top x4 and the bottom x1/4 -- two octaves either way on a
+                    // pitch -- with depth shrinking the swing towards none. Up and down are the same distance, which a
+                    // position across the parameter's own (lopsided) range can never be (T-0479).
+                    float factor = RatioFromPosition(0.5f + (Mathf.Clamp01(signal) - 0.5f) * Mathf.Clamp01(depth));
+                    return Mathf.Clamp(baseValue * factor, min, max);
+                }
                 case ModulationCombine.Scale: {
                     // Proportional, in the parameter's own units, because that is the entire point of scaling. Depth fades
                     // between no scaling and the modulator's full effect so the control still behaves at small settings.
@@ -121,6 +129,17 @@ namespace Laubrary.Zounds.Dsp {
                 }
             }
         }
+
+        /// <summary>How many octaves the top (and, downwards, the bottom) of a <see cref="ModulationCombine.Ratio"/> curve
+        /// reaches: two, so x4 up and x1/4 down -- the pitch control's own top is x4 (T-0479).</summary>
+        public const float RatioOctaves = 2f;
+
+        /// <summary>The multiplier at a position (0..1) on a Ratio curve: 0.5 is x1, one is x4, nought x1/4.</summary>
+        public static float RatioFromPosition(float position) => Mathf.Pow(2f, (Mathf.Clamp01(position) - 0.5f) * 2f * RatioOctaves);
+
+        /// <summary>The position (0..1) on a Ratio curve that gives <paramref name="ratio"/>; clamped to the curve's reach.</summary>
+        public static float PositionFromRatio(float ratio) =>
+            Mathf.Clamp01(0.5f + Mathf.Log(Mathf.Max(ratio, 1e-6f), 2f) / (2f * RatioOctaves));
 
         /// <summary>A modulator's output read as a position, for the case where it takes the control over entirely.</summary>
         private static float SignalToPosition(float signal) => Mathf.Clamp01(signal * 0.5f + 0.5f);
@@ -162,5 +181,11 @@ namespace Laubrary.Zounds.Dsp {
         /// it as Set.
         /// </summary>
         SetFromZero = 4,
+        /// <summary>
+        /// Multiply the value that was set by a ratio on a symmetric, evenly spaced scale (for an envelope, whose output
+        /// runs 0..1): the middle is no change, the top x4, the bottom x1/4. What a Klip's pitch and time curves use, so a
+        /// flat curve in the middle is exactly "unchanged" and up and down are the same distance (T-0479).
+        /// </summary>
+        Ratio = 5,
     }
 }

@@ -894,12 +894,17 @@ namespace Laubrary.Zounds {
                 var evt = Event.current;
                 if (evt.type == EventType.Repaint) {
                     EnsureModulationMeasured(zound, chain);
-                    DrawCurveBackdrop(rect, m, mod, isLfoRamp, caption);
+                    DrawCurveBackdrop(rect, m, mod, isLfoRamp, caption, chain);
                 }
                 GUI.Label(rect, new GUIContent("", curveTip + (isLfoRamp
                     ? " Behind the curve, faintly: what the oscillator actually puts out across the play, measured from the engine — the curve is the ceiling that wobble can reach."
                     : "") + " While the sound plays, an upright line marks the moment being heard."));
-                if (evt.type == EventType.MouseDown && rect.Contains(evt.mousePosition) && !dragUndoOpen) { dragUndoOpen = true; ZoundsWindow.BeginDragUndo("edit modifier curve"); }
+                if (evt.type == EventType.MouseDown && rect.Contains(evt.mousePosition) && !dragUndoOpen) {
+                    dragUndoOpen = true;
+                    ZoundsWindow.BeginDragUndo("edit modifier curve");
+                    // Editing the Klip's pitch curve moves it off the old scale first, sounding the same (T-0479).
+                    KlipChainEnvelopes.EnsurePitchRatioIfPitchCurve(zound, mod);
+                }
                 if (gui.Draw(rect, mod.curve, color, 1.5f, true, true)) {
                     chain.Touch();
                     ZoundDspPlayback.InvalidateLayout(zound);
@@ -942,7 +947,7 @@ namespace Laubrary.Zounds {
         /// curve then reads as what it is, the ceiling that wobble is allowed to reach, instead of as a mysterious second
         /// wave. Measured from the engine, not re-derived here, so it cannot disagree with what is heard.
         /// </summary>
-        private void DrawCurveBackdrop(Rect rect, int modifierIndex, ZoundModifier mod, bool isLfoRamp, string caption) {
+        private void DrawCurveBackdrop(Rect rect, int modifierIndex, ZoundModifier mod, bool isLfoRamp, string caption, ZoundEffectChain currentChain) {
             EditorGUI.DrawRect(rect, new Color(0.10f, 0.10f, 0.12f));
             var grid = new Color(1f, 1f, 1f, 0.06f);
             for (int q = 1; q < 4; q++) {
@@ -977,8 +982,17 @@ namespace Laubrary.Zounds {
             capStyle.normal.textColor = new Color(0.8f, 0.8f, 0.86f);
             GUI.Label(new Rect(rect.x + 9f, rect.y, 200f, 13f), caption, capStyle);
             var topRight = new GUIStyle(style) { alignment = TextAnchor.UpperRight };
-            GUI.Label(new Rect(rect.xMax - 62f, rect.y, 60f, 12f), isLfoRamp ? "full" : "top", topRight);
-            GUI.Label(new Rect(rect.x + 9f, rect.yMax - 13f, 60f, 12f), isLfoRamp ? "none" : "bottom", style);
+            // What the top, middle and bottom mean for what the curve drives (T-0479), with a centre line where the
+            // middle is "no change" (a Ratio curve).
+            string top = isLfoRamp ? "full" : "top", bottom = isLfoRamp ? "none" : "bottom", mid = null;
+            if (!isLfoRamp) KlipChainEnvelopes.CurveAxis(currentChain, mod, out top, out mid, out bottom);
+            if (mid != null) {
+                float my = Mathf.Round(rect.y + rect.height * 0.5f);
+                EditorGUI.DrawRect(new Rect(rect.x, my, rect.width, 1f), new Color(1f, 1f, 1f, 0.18f));
+                GUI.Label(new Rect(rect.x + 9f, my - 13f, 60f, 12f), mid, style);
+            }
+            GUI.Label(new Rect(rect.xMax - 62f, rect.y, 60f, 12f), top, topRight);
+            GUI.Label(new Rect(rect.x + 9f, rect.yMax - 13f, 60f, 12f), bottom, style);
             if (modulation.playSeconds > 0f)
                 GUI.Label(new Rect(rect.xMax - 62f, rect.yMax - 13f, 60f, 12f), modulation.playSeconds.ToString("0.00") + " s", topRight);
         }
@@ -1076,12 +1090,54 @@ namespace Laubrary.Zounds {
         // two of the three were traps: multiplying by an oscillator drove parameters to their end stops, and both of the
         // others took an amount in the parameter's own units, so the number to type was unguessable and different on every
         // parameter. These say what happens to the sound.
-        internal static readonly string[] combineLabels = { "Shift", "Set", "Scale" };
+        internal static readonly string[] combineLabels = { "Shift", "Set", "Scale", "Ratio" };
         internal static readonly string[] combineTips = {
             "Shift: moves the parameter away from where you set it. The slider stays your starting point and the modifier pushes it up or down from there — an oscillator swings it both ways around your value, a step list moves it to a different offset on each step. At full depth it can reach all the way to either end of the parameter's range but never past it. Example: a low-pass set to 1 kHz with an oscillator on Shift sweeps up towards 20 kHz and down towards 20 Hz around your 1 kHz.",
             "Set: the modifier takes the parameter over completely and drives it across its whole range, ignoring where the slider is; the modifier's lowest output is the bottom of the range, its highest the top. Depth blends between your slider value (nought) and the modifier's (one). Example: a step list on Set picks the cutoff outright for each step.",
-            "Scale: multiplies your value by the modifier's output — one leaves it unchanged, a half halves it, nought silences it. Depth blends from no effect (nought) to the full multiplication (one). Best for levels such as gain or a mix, for a proportional tremolo; offered only where the parameter does not rest at zero, since multiplying zero leaves zero."
+            "Scale: multiplies your value by the modifier's output — one leaves it unchanged, a half halves it, nought silences it. Depth blends from no effect (nought) to the full multiplication (one). Best for levels such as gain or a mix, for a proportional tremolo; offered only where the parameter does not rest at zero, since multiplying zero leaves zero.",
+            "Ratio: multiplies your value by a ratio read from the curve, evenly spaced and the same distance up as down: the middle of the curve is no change, the top ×4 and the bottom ×¼ (two octaves either way on a pitch). A flat curve in the middle leaves the sound exactly as it is. Depth shrinks the swing: a half reaches ×2 and ×½. What a Klip's pitch and time curves use."
         };
+
+        /// <summary>The binding mode behind option <paramref name="o"/> of the mode strip (Shift, Set, Scale, Ratio).</summary>
+        internal static ModulationCombine OptionCombine(int o) => o < 3 ? (ModulationCombine)o : ModulationCombine.Ratio;
+
+        /// <summary>The strip option showing <paramref name="c"/>.</summary>
+        internal static int OptionOf(ModulationCombine c) => c == ModulationCombine.Ratio ? 3 : c == ModulationCombine.ShiftWholeRange ? 0 : (int)c;
+
+        /// <summary>Ratio is offered for a curve (an envelope, whose output runs 0..1) driving a parameter spaced by ratio.</summary>
+        internal static bool RatioOfferedFor(ZoundEffectChain chain, ZoundModifierBinding b)
+            => b.modifierIndex >= 0 && b.modifierIndex < chain.modifiers.Count && chain.modifiers[b.modifierIndex].type == ZoundModifierType.Envelope
+               && DepthRatioOf(chain, b);
+
+        internal const string RatioNotOfferedTip = "Ratio is for a curve (an Envelope) driving a parameter that is spaced by ratio, such as a pitch, a speed or a frequency.";
+
+        /// <summary>
+        /// Changes a binding's mode. Moving a Set curve to Ratio converts its points so it sounds exactly as before
+        /// (T-0479); any other change keeps the numbers and reads them the new way, as it always has.
+        /// </summary>
+        internal static void ChooseCombine(ZoundEffectChain chain, ZoundModifierBinding b, ModulationCombine combine) {
+            if (combine == ModulationCombine.Ratio && ChainModulationCompat.CanConvertSetToRatio(chain, b)) {
+                ChainModulationCompat.ConvertSetToRatio(chain, b, out _);
+                return;
+            }
+            bool toRatio = combine == ModulationCombine.Ratio && ChainModulationCompat.CombineOf(b) != ModulationCombine.Ratio;
+            if (toRatio && b.modifierIndex >= 0 && b.modifierIndex < chain.modifiers.Count) {
+                var c = chain.modifiers[b.modifierIndex].curve;
+                if (c != null) { c.yMin = 0f; c.yMax = 1f; }
+            }
+            WriteBinding(chain, b, combine, toRatio ? 1f : b.depth);
+        }
+
+        internal static string DepthTip(ModulationCombine c, bool legacyShift) =>
+            c == ModulationCombine.Shift
+                ? (legacyShift
+                    ? "How far this modifier may move the parameter. This binding was made before depth changed meaning and still uses the old one: a share of the parameter's WHOLE range each way, so high values pin it against the ends. Change the depth or the mode and it switches to the current meaning, where one reaches the ends but never pins."
+                    : "How far this modifier may move the parameter. Nought: not at all. One: all the way to the ends of its range, never past them. A half: half of the room there is in whichever direction it is being pushed.")
+                : c == ModulationCombine.Set
+                    ? "How much the modifier takes over. Nought: your slider value, unchanged. One: entirely the modifier's value. In between: a blend of the two."
+                    : c == ModulationCombine.Ratio
+                        ? "How far the curve's swing reaches. One: the top is ×4 and the bottom ×¼. A half: ×2 and ×½. Nought: no change at all."
+                        : "How much the multiplication applies. Nought: no effect. One: your value times the modifier's output. In between: part of the way.";
 
         /// <summary>
         /// The parameter a binding drives, or a harmless stand-in when it points at something that is no longer there.
@@ -1144,38 +1200,34 @@ namespace Laubrary.Zounds {
                 bool legacyShift = currentCombine == Dsp.ModulationCombine.ShiftWholeRange;
                 if (legacyShift) currentCombine = Dsp.ModulationCombine.Shift;
                 bool scaleWorks = ScaleIsMeaningfulFor(chain, b);
-                for (int o = 0; o < 3; o++) {
+                bool ratioWorks = RatioOfferedFor(chain, b);
+                for (int o = 0; o < 4; o++) {
                     var r = new Rect(x + o * 42f, row.y + 1f, 42f, row.height - 2f);
-                    var corner = o == 0 ? ZUICornerMask.Left : o == 2 ? ZUICornerMask.Right : ZUICornerMask.None;
-                    bool isOp = (int)currentCombine == o;
+                    var corner = o == 0 ? ZUICornerMask.Left : o == 3 ? ZUICornerMask.Right : ZUICornerMask.None;
+                    bool isOp = OptionOf(currentCombine) == o;
                     // Scaling is offered only where it can do something. Showing it greyed with the reason beats offering
                     // it everywhere and having it silently do nothing on the parameters that rest at zero.
-                    bool offered = o != (int)Dsp.ModulationCombine.Scale || scaleWorks;
+                    bool offered = o == 2 ? scaleWorks : o == 3 ? ratioWorks : true;
                     bool prevEnabled = GUI.enabled;
                     GUI.enabled = prevEnabled && offered;
                     string tip = offered ? combineTips[o]
+                               : o == 3 ? RatioNotOfferedTip
                                : "Scale does nothing on this parameter: it rests at zero, or can go negative, and multiplying either leaves it where it is or flips its sign.";
                     if (ZUI.Toggle(r, isOp, new GUIContent(combineLabels[o], tip), ZUI.Style.RichToggle, null, corner) && !isOp) {
-                        var combine = (Dsp.ModulationCombine)o; var bb = b;
-                        Modify(zound, "change how the modulator combines", () => { WriteBinding(chain, bb, combine, bb.depth); });
+                        var combine = OptionCombine(o); var bb = b;
+                        Modify(zound, "change how the modulator combines", () => { ChooseCombine(chain, bb, combine); });
                     }
                     GUI.enabled = prevEnabled;
                 }
-                var depthRect = new Rect(x + 134f, row.y + 1f, 120f, row.height - 2f);
-                ZoundsEditorDiagnostics.Record("bind.ops", new Rect(x, row.y + 1f, 126f, row.height - 2f)); ZoundsEditorDiagnostics.Record("bind.depth", depthRect); ZoundsEditorDiagnostics.Record("bind.remove", new Rect(depthRect.xMax + 4f, row.y + 1f, RemoveW, row.height - 2f));
+                var depthRect = new Rect(x + 176f, row.y + 1f, 120f, row.height - 2f);
+                ZoundsEditorDiagnostics.Record("bind.ops", new Rect(x, row.y + 1f, 168f, row.height - 2f)); ZoundsEditorDiagnostics.Record("bind.depth", depthRect); ZoundsEditorDiagnostics.Record("bind.remove", new Rect(depthRect.xMax + 4f, row.y + 1f, RemoveW, row.height - 2f));
                 // Nought to one, because depth is now a share of THIS parameter's own range rather than an amount in its
                 // units. That is what makes the same number mean the same thing on a cutoff and on a mix, and it is why the
                 // slider no longer runs to four — there is no such thing as four times a parameter's whole range.
                 float shownDepth = Dsp.ChainModulationCompat.DepthOf(b, DepthMinOf(chain, b), DepthMaxOf(chain, b), DepthRatioOf(chain, b));
                 float nd = ZUI.MicroSlider(depthRect, shownDepth, 0f, 1f, "Depth", ZUI.SliderStyle.Default, false, ZUI.MicroSliderLabelMode.LabelAndValue, 0.25f);
                 if (!Mathf.Approximately(nd, shownDepth)) { var bb = b; ModifyContinuous(zound, "change depth", () => { WriteBinding(chain, bb, currentCombine, nd); }); }
-                GUI.Label(depthRect, new GUIContent("", currentCombine == Dsp.ModulationCombine.Shift
-                    ? (legacyShift
-                        ? "How far this modifier may move the parameter. This binding was made before depth changed meaning and still uses the old one: a share of the parameter's WHOLE range each way, so high values pin it against the ends. Change the depth or the mode and it switches to the current meaning, where one reaches the ends but never pins."
-                        : "How far this modifier may move the parameter. Nought: not at all. One: all the way to the ends of its range, never past them. A half: half of the room there is in whichever direction it is being pushed.")
-                    : currentCombine == Dsp.ModulationCombine.Set
-                        ? "How much the modifier takes over. Nought: your slider value, unchanged. One: entirely the modifier's value. In between: a blend of the two."
-                        : "How much the multiplication applies. Nought: no effect. One: your value times the modifier's output. In between: part of the way."));
+                GUI.Label(depthRect, new GUIContent("", DepthTip(currentCombine, legacyShift)));
                 var xRect = new Rect(depthRect.xMax + 4f, row.y + 1f, RemoveW, row.height - 2f);
                 if (ZUI.Button(xRect, new GUIContent("×", "Removes this binding."), ZUI.Style.RichButton, ZUI.Tint.Danger)) {
                     var bb = b;

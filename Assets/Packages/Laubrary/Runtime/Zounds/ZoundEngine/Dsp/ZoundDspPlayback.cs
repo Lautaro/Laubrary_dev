@@ -111,7 +111,21 @@ namespace Laubrary.Zounds.Dsp {
             double total = 0;
             for (int i = 0; i < steps; i++) {
                 float t = (i + 0.5f) / steps;
-                float pitch = 1f;
+                total += (sourceSeconds / steps) / PitchAtSource(chain, t, sourceSeconds);
+            }
+            return (float)total;
+        }
+
+        /// <summary>
+        /// The pitch multiplier the chain's pitch curves give at <paramref name="t"/> (0..1) through the source, combined
+        /// exactly as the render combines them. The one place a display or a length calculation reads "what pitch is heard
+        /// here" from, so none of them treats a curve's raw value as a multiplier (it has not been one since the curves
+        /// moved onto the chain; T-0479).
+        /// </summary>
+        public static float PitchAtSource(ZoundEffectChain chain, float t, float sourceSeconds) {
+            float pitch = 1f;
+            if (chain == null || chain.IsEmpty) return pitch;
+            {
                 for (int b = 0; b < chain.bindings.Count; b++) {
                     var bind = chain.bindings[b];
                     if (bind.nodeIndex != -1 || bind.paramIndex != SourceStageParam.Pitch) continue;
@@ -131,10 +145,8 @@ namespace Laubrary.Zounds.Dsp {
                                                  ChainModulationCompat.DepthOf(bind, pd.min, pd.max, ratio),
                                                  pd.min, pd.max, ratio);
                 }
-                pitch = Mathf.Clamp(pitch, ZoundEffectDescriptors.SourceStageParams[SourceStageParam.Pitch].min, ZoundEffectDescriptors.SourceStageParams[SourceStageParam.Pitch].max);
-                total += (sourceSeconds / steps) / pitch;
             }
-            return (float)total;
+            return Mathf.Clamp(pitch, ZoundEffectDescriptors.SourceStageParams[SourceStageParam.Pitch].min, ZoundEffectDescriptors.SourceStageParams[SourceStageParam.Pitch].max);
         }
 
         // Round-robin without repeats across the cycle seam: when every step has been used the set is

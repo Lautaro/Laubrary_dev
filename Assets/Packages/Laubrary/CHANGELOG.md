@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — a pitch curve's middle is "no change" (T-0480)
+
+- **Fix: a newly switched-on pitch curve played two octaves up.** Its flat default line was read as a position across the whole pitch range, so it played ×4, and the entire top half of its display also played ×4.
+- **New curve mode, Ratio**, offered for an Envelope on any parameter spaced by ratio (pitch, speed, a frequency). The curve's middle is ×1, the top ×4 and the bottom ×¼ (±24 semitones on a pitch), evenly spaced, so up and down are the same distance. Depth shrinks the swing: a half reaches ×2 and ×½. A Klip's new pitch curve starts flat in the middle, in Ratio mode.
+- **Saved sounds sound exactly as before.** An existing pitch curve keeps its old mode and plays as it always has. The first time it is edited (a drag, switching it on, or choosing Ratio), its points are converted to the Ratio scale so it plays the same multipliers. Measured on the owner's two sounds with a pitch curve ("New Klip2", "Game over 4"): every multiplier is unchanged and the play length is unchanged. A rendered tone differs by at most −78 dB, which is float rounding. Both were left unconverted until edited.
+- **Displays:**
+  - The pitch curve shows a semitone axis (+24 / 0 / −24 st, with a centre line) on the waveform and on its chain card, in both Klip windows.
+  - A curve still on the old scale shows a ⚠ beside the Pitch toggle, explained in its tooltip.
+  - Chain cards label a curve's ends by what they mean (the parameter's own range under Set).
+- **Fix:** the preview playhead and the play-length calculation read "the pitch heard here" from one shared function, instead of treating a curve's raw value as a multiplier.
+- **Engine:** modulation is evaluated on a 64-sample grid counted from the voice's own start, so the samples no longer depend on how the host slices its render calls. The mixer's calls are whole multiples of 64, so what it hears is unchanged.
+  - Measured with a moving pitch curve: identical samples at every multiple of 64, and within −64 dB at a block size of 1 (float rounding of ramps advanced in pieces).
+- **Kept check 17** (Laubrary/Zounds/Checks) measures the scale's fixed points, the new default, the exactness of the conversion, and block-size invariance.
+
 ### Zounds — the UI Toolkit windows are now the main Zounds windows
 
 - **Owner's decision (2026-09-28):** "Make UITK version the main one. IMGUI should be kept but its not important to open it from the main zounds UI."

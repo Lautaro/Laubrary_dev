@@ -28,6 +28,9 @@ namespace Laubrary.Zounds.Uitk {
         readonly Label length;
         readonly VisualElement box, area, bg, dimStart, dimEnd, handleStart, handleEnd, heads;
         readonly VisualElement[] xmix;
+        // The pitch curve's axis (T-0479): top / middle / bottom labels and the "no change" line, and the old-scale warning.
+        readonly Label pitchTop, pitchMid, pitchBottom, pitchOld;
+        readonly VisualElement pitchLine;
         readonly Image wave;
         readonly ZuiSkinEnvelope volEnv, pitchEnv;
         ZuiSkinEnvelope active;
@@ -51,7 +54,12 @@ namespace Laubrary.Zounds.Uitk {
             length = new Label();
             length.AddToClassList("zs-lbl"); length.AddToClassList("zs-mini");
             length.style.width = 50f; length.style.flexShrink = 0;
-            bar.Add(trim); bar.Add(clamp); bar.Add(Gap(6f)); bar.Add(vol); bar.Add(volEdit); bar.Add(Gap(6f)); bar.Add(pitch); bar.Add(pitchEdit);
+            // A fixed slot beside the Pitch toggle, shown only while the pitch curve is still on its old scale.
+            pitchOld = new Label("\u26A0") { tooltip = KlipChainEnvelopes.OldScaleTip };
+            pitchOld.AddToClassList("zs-lbl");
+            pitchOld.style.width = 16f; pitchOld.style.flexShrink = 0; pitchOld.style.unityTextAlign = TextAnchor.MiddleCenter;
+            pitchOld.style.visibility = Visibility.Hidden;
+            bar.Add(trim); bar.Add(clamp); bar.Add(Gap(6f)); bar.Add(vol); bar.Add(volEdit); bar.Add(Gap(6f)); bar.Add(pitch); bar.Add(pitchEdit); bar.Add(pitchOld);
             var flex = new VisualElement(); flex.style.flexGrow = 1; bar.Add(flex);
             bar.Add(length);
             Add(bar);
@@ -80,6 +88,9 @@ namespace Laubrary.Zounds.Uitk {
                 if (i >= 2) xmix[i].AddToClassList("zs-xmix--min");
                 area.Add(xmix[i]);
             }
+            pitchLine = Abs(); area.Add(pitchLine);
+            pitchTop = AxisLabel(); pitchMid = AxisLabel(); pitchBottom = AxisLabel();
+            area.Add(pitchTop); area.Add(pitchMid); area.Add(pitchBottom);
             heads = Abs(); area.Add(heads);
             handleStart = Abs(); handleEnd = Abs(); area.Add(handleStart); area.Add(handleEnd);
             handleStart.AddToClassList("zs-trimhandle"); handleEnd.AddToClassList("zs-trimhandle");
@@ -99,6 +110,38 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.style.flexShrink = 0; return e; }
+
+        static Label AxisLabel() {
+            var l = new Label { pickingMode = PickingMode.Ignore };
+            l.AddToClassList("zs-lbl"); l.AddToClassList("zs-mini");
+            l.style.position = Position.Absolute; l.style.left = 3f; l.style.width = 60f; l.style.height = 13f;
+            return l;
+        }
+
+        /// <summary>The pitch curve's axis on the waveform (T-0479): what its top, middle and bottom mean, and the middle
+        /// line that is "no change" -- or, for a curve still on its old scale, only the warning beside the toggle.</summary>
+        void PlacePitchAxis(Rect r, Rect envRect) {
+            string top = null, mid = null, bottom = null; bool oldScale = false;
+            bool on = model.PitchEnvelope.enabled && KlipChainEnvelopes.PitchAxis(klip, out top, out mid, out bottom, out oldScale);
+            bool old = on && oldScale;
+            pitchOld.style.visibility = old ? Visibility.Visible : Visibility.Hidden;
+            bool axis = on && !old && top != null;
+            foreach (var e in new VisualElement[] { pitchTop, pitchMid, pitchBottom }) e.style.display = axis ? DisplayStyle.Flex : DisplayStyle.None;
+            pitchLine.style.display = axis && mid != null ? DisplayStyle.Flex : DisplayStyle.None;
+            if (!axis) return;
+            var c = ZoundsProject.Instance.projectSettings.editorStyle.pitchEnvelopeColor;
+            foreach (var l in new[] { pitchTop, pitchMid, pitchBottom }) l.style.color = new Color(c.r, c.g, c.b, 0.9f);
+            pitchTop.text = top; pitchMid.text = mid ?? ""; pitchBottom.text = bottom;
+            float x = envRect.x + 3f;
+            pitchTop.style.left = pitchMid.style.left = pitchBottom.style.left = x;
+            pitchTop.style.top = envRect.y + 1f;
+            pitchBottom.style.top = envRect.yMax - 14f;
+            float my = Mathf.Round(envRect.y + envRect.height * 0.5f);
+            pitchMid.style.top = my - 14f;
+            pitchLine.style.left = envRect.x; pitchLine.style.width = Mathf.Max(0f, envRect.width);
+            pitchLine.style.top = my; pitchLine.style.height = 1f;
+            pitchLine.style.backgroundColor = new Color(c.r, c.g, c.b, 0.35f);
+        }
         static VisualElement Space(float h) { var e = new VisualElement(); e.style.height = h; e.style.flexShrink = 0; return e; }
         static VisualElement Abs() {
             var e = new VisualElement { pickingMode = PickingMode.Ignore };
@@ -182,6 +225,7 @@ namespace Laubrary.Zounds.Uitk {
 
             // The envelopes, over the trimmed range when clamped, else the whole area.
             var envRect = model.ClampToTrim ? trimmed : r;
+            PlacePitchAxis(r, envRect);
             Overlay(volEnv, true, envRect);
             Overlay(pitchEnv, false, envRect);
         }

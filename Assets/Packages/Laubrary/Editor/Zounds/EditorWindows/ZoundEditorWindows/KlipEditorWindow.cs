@@ -201,6 +201,8 @@ namespace Laubrary.Zounds {
                 if (target() != null) {
                     setDragging(true);
                     ZoundsWindow.BeginDragUndo("edit pitch envelope");
+                    // The first edit moves an old-scale curve onto the Ratio scale, sounding the same (T-0479).
+                    KlipChainEnvelopes.EnsurePitchRatio(target());
                 }
             };
 

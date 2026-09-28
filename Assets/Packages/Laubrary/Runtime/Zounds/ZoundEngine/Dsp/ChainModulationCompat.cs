@@ -29,6 +29,72 @@ namespace Laubrary.Zounds.Dsp {
         public const int FRACTION_SCHEMA = 1;
 
         /// <summary>
+        /// Whether an envelope binding can be converted to <see cref="ModulationCombine.Ratio"/> without changing how it
+        /// sounds: an envelope, bound with Set, to a parameter spaced by ratio, and the envelope's only binding (converting
+        /// the curve would otherwise change what its other bindings hear).
+        /// </summary>
+        public static bool CanConvertSetToRatio(ZoundEffectChain chain, ZoundModifierBinding b) {
+            if (chain?.modifiers == null || b == null || b.modifierIndex < 0 || b.modifierIndex >= chain.modifiers.Count) return false;
+            var m = chain.modifiers[b.modifierIndex];
+            if (m.type != ZoundModifierType.Envelope || m.curve == null) return false;
+            if (CombineOf(b) != ModulationCombine.Set) return false;
+            if (!TryParam(chain, b, out var pd, out _) || !ModulationMath.IsRatioSpaced(pd.curve)) return false;
+            int n = 0;
+            foreach (var other in chain.bindings) if (other.modifierIndex == b.modifierIndex) n++;
+            return n == 1;
+        }
+
+        /// <summary>
+        /// Rewrites an envelope bound with Set onto the Ratio scale so it plays the SAME multiplier as before (T-0479):
+        /// each point's value is replaced by the Ratio position that gives the value the old Set produced over the
+        /// parameter's set value, the curve's range becomes 0..1 and the binding Ratio at full depth. Exact for every point
+        /// within two octaves of the set value; a point beyond that is held at x4 or x1/4 (returned in
+        /// <paramref name="clampedPoints"/>). Points sharing a segment stay on the same shape, since both scales are evenly
+        /// spaced in ratio. The caller records Undo first.
+        /// </summary>
+        public static bool ConvertSetToRatio(ZoundEffectChain chain, ZoundModifierBinding b, out int clampedPoints) {
+            clampedPoints = 0;
+            if (!CanConvertSetToRatio(chain, b)) return false;
+            TryParam(chain, b, out var pd, out float setValue);
+            var curve = chain.modifiers[b.modifierIndex].curve;
+            float depth = DepthOf(b, pd.min, pd.max, true);
+            float baseValue = Mathf.Clamp(setValue, pd.min, pd.max);
+            var pts = curve.GetPointsList();
+            for (int i = 0; i < pts.Count; i++) {
+                float heard = ModulationMath.Apply(ModulationCombine.SetFromZero, baseValue, pts[i].value, depth, pd.min, pd.max, true);
+                float ratio = heard / Mathf.Max(baseValue, 1e-6f);
+                float reach = ModulationMath.RatioFromPosition(1f);
+                if (ratio > reach * 1.0001f || ratio < 1f / reach * 0.9999f) clampedPoints++;
+                pts[i].value = ModulationMath.PositionFromRatio(ratio);
+            }
+            curve.yMin = 0f; curve.yMax = 1f;
+            b.combine = ModulationCombine.Ratio;
+            b.depth = 1f;
+            b.schema = CURRENT_SCHEMA;
+            chain.Touch();
+            return true;
+        }
+
+        /// <summary>The parameter a binding drives and the value it is set to (a source-stage parameter rests at its
+        /// default, as the render starts it).</summary>
+        public static bool TryParam(ZoundEffectChain chain, ZoundModifierBinding b, out ParamDesc pd, out float setValue) {
+            pd = default; setValue = 0f;
+            if (b.nodeIndex < 0) {
+                if (b.paramIndex < 0 || b.paramIndex >= SourceStageParam.Count) return false;
+                pd = ZoundEffectDescriptors.SourceStageParams[b.paramIndex];
+                setValue = pd.def;
+                return true;
+            }
+            if (chain?.nodes == null || b.nodeIndex >= chain.nodes.Count) return false;
+            var node = chain.nodes[b.nodeIndex];
+            var d = ZoundEffectDescriptors.Get(node.type);
+            if (b.paramIndex < 0 || b.paramIndex >= d.parameters.Length) return false;
+            pd = d.parameters[b.paramIndex];
+            setValue = node.p != null && b.paramIndex < node.p.Length ? node.p[b.paramIndex] : pd.def;
+            return true;
+        }
+
+        /// <summary>
         /// How a binding combines, given what kind of modifier drives it: <see cref="CombineOf"/>, except that Set on a
         /// modifier whose output runs 0..1 (an envelope) becomes <see cref="ModulationCombine.SetFromZero"/>, so the
         /// envelope spans the parameter's whole range instead of only its top half. Every place that hands a binding to the

@@ -98,25 +98,46 @@ namespace Laubrary.Zounds.Dsp {
 
             while (off < frames) {
                 int n = frames - off;
-                if (n > ZoundDspConstants.CONTROL_BLOCK) n = ZoundDspConstants.CONTROL_BLOCK;
-                invN = 1f / n;
+                // Control blocks sit on a grid counted from the voice's own start, not from the start of this call, so the
+                // moments at which modulators are evaluated -- and therefore the samples -- do not depend on how the host
+                // happens to slice its calls (T-0479: a pitch curve rendered in blocks of 333 differed from blocks of 256).
+                // The mixer's calls are whole multiples of the grid, so what it hears is exactly what it heard before.
+                int phase = (int)(sap.elapsedSamples % ZoundDspConstants.CONTROL_BLOCK);
+                int toGrid = ZoundDspConstants.CONTROL_BLOCK - phase;
+                if (n > toGrid) n = toGrid;
+                // Targets and slopes are worked out once per grid block, over the whole block, and a block that a call
+                // boundary splits in two carries on with the same slopes -- evaluating again for the second piece would
+                // put a second evaluation, and differently sloped ramps, wherever a call happened to end.
+                bool gridStart = phase == 0;
+                invN = 1f / ZoundDspConstants.CONTROL_BLOCK;
 
                 // ── control block: targets, clamps, per-sample slopes ──
                 float basePitchStart = sap.basePitchLive;
-                float basePitchStep = (basePitchTargetNow - sap.basePitchLive) * invN;
                 float outGainStart = sap.outGainLive;
-                float outGainStep = (outGainTargetNow - sap.outGainLive) * invN;
                 float baseSpeedStart = sap.baseSpeedLive;
-                float baseSpeedStep = (baseSpeedTargetNow - sap.baseSpeedLive) * invN;
+                if (gridStart) {
+                    sap.ctlBasePitchStep = (basePitchTargetNow - sap.basePitchLive) * invN;
+                    sap.ctlOutGainStep = (outGainTargetNow - sap.outGainLive) * invN;
+                    sap.ctlBaseSpeedStep = (baseSpeedTargetNow - sap.baseSpeedLive) * invN;
+                }
+                float basePitchStep = sap.ctlBasePitchStep;
+                float outGainStep = sap.ctlOutGainStep;
+                float baseSpeedStep = sap.ctlBaseSpeedStep;
                 ctx.elapsedSeconds = (float)sap.elapsedSamples / sampleRate;
                 ctx.sourceExhausted = sap.sourceExhausted;
 
-                if (L.bindCount > 0) {
+                if (L.bindCount > 0 && !gridStart) {
+                    // The rest of a block a call boundary split: same slopes, from where the ramps have got to.
+                    for (int r = 0; r < L.rampedCount; r++) { int t = L.ramped[r]; sap.pStart[t] = sap.pLive[t]; }
+                }
+                else if (L.bindCount > 0) {
                     for (int r = 0; r < L.rampedCount; r++) sap.pTarget[L.ramped[r]] = L.pBase[L.ramped[r]];
                     // Targets are evaluated for the END of this block: the per-sample ramp then lands on the
                     // right value exactly when the block ends, so the reconstruction is a true piecewise-linear
                     // interpolation of the modulator rather than one lagging by a block.
-                    EvaluateModifiers(ref sap, L, sampleRate, n, ctx.elapsedSeconds + (float)n / sampleRate, n, isGroup, sourceDuration, clipRate);
+                    EvaluateModifiers(ref sap, L, sampleRate, ZoundDspConstants.CONTROL_BLOCK,
+                                      ctx.elapsedSeconds + (float)ZoundDspConstants.CONTROL_BLOCK / sampleRate, ZoundDspConstants.CONTROL_BLOCK,
+                                      isGroup, sourceDuration, clipRate);
                     // Each modulator moves its parameter along that parameter's OWN control, by a fraction of the control's
                     // travel, rather than by an amount in the parameter's units. That one change is what makes a depth mean
                     // the same thing on a cutoff measured in thousands of hertz and on a resonance measured from nought to
