@@ -49,8 +49,8 @@ namespace Laubrary.Zounds.Uitk {
         /// sliders (linear, log, integer), toggles, choice strips, a modulated slider, the four modifier kinds with
         /// wave icons, a two-handled range, a step list, and bindings in each combine mode.
         /// </summary>
-        public static (EditorWindow old, EditorWindow uitk) OpenChainPair(int expandNode = 2) {
-            var k = SampleKlip();
+        public static (EditorWindow old, EditorWindow uitk) OpenChainPair(int expandNode = 2, Klip sample = null) {
+            var k = sample ?? SampleKlip();
             var a = ScriptableObject.CreateInstance<ImguiChainGallery>();
             a.klip = k; a.expand = expandNode;
             a.titleContent = new GUIContent("Zounds Chain IMGUI");
@@ -62,6 +62,21 @@ namespace Laubrary.Zounds.Uitk {
             b.ShowUtility();
             b.position = new Rect(40 + ChainW + 12, 60, ChainW, ChainH);
             return (a, b);
+        }
+
+        /// <summary>A short chain (two effects, one oscillator on the cutoff), for views that sit below a long chain's fold.</summary>
+        public static Klip SmallSampleKlip() {
+            var k = new Klip(-778) { name = "Small chain gallery" };
+            var c = k.effectChain;
+            c.nodes.Add(new ZoundEffectNode(ZoundEffectType.Gain));
+            c.nodes.Add(new ZoundEffectNode(ZoundEffectType.LowPass));
+            c.modifiers.Add(new ZoundModifier(ZoundModifierType.Lfo) { name = "Wobble" });
+            foreach (var n in c.nodes) n.EnsureParams();
+            foreach (var m in c.modifiers) m.EnsureParams();
+            c.nodes[1].p[0] = 2000f;
+            c.bindings.Add(new ZoundModifierBinding { modifierIndex = 0, nodeIndex = 1, paramIndex = 0, combine = Dsp.ModulationCombine.Shift, depth = 0.6f, schema = Dsp.ChainModulationCompat.CURRENT_SCHEMA });
+            c.Touch();
+            return k;
         }
 
         internal static Klip SampleKlip() {

@@ -45,8 +45,12 @@ namespace Laubrary.Zounds.Uitk {
         EditorTools.ChainSpectrumProbe.Measurement modulation;
         int modulationVersion = int.MinValue;
 
+        // Kept across rebuilds, so its open state, view and measurements survive an edit to the chain.
+        readonly ChainAnalyserTK analyser;
+
         public ChainEditorTK(Zound zound) {
             this.zound = zound;
+            analyser = new ChainAnalyserTK(zound);
             AddToClassList("zs-chain");
             style.flexShrink = 0;
             RegisterCallback<GeometryChangedEvent>(_ => Tick());
@@ -162,7 +166,8 @@ namespace Laubrary.Zounds.Uitk {
                     Bindings(chain, m);
                 }
             }
-            Add(VSpace(5f));   // ZUI.RowSpace(0.5f), then the analyser (T-0467)
+            Add(VSpace(5f));   // ZUI.RowSpace(0.5f), then the analyser
+            Add(analyser);
         }
 
         // ─────────────────────────── small element helpers ───────────────────────────

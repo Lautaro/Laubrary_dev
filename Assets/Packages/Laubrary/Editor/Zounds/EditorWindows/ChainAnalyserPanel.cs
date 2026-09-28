@@ -208,13 +208,7 @@ namespace Laubrary.Zounds.EditorTools {
             float playTime = PlayTime(zound, out bool following);
             if (!empty && Event.current.type == EventType.Repaint) SafeUpdateLive(zound, chain, playTime, following, true);
 
-            bool still = shown.db != null && (measurement.lanes == null || measurement.lanes.Length == 0) && MaxAbs(shown) < 0.05f;
-            string status =
-                  empty ? "Nothing to measure yet — add an effect above."
-                : shown.db == null ? "Measuring…"
-                : still ? "This chain measurably changes nothing — every effect is off or sitting at a neutral setting."
-                : null;
-            StatusLine(status);
+            StatusLine(CombinedStatus(chain));
 
             // One lane per modulated parameter, sized from the CHAIN rather than from the measurement, so the panel keeps
             // the same height while a measurement is in flight and does not jump when it lands.
@@ -228,21 +222,223 @@ namespace Laubrary.Zounds.EditorTools {
             else DrawBars(area);
 
             // Which moment the bars are showing, and where it comes from.
-            string time = shown.db == null ? null
-                : playTime.ToString("0.00") + " s of " + Mathf.Max(measurement.totalSeconds, measurement.playSeconds).ToString("0.00") + " s"
-                  + (measurement.totalSeconds > measurement.playSeconds + 0.01f ? " (source " + measurement.playSeconds.ToString("0.00") + " s, then its tail)" : "")
-                  + (measurement.truncated ? " (the first " + ChainSpectrumProbe.MaxSeconds.ToString("0") + " s)" : "")
-                  + (following ? "  ·  live, from the sound playing now"
-                     : RunsBetweenPlays(seriesChain) ? "  ·  not playing: only what keeps running between plays moves; press play to see the rest"
-                     : "  ·  not playing: nothing moves until the sound is played");
-            StatusLine(time, time == null ? null
-                : "The bars show what the chain does to each part of the sound at this very moment, redrawn every frame. "
-                  + (following ? "The moment is taken from the sound as it plays: its parameters are read from the engine while you listen. "
-                               : RunsBetweenPlays(seriesChain)
-                                   ? "Nothing is playing, so nothing that is fired by a play is worked out at all — an envelope, an oscillator or step list set to run per play, a random value all sit at none, leaving their parameters where they were set. Only what keeps running between plays (an oscillator set to Always, a timed step list with Retrigger off) still moves, followed in real time where its clock has got to. Press play to see everything a play does. "
-                                   : "Nothing is playing, and everything in this chain is fired by a play (an envelope, an oscillator or step list set to run per play, a random value), so nothing is worked out and nothing moves: every parameter sits where it was set, and the bars show the chain at those settings. Press play to see what a play does. ")
-                  + "To get the whole range of hearing down to the deepest bass, each picture is measured with the chain held still at that moment's settings.");
+            string time = TimeText(playTime, following);
+            StatusLine(time, time == null ? null : TimeTip(following));
         }
+
+        // ── shared with the UI Toolkit twin (T-0467): the words and shapes the panel shows, independent of how it draws ──
+
+        /// <summary>The combined view's single status line, or null when there is nothing worth saying.</summary>
+        internal string CombinedStatus(ZoundEffectChain chain) {
+            bool empty = chain == null || chain.IsEmpty;
+            bool still = shown.db != null && (measurement.lanes == null || measurement.lanes.Length == 0) && MaxAbs(shown) < 0.05f;
+            return empty ? "Nothing to measure yet — add an effect above."
+                 : shown.db == null ? "Measuring…"
+                 : still ? "This chain measurably changes nothing — every effect is off or sitting at a neutral setting."
+                 : null;
+        }
+
+        /// <summary>Which moment the bars are showing, and where it comes from; null before the first picture.</summary>
+        internal string TimeText(float playTime, bool following) => shown.db == null ? null
+            : playTime.ToString("0.00") + " s of " + Mathf.Max(measurement.totalSeconds, measurement.playSeconds).ToString("0.00") + " s"
+              + (measurement.totalSeconds > measurement.playSeconds + 0.01f ? " (source " + measurement.playSeconds.ToString("0.00") + " s, then its tail)" : "")
+              + (measurement.truncated ? " (the first " + ChainSpectrumProbe.MaxSeconds.ToString("0") + " s)" : "")
+              + (following ? "  ·  live, from the sound playing now"
+                 : RunsBetweenPlays(seriesChain) ? "  ·  not playing: only what keeps running between plays moves; press play to see the rest"
+                 : "  ·  not playing: nothing moves until the sound is played");
+
+        internal string TimeTip(bool following) =>
+            "The bars show what the chain does to each part of the sound at this very moment, redrawn every frame. "
+            + (following ? "The moment is taken from the sound as it plays: its parameters are read from the engine while you listen. "
+                         : RunsBetweenPlays(seriesChain)
+                             ? "Nothing is playing, so nothing that is fired by a play is worked out at all — an envelope, an oscillator or step list set to run per play, a random value all sit at none, leaving their parameters where they were set. Only what keeps running between plays (an oscillator set to Always, a timed step list with Retrigger off) still moves, followed in real time where its clock has got to. Press play to see everything a play does. "
+                             : "Nothing is playing, and everything in this chain is fired by a play (an envelope, an oscillator or step list set to run per play, a random value), so nothing is worked out and nothing moves: every parameter sits where it was set, and the bars show the chain at those settings. Press play to see what a play does. ")
+            + "To get the whole range of hearing down to the deepest bass, each picture is measured with the chain held still at that moment's settings.";
+
+        /// <summary>
+        /// One frame of the panel's own state, for a host that is not IMGUI: re-measures after edits, works out the moment
+        /// shown (following a playing voice, or looping), and takes that moment's picture. The IMGUI panel does the same
+        /// inside its drawing; a UI Toolkit host calls this once per tick instead.
+        /// </summary>
+        internal void Step(Zound zound, ZoundEffectChain chain, bool wantPicture, out float playTime, out bool following) {
+            lastAnalysed = zound;
+            drawnZound = zound;
+            EnsureMeasured(zound, chain);
+            playTime = PlayTime(zound, out following);
+            if (chain != null && !chain.IsEmpty) SafeUpdateLive(zound, chain, playTime, following, wantPicture);
+        }
+
+        internal static int LaneCount(ZoundEffectChain chain) => CountModulatedParams(chain);
+        internal const int Bands = BANDS;
+        internal LiveOutputView Live => live;
+        internal static float LaneHeight => LaneH;
+        internal static float LaneLabelWidth => LaneLabelW;
+        internal bool HasPicture => shown.db != null;
+
+        /// <summary>A lane's label and hover text (empty while that lane has not been measured yet).</summary>
+        internal void LaneText(int r, bool following, out string label, out string tip) {
+            var lanes = measurement.lanes;
+            bool have = lanes != null && r < lanes.Length && lanes[r].position01 != null && lanes[r].position01.Length > 0;
+            label = have ? lanes[r].label : "";
+            tip = have
+                ? label + ", across one play from start (left) to end (right), including the tail the chain rings on for after its source ends (the faint upright mark is where the source ends). The line is where the engine actually puts it, as a position along its slider; the faint level is where you set it; the upright line is the moment shown in the bars below."
+                  + (following ? " The dot is its value in the playing sound right now; the bars below show the chain at exactly that value."
+                               : " Nothing is playing, so only modifiers that keep running between plays move it here; anything fired by a play (an envelope, a per-play oscillator or step list, a random value) is left out until the sound is played, and a lane driven only by those stays flat where it was set. The dot is its value right now; the bars below show the chain at exactly that value.")
+                  + (RunsAlways(lanes[r].modifierIndex)
+                      ? " Its modifier keeps running between plays (an oscillator set to Always, or a timed step list with Retrigger off), so a real play picks it up wherever it has got to; this line shows a play that happened to start at the beginning, and the dot shows where a real one is."
+                      : "")
+                : "";
+        }
+
+        /// <summary>
+        /// Paints lane <paramref name="r"/>'s graph into <paramref name="g"/> through <paramref name="fill"/>: the dark field,
+        /// where the source ends, where the parameter was set, where the engine put it (one column per device pixel, filled
+        /// back to the set level), the moment shown and its dot.
+        /// </summary>
+        internal void PaintLane(int r, Rect g, float playTime, bool following, System.Action<Rect, Color> fill) {
+            bool still = !following && !RunsBetweenPlays(seriesChain);
+            var lanes = measurement.lanes;
+            float len = measurement.totalSeconds > 0f ? measurement.totalSeconds : measurement.playSeconds > 0f ? measurement.playSeconds : FallbackPlaySeconds;
+            float sourceEnds = measurement.playSeconds;
+            bool have = lanes != null && r < lanes.Length && lanes[r].position01 != null && lanes[r].position01.Length > 0;
+            fill(g, new Color(0.10f, 0.10f, 0.12f));
+            if (!have) return;
+            var lane = lanes[r];
+            float yOf(float p) => g.yMax - 1f - p * (g.height - 2f);
+
+            // Where the source ends and the chain's tail rings on — the engine keeps moving the parameter through it.
+            if (sourceEnds > 0f && sourceEnds < len - 0.01f) {
+                float xs = g.x + sourceEnds / len * g.width;
+                fill(new Rect(xs, g.y, 1f, g.height), new Color(1f, 1f, 1f, 0.18f));
+            }
+
+            // Where it was set.
+            float ya = yOf(lane.authored01);
+            fill(new Rect(g.x, ya, g.width, 1f), new Color(0.55f, 0.55f, 0.62f, 0.45f));
+
+            // Where the engine put it, one column per pixel, filled back to where it was set so the swing reads as area.
+            var vals = lane.position01;
+            float step = measurement.laneStepSeconds > 0f ? measurement.laneStepSeconds : len / vals.Length;
+            // One column per real screen pixel, not per interface point: on a high-density display a point is two
+            // or three pixels, and columns a point wide alternately overlap and leave gaps, which drew the line dashed.
+            float px = 1f / Mathf.Max(1f, EditorGUIUtility.pixelsPerPoint);
+            int cols = Mathf.Max(1, Mathf.FloorToInt(g.width / px));
+            float prevY = yOf(vals[0]);
+            for (int c = 0; c < cols; c++) {
+                float t = (c + 0.5f) / cols * len;
+                // Value i describes the end of engine step i, i.e. time (i + 1) x step; the dot reads it the same way.
+                float p = SampleLane(vals, t / step - 1f);
+                float y = yOf(p);
+                float x = g.x + c * px;
+                float top = Mathf.Min(y, ya), bot = Mathf.Max(y, ya);
+                fill(new Rect(x, top, px, Mathf.Max(px, bot - top)), new Color(0.45f, 0.75f, 1f, 0.18f));
+                float lt = Mathf.Min(y, prevY), lb = Mathf.Max(y, prevY);
+                fill(new Rect(x, lt - 0.5f, px, Mathf.Max(1.2f, lb - lt + 1f)), new Color(0.55f, 0.82f, 1f, 0.95f));
+                prevY = y;
+            }
+
+            // Now — hidden when nothing moves, since there is then no moment to point at.
+            float xNow = g.x + Mathf.Clamp01(playTime / len) * g.width;
+            if (!still) fill(new Rect(xNow - 0.5f, g.y, 1.5f, g.height), new Color(1f, 1f, 1f, following ? 0.9f : 0.45f));
+            if (nowPositions != null && r < nowPositions.Length && nowPositions[r] >= 0f) {
+                float yl = yOf(nowPositions[r]);
+                fill(new Rect(xNow - 3f, yl - 3f, 6f, 6f), new Color(1f, 0.85f, 0.35f));
+            }
+        }
+
+        internal static void PaintEmptyGraph(Rect area, System.Action<Rect, Color> fill) {
+            fill(area, new Color(0.12f, 0.12f, 0.14f));
+            float mid = area.y + area.height * 0.5f;
+            fill(new Rect(area.x, mid - 1f, area.width, 2f), new Color(0.3f, 0.3f, 0.34f));
+        }
+
+        /// <summary>The band under a pointer at <paramref name="x01"/> across the graph (0..1), or -1 outside it.</summary>
+        internal static int BandAt(float x01) => x01 < 0f || x01 > 1f ? -1 : Mathf.Clamp((int)(x01 * BANDS), 0, BANDS - 1);
+
+        /// <summary>Paints the per-band bars, their reached-range blocks, the tick uprights and the middle line. Returns how
+        /// many bands could not be measured (for the hover text).</summary>
+        internal int PaintBars(Rect area, int hovered, System.Action<Rect, Color> fill) {
+            if (bandInfo == null || bandInfo.Length != BANDS) bandInfo = ChainSpectrumProbe.SnapshotBands(BANDS);
+            var bands = bandInfo;
+            fill(area, new Color(0.12f, 0.12f, 0.14f));
+            float mid = area.y + area.height * 0.5f;
+            // Faint uprights at the labelled frequencies, so a bar can be placed without counting.
+            for (int t = 0; t < freqTicks.Length; t++) {
+                float x = area.x + ChainSpectrumProbe.FrequencyPosition01(freqTicks[t]) * area.width;
+                if (x > area.x + 1f && x < area.xMax - 1f) fill(new Rect(x, area.y, 1f, area.height), new Color(1f, 1f, 1f, 0.05f));
+            }
+            fill(new Rect(area.x, mid - 1f, area.width, 2f), new Color(0.45f, 0.45f, 0.5f));
+            float slot = area.width / bands.Length;
+            int unmeasurable = 0;
+            for (int b = 0; b < bands.Length; b++) {
+                float x = area.x + b * slot;
+                float bw = Mathf.Max(1f, slot - 1f);
+                if (!shown.measurable[b]) {
+                    unmeasurable++;
+                    fill(new Rect(x, mid - 1f, bw, 2f), new Color(0.32f, 0.32f, 0.36f));
+                    continue;
+                }
+                if (b == hovered) fill(new Rect(x, area.y, bw, area.height), new Color(1f, 1f, 1f, 0.06f));
+                if (seenMin != null) {
+                    float top = mid - Mathf.Clamp(seenMax[b] / dbRange, -1f, 1f) * area.height * 0.5f;
+                    float bot = mid - Mathf.Clamp(seenMin[b] / dbRange, -1f, 1f) * area.height * 0.5f;
+                    fill(new Rect(x, top, bw, Mathf.Max(1f, bot - top)), new Color(0.3f, 0.45f, 0.6f, 0.35f));
+                }
+                float db = shown.db[b];
+                float h = Mathf.Abs(Mathf.Clamp(db / dbRange, -1f, 1f)) * area.height * 0.5f;
+                var colour = db >= 0f ? new Color(0.45f, 0.8f, 0.5f) : new Color(0.85f, 0.5f, 0.4f);
+                fill(db >= 0f ? new Rect(x, mid - h, bw, h) : new Rect(x, mid, bw, h), colour);
+            }
+            return unmeasurable;
+        }
+
+        internal string ScaleTop => "+" + dbRange.ToString("0") + " dB";
+        internal string ScaleBottom => "−" + dbRange.ToString("0") + " dB";
+
+        internal string BandHoverText(int hovered) {
+            if (hovered < 0 || bandInfo == null || shown.db == null) return "";
+            var hb = bandInfo[hovered];
+            return FormatHz(hb.lowHz) + "–" + FormatHz(hb.highHz) + ":  "
+                 + (shown.measurable[hovered]
+                     ? (shown.db[hovered] >= 0f ? "+" : "") + shown.db[hovered].ToString("0.0") + " dB now"
+                       + (seenMin != null ? ",  " + seenMin[hovered].ToString("0") + " to " + seenMax[hovered].ToString("0") + " dB so far" : "")
+                     : "too low to measure");
+        }
+
+        internal string BarsTip(int unmeasurable) =>
+            "What this chain is doing to each part of the sound's frequency range RIGHT NOW, redrawn every frame, from the deepest bass on the left (20 Hz) to the highest treble on the right (20 kHz). "
+            + "Middle line = unchanged. Green above it = louder, red below it = quieter; full height is " + dbRange.ToString("0") + " dB. "
+            + "As modifiers move the chain's settings, the bars move with them — a step list jumps from one shape to the next, an oscillator sweeps. "
+            + "The faint block behind each bar is every level that band has reached since the chain was last edited. "
+            + (unmeasurable > 0 ? "A flat grey stub is a band this measurement cannot resolve. " : "")
+            + "Point at a bar to read its numbers.";
+
+        /// <summary>The frequency labels under the graph and where each sits across it (0..1).</summary>
+        internal static (string text, float x01)[] FrequencyLabels() {
+            var r = new (string, float)[freqTicks.Length];
+            for (int t = 0; t < freqTicks.Length; t++) r[t] = (FormatHz(freqTicks[t]), ChainSpectrumProbe.FrequencyPosition01(freqTicks[t]));
+            return r;
+        }
+
+        /// <summary>One roster row: the effect's dot colour, its text and its hover text.</summary>
+        internal static void RosterRow(ZoundEffectNode node, bool verdicts, out Color dot, out string text, out string tip) {
+            var fidelity = ChainEffectFidelity.Of(node.type);
+            var colour = fidelity == EffectFidelity.Exact ? new Color(0.55f, 0.85f, 0.6f)
+                       : fidelity == EffectFidelity.Moving ? new Color(0.6f, 0.75f, 0.95f)
+                       : fidelity == EffectFidelity.LevelDependent ? new Color(0.9f, 0.85f, 0.5f)
+                       : fidelity == EffectFidelity.TimeSmeared ? new Color(0.7f, 0.6f, 0.9f)
+                       : new Color(0.95f, 0.55f, 0.5f);
+            dot = node.enabled ? colour : colour * 0.45f;
+            var desc = Dsp.ZoundEffectDescriptors.Get(node.type);
+            string name = desc != null && !string.IsNullOrEmpty(desc.displayName) ? desc.displayName : node.type.ToString();
+            text = name + (node.enabled ? "" : " (off)") + (verdicts ? " — " + ChainEffectFidelity.Explain(node.type) : "");
+            tip = name + " — " + ChainEffectFidelity.Explain(node.type);
+        }
+
+        internal static string LiveStatus(bool playing, string sourceName) => playing && !string.IsNullOrEmpty(sourceName) ? "reading: " + sourceName : null;
+        internal static string LiveFooter(bool playing) => playing
+            ? "The real signal, with nothing interpreted — when this and the combined view disagree, this one is right."
+            : "Press play on this sound and it fills in. It reads the real output, so it needs something to read.";
 
         static float MaxAbs(ChainSpectrumProbe.Snapshot s) {
             float m = 0f;
@@ -396,70 +592,15 @@ namespace Laubrary.Zounds.EditorTools {
         /// </summary>
         void DrawLanes(Zound zound, int rows, float playTime, bool following) {
             if (rows <= 0) return;
-            bool still = !following && !RunsBetweenPlays(seriesChain);
-            var lanes = measurement.lanes;
-            float len = measurement.totalSeconds > 0f ? measurement.totalSeconds : measurement.playSeconds > 0f ? measurement.playSeconds : FallbackPlaySeconds;
-            float sourceEnds = measurement.playSeconds;
             var labelStyle = new GUIStyle(EditorStyles.miniLabel) { wordWrap = false, clipping = TextClipping.Ellipsis };
             for (int r = 0; r < rows; r++) {
                 var row = GUILayoutUtility.GetRect(10f, LaneH, GUILayout.ExpandWidth(true));
                 var labelRect = new Rect(row.x, row.y, LaneLabelW, row.height);
                 var g = new Rect(row.x + LaneLabelW, row.y + 1f, row.width - LaneLabelW, row.height - 2f);
-                bool have = lanes != null && r < lanes.Length && lanes[r].position01 != null && lanes[r].position01.Length > 0;
-                string label = have ? lanes[r].label : "";
-                GUI.Label(labelRect, new GUIContent(label, have
-                    ? label + ", across one play from start (left) to end (right), including the tail the chain rings on for after its source ends (the faint upright mark is where the source ends). The line is where the engine actually puts it, as a position along its slider; the faint level is where you set it; the upright line is the moment shown in the bars below."
-                      + (following ? " The dot is its value in the playing sound right now; the bars below show the chain at exactly that value."
-                                   : " Nothing is playing, so only modifiers that keep running between plays move it here; anything fired by a play (an envelope, a per-play oscillator or step list, a random value) is left out until the sound is played, and a lane driven only by those stays flat where it was set. The dot is its value right now; the bars below show the chain at exactly that value.")
-                      + (RunsAlways(lanes[r].modifierIndex)
-                          ? " Its modifier keeps running between plays (an oscillator set to Always, or a timed step list with Retrigger off), so a real play picks it up wherever it has got to; this line shows a play that happened to start at the beginning, and the dot shows where a real one is."
-                          : "")
-                    : ""), labelStyle);
+                LaneText(r, following, out string label, out string tip);
+                GUI.Label(labelRect, new GUIContent(label, tip), labelStyle);
                 if (Event.current.type != EventType.Repaint) continue;
-
-                EditorGUI.DrawRect(g, new Color(0.10f, 0.10f, 0.12f));
-                if (!have) continue;
-                var lane = lanes[r];
-                float yOf(float p) => g.yMax - 1f - p * (g.height - 2f);
-
-                // Where the source ends and the chain's tail rings on — the engine keeps moving the parameter through it.
-                if (sourceEnds > 0f && sourceEnds < len - 0.01f) {
-                    float xs = g.x + sourceEnds / len * g.width;
-                    EditorGUI.DrawRect(new Rect(xs, g.y, 1f, g.height), new Color(1f, 1f, 1f, 0.18f));
-                }
-
-                // Where it was set.
-                float ya = yOf(lane.authored01);
-                EditorGUI.DrawRect(new Rect(g.x, ya, g.width, 1f), new Color(0.55f, 0.55f, 0.62f, 0.45f));
-
-                // Where the engine put it, one column per pixel, filled back to where it was set so the swing reads as area.
-                var vals = lane.position01;
-                float step = measurement.laneStepSeconds > 0f ? measurement.laneStepSeconds : len / vals.Length;
-                // One column per real screen pixel, not per interface point: on a high-density display a point is two
-                // or three pixels, and columns a point wide alternately overlap and leave gaps, which drew the line dashed.
-                float px = 1f / Mathf.Max(1f, EditorGUIUtility.pixelsPerPoint);
-                int cols = Mathf.Max(1, Mathf.FloorToInt(g.width / px));
-                float prevY = yOf(vals[0]);
-                for (int c = 0; c < cols; c++) {
-                    float t = (c + 0.5f) / cols * len;
-                    // Value i describes the end of engine step i, i.e. time (i + 1) x step; the dot reads it the same way.
-                    float p = SampleLane(vals, t / step - 1f);
-                    float y = yOf(p);
-                    float x = g.x + c * px;
-                    float top = Mathf.Min(y, ya), bot = Mathf.Max(y, ya);
-                    EditorGUI.DrawRect(new Rect(x, top, px, Mathf.Max(px, bot - top)), new Color(0.45f, 0.75f, 1f, 0.18f));
-                    float lt = Mathf.Min(y, prevY), lb = Mathf.Max(y, prevY);
-                    EditorGUI.DrawRect(new Rect(x, lt - 0.5f, px, Mathf.Max(1.2f, lb - lt + 1f)), new Color(0.55f, 0.82f, 1f, 0.95f));
-                    prevY = y;
-                }
-
-                // Now — hidden when nothing moves, since there is then no moment to point at.
-                float xNow = g.x + Mathf.Clamp01(playTime / len) * g.width;
-                if (!still) EditorGUI.DrawRect(new Rect(xNow - 0.5f, g.y, 1.5f, g.height), new Color(1f, 1f, 1f, following ? 0.9f : 0.45f));
-                if (nowPositions != null && r < nowPositions.Length && nowPositions[r] >= 0f) {
-                    float yl = yOf(nowPositions[r]);
-                    EditorGUI.DrawRect(new Rect(xNow - 3f, yl - 3f, 6f, 6f), new Color(1f, 0.85f, 0.35f));
-                }
+                PaintLane(r, g, playTime, following, EditorGUI.DrawRect);
             }
         }
 
@@ -479,9 +620,7 @@ namespace Laubrary.Zounds.EditorTools {
         }
 
         static void DrawEmptyGraph(Rect area) {
-            EditorGUI.DrawRect(area, new Color(0.12f, 0.12f, 0.14f));
-            float mid = area.y + area.height * 0.5f;
-            EditorGUI.DrawRect(new Rect(area.x, mid - 1f, area.width, 2f), new Color(0.3f, 0.3f, 0.34f));
+            PaintEmptyGraph(area, EditorGUI.DrawRect);
             // The frequency-label slot is reserved here too, for the same reason the graph is.
             GUILayoutUtility.GetRect(10f, 13f, GUILayout.ExpandWidth(true));
         }
@@ -650,81 +789,36 @@ namespace Laubrary.Zounds.EditorTools {
         static ChainSpectrumProbe.Band[] bandInfo;
 
         void DrawBars(Rect area) {
-            if (bandInfo == null || bandInfo.Length != BANDS) bandInfo = ChainSpectrumProbe.SnapshotBands(BANDS);
-            var bands = bandInfo;
-            EditorGUI.DrawRect(area, new Color(0.12f, 0.12f, 0.14f));
-
-            float mid = area.y + area.height * 0.5f;
-            // Faint uprights at the labelled frequencies, so a bar can be placed without counting.
-            for (int t = 0; t < freqTicks.Length; t++) {
-                float x = area.x + ChainSpectrumProbe.FrequencyPosition01(freqTicks[t]) * area.width;
-                if (x > area.x + 1f && x < area.xMax - 1f) EditorGUI.DrawRect(new Rect(x, area.y, 1f, area.height), new Color(1f, 1f, 1f, 0.05f));
-            }
-            EditorGUI.DrawRect(new Rect(area.x, mid - 1f, area.width, 2f), new Color(0.45f, 0.45f, 0.5f));
-
             var evt = Event.current;
-            int hovered = area.Contains(evt.mousePosition) ? Mathf.Clamp((int)((evt.mousePosition.x - area.x) / area.width * bands.Length), 0, bands.Length - 1) : -1;
-
-            float slot = area.width / bands.Length;
-            int unmeasurable = 0;
-            for (int b = 0; b < bands.Length; b++) {
-                float x = area.x + b * slot;
-                float bw = Mathf.Max(1f, slot - 1f);
-                if (!shown.measurable[b]) {
-                    unmeasurable++;
-                    EditorGUI.DrawRect(new Rect(x, mid - 1f, bw, 2f), new Color(0.32f, 0.32f, 0.36f));
-                    continue;
-                }
-                if (b == hovered) EditorGUI.DrawRect(new Rect(x, area.y, bw, area.height), new Color(1f, 1f, 1f, 0.06f));
-
-                if (seenMin != null) {
-                    float top = mid - Mathf.Clamp(seenMax[b] / dbRange, -1f, 1f) * area.height * 0.5f;
-                    float bot = mid - Mathf.Clamp(seenMin[b] / dbRange, -1f, 1f) * area.height * 0.5f;
-                    EditorGUI.DrawRect(new Rect(x, top, bw, Mathf.Max(1f, bot - top)), new Color(0.3f, 0.45f, 0.6f, 0.35f));
-                }
-
-                float db = shown.db[b];
-                float h = Mathf.Abs(Mathf.Clamp(db / dbRange, -1f, 1f)) * area.height * 0.5f;
-                var colour = db >= 0f ? new Color(0.45f, 0.8f, 0.5f) : new Color(0.85f, 0.5f, 0.4f);
-                EditorGUI.DrawRect(db >= 0f ? new Rect(x, mid - h, bw, h) : new Rect(x, mid, bw, h), colour);
-            }
+            int hovered = area.Contains(evt.mousePosition) ? BandAt((evt.mousePosition.x - area.x) / area.width) : -1;
+            int unmeasurable = PaintBars(area, hovered, EditorGUI.DrawRect);
+            float mid = area.y + area.height * 0.5f;
 
             // The scale, on the graph's own edge: what full height means, and that the middle is "unchanged".
             var scaleStyle = new GUIStyle(EditorStyles.miniLabel) { alignment = TextAnchor.UpperLeft };
             scaleStyle.normal.textColor = new Color(0.7f, 0.7f, 0.76f);
-            GUI.Label(new Rect(area.x + 3f, area.y + 1f, 70f, 14f), "+" + dbRange.ToString("0") + " dB", scaleStyle);
+            GUI.Label(new Rect(area.x + 3f, area.y + 1f, 70f, 14f), ScaleTop, scaleStyle);
             GUI.Label(new Rect(area.x + 3f, mid - 15f, 70f, 14f), "0 dB", scaleStyle);
-            GUI.Label(new Rect(area.x + 3f, area.yMax - 15f, 70f, 14f), "−" + dbRange.ToString("0") + " dB", scaleStyle);
+            GUI.Label(new Rect(area.x + 3f, area.yMax - 15f, 70f, 14f), ScaleBottom, scaleStyle);
 
             // The band under the mouse, named in plain numbers, at the top-right of the graph.
             if (hovered >= 0) {
-                var hb = bands[hovered];
-                string text = FormatHz(hb.lowHz) + "–" + FormatHz(hb.highHz) + ":  "
-                            + (shown.measurable[hovered]
-                                ? (shown.db[hovered] >= 0f ? "+" : "") + shown.db[hovered].ToString("0.0") + " dB now"
-                                  + (seenMin != null ? ",  " + seenMin[hovered].ToString("0") + " to " + seenMax[hovered].ToString("0") + " dB so far" : "")
-                                : "too low to measure");
                 var hs = new GUIStyle(EditorStyles.miniLabel) { alignment = TextAnchor.UpperRight };
                 hs.normal.textColor = new Color(0.95f, 0.95f, 1f);
-                GUI.Label(new Rect(area.xMax - 360f, area.y + 1f, 356f, 14f), text, hs);
+                GUI.Label(new Rect(area.xMax - 360f, area.y + 1f, 356f, 14f), BandHoverText(hovered), hs);
             }
 
-            GUI.Label(area, new GUIContent("", "What this chain is doing to each part of the sound's frequency range RIGHT NOW, redrawn every frame, from the deepest bass on the left (20 Hz) to the highest treble on the right (20 kHz). "
-                + "Middle line = unchanged. Green above it = louder, red below it = quieter; full height is " + dbRange.ToString("0") + " dB. "
-                + "As modifiers move the chain's settings, the bars move with them — a step list jumps from one shape to the next, an oscillator sweeps. "
-                + "The faint block behind each bar is every level that band has reached since the chain was last edited. "
-                + (unmeasurable > 0 ? "A flat grey stub is a band this measurement cannot resolve. " : "")
-                + "Point at a bar to read its numbers."));
+            GUI.Label(area, new GUIContent("", BarsTip(unmeasurable)));
 
             var style = new GUIStyle(EditorStyles.miniLabel) { alignment = TextAnchor.UpperCenter };
             style.normal.textColor = new Color(0.6f, 0.6f, 0.65f);
             var labels = GUILayoutUtility.GetRect(10f, 13f, GUILayout.ExpandWidth(true));
-            for (int t = 0; t < freqTicks.Length; t++) {
-                float x = labels.x + ChainSpectrumProbe.FrequencyPosition01(freqTicks[t]) * labels.width;
+            foreach (var (text, x01) in FrequencyLabels()) {
+                float x = labels.x + x01 * labels.width;
                 var r = new Rect(x - 20f, labels.y, 40f, labels.height);
                 if (r.x < labels.x) r.x = labels.x;
                 if (r.xMax > labels.xMax) r.x = labels.xMax - r.width;
-                GUI.Label(r, FormatHz(freqTicks[t]), style);
+                GUI.Label(r, text, style);
             }
         }
 
@@ -740,31 +834,15 @@ namespace Laubrary.Zounds.EditorTools {
             bool verdicts = view == View.Combined;
             for (int i = 0; i < chain.nodes.Count; i++) {
                 var node = chain.nodes[i];
-                var fidelity = ChainEffectFidelity.Of(node.type);
-                var colour = fidelity == EffectFidelity.Exact ? new Color(0.55f, 0.85f, 0.6f)
-                           : fidelity == EffectFidelity.Moving ? new Color(0.6f, 0.75f, 0.95f)
-                           : fidelity == EffectFidelity.LevelDependent ? new Color(0.9f, 0.85f, 0.5f)
-                           : fidelity == EffectFidelity.TimeSmeared ? new Color(0.7f, 0.6f, 0.9f)
-                           : new Color(0.95f, 0.55f, 0.5f);
-
+                RosterRow(node, verdicts, out Color colour, out string text, out string tip);
                 // Exactly one line per effect, always. The verdict sentences run from six words to thirty, so wrapping them
                 // made this list's height depend on which effects were in the chain AND on how wide the panel happened to
                 // be — the panel would grow and shrink as effects were added, reordered or the window resized. Clipped to
                 // one line with the whole sentence on hover, the list is a fixed number of fixed-height rows.
                 var row = GUILayoutUtility.GetRect(10f, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
                 var dot = new Rect(row.x, row.y + (row.height - 9f) * 0.5f, 9f, 9f);
-                EditorGUI.DrawRect(dot, node.enabled ? colour : colour * 0.45f);
-
-                var desc = Dsp.ZoundEffectDescriptors.Get(node.type);
-                string name = desc != null && !string.IsNullOrEmpty(desc.displayName) ? desc.displayName : node.type.ToString();
-                // Only the combined view needs a verdict per effect, because only it INTERPRETS them. The live views read the
-                // real output, where every effect is present by definition and there is nothing to qualify — so they show
-                // the names alone. Repeating one identical sentence down every row, as a first attempt did, filled the space
-                // without adding anything and made four different effects look like four copies of the same thing.
-                string text = name + (node.enabled ? "" : " (off)")
-                            + (verdicts ? " — " + ChainEffectFidelity.Explain(node.type) : "");
-                string tip = name + " — " + ChainEffectFidelity.Explain(node.type);
-
+                EditorGUI.DrawRect(dot, colour);
+                // Only the combined view needs a verdict per effect, because only it INTERPRETS them (see RosterRow).
                 var style = new GUIStyle(EditorStyles.miniLabel) { wordWrap = false, clipping = TextClipping.Ellipsis };
                 if (!node.enabled) style.normal.textColor = new Color(0.5f, 0.5f, 0.5f);
                 GUI.Label(new Rect(row.x + 13f, row.y, row.width - 13f, row.height), new GUIContent(text, tip), style);
@@ -777,7 +855,7 @@ namespace Laubrary.Zounds.EditorTools {
             bool playing = live.Sample(out string sourceName);
             // A leading status row, matching the combined view's, so switching tabs does not shift the panel by a line. It
             // earns the space by naming what is being listened to, which is the one thing these views cannot show.
-            StatusLine(playing && !string.IsNullOrEmpty(sourceName) ? "reading: " + sourceName : null);
+            StatusLine(LiveStatus(playing, sourceName));
             float playTime = PlayTime(zound, out bool following);
             if (chain != null && !chain.IsEmpty && Event.current.type == EventType.Repaint) SafeUpdateLive(zound, chain, playTime, following, false);
             DrawLanes(zound, CountModulatedParams(chain), playTime, following);
@@ -789,9 +867,7 @@ namespace Laubrary.Zounds.EditorTools {
             // very different lengths, and swapping between them the moment playback starts or stops is precisely the kind of
             // reflow that would jog the panel while somebody is auditioning a sound.
             GUILayoutUtility.GetRect(10f, 13f, GUILayout.ExpandWidth(true));
-            StatusLine(playing
-                ? "The real signal, with nothing interpreted — when this and the combined view disagree, this one is right."
-                : "Press play on this sound and it fills in. It reads the real output, so it needs something to read.");
+            StatusLine(LiveFooter(playing));
         }
     }
 }

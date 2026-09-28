@@ -90,3 +90,9 @@
     padding: 0;
     margin: 0;
 }
+
+/* EditorGUILayout.Slider in a 90 px slot: IMGUI drops the track when there is no room for it and keeps only the
+   number box (the editor's 50 px field width, at the right). The analyser's live-view gain is drawn that way. */
+.zs-root .zs-narrowslider .unity-base-slider__drag-container { display: none; }
+.zs-root .zs-narrowslider .unity-base-slider__input { justify-content: flex-end; }
+.zs-root .zs-narrowslider .unity-base-slider__text-field { width: 50px; flex-grow: 0; margin-right: 0; }

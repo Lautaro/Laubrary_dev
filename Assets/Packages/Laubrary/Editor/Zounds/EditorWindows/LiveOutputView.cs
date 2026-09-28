@@ -119,11 +119,12 @@ namespace Laubrary.Zounds.EditorTools {
         }
 
         public void Draw(Rect area, Mode mode, bool playing, string sourceName) {
-            EditorGUI.DrawRect(area, new Color(0.09f, 0.09f, 0.11f));
-            switch (mode) {
-                case Mode.Spectrum: DrawSpectrum(area); break;
-                case Mode.Spectrogram: DrawSpectrogram(area); break;
-                default: DrawWaveform(area); break;
+            Paint(area, mode, EditorGUI.DrawRect);
+            if (mode == Mode.Waveform) {
+                var style = new GUIStyle(EditorStyles.miniLabel);
+                style.normal.textColor = clipping ? new Color(1f, 0.5f, 0.45f) : new Color(0.6f, 0.6f, 0.65f);
+                style.alignment = TextAnchor.UpperRight;
+                GUI.Label(new Rect(area.x, area.y + 4f, area.width - 6f, 16f), PeakText, style);
             }
 
             var label = new GUIStyle(EditorStyles.miniLabel);
@@ -132,7 +133,23 @@ namespace Laubrary.Zounds.EditorTools {
                       playing ? "live — " + sourceName : "nothing playing", label);
         }
 
-        void DrawSpectrum(Rect area) {
+        /// <summary>Paints the view's shapes through <paramref name="fill"/> (shared by the IMGUI panel and its UI Toolkit twin,
+        /// T-0467). Advances the scrolling history and the peak hold, so call it once per frame.</summary>
+        internal void Paint(Rect area, Mode mode, System.Action<Rect, Color> fill) {
+            fill(area, new Color(0.09f, 0.09f, 0.11f));
+            switch (mode) {
+                case Mode.Spectrum: DrawSpectrum(area, fill); break;
+                case Mode.Spectrogram: DrawSpectrogram(area, fill); break;
+                default: DrawWaveform(area, fill); break;
+            }
+        }
+
+        internal static string StateText(bool playing, string sourceName) => playing ? "live — " + sourceName : "nothing playing";
+        internal static Color StateColour(bool playing) => playing ? new Color(0.6f, 0.85f, 0.65f) : new Color(0.6f, 0.6f, 0.65f);
+        internal bool clipping;
+        internal string PeakText => "peak " + peakHold.ToString("0.00") + (clipping ? "  CLIPPING" : "");
+
+        void DrawSpectrum(Rect area, System.Action<Rect, Color> fill) {
             int bins = SAMPLES / 2;
             float mid = area.yMax;
             int columns = Mathf.Max(32, (int)(area.width / 3f));
@@ -155,11 +172,11 @@ namespace Laubrary.Zounds.EditorTools {
                 // Colour by height rather than by frequency: it makes a loud band obvious at a glance, which is what a
                 // level display is for.
                 var colour = Color.Lerp(new Color(0.25f, 0.45f, 0.6f), new Color(0.95f, 0.8f, 0.35f), Mathf.Clamp01(norm));
-                EditorGUI.DrawRect(new Rect(area.x + c * colW, mid - h, Mathf.Max(1f, colW - 1f), h), colour);
+                fill(new Rect(area.x + c * colW, mid - h, Mathf.Max(1f, colW - 1f), h), colour);
             }
         }
 
-        void DrawSpectrogram(Rect area) {
+        void DrawSpectrogram(Rect area, System.Action<Rect, Color> fill) {
             int bins = SAMPLES / 2;
             int rows = Mathf.Max(16, (int)area.height / 2);
             if (history == null || history.GetLength(1) != rows) { history = new float[HISTORY, rows]; historyHead = 0; }
@@ -189,14 +206,14 @@ namespace Laubrary.Zounds.EditorTools {
                         ? Color.Lerp(new Color(0.1f, 0.12f, 0.25f), new Color(0.2f, 0.5f, 0.7f), norm * 2f)
                         : Color.Lerp(new Color(0.2f, 0.5f, 0.7f), new Color(1f, 0.9f, 0.5f), (norm - 0.5f) * 2f);
                     // Low frequencies at the bottom, which is the convention everywhere else this gets compared to.
-                    EditorGUI.DrawRect(new Rect(x, area.yMax - (r + 1) * rowH, Mathf.Max(1f, colW), Mathf.Max(1f, rowH)), colour);
+                    fill(new Rect(x, area.yMax - (r + 1) * rowH, Mathf.Max(1f, colW), Mathf.Max(1f, rowH)), colour);
                 }
             }
         }
 
-        void DrawWaveform(Rect area) {
+        void DrawWaveform(Rect area, System.Action<Rect, Color> fill) {
             float mid = area.y + area.height * 0.5f;
-            EditorGUI.DrawRect(new Rect(area.x, mid, area.width, 1f), new Color(0.3f, 0.3f, 0.34f));
+            fill(new Rect(area.x, mid, area.width, 1f), new Color(0.3f, 0.3f, 0.34f));
 
             int columns = Mathf.Max(32, (int)area.width);
             int per = Mathf.Max(1, SAMPLES / columns);
@@ -214,19 +231,13 @@ namespace Laubrary.Zounds.EditorTools {
                 }
                 float yTop = mid - Mathf.Clamp(hi, -1f, 1f) * area.height * 0.5f;
                 float yBot = mid - Mathf.Clamp(lo, -1f, 1f) * area.height * 0.5f;
-                EditorGUI.DrawRect(new Rect(area.x + c, yTop, 1f, Mathf.Max(1f, yBot - yTop)),
-                                   new Color(0.45f, 0.75f, 0.85f));
+                fill(new Rect(area.x + c, yTop, 1f, Mathf.Max(1f, yBot - yTop)), new Color(0.45f, 0.75f, 0.85f));
             }
 
             // A peak that falls back slowly, because an instantaneous number is unreadable and clipping is worth
             // catching after the moment it happened.
             peakHold = Mathf.Max(loudest, peakHold * 0.95f);
-            bool clipping = peakHold >= 0.999f;
-            var style = new GUIStyle(EditorStyles.miniLabel);
-            style.normal.textColor = clipping ? new Color(1f, 0.5f, 0.45f) : new Color(0.6f, 0.6f, 0.65f);
-            style.alignment = TextAnchor.UpperRight;
-            GUI.Label(new Rect(area.x, area.y + 4f, area.width - 6f, 16f),
-                      "peak " + peakHold.ToString("0.00") + (clipping ? "  CLIPPING" : ""), style);
+            clipping = peakHold >= 0.999f;
         }
 
         int BinFor(float t, int bins) {
