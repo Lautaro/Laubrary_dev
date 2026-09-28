@@ -866,6 +866,14 @@ namespace Laubrary.Zounds.Uitk {
                 ZoundDspPlayback.InvalidateLayout(zound);
                 EditorUtility.SetDirty(ZoundsProject.Instance);
             };
+            // What the plays under way hear, dotted over the curve (T-0484); follows plays starting and stopping.
+            int liveShown = 0;
+            curve.schedule.Execute(() => {
+                var ch = ZoundDspPlayback.ResolveChain(zound, out _);
+                int n = LiveDrawnCurves.Fill(ref curve.liveCurves, zound, mod.curve, ch != null ? ch.modifiers.IndexOf(mod) : -1);
+                if (n > 0 || liveShown > 0) curve.Refresh();
+                liveShown = n;
+            }).Every(50);
             // Right-click a point: its random settings (T-0483).
             curve.onPointContext = (i, world) => {
                 if (mod.curve == null || i < 0 || i >= mod.curve.Count) return;

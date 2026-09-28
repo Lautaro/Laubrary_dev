@@ -241,6 +241,14 @@ namespace Laubrary.Zounds {
         static string Fmt(float v, Dsp.ParamDesc pd) =>
             pd.curve == Dsp.ParamCurve.Logarithmic && pd.unit == "" ? "×" + v.ToString("0.##") : v.ToString("0.##") + (string.IsNullOrEmpty(pd.unit) ? "" : " " + pd.unit);
 
+        /// <summary>The index in the Klip's chain of the modifier whose curve is <paramref name="curve"/>, or -1.</summary>
+        public static int ModifierIndexOf(Zound zound, Envelope curve) {
+            var chain = Chain(zound);
+            if (chain == null || curve == null) return -1;
+            for (int i = 0; i < chain.modifiers.Count; i++) if (chain.modifiers[i].curve == curve) return i;
+            return -1;
+        }
+
         /// <summary>A flat curve on the Ratio scale: range 0..1, both points in the middle, i.e. x1 throughout.</summary>
         public static Envelope NewRatioCurve() {
             var e = new Envelope(0f, 1f);

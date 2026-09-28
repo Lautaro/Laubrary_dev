@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — the curve a play is actually hearing, dotted, while it plays (T-0484)
+
+- **While a sound plays, each curve also shows, dotted, the curve that play is actually hearing:** its random points where that play drew them. It is computed from the play's own seed (read from its voice) by the same function the engine uses.
+  - One dotted line per playing copy (up to four).
+  - It disappears when the sound stops; nothing is drawn while idle.
+  - Without random points it lies exactly on the authored curve. It is not switched on only for random curves, so it never appears and disappears with a curve's contents.
+- **Where:** the Klip waveform's volume, pitch and time curves and the chain cards' curves in the UI Toolkit windows, and the waveform curves in the old IMGUI window.
+
 ### Zounds — every play draws its own random values (T-0484)
 
 - **Fix: random curve points sounded the same on every play.** A real play was started with the sound's id as its play number, which seeds everything a play draws, so every play of a sound drew identically. The points did move off the drawn curve, but by the same amount every time. Each play now gets a number of its own (the sound's id with a running count), so its draws differ from the last play's while staying consistent within the play.

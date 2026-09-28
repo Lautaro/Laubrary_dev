@@ -30,6 +30,8 @@ namespace Laubrary.Zounds.Uitk {
         /// <summary>Right-click on a point: its settings (a random point's ellipse, T-0483), given the point and its centre in
         /// world space. Null: ignored.</summary>
         public Action<int, Vector2> onPointContext;
+        /// <summary>Curves drawn dotted over this one: what the plays under way actually hear (T-0484). Null: nothing extra.</summary>
+        public List<Func<float, float>> liveCurves;
 
         int draggedPoint = -1, draggedLine = -1, draggedExponent = -1;
         bool boxSelecting, pressed, multiMoveStarted;
@@ -273,6 +275,20 @@ namespace Laubrary.Zounds.Uitk {
             if (seg > 0 && seg < envelope.Count) {
                 float a = envelope.GetPoint(seg - 1).time, b = envelope.GetPoint(seg).time;
                 Stroke(p2, a, b - a, Style.selectedEnvelopeLineColor, 1.5f);
+            }
+
+            // What the plays under way actually hear (T-0484), dotted over the authored curve.
+            if (liveCurves != null && liveCurves.Count > 0) {
+                int n = Mathf.Max(2, (int)(Size.x / 3f));
+                var dotted = new Vector2[n + 1];
+                foreach (var f in liveCurves) {
+                    if (f == null) continue;
+                    for (int i = 0; i <= n; i++) {
+                        float t = envelope.xMin + XRange * i / n;
+                        dotted[i] = new Vector2((t - envelope.xMin) / XRange * Size.x, Size.y - (f(t) - envelope.yMin) / YRange * Size.y);
+                    }
+                    Laubrary.Zui.ZuiSkinEnvelope.Dotted(p2, dotted, Color.Lerp(mainColor, Color.white, 0.45f), thickness / Mathf.Max(1f, UnityEditor.EditorGUIUtility.pixelsPerPoint) * 1.2f);
+                }
             }
 
             // Random points' ellipses (T-0483): where each play may move the point.

@@ -703,6 +703,26 @@ namespace Laubrary.Zounds {
             Handles.color = prev;
         }
 
+        /// <summary>The old window's dotted "what the plays under way hear" line over an overlay curve (T-0484).</summary>
+        private void DrawLiveDotted(Rect rect, Envelope authored, ZUIEnvelopeRuntime rt, Color c) {
+            if (m_klip == null || authored == null || rt == null || Event.current.type != EventType.Repaint) return;
+            int n = Uitk.LiveDrawnCurves.Fill(ref s_live, m_klip, authored, KlipChainEnvelopes.ModifierIndexOf(m_klip, authored));
+            if (n == 0 || rt.xMax <= rt.xMin || rt.yMax <= rt.yMin) return;
+            int steps = Mathf.Max(2, (int)(rect.width / 3f));
+            var prev = Handles.color;
+            Handles.color = Color.Lerp(c, Color.white, 0.45f);
+            foreach (var f in s_live) {
+                for (int i = 0; i + 1 <= steps; i += 2) {
+                    float t0 = rt.xMin + (rt.xMax - rt.xMin) * i / steps, t1 = rt.xMin + (rt.xMax - rt.xMin) * (i + 1) / steps;
+                    var a = new Vector3(rect.x + (float)i / steps * rect.width, rect.yMax - (f(t0) - rt.yMin) / (rt.yMax - rt.yMin) * rect.height);
+                    var b = new Vector3(rect.x + (float)(i + 1) / steps * rect.width, rect.yMax - (f(t1) - rt.yMin) / (rt.yMax - rt.yMin) * rect.height);
+                    Handles.DrawAAPolyLine(2f, a, b);
+                }
+            }
+            Handles.color = prev;
+        }
+        private static List<System.Func<float, float>> s_live;
+
         internal enum Curve { Volume, Pitch, Time }
 
         internal ZUIEnvelopeDef PrepareOverlay(bool volume, out ZUIEnvelopeRuntime runtime, out List<ZUIEnvelopePoint> pts, out Color colour)
@@ -917,18 +937,19 @@ namespace Laubrary.Zounds {
             if (volDef != null && ZUI.Envelope(envelopeRect, volPts, new ZUIColorRef(volColour), volDef, volRt, volumeStateKey)) {
                 onVolumeEnvelopeChanged?.Invoke(m_volumeEnvelope);
             }
-            if (volDef != null) DrawRandomEllipses(envelopeRect, volPts, volRt.xMin, volRt.xMax, volRt.yMin, volRt.yMax, volColour);
+            if (volDef != null) { DrawRandomEllipses(envelopeRect, volPts, volRt.xMin, volRt.xMax, volRt.yMin, volRt.yMax, volColour); DrawLiveDotted(envelopeRect, m_volumeEnvelope, volRt, volColour); }
             var pitDef = PrepareOverlay(false, out var pitRt, out var pitPts, out var pitColour);
             if (pitDef != null && ZUI.Envelope(envelopeRect, pitPts, new ZUIColorRef(pitColour), pitDef, pitRt, pitchStateKey)) {
                 onPitchEnvelopeChanged?.Invoke(m_pitchEnvelope);
             }
-            if (pitDef != null) DrawRandomEllipses(envelopeRect, pitPts, pitRt.xMin, pitRt.xMax, pitRt.yMin, pitRt.yMax, pitColour);
+            if (pitDef != null) { DrawRandomEllipses(envelopeRect, pitPts, pitRt.xMin, pitRt.xMax, pitRt.yMin, pitRt.yMax, pitColour); DrawLiveDotted(envelopeRect, m_pitchEnvelope, pitRt, pitColour); }
             var timDef = PrepareOverlay(Curve.Time, out var timRt, out var timPts, out var timColour);
             if (timDef != null && ZUI.Envelope(envelopeRect, timPts, new ZUIColorRef(timColour), timDef, timRt, timeStateKey)) {
                 onTimeEnvelopeChanged?.Invoke(m_timeEnvelope);
             }
             if (timDef != null) {
                 DrawRandomEllipses(envelopeRect, timPts, timRt.xMin, timRt.xMax, timRt.yMin, timRt.yMax, timColour);
+                DrawLiveDotted(envelopeRect, m_timeEnvelope, timRt, timColour);
                 // The time curve's axis on the right: x4 / x1 / x1/4 speed.
                 var ts2 = new GUIStyle(EditorStyles.miniLabel) { fontSize = 9, alignment = TextAnchor.UpperRight };
                 ts2.normal.textColor = timColour;

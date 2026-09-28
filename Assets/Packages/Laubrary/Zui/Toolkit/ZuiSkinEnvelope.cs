@@ -38,6 +38,11 @@ namespace Laubrary.Zui
         /// random point's ellipse (Zounds, T-0483). Given the point's index and its centre in world space. Null: ignored.
         /// </summary>
         public System.Action<int, Vector2> onPointContext;
+        /// <summary>
+        /// Curves drawn dotted over the authored one, each a time-to-value function: what the plays under way are actually
+        /// hearing (Zounds, T-0484: a curve with random points is drawn afresh for every play). Null or empty: nothing extra.
+        /// </summary>
+        public List<System.Func<float, float>> liveCurves;
 
         int _dragPoint = -1, _dragLine = -1, _dragExponent = -1, _hoverPoint = -1, _hoverLine = -1;
         bool _boxSelecting, _pressed, _shift;
@@ -383,6 +388,17 @@ namespace Laubrary.Zui
 
         static float Px(float devicePixels) => devicePixels / Mathf.Max(1f, UnityEditor.EditorGUIUtility.pixelsPerPoint);
 
+        /// <summary>A dotted polyline: every other short piece of it (about 3 px on, 3 px off), so it reads as distinct from
+        /// the solid curve it lies on (also used by other Toolkit curve editors).</summary>
+        public static void Dotted(Painter2D p2, Vector2[] pts, Color c, float width)
+        {
+            p2.strokeColor = c; p2.lineWidth = width; p2.lineCap = LineCap.Round;
+            for (int i = 0; i + 1 < pts.Length; i += 2)
+            {
+                p2.BeginPath(); p2.MoveTo(pts[i]); p2.LineTo(pts[i + 1]); p2.Stroke();
+            }
+        }
+
         /// <summary>An axis-aligned ellipse, filled and outlined (also used by other Toolkit curve editors).</summary>
         public static void Ellipse(Painter2D p2, Vector2 c, float rx, float ry, Color fill, Color stroke, float width)
         {
@@ -459,6 +475,23 @@ namespace Laubrary.Zui
                         if (i == 0) p2.MoveTo(pt); else p2.LineTo(pt);
                     }
                     p2.Stroke();
+                }
+            }
+
+            // What the plays under way actually hear (T-0484), dotted over the authored curve.
+            if (liveCurves != null && liveCurves.Count > 0)
+            {
+                int n = Mathf.Max(2, (int)(r.width / 3f));
+                var dotted = new Vector2[n + 1];
+                foreach (var f in liveCurves)
+                {
+                    if (f == null) continue;
+                    for (int i = 0; i <= n; i++)
+                    {
+                        float t = rt.xMin + (rt.xMax - rt.xMin) * i / n;
+                        dotted[i] = new Vector2(TimeToX(t, r), ValueToY(f(t), r));
+                    }
+                    Dotted(p2, dotted, Color.Lerp(curveColor, Color.white, 0.45f), Px(Mathf.Max(def.curveThickness, 1.5f)));
                 }
             }
 

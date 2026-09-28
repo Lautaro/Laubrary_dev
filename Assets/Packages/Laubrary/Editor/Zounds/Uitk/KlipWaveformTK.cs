@@ -288,6 +288,10 @@ namespace Laubrary.Zounds.Uitk {
             env.style.display = def != null ? DisplayStyle.Flex : DisplayStyle.None;
             if (def == null) return;
             env.points = pts; env.def = def; env.rt = runtime; env.curveColor = colour;
+            // What the plays under way hear, dotted (T-0484); nothing while the sound is not playing.
+            var authored = which == AudioSpectrumView.Curve.Volume ? model.VolumeEnvelope
+                         : which == AudioSpectrumView.Curve.Pitch ? model.PitchEnvelope : model.TimeEnvelope;
+            LiveDrawnCurves.Fill(ref env.liveCurves, klip, authored, KlipChainEnvelopes.ModifierIndexOf(klip, authored));
             Place(env, rect);
             env.Repaint();
         }
