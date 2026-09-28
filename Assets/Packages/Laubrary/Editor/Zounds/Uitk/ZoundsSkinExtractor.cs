@@ -83,8 +83,31 @@ namespace Laubrary.Zounds.Uitk {
                 string cls = ".zs-slider-" + Slug(name);
                 css.Append(Box(cls + " .zui-skinslider__fill", def.trackFill, sheet, "slider-" + Slug(name) + "_fill", written));
                 css.Append(Box(cls + " .zui-skinslider__rest", def.track, sheet, "slider-" + Slug(name) + "_track", written));
-                css.Append(Sel(cls + " .zui-skinslider__label")).Append(" {\n").Append(Text(def.labelText, sheet)).Append("}\n\n");
+                css.Append(Sel(cls + " .zui-skinslider__label")).Append(" {\n").Append(Text(def.labelText, sheet)).Append("}\n");
+                css.Append(Sel(cls + " .zui-skinminmax__field")).Append(" {\n").Append(Text(def.valueText, sheet)).Append("}\n");
+                // Range edges (MicroMinMax): the style's thumb, thumbMax and thumbCenter, full track height, thumbWidth wide.
+                // At 2 px or less the old ZUI draws them square (its rounded path would inset the fill to nothing).
+                float w = Mathf.Max(0f, def.thumbWidth);
+                foreach (var (part, t) in new[] { ("min", def.thumb), ("max", def.thumbMax ?? def.thumb), ("center", def.thumbCenter ?? def.thumb) }) {
+                    if (t == null) continue;
+                    string sel = cls + " .zui-skinminmax__edge--" + part;
+                    string file = "slider-" + Slug(name) + "_edge-" + part;
+                    int r = w <= 2f ? 0 : t.GetResolvedCornerRadius();
+                    css.Append(Sel(sel)).Append(" {\n    width: ").Append(w.ToString("0.##", Inv)).Append("px;\n    -unity-background-scale-mode: stretch-to-fill;\n")
+                       .Append("    border-radius: ").Append(r).Append("px;\n")
+                       .Append(Fill(t.GetColor(ZUIButtonDrawState.Normal), sheet, file + "_Normal", written)).Append(Border(t.GetBorder(ZUIButtonDrawState.Normal), sheet)).Append("}\n");
+                    css.Append(Sel(sel + ":hover")).Append(" {\n").Append(Fill(t.GetColor(ZUIButtonDrawState.Hover), sheet, file + "_Hover", written)).Append(Border(t.GetBorder(ZUIButtonDrawState.Hover), sheet)).Append("}\n");
+                    css.Append(Sel(sel + ".zui-skinminmax__edge--active")).Append(" {\n").Append(Fill(t.GetColor(ZUIButtonDrawState.Active), sheet, file + "_Active", written)).Append(Border(t.GetBorder(ZUIButtonDrawState.Active), sheet)).Append("}\n");
+                }
+                css.Append('\n');
             }
+
+            // Named text styles (Title, Header, "Zounds Tags", ...), for labels the old windows draw with them.
+            foreach (var ts in sheet.textStyles) {
+                if (ts == null || string.IsNullOrEmpty(ts.name)) continue;
+                css.Append(Sel(".zs-text-" + Slug(ts.name))).Append(" {\n").Append(Text(ts.text, sheet)).Append("}\n");
+            }
+            css.Append('\n');
 
             foreach (var name in BoxStyles) {
                 var def = sheet.FindBox(name);
@@ -129,6 +152,19 @@ namespace Laubrary.Zounds.Uitk {
             var v = def.GetCornerVector(def.shape.fullyRound ? 999 : def.shape.cornerRadius);   // x TL, y TR, z BR, w BL
             sb.Append("    border-top-left-radius: ").Append(Px(v.x)).Append("; border-top-right-radius: ").Append(Px(v.y))
               .Append("; border-bottom-right-radius: ").Append(Px(v.z)).Append("; border-bottom-left-radius: ").Append(Px(v.w)).Append(";\n");
+            // The box's own layout, as ZUI.Box lays it out (ZUIBoxDef.GetLayoutStyle): padding inside the background,
+            // margin outside it. Only meaningful for a box used as a container (.zs-box-*), harmless on a track part.
+            if (selector.StartsWith(".zs-box-")) {
+                var lay = def.GetLayoutStyle();
+                // IMGUI measures a box's padding from its outer edge (the border is drawn inside it); UI Toolkit puts
+                // padding inside the border. So the border's width comes off each side's padding.
+                var bdr = def.GetResolvedBorder();
+                bool hasBorder = bdr != null && bdr.color.GetColorA(sheet).a > 0f;
+                float bt = hasBorder ? bdr.edgeWidth.Top : 0f, br2 = hasBorder ? bdr.edgeWidth.Right : 0f, bb = hasBorder ? bdr.edgeWidth.Bottom : 0f, bl = hasBorder ? bdr.edgeWidth.Left : 0f;
+                sb.Append("    padding: ").Append(Px2(lay.padding.top - bt)).Append(' ').Append(Px2(lay.padding.right - br2)).Append(' ')
+                  .Append(Px2(lay.padding.bottom - bb)).Append(' ').Append(Px2(lay.padding.left - bl)).Append(";\n");
+                sb.Append("    margin: ").Append(lay.margin.top).Append("px ").Append(lay.margin.right).Append("px ").Append(lay.margin.bottom).Append("px ").Append(lay.margin.left).Append("px;\n");
+            }
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -137,12 +173,45 @@ namespace Laubrary.Zounds.Uitk {
         static string Fill(ZUIColor col, ZUIStyleSheetAsset sheet, string file, List<string> written) {
             if (col == null) return "    background-image: none;\n";
             if (!col.isGradient && !col.isRadial) return "    background-image: none;\n    background-color: " + Rgba(col.GetColorA(sheet)) + ";\n";
+            if (col.usePixelLength && col.pixelLength > 0 && col.pixelEdges != ZUIPixelEdges.None) return PixelEdgeFill(col, sheet, file, written);
             var tex = col.GetOrBuildTexture(sheet);
             if (tex == null) return "    background-image: none;\n    background-color: " + Rgba(col.GetColorA(sheet)) + ";\n";
             string png = SkinFolder + "/" + file + ".png";
             File.WriteAllBytes(png, Readable(tex).EncodeToPNG());
             written.Add(png);
             return "    background-color: rgba(0,0,0,0);\n    background-image: url(\"" + file + ".png\");\n";
+        }
+
+        /// <summary>
+        /// A "pixel-length" gradient (e.g. the Zounds Default box): the second colour everywhere, with a gradient band
+        /// exactly pixelLength wide along each chosen edge (first colour at the edge), and where two chosen edges meet
+        /// the minimum of both — ZUIColor.DrawPixelMultiEdge's arithmetic, pixel for pixel. Baked as a small texture that
+        /// USS 9-slices by pixelLength on every side, so the bands keep their width at any box size.
+        /// </summary>
+        static string PixelEdgeFill(ZUIColor col, ZUIStyleSheetAsset sheet, string file, List<string> written) {
+            int L = col.pixelLength, W = 2 * L + 2, H = W;
+            var edges = col.pixelEdges;
+            bool hasL = (edges & ZUIPixelEdges.Left) != 0, hasR = (edges & ZUIPixelEdges.Right) != 0;
+            bool hasT = (edges & ZUIPixelEdges.Top) != 0, hasB = (edges & ZUIPixelEdges.Bottom) != 0;
+            var sample = typeof(ZUIColor).GetMethod("SampleColor", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+            Color S(float t) => (Color)sample.Invoke(col, new object[] { t, sheet });
+            float m = Mathf.Max(L - 1, 1);
+            var tex = new Texture2D(W, H, TextureFormat.RGBA32, false);
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++) {
+                    // Texture rows run bottom-up.
+                    bool inL = hasL && x < L, inR = hasR && x >= W - L, inB = hasB && y < L, inT = hasT && y >= H - L;
+                    float th = inL ? x / m : inR ? (W - 1 - x) / m : float.MaxValue;
+                    float tv = inB ? y / m : inT ? (H - 1 - y) / m : float.MaxValue;
+                    float t = Mathf.Min(th, tv);
+                    tex.SetPixel(x, y, t == float.MaxValue ? col.GetColorB(sheet) : S(t));
+                }
+            tex.Apply();
+            string png = SkinFolder + "/" + file + ".png";
+            File.WriteAllBytes(png, tex.EncodeToPNG());
+            written.Add(png);
+            return "    background-color: rgba(0,0,0,0);\n    background-image: url(\"" + file + ".png\");\n"
+                 + "    -unity-slice-left: " + L + "; -unity-slice-right: " + L + "; -unity-slice-top: " + L + "; -unity-slice-bottom: " + L + ";\n";
         }
 
         static string Text(ZUITextDef t, ZUIStyleSheetAsset sheet) {
@@ -198,6 +267,7 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         static string Px(float v) => Mathf.RoundToInt(v).ToString(Inv) + "px";
+        static string Px2(float v) => Mathf.Max(0f, v).ToString("0.##", Inv) + "px";
 
         static string Rgba(Color c) =>
             "rgba(" + Mathf.RoundToInt(c.r * 255f) + "," + Mathf.RoundToInt(c.g * 255f) + "," + Mathf.RoundToInt(c.b * 255f) + "," + c.a.ToString("0.###", Inv) + ")";

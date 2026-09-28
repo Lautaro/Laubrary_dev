@@ -11,7 +11,7 @@ namespace Laubrary.Zui
     ///   each styled as its own box, exactly as the IMGUI one draws the fill box and the track box on either side of the
     ///   value;
     /// - the label is centred across the whole track in one of the IMGUI modes (label only, value only, "label: value"),
-    ///   and falls back to the value alone when the full text does not fit, as the IMGUI one does;
+    ///   shrunk and then reduced to the value alone when it does not fit, exactly as the IMGUI one fits it;
     /// - press anywhere on the track sets the value from the pointer, dragging follows it, double-click resets to the
     ///   default when one is given.
     ///
@@ -41,7 +41,8 @@ namespace Laubrary.Zui
                              Action onBeforeMutate = null)
         {
             _text = text; _min = min; _max = max; _default = defaultValue; _mode = mode;
-            _format = format ?? (v => v.ToString(Mathf.Abs(max - min) >= 10f ? "0" : "0.00"));
+            string fmt = ZuiSkinTrackLabel.AutoFormat(min, max);
+            _format = format ?? (v => v.ToString(fmt, System.Globalization.CultureInfo.InvariantCulture));
             _onChanged = onChanged; _onBeforeMutate = onBeforeMutate;
             this.tooltip = tooltip;
             AddToClassList("zui-skinslider");
@@ -52,12 +53,7 @@ namespace Laubrary.Zui
             _fill.AddToClassList("zui-skinslider__fill");
             _rest = new VisualElement { pickingMode = PickingMode.Ignore };
             _rest.AddToClassList("zui-skinslider__rest");
-            _label = new Label { pickingMode = PickingMode.Ignore };
-            _label.AddToClassList("zui-skinslider__label");
-            _label.style.position = Position.Absolute;
-            _label.style.left = 0; _label.style.right = 0; _label.style.top = 0; _label.style.bottom = 0;
-            _label.style.unityTextAlign = TextAnchor.MiddleCenter;
-            _label.style.marginLeft = 0; _label.style.marginRight = 0; _label.style.paddingLeft = 0; _label.style.paddingRight = 0;
+            _label = ZuiSkinTrackLabel.Create();
             Add(_fill); Add(_rest); Add(_label);
 
             RegisterCallback<PointerDownEvent>(OnDown);
@@ -80,20 +76,14 @@ namespace Laubrary.Zui
             string full = _mode == LabelMode.None ? "" : _mode == LabelMode.ValueOnly ? v
                         : _mode == LabelMode.LabelOnly ? _text
                         : string.IsNullOrEmpty(_text) ? v : _text + ": " + v;
-            _label.text = full;
-            // Falls back to the value alone when "label: value" does not fit, as the IMGUI slider does.
-            if (_mode == LabelMode.LabelAndValue && resolvedStyle.width > 0f)
-            {
-                var size = _label.MeasureTextSize(full, 0, MeasureMode.Undefined, 0, MeasureMode.Undefined);
-                if (size.x > resolvedStyle.width - 4f) _label.text = v;
-            }
+            ZuiSkinTrackLabel.Fit(_label, full, _mode == LabelMode.LabelAndValue ? v : null, resolvedStyle.width);
         }
 
         void SetFromPointer(Vector2 local)
         {
             float w = resolvedStyle.width;
             if (w <= 0f) return;
-            float nv = Mathf.Lerp(_min, _max, Mathf.Clamp01(local.x / w));
+            float nv = Mathf.Round(Mathf.Lerp(_min, _max, Mathf.Clamp01(local.x / w)) * 100000f) / 100000f;   // IMGUI ZUI's 5-decimal cleanup
             if (Mathf.Approximately(nv, _value)) return;
             _onBeforeMutate?.Invoke();
             _value = nv; Refresh();

@@ -5,7 +5,18 @@ using UnityEngine;
 
 namespace Laubrary.Zounds {
 
-    public class KlipEditorWindow : BaseZoundEditorWindow<Klip, KlipEditorWindow> {
+    public class KlipEditorWindow : BaseZoundEditorWindow<Klip, KlipEditorWindow>, IHasCustomMenu {
+
+        /// <summary>
+        /// Opens this sound's UI Toolkit twin (T-0456, owner's decision D3). In the window's own menu (the tab's ⋮)
+        /// rather than as a button in the window, so the old window's layout stays exactly what the twin is compared
+        /// against. Temporary: goes when the old window retires.
+        /// </summary>
+        public void AddItemsToMenu(GenericMenu menu) {
+            if (targetZound == null) return;
+            menu.AddItem(new GUIContent("Open UI Toolkit version"), false, () => Uitk.KlipEditorWindowTK.Open(targetZound, isLocalZound));
+        }
+
 
         [SerializeField] private AudioSpectrumView spectrumView;
 

@@ -1,0 +1,55 @@
+/* Hand-written layout rules for the Zounds UI Toolkit port — the parts of the old windows' look that are not sheet
+   styles (the generated Skin/ZoundsSkin.uss holds those): plain labels, fields and placements the old code sets up
+   directly. Every value here is copied from the old window's code or measured against it. */
+
+/* The old windows draw from the window's edge (GUILayout.BeginArea(0, 0, ...)); ZUI's root adds 4 px of padding.
+   Measured 2026-09-28: the IMGUI content origin of these windows sits 3 px below the UI Toolkit root (every row of the
+   Klip window was 3.1 px higher in the twin with no top padding, and the spacing between rows matched exactly). */
+.zs-root {
+    padding: 3px 0 0 0;
+}
+
+/* The tags field: a bare text button (ZoundInspector's tagsLabelStyleInline: a plain GUIStyle, wraps, anchored
+   upper-left, text colour 163,198,255; the sheet's "Zounds Tags" text style then sets size and italics). */
+.zs-root .zs-tagsfield.unity-button {
+    background-color: rgba(0,0,0,0);
+    background-image: none;
+    border-width: 0;
+    margin: 0;
+    padding: 0;
+    -unity-text-align: upper-left;
+    white-space: normal;
+    overflow: hidden;
+    color: rgb(163,198,255);
+}
+.zs-root .zs-tagsfield.unity-button:hover, .zs-root .zs-tagsfield.unity-button:active {
+    background-color: rgba(0,0,0,0);
+}
+
+/* EditorGUILayout.ObjectField("Source:"): the editor's standard 150 px label column, the field 2 px after it, the row
+   20 px tall (18 + 1 above + 1 below) — measured on the old window: field at x = box padding + 152, row 20.0 px. */
+.zs-root .zs-sourcefield {
+    margin: 1px 0 1px 0;
+    height: 18px;
+}
+.zs-root .zs-sourcefield > .unity-base-field__label {
+    min-width: 150px;
+    width: 150px;
+    margin: 0;
+    padding: 0;
+}
+.zs-root .zs-sourcefield > .unity-base-field__input {
+    margin-left: 2px;
+}
+
+/* EditorGUI.DelayedTextField in a rect: no outer margin (the rect is the field). */
+.zs-root .zs-namefield {
+    margin: 0;
+}
+
+.zs-root .zs-minilabel {
+    font-size: 9px;
+    -unity-text-align: middle-left;
+    padding: 0;
+    margin: 0;
+}
