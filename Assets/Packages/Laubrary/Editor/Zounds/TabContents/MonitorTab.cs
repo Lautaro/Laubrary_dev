@@ -250,9 +250,10 @@ namespace Laubrary.Zounds {
 
                 float duration = liveToken.duration;
                 float time = liveToken.time;
-                float progress01 = duration > 0f ? Mathf.Clamp01(time / duration) : 0f;
+                bool loops = float.IsInfinity(duration);   // a Looper (T-0473)
+                float progress01 = !loops && duration > 0f ? Mathf.Clamp01(time / duration) : 0f;
                 var barRect = GUILayoutUtility.GetRect(PLAYING_BAR_W, 16f, GUILayout.Width(PLAYING_BAR_W));
-                EditorGUI.ProgressBar(barRect, progress01, $"{time:0.0} / {duration:0.0}s");
+                EditorGUI.ProgressBar(barRect, progress01, loops ? $"{time:0.0}s · looping" : $"{time:0.0} / {duration:0.0}s");
 
                 if (ZUI.Button(new GUIContent("Stop", "Stop this playing Zound now."), ZUI.Style.Flat, ZUICornerMask.All, GUILayout.Width(PLAYING_STOP_W), GUILayout.Height(18f))) {
                     var projectSettings = ZoundsProject.Instance.projectSettings;

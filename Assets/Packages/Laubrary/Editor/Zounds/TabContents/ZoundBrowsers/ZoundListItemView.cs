@@ -85,8 +85,7 @@ namespace Laubrary.Zounds {
                         else {
                             if (evt.control) { InfoViewWindow.OpenWindow(currentZound); }
                             else {
-                                if (browserSettings.killOnPlay) ZoundEngine.StopAllZounds();
-                                ZoundEngine.PlayZound(currentZound);
+                                ZoundBrowserPlaybackVisuals.PlayOrStopFromBrowser(currentZound);
                             }
                         }
                     }

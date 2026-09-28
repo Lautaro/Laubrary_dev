@@ -214,8 +214,10 @@ namespace Laubrary.Zounds.Uitk {
                 cnt.text = n > 1 ? "×" + n : string.Empty;
                 cnt.tooltip = n > 1 ? n + " instances of this Zound are playing." : string.Empty;
                 float d = token.duration, t = token.time;
-                bar.value = d > 0f ? Mathf.Clamp01(t / d) : 0f;
-                bar.title = $"{t:0.0} / {d:0.0}s";
+                // A Looper (T-0473) has no end to measure progress against; it says so rather than "∞s".
+                bool loops = float.IsInfinity(d);
+                bar.value = !loops && d > 0f ? Mathf.Clamp01(t / d) : 0f;
+                bar.title = loops ? $"{t:0.0}s · looping" : $"{t:0.0} / {d:0.0}s";
             }
             liveLines.Add(Update);
             Update();

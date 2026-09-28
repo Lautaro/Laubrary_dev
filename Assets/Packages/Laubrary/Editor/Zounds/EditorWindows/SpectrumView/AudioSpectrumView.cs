@@ -571,6 +571,8 @@ namespace Laubrary.Zounds {
         /// Where each playhead sits across the trimmed area (0..1): the preview source while it plays, and every playing
         /// token of this sound — mapped back through the pitch envelope where playback was rendered with one.
         /// </summary>
+        private static readonly double[] s_loopPositions = new double[2];
+
         internal List<float> PlayheadFractions(IEnumerable<ZoundToken> playingTokens, out bool animating) {
             var list = new List<float>();
             animating = false;
@@ -591,6 +593,17 @@ namespace Laubrary.Zounds {
             if (playingTokens != null) {
                 foreach (var token in playingTokens) {
                     if (token == null || token.state == ZoundToken.State.Killed) continue;
+                    // A Looper (T-0473) has no length to divide by: its playheads are where its read positions actually
+                    // are — two while a crossmix is running, the incoming copy near the start and the outgoing one near the end.
+                    if (token.zound is Klip lk && lk.IsLooper && token.audioSource != null
+                        && token.audioSource.generator is Dsp.ZoundSapVoiceGenerator lg) {
+                        int n = lg.ReadLoopPositions(s_loopPositions);
+                        float from = lk.trimEnabled ? lk.trimStart : 0f;
+                        float to = lk.trimEnabled && lk.trimEnd > lk.trimStart ? lk.trimEnd : (OriginalClip != null ? OriginalClip.length : 0f);
+                        if (to > from) for (int i = 0; i < n; i++) list.Add(Mathf.Clamp01((float)((s_loopPositions[i] - from) / (to - from))));
+                        animating = true;
+                        continue;
+                    }
                     // Use audioSource.time for accurate playhead — token.time is a manual counter
                     // that can drift from actual playback position.
                     float playTime = token.audioSource != null && token.audioSource.clip != null ? token.audioSource.time : token.time;

@@ -484,10 +484,7 @@ namespace Laubrary.Zounds.Uitk {
             if (e.button == 0) {
                 if (e.altKey) ZoundBrowserPlaybackVisuals.CopyToClipboard(zound.name);
                 else if (e.ctrlKey) InfoViewWindow.OpenWindow(zound);
-                else {
-                    if (bs.killOnPlay) ZoundEngine.StopAllZounds();
-                    ZoundEngine.PlayZound(zound);
-                }
+                else ZoundBrowserPlaybackVisuals.PlayOrStopFromBrowser(zound);
             }
             else if (e.button == 1) host.OpenZoundEditor(zound);
             else if (e.button == 2) ZoundBrowserPlaybackVisuals.CopyToClipboard(zound.name);

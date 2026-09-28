@@ -117,6 +117,25 @@ namespace Laubrary.Zounds {
             return hasAnyInstancePlaying;
         }
 
+        /// <summary>
+        /// What a plain click on a zound's name in either browser does: plays it — except that a Looper already playing
+        /// is stopped instead (T-0475). A Looper never ends on its own, so a second click that played another copy would
+        /// only stack loops the user then has to hunt down with Stop all.
+        /// </summary>
+        internal static void PlayOrStopFromBrowser(Zound zound) {
+            if (zound is Klip k && k.IsLooper && ZoundEngine.CullingGroups.TryGetValue(zound, out var tokens)) {
+                bool stopped = false;
+                foreach (var t in new System.Collections.Generic.List<ZoundToken>(tokens)) {
+                    if (t == null || t.state == ZoundToken.State.Killed || t.state == ZoundToken.State.FadeToKill) continue;
+                    t.Kill();
+                    stopped = true;
+                }
+                if (stopped) return;
+            }
+            if (ZoundsProject.Instance.browserSettings.killOnPlay) ZoundEngine.StopAllZounds();
+            ZoundEngine.PlayZound(zound);
+        }
+
         internal static void CopyToClipboard(string zoundName) {
             GUIUtility.systemCopyBuffer = zoundName;
         }

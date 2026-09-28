@@ -227,6 +227,8 @@ namespace Laubrary.Zounds {
                 if (targetZound != null) {
                     targetZound.trimStart = trimStart;
                     targetZound.needsRender = true;
+                    // A playing Looper hears its new loop start at once (T-0473).
+                    if (targetZound.IsLooper) Dsp.SapVoiceRegistry.PushLoop(targetZound);
                     queueAutoRender();
                     repaint();
                 }
@@ -237,6 +239,7 @@ namespace Laubrary.Zounds {
                 if (targetZound != null) {
                     targetZound.trimEnd = trimEnd;
                     targetZound.needsRender = true;
+                    if (targetZound.IsLooper) Dsp.SapVoiceRegistry.PushLoop(targetZound);
                     queueAutoRender();
                     repaint();
                 }
@@ -597,6 +600,17 @@ namespace Laubrary.Zounds {
                 GUILayout.EndHorizontal();
 
                 ZUI.RowSpace(2f);
+
+                // A Looper (T-0473) is authored in the UI Toolkit Klip window; this one only says so, honestly.
+                if (targetZound.IsLooper) {
+                    float loopLen = sourceAsset != null
+                        ? (targetZound.trimEnabled && targetZound.trimEnd > targetZound.trimStart ? Mathf.Min(targetZound.trimEnd, sourceAsset.length) : sourceAsset.length)
+                          - (targetZound.trimEnabled ? targetZound.trimStart : 0f)
+                        : 0f;
+                    targetZound.loop.Effective(loopLen, out float xLo, out float xHi);
+                    ZUI.Label("Looper · crossmix " + (xHi <= 0f ? "off" : Mathf.Approximately(xLo, xHi) ? xHi.ToString("0.00") + " s" : xLo.ToString("0.00") + "–" + xHi.ToString("0.00") + " s")
+                              + " · edited in the new Klip window");
+                }
 
                 // === Time-stretch (source material: duration without pitch change) ===
                 ZUI.RowSpace();

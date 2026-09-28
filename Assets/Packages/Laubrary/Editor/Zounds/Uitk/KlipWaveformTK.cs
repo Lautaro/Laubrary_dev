@@ -27,6 +27,7 @@ namespace Laubrary.Zounds.Uitk {
         readonly ZuiToggleButton trim, clamp, vol, volEdit, pitch, pitchEdit;
         readonly Label length;
         readonly VisualElement box, area, bg, dimStart, dimEnd, handleStart, handleEnd, heads;
+        readonly VisualElement[] xmix;
         readonly Image wave;
         readonly ZuiSkinEnvelope volEnv, pitchEnv;
         ZuiSkinEnvelope active;
@@ -71,6 +72,14 @@ namespace Laubrary.Zounds.Uitk {
             wave.style.position = Position.Absolute; wave.style.left = 0; wave.style.right = 0; wave.style.top = 0; wave.style.bottom = 0;
             area.Add(wave);
             dimStart = Abs(); dimEnd = Abs(); area.Add(dimStart); area.Add(dimEnd);
+            // A Looper's crossmix spans (T-0476): the longest possible span, and the part every loop uses, at both ends.
+            xmix = new VisualElement[4];
+            for (int i = 0; i < 4; i++) {
+                xmix[i] = Abs();
+                xmix[i].AddToClassList("zs-xmix");
+                if (i >= 2) xmix[i].AddToClassList("zs-xmix--min");
+                area.Add(xmix[i]);
+            }
             heads = Abs(); area.Add(heads);
             handleStart = Abs(); handleEnd = Abs(); area.Add(handleStart); area.Add(handleEnd);
             handleStart.AddToClassList("zs-trimhandle"); handleEnd.AddToClassList("zs-trimhandle");
@@ -155,6 +164,8 @@ namespace Laubrary.Zounds.Uitk {
                 trimmed = Rect.MinMaxRect(model.TimeToXIn(klip.trimStart, r), r.y, model.TimeToXIn(klip.trimEnd, r), r.yMax);
             }
 
+            PlaceCrossmix(r, clip.length);
+
             // Playheads, drawn over the dims and under the envelopes, as the old view draws them.
             ZoundEngine.CullingGroups.TryGetValue(klip, out var playing);
             var fractions = model.PlayheadFractions(playing, out _);
@@ -182,6 +193,31 @@ namespace Laubrary.Zounds.Uitk {
             env.points = pts; env.def = def; env.rt = runtime; env.curveColor = colour;
             Place(env, rect);
             env.Repaint();
+        }
+
+        /// <summary>
+        /// Shades the parts of a Looper's source its crossmix uses: at the start, what the incoming copy fades in over;
+        /// at the end, what the outgoing copy fades out over. The faint band is the longest crossmix the range allows,
+        /// the stronger one inside it the shortest, so a fixed length shows as one strong band and a random range shows
+        /// how far it can reach. Bounds are the ones the engine hears (limited to half the loop).
+        /// </summary>
+        void PlaceCrossmix(Rect r, float clipLength) {
+            bool show = klip.IsLooper;
+            float from = 0f, to = 0f, lo = 0f, hi = 0f;
+            if (show) {
+                from = klip.trimEnabled ? klip.trimStart : 0f;
+                to = klip.trimEnabled && klip.trimEnd > klip.trimStart ? Mathf.Min(klip.trimEnd, clipLength) : clipLength;
+                klip.loop.Effective(to - from, out lo, out hi);
+                show = hi > 0f;
+            }
+            for (int i = 0; i < 4; i++) xmix[i].style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
+            if (!show) return;
+            float x0 = model.TimeToXIn(from, r), x1 = model.TimeToXIn(to, r);
+            Place(xmix[0], Rect.MinMaxRect(x0, r.y, model.TimeToXIn(from + hi, r), r.yMax));
+            Place(xmix[1], Rect.MinMaxRect(model.TimeToXIn(to - hi, r), r.y, x1, r.yMax));
+            xmix[2].style.display = xmix[3].style.display = lo > 0f ? DisplayStyle.Flex : DisplayStyle.None;
+            Place(xmix[2], Rect.MinMaxRect(x0, r.y, model.TimeToXIn(from + lo, r), r.yMax));
+            Place(xmix[3], Rect.MinMaxRect(model.TimeToXIn(to - lo, r), r.y, x1, r.yMax));
         }
 
         static void Place(VisualElement e, Rect r) {

@@ -280,9 +280,7 @@ namespace Laubrary.Zounds {
                                 InfoViewWindow.OpenWindow(currentZound);
                             }
                             else {
-                                var browserSettings = ZoundsProject.Instance.browserSettings;
-                                if (browserSettings.killOnPlay) ZoundEngine.StopAllZounds();
-                                ZoundEngine.PlayZound(currentZound);
+                                ZoundBrowserPlaybackVisuals.PlayOrStopFromBrowser(currentZound);
                             }
                         }
                     }

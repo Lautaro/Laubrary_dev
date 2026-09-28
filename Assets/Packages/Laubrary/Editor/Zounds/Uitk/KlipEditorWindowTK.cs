@@ -184,6 +184,8 @@ namespace Laubrary.Zounds.Uitk {
 
             // ── time-stretch strip, then the chain editor (T-0462 onward) ──
             scroll.Add(VSpace(Row));
+            scroll.Add(new LooperTK(klip));   // T-0476
+            scroll.Add(VSpace(4f));
             scroll.Add(new TimeStretchTK(klip));
             scroll.Add(VSpace(Row));
             scroll.Add(new ChainEditorTK(klip));

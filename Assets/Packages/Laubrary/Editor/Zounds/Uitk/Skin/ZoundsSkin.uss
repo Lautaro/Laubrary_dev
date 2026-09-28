@@ -1097,3 +1097,9 @@
     padding: 7px 5px 7px 5px;
     margin: 4px 4px 4px 4px;
 }
+
+/* A Looper's crossmix spans on the Klip waveform (T-0476), in the palette's text blue (--zs-pal-text) because the
+   waveform's own background is the yellow the other highlights share: faint for the longest crossmix the range allows,
+   stronger (stacked over it) for the part every loop uses. */
+.zs-xmix { background-color: rgba(123,176,211,0.40); }
+.zs-xmix--min { background-color: rgba(123,176,211,0.50); }
