@@ -178,68 +178,83 @@ namespace Laubrary.Zounds {
 
         private void RegisterSpectrumViewEvents() {
             if (spectrumView == null) return;
+            WireSpectrumView(spectrumView, () => targetZound, dragging => isDraggingWaveform = dragging, RefreshSpectrumView, QueueAutoRender, Repaint);
+        }
 
+        /// <summary>
+        /// What each edit on the waveform view does to the Klip: the Undo step a drag opens, trim and clamp written through
+        /// the project's modify path, the volume and pitch toggles creating or enabling the chain modulators, and envelope
+        /// edits marking the chain changed. Shared with the UI Toolkit twin (T-0468) so both windows edit the sound the
+        /// same way; the window supplies its own target, drag flag, refresh, render queue and repaint.
+        /// </summary>
+        internal static void WireSpectrumView(AudioSpectrumView spectrumView, System.Func<Klip> target, System.Action<bool> setDragging,
+                                              System.Action refreshSpectrumView, System.Action queueAutoRender, System.Action repaint) {
             spectrumView.onTrimDragStarted = () => {
-                if (targetZound != null) {
-                    isDraggingWaveform = true;
+                if (target() != null) {
+                    setDragging(true);
                     ZoundsWindow.BeginDragUndo("change klip trim");
                 }
             };
 
             spectrumView.onVolumeDragStarted = () => {
-                if (targetZound != null) {
-                    isDraggingWaveform = true;
+                if (target() != null) {
+                    setDragging(true);
                     ZoundsWindow.BeginDragUndo("edit volume envelope");
                 }
             };
 
             spectrumView.onPitchDragStarted = () => {
-                if (targetZound != null) {
-                    isDraggingWaveform = true;
+                if (target() != null) {
+                    setDragging(true);
                     ZoundsWindow.BeginDragUndo("edit pitch envelope");
                 }
             };
 
             spectrumView.onTrimEnabledChanged = enabled => {
+                var targetZound = target();
                 if (targetZound != null) {
                     ZoundsWindow.ModifyAndSaveZoundsProject("toggle klip trim", () => {
                         targetZound.trimEnabled = enabled;
                         targetZound.needsRender = true;
-                        QueueAutoRender();
+                        queueAutoRender();
                     });
                 } else {
                     Debug.LogWarning("[Zounds] KlipEditor: onTrimEnabledChanged fired but targetZound is NULL.");
                 }
             };
             spectrumView.onTrimStartChanged = trimStart => {
+                var targetZound = target();
                 if (targetZound != null) {
                     targetZound.trimStart = trimStart;
                     targetZound.needsRender = true;
-                    QueueAutoRender();
-                    Repaint();
+                    queueAutoRender();
+                    repaint();
                 }
             };
 
             spectrumView.onTrimEndChanged = trimEnd => {
+                var targetZound = target();
                 if (targetZound != null) {
                     targetZound.trimEnd = trimEnd;
                     targetZound.needsRender = true;
-                    QueueAutoRender();
-                    Repaint();
+                    queueAutoRender();
+                    repaint();
                 }
             };
 
             spectrumView.onClampToTrimChanged = clamp => {
+                var targetZound = target();
                 if (targetZound != null) {
                     ZoundsWindow.ModifyAndSaveZoundsProject("toggle klip clamp-to-trim", () => {
                         targetZound.clampToTrim = clamp;
                         targetZound.needsRender = true;
-                        QueueAutoRender();
+                        queueAutoRender();
                     });
                 }
             };
 
             spectrumView.onVolumeEnvelopeChanged = envelope => {
+                var targetZound = target();
                 if (targetZound != null) {
                     // The envelope handed back here IS the chain modulator's own curve object
                     // (KlipChainEnvelopes hands out the live reference), already mutated in place by the
@@ -247,35 +262,38 @@ namespace Laubrary.Zounds {
                     // than a single live-pushable parameter, so it takes effect on the next play, not
                     // mid-drag: just mark the chain dirty so playback rebuilds its layout next time.
                     KlipChainEnvelopes.Touch(targetZound);
-                    Repaint();
+                    repaint();
                 }
             };
 
             spectrumView.onVolumeEnabledChanged = enabled => {
+                var targetZound = target();
                 if (targetZound != null) {
                     ZoundsWindow.ModifyAndSaveZoundsProject("toggle klip volume", () => {
                         KlipChainEnvelopes.SetVolumeEnabled(targetZound, enabled);
                     });
                     // The toggle may have just created the volume modifier — re-read it so the overlay
                     // (and the next drag) reference the real curve instead of the disabled placeholder.
-                    RefreshSpectrumView();
+                    refreshSpectrumView();
                 }
             };
 
             spectrumView.onPitchEnvelopeChanged = envelope => {
+                var targetZound = target();
                 if (targetZound != null) {
                     // See onVolumeEnvelopeChanged above.
                     KlipChainEnvelopes.Touch(targetZound);
-                    Repaint();
+                    repaint();
                 }
             };
 
             spectrumView.onPitchEnabledChanged = enabled => {
+                var targetZound = target();
                 if (targetZound != null) {
                     ZoundsWindow.ModifyAndSaveZoundsProject("toggle klip pitch", () => {
                         KlipChainEnvelopes.SetPitchEnabled(targetZound, enabled);
                     });
-                    RefreshSpectrumView();
+                    refreshSpectrumView();
                 }
             };
 
@@ -773,7 +791,10 @@ namespace Laubrary.Zounds {
             targetZound.needsRender = needsRenderTemp;
         }
 
-        private void ValidateKlip() {
+        private void ValidateKlip() => ValidateKlip(targetZound);
+
+        /// <summary>Keeps a Klip's trim inside its clip (and its gain above silence). Shared with the UI Toolkit twin.</summary>
+        internal static void ValidateKlip(Klip targetZound) {
             var zoundsProject = ZoundsProject.Instance;
             if (targetZound.trimStart < 0) {
                 targetZound.trimStart = 0;
@@ -989,11 +1010,20 @@ namespace Laubrary.Zounds {
 
         public void Render() {
             autoRenderPending = false;
-            AudioClip reloadedAudio = RenderToAudioClip(targetZound);
+            AudioClip reloadedAudio = RenderKlip(targetZound);
             cachedOutputRef = null;
             cachedOutputAsset = null;
             outputCacheValid = false;
+            spectrumView.audioSource.clip = reloadedAudio;
+        }
 
+        /// <summary>
+        /// The Render button: bounce the Klip to its output file (or, with nothing to apply, promote the source to it),
+        /// refresh the waveform cache and the runtime dictionary, and return the audio to preview. Shared with the UI Toolkit
+        /// twin, which keeps its own preview source.
+        /// </summary>
+        internal static AudioClip RenderKlip(Klip targetZound) {
+            AudioClip reloadedAudio = RenderToAudioClip(targetZound);
             if (reloadedAudio == null && !targetZound.HasActiveEdits()) {
                 // No edits active — promote source to output in ZoundFiles/.
                 PromoteOutputClip(targetZound);
@@ -1010,13 +1040,12 @@ namespace Laubrary.Zounds {
                 AudioWaveformUtility.ClearCache(targetZound);
             }
 
-            spectrumView.audioSource.clip = reloadedAudio;
-
-            // CRITICAL: Synchronize the runtime ZoundDictionary so that 
+            // CRITICAL: Synchronize the runtime ZoundDictionary so that
             // the outside world (Zequences, Play calls) sees the new render immediately.
             if (Application.isPlaying && ZoundEngine.IsInitialized()) {
                 ZoundDictionary.ValidateZoundRuntime(targetZound);
             }
+            return reloadedAudio;
         }
 
         public static AudioClip RenderToAudioClip(Klip klipToRender) {

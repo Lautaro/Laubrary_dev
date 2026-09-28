@@ -67,8 +67,7 @@ namespace Laubrary.Zounds.Uitk {
                 var t = ZS.Toggle(d.displayName, d.summary, ts.algorithm == d.algorithm, on => {
                     if (ts.algorithm != alg && d.available) Set("time stretch algorithm", () => { ts.algorithm = alg; ts.algorithmParams = new float[0]; ts.EnsureParams(); });
                     else Rebuild();
-                }, "RichToggle", corner, -1f, RowH);
-                t.FitToText(16f);
+                }, "RichToggle", corner, EditorStyles.label.CalcSize(new GUIContent(d.displayName)).x + 16f, RowH);   // the old strip's own width rule
                 t.SetEnabled(d.available);
                 r1.Add(t);
             }

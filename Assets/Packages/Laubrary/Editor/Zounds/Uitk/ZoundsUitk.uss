@@ -96,3 +96,12 @@
 .zs-root .zs-narrowslider .unity-base-slider__drag-container { display: none; }
 .zs-root .zs-narrowslider .unity-base-slider__input { justify-content: flex-end; }
 .zs-root .zs-narrowslider .unity-base-slider__text-field { width: 50px; flex-grow: 0; margin-right: 0; }
+
+/* The waveform toolbar's edit-handles toggle: the editor's pencil icon, centred, drawn at the size the old toggle shows
+   it (measured 12.4 px at 225 %). */
+.zs-root .zs-editicon { position: absolute; left: 50%; top: 50%; width: 12.4px; height: 12.4px; translate: -50% -50%; }
+
+/* A disabled ZUI control: ZUI draws it at 0.4 alpha and IMGUI halves a disabled control's alpha again, so the whole
+   control (background, border and text) sits at 0.2 over what is behind it — measured 0.18-0.21 per channel on the old
+   window's greyed "Phase vocoder". */
+.zs-root .zui-togglebutton:disabled, .zs-root .unity-button:disabled { opacity: 0.2; }

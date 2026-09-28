@@ -27,6 +27,49 @@ namespace Laubrary.Zounds.Uitk {
         Button playButton;
         ZoundToken currentToken;
 
+        // The waveform's model: the old window's own view object, wired by its own WireSpectrumView (T-0468). Kept across
+        // rebuilds; created on first build, destroyed with the window.
+        AudioSpectrumView spectrum;
+        KlipWaveformTK waveform;
+        bool draggingWaveform;
+
+        void EnsureSpectrum() {
+            if (spectrum != null) return;
+            spectrum = new AudioSpectrumView(this) { height = 150f };
+            KlipEditorWindow.WireSpectrumView(spectrum, () => klip, d => draggingWaveform = d, RefreshSpectrum, () => { }, () => waveform?.Refresh());
+            RefreshSpectrum();
+        }
+
+        /// <summary>The old window's RefreshSpectrumView: validate, then re-read the Klip into the view.</summary>
+        void RefreshSpectrum() {
+            if (spectrum == null || klip == null) return;
+            KlipEditorWindow.ValidateKlip(klip);
+            spectrum.InitFromKlip(klip, useChainEnvelopes: true);
+            waveform?.Refresh();
+        }
+
+        /// <summary>The old window's mouse-up: close the drag's Undo step (validating the Klip first when it changed).</summary>
+        void EndWaveformDrag() {
+            if (!draggingWaveform) return;
+            draggingWaveform = false;
+            if (klip.needsRender && spectrum?.sourceClip != null) ZoundsWindow.EndDragUndo(() => KlipEditorWindow.ValidateKlip(klip));
+            else ZoundsWindow.EndDragUndo();
+        }
+
+        protected override void OnDisable() {
+            EndWaveformDrag();
+            base.OnDisable();
+        }
+
+        void OnDestroy() {
+            spectrum?.Destroy();
+            spectrum = null;
+        }
+
+        void OnFocus() {
+            if (spectrum != null && klip != null && spectrum.NeedsSourceRefresh(klip)) RefreshSpectrum();
+        }
+
         public static KlipEditorWindowTK Open(Klip klip, bool isLocalZound) {
             var w = CreateInstance<KlipEditorWindowTK>();
             w.targetZoundID = klip.id;
@@ -83,6 +126,11 @@ namespace Laubrary.Zounds.Uitk {
             root.Add(VSpace(Row));
             fields = new ZoundFieldsRowTK(klip, isLocalZound, () => titleContent = new GUIContent(TitleFor(klip) + " (UITK)"));
             root.Add(fields);
+            // A Klip with no reference at all is a legitimate placeholder: say so, and let the Source field below take one.
+            bool hasInternalSource = klip.audioClipRef != null && klip.audioClipRef.RuntimeKeyIsValid();
+            bool hasExternalSource = !string.IsNullOrEmpty(klip.externalSourcePath);
+            bool hasValidClip = hasInternalSource || hasExternalSource;
+            if (!hasValidClip) root.Add(new HelpBox("No audio assigned yet. Assign one in the 'Clip References' tab or the Source field below.", HelpBoxMessageType.Info));
             root.Add(VSpace(Row));
 
             // ── content box (ZUI.Box, "Default") ──
@@ -92,28 +140,46 @@ namespace Laubrary.Zounds.Uitk {
             root.Add(box);
             box.Add(VSpace(Row));
 
-            // Source (EditorGUILayout.ObjectField "Source:")
-            var source = new UnityEditor.UIElements.ObjectField("Source:") { objectType = typeof(AudioClip), allowSceneObjects = false };
-            source.AddToClassList("zs-sourcefield");
-            source.SetValueWithoutNotify(Dsp.ZoundSapPlayback.LoadSourceClip(klip));
-            box.Add(source);
+            EnsureSpectrum();
+            RefreshSpectrum();
+            var sourceAsset = spectrum.sourceClip;
+            var outputAsset = ResolveOutputAsset();
+            bool sourceAvailable = sourceAsset != null;
+            if (!sourceAvailable && outputAsset == null && hasValidClip) {
+                // A reference was assigned but no longer resolves: genuinely broken, so nothing below can be shown.
+                box.Add(new HelpBox(hasExternalSource ? "External source file not found:\n" + klip.externalSourcePath
+                                                      : "Source Audio Clip is missing or invalid. Please fix it in the 'Clip References' tab.", HelpBoxMessageType.Error));
+                box.Add(ZS.Button("Close Window", "", "Default", Close, ZUICornerMask.All, -1f, 20f));
+                syncTick = root.schedule.Execute(Sync).Every(200);
+                return;
+            }
+            if (!sourceAvailable && hasValidClip)
+                box.Add(new HelpBox("Source clip is not available on this machine. Waveform edits are disabled.\nSettings (volume, pitch, chance, routing, tags) remain editable.", HelpBoxMessageType.Info));
+
+            if (hasExternalSource) box.Add(BuildExternalSourceRow());
+            else {
+                // Source (EditorGUILayout.ObjectField "Source:")
+                var source = new UnityEditor.UIElements.ObjectField("Source:") { objectType = typeof(AudioClip), allowSceneObjects = false };
+                source.AddToClassList("zs-sourcefield");
+                source.SetValueWithoutNotify(sourceAsset);
+                source.RegisterValueChangedCallback(e => ReplaceSource(e.newValue as AudioClip));
+                box.Add(source);
+            }
+            // With no source on this machine, the rendered output is the only audio left to show and preview.
+            if (!sourceAvailable && outputAsset != null) spectrum.audioSource.clip = outputAsset;
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.style.flexGrow = 1;
             box.Add(scroll);
             scroll.Add(VSpace(Row));
 
-            // Waveform block: toolbar + half a row + the waveform (ported in T-0468; a same-size placeholder until then).
-            scroll.Add(BuildSpectrumToolbar());
-            scroll.Add(VSpace(Row * 0.5f));
-            var wave = new VisualElement();
-            wave.AddToClassList("zs-waveform-placeholder");
-            wave.style.height = 150f; wave.style.flexShrink = 0;
-            scroll.Add(wave);
+            // Waveform block: toolbar, half a row, the waveform with its trim and envelopes (T-0468).
+            waveform = new KlipWaveformTK(spectrum, klip) { onReleased = EndWaveformDrag };
+            scroll.Add(waveform);
 
             // ── action row ──
             scroll.Add(VSpace(Row));
-            scroll.Add(BuildActionRow());
+            scroll.Add(BuildActionRow(sourceAvailable));
             scroll.Add(VSpace(Row * 2f));
 
             // ── time-stretch strip, then the chain editor (T-0462 onward) ──
@@ -125,35 +191,22 @@ namespace Laubrary.Zounds.Uitk {
             syncTick = root.schedule.Execute(Sync).Every(200);
         }
 
-        VisualElement BuildSpectrumToolbar() {
-            float lh = EditorGUIUtility.singleLineHeight;
-            var r = HRow(lh);
-            var t = klip.trimEnabled;
-            r.Add(ZS.Toggle("Trim", "", klip.trimEnabled, null, "RichToggle", ZUICornerMask.Left, 60f, lh));
-            r.Add(ZS.Toggle("Clamp", "", false, null, "RichToggle", ZUICornerMask.Right, 60f, lh));
-            r.Add(Gap(6f));
-            r.Add(ZS.Toggle("Volume", "", false, null, "RichToggle", ZUICornerMask.Left, 75f, lh));
-            r.Add(ZS.Toggle("", "", false, null, "RichToggle", ZUICornerMask.Right, 25f, lh));
-            r.Add(Gap(6f));
-            r.Add(ZS.Toggle("Pitch", "", false, null, "RichToggle", ZUICornerMask.Left, 65f, lh));
-            r.Add(ZS.Toggle("", "", false, null, "RichToggle", ZUICornerMask.Right, 25f, lh));
-            r.Add(Flex());
-            var len = new Label("0.000s");
-            len.AddToClassList("zs-minilabel");
-            len.style.width = 50f;
-            r.Add(len);
-            return r;
-        }
-
-        VisualElement BuildActionRow() {
+        VisualElement BuildActionRow(bool sourceAvailable) {
             const float h = 20f;
             var r = HRow(h);
-            r.Add(ZS.Button("Render", "", "RichButton", () => { KlipEditorWindow.RenderToAudioClip(klip); }, ZUICornerMask.All, 60f, h));
+            // The file actions need the source (disabled on a machine without it), as in the old row.
+            var render = ZS.Button("Render", "", "RichButton", () => { KlipEditorWindow.ValidateKlip(klip); spectrum.audioSource.clip = KlipEditorWindow.RenderKlip(klip); }, ZUICornerMask.All, 60f, h);
+            render.SetEnabled(sourceAvailable);
+            r.Add(render);
             r.Add(Gap(4f));
-            r.Add(ZS.Button("Remove", "", "RichButton", Remove, ZUICornerMask.All, 70f, h));
+            var remove = ZS.Button("Remove", "", "RichButton", Remove, ZUICornerMask.All, 70f, h);
+            remove.SetEnabled(sourceAvailable);
+            r.Add(remove);
             if (klip.parentId == 0 && ZoundsProject.Instance.browserSettings.showConvertToZequence) {
                 r.Add(Gap(4f));
-                r.Add(ZS.Button("Convert to Zeq", "", "RichButton", ConvertToZeq, ZUICornerMask.All, 100f, h));
+                var convert = ZS.Button("Convert to Zeq", "", "RichButton", ConvertToZeq, ZUICornerMask.All, 100f, h);
+                convert.SetEnabled(sourceAvailable);
+                r.Add(convert);
             }
             r.Add(Flex());
             r.Add(Gap(4f));
@@ -184,6 +237,55 @@ namespace Laubrary.Zounds.Uitk {
             });
             klip.needsRender = needsRenderTemp;
             Sync();
+        }
+
+        AudioClip ResolveOutputAsset() {
+            var outputRef = klip.outputClipRef ?? klip.renderedClipRef;
+            try { return outputRef == null ? null : outputRef.editorAsset as AudioClip; } catch { return null; }
+        }
+
+        /// <summary>The old window's external-source row: "Source:" and the file's name (selectable, read-only), Browse, Reveal.</summary>
+        VisualElement BuildExternalSourceRow() {
+            var r = HRow(EditorGUIUtility.singleLineHeight + 2f);
+            var label = new Label("Source:");
+            label.AddToClassList("zs-lbl");
+            label.style.width = EditorGUIUtility.labelWidth; label.style.flexShrink = 0;
+            var name = new TextField { value = System.IO.Path.GetFileName(klip.externalSourcePath), isReadOnly = true };
+            name.style.flexGrow = 1; name.style.marginLeft = 0;
+            var browse = new Button(() => {
+                string dir = System.IO.Path.GetDirectoryName(klip.externalSourcePath);
+                EditorApplication.delayCall += () => {
+                    string selected = EditorUtility.OpenFilePanel("Select Source Audio File", dir, "wav");
+                    if (string.IsNullOrEmpty(selected)) return;
+                    ZoundsWindow.ModifyZoundsProject("replace external source", () => {
+                        klip.externalSourcePath = selected;
+                        klip.needsRender = true;
+                        RefreshSpectrum();
+                    });
+                    Rebuild();
+                };
+            }) { text = "Browse" };
+            browse.style.width = 60f;
+            var reveal = new Button(() => EditorUtility.RevealInFinder(klip.externalSourcePath)) { text = "Reveal" };
+            reveal.style.width = 50f;
+            r.Add(label); r.Add(name); r.Add(browse); r.Add(reveal);
+            return r;
+        }
+
+        /// <summary>The old window's Source field change: stop this sound, point the Klip at the new clip, re-read the view.</summary>
+        void ReplaceSource(AudioClip newSource) {
+            if (newSource == null || newSource == spectrum?.sourceClip) return;
+#if ADDRESSABLES_INSTALLED
+            if (IsPlaying()) { currentToken.Kill(); currentToken = null; }
+            ZoundsWindow.ModifyZoundsProject("replace source clip", () => {
+                var assetPath = AssetDatabase.GetAssetPath(newSource);
+                klip.audioClipRef = new UnityEngine.AddressableAssets.AssetReference(AssetDatabase.AssetPathToGUID(assetPath));
+                klip.audioClipPath = assetPath;
+                // As the old window: only a sound with a rendered output has something to re-render.
+                if ((klip.outputClipRef ?? klip.renderedClipRef) != null) klip.needsRender = true;
+                RefreshSpectrum();
+            });
+#endif
         }
 
         void Remove() {
