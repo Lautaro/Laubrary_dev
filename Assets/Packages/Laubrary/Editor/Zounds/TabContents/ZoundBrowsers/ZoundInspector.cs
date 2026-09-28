@@ -536,7 +536,7 @@ namespace Laubrary.Zounds {
             }
         }
 
-        private static void ToggleSolo(Zound zoundToInspect) {
+        internal static void ToggleSolo(Zound zoundToInspect) {
             ZoundsWindow.ModifyZoundsProject("solo zound", () => {
                 zoundToInspect.solo = !zoundToInspect.solo;
                 if (zoundToInspect.solo) zoundToInspect.mute = false;
@@ -544,7 +544,7 @@ namespace Laubrary.Zounds {
             });
         }
 
-        private static void ToggleMute(Zound zoundToInspect) {
+        internal static void ToggleMute(Zound zoundToInspect) {
             ZoundsWindow.ModifyZoundsProject("mute zound", () => {
                 zoundToInspect.mute = !zoundToInspect.mute;
                 if (zoundToInspect.mute) zoundToInspect.solo = false;
@@ -632,7 +632,7 @@ namespace Laubrary.Zounds {
             GUI.enabled = guiEnabled;
         }
 
-        private static void RemoveMissingZound(Zound zoundToInspect) {
+        internal static void RemoveMissingZound(Zound zoundToInspect) {
             string keyToDelete = null;
             foreach (var kvp in ZoundEngine.MissingZounds) {
                 if (kvp.Value == zoundToInspect) {
@@ -769,7 +769,7 @@ namespace Laubrary.Zounds {
         }
 
 
-        private void OpenManualRoutingDropdown(Zound zoundToInspect) {
+        internal static void OpenManualRoutingDropdown(Zound zoundToInspect) {
 #if ADDRESSABLES_INSTALLED
             List<AudioMixerGroup> allMixerGroups = new List<AudioMixerGroup>();
             RoutingTab.GetAllAddresableMixerGroups(ref allMixerGroups);

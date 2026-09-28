@@ -231,56 +231,16 @@ namespace Laubrary.Zounds {
             EditorGUI.BeginChangeCheck();
             var newTarget = EditorGUILayout.ObjectField("Project JSON", projectJSONAsset, typeof(TextAsset), false) as TextAsset;
             if (EditorGUI.EndChangeCheck()) {
-                Undo.RecordObject(this, "change project resource path");
-                projectJSONAsset = newTarget;
-                EditorUtility.SetDirty(this);
-
-                if (newTarget != null) {
-                    // Assignment: persist path and immediately load.
-                    string assetPath = AssetDatabase.GetAssetPath(newTarget);
-                    ZoundsProjectInitialization.SetZoundsProjectPath(assetPath);
-                    TriggerLoadJSONProject();
-                }
-                else {
-                    // Clear: wipe stored path and reset all in-memory data.
-                    ZoundsProjectInitialization.SetZoundsProjectPath(string.Empty);
-                    ZoundsProject.ResetToDefault();
-                    zoundsProjectDirty = false;
-
-                    // Clean up the build project to prevent stale builds.
-                    string streamingAssetsPath = "Assets/StreamingAssets/DefaultZoundsProject.json";
-                    if (File.Exists(Path.Combine(Application.dataPath, "StreamingAssets/DefaultZoundsProject.json"))) {
-                        AssetDatabase.DeleteAsset(streamingAssetsPath);
-                    }
-                }
-
-                mainTabView.GetTab<BrowserTab>(0).RefreshFilters();
-                Repaint();
+                AssignProjectJSON(newTarget);
             }
             EditorGUIUtility.labelWidth = labelWidth;
             var guiEnabled = GUI.enabled;
             if (GUILayout.Button("Create New", GUILayout.Width(85f))) {
-                string uniquePath = AssetDatabase.GenerateUniqueAssetPath("Assets/ZoundsProject.json");
-                SaveToJSON(uniquePath, new ZoundsProject.ProjectSerializer());
-                projectJSONAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(uniquePath);
-                ZoundsProjectInitialization.SetZoundsProjectPath(uniquePath);
-                ZoundsProject.GenerateDefaultFiles();
-                TriggerLoadJSONProject();
-                mainTabView.GetTab<BrowserTab>(0).RefreshFilters();
-                Repaint();
-                zoundsProjectDirty = false;
+                CreateNewProject();
             }
             GUI.enabled = guiEnabled && !ReferenceEquals(projectJSONAsset, null);
             if (GUILayout.Button("Load", GUILayout.Width(60f))) {
-                if (projectJSONAsset == null) {
-                    EditorUtility.DisplayDialog("Load Zounds Project Failed", "File not found: " + projectJSONAsset, "Close");
-                }
-                else {
-                    TriggerLoadJSONProject();
-                    mainTabView.GetTab<BrowserTab>(0).RefreshFilters();
-                    Repaint();
-                    zoundsProjectDirty = false;
-                }
+                LoadProject();
             }
             EditorGUIUtility.labelWidth = 65f;
             {
@@ -289,9 +249,7 @@ namespace Laubrary.Zounds {
                 EditorGUI.BeginChangeCheck();
                 var autoSave = EditorGUILayout.Toggle("Auto-Save", ZoundsWindowProperties.Instance.autoSave, GUILayout.Width(82f));
                 if (EditorGUI.EndChangeCheck()) {
-                    Undo.RecordObject(ZoundsWindowProperties.Instance, "toggle auto-save");
-                    ZoundsWindowProperties.Instance.autoSave = autoSave;
-                    EditorUtility.SetDirty(ZoundsWindowProperties.Instance);
+                    SetAutoSave(autoSave);
                 }
                 EditorGUIUtility.labelWidth = labelWidth;
                 GUI.enabled = saveEnabled && zoundsProjectDirty;
@@ -301,6 +259,95 @@ namespace Laubrary.Zounds {
             }
             GUI.enabled = guiEnabled;
             GUILayout.EndHorizontal();
+        }
+
+        // ── The project-file row's actions (Project JSON field, Create New, Load, Auto-Save), shared with the UI Toolkit
+        //    twin (T-0470). They act on the open Zounds window when there is one, and on the stored project path otherwise.
+
+        /// <summary>The project JSON the Zounds window works on: the open window's, else the one the stored path names.</summary>
+        internal static TextAsset CurrentProjectJSON {
+            get {
+                if (instance != null) return instance.projectJSONAsset;
+                if (s_projectJSONAsset != null) return s_projectJSONAsset;
+                string path = ZoundsProjectInitialization.GetZoundsProjectPath();
+                return string.IsNullOrEmpty(path) ? null : AssetDatabase.LoadAssetAtPath<TextAsset>(path);
+            }
+        }
+
+        static void SetProjectJSONAsset(TextAsset asset) {
+            s_projectJSONAsset = asset;
+            if (instance != null) instance.projectJSONAsset = asset;
+        }
+
+        static void AfterProjectChange() {
+            if (instance != null) {
+                instance.mainTabView?.GetTab<BrowserTab>(0)?.RefreshFilters();
+                instance.Repaint();
+            }
+        }
+
+        static void LoadJSONProject(TextAsset asset) {
+            ZoundsProject.LoadFromJSON(asset);
+            EnsureAudioClipsAddressable();
+        }
+
+        /// <summary>The Project JSON field changed: persist the path and load it, or with none, clear everything.</summary>
+        internal static void AssignProjectJSON(TextAsset newTarget) {
+            if (instance != null) Undo.RecordObject(instance, "change project resource path");
+            SetProjectJSONAsset(newTarget);
+            if (instance != null) EditorUtility.SetDirty(instance);
+
+            if (newTarget != null) {
+                // Assignment: persist path and immediately load.
+                string assetPath = AssetDatabase.GetAssetPath(newTarget);
+                ZoundsProjectInitialization.SetZoundsProjectPath(assetPath);
+                LoadJSONProject(newTarget);
+            }
+            else {
+                // Clear: wipe stored path and reset all in-memory data.
+                ZoundsProjectInitialization.SetZoundsProjectPath(string.Empty);
+                ZoundsProject.ResetToDefault();
+                zoundsProjectDirty = false;
+
+                // Clean up the build project to prevent stale builds.
+                string streamingAssetsPath = "Assets/StreamingAssets/DefaultZoundsProject.json";
+                if (File.Exists(Path.Combine(Application.dataPath, "StreamingAssets/DefaultZoundsProject.json"))) {
+                    AssetDatabase.DeleteAsset(streamingAssetsPath);
+                }
+            }
+            AfterProjectChange();
+        }
+
+        /// <summary>"Create New": a fresh project file next to the assets root, made the current one and loaded.</summary>
+        internal static void CreateNewProject() {
+            string uniquePath = AssetDatabase.GenerateUniqueAssetPath("Assets/ZoundsProject.json");
+            SaveToJSON(uniquePath, new ZoundsProject.ProjectSerializer());
+            SetProjectJSONAsset(AssetDatabase.LoadAssetAtPath<TextAsset>(uniquePath));
+            ZoundsProjectInitialization.SetZoundsProjectPath(uniquePath);
+            ZoundsProject.GenerateDefaultFiles();
+            LoadJSONProject(CurrentProjectJSON);
+            AfterProjectChange();
+            zoundsProjectDirty = false;
+        }
+
+        /// <summary>"Load": re-reads the current project file, dropping unsaved edits.</summary>
+        internal static void LoadProject() {
+            var asset = CurrentProjectJSON;
+            if (asset == null) {
+                EditorUtility.DisplayDialog("Load Zounds Project Failed", "File not found: " + asset, "Close");
+            }
+            else {
+                LoadJSONProject(asset);
+                AfterProjectChange();
+                zoundsProjectDirty = false;
+            }
+        }
+
+        /// <summary>The Auto-Save toggle.</summary>
+        internal static void SetAutoSave(bool autoSave) {
+            Undo.RecordObject(ZoundsWindowProperties.Instance, "toggle auto-save");
+            ZoundsWindowProperties.Instance.autoSave = autoSave;
+            EditorUtility.SetDirty(ZoundsWindowProperties.Instance);
         }
 
         private void PerformUndoRedo() {
@@ -339,9 +386,10 @@ namespace Laubrary.Zounds {
         // Implemention for IHasCustomMenu to add menu toggle in top right window menu
         public void AddItemsToMenu(GenericMenu menu) {
             menu.AddItem(new GUIContent("Grid Mode (Zounds Browser)"), ZoundsProject.Instance.browserSettings.multicolumn, ToggleColumnView);
+            menu.AddItem(new GUIContent("Open UI Toolkit version"), false, () => Uitk.ZoundsWindowTK.OpenWindow());
         }
 
-        private void ToggleColumnView() {
+        internal static void ToggleColumnView() {
             ModifyZoundsProject("toggle column view", () => {
                 ZoundsProject.Instance.browserSettings.multicolumn = !ZoundsProject.Instance.browserSettings.multicolumn;
             });

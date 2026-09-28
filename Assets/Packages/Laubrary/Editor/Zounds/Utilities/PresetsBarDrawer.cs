@@ -76,7 +76,8 @@ namespace Laubrary.Zounds {
             currentX += width;
         }
 
-        private static Color GenerateRandomColor(string input) {
+        /// <summary>A preset button's tint, derived from its name (shared with the UI Toolkit twin).</summary>
+        internal static Color GenerateRandomColor(string input) {
             if (string.IsNullOrEmpty(input))
                 return Color.white;
 

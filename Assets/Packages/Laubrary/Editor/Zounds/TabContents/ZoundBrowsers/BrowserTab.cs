@@ -167,8 +167,12 @@ namespace Laubrary.Zounds {
         // ZOUNDS TO DISPLAY
         // ═══════════════════════════════════════════════════════════════════════
 
-        public List<Zound> zoundsToDisplay {
-            get {
+        public List<Zound> zoundsToDisplay => ZoundsToDisplay(displayMode == BrowserDisplayMode.Recent, zoundTabPropertyIndex);
+
+        /// <summary>The Browser's candidate list (before search/tag filtering): the selected types, top-level only, the
+        /// Recent list newest first when <paramref name="recent"/>. Shared with the UI Toolkit twin (T-0470).</summary>
+        internal static List<Zound> ZoundsToDisplay(bool recent, int zoundTabPropertyIndex) {
+            {
                 var result = new List<Zound>();
                 var zoundsProject  = ZoundsProject.Instance;
                 var zoundLibrary   = zoundsProject.zoundLibrary;
@@ -215,7 +219,7 @@ namespace Laubrary.Zounds {
                     foreach (var z in ZoundEngine.MissingZounds.Values) result.Add(z);
                 }
 
-                if (displayMode == BrowserDisplayMode.Recent) {
+                if (recent) {
                     return FilterToRecent(result);
                 }
 
@@ -296,17 +300,7 @@ namespace Laubrary.Zounds {
             SerializedProperty buttonSizeMode    = browserSettings.FindPropertyRelative("buttonSizeMode");
             SerializedProperty highQualityWaveform = browserSettings.FindPropertyRelative("highQualityWaveform");
 
-            float totalPresetsWidth = 0f;
-            tempGUIContent.text = "Default";
-            float width = EditorStyles.helpBox.CalcSize(tempGUIContent).x;
-            totalPresetsWidth += width;
-            foreach (var viewPreset in ZoundsEditorPresets.Instance.viewPresets) {
-                tempGUIContent.text = viewPreset.name;
-                width = EditorStyles.toolbarButton.CalcSize(tempGUIContent).x;
-                totalPresetsWidth += width;
-            }
-
-            float presetsHeight = totalPresetsWidth > (contentRect.width - PresetsBarDrawer.presetsLabelWidth - PresetsBarDrawer.savePresetButtonWidth - 4f) ? 32f : 20f;
+            float presetsHeight = PresetsBarHeight(contentRect.width, out float totalPresetsWidth);
 
             string fileName = ZoundsWindow.Instance.projectJSONAsset != null
                 ? ZoundsWindow.Instance.projectJSONAsset.name
@@ -516,6 +510,18 @@ namespace Laubrary.Zounds {
                 lastSelectedPresetName, ClearPresetToRename, SavePreset, HandlePresetClick);
         }
 
+        /// <summary>The presets bar's height (20, or 32 when the presets overflow and need a scroll bar) and the presets'
+        /// total width, for a window <paramref name="contentWidth"/> wide. Shared with the UI Toolkit twin (T-0470).</summary>
+        internal static float PresetsBarHeight(float contentWidth, out float totalPresetsWidth) {
+            var content = new GUIContent("Default");
+            totalPresetsWidth = EditorStyles.helpBox.CalcSize(content).x;
+            foreach (var viewPreset in ZoundsEditorPresets.Instance.viewPresets) {
+                content.text = viewPreset.name;
+                totalPresetsWidth += EditorStyles.toolbarButton.CalcSize(content).x;
+            }
+            return totalPresetsWidth > (contentWidth - PresetsBarDrawer.presetsLabelWidth - PresetsBarDrawer.savePresetButtonWidth - 4f) ? 32f : 20f;
+        }
+
         private void DrawSectionHeader(string label) {
             GUILayout.Space(5f);
             ZUI.Label(label, ZUI.ZTextStyle.Subheader);
@@ -532,10 +538,16 @@ namespace Laubrary.Zounds {
         }
 
         private void SavePreset(string presetName) {
+            lastSelectedPresetName = SavePresetShared(presetName, ref viewPresetToRename);
+        }
+
+        /// <summary>Saves the current view as <paramref name="presetName"/> (or renames <paramref name="toRename"/> to it and
+        /// re-saves it). Returns the saved preset's name. Shared with the UI Toolkit twin.</summary>
+        internal static string SavePresetShared(string presetName, ref ZoundsEditorPresets.ViewPreset toRename) {
             var zoundsPresets = ZoundsEditorPresets.Instance;
             Undo.RecordObject(zoundsPresets, "save preset");
             ZoundsEditorPresets.ViewPreset preset;
-            if (viewPresetToRename == null) {
+            if (toRename == null) {
                 preset = zoundsPresets.viewPresets.Find(p => p.name == presetName);
                 if (preset == null) {
                     preset = new ZoundsEditorPresets.ViewPreset() { name = presetName };
@@ -543,36 +555,46 @@ namespace Laubrary.Zounds {
                 }
             }
             else {
-                preset = viewPresetToRename;
+                preset = toRename;
                 preset.name = presetName;
-                viewPresetToRename = null;
+                toRename = null;
             }
             preset.SetFromCurrentSettings();
-            lastSelectedPresetName = preset.name;
             EditorUtility.SetDirty(zoundsPresets);
+            return preset.name;
         }
 
         private void HandlePresetClick(string presetName) {
             var evt = Event.current;
             var mousePosInScreen = GUIUtility.GUIToScreenPoint(evt.mousePosition);
+            PresetClickShared(presetName, evt.button,
+                applied => { if (applied != null) lastSelectedPresetName = applied; GUI.FocusControl(null); },
+                preset => {
+                    viewPresetToRename = preset;
+                    SavePresetPopup.Show(GUIUtility.ScreenToGUIPoint(mousePosInScreen), presetName, SavePreset);
+                },
+                SavePreset);
+        }
+
+        /// <summary>A preset button's click: left applies it (the unnamed "Default" applies the default view), right opens
+        /// Rename / Replace with Current View / Delete. Shared with the UI Toolkit twin; the caller supplies how a rename
+        /// popup is shown and how a save is done.</summary>
+        internal static void PresetClickShared(string presetName, int button, System.Action<string> onApplied,
+                                               System.Action<ZoundsEditorPresets.ViewPreset> beginRename, System.Action<string> save) {
             var zoundsPresets = ZoundsEditorPresets.Instance;
             var preset = zoundsPresets.viewPresets.Find(p => p.name == presetName);
 
-            if (evt.button == 0) {
-                if (preset == null) zoundsPresets.ApplyDefaultView();
-                else { preset.Apply(); lastSelectedPresetName = presetName; }
-                GUI.FocusControl(null);
+            if (button == 0) {
+                if (preset == null) { zoundsPresets.ApplyDefaultView(); onApplied?.Invoke(null); }
+                else { preset.Apply(); onApplied?.Invoke(presetName); }
             }
-            else if (evt.button == 1 && preset != null) {
+            else if (button == 1 && preset != null) {
                 var menu = new GenericMenu();
                 menu.AddItem(new GUIContent("Rename"), false, () => {
-                    if (preset != null) {
-                        viewPresetToRename = preset;
-                        SavePresetPopup.Show(GUIUtility.ScreenToGUIPoint(mousePosInScreen), presetName, SavePreset);
-                    }
+                    if (preset != null) beginRename?.Invoke(preset);
                 });
                 menu.AddSeparator("");
-                menu.AddItem(new GUIContent("Replace with Current View"), false, () => SavePreset(presetName));
+                menu.AddItem(new GUIContent("Replace with Current View"), false, () => save?.Invoke(presetName));
                 menu.AddItem(new GUIContent("Delete"), false, () => {
                     if (EditorUtility.DisplayDialog("Remove Preset: " + presetName, "Are you sure you want to remove this preset?\n" + presetName, "Remove", "Cancel")) {
                         Undo.RecordObject(zoundsPresets, "delete preset");
@@ -946,25 +968,34 @@ namespace Laubrary.Zounds {
         /// </summary>
         internal void ApplyDeferredRowMutations() {
             if (zoundToRemove != null) {
-                ZoundsWindow.ModifyZoundsProject("remove zound", () => {
-                    AudioAssetUtility.RemoveZound(zoundToRemove);
-                    if (zoundToRemove is Klip) ZoundsAssetPostProcessor.RefreshAudioClipsCache();
-                    filterCache = null;
-                });
+                RemoveZoundShared(zoundToRemove, () => filterCache = null);
                 zoundToRemove = null;
             }
             if (zoundToDuplicate != null) {
-                ZoundsWindow.ModifyZoundsProject("duplicate zound", () => {
-                    var duplicatedZound = AudioAssetUtility.DuplicateZound(zoundToDuplicate) as Zound;
-                    if (duplicatedZound != null) SelectZound(duplicatedZound);
-                    filterCache = null;
-                });
+                DuplicateZoundShared(zoundToDuplicate, d => { if (d != null) SelectZound(d); filterCache = null; });
                 zoundToDuplicate = null;
             }
             if (zoundToConvertToZequence != null) {
                 ConvertKlipToZequence(zoundToConvertToZequence);
                 zoundToConvertToZequence = null;
             }
+        }
+
+        /// <summary>A row's Remove, after its confirmation (shared with the UI Toolkit twin).</summary>
+        internal static void RemoveZoundShared(Zound zound, System.Action inside = null) {
+            ZoundsWindow.ModifyZoundsProject("remove zound", () => {
+                AudioAssetUtility.RemoveZound(zound);
+                if (zound is Klip) ZoundsAssetPostProcessor.RefreshAudioClipsCache();
+                inside?.Invoke();
+            });
+        }
+
+        /// <summary>A row's Duplicate (shared with the UI Toolkit twin); <paramref name="inside"/> gets the copy.</summary>
+        internal static void DuplicateZoundShared(Zound zound, System.Action<Zound> inside = null) {
+            ZoundsWindow.ModifyZoundsProject("duplicate zound", () => {
+                var duplicatedZound = AudioAssetUtility.DuplicateZound(zound) as Zound;
+                inside?.Invoke(duplicatedZound);
+            });
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -1129,6 +1160,12 @@ namespace Laubrary.Zounds {
         }
 
         internal void ConvertClipToKlip(ClipZound clipZound) {
+            ConvertClipToKlipShared(clipZound);
+            filterCache = null;
+        }
+
+        /// <summary>Wraps an audio file in a new Klip (the Browser's Convert). Shared with the UI Toolkit twin.</summary>
+        internal static void ConvertClipToKlipShared(ClipZound clipZound) {
             ZoundsAssetPostProcessor.audioClipZoundsCache.Remove(clipZound);
             ZoundsWindow.ModifyZoundsProject("convert to klip", () => {
                 var newKlip = new Klip(ZoundLibrary.GetUniqueZoundId());
@@ -1140,11 +1177,17 @@ namespace Laubrary.Zounds {
                 newKlip.pitchEnvelope  = new Envelope(Zound.MinPitchRange,  Zound.MaxPitchRange);
                 if (ZoundEngine.IsInitialized()) ZoundDictionary.ValidateZoundRuntime(newKlip);
                 OnKlipAdded(newKlip);
-                filterCache = null;
             }, true);
         }
 
         internal void ConvertKlipToZequence(Klip klip) {
+            ConvertKlipToZequenceShared(klip);
+            filterCache = null;
+        }
+
+        /// <summary>Turns a top-level Klip into a Zequence holding it as a local klip (the Browser's Convert to Zequence).
+        /// Shared with the UI Toolkit twin.</summary>
+        internal static void ConvertKlipToZequenceShared(Klip klip) {
             ZoundsWindow.ModifyZoundsProject("convert to zequence", () => {
                 ZoundsProject.Instance.zoundLibrary.klips.Remove(klip);
                 var existingID = klip.id;
@@ -1170,7 +1213,6 @@ namespace Laubrary.Zounds {
                 newEntry.local = true;
                 newZeq.zoundEntries.Add(newEntry);
                 OnZequenceAdded(newZeq);
-                filterCache = null;
             }, true);
         }
 
@@ -1313,7 +1355,7 @@ namespace Laubrary.Zounds {
 
         // Row-1 order (left→right): [Edit][Mute|Solo][ZoundBtn][NameInput][V][P][C][Route|Conv|Dup|Del][Tags if fits]
         // Row 2 (optional): full-width tag strip, drawn only when tags overflow row 1.
-        private ZoundListRowLayout ComputeListRowLayout(float itemWidth, ZoundsProject.BrowserSettings browserSettings) {
+        private static ZoundListRowLayout ComputeListRowLayout(float itemWidth, ZoundsProject.BrowserSettings browserSettings, float spacing, float muteSoloGap) {
             var layout = new ZoundListRowLayout();
             layout.itemWidth = itemWidth;
 
@@ -1331,16 +1373,15 @@ namespace Laubrary.Zounds {
             // that so Edit and Duplicate render at the same pixel width. When no right-group
             // buttons are shown we can't derive a per-cell width, so fall back to ROW_BUTTON_WIDTH.
             float rightCellW = rightBtnCount > 0
-                ? (layout.rightGroupWidth - ZoundItem_spacing * (rightBtnCount - 1)) / rightBtnCount
+                ? (layout.rightGroupWidth - spacing * (rightBtnCount - 1)) / rightBtnCount
                 : buttonWidth;
             layout.editRectWidth = browserSettings.showOpenEditor ? rightCellW : 0f;
             // Mute/Solo is now always a horizontal pair (no vertical stacking).
             // Single cell = 22px, pair = 22 + gap + 22.
             bool bothMS = browserSettings.showMute && browserSettings.showSolo;
             layout.muteSoloWidth = (browserSettings.showMute || browserSettings.showSolo)
-                ? (bothMS ? MS_CELL_WIDTH + MUTE_SOLO_GAP + MS_CELL_WIDTH : MS_CELL_WIDTH) : 0f;
+                ? (bothMS ? MS_CELL_WIDTH + muteSoloGap + MS_CELL_WIDTH : MS_CELL_WIDTH) : 0f;
 
-            layout.lastValidSize = _listRowLayout.lastValidSize;
             return layout;
         }
 
@@ -1365,17 +1406,30 @@ namespace Laubrary.Zounds {
         // width, auto-sized NameInput width, the rest via ComputeListRowLayout) for the given
         // candidate set, without touching _listRowLayout or drawing anything.
         internal ZoundListRowLayout PrepareListRowLayout(List<Zound> zounds) {
+            var layout = PrepareListRowLayoutShared(zounds, ZoundItem_spacing, MUTE_SOLO_GAP);
+            layout.lastValidSize = _listRowLayout.lastValidSize;
+            return layout;
+        }
+
+        private static readonly GUIContent s_measureContent = new GUIContent();
+
+        /// <summary>The pass's fixed row widths for <paramref name="zounds"/> (see <see cref="PrepareListRowLayout"/>),
+        /// without the IMGUI pass's remembered row width. Shared with the UI Toolkit twin (T-0470), which passes the
+        /// sheet's spacings as copied values and measures a name button's width itself (<paramref name="measureZoundBtn"/>):
+        /// outside the old window's draw pass the active ZUI sheet is not necessarily the Zounds one.</summary>
+        internal static ZoundListRowLayout PrepareListRowLayoutShared(List<Zound> zounds, float itemSpacing, float muteSoloGap,
+                                                                      System.Func<string, float> measureZoundBtn = null) {
             var browserSettings = ZoundsProject.Instance.browserSettings;
             var sizeMode = browserSettings.buttonSizeMode;
             float itemWidth = browserSettings.itemWidth;
 
             if (sizeMode != ZoundsProject.BrowserSettings.ButtonSizeMode.Fixed) {
-                var btnStyle = ZUI.GetButtonStyle(ZUI.Style.ZoundBtn);
+                var btnStyle = measureZoundBtn == null ? ZUI.GetButtonStyle(ZUI.Style.ZoundBtn) : null;
                 float maxW = 0f;
                 foreach (var z in zounds) {
                     if (z == null) continue;
-                    zoundButtonContent.text = z.name;
-                    maxW = Mathf.Max(maxW, btnStyle.CalcSize(zoundButtonContent).x);
+                    s_measureContent.text = z.name;
+                    maxW = Mathf.Max(maxW, measureZoundBtn != null ? measureZoundBtn(z.name) : btnStyle.CalcSize(s_measureContent).x);
                 }
                 if (sizeMode == ZoundsProject.BrowserSettings.ButtonSizeMode.Min)
                     maxW = Mathf.Max(maxW, itemWidth);
@@ -1391,13 +1445,13 @@ namespace Laubrary.Zounds {
                 float maxNameW = 0f;
                 foreach (var z in zounds) {
                     if (z == null) continue;
-                    tempContent.text = z.name;
-                    maxNameW = Mathf.Max(maxNameW, textFieldStyle.CalcSize(tempContent).x);
+                    s_measureContent.text = z.name;
+                    maxNameW = Mathf.Max(maxNameW, textFieldStyle.CalcSize(s_measureContent).x);
                 }
                 nameInputW = Mathf.Clamp(maxNameW + NAME_INPUT_PADDING, MIN_NAME_INPUT_WIDTH, MAX_NAME_INPUT_WIDTH);
             }
 
-            var layout = ComputeListRowLayout(itemWidth, browserSettings);
+            var layout = ComputeListRowLayout(itemWidth, browserSettings, itemSpacing, muteSoloGap);
             layout.nameInputWidth = nameInputW;
             return layout;
         }
@@ -1488,104 +1542,12 @@ namespace Laubrary.Zounds {
 
             // ── Missing zound: just name box + remove button, single row ────────
             if (isMissingZound) {
-                layout.tagsOnSeparateRow = false;
-                layout.editButtonRect  = new Rect(rowRect.x, rowRect.y, layout.editRectWidth, ROW_HEIGHT);
-                layout.muteSoloRect    = Rect.zero;
-                layout.nameInputRect   = Rect.zero;
-                layout.volumeRect      = Rect.zero;
-                layout.pitchRect       = Rect.zero;
-                layout.chanceRect      = Rect.zero;
-                layout.tagsInlineRect  = Rect.zero;
-                layout.tagsRowRect     = Rect.zero;
-                float rightX = browserSettings.showRemove ? rowRect.xMax - ROW_BUTTON_WIDTH : rowRect.xMax;
-                float rightW = browserSettings.showRemove ? ROW_BUTTON_WIDTH : 0f;
-                layout.rightGroupRect  = new Rect(rightX, rowRect.y, rightW, ROW_HEIGHT);
-                float nameL = layout.editButtonRect.xMax;
-                float nameR = rightW > 0 ? (layout.rightGroupRect.x - ZoundItem_spacing) : rowRect.xMax;
-                layout.nameButtonRect = new Rect(nameL, rowRect.y, Mathf.Max(0f, nameR - nameL), ROW_HEIGHT);
-                layout.itemAreaRect   = rowRect;
+                ComputeRowRects(ref layout, rowRect, true);
                 ZoundListItemView.Draw(currentZound, ref layout, zoundBrowserEditor, this);
                 return;
             }
 
-            // ── Fixed widths ────────────────────────────────────────────────────
-            // Every row uses the same widths — no per-zound measurement. This keeps all
-            // controls aligned vertically across rows regardless of tag content.
-            float editW       = layout.editRectWidth;
-            float msW         = layout.muteSoloWidth;
-            float rightW_     = layout.rightGroupWidth;
-            float editToMSGap = (editW > 0 && msW > 0) ? ZoundItem_spacing : 0f;
-            float leftBlockW  = editW + editToMSGap + msW;
-            float leftToBtnGap = leftBlockW > 0 ? LEFT_BUTTONS_TO_NAME_GAP : 0f;
-            float rightGapL   = rightW_ > 0 ? ZoundItem_spacing : 0f;
-
-            // Inline tag area: fixed width if tags share row 1, zero if tags live on their own row(s).
-            float tagsInlineAreaW = (browserSettings.showTags && !tagsOwnRowMode) ? TAGS_INLINE_AREA_WIDTH : 0f;
-            float tagsGapL        = tagsInlineAreaW > 0f ? ZoundItem_spacing : 0f;
-
-            // ── Flex budget ─────────────────────────────────────────────────────
-            // ZoundBtn is fixed at layout.itemWidth (auto-sized to longest name).
-            // NameInput is fixed at layout.nameInputWidth (auto-sized to longest name in textField font).
-            // V/P/C share whatever remains — equal split.
-            bool showName   = browserSettings.showNameField;
-            bool showVol    = browserSettings.showVolume;
-            bool showPitch  = browserSettings.showPitch;
-            bool showChance = browserSettings.showChance;
-            float nameW = showName ? layout.nameInputWidth : 0f;
-            float nameGapL = showName ? ZoundItem_spacing : 0f;
-
-            int flexCount = 0;
-            if (showVol)    flexCount++;
-            if (showPitch)  flexCount++;
-            if (showChance) flexCount++;
-            float flexGapsW = flexCount * ZoundItem_spacing; // gap before each flex slot
-
-            float fixedConsumed = leftBlockW + leftToBtnGap + layout.itemWidth
-                                  + nameGapL + nameW + flexGapsW
-                                  + rightGapL + rightW_ + tagsGapL + tagsInlineAreaW;
-            float flexBudget = Mathf.Max(0f, rowRect.width - fixedConsumed);
-
-            // Weighted flex distribution. V and P get 2 shares each, C gets 1.
-            float weightSum = 0f;
-            if (showVol)    weightSum += FLEX_WEIGHT_VOLUME;
-            if (showPitch)  weightSum += FLEX_WEIGHT_PITCH;
-            if (showChance) weightSum += FLEX_WEIGHT_CHANCE;
-            float unit = weightSum > 0f ? flexBudget / weightSum : 0f;
-
-            float volW = showVol    ? unit * FLEX_WEIGHT_VOLUME : 0f;
-            float pW   = showPitch  ? unit * FLEX_WEIGHT_PITCH  : 0f;
-            float cW   = showChance ? unit * FLEX_WEIGHT_CHANCE : 0f;
-
-            // ── Place row-1 rects ──────────────────────────────────────────────
-            float x = rowRect.x;
-            layout.editButtonRect = new Rect(x, rowRect.y, editW, ROW_HEIGHT); x += editW;
-            if (editW > 0 && msW > 0) x += editToMSGap;
-            layout.muteSoloRect   = new Rect(x, rowRect.y, msW, ROW_HEIGHT);   x += msW;
-            if (leftBlockW > 0) x += leftToBtnGap;
-
-            layout.nameButtonRect = new Rect(x, rowRect.y, layout.itemWidth, ROW_HEIGHT);
-            x = layout.nameButtonRect.xMax;
-
-            if (showName)   { x += ZoundItem_spacing; layout.nameInputRect = new Rect(x, rowRect.y, nameW, ROW_HEIGHT); x += nameW; }
-            else            { layout.nameInputRect = Rect.zero; }
-            if (showVol)    { x += ZoundItem_spacing; layout.volumeRect    = new Rect(x, rowRect.y, volW,  ROW_HEIGHT); x += volW;  }
-            else            { layout.volumeRect = Rect.zero; }
-            if (showPitch)  { x += ZoundItem_spacing; layout.pitchRect     = new Rect(x, rowRect.y, pW,    ROW_HEIGHT); x += pW;    }
-            else            { layout.pitchRect = Rect.zero; }
-            if (showChance) { x += ZoundItem_spacing; layout.chanceRect    = new Rect(x, rowRect.y, cW,    ROW_HEIGHT); x += cW;    }
-            else            { layout.chanceRect = Rect.zero; }
-
-            if (rightW_ > 0) { x += rightGapL; layout.rightGroupRect = new Rect(x, rowRect.y, rightW_, ROW_HEIGHT); x += rightW_; }
-            else             { layout.rightGroupRect = Rect.zero; }
-
-            if (tagsInlineAreaW > 0f) {
-                x += tagsGapL;
-                layout.tagsInlineRect = new Rect(x, rowRect.y, tagsInlineAreaW, ROW_HEIGHT);
-            }
-            else {
-                layout.tagsInlineRect = Rect.zero;
-            }
-
+            ComputeRowRects(ref layout, rowRect, false);
             // ── Optional row 2+ for tags-on-own-row mode ────────────────────────
             // When a tag row is emitted, we also insert a named ZUI vertical spacing after it
             // ("V Zounds Tag Gap") so the user can tune the breathing room between the tag row
@@ -1616,6 +1578,117 @@ namespace Laubrary.Zounds {
                 : rowRect;
 
             ZoundListItemView.Draw(currentZound, ref layout, zoundBrowserEditor, this);
+        }
+
+        /// <summary>
+        /// Row 1's rects (left → right: Edit, Mute|Solo, ZoundBtn, NameInput, V, P, C, the right group, inline tags) for a
+        /// row at <paramref name="rowRect"/>, from the pass's fixed widths in <paramref name="layout"/>. Pure geometry —
+        /// shared by the IMGUI list and its UI Toolkit twin (T-0470) so both place every control identically.
+        /// A missing zound gets only its name box and Remove.
+        /// </summary>
+        internal static void ComputeRowRects(ref ZoundListRowLayout layout, Rect rowRect, bool isMissingZound, float spacing = -1f) {
+            if (spacing < 0f) spacing = ZoundItem_spacing;
+            var browserSettings = ZoundsProject.Instance.browserSettings;
+            bool tagsOwnRowMode = browserSettings.showTags && browserSettings.tagsOnOwnRow;
+            layout.rowRect = rowRect;
+            if (isMissingZound) {
+                layout.tagsOnSeparateRow = false;
+                layout.editButtonRect  = new Rect(rowRect.x, rowRect.y, layout.editRectWidth, ROW_HEIGHT);
+                layout.muteSoloRect    = Rect.zero;
+                layout.nameInputRect   = Rect.zero;
+                layout.volumeRect      = Rect.zero;
+                layout.pitchRect       = Rect.zero;
+                layout.chanceRect      = Rect.zero;
+                layout.tagsInlineRect  = Rect.zero;
+                layout.tagsRowRect     = Rect.zero;
+                float rightX = browserSettings.showRemove ? rowRect.xMax - ROW_BUTTON_WIDTH : rowRect.xMax;
+                float rightW = browserSettings.showRemove ? ROW_BUTTON_WIDTH : 0f;
+                layout.rightGroupRect  = new Rect(rightX, rowRect.y, rightW, ROW_HEIGHT);
+                float nameL = layout.editButtonRect.xMax;
+                float nameR = rightW > 0 ? (layout.rightGroupRect.x - spacing) : rowRect.xMax;
+                layout.nameButtonRect = new Rect(nameL, rowRect.y, Mathf.Max(0f, nameR - nameL), ROW_HEIGHT);
+                layout.itemAreaRect   = rowRect;
+                return;
+            }
+
+            // ── Fixed widths ────────────────────────────────────────────────────
+            // Every row uses the same widths — no per-zound measurement. This keeps all
+            // controls aligned vertically across rows regardless of tag content.
+            float editW       = layout.editRectWidth;
+            float msW         = layout.muteSoloWidth;
+            float rightW_     = layout.rightGroupWidth;
+            float editToMSGap = (editW > 0 && msW > 0) ? spacing : 0f;
+            float leftBlockW  = editW + editToMSGap + msW;
+            float leftToBtnGap = leftBlockW > 0 ? LEFT_BUTTONS_TO_NAME_GAP : 0f;
+            float rightGapL   = rightW_ > 0 ? spacing : 0f;
+
+            // Inline tag area: fixed width if tags share row 1, zero if tags live on their own row(s).
+            float tagsInlineAreaW = (browserSettings.showTags && !tagsOwnRowMode) ? TAGS_INLINE_AREA_WIDTH : 0f;
+            float tagsGapL        = tagsInlineAreaW > 0f ? spacing : 0f;
+
+            // ── Flex budget ─────────────────────────────────────────────────────
+            // ZoundBtn is fixed at layout.itemWidth (auto-sized to longest name).
+            // NameInput is fixed at layout.nameInputWidth (auto-sized to longest name in textField font).
+            // V/P/C share whatever remains — equal split.
+            bool showName   = browserSettings.showNameField;
+            bool showVol    = browserSettings.showVolume;
+            bool showPitch  = browserSettings.showPitch;
+            bool showChance = browserSettings.showChance;
+            float nameW = showName ? layout.nameInputWidth : 0f;
+            float nameGapL = showName ? spacing : 0f;
+
+            int flexCount = 0;
+            if (showVol)    flexCount++;
+            if (showPitch)  flexCount++;
+            if (showChance) flexCount++;
+            float flexGapsW = flexCount * spacing; // gap before each flex slot
+
+            float fixedConsumed = leftBlockW + leftToBtnGap + layout.itemWidth
+                                  + nameGapL + nameW + flexGapsW
+                                  + rightGapL + rightW_ + tagsGapL + tagsInlineAreaW;
+            float flexBudget = Mathf.Max(0f, rowRect.width - fixedConsumed);
+
+            // Weighted flex distribution. V and P get 2 shares each, C gets 1.
+            float weightSum = 0f;
+            if (showVol)    weightSum += FLEX_WEIGHT_VOLUME;
+            if (showPitch)  weightSum += FLEX_WEIGHT_PITCH;
+            if (showChance) weightSum += FLEX_WEIGHT_CHANCE;
+            float unit = weightSum > 0f ? flexBudget / weightSum : 0f;
+
+            float volW = showVol    ? unit * FLEX_WEIGHT_VOLUME : 0f;
+            float pW   = showPitch  ? unit * FLEX_WEIGHT_PITCH  : 0f;
+            float cW   = showChance ? unit * FLEX_WEIGHT_CHANCE : 0f;
+
+            // ── Place row-1 rects ──────────────────────────────────────────────
+            float x = rowRect.x;
+            layout.editButtonRect = new Rect(x, rowRect.y, editW, ROW_HEIGHT); x += editW;
+            if (editW > 0 && msW > 0) x += editToMSGap;
+            layout.muteSoloRect   = new Rect(x, rowRect.y, msW, ROW_HEIGHT);   x += msW;
+            if (leftBlockW > 0) x += leftToBtnGap;
+
+            layout.nameButtonRect = new Rect(x, rowRect.y, layout.itemWidth, ROW_HEIGHT);
+            x = layout.nameButtonRect.xMax;
+
+            if (showName)   { x += spacing; layout.nameInputRect = new Rect(x, rowRect.y, nameW, ROW_HEIGHT); x += nameW; }
+            else            { layout.nameInputRect = Rect.zero; }
+            if (showVol)    { x += spacing; layout.volumeRect    = new Rect(x, rowRect.y, volW,  ROW_HEIGHT); x += volW;  }
+            else            { layout.volumeRect = Rect.zero; }
+            if (showPitch)  { x += spacing; layout.pitchRect     = new Rect(x, rowRect.y, pW,    ROW_HEIGHT); x += pW;    }
+            else            { layout.pitchRect = Rect.zero; }
+            if (showChance) { x += spacing; layout.chanceRect    = new Rect(x, rowRect.y, cW,    ROW_HEIGHT); x += cW;    }
+            else            { layout.chanceRect = Rect.zero; }
+
+            if (rightW_ > 0) { x += rightGapL; layout.rightGroupRect = new Rect(x, rowRect.y, rightW_, ROW_HEIGHT); x += rightW_; }
+            else             { layout.rightGroupRect = Rect.zero; }
+
+            if (tagsInlineAreaW > 0f) {
+                x += tagsGapL;
+                layout.tagsInlineRect = new Rect(x, rowRect.y, tagsInlineAreaW, ROW_HEIGHT);
+            }
+            else {
+                layout.tagsInlineRect = Rect.zero;
+            }
+
         }
 
         // ═══════════════════════════════════════════════════════════════════════

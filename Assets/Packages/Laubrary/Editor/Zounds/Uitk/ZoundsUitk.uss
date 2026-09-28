@@ -141,3 +141,80 @@
 .zs-root .zs-imgui-field.unity-toggle > .unity-toggle__input { flex-shrink: 0; width: 14px; min-width: 14px; }
 /* EditorGUI.BeginFoldoutHeaderGroup's band behind the title: solid rgb(56,56,56) over the whole 18 px label rect (measured) */
 .zs-root .zs-foldoutheader > .unity-foldout__toggle { background-color: rgb(56,56,56); }
+
+/* ── the main window (T-0470) ── */
+/* The old window draws from the window's edge like the Zequence window: no 3 px offset. */
+.zs-root.zs-mainwindow { padding: 0; }
+/* EditorGUILayout fields with the label widths the old tab sets for them */
+.zs-root .zs-label-34 > .unity-base-field__label { width: 34px; min-width: 34px; }
+.zs-root .zs-label-45 > .unity-base-field__label { width: 45px; min-width: 45px; }
+.zs-root .zs-label-65 > .unity-base-field__label { width: 65px; min-width: 65px; }
+.zs-root .zs-label-80 > .unity-base-field__label { width: 80px; min-width: 80px; }
+.zs-root .zs-label-110 > .unity-base-field__label { width: 110px; min-width: 110px; }
+/* GUILayout.Button with the editor's own button style, in a row: no outer margin, the row gives the spacing */
+.zs-root .zs-imgui-button { margin: 0 0 0 4px; height: 18px; }
+/* The fancy title: ZTextStyle.Title — the sheet's 50 px outlined text on the editor label */
+.zs-root .zs-title { padding: 0 2px 0 2px; margin: 0; -unity-text-align: upper-center; white-space: nowrap; }
+/* The gear: GUILayout.Button(icon, EditorStyles.label, 18 x 18) */
+.zs-root .zs-gear.unity-button { width: 18px; height: 18px; margin: 0; padding: 1px; background-color: rgba(0,0,0,0); border-width: 0; flex-shrink: 0; }
+.zs-root .zs-gear.unity-button:hover { background-color: rgba(0,0,0,0); }
+.zs-root .zs-gear > .unity-image { width: 16px; height: 16px; }
+/* The search box: EditorStyles.textField at 13 px, 26 high, and its grey "Search..." when empty */
+.zs-root .zs-search { margin: 0; height: 26px; }
+.zs-root .zs-search > .unity-base-text-field__input { font-size: 13px; margin: 0; }
+.zs-root .zs-search__ghost { position: absolute; left: 0; top: 0; bottom: 0; padding-left: 5px; font-size: 13px; color: rgb(128,128,128); -unity-text-align: middle-left; }
+.zs-root .zs-searchclear { width: 26px; height: 26px; }
+/* GUILayout.Toolbar: joined segments; the pressed one in the editor's selection blue */
+.zs-root .zs-segment.unity-button { margin: 0; height: 30px; border-radius: 0; }
+.zs-root .zs-segment--left.unity-button { border-top-left-radius: 3px; border-bottom-left-radius: 3px; }
+.zs-root .zs-segment--right.unity-button { border-top-right-radius: 3px; border-bottom-right-radius: 3px; }
+.zs-root .zs-segment.zs-on.unity-button { background-color: rgb(70,96,124); }
+/* The tags-row "T": EditorStyles.miniButton at 26 x 30 */
+.zs-root .zs-minibutton.unity-button { margin: 0; width: 26px; height: 30px; font-size: 11px; }
+.zs-root .zs-minibutton.zs-on.unity-button { background-color: rgb(70,96,124); }
+/* A group's heading in the list: EditorGUILayout.LabelField with the bold label */
+.zs-root .zs-grouplabel { height: 18px; margin: -0.5px 0 1.5px 0; padding-left: 4.5px; }
+/* The grid inspector: EditorStyles.helpBox */
+.zs-root .zs-helpbox { background-color: rgb(64,64,64); border-width: 1px; border-color: rgb(35,35,35); border-radius: 3px; padding: 4px; margin: 2px 0 2px 0; }
+/* The tags on their own row or zone: word-wrapped, anchored top-left */
+.zs-root .zs-tagsfield--multiline.unity-button { white-space: normal; }
+/* The settings panel's toggles: RichToggle, 18 high, as wide as their text allows between 28 and 90 */
+.zs-root .zs-settingtoggle { min-width: 28px; max-width: 90px; flex-grow: 1; }
+/* ZUI.Style.Active on a toolbar button (Tags / Grouping while a filter is on): the Zounds sheet has no Active style, so ZUI
+   falls back to its Default look — measured on the old toolbar: green 57,76,36 inside the 32,79,124 border */
+.zs-root .zs-Active.unity-button { background-color: rgb(57,76,36); border-color: rgb(32,79,124); color: rgb(255,228,198); }
+/* Measured placements on the old Browser (T-0470, pt): the title box starts 0.4 lower and ends 0.9 lower; the presets bar
+   sits 11.3 below it; the search box 12 below the presets and the toolbar 8 below the search box; the volume track's
+   centre sits 5.8 above the search box's. */
+.zs-root .zs-mainwindow .zs-box-default { margin-top: 0.4px; }
+.zs-root .zs-title { padding-bottom: 0.5px; }
+.zs-root .zs-presets { margin-top: 0.4px; }
+.zs-root .zs-searchvolume { margin-top: 1.8px; margin-bottom: -1.8px; }
+.zs-root .zs-searchvolume > .zs-slider-bigslider { margin-top: -4.7px; margin-bottom: 4.7px; }
+.zs-root .zs-searchrow > .zs-imgui-button { margin-left: 2px; }
+/* The master volume's label sits 6 pt into its half (measured) */
+.zs-root .zs-searchvolume > .zs-slider-bigslider .zui-skinslider__label { padding-left: 4px; }
+/* A button whose face is only an icon: no text padding, so the old narrow widths are kept */
+.zs-root .zs-iconbutton.unity-button { padding: 0; }
+/* The list's name box: EditorGUI.DelayedTextField 24 high, its text at the top as the editor draws it */
+.zs-root .zs-rowname > .unity-base-text-field__input { -unity-text-align: upper-left; }
+/* GUILayout.Toolbar / miniButton inside the 30 pt toolbar row, as measured: 29 high 1.5 below the row top; the layout pair
+   2.5 after the gap, the "T" 6 after it (23.5 x 15.5, 2.5 down), All/Recent 4 after the gap */
+.zs-root .zs-toolbar > .zs-segments { margin-top: 1.5px; height: 29px; }
+.zs-root .zs-toolbar > .zs-segments .zs-segment.unity-button { height: 29px; }
+.zs-root .zs-toolbar > .zs-segments--layout { margin-left: 2.5px; }
+.zs-root .zs-toolbar > .zs-segments--mode { margin-left: 4px; }
+.zs-root .zs-tagsrow.unity-button { margin: 2.5px 0 0 6px; width: 23.5px; height: 15.5px; padding: 0; }
+/* A toolbar Flat button is its text plus 10.5 pt (measured), narrower than the sheet's padding: the text is centred */
+.zs-root .zs-toolbarbutton.unity-button, .zs-root .zs-toolbarbutton { padding: 0 5px 0 5px; }
+/* The row buttons' icons: IMGUI draws them larger than their 16 px texture box (measured 19.2); the Add button's 20 */
+.zs-root .zs-iconbutton > .zs-buttonicon { width: 19.2px; height: 19.2px; }
+.zs-root .zs-iconbutton > .zs-toolbaricon { width: 20px; height: 20px; }
+/* A preset button: the Default style's CalcSize plus 8 = its text plus 16 (padding 7 + border 1 each side) */
+.zs-root .zs-presetbutton.unity-button, .zs-root .zs-presetbutton { padding: 0 7px 0 7px; }
+/* The settings panel's vertical rhythm, measured on the old tab: the panel starts 3 pt lower (the animated foldout's
+   frame), the project row takes 2 more, a section title is an 18 pt line 2 pt lower than the plain label, the skin row 3 more. */
+.zs-root .zs-settings { margin-top: 3px; }
+.zs-root .zs-settings > .zs-projectrow { margin-bottom: 2px; }
+.zs-root .zs-settings > .zs-subheader { margin-top: 2px; height: 18px; -unity-text-align: upper-left; }
+.zs-root .zs-settings > .zs-skinrow { margin-bottom: 3px; }

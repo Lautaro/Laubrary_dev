@@ -13,6 +13,12 @@ namespace Laubrary.Zounds.Uitk {
     /// </summary>
     public static class ZS {
 
+        /// <summary>The sheet's "H Btns Big" and "H Btns Medium" spacings (horizontal spacing 5 × scale 2), copied once:
+        /// the Browser's gap between a row's controls, and between Mute/Solo cells and toolbar buttons.</summary>
+        public const float ItemSpacing = 10f, MediumSpacing = 10f;
+        /// <summary>The sheet's vertical spacing: ZUI.RowSpace().</summary>
+        public const float RowSpace = 10f;
+
         const string SkinPath = ZoundsSkinExtractor.SkinFolder + "/ZoundsSkin.uss";
         static StyleSheet s_skin;
 
