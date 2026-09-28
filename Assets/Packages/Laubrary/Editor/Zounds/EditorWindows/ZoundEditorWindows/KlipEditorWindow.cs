@@ -5,17 +5,11 @@ using UnityEngine;
 
 namespace Laubrary.Zounds {
 
-    public class KlipEditorWindow : BaseZoundEditorWindow<Klip, KlipEditorWindow>, IHasCustomMenu {
-
-        /// <summary>
-        /// Opens this sound's UI Toolkit twin (T-0456, owner's decision D3). In the window's own menu (the tab's ⋮)
-        /// rather than as a button in the window, so the old window's layout stays exactly what the twin is compared
-        /// against. Temporary: goes when the old window retires.
-        /// </summary>
-        public void AddItemsToMenu(GenericMenu menu) {
-            if (targetZound == null) return;
-            menu.AddItem(new GUIContent("Open UI Toolkit version"), false, () => Uitk.KlipEditorWindowTK.Open(targetZound, isLocalZound));
-        }
+    /// <summary>
+    /// The old IMGUI Klip editor. Since 2026-09-28 the UI Toolkit one is the main Klip editor and every route opens it;
+    /// this one is kept, working, for side-by-side comparison, reached from the new editor's tab ⋮ ("Open IMGUI version").
+    /// </summary>
+    public class KlipEditorWindow : BaseZoundEditorWindow<Klip, KlipEditorWindow> {
 
 
         [SerializeField] private AudioSpectrumView spectrumView;

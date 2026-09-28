@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — the UI Toolkit windows are now the main Zounds windows
+
+- **Owner's decision (2026-09-28):** "Make UITK version the main one. IMGUI should be kept but its not important to open it from the main zounds UI."
+- **Laubrary > Zounds Window** opens the UI Toolkit main window, and so does the Zounds project asset's "Open Zounds Window" button.
+- **Every route that opens a Klip or Zequence editor opens the UI Toolkit one:** both browsers, the Monitor, a Zequence's entries (old window and new), and a Zequence rendered to a Klip. A Looper's controls are only in the new Klip editor.
+- **An editor already open for that sound is brought forward** instead of a second copy opening, as the old editors always did.
+- **The old IMGUI windows are kept, working, for comparison:** each UI Toolkit window's tab ⋮ menu has "Open IMGUI version". The old windows' "Open UI Toolkit version" items are gone, and no menu-bar entry was added.
+- **Titles:** the new windows drop "(UITK)", and the old ones now read "(IMGUI)". The side-by-side comparison harness finds windows by exact title, and still does, since the two titles differ.
+- **Fix, old editors restored from a saved layout:** reopening a sound whose old editor had been restored but not yet drawn created a duplicate, because such a window registers itself only when it first draws. The opener now also looks at the windows that actually exist.
+- **Fix, after a script reload:** the main window came back empty, and the Klip editor half-built with its waveform throwing on every refresh. The UI Toolkit windows rebuild before Unity's built-in editor styles exist, and some shared measurements read those styles; the windows now wait until they do. The Klip editor's waveform model is no longer carried across a reload half-built; it is released beforehand and made fresh afterwards.
+
+### Zounds — Looper: a Klip that loops seamlessly, with a fixed or random crossmix (T-0473)
+
+- **A Klip can be a Looper:** it plays its trimmed region over and over until it is stopped; the trim points are the loop points. It stays a Klip, so it keeps its chain, ranges and save format, and it can be an entry in a Zequence of any mode.
+- **Crossmix:** 0 simply starts the loop over at the end. Above 0, a second copy starts from the loop's start that long before the end, and the two cross-fade over exactly that length.
+  - A range (the same two-handle control as volume and pitch) makes every loop draw its own length. The draw comes from a hash of the play and the loop count, never from a managed random source.
+  - The longest crossmix is half the loop, applied to the top of the range.
+- **Seamless by measurement:**
+  - Each seam is nudged by up to 5 ms to where the two copies line up.
+  - The fade gains are matched to how alike the copies measure, so the level stays flat. Plain fades dipped a tone by up to 8.6 dB and noise by 3.1 dB.
+  - Loop ends are whole samples.
+  - Both copies run in one voice, sample-accurate.
+- **Live edits:** trim and crossmix changes are heard at once on a Looper already playing.
+- **Klip editor:** a Looper row (toggle + crossmix range), and the waveform shades the parts of the start and end the crossmix uses: faint to the longest length, stronger to the shortest. Playheads follow the real read positions, two during a fade.
+- **Browsers:** clicking a playing Looper stops it rather than stacking another endless copy.
+- **Monitor:** a Looper reads "looping" rather than an infinite length.
+- **Kept check 16** (Laubrary/Zounds/Checks) measures the seams, level, draws, live edits, release and block-size independence.
+- **Known limit:** with Live speed on, a Looper loops through the stretcher's own wrap, without a crossmix.
+- **Quit (T-0449):** voices are torn down as the application starts quitting, before the audio system shuts down. Not yet confirmed in a player build.
+
 ### Zounds — live speed: a sound's speed can change while it plays, without changing its pitch (T-0409)
 
 - **Engine:** a real-time WSOLA stretcher in the source stage (Granular as the alternate), ported from the research prototype (`D:\UNITY\ZoundsStretchTest`): sub-sample alignment, each detected hit laid down once at speed 1, and the time a hit borrowed repaid afterwards. Windows are read through the existing cubic source read at clip-rate × pitch, so sample-rate conversion and Pitch work unchanged; Speed is a time-scale on top of Pitch. One stretcher state per read slot, so repeats stretch too. Only sounds with Live speed on use it; every other sound reads its source directly, exactly as before.

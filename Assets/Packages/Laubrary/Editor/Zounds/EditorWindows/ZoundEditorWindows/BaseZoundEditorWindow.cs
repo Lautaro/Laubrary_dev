@@ -38,7 +38,16 @@ namespace Laubrary.Zounds {
                 windows = new Dictionary<int, BaseZoundEditorWindow<TZound, TSelf>>();
                 allWindows.Add(typeof(TWindow), windows);
             }
-            if (!windows.TryGetValue(zound.id, out var window)) {
+            // A window restored from a saved layout registers itself only when it first initialises (on its first draw
+            // if the project was not loaded yet), so the registry can miss it; look at the windows that actually exist
+            // before making a second one for the same zound. Seen 2026-09-28: a restored, not-yet-drawn Klip window
+            // got a duplicate.
+            if (!windows.TryGetValue(zound.id, out var window) || window == null) {
+                foreach (var existing in Resources.FindObjectsOfTypeAll<TWindow>()) {
+                    if (existing != null && existing.targetZoundID == zound.id) { window = existing; windows[zound.id] = existing; break; }
+                }
+            }
+            if (window == null) {
                 window = CreateInstance<TWindow>();
                 window.targetZoundID = zound.id;
                 window.minSize = minSize;
@@ -112,7 +121,9 @@ namespace Laubrary.Zounds {
                     }
                 }
             }
-            titleContent.text = windowTitle;
+            // The old IMGUI editors are kept for comparison since the UI Toolkit ones became the main ones (2026-09-28);
+            // the suffix says which is which, and keeps the two titles distinct for the side-by-side capture.
+            titleContent.text = windowTitle + " (IMGUI)";
         }
 
         protected virtual void OnInit() {

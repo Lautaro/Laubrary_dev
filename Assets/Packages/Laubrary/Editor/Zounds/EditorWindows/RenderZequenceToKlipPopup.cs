@@ -207,7 +207,7 @@ namespace Laubrary.Zounds {
                     //ZoundsWindowProperties.Instance.selectedZoundTab = 0;
                     //ZoundsWindow.RepaintWindow();
                     //KlipsTab.Instance.SelectZound(newKlip);
-                    BrowserTab.Instance?.OpenZoundEditor(newKlip);
+                    Uitk.KlipEditorWindowTK.Open(newKlip, false);
                 }, true);
             });
             // Start after the recorder is running so the render captures the very first samples.

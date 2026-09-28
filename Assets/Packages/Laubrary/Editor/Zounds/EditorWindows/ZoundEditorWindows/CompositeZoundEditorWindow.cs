@@ -476,14 +476,9 @@ namespace Laubrary.Zounds {
             if (ZUI.Button(labelRect, zound.name, ZUI.Style.RichButton, ZUICornerMask.Left)) {
                 int buttonCode = Event.current.button;
                 if (buttonCode == 0) {
-                    if (zound is Klip k) {
-                        var w = KlipEditorWindow.OpenWindow(k);
-                        if (entry.local) w.isLocalZound = true;
-                    }
-                    else if (zound is Zequence z) {
-                        var w = ZequenceEditorWindow.OpenWindow(z);
-                        if (entry.local) w.isLocalZound = true;
-                    }
+                    // The main (UI Toolkit) editors, as every other route (2026-09-28).
+                    if (zound is Klip k) Uitk.KlipEditorWindowTK.Open(k, entry.local);
+                    else if (zound is Zequence z) Uitk.ZequenceEditorWindowTK.Open(z, entry.local);
                 }
                 else if (buttonCode == 1) {
 

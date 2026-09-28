@@ -35,9 +35,14 @@ namespace Laubrary.Zounds.Uitk {
         IVisualElementScheduledItem tick, live;
         bool wasLoaded;
 
+        // The main Zounds window since 2026-09-28 (owner: "Make UITK version the main one"), so it owns the menu item.
+        // Not "Laubrary/Zounds": that path is also the parent of the Zounds submenu (checks, analyser, conversion), and
+        // Unity cannot show one path as both a clickable item and a submenu -- the submenu wins and this item silently
+        // disappears (ExecuteMenuItem returns false). Measured 2026-09-28; the collision began with commit 07563d58.
+        [MenuItem("Laubrary/Zounds Window")]
         public static ZoundsWindowTK OpenWindow() {
             var w = GetWindow<ZoundsWindowTK>();
-            w.titleContent = new GUIContent("Zounds (UITK)");
+            w.titleContent = new GUIContent("Zounds");
             w.minSize = new Vector2(414f, 151f);
             w.Show();
             return w;
@@ -45,12 +50,17 @@ namespace Laubrary.Zounds.Uitk {
 
         public void AddItemsToMenu(GenericMenu menu) {
             menu.AddItem(new GUIContent("Grid Mode (Zounds Browser)"), ZoundsProject.Instance.browserSettings.multicolumn, ZoundsWindow.ToggleColumnView);
+            // The old IMGUI window, kept for side-by-side comparison; no longer opened from anywhere else.
+            menu.AddItem(new GUIContent("Open IMGUI version"), false, ZoundsWindow.OpenWindow);
         }
 
         protected override void BuildUI(VisualElement root) {
+            // Straight after a script reload this window rebuilds before Unity's editor styles exist, and the shared
+            // measurements below read them (see ZS.EditorStylesReady); build a moment later instead of half-building.
+            if (!ZS.EditorStylesReady) { root.schedule.Execute(Rebuild).StartingIn(100); return; }
             ZS.Attach(root);
             root.AddToClassList("zs-mainwindow");
-            titleContent = new GUIContent("Zounds (UITK)");
+            titleContent = new GUIContent("Zounds");
             tabButtons.Clear();
             browser = null;
 

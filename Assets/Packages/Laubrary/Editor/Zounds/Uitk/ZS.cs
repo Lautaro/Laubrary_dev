@@ -13,6 +13,16 @@ namespace Laubrary.Zounds.Uitk {
     /// </summary>
     public static class ZS {
 
+        /// <summary>
+        /// Whether Unity's built-in editor styles exist yet. Straight after a script reload the UI Toolkit windows rebuild
+        /// before any window has drawn, and until one has, reading those styles throws inside Unity's own getter. Several
+        /// shared measurements the Zounds windows borrow from the old ones read them, so a window that builds then must
+        /// wait for this (found 2026-09-28: the main window came back empty after every reload).
+        /// </summary>
+        public static bool EditorStylesReady {
+            get { try { return EditorStyles.label != null && EditorStyles.helpBox != null; } catch (NullReferenceException) { return false; } }
+        }
+
         /// <summary>The sheet's "H Btns Big" and "H Btns Medium" spacings (horizontal spacing 5 × scale 2), copied once:
         /// the Browser's gap between a row's controls, and between Mute/Solo cells and toolbar buttons.</summary>
         public const float ItemSpacing = 10f, MediumSpacing = 10f;

@@ -14,7 +14,7 @@ namespace Laubrary.Zounds {
             {
                 GUILayout.Space(10f);
                 if (GUILayout.Button("Open Zounds Window")) {
-                    ZoundsWindow.OpenWindow();
+                    Uitk.ZoundsWindowTK.OpenWindow();
                 }
                 GUILayout.Space(10f);
             }

@@ -514,10 +514,19 @@ namespace Laubrary.Zounds {
         /// total width, for a window <paramref name="contentWidth"/> wide. Shared with the UI Toolkit twin (T-0470).</summary>
         internal static float PresetsBarHeight(float contentWidth, out float totalPresetsWidth) {
             var content = new GUIContent("Default");
-            totalPresetsWidth = EditorStyles.helpBox.CalcSize(content).x;
-            foreach (var viewPreset in ZoundsEditorPresets.Instance.viewPresets) {
+            // Straight after a script reload the UI Toolkit windows rebuild before any window has drawn, and Unity's
+            // built-in editor styles do not exist until one has: reading them then throws inside Unity's own getter.
+            // That throw left the whole main window empty after every reload (found 2026-09-28). Report the one-row
+            // height instead; the window re-measures on its next refresh, once the styles exist.
+            GUIStyle helpBox, toolbarButton;
+            try { helpBox = EditorStyles.helpBox; toolbarButton = EditorStyles.toolbarButton; }
+            catch (System.NullReferenceException) { helpBox = toolbarButton = null; }
+            var presets = ZoundsEditorPresets.Instance != null ? ZoundsEditorPresets.Instance.viewPresets : null;
+            if (helpBox == null || toolbarButton == null || presets == null) { totalPresetsWidth = 0f; return 20f; }
+            totalPresetsWidth = helpBox.CalcSize(content).x;
+            foreach (var viewPreset in presets) {
                 content.text = viewPreset.name;
-                totalPresetsWidth += EditorStyles.toolbarButton.CalcSize(content).x;
+                totalPresetsWidth += toolbarButton.CalcSize(content).x;
             }
             return totalPresetsWidth > (contentWidth - PresetsBarDrawer.presetsLabelWidth - PresetsBarDrawer.savePresetButtonWidth - 4f) ? 32f : 20f;
         }
@@ -1154,9 +1163,10 @@ namespace Laubrary.Zounds {
                     ConvertClipToKlip(clipZound);
                 }
             }
-            else if (zound is Klip klip)          KlipEditorWindow.OpenWindow(klip);
-            else if (zound is Zequence zequence)   ZequenceEditorWindow.OpenWindow(zequence);
-            else                                   KlipEditorWindow.OpenWindow(zound as Klip);
+            // The main (UI Toolkit) editors, even from this old window: a layout that restores the old window must
+            // not quietly keep sending people into the old editors (and only the new Klip editor has the Looper).
+            else if (zound is Klip klip)          Uitk.KlipEditorWindowTK.Open(klip, false);
+            else if (zound is Zequence zequence)   Uitk.ZequenceEditorWindowTK.Open(zequence, false);
         }
 
         internal void ConvertClipToKlip(ClipZound clipZound) {

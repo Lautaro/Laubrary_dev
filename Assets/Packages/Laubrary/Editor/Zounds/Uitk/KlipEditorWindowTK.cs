@@ -14,7 +14,7 @@ namespace Laubrary.Zounds.Uitk {
     ///
     /// Opened from the old window's temporary "UITK" button (owner's decision D3), which exists only while both exist.
     /// </summary>
-    public class KlipEditorWindowTK : ZuiWindow {
+    public class KlipEditorWindowTK : ZuiWindow, IHasCustomMenu {
 
         [SerializeField] int targetZoundID;
         [SerializeField] bool isLocalZound;
@@ -29,7 +29,10 @@ namespace Laubrary.Zounds.Uitk {
 
         // The waveform's model: the old window's own view object, wired by its own WireSpectrumView (T-0468). Kept across
         // rebuilds; created on first build, destroyed with the window.
-        AudioSpectrumView spectrum;
+        // Not kept across a script reload: Unity's reload saves an editor window's private fields too, and brings this
+        // one back half-built (its constructor is not run, so its envelope state is missing and the waveform threw on
+        // every refresh — found 2026-09-28). It is disposed before the reload and made fresh afterwards instead.
+        [System.NonSerialized] AudioSpectrumView spectrum;
         KlipWaveformTK waveform;
         bool draggingWaveform;
 
@@ -58,6 +61,10 @@ namespace Laubrary.Zounds.Uitk {
 
         protected override void OnDisable() {
             EndWaveformDrag();
+            // Before a script reload (and on close): release the model's hidden preview object, which would otherwise
+            // outlive the reload with nothing pointing at it.
+            spectrum?.Destroy();
+            spectrum = null;
             base.OnDisable();
         }
 
@@ -70,14 +77,33 @@ namespace Laubrary.Zounds.Uitk {
             if (spectrum != null && klip != null && spectrum.NeedsSourceRefresh(klip)) RefreshSpectrum();
         }
 
+        /// <summary>
+        /// Opens this Klip's editor — the main Klip editor since 2026-09-28 (owner: "Make UITK version the main one").
+        /// A Klip that already has one open gets that window brought forward instead of a second copy, as the old
+        /// window always did.
+        /// </summary>
         public static KlipEditorWindowTK Open(Klip klip, bool isLocalZound) {
+            foreach (var open in Resources.FindObjectsOfTypeAll<KlipEditorWindowTK>()) {
+                if (open == null || open.targetZoundID != klip.id) continue;
+                if (isLocalZound) open.isLocalZound = true;
+                if (open.docked) open.ShowTab(); else open.Focus();
+                return open;
+            }
             var w = CreateInstance<KlipEditorWindowTK>();
             w.targetZoundID = klip.id;
             w.isLocalZound = isLocalZound;
-            w.titleContent = new GUIContent(TitleFor(klip) + " (UITK)");
+            w.titleContent = new GUIContent(TitleFor(klip));
             w.minSize = new Vector2(479.2f, 400f);
             w.Show();
             return w;
+        }
+
+        /// <summary>The tab's ⋮ menu: the old IMGUI editor for the same Klip, kept for side-by-side comparison.</summary>
+        public void AddItemsToMenu(GenericMenu menu) {
+            var k = klip ?? (ZoundsProject.isJSONLoaded ? FindKlip(targetZoundID) : null);
+            if (k == null) return;
+            bool local = isLocalZound;
+            menu.AddItem(new GUIContent("Open IMGUI version"), false, () => { var w = KlipEditorWindow.OpenWindow(k); if (local) w.isLocalZound = true; });
         }
 
         static string TitleFor(Klip k) {
@@ -117,14 +143,17 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         protected override void BuildUI(VisualElement root) {
+            // Straight after a script reload this window rebuilds before Unity's editor styles exist, and the shared
+            // measurements below read them (see ZS.EditorStylesReady); build a moment later instead of half-building.
+            if (!ZS.EditorStylesReady) { root.schedule.Execute(Rebuild).StartingIn(100); return; }
             ZS.Attach(root);
             klip = ZoundsProject.isJSONLoaded ? FindKlip(targetZoundID) : null;
             if (klip == null) { root.Add(new Label(ZoundsProject.isJSONLoaded ? "Klip no longer exists in the project." : "Zounds Project is not loaded.")); return; }
-            titleContent = new GUIContent(TitleFor(klip) + " (UITK)");
+            titleContent = new GUIContent(TitleFor(klip));
 
             // ── header row (ZoundInspector.DrawSimple) ──
             root.Add(VSpace(Row));
-            fields = new ZoundFieldsRowTK(klip, isLocalZound, () => titleContent = new GUIContent(TitleFor(klip) + " (UITK)"));
+            fields = new ZoundFieldsRowTK(klip, isLocalZound, () => titleContent = new GUIContent(TitleFor(klip)));
             root.Add(fields);
             // A Klip with no reference at all is a legitimate placeholder: say so, and let the Source field below take one.
             bool hasInternalSource = klip.audioClipRef != null && klip.audioClipRef.RuntimeKeyIsValid();

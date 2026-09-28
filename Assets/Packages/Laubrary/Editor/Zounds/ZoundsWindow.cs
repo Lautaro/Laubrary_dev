@@ -23,10 +23,11 @@ namespace Laubrary.Zounds {
 
         public static string setFocusNextFrame = null;
 
-        // Not "Laubrary/Zounds": that path is also the parent of the Zounds submenu (checks, analyser, conversion), and
-        // Unity cannot show one path as both a clickable item and a submenu -- the submenu wins and this item silently
-        // disappears (ExecuteMenuItem returns false). Measured 2026-09-28; the collision began with commit 07563d58.
-        [MenuItem("Laubrary/Zounds Window")]
+        /// <summary>
+        /// Opens the old IMGUI Zounds window. Since 2026-09-28 the UI Toolkit window is the main one and owns the
+        /// "Laubrary/Zounds Window" menu item; this one is kept, working, for side-by-side comparison and is reached
+        /// only from the new window's tab ⋮ menu ("Open IMGUI version").
+        /// </summary>
         public static void OpenWindow() {
             var window = GetWindow<ZoundsWindow>();
             window.Show();
@@ -77,7 +78,7 @@ namespace Laubrary.Zounds {
                 ZoundsProject.ResetToDefault();
             }
 
-            titleContent.text = "Zounds";
+            titleContent.text = "Zounds (IMGUI)";
             minSize = new Vector2(414f, 151f);
             saveChangesMessage = "The Zounds project has unsaved changes.";
             if (ZoundsProject.isJSONLoaded) {
@@ -386,7 +387,6 @@ namespace Laubrary.Zounds {
         // Implemention for IHasCustomMenu to add menu toggle in top right window menu
         public void AddItemsToMenu(GenericMenu menu) {
             menu.AddItem(new GUIContent("Grid Mode (Zounds Browser)"), ZoundsProject.Instance.browserSettings.multicolumn, ToggleColumnView);
-            menu.AddItem(new GUIContent("Open UI Toolkit version"), false, () => Uitk.ZoundsWindowTK.OpenWindow());
         }
 
         internal static void ToggleColumnView() {

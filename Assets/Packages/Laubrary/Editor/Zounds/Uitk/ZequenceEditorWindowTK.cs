@@ -19,7 +19,7 @@ namespace Laubrary.Zounds.Uitk {
     /// The tree is rebuilt only when the Zequence's structure changes; a 5 Hz tick refreshes values, and a 30 Hz tick moves
     /// playheads and entry flashes while anything plays.
     /// </summary>
-    public class ZequenceEditorWindowTK : ZuiWindow {
+    public class ZequenceEditorWindowTK : ZuiWindow, IHasCustomMenu {
 
         [SerializeField] int targetZoundID;
         [SerializeField] bool isLocalZound;
@@ -40,14 +40,32 @@ namespace Laubrary.Zounds.Uitk {
         ZoundFieldsRowTK fields;
         Button playButton;
 
+        /// <summary>
+        /// Opens this Zequence's editor — the main one since 2026-09-28. One that is already open is brought forward
+        /// instead of opening a second copy, as the old window always did.
+        /// </summary>
         public static ZequenceEditorWindowTK Open(Zequence zequence, bool isLocalZound) {
+            foreach (var open in Resources.FindObjectsOfTypeAll<ZequenceEditorWindowTK>()) {
+                if (open == null || open.targetZoundID != zequence.id) continue;
+                if (isLocalZound) open.isLocalZound = true;
+                if (open.docked) open.ShowTab(); else open.Focus();
+                return open;
+            }
             var w = CreateInstance<ZequenceEditorWindowTK>();
             w.targetZoundID = zequence.id;
             w.isLocalZound = isLocalZound;
-            w.titleContent = new GUIContent("Zequence: " + zequence.name + " (UITK)");
+            w.titleContent = new GUIContent("Zequence: " + zequence.name);
             w.minSize = new Vector2(350f, 200f);
             w.Show();
             return w;
+        }
+
+        /// <summary>The tab's ⋮ menu: the old IMGUI editor for the same Zequence, kept for side-by-side comparison.</summary>
+        public void AddItemsToMenu(GenericMenu menu) {
+            var z = zeq ?? (ZoundsProject.isJSONLoaded ? FindZequence(targetZoundID) : null);
+            if (z == null) return;
+            bool local = isLocalZound;
+            menu.AddItem(new GUIContent("Open IMGUI version"), false, () => { var w = ZequenceEditorWindow.OpenWindow(z); if (local) w.isLocalZound = true; });
         }
 
         /// <summary>The old window's search: top-level Zequences, then each one's local Zequences.</summary>
@@ -69,6 +87,9 @@ namespace Laubrary.Zounds.Uitk {
         // ─────────────────────────── build ───────────────────────────
 
         protected override void BuildUI(VisualElement root) {
+            // Straight after a script reload this window rebuilds before Unity's editor styles exist, and the shared
+            // measurements below read them (see ZS.EditorStylesReady); build a moment later instead of half-building.
+            if (!ZS.EditorStylesReady) { root.schedule.Execute(Rebuild).StartingIn(100); return; }
             ZS.Attach(root);
             root.AddToClassList("zs-zequence");
             // The old window draws its fields row from the very top of the window (no leading row space, unlike the Klip
@@ -77,10 +98,10 @@ namespace Laubrary.Zounds.Uitk {
             refreshers.Clear(); liveRefreshers.Clear();
             zeq = ZoundsProject.isJSONLoaded ? FindZequence(targetZoundID) : null;
             if (zeq == null) { root.Add(new Label(ZoundsProject.isJSONLoaded ? "Zequence no longer exists in the project." : "Zounds Project is not loaded.")); return; }
-            titleContent = new GUIContent("Zequence: " + zeq.name + " (UITK)");
+            titleContent = new GUIContent("Zequence: " + zeq.name);
             EnsureEnvelopes();
 
-            fields = new ZoundFieldsRowTK(zeq, isLocalZound, () => titleContent = new GUIContent("Zequence: " + zeq.name + " (UITK)"));
+            fields = new ZoundFieldsRowTK(zeq, isLocalZound, () => titleContent = new GUIContent("Zequence: " + zeq.name));
             root.Add(fields);
             root.Add(Space(4f));
 

@@ -94,7 +94,10 @@ namespace Laubrary.Zounds.Uitk {
                   .Append(bs.msOnly).Append(bs.vpcPercentage).Append(bs.vpcCompactLabel).Append(bs.highQualityWaveform).Append(bs.showPresetsAlways);
             }
             sb.Append(BrowserTab.PresetsBarHeight(WindowWidth, out _));
-            foreach (var p in ZoundsEditorPresets.Instance.viewPresets) sb.Append(p.name).Append(',');
+            // Null straight after a script reload until the presets asset loads; the names then change the signature
+            // and the top is rebuilt with them (2026-09-28).
+            var presets = ZoundsEditorPresets.Instance != null ? ZoundsEditorPresets.Instance.viewPresets : null;
+            if (presets != null) foreach (var p in presets) sb.Append(p.name).Append(',');
             return sb.ToString();
         }
 
@@ -398,7 +401,8 @@ namespace Laubrary.Zounds.Uitk {
             scroll.contentContainer.style.flexDirection = FlexDirection.Row;
             viewport.Add(scroll);
             scroll.Add(PresetButton(null));
-            foreach (var p in ZoundsEditorPresets.Instance.viewPresets) scroll.Add(PresetButton(p.name));
+            var presets = ZoundsEditorPresets.Instance != null ? ZoundsEditorPresets.Instance.viewPresets : null;
+            if (presets != null) foreach (var p in presets) scroll.Add(PresetButton(p.name));
             var save = new Button { text = "Save Preset", tooltip = "Save as a new preset, or use an existing preset name to override it." };
             save.clicked += () => SavePresetPopup.Show(save.worldBound, s_lastPresetName, SavePreset);
             save.AddToClassList("zs-imgui-button");
