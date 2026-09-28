@@ -339,6 +339,12 @@ namespace Laubrary.Zounds
         /// <summary>Native-DSP pipeline only: duration change without pitch change, applied to the cached sample data ahead of the chain.</summary>
         public ZoundTimeStretch timeStretch = new ZoundTimeStretch();
 
+        /// <summary>Looping (T-0473): when enabled this Klip is a Looper. See <see cref="ZoundLoop"/>.</summary>
+        public ZoundLoop loop = new ZoundLoop();
+
+        /// <summary>This Klip is a Looper: it plays its region over and over until stopped.</summary>
+        public bool IsLooper => loop != null && loop.enabled;
+
         public float gain = 1f;
         public bool gainEnabled = false;
         public bool showRenderedWaveform = false;
@@ -436,6 +442,7 @@ namespace Laubrary.Zounds
         public Klip(int id, Klip source) : base(id, source)
         {
             timeStretch = source.timeStretch != null ? source.timeStretch.DeepCopy() : new ZoundTimeStretch();
+            loop = source.loop != null ? source.loop.DeepCopy() : new ZoundLoop();
 
             gain = source.gain;
             gainEnabled = source.gainEnabled;

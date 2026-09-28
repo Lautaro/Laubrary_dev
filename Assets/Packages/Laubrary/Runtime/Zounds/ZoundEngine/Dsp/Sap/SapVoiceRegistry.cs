@@ -118,6 +118,36 @@ namespace Laubrary.Zounds.Dsp {
         /// voice is still being rendered after being torn down, or one stopped in the middle of a block and never
         /// came out. Either way the honest response is to keep the memory.
         /// </summary>
+        /// <summary>
+        /// Set once the application has begun quitting and every sound has been torn down (T-0449). From then on a
+        /// generator being destroyed must not call into the audio graph at all: the graph is being shut down around it.
+        /// </summary>
+        public static bool Quitting { get; private set; }
+
+        /// <summary>
+        /// Tears every playing sound down while the application is quitting, BEFORE the scene's objects are destroyed and
+        /// while the audio graph is still running (T-0449).
+        ///
+        /// **Why.** Measured on a standalone build: quitting while a looping sound played crashed the player with an
+        /// access violation and reported 41 leaked allocations — exactly one voice's memory plus its render counter. The
+        /// generator's own OnDestroy tore the sound down, but at quit it runs after the audio graph has started to shut
+        /// down: the stopped-for-sure wait passes trivially (nothing renders any more) and the destroy then lands on a
+        /// graph that is going away. Doing the same safe sequence here, at the first moment the application announces it
+        /// is quitting, reaches every sound while the graph can still destroy it properly and release its memory.
+        /// A looping sound (the Looper) never ends by itself, which turned this from rare into routine.
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void HookQuit() {
+            Quitting = false;
+            Application.quitting -= OnQuitting;
+            Application.quitting += OnQuitting;
+        }
+
+        private static void OnQuitting() {
+            if (live.Count > 0) DestroyAllAndConfirm(out _, timeoutSeconds: 0.25d);
+            Quitting = true;
+        }
+
         public static int DestroyAllAndConfirm(out bool confirmed, double settleSeconds = 0d,
                                                double timeoutSeconds = 0.5d) {
             // Phase one: silence everything, so that nothing is still pulling on a sound that is about to go away.
@@ -245,6 +275,25 @@ namespace Laubrary.Zounds.Dsp {
                 int flat = FlatIndexOf(g.playingLayout, nodeIndex, paramIndex);
                 if (flat < 0) continue;
                 if (g.SetParameterLive(flat, value)) delivered++;
+            }
+            return delivered;
+        }
+
+        /// <summary>
+        /// Delivers a Looper's loop settings (its trim region and crossmix range) to every voice playing it (T-0473), so a
+        /// loop point or crossmix edit is heard on a sound that is already playing. Returns how many voices took it.
+        /// </summary>
+        public static int PushLoop(Klip klip) {
+            if (klip == null || klip.loop == null) return 0;
+            int delivered = 0;
+            for (int i = live.Count - 1; i >= 0; i--) {
+                var g = live[i];
+                if (g == null) { live.RemoveAt(i); continue; }
+                if (!ReferenceEquals(g.playingZound, klip) || !g.IsPlaying || !g.IsLooping) continue;
+                double start = 0d, end = double.MaxValue;
+                if (klip.trimEnabled) { start = klip.trimStart; if (klip.trimEnd > klip.trimStart) end = klip.trimEnd; }
+                klip.loop.Effective((float)(System.Math.Min(end, 1e7) - start), out float xMin, out float xMax);
+                if (g.SetLoopLive(start, end, xMin, xMax)) delivered++;
             }
             return delivered;
         }

@@ -200,6 +200,12 @@ namespace Laubrary.Zounds.Dsp {
         /// executes the train already exists in the shared render — this only sets its opening state, through
         /// the same shared function the long-lived voice uses.
         /// </summary>
+        /// <summary>The Looper (T-0474): sets a looping voice's crossmix range in source frames. Call after creation and
+        /// before the first block; a playing voice gets changes through <see cref="Apply"/>.</summary>
+        public void SetLoopCrossmix(double minFrames, double maxFrames) {
+            SapVoiceSetup.SetLoopCrossmix(ref sap, in pcm, minFrames, maxFrames);
+        }
+
         public void SetRepeat(in RepeatPlan plan) {
             SapVoiceSetup.ArmRepeats(ref sap, in plan, out bool protect);
             if (plan.enabled) protectedFromSteal = protect;
@@ -225,6 +231,22 @@ namespace Laubrary.Zounds.Dsp {
                     break;
                 case SapVoiceCommandKind.Stop:
                     killRequested = 1;
+                    break;
+                case SapVoiceCommandKind.SetLoopStart: {
+                    var main = sap.slots[sap.looping.mainSlot];
+                    SapVoiceSetup.SetLoopRegion(ref sap, in pcm, command.index, main.endFrame);
+                    break;
+                }
+                case SapVoiceCommandKind.SetLoopEnd: {
+                    var main = sap.slots[sap.looping.mainSlot];
+                    SapVoiceSetup.SetLoopRegion(ref sap, in pcm, main.startFrame, command.index);
+                    break;
+                }
+                case SapVoiceCommandKind.SetCrossmixMin:
+                    SapVoiceSetup.SetLoopCrossmix(ref sap, in pcm, command.index, sap.looping.crossMax < command.index ? command.index : sap.looping.crossMax);
+                    break;
+                case SapVoiceCommandKind.SetCrossmixMax:
+                    SapVoiceSetup.SetLoopCrossmix(ref sap, in pcm, sap.looping.crossMin > command.index ? command.index : sap.looping.crossMin, command.index);
                     break;
                 case SapVoiceCommandKind.Release:
                     releaseRequested = 1;

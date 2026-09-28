@@ -94,6 +94,9 @@ namespace Laubrary.Zounds {
                     m_chainDuration = sourceSeconds / (Dsp.SapStretch.MinSpeed * Mathf.Max(basePitch, 0.01f))
                                       + (laidOut != null ? laidOut.tailSeconds : 0f) + 1f;
                 }
+                // A Looper (T-0473) plays until it is stopped: it has no length of its own. Stopping it (a kill, a
+                // culling, a parent stopping) goes through OnKill, which stops the voice itself.
+                if (zound.IsLooper) m_chainDuration = float.PositiveInfinity;
                 return;
             }
 
@@ -107,6 +110,10 @@ namespace Laubrary.Zounds {
                                  "clip's Load Type set to Decompress On Load. Further occurrences are not repeated.");
             }
             audioSource.clip = clip;
+            // A Looper that could not play through the chain still loops, from the rendered file: a plain restart at the
+            // end, without the crossmix (which needs the engine's own read of the source). Undone when the pool takes the
+            // audio source back.
+            audioSource.loop = zound.IsLooper;
         }
 
         /// <summary>
@@ -120,6 +127,7 @@ namespace Laubrary.Zounds {
         }
 
         private float PrepareAndCalculateDurationLegacy() {
+            if (zound.IsLooper) return float.PositiveInfinity;
             if (m_isRealtime) return zound.trimEnd - zound.trimStart;
             return base.PrepareAndCalculateDuration();
         }

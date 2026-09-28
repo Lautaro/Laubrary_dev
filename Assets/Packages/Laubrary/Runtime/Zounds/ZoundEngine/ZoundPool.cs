@@ -54,6 +54,7 @@ namespace Laubrary.Zounds {
             }
             audioSource.Stop();
             audioSource.clip = null;
+            audioSource.loop = false;   // a Looper on the rendered-file fallback sets it (T-0473)
             audioSource.gameObject.SetActive(false);
             if (!sourcePool.Contains(audioSource)) {
                 sourcePool.Add(audioSource);

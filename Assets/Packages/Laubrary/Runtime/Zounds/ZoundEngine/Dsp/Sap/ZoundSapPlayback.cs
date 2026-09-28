@@ -87,9 +87,16 @@ namespace Laubrary.Zounds.Dsp {
             }
 
             var generator = EnsureGenerator(carrier);
+            // A Looper (T-0473) loops its region inside the voice, with its crossmix, until it is stopped.
+            bool looping = zound is Klip loopKlip && loopKlip.IsLooper;
             generator.SetPlay(pcm, layout, startFrame, endFrame, basePitch, outGain, duration,
-                              loop: false, tokenId: tokenId, heavyTier: layout.heavy, zound: zound,
+                              loop: looping, tokenId: tokenId, heavyTier: layout.heavy, zound: zound,
                               stretch: stretch, authoredSpeed: authoredSpeed);
+            if (looping) {
+                ((Klip)zound).loop.Effective((float)((endFrame - startFrame) / pcm.frequency), out float xMin, out float xMax);
+                generator.SetLoopCrossmix(xMin, xMax);
+            }
+            else generator.SetLoopCrossmix(0f, 0f);
 
             // No file. The audio source carries the sound into the mixer and nothing else.
             //

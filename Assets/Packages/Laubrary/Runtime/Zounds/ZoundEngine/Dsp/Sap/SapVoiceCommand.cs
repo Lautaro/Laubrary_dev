@@ -14,6 +14,12 @@ namespace Laubrary.Zounds.Dsp {
         /// <summary>Stop feeding new source material and let the tail ring out naturally.</summary>
         Release = 5,
         SetSpeed = 6,
+        /// <summary>The Looper (T-0474): the loop region's start / end, in source frames (carried in index).</summary>
+        SetLoopStart = 7,
+        SetLoopEnd = 8,
+        /// <summary>The Looper: the crossmix range's bottom / top, in source frames (carried in index).</summary>
+        SetCrossmixMin = 9,
+        SetCrossmixMax = 10,
     }
 
     /// <summary>
@@ -53,6 +59,11 @@ namespace Laubrary.Zounds.Dsp {
         /// <summary>The live base speed of a voice with live speed (T-0409); ignored by any other voice.</summary>
         public static SapVoiceCommand Speed(float value) =>
             new SapVoiceCommand { kind = SapVoiceCommandKind.SetSpeed, value = value };
+
+        public static SapVoiceCommand LoopStart(int frame) => new SapVoiceCommand { kind = SapVoiceCommandKind.SetLoopStart, index = frame };
+        public static SapVoiceCommand LoopEnd(int frame) => new SapVoiceCommand { kind = SapVoiceCommandKind.SetLoopEnd, index = frame };
+        public static SapVoiceCommand CrossmixMin(int frames) => new SapVoiceCommand { kind = SapVoiceCommandKind.SetCrossmixMin, index = frames };
+        public static SapVoiceCommand CrossmixMax(int frames) => new SapVoiceCommand { kind = SapVoiceCommandKind.SetCrossmixMax, index = frames };
 
         public static SapVoiceCommand Stop() => new SapVoiceCommand { kind = SapVoiceCommandKind.Stop };
 

@@ -177,6 +177,56 @@ namespace Laubrary.Zounds.Dsp {
         private float authoredSpeed = 1f, tokenSpeed = 1f;
         private float baseSpeed => authoredSpeed * tokenSpeed * ZoundEngine.globalSpeed;
 
+        /// <summary>The Looper's crossmix range (T-0473), in seconds of the source; used only when the play loops.</summary>
+        private float loopCrossMin, loopCrossMax;
+
+        /// <summary>Sets the next play's crossmix range, in seconds of the source (a Looper, T-0473). Call after SetPlay.</summary>
+        public void SetLoopCrossmix(float minSeconds, float maxSeconds) {
+            loopCrossMin = minSeconds;
+            loopCrossMax = maxSeconds;
+        }
+
+        /// <summary>Whether the current play loops (a Looper).</summary>
+        public bool IsLooping => loop;
+
+        /// <summary>
+        /// Where a playing Looper's read positions are, in seconds into its source: one normally, two while a crossmix is
+        /// running (the outgoing copy near the end and the incoming one near the start). Returns how many were written.
+        /// For a display: an unsynchronised read of positions the audio thread is writing (the read slots are shared native
+        /// memory, like the monitor), which may be a block old and is never used to decide anything.
+        /// </summary>
+        public int ReadLoopPositions(double[] seconds) {
+            if (seconds == null || !created || !loop || clip == null || clip.frequency <= 0) return 0;
+            var slots = voice.sap.slots;
+            if (!slots.IsCreated || slots.Length < 2 || !IsPlaying) return 0;
+            int n = 0;
+            for (int s = 0; s < 2 && n < seconds.Length; s++) {
+                var sl = slots[s];
+                if (sl.active) seconds[n++] = sl.cursor / clip.frequency;
+            }
+            return n;
+        }
+
+        /// <summary>
+        /// Sends a playing Looper its region (seconds into the source) and crossmix range (seconds) — an edit heard while
+        /// it plays (T-0473). Resolved against THIS play's own source: its sample rate and length, not the sound's
+        /// current ones, so a voice that started before an edit is never handed frames beyond what it holds.
+        /// </summary>
+        public bool SetLoopLive(double startSeconds, double endSeconds, float crossMinSeconds, float crossMaxSeconds) {
+            if (!loop || clip == null) return false;
+            double rate = clip.frequency;
+            double total = clip.frames;
+            double s = System.Math.Max(0d, System.Math.Min(startSeconds * rate, total));
+            double e = System.Math.Max(0d, System.Math.Min(endSeconds * rate, total));
+            if (e <= s + 1) return false;
+            loopCrossMin = crossMinSeconds; loopCrossMax = crossMaxSeconds;
+            bool ok = Send(SapVoiceCommand.LoopStart((int)s));
+            ok &= Send(SapVoiceCommand.LoopEnd((int)e));
+            ok &= Send(SapVoiceCommand.CrossmixMax((int)(crossMaxSeconds * rate)));
+            ok &= Send(SapVoiceCommand.CrossmixMin((int)(crossMinSeconds * rate)));
+            return ok;
+        }
+
         /// <summary>Describes the next play. Does not allocate; resolution happens when the graph asks.</summary>
         public void SetPlay(PcmClip clip, ChainLayout layout, double startFrame, double endFrame,
                            float basePitch, float outGain, float sourceDuration, bool loop,
@@ -226,6 +276,7 @@ namespace Laubrary.Zounds.Dsp {
                                             Allocator.Persistent, playingZound, monitorSamples, renderTicket,
                                             stretch, baseSpeed);
             if (repeat.enabled) voice.SetRepeat(in repeat);
+            if (loop && clip != null) voice.SetLoopCrossmix(loopCrossMin * clip.frequency, loopCrossMax * clip.frequency);
             created = true;
             handedOff = true;
             instance = context.AllocateGenerator(voice, new Control { declaredSampleRate = preparedSampleRate });
@@ -498,7 +549,10 @@ namespace Laubrary.Zounds.Dsp {
             // The sound is silenced and seen to stop FIRST, because everything after this releases memory the audio
             // side may otherwise still be reading. Only a component that actually had something playing pays the wait.
             bool quiet = true;
-            if (hasInstance) DestroyAndConfirm(out quiet, timeoutSeconds: 0.25d);
+            // At quit every sound was already torn down while the graph could still do it (SapVoiceRegistry.OnQuitting,
+            // T-0449); anything left then is not touched through the graph, which is shutting down around it.
+            if (hasInstance && !SapVoiceRegistry.Quitting) DestroyAndConfirm(out quiet, timeoutSeconds: 0.25d);
+            else if (hasInstance) quiet = false;
             SapVoiceRegistry.Unregister(this);
             ReleaseOwnVoice();
 

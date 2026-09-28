@@ -52,6 +52,36 @@ namespace Laubrary.Zounds.Dsp {
         /// function's business (which bus or parent group the node feeds, the token, steal protection, the
         /// clock reading taken when the play was allocated).
         /// </summary>
+        /// <summary>
+        /// Sets a looping voice's crossmix range, in source frames (T-0474), and draws the current cycle's outgoing length.
+        /// Both 0 means a plain wrap at the end; equal values a fixed length; otherwise every cycle draws its own length
+        /// in the range. The top of the range is limited to half the loop, so one cycle's fade-in can never overlap its
+        /// own fade-out.
+        /// </summary>
+        internal static void SetLoopCrossmix(ref SapVoiceState sap, in SapPcm pcm, double minFrames, double maxFrames) {
+            if (!sap.looping.enabled) return;
+            if (minFrames < 0) minFrames = 0;
+            if (maxFrames < minFrames) maxFrames = minFrames;
+            sap.looping.crossMin = minFrames;
+            sap.looping.crossMax = maxFrames;
+            if (!sap.looping.inFade) {
+                var main = sap.slots[sap.looping.mainSlot];
+                sap.looping.outLen = SapVoiceRender.LoopCrossmixLength(in sap.looping, in pcm, main.startFrame, main.endFrame, sap.looping.cycle);
+            }
+        }
+
+        /// <summary>Moves a looping voice's region (source frames), in both of its slots (T-0474).</summary>
+        internal static void SetLoopRegion(ref SapVoiceState sap, in SapPcm pcm, double startFrame, double endFrame) {
+            startFrame = System.Math.Round(startFrame); endFrame = System.Math.Round(endFrame);
+            if (!sap.looping.enabled || !(endFrame > startFrame + 1)) return;
+            for (int s = 0; s < 2; s++) {
+                var sl = sap.slots[s];
+                sl.startFrame = startFrame; sl.endFrame = endFrame;
+                sap.slots[s] = sl;
+            }
+            if (!sap.looping.inFade) sap.looping.outLen = SapVoiceRender.LoopCrossmixLength(in sap.looping, in pcm, startFrame, endFrame, sap.looping.cycle);
+        }
+
         internal static void Reset(ref SapVoiceState sap, in SapChainLayout sapLayout, ChainLayout layout,
                                   int sampleRate, float basePitch, float outGain, long tokenId,
                                   bool armSource, double startFrame, double endFrame, bool loop,
@@ -93,6 +123,20 @@ namespace Laubrary.Zounds.Dsp {
                     gain = 1f, pitchMul = 1f, loop = loop,
                 };
             }
+
+            // The Looper (T-0474): the loop reader runs this voice's slots 0 and 1. No crossmix until one is set.
+            // A loop's ends are whole frames: a region ending a hair past a frame (1.1 s x 48000 in floating point is
+            // 52800.00000001) made the seam read a clamped copy of the last frame, which was measured as a break in an
+            // otherwise seamless loop.
+            sap.looping = default;
+            sap.looping.enabled = armSource && loop && sap.slots.Length >= 2 && endFrame > startFrame + 1;
+            if (sap.looping.enabled) {
+                var s0 = sap.slots[0];
+                s0.startFrame = System.Math.Round(startFrame); s0.endFrame = System.Math.Round(endFrame);
+                s0.cursor = s0.startFrame;
+                sap.slots[0] = s0;
+            }
+            sap.looping.seed = 0x9E3779B9u ^ (uint)tokenId * 0x85EBCA77u ^ (uint)(tokenId >> 32);
 
             // Only as far as this chain actually uses, not the whole arena: the arena is sized for the
             // worst-case chain in its tier, and clearing all of it on every play would be a large pointless

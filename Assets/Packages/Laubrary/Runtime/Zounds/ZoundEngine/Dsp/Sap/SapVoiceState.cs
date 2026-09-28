@@ -22,6 +22,37 @@ namespace Laubrary.Zounds.Dsp {
     /// and gain *targets*, and the published <c>VoiceState</c>) deliberately stays on <see cref="DspVoice"/>
     /// itself and is passed into the render functions as parameters/by-ref, unchanged from before.
     /// </summary>
+    /// <summary>
+    /// A looping voice's state (the Looper, T-0474). Two read slots of the same voice take turns: the "main" one plays
+    /// the loop region; when it comes within the crossmix length of the region's end, the other slot starts from the
+    /// region's start and the two are cross-faded until the main one reaches the end, where the other becomes main.
+    /// With no crossmix the main slot simply wraps. Everything is sample-accurate and happens inside one voice.
+    ///
+    /// Lengths are in SOURCE frames: the outgoing copy reads [end - X, end] while the incoming copy reads
+    /// [start, start + X], both advancing at the same rate, so they finish together at any pitch.
+    /// </summary>
+    public struct SapLoopState {
+        /// <summary>This voice loops (the loop reader is in charge of slots 0 and 1).</summary>
+        public bool enabled;
+        /// <summary>The crossmix range, in source frames. Both 0 = a plain wrap; equal = a fixed length.</summary>
+        public double crossMin, crossMax;
+        /// <summary>Keys the per-cycle draw together with the cycle number (from the play's token).</summary>
+        public uint seed;
+        /// <summary>How many times the loop has begun again; each cycle draws its own outgoing crossmix length.</summary>
+        public int cycle;
+        /// <summary>The current main copy's outgoing crossmix length (frames), drawn when that copy started.</summary>
+        public double outLen;
+        /// <summary>A crossfade is running: the other slot is the incoming copy.</summary>
+        public bool inFade;
+        /// <summary>The running crossfade's length (frames).</summary>
+        public double fadeLen;
+        /// <summary>Which of slots 0 and 1 is the main copy.</summary>
+        public int mainSlot;
+        /// <summary>How alike the running crossfade's two regions are (their normalised correlation, -0.5..1), measured
+        /// when the fade started; it decides the gain law (see SapVoiceRender.LoopFadeGains).</summary>
+        public float fadeCorr;
+    }
+
     public struct SapVoiceState {
         public NativeArray<float> arena;      // per-effect state (filter history, delay lines, etc.)
         public NativeArray<float> pLive;      // current value of every flat parameter
@@ -66,6 +97,9 @@ namespace Laubrary.Zounds.Dsp {
         /// is safe today and what still needs to happen before it is safe in general.</summary>
         public long trainEndSample;
         public int slotsStolen;
+
+        /// <summary>The Looper's state (T-0474): whether this voice loops its region, and its crossmix.</summary>
+        public SapLoopState looping;
 
         public static SapVoiceState Create(int stateFloats, int paramCount, int sourceSlots, int modifierCount, int outputBufferFrames, Allocator allocator) {
             return new SapVoiceState {

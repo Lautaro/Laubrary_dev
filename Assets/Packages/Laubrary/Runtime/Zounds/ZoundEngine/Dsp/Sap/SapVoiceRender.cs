@@ -147,6 +147,7 @@ namespace Laubrary.Zounds.Dsp {
                     for (int ci = 0; ci < n; ci++) sap.bufL[off + ci] = 0f;
                     for (int ci = 0; ci < n; ci++) sap.bufR[off + ci] = 0f;
                     if (sap.stretch.enabled) ReadSourceStretched(ref sap, pcm, clipRate, off, n, basePitchStart, basePitchStep, baseSpeedStart, baseSpeedStep);
+                    else if (sap.looping.enabled) ReadLoop(ref sap, pcm, clipRate, off, n, basePitchStart, basePitchStep);
                     else ReadSource(ref sap, pcm, clipRate, off, n, basePitchStart, basePitchStep);
                 }
 
@@ -357,6 +358,264 @@ namespace Laubrary.Zounds.Dsp {
             if (!anyActive || !AnySlotActive(in sap)) {
                 if (sap.repeatsPending > 0) return; // Repeater: the next repeat is armed by the schedule (Phase 6)
                 if (!sap.sourceExhausted) { sap.sourceExhausted = true; sap.samplesSinceSourceEnd = 0; sap.silentSamples = 0; }
+            }
+        }
+
+        // ── the Looper (T-0474) ──
+
+        /// <summary>
+        /// One cycle's outgoing crossmix length, in source frames: a fixed value, or a draw within the range. The draw is
+        /// an integer hash of the play's seed and the cycle number — never a managed random source — so it is the same
+        /// compiled and managed, and every cycle gets a new length without any shared state. The top of the range is
+        /// limited to half the loop so a cycle's fade-in (the previous draw) and its fade-out (this draw) cannot overlap.
+        /// </summary>
+        public static double LoopCrossmixLength(in SapLoopState lp, in SapPcm pcm, double start, double end, int cycle) {
+            double limit = (end - start) * 0.5;
+            if (limit < 0) limit = 0;
+            double lo = lp.crossMin < limit ? lp.crossMin : limit;
+            double hi = lp.crossMax < limit ? lp.crossMax : limit;
+            if (hi < lo) hi = lo;
+            double x = hi - lo < 0.5 ? lo : lo + (hi - lo) * LoopHash01(lp.seed, cycle);
+            return AlignCrossmix(in pcm, start, end, x, limit);
+        }
+
+        /// <summary>
+        /// Nudges a crossmix length by up to 5 ms either way to where the two copies line up best, the way sample-loop
+        /// editors place a crossfade. The incoming copy always starts at the loop's start, so what is chosen here is how
+        /// far before the end the outgoing copy is when it does; the score is the normalised correlation of the first
+        /// few milliseconds of the two copies (at most 512 frames), and the nearest of equally good positions wins.
+        ///
+        /// **Why it is needed.** For material with a pitch, whether the copies add or cancel depends on the phase at which
+        /// they meet, and a length drawn at random (or typed) lands anywhere: measured on a steady tone, un-nudged lengths
+        /// dipped the level by up to 2.7 dB and broke the waveform across the fade. Nudged, the copies meet in phase and
+        /// the fade is seamless; for material without a pitch it simply picks the least-cancelling point nearby.
+        /// Costs one short search per loop cycle, when the next seam is decided — never per sample.
+        /// </summary>
+        public static double AlignCrossmix(in SapPcm pcm, double start, double end, double x, double limit) {
+            if (x < 1 || !pcm.IsCreated || pcm.frequency <= 0) return x;
+            int ch = pcm.channels < 1 ? 1 : pcm.channels;
+            int total = pcm.samples.Length / ch;
+            int radius = (int)(0.005 * pcm.frequency);
+            int w = (int)(0.01 * pcm.frequency);
+            if (w > 512) w = 512;
+            if (w > (int)x) w = (int)x;
+            if (radius < 1 || w < 8) return x;
+            int b0 = (int)start;
+            double best = x, bestScore = double.NegativeInfinity;
+            for (int step = 0; step <= 2 * radius; step++) {
+                // 0, +1, -1, +2, -2, ... so of equally good positions the nearest to the asked-for length wins
+                int lag = (step & 1) == 0 ? step / 2 : -(step + 1) / 2;
+                // Whole frames: the copies are then an exact number of frames apart, so aligned really means aligned
+                // (a fractional length left them a fraction of a sample out, measured as a -58 dB residual on a tone).
+                double xc = System.Math.Round(x) + lag;
+                if (xc < 1 || xc > limit) continue;
+                int a0 = (int)(end - xc);
+                if (a0 < 0 || a0 + w > total || b0 + w > total) continue;
+                double ab = 0, aa = 0, bb = 0;
+                for (int k = 0; k < w; k++) {
+                    for (int c = 0; c < ch && c < 2; c++) {
+                        double p = pcm.samples[(a0 + k) * ch + c], q = pcm.samples[(b0 + k) * ch + c];
+                        ab += p * q; aa += p * p; bb += q * q;
+                    }
+                }
+                double score = aa > 1e-12 && bb > 1e-12 ? ab / System.Math.Sqrt(aa * bb) : 1.0;
+                if (score > bestScore + 1e-9) { bestScore = score; best = xc; }
+            }
+            return best;
+        }
+
+        /// <summary>A number in [0, 1) from a seed and a cycle number; integer hashing only (see LfoWalkTarget).</summary>
+        public static double LoopHash01(uint seed, int cycle) {
+            uint h = (uint)cycle * 0x9E3779B1u ^ seed * 0x85EBCA77u;
+            h ^= h >> 16; h *= 0x7FEB352Du; h ^= h >> 15; h *= 0x846CA68Bu; h ^= h >> 16;
+            return (h & 0xFFFFFF) / 16777216.0;
+        }
+
+        /// <summary>
+        /// The crossfade's two gains at progress <paramref name="p"/> (0..1), for regions whose normalised correlation is
+        /// <paramref name="corr"/>: the outgoing copy gets <paramref name="gOut"/>, the incoming one <paramref name="gIn"/>.
+        ///
+        /// **Why the law depends on how alike the two regions are.** The two copies are the loop's start and the material
+        /// X before its end — the same recording, but different parts of it. How loud their sum is mid-fade depends on how
+        /// they line up: identical copies add as amplitudes (so an equal-gain fade keeps the level flat and equal-power
+        /// bumps up to +3 dB), unrelated ones add as powers (so equal-power is flat and equal-gain dips 3 dB), and a steady
+        /// tone lands anywhere between depending on the phase at which the copies meet — which a random crossmix changes
+        /// every cycle. No fixed law is flat for all of these; both were measured failing on one or the other.
+        ///
+        /// So the linear fade is scaled to keep the summed POWER at one for the measured correlation:
+        /// gOut = (1-p)k, gIn = pk, with k = 1/sqrt((1-p)^2 + p^2 + 2 corr p(1-p)). Correlation 1 gives exactly the
+        /// equal-gain fade, 0 gives a flat-power fade, and a steady tone at any phase comes out flat. Only copies in
+        /// opposite phase cannot be rescued (they cancel); the correlation is floored at -0.5 so the boost stays within
+        /// +6 dB rather than reaching for an infinite gain.
+        /// </summary>
+        public static void LoopFadeGains(float p, float corr, out float gOut, out float gIn) {
+            if (corr < -0.5f) corr = -0.5f; else if (corr > 1f) corr = 1f;
+            float q = 1f - p;
+            float d = q * q + p * p + 2f * corr * p * q;
+            float k = d > 1e-6f ? 1f / Mathf.Sqrt(d) : 1f;
+            gOut = q * k;
+            gIn = p * k;
+        }
+
+        /// <summary>
+        /// The normalised correlation of the two regions a crossfade will overlap: [outStart, outStart + len) and
+        /// [inStart, inStart + len), in source frames, both channels. Measured when the fade starts, from at most about
+        /// 8k sample pairs (a stride over longer regions) so its cost is bounded however long the crossmix. Silence gives 1.
+        /// </summary>
+        public static float LoopCorrelation(in SapPcm pcm, double outStart, double inStart, double len) {
+            int ch = pcm.channels < 1 ? 1 : pcm.channels;
+            int total = pcm.samples.Length / ch;
+            int n = (int)len;
+            if (n < 2) return 1f;
+            int stride = n / 8192 + 1;
+            if ((stride & 1) == 0) stride++;   // an odd stride, so it does not sit on the period of a simple tone
+            int a0 = (int)outStart, b0 = (int)inStart;
+            double ab = 0, aa = 0, bb = 0;
+            for (int k = 0; k < n; k += stride) {
+                int ia = a0 + k, ib = b0 + k;
+                if (ia < 0 || ib < 0 || ia >= total || ib >= total) continue;
+                for (int c = 0; c < ch && c < 2; c++) {
+                    double x = pcm.samples[ia * ch + c], y = pcm.samples[ib * ch + c];
+                    ab += x * y; aa += x * x; bb += y * y;
+                }
+            }
+            if (aa < 1e-12 || bb < 1e-12) return 1f;
+            return (float)(ab / System.Math.Sqrt(aa * bb));
+        }
+
+        /// <summary>
+        /// The source stage for a looping voice (T-0474). Slots 0 and 1 take turns as the main copy. The main copy wraps
+        /// at the region's end when there is no crossmix; with a crossmix of X source frames, when it reaches end − X the
+        /// other slot starts at start + (how far past end − X the main copy already is), so the two are exactly X apart
+        /// in the region and finish the fade together at any pitch. The fade's progress is the incoming copy's position
+        /// over its first X frames, not elapsed time. When the outgoing copy reaches the end it stops and the incoming
+        /// one becomes the main copy, drawing its own outgoing length for the next seam.
+        ///
+        /// Interpolation neighbours wrap around the region instead of being clamped at its edges, so a plain wrap on
+        /// material that lines up at the loop points has no seam at all.
+        ///
+        /// After a release the slots no longer loop: no new copy starts and nothing wraps, the running fade (if any)
+        /// completes, and each copy plays to the end or fades out as any released slot does.
+        /// </summary>
+        private static void ReadLoop(ref SapVoiceState sap, in SapPcm pcm, double clipRate, int off, int n, float basePitchStart, float basePitchStep) {
+            int m = sap.looping.mainSlot, o = 1 - m;
+            var a = sap.slots[m];
+            var b = sap.slots[o];
+            a.startAt = 0; b.startAt = 0;   // a looping voice has no repeat schedule, so nothing waits for a later sample
+            double start = a.startFrame, end = a.endFrame;
+            int first = (int)start;
+            int len = (int)end - first;
+            if (len < 2) len = 2;
+            float srcGain = sap.pStart[SourceStageParam.Gain], srcGainStep = sap.pStep[SourceStageParam.Gain];
+            float pitchParam = sap.pStart[SourceStageParam.Pitch], pitchParamStep = sap.pStep[SourceStageParam.Pitch];
+            float basePitch = basePitchStart;
+
+            for (int i = 0; i < n; i++) {
+                if (!a.active) {
+                    if (!b.active) break;
+                    var t = a; a = b; b = t; int tm = m; m = o; o = tm;
+                    sap.looping.inFade = false;
+                }
+
+                // The main copy reaches its seam: start the other copy (crossmix), or wrap (none).
+                if (!sap.looping.inFade && a.loop) {
+                    double outLen = sap.looping.outLen;
+                    if (outLen >= 1.0) {
+                        if (a.cursor >= end - outLen) {
+                            double bc = start + (a.cursor - (end - outLen));
+                            if (bc < start || bc >= end) bc = start;
+                            b = a;
+                            b.cursor = bc;
+                            b.fadeSamplesLeft = 0; b.fadeSamplesTotal = 0;
+                            b.active = true;
+                            sap.looping.inFade = true;
+                            sap.looping.fadeLen = outLen;
+                            sap.looping.fadeCorr = LoopCorrelation(in pcm, end - outLen, start, outLen);
+                            sap.looping.cycle++;
+                            sap.looping.outLen = LoopCrossmixLength(in sap.looping, in pcm, start, end, sap.looping.cycle);
+                        }
+                    }
+                    else if (a.cursor >= end) {
+                        a.cursor = start + (a.cursor - end);
+                        if (a.cursor >= end || a.cursor < start) a.cursor = start;
+                        sap.looping.cycle++;
+                        sap.looping.outLen = LoopCrossmixLength(in sap.looping, in pcm, start, end, sap.looping.cycle);
+                    }
+                }
+
+                // The outgoing copy has reached the end: it stops, and the incoming one becomes the main copy.
+                if (a.cursor >= end) {
+                    a.active = false;
+                    if (sap.looping.inFade && b.active) {
+                        var t = a; a = b; b = t; int tm = m; m = o; o = tm;
+                        sap.looping.inFade = false;
+                    }
+                    if (!a.active) break;
+                }
+
+                float gA = 1f, gB = 0f;
+                if (sap.looping.inFade && b.active) {
+                    double p = sap.looping.fadeLen > 0 ? (b.cursor - start) / sap.looping.fadeLen : 1.0;
+                    if (p < 0) p = 0; else if (p > 1) p = 1;
+                    LoopFadeGains((float)p, sap.looping.fadeCorr, out gA, out gB);
+                }
+
+                AccumulateLoopSample(ref sap, in pcm, ref a, first, len, off + i, a.gain * srcGain * gA);
+                if (sap.looping.inFade && b.active) AccumulateLoopSample(ref sap, in pcm, ref b, first, len, off + i, b.gain * srcGain * gB);
+
+                double step = clipRate * basePitch * pitchParam;
+                a.cursor += step * a.pitchMul;
+                if (b.active) b.cursor += step * b.pitchMul;
+                basePitch += basePitchStep;
+                pitchParam += pitchParamStep;
+                srcGain += srcGainStep;
+            }
+
+            sap.slots[m] = a;
+            sap.slots[o] = b;
+            sap.looping.mainSlot = m;
+
+            if (!a.active && !b.active) {
+                if (!sap.sourceExhausted) { sap.sourceExhausted = true; sap.samplesSinceSourceEnd = 0; sap.silentSamples = 0; }
+            }
+        }
+
+        /// <summary>
+        /// Adds one interpolated sample of <paramref name="sl"/> into the output at <paramref name="at"/>, with the
+        /// slot's own release fade on top of <paramref name="gain"/>. Catmull-Rom as in the direct read, with the
+        /// neighbours wrapping around the loop region [first, first + len).
+        /// </summary>
+        private static void AccumulateLoopSample(ref SapVoiceState sap, in SapPcm pcm, ref SourceSlot sl, int first, int len, int at, float gain) {
+            if (sl.fadeSamplesLeft > 0) {
+                gain *= (float)sl.fadeSamplesLeft / sl.fadeSamplesTotal;
+                sl.fadeSamplesLeft--;
+                if (sl.fadeSamplesLeft == 0) sl.active = false;
+            }
+            double cur = sl.cursor;
+            int i1 = (int)cur;
+            float t = (float)(cur - i1);
+            int r1 = i1 - first;
+            if (r1 < 0) { r1 = 0; t = 0f; } else if (r1 >= len) { r1 = len - 1; t = 0f; }
+            int r0 = r1 - 1; if (r0 < 0) r0 += len;
+            int r2 = r1 + 1; if (r2 >= len) r2 -= len;
+            int r3 = r1 + 2; if (r3 >= len) r3 -= len;
+            int i0 = first + r0, j1 = first + r1, i2 = first + r2, i3 = first + r3;
+            var samples = pcm.samples;
+            int ch = pcm.channels;
+            int total = samples.Length / (ch > 0 ? ch : 1);
+            if (i0 >= total) i0 = total - 1; if (j1 >= total) j1 = total - 1; if (i2 >= total) i2 = total - 1; if (i3 >= total) i3 = total - 1;
+            float t2 = t * t, t3 = t2 * t;
+            if (ch == 1) {
+                float p0 = samples[i0], p1 = samples[j1], p2 = samples[i2], p3 = samples[i3];
+                float v = gain * 0.5f * ((2f * p1) + (-p0 + p2) * t + (2f * p0 - 5f * p1 + 4f * p2 - p3) * t2 + (-p0 + 3f * p1 - 3f * p2 + p3) * t3);
+                sap.bufL[at] += v; sap.bufR[at] += v;
+            }
+            else {
+                int b0 = i0 * ch, b1 = j1 * ch, b2 = i2 * ch, b3 = i3 * ch;
+                float p0 = samples[b0], p1 = samples[b1], p2 = samples[b2], p3 = samples[b3];
+                sap.bufL[at] += gain * 0.5f * ((2f * p1) + (-p0 + p2) * t + (2f * p0 - 5f * p1 + 4f * p2 - p3) * t2 + (-p0 + 3f * p1 - 3f * p2 + p3) * t3);
+                p0 = samples[b0 + 1]; p1 = samples[b1 + 1]; p2 = samples[b2 + 1]; p3 = samples[b3 + 1];
+                sap.bufR[at] += gain * 0.5f * ((2f * p1) + (-p0 + p2) * t + (2f * p0 - 5f * p1 + 4f * p2 - p3) * t2 + (-p0 + 3f * p1 - 3f * p2 + p3) * t3);
             }
         }
 
