@@ -39,6 +39,79 @@ namespace Laubrary.Zounds.Uitk {
         internal static readonly Rect CAll = new Rect(8, 104, 48, 20), CLeft = new Rect(64, 104, 48, 20), CNone = new Rect(120, 104, 48, 20), CRight = new Rect(176, 104, 48, 20);
         internal static readonly Rect Flat = new Rect(240, 104, 80, 20), ZBtn = new Rect(328, 104, 88, 24);
         internal const float SpeedT = 0.4363f, WindowV = 30f, ValueV = 0.35f;
+
+        // ── the chain pair (T-0462..T-0466) ──
+        public const float ChainW = 960f, ChainH = 900f;
+
+        /// <summary>
+        /// Opens the old chain editor and its twin side by side on one in-memory Klip (never added to the library, so the
+        /// owner's project is untouched) whose chain exercises every kind of control: inline and wrapped effect rows,
+        /// sliders (linear, log, integer), toggles, choice strips, a modulated slider, the four modifier kinds with
+        /// wave icons, a two-handled range, a step list, and bindings in each combine mode.
+        /// </summary>
+        public static (EditorWindow old, EditorWindow uitk) OpenChainPair(int expandNode = 2) {
+            var k = SampleKlip();
+            var a = ScriptableObject.CreateInstance<ImguiChainGallery>();
+            a.klip = k; a.expand = expandNode;
+            a.titleContent = new GUIContent("Zounds Chain IMGUI");
+            a.ShowUtility();
+            a.position = new Rect(40, 60, ChainW, ChainH);
+            var b = ScriptableObject.CreateInstance<UitkChainGallery>();
+            b.klip = k; b.expand = expandNode;
+            b.titleContent = new GUIContent("Zounds Chain UITK");
+            b.ShowUtility();
+            b.position = new Rect(40 + ChainW + 12, 60, ChainW, ChainH);
+            return (a, b);
+        }
+
+        internal static Klip SampleKlip() {
+            var k = new Klip(-777) { name = "Chain gallery" };
+            var c = k.effectChain;
+            c.nodes.Add(new ZoundEffectNode(ZoundEffectType.Gain));
+            c.nodes.Add(new ZoundEffectNode(ZoundEffectType.LowPass));
+            c.nodes.Add(new ZoundEffectNode(ZoundEffectType.EQ));
+            c.nodes.Add(new ZoundEffectNode(ZoundEffectType.Distortion));
+            c.nodes.Add(new ZoundEffectNode(ZoundEffectType.Delay) { enabled = false });
+            c.nodes.Add(new ZoundEffectNode(ZoundEffectType.BitCrush));
+            c.modifiers.Add(new ZoundModifier(ZoundModifierType.Envelope));
+            c.modifiers.Add(new ZoundModifier(ZoundModifierType.Lfo) { name = "Wobble" });
+            c.modifiers.Add(new ZoundModifier(ZoundModifierType.Random));
+            var step = new ZoundModifier(ZoundModifierType.Step) { steps = new[] { 1f, -0.5f, 0.25f, 0.8f } };
+            c.modifiers.Add(step);
+            foreach (var n in c.nodes) n.EnsureParams();
+            foreach (var m in c.modifiers) m.EnsureParams();
+            c.bindings.Add(new ZoundModifierBinding { modifierIndex = 1, nodeIndex = 1, paramIndex = 0, combine = Dsp.ModulationCombine.Shift, depth = 0.6f, schema = Dsp.ChainModulationCompat.CURRENT_SCHEMA });
+            c.bindings.Add(new ZoundModifierBinding { modifierIndex = 2, nodeIndex = 0, paramIndex = 0, combine = Dsp.ModulationCombine.Set, depth = 1f, schema = Dsp.ChainModulationCompat.CURRENT_SCHEMA });
+            c.bindings.Add(new ZoundModifierBinding { modifierIndex = 3, nodeIndex = -1, paramIndex = 0, combine = Dsp.ModulationCombine.Shift, depth = 0.25f, schema = Dsp.ChainModulationCompat.CURRENT_SCHEMA });
+            c.Touch();
+            return k;
+        }
+    }
+
+    internal class ImguiChainGallery : EditorWindow {
+        internal Klip klip; internal int expand = -1;
+        ChainEditorGUI editor;
+        void OnDisable() => editor?.Dispose();
+        void OnGUI() {
+            if (klip == null) return;
+            using var _ = ZUI.UseSheet("Zounds");
+            if (editor == null) { editor = new ChainEditorGUI(); editor.SelectedNode = expand; }
+            GUILayout.BeginArea(new Rect(8, 8, position.width - 16, position.height - 16));
+            editor.Draw(klip);
+            GUILayout.EndArea();
+        }
+    }
+
+    internal class UitkChainGallery : ZuiWindow {
+        internal Klip klip; internal int expand = -1;
+        protected override void BuildUI(VisualElement root) {
+            ZS.Attach(root);
+            if (klip == null) return;
+            var ed = new ChainEditorTK(klip) { SelectedNode = expand };
+            ed.At(8, 8);
+            ed.style.width = ZoundsUitkGallery.ChainW - 16f;
+            root.Add(ed);
+        }
     }
 
     internal class ImguiGallery : EditorWindow {

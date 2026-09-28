@@ -19,6 +19,8 @@ namespace Laubrary.Zui
             l.style.marginLeft = 0; l.style.marginRight = 0; l.style.marginTop = 0; l.style.marginBottom = 0;
             l.style.paddingLeft = 0; l.style.paddingRight = 0; l.style.paddingTop = 0; l.style.paddingBottom = 0;
             l.style.overflow = Overflow.Hidden;
+            // IMGUI keeps runs of spaces ("Extra time  0.00 s"); UI Toolkit's default white-space collapses them.
+            l.style.whiteSpace = WhiteSpace.Pre;
             return l;
         }
 

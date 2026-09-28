@@ -18,7 +18,21 @@ namespace Laubrary.Zui
         // misread and impossible to read at all on a card that is already tinted for being muted. So an
         // empty one carries a MARK when it is on. A toggle that has a label or an icon says what it is
         // already and keeps saying it in both states.
-        readonly bool _markWhenOn;
+        bool _markWhenOn;
+
+        /// Whether an empty toggle shows its on-mark. Turn it off for a toggle whose face is an image added as a child
+        /// (an icon strip), which already says what it is in both states.
+        public bool markWhenOn
+        {
+            get => _markWhenOn;
+            set
+            {
+                _markWhenOn = value;
+                EnableInClassList("zui-togglebutton--mark", value);
+                if (!value && text == "✔") text = "";
+                this.value = _value;
+            }
+        }
 
         public bool value
         {

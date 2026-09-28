@@ -16,16 +16,16 @@ namespace Laubrary.Zounds {
     /// </summary>
     internal class ChainEditorGUI {
 
-        private const float RowH = 20f;
-        private const float GripW = 14f;
-        private const float OnW = 30f;
-        private const float RemoveW = 20f;
-        private const float LabelW = 88f;
+        internal const float RowH = 20f;
+        internal const float GripW = 14f;
+        internal const float OnW = 30f;
+        internal const float RemoveW = 20f;
+        internal const float LabelW = 88f;
         /// <summary>
         /// The effect-name column, as wide as the longest effect name and no wider — measured, because a fixed guess clipped
         /// "Transient shaper" to "Transient shape" (seen on screen). Every row shares it, so the controls start in one column.
         /// </summary>
-        private static float NameW {
+        internal static float NameW {
             get {
                 if (nameW > 0f) return nameW;
                 float w = 60f;
@@ -42,10 +42,10 @@ namespace Laubrary.Zounds {
         // does not fit. A slider carries its name and value inside its own track; a toggle's face is its name; a choice
         // strip speaks through its options (the setting's name is on hover); a choice between shapes is icons. There is no
         // separate label column any more — that column is what forced one setting per row.
-        private const float Gap = 6f;
-        private const float SliderUnitW = 158f;
-        private const float TagIconW = 14f;
-        private const float WarnIconW = 16f;
+        internal const float Gap = 6f;
+        internal const float SliderUnitW = 158f;
+        internal const float TagIconW = 14f;
+        internal const float WarnIconW = 16f;
 
         /// <summary>
         /// How much narrower the rows really are than the window, measured on a paint pass and used on every pass after.
@@ -59,6 +59,8 @@ namespace Laubrary.Zounds {
         private float HeaderLeadW => GripW + 2f + OnW + 6f + NameW + Gap;
 
         private int selectedNode = -1;
+        /// <summary>Which effect's settings are expanded (-1: none). Set from outside only by the UI Toolkit comparison gallery.</summary>
+        internal int SelectedNode { get => selectedNode; set => selectedNode = value; }
         private int dragNode = -1;
         private int dragTargetIndex = -1;
         private bool dragUndoOpen;
@@ -165,7 +167,7 @@ namespace Laubrary.Zounds {
             }
         }
 
-        private void Modify(Zound zound, string undo, System.Action action) {
+        internal static void Modify(Zound zound, string undo, System.Action action) {
             ZoundsWindow.ModifyAndSaveZoundsProject(undo, () => {
                 action();
                 ZoundDspPlayback.InvalidateLayout(zound);
@@ -363,7 +365,7 @@ namespace Laubrary.Zounds {
             Modify(zound, "reorder effects", () => { chain.MoveNode(from, to); selectedNode = to; });
         }
 
-        private string Summary(Zound zound, ZoundEffectChain chain, int nodeIndex, ZoundEffectNode node, EffectDesc desc) {
+        internal static string Summary(Zound zound, ZoundEffectChain chain, int nodeIndex, ZoundEffectNode node, EffectDesc desc) {
             var sb = new System.Text.StringBuilder();
             int shown = 0;
             for (int k = 0; k < desc.parameters.Length && shown < 3; k++) {
@@ -377,17 +379,17 @@ namespace Laubrary.Zounds {
             return sb.ToString();
         }
 
-        private static float EffectiveValue(Zound zound, ZoundEffectChain chain, int nodeIndex, int paramIndex, float presetValue) {
+        internal static float EffectiveValue(Zound zound, ZoundEffectChain chain, int nodeIndex, int paramIndex, float presetValue) {
             if (zound.chainPresetId != 0 && ZoundChainLibrary.TryGetOverride(zound, nodeIndex, paramIndex, out float v)) return v;
             return presetValue;
         }
 
-        private static bool IsBound(ZoundEffectChain chain, int nodeIndex, int paramIndex) {
+        internal static bool IsBound(ZoundEffectChain chain, int nodeIndex, int paramIndex) {
             foreach (var b in chain.bindings) if (b.nodeIndex == nodeIndex && b.paramIndex == paramIndex) return true;
             return false;
         }
 
-        private static string Format(ParamDesc pd, float v) {
+        internal static string Format(ParamDesc pd, float v) {
             if (pd.IsChoice) { int i = Mathf.Clamp(Mathf.RoundToInt(v), 0, pd.options.Length - 1); return pd.options[i]; }
             switch (pd.curve) {
                 case ParamCurve.Toggle: return v >= 0.5f ? "on" : "off";
@@ -402,7 +404,7 @@ namespace Laubrary.Zounds {
         // ───────────────────────────── parameters ─────────────────────────────
 
         /// <summary>One setting, ready to be drawn as a self-labelled control of a known width.</summary>
-        private sealed class ParamUnit {
+        internal sealed class ParamUnit {
             public ParamDesc pd;
             public int nodeIndex, paramIndex;
             public float value;
@@ -413,6 +415,8 @@ namespace Laubrary.Zounds {
             public System.Action<float> onDrag, onSet;
             // A two-handled range made of two settings (a Random modifier's Min and Max).
             public ParamDesc pdHigh; public float valueHigh; public System.Action<float, float> onRange;
+            // The UI Toolkit twin reads the high end fresh on every refresh (the unit itself is a build-time snapshot).
+            public System.Func<float> readHigh;
         }
 
         private static List<float> Widths(List<ParamUnit> units) {
@@ -423,10 +427,10 @@ namespace Laubrary.Zounds {
 
         private static Rect Inset(Rect r) => new Rect(r.x, r.y + 1f, r.width, r.height - 2f);
 
-        private static readonly GUIStyle measureStyle = new GUIStyle(EditorStyles.label) { fontSize = 12 };
+        internal static readonly GUIStyle measureStyle = new GUIStyle(EditorStyles.label) { fontSize = 12 };
 
         /// <summary>How wide a setting's control is: fixed for a slider, sized to its words for a toggle or a choice.</summary>
-        private static float UnitWidth(ParamUnit u) {
+        internal static float UnitWidth(ParamUnit u) {
             float w;
             if (u.icons != null) w = u.icons.Length * ZUI.IconChoiceCellWidth;
             else if (u.pdHigh.name != null) w = SliderUnitW + 60f;
@@ -468,7 +472,7 @@ namespace Laubrary.Zounds {
         }
 
         /// <summary>What a setting does, for its hover text. What it DOES first, then how to reach it.</summary>
-        private static string ParamTip(ParamDesc pd, bool overridden, bool modulatable) {
+        internal static string ParamTip(ParamDesc pd, bool overridden, bool modulatable) {
             string what = string.IsNullOrEmpty(pd.desc)
                 ? pd.name + (string.IsNullOrEmpty(pd.unit) ? "" : " (" + pd.unit + ")") + "."
                 : pd.name + ": " + pd.desc + (string.IsNullOrEmpty(pd.unit) ? "" : "  Measured in " + pd.unit + ".");
@@ -647,7 +651,7 @@ namespace Laubrary.Zounds {
         /// would disagree with the fill underneath it — which is why the log case is spelled out again here rather than
         /// assumed linear.
         /// </summary>
-        private static float Normalised(ParamDesc pd, float value) {
+        internal static float Normalised(ParamDesc pd, float value) {
             if (pd.curve == ParamCurve.Logarithmic) {
                 float lmin = Mathf.Log(Mathf.Max(pd.min, 1e-4f)), lmax = Mathf.Log(Mathf.Max(pd.max, 1e-4f));
                 return Mathf.Clamp01(Mathf.InverseLerp(lmin, lmax, Mathf.Log(Mathf.Max(value, 1e-4f))));
@@ -655,7 +659,7 @@ namespace Laubrary.Zounds {
             return Mathf.Clamp01(Mathf.InverseLerp(pd.min, pd.max, value));
         }
 
-        private static string BoundBy(ZoundEffectChain chain, int nodeIndex, int paramIndex) {
+        internal static string BoundBy(ZoundEffectChain chain, int nodeIndex, int paramIndex) {
             foreach (var b in chain.bindings) {
                 if (b.nodeIndex == nodeIndex && b.paramIndex == paramIndex && b.modifierIndex >= 0 && b.modifierIndex < chain.modifiers.Count)
                     return ModifierLabel(chain, b.modifierIndex);
@@ -663,7 +667,7 @@ namespace Laubrary.Zounds {
             return "";
         }
 
-        private static string ModifierLabel(ZoundEffectChain chain, int modifierIndex) {
+        internal static string ModifierLabel(ZoundEffectChain chain, int modifierIndex) {
             var m = chain.modifiers[modifierIndex];
             return string.IsNullOrEmpty(m.name) ? ZoundEffectDescriptors.GetModifier(m.type).displayName + " " + (modifierIndex + 1) : m.name;
         }
@@ -678,7 +682,7 @@ namespace Laubrary.Zounds {
             ShowParamMenu(zound, chain, -1, paramIndex, ZoundEffectDescriptors.SourceStageParams[paramIndex], false);
         }
 
-        private void ShowParamMenu(Zound zound, ZoundEffectChain chain, int nodeIndex, int paramIndex, ParamDesc pd, bool overridden) {
+        internal static void ShowParamMenu(Zound zound, ZoundEffectChain chain, int nodeIndex, int paramIndex, ParamDesc pd, bool overridden) {
             var items = new List<ZUI.ZUIMenuItem>();
             if (!pd.automatable) items.Add(ZUI.MenuItem("Not modulatable", null, false, false));
             else {
@@ -713,7 +717,7 @@ namespace Laubrary.Zounds {
             ZUI.ContextMenu(items.ToArray());
         }
 
-        private static void AddBinding(ZoundEffectChain chain, int modifierIndex, int nodeIndex, int paramIndex, ParamDesc pd) {
+        internal static void AddBinding(ZoundEffectChain chain, int modifierIndex, int nodeIndex, int paramIndex, ParamDesc pd) {
             chain.bindings.Add(new ZoundModifierBinding {
                 modifierIndex = modifierIndex, nodeIndex = nodeIndex, paramIndex = paramIndex,
                 // Full strength. Since Shift's depth became a share of the room the parameter has (T-0436), one reaches
@@ -807,7 +811,7 @@ namespace Laubrary.Zounds {
             }
         }
 
-        private static string TargetsSummary(ZoundEffectChain chain, int modifierIndex) {
+        internal static string TargetsSummary(ZoundEffectChain chain, int modifierIndex) {
             var sb = new System.Text.StringBuilder();
             foreach (var b in chain.bindings) {
                 if (b.modifierIndex != modifierIndex) continue;
@@ -817,7 +821,7 @@ namespace Laubrary.Zounds {
             return sb.Length == 0 ? "not bound — right-click a parameter to bind it" : "→ " + sb;
         }
 
-        private static string TargetLabel(ZoundEffectChain chain, ZoundModifierBinding b) {
+        internal static string TargetLabel(ZoundEffectChain chain, ZoundModifierBinding b) {
             if (b.nodeIndex < 0) return "Source " + ZoundEffectDescriptors.SourceStageParams[Mathf.Clamp(b.paramIndex, 0, SourceStageParam.Count - 1)].name.ToLower();
             if (b.nodeIndex >= chain.nodes.Count) return "?";
             var d = ZoundEffectDescriptors.Get(chain.nodes[b.nodeIndex].type);
@@ -859,7 +863,7 @@ namespace Laubrary.Zounds {
                     u.onRange = (lo, hi) => ModifyContinuous(zound, "change modifier range", () => { mod.p[0] = lo; mod.p[1] = hi; chain.Touch(); });
                 }
                 if (mod.type == ZoundModifierType.Lfo && k == 1 && (int)mod.p[4] == (int)LfoMode.Oscillate)
-                    SlowRateWarning(zound, chain, mod, out u.warning, out u.warningTip);
+                    { EnsureModulationMeasured(zound, chain); SlowRateWarning(modulation.playSeconds, mod, out u.warning, out u.warningTip); }
                 u.width = UnitWidth(u);
                 units.Add(u);
             }
@@ -914,10 +918,8 @@ namespace Laubrary.Zounds {
         /// listener gets. Nothing about the oscillator is wrong, so nothing should silently change; but the reason is
         /// invisible from the settings alone, so it is said here, where the rate is set.
         /// </summary>
-        private void SlowRateWarning(Zound zound, ZoundEffectChain chain, ZoundModifier mod, out string note, out string noteTip) {
+        internal static void SlowRateWarning(float play, ZoundModifier mod, out string note, out string noteTip) {
             note = null; noteTip = null;
-            EnsureModulationMeasured(zound, chain);
-            float play = modulation.playSeconds;
             float rate = mod.p[1];
             if (play <= 0f || rate <= 0f) return;
             float cycles = rate * play;
@@ -1003,9 +1005,9 @@ namespace Laubrary.Zounds {
         /// The most steps a list can hold. The engine itself has no limit, but round-robin order remembers which steps it
         /// has used in a 24-slot mask, so a longer list would quietly stop being shuffled properly.
         /// </summary>
-        private const int MaxSteps = 24;
-        private const float StepBarMaxW = 44f;
-        private const float StepBandH = 64f;
+        internal const int MaxSteps = 24;
+        internal const float StepBarMaxW = 44f;
+        internal const float StepBandH = 64f;
 
         /// <summary>
         /// The step list, as a row of bars you drag to set — one bar per step, like a step sequencer or an equaliser.
@@ -1074,8 +1076,8 @@ namespace Laubrary.Zounds {
         // two of the three were traps: multiplying by an oscillator drove parameters to their end stops, and both of the
         // others took an amount in the parameter's own units, so the number to type was unguessable and different on every
         // parameter. These say what happens to the sound.
-        private static readonly string[] combineLabels = { "Shift", "Set", "Scale" };
-        private static readonly string[] combineTips = {
+        internal static readonly string[] combineLabels = { "Shift", "Set", "Scale" };
+        internal static readonly string[] combineTips = {
             "Shift: moves the parameter away from where you set it. The slider stays your starting point and the modifier pushes it up or down from there — an oscillator swings it both ways around your value, a step list moves it to a different offset on each step. At full depth it can reach all the way to either end of the parameter's range but never past it. Example: a low-pass set to 1 kHz with an oscillator on Shift sweeps up towards 20 kHz and down towards 20 Hz around your 1 kHz.",
             "Set: the modifier takes the parameter over completely and drives it across its whole range, ignoring where the slider is; the modifier's lowest output is the bottom of the range, its highest the top. Depth blends between your slider value (nought) and the modifier's (one). Example: a step list on Set picks the cutoff outright for each step.",
             "Scale: multiplies your value by the modifier's output — one leaves it unchanged, a half halves it, nought silences it. Depth blends from no effect (nought) to the full multiplication (one). Best for levels such as gain or a mix, for a proportional tremolo; offered only where the parameter does not rest at zero, since multiplying zero leaves zero."
@@ -1088,7 +1090,7 @@ namespace Laubrary.Zounds {
         /// that has gone. The row still has to draw, so a missing target answers with a plain nought-to-one range rather
         /// than throwing in the middle of a repaint.
         /// </summary>
-        private static bool TryTargetParam(ZoundEffectChain chain, ZoundModifierBinding b, out ParamDesc pd) {
+        internal static bool TryTargetParam(ZoundEffectChain chain, ZoundModifierBinding b, out ParamDesc pd) {
             pd = default;
             if (b.nodeIndex < 0) {
                 if (b.paramIndex < 0 || b.paramIndex >= SourceStageParam.Count) return false;
@@ -1102,13 +1104,13 @@ namespace Laubrary.Zounds {
             return true;
         }
 
-        private static float DepthMinOf(ZoundEffectChain chain, ZoundModifierBinding b) => TryTargetParam(chain, b, out var pd) ? pd.min : 0f;
-        private static float DepthMaxOf(ZoundEffectChain chain, ZoundModifierBinding b) => TryTargetParam(chain, b, out var pd) ? pd.max : 1f;
-        private static bool DepthRatioOf(ZoundEffectChain chain, ZoundModifierBinding b)
+        internal static float DepthMinOf(ZoundEffectChain chain, ZoundModifierBinding b) => TryTargetParam(chain, b, out var pd) ? pd.min : 0f;
+        internal static float DepthMaxOf(ZoundEffectChain chain, ZoundModifierBinding b) => TryTargetParam(chain, b, out var pd) ? pd.max : 1f;
+        internal static bool DepthRatioOf(ZoundEffectChain chain, ZoundModifierBinding b)
             => TryTargetParam(chain, b, out var pd) && ModulationMath.IsRatioSpaced(pd.curve);
 
         /// <summary>Whether multiplying could do anything at all to this binding's target — see the enum's own note.</summary>
-        private static bool ScaleIsMeaningfulFor(ZoundEffectChain chain, ZoundModifierBinding b)
+        internal static bool ScaleIsMeaningfulFor(ZoundEffectChain chain, ZoundModifierBinding b)
             => TryTargetParam(chain, b, out var pd) && ModulationMath.ScaleIsMeaningful(pd.def, pd.min);
 
         /// <summary>
@@ -1118,7 +1120,7 @@ namespace Laubrary.Zounds {
         /// migration pass means the conversion happens exactly when somebody looks at the thing and adjusts it, with the
         /// result visible and audible immediately, instead of silently rewriting a whole project's chains at once.
         /// </summary>
-        private static void WriteBinding(ZoundEffectChain chain, ZoundModifierBinding b, ModulationCombine combine, float depth) {
+        internal static void WriteBinding(ZoundEffectChain chain, ZoundModifierBinding b, ModulationCombine combine, float depth) {
             b.combine = combine;
             b.depth = Mathf.Clamp01(depth);
             b.schema = ChainModulationCompat.CURRENT_SCHEMA;

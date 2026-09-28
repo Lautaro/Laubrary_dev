@@ -47,6 +47,44 @@
     margin: 0;
 }
 
+/* ── chain editor labels (ChainEditorGUI draws them with the editor's own label styles; values read from
+   EditorStyles on 2026-09-28: label/boldLabel 12 pt, padding 1 left/right, colour 0.769, middle-left) ── */
+.zs-root .zs-lbl {
+    margin: 0;
+    padding: 0 1px 0 1px;
+    color: rgb(196,196,196);
+    -unity-text-align: middle-left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+/* EditorStyles.boldLabel */
+.zs-root .zs-bold { -unity-font-style: bold; }
+/* EditorStyles.miniLabel: 10 pt, padding 2, colour 0.824 */
+.zs-root .zs-mini { font-size: 10px; padding: 0 2px 0 2px; color: rgb(210,210,210); }
+/* EditorStyles.centeredGreyMiniLabel: 10 pt, padding 2, grey 0.5 */
+.zs-root .zs-greymini { font-size: 10px; padding: 0; -unity-text-align: middle-center; color: rgb(128,128,128); text-overflow: clip; overflow: visible; }
+/* ZTextStyle.Subtle: the Zounds sheet resolves it to its Default text style (0.88, padding 2/1, upper-left) */
+.zs-root .zs-subtle { color: rgb(224,224,224); padding: 1px 2px 1px 2px; margin: 0 0 0 4px; -unity-text-align: upper-left; }
+/* GUI.Label with no style: the editor skin's plain label, padding 2 */
+.zs-root .zs-guilabel { padding: 0 2px 0 2px; }
+/* ZTextStyle.Subheader: size and weight from the sheet's rule, placed like a GUILayout label */
+.zs-root .zs-subheader { padding: 0 2px 0 2px; margin: 0; -unity-text-align: middle-left; color: rgb(224,224,224); }
+/* The chain's reserved error row and a setting's warning mark (colour 0.97, 0.8, 0.4) */
+.zs-root .zs-warntext { color: rgb(247,204,102); }
+.zs-root .zs-warnmark { color: rgb(247,204,102); -unity-text-align: middle-center; padding: 0; }
+/* A modifier curve's caption (size 10, 0.8/0.8/0.86) and end labels (size 9, 0.62/0.62/0.68) */
+.zs-root .zs-curvecap { font-size: 10px; color: rgb(204,204,219); -unity-text-align: upper-left; padding: 0 2px 0 2px; }
+.zs-root .zs-curvelabel { font-size: 9px; color: rgb(158,158,173); -unity-text-align: upper-left; padding: 0 2px 0 2px; }
+.zs-root .zs-curvelabel.zs-right { -unity-text-align: upper-right; }
+/* the chain's rows: a positioning context for their absolutely placed parts */
+.zs-root .zs-chain-row { position: relative; }
+.zs-root .zs-chain-row.zs-dragging { background-color: rgba(255,255,255,0.06); }
+.zs-root .zs-grip { cursor: move-arrow; }
+/* ZUI.IconChoice: the wave icon drawn by the button style, centred; measured on the old window at 12 x 6.5 */
+.zs-root .zs-iconchoice__icon { position: absolute; left: 50%; top: 50%; width: 12px; height: 6.5px; translate: -50% -50%; }
+.zs-root .zs-stepband { background-color: rgba(0,0,0,0.15); }
+
 .zs-root .zs-minilabel {
     font-size: 9px;
     -unity-text-align: middle-left;

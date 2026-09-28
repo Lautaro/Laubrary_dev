@@ -100,6 +100,9 @@ namespace Laubrary.Zounds.Uitk {
         /// <summary>The window's client area as Windows draws it, or null when it cannot be found.</summary>
         public static Texture2D Capture(EditorWindow window) {
             IntPtr hwnd = FindByTitle(window.titleContent.text);
+            // Unity does not always give a floating window its native title (seen 2026-09-28: both floating windows
+            // untitled), so fall back to the native window whose client area starts where the editor window says it is.
+            if (hwnd == IntPtr.Zero) hwnd = FindByPosition(window.position);
             if (hwnd == IntPtr.Zero) return null;
             GetClientRect(hwnd, out RECT cr);
             GetWindowRect(hwnd, out RECT wr);
@@ -148,6 +151,25 @@ namespace Laubrary.Zounds.Uitk {
                 return true;
             }, IntPtr.Zero);
             return found;
+        }
+
+        private static IntPtr FindByPosition(Rect position) {
+            float k = EditorGUIUtility.pixelsPerPoint;
+            int px = Mathf.RoundToInt(position.x * k), py = Mathf.RoundToInt(position.y * k);
+            int pw = Mathf.RoundToInt(position.width * k);
+            IntPtr found = IntPtr.Zero; int best = int.MaxValue;
+            uint pid = (uint)System.Diagnostics.Process.GetCurrentProcess().Id;
+            EnumWindows((h, l) => {
+                GetWindowThreadProcessId(h, out uint wp);
+                if (wp != pid || !IsWindowVisible(h)) return true;
+                GetClientRect(h, out RECT cr);
+                var o = new POINT { x = 0, y = 0 };
+                ClientToScreen(h, ref o);
+                int d = Math.Abs(o.x - px) + Math.Abs(o.y - py) + Math.Abs((cr.right - cr.left) - pw);
+                if (d < best) { best = d; found = h; }
+                return true;
+            }, IntPtr.Zero);
+            return best <= 40 ? found : IntPtr.Zero;
         }
 
         private delegate bool EnumProc(IntPtr h, IntPtr l);

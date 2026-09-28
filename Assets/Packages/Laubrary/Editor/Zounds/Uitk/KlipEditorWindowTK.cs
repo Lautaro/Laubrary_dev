@@ -120,6 +120,7 @@ namespace Laubrary.Zounds.Uitk {
             scroll.Add(VSpace(Row));
             scroll.Add(new TimeStretchTK(klip));
             scroll.Add(VSpace(Row));
+            scroll.Add(new ChainEditorTK(klip));
 
             syncTick = root.schedule.Execute(Sync).Every(200);
         }
