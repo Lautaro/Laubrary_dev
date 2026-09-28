@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — live speed: a sound's speed can change while it plays, without changing its pitch (T-0409)
+
+- **Engine:** a real-time WSOLA stretcher in the source stage (Granular as the alternate), ported from the research prototype (`D:\UNITY\ZoundsStretchTest`): sub-sample alignment, each detected hit laid down once at speed 1, and the time a hit borrowed repaid afterwards. Windows are read through the existing cubic source read at clip-rate × pitch, so sample-rate conversion and Pitch work unchanged; Speed is a time-scale on top of Pitch. One stretcher state per read slot, so repeats stretch too. Only sounds with Live speed on use it; every other sound reads its source directly, exactly as before.
+- **Speed** is a new source-stage parameter (bindable to any modifier, Shift/Set/Scale), multiplied with a live base speed: the sound's own Speed × `ZoundToken.liveSpeed` × `ZoundEngine.globalSpeed` (the bullet-time control, reaching every playing live-speed sound at once).
+- **End of play:** a live-speed sound's length cannot be known in advance, so the voice reports when it has finished (the frame count at the end, in the per-voice counter memory) and the handler ends the sound then, having declared a safe upper bound.
+- **Klip editor:** a Live speed row in the time-stretch strip — Speed (heard immediately on a playing sound; right-click binds a modifier), Window, Keep hits, WSOLA/Granular.
+- **Kept check 15** (Laubrary/Zounds/Checks): slicing invariance bit-identical at blocks of 1, 64, 333, 1024 and 4096 (ordinary and compiled); speed 1 vs the direct read −77.6 dB; pure tone 0 cents and ≤ −77 dB at 0.5, 0.25, 1.5 and through a live sweep; a 12-click train keeps 12 hits at half and quarter speed (17 and 36 without the hit lock); length within one window; about 1 % of a core per stereo voice compiled (3.8 % in the editor with Burst safety checks on).
+- **Fix over the prototype:** alignment is refined even when the best match sits on the edge of the search range; skipping it there left isolated whole-sample splices during a live sweep (−52 dB against −84 dB elsewhere).
+- `NativeDisableContainerSafetyRestriction` on the voice's optional buffers (monitor, render counter, stretcher), which are left unallocated when unused; without it the editor's job safety check refused the compiled check jobs.
+
 ### Zounds — a Force GC button, and a measured answer to "is the audio thread still immune?"
 
 - **Force GC** in the Klip and Zequence editor windows: forces a full collection while a sound plays, and reports how long it froze the editor and whether any of the engine's audio has ever run as managed code this session (tooltip and console).

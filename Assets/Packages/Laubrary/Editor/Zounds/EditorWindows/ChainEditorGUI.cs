@@ -668,6 +668,16 @@ namespace Laubrary.Zounds {
             return string.IsNullOrEmpty(m.name) ? ZoundEffectDescriptors.GetModifier(m.type).displayName + " " + (modifierIndex + 1) : m.name;
         }
 
+        /// <summary>
+        /// The same modulation menu every parameter has, for a source-stage parameter drawn outside the chain editor — the
+        /// live Speed slider in the time-stretch strip (T-0409), so binding a modifier to it works the way it does anywhere.
+        /// </summary>
+        internal void ShowSourceParamMenu(Zound zound, int paramIndex) {
+            var chain = ZoundDspPlayback.ResolveChain(zound, out _);
+            if (chain == null || paramIndex < 0 || paramIndex >= SourceStageParam.Count) return;
+            ShowParamMenu(zound, chain, -1, paramIndex, ZoundEffectDescriptors.SourceStageParams[paramIndex], false);
+        }
+
         private void ShowParamMenu(Zound zound, ZoundEffectChain chain, int nodeIndex, int paramIndex, ParamDesc pd, bool overridden) {
             var items = new List<ZUI.ZUIMenuItem>();
             if (!pd.automatable) items.Add(ZUI.MenuItem("Not modulatable", null, false, false));

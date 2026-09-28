@@ -47,7 +47,7 @@ namespace Laubrary.Zounds {
             ZoundTimeStretcher.Get(src, ts, trimStart, trimEnd);
         }
 
-        public void Draw(Klip klip, AudioClip clip) {
+        public void Draw(Klip klip, AudioClip clip, System.Action<int> sourceParamMenu = null) {
             lastClip = clip;
             var ts = klip.timeStretch;
             if (ts == null) { ts = klip.timeStretch = new ZoundTimeStretch(); }
@@ -102,6 +102,8 @@ namespace Laubrary.Zounds {
                 }
             }
             GUILayout.EndHorizontal();
+
+            DrawLive(klip, ts, sourceParamMenu);
 
             if (!ts.enabled) return;
 
@@ -163,6 +165,72 @@ namespace Laubrary.Zounds {
             }
 
             if (evt.rawType == EventType.MouseUp && dragOpen) { dragOpen = false; ZoundsWindow.EndDragUndo(); Prewarm(klip); }
+        }
+
+        /// <summary>
+        /// Live speed (T-0409): one row. The switch, then — when on — the speed (heard immediately, even on a sound already
+        /// playing; right-click to drive it with a modifier), the window, Keep hits and the algorithm (those three apply
+        /// from the next play, since they size the stretcher when a play starts).
+        /// </summary>
+        private void DrawLive(Klip klip, ZoundTimeStretch ts, System.Action<int> sourceParamMenu) {
+            var evt = Event.current;
+            GUILayout.BeginHorizontal(GUILayout.Height(RowH));
+            {
+                bool on = ZUI.Toggle(ts.liveEnabled, new GUIContent("Live speed", ts.liveEnabled
+                        ? "Stop the live stretcher: the sound reads its source directly again, and Speed, game code's speed and any modifier on Speed are no longer heard."
+                        : "Let this sound's speed change while it plays without changing its pitch — from the Speed setting, a modifier on Speed, or game code (a bullet-time slowdown). Costs about one percent of a CPU core per playing copy."),
+                    ZUI.Style.RichToggle, ZUICornerMask.All, GUILayout.Width(84f), GUILayout.Height(RowH));
+                if (on != ts.liveEnabled) Set(klip, on ? "enable live speed" : "disable live speed", () => ts.liveEnabled = on);
+
+                if (ts.liveEnabled) {
+                    GUILayout.Space(6f);
+                    // Speed: log slider 0.1x .. 4x, the same range as the Speed parameter a modifier drives.
+                    var spd = ZoundEffectDescriptors.SourceStageParams[SourceStageParam.Speed];
+                    float lmin = Mathf.Log(spd.min), lmax = Mathf.Log(spd.max);
+                    float t = Mathf.InverseLerp(lmin, lmax, Mathf.Log(Mathf.Clamp(ts.liveSpeed, spd.min, spd.max)));
+                    var rect = GUILayoutUtility.GetRect(150f, RowH - 2f, GUILayout.Width(150f));
+                    if (evt.type == EventType.MouseDown && evt.button == 1 && rect.Contains(evt.mousePosition) && sourceParamMenu != null) {
+                        sourceParamMenu(SourceStageParam.Speed); evt.Use();
+                    }
+                    float nt = ZUI.MicroSlider(rect, t, 0f, 1f, "Speed ×" + ts.liveSpeed.ToString("0.00"), ZUI.SliderStyle.Default, false, ZUI.MicroSliderLabelMode.LabelOnly, Mathf.InverseLerp(lmin, lmax, 0f));
+                    GUI.Label(rect, new GUIContent("", "How fast the sound moves through its source, without changing its pitch: 0.5 is half speed (twice as long), 2 is double. Heard immediately, even on a sound already playing. Game code's speed multiplies on top. Right-click to drive it with a modifier. Double-click resets to 1."));
+                    if (!Mathf.Approximately(nt, t)) {
+                        float s = Mathf.Exp(Mathf.Lerp(lmin, lmax, nt));
+                        Drag(klip, "live speed", () => ts.liveSpeed = s);
+                        SapVoiceRegistry.PushAuthoredSpeed(klip, s);
+                    }
+
+                    GUILayout.Space(6f);
+                    var wrect = GUILayoutUtility.GetRect(120f, RowH - 2f, GUILayout.Width(120f));
+                    float w = ZUI.MicroSlider(wrect, ts.liveWindowMs, 10f, 100f, "Window " + ts.liveWindowMs.ToString("0") + " ms", ZUI.SliderStyle.Default, false, ZUI.MicroSliderLabelMode.LabelOnly, 30f);
+                    GUI.Label(wrect, new GUIContent("", "Length of the pieces the sound is cut into to stretch it. 20-30 ms suits speech and hits; 40-50 ms suits pads, chords and engines. Applies from the next play."));
+                    if (!Mathf.Approximately(w, ts.liveWindowMs)) Drag(klip, "live stretch window", () => ts.liveWindowMs = Mathf.Round(w));
+
+                    GUILayout.Space(6f);
+                    bool keep = ZUI.Toggle(ts.liveKeepHits, new GUIContent("Keep hits", ts.liveKeepHits
+                            ? "Stretch hits too: attacks are then smeared, and at slow speeds can repeat like a machine gun. Applies from the next play."
+                            : "Play each hit (attack) once, whole, at normal speed, and stretch only the material between hits, so shots and clicks stay sharp and never double. Applies from the next play."),
+                        ZUI.Style.RichToggle, ZUICornerMask.All, GUILayout.Width(72f), GUILayout.Height(RowH));
+                    if (keep != ts.liveKeepHits) Set(klip, "live stretch keep hits", () => ts.liveKeepHits = keep);
+
+                    GUILayout.Space(6f);
+                    string[] names = { "WSOLA", "Granular" };
+                    string[] tips = {
+                        "Lines each piece up with the previous one, so tones stay clean and pitch stays exact. The right choice for almost everything. Applies from the next play.",
+                        "Overlaps pieces without lining them up: rougher and grainier, which can suit magic, roars and textures as a deliberate character. Applies from the next play."
+                    };
+                    for (int a = 0; a < 2; a++) {
+                        bool sel = (int)ts.liveAlgorithm == a;
+                        var corner = a == 0 ? ZUICornerMask.Left : ZUICornerMask.Right;
+                        if (ZUI.Toggle(sel, new GUIContent(names[a], tips[a]), ZUI.Style.RichToggle, corner, GUILayout.Width(a == 0 ? 60f : 70f), GUILayout.Height(RowH)) && !sel) {
+                            var alg = (LiveStretchAlgorithm)a;
+                            Set(klip, "live stretch algorithm", () => ts.liveAlgorithm = alg);
+                        }
+                    }
+                }
+                GUILayout.FlexibleSpace();
+            }
+            GUILayout.EndHorizontal();
         }
 
         private const string KeepHitsTip = "Every hit (attack) is kept intact for this long and only the material between hits is stretched, so a percussive sound is not repeated like a machine gun. 0 stretches everything.";

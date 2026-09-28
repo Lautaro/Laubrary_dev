@@ -572,11 +572,13 @@ namespace Laubrary.Zounds {
                 // === Time-stretch (source material: duration without pitch change) ===
                 ZUI.RowSpace();
                 if (stretchEditor == null) stretchEditor = new TimeStretchGUI();
-                stretchEditor.Draw(targetZound, sourceAsset);
+                if (chainEditor == null) chainEditor = new ChainEditorGUI();
+                var editorForMenu = chainEditor;
+                var zoundForMenu = targetZound;
+                stretchEditor.Draw(targetZound, sourceAsset, p => editorForMenu.ShowSourceParamMenu(zoundForMenu, p));
 
                 // === Effect chain (per-voice DSP: nodes, modifiers, library presets) ===
                 ZUI.RowSpace();
-                if (chainEditor == null) chainEditor = new ChainEditorGUI();
                 chainEditor.Draw(targetZound);
                 isDraggingSlider = isDraggingSlider || chainEditor.isDragging || stretchEditor.isDragging;
                 // Deliberately NOT asking for a redraw from here. Keeping a live view alive is done from the editor's own
