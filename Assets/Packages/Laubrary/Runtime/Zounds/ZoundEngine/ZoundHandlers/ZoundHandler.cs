@@ -19,6 +19,7 @@ namespace Laubrary.Zounds {
         // A live, externally-driven volume multiplier (OutBurner 2026-09-26, its engine sound): defaults to 1 so
         // every existing sound is unchanged. Managed pipeline only - a native-DSP voice does not read it yet.
         float liveVolume { get; set; }
+        float liveSpeed { get; set; }
         int playedEntryIndex { get; }
         bool isRealtime { get; }
         System.Action onPlayStarted { get; set; }
@@ -71,6 +72,8 @@ namespace Laubrary.Zounds {
         public float parentVolume { get; set; } = 1f;
         // See the interface member and ZoundToken.liveVolume. Multiplied into every managed volume write below.
         public float liveVolume { get; set; } = 1f;
+        // See ZoundToken.liveSpeed. Only a sound playing through the chain with live speed on hears it (KlipHandler).
+        public virtual float liveSpeed { get; set; } = 1f;
         public virtual bool isRealtime => false;
         public System.Action onPlayStarted { get; set; }
 

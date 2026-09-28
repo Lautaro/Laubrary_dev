@@ -86,6 +86,14 @@ namespace Laubrary.Zounds {
                 // an upper bound rather than a fixed wait.
                 var laidOut = m_voice.playingLayout;
                 if (laidOut != null) m_chainDuration += laidOut.tailSeconds;
+                // A sound with live speed cannot know its length in advance: game code or a modifier may slow it at any
+                // moment (T-0409). So it declares the longest it could possibly last, and ends as soon as the voice itself
+                // reports that it has finished (see OnPlayUpdate) — never cut short, never held on longer than it sounds.
+                if (m_voice.HasLiveSpeed) {
+                    float sourceSeconds = sourceClip != null ? sourceClip.length : m_chainDuration;
+                    m_chainDuration = sourceSeconds / (Dsp.SapStretch.MinSpeed * Mathf.Max(basePitch, 0.01f))
+                                      + (laidOut != null ? laidOut.tailSeconds : 0f) + 1f;
+                }
                 return;
             }
 
@@ -122,7 +130,19 @@ namespace Laubrary.Zounds {
             base.OnKill();
         }
 
+        /// <summary>This play's speed from game code (ZoundToken.liveSpeed), sent to the playing voice (T-0409).</summary>
+        public override float liveSpeed {
+            get => m_liveSpeed;
+            set { m_liveSpeed = value; if (m_chainPath && m_voice != null) m_voice.SetTokenSpeedLive(value); }
+        }
+        private float m_liveSpeed = 1f;
+
         protected override ZoundUpdateResult OnPlayUpdate(float deltaDspTime) {
+            // A live-speed sound ends when its voice says so, since its length could not be known (T-0409).
+            if (m_chainPath && m_voice != null && m_voice.HasLiveSpeed && m_voice.VoiceFinished) {
+                OnCompleteDuration();
+                return ZoundUpdateResult.Kill;
+            }
             if (m_isRealtime) {
                 if (zound.pitchEnvelope != null && zound.pitchEnvelope.enabled) {
                     float t = currentTime / totalDuration;

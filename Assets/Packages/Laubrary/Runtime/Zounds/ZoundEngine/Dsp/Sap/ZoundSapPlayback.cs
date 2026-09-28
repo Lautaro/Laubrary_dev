@@ -75,9 +75,21 @@ namespace Laubrary.Zounds.Dsp {
             // integral of that rate rather than the plain length. The engine already knows how to work this out.
             duration = DurationOf(zound, pcm, startFrame, endFrame, basePitch);
 
+            // Live speed (T-0409): the stretcher runs only for a sound that asks for it; every other sound reads its
+            // source directly, exactly as before. The duration reported is the nominal one at the current speed; the
+            // real end is reported by the voice itself, because the speed may change while it plays.
+            var stretch = SapStretchConfig.Off;
+            float authoredSpeed = 1f;
+            if (zound is Klip lk && lk.timeStretch != null && lk.timeStretch.liveEnabled) {
+                stretch = lk.timeStretch.LiveConfig();
+                authoredSpeed = Mathf.Clamp(lk.timeStretch.liveSpeed, SapStretch.MinSpeed, SapStretch.MaxSpeed);
+                duration /= Mathf.Max(authoredSpeed * ZoundEngine.globalSpeed, SapStretch.MinSpeed);
+            }
+
             var generator = EnsureGenerator(carrier);
             generator.SetPlay(pcm, layout, startFrame, endFrame, basePitch, outGain, duration,
-                              loop: false, tokenId: tokenId, heavyTier: layout.heavy, zound: zound);
+                              loop: false, tokenId: tokenId, heavyTier: layout.heavy, zound: zound,
+                              stretch: stretch, authoredSpeed: authoredSpeed);
 
             // No file. The audio source carries the sound into the mixer and nothing else.
             //

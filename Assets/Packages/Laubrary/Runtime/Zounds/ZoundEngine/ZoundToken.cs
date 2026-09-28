@@ -98,6 +98,15 @@ namespace Laubrary.Zounds {
             get => m_handler != null ? m_handler.liveVolume : 1f;
             set { if (m_handler != null) m_handler.liveVolume = value; }
         }
+        /// <summary>
+        /// This play's speed, changeable while it plays, without changing its pitch (T-0409): 0.5 plays it at half speed.
+        /// Multiplied with the sound's own speed and <see cref="ZoundEngine.globalSpeed"/>. Only heard on a sound with live
+        /// speed switched on (a Klip playing through its chain); any other sound ignores it.
+        /// </summary>
+        public float liveSpeed {
+            get => m_handler != null ? m_handler.liveSpeed : 1f;
+            set { if (m_handler != null) m_handler.liveSpeed = value; }
+        }
         internal bool isRealtime => m_handler.isRealtime;
 
         internal CompositeZound.ZoundEntry soloOverride => m_soloOverride;

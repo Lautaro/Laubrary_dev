@@ -163,10 +163,28 @@ namespace Laubrary.Zounds.Dsp {
         public bool isRealtime => false;
         public DiscreteTime? length => null;
 
+        /// <summary>
+        /// True once the current voice has finished — source, stretch and tail — as reported by the audio side itself.
+        /// This is how a live-speed sound's end is known (T-0409), since its length cannot be worked out in advance.
+        /// </summary>
+        public bool VoiceFinished => renderTicket.IsCreated && renderTicket.Length > 2 && renderTicket[2] != 0;
+
+        /// <summary>Whether the current play has live speed (its stretcher runs, and <see cref="SetSpeedLive"/> is heard).</summary>
+        public bool HasLiveSpeed => stretch.enabled;
+
+        private SapStretchConfig stretch;
+        /// <summary>The sound's own authored speed, and the playing token's multiplier; the global speed multiplies on top.</summary>
+        private float authoredSpeed = 1f, tokenSpeed = 1f;
+        private float baseSpeed => authoredSpeed * tokenSpeed * ZoundEngine.globalSpeed;
+
         /// <summary>Describes the next play. Does not allocate; resolution happens when the graph asks.</summary>
         public void SetPlay(PcmClip clip, ChainLayout layout, double startFrame, double endFrame,
                            float basePitch, float outGain, float sourceDuration, bool loop,
-                           long tokenId, bool heavyTier, Zound zound = null) {
+                           long tokenId, bool heavyTier, Zound zound = null,
+                           SapStretchConfig stretch = default, float authoredSpeed = 1f) {
+            this.stretch = stretch;
+            this.authoredSpeed = authoredSpeed;
+            tokenSpeed = 1f;
             playingZound = zound;
             this.clip = clip;
             this.layout = layout;
@@ -205,7 +223,8 @@ namespace Laubrary.Zounds.Dsp {
 
             voice = SapRealtimeVoice.Create(clip, layout, preparedSampleRate, startFrame, endFrame,
                                             basePitch, outGain, sourceDuration, loop, tokenId, heavyTier,
-                                            Allocator.Persistent, playingZound, monitorSamples, renderTicket);
+                                            Allocator.Persistent, playingZound, monitorSamples, renderTicket,
+                                            stretch, baseSpeed);
             if (repeat.enabled) voice.SetRepeat(in repeat);
             created = true;
             handedOff = true;
@@ -250,6 +269,15 @@ namespace Laubrary.Zounds.Dsp {
 
         /// <summary>Changes the playing sound's output gain.</summary>
         public bool SetGainLive(float gain) => Send(SapVoiceCommand.Gain(gain));
+
+        /// <summary>The playing sound's own speed changed (an edit). Heard only when the play has live speed (T-0409).</summary>
+        public bool SetAuthoredSpeedLive(float speed) { authoredSpeed = speed; return RefreshSpeed(); }
+
+        /// <summary>Game code's speed for this play (the token's), multiplied with the sound's own and the global one.</summary>
+        public bool SetTokenSpeedLive(float speed) { tokenSpeed = speed; return RefreshSpeed(); }
+
+        /// <summary>Sends the current combined speed to the playing voice. False when there is nothing to change.</summary>
+        public bool RefreshSpeed() => stretch.enabled && Send(SapVoiceCommand.Speed(baseSpeed));
 
         /// <summary>Stops hard at the next block: declick and flush, without waiting for the tail.</summary>
         public bool StopLive() => Send(SapVoiceCommand.Stop());
@@ -369,7 +397,8 @@ namespace Laubrary.Zounds.Dsp {
                 retiredLastSeen.Add(renderTicket[0]);
             }
             // [0]: the in-block counter the stopped-for-sure barrier reads. [1]: frames rendered, this play's own clock.
-            renderTicket = new NativeArray<long>(2, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+            // [2]: set once the voice has finished, tail and all (T-0409: a live-speed sound's end cannot be predicted).
+            renderTicket = new NativeArray<long>(3, Allocator.Persistent, NativeArrayOptions.ClearMemory);
         }
 
         // ───────────────────────── knowing a sound has actually stopped ─────────────────────────

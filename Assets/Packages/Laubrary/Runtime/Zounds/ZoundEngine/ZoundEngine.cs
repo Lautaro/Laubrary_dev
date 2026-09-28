@@ -456,6 +456,21 @@ namespace Laubrary.Zounds {
             return masterVolume;
         }
 
+        private static float s_globalSpeed = 1f;
+
+        /// <summary>
+        /// A speed applied to every sound that has live speed switched on, on top of its own (T-0409) — the bullet-time
+        /// control: set 0.35 and every such sound playing now, and every one started afterwards, slows to 0.35 of its
+        /// speed without its pitch dropping. Sounds without live speed ignore it and play normally. 1 is unchanged.
+        /// </summary>
+        public static float globalSpeed {
+            get => s_globalSpeed;
+            set {
+                s_globalSpeed = Mathf.Clamp(value, Dsp.SapStretch.MinSpeed, Dsp.SapStretch.MaxSpeed);
+                Dsp.SapVoiceRegistry.RefreshAllSpeeds();
+            }
+        }
+
         public static float GetRemainingCooldownTime(Zound zound) {
             if (instance == null) return 0f;
             if (instance.zoundLastPlayedTimes.TryGetValue(zound, out float lastPlayedTime)) {

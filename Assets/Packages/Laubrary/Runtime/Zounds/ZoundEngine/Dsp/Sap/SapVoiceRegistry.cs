@@ -249,6 +249,30 @@ namespace Laubrary.Zounds.Dsp {
             return delivered;
         }
 
+        /// <summary>Delivers a new authored speed to every voice playing <paramref name="zound"/> with live speed (T-0409).</summary>
+        public static int PushAuthoredSpeed(Zound zound, float speed) {
+            if (zound == null) return 0;
+            int delivered = 0;
+            for (int i = live.Count - 1; i >= 0; i--) {
+                var g = live[i];
+                if (g == null) { live.RemoveAt(i); continue; }
+                if (!ReferenceEquals(g.playingZound, zound) || !g.IsPlaying) continue;
+                if (g.SetAuthoredSpeedLive(speed)) delivered++;
+            }
+            return delivered;
+        }
+
+        /// <summary>Re-sends every live-speed voice its combined speed, after the global speed changed.</summary>
+        public static int RefreshAllSpeeds() {
+            int delivered = 0;
+            for (int i = live.Count - 1; i >= 0; i--) {
+                var g = live[i];
+                if (g == null) { live.RemoveAt(i); continue; }
+                if (g.HasLiveSpeed && g.IsPlaying && g.RefreshSpeed()) delivered++;
+            }
+            return delivered;
+        }
+
         /// <summary>
         /// Where an effect's parameter sits in the flat parameter block, or -1 when the pair does not name anything
         /// in this layout (an effect that has since been removed, for instance).
