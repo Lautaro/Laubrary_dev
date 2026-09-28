@@ -63,7 +63,7 @@ namespace Laubrary.Zounds {
             }
         }
 
-        private static int CountLiveTokens() {
+        internal static int CountLiveTokens() {
             int count = 0;
             foreach (var kvp in ZoundEngine.CullingGroups) {
                 foreach (var token in kvp.Value) {
@@ -80,7 +80,11 @@ namespace Laubrary.Zounds {
         }
 
         // One representative (oldest) live token per Zound, plus how many instances are live.
-        private void CollectLiveTokens() {
+        private void CollectLiveTokens() => CollectLiveTokens(liveTokenByZound, liveInstanceCounts);
+
+        /// <summary>Fills <paramref name="liveTokenByZound"/> with one representative (oldest) live token per Zound and
+        /// <paramref name="liveInstanceCounts"/> with how many are live. Shared with the UI Toolkit twin (T-0470).</summary>
+        internal static void CollectLiveTokens(Dictionary<Zound, ZoundToken> liveTokenByZound, Dictionary<Zound, int> liveInstanceCounts) {
             liveTokenByZound.Clear();
             liveInstanceCounts.Clear();
             foreach (var kvp in ZoundEngine.CullingGroups) {
@@ -171,14 +175,7 @@ namespace Laubrary.Zounds {
 
         private void DrawRecentSection(Rect contentRect) {
             var allEntries = ZoundsRecentHistory.GetEntries();
-            // Each Zound appears once, at the position of its newest trigger (entries are newest first).
-            var filtered = new List<ZoundsRecentHistory.Entry>(allEntries.Count);
-            recentSeenKeys.Clear();
-            foreach (var entry in allEntries) {
-                if (!MatchesFilter(entry.name)) continue;
-                if (!recentSeenKeys.Add(ZoundDictionary.ZoundNameToKey(entry.name ?? string.Empty))) continue;
-                filtered.Add(entry);
-            }
+            var filtered = FilteredEntries(allEntries, filterText, recentSeenKeys);
 
             GUILayout.BeginHorizontal();
             ZUI.Label("Recent", GUILayout.ExpandWidth(false));
@@ -281,7 +278,21 @@ namespace Laubrary.Zounds {
         // HELPERS
         // ═══════════════════════════════════════════════════════════════════════
 
-        private bool MatchesFilter(string name) {
+        /// <summary>The list the Monitor shows: each Zound once, at the position of its newest trigger (entries are newest
+        /// first), narrowed by the name filter. Shared with the UI Toolkit twin (T-0470).</summary>
+        internal static List<ZoundsRecentHistory.Entry> FilteredEntries(IReadOnlyList<ZoundsRecentHistory.Entry> allEntries, string filterText, HashSet<string> seenKeys) {
+            var filtered = new List<ZoundsRecentHistory.Entry>(allEntries.Count);
+            seenKeys.Clear();
+            foreach (var entry in allEntries) {
+                if (!MatchesFilter(entry.name, filterText)) continue;
+                if (!seenKeys.Add(ZoundDictionary.ZoundNameToKey(entry.name ?? string.Empty))) continue;
+                filtered.Add(entry);
+            }
+            return filtered;
+        }
+
+        /// <summary>The name filter: case-insensitive "contains"; an empty filter matches everything.</summary>
+        internal static bool MatchesFilter(string name, string filterText) {
             if (string.IsNullOrEmpty(filterText)) return true;
             if (string.IsNullOrEmpty(name)) return false;
             return name.IndexOf(filterText, System.StringComparison.OrdinalIgnoreCase) >= 0;

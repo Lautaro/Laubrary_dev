@@ -750,7 +750,9 @@ namespace Laubrary.Zounds.Uitk {
             win.SetFill(fill);
             if (!fill) {
                 listHost.Add(ZequenceEditorWindowTK.Space(5f));
-                listHost.Add(new HelpBox("No Zounds triggered since the list was cleared.", HelpBoxMessageType.Info));
+                var help = new HelpBox("No Zounds triggered since the list was cleared.", HelpBoxMessageType.Info);
+                help.AddToClassList("zs-infobox");
+                listHost.Add(help);
                 listHost.Add(ZequenceEditorWindowTK.Space(5f));
                 return;
             }

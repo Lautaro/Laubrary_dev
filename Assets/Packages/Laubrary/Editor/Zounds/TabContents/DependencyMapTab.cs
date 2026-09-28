@@ -406,7 +406,13 @@ namespace Laubrary.Zounds {
         }
 
         private void ApplyGroupFix(ZoundDependencyAnalyzer.BrokenGroup group) {
-            if (group.stagedFix == null) return;
+            if (ApplyGroupFixShared(group)) RequestRefresh();
+        }
+
+        /// <summary>"FIX ALL": points every reference to the group's missing file at its staged replacement, and makes the
+        /// replacement Addressable. Returns false when nothing is staged. Shared with the UI Toolkit twin (T-0470).</summary>
+        internal static bool ApplyGroupFixShared(ZoundDependencyAnalyzer.BrokenGroup group) {
+            if (group.stagedFix == null) return false;
 
             string newPath = AssetDatabase.GetAssetPath(group.stagedFix);
             string newGuid = AssetDatabase.AssetPathToGUID(newPath);
@@ -450,11 +456,10 @@ namespace Laubrary.Zounds {
                 if (entry != null) entry.address = newPath;
             }
             #endif
-
-            RequestRefresh();
+            return true;
         }
 
-        private bool MatchesMissingKey(AssetReference clipRef, string path, string missingKey) {
+        private static bool MatchesMissingKey(AssetReference clipRef, string path, string missingKey) {
             if (clipRef != null && clipRef.AssetGUID == missingKey) return true;
             if (path == missingKey) return true;
             return false;
@@ -860,7 +865,7 @@ namespace Laubrary.Zounds {
             GUILayout.EndVertical();
         }
 
-        private void CollectCoveredZounds(string clipPath, ZoundDependencyAnalyzer analyzerSnapshot, HashSet<int> coveredZoundIds) {
+        internal static void CollectCoveredZounds(string clipPath, ZoundDependencyAnalyzer analyzerSnapshot, HashSet<int> coveredZoundIds) {
             foreach (var z in GetAllClipDependents(clipPath, analyzerSnapshot)) {
                 coveredZoundIds.Add(z.id);
             }
@@ -870,7 +875,7 @@ namespace Laubrary.Zounds {
         /// Returns all Zounds that depend on a clip: direct referencedBy + transitive dependents
         /// (Klip -> parent Zeq -> grandparent Zeq, and also parentId chain for local Zounds).
         /// </summary>
-        private static List<Zound> GetAllClipDependents(string clipPath, ZoundDependencyAnalyzer analyzerSnapshot) {
+        internal static List<Zound> GetAllClipDependents(string clipPath, ZoundDependencyAnalyzer analyzerSnapshot) {
             if (!analyzerSnapshot.clipNodes.TryGetValue(clipPath, out var clipNode)) {
                 return new List<Zound>();
             }
@@ -1059,7 +1064,7 @@ namespace Laubrary.Zounds {
         /// <summary>
         /// Color coding: local Zounds are gray, shared (public) are blue.
         /// </summary>
-        private static string ZoundNameColor(Zound zound) {
+        internal static string ZoundNameColor(Zound zound) {
             return zound.parentId != 0 ? "#888888" : "#88AAFF";
         }
 
@@ -1125,7 +1130,7 @@ namespace Laubrary.Zounds {
             }
         }
 
-        private static string GetCleanZoundName(Zound zound) {
+        internal static string GetCleanZoundName(Zound zound) {
             string displayName = zound.name;
             if (zound.parentId != 0) {
                 var parent = ZoundsProject.Instance.zoundLibrary.FindZound(z => z.id == zound.parentId);
@@ -1136,7 +1141,7 @@ namespace Laubrary.Zounds {
             return displayName;
         }
 
-        private static string GetTypeLabel(Zound z) {
+        internal static string GetTypeLabel(Zound z) {
             if (z is Klip) return "Klip";
             if (z is Zequence) return "Zeq";
             if (z is ClipZound) return "AC";

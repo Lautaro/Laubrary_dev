@@ -24,10 +24,16 @@ namespace Laubrary.Zui
             return l;
         }
 
+        /// The IMGUI label style's horizontal padding, which its CalcSize includes when the old code tests whether the text
+        /// fits: without it the twin keeps a readout at full size in a track the old one shrinks it in (seen on the Zounds
+        /// Monitor's narrow Volume/Pitch cells, T-0470).
+        public const float ImguiPadding = 6f;
+
         /// Sets the label's text and size for a track <paramref name="width"/> wide. Widths are measured at the label's
         /// resolved size and scaled with the font size, which is how glyph advances scale.
         public static void Fit(Label label, string text, string fallback, float width)
         {
+            width -= ImguiPadding;
             label.style.fontSize = StyleKeyword.Null;
             label.text = text ?? "";
             if (string.IsNullOrEmpty(text) || width <= 0f) return;

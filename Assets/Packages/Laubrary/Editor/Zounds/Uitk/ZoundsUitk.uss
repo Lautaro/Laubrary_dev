@@ -175,7 +175,7 @@
 /* A group's heading in the list: EditorGUILayout.LabelField with the bold label */
 .zs-root .zs-grouplabel { height: 18px; margin: -0.5px 0 1.5px 0; padding-left: 4.5px; }
 /* The grid inspector: EditorStyles.helpBox */
-.zs-root .zs-helpbox { background-color: rgb(64,64,64); border-width: 1px; border-color: rgb(35,35,35); border-radius: 3px; padding: 4px; margin: 2px 0 2px 0; }
+.zs-root .zs-helpbox { border-width: 1px; border-radius: 3px; padding: 4px; margin: 2px 0 2px 0; }
 /* The tags on their own row or zone: word-wrapped, anchored top-left */
 .zs-root .zs-tagsfield--multiline.unity-button { white-space: normal; }
 /* The settings panel's toggles: RichToggle, 18 high, as wide as their text allows between 28 and 90 */
@@ -218,3 +218,94 @@
 .zs-root .zs-settings > .zs-projectrow { margin-bottom: 2px; }
 .zs-root .zs-settings > .zs-subheader { margin-top: 2px; height: 18px; -unity-text-align: upper-left; }
 .zs-root .zs-settings > .zs-skinrow { margin-bottom: 3px; }
+
+/* ── the Monitor tab ── */
+/* ZUI.Label inside a Default box: the box's content text (the palette's text blue) */
+.zs-root .zs-boxtext { color: rgb(123,176,211); font-size: 12px; padding: 0 2px 0 2px; margin: 0; -unity-text-align: middle-left; }
+.zs-root .zs-monitor__count { -unity-text-align: upper-left; }
+.zs-root .zs-monitor__filter > .unity-base-text-field__input { font-size: 12px; }
+.zs-root .zs-monitor__ghost { font-size: 12px; padding-left: 4px; }
+/* ZUI.InfoBox / EditorGUILayout.HelpBox: the editor's help box is a translucent grey laid over what is behind it, with no
+   visible border (measured 40,50,59 over the box's 26,39,50) */
+.zs-root .zs-infobox { margin: 2px 0 2px 0; background-color: rgba(64,64,64,0.4); border-color: rgba(0,0,0,0); }
+.zs-root .zs-helpbox { background-color: rgba(64,64,64,0.4); border-color: rgba(0,0,0,0); }
+.zs-root .zs-monitor__head { margin: 1.5px 0 1.5px 0; }
+.zs-root .zs-toolbar > .zs-monitor__filter { margin: 1.5px 0 0 3px; height: 28.5px; }
+
+/* ── the Routing tab ── */
+/* ReorderableList: the "Rules" header strip, the empty row, the element rows' own colours (set per row), the +/- footer */
+/* measured on the old list: header strip 18.5 (53,53,53) over a 1 px line (36,36,36); body (65,65,65) with its rows inset
+   4 above and 3.5 below; the empty row 21 high (75,75,75); the +/- footer 55 x 18.5, 10 in from the right */
+.zs-root .zs-rules__header { height: 18.5px; padding-left: 6px; background-color: rgb(53,53,53); border-bottom-width: 1px; border-color: rgb(36,36,36); }
+.zs-root .zs-rules__none { height: 21px; padding-left: 7px; background-color: rgb(75,75,75); margin: 4px 0 3.5px 0; }
+.zs-root .zs-rules { margin: 3px 1px 0 1px; }
+.zs-root .zs-rules .unity-list-view__empty-label, .zs-root .zs-rules > .unity-scroll-view { background-color: rgb(65,65,65); }
+.zs-root .zs-rules .unity-list-view__scroll-view { background-color: rgb(65,65,65); padding: 4px 0 3.5px 0; }
+.zs-root .zs-rules .unity-list-view__footer { background-color: rgb(65,65,65); width: 55px; height: 18.5px; min-height: 18.5px; margin-right: 10px; border-bottom-width: 1px; border-color: rgb(36,36,36); border-bottom-left-radius: 3px; border-bottom-right-radius: 3px; }
+.zs-root .zs-rules .unity-list-view__item { padding: 0; }
+.zs-root .zs-rules__mixer { margin: 0; }
+.zs-root .zs-rules .unity-scroll-view__content-container { padding-top: 4px; padding-bottom: 3.5px; }
+/* The element area starts after the drag handle (20 pt from the list's edge, measured) */
+.zs-root .zs-rules .unity-list-view__reorderable-item__container { padding-left: 0; }
+.zs-root .zs-rules .unity-list-view__reorderable-handle { width: 20px; min-width: 20px; }
+/* An IMGUI label clips at its rect instead of ending in "..." */
+.zs-root .zs-cliplabel { text-overflow: clip; }
+.zs-root .zs-rules__add { margin: 0; height: 18px; }
+/* A condition chip: EditorGUI.HelpBox 20 high with its label and a 16 px "X" inside, 2 apart */
+.zs-root .zs-chip { flex-direction: row; height: 20px; margin: 0 2px 0 0; padding: 1px; background-color: rgba(64,64,64,0.4); border-width: 1px; border-color: rgb(30,30,30); border-radius: 3px; }
+.zs-root .zs-chip > .zs-lbl { padding-right: 4px; }
+.zs-root .zs-chip__x.unity-button { width: 16px; height: 16px; margin: 0; padding: 0; }
+/* GUI.Box behind a chip area, and a name chip (a HelpBox 18 high; green for Active Zounds) */
+.zs-root .zs-guibox { background-color: rgba(0,0,0,0.15); border-width: 0; border-radius: 2px; }
+.zs-root .zs-namechip { height: 18px; margin: 0 2px 0 0; padding: 2px 4px 2px 2px; background-color: rgba(64,64,64,0.4); border-radius: 3px; }
+.zs-root .zs-namechip--active { background-color: rgba(0,160,0,0.4); }
+
+/* ── the Dependency Map tab ── */
+/* The section buttons: EditorStyles.toolbarButton, 20 high; GUI.backgroundColor tints the chosen / broken / issues one */
+.zs-root .zs-depbar__button { height: 20px; padding-left: 2px; padding-right: 2px; }
+/* measured: the chosen one 48,64,80; the others the toolbar's 60,60,60 times the tint */
+.zs-root .zs-depbar__button--active { background-color: rgb(48,64,80); }
+.zs-root .zs-depbar__button--broken { background-color: rgb(60,24,24); }
+.zs-root .zs-depbar__button--issues { background-color: rgb(60,48,18); }
+/* EditorStyles.miniButton */
+.zs-root .zs-minibtn { margin: 0 0 0 4px; height: 18px; font-size: 12px; padding: 0 2px 0 2px; flex-shrink: 0; }
+/* the old scroll area's content sits 4 in from the left and 3 from the right, 1.5 lower (measured) */
+.zs-root .zs-depscroll .unity-scroll-view__content-container { padding: 1.5px 3px 0 4px; }
+.zs-root .zs-minibtn--danger { color: rgb(255,102,102); }
+.zs-root .zs-depbar__refresh { margin-top: 1px; }
+/* EditorStyles.helpBox as a vertical group */
+.zs-root .zs-dephelp { background-color: rgba(64,64,64,0.4); border-radius: 3px; padding: 2px 4px 0 3px; margin: 2px 0 2px 0; flex-shrink: 0; }
+.zs-root .zs-deplabel { min-height: 18px; white-space: pre; text-overflow: clip; }
+/* GUILayout stacks lines 2 pt apart inside a help box (measured 20 pt per 18 pt line) */
+.zs-root .zs-dephelp > .unity-label, .zs-root .zs-dephelp > .zs-deprow { margin-bottom: 2px; }
+.zs-root .zs-minibold { font-size: 10px; -unity-font-style: bold; padding: 0 2px 0 2px; color: rgb(210,210,210); }
+.zs-root .zs-wrap { white-space: normal; }
+.zs-root .zs-link { cursor: link; }
+.zs-root .zs-paircol { width: 150px; min-width: 150px; }
+.zs-root .zs-label-150 > .unity-base-field__label { width: 150px; min-width: 150px; }
+.zs-root .zs-fixall.unity-button { background-color: rgb(58,120,58); }
+.zs-root .zs-reconcile.unity-button { background-color: rgb(64,112,64); }
+/* The foldouts: EditorGUILayout.Foldout — the arrow, then the (rich) label; bold for section headers */
+.zs-root .zs-depfoldout { margin: 0; }
+.zs-root .zs-depfoldout > .unity-foldout__toggle { margin: 0; height: 18px; }
+.zs-root .zs-depfoldout > .unity-foldout__content { display: none; }
+.zs-root .zs-depfoldout--bold .unity-foldout__text { -unity-font-style: bold; }
+/* Foldout(…, EditorStyles.boldLabel): that style has no arrow, only the bold text (still clickable) */
+.zs-root .zs-depfoldout--bold .unity-foldout__checkmark, .zs-root .zs-depfoldout--uncovered .unity-foldout__checkmark { display: none; }
+.zs-root .zs-depfoldout--uncovered .unity-foldout__text { -unity-font-style: bold; color: rgb(196,137,59); }
+/* GUI.color on the main tab while something is broken (the old tab's headerColor, 1/0.4/0.4) */
+.zs-root .zs-maintab--broken { -unity-background-image-tint-color: rgb(255,102,102); }
+
+/* ── the Settings tab: the editor's own fields, 18 high and 2 apart as EditorGUILayout lays them. At 225 % a 2 pt gap
+   snaps to 5 device pixels, so rows are given as 18.22 + 1.78 pt, which snap to 41 + 4 px: the old 20 pt pitch exactly ── */
+.zs-root .zs-settingsscroll .unity-scroll-view__content-container { padding: 0 5px 0 4px; }
+.zs-root .zs-settingsheader { height: 18.22px; margin: 2px 0 1.78px 0; }
+.zs-root .zs-settingsfield { margin: 0 0 1.78px 0; height: 18.22px; }
+.zs-root .zs-settingsfield > .unity-base-field__label { padding-left: 1px; margin-left: 0; }
+.zs-root .zs-settingsrow { margin: 0 0 1.78px 0; height: 18.22px; }
+.zs-root .zs-settingsrow > .zs-lbl { height: 18px; padding-left: 1px; }
+.zs-root .zs-settingsrow > .zs-settingsfield { margin-bottom: 0; }
+.zs-root .zs-settingsbutton { margin: 2px 0 1.78px 0; height: 18.22px; }
+.zs-root .zs-settingsstatus { font-size: 10px; height: 18px; padding-left: 2px; margin: 1px 0 2px 0; color: rgb(210,210,210); }
+.zs-root .zs-settingsstatus--warn { background-color: rgba(64,64,64,0.4); border-radius: 3px; font-size: 10px; }
+.zs-root .zs-settingspath--missing > .unity-base-text-field__input { color: rgb(255,178,128); }

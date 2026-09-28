@@ -140,29 +140,13 @@ namespace Laubrary.Zounds {
             EditorGUI.BeginChangeCheck();
             selectedThemeIndex = EditorGUILayout.Popup("Available Themes", selectedThemeIndex, availableThemes);
             if (EditorGUI.EndChangeCheck() && selectedThemeIndex >= 0) {
-                string themeName = availableThemes[selectedThemeIndex];
-                string path = Path.Combine(ZoundsProject.Instance.projectSettings.themesFolderPath, themeName + ".json");
-                if (File.Exists(path)) {
-                    string json = File.ReadAllText(path);
-                    ZoundsTheme theme = JsonUtility.FromJson<ZoundsTheme>(json);
-                    if (theme != null) {
-                        ZoundsWindow.ModifyZoundsProject($"apply theme {themeName}", () => {
-                            ZoundsProject.Instance.projectSettings.ApplyTheme(theme);
-                        });
-                    }
-                }
+                ApplyTheme(availableThemes[selectedThemeIndex]);
             }
             if (GUILayout.Button("Refresh", GUILayout.Width(60f))) RefreshThemeList();
             GUILayout.EndHorizontal();
 
             if (GUILayout.Button("Save Current Style as New Theme")) {
-                string path = EditorUtility.SaveFilePanelInProject("Save Theme", "NewTheme", "json", "Select theme save location", ZoundsProject.Instance.projectSettings.themesFolderPath);
-                if (!string.IsNullOrEmpty(path)) {
-                    string json = JsonUtility.ToJson(ZoundsProject.Instance.projectSettings.ExtractTheme(), true);
-                    File.WriteAllText(path, json);
-                    AssetDatabase.Refresh();
-                    RefreshThemeList();
-                }
+                if (SaveCurrentStyleAsTheme()) RefreshThemeList();
             }
             EditorGUILayout.Space(10f);
 
@@ -220,14 +204,37 @@ namespace Laubrary.Zounds {
         }
 
         private void RefreshThemeList() {
+            availableThemes = ThemeNames();
+        }
+
+        // ── Shared with the UI Toolkit twin (T-0470) ──
+
+        /// <summary>The theme files (names without ".json") in the project's themes folder.</summary>
+        internal static string[] ThemeNames() {
             var themesPath = ZoundsProject.Instance.projectSettings.themesFolderPath;
-            if (!Directory.Exists(themesPath)) {
-                availableThemes = new string[0];
-                return;
-            }
-            availableThemes = Directory.GetFiles(themesPath, "*.json")
-                .Select(Path.GetFileNameWithoutExtension)
-                .ToArray();
+            if (!Directory.Exists(themesPath)) return new string[0];
+            return Directory.GetFiles(themesPath, "*.json").Select(Path.GetFileNameWithoutExtension).ToArray();
+        }
+
+        /// <summary>Loads the named theme file and applies it to the project settings (undoable).</summary>
+        internal static void ApplyTheme(string themeName) {
+            string path = Path.Combine(ZoundsProject.Instance.projectSettings.themesFolderPath, themeName + ".json");
+            if (!File.Exists(path)) return;
+            ZoundsTheme theme = JsonUtility.FromJson<ZoundsTheme>(File.ReadAllText(path));
+            if (theme == null) return;
+            ZoundsWindow.ModifyZoundsProject($"apply theme {themeName}", () => {
+                ZoundsProject.Instance.projectSettings.ApplyTheme(theme);
+            });
+        }
+
+        /// <summary>"Save Current Style as New Theme": asks where, writes the theme file. Returns whether one was written.</summary>
+        internal static bool SaveCurrentStyleAsTheme() {
+            string path = EditorUtility.SaveFilePanelInProject("Save Theme", "NewTheme", "json", "Select theme save location", ZoundsProject.Instance.projectSettings.themesFolderPath);
+            if (string.IsNullOrEmpty(path)) return false;
+            string json = JsonUtility.ToJson(ZoundsProject.Instance.projectSettings.ExtractTheme(), true);
+            File.WriteAllText(path, json);
+            AssetDatabase.Refresh();
+            return true;
         }
     }
 }

@@ -83,19 +83,7 @@ namespace Laubrary.Zounds {
 
             allMixerGroups.Clear();
             GetAllAddresableMixerGroups(ref allMixerGroups);
-            unruledMixerGroups.Clear();
-            foreach (var targetMG in allMixerGroups) {
-                bool ruled = false;
-                foreach (var rule in ZoundsProject.Instance.zoundRoutings.rules) {
-                    if (rule.mixerGroupRef == null) continue;
-                    if (rule.mixerGroupRef.editorAsset != targetMG.audioMixer) continue;
-                    if (rule.mixerGroupRef.SubObjectName != targetMG.name) continue;
-                    ruled = true;
-                }
-                if (!ruled) {
-                    unruledMixerGroups.Add(targetMG);
-                }
-            }
+            CollectUnruledMixerGroups(allMixerGroups, unruledMixerGroups);
 
             scrollPos = GUILayout.BeginScrollView(scrollPos);
 
@@ -112,18 +100,8 @@ namespace Laubrary.Zounds {
                             rectHeight += ActiveZoundsSectionHeight + 5f;
                         }
 
-                        bool hasManualRoutedZounds = false;
-                        var zoundLibrary = ZoundsProject.Instance.zoundLibrary;
-                        zoundLibrary.ForEachZound(z => {
-                            if (z.editor_hasManuallySetRouting) {
-                                if (mixerGroup.audioMixer == z.manuallySetMixerGroupRef.editorAsset && mixerGroup.name == z.manuallySetMixerGroupRef.SubObjectName) {
-                                    rectHeight += ManualRoutingSectionHeight + 5f;
-                                    hasManualRoutedZounds = true;
-                                    return true;
-                                }
-                            }
-                            return false;
-                        });
+                        bool hasManualRoutedZounds = HasManualRoutedZounds(mixerGroup.audioMixer, mixerGroup.name);
+                        if (hasManualRoutedZounds) rectHeight += ManualRoutingSectionHeight + 5f;
                         var elementRect = GUILayoutUtility.GetRect(1f, rectHeight, GUILayout.ExpandWidth(true));
 
                         bool even = i % 2 == 0;
@@ -242,17 +220,7 @@ namespace Laubrary.Zounds {
             }
             hasManualRoutedZounds[index] = false;
             if (mixerGroupRef != null && ZoundsWindowProperties.Instance.showManuallySetRoutings) {
-                var zoundLibrary = ZoundsProject.Instance.zoundLibrary;
-                zoundLibrary.ForEachZound(z => {
-                    if (z.editor_hasManuallySetRouting) {
-                        if (mixerGroupRef.editorAsset == z.manuallySetMixerGroupRef.editorAsset && mixerGroupRef.SubObjectName == z.manuallySetMixerGroupRef.SubObjectName) {
-                            hasManualRoutedZounds[index] = true;
-                            return true;
-                        }
-                    }
-                    return false;
-                });
-
+                hasManualRoutedZounds[index] = HasManualRoutedZounds(mixerGroupRef.editorAsset, mixerGroupRef.SubObjectName);
             }
             if (hasManualRoutedZounds[index]) {
                 elementHeight += ManualRoutingSectionHeight;
@@ -290,6 +258,24 @@ namespace Laubrary.Zounds {
             }
             EditorGUIUtility.labelWidth = lblWidth;
             if (GUI.Button(addRuleRect, "+ Condition")) {
+                GenericMenuPopup.Show(
+                    ConditionMenu(index),
+                    "Select Condition",
+                    Event.current.mousePosition,
+                    new List<string>(),
+                    ruleSearchText,
+                    searchText => ruleSearchText = searchText,
+                    null, 1
+                    );
+            }
+
+            OnDrawRulesElementRest(rect, index);
+        }
+
+        /// <summary>The "+ Condition" menu for rule <paramref name="index"/>: every tag, and each "key:" tag family once.
+        /// Shared with the UI Toolkit twin (T-0470).</summary>
+        internal static GenericMenu ConditionMenu(int index) {
+                var zoundLibrary = ZoundsProject.Instance.zoundLibrary;
                 var addMenu = new GenericMenu();
 #if ZOUNDS_CONSIDER_FOLDERS
                 var folders = ZoundsFilter.GetFolders();
@@ -321,17 +307,10 @@ namespace Laubrary.Zounds {
                     });
                 }
 
-                GenericMenuPopup.Show(
-                    addMenu,
-                    "Select Condition",
-                    Event.current.mousePosition,
-                    new List<string>(),
-                    ruleSearchText,
-                    searchText => ruleSearchText = searchText,
-                    null, 1
-                    );
-            }
+                return addMenu;
+        }
 
+        private void OnDrawRulesElementRest(Rect rect, int index) {
             float currentY = rect.y + 5f + BaseRuleSectionHeight;
 
             var mixerGroupRef = ZoundsProject.Instance.zoundRoutings.rules[index].mixerGroupRef;
@@ -657,7 +636,78 @@ namespace Laubrary.Zounds {
             GUI.EndScrollView();
         }
 
-        private static void AddRule(int setIndex, ZoundRoutings.Condition.ConditionType type, string name) {
+        // ── Shared with the UI Toolkit twin (T-0470) ──
+
+        /// <summary>The mixer groups no rule routes to (the "Unruled Manual Routings" list).</summary>
+        internal static void CollectUnruledMixerGroups(List<AudioMixerGroup> allMixerGroups, List<AudioMixerGroup> unruledMixerGroups) {
+            unruledMixerGroups.Clear();
+            foreach (var targetMG in allMixerGroups) {
+                bool ruled = false;
+                foreach (var rule in ZoundsProject.Instance.zoundRoutings.rules) {
+                    if (rule.mixerGroupRef == null) continue;
+                    if (rule.mixerGroupRef.editorAsset != targetMG.audioMixer) continue;
+                    if (rule.mixerGroupRef.SubObjectName != targetMG.name) continue;
+                    ruled = true;
+                }
+                if (!ruled) {
+                    unruledMixerGroups.Add(targetMG);
+                }
+            }
+        }
+
+        /// <summary>Whether any zound is manually routed to the mixer group <paramref name="mixerGroupName"/> of <paramref name="audioMixerAsset"/>.</summary>
+        internal static bool HasManualRoutedZounds(UnityEngine.Object audioMixerAsset, string mixerGroupName) {
+            bool found = false;
+            ZoundsProject.Instance.zoundLibrary.ForEachZound(z => {
+                if (z.editor_hasManuallySetRouting) {
+                    if (audioMixerAsset == z.manuallySetMixerGroupRef.editorAsset && mixerGroupName == z.manuallySetMixerGroupRef.SubObjectName) {
+                        found = true;
+                        return true;
+                    }
+                }
+                return false;
+            });
+            return found;
+        }
+
+        /// <summary>A condition's chip text, and whether it names something that no longer exists.</summary>
+        internal static string ConditionLabel(ZoundRoutings.Condition.ConditionType type, string elementName, ZoundLibrary zoundLibrary, out bool isError) {
+            isError = false;
+            if (type == ZoundRoutings.Condition.ConditionType.Tag) {
+                if (!zoundLibrary.TryGetTag(elementName, out var tagByName) && zoundLibrary.tags.Find(t => t.name.StartsWith(elementName + ":")) == null) {
+                    isError = true;
+                    return "(Missing) " + elementName;
+                }
+                return elementName;
+            }
+            isError = true;
+            return "(Undefined)";
+        }
+
+        /// <summary>The zounds playing right now that the runtime routes to the given mixer group.</summary>
+        internal static List<Zound> ActiveZoundsFor(UnityEngine.Object audioMixerAsset, string mixerGroupName) {
+            var result = new List<Zound>();
+            var zoundRoutings = ZoundsProject.Instance.zoundRoutings;
+            foreach (var kvp in ZoundEngine.CullingGroups) {
+                if (kvp.Value.Count == 0) continue;
+                var runtimeMixerGroup = zoundRoutings.GetRouting(kvp.Key);
+                if (runtimeMixerGroup == null || runtimeMixerGroup.audioMixer != audioMixerAsset || runtimeMixerGroup.name != mixerGroupName) continue;
+                result.Add(kvp.Key);
+            }
+            return result;
+        }
+
+        /// <summary>The zounds manually routed to the given mixer group.</summary>
+        internal static List<Zound> ManuallyRoutedZoundsFor(UnityEngine.Object audioMixerAsset, string mixerGroupName) {
+            var result = new List<Zound>();
+            ZoundsProject.Instance.zoundLibrary.ForEachZound(z => {
+                if (!z.editor_hasManuallySetRouting || audioMixerAsset != z.manuallySetMixerGroupRef.editorAsset || mixerGroupName != z.manuallySetMixerGroupRef.SubObjectName) return;
+                result.Add(z);
+            });
+            return result;
+        }
+
+        internal static void AddRule(int setIndex, ZoundRoutings.Condition.ConditionType type, string name) {
             var zoundsProject = ZoundsProject.Instance;
             var rules = zoundsProject.zoundRoutings.rules[setIndex].conditions;
 

@@ -26,6 +26,12 @@ namespace Laubrary.Zounds.Uitk {
         VisualElement content, box;
         readonly List<ZuiToggleButton> tabButtons = new List<ZuiToggleButton>();
         internal BrowserTabTK browser;
+        MonitorTabTK monitor;
+        RoutingTabTK routing;
+        SettingsTabTK settings;
+#if ADDRESSABLES_INSTALLED
+        DependencyMapTabTK depMap;
+#endif
         IVisualElementScheduledItem tick, live;
         bool wasLoaded;
 
@@ -96,9 +102,18 @@ namespace Laubrary.Zounds.Uitk {
         void ShowTab() {
             content.Clear();
             SetFill(true);
-            browser = null;
+            browser = null; monitor = null; routing = null; settings = null;
+#if ADDRESSABLES_INSTALLED
+            depMap = null;
+#endif
             switch (selectedTab) {
                 case 0: browser = new BrowserTabTK(this); content.Add(browser); break;
+                case 1: monitor = new MonitorTabTK(this); content.Add(monitor); break;
+                case 2: routing = new RoutingTabTK(this); content.Add(routing); break;
+#if ADDRESSABLES_INSTALLED
+                case 3: depMap = new DependencyMapTabTK(this); content.Add(depMap); break;
+#endif
+                case 4: settings = new SettingsTabTK(); content.Add(settings); break;
                 default:
                     var todo = new Label(TabNames[selectedTab]);
                     todo.AddToClassList("zs-lbl");
@@ -110,11 +125,30 @@ namespace Laubrary.Zounds.Uitk {
         void Tick() {
             if (ZoundsProject.isJSONLoaded != wasLoaded) { Rebuild(); return; }
             browser?.Tick();
+            monitor?.Tick();
+            routing?.Tick();
+            settings?.Tick();
+#if ADDRESSABLES_INSTALLED
+            depMap?.Tick();
+            TintDepMapTab();
+#endif
         }
 
-        void Live() => browser?.Live();
+        void Live() { browser?.Live(); monitor?.Live(); routing?.Live(); }
 
         internal void Refresh() => ShowTab();
+
+#if ADDRESSABLES_INSTALLED
+        double lastBrokenCheck = -100;
+        /// <summary>The old tab row tints "Dep. Map" red while any zound has a broken reference (its analysis runs every
+        /// 5 s whichever tab is open); the same check here, at the same interval.</summary>
+        void TintDepMapTab() {
+            if (tabButtons.Count < 4 || EditorApplication.timeSinceStartup - lastBrokenCheck < 5.0) return;
+            lastBrokenCheck = EditorApplication.timeSinceStartup;
+            bool broken = ZoundDependencyAnalyzer.Analyze().brokenZounds.Count > 0;
+            tabButtons[3].EnableInClassList("zs-maintab--broken", broken);
+        }
+#endif
 
         /// <summary>
         /// Whether the "Alternative" box reaches the window's bottom. In the old window it does only when the tab's content
