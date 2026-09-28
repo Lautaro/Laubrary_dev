@@ -36,6 +36,12 @@ namespace Laubrary.Zounds.Dsp {
         // ── per-block render scalars (moved from DspVoice) ──
         public float basePitchLive;
         public float outGainLive;
+        /// <summary>Live base speed (T-0409), ramped like the base pitch. Only read when <see cref="stretch"/> is on.</summary>
+        public float baseSpeedLive;
+        /// <summary>The live time-stretcher, when this voice has live speed; otherwise not created and never read.</summary>
+        public SapStretch stretch;
+        /// <summary>One control block of a slot's stretched output, before its gain is applied.</summary>
+        [Unity.Collections.LowLevel.Unsafe.NativeDisableContainerSafetyRestriction] public NativeArray<float> stretchScratchL, stretchScratchR;
         public bool sourceExhausted;
         public long elapsedSamples;
         public long samplesSinceSourceEnd;
@@ -85,6 +91,9 @@ namespace Laubrary.Zounds.Dsp {
             if (modValue.IsCreated) modValue.Dispose();
             if (bufL.IsCreated) bufL.Dispose();
             if (bufR.IsCreated) bufR.Dispose();
+            stretch.Dispose();
+            if (stretchScratchL.IsCreated) stretchScratchL.Dispose();
+            if (stretchScratchR.IsCreated) stretchScratchR.Dispose();
         }
     }
 }

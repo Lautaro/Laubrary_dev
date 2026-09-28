@@ -58,6 +58,7 @@ namespace Laubrary.Zounds.Dsp {
                                   Zound zound = null) {
             sap.basePitchLive = basePitch;
             sap.outGainLive = outGain;
+            sap.baseSpeedLive = 1f;
             sap.stopping = false;
             sap.released = false;
             sap.sourceExhausted = false;

@@ -266,7 +266,7 @@ namespace Laubrary.Zounds.Checks {
             if (sweeping && useDelay) {
                 liveSweep += Time.deltaTime * 0.4f;
                 float mix = 0.5f + 0.5f * Mathf.Sin(liveSweep);
-                generator.SetParameterLive(2, mix);   // source stage takes indexes 0 and 1; the delay's Time is 2
+                generator.SetParameterLive(SourceStageParam.Count, mix);   // the source stage's parameters come first; the delay's Time follows them
             }
         }
 

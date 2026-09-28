@@ -46,6 +46,8 @@ namespace Laubrary.Zounds.Dsp {
         /// <summary>Target pitch and output gain. Constant for now; see the note above.</summary>
         public float basePitch;
         public float outGain;
+        /// <summary>Live base speed (T-0409); only heard when the voice was created with live speed.</summary>
+        public float baseSpeed;
 
         /// <summary>Set while a repeat train still has armed repeats, so a voice stealer leaves it alone.</summary>
         public bool protectedFromSteal;
@@ -80,14 +82,14 @@ namespace Laubrary.Zounds.Dsp {
         /// cost otherwise is a single check that it does not exist. A visualiser that slowed down the thing it visualises
         /// would be a poor trade, so the default is off.
         /// </summary>
-        public NativeArray<float> monitor;
+        [Unity.Collections.LowLevel.Unsafe.NativeDisableContainerSafetyRestriction] public NativeArray<float> monitor;
 
         /// <summary>
         /// Where the next monitor sample goes. A single-element buffer rather than a plain number on purpose: this struct
         /// is copied when the audio graph takes it, so an ordinary field written on the audio side would never be seen by
         /// the reader. A native buffer is shared by handle, so both sides see the same one.
         /// </summary>
-        public NativeArray<int> monitorCursor;
+        [Unity.Collections.LowLevel.Unsafe.NativeDisableContainerSafetyRestriction] public NativeArray<int> monitorCursor;
 
         /// <summary>
         /// A counter bumped once when a block starts and once when it ends, so a reader can tell not only HOW MANY
@@ -109,7 +111,7 @@ namespace Laubrary.Zounds.Dsp {
         /// Costs two additions per block when present and one check when absent, so it is affordable to leave on
         /// permanently — which matters, because a barrier nobody switched on is not a barrier.
         /// </summary>
-        public NativeArray<long> renderTicket;
+        [Unity.Collections.LowLevel.Unsafe.NativeDisableContainerSafetyRestriction] public NativeArray<long> renderTicket;
 
         // The audio graph asks these three of every generator. A sound of unknown final length (a tail can
         // outlast the source, and a repeat train can extend it) answers "not finite, no length", the same
@@ -133,7 +135,8 @@ namespace Laubrary.Zounds.Dsp {
                                               float basePitch, float outGain, float sourceDuration,
                                               bool loop, long tokenId, bool heavyTier, Allocator allocator,
                                               Zound zound = null, int monitorSamples = 0,
-                                              NativeArray<long> renderTicket = default) {
+                                              NativeArray<long> renderTicket = default,
+                                              SapStretchConfig stretch = default, float baseSpeed = 1f) {
             int arenaFloats = heavyTier ? ZoundDspConstants.HEAVY_ARENA_FLOATS : ZoundDspConstants.LIGHT_ARENA_FLOATS;
 
             var v = new SapRealtimeVoice {
@@ -156,6 +159,16 @@ namespace Laubrary.Zounds.Dsp {
             SapVoiceSetup.BuildSnapshots(ref v.chain, ref v.pcm, layout, clip, allocator);
             SapVoiceSetup.Reset(ref v.sap, in v.chain, layout, sampleRate, basePitch, outGain, tokenId,
                                 armSource: true, startFrame, endFrame, loop, zound);
+
+            // Live speed (T-0409): the stretcher and its onset map are built here, on the main thread, sized once.
+            v.baseSpeed = baseSpeed;
+            v.sap.baseSpeedLive = baseSpeed;
+            if (stretch.enabled && clip != null) {
+                v.sap.stretch = SapStretch.Create(stretch, clip, sampleRate, ZoundDspConstants.MAX_SOURCE_SLOTS, allocator);
+                v.sap.stretchScratchL = new NativeArray<float>(ZoundDspConstants.CONTROL_BLOCK, allocator, NativeArrayOptions.ClearMemory);
+                v.sap.stretchScratchR = new NativeArray<float>(ZoundDspConstants.CONTROL_BLOCK, allocator, NativeArrayOptions.ClearMemory);
+                v.sap.stretch.ResetSlot(0, startFrame, v.clipRate * basePitch);
+            }
             return v;
         }
 
@@ -173,7 +186,7 @@ namespace Laubrary.Zounds.Dsp {
                 ref sap, in chain, frames, sampleRate, in pcm,
                 isGroup: false, clipRate, sourceDuration, liveChildren: 0,
                 killRequested != 0, releaseRequested != 0, basePitch, outGain,
-                ref protectedFromSteal, out VoiceStateTransition transition);
+                ref protectedFromSteal, out VoiceStateTransition transition, baseSpeed);
 
             lastTransition = (int)transition;
             blocksRendered++;
@@ -206,6 +219,9 @@ namespace Laubrary.Zounds.Dsp {
                     break;
                 case SapVoiceCommandKind.SetGain:
                     outGain = command.value;
+                    break;
+                case SapVoiceCommandKind.SetSpeed:
+                    baseSpeed = command.value;
                     break;
                 case SapVoiceCommandKind.Stop:
                     killRequested = 1;
@@ -276,6 +292,10 @@ namespace Laubrary.Zounds.Dsp {
             // the editor's displays follow a playing sound by. The wall clock is not the same thing — audio starts a moment
             // after the voice is created and is produced in blocks — and following it put the analyser out of step (T-0443).
             if (ticketed && renderTicket.Length > 1) renderTicket[1] = renderTicket[1] + frames;
+            // The third slot says the sound has ended, tail and all. A live-speed sound's length cannot be known in
+            // advance (T-0409), so whoever plays it learns the end from here rather than from a precomputed duration.
+            // It records WHEN (frames rendered at the end, never zero), so the play's true length is known afterwards.
+            if (ticketed && renderTicket.Length > 2 && finished && renderTicket[2] == 0) renderTicket[2] = renderTicket[1] > 0 ? renderTicket[1] : 1;
             if (ticketed) renderTicket[0] = renderTicket[0] + 1;   // now even: between blocks
             return buffer.frameCount;
         }

@@ -13,6 +13,7 @@ namespace Laubrary.Zounds.Dsp {
         Stop = 4,
         /// <summary>Stop feeding new source material and let the tail ring out naturally.</summary>
         Release = 5,
+        SetSpeed = 6,
     }
 
     /// <summary>
@@ -48,6 +49,10 @@ namespace Laubrary.Zounds.Dsp {
 
         public static SapVoiceCommand Gain(float value) =>
             new SapVoiceCommand { kind = SapVoiceCommandKind.SetGain, value = value };
+
+        /// <summary>The live base speed of a voice with live speed (T-0409); ignored by any other voice.</summary>
+        public static SapVoiceCommand Speed(float value) =>
+            new SapVoiceCommand { kind = SapVoiceCommandKind.SetSpeed, value = value };
 
         public static SapVoiceCommand Stop() => new SapVoiceCommand { kind = SapVoiceCommandKind.Stop };
 

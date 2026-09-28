@@ -76,7 +76,8 @@ namespace Laubrary.Zounds.Dsp {
                                    in SapPcm pcm, bool isGroup, double clipRate, float sourceDuration, int liveChildren,
                                    bool killRequested, bool releaseRequested,
                                    float basePitchTargetNow, float outGainTargetRaw,
-                                   ref bool protectedFromSteal, out VoiceStateTransition transition) {
+                                   ref bool protectedFromSteal, out VoiceStateTransition transition,
+                                   float baseSpeedTargetNow = 1f) {
 
             transition = VoiceStateTransition.None;
 
@@ -105,6 +106,8 @@ namespace Laubrary.Zounds.Dsp {
                 float basePitchStep = (basePitchTargetNow - sap.basePitchLive) * invN;
                 float outGainStart = sap.outGainLive;
                 float outGainStep = (outGainTargetNow - sap.outGainLive) * invN;
+                float baseSpeedStart = sap.baseSpeedLive;
+                float baseSpeedStep = (baseSpeedTargetNow - sap.baseSpeedLive) * invN;
                 ctx.elapsedSeconds = (float)sap.elapsedSamples / sampleRate;
                 ctx.sourceExhausted = sap.sourceExhausted;
 
@@ -143,7 +146,8 @@ namespace Laubrary.Zounds.Dsp {
                     if (sap.repeatsPending > 0) ArmRepeats(ref sap, n, basePitchStart, clipRate, ref protectedFromSteal);
                     for (int ci = 0; ci < n; ci++) sap.bufL[off + ci] = 0f;
                     for (int ci = 0; ci < n; ci++) sap.bufR[off + ci] = 0f;
-                    ReadSource(ref sap, pcm, clipRate, off, n, basePitchStart, basePitchStep);
+                    if (sap.stretch.enabled) ReadSourceStretched(ref sap, pcm, clipRate, off, n, basePitchStart, basePitchStep, baseSpeedStart, baseSpeedStep);
+                    else ReadSource(ref sap, pcm, clipRate, off, n, basePitchStart, basePitchStep);
                 }
 
                 // ── chain ──
@@ -158,6 +162,7 @@ namespace Laubrary.Zounds.Dsp {
                 // ── advance live values ──
                 sap.basePitchLive = basePitchStart + basePitchStep * n;
                 sap.outGainLive = outGainStart + outGainStep * n;
+                sap.baseSpeedLive = baseSpeedStart + baseSpeedStep * n;
                 for (int r = 0; r < L.rampedCount; r++) { int t = L.ramped[r]; sap.pLive[t] = sap.pStart[t] + sap.pStep[t] * n; }
                 sap.elapsedSamples += n;
                 if (sap.sourceExhausted) sap.samplesSinceSourceEnd += n;
@@ -244,6 +249,8 @@ namespace Laubrary.Zounds.Dsp {
                 sap.repeatsDone++;
                 if (sap.repeatsPending != int.MaxValue) sap.repeatsPending--;
                 double rate = clipRate * Mathf.Max(basePitch, 0.01f) * pitchMul;
+                // A repeat gets its own stretcher state, started at the top of the sound like the slot itself.
+                if (sap.stretch.enabled) sap.stretch.ResetSlot(slot, first.startFrame, rate);
                 long lengthSamples = (long)((first.endFrame - first.startFrame) / rate);
                 sap.lastRepeatEndSample = sap.nextRepeatSample + lengthSamples;
                 sap.nextRepeatSample = sap.repeat.spaceFromEnd ? sap.lastRepeatEndSample + sap.repeat.intervalSamples : sap.nextRepeatSample + sap.repeat.intervalSamples;
@@ -349,6 +356,61 @@ namespace Laubrary.Zounds.Dsp {
 
             if (!anyActive || !AnySlotActive(in sap)) {
                 if (sap.repeatsPending > 0) return; // Repeater: the next repeat is armed by the schedule (Phase 6)
+                if (!sap.sourceExhausted) { sap.sourceExhausted = true; sap.samplesSinceSourceEnd = 0; sap.silentSamples = 0; }
+            }
+        }
+
+        /// <summary>
+        /// The source stage for a voice with live speed (T-0409). Each read slot is run through its own stretcher,
+        /// which reads the clip at clip-rate × pitch (so the sample rate is converted and Pitch works exactly as in the
+        /// direct read) and advances through it at the live speed. Everything around the read — the sample-accurate start
+        /// of a repeat, the slot's and the source's gain, the release fade, the slot ending — is the same as the direct
+        /// read, so a voice behaves identically in every other respect.
+        /// </summary>
+        private static void ReadSourceStretched(ref SapVoiceState sap, in SapPcm pcm, double clipRate, int off, int n,
+                                                float basePitchStart, float basePitchStep, float baseSpeedStart, float baseSpeedStep) {
+            bool anyActive = false;
+            float srcGainStart = sap.pStart[SourceStageParam.Gain], srcGainStep = sap.pStep[SourceStageParam.Gain];
+            float pitchParamStart = sap.pStart[SourceStageParam.Pitch], pitchParamStep = sap.pStep[SourceStageParam.Pitch];
+            float speedParamStart = sap.pStart[SourceStageParam.Speed], speedParamStep = sap.pStep[SourceStageParam.Speed];
+
+            for (int s = 0; s < sap.slots.Length; s++) {
+                var sl = sap.slots[s];
+                if (!sl.active) continue;
+                anyActive = true;
+                int i0 = sl.startAt;
+                if (i0 >= n) { sl.startAt -= n; sap.slots[s] = sl; continue; }
+                sl.startAt = 0;
+                int count = n - i0;
+
+                float rate = (float)(clipRate * (basePitchStart + basePitchStep * i0) * (pitchParamStart + pitchParamStep * i0) * sl.pitchMul);
+                float speedA = (baseSpeedStart + baseSpeedStep * i0) * (speedParamStart + speedParamStep * i0);
+                float speedB = (baseSpeedStart + baseSpeedStep * n) * (speedParamStart + speedParamStep * n);
+                int wrote = sap.stretch.Render(s, in pcm, sl.startFrame, sl.endFrame, sl.loop, rate, speedA, speedB,
+                                               sap.stretchScratchL, sap.stretchScratchR, 0, count);
+
+                float srcGain = srcGainStart + srcGainStep * i0;
+                int fadeLeft = sl.fadeSamplesLeft, fadeTotal = sl.fadeSamplesTotal;
+                for (int k = 0; k < wrote; k++) {
+                    float gain = sl.gain * srcGain;
+                    if (fadeLeft > 0) {
+                        gain *= (float)fadeLeft / fadeTotal;
+                        fadeLeft--;
+                        if (fadeLeft == 0) { sl.active = false; }
+                    }
+                    sap.bufL[off + i0 + k] += gain * sap.stretchScratchL[k];
+                    sap.bufR[off + i0 + k] += gain * sap.stretchScratchR[k];
+                    if (!sl.active) break;
+                    srcGain += srcGainStep;
+                }
+                if (wrote < count) sl.active = false;
+                sl.cursor = sap.stretch.SourcePosition(s);
+                sl.fadeSamplesLeft = fadeLeft;
+                sap.slots[s] = sl;
+            }
+
+            if (!anyActive || !AnySlotActive(in sap)) {
+                if (sap.repeatsPending > 0) return;
                 if (!sap.sourceExhausted) { sap.sourceExhausted = true; sap.samplesSinceSourceEnd = 0; sap.silentSamples = 0; }
             }
         }

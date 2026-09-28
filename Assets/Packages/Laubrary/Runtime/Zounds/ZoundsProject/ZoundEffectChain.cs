@@ -182,7 +182,10 @@ namespace Laubrary.Zounds {
     public static class SourceStageParam {
         public const int Pitch = 0;
         public const int Gain = 1;
-        public const int Count = 2;
+        /// <summary>Live time-stretch (T-0409): how fast the sound moves through its source without changing its
+        /// pitch. Only heard on a sound with live speed switched on. Appended, so stored bindings keep their meaning.</summary>
+        public const int Speed = 2;
+        public const int Count = 3;
     }
 
     /// <summary>

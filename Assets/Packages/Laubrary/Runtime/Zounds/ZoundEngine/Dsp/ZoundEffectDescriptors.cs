@@ -88,6 +88,8 @@ namespace Laubrary.Zounds.Dsp {
         public static ParamDesc[] SourceStageParams = {
             new ParamDesc("Pitch", "x", 0.1f, 4f, 1f, ParamCurve.Logarithmic, true, ModifierOp.Multiply),
             new ParamDesc("Source gain", "x", 0f, 4f, 1f, ParamCurve.Linear, true, ModifierOp.Multiply),
+            new ParamDesc("Speed", "x", 0.1f, 4f, 1f, ParamCurve.Logarithmic, true, ModifierOp.Multiply, null, null,
+                "How fast the sound moves through its source, without changing its pitch: 0.5 plays it at half speed and twice as long, 2 at double speed. Only heard when Live speed is on for the sound."),
         };
 
         static ZoundEffectDescriptors() {
