@@ -178,6 +178,15 @@ namespace Laubrary.Zounds.Dsp {
             return seconds > 0f;
         }
 
+        private static long s_playSerial;
+
+        /// <summary>
+        /// A number for one play of <paramref name="zound"/>, different for every play (T-0484): the seed of everything a
+        /// play draws. Deterministic for a given play -- the draws are hashes of it -- but never the same for two plays,
+        /// which is what makes "random" differ from one play to the next. Main thread.
+        /// </summary>
+        public static long NextPlayId(Zound zound) => ((long)(zound != null ? zound.id : 0) << 32) ^ ++s_playSerial;
+
         /// <summary>What a play of a sound is made of (T-0481); see <see cref="Plan"/>.</summary>
         public struct PlayPlan {
             /// <summary>The chain to play (the sound's own, or a copy with an old stretch setting added as a time curve).</summary>

@@ -28,6 +28,11 @@ namespace Laubrary.Zounds.Checks.EditorTools {
     ///    area; most at bias 0.1; few at 0.9; never outside the ellipse), determinism (same play, same draw; plays differ),
     ///    point order kept under a huge X radius, the declared length (drawn on the main thread) matching the rendered one
     ///    play by play while the plays differ, and the same samples at every multiple of the control grid.
+    /// 5. **Real plays differ (T-0484).** The owner heard no difference: every real play of a sound was started with the
+    ///    sound's id as its play number, so every play drew the same. Now: consecutive plays of one sound get different
+    ///    play numbers; the real start path (StartVoice on an audio source) gives the two voices different seeds; and at an
+    ///    audible scale, a pitch curve whose ends may move +-12 semitones, played twice through those play numbers, starts at
+    ///    the pitch predicted from each play's own draw, and the two plays clearly differ.
     /// </summary>
     public static class ZoundsCurvesCheck {
 
@@ -43,6 +48,7 @@ namespace Laubrary.Zounds.Checks.EditorTools {
             allPass &= OldStretch(sb);
             allPass &= TimeAndKeepLength(sb);
             allPass &= RandomPoints(sb);
+            allPass &= RealPlaysDiffer(sb);
             sb.Append(allPass ? "\nALL PASS\n" : "\nSOMETHING FAILED (see above)\n");
             return sb.ToString();
         }
@@ -371,6 +377,74 @@ namespace Laubrary.Zounds.Checks.EditorTools {
             sb.Append(sliceOk ? "  PASS\n" : "  FAIL\n");
             ok &= sliceOk;
             return ok;
+        }
+
+        // ── 5. real plays differ ──
+
+        static bool RealPlaysDiffer(StringBuilder sb) {
+            bool ok = true;
+            sb.Append("\n5. Real plays of one sound draw differently:\n");
+            var k = new Klip(4242) { effectChain = new ZoundEffectChain() };
+            long id1 = ZoundSapPlayback.NextPlayId(k), id2 = ZoundSapPlayback.NextPlayId(k);
+            bool idsDiffer = id1 != id2 && EnvelopeRandom.SeedFor(id1) != EnvelopeRandom.SeedFor(id2);
+            sb.Append("   Consecutive play numbers ").Append(id1).Append(", ").Append(id2).Append(": seeds differ ").Append(idsDiffer).Append(idsDiffer ? "  PASS\n" : "  FAIL\n");
+            ok &= idsDiffer;
+
+            // The real start path, twice, on a temporary audio source (a generated tone; nothing in the project).
+            var pc = new Envelope(0f, 1f);
+            foreach (var pt in pc.GetPointsList()) { pt.value = 0.5f; pt.randomY = 0.25f; pt.randomBias = 0.5f; }
+            k.effectChain = PitchChain(pc, ModulationCombine.Ratio);
+            var clipData = Tone(1.2f, 440f, 0.5f);
+            var clip = AudioClip.Create("curves-check-tone", clipData.frames, 2, SR, false);
+            clip.SetData(clipData.samples, 0);
+            var go = new GameObject("curves-check-source") { hideFlags = HideFlags.HideAndDontSave };
+            uint seedA = 0, seedB = 0; string why = "";
+            try {
+                var src = go.AddComponent<AudioSource>();
+                var g1 = ZoundSapPlayback.StartVoice(k, src, clip, 1f, 1f, ZoundSapPlayback.NextPlayId(k), out why, out _);
+                if (g1 != null) seedA = g1.CurveSeed;
+                var g2 = ZoundSapPlayback.StartVoice(k, src, clip, 1f, 1f, ZoundSapPlayback.NextPlayId(k), out why, out _);
+                if (g2 != null) seedB = g2.CurveSeed;
+                src.generator = null;
+            }
+            finally { Object.DestroyImmediate(go); Object.DestroyImmediate(clip); }
+            bool startDiffer = seedA != 0 && seedB != 0 && seedA != seedB;
+            sb.Append("   Real start path twice: voice seeds ").Append(seedA).Append(" / ").Append(seedB).Append(string.IsNullOrEmpty(why) ? "" : " (" + why + ")")
+              .Append(startDiffer ? "  PASS\n" : "  FAIL\n");
+            ok &= startDiffer;
+
+            // Audible scale: predicted vs measured starting pitch, two plays.
+            double frames = 1.0 * SR;
+            var plan = ZoundSapPlayback.Plan(k, 0, frames, SR);
+            var hz = new float[2]; var predicted = new float[2];
+            long[] ids = { ZoundSapPlayback.NextPlayId(k), ZoundSapPlayback.NextPlayId(k) };
+            for (int i = 0; i < 2; i++) {
+                var o = RenderToken(clipData, plan, frames, 256, 4f, ids[i]);
+                // The first tenth of the render, against the curve's value at that part of the source.
+                int n = Mathf.Min(o.Length, (int)(0.05f * SR));
+                var head = new float[n]; System.Array.Copy(o, head, n);
+                hz[i] = FrequencyAll(head);
+                float v = EnvelopeRandom.Evaluate(pc, true, EnvelopeRandom.SeedFor(ids[i]), 0, 0.01f);
+                predicted[i] = 440f * ModulationMath.RatioFromPosition(v);
+            }
+            bool match = Mathf.Abs(hz[0] - predicted[0]) / predicted[0] < 0.03f && Mathf.Abs(hz[1] - predicted[1]) / predicted[1] < 0.03f;
+            bool apart = Mathf.Abs(hz[0] - hz[1]) / Mathf.Min(hz[0], hz[1]) > 0.03f;
+            // The bug as it was: both plays numbered with the sound's id.
+            float sameDiff = MaxDiff(RenderToken(clipData, plan, frames, 256, 4f, k.id), RenderToken(clipData, plan, frames, 256, 4f, k.id));
+            sb.Append("   As it was (both plays numbered with the sound's id): largest sample difference between the two plays ")
+              .Append(sameDiff.ToString("0.###")).Append(sameDiff == 0f ? " - identical, which is what the owner heard\n" : "\n");
+            sb.Append("   Pitch curve ends may move +-12 st, two real plays: start at ").Append(hz[0].ToString("0")).Append(" Hz (predicted ")
+              .Append(predicted[0].ToString("0")).Append(") and ").Append(hz[1].ToString("0")).Append(" Hz (predicted ").Append(predicted[1].ToString("0"))
+              .Append("); match ").Append(match).Append(", plays differ ").Append(apart).Append(match && apart ? "  PASS\n" : "  FAIL\n");
+            ok &= match && apart;
+            return ok;
+        }
+
+        /// <summary>A tone's frequency from its rising zero crossings over the whole buffer.</summary>
+        static float FrequencyAll(float[] o) {
+            int first = -1, last = -1, count = 0;
+            for (int i = 1; i < o.Length; i++) if (o[i - 1] <= 0f && o[i] > 0f) { if (first < 0) first = i; last = i; count++; }
+            return count > 1 && last > first ? (count - 1) * SR / (float)(last - first) : 0f;
         }
 
         static float[] RenderToken(PcmClip clip, ZoundSapPlayback.PlayPlan plan, double endFrame, int block, float maxSeconds, long token) {

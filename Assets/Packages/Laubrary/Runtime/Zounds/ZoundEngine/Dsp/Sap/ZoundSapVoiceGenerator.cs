@@ -37,6 +37,11 @@ namespace Laubrary.Zounds.Dsp {
         private float basePitch = 1f, outGain = 1f, sourceDuration;
         private bool loop;
         private long tokenId;
+
+        /// <summary>This play's seed for random curve points (T-0483/T-0484): what a display draws the curve the play is
+        /// actually hearing from.</summary>
+        public uint CurveSeed => EnvelopeRandom.SeedFor(tokenId);
+        public long PlayId => tokenId;
         private bool heavyTier;
         private bool described;
 

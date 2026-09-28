@@ -67,8 +67,11 @@ namespace Laubrary.Zounds {
 
             // Try the chain first, reading the sound's ORIGINAL audio rather than the rendered file.
             var sourceClip = Dsp.ZoundSapPlayback.LoadSourceClip(zound, out bool sourceAlreadyTrimmed);
+            // A number of its own for this play (T-0484): every per-play draw (random curve points, a Looper's crossmix
+            // lengths, repeat and random-oscillator variation) is seeded from it. The sound's id was passed here before,
+            // which gave every play of a sound the same draws -- random points moved, but identically every time.
             m_voice = Dsp.ZoundSapPlayback.StartVoice(zound, audioSource, sourceClip, basePitch, baseVolume,
-                                                     zound.id, out string reason, out m_chainDuration,
+                                                     Dsp.ZoundSapPlayback.NextPlayId(zound), out string reason, out m_chainDuration,
                                                      sourceAlreadyTrimmed);
             if (m_voice != null) {
                 m_chainPath = true;

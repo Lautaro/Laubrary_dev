@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — every play draws its own random values (T-0484)
+
+- **Fix: random curve points sounded the same on every play.** A real play was started with the sound's id as its play number, which seeds everything a play draws, so every play of a sound drew identically. The points did move off the drawn curve, but by the same amount every time. Each play now gets a number of its own (the sound's id with a running count), so its draws differ from the last play's while staying consistent within the play.
+- **The same fix applies to other draws seeded from the play number:** a Looper's crossmix lengths, and the repeat and random-oscillator variation, which had also repeated identically on every play of a sound.
+- **Measured (kept check 17, section 5):**
+  - Played the old way, two plays of a sound were sample-identical.
+  - Now, the real start path gives each play its own seed.
+  - A pitch curve whose ends may move ±12 semitones starts at 336 Hz on one play and 628 Hz on the next, against 333 and 638 Hz predicted from each play's own draw.
+
 ### Zounds — random points on curves (T-0483)
 
 - **Any curve point can be random.** Every play moves it somewhere inside an ellipse around where it was drawn:
