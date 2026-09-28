@@ -391,176 +391,25 @@ namespace Laubrary.Zounds {
         }
 
         private void SimulatePlay() {
-            currentToken = ZoundEngine.PlayZound(targetZound, new ZoundArgs() {
-                startImmediately = true,
-                delay = 0f,
-                volumeOverride = -1f,
-                pitchOverride = -1f,
-                chanceOverride = -1f,
-                useFixedAverageValues = true,
-                bypassGlobalSolo = isLocalZound,
-                ignoreCooldown = true
-            });
+            currentToken = CompositeZoundEditing.SimulatePlay(targetZound, isLocalZound);
         }
 
         protected virtual void DrawAudioRenderingMenu() { }
 
         private void DuplicateEntry(CompositeZound parentZound, int entryIndexToDuplicate) {
-            ZoundsWindow.ModifyZoundsProject("duplicate zound entry", () => {
-                var serialized = JsonUtility.ToJson(parentZound.zoundEntries[entryIndexToDuplicate]);
-                var duplicated = JsonUtility.FromJson<CompositeZound.ZoundEntry>(serialized);
-                if (duplicated.local && parentZound.TryGetEntryZound(duplicated, out var referencedZound)) {
-                    if (referencedZound is Klip referencedKlip) {
-                        var duplicatedKlip = new Klip(ZoundLibrary.GetUniqueZoundId(), referencedKlip);
-                        duplicatedKlip.parentId = parentZound.id;
-                        duplicatedKlip.tags.Clear();
-                        duplicated.zoundId = duplicatedKlip.id;
-                        parentZound.localKlips.Add(duplicatedKlip);
-
-                        // If the source had a render, it means we should render this duplicate immediately
-                        // so it is "true" to its inherited settings from the start.
-                        if (referencedKlip.HasActiveEdits() && ZoundsProject.Instance.projectSettings.editorStyle.autoRender) {
-                            KlipEditorWindow.RenderToAudioClip(duplicatedKlip, true);
-                            
-                            // Force-save to ensure the renderedClipRef and paths are written to JSON immediately.
-                            // This ensures that when the Zequence editor repaints, it finds the new file.
-                            ZoundsWindow.SaveToJSON();
-                        }
-                    }
-                    else if (referencedZound is Zequence referencedZequence) {
-                        var duplicatedZequence = new Zequence(ZoundLibrary.GetUniqueZoundId(), referencedZequence);
-                        duplicatedZequence.parentId = parentZound.id;
-                        duplicatedZequence.tags.Clear();
-                        duplicated.zoundId = duplicatedZequence.id;
-                        parentZound.localZequences.Add(new CompositeZound.LocalZequence(duplicatedZequence));
-                    }
-                }
-                parentZound.zoundEntries.Insert(entryIndexToDuplicate + 1, duplicated);
-            });
+            CompositeZoundEditing.DuplicateEntry(parentZound, entryIndexToDuplicate);
             ValidateEnvelopeGUIs();
         }
 
         private void RemoveEntry(CompositeZound parentZound, int entryIndexToRemove) {
-            ZoundsWindow.ModifyZoundsProject("remove zound entry", () => {
-                var entryToRemove = parentZound.zoundEntries[entryIndexToRemove];
-                if (entryToRemove.local) {
-                    int klipIndex = parentZound.localKlips.FindIndex(k => k.id == entryToRemove.zoundId);
-                    if (klipIndex >= 0) {
-                        parentZound.localKlips.RemoveAt(klipIndex);
-                    }
-                    int randomizerIndex = parentZound.localZequences.FindIndex(lr => lr.zequence.id == entryToRemove.zoundId);
-                    if (randomizerIndex >= 0) {
-                        parentZound.localZequences.RemoveAt(randomizerIndex);
-                    }
-                }
-                parentZound.zoundEntries.RemoveAt(entryIndexToRemove);
-            });
+            CompositeZoundEditing.RemoveEntry(parentZound, entryIndexToRemove);
             ValidateEnvelopeGUIs();
         }
 
         private void ConvertEntry(CompositeZound parentZound, int entryIndexToConvert) {
-            ZoundsProject zoundsProject = ZoundsProject.Instance;
-            ZoundsWindow.ModifyZoundsProject("convert zound entry", () => {
-                var entryToConvert = parentZound.zoundEntries[entryIndexToConvert];
-                if (entryToConvert.local) {
-                    int localZoundId = entryToConvert.zoundId;
-                    if (parentZound.TryGetEntryZound(entryToConvert, out var zoundToConvert)) {
-                        zoundToConvert.name = ZoundDictionary.EnsureUniqueZoundName(zoundToConvert.name);
-                        if (zoundToConvert is Klip klipToConvert) {
-                            klipToConvert.parentId = 0;
-                            var zoundLibrary = zoundsProject.zoundLibrary;
-                            if (klipToConvert.originalId != 0 && zoundLibrary.FindZound(z => z.id == klipToConvert.originalId) != null) {
-                                entryToConvert.zoundId = klipToConvert.originalId;
-                            }
-                            else {
-                                zoundLibrary.klips.Add(klipToConvert);
-                            }
-                        }
-                        else if (zoundToConvert is Zequence zequenceToConvert) {
-                            zequenceToConvert.parentId = 0;
-                            zequenceToConvert.masterVolumeEnvelope = entryToConvert.volumeEnvelope.DeepCopy();
-                            entryToConvert.volumeEnvelope = new Envelope(1, 1);
-                            var zoundLibrary = zoundsProject.zoundLibrary;
-                            if (zequenceToConvert.originalId != 0 && zoundLibrary.FindZound(z => z.id == zequenceToConvert.originalId) != null) {
-                                entryToConvert.zoundId = zequenceToConvert.originalId;
-                            }
-                            else {
-                                zoundLibrary.zequences.Add(zequenceToConvert);
-                            }
-                        }
-                    }
-                    parentZound.localKlips.RemoveAll(k => k.id == localZoundId);
-                    parentZound.localZequences.RemoveAll(lr => lr.zequence.id == localZoundId);
-                }
-                else {
-                    if (parentZound.TryGetEntryZound(entryToConvert, out var zoundToConvert)) {
-                        if (zoundToConvert is Klip klipToConvert) {
-                            var convertedKlip = new Klip(ZoundLibrary.GetUniqueZoundId(), klipToConvert);
-                            BreakEntryAsLocal(parentZound, entryToConvert, klipToConvert, convertedKlip);
-                            parentZound.localKlips.Add(convertedKlip);
-                        }
-                        else if (zoundToConvert is Zequence zequenceToConvert) {
-                            foreach (var childEntry in zequenceToConvert.zoundEntries) {
-                                if (!childEntry.local) continue;
-                                if (zequenceToConvert.TryGetEntryZound(childEntry, out var childZound)) {
-                                    if (childZound is Zequence) {
-                                        EditorUtility.DisplayDialog("Can't Break into Local Zequence",
-                                            string.Format("Can't break shared zound '{0}', as it contains a local zequence track '{1}'. Nested local zequence is not supported.", zequenceToConvert.name, childZound.name), "Close");
-                                        return;
-                                    }
-                                }
-                            }
-                            var convertedZequence = new Zequence(ZoundLibrary.GetUniqueZoundId(), zequenceToConvert);
-                            BreakEntryAsLocal(parentZound, entryToConvert, zequenceToConvert, convertedZequence);
-                            entryToConvert.volumeEnvelope = convertedZequence.masterVolumeEnvelope.DeepCopy();
-                            parentZound.localZequences.Add(new CompositeZound.LocalZequence(convertedZequence));
-                        }
-                    }
-                }
-                entryToConvert.local = !entryToConvert.local;
-            });
+            CompositeZoundEditing.ConvertEntry(parentZound, entryIndexToConvert);
             targetZound = FindZoundTarget();
             ValidateEnvelopeGUIs();
-            ZoundsAssetPostProcessor.RefreshAudioClipsCache();
-            ZoundsWindow.RepaintWindow();
-        }
-
-        private static void BreakEntryAsLocal(CompositeZound parentZound, CompositeZound.ZoundEntry entryToConvert, Zound zoundToConvert, Zound convertedZound) {
-            convertedZound.originalId = zoundToConvert.id;
-            convertedZound.parentId = parentZound.id;
-            // Tags describe a zound to the rest of the project; a local copy is known only to its parent.
-            convertedZound.tags.Clear();
-
-            if (entryToConvert.overrideVolume) {
-                convertedZound.minVolume = entryToConvert.volume;
-                convertedZound.maxVolume = entryToConvert.volume;
-            }
-            else {
-                convertedZound.minVolume *= entryToConvert.volume;
-                convertedZound.maxVolume *= entryToConvert.volume;
-            }
-            if (entryToConvert.overridePitch) {
-                convertedZound.minPitch = entryToConvert.pitch;
-                convertedZound.maxPitch = entryToConvert.pitch;
-            }
-            else {
-                convertedZound.minPitch *= entryToConvert.pitch;
-                convertedZound.maxPitch *= entryToConvert.pitch;
-            }
-            if (entryToConvert.overrideChance) {
-                convertedZound.chance = entryToConvert.chance;
-            }
-            else {
-                convertedZound.chance *= entryToConvert.chance;
-            }
-
-            entryToConvert.zoundId = convertedZound.id;
-            entryToConvert.overrideVolume = false;
-            entryToConvert.overridePitch = false;
-            entryToConvert.overrideChance = false;
-            entryToConvert.volume = 1f;
-            entryToConvert.pitch = 1f;
-            entryToConvert.chance = 1f;
         }
 
         protected virtual void OnDrawHeaderLayout() {
@@ -642,30 +491,9 @@ namespace Laubrary.Zounds {
             }
 
             var playButtonRect = new Rect(contentRect.xMax - playButtonWidth, currentY, playButtonWidth, lineHeight);
-            bool isPlaying = entryTokens != null && entryTokens.TryGetValue(entry, out var entryToken) && entryToken.TryGetEntryToken(entry, out var childToken) && childToken.state != ZoundToken.State.Killed;
+            bool isPlaying = CompositeZoundEditing.IsEntryPlaying(entryTokens, entry);
             if (ZUI.Button(playButtonRect, isPlaying ? label_stopEntry : label_playEntry, ZUI.Style.RichButton, isPlaying ? ZUI.Tint.Confirm : null, ZUICornerMask.Right)) {
-                if (isPlaying) {
-                    entryTokens[entry].Kill();
-                }
-                else {
-                    if (entryTokens == null) entryTokens = new Dictionary<CompositeZound.ZoundEntry, ZoundToken>();
-                    var token = ZoundEngine.PlayZound(targetZound, new ZoundArgs() {
-                        startImmediately = true,
-                        delay = 0f,
-                        volumeOverride = -1f,
-                        pitchOverride = -1f,
-                        chanceOverride = -1f,
-                        useFixedAverageValues = true,
-                        soloOverride = entry,
-                        ignoreCooldown = true
-                    });
-                    if (entryTokens.ContainsKey(entry)) {
-                        entryTokens[entry] = token;
-                    }
-                    else {
-                        entryTokens.Add(entry, token);
-                    }
-                }
+                CompositeZoundEditing.ToggleEntryPlay(targetZound, ref entryTokens, entry);
             }
 
             // currentY is still at the first line (name row)
@@ -882,30 +710,7 @@ namespace Laubrary.Zounds {
             // Clicking the waveform plays/stops the entry, identical to the play button.
             if (Event.current.type == EventType.MouseDown && Event.current.button == 0
                 && spectrumRect.Contains(Event.current.mousePosition)) {
-                bool isWaveformPlaying = entryTokens != null
-                    && entryTokens.TryGetValue(entry, out var waveToken)
-                    && waveToken.TryGetEntryToken(entry, out var waveChildToken)
-                    && waveChildToken.state != ZoundToken.State.Killed;
-                if (isWaveformPlaying) {
-                    entryTokens[entry].Kill();
-                }
-                else {
-                    if (entryTokens == null) entryTokens = new Dictionary<CompositeZound.ZoundEntry, ZoundToken>();
-                    var token = ZoundEngine.PlayZound(targetZound, new ZoundArgs() {
-                        startImmediately  = true,
-                        delay             = 0f,
-                        volumeOverride    = -1f,
-                        pitchOverride     = -1f,
-                        chanceOverride    = -1f,
-                        useFixedAverageValues = true,
-                        soloOverride      = entry,
-                        ignoreCooldown    = true
-                    });
-                    if (entryTokens.ContainsKey(entry))
-                        entryTokens[entry] = token;
-                    else
-                        entryTokens.Add(entry, token);
-                }
+                CompositeZoundEditing.ToggleEntryPlay(targetZound, ref entryTokens, entry);
                 Event.current.Use();
             }
 
@@ -1069,44 +874,12 @@ namespace Laubrary.Zounds {
         }
 
         private void AddNewEntryFromExisting(CompositeZound parentZound) {
-            var zoundsProject = ZoundsProject.Instance;
-            var library = zoundsProject.zoundLibrary;
-
-            List<Zound> allZounds = library.GetAllZounds();
-            var sortedZounds = allZounds.OrderBy(z => z.name).ToList();
-
-            var genericMenu = new GenericMenu();
-            foreach (var z in sortedZounds) {
-                if (z.id == parentZound.id) continue;
-                if (z is CompositeZound cz && ZequenceHandler.CheckRecursiveness(cz, parentZound)) {
-                    continue;
-                }
-
-                var zound = z;
-                genericMenu.AddItem(new GUIContent(zound.GetType().Name + "/" + zound.name), false, userData => {
-                    AddNewZoundEntry(parentZound, zound, false);
-
-                }, zound);
-            }
-
-            GenericMenuPopup.Show(
-                genericMenu,
-                "Add Zound(s)",
-                Event.current.mousePosition,
-                new List<string>(),
-                addMenuSearchText,
-                newSearch => addMenuSearchText = newSearch,
-                userData => ZoundEngine.PlayZound(userData as Zound));
+            CompositeZoundEditing.AddNewEntryFromExisting(parentZound, Event.current.mousePosition, addMenuSearchText,
+                newSearch => addMenuSearchText = newSearch, zound => AddNewZoundEntry(parentZound, zound, false));
         }
 
         internal void AddNewZoundEntry(CompositeZound parentZound, Zound zound, bool local) {
-            ZoundsWindow.ModifyZoundsProject("add local zound entry", () => {
-                var newEntry = new CompositeZound.ZoundEntry();
-                newEntry.zoundId = zound.id;
-                newEntry.local = local;
-                parentZound.zoundEntries.Add(newEntry);
-                RecalculateMaxDuration();
-            });
+            CompositeZoundEditing.AddNewZoundEntry(targetZound, parentZound, zound, local, autoDuration);
             ValidateEnvelopeGUIs();
         }
 
@@ -1122,89 +895,19 @@ namespace Laubrary.Zounds {
 
         protected virtual void DrawRenderToKlipExtras() { }
 
-        private void RecalculateMaxDuration() {
-            float max = CalculateCompositeDuration(targetZound, 1f);
-            if (max > targetZound.editor_maxDuration) {
-                targetZound.editor_maxDuration = max;
-                EditorUtility.SetDirty(ZoundsProject.Instance);
-            }
-            if (autoDuration) AutoApplyDuration();
-        }
+        private void RecalculateMaxDuration() => CompositeZoundEditing.RecalculateMaxDuration(targetZound, autoDuration);
 
         // Subclasses set this to true when the Auto-duration toggle is on.
         protected virtual bool autoDuration => false;
 
         // Sets editor_maxDuration to exactly the computed content duration.
-        protected void AutoApplyDuration() {
-            float exact = CalculateCompositeDuration(targetZound, 1f);
-            if (!Mathf.Approximately(exact, targetZound.editor_maxDuration)) {
-                targetZound.editor_maxDuration = exact;
-                EditorUtility.SetDirty(ZoundsProject.Instance);
-            }
-        }
+        protected void AutoApplyDuration() => CompositeZoundEditing.AutoApplyDuration(targetZound);
 
-        protected float CalculateCompositeDuration(CompositeZound compositeZound, float parentPitch) {
-            float max = 0f;
-            foreach (var entry in compositeZound.zoundEntries) {
-                if (!compositeZound.TryGetEntryZound(entry, out var zound)) continue;
-                if (zound is CompositeZound cz && ZequenceHandler.CheckRecursiveness(cz, compositeZound)) {
-                    Debug.LogError(compositeZound.name + " is contained recursively in " + cz.name);
-                    continue;
-                }
-                float effectiveDuration = GetEntryDuration(compositeZound, entry, parentPitch) + (entry.delay / parentPitch);
-                if (effectiveDuration > max) {
-                    max = effectiveDuration;
-                    //Debug.Log("New max - " + zound.name + ": " + max);
-                }
-            }
-            //Debug.Log(compositeZound.name + ": " + max);
-            return max;
-        }
+        protected float CalculateCompositeDuration(CompositeZound compositeZound, float parentPitch)
+            => CompositeZoundEditing.CalculateCompositeDuration(compositeZound, parentPitch);
 
-        private float GetEntryDuration(CompositeZound parentZound, CompositeZound.ZoundEntry entry, float parentPitch) {
-            if (!parentZound.TryGetEntryZound(entry, out var zound)) return 0f;
-
-            float effectivePitch = entry.pitch;
-            if (!entry.overridePitch) {
-                //effectivePitch *= (zound.maxPitch + zound.minPitch) / 2f;
-                // no more middle values
-                effectivePitch *= zound.minPitch;
-            }
-
-            effectivePitch *= parentPitch;
-
-            float zoundDuration;
-            if (zound is Klip klip) {
-                // Priority 1: Use the actual rendered clip if it exists and is valid.
-                // This is the absolute truth of what the user will hear.
-                if (klip.HasActiveEdits() && !string.IsNullOrEmpty(klip.renderedClipPath)) {
-                    var renderedClip = AssetDatabase.LoadAssetAtPath<AudioClip>(klip.renderedClipPath);
-                    if (renderedClip != null) {
-                        return renderedClip.length / parentPitch;
-                    }
-                }
-
-                // Priority 2: Fallback to calculation if no render exists yet (newly created or duplicated).
-                // We use trim settings as a placeholder for the visual width.
-                if (klip.trimEnabled) {
-                    zoundDuration = (klip.trimEnd - klip.trimStart) / effectivePitch;
-                }
-                else if (klip.GetAudioClipReference().editorAsset is AudioClip audioClip) {
-                    zoundDuration = audioClip.length / effectivePitch;
-                }
-                else {
-                    zoundDuration = 0f;
-                }
-            }
-            else if (zound is CompositeZound composite) {
-                zoundDuration = CalculateCompositeDuration(composite, effectivePitch);
-            }
-            else {
-                zoundDuration = 0f;
-            }
-
-            return zoundDuration;
-        }
+        private float GetEntryDuration(CompositeZound parentZound, CompositeZound.ZoundEntry entry, float parentPitch)
+            => CompositeZoundEditing.GetEntryDuration(parentZound, entry, parentPitch);
     }
 
 }

@@ -108,30 +108,9 @@ namespace Laubrary.Zounds {
             }
 
             var playButtonRect = new Rect(contentRect.xMax - playButtonWidth, currentY, playButtonWidth, lineHeight);
-            bool isPlaying = entryTokens != null && entryTokens.TryGetValue(entry, out var entryToken) && entryToken.TryGetEntryToken(entry, out var childToken) && childToken.state != ZoundToken.State.Killed;
+            bool isPlaying = CompositeZoundEditing.IsEntryPlaying(entryTokens, entry);
             if (ZUI.Button(playButtonRect, isPlaying ? label_stopEntry : label_playEntry, ZUI.Style.RichButton, isPlaying ? ZUI.Tint.Confirm : null)) {
-                if (isPlaying) {
-                    entryTokens[entry].Kill();
-                }
-                else {
-                    if (entryTokens == null) entryTokens = new Dictionary<CompositeZound.ZoundEntry, ZoundToken>();
-                    var token = ZoundEngine.PlayZound(targetZound, new ZoundArgs() {
-                        startImmediately = true,
-                        delay = 0f,
-                        volumeOverride = -1f,
-                        pitchOverride = -1f,
-                        chanceOverride = -1f,
-                        useFixedAverageValues = true,
-                        soloOverride = entry,
-                        ignoreCooldown = true
-                    });
-                    if (entryTokens.ContainsKey(entry)) {
-                        entryTokens[entry] = token;
-                    }
-                    else {
-                        entryTokens.Add(entry, token);
-                    }
-                }
+                CompositeZoundEditing.ToggleEntryPlay(targetZound, ref entryTokens, entry);
             }
 
             currentY += lineHeight + 2f;

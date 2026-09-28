@@ -105,3 +105,39 @@
    control (background, border and text) sits at 0.2 over what is behind it — measured 0.18-0.21 per channel on the old
    window's greyed "Phase vocoder". */
 .zs-root .zui-togglebutton:disabled, .zs-root .unity-button:disabled { opacity: 0.2; }
+
+/* ── the Zequence window's standard editor controls (T-0469) ──
+   EditorGUILayout / EditorGUI fields drawn with a label width the old code sets just for them (Mode 38, Duration 55,
+   No-Play 50, the override toggles' "O" 16); every one is a single 18 px row with no outer margin. */
+.zs-root .zs-imgui-field { margin: 0; height: 18px; flex-shrink: 0; }
+.zs-root .zs-imgui-field > .unity-base-field__label { min-width: 0; padding: 0 0 0 1px; margin: 0; -unity-text-align: middle-left; }
+.zs-root .zs-label-16 > .unity-base-field__label { width: 16px; min-width: 16px; }
+.zs-root .zs-label-38 > .unity-base-field__label { width: 38px; min-width: 38px; }
+.zs-root .zs-label-50 > .unity-base-field__label { width: 50px; min-width: 50px; }
+.zs-root .zs-label-55 > .unity-base-field__label { width: 55px; min-width: 55px; }
+.zs-root .zs-bare-int > .unity-base-field__input { margin: 0; }
+/* EditorGUILayout.ToggleLeft: the box, then its label */
+.zs-root .zs-toggleleft { margin: 0; height: 18px; flex-shrink: 0; }
+/* EditorGUI.Slider: the track, then the editor's 50 px number box 5 px after it */
+.zs-root .zs-imgui-slider { margin: 0; height: 18px; }
+.zs-root .zs-imgui-slider .unity-base-slider__text-field { width: 50px; min-width: 50px; margin-left: 5px; margin-right: 0; flex-grow: 0; }
+.zs-root .zs-imgui-slider > .unity-base-field__input { margin: 0; }
+/* EditorGUI.BeginFoldoutHeaderGroup: a bold header row */
+.zs-root .zs-foldoutheader { margin: 0; }
+.zs-root .zs-foldoutheader > .unity-foldout__toggle { margin: 0; height: 18px; }
+.zs-root .zs-foldoutheader .unity-foldout__text { -unity-font-style: bold; }
+.zs-root .zs-foldoutheader > .unity-foldout__content { display: none; }
+/* A button whose face is one of the Zounds window icons, centred at its own size */
+.zs-root .zs-buttonicon { position: absolute; left: 50%; top: 50%; width: 16px; height: 16px; translate: -50% -50%; }
+/* ZUI.Button laid out by its style's own measured size (Default / RichButton): measured 31.2 px between its edges on the
+   old window (the style's 30.5 plus the layout's rounding), so the rows below it land where the old ones do */
+.zs-root .zs-layoutbutton { height: 31.7px; }
+/* EditorGUILayout fields in a horizontal row keep the editor's 2 px top margin (measured: 2.2 px below the row top) */
+.zs-root .zs-zeq-toolbar > .zs-imgui-field, .zs-root .zs-zeq-toolbar > .zs-toggleleft { margin-top: 2px; }
+/* ZUI.SliderRange's number boxes show their value right-aligned (measured on the old Zequence window's V/P/C) */
+.zs-root .zui-skinrange__field .unity-base-text-field__input { -unity-text-align: middle-right; }
+/* EditorGUI.Toggle(rect 20 wide, "O") with a 16 px label: IMGUI draws the check box past the rect's right edge */
+.zs-root .zs-imgui-field.unity-toggle { overflow: visible; }
+.zs-root .zs-imgui-field.unity-toggle > .unity-toggle__input { flex-shrink: 0; width: 14px; min-width: 14px; }
+/* EditorGUI.BeginFoldoutHeaderGroup's band behind the title: solid rgb(56,56,56) over the whole 18 px label rect (measured) */
+.zs-root .zs-foldoutheader > .unity-foldout__toggle { background-color: rgb(56,56,56); }

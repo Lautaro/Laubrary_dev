@@ -7,7 +7,13 @@ using UnityEngine.Audio;
 
 namespace Laubrary.Zounds {
 
-    public class ZequenceEditorWindow : CompositeZoundEditorWindow<Zequence, ZequenceEditorWindow> {
+    public class ZequenceEditorWindow : CompositeZoundEditorWindow<Zequence, ZequenceEditorWindow>, IHasCustomMenu {
+
+        /// <summary>The tab's ⋮ menu: opens this Zequence's UI Toolkit twin (T-0469; owner's decision D3, as the Klip window).</summary>
+        public void AddItemsToMenu(GenericMenu menu) {
+            if (targetZound == null) return;
+            menu.AddItem(new GUIContent("Open UI Toolkit version"), false, () => Uitk.ZequenceEditorWindowTK.Open(targetZound, isLocalZound));
+        }
 
         private GUIContent label_noPlayWeight;
         private GUIContent label_clearRenderedButton;
