@@ -22,6 +22,11 @@ namespace Laubrary.Zounds {
         public System.Action onTrimDragStarted;
         public System.Action onVolumeDragStarted;
         public System.Action onPitchDragStarted;
+        // The time curve (T-0482) and keep length on the pitch curve.
+        public System.Action<Envelope> onTimeEnvelopeChanged;
+        public System.Action<bool> onTimeEnabledChanged;
+        public System.Action onTimeDragStarted;
+        public System.Action<bool> onKeepLengthChanged;
 
         [SerializeField] private float m_height = 100f;
 
@@ -61,6 +66,10 @@ namespace Laubrary.Zounds {
         [SerializeField] private bool m_trimEnabled = true;
         [SerializeField] private bool m_showVolumeEnvelopeHandles = true;
         [SerializeField] private bool m_showPitchEnvelopeHandles = true;
+        [SerializeField] private bool m_showTimeEnvelopeHandles = true;
+        /// <summary>The Klip's time curve (an Envelope on Speed, T-0482), or the shared disabled placeholder. Not saved:
+        /// re-read by every InitFromKlip.</summary>
+        [System.NonSerialized] private Envelope m_timeEnvelope;
 
         [SerializeField] private float m_trimStart;
         [SerializeField] private float m_trimEnd;
@@ -158,6 +167,11 @@ namespace Laubrary.Zounds {
         // inside ZUI.Envelope's state dictionary.
         private ZUIEnvelopeRuntime volumeRuntime;
         private ZUIEnvelopeRuntime pitchRuntime;
+        private ZUIEnvelopeRuntime timeRuntime;
+        private int timeStateKey;
+
+        /// <summary>The time curve's colour: its own, distinct from volume (green) and pitch (red).</summary>
+        internal static readonly Color TimeCurveColor = new Color(0.30f, 0.85f, 1f, 1f);
         private int volumeStateKey;
         private int pitchStateKey;
 
@@ -249,6 +263,12 @@ namespace Laubrary.Zounds {
             // view's hash, disambiguated by a +1 salt.
             volumeStateKey = System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this);
             pitchStateKey  = volumeStateKey + 1;
+            timeRuntime = new ZUIEnvelopeRuntime {
+                onDragStarted = () => onTimeDragStarted?.Invoke(),
+                onDragUpdated = () => onTimeEnvelopeChanged?.Invoke(m_timeEnvelope),
+                onMutated     = () => onTimeEnvelopeChanged?.Invoke(m_timeEnvelope),
+            };
+            timeStateKey = volumeStateKey + 2;
         }
 
         public void Destroy() {
@@ -367,10 +387,12 @@ namespace Laubrary.Zounds {
                 // the toggle/overlay code below never has to null-check; it is never edited while disabled.
                 m_volumeEnvelope = KlipChainEnvelopes.VolumeCurve(klip, create: false) ?? KlipChainEnvelopes.Disabled;
                 m_pitchEnvelope = KlipChainEnvelopes.PitchCurve(klip, create: false) ?? KlipChainEnvelopes.Disabled;
+                m_timeEnvelope = KlipChainEnvelopes.TimeCurve(klip, create: false) ?? KlipChainEnvelopes.Disabled;
             }
             else {
                 m_volumeEnvelope = klip.volumeEnvelope;
                 m_pitchEnvelope = klip.pitchEnvelope;
+                m_timeEnvelope = KlipChainEnvelopes.Disabled;
             }
             ConstrainView();
         }
@@ -469,6 +491,19 @@ namespace Laubrary.Zounds {
         internal bool ClampToTrim => m_clampToTrim;
         internal Envelope VolumeEnvelope => m_volumeEnvelope;
         internal Envelope PitchEnvelope => m_pitchEnvelope;
+        internal Envelope TimeEnvelope => m_timeEnvelope ?? KlipChainEnvelopes.Disabled;
+        internal bool ShowTimeHandles => m_showTimeEnvelopeHandles;
+        /// <summary>Whether the pitch curve keeps the play's length (T-0482); false for a view of legacy curves.</summary>
+        internal bool KeepLength => m_klip != null && m_klip.timeStretch != null && m_klip.timeStretch.pitchKeepsLength;
+        internal bool HasKlip => m_klip != null;
+        internal void RequestTimeEnabled(bool v) { if (v != TimeEnvelope.enabled) onTimeEnabledChanged?.Invoke(v); }
+        internal void RequestKeepLength(bool v) { if (v != KeepLength) onKeepLengthChanged?.Invoke(v); }
+        internal void SetShowTimeHandles(bool v) {
+            if (v == m_showTimeEnvelopeHandles) return;
+            Undo.RecordObject(m_window, "toggle time curve editable");
+            m_showTimeEnvelopeHandles = v;
+            EditorUtility.SetDirty(m_window);
+        }
         internal bool ShowVolumeHandles => m_showVolumeEnvelopeHandles;
         internal bool ShowPitchHandles => m_showPitchEnvelopeHandles;
         internal bool IsTrimDragging => isTrimStartDragged || isTrimEndDragged || isTrimBothDragged;
@@ -636,20 +671,38 @@ namespace Laubrary.Zounds {
 
         /// <summary>Sets up an overlay envelope's runtime for this frame (visible window, range, editability, pinned
         /// endpoints) and returns its look; null when that envelope is off.</summary>
-        internal ZUIEnvelopeDef PrepareOverlay(bool volume, out ZUIEnvelopeRuntime runtime, out List<ZUIEnvelopePoint> pts, out Color colour) {
+        /// <summary>The time curve toggle's tooltip (T-0482).</summary>
+        internal const string TimeTip =
+            "A curve over the waveform for how fast the sound moves through its source, without changing its pitch: the " +
+            "middle is unchanged, the top four times as fast (a quarter of the length), the bottom a quarter as fast. Plays " +
+            "through the live stretcher. Quality: fine within about half and double speed; beyond that, attacks smear and " +
+            "dense material (chords, crowds) can sound phasey.";
+
+        /// <summary>The keep-length toggle's tooltip, for its current state (T-0482).</summary>
+        internal static string KeepLengthTip(bool on) => on
+            ? "The pitch curve changes pitch only: the play keeps its length. Click to go back to tape-style, where raising the pitch also shortens the sound."
+            : "Make the pitch curve change pitch without changing the play's length: the live stretcher slows the sound down by exactly as much as the curve raises it (and speeds it up as much as it lowers it). Quality: clean within about an octave either way; beyond that, and on chords and dense material, it can sound phasey or smeared. Off (tape-style) is how the sound has always played.";
+
+        internal enum Curve { Volume, Pitch, Time }
+
+        internal ZUIEnvelopeDef PrepareOverlay(bool volume, out ZUIEnvelopeRuntime runtime, out List<ZUIEnvelopePoint> pts, out Color colour)
+            => PrepareOverlay(volume ? Curve.Volume : Curve.Pitch, out runtime, out pts, out colour);
+
+        internal ZUIEnvelopeDef PrepareOverlay(Curve which, out ZUIEnvelopeRuntime runtime, out List<ZUIEnvelopePoint> pts, out Color colour) {
             var editorStyle = ZoundsProject.Instance.projectSettings.editorStyle;
-            var env = volume ? m_volumeEnvelope : m_pitchEnvelope;
-            runtime = volume ? volumeRuntime : pitchRuntime;
-            colour = volume ? editorStyle.volumeEnvelopeColor : editorStyle.pitchEnvelopeColor;
+            bool volume = which == Curve.Volume;
+            var env = which == Curve.Volume ? m_volumeEnvelope : which == Curve.Pitch ? m_pitchEnvelope : TimeEnvelope;
+            runtime = which == Curve.Volume ? volumeRuntime : which == Curve.Pitch ? pitchRuntime : timeRuntime;
+            colour = which == Curve.Volume ? editorStyle.volumeEnvelopeColor : which == Curve.Pitch ? editorStyle.pitchEnvelopeColor : TimeCurveColor;
             pts = null;
-            if (!env.enabled) return null;
+            if (env == null || !env.enabled) return null;
             runtime.xMin = m_clampToTrim ? env.xMin : Mathf.Lerp(env.xMin, env.xMax, viewStart / originalClip.length);
             runtime.xMax = m_clampToTrim ? env.xMax : Mathf.Lerp(env.xMin, env.xMax, viewEnd / originalClip.length);
             runtime.dataXMin = env.xMin;
             runtime.dataXMax = env.xMax;
             runtime.yMin = env.yMin;
             runtime.yMax = env.yMax;
-            bool handles = volume ? m_showVolumeEnvelopeHandles : m_showPitchEnvelopeHandles;
+            bool handles = which == Curve.Volume ? m_showVolumeEnvelopeHandles : which == Curve.Pitch ? m_showPitchEnvelopeHandles : m_showTimeEnvelopeHandles;
             runtime.editable = handles;
             runtime.allowAddPoints = handles;
             pts = env.GetPointsList();
@@ -704,6 +757,7 @@ namespace Laubrary.Zounds {
             isTrimBothDragged = false;
             ZUI.EnvelopeResetState(volumeStateKey);
             ZUI.EnvelopeResetState(pitchStateKey);
+            ZUI.EnvelopeResetState(timeStateKey);
         }
 
         public void DrawLayout(IEnumerable<ZoundToken> playingTokens = null) {
@@ -763,6 +817,17 @@ namespace Laubrary.Zounds {
                     Undo.RecordObject(m_window, "toggle pitch envelope editable");
                     m_showPitchEnvelopeHandles = newShowPitchHandles;
                     EditorUtility.SetDirty(m_window);
+                }
+                if (m_klip != null) {
+                    // Keep length on the pitch curve and the time curve (T-0482), as in the UI Toolkit twin.
+                    GUILayout.Space(2f);
+                    bool keep = ZUI.Toggle(KeepLength, new GUIContent("Keep length", KeepLengthTip(KeepLength)), ZUI.Style.RichToggle, ZUICornerMask.All, GUILayout.Width(90f), GUILayout.Height(lineHeight));
+                    if (keep != KeepLength) onKeepLengthChanged?.Invoke(keep);
+                    GUILayout.Space(6f);
+                    bool timeOn = ZUI.Toggle(TimeEnvelope.enabled, new GUIContent("Time", TimeTip), ZUI.Style.RichToggle, ZUICornerMask.Left, GUILayout.Height(lineHeight), GUILayout.Width(60f));
+                    if (timeOn != TimeEnvelope.enabled) onTimeEnabledChanged?.Invoke(timeOn);
+                    bool th = ZUI.Toggle(m_showTimeEnvelopeHandles, "", editIcon, editIcon, ZUI.Style.RichToggle, ZUICornerMask.Right, GUILayout.Width(25f), GUILayout.Height(lineHeight));
+                    if (th != m_showTimeEnvelopeHandles) SetShowTimeHandles(th);
                 }
 
                 GUILayout.FlexibleSpace();
@@ -835,6 +900,20 @@ namespace Laubrary.Zounds {
             var pitDef = PrepareOverlay(false, out var pitRt, out var pitPts, out var pitColour);
             if (pitDef != null && ZUI.Envelope(envelopeRect, pitPts, new ZUIColorRef(pitColour), pitDef, pitRt, pitchStateKey)) {
                 onPitchEnvelopeChanged?.Invoke(m_pitchEnvelope);
+            }
+            var timDef = PrepareOverlay(Curve.Time, out var timRt, out var timPts, out var timColour);
+            if (timDef != null && ZUI.Envelope(envelopeRect, timPts, new ZUIColorRef(timColour), timDef, timRt, timeStateKey)) {
+                onTimeEnvelopeChanged?.Invoke(m_timeEnvelope);
+            }
+            if (timDef != null) {
+                // The time curve's axis on the right: x4 / x1 / x1/4 speed.
+                var ts2 = new GUIStyle(EditorStyles.miniLabel) { fontSize = 9, alignment = TextAnchor.UpperRight };
+                ts2.normal.textColor = timColour;
+                float my2 = Mathf.Round(envelopeRect.y + envelopeRect.height * 0.5f);
+                if (Event.current.type == EventType.Repaint) EditorGUI.DrawRect(new Rect(envelopeRect.x, my2, envelopeRect.width, 1f), new Color(timColour.r, timColour.g, timColour.b, 0.3f));
+                GUI.Label(new Rect(envelopeRect.xMax - 63f, envelopeRect.y + 1f, 60f, 13f), "×4", ts2);
+                GUI.Label(new Rect(envelopeRect.xMax - 63f, my2 - 14f, 60f, 13f), "×1", ts2);
+                GUI.Label(new Rect(envelopeRect.xMax - 63f, envelopeRect.yMax - 14f, 60f, 13f), "×¼", ts2);
             }
             // The pitch curve's axis (T-0479), as the UI Toolkit twin shows it: what its top, middle and bottom mean and
             // the "no change" line; for a curve still on its old scale only a warning, explained in its tooltip.

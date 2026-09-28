@@ -24,7 +24,7 @@ namespace Laubrary.Zounds.Uitk {
         const float AreaH = 150f;
         readonly AudioSpectrumView model;
         readonly Klip klip;
-        readonly ZuiToggleButton trim, clamp, vol, volEdit, pitch, pitchEdit;
+        readonly ZuiToggleButton trim, clamp, vol, volEdit, pitch, pitchEdit, keepLen, time, timeEdit;
         readonly Label length;
         readonly VisualElement box, area, bg, dimStart, dimEnd, handleStart, handleEnd, heads;
         readonly VisualElement[] xmix;
@@ -32,7 +32,10 @@ namespace Laubrary.Zounds.Uitk {
         readonly Label pitchTop, pitchMid, pitchBottom, pitchOld;
         readonly VisualElement pitchLine;
         readonly Image wave;
-        readonly ZuiSkinEnvelope volEnv, pitchEnv;
+        readonly ZuiSkinEnvelope volEnv, pitchEnv, timeEnv;
+        // The time curve's axis on the right (T-0482): x4 / x1 / x1/4 speed and the "unchanged" line.
+        readonly Label timeTop, timeMid, timeBottom;
+        readonly VisualElement timeLine;
         ZuiSkinEnvelope active;
         bool trimDragging;
         readonly List<VisualElement> headPool = new List<VisualElement>();
@@ -59,7 +62,13 @@ namespace Laubrary.Zounds.Uitk {
             pitchOld.AddToClassList("zs-lbl");
             pitchOld.style.width = 16f; pitchOld.style.flexShrink = 0; pitchOld.style.unityTextAlign = TextAnchor.MiddleCenter;
             pitchOld.style.visibility = Visibility.Hidden;
+            // Keep length (on the pitch curve) and the time curve, T-0482. Present only for a Klip's chain curves.
+            keepLen = ZS.Toggle("Keep length", AudioSpectrumView.KeepLengthTip(model.KeepLength), model.KeepLength,
+                v => { model.RequestKeepLength(v); keepLen.tooltip = AudioSpectrumView.KeepLengthTip(v); Refresh(); }, "RichToggle", ZUICornerMask.All, 90f, lh);
+            time = ZS.Toggle("Time", AudioSpectrumView.TimeTip, model.TimeEnvelope.enabled, v => { model.RequestTimeEnabled(v); Refresh(); }, "RichToggle", ZUICornerMask.Left, 60f, lh);
+            timeEdit = IconToggle(model.ShowTimeHandles, v => { model.SetShowTimeHandles(v); Refresh(); });
             bar.Add(trim); bar.Add(clamp); bar.Add(Gap(6f)); bar.Add(vol); bar.Add(volEdit); bar.Add(Gap(6f)); bar.Add(pitch); bar.Add(pitchEdit); bar.Add(pitchOld);
+            if (model.HasKlip) { bar.Add(Gap(2f)); bar.Add(keepLen); bar.Add(Gap(6f)); bar.Add(time); bar.Add(timeEdit); }
             var flex = new VisualElement(); flex.style.flexGrow = 1; bar.Add(flex);
             bar.Add(length);
             Add(bar);
@@ -91,20 +100,25 @@ namespace Laubrary.Zounds.Uitk {
             pitchLine = Abs(); area.Add(pitchLine);
             pitchTop = AxisLabel(); pitchMid = AxisLabel(); pitchBottom = AxisLabel();
             area.Add(pitchTop); area.Add(pitchMid); area.Add(pitchBottom);
+            timeLine = Abs(); area.Add(timeLine);
+            timeTop = AxisLabel(); timeMid = AxisLabel(); timeBottom = AxisLabel();
+            foreach (var l in new[] { timeTop, timeMid, timeBottom }) { l.style.unityTextAlign = TextAnchor.UpperRight; l.style.width = 26f; area.Add(l); }
+            timeTop.text = "×4"; timeMid.text = "×1"; timeBottom.text = "×¼";
             heads = Abs(); area.Add(heads);
             handleStart = Abs(); handleEnd = Abs(); area.Add(handleStart); area.Add(handleEnd);
             handleStart.AddToClassList("zs-trimhandle"); handleEnd.AddToClassList("zs-trimhandle");
             volEnv = new ZuiSkinEnvelope(null, Color.white, null, null, standalone: false) { pickingMode = PickingMode.Ignore };
             pitchEnv = new ZuiSkinEnvelope(null, Color.white, null, null, standalone: false) { pickingMode = PickingMode.Ignore };
-            foreach (var e in new[] { volEnv, pitchEnv }) { e.style.position = Position.Absolute; area.Add(e); }
+            timeEnv = new ZuiSkinEnvelope(null, Color.white, null, null, standalone: false) { pickingMode = PickingMode.Ignore };
+            foreach (var e in new[] { volEnv, pitchEnv, timeEnv }) { e.style.position = Position.Absolute; area.Add(e); }
             area.focusable = true;
 
             area.RegisterCallback<WheelEvent>(OnWheel);
             area.RegisterCallback<PointerDownEvent>(OnDown);
             area.RegisterCallback<PointerMoveEvent>(OnMove);
             area.RegisterCallback<PointerUpEvent>(OnUp);
-            area.RegisterCallback<PointerLeaveEvent>(_ => { volEnv.PointerLeft(); pitchEnv.PointerLeft(); });
-            area.RegisterCallback<KeyDownEvent>(e => { if (volEnv.KeyDown(e.keyCode) | pitchEnv.KeyDown(e.keyCode)) e.StopPropagation(); });
+            area.RegisterCallback<PointerLeaveEvent>(_ => { volEnv.PointerLeft(); pitchEnv.PointerLeft(); timeEnv.PointerLeft(); });
+            area.RegisterCallback<KeyDownEvent>(e => { if (volEnv.KeyDown(e.keyCode) | pitchEnv.KeyDown(e.keyCode) | timeEnv.KeyDown(e.keyCode)) e.StopPropagation(); });
             area.RegisterCallback<GeometryChangedEvent>(_ => Refresh());
             schedule.Execute(Refresh).Every(33);
         }
@@ -114,8 +128,28 @@ namespace Laubrary.Zounds.Uitk {
         static Label AxisLabel() {
             var l = new Label { pickingMode = PickingMode.Ignore };
             l.AddToClassList("zs-lbl"); l.AddToClassList("zs-mini");
-            l.style.position = Position.Absolute; l.style.left = 3f; l.style.width = 60f; l.style.height = 13f;
+            l.style.position = Position.Absolute; l.style.left = 3f; l.style.width = 44f; l.style.height = 13f;
+            // A dark backing so a label reads on the bright waveform as well as on the dimmed parts.
+            l.style.backgroundColor = new Color(0f, 0f, 0f, 0.55f);
+            l.style.paddingLeft = 2f; l.style.paddingRight = 2f;
+            l.style.borderTopLeftRadius = l.style.borderTopRightRadius = l.style.borderBottomLeftRadius = l.style.borderBottomRightRadius = 2f;
             return l;
+        }
+
+        /// <summary>The time curve's axis on the right of the envelope area (T-0482).</summary>
+        void PlaceTimeAxis(Rect envRect) {
+            bool on = model.TimeEnvelope.enabled;
+            foreach (var e in new VisualElement[] { timeTop, timeMid, timeBottom, timeLine }) e.style.display = on ? DisplayStyle.Flex : DisplayStyle.None;
+            if (!on) return;
+            var c = AudioSpectrumView.TimeCurveColor;
+            foreach (var l in new[] { timeTop, timeMid, timeBottom }) { l.style.color = c; l.style.left = envRect.xMax - 29f; }
+            timeTop.style.top = envRect.y + 1f;
+            timeBottom.style.top = envRect.yMax - 14f;
+            float my = Mathf.Round(envRect.y + envRect.height * 0.5f);
+            timeMid.style.top = my - 14f;
+            timeLine.style.left = envRect.x; timeLine.style.width = Mathf.Max(0f, envRect.width);
+            timeLine.style.top = my; timeLine.style.height = 1f;
+            timeLine.style.backgroundColor = new Color(c.r, c.g, c.b, 0.3f);
         }
 
         /// <summary>The pitch curve's axis on the waveform (T-0479): what its top, middle and bottom mean, and the middle
@@ -226,12 +260,19 @@ namespace Laubrary.Zounds.Uitk {
             // The envelopes, over the trimmed range when clamped, else the whole area.
             var envRect = model.ClampToTrim ? trimmed : r;
             PlacePitchAxis(r, envRect);
-            Overlay(volEnv, true, envRect);
-            Overlay(pitchEnv, false, envRect);
+            PlaceTimeAxis(envRect);
+            Overlay(volEnv, AudioSpectrumView.Curve.Volume, envRect);
+            Overlay(pitchEnv, AudioSpectrumView.Curve.Pitch, envRect);
+            Overlay(timeEnv, AudioSpectrumView.Curve.Time, envRect);
+            if (model.HasKlip) {
+                keepLen.SetValueWithoutNotify(model.KeepLength);
+                time.SetValueWithoutNotify(model.TimeEnvelope.enabled);
+                timeEdit.SetValueWithoutNotify(model.ShowTimeHandles);
+            }
         }
 
-        void Overlay(ZuiSkinEnvelope env, bool volume, Rect rect) {
-            var def = model.PrepareOverlay(volume, out var runtime, out var pts, out var colour);
+        void Overlay(ZuiSkinEnvelope env, AudioSpectrumView.Curve which, Rect rect) {
+            var def = model.PrepareOverlay(which, out var runtime, out var pts, out var colour);
             env.style.display = def != null ? DisplayStyle.Flex : DisplayStyle.None;
             if (def == null) return;
             env.points = pts; env.def = def; env.rt = runtime; env.curveColor = colour;
@@ -311,7 +352,7 @@ namespace Laubrary.Zounds.Uitk {
                 if (endLive && he.Contains(m) && (e.button == 0 || e.button == 1)) { StartTrim(e.button == 0 ? AudioSpectrumView.TrimDrag.End : AudioSpectrumView.TrimDrag.Both, time, e); return; }
                 if (startLive && hs.Contains(m) && (e.button == 0 || e.button == 1)) { StartTrim(e.button == 0 ? AudioSpectrumView.TrimDrag.Start : AudioSpectrumView.TrimDrag.Both, time, e); return; }
             }
-            foreach (var env in new[] { volEnv, pitchEnv }) {
+            foreach (var env in new[] { timeEnv, volEnv, pitchEnv }) {
                 if (env.resolvedStyle.display == DisplayStyle.None || env.rt == null) continue;
                 if (env.PointerDown(area.ChangeCoordinatesTo(env, m), e.button, e.clickCount, e.shiftKey)) {
                     active = env;
@@ -337,7 +378,7 @@ namespace Laubrary.Zounds.Uitk {
                 return;
             }
             if (active != null) { active.PointerMove(area.ChangeCoordinatesTo(active, m), e.deltaPosition, e.shiftKey, e.pressedButtons); return; }
-            foreach (var env in new[] { volEnv, pitchEnv })
+            foreach (var env in new[] { volEnv, pitchEnv, timeEnv })
                 if (env.resolvedStyle.display != DisplayStyle.None && env.rt != null)
                     env.PointerMove(area.ChangeCoordinatesTo(env, m), e.deltaPosition, e.shiftKey, e.pressedButtons);
         }

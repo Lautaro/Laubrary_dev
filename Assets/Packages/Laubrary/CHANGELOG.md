@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — a time curve, and "Keep length" on the pitch curve (T-0482)
+
+- **Time curve:** a third curve on the Klip waveform, in its own colour (cyan) with a ×4 / ×1 / ×¼ axis, toggled and edited like Volume and Pitch.
+  - It is the speed through the source over the waveform, on the Ratio scale: the middle is unchanged, the top four times as fast, the bottom a quarter.
+  - It plays through the live stretcher, which now starts by itself when a time curve is on.
+  - It is the same thing an old Curve stretch converts into (T-0481); there are not two.
+- **Keep length:** a switch beside Pitch.
+  - Off (the default, and every existing sound) is tape-style: raising the pitch also shortens the sound.
+  - On, the pitch curve changes pitch only. The voice divides its speed by the pitch it is playing at, at exactly the same moments, so the two cannot drift apart.
+- **Play length and end of play** follow both, through the same play plan as the rest of the engine (the strip's "Plays X s").
+- **Quality warnings** are in the tooltips: clean within about an octave (keep length) or half to double speed (time curve); beyond that, and on chords and dense material, attacks smear and it can sound phasey.
+- **Looper:** under the live stretcher a loop wraps without the crossmix. This was not fixed (the crossmix would have to be rebuilt inside the stretcher); the Looper's crossmix tooltip says so when it applies.
+- **Axis labels** on the waveform now have a dark backing, so they read on the bright waveform.
+- **Measured (kept check 17, section 3; 1.00 s source, 440 Hz):**
+
+  | Case | Length (declared / rendered) | Pitch |
+  |---|---|---|
+  | +12 st, tape-style | 0.500 / 0.500 s | 880 Hz |
+  | +12 st, keep length | 1.000 / 0.995 s | 880 Hz |
+  | −12 st, keep length | 1.000 / 1.020 s | 220 Hz |
+  | time curve at half speed | 2.000 / 1.983 s | 440 Hz |
+  | +12 st, keep length, time ×2 | 0.500 / 0.510 s | 880 Hz |
+
+  With keep length and a moving pitch curve, block sizes that are multiples of 64 give identical samples.
+
 ### Zounds — Stretch is heard: old Uniform / Region / Curve settings play through the live stretcher (T-0481)
 
 - **Fix: Stretch was silently ignored.** Its result was computed only for the editor, so a real play read the original audio. Measured before: a Klip at Uniform ×0.5 and ×2 both played 0.537 s.

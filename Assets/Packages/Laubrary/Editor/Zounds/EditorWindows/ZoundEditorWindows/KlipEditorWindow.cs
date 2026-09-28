@@ -296,6 +296,36 @@ namespace Laubrary.Zounds {
                 }
             };
 
+            // The time curve and keep length (T-0482): the same pattern as the pitch curve.
+            spectrumView.onTimeDragStarted = () => {
+                if (target() != null) {
+                    setDragging(true);
+                    ZoundsWindow.BeginDragUndo("edit time curve");
+                }
+            };
+            spectrumView.onTimeEnvelopeChanged = envelope => {
+                var targetZound = target();
+                if (targetZound != null) { KlipChainEnvelopes.Touch(targetZound); repaint(); }
+            };
+            spectrumView.onTimeEnabledChanged = enabled => {
+                var targetZound = target();
+                if (targetZound != null) {
+                    ZoundsWindow.ModifyAndSaveZoundsProject("toggle klip time curve", () => KlipChainEnvelopes.SetTimeEnabled(targetZound, enabled));
+                    refreshSpectrumView();
+                }
+            };
+            spectrumView.onKeepLengthChanged = keep => {
+                var targetZound = target();
+                if (targetZound != null) {
+                    ZoundsWindow.ModifyAndSaveZoundsProject(keep ? "pitch curve keeps length" : "pitch curve tape-style", () => {
+                        if (targetZound.timeStretch == null) targetZound.timeStretch = new ZoundTimeStretch();
+                        targetZound.timeStretch.pitchKeepsLength = keep;
+                        Dsp.ZoundDspPlayback.InvalidateLayout(targetZound);
+                    });
+                    repaint();
+                }
+            };
+
         }
 
         protected override void OnUndoRedoPerformed() {

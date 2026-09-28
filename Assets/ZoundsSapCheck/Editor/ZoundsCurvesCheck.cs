@@ -19,6 +19,11 @@ namespace Laubrary.Zounds.Checks.EditorTools {
     /// 2. **Old stretch settings are heard.** A Klip's old Uniform / Region / Curve stretch, played through the live
     ///    stretcher as the engine plays it (the same plan StartVoice uses): the declared length and the length a real
     ///    voice actually renders both change by the stretch (x0.5 -> half as long, x2 -> twice), and agree.
+    /// 3. **Time curve and keep length.** A pitch curve held at +12 semitones: tape-style it halves the length and doubles
+    ///    the pitch; with keep length the length stays and the pitch still doubles. A time curve at half speed alone
+    ///    doubles the length and leaves the pitch alone. Pitch is measured on the render (zero crossings of a 440 Hz
+    ///    tone), lengths declared and rendered. And the stretched path with a moving pitch curve and keep length gives
+    ///    the same samples at every multiple of the control grid.
     /// </summary>
     public static class ZoundsCurvesCheck {
 
@@ -32,6 +37,7 @@ namespace Laubrary.Zounds.Checks.EditorTools {
             bool allPass = true;
             allPass &= PitchScale(sb);
             allPass &= OldStretch(sb);
+            allPass &= TimeAndKeepLength(sb);
             sb.Append(allPass ? "\nALL PASS\n" : "\nSOMETHING FAILED (see above)\n");
             return sb.ToString();
         }
@@ -175,6 +181,110 @@ namespace Laubrary.Zounds.Checks.EditorTools {
             }
             finally { v.Dispose(); }
             return last;
+        }
+
+        // ── 3. time curve and keep length ──
+
+        static bool TimeAndKeepLength(StringBuilder sb) {
+            bool ok = true;
+            var tone = Tone(1.2f, 440f, 0.5f);
+            double frames = 1.0 * SR;
+            sb.Append("\n3. Time curve and keep length (1.00 s source, 440 Hz tone):\n");
+            var cases = new (string label, float pitchPos, float timePos, bool keep, float expLen, float expHz)[] {
+                ("pitch +12 st, tape-style    ", 0.75f, -1f, false, 0.5f, 880f),
+                ("pitch +12 st, keep length   ", 0.75f, -1f, true, 1.0f, 880f),
+                ("pitch -12 st, keep length   ", 0.25f, -1f, true, 1.0f, 220f),
+                ("time curve at half speed    ", -1f, 0.25f, false, 2.0f, 440f),
+                ("pitch +12 st + time x2, keep", 0.75f, 0.75f, true, 0.5f, 880f),
+            };
+            foreach (var c in cases) {
+                var k = KlipWithCurves(c.pitchPos, c.timePos, c.keep);
+                var plan = ZoundSapPlayback.Plan(k, 0, frames, SR);
+                float declared = ZoundSapPlayback.PlayLength(in plan, frames / SR, 1f, false);
+                var o = RenderPlanSamples(tone, plan, frames, 256, 4f);
+                float rendered = o.Length / (float)SR;
+                float hz = Frequency(o);
+                bool pass = Mathf.Abs(declared - c.expLen) < 0.01f && Mathf.Abs(rendered - c.expLen) < 0.08f
+                            && Mathf.Abs(hz - c.expHz) / c.expHz < 0.01f;
+                sb.Append("   ").Append(c.label).Append(": declared ").Append(declared.ToString("0.000")).Append(" s, rendered ")
+                  .Append(rendered.ToString("0.000")).Append(" s, pitch ").Append(hz.ToString("0")).Append(" Hz (expected ")
+                  .Append(c.expLen.ToString("0.0")).Append(" s, ").Append(c.expHz.ToString("0")).Append(" Hz)")
+                  .Append(plan.stretched ? ", live stretcher" : ", direct read").Append(pass ? "  PASS\n" : "  FAIL\n");
+                ok &= pass;
+            }
+            // Slicing on the stretched path, a moving pitch curve with keep length.
+            var sk = KlipWithCurves(0.4f, -1f, true);
+            var mp = ((ZoundModifier)sk.effectChain.modifiers[0]).curve.GetPointsList();
+            mp[mp.Count - 1].value = 0.7f;
+            var splan = ZoundSapPlayback.Plan(sk, 0, frames, SR);
+            var reference = RenderPlanSamples(tone, splan, frames, 256, 3f);
+            sb.Append("   Slicing (keep length, pitch curve sweeping), largest difference vs 256-sample blocks:");
+            bool sliceOk = true;
+            foreach (int blk in new[] { 1, 64, 333, 1024, 4096 }) {
+                float d = MaxDiff(reference, RenderPlanSamples(tone, splan, frames, blk, 3f));
+                float db = 20f * Mathf.Log10(Mathf.Max(d, 1e-12f) / 0.5f);
+                sb.Append(" ").Append(blk).Append("=").Append(d == 0f ? "0" : db.ToString("0") + " dB");
+                sliceOk &= blk % 64 == 0 ? d == 0f : db < -40f;
+            }
+            sb.Append(sliceOk ? "  PASS\n" : "  FAIL\n");
+            ok &= sliceOk;
+            return ok;
+        }
+
+        /// <summary>A Klip with a Ratio pitch curve flat at <paramref name="pitchPos"/> and a time curve flat at
+        /// <paramref name="timePos"/> (negative: none), and keep length set as asked.</summary>
+        static Klip KlipWithCurves(float pitchPos, float timePos, bool keep) {
+            var chain = new ZoundEffectChain();
+            if (pitchPos >= 0f) {
+                var pc = new Envelope(0f, 1f);
+                foreach (var pt in pc.GetPointsList()) pt.value = pitchPos;
+                chain.modifiers.Add(new ZoundModifier(ZoundModifierType.Envelope) { name = "Pitch", curve = pc });
+                chain.bindings.Add(new ZoundModifierBinding { modifierIndex = chain.modifiers.Count - 1, nodeIndex = -1, paramIndex = SourceStageParam.Pitch,
+                    combine = ModulationCombine.Ratio, depth = 1f, schema = ChainModulationCompat.CURRENT_SCHEMA });
+            }
+            if (timePos >= 0f) {
+                var tc = new Envelope(0f, 1f);
+                foreach (var pt in tc.GetPointsList()) pt.value = timePos;
+                LegacyStretch.AddTimeCurve(chain, tc, "Time");
+            }
+            var k = new Klip(0) { effectChain = chain };
+            k.timeStretch.pitchKeepsLength = keep;
+            return k;
+        }
+
+        static float[] RenderPlanSamples(PcmClip clip, ZoundSapPlayback.PlayPlan plan, double endFrame, int block, float maxSeconds) {
+            var layout = plan.chain != null && !plan.chain.IsEmpty ? ChainLayout.Build(plan.chain, SR) : ChainLayout.Empty;
+            float sourceSeconds = (float)(endFrame / SR);
+            var v = SapRealtimeVoice.Create(clip, layout, SR, 0, endFrame, 1f, 1f, sourceSeconds, false, 1, layout.heavy, Allocator.Persistent,
+                                            stretch: plan.stretch, baseSpeed: plan.authoredSpeed);
+            int total = (int)(maxSeconds * SR), wrote = 0;
+            var o = new float[total];
+            try {
+                while (wrote < total && !v.finished) {
+                    int n = Mathf.Min(block, total - wrote);
+                    v.RenderBlock(n);
+                    for (int i = 0; i < n; i++) o[wrote + i] = v.sap.bufL[i];
+                    wrote += n;
+                }
+            }
+            finally { v.Dispose(); }
+            int last = wrote;
+            while (last > 0 && Mathf.Abs(o[last - 1]) < 1e-5f) last--;
+            System.Array.Resize(ref o, last);
+            return o;
+        }
+
+        /// <summary>A tone's frequency from its rising zero crossings over the middle of the render.</summary>
+        static float Frequency(float[] o) {
+            int a = o.Length / 4, b = o.Length * 3 / 4;
+            int first = -1, last = -1, count = 0;
+            for (int i = a + 1; i < b; i++) {
+                if (o[i - 1] <= 0f && o[i] > 0f) {
+                    if (first < 0) first = i;
+                    last = i; count++;
+                }
+            }
+            return count > 1 && last > first ? (count - 1) * SR / (float)(last - first) : 0f;
         }
 
         // ── helpers ──

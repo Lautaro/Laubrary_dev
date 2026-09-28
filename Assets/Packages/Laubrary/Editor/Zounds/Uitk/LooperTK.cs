@@ -74,7 +74,10 @@ namespace Laubrary.Zounds.Uitk {
                 r.Add(ZS.MinMax("Crossmix s", lo, hi, 0f, limit,
                     "How long the old copy fades out while the new one fades in, near the end of each pass. 0 = the loop simply starts over at the end. " +
                     "Handles together: the same length every time. Apart: every loop picks its own length between them. " +
-                    "Longest possible: half the loop (" + limit.ToString("0.00") + " s). Heard at once, even on a Looper already playing.",
+                    "Longest possible: half the loop (" + limit.ToString("0.00") + " s). Heard at once, even on a Looper already playing." +
+                    (TimeStretchTK.StretcherRuns(klip, out string why)
+                        ? " NOTE: the live stretcher runs for this sound (" + why + "), and through it the loop wraps without the crossmix."
+                        : ""),
                     (a, b) => {
                         dragging = true;
                         undo();
