@@ -23,7 +23,10 @@ namespace Laubrary.Zounds {
 
         public static string setFocusNextFrame = null;
 
-        [MenuItem("Laubrary/Zounds")]
+        // Not "Laubrary/Zounds": that path is also the parent of the Zounds submenu (checks, analyser, conversion), and
+        // Unity cannot show one path as both a clickable item and a submenu -- the submenu wins and this item silently
+        // disappears (ExecuteMenuItem returns false). Measured 2026-09-28; the collision began with commit 07563d58.
+        [MenuItem("Laubrary/Zounds Window")]
         public static void OpenWindow() {
             var window = GetWindow<ZoundsWindow>();
             window.Show();
