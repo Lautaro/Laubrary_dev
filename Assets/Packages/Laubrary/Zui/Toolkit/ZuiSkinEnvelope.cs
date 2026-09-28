@@ -33,6 +33,11 @@ namespace Laubrary.Zui
         public Color curveColor;
         public ZUIEnvelopeDef def;
         public ZUIEnvelopeRuntime rt;
+        /// <summary>
+        /// Right-click on a point (without Shift, which bends a segment): the host's settings for that point, such as a
+        /// random point's ellipse (Zounds, T-0483). Given the point's index and its centre in world space. Null: ignored.
+        /// </summary>
+        public System.Action<int, Vector2> onPointContext;
 
         int _dragPoint = -1, _dragLine = -1, _dragExponent = -1, _hoverPoint = -1, _hoverLine = -1;
         bool _boxSelecting, _pressed, _shift;
@@ -187,6 +192,11 @@ namespace Laubrary.Zui
                     rt.onDragStarted?.Invoke();
                     _dragExponent = hit;
                     _pressed = true; Repaint();
+                    return true;
+                }
+                if (button == 1 && !shift && onPointContext != null)
+                {
+                    onPointContext(hit, this.LocalToWorld(new Vector2(TimeToX(points[hit].time, r), ValueToY(points[hit].value, r))));
                     return true;
                 }
                 return false;
@@ -373,6 +383,22 @@ namespace Laubrary.Zui
 
         static float Px(float devicePixels) => devicePixels / Mathf.Max(1f, UnityEditor.EditorGUIUtility.pixelsPerPoint);
 
+        /// <summary>An axis-aligned ellipse, filled and outlined (also used by other Toolkit curve editors).</summary>
+        public static void Ellipse(Painter2D p2, Vector2 c, float rx, float ry, Color fill, Color stroke, float width)
+        {
+            const int n = 40;
+            p2.BeginPath();
+            for (int k = 0; k <= n; k++)
+            {
+                float a = k * Mathf.PI * 2f / n;
+                var q = new Vector2(c.x + Mathf.Cos(a) * rx, c.y + Mathf.Sin(a) * ry);
+                if (k == 0) p2.MoveTo(q); else p2.LineTo(q);
+            }
+            p2.ClosePath();
+            if (fill.a > 0f) { p2.fillColor = fill; p2.Fill(); }
+            if (stroke.a > 0f) { p2.strokeColor = stroke; p2.lineWidth = width; p2.Stroke(); }
+        }
+
         void Paint(MeshGenerationContext ctx)
         {
             if (points == null || rt == null || def == null) return;
@@ -434,6 +460,17 @@ namespace Laubrary.Zui
                     }
                     p2.Stroke();
                 }
+            }
+
+            // Random points' ellipses (T-0483): where each play may move the point, faint fill and a thin outline.
+            for (int i = 0; i < points.Count; i++)
+            {
+                var pt = points[i];
+                if (pt.randomX <= 0f && pt.randomY <= 0f) continue;
+                var c = new Vector2(TimeToX(pt.time, r), ValueToY(pt.value, r));
+                float ex = pt.randomX / (rt.xMax - rt.xMin) * r.width, ey = pt.randomY / (rt.yMax - rt.yMin) * r.height;
+                Ellipse(p2, c, Mathf.Max(ex, 1f), Mathf.Max(ey, 1f), new Color(curveColor.r, curveColor.g, curveColor.b, 0.14f),
+                        new Color(curveColor.r, curveColor.g, curveColor.b, 0.75f), Px(1f));
             }
 
             // Points.

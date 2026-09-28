@@ -866,6 +866,14 @@ namespace Laubrary.Zounds.Uitk {
                 ZoundDspPlayback.InvalidateLayout(zound);
                 EditorUtility.SetDirty(ZoundsProject.Instance);
             };
+            // Right-click a point: its random settings (T-0483).
+            curve.onPointContext = (i, world) => {
+                if (mod.curve == null || i < 0 || i >= mod.curve.Count) return;
+                RandomPointPopup.Show(world, mod.curve.GetPoint(i), Mathf.Max(mod.curve.xMax - mod.curve.xMin, 1e-3f),
+                    () => mod.curve.yMax - mod.curve.yMin,
+                    () => KlipChainEnvelopes.EnsurePitchRatioIfPitchCurve(zound, mod),
+                    () => { curve.onChanged?.Invoke(); curve.Refresh(); });
+            };
             ground.Add(curve);
             refreshers.Add(() => { if (curve.envelope != mod.curve) curve.envelope = mod.curve; curve.Refresh(); });
             ground.Add(head); ground.Add(dot);

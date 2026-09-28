@@ -123,14 +123,15 @@ namespace Laubrary.Zounds.Dsp {
         /// compensates their pitch with speed; T-0482). Not included: the sound's own pitch and speed, which the caller
         /// divides by. Curves are read against the source position, as a waveform-following curve is.
         /// </summary>
-        public static float PlayLengthOverSource(ZoundEffectChain chain, float sourceSeconds, bool stretched, bool keepLength) {
+        public static float PlayLengthOverSource(ZoundEffectChain chain, float sourceSeconds, bool stretched, bool keepLength,
+                                                 bool drawn = false, uint seed = 0) {
             if (chain == null || chain.IsEmpty) return sourceSeconds;
             const int steps = 400;
             double total = 0;
             for (int i = 0; i < steps; i++) {
                 float t = (i + 0.5f) / steps;
-                float rate = keepLength && stretched ? 1f : PitchAtSource(chain, t, sourceSeconds);
-                if (stretched) rate *= SpeedAtSource(chain, t, sourceSeconds);
+                float rate = keepLength && stretched ? 1f : PitchAtSource(chain, t, sourceSeconds, drawn, seed);
+                if (stretched) rate *= SpeedAtSource(chain, t, sourceSeconds, drawn, seed);
                 total += (sourceSeconds / steps) / Mathf.Max(rate, 1e-3f);
             }
             return (float)total;
@@ -138,7 +139,7 @@ namespace Laubrary.Zounds.Dsp {
 
         /// <summary>The speed multiplier the chain's time curves (envelopes bound to Speed) give at <paramref name="t"/>
         /// (0..1) through the source, combined exactly as the render combines them.</summary>
-        public static float SpeedAtSource(ZoundEffectChain chain, float t, float sourceSeconds) {
+        public static float SpeedAtSource(ZoundEffectChain chain, float t, float sourceSeconds, bool drawn = false, uint seed = 0) {
             var pd = ZoundEffectDescriptors.SourceStageParams[SourceStageParam.Speed];
             float speed = pd.def;
             if (chain == null || chain.IsEmpty) return speed;
@@ -151,7 +152,8 @@ namespace Laubrary.Zounds.Dsp {
                 if (!m.enabled || m.type != ZoundModifierType.Envelope || m.curve == null) continue;
                 float extra = Mathf.Max(m.Param(0), 0f);
                 float tn = sourceSeconds + extra > 0f ? t * sourceSeconds / (sourceSeconds + extra) : t;
-                speed = ModulationMath.Apply(ChainModulationCompat.EffectiveCombine(chain, bind), speed, m.curve.Evaluate(tn),
+                speed = ModulationMath.Apply(ChainModulationCompat.EffectiveCombine(chain, bind), speed,
+                                             EnvelopeRandom.Evaluate(m.curve, drawn, seed, bind.modifierIndex, tn),
                                              ChainModulationCompat.DepthOf(bind, pd.min, pd.max, ratio), pd.min, pd.max, ratio);
             }
             return Mathf.Clamp(speed, pd.min, pd.max);
@@ -180,7 +182,7 @@ namespace Laubrary.Zounds.Dsp {
         /// here" from, so none of them treats a curve's raw value as a multiplier (it has not been one since the curves
         /// moved onto the chain; T-0479).
         /// </summary>
-        public static float PitchAtSource(ZoundEffectChain chain, float t, float sourceSeconds) {
+        public static float PitchAtSource(ZoundEffectChain chain, float t, float sourceSeconds, bool drawn = false, uint seed = 0) {
             float pitch = 1f;
             if (chain == null || chain.IsEmpty) return pitch;
             {
@@ -199,7 +201,7 @@ namespace Laubrary.Zounds.Dsp {
                     var pd = ZoundEffectDescriptors.SourceStageParams[SourceStageParam.Pitch];
                     bool ratio = ModulationMath.IsRatioSpaced(pd.curve);
                     pitch = ModulationMath.Apply(ChainModulationCompat.EffectiveCombine(chain, bind), pitch,
-                                                 m.curve.Evaluate(tn),
+                                                 EnvelopeRandom.Evaluate(m.curve, drawn, seed, bind.modifierIndex, tn),
                                                  ChainModulationCompat.DepthOf(bind, pd.min, pd.max, ratio),
                                                  pd.min, pd.max, ratio);
                 }

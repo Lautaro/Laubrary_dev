@@ -78,6 +78,8 @@ namespace Laubrary.Zounds.Dsp {
         /// <summary>The current control block's per-sample slopes for the base pitch, output gain and base speed, kept so
         /// a block split across two render calls carries on with the same ramps (T-0479).</summary>
         public float ctlBasePitchStep, ctlOutGainStep, ctlBaseSpeedStep;
+        /// <summary>This play's seed for random envelope points (T-0483): set when the play starts, from its token.</summary>
+        public uint curveSeed;
         public long samplesSinceSourceEnd;
         public int silentSamples;
         public long tailBudgetSamples;

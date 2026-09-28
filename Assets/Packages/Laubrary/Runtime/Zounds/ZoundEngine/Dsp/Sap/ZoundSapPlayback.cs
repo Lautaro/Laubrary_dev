@@ -76,6 +76,8 @@ namespace Laubrary.Zounds.Dsp {
             var chain = plan.chain;
             var layout = chain != null && !chain.IsEmpty ? ZoundDspPlayback.GetLayoutFor(chain, zound, sampleRate)
                                                         : ChainLayout.Empty;
+            // A curve with random points is measured as THIS play will draw it (T-0483).
+            plan.drawn = true; plan.seed = EnvelopeRandom.SeedFor(tokenId);
             duration = PlayLength(in plan, (endFrame - startFrame) / pcm.frequency, basePitch, true);
             var stretch = plan.stretch;
             float authoredSpeed = plan.authoredSpeed;
@@ -187,6 +189,10 @@ namespace Laubrary.Zounds.Dsp {
             public bool stretched, keepLength;
             /// <summary>An old Uniform/Region/Curve stretch is being played through the live stretcher.</summary>
             public bool legacyStretch;
+            /// <summary>Measure random curve points as the play with <see cref="seed"/> draws them (T-0483); otherwise the
+            /// curves as drawn in the editor.</summary>
+            public bool drawn;
+            public uint seed;
         }
 
         /// <summary>
@@ -227,7 +233,7 @@ namespace Laubrary.Zounds.Dsp {
         /// <summary>How long a play made to <paramref name="plan"/> lasts, for <paramref name="sourceSeconds"/> of source at
         /// the given pitch; <paramref name="withGameSpeed"/> includes the game's global speed (a live play does).</summary>
         public static float PlayLength(in PlayPlan plan, double sourceSeconds, float basePitch, bool withGameSpeed) {
-            float len = ZoundDspPlayback.PlayLengthOverSource(plan.chain, (float)sourceSeconds, plan.stretched, plan.keepLength)
+            float len = ZoundDspPlayback.PlayLengthOverSource(plan.chain, (float)sourceSeconds, plan.stretched, plan.keepLength, plan.drawn, plan.seed)
                         / Mathf.Max(basePitch, 0.01f);
             if (plan.stretched) len /= Mathf.Max(plan.authoredSpeed * (withGameSpeed ? ZoundEngine.globalSpeed : 1f), SapStretch.MinSpeed);
             return len;

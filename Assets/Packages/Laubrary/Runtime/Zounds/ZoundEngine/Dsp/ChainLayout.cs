@@ -7,7 +7,13 @@ namespace Laubrary.Zounds.Dsp {
     /// <summary>Flattened envelope point, published as an immutable snapshot for the audio thread.</summary>
     public readonly struct EnvPoint {
         public readonly float time, value, exponent;
-        public EnvPoint(float time, float value, float exponent) { this.time = time; this.value = value; this.exponent = exponent; }
+        /// <summary>A random point's ellipse radii and bias, and the curve's value range its drawn value stays in (T-0483).</summary>
+        public readonly float randomX, randomY, randomBias, yMin, yMax;
+        public EnvPoint(float time, float value, float exponent) : this(time, value, exponent, 0f, 0f, 0.5f, float.MinValue, float.MaxValue) { }
+        public EnvPoint(float time, float value, float exponent, float randomX, float randomY, float randomBias, float yMin, float yMax) {
+            this.time = time; this.value = value; this.exponent = exponent;
+            this.randomX = randomX; this.randomY = randomY; this.randomBias = randomBias; this.yMin = yMin; this.yMax = yMax;
+        }
     }
 
     /// <summary>
@@ -299,7 +305,8 @@ namespace Laubrary.Zounds.Dsp {
             if (e == null || e.Count == 0) return new[] { new EnvPoint(0f, 1f, 1f), new EnvPoint(1f, 1f, 1f) };
             var pts = e.GetPointsList();
             var r = new EnvPoint[pts.Count];
-            for (int i = 0; i < pts.Count; i++) r[i] = new EnvPoint(pts[i].time, pts[i].value, pts[i].exponent);
+            for (int i = 0; i < pts.Count; i++)
+                r[i] = new EnvPoint(pts[i].time, pts[i].value, pts[i].exponent, pts[i].randomX, pts[i].randomY, pts[i].randomBias, e.yMin, e.yMax);
             return r;
         }
 

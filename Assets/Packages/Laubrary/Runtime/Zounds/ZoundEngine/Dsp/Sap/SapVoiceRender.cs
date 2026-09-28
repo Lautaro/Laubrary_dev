@@ -733,8 +733,13 @@ namespace Laubrary.Zounds.Dsp {
         /// Burst job, while this method only ever touched a NativeArray&lt;EnvPoint&gt; and plain values.
         /// Its only callers are the two envelope-modifier evaluations in <see cref="EvaluateModifiers"/> below.
         /// </summary>
-        private static float EvaluateEnvelope(NativeArray<EnvPoint> pts, int offset, int count, float time, ref int segment) {
+        private static float EvaluateEnvelope(NativeArray<EnvPoint> pts, int offset, int count, float time, ref int segment, uint seed, int mod) {
             if (count == 0) return 1f;
+            // Random points (T-0483): a curve with any takes the drawn path; every other curve the exact old arithmetic.
+            for (int i = 0; i < count; i++) {
+                var rp = pts[offset + i];
+                if (rp.randomX > 0f || rp.randomY > 0f) return EvaluateDrawnEnvelope(pts, offset, count, time, ref segment, seed, mod);
+            }
             if (count == 1) return pts[offset].value;
             if (time <= pts[offset].time) { segment = 0; return pts[offset].value; }
             if (time >= pts[offset + count - 1].time) { segment = count - 2; return pts[offset + count - 1].value; }
@@ -746,6 +751,38 @@ namespace Laubrary.Zounds.Dsp {
             float exp = pts[offset + segment + 1].exponent;
             if (exp <= 0f) exp = 0.000001f;
             float a = pts[offset + segment].value, b = pts[offset + segment + 1].value;
+            return a + (b - a) * Mathf.Pow(t, exp);
+        }
+
+        static float DrawnTime(NativeArray<EnvPoint> pts, int offset, int count, int i, uint seed, int mod) {
+            var p = pts[offset + i];
+            if (p.randomX <= 0f && p.randomY <= 0f) return p.time;
+            EnvelopeRandom.Offset(seed, mod, i, p.randomX, p.randomY, p.randomBias, out float dx, out _);
+            return EnvelopeRandom.DrawnTime(p.time, i > 0 ? pts[offset + i - 1].time : p.time, i < count - 1 ? pts[offset + i + 1].time : p.time,
+                                           i == 0 || i == count - 1, dx);
+        }
+
+        static float DrawnValue(NativeArray<EnvPoint> pts, int offset, int i, uint seed, int mod) {
+            var p = pts[offset + i];
+            if (p.randomX <= 0f && p.randomY <= 0f) return p.value;
+            EnvelopeRandom.Offset(seed, mod, i, p.randomX, p.randomY, p.randomBias, out _, out float dy);
+            return EnvelopeRandom.DrawnValue(p.value, dy, p.yMin, p.yMax);
+        }
+
+        /// <summary>EvaluateEnvelope for a curve with random points: the same arithmetic over each point's drawn position
+        /// (EnvelopeRandom; the same draw the play-length calculation uses).</summary>
+        static float EvaluateDrawnEnvelope(NativeArray<EnvPoint> pts, int offset, int count, float time, ref int segment, uint seed, int mod) {
+            if (count == 1) return DrawnValue(pts, offset, 0, seed, mod);
+            if (time <= DrawnTime(pts, offset, count, 0, seed, mod)) { segment = 0; return DrawnValue(pts, offset, 0, seed, mod); }
+            if (time >= DrawnTime(pts, offset, count, count - 1, seed, mod)) { segment = count - 2; return DrawnValue(pts, offset, count - 1, seed, mod); }
+            if (segment < 0 || segment >= count - 1) segment = 0;
+            while (segment > 0 && DrawnTime(pts, offset, count, segment, seed, mod) > time) segment--;
+            while (segment < count - 2 && DrawnTime(pts, offset, count, segment + 1, seed, mod) <= time) segment++;
+            float x1 = DrawnTime(pts, offset, count, segment, seed, mod), x2 = DrawnTime(pts, offset, count, segment + 1, seed, mod);
+            float t = x2 > x1 ? (time - x1) / (x2 - x1) : 1f;
+            float exp = pts[offset + segment + 1].exponent;
+            if (exp <= 0f) exp = 0.000001f;
+            float a = DrawnValue(pts, offset, segment, seed, mod), b = DrawnValue(pts, offset, segment + 1, seed, mod);
             return a + (b - a) * Mathf.Pow(t, exp);
         }
 
@@ -867,7 +904,7 @@ namespace Laubrary.Zounds.Dsp {
                         }
                         if (tn > 1f) tn = 1f;
                         int seg = (int)sap.arena[so];
-                        sap.modValue[m] = EvaluateEnvelope(L.modCurveFlat, mco, mcc, tn, ref seg);
+                        sap.modValue[m] = EvaluateEnvelope(L.modCurveFlat, mco, mcc, tn, ref seg, sap.curveSeed, m);
                         sap.arena[so] = seg;
                         break;
                     }
@@ -881,7 +918,7 @@ namespace Laubrary.Zounds.Dsp {
                             float total = sourceDuration;
                             float tn = total > 0f ? elapsed / total : 1f; if (tn > 1f) tn = 1f;
                             int seg = (int)sap.arena[so + 6];
-                            ramp = EvaluateEnvelope(L.modCurveFlat, mco, mcc, tn, ref seg);
+                            ramp = EvaluateEnvelope(L.modCurveFlat, mco, mcc, tn, ref seg, sap.curveSeed, m);
                             sap.arena[so + 6] = seg;
                         }
                         if (mode == (int)LfoMode.Oscillate) {

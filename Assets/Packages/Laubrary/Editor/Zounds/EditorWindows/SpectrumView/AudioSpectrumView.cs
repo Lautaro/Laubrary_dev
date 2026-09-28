@@ -683,6 +683,26 @@ namespace Laubrary.Zounds {
             ? "The pitch curve changes pitch only: the play keeps its length. Click to go back to tape-style, where raising the pitch also shortens the sound."
             : "Make the pitch curve change pitch without changing the play's length: the live stretcher slows the sound down by exactly as much as the curve raises it (and speeds it up as much as it lowers it). Quality: clean within about an octave either way; beyond that, and on chords and dense material, it can sound phasey or smeared. Off (tape-style) is how the sound has always played.";
 
+        /// <summary>
+        /// Random points' ellipses (T-0483), read-only, for the old IMGUI windows (the shared IMGUI envelope control is not
+        /// ours to change; the radii are edited in the UI Toolkit windows by right-clicking a point).
+        /// </summary>
+        internal static void DrawRandomEllipses(Rect rect, List<ZUIEnvelopePoint> pts, float xMin, float xMax, float yMin, float yMax, Color c) {
+            if (pts == null || Event.current.type != EventType.Repaint || xMax <= xMin || yMax <= yMin) return;
+            var prev = Handles.color;
+            Handles.color = new Color(c.r, c.g, c.b, 0.75f);
+            var ring = new Vector3[41];
+            foreach (var p in pts) {
+                if (p.randomX <= 0f && p.randomY <= 0f) continue;
+                float cx = rect.x + (p.time - xMin) / (xMax - xMin) * rect.width;
+                float cy = rect.yMax - (p.value - yMin) / (yMax - yMin) * rect.height;
+                float rx = Mathf.Max(p.randomX / (xMax - xMin) * rect.width, 1f), ry = Mathf.Max(p.randomY / (yMax - yMin) * rect.height, 1f);
+                for (int k = 0; k <= 40; k++) { float a = k * Mathf.PI * 2f / 40f; ring[k] = new Vector3(cx + Mathf.Cos(a) * rx, cy + Mathf.Sin(a) * ry, 0f); }
+                Handles.DrawAAPolyLine(1.5f, ring);
+            }
+            Handles.color = prev;
+        }
+
         internal enum Curve { Volume, Pitch, Time }
 
         internal ZUIEnvelopeDef PrepareOverlay(bool volume, out ZUIEnvelopeRuntime runtime, out List<ZUIEnvelopePoint> pts, out Color colour)
@@ -897,15 +917,18 @@ namespace Laubrary.Zounds {
             if (volDef != null && ZUI.Envelope(envelopeRect, volPts, new ZUIColorRef(volColour), volDef, volRt, volumeStateKey)) {
                 onVolumeEnvelopeChanged?.Invoke(m_volumeEnvelope);
             }
+            if (volDef != null) DrawRandomEllipses(envelopeRect, volPts, volRt.xMin, volRt.xMax, volRt.yMin, volRt.yMax, volColour);
             var pitDef = PrepareOverlay(false, out var pitRt, out var pitPts, out var pitColour);
             if (pitDef != null && ZUI.Envelope(envelopeRect, pitPts, new ZUIColorRef(pitColour), pitDef, pitRt, pitchStateKey)) {
                 onPitchEnvelopeChanged?.Invoke(m_pitchEnvelope);
             }
+            if (pitDef != null) DrawRandomEllipses(envelopeRect, pitPts, pitRt.xMin, pitRt.xMax, pitRt.yMin, pitRt.yMax, pitColour);
             var timDef = PrepareOverlay(Curve.Time, out var timRt, out var timPts, out var timColour);
             if (timDef != null && ZUI.Envelope(envelopeRect, timPts, new ZUIColorRef(timColour), timDef, timRt, timeStateKey)) {
                 onTimeEnvelopeChanged?.Invoke(m_timeEnvelope);
             }
             if (timDef != null) {
+                DrawRandomEllipses(envelopeRect, timPts, timRt.xMin, timRt.xMax, timRt.yMin, timRt.yMax, timColour);
                 // The time curve's axis on the right: x4 / x1 / x1/4 speed.
                 var ts2 = new GUIStyle(EditorStyles.miniLabel) { fontSize = 9, alignment = TextAnchor.UpperRight };
                 ts2.normal.textColor = timColour;

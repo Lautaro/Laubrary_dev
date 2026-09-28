@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — random points on curves (T-0483)
+
+- **Any curve point can be random.** Every play moves it somewhere inside an ellipse around where it was drawn:
+  - an X radius, a share of the curve's length;
+  - a Y radius, a share of its height;
+  - a bias for where it tends to land: 0.5 evenly over the ellipse (the distance is the radius times the square root of a uniform value, so the spread is even by area), towards 0 near the middle, towards 1 near the edge.
+- **Order is kept:** a point never passes its neighbours (it stops halfway to them), the first and last points keep their time, and a drawn value stays inside the curve's range.
+- **The draw is deterministic.** It comes from an integer hash of the play's seed (fixed when the play starts, kept in the voice), the curve and the point, never from a managed random source. So it is identical on the audio thread, in compiled jobs and on the main thread, and a play's length is measured on exactly the curve that play hears.
+- **Where it works:**
+  - The engine honours random points on every envelope: a Klip's volume, pitch and time curves, and the chain's own Envelope modifiers.
+  - In the UI Toolkit windows, right-click a point (on the waveform or on a chain card) for its settings: Random, Across ±%, Height ±% and Bias, in one row, all one Undo step.
+  - Random points show their ellipse; the old IMGUI windows draw the ellipses read-only.
+  - The strip shows "Plays ≈X s" when a curve has random points.
+- **Measured (kept check 17, section 4):**
+  - Share of draws inside half the radius: 24.6 % at bias 0.5 (25 % is even by area), 85.5 % at bias 0.1, 0 % at bias 0.9, and none ever outside the ellipse.
+  - The same play draws the same offset, and plays differ.
+  - Order is kept with an X radius five times the curve.
+  - A pitch point that may move ±12 semitones: the declared length equals the rendered length on each of five plays (0.976 / 1.101 / 1.279 / 0.865 / 1.165 s).
+  - Same samples at every multiple of the 64-sample grid.
+
 ### Zounds — a time curve, and "Keep length" on the pitch curve (T-0482)
 
 - **Time curve:** a third curve on the Klip waveform, in its own colour (cyan) with a ×4 / ×1 / ×¼ axis, toggled and edited like Volume and Pitch.

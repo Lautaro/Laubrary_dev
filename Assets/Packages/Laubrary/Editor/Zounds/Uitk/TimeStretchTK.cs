@@ -75,11 +75,15 @@ namespace Laubrary.Zounds.Uitk {
             text = ""; tip = "";
             if (klip.IsLooper) { text = "Loops"; tip = "A Looper plays until it is stopped."; return true; }
             if (!ZoundSapPlayback.TryGetPlayLength(klip, out float seconds)) return false;
-            text = "Plays " + seconds.ToString("0.00") + " s";
+            bool varies = false;
+            var ch = ZoundDspPlayback.ResolveChain(klip, out _);
+            if (ch != null) foreach (var m in ch.modifiers) if (m.enabled && EnvelopeRandom.HasRandom(m.curve)) varies = true;
+            text = "Plays " + (varies ? "≈" : "") + seconds.ToString("0.00") + " s";
             bool runs = StretcherRuns(klip, out string why);
             tip = "How long one play lasts, as the engine will play it: the (trimmed) source, through the pitch curve"
                 + (runs ? ", the time curve and the speed (the live stretcher runs: " + why + ")" : " (tape-style: raising the pitch shortens the sound)")
-                + ". At the sound's own pitch of one; its Pitch setting" + (runs ? " and game code's speed" : "") + " scale it further.";
+                + ". At the sound's own pitch of one; its Pitch setting" + (runs ? " and game code's speed" : "") + " scale it further."
+                + (varies ? " A curve has random points, so each play's length differs a little; this is the length with every point where it is drawn." : "");
             return true;
         }
 

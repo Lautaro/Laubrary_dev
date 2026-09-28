@@ -24,6 +24,10 @@ namespace Laubrary.Zounds.Checks.EditorTools {
     ///    doubles the length and leaves the pitch alone. Pitch is measured on the render (zero crossings of a 440 Hz
     ///    tone), lengths declared and rendered. And the stretched path with a moving pitch curve and keep length gives
     ///    the same samples at every multiple of the control grid.
+    /// 4. **Random points.** The draw's spread (share of 20,000 draws inside half the radius: 25 % at bias 0.5, i.e. even by
+    ///    area; most at bias 0.1; few at 0.9; never outside the ellipse), determinism (same play, same draw; plays differ),
+    ///    point order kept under a huge X radius, the declared length (drawn on the main thread) matching the rendered one
+    ///    play by play while the plays differ, and the same samples at every multiple of the control grid.
     /// </summary>
     public static class ZoundsCurvesCheck {
 
@@ -38,6 +42,7 @@ namespace Laubrary.Zounds.Checks.EditorTools {
             allPass &= PitchScale(sb);
             allPass &= OldStretch(sb);
             allPass &= TimeAndKeepLength(sb);
+            allPass &= RandomPoints(sb);
             sb.Append(allPass ? "\nALL PASS\n" : "\nSOMETHING FAILED (see above)\n");
             return sb.ToString();
         }
@@ -285,6 +290,108 @@ namespace Laubrary.Zounds.Checks.EditorTools {
                 }
             }
             return count > 1 && last > first ? (count - 1) * SR / (float)(last - first) : 0f;
+        }
+
+        // ── 4. random points ──
+
+        static bool RandomPoints(StringBuilder sb) {
+            bool ok = true;
+            sb.Append("\n4. Random points:\n");
+            // Spread.
+            sb.Append("   Share of 20,000 draws within half the radius (ellipse 1 x 1):");
+            foreach (var (bias, lo, hi) in new[] { (0.5f, 0.235f, 0.265f), (0.1f, 0.6f, 1f), (0.9f, 0f, 0.1f) }) {
+                int inside = 0, outside = 0;
+                for (int i = 0; i < 20000; i++) {
+                    EnvelopeRandom.Offset((uint)(i * 2654435761u + 12345u), 3, i, 1f, 1f, bias, out float dx, out float dy);
+                    float r = Mathf.Sqrt(dx * dx + dy * dy);
+                    if (r <= 0.5f) inside++;
+                    if (r > 1.0001f) outside++;
+                }
+                float share = inside / 20000f;
+                bool pass = share >= lo && share <= hi && outside == 0;
+                sb.Append(" bias ").Append(bias.ToString("0.0")).Append(" ").Append((share * 100f).ToString("0.0")).Append(" %").Append(outside > 0 ? " (" + outside + " outside!)" : "").Append(pass ? " PASS;" : " FAIL;");
+                ok &= pass;
+            }
+            sb.Append('\n');
+            // Determinism.
+            EnvelopeRandom.Offset(EnvelopeRandom.SeedFor(42), 1, 2, 0.1f, 0.2f, 0.5f, out float ax, out float ay);
+            EnvelopeRandom.Offset(EnvelopeRandom.SeedFor(42), 1, 2, 0.1f, 0.2f, 0.5f, out float bx, out float by);
+            EnvelopeRandom.Offset(EnvelopeRandom.SeedFor(43), 1, 2, 0.1f, 0.2f, 0.5f, out float cx, out float cy);
+            bool det = ax == bx && ay == by && (ax != cx || ay != cy);
+            sb.Append("   Same play draws the same offset, another play differs: ").Append(det).Append(det ? "  PASS\n" : "  FAIL\n");
+            ok &= det;
+            // Order kept under a huge X radius.
+            var wild = new Envelope(0f, 1f);
+            var wp = wild.GetPointsList(); wp.Clear();
+            for (int i = 0; i <= 8; i++) wp.Add(new ZUIEnvelopePoint(i / 8f, 0.5f) { randomX = 5f, randomY = 0f });
+            bool ordered = true;
+            for (int seed = 1; seed < 200 && ordered; seed++) {
+                float prev = -1f;
+                for (int i = 0; i <= 8; i++) {
+                    EnvelopeRandom.Offset((uint)seed, 0, i, 5f, 0f, 0.5f, out float dx, out _);
+                    float t = EnvelopeRandom.DrawnTime(wp[i].time, i > 0 ? wp[i - 1].time : wp[i].time, i < 8 ? wp[i + 1].time : wp[i].time, i == 0 || i == 8, dx);
+                    if (t < prev) ordered = false;
+                    prev = t;
+                }
+            }
+            sb.Append("   Point order kept with an X radius five times the curve (199 plays): ").Append(ordered).Append(ordered ? "  PASS\n" : "  FAIL\n");
+            ok &= ordered;
+            // Declared vs rendered, play by play: a pitch curve whose middle point may move +-12 semitones (tape-style).
+            var tone = Tone(1.2f, 440f, 0.5f);
+            double frames = 1.0 * SR;
+            var pc = new Envelope(0f, 1f);
+            var pp = pc.GetPointsList(); pp.Clear();
+            pp.Add(new ZUIEnvelopePoint(0f, 0.5f)); pp.Add(new ZUIEnvelopePoint(0.5f, 0.5f) { randomX = 0.2f, randomY = 0.25f, randomBias = 0.5f }); pp.Add(new ZUIEnvelopePoint(1f, 0.5f));
+            var k = new Klip(0) { effectChain = PitchChain(pc, ModulationCombine.Ratio) };
+            sb.Append("   A pitch point that may move +-12 st, per play declared / rendered:");
+            float minLen = float.MaxValue, maxLen = 0f; bool agree = true;
+            foreach (long token in new long[] { 11, 22, 33, 44, 55 }) {
+                var plan = ZoundSapPlayback.Plan(k, 0, frames, SR);
+                plan.drawn = true; plan.seed = EnvelopeRandom.SeedFor(token);
+                float declared = ZoundSapPlayback.PlayLength(in plan, frames / SR, 1f, false);
+                float rendered = RenderToken(tone, plan, frames, 256, 3f, token).Length / (float)SR;
+                sb.Append(" ").Append(declared.ToString("0.000")).Append("/").Append(rendered.ToString("0.000"));
+                agree &= Mathf.Abs(declared - rendered) < 0.004f;
+                minLen = Mathf.Min(minLen, rendered); maxLen = Mathf.Max(maxLen, rendered);
+            }
+            bool differ = maxLen - minLen > 0.01f;
+            sb.Append(" s; agree ").Append(agree).Append(", plays differ ").Append(differ).Append(agree && differ ? "  PASS\n" : "  FAIL\n");
+            ok &= agree && differ;
+            // Slicing with a random curve.
+            var rplan = ZoundSapPlayback.Plan(k, 0, frames, SR);
+            var reference = RenderToken(tone, rplan, frames, 256, 3f, 77);
+            sb.Append("   Slicing (random pitch curve), largest difference vs 256-sample blocks:");
+            bool sliceOk = true;
+            foreach (int blk in new[] { 1, 64, 333, 1024, 4096 }) {
+                float d = MaxDiff(reference, RenderToken(tone, rplan, frames, blk, 3f, 77));
+                float db = 20f * Mathf.Log10(Mathf.Max(d, 1e-12f) / 0.5f);
+                sb.Append(" ").Append(blk).Append("=").Append(d == 0f ? "0" : db.ToString("0") + " dB");
+                sliceOk &= blk % 64 == 0 ? d == 0f : db < -40f;
+            }
+            sb.Append(sliceOk ? "  PASS\n" : "  FAIL\n");
+            ok &= sliceOk;
+            return ok;
+        }
+
+        static float[] RenderToken(PcmClip clip, ZoundSapPlayback.PlayPlan plan, double endFrame, int block, float maxSeconds, long token) {
+            var layout = plan.chain != null && !plan.chain.IsEmpty ? ChainLayout.Build(plan.chain, SR) : ChainLayout.Empty;
+            var v = SapRealtimeVoice.Create(clip, layout, SR, 0, endFrame, 1f, 1f, (float)(endFrame / SR), false, token, layout.heavy, Allocator.Persistent,
+                                            stretch: plan.stretch, baseSpeed: plan.authoredSpeed);
+            int total = (int)(maxSeconds * SR), wrote = 0;
+            var o = new float[total];
+            try {
+                while (wrote < total && !v.finished) {
+                    int n = Mathf.Min(block, total - wrote);
+                    v.RenderBlock(n);
+                    for (int i = 0; i < n; i++) o[wrote + i] = v.sap.bufL[i];
+                    wrote += n;
+                }
+            }
+            finally { v.Dispose(); }
+            int last = wrote;
+            while (last > 0 && Mathf.Abs(o[last - 1]) < 1e-5f) last--;
+            System.Array.Resize(ref o, last);
+            return o;
         }
 
         // ── helpers ──

@@ -905,6 +905,7 @@ namespace Laubrary.Zounds {
                     // Editing the Klip's pitch curve moves it off the old scale first, sounding the same (T-0479).
                     KlipChainEnvelopes.EnsurePitchRatioIfPitchCurve(zound, mod);
                 }
+                AudioSpectrumView.DrawRandomEllipses(rect, mod.curve.GetPointsList(), mod.curve.xMin, mod.curve.xMax, mod.curve.yMin, mod.curve.yMax, color);
                 if (gui.Draw(rect, mod.curve, color, 1.5f, true, true)) {
                     chain.Touch();
                     ZoundDspPlayback.InvalidateLayout(zound);

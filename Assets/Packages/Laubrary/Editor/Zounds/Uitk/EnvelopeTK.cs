@@ -27,6 +27,9 @@ namespace Laubrary.Zounds.Uitk {
         public Action onBegin;
         /// <summary>After every change.</summary>
         public Action onChanged;
+        /// <summary>Right-click on a point: its settings (a random point's ellipse, T-0483), given the point and its centre in
+        /// world space. Null: ignored.</summary>
+        public Action<int, Vector2> onPointContext;
 
         int draggedPoint = -1, draggedLine = -1, draggedExponent = -1;
         bool boxSelecting, pressed, multiMoveStarted;
@@ -78,6 +81,11 @@ namespace Laubrary.Zounds.Uitk {
             shiftHeld = e.shiftKey;
             Focus();
             int hit = PointAt(l);
+            if (hit >= 0 && e.button == 1 && !e.shiftKey && onPointContext != null) {
+                onPointContext(hit, this.LocalToWorld(ToLocal(envelope.GetPoint(hit))));
+                e.StopPropagation();
+                return;
+            }
             if (hit >= 0 && e.button == 0) {
                 if (e.clickCount == 2) {
                     onBegin?.Invoke();
@@ -265,6 +273,15 @@ namespace Laubrary.Zounds.Uitk {
             if (seg > 0 && seg < envelope.Count) {
                 float a = envelope.GetPoint(seg - 1).time, b = envelope.GetPoint(seg).time;
                 Stroke(p2, a, b - a, Style.selectedEnvelopeLineColor, 1.5f);
+            }
+
+            // Random points' ellipses (T-0483): where each play may move the point.
+            float px = 1f / Mathf.Max(1f, UnityEditor.EditorGUIUtility.pixelsPerPoint);
+            for (int i = 0; i < envelope.Count; i++) {
+                var pt = envelope.GetPoint(i);
+                if (pt.randomX <= 0f && pt.randomY <= 0f) continue;
+                Laubrary.Zui.ZuiSkinEnvelope.Ellipse(p2, ToLocal(pt), Mathf.Max(pt.randomX / XRange * Size.x, 1f), Mathf.Max(pt.randomY / YRange * Size.y, 1f),
+                    new Color(mainColor.r, mainColor.g, mainColor.b, 0.14f), new Color(mainColor.r, mainColor.g, mainColor.b, 0.75f), px);
             }
 
             // Points, brighter when under the pointer or dragged; then the selected ones in the selection colour.

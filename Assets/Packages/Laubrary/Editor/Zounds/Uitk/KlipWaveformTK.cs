@@ -111,6 +111,18 @@ namespace Laubrary.Zounds.Uitk {
             pitchEnv = new ZuiSkinEnvelope(null, Color.white, null, null, standalone: false) { pickingMode = PickingMode.Ignore };
             timeEnv = new ZuiSkinEnvelope(null, Color.white, null, null, standalone: false) { pickingMode = PickingMode.Ignore };
             foreach (var e in new[] { volEnv, pitchEnv, timeEnv }) { e.style.position = Position.Absolute; area.Add(e); }
+            // Right-click a point: its random settings (T-0483). The pitch curve moves off its old scale first, inside
+            // the same Undo step, as any other edit of it does.
+            foreach (var e in new[] { volEnv, pitchEnv, timeEnv }) {
+                var env = e;
+                env.onPointContext = (i, world) => {
+                    if (env.points == null || i < 0 || i >= env.points.Count || env.rt == null) return;
+                    RandomPointPopup.Show(world, env.points[i], Mathf.Max(env.rt.dataXMax - env.rt.dataXMin, 1e-3f),
+                        () => env.rt.yMax - env.rt.yMin,
+                        () => { if (env == pitchEnv) KlipChainEnvelopes.EnsurePitchRatio(klip); },
+                        () => { KlipChainEnvelopes.Touch(klip); Refresh(); });
+                };
+            }
             area.focusable = true;
 
             area.RegisterCallback<WheelEvent>(OnWheel);

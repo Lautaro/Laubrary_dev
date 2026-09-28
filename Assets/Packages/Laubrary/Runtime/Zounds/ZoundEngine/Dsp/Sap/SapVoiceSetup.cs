@@ -137,6 +137,7 @@ namespace Laubrary.Zounds.Dsp {
                 sap.slots[0] = s0;
             }
             sap.looping.seed = 0x9E3779B9u ^ (uint)tokenId * 0x85EBCA77u ^ (uint)(tokenId >> 32);
+            sap.curveSeed = EnvelopeRandom.SeedFor(tokenId);
 
             // Only as far as this chain actually uses, not the whole arena: the arena is sized for the
             // worst-case chain in its tier, and clearing all of it on every play would be a large pointless
