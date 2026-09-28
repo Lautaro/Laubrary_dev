@@ -35,7 +35,10 @@ namespace Laubrary.Zounds {
         // The stretched buffer is rendered here, when a setting changes, instead of on the next Play press:
         // WSOLA on a short clip took ~200 ms and that pause landed on the play button (the "UI briefly
         // locks up when it happens" in the 2026-09-18 report).
-        private void Prewarm(Klip klip) {
+        private void Prewarm(Klip klip) => Prewarm(klip, lastClip);
+
+        /// <summary>Shared with the UI Toolkit twin, which calls it when a setting changes or a drag ends.</summary>
+        internal static void Prewarm(Klip klip, AudioClip lastClip) {
             var ts = klip.timeStretch;
             if (ts == null || lastClip == null || !ts.enabled) return;
             float clipLength = lastClip.length;

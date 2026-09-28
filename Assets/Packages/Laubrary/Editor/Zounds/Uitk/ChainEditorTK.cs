@@ -820,6 +820,21 @@ namespace Laubrary.Zounds.Uitk {
             var secs = Text("", "", "zs-curvelabel", "zs-right");
             secs.style.position = Position.Absolute; secs.style.right = 2f; secs.style.bottom = 1f; secs.style.width = 60f; secs.style.height = 12f;
             ground.Add(cap); ground.Add(top); ground.Add(bottom); ground.Add(secs);
+
+            // The curve itself, on top of the ground and under the playhead, as the old editor paints them.
+            if (mod.curve == null) mod.curve = new Envelope(0f, 1f);
+            var es = ZoundsProject.Instance.projectSettings.editorStyle;
+            var curve = new EnvelopeTK(mod.curve, mod.type == ZoundModifierType.Envelope ? es.volumeEnvelopeColor : es.pitchEnvelopeColor);
+            curve.style.position = Position.Absolute; curve.style.left = 0; curve.style.right = 0; curve.style.top = 0; curve.style.bottom = 0;
+            curve.tooltip = ground.tooltip;
+            curve.onBegin = () => { if (!dragUndoOpen) { dragUndoOpen = true; ZoundsWindow.BeginDragUndo("edit modifier curve"); } };
+            curve.onChanged = () => {
+                ZoundDspPlayback.ResolveChain(zound, out _)?.Touch();
+                ZoundDspPlayback.InvalidateLayout(zound);
+                EditorUtility.SetDirty(ZoundsProject.Instance);
+            };
+            ground.Add(curve);
+            refreshers.Add(() => { if (curve.envelope != mod.curve) curve.envelope = mod.curve; curve.Refresh(); });
             ground.Add(head); ground.Add(dot);
             refreshers.Add(() => { EnsureModulation(ZoundDspPlayback.ResolveChain(zound, out _)); secs.text = modulation.playSeconds > 0f ? modulation.playSeconds.ToString("0.00") + " s" : ""; });
             return holder;
@@ -833,8 +848,27 @@ namespace Laubrary.Zounds.Uitk {
             float w = Width - (G.GripW + 6f);
             float buttonsW = 22f * 2f + G.Gap;
             float barW = Mathf.Min(G.StepBarMaxW, (w - buttonsW) / n);
-            var band = Place(new VisualElement(), G.GripW + 6f, 2f, barW * n, G.StepBandH - 4f);
-            band.AddToClassList("zs-stepband");
+            // What "no change" is depends on how the list is bound (the old editor's rule, T-0433): when every binding of
+            // it scales, the bars run from nought to two about a line at one; otherwise from -1 to +1 about nought.
+            int mi = chain.modifiers.IndexOf(mod);
+            bool anyBinding = false, allScale = true;
+            foreach (var b in chain.bindings) {
+                if (b.modifierIndex != mi) continue;
+                anyBinding = true;
+                if (ChainModulationCompat.CombineOf(b) != ModulationCombine.Scale) allScale = false;
+            }
+            bool scaling = anyBinding && allScale;
+            float lo = scaling ? 0f : -1f, hi = scaling ? 2f : 1f, rest = scaling ? 1f : 0f;
+            var band = Place(new ZuiSkinBandSliders(mod.steps, lo, hi, rest,
+                edited => ModifyContinuous("change step value", () => { mod.steps = edited; chain.Touch(); }), rest,
+                i => i < mod.steps.Length
+                    ? "Step " + (i + 1) + ": " + (scaling ? "×" + mod.steps[i].ToString("0.00") : mod.steps[i].ToString("+0.00;-0.00;0.00"))
+                      + (scaling ? "  (this list scales what it is bound to: the line is ×1, unchanged; the bottom is ×0" + (mod.steps[i] < 0f ? "; below zero pins the parameter at its minimum" : "") + ")"
+                                 : "  (the line is no change; top and bottom are the furthest this list moves what it is bound to)")
+                      + (mod.steps[i] > hi || mod.steps[i] < lo ? ". Beyond the bars' range; dragging it brings it back inside." : "")
+                    : null), G.GripW + 6f, 2f, barW * n, G.StepBandH - 4f);
+            band.AddToClassList("zs-slider-default");
+            refreshers.Add(() => band.SetValues(mod.steps));
             band.tooltip = "Steps: " + n + (n == 1 ? " value" : " values") + " this modifier steps through, one bar each, played left to right (or shuffled, in round-robin order). Drag a bar up or down to set it, or sweep across several to set them all at once; double-click a bar to put it back on the line.";
             r.Add(band);
             float bx = G.GripW + 6f + barW * n + G.Gap, by = 2f + (G.StepBandH - 4f - (G.RowH - 2f)) * 0.5f;

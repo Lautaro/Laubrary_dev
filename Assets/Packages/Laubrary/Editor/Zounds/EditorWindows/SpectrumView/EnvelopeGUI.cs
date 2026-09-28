@@ -306,7 +306,7 @@ namespace Laubrary.Zounds {
                 draggedLineIndex = -1;
             }
             else if (evt.type == EventType.MouseDrag && draggedLine != null) {
-                MovePoints(envelope, xRange, yRange, size, evt, new int[] { draggedLineIndex - 1, draggedLineIndex }, emptyIntArray);
+                MovePoints(envelope, xRange, yRange, size, evt.delta, new int[] { draggedLineIndex - 1, draggedLineIndex }, emptyIntArray);
                 evt.Use();
                 dirty = true;
                 onDragUpdated?.Invoke();
@@ -352,9 +352,10 @@ namespace Laubrary.Zounds {
             return dirty;
         }
 
-        private void MovePoints(Envelope envelope, float xRange, float yRange, Vector3 size, Event evt, int[] indicesToMove, int[] indicesToMoveYOnly) {
-            float deltaTime = xRange * evt.delta.x / size.x;
-            float deltaValue = yRange * -evt.delta.y / size.y;
+        /// <summary>Moves points by a pointer delta, keeping order, the fixed start/end and the value range. Shared with the UI Toolkit twin.</summary>
+        internal static void MovePoints(Envelope envelope, float xRange, float yRange, Vector3 size, Vector2 pointerDelta, int[] indicesToMove, int[] indicesToMoveYOnly) {
+            float deltaTime = xRange * pointerDelta.x / size.x;
+            float deltaValue = yRange * -pointerDelta.y / size.y;
 
             var lastIndex = indicesToMove[indicesToMove.Length - 1];
             var lastPoint = envelope.GetPoint(lastIndex);
@@ -800,7 +801,7 @@ namespace Laubrary.Zounds {
                             moveYOnlyIndices.Add(envelope.Count - 1);
                         }
                     }
-                    MovePoints(envelope, xRange, yRange, size, evt, includedIndices.ToArray(), moveYOnlyIndices.ToArray());
+                    MovePoints(envelope, xRange, yRange, size, evt.delta, includedIndices.ToArray(), moveYOnlyIndices.ToArray());
                     evt.Use();
                     dirty = true;
                     onDragUpdated?.Invoke();

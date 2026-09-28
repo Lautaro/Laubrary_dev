@@ -29,8 +29,13 @@ namespace Laubrary.Zounds.Uitk {
 
         void Set(string undo, System.Action a) {
             ZoundsWindow.ModifyAndSaveZoundsProject(undo, () => { a(); ZoundTimeStretcher.Clear(); });
+            Prewarm();
             Rebuild();
         }
+
+        /// <summary>Renders the stretched buffer now, as the old strip does after a change or at the end of a drag, so the
+        /// cost does not land on the next Play press.</summary>
+        void Prewarm() => TimeStretchGUI.Prewarm(klip, ZoundSapPlayback.LoadSourceClip(klip));
 
         void Rebuild() { Clear(); Build(); }
 
@@ -101,7 +106,7 @@ namespace Laubrary.Zounds.Uitk {
                 float lmin = Mathf.Log(0.25f), lmax = Mathf.Log(4f);
                 float t = Mathf.InverseLerp(lmin, lmax, Mathf.Log(Mathf.Clamp(ts.factor, 0.25f, 4f)));
                 ZuiSkinSlider s = null;
-                var undo = ZS.DragUndo(r2, "time stretch factor");
+                var undo = ZS.DragUndo(r2, "time stretch factor", Prewarm);
                 s = ZS.Slider("Length ×" + ts.factor.ToString("0.00"), t, 0f, 1f, "Duration multiplier: 2 = twice as long, 0.5 = half as long. Double-click resets to 1.",
                     nt => { undo(); float f = Mathf.Exp(Mathf.Lerp(lmin, lmax, nt)); ts.factor = f; ZoundTimeStretcher.Clear(); EditorUtility.SetDirty(ZoundsProject.Instance); s.text = "Length ×" + f.ToString("0.00"); },
                     ZuiSkinSlider.LabelMode.LabelOnly, 0.5f, "Default", 160f, RowH - 2f);
@@ -109,7 +114,7 @@ namespace Laubrary.Zounds.Uitk {
                 r2.Add(Gap(8f));
             }
             if (ts.mode == TimeStretchMode.Region && clipLength > 0f) {
-                var undo = ZS.DragUndo(r2, "time stretch region");
+                var undo = ZS.DragUndo(r2, "time stretch region", Prewarm);
                 r2.Add(ZS.MinMax("Region s", Mathf.Clamp(ts.regionStart, trimStart, trimEnd), Mathf.Clamp(ts.regionEnd, trimStart, trimEnd), trimStart, trimEnd,
                     "The span (seconds into the source) that is stretched; everything outside plays unchanged.",
                     (lo, hi) => { undo(); ts.regionStart = lo; ts.regionEnd = hi; ZoundTimeStretcher.Clear(); EditorUtility.SetDirty(ZoundsProject.Instance); },
@@ -121,7 +126,7 @@ namespace Laubrary.Zounds.Uitk {
                 var pd = desc.parameters[k];
                 int pk = k;
                 float v = ts.algorithmParams[k];
-                var undo = ZS.DragUndo(r2, "time stretch parameter");
+                var undo = ZS.DragUndo(r2, "time stretch parameter", Prewarm);
                 ZuiSkinSlider s = null;
                 if (pd.curve == ParamCurve.Logarithmic) {
                     float lmin = Mathf.Log(pd.min), lmax = Mathf.Log(pd.max);
@@ -142,10 +147,15 @@ namespace Laubrary.Zounds.Uitk {
             Add(r2);
 
             if (ts.mode == TimeStretchMode.Envelope) {
-                // The speed curve (56 px, full width): the envelope editor's twin comes with T-0459.
-                var curve = new VisualElement { tooltip = "Playback speed over the source (left = start, right = end): 1 = unchanged, below 1 = slower and longer, above 1 = faster and shorter. Drag points; double-click to add one." };
-                curve.AddToClassList("zs-envelope-placeholder");
+                // The speed curve (56 px, full width), drawn by the envelope editor's twin in the pitch colour.
+                if (ts.speedEnvelope == null) ts.speedEnvelope = new Envelope(0.25f, 4f);
+                var curve = new EnvelopeTK(ts.speedEnvelope, ZoundsProject.Instance.projectSettings.editorStyle.pitchEnvelopeColor) {
+                    tooltip = "Playback speed over the source (left = start, right = end): 1 = unchanged, below 1 = slower and longer, above 1 = faster and shorter. Drag points; double-click to add one."
+                };
                 curve.style.height = 56f; curve.style.flexShrink = 0;
+                var curveUndo = ZS.DragUndo(curve, "edit stretch curve", Prewarm);
+                curve.onBegin = curveUndo;
+                curve.onChanged = () => { ZoundTimeStretcher.Clear(); EditorUtility.SetDirty(ZoundsProject.Instance); };
                 Add(curve);
             }
         }
@@ -162,7 +172,7 @@ namespace Laubrary.Zounds.Uitk {
                 var spd = ZoundEffectDescriptors.SourceStageParams[SourceStageParam.Speed];
                 float lmin = Mathf.Log(spd.min), lmax = Mathf.Log(spd.max);
                 float t = Mathf.InverseLerp(lmin, lmax, Mathf.Log(Mathf.Clamp(ts.liveSpeed, spd.min, spd.max)));
-                var undo = ZS.DragUndo(r, "live speed");
+                var undo = ZS.DragUndo(r, "live speed", Prewarm);
                 ZuiSkinSlider s = null;
                 s = ZS.Slider("Speed ×" + ts.liveSpeed.ToString("0.00"), t, 0f, 1f,
                     "How fast the sound moves through its source, without changing its pitch: 0.5 is half speed (twice as long), 2 is double. Heard immediately, even on a sound already playing. Game code's speed multiplies on top. Right-click to drive it with a modifier. Double-click resets to 1.",
@@ -170,7 +180,7 @@ namespace Laubrary.Zounds.Uitk {
                     ZuiSkinSlider.LabelMode.LabelOnly, Mathf.InverseLerp(lmin, lmax, 0f), "Default", 150f, RowH - 2f);
                 r.Add(s);
                 r.Add(Gap(6f));
-                var wundo = ZS.DragUndo(r, "live stretch window");
+                var wundo = ZS.DragUndo(r, "live stretch window", Prewarm);
                 ZuiSkinSlider ws = null;
                 ws = ZS.Slider("Window " + ts.liveWindowMs.ToString("0") + " ms", ts.liveWindowMs, 10f, 100f,
                     "Length of the pieces the sound is cut into to stretch it. 20-30 ms suits speech and hits; 40-50 ms suits pads, chords and engines. Applies from the next play.",

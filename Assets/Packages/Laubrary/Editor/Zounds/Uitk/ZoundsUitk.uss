@@ -83,7 +83,6 @@
 .zs-root .zs-grip { cursor: move-arrow; }
 /* ZUI.IconChoice: the wave icon drawn by the button style, centred; measured on the old window at 12 x 6.5 */
 .zs-root .zs-iconchoice__icon { position: absolute; left: 50%; top: 50%; width: 12px; height: 6.5px; translate: -50% -50%; }
-.zs-root .zs-stepband { background-color: rgba(0,0,0,0.15); }
 
 .zs-root .zs-minilabel {
     font-size: 9px;
