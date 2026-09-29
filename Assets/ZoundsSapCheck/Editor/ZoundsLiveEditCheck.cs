@@ -55,7 +55,9 @@ public static class ZoundsLiveEditCheck {
             var r = new Reading();
             if (g == null || !g.ReadMonitor(buf)) return r;
             double s = 0; for (int i = 0; i < buf.Length; i++) { s += buf[i] * buf[i]; if (i > 0 && (buf[i - 1] < 0) != (buf[i] < 0)) r.crossings++; }
-            r.rms = Math.Sqrt(s / buf.Length); r.ok = true;
+            // The level as the mixer gets it: the voice's own output times the audio source's volume, which is where the
+            // play's volume is applied (the voice itself runs at gain one since the double-volume fix, 2026-09-29).
+            r.rms = Math.Sqrt(s / buf.Length) * tok.audioSource.volume; r.ok = true;
             return r;
         }
         int failures = 0;

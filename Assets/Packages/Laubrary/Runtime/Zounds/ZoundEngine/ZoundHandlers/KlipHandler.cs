@@ -115,7 +115,11 @@ namespace Laubrary.Zounds {
             long playId = Dsp.ZoundSapPlayback.NextPlayId(zound);
             m_playSeed = playId;
             m_startVolume = selfVolume; m_startPitch = basePitch;
-            m_voice = Dsp.ZoundSapPlayback.StartVoice(zound, audioSource, sourceClip, basePitch, baseVolume,
+            // The voice runs at gain one: the audio source that carries it into the mixer already applies the play's
+            // volume (with the master volume, the parent Zequence's, live and track volume and fades, every update). Giving
+            // the voice the volume as well applied it twice, so a sound at 0.5 was heard at 0.25 (found 2026-09-29, the
+            // same kind of double application T-0443 fixed for pitch).
+            m_voice = Dsp.ZoundSapPlayback.StartVoice(zound, audioSource, sourceClip, basePitch, 1f,
                                                      playId, out string reason, out m_chainDuration,
                                                      sourceAlreadyTrimmed);
             if (m_voice != null) {
@@ -364,10 +368,8 @@ namespace Laubrary.Zounds {
             float pit = m_rangePitchFrom * Mathf.Pow(m_rangePitchTo / Mathf.Max(m_rangePitchFrom, 1e-4f), t);
             SetSelfVolume(vol);
             basePitch = pit;
-            if (m_chainPath && m_voice != null) {
-                m_voice.SetGainLive(vol * ZoundEngine.GetMasterVolume());
-                m_voice.SetPitchLive(basePitch * m_livePitch);
-            }
+            // Volume reaches the audio source through SetSelfVolume on the base update; the voice stays at gain one.
+            if (m_chainPath && m_voice != null) m_voice.SetPitchLive(basePitch * m_livePitch);
             if (t >= 1f) m_rangeGliding = false;
         }
 
@@ -450,10 +452,9 @@ namespace Laubrary.Zounds {
                 m_seenMinVol = zound.minVolume; m_seenMaxVol = zound.maxVolume;
                 if (m_volT >= 0f) {
                     float v = Mathf.Lerp(m_seenMinVol, m_seenMaxVol, m_volT);
+                    // The audio source carries the play's volume and follows from this on the base update; the voice
+                    // stays at gain one (see StartVoice).
                     SetSelfVolume(v);
-                    // The voice was given the play's volume as its output gain when it started (see StartVoice), so it
-                    // is moved the same way; the audio source follows from SetSelfVolume on the base update.
-                    m_voice.SetGainLive(v * ZoundEngine.GetMasterVolume());
                 }
             }
             if (pitchEdited) {
