@@ -138,6 +138,24 @@ namespace Laubrary.Zounds.Uitk {
             });
             var duration = Duration();
 
+            // The track's ZPOC id (T-0495): how game code reaches this track by name through a play's token.
+            var idChip = new Label { tooltip = "" };
+            idChip.AddToClassList("zs-zpocchip"); idChip.AddToClassList("zs-zpocchip__text");
+            idChip.RegisterCallback<PointerDownEvent>(e => {
+                if (e.button != 0 && e.button != 1) return;
+                TrackIdPopup.Show(idChip.worldBound, parent, entry, () => win.refreshers.ForEach(r => r()));
+                e.StopPropagation();
+            });
+            Add(idChip);
+            win.refreshers.Add(() => {
+                bool on = !string.IsNullOrEmpty(entry.zpocId);
+                idChip.EnableInClassList("zs-zpocchip--on", on);
+                idChip.text = on ? "⚡ " + entry.zpocId : "⚡";
+                idChip.tooltip = on
+                    ? "Game code reaches this track as '" + entry.zpocId + "': token.Track(\"" + entry.zpocId + "\") -- its volume, pitch, fades, mute, solo and whether it can be picked. Click to change."
+                    : "Game code reaches this track by its number (token.Track(" + index + ")). Click to give it a name as well.";
+            });
+
             // V / P / C.
             var sliders = new List<(VisualElement e, int row)>();
             var toggles = new List<(Toggle t, int row)>();
@@ -239,6 +257,8 @@ namespace Laubrary.Zounds.Uitk {
                 if (weight != null) { Place(weight, new Rect(left.position, new Vector2(22f, 20f))); left.x += 24f; left.width -= 24f; }
 
                 Place(name, new Rect(left.x, content.y, (content.width - 18f) * 0.8f, LH));
+                float chipX = left.x + (content.width - 18f) * 0.8f + 2f;
+                Place(idChip, new Rect(chipX, content.y, Mathf.Max(18f, content.xMax - 18f - 2f - chipX), LH));
                 Place(play, new Rect(content.xMax - 18f, content.y, 18f, LH));
                 float y = content.y + LH - 3f;
                 float dur = CompositeZoundEditing.GetEntryDuration(parent, entry, parentPitch);
