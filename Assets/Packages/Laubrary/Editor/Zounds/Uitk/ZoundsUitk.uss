@@ -326,3 +326,15 @@
 .zs-root .zs-settingsstatus { font-size: 10px; height: 18px; padding-left: 2px; margin: 1px 0 2px 0; color: rgb(210,210,210); }
 .zs-root .zs-settingsstatus--warn { background-color: rgba(64,64,64,0.4); border-radius: 3px; font-size: 10px; }
 .zs-root .zs-settingspath--missing > .unity-base-text-field__input { color: rgb(255,178,128); }
+/* The Zound's own values (T-0493): Volume, Pitch, Speed, Drive, shown (not dragged) with what moves them. */
+.zs-root .zs-ownvalue {
+    background-color: rgba(0,0,0,0.22);
+    border-width: 1px; border-color: rgba(128,128,128,0.35);
+    border-top-left-radius: 2px; border-top-right-radius: 2px; border-bottom-left-radius: 2px; border-bottom-right-radius: 2px;
+    overflow: hidden;
+}
+.zs-root .zs-ownvalue--bound { border-color: rgba(115,191,255,0.55); }
+.zs-root .zs-ownvalue--code { border-color: rgba(255,150,40,0.8); }
+.zs-root .zs-ownvalue__text { font-size: 10px; color: rgb(170,170,178); -unity-text-align: middle-left; padding: 0 5px 0 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.zs-root .zs-ownvalue--bound .zs-ownvalue__text { color: rgb(215,215,222); }
+.zs-root .zs-ownvalue--code .zs-ownvalue__text { color: rgb(255,170,70); }

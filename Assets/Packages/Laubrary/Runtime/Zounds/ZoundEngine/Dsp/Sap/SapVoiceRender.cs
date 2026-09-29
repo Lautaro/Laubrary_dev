@@ -187,6 +187,16 @@ namespace Laubrary.Zounds.Dsp {
                 // ── chain ──
                 if (L.nodeCount > 0) ZoundEffects.ProcessChain(L, sap.arena, sap.pStart, sap.pStep, sap.bufL, sap.bufR, off, n, in ctx);
 
+                // ── the Zound's own volume (T-0493), after every effect ──
+                // The same per-sample ramp an inserted Gain effect at the end of the chain applies, so a volume curve moved
+                // here sounds identical. Skipped at rest (exactly one, not moving), which every sound without one is.
+                {
+                    float vg = sap.pStart[SourceStageParam.Volume], vs = sap.pStep[SourceStageParam.Volume];
+                    if (vg != 1f || vs != 0f) {
+                        for (int i = 0; i < n; i++) { sap.bufL[off + i] *= vg; sap.bufR[off + i] *= vg; vg += vs; }
+                    }
+                }
+
                 // ── output gain ──
                 float g = outGainStart;
                 for (int i = 0; i < n; i++) {

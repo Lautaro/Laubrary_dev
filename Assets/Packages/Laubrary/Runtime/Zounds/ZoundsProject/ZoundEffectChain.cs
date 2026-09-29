@@ -216,7 +216,9 @@ namespace Laubrary.Zounds {
         /// <summary>Live time-stretch (T-0409): how fast the sound moves through its source without changing its
         /// pitch. Only heard on a sound with live speed switched on. Appended, so stored bindings keep their meaning.</summary>
         public const int Speed = 2;
-        public const int Count = 3;
+        /// <summary>The Zound's own volume, after every effect (T-0493). Appended, so stored bindings keep their meaning.</summary>
+        public const int Volume = 3;
+        public const int Count = 4;
     }
 
     /// <summary>

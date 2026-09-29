@@ -38,8 +38,40 @@ namespace Laubrary.Zounds {
             return -1;
         }
 
-        private static int VolumeModifier(ZoundEffectChain chain) =>
-            FindEnvelopeModifier(chain, b => b.nodeIndex >= 0 && b.nodeIndex < chain.nodes.Count && chain.nodes[b.nodeIndex].type == ZoundEffectType.Gain && b.paramIndex == 0);
+        // The volume curve: an envelope on the Zound's own Volume (T-0493), or -- as it was saved before that -- on an
+        // inserted Gain effect. The second form plays exactly as before until it is edited (see EnsureVolumeOwnValue).
+        private static int VolumeModifier(ZoundEffectChain chain) {
+            int own = FindEnvelopeModifier(chain, b => b.nodeIndex == -1 && b.paramIndex == SourceStageParam.Volume);
+            if (own >= 0) return own;
+            return FindEnvelopeModifier(chain, b => b.nodeIndex >= 0 && b.nodeIndex < chain.nodes.Count && chain.nodes[b.nodeIndex].type == ZoundEffectType.Gain && b.paramIndex == 0);
+        }
+
+        /// <summary>
+        /// Moves a volume curve saved the old way -- an envelope owning an inserted Gain effect -- onto the Zound's own Volume
+        /// and removes the Gain (T-0493), so volume stops appearing as an extra effect. Only when that is exactly the same
+        /// sound: the Gain is the last effect (Volume acts after every effect, where it did), is on, sits at its default,
+        /// and nothing else is bound to it. Otherwise the sound is left as it is. Called at the start of an edit of the
+        /// curve, inside that edit's Undo step, never on a whole project at once. Returns whether anything changed.
+        /// </summary>
+        public static bool EnsureVolumeOwnValue(Zound zound) {
+            var chain = Chain(zound);
+            if (chain == null) return false;
+            int m = VolumeModifier(chain);
+            if (m < 0) return false;
+            ZoundModifierBinding vb = null;
+            foreach (var b in chain.bindings) if (b.modifierIndex == m && b.nodeIndex >= 0) { vb = b; break; }
+            if (vb == null) return false;
+            int gi = vb.nodeIndex;
+            if (gi != chain.nodes.Count - 1) return false;
+            var gain = chain.nodes[gi];
+            if (gain.type != ZoundEffectType.Gain || !gain.enabled || Mathf.Abs(gain.Param(0) - 1f) > 1e-6f) return false;
+            foreach (var b in chain.bindings) if (b != vb && b.nodeIndex == gi) return false;
+            if (zound.chainOverrides != null) foreach (var o in zound.chainOverrides) if (o.nodeIndex == gi) return false;
+            vb.nodeIndex = -1; vb.paramIndex = SourceStageParam.Volume;
+            chain.RemoveNode(gi);
+            ZoundDspPlayback.InvalidateLayout(zound);
+            return true;
+        }
 
         private static int PitchModifier(ZoundEffectChain chain) =>
             FindEnvelopeModifier(chain, b => b.nodeIndex == -1 && b.paramIndex == SourceStageParam.Pitch);
@@ -49,7 +81,6 @@ namespace Laubrary.Zounds {
             int m = VolumeModifier(chain);
             if (m < 0) {
                 if (!create) return null;
-                chain.nodes.Add(new ZoundEffectNode(ZoundEffectType.Gain));
                 // Seed the new modifier from the Klip's legacy curve, if it drew one, so switching a Klip
                 // over to the chain (by giving it its first modifier) doesn't discard existing curve work.
                 Envelope seed = zound is Klip legacyKlip && legacyKlip.volumeEnvelope != null
@@ -58,7 +89,8 @@ namespace Laubrary.Zounds {
                 var env = new ZoundModifier(ZoundModifierType.Envelope) { name = "Volume", curve = seed };
                 chain.modifiers.Add(env);
                 chain.bindings.Add(new ZoundModifierBinding {
-                    modifierIndex = chain.modifiers.Count - 1, nodeIndex = chain.nodes.Count - 1, paramIndex = 0,
+                    // On the Zound's own Volume, after every effect (T-0493) -- no Gain effect is added any more.
+                    modifierIndex = chain.modifiers.Count - 1, nodeIndex = -1, paramIndex = SourceStageParam.Volume,
                     // The drawn curve owns the level outright, which is what a volume curve has always meant.
                     combine = Dsp.ModulationCombine.Set, depth = 1f, schema = Dsp.ChainModulationCompat.CURRENT_SCHEMA });
                 chain.Touch();
@@ -189,6 +221,10 @@ namespace Laubrary.Zounds {
             var chain = Chain(zound);
             int m = PitchModifier(chain);
             if (m >= 0 && chain.modifiers[m] == mod) EnsurePitchRatio(zound);
+            // The same for the volume curve: an old inserted Gain moves onto the Zound's own Volume at its first edit.
+            chain = Chain(zound);
+            int v = VolumeModifier(chain);
+            if (v >= 0 && chain.modifiers[v] == mod) EnsureVolumeOwnValue(zound);
         }
 
         /// <summary>
@@ -294,6 +330,9 @@ namespace Laubrary.Zounds {
             var chain = Chain(zound);
             var curve = VolumeCurve(zound, enabled);
             if (curve == null) return;
+            // Switching it on is an edit: an old inserted Gain moves onto the Zound's own Volume, sounding the same.
+            if (enabled) EnsureVolumeOwnValue(zound);
+            chain = Chain(zound);
             int m = VolumeModifier(chain);
             if (m >= 0) chain.modifiers[m].enabled = enabled;
             curve.enabled = enabled;

@@ -87,9 +87,15 @@ namespace Laubrary.Zounds.Dsp {
 
         public static ParamDesc[] SourceStageParams = {
             new ParamDesc("Pitch", "x", 0.1f, 4f, 1f, ParamCurve.Logarithmic, true, ModifierOp.Multiply),
-            new ParamDesc("Source gain", "x", 0f, 4f, 1f, ParamCurve.Linear, true, ModifierOp.Multiply),
+            new ParamDesc("Drive", "x", 0f, 4f, 1f, ParamCurve.Linear, true, ModifierOp.Multiply, null, null,
+                "How loud the sound goes INTO the effects. Turning it down before a reverb or delay also lets their tails ring out on their own; turning it up drives distortion and compressors harder."),
             new ParamDesc("Speed", "x", 0.1f, 4f, 1f, ParamCurve.Logarithmic, true, ModifierOp.Multiply, null, null,
                 "How fast the sound moves through its source, without changing its pitch: 0.5 plays it at half speed and twice as long, 2 at double speed. Only heard when Live speed is on for the sound."),
+            // The Zound's own volume (T-0493), applied AFTER every effect -- where a volume curve always acted, through an
+            // inserted Gain effect at the end of the chain. Same range and the same per-sample ramp as that Gain, so a curve
+            // moved onto it sounds bit-for-bit the same.
+            new ParamDesc("Volume", "x", 0f, 4f, 1f, ParamCurve.Linear, true, ModifierOp.Multiply, null, null,
+                "The sound's own level, after all its effects, so fading it also fades a reverb's or delay's tail. One is as recorded."),
         };
 
         static ZoundEffectDescriptors() {

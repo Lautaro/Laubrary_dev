@@ -194,6 +194,9 @@ namespace Laubrary.Zounds {
                 if (target() != null) {
                     setDragging(true);
                     ZoundsWindow.BeginDragUndo("edit volume envelope");
+                    // The first edit moves a curve saved on an inserted Gain onto the Zound's own Volume, sounding the same (T-0493).
+                    // The curve object is kept (only its binding moves), so the drag carries on on the same points.
+                    KlipChainEnvelopes.EnsureVolumeOwnValue(target());
                 }
             };
 

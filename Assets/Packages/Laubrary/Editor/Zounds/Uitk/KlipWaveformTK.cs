@@ -119,7 +119,7 @@ namespace Laubrary.Zounds.Uitk {
                     if (env.points == null || i < 0 || i >= env.points.Count || env.rt == null) return;
                     RandomPointPopup.Show(world, env.points[i], Mathf.Max(env.rt.dataXMax - env.rt.dataXMin, 1e-3f),
                         () => env.rt.yMax - env.rt.yMin,
-                        () => { if (env == pitchEnv) KlipChainEnvelopes.EnsurePitchRatio(klip); },
+                        () => { if (env == pitchEnv) KlipChainEnvelopes.EnsurePitchRatio(klip); if (env == volEnv) KlipChainEnvelopes.EnsureVolumeOwnValue(klip); },
                         () => { KlipChainEnvelopes.Touch(klip); Refresh(); });
                 };
             }
