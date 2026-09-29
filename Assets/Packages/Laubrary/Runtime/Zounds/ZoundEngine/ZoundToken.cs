@@ -182,6 +182,21 @@ namespace Laubrary.Zounds {
             return false;
         }
 
+        /// <summary>Where a ZPOC value comes from, in priority order (highest first). Shown in the editor so a value code
+        /// has moved is never a mystery.</summary>
+        public enum ZpocSource { Play = 0, Parent = 1, Global = 2, Rest = 3 }
+
+        /// <summary>Which source wins for an id on this play right now (see <see cref="ZpocSource"/>).</summary>
+        public ZpocSource SourceOfZpoc(string zpocId) {
+            var key = ZpocKeys.Key(zpocId);
+            if (key != null) {
+                if (m_zpoc != null && m_zpoc.ContainsKey(key)) return ZpocSource.Play;
+                if (parentToken != null && parentToken.TryResolveZpoc(key, out _)) return ZpocSource.Parent;
+                if (ZpocGlobals.TryGet(key, out _)) return ZpocSource.Global;
+            }
+            return ZpocSource.Rest;
+        }
+
         internal void RefreshZpoc(string key) { m_handler?.ApplyZpoc(key); }
         internal void RefreshAllZpoc() { m_handler?.ApplyAllZpoc(); }
 

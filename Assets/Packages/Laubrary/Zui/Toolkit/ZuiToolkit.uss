@@ -1157,3 +1157,28 @@
     white-space: nowrap;
     flex-shrink: 0;
 }
+
+/* ── ZuiLiveOverlay (T-0492): where a value IS vs where it was SET ─────────────────────────────────
+   Modulation keeps the Zounds overlay's original colours (blue above the set value, dark below).
+   Code-driven values are AMBER — deliberately warmer and more saturated than the warning yellow
+   rgb(247,204,102), so a driven value is never mistaken for a problem. Colours are literal rather than
+   root variables because the overlay is laid into windows that do not carry .zui-root. */
+.zui-live__mark-dark { background-color: rgba(13, 13, 20, 0.85); }
+.zui-live__mark-bright { background-color: rgba(252, 252, 255, 0.95); }
+.zui-live__band--up { background-color: rgba(115, 191, 255, 0.5); }
+.zui-live__band--down { background-color: rgba(10, 10, 15, 0.72); }
+.zui-live__band--driven { background-color: rgba(255, 150, 40, 0.55); }
+.zui-live__band--hollow {
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 1px; border-color: rgba(255, 150, 40, 0.9);
+}
+.zui-live__tick { background-color: rgb(255, 170, 60); }
+.zui-live__pulse {
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 1px; border-color: rgb(255, 150, 40);
+    border-top-left-radius: 2px; border-top-right-radius: 2px; border-bottom-left-radius: 2px; border-bottom-right-radius: 2px;
+}
+.zui-live__spread { background-color: rgba(115, 191, 255, 0.22); }
+.zui-live__spread--driven { background-color: rgba(255, 150, 40, 0.24); }
+.zui-live__spread-tick { background-color: rgba(115, 191, 255, 0.85); }
+.zui-live__spread-tick--driven { background-color: rgba(255, 170, 60, 0.9); }

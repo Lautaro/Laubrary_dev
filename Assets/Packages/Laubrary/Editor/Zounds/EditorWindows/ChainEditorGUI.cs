@@ -718,13 +718,17 @@ namespace Laubrary.Zounds {
         }
 
         internal static void AddBinding(ZoundEffectChain chain, int modifierIndex, int nodeIndex, int paramIndex, ParamDesc pd) {
+            // A Code modifier's number comes from game code, so its binding starts with the combine that makes that number
+            // mean the obvious thing for this kind of control (Ratio on pitch and speed, Scale on a level, Set otherwise).
+            bool code = modifierIndex >= 0 && modifierIndex < chain.modifiers.Count && chain.modifiers[modifierIndex].type == ZoundModifierType.Code;
             chain.bindings.Add(new ZoundModifierBinding {
                 modifierIndex = modifierIndex, nodeIndex = nodeIndex, paramIndex = paramIndex,
                 // Full strength. Since Shift's depth became a share of the room the parameter has (T-0436), one reaches
                 // the ends of the range without ever pinning against them, so the modifier is heard at once and in full;
                 // turn it down from there. (It was a quarter of the whole control before, because a whole control each
                 // way pinned the parameter two thirds of the time — the owner rightly found a quarter an odd default.)
-                combine = Dsp.ModulationCombine.Shift, depth = 1f, schema = Dsp.ChainModulationCompat.CURRENT_SCHEMA });
+                combine = code ? Dsp.ChainModulationCompat.DefaultCombineForCode(pd) : Dsp.ModulationCombine.Shift,
+                depth = 1f, schema = Dsp.ChainModulationCompat.CURRENT_SCHEMA });
             chain.Touch();
         }
 

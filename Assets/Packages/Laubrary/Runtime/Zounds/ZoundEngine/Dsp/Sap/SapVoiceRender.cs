@@ -40,11 +40,9 @@ namespace Laubrary.Zounds.Dsp {
         /// a filter. Works entirely on native data, so it can be applied on whichever thread the change
         /// arrives on, including from inside compiled code.
         ///
-        /// Two rules, both carried over unchanged from the long-lived voice's version of this:
-        ///
-        /// A parameter that a modifier is driving is REFUSED rather than written. Accepting it would look like
-        /// it worked for a fraction of a second and then be overwritten by the modifier at the next control
-        /// block, which is worse than visibly doing nothing.
+        /// A parameter that a modifier is driving takes the value as where the modifier starts from (this voice's
+        /// own copy of the layout), so the modifier carries on moving it from there; its live value is left alone,
+        /// since the modifier would overwrite it at the next control block anyway.
         ///
         /// The value is clamped to the parameter's own declared range before it lands anywhere, so a caller
         /// cannot push an effect into a state the layout never sized for.
@@ -55,11 +53,21 @@ namespace Laubrary.Zounds.Dsp {
         /// </summary>
         public static void ApplyLiveParam(ref SapVoiceState sap, in SapChainLayout L, int flatIndex, float value) {
             if (flatIndex < 0 || flatIndex >= L.paramCount) return;
-            for (int r = 0; r < L.rampedCount; r++) if (L.ramped[r] == flatIndex) return;
 
             float min = L.pMin[flatIndex];
             float max = L.pMax[flatIndex];
             float clamped = value < min ? min : value > max ? max : value;
+
+            // A parameter a modifier drives: the edit moves where the modifier starts from (this voice's own copy of the
+            // layout), and the modifier goes on moving it from there at the next control block. Writing the live value
+            // instead would be overwritten a block later, which is why this used to refuse outright -- and a refusal meant a
+            // modulated slider dragged while the sound played was not heard until the next play.
+            for (int r = 0; r < L.rampedCount; r++) {
+                if (L.ramped[r] != flatIndex) continue;
+                var bases = L.pBase;
+                bases[flatIndex] = clamped;
+                return;
+            }
 
             sap.pLive[flatIndex] = clamped;
             sap.pStart[flatIndex] = clamped;

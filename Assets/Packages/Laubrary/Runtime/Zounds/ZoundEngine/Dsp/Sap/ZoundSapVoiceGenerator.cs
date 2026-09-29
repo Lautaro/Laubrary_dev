@@ -327,6 +327,16 @@ namespace Laubrary.Zounds.Dsp {
         /// ZPOC: the control value the engine is using right now for one modifier (eased, so between what was sent and
         /// where it was), or false when nothing is playing. The same unsynchronised display read as <see cref="TryReadLiveParam"/>.
         /// </summary>
+        /// <summary>ZPOC display read: one modifier's eased control, the control last sent, and the modifier's latest output.</summary>
+        public bool TryReadModifierState(int modifier, out float control, out float sent, out float output) {
+            control = sent = output = 0f;
+            if (!created || modifier < 0 || !IsPlaying) return false;
+            var s = voice.sap;
+            if (!s.modCtlLive.IsCreated || modifier >= s.modCtlLive.Length) return false;
+            control = s.modCtlLive[modifier]; sent = s.modCtlTarget[modifier]; output = s.modValue[modifier];
+            return true;
+        }
+
         public bool TryReadModifierControl(int modifier, out float control) {
             control = 0f;
             if (!created || modifier < 0) return false;

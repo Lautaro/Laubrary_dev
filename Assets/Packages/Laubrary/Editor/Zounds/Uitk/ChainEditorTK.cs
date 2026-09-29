@@ -47,10 +47,13 @@ namespace Laubrary.Zounds.Uitk {
 
         // Kept across rebuilds, so its open state, view and measurements survive an edit to the chain.
         readonly ChainAnalyserTK analyser;
+        // Kept across rebuilds too, so what it is pretending to send survives an edit.
+        readonly ZpocTestPanelTK zpocTest;
 
         public ChainEditorTK(Zound zound) {
             this.zound = zound;
             analyser = new ChainAnalyserTK(zound);
+            zpocTest = new ZpocTestPanelTK(zound);
             AddToClassList("zs-chain");
             style.flexShrink = 0;
             RegisterCallback<GeometryChangedEvent>(_ => Tick());
@@ -125,7 +128,7 @@ namespace Laubrary.Zounds.Uitk {
             sb.Append('|');
             for (int m = 0; m < chain.modifiers.Count; m++) {
                 var mod = chain.modifiers[m]; mod.EnsureParams();
-                sb.Append((int)mod.type).Append(mod.enabled ? '+' : '-').Append(folded.Contains(mod) ? 'F' : 'U');
+                sb.Append((int)mod.type).Append(mod.enabled ? '+' : '-').Append(folded.Contains(mod) ? 'F' : 'U').Append(mod.HasZpoc ? 'Z' : 'z');
                 if (!folded.Contains(mod)) {
                     var units = ModifierUnits(chain, m, mod, ZoundEffectDescriptors.GetModifier(mod.type));
                     foreach (var u in units) sb.Append(u.paramIndex).Append(u.warning != null ? 'w' : '.');
@@ -166,7 +169,8 @@ namespace Laubrary.Zounds.Uitk {
                     Bindings(chain, m);
                 }
             }
-            Add(VSpace(5f));   // ZUI.RowSpace(0.5f), then the analyser
+            Add(VSpace(5f));   // ZUI.RowSpace(0.5f), then the ZPOC test panel (only when something is exposed) and the analyser
+            Add(zpocTest);
             Add(analyser);
         }
 
@@ -551,7 +555,10 @@ namespace Laubrary.Zounds.Uitk {
 
             float right = cw;
             if (u.bound) {
-                var tag = Place(Text("~", "Modulated by " + G.BoundBy(chain, u.nodeIndex, u.paramIndex) + ". The slider sets where the modifier starts from; the thin line marks it, and the fill shows where the engine has it right now.", "zs-greymini"),
+                string ids = ZpocIdsOn(chain, u.nodeIndex, u.paramIndex);
+                var tag = Place(ids != null
+                        ? (VisualElement)BoltMark("Game code can move this, through ZPOC " + ids + " (modulated by " + G.BoundBy(chain, u.nodeIndex, u.paramIndex) + "). The slider sets where it starts from; the thin line marks it. While the sound plays, amber shows where code has it, a tick where it is heading, and a flash each time code sends a new value. Hold the slider to take over by hand; let go to hand it back.")
+                        : Text("~", "Modulated by " + G.BoundBy(chain, u.nodeIndex, u.paramIndex) + ". The slider sets where the modifier starts from; the thin line marks it, and the fill shows where the engine has it right now.", "zs-greymini"),
                                 right, -y, G.TagIconW, G.RowH);
                 box.Add(tag);
                 right += G.TagIconW;
@@ -575,37 +582,102 @@ namespace Laubrary.Zounds.Uitk {
         /// Colours and insets are the old overlay's.
         /// </summary>
         void LiveOverlay(ZuiSkinSlider s, ParamDesc pd, int nodeIndex, int paramIndex, Func<float> read) {
-            var layer = new VisualElement { pickingMode = PickingMode.Ignore };
-            layer.style.position = Position.Absolute;
-            layer.style.left = 1f; layer.style.right = 1f; layer.style.top = 1f; layer.style.bottom = 1f;
-            var span = new VisualElement { pickingMode = PickingMode.Ignore };
-            span.style.position = Position.Absolute; span.style.top = 0; span.style.bottom = 0;
-            var dark = new VisualElement { pickingMode = PickingMode.Ignore };
-            dark.style.position = Position.Absolute; dark.style.top = 0; dark.style.bottom = 0; dark.style.width = 1f;
-            dark.style.backgroundColor = new Color(0.05f, 0.05f, 0.08f, 0.85f);
-            var bright = new VisualElement { pickingMode = PickingMode.Ignore };
-            bright.style.position = Position.Absolute; bright.style.top = 0; bright.style.bottom = 0; bright.style.width = 1f;
-            bright.style.backgroundColor = new Color(0.99f, 0.99f, 1f, 0.95f);
-            layer.Add(span); layer.Add(dark); layer.Add(bright);
-            s.Add(layer);
+            // Where the value IS, drawn over where it was SET (T-0492): one instance as a band from the marker, several as
+            // their spread; amber when game code has moved it, the modulator colours otherwise; a tick where code is
+            // taking it and a pulse when a new value arrives. Nothing live is drawn while nothing plays (T-0446).
+            var overlay = new ZuiLiveOverlay();
+            s.Add(overlay);
+            var values = new float[32];
+            var ticks = new List<float>(32);
+            float lastSent = float.NaN;
+            bool holding = false, suspended = false;
+
+            // Touch: while the hand holds a slider code is driving, the hand wins -- the code-reachable modifiers on this
+            // parameter rest in every playing voice, so what is dragged is what is heard. Letting go hands it back.
+            s.RegisterCallback<PointerDownEvent>(e => {
+                if (e.button != 0) return;
+                holding = true;
+                var sum = SapVoiceRegistry.ReadLiveParam(zound, nodeIndex, paramIndex, null);
+                if (sum.driven) { suspended = true; SuspendCode(nodeIndex, paramIndex, true); }
+            }, TrickleDown.TrickleDown);
+            void Release() {
+                if (!holding) return;
+                holding = false;
+                if (suspended) { suspended = false; SuspendCode(nodeIndex, paramIndex, false); }
+            }
+            s.RegisterCallback<PointerUpEvent>(_ => Release(), TrickleDown.TrickleDown);
+            s.RegisterCallback<PointerCaptureOutEvent>(_ => Release(), TrickleDown.TrickleDown);
+
+            string baseTip = s.tooltip;
             liveRefreshers.Add(() => {
-                float iw = layer.resolvedStyle.width;
-                if (float.IsNaN(iw) || iw <= 0f) return;
-                float tA = G.Normalised(pd, read());
-                float xm = Mathf.Clamp(iw * tA, 1f, iw - 1f);
-                dark.style.left = xm - 1f; bright.style.left = xm;
-                if (ZoundDspPlayback.TryReadLiveParam(zound, nodeIndex, paramIndex, out float live)) {
-                    float tL = G.Normalised(pd, live);
-                    if (Mathf.Abs(tL - tA) >= 0.001f) {
-                        float xa = iw * tA, xl = iw * tL;
-                        span.style.display = DisplayStyle.Flex;
-                        span.style.left = Mathf.Min(xa, xl); span.style.width = Mathf.Abs(xl - xa);
-                        span.style.backgroundColor = tL > tA ? new Color(0.45f, 0.75f, 1f, 0.5f) : new Color(0.04f, 0.04f, 0.06f, 0.72f);
-                        return;
-                    }
+                overlay.SetAuthored(G.Normalised(pd, read()));
+                var sum = SapVoiceRegistry.ReadLiveParam(zound, nodeIndex, paramIndex, values);
+                if (sum.count == 0) {
+                    overlay.ClearLive(); overlay.ClearSpread(); overlay.ClearTarget(); overlay.SetHollow(false);
+                    lastSent = float.NaN;
+                    if (s.tooltip != baseTip) s.tooltip = baseTip;
+                    return;
                 }
-                span.style.display = DisplayStyle.None;
+                // Provenance, stated where the value is (owner, 2026-09-29): while code drives it, the label carries the
+                // heard value after the set one, and the hover text says why it is not the set value.
+                if (sum.driven && !suspended) {
+                    string heard = sum.count == 1 ? G.Format(pd, values[0]) : G.Format(pd, sum.lo) + "–" + G.Format(pd, sum.hi);
+                    s.text = s.text + "  ⚡" + heard;
+                    s.tooltip = baseTip + "\n\nRight now game code has it at " + heard + (sum.count > 1 ? " across " + sum.count + " plays" : "") +
+                                " instead of the " + G.Format(pd, read()) + " set here. " + ZpocPriority;
+                }
+                else if (s.tooltip != baseTip) s.tooltip = baseTip;
+                var kind = sum.driven || suspended ? ZuiLiveKind.Driven : ZuiLiveKind.Modulated;
+                if (sum.count == 1) {
+                    overlay.ClearSpread();
+                    overlay.SetLive(G.Normalised(pd, values[0]), kind);
+                }
+                else {
+                    overlay.ClearLive();
+                    ticks.Clear();
+                    for (int i = 0; i < Mathf.Min(sum.count, values.Length); i++) ticks.Add(G.Normalised(pd, values[i]));
+                    overlay.SetSpread(G.Normalised(pd, sum.lo), G.Normalised(pd, sum.hi), ticks, kind);
+                }
+                if (sum.hasTarget && sum.moving && !suspended) overlay.SetTarget(G.Normalised(pd, sum.target));
+                else overlay.ClearTarget();
+                if (!float.IsNaN(lastSent) && sum.sentSignature != lastSent && !suspended) overlay.Pulse();
+                lastSent = sum.sentSignature;
+                overlay.SetHollow(suspended);
             });
+        }
+
+        /// <summary>A 0..1 value in two decimals without the leading nought (".25", "1.00"), so a range fits a chip.</summary>
+        static string Short(float v) => v >= 0.995f ? "1.00" : Mathf.Clamp01(v).ToString(".00");
+
+        static VisualElement BoltMark(string tooltip) => new ZpocBolt { tooltip = tooltip };
+
+        /// <summary>The ZPOC ids of the modifiers bound to one parameter ("'wobble', 'throttle'"), or null when code cannot reach it.</summary>
+        static string ZpocIdsOn(ZoundEffectChain chain, int nodeIndex, int paramIndex) {
+            string ids = null;
+            foreach (var b in chain.bindings) {
+                if (b.nodeIndex != nodeIndex || b.paramIndex != paramIndex) continue;
+                if (b.modifierIndex < 0 || b.modifierIndex >= chain.modifiers.Count) continue;
+                var m = chain.modifiers[b.modifierIndex];
+                if (!m.HasZpoc && m.type != ZoundModifierType.Code) continue;
+                string one = m.HasZpoc ? "'" + m.zpocId + "'" : "(a Code modifier with no id yet)";
+                ids = ids == null ? one : ids + ", " + one;
+            }
+            return ids;
+        }
+
+        /// <summary>
+        /// Touch override for one parameter: rests (or restores) every code-reachable modifier bound to it in every voice
+        /// playing this sound. Restoring re-applies what each play's token resolves, so game code picks up exactly where it
+        /// was. Voices only; nothing saved changes.
+        /// </summary>
+        void SuspendCode(int nodeIndex, int paramIndex, bool suspend) {
+            if (suspend) {
+                SapVoiceRegistry.RestCodeOn(zound, nodeIndex, paramIndex);
+                return;
+            }
+            var tokens = ZoundEngine.LiveTokens;
+            if (tokens == null) return;
+            for (int i = 0; i < tokens.Count; i++) if (tokens[i] != null && ReferenceEquals(tokens[i].zound, zound)) tokens[i].RefreshAllZpoc();
         }
 
         // ─────────────────────────── modifiers ───────────────────────────
@@ -635,7 +707,11 @@ namespace Laubrary.Zounds.Uitk {
             var r = Row();
             r.Add(Place(Text("Source " + pd.name.ToLower(), "Source-stage parameter (applied while reading the sample data, ahead of every effect). Right-click to change its modulation.", "zs-guilabel"),
                         G.GripW + 6f, 0f, G.LabelW, G.RowH));
-            r.Add(Place(Text("~ " + G.BoundBy(chain, -1, k), "Modulated by this modifier.", "zs-mini"), G.GripW + 6f + G.LabelW + 4f, 0f, 200f, G.RowH));
+            string ids = ZpocIdsOn(chain, -1, k);
+            r.Add(Place(ids != null
+                    ? Text("⚡ " + G.BoundBy(chain, -1, k), "Game code can move this, through ZPOC " + ids + ".", "zs-mini", "zs-zpoctext")
+                    : Text("~ " + G.BoundBy(chain, -1, k), "Modulated by this modifier.", "zs-mini"),
+                G.GripW + 6f + G.LabelW + 4f, 0f, 200f, G.RowH));
             r.RegisterCallback<PointerDownEvent>(e => {
                 if (e.button != 1) return;
                 G.ShowParamMenu(zound, ZoundDspPlayback.ResolveChain(zound, out _), -1, k, pd, false);
@@ -666,7 +742,9 @@ namespace Laubrary.Zounds.Uitk {
             nameField.AddToClassList("zs-namefield");
             nameField.RegisterValueChangedCallback(e => Modify("rename modifier", () => mod.name = e.newValue));
             r.Add(Place(nameField, typeX + 62f + 2f, 1f, 120f, G.RowH - 2f));
-            var targets = Place(Text("", "The parameters this modifier drives.", "zs-mini"), typeX + 62f + 2f + 120f + 6f, 0f, -1f, G.RowH);
+            float chipX = typeX + 62f + 2f + 120f + 6f;
+            r.Add(Place(ZpocChip(mod), chipX, 1f, ZpocChipW, G.RowH - 2f));
+            var targets = Place(Text("", "The parameters this modifier drives.", "zs-mini"), chipX + ZpocChipW + 6f, 0f, -1f, G.RowH);
             targets.style.right = G.RemoveW + 10f;
             r.Add(targets);
             refreshers.Add(() => {
@@ -680,6 +758,94 @@ namespace Laubrary.Zounds.Uitk {
                 () => Modify("remove modifier", () => { var ch = ZoundDspPlayback.ResolveChain(zound, out _); int mi = ch.modifiers.IndexOf(mod); if (mi >= 0) ch.RemoveModifier(mi); }),
                 ZUICornerMask.All, G.RemoveW, G.RowH - 2f), 0f, 1f, G.RemoveW, G.RowH - 2f));
             return r;
+        }
+
+        const float ZpocChipW = 150f;
+
+        /// <summary>The precedence order, stated wherever a code-driven value is shown (owner, 2026-09-29: "important that
+        /// it's clearly stated no matter what the order is").</summary>
+        internal const string ZpocPriority =
+            "Which value wins, highest first: one set on this play (or on the Zequence playing it), then a project-wide one, " +
+            "then where the ZPOC rests (the snapshot's value, else as authored). Modifiers then move the parameter from there.";
+
+        /// <summary>Where the value of one ZPOC comes from across every play of this sound: "play", "global", "rest", or
+        /// "mixed" when plays disagree. Empty when nothing plays.</summary>
+        string ZpocSourceOf(string id) {
+            var tokens = ZoundEngine.LiveTokens;
+            if (tokens == null) return "";
+            int seen = -1;
+            for (int i = 0; i < tokens.Count; i++) {
+                var t = tokens[i];
+                if (t == null || !ReferenceEquals(t.zound, zound) || t.state == ZoundToken.State.Killed) continue;
+                int src = (int)t.SourceOfZpoc(id);
+                if (src == (int)ZoundToken.ZpocSource.Parent) src = (int)ZoundToken.ZpocSource.Play;
+                if (seen == -1) seen = src; else if (seen != src) return "mixed";
+            }
+            return seen == (int)ZoundToken.ZpocSource.Play ? "play" : seen == (int)ZoundToken.ZpocSource.Global ? "global"
+                 : seen == (int)ZoundToken.ZpocSource.Rest ? "rest" : "";
+        }
+
+        /// <summary>
+        /// A modifier's ZPOC chip (T-0492): grey "⚡" when game code cannot reach it, amber "⚡ id" when it can. While the
+        /// sound plays, its fill shows the value code has it at (the spread across instances when several play) and it
+        /// flashes when a new value arrives. Click to set the id and how the value acts.
+        /// </summary>
+        VisualElement ZpocChip(ZoundModifier mod) {
+            var chip = new VisualElement();
+            chip.AddToClassList("zs-zpocchip");
+            var spread = new VisualElement { pickingMode = PickingMode.Ignore }; spread.AddToClassList("zs-zpocchip__spread");
+            var fill = new VisualElement { pickingMode = PickingMode.Ignore }; fill.AddToClassList("zs-zpocchip__fill");
+            var text = new Label { pickingMode = PickingMode.Ignore }; text.AddToClassList("zs-zpocchip__text");
+            text.style.position = Position.Absolute; text.style.left = 0; text.style.right = 0; text.style.top = 0; text.style.bottom = 0;
+            chip.Add(spread); chip.Add(fill); chip.Add(text);
+            chip.RegisterCallback<PointerDownEvent>(e => {
+                if (e.button != 0 && e.button != 1) return;
+                ZpocPopup.Show(chip.worldBound, zound, mod, () => { ZoundDspPlayback.InvalidateLayout(zound); schedule.Execute(Tick); });
+                e.StopPropagation();
+            });
+            var values = new float[32];
+            float lastSent = float.NaN, pulseUntil = 0f;
+            string Src(ZoundModifier m) { var src = m.HasZpoc ? ZpocSourceOf(m.zpocId) : ""; return src.Length > 0 ? " · " + src : ""; }
+            refreshers.Add(() => {
+                bool code = mod.type == ZoundModifierType.Code;
+                bool on = mod.HasZpoc;
+                chip.EnableInClassList("zs-zpocchip--on", on);
+                chip.tooltip = on
+                    ? "Game code reaches this modifier as '" + mod.zpocId + "': token.SetZpoc(\"" + mod.zpocId + "\", value). " +
+                      (code ? "Its output IS that value. " : mod.zpocMode == ZpocMode.Scale ? "Scale: the value scales how strongly it acts, as authored. " : "Set: the value is how strongly it acts. ") +
+                      "While the sound plays, the fill shows where code has it and it flashes when a new value arrives; the word after the value says where that value comes from (play, global or rest). " + ZpocPriority + " Click to change."
+                    : (code ? "This Code modifier has no id yet, so game code cannot reach it. Click to give it one."
+                            : "Game code cannot reach this modifier. Click to give it a ZPOC id, so code can turn it up and down while the sound plays.");
+            });
+            liveRefreshers.Add(() => {
+                var ch = ZoundDspPlayback.ResolveChain(zound, out _);
+                int mi = ch != null ? ch.modifiers.IndexOf(mod) : -1;
+                string name = mod.HasZpoc ? "⚡ " + mod.zpocId : "⚡";
+                var sum = mi >= 0 && (mod.HasZpoc || mod.type == ZoundModifierType.Code) ? SapVoiceRegistry.ReadModifierControl(zound, mi, values) : default;
+                if (sum.count == 0) {
+                    text.text = name; fill.style.display = DisplayStyle.None; spread.style.display = DisplayStyle.None;
+                    lastSent = float.NaN;
+                }
+                else {
+                    // A Code modifier's control is its value; any other's is the multiplier on its depths, shown as a share.
+                    float w = chip.resolvedStyle.width; if (float.IsNaN(w)) w = ZpocChipW;
+                    float lo = Mathf.Clamp01(sum.lo), hi = Mathf.Clamp01(sum.hi);
+                    fill.style.display = sum.count == 1 ? DisplayStyle.Flex : DisplayStyle.None;
+                    fill.style.width = w * lo;
+                    if (sum.count > 1) {
+                        spread.style.display = DisplayStyle.Flex; spread.style.left = w * lo; spread.style.width = Mathf.Max(1f, w * (hi - lo));
+                        text.text = name + " " + Short(sum.lo) + "–" + Short(sum.hi) + " ×" + sum.count + Src(mod);
+                    }
+                    else {
+                        spread.style.display = DisplayStyle.None;
+                        text.text = name + " " + Short(sum.lo) + Src(mod);
+                    }
+                    if (!float.IsNaN(lastSent) && sum.sentSignature != lastSent) pulseUntil = Time.realtimeSinceStartup + ZuiLiveOverlay.PulseSeconds;
+                    lastSent = sum.sentSignature;
+                }
+                chip.EnableInClassList("zs-zpocchip--pulse", Time.realtimeSinceStartup < pulseUntil);
+            });
+            return chip;
         }
 
         List<G.ParamUnit> ModifierUnits(ZoundEffectChain chain, int m, ZoundModifier mod, ModifierDesc desc) {

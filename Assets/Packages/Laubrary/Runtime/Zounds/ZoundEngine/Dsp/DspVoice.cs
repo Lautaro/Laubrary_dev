@@ -280,7 +280,7 @@ namespace Laubrary.Zounds.Dsp {
         /// <summary>
         /// Main thread: pushes one live parameter edit (a slider drag) into this voice only — the shared
         /// layout is never touched, since other voices may be playing the same chain. A parameter a
-        /// modifier binding owns is refused: the next control block would just overwrite it anyway.
+        /// modifier binding owns takes it as where the modifier starts from (see SapVoiceRender.ApplyLiveParam).
         /// </summary>
         internal void PushLiveParam(int flatIndex, float value) {
             SapVoiceRender.ApplyLiveParam(ref sap, in sapLayout, flatIndex, value);

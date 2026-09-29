@@ -363,6 +363,133 @@ namespace Laubrary.Zounds.Dsp {
             return false;
         }
 
+        /// <summary>What every playing voice of a sound is doing to one parameter, for the editor's live display (T-0492).</summary>
+        public struct LiveParamSummary {
+            /// <summary>How many voices answered; the rest of the fields mean nothing when it is nought.</summary>
+            public int count;
+            public float lo, hi;
+            /// <summary>Some ZPOC-exposed or Code modifier bound to this parameter sits away from where it rests in at least
+            /// one voice: game code is what has moved it.</summary>
+            public bool driven;
+            /// <summary>Some such modifier is still easing towards a value code sent.</summary>
+            public bool moving;
+            /// <summary>Changes whenever code sends a new value to any of these voices (for a pulse).</summary>
+            public float sentSignature;
+            /// <summary>With one voice: where the parameter settles once every code value it is easing to has arrived.</summary>
+            public float target;
+            public bool hasTarget;
+        }
+
+        /// <summary>
+        /// Reads one parameter from every voice playing <paramref name="zound"/>: the live values (into
+        /// <paramref name="values"/>, up to its length) and whether game code is driving it. Each voice is read against the
+        /// layout IT started with. No allocation. Display use only (unsynchronised reads, like <see cref="TryReadLiveParam"/>).
+        /// </summary>
+        public static LiveParamSummary ReadLiveParam(Zound zound, int nodeIndex, int paramIndex, float[] values) {
+            var s = new LiveParamSummary { lo = float.MaxValue, hi = float.MinValue };
+            if (zound == null) return s;
+            for (int i = live.Count - 1; i >= 0; i--) {
+                var g = live[i];
+                if (g == null) { live.RemoveAt(i); continue; }
+                if (!ReferenceEquals(g.playingZound, zound) || !g.IsPlaying) continue;
+                var L = g.playingLayout;
+                int flat = FlatIndexOf(L, nodeIndex, paramIndex);
+                if (flat < 0 || !g.TryReadLiveParam(flat, out float v)) continue;
+                if (values != null && s.count < values.Length) values[s.count] = v;
+                s.count++;
+                if (v < s.lo) s.lo = v; if (v > s.hi) s.hi = v;
+
+                if (L == null || !L.hasZpoc && !HasCode(L)) continue;
+                // Driven: a code-reachable modifier bound here sits away from its resting control.
+                float settle = L.pBase[flat];
+                bool anyCode = false;
+                for (int b = 0; b < L.bindCount; b++) {
+                    if (L.bindTarget[b] != flat) continue;
+                    int m = L.bindModifier[b];
+                    bool code = L.modType[m] == ZoundModifierType.Code;
+                    bool reach = code || L.modZpocKey[m] != null;
+                    g.TryReadModifierState(m, out float ctl, out float sent, out float output);
+                    if (reach) {
+                        anyCode = true;
+                        if (Mathf.Abs(ctl - L.modCtlInit[m]) > 1e-4f || Mathf.Abs(sent - L.modCtlInit[m]) > 1e-4f) s.driven = true;
+                        if (Mathf.Abs(sent - ctl) > 1e-3f) s.moving = true;
+                        s.sentSignature += sent * (m + 1) * 1.618f;
+                    }
+                    // Where the parameter settles once code's values have arrived: code modifiers at what was sent,
+                    // everything else at its latest output.
+                    float signal = code ? sent : output;
+                    float depth = code ? L.bindDepth[b] : L.bindDepth[b] * (reach ? sent : ctl);
+                    settle = ModulationMath.Apply(L.bindCombine[b], settle, signal, depth, L.pMin[flat], L.pMax[flat], L.pRatio[flat]);
+                }
+                if (anyCode) { s.target = Mathf.Clamp(settle, L.pMin[flat], L.pMax[flat]); s.hasTarget = true; }
+            }
+            if (s.count != 1) s.hasTarget = false;
+            return s;
+        }
+
+        /// <summary>
+        /// Editor touch override (T-0492): puts every code-reachable modifier bound to one parameter back at its resting
+        /// control in every voice playing <paramref name="zound"/>, so a slider held by hand is heard as dragged. The token's
+        /// values are untouched; re-applying them (ZoundToken.RefreshAllZpoc) hands the parameter back to code.
+        /// </summary>
+        internal static void RestCodeOn(Zound zound, int nodeIndex, int paramIndex) {
+            if (zound == null) return;
+            for (int i = live.Count - 1; i >= 0; i--) {
+                var g = live[i];
+                if (g == null || !ReferenceEquals(g.playingZound, zound) || !g.IsPlaying) continue;
+                var L = g.playingLayout;
+                int flat = FlatIndexOf(L, nodeIndex, paramIndex);
+                if (L == null || flat < 0) continue;
+                for (int b = 0; b < L.bindCount; b++) {
+                    if (L.bindTarget[b] != flat) continue;
+                    int m = L.bindModifier[b];
+                    if (L.modType[m] == ZoundModifierType.Code || L.modZpocKey[m] != null) g.SetModifierControlLive(m, L.modCtlInit[m]);
+                }
+            }
+        }
+
+        static bool HasCode(ChainLayout L) {
+            for (int m = 0; m < L.modCount; m++) if (L.modType[m] == ZoundModifierType.Code) return true;
+            return false;
+        }
+
+        /// <summary>What every playing voice of a sound has one modifier's ZPOC control at (for the modifier's own meter).</summary>
+        public struct ModifierControlSummary {
+            public int count;
+            /// <summary>The eased values, lowest and highest across voices, in the 0..1 that game code sends (for a Code
+            /// modifier its output; for any other the value its ZPOC is at).</summary>
+            public float lo, hi;
+            /// <summary>The values last sent, lowest and highest.</summary>
+            public float sentLo, sentHi;
+            public bool moving;
+            public float sentSignature;
+        }
+
+        public static ModifierControlSummary ReadModifierControl(Zound zound, int modifier, float[] values) {
+            var s = new ModifierControlSummary { lo = float.MaxValue, hi = float.MinValue, sentLo = float.MaxValue, sentHi = float.MinValue };
+            if (zound == null || modifier < 0) return s;
+            for (int i = live.Count - 1; i >= 0; i--) {
+                var g = live[i];
+                if (g == null) { live.RemoveAt(i); continue; }
+                if (!ReferenceEquals(g.playingZound, zound) || !g.IsPlaying) continue;
+                var L = g.playingLayout;
+                if (L == null || modifier >= L.modCount) continue;
+                if (!g.TryReadModifierState(modifier, out float ctl, out float sent, out _)) continue;
+                // Shown as the ZPOC value code speaks in (0..1), not the internal multiplier: Set divided it by the
+                // strongest authored depth, so multiply back.
+                if (L.modType[modifier] != ZoundModifierType.Code && L.modZpocMode[modifier] == ZpocMode.Set) {
+                    ctl *= L.modMaxDepth[modifier]; sent *= L.modMaxDepth[modifier];
+                }
+                if (values != null && s.count < values.Length) values[s.count] = ctl;
+                s.count++;
+                if (ctl < s.lo) s.lo = ctl; if (ctl > s.hi) s.hi = ctl;
+                if (sent < s.sentLo) s.sentLo = sent; if (sent > s.sentHi) s.sentHi = sent;
+                if (Mathf.Abs(sent - ctl) > 1e-3f) s.moving = true;
+                s.sentSignature += sent;
+            }
+            return s;
+        }
+
         /// <summary>
         /// Whether any voice is currently playing <paramref name="zound"/>. Cheap enough to ask every editor tick, which is
         /// what it is for: a window has to know a sound STARTED before it can know to keep redrawing, and it cannot learn

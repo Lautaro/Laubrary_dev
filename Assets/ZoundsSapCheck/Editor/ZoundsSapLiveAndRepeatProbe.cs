@@ -121,7 +121,9 @@ public static class ZoundsSapLiveAndRepeatProbe {
         failures += Check(sb, "a live pitch change leaves everything before it untouched",
                           Worst(pitchUntouched, pitchLateChange, 2 * BLOCK), 0f);
 
-        // A parameter a modifier drives must refuse a live change.
+        // A parameter a modifier drives: a live change moves where the modifier starts from (T-0492), so it is heard at
+        // once and the modifier keeps moving it from there. It used to be refused, which meant dragging a modulated
+        // slider while the sound played did nothing until the next play.
         var modulated = new ZoundEffectChain();
         modulated.nodes.Add(new ZoundEffectNode(ZoundEffectType.Gain));
         var mod = new ZoundModifier(ZoundModifierType.Lfo);
@@ -132,8 +134,10 @@ public static class ZoundsSapLiveAndRepeatProbe {
         });
         var modPlain = Render(modulated, src, null, 0, 0f, out int mpFrames);
         var modPoked = Render(modulated, src, null, 2, 0.5f, out int mkFrames);
-        failures += Check(sb, "a live change to a modifier-driven parameter is refused",
-                          Worst(modPlain, modPoked, Mathf.Min(mpFrames, mkFrames)), 0f);
+        failures += Check(sb, "a live change to a modifier-driven parameter is heard",
+                          -Worst(modPlain, modPoked, Mathf.Min(mpFrames, mkFrames)), -1e-3f);
+        failures += Check(sb, "a live change to a modifier-driven parameter leaves everything before it untouched",
+                          Worst(modPlain, modPoked, 2 * BLOCK), 0f);
 
         sb.Append(failures == 0 ? "\nVERDICT: every check passed.\n" : "\nVERDICT: " + failures + " check(s) FAILED.\n");
         var result = sb.ToString();

@@ -193,6 +193,23 @@ public static class ZoundsZpocCheck {
             Check(ZpocIndex.Declares(klip, ZpocKeys.Key("wob-ble")) && !ZpocIndex.Declares(klip, ZpocKeys.Key("throttle")), "8. a Zound knows which ids it declares");
         }
 
+        // ── 9: the multi-instance spread's ballistics (the editor display, T-0492) ──
+        {
+            float lo = 0.4f, hi = 0.6f;
+            Laubrary.Zui.ZuiLiveOverlay.Ballistics(ref lo, ref hi, 0.1f, 0.9f, 0.016f, 0.3f);
+            Check(lo == 0.1f && hi == 0.9f, "9. the spread widens at once when an instance moves further out");
+            float lo2 = 0.1f, hi2 = 0.9f;
+            Laubrary.Zui.ZuiLiveOverlay.Ballistics(ref lo2, ref hi2, 0.4f, 0.6f, 0.3f, 0.3f);
+            float closed = (hi2 - 0.9f) / (0.6f - 0.9f);
+            Check(Mathf.Abs(closed - (1f - Mathf.Exp(-1f))) < 1e-3f && Mathf.Abs((lo2 - 0.1f) / 0.3f - closed) < 1e-3f,
+                  "9. it narrows back slowly: about 63% of the way in one release time (" + (closed * 100f).ToString("F1") + "%)");
+            float a = 0.1f, b = 0.9f;
+            for (int i = 0; i < 60; i++) Laubrary.Zui.ZuiLiveOverlay.Ballistics(ref a, ref b, 0.4f, 0.6f, 1f / 60f, 0.3f);
+            float c = 0.1f, d = 0.9f;
+            for (int i = 0; i < 20; i++) Laubrary.Zui.ZuiLiveOverlay.Ballistics(ref c, ref d, 0.4f, 0.6f, 3f / 60f, 0.3f);
+            Check(Mathf.Abs(a - c) < 1e-4f && Mathf.Abs(b - d) < 1e-4f, "9. the narrowing does not depend on the redraw rate");
+        }
+
         sb.Insert(0, fail == 0 ? "PASS - ZPOC modifier amount, Code modifier and easing.\n" : "FAIL - " + fail + " problem(s).\n");
         return sb.ToString();
     }

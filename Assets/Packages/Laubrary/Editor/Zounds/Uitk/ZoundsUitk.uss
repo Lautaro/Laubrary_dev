@@ -73,6 +73,23 @@
 /* The chain's reserved error row and a setting's warning mark (colour 0.97, 0.8, 0.4) */
 .zs-root .zs-warntext { color: rgb(247,204,102); }
 .zs-root .zs-warnmark { color: rgb(247,204,102); -unity-text-align: middle-center; padding: 0; }
+/* ZPOC (T-0492): amber means "game code can drive / is driving this". Warmer and more saturated than the warning
+   yellow above, so it never reads as a problem. The ⌁ mark replaces the grey ~ on a parameter a ZPOC reaches. */
+.zs-root .zs-zpocmark { color: rgb(255,150,40); -unity-text-align: middle-center; padding: 0; font-size: 10px; text-overflow: clip; overflow: visible; }
+.zs-root .zs-zpoctext { color: rgb(255,150,40); }
+/* The chip on a modifier card: grey outline when the modifier is not exposed, amber when it is; its fill shows the value
+   code has it at while the sound plays, and it brightens briefly each time a new value arrives. */
+.zs-root .zs-zpocchip {
+    border-width: 1px; border-color: rgba(128,128,128,0.55);
+    border-top-left-radius: 3px; border-top-right-radius: 3px; border-bottom-left-radius: 3px; border-bottom-right-radius: 3px;
+    overflow: hidden; background-color: rgba(0,0,0,0.15);
+}
+.zs-root .zs-zpocchip--on { border-color: rgba(255,150,40,0.85); }
+.zs-root .zs-zpocchip--pulse { background-color: rgba(255,150,40,0.35); }
+.zs-root .zs-zpocchip__fill { position: absolute; left: 0; top: 0; bottom: 0; background-color: rgba(255,150,40,0.3); }
+.zs-root .zs-zpocchip__spread { position: absolute; top: 0; bottom: 0; background-color: rgba(255,150,40,0.18); }
+.zs-root .zs-zpocchip__text { font-size: 10px; color: rgb(150,150,150); -unity-text-align: middle-left; padding: 0 4px 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.zs-root .zs-zpocchip--on .zs-zpocchip__text { color: rgb(255,170,70); }
 /* A modifier curve's caption (size 10, 0.8/0.8/0.86) and end labels (size 9, 0.62/0.62/0.68) */
 .zs-root .zs-curvecap { font-size: 10px; color: rgb(204,204,219); -unity-text-align: upper-left; padding: 0 2px 0 2px; }
 .zs-root .zs-curvelabel { font-size: 9px; color: rgb(158,158,173); -unity-text-align: upper-left; padding: 0 2px 0 2px; }
