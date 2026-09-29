@@ -54,6 +54,18 @@ namespace Laubrary.Zounds.Checks.EditorTools {
         /// </summary>
         public static string StartBuildWithoutAddressables() => StartBuild(true);
 
+        /// <summary>
+        /// For a batch-mode editor (-batchmode -quit -executeMethod ...BuildFromCommandLine): builds at once rather than on
+        /// the next editor update, which a batch process quits before reaching. Meant for a clean copy of the project, so a
+        /// build never has to get past anyone's unsaved scene. Without the addressable step, as above.
+        /// </summary>
+        public static void BuildFromCommandLine() {
+            s_withoutAddressables = true;
+            Directory.CreateDirectory(BuildRoot);
+            File.WriteAllText(StatusPath, "command line " + DateTime.Now.ToString("HH:mm:ss") + "\n");
+            RunBuild();
+        }
+
         private const string AddressablesWithPlayerPref = "Addressables.BuildAddressablesWithPlayerBuild";
         private static bool s_withoutAddressables;
 
