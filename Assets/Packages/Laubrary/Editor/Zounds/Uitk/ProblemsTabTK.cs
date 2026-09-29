@@ -95,11 +95,15 @@ namespace Laubrary.Zounds.Uitk {
             var count = Cell(CountText(e), CountW, null);
             var ago = Cell(Ago(now - e.lastSeen), AgoW, null);
             r.Add(count); r.Add(ago);
-            bool exists = !string.IsNullOrEmpty(e.zound) && e.kind != ZoundDiagnostics.Kind.MissingZound
-                          && ZoundsProject.isJSONLoaded && ZoundDictionary.TryGetZoundByName(e.zound, out _);
+            // A missing sound that has been created since (the browser's Missing list drops it then) says so, and opens.
+            bool nowExists = e.kind == ZoundDiagnostics.Kind.MissingZound && ZoundsProject.isJSONLoaded && ZoundDictionary.TryGetZoundByName(e.detail, out _);
+            string target = nowExists ? e.detail : e.zound;
+            bool exists = nowExists || (!string.IsNullOrEmpty(e.zound) && e.kind != ZoundDiagnostics.Kind.MissingZound
+                          && ZoundsProject.isJSONLoaded && ZoundDictionary.TryGetZoundByName(e.zound, out _));
+            if (nowExists) { ((Label)r.ElementAt(0)).text = "Sound added since"; r.ElementAt(0).tooltip = "Game code asked for this sound before it existed. A sound by that name exists now."; }
             var open = ZS.Button("Open", exists ? "Opens this sound's editor, to add what was asked for or correct the name game code uses."
                                                 : "There is no sound by this name to open: the name game code used is the problem.",
-                "RichButton", () => OpenZound(e.zound), ZUICornerMask.All, BtnW, RowH - 2f);
+                "RichButton", () => OpenZound(target), ZUICornerMask.All, BtnW, RowH - 2f);
             open.SetEnabled(exists);
             r.Add(open);
             r.Add(ZequenceEditorWindowTK.Gap(3f));
