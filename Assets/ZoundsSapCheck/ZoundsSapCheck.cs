@@ -70,6 +70,7 @@ namespace Laubrary.Zounds.Checks {
         private void Start() {
             if (HasArg("-zoundsGcReport")) { StartCoroutine(GcReport()); return; }
             if (HasArg("-zoundsZpocReport")) { StartCoroutine(ZpocReport()); return; }
+            if (HasArg("-zoundsQuitWhilePlaying")) { StartCoroutine(QuitWhilePlaying(HasArg("-stopFirst"))); return; }
             if (WantsHeadlessReport()) { WriteHeadlessReport(); return; }
             Play();
         }
@@ -201,6 +202,32 @@ namespace Laubrary.Zounds.Checks {
             try { System.IO.File.WriteAllText(path, sb.ToString()); } catch (System.Exception e) { Debug.LogError(e.Message); }
             Debug.Log("[Zounds] " + sb);
             Application.Quit(pass ? 0 : 5);
+        }
+
+        /// <summary>
+        /// Quitting a player while a voice is still playing (found 2026-09-29: both report modes crash on exit, after their
+        /// report is written, and the headless mode that plays nothing does not). Plays the tone for a second, then quits,
+        /// with no garbage made; with -stopFirst the voice is stopped a few frames before quitting, to tell the two apart.
+        /// </summary>
+        private System.Collections.IEnumerator QuitWhilePlaying(bool stopFirst) {
+            AudioListener.volume = 0.05f;
+            Play();
+            // Subscribed after the engine's own quit teardown, so this reports what that teardown left behind.
+            Application.quitting += () => {
+                // The render counter is odd while a block runs and even between blocks; read twice to see if it still moves.
+                var f = typeof(ZoundSapVoiceGenerator).GetField("renderTicket", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                long T() { try { var t = (Unity.Collections.NativeArray<long>)f.GetValue(generator); return t.IsCreated ? t[0] : -1; } catch { return -2; } }
+                long t1 = T(); System.Threading.Thread.Sleep(50); long t2 = T();
+                Debug.Log("[Zounds] at quit, after the engine's teardown: registered voices " + SapVoiceRegistry.Count
+                    + ", teardown flag " + SapVoiceRegistry.Quitting + ", this voice playing " + (generator != null && generator.IsPlaying)
+                    + ", render counter " + t1 + " then " + t2 + " 50 ms later");
+            };
+            for (float t = 0; t < 1f; t += Time.unscaledDeltaTime) yield return null;
+            if (stopFirst) {
+                generator.StopLive(); source.Stop();
+                for (float t = 0; t < 0.3f; t += Time.unscaledDeltaTime) yield return null;
+            }
+            Application.Quit(0);
         }
 
         /// <summary>One frame of game code: a new throttle for every driven voice, each on its own slow wave.</summary>

@@ -518,7 +518,9 @@ namespace Laubrary.Zounds.Dsp {
         internal bool DestroyAfterQuiet() {
             if (!hasInstance) return false;
             var control = ControlContext.builtIn;
-            if (!control.Exists(instance)) { hasInstance = false; return false; }
+            // Already gone: the audio system destroyed it itself (it does when its audio source stops). Nothing is left
+            // to destroy, but it must still leave the list of live sounds.
+            if (!control.Exists(instance)) { hasInstance = false; SapVoiceRegistry.Unregister(this); return false; }
 
             // Flushed first, so a change sent a moment ago cannot still be in flight towards something that is about
             // to stop existing.
