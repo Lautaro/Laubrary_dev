@@ -96,6 +96,9 @@ namespace Laubrary.Zounds {
             }
         }
 
+        /// <summary>A track disabled on this play's root token (T-0497): never picked.</summary>
+        private bool Off(CompositeZound.ZoundEntry entry) => args.settingsRoot != null && args.settingsRoot.IsTrackDisabled(entry);
+
         private void InitRuntimeZoundEntries(Zequence zequence) {
             runtimeZoundEntries = new List<RuntimeZoundEntry>();
             foreach (var entry in zequence.zoundEntries) {
@@ -110,10 +113,11 @@ namespace Laubrary.Zounds {
                     entryIndexToPlay = zequence.zoundEntries.FindIndex(e => e == args.soloOverride);
                 }
                 else if (zequence.mode == CompositeZound.Mode.Randomizer) {
+                    // A track disabled on this play's token (T-0497) weighs nothing: it is never the one picked.
                     int totalWeight = zequence.noPlayWeight;
                     for (int i = 0; i < zequence.zoundEntries.Count; i++) {
                         var entry = zequence.zoundEntries[i];
-                        totalWeight += entry.chanceWeight;
+                        totalWeight += Off(entry) ? 0 : entry.chanceWeight;
                     }
                     int accumulativeWeight = zequence.noPlayWeight;
                     int rand = Random.Range(0, totalWeight);
@@ -123,7 +127,7 @@ namespace Laubrary.Zounds {
                     else {
                         for (int i = 0; i < zequence.zoundEntries.Count; i++) {
                             var entry = zequence.zoundEntries[i];
-                            accumulativeWeight += entry.chanceWeight;
+                            accumulativeWeight += Off(entry) ? 0 : entry.chanceWeight;
                             if (rand < accumulativeWeight) {
                                 entryIndexToPlay = i;
                                 break;
@@ -135,19 +139,32 @@ namespace Laubrary.Zounds {
                     // When every entry has played the set resets; the first pick of the new cycle then
                     // excludes the entry that played last, so the same entry never plays twice in a row
                     // across the seam.
+                    // Only enabled tracks take part (T-0497). A disabled track is skipped and NOT counted as played: the
+                    // round-robin memory belongs to the Zequence and is shared by every play of it, so one token disabling a
+                    // track must not use up that track's turn for everyone else.
+                    int enabledCount = 0, unplayed = 0;
+                    for (int i = 0; i < runtimeZoundEntries.Count; i++) {
+                        if (Off(zequence.zoundEntries[i])) continue;
+                        enabledCount++;
+                        if (!zequence.playedEntries.Contains(i)) unplayed++;
+                    }
                     int excluded = -1;
-                    if (zequence.playedEntries.Count >= runtimeZoundEntries.Count) {
+                    if (enabledCount > 0 && unplayed == 0) {
                         zequence.playedEntries.Clear();
-                        if (runtimeZoundEntries.Count > 1) excluded = zequence.lastRoundRobinIndex;
+                        if (enabledCount > 1) excluded = zequence.lastRoundRobinIndex;
                     }
 
-                    if (runtimeZoundEntries.Count > 0) {
+                    if (enabledCount > 0) {
                         int attempts = 0;
                         do {
                             entryIndexToPlay = Random.Range(0, runtimeZoundEntries.Count);
                             attempts++;
-                        } while ((zequence.playedEntries.Contains(entryIndexToPlay) || entryIndexToPlay == excluded) && attempts < 100);
-
+                        } while ((Off(zequence.zoundEntries[entryIndexToPlay]) || zequence.playedEntries.Contains(entryIndexToPlay) || entryIndexToPlay == excluded) && attempts < 200);
+                        if (Off(zequence.zoundEntries[entryIndexToPlay])) {
+                            // Unlucky draws: take the first enabled, unplayed track in order instead of a disabled one.
+                            for (int i = 0; i < runtimeZoundEntries.Count; i++)
+                                if (!Off(zequence.zoundEntries[i]) && !zequence.playedEntries.Contains(i) && i != excluded) { entryIndexToPlay = i; break; }
+                        }
                         zequence.playedEntries.Add(entryIndexToPlay);
                         zequence.lastRoundRobinIndex = entryIndexToPlay;
                     }
@@ -156,11 +173,16 @@ namespace Laubrary.Zounds {
                     }
                 }
                 else if (zequence.mode == CompositeZound.Mode.Playlist) {
-                    if (zequence.currentEntryIndexToPlay >= runtimeZoundEntries.Count) {
-                        zequence.currentEntryIndexToPlay = 0;
+                    // Steps on past disabled tracks (T-0497); plays nothing when every track is disabled.
+                    entryIndexToPlay = -1;
+                    for (int tries = 0; tries < runtimeZoundEntries.Count; tries++) {
+                        if (zequence.currentEntryIndexToPlay >= runtimeZoundEntries.Count) {
+                            zequence.currentEntryIndexToPlay = 0;
+                        }
+                        int i = zequence.currentEntryIndexToPlay;
+                        zequence.currentEntryIndexToPlay++;
+                        if (!Off(zequence.zoundEntries[i])) { entryIndexToPlay = i; break; }
                     }
-                    entryIndexToPlay = zequence.currentEntryIndexToPlay;
-                    zequence.currentEntryIndexToPlay++;
                 }
             }
         }
@@ -297,7 +319,8 @@ namespace Laubrary.Zounds {
                     ignoreCooldown = args.ignoreCooldown,
                     repeatEntry = data.repeatEnabled ? data : null,
                     pitchRandomFactor = pitchRandomFactor,
-                    volumeRandomFactor = volumeRandomFactor
+                    volumeRandomFactor = volumeRandomFactor,
+                    settingsRoot = args.settingsRoot,
                 };
 
                 runtimeEntry.token = ZoundEngine.PlayZound(childZound, entryArgs);
@@ -392,6 +415,22 @@ namespace Laubrary.Zounds {
         }
 
         private void UpdateChildrenMute() {
+            UpdateChildrenMuteAuthored();
+            // Then this play's own track settings (T-0497): a muted or soloed track on the token, and pitch and speed.
+            var root = args.settingsRoot;
+            if (root == null || runtimeZoundEntries == null) return;
+            bool anySolo = false;
+            foreach (var re in runtimeZoundEntries) { var t = root.TrackSettingsFor(re.entryData, false); if (t != null && t.solo) { anySolo = true; break; } }
+            foreach (var re in runtimeZoundEntries) {
+                if (re.token == null || re.token.state == ZoundToken.State.Killed || re.token.audioSource == null) continue;
+                var t = root.TrackSettingsFor(re.entryData, false);
+                if (t == null && !anySolo) continue;
+                if ((t != null && t.mute) || (anySolo && (t == null || !t.solo))) re.token.audioSource.mute = true;
+                if (t != null) { re.token.livePitch = t.pitch; re.token.trackSpeed = t.speed; }
+            }
+        }
+
+        private void UpdateChildrenMuteAuthored() {
             if (args.soloOverride != null) {
                 foreach (var runtimeEntry in runtimeZoundEntries) {
                     if (runtimeEntry.token != null && runtimeEntry.token.state != ZoundToken.State.Killed) {
@@ -463,6 +502,8 @@ namespace Laubrary.Zounds {
                         else {
                             multiplier = masterVolume;
                         }
+                        var ts = args.settingsRoot != null ? args.settingsRoot.TrackSettingsFor(runtimeEntry.entryData, false) : null;
+                        if (ts != null) { float now = Time.realtimeSinceStartup; multiplier *= ts.Gain(now) * ts.EnableGain(now); }
                         runtimeToken.parentVolume = multiplier;
                     }
                 }

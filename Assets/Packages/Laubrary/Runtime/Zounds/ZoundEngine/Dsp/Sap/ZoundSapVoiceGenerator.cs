@@ -296,6 +296,8 @@ namespace Laubrary.Zounds.Dsp {
             this.authoredSpeed = authoredSpeed;
             tokenSpeed = 1f;
             playingZound = zound;
+            // A new play: no ZPOC control carried over from whatever this component played before.
+            System.Array.Clear(pendingCtlSet, 0, pendingCtlSet.Length);
             this.clip = clip;
             this.layout = layout;
             this.startFrame = startFrame;
@@ -337,6 +339,13 @@ namespace Laubrary.Zounds.Dsp {
                                             stretch, baseSpeed);
             if (repeat.enabled) voice.SetRepeat(in repeat);
             if (loop && clip != null) voice.SetLoopCrossmix(loopCrossMin * clip.frequency, loopCrossMax * clip.frequency);
+            // ZPOC values sent before the graph made this instance (a token set before Play, a project-wide value, a track
+            // linked to its Zequence's token, a token played again) go straight into the voice, so its first block has them.
+            for (int m = 0; m < pendingCtlSet.Length && m < voice.sap.modCtlLive.Length; m++) {
+                if (!pendingCtlSet[m]) continue;
+                voice.sap.modCtlLive[m] = pendingCtl[m];
+                voice.sap.modCtlTarget[m] = pendingCtl[m];
+            }
             created = true;
             handedOff = true;
             instance = context.AllocateGenerator(voice, new Control { declaredSampleRate = preparedSampleRate });
@@ -376,7 +385,15 @@ namespace Laubrary.Zounds.Dsp {
         public bool SetParameterLive(int flatIndex, float value) => Send(SapVoiceCommand.Parameter(flatIndex, value));
 
         /// <summary>ZPOC: sends one modifier's control value (already converted by the layout, see ChainLayout.ControlFor).</summary>
-        public bool SetModifierControlLive(int modifier, float control) => Send(SapVoiceCommand.ModifierControl(modifier, control));
+        public bool SetModifierControlLive(int modifier, float control) {
+            // Remembered as well as sent: before the graph has made this voice there is nothing to send it to, and the
+            // value is then written into the voice as it is made (see CreateInstance).
+            if (modifier >= 0 && modifier < pendingCtl.Length) { pendingCtl[modifier] = control; pendingCtlSet[modifier] = true; }
+            return Send(SapVoiceCommand.ModifierControl(modifier, control));
+        }
+
+        readonly float[] pendingCtl = new float[ZoundDspConstants.MAX_MODIFIERS];
+        readonly bool[] pendingCtlSet = new bool[ZoundDspConstants.MAX_MODIFIERS];
 
         /// <summary>
         /// ZPOC: the control value the engine is using right now for one modifier (eased, so between what was sent and

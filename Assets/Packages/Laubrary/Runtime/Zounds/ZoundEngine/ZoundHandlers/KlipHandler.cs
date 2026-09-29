@@ -179,9 +179,32 @@ namespace Laubrary.Zounds {
         /// <summary>This play's speed from game code (ZoundToken.liveSpeed), sent to the playing voice (T-0409).</summary>
         public override float liveSpeed {
             get => m_liveSpeed;
-            set { m_liveSpeed = value; if (m_chainPath && m_voice != null) m_voice.SetTokenSpeedLive(value); }
+            set { m_liveSpeed = value; if (m_chainPath && m_voice != null) m_voice.SetTokenSpeedLive(m_liveSpeed * m_trackSpeed); }
         }
         private float m_liveSpeed = 1f;
+
+        /// <summary>A track's speed from its token's track settings (T-0497), on top of the token's live speed.</summary>
+        public override float trackSpeed {
+            get => m_trackSpeed;
+            set {
+                if (value == m_trackSpeed) return;
+                m_trackSpeed = value;
+                if (m_chainPath && m_voice != null) m_voice.SetTokenSpeedLive(m_liveSpeed * m_trackSpeed);
+            }
+        }
+        private float m_trackSpeed = 1f;
+
+        /// <summary>A track's pitch from its token's track settings (T-0497): the voice reads the source that much faster.</summary>
+        public override float livePitch {
+            get => m_livePitch;
+            set {
+                if (value == m_livePitch) return;
+                m_livePitch = value;
+                if (m_chainPath && m_voice != null) m_voice.SetPitchLive(basePitch * m_livePitch);
+                else if (audioSource != null) audioSource.pitch = basePitch * m_livePitch;
+            }
+        }
+        private float m_livePitch = 1f;
 
         // ───────────── live edits of the sound's volume and pitch ranges (Looper live-edit fix, 2026-09-29) ─────────────
         //
@@ -236,7 +259,7 @@ namespace Laubrary.Zounds {
                 bool lengthOpen = zound.IsLooper || m_voice.HasLiveSpeed;
                 if (m_pitchT >= 0f && lengthOpen) {
                     basePitch = Mathf.Lerp(m_seenMinPitch, m_seenMaxPitch, m_pitchT);
-                    m_voice.SetPitchLive(basePitch);
+                    m_voice.SetPitchLive(basePitch * m_livePitch);
                 }
             }
         }

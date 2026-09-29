@@ -20,6 +20,12 @@ namespace Laubrary.Zounds {
         // every existing sound is unchanged. Managed pipeline only - a native-DSP voice does not read it yet.
         float liveVolume { get; set; }
         float liveSpeed { get; set; }
+        /// <summary>A track's volume from its token's track settings (T-0497), multiplied into every volume write.</summary>
+        float trackVolume { get; set; }
+        /// <summary>A track's speed multiplier from its token (T-0497), on top of the token's own live speed.</summary>
+        float trackSpeed { get; set; }
+        /// <summary>A track's pitch multiplier from its token (T-0497).</summary>
+        float livePitch { get; set; }
         int playedEntryIndex { get; }
         bool isRealtime { get; }
         System.Action onPlayStarted { get; set; }
@@ -78,6 +84,9 @@ namespace Laubrary.Zounds {
         public float liveVolume { get; set; } = 1f;
         // See ZoundToken.liveSpeed. Only a sound playing through the chain with live speed on hears it (KlipHandler).
         public virtual float liveSpeed { get; set; } = 1f;
+        public float trackVolume { get; set; } = 1f;
+        public virtual float trackSpeed { get; set; } = 1f;
+        public virtual float livePitch { get; set; } = 1f;
         public virtual bool isRealtime => false;
         public System.Action onPlayStarted { get; set; }
 
@@ -276,7 +285,7 @@ namespace Laubrary.Zounds {
             if (fadeState == FadeState.FadingOut) {
                 float t = (currentTime - fadeStartTime) / fadeDuration;
                 t = Mathf.Clamp01(t);
-                m_audioSource.volume = parentVolume * liveVolume * Mathf.Lerp(fadeInitialVolume * ZoundEngine.GetMasterVolume(), 0, t);
+                m_audioSource.volume = parentVolume * liveVolume * trackVolume * Mathf.Lerp(fadeInitialVolume * ZoundEngine.GetMasterVolume(), 0, t);
                 float endTime = fadeStartTime + fadeDuration - Mathf.Epsilon;
                 if (killOnFadeOut) {
                     if (currentTime >= endTime) {
@@ -296,14 +305,14 @@ namespace Laubrary.Zounds {
                 float t = (currentTime - fadeStartTime) / fadeDuration;
                 t = Mathf.Clamp01(t);
                 float masterVolume = ZoundEngine.GetMasterVolume();
-                m_audioSource.volume = parentVolume * liveVolume * Mathf.Lerp(fadeInitialVolume * masterVolume, m_selfVolume * masterVolume, t);
+                m_audioSource.volume = parentVolume * liveVolume * trackVolume * Mathf.Lerp(fadeInitialVolume * masterVolume, m_selfVolume * masterVolume, t);
                 if (t >= 1f - Mathf.Epsilon) {
                     fadeState = FadeState.None;
                     CompleteFade();
                 }
             }
             else {
-                m_audioSource.volume = parentVolume * liveVolume * m_selfVolume * ZoundEngine.GetMasterVolume();
+                m_audioSource.volume = parentVolume * liveVolume * trackVolume * m_selfVolume * ZoundEngine.GetMasterVolume();
             }
 
             if (IsMutedOrExcluded()) {

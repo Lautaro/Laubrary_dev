@@ -357,6 +357,14 @@ namespace Laubrary.Zounds {
                 return null;
             }
 
+            return Admit(zound, zoundArgs, null);
+        }
+
+        /// <summary>
+        /// Starts a run: an audio source from the pool, the token (new, or <paramref name="reuse"/> playing again), the
+        /// engine's list and the Zound's culling group. Shared by a new play and a replayed token, so both are the same play.
+        /// </summary>
+        static ZoundToken Admit(Zound zound, ZoundArgs zoundArgs, ZoundToken reuse, float fadeDuration = 0f, System.Action onFadeComplete = null) {
             var inst = Instance;
             var projectSettings = ZoundsProject.Instance.projectSettings;
 
@@ -364,7 +372,9 @@ namespace Laubrary.Zounds {
             inst.hasAnySoloZoundThisFrame = ZoundsProject.Instance.zoundLibrary.HasAnySoloZound();
 
             var audioSource = inst.pool.RequestAudioSource();
-            var token = new ZoundToken(zound, audioSource, zoundArgs);
+            ZoundToken token;
+            if (reuse != null) { token = reuse; token.BeginRun(audioSource, zoundArgs); }
+            else token = new ZoundToken(zound, audioSource, zoundArgs);
             onNewTokenCreated?.Invoke(token);
             inst.tokens.Add(token);
 
@@ -381,11 +391,55 @@ namespace Laubrary.Zounds {
 
             Laubrary.Zounds.Dsp.ZoundTriggerWatch.OnPlay(zound, token, in zoundArgs);
 
-            if (zoundArgs.startImmediately) {
-                token.Start();
-            }
+            if (reuse != null) token.Start(0f, fadeDuration, onFadeComplete);
+            else if (zoundArgs.startImmediately) token.Start();
             global::Laubrary.Zounds.Dsp.ZoundGCStressTest.MaybeSchedule(token);
             return token;
+        }
+
+        /// <summary>
+        /// Plays a token again (T-0497): a new run of its Zound with its own arguments, chance and cooldown rolled as for any
+        /// play. The previous run's bookkeeping is finished here if the engine has not yet got to it, so a token played again
+        /// in the frame its run ended neither keeps a stale audio source nor loses the new one. Returns whether a run started.
+        /// </summary>
+        internal static bool Replay(ZoundToken token, float fadeDuration, System.Action onFadeComplete) {
+            if (token == null || token.isEmpty || token.zound == null) return false;
+            var zound = token.zound;
+            var zoundArgs = token.args;
+            if (!zoundArgs.ignoreCooldown && IsCoolingDownAtTime(zound, Time.realtimeSinceStartup + zoundArgs.delay)) return false;
+            float chance = zoundArgs.chanceOverride >= 0f ? zoundArgs.chanceOverride : zound.chance;
+            if (Random.Range(0f, 1f) > chance + Mathf.Epsilon) return false;
+
+            var inst = Instance;
+            int idx = inst.tokens.IndexOf(token);
+            if (idx >= 0) {
+                if (inst.cullingGroups.TryGetValue(zound, out var list)) list.Remove(token);
+                if (token.audioSource != null) inst.pool.ReturnAudioSource(token.audioSource);
+                inst.tokens.RemoveAt(idx);
+            }
+            Admit(zound, zoundArgs, token, fadeDuration, onFadeComplete);
+            return true;
+        }
+
+        /// <summary>
+        /// Plays a Zound by name and ALWAYS returns a token (T-0497), unlike <see cref="PlayZound(string, string)"/>:
+        /// when chance or cooldown say no, a token whose play did not happen (<see cref="ZoundToken.wasPlayed"/> false;
+        /// settings can be set on it, and playing it tries again); for a name no Zound has, an empty token on which every
+        /// call does nothing (the missing name is reported as it always is). Game code that holds a token for a sound it
+        /// drives can then call on it without checking for nothing first.
+        /// </summary>
+        public static ZoundToken PlayToken(string zoundName) => PlayToken(zoundName, ZoundArgs.Default);
+
+        public static ZoundToken PlayToken(string zoundName, ZoundArgs zoundArgs) {
+            if (ZoundDictionary.TryGetZoundByName(zoundName, out Zound zound)) return PlayToken(zound, zoundArgs);
+            HandleMissingZound(zoundName);
+            return new ZoundToken(null, zoundArgs, empty: true);
+        }
+
+        public static ZoundToken PlayToken(Zound zound, ZoundArgs zoundArgs) {
+            if (zound == null) return new ZoundToken(null, zoundArgs, empty: true);
+            var token = PlayZound(zound, zoundArgs);
+            return token ?? new ZoundToken(zound, zoundArgs, empty: false);
         }
 
         // Tries to find an AudioClip in the library folder whose name matches zoundName.
@@ -642,6 +696,9 @@ namespace Laubrary.Zounds {
         public CompositeZound.ZoundEntry soloOverride;
         public bool bypassGlobalSolo;
         public bool ignoreCooldown;
+        /// <summary>The top-level token whose track settings (volume, mute, enabled...) this play follows (T-0497): set by
+        /// the token itself, and passed down to every track so a Zequence can skip disabled tracks when it picks one.</summary>
+        internal ZoundToken settingsRoot;
         /// <summary>Native-DSP pipeline only: the Zequence track this play belongs to, when that track repeats (Repeater settings live on the entry).</summary>
         internal CompositeZound.ZoundEntry repeatEntry;
         /// <summary>Native-DSP pipeline only: the random pitch/volume factors the parent already rolled into the overrides (1 when none), so a retriggered repeat can re-roll them.</summary>

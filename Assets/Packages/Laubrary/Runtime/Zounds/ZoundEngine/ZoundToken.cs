@@ -78,17 +78,17 @@ namespace Laubrary.Zounds {
         public Zound zound => m_zound;
         public State state => m_state;
         public AudioSource audioSource => m_audioSource;
-        internal List<AudioSource> audioSources => m_handler.GetAudioSources();
-        public float duration => m_handler.totalDuration;
-        public float time => m_handler.currentTime;
-        public bool isDelayFinished => m_handler.isDelayFinished;
+        internal List<AudioSource> audioSources => m_handler != null ? m_handler.GetAudioSources() : new List<AudioSource>();
+        public float duration => m_handler != null ? m_handler.totalDuration : 0f;
+        public float time => m_handler != null ? m_handler.currentTime : 0f;
+        public bool isDelayFinished => m_handler != null && m_handler.isDelayFinished;
         public bool isChildZound => m_isChildZound;
-        public int playedEntryIndex => m_handler.playedEntryIndex;
+        public int playedEntryIndex => m_handler != null ? m_handler.playedEntryIndex : -1;
 
         /// <summary>True while a DSP voice of this token is still rendering (source or tail).</summary>
         public bool isAudioLive => m_liveVoices > 0;
 
-        internal float parentVolume { set => m_handler.parentVolume = value; }
+        internal float parentVolume { set { if (m_handler != null) m_handler.parentVolume = value; } }
 
         /// A live volume multiplier any holder of the token may drive every frame (a looping engine note faded
         /// by speed and throttle). The handler rewrites AudioSource.volume every tick from a value fixed at start,
@@ -107,7 +107,7 @@ namespace Laubrary.Zounds {
             get => m_handler != null ? m_handler.liveSpeed : 1f;
             set { if (m_handler != null) m_handler.liveSpeed = value; }
         }
-        internal bool isRealtime => m_handler.isRealtime;
+        internal bool isRealtime => m_handler != null && m_handler.isRealtime;
 
         // ─────────────── ZPOC: programmatic control (T-0496) ───────────────
 
@@ -129,6 +129,7 @@ namespace Laubrary.Zounds {
         /// then. Setting the same id every frame allocates nothing.
         /// </summary>
         public bool SetZpoc(string zpocId, float value) {
+            if (m_empty) return false;   // a name no Zound has: already reported when it was asked for
             var key = ZpocKeys.Key(zpocId);
             if (key == null) {
                 ZoundDiagnostics.Report(ZoundDiagnostics.Kind.MissingZpoc, m_zound != null ? m_zound.name : "", "",
@@ -221,10 +222,59 @@ namespace Laubrary.Zounds {
 
         public ZoundToken(Zound zound, AudioSource audioSource, ZoundArgs zoundArgs) {
             m_zound = zound;
+            BeginRun(audioSource, zoundArgs);
+        }
+
+        // ─────────────── runs: a token can play again (T-0497) ───────────────
+
+        /// <summary>The play arguments of the latest run, used again when the token is played again.</summary>
+        private ZoundArgs m_args;
+        private bool m_empty;
+
+        /// <summary>How many runs this token has started. Nought for a token whose play did not happen (chance, cooldown).</summary>
+        public int runCount { get; private set; }
+
+        /// <summary>True for the empty token <see cref="ZoundEngine.PlayToken(string)"/> returns for a name no Zound has:
+        /// every call on it does nothing (the missing name has already been reported).</summary>
+        public bool isEmpty => m_empty;
+
+        /// <summary>Whether this token has ever actually played (false when chance or cooldown said no, or it is empty).</summary>
+        public bool wasPlayed => runCount > 0;
+
+        /// <summary>A run is under way (playing, paused mid-run, or fading out).</summary>
+        public bool isRunning => m_handler != null && m_state != State.Killed;
+
+        /// <summary>A token that holds a Zound but no run: the play did not happen (chance, cooldown), or <paramref name="empty"/>
+        /// for a name no Zound has. Its settings (ZPOC values) can be set, and playing it tries again.</summary>
+        internal ZoundToken(Zound zound, ZoundArgs zoundArgs, bool empty) {
+            m_zound = zound;
+            m_args = zoundArgs;
+            m_empty = empty;
+            m_state = State.Killed;
+            m_isChildZound = zoundArgs.isChild;
+        }
+
+        /// <summary>
+        /// Starts a new run of this token's Zound on <paramref name="audioSource"/>: a fresh handler (and voice), so every
+        /// per-play draw is drawn again, while the token's settings -- its ZPOC values -- carry over (the handler applies them
+        /// before its first block). Event subscribers carry over too: they hear every run's end. Called by the constructor and
+        /// by <see cref="ZoundEngine"/> when the token is played again.
+        /// </summary>
+        internal void BeginRun(AudioSource audioSource, ZoundArgs zoundArgs) {
+            var zound = m_zound;
+            // A top-level play is its own settings root; a track's play follows the root it was handed.
+            if (zoundArgs.settingsRoot == null) zoundArgs.settingsRoot = this;
+            m_args = zoundArgs;
             m_audioSource = audioSource;
             m_state = State.Paused;
+            m_started = false;
+            m_pendingKill = false;
+            m_liveVoices = 0;
+            m_audioEndRaised = false;
+            m_pendingAudioEnd = false;
             m_isChildZound = zoundArgs.isChild;
             m_soloOverride = zoundArgs.soloOverride;
+            runCount++;
 
             if (zound is Klip klip) {
                 m_handler = new KlipHandler(klip, audioSource, zoundArgs);
@@ -280,11 +330,170 @@ namespace Laubrary.Zounds {
         }
 
         public bool IsMutedOrExcluded() {
-            return m_handler.IsMutedOrExcluded();
+            return m_handler == null || m_handler.IsMutedOrExcluded();
         }
 
+        /// <summary>
+        /// Plays this token. A token whose run has ended (or whose play did not happen) plays again: a new run of the same
+        /// Zound, with fresh per-play draws and the same settings (ZPOC values), chance and cooldown rolled again (T-0497).
+        /// An empty token does nothing.
+        /// </summary>
         public void Play(float fadeDuration = 0f, System.Action onFadeComplete = null) {
+            if (m_empty) return;
+            if (m_handler == null || m_state == State.Killed) { ZoundEngine.Replay(this, fadeDuration, onFadeComplete); return; }
             Start(0f, fadeDuration, onFadeComplete);
+        }
+
+        /// <summary>Ends the current run at once (with the engine's own click-free stop) and starts the next. Settings carry
+        /// over; <paramref name="resetZpoc"/> puts every ZPOC back to its project-wide or resting value first.</summary>
+        public void Restart(bool resetZpoc = false) {
+            if (m_empty) return;
+            if (resetZpoc) ClearAllZpoc();
+            if (m_handler != null && m_state != State.Killed) Kill();
+            ZoundEngine.Replay(this, 0f, null);
+        }
+
+        /// <summary>Plays this token unless a run is already under way: for a looping sound driven every frame.</summary>
+        public void EnsurePlaying() {
+            if (m_empty || isRunning) return;
+            Play();
+        }
+
+        /// <summary>The arguments this token's runs are started with.</summary>
+        internal ZoundArgs args => m_args;
+
+        // ─────────────── tracks (T-0497) ───────────────
+
+        /// <summary>One track's settings on a token: kept by the ROOT token, keyed by the authored track, so they last
+        /// across runs and apply wherever in the tree that track plays.</summary>
+        internal sealed class TrackSettings {
+            public float volume = 1f, pitch = 1f, speed = 1f;
+            public bool mute, solo, enabled = true;
+            public float fadeFrom = 1f, fadeStart, fadeSeconds;
+            public float enableFadeFrom = 1f, enableFadeStart = -100f;
+            const float EnableFade = 0.03f;
+
+            /// <summary>The volume now, following a fade under way.</summary>
+            public float Gain(float now) {
+                if (fadeSeconds <= 0f) return volume;
+                float t = Mathf.Clamp01((now - fadeStart) / fadeSeconds);
+                return Mathf.Lerp(fadeFrom, volume, t);
+            }
+
+            /// <summary>1 when enabled, 0 when disabled, with a short fade between so switching never clicks.</summary>
+            public float EnableGain(float now) {
+                float target = enabled ? 1f : 0f;
+                float t = Mathf.Clamp01((now - enableFadeStart) / EnableFade);
+                return Mathf.Lerp(enableFadeFrom, target, t);
+            }
+
+            public bool IsDefault => volume == 1f && pitch == 1f && speed == 1f && !mute && !solo && enabled && fadeSeconds <= 0f;
+        }
+
+        private TrackSettings m_selfTrack;
+        private Dictionary<CompositeZound.ZoundEntry, TrackSettings> m_tracks;
+        private Dictionary<string, CompositeZound.ZoundEntry[]> m_trackIds;
+
+        /// <summary>The token whose track settings this play follows: itself at the top, the top-level token for a track.</summary>
+        internal ZoundToken settingsRoot => m_args.settingsRoot ?? this;
+
+        /// <summary>A track's settings on the root token (<paramref name="entry"/> null: the token's own track, a Klip's 0).</summary>
+        internal TrackSettings TrackSettingsFor(CompositeZound.ZoundEntry entry, bool create) {
+            var root = settingsRoot;
+            if (root != this) return root.TrackSettingsFor(entry, create);
+            if (entry == null) {
+                if (m_selfTrack == null && create) m_selfTrack = new TrackSettings();
+                return m_selfTrack;
+            }
+            if (m_tracks == null) { if (!create) return null; m_tracks = new Dictionary<CompositeZound.ZoundEntry, TrackSettings>(); }
+            if (!m_tracks.TryGetValue(entry, out var t) && create) { t = new TrackSettings(); m_tracks[entry] = t; }
+            return t;
+        }
+
+        /// <summary>Whether a track has been disabled on this play's root (a random / round-robin / playlist pick skips it).</summary>
+        internal bool IsTrackDisabled(CompositeZound.ZoundEntry entry) {
+            var t = TrackSettingsFor(entry, create: false);
+            return t != null && !t.enabled;
+        }
+
+        /// <summary>How many tracks this token's Zound has: 1 for a Klip (itself), the entry count for a Zequence.</summary>
+        public int trackCount => m_zound is CompositeZound c ? (c.zoundEntries?.Count ?? 0) : (m_zound != null ? 1 : 0);
+
+        /// <summary>
+        /// Track <paramref name="index"/> of this play: for a Klip, 0 is the Klip itself; for a Zequence, its tracks in authored
+        /// order. A number that does not exist is reported once and gives a track on which every call does nothing.
+        /// </summary>
+        public ZoundTrack Track(int index) {
+            if (m_empty || m_zound == null) return default;
+            if (m_zound is CompositeZound c) {
+                if (c.zoundEntries != null && index >= 0 && index < c.zoundEntries.Count)
+                    return new ZoundTrack(this, new[] { c.zoundEntries[index] }, false);
+            }
+            else if (index == 0) return new ZoundTrack(this, null, true);
+            string zn = m_zound.name, detail = "#" + index;
+            if (!ZoundDiagnostics.Count(ZoundDiagnostics.Kind.MissingTrack, zn, detail))
+                ZoundDiagnostics.Report(ZoundDiagnostics.Kind.MissingTrack, zn, detail,
+                    "'" + zn + "' has no track " + index + " (it has " + trackCount + "). The call was ignored.");
+            return default;
+        }
+
+        /// <summary>
+        /// Every track, anywhere in this play's tree, whose ZPOC id matches (ids are matched the way Zound names are). An id no
+        /// track has is reported once and gives a track on which every call does nothing.
+        /// </summary>
+        public ZoundTrack Track(string zpocId) {
+            if (m_empty || m_zound == null) return default;
+            var key = ZpocKeys.Key(zpocId);
+            if (key == null) return default;
+            if (m_trackIds == null) m_trackIds = new Dictionary<string, CompositeZound.ZoundEntry[]>();
+            if (!m_trackIds.TryGetValue(key, out var found)) {
+                var list = new List<CompositeZound.ZoundEntry>();
+                CollectTracks(m_zound, key, list, 0);
+                found = list.ToArray();
+                m_trackIds[key] = found;
+            }
+            if (found.Length == 0) {
+                string zn = m_zound.name;
+                if (!ZoundDiagnostics.Count(ZoundDiagnostics.Kind.MissingTrack, zn, key))
+                    ZoundDiagnostics.Report(ZoundDiagnostics.Kind.MissingTrack, zn, key,
+                        "No track called '" + zpocId + "' in '" + zn + "' or anything it plays. The call was ignored.");
+                return default;
+            }
+            return new ZoundTrack(this, found, false);
+        }
+
+        static void CollectTracks(Zound z, string key, List<CompositeZound.ZoundEntry> into, int depth) {
+            if (!(z is CompositeZound c) || c.zoundEntries == null || depth > 16) return;
+            foreach (var e in c.zoundEntries) {
+                if (e == null) continue;
+                if (!string.IsNullOrEmpty(e.zpocId) && ZpocKeys.Key(e.zpocId) == key) into.Add(e);
+                if (c.TryGetEntryZound(e, out var child)) CollectTracks(child, key, into, depth + 1);
+            }
+        }
+
+        /// <summary>Pushes changed track settings to what is playing now (volumes and mutes also follow every update).</summary>
+        internal void RefreshTracks() { settingsRoot.ApplyOwnTrack(); }
+
+        /// <summary>This play's pitch from game code (1 = as authored): a track's pitch, sent to the playing voice.</summary>
+        internal float livePitch {
+            get => m_handler != null ? m_handler.livePitch : 1f;
+            set { if (m_handler != null) m_handler.livePitch = value; }
+        }
+
+        /// <summary>This play's speed from its track settings, on top of <see cref="liveSpeed"/>.</summary>
+        internal float trackSpeed {
+            get => m_handler != null ? m_handler.trackSpeed : 1f;
+            set { if (m_handler != null) m_handler.trackSpeed = value; }
+        }
+
+        /// <summary>A Klip's own track settings (its track 0), applied to its own play each update.</summary>
+        void ApplyOwnTrack() {
+            if (m_handler == null || m_zound is CompositeZound || m_selfTrack == null) return;
+            float now = Time.realtimeSinceStartup;
+            m_handler.trackVolume = m_selfTrack.Gain(now) * m_selfTrack.EnableGain(now);
+            m_handler.livePitch = m_selfTrack.pitch;
+            m_handler.trackSpeed = m_selfTrack.speed;
+            if (m_audioSource != null) m_audioSource.mute = m_selfTrack.mute;
         }
 
         public Task PlayAsync(float fadeDuration) {
@@ -300,6 +509,7 @@ namespace Laubrary.Zounds {
         }
 
         public void Pause(float fadeDuration = 0f, System.Action onFadeComplete = null) {
+            if (m_handler == null) return;   // no run: nothing to pause (a play that did not happen, or an empty token)
             if (fadeDuration > Mathf.Epsilon) {
                 if (m_state == State.Killed || m_state == State.FadeToKill) {
                     Debug.LogError("Invalid token to pause: The token has been killed.");
@@ -333,6 +543,7 @@ namespace Laubrary.Zounds {
         }
 
         public void Unpause(float fadeDuration = 0f, System.Action onFadeComplete = null) {
+            if (m_handler == null) { Play(fadeDuration, onFadeComplete); return; }
             if (!m_started) {
                 Play(fadeDuration, onFadeComplete);
                 return;
@@ -365,6 +576,7 @@ namespace Laubrary.Zounds {
         }
 
         public void Kill(float fadeDuration = 0f, System.Action onFadeComplete = null) {
+            if (m_handler == null) return;   // no run to end
             if (fadeDuration > Mathf.Epsilon) {
                 if (m_state == State.Killed) return;
                 m_state = State.FadeToKill;
@@ -402,6 +614,8 @@ namespace Laubrary.Zounds {
                 if (m_liveVoices == 0 && !m_audioEndRaised) { m_audioEndRaised = true; onAudioEnd?.Invoke(); }
                 return;
             }
+
+            if (m_selfTrack != null) ApplyOwnTrack();
 
             if (m_pendingKill) {
                 m_pendingKill = false;
