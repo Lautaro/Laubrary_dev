@@ -64,6 +64,9 @@ namespace Laubrary.Zounds {
         public ZoundEffectType type;
         public bool enabled = true;
         public float[] p = new float[0];
+        /// <summary>A permanent identity that survives reordering (T-0498): what a snapshot addresses this effect by.
+        /// Empty until something needs it (the first snapshot captured), then kept for good.</summary>
+        public string uid = "";
 
         public ZoundEffectNode() { }
         public ZoundEffectNode(ZoundEffectType type) {
@@ -72,7 +75,7 @@ namespace Laubrary.Zounds {
         }
 
         public ZoundEffectNode DeepCopy() {
-            var copy = new ZoundEffectNode { type = type, enabled = enabled, p = (float[])p.Clone() };
+            var copy = new ZoundEffectNode { type = type, enabled = enabled, p = (float[])p.Clone(), uid = uid };
             return copy;
         }
 
@@ -122,6 +125,9 @@ namespace Laubrary.Zounds {
         /// <summary>How long a value sent by code takes to be reached, so a jump from code is never heard as a click.</summary>
         public float zpocSmoothMs = 30f;
 
+        /// <summary>A permanent identity that survives reordering (T-0498); see <see cref="ZoundEffectNode.uid"/>.</summary>
+        public string uid = "";
+
         public bool HasZpoc => !string.IsNullOrEmpty(zpocId);
 
         public ZoundModifier() { }
@@ -149,7 +155,7 @@ namespace Laubrary.Zounds {
                 type = type, enabled = enabled, name = name, p = (float[])p.Clone(),
                 curve = curve != null ? curve.DeepCopy() : new Envelope(0f, 1f),
                 steps = (float[])steps.Clone(),
-                zpocId = zpocId, zpocMode = zpocMode, zpocRest = zpocRest, zpocSmoothMs = zpocSmoothMs,
+                zpocId = zpocId, zpocMode = zpocMode, zpocRest = zpocRest, zpocSmoothMs = zpocSmoothMs, uid = uid,
             };
         }
     }
@@ -254,6 +260,30 @@ namespace Laubrary.Zounds {
         }
 
         public void Touch() { version++; }
+
+        /// <summary>Gives every effect and modifier a permanent identity if it has none yet (T-0498). Returns whether any
+        /// was added (the caller records Undo first, as for any edit).</summary>
+        public bool EnsureUids() {
+            bool added = false;
+            // A duplicated effect or modifier carries its original's identity; within one chain every identity must differ.
+            var seen = new HashSet<string>();
+            foreach (var n in nodes) if (string.IsNullOrEmpty(n.uid) || !seen.Add(n.uid)) { n.uid = System.Guid.NewGuid().ToString("N").Substring(0, 12); seen.Add(n.uid); added = true; }
+            seen.Clear();
+            foreach (var m in modifiers) if (string.IsNullOrEmpty(m.uid) || !seen.Add(m.uid)) { m.uid = System.Guid.NewGuid().ToString("N").Substring(0, 12); seen.Add(m.uid); added = true; }
+            return added;
+        }
+
+        public int NodeIndexOfUid(string uid) {
+            if (string.IsNullOrEmpty(uid)) return -1;
+            for (int i = 0; i < nodes.Count; i++) if (nodes[i].uid == uid) return i;
+            return -1;
+        }
+
+        public int ModifierIndexOfUid(string uid) {
+            if (string.IsNullOrEmpty(uid)) return -1;
+            for (int i = 0; i < modifiers.Count; i++) if (modifiers[i].uid == uid) return i;
+            return -1;
+        }
 
         /// <summary>Removes bindings that point at a node, modifier or parameter that no longer exists.</summary>
         public void PruneBindings() {

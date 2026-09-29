@@ -51,6 +51,10 @@ namespace Laubrary.Zounds {
         void ApplyZpoc(string key);
         /// <summary>ZPOC: re-applies every id this play declares, e.g. once its token or parent token is known.</summary>
         void ApplyAllZpoc();
+        /// <summary>Snapshot glide (T-0498): this play (and, for a Zequence, its tracks) glides to its Zound's snapshot of that name.</summary>
+        void ApplySnapshot(string name, float seconds);
+        /// <summary>Glides back to exactly where the last glide began.</summary>
+        void GlideBackTo(float seconds);
     }
 
     internal class ZoundHandler<TZound> : IZoundHandler where TZound : Zound {
@@ -179,6 +183,8 @@ namespace Laubrary.Zounds {
         protected ZoundToken token => m_token;
 
         public virtual void ApplyZpoc(string key) { }
+        public virtual void ApplySnapshot(string name, float seconds) { }
+        public virtual void GlideBackTo(float seconds) { }
         public virtual void ApplyAllZpoc() { }
 
         /// <summary>The DSP group node this zound's output sums into (-1 = the bus). Set by the parent Zequence before Start.</summary>

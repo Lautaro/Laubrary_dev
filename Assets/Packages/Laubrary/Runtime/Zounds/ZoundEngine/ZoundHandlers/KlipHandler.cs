@@ -26,6 +26,10 @@ namespace Laubrary.Zounds {
         /// <summary>Legacy flag for the old envelope-driven-AudioSource behaviour. Unused by the chain path.</summary>
         private bool m_isRealtime;
 
+        /// <summary>This play's own id (its per-play draws are seeded from it), and the volume and pitch it started with.</summary>
+        private long m_playSeed;
+        private float m_startVolume, m_startPitch;
+
         /// <summary>The chain voice, when this sound is playing through the chain. Null on the fallback path.</summary>
         private Dsp.ZoundSapVoiceGenerator m_voice;
 
@@ -40,6 +44,9 @@ namespace Laubrary.Zounds {
 
         public override void SetToken(ZoundToken t) {
             base.SetToken(t);
+            // A token that has glided to a snapshot plays its next runs on that snapshot, from the first sample (T-0498).
+            var snap = t?.settingsRoot?.currentSnapshot;
+            if (snap != null) ApplySnapshot(snap, 0f);
             // The voice already exists (it is started in the constructor), so its ZPOCs can take their resolved values
             // now, before its first block: a project-wide value, or anything already set on the token, is heard from the
             // first sample. A track inside a Zequence is applied again once its parent token is linked.
@@ -105,8 +112,11 @@ namespace Laubrary.Zounds {
             // A number of its own for this play (T-0484): every per-play draw (random curve points, a Looper's crossmix
             // lengths, repeat and random-oscillator variation) is seeded from it. The sound's id was passed here before,
             // which gave every play of a sound the same draws -- random points moved, but identically every time.
+            long playId = Dsp.ZoundSapPlayback.NextPlayId(zound);
+            m_playSeed = playId;
+            m_startVolume = selfVolume; m_startPitch = basePitch;
             m_voice = Dsp.ZoundSapPlayback.StartVoice(zound, audioSource, sourceClip, basePitch, baseVolume,
-                                                     Dsp.ZoundSapPlayback.NextPlayId(zound), out string reason, out m_chainDuration,
+                                                     playId, out string reason, out m_chainDuration,
                                                      sourceAlreadyTrimmed);
             if (m_voice != null) {
                 m_chainPath = true;
@@ -206,6 +216,191 @@ namespace Laubrary.Zounds {
         }
         private float m_livePitch = 1f;
 
+        // ───────────── snapshot glides (T-0498) ─────────────
+        //
+        // A glide moves this play from wherever it is to a snapshot's settings. The voice does the chain part itself, once
+        // per control block (see SapVoiceRender.AdvanceGlide); the Zound's own volume and pitch ranges are moved from here,
+        // the same way an edit of those ranges already reaches a playing sound. Where the glide started is remembered, worked
+        // out the same way the engine moves values, so gliding back returns exactly there.
+
+        ZoundSnapshot m_glideFrom, m_glideTo;
+        float m_glideStart, m_glideSeconds;
+        /// <summary>This play's volume and pitch drawn from each snapshot's ranges, once, so returning to a snapshot lands
+        /// on the same numbers (a new play draws afresh).</summary>
+        readonly Dictionary<string, Vector2> m_drawn = new Dictionary<string, Vector2>();
+        float m_rangeVolFrom, m_rangeVolTo, m_rangePitchFrom, m_rangePitchTo;
+        bool m_rangeGliding;
+
+        public override void ApplySnapshot(string name, float seconds) {
+            var target = ZoundSnapshots.Find(zound, name);
+            if (target == null) return;
+            GlideTo(target, seconds, ZpocKeys.Key(name), null);
+        }
+
+        public override void GlideBackTo(float seconds) {
+            if (m_glideFrom == null) return;
+            // Back to exactly where the glide began: its settings, and the volume and pitch this play had then.
+            GlideTo(m_glideFrom, seconds, null, new Vector2(m_rangeVolFrom, m_rangePitchFrom));
+        }
+
+        void GlideTo(ZoundSnapshot target, float seconds, string drawKey, Vector2? exact) {
+            // Default's "draw" is the one this play started with, so gliding back to Default lands where the play began.
+            string defaultKey = ZpocKeys.Key(ZoundSnapshots.DefaultName);
+            if (!m_drawn.ContainsKey(defaultKey)) m_drawn[defaultKey] = new Vector2(m_startVolume, m_startPitch);
+            var chain = Dsp.ZoundDspPlayback.ResolveChain(zound, out _);
+            float now = Time.realtimeSinceStartup;
+            // Where this play is now: the Default settings, or wherever the last glide has got to.
+            var current = m_glideTo == null ? ZoundSnapshots.Find(zound, ZoundSnapshots.DefaultName)
+                        : Interpolate(chain, m_glideFrom, m_glideTo, m_glideSeconds <= 0f ? 1f : Mathf.Clamp01((now - m_glideStart) / m_glideSeconds));
+            m_glideFrom = current;
+            m_glideTo = target;
+            m_glideStart = now;
+            m_glideSeconds = Mathf.Max(0f, seconds);
+
+            if (m_chainPath && m_voice != null && chain != null) {
+                var L = m_voice.playingLayout;
+                if (L != null) SendChainGlide(chain, L, target, seconds);
+            }
+
+            // The Zound's own ranges: a play draws from the target's ranges once, remembered by snapshot for this play.
+            Vector2 drawn;
+            if (exact.HasValue) drawn = exact.Value;
+            else if (drawKey != null && m_drawn.TryGetValue(drawKey, out drawn)) { }
+            else {
+                float vol = selfVolume, pit = basePitch;
+                uint seed = DrawSeed;
+                foreach (var v in target.values) {
+                    if (v.kind == SnapshotValueKind.VolumeRange) vol = Mathf.Lerp(v.a, v.b, Hash01(seed, 1));
+                    if (v.kind == SnapshotValueKind.PitchRange) pit = Mathf.Lerp(v.a, v.b, Hash01(seed, 2));
+                }
+                drawn = new Vector2(vol, pit);
+                if (drawKey != null) m_drawn[drawKey] = drawn;
+            }
+            m_rangeVolFrom = selfVolume; m_rangeVolTo = drawn.x;
+            m_rangePitchFrom = basePitch; m_rangePitchTo = drawn.y;
+            m_rangeGliding = true;
+            FollowRangeGlide(now);
+        }
+
+        /// <summary>A number for this play's range draws, different per play and per snapshot request (never UnityEngine.Random:
+        /// every draw in the engine is a hash of the play, so plays stay independent and repeatable).</summary>
+        uint DrawSeed => (uint)(m_drawSalt++ * 2654435761u) ^ (uint)m_playSeed;
+        uint m_drawSalt = 1;
+
+        static float Hash01(uint seed, uint salt) {
+            uint h = seed ^ (salt * 0x9E3779B1u);
+            h ^= h >> 16; h *= 0x7FEB352Du; h ^= h >> 15; h *= 0x846CA68Bu; h ^= h >> 16;
+            return (h & 0xFFFFFF) / 16777216f;
+        }
+
+        void SendChainGlide(ZoundEffectChain chain, Dsp.ChainLayout L, ZoundSnapshot target, float seconds) {
+            m_voice.SendGlide(Dsp.SapVoiceCommand.Glide(Dsp.SapVoiceCommandKind.GlideClear, 0, 0f));
+            foreach (var v in target.values) {
+                switch (v.kind) {
+                    case SnapshotValueKind.EffectParam: {
+                        int n = ZoundSnapshots.NodeIndex(chain, v.node);
+                        if (n < 0 || n >= L.nodeCount || v.param < 0 || v.param >= L.paramCountOf[n]) break;
+                        var pd = Dsp.ZoundEffectDescriptors.Get(chain.nodes[n].type).parameters[v.param];
+                        var motion = ZoundSnapshots.MotionOf(pd, true);
+                        if (motion == ZoundSnapshots.Motion.NotInSnapshots) break;
+                        m_voice.SendGlide(Dsp.SapVoiceCommand.Glide(motion == ZoundSnapshots.Motion.Glide ? Dsp.SapVoiceCommandKind.GlideParam : Dsp.SapVoiceCommandKind.GlideParamSwitch,
+                                                                    L.FlatIndex(n, v.param), v.a));
+                        break;
+                    }
+                    case SnapshotValueKind.EffectOn: {
+                        int n = ZoundSnapshots.NodeIndex(chain, v.node);
+                        if (n >= 0 && n < L.nodeCount) m_voice.SendGlide(Dsp.SapVoiceCommand.Glide(Dsp.SapVoiceCommandKind.GlidePresence, n, v.a));
+                        break;
+                    }
+                    case SnapshotValueKind.ModifierParam: {
+                        int m = ZoundSnapshots.ModifierIndex(chain, v.mod);
+                        if (m < 0 || m >= L.modCount || v.param < 0 || v.param >= L.modParamCountOf[m]) break;
+                        var pd = Dsp.ZoundEffectDescriptors.GetModifier(chain.modifiers[m].type).parameters[v.param];
+                        var kind = ZoundSnapshots.MotionOf(pd, false) == ZoundSnapshots.Motion.Glide ? Dsp.SapVoiceCommandKind.GlideModParam : Dsp.SapVoiceCommandKind.GlideModParamSwitch;
+                        m_voice.SendGlide(Dsp.SapVoiceCommand.Glide(kind, L.modParamOffset[m] + v.param, v.a));
+                        break;
+                    }
+                    case SnapshotValueKind.BindingDepth: {
+                        int m = ZoundSnapshots.ModifierIndex(chain, v.mod);
+                        int tn = string.IsNullOrEmpty(v.node) ? -1 : ZoundSnapshots.NodeIndex(chain, v.node);
+                        if (m < 0 || (!string.IsNullOrEmpty(v.node) && tn < 0)) break;
+                        for (int b = 0; b < L.bindCount; b++) {
+                            int src = L.bindSource[b];
+                            if (src < 0 || src >= chain.bindings.Count) continue;
+                            var cb = chain.bindings[src];
+                            if (cb.modifierIndex == m && cb.nodeIndex == tn && cb.paramIndex == v.param) {
+                                m_voice.SendGlide(Dsp.SapVoiceCommand.Glide(Dsp.SapVoiceCommandKind.GlideDepth, b, Mathf.Clamp(v.a, -1f, 1f)));
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                    case SnapshotValueKind.ZpocRest: {
+                        // A value set by code wins over where the snapshot says the ZPOC rests (owner, 2026-09-29).
+                        int m = ZoundSnapshots.ModifierIndex(chain, v.mod);
+                        if (m < 0 || m >= L.modCount || L.modZpocKey[m] == null) break;
+                        if (token != null && token.TryResolveZpoc(L.modZpocKey[m], out _)) break;
+                        m_voice.SetModifierControlLive(m, v.a < 0f ? 1f : L.ControlFor(m, v.a));
+                        break;
+                    }
+                }
+            }
+            int samples = Mathf.RoundToInt(Mathf.Max(0f, seconds) * AudioSettings.outputSampleRate);
+            m_voice.SendGlide(Dsp.SapVoiceCommand.Glide(Dsp.SapVoiceCommandKind.GlideBegin, samples, 0f));
+        }
+
+        /// <summary>Moves the play's own volume and pitch along a glide (called every update while one is under way).</summary>
+        void FollowRangeGlide(float now) {
+            if (!m_rangeGliding) return;
+            float t = m_glideSeconds <= 0f ? 1f : Mathf.Clamp01((now - m_glideStart) / m_glideSeconds);
+            float vol = Mathf.Lerp(m_rangeVolFrom, m_rangeVolTo, t);
+            float pit = m_rangePitchFrom * Mathf.Pow(m_rangePitchTo / Mathf.Max(m_rangePitchFrom, 1e-4f), t);
+            SetSelfVolume(vol);
+            basePitch = pit;
+            if (m_chainPath && m_voice != null) {
+                m_voice.SetGainLive(vol * ZoundEngine.GetMasterVolume());
+                m_voice.SetPitchLive(basePitch * m_livePitch);
+            }
+            if (t >= 1f) m_rangeGliding = false;
+        }
+
+        /// <summary>
+        /// Where a glide from <paramref name="a"/> to <paramref name="b"/> is at <paramref name="t"/>, worked out the way the
+        /// engine moves each value: along its control for continuous values, at the midpoint for switches, linearly for
+        /// modifier settings and strengths. Values only one side has are taken from that side.
+        /// </summary>
+        static ZoundSnapshot Interpolate(ZoundEffectChain chain, ZoundSnapshot a, ZoundSnapshot b, float t) {
+            if (a == null) return b;
+            if (t >= 1f) return b;
+            var r = new ZoundSnapshot { name = "(mid-glide)" };
+            foreach (var vb in b.values) {
+                ZoundSnapshotValue va = vb; bool found = false;
+                foreach (var x in a.values) if (x.kind == vb.kind && x.node == vb.node && x.mod == vb.mod && x.param == vb.param) { va = x; found = true; break; }
+                var v = vb;
+                if (found) {
+                    switch (vb.kind) {
+                        case SnapshotValueKind.EffectParam: {
+                            int n = ZoundSnapshots.NodeIndex(chain, vb.node);
+                            if (n >= 0) {
+                                var pd = Dsp.ZoundEffectDescriptors.Get(chain.nodes[n].type).parameters[vb.param];
+                                if (ZoundSnapshots.MotionOf(pd, true) == ZoundSnapshots.Motion.Glide) {
+                                    bool ratio = Dsp.ModulationMath.IsRatioSpaced(pd.curve);
+                                    float pa = Dsp.ModulationMath.ToPosition(va.a, pd.min, pd.max, ratio), pb = Dsp.ModulationMath.ToPosition(vb.a, pd.min, pd.max, ratio);
+                                    v.a = Dsp.ModulationMath.FromPosition(pa + (pb - pa) * t, pd.min, pd.max, ratio);
+                                }
+                                else v.a = t >= 0.5f ? vb.a : va.a;
+                            }
+                            break;
+                        }
+                        case SnapshotValueKind.EffectOn: v.a = t >= 0.5f ? vb.a : va.a; break;
+                        default: v.a = va.a + (vb.a - va.a) * t; v.b = va.b + (vb.b - va.b) * t; break;
+                    }
+                }
+                r.values.Add(v);
+            }
+            return r;
+        }
+
         // ───────────── live edits of the sound's volume and pitch ranges (Looper live-edit fix, 2026-09-29) ─────────────
         //
         // Measured: a playing Looper kept the volume and pitch it started with for ever -- editing the Klip's volume or pitch
@@ -266,6 +461,7 @@ namespace Laubrary.Zounds {
 
         protected override ZoundUpdateResult OnPlayUpdate(float deltaDspTime) {
             if (m_chainPath && m_voice != null && m_voice.IsPlaying) FollowRangeEdits();
+            if (m_rangeGliding) FollowRangeGlide(Time.realtimeSinceStartup);
             // A live-speed sound ends when its voice says so, since its length could not be known (T-0409).
             if (m_chainPath && m_voice != null && m_voice.HasLiveSpeed && m_voice.VoiceFinished) {
                 OnCompleteDuration();

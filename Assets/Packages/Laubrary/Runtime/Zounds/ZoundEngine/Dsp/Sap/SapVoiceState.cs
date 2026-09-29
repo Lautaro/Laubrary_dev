@@ -108,6 +108,23 @@ namespace Laubrary.Zounds.Dsp {
         /// <summary>The Looper's state (T-0474): whether this voice loops its region, and its crossmix.</summary>
         public SapLoopState looping;
 
+        // ── snapshot glide (T-0498) ──
+        // A glide moves this voice's own copy of its settings from where they were when it began to a snapshot's values,
+        // over a number of samples, advanced once per control block. Per value: where it started, where it is going, and
+        // how (0 not gliding; 1 glide, 2 switch at the midpoint -- each +2 when a modifier also moves it, so its resting
+        // value is what moves rather than its live value).
+        public NativeArray<float> gpFrom, gpTo;   public NativeArray<byte> gpKind;   // effect / own-value parameters (flat)
+        public NativeArray<float> gmFrom, gmTo;   public NativeArray<byte> gmKind;   // modifier parameters (flat)
+        public NativeArray<float> gbFrom, gbTo;   public NativeArray<byte> gbKind;   // binding depths
+        public NativeArray<float> gnFrom, gnTo;   public NativeArray<byte> gnKind;   // effect presence
+        /// <summary>How much of each effect is heard (1 on, 0 off, between while a glide fades it in or out), and its value
+        /// at the previous block, so the change is ramped across the block instead of stepped.</summary>
+        public NativeArray<float> presence, presencePrev;
+        /// <summary>One control block of the signal going into an effect that is fading in or out.</summary>
+        public NativeArray<float> dryL, dryR;
+        public int glideTotal, glideDone;
+        public bool glideActive, glideSettled;
+
         public static SapVoiceState Create(int stateFloats, int paramCount, int sourceSlots, int modifierCount, int outputBufferFrames, Allocator allocator) {
             return new SapVoiceState {
                 arena = new NativeArray<float>(stateFloats, allocator, NativeArrayOptions.ClearMemory),
@@ -121,6 +138,22 @@ namespace Laubrary.Zounds.Dsp {
                 modCtlLive = new NativeArray<float>(modifierCount, allocator, NativeArrayOptions.ClearMemory),
                 bufL = new NativeArray<float>(outputBufferFrames, allocator, NativeArrayOptions.ClearMemory),
                 bufR = new NativeArray<float>(outputBufferFrames, allocator, NativeArrayOptions.ClearMemory),
+                gpFrom = new NativeArray<float>(paramCount, allocator, NativeArrayOptions.ClearMemory),
+                gpTo = new NativeArray<float>(paramCount, allocator, NativeArrayOptions.ClearMemory),
+                gpKind = new NativeArray<byte>(paramCount, allocator, NativeArrayOptions.ClearMemory),
+                gmFrom = new NativeArray<float>(ChainLayout.MAX_MOD_PARAMS, allocator, NativeArrayOptions.ClearMemory),
+                gmTo = new NativeArray<float>(ChainLayout.MAX_MOD_PARAMS, allocator, NativeArrayOptions.ClearMemory),
+                gmKind = new NativeArray<byte>(ChainLayout.MAX_MOD_PARAMS, allocator, NativeArrayOptions.ClearMemory),
+                gbFrom = new NativeArray<float>(ZoundDspConstants.MAX_BINDINGS, allocator, NativeArrayOptions.ClearMemory),
+                gbTo = new NativeArray<float>(ZoundDspConstants.MAX_BINDINGS, allocator, NativeArrayOptions.ClearMemory),
+                gbKind = new NativeArray<byte>(ZoundDspConstants.MAX_BINDINGS, allocator, NativeArrayOptions.ClearMemory),
+                gnFrom = new NativeArray<float>(ZoundDspConstants.MAX_NODES, allocator, NativeArrayOptions.ClearMemory),
+                gnTo = new NativeArray<float>(ZoundDspConstants.MAX_NODES, allocator, NativeArrayOptions.ClearMemory),
+                gnKind = new NativeArray<byte>(ZoundDspConstants.MAX_NODES, allocator, NativeArrayOptions.ClearMemory),
+                presence = new NativeArray<float>(ZoundDspConstants.MAX_NODES, allocator, NativeArrayOptions.ClearMemory),
+                presencePrev = new NativeArray<float>(ZoundDspConstants.MAX_NODES, allocator, NativeArrayOptions.ClearMemory),
+                dryL = new NativeArray<float>(ZoundDspConstants.CONTROL_BLOCK, allocator, NativeArrayOptions.ClearMemory),
+                dryR = new NativeArray<float>(ZoundDspConstants.CONTROL_BLOCK, allocator, NativeArrayOptions.ClearMemory),
             };
         }
 
@@ -136,6 +169,12 @@ namespace Laubrary.Zounds.Dsp {
             if (modCtlLive.IsCreated) modCtlLive.Dispose();
             if (bufL.IsCreated) bufL.Dispose();
             if (bufR.IsCreated) bufR.Dispose();
+            if (gpFrom.IsCreated) gpFrom.Dispose(); if (gpTo.IsCreated) gpTo.Dispose(); if (gpKind.IsCreated) gpKind.Dispose();
+            if (gmFrom.IsCreated) gmFrom.Dispose(); if (gmTo.IsCreated) gmTo.Dispose(); if (gmKind.IsCreated) gmKind.Dispose();
+            if (gbFrom.IsCreated) gbFrom.Dispose(); if (gbTo.IsCreated) gbTo.Dispose(); if (gbKind.IsCreated) gbKind.Dispose();
+            if (gnFrom.IsCreated) gnFrom.Dispose(); if (gnTo.IsCreated) gnTo.Dispose(); if (gnKind.IsCreated) gnKind.Dispose();
+            if (presence.IsCreated) presence.Dispose(); if (presencePrev.IsCreated) presencePrev.Dispose();
+            if (dryL.IsCreated) dryL.Dispose(); if (dryR.IsCreated) dryR.Dispose();
             stretch.Dispose();
             if (stretchScratchL.IsCreated) stretchScratchL.Dispose();
             if (stretchScratchR.IsCreated) stretchScratchR.Dispose();

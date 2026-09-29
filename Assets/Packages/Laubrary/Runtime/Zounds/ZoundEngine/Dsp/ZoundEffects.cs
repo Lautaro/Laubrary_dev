@@ -32,8 +32,25 @@ namespace Laubrary.Zounds.Dsp {
 
         public static void ProcessChain(in SapChainLayout L, NativeArray<float> state, NativeArray<float> pStart, NativeArray<float> pStep,
                                         NativeArray<float> bufL, NativeArray<float> bufR, int off, int n, in VoiceContext ctx) {
+            ProcessChain(in L, state, pStart, pStep, bufL, bufR, off, n, in ctx, default, default, default, default);
+        }
+
+        /// <summary>
+        /// The chain, with each effect heard as far as its presence says (T-0498): 1 is on, 0 is off and skipped, between is a
+        /// mix of the sound going in and the effect's output, ramped from the previous block's presence to this one's, so an
+        /// effect a snapshot glide switches on or off fades rather than clicks. Without presence arrays, on/off is the
+        /// effect's own switch, exactly as before.
+        /// </summary>
+        public static void ProcessChain(in SapChainLayout L, NativeArray<float> state, NativeArray<float> pStart, NativeArray<float> pStep,
+                                        NativeArray<float> bufL, NativeArray<float> bufR, int off, int n, in VoiceContext ctx,
+                                        NativeArray<float> presence, NativeArray<float> presencePrev, NativeArray<float> dryL, NativeArray<float> dryR) {
+            bool hasPresence = presence.IsCreated && presencePrev.IsCreated && dryL.IsCreated && dryR.IsCreated;
             for (int i = 0; i < L.nodeCount; i++) {
-                if (!L.enabled[i]) continue;
+                float p1 = 1f, p0 = 1f;
+                if (hasPresence && i < presence.Length) { p1 = presence[i]; p0 = presencePrev[i]; if (p1 <= 0f && p0 <= 0f) continue; }
+                else if (!L.enabled[i]) continue;
+                bool mix = hasPresence && (p1 < 1f || p0 < 1f) && n <= dryL.Length;
+                if (mix) for (int j = 0; j < n; j++) { dryL[j] = bufL[off + j]; dryR[j] = bufR[off + j]; }
                 int s = L.stateOffset[i];
                 int q = L.paramOffset[i];
                 switch (L.nodeType[i]) {
@@ -53,6 +70,14 @@ namespace Laubrary.Zounds.Dsp {
                     case ZoundEffectType.Phaser: PhaserEffect.Process(state, s, pStart, q, bufL, bufR, off, n, ctx.sampleRate); break;
                     case ZoundEffectType.BitCrush: BitCrushEffect.Process(state, s, pStart, q, bufL, bufR, off, n); break;
                     case ZoundEffectType.Distortion: DistortionEffect.Process(state, s, pStart, q, bufL, bufR, off, n, ctx.sampleRate); break;
+                }
+                if (mix) {
+                    float inv = n > 0 ? 1f / n : 0f;
+                    for (int j = 0; j < n; j++) {
+                        float w = p0 + (p1 - p0) * (j + 1) * inv;
+                        bufL[off + j] = dryL[j] + (bufL[off + j] - dryL[j]) * w;
+                        bufR[off + j] = dryR[j] + (bufR[off + j] - dryR[j]) * w;
+                    }
                 }
             }
         }

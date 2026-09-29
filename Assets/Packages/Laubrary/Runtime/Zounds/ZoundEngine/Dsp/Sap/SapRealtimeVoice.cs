@@ -245,6 +245,16 @@ namespace Laubrary.Zounds.Dsp {
                 case SapVoiceCommandKind.SetCrossmixMin:
                     SapVoiceSetup.SetLoopCrossmix(ref sap, in pcm, command.index, sap.looping.crossMax < command.index ? command.index : sap.looping.crossMax);
                     break;
+                case SapVoiceCommandKind.GlideClear:
+                case SapVoiceCommandKind.GlideParam:
+                case SapVoiceCommandKind.GlideParamSwitch:
+                case SapVoiceCommandKind.GlideModParam:
+                case SapVoiceCommandKind.GlideModParamSwitch:
+                case SapVoiceCommandKind.GlideDepth:
+                case SapVoiceCommandKind.GlidePresence:
+                case SapVoiceCommandKind.GlideBegin:
+                    SapVoiceRender.ApplyGlideCommand(ref sap, in chain, in command);
+                    break;
                 case SapVoiceCommandKind.SetModifierControl:
                     if (command.index >= 0 && command.index < sap.modCtlTarget.Length) {
                         sap.modCtlTarget[command.index] = command.value;

@@ -74,6 +74,121 @@ namespace Laubrary.Zounds.Dsp {
             sap.pStep[flatIndex] = 0f;
         }
 
+        // ─────────────── snapshot glide (T-0498) ───────────────
+
+        static bool IsRamped(in SapChainLayout L, int flat) {
+            for (int r = 0; r < L.rampedCount; r++) if (L.ramped[r] == flat) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// One glide command (sent as Clear, targets, Begin). Begin records where every targeted value is RIGHT NOW as the
+        /// glide's start, which is what makes a glide start "from wherever the sound is" -- including mid-way through an
+        /// earlier glide, since those values are simply where that glide had got to.
+        /// </summary>
+        public static void ApplyGlideCommand(ref SapVoiceState sap, in SapChainLayout L, in SapVoiceCommand c) {
+            int i = c.index;
+            switch (c.kind) {
+                case SapVoiceCommandKind.GlideClear:
+                    for (int k = 0; k < sap.gpKind.Length; k++) sap.gpKind[k] = 0;
+                    for (int k = 0; k < sap.gmKind.Length; k++) sap.gmKind[k] = 0;
+                    for (int k = 0; k < sap.gbKind.Length; k++) sap.gbKind[k] = 0;
+                    for (int k = 0; k < sap.gnKind.Length; k++) sap.gnKind[k] = 0;
+                    break;
+                case SapVoiceCommandKind.GlideParam:
+                case SapVoiceCommandKind.GlideParamSwitch:
+                    if (i < 0 || i >= L.paramCount) break;
+                    float v = c.value < L.pMin[i] ? L.pMin[i] : c.value > L.pMax[i] ? L.pMax[i] : c.value;
+                    sap.gpTo[i] = v;
+                    sap.gpKind[i] = (byte)((c.kind == SapVoiceCommandKind.GlideParam ? 1 : 2) + (IsRamped(in L, i) ? 2 : 0));
+                    break;
+                case SapVoiceCommandKind.GlideModParam:
+                case SapVoiceCommandKind.GlideModParamSwitch:
+                    if (i < 0 || i >= sap.gmKind.Length || i >= L.modParamFlat.Length) break;
+                    sap.gmTo[i] = c.value;
+                    sap.gmKind[i] = (byte)(c.kind == SapVoiceCommandKind.GlideModParam ? 1 : 2);
+                    break;
+                case SapVoiceCommandKind.GlideDepth:
+                    if (i < 0 || i >= L.bindCount || i >= sap.gbKind.Length) break;
+                    sap.gbTo[i] = c.value; sap.gbKind[i] = 1;
+                    break;
+                case SapVoiceCommandKind.GlidePresence:
+                    if (i < 0 || i >= L.nodeCount || i >= sap.gnKind.Length) break;
+                    sap.gnTo[i] = c.value < 0.5f ? 0f : 1f; sap.gnKind[i] = 1;
+                    break;
+                case SapVoiceCommandKind.GlideBegin: {
+                    for (int f = 0; f < L.paramCount && f < sap.gpKind.Length; f++) {
+                        byte k = sap.gpKind[f];
+                        if (k == 0) continue;
+                        sap.gpFrom[f] = k >= 3 ? L.pBase[f] : sap.pLive[f];
+                    }
+                    for (int m = 0; m < sap.gmKind.Length && m < L.modParamFlat.Length; m++) if (sap.gmKind[m] != 0) sap.gmFrom[m] = L.modParamFlat[m];
+                    for (int b = 0; b < L.bindCount && b < sap.gbKind.Length; b++) if (sap.gbKind[b] != 0) sap.gbFrom[b] = L.bindDepth[b];
+                    for (int n = 0; n < L.nodeCount && n < sap.gnKind.Length; n++) if (sap.gnKind[n] != 0) sap.gnFrom[n] = sap.presence[n];
+                    sap.glideTotal = i < 0 ? 0 : i;
+                    sap.glideDone = 0;
+                    sap.glideActive = true;
+                    sap.glideSettled = false;
+                    // Before the voice has rendered anything, a glide of any length starts where it ends: a play that begins
+                    // on a snapshot is on it from its first sample.
+                    if (sap.elapsedSamples == 0) sap.glideTotal = 0;
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Moves every gliding value one control block further (T-0498). Continuous values move along their own control
+        /// (a frequency by ratio, a level by amount), choices switch at the midpoint, effects fade in or out. A value no
+        /// modifier moves is ramped sample by sample across the block; one a modifier moves has its resting value moved,
+        /// and the modifier goes on from there. One more block at the end settles every ramp exactly on its target.
+        /// </summary>
+        static void AdvanceGlide(ref SapVoiceState sap, in SapChainLayout L, float invN) {
+            if (sap.glideSettled) {
+                for (int f = 0; f < L.paramCount && f < sap.gpKind.Length; f++) {
+                    byte k = sap.gpKind[f];
+                    if (k == 1 || k == 2) { sap.pStart[f] = sap.pLive[f]; sap.pStep[f] = 0f; }
+                }
+                sap.glideActive = false;
+                return;
+            }
+            sap.glideDone += ZoundDspConstants.CONTROL_BLOCK;
+            float t = sap.glideTotal <= 0 ? 1f : (float)sap.glideDone / sap.glideTotal;
+            if (t > 1f) t = 1f;
+            bool past = t >= 0.5f;
+            var bases = L.pBase;
+            for (int f = 0; f < L.paramCount && f < sap.gpKind.Length; f++) {
+                byte k = sap.gpKind[f];
+                if (k == 0) continue;
+                float v;
+                if (t >= 1f) v = sap.gpTo[f];   // arrived: exactly the target (the round trip through the control is not exact)
+                else if (k == 1 || k == 3) {
+                    bool ratio = L.pRatio[f];
+                    float a = ModulationMath.ToPosition(sap.gpFrom[f], L.pMin[f], L.pMax[f], ratio);
+                    float b = ModulationMath.ToPosition(sap.gpTo[f], L.pMin[f], L.pMax[f], ratio);
+                    v = ModulationMath.FromPosition(a + (b - a) * t, L.pMin[f], L.pMax[f], ratio);
+                }
+                else v = past ? sap.gpTo[f] : sap.gpFrom[f];
+                if (k >= 3) bases[f] = v;
+                else {
+                    float prev = sap.pLive[f];
+                    sap.pLive[f] = v; sap.pStart[f] = prev; sap.pStep[f] = (v - prev) * invN;
+                }
+            }
+            var mp = L.modParamFlat;
+            for (int m = 0; m < sap.gmKind.Length && m < mp.Length; m++) {
+                byte k = sap.gmKind[m];
+                if (k == 0) continue;
+                mp[m] = k == 1 ? sap.gmFrom[m] + (sap.gmTo[m] - sap.gmFrom[m]) * t : (past ? sap.gmTo[m] : sap.gmFrom[m]);
+            }
+            var depths = L.bindDepth;
+            for (int b = 0; b < L.bindCount && b < sap.gbKind.Length; b++)
+                if (sap.gbKind[b] != 0) depths[b] = sap.gbFrom[b] + (sap.gbTo[b] - sap.gbFrom[b]) * t;
+            for (int n = 0; n < L.nodeCount && n < sap.gnKind.Length; n++)
+                if (sap.gnKind[n] != 0) sap.presence[n] = sap.gnFrom[n] + (sap.gnTo[n] - sap.gnFrom[n]) * t;
+            if (t >= 1f) sap.glideSettled = true;
+        }
+
         /// <summary>
         /// Renders one callback's worth of frames into sap.bufL/sap.bufR. Mirrors the old
         /// <c>DspVoice.Render</c> body exactly, minus the pause short-circuit (the caller already handled
@@ -134,6 +249,9 @@ namespace Laubrary.Zounds.Dsp {
                 ctx.elapsedSeconds = (float)sap.elapsedSamples / sampleRate;
                 ctx.sourceExhausted = sap.sourceExhausted;
 
+                // A snapshot glide moves its values once per control block, before the modulators read them (T-0498).
+                if (gridStart && sap.glideActive) AdvanceGlide(ref sap, in L, invN);
+
                 if (L.bindCount > 0 && !gridStart) {
                     // The rest of a block a call boundary split: same slopes, from where the ramps have got to.
                     for (int r = 0; r < L.rampedCount; r++) { int t = L.ramped[r]; sap.pStart[t] = sap.pLive[t]; }
@@ -185,7 +303,11 @@ namespace Laubrary.Zounds.Dsp {
                 }
 
                 // ── chain ──
-                if (L.nodeCount > 0) ZoundEffects.ProcessChain(L, sap.arena, sap.pStart, sap.pStep, sap.bufL, sap.bufR, off, n, in ctx);
+                if (L.nodeCount > 0) {
+                    ZoundEffects.ProcessChain(L, sap.arena, sap.pStart, sap.pStep, sap.bufL, sap.bufR, off, n, in ctx,
+                                              sap.presence, sap.presencePrev, sap.dryL, sap.dryR);
+                    for (int pi = 0; pi < L.nodeCount && pi < sap.presence.Length; pi++) sap.presencePrev[pi] = sap.presence[pi];
+                }
 
                 // ── the Zound's own volume (T-0493), after every effect ──
                 // The same per-sample ramp an inserted Gain effect at the end of the chain applies, so a volume curve moved

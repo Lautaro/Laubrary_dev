@@ -143,6 +143,9 @@ namespace Laubrary.Zounds.Dsp {
         /// <summary>How each binding combines, already converted from whatever the saved chain used.</summary>
         public readonly ModulationCombine[] bindCombine = new ModulationCombine[ZoundDspConstants.MAX_BINDINGS];
         public readonly float[] bindDepth = new float[ZoundDspConstants.MAX_BINDINGS];
+        /// <summary>Main thread only: which of the chain's bindings each laid-out binding came from (disabled ones are left
+        /// out, so the two lists differ). What a snapshot's binding depth is matched by (T-0498).</summary>
+        public readonly int[] bindSource = new int[ZoundDspConstants.MAX_BINDINGS];
 
         // ── totals ──
         public int stateFloats;
@@ -317,6 +320,7 @@ namespace Laubrary.Zounds.Dsp {
                     if (b.nodeIndex < 0 && (b.paramIndex < 0 || b.paramIndex >= SourceStageParam.Count)) continue;
                     int f = L.FlatIndex(b.nodeIndex, b.paramIndex);
                     L.bindModifier[binds] = b.modifierIndex;
+                    L.bindSource[binds] = i;
                     L.bindTarget[binds] = f;
                     L.bindOp[binds] = b.op;
                     // Chains saved before modulation moved onto the control's own travel stored a raw amount in the

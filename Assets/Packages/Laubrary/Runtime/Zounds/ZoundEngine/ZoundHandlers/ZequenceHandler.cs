@@ -351,6 +351,16 @@ namespace Laubrary.Zounds {
             for (int i = 0; i < runtimeZoundEntries.Count; i++) runtimeZoundEntries[i].token?.RefreshZpoc(key);
         }
 
+        public override void ApplySnapshot(string name, float seconds) {
+            if (runtimeZoundEntries == null) return;
+            for (int i = 0; i < runtimeZoundEntries.Count; i++) runtimeZoundEntries[i].token?.ApplySnapshotInternal(name, seconds);
+        }
+
+        public override void GlideBackTo(float seconds) {
+            if (runtimeZoundEntries == null) return;
+            for (int i = 0; i < runtimeZoundEntries.Count; i++) runtimeZoundEntries[i].token?.GlideBackInternal(seconds);
+        }
+
         public override void ApplyAllZpoc() {
             if (runtimeZoundEntries == null) return;
             for (int i = 0; i < runtimeZoundEntries.Count; i++) runtimeZoundEntries[i].token?.RefreshAllZpoc();

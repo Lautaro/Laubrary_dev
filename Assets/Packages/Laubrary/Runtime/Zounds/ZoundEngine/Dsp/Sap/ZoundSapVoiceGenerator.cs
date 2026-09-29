@@ -296,8 +296,10 @@ namespace Laubrary.Zounds.Dsp {
             this.authoredSpeed = authoredSpeed;
             tokenSpeed = 1f;
             playingZound = zound;
-            // A new play: no ZPOC control carried over from whatever this component played before.
+            // A new play: no ZPOC control or glide carried over from whatever this component played before.
             System.Array.Clear(pendingCtlSet, 0, pendingCtlSet.Length);
+            pendingGlide.Clear();
+            voiceMadeForThisPlay = false;
             this.clip = clip;
             this.layout = layout;
             this.startFrame = startFrame;
@@ -346,6 +348,11 @@ namespace Laubrary.Zounds.Dsp {
                 voice.sap.modCtlLive[m] = pendingCtl[m];
                 voice.sap.modCtlTarget[m] = pendingCtl[m];
             }
+            // A snapshot glide sent before the voice existed (a play that starts on a snapshot) is applied now, on the main
+            // thread, before the voice is handed over: it has rendered nothing yet, so it starts ON the snapshot.
+            for (int g = 0; g < pendingGlide.Count; g++) { var cmd = pendingGlide[g]; voice.Apply(in cmd); }
+            pendingGlide.Clear();
+            voiceMadeForThisPlay = true;
             created = true;
             handedOff = true;
             instance = context.AllocateGenerator(voice, new Control { declaredSampleRate = preparedSampleRate });
@@ -391,6 +398,21 @@ namespace Laubrary.Zounds.Dsp {
             if (modifier >= 0 && modifier < pendingCtl.Length) { pendingCtl[modifier] = control; pendingCtlSet[modifier] = true; }
             return Send(SapVoiceCommand.ModifierControl(modifier, control));
         }
+
+        /// <summary>
+        /// Sends one snapshot-glide command (T-0498), or keeps it for the voice being made when there is none yet. Commands
+        /// are small and fixed-size; a glide is a Clear, its targets, and a Begin.
+        /// </summary>
+        public void SendGlide(in SapVoiceCommand command) {
+            if (hasInstance && Send(command)) return;
+            if (!voiceMadeForThisPlay && pendingGlide.Count < 1024) pendingGlide.Add(command);
+        }
+
+        /// <summary>Whether the graph has made the voice for the play last described. A pooled component keeps its previous
+        /// play's flags until then, so "created" cannot tell whether a command should wait for the voice.</summary>
+        bool voiceMadeForThisPlay;
+
+        readonly System.Collections.Generic.List<SapVoiceCommand> pendingGlide = new System.Collections.Generic.List<SapVoiceCommand>(256);
 
         readonly float[] pendingCtl = new float[ZoundDspConstants.MAX_MODIFIERS];
         readonly bool[] pendingCtlSet = new bool[ZoundDspConstants.MAX_MODIFIERS];

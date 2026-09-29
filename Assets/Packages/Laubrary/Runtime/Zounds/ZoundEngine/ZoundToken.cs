@@ -362,6 +362,51 @@ namespace Laubrary.Zounds {
         /// <summary>The arguments this token's runs are started with.</summary>
         internal ZoundArgs args => m_args;
 
+        // ─────────────── snapshots and glides (T-0498) ───────────────
+
+        /// <summary>The snapshot this token last glided to (a setting: the next run starts on it), or null for Default.</summary>
+        internal string currentSnapshot { get; private set; }
+
+        /// <summary>Bumped by every glide, so a glide handle can tell whether it is still the latest.</summary>
+        internal int glideSerial { get; private set; }
+
+        /// <summary>
+        /// Glides this play -- and everything it plays -- to the snapshot called <paramref name="name"/>, over
+        /// <paramref name="milliseconds"/>, starting from wherever it is now (mid-way through another glide included).
+        /// "Default" is the settings as authored. Every Zound in the tree with a snapshot of that name glides; names are
+        /// matched the way Zound names are. The token keeps it as a setting: its next runs start on that snapshot. Returns
+        /// a handle that can glide back to exactly where this glide began. A name no Zound in the tree has is reported once
+        /// and does nothing.
+        /// </summary>
+        public ZoundGlide GlideToSnapshot(string name, float milliseconds) {
+            if (m_empty || m_zound == null) return default;
+            if (!ZoundSnapshots.AnywhereIn(m_zound, name)) {
+                string zn = m_zound.name, key = ZpocKeys.Key(name) ?? "";
+                if (!ZoundDiagnostics.Count(ZoundDiagnostics.Kind.MissingSnapshot, zn, key))
+                    ZoundDiagnostics.Report(ZoundDiagnostics.Kind.MissingSnapshot, zn, key,
+                        "No snapshot called '" + name + "' in '" + zn + "' or anything it plays. Nothing glided.");
+                return default;
+            }
+            float seconds = Mathf.Max(0f, milliseconds) * 0.001f;
+            currentSnapshot = ZpocKeys.Key(name) == ZpocKeys.Key(ZoundSnapshots.DefaultName) ? null : name;
+            glideSerial++;
+            m_handler?.ApplySnapshot(name, seconds);
+            return new ZoundGlide(this, glideSerial, runCount, seconds);
+        }
+
+        internal void ApplySnapshotInternal(string name, float seconds) {
+            currentSnapshot = ZpocKeys.Key(name) == ZpocKeys.Key(ZoundSnapshots.DefaultName) ? null : name;
+            m_handler?.ApplySnapshot(name, seconds);
+        }
+
+        internal ZoundGlide GlideBack(float seconds) {
+            glideSerial++;
+            m_handler?.GlideBackTo(seconds);
+            return new ZoundGlide(this, glideSerial, runCount, seconds);
+        }
+
+        internal void GlideBackInternal(float seconds) { m_handler?.GlideBackTo(seconds); }
+
         // ─────────────── tracks (T-0497) ───────────────
 
         /// <summary>One track's settings on a token: kept by the ROOT token, keyed by the authored track, so they last

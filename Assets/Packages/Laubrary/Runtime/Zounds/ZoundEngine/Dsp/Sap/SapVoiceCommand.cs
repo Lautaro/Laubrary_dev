@@ -22,6 +22,21 @@ namespace Laubrary.Zounds.Dsp {
         SetCrossmixMax = 10,
         /// <summary>ZPOC: one modifier's control value (modifier index in index, value already converted by the layout).</summary>
         SetModifierControl = 11,
+        /// <summary>Snapshot glide (T-0498), sent as: Clear, then targets, then Begin. Targets carry an index and a value.</summary>
+        GlideClear = 12,
+        /// <summary>An effect or own-value parameter (flat index) glides to value.</summary>
+        GlideParam = 13,
+        /// <summary>An on/off, whole-number or choice parameter (flat index) switches to value at the glide's midpoint.</summary>
+        GlideParamSwitch = 14,
+        /// <summary>A modifier parameter (index into the flat modifier-parameter array) glides to value.</summary>
+        GlideModParam = 15,
+        GlideModParamSwitch = 16,
+        /// <summary>A binding's depth (layout binding index) glides to value.</summary>
+        GlideDepth = 17,
+        /// <summary>An effect (node index) fades in (1) or out (0).</summary>
+        GlidePresence = 18,
+        /// <summary>Starts the glide from wherever every targeted value is now, over index samples (0: at once).</summary>
+        GlideBegin = 19,
     }
 
     /// <summary>
@@ -69,6 +84,9 @@ namespace Laubrary.Zounds.Dsp {
 
         public static SapVoiceCommand ModifierControl(int modifier, float value) =>
             new SapVoiceCommand { kind = SapVoiceCommandKind.SetModifierControl, index = modifier, value = value };
+
+        public static SapVoiceCommand Glide(SapVoiceCommandKind kind, int index, float value) =>
+            new SapVoiceCommand { kind = kind, index = index, value = value };
 
         public static SapVoiceCommand Stop() => new SapVoiceCommand { kind = SapVoiceCommandKind.Stop };
 

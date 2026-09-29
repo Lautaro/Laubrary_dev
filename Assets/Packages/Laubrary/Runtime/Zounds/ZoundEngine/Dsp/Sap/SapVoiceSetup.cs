@@ -96,6 +96,17 @@ namespace Laubrary.Zounds.Dsp {
                 float init = m < sapLayout.modCount ? sapLayout.modCtlInit[m] : 1f;
                 sap.modCtlLive[m] = init; sap.modCtlTarget[m] = init;
             }
+
+            // Snapshot glides (T-0498): none under way; every effect heard exactly as far as it is switched on.
+            sap.glideActive = false; sap.glideSettled = false; sap.glideTotal = 0; sap.glideDone = 0;
+            for (int i = 0; i < sap.gpKind.Length; i++) sap.gpKind[i] = 0;
+            for (int i = 0; i < sap.gmKind.Length; i++) sap.gmKind[i] = 0;
+            for (int i = 0; i < sap.gbKind.Length; i++) sap.gbKind[i] = 0;
+            for (int i = 0; i < sap.gnKind.Length; i++) sap.gnKind[i] = 0;
+            for (int i = 0; i < sap.presence.Length; i++) {
+                float on = i < sapLayout.nodeCount && sapLayout.enabled[i] ? 1f : 0f;
+                sap.presence[i] = on; sap.presencePrev[i] = on;
+            }
             sap.stopping = false;
             sap.released = false;
             sap.sourceExhausted = false;

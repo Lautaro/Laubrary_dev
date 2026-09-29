@@ -255,6 +255,9 @@ namespace Laubrary.Zounds
         public int detachedChainPresetId;
         public List<ChainParamOverride> chainOverrides = new List<ChainParamOverride>();
 
+        /// <summary>Named, saved sets of this Zound's settings a playing sound can glide to (T-0498). Default is not stored.</summary>
+        public List<ZoundSnapshot> snapshots = new List<ZoundSnapshot>();
+
         public Zound(int id) { this.id = id; }
         public Zound(int id, Zound source)
         {
@@ -273,6 +276,8 @@ namespace Laubrary.Zounds
             chainPresetId = source.chainPresetId;
             detachedChainPresetId = source.detachedChainPresetId;
             chainOverrides = source.chainOverrides != null ? new List<ChainParamOverride>(source.chainOverrides) : new List<ChainParamOverride>();
+            snapshots = new List<ZoundSnapshot>();
+            if (source.snapshots != null) foreach (var sn in source.snapshots) if (sn != null) snapshots.Add(sn.DeepCopy());
         }
 
         public bool IsClipOrLocalZound() {
