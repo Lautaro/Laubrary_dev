@@ -32,7 +32,7 @@ namespace Laubrary.Zounds {
                 if (!ZoundDiagnostics.Count(ZoundDiagnostics.Kind.UndeclaredGlobalZpoc, "", key))
                     ZoundDiagnostics.Report(ZoundDiagnostics.Kind.UndeclaredGlobalZpoc, "", key,
                         "A project-wide ZPOC value was set for '" + id + "', but no Zound in the project declares that id. " +
-                        "It is kept, in case a Zound that declares it is added, but nothing hears it now.");
+                        "It is kept, in case a Zound that declares it is added, but nothing hears it now.", id);
             }
             value = value < 0f ? 0f : value > 1f ? 1f : value;
             if (values.TryGetValue(key, out float old) && old == value) return;

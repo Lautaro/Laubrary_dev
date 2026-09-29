@@ -147,7 +147,7 @@ namespace Laubrary.Zounds {
                 string zn = m_zound != null ? m_zound.name : "";
                 if (!ZoundDiagnostics.Count(ZoundDiagnostics.Kind.MissingZpoc, zn, key))
                     ZoundDiagnostics.Report(ZoundDiagnostics.Kind.MissingZpoc, zn, key,
-                        "No ZPOC '" + zpocId + "' in '" + zn + "' or anything it plays. The value was ignored.");
+                        "No ZPOC '" + zpocId + "' in '" + zn + "' or anything it plays. The value was ignored.", zpocId);
                 return false;
             }
             if (m_zpoc == null) m_zpoc = new Dictionary<string, float>();
@@ -384,7 +384,7 @@ namespace Laubrary.Zounds {
                 string zn = m_zound.name, key = ZpocKeys.Key(name) ?? "";
                 if (!ZoundDiagnostics.Count(ZoundDiagnostics.Kind.MissingSnapshot, zn, key))
                     ZoundDiagnostics.Report(ZoundDiagnostics.Kind.MissingSnapshot, zn, key,
-                        "No snapshot called '" + name + "' in '" + zn + "' or anything it plays. Nothing glided.");
+                        "No snapshot called '" + name + "' in '" + zn + "' or anything it plays. Nothing glided.", name);
                 return default;
             }
             float seconds = Mathf.Max(0f, milliseconds) * 0.001f;
@@ -507,7 +507,7 @@ namespace Laubrary.Zounds {
                 string zn = m_zound.name;
                 if (!ZoundDiagnostics.Count(ZoundDiagnostics.Kind.MissingTrack, zn, key))
                     ZoundDiagnostics.Report(ZoundDiagnostics.Kind.MissingTrack, zn, key,
-                        "No track called '" + zpocId + "' in '" + zn + "' or anything it plays. The call was ignored.");
+                        "No track called '" + zpocId + "' in '" + zn + "' or anything it plays. The call was ignored.", zpocId);
                 return default;
             }
             return new ZoundTrack(this, found, false);

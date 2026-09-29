@@ -21,7 +21,7 @@ namespace Laubrary.Zounds.Uitk {
 
         [SerializeField] int selectedTab = -1;
 
-        internal static readonly string[] TabNames = { "Browser", "Monitor", "Routing", "Dep. Map", "Settings" };
+        internal static readonly string[] TabNames = { "Browser", "Monitor", "Routing", "Dep. Map", "Settings", "Problems" };
 
         VisualElement content, box;
         readonly List<ZuiToggleButton> tabButtons = new List<ZuiToggleButton>();
@@ -29,6 +29,7 @@ namespace Laubrary.Zounds.Uitk {
         MonitorTabTK monitor;
         RoutingTabTK routing;
         SettingsTabTK settings;
+        ProblemsTabTK problems;
 #if ADDRESSABLES_INSTALLED
         DependencyMapTabTK depMap;
 #endif
@@ -112,7 +113,7 @@ namespace Laubrary.Zounds.Uitk {
         void ShowTab() {
             content.Clear();
             SetFill(true);
-            browser = null; monitor = null; routing = null; settings = null;
+            browser = null; monitor = null; routing = null; settings = null; problems = null;
 #if ADDRESSABLES_INSTALLED
             depMap = null;
 #endif
@@ -124,6 +125,7 @@ namespace Laubrary.Zounds.Uitk {
                 case 3: depMap = new DependencyMapTabTK(this); content.Add(depMap); break;
 #endif
                 case 4: settings = new SettingsTabTK(); content.Add(settings); break;
+                case 5: problems = new ProblemsTabTK(); content.Add(problems); break;
                 default:
                     var todo = new Label(TabNames[selectedTab]);
                     todo.AddToClassList("zs-lbl");
@@ -138,6 +140,8 @@ namespace Laubrary.Zounds.Uitk {
             monitor?.Tick();
             routing?.Tick();
             settings?.Tick();
+            problems?.Tick();
+            TintProblemsTab();
 #if ADDRESSABLES_INSTALLED
             depMap?.Tick();
             TintDepMapTab();
@@ -147,6 +151,13 @@ namespace Laubrary.Zounds.Uitk {
         void Live() { browser?.Live(); monitor?.Live(); routing?.Live(); }
 
         internal void Refresh() => ShowTab();
+
+        /// <summary>"Problems" turns amber while game code has asked for anything that did not exist this session
+        /// (the ZPOC colour: these are all game-code requests), whichever tab is open.</summary>
+        void TintProblemsTab() {
+            if (tabButtons.Count < 6) return;
+            tabButtons[5].EnableInClassList("zs-maintab--problems", ZoundDiagnostics.Entries.Count > 0);
+        }
 
 #if ADDRESSABLES_INSTALLED
         double lastBrokenCheck = -100;

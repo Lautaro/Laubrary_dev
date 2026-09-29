@@ -34,6 +34,9 @@ namespace Laubrary.Zounds {
             public string zound;
             /// <summary>What was asked for: the name, id, track number or snapshot name, as the caller gave it.</summary>
             public string detail;
+            /// <summary>What was asked for, spelled the way the caller first spelled it (<see cref="detail"/> may be the
+            /// matching key, which is lowercased and stripped of spaces).</summary>
+            public string shown;
             public string message;
             public int count;
             /// <summary>Unscaled real time since startup, in seconds.</summary>
@@ -54,14 +57,14 @@ namespace Laubrary.Zounds {
         /// later ones only count. <paramref name="message"/> is only read the first time, so a caller building it on the
         /// fly should check <see cref="IsKnown"/> first if that matters.
         /// </summary>
-        public static void Report(Kind kind, string zound, string detail, string message) {
+        public static void Report(Kind kind, string zound, string detail, string message, string shown = null) {
             zound = zound ?? ""; detail = detail ?? "";
             float now = Time.realtimeSinceStartup;
             if (byKey.TryGetValue((kind, zound, detail), out var e)) {
                 e.count++; e.lastSeen = now; Revision++;
                 return;
             }
-            e = new Entry { kind = kind, zound = zound, detail = detail, message = message, count = 1, firstSeen = now, lastSeen = now };
+            e = new Entry { kind = kind, zound = zound, detail = detail, shown = shown ?? detail, message = message, count = 1, firstSeen = now, lastSeen = now };
             byKey.Add((kind, zound, detail), e);
             ordered.Add(e);
             Revision++;
