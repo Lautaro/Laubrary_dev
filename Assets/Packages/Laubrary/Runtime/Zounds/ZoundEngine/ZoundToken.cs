@@ -407,6 +407,12 @@ namespace Laubrary.Zounds {
 
         internal void GlideBackInternal(float seconds) { m_handler?.GlideBackTo(seconds); }
 
+        /// <summary>The snapshot this play last glided toward and how far along it is (1 once there). False when it has not glided.</summary>
+        public bool TryGetGlideProgress(out string snapshot, out float progress) {
+            snapshot = null; progress = 0f;
+            return m_handler != null && m_handler.TryGlideProgress(out snapshot, out progress);
+        }
+
         // ─────────────── tracks (T-0497) ───────────────
 
         /// <summary>One track's settings on a token: kept by the ROOT token, keyed by the authored track, so they last

@@ -49,11 +49,14 @@ namespace Laubrary.Zounds.Uitk {
         readonly ChainAnalyserTK analyser;
         // Kept across rebuilds too, so what it is pretending to send survives an edit.
         readonly ZpocTestPanelTK zpocTest;
+        // The sound's snapshots (T-0498), kept across rebuilds too.
+        readonly SnapshotsRowTK snapshotsRow;
 
         public ChainEditorTK(Zound zound) {
             this.zound = zound;
             analyser = new ChainAnalyserTK(zound);
             zpocTest = new ZpocTestPanelTK(zound);
+            snapshotsRow = new SnapshotsRowTK(zound, (undo, action) => Modify(undo, action));
             AddToClassList("zs-chain");
             style.flexShrink = 0;
             RegisterCallback<GeometryChangedEvent>(_ => Tick());
@@ -152,6 +155,7 @@ namespace Laubrary.Zounds.Uitk {
             bool linked = preset != null;
 
             Add(LibraryBar(chain, preset));
+            Add(snapshotsRow);
             Add(ErrorRow(chain, linked));
             Add(Nodes(chain, linked, w));
             Add(AddEffectRow(chain));

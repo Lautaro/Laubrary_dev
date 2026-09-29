@@ -55,6 +55,8 @@ namespace Laubrary.Zounds {
         void ApplySnapshot(string name, float seconds);
         /// <summary>Glides back to exactly where the last glide began.</summary>
         void GlideBackTo(float seconds);
+        /// <summary>A glide under way on this play: the snapshot it is heading for and how far along (0..1).</summary>
+        bool TryGlideProgress(out string target, out float progress);
     }
 
     internal class ZoundHandler<TZound> : IZoundHandler where TZound : Zound {
@@ -185,6 +187,7 @@ namespace Laubrary.Zounds {
         public virtual void ApplyZpoc(string key) { }
         public virtual void ApplySnapshot(string name, float seconds) { }
         public virtual void GlideBackTo(float seconds) { }
+        public virtual bool TryGlideProgress(out string target, out float progress) { target = null; progress = 0f; return false; }
         public virtual void ApplyAllZpoc() { }
 
         /// <summary>The DSP group node this zound's output sums into (-1 = the bus). Set by the parent Zequence before Start.</summary>

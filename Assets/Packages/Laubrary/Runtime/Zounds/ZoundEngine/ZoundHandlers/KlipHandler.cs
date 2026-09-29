@@ -237,6 +237,13 @@ namespace Laubrary.Zounds {
             GlideTo(target, seconds, ZpocKeys.Key(name), null);
         }
 
+        public override bool TryGlideProgress(out string target, out float progress) {
+            target = m_glideTo?.name; progress = 1f;
+            if (m_glideTo == null) return false;
+            progress = m_glideSeconds <= 0f ? 1f : Mathf.Clamp01((Time.realtimeSinceStartup - m_glideStart) / m_glideSeconds);
+            return true;
+        }
+
         public override void GlideBackTo(float seconds) {
             if (m_glideFrom == null) return;
             // Back to exactly where the glide began: its settings, and the volume and pitch this play had then.

@@ -338,3 +338,13 @@
 .zs-root .zs-ownvalue__text { font-size: 10px; color: rgb(170,170,178); -unity-text-align: middle-left; padding: 0 5px 0 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .zs-root .zs-ownvalue--bound .zs-ownvalue__text { color: rgb(215,215,222); }
 .zs-root .zs-ownvalue--code .zs-ownvalue__text { color: rgb(255,170,70); }
+/* Snapshots (T-0498): one chip per snapshot; the one a playing sound is gliding to fills as it goes. */
+.zs-root .zs-snapchip {
+    border-width: 1px; border-color: rgba(128,128,128,0.5);
+    border-top-left-radius: 3px; border-top-right-radius: 3px; border-bottom-left-radius: 3px; border-bottom-right-radius: 3px;
+    background-color: rgba(0,0,0,0.2); overflow: hidden;
+}
+.zs-root .zs-snapchip:hover { border-color: rgba(200,200,210,0.8); }
+.zs-root .zs-snapchip--target { border-color: rgba(115,191,255,0.9); }
+.zs-root .zs-snapchip__fill { position: absolute; left: 0; top: 0; bottom: 0; background-color: rgba(115,191,255,0.3); }
+.zs-root .zs-snapchip__text { position: absolute; left: 0; right: 0; top: 0; bottom: 0; font-size: 10px; color: rgb(215,215,222); -unity-text-align: middle-center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
