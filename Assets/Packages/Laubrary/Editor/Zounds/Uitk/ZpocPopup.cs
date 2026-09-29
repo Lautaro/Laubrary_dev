@@ -27,7 +27,9 @@ namespace Laubrary.Zounds.Uitk {
             UnityEditor.PopupWindow.Show(anchorWorld, new ZpocPopup(zound, mod, changed));
         }
 
-        public override Vector2 GetWindowSize() => new Vector2(mod.type == ZoundModifierType.Code ? 470f : 640f, RowH + 12f);
+        // Sized to the row's content: padding, id label, field, warning, gap, [Scale/Set, gap, As authored, gap, Rest, gap], Follow, padding.
+        const float CommonW = 6f + 32f + 130f + 14f + 6f + 130f + 6f, ModeW = 48f + 40f + 6f + 84f + 4f + 110f + 6f;
+        public override Vector2 GetWindowSize() => new Vector2(mod.type == ZoundModifierType.Code ? CommonW : CommonW + ModeW, RowH + 12f);
 
         public override void OnGUI(Rect rect) { }
 

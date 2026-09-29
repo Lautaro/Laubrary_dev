@@ -85,7 +85,7 @@ namespace Laubrary.Zounds.Uitk {
 
         VisualElement Header() {
             var r = HRow();
-            var title = new Label("Test as game code") {
+            var title = new Label("Code test") {
                 tooltip = "Pretends to be the game: while Drive is on, every play of this sound in the editor takes the values below, sent through its token exactly as game code would (token.SetZpoc). Watch the amber on the chain above while it plays. Nothing here is saved."
             };
             title.AddToClassList("zs-text-subheader"); title.AddToClassList("zs-subheader");
@@ -121,8 +121,7 @@ namespace Laubrary.Zounds.Uitk {
             label.style.width = 128f; label.style.flexShrink = 0; label.style.unityTextAlign = TextAnchor.MiddleLeft;
             r.Add(label);
             ZuiSkinSlider s = null;
-            s = ZS.Slider("Value  " + row.value.ToString("0.00"), row.value, 0f, 1f,
-                "The value sent (Hold), or the middle each instance moves around (Ramp, Jitter). 0..1, as game code sends it.",
+            s = ZS.Slider("Value  " + row.value.ToString("0.00"), row.value, 0f, 1f, "",
                 v => { row.value = v; s.text = "Value  " + v.ToString("0.00"); }, ZuiSkinSlider.LabelMode.LabelOnly, 0.5f, "Default", 200f, RowH - 2f);
             r.Add(s);
             r.Add(Gap(6f));
@@ -133,16 +132,29 @@ namespace Laubrary.Zounds.Uitk {
                 "Jitter: each instance jumps to a new value near this one (±0.3) every 0.3 s, like a jumpy game signal."
             };
             var pt = new ZuiToggleButton[3];
+            ZuiToggleButton globalT = null;
+            // Tooltips say what happens in the CURRENT state, and patterns are off while the value goes project-wide.
+            void Sync() {
+                s.tooltip = row.global ? "The value sent once, project-wide, to every play that has not set this id itself. 0..1, as game code sends it."
+                          : row.pattern == Pattern.Hold ? "The value every instance is sent. 0..1, as game code sends it."
+                          : row.pattern == Pattern.Ramp ? "The middle each instance sweeps around (±0.3). 0..1, as game code sends it."
+                          : "The middle each instance jumps around (±0.3). 0..1, as game code sends it.";
+                for (int k = 0; k < 3; k++) pt[k]?.SetEnabled(!row.global);
+                if (globalT != null) globalT.tooltip = row.global
+                    ? "On: the value is sent once for everything (ZoundEngine.SetGlobalZpoc); patterns do not apply. Click to send it to each play instead, with its pattern."
+                    : "Off: each play is sent its own value, with the pattern chosen. Click to send one value for everything instead (ZoundEngine.SetGlobalZpoc): every play that has not set this id itself follows it.";
+            }
             for (int i = 0; i < 3; i++) {
                 int idx = i;
                 var corner = i == 0 ? ZUICornerMask.Left : i == 2 ? ZUICornerMask.Right : ZUICornerMask.None;
                 pt[i] = ZS.Toggle(names[i], tips[i], (int)row.pattern == i,
-                    v => { row.pattern = (Pattern)idx; for (int k = 0; k < 3; k++) pt[k].SetValueWithoutNotify(k == idx); }, "RichToggle", corner, 48f, RowH - 2f);
+                    v => { row.pattern = (Pattern)idx; for (int k = 0; k < 3; k++) pt[k].SetValueWithoutNotify(k == idx); Sync(); }, "RichToggle", corner, 48f, RowH - 2f);
                 r.Add(pt[i]);
             }
             r.Add(Gap(6f));
-            r.Add(ZS.Toggle("Project-wide", "Sends the value once for everything (ZoundEngine.SetGlobalZpoc) instead of to each play: every play that has not set this id itself follows it. Patterns do not apply.",
-                row.global, v => { row.global = v; if (!v) ClearGlobal(row.id); }, "RichToggle", ZUICornerMask.All, 86f, RowH - 2f));
+            globalT = ZS.Toggle("Project-wide", "", row.global, v => { row.global = v; if (!v) ClearGlobal(row.id); Sync(); }, "RichToggle", ZUICornerMask.All, 86f, RowH - 2f);
+            r.Add(globalT);
+            Sync();
             return r;
         }
 

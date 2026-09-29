@@ -57,14 +57,21 @@ namespace Laubrary.Zounds.Uitk {
         void Build() {
             Clear(); chips.Clear();
             var title = new Label("Snapshots") {
-                tooltip = "Named sets of this sound's settings. Game code glides a playing sound to one over a time it chooses (token.GlideToSnapshot(\"name\", ms)), from wherever the sound is. Click one to hear that here: every play of this sound glides to it. Right-click one to load it into the editor, capture it again, rename or delete it."
+                tooltip = "Named sets of this sound's settings. Game code glides a playing sound to one over a time it chooses (token.GlideToSnapshot(\"name\", ms)), from wherever the sound is. Click one to hear that here: every play of this sound glides to it. Right-click one to load it into the editor, capture it again, rename or delete it. Right-click this title for the whole list, to glide to any of them."
             };
             title.AddToClassList("zs-guilabel");
             title.style.width = 76f; title.style.flexShrink = 0; title.style.unityTextAlign = TextAnchor.MiddleLeft;
+            // Right-click the title: every snapshot, for when there are more chips than the strip can show.
+            title.RegisterCallback<PointerDownEvent>(e => {
+                if (e.button != 1) return;
+                var items = new List<ZUI.ZUIMenuItem> { ZUI.MenuItem(ZoundSnapshots.DefaultName, () => GlideAll(ZoundSnapshots.DefaultName)) };
+                if (zound.snapshots != null) foreach (var sn in zound.snapshots) if (sn != null) { string n = sn.name; items.Add(ZUI.MenuItem(n, () => GlideAll(n))); }
+                ZUI.ContextMenu(items.ToArray());
+                e.StopPropagation();
+            });
             Add(title);
-            AddChip(ZoundSnapshots.DefaultName, null);
-            if (zound.snapshots != null) foreach (var s in zound.snapshots) if (s != null) AddChip(s.name, s);
-            Add(Gap(6f));
+            // Capture and the glide time come first and never move; the chips, whose number varies, go last in a strip
+            // of their own that clips at the pane's edge (their full list is also on the title's right-click).
             Add(ZS.Button("Capture", "Saves the settings as they are now as a new snapshot (effects, their on/off, modifiers and their strengths, where each ZPOC rests, and the volume and pitch ranges).", "RichButton",
                 () => modify("capture snapshot", () => {
                     if (zound.snapshots == null) zound.snapshots = new List<ZoundSnapshot>();
@@ -76,6 +83,24 @@ namespace Laubrary.Zounds.Uitk {
                 "How long the glide takes when you click a snapshot here, to hear it. Game code chooses its own time.",
                 v => { glideMs = Mathf.Round(v / 10f) * 10f; glide.text = "Glide " + glideMs.ToString("0") + " ms"; }, ZuiSkinSlider.LabelMode.LabelOnly, 800f, "Default", 130f, RowH - 2f);
             Add(glide);
+            Add(Gap(8f));
+            strip = new VisualElement();
+            strip.style.flexDirection = FlexDirection.Row; strip.style.flexShrink = 1; strip.style.flexGrow = 1;
+            strip.style.overflow = Overflow.Hidden;
+            Add(strip);
+            AddChip(ZoundSnapshots.DefaultName, null);
+            if (zound.snapshots != null) foreach (var s in zound.snapshots) if (s != null) AddChip(s.name, s);
+        }
+
+        VisualElement strip;
+
+        /// <summary>Why a snapshot cannot take this name (empty, "Default", or another of this sound's snapshots), or null.</summary>
+        string RenameProblem(string n, ZoundSnapshot self) {
+            if (string.IsNullOrWhiteSpace(n)) return "A snapshot needs a name.";
+            if (ZpocKeys.Same(n, ZoundSnapshots.DefaultName)) return "\"Default\" is the sound as authored; a snapshot cannot take that name.";
+            if (zound.snapshots != null) foreach (var s in zound.snapshots)
+                if (s != null && s != self && ZpocKeys.Same(s.name, n)) return "Another snapshot of this sound is already called that (names are matched ignoring case and spaces).";
+            return null;
         }
 
         string UniqueName(string stem) {
@@ -92,6 +117,7 @@ namespace Laubrary.Zounds.Uitk {
             fill.AddToClassList("zs-snapchip__fill");
             var text = new Label(name) { pickingMode = PickingMode.Ignore };
             text.AddToClassList("zs-snapchip__text");
+            text.style.overflow = Overflow.Hidden; text.style.textOverflow = TextOverflow.Ellipsis;
             chip.Add(fill); chip.Add(text);
             float w = Mathf.Clamp(24f + name.Length * 6.5f, 56f, 140f);
             chip.style.width = w; chip.style.height = RowH - 2f; chip.style.marginTop = 1f; chip.style.marginRight = 3f; chip.style.flexShrink = 0;
@@ -102,7 +128,7 @@ namespace Laubrary.Zounds.Uitk {
                 if (e.button == 0) { GlideAll(name); e.StopPropagation(); }
                 else if (e.button == 1) { Menu(name, snapshot, chip); e.StopPropagation(); }
             });
-            Add(chip);
+            strip.Add(chip);
             chips.Add((name, chip, fill));
         }
 
@@ -129,7 +155,8 @@ namespace Laubrary.Zounds.Uitk {
                 })));
                 items.Add(ZUI.MenuItem("Rename…", () => NamePopup.Show(chip.worldBound, "Name", snapshot.name,
                     "What game code calls this snapshot: token.GlideToSnapshot(\"name\", ms). Matched the way Zound names are. It only has to be unique within this sound.",
-                    n => modify("rename snapshot", () => snapshot.name = string.IsNullOrWhiteSpace(n) ? snapshot.name : n.Trim()))));
+                    n => modify("rename snapshot", () => snapshot.name = n.Trim()),
+                    n => RenameProblem(n, snapshot))));
                 items.Add(ZUI.MenuItem("Delete", () => modify("delete snapshot", () => zound.snapshots.Remove(snapshot))));
             }
             ZUI.ContextMenu(items.ToArray());
@@ -174,11 +201,15 @@ namespace Laubrary.Zounds.Uitk {
 
     /// <summary>A one-field popover for naming something where it is declared. Changes apply on Enter or when it closes.</summary>
     public class NamePopup : PopupWindowContent {
-        readonly string label, value, tooltip; readonly Action<string> apply; TextField field;
-        NamePopup(string label, string value, string tooltip, Action<string> apply) { this.label = label; this.value = value; this.tooltip = tooltip; this.apply = apply; }
-        public static void Show(Rect anchor, string label, string value, string tooltip, Action<string> apply) =>
-            UnityEditor.PopupWindow.Show(anchor, new NamePopup(label, value, tooltip, apply));
-        public override Vector2 GetWindowSize() => new Vector2(240f, 32f);
+        readonly string label, value, tooltip; readonly Action<string> apply; readonly Func<string, string> problem;
+        TextField field; Label warn; bool cancelled;
+        NamePopup(string label, string value, string tooltip, Action<string> apply, Func<string, string> problem) {
+            this.label = label; this.value = value; this.tooltip = tooltip; this.apply = apply; this.problem = problem;
+        }
+        /// <summary><paramref name="problem"/> (optional) returns why a name cannot be used, or null; such a name is not applied.</summary>
+        public static void Show(Rect anchor, string label, string value, string tooltip, Action<string> apply, Func<string, string> problem = null) =>
+            UnityEditor.PopupWindow.Show(anchor, new NamePopup(label, value, tooltip, apply, problem));
+        public override Vector2 GetWindowSize() => new Vector2(256f, 32f);
         public override void OnGUI(Rect rect) { }
         public override void OnOpen() {
             var root = editorWindow.rootVisualElement;
@@ -187,10 +218,26 @@ namespace Laubrary.Zounds.Uitk {
             var l = new Label(label) { tooltip = tooltip }; l.AddToClassList("zs-guilabel"); l.style.width = 44f; l.style.unityTextAlign = TextAnchor.MiddleLeft;
             field = new TextField { value = value, tooltip = tooltip }; field.AddToClassList("zs-namefield");
             field.style.width = 180f; field.style.height = 18f;
-            field.RegisterCallback<KeyDownEvent>(e => { if (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter) editorWindow.Close(); });
-            root.Add(l); root.Add(field);
+            field.RegisterCallback<KeyDownEvent>(e => {
+                if (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter) editorWindow.Close();
+                else if (e.keyCode == KeyCode.Escape) { cancelled = true; editorWindow.Close(); }
+            });
+            // The warning's space is always reserved, so it appearing moves nothing.
+            warn = new Label("⚠"); warn.AddToClassList("zs-lbl"); warn.style.width = 14f; warn.style.color = new Color(1f, 0.59f, 0.16f);
+            warn.style.visibility = Visibility.Hidden;
+            field.RegisterValueChangedCallback(e => {
+                string why = problem?.Invoke(e.newValue);
+                warn.style.visibility = why != null ? Visibility.Visible : Visibility.Hidden;
+                warn.tooltip = why ?? "";
+            });
+            root.Add(l); root.Add(field); root.Add(warn);
             field.schedule.Execute(() => { field.Focus(); field.SelectAll(); });
         }
-        public override void OnClose() { if (field != null && field.value != value) apply?.Invoke(field.value); }
+        /// <summary>Applies on Enter or on clicking away; Escape, and a name that cannot be used, leave the old name.</summary>
+        public override void OnClose() {
+            if (cancelled || field == null || field.value == value) return;
+            if (problem?.Invoke(field.value) != null) return;
+            apply?.Invoke(field.value);
+        }
     }
 }

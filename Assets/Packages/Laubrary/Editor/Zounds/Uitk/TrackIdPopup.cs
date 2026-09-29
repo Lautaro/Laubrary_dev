@@ -26,7 +26,7 @@ namespace Laubrary.Zounds.Uitk {
             UnityEditor.PopupWindow.Show(anchorWorld, new TrackIdPopup(parent, entry, changed));
         }
 
-        public override Vector2 GetWindowSize() => new Vector2(230f, RowH + 12f);
+        public override Vector2 GetWindowSize() => new Vector2(6f + 32f + 130f + 14f + 6f, RowH + 12f);   // the same id row as the modifier ZPOC popover
         public override void OnGUI(Rect rect) { }
 
         public override void OnOpen() {
@@ -37,12 +37,12 @@ namespace Laubrary.Zounds.Uitk {
             r.style.flexDirection = FlexDirection.Row; r.style.height = RowH; r.style.flexShrink = 0;
             string tip = "A name game code can reach this track by: token.Track(\"" + (string.IsNullOrEmpty(entry.zpocId) ? "name" : entry.zpocId) + "\"), as well as by its number. Case, spaces, underscores and hyphens are ignored, as for Zound names. Only has to be unique within this Zequence; a Zequence playing this one reaches it by the same name. Empty: reached by number only.";
             var l = new Label("⚡ Id") { tooltip = tip };
-            l.AddToClassList("zs-zpoctext");
-            l.style.width = 34f; l.style.flexShrink = 0; l.style.unityTextAlign = TextAnchor.MiddleLeft;
+            l.AddToClassList("zs-zpocmark");
+            l.style.width = 32f; l.style.flexShrink = 0; l.style.unityTextAlign = TextAnchor.MiddleLeft;
             r.Add(l);
             var id = new TextField { value = entry.zpocId ?? "", tooltip = tip };
             id.AddToClassList("zs-namefield");
-            id.style.width = 160f; id.style.height = RowH - 2f; id.style.flexShrink = 0;
+            id.style.width = 130f; id.style.height = RowH - 2f; id.style.flexShrink = 0;
             var dup = new Label("⚠") { tooltip = "Another track of this Zequence already has this id, so one call reaches both. Give one a different id unless that is what you want." };
             dup.AddToClassList("zs-warnmark");
             dup.style.width = 14f; dup.style.flexShrink = 0;

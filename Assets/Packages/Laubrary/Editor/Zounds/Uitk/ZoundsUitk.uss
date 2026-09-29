@@ -313,6 +313,8 @@
 /* GUI.color on the main tab while something is broken (the old tab's headerColor, 1/0.4/0.4) */
 .zs-root .zs-maintab--broken { -unity-background-image-tint-color: rgb(255,102,102); }
 .zs-root .zs-maintab--problems { -unity-background-image-tint-color: rgb(255,150,40); }
+.zs-root .zs-problems__sound { color: rgb(140,190,255); cursor: link; }
+.zs-root .zs-problems__sound:hover { color: rgb(190,220,255); }
 
 /* ── the Settings tab: the editor's own fields, 18 high and 2 apart as EditorGUILayout lays them. At 225 % a 2 pt gap
    snaps to 5 device pixels, so rows are given as 18.22 + 1.78 pt, which snap to 41 + 4 px: the old 20 pt pitch exactly ── */

@@ -154,6 +154,7 @@ namespace Laubrary.Zounds.Uitk {
                 idChip.tooltip = on
                     ? "Game code reaches this track as '" + entry.zpocId + "': token.Track(\"" + entry.zpocId + "\") -- its volume, pitch, fades, mute, solo and whether it can be picked. Click to change."
                     : "Game code reaches this track by its number (token.Track(" + index + ")). Click to give it a name as well.";
+                Layout();   // the chip is sized to its text
             });
 
             // V / P / C.
@@ -258,7 +259,12 @@ namespace Laubrary.Zounds.Uitk {
 
                 Place(name, new Rect(left.x, content.y, (content.width - 18f) * 0.8f, LH));
                 float chipX = left.x + (content.width - 18f) * 0.8f + 2f;
-                Place(idChip, new Rect(chipX, content.y, Mathf.Max(18f, content.xMax - 18f - 2f - chipX), LH));
+                // Sized to its text (a bolt, or a bolt and the id), never wider than the gap before the play button;
+                // what is left over stays as space. Truncated with an ellipsis if the id is longer than the gap.
+                float chipRoom = Mathf.Max(18f, content.xMax - 18f - 2f - chipX);
+                float chipW = Mathf.Clamp(idChip.MeasureTextSize(idChip.text ?? "", 0f, MeasureMode.Undefined, LH, MeasureMode.Exactly).x + 10f, 18f, chipRoom);
+                idChip.style.overflow = Overflow.Hidden; idChip.style.textOverflow = TextOverflow.Ellipsis;
+                Place(idChip, new Rect(chipX, content.y, chipW, LH));
                 Place(play, new Rect(content.xMax - 18f, content.y, 18f, LH));
                 float y = content.y + LH - 3f;
                 float dur = CompositeZoundEditing.GetEntryDuration(parent, entry, parentPitch);
