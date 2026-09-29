@@ -69,6 +69,7 @@ namespace Laubrary.Zounds.Checks {
 
         private void Start() {
             if (HasArg("-zoundsGcReport")) { StartCoroutine(GcReport()); return; }
+            if (HasArg("-zoundsZpocReport")) { StartCoroutine(ZpocReport()); return; }
             if (WantsHeadlessReport()) { WriteHeadlessReport(); return; }
             Play();
         }
@@ -133,6 +134,86 @@ namespace Laubrary.Zounds.Checks {
             try { System.IO.File.WriteAllText(path, sb.ToString()); } catch (System.Exception e) { Debug.LogError(e.Message); }
             Debug.Log("[Zounds] " + sb);
             Application.Quit(stalls == 0 ? 0 : 4);
+        }
+
+        // ── Many voices driven by game code every frame, through collections (T-0499) ──
+        // The ZPOC promise in a real player: values sent to many playing voices on every frame cost the game no garbage,
+        // and the audio keeps running while the collector works. Each extra voice plays the tone through a low-pass whose
+        // cutoff a Code modifier moves, and every frame each voice is sent a new value, the way a game drives an engine
+        // sound. Smoothness of a single value change (no step, eased per block) is measured by kept check 20 in the editor.
+        private const int ZpocVoices = 16;
+        private readonly System.Collections.Generic.List<(ZoundSapVoiceGenerator gen, ChainLayout layout)> zpocVoices
+            = new System.Collections.Generic.List<(ZoundSapVoiceGenerator, ChainLayout)>();
+        private long zpocSendBytes, zpocSends;
+
+        private System.Collections.IEnumerator ZpocReport() {
+            AudioListener.volume = 0.05f;
+            Play();
+            var clip = BuildTone();
+            for (int i = 0; i < ZpocVoices; i++) {
+                var go = new GameObject("zpoc voice " + i);
+                go.transform.SetParent(transform, false);
+                var src = go.AddComponent<AudioSource>();
+                var gen = go.AddComponent<ZoundSapVoiceGenerator>();
+                var chain = new ZoundEffectChain();
+                var lp = new ZoundEffectNode(ZoundEffectType.LowPass);
+                lp.p[0] = 2000f;
+                chain.nodes.Add(lp);
+                chain.modifiers.Add(new ZoundModifier(ZoundModifierType.Code) { zpocId = "throttle" });
+                chain.bindings.Add(new ZoundModifierBinding {
+                    modifierIndex = 0, nodeIndex = 0, paramIndex = 0, depth = 1f,
+                    combine = ChainModulationCompat.DefaultCombineForCode(ZoundEffectDescriptors.Get(ZoundEffectType.LowPass).parameters[0]),
+                    schema = ChainModulationCompat.CURRENT_SCHEMA,
+                });
+                var layout = ChainLayout.Build(chain, AudioSettings.outputSampleRate);
+                gen.SetPlay(clip, layout, 0d, clip.frames, 1f, 0.3f, (float)clip.frames / clip.frequency, loop: true,
+                            tokenId: 100 + i, heavyTier: true);
+                src.generator = gen;
+                src.Play();
+                zpocVoices.Add((gen, layout));
+            }
+
+            var sb = new System.Text.StringBuilder("Zounds ZPOC load report\n");
+            sb.Append("editor: ").Append(Application.isEditor).Append("   platform: ").Append(Application.platform)
+              .Append("   compiler enabled: ").Append(BurstCompiler.IsEnabled).Append('\n');
+            AudioSettings.GetDSPBufferSize(out int len, out int num);
+            sb.Append("audio buffer: ").Append(len).Append(" x ").Append(num).Append(" @ ").Append(AudioSettings.outputSampleRate).Append('\n');
+            sb.Append("voices: ").Append(ZpocVoices + 1).Append(" (").Append(ZpocVoices).Append(" of them sent a new ZPOC value every frame)\n");
+
+            for (float t = 0; t < 1.5f; t += Time.unscaledDeltaTime) { SampleRate(); SendZpocFrame(); yield return null; }
+            zpocSendBytes = 0; zpocSends = 0;   // measure from here: the first frames include one-time setup
+            int frames = 0;
+            for (int i = 0; i < 10; i++) {
+                for (float t = 0; t < 0.8f; t += Time.unscaledDeltaTime) { SampleRate(); SendZpocFrame(); frames++; yield return null; }
+                ForceCollection();
+                sb.Append(i + 1).Append(": ").Append(lastVerdict).Append('\n');
+            }
+            int playing = 0; foreach (var v in zpocVoices) if (v.gen.IsPlaying) playing++;
+            sb.Append("frames driven: ").Append(frames).Append(", values sent: ").Append(zpocSends)
+              .Append(", managed bytes allocated by sending them: ").Append(zpocSendBytes).Append('\n');
+            sb.Append("driven voices still playing at the end: ").Append(playing).Append(" of ").Append(ZpocVoices).Append('\n');
+            sb.Append("survived ").Append(survived).Append(", stalled ").Append(stalls)
+              .Append("; audio blocks run as managed code: ").Append(ZoundAudioThreadGuard.ManagedBlocks)
+              .Append(" of ").Append(ZoundAudioThreadGuard.Blocks).Append('\n');
+            bool pass = stalls == 0 && zpocSendBytes == 0 && ZoundAudioThreadGuard.ManagedBlocks == 0 && playing == ZpocVoices && survived > 0;
+            sb.Append(pass ? "PASS\n" : "FAIL\n");
+            string path = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Application.dataPath) ?? ".", "zounds-zpoc-report.txt");
+            try { System.IO.File.WriteAllText(path, sb.ToString()); } catch (System.Exception e) { Debug.LogError(e.Message); }
+            Debug.Log("[Zounds] " + sb);
+            Application.Quit(pass ? 0 : 5);
+        }
+
+        /// <summary>One frame of game code: a new throttle for every driven voice, each on its own slow wave.</summary>
+        private void SendZpocFrame() {
+            float now = Time.realtimeSinceStartup;
+            long before = System.GC.GetAllocatedBytesForCurrentThread();
+            for (int i = 0; i < zpocVoices.Count; i++) {
+                var v = zpocVoices[i];
+                float value = 0.5f + 0.5f * Mathf.Sin(now * (1.3f + 0.17f * i) + i);
+                v.gen.SetModifierControlLive(0, v.layout.ControlFor(0, value));
+            }
+            zpocSendBytes += System.GC.GetAllocatedBytesForCurrentThread() - before;
+            zpocSends += zpocVoices.Count;
         }
 
         /// <summary>

@@ -43,7 +43,22 @@ namespace Laubrary.Zounds.Checks.EditorTools {
         /// <summary>
         /// Schedules the build and returns at once. Watch the status file for the outcome; its path is returned.
         /// </summary>
-        public static string StartBuild() {
+        public static string StartBuild() => StartBuild(false);
+
+        /// <summary>
+        /// The same build without the addressable-content step. The check scene uses no addressable content, and that step
+        /// is the only thing that refuses to build while some OTHER scene has unsaved changes, so this is how the check is
+        /// built while the owner has unsaved work open, without saving or discarding it. The step is switched off through
+        /// the per-user editor preference Addressables reads (never the project's settings asset), and the preference is
+        /// put back exactly as it was, including deleted again if it was not set, as soon as the build ends.
+        /// </summary>
+        public static string StartBuildWithoutAddressables() => StartBuild(true);
+
+        private const string AddressablesWithPlayerPref = "Addressables.BuildAddressablesWithPlayerBuild";
+        private static bool s_withoutAddressables;
+
+        private static string StartBuild(bool withoutAddressables) {
+            s_withoutAddressables = withoutAddressables;
             Directory.CreateDirectory(BuildRoot);
             File.WriteAllText(StatusPath, "scheduled " + DateTime.Now.ToString("HH:mm:ss") + "\n");
             EditorApplication.delayCall += RunBuild;
@@ -51,6 +66,10 @@ namespace Laubrary.Zounds.Checks.EditorTools {
         }
 
         private static void RunBuild() {
+            bool hadPref = EditorPrefs.HasKey(AddressablesWithPlayerPref);
+            bool oldPref = EditorPrefs.GetBool(AddressablesWithPlayerPref, true);
+            bool skip = s_withoutAddressables;
+            if (skip) EditorPrefs.SetBool(AddressablesWithPlayerPref, false);
             try {
                 // Checked BEFORE building, because otherwise this fails in a thoroughly unhelpful way: the
                 // addressable-content step refuses to run while any scene has unsaved changes, and what comes back
@@ -71,7 +90,9 @@ namespace Laubrary.Zounds.Checks.EditorTools {
                 SaveOurOwnScene();
 
                 string unsaved = UnsavedScenes();
-                if (unsaved != null) {
+                if (skip && unsaved != null)
+                    File.AppendAllText(StatusPath, "building without addressable content; left untouched with unsaved changes: " + unsaved + "\n");
+                if (!skip && unsaved != null) {
                     File.AppendAllText(StatusPath,
                         "CANNOT BUILD YET: a scene has unsaved changes, and the addressable-content step refuses to\n" +
                         "run until every scene is saved. Save or discard it, then run this again.\n" +
@@ -107,6 +128,12 @@ namespace Laubrary.Zounds.Checks.EditorTools {
             }
             catch (Exception e) {
                 File.AppendAllText(StatusPath, "FAILED with an exception: " + e.GetType().Name + ": " + e.Message + "\nDONE\n");
+            }
+            finally {
+                if (skip) {
+                    if (hadPref) EditorPrefs.SetBool(AddressablesWithPlayerPref, oldPref);
+                    else EditorPrefs.DeleteKey(AddressablesWithPlayerPref);
+                }
             }
         }
 
