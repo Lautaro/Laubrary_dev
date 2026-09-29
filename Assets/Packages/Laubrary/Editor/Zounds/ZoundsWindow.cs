@@ -436,6 +436,20 @@ namespace Laubrary.Zounds {
                 Undo.CollapseUndoOperations(s_dragUndoGroup);
                 s_dragUndoGroup = -1;
             }
+            RaiseEditCommitted();
+        }
+
+        /// <summary>
+        /// Raised once an edit to the project is COMMITTED: at the end of a drag (the release that closes its undo step),
+        /// or at the end of a discrete edit made outside a drag. Never while a drag is still going. Workflow tools that
+        /// react to "the user just changed something" (the editors' Play on change, T-0486) listen here instead of to every
+        /// intermediate value a drag passes through.
+        /// </summary>
+        public static event System.Action onEditCommitted;
+
+        static void RaiseEditCommitted() {
+            try { onEditCommitted?.Invoke(); }
+            catch (System.Exception e) { Debug.LogException(e); }
         }
 
         public static void ModifyZoundsProject(string undoMessage, System.Action action, bool repaintWindow = false) {
@@ -476,6 +490,8 @@ namespace Laubrary.Zounds {
                     }
                 }
             }
+            // A discrete edit is committed as it happens; one made inside an open drag is committed by the drag's release.
+            if (isOutermost && s_dragUndoGroup < 0) RaiseEditCommitted();
         }
 
         /// <summary>

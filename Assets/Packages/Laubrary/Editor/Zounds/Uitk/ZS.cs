@@ -124,8 +124,9 @@ namespace Laubrary.Zounds.Uitk {
         /// <summary>ZUI.MicroSlider(rect, value, min, max, label, style, ..., labelMode, default) on a Zounds slider style.</summary>
         public static ZuiSkinSlider Slider(string text, float value, float min, float max, string tooltip, Action<float> onChanged,
                                            ZuiSkinSlider.LabelMode mode = ZuiSkinSlider.LabelMode.LabelOnly, float? defaultValue = null,
-                                           string style = "Default", float width = 150f, float height = 18f) {
-            var s = new ZuiSkinSlider(text, value, min, max, tooltip, onChanged, mode, defaultValue);
+                                           string style = "Default", float width = 150f, float height = 18f,
+                                           Func<float, string> format = null) {
+            var s = new ZuiSkinSlider(text, value, min, max, tooltip, onChanged, mode, defaultValue, format);
             s.AddToClassList("zs-slider-" + style.ToLowerInvariant());
             Size(s, width, height);
             return s;

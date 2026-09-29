@@ -80,7 +80,64 @@ namespace Laubrary.Zounds.Uitk {
             return null;
         }
 
-        internal bool IsPlaying() => currentToken != null && currentToken.state == ZoundToken.State.Playing;
+        /// <summary>Anything this window's Play/audition started still sounding or queued (T-0486).</summary>
+        internal bool IsPlaying() => audition != null && audition.AnyLive;
+
+        // Every play of the whole Zequence (Play, Play on change, Burst, Loop) goes through the audition session and dies
+        // with the window (T-0486). Never serialized: a reload or a restored layout always comes back silent.
+        [NonSerialized] ZoundAudition audition;
+        [SerializeField] bool auditionPlayOnChange;
+
+        void EnsureAudition() {
+            if (audition != null && !audition.IsDisposed) return;
+            audition = new ZoundAudition(targetZoundID, () => this != null, PlayZequenceOnce,
+                                         () => zeq != null && ZoundAudition.ContainsLooper(zeq)) { playOnChange = auditionPlayOnChange };
+            audition.changed += () => { auditionPlayOnChange = audition != null && audition.playOnChange; SyncPlayButton(); };
+            audition.Attach(rootVisualElement);
+        }
+
+        /// <summary>One play of the whole Zequence, as the old window's Play; the latest one drives the playhead.</summary>
+        ZoundToken PlayZequenceOnce() {
+            if (zeq == null) return null;
+            currentToken = CompositeZoundEditing.SimulatePlay(zeq, isLocalZound);
+            return currentToken;
+        }
+
+        /// <summary>Closing, and the disable Unity sends before every script reload: nothing this window started may
+        /// outlive it — the audition's plays and queue, and the per-entry preview plays too.</summary>
+        void KillAudition() {
+            if (audition != null) {
+                auditionPlayOnChange = audition.playOnChange;
+                audition.Dispose();
+                audition = null;
+            }
+            if (entryTokens != null) {
+                foreach (var t in entryTokens.Values) {
+                    try { if (t != null && t.state != ZoundToken.State.Killed) t.Kill(); }
+                    catch (Exception e) { Debug.LogException(e); }
+                }
+                entryTokens.Clear();
+            }
+            currentToken = null;
+        }
+
+        protected override void OnDisable() {
+            KillAudition();
+            base.OnDisable();
+        }
+
+        void OnDestroy() => KillAudition();
+
+        void SyncPlayButton() {
+            if (playButton == null) return;
+            bool live = IsPlaying();
+            bool armed = audition != null ? audition.playOnChange : auditionPlayOnChange;
+            playButton.text = (live ? "Stop" : "Play") + (armed ? " •" : "");
+            playButton.tooltip = (live ? "Stop everything this window is playing or has queued (Burst and Loop included)."
+                                       : "Play this Zequence.")
+                               + (armed ? "\n\n• Play on change is on: every change you make here plays the sound again." : "")
+                               + "\n\nRight-click: Play on change, Burst, Loop.";
+        }
 
         internal void Modify(string undo, Action a) { ZoundsWindow.ModifyZoundsProject(undo, a); Tick(); }
 
@@ -99,6 +156,7 @@ namespace Laubrary.Zounds.Uitk {
             zeq = ZoundsProject.isJSONLoaded ? FindZequence(targetZoundID) : null;
             if (zeq == null) { root.Add(new Label(ZoundsProject.isJSONLoaded ? "Zequence no longer exists in the project." : "Zounds Project is not loaded.")); return; }
             titleContent = new GUIContent("Zequence: " + zeq.name);
+            EnsureAudition();
             EnsureEnvelopes();
 
             fields = new ZoundFieldsRowTK(zeq, isLocalZound, () => titleContent = new GUIContent("Zequence: " + zeq.name));
@@ -165,10 +223,7 @@ namespace Laubrary.Zounds.Uitk {
             if (zeq == null) return;
             if (FindZequence(targetZoundID) != zeq || Signature() != builtSig) { EnsureEnvelopes(); Rebuild(); return; }
             fields?.Sync();
-            if (playButton != null) {
-                bool p = IsPlaying();
-                playButton.text = p ? "Stop" : "Play";
-            }
+            SyncPlayButton();
             foreach (var r in refreshers) r();
         }
 
@@ -249,12 +304,22 @@ namespace Laubrary.Zounds.Uitk {
             r.Add(gc);
             r.Add(Gap(5f));
             playButton = ZS.Button("Play", "", "Default", () => {
-                if (!IsPlaying()) currentToken = CompositeZoundEditing.SimulatePlay(zeq, isLocalZound);
-                else currentToken.Kill();
+                EnsureAudition();
+                if (audition.AnyLive) audition.StopAll();
+                else audition.PlayOnce();
                 Tick();
             }, ZUICornerMask.Right, 60f, -1f);
             playButton.AddToClassList("zs-layoutbutton");
+            // Right-click: the audition card (T-0486).
+            var pb = playButton;
+            pb.RegisterCallback<PointerDownEvent>(e => {
+                if (e.button != 1) return;
+                e.StopPropagation();
+                EnsureAudition();
+                AuditionPopupTK.Show(pb, audition);
+            });
             r.Add(playButton);
+            SyncPlayButton();
             return r;
         }
 

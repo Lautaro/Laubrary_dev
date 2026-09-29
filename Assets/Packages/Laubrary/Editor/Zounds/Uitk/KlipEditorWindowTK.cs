@@ -25,7 +25,27 @@ namespace Laubrary.Zounds.Uitk {
         ZoundFieldsRowTK fields;
         IVisualElementScheduledItem syncTick;
         Button playButton;
-        ZoundToken currentToken;
+
+        // Every play this window starts (Play, Play on change, Burst, Loop) goes through its audition session and dies
+        // with the window (T-0486). The session itself is never serialized, so a reload or a restored layout always
+        // comes back silent; only the Play-on-change switch is kept while the window stays open.
+        [System.NonSerialized] ZoundAudition audition;
+        [SerializeField] bool auditionPlayOnChange;
+
+        void EnsureAudition() {
+            if (audition != null && !audition.IsDisposed) return;
+            audition = new ZoundAudition(targetZoundID, () => this != null, PlayKlipOnce,
+                                         () => klip != null && ZoundAudition.ContainsLooper(klip)) { playOnChange = auditionPlayOnChange };
+            audition.changed += () => { auditionPlayOnChange = audition != null && audition.playOnChange; SyncPlayButton(); };
+            audition.Attach(rootVisualElement);
+        }
+
+        void KillAudition() {
+            if (audition == null) return;
+            auditionPlayOnChange = audition.playOnChange;
+            audition.Dispose();
+            audition = null;
+        }
 
         // The waveform's model: the old window's own view object, wired by its own WireSpectrumView (T-0468). Kept across
         // rebuilds; created on first build, destroyed with the window.
@@ -60,6 +80,8 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         protected override void OnDisable() {
+            // Closing, and the disable Unity sends before every script reload: nothing this window started may outlive it.
+            KillAudition();
             EndWaveformDrag();
             // Before a script reload (and on close): release the model's hidden preview object, which would otherwise
             // outlive the reload with nothing pointing at it.
@@ -69,6 +91,7 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         void OnDestroy() {
+            KillAudition();
             spectrum?.Destroy();
             spectrum = null;
         }
@@ -150,6 +173,7 @@ namespace Laubrary.Zounds.Uitk {
             klip = ZoundsProject.isJSONLoaded ? FindKlip(targetZoundID) : null;
             if (klip == null) { root.Add(new Label(ZoundsProject.isJSONLoaded ? "Klip no longer exists in the project." : "Zounds Project is not loaded.")); return; }
             titleContent = new GUIContent(TitleFor(klip));
+            EnsureAudition();
 
             // ── header row (ZoundInspector.DrawSimple) ──
             root.Add(VSpace(Row));
@@ -245,29 +269,63 @@ namespace Laubrary.Zounds.Uitk {
                             () => EditorTools.ZoundGcStressTest.Run(IsPlaying()), ZUICornerMask.All, 72f, h));
             r.Add(Gap(8f));
             playButton = ZS.Button("Play", "", "RichButton", PlayOrStop, ZUICornerMask.All, 60f, h);
+            WireAuditionMenu(playButton);
             r.Add(playButton);
+            SyncPlayButton();
             return r;
+        }
+
+        /// <summary>Right-click on Play opens the audition card (T-0486).</summary>
+        void WireAuditionMenu(Button b) {
+            b.RegisterCallback<PointerDownEvent>(e => {
+                if (e.button != 1) return;
+                e.StopPropagation();
+                EnsureAudition();
+                AuditionPopupTK.Show(b, audition);
+            });
+        }
+
+        void SyncPlayButton() {
+            if (playButton == null) return;
+            bool live = IsPlaying();
+            bool armed = audition != null ? audition.playOnChange : auditionPlayOnChange;
+            playButton.text = (live ? "Stop" : "Play") + (armed ? " •" : "");
+            playButton.tooltip = (live ? "Stop everything this window is playing or has queued (Burst and Loop included)."
+                                       : "Play this Klip.")
+                               + (armed ? "\n\n• Play on change is on: every change you make here plays the sound again." : "")
+                               + "\n\nRight-click: Play on change, Burst, Loop.";
         }
 
         static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.style.flexShrink = 0; return e; }
         static VisualElement Flex() { var e = new VisualElement(); e.style.flexGrow = 1; return e; }
 
-        bool IsPlaying() => currentToken != null && currentToken.state == ZoundToken.State.Playing;
+        /// <summary>Anything this window started still sounding or queued (the old single-token check, widened to the
+        /// audition helpers).</summary>
+        bool IsPlaying() => audition != null && audition.AnyLive;
 
-        /// <summary>The old window's Play/Stop (SimulatePlay), step for step.</summary>
+        /// <summary>Play when silent, otherwise stop everything this window started (a Burst or Loop included).</summary>
         void PlayOrStop() {
-            if (IsPlaying()) { currentToken.Kill(); currentToken = null; Sync(); return; }
+            EnsureAudition();
+            if (audition.AnyLive) audition.StopAll();
+            else audition.PlayOnce();
+            Sync();
+        }
+
+        /// <summary>One play, the old window's Play (SimulatePlay) step for step: every play draws its own volume and pitch.</summary>
+        ZoundToken PlayKlipOnce() {
+            if (klip == null) return null;
             if (!Application.isPlaying && klip.needsRender) KlipEditorWindow.RenderToAudioClip(klip);
             bool needsRenderTemp = klip.needsRender;
             klip.needsRender = false;
-            currentToken = ZoundEngine.PlayZound(klip, new ZoundArgs() {
-                startImmediately = true, delay = 0f,
-                volumeOverride = Random.Range(klip.minVolume, klip.maxVolume),
-                pitchOverride = Random.Range(klip.minPitch, klip.maxPitch),
-                chanceOverride = 1f, useFixedAverageValues = false, bypassGlobalSolo = isLocalZound, ignoreCooldown = true
-            });
-            klip.needsRender = needsRenderTemp;
-            Sync();
+            try {
+                return ZoundEngine.PlayZound(klip, new ZoundArgs() {
+                    startImmediately = true, delay = 0f,
+                    volumeOverride = Random.Range(klip.minVolume, klip.maxVolume),
+                    pitchOverride = Random.Range(klip.minPitch, klip.maxPitch),
+                    chanceOverride = 1f, useFixedAverageValues = false, bypassGlobalSolo = isLocalZound, ignoreCooldown = true
+                });
+            }
+            finally { klip.needsRender = needsRenderTemp; }
         }
 
         AudioClip ResolveOutputAsset() {
@@ -307,7 +365,7 @@ namespace Laubrary.Zounds.Uitk {
         void ReplaceSource(AudioClip newSource) {
             if (newSource == null || newSource == spectrum?.sourceClip) return;
 #if ADDRESSABLES_INSTALLED
-            if (IsPlaying()) { currentToken.Kill(); currentToken = null; }
+            audition?.StopAll();
             ZoundsWindow.ModifyZoundsProject("replace source clip", () => {
                 var assetPath = AssetDatabase.GetAssetPath(newSource);
                 klip.audioClipRef = new UnityEngine.AddressableAssets.AssetReference(AssetDatabase.AssetPathToGUID(assetPath));
@@ -336,10 +394,7 @@ namespace Laubrary.Zounds.Uitk {
             if (klip == null) return;
             if (FindKlip(targetZoundID) != klip) { Rebuild(); return; }
             fields?.Sync();
-            if (playButton != null) {
-                bool p = IsPlaying();
-                playButton.text = p ? "Stop" : "Play";
-            }
+            SyncPlayButton();
         }
     }
 }
