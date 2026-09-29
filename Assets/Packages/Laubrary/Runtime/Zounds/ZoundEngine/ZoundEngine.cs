@@ -111,8 +111,29 @@ namespace Laubrary.Zounds {
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.update -= OnEditorUpdateMode;
 #endif
-            if (instance == this) instance = null;
+            if (instance == this) {
+                instance = null;
+                // Project-wide ZPOC values are runtime state: they end with the engine, like the plays they drove.
+                ZpocGlobals.ClearAll();
+            }
         }
+
+        /// <summary>Every token the engine is currently updating (tracks inside a Zequence included), or null when there is
+        /// no engine. Read-only use.</summary>
+        internal static List<ZoundToken> LiveTokens => instance != null ? instance.tokens : null;
+
+        /// <summary>
+        /// Sets a project-wide ZPOC value (0..1) that every play follows for that id unless its own token has set it. Ids
+        /// are matched the way Zound names are. Runtime-only: nothing is saved, and it is forgotten when the engine goes.
+        /// An id that no Zound in the project declares is reported once (see <see cref="ZoundDiagnostics"/>), never thrown.
+        /// </summary>
+        public static void SetGlobalZpoc(string zpocId, float value) => ZpocGlobals.Set(zpocId, value);
+
+        /// <summary>Removes a project-wide ZPOC value; plays that followed it go back to the ZPOC's resting value.</summary>
+        public static void ClearGlobalZpoc(string zpocId) => ZpocGlobals.Clear(zpocId);
+
+        /// <summary>The project-wide value set for an id, if any.</summary>
+        public static bool TryGetGlobalZpoc(string zpocId, out float value) => ZpocGlobals.TryGet(ZpocKeys.Key(zpocId), out value);
 
         /// <summary>
         /// Drops the name/id lookup tables so the next lookup re-reads the live project. Called when the
@@ -419,10 +440,13 @@ namespace Laubrary.Zounds {
                 inst.missingZounds.Add(key, new Zound(0) {
                     name = displayName
                 });
-                // Warned once per name per engine lifetime; the full list stays in the browser's Missing view.
+                // Warned once per name per engine lifetime; the full list stays in the browser's Missing view, and in the
+                // diagnostics list beside every other lookup that found nothing (which prints the one warning).
                 string warnSuffix = string.IsNullOrEmpty(routedNote) ? "" : $" ({routedNote})";
-                Debug.LogWarning($"[Zounds] No zound named '{zoundName}'. Added to the Missing list.{warnSuffix}");
+                ZoundDiagnostics.Report(ZoundDiagnostics.Kind.MissingZound, "", zoundName,
+                    $"No zound named '{zoundName}'. Added to the Missing list.{warnSuffix}");
             }
+            else ZoundDiagnostics.Count(ZoundDiagnostics.Kind.MissingZound, "", zoundName);
         }
 
         internal static bool IsCoolingDownAtTime(Zound zound, float time) {

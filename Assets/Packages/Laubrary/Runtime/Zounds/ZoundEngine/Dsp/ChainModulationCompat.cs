@@ -102,10 +102,26 @@ namespace Laubrary.Zounds.Dsp {
         /// </summary>
         public static ModulationCombine EffectiveCombine(ZoundEffectChain chain, ZoundModifierBinding b) {
             var c = CombineOf(b);
-            if (c == ModulationCombine.Set && chain?.modifiers != null && b.modifierIndex >= 0 && b.modifierIndex < chain.modifiers.Count
-                && chain.modifiers[b.modifierIndex].type == ZoundModifierType.Envelope)
+            if (chain?.modifiers == null || b.modifierIndex < 0 || b.modifierIndex >= chain.modifiers.Count) return c;
+            var type = chain.modifiers[b.modifierIndex].type;
+            if (c == ModulationCombine.Set && (type == ZoundModifierType.Envelope || type == ZoundModifierType.Code))
                 return ModulationCombine.SetFromZero;
+            // A Code modifier's middle means "unchanged", so its Shift swings around one half rather than pushing only up.
+            if (c == ModulationCombine.Shift && type == ZoundModifierType.Code)
+                return ModulationCombine.ShiftFromCentre;
             return c;
+        }
+
+        /// <summary>
+        /// The combine a new binding from a Code modifier starts with, chosen so the number game code sends means the obvious
+        /// thing for that kind of control (T-0495): pitch and speed (ratio-spaced multipliers) get Ratio, so one half is
+        /// unchanged, one is two octaves up and nought two down; a level (a linear multiplier such as a gain) gets Scale, so
+        /// nought is silent and one as authored; anything else gets Set, so nought is the bottom of the control and one the top.
+        /// </summary>
+        public static ModulationCombine DefaultCombineForCode(ParamDesc pd) {
+            if (pd.defaultOp == ModifierOp.Multiply && pd.curve == ParamCurve.Logarithmic) return ModulationCombine.Ratio;
+            if (pd.defaultOp == ModifierOp.Multiply && pd.curve == ParamCurve.Linear && pd.min >= 0f) return ModulationCombine.Scale;
+            return ModulationCombine.Set;
         }
 
         public static ModulationCombine CombineOf(ZoundModifierBinding b) {

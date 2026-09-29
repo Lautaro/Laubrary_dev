@@ -320,6 +320,23 @@ namespace Laubrary.Zounds.Dsp {
         /// is already driving is ignored at the receiving end — see the note on the receiving function.</summary>
         public bool SetParameterLive(int flatIndex, float value) => Send(SapVoiceCommand.Parameter(flatIndex, value));
 
+        /// <summary>ZPOC: sends one modifier's control value (already converted by the layout, see ChainLayout.ControlFor).</summary>
+        public bool SetModifierControlLive(int modifier, float control) => Send(SapVoiceCommand.ModifierControl(modifier, control));
+
+        /// <summary>
+        /// ZPOC: the control value the engine is using right now for one modifier (eased, so between what was sent and
+        /// where it was), or false when nothing is playing. The same unsynchronised display read as <see cref="TryReadLiveParam"/>.
+        /// </summary>
+        public bool TryReadModifierControl(int modifier, out float control) {
+            control = 0f;
+            if (!created || modifier < 0) return false;
+            var c = voice.sap.modCtlLive;
+            if (!c.IsCreated || modifier >= c.Length) return false;
+            if (!IsPlaying) return false;
+            control = c[modifier];
+            return true;
+        }
+
         /// <summary>Changes the playing sound's pitch.</summary>
         public bool SetPitchLive(float pitch) => Send(SapVoiceCommand.Pitch(pitch));
 

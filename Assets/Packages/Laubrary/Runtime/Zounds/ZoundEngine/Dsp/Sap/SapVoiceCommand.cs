@@ -20,6 +20,8 @@ namespace Laubrary.Zounds.Dsp {
         /// <summary>The Looper: the crossmix range's bottom / top, in source frames (carried in index).</summary>
         SetCrossmixMin = 9,
         SetCrossmixMax = 10,
+        /// <summary>ZPOC: one modifier's control value (modifier index in index, value already converted by the layout).</summary>
+        SetModifierControl = 11,
     }
 
     /// <summary>
@@ -64,6 +66,9 @@ namespace Laubrary.Zounds.Dsp {
         public static SapVoiceCommand LoopEnd(int frame) => new SapVoiceCommand { kind = SapVoiceCommandKind.SetLoopEnd, index = frame };
         public static SapVoiceCommand CrossmixMin(int frames) => new SapVoiceCommand { kind = SapVoiceCommandKind.SetCrossmixMin, index = frames };
         public static SapVoiceCommand CrossmixMax(int frames) => new SapVoiceCommand { kind = SapVoiceCommandKind.SetCrossmixMax, index = frames };
+
+        public static SapVoiceCommand ModifierControl(int modifier, float value) =>
+            new SapVoiceCommand { kind = SapVoiceCommandKind.SetModifierControl, index = modifier, value = value };
 
         public static SapVoiceCommand Stop() => new SapVoiceCommand { kind = SapVoiceCommandKind.Stop };
 

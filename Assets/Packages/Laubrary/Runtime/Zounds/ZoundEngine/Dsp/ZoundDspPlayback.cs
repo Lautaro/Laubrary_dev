@@ -22,10 +22,13 @@ namespace Laubrary.Zounds.Dsp {
 
         public static void InvalidateLayouts() {
             layouts.Clear();
+            ZpocIndex.Invalidate();
         }
 
         public static void InvalidateLayout(Zound zound) {
             if (zound != null) layouts.Remove(zound);
+            // An edit may have declared or removed a ZPOC id somewhere; whole-project answers are worked out again.
+            ZpocIndex.Invalidate();
         }
 
         /// <summary>

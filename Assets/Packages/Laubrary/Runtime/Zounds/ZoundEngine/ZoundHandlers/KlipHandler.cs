@@ -38,6 +38,41 @@ namespace Laubrary.Zounds {
         /// <summary>Reported once per session so a project-wide misconfiguration does not spam the console.</summary>
         private static bool s_warnedAboutFallback;
 
+        public override void SetToken(ZoundToken t) {
+            base.SetToken(t);
+            // The voice already exists (it is started in the constructor), so its ZPOCs can take their resolved values
+            // now, before its first block: a project-wide value, or anything already set on the token, is heard from the
+            // first sample. A track inside a Zequence is applied again once its parent token is linked.
+            ApplyAllZpoc();
+        }
+
+        public override void ApplyZpoc(string key) {
+            if (!m_chainPath || m_voice == null || key == null) return;
+            var L = m_voice.playingLayout;
+            if (L == null || !L.hasZpoc) return;
+            for (int m = 0; m < L.modCount; m++) {
+                if (!string.Equals(L.modZpocKey[m], key)) continue;
+                SendZpoc(L, m, key);
+            }
+        }
+
+        public override void ApplyAllZpoc() {
+            if (!m_chainPath || m_voice == null) return;
+            var L = m_voice.playingLayout;
+            if (L == null || !L.hasZpoc) return;
+            for (int m = 0; m < L.modCount; m++) {
+                var key = L.modZpocKey[m];
+                if (key != null) SendZpoc(L, m, key);
+            }
+        }
+
+        /// <summary>Sends one modifier its control: the token's resolved value for its id, converted by the voice's OWN
+        /// layout (the one it started with), or the resting value when nothing is set anywhere.</summary>
+        void SendZpoc(Dsp.ChainLayout L, int m, string key) {
+            float control = token != null && token.TryResolveZpoc(key, out float v) ? L.ControlFor(m, v) : L.modCtlInit[m];
+            m_voice.SetModifierControlLive(m, control);
+        }
+
         public KlipHandler(Klip klip, AudioSource audioSource, ZoundArgs zoundArgs) : base(klip, audioSource, zoundArgs) {
             var clipRef = zound.GetAudioClipReference();
             var clip = ZoundDictionary.GetOrLoadClip(clipRef);

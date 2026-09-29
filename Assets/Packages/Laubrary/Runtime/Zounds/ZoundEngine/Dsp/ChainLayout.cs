@@ -96,6 +96,45 @@ namespace Laubrary.Zounds.Dsp {
         /// <summary>Per-modifier extra seconds past the source end over which an Envelope keeps evolving.</summary>
         public readonly float[] modExtraSeconds = new float[ZoundDspConstants.MAX_MODIFIERS];
 
+        // ── ZPOC (T-0495/T-0496) ──
+        // Every modifier carries a control value the audio thread eases towards whatever the main thread last sent. For a
+        // Code modifier it IS the modifier's output; for any other it multiplies that modifier's binding depths, so one
+        // means "as authored". A modifier nobody exposes simply keeps its starting value forever.
+        /// <summary>The control value a voice starts with: the ZPOC's resting value, already converted.</summary>
+        public readonly float[] modCtlInit = new float[ZoundDspConstants.MAX_MODIFIERS];
+        /// <summary>How much of the remaining distance to the sent value is closed per control block (1: at once).</summary>
+        public readonly float[] modCtlCoef = new float[ZoundDspConstants.MAX_MODIFIERS];
+        /// <summary>Main thread only: each modifier's ZPOC matching key, or null when it has none.</summary>
+        public readonly string[] modZpocKey = new string[ZoundDspConstants.MAX_MODIFIERS];
+        /// <summary>Main thread only: how each modifier's ZPOC value acts (unused by a Code modifier).</summary>
+        public readonly ZpocMode[] modZpocMode = new ZpocMode[ZoundDspConstants.MAX_MODIFIERS];
+        /// <summary>Main thread only: the strongest depth among each modifier's bindings, which Set mode scales against.</summary>
+        public readonly float[] modMaxDepth = new float[ZoundDspConstants.MAX_MODIFIERS];
+        /// <summary>Whether any modifier in this layout carries a ZPOC id — lets a play skip all ZPOC work when none does.</summary>
+        public bool hasZpoc;
+
+        /// <summary>
+        /// What a voice should be sent for a ZPOC value (0..1) on modifier <paramref name="m"/>: the value itself for a
+        /// Code modifier, otherwise the multiplier its binding depths are scaled by. Scale: the value, so nought is off and
+        /// one as authored. Set: the value over the strongest authored depth, so the strongest binding lands exactly on the
+        /// value and every other one keeps its authored proportion to it.
+        /// </summary>
+        public float ControlFor(int m, float value) {
+            if (m < 0 || m >= modCount) return 1f;
+            value = value < 0f ? 0f : value > 1f ? 1f : value;
+            if (modType[m] == ZoundModifierType.Code) return value;
+            if (modZpocMode[m] == ZpocMode.Scale) return value;
+            return modMaxDepth[m] > 1e-6f ? value / modMaxDepth[m] : 0f;
+        }
+
+        /// <summary>The easing per control block for a smoothing time, as a one-pole follower: about two thirds of the way in
+        /// that time, and all of it a few times later.</summary>
+        public static float SmoothCoefficient(float ms, int sampleRate) {
+            if (ms <= 0f || sampleRate <= 0) return 1f;
+            float blocks = ms * 0.001f * sampleRate / ZoundDspConstants.CONTROL_BLOCK;
+            return blocks <= 1f ? 1f : 1f - Mathf.Exp(-1f / blocks);
+        }
+
         // ── bindings ──
         public int bindCount;
         public readonly int[] bindModifier = new int[ZoundDspConstants.MAX_BINDINGS];
@@ -260,6 +299,11 @@ namespace Laubrary.Zounds.Dsp {
                     modStepPos += sCount;
 
                     L.modExtraSeconds[i] = m.type == ZoundModifierType.Envelope && pCount > 0 ? L.modParamFlat[L.modParamOffset[i]] : 0f;
+
+                    L.modZpocKey[i] = m.HasZpoc ? ZpocKeys.Key(m.zpocId) : null;
+                    if (L.modZpocKey[i] != null) L.hasZpoc = true;
+                    L.modZpocMode[i] = m.zpocMode;
+                    L.modCtlCoef[i] = SmoothCoefficient(m.zpocSmoothMs, sampleRate);
                 }
                 L.modCount = mods;
 
@@ -288,6 +332,20 @@ namespace Laubrary.Zounds.Dsp {
                     if (f == SourceStageParam.Pitch) L.pitchModulated = true;
                 }
                 L.bindCount = binds;
+
+                // The starting control value of every modifier: its ZPOC's resting value, converted. Set mode needs the
+                // strongest depth among the modifier's bindings, which is only known now.
+                for (int b = 0; b < binds; b++) {
+                    float d = Mathf.Abs(L.bindDepth[b]);
+                    if (d > L.modMaxDepth[L.bindModifier[b]]) L.modMaxDepth[L.bindModifier[b]] = d;
+                }
+                for (int i = 0; i < mods; i++) {
+                    var m = chain.modifiers[i];
+                    if (m.type == ZoundModifierType.Code)
+                        L.modCtlInit[i] = L.modParamCountOf[i] > 0 ? Mathf.Clamp01(L.modParamFlat[L.modParamOffset[i]]) : 0.5f;
+                    else
+                        L.modCtlInit[i] = m.HasZpoc && m.zpocRest >= 0f ? L.ControlFor(i, m.zpocRest) : 1f;
+                }
                 L.tailSeconds = ZoundEffectDescriptors.TailBudgetSeconds(chain);
             }
             L.stateFloats = state;

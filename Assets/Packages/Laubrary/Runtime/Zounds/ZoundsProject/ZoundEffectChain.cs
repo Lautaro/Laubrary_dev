@@ -28,6 +28,19 @@ namespace Laubrary.Zounds {
         Lfo = 1,
         Random = 2,
         Step = 3,
+        /// <summary>Outputs whatever game code sends to its ZPOC id (0..1), eased; its own Value is where it rests.</summary>
+        Code = 4,
+    }
+
+    /// <summary>
+    /// How a modifier's ZPOC value acts on that modifier's bindings. The number is serialized; append only.
+    /// </summary>
+    public enum ZpocMode {
+        /// <summary>The authored depths times the value: nought is off, one is exactly as authored, never beyond.</summary>
+        Scale = 0,
+        /// <summary>The value IS the strength: the strongest binding moves to it and the others keep their proportion to
+        /// it, so one is the most this modifier can do and a value above the authored strength is reachable.</summary>
+        Set = 1,
     }
 
     public enum ModifierOp {
@@ -94,6 +107,23 @@ namespace Laubrary.Zounds {
         /// <summary>Step: the value list.</summary>
         public float[] steps = new float[0];
 
+        /// <summary>
+        /// The id game code uses to reach this modifier through a play's token (ZPOC). Empty: not exposed. Unique within
+        /// the Zound only, and matched the way Zound names are (case, spaces, underscores and hyphens ignored).
+        /// </summary>
+        public string zpocId = "";
+        /// <summary>How the ZPOC value acts on this modifier's bindings. Not used by a Code modifier, whose output IS the value.</summary>
+        public ZpocMode zpocMode = ZpocMode.Scale;
+        /// <summary>
+        /// Where the ZPOC value rests before code sends anything, 0..1. Below nought (the default) means "as authored",
+        /// so exposing an existing modifier changes nothing until code speaks. A Code modifier rests at its own Value.
+        /// </summary>
+        public float zpocRest = -1f;
+        /// <summary>How long a value sent by code takes to be reached, so a jump from code is never heard as a click.</summary>
+        public float zpocSmoothMs = 30f;
+
+        public bool HasZpoc => !string.IsNullOrEmpty(zpocId);
+
         public ZoundModifier() { }
         public ZoundModifier(ZoundModifierType type) {
             this.type = type;
@@ -118,7 +148,8 @@ namespace Laubrary.Zounds {
             return new ZoundModifier {
                 type = type, enabled = enabled, name = name, p = (float[])p.Clone(),
                 curve = curve != null ? curve.DeepCopy() : new Envelope(0f, 1f),
-                steps = (float[])steps.Clone()
+                steps = (float[])steps.Clone(),
+                zpocId = zpocId, zpocMode = zpocMode, zpocRest = zpocRest, zpocSmoothMs = zpocSmoothMs,
             };
         }
     }

@@ -61,6 +61,8 @@ namespace Laubrary.Zounds.Dsp {
         public NativeArray<float> pTarget;    // this block's target (only used when a modifier binds the param)
         public NativeArray<SourceSlot> slots; // read cursors over the source PCM (repeats use more than one)
         public NativeArray<float> modValue;   // scratch: this block's evaluated value for each modifier
+        public NativeArray<float> modCtlTarget; // ZPOC: the control value last sent by the main thread, per modifier
+        public NativeArray<float> modCtlLive;   // ZPOC: the eased control value the render uses (and a display reads)
         public NativeArray<float> bufL;       // rendered output, left
         public NativeArray<float> bufR;       // rendered output, right
 
@@ -115,6 +117,8 @@ namespace Laubrary.Zounds.Dsp {
                 pTarget = new NativeArray<float>(paramCount, allocator, NativeArrayOptions.ClearMemory),
                 slots = new NativeArray<SourceSlot>(sourceSlots, allocator, NativeArrayOptions.ClearMemory),
                 modValue = new NativeArray<float>(modifierCount, allocator, NativeArrayOptions.ClearMemory),
+                modCtlTarget = new NativeArray<float>(modifierCount, allocator, NativeArrayOptions.ClearMemory),
+                modCtlLive = new NativeArray<float>(modifierCount, allocator, NativeArrayOptions.ClearMemory),
                 bufL = new NativeArray<float>(outputBufferFrames, allocator, NativeArrayOptions.ClearMemory),
                 bufR = new NativeArray<float>(outputBufferFrames, allocator, NativeArrayOptions.ClearMemory),
             };
@@ -128,6 +132,8 @@ namespace Laubrary.Zounds.Dsp {
             if (pTarget.IsCreated) pTarget.Dispose();
             if (slots.IsCreated) slots.Dispose();
             if (modValue.IsCreated) modValue.Dispose();
+            if (modCtlTarget.IsCreated) modCtlTarget.Dispose();
+            if (modCtlLive.IsCreated) modCtlLive.Dispose();
             if (bufL.IsCreated) bufL.Dispose();
             if (bufR.IsCreated) bufR.Dispose();
             stretch.Dispose();

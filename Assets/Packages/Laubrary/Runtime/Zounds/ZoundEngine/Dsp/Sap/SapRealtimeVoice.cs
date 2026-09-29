@@ -245,6 +245,14 @@ namespace Laubrary.Zounds.Dsp {
                 case SapVoiceCommandKind.SetCrossmixMin:
                     SapVoiceSetup.SetLoopCrossmix(ref sap, in pcm, command.index, sap.looping.crossMax < command.index ? command.index : sap.looping.crossMax);
                     break;
+                case SapVoiceCommandKind.SetModifierControl:
+                    if (command.index >= 0 && command.index < sap.modCtlTarget.Length) {
+                        sap.modCtlTarget[command.index] = command.value;
+                        // Sent before the voice has rendered anything: the play starts ON the value instead of easing
+                        // into it from where the modifier rests, so a token set before Play is heard from the first sample.
+                        if (sap.elapsedSamples == 0) sap.modCtlLive[command.index] = command.value;
+                    }
+                    break;
                 case SapVoiceCommandKind.SetCrossmixMax:
                     SapVoiceSetup.SetLoopCrossmix(ref sap, in pcm, sap.looping.crossMin > command.index ? command.index : sap.looping.crossMin, command.index);
                     break;

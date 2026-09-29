@@ -109,6 +109,82 @@ namespace Laubrary.Zounds {
         }
         internal bool isRealtime => m_handler.isRealtime;
 
+        // ─────────────── ZPOC: programmatic control (T-0496) ───────────────
+
+        /// <summary>The Zequence token this one plays a track of, whose ZPOC values it follows; null for a top-level play.</summary>
+        internal ZoundToken parentToken;
+
+        /// <summary>This token's own ZPOC values by matching key. Created on the first set; a token nobody drives has none.</summary>
+        private Dictionary<string, float> m_zpoc;
+
+        /// <summary>
+        /// Sets a ZPOC value (0..1, clamped) on this play and everything it plays: every modifier or track, anywhere in this
+        /// Zound's tree, whose ZPOC id matches (ids are matched the way Zound names are, and only have to be unique within
+        /// the Zound that declares them — so sibling Klips sharing an id are all reached, on purpose). The sound eases to
+        /// the value rather than jumping. A part not sounding right now (a track still waiting, or one a random Zequence
+        /// did not pick) keeps the value for when it starts.
+        ///
+        /// It is just a value on this token: it never changes the saved Zound, and it is safe to set whatever the play is
+        /// doing. An id that nothing in this Zound's tree declares is reported once and ignored, never thrown; returns false
+        /// then. Setting the same id every frame allocates nothing.
+        /// </summary>
+        public bool SetZpoc(string zpocId, float value) {
+            var key = ZpocKeys.Key(zpocId);
+            if (key == null) {
+                ZoundDiagnostics.Report(ZoundDiagnostics.Kind.MissingZpoc, m_zound != null ? m_zound.name : "", "",
+                    "A ZPOC value was sent with an empty id" + (m_zound != null ? " to '" + m_zound.name + "'" : "") + ". Nothing was changed.");
+                return false;
+            }
+            value = value < 0f ? 0f : value > 1f ? 1f : value;
+            if (m_zpoc != null && m_zpoc.TryGetValue(key, out float old)) {
+                if (old == value) return true;
+                m_zpoc[key] = value;
+                RefreshZpoc(key);
+                return true;
+            }
+            if (!ZpocIndex.Declares(m_zound, key)) {
+                string zn = m_zound != null ? m_zound.name : "";
+                if (!ZoundDiagnostics.Count(ZoundDiagnostics.Kind.MissingZpoc, zn, key))
+                    ZoundDiagnostics.Report(ZoundDiagnostics.Kind.MissingZpoc, zn, key,
+                        "No ZPOC '" + zpocId + "' in '" + zn + "' or anything it plays. The value was ignored.");
+                return false;
+            }
+            if (m_zpoc == null) m_zpoc = new Dictionary<string, float>();
+            m_zpoc[key] = value;
+            RefreshZpoc(key);
+            return true;
+        }
+
+        /// <summary>Removes this token's own value for an id, so it follows a project-wide value again, or its resting value.</summary>
+        public void ClearZpoc(string zpocId) {
+            var key = ZpocKeys.Key(zpocId);
+            if (key != null && m_zpoc != null && m_zpoc.Remove(key)) RefreshZpoc(key);
+        }
+
+        /// <summary>Removes every value this token has set: the whole play goes back to project-wide or resting values.</summary>
+        public void ClearAllZpoc() {
+            if (m_zpoc == null || m_zpoc.Count == 0) return;
+            m_zpoc.Clear();
+            RefreshAllZpoc();
+        }
+
+        /// <summary>The value an id resolves to for this play — its own, a parent Zequence's, or the project-wide one — or
+        /// false when nothing has set it (the ZPOC is at rest). This is the value sent, not the eased one being heard.</summary>
+        public bool TryGetZpoc(string zpocId, out float value) => TryResolveZpoc(ZpocKeys.Key(zpocId), out value);
+
+        internal bool TryResolveZpoc(string key, out float value) {
+            if (key != null) {
+                if (m_zpoc != null && m_zpoc.TryGetValue(key, out value)) return true;
+                if (parentToken != null && parentToken.TryResolveZpoc(key, out value)) return true;
+                if (ZpocGlobals.TryGet(key, out value)) return true;
+            }
+            value = 0f;
+            return false;
+        }
+
+        internal void RefreshZpoc(string key) { m_handler?.ApplyZpoc(key); }
+        internal void RefreshAllZpoc() { m_handler?.ApplyAllZpoc(); }
+
         internal CompositeZound.ZoundEntry soloOverride => m_soloOverride;
 
         internal bool TryGetEntryToken(CompositeZound.ZoundEntry entry, out ZoundToken token) {

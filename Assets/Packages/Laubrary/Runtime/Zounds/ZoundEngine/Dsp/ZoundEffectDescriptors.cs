@@ -258,7 +258,7 @@ namespace Laubrary.Zounds.Dsp {
                 new ParamDesc("Release", "ms", 10f, 1000f, 100f, ParamCurve.Logarithmic, true, ModifierOp.Add, null, null,
                     "How quickly it returns to normal after shaping a hit, which sets how much of the following sound is still affected."));
 
-            modifiers = new ModifierDesc[4];
+            modifiers = new ModifierDesc[5];
             // Time base: 0 = source position (the curve follows the waveform it is drawn over, as the old
             // baked envelopes did), 1 = play time (elapsed over the resolved duration; what a Zequence uses).
             ModDef(ZoundModifierType.Envelope, "Envelope", "A curve over the play length (plus extra time past the end).", 4,
@@ -348,6 +348,12 @@ namespace Laubrary.Zounds.Dsp {
                 // while a share keeps the pattern's shape however fast it runs.
                 new ParamDesc("Smooth", "", 0f, 1f, 0f, ParamCurve.Linear, false, ModifierOp.Add, null, null,
                     "In Per interval timing: how much of each step is spent gliding from the previous value to the new one, instead of jumping. Nought jumps instantly; one glides for the whole step, which turns the steps into a continuous wave through the values. Useful for very short steps, where instant jumps can click."));
+            // ZPOC (T-0495): its output is what game code sends to its id, eased by the modifier's smoothing time. How that
+            // number moves a parameter is the binding's choice, as for any modifier; binding one picks a combine that makes
+            // the number mean something obvious for that kind of control (see ChainModulationCompat.DefaultCombineForCode).
+            ModDef(ZoundModifierType.Code, "Code", "A value game code sets while the sound plays, through its ZPOC id.", 0,
+                new ParamDesc("Value", "", 0f, 1f, 0.5f, ParamCurve.Linear, false, ModifierOp.Add, null, null,
+                    "Where this rests until game code sends a value, and what the sound does in the editor. On pitch or speed the middle is unchanged; on a level one is as authored; on anything else nought is the bottom of the control and one the top."));
         }
 
         private static void Def(ZoundEffectType type, string name, string summary, bool stateful, bool heavy,

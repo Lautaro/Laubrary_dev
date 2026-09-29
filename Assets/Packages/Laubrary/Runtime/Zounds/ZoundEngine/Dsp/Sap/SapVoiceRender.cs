@@ -149,8 +149,12 @@ namespace Laubrary.Zounds.Dsp {
                     // it, which is why this reads and writes the running target rather than the authored value.
                     for (int b = 0; b < L.bindCount; b++) {
                         int t = L.bindTarget[b];
+                        int bm = L.bindModifier[b];
+                        // A modifier's ZPOC control scales how strongly it acts (one: as authored). A Code modifier's
+                        // control is its output instead, so its depths stay exactly as authored.
+                        float depth = L.modType[bm] == ZoundModifierType.Code ? L.bindDepth[b] : L.bindDepth[b] * sap.modCtlLive[bm];
                         sap.pTarget[t] = ModulationMath.Apply(L.bindCombine[b], sap.pTarget[t],
-                                                              sap.modValue[L.bindModifier[b]], L.bindDepth[b],
+                                                              sap.modValue[bm], depth,
                                                               L.pMin[t], L.pMax[t], L.pRatio[t]);
                     }
                     for (int r = 0; r < L.rampedCount; r++) {
@@ -883,6 +887,10 @@ namespace Laubrary.Zounds.Dsp {
                                                bool isGroup, float sourceDuration, double clipRate) {
             float blockSeconds = (float)blockSamples / sampleRate;
             for (int m = 0; m < L.modCount; m++) {
+                // ZPOC: close part of the gap to the value game code last sent, once per control block. A pure function of
+                // the block count and the values sent, so the result does not depend on how the host slices its calls.
+                float ctlCoef = L.modCtlCoef[m];
+                sap.modCtlLive[m] += (sap.modCtlTarget[m] - sap.modCtlLive[m]) * ctlCoef;
                 int so = L.modStateOffset[m];
                 int mpo = L.modParamOffset[m];
                 int mpc = L.modParamCountOf[m];
@@ -1021,6 +1029,9 @@ namespace Laubrary.Zounds.Dsp {
                         }
                         break;
                     }
+                    case ZoundModifierType.Code:
+                        sap.modValue[m] = sap.modCtlLive[m];
+                        break;
                     default: sap.modValue[m] = 0f; break;
                 }
             }

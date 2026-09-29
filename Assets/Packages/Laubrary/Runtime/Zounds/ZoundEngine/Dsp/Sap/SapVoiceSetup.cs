@@ -89,6 +89,13 @@ namespace Laubrary.Zounds.Dsp {
             sap.basePitchLive = basePitch;
             sap.outGainLive = outGain;
             sap.baseSpeedLive = 1f;
+
+            // ZPOC: every modifier starts at its resting control value, so a play whose token has set nothing sounds
+            // exactly as authored, and one whose token has set something receives it as a command before its first block.
+            for (int m = 0; m < sap.modCtlLive.Length; m++) {
+                float init = m < sapLayout.modCount ? sapLayout.modCtlInit[m] : 1f;
+                sap.modCtlLive[m] = init; sap.modCtlTarget[m] = init;
+            }
             sap.stopping = false;
             sap.released = false;
             sap.sourceExhausted = false;

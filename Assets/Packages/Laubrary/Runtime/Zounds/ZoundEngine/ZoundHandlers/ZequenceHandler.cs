@@ -302,6 +302,11 @@ namespace Laubrary.Zounds {
 
                 runtimeEntry.token = ZoundEngine.PlayZound(childZound, entryArgs);
                 runtimeEntry.delay = entryArgs.delay;
+                // ZPOC: the track follows values set on this Zequence's token (and on its parents'), from its first sample.
+                if (runtimeEntry.token != null) {
+                    runtimeEntry.token.parentToken = token;
+                    runtimeEntry.token.RefreshAllZpoc();
+                }
                 float effectiveDuration;
                 if (runtimeEntry.token == null) {
                     effectiveDuration = 0f;
@@ -316,6 +321,16 @@ namespace Laubrary.Zounds {
             }
 
             return duration;
+        }
+
+        public override void ApplyZpoc(string key) {
+            if (runtimeZoundEntries == null) return;
+            for (int i = 0; i < runtimeZoundEntries.Count; i++) runtimeZoundEntries[i].token?.RefreshZpoc(key);
+        }
+
+        public override void ApplyAllZpoc() {
+            if (runtimeZoundEntries == null) return;
+            for (int i = 0; i < runtimeZoundEntries.Count; i++) runtimeZoundEntries[i].token?.RefreshAllZpoc();
         }
 
         public override void ApplyMixerGroupToChildren(AudioMixerGroup mixerGroup) {

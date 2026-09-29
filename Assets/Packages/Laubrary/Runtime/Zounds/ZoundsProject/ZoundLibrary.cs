@@ -688,6 +688,12 @@ namespace Laubrary.Zounds
             public float repeatInterval = 0.25f;
             public bool repeatSpaceFromEnd;
 
+            /// <summary>
+            /// An optional name game code can reach this track by through a play's token (ZPOC), as an alternative to
+            /// its number. Unique within this Zequence only; matched the way Zound names are.
+            /// </summary>
+            public string zpocId = "";
+
 #if UNITY_EDITOR
             [HideInInspector] public int editor_instanceID;
             [HideInInspector] public bool editor_foldoutExpanded = true;

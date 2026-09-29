@@ -41,6 +41,10 @@ namespace Laubrary.Zounds {
         ZoundUpdateResult OnUpdate(float deltaDspTime);
         void SetToken(ZoundToken token);
         int dspParentGroup { get; set; }
+        /// <summary>ZPOC: re-applies one id (a key from ZpocKeys) from the token's resolved value, or its resting value.</summary>
+        void ApplyZpoc(string key);
+        /// <summary>ZPOC: re-applies every id this play declares, e.g. once its token or parent token is known.</summary>
+        void ApplyAllZpoc();
     }
 
     internal class ZoundHandler<TZound> : IZoundHandler where TZound : Zound {
@@ -159,7 +163,14 @@ namespace Laubrary.Zounds {
         }
 
         /// <summary>The token that owns this handler; set before Init so voices can be registered to it.</summary>
-        public virtual void SetToken(ZoundToken token) { }
+        public virtual void SetToken(ZoundToken token) { m_token = token; }
+
+        private ZoundToken m_token;
+        /// <summary>The token that owns this handler (null until <see cref="SetToken"/>).</summary>
+        protected ZoundToken token => m_token;
+
+        public virtual void ApplyZpoc(string key) { }
+        public virtual void ApplyAllZpoc() { }
 
         /// <summary>The DSP group node this zound's output sums into (-1 = the bus). Set by the parent Zequence before Start.</summary>
         public int dspParentGroup { get; set; } = -1;

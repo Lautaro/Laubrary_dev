@@ -117,6 +117,14 @@ namespace Laubrary.Zounds.Dsp {
                     float p = ToPosition(baseValue, min, max, ratioSpaced) + signal * depth;
                     return FromPosition(p, min, max, ratioSpaced);
                 }
+                case ModulationCombine.ShiftFromCentre: {
+                    // Shift for a modifier whose output runs 0..1 with its middle meaning "no change" (a Code modifier):
+                    // read as a swing around one half, then exactly the room-relative Shift below.
+                    float pos = ToPosition(baseValue, min, max, ratioSpaced);
+                    float move = (signal * 2f - 1f) * depth;
+                    float room = move >= 0f ? 1f - pos : pos;
+                    return FromPosition(pos + move * room, min, max, ratioSpaced);
+                }
                 default: {
                     // SHIFT, as a share of the ROOM the parameter has in the direction it is being moved (T-0436): one is
                     // "can travel all the way to that end, never past it", nought is "does not move". So a full-strength
@@ -187,5 +195,10 @@ namespace Laubrary.Zounds.Dsp {
         /// flat curve in the middle is exactly "unchanged" and up and down are the same distance (T-0479).
         /// </summary>
         Ratio = 5,
+        /// <summary>
+        /// Shift, for a modifier whose output runs 0..1 around a middle meaning "no change" (a Code modifier): nought is as
+        /// far down as the depth allows, one half is unchanged, one as far up. Never stored; chosen when a chain is laid out.
+        /// </summary>
+        ShiftFromCentre = 6,
     }
 }
