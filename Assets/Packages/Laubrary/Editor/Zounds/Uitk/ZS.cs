@@ -70,6 +70,29 @@ namespace Laubrary.Zounds.Uitk {
         /// <paramref name="onColor"/>, the ON state is a flat fill of that colour with no border (the old ZUI's on-colour
         /// override, e.g. Mute's warning colour), keeping the corner shape.
         /// </summary>
+        /// <summary>
+        /// An eye toggle (T-0494, the owner's "eye box"): open and latched while the thing is shown, closed while hidden.
+        /// Uses ZUI's own eye icons. <paramref name="tooltip"/> is given the current state and should say what clicking does.
+        /// </summary>
+        public static ZuiToggleButton Eye(bool visible, Func<bool, string> tooltip, Action<bool> onChanged,
+                                          ZUICornerMask corners = ZUICornerMask.All, float width = 22f, float height = 20f) {
+            ZuiToggleButton t = null;
+            VisualElement icon = null;
+            void SetIcon(bool v) {
+                if (icon != null) t.Remove(icon);
+                icon = Z.Icon(v ? "eye" : "eye-closed", 13f);
+                if (icon != null) {
+                    icon.style.position = Position.Absolute; icon.style.left = (width - 13f) * 0.5f; icon.style.top = (height - 13f) * 0.5f;
+                    t.Add(icon);
+                }
+                t.tooltip = tooltip(v);
+            }
+            t = Toggle("", tooltip(visible), visible, v => { SetIcon(v); onChanged(v); }, "RichToggle", corners, width, height);
+            t.markWhenOn = false;
+            SetIcon(visible);
+            return t;
+        }
+
         public static ZuiToggleButton Toggle(string label, string tooltip, bool value, Action<bool> onChanged, string style = "RichToggle",
                                              ZUICornerMask corners = ZUICornerMask.None, float width = -1f, float height = 20f,
                                              Color? onColor = null) {

@@ -820,7 +820,12 @@ namespace Laubrary.Zounds.Uitk {
             float chipX = typeX + 62f + 2f + 120f + 6f;
             r.Add(Place(ZpocChip(mod), chipX, 1f, ZpocChipW, G.RowH - 2f));
             var targets = Place(Text("", "The parameters this modifier drives.", "zs-mini"), chipX + ZpocChipW + 6f, 0f, -1f, G.RowH);
-            targets.style.right = G.RemoveW + 10f;
+            targets.style.right = G.RemoveW + 10f + EyeW + 4f;
+            // The eye (T-0494): whether this modifier is counted in the waveform's combined-result lines and drawn there.
+            r.Add(PlaceRight(ZS.Eye(CurveView.IsVisible(mod), v => v
+                    ? "Shown: what this modifier does is included in the combined-result lines on the waveform (and its curve drawn there). Click to leave it out of the picture; it keeps playing."
+                    : "Hidden from the waveform's pictures: its effect is left out of the combined-result lines and its curve is not drawn there. It still plays. Click to show it.",
+                v => { CurveView.SetVisible(mod, v); }, ZUICornerMask.All, EyeW, G.RowH - 2f), G.RemoveW + 6f, 1f, EyeW, G.RowH - 2f));
             r.Add(targets);
             refreshers.Add(() => {
                 var ch = ZoundDspPlayback.ResolveChain(zound, out _);
@@ -836,6 +841,7 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         const float ZpocChipW = 150f;
+        const float EyeW = 22f;
 
         /// <summary>The precedence order, stated wherever a code-driven value is shown (owner, 2026-09-29: "important that
         /// it's clearly stated no matter what the order is").</summary>

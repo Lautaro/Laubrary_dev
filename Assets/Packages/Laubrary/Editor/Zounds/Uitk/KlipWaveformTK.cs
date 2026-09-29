@@ -24,7 +24,11 @@ namespace Laubrary.Zounds.Uitk {
         const float AreaH = 150f;
         readonly AudioSpectrumView model;
         readonly Klip klip;
-        readonly ZuiToggleButton trim, clamp, vol, volEdit, pitch, pitchEdit, keepLen, time, timeEdit;
+        readonly ZuiToggleButton trim, clamp, vol, volEdit, pitch, pitchEdit, keepLen, time, timeEdit, volEye, pitchEye, timeEye;
+        // What each shown curve's value actually does once every modifier on it is applied (T-0494), drawn lighter.
+        readonly VisualElement combined;
+        readonly List<(Color colour, OwnValueCurves.Line line, Rect rect, float xMin, float xMax, float yMin, float yMax)> combinedLines
+            = new List<(Color colour, OwnValueCurves.Line line, Rect rect, float xMin, float xMax, float yMin, float yMax)>();
         readonly Label length;
         readonly VisualElement box, area, bg, dimStart, dimEnd, handleStart, handleEnd, heads;
         readonly VisualElement[] xmix;
@@ -52,9 +56,11 @@ namespace Laubrary.Zounds.Uitk {
             trim = ZS.Toggle("Trim", "", model.TrimEnabled, v => { model.SetTrimEnabled(v); Refresh(); }, "RichToggle", ZUICornerMask.Left, 60f, lh);
             clamp = ZS.Toggle("Clamp", "", model.ClampToTrim, v => { model.SetClampToTrim(v); Refresh(); }, "RichToggle", ZUICornerMask.Right, 60f, lh);
             vol = ZS.Toggle("Volume", "", model.VolumeEnvelope.enabled, v => { model.RequestVolumeEnabled(v); Refresh(); }, "RichToggle", ZUICornerMask.Left, 75f, lh);
-            volEdit = IconToggle(model.ShowVolumeHandles, v => { model.SetShowVolumeHandles(v); Refresh(); });
+            volEdit = IconToggle(model.ShowVolumeHandles, v => { Select(AudioSpectrumView.Curve.Volume, v); Refresh(); });
+            volEye = CurveEye(AudioSpectrumView.Curve.Volume);
             pitch = ZS.Toggle("Pitch", "", model.PitchEnvelope.enabled, v => { model.RequestPitchEnabled(v); Refresh(); }, "RichToggle", ZUICornerMask.Left, 65f, lh);
-            pitchEdit = IconToggle(model.ShowPitchHandles, v => { model.SetShowPitchHandles(v); Refresh(); });
+            pitchEdit = IconToggle(model.ShowPitchHandles, v => { Select(AudioSpectrumView.Curve.Pitch, v); Refresh(); });
+            pitchEye = CurveEye(AudioSpectrumView.Curve.Pitch);
             length = new Label();
             length.AddToClassList("zs-lbl"); length.AddToClassList("zs-mini");
             length.style.width = 50f; length.style.flexShrink = 0;
@@ -67,9 +73,10 @@ namespace Laubrary.Zounds.Uitk {
             keepLen = ZS.Toggle("Keep length", AudioSpectrumView.KeepLengthTip(model.KeepLength), model.KeepLength,
                 v => { model.RequestKeepLength(v); keepLen.tooltip = AudioSpectrumView.KeepLengthTip(v); Refresh(); }, "RichToggle", ZUICornerMask.All, 90f, lh);
             time = ZS.Toggle("Time", AudioSpectrumView.TimeTip, model.TimeEnvelope.enabled, v => { model.RequestTimeEnabled(v); Refresh(); }, "RichToggle", ZUICornerMask.Left, 60f, lh);
-            timeEdit = IconToggle(model.ShowTimeHandles, v => { model.SetShowTimeHandles(v); Refresh(); });
-            bar.Add(trim); bar.Add(clamp); bar.Add(Gap(6f)); bar.Add(vol); bar.Add(volEdit); bar.Add(Gap(6f)); bar.Add(pitch); bar.Add(pitchEdit); bar.Add(pitchOld);
-            if (model.HasKlip) { bar.Add(Gap(2f)); bar.Add(keepLen); bar.Add(Gap(6f)); bar.Add(time); bar.Add(timeEdit); }
+            timeEdit = IconToggle(model.ShowTimeHandles, v => { Select(AudioSpectrumView.Curve.Time, v); Refresh(); });
+            timeEye = CurveEye(AudioSpectrumView.Curve.Time);
+            bar.Add(trim); bar.Add(clamp); bar.Add(Gap(6f)); bar.Add(vol); bar.Add(volEdit); bar.Add(Gap(1f)); bar.Add(volEye); bar.Add(Gap(6f)); bar.Add(pitch); bar.Add(pitchEdit); bar.Add(Gap(1f)); bar.Add(pitchEye); bar.Add(pitchOld);
+            if (model.HasKlip) { bar.Add(Gap(2f)); bar.Add(keepLen); bar.Add(Gap(6f)); bar.Add(time); bar.Add(timeEdit); bar.Add(Gap(1f)); bar.Add(timeEye); }
             var flex = new VisualElement(); flex.style.flexGrow = 1; bar.Add(flex);
             bar.Add(length);
             Add(bar);
@@ -105,6 +112,10 @@ namespace Laubrary.Zounds.Uitk {
             timeTop = AxisLabel(); timeMid = AxisLabel(); timeBottom = AxisLabel();
             foreach (var l in new[] { timeTop, timeMid, timeBottom }) { l.style.unityTextAlign = TextAnchor.UpperRight; l.style.width = 26f; area.Add(l); }
             timeTop.text = "×4"; timeMid.text = "×1"; timeBottom.text = "×¼";
+            // The combined results, under the playheads and the editable curves (T-0494).
+            combined = Abs(); combined.pickingMode = PickingMode.Ignore;
+            combined.generateVisualContent += PaintCombined;
+            area.Add(combined);
             heads = Abs(); area.Add(heads);
             handleStart = Abs(); handleEnd = Abs(); area.Add(handleStart); area.Add(handleEnd);
             handleStart.AddToClassList("zs-trimhandle"); handleEnd.AddToClassList("zs-trimhandle");
@@ -197,6 +208,41 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         /// <summary>ZUI.Toggle(value, "", editIcon, editIcon, RichToggle, Right, 25 wide): the edit-handles toggle, its face the pencil icon.</summary>
+        /// <summary>
+        /// Selecting a curve for editing (its pencil): one at a time, so a press can only ever grab the curve you chose
+        /// (T-0494). Before, every curve with its pencil on accepted presses in a fixed order and the wrong one could win.
+        /// </summary>
+        void Select(AudioSpectrumView.Curve which, bool on) {
+            model.SetShowVolumeHandles(on && which == AudioSpectrumView.Curve.Volume);
+            model.SetShowPitchHandles(on && which == AudioSpectrumView.Curve.Pitch);
+            model.SetShowTimeHandles(on && which == AudioSpectrumView.Curve.Time);
+            volEdit.SetValueWithoutNotify(model.ShowVolumeHandles);
+            pitchEdit.SetValueWithoutNotify(model.ShowPitchHandles);
+            timeEdit.SetValueWithoutNotify(model.ShowTimeHandles);
+        }
+
+        Envelope EnvelopeOf(AudioSpectrumView.Curve which) =>
+            which == AudioSpectrumView.Curve.Volume ? model.VolumeEnvelope : which == AudioSpectrumView.Curve.Pitch ? model.PitchEnvelope : model.TimeEnvelope;
+
+        /// <summary>The chain modifier a waveform curve is, or null (an overlay with no modifier yet).</summary>
+        ZoundModifier ModifierOf(AudioSpectrumView.Curve which) {
+            int mi = KlipChainEnvelopes.ModifierIndexOf(klip, EnvelopeOf(which));
+            var chain = Dsp.ZoundDspPlayback.ResolveChain(klip, out _);
+            return mi >= 0 && chain != null && mi < chain.modifiers.Count ? chain.modifiers[mi] : null;
+        }
+
+        bool Selected(AudioSpectrumView.Curve which) =>
+            which == AudioSpectrumView.Curve.Volume ? model.ShowVolumeHandles : which == AudioSpectrumView.Curve.Pitch ? model.ShowPitchHandles : model.ShowTimeHandles;
+
+        /// <summary>A curve's eye (the owner's eye box): whether it is drawn and counted in the combined results.</summary>
+        ZuiToggleButton CurveEye(AudioSpectrumView.Curve which) {
+            string name = which == AudioSpectrumView.Curve.Volume ? "volume" : which == AudioSpectrumView.Curve.Pitch ? "pitch" : "time";
+            return ZS.Eye(true, v => v
+                    ? "Shown: the " + name + " curve is drawn and counted in every combined result line. Click to hide it (it keeps playing; only the picture changes)."
+                    : "Hidden: the " + name + " curve is not drawn and not counted in the combined results (while it is selected for editing its points stay, so you can edit them). Click to show it.",
+                v => { CurveView.SetVisible(ModifierOf(which), v); Refresh(); }, ZUICornerMask.All, 22f, EditorGUIUtility.singleLineHeight);
+        }
+
         ZuiToggleButton IconToggle(bool value, System.Action<bool> onChanged) {
             var t = ZS.Toggle("", "", value, onChanged, "RichToggle", ZUICornerMask.Right, 25f, EditorGUIUtility.singleLineHeight);
             t.markWhenOn = false;
@@ -277,9 +323,12 @@ namespace Laubrary.Zounds.Uitk {
             var envRect = model.ClampToTrim ? trimmed : r;
             PlacePitchAxis(r, envRect);
             PlaceTimeAxis(envRect);
+            combinedLines.Clear();
             Overlay(volEnv, AudioSpectrumView.Curve.Volume, envRect);
             Overlay(pitchEnv, AudioSpectrumView.Curve.Pitch, envRect);
             Overlay(timeEnv, AudioSpectrumView.Curve.Time, envRect);
+            Place(combined, r);
+            combined.MarkDirtyRepaint();
             if (model.HasKlip) {
                 keepLen.SetValueWithoutNotify(model.KeepLength);
                 time.SetValueWithoutNotify(model.TimeEnvelope.enabled);
@@ -289,15 +338,68 @@ namespace Laubrary.Zounds.Uitk {
 
         void Overlay(ZuiSkinEnvelope env, AudioSpectrumView.Curve which, Rect rect) {
             var def = model.PrepareOverlay(which, out var runtime, out var pts, out var colour);
-            env.style.display = def != null ? DisplayStyle.Flex : DisplayStyle.None;
-            if (def == null) return;
+            var mod = ModifierOf(which);
+            bool shown = CurveView.IsVisible(mod);
+            var eye = which == AudioSpectrumView.Curve.Volume ? volEye : which == AudioSpectrumView.Curve.Pitch ? pitchEye : timeEye;
+            eye.style.visibility = def != null ? Visibility.Visible : Visibility.Hidden;
+            // Eye off: not drawn -- unless it is the curve selected for editing, whose points stay (T-0494).
+            bool draw = def != null && (shown || Selected(which));
+            env.style.display = draw ? DisplayStyle.Flex : DisplayStyle.None;
+            if (!draw) return;
             env.points = pts; env.def = def; env.rt = runtime; env.curveColor = colour;
-            // What the plays under way hear, dotted (T-0484); nothing while the sound is not playing.
-            var authored = which == AudioSpectrumView.Curve.Volume ? model.VolumeEnvelope
-                         : which == AudioSpectrumView.Curve.Pitch ? model.PitchEnvelope : model.TimeEnvelope;
-            LiveDrawnCurves.Fill(ref env.liveCurves, klip, authored, KlipChainEnvelopes.ModifierIndexOf(klip, authored));
+            // What the plays under way hear, dotted (T-0484); nothing while the sound is not playing, or while hidden.
+            var authored = EnvelopeOf(which);
+            if (shown) LiveDrawnCurves.Fill(ref env.liveCurves, klip, authored, KlipChainEnvelopes.ModifierIndexOf(klip, authored));
+            else env.liveCurves = null;
             Place(env, rect);
             env.Repaint();
+            // The combined result of everything on this curve's value, when something besides the curve moves it.
+            if (shown && OwnValueCurves.TryGet(klip, mod, out var line))
+                combinedLines.Add((colour, line, rect, runtime.xMin, runtime.xMax, runtime.yMin, runtime.yMax));
+        }
+
+        /// <summary>
+        /// Draws each combined result in its curve's colour, lighter and thinner than the curve's own editable line, in the
+        /// curve's own space. Where the modulation is denser than the pixels (a fast oscillator over a long sound) it is drawn
+        /// the way a waveform is: one lowest-to-highest stroke per pixel column, so it stays legible at any zoom.
+        /// </summary>
+        void PaintCombined(MeshGenerationContext ctx) {
+            var p = ctx.painter2D;
+            var origin = combined.layout.position;
+            foreach (var c in combinedLines) {
+                var line = c.line;
+                if (line.x == null || line.x.Length < 2) continue;
+                float xr = Mathf.Max(1e-6f, c.xMax - c.xMin), yr = Mathf.Max(1e-6f, c.yMax - c.yMin);
+                var rect = c.rect; float xMin = c.xMin, yMin = c.yMin;
+                Vector2 P(float x, float y) => new Vector2(rect.x - origin.x + (x - xMin) / xr * rect.width,
+                                                           rect.y - origin.y + (1f - (y - yMin) / yr) * rect.height);
+                var col = c.colour; col.a = 0.55f;
+                p.strokeColor = col;
+                p.lineWidth = 1.25f;
+                int cols = Mathf.Max(1, Mathf.CeilToInt(rect.width));
+                if (line.x.Length > cols * 2) {
+                    // Dense: per pixel column, from the lowest to the highest value within it.
+                    var lo = new float[cols]; var hi = new float[cols]; var has = new bool[cols];
+                    for (int i = 0; i < line.x.Length; i++) {
+                        int k = Mathf.Clamp(Mathf.FloorToInt((line.x[i] - xMin) / xr * cols), 0, cols - 1);
+                        if (!has[k]) { lo[k] = hi[k] = line.y[i]; has[k] = true; }
+                        else { if (line.y[i] < lo[k]) lo[k] = line.y[i]; if (line.y[i] > hi[k]) hi[k] = line.y[i]; }
+                    }
+                    p.BeginPath();
+                    for (int k = 0; k < cols; k++) {
+                        if (!has[k]) continue;
+                        float x = xMin + (k + 0.5f) / cols * xr;
+                        p.MoveTo(P(x, lo[k])); p.LineTo(P(x, hi[k]) + new Vector2(0f, -0.5f));
+                    }
+                    p.Stroke();
+                }
+                else {
+                    p.BeginPath();
+                    p.MoveTo(P(line.x[0], line.y[0]));
+                    for (int i = 1; i < line.x.Length; i++) p.LineTo(P(line.x[i], line.y[i]));
+                    p.Stroke();
+                }
+            }
         }
 
         /// <summary>

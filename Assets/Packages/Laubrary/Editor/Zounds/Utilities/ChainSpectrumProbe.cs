@@ -74,6 +74,12 @@ namespace Laubrary.Zounds.EditorTools {
             public float[][] modifierOutput;
             /// <summary>Time between successive lane values: the engine's own control step.</summary>
             public float laneStepSeconds;
+            /// <summary>
+            /// Where the play was in its SOURCE at each lane value (0 = start of the region it plays, 1 = its end; 1 through
+            /// any tail after it), block by block (T-0494). Lets a lane be drawn against the waveform rather than the clock,
+            /// which is what a curve on the waveform is read by.
+            /// </summary>
+            public float[] sourceFraction;
             /// <summary>Wall-clock cost of taking this measurement, so a slow one can be noticed rather than suspected.</summary>
             public double costMs;
         }
@@ -435,6 +441,14 @@ namespace Laubrary.Zounds.EditorTools {
             for (int l = 0; l < lanes.Count; l++) values[l] = new List<float>(frames / block + 2);
             var outputs = new List<float>[chain.modifiers.Count];
             for (int m = 0; m < outputs.Length; m++) outputs[m] = new List<float>(frames / block + 2);
+            var sourceAt = new List<float>(frames / block + 2);
+            float SourceFraction(Unity.Collections.NativeArray<SourceSlot> sl) {
+                if (!sl.IsCreated || sl.Length == 0) return 1f;
+                var s0 = sl[0];
+                double len = s0.endFrame - s0.startFrame;
+                if (!s0.active || len <= 0) return 1f;
+                return (float)Math.Max(0.0, Math.Min(1.0, (s0.cursor - s0.startFrame) / len));
+            }
 
             if (startsNowAs != null) {
                 // Started the way a real play starts, through the same setup the playing voice gets, so clocks are joined.
@@ -461,6 +475,7 @@ namespace Laubrary.Zounds.EditorTools {
                         var live = voice.sap.pLive;
                         var mods = voice.sap.modValue;
                         for (int m = 0; m < outputs.Length; m++) outputs[m].Add(m < mods.Length ? mods[m] : 0f);
+                        sourceAt.Add(SourceFraction(voice.sap.slots));
                         for (int l = 0; l < lanes.Count; l++)
                             values[l].Add(flats[l] < live.Length ? Position01(descs[l], live[flats[l]]) : lanes[l].authored01);
                     }
@@ -474,6 +489,7 @@ namespace Laubrary.Zounds.EditorTools {
                     var live = voice.pLive;
                     var mods = voice.modValues;
                     for (int m = 0; m < outputs.Length; m++) outputs[m].Add(m < mods.Length ? mods[m] : 0f);
+                    sourceAt.Add(SourceFraction(voice.slots));
                     for (int l = 0; l < lanes.Count; l++)
                         values[l].Add(flats[l] < live.Length ? Position01(descs[l], live[flats[l]]) : lanes[l].authored01);
                 });
@@ -484,6 +500,7 @@ namespace Laubrary.Zounds.EditorTools {
             for (int l = 0; l < arr.Length; l++) arr[l].position01 = values[l].ToArray();
             result.totalSeconds = Math.Max(play, (values.Length > 0 ? values[0].Count : outputs.Length > 0 ? outputs[0].Count : 0) * (float)block / SAMPLE_RATE);
             result.lanes = arr;
+            result.sourceFraction = sourceAt.ToArray();
             result.modifierOutput = new float[outputs.Length][];
             for (int m = 0; m < outputs.Length; m++) result.modifierOutput[m] = outputs[m].ToArray();
         }
