@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — a playing Looper hears volume and pitch edits (T-0487)
+
+- **Fix: a playing Looper kept the volume and pitch it started with.** Each play draws its volume and pitch once, when it starts, and nothing read them again. A one-shot hides that because its next play draws again; a Looper never plays again, so the owner heard "it samples the audio once and uses it for every loop".
+- **Now a play remembers where its draw sat inside the sound's volume and pitch ranges**, and when a range is edited it moves to the same relative spot of the new range (a fixed 1 edited to 0.5 goes to 0.5; a draw from the middle stays in the middle). A value given from outside the range (game code, a Zequence entry's own setting) is left alone.
+  - Volume follows on every playing Klip. Pitch follows on a Looper and on a live-speed sound; a one-shot's length is worked out from its starting pitch, so lowering its pitch mid-play would cut its end off.
+- **Measured (new kept check 19):** on a playing Looper, an effect parameter was already heard (level ×0.48 for gain 1 → 0.5); the Klip's volume, never heard before, now is (×0.43 for 1 → 0.5); its pitch, never heard before, now is (zero-crossing rate ×2.02 for 1 → 2).
+- **Still read once when a play starts, so not yet heard on a playing Looper:** the chain's structure (adding, removing, reordering, bypassing an effect, swapping a preset), curve shapes and time settings. Those need the playing voice to be replaced; proposed separately.
+
 ### Zounds — the curve a play is actually hearing, dotted, while it plays (T-0484)
 
 - **While a sound plays, each curve also shows, dotted, the curve that play is actually hearing:** its random points where that play drew them. It is computed from the play's own seed (read from its voice) by the same function the engine uses.

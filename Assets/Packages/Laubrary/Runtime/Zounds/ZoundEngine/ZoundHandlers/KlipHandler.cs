@@ -148,7 +148,66 @@ namespace Laubrary.Zounds {
         }
         private float m_liveSpeed = 1f;
 
+        // ───────────── live edits of the sound's volume and pitch ranges (Looper live-edit fix, 2026-09-29) ─────────────
+        //
+        // Measured: a playing Looper kept the volume and pitch it started with for ever -- editing the Klip's volume or pitch
+        // was never heard, because each play draws them once at its start and nothing re-read them. A one-shot hides that
+        // (its next play draws again); a Looper has no next play. So a play remembers WHERE its draw sat inside the sound's
+        // range, and when the range is edited it moves to the same relative spot of the new range: a fixed volume edited from
+        // 1 to 0.5 goes to 0.5; a play that drew the middle of 0.5-1 goes to the middle of whatever the range becomes.
+        //
+        // A value given from outside the range (game code, or a Zequence entry's own setting) is not a draw from the range,
+        // so an edit of the range leaves it alone.
+        //
+        // Volume follows for every Klip: it changes nothing about how long the play lasts. Pitch follows only where the
+        // play's length is not fixed in advance (a Looper, or live speed, which ends when the voice says so): a one-shot's
+        // length was worked out from its starting pitch, and lowering it mid-play would cut the end off.
+        private float m_volT = -1f, m_pitchT = -1f;
+        private float m_seenMinVol, m_seenMaxVol, m_seenMinPitch, m_seenMaxPitch;
+        private bool m_rangesSeen;
+
+        static float RelativeIn(float v, float min, float max) {
+            const float eps = 1e-4f;
+            if (v < min - eps || v > max + eps) return -1f;      // not a draw from this range
+            return max - min > eps ? Mathf.Clamp01((v - min) / (max - min)) : 0f;
+        }
+
+        private void RememberDraws() {
+            m_seenMinVol = zound.minVolume; m_seenMaxVol = zound.maxVolume;
+            m_seenMinPitch = zound.minPitch; m_seenMaxPitch = zound.maxPitch;
+            m_volT = RelativeIn(selfVolume, m_seenMinVol, m_seenMaxVol);
+            m_pitchT = RelativeIn(basePitch, m_seenMinPitch, m_seenMaxPitch);
+            m_rangesSeen = true;
+        }
+
+        /// <summary>Delivers an edit of the sound's volume or pitch range to this play, as described above.</summary>
+        private void FollowRangeEdits() {
+            if (!m_rangesSeen) { RememberDraws(); return; }
+            bool volEdited = zound.minVolume != m_seenMinVol || zound.maxVolume != m_seenMaxVol;
+            bool pitchEdited = zound.minPitch != m_seenMinPitch || zound.maxPitch != m_seenMaxPitch;
+            if (!volEdited && !pitchEdited) return;
+            if (volEdited) {
+                m_seenMinVol = zound.minVolume; m_seenMaxVol = zound.maxVolume;
+                if (m_volT >= 0f) {
+                    float v = Mathf.Lerp(m_seenMinVol, m_seenMaxVol, m_volT);
+                    SetSelfVolume(v);
+                    // The voice was given the play's volume as its output gain when it started (see StartVoice), so it
+                    // is moved the same way; the audio source follows from SetSelfVolume on the base update.
+                    m_voice.SetGainLive(v * ZoundEngine.GetMasterVolume());
+                }
+            }
+            if (pitchEdited) {
+                m_seenMinPitch = zound.minPitch; m_seenMaxPitch = zound.maxPitch;
+                bool lengthOpen = zound.IsLooper || m_voice.HasLiveSpeed;
+                if (m_pitchT >= 0f && lengthOpen) {
+                    basePitch = Mathf.Lerp(m_seenMinPitch, m_seenMaxPitch, m_pitchT);
+                    m_voice.SetPitchLive(basePitch);
+                }
+            }
+        }
+
         protected override ZoundUpdateResult OnPlayUpdate(float deltaDspTime) {
+            if (m_chainPath && m_voice != null && m_voice.IsPlaying) FollowRangeEdits();
             // A live-speed sound ends when its voice says so, since its length could not be known (T-0409).
             if (m_chainPath && m_voice != null && m_voice.HasLiveSpeed && m_voice.VoiceFinished) {
                 OnCompleteDuration();

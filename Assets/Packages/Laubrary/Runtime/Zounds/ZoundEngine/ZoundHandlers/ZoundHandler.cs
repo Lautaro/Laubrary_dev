@@ -101,6 +101,9 @@ namespace Laubrary.Zounds {
         protected TZound zound => m_zound;
         protected AudioSource audioSource => m_audioSource;
         protected float selfVolume => m_selfVolume;
+        /// <summary>Moves this play's own volume while it plays (a live edit of the sound's volume range); the audio source
+        /// follows on the next update, where it is set from this every frame.</summary>
+        protected void SetSelfVolume(float v) { m_selfVolume = v; }
         public bool isDelayFinished => m_isDelayFinished;
         public float currentTime { get => m_currentTime; protected set { m_currentTime = value; } }
         public float totalDuration => m_totalDuration;
