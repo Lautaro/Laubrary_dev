@@ -826,7 +826,8 @@ namespace Laubrary.Zounds {
         }
 
         internal static string TargetLabel(ZoundEffectChain chain, ZoundModifierBinding b) {
-            if (b.nodeIndex < 0) return "Source " + ZoundEffectDescriptors.SourceStageParams[Mathf.Clamp(b.paramIndex, 0, SourceStageParam.Count - 1)].name.ToLower();
+            // The sound's own values (T-0493) go by their own names: Volume, Pitch, Speed, Drive.
+            if (b.nodeIndex < 0) return ZoundEffectDescriptors.SourceStageParams[Mathf.Clamp(b.paramIndex, 0, SourceStageParam.Count - 1)].name;
             if (b.nodeIndex >= chain.nodes.Count) return "?";
             var d = ZoundEffectDescriptors.Get(chain.nodes[b.nodeIndex].type);
             string p = b.paramIndex < d.parameters.Length ? d.parameters[b.paramIndex].name : "?";

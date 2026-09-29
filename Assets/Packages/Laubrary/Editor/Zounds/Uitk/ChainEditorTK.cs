@@ -1044,6 +1044,11 @@ namespace Laubrary.Zounds.Uitk {
                 var r = ground.contentRect;
                 float extra = !isLfoRamp && mod.p != null && mod.p.Length > 0 ? Mathf.Max(0f, mod.p[0]) : 0f;
                 float frac = Mathf.Clamp01(elapsed / (duration + extra));
+                // An envelope measured against the waveform (its default) is read at the source position, so its playhead
+                // is too (T-0493): the clock drifts from it as soon as pitch or speed change how fast the source goes by.
+                bool waveformBase = !isLfoRamp && (mod.p == null || mod.p.Length < 2 || mod.p[1] < 0.5f);
+                if (waveformBase && SapVoiceRegistry.TryReadSourceProgress(zound, out float prog, out float region) && region > 0f && prog < 0.999f)
+                    frac = Mathf.Clamp01(prog * region / (region + extra));
                 float x = frac * r.width;
                 head.style.left = x - 0.5f;
                 if (mod.curve != null) {

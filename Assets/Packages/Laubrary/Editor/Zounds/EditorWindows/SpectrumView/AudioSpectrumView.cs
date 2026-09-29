@@ -612,8 +612,16 @@ namespace Laubrary.Zounds {
         /// </summary>
         private static readonly double[] s_loopPositions = new double[2];
 
-        internal List<float> PlayheadFractions(IEnumerable<ZoundToken> playingTokens, out bool animating) {
+        private static readonly float[] s_headWeights = new float[8];
+        private static readonly double[] s_headSeconds = new double[8];
+
+        internal List<float> PlayheadFractions(IEnumerable<ZoundToken> playingTokens, out bool animating) => PlayheadFractions(playingTokens, out animating, null);
+
+        /// <summary>As above; <paramref name="weights"/>, when given, gets how strongly each playhead should be drawn (1, or
+        /// less for the copy fading out of a Looper's crossmix), in the same order.</summary>
+        internal List<float> PlayheadFractions(IEnumerable<ZoundToken> playingTokens, out bool animating, List<float> weights) {
             var list = new List<float>();
+            weights?.Clear();
             animating = false;
             if (m_audioSource != null && m_audioSource.clip != null && m_audioSource.isPlaying) {
                 animating = true;
@@ -629,21 +637,26 @@ namespace Laubrary.Zounds {
                         renderedTime += step / Mathf.Max(0.01f, heard);
                         t += step;
                     }
-                    list.Add(t / totalTime);
+                    list.Add(t / totalTime); weights?.Add(1f);
                 }
-                else list.Add(m_audioSource.time / m_audioSource.clip.length);
+                else { list.Add(m_audioSource.time / m_audioSource.clip.length); weights?.Add(1f); }
             }
             if (playingTokens != null) {
                 foreach (var token in playingTokens) {
                     if (token == null || token.state == ZoundToken.State.Killed) continue;
-                    // A Looper (T-0473) has no length to divide by: its playheads are where its read positions actually
-                    // are — two while a crossmix is running, the incoming copy near the start and the outgoing one near the end.
-                    if (token.zound is Klip lk && lk.IsLooper && token.audioSource != null
+                    // Playing through its chain: the playheads are where the voice is actually reading its source (T-0493),
+                    // not elapsed time over length, which drifts from the sound the moment pitch, speed or a time curve
+                    // change how fast the source is gone through. One per read head: several while repeats overlap, two
+                    // during a Looper's crossmix (the copy fading out drawn fainter).
+                    if (token.zound is Klip lk && token.audioSource != null
                         && token.audioSource.generator is Dsp.ZoundSapVoiceGenerator lg) {
-                        int n = lg.ReadLoopPositions(s_loopPositions);
+                        int n = lg.ReadSourcePositions(s_headSeconds, s_headWeights);
                         float from = lk.trimEnabled ? lk.trimStart : 0f;
                         float to = lk.trimEnabled && lk.trimEnd > lk.trimStart ? lk.trimEnd : (OriginalClip != null ? OriginalClip.length : 0f);
-                        if (to > from) for (int i = 0; i < n; i++) list.Add(Mathf.Clamp01((float)((s_loopPositions[i] - from) / (to - from))));
+                        if (to > from) for (int i = 0; i < n; i++) {
+                            list.Add(Mathf.Clamp01((float)((s_headSeconds[i] - from) / (to - from))));
+                            weights?.Add(s_headWeights[i]);
+                        }
                         animating = true;
                         continue;
                     }
@@ -660,9 +673,9 @@ namespace Laubrary.Zounds {
                             renderedTime += step / Mathf.Max(0.01f, klip.pitchEnvelope.Evaluate(t / totalTime));
                             t += step;
                         }
-                        list.Add(t / totalTime);
+                        list.Add(t / totalTime); weights?.Add(1f);
                     }
-                    else list.Add(clipLength > 0f ? playTime / clipLength : 0f);
+                    else { list.Add(clipLength > 0f ? playTime / clipLength : 0f); weights?.Add(1f); }
                     animating = true;
                 }
             }

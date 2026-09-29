@@ -39,6 +39,7 @@ namespace Laubrary.Zounds.Uitk {
         ZuiSkinEnvelope active;
         bool trimDragging;
         readonly List<VisualElement> headPool = new List<VisualElement>();
+        readonly List<float> headWeights = new List<float>();
 
         public KlipWaveformTK(AudioSpectrumView model, Klip klip) {
             this.model = model; this.klip = klip;
@@ -257,13 +258,16 @@ namespace Laubrary.Zounds.Uitk {
 
             // Playheads, drawn over the dims and under the envelopes, as the old view draws them.
             ZoundEngine.CullingGroups.TryGetValue(klip, out var playing);
-            var fractions = model.PlayheadFractions(playing, out _);
+            // Where each play is READING its source (T-0493), so the line stays on the sound heard whatever pitch, speed
+            // or a time curve do; a Looper's copy fading out of a crossmix is drawn fainter.
+            var fractions = model.PlayheadFractions(playing, out _, headWeights);
             Place(heads, r);
             for (int i = 0; i < fractions.Count; i++) {
                 if (i >= headPool.Count) headPool.Add(PlayHead());
                 var h = headPool[i];
                 if (h.parent != heads) heads.Add(h);
                 h.style.display = DisplayStyle.Flex;
+                h.style.opacity = i < headWeights.Count ? headWeights[i] : 1f;
                 h.style.left = trimmed.x + fractions[i] * trimmed.width;
                 h.style.top = trimmed.y; h.style.height = trimmed.height;
             }

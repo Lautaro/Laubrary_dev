@@ -213,6 +213,61 @@ namespace Laubrary.Zounds.Dsp {
         }
 
         /// <summary>
+        /// Where every read head of this voice is in its source, in seconds, for a playhead that follows the AUDIO rather than
+        /// the clock (T-0493) -- so it stays on the sound being heard whatever pitch, speed or a time curve are doing. One
+        /// per active read head: several while repeats overlap, two during a Looper's crossmix. <paramref name="weights"/>
+        /// (optional) gets how strongly each should be drawn: 1, except during a crossmix, where the copy fading out dims as
+        /// the one fading in brightens. With live speed the stretcher reads ahead of what is heard, so the middle of the
+        /// window it most recently read is reported instead of its read position. Display use only (an unsynchronised read
+        /// of shared native memory, like the monitor). Returns how many were written.
+        /// </summary>
+        /// <summary>
+        /// How far the main read head is through the region it plays (0..1), and that region's length in seconds -- the
+        /// position an envelope measured against the waveform is read at (T-0493). False when nothing is playing.
+        /// </summary>
+        public bool TryReadSourceProgress(out float progress, out float regionSeconds) {
+            progress = 0f; regionSeconds = 0f;
+            if (!created || clip == null || clip.frequency <= 0 || !IsPlaying) return false;
+            var slots = voice.sap.slots;
+            if (!slots.IsCreated || slots.Length == 0) return false;
+            int main = voice.sap.looping.enabled ? voice.sap.looping.mainSlot : 0;
+            var sl = slots[main];
+            double len = sl.endFrame - sl.startFrame;
+            if (len <= 0) return false;
+            double frame = sl.cursor;
+            var st = voice.sap.stretch;
+            if (st.enabled && st.IsCreated && main < st.slot.Length) frame = st.slot[main].prevBest + st.N * 0.5;
+            progress = (float)System.Math.Max(0.0, System.Math.Min(1.0, (frame - sl.startFrame) / len));
+            regionSeconds = (float)(len / clip.frequency);
+            return true;
+        }
+
+        public int ReadSourcePositions(double[] seconds, float[] weights = null) {
+            if (seconds == null || !created || clip == null || clip.frequency <= 0 || !IsPlaying) return 0;
+            var slots = voice.sap.slots;
+            if (!slots.IsCreated) return 0;
+            var lp = voice.sap.looping;
+            var st = voice.sap.stretch;
+            int n = 0;
+            for (int s = 0; s < slots.Length && n < seconds.Length; s++) {
+                var sl = slots[s];
+                if (!sl.active || sl.startAt > 0) continue;
+                double frame = sl.cursor;
+                if (st.enabled && st.IsCreated && s < st.slot.Length) frame = st.slot[s].prevBest + st.N * 0.5;
+                seconds[n] = frame / clip.frequency;
+                float w = 1f;
+                if (lp.enabled && lp.inFade && lp.fadeLen > 0 && (s == 0 || s == 1)) {
+                    var main = slots[lp.mainSlot];
+                    float p = (float)System.Math.Max(0.0, System.Math.Min(1.0, (main.cursor - (main.endFrame - lp.fadeLen)) / lp.fadeLen));
+                    w = s == lp.mainSlot ? 1f - 0.6f * p : 0.4f + 0.6f * p;
+                }
+                if (weights != null && n < weights.Length) weights[n] = w;
+                n++;
+            }
+            return n;
+        }
+
+        /// <summary>
         /// Sends a playing Looper its region (seconds into the source) and crossmix range (seconds) — an edit heard while
         /// it plays (T-0473). Resolved against THIS play's own source: its sample rate and length, not the sound's
         /// current ones, so a voice that started before an edit is never handed frames beyond what it holds.

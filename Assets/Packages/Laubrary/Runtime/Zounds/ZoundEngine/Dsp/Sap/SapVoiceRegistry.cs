@@ -363,6 +363,22 @@ namespace Laubrary.Zounds.Dsp {
             return false;
         }
 
+        /// <summary>
+        /// The newest play of <paramref name="zound"/>: how far its main read head is through its source region (0..1) and
+        /// the region's length in seconds (T-0493). What a waveform-measured envelope is read at, so a curve's playhead
+        /// drawn from it stays on the sound whatever pitch or speed do.
+        /// </summary>
+        public static bool TryReadSourceProgress(Zound zound, out float progress, out float regionSeconds) {
+            progress = 0f; regionSeconds = 0f;
+            if (zound == null) return false;
+            for (int i = live.Count - 1; i >= 0; i--) {
+                var g = live[i];
+                if (g == null || !ReferenceEquals(g.playingZound, zound) || !g.IsPlaying) continue;
+                if (g.TryReadSourceProgress(out progress, out regionSeconds)) return true;
+            }
+            return false;
+        }
+
         /// <summary>What every playing voice of a sound is doing to one parameter, for the editor's live display (T-0492).</summary>
         public struct LiveParamSummary {
             /// <summary>How many voices answered; the rest of the fields mean nothing when it is nought.</summary>
