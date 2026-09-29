@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — game code drives a playing sound: ZPOC, tracks, snapshots and glides (T-0491, T-0490, T-0492..T-0498)
+
+ZPOC ("programmatic control") lets game code shape a sound while it plays, through the token the play already returns, without touching the saved sound. Everything below is per play: two helicopters playing the same sound can be at different throttles.
+
+- **ZPOC ids on modifiers.** Any modifier can be given an id. `token.SetZpoc("id", 0..1)` reaches every modifier with that id anywhere in the play, including inside Zequences. In **Scale** mode the value scales the modifier's authored strength (0 off, 1 as authored); in **Set** mode it is the strength itself. Ids are matched like Zound names (case, spaces, underscores and hyphens ignored) and only need to be unique within one sound.
+- **The Code modifier** outputs the value game code sends, directly. Bound to pitch or speed it defaults to Ratio (0.5 unchanged, 1 four times, 0 a quarter), to a level Scale, to anything else Set.
+- **Values are eased on the audio thread** (30 ms by default, per modifier), so a value sent once a frame never steps audibly. A value sent before the play's first audio block is heard from that first block, and the eased path is the same however the calls are spread over frames.
+- **Where a value comes from, in order:** the play's own value, then its parent Zequence play's, then a project-wide value (`ZoundEngine.SetGlobalZpoc`), then the ZPOC's resting value, which a snapshot can move. The editor states this order wherever a value is driven.
+- **Tokens play again.** A token whose run ended plays again when told to (same settings, fresh random draws); `Restart`, `EnsurePlaying`; `ZoundEngine.PlayToken` always returns a token, even when chance said no (it can be played again) or the name does not exist (every call on it does nothing).
+- **Tracks through the token.** `token.Track(n)` or `token.Track("id")` gives volume, pitch, speed, `FadeTo`, mute, solo, enabled and `Stop` for one track of a Zequence (a Klip is its own track 0). A disabled track is never picked by Randomizer, Round robin or Playlist. Track ids are set on the track card's chip.
+- **Snapshots.** A sound can hold named sets of its settings (effect settings and on/off, modifier settings and strengths, ZPOC resting values, volume and pitch ranges). "Default" is the settings as authored and always exists. `token.GlideToSnapshot("name", ms)` glides from wherever the play is now: continuous values along their own control (a cutoff by ratio), whole numbers and choices at the midpoint, an effect switched on or off by a crossfade. It returns a `ZoundGlide` whose `GlideBack()` returns exactly to where that glide started; only the latest glide can be reversed. The chain editor has a Snapshots row to capture, try, load, rename and delete them.
+- **The sound's own Volume, Pitch, Speed and Drive** are one "Sound" row in the chain editor. Volume is applied after every effect (a curve saved the old way, as a Gain at the end, moves onto it at its first edit only when that is provably the same sound). Drive is the old "Source gain", the level going into the effects.
+- **Seeing what code does.** Amber is the colour of game code: an amber bolt after every slider code can reach, a chip on each modifier card with its id, current value and where it comes from, and over each driven slider the live value, the spread across several plays, and a tick where code is taking it. Holding a driven slider rests the code there so the hand is heard. "Test as game code" plays 1, 3 or 8 overlapping instances and drives them through real tokens.
+- **The waveform shows what a value actually does:** the combined result of everything moving a curve (an LFO on pitch shows as a wobble around the pitch curve), an eye per curve and per modifier card to leave one out of the picture, one selected curve at a time, and playheads that follow where each play is reading its audio rather than the clock.
+- **Problems tab** in the Zounds window: one row per request game code made that found nothing (a sound name, a ZPOC id, a track, a snapshot, a project-wide value nobody listens to), with a count and when it was last seen. It turns amber while it has rows. Nothing ever throws; each problem is also warned about once in the console.
+- **Kept checks** under Laubrary > Zounds > Checks: 20 (ZPOC amounts, Code modifier, easing), 21 (own values, bit-identical conversion), 22 (tokens), 23 (tracks), 24 (snapshots and glides), 25 (Problems list). A repeated miss, and every value sent per frame, allocate nothing.
+
+Worked example: a helicopter whose sound has a Code modifier "throttle" on pitch and on a low-pass cutoff, a Zequence track "tail rotor", a snapshot "Muffled" and a "wind" modifier shared by every sound in the scene.
+
+```csharp
+ZoundToken rotor;
+ZoundGlide cloud;
+
+void Start() => rotor = ZoundEngine.PlayToken("Helicopter");
+
+void Update() {
+    rotor.SetZpoc("throttle", Mathf.Lerp(0.3f, 0.9f, engineLoad));   // every frame; eased, no garbage
+    rotor.Track("tail rotor").volume = tailRotorAudible ? 1f : 0f;
+    if (enteredCloud) cloud = rotor.GlideToSnapshot("Muffled", 600f);
+    if (leftCloud && cloud.isCurrent) cloud = cloud.GlideBack();      // back to exactly where it was
+    ZoundEngine.SetGlobalZpoc("wind", windStrength);                  // every sound that declares "wind"
+}
+
+void OnDestroy() => rotor.Kill();
+```
+
 ### Zounds — a playing Looper hears volume and pitch edits (T-0487)
 
 - **Fix: a playing Looper kept the volume and pitch it started with.** Each play draws its volume and pitch once, when it starts, and nothing read them again. A one-shot hides that because its next play draws again; a Looper never plays again, so the owner heard "it samples the audio once and uses it for every loop".

@@ -70,6 +70,17 @@ Three consequences worth knowing before they surprise you:
 
 Rendering to a file still exists as something you can ask for, because bouncing a sound is occasionally wanted. It is no longer something that happens as a side effect of an edit.
 
+### Game code control (ZPOC), as of 2026-09-29 — read before touching tokens, modifiers or snapshots
+
+Game code shapes a playing sound through its token: ZPOC values on modifiers (`token.SetZpoc`), the Code modifier, tracks (`token.Track`), snapshots and glides (`token.GlideToSnapshot`, which returns a handle that can glide back), and project-wide values (`ZoundEngine.SetGlobalZpoc`). The design document is `D:/Claude@GDrive/Zounds Programmatic Control Research 2026-09-29.md`; the CHANGELOG entry has a worked example. Rules that are easy to break:
+
+- **Nothing at runtime writes to the saved sound.** Values live on the token and in each voice's own copy of the chain; a play is always per instance.
+- **Values reach the voice as fixed-size commands through the audio graph and are eased there, once per control block.** A value or glide sent before the voice exists is kept by the generator and applied when the voice is made; any new command kind must follow the same rule, or it is silently lost on a replayed token or a value set before Play (this was a real bug).
+- **The order a value is resolved in is part of the UI contract:** the play's own value, then the parent Zequence play's, then the project-wide value, then the resting value (which a snapshot moves). The editor states it wherever a value is driven; keep that text in step with any change.
+- **Every lookup that finds nothing reports once to the diagnostics list (the Problems tab) and does nothing.** Never throw, and never allocate on a repeated miss (kept check 25 measures it).
+- **Amber means game code**, blue means a modulator. Do not reuse amber for anything else in the Zounds UI.
+- Settings that size a voice's memory (a delay's longest time) are deliberately left out of snapshots.
+
 Background documents: the authoritative technical foundation is `D:/Claude@GDrive/Zounds GC-Stutter-Free Audio Architecture Research 2026-09-26.md` (sections 1 and 7 for the plan, 8 for the validation test). `D:/Claude@GDrive/HH2 Audio Effect Chains Architecture.md` describes the existing engine the new path has to match. The 2026-09-25 native-DSP roadmap is **partly superseded** — its phases assume a hand-written C++ plugin as the target, which the 2026-09-26 research replaces; read it for history, not direction. The 2026-09-11 lifetime health report is at `D:/Claude@GDrive/Zounds Lifetime Health Report 2026-09-11.md`.
 
 ## Tool conventions (mirror for every Laubrary tool)
