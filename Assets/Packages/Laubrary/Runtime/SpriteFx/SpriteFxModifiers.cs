@@ -2683,8 +2683,18 @@ namespace Laubrary.SpriteFx
                  "over life. Pushed high enough, the noise field can fold over itself and carve sharp notches " +
                  "into an otherwise smooth edge — pair with an Edge smooth modifier if that reads as too jagged.")]
         public ZUIValue warp = new ZUIValue(0.6f);
+        [Range(0f, 8f)]
+        [Tooltip("Evolve: how many steps of change the churn morphs through over one play-through. 0 = a frozen " +
+                 "pattern (the old behaviour); 1–2 = slow, gradual boiling; 6–8 = fast chaos. Always loops seamlessly: " +
+                 "the last frame flows back into the first.")]
+        [ZUIWholeNumber] public ZUIValue evolve = new ZUIValue(0f);
+        [Tooltip("Steady: keep ONE noise pattern while the shape moves. Off (the old behaviour) re-seeds the pattern " +
+                 "from the shape's position, so a moving shape — every swarm particle — gets a completely unrelated " +
+                 "pattern on each frame; on, the pattern simply rides along with the shape.")]
+        public bool steady = false;
 
         float amp, zm, rotRad, offX, offY, wrp;
+        int evoSteps;
         public override string DisplayName => "Turbulence";
         public override void Prepare(Func<ZUIValue, int, float> e)
         {
@@ -2694,11 +2704,57 @@ namespace Laubrary.SpriteFx
             offX = e(offsetX, 3);
             offY = e(offsetY, 4);
             wrp = Mathf.Clamp(e(warp, 5), 0f, 2f);
+            evoSteps = evolve != null ? Mathf.Max(0, Mathf.RoundToInt(e(evolve, 6))) : 0;
+        }
+
+        float SampleOne(float x, float y, int seed)
+            => noise == TurbulenceNoise.Gradient ? PyreNoise.SampleGradient(x, y, seed, wrp) : PyreNoise.Sample(x, y, seed, wrp);
+
+        // The churn at time `phase` (0..2π over one loop): the same 2D noise, crossfaded between time slices. Slice k
+        // is the noise re-seeded by k; there are evoSteps slices around the loop, so slice evoSteps IS slice 0 and
+        // the loop is seamless. The blend is renormalised so the displacement doesn't weaken mid-fade.
+        float Evolved(float x, float y, int seed, float phase)
+        {
+            float z = phase / (2f * Mathf.PI) * evoSteps;
+            int z0 = Mathf.FloorToInt(z);
+            float f = z - z0;   // an even crossfade: the churn changes at a steady rate (an eased one pulses)
+            int k0 = ((z0 % evoSteps) + evoSteps) % evoSteps, k1 = (k0 + 1) % evoSteps;
+            float a = SampleOne(x, y, unchecked(seed ^ (k0 * 0x27D4EB2D))) * 2f - 1f;
+            float b = SampleOne(x, y, unchecked(seed ^ (k1 * 0x27D4EB2D))) * 2f - 1f;
+            float norm = Mathf.Sqrt((1f - f) * (1f - f) + f * f);
+            return Mathf.Clamp((a * (1f - f) + b * f) / norm, -1f, 1f);
         }
 
         public override Vector2 InverseWarp(Vector2 off, float phase, in GeoCtx ctx)
         {
             if (Mathf.Abs(amp) < 0.01f) return off;
+            if (evoSteps > 0 || steady)
+            {
+                // Evolve / Steady path (both new; with Evolve 0 and Steady off the original code below runs).
+                Vector2 dd = off - ctx.center;
+                if (rotRad != 0f)
+                {
+                    float c = Mathf.Cos(rotRad), s = Mathf.Sin(rotRad);
+                    dd = new Vector2(dd.x * c - dd.y * s, dd.x * s + dd.y * c);
+                }
+                float ex = (dd.x + offX) / zm, ey = (dd.y + offY) / zm;
+                int sd = steady ? 0x6A09E667
+                    : unchecked((Mathf.RoundToInt(ctx.center.x * 8f) * 92821) ^ (Mathf.RoundToInt(ctx.center.y * 8f) * 68111));
+                float e1, e2;
+                if (evoSteps > 0)
+                {
+                    e1 = Evolved(ex, ey, sd, phase);
+                    e2 = Evolved(ex + 31.7f, ey - 17.3f, sd ^ 0x1234567, phase);
+                }
+                else
+                {
+                    e1 = SampleOne(ex, ey, sd) * 2f - 1f;
+                    e2 = SampleOne(ex + 31.7f, ey - 17.3f, sd ^ 0x1234567) * 2f - 1f;
+                }
+                off.x += e1 * amp;
+                off.y += e2 * amp;
+                return off;
+            }
             Vector2 d = off - ctx.center;
             if (rotRad != 0f)
             {
