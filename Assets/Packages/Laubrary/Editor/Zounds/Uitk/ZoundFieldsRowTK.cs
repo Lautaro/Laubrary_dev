@@ -20,6 +20,11 @@ namespace Laubrary.Zounds.Uitk {
         readonly TextField nameField;
         readonly ZuiSkinMinMax volume, pitch;
         readonly ZuiSkinSlider chance;
+        // The fixed boost into the effects (T-0521, Klips only): a number you drag, backed by a whole-number field in
+        // tenths (10..100) so ZUI's drag gives one step per few pixels and the value always has exactly one decimal.
+        readonly Label boost;
+        readonly IntegerField boostTenths;
+        const float BoostW = 46f;
         readonly Button tags;
         readonly System.Action onRenamed;
 
@@ -60,6 +65,28 @@ namespace Laubrary.Zounds.Uitk {
                                v => ZoundsWindow.ModifyZoundsProject("change zound chance", () => zound.chance = ZoundBrowserEditor<Zound>.RoundTo3DecimalPlaces(v / 100f)),
                                bs.vpcShowSliderType ? ZuiSkinSlider.LabelMode.LabelAndValue : ZuiSkinSlider.LabelMode.ValueOnly, null, "Chance");
             Add(Abs(volume)); Add(Abs(pitch)); Add(Abs(chance));
+            if (zound is Klip klip) {
+                boostTenths = new IntegerField { value = Tenths(klip.BoostApplied) };
+                boostTenths.style.display = DisplayStyle.None;   // never shown: the label is the control
+                Add(boostTenths);
+                boost = new Label(BoostText(klip.BoostApplied)) {
+                    tooltip = "Boost: how much louder the sound goes into its effects, from x1 (as recorded) to x10, in tenths. " +
+                              "It multiplies Drive, whatever moves Drive. Drag left or right to change it (Shift for fine, Ctrl for coarse). " +
+                              "Plays already under way follow it at once.",
+                };
+                boost.AddToClassList("zs-boost");
+                Add(Abs(boost));
+                ZuiScrub.AttachToLabel(boost, boostTenths, 10, 100);
+                boostTenths.RegisterValueChangedCallback(e => {
+                    int t = Mathf.Clamp(e.newValue, 10, 100);
+                    if (t != e.newValue) boostTenths.SetValueWithoutNotify(t);
+                    float v = t / 10f;
+                    boost.text = BoostText(v);
+                    if (Mathf.Approximately(klip.boost, v)) return;
+                    ZoundsWindow.ModifyZoundsProject("change zound boost", () => klip.boost = v);
+                    Dsp.SapVoiceRegistry.SetBoostLive(klip);
+                });
+            }
             if (drawTags) {
                 tags = new Button(() => TagsEditorWindow.OpenWindow(zound)) { text = BrowserTab.GetZoundTagsString(zound) };
                 tags.AddToClassList("zs-tagsfield");
@@ -68,6 +95,10 @@ namespace Laubrary.Zounds.Uitk {
             }
             RegisterCallback<GeometryChangedEvent>(_ => Layout());
         }
+
+        static int Tenths(float v) => Mathf.Clamp(Mathf.RoundToInt(v * 10f), 10, 100);
+        /// <summary>Always one decimal ("x1.0" .. "x10.0"); the label's width is fixed, so no length ever moves anything.</summary>
+        static string BoostText(float v) => "x" + v.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
 
         static VisualElement Abs(VisualElement e) { e.style.position = Position.Absolute; e.style.top = 0; e.style.bottom = 0; return e; }
 
@@ -87,7 +118,13 @@ namespace Laubrary.Zounds.Uitk {
             }
             float x = muteSoloWidth, w = fieldWidth - 4f;
             if (drawName) { Place(nameField, x, w); x += fieldWidth; }
-            Place(volume, x, w); x += fieldWidth;
+            if (boost != null) {
+                // Beside the volume range, inside its column, so the other columns keep their places.
+                Place(volume, x, Mathf.Max(0f, w - BoostW - 2f));
+                Place(boost, x + Mathf.Max(0f, w - BoostW), BoostW);
+            }
+            else Place(volume, x, w);
+            x += fieldWidth;
             Place(pitch, x, w); x += fieldWidth;
             Place(chance, x, w); x += fieldWidth;
             if (drawTags) Place(tags, x, w);
@@ -101,6 +138,7 @@ namespace Laubrary.Zounds.Uitk {
             volume.SetValuesWithoutNotify(zound.minVolume * 100f, zound.maxVolume * 100f);
             pitch.SetValuesWithoutNotify(zound.minPitch * 100f, zound.maxPitch * 100f);
             chance.SetValueWithoutNotify(zound.chance * 100f);
+            if (boost != null && zound is Klip bk) { boostTenths.SetValueWithoutNotify(Tenths(bk.BoostApplied)); boost.text = BoostText(bk.BoostApplied); }
             if (tags != null) tags.text = BrowserTab.GetZoundTagsString(zound);
         }
 

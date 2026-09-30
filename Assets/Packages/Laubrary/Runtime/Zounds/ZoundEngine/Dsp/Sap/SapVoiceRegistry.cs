@@ -448,6 +448,17 @@ namespace Laubrary.Zounds.Dsp {
         /// control in every voice playing <paramref name="zound"/>, so a slider held by hand is heard as dragged. The token's
         /// values are untouched; re-applying them (ZoundToken.RefreshAllZpoc) hands the parameter back to code.
         /// </summary>
+        /// <summary>Sends a Klip's fixed boost into its effects (T-0521) to every play of it under way, so an edit is heard live.</summary>
+        public static void SetBoostLive(Klip klip) {
+            if (klip == null) return;
+            float b = klip.BoostApplied;
+            for (int i = live.Count - 1; i >= 0; i--) {
+                var g = live[i];
+                if (g == null || !ReferenceEquals(g.playingZound, klip) || !g.IsPlaying) continue;
+                g.SetBoostLive(b);
+            }
+        }
+
         internal static void RestCodeOn(Zound zound, int nodeIndex, int paramIndex) {
             if (zound == null) return;
             for (int i = live.Count - 1; i >= 0; i--) {

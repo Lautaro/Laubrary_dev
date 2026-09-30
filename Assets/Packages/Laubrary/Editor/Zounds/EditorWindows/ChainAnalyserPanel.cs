@@ -551,6 +551,8 @@ namespace Laubrary.Zounds.EditorTools {
         Zound StandIn(Zound zound) {
             if (zound == null) return null;
             if (standIn == null || standIn.name != zound.name) standIn = new Klip(-424242) { name = zound.name };
+            // The sound's fixed boost into its effects (T-0521) is part of what the chain hears, so the analysis hears it too.
+            ((Klip)standIn).boost = zound is Klip k ? k.boost : 1f;
             return standIn;
         }
 
@@ -635,7 +637,9 @@ namespace Laubrary.Zounds.EditorTools {
         /// </summary>
         void EnsureMeasured(Zound zound, ZoundEffectChain chain) {
             const double settleSeconds = 0.25;
-            int version = chain == null ? int.MinValue + 1 : chain.version;
+            // The sound's fixed boost (T-0521) changes what the chain hears without touching the chain, so it is part of
+            // what decides whether to measure again.
+            int version = chain == null ? int.MinValue + 1 : chain.version * 131 + Mathf.RoundToInt((zound is Klip bk ? bk.BoostApplied : 1f) * 10f);
 
             bool same = measuredVersion == version && ReferenceEquals(measuredChain, chain) && ReferenceEquals(measuredZound, zound);
             if (same) return;
@@ -743,7 +747,8 @@ namespace Laubrary.Zounds.EditorTools {
                     node.EnsureParams();
                     node.p[lanes[i].paramIndex] = values[i];
                 }
-                snap = ChainSpectrumProbe.MeasureFrozen(frozen, BANDS);
+                // The sound's fixed boost into its effects (T-0521) is fed in, so the bars show it.
+                snap = ChainSpectrumProbe.MeasureFrozen(frozen, BANDS, measuredZound is Klip bk ? bk.BoostApplied : 1f);
                 if (snap.db == null) return;
                 if (snapshots.Count > 4000) snapshots.Clear();
                 snapshots[key] = snap;

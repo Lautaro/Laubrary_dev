@@ -177,7 +177,13 @@ namespace Laubrary.Zounds.EditorTools {
         ///
         /// The chain is run long enough first for anything with memory (a delay, a reverb) to settle, up to two seconds.
         /// </summary>
-        public static Snapshot MeasureFrozen(ZoundEffectChain frozen, int bandCount = 72) {
+        /// <param name="inputGain">
+        /// How much louder than the test signal the sound goes into the chain: the sound's fixed boost (T-0521). The chain
+        /// is fed the boosted signal and compared with the un-boosted one, so the picture shows the boost and whatever the
+        /// effects do with a hotter signal (a distortion or compressor reacts to it; a plain chain just reads that many
+        /// decibels higher).
+        /// </param>
+        public static Snapshot MeasureFrozen(ZoundEffectChain frozen, int bandCount = 72, float inputGain = 1f) {
             var sw = System.Diagnostics.Stopwatch.StartNew();
             var snap = new Snapshot();
             if (frozen == null || frozen.IsEmpty) return snap;
@@ -218,6 +224,7 @@ namespace Laubrary.Zounds.EditorTools {
                 }
             }
 
+            if (inputGain != 1f) for (int i = 0; i < input.Length; i++) input[i] *= inputGain;
             var wet = ZoundDspOffline.Render(input, 2, SAMPLE_RATE, SAMPLE_RATE, frozen, 1f, 1f, seconds);
             if (wet == null || wet.frames < settle + WINDOW) return snap;
             var wetMag = new float[WINDOW / 2];

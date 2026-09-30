@@ -447,6 +447,9 @@ namespace Laubrary.Zounds.Dsp {
         /// <summary>Changes the playing sound's output gain.</summary>
         public bool SetGainLive(float gain) => Send(SapVoiceCommand.Gain(gain));
 
+        /// <summary>The sound's fixed boost into its effects (T-0521), changed while it plays; ramped over one block.</summary>
+        public bool SetBoostLive(float boost) => Send(SapVoiceCommand.Boost(boost));
+
         /// <summary>The playing sound's own speed changed (an edit). Heard only when the play has live speed (T-0409).</summary>
         public bool SetAuthoredSpeedLive(float speed) { authoredSpeed = speed; return RefreshSpeed(); }
 

@@ -37,6 +37,8 @@ namespace Laubrary.Zounds.Dsp {
         GlidePresence = 18,
         /// <summary>Starts the glide from wherever every targeted value is now, over index samples (0: at once).</summary>
         GlideBegin = 19,
+        /// <summary>The sound's fixed boost into its effects (T-0521); value = 1..10.</summary>
+        SetBoost = 20,
     }
 
     /// <summary>
@@ -69,6 +71,9 @@ namespace Laubrary.Zounds.Dsp {
 
         public static SapVoiceCommand Pitch(float value) =>
             new SapVoiceCommand { kind = SapVoiceCommandKind.SetPitch, value = value };
+
+        public static SapVoiceCommand Boost(float value) =>
+            new SapVoiceCommand { kind = SapVoiceCommandKind.SetBoost, value = value };
 
         public static SapVoiceCommand Gain(float value) =>
             new SapVoiceCommand { kind = SapVoiceCommandKind.SetGain, value = value };

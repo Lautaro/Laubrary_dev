@@ -238,7 +238,12 @@ namespace Laubrary.Zounds.Dsp {
                 float basePitchStart = sap.basePitchLive;
                 float outGainStart = sap.outGainLive;
                 float baseSpeedStart = sap.baseSpeedLive;
+                float boostStart = sap.boostLive;
                 if (gridStart) {
+                    // Landed (within rounding): snap exactly, so a sound at 1 keeps skipping the multiply below.
+                    float boostGap = sap.boostTarget - sap.boostLive;
+                    if (boostGap < 1e-5f && boostGap > -1e-5f) { sap.boostLive = sap.boostTarget; boostStart = sap.boostLive; }
+                    sap.ctlBoostStep = (sap.boostTarget - sap.boostLive) * invN;
                     sap.ctlBasePitchStep = (basePitchTargetNow - sap.basePitchLive) * invN;
                     sap.ctlOutGainStep = (outGainTargetNow - sap.outGainLive) * invN;
                     sap.ctlBaseSpeedStep = (baseSpeedTargetNow - sap.baseSpeedLive) * invN;
@@ -300,6 +305,12 @@ namespace Laubrary.Zounds.Dsp {
                     if (sap.stretch.enabled) ReadSourceStretched(ref sap, pcm, clipRate, off, n, basePitchStart, basePitchStep, baseSpeedStart, baseSpeedStep);
                     else if (sap.looping.enabled) ReadLoop(ref sap, pcm, clipRate, off, n, basePitchStart, basePitchStep);
                     else ReadSource(ref sap, pcm, clipRate, off, n, basePitchStart, basePitchStep);
+                    // The sound's fixed boost into its effects (T-0521): the same as multiplying Drive by it at every place
+                    // the source is read. Skipped at rest (exactly one, not moving), which every sound without one is.
+                    float bg = boostStart, bs = sap.ctlBoostStep;
+                    if (bg != 1f || bs != 0f) {
+                        for (int i = 0; i < n; i++) { sap.bufL[off + i] *= bg; sap.bufR[off + i] *= bg; bg += bs; }
+                    }
                 }
 
                 // ── chain ──
@@ -328,6 +339,7 @@ namespace Laubrary.Zounds.Dsp {
                 // ── advance live values ──
                 sap.basePitchLive = basePitchStart + basePitchStep * n;
                 sap.outGainLive = outGainStart + outGainStep * n;
+                sap.boostLive = boostStart + sap.ctlBoostStep * n;
                 sap.baseSpeedLive = baseSpeedStart + baseSpeedStep * n;
                 for (int r = 0; r < L.rampedCount; r++) { int t = L.ramped[r]; sap.pLive[t] = sap.pStart[t] + sap.pStep[t] * n; }
                 sap.elapsedSamples += n;

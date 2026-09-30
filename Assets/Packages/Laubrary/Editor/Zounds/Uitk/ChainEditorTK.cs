@@ -784,7 +784,10 @@ namespace Laubrary.Zounds.Uitk {
             box.EnableInClassList("zs-ownvalue--code", ids != null);
             string baseTip = pd.name + ": " + pd.desc + (bound ? " Moved by " + by + (ids != null ? ", which game code reaches as " + ids : "") + "." : " Nothing moves it; right-click to add a modifier.") + " Right-click to change what moves it.";
             box.tooltip = baseTip;
-            text.text = pd.name + mark;
+            // Drive also shows the sound's fixed boost when there is one (T-0521): the boost multiplies whatever Drive does.
+            string Name() => k == SourceStageParam.Gain && zound is Klip bk && bk.BoostApplied != 1f
+                ? pd.name + " ×" + bk.BoostApplied.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) : pd.name;
+            text.text = Name() + mark;
             box.RegisterCallback<PointerDownEvent>(e => {
                 if (e.button != 1) return;
                 G.ShowParamMenu(zound, ZoundDspPlayback.ResolveChain(zound, out _), -1, k, pd, false);
@@ -798,7 +801,7 @@ namespace Laubrary.Zounds.Uitk {
                 var sum = SapVoiceRegistry.ReadLiveParam(zound, -1, k, values);
                 if (sum.count == 0 || !bound) {
                     overlay.ClearLive(); overlay.ClearSpread();
-                    text.text = pd.name + mark;
+                    text.text = Name() + mark;
                     box.tooltip = baseTip;
                     return;
                 }
@@ -811,7 +814,7 @@ namespace Laubrary.Zounds.Uitk {
                     overlay.SetSpread(G.Normalised(pd, sum.lo), G.Normalised(pd, sum.hi), ticks, kind);
                     heard = G.Format(pd, sum.lo) + "–" + G.Format(pd, sum.hi);
                 }
-                text.text = pd.name + " " + heard + (ids != null ? "  ⚡" : "  ~");
+                text.text = Name() + " " + heard + (ids != null ? "  ⚡" : "  ~");
                 box.tooltip = baseTip + (sum.driven ? "\n\nRight now game code has it at " + heard + ". " + ZpocPriority : "");
             });
             return box;

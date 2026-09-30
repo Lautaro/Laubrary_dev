@@ -88,6 +88,10 @@ namespace Laubrary.Zounds.Dsp {
                                   Zound zound = null) {
             sap.basePitchLive = basePitch;
             sap.outGainLive = outGain;
+            // The sound's fixed boost into its effects (T-0521), read from the sound itself so a real play and the chain
+            // analyser's re-creation of one both hear it. 1 for anything that is not a Klip.
+            sap.boostLive = sap.boostTarget = zound is Klip boostKlip ? boostKlip.BoostApplied : 1f;
+            sap.ctlBoostStep = 0f;
             sap.baseSpeedLive = 1f;
 
             // ZPOC: every modifier starts at its resting control value, so a play whose token has set nothing sounds

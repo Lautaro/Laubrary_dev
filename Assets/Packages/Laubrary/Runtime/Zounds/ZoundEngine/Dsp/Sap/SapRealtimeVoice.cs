@@ -226,6 +226,11 @@ namespace Laubrary.Zounds.Dsp {
                 case SapVoiceCommandKind.SetGain:
                     outGain = command.value;
                     break;
+                case SapVoiceCommandKind.SetBoost:
+                    // Before the first block the new value is simply where it starts; after, it is ramped over a block.
+                    sap.boostTarget = command.value;
+                    if (sap.elapsedSamples == 0) sap.boostLive = command.value;
+                    break;
                 case SapVoiceCommandKind.SetSpeed:
                     baseSpeed = command.value;
                     break;

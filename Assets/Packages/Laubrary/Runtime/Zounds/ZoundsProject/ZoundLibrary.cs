@@ -350,6 +350,16 @@ namespace Laubrary.Zounds
         /// <summary>This Klip is a Looper: it plays its region over and over until stopped.</summary>
         public bool IsLooper => loop != null && loop.enabled;
 
+        /// <summary>
+        /// A fixed boost of how loud the sound goes into its effects (T-0521), from 1 (as recorded) to 10, in tenths: it
+        /// multiplies Drive, whatever moves Drive, so the heard level into the chain is boost x Drive. Kept apart from Drive
+        /// itself so Drive's range (0 to 4) and every binding, curve and game-code value on it stay exactly as they were;
+        /// a sound saved before it existed reads 1 and sounds the same. Set in the Klip editor's top row.
+        /// </summary>
+        public float boost = 1f;
+        /// <summary>The boost as the engine applies it: clamped to 1..10, and 1 for anything unset or invalid.</summary>
+        public float BoostApplied => float.IsNaN(boost) || boost < 1f ? 1f : (boost > 10f ? 10f : boost);
+
         public float gain = 1f;
         public bool gainEnabled = false;
         public bool showRenderedWaveform = false;
@@ -449,6 +459,7 @@ namespace Laubrary.Zounds
             timeStretch = source.timeStretch != null ? source.timeStretch.DeepCopy() : new ZoundTimeStretch();
             loop = source.loop != null ? source.loop.DeepCopy() : new ZoundLoop();
 
+            boost = source.boost;
             gain = source.gain;
             gainEnabled = source.gainEnabled;
             showRenderedWaveform = source.showRenderedWaveform;

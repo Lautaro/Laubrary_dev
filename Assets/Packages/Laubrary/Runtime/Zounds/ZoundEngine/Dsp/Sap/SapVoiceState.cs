@@ -69,6 +69,12 @@ namespace Laubrary.Zounds.Dsp {
         // ── per-block render scalars (moved from DspVoice) ──
         public float basePitchLive;
         public float outGainLive;
+        /// <summary>
+        /// The sound's fixed boost into its effects (T-0521): the source is multiplied by it right after it is read, so
+        /// it multiplies Drive whatever moves Drive. Ramped from <see cref="boostLive"/> to <see cref="boostTarget"/> over
+        /// one control block, so a change while playing never steps.
+        /// </summary>
+        public float boostLive, boostTarget, ctlBoostStep;
         /// <summary>Live base speed (T-0409), ramped like the base pitch. Only read when <see cref="stretch"/> is on.</summary>
         public float baseSpeedLive;
         /// <summary>The live time-stretcher, when this voice has live speed; otherwise not created and never read.</summary>
