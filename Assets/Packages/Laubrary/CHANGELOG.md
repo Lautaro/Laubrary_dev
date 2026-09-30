@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Pyre — owner feedback fixes and the explosion-study features (T-0542..T-0549)
+
+Commits are prefixed `Pyre (feedback):` and `Pyre (study):`. Every new feature is opt-in; with it off, existing pyres render exactly as before (each measured pixel-identical).
+
+- **Double-click reset on every slider.** Pyre's own sliders and every reflected modifier dial now reset to the value a fresh layer or modifier starts with; the fill ramp adjusters reset to their neutral values.
+- **Preview Delay works** in the ordinary preview, not only with CherryFraming: the preview holds blank for Delay seconds after the last frame.
+- **Fuse (blob melt) no longer hazes the whole canvas** when Threshold is low or Softness high.
+- **Turbulence: Evolve and Steady.** Evolve makes the churn change gradually over the play-through and loop seamlessly (it had no time input, so a still shape was frozen); Steady keeps one pattern on a moving shape instead of re-seeding it every frame.
+- **Pixel-scale noise fill.** A Noise fill can be measured in canvas pixels: features stay a set number of pixels across whatever size the shape is, detail never goes below one pixel, with a Seed and hard Bands.
+- **Mass shading** for both height tools (Ramp and Height from channel): soot below a line, fire above it, Ignition for how abruptly, Bleed to make the bands tongue into each other, optional ordered Dither.
+- **Edge response** on every layer: brightness / contrast / hue / saturation at the rim, an inner glow, grain that gets finer toward the edge, and Flow, which makes the pattern's grain run along the outline. Measured by true distance to the layer's own outline.
+- **Fling** on Swarm: every particle thrown with its own distance, direction inside a spread, drag, gravity and life jitter.
+
 ### Pyre — positions keyed at frames, pad zoom, and Radial facing (T-0537..T-0541)
 
 Commits for this work are prefixed `Pyre (pad/symmetry):`. Canonical Pyre has moved on independently of the not-yet-merged Primitive3D shapes work, so check them before that merge.
@@ -14,6 +27,18 @@ Commits for this work are prefixed `Pyre (pad/symmetry):`. Canonical Pyre has mo
 - **Animated positions are keyed at frames.** On Pyre's animated 2D pads (particle Offset, the Crescent Mask centre and the Transform Offset), set the transport to a frame and click or drag in the pad: that places the value on that frame only. The pad shows a numbered dot for each frame that has a key, and a hollow ghost ring where the value is on the current frame when that frame has no key (worked out from the keys around it; before the first key or after the last it holds that key). Pressing a key jumps the transport to its frame; right-clicking a key deletes it. Keys are stored as a fraction of the animation, the same way every other animated value in Pyre is, so changing the frame count keeps them in proportion. Existing animations play exactly as before, with nothing converted. The swarm's hand-drawn Path is a path over progress, not time, so it keeps the old point-order editor, and so does every non-Pyre use of the pad.
 - **Every 2D pad zooms.** The mouse wheel zooms toward the cursor (up to ×16) and a middle-drag pans, as on the Tileset Builder and Lazor canvases. Right-click > Reset zoom returns to the whole range. Zoom is view state only: no undo entry, never saved into the asset.
 - **Radial swarm facing.** A new Orient choice, Radial, faces every swarm particle directly away from the Pyre's middle on every frame, so a ring keeps pointing outward while Swarm spin turns it or Swarm scale grows it. The existing Outward facing is fixed at spawn and measured from the spawn shape's centre, so it drifts off as the ring spins. Particle Spin turns every particle by the same amount relative to its outward direction, keeping the ring symmetric (Spin 180 = all face inward). Existing assets are unchanged.
+
+### UI separation shared foundations — canonical reconciliation (T-0530–T-0536)
+
+- Extracted ordinary factory defaults, card/header parts, reflected/serialized field layout, responsive columns and the shared asset-browser shell into semantic USS sheets. Existing explicit dimensions remain compatibility overrides.
+- Added per-root presentation snapshots for detached surfaces, with default tool-tag capture and explicitly selected legacy skin classes; fixed the bare-host popover attachment path.
+- Added frozen foundation/BackSplash references, exact screenshot comparisons, interaction and persistence probes, and an occurrence-based presentation regression guard. This is the first shared-foundation rollout, not completion of all tool/runtime migration.
+
+### UI separation pilot — canonical reconciliation (T-0523–T-0529)
+
+- Added semantic control classes and separate presentation sheets for compact sliders, toggles, ranges, band sliders and skinned envelopes. Tool-root descendant selectors override default styles without changing control code.
+- Moved custom-painter palettes and presentation metrics into reset-safe USS adapters; retained caller-supplied values as compatibility fallbacks. Compact factory widths now default through USS, with explicit caller widths still supported.
+- Added an isolated frozen-reference comparison pilot, source register and authoring contract under `Documentation/UISeparation`. This is phases 0 and 1 only; the remaining tools and runtime surfaces are not migrated.
 
 ### Zounds — game code drives a playing sound: ZPOC, tracks, snapshots and glides (T-0491, T-0490, T-0492..T-0498)
 
