@@ -255,6 +255,43 @@ namespace Laubrary.Zounds {
             }
         }
 
+        /// <summary>
+        /// The curve value that leaves what the curve drives unchanged (T-0509: a point's Reset), read from its one binding
+        /// the same way <see cref="CurveAxis"/> reads what the top, middle and bottom mean:
+        /// Ratio: the middle (x1). Scale: one (x1). Shift: nought (no move). Set: where the parameter is set, so the curve holds
+        /// it there. False when there is no single binding to read it from (nothing, or several targets).
+        /// </summary>
+        public static bool NeutralValue(ZoundEffectChain chain, ZoundModifier mod, out float value) {
+            value = 0f;
+            if (chain == null || mod == null || mod.curve == null) return false;
+            int mi = chain.modifiers.IndexOf(mod);
+            ZoundModifierBinding only = null; int n = 0;
+            foreach (var b in chain.bindings) if (b.modifierIndex == mi) { only = b; n++; }
+            if (n != 1) return false;
+            switch (Dsp.ChainModulationCompat.EffectiveCombine(chain, only)) {
+                case Dsp.ModulationCombine.Ratio: value = 0.5f; break;
+                case Dsp.ModulationCombine.Scale: value = 1f; break;
+                case Dsp.ModulationCombine.Set:
+                case Dsp.ModulationCombine.SetFromZero:
+                    if (!Dsp.ChainModulationCompat.TryParam(chain, only, out var pd, out float set)) return false;
+                    value = Dsp.ModulationMath.ToPosition(set, pd.min, pd.max, Dsp.ModulationMath.IsRatioSpaced(pd.curve));
+                    break;
+                case Dsp.ModulationCombine.ShiftFromCentre: value = 0.5f; break;
+                default: value = 0f; break;   // Shift (room-relative or whole range): nought does not move it
+            }
+            value = Mathf.Clamp(value, mod.curve.yMin, mod.curve.yMax);
+            return true;
+        }
+
+        /// <summary>The neutral value of a Klip's volume, pitch or time curve (see <see cref="NeutralValue"/>).</summary>
+        public static bool WaveformCurveNeutral(Zound zound, int which, out float value) {
+            value = 0f;
+            var chain = Chain(zound);
+            if (chain == null) return false;
+            int m = which == 0 ? VolumeModifier(chain) : which == 1 ? PitchModifier(chain) : TimeModifier(chain);
+            return m >= 0 && NeutralValue(chain, chain.modifiers[m], out value);
+        }
+
         /// <summary>The waveform overlay's pitch axis: <see cref="CurveAxis"/> for the Klip's pitch curve, plus whether it
         /// is still on the old scale (then no axis is shown, only a warning; see <see cref="OldScaleTip"/>).</summary>
         public static bool PitchAxis(Zound zound, out string top, out string mid, out string bottom, out bool oldScale) {

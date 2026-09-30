@@ -39,6 +39,9 @@ namespace Laubrary.Zounds.Uitk {
         bool shiftHeld, hovering;
         readonly List<int> selected = new List<int>();
 
+        /// <summary>The selected points, as indices (the point menu acts on them when the clicked point is one).</summary>
+        public IReadOnlyList<int> SelectedPoints => selected;
+
         static ZoundsProject.ProjectSettings.EditorStyle Style => ZoundsProject.Instance.projectSettings.editorStyle;
 
         public EnvelopeTK(Envelope envelope, Color mainColor) {
@@ -143,7 +146,9 @@ namespace Laubrary.Zounds.Uitk {
             if (e.button == 0 && Inside(l)) {
                 if (e.clickCount == 2) {
                     onBegin?.Invoke();
-                    envelope.AddPoint(TimeAt(l.x), YRange - YRange * l.y / Size.y);
+                    // Where the pointer is. The value used to leave out the curve's bottom, so on a curve whose range does not
+                    // start at nought the new point landed at the wrong height (T-0511).
+                    envelope.AddPoint(TimeAt(l.x), envelope.yMin + YRange - YRange * l.y / Size.y);
                     Changed();
                 }
                 else if (selected.Count > 1) {
@@ -179,10 +184,10 @@ namespace Laubrary.Zounds.Uitk {
                     if (!e.shiftKey) { draggedExponent = -1; }
                     else {
                         var p = envelope.GetPoint(draggedExponent);
-                        float mult = p.exponent == 0f ? 0.000001f : Mathf.Sqrt(p.exponent);
                         float dy = d.y;
                         if (p.value < envelope.GetPoint(draggedExponent - 1).value) dy *= -1f;
-                        p.exponent = Mathf.Max(0f, p.exponent + dy / Size.y * mult * 8f);
+                        // In log space, so bending down mirrors bending up exactly (T-0513; see ZuiSkinEnvelope.BendStep).
+                        p.exponent = Laubrary.Zui.ZuiSkinEnvelope.BendStep(p.exponent, dy / Size.y);
                         Changed();
                     }
                 }
@@ -229,8 +234,8 @@ namespace Laubrary.Zounds.Uitk {
 
         void UpdateBox(Vector2 l) {
             float cx = Mathf.Clamp(l.x, 0f, Size.x), cy = Mathf.Clamp(l.y, 0f, Size.y);
-            float t0 = TimeAt(boxStart.x), v0 = YRange - YRange * boxStart.y / Size.y;
-            float t1 = TimeAt(cx), v1 = YRange - YRange * cy / Size.y;
+            float t0 = TimeAt(boxStart.x), v0 = envelope.yMin + YRange - YRange * boxStart.y / Size.y;
+            float t1 = TimeAt(cx), v1 = envelope.yMin + YRange - YRange * cy / Size.y;
             float minT = Mathf.Min(t0, t1), maxT = Mathf.Max(t0, t1), minV = Mathf.Min(v0, v1), maxV = Mathf.Max(v0, v1);
             selected.Clear();
             envelope.ForEach((i, p) => { if (p.time >= minT && p.time <= maxT && p.value >= minV && p.value <= maxV) selected.Add(i); });

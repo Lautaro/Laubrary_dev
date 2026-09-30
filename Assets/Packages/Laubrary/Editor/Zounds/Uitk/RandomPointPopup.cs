@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System;
 using Laubrary.Zui;
 using UnityEditor;
@@ -20,24 +21,36 @@ namespace Laubrary.Zounds.Uitk {
         readonly float xRange;
         readonly Func<float> yRange;
         readonly Action beforeFirstChange, changed;
+        readonly List<ZUIEnvelopePoint> group;   // what Reset, Squash and Expand act on: the selection, or just this point
+        readonly Func<float?> neutral;           // the curve's "no change" value, read after the first change's conversion
+        readonly Func<Vector2> valueRange;       // the curve's (bottom, top)
         bool begun;
 
-        RandomPointPopup(ZUIEnvelopePoint point, float xRange, Func<float> yRange, Action beforeFirstChange, Action changed) {
+        RandomPointPopup(ZUIEnvelopePoint point, float xRange, Func<float> yRange, Action beforeFirstChange, Action changed,
+                         List<ZUIEnvelopePoint> group, Func<float?> neutral, Func<Vector2> valueRange) {
             this.point = point; this.xRange = xRange > 0f ? xRange : 1f; this.yRange = yRange;
             this.beforeFirstChange = beforeFirstChange; this.changed = changed;
+            this.group = group != null && group.Count > 1 && group.Contains(point) ? group : new List<ZUIEnvelopePoint> { point };
+            this.neutral = neutral; this.valueRange = valueRange;
         }
 
         /// <summary>Opens the settings for <paramref name="point"/> next to <paramref name="worldPosition"/> (the point's centre in
         /// the calling window). <paramref name="yRange"/> is read when needed: the first change may rescale the curve (an old
         /// pitch curve converts).</summary>
+        /// <param name="selection">The curve's selected points: when the clicked point is one of several selected, Reset acts on
+        /// all of them and Squash and Expand are offered.</param>
+        /// <param name="neutral">The value that means "no change" on this curve (Reset), or null when there is none.</param>
+        /// <param name="valueRange">The curve's bottom and top, which Squash and Expand stay inside.</param>
         public static void Show(Vector2 worldPosition, ZUIEnvelopePoint point, float xRange, Func<float> yRange,
-                                Action beforeFirstChange, Action changed) {
+                                Action beforeFirstChange, Action changed,
+                                List<ZUIEnvelopePoint> selection = null, Func<float?> neutral = null, Func<Vector2> valueRange = null) {
             if (point == null) return;
             UnityEditor.PopupWindow.Show(new Rect(worldPosition.x - 4f, worldPosition.y + 6f, 8f, 8f),
-                                          new RandomPointPopup(point, xRange, yRange, beforeFirstChange, changed));
+                                          new RandomPointPopup(point, xRange, yRange, beforeFirstChange, changed, selection, neutral, valueRange));
         }
 
-        public override Vector2 GetWindowSize() => new Vector2(556f, RowH + 12f);
+        const float ActionsW = 56f + 4f + 62f + 2f + 62f + 12f;
+        public override Vector2 GetWindowSize() => new Vector2(556f + (group.Count > 1 ? ActionsW : 56f + 12f), RowH + 12f);
 
         public override void OnGUI(Rect rect) { }
 
@@ -63,6 +76,26 @@ namespace Laubrary.Zounds.Uitk {
             root.Clear();
             var r = new VisualElement();
             r.style.flexDirection = FlexDirection.Row; r.style.height = RowH; r.style.flexShrink = 0;
+            // Actions first, so switching Random on or off never moves them.
+            bool many = group.Count > 1;
+            var reset = ZS.Button("Reset", many
+                    ? "Puts the " + group.Count + " selected points back at this curve's \"no change\" value (the middle of a pitch or time curve, ×1 on a volume curve, where the setting is set on a Set curve)."
+                    : "Puts this point back at this curve's \"no change\" value (the middle of a pitch or time curve, ×1 on a volume curve, where the setting is set on a Set curve).",
+                "RichButton", () => {
+                    Change(() => { var v = neutral?.Invoke(); if (v.HasValue) foreach (var p in group) p.value = v.Value; });
+                    editorWindow.Close();
+                }, ZUICornerMask.All, 56f, RowH);
+            reset.SetEnabled(neutral != null && neutral() != null);
+            r.Add(reset);
+            if (many) {
+                r.Add(Gap(4f));
+                r.Add(ZS.Button("Squash", "Brings the " + group.Count + " selected points' values closer together, around their average (each press: the distance from the average × 0.8). Stays open so you can press again.",
+                    "RichButton", () => Spread(0.8f), ZUICornerMask.Left, 62f, RowH));
+                r.Add(Gap(2f));
+                r.Add(ZS.Button("Expand", "Spreads the " + group.Count + " selected points' values further apart, around their average (each press: the distance from the average × 1.25), never past the curve's top or bottom. Stays open so you can press again.",
+                    "RichButton", () => Spread(1.25f), ZUICornerMask.Right, 62f, RowH));
+            }
+            r.Add(Gap(12f));
             bool on = point.randomX > 0f || point.randomY > 0f;
             r.Add(ZS.Toggle("Random", on
                     ? "Make this an ordinary point again: every play hears it exactly where it is drawn."
@@ -98,6 +131,15 @@ namespace Laubrary.Zounds.Uitk {
                     v => Change(() => point.randomBias = v), ZuiSkinSlider.LabelMode.LabelAndValue, 0.5f, "Default", 140f, RowH - 2f));
             }
             root.Add(r);
+        }
+
+        /// <summary>Squash (factor below one) or Expand (above one) the selected values around their average (T-0510).</summary>
+        void Spread(float factor) {
+            Change(() => {
+                float mean = 0f; foreach (var p in group) mean += p.value; mean /= group.Count;
+                var range = valueRange != null ? valueRange() : new Vector2(float.NegativeInfinity, float.PositiveInfinity);
+                foreach (var p in group) p.value = Mathf.Clamp(mean + (p.value - mean) * factor, range.x, range.y);
+            });
         }
 
         static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.style.flexShrink = 0; return e; }

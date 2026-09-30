@@ -48,6 +48,10 @@ namespace Laubrary.Zui
         bool _boxSelecting, _pressed, _shift;
         Vector2 _boxStart, _pointer = new Vector2(float.NaN, float.NaN);
         readonly List<int> _selected = new List<int>();
+        bool _multiDrag;
+
+        /// <summary>The selected points, as indices (a host's point menu acts on them when the clicked point is one).</summary>
+        public IReadOnlyList<int> SelectedPoints => _selected;
         readonly Label _tag;
 
         public ZuiSkinEnvelope(List<ZUIEnvelopePoint> points, Color curveColor, ZUIEnvelopeDef def, ZUIEnvelopeRuntime rt, bool standalone = true)
@@ -157,6 +161,20 @@ namespace Laubrary.Zui
 
         // ─────────────────────────── input (host-callable) ───────────────────────────
 
+        /// <summary>
+        /// Whether an editable point is under <paramref name="m"/> (local position). A host that overlaps this envelope with
+        /// controls of its own (a waveform's trim handles sit exactly on the first and last points) asks this first, so a press
+        /// on a point reaches the point.
+        /// </summary>
+        public bool IsOverPoint(Vector2 m)
+        {
+            if (points == null || rt == null || def == null || !rt.editable) return false;
+            var r = Plot;
+            if (r.width <= 0f || r.height <= 0f || rt.xMax <= rt.xMin || rt.yMax <= rt.yMin) return false;
+            int hit = HitPoint(r, m);
+            return hit >= 0 && State(hit) != ZUIEnvelopeEditState.NotEditable;
+        }
+
         /// <summary>The IMGUI MouseDown path. Returns true when this envelope took the press (the host should capture).</summary>
         public bool PointerDown(Vector2 m, int button, int clickCount, bool shift)
         {
@@ -186,8 +204,9 @@ namespace Laubrary.Zui
                         return true;
                     }
                     rt.onDragStarted?.Invoke();
-                    _dragPoint = hit;
-                    if (!_selected.Contains(hit)) { _selected.Clear(); _selected.Add(hit); }
+                    // A point that is part of a selection of several drags the whole selection (T-0512); otherwise just it.
+                    if (_selected.Count > 1 && _selected.Contains(hit)) { _multiDrag = true; _dragPoint = -1; }
+                    else { _dragPoint = hit; _selected.Clear(); _selected.Add(hit); }
                     Focus();
                     _pressed = true; Repaint();
                     return true;
@@ -237,6 +256,18 @@ namespace Laubrary.Zui
                     return true;
                 }
             }
+            // Double-click on empty curve area: a point there, where the pointer is (T-0511).
+            if (button == 0 && clickCount == 2 && rt.allowAddPoints)
+            {
+                float t = Mathf.Clamp(XToTime(m.x, r), rt.xMin, rt.xMax);
+                float v = Mathf.Clamp(rt.yMin + (rt.yMax - rt.yMin) * (1f - (m.y - r.y) / r.height), rt.yMin, rt.yMax);
+                rt.onDragStarted?.Invoke();
+                int ins = Insert(new ZUIEnvelopePoint(t, v, 1f));
+                _selected.Clear(); _selected.Add(ins);
+                rt.onMutated?.Invoke();
+                Repaint();
+                return true;
+            }
             if (button == 0 && rt.allowBoxSelect)
             {
                 _boxSelecting = true; _boxStart = m; _selected.Clear();
@@ -279,9 +310,8 @@ namespace Laubrary.Zui
                     else
                     {
                         var p = points[_dragExponent]; var prev = points[_dragExponent - 1];
-                        float mul = p.exponent <= 0f ? 0.000001f : Mathf.Sqrt(p.exponent);
                         float dy = delta.y; if (p.value < prev.value) dy = -dy;
-                        p.exponent = Mathf.Max(0f, p.exponent + dy / r.height * mul * 8f);
+                        p.exponent = BendStep(p.exponent, dy / r.height);
                         rt.onDragUpdated?.Invoke(); used = true;
                     }
                 }
@@ -289,18 +319,9 @@ namespace Laubrary.Zui
                 {
                     BoxUpdate(r, m); used = true;
                 }
-                else if (_selected.Count > 1 && (pressedButtons & 1) != 0)
+                else if (_multiDrag && _selected.Count > 1 && (pressedButtons & 1) != 0)
                 {
-                    rt.onDragStarted?.Invoke();
-                    float dt = xRange * delta.x / r.width, dv = -yRange * delta.y / r.height;
-                    foreach (int i in _selected)
-                    {
-                        if (i < 0 || i >= points.Count) continue;
-                        var p = points[i]; var es = State(i);
-                        if (CanMoveX(es)) p.time = Mathf.Clamp(p.time + dt, rt.xMin, rt.xMax);
-                        if (CanMoveY(es)) p.value = Mathf.Clamp(p.value + dv, rt.yMin, rt.yMax);
-                    }
-                    points.Sort((x, y) => x.time.CompareTo(y.time));
+                    MoveSelection(xRange * delta.x / r.width, -yRange * delta.y / r.height);
                     rt.onDragUpdated?.Invoke(); used = true;
                 }
             }
@@ -311,7 +332,7 @@ namespace Laubrary.Zui
 
         public void PointerUp()
         {
-            _pressed = false; _boxSelecting = false;
+            _pressed = false; _boxSelecting = false; _multiDrag = false;
             _dragPoint = _dragLine = _dragExponent = -1;
             Repaint();
         }
@@ -344,6 +365,51 @@ namespace Laubrary.Zui
         }
 
         public void ResetState() { _dragPoint = _dragLine = _dragExponent = -1; _boxSelecting = false; _pressed = false; _selected.Clear(); _hoverPoint = _hoverLine = -1; Repaint(); }
+
+        /// <summary>
+        /// One step of a Shift-drag bend, in log space: <paramref name="step"/> (a share of the curve's height) multiplies the
+        /// exponent by the same factor whichever way it goes, so dragging down by some distance gives exactly 1 / what dragging
+        /// up by that distance gives. The segment is a + (b - a) t^e, and t^e and t^(1/e) are inverse functions, so the two
+        /// shapes are mirror images across the straight segment (T-0513). The old additive step slowed towards nought and hit
+        /// it, which made bending down look uneven. Shared with the Zounds chain-card curves.
+        /// </summary>
+        public static float BendStep(float exponent, float step)
+        {
+            float k = Mathf.Log(Mathf.Max(exponent, 1e-3f)) + step * 8f;
+            return Mathf.Exp(Mathf.Clamp(k, Mathf.Log(1e-3f), Mathf.Log(1e3f)));
+        }
+
+        /// <summary>
+        /// Moves the selected points together by (dt, dv), as a group: the group's time move is limited so that no point passes
+        /// a neighbour that is not moving along with it (or leaves the curve), and its value move so that none leaves the range,
+        /// so the selection keeps its shape (T-0512). A point that may only move one way (an end point) moves only that way.
+        /// </summary>
+        void MoveSelection(float dt, float dv)
+        {
+            bool Moves(int i) => _selected.Contains(i) && CanMoveX(State(i));
+            float lo = float.NegativeInfinity, hi = float.PositiveInfinity, vlo = float.NegativeInfinity, vhi = float.PositiveInfinity;
+            foreach (int i in _selected)
+            {
+                if (i < 0 || i >= points.Count) continue;
+                var p = points[i]; var es = State(i);
+                if (CanMoveX(es))
+                {
+                    float left = i > 0 && !Moves(i - 1) ? points[i - 1].time : rt.xMin;
+                    float right = i < points.Count - 1 && !Moves(i + 1) ? points[i + 1].time : rt.xMax;
+                    lo = Mathf.Max(lo, left - p.time); hi = Mathf.Min(hi, right - p.time);
+                }
+                if (CanMoveY(es)) { vlo = Mathf.Max(vlo, rt.yMin - p.value); vhi = Mathf.Min(vhi, rt.yMax - p.value); }
+            }
+            dt = Mathf.Clamp(dt, Mathf.Min(lo, 0f), Mathf.Max(hi, 0f));
+            dv = Mathf.Clamp(dv, Mathf.Min(vlo, 0f), Mathf.Max(vhi, 0f));
+            foreach (int i in _selected)
+            {
+                if (i < 0 || i >= points.Count) continue;
+                var p = points[i]; var es = State(i);
+                if (CanMoveX(es)) p.time += dt;
+                if (CanMoveY(es)) p.value += dv;
+            }
+        }
 
         int Insert(ZUIEnvelopePoint p)
         {

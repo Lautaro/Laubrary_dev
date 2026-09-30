@@ -1133,10 +1133,15 @@ namespace Laubrary.Zounds.Uitk {
             // Right-click a point: its random settings (T-0483).
             curve.onPointContext = (i, world) => {
                 if (mod.curve == null || i < 0 || i >= mod.curve.Count) return;
+                var sel = new List<ZUIEnvelopePoint>();
+                foreach (int s in curve.SelectedPoints) if (s >= 0 && s < mod.curve.Count) sel.Add(mod.curve.GetPoint(s));
                 RandomPointPopup.Show(world, mod.curve.GetPoint(i), Mathf.Max(mod.curve.xMax - mod.curve.xMin, 1e-3f),
                     () => mod.curve.yMax - mod.curve.yMin,
                     () => KlipChainEnvelopes.EnsurePitchRatioIfPitchCurve(zound, mod),
-                    () => { curve.onChanged?.Invoke(); curve.Refresh(); });
+                    () => { curve.onChanged?.Invoke(); curve.Refresh(); },
+                    sel,
+                    () => KlipChainEnvelopes.NeutralValue(ZoundDspPlayback.ResolveChain(zound, out _), mod, out float v) ? v : (float?)null,
+                    () => new Vector2(mod.curve.yMin, mod.curve.yMax));
             };
             ground.Add(curve);
             refreshers.Add(() => { if (curve.envelope != mod.curve) curve.envelope = mod.curve; curve.Refresh(); });

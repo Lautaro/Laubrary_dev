@@ -129,10 +129,16 @@ namespace Laubrary.Zounds.Uitk {
                 var env = e;
                 env.onPointContext = (i, world) => {
                     if (env.points == null || i < 0 || i >= env.points.Count || env.rt == null) return;
+                    var sel = new List<ZUIEnvelopePoint>();
+                    foreach (int s in env.SelectedPoints) if (s >= 0 && s < env.points.Count) sel.Add(env.points[s]);
+                    int which = env == volEnv ? 0 : env == pitchEnv ? 1 : 2;
                     RandomPointPopup.Show(world, env.points[i], Mathf.Max(env.rt.dataXMax - env.rt.dataXMin, 1e-3f),
                         () => env.rt.yMax - env.rt.yMin,
                         () => { if (env == pitchEnv) KlipChainEnvelopes.EnsurePitchRatio(klip); if (env == volEnv) KlipChainEnvelopes.EnsureVolumeOwnValue(klip); },
-                        () => { KlipChainEnvelopes.Touch(klip); Refresh(); });
+                        () => { KlipChainEnvelopes.Touch(klip); Refresh(); },
+                        sel,
+                        () => KlipChainEnvelopes.WaveformCurveNeutral(klip, which, out float v) ? v : (float?)null,
+                        () => new Vector2(env.rt.yMin, env.rt.yMax));
                 };
             }
             area.focusable = true;
@@ -458,7 +464,13 @@ namespace Laubrary.Zounds.Uitk {
             var r = AreaRect;
             model.BeginFrame(true);
             area.Focus();
-            if (model.TrimEnabled) {
+            // A curve's first and last points sit exactly on the trim handles, so a press on a POINT goes to the curve: the
+            // trim handles checked first used to take every press on the first point (measured 2026-09-30: right-click gave
+            // no menu, a click started a trim drag; T-0507, T-0508). The handles are still grabbed anywhere else along them.
+            bool onPoint = false;
+            foreach (var env in new[] { timeEnv, volEnv, pitchEnv })
+                if (env.resolvedStyle.display != DisplayStyle.None && env.rt != null && env.IsOverPoint(area.ChangeCoordinatesTo(env, m))) { onPoint = true; break; }
+            if (model.TrimEnabled && !onPoint) {
                 var hs = model.TrimStartHandle(r, out _);
                 var he = model.TrimEndHandle(r, out _);
                 model.TrimHandlesLive(out bool startLive, out bool endLive);
