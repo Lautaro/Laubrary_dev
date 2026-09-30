@@ -265,7 +265,7 @@ namespace Laubrary.Zounds.Dsp {
                 else if (L.bindCount > 0) {
                     EvaluateModifiers(ref sap, L, sampleRate, ZoundDspConstants.CONTROL_BLOCK,
                                       ctx.elapsedSeconds + (float)ZoundDspConstants.CONTROL_BLOCK / sampleRate, ZoundDspConstants.CONTROL_BLOCK,
-                                      isGroup, sourceDuration, clipRate);
+                                      isGroup, sourceDuration, clipRate, pcm.IsCreated ? pcm.frames : 0);
                     ChainModulation.PrepareTargets(in L, sap.modValue, sap.modCtlLive, sap.pLive, sap.pStart, sap.pStep, sap.pTarget);
                 }
 
@@ -847,6 +847,20 @@ namespace Laubrary.Zounds.Dsp {
             return 1f;
         }
 
+        /// <summary>
+        /// The source frame (into the whole file) of the most recently armed active read slot, predicted
+        /// <paramref name="aheadSamples"/> output samples from now; -1 when nothing is reading (T-0501).
+        /// </summary>
+        private static double SourceFrame(in SapVoiceState sap, double clipRate, int aheadSamples) {
+            for (int s = sap.slots.Length - 1; s >= 0; s--) {
+                if (!sap.slots[s].active) continue;
+                double ahead = aheadSamples * clipRate * sap.basePitchLive * sap.pLive[SourceStageParam.Pitch] * sap.slots[s].pitchMul;
+                double f = sap.slots[s].cursor + ahead;
+                return f < sap.slots[s].startFrame ? sap.slots[s].startFrame : (f > sap.slots[s].endFrame ? sap.slots[s].endFrame : f);
+            }
+            return -1d;
+        }
+
         private static bool AnySlotActive(in SapVoiceState sap) {
             for (int s = 0; s < sap.slots.Length; s++) if (sap.slots[s].active) return true;
             return false;
@@ -867,9 +881,18 @@ namespace Laubrary.Zounds.Dsp {
         public static float LfoBias(float offset) => ChainModulation.LfoBias(offset);
         public static float LfoWalkTarget(int interval, int seed) => ChainModulation.LfoWalkTarget(interval, seed);
         public static int FreeRunStep(int k, int count, bool roundRobin, int seed) => ChainModulation.FreeRunStep(k, count, roundRobin, seed);
-        private static void EvaluateModifiers(ref SapVoiceState sap, in SapChainLayout L, int sampleRate, int blockSamples, float elapsed, int lookaheadSamples, bool isGroup, float sourceDuration, double clipRate) {
+        private static void EvaluateModifiers(ref SapVoiceState sap, in SapChainLayout L, int sampleRate, int blockSamples, float elapsed, int lookaheadSamples, bool isGroup, float sourceDuration, double clipRate, int sourceFrames) {
             var state = new ChainModulationState { arena = sap.arena, modValue = sap.modValue, modCtlLive = sap.modCtlLive, modCtlTarget = sap.modCtlTarget, rng = sap.rng, curveSeed = sap.curveSeed };
             var context = new ModulationContext { elapsedSeconds = elapsed, sourceDuration = sourceDuration, followSource = !isGroup && !sap.repeat.enabled, sourceExhausted = sap.sourceExhausted, sourceProgress = SourceProgress(in sap, clipRate, lookaheadSamples) };
+            if (sourceFrames > 0) {
+                // Where the read head is in the whole file (or, past the source end, the time since it ended), for anchored curves (T-0501).
+                double srcRate = clipRate * sampleRate;
+                float fileSeconds = (float)(sourceFrames / srcRate);
+                double frame = sap.sourceExhausted ? -1d : SourceFrame(in sap, clipRate, lookaheadSamples);
+                context.sourceFileSeconds = fileSeconds;
+                context.sourceAtSeconds = frame >= 0d ? (float)(frame / srcRate)
+                                                      : fileSeconds + (float)sap.samplesSinceSourceEnd / sampleRate + (float)blockSamples / sampleRate;
+            }
             ChainModulation.EvaluateModifiers(ref state, in L, sampleRate, blockSamples, in context);
             sap.rng = state.rng;
         }

@@ -128,14 +128,14 @@ namespace Laubrary.Zounds.Dsp {
         /// divides by. Curves are read against the source position, as a waveform-following curve is.
         /// </summary>
         public static float PlayLengthOverSource(ZoundEffectChain chain, float sourceSeconds, bool stretched, bool keepLength,
-                                                 bool drawn = false, uint seed = 0) {
+                                                 bool drawn = false, uint seed = 0, CurveAnchor.Axis? axis = null) {
             if (chain == null || chain.IsEmpty) return sourceSeconds;
             const int steps = 400;
             double total = 0;
             for (int i = 0; i < steps; i++) {
                 float t = (i + 0.5f) / steps;
-                float rate = keepLength && stretched ? 1f : PitchAtSource(chain, t, sourceSeconds, drawn, seed);
-                if (stretched) rate *= SpeedAtSource(chain, t, sourceSeconds, drawn, seed);
+                float rate = keepLength && stretched ? 1f : PitchAtSource(chain, t, sourceSeconds, drawn, seed, axis);
+                if (stretched) rate *= SpeedAtSource(chain, t, sourceSeconds, drawn, seed, axis);
                 total += (sourceSeconds / steps) / Mathf.Max(rate, 1e-3f);
             }
             return (float)total;
@@ -143,7 +143,9 @@ namespace Laubrary.Zounds.Dsp {
 
         /// <summary>The speed multiplier the chain's time curves (envelopes bound to Speed) give at <paramref name="t"/>
         /// (0..1) through the source, combined exactly as the render combines them.</summary>
-        public static float SpeedAtSource(ZoundEffectChain chain, float t, float sourceSeconds, bool drawn = false, uint seed = 0) {
+        public static float SpeedAtSource(ZoundEffectChain chain, float t, float sourceSeconds, bool drawn = false, uint seed = 0,
+                                          CurveAnchor.Axis? axis = null) {
+            var ax = axis ?? CurveAnchor.Axis.OfRegion(sourceSeconds);
             var pd = ZoundEffectDescriptors.SourceStageParams[SourceStageParam.Speed];
             float speed = pd.def;
             if (chain == null || chain.IsEmpty) return speed;
@@ -154,8 +156,8 @@ namespace Laubrary.Zounds.Dsp {
                 if (bind.modifierIndex < 0 || bind.modifierIndex >= chain.modifiers.Count) continue;
                 var m = chain.modifiers[bind.modifierIndex];
                 if (!m.enabled || m.type != ZoundModifierType.Envelope || m.curve == null) continue;
-                float extra = Mathf.Max(m.Param(0), 0f);
-                float tn = sourceSeconds + extra > 0f ? t * sourceSeconds / (sourceSeconds + extra) : t;
+                // Where on the curve this point of the source is (T-0501: trim- or source-anchored, see CurveAnchor).
+                float tn = CurveAnchor.X(m, t, ax);
                 speed = ModulationMath.Apply(ChainModulationCompat.EffectiveCombine(chain, bind), speed,
                                              EnvelopeRandom.Evaluate(m.curve, drawn, seed, bind.modifierIndex, tn),
                                              ChainModulationCompat.DepthOf(bind, pd.min, pd.max, ratio), pd.min, pd.max, ratio);
@@ -186,7 +188,9 @@ namespace Laubrary.Zounds.Dsp {
         /// here" from, so none of them treats a curve's raw value as a multiplier (it has not been one since the curves
         /// moved onto the chain; T-0479).
         /// </summary>
-        public static float PitchAtSource(ZoundEffectChain chain, float t, float sourceSeconds, bool drawn = false, uint seed = 0) {
+        public static float PitchAtSource(ZoundEffectChain chain, float t, float sourceSeconds, bool drawn = false, uint seed = 0,
+                                          CurveAnchor.Axis? axis = null) {
+            var ax = axis ?? CurveAnchor.Axis.OfRegion(sourceSeconds);
             float pitch = 1f;
             if (chain == null || chain.IsEmpty) return pitch;
             {
@@ -196,9 +200,8 @@ namespace Laubrary.Zounds.Dsp {
                     if (bind.modifierIndex < 0 || bind.modifierIndex >= chain.modifiers.Count) continue;
                     var m = chain.modifiers[bind.modifierIndex];
                     if (!m.enabled || m.type != ZoundModifierType.Envelope || m.curve == null) continue;
-                    // The curve spans the source plus its extra time (see DspVoice.EvaluateModifiers).
-                    float extra = Mathf.Max(m.Param(0), 0f);
-                    float tn = sourceSeconds + extra > 0f ? t * sourceSeconds / (sourceSeconds + extra) : t;
+                    // Where on the curve this point of the source is (T-0501: trim- or source-anchored, see CurveAnchor).
+                    float tn = CurveAnchor.X(m, t, ax);
                     // Combined exactly as the render combines it. These two must agree or the sound's declared length and
                     // the length it actually takes to play come apart — the handler would recycle its audio source early
                     // and chop the end off, or hold one open long after the sound finished.

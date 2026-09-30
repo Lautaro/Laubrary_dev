@@ -197,7 +197,13 @@ namespace Laubrary.Audio {
                         float total = sourceDuration + L.modExtraSeconds[m];
                         float tn;
                         bool sourceBase = context.followSource && (mpc < 2 || mp[mpo + 1] < 0.5f);
-                        if (sourceBase && !context.sourceExhausted && total > 0f) {
+                        // Source-anchored curve (T-0501): CurveAnchor.Source == 1. The x axis is the whole file in seconds, then the
+                        // extra time as seconds after the trim end, so a point stays on the same audio through any re-trim.
+                        if (sourceBase && L.modAnchor[m] == 1 && context.sourceFileSeconds > 0f) {
+                            float axis = context.sourceFileSeconds + L.modExtraSeconds[m];
+                            tn = axis > 0f ? context.sourceAtSeconds / axis : 1f;
+                        }
+                        else if (sourceBase && !context.sourceExhausted && total > 0f) {
                             // Follow the waveform: normalized position of the read cursor over the trimmed region
                             // at the end of this block, scaled so the extra-time band still sits past the source end.
                             tn = context.sourceProgress * (sourceDuration / total);

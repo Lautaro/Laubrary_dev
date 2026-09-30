@@ -87,6 +87,13 @@ namespace Laubrary.Zounds {
         /// <summary>A permanent identity that survives reordering (T-0498); see <see cref="ZoundEffectNode.uid"/>.</summary>
         public string uid = "";
 
+        /// <summary>
+        /// What a waveform-following curve's 0..1 is anchored to (T-0501): 0 (every sound saved before this) = a fraction of the
+        /// trimmed region; 1 = seconds in the source file, so the curve stays on the same audio through any re-trim. See
+        /// <see cref="Dsp.CurveAnchor"/>. A curve converts from 0 to 1 on its first edit, playing identically.
+        /// </summary>
+        public int curveAnchor;
+
         public bool HasZpoc => !string.IsNullOrEmpty(zpocId);
 
         public ZoundModifier() { }
@@ -115,6 +122,7 @@ namespace Laubrary.Zounds {
                 curve = curve != null ? curve.DeepCopy() : new Envelope(0f, 1f),
                 steps = (float[])steps.Clone(),
                 zpocId = zpocId, zpocMode = zpocMode, zpocRest = zpocRest, zpocSmoothMs = zpocSmoothMs, uid = uid,
+                curveAnchor = curveAnchor,
             };
         }
     }

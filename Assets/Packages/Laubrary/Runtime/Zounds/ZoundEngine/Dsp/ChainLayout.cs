@@ -84,6 +84,8 @@ namespace Laubrary.Zounds.Dsp {
         public readonly int[] modStepCountOf = new int[ZoundDspConstants.MAX_MODIFIERS];
         /// <summary>Per-modifier extra seconds past the source end over which an Envelope keeps evolving.</summary>
         public readonly float[] modExtraSeconds = new float[ZoundDspConstants.MAX_MODIFIERS];
+        /// <summary>What a waveform-following curve is anchored to (T-0501): see <see cref="CurveAnchor"/>.</summary>
+        public readonly int[] modAnchor = new int[ZoundDspConstants.MAX_MODIFIERS];
 
         // ── ZPOC (T-0495/T-0496) ──
         // Every modifier carries a control value the audio thread eases towards whatever the main thread last sent. For a
@@ -291,6 +293,7 @@ namespace Laubrary.Zounds.Dsp {
                     modStepPos += sCount;
 
                     L.modExtraSeconds[i] = m.type == ZoundModifierType.Envelope && pCount > 0 ? L.modParamFlat[L.modParamOffset[i]] : 0f;
+                    L.modAnchor[i] = m.curveAnchor;
 
                     L.modZpocKey[i] = m.HasZpoc ? ZpocKeys.Key(m.zpocId) : null;
                     if (L.modZpocKey[i] != null) L.hasZpoc = true;

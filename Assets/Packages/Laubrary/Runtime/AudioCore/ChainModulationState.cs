@@ -10,6 +10,8 @@ namespace Laubrary.Audio {
     /// <summary>Values at the end of the control block. Source progress is supplied by the host's source reader.</summary>
     public struct ModulationContext {
         public float elapsedSeconds, sourceDuration, sourceProgress;
+        /// <summary>For curves anchored to the source file (T-0501): the whole file's length and where the read head is within it, both in source seconds. A file length of zero means the host has no source to anchor to.</summary>
+        public float sourceFileSeconds, sourceAtSeconds;
         public bool sourceExhausted, followSource;
     }
 }
