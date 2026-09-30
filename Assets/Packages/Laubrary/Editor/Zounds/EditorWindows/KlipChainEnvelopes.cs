@@ -53,7 +53,25 @@ namespace Laubrary.Zounds {
         /// and nothing else is bound to it. Otherwise the sound is left as it is. Called at the start of an edit of the
         /// curve, inside that edit's Undo step, never on a whole project at once. Returns whether anything changed.
         /// </summary>
+        /// <summary>
+        /// Converts every waveform-following curve on a Klip's own chain from trim-anchored to source-anchored (T-0501), so
+        /// the curves stay on the same audio through any re-trim, split or slip; the sound plays identically (kept check 30).
+        /// Called on the first curve edit and before any trim change, inside the same Undo step. Not done for a chain linked
+        /// to a shared preset (other sounds with other trims use the same curves), nor when the file's length is unknown.
+        /// </summary>
+        public static bool EnsureSourceAnchored(Zound zound) {
+            if (!(zound is Klip k) || k.chainPresetId != 0 || k.effectChain == null) return false;
+            var clip = Dsp.ZoundSapPlayback.LoadSourceClip(k, out bool alreadyTrimmed);
+            if (clip == null || alreadyTrimmed) return false;
+            var axis = Dsp.CurveAnchor.Axis.Of(k, clip.length);
+            bool any = false;
+            foreach (var m in k.effectChain.modifiers) any |= Dsp.CurveAnchor.ConvertToSource(m, axis);
+            if (any) k.effectChain.Touch();
+            return any;
+        }
+
         public static bool EnsureVolumeOwnValue(Zound zound) {
+            EnsureSourceAnchored(zound);
             var chain = Chain(zound);
             if (chain == null) return false;
             int m = VolumeModifier(chain);
@@ -218,6 +236,7 @@ namespace Laubrary.Zounds {
         /// curve on the old scale, convert it first (inside the edit's Undo step), as the waveform overlay does.</summary>
         public static void EnsurePitchRatioIfPitchCurve(Zound zound, ZoundModifier mod) {
             if (zound == null || mod == null) return;
+            EnsureSourceAnchored(zound);
             var chain = Chain(zound);
             int m = PitchModifier(chain);
             if (m >= 0 && chain.modifiers[m] == mod) EnsurePitchRatio(zound);
@@ -315,6 +334,25 @@ namespace Laubrary.Zounds {
             pd.curve == Dsp.ParamCurve.Logarithmic && pd.unit == "" ? "×" + v.ToString("0.##") : v.ToString("0.##") + (string.IsNullOrEmpty(pd.unit) ? "" : " " + pd.unit);
 
         /// <summary>The index in the Klip's chain of the modifier whose curve is <paramref name="curve"/>, or -1.</summary>
+        /// <summary>A Klip's source as its curves see it (trim and file length, in source seconds); false when not known.</summary>
+        public static bool TryAxis(Zound zound, out Dsp.CurveAnchor.Axis axis) {
+            axis = default;
+            if (!(zound is Klip k)) return false;
+            var clip = Dsp.ZoundSapPlayback.LoadSourceClip(k, out bool alreadyTrimmed);
+            if (clip == null || alreadyTrimmed) return false;
+            axis = Dsp.CurveAnchor.Axis.Of(k, clip.length);
+            return axis.Valid;
+        }
+
+        /// <summary>The modifier owning <paramref name="curve"/> when that curve is anchored to source seconds (T-0501), else null.</summary>
+        public static ZoundModifier SourceAnchoredModifierOf(Zound zound, Envelope curve) {
+            var chain = Chain(zound);
+            int i = ModifierIndexOf(zound, curve);
+            if (chain == null || i < 0) return null;
+            var m = chain.modifiers[i];
+            return m.curveAnchor == Dsp.CurveAnchor.Source && Dsp.CurveAnchor.FollowsWaveform(m) ? m : null;
+        }
+
         public static int ModifierIndexOf(Zound zound, Envelope curve) {
             var chain = Chain(zound);
             if (chain == null || curve == null) return -1;
@@ -354,6 +392,7 @@ namespace Laubrary.Zounds {
         /// start of every edit of the curve, inside that edit's Undo step. Returns whether anything changed.
         /// </summary>
         public static bool EnsurePitchRatio(Zound zound) {
+            EnsureSourceAnchored(zound);
             var b = PitchBinding(zound);
             if (b == null || Dsp.ChainModulationCompat.CombineOf(b) != Dsp.ModulationCombine.Set) return false;
             var chain = Chain(zound);

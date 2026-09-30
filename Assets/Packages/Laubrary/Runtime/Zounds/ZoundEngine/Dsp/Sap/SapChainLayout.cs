@@ -63,6 +63,7 @@ namespace Laubrary.Zounds.Dsp {
         public NativeArray<int> modStepOffset;
         public NativeArray<int> modStepCountOf;
         public NativeArray<float> modExtraSeconds;
+        public NativeArray<int> modAnchor;
         /// <summary>ZPOC: each modifier's starting control value, and how much of the gap to a sent value closes per block.</summary>
         public NativeArray<float> modCtlInit;
         public NativeArray<float> modCtlCoef;
@@ -128,6 +129,7 @@ namespace Laubrary.Zounds.Dsp {
                 modStepOffset = Copy(L.modStepOffset, allocator),
                 modStepCountOf = Copy(L.modStepCountOf, allocator),
                 modExtraSeconds = Copy(L.modExtraSeconds, allocator),
+                modAnchor = Copy(L.modAnchor, allocator),
                 modCtlInit = Copy(L.modCtlInit, allocator),
                 modCtlCoef = Copy(L.modCtlCoef, allocator),
 
@@ -181,6 +183,7 @@ namespace Laubrary.Zounds.Dsp {
             if (modStepOffset.IsCreated) modStepOffset.Dispose();
             if (modStepCountOf.IsCreated) modStepCountOf.Dispose();
             if (modExtraSeconds.IsCreated) modExtraSeconds.Dispose();
+            if (modAnchor.IsCreated) modAnchor.Dispose();
             if (modCtlInit.IsCreated) modCtlInit.Dispose();
             if (modCtlCoef.IsCreated) modCtlCoef.Dispose();
 

@@ -738,6 +738,12 @@ namespace Laubrary.Zounds {
 
         internal enum Curve { Volume, Pitch, Time }
 
+        /// <summary>The modifier of <paramref name="env"/> when it is anchored to source seconds and the file is the real source.</summary>
+        internal ZoundModifier SourceAnchoredModifier(Envelope env) {
+            if (m_klip == null || env == null || originalClip == null) return null;
+            return KlipChainEnvelopes.SourceAnchoredModifierOf(m_klip, env);
+        }
+
         internal ZUIEnvelopeDef PrepareOverlay(bool volume, out ZUIEnvelopeRuntime runtime, out List<ZUIEnvelopePoint> pts, out Color colour)
             => PrepareOverlay(volume ? Curve.Volume : Curve.Pitch, out runtime, out pts, out colour);
 
@@ -749,8 +755,20 @@ namespace Laubrary.Zounds {
             colour = which == Curve.Volume ? editorStyle.volumeEnvelopeColor : which == Curve.Pitch ? editorStyle.pitchEnvelopeColor : TimeCurveColor;
             pts = null;
             if (env == null || !env.enabled) return null;
-            runtime.xMin = m_clampToTrim ? env.xMin : Mathf.Lerp(env.xMin, env.xMax, viewStart / originalClip.length);
-            runtime.xMax = m_clampToTrim ? env.xMax : Mathf.Lerp(env.xMin, env.xMax, viewEnd / originalClip.length);
+            var anchorMod = SourceAnchoredModifier(env);
+            if (anchorMod != null) {
+                // Source-anchored (T-0501): the curve's 0..1 is the whole file plus the extra time, in seconds, so the
+                // visible window is simply the seconds on screen over that total -- the curve sits on its audio.
+                float total = Mathf.Max(1e-6f, originalClip.length + Mathf.Max(0f, anchorMod.Param(0)));
+                float a = m_clampToTrim && m_klip.trimEnabled ? m_klip.trimStart : viewStart;
+                float b = m_clampToTrim && m_klip.trimEnabled ? m_klip.trimEnd : viewEnd;
+                runtime.xMin = Mathf.Lerp(env.xMin, env.xMax, a / total);
+                runtime.xMax = Mathf.Lerp(env.xMin, env.xMax, b / total);
+            }
+            else {
+                runtime.xMin = m_clampToTrim ? env.xMin : Mathf.Lerp(env.xMin, env.xMax, viewStart / originalClip.length);
+                runtime.xMax = m_clampToTrim ? env.xMax : Mathf.Lerp(env.xMin, env.xMax, viewEnd / originalClip.length);
+            }
             runtime.dataXMin = env.xMin;
             runtime.dataXMax = env.xMax;
             runtime.yMin = env.yMin;

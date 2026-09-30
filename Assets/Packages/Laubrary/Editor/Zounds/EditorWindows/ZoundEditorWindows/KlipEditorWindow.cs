@@ -187,6 +187,8 @@ namespace Laubrary.Zounds {
                 if (target() != null) {
                     setDragging(true);
                     ZoundsWindow.BeginDragUndo("change klip trim");
+                    // Before the trim moves, curves move onto the source's own seconds (T-0501), so they stay on their audio.
+                    KlipChainEnvelopes.EnsureSourceAnchored(target());
                 }
             };
 
@@ -213,6 +215,7 @@ namespace Laubrary.Zounds {
                 var targetZound = target();
                 if (targetZound != null) {
                     ZoundsWindow.ModifyAndSaveZoundsProject("toggle klip trim", () => {
+                        KlipChainEnvelopes.EnsureSourceAnchored(targetZound);   // curves keep their audio (T-0501)
                         targetZound.trimEnabled = enabled;
                         targetZound.needsRender = true;
                         queueAutoRender();
@@ -304,6 +307,7 @@ namespace Laubrary.Zounds {
                 if (target() != null) {
                     setDragging(true);
                     ZoundsWindow.BeginDragUndo("edit time curve");
+                    KlipChainEnvelopes.EnsureSourceAnchored(target());   // curves on the source's own seconds (T-0501)
                 }
             };
             spectrumView.onTimeEnvelopeChanged = envelope => {

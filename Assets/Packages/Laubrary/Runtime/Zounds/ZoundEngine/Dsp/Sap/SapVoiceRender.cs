@@ -268,7 +268,7 @@ namespace Laubrary.Zounds.Dsp {
                     // interpolation of the modulator rather than one lagging by a block.
                     EvaluateModifiers(ref sap, L, sampleRate, ZoundDspConstants.CONTROL_BLOCK,
                                       ctx.elapsedSeconds + (float)ZoundDspConstants.CONTROL_BLOCK / sampleRate, ZoundDspConstants.CONTROL_BLOCK,
-                                      isGroup, sourceDuration, clipRate);
+                                      isGroup, sourceDuration, clipRate, pcm.IsCreated ? pcm.frames : 0);
                     // Each modulator moves its parameter along that parameter's OWN control, by a fraction of the control's
                     // travel, rather than by an amount in the parameter's units. That one change is what makes a depth mean
                     // the same thing on a cutoff measured in thousands of hertz and on a resonance measured from nought to
@@ -875,6 +875,20 @@ namespace Laubrary.Zounds.Dsp {
             return 1f;
         }
 
+        /// <summary>
+        /// The source frame (into the whole file) of the most recently armed active read slot, predicted
+        /// <paramref name="aheadSamples"/> output samples from now; -1 when nothing is reading (T-0501).
+        /// </summary>
+        private static double SourceFrame(in SapVoiceState sap, double clipRate, int aheadSamples) {
+            for (int s = sap.slots.Length - 1; s >= 0; s--) {
+                if (!sap.slots[s].active) continue;
+                double ahead = aheadSamples * clipRate * sap.basePitchLive * sap.pLive[SourceStageParam.Pitch] * sap.slots[s].pitchMul;
+                double f = sap.slots[s].cursor + ahead;
+                return f < sap.slots[s].startFrame ? sap.slots[s].startFrame : (f > sap.slots[s].endFrame ? sap.slots[s].endFrame : f);
+            }
+            return -1d;
+        }
+
         private static bool AnySlotActive(in SapVoiceState sap) {
             for (int s = 0; s < sap.slots.Length; s++) if (sap.slots[s].active) return true;
             return false;
@@ -1036,7 +1050,7 @@ namespace Laubrary.Zounds.Dsp {
         }
 
         private static void EvaluateModifiers(ref SapVoiceState sap, in SapChainLayout L, int sampleRate, int blockSamples, float elapsed, int lookaheadSamples,
-                                               bool isGroup, float sourceDuration, double clipRate) {
+                                               bool isGroup, float sourceDuration, double clipRate, int sourceFrames) {
             float blockSeconds = (float)blockSamples / sampleRate;
             for (int m = 0; m < L.modCount; m++) {
                 // ZPOC: close part of the gap to the value game code last sent, once per control block. A pure function of
@@ -1054,7 +1068,18 @@ namespace Laubrary.Zounds.Dsp {
                         float total = sourceDuration + L.modExtraSeconds[m];
                         float tn;
                         bool sourceBase = !isGroup && !sap.repeat.enabled && (mpc < 2 || mp[mpo + 1] < 0.5f);
-                        if (sourceBase && !sap.sourceExhausted && total > 0f) {
+                        if (sourceBase && L.modAnchor[m] == CurveAnchor.Source && sourceFrames > 0) {
+                            // Anchored to the source file (T-0501): the x axis is the whole file in seconds, then the extra
+                            // time as seconds after the trim end, so a point stays on the same audio through any re-trim.
+                            double srcRate = clipRate * sampleRate;
+                            float fileSeconds = (float)(sourceFrames / srcRate);
+                            float axis = fileSeconds + L.modExtraSeconds[m];
+                            double frame = sap.sourceExhausted ? -1d : SourceFrame(in sap, clipRate, lookaheadSamples);
+                            float at = frame >= 0d ? (float)(frame / srcRate)
+                                                   : fileSeconds + (float)sap.samplesSinceSourceEnd / sampleRate + blockSeconds;
+                            tn = axis > 0f ? at / axis : 1f;
+                        }
+                        else if (sourceBase && !sap.sourceExhausted && total > 0f) {
                             // Follow the waveform: normalized position of the read cursor over the trimmed region
                             // at the end of this block, scaled so the extra-time band still sits past the source end.
                             tn = SourceProgress(in sap, clipRate, lookaheadSamples) * (sourceDuration / total);

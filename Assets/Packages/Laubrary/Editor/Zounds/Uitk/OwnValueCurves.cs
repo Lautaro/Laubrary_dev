@@ -90,6 +90,9 @@ namespace Laubrary.Zounds.Uitk {
             if (!ChainModulationCompat.TryParam(chain, own, out var pd, out float setValue)) return false;
             bool ratio = ChainModulationCompat.CombineOf(own) == ModulationCombine.Ratio;
             bool ratioSpaced = ModulationMath.IsRatioSpaced(pd.curve);
+            // A source-anchored curve's x is file seconds (T-0501): lay the measured positions out the same way.
+            CurveAnchor.Axis axis = default;
+            bool sourceAnchored = curveMod.curveAnchor == CurveAnchor.Source && KlipChainEnvelopes.TryAxis(zound, out axis);
             foreach (var lane in meas.lanes) {
                 if (lane.nodeIndex != own.nodeIndex || lane.paramIndex != own.paramIndex) continue;
                 int n = Mathf.Min(lane.position01.Length, meas.sourceFraction.Length);
@@ -102,7 +105,7 @@ namespace Laubrary.Zounds.Uitk {
                         float value = ModulationMath.FromPosition(pos, pd.min, pd.max, ratioSpaced);
                         y = ModulationMath.PositionFromRatio(setValue > 1e-6f ? value / setValue : 1f);
                     }
-                    xs.Add(x); ys.Add(y);
+                    xs.Add(sourceAnchored ? CurveAnchor.X(curveMod, Mathf.Min(x, 1f), axis) : x); ys.Add(y);
                     if (x >= 1f) break;   // past the source's end the rest is tail, which the waveform does not show
                 }
                 line = new Line { x = xs.ToArray(), y = ys.ToArray() };

@@ -72,7 +72,7 @@ namespace Laubrary.Zounds.Dsp {
             // whether the live stretcher runs and at what speed. A pitch or time curve consumes the source at a changing
             // rate, so the play length is the integral of that rate. The duration reported is the nominal one at the
             // current speed; a stretched voice reports its real end itself, because the speed may change while it plays.
-            var plan = Plan(zound, startFrame, endFrame, pcm.frequency);
+            var plan = Plan(zound, startFrame, endFrame, pcm.frequency, pcm.frames);
             var chain = plan.chain;
             var layout = chain != null && !chain.IsEmpty ? ZoundDspPlayback.GetLayoutFor(chain, zound, sampleRate)
                                                         : ChainLayout.Empty;
@@ -173,7 +173,7 @@ namespace Laubrary.Zounds.Dsp {
                 if (klip.trimEnd > klip.trimStart) endFrame = Mathf.Min(klip.trimEnd, pcm.LengthSeconds) * pcm.frequency;
             }
             if (endFrame <= startFrame) return false;
-            var plan = Plan(zound, startFrame, endFrame, pcm.frequency);
+            var plan = Plan(zound, startFrame, endFrame, pcm.frequency, pcm.frames);
             seconds = PlayLength(in plan, (endFrame - startFrame) / pcm.frequency, 1f, false);
             return seconds > 0f;
         }
@@ -202,6 +202,8 @@ namespace Laubrary.Zounds.Dsp {
             /// curves as drawn in the editor.</summary>
             public bool drawn;
             public uint seed;
+            /// <summary>Where the trim sits in the whole source file, for source-anchored curves (T-0501).</summary>
+            public CurveAnchor.Axis axis;
         }
 
         /// <summary>
@@ -210,8 +212,11 @@ namespace Laubrary.Zounds.Dsp {
         /// curve, or keeps its length under a pitch curve; every other sound reads its source directly, exactly as
         /// before. The one place StartVoice and every length display decide this, so they cannot disagree.
         /// </summary>
-        public static PlayPlan Plan(Zound zound, double startFrame, double endFrame, double frequency) {
+        public static PlayPlan Plan(Zound zound, double startFrame, double endFrame, double frequency, double totalFrames = 0d) {
             var plan = new PlayPlan { chain = ResolveChainForPlayback(zound), stretch = SapStretchConfig.Off, authoredSpeed = 1f };
+            // Where the region sits in the whole file, for source-anchored curves (T-0501); unknown without the file's length.
+            if (frequency > 0 && totalFrames > 0)
+                plan.axis = new CurveAnchor.Axis { trimStart = (float)(startFrame / frequency), trimEnd = (float)(endFrame / frequency), sourceLength = (float)(totalFrames / frequency) };
             if (!(zound is Klip k) || k.timeStretch == null || frequency <= 0) return plan;
             var ts = k.timeStretch;
             bool legacy = LegacyStretch.IsActive(k);
@@ -242,7 +247,8 @@ namespace Laubrary.Zounds.Dsp {
         /// <summary>How long a play made to <paramref name="plan"/> lasts, for <paramref name="sourceSeconds"/> of source at
         /// the given pitch; <paramref name="withGameSpeed"/> includes the game's global speed (a live play does).</summary>
         public static float PlayLength(in PlayPlan plan, double sourceSeconds, float basePitch, bool withGameSpeed) {
-            float len = ZoundDspPlayback.PlayLengthOverSource(plan.chain, (float)sourceSeconds, plan.stretched, plan.keepLength, plan.drawn, plan.seed)
+            float len = ZoundDspPlayback.PlayLengthOverSource(plan.chain, (float)sourceSeconds, plan.stretched, plan.keepLength, plan.drawn, plan.seed,
+                                                              plan.axis.Valid ? plan.axis : (CurveAnchor.Axis?)null)
                         / Mathf.Max(basePitch, 0.01f);
             if (plan.stretched) len /= Mathf.Max(plan.authoredSpeed * (withGameSpeed ? ZoundEngine.globalSpeed : 1f), SapStretch.MinSpeed);
             return len;
