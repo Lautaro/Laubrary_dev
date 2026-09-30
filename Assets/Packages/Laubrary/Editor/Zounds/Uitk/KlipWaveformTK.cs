@@ -348,6 +348,8 @@ namespace Laubrary.Zounds.Uitk {
             bool shown = CurveView.IsVisible(mod);
             var eye = which == AudioSpectrumView.Curve.Volume ? volEye : which == AudioSpectrumView.Curve.Pitch ? pitchEye : timeEye;
             eye.style.visibility = def != null ? Visibility.Visible : Visibility.Hidden;
+            // One setting, two eyes: this one and the same modifier's eye on its card (T-0519). Either may have changed it.
+            ZS.SetEye(eye, shown);
             // Eye off: not drawn -- unless it is the curve selected for editing, whose points stay (T-0494).
             bool draw = def != null && (shown || Selected(which));
             env.style.display = draw ? DisplayStyle.Flex : DisplayStyle.None;

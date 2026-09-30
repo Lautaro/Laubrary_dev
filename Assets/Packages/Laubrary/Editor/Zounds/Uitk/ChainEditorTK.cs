@@ -851,7 +851,8 @@ namespace Laubrary.Zounds.Uitk {
                 if (isFolded) folded.Remove(mod); else folded.Add(mod);
                 e.StopPropagation(); Tick();
             });
-            r.Add(Place(ZS.Eye(CurveView.IsVisible(mod), v => v
+            ZuiToggleButton eye;
+            r.Add(Place(eye = ZS.Eye(CurveView.IsVisible(mod), v => v
                     ? "Shown: what this modifier does is included in the combined-result lines on the waveform (and its curve drawn there). Click to leave it out of the picture; it keeps playing."
                     : "Hidden from the waveform's pictures: its effect is left out of the combined-result lines and its curve is not drawn there. It still plays. Click to show it.",
                 v => { CurveView.SetVisible(mod, v); }, ZUICornerMask.All, EyeW, G.RowH - 2f), 0f, 1f, EyeW, G.RowH - 2f));
@@ -879,6 +880,8 @@ namespace Laubrary.Zounds.Uitk {
                 if (mi >= 0) targets.text = G.TargetsSummary(ch, mi);
                 on.SetValueWithoutNotify(mod.enabled);
                 if (nameField.focusController?.focusedElement != nameField) nameField.SetValueWithoutNotify(mod.name);
+                // One setting, two eyes: this one and the waveform's eye for the same curve (T-0519).
+                ZS.SetEye(eye, CurveView.IsVisible(mod));
             });
             r.Add(PlaceRight(ZS.Button("×", "Removes this modifier and every binding that uses it.", "RichButton",
                 () => Modify("remove modifier", () => { var ch = ZoundDspPlayback.ResolveChain(zound, out _); int mi = ch.modifiers.IndexOf(mod); if (mi >= 0) ch.RemoveModifier(mi); }),

@@ -90,7 +90,19 @@ namespace Laubrary.Zounds.Uitk {
             t = Toggle("", tooltip(visible), visible, v => { SetIcon(v); onChanged(v); }, "RichToggle", corners, width, height);
             t.markWhenOn = false;
             SetIcon(visible);
+            t.userData = (Action<bool>)SetIcon;   // for SetEye
             return t;
+        }
+
+        /// <summary>
+        /// Shows <paramref name="visible"/> on an eye made by <see cref="Eye"/> without firing its change: the icon and the
+        /// hover text follow. For an eye that mirrors state another control can change too (T-0519: the waveform's curve eye
+        /// and the same modifier's eye on its card are one setting).
+        /// </summary>
+        public static void SetEye(ZuiToggleButton eye, bool visible) {
+            if (eye == null || eye.value == visible) return;
+            eye.SetValueWithoutNotify(visible);
+            (eye.userData as Action<bool>)?.Invoke(visible);
         }
 
         public static ZuiToggleButton Toggle(string label, string tooltip, bool value, Action<bool> onChanged, string style = "RichToggle",
