@@ -105,12 +105,26 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         float AvailableWidth(float w) => Mathf.Max(200f, w);
+
+        // ── Sections side by side when the window is wide (owner, 2026-09-30, T-0517/T-0516) ──
+        // Effects and Modifiers are two sections. At a width where two of them fit at their minimum width they sit side by
+        // side, each on half the window; below that they stack, as before. A section is never narrower than MinCardW: below
+        // it the controls of a card's header (placed at fixed positions) would overlap.
+        internal const float MinCardW = 640f, ColumnGap = 16f;
+        static bool TwoColumns(float w) => w >= MinCardW * 2f + ColumnGap;
+        /// <summary>The width each section gets: half the window beside each other, or all of it stacked.</summary>
+        static float SectionWidth(float w) => TwoColumns(w) ? (w - ColumnGap) * 0.5f : Mathf.Max(w, MinCardW);
+        /// <summary>Where the section being built adds its rows (a column when side by side, this element otherwise).</summary>
+        VisualElement put;
+        float sectionW;
         static float HeaderLeadW => G.GripW + 2f + G.OnW + 6f + G.NameW + G.Gap;
 
         /// <summary>Everything that decides the tree's shape, as one string: when it changes the tree is rebuilt.</summary>
         string Signature(ZoundEffectChain chain, ZoundChainPreset preset, float w) {
             bool linked = preset != null;
             var sb = new StringBuilder();
+            sb.Append(TwoColumns(w) ? '2' : '1').Append('|');
+            w = SectionWidth(w);
             sb.Append(preset != null ? preset.id.ToString() : "local").Append('|');
             sb.Append(preset == null && ZoundChainLibrary.CanReconnect(zound) ? 'R' : 'r');
             sb.Append(ZoundEffectDescriptors.TailBudgetSeconds(chain) > 0f ? 'T' : 't').Append('|');
@@ -157,19 +171,41 @@ namespace Laubrary.Zounds.Uitk {
             Add(LibraryBar(chain, preset));
             Add(snapshotsRow);
             Add(ErrorRow(chain, linked));
-            Add(Nodes(chain, linked, w));
-            Add(AddEffectRow(chain));
-            Add(VSpace(5f));   // ZUI.RowSpace(0.5f)
-            Add(ModifiersHeader(chain));
-            Add(OwnValuesRow(chain));
+
+            bool two = TwoColumns(w);
+            sectionW = SectionWidth(w);
+            var sections = new VisualElement();
+            sections.style.flexDirection = two ? FlexDirection.Row : FlexDirection.Column;
+            // Side by side: each column at its set width, tops aligned. Stacked: each spans the whole width, as before.
+            sections.style.alignItems = two ? Align.FlexStart : Align.Stretch; sections.style.flexShrink = 0;
+            VisualElement Column(bool second) {
+                var c = new VisualElement();
+                c.style.flexShrink = 0; c.style.minWidth = MinCardW;
+                if (two) { c.style.width = sectionW; if (second) c.style.marginLeft = ColumnGap; }
+                sections.Add(c);
+                return c;
+            }
+            var fx = Column(false);
+            var mods = Column(true);
+
+            put = fx;
+            fx.Add(Nodes(chain, linked, sectionW));
+            fx.Add(AddEffectRow(chain));
+            if (!two) fx.Add(VSpace(5f));   // ZUI.RowSpace(0.5f)
+
+            put = mods;
+            mods.Add(ModifiersHeader(chain));
+            mods.Add(OwnValuesRow(chain));
             for (int m = 0; m < chain.modifiers.Count; m++) {
                 var mod = chain.modifiers[m];
-                Add(ModifierRow(chain, m, mod));
+                mods.Add(ModifierRow(chain, m, mod));
                 if (!folded.Contains(mod)) {
-                    ModifierBody(chain, m, mod, w);
+                    ModifierBody(chain, m, mod, sectionW);
                     Bindings(chain, m);
                 }
             }
+            put = this;
+            Add(sections);
             Add(VSpace(5f));   // ZUI.RowSpace(0.5f), then the ZPOC test panel (only when something is exposed) and the analyser
             Add(zpocTest);
             Add(analyser);
@@ -803,33 +839,39 @@ namespace Laubrary.Zounds.Uitk {
             var desc = ZoundEffectDescriptors.GetModifier(mod.type);
             bool isFolded = folded.Contains(mod);
             var r = Row();
-            r.Add(Fill(new Color(1f, 1f, 1f, 0.04f)));
-            var fold = Place(Text(isFolded ? "▸" : "▾", isFolded ? "Expand" : "Collapse", "zs-greymini"), 0f, 0f, G.GripW, G.RowH);
-            fold.RegisterCallback<PointerDownEvent>(e => {
-                if (e.button != 0) return;
+            var fill = Fill(new Color(1f, 1f, 1f, 0.04f));
+            fill.AddToClassList(FoldHit);
+            r.Add(fill);
+            r.AddToClassList(FoldHit);
+            // A click anywhere on the header that is not a control folds or unfolds the card (owner, T-0515); the little arrow
+            // that used to be the only place to click is gone. The eye sits at the left: only Delete is on the right (T-0518).
+            string foldTip = isFolded ? " Click the header to show this modifier's settings." : " Click the header to fold its settings away.";
+            r.RegisterCallback<PointerDownEvent>(e => {
+                if (e.button != 0 || !(e.target is VisualElement t) || !t.ClassListContains(FoldHit)) return;
                 if (isFolded) folded.Remove(mod); else folded.Add(mod);
                 e.StopPropagation(); Tick();
             });
-            r.Add(fold);
+            r.Add(Place(ZS.Eye(CurveView.IsVisible(mod), v => v
+                    ? "Shown: what this modifier does is included in the combined-result lines on the waveform (and its curve drawn there). Click to leave it out of the picture; it keeps playing."
+                    : "Hidden from the waveform's pictures: its effect is left out of the combined-result lines and its curve is not drawn there. It still plays. Click to show it.",
+                v => { CurveView.SetVisible(mod, v); }, ZUICornerMask.All, EyeW, G.RowH - 2f), 0f, 1f, EyeW, G.RowH - 2f));
             ZuiToggleButton on = ZS.Toggle("On", mod.enabled ? "Disable: its bindings stop applying." : "Enable this modifier.", mod.enabled,
                                            v => Modify(v ? "enable modifier" : "disable modifier", () => { mod.enabled = v; chain.Touch(); }),
                                            "RichToggle", ZUICornerMask.None, G.OnW, G.RowH - 2f);
-            r.Add(Place(on, G.GripW + 2f, 1f, G.OnW, G.RowH - 2f));
-            float typeX = G.GripW + 2f + G.OnW + 6f;
-            r.Add(Place(Text(desc.displayName, desc.summary, "zs-bold"), typeX, 0f, 62f, G.RowH));
+            r.Add(Place(on, EyeW + 2f, 1f, G.OnW, G.RowH - 2f));
+            float typeX = EyeW + 2f + G.OnW + 6f;
+            var typeLabel = Text(desc.displayName, desc.summary + foldTip, "zs-bold");
+            typeLabel.AddToClassList(FoldHit);
+            r.Add(Place(typeLabel, typeX, 0f, 62f, G.RowH));
             var nameField = new TextField { value = mod.name, tooltip = "The name shown on the parameters this modifier drives." };
             nameField.AddToClassList("zs-namefield");
             nameField.RegisterValueChangedCallback(e => Modify("rename modifier", () => mod.name = e.newValue));
             r.Add(Place(nameField, typeX + 62f + 2f, 1f, 120f, G.RowH - 2f));
             float chipX = typeX + 62f + 2f + 120f + 6f;
             r.Add(Place(ZpocChip(mod), chipX, 1f, ZpocChipW, G.RowH - 2f));
-            var targets = Place(Text("", "The parameters this modifier drives.", "zs-mini"), chipX + ZpocChipW + 6f, 0f, -1f, G.RowH);
-            targets.style.right = G.RemoveW + 10f + EyeW + 4f;
-            // The eye (T-0494): whether this modifier is counted in the waveform's combined-result lines and drawn there.
-            r.Add(PlaceRight(ZS.Eye(CurveView.IsVisible(mod), v => v
-                    ? "Shown: what this modifier does is included in the combined-result lines on the waveform (and its curve drawn there). Click to leave it out of the picture; it keeps playing."
-                    : "Hidden from the waveform's pictures: its effect is left out of the combined-result lines and its curve is not drawn there. It still plays. Click to show it.",
-                v => { CurveView.SetVisible(mod, v); }, ZUICornerMask.All, EyeW, G.RowH - 2f), G.RemoveW + 6f, 1f, EyeW, G.RowH - 2f));
+            var targets = Place(Text("", "The parameters this modifier drives." + foldTip, "zs-mini"), chipX + ZpocChipW + 6f, 0f, -1f, G.RowH);
+            targets.style.right = G.RemoveW + 10f;
+            targets.AddToClassList(FoldHit);
             r.Add(targets);
             refreshers.Add(() => {
                 var ch = ZoundDspPlayback.ResolveChain(zound, out _);
@@ -845,6 +887,8 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         const float ZpocChipW = 150f;
+        /// <summary>The parts of a modifier's header a click folds the card on (everything that is not a control).</summary>
+        const string FoldHit = "zs-foldhit";
         const float EyeW = 22f;
 
         /// <summary>The precedence order, stated wherever a code-driven value is shown (owner, 2026-09-29: "important that
@@ -980,9 +1024,9 @@ namespace Laubrary.Zounds.Uitk {
         void ModifierBody(ZoundEffectChain chain, int m, ZoundModifier mod, float w) {
             var desc = ZoundEffectDescriptors.GetModifier(mod.type);
             var units = ModifierUnits(chain, m, mod, desc);
-            Wrap(chain, units, u => () => u.paramIndex < mod.p.Length ? mod.p[u.paramIndex] : 0f, w, this);
-            if (mod.type == ZoundModifierType.Envelope || mod.type == ZoundModifierType.Lfo) Add(CurveGround(chain, mod));
-            if (mod.type == ZoundModifierType.Step) Add(StepsRow(chain, mod));
+            Wrap(chain, units, u => () => u.paramIndex < mod.p.Length ? mod.p[u.paramIndex] : 0f, w, put ?? this);
+            if (mod.type == ZoundModifierType.Envelope || mod.type == ZoundModifierType.Lfo) (put ?? this).Add(CurveGround(chain, mod));
+            if (mod.type == ZoundModifierType.Step) (put ?? this).Add(StepsRow(chain, mod));
         }
 
         /// <summary>
@@ -1162,7 +1206,7 @@ namespace Laubrary.Zounds.Uitk {
             if (mod.steps == null || mod.steps.Length == 0) mod.steps = new float[] { 1f };
             int n = mod.steps.Length;
             var r = Row(G.StepBandH);
-            float w = Width - (G.GripW + 6f);
+            float w = (sectionW > 0f ? sectionW : Width) - (G.GripW + 6f);
             float buttonsW = 22f * 2f + G.Gap;
             float barW = Mathf.Min(G.StepBarMaxW, (w - buttonsW) / n);
             // What "no change" is depends on how the list is bound (the old editor's rule, T-0433): when every binding of
@@ -1243,7 +1287,7 @@ namespace Laubrary.Zounds.Uitk {
                 r.Add(Place(ZS.Button("×", "Removes this binding.", "RichButton",
                     () => Modify("remove binding", () => { chain.bindings.Remove(bb); chain.Touch(); }), ZUICornerMask.All, G.RemoveW, G.RowH - 2f),
                     x + 176f + 120f + 4f, 1f, G.RemoveW, G.RowH - 2f));
-                Add(r);
+                (put ?? this).Add(r);
             }
         }
     }
