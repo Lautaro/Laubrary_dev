@@ -2511,7 +2511,12 @@ namespace Laubrary.SpriteFx
                 // GLSL-style smoothstep band centred on `threshold` — nearby/overlapping shapes' blurred halos
                 // cross it together (a bridge appears between them); an isolated shape's own blur stays above it
                 // out to roughly its original edge, so it doesn't visibly shrink on its own.
-                float band = Mathf.Clamp01((blurA - (thr - soft)) / (2f * soft));
+                // The band's lower edge never drops below "nothing at all": when threshold − softness went
+                // negative, completely empty background (blurA 0) landed inside the band and the whole canvas
+                // filled with a faint haze. Any setting with threshold − softness ≥ 0.001 keeps the exact formula.
+                float band = thr - soft >= 0.001f
+                    ? Mathf.Clamp01((blurA - (thr - soft)) / (2f * soft))
+                    : Mathf.Clamp01((blurA - 0.001f) / (thr + soft - 0.001f));
                 float newA = band * band * (3f - 2f * band);
                 if (newA <= 0.003f) { buf[i] = default; continue; }
 
