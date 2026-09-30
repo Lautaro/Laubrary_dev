@@ -2655,7 +2655,7 @@ namespace Laubrary.SpriteFx
     /// frequency. Now a single dial (<see cref="noise"/>) rather than a whole second modifier class.
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
-    public class TurbulenceModifier : GeometryModifier
+    public class TurbulenceModifier : GeometryModifier, ISerializationCallbackReceiver
     {
         [Tooltip("Which noise sampler drives the churn. Value = bilinear noise, faintly blobby/grid-aligned at " +
                  "low frequency. Gradient = true gradient noise, sharper and more organic at the same frequency.")]
@@ -2666,17 +2666,10 @@ namespace Laubrary.SpriteFx
         [Range(1f, 64f)]
         [Tooltip("Noise frequency — bigger = larger, slower-looking eddies; smaller = fine, busy churn. Animatable.")]
         public ZUIValue zoom = new ZUIValue(24f);
-        [Range(-720f, 720f)]
-        [Tooltip("Rotates the noise field's own sampling domain, in degrees — this is what makes the churn visibly " +
-                 "SPIN in place (a mushroom cloud's roll). Animatable — a rising curve = an accelerating roll.")]
-        public ZUIValue rotation = new ZUIValue(0f);
-        [Range(-32f, 32f)]
-        [Tooltip("Scrolls the noise field horizontally over life, in pixels — the pattern itself drifts rather " +
-                 "than the displacement just sitting still. Animatable.")]
-        public ZUIValue offsetX = new ZUIValue(0f);
-        [Range(-32f, 32f)]
-        [Tooltip("Scrolls the noise field vertically over life, in pixels. Animatable.")]
-        public ZUIValue offsetY = new ZUIValue(0f);
+        [Range(0, 99)]
+        [Tooltip("Which noise pattern — every number is a different, repeatable pattern of the same character. " +
+                 "0 = the original pattern.")]
+        public int seed = 0;
         [Range(0f, 2f)]
         [Tooltip("Domain-warp strength — how much the noise bends on itself (0 = plain smooth noise, higher = " +
                  "more churned/organic eddies). Animatable — e.g. ramp it up for a churn that gets more organic " +
@@ -2693,9 +2686,38 @@ namespace Laubrary.SpriteFx
                  "pattern on each frame; on, the pattern simply rides along with the shape.")]
         public bool steady = false;
 
+        [Tooltip("Show the Motion dials: Rotation (spin the churn around the shape) and Drift (slide the churn across " +
+                 "it). Mostly for old looks — Evolve is usually the better way to make the churn move. Hiding them " +
+                 "does not reset them.")]
+        public bool motion = false;
+        [ZUIShowIf("motion", "True")]
+        [Range(-720f, 720f)]
+        [Tooltip("Rotates the noise field's own sampling domain, in degrees — this is what makes the churn visibly " +
+                 "SPIN in place (a mushroom cloud's roll). Animatable — a rising curve = an accelerating roll.")]
+        public ZUIValue rotation = new ZUIValue(0f);
+        [ZUIShowIf("motion", "True")]
+        [ZUIPair2D("offsetY", "Drift")]
+        [Range(-32f, 32f)]
+        [Tooltip("Scrolls the noise field horizontally over life, in pixels — the pattern itself drifts rather " +
+                 "than the displacement just sitting still. Animatable.")]
+        public ZUIValue offsetX = new ZUIValue(0f);
+        [ZUIShowIf("motion", "True")]
+        [Range(-32f, 32f)]
+        [Tooltip("Scrolls the noise field vertically over life, in pixels. Animatable.")]
+        public ZUIValue offsetY = new ZUIValue(0f);
         float amp, zm, rotRad, offX, offY, wrp;
         int evoSteps;
         public override string DisplayName => "Turbulence";
+
+        // A modifier saved before the Motion toggle existed, with Spin or Drift in use, opens with Motion shown —
+        // a value that is doing something is never hidden by default.
+        public void OnBeforeSerialize() { }
+        public void OnAfterDeserialize()
+        {
+            if (motion) return;
+            if (InUse(rotation) || InUse(offsetX) || InUse(offsetY)) motion = true;
+        }
+        static bool InUse(ZUIValue v) => v != null && !(v.mode == ZUIValue.Mode.Static && v.staticValue == 0f);
         public override void Prepare(Func<ZUIValue, int, float> e)
         {
             amp = e(amplitude, 0);
@@ -2740,6 +2762,7 @@ namespace Laubrary.SpriteFx
                 float ex = (dd.x + offX) / zm, ey = (dd.y + offY) / zm;
                 int sd = steady ? 0x6A09E667
                     : unchecked((Mathf.RoundToInt(ctx.center.x * 8f) * 92821) ^ (Mathf.RoundToInt(ctx.center.y * 8f) * 68111));
+                if (this.seed != 0) sd ^= unchecked(this.seed * 0x632BE5AB);
                 float e1, e2;
                 if (evoSteps > 0)
                 {
@@ -2766,6 +2789,7 @@ namespace Laubrary.SpriteFx
             // Per-shape-stable seed derived from the shape's own centre, so different scattered shapes churn with
             // different (but still deterministic) noise fields instead of an identical repeated dent.
             int seed = unchecked((Mathf.RoundToInt(ctx.center.x * 8f) * 92821) ^ (Mathf.RoundToInt(ctx.center.y * 8f) * 68111));
+            if (this.seed != 0) seed ^= unchecked(this.seed * 0x632BE5AB);   // Seed 0 = the original pattern, untouched
             float n1, n2;
             if (noise == TurbulenceNoise.Gradient)
             {
