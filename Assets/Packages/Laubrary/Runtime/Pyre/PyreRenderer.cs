@@ -953,6 +953,108 @@ namespace Laubrary.Pyre
             f == ShapeForm.Disc || f == ShapeForm.Crescent || f == ShapeForm.Ring ||
             f == ShapeForm.Streak || f == ShapeForm.Star || f == ShapeForm.Polygon;
 
+        // ── Edge response (explosion study #3 + #5) ─────────────────────────────────────────────────────────────
+        // Runs on a layer's isolated, freshly-drawn pixels. For every visible pixel, its distance to the layer's own
+        // outline (the inside-distance transform below — so it follows ANY silhouette: swarm, modifiers, form)
+        // becomes a weight w: 1 on the rim, fading to 0 `edgeRespWidth` pixels inward (shaped by the falloff).
+        //   Flow   — the pattern is averaged along the outline's direction (a short line through the pixel, running
+        //            parallel to the nearest edge, read from the untouched pixels), so the grain near the rim runs
+        //            along the edge. Direction = the distance field's slope turned 90°.
+        //   Grain  — brightness jitter from pixel noise whose speck size goes from the core size to the rim size.
+        //   Colour — brightness, contrast (around mid-grey), saturation and hue, each blended in by w.
+        //   Glow   — adds glow colour × strength × w (light, not a replacement colour).
+        // Alpha is never changed, so the silhouette (and the border built from it afterwards) is exactly as drawn.
+        static void ApplyEdgeResponse(Color32[] buf, int W, int H, PyreLayer layer, float life)
+        {
+            float width = Mathf.Max(1f, layer.edgeRespWidth);
+            float falloff = Mathf.Max(0.05f, layer.edgeRespFalloff);
+            float bright = (layer.edgeRespBrightness != null ? EvalCanonical(layer.edgeRespBrightness, life) : 1f);
+            float contrast = (layer.edgeRespContrast != null ? EvalCanonical(layer.edgeRespContrast, life) : 1f);
+            float hue = (layer.edgeRespHue != null ? EvalCanonical(layer.edgeRespHue, life) : 0f) / 360f;
+            float sat = (layer.edgeRespSaturation != null ? EvalCanonical(layer.edgeRespSaturation, life) : 1f);
+            float glow = (layer.edgeRespGlow != null ? EvalCanonical(layer.edgeRespGlow, life) : 0f);
+            float grain = Mathf.Clamp01(layer.edgeRespGrain);
+            float flow = Mathf.Max(0f, layer.edgeRespFlow);
+            Color gc = layer.edgeRespGlowColor;
+            int seed = unchecked(_layerSalt * 104729 + 7);
+
+            float[] dist = BorderInsideDistance(buf, W, H);
+            var src = (Color32[])buf.Clone();
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    int i = y * W + x;
+                    var c = src[i];
+                    if (c.a == 0) continue;
+                    float w = Mathf.Clamp01(1f - (dist[i] - 1f) / width);
+                    if (w <= 0f) continue;
+                    w = Mathf.Pow(w, falloff);
+
+                    float r = c.r / 255f, g = c.g / 255f, b = c.b / 255f;
+
+                    // Flow: average the untouched colours along the edge direction.
+                    int reach = Mathf.RoundToInt(flow * w);
+                    if (reach > 0)
+                    {
+                        float gx = Dist(dist, W, H, x + 1, y) - Dist(dist, W, H, x - 1, y);
+                        float gy = Dist(dist, W, H, x, y + 1) - Dist(dist, W, H, x, y - 1);
+                        float len = Mathf.Sqrt(gx * gx + gy * gy);
+                        if (len > 1e-4f)
+                        {
+                            float tx = -gy / len, ty = gx / len;   // tangent = slope turned 90°
+                            float sr = r, sg = g, sb = b, n = 1f;
+                            for (int k = -reach; k <= reach; k++)
+                            {
+                                if (k == 0) continue;
+                                int sx = Mathf.RoundToInt(x + tx * k), sy = Mathf.RoundToInt(y + ty * k);
+                                if (sx < 0 || sy < 0 || sx >= W || sy >= H) continue;
+                                var s = src[sy * W + sx];
+                                if (s.a == 0) continue;
+                                sr += s.r / 255f; sg += s.g / 255f; sb += s.b / 255f; n += 1f;
+                            }
+                            r = sr / n; g = sg / n; b = sb / n;
+                        }
+                    }
+
+                    // Grain: finer specks toward the rim.
+                    if (grain > 0f)
+                    {
+                        // Two fixed-size noises blended by w (stretching ONE noise's size with distance would
+                        // squeeze its pattern into concentric ripples).
+                        float coreCell = Mathf.Max(1f, layer.edgeRespGrainCorePx), rimCell = Mathf.Max(1f, layer.edgeRespGrainRimPx);
+                        float nCore = BleedNoise((x + 0.5f) / coreCell, (y + 0.5f) / coreCell, seed);
+                        float nRim = BleedNoise((x + 0.5f) / rimCell, (y + 0.5f) / rimCell, seed ^ 0x51ED270B);
+                        float nz = Mathf.Lerp(nCore, nRim, w) * 2f - 1f;
+                        float k = 1f + nz * grain * Mathf.Max(w, 0.35f);
+                        r *= k; g *= k; b *= k;
+                    }
+
+                    // Colour: saturation + hue in HSV, then contrast and brightness.
+                    if (sat != 1f || hue != 0f)
+                    {
+                        Color.RGBToHSV(new Color(Mathf.Clamp01(r), Mathf.Clamp01(g), Mathf.Clamp01(b)), out float hh, out float ss, out float vv);
+                        hh = Mathf.Repeat(hh + hue * w, 1f);
+                        ss = Mathf.Clamp01(ss * Mathf.Lerp(1f, sat, w));
+                        var hc = Color.HSVToRGB(hh, ss, vv);
+                        r = hc.r; g = hc.g; b = hc.b;
+                    }
+                    float ck = Mathf.Lerp(1f, contrast, w), bk = Mathf.Lerp(1f, bright, w);
+                    r = ((r - 0.5f) * ck + 0.5f) * bk;
+                    g = ((g - 0.5f) * ck + 0.5f) * bk;
+                    b = ((b - 0.5f) * ck + 0.5f) * bk;
+
+                    // Glow: add light.
+                    if (glow > 0f) { float ga = glow * w * gc.a; r += gc.r * ga; g += gc.g * ga; b += gc.b * ga; }
+
+                    buf[i] = new Color32((byte)Mathf.RoundToInt(Mathf.Clamp01(r) * 255f),
+                                         (byte)Mathf.RoundToInt(Mathf.Clamp01(g) * 255f),
+                                         (byte)Mathf.RoundToInt(Mathf.Clamp01(b) * 255f), c.a);
+                }
+        }
+
+        static float Dist(float[] d, int W, int H, int x, int y)
+            => d[Mathf.Clamp(y, 0, H - 1) * W + Mathf.Clamp(x, 0, W - 1)];
+
         // Inside-distance transform: for every pixel, its (approximate Euclidean) distance to the nearest FULLY-
         // TRANSPARENT pixel (fill.a == 0). A two-pass chamfer (ortho 1, diagonal √2) — background pixels seed 0 and
         // the distance grows inward, so an interior pixel's value is how far it sits from the silhouette edge. Cheap

@@ -1465,6 +1465,8 @@ namespace Laubrary.Pyre.Editor
             // none). Added AFTER the form-specific rows so it reads as part of the shape's look. Off = a single compact
             // toggle; on = a Border box (Width / Fill / Draw-over-matte).
             if (IsFlat2DBorderForm(s.shapeForm)) BuildBorderBox(s);
+            // Edge response (explosion study #3/#5) — every form: it reads the finished silhouette, whatever drew it.
+            BuildEdgeResponseBox(s);
 
             // Fire and Fireball are whole-layer forms with no particles at all, so a Position section there would be
             // dead — skip it. Their Fill (the ramp) and Alpha (overall opacity) rows still apply.
@@ -2904,6 +2906,61 @@ namespace Laubrary.Pyre.Editor
                 + "the BORDER on top of the finished frame instead — so a shape's fill can BE the matte while its "
                 + "border still shows, with no separate outline-only layer. Off = the border is part of the layer.",
                 s.borderOverMatte, v => Dirty(() => s.borderOverMatte = v)));
+            shapeBody.Add(box);
+        }
+
+        // Edge response box (explosion study #3/#5). Same shape as the Border box: off = one compact toggle, on = a
+        // titled box. Every effect is strongest on the outline and fades to nothing Width px inward.
+        void BuildEdgeResponseBox(PyreLayer s)
+        {
+            const string what = "Make the layer's pixels react to how close they are to its own outline — colour, "
+                + "inner glow, finer grain and a pattern that runs along the edge — so a filled shape stops looking "
+                + "flat. Works on any form, swarm or modifier result.";
+            if (!s.edgeResponse)
+            {
+                shapeBody.Add(Z.Toggle("Edge response", what + " Turn on to set it up.",
+                    s.edgeResponse, v => { Dirty(() => s.edgeResponse = v); RebuildShape(); }));
+                return;
+            }
+            var box = Z.BoxKeyed("Edge response", what, "pyre.edgeResponse");
+            box.SetHeaderSuffix(() => s.edgeResponse ? " (on)" : "");
+            box.Add(WrapRow(
+                Z.Toggle("Enable", "Apply the edge response. Off = the layer is drawn exactly as before.",
+                    s.edgeResponse, v => { Dirty(() => s.edgeResponse = v); RebuildShape(); }),
+                Z.MicroSlider("Width px", s.edgeRespWidth, 1f, 32f,
+                    "How many pixels inward from the outline the effects reach.",
+                    v => Dirty(() => s.edgeRespWidth = v), 150f, defaultValue: Def(nameof(PyreLayer.edgeRespWidth)), decimals: 1),
+                Z.MicroSlider("Falloff", s.edgeRespFalloff, 0.2f, 4f,
+                    "Shape of the fade inward. 1 = even; higher hugs the rim tightly; lower spreads deep into the shape.",
+                    v => Dirty(() => s.edgeRespFalloff = v), 150f, defaultValue: Def(nameof(PyreLayer.edgeRespFalloff)))));
+            box.Add(WrapRow(
+                Val("Brightness", "Brightness multiplier at the rim (1 = unchanged, below 1 darkens the edge — a rounded "
+                    + "body; above 1 brightens it).", s.edgeRespBrightness, 0f, 3f),
+                Val("Contrast", "Contrast at the rim, around mid-grey (1 = unchanged).", s.edgeRespContrast, 0f, 3f)));
+            box.Add(WrapRow(
+                Val("Hue", "Hue shift at the rim, in degrees (0 = unchanged).", s.edgeRespHue, -180f, 180f, cyclic: true),
+                Val("Saturation", "Saturation multiplier at the rim (1 = unchanged, 0 = grey).", s.edgeRespSaturation, 0f, 3f)));
+            box.Add(WrapRow(
+                Val("Glow", "Inner glow at the rim — ADDS the glow colour as light (it doesn't replace the colour). "
+                    + "0 = none.", s.edgeRespGlow, 0f, 2f),
+                Z.Field("Glow colour", "The inner glow's colour.",
+                    Z.Color(s.edgeRespGlowColor, "The inner glow's colour.",
+                        c => Dirty(() => s.edgeRespGlowColor = c), 110f))));
+            box.Add(WrapRow(
+                Z.MicroSlider("Grain", s.edgeRespGrain, 0f, 1f,
+                    "Brightness grain from pixel noise whose specks get finer toward the rim — busy near the edge, "
+                    + "calm inside. 0 = none.",
+                    v => Dirty(() => s.edgeRespGrain = v), 130f, defaultValue: Def(nameof(PyreLayer.edgeRespGrain))),
+                Z.MicroSlider("Rim px", s.edgeRespGrainRimPx, 1f, 16f,
+                    "Grain speck size at the rim, in canvas pixels.",
+                    v => Dirty(() => s.edgeRespGrainRimPx = v), 120f, defaultValue: Def(nameof(PyreLayer.edgeRespGrainRimPx)), decimals: 1),
+                Z.MicroSlider("Core px", s.edgeRespGrainCorePx, 1f, 32f,
+                    "Grain speck size deep inside the shape, in canvas pixels.",
+                    v => Dirty(() => s.edgeRespGrainCorePx = v), 120f, defaultValue: Def(nameof(PyreLayer.edgeRespGrainCorePx)), decimals: 1)));
+            box.Add(Z.MicroSlider("Flow px", s.edgeRespFlow, 0f, 12f,
+                "Smear the layer's own pattern ALONG the outline near the rim, so its grain runs parallel to the edge "
+                + "like flame licking round it. Pixels of reach; 0 = off.",
+                v => Dirty(() => s.edgeRespFlow = v), 150f, defaultValue: Def(nameof(PyreLayer.edgeRespFlow)), decimals: 1));
             shapeBody.Add(box);
         }
 

@@ -39,6 +39,7 @@ namespace Laubrary.Pyre
             public bool fastPath;          // Draw: painted straight into the frame (no isolation) by RenderFrame
             public bool fuseBackground;    // fastPath, nothing drawn yet, visible background: cache it WITH the background
             public bool hasBorder, hasPost, hasLayerSim;
+            public bool hasEdgeResponse;   // Draw: the finished pixels react to their distance from the layer's outline
             public bool IsDraw => active && !isMatte && !isLuma;
         }
 
@@ -90,6 +91,9 @@ namespace Laubrary.Pyre
                 p.hasLayerSim = layer.simulationModifier != null && layer.simulationModifier.enabled;
                 // The border rim belongs to the six flat enum forms only; a plug-in form owns its whole look.
                 p.hasBorder = layer.form == null && layer.borderEnabled && IsFlat2DBorderForm(layer.shapeForm);
+                // Edge response reads the layer's OWN silhouette, so it needs the layer isolated (below). It also
+                // applies to a matte layer, where it reshapes the mask that layer writes.
+                p.hasEdgeResponse = layer.edgeResponse;
 
                 bool matteOn = layer.matteEnabled;
                 p.isMatte = matteOn && layer.matteRole == MatteRole.WriteMatte;
@@ -111,7 +115,7 @@ namespace Laubrary.Pyre
                 // (clip, matte, border, a post that must not re-touch the layers beneath) or when the form SETS
                 // pixels rather than Over-drawing them (forms, sims). Otherwise the particles paint straight in.
                 bool needScratch = p.hasClip || (p.hasPost && bufDirty) || p.matteActive || isFire || isFireball
-                                   || isForm || p.hasLayerSim || p.hasBorder;
+                                   || isForm || p.hasLayerSim || p.hasBorder || p.hasEdgeResponse;
                 p.fastPath = !needScratch;
                 p.fuseBackground = p.fastPath && !bufDirty && bgVisible;
                 if (p.matteActive && matteOneShot) matteArmed = false;   // NextLayer scope: consumed by this layer
@@ -167,6 +171,8 @@ namespace Laubrary.Pyre
 
             if (plan.isHeightConsumer) RenderHeightConsumer(target, W, H, layer, heightField);
             else RenderLayer(target, W, H, plan.layerLife, spec, layer, mods, phase, frameIndex);
+            // Edge response (explosion study #3/#5): on the drawn fill, before the border rim goes on top.
+            if (plan.hasEdgeResponse) ApplyEdgeResponse(target, W, H, layer, plan.layerLife);
             // Border (#60/#65): built from the FILL silhouette (pre-post). borderOverMatte OFF folds the rim into the
             // layer; ON keeps the layer fill-only and defers the rim to draw on top of the finished frame.
             Color32[] borderBuf = plan.hasBorder ? BuildBorderBuffer(target, W, H, plan.layerLife, spec, layer) : null;

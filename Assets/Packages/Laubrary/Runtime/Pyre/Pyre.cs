@@ -332,6 +332,36 @@ namespace Laubrary.Pyre
         [Tooltip("Mass shading: add a 4×4 ordered dither at band edges, like hand-placed pixels.")]
         public bool massDither = false;
 
+        // ── Edge response (explosion study #3 + #5) — the layer's finished pixels react to how far they sit from its
+        // own outline (a true distance to the nearest transparent pixel, whatever drew the silhouette). Off (default)
+        // = untouched. Every effect is strongest at the rim and fades to nothing `edgeWidth` pixels inward.
+        [Tooltip("Edge response: the layer's pixels change colour, glow and texture by how close they are to its own outline.")]
+        public bool edgeResponse = false;
+        [Tooltip("Edge response: how many pixels inward from the outline the effects reach.")]
+        [Range(1f, 32f)] public float edgeRespWidth = 5f;
+        [Tooltip("Edge response: shape of the fade. 1 = even; higher hugs the rim; lower spreads deep into the shape.")]
+        [Range(0.2f, 4f)] public float edgeRespFalloff = 1f;
+        [Tooltip("Edge response: brightness multiplier at the rim (1 = unchanged). Animatable over the layer's life.")]
+        public ZUIValue edgeRespBrightness = new ZUIValue(1f);
+        [Tooltip("Edge response: contrast at the rim (1 = unchanged).")]
+        public ZUIValue edgeRespContrast = new ZUIValue(1f);
+        [Tooltip("Edge response: hue shift at the rim, in degrees.")]
+        public ZUIValue edgeRespHue = new ZUIValue(0f);
+        [Tooltip("Edge response: saturation multiplier at the rim (1 = unchanged, 0 = grey).")]
+        public ZUIValue edgeRespSaturation = new ZUIValue(1f);
+        [Tooltip("Edge response: inner glow strength at the rim — adds light, it doesn't replace colour.")]
+        public ZUIValue edgeRespGlow = new ZUIValue(0f);
+        [Tooltip("Edge response: the inner glow's colour.")]
+        public Color edgeRespGlowColor = new Color(1f, 0.85f, 0.45f, 1f);
+        [Tooltip("Edge response: brightness grain from pixel noise whose specks get finer toward the rim (0 = none).")]
+        [Range(0f, 1f)] public float edgeRespGrain = 0f;
+        [Tooltip("Edge response: grain speck size at the rim, in canvas pixels.")]
+        [Range(1f, 16f)] public float edgeRespGrainRimPx = 1.5f;
+        [Tooltip("Edge response: grain speck size deep inside, in canvas pixels.")]
+        [Range(1f, 32f)] public float edgeRespGrainCorePx = 6f;
+        [Tooltip("Edge response: smear the layer's own pattern ALONG the outline near the rim, so its grain runs parallel to the edge. Pixels of reach (0 = off).")]
+        [Range(0f, 12f)] public float edgeRespFlow = 0f;
+
         static ZuiFill DefaultSootFill()
         {
             var g = new Gradient();
@@ -813,6 +843,11 @@ namespace Laubrary.Pyre
             var l = (PyreLayer)MemberwiseClone();
             l.shapeFill = CloneFill(shapeFill);
             l.massSootFill = CloneFill(massSootFill);
+            l.edgeRespBrightness = CloneVal(edgeRespBrightness);
+            l.edgeRespContrast = CloneVal(edgeRespContrast);
+            l.edgeRespHue = CloneVal(edgeRespHue);
+            l.edgeRespSaturation = CloneVal(edgeRespSaturation);
+            l.edgeRespGlow = CloneVal(edgeRespGlow);
             l.alpha = CloneVal(alpha);
             l.size = CloneVal(size);
             l.gemTilt = CloneVal(gemTilt);
