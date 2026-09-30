@@ -600,14 +600,7 @@ namespace Laubrary.Pyre.Editor
             int fcHigh = Mathf.Max(1, s.frameCount);
             scrubSlider = Z.SliderInt(Mathf.Clamp(frame, 0, fcHigh - 1) + 1, 1, fcHigh,
                 "Scrub to an exact frame — dragging pauses playback and holds that frame (works in the filmstrip too).",
-                v =>
-                {
-                    frame = Mathf.Clamp(v - 1, 0, Mathf.Max(0, s.frameCount - 1));
-                    playing = false;
-                    if (playButton != null) playButton.text = "▶ Play";
-                    preview?.MarkDirtyRepaint();
-                    RefreshTransportReadout();
-                }, 200f);
+                v => SeekFrame(v - 1), 200f);
             transportHost.Add(Z.Field("Frame",
                 "Scrub to an exact frame — dragging pauses playback and holds that frame.", scrubSlider));
 
@@ -642,6 +635,23 @@ namespace Laubrary.Pyre.Editor
             RefreshTransportReadout();
             RefreshFillReadout();
         }
+
+        // Jump the transport to a 0-based frame and hold it there (pauses playback) — the Frame scrubber's action, also
+        // used by the keyed 2D pads when a key is pressed.
+        void SeekFrame(int f)
+        {
+            if (spec == null) return;
+            frame = Mathf.Clamp(f, 0, Mathf.Max(0, spec.frameCount - 1));
+            playing = false;
+            if (playButton != null) playButton.text = "▶ Play";
+            preview?.MarkDirtyRepaint();
+            RefreshTransportReadout();
+        }
+
+        // The frame clock the animated 2D pads key against: the transport frame (the blank CherryFraming gap reads as
+        // frame 0), the blast's frame count, and SeekFrame for pressing a key.
+        ZuiValue2DControl.Options WithTransportClock(ZuiValue2DControl.Options o)
+            => o.WithFrameClock(() => spec != null ? spec.frameCount : 1, () => Mathf.Max(0, frame), SeekFrame);
 
         // Keep the scrubber value + range and the "frame N/M" readout in sync with the transport `frame` and the
         // current frame count. Called after every frame change (playback tick, a strip-tile click, a scrub drag)
@@ -1486,7 +1496,7 @@ namespace Laubrary.Pyre.Editor
                 + "particle's OWN life (0 = birth, 1 = death). Static = a constant offset (Static 0 = it stays where "
                 + "it spawned); author a Curve to make the particle drift or arc as it lives.",
                 s.particlePathX, s.particlePathY,
-                new ZuiValue2DControl.Options().WithRange(-half, half, -half, half).WithDefault(Vector2.zero)));
+                WithTransportClock(new ZuiValue2DControl.Options().WithRange(-half, half, -half, half).WithDefault(Vector2.zero))));
 
             shapeBody.Add(box);
         }
@@ -1674,7 +1684,7 @@ namespace Laubrary.Pyre.Editor
             float off = Mathf.Clamp01(s.crescentOffset);
             var cx = live ? s.crescentCenterXAnim : new ZUIValue(off * Mathf.Cos(angRad));
             var cy = live ? s.crescentCenterYAnim : new ZUIValue(off * Mathf.Sin(angRad));
-            var o = new ZuiValue2DControl.Options().WithRange(-1f, 1f, -1f, 1f).WithDefault(Vector2.zero);
+            var o = WithTransportClock(new ZuiValue2DControl.Options().WithRange(-1f, 1f, -1f, 1f).WithDefault(Vector2.zero));
             return Z.Value2D("Mask", cx, cy, o,
                 "Where the bitten-out mask disc sits, as (x,y) in radius units from the drawn disc's centre (-1..1), "
                 + "over the particle's own life. (0,0) = the bite dead-centre (a hole/ring); push it out for a "
@@ -2468,7 +2478,7 @@ namespace Laubrary.Pyre.Editor
                 "Shape-centre offset in canvas pixels — drag to move the whole shape off the origin. Animating it "
                 + "does NOT slide placed particles; each takes the offset at its own spawn moment, leaving a trail.",
                 s.shapeOffsetX, s.shapeOffsetY,
-                new ZuiValue2DControl.Options().WithRange(-half, half, -half, half).WithDefault(Vector2.zero)));
+                WithTransportClock(new ZuiValue2DControl.Options().WithRange(-half, half, -half, half).WithDefault(Vector2.zero))));
             xform.Add(WrapRow(
                 Val("Scale (px)", "The shape's radius in canvas pixels. Animating this does NOT resize placed "
                     + "particles — each takes the radius at its own spawn moment, so a growing curve leaves a "

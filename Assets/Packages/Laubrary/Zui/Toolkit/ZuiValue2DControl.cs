@@ -120,6 +120,52 @@ namespace Laubrary.Zui
             return new Vector2(x, y);
         }
 
+        // ── keyed editing (a frame clock is attached — see Options.WithFrameClock) ─────────────────────
+        // Keys are the curve's own points; a key's frame is its normalized time scaled onto the host's frame
+        // count, so time stays a fraction of the animation (a frame-count change keeps every key proportional,
+        // exactly like every other animated ZUIValue). Keyed edits never Renormalize: timing is authored here.
+
+        public float KeyTime(int i) => _x.points[i].time;
+
+        public static float FrameToTime(int frame, int frames) => frames > 1 ? frame / (float)(frames - 1) : 0f;
+        public static int TimeToFrame(float t, int frames) => frames > 1 ? Mathf.RoundToInt(t * (frames - 1)) : 0;
+
+        /// The key that sits on `frame` (nearest one if several round to it), or -1 when that frame has none.
+        public int KeyAtFrame(int frame, int frames)
+        {
+            int best = -1;
+            float bestD = float.MaxValue, target = FrameToTime(frame, frames);
+            for (int i = 0; i < PointCount; i++)
+            {
+                if (TimeToFrame(_x.points[i].time, frames) != frame) continue;
+                float d = Mathf.Abs(_x.points[i].time - target);
+                if (d < bestD) { bestD = d; best = i; }
+            }
+            return best;
+        }
+
+        /// Place the value at `frame`: moves the key already on that frame, otherwise inserts a new key there in
+        /// time order. Returns the key's index.
+        public int SetKeyAtFrame(int frame, int frames, Vector2 v)
+        {
+            int at = KeyAtFrame(frame, frames);
+            if (at >= 0) { SetPoint(at, v); return at; }
+            float t = FrameToTime(frame, frames);
+            int idx = PointCount;
+            for (int i = 0; i < PointCount; i++)
+                if (_x.points[i].time > t) { idx = i; break; }
+            _x.points.Insert(idx, new ZUIEnvelopePoint(t, v.x));
+            _y.points.Insert(idx, new ZUIEnvelopePoint(t, v.y));
+            return idx;
+        }
+
+        /// Delete one key, leaving every other key's timing untouched.
+        public void RemoveKey(int i)
+        {
+            _x.points.RemoveAt(i);
+            _y.points.RemoveAt(i);
+        }
+
         // Point order IS time order — re-deriving `time` from index keeps points evenly spaced
         // across the lifetime with no separate per-point timing to author.
         void Renormalize()
@@ -209,6 +255,14 @@ namespace Laubrary.Zui
             /// "&lt;label&gt; · X"; a real name (e.g. "Pitch") stands alone as that slider's own label.
             public string xLabel = "X";
             public string yLabel = "Y";
+            /// Frame clock (optional, animatable pair sources only). With it, an ANIMATED value is edited as
+            /// positions keyed at frames: the host's transport frame is the frame being edited, only keyed frames
+            /// show a marker (labelled with the 1-based frame number the host's transport shows), and an unkeyed
+            /// frame shows a ghost where the value actually is on that frame. Without it (or for a value that is
+            /// a path over progress rather than time) the pad keeps the order-is-time path editor.
+            public Func<int> clockFrameCount = null;
+            public Func<int> clockCurrentFrame = null;   // 0-based
+            public Action<int> clockSeek = null;          // optional: pressing a key moves the host's transport there
 
             public Options WithRange(float xLo, float xHi, float yLo, float yHi)
             { xMin = xLo; xMax = xHi; yMin = yLo; yMax = yHi; return this; }
@@ -222,6 +276,8 @@ namespace Laubrary.Zui
             public Options WithSidePanelExtra(Func<VisualElement> extra) { sidePanelExtra = extra; return this; }
             public Options WithPrefKey(string key) { prefKey = key; return this; }
             public Options WithAxisLabels(string x, string y) { xLabel = x; yLabel = y; return this; }
+            public Options WithFrameClock(Func<int> frameCount, Func<int> currentFrame, Action<int> seek = null)
+            { clockFrameCount = frameCount; clockCurrentFrame = currentFrame; clockSeek = seek; return this; }
         }
 
         static readonly Color PointColor = new Color(0.4f, 0.85f, 1f);
@@ -232,7 +288,13 @@ namespace Laubrary.Zui
 
         // Fold + per-control display overrides, keyed by the source's identity object so they survive
         // window rebuilds (undo/redo) — same session-state trick as ZuiValueControl.
-        class FoldState { public bool expanded; public bool? showValueTextOverride; public bool? showNumericInputsOverride; public bool seeded; }
+        // zoom/center are pure VIEW state (the wheel zoom of the expanded plot): no Undo, kept per control identity.
+        class FoldState
+        {
+            public bool expanded; public bool? showValueTextOverride; public bool? showNumericInputsOverride; public bool seeded;
+            public float zoom = 1f; public Vector2 center;
+        }
+        const float MaxZoom = 16f;
         static readonly Dictionary<object, FoldState> s_fold = new();
         static FoldState GetFold(object key)
         {
@@ -294,6 +356,38 @@ namespace Laubrary.Zui
         string PrefsKey => "ZuiValue2D." + (string.IsNullOrEmpty(_opt.prefKey) ? (_label ?? "") : _opt.prefKey);
 
         void Mutate(Action apply) { OnBeforeMutate?.Invoke(); apply(); OnChanged?.Invoke(); }
+
+        // ── keyed mode (frame clock attached + the value is animated) ──────────────────
+        bool HasClock => _opt.clockFrameCount != null && _opt.clockCurrentFrame != null && _src is ZuiValuePairSource;
+        bool Keyed => HasClock && _src.IsCurve;
+        ZuiValuePairSource Pair => _src as ZuiValuePairSource;
+        int ClockFrames => Mathf.Max(1, _opt.clockFrameCount());
+        int ClockFrame => Mathf.Clamp(_opt.clockCurrentFrame(), 0, ClockFrames - 1);
+
+        Label _status;   // keyed mode: "Frame 7: key" / "Frame 7: ghost" in the side panel, text-only updates
+
+        void RefreshStatus()
+        {
+            if (_status == null || !Keyed) return;
+            int f = ClockFrame;
+            bool keyed = Pair.KeyAtFrame(f, ClockFrames) >= 0;
+            _status.text = $"Frame {f + 1}: " + (keyed ? "key" : "ghost");
+        }
+
+        const string KeyedTip =
+            "Set the transport to a frame, then click or drag in the pad to place the value on that frame — a " +
+            "numbered dot is a key, labelled with its frame. A hollow ring is a GHOST: where the value is on the " +
+            "current frame, worked out from the keys around it (before the first key / after the last it holds " +
+            "that key). Press a key to jump to its frame and drag it; right-click a key to delete it. Keys are " +
+            "stored as a fraction of the animation, so changing the frame count keeps them in proportion.";
+        const string ZoomTip = " Mouse wheel zooms toward the cursor; middle-drag pans.";
+
+        void ResetZoom()
+        {
+            var st = GetFold(_key);
+            st.zoom = 1f;
+            Build();
+        }
 
         void Build()
         {
@@ -375,13 +469,28 @@ namespace Laubrary.Zui
                     if (extra != null) side.Add(extra);
                 }
 
+                _status = null;
+                if (isCurve && Keyed)
+                {
+                    // One fixed single line whose TEXT follows the transport (never its geometry).
+                    _status = Z.Text("", ZuiText.Small,
+                        "Whether the transport's current frame has its own key, or shows a ghost worked out from " +
+                        "the keys around it. " + KeyedTip);
+                    _status.style.whiteSpace = WhiteSpace.NoWrap;
+                    _status.style.overflow = Overflow.Hidden;
+                    side.Add(_status);
+                    RefreshStatus();
+                }
                 if (isCurve)
                 {
-                    side.Add(Z.Text($"{_src.PointCount} point(s)", ZuiText.Small, "How many path points the animation has."));
-                    var hint = Z.Text("Click empty space to add, drag to move, right-click to remove (min 2).",
-                        ZuiText.Subtle, "Path editing hints.");
-                    hint.style.whiteSpace = WhiteSpace.Normal;
-                    side.Add(hint);
+                    if (!Keyed)
+                    {
+                        side.Add(Z.Text($"{_src.PointCount} point(s)", ZuiText.Small, "How many path points the animation has."));
+                        var hint = Z.Text("Click empty space to add, drag to move, right-click to remove (min 2).",
+                            ZuiText.Subtle, "Path editing hints.");
+                        hint.style.whiteSpace = WhiteSpace.Normal;
+                        side.Add(hint);
+                    }
                     // Corner smoothness: 0 = sharp straight segments, 1 = a smooth Catmull-Rom curve through the
                     // points. Cheap smooth pathing, not precision editing; needs 3+ points to have a corner to round.
                     side.Add(Z.MicroSlider("Smooth", _src.Smoothness, 0f, 1f,
@@ -399,7 +508,8 @@ namespace Laubrary.Zui
                 row.Add(side);
             }
 
-            var plot = new Plot2D(this, thumbnail: false) { tooltip = _tooltip };
+            string plotTip = ((_tooltip ?? "") + " ").TrimStart() + (isCurve && Keyed ? KeyedTip : "") + ZoomTip;
+            var plot = new Plot2D(this, thumbnail: false) { tooltip = plotTip.Trim() };
             plot.style.width = _opt.plotSize;
             plot.style.height = _opt.plotSize;
             plotForRepaint = plot;
@@ -486,8 +596,11 @@ namespace Laubrary.Zui
             // Mode → one radio group (pick-one-then-close), only when the value can animate at all.
             if (_src.SupportsAnimation)
             {
-                menu.Radio(null, new[] { "Static (one point)", "Animate over time (a path)" }, isCurve ? 1 : 0,
-                    "Hold one static point, or trace a path of points over the particle's life.",
+                menu.Radio(null, new[] { "Static (one point)", HasClock ? "Animate (keys at frames)" : "Animate over time (a path)" },
+                    isCurve ? 1 : 0,
+                    HasClock
+                        ? "Hold one static point, or place the value on chosen frames (keys) and let the frames between follow."
+                        : "Hold one static point, or trace a path of points over the particle's life.",
                     i =>
                     {
                         Mutate(() => _src.SetCurve(i == 1, _opt.staticDefault ?? Vector2.zero));
@@ -513,6 +626,8 @@ namespace Laubrary.Zui
 
             menu.Separator();
             menu.Item("Reset to default", "Reset this value to its default.", ResetToDefault);
+            if (fold.zoom > 1f)
+                menu.Item("Reset zoom", "Zoom the pad back out to show the whole range.", ResetZoom);
 
             string payload = _src.ToClipboard();
             if (payload != null)
@@ -577,11 +692,22 @@ namespace Laubrary.Zui
         }
 
         // ── the plot element (shared by thumbnail + full plot) ──────────────────────
+        // The full plot can be ZOOMED (mouse wheel toward the cursor, middle-drag pans — the same feel as the
+        // Tileset Builder / Lazor / DotGen canvases). Zoom only changes the VISIBLE window onto the value range;
+        // every value written is still inside the declared range. The thumbnail always shows the whole range.
         class Plot2D : VisualElement
         {
+            static readonly Color GhostColor = new Color(0.4f, 0.85f, 1f, 0.75f);
+            static readonly Color KeyedPathColor = new Color(0.4f, 0.85f, 1f, 0.3f);
+            static readonly Color CurrentRingColor = new Color(1f, 1f, 1f, 0.9f);
+            static readonly Color DimLabelColor = new Color(1f, 1f, 1f, 0.55f);
+
             readonly ZuiValue2DControl c;
             readonly bool thumb;
             int _dragIndex = -1;      // curve mode: point index; static mode: 0 while dragging the dot
+            bool _panning;
+            Vector2 _panLast;
+            int _lastFrame = int.MinValue;
 
             /// Raised after any plot-driven edit so sibling numeric fields can refresh.
             public event Action OnPlotEdited;
@@ -597,74 +723,109 @@ namespace Laubrary.Zui
                     RegisterCallback<PointerDownEvent>(OnPointerDown);
                     RegisterCallback<PointerMoveEvent>(OnPointerMove);
                     RegisterCallback<PointerUpEvent>(OnPointerUp);
+                    RegisterCallback<WheelEvent>(OnWheel);
                 }
+                // A keyed pad follows the host's transport: repaint (ghost/highlight) and refresh the status line
+                // whenever the frame changes, whether by playback, the scrubber, or a key press here.
+                if (c.HasClock)
+                    schedule.Execute(() =>
+                    {
+                        if (!c.Keyed) return;
+                        int f = c.ClockFrame;
+                        if (f == _lastFrame) return;
+                        _lastFrame = f;
+                        MarkDirtyRepaint();
+                        if (!thumb) c.RefreshStatus();
+                    }).Every(100);
             }
 
             bool IsCurve => c._src.IsCurve;
+            bool Keyed => c.Keyed;
+
+            // ── view window (value space) ──
+            Rect FullRange => Rect.MinMaxRect(c._opt.xMin, c._opt.yMin, c._opt.xMax, c._opt.yMax);
+            float Zoom => thumb ? 1f : Mathf.Clamp(GetFold(c._key).zoom, 1f, MaxZoom);
+
+            Rect View()
+            {
+                var full = FullRange;
+                float z = Zoom;
+                if (z <= 1f) return full;
+                var st = GetFold(c._key);
+                float hw = full.width * 0.5f / z, hh = full.height * 0.5f / z;
+                var ctr = new Vector2(Mathf.Clamp(st.center.x, full.xMin + hw, full.xMax - hw),
+                                      Mathf.Clamp(st.center.y, full.yMin + hh, full.yMax - hh));
+                st.center = ctr;
+                return new Rect(ctr.x - hw, ctr.y - hh, hw * 2f, hh * 2f);
+            }
 
             Vector2 ToPlot(Vector2 val)
             {
                 var r = contentRect;
-                float tx = Mathf.InverseLerp(c._opt.xMin, c._opt.xMax, val.x);
-                float ty = Mathf.InverseLerp(c._opt.yMin, c._opt.yMax, val.y);
+                var v = View();
+                float tx = v.width != 0f ? (val.x - v.xMin) / v.width : 0.5f;
+                float ty = v.height != 0f ? (val.y - v.yMin) / v.height : 0.5f;
+                // Unzoomed, an out-of-range value pins to the border (the pad's long-standing behaviour); zoomed,
+                // off-view points stay off-view and are simply not drawn.
+                if (Zoom <= 1f) { tx = Mathf.Clamp01(tx); ty = Mathf.Clamp01(ty); }
                 return new Vector2(r.xMin + tx * r.width, r.yMax - ty * r.height);   // Y-up, like the Pyre canvas
             }
 
             Vector2 FromPlot(Vector2 local)
             {
                 var r = contentRect;
+                var v = View();
                 float tx = Mathf.InverseLerp(r.xMin, r.xMax, Mathf.Clamp(local.x, r.xMin, r.xMax));
                 float ty = Mathf.InverseLerp(r.yMax, r.yMin, Mathf.Clamp(local.y, r.yMin, r.yMax));
                 return new Vector2(
-                    (float)Math.Round(Mathf.Lerp(c._opt.xMin, c._opt.xMax, tx), 5),
-                    (float)Math.Round(Mathf.Lerp(c._opt.yMin, c._opt.yMax, ty), 5));
+                    (float)Math.Round(Mathf.Lerp(v.xMin, v.xMax, tx), 5),
+                    (float)Math.Round(Mathf.Lerp(v.yMin, v.yMax, ty), 5));
             }
+
+            bool InPlot(Vector2 p) { var r = contentRect; return p.x >= r.xMin - 0.5f && p.x <= r.xMax + 0.5f && p.y >= r.yMin - 0.5f && p.y <= r.yMax + 0.5f; }
 
             void Paint(MeshGenerationContext mgc)
             {
                 var r = contentRect;
                 if (!(r.width > 4f) || !(r.height > 4f)) return;
                 var p = mgc.painter2D;
+                var v = View();
 
                 p.strokeColor = new Color(1f, 1f, 1f, 0.25f);
                 p.lineWidth = 1f;
-                if (c._opt.xMin < 0f && c._opt.xMax > 0f)
+                if (v.xMin < 0f && v.xMax > 0f)
                 {
-                    float cx = ToPlot(new Vector2(0f, c._opt.yMin)).x;
+                    float cx = ToPlot(new Vector2(0f, v.yMin)).x;
                     p.BeginPath(); p.MoveTo(new Vector2(cx, r.yMin)); p.LineTo(new Vector2(cx, r.yMax)); p.Stroke();
                 }
-                if (c._opt.yMin < 0f && c._opt.yMax > 0f)
+                if (v.yMin < 0f && v.yMax > 0f)
                 {
-                    float cy = ToPlot(new Vector2(c._opt.xMin, 0f)).y;
+                    float cy = ToPlot(new Vector2(v.xMin, 0f)).y;
                     p.BeginPath(); p.MoveTo(new Vector2(r.xMin, cy)); p.LineTo(new Vector2(r.xMax, cy)); p.Stroke();
                 }
 
                 float dotR = thumb ? 2.5f : 5f;
-                if (IsCurve)
+                if (IsCurve && Keyed) PaintKeyed(mgc, p, dotR);
+                else if (IsCurve)
                 {
                     int n = c._src.PointCount;
                     if (n >= 2)
                     {
                         p.strokeColor = LineColor;
                         p.lineWidth = thumb ? 1f : 1.5f;
-                        p.BeginPath();
                         if (c._src.Smoothness > 0f && n >= 3)
                         {
                             // Sample the SAME evaluation the runtime traces so the drawn path matches what plays.
                             int steps = Mathf.Clamp((n - 1) * 12, 24, 160);
-                            p.MoveTo(ToPlot(c._src.SamplePath(0f)));
-                            for (int s = 1; s <= steps; s++) p.LineTo(ToPlot(c._src.SamplePath(s / (float)steps)));
+                            StrokeClipped(p, s => ToPlot(c._src.SamplePath(s / (float)steps)), steps);
                         }
                         else
-                        {
-                            p.MoveTo(ToPlot(c._src.GetPoint(0)));
-                            for (int i = 1; i < n; i++) p.LineTo(ToPlot(c._src.GetPoint(i)));
-                        }
-                        p.Stroke();
+                            StrokeClipped(p, i => ToPlot(c._src.GetPoint(i)), n - 1);
                     }
                     for (int i = 0; i < n; i++)
                     {
                         Vector2 pt = ToPlot(c._src.GetPoint(i));
+                        if (!InPlot(pt)) continue;
                         p.fillColor = PointColor;
                         p.BeginPath(); p.Arc(pt, dotR, 0f, 360f); p.Fill();
                         if (!thumb)
@@ -675,20 +836,88 @@ namespace Laubrary.Zui
                 {
                     Vector2 s = c._src.Static;
                     Vector2 pt = ToPlot(s);
-                    p.fillColor = PointColor;
-                    p.BeginPath(); p.Arc(pt, dotR + (thumb ? 0.5f : 0f), 0f, 360f); p.Fill();
-
-                    var fold = GetFold(c._key);
-                    bool showText = fold.showValueTextOverride ?? c._opt.showValueText;
-                    if (!thumb && showText)
+                    if (InPlot(pt))
                     {
-                        string txt = $"({s.x:0.##}, {s.y:0.##})";
-                        bool rightHalf = pt.x > r.xMin + r.width * 0.6f;
-                        var tp = rightHalf ? new Vector2(pt.x - 7f - txt.Length * 5.5f, pt.y - 14f)
-                                           : new Vector2(pt.x + 7f, pt.y - 14f);
-                        mgc.DrawText(txt, tp, 10f, new Color(1f, 1f, 1f, 0.85f));
+                        p.fillColor = PointColor;
+                        p.BeginPath(); p.Arc(pt, dotR + (thumb ? 0.5f : 0f), 0f, 360f); p.Fill();
+
+                        var fold = GetFold(c._key);
+                        bool showText = fold.showValueTextOverride ?? c._opt.showValueText;
+                        if (!thumb && showText)
+                        {
+                            string txt = $"({s.x:0.##}, {s.y:0.##})";
+                            bool rightHalf = pt.x > r.xMin + r.width * 0.6f;
+                            var tp = rightHalf ? new Vector2(pt.x - 7f - txt.Length * 5.5f, pt.y - 14f)
+                                               : new Vector2(pt.x + 7f, pt.y - 14f);
+                            mgc.DrawText(txt, tp, 10f, new Color(1f, 1f, 1f, 0.85f));
+                        }
                     }
                 }
+
+                // Zoom readout, drawn inside the plot so it never takes layout space.
+                if (!thumb && Zoom > 1f)
+                    mgc.DrawText($"×{Zoom:0.#}", new Vector2(r.xMax - 44f, r.yMax - 24f), 18f, DimLabelColor);
+            }
+
+            // Keyed: a faint trace of what actually plays, a numbered dot per KEY only, the key on the current
+            // frame ringed, and — when the current frame has no key — a hollow GHOST where the value is right now.
+            void PaintKeyed(MeshGenerationContext mgc, Painter2D p, float dotR)
+            {
+                var pair = c.Pair;
+                int frames = c.ClockFrames, cur = c.ClockFrame;
+                int n = pair.PointCount;
+
+                if (n >= 2)
+                {
+                    p.strokeColor = thumb ? LineColor : KeyedPathColor;
+                    p.lineWidth = thumb ? 1f : 1.5f;
+                    int steps = Mathf.Clamp(frames * 4, 32, 256);
+                    StrokeClipped(p, s => ToPlot(pair.SamplePath(s / (float)steps)), steps);
+                }
+
+                int keyHere = pair.KeyAtFrame(cur, frames);
+                for (int i = 0; i < n; i++)
+                {
+                    Vector2 pt = ToPlot(pair.GetPoint(i));
+                    if (!InPlot(pt)) continue;
+                    p.fillColor = PointColor;
+                    p.BeginPath(); p.Arc(pt, dotR, 0f, 360f); p.Fill();
+                    if (thumb) continue;
+                    if (i == keyHere)
+                    {
+                        p.strokeColor = CurrentRingColor; p.lineWidth = 1.5f;
+                        p.BeginPath(); p.Arc(pt, dotR + 3f, 0f, 360f); p.Stroke();
+                    }
+                    int f = ZuiValuePairSource.TimeToFrame(pair.KeyTime(i), frames);
+                    mgc.DrawText((f + 1).ToString(), new Vector2(pt.x + 7f, pt.y - 24f), 20f, Color.white);
+                }
+
+                if (keyHere < 0)
+                {
+                    Vector2 g = ToPlot(pair.SamplePath(ZuiValuePairSource.FrameToTime(cur, frames)));
+                    if (InPlot(g))
+                    {
+                        p.strokeColor = GhostColor; p.lineWidth = thumb ? 1f : 1.5f;
+                        p.BeginPath(); p.Arc(g, dotR + (thumb ? 0f : 1f), 0f, 360f); p.Stroke();
+                        if (!thumb)
+                            mgc.DrawText((cur + 1).ToString(), new Vector2(g.x + 7f, g.y - 24f), 20f, DimLabelColor);
+                    }
+                }
+            }
+
+            // Stroke a polyline of count+1 plot-space points, breaking it wherever a point leaves the plot (only
+            // possible while zoomed) so nothing draws outside the pad.
+            void StrokeClipped(Painter2D p, Func<int, Vector2> pointAt, int count)
+            {
+                bool open = false;
+                p.BeginPath();
+                for (int i = 0; i <= count; i++)
+                {
+                    Vector2 q = pointAt(i);
+                    if (!InPlot(q)) { open = false; continue; }
+                    if (!open) { p.MoveTo(q); open = true; } else p.LineTo(q);
+                }
+                p.Stroke();
             }
 
             int FindPointNear(Vector2 local)
@@ -696,21 +925,62 @@ namespace Laubrary.Zui
                 if (!IsCurve)
                     return Vector2.Distance(ToPlot(c._src.Static), local) <= HitRadius ? 0 : -1;
                 for (int i = 0; i < c._src.PointCount; i++)
-                    if (Vector2.Distance(ToPlot(c._src.GetPoint(i)), local) <= HitRadius) return i;
+                {
+                    Vector2 pt = ToPlot(c._src.GetPoint(i));
+                    if (InPlot(pt) && Vector2.Distance(pt, local) <= HitRadius) return i;
+                }
                 return -1;
+            }
+
+            void OnWheel(WheelEvent e)
+            {
+                var st = GetFold(c._key);
+                float old = Zoom;
+                float z = Mathf.Clamp(old * (e.delta.y < 0 ? 1.25f : 0.8f), 1f, MaxZoom);
+                if (z < 1.001f) z = 1f;
+                if (!Mathf.Approximately(z, old))
+                {
+                    // Keep the value under the cursor under the cursor.
+                    var r = contentRect;
+                    var v = View();
+                    Vector2 local = e.localMousePosition;
+                    float u = Mathf.Clamp01((local.x - r.xMin) / Mathf.Max(1f, r.width));
+                    float w = Mathf.Clamp01((r.yMax - local.y) / Mathf.Max(1f, r.height));
+                    var under = new Vector2(v.xMin + u * v.width, v.yMin + w * v.height);
+                    var full = FullRange;
+                    float hw = full.width * 0.5f / z, hh = full.height * 0.5f / z;
+                    st.center = new Vector2(under.x - u * hw * 2f + hw, under.y - w * hh * 2f + hh);
+                    st.zoom = z;
+                    MarkDirtyRepaint();
+                }
+                e.StopPropagation();   // never let the surrounding scroll view scroll while zooming the pad
             }
 
             void OnPointerDown(PointerDownEvent e)
             {
                 Vector2 local = e.localPosition;
 
+                if (e.button == 2)   // middle-drag pans a zoomed pad
+                {
+                    if (Zoom <= 1f) return;
+                    _panning = true;
+                    _panLast = local;
+                    this.CapturePointer(e.pointerId);
+                    e.StopPropagation();
+                    return;
+                }
+
                 if (e.button == 1)
                 {
-                    if (!IsCurve || c._src.PointCount <= 2) return;
+                    if (!IsCurve) return;
+                    int minPoints = Keyed ? 1 : 2;
+                    if (c._src.PointCount <= minPoints) return;
                     int hit = FindPointNear(local);
                     if (hit < 0) return;
-                    c.Mutate(() => c._src.RemovePoint(hit));
+                    if (Keyed) c.Mutate(() => c.Pair.RemoveKey(hit));
+                    else c.Mutate(() => c._src.RemovePoint(hit));
                     MarkDirtyRepaint();
+                    c.RefreshStatus();
                     OnPlotEdited?.Invoke();
                     e.StopPropagation();
                     return;
@@ -723,11 +993,28 @@ namespace Laubrary.Zui
                     c.OnBeforeMutate?.Invoke();
                     _dragIndex = point;
                     this.CapturePointer(e.pointerId);
+                    // Pressing a key jumps the host's transport to that key's frame, so the key being dragged is
+                    // always the one on the frame being looked at.
+                    if (IsCurve && Keyed && c._opt.clockSeek != null)
+                        c._opt.clockSeek(ZuiValuePairSource.TimeToFrame(c.Pair.KeyTime(point), c.ClockFrames));
+                    MarkDirtyRepaint();
                     e.StopPropagation();
                     return;
                 }
 
-                if (IsCurve)   // click empty plot space appends a new point there (curve mode only)
+                if (IsCurve && Keyed)   // empty space: place the value on the CURRENT frame (move its key or add one)
+                {
+                    Vector2 val = FromPlot(local);
+                    int idx = -1;
+                    c.Mutate(() => idx = c.Pair.SetKeyAtFrame(c.ClockFrame, c.ClockFrames, val));
+                    _dragIndex = idx;
+                    this.CapturePointer(e.pointerId);
+                    MarkDirtyRepaint();
+                    c.RefreshStatus();
+                    OnPlotEdited?.Invoke();
+                    e.StopPropagation();
+                }
+                else if (IsCurve)   // click empty plot space appends a new point there (path mode)
                 {
                     Vector2 val = FromPlot(local);
                     c.Mutate(() => c._src.AddPoint(val));
@@ -752,6 +1039,18 @@ namespace Laubrary.Zui
 
             void OnPointerMove(PointerMoveEvent e)
             {
+                if (_panning && this.HasPointerCapture(e.pointerId))
+                {
+                    var r = contentRect;
+                    var v = View();
+                    Vector2 d = (Vector2)e.localPosition - _panLast;
+                    _panLast = e.localPosition;
+                    var st = GetFold(c._key);
+                    st.center -= new Vector2(d.x * v.width / Mathf.Max(1f, r.width), -d.y * v.height / Mathf.Max(1f, r.height));
+                    MarkDirtyRepaint();
+                    e.StopPropagation();
+                    return;
+                }
                 if (_dragIndex < 0 || !this.HasPointerCapture(e.pointerId)) return;
                 Vector2 val = FromPlot(e.localPosition);
                 if (IsCurve && _dragIndex < c._src.PointCount) c._src.SetPoint(_dragIndex, val);
@@ -766,6 +1065,7 @@ namespace Laubrary.Zui
             {
                 if (this.HasPointerCapture(e.pointerId)) this.ReleasePointer(e.pointerId);
                 _dragIndex = -1;
+                _panning = false;
             }
         }
     }

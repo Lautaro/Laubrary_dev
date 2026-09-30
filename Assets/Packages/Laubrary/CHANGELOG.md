@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Pyre — positions keyed at frames, pad zoom, and Radial facing (T-0537..T-0541)
+
+Commits for this work are prefixed `Pyre (pad/symmetry):`. Canonical Pyre has moved on independently of the not-yet-merged Primitive3D shapes work, so check them before that merge.
+
+- **Animated positions are keyed at frames.** On Pyre's animated 2D pads (particle Offset, the Crescent Mask centre and the Transform Offset), set the transport to a frame and click or drag in the pad: that places the value on that frame only. The pad shows a numbered dot for each frame that has a key, and a hollow ghost ring where the value is on the current frame when that frame has no key (worked out from the keys around it; before the first key or after the last it holds that key). Pressing a key jumps the transport to its frame; right-clicking a key deletes it. Keys are stored as a fraction of the animation, the same way every other animated value in Pyre is, so changing the frame count keeps them in proportion. Existing animations play exactly as before, with nothing converted. The swarm's hand-drawn Path is a path over progress, not time, so it keeps the old point-order editor, and so does every non-Pyre use of the pad.
+- **Every 2D pad zooms.** The mouse wheel zooms toward the cursor (up to ×16) and a middle-drag pans, as on the Tileset Builder and Lazor canvases. Right-click > Reset zoom returns to the whole range. Zoom is view state only: no undo entry, never saved into the asset.
+- **Radial swarm facing.** A new Orient choice, Radial, faces every swarm particle directly away from the Pyre's middle on every frame, so a ring keeps pointing outward while Swarm spin turns it or Swarm scale grows it. The existing Outward facing is fixed at spawn and measured from the spawn shape's centre, so it drifts off as the ring spins. Particle Spin turns every particle by the same amount relative to its outward direction, keeping the ring symmetric (Spin 180 = all face inward). Existing assets are unchanged.
+
 ### Zounds — game code drives a playing sound: ZPOC, tracks, snapshots and glides (T-0491, T-0490, T-0492..T-0498)
 
 ZPOC ("programmatic control") lets game code shape a sound while it plays, through the token the play already returns, without touching the saved sound. Everything below is per play: two helicopters playing the same sound can be at different throttles.
