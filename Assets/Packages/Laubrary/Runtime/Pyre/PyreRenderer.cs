@@ -330,7 +330,9 @@ namespace Laubrary.Pyre
                             : (life - sp.spawnLife) / Mathf.Max(0.0001f, layer.swarmParticleLife),
                         spawnLife = sp.spawnLife,
                         index = i,
-                        orientDeg = sp.orientDeg,
+                        orientDeg = layer.swarmOrient == SwarmOrient.Radial
+                            ? RadialOrientDeg(wp, spec.Width * 0.5f, spec.Height * 0.5f, sp.orientDeg)
+                            : sp.orientDeg,
                         zNorm = sp.zNorm,
                         sizeMul = sizeMul,
                         brightMul = Mathf.Clamp(1f + 0.30f * sp.zNorm, 0.55f, 1.45f),
@@ -1581,8 +1583,10 @@ namespace Laubrary.Pyre
                     }
                     continue;   // no per-particle draw — the whole set is fused after the loop
                 }
+                float orientDeg = layer.swarmOrient == SwarmOrient.Radial
+                    ? RadialOrientDeg(dp, cx, cy, sp.orientDeg) : sp.orientDeg;
                 DrawParticle(buf, W, H, dp.x, dp.y, own, spec, layer, i, mods, phase, frameIndex,
-                             sizeMul, brightMul, sp.orientDeg, lenByIndex);
+                             sizeMul, brightMul, orientDeg, lenByIndex);
             }
             // Fuse (MetaBlob) field-pass: sum → threshold → gradient-shade the whole collected set into `buf`, on the
             // layer's isolated scratch, BEFORE ApplyLayerPost (so Post modifiers still shape the fused result). Off
@@ -1892,6 +1896,16 @@ namespace Laubrary.Pyre
         /// uses), so a non-spinning swarm's overlay is byte-identical. NOT called by RenderFrame — the bake path is
         /// untouched; this only DUPLICATES RenderSwarm's inline spin math rather than replacing it, to keep the bake
         /// provably byte-identical.
+        /// Radial facing (SwarmOrient.Radial): the math angle from the Pyre's middle (cx, cy — the canvas centre,
+        /// which is also the pivot the live swarm spin and scale turn around) to where the particle is drawn THIS
+        /// frame. Re-aimed every frame, so a spinning or growing ring keeps facing outward. A particle sitting
+        /// exactly on the middle has no outward direction and keeps `fallback` (its spawn facing).
+        public static float RadialOrientDeg(Vector2 drawnPos, float cx, float cy, float fallback)
+        {
+            float dx = drawnPos.x - cx, dy = drawnPos.y - cy;
+            return dx * dx + dy * dy > 1e-8f ? Mathf.Atan2(dy, dx) * Mathf.Rad2Deg : fallback;
+        }
+
         public static Vector2 ApplySwarmSpin(Pyre spec, PyreLayer layer, Vector2 pos, float life)
         {
             if (spec == null || layer == null) return pos;
@@ -2040,6 +2054,9 @@ namespace Laubrary.Pyre
                 if (layer.swarmOrient != SwarmOrient.None)
                 {
                     float ctrX = cx + offX, ctrY = cy + offY;
+                    // Radial measures from the Pyre's middle, not the (possibly offset) spawn shape. This spawn-time
+                    // value is only its starting facing; the draw loops re-aim it every frame (RadialOrientDeg).
+                    if (layer.swarmOrient == SwarmOrient.Radial) { ctrX = cx; ctrY = cy; }
                     bool wantTangent = layer.swarmOrient == SwarmOrient.PathTangent
                                        && layer.swarmSpawnMode == SwarmSpawnMode.Path;
                     bool got = false;
@@ -2975,6 +2992,9 @@ namespace Laubrary.Pyre
                 if (fillSpatial)
                 {
                     fSpin = Eval(layer.particleSpin, life, spec.seed, particleIndex, FldSpin);
+                    // Radial facing is a newer mode with no old output to preserve, so it DOES turn a textured disc
+                    // (None/Outward/Tangent keep the byte-identical behaviour described above).
+                    if (layer.swarmOrient == SwarmOrient.Radial) fSpin += orientDeg;
                     fDoSpin = fSpin != 0f;
                     if (fDoSpin) { float sa = -fSpin * Mathf.Deg2Rad; fCos = Mathf.Cos(sa); fSin = Mathf.Sin(sa); }
                 }

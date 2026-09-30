@@ -30,7 +30,12 @@ namespace Laubrary.Pyre
     // keeps its own orientation). Outward = face away from the shape centre. PathTangent = face along the outline
     // it rides (readable text along a path); in Area mode PathTangent falls back to Outward. See ComputeSpawns'
     // orientDeg + PyreRenderer's per-form fold.
-    public enum SwarmOrient { None, Outward, PathTangent }
+    // Radial = face directly away from the Pyre's MIDDLE (the canvas centre), re-computed EVERY FRAME from where the
+    // particle is drawn — so a ring keeps pointing outward while the live Swarm spin turns it or Swarm scale grows
+    // it (Outward is frozen at spawn and measured from the spawn shape's own centre). Particle Spin then turns each
+    // one RELATIVE to its outward direction, so the whole ring stays symmetric (Spin 180 = all face inward).
+    // APPEND ONLY — serialized as an int.
+    public enum SwarmOrient { None, Outward, PathTangent, Radial }
 
     // How the swarm distributes its spawns IN TIME. Window (the default) = the swarmSpawnTiming envelope maps each
     // particle's number to its spawn moment on the blast timeline (it IS the whole mapping now). FrameStep =

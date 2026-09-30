@@ -2188,7 +2188,8 @@ namespace Laubrary.Pyre.Editor
         ZuiSection swarmSection;
         VisualElement swarmBody;
         static readonly string[] SwarmModeLabels = { "Area", "Path" };
-        static readonly string[] SwarmOrientLabels = { "None", "Outward", "Tangent" };
+        // Index == (int)SwarmOrient, so Radial (appended last in the enum) is last here too.
+        static readonly string[] SwarmOrientLabels = { "None", "Outward", "Tangent", "Radial" };
         static readonly string[] SwarmTimingLabels = { "Window", "Frames" };
 
         void BuildSwarm(VisualElement root, Pyre s)
@@ -2841,8 +2842,14 @@ namespace Laubrary.Pyre.Editor
             switch (s.swarmOrient)
             {
                 case SwarmOrient.Outward:
-                    return common + "Outward: each particle faces away from the shape centre (a Streak points "
-                         + "outward; letters/solids roll to match).";
+                    return common + "Outward: each particle faces away from the shape centre, fixed at the moment "
+                         + "it spawns (a Streak points outward; letters/solids roll to match). It does NOT follow "
+                         + "Swarm spin/scale afterwards — use Radial for a ring that must stay outward-facing.";
+                case SwarmOrient.Radial:
+                    return common + "Radial: each particle faces directly away from the Pyre's middle on EVERY "
+                         + "frame, so a ring keeps pointing outward while Swarm spin turns it or Swarm scale grows "
+                         + "it. Particle Spin then turns every particle by the same amount relative to its outward "
+                         + "direction, keeping the ring symmetric (Spin 180 = all face inward).";
                 case SwarmOrient.PathTangent:
                     return common + (s.swarmSpawnMode == SwarmSpawnMode.Path
                         ? "Tangent: each particle faces ALONG the outline it rides — readable text follows the "
@@ -2850,7 +2857,9 @@ namespace Laubrary.Pyre.Editor
                         : "Tangent: only meaningful in Path mode; in Area it falls back to Outward.");
                 default:
                     return common + "None: particles keep their own orientation (no turning). Outward faces them "
-                         + "away from the centre; Tangent (Path mode) faces them along the outline.";
+                         + "away from the centre as they spawn; Tangent (Path mode) faces them along the outline; "
+                         + "Radial keeps them facing away from the Pyre's middle every frame, even while the swarm "
+                         + "spins.";
             }
         }
 
