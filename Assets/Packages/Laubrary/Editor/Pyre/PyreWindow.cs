@@ -1197,6 +1197,8 @@ namespace Laubrary.Pyre.Editor
                         Z.MicroSlider("Light angle", layer.heightLightAngle, 0f, 360f,
                             "Direction (degrees, screen plane) the relief light falls across the fused heightmap surface.",
                             v => Dirty(() => layer.heightLightAngle = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.heightLightAngle)))));
+                if (layer.heightFromChannel >= 0)
+                    box.Add(MassShadingBlock(layer, RebuildLayerList));
             }
             return box;
         }
@@ -2656,6 +2658,7 @@ namespace Laubrary.Pyre.Editor
                     "Surface-noise rim — deforms the shared cloud rim so neighbouring domes bulge/pinch together and "
                     + "read as ONE boiling mass instead of fused flat discs. 0 = a smooth rim.",
                     v => Dirty(() => s.rampRimScale = v), 170f, showValue: true, defaultValue: Def(nameof(PyreLayer.rampRimScale))));
+                ramp.Add(MassShadingBlock(s, RebuildSwarm));
                 swarmBody.Add(ramp);
             }
         }
@@ -2756,6 +2759,47 @@ namespace Laubrary.Pyre.Editor
         // 2D analog of Val — an animatable XY pair, same Undo-record + preview-dirty wiring.
         VisualElement Val2D(string label, string tooltip, ZUIValue x, ZUIValue y, ZuiValue2DControl.Options o)
             => Z.Value2D(label, x, y, o, tooltip, () => MarkDirty(), () => Undo.RecordObject(spec, "Edit Pyre Plus"));
+
+        // Mass shading (explosion study #2): one block shared by both height tools (the Ramp cloud and "Height
+        // from" channel). Toggle first; the rest only appears when it's on (rebuild re-lays the section).
+        VisualElement MassShadingBlock(PyreLayer s, System.Action rebuild)
+        {
+            var box = Z.BoxKeyed("Mass shading",
+                "Read height like MASS: below the soot line it's coloured from the Soot ramp, above it the height runs "
+                + "across the Fill (the fire ramp). Ignition sets how abruptly soot turns to fire; Bleed nudges each "
+                + "pixel's height with pixel-sized noise so the bands tongue into each other instead of meeting on a "
+                + "clean contour.",
+                "pyre.massShading");
+            box.Add(Z.Toggle("Mass shading",
+                s.massShading
+                    ? "On: soot below the soot line, fire above it, with bleeding bands. Click to go back to the plain "
+                      + "height → Fill lookup."
+                    : "Colour the height like burning mass: soot below a line, fire above it, bands bleeding into each "
+                      + "other. Off: the height is looked up straight into the Fill.",
+                s.massShading, v => { Dirty(() => s.massShading = v); rebuild(); }));
+            if (!s.massShading) return box;
+            box.Add(WrapRow(
+                Z.MicroSlider("Soot line", s.massSootLine, 0f, 1f,
+                    "The height below which colour comes from the Soot ramp (0 = no soot, 1 = all soot).",
+                    v => Dirty(() => s.massSootLine = v), 150f, defaultValue: Def(nameof(PyreLayer.massSootLine))),
+                Z.MicroSlider("Ignition", s.massIgnition, 0f, 1f,
+                    "How abruptly soot turns into fire at the soot line. 0 = a long smoky blend, 1 = an instant flip.",
+                    v => Dirty(() => s.massIgnition = v), 150f, defaultValue: Def(nameof(PyreLayer.massIgnition)))));
+            box.Add(WrapRow(
+                Z.MicroSlider("Bleed", s.massBleed, 0f, 0.5f,
+                    "How far pixel noise may push each pixel's height up or down before colouring — bands tongue into "
+                    + "each other like flame. 0 = clean bands.",
+                    v => Dirty(() => s.massBleed = v), 150f, defaultValue: Def(nameof(PyreLayer.massBleed))),
+                Z.MicroSlider("Speck px", s.massBleedCellPx, 1f, 16f,
+                    "Size of the bleed noise's specks, in canvas pixels.",
+                    v => Dirty(() => s.massBleedCellPx = v), 150f, defaultValue: Def(nameof(PyreLayer.massBleedCellPx)), decimals: 1),
+                Z.Toggle("Dither", "Add a 4×4 ordered dither at the band edges, like hand-placed pixels.",
+                    s.massDither, v => Dirty(() => s.massDither = v))));
+            s.massSootFill ??= new ZuiFill { mode = ZuiFill.Mode.OverLife, gradient = ZuiFill.DefaultGradient() };
+            box.Add(FillRow("Soot", "The soot ramp used below the soot line: its left end colours the lowest height, "
+                + "its right end the height just under the soot line.", s.massSootFill));
+            return box;
+        }
 
         // A Z.Fill row (ZuiFill editor) wired to the same Undo/dirty/preview contract as Val: record the asset once
         // per gesture (onBeforeMutate), then dirty + repaint (onChanged). The control mutates the ZuiFill instance

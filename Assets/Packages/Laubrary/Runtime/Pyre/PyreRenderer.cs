@@ -1823,7 +1823,9 @@ namespace Laubrary.Pyre
                     if (occupied < 0.004f) continue;
                     float value = Mathf.Clamp01(density[i] + heat[i]);
                     if (light != null) value = Mathf.Clamp01(value * (0.35f + light[i] * 1.15f));
-                    Color col = fill != null ? fill.Evaluate(value, 0f, 0f) : Color.white;
+                    Color col = layer.massShading
+                        ? MassShade(layer, fill, value, x, y)
+                        : (fill != null ? fill.Evaluate(value, 0f, 0f) : Color.white);
                     float outA = Mathf.Clamp01(occupied * coverage) * groupAlpha[i] * col.a;
                     if (outA <= 0.003f) continue;
 
@@ -1850,6 +1852,76 @@ namespace Laubrary.Pyre
         // exactly the HeightBalls look but fed by mattes, not a swarm. Reads only the channel + two plain-float knobs
         // (heightRelief / heightLightAngle) — no Eval, no per-particle state — so it bakes/scrubs identically. Draws
         // NOTHING where the field is 0, so an unfed consumer (or an empty channel) is inert.
+        /// Mass shading (explosion study #2): a height read like mass. Pixel noise (and optionally a 4×4 ordered
+        /// dither) nudges the height first, so bands bleed; below the soot line the colour comes from the soot ramp,
+        /// above it the height is rescaled across the Fill (the fire ramp), blended over a band whose width Ignition
+        /// sets. Deterministic and pixel-stable: the noise is keyed to the canvas pixel and the layer.
+        static Color MassShade(PyreLayer layer, ZuiFill fire, float h, int x, int y)
+        {
+            if (layer.massBleed > 0f)
+            {
+                float cell = Mathf.Max(1f, layer.massBleedCellPx);
+                float n = BleedNoise((x + 0.5f) / cell, (y + 0.5f) / cell, unchecked(_layerSalt * 7919 + 1543));
+                h += (n * 2f - 1f) * layer.massBleed;
+            }
+            h = Mathf.Clamp01(h);
+            float soot = Mathf.Clamp01(layer.massSootLine);
+            float band = Mathf.Lerp(0.25f, 0.005f, Mathf.Clamp01(layer.massIgnition));
+            float t = Mathf.Clamp01((h - (soot - band)) / (2f * band));
+            t = t * t * (3f - 2f * t);
+            // Dither: inside the soot→fire transition each pixel is EITHER soot OR fire, chosen against a 4×4 ordered
+            // threshold — a hand-pixelled edge instead of a blend. Outside the transition nothing changes.
+            if (layer.massDither && t > 0f && t < 1f) t = t > Bayer4((x & 3) * 4 + (y & 3)) ? 1f : 0f;
+            Color sootC = layer.massSootFill != null
+                ? layer.massSootFill.Evaluate(soot > 0.0001f ? Mathf.Clamp01(h / soot) : 1f, 0f, 0f)
+                : new Color(0.15f, 0.14f, 0.13f, 1f);
+            Color fireC = fire != null
+                ? fire.Evaluate(Mathf.Clamp01((h - soot) / Mathf.Max(0.0001f, 1f - soot)), 0f, 0f)
+                : Color.white;
+            return Color.Lerp(sootC, fireC, t);
+        }
+
+        // Two-layer value noise with a fully avalanched lattice hash (neighbouring cells uncorrelated), 0..1. Mass
+        // shading's own: PyreField.Noise01's lighter hash streaks at speck scale, and the Ramp rim depends on it
+        // byte-for-byte, so it is left alone.
+        static float BleedNoise(float x, float y, int seed)
+        {
+            float a = BleedLattice(x, y, seed);
+            float b = BleedLattice(x * 2.07f + 11.3f, y * 2.07f - 5.9f, seed ^ 0x2C1B3C6D);
+            return a * 0.7f + b * 0.3f;
+        }
+
+        static float BleedLattice(float x, float y, int seed)
+        {
+            int x0 = Mathf.FloorToInt(x), y0 = Mathf.FloorToInt(y);
+            float tx = x - x0, ty = y - y0;
+            tx = tx * tx * (3f - 2f * tx); ty = ty * ty * (3f - 2f * ty);
+            return Mathf.Lerp(Mathf.Lerp(Aval01(seed, x0, y0), Aval01(seed, x0 + 1, y0), tx),
+                              Mathf.Lerp(Aval01(seed, x0, y0 + 1), Aval01(seed, x0 + 1, y0 + 1), tx), ty);
+        }
+
+        static float Aval01(int s, int x, int y)
+        {
+            unchecked
+            {
+                uint h = (uint)s * 0x9E3779B1u ^ (uint)x * 0x85EBCA77u ^ (uint)y * 0xC2B2AE3Du;
+                h ^= h >> 15; h *= 0x2C1B3C6Du; h ^= h >> 12; h *= 0x297A2D39u; h ^= h >> 15;
+                return (h & 0xFFFFFFu) / (float)0x1000000;
+            }
+        }
+
+        // 4×4 ordered (Bayer) threshold, 0..1.
+        static float Bayer4(int i)
+        {
+            switch (i & 15)
+            {
+                case 0: return 0f / 16f;  case 1: return 8f / 16f;  case 2: return 2f / 16f;  case 3: return 10f / 16f;
+                case 4: return 12f / 16f; case 5: return 4f / 16f;  case 6: return 14f / 16f; case 7: return 6f / 16f;
+                case 8: return 3f / 16f;  case 9: return 11f / 16f; case 10: return 1f / 16f; case 11: return 9f / 16f;
+                case 12: return 15f / 16f; case 13: return 7f / 16f; case 14: return 13f / 16f; default: return 5f / 16f;
+            }
+        }
+
         static void RenderHeightConsumer(Color32[] buf, int W, int H, PyreLayer layer, float[] field)
         {
             if (field == null) return;
@@ -1872,7 +1944,9 @@ namespace Laubrary.Pyre
                 // gradient. Multiplying the OUTPUT brightness by 0.35 + light·1.15 (the same spread the Ramp pass uses,
                 // ~[0.56× shadow .. 1.5× highlight]) makes slopes facing the light visibly brighten and slopes facing
                 // away darken — real relief you can see. Over() clamps each channel, so a >1 highlight blows to white.
-                Color col = fill != null ? fill.Evaluate(h, 0f, 0f) : Color.white;
+                Color col = layer.massShading
+                    ? MassShade(layer, fill, h, i % W, i / W)
+                    : (fill != null ? fill.Evaluate(h, 0f, 0f) : Color.white);
                 if (light != null)
                 {
                     float shade = 0.35f + light[i] * 1.15f;

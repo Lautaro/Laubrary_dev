@@ -311,6 +311,37 @@ namespace Laubrary.Pyre
         [Tooltip("Ramp: surface-noise rim — deforms the shared cloud rim so neighbouring domes bulge/pinch together and read as ONE boiling mass instead of fused flat discs. 0 = a smooth rim.")]
         public float rampRimScale = 0.35f;
 
+        // ── Mass shading (explosion study #2) — how a HEIGHT becomes colour, for both height tools (the Ramp
+        // cloud and "Height from channel"). Off (default) = the plain lookup of height into the Fill, untouched.
+        // On: height reads like MASS — below the soot line it is coloured from the soot ramp, above it the height is
+        // rescaled across the Fill (the fire ramp), and Ignition decides how abruptly one turns into the other.
+        // Bleed nudges each pixel's height by pixel-sized noise before the lookup, so bands tongue into each other
+        // instead of meeting on a clean contour; Dither adds a 4×4 ordered pattern for a hand-pixelled edge.
+        [Tooltip("Mass shading: read height like mass — soot below the soot line, fire above it, with ragged bleeding bands.")]
+        public bool massShading = false;
+        [Tooltip("Mass shading: the height below which colour comes from the Soot ramp (0..1).")]
+        [Range(0f, 1f)] public float massSootLine = 0.3f;
+        [Tooltip("Mass shading: how abruptly soot turns into fire at the soot line. 0 = a long smoky blend, 1 = an instant flip.")]
+        [Range(0f, 1f)] public float massIgnition = 0.7f;
+        [Tooltip("Mass shading: the soot ramp used below the soot line (bottom of the ramp = the lowest height).")]
+        public ZuiFill massSootFill = DefaultSootFill();
+        [Tooltip("Mass shading: how far pixel noise may push each pixel's height up or down before colouring (0 = clean bands).")]
+        [Range(0f, 0.5f)] public float massBleed = 0.12f;
+        [Tooltip("Mass shading: size of the bleed noise's specks, in canvas pixels.")]
+        [Range(1f, 16f)] public float massBleedCellPx = 2f;
+        [Tooltip("Mass shading: add a 4×4 ordered dither at band edges, like hand-placed pixels.")]
+        public bool massDither = false;
+
+        static ZuiFill DefaultSootFill()
+        {
+            var g = new Gradient();
+            g.SetKeys(new[] { new GradientColorKey(new Color(0.05f, 0.04f, 0.04f), 0f),
+                              new GradientColorKey(new Color(0.22f, 0.2f, 0.19f), 0.6f),
+                              new GradientColorKey(new Color(0.42f, 0.38f, 0.35f), 1f) },
+                      new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) });
+            return new ZuiFill { mode = ZuiFill.Mode.OverLife, gradient = g };
+        }
+
         // ── Shape — the particle's own look (mandatory section) ────────────────────
         // Which FORM the particle renders as. Disc = the flat soft disc (slice 1). Gem = a true-3D lit crystal
         // (the Gem block below drives it); its material colour is shapeFill, its radius is `size`.
@@ -781,6 +812,7 @@ namespace Laubrary.Pyre
         {
             var l = (PyreLayer)MemberwiseClone();
             l.shapeFill = CloneFill(shapeFill);
+            l.massSootFill = CloneFill(massSootFill);
             l.alpha = CloneVal(alpha);
             l.size = CloneVal(size);
             l.gemTilt = CloneVal(gemTilt);
