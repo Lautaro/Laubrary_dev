@@ -1,0 +1,43 @@
+{
+  "frontmatter": {
+    "id": "T-0535",
+    "title": "Shared asset browser shell separation",
+    "node": "LaubraryUssFoundations-2026-09-30",
+    "status": "done",
+    "priority": "normal",
+    "created": "2026-09-30T12:21:49Z",
+    "updated": "2026-09-30T12:36:55Z",
+    "assignee": "user",
+    "tags": "uncommitted",
+    "confirmed": "false"
+  },
+  "description": "Isolated UI separation continuation. Preserve current behavior and visual output; evidence and remaining compatibility exceptions will be attached to the group handover.",
+  "todos": [],
+  "questions": [],
+  "handover": [
+    {
+      "time": "2026-09-30T12:36:55Z",
+      "actor": "agent",
+      "from_status": "open",
+      "to_status": "done",
+      "text": "Extracted the shared Toolkit asset-browser shell presentation. Preserved filtering, selection and asset editing. Frozen/current BackSplash library and editing views match exactly; browser-to-edit, save, Undo and cold reopen pass on an isolated fixture.\n\n[[attach:20260930T123655Z_FoundationAssetBrowser.md]]",
+      "proof": [
+        {
+          "checked": true,
+          "text": "Recorded scoped implementation and verification evidence in isolated copy"
+        }
+      ],
+      "details": "Implemented only in D:/UNITY/Laubrary Dev - UI Separation. Commit 0a347d4. Coordinator reviewed delegated work and ran serial Unity verification. See report for verified-by-probe, verified-by-eye and unverified coverage; explicit compatibility paths remain.",
+      "technical_details": "Reference commit e52505a. Scripts and artifacts under Documentation/UISeparation; final evidence under Evidence/Foundations. No original source or consumer deployment."
+    }
+  ],
+  "agents": [],
+  "attached": [
+    {
+      "filename": "20260930T123655Z_FoundationAssetBrowser.md",
+      "size": 1423,
+      "time": "2026-09-30T12:36:55Z",
+      "sourcePath": "D:\\UNITY\\Laubrary Dev\\.agenthq\\workspace\\T-0535\\FoundationAssetBrowser.md"
+    }
+  ]
+}

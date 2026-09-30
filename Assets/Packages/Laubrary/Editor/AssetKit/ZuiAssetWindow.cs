@@ -197,6 +197,9 @@ namespace Laubrary.AssetKit.Editor
         // ── window build ────────────────────────────────────────────────────────────
         protected sealed override void BuildUI(VisualElement root)
         {
+            // Neutral shell class: concrete tools add their own root class separately, while shared asset
+            // browser chrome remains independently skinnable.
+            root.AddToClassList("lau-asset-browser");
             root.Add(BuildToolbar());
             if (creating) root.Add(BuildCreateRow());
             if (renaming && !string.IsNullOrEmpty(AssetLibrary<T>.PathOf(asset))) root.Add(BuildRenameRow());
@@ -213,7 +216,7 @@ namespace Laubrary.AssetKit.Editor
             {
                 var section = Z.Section("Tags", "Tags for this asset — filterable in the browser.");
                 var tagIsland = new IMGUIContainer(() => LauTagField.Draw(asset));
-                tagIsland.style.flexShrink = 0f;
+                tagIsland.AddToClassList("lau-asset-browser__tag-island");
                 section.Add(tagIsland);
                 if (AutoInsertTagsSection) root.Add(section);
                 TagsSection = section;
@@ -223,8 +226,7 @@ namespace Laubrary.AssetKit.Editor
             else
             {
                 var host = new VisualElement();
-                host.style.flexGrow = 1f;
-                host.style.minHeight = 0f;   // flexbox: without this, content height becomes a floor and overflows the window
+                host.AddToClassList("lau-asset-browser__editor-host");
                 // T-0381: tell every LauAsset chip built in here what this window is editing, so "make this
                 // reference a private copy that lives inside the thing I am editing" is available on a
                 // reflected field too — not only where a tool remembered to pass the owner by hand. Scoped
@@ -346,16 +348,14 @@ namespace Laubrary.AssetKit.Editor
             int maxChars = Mathf.Clamp(Mathf.FloorToInt(avail / 6f), 8, 40);
 
             var folderLabel = new Label(MiddleElide(createFolder, maxChars)) { tooltip = createFolder };
-            folderLabel.style.overflow = Overflow.Hidden;
-            folderLabel.style.whiteSpace = WhiteSpace.NoWrap;
-            folderLabel.style.flexShrink = 1f;   // backstop: CSS-level clip if the estimate above still runs long
+            folderLabel.AddToClassList("lau-asset-browser__folder-label");
 
             var folderRow = Z.Row(
                 Z.Text("in", ZuiText.Subtle, "The folder the new asset will be created in."),
                 folderLabel,
                 Z.Button("Folder…", $"Choose where the new {TypeLabel} asset is created (remembered for next time).",
                     ChooseCreateFolder));
-            folderRow.style.flexWrap = Wrap.Wrap;   // last-resort: Folder… drops to its own line rather than going off-screen
+            folderRow.AddToClassList("lau-asset-browser__folder-row");   // Folder… may drop to a second line instead of going off-screen
 
             return Z.Column(nameRow, folderRow);
         }
@@ -439,7 +439,7 @@ namespace Laubrary.AssetKit.Editor
             List<T> shown = FilteredBrowse();
 
             var col = new VisualElement();
-            col.style.flexGrow = 1f;
+            col.AddToClassList("lau-asset-browser__library");
 
             string countLabel = string.IsNullOrEmpty(_browseFilter)
                 ? $"{TypeLabel} library ({_browse.Count})"
@@ -460,10 +460,9 @@ namespace Laubrary.AssetKit.Editor
                 col.Add(Z.Text($"No {TypeLabel} assets match \"{_browseFilter}\".", ZuiText.Subtle));
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.flexGrow = 1f;
+            scroll.AddToClassList("lau-asset-browser__library-scroll");
             var grid = new VisualElement();
-            grid.style.flexDirection = FlexDirection.Row;
-            grid.style.flexWrap = Wrap.Wrap;
+            grid.AddToClassList("lau-asset-browser__library-grid");
             scroll.Add(grid);
             foreach (var item in shown)
                 if (item != null) grid.Add(BuildCell(item));
@@ -486,13 +485,16 @@ namespace Laubrary.AssetKit.Editor
         {
             var cell = new VisualElement();
             cell.AddToClassList("zui-cell");
+            cell.AddToClassList("lau-asset-browser__cell");
             cell.style.width = CellSize;
             bool selected = ReferenceEquals(asset, item);
             if (selected) cell.AddToClassList("zui-cell--selected");
+            cell.EnableInClassList("lau-asset-browser__cell--selected", selected);
             cell.tooltip = $"{item.name} — click to select, double-click to open.";
 
             var thumbBox = new VisualElement();
             thumbBox.AddToClassList("zui-cell__thumb");
+            thumbBox.AddToClassList("lau-asset-browser__thumb");
             thumbBox.style.width = ThumbSize;
             thumbBox.style.height = ThumbSize;
 
@@ -500,6 +502,7 @@ namespace Laubrary.AssetKit.Editor
             if (tex != null)
             {
                 var img = new Image { image = tex, scaleMode = ScaleMode.ScaleToFit };
+                img.AddToClassList("lau-asset-browser__thumb-image");
                 img.style.width = ThumbSize - 6f;
                 img.style.height = ThumbSize - 6f;
                 thumbBox.Add(img);
@@ -514,6 +517,7 @@ namespace Laubrary.AssetKit.Editor
 
             var name = new Label(item.name);
             name.AddToClassList("zui-cell__name");
+            name.AddToClassList("lau-asset-browser__cell-name");
             name.style.maxWidth = CellSize - 4f;
             cell.Add(name);
 

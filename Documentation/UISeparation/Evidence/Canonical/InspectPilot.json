@@ -1,0 +1,31 @@
+﻿{
+  "success": true,
+  "command": "command eval_file",
+  "data": {
+    "command": "eval_file",
+    "parameters": {
+      "json": true,
+      "file": "D:\\UNITY\\Laubrary Dev\\Documentation\\UISeparation\\InspectPilot.cs"
+    },
+    "result": {
+      "output": null,
+      "diagnostics": [],
+      "success": true,
+      "command": null,
+      "result": "UI Separation — Candidate (x:712.00, y:90.22, width:620.00, height:600.00) dpi=2.25\r\nsheet=DefaultCommonDark_inter.uss\r\nsheet=ZuiToolkit\r\nsheet=ZuiPilotStandard\r\nsheet=ZuiPilotBands\r\nsheet=ZuiPilotEnvelope\r\nsheet=ZuiPresentation\r\nsheet=ZuiFoundationContainers\r\nsheet=ZuiFoundationFields\r\nsheet=ZuiFoundationLayout\r\nsheet=ZuiFoundationFlow\r\nsheet=ZuiFoundationAssetBrowser\r\nsheet=ZoundsSkin\r\nsheet=Pilot\r\nsheet=PilotOverride\r\nZuiToggleButton (x:68.89, y:80.44, width:64.89, height:20.89) classes=unity-text-element,unity-button,zui-togglebutton,zui-toggle,zui-togglebutton--on\r\nZuiMicroSlider (x:12.00, y:108.44, width:150.22, height:17.78) classes=zui-microslider,zui-slider,zui-slider--show-value\r\nZuiMicroMinMax (x:12.00, y:130.22, width:150.22, height:18.22) classes=zui-microslider,zui-microminmax,zui-range\r\nZuiSkinSlider (x:12.00, y:152.44, width:444.00, height:21.78) classes=zui-skinslider,zui-slider,zs-slider-default\r\nZuiSkinRangeSlider (x:12.00, y:180.44, width:444.00, height:24.00) classes=zui-skinrange,zui-range,zs-slider-default\r\nZuiSkinMinMax (x:12.00, y:210.67, width:444.00, height:22.22) classes=zui-skinminmax,zui-minmax,zui-range,zs-slider-default\r\nZuiSkinBandSliders (x:12.00, y:239.11, width:444.00, height:41.78) classes=zui-skinband,zui-band-sliders,zs-slider-default\r\nZuiSkinEnvelope (x:12.00, y:287.11, width:444.00, height:110.22) classes=zui-skinenvelope,zui-envelope,zui-envelope--legacy-profile\r\nVisualElement (x:12.00, y:403.56, width:444.00, height:65.78) classes=pilot-wrap\r\nZuiMicroSlider (x:12.00, y:403.56, width:150.22, height:17.78) classes=zui-microslider,zui-slider,zui-slider--show-value,pilot-parameter\r\nZuiMicroSlider (x:166.22, y:403.56, width:149.78, height:17.78) classes=zui-microslider,zui-slider,zui-slider--show-value,pilot-parameter\r\nZuiMicroSlider (x:12.00, y:425.33, width:150.22, height:18.22) classes=zui-microslider,zui-slider,zui-slider--show-value,pilot-parameter\r\nZuiMicroSlider (x:166.22, y:425.33, width:149.78, height:18.22) classes=zui-microslider,zui-slider,zui-slider--show-value,pilot-parameter\r\nZuiMicroSlider (x:12.00, y:447.56, width:150.22, height:17.78) classes=zui-microslider,zui-slider,zui-slider--show-value,pilot-parameter\r\nUI Separation — Baseline (x:80.00, y:90.22, width:620.00, height:600.00) dpi=2.25\r\nsheet=DefaultCommonDark_inter.uss\r\nsheet=BaselineToolkit\r\nsheet=ZoundsSkin\r\nsheet=Pilot\r\nsheet=PilotOverride\r\nZuiToggleButton (x:68.89, y:80.44, width:64.89, height:20.89) classes=unity-text-element,unity-button,zui-togglebutton,zui-togglebutton--on\r\nZuiMicroSlider (x:12.00, y:108.44, width:150.22, height:17.78) classes=zui-microslider\r\nZuiMicroMinMax (x:12.00, y:130.22, width:150.22, height:18.22) classes=zui-microslider,zui-microminmax\r\nZuiSkinSlider (x:12.00, y:152.44, width:444.00, height:21.78) classes=zui-skinslider,zs-slider-default\r\nZuiSkinRangeSlider (x:12.00, y:180.44, width:444.00, height:24.00) classes=zui-skinrange,zs-slider-default\r\nZuiSkinMinMax (x:12.00, y:210.67, width:444.00, height:22.22) classes=zui-skinminmax,zs-slider-default\r\nZuiSkinBandSliders (x:12.00, y:239.11, width:444.00, height:41.78) classes=zui-skinband,zs-slider-default\r\nZuiSkinEnvelope (x:12.00, y:287.11, width:444.00, height:110.22) classes=zui-skinenvelope\r\nVisualElement (x:12.00, y:403.56, width:444.00, height:65.78) classes=pilot-wrap\r\nZuiMicroSlider (x:12.00, y:403.56, width:150.22, height:17.78) classes=zui-microslider,pilot-parameter\r\nZuiMicroSlider (x:166.22, y:403.56, width:149.78, height:17.78) classes=zui-microslider,pilot-parameter\r\nZuiMicroSlider (x:12.00, y:425.33, width:150.22, height:18.22) classes=zui-microslider,pilot-parameter\r\nZuiMicroSlider (x:166.22, y:425.33, width:149.78, height:18.22) classes=zui-microslider,pilot-parameter\r\nZuiMicroSlider (x:12.00, y:447.56, width:150.22, height:17.78) classes=zui-microslider,pilot-parameter\r\n",
+      "executionTimeMs": 390,
+      "message": null,
+      "error": null,
+      "errorDetails": null,
+      "executedAt": "0001-01-01T00:00:00"
+    },
+    "target": {
+      "host": "127.0.0.1",
+      "port": 7800,
+      "projectPath": "D:\\UNITY\\Laubrary Dev"
+    },
+    "success": true
+  },
+  "errors": [],
+  "warnings": []
+}

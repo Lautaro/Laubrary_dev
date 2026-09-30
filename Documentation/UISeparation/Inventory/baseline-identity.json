@@ -1,0 +1,16 @@
+{
+  "generated_utc": "2026-09-30T11:24:32.766518+00:00",
+  "baseline_commit": "9eb3d9cfcf738508bc3ac1e6f7932cefcf20500b",
+  "comparison_method": "raw SHA-256 plus CRLF-to-LF-only normalized SHA-256",
+  "baseline_detected_relevant_files": 1214,
+  "snapshot_detected_relevant_files": 1214,
+  "paths_compared": 1214,
+  "counts": {
+    "raw match": 564,
+    "EOL-only difference": 640,
+    "content difference": 10,
+    "baseline-only": 0,
+    "snapshot-only": 0
+  },
+  "baseline_identity": "immutable Git blob baseline; snapshot differences classified above"
+}

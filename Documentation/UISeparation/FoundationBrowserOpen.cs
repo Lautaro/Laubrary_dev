@@ -1,0 +1,2 @@
+foreach (var w in UnityEngine.Resources.FindObjectsOfTypeAll<UnityEditor.EditorWindow>()) if (w is Laubrary.BackSplash.Editor.BackSplashWindow || w is Laubrary.UISeparationConsumerBaseline.FrozenBackSplashWindow) w.GetType().GetMethod("SetAsset", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).Invoke(w, new object[] { null });
+return "Both consumers opened from empty selection into asset browser";

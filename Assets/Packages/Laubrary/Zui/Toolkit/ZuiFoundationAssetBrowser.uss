@@ -1,0 +1,39 @@
+/* Shared Toolkit asset-window shell. Attach after ZuiToolkit.uss; concrete tools apply their own root
+   class and override these neutral defaults with ordinary descendant selectors. */
+
+.lau-asset-browser__tag-island {
+    flex-shrink: 0;
+}
+
+.lau-asset-browser__editor-host {
+    flex-grow: 1;
+    min-height: 0;
+}
+
+.lau-asset-browser__folder-label {
+    overflow: hidden;
+    white-space: nowrap;
+    flex-shrink: 1;
+}
+
+.lau-asset-browser__folder-row {
+    flex-wrap: wrap;
+}
+
+.lau-asset-browser__library,
+.lau-asset-browser__library-scroll {
+    flex-grow: 1;
+}
+
+.lau-asset-browser__library-grid {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+/* Mirrors the legacy selected-cell appearance through a semantic state class. Size remains C# because
+   CellSize and ThumbSize are subclass parameters, not presentation constants. */
+.lau-asset-browser__cell--selected .lau-asset-browser__thumb {
+    background-color: var(--zui-accent-soft);
+    border-width: 1px;
+    border-color: var(--zui-accent);
+}

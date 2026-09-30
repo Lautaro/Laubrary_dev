@@ -1,0 +1,10 @@
+.foundation-surface { padding: 8px; }
+.foundation-scroll { flex-grow: 1; }
+.foundation-preview { padding: 8px; background-color: rgb(40, 50, 60); white-space: normal; }
+.lau-tool-foundation-demo .zui-float-field { width: 100px; }
+.lau-tool-foundation-demo .zui-text-field { width: 230px; }
+.lau-tool-foundation-demo .zui-columns > .zui-columns__column--following { margin-left: 18px; }
+.lau-tool-foundation-demo .zui-slider-field { width: 200px; }
+.lau-tool-foundation-demo .zui-column-flow { --zui-column-flow-column-width: 340; --zui-column-flow-gutter: 18; }
+.lau-tool-context-a .zui-float-field { width: 111px; }
+.lau-tool-context-b .zui-float-field { width: 222px; }

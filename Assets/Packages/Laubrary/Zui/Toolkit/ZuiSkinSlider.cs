@@ -46,14 +46,16 @@ namespace Laubrary.Zui
             _onChanged = onChanged; _onBeforeMutate = onBeforeMutate;
             this.tooltip = tooltip;
             AddToClassList("zui-skinslider");
-            style.flexDirection = FlexDirection.Row;
-            style.flexShrink = 0;
+            AddToClassList("zui-slider");
 
             _fill = new VisualElement { pickingMode = PickingMode.Ignore };
             _fill.AddToClassList("zui-skinslider__fill");
+            _fill.AddToClassList("zui-slider__fill");
             _rest = new VisualElement { pickingMode = PickingMode.Ignore };
             _rest.AddToClassList("zui-skinslider__rest");
+            _rest.AddToClassList("zui-slider__rest");
             _label = ZuiSkinTrackLabel.Create();
+            _label.AddToClassList("zui-slider__label");
             Add(_fill); Add(_rest); Add(_label);
 
             RegisterCallback<PointerDownEvent>(OnDown);

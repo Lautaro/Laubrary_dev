@@ -1,0 +1,7 @@
+.lau-tool-pilot .zui-slider, .lau-tool-pilot .zui-range, .lau-tool-pilot .zui-minmax { border-color: rgb(255,170,60); }
+.lau-tool-pilot .zui-band-sliders { --zui-band-gap: 8; --zui-band-cap-thickness: 4; --zui-band-baseline-thickness: 2; }
+.lau-tool-pilot .zui-slider { --zui-slider-fill-left: rgb(150,60,20); --zui-slider-fill-right: rgb(240,170,60); }
+.lau-tool-pilot .zui-envelope { --zui-envelope-padding-left: 18; --zui-envelope-curve-thickness: 3; --zui-envelope-curve-color: rgb(255,170,60); }
+.lau-tool-pilot .zui-skinrange { --zui-range-thumb-width: 18; --zui-range-track-height: 12; }
+.lau-tool-pilot .zui-microslider { width: 190px; }
+.lau-tool-pilot .pilot-preview-shape { background-color: rgb(255,170,60); }

@@ -38,14 +38,19 @@ namespace Laubrary.Zui
 {
     public class ZuiColumnFlow : VisualElement
     {
+        static readonly CustomStyleProperty<float> ColumnWidthProperty = new CustomStyleProperty<float>("--zui-column-flow-column-width");
+        static readonly CustomStyleProperty<float> GutterProperty = new CustomStyleProperty<float>("--zui-column-flow-gutter");
         const int MaxColumns = 4;      // the user's cap
-        const float Gutter = 6f;       // between-column gap, matching Z.Columns
+        const float DefaultGutter = 6f; // between-column gap, matching Z.Columns
         const int MaxSettleBudget = 2; // bounded follow-up passes after a real change (loop safety)
 
         readonly VisualElement _columnsRow;             // the Row that holds the column elements
         readonly List<VisualElement> _columns = new();  // current column elements, left → right
 
-        float _columnWidth;
+        float _columnWidth;             // public caller fallback, intentionally not the USS-resolved value
+        float _resolvedColumnWidth;
+        float _resolvedGutter = DefaultGutter;
+        bool _hasStyledColumnWidth;
 
         // Layout signature from the last applied pass — the damping guard compares against these.
         int _lastColumnCount = -1;   // clamped column count (1..MaxColumns)
@@ -63,6 +68,7 @@ namespace Laubrary.Zui
             set
             {
                 _columnWidth = Mathf.Max(1f, value);
+                if (!_hasStyledColumnWidth) _resolvedColumnWidth = _columnWidth;
                 _lastBucket = int.MinValue;   // force the next pass to recompute against the new width
                 ScheduleRedistribute();
             }
@@ -76,11 +82,11 @@ namespace Laubrary.Zui
         public ZuiColumnFlow(float columnWidth)
         {
             _columnWidth = Mathf.Max(1f, columnWidth);
+            _resolvedColumnWidth = _columnWidth;
             AddToClassList("zui-column-flow");
 
             _columnsRow = new VisualElement();
             _columnsRow.AddToClassList("zui-column-flow__row");
-            _columnsRow.style.flexDirection = FlexDirection.Row;
             hierarchy.Add(_columnsRow);   // structural: contentContainer != this, so bypass it
 
             // Start with one column so early Adds (before the first layout) have a home; the first
@@ -90,18 +96,34 @@ namespace Laubrary.Zui
             _columnsRow.Add(col0);
 
             RegisterCallback<GeometryChangedEvent>(_ => Redistribute());
+            RegisterCallback<CustomStyleResolvedEvent>(ResolveMetrics);
+        }
+
+        static float Metric(float value, float fallback, float minimum)
+        {
+            if (float.IsNaN(value) || float.IsInfinity(value)) value = fallback;
+            return Mathf.Max(minimum, value);
+        }
+
+        void ResolveMetrics(CustomStyleResolvedEvent e)
+        {
+            bool hasStyledWidth = e.customStyle.TryGetValue(ColumnWidthProperty, out float styledWidth);
+            float width = hasStyledWidth ? Metric(styledWidth, _columnWidth, 1f) : _columnWidth;
+            float gutter = e.customStyle.TryGetValue(GutterProperty, out float styledGutter) ? Metric(styledGutter, DefaultGutter, 0f) : DefaultGutter;
+            _hasStyledColumnWidth = hasStyledWidth;
+            if (Mathf.Approximately(width, _resolvedColumnWidth) && Mathf.Approximately(gutter, _resolvedGutter)) return;
+            _resolvedColumnWidth = width;
+            _resolvedGutter = gutter;
+            _lastBucket = int.MinValue;
+            SetColumnCount(_columns.Count);
+            ScheduleRedistribute();
         }
 
         VisualElement MakeColumn(int index)
         {
             var col = new VisualElement();
             col.AddToClassList("zui-column-flow__column");
-            col.style.flexDirection = FlexDirection.Column;
-            col.style.flexGrow = 1f;      // share the row width equally …
-            col.style.flexShrink = 1f;
-            col.style.flexBasis = 0f;     // … regardless of content (equal columns)
-            col.style.minWidth = 0f;      // let it shrink; content wraps inside
-            col.style.marginLeft = index > 0 ? Gutter : 0f;
+            col.style.marginLeft = index > 0 ? _resolvedGutter : 0f;
             return col;
         }
 
@@ -123,7 +145,7 @@ namespace Laubrary.Zui
             float width = contentRect.width;
             if (float.IsNaN(width) || width <= 0f) return;   // not laid out yet
 
-            int bucket = Mathf.Max(1, Mathf.FloorToInt(width / Mathf.Max(1f, _columnWidth)));
+            int bucket = Mathf.Max(1, Mathf.FloorToInt(width / _resolvedColumnWidth));
             int n = Mathf.Clamp(bucket, 1, MaxColumns);
 
             var units = GatherUnits();
@@ -203,10 +225,11 @@ namespace Laubrary.Zui
                 for (; idx < end && idx < units.Count; idx++)
                 {
                     var u = units[idx];
-                    u.style.flexGrow = 0f;              // in a column, flexGrow would grow HEIGHT
-                    u.style.flexShrink = 0f;
-                    u.style.alignSelf = Align.Stretch;  // consume the full column width
-                    u.style.marginBottom = 2f;
+                    u.AddToClassList("zui-column-flow__item");
+                    u.style.flexGrow = StyleKeyword.Null;
+                    u.style.flexShrink = StyleKeyword.Null;
+                    u.style.alignSelf = StyleKeyword.Null;
+                    u.style.marginBottom = StyleKeyword.Null;
                     _columns[c].Add(u);
                 }
             }
@@ -227,7 +250,7 @@ namespace Laubrary.Zui
                 _columnsRow.Add(col);
             }
             for (int i = 0; i < _columns.Count; i++)
-                _columns[i].style.marginLeft = i > 0 ? Gutter : 0f;
+                _columns[i].style.marginLeft = i > 0 ? _resolvedGutter : 0f;
         }
 
         // Equal-count contiguous split — the pre-measure fallback and the basis for the height split when
@@ -310,15 +333,12 @@ namespace Laubrary.Zui
         public ZuiHGroup(params VisualElement[] kids)
         {
             AddToClassList("zui-hgroup");
-            style.flexDirection = FlexDirection.Row;
-            style.flexWrap = Wrap.Wrap;          // fall onto a second line rather than overflow the column
-            style.alignItems = Align.Center;
-            style.alignSelf = Align.Stretch;     // the group fills the column width …
             foreach (var k in kids)
             {
                 if (k == null) continue;
-                k.style.marginRight = 6f;        // … while each child keeps its natural width
-                k.style.marginBottom = 2f;
+                k.style.marginRight = StyleKeyword.Null;
+                k.style.marginBottom = StyleKeyword.Null;
+                k.AddToClassList("zui-hgroup__item");
                 Add(k);
             }
         }

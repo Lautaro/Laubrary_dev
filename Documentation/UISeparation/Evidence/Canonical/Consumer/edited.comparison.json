@@ -1,0 +1,115 @@
+﻿{
+  "baseline": {
+    "path": "Evidence\\Canonical\\Consumer\\edited_baseline.png",
+    "sha256": "0dbbad77787fc27404cece0beef9968c8e75d7aa129522051ff377403e3dd8bd"
+  },
+  "bounding_rect": [
+    9,
+    287,
+    1611,
+    323
+  ],
+  "candidate": {
+    "path": "Evidence\\Canonical\\Consumer\\edited_candidate.png",
+    "sha256": "c17571dd7c646017d52cf02674c97b231aa3fedc17c29d3600d2327a21d80097"
+  },
+  "crop_top": 60,
+  "diff_png": "Evidence\\Canonical\\Consumer\\edited_candidate.diff.png",
+  "exact_bounding_rect": [
+    9,
+    287,
+    1611,
+    323
+  ],
+  "exact_changed_pixels": 56875,
+  "max_channel_delta": 10,
+  "mean_channel_delta": 0.153691513338968,
+  "over_tolerance_changed_pixels": 56875,
+  "size": {
+    "height": 1769,
+    "width": 1620
+  },
+  "tolerance": 0,
+  "top_horizontal_rows": [
+    {
+      "changed_pixels": 1602,
+      "y": 287
+    },
+    {
+      "changed_pixels": 1602,
+      "y": 288
+    },
+    {
+      "changed_pixels": 1602,
+      "y": 289
+    },
+    {
+      "changed_pixels": 1602,
+      "y": 290
+    },
+    {
+      "changed_pixels": 1602,
+      "y": 291
+    },
+    {
+      "changed_pixels": 1602,
+      "y": 292
+    },
+    {
+      "changed_pixels": 1602,
+      "y": 293
+    },
+    {
+      "changed_pixels": 1602,
+      "y": 315
+    },
+    {
+      "changed_pixels": 1602,
+      "y": 316
+    },
+    {
+      "changed_pixels": 1602,
+      "y": 317
+    },
+    {
+      "changed_pixels": 1602,
+      "y": 318
+    },
+    {
+      "changed_pixels": 1602,
+      "y": 319
+    },
+    {
+      "changed_pixels": 1602,
+      "y": 320
+    },
+    {
+      "changed_pixels": 1602,
+      "y": 321
+    },
+    {
+      "changed_pixels": 1602,
+      "y": 322
+    },
+    {
+      "changed_pixels": 1597,
+      "y": 294
+    },
+    {
+      "changed_pixels": 1593,
+      "y": 298
+    },
+    {
+      "changed_pixels": 1592,
+      "y": 295
+    },
+    {
+      "changed_pixels": 1592,
+      "y": 297
+    },
+    {
+      "changed_pixels": 1592,
+      "y": 299
+    }
+  ]
+}

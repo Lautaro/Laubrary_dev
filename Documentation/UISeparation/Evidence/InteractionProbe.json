@@ -1,0 +1,31 @@
+{
+  "success": true,
+  "command": "command eval_file",
+  "data": {
+    "command": "eval_file",
+    "parameters": {
+      "json": true,
+      "file": "D:\\UNITY\\Laubrary Dev - UI Separation\\Documentation\\UISeparation\\InteractionProbe.cs"
+    },
+    "result": {
+      "output": null,
+      "diagnostics": [],
+      "success": true,
+      "command": null,
+      "result": "slider click before=0.42 after=0.78 state=scalar=0.780; range=0.25-0.72; pair=open\r\nundo=0.42\r\n",
+      "executionTimeMs": 434,
+      "message": null,
+      "error": null,
+      "errorDetails": null,
+      "executedAt": "0001-01-01T00:00:00"
+    },
+    "target": {
+      "host": "127.0.0.1",
+      "port": 7801,
+      "projectPath": "D:\\UNITY\\Laubrary Dev - UI Separation"
+    },
+    "success": true
+  },
+  "errors": [],
+  "warnings": []
+}

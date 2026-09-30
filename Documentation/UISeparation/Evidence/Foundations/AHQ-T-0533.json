@@ -1,0 +1,53 @@
+{
+  "frontmatter": {
+    "id": "T-0533",
+    "title": "Detached popup presentation context",
+    "node": "LaubraryUssFoundations-2026-09-30",
+    "status": "done",
+    "priority": "normal",
+    "created": "2026-09-30T11:55:19Z",
+    "updated": "2026-09-30T12:36:55Z",
+    "assignee": "user",
+    "agent_role": "Presentation context worker",
+    "agent_model": "gpt-5.6-terra",
+    "agent_subagent_count": "0",
+    "tags": "uncommitted",
+    "confirmed": "false"
+  },
+  "description": "Continue the approved UI separation plan only in D:/UNITY/Laubrary Dev - UI Separation. Preserve current visuals and interaction. Semantic control classes supply defaults; parent tool classes supply overrides. Coordinator integrates and verifies in the isolated Unity editor. Scope and evidence will be recorded before completion.",
+  "todos": [],
+  "questions": [],
+  "handover": [
+    {
+      "time": "2026-09-30T12:36:54Z",
+      "actor": "agent",
+      "from_status": "open",
+      "to_status": "done",
+      "text": "Added immutable per-root presentation snapshots and complete bare-host popup attachment. Verified independent tool scopes, optional legacy skin classes, class filtering, sheet deduplication and Escape dismissal.\n\n[[attach:20260930T123654Z_PresentationContext.md]]",
+      "proof": [
+        {
+          "checked": true,
+          "text": "Recorded scoped implementation and verification evidence in isolated copy"
+        }
+      ],
+      "details": "Implemented only in D:/UNITY/Laubrary Dev - UI Separation. Commit 0a347d4. Coordinator reviewed delegated work and ran serial Unity verification. See report for verified-by-probe, verified-by-eye and unverified coverage; explicit compatibility paths remain.",
+      "technical_details": "Reference commit e52505a. Scripts and artifacts under Documentation/UISeparation; final evidence under Evidence/Foundations. No original source or consumer deployment."
+    }
+  ],
+  "agents": [
+    {
+      "time": "2026-09-30T11:58:39Z",
+      "role": "Presentation context worker",
+      "model": "gpt-5.6-terra",
+      "note": "Active in isolated refactor copy; coordinator owns live verification."
+    }
+  ],
+  "attached": [
+    {
+      "filename": "20260930T123654Z_PresentationContext.md",
+      "size": 2048,
+      "time": "2026-09-30T12:36:54Z",
+      "sourcePath": "D:\\UNITY\\Laubrary Dev\\.agenthq\\workspace\\T-0533\\PresentationContext.md"
+    }
+  ]
+}

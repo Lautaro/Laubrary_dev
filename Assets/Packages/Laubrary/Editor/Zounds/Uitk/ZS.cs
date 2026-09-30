@@ -45,6 +45,7 @@ namespace Laubrary.Zounds.Uitk {
             if (Skin != null && !root.styleSheets.Contains(Skin)) root.styleSheets.Add(Skin);
             if (Layout != null && !root.styleSheets.Contains(Layout)) root.styleSheets.Add(Layout);
             root.AddToClassList("zs-root");
+            root.AddToClassList("lau-tool-zounds");
         }
 
         static StyleSheet s_layout;

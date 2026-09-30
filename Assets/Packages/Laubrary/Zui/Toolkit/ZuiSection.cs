@@ -137,13 +137,6 @@ namespace Laubrary.Zui
             if (open == null) return;
             var btn = new VisualElement { tooltip = tooltip };
             btn.AddToClassList("zui-section__headerbtn");
-            btn.style.marginLeft = 6;
-            btn.style.width = 20; btn.style.height = 15;
-            btn.style.justifyContent = Justify.Center;
-            btn.style.alignItems = Align.Center;
-            btn.style.backgroundColor = new Color(1f, 1f, 1f, 0.07f);
-            btn.style.borderTopLeftRadius = btn.style.borderTopRightRadius =
-                btn.style.borderBottomLeftRadius = btn.style.borderBottomRightRadius = 3;
             var img = Z.Icon(iconName, 12f);
             if (img != null) { img.pickingMode = PickingMode.Ignore; btn.Add(img); }
             btn.AddManipulator(new Clickable(() => open(btn)));
@@ -222,12 +215,6 @@ namespace Laubrary.Zui
                 _headerToggle = new Toggle { tooltip = tooltip };
                 _headerToggle.AddToClassList("zui-audit-allow-toggle");   // fold header, not a checkbox setting
                 _headerToggle.AddToClassList("zui-section__toggle");
-                // The header row is `align-items: center`, so vertical centring is handled; strip the
-                // Toggle's default margins to a tight, small footprint and leave a little air before the title.
-                _headerToggle.style.marginTop = 0f;
-                _headerToggle.style.marginBottom = 0f;
-                _headerToggle.style.marginLeft = 0f;
-                _headerToggle.style.marginRight = 4f;
                 // Do not let a click on the checkbox fold the section (see ZuiBox's gear StopPropagation).
                 _headerToggle.RegisterCallback<PointerDownEvent>(e => e.StopPropagation());
                 _headerToggle.RegisterValueChangedCallback(e => _headerToggleChanged?.Invoke(e.newValue));

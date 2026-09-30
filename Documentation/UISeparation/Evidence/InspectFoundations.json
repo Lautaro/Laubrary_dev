@@ -1,0 +1,31 @@
+{
+  "success": true,
+  "command": "command eval_file",
+  "data": {
+    "command": "eval_file",
+    "parameters": {
+      "json": true,
+      "file": "D:\\UNITY\\Laubrary Dev - UI Separation\\Documentation\\UISeparation\\InspectFoundations.cs"
+    },
+    "result": {
+      "output": null,
+      "diagnostics": [],
+      "success": true,
+      "command": null,
+      "result": "Foundations — Candidate (x:790.22, y:90.22, width:720.00, height:760.22) reference=False\nFoundations — Reference (x:60.00, y:90.22, width:720.00, height:760.22) reference=True",
+      "executionTimeMs": 531,
+      "message": null,
+      "error": null,
+      "errorDetails": null,
+      "executedAt": "0001-01-01T00:00:00"
+    },
+    "target": {
+      "host": "127.0.0.1",
+      "port": 7802,
+      "projectPath": "D:\\UNITY\\Laubrary Dev - UI Separation"
+    },
+    "success": true
+  },
+  "errors": [],
+  "warnings": []
+}

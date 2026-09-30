@@ -1,0 +1,2 @@
+foreach (var w in UnityEngine.Resources.FindObjectsOfTypeAll<Laubrary.UISeparationPilot.FoundationWindow>()) if (w.titleContent.text.Contains("Candidate")) return Laubrary.UISeparationPilot.FoundationWindow.Capture("foundation_" + UnityEngine.Mathf.RoundToInt(w.position.width) + (w.rootVisualElement.ClassListContains("lau-tool-foundation-demo") ? "_override" : "_default"));
+throw new System.InvalidOperationException("Foundation pair not open");

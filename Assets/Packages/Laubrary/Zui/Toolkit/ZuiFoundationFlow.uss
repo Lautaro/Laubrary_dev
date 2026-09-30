@@ -1,0 +1,6 @@
+/* Static structure for ZuiColumnFlow. The gutter remains inline because it is a resolved typed metric. */
+.zui-column-flow__row { flex-direction: row; }
+.zui-column-flow__column { flex-direction: column; flex-grow: 1; flex-shrink: 1; flex-basis: 0; min-width: 0; }
+.zui-column-flow__item { flex-grow: 0; flex-shrink: 0; align-self: stretch; margin-bottom: 2px; }
+.zui-hgroup { flex-direction: row; flex-wrap: wrap; align-items: center; align-self: stretch; }
+.zui-hgroup__item { margin-right: 6px; margin-bottom: 2px; }

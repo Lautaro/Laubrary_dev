@@ -21,6 +21,10 @@ namespace Laubrary.Zui
 {
     public class ZuiMicroSlider : VisualElement
     {
+        static readonly CustomStyleProperty<Color> SliderFillLeftProperty = new("--zui-slider-fill-left");
+        static readonly CustomStyleProperty<Color> SliderFillRightProperty = new("--zui-slider-fill-right");
+        static readonly CustomStyleProperty<Color> SliderTrackColorProperty = new("--zui-slider-track-color");
+
         float _value, _min, _max;
         readonly float? _default;
         readonly Action<float> _onChanged;
@@ -77,27 +81,29 @@ namespace Laubrary.Zui
                 + (HasPrefs ? "  ·  Right-click for display options." : "");
 
             AddToClassList("zui-microslider");
+            AddToClassList("zui-slider");
 
             _caption = new Label(label) { pickingMode = PickingMode.Ignore, tooltip = tooltip };
             _caption.AddToClassList("zui-microslider__caption");
+            _caption.AddToClassList("zui-slider__label");
             Add(_caption);
 
             _valueLabel = new Label { pickingMode = PickingMode.Ignore };
             _valueLabel.AddToClassList("zui-microslider__value");
+            _valueLabel.AddToClassList("zui-slider__value");
             Add(_valueLabel);
 
             // The optional numeric-input field (#10) sits over the right of the track; hidden unless toggled on.
             // It swallows its own pointer-downs so typing/clicking it never starts a track drag.
             _numField = new FloatField { isDelayed = true };
             _numField.AddToClassList("zui-microslider__numfield");
-            _numField.style.position = Position.Absolute;
-            _numField.style.right = 2; _numField.style.top = 1; _numField.style.bottom = 1;
-            _numField.style.width = 46; _numField.style.marginLeft = 0; _numField.style.marginRight = 0;
+            _numField.AddToClassList("zui-slider__input");
             _numField.RegisterCallback<PointerDownEvent>(ev => ev.StopPropagation());
             _numField.RegisterValueChangedCallback(ev => { _onBeforeMutate?.Invoke(); SetValue(ev.newValue, notify: true); });
             Add(_numField);
 
             ApplyDisplay();
+            RegisterCallback<CustomStyleResolvedEvent>(OnCustomStyleResolved);
             generateVisualContent += OnGenerate;
             RegisterCallback<PointerDownEvent>(OnDown);
             RegisterCallback<PointerMoveEvent>(OnMove);
@@ -125,10 +131,22 @@ namespace Laubrary.Zui
         void ApplyDisplay()
         {
             bool showVal = _showValueLabel && !_showNumInput;
-            _valueLabel.style.display = showVal ? DisplayStyle.Flex : DisplayStyle.None;
-            _numField.style.display = _showNumInput ? DisplayStyle.Flex : DisplayStyle.None;
+            EnableInClassList("zui-slider--show-value", showVal);
+            EnableInClassList("zui-slider--show-input", _showNumInput);
             if (_showNumInput) _numField.SetValueWithoutNotify(_value);
             if (showVal) UpdateValueLabel();
+            MarkDirtyRepaint();
+        }
+
+        void OnCustomStyleResolved(CustomStyleResolvedEvent e)
+        {
+            // Reset each time: removing a parent class must restore the fallback palette.
+            _resolvedFillLeft = FillLeft;
+            _resolvedFillRight = FillRight;
+            _resolvedTrackColor = TrackColor;
+            if (e.customStyle.TryGetValue(SliderFillLeftProperty, out Color fillLeft)) _resolvedFillLeft = fillLeft;
+            if (e.customStyle.TryGetValue(SliderFillRightProperty, out Color fillRight)) _resolvedFillRight = fillRight;
+            if (e.customStyle.TryGetValue(SliderTrackColorProperty, out Color trackColor)) _resolvedTrackColor = trackColor;
             MarkDirtyRepaint();
         }
 
@@ -245,8 +263,8 @@ namespace Laubrary.Zui
             // Empty track first (the whole width), then the fill over the left part as a HORIZONTAL gradient
             // (dark at the left, lighter toward the fill edge). Darker overall than a flat accent so the label
             // and value drawn on top stay readable. The element's border-radius + overflow:hidden round it.
-            FillRect(p, 0f, 0f, r.width, r.height, TrackColor);
-            if (split > 0.5f) FillGradientH(p, split, r.height, FillLeft, FillRight);
+            FillRect(p, 0f, 0f, r.width, r.height, _resolvedTrackColor);
+            if (split > 0.5f) FillGradientH(p, split, r.height, _resolvedFillLeft, _resolvedFillRight);
         }
 
         static void FillRect(Painter2D p, float x, float y, float w, float h, Color c)
@@ -279,5 +297,8 @@ namespace Laubrary.Zui
         public Color FillLeft = new Color(28f / 255f, 44f / 255f, 78f / 255f, 0.92f);
         public Color FillRight = new Color(70f / 255f, 120f / 255f, 200f / 255f, 0.85f);
         public Color TrackColor = new Color(0f, 0f, 0f, 0.30f);
+        Color _resolvedFillLeft = new Color(28f / 255f, 44f / 255f, 78f / 255f, 0.92f);
+        Color _resolvedFillRight = new Color(70f / 255f, 120f / 255f, 200f / 255f, 0.85f);
+        Color _resolvedTrackColor = new Color(0f, 0f, 0f, 0.30f);
     }
 }

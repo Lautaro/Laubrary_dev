@@ -1,0 +1,24 @@
+﻿{
+  "baseline": {
+    "path": "D:\\UNITY\\Laubrary Dev\\Documentation\\UISeparation\\Evidence\\Foundations\\foundation_720_restored_baseline.png",
+    "sha256": "8b37600ae9d14d96b653423fb9f3786092db4958afc0a8a1c389652652d073cf"
+  },
+  "bounding_rect": null,
+  "candidate": {
+    "path": "D:\\UNITY\\Laubrary Dev\\Documentation\\UISeparation\\Evidence\\Foundations\\foundation_720_restored_candidate.png",
+    "sha256": "d361c20d7cb861be484a13c298ebc2290146098b64bc0fbbd45913375b16a602"
+  },
+  "crop_top": 60,
+  "diff_png": "D:\\UNITY\\Laubrary Dev\\Documentation\\UISeparation\\Evidence\\Foundations\\foundation_720_restored_candidate.diff.png",
+  "exact_bounding_rect": null,
+  "exact_changed_pixels": 0,
+  "max_channel_delta": 0,
+  "mean_channel_delta": 0.0,
+  "over_tolerance_changed_pixels": 0,
+  "size": {
+    "height": 1769,
+    "width": 1620
+  },
+  "tolerance": 0,
+  "top_horizontal_rows": []
+}

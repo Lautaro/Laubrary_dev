@@ -1,0 +1,1184 @@
+/* ZuiToolkit.uss — the single shared stylesheet for the UI Toolkit half of ZUI (Laubrary.Zui).
+   Styling decision (2026-07-23, user-confirmed): hand-authored USS with custom properties as the
+   palette — no ZUIStyleSheetAsset/Zheet layer underneath. Tune the look here, once, for every tool. */
+
+.zui-root {
+    --zui-accent: rgb(90, 160, 255);
+    --zui-accent-soft: rgba(90, 160, 255, 0.35);
+    --zui-line: rgba(128, 128, 128, 0.4);
+    --zui-bg-inset: rgba(0, 0, 0, 0.18);
+    /* Sub-section fills — nesting depth is shown by tone rather than by stacking borders. */
+    --zui-sub-fill: rgba(0, 0, 0, 0.16);
+    --zui-sub-fill-2: rgba(0, 0, 0, 0.28);
+    /* Section headings: bright, with a slight cyan cast so a heading reads as structure at a glance
+       and never gets mistaken for a field label. Tune the whole toolkit's heading colour here. */
+    --zui-section-title: rgb(0, 255, 0);
+    --zui-stage-bg: rgb(26, 26, 31);
+    /* Neutral tint for a header/button icon that sits beside DEFAULT-coloured text (a box title, a radio
+       label) — a soft near-white so the white glyph reads a touch quieter than the text, not brighter.
+       A SECTION icon instead takes --zui-section-title (the green heading colour). */
+    --zui-icon-neutral: rgba(220, 222, 228, 0.9);
+    /* Reference chips (ZuiChip). A REFERENCE tint: recognisably the accent hue, so "this points at
+       something else" is spottable across a window, but deliberately well BELOW --zui-accent-soft (0.35),
+       which already means "this toggle is latched ON" — a chip must never be misread as a pressed button.
+       Retune the whole toolkit's reference look here. */
+    --zui-chip-fill: rgba(90, 160, 255, 0.14);
+    --zui-chip-fill-hover: rgba(90, 160, 255, 0.3);
+    --zui-chip-line: rgba(90, 160, 255, 0.55);
+    padding: 4px;
+}
+
+/* NOTE: no flex-grow/height on .zui-root itself — it's applied to a window's rootVisualElement,
+   which Unity already sizes to the window's content area (window minus tab header). Forcing growth
+   there once made every window's content exactly one header-height too tall (measured 2026-07-23). */
+
+/* Every BaseField-derived control (FloatField, Slider, Toggle, ObjectField...) defaults to
+   flex-grow:1 inside a flex row — exactly the "stretches to fill whatever's left" behavior the
+   layout rules forbid. Controls are only ever as wide as their explicit width. */
+.zui-root .unity-base-field {
+    flex-grow: 0;
+    flex-shrink: 0;
+    margin-left: 0;
+}
+
+/* Built-in BaseField labels (Toggle etc.) reserve a ~150px fixed column by default — size them to
+   their own text instead, matching the Zui.Field wrap philosophy. */
+.zui-root .unity-base-field__label {
+    min-width: auto;
+    margin-right: 4px;
+}
+
+/* flex-grow:0 only governs the MAIN axis. A control sitting in a column still stretches across the
+   CROSS axis (its width) unless told otherwise — which for a Toggle means a 700px-wide click target
+   for a 12px checkbox, and an over-width audit finding. Size it to its own content instead. Inside a
+   row the cross axis is height, so there it keeps the row's vertical centring. */
+.zui-root .unity-toggle {
+    align-self: flex-start;
+}
+
+.zui-root .zui-row .unity-toggle,
+.zui-root .zui-field .unity-toggle {
+    align-self: center;
+}
+
+/* Containers ------------------------------------------------------------- */
+
+.zui-box {
+    border-width: 1px;
+    border-color: var(--zui-line);
+    border-radius: 3px;
+    padding: 6px;
+    margin-bottom: 6px;
+}
+
+/* A box INSIDE a box is a sub-section: drop the frame and tint the background instead. Two nested
+   borders read as noise — the eye has to work out which frame owns which content, and a third level
+   is nearly unreadable. A darker fill groups just as clearly while staying quiet, and it nests
+   naturally: each level sits a little deeper than its parent. Depth is expressed by TONE, not by
+   accumulating outlines. */
+.zui-box .zui-box {
+    border-width: 0;
+    background-color: var(--zui-sub-fill);
+    padding: 5px;
+}
+
+.zui-box .zui-box .zui-box {
+    background-color: var(--zui-sub-fill-2);
+}
+
+/* A card that is the current overlay target — the card in the pane and the gizmo drawn over the preview
+   have to read as the same thing, or a stack of near-identical cards leaves the author guessing which one
+   the overlay belongs to. Colour only: the card's 1px border already exists, so lighting it up moves
+   nothing. Any tool with a hover/select-driven overlay can wear this class. */
+.zui-root .zui-box.zui-card--gizmo {
+    border-color: rgb(98, 216, 255);
+}
+
+/* A titled sub-section still needs its title to read as a heading, but one step quieter than a
+   top-level section title so the hierarchy stays legible. */
+.zui-box .zui-box > .zui-box__titlerow > .zui-box__title {
+    opacity: 0.85;
+}
+
+.zui-box__titlerow {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+/* The title row is the box's fold toggle, so it has to answer to the pointer like one. */
+.zui-box__titlerow:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.zui-box__title {
+    -unity-font-style: bold;
+    white-space: nowrap;
+}
+
+/* Quieter than a section's caret — a box is already framed, so its title stays a sub-heading and
+   doesn't take the section colour. */
+.zui-box__caret {
+    width: 12px;
+    opacity: 0.5;
+    -unity-text-align: middle-center;
+}
+
+/* A closed box is just its title row: give back the padding its body was using. */
+.zui-box--closed {
+    padding-bottom: 2px;
+}
+
+.zui-box--closed > .zui-box__titlerow {
+    margin-bottom: 0;
+}
+
+/* A within-section divider: a hairline with real air around it, so a long flat column reads as grouped
+   runs instead of one undifferentiated stack. Lighter than a nested box, stronger than bare whitespace. */
+.zui-divider {
+    height: 1px;
+    background-color: var(--zui-line);
+    margin-top: 7px;
+    margin-bottom: 6px;
+    flex-shrink: 0;
+}
+
+/* A labelled divider carries a small caption sitting on the line — names the group it introduces. */
+.zui-divider--labelled {
+    height: auto;
+    background-color: rgba(0, 0, 0, 0);
+    flex-direction: row;
+    align-items: center;
+    border-top-width: 1px;
+    border-top-color: var(--zui-line);
+    padding-top: 3px;
+    margin-top: 8px;
+}
+
+.zui-divider__label {
+    font-size: 10px;
+    -unity-font-style: bold;
+    opacity: 0.55;
+    margin-right: 6px;
+}
+
+.zui-row {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 2px;
+}
+
+.zui-row > * {
+    margin-right: 6px;
+}
+
+/* Text ------------------------------------------------------------------- */
+
+/* Section headings read as the top of a block, so they get real size and real air ABOVE them —
+   the gap belongs before the heading, not after it, because that is what separates this block from
+   the previous one rather than pushing the heading away from what it names. */
+.zui-text--section {
+    -unity-font-style: bold;
+    font-size: 13px;
+    color: var(--zui-section-title);
+    margin-top: 12px;
+    margin-bottom: 4px;
+    white-space: nowrap;
+}
+
+/* The heading is the fold toggle, so it has to look like it answers to the pointer. */
+.zui-text--section:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Collapsible sections (ZuiSection) ---------------------------------------- */
+
+.zui-section {
+    margin-top: 12px;
+    margin-bottom: 4px;
+}
+
+.zui-section__header {
+    flex-direction: row;
+    align-items: center;
+    padding-top: 2px;
+    padding-bottom: 3px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--zui-line);
+    margin-bottom: 4px;
+}
+
+.zui-section__header:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Bar-controlled (ZuiSectionToggleBar in "Toggle Bar" mode): header click no longer folds, so drop the
+   hover cue that would otherwise promise an action the header no longer performs. */
+.zui-section__header--nofold:hover {
+    background-color: transparent;
+}
+
+.zui-section__title {
+    -unity-font-style: bold;
+    font-size: 13px;
+    color: var(--zui-section-title);
+    white-space: nowrap;
+}
+
+/* A closed section keeps its heading but gives back the gap its body was using. */
+.zui-section--closed {
+    margin-bottom: 0;
+}
+
+.zui-section--closed .zui-section__header {
+    margin-bottom: 0;
+    opacity: 0.75;
+}
+
+/* A section nested inside a box is a sub-section: quieter, and no competing rule line. */
+.zui-box .zui-section {
+    margin-top: 6px;
+}
+
+.zui-box .zui-section__header {
+    border-bottom-width: 0;
+}
+
+.zui-text--small {
+    font-size: 10px;
+    opacity: 0.8;
+    white-space: nowrap;
+}
+
+.zui-text--subtle {
+    font-size: 10px;
+    opacity: 0.6;
+    white-space: normal;
+    margin-bottom: 3px;
+}
+
+.zui-help {
+    opacity: 0.55;
+    -unity-font-style: bold;
+    white-space: nowrap;
+}
+
+/* Breadcrumb (ZuiBreadcrumb) --------------------------------------------------
+   A path strip above a preview: interior segments are quiet links, the last (current) segment reads
+   like a small heading, and the › separators stay unobtrusive. */
+.zui-breadcrumb {
+    margin-bottom: 4px;
+}
+
+.zui-breadcrumb__segment {
+    font-size: 12px;
+    padding: 1px 2px;
+}
+
+.zui-breadcrumb__segment--link {
+    color: var(--zui-accent);
+}
+
+.zui-breadcrumb__segment--link:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+    border-radius: 2px;
+}
+
+.zui-breadcrumb__segment--current {
+    -unity-font-style: bold;
+    opacity: 0.95;
+}
+
+.zui-breadcrumb__sep {
+    opacity: 0.45;
+    margin-left: 2px;
+    margin-right: 2px;
+}
+
+/* Icons (Z.Icon) -------------------------------------------------------------
+   A ZUI icon is a white monochrome Phosphor glyph drawn as a background image, so a palette colour can
+   TINT it (-unity-background-image-tint-color) to sit with whatever text it accompanies — a header icon
+   takes the heading colour, a button/label icon a neutral near-white. The context classes below carry the
+   tint; .zui-icon itself only stops the glyph from shrinking in a flex row. */
+.zui-icon {
+    flex-shrink: 0;
+}
+
+/* A section heading's icon: tinted to the section-title colour so glyph + title read as one heading. */
+.zui-section__icon {
+    margin-right: 5px;
+    -unity-background-image-tint-color: var(--zui-section-title);
+}
+
+/* A box/frame title's icon: default-text-coloured heading, so the glyph takes the neutral tint. */
+.zui-box__icon,
+.zui-frame__icon {
+    margin-right: 5px;
+    -unity-background-image-tint-color: var(--zui-icon-neutral);
+}
+
+/* A button-family icon (radio segment / segmented / cycle / toggle button). Neutral tint to sit with the
+   button label; the row layout makes the glyph + label share the button's centre. */
+.zui-btn--iconrow {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+}
+
+.zui-btn__icon {
+    margin-right: 4px;
+    -unity-background-image-tint-color: var(--zui-icon-neutral);
+}
+
+.zui-btn__label {
+    -unity-text-align: middle-center;
+}
+
+/* Field wrap (label + control pair — sidesteps BaseField's inconsistent built-in label widths) */
+
+.zui-field {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.zui-field__label {
+    margin-right: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    -unity-text-align: middle-left;
+}
+
+/* A label that folds/unfolds its control when clicked (envelope headers). */
+.zui-fold-label:hover {
+    color: var(--zui-accent);
+}
+
+/* Global row rhythm ------------------------------------------------------ */
+/* Every top-level row control gets uniform breathing room below it, so a column of controls reads as
+   distinct rows instead of a crammed stack. One value, applied to every tool's UI. Tune it here. */
+.zui-field,
+.zui-value,
+.zui-fill,
+.zui-microslider,
+.zui-anchorgrid,
+.zui-hgroup,
+.zui-row {
+    margin-bottom: 4px;
+}
+
+/* Don't double up: a row nested INSIDE a value/fill control (its header→envelope gap) stays tight —
+   the whole control already owns the 4px below it. */
+.zui-value .zui-row,
+.zui-fill .zui-row {
+    margin-bottom: 1px;
+}
+
+/* Custom-drawn controls (the old IMGUI ZUI look, Painter2D) ---------------- */
+
+/* MicroSlider — a filled track whose fill IS the value; no thumb, label+value sit inside it. */
+.zui-microslider {
+    height: 18px;
+    min-width: 60px;
+    border-radius: 3px;
+    overflow: hidden;
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    border-width: 1px;
+    border-color: var(--zui-line);
+}
+
+.zui-microslider__caption {
+    position: absolute;
+    left: 6px;
+    font-size: 11px;
+    -unity-text-align: middle-left;
+}
+
+.zui-microslider__value {
+    position: absolute;
+    right: 6px;
+    font-size: 11px;
+    opacity: 0.85;
+    -unity-text-align: middle-right;
+}
+
+/* Button-style Toggle — a button that stays pressed when on, no checkmark. */
+.zui-togglebutton {
+    -unity-font-style: normal;
+    padding-left: 8px;
+    padding-right: 8px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    border-radius: 3px;
+    background-color: var(--zui-bg-inset);
+    border-width: 1px;
+    border-color: var(--zui-line);
+    flex-shrink: 0;
+}
+
+/* Same cross-axis guard as .unity-toggle above — and for the same reason. A ZuiToggleButton is a
+   Button, so it never picked up that rule when Z.Toggle was rerouted here; in a COLUMN body it
+   inherits align-items:stretch and blows out to the full pane width. Inside a row the cross axis
+   is height, so those contexts keep the row's vertical centring instead. */
+.zui-root .zui-togglebutton {
+    align-self: flex-start;
+}
+
+.zui-root .zui-row .zui-togglebutton,
+.zui-root .zui-field .zui-togglebutton,
+.zui-root .zui-hgroup .zui-togglebutton,
+.zui-root .zui-box__titlerow .zui-togglebutton,
+.zui-root .zui-section__header .zui-togglebutton {
+    align-self: center;
+}
+
+/* A menu row is deliberately full-width, read left like the item rows — opt it back in. */
+.zui-root .zui-menu .zui-togglebutton {
+    align-self: stretch;
+}
+
+.zui-togglebutton:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+.zui-togglebutton--on {
+    background-color: var(--zui-accent-soft);
+    border-color: var(--zui-accent);
+    -unity-font-style: bold;
+}
+
+/* Segmented control — a joined row of buttons; single-select (radio) or multi-select. */
+.zui-segmented {
+    flex-direction: row;
+    flex-shrink: 0;
+}
+
+.zui-segmented > .zui-segmented__seg {
+    margin-left: 0;
+    margin-right: 0;
+    border-radius: 0;
+    border-left-width: 0;
+    padding-left: 8px;
+    padding-right: 8px;
+    background-color: var(--zui-bg-inset);
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-right-width: 1px;
+    border-color: var(--zui-line);
+}
+
+.zui-segmented > .zui-segmented__seg.zui-segmented__first {
+    border-left-width: 1px;
+    border-top-left-radius: 3px;
+    border-bottom-left-radius: 3px;
+}
+
+.zui-segmented > .zui-segmented__seg.zui-segmented__last {
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+}
+
+.zui-segmented > .zui-segmented__seg.zui-segmented__on {
+    background-color: var(--zui-accent-soft);
+    -unity-font-style: bold;
+}
+
+.zui-segmented > .zui-segmented__seg:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+.zui-segmented > .zui-segmented__seg.zui-segmented__on:hover {
+    background-color: var(--zui-accent-soft);
+}
+
+/* Soloed segment (ZuiSectionToggleBar, T-0076) — a full green ring regardless of the seg's normal
+   first/last/on border rules, so a soloed section's button reads as "isolated" at a glance. */
+.zui-segmented > .zui-segmented__seg.zui-segmented__solo {
+    border-left-width: 2px;
+    border-right-width: 2px;
+    border-top-width: 2px;
+    border-bottom-width: 2px;
+    border-color: #4caf50;
+}
+
+/* Quick view engaged (ZuiSectionToggleBar, T-0085) — the "Toggle Bar" segment goes amber while a
+   temporary Show all / Show none is overriding the user's own selection. Amber rather than solo's
+   green, so the two overrides never read as the same thing. Colour ONLY: no label change and no
+   border WIDTH, because either would resize the segment and re-wrap the bar sitting beside it. */
+.zui-segmented > .zui-segmented__seg.zui-segmented__quickview,
+.zui-segmented > .zui-segmented__seg.zui-segmented__on.zui-segmented__quickview,
+.zui-segmented > .zui-segmented__seg.zui-segmented__quickview:hover,
+.zui-segmented > .zui-segmented__seg.zui-segmented__on.zui-segmented__quickview:hover {
+    background-color: rgba(224, 160, 48, 0.22);
+    border-color: #e0a030;
+}
+
+/* ZuiSectionToggleBar — full-width mode-switch + per-section toggle row (T-0065). */
+.zui-section-togglebar {
+    padding: 4px 6px;
+    margin-bottom: 6px;
+    background-color: var(--zui-bg-inset);
+    border-bottom-width: 1px;
+    border-color: var(--zui-line);
+}
+
+/* Controls --------------------------------------------------------------- */
+
+.zui-radio {
+    flex-direction: row;
+    flex-shrink: 0;
+}
+
+/* A long option set folds instead of running off the pane. flex-shrink is restored because a wrapped row
+   is allowed to be as wide as its container and no wider — that is the whole point. */
+.zui-radio--wrap {
+    flex-wrap: wrap;
+    flex-shrink: 1;
+}
+
+.zui-radio > .unity-button {
+    margin-left: 0;
+    margin-right: 0;
+    border-radius: 0;
+}
+
+/* Unity USS has no :first-child/:last-child — Z.MiniRadio sets these classes explicitly. */
+.zui-radio__first {
+    border-top-left-radius: 3px;
+    border-bottom-left-radius: 3px;
+}
+
+.zui-radio__last {
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+}
+
+.zui-radio__on {
+    background-color: var(--zui-accent-soft);
+    -unity-font-style: bold;
+}
+
+/* Reference chip (ZuiChip) -------------------------------------------------
+   THE control for "this field points at another asset". Shaped on purpose NOT like a settings control: a
+   rounded, tinted pill, so a window full of references reads as references instead of as a wall of fields.
+
+   ⚠️ This block did not exist until 2026-08-25. ZuiChip styles itself ENTIRELY through these class names,
+   so with no rules behind them every chip in every tool rendered as a bare, unstyled VisualElement — which
+   defaults to flex-direction:column, i.e. the thumbnail stacked ABOVE the name with no frame of any kind
+   (measured live in the Chunks window: a 137x79 block with a 64px image band). A user reading that screen
+   reported it as "textinputs where the user has to type in what appears to be names of assets". A class the
+   C# adds with no rule behind it is invisible in code review and catastrophic on screen — if you add a new
+   zui-chip__* class in ZuiChip.cs, add its rule here in the SAME change. */
+.zui-chip {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    padding-left: 6px;
+    padding-right: 5px;
+    padding-top: 1px;
+    padding-bottom: 1px;
+    /* A pill: rounder than the toolkit's 3px buttons ON PURPOSE. The extra roundness is the cheapest
+       always-on signal that separates "points at something else" from "press me", and it still reads as
+       the same toolkit — same hairline weight, same palette, same padding scale. */
+    border-radius: 9px;
+    border-width: 1px;
+    border-color: var(--zui-chip-line);
+    background-color: var(--zui-chip-fill);
+    /* A default cap, matching .zui-mref__type's own 220px: an ASSET NAME is arbitrarily long, and a chip
+       that sizes to its text pushes whatever shares its row (a × remove button, a second field) off the
+       pane. MaxW() sets an INLINE max-width, which overrides this, so a call site that wants a tighter or
+       looser cap still wins — but no call site currently calls MaxW(), so without this the __label's
+       ellipsis rules below could never fire and every long name blew the row out. */
+    max-width: 220px;
+    /* Nothing escapes the pill — same treatment as .zui-microslider. */
+    overflow: hidden;
+}
+
+/* Cross-axis guard — the same bug, and the same fix, as .unity-toggle and .zui-togglebutton above.
+   flex-grow governs only the MAIN axis; a ZuiChip is a bare VisualElement, so sitting in a COLUMN body
+   (a ZuiBox/ZuiSection body) it inherits align-items:stretch and fills the entire pane. Inside a row the
+   cross axis is height, so those contexts keep the row's vertical centring instead. */
+.zui-root .zui-chip {
+    align-self: flex-start;
+}
+
+.zui-root .zui-row .zui-chip,
+.zui-root .zui-field .zui-chip,
+.zui-root .zui-hgroup .zui-chip,
+.zui-root .zui-box__titlerow .zui-chip,
+.zui-root .zui-section__header .zui-chip {
+    align-self: center;
+}
+
+/* The sanctioned opt-out, same class ZuiAudit already honours for the rulebook's name-field exception.
+   Declared LAST of the align-self rules: it ties the row selectors on specificity, so source order is
+   what makes it win. */
+.zui-root .zui-chip.zui-audit-allow-stretch {
+    align-self: stretch;
+}
+
+/* Hover is the main signal that a thing is clickable — a chip's whole job is to be pressed, so it answers
+   to the pointer at least as loudly as a menu row or a box title does. */
+.zui-chip:hover {
+    background-color: var(--zui-chip-fill-hover);
+    border-color: var(--zui-accent);
+}
+
+/* The name. Full body text size (it is the chip's content, not chrome), and it TRUNCATES rather than
+   pushing the rest of the row off screen — an asset name is arbitrarily long and MaxW() caps the pill. */
+.zui-chip__label {
+    flex-shrink: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    -unity-text-align: middle-left;
+}
+
+/* An INLINE pill icon, not a picture frame: a fixed small square in the toolkit's existing glyph-gutter
+   scale (.zui-menu__icon is 14px, header icons ~14px). The explicit size is load-bearing — a UITK Image
+   with no width/height measures to its TEXTURE, which is exactly how a 64px-tall image band ended up
+   inside a chip. flex-shrink:0 so the name eats the truncation, never the picture. */
+.zui-chip__thumb {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    margin-right: 5px;
+    border-radius: 2px;
+}
+
+/* The colour-instead-of-picture case (a Faction, a tile tag): same footprint as the thumb it replaces,
+   fully rounded so it reads as a swatch/dot rather than a cropped image, with a hairline so a dark colour
+   is still visible against the pill. */
+.zui-chip__dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    margin-right: 5px;
+    border-width: 1px;
+    border-color: var(--zui-line);
+}
+
+/* The "this opens a picker" affordance. Same glyph language as every other ZUI chooser (ZuiBox,
+   ZuiFoldCard and ZuiManagedRef all draw "▾" for "there is more here when you click"), so the chip
+   inherits the convention rather than inventing a second one. Quiet at rest so it never competes with the
+   name; full strength on hover, where it confirms the pill is the click target. */
+.zui-chip__pick {
+    margin-left: 5px;
+    font-size: 10px;
+    opacity: 0.55;
+    flex-shrink: 0;
+    -unity-text-align: middle-center;
+}
+
+.zui-chip:hover .zui-chip__pick {
+    opacity: 1;
+}
+
+/* Empty state — "nothing picked yet" must never read as a picked thing called "· none ·". Hollow (no
+   reference tint at all), neutral hairline, dimmed italic name; the ▾ stays, because the empty state is
+   precisely when the user most needs to see that this is pickable.
+   ⚠️ UI Toolkit has no `border-style`, so ZuiChip's own doc comment's "dashed" border is simply not
+   expressible in USS. Hollow + neutral + dimmed + italic carries the same "this slot is unfilled" reading
+   using properties UITK actually supports. Do not add `border-style: dashed` — it is silently dropped. */
+.zui-chip--empty {
+    background-color: rgba(0, 0, 0, 0);
+    border-color: var(--zui-line);
+}
+
+.zui-chip--empty > .zui-chip__label {
+    opacity: 0.55;
+    -unity-font-style: italic;
+}
+
+/* Drag-hover accept state. Two classes so it outranks :hover (which is also active mid-drag) and lands
+   after it in source order. Only FILL and BORDER COLOUR change — never border WIDTH or padding, which
+   would reflow the pill's contents by a pixel every time a drag passes over it. */
+.zui-chip.zui-chip--drop {
+    background-color: var(--zui-accent-soft);
+    border-color: var(--zui-accent);
+}
+
+.zui-chip.zui-chip--drop > .zui-chip__label {
+    opacity: 1;
+    -unity-font-style: normal;
+}
+
+/* Chip group — a chip PLUS its visible actions (T-0381) ------------------- */
+
+/* The chip stays the reference control; a couple of icon-sized actions may sit beside it when the
+   reference can actually do something (open it in its own editor; make it a private copy inside the
+   asset being edited). It is a GROUP, not the "thumbnail + Recall… + New ▾ + ✎" button ROW the sweep
+   deleted: two 20px squares, no labels, and only for actions that exist for this value right now.
+   Everything rarer still lives on the chip's right-click card.
+   Same cross-axis guard as .zui-chip itself — the group is a bare VisualElement, so in a COLUMN body it
+   would otherwise stretch to the whole pane and drag the chip's actions to the far edge with it. */
+.zui-chipgroup {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.zui-root .zui-chipgroup {
+    align-self: flex-start;
+}
+
+.zui-root .zui-row .zui-chipgroup,
+.zui-root .zui-field .zui-chipgroup,
+.zui-root .zui-hgroup .zui-chipgroup,
+.zui-root .zui-box__titlerow .zui-chipgroup,
+.zui-root .zui-section__header .zui-chipgroup {
+    align-self: center;
+}
+
+/* Inside the group the cross axis is height, so the chip centres against the buttons rather than
+   taking the column rule above (which would top-align it by a pixel or two). */
+.zui-root .zui-chipgroup > .zui-chip {
+    align-self: center;
+}
+
+.zui-chipgroup__act {
+    margin-left: 3px;
+    margin-right: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+/* Icon-only button/toggle (Z.IconButton / Z.IconToggle) ------------------- */
+
+.zui-iconbtn {
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+}
+
+/* FillButton's glyph reserves 4px for a label that an icon-only button does not have. */
+.zui-iconbtn > .zui-btn__icon {
+    margin-right: 0;
+}
+
+/* A PropertyField built through ZuiSerialized already carries the label we gave it, so the field's
+   own [Header] decorator would draw that same word a second time, right above it. */
+.zui-no-decorators > .unity-decorator-drawers-container {
+    display: none;
+}
+
+/* Managed reference ([SerializeReference] polymorphic field) --------------- */
+
+.zui-mref {
+    margin-top: 2px;
+    margin-bottom: 4px;
+}
+
+.zui-mref__header {
+    flex-direction: row;
+    align-items: center;
+    padding-top: 1px;
+    padding-bottom: 1px;
+}
+
+.zui-mref__header:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.zui-mref__caret {
+    width: 12px;
+    opacity: 0.6;
+    -unity-text-align: middle-center;
+}
+
+.zui-mref__title {
+    -unity-font-style: bold;
+    white-space: nowrap;
+}
+
+/* Quieter than a normal button — it names a type, it isn't the field's main action. */
+.zui-mref__type {
+    font-size: 10px;
+    opacity: 0.9;
+    max-width: 220px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* The body sits under the header, indented so it reads as belonging to it. */
+.zui-mref__body {
+    padding-left: 12px;
+    border-left-width: 1px;
+    border-left-color: var(--zui-line);
+    margin-left: 5px;
+}
+
+/* Titled non-folding frame (ZuiFrame) ------------------------------------ */
+/* A plain bordered container with a header — the "titled frame" primitive between a folding box and a bare
+   heading. Wraps ONE self-contained control (a 3D-orientation gizmo, a mini editor) as a single labelled unit
+   whose border always shows (it never folds away on an accidental header click). */
+.zui-frame {
+    border-width: 1px;
+    border-color: var(--zui-line);
+    border-radius: 3px;
+    padding: 6px;
+    margin-bottom: 6px;
+}
+
+.zui-frame__header {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.zui-frame__title {
+    -unity-font-style: bold;
+    white-space: nowrap;
+}
+
+/* 2D pad + envelope + 3D direction --------------------------------------- */
+
+.zui-pad {
+    background-color: var(--zui-bg-inset);
+    border-width: 1px;
+    border-color: var(--zui-line);
+    flex-shrink: 0;
+}
+
+.zui-pad__dot {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 3px;
+    background-color: rgb(102, 217, 255);
+}
+
+/* The 3D-direction control's draggable lit-sphere gizmo (and its preview twin) — a dark rounded inset the
+   shaded sphere texture sits inside, matching the 2D pad's framing. */
+.zui-dir3d {
+    flex-shrink: 0;
+}
+
+.zui-dir3d__gizmo {
+    background-color: var(--zui-bg-inset);
+    border-width: 1px;
+    border-color: var(--zui-line);
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.zui-dir3d__nums {
+    flex-direction: column;
+    flex-shrink: 0;
+}
+
+.zui-envelope {
+    background-color: rgba(0, 0, 0, 0.35);
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+}
+
+/* Timeline scrub bar (ZuiTimeline). Same inset/hairline treatment as the envelope, so the two painted
+   time-domain controls read as siblings. The bands themselves are painted from the host's own colours —
+   only the frame around them is styled here. */
+
+.zui-timeline__bar {
+    background-color: rgba(0, 0, 0, 0.35);
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.zui-timeline__lane {
+    /* The ruler numbers sit flush under the bar; the lane's own height is reserved in code so the bar
+       never moves when a label appears or is dropped. */
+    margin-top: 1px;
+}
+
+/* Multi-lane clock (ZuiLanes). Same inset/hairline frame as the timeline and the envelope, so all three
+   painted time-domain controls read as siblings. The bands, markers and playhead are painted (Painter2D
+   cannot read a USS variable, so their tones live in the control); everything here is the text and the frame
+   around them. */
+
+.zui-lanes__bar {
+    background-color: rgba(0, 0, 0, 0.35);
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.zui-lanes__gutter {
+    /* The lane names sit to the LEFT of the bar rather than inside the bands: a band narrow enough to be
+       interesting is never wide enough to hold its own name, and a name that appears and disappears with the
+       band's width is worse than one that always reads. */
+    padding-right: 4px;
+}
+
+.zui-lanes__gutter-label {
+    color: rgba(255, 255, 255, 0.72);
+}
+
+/* A name that jumps to its owner reads as a link on hover, so the click is found without being told.
+   Colour only — a bolder weight would widen the gutter, and the gutter's width moves every band. */
+.zui-lanes__gutter-label--link:hover {
+    color: rgba(255, 255, 255, 1);
+    background-color: var(--zui-accent-soft);
+}
+
+.zui-lanes__ruler {
+    /* Flush under the bar; the ruler's height is reserved in code so the bar never moves when a number is
+       dropped for the playhead's readout. */
+    margin-top: 1px;
+}
+
+.zui-lanes__tick {
+    color: rgba(255, 255, 255, 0.42);
+}
+
+/* A named instant reads louder than the second it happens at — it wins the space when the two collide. */
+.zui-lanes__marker-label {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.zui-lanes__playhead-label {
+    color: rgba(255, 255, 255, 0.95);
+}
+
+/* Reorderable rows -------------------------------------------------------- */
+
+.zui-reorder__dragging {
+    background-color: var(--zui-accent-soft);
+}
+
+.zui-reorder__line {
+    background-color: var(--zui-accent);
+}
+
+/* Asset-window chrome ---------------------------------------------------- */
+
+.zui-cell {
+    flex-shrink: 0;
+    margin-right: 4px;
+    margin-bottom: 4px;
+    align-items: center;
+}
+
+.zui-cell__thumb {
+    background-color: var(--zui-bg-inset);
+    justify-content: center;
+    align-items: center;
+}
+
+.zui-cell--selected .zui-cell__thumb {
+    background-color: var(--zui-accent-soft);
+    border-width: 1px;
+    border-color: var(--zui-accent);
+}
+
+.zui-cell__name {
+    font-size: 10px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* Stage / canvas --------------------------------------------------------- */
+
+.zui-stage {
+    background-color: var(--zui-stage-bg);
+    flex-grow: 1;
+    min-width: 200px;
+    min-height: 200px;
+}
+
+/* Popover / menu (ZuiPopover + ZuiMenu) ---------------------------------- */
+
+/* The full-window transparent catcher a popover floats inside. It is deliberately un-styled (no
+   background): it exists only to receive the outside-click that dismisses the popover, while the panel
+   is its single opaque child. */
+.zui-popover__scrim {
+    /* inset:0 + position:absolute are set inline; nothing to paint here. */
+}
+
+/* The floating card. Opaque (it overlaps the tool's own chrome, so it must not be see-through) with a
+   border to lift it off the content behind it. UITK has no box-shadow, so the border does the lifting. */
+.zui-popover {
+    background-color: rgb(56, 56, 58);
+    border-width: 1px;
+    border-color: var(--zui-line);
+    border-radius: 4px;
+    padding: 4px;
+}
+
+.zui-menu {
+    min-width: 120px;
+}
+
+/* A menu row: a flat, full-width, hover-highlighting line (a Clickable manipulator drives it, matching
+   ZuiBox/ZuiSection's own clickable headers rather than a boxed Button). */
+.zui-menu__item {
+    flex-direction: row;
+    align-items: center;
+    padding-left: 4px;
+    padding-right: 10px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+    border-radius: 3px;
+}
+
+.zui-menu__item:hover {
+    background-color: var(--zui-accent-soft);
+}
+
+.zui-menu__item--disabled {
+    opacity: 0.45;
+}
+
+/* A fixed check gutter so every label lines up whether or not the row carries a tick. */
+.zui-menu__check {
+    width: 14px;
+    flex-shrink: 0;
+    color: var(--zui-accent);
+    -unity-text-align: middle-center;
+}
+
+.zui-menu__icon {
+    width: 14px;
+    height: 14px;
+    margin-right: 5px;
+    flex-shrink: 0;
+}
+
+.zui-menu__label {
+    white-space: nowrap;
+    -unity-text-align: middle-left;
+}
+
+/* A section heading inside a menu: the flat replacement for a GenericMenu submenu group. Quieter and
+   smaller than a top-level section title, with air above so runs read as grouped. */
+.zui-menu__section {
+    -unity-font-style: bold;
+    font-size: 10px;
+    color: var(--zui-section-title);
+    opacity: 0.9;
+    white-space: nowrap;
+    margin-top: 5px;
+    margin-bottom: 2px;
+    margin-left: 2px;
+}
+
+.zui-menu__sep {
+    height: 1px;
+    background-color: var(--zui-line);
+    margin-top: 3px;
+    margin-bottom: 3px;
+}
+
+.zui-menu__toggle,
+.zui-menu__radio {
+    padding-left: 4px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+/* Anchor grid — the nine-point picker (ZuiAnchorGrid) ---------------------- */
+/* Declared AFTER .zui-togglebutton so the cell's own metrics win the specificity tie on source order:
+   a cell is a square the size of a hit target, not a text button that happens to be empty. */
+
+.zui-anchorgrid {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* Cross-axis guard — the same bug, and the same fix, as .unity-toggle / .zui-togglebutton / .zui-chip
+   above. flex-grow governs only the MAIN axis, so in a COLUMN body (a ZuiBox/ZuiSection body) this
+   would inherit align-items:stretch and run the anchor name out to the pane edge. Inside a row the
+   cross axis is height, so those contexts keep the row's vertical centring instead. */
+.zui-root .zui-anchorgrid {
+    align-self: flex-start;
+}
+
+.zui-root .zui-row .zui-anchorgrid,
+.zui-root .zui-field .zui-anchorgrid,
+.zui-root .zui-hgroup .zui-anchorgrid,
+.zui-root .zui-box__titlerow .zui-anchorgrid,
+.zui-root .zui-section__header .zui-anchorgrid {
+    align-self: center;
+}
+
+.zui-anchorgrid__grid {
+    flex-shrink: 0;
+}
+
+/* 3px between rows and between cells. USS here has no adjacent-sibling combinator, so the gap is on
+   every row/cell and the first one in each direction takes it back — the same __first idiom the
+   segmented control already uses. */
+.zui-anchorgrid__row {
+    flex-direction: row;
+    margin-top: 3px;
+}
+
+.zui-anchorgrid__row--first {
+    margin-top: 0;
+}
+
+.zui-anchorgrid__cell {
+    width: 25px;
+    height: 25px;
+    min-width: 25px;
+    flex-shrink: 0;
+    flex-grow: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    margin-right: 0;
+    margin-left: 3px;
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    -unity-text-align: middle-center;
+}
+
+.zui-anchorgrid__cell--first {
+    margin-left: 0;
+}
+
+/* A cell is 25px tall by declaration, so it must not be stretched to the row's height nor pushed off
+   centre by the generic togglebutton guard. */
+.zui-root .zui-anchorgrid__row .zui-anchorgrid__cell {
+    align-self: center;
+}
+
+.zui-anchorgrid__name {
+    margin-left: 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* ── ZuiLiveOverlay (T-0492): where a value IS vs where it was SET ─────────────────────────────────
+   Modulation keeps the Zounds overlay's original colours (blue above the set value, dark below).
+   Code-driven values are AMBER — deliberately warmer and more saturated than the warning yellow
+   rgb(247,204,102), so a driven value is never mistaken for a problem. Colours are literal rather than
+   root variables because the overlay is laid into windows that do not carry .zui-root. */
+.zui-live__mark-dark { background-color: rgba(13, 13, 20, 0.85); }
+.zui-live__mark-bright { background-color: rgba(252, 252, 255, 0.95); }
+.zui-live__band--up { background-color: rgba(115, 191, 255, 0.5); }
+.zui-live__band--down { background-color: rgba(10, 10, 15, 0.72); }
+.zui-live__band--driven { background-color: rgba(255, 150, 40, 0.55); }
+.zui-live__band--hollow {
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 1px; border-color: rgba(255, 150, 40, 0.9);
+}
+.zui-live__tick { background-color: rgb(255, 170, 60); }
+.zui-live__pulse {
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 1px; border-color: rgb(255, 150, 40);
+    border-top-left-radius: 2px; border-top-right-radius: 2px; border-bottom-left-radius: 2px; border-bottom-right-radius: 2px;
+}
+.zui-live__spread { background-color: rgba(115, 191, 255, 0.22); }
+.zui-live__spread--driven { background-color: rgba(255, 150, 40, 0.24); }
+.zui-live__spread-tick { background-color: rgba(115, 191, 255, 0.85); }
+.zui-live__spread-tick--driven { background-color: rgba(255, 170, 60, 0.9); }

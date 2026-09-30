@@ -1,0 +1,75 @@
+/* T-0527 envelope presentation contract, attached with the shared toolkit. */
+.zui-skinenvelope.zui-envelope {
+    /* This variant paints its own frame; do not inherit the older native envelope's second frame. */
+    background-color: transparent;
+    border-width: 0;
+}
+
+.zui-envelope__readout,
+.zui-skinenvelope__tag {
+    position: absolute;
+    font-size: 10px;
+    color: white;
+    background-color: rgba(0, 0, 0, 0.78);
+    padding-left: 4px;
+    padding-right: 4px;
+    padding-top: 1px;
+    padding-bottom: 1px;
+    -unity-text-align: middle-center;
+}
+
+/* An explicit complete profile for ZUIEnvelopeDef's built-in constructor values. It is deliberately
+   not applied by the control: existing windows keep their individual definition as their fallback. */
+.zui-envelope--legacy-profile {
+    --zui-envelope-background: rgb(31, 31, 31);
+    --zui-envelope-border-color: rgba(255, 255, 255, 0.06);
+    --zui-envelope-border-top: 1;
+    --zui-envelope-border-right: 1;
+    --zui-envelope-border-bottom: 1;
+    --zui-envelope-border-left: 1;
+    --zui-envelope-grid-color: rgba(51, 51, 51, 0.4);
+    --zui-envelope-grid-rows: 4;
+    --zui-envelope-grid-thickness: 1;
+    --zui-envelope-padding-top: 6;
+    --zui-envelope-padding-right: 6;
+    --zui-envelope-padding-bottom: 6;
+    --zui-envelope-padding-left: 6;
+    --zui-envelope-curve-thickness: 1.5;
+    --zui-envelope-curve-hover-thickness: 3;
+    --zui-envelope-hit-radius-extra: 4;
+    --zui-envelope-selected-color: rgb(255, 204, 51);
+    --zui-envelope-selected-stroke-thickness: 1;
+    --zui-envelope-selection-box-fill-alpha: 0.1;
+    --zui-envelope-hover-saturation-scale: 0.8;
+    --zui-envelope-hover-value-scale: 1.4;
+    --zui-envelope-uncertainty-fill-alpha: 0.14;
+    --zui-envelope-uncertainty-stroke-alpha: 0.75;
+    --zui-envelope-uncertainty-stroke-thickness: 1;
+    --zui-envelope-dotted-white-mix: 0.45;
+    --zui-envelope-dotted-min-width: 1.5;
+    --zui-envelope-ghost-opacity: 0.5;
+    --zui-envelope-editable-radius: 2;
+    --zui-envelope-editable-hover-radius: 4;
+    --zui-envelope-editable-fill: rgb(179, 179, 179);
+    --zui-envelope-editable-hover-fill: rgb(255, 230, 128);
+    --zui-envelope-editable-border-color: rgba(0, 0, 0, 0);
+    --zui-envelope-editable-border-width: 0;
+    --zui-envelope-x-editable-radius: 2;
+    --zui-envelope-x-editable-hover-radius: 4;
+    --zui-envelope-x-editable-fill: rgb(179, 179, 179);
+    --zui-envelope-x-editable-hover-fill: rgb(255, 230, 128);
+    --zui-envelope-x-editable-border-color: rgba(255, 255, 255, 0.6);
+    --zui-envelope-x-editable-border-width: 1;
+    --zui-envelope-y-editable-radius: 2;
+    --zui-envelope-y-editable-hover-radius: 4;
+    --zui-envelope-y-editable-fill: rgb(179, 179, 179);
+    --zui-envelope-y-editable-hover-fill: rgb(255, 230, 128);
+    --zui-envelope-y-editable-border-color: rgba(255, 255, 255, 0.6);
+    --zui-envelope-y-editable-border-width: 1;
+    --zui-envelope-not-editable-radius: 1.25;
+    --zui-envelope-not-editable-hover-radius: 2.5;
+    --zui-envelope-not-editable-fill: rgb(71, 71, 71);
+    --zui-envelope-not-editable-hover-fill: rgb(71, 71, 71);
+    --zui-envelope-not-editable-border-color: rgba(0, 0, 0, 0);
+    --zui-envelope-not-editable-border-width: 0;
+}

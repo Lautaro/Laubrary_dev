@@ -1,0 +1,1 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements"><ui:VisualElement class="pilot-shell"><ui:VisualElement name="controls-slot" class="pilot-controls" /><ui:VisualElement name="preview-slot" class="pilot-preview" /></ui:VisualElement></ui:UXML>

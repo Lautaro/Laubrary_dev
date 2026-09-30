@@ -1,0 +1,3 @@
+/* Default semantic presentation. A tool parent class may override these rules. */
+.zui-microslider { width: 150px; }
+.zui-microminmax { width: 150px; }

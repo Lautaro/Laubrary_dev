@@ -1,0 +1,24 @@
+﻿{
+  "baseline": {
+    "path": "Evidence\\Canonical\\Consumer\\editor_baseline.png",
+    "sha256": "6d943d582abfb5516901751b4f3a7d1688bf74152202bca5a315975dd4915bbe"
+  },
+  "bounding_rect": null,
+  "candidate": {
+    "path": "Evidence\\Canonical\\Consumer\\editor_candidate.png",
+    "sha256": "703bee600d78eea1b36c07494a27e153ffe2a5b58cab19fcfda50b1c5e81ab13"
+  },
+  "crop_top": 60,
+  "diff_png": "Evidence\\Canonical\\Consumer\\editor_candidate.diff.png",
+  "exact_bounding_rect": null,
+  "exact_changed_pixels": 0,
+  "max_channel_delta": 0,
+  "mean_channel_delta": 0.0,
+  "over_tolerance_changed_pixels": 0,
+  "size": {
+    "height": 1769,
+    "width": 1620
+  },
+  "tolerance": 0,
+  "top_horizontal_rows": []
+}

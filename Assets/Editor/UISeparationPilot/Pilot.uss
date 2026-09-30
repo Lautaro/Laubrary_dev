@@ -1,0 +1,14 @@
+.pilot-shell { flex-direction: row; flex-grow: 1; padding: 8px; }
+.pilot-toolbar { flex-direction: row; align-items: center; flex-shrink: 0; padding: 4px; }
+.pilot-toolbar > * { margin-right: 10px; }
+.pilot-controls { flex-grow: 1; min-width: 0; margin-right: 8px; }
+.pilot-preview { width: 32%; min-width: 120px; background-color: rgba(0,0,0,.2); border-width: 1px; border-color: rgba(255,255,255,.1); align-items: center; justify-content: center; }
+.pilot-actions, .pilot-wrap { flex-direction: row; flex-wrap: wrap; margin-bottom: 6px; }
+.pilot-actions > * { margin-right: 4px; }
+.pilot-parameter { width: 150px; margin-right: 4px; margin-bottom: 4px; padding: 3px; background-color: rgba(255,255,255,.05); }
+.pilot-preview-shape { height: 36px; background-color: rgb(76,153,255); }
+.pilot-controls > .zui-skinband, .pilot-controls > .zui-band-sliders { height: 42px; margin-bottom: 6px; }
+.pilot-controls > .zui-skinslider { height: 22px; margin-bottom: 6px; }
+.pilot-controls > .zui-skinrange { height: 24px; margin-bottom: 6px; }
+.pilot-controls > .zui-skinminmax { height: 22px; margin-bottom: 6px; }
+.pilot-controls > .zui-skinenvelope { height: 110px; margin-bottom: 6px; }

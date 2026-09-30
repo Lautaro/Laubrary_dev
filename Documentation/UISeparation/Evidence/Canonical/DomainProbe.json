@@ -1,0 +1,31 @@
+﻿{
+  "success": true,
+  "command": "command eval_file",
+  "data": {
+    "command": "eval_file",
+    "parameters": {
+      "json": true,
+      "file": "D:\\UNITY\\Laubrary Dev\\Documentation\\UISeparation\\DomainProbe.cs"
+    },
+    "result": {
+      "output": null,
+      "diagnostics": [],
+      "success": true,
+      "command": null,
+      "result": "PASS domain reload restored one frozen and one candidate tree; scalar=0.420; range=0.25-0.72; pair=open",
+      "executionTimeMs": 6028,
+      "message": null,
+      "error": null,
+      "errorDetails": null,
+      "executedAt": "0001-01-01T00:00:00"
+    },
+    "target": {
+      "host": "127.0.0.1",
+      "port": 7800,
+      "projectPath": "D:\\UNITY\\Laubrary Dev"
+    },
+    "success": true
+  },
+  "errors": [],
+  "warnings": []
+}

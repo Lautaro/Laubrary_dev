@@ -1,0 +1,24 @@
+.zui-column { flex-direction: column; }
+.zui-split { flex-grow: 1; min-height: 0; }
+.zui-columns { flex-direction: row; }
+.zui-columns > .zui-columns__column { flex-direction: column; flex-grow: 1; flex-shrink: 1; flex-basis: 0; min-width: 0; }
+.zui-columns > .zui-columns__column--following { margin-left: 6px; }
+.zui-columns > .zui-columns__column > .zui-columns__item { flex-grow: 0; flex-shrink: 0; align-self: stretch; margin-bottom: 2px; }
+.zui-slider-field { width: 170px; }
+.zui-float-field { width: 60px; }
+.zui-text-field { width: 200px; }
+.zui-object-field { width: 200px; }
+.zui-curve-field { width: 180px; height: 24px; }
+.zui-gradient-field { width: 180px; height: 20px; }
+.zui-gradient-bound-field { width: 200px; }
+.zui-minmax-field__slider { width: 130px; }
+.zui-minmax-field__number { width: 42px; }
+.zui-foundation-hspace { width: 8px; flex-shrink: 0; }
+.zui-foundation-vspace { height: 6px; flex-shrink: 0; }
+.zui-foundation-flexible { flex-grow: 1; }
+.zui-foundation-icon { width: 14px; height: 14px; }
+.zui-foundation-icon-button { width: 20px; height: 20px; }
+.zui-foundation-dropdown,
+.zui-foundation-enum-dropdown { width: 140px; }
+.zui-foundation-int-field,
+.zui-foundation-color-field { width: 60px; }

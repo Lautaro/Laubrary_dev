@@ -1,0 +1,24 @@
+{
+  "baseline": {
+    "path": "D:\\UNITY\\Laubrary Dev - UI Separation\\Documentation\\UISeparation\\Evidence\\colorful-wide_baseline.png",
+    "sha256": "71970cdadce0241ac0de97478c20437bad1d86ae46552626e8267aafd4ded164"
+  },
+  "bounding_rect": null,
+  "candidate": {
+    "path": "D:\\UNITY\\Laubrary Dev - UI Separation\\Documentation\\UISeparation\\Evidence\\colorful-wide_candidate.png",
+    "sha256": "9cb8233921949a14e0d8f1e9a0bd124c8620c7d72d9b30973acd0500dedfa3e7"
+  },
+  "crop_top": 60,
+  "diff_png": "D:\\UNITY\\Laubrary Dev - UI Separation\\Documentation\\UISeparation\\Evidence\\colorful-wide_candidate.diff.png",
+  "exact_bounding_rect": null,
+  "exact_changed_pixels": 0,
+  "max_channel_delta": 0,
+  "mean_channel_delta": 0.0,
+  "over_tolerance_changed_pixels": 0,
+  "size": {
+    "height": 1409,
+    "width": 2025
+  },
+  "tolerance": 0,
+  "top_horizontal_rows": []
+}

@@ -1,0 +1,82 @@
+﻿[
+    {
+        "case":  "default-normal",
+        "changedPixels":  0,
+        "maxDelta":  0,
+        "width":  1395,
+        "height":  1409,
+        "intentionalDifference":  false
+    },
+    {
+        "case":  "default-repeat",
+        "changedPixels":  0,
+        "maxDelta":  0,
+        "width":  1395,
+        "height":  1409,
+        "intentionalDifference":  false
+    },
+    {
+        "case":  "default-narrow",
+        "changedPixels":  0,
+        "maxDelta":  0,
+        "width":  945,
+        "height":  1409,
+        "intentionalDifference":  false
+    },
+    {
+        "case":  "default-wide",
+        "changedPixels":  0,
+        "maxDelta":  0,
+        "width":  2025,
+        "height":  1409,
+        "intentionalDifference":  false
+    },
+    {
+        "case":  "colorful-normal",
+        "changedPixels":  0,
+        "maxDelta":  0,
+        "width":  1395,
+        "height":  1409,
+        "intentionalDifference":  false
+    },
+    {
+        "case":  "colorful-narrow",
+        "changedPixels":  0,
+        "maxDelta":  0,
+        "width":  945,
+        "height":  1409,
+        "intentionalDifference":  false
+    },
+    {
+        "case":  "colorful-wide",
+        "changedPixels":  0,
+        "maxDelta":  0,
+        "width":  2025,
+        "height":  1409,
+        "intentionalDifference":  false
+    },
+    {
+        "case":  "numeric-input",
+        "changedPixels":  0,
+        "maxDelta":  0,
+        "width":  1395,
+        "height":  1409,
+        "intentionalDifference":  false
+    },
+    {
+        "case":  "empty-state",
+        "changedPixels":  0,
+        "maxDelta":  0,
+        "width":  1395,
+        "height":  1409,
+        "intentionalDifference":  false
+    },
+    {
+        "case":  "scoped-override",
+        "changedPixels":  121638,
+        "maxDelta":  224,
+        "width":  1395,
+        "height":  1409,
+        "intentionalDifference":  true
+    }
+]

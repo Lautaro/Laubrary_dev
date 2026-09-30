@@ -1,0 +1,16 @@
+/* UI-separation pilot: default metrics and static presentation for skin sliders. */
+.zui-slider, .zui-minmax, .zui-range { flex-shrink: 0; }
+.zui-slider, .zui-minmax { flex-direction: row; }
+.zui-slider__fill, .zui-slider__rest { flex-shrink: 0; }
+.zui-minmax__track { flex-grow: 1; flex-shrink: 1; }
+.zui-minmax__part, .zui-band-sliders__band, .zui-band-sliders__fill, .zui-band-sliders__hover, .zui-band-sliders__overflow, .zui-band-sliders__baseline, .zui-range__part { position: absolute; }
+.zui-minmax__part, .zui-band-sliders__band, .zui-band-sliders__hover { top: 0; bottom: 0; }
+.zui-band-sliders__baseline { left: 0; right: 0; height: 1px; background-color: rgba(255,255,255,0.35); }
+.zui-band-sliders__hover { background-color: rgba(255,255,255,0.07); }
+.zui-band-sliders__overflow { height: 2px; background-color: rgb(255,217,89); }
+.zui-band-sliders { --zui-band-gap: 2; --zui-band-cap-thickness: 2; --zui-band-baseline-thickness: 1; }
+.zui-minmax__field { margin-left: 4px; flex-shrink: 0; }
+.zui-skinrange.zui-range > .zui-range__label, .zui-skinrange.zui-range > .zui-range__compact { -unity-text-align: middle-left; }
+.zui-skinrange.zui-range > .zui-range__label, .zui-skinrange.zui-range > .zui-range__field { margin-left: 0; margin-right: 0; margin-top: 0; margin-bottom: 0; }
+.zui-skinrange.zui-range > .zui-range__compact { color: rgba(255,255,255,0.7); }
+.zui-skinrange.zui-range > .zui-range__fill-hover { background-color: rgba(255,255,255,0.12); }

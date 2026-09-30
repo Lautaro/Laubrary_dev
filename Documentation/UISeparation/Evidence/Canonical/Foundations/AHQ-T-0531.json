@@ -1,0 +1,59 @@
+{
+  "frontmatter": {
+    "id": "T-0531",
+    "title": "Fields and cards presentation separation",
+    "node": "LaubraryUssFoundations-2026-09-30",
+    "status": "done",
+    "priority": "normal",
+    "created": "2026-09-30T11:55:19Z",
+    "updated": "2026-09-30T12:36:54Z",
+    "assignee": "user",
+    "agent_role": "Containers and fields workers",
+    "agent_model": "gpt-5.6-terra",
+    "agent_subagent_count": "0",
+    "tags": "uncommitted",
+    "confirmed": "false"
+  },
+  "description": "Continue the approved UI separation plan only in D:/UNITY/Laubrary Dev - UI Separation. Preserve current visuals and interaction. Semantic control classes supply defaults; parent tool classes supply overrides. Coordinator integrates and verifies in the isolated Unity editor. Scope and evidence will be recorded before completion.",
+  "todos": [],
+  "questions": [],
+  "handover": [
+    {
+      "time": "2026-09-30T12:36:54Z",
+      "actor": "agent",
+      "from_status": "open",
+      "to_status": "done",
+      "text": "Moved card/header and generated-field static presentation into semantic USS parts while preserving state, binding and caller contracts. Frozen/candidate views match at three widths.\n\n[[attach:20260930T123654Z_FoundationContainers.md]] [[attach:20260930T123654Z_FoundationFields.md]]",
+      "proof": [
+        {
+          "checked": true,
+          "text": "Recorded scoped implementation and verification evidence in isolated copy"
+        }
+      ],
+      "details": "Implemented only in D:/UNITY/Laubrary Dev - UI Separation. Commit 0a347d4. Coordinator reviewed delegated work and ran serial Unity verification. See report for verified-by-probe, verified-by-eye and unverified coverage; explicit compatibility paths remain.",
+      "technical_details": "Reference commit e52505a. Scripts and artifacts under Documentation/UISeparation; final evidence under Evidence/Foundations. No original source or consumer deployment."
+    }
+  ],
+  "agents": [
+    {
+      "time": "2026-09-30T11:58:39Z",
+      "role": "Containers and fields workers",
+      "model": "gpt-5.6-terra",
+      "note": "Active in isolated refactor copy; coordinator owns live verification."
+    }
+  ],
+  "attached": [
+    {
+      "filename": "20260930T123654Z_FoundationContainers.md",
+      "size": 1648,
+      "time": "2026-09-30T12:36:54Z",
+      "sourcePath": "D:\\UNITY\\Laubrary Dev\\.agenthq\\workspace\\T-0531\\FoundationContainers.md"
+    },
+    {
+      "filename": "20260930T123654Z_FoundationFields.md",
+      "size": 3006,
+      "time": "2026-09-30T12:36:54Z",
+      "sourcePath": "D:\\UNITY\\Laubrary Dev\\.agenthq\\workspace\\T-0531\\FoundationFields.md"
+    }
+  ]
+}

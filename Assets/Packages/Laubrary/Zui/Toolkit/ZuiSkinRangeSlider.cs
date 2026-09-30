@@ -25,6 +25,11 @@ namespace Laubrary.Zui
     /// from the sheet, never read from it at runtime.
     public class ZuiSkinRangeSlider : VisualElement
     {
+        static readonly CustomStyleProperty<float> ThumbWidthProperty = new CustomStyleProperty<float>("--zui-range-thumb-width");
+        static readonly CustomStyleProperty<float> ThumbHeightProperty = new CustomStyleProperty<float>("--zui-range-thumb-height");
+        static readonly CustomStyleProperty<float> TrackHeightProperty = new CustomStyleProperty<float>("--zui-range-track-height");
+        static readonly CustomStyleProperty<float> ValueWidthProperty = new CustomStyleProperty<float>("--zui-range-value-width");
+        static readonly CustomStyleProperty<float> LabelWidthProperty = new CustomStyleProperty<float>("--zui-range-label-width");
         public struct Geometry
         {
             public float thumbWidth, thumbHeight, trackHeight, valueWidth, labelWidth;
@@ -37,6 +42,7 @@ namespace Laubrary.Zui
         const float CenterGrab = 6f;
 
         readonly Geometry _g;
+        float _thumbWidth, _thumbHeight, _trackHeight, _valueWidth, _labelWidth;
         readonly Label _label, _compact;
         readonly VisualElement _emptyL, _fill, _emptyR, _fillHover, _thumbMin, _thumbMax, _thumbCenter;
         readonly FloatField _fieldOne, _fieldMin, _fieldMax;
@@ -56,19 +62,22 @@ namespace Laubrary.Zui
                                   Action<float, float> onChanged, Action onBeforeMutate = null, Func<float, float, string> compactText = null)
         {
             _g = geometry; _absMin = absMin; _absMax = absMax; _onChanged = onChanged; _onBeforeMutate = onBeforeMutate; _compactText = compactText;
+            ResetMetricsToGeometry();
             AddToClassList("zui-skinrange");
-            style.flexShrink = 0;
+            AddToClassList("zui-range");
 
             _label = new Label(label) { pickingMode = PickingMode.Ignore };
             _label.AddToClassList("zui-skinslider__label");
             _label.AddToClassList("zui-skinrange__label");
+            _label.AddToClassList("zui-range__label");
             Abs(_label);
-            _label.style.unityTextAlign = TextAnchor.MiddleLeft;
-            _label.style.marginLeft = 0; _label.style.marginRight = 0; _label.style.marginTop = 0; _label.style.marginBottom = 0;
-            _emptyL = Part("zui-skinslider__rest"); _fill = Part("zui-skinslider__fill"); _emptyR = Part("zui-skinslider__rest");
-            _fillHover = Part(null); _fillHover.style.backgroundColor = new Color(1f, 1f, 1f, 0.12f);
-            _thumbCenter = Part("zui-skinminmax__edge--center");
-            _thumbMin = Part("zui-skinminmax__edge--min"); _thumbMax = Part("zui-skinminmax__edge--max");
+            _emptyL = Part("zui-skinslider__rest"); _emptyL.AddToClassList("zui-range__rest");
+            _fill = Part("zui-skinslider__fill"); _fill.AddToClassList("zui-range__fill");
+            _emptyR = Part("zui-skinslider__rest"); _emptyR.AddToClassList("zui-range__rest");
+            _fillHover = Part(null); _fillHover.AddToClassList("zui-range__fill-hover");
+            _thumbCenter = Part("zui-skinminmax__edge--center"); _thumbCenter.AddToClassList("zui-range__thumb"); _thumbCenter.AddToClassList("zui-range__thumb--center");
+            _thumbMin = Part("zui-skinminmax__edge--min"); _thumbMin.AddToClassList("zui-range__thumb"); _thumbMin.AddToClassList("zui-range__thumb--min");
+            _thumbMax = Part("zui-skinminmax__edge--max"); _thumbMax.AddToClassList("zui-range__thumb"); _thumbMax.AddToClassList("zui-range__thumb--max");
             Add(_label); Add(_emptyL); Add(_fill); Add(_emptyR); Add(_fillHover); Add(_thumbMin); Add(_thumbMax); Add(_thumbCenter);
 
             _fieldOne = Field(v => Set(v, v));
@@ -76,9 +85,8 @@ namespace Laubrary.Zui
             _fieldMax = Field(v => Set(_min, Mathf.Clamp(v, _min, _absMax)));
             _compact = new Label { pickingMode = PickingMode.Ignore };
             _compact.AddToClassList("zui-skinrange__compact");
+            _compact.AddToClassList("zui-range__compact");
             Abs(_compact);
-            _compact.style.unityTextAlign = TextAnchor.MiddleLeft;
-            _compact.style.color = new Color(1f, 1f, 1f, 0.7f);
             Add(_compact);
 
             RegisterCallback<PointerDownEvent>(OnDown);
@@ -86,15 +94,39 @@ namespace Laubrary.Zui
             RegisterCallback<PointerUpEvent>(OnUp);
             RegisterCallback<PointerLeaveEvent>(_ => { _pointer = new Vector2(-1f, -1f); Layout(); });
             RegisterCallback<GeometryChangedEvent>(_ => Layout());
+            RegisterCallback<CustomStyleResolvedEvent>(ResolveMetrics);
             SetValuesWithoutNotify(lo, hi);
         }
 
-        static void Abs(VisualElement e) { e.style.position = Position.Absolute; }
+        static float Metric(float value, float fallback)
+        {
+            if (float.IsNaN(value) || float.IsInfinity(value)) value = fallback;
+            return Mathf.Max(0f, value);
+        }
+
+        void ResetMetricsToGeometry()
+        {
+            _thumbWidth = Metric(_g.thumbWidth, 0f); _thumbHeight = Metric(_g.thumbHeight, 0f); _trackHeight = Metric(_g.trackHeight, 0f);
+            _valueWidth = Metric(_g.valueWidth, 0f); _labelWidth = Metric(_g.labelWidth, 0f);
+        }
+
+        void ResolveMetrics(CustomStyleResolvedEvent e)
+        {
+            _thumbWidth = e.customStyle.TryGetValue(ThumbWidthProperty, out float thumbWidth) ? Metric(thumbWidth, _g.thumbWidth) : Metric(_g.thumbWidth, 0f);
+            _thumbHeight = e.customStyle.TryGetValue(ThumbHeightProperty, out float thumbHeight) ? Metric(thumbHeight, _g.thumbHeight) : Metric(_g.thumbHeight, 0f);
+            _trackHeight = e.customStyle.TryGetValue(TrackHeightProperty, out float trackHeight) ? Metric(trackHeight, _g.trackHeight) : Metric(_g.trackHeight, 0f);
+            _valueWidth = e.customStyle.TryGetValue(ValueWidthProperty, out float valueWidth) ? Metric(valueWidth, _g.valueWidth) : Metric(_g.valueWidth, 0f);
+            _labelWidth = e.customStyle.TryGetValue(LabelWidthProperty, out float labelWidth) ? Metric(labelWidth, _g.labelWidth) : Metric(_g.labelWidth, 0f);
+            Layout();
+        }
+
+        static void Abs(VisualElement e) { e.AddToClassList("zui-range__part"); }
 
         VisualElement Part(string cls)
         {
             var e = new VisualElement { pickingMode = PickingMode.Ignore };
             if (cls != null) e.AddToClassList(cls);
+            e.AddToClassList("zui-range__part");
             Abs(e);
             return e;
         }
@@ -104,8 +136,8 @@ namespace Laubrary.Zui
             var f = new FloatField();
             f.AddToClassList("zui-skinminmax__field");
             f.AddToClassList("zui-skinrange__field");
+            f.AddToClassList("zui-range__field");
             Abs(f);
-            f.style.marginLeft = 0; f.style.marginRight = 0; f.style.marginTop = 0; f.style.marginBottom = 0;
             f.RegisterValueChangedCallback(e => { if (!Mathf.Approximately(e.newValue, e.previousValue)) onSet(e.newValue); });
             Add(f);
             return f;
@@ -133,7 +165,7 @@ namespace Laubrary.Zui
 
         string Fmt => !string.IsNullOrEmpty(_g.valueFormat) ? _g.valueFormat : ZuiSkinTrackLabel.AutoFormat(_absMin, _absMax);
         bool Collapsed => _min.ToString(Fmt) == _max.ToString(Fmt);
-        float ThumbW => Mathf.Max(4f, _g.thumbWidth);
+        float ThumbW => Mathf.Max(4f, _thumbWidth);
         bool Compact => _compactText != null;
 
         void Carve(out Rect labelRect, out Rect sliderRect, out Rect valueRect)
@@ -145,7 +177,7 @@ namespace Laubrary.Zui
             {
                 float measured = _label.MeasureTextSize(_label.text, 0, MeasureMode.Undefined, 0, MeasureMode.Undefined).x
                                  + _label.resolvedStyle.paddingLeft + _label.resolvedStyle.paddingRight + 4f;
-                float lw = _g.labelWidth > 0f ? Mathf.Max(_g.labelWidth, measured) : measured;
+                float lw = _labelWidth > 0f ? Mathf.Max(_labelWidth, measured) : measured;
                 labelRect = new Rect(total.x, total.y, lw, total.height);
                 sliderRect = new Rect(total.x + lw, total.y, total.width - lw, total.height);
             }
@@ -155,9 +187,9 @@ namespace Laubrary.Zui
                 valueRect = new Rect(sliderRect.xMax - cw, sliderRect.y, cw, sliderRect.height);
                 sliderRect.width -= cw;
             }
-            else if (_g.showValueField && _g.valueWidth > 0f)
+            else if (_g.showValueField && _valueWidth > 0f)
             {
-                float vw = _g.valueWidth * 0.6f;
+                float vw = _valueWidth * 0.6f;
                 valueRect = new Rect(sliderRect.xMax - vw, sliderRect.y, vw, sliderRect.height);
                 sliderRect.width -= vw;
             }
@@ -187,7 +219,7 @@ namespace Laubrary.Zui
             if (float.IsNaN(layout.width) || layout.width <= 0f) return;
             Carve(out var labelRect, out var s, out var valueRect);
             Place(_label, labelRect, labelRect.width > 0f);
-            float thumbW = ThumbW, thumbH = _g.thumbHeight > 0f ? _g.thumbHeight : s.height, trackH = Mathf.Min(_g.trackHeight, s.height);
+            float thumbW = ThumbW, thumbH = _thumbHeight > 0f ? _thumbHeight : s.height, trackH = Mathf.Min(_trackHeight, s.height);
             float trackY = s.y + (s.height - trackH) * 0.5f;
             float cxMin = XOf(_min, s), cxMax = XOf(_max, s);
             bool fused = cxMax - cxMin < thumbW;
@@ -217,6 +249,8 @@ namespace Laubrary.Zui
             Place(_thumbMax, Thumb(drawMax));
             _thumbMin.EnableInClassList("zui-skinminmax__edge--active", _drag == Drag.Min || (fused && _drag == Drag.Fill));
             _thumbMax.EnableInClassList("zui-skinminmax__edge--active", _drag == Drag.Max || (fused && _drag == Drag.Fill));
+            _thumbMin.EnableInClassList("zui-range__thumb--active", _drag == Drag.Min || (fused && _drag == Drag.Fill));
+            _thumbMax.EnableInClassList("zui-range__thumb--active", _drag == Drag.Max || (fused && _drag == Drag.Fill));
             if (_g.bipolar) Place(_thumbCenter, Thumb(XOf(Center, s)));
             else _thumbCenter.style.display = DisplayStyle.None;
 
@@ -299,7 +333,7 @@ namespace Laubrary.Zui
                 return;
             }
 
-            float thumbH = _g.thumbHeight > 0f ? _g.thumbHeight : s.height;
+            float thumbH = _thumbHeight > 0f ? _thumbHeight : s.height;
             Rect Thumb(float cx) => new Rect(cx - thumbW * 0.5f, s.y + (s.height - thumbH) * 0.5f, thumbW, thumbH);
             if (fused)
             {

@@ -1,0 +1,12 @@
+var w=System.Array.Find(UnityEngine.Resources.FindObjectsOfTypeAll<Laubrary.UISeparationPilot.PilotWindow>(),x=>x.titleContent.text.Contains("Candidate"));
+var slider=UnityEngine.UIElements.UQueryExtensions.Q<Laubrary.Zui.ZuiMicroSlider>(w.rootVisualElement);
+string before=Laubrary.UISeparationPilot.PilotWindow.State();
+Laubrary.UISeparationPilot.PilotWindow.SetSkin(true);
+Laubrary.UISeparationPilot.PilotWindow.SetOverride(true);
+Laubrary.UISeparationPilot.PilotWindow.SetSkin(false);
+Laubrary.UISeparationPilot.PilotWindow.SetOverride(false);
+if (!object.ReferenceEquals(slider,UnityEngine.UIElements.UQueryExtensions.Q<Laubrary.Zui.ZuiMicroSlider>(w.rootVisualElement))) throw new System.Exception("Skin swap replaced bound controls");
+if(before!=Laubrary.UISeparationPilot.PilotWindow.State()) throw new System.Exception("Styling altered fixture data");
+Laubrary.UISeparationPilot.PilotWindow.OpenPair(false);
+if(before!=Laubrary.UISeparationPilot.PilotWindow.State()) throw new System.Exception("Reopening lost fixture data");
+return "PASS skin/root changes retain control identity and data; reopening retains fixture values";

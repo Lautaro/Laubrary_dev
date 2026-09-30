@@ -1,0 +1,584 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using Laubrary.Zui;
+using Laubrary.AssetKit.Editor;
+using Z = Laubrary.Zui.FoundationFactoryBaseline.Z;
+using ZuiText = Laubrary.Zui.FoundationFactoryBaseline.ZuiText;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.UIElements;
+
+namespace Laubrary.UISeparationConsumerBaseline
+{
+    /// <summary>
+    /// UI Toolkit counterpart of <see cref="LaubraryAssetWindow{T}"/> — the base for an editor window
+    /// that edits ONE ScriptableObject type <typeparamref name="T"/>, providing the same asset chrome:
+    ///   • a toolbar — assign, New (inline name prompt), Duplicate, Rename, Delete, Browse;
+    ///   • a thumbnail-grid browser of every <typeparamref name="T"/> in the project;
+    ///   • the browser shown automatically whenever no asset is selected.
+    /// Subclasses implement <see cref="BuildAsset"/> (retained-mode; rebuilt on asset change and on
+    /// undo/redo) instead of the IMGUI base's per-frame DrawAsset. Both bases stay available while
+    /// tools migrate — they share <see cref="AssetLibrary{T}"/> for all actual asset CRUD.
+    /// </summary>
+    public abstract class FrozenZuiAssetWindow<T> : ZuiWindow where T : ScriptableObject
+    {
+        [SerializeField] protected T asset;      // the asset currently being edited (null → browser)
+        [SerializeField] bool browsing;          // browser explicitly toggled on (also shown when asset == null)
+
+        // transient inline-prompt state
+        bool creating; string createText = ""; string createFolder = "";
+        // T-0369: set only inside ChooseCreateFolder — the folder is remembered across New calls ONLY when
+        // the user explicitly picked one via Folder…, never just because a Create happened to succeed while
+        // showing the open asset's folder or DefaultFolder (that silently hijacked every other tool's New
+        // once any tool's Folder… was ever used — same EditorPrefs key is per window TYPE, not per session).
+        bool createFolderExplicit;
+        bool renaming; string renameText = "";
+
+        // T-0379: filter typed into the toolbar's search field, applied to the browser grid only (transient
+        // UI state, not asset data — never [SerializeField]). _filterFocusPending is set right before a
+        // filter-driven Rebuild() so the freshly-rebuilt field can reclaim focus/caret without the toolbar
+        // stealing focus on every OTHER rebuild (asset switch, undo, project change, …).
+        string _browseFilter = "";
+        bool _filterFocusPending;
+
+        // browser state
+        List<T> _browse;
+        readonly Dictionary<T, Texture2D> _thumbs = new Dictionary<T, Texture2D>();
+        readonly List<Image> _thumbImages = new List<Image>();
+        // Off by default — a browser full of animatable assets (e.g. 20 Pyres) shouldn't all animate at
+        // once: overwhelming to look at, and expensive (a tool's UpdateAnimatedThumbnail/an asset's own
+        // IVisualPreview.UpdateAnimatedPreview can be a real re-render). Off = static, hover to preview.
+        [SerializeField] bool _animateAllPreviews;
+        T _hoveredThumb;
+
+        // ── override points (same contract as the IMGUI base) ───────────────────────
+        /// Build the per-asset editor into <paramref name="root"/>. Only called when an asset is
+        /// selected (never null). Rebuilt from scratch on asset change and undo/redo.
+        protected abstract void BuildAsset(VisualElement root, T asset);
+        protected virtual string TypeLabel => typeof(T).Name;
+        protected virtual string DefaultFolder => "Assets";
+        protected virtual string NewAssetName => "New " + typeof(T).Name;
+        /// Return a FRESH preview texture for the browser (this base owns and destroys it). Null → Unity asset icon.
+        protected virtual Texture2D RenderThumbnail(T item) => null;
+        protected virtual bool AnimateThumbnails => false;
+        protected virtual void UpdateAnimatedThumbnail(T item, Texture2D tex, double time) { }
+        /// Called whenever the edited asset changes (assign / create / duplicate / browse pick).
+        protected virtual void OnAssetChanged() { }
+        /// Seed a freshly-created asset with tool-specific default content.
+        protected virtual void InitializeNewAsset(T item) { }
+        protected virtual float CellSize => 104f;
+        protected virtual float ThumbSize => 92f;
+
+        protected T Current => asset;
+        protected bool IsBrowsing => browsing;
+
+        /// The Tags section built by BuildUI for the current asset (null when no asset is selected/saved).
+        /// Rebuilt every BuildUI call; BuildUI sets this BEFORE calling BuildAsset, so a subclass's own
+        /// BuildAsset override can read it — e.g. to include it in its own ZuiSectionToggleBar.
+        protected ZuiSection TagsSection { get; private set; }
+
+        /// True (default) — the base places the built Tags section into root itself, right after the
+        /// toolbar/create/rename rows, exactly as every current subclass (Pyre included) already relies on.
+        /// Override false when a subclass's own chrome needs Tags placed somewhere else in its layout (e.g.
+        /// below a toggle bar, so folding Tags never moves the bar above it — T-0187, ShaperWindow); the
+        /// base still BUILDS the section into TagsSection either way, it just stops adding it to root, and
+        /// the subclass becomes responsible for adding TagsSection into its own layout during BuildAsset.
+        protected virtual bool AutoInsertTagsSection => true;
+
+        protected void SetAsset(T next)
+        {
+            if (ReferenceEquals(asset, next)) return;
+            asset = next; creating = false; renaming = false;
+            if (next != null) RememberLastAsset(next);
+            OnAssetChanged();
+            Rebuild();
+        }
+
+        // ── remember / restore the last-open asset (T-0350) ─────────────────────────────
+        // [SerializeField] `asset` above only survives a domain reload of a window that stayed OPEN —
+        // Unity re-serializes an open EditorWindow's fields into the current layout across a recompile.
+        // Closing the window discards that instance entirely; reopening via the menu item creates a
+        // brand-new instance with every field back at its default, which is why Chunks/Pyre/every other
+        // ZuiAssetWindow dropped straight to the browser on reopen. EditorPrefs is the only thing that
+        // outlives a closed window, so the last non-sub-asset this window type edited is mirrored there,
+        // keyed by concrete type AND this project's path (EditorPrefs is machine-global, not project-
+        // scoped, so two Laubrary projects — or two window types — must not clobber each other's key).
+        static string LastAssetPrefsKey => $"Laubrary.AssetKit.LastAsset.{typeof(T).FullName}.{Application.dataPath}";
+
+        // ── remembered New folder (T-0361) ───────────────────────────────────────────
+        // New used to silently drop the file in FolderForNew() (the currently-open asset's folder, or
+        // DefaultFolder) with no way to see or change that before the file existed — F9 in T-0344's walk.
+        // The chosen folder is remembered per window TYPE (same EditorPrefs pattern as LastAssetPrefsKey),
+        // so picking a folder once for this tool sticks across New calls and across window reopens.
+        static string NewFolderPrefsKey => $"Laubrary.AssetKit.NewFolder.{typeof(T).FullName}.{Application.dataPath}";
+
+        static string RememberedNewFolder()
+        {
+            string f = EditorPrefs.GetString(NewFolderPrefsKey, "");
+            return !string.IsNullOrEmpty(f) && AssetDatabase.IsValidFolder(f) ? f : null;
+        }
+
+        static void RememberNewFolder(string folder) => EditorPrefs.SetString(NewFolderPrefsKey, folder);
+
+        static void RememberLastAsset(T item)
+        {
+            // A sub-asset (e.g. a Zoe's embedded private Chunks) shares its file with whatever owns it and
+            // is only ever reached via an external "Edit" entry point (LauAssetEditors.Open) that explicitly
+            // calls SetAsset right after opening — never worth restoring on a cold reopen of the plain window.
+            if (AssetDatabase.IsSubAsset(item)) return;
+            string path = AssetDatabase.GetAssetPath(item);
+            if (string.IsNullOrEmpty(path)) return;
+            string guid = AssetDatabase.AssetPathToGUID(path);
+            if (!string.IsNullOrEmpty(guid)) EditorPrefs.SetString(LastAssetPrefsKey, guid);
+        }
+
+        // Only called from OnEnable when `asset` is still at its default AND the window isn't already
+        // showing the browser on purpose — both true for a genuine cold reopen, both already correctly
+        // populated by Unity's own field serialization for a domain-reload of a window that was left
+        // open, so this never fights that path or a caller's explicit SetAsset right after GetWindow
+        // (e.g. double-clicking an asset, or a Mirage handoff — both run AFTER OnEnable and win outright).
+        void TryRestoreLastAsset()
+        {
+            string guid = EditorPrefs.GetString(LastAssetPrefsKey, "");
+            if (string.IsNullOrEmpty(guid)) return;
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            if (string.IsNullOrEmpty(path)) return;   // asset deleted/moved since — fall back silently to the browser
+            var restored = AssetDatabase.LoadAssetAtPath<T>(path);
+            if (restored == null) return;             // wrong type at that path, or failed to load — same silent fallback
+            asset = restored;
+            OnAssetChanged();
+        }
+
+        protected void RefreshBrowse()
+        {
+            ClearThumbs();
+            _browse = AssetLibrary<T>.Enumerate();
+        }
+
+        // ── lifecycle ───────────────────────────────────────────────────────────────
+        const double ThumbAnimateInterval = 1.0 / 12.0;
+        double _lastThumbTick;
+        Action _unwatchInvalidation;
+
+        protected virtual void OnEnable()
+        {
+            if (asset == null && !browsing) TryRestoreLastAsset();
+            EditorApplication.projectChanged += OnProjectChanged;
+            if (AnimateThumbnails) EditorApplication.update += TickThumbAnimation;
+            // So an edited asset's browser thumbnail refreshes immediately instead of showing a stale
+            // render until the window is reopened — see LauAssetGridGUI.WatchInvalidation.
+            _unwatchInvalidation = LauAssetGridGUI.WatchInvalidation(_thumbs, Rebuild);
+        }
+
+        protected override void OnDisable()
+        {
+            base.OnDisable();
+            EditorApplication.projectChanged -= OnProjectChanged;
+            if (AnimateThumbnails) EditorApplication.update -= TickThumbAnimation;
+            _unwatchInvalidation?.Invoke();
+            ClearThumbs();
+        }
+
+        void OnProjectChanged() { RefreshBrowse(); Rebuild(); }
+
+        void TickThumbAnimation()
+        {
+            if (!AnimateThumbnails || !(asset == null || browsing) || _thumbs.Count == 0) return;
+            double now = EditorApplication.timeSinceStartup;
+            if (now - _lastThumbTick < ThumbAnimateInterval) return;
+            _lastThumbTick = now;
+            foreach (var kv in _thumbs)
+            {
+                if (kv.Value == null) continue;
+                if (!_animateAllPreviews && !EqualityComparer<T>.Default.Equals(kv.Key, _hoveredThumb)) continue;
+                UpdateAnimatedThumbnail(kv.Key, kv.Value, now);
+            }
+            foreach (var img in _thumbImages) img?.MarkDirtyRepaint();
+        }
+
+        // ── window build ────────────────────────────────────────────────────────────
+        protected sealed override void BuildUI(VisualElement root)
+        {
+            root.Add(BuildToolbar());
+            if (creating) root.Add(BuildCreateRow());
+            if (renaming && !string.IsNullOrEmpty(AssetLibrary<T>.PathOf(asset))) root.Add(BuildRenameRow());
+
+            // Tags for the selected, saved asset — a single IMGUI island (LauTagField/LauTagPicker are IMGUI-only;
+            // there is no UITK tag control), placed once here in the base so EVERY ZuiAssetWindow subclass surfaces
+            // tags automatically — restoring the parity the IMGUI LaubraryAssetWindow base had (it drew LauTagField
+            // in its toolbar). Same LauTagLibrary GUID side-table, so assets tag/filter identically.
+            // T-0065: wrapped in a normal ZuiSection (green header, foldable) instead of a bare island, so it
+            // reads as one of the tool's sections and — via the TagsSection field below — can be included in a
+            // subclass's own ZuiSectionToggleBar right alongside its other sections.
+            TagsSection = null;
+            if (asset != null && !string.IsNullOrEmpty(AssetLibrary<T>.PathOf(asset)) && !AssetDatabase.IsSubAsset(asset))
+            {
+                var section = Z.Section("Tags", "Tags for this asset — filterable in the browser.");
+                var tagIsland = new IMGUIContainer(() => LauTagField.Draw(asset));
+                tagIsland.style.flexShrink = 0f;
+                section.Add(tagIsland);
+                if (AutoInsertTagsSection) root.Add(section);
+                TagsSection = section;
+            }
+
+            if (asset == null || browsing) root.Add(BuildBrowser());
+            else
+            {
+                var host = new VisualElement();
+                host.style.flexGrow = 1f;
+                host.style.minHeight = 0f;   // flexbox: without this, content height becomes a floor and overflows the window
+                // T-0381: tell every LauAsset chip built in here what this window is editing, so "make this
+                // reference a private copy that lives inside the thing I am editing" is available on a
+                // reflected field too — not only where a tool remembered to pass the owner by hand. Scoped
+                // and restored synchronously, so it can never be read by another window's build.
+                using (LauAssetElement.OwnerScope(asset))
+                    BuildAsset(host, asset);
+                root.Add(host);
+            }
+        }
+
+        protected override void OnBeforeRebuild() => _thumbImages.Clear();
+
+        VisualElement BuildToolbar()
+        {
+            var row = Z.Row(
+                Z.Object<T>(asset, $"The {TypeLabel} asset being edited — assign one directly, or use Browse.",
+                    v => SetAsset(v), 200f),
+                Z.Button("New", $"Create a brand new {TypeLabel} asset (undoable).",
+                    () => { creating = true; renaming = false; createText = NewAssetName;
+                             createFolder = RememberedNewFolder() ?? FolderForNew(); createFolderExplicit = false; Rebuild(); }),
+                Z.Button(browsing ? "Close browser" : "Browse",
+                    $"Toggle the thumbnail browser of every {TypeLabel} in the project.",
+                    () => { browsing = !browsing; creating = false; renaming = false; if (browsing) RefreshBrowse(); Rebuild(); }));
+
+            string p = AssetLibrary<T>.PathOf(asset);
+            // A sub-asset (e.g. a Zoe's embedded private Chunks, T-0250) shares its file PATH with whatever
+            // owns it — Duplicate/Rename/Delete below all operate on that FILE, so offering them here would
+            // duplicate/rename/delete the OWNING asset, not this sub-asset. Hide all three for a sub-asset;
+            // this window only ever reaches one via an external "Edit" entry point (LauAssetEditors.Open),
+            // never via its own New/Browse, so there's no in-window way to create one that needs them anyway.
+            if (!string.IsNullOrEmpty(p) && !AssetDatabase.IsSubAsset(asset))
+            {
+                row.Add(Z.Button("Duplicate", $"Create a copy of this {TypeLabel} next to it and switch to editing the copy (undoable).", () =>
+                {
+                    var d = AssetLibrary<T>.Duplicate(asset);
+                    if (d != null)
+                    {
+                        Undo.RegisterCreatedObjectUndo(d, "Duplicate " + TypeLabel);
+                        SetAsset(d);
+                        if (browsing) { RefreshBrowse(); Rebuild(); }
+                    }
+                }));
+                row.Add(Z.Button("Rename", "Rename this asset's file.", () =>
+                {
+                    renaming = !renaming; creating = false;
+                    renameText = Path.GetFileNameWithoutExtension(AssetLibrary<T>.PathOf(asset));
+                    Rebuild();
+                }));
+                row.Add(Z.Button("Delete", "Delete this asset's file (asks first — file deletion cannot be undone).",
+                    DeleteCurrent));
+            }
+
+            var filterField = Z.TextInput(_browseFilter, "Filter the library below by name.", v =>
+            {
+                _browseFilter = v;
+                _filterFocusPending = true;
+                Rebuild();
+            }, 140f);
+            if (_filterFocusPending)
+            {
+                _filterFocusPending = false;
+                filterField.schedule.Execute(() =>
+                {
+                    filterField.Focus();
+                    filterField.SelectRange(_browseFilter.Length, _browseFilter.Length);
+                });
+            }
+            row.Add(filterField);
+
+            row.Add(Z.Flexible());
+            return row;
+        }
+
+        // T-0369: Name/Create/Cancel — the controls that must always stay reachable — are their own row,
+        // never sharing a row with the folder chrome. The folder row below it is allowed to elide harder
+        // (down to a floor) and to wrap if it still doesn't fit, but it can never push Create/Cancel
+        // off-screen the way one shared row did at a tool's narrow width (T-0361 ZuiAudit: 3 off-screen at
+        // 560 pt). See MiddleElide's caller below for how the elide length adapts to the window width.
+        VisualElement BuildCreateRow()
+        {
+            TextField nameField = Z.TextInput(createText, "File name for the new asset.", v => createText = v, 200f);
+            void Confirm()
+            {
+                var created = AssetLibrary<T>.Create(createText, createFolder);
+                creating = false;
+                if (created != null)
+                {
+                    // Only remember the folder when the user explicitly picked one via Folder… this session —
+                    // otherwise New would silently hijack every future tool-open with whatever folder an
+                    // unrelated asset happened to be sitting in (T-0361 finding 2/5).
+                    if (createFolderExplicit) RememberNewFolder(createFolder);
+                    InitializeNewAsset(created);
+                    EditorUtility.SetDirty(created);
+                    AssetDatabase.SaveAssetIfDirty(created);   // T-0369: only THIS asset, not every dirty asset in the project
+                    Undo.RegisterCreatedObjectUndo(created, "Create " + TypeLabel);
+                    browsing = false;
+                    SetAsset(created);
+                }
+                else Rebuild();
+            }
+            nameField.RegisterCallback<KeyDownEvent>(e =>
+            {
+                if (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter) { Confirm(); e.StopPropagation(); }
+            });
+            nameField.schedule.Execute(() => nameField.Focus());
+
+            var nameRow = Z.Row(
+                Z.Text("Asset name", ZuiText.Body, "File name for the new asset."),
+                nameField,
+                Z.Button("Create", "Create the asset with this name.", Confirm),
+                Z.Button("Cancel", "Abandon creating a new asset.", () => { creating = false; Rebuild(); }));
+
+            // The elide length adapts to the actual window width instead of a fixed 40 chars, so the folder
+            // label can't be the thing that pushes Folder… off-screen at a narrow window — it was measured
+            // fixed at 40 chars regardless of window width (T-0361/1). ~120 pt is a rough budget for the
+            // "in" label + Folder… button + row margins at this control's font; ~6 px/char is this Body
+            // label's rough glyph width. Floored at 8 so a very narrow window still shows something readable.
+            float avail = position.width - 120f;
+            int maxChars = Mathf.Clamp(Mathf.FloorToInt(avail / 6f), 8, 40);
+
+            var folderLabel = new Label(MiddleElide(createFolder, maxChars)) { tooltip = createFolder };
+            folderLabel.style.overflow = Overflow.Hidden;
+            folderLabel.style.whiteSpace = WhiteSpace.NoWrap;
+            folderLabel.style.flexShrink = 1f;   // backstop: CSS-level clip if the estimate above still runs long
+
+            var folderRow = Z.Row(
+                Z.Text("in", ZuiText.Subtle, "The folder the new asset will be created in."),
+                folderLabel,
+                Z.Button("Folder…", $"Choose where the new {TypeLabel} asset is created (remembered for next time).",
+                    ChooseCreateFolder));
+            folderRow.style.flexWrap = Wrap.Wrap;   // last-resort: Folder… drops to its own line rather than going off-screen
+
+            return Z.Column(nameRow, folderRow);
+        }
+
+        void ChooseCreateFolder()
+        {
+            string startAbs = Path.GetFullPath(createFolder);
+            string picked = EditorUtility.OpenFolderPanel($"Choose folder for new {TypeLabel}", startAbs, "");
+            if (string.IsNullOrEmpty(picked)) return;   // cancelled
+
+            string dataPathAbs = Path.GetFullPath(Application.dataPath).Replace('\\', '/').TrimEnd('/');
+            string pickedNorm = Path.GetFullPath(picked).Replace('\\', '/').TrimEnd('/');
+            // Compare by path SEGMENT, not raw string prefix — a plain StartsWith let a sibling folder like
+            // "<project>/AssetsOld" pass as "AssetsOld/…" because "AssetsOld" also starts with "Assets"
+            // (T-0361 finding 3). Equal, or the next character after the prefix must be the separator.
+            bool inside = pickedNorm.Equals(dataPathAbs, StringComparison.OrdinalIgnoreCase)
+                || pickedNorm.StartsWith(dataPathAbs + "/", StringComparison.OrdinalIgnoreCase);
+            if (!inside)
+            {
+                Debug.LogWarning($"'{picked}' is outside this project's Assets folder — keeping '{createFolder}'.");
+                return;
+            }
+            string rel = "Assets" + pickedNorm.Substring(dataPathAbs.Length);
+            createFolder = rel;
+            createFolderExplicit = true;
+            Rebuild();
+        }
+
+        // A folder path like ".../Editor/AssetKit/..." is more useful truncated in the MIDDLE (keeps both
+        // the project-relative root and the leaf folder name legible) than at either end alone.
+        static string MiddleElide(string text, int maxChars)
+        {
+            if (string.IsNullOrEmpty(text) || text.Length <= maxChars) return text;
+            int keep = Math.Max(1, (maxChars - 1) / 2);
+            return text.Substring(0, keep) + "…" + text.Substring(text.Length - keep);
+        }
+
+        VisualElement BuildRenameRow()
+        {
+            TextField nameField = Z.TextInput(renameText, "New file name for this asset.", v => renameText = v, 200f);
+            void Confirm()
+            {
+                AssetLibrary<T>.Rename(asset, renameText);
+                renaming = false;
+                if (browsing) RefreshBrowse();
+                Rebuild();
+            }
+            nameField.RegisterCallback<KeyDownEvent>(e =>
+            {
+                if (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter) { Confirm(); e.StopPropagation(); }
+            });
+            nameField.schedule.Execute(() => nameField.Focus());
+
+            return Z.Row(
+                Z.Text("New name", ZuiText.Body, "New file name for this asset."),
+                nameField,
+                Z.Button("OK", "Apply the rename.", Confirm),
+                Z.Button("Cancel", "Keep the current name.", () => { renaming = false; Rebuild(); }));
+        }
+
+        void DeleteCurrent()
+        {
+            string path = AssetLibrary<T>.PathOf(asset);
+            if (string.IsNullOrEmpty(path)) return;
+            if (!EditorUtility.DisplayDialog($"Delete {TypeLabel}",
+                    $"Delete '{Path.GetFileName(path)}'? This cannot be undone.", "Delete", "Cancel")) return;
+            if (AssetLibrary<T>.Delete(asset)) { SetAsset(null); if (browsing) RefreshBrowse(); Rebuild(); }
+        }
+
+        string FolderForNew()
+        {
+            string cur = AssetLibrary<T>.PathOf(asset);
+            return !string.IsNullOrEmpty(cur) ? Path.GetDirectoryName(cur).Replace('\\', '/') : DefaultFolder;
+        }
+
+        // ── browser ─────────────────────────────────────────────────────────────────
+        VisualElement BuildBrowser()
+        {
+            if (_browse == null) RefreshBrowse();
+
+            List<T> shown = FilteredBrowse();
+
+            var col = new VisualElement();
+            col.style.flexGrow = 1f;
+
+            string countLabel = string.IsNullOrEmpty(_browseFilter)
+                ? $"{TypeLabel} library ({_browse.Count})"
+                : $"{TypeLabel} library ({shown.Count} of {_browse.Count})";
+            var headerRow = Z.Row(
+                Z.Text(countLabel, ZuiText.Section, $"Every {TypeLabel} asset found in the project."),
+                Z.Flexible());
+            if (AnimateThumbnails)
+                headerRow.Add(Z.Toggle("▶ Animate all",
+                    "On: every animated preview plays at once. Off: previews stay static — hover one to preview it.",
+                    _animateAllPreviews, v => { _animateAllPreviews = v; if (!v) _hoveredThumb = default; }));
+            headerRow.Add(Z.Button("Refresh", "Re-scan the project for assets.", () => { RefreshBrowse(); Rebuild(); }));
+            col.Add(headerRow);
+
+            if (_browse.Count == 0)
+                col.Add(Z.Text($"No {TypeLabel} assets yet — hit New to make one.", ZuiText.Subtle));
+            else if (shown.Count == 0)
+                col.Add(Z.Text($"No {TypeLabel} assets match \"{_browseFilter}\".", ZuiText.Subtle));
+
+            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll.style.flexGrow = 1f;
+            var grid = new VisualElement();
+            grid.style.flexDirection = FlexDirection.Row;
+            grid.style.flexWrap = Wrap.Wrap;
+            scroll.Add(grid);
+            foreach (var item in shown)
+                if (item != null) grid.Add(BuildCell(item));
+            col.Add(scroll);
+            return col;
+        }
+
+        // Case-insensitive substring match on name — empty filter = unchanged behavior (whole library).
+        List<T> FilteredBrowse()
+        {
+            if (string.IsNullOrEmpty(_browseFilter)) return _browse;
+            var result = new List<T>();
+            foreach (var item in _browse)
+                if (item != null && item.name.IndexOf(_browseFilter, StringComparison.OrdinalIgnoreCase) >= 0)
+                    result.Add(item);
+            return result;
+        }
+
+        VisualElement BuildCell(T item)
+        {
+            var cell = new VisualElement();
+            cell.AddToClassList("zui-cell");
+            cell.style.width = CellSize;
+            bool selected = ReferenceEquals(asset, item);
+            if (selected) cell.AddToClassList("zui-cell--selected");
+            cell.tooltip = $"{item.name} — click to select, double-click to open.";
+
+            var thumbBox = new VisualElement();
+            thumbBox.AddToClassList("zui-cell__thumb");
+            thumbBox.style.width = ThumbSize;
+            thumbBox.style.height = ThumbSize;
+
+            var tex = Thumb(item);
+            if (tex != null)
+            {
+                var img = new Image { image = tex, scaleMode = ScaleMode.ScaleToFit };
+                img.style.width = ThumbSize - 6f;
+                img.style.height = ThumbSize - 6f;
+                thumbBox.Add(img);
+                if (_thumbs.ContainsKey(item)) _thumbImages.Add(img);
+                img.RegisterCallback<PointerEnterEvent>(_ => SetHoveredThumb(item));
+                img.RegisterCallback<PointerLeaveEvent>(_ =>
+                {
+                    if (EqualityComparer<T>.Default.Equals(_hoveredThumb, item)) SetHoveredThumb(null);
+                });
+            }
+            cell.Add(thumbBox);
+
+            var name = new Label(item.name);
+            name.AddToClassList("zui-cell__name");
+            name.style.maxWidth = CellSize - 4f;
+            cell.Add(name);
+
+            cell.RegisterCallback<PointerDownEvent>(e =>
+            {
+                if (e.button != 0) return;
+                bool open = e.clickCount == 2;
+                if (open) browsing = false;
+                if (ReferenceEquals(asset, item)) Rebuild(); else SetAsset(item);
+                e.StopPropagation();
+            });
+            return cell;
+        }
+
+        Texture2D Thumb(T item)
+        {
+            if (_thumbs.TryGetValue(item, out var t) && t != null) return t;
+
+            // A subclass's own RenderThumbnail wins, then the asset's own IVisualPreview, then Unity's icon.
+            //
+            // The IVisualPreview step was missing here while LaubraryAssetWindow (the older browser base) had
+            // it, so every ZuiAssetWindow-based browser showed blank cards for assets that could perfectly
+            // well draw themselves — Zoe, WeaponDef and AmmoDef all implement the interface and all rendered
+            // nothing. Asking the asset is the whole point of the interface: it exists so ANY consumer can
+            // show a preview without a per-window override.
+            var tex = RenderThumbnail(item);
+            if (tex == null && item is Laubrary.PreviewKit.IVisualPreview vis) tex = vis.RenderPreviewTexture();
+            if (tex != null) { _thumbs[item] = tex; return tex; }
+
+            return AssetPreview.GetAssetPreview(item);   // Unity-owned — never cached or destroyed here
+        }
+
+        // Called on pointer enter/leave in hover-to-preview mode (ignored entirely while _animateAllPreviews
+        // is on). Leaving an item resets its cached texture's PIXELS back to a fresh static frame — the
+        // Image element keeps referencing the same Texture2D instance, so no rebuild is needed, matching
+        // the "mutate in place" contract UpdateAnimatedThumbnail already uses.
+        void SetHoveredThumb(T item)
+        {
+            if (EqualityComparer<T>.Default.Equals(_hoveredThumb, item)) return;
+            var outgoing = _hoveredThumb;
+            _hoveredThumb = item;
+            if (_animateAllPreviews || outgoing == null) return;
+            if (_thumbs.TryGetValue(outgoing, out var tex) && tex != null) ResetThumbToStatic(outgoing, tex);
+        }
+
+        void ResetThumbToStatic(T item, Texture2D tex)
+        {
+            Texture2D fresh = RenderThumbnail(item);
+            if (fresh == null && item is Laubrary.PreviewKit.IVisualPreview vis) fresh = vis.RenderPreviewTexture();
+            if (fresh == null) return;
+            if (fresh.width != tex.width || fresh.height != tex.height) tex.Reinitialize(fresh.width, fresh.height);
+            tex.SetPixels32(fresh.GetPixels32());
+            tex.Apply();
+            DestroyImmediate(fresh);
+        }
+
+        void ClearThumbs()
+        {
+            foreach (var t in _thumbs.Values) if (t != null) DestroyImmediate(t);
+            _thumbs.Clear();
+            _thumbImages.Clear();
+            _hoveredThumb = default;
+        }
+    }
+}

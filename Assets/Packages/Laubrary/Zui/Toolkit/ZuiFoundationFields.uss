@@ -1,0 +1,34 @@
+/* Shared reflected, serialized and managed-reference field presentation. The normal toolkit root
+   attaches this sheet; a tool parent (for example .lau-tool-zounds) may override these semantic parts
+   with an ordinary descendant selector. Per-call widths and measured flow decisions stay in C#. */
+
+.zui-foundation-flow {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+.zui-foundation-hue-swatch,
+.zui-foundation-hue-row,
+.zui-foundation-property {
+    flex-shrink: 0;
+}
+
+.zui-foundation-enum-field {
+    flex-shrink: 1;
+}
+
+.zui-foundation-compact-row {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+}
+
+.zui-foundation-mref-spacer {
+    flex-grow: 1;
+}
+
+/* No explicit Property() width: preserve the legacy 420px cap while allowing narrow content to stay compact. */
+.zui-foundation-property--default-width {
+    max-width: 420px;
+}

@@ -1,0 +1,9 @@
+# Standard controls
+
+T-0525 adds semantic aliases to the legacy painted controls while retaining every existing selector: `ZuiMicroSlider` is also `zui-slider`, its label, value and numeric-input parts are named, `ZuiToggleButton` is also `zui-toggle`, and `ZuiMicroMinMax` is also `zui-range` with named label and value parts. `ZuiPilotStandard.uss` supplies their default static presentation with compound selectors so skin sliders and other controls using the same general aliases do not inherit this legacy-painted appearance.
+
+The MicroSlider numeric-input geometry and its value/input visibility now come from USS. The control changes semantic state classes when a persisted display preference changes, instead of assigning child display styles inline. The range and slider painters resolve typed custom colour properties on every style-resolution event. Each resolution first restores the public compatibility colour fields, then applies the current USS values, so removing a parent class restores the standard palette instead of retaining a previous tool's override.
+
+Dynamic exceptions intentionally remain in C#: pointer capture, hit-testing, fine-drag math, Undo gesture lifetime, reset and mode-menu events, values, generated fill/band geometry, numeric input synchronization, and repaint invalidation. The public painter colour fields remain as compatibility fallbacks for code that sets them directly; a resolved USS property takes precedence while that stylesheet applies.
+
+Focused coordinator verification: attach `ZuiPilotStandard.uss` after the standard sheet; compare baseline and candidate at the same size and scale in the value, numeric-input, toggle-on, range-band and fixed-range states; then add and remove `lau-tool-pilot` while a candidate is alive to confirm custom painter colours update and reset. Exercise click/drag, Shift fine drag, double-click reset, right-click menus and the numeric input to confirm interaction remains unchanged.

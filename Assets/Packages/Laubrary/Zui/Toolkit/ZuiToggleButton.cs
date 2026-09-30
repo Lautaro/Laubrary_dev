@@ -55,6 +55,7 @@ namespace Laubrary.Zui
             _onChanged = onChanged;
             _markWhenOn = string.IsNullOrEmpty(label) && string.IsNullOrEmpty(icon);
             AddToClassList("zui-togglebutton");
+            AddToClassList("zui-toggle");
             if (_markWhenOn) AddToClassList("zui-togglebutton--mark");
             Z.FillButton(this, label, icon);   // no icon ⇒ just sets .text, unchanged from before
             this.value = value;   // AFTER FillButton, so an empty toggle's mark wins over the blank label

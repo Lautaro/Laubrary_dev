@@ -56,29 +56,36 @@ namespace Laubrary.Zui
             _onChanged = onChanged; _onBeforeMutate = onBeforeMutate;
             this.tooltip = tooltip;
             AddToClassList("zui-skinminmax");
-            style.flexDirection = FlexDirection.Row;
-            style.flexShrink = 0;
+            AddToClassList("zui-minmax");
+            AddToClassList("zui-range");
 
             _track = new VisualElement();
             _track.AddToClassList("zui-skinminmax__track");
-            _track.style.flexGrow = 1; _track.style.flexShrink = 1;
+            _track.AddToClassList("zui-minmax__track");
             Add(_track);
             VisualElement Part(string cls, bool absolute)
             {
                 var e = new VisualElement { pickingMode = PickingMode.Ignore };
                 e.AddToClassList(cls);
-                if (absolute) { e.style.position = Position.Absolute; e.style.top = 0; e.style.bottom = 0; }
+                e.AddToClassList("zui-minmax__part");
                 _track.Add(e);
                 return e;
             }
             _restL = Part("zui-skinslider__rest", true);
+            _restL.AddToClassList("zui-minmax__rest");
             _fill = Part("zui-skinslider__fill", true);
+            _fill.AddToClassList("zui-minmax__fill");
             _restR = Part("zui-skinslider__rest", true);
+            _restR.AddToClassList("zui-minmax__rest");
             _edgeMin = Part("zui-skinminmax__edge--min", true);
+            _edgeMin.AddToClassList("zui-minmax__edge"); _edgeMin.AddToClassList("zui-minmax__edge--min");
             _edgeMax = Part("zui-skinminmax__edge--max", true);
+            _edgeMax.AddToClassList("zui-minmax__edge"); _edgeMax.AddToClassList("zui-minmax__edge--max");
             _center = Part("zui-skinminmax__edge--center", true);
+            _center.AddToClassList("zui-minmax__edge"); _center.AddToClassList("zui-minmax__edge--center");
             _edgeMin.pickingMode = _edgeMax.pickingMode = _center.pickingMode = PickingMode.Position;   // for :hover, as the IMGUI thumbs react to the pointer
             _label = ZuiSkinTrackLabel.Create();
+            _label.AddToClassList("zui-minmax__label");
             _track.Add(_label);
 
             if (showFields && valueWidth > 0f)
@@ -88,7 +95,8 @@ namespace Laubrary.Zui
                 {
                     var f = new FloatField { isDelayed = true };
                     f.AddToClassList("zui-skinminmax__field");
-                    f.style.width = per; f.style.marginLeft = 4f; f.style.flexShrink = 0;
+                    f.AddToClassList("zui-minmax__field");
+                    f.style.width = per;
                     f.RegisterValueChangedCallback(e => set(e.newValue));
                     Add(f);
                     return f;
@@ -97,7 +105,8 @@ namespace Laubrary.Zui
                 _fieldMax = Field(v => Commit(_lo, Mathf.Clamp(v, _lo, _absMax)));
                 _fieldOne = new FloatField { isDelayed = true };
                 _fieldOne.AddToClassList("zui-skinminmax__field");
-                _fieldOne.style.width = per * 2f + 4f; _fieldOne.style.marginLeft = 4f; _fieldOne.style.flexShrink = 0;
+                _fieldOne.AddToClassList("zui-minmax__field");
+                _fieldOne.style.width = per * 2f + 4f;
                 _fieldOne.RegisterValueChangedCallback(e => { float v = Mathf.Clamp(e.newValue, _absMin, _absMax); Commit(v, v); });
                 Add(_fieldOne);
             }
@@ -236,6 +245,8 @@ namespace Laubrary.Zui
             _track.CapturePointer(e.pointerId);
             _edgeMin.EnableInClassList("zui-skinminmax__edge--active", d == Drag.Min);
             _edgeMax.EnableInClassList("zui-skinminmax__edge--active", d == Drag.Max);
+            _edgeMin.EnableInClassList("zui-minmax__edge--active", d == Drag.Min);
+            _edgeMax.EnableInClassList("zui-minmax__edge--active", d == Drag.Max);
         }
 
         void DragEdge(float mx)
@@ -266,6 +277,8 @@ namespace Laubrary.Zui
             _drag = Drag.None;
             _edgeMin.RemoveFromClassList("zui-skinminmax__edge--active");
             _edgeMax.RemoveFromClassList("zui-skinminmax__edge--active");
+            _edgeMin.RemoveFromClassList("zui-minmax__edge--active");
+            _edgeMax.RemoveFromClassList("zui-minmax__edge--active");
             if (_track.HasPointerCapture(e.pointerId)) _track.ReleasePointer(e.pointerId);
         }
     }

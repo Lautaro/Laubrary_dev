@@ -55,7 +55,7 @@ namespace Laubrary.Zui
             header.Add(titleLabel);
 
             var spacer = new VisualElement { pickingMode = PickingMode.Ignore };
-            spacer.style.flexGrow = 1f;
+            spacer.AddToClassList("zui-foundation-mref-spacer");
             header.Add(spacer);
 
             string typeLabel = BoxedValue != null

@@ -1,0 +1,355 @@
+/* Hand-written layout rules for the Zounds UI Toolkit port — the parts of the old windows' look that are not sheet
+   styles (the generated Skin/ZoundsSkin.uss holds those): plain labels, fields and placements the old code sets up
+   directly. Every value here is copied from the old window's code or measured against it. */
+
+/* The old windows draw from the window's edge (GUILayout.BeginArea(0, 0, ...)); ZUI's root adds 4 px of padding.
+   Measured 2026-09-28: the IMGUI content origin of these windows sits 3 px below the UI Toolkit root (every row of the
+   Klip window was 3.1 px higher in the twin with no top padding, and the spacing between rows matched exactly). */
+.zs-root {
+    padding: 3px 0 0 0;
+}
+
+/* The tags field: a bare text button (ZoundInspector's tagsLabelStyleInline: a plain GUIStyle, wraps, anchored
+   upper-left, text colour 163,198,255; the sheet's "Zounds Tags" text style then sets size and italics). */
+.zs-root .zs-tagsfield.unity-button {
+    background-color: rgba(0,0,0,0);
+    background-image: none;
+    border-width: 0;
+    margin: 0;
+    padding: 0;
+    -unity-text-align: upper-left;
+    white-space: normal;
+    overflow: hidden;
+    color: rgb(163,198,255);
+}
+.zs-root .zs-tagsfield.unity-button:hover, .zs-root .zs-tagsfield.unity-button:active {
+    background-color: rgba(0,0,0,0);
+}
+
+/* EditorGUILayout.ObjectField("Source:"): the editor's standard 150 px label column, the field 2 px after it, the row
+   20 px tall (18 + 1 above + 1 below) — measured on the old window: field at x = box padding + 152, row 20.0 px. */
+.zs-root .zs-sourcefield {
+    margin: 1px 0 1px 0;
+    height: 18px;
+}
+.zs-root .zs-sourcefield > .unity-base-field__label {
+    min-width: 150px;
+    width: 150px;
+    margin: 0;
+    padding: 0;
+}
+.zs-root .zs-sourcefield > .unity-base-field__input {
+    margin-left: 2px;
+}
+
+/* EditorGUI.DelayedTextField in a rect: no outer margin (the rect is the field). */
+.zs-root .zs-namefield {
+    margin: 0;
+}
+
+/* ── chain editor labels (ChainEditorGUI draws them with the editor's own label styles; values read from
+   EditorStyles on 2026-09-28: label/boldLabel 12 pt, padding 1 left/right, colour 0.769, middle-left) ── */
+.zs-root .zs-lbl {
+    margin: 0;
+    padding: 0 1px 0 1px;
+    color: rgb(196,196,196);
+    -unity-text-align: middle-left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+/* EditorStyles.boldLabel */
+.zs-root .zs-bold { -unity-font-style: bold; }
+/* EditorStyles.miniLabel: 10 pt, padding 2, colour 0.824 */
+.zs-root .zs-mini { font-size: 10px; padding: 0 2px 0 2px; color: rgb(210,210,210); }
+/* EditorStyles.centeredGreyMiniLabel: 10 pt, padding 2, grey 0.5 */
+.zs-root .zs-greymini { font-size: 10px; padding: 0; -unity-text-align: middle-center; color: rgb(128,128,128); text-overflow: clip; overflow: visible; }
+/* ZTextStyle.Subtle: the Zounds sheet resolves it to its Default text style (0.88, padding 2/1, upper-left) */
+.zs-root .zs-subtle { color: rgb(224,224,224); padding: 1px 2px 1px 2px; margin: 0 0 0 4px; -unity-text-align: upper-left; }
+/* GUI.Label with no style: the editor skin's plain label, padding 2 */
+.zs-root .zs-guilabel { padding: 0 2px 0 2px; }
+/* ZTextStyle.Subheader: size and weight from the sheet's rule, placed like a GUILayout label */
+.zs-root .zs-subheader { padding: 0 2px 0 2px; margin: 0; -unity-text-align: middle-left; color: rgb(224,224,224); }
+/* The chain's reserved error row and a setting's warning mark (colour 0.97, 0.8, 0.4) */
+.zs-root .zs-warntext { color: rgb(247,204,102); }
+.zs-root .zs-warnmark { color: rgb(247,204,102); -unity-text-align: middle-center; padding: 0; }
+/* ZPOC (T-0492): amber means "game code can drive / is driving this". Warmer and more saturated than the warning
+   yellow above, so it never reads as a problem. The ⌁ mark replaces the grey ~ on a parameter a ZPOC reaches. */
+.zs-root .zs-zpocmark { color: rgb(255,150,40); -unity-text-align: middle-center; padding: 0; font-size: 10px; text-overflow: clip; overflow: visible; }
+.zs-root .zs-zpoctext { color: rgb(255,150,40); }
+/* The ZPOC mark on a modifier card or a track (T-0514): a label, never a box. A dull bolt alone when there is no id; the lit
+   bolt and the id as plain text when there is. While the sound plays, a thin line under the label shows where code has it,
+   and the text brightens briefly each time a new value arrives. */
+.zs-root .zs-zpocchip { background-color: rgba(0,0,0,0); overflow: hidden; }
+.zs-root .zs-zpocchip:hover .zs-zpocchip__text { color: rgb(255,205,140); }
+.zs-root .zs-zpocchip--pulse .zs-zpocchip__text { color: rgb(255,225,180); }
+.zs-root .zs-zpocchip__fill { position: absolute; bottom: 0; height: 2px; background-color: rgba(255,150,40,0.85); }
+.zs-root .zs-zpocchip__spread { position: absolute; bottom: 0; height: 2px; background-color: rgba(255,150,40,0.4); }
+.zs-root .zs-zpocchip__text { font-size: 10px; color: rgb(150,150,150); -unity-text-align: middle-left; padding: 0 2px 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background-color: rgba(0,0,0,0); border-width: 0; }
+.zs-root .zs-zpocchip--on .zs-zpocchip__text { color: rgb(255,170,70); }
+/* A modifier curve's caption (size 10, 0.8/0.8/0.86) and end labels (size 9, 0.62/0.62/0.68) */
+.zs-root .zs-curvecap { font-size: 10px; color: rgb(204,204,219); -unity-text-align: upper-left; padding: 0 2px 0 2px; }
+.zs-root .zs-curvelabel { font-size: 9px; color: rgb(158,158,173); -unity-text-align: upper-left; padding: 0 2px 0 2px; }
+.zs-root .zs-curvelabel.zs-right { -unity-text-align: upper-right; }
+/* the chain's rows: a positioning context for their absolutely placed parts */
+.zs-root .zs-chain-row { position: relative; }
+.zs-root .zs-chain-row.zs-dragging { background-color: rgba(255,255,255,0.06); }
+.zs-root .zs-grip { cursor: move-arrow; }
+/* ZUI.IconChoice: the wave icon drawn by the button style, centred; measured on the old window at 12 x 6.5 */
+.zs-root .zs-iconchoice__icon { position: absolute; left: 50%; top: 50%; width: 12px; height: 6.5px; translate: -50% -50%; }
+
+.zs-root .zs-minilabel {
+    font-size: 9px;
+    -unity-text-align: middle-left;
+    padding: 0;
+    margin: 0;
+}
+
+/* EditorGUILayout.Slider in a 90 px slot: IMGUI drops the track when there is no room for it and keeps only the
+   number box (the editor's 50 px field width, at the right). The analyser's live-view gain is drawn that way. */
+.zs-root .zs-narrowslider .unity-base-slider__drag-container { display: none; }
+.zs-root .zs-narrowslider .unity-base-slider__input { justify-content: flex-end; }
+.zs-root .zs-narrowslider .unity-base-slider__text-field { width: 50px; flex-grow: 0; margin-right: 0; }
+
+/* The waveform toolbar's edit-handles toggle: the editor's pencil icon, centred, drawn at the size the old toggle shows
+   it (measured 12.4 px at 225 %). */
+.zs-root .zs-editicon { position: absolute; left: 50%; top: 50%; width: 12.4px; height: 12.4px; translate: -50% -50%; }
+
+/* A disabled ZUI control: ZUI draws it at 0.4 alpha and IMGUI halves a disabled control's alpha again, so the whole
+   control (background, border and text) sits at 0.2 over what is behind it — measured 0.18-0.21 per channel on the old
+   window's greyed "Phase vocoder". */
+.zs-root .zui-togglebutton:disabled, .zs-root .unity-button:disabled { opacity: 0.2; }
+
+/* ── the Zequence window's standard editor controls (T-0469) ──
+   EditorGUILayout / EditorGUI fields drawn with a label width the old code sets just for them (Mode 38, Duration 55,
+   No-Play 50, the override toggles' "O" 16); every one is a single 18 px row with no outer margin. */
+.zs-root .zs-imgui-field { margin: 0; height: 18px; flex-shrink: 0; }
+.zs-root .zs-imgui-field > .unity-base-field__label { min-width: 0; padding: 0 0 0 1px; margin: 0; -unity-text-align: middle-left; }
+.zs-root .zs-label-16 > .unity-base-field__label { width: 16px; min-width: 16px; }
+.zs-root .zs-label-38 > .unity-base-field__label { width: 38px; min-width: 38px; }
+.zs-root .zs-label-50 > .unity-base-field__label { width: 50px; min-width: 50px; }
+.zs-root .zs-label-55 > .unity-base-field__label { width: 55px; min-width: 55px; }
+.zs-root .zs-bare-int > .unity-base-field__input { margin: 0; }
+/* EditorGUILayout.ToggleLeft: the box, then its label */
+.zs-root .zs-toggleleft { margin: 0; height: 18px; flex-shrink: 0; }
+/* EditorGUI.Slider: the track, then the editor's 50 px number box 5 px after it */
+.zs-root .zs-imgui-slider { margin: 0; height: 18px; }
+.zs-root .zs-imgui-slider .unity-base-slider__text-field { width: 50px; min-width: 50px; margin-left: 5px; margin-right: 0; flex-grow: 0; }
+.zs-root .zs-imgui-slider > .unity-base-field__input { margin: 0; }
+/* EditorGUI.BeginFoldoutHeaderGroup: a bold header row */
+.zs-root .zs-foldoutheader { margin: 0; }
+.zs-root .zs-foldoutheader > .unity-foldout__toggle { margin: 0; height: 18px; }
+.zs-root .zs-foldoutheader .unity-foldout__text { -unity-font-style: bold; }
+.zs-root .zs-foldoutheader > .unity-foldout__content { display: none; }
+/* A button whose face is one of the Zounds window icons, centred at its own size */
+.zs-root .zs-buttonicon { position: absolute; left: 50%; top: 50%; width: 16px; height: 16px; translate: -50% -50%; }
+/* ZUI.Button laid out by its style's own measured size (Default / RichButton): measured 31.2 px between its edges on the
+   old window (the style's 30.5 plus the layout's rounding), so the rows below it land where the old ones do */
+.zs-root .zs-layoutbutton { height: 31.7px; }
+/* EditorGUILayout fields in a horizontal row keep the editor's 2 px top margin (measured: 2.2 px below the row top) */
+.zs-root .zs-zeq-toolbar > .zs-imgui-field, .zs-root .zs-zeq-toolbar > .zs-toggleleft { margin-top: 2px; }
+/* ZUI.SliderRange's number boxes show their value right-aligned (measured on the old Zequence window's V/P/C) */
+.zs-root .zui-skinrange__field .unity-base-text-field__input { -unity-text-align: middle-right; }
+/* EditorGUI.Toggle(rect 20 wide, "O") with a 16 px label: IMGUI draws the check box past the rect's right edge */
+.zs-root .zs-imgui-field.unity-toggle { overflow: visible; }
+.zs-root .zs-imgui-field.unity-toggle > .unity-toggle__input { flex-shrink: 0; width: 14px; min-width: 14px; }
+/* EditorGUI.BeginFoldoutHeaderGroup's band behind the title: solid rgb(56,56,56) over the whole 18 px label rect (measured) */
+.zs-root .zs-foldoutheader > .unity-foldout__toggle { background-color: rgb(56,56,56); }
+
+/* ── the main window (T-0470) ── */
+/* The old window draws from the window's edge like the Zequence window: no 3 px offset. */
+.zs-root.zs-mainwindow { padding: 0; }
+/* EditorGUILayout fields with the label widths the old tab sets for them */
+.zs-root .zs-label-34 > .unity-base-field__label { width: 34px; min-width: 34px; }
+.zs-root .zs-label-45 > .unity-base-field__label { width: 45px; min-width: 45px; }
+.zs-root .zs-label-65 > .unity-base-field__label { width: 65px; min-width: 65px; }
+.zs-root .zs-label-80 > .unity-base-field__label { width: 80px; min-width: 80px; }
+.zs-root .zs-label-110 > .unity-base-field__label { width: 110px; min-width: 110px; }
+/* GUILayout.Button with the editor's own button style, in a row: no outer margin, the row gives the spacing */
+.zs-root .zs-imgui-button { margin: 0 0 0 4px; height: 18px; }
+/* The fancy title: ZTextStyle.Title — the sheet's 50 px outlined text on the editor label */
+.zs-root .zs-title { padding: 0 2px 0 2px; margin: 0; -unity-text-align: upper-center; white-space: nowrap; }
+/* The gear: GUILayout.Button(icon, EditorStyles.label, 18 x 18) */
+.zs-root .zs-gear.unity-button { width: 18px; height: 18px; margin: 0; padding: 1px; background-color: rgba(0,0,0,0); border-width: 0; flex-shrink: 0; }
+.zs-root .zs-gear.unity-button:hover { background-color: rgba(0,0,0,0); }
+.zs-root .zs-gear > .unity-image { width: 16px; height: 16px; }
+/* The search box: EditorStyles.textField at 13 px, 26 high, and its grey "Search..." when empty */
+.zs-root .zs-search { margin: 0; height: 26px; }
+.zs-root .zs-search > .unity-base-text-field__input { font-size: 13px; margin: 0; }
+.zs-root .zs-search__ghost { position: absolute; left: 0; top: 0; bottom: 0; padding-left: 5px; font-size: 13px; color: rgb(128,128,128); -unity-text-align: middle-left; }
+.zs-root .zs-searchclear { width: 26px; height: 26px; }
+/* GUILayout.Toolbar: joined segments; the pressed one in the editor's selection blue */
+.zs-root .zs-segment.unity-button { margin: 0; height: 30px; border-radius: 0; }
+.zs-root .zs-segment--left.unity-button { border-top-left-radius: 3px; border-bottom-left-radius: 3px; }
+.zs-root .zs-segment--right.unity-button { border-top-right-radius: 3px; border-bottom-right-radius: 3px; }
+.zs-root .zs-segment.zs-on.unity-button { background-color: rgb(70,96,124); }
+/* The tags-row "T": EditorStyles.miniButton at 26 x 30 */
+.zs-root .zs-minibutton.unity-button { margin: 0; width: 26px; height: 30px; font-size: 11px; }
+.zs-root .zs-minibutton.zs-on.unity-button { background-color: rgb(70,96,124); }
+/* A group's heading in the list: EditorGUILayout.LabelField with the bold label */
+.zs-root .zs-grouplabel { height: 18px; margin: -0.5px 0 1.5px 0; padding-left: 4.5px; }
+/* The grid inspector: EditorStyles.helpBox */
+.zs-root .zs-helpbox { border-width: 1px; border-radius: 3px; padding: 4px; margin: 2px 0 2px 0; }
+/* The tags on their own row or zone: word-wrapped, anchored top-left */
+.zs-root .zs-tagsfield--multiline.unity-button { white-space: normal; }
+/* The settings panel's toggles: RichToggle, 18 high, as wide as their text allows between 28 and 90 */
+.zs-root .zs-settingtoggle { min-width: 28px; max-width: 90px; flex-grow: 1; }
+/* ZUI.Style.Active on a toolbar button (Tags / Grouping while a filter is on): the Zounds sheet has no Active style, so ZUI
+   falls back to its Default look — measured on the old toolbar: green 57,76,36 inside the 32,79,124 border */
+.zs-root .zs-Active.unity-button { background-color: rgb(57,76,36); border-color: rgb(32,79,124); color: rgb(255,228,198); }
+/* Measured placements on the old Browser (T-0470, pt): the title box starts 0.4 lower and ends 0.9 lower; the presets bar
+   sits 11.3 below it; the search box 12 below the presets and the toolbar 8 below the search box; the volume track's
+   centre sits 5.8 above the search box's. */
+.zs-root .zs-mainwindow .zs-box-default { margin-top: 0.4px; }
+.zs-root .zs-title { padding-bottom: 0.5px; }
+.zs-root .zs-presets { margin-top: 0.4px; }
+.zs-root .zs-searchvolume { margin-top: 1.8px; margin-bottom: -1.8px; }
+.zs-root .zs-searchvolume > .zs-slider-bigslider { margin-top: -4.7px; margin-bottom: 4.7px; }
+.zs-root .zs-searchrow > .zs-imgui-button { margin-left: 2px; }
+/* The master volume's label sits 6 pt into its half (measured) */
+.zs-root .zs-searchvolume > .zs-slider-bigslider .zui-skinslider__label { padding-left: 4px; }
+/* A button whose face is only an icon: no text padding, so the old narrow widths are kept */
+.zs-root .zs-iconbutton.unity-button { padding: 0; }
+/* The list's name box: EditorGUI.DelayedTextField 24 high, its text at the top as the editor draws it */
+.zs-root .zs-rowname > .unity-base-text-field__input { -unity-text-align: upper-left; }
+/* GUILayout.Toolbar / miniButton inside the 30 pt toolbar row, as measured: 29 high 1.5 below the row top; the layout pair
+   2.5 after the gap, the "T" 6 after it (23.5 x 15.5, 2.5 down), All/Recent 4 after the gap */
+.zs-root .zs-toolbar > .zs-segments { margin-top: 1.5px; height: 29px; }
+.zs-root .zs-toolbar > .zs-segments .zs-segment.unity-button { height: 29px; }
+.zs-root .zs-toolbar > .zs-segments--layout { margin-left: 2.5px; }
+.zs-root .zs-toolbar > .zs-segments--mode { margin-left: 4px; }
+.zs-root .zs-tagsrow.unity-button { margin: 2.5px 0 0 6px; width: 23.5px; height: 15.5px; padding: 0; }
+/* A toolbar Flat button is its text plus 10.5 pt (measured), narrower than the sheet's padding: the text is centred */
+.zs-root .zs-toolbarbutton.unity-button, .zs-root .zs-toolbarbutton { padding: 0 5px 0 5px; }
+/* The row buttons' icons: IMGUI draws them larger than their 16 px texture box (measured 19.2); the Add button's 20 */
+.zs-root .zs-iconbutton > .zs-buttonicon { width: 19.2px; height: 19.2px; }
+.zs-root .zs-iconbutton > .zs-toolbaricon { width: 20px; height: 20px; }
+/* A preset button: the Default style's CalcSize plus 8 = its text plus 16 (padding 7 + border 1 each side) */
+.zs-root .zs-presetbutton.unity-button, .zs-root .zs-presetbutton { padding: 0 7px 0 7px; }
+/* The settings panel's vertical rhythm, measured on the old tab: the panel starts 3 pt lower (the animated foldout's
+   frame), the project row takes 2 more, a section title is an 18 pt line 2 pt lower than the plain label, the skin row 3 more. */
+.zs-root .zs-settings { margin-top: 3px; }
+.zs-root .zs-settings > .zs-projectrow { margin-bottom: 2px; }
+.zs-root .zs-settings > .zs-subheader { margin-top: 2px; height: 18px; -unity-text-align: upper-left; }
+.zs-root .zs-settings > .zs-skinrow { margin-bottom: 3px; }
+
+/* ── the Monitor tab ── */
+/* ZUI.Label inside a Default box: the box's content text (the palette's text blue) */
+.zs-root .zs-boxtext { color: rgb(123,176,211); font-size: 12px; padding: 0 2px 0 2px; margin: 0; -unity-text-align: middle-left; }
+.zs-root .zs-monitor__count { -unity-text-align: upper-left; }
+.zs-root .zs-monitor__filter > .unity-base-text-field__input { font-size: 12px; }
+.zs-root .zs-monitor__ghost { font-size: 12px; padding-left: 4px; }
+/* ZUI.InfoBox / EditorGUILayout.HelpBox: the editor's help box is a translucent grey laid over what is behind it, with no
+   visible border (measured 40,50,59 over the box's 26,39,50) */
+.zs-root .zs-infobox { margin: 2px 0 2px 0; background-color: rgba(64,64,64,0.4); border-color: rgba(0,0,0,0); }
+.zs-root .zs-helpbox { background-color: rgba(64,64,64,0.4); border-color: rgba(0,0,0,0); }
+.zs-root .zs-monitor__head { margin: 1.5px 0 1.5px 0; }
+.zs-root .zs-toolbar > .zs-monitor__filter { margin: 1.5px 0 0 3px; height: 28.5px; }
+
+/* ── the Routing tab ── */
+/* ReorderableList: the "Rules" header strip, the empty row, the element rows' own colours (set per row), the +/- footer */
+/* measured on the old list: header strip 18.5 (53,53,53) over a 1 px line (36,36,36); body (65,65,65) with its rows inset
+   4 above and 3.5 below; the empty row 21 high (75,75,75); the +/- footer 55 x 18.5, 10 in from the right */
+.zs-root .zs-rules__header { height: 18.5px; padding-left: 6px; background-color: rgb(53,53,53); border-bottom-width: 1px; border-color: rgb(36,36,36); }
+.zs-root .zs-rules__none { height: 21px; padding-left: 7px; background-color: rgb(75,75,75); margin: 4px 0 3.5px 0; }
+.zs-root .zs-rules { margin: 3px 1px 0 1px; }
+.zs-root .zs-rules .unity-list-view__empty-label, .zs-root .zs-rules > .unity-scroll-view { background-color: rgb(65,65,65); }
+.zs-root .zs-rules .unity-list-view__scroll-view { background-color: rgb(65,65,65); padding: 4px 0 3.5px 0; }
+.zs-root .zs-rules .unity-list-view__footer { background-color: rgb(65,65,65); width: 55px; height: 18.5px; min-height: 18.5px; margin-right: 10px; border-bottom-width: 1px; border-color: rgb(36,36,36); border-bottom-left-radius: 3px; border-bottom-right-radius: 3px; }
+.zs-root .zs-rules .unity-list-view__item { padding: 0; }
+.zs-root .zs-rules__mixer { margin: 0; }
+.zs-root .zs-rules .unity-scroll-view__content-container { padding-top: 4px; padding-bottom: 3.5px; }
+/* The element area starts after the drag handle (20 pt from the list's edge, measured) */
+.zs-root .zs-rules .unity-list-view__reorderable-item__container { padding-left: 0; }
+.zs-root .zs-rules .unity-list-view__reorderable-handle { width: 20px; min-width: 20px; }
+/* An IMGUI label clips at its rect instead of ending in "..." */
+.zs-root .zs-cliplabel { text-overflow: clip; }
+.zs-root .zs-rules__add { margin: 0; height: 18px; }
+/* A condition chip: EditorGUI.HelpBox 20 high with its label and a 16 px "X" inside, 2 apart */
+.zs-root .zs-chip { flex-direction: row; height: 20px; margin: 0 2px 0 0; padding: 1px; background-color: rgba(64,64,64,0.4); border-width: 1px; border-color: rgb(30,30,30); border-radius: 3px; }
+.zs-root .zs-chip > .zs-lbl { padding-right: 4px; }
+.zs-root .zs-chip__x.unity-button { width: 16px; height: 16px; margin: 0; padding: 0; }
+/* GUI.Box behind a chip area, and a name chip (a HelpBox 18 high; green for Active Zounds) */
+.zs-root .zs-guibox { background-color: rgba(0,0,0,0.15); border-width: 0; border-radius: 2px; }
+.zs-root .zs-namechip { height: 18px; margin: 0 2px 0 0; padding: 2px 4px 2px 2px; background-color: rgba(64,64,64,0.4); border-radius: 3px; }
+.zs-root .zs-namechip--active { background-color: rgba(0,160,0,0.4); }
+
+/* ── the Dependency Map tab ── */
+/* The section buttons: EditorStyles.toolbarButton, 20 high; GUI.backgroundColor tints the chosen / broken / issues one */
+.zs-root .zs-depbar__button { height: 20px; padding-left: 2px; padding-right: 2px; }
+/* measured: the chosen one 48,64,80; the others the toolbar's 60,60,60 times the tint */
+.zs-root .zs-depbar__button--active { background-color: rgb(48,64,80); }
+.zs-root .zs-depbar__button--broken { background-color: rgb(60,24,24); }
+.zs-root .zs-depbar__button--issues { background-color: rgb(60,48,18); }
+/* EditorStyles.miniButton */
+.zs-root .zs-minibtn { margin: 0 0 0 4px; height: 18px; font-size: 12px; padding: 0 2px 0 2px; flex-shrink: 0; }
+/* the old scroll area's content sits 4 in from the left and 3 from the right, 1.5 lower (measured) */
+.zs-root .zs-depscroll .unity-scroll-view__content-container { padding: 1.5px 3px 0 4px; }
+.zs-root .zs-minibtn--danger { color: rgb(255,102,102); }
+.zs-root .zs-depbar__refresh { margin-top: 1px; }
+/* EditorStyles.helpBox as a vertical group */
+.zs-root .zs-dephelp { background-color: rgba(64,64,64,0.4); border-radius: 3px; padding: 2px 4px 0 3px; margin: 2px 0 2px 0; flex-shrink: 0; }
+.zs-root .zs-deplabel { min-height: 18px; white-space: pre; text-overflow: clip; }
+/* GUILayout stacks lines 2 pt apart inside a help box (measured 20 pt per 18 pt line) */
+.zs-root .zs-dephelp > .unity-label, .zs-root .zs-dephelp > .zs-deprow { margin-bottom: 2px; }
+.zs-root .zs-minibold { font-size: 10px; -unity-font-style: bold; padding: 0 2px 0 2px; color: rgb(210,210,210); }
+.zs-root .zs-wrap { white-space: normal; }
+.zs-root .zs-link { cursor: link; }
+.zs-root .zs-paircol { width: 150px; min-width: 150px; }
+.zs-root .zs-label-150 > .unity-base-field__label { width: 150px; min-width: 150px; }
+.zs-root .zs-fixall.unity-button { background-color: rgb(58,120,58); }
+.zs-root .zs-reconcile.unity-button { background-color: rgb(64,112,64); }
+/* The foldouts: EditorGUILayout.Foldout — the arrow, then the (rich) label; bold for section headers */
+.zs-root .zs-depfoldout { margin: 0; }
+.zs-root .zs-depfoldout > .unity-foldout__toggle { margin: 0; height: 18px; }
+.zs-root .zs-depfoldout > .unity-foldout__content { display: none; }
+.zs-root .zs-depfoldout--bold .unity-foldout__text { -unity-font-style: bold; }
+/* Foldout(…, EditorStyles.boldLabel): that style has no arrow, only the bold text (still clickable) */
+.zs-root .zs-depfoldout--bold .unity-foldout__checkmark, .zs-root .zs-depfoldout--uncovered .unity-foldout__checkmark { display: none; }
+.zs-root .zs-depfoldout--uncovered .unity-foldout__text { -unity-font-style: bold; color: rgb(196,137,59); }
+/* GUI.color on the main tab while something is broken (the old tab's headerColor, 1/0.4/0.4) */
+.zs-root .zs-maintab--broken { -unity-background-image-tint-color: rgb(255,102,102); }
+.zs-root .zs-maintab--problems { -unity-background-image-tint-color: rgb(255,150,40); }
+.zs-root .zs-problems__sound { color: rgb(140,190,255); cursor: link; }
+.zs-root .zs-problems__sound:hover { color: rgb(190,220,255); }
+
+/* ── the Settings tab: the editor's own fields, 18 high and 2 apart as EditorGUILayout lays them. At 225 % a 2 pt gap
+   snaps to 5 device pixels, so rows are given as 18.22 + 1.78 pt, which snap to 41 + 4 px: the old 20 pt pitch exactly ── */
+.zs-root .zs-settingsscroll .unity-scroll-view__content-container { padding: 0 5px 0 4px; }
+.zs-root .zs-settingsheader { height: 18.22px; margin: 2px 0 1.78px 0; }
+.zs-root .zs-settingsfield { margin: 0 0 1.78px 0; height: 18.22px; }
+.zs-root .zs-settingsfield > .unity-base-field__label { padding-left: 1px; margin-left: 0; }
+.zs-root .zs-settingsrow { margin: 0 0 1.78px 0; height: 18.22px; }
+.zs-root .zs-settingsrow > .zs-lbl { height: 18px; padding-left: 1px; }
+.zs-root .zs-settingsrow > .zs-settingsfield { margin-bottom: 0; }
+.zs-root .zs-settingsbutton { margin: 2px 0 1.78px 0; height: 18.22px; }
+.zs-root .zs-settingsstatus { font-size: 10px; height: 18px; padding-left: 2px; margin: 1px 0 2px 0; color: rgb(210,210,210); }
+.zs-root .zs-settingsstatus--warn { background-color: rgba(64,64,64,0.4); border-radius: 3px; font-size: 10px; }
+.zs-root .zs-settingspath--missing > .unity-base-text-field__input { color: rgb(255,178,128); }
+/* The Zound's own values (T-0493): Volume, Pitch, Speed, Drive, shown (not dragged) with what moves them. */
+.zs-root .zs-ownvalue {
+    background-color: rgba(0,0,0,0.22);
+    border-width: 1px; border-color: rgba(128,128,128,0.35);
+    border-top-left-radius: 2px; border-top-right-radius: 2px; border-bottom-left-radius: 2px; border-bottom-right-radius: 2px;
+    overflow: hidden;
+}
+.zs-root .zs-ownvalue--bound { border-color: rgba(115,191,255,0.55); }
+.zs-root .zs-ownvalue--code { border-color: rgba(255,150,40,0.8); }
+.zs-root .zs-ownvalue__text { font-size: 10px; color: rgb(170,170,178); -unity-text-align: middle-left; padding: 0 5px 0 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.zs-root .zs-ownvalue--bound .zs-ownvalue__text { color: rgb(215,215,222); }
+.zs-root .zs-ownvalue--code .zs-ownvalue__text { color: rgb(255,170,70); }
+/* Snapshots (T-0498): one chip per snapshot; the one a playing sound is gliding to fills as it goes. */
+.zs-root .zs-snapchip {
+    border-width: 1px; border-color: rgba(128,128,128,0.5);
+    border-top-left-radius: 3px; border-top-right-radius: 3px; border-bottom-left-radius: 3px; border-bottom-right-radius: 3px;
+    background-color: rgba(0,0,0,0.2); overflow: hidden;
+}
+.zs-root .zs-snapchip:hover { border-color: rgba(200,200,210,0.8); }
+.zs-root .zs-snapchip--target { border-color: rgba(115,191,255,0.9); }
+.zs-root .zs-snapchip__fill { position: absolute; left: 0; top: 0; bottom: 0; background-color: rgba(115,191,255,0.3); }
+.zs-root .zs-snapchip__text { position: absolute; left: 0; right: 0; top: 0; bottom: 0; font-size: 10px; color: rgb(215,215,222); -unity-text-align: middle-center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The Klip's fixed boost into its effects (T-0521): a plain number you drag, fixed width, centred, so x1.0 and x10.0
+   take the same space. */
+.zs-root .zs-boost { font-size: 12px; color: rgb(196,196,196); -unity-text-align: middle-center; background-color: rgba(0,0,0,0.25);
+    border-top-left-radius: 3px; border-top-right-radius: 3px; border-bottom-left-radius: 3px; border-bottom-right-radius: 3px; cursor: resize-horizontal; }
+.zs-root .zs-boost:hover { color: rgb(240,240,240); background-color: rgba(255,255,255,0.08); }

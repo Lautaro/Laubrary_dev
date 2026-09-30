@@ -1,0 +1,66 @@
+{
+  "frontmatter": {
+    "id": "T-0525",
+    "title": "P1: standard controls and parent-scoped USS overrides",
+    "node": "LaubraryUssPilot-2026-09-30",
+    "status": "done",
+    "priority": "normal",
+    "created": "2026-09-30T11:00:44Z",
+    "updated": "2026-09-30T11:46:07Z",
+    "assignee": "user",
+    "agent_role": "Standard controls worker",
+    "agent_model": "gpt-5.6-terra",
+    "agent_subagent_count": "0",
+    "tags": "uncommitted",
+    "confirmed": "false",
+    "work_started": "2026-09-30T11:05:37Z"
+  },
+  "description": "Owner authorised phases 0 and 1 of T-0522. Work only in D:\\UNITY\\Laubrary Dev - UI Separation. Preserve current looks; default semantic control classes must allow descendant-selector overrides under a tool-window root class. Scope and evidence will be maintained by the coordinating session.",
+  "todos": [],
+  "questions": [],
+  "handover": [
+    {
+      "time": "2026-09-30T11:46:07Z",
+      "actor": "agent",
+      "from_status": "open",
+      "to_status": "done",
+      "text": "Phase 1: shared standard-control styles and semantic tags integrated; parent-scoped styling and reset verified.\n\n[[attach:20260930T114607Z_StandardControls.md]] [[attach:20260930T114607Z_Authoring.md]]",
+      "proof": [
+        {
+          "text": "Evidence reviewed by coordinator; see acceptance record and per-task attached artifacts.",
+          "checked": true
+        }
+      ],
+      "details": "Verified in the isolated copy only. Unity 6000.3.10f1 compiled; frozen-reference comparisons are exact at 420/620/900 widths in both presentation modes; live interaction/Undo, scoped overrides, reset, reopening and domain reload passed. Full evidence and limitations are in ACCEPTANCE.md. Baseline 9eb3d9c; implementation 0c3841a.",
+      "technical_details": "Project: D:\\UNITY\\Laubrary Dev - UI Separation. Menu: Laubrary/UI Separation Pilot. Original project was not refactored. No runtime/consumer-wide acceptance claim. Four GPT-5.6 Terra workers provided bounded implementation/inventory work; GPT-6 Astra coordinated, reviewed, corrected and verified."
+    }
+  ],
+  "agents": [
+    {
+      "time": "2026-09-30T11:05:37Z",
+      "role": "Standard controls worker",
+      "model": "gpt-5.6-terra",
+      "note": "Isolated copy only; coordinator owns Unity serially."
+    },
+    {
+      "time": "2026-09-30T11:16:05Z",
+      "role": "system",
+      "model": "",
+      "note": "Agent session was lost -- AgentHQ has no live process tracking this task anymore. Reason: the AgentHQ server restarted while this task was in progress, and no PM session for this board survived the restart to keep working it. Marked lost/unfinished; it will not complete on its own and needs to be re-requested.\nLast word from the agent: Isolated copy only; coordinator owns Unity serially."
+    }
+  ],
+  "attached": [
+    {
+      "filename": "20260930T114607Z_StandardControls.md",
+      "size": 1968,
+      "time": "2026-09-30T11:46:07Z",
+      "sourcePath": "D:\\UNITY\\Laubrary Dev\\.agenthq\\workspace\\T-0525\\ui-separation-phase01\\StandardControls.md"
+    },
+    {
+      "filename": "20260930T114607Z_Authoring.md",
+      "size": 5844,
+      "time": "2026-09-30T11:46:07Z",
+      "sourcePath": "D:\\UNITY\\Laubrary Dev\\.agenthq\\workspace\\T-0525\\ui-separation-phase01\\Authoring.md"
+    }
+  ]
+}

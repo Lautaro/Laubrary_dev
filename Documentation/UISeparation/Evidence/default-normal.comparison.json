@@ -1,0 +1,24 @@
+{
+  "baseline": {
+    "path": "D:\\UNITY\\Laubrary Dev - UI Separation\\Documentation\\UISeparation\\Evidence\\default-normal_baseline.png",
+    "sha256": "50cff15f9466beaa24a76571193d866f73bf034b2ac73f645ae1dfcb584a486b"
+  },
+  "bounding_rect": null,
+  "candidate": {
+    "path": "D:\\UNITY\\Laubrary Dev - UI Separation\\Documentation\\UISeparation\\Evidence\\default-normal_candidate.png",
+    "sha256": "6b1f4441441c474cb2f2337d4f77abafa3c5f4d52bf9e99138a1f211bab01a38"
+  },
+  "crop_top": 60,
+  "diff_png": "D:\\UNITY\\Laubrary Dev - UI Separation\\Documentation\\UISeparation\\Evidence\\default-normal_candidate.diff.png",
+  "exact_bounding_rect": null,
+  "exact_changed_pixels": 0,
+  "max_channel_delta": 0,
+  "mean_channel_delta": 0.0,
+  "over_tolerance_changed_pixels": 0,
+  "size": {
+    "height": 1409,
+    "width": 1395
+  },
+  "tolerance": 0,
+  "top_horizontal_rows": []
+}

@@ -49,6 +49,7 @@ namespace Laubrary.Zui
         Vector2 _boxStart, _pointer = new Vector2(float.NaN, float.NaN);
         readonly List<int> _selected = new List<int>();
         bool _multiDrag;
+        readonly ZuiEnvelopePresentation _presentation = new ZuiEnvelopePresentation();
 
         /// <summary>The selected points, as indices (a host's point menu acts on them when the clicked point is one).</summary>
         public IReadOnlyList<int> SelectedPoints => _selected;
@@ -58,16 +59,13 @@ namespace Laubrary.Zui
         {
             this.points = points; this.curveColor = curveColor; this.def = def; this.rt = rt;
             AddToClassList("zui-skinenvelope");
+            AddToClassList("zui-envelope");
             focusable = true;
             generateVisualContent += Paint;
+            RegisterCallback<CustomStyleResolvedEvent>(e => { _presentation.Resolve(e, def, curveColor); Repaint(); });
             _tag = new Label { pickingMode = PickingMode.Ignore };
             _tag.AddToClassList("zui-skinenvelope__tag");
-            _tag.style.position = Position.Absolute;
-            _tag.style.fontSize = 10;
-            _tag.style.color = Color.white;
-            _tag.style.backgroundColor = new Color(0f, 0f, 0f, 0.78f);
-            _tag.style.paddingLeft = 4; _tag.style.paddingRight = 4; _tag.style.paddingTop = 1; _tag.style.paddingBottom = 1;
-            _tag.style.unityTextAlign = TextAnchor.MiddleCenter;
+            _tag.AddToClassList("zui-envelope__readout");
             _tag.style.display = DisplayStyle.None;
             Add(_tag);
             if (standalone)
@@ -83,6 +81,11 @@ namespace Laubrary.Zui
         /// <summary>Redraw after the points or the look changed elsewhere.</summary>
         public void Repaint() { MarkDirtyRepaint(); UpdateTag(); }
 
+        ZuiEnvelopePresentation.Values Presentation
+        {
+            get { _presentation.RefreshFallbacks(def, curveColor); return _presentation.Current; }
+        }
+
         // ─────────────────────────── geometry ───────────────────────────
 
         Rect Plot
@@ -90,10 +93,10 @@ namespace Laubrary.Zui
             get
             {
                 var r = contentRect;
-                var d = def;
-                return new Rect(r.x + d.paddingLeft, r.y + d.paddingTop,
-                                Mathf.Max(0f, r.width - d.paddingLeft - d.paddingRight),
-                                Mathf.Max(0f, r.height - d.paddingTop - d.paddingBottom));
+                var s = Presentation;
+                return new Rect(r.x + s.paddingLeft, r.y + s.paddingTop,
+                                Mathf.Max(0f, r.width - s.paddingLeft - s.paddingRight),
+                                Mathf.Max(0f, r.height - s.paddingTop - s.paddingBottom));
             }
         }
 
@@ -110,7 +113,7 @@ namespace Laubrary.Zui
         static bool CanMoveY(ZUIEnvelopeEditState s) => s == ZUIEnvelopeEditState.Editable || s == ZUIEnvelopeEditState.YEditable;
         static bool CanRemove(ZUIEnvelopeEditState s) => s == ZUIEnvelopeEditState.Editable;
 
-        float MaxHandleRadius => Mathf.Max(def.editable.radius, Mathf.Max(def.xEditable.radius, Mathf.Max(def.yEditable.radius, def.notEditable.radius)));
+        float MaxHandleRadius => Presentation.MaxHandleRadius;
 
         static float Evaluate(List<ZUIEnvelopePoint> pts, float time, float fallback)
         {
@@ -131,8 +134,8 @@ namespace Laubrary.Zui
         {
             for (int i = 0; i < points.Count; i++)
             {
-                var h = def.GetHandle(State(i));
-                if (Vector2.Distance(m, new Vector2(TimeToX(points[i].time, r), ValueToY(points[i].value, r))) <= h.radius + def.hitRadiusExtra) return i;
+                var h = Presentation.GetHandle(State(i));
+                if (Vector2.Distance(m, new Vector2(TimeToX(points[i].time, r), ValueToY(points[i].value, r))) <= h.radius + Presentation.hitRadiusExtra) return i;
             }
             return -1;
         }
@@ -150,7 +153,7 @@ namespace Laubrary.Zui
         {
             _hoverPoint = _hoverLine = -1;
             var r = Plot;
-            float slop = MaxHandleRadius + def.hitRadiusExtra;
+            float slop = MaxHandleRadius + Presentation.hitRadiusExtra;
             if (!new Rect(r.x - slop, r.y - slop, r.width + slop * 2f, r.height + slop * 2f).Contains(m)) return;
             int p = HitPoint(r, m);
             if (p >= 0) { if (State(p) != ZUIEnvelopeEditState.NotEditable) _hoverPoint = p; return; }
@@ -183,7 +186,7 @@ namespace Laubrary.Zui
             UpdateHover(m);
             var r = Plot;
             if (r.width <= 0f || r.height <= 0f || rt.xMax <= rt.xMin || rt.yMax <= rt.yMin) return false;
-            float slop = MaxHandleRadius + def.hitRadiusExtra;
+            float slop = MaxHandleRadius + Presentation.hitRadiusExtra;
             if (!new Rect(r.x - slop, r.y - slop, r.width + slop * 2f, r.height + slop * 2f).Contains(m)) return false;
             bool inside = r.Contains(m);
 
@@ -484,39 +487,34 @@ namespace Laubrary.Zui
         void Paint(MeshGenerationContext ctx)
         {
             if (points == null || rt == null || def == null) return;
-            var sheet = def.ownerSheet;
+            var style = Presentation;
             var outer = contentRect;
             var p2 = ctx.painter2D;
 
             // Background (a flat colour; the Zounds overlay's is fully transparent) and border.
-            var bg = def.background != null ? def.background.GetColorA(sheet) : Color.clear;
+            var bg = style.background;
             if (bg.a > 0f) FillRect(p2, outer, bg);
-            if (def.border != null)
+            if (style.borderColor.a > 0f)
             {
-                var ew = def.border.edgeWidth; var bc = def.border.color.GetColorA(sheet);
-                if (bc.a > 0f)
-                {
-                    if (ew.Top > 0f) FillRect(p2, new Rect(outer.x, outer.y, outer.width, ew.Top), bc);
-                    if (ew.Bottom > 0f) FillRect(p2, new Rect(outer.x, outer.yMax - ew.Bottom, outer.width, ew.Bottom), bc);
-                    if (ew.Left > 0f) FillRect(p2, new Rect(outer.x, outer.y, ew.Left, outer.height), bc);
-                    if (ew.Right > 0f) FillRect(p2, new Rect(outer.xMax - ew.Right, outer.y, ew.Right, outer.height), bc);
-                }
+                if (style.borderTop > 0f) FillRect(p2, new Rect(outer.x, outer.y, outer.width, style.borderTop), style.borderColor);
+                if (style.borderBottom > 0f) FillRect(p2, new Rect(outer.x, outer.yMax - style.borderBottom, outer.width, style.borderBottom), style.borderColor);
+                if (style.borderLeft > 0f) FillRect(p2, new Rect(outer.x, outer.y, style.borderLeft, outer.height), style.borderColor);
+                if (style.borderRight > 0f) FillRect(p2, new Rect(outer.xMax - style.borderRight, outer.y, style.borderRight, outer.height), style.borderColor);
             }
             if (rt.xMax - rt.xMin <= 0f || rt.yMax - rt.yMin <= 0f) return;
             var r = Plot;
             if (r.width <= 0f || r.height <= 0f) return;
 
-            if (rt.showGrid && def.gridRows > 0)
+            if (rt.showGrid && style.gridRows > 0)
             {
-                var g = def.gridColor.Resolve(sheet);
-                for (int i = 1; i < def.gridRows; i++) FillRect(p2, new Rect(r.x, r.y + r.height * i / def.gridRows, r.width, 1f), g);
+                for (int i = 1; i < style.gridRows; i++) FillRect(p2, new Rect(r.x, r.y + r.height * i / style.gridRows, r.width, style.gridThickness), style.gridColor);
             }
 
             // Curve.
             if (points.Count > 0)
             {
                 int n = Mathf.Max(2, (int)(r.width / 3f));
-                p2.strokeColor = curveColor; p2.lineWidth = Px(def.curveThickness);
+                p2.strokeColor = style.curveColor; p2.lineWidth = Px(style.curveThickness);
                 p2.lineJoin = LineJoin.Round; p2.lineCap = LineCap.Round;
                 p2.BeginPath();
                 for (int i = 0; i <= n; i++)
@@ -530,9 +528,9 @@ namespace Laubrary.Zui
                 {
                     var a = points[_hoverLine - 1]; var b = points[_hoverLine];
                     int segPx = Mathf.Max(2, Mathf.CeilToInt(Mathf.Abs(TimeToX(b.time, r) - TimeToX(a.time, r)) / 2f));
-                    Color.RGBToHSV(curveColor, out float h, out float s, out float vC);
-                    p2.strokeColor = Color.HSVToRGB(h, Mathf.Clamp01(s * 0.8f), Mathf.Min(vC * 1.4f, 1f));
-                    p2.lineWidth = Px(def.curveHoverThickness);
+                    Color.RGBToHSV(style.curveColor, out float h, out float s, out float vC);
+                    p2.strokeColor = Color.HSVToRGB(h, Mathf.Clamp01(s * style.hoverSaturationScale), Mathf.Min(vC * style.hoverValueScale, 1f));
+                    p2.lineWidth = Px(style.curveHoverThickness);
                     p2.BeginPath();
                     for (int i = 0; i <= segPx; i++)
                     {
@@ -557,7 +555,7 @@ namespace Laubrary.Zui
                         float t = rt.xMin + (rt.xMax - rt.xMin) * i / n;
                         dotted[i] = new Vector2(TimeToX(t, r), ValueToY(f(t), r));
                     }
-                    Dotted(p2, dotted, Color.Lerp(curveColor, Color.white, 0.45f), Px(Mathf.Max(def.curveThickness, 1.5f)));
+                    Dotted(p2, dotted, Color.Lerp(style.curveColor, Color.white, style.dottedWhiteMix), Px(Mathf.Max(style.curveThickness, style.dottedMinWidth)));
                 }
             }
 
@@ -568,26 +566,26 @@ namespace Laubrary.Zui
                 if (pt.randomX <= 0f && pt.randomY <= 0f) continue;
                 var c = new Vector2(TimeToX(pt.time, r), ValueToY(pt.value, r));
                 float ex = pt.randomX / (rt.xMax - rt.xMin) * r.width, ey = pt.randomY / (rt.yMax - rt.yMin) * r.height;
-                Ellipse(p2, c, Mathf.Max(ex, 1f), Mathf.Max(ey, 1f), new Color(curveColor.r, curveColor.g, curveColor.b, 0.14f),
-                        new Color(curveColor.r, curveColor.g, curveColor.b, 0.75f), Px(1f));
+                Ellipse(p2, c, Mathf.Max(ex, 1f), Mathf.Max(ey, 1f), new Color(style.curveColor.r, style.curveColor.g, style.curveColor.b, style.uncertaintyFillAlpha),
+                        new Color(style.curveColor.r, style.curveColor.g, style.curveColor.b, style.uncertaintyStrokeAlpha), Px(style.uncertaintyStrokeThickness));
             }
 
             // Points.
-            var sel = def.selectedColor.Resolve(sheet);
+            var sel = style.selectedColor;
             for (int i = 0; i < points.Count; i++)
             {
-                var es = State(i); var h = def.GetHandle(es);
+                var es = State(i); var h = style.GetHandle(es);
                 var c = new Vector2(TimeToX(points[i].time, r), ValueToY(points[i].value, r));
                 bool hover = _hoverPoint == i || _dragPoint == i;
                 bool isSel = _selected.Contains(i) || _dragPoint == i;
                 float vr = hover && es != ZUIEnvelopeEditState.NotEditable ? h.hoverRadius : h.radius;
-                var fill = hover ? h.hoverFillColor.Resolve(sheet) : h.fillColor.Resolve(sheet);
+                var fill = hover ? h.hoverFillColor : h.fillColor;
                 if (isSel) fill = sel;
-                if (h.borderWidth > 0f) Disc(p2, c, vr + h.borderWidth, h.borderColor.Resolve(sheet));
+                if (h.borderWidth > 0f) Disc(p2, c, vr + h.borderWidth, h.borderColor);
                 Disc(p2, c, vr, fill);
                 if (hover && !isSel && es != ZUIEnvelopeEditState.NotEditable)
                 {
-                    p2.strokeColor = sel; p2.lineWidth = Px(1f);
+                    p2.strokeColor = sel; p2.lineWidth = Px(style.selectedStrokeThickness);
                     p2.BeginPath(); p2.Arc(c, vr + 1.5f, 0f, 360f); p2.Stroke();
                 }
             }
@@ -596,8 +594,8 @@ namespace Laubrary.Zui
             if (rt.allowAddPoints && !_shift && _hoverLine > 0 && _dragPoint < 0 && _dragLine < 0 && !float.IsNaN(_pointer.x))
             {
                 float t = Mathf.Clamp(XToTime(_pointer.x, r), rt.xMin, rt.xMax);
-                var hd = def.GetHandle(ZUIEnvelopeEditState.Editable);
-                var f = hd.fillColor.Resolve(sheet); f.a *= 0.5f;
+                var hd = style.GetHandle(ZUIEnvelopeEditState.Editable);
+                var f = hd.fillColor; f.a *= style.ghostOpacity;
                 Disc(p2, new Vector2(TimeToX(t, r), ValueToY(Evaluate(points, t, rt.yMax), r)), hd.radius, f);
             }
 
@@ -606,8 +604,8 @@ namespace Laubrary.Zui
             {
                 var cur = new Vector2(Mathf.Clamp(_pointer.x, r.x, r.xMax), Mathf.Clamp(_pointer.y, r.y, r.yMax));
                 var box = Rect.MinMaxRect(Mathf.Min(_boxStart.x, cur.x), Mathf.Min(_boxStart.y, cur.y), Mathf.Max(_boxStart.x, cur.x), Mathf.Max(_boxStart.y, cur.y));
-                FillRect(p2, box, new Color(1f, 1f, 1f, 0.1f));
-                p2.strokeColor = sel; p2.lineWidth = Px(1f);
+                FillRect(p2, box, new Color(1f, 1f, 1f, style.selectionBoxFillAlpha));
+                p2.strokeColor = sel; p2.lineWidth = Px(style.selectedStrokeThickness);
                 p2.BeginPath(); p2.MoveTo(box.min); p2.LineTo(new Vector2(box.xMax, box.yMin)); p2.LineTo(box.max); p2.LineTo(new Vector2(box.xMin, box.yMax)); p2.ClosePath(); p2.Stroke();
             }
         }
@@ -619,7 +617,7 @@ namespace Laubrary.Zui
             int i = _dragPoint >= 0 ? _dragPoint : _hoverPoint >= 0 ? _hoverPoint : _selected.Count > 0 ? _selected[_selected.Count - 1] : -1;
             if (i < 0 || i >= points.Count || contentRect.width <= 0f) { _tag.style.display = DisplayStyle.None; return; }
             var r = Plot;
-            var es = State(i); var h = def.GetHandle(es);
+            var es = State(i); var h = Presentation.GetHandle(es);
             bool hover = _hoverPoint == i || _dragPoint == i;
             float vr = hover && es != ZUIEnvelopeEditState.NotEditable ? h.hoverRadius : h.radius;
             var p = points[i];

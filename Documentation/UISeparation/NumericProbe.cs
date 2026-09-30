@@ -1,0 +1,10 @@
+var w=System.Array.Find(UnityEngine.Resources.FindObjectsOfTypeAll<Laubrary.UISeparationPilot.PilotWindow>(),x=>x.titleContent.text.Contains("Candidate"));
+var slider=UnityEngine.UIElements.UQueryExtensions.Q<Laubrary.Zui.ZuiMicroSlider>(w.rootVisualElement);
+var input=UnityEngine.UIElements.UQueryExtensions.Q<UnityEngine.UIElements.FloatField>(slider);
+if(input.resolvedStyle.display!=UnityEngine.UIElements.DisplayStyle.Flex) throw new System.Exception("Numeric editor hidden");
+float before=slider.value;
+UnityEditor.Undo.IncrementCurrentGroup(); input.value=.63f; UnityEditor.Undo.FlushUndoRecordObjects();
+if(UnityEngine.Mathf.Abs(slider.value-.63f)>.001f) throw new System.Exception("Numeric edit failed");
+UnityEditor.Undo.PerformUndo();
+if(UnityEngine.Mathf.Abs(slider.value-before)>.001f || UnityEngine.Mathf.Abs(input.value-before)>.001f) throw new System.Exception("Numeric Undo failed");
+return "PASS numeric field visible, edit updates preview, Undo restores both field and slider; " + Laubrary.UISeparationPilot.PilotWindow.CapturePair("numeric-input");

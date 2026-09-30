@@ -30,6 +30,10 @@ namespace Laubrary.Zui
 {
     public class ZuiMicroMinMax : VisualElement
     {
+        static readonly CustomStyleProperty<Color> RangeFillLeftProperty = new("--zui-range-fill-left");
+        static readonly CustomStyleProperty<Color> RangeFillRightProperty = new("--zui-range-fill-right");
+        static readonly CustomStyleProperty<Color> RangeTrackColorProperty = new("--zui-range-track-color");
+
         /// Fixed = one value, one drag (drawn as a single MicroSlider-style fill). Range = the two-handle band.
         public enum RangeMode { Fixed, Range }
 
@@ -80,16 +84,20 @@ namespace Laubrary.Zui
 
             AddToClassList("zui-microslider");
             AddToClassList("zui-microminmax");
+            AddToClassList("zui-range");
 
             _caption = new Label(label) { pickingMode = PickingMode.Ignore, tooltip = tooltip };
             _caption.AddToClassList("zui-microslider__caption");
+            _caption.AddToClassList("zui-range__label");
             Add(_caption);
 
             _valueLabel = new Label { pickingMode = PickingMode.Ignore };
             _valueLabel.AddToClassList("zui-microslider__value");
+            _valueLabel.AddToClassList("zui-range__value");
             Add(_valueLabel);
 
             UpdateValueLabel();
+            RegisterCallback<CustomStyleResolvedEvent>(OnCustomStyleResolved);
             generateVisualContent += OnGenerate;
             RegisterCallback<PointerDownEvent>(OnDown);
             RegisterCallback<PointerMoveEvent>(OnMove);
@@ -107,6 +115,18 @@ namespace Laubrary.Zui
             UpdateValueLabel();
             MarkDirtyRepaint();
             if (notify) _onChanged?.Invoke(_low, _high);
+        }
+
+        void OnCustomStyleResolved(CustomStyleResolvedEvent e)
+        {
+            // Reset every resolution so a removed parent override cannot leave stale painter colours behind.
+            _resolvedFillLeft = FillLeft;
+            _resolvedFillRight = FillRight;
+            _resolvedTrackColor = TrackColor;
+            if (e.customStyle.TryGetValue(RangeFillLeftProperty, out Color fillLeft)) _resolvedFillLeft = fillLeft;
+            if (e.customStyle.TryGetValue(RangeFillRightProperty, out Color fillRight)) _resolvedFillRight = fillRight;
+            if (e.customStyle.TryGetValue(RangeTrackColorProperty, out Color trackColor)) _resolvedTrackColor = trackColor;
+            MarkDirtyRepaint();
         }
 
         void UpdateValueLabel()
@@ -323,7 +343,7 @@ namespace Laubrary.Zui
             if (r.width <= 1f || r.height <= 1f) return;
 
             var p = mgc.painter2D;
-            FillRect(p, 0f, 0f, r.width, r.height, TrackColor);
+            FillRect(p, 0f, 0f, r.width, r.height, _resolvedTrackColor);
 
             if (_mode == RangeMode.Fixed)
             {
@@ -331,12 +351,12 @@ namespace Laubrary.Zui
                 // one drag — so switching Fixed/Range reads as the same control changing shape, not a
                 // different control replacing it.
                 float split = Mathf.Round(XFromValue(_low));
-                if (split > 0.5f) FillGradientH(p, 0f, split, r.height, FillLeft, FillRight);
+                if (split > 0.5f) FillGradientH(p, 0f, split, r.height, _resolvedFillLeft, _resolvedFillRight);
                 return;
             }
 
             float xLo = XFromValue(_low), xHi = XFromValue(_high);
-            if (xHi - xLo > 0.5f) FillGradientH(p, xLo, xHi - xLo, r.height, FillLeft, FillRight);
+            if (xHi - xLo > 0.5f) FillGradientH(p, xLo, xHi - xLo, r.height, _resolvedFillLeft, _resolvedFillRight);
             else
             {
                 // A band that collapsed to zero width (both handles on the same value) still needs to read as
@@ -344,7 +364,7 @@ namespace Laubrary.Zui
                 // tick at the shared value, same idea as the Fixed-mode fill's own single edge (T-0372).
                 const float tick = 2f;
                 FillRect(p, Mathf.Clamp(xLo - tick * 0.5f, 0f, Mathf.Max(0f, r.width - tick)), 0f, tick, r.height,
-                    Color.Lerp(FillLeft, FillRight, 0.5f));
+                    Color.Lerp(_resolvedFillLeft, _resolvedFillRight, 0.5f));
             }
         }
 
@@ -375,5 +395,8 @@ namespace Laubrary.Zui
         public Color FillLeft = new Color(28f / 255f, 44f / 255f, 78f / 255f, 0.92f);
         public Color FillRight = new Color(70f / 255f, 120f / 255f, 200f / 255f, 0.85f);
         public Color TrackColor = new Color(0f, 0f, 0f, 0.30f);
+        Color _resolvedFillLeft = new Color(28f / 255f, 44f / 255f, 78f / 255f, 0.92f);
+        Color _resolvedFillRight = new Color(70f / 255f, 120f / 255f, 200f / 255f, 0.85f);
+        Color _resolvedTrackColor = new Color(0f, 0f, 0f, 0.30f);
     }
 }

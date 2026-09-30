@@ -1,0 +1,43 @@
+{
+  "baseline": {
+    "path": "Evidence\\Canonical\\CrossProject\\colorful-normal_isolated-baseline.png",
+    "sha256": "a14bba4f856b5db2d5972681b0c8fcd391c0440fc56f803a2438264c8ed5bce2"
+  },
+  "bounding_rect": [
+    504,
+    346,
+    610,
+    353
+  ],
+  "candidate": {
+    "path": "Evidence\\Canonical\\CrossProject\\colorful-normal_canonical-candidate.png",
+    "sha256": "eb41797ef6347ea36c0e581ef4d6492a78769479200c2152233189d83a13399b"
+  },
+  "crop_top": 60,
+  "diff_png": "Evidence\\Canonical\\CrossProject\\colorful-normal_canonical-candidate.diff.png",
+  "exact_bounding_rect": [
+    504,
+    346,
+    610,
+    353
+  ],
+  "exact_changed_pixels": 2,
+  "max_channel_delta": 1,
+  "mean_channel_delta": 7.97085854117347e-07,
+  "over_tolerance_changed_pixels": 2,
+  "size": {
+    "height": 1409,
+    "width": 1395
+  },
+  "tolerance": 0,
+  "top_horizontal_rows": [
+    {
+      "changed_pixels": 1,
+      "y": 346
+    },
+    {
+      "changed_pixels": 1,
+      "y": 352
+    }
+  ]
+}

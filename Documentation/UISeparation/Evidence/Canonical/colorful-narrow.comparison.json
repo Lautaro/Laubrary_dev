@@ -1,0 +1,24 @@
+{
+  "baseline": {
+    "path": "Evidence\\Canonical\\colorful-narrow_baseline.png",
+    "sha256": "d1988f26c26da5df56840b6e8499fdd6db17f42eeebb10b8ed2e607129f2a487"
+  },
+  "bounding_rect": null,
+  "candidate": {
+    "path": "Evidence\\Canonical\\colorful-narrow_candidate.png",
+    "sha256": "87c5bc7910345cafca8623de416e662741e19d6d7bd0504dc0d48c26afefe7e4"
+  },
+  "crop_top": 60,
+  "diff_png": "Evidence\\Canonical\\colorful-narrow_candidate.diff.png",
+  "exact_bounding_rect": null,
+  "exact_changed_pixels": 0,
+  "max_channel_delta": 0,
+  "mean_channel_delta": 0.0,
+  "over_tolerance_changed_pixels": 0,
+  "size": {
+    "height": 1409,
+    "width": 945
+  },
+  "tolerance": 0,
+  "top_horizontal_rows": []
+}

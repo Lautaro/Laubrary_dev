@@ -99,6 +99,8 @@ namespace Laubrary.Zui
                 case SerializedPropertyType.ObjectReference:
                 {
                     var f = new ObjectField { objectType = TypeOfObjectField(prop), value = prop.objectReferenceValue, tooltip = tip };
+                    f.AddToClassList("zui-foundation-object");
+                    // Width is an explicit caller contract, not a presentation default.
                     f.style.width = width;
                     f.RegisterValueChangedCallback(e => Commit(p => p.objectReferenceValue = e.newValue));
                     return Z.Field(nice, tip, f);
@@ -118,6 +120,7 @@ namespace Laubrary.Zui
         {
             string nice = label ?? ObjectNames.NicifyVariableName(prop.name);
             var pf = new PropertyField(prop, nice) { tooltip = tooltip ?? TooltipOf(prop) };
+            pf.AddToClassList("zui-foundation-property");
             // The label above already names the field, so the [Header] decorator would print that same word
             // a second time directly over it (real duplicate: Zoe's "Loadout" and "Cues").
             pf.AddToClassList("zui-no-decorators");
@@ -129,8 +132,7 @@ namespace Laubrary.Zui
             // site: an explicit width when the caller gave one, otherwise a cap that still lets a short
             // field size to its content.
             if (width > 0f) pf.style.width = width;
-            else pf.style.maxWidth = DefaultPropertyMaxWidth;
-            pf.style.flexShrink = 0f;
+            else pf.AddToClassList("zui-foundation-property--default-width");
             pf.Bind(prop.serializedObject);
             return pf;
         }

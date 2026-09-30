@@ -1,0 +1,115 @@
+{
+  "baseline": {
+    "path": "D:\\UNITY\\Laubrary Dev - UI Separation\\Documentation\\UISeparation\\Evidence\\scoped-override_baseline.png",
+    "sha256": "533d4f152748c4152643f7f22d31e1edf4e2adc02159e915f1dd991125488e41"
+  },
+  "bounding_rect": [
+    27,
+    244,
+    1325,
+    1047
+  ],
+  "candidate": {
+    "path": "D:\\UNITY\\Laubrary Dev - UI Separation\\Documentation\\UISeparation\\Evidence\\scoped-override_candidate.png",
+    "sha256": "99a013cabfe513576fd4120139b8bd47339cb4ce4c18548db8630c8284c82c6a"
+  },
+  "crop_top": 60,
+  "diff_png": "D:\\UNITY\\Laubrary Dev - UI Separation\\Documentation\\UISeparation\\Evidence\\scoped-override_candidate.diff.png",
+  "exact_bounding_rect": [
+    27,
+    244,
+    1325,
+    1047
+  ],
+  "exact_changed_pixels": 121638,
+  "max_channel_delta": 224,
+  "mean_channel_delta": 3.2420955652800028,
+  "over_tolerance_changed_pixels": 121638,
+  "size": {
+    "height": 1409,
+    "width": 1395
+  },
+  "tolerance": 0,
+  "top_horizontal_rows": [
+    {
+      "changed_pixels": 999,
+      "y": 582
+    },
+    {
+      "changed_pixels": 999,
+      "y": 586
+    },
+    {
+      "changed_pixels": 860,
+      "y": 909
+    },
+    {
+      "changed_pixels": 860,
+      "y": 946
+    },
+    {
+      "changed_pixels": 860,
+      "y": 958
+    },
+    {
+      "changed_pixels": 860,
+      "y": 996
+    },
+    {
+      "changed_pixels": 858,
+      "y": 908
+    },
+    {
+      "changed_pixels": 858,
+      "y": 947
+    },
+    {
+      "changed_pixels": 858,
+      "y": 957
+    },
+    {
+      "changed_pixels": 858,
+      "y": 997
+    },
+    {
+      "changed_pixels": 689,
+      "y": 972
+    },
+    {
+      "changed_pixels": 688,
+      "y": 920
+    },
+    {
+      "changed_pixels": 688,
+      "y": 923
+    },
+    {
+      "changed_pixels": 688,
+      "y": 970
+    },
+    {
+      "changed_pixels": 687,
+      "y": 921
+    },
+    {
+      "changed_pixels": 683,
+      "y": 919
+    },
+    {
+      "changed_pixels": 683,
+      "y": 922
+    },
+    {
+      "changed_pixels": 683,
+      "y": 969
+    },
+    {
+      "changed_pixels": 682,
+      "y": 971
+    },
+    {
+      "changed_pixels": 681,
+      "y": 968
+    }
+  ]
+}

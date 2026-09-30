@@ -27,6 +27,8 @@ namespace Laubrary.Zui
     {
         // ── stylesheet ──────────────────────────────────────────────────────────────
         static StyleSheet _sheet;
+        static readonly string[] PresentationSheetNames = { "ZuiPilotStandard", "ZuiPilotBands", "ZuiPilotEnvelope", "ZuiPresentation", "ZuiFoundationContainers", "ZuiFoundationFields", "ZuiFoundationLayout", "ZuiFoundationFlow", "ZuiFoundationAssetBrowser" };
+        static readonly System.Collections.Generic.Dictionary<string, StyleSheet> PresentationSheets = new System.Collections.Generic.Dictionary<string, StyleSheet>();
 
         /// The shared ZuiToolkit.uss, located by search so the path works both in this dev host
         /// (Assets/Packages/Laubrary/...) and in consumers (Packages/com.lautaro.arino.laubrary/...).
@@ -52,6 +54,20 @@ namespace Laubrary.Zui
             var s = Sheet;
             if (s != null && !root.styleSheets.Contains(s)) root.styleSheets.Add(s);
             root.AddToClassList("zui-root");
+            // Resolve beside the shared sheet so both development and installed-package paths work.
+            if (s != null)
+            {
+                string folder = System.IO.Path.GetDirectoryName(AssetDatabase.GetAssetPath(s)).Replace('\\', '/');
+                foreach (string name in PresentationSheetNames)
+                {
+                    if (!PresentationSheets.TryGetValue(name, out var presentation) || presentation == null)
+                    {
+                        presentation = AssetDatabase.LoadAssetAtPath<StyleSheet>(folder + "/" + name + ".uss");
+                        if (presentation != null) PresentationSheets[name] = presentation;
+                    }
+                    if (presentation != null && !root.styleSheets.Contains(presentation)) root.styleSheets.Add(presentation);
+                }
+            }
         }
 
         // ── containers ──────────────────────────────────────────────────────────────
@@ -67,6 +83,7 @@ namespace Laubrary.Zui
         public static VisualElement Column(params VisualElement[] children)
         {
             var col = new VisualElement();
+            col.AddToClassList("zui-column");
             foreach (var c in children) if (c != null) col.Add(c);
             return col;
         }
@@ -87,8 +104,7 @@ namespace Laubrary.Zui
             float width = EditorPrefs.GetFloat(prefKey, initialLeftWidth);
 
             var split = new TwoPaneSplitView(0, width, TwoPaneSplitViewOrientation.Horizontal);
-            split.style.flexGrow = 1f;
-            split.style.minHeight = 0f;
+            split.AddToClassList("zui-split");
             if (left != null) split.Add(left);
             if (right != null) split.Add(right);
 
@@ -151,17 +167,13 @@ namespace Laubrary.Zui
         {
             if (n < 1) n = 1;
             var root = new VisualElement();
-            root.style.flexDirection = FlexDirection.Row;
+            root.AddToClassList("zui-columns");
             var cols = new VisualElement[n];
             for (int i = 0; i < n; i++)
             {
                 var col = new VisualElement();
-                col.style.flexDirection = FlexDirection.Column;
-                col.style.flexGrow = 1f;
-                col.style.flexShrink = 1f;
-                col.style.flexBasis = 0f;                 // equal width regardless of content
-                col.style.minWidth = 0f;                  // let it shrink; content wraps inside
-                if (i > 0) col.style.marginLeft = 6f;     // gutter between columns
+                col.AddToClassList("zui-columns__column");
+                col.EnableInClassList("zui-columns__column--following", i > 0);
                 cols[i] = col;
                 root.Add(col);
             }
@@ -169,10 +181,13 @@ namespace Laubrary.Zui
             foreach (var it in items)
             {
                 if (it == null) continue;
-                it.style.flexGrow = 0f;                   // in a column, flexGrow would grow HEIGHT
-                it.style.flexShrink = 0f;
-                it.style.alignSelf = Align.Stretch;       // fill the column width
-                it.style.marginBottom = 2f;
+                // Columns has always taken ownership of these four layout properties.
+                // Release caller inline values so the layout role (and tool USS overrides) can own them.
+                it.style.flexGrow = StyleKeyword.Null;
+                it.style.flexShrink = StyleKeyword.Null;
+                it.style.alignSelf = StyleKeyword.Null;
+                it.style.marginBottom = StyleKeyword.Null;
+                it.AddToClassList("zui-columns__item");
                 cols[placed % n].Add(it);
                 placed++;
             }
@@ -262,26 +277,26 @@ namespace Laubrary.Zui
             return frame;
         }
 
-        public static VisualElement HSpace(float px = 8f)
+        public static VisualElement HSpace(float px = -1f)
         {
             var v = new VisualElement();
-            v.style.width = px;
-            v.style.flexShrink = 0f;
+            v.AddToClassList("zui-foundation-hspace");
+            if (px >= 0f) v.style.width = px; // Explicit spacing remains a caller contract.
             return v;
         }
 
-        public static VisualElement VSpace(float px = 6f)
+        public static VisualElement VSpace(float px = -1f)
         {
             var v = new VisualElement();
-            v.style.height = px;
-            v.style.flexShrink = 0f;
+            v.AddToClassList("zui-foundation-vspace");
+            if (px >= 0f) v.style.height = px; // Explicit spacing remains a caller contract.
             return v;
         }
 
         public static VisualElement Flexible()
         {
             var v = new VisualElement();
-            v.style.flexGrow = 1f;
+            v.AddToClassList("zui-foundation-flexible");
             return v;
         }
 
@@ -338,16 +353,20 @@ namespace Laubrary.Zui
         /// the name doesn't resolve, so a caller can `if (icon != null)` and never draw an empty box for a
         /// typo'd name (the header/button factories all treat null as "no icon"). PickingMode is Ignore: an
         /// icon is decoration on a clickable header/button, never its own hit target.
-        public static VisualElement Icon(string name, float size = 14f)
+        public static VisualElement Icon(string name, float size = -1f)
         {
             if (string.IsNullOrEmpty(name)) return null;
             var tex = ZUIAssetLibrary.FindIcon(name);
             if (tex == null) return null;
             var v = new VisualElement { pickingMode = PickingMode.Ignore };
             v.AddToClassList("zui-icon");
+            v.AddToClassList("zui-foundation-icon");
             v.style.backgroundImage = Background.FromTexture2D(tex);
-            v.style.width = size;
-            v.style.height = size;
+            if (size >= 0f)
+            {
+                v.style.width = size;
+                v.style.height = size;
+            }
             return v;
         }
 
@@ -384,6 +403,7 @@ namespace Laubrary.Zui
         public static Button Button(string label, string tooltip, Action onClick)
         {
             var b = new Button(onClick) { text = label, tooltip = tooltip };
+            b.AddToClassList("zui-button");
             return b;
         }
 
@@ -392,14 +412,18 @@ namespace Laubrary.Zui
         /// exception, not the default — a button with room for a label gets the label, because a glyph alone
         /// is only readable once you have hovered it. The tooltip is therefore REQUIRED, and carries the verb.
         /// A name that does not resolve falls back to "…" rather than an empty square.
-        public static Button IconButton(string icon, string tooltip, Action onClick, float size = 20f)
+        public static Button IconButton(string icon, string tooltip, Action onClick, float size = -1f)
         {
             var b = new Button(onClick) { tooltip = tooltip };
             b.AddToClassList("zui-iconbtn");
+            b.AddToClassList("zui-foundation-icon-button");
             FillButton(b, null, icon);
             if (b.childCount == 0) b.text = "…";
-            b.style.width = size;
-            b.style.height = size;
+            if (size >= 0f)
+            {
+                b.style.width = size;
+                b.style.height = size;
+            }
             return b;
         }
 
@@ -407,24 +431,28 @@ namespace Laubrary.Zui
         /// for a boolean whose name does not fit the row. Same rule: the tooltip carries the meaning, and it
         /// must be composed per STATE so it never describes the opposite of what clicking will do.
         public static ZuiToggleButton IconToggle(string icon, string tooltip, bool value, Action<bool> onChanged,
-            float size = 20f)
+            float size = -1f)
         {
             var t = new ZuiToggleButton(null, tooltip, value, onChanged, icon);
             t.AddToClassList("zui-iconbtn");
-            t.style.width = size;
-            t.style.height = size;
+            t.AddToClassList("zui-foundation-icon-button");
+            if (size >= 0f)
+            {
+                t.style.width = size;
+                t.style.height = size;
+            }
             return t;
         }
 
         /// The old-ZUI MicroSlider: a filled track whose fill is the value, label+value inside, no thumb.
         /// Half the height of a vanilla Slider and needs no separate value field.
         public static ZuiMicroSlider MicroSlider(string label, float value, float min, float max,
-            string tooltip, Action<float> onChanged, float width = 150f, bool showValue = true,
+            string tooltip, Action<float> onChanged, float width = -1f, bool showValue = true,
             float? defaultValue = null, int decimals = -1, string prefsKey = null, Action onBeforeMutate = null)
         {
             var s = new ZuiMicroSlider(label, value, min, max, tooltip, onChanged, showValue, defaultValue,
                 onBeforeMutate, decimals: decimals, prefsKey: prefsKey);
-            s.style.width = width;
+            if (width >= 0f) s.style.width = width; // Explicit legacy override; omitted width belongs to USS.
             return s;
         }
 
@@ -465,10 +493,11 @@ namespace Laubrary.Zui
         /// decimals at the source so float noise from drag interpolation never reaches the display
         /// or the stored value.
         public static Slider Slider(float value, float min, float max, string tooltip,
-            Action<float> onChanged, float width = 170f, bool showInput = true)
+Action<float> onChanged, float width = -1f, bool showInput = true)
         {
             var s = new Slider(min, max) { value = value, tooltip = tooltip, showInputField = showInput };
-            s.style.width = width;
+            s.AddToClassList("zui-slider-field");
+            if (width >= 0f) s.style.width = width;
             s.RegisterValueChangedCallback(e =>
             {
                 float r = (float)Math.Round(e.newValue, 5);
@@ -479,33 +508,36 @@ namespace Laubrary.Zui
         }
 
         public static SliderInt SliderInt(int value, int min, int max, string tooltip,
-            Action<int> onChanged, float width = 170f)
+Action<int> onChanged, float width = -1f)
         {
             var s = new SliderInt(min, max) { value = value, tooltip = tooltip, showInputField = true };
-            s.style.width = width;
+            s.AddToClassList("zui-slider-field");
+            if (width >= 0f) s.style.width = width;
             s.RegisterValueChangedCallback(e => onChanged?.Invoke(e.newValue));
             return s;
         }
 
-        public static FloatField Float(float value, string tooltip, Action<float> onChanged, float width = 60f)
+public static FloatField Float(float value, string tooltip, Action<float> onChanged, float width = -1f)
         {
             var f = new FloatField { value = value, tooltip = tooltip };
-            f.style.width = width;
+            f.AddToClassList("zui-float-field");
+            if (width >= 0f) f.style.width = width;
             f.RegisterValueChangedCallback(e => onChanged?.Invoke(e.newValue));
             ZuiScrub.Attach(f);   // scrub-draggable, keyboard entry untouched
             return f;
         }
 
-        public static TextField TextInput(string value, string tooltip, Action<string> onChanged, float width = 200f)
+public static TextField TextInput(string value, string tooltip, Action<string> onChanged, float width = -1f)
         {
             var f = new TextField { value = value, tooltip = tooltip };
-            f.style.width = width;
+            f.AddToClassList("zui-text-field");
+            if (width >= 0f) f.style.width = width;
             f.RegisterValueChangedCallback(e => onChanged?.Invoke(e.newValue));
             return f;
         }
 
         public static ObjectField Object<T>(T value, string tooltip, Action<T> onChanged,
-            float width = 200f, bool allowSceneObjects = false) where T : UnityEngine.Object
+float width = -1f, bool allowSceneObjects = false) where T : UnityEngine.Object
         {
             var f = new ObjectField
             {
@@ -514,7 +546,8 @@ namespace Laubrary.Zui
                 tooltip = tooltip,
                 allowSceneObjects = allowSceneObjects
             };
-            f.style.width = width;
+            f.AddToClassList("zui-object-field");
+            if (width >= 0f) f.style.width = width;
             f.RegisterValueChangedCallback(e => onChanged?.Invoke(e.newValue as T));
             return f;
         }
@@ -663,27 +696,30 @@ namespace Laubrary.Zui
         }
 
         public static DropdownField Dropdown(int index, List<string> choices, string tooltip,
-            Action<int> onChanged, float width = 140f)
+            Action<int> onChanged, float width = -1f)
         {
             var d = new DropdownField(choices, Mathf.Clamp(index, 0, choices.Count - 1)) { tooltip = tooltip };
-            d.style.width = width;
+            d.AddToClassList("zui-foundation-dropdown");
+            if (width >= 0f) d.style.width = width;
             d.RegisterValueChangedCallback(e => onChanged?.Invoke(choices.IndexOf(e.newValue)));
             return d;
         }
 
         public static EnumField EnumDropdown<T>(T value, string tooltip, Action<T> onChanged,
-            float width = 140f) where T : Enum
+            float width = -1f) where T : Enum
         {
             var d = new EnumField(value) { tooltip = tooltip };
-            d.style.width = width;
+            d.AddToClassList("zui-foundation-enum-dropdown");
+            if (width >= 0f) d.style.width = width;
             d.RegisterValueChangedCallback(e => onChanged?.Invoke((T)e.newValue));
             return d;
         }
 
-        public static IntegerField Int(int value, string tooltip, Action<int> onChanged, float width = 60f)
+        public static IntegerField Int(int value, string tooltip, Action<int> onChanged, float width = -1f)
         {
             var f = new IntegerField { value = value, tooltip = tooltip };
-            f.style.width = width;
+            f.AddToClassList("zui-foundation-int-field");
+            if (width >= 0f) f.style.width = width;
             f.RegisterValueChangedCallback(e => onChanged?.Invoke(e.newValue));
             ZuiScrub.Attach(f);   // scrub-draggable, keyboard entry untouched
             return f;
@@ -692,10 +728,11 @@ namespace Laubrary.Zui
         /// The control type IMGUI's tooltip audits kept catching bare — here the tooltip is required
         /// like everywhere else.
         public static ColorField Color(Color value, string tooltip, Action<Color> onChanged,
-            float width = 60f, bool showAlpha = true, bool hdr = false)
+            float width = -1f, bool showAlpha = true, bool hdr = false)
         {
             var f = new ColorField { value = value, tooltip = tooltip, showAlpha = showAlpha, hdr = hdr };
-            f.style.width = width;
+            f.AddToClassList("zui-foundation-color-field");
+            if (width >= 0f) f.style.width = width;
             f.RegisterValueChangedCallback(e => onChanged?.Invoke(e.newValue));
             return f;
         }
@@ -706,22 +743,24 @@ namespace Laubrary.Zui
         /// AnimationCurve (ChunkSpec's size/alpha-over-life) actually needs. Width and height are paired:
         /// widening one without the other just makes a curve clumsier to read, not more useful.
         public static CurveField Curve(AnimationCurve value, string tooltip, Action<AnimationCurve> onChanged,
-            float width = 180f, float height = 24f)
+            float width = -1f, float height = -1f)
         {
             var f = new CurveField { value = value, tooltip = tooltip };
-            f.style.width = width;
-            f.style.height = height;
+            f.AddToClassList("zui-curve-field");
+            if (width >= 0f) f.style.width = width;
+            if (height >= 0f) f.style.height = height;
             f.RegisterValueChangedCallback(e => onChanged?.Invoke(e.newValue));
             return f;
         }
 
         /// A plain Gradient field (Unity's own gradient editor), sized rather than left to stretch.
         public static GradientField Gradient(Gradient value, string tooltip, Action<Gradient> onChanged,
-            float width = 180f, float height = 20f)
+            float width = -1f, float height = -1f)
         {
             var f = new GradientField { value = value, tooltip = tooltip };
-            f.style.width = width;
-            f.style.height = height;
+            f.AddToClassList("zui-gradient-field");
+            if (width >= 0f) f.style.width = width;
+            if (height >= 0f) f.style.height = height;
             f.RegisterValueChangedCallback(e => onChanged?.Invoke(e.newValue));
             return f;
         }
@@ -731,10 +770,11 @@ namespace Laubrary.Zui
         /// each rebuild. Alpha is always shown (GradientField's alpha strip); HDR stays off (its default),
         /// so this edits a plain 0..1 colour gradient.
         public static GradientField Gradient(string tooltip, Func<Gradient> get, Action<Gradient> set,
-            float width = 200f)
+            float width = -1f)
         {
             var f = new GradientField { value = get != null ? get() : null, tooltip = tooltip };
-            f.style.width = width;
+            f.AddToClassList("zui-gradient-bound-field");
+            if (width >= 0f) f.style.width = width;
             f.RegisterValueChangedCallback(e => set?.Invoke(e.newValue));
             return f;
         }
@@ -781,20 +821,21 @@ namespace Laubrary.Zui
         /// resets BOTH handles to <paramref name="lowDefault"/>/<paramref name="highDefault"/> when given,
         /// else to the full <paramref name="min"/>/<paramref name="max"/> range.
         public static VisualElement MinMax(float low, float high, float min, float max, string tooltip,
-            Action<float, float> onChanged, float sliderWidth = 130f, bool isInt = false,
+            Action<float, float> onChanged, float sliderWidth = -1f, bool isInt = false,
             float? lowDefault = null, float? highDefault = null)
         {
             var slider = new MinMaxSlider(low, high, min, max)
             { tooltip = tooltip + "  ·  Double-click to reset." };
-            slider.style.width = sliderWidth;
+            slider.AddToClassList("zui-minmax-field__slider");
+            if (sliderWidth >= 0f) slider.style.width = sliderWidth;
             // isInt: the flanking numeric fields are IntegerFields and both handle+field snap to whole
             // numbers — for a discrete range (a frame window) that can never be fractional.
             BaseField<int> lowFieldI = isInt ? new IntegerField { value = Mathf.RoundToInt(low), tooltip = tooltip } : null;
             BaseField<int> highFieldI = isInt ? new IntegerField { value = Mathf.RoundToInt(high), tooltip = tooltip } : null;
             var lowField = isInt ? null : new FloatField { value = low, tooltip = tooltip };
             var highField = isInt ? null : new FloatField { value = high, tooltip = tooltip };
-            (isInt ? (VisualElement)lowFieldI : lowField).style.width = 42f;
-            (isInt ? (VisualElement)highFieldI : highField).style.width = 42f;
+            (isInt ? (VisualElement)lowFieldI : lowField).AddToClassList("zui-minmax-field__number");
+            (isInt ? (VisualElement)highFieldI : highField).AddToClassList("zui-minmax-field__number");
 
             void Commit(float lo, float hi, bool fromSlider)
             {
@@ -855,12 +896,12 @@ namespace Laubrary.Zui
         /// read as compact as a single MicroSlider — `decimals: 0` + an int-rounding setter for a discrete
         /// range (e.g. a frame window), same convention as Z.MicroSlider.
         public static ZuiMicroMinMax MicroMinMax(string label, float low, float high, float min, float max,
-            string tooltip, Action<float, float> onChanged, float width = 150f, bool showValue = true,
+            string tooltip, Action<float, float> onChanged, float width = -1f, bool showValue = true,
             float? lowDefault = null, float? highDefault = null, int decimals = -1, Action onBeforeMutate = null)
         {
             var s = new ZuiMicroMinMax(label, low, high, min, max, tooltip, onChanged, showValue,
                 lowDefault, highDefault, onBeforeMutate, decimals);
-            s.style.width = width;
+            if (width >= 0f) s.style.width = width; // Explicit legacy override; omitted width belongs to USS.
             return s;
         }
 

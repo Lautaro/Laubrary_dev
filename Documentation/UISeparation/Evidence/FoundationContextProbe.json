@@ -1,0 +1,31 @@
+{
+  "success": true,
+  "command": "command eval_file",
+  "data": {
+    "command": "eval_file",
+    "parameters": {
+      "json": true,
+      "file": "D:\\UNITY\\Laubrary Dev - UI Separation\\Documentation\\UISeparation\\FoundationContextProbe.cs"
+    },
+    "result": {
+      "output": null,
+      "diagnostics": [],
+      "success": true,
+      "command": null,
+      "result": "Independent context 0 width 111.1111\nIndependent context 1 width 222.2222\nBare-host popup opened",
+      "executionTimeMs": 818,
+      "message": null,
+      "error": null,
+      "errorDetails": null,
+      "executedAt": "0001-01-01T00:00:00"
+    },
+    "target": {
+      "host": "127.0.0.1",
+      "port": 7802,
+      "projectPath": "D:\\UNITY\\Laubrary Dev - UI Separation"
+    },
+    "success": true
+  },
+  "errors": [],
+  "warnings": []
+}

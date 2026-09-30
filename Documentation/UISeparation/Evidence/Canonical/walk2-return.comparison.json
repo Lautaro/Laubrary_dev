@@ -1,0 +1,24 @@
+{
+  "baseline": {
+    "path": "C:\\Users\\Lauta\\AppData\\Local\\Temp\\ZoundsUitkCompare\\walk2-return_baseline.png",
+    "sha256": "c7a63b61ddc7aa5c2f2470a63d1621ca4a697e4b44ab4e5edbcf0023fd759fe9"
+  },
+  "bounding_rect": null,
+  "candidate": {
+    "path": "C:\\Users\\Lauta\\AppData\\Local\\Temp\\ZoundsUitkCompare\\walk2-return_candidate.png",
+    "sha256": "44c6ae15ef721e2d75acba178f77d31513bf27cd95acd56571dc214bad056984"
+  },
+  "crop_top": 60,
+  "diff_png": "C:\\Users\\Lauta\\AppData\\Local\\Temp\\ZoundsUitkCompare\\walk2-return_candidate.diff.png",
+  "exact_bounding_rect": null,
+  "exact_changed_pixels": 0,
+  "max_channel_delta": 0,
+  "mean_channel_delta": 0.0,
+  "over_tolerance_changed_pixels": 0,
+  "size": {
+    "height": 1409,
+    "width": 1395
+  },
+  "tolerance": 0,
+  "top_horizontal_rows": []
+}

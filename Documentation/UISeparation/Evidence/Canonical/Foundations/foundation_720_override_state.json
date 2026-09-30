@@ -1,0 +1,31 @@
+﻿{
+  "success": true,
+  "command": "command eval_file",
+  "data": {
+    "command": "eval_file",
+    "parameters": {
+      "json": true,
+      "file": "D:\\UNITY\\Laubrary Dev\\Documentation\\UISeparation\\FoundationStateProbe.cs"
+    },
+    "result": {
+      "output": null,
+      "diagnostics": [],
+      "success": true,
+      "command": null,
+      "result": "candidate float width 100\ncandidate text width 229.7778\ncandidate responsive columns 2\nflow retained children\nresolved gutter 18.22222 matches scope within one display pixel\npublic caller fallback unchanged\nreference float width 60\nreference text width 200\nreference responsive columns 3\nflow retained children\nresolved gutter 6.222222 matches scope within one display pixel",
+      "executionTimeMs": 311,
+      "message": null,
+      "error": null,
+      "errorDetails": null,
+      "executedAt": "0001-01-01T00:00:00"
+    },
+    "target": {
+      "host": "127.0.0.1",
+      "port": 7800,
+      "projectPath": "D:\\UNITY\\Laubrary Dev"
+    },
+    "success": true
+  },
+  "errors": [],
+  "warnings": []
+}

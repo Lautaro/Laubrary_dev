@@ -17,7 +17,10 @@ namespace Laubrary.Zui
     /// Nothing is changed in place: <c>onChanged</c> receives a changed copy, so the caller can record Undo first.
     public class ZuiSkinBandSliders : VisualElement
     {
-        const float Gap = 2f;
+        static readonly CustomStyleProperty<float> BandGap = new CustomStyleProperty<float>("--zui-band-gap");
+        static readonly CustomStyleProperty<float> BandCapThickness = new CustomStyleProperty<float>("--zui-band-cap-thickness");
+        static readonly CustomStyleProperty<float> BandBaselineThickness = new CustomStyleProperty<float>("--zui-band-baseline-thickness");
+        const float DefaultGap = 2f, DefaultCapThickness = 2f, DefaultBaselineThickness = 1f;
         float[] _values;
         readonly float _min, _max, _baseline;
         readonly float? _default;
@@ -29,6 +32,7 @@ namespace Laubrary.Zui
         int _lastIndex = -1, _hovered = -1;
         float _lastValue;
         bool _dragging;
+        float _gap = DefaultGap, _capThickness = DefaultCapThickness, _baselineThickness = DefaultBaselineThickness;
 
         public ZuiSkinBandSliders(float[] values, float min, float max, float baseline, Action<float[]> onChanged,
                                   float? defaultValue = null, Func<int, string> tooltipFor = null, Action onBeforeMutate = null)
@@ -36,9 +40,10 @@ namespace Laubrary.Zui
             _min = min; _max = max; _baseline = baseline; _default = defaultValue;
             _onChanged = onChanged; _onBeforeMutate = onBeforeMutate; _tooltipFor = tooltipFor;
             AddToClassList("zui-skinband");
+            AddToClassList("zui-band-sliders");
             _baseLine = new VisualElement { pickingMode = PickingMode.Ignore };
-            _baseLine.style.position = Position.Absolute; _baseLine.style.left = 0; _baseLine.style.right = 0; _baseLine.style.height = 1f;
-            _baseLine.style.backgroundColor = new Color(1f, 1f, 1f, 0.35f);
+            _baseLine.AddToClassList("zui-band-sliders__baseline");
+            RegisterCallback<CustomStyleResolvedEvent>(OnCustomStyleResolved);
             SetValues(values);
             RegisterCallback<PointerDownEvent>(OnDown);
             RegisterCallback<PointerMoveEvent>(OnMove);
@@ -62,16 +67,14 @@ namespace Laubrary.Zui
                     var bar = new VisualElement { pickingMode = PickingMode.Ignore };
                     bar.AddToClassList("zui-skinslider__rest");
                     bar.AddToClassList("zui-skinband__bar");
-                    bar.style.position = Position.Absolute; bar.style.top = 0; bar.style.bottom = 0;
+                    bar.AddToClassList("zui-band-sliders__band");
                     var fill = new VisualElement { pickingMode = PickingMode.Ignore };
                     fill.AddToClassList("zui-skinslider__fill");
-                    fill.style.position = Position.Absolute;
+                    fill.AddToClassList("zui-band-sliders__fill");
                     var hover = new VisualElement { pickingMode = PickingMode.Ignore };
-                    hover.style.position = Position.Absolute; hover.style.top = 0; hover.style.bottom = 0;
-                    hover.style.backgroundColor = new Color(1f, 1f, 1f, 0.07f);
+                    hover.AddToClassList("zui-band-sliders__hover");
                     var cap = new VisualElement { pickingMode = PickingMode.Ignore };
-                    cap.style.position = Position.Absolute; cap.style.height = 2f;
-                    cap.style.backgroundColor = new Color(1f, 0.85f, 0.35f);
+                    cap.AddToClassList("zui-band-sliders__overflow");
                     Add(bar); Add(fill); Add(hover); Add(cap);
                     _bars[i] = bar; _fills[i] = fill; _hovers[i] = hover; _caps[i] = cap;
                 }
@@ -79,6 +82,16 @@ namespace Laubrary.Zui
             }
             Layout();
         }
+
+        void OnCustomStyleResolved(CustomStyleResolvedEvent e)
+        {
+            _gap = Metric(e.customStyle.TryGetValue(BandGap, out float gap) ? gap : DefaultGap, DefaultGap);
+            _capThickness = Metric(e.customStyle.TryGetValue(BandCapThickness, out float cap) ? cap : DefaultCapThickness, DefaultCapThickness);
+            _baselineThickness = Metric(e.customStyle.TryGetValue(BandBaselineThickness, out float baseline) ? baseline : DefaultBaselineThickness, DefaultBaselineThickness);
+            Layout();
+        }
+
+        static float Metric(float value, float fallback) => float.IsNaN(value) || float.IsInfinity(value) ? fallback : Mathf.Max(0f, value);
 
         float Slot => _values.Length > 0 ? layout.width / _values.Length : 0f;
         int IndexAt(float x) => Mathf.Clamp((int)(x / Mathf.Max(1e-3f, Slot)), 0, _values.Length - 1);
@@ -92,7 +105,7 @@ namespace Laubrary.Zui
             float slot = Slot, yBase = YOf(Mathf.Clamp(_baseline, _min, _max));
             for (int i = 0; i < _values.Length; i++)
             {
-                float x = i * slot + Gap * 0.5f, bw = Mathf.Max(1f, slot - Gap);
+                float x = i * slot + _gap * 0.5f, bw = Mathf.Max(1f, slot - _gap);
                 _bars[i].style.left = x; _bars[i].style.width = bw;
                 float v = _values[i], yv = YOf(Mathf.Clamp(v, _min, _max));
                 var f = _fills[i];
@@ -104,10 +117,11 @@ namespace Laubrary.Zui
                 var c = _caps[i];
                 bool outside = v > _max || v < _min;
                 c.style.display = outside ? DisplayStyle.Flex : DisplayStyle.None;
-                c.style.left = x; c.style.width = bw; c.style.top = v > _max ? 0f : h - 2f;
+                c.style.left = x; c.style.width = bw; c.style.height = _capThickness; c.style.top = v > _max ? 0f : h - _capThickness;
             }
             _baseLine.style.display = _baseline > _min && _baseline < _max ? DisplayStyle.Flex : DisplayStyle.None;
-            _baseLine.style.top = yBase - 0.5f;
+            _baseLine.style.height = _baselineThickness;
+            _baseLine.style.top = yBase - _baselineThickness * 0.5f;
         }
 
         void Set(float[] copy, int i, float v, ref bool changed)

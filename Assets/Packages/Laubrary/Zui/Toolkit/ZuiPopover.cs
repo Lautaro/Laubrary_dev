@@ -54,6 +54,7 @@ namespace Laubrary.Zui
         readonly VisualElement _anchor;
         readonly Options _opt;
         readonly VisualElement _host;      // overlay host: the outermost zui-root, else the panel root
+        readonly bool _hostIsZuiRoot;
         VisualElement _scrim;              // full-window transparent catcher; the panel floats inside it
         VisualElement _panel;              // the card the caller fills
         Vector2 _lastPlaced = new Vector2(float.NaN, float.NaN);
@@ -68,6 +69,7 @@ namespace Laubrary.Zui
             _anchor = anchor;
             _opt = opt ?? new Options();
             _host = FindHost(anchor);
+            _hostIsZuiRoot = _host != null && _host.ClassListContains("zui-root");
         }
 
         /// Show a floating panel anchored to <paramref name="anchor"/>. <paramref name="build"/> fills the
@@ -84,11 +86,16 @@ namespace Laubrary.Zui
         {
             _scrim = new VisualElement { name = "zui-popover-scrim" };
             _scrim.AddToClassList("zui-popover__scrim");
-            // Always resolve the palette + USS even when the host is a bare panel root (a non-ZuiWindow),
-            // and force the scrim's own padding to 0 so the absolutely-positioned panel places in a clean
+            // Preserve the normal in-window overlay path. A bare host instead receives a local snapshot of
+            // its owner's presentation so a detached root does not depend on process-global style state.
+            // The scrim's padding stays at 0 so the absolutely-positioned panel places in a clean
             // coordinate space (an inherited zui-root padding would offset every WorldToLocal result).
-            if (Z.Sheet != null && !_scrim.styleSheets.Contains(Z.Sheet)) _scrim.styleSheets.Add(Z.Sheet);
-            _scrim.AddToClassList("zui-root");
+            if (_hostIsZuiRoot)
+            {
+                if (Z.Sheet != null && !_scrim.styleSheets.Contains(Z.Sheet)) _scrim.styleSheets.Add(Z.Sheet);
+                _scrim.AddToClassList("zui-root");
+            }
+            else ZuiPresentationContext.Capture(_anchor).ApplyTo(_scrim);
             _scrim.style.position = Position.Absolute;
             _scrim.style.left = 0; _scrim.style.top = 0; _scrim.style.right = 0; _scrim.style.bottom = 0;
             _scrim.style.paddingLeft = 0; _scrim.style.paddingRight = 0;

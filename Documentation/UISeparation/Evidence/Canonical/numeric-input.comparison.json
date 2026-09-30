@@ -1,0 +1,24 @@
+{
+  "baseline": {
+    "path": "Evidence\\Canonical\\numeric-input_baseline.png",
+    "sha256": "76daf80b9982fa160414da0811c9190e97f4188e263e0524567355dd33108e07"
+  },
+  "bounding_rect": null,
+  "candidate": {
+    "path": "Evidence\\Canonical\\numeric-input_candidate.png",
+    "sha256": "6194e1395243844f64f936e91635e03fc769d3581272da7b9d0628c2789d4519"
+  },
+  "crop_top": 60,
+  "diff_png": "Evidence\\Canonical\\numeric-input_candidate.diff.png",
+  "exact_bounding_rect": null,
+  "exact_changed_pixels": 0,
+  "max_channel_delta": 0,
+  "mean_channel_delta": 0.0,
+  "over_tolerance_changed_pixels": 0,
+  "size": {
+    "height": 1409,
+    "width": 1395
+  },
+  "tolerance": 0,
+  "top_horizontal_rows": []
+}

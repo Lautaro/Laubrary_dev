@@ -1,0 +1,31 @@
+﻿{
+  "success": true,
+  "command": "command eval_file",
+  "data": {
+    "command": "eval_file",
+    "parameters": {
+      "json": true,
+      "file": "D:\\UNITY\\Laubrary Dev\\Documentation\\UISeparation\\FoundationContextFinish.cs"
+    },
+    "result": {
+      "output": null,
+      "diagnostics": [],
+      "success": true,
+      "command": null,
+      "result": "Bare-host popup retained tool scope and all sheets; Escape dismissed it; original root restored",
+      "executionTimeMs": 535,
+      "message": null,
+      "error": null,
+      "errorDetails": null,
+      "executedAt": "0001-01-01T00:00:00"
+    },
+    "target": {
+      "host": "127.0.0.1",
+      "port": 7800,
+      "projectPath": "D:\\UNITY\\Laubrary Dev"
+    },
+    "success": true
+  },
+  "errors": [],
+  "warnings": []
+}

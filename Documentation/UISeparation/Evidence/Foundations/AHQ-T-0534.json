@@ -1,0 +1,71 @@
+{
+  "frontmatter": {
+    "id": "T-0534",
+    "title": "Foundation integration and consumer acceptance",
+    "node": "LaubraryUssFoundations-2026-09-30",
+    "status": "done",
+    "priority": "normal",
+    "created": "2026-09-30T11:55:19Z",
+    "updated": "2026-09-30T12:36:55Z",
+    "assignee": "user",
+    "agent_role": "Editor verification",
+    "agent_model": "gpt-6-astra",
+    "agent_subagent_count": "0",
+    "tags": "uncommitted",
+    "confirmed": "false"
+  },
+  "description": "Continue the approved UI separation plan only in D:/UNITY/Laubrary Dev - UI Separation. Preserve current visuals and interaction. Semantic control classes supply defaults; parent tool classes supply overrides. Coordinator integrates and verifies in the isolated Unity editor. Scope and evidence will be recorded before completion.",
+  "todos": [],
+  "questions": [],
+  "handover": [
+    {
+      "time": "2026-09-30T12:36:55Z",
+      "actor": "agent",
+      "from_status": "open",
+      "to_status": "done",
+      "text": "Integrated and verified the first shared-foundation rollout. Exact default parity at three widths, independent parent overrides/reset, real BackSplash browser/editor parity and workflow, and 14 earlier pilot regressions pass. Whole-tool and runtime rollout remain future scope.\n\n[[attach:20260930T123655Z_Shared_Foundations_Report.md]] [[attach:20260930T123655Z_FOUNDATION_ACCEPTANCE.md]] [[attach:20260930T123655Z_foundation_720_override_candidate.png]] [[attach:20260930T123655Z_foundation_consumer_edited.png]]",
+      "proof": [
+        {
+          "checked": true,
+          "text": "Recorded scoped implementation and verification evidence in isolated copy"
+        }
+      ],
+      "details": "Implemented only in D:/UNITY/Laubrary Dev - UI Separation. Commit 0a347d4. Coordinator reviewed delegated work and ran serial Unity verification. See report for verified-by-probe, verified-by-eye and unverified coverage; explicit compatibility paths remain.",
+      "technical_details": "Reference commit e52505a. Scripts and artifacts under Documentation/UISeparation; final evidence under Evidence/Foundations. No original source or consumer deployment."
+    }
+  ],
+  "agents": [
+    {
+      "time": "2026-09-30T11:58:39Z",
+      "role": "Editor verification",
+      "model": "gpt-6-astra",
+      "note": "Active in isolated refactor copy; coordinator owns live verification."
+    }
+  ],
+  "attached": [
+    {
+      "filename": "20260930T123655Z_Shared_Foundations_Report.md",
+      "size": 6915,
+      "time": "2026-09-30T12:36:55Z",
+      "sourcePath": "D:\\UNITY\\Laubrary Dev\\.agenthq\\workspace\\T-0534\\Shared Foundations Report.md"
+    },
+    {
+      "filename": "20260930T123655Z_FOUNDATION_ACCEPTANCE.md",
+      "size": 3824,
+      "time": "2026-09-30T12:36:55Z",
+      "sourcePath": "D:\\UNITY\\Laubrary Dev\\.agenthq\\workspace\\T-0534\\FOUNDATION_ACCEPTANCE.md"
+    },
+    {
+      "filename": "20260930T123655Z_foundation_720_override_candidate.png",
+      "size": 152681,
+      "time": "2026-09-30T12:36:55Z",
+      "sourcePath": "D:\\UNITY\\Laubrary Dev\\.agenthq\\workspace\\T-0534\\foundation_720_override_candidate.png"
+    },
+    {
+      "filename": "20260930T123655Z_foundation_consumer_edited.png",
+      "size": 104507,
+      "time": "2026-09-30T12:36:55Z",
+      "sourcePath": "D:\\UNITY\\Laubrary Dev\\.agenthq\\workspace\\T-0534\\foundation_consumer_edited.png"
+    }
+  ]
+}

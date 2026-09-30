@@ -37,6 +37,8 @@ namespace Laubrary.Zui
                 tooltip = tooltip,
                 allowSceneObjects = allowSceneObjects,
             };
+            f.AddToClassList("zui-foundation-object");
+            // Width is an explicit caller contract, not a presentation default.
             f.style.width = width;
             f.RegisterValueChangedCallback(e => onChanged?.Invoke(e.newValue));
             return f;
@@ -322,9 +324,7 @@ namespace Laubrary.Zui
         public static void FlowFields(VisualElement host, object owner, Options opt)
         {
             var flow = new VisualElement();
-            flow.style.flexDirection = FlexDirection.Row;
-            flow.style.flexWrap = Wrap.Wrap;
-            flow.style.alignItems = Align.FlexStart;
+            flow.AddToClassList("zui-foundation-flow");
             BuildFields(flow, owner, opt);
 
             void ApplyWidths()
@@ -414,9 +414,9 @@ namespace Laubrary.Zui
                     "sample one from anywhere on screen — including the sprite in the preview above. Only " +
                     "the hue is taken.",
                     c => { Color.RGBToHSV(c, out float h, out _, out _); Set(h * 360f); }, 60f);
-                swatch.style.flexShrink = 0f;
+                swatch.AddToClassList("zui-foundation-hue-swatch");
                 var row = Z.Row(slider, swatch);
-                row.style.flexShrink = 0f;
+                row.AddToClassList("zui-foundation-hue-row");
                 return row;
             }
 
@@ -455,7 +455,7 @@ namespace Laubrary.Zui
                 // The field row itself must be allowed to shrink to the pane, or the wrapped radio inside it never sees a
                 // narrower container and a five-option set runs off the pane edge (T-0047's Variant row did).
                 var enumRow = Z.Field(nice, tip, EnumControl((Enum)v, tip, nv => Set(nv)));
-                enumRow.style.flexShrink = 1;
+                enumRow.AddToClassList("zui-foundation-enum-field");
                 return enumRow;
             }
 
@@ -694,9 +694,7 @@ namespace Laubrary.Zui
                     var row = Z.Row();
                     // NO wrap: a flexible gap in a wrapping row pushes the × onto a line of its own, which is the
                     // "confusing empty space" failure the card-layout rule warns about. The dials shrink instead.
-                    row.style.flexDirection = FlexDirection.Row;
-                    row.style.flexWrap = Wrap.NoWrap;
-                    row.style.alignItems = Align.Center;
+                    row.AddToClassList("zui-foundation-compact-row");
                     row.Add(Z.Text($"#{idx + 1}", ZuiText.Small,
                         $"{Singular(nice)} {idx + 1} of {nice}.").W(26f));
                     BuildFields(row, elem, elemOpt);

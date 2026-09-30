@@ -1,0 +1,31 @@
+{
+  "success": true,
+  "command": "command eval_file",
+  "data": {
+    "command": "eval_file",
+    "parameters": {
+      "json": true,
+      "file": "D:\\UNITY\\Laubrary Dev - UI Separation\\Documentation\\UISeparation\\InteractionSuite.cs"
+    },
+    "result": {
+      "output": null,
+      "diagnostics": [],
+      "success": true,
+      "command": null,
+      "result": "PASS slider drag retains pointer capture and updates live value\r\nPASS slider drag Undo\r\nPASS Shift fine adjustment\r\nPASS double click default reset\r\nPASS band drag interpolates skipped bands\r\nPASS untouched out-of-range band preserved\r\nPASS band Undo\r\nPASS band double click default reset\r\nPASS range thumb drag preserves opposite bound\r\nPASS range Undo\r\nPASS envelope painted point and hit mapping agree\r\nPASS envelope Undo rebinds live data\r\nPASS toggle click updates fixture and preview\r\nPASS toggle Undo\r\nTOTAL 14 passed\r\n",
+      "executionTimeMs": 457,
+      "message": null,
+      "error": null,
+      "errorDetails": null,
+      "executedAt": "0001-01-01T00:00:00"
+    },
+    "target": {
+      "host": "127.0.0.1",
+      "port": 7801,
+      "projectPath": "D:\\UNITY\\Laubrary Dev - UI Separation"
+    },
+    "success": true
+  },
+  "errors": [],
+  "warnings": []
+}

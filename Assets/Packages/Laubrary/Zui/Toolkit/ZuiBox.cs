@@ -77,8 +77,6 @@ namespace Laubrary.Zui
             {
                 _headerContent = new VisualElement();
                 _headerContent.AddToClassList("zui-box__headercontent");
-                _headerContent.style.flexDirection = FlexDirection.Row;
-                _headerContent.style.alignItems = Align.Center;
                 _headerContent.RegisterCallback<PointerDownEvent>(ev => ev.StopPropagation());
                 if (_help != null)
                     _titleRow.Insert(_titleRow.IndexOf(_help), _headerContent);
@@ -105,9 +103,6 @@ namespace Laubrary.Zui
             {
                 _headerLead = new VisualElement();
                 _headerLead.AddToClassList("zui-box__headerlead");
-                _headerLead.style.flexDirection = FlexDirection.Row;
-                _headerLead.style.alignItems = Align.Center;
-                _headerLead.style.flexShrink = 0f;
                 _headerLead.RegisterCallback<PointerDownEvent>(ev => ev.StopPropagation());
                 _titleRow.Insert(_caret != null ? _titleRow.IndexOf(_caret) + 1 : 0, _headerLead);
             }
@@ -361,8 +356,7 @@ namespace Laubrary.Zui
             {
                 _gear = new Label("⚙") { tooltip = "Which controls are shown" };
                 _gear.AddToClassList("zui-togglebutton");   // palette-driven (accent-soft when on) — no new USS
-                _gear.style.marginLeft = StyleKeyword.Auto; // right-align in the header row
-                _gear.style.fontSize = 12f;
+                _gear.AddToClassList("zui-box__gear");
                 _gear.AddManipulator(new Clickable(() => { GearOpen = !GearOpen; ViewChanged?.Invoke(); }));
                 _gear.RegisterCallback<PointerDownEvent>(e => e.StopPropagation());
                 _titleRow.Add(_gear);
@@ -384,12 +378,11 @@ namespace Laubrary.Zui
 
             var wrap = new VisualElement();
             wrap.AddToClassList("zui-box");     // a nested .zui-box is a quiet sub-fill inset strip (palette-driven)
-            wrap.style.marginTop = 0;
-            wrap.style.marginBottom = 6;
+            wrap.AddToClassList("zui-box__settings");
 
             var cap = new Label("Shown controls");
             cap.AddToClassList("zui-text--small");
-            cap.style.marginBottom = 2;
+            cap.AddToClassList("zui-box__settings-caption");
             wrap.Add(cap);
 
             var emittedGroups = new HashSet<string>();
@@ -421,10 +414,9 @@ namespace Laubrary.Zui
         {
             var tog = new Toggle(t.label) { tooltip = "Show or hide " + (t.label ?? t.key) };
             tog.AddToClassList("zui-audit-allow-toggle");   // gear-strip chrome, pending a gear restyle
+            tog.AddToClassList("zui-box__settings-toggle");
             tog.SetValueWithoutNotify(ControlOn(t.key));
             tog.style.marginLeft = indent;
-            tog.style.marginTop = 1f;
-            tog.style.marginBottom = 1f;
             var self = t;
             tog.RegisterValueChangedCallback(ev =>
             {
@@ -445,10 +437,10 @@ namespace Laubrary.Zui
             string label = _groupLabels.TryGetValue(groupKey, out var l) && !string.IsNullOrEmpty(l) ? l : groupKey;
             var tog = new Toggle(label) { tooltip = "Show or hide all " + label + " controls" };
             tog.AddToClassList("zui-audit-allow-toggle");   // gear-strip chrome, pending a gear restyle
+            tog.AddToClassList("zui-box__settings-toggle");
+            tog.AddToClassList("zui-box__settings-toggle--group");
             var lbl = tog.Q<Label>();
-            if (lbl != null) lbl.style.unityFontStyleAndWeight = FontStyle.Bold;
-            tog.style.marginTop = 2f;
-            tog.style.marginBottom = 1f;
+            if (lbl != null) lbl.AddToClassList("zui-box__settings-group-label");
             _groupToggles[groupKey] = tog;
             ApplyGroupState(groupKey, tog);   // initial value + dash
             tog.RegisterValueChangedCallback(ev =>
