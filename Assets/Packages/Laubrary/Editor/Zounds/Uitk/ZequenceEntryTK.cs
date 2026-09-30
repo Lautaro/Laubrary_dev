@@ -139,8 +139,16 @@ namespace Laubrary.Zounds.Uitk {
             var duration = Duration();
 
             // The track's ZPOC id (T-0495): how game code reaches this track by name through a play's token.
-            var idChip = new Label { tooltip = "" };
-            idChip.AddToClassList("zs-zpocchip"); idChip.AddToClassList("zs-zpocchip__text");
+            // The track's ZPOC mark (T-0514): a dull bolt alone with no id; the lit bolt and the id as plain text with one.
+            var idChip = new VisualElement { tooltip = "" };
+            idChip.AddToClassList("zs-zpocchip");
+            idChip.style.flexDirection = FlexDirection.Row; idChip.style.alignItems = Align.Center;
+            var idBolt = new ZpocBolt { pickingMode = PickingMode.Ignore };
+            idBolt.style.width = 12f; idBolt.style.height = 14f; idBolt.style.flexShrink = 0;
+            var idText = new Label { pickingMode = PickingMode.Ignore };
+            idText.AddToClassList("zs-zpocchip__text");
+            idText.style.flexShrink = 1;
+            idChip.Add(idBolt); idChip.Add(idText);
             idChip.RegisterCallback<PointerDownEvent>(e => {
                 if (e.button != 0 && e.button != 1) return;
                 TrackIdPopup.Show(idChip.worldBound, parent, entry, () => win.refreshers.ForEach(r => r()));
@@ -150,7 +158,8 @@ namespace Laubrary.Zounds.Uitk {
             win.refreshers.Add(() => {
                 bool on = !string.IsNullOrEmpty(entry.zpocId);
                 idChip.EnableInClassList("zs-zpocchip--on", on);
-                idChip.text = on ? "⚡ " + entry.zpocId : "⚡";
+                idText.text = on ? entry.zpocId : "";
+                idBolt.Color = on ? ZpocBolt.Amber : ZpocBolt.Unlit;
                 idChip.tooltip = on
                     ? "Game code reaches this track as '" + entry.zpocId + "': token.Track(\"" + entry.zpocId + "\") -- its volume, pitch, fades, mute, solo and whether it can be picked. Click to change."
                     : "Game code reaches this track by its number (token.Track(" + index + ")). Click to give it a name as well.";
@@ -262,8 +271,9 @@ namespace Laubrary.Zounds.Uitk {
                 // Sized to its text (a bolt, or a bolt and the id), never wider than the gap before the play button;
                 // what is left over stays as space. Truncated with an ellipsis if the id is longer than the gap.
                 float chipRoom = Mathf.Max(18f, content.xMax - 18f - 2f - chipX);
-                float chipW = Mathf.Clamp(idChip.MeasureTextSize(idChip.text ?? "", 0f, MeasureMode.Undefined, LH, MeasureMode.Exactly).x + 10f, 18f, chipRoom);
-                idChip.style.overflow = Overflow.Hidden; idChip.style.textOverflow = TextOverflow.Ellipsis;
+                float textW = string.IsNullOrEmpty(idText.text) ? 0f : idText.MeasureTextSize(idText.text, 0f, MeasureMode.Undefined, LH, MeasureMode.Exactly).x + 6f;
+                float chipW = Mathf.Clamp(14f + textW, 16f, chipRoom);
+                idChip.style.overflow = Overflow.Hidden;
                 Place(idChip, new Rect(chipX, content.y, chipW, LH));
                 Place(play, new Rect(content.xMax - 18f, content.y, 18f, LH));
                 float y = content.y + LH - 3f;

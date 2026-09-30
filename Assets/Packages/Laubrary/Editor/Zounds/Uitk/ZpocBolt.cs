@@ -11,6 +11,12 @@ namespace Laubrary.Zounds.Uitk {
     public class ZpocBolt : VisualElement {
 
         public static readonly Color Amber = new Color(1f, 150f / 255f, 40f / 255f);
+        /// <summary>The bolt of something game code could reach but does not yet (no id): cold and dull, so only a set id is lit.</summary>
+        public static readonly Color Unlit = new Color(0.43f, 0.48f, 0.54f);
+
+        Color color = Amber;
+        /// <summary>The bolt's colour: <see cref="Amber"/> (lit) or <see cref="Unlit"/>.</summary>
+        public Color Color { get => color; set { if (color == value) return; color = value; MarkDirtyRepaint(); } }
 
         public ZpocBolt() {
             generateVisualContent += Paint;
@@ -24,7 +30,7 @@ namespace Laubrary.Zounds.Uitk {
             // A bolt in a unit box, centred: down-left stroke, a notch, then down-left again.
             Vector2 P(float x, float y) => new Vector2(cx + (x - 0.5f) * s * 0.62f, cy + (y - 0.5f) * s);
             var p = ctx.painter2D;
-            p.fillColor = Amber;
+            p.fillColor = color;
             p.BeginPath();
             p.MoveTo(P(0.72f, 0f));
             p.LineTo(P(0.18f, 0.56f));

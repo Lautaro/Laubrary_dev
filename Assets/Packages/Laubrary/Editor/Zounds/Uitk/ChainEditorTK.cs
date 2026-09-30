@@ -876,13 +876,18 @@ namespace Laubrary.Zounds.Uitk {
         /// flashes when a new value arrives. Click to set the id and how the value acts.
         /// </summary>
         VisualElement ZpocChip(ZoundModifier mod) {
+            // A label, not a box (owner, 2026-09-30, T-0514): with no id only a dull bolt; with one, the lit bolt and the id as
+            // plain text. While the sound plays, where code has it shows as a thin meter under the label.
             var chip = new VisualElement();
             chip.AddToClassList("zs-zpocchip");
+            chip.style.flexDirection = FlexDirection.Row; chip.style.alignItems = Align.Center;
+            var bolt = new ZpocBolt { pickingMode = PickingMode.Ignore };
+            bolt.style.width = 12f; bolt.style.height = 14f; bolt.style.flexShrink = 0;
             var spread = new VisualElement { pickingMode = PickingMode.Ignore }; spread.AddToClassList("zs-zpocchip__spread");
             var fill = new VisualElement { pickingMode = PickingMode.Ignore }; fill.AddToClassList("zs-zpocchip__fill");
             var text = new Label { pickingMode = PickingMode.Ignore }; text.AddToClassList("zs-zpocchip__text");
-            text.style.position = Position.Absolute; text.style.left = 0; text.style.right = 0; text.style.top = 0; text.style.bottom = 0;
-            chip.Add(spread); chip.Add(fill); chip.Add(text);
+            text.style.flexGrow = 1; text.style.flexShrink = 1;
+            chip.Add(bolt); chip.Add(text); chip.Add(spread); chip.Add(fill);
             chip.RegisterCallback<PointerDownEvent>(e => {
                 if (e.button != 0 && e.button != 1) return;
                 ZpocPopup.Show(chip.worldBound, zound, mod, () => { ZoundDspPlayback.InvalidateLayout(zound); schedule.Execute(Tick); });
@@ -895,17 +900,18 @@ namespace Laubrary.Zounds.Uitk {
                 bool code = mod.type == ZoundModifierType.Code;
                 bool on = mod.HasZpoc;
                 chip.EnableInClassList("zs-zpocchip--on", on);
+                bolt.Color = on ? ZpocBolt.Amber : ZpocBolt.Unlit;
                 chip.tooltip = on
                     ? "Game code reaches this modifier as '" + mod.zpocId + "': token.SetZpoc(\"" + mod.zpocId + "\", value). " +
                       (code ? "Its output IS that value. " : mod.zpocMode == ZpocMode.Scale ? "Scale: the value scales how strongly it acts, as authored. " : "Set: the value is how strongly it acts. ") +
-                      "While the sound plays, the fill shows where code has it and it flashes when a new value arrives; the word after the value says where that value comes from (play, global or rest). " + ZpocPriority + " Click to change."
+                      "While the sound plays, the value follows the id, the line underneath shows where code has it, and it brightens when a new value arrives; the word after the value says where that value comes from (play, global or rest). " + ZpocPriority + " Click to change."
                     : (code ? "This Code modifier has no id yet, so game code cannot reach it. Click to give it one."
                             : "Game code cannot reach this modifier. Click to give it a ZPOC id, so code can turn it up and down while the sound plays.");
             });
             liveRefreshers.Add(() => {
                 var ch = ZoundDspPlayback.ResolveChain(zound, out _);
                 int mi = ch != null ? ch.modifiers.IndexOf(mod) : -1;
-                string name = mod.HasZpoc ? "⚡ " + mod.zpocId : "⚡";
+                string name = mod.HasZpoc ? mod.zpocId : "";
                 var sum = mi >= 0 && (mod.HasZpoc || mod.type == ZoundModifierType.Code) ? SapVoiceRegistry.ReadModifierControl(zound, mi, values) : default;
                 if (sum.count == 0) {
                     text.text = name; fill.style.display = DisplayStyle.None; spread.style.display = DisplayStyle.None;
@@ -914,11 +920,12 @@ namespace Laubrary.Zounds.Uitk {
                 else {
                     // A Code modifier's control is its value; any other's is the multiplier on its depths, shown as a share.
                     float w = chip.resolvedStyle.width; if (float.IsNaN(w)) w = ZpocChipW;
+                    w -= 14f;   // the meter runs under the label, after the bolt
                     float lo = Mathf.Clamp01(sum.lo), hi = Mathf.Clamp01(sum.hi);
                     fill.style.display = sum.count == 1 ? DisplayStyle.Flex : DisplayStyle.None;
-                    fill.style.width = w * lo;
+                    fill.style.left = 14f; fill.style.width = w * lo;
                     if (sum.count > 1) {
-                        spread.style.display = DisplayStyle.Flex; spread.style.left = w * lo; spread.style.width = Mathf.Max(1f, w * (hi - lo));
+                        spread.style.display = DisplayStyle.Flex; spread.style.left = 14f + w * lo; spread.style.width = Mathf.Max(1f, w * (hi - lo));
                         text.text = name + " " + Short(sum.lo) + "–" + Short(sum.hi) + " ×" + sum.count + Src(mod);
                     }
                     else {
