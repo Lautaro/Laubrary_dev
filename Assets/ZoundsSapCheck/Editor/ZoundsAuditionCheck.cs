@@ -116,6 +116,15 @@ public static class ZoundsAuditionCheck {
             s = new ZoundAudition(-48601, () => alive, () => PlayOnce(k, log), () => looper);
         }
 
+        // Steady: a fixed rhythm of the first play's REAL length (start to its seen end) plus the gap.
+        void SteadyJudge(double gap) {
+            double firstLen = log.Count > 0 && ends.TryGetValue(log[0].t, out double e0) ? e0 - log[0].at : double.NaN;
+            double expect = firstLen + gap;
+            double worst = 0; for (int i = 1; i < log.Count; i++) worst = Math.Max(worst, Math.Abs(log[i].at - log[0].at - i * expect));
+            Check("3 plays on a fixed rhythm of the first play's real length + gap", log.Count == 3 && !double.IsNaN(firstLen) && worst < 0.06,
+                  log.Count + " started; rhythm " + (expect * 1000).ToString("0") + " ms, worst drift " + (worst * 1000).ToString("0") + " ms");
+        }
+
         var phases = new List<Phase> {
             new Phase { name = "Burst, From start, 4 plays, 0.25 s", start = () => { NewSession(); s.settings.mode = AuditionGap.FromStart; s.settings.gap = 0.25f; s.settings.count = 4; s.StartBurst(); },
                 done = t => t > 1.6, judge = b => {
@@ -143,12 +152,18 @@ public static class ZoundsAuditionCheck {
                     Check("each play starts 0.2 s after the previous one finished", pairs == 2 && worst < 0.06, pairs + " pairs, worst error " + (worst * 1000).ToString("0") + " ms");
                 } },
             new Phase { name = "Burst, Steady, 3 plays, 0.1 s", start = () => { NewSession(); s.settings.mode = AuditionGap.Steady; s.settings.gap = 0.1f; s.settings.count = 3; s.StartBurst(); },
-                done = t => t > 2.0, judge = b => {
-                    float len = log.Count > 0 && log[0].t != null ? log[0].t.duration : 0f;
-                    double expect = len + 0.1;
-                    double worst = 0; for (int i = 1; i < log.Count; i++) worst = Math.Max(worst, Math.Abs(log[i].at - log[0].at - i * expect));
-                    Check("3 plays on a fixed rhythm of first length + gap", log.Count == 3 && worst < 0.05,
-                          "rhythm " + (expect * 1000).ToString("0") + " ms, worst drift " + (worst * 1000).ToString("0") + " ms");
+                done = t => t > 2.0, judge = b => SteadyJudge(0.1) },
+            // The owner's case (T-0506): a sound whose chain stretches time declares a huge upper bound as its length, so a
+            // rhythm taken from the DECLARED length put the second play hours away and Steady seemed to do nothing.
+            new Phase { name = "Burst, Steady, 3 plays, 0.1 s, on a live-speed sound", start = () => {
+                    NewSession(); k.timeStretch.liveEnabled = true; k.timeStretch.liveSpeed = 1f;
+                    s.settings.mode = AuditionGap.Steady; s.settings.gap = 0.1f; s.settings.count = 3; s.StartBurst();
+                },
+                done = t => t > 2.4, judge = b => {
+                    float declared = log.Count > 0 && log[0].t != null ? log[0].t.duration : 0f;
+                    Check("the live-speed sound declares far more than it plays", declared > 5f, "declared " + declared.ToString("0.0") + " s");
+                    SteadyJudge(0.1);
+                    k.timeStretch.liveEnabled = false;
                 } },
             new Phase { name = "Loop, then the window disappears (sweep)", start = () => { NewSession(); s.settings.mode = AuditionGap.FromStart; s.settings.gap = 0.3f; s.StartLoop(); },
                 done = t => { if (t > 1.0 && alive) alive = false; return t > 1.6; }, judge = b => {

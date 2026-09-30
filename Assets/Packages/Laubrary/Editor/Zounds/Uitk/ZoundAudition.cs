@@ -264,12 +264,10 @@ namespace Laubrary.Zounds.Uitk {
             lastPlay = t;
             lastStartAt = Now;
             lastEndAt = -1d;
-            if (settings.mode == AuditionGap.Steady && period < 0d) {
-                // The rhythm is set by the first play (its declared length, which already includes pitch and a chain's tail).
-                float len = t != null ? t.duration : 0f;
-                if (float.IsNaN(len) || float.IsInfinity(len) || len < 0f) len = 0f;
-                period = Math.Max(MinStartGap, len + settings.gap);
-            }
+            // Steady's rhythm is set by the first play's REAL length, measured when it is seen to end (in Tick). It used to be
+            // the play's declared length, but a sound whose chain stretches time declares a huge upper bound instead (measured
+            // 2026-09-30: 35,575 s for a 0.92 s Klip), so the second play was scheduled hours later and Steady seemed to do
+            // nothing (T-0506).
             nextAt = -1d;
             if (running == Run.Burst && remaining <= 0) running = Run.None;   // the last play just started; let it finish
             else ScheduleNext();
@@ -278,7 +276,7 @@ namespace Laubrary.Zounds.Uitk {
 
         void ScheduleNext() {
             switch (settings.mode) {
-                case AuditionGap.Steady: nextAt = runStart + started * period; break;
+                case AuditionGap.Steady: nextAt = period < 0d ? -1d : runStart + started * period; break;   // unset until the first play ends
                 case AuditionGap.FromStart:
                     nextAt = plannedStartAt + Math.Max(MinStartGap, settings.gap);
                     if (nextAt < Now) nextAt = Now;   // after a long stall: one play now, not a pile of catch-ups
@@ -326,6 +324,15 @@ namespace Laubrary.Zounds.Uitk {
                 if (settings.mode == AuditionGap.FromEnd && nextAt < 0d) {
                     bool ended = lastPlay == null || lastPlay.state == ZoundToken.State.Killed;
                     if (ended) { lastEndAt = now; nextAt = now + settings.gap; }
+                }
+                if (settings.mode == AuditionGap.Steady && period < 0d && nextAt < 0d) {
+                    // The first play has just ended: its real length plus the gap is the rhythm from here on.
+                    bool ended = lastPlay == null || lastPlay.state == ZoundToken.State.Killed;
+                    if (ended) {
+                        lastEndAt = now;
+                        period = Math.Max(MinStartGap, (now - runStart) + settings.gap);
+                        nextAt = runStart + started * period;
+                    }
                 }
                 if (nextAt >= 0d && now >= nextAt) FireRunPlay();
                 // Keep the editor ticking while something is queued, so a gap is not stretched by an idle editor.

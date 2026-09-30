@@ -74,7 +74,7 @@ namespace Laubrary.Zounds.Uitk {
             r2.Add(Gap(6f));
             var mode = Z.Segmented((int)s.settings.mode, new[] { "Steady", "From start", "From end" },
                 "How the gap between plays is counted.\n\n" +
-                "Steady: a fixed rhythm, set once when Burst or Loop starts: the first play's length plus the gap. Later plays keep that rhythm even when they turn out longer or shorter.\n\n" +
+                "Steady: a fixed rhythm, set by the first play: how long it really lasted, plus the gap. Later plays keep that rhythm even when they turn out longer or shorter.\n\n" +
                 "From start: the gap counts from when the previous play started, whatever its length, so plays can overlap.\n\n" +
                 "From end: the gap counts from when the previous play really finished, however long it took.",
                 i => { s.settings.mode = (AuditionGap)i; s.SaveSettings(); s.changed?.Invoke(); });
