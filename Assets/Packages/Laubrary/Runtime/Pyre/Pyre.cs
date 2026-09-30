@@ -789,6 +789,20 @@ namespace Laubrary.Pyre
         // of one particle-life after its own spawn — a burst that vanishes as one. Off (default) = byte-identical.
         public bool swarmDieTogether = false;
 
+        // ── Fling (explosion study #4) — every particle is THROWN from where it was placed, over its own life.
+        // Off (default) = particles stay where they were placed (byte-identical). On: each particle gets its own
+        // travel distance (a random pick in [min, max] px), its own direction inside the spread cone, a drag that
+        // makes it fast-then-slow, gravity that pulls it down over its life, and (optionally) its own life length.
+        // All closed-form in the particle's age — scrub/bake exact, no simulation.
+        public bool swarmFling = false;
+        public float flingDistMin = 10f;               // px travelled by the end of the particle's life (lower bound)
+        public float flingDistMax = 28f;               // (upper bound)
+        public float flingDirection = 90f;             // cone centre, degrees (0 = right, 90 = up)
+        [Range(0f, 360f)] public float flingSpread = 360f;   // cone width, degrees (360 = every direction)
+        [Range(0f, 1f)] public float flingDrag = 0.5f;       // 0 = constant speed; 1 = a sharp burst that stalls
+        public float flingGravity = 0f;                // px pulled downward by the end of the particle's life
+        [Range(0f, 1f)] public float flingLifeJitter = 0f;   // ± share each particle's life length varies by
+
         // Shared shape transform — ALL per-spawn-snapshot animatables. T1 renderer uses only shapeScale; the rest land in T3.
         public ZUIValue shapeOffsetX = new ZUIValue(0f);   // shape-centre offset X, canvas pixels
         public ZUIValue shapeOffsetY = new ZUIValue(0f);   // shape-centre offset Y, canvas pixels

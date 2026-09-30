@@ -316,6 +316,15 @@ namespace Laubrary.Pyre
                 {
                     var sp = _plusFireSpawns[i];
                     Vector2 wp = ApplySwarmScale(spec, layer, ApplySwarmSpin(spec, layer, sp.pos, life), life);
+                    float fOwn = dieTogether
+                        ? (life - sp.spawnLife) / Mathf.Max(0.0001f, deathPoint - sp.spawnLife)
+                        : (life - sp.spawnLife) / Mathf.Max(0.0001f, layer.swarmParticleLife);
+                    // Fling (#4), same as RenderSwarm: life jitter on the own clock, then the throw. Off ⇒ untouched.
+                    if (layer.swarmFling)
+                    {
+                        if (!dieTogether && layer.flingLifeJitter > 0f) fOwn /= FlingLifeScale(spec, layer, i);
+                        wp += FlingOffset(spec, layer, i, fOwn);
+                    }
                     float sizeMul = Mathf.Clamp(1f + 0.35f * sp.zNorm, 0.5f, 1.6f);
                     if (scaleIdx)
                     {
@@ -325,9 +334,7 @@ namespace Laubrary.Pyre
                     swarm[i] = new PyreSwarmInstance
                     {
                         x = wp.x, y = wp.y,
-                        own = dieTogether
-                            ? (life - sp.spawnLife) / Mathf.Max(0.0001f, deathPoint - sp.spawnLife)
-                            : (life - sp.spawnLife) / Mathf.Max(0.0001f, layer.swarmParticleLife),
+                        own = fOwn,
                         spawnLife = sp.spawnLife,
                         index = i,
                         orientDeg = layer.swarmOrient == SwarmOrient.Radial
@@ -1614,6 +1621,8 @@ namespace Laubrary.Pyre
                 float own = dieTogether
                     ? (life - sp.spawnLife) / Mathf.Max(0.0001f, deathPoint - sp.spawnLife)
                     : (life - sp.spawnLife) / Mathf.Max(0.0001f, layer.swarmParticleLife);
+                // Fling life jitter (#4): each thrown particle lives a little longer or shorter. Off ⇒ untouched.
+                if (!dieTogether && layer.swarmFling && layer.flingLifeJitter > 0f) own /= FlingLifeScale(spec, layer, i);
                 if (own < 0f || own > 1f) continue;
                 // Depth shading from the spawn-time tilt: nearer parts (zNorm > 0) draw bigger and brighter, far
                 // parts smaller and dimmer. Both multipliers are exactly 1 at zNorm == 0, so an untilted swarm
@@ -1649,6 +1658,8 @@ namespace Laubrary.Pyre
                 // centre + scale·spin(offset). swarmScl false (default scale 1) ⇒ dp untouched, byte-identical.
                 if (swarmScl)
                     dp = new Vector2(cx + (dp.x - cx) * sScale, cy + (dp.y - cy) * sScale);
+                // Fling (#4): thrown from where it was placed, over its own life. Off ⇒ dp untouched.
+                if (layer.swarmFling) dp += FlingOffset(spec, layer, i, own);
 
                 // ── Coalesce seam (slice 0 → Fuse slice 1 → Ramp slice 2) ────────────────────────────────────
                 // Off (default) → per-particle Over-compositing (DrawParticle below), byte-identical to
@@ -2072,6 +2083,30 @@ namespace Laubrary.Pyre
         /// uses), so a non-spinning swarm's overlay is byte-identical. NOT called by RenderFrame — the bake path is
         /// untouched; this only DUPLICATES RenderSwarm's inline spin math rather than replacing it, to keep the bake
         /// provably byte-identical.
+        /// Fling (explosion study #4): where particle `i` has been thrown to, `own` of the way through its life.
+        /// Each particle's distance, direction and life-length share are seeded draws keyed to the spec seed, the
+        /// particle and the layer — the same particle always flies the same way. Distance follows 1-(1-t)^p, p grown
+        /// by drag (fast then slow); gravity drops it by g·t².
+        public static Vector2 FlingOffset(Pyre spec, PyreLayer L, int i, float own)
+        {
+            int s = unchecked(spec.seed * 31 + _layerSalt * 1009 + 0x5F1);
+            float uDist = Aval01(s, i, 11), uDir = Aval01(s, i, 23);
+            float dist = Mathf.Lerp(Mathf.Min(L.flingDistMin, L.flingDistMax), Mathf.Max(L.flingDistMin, L.flingDistMax), uDist);
+            float ang = (L.flingDirection + (uDir - 0.5f) * Mathf.Clamp(L.flingSpread, 0f, 360f)) * Mathf.Deg2Rad;
+            float t = Mathf.Clamp01(own);
+            float p = 1f + 4f * Mathf.Clamp01(L.flingDrag);
+            float d = dist * (1f - Mathf.Pow(1f - t, p));
+            return new Vector2(Mathf.Cos(ang) * d, Mathf.Sin(ang) * d - L.flingGravity * t * t);
+        }
+
+        /// Fling life jitter: the factor particle `i`'s life length is scaled by (1 = unchanged).
+        public static float FlingLifeScale(Pyre spec, PyreLayer L, int i)
+        {
+            if (!L.swarmFling || L.flingLifeJitter <= 0f) return 1f;
+            int s = unchecked(spec.seed * 31 + _layerSalt * 1009 + 0x5F1);
+            return Mathf.Max(0.05f, 1f + (Aval01(s, i, 37) * 2f - 1f) * Mathf.Clamp01(L.flingLifeJitter));
+        }
+
         /// Radial facing (SwarmOrient.Radial): the math angle from the Pyre's middle (cx, cy — the canvas centre,
         /// which is also the pivot the live swarm spin and scale turn around) to where the particle is drawn THIS
         /// frame. Re-aimed every frame, so a spinning or growing ring keeps facing outward. A particle sitting

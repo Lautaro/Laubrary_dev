@@ -2495,6 +2495,47 @@ namespace Laubrary.Pyre.Editor
                 + "each dying one particle-life after its own spawn — a burst that vanishes as one.",
                 s.swarmDieTogether, v => Dirty(() => s.swarmDieTogether = v)));
 
+            // Fling (explosion study #4): throw every particle from where it was placed, over its own life.
+            swarmBody.Add(Z.Toggle("Fling",
+                s.swarmFling
+                    ? "On: every particle is thrown from where it was placed — its own distance, direction, drag and "
+                      + "gravity over its life. Click to leave particles where they were placed."
+                    : "Throw every particle from where it was placed over its own life — each with its own distance "
+                      + "and direction, slowed by drag and pulled by gravity. Debris flung from a blast.",
+                s.swarmFling, v => { Dirty(() => s.swarmFling = v); RebuildSwarm(); }));
+            if (s.swarmFling)
+            {
+                var fling = Z.BoxKeyed("Fling",
+                    "How each particle is thrown: a travel distance picked between the two values, a direction inside "
+                    + "the spread, drag (fast then slow), gravity, and how much particle lives vary.",
+                    "pyre.fling");
+                fling.Add(WrapRow(
+                    Z.MicroMinMax("Distance px", s.flingDistMin, s.flingDistMax, 0f, spec.canvasSize,
+                        "How far each particle travels by the end of its life, in canvas pixels — each particle picks "
+                        + "its own distance between the two values.",
+                        (lo, hi) => Dirty(() => { s.flingDistMin = lo; s.flingDistMax = hi; }), 200f,
+                        lowDefault: Def(nameof(PyreLayer.flingDistMin)), highDefault: Def(nameof(PyreLayer.flingDistMax)), decimals: 0),
+                    Z.MicroSlider("Direction", s.flingDirection, -180f, 180f,
+                        "Centre of the throw cone, in degrees (0 = right, 90 = up). Only matters when Spread is below 360.",
+                        v => Dirty(() => s.flingDirection = v), 150f, defaultValue: Def(nameof(PyreLayer.flingDirection)), decimals: 0),
+                    Z.MicroSlider("Spread", s.flingSpread, 0f, 360f,
+                        "Width of the throw cone, in degrees. 360 = every direction (a burst); smaller = a directional spray.",
+                        v => Dirty(() => s.flingSpread = v), 150f, defaultValue: Def(nameof(PyreLayer.flingSpread)), decimals: 0)));
+                fling.Add(WrapRow(
+                    Z.MicroSlider("Drag", s.flingDrag, 0f, 1f,
+                        "0 = constant speed; higher = a fast burst that slows down (1 = shoots out and stalls).",
+                        v => Dirty(() => s.flingDrag = v), 150f, defaultValue: Def(nameof(PyreLayer.flingDrag))),
+                    Z.MicroSlider("Gravity px", s.flingGravity, -64f, 64f,
+                        "How far each particle is pulled DOWN by the end of its life, in canvas pixels (negative floats "
+                        + "up, like embers).",
+                        v => Dirty(() => s.flingGravity = v), 150f, defaultValue: Def(nameof(PyreLayer.flingGravity)), decimals: 0),
+                    Z.MicroSlider("Life jitter", s.flingLifeJitter, 0f, 1f,
+                        "How much each particle's life length varies (± share), so they don't all burn out on the same "
+                        + "frame. Ignored with Die together.",
+                        v => Dirty(() => s.flingLifeJitter = v), 150f, defaultValue: Def(nameof(PyreLayer.flingLifeJitter)))));
+                swarmBody.Add(fling);
+            }
+
             // Shared shape transform — every field a per-spawn snapshot (see the box tooltip). This is the SPAWNER
             // transform (where particles are PLACED); the separate Swarm spin box below rotates the placed cloud live.
             var xform = Z.BoxKeyed("Transform",
