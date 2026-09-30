@@ -1275,7 +1275,7 @@ namespace Laubrary.Pyre.Editor
         static readonly string[] FireArmModeChoices = { "Mirror", "Vary" };
         // Coalesce render-mode selector. Off / Fuse (slice 1, MetaBlob) / Ramp (slice 2, HeightBalls). Order matches
         // the LayerCoalesce enum (Off=0, Fuse=1, Ramp=2), so the MiniRadio index casts straight to the enum.
-        static readonly string[] CoalesceChoices = { "Off", "Fuse", "Ramp" };
+        static readonly string[] CoalesceChoices = { "Off", "Merge", "Ramp" };   // "Merge" = LayerCoalesce.Fuse (renamed so it no longer collides with the Fuse (blob melt) modifier)
         static readonly List<string> TextFillModeChoices = new List<string> { "Per-char gradient", "Per-char step", "Text gradient" };
 
         // Build one labelled form-picker subgroup row (#59 Part B). `sel` is -1 when the current form isn't in this
@@ -2228,6 +2228,8 @@ namespace Laubrary.Pyre.Editor
         ZuiSection swarmSection;
         VisualElement swarmBody;
         static readonly string[] SwarmModeLabels = { "Area", "Path" };
+        static readonly string[] SwarmLayoutLabels = { "Neat", "Bloom", "Random" };                     // index == (int)SwarmLayout
+        static readonly string[] SwarmOrderLabels = { "Neighbour", "Outward", "Inward", "Shuffle" };     // index == (int)SwarmOrder
         // Index == (int)SwarmOrient, so Radial (appended last in the enum) is last here too.
         static readonly string[] SwarmOrientLabels = { "None", "Outward", "Tangent", "Radial" };
         static readonly string[] SwarmTimingLabels = { "Window", "Frames" };
@@ -2402,33 +2404,32 @@ namespace Laubrary.Pyre.Editor
                 Z.MiniRadio(kindSel, kindChoices.ToArray(), kindTip,
                     v => { Dirty(() => s.swarmShapeKind = kindValues[Mathf.Clamp(v, 0, kindValues.Count - 1)]); RebuildSwarm(); }, wrap: true)));
 
-            // Distribution + spawn order: two independent axes over the same established spots. Distribution
-            // — 0 = a neat, shape-appropriate ordered fill (concentric rings for a disc; a dedicated lattice
-            // per polygon kind — a triangular lattice, a grid, a hex lattice, or concentric rings again for
-            // Pentagon, which has no regular tiling of its own), 1 = today's uniform-random scatter (Path
-            // mode ignores this; its placement is already ordered, by outline progress).
-            var distRow = new List<VisualElement>();
-            distRow.Add(Z.MicroSlider("Distribution", s.swarmChaos, 0f, 1f,
-                "How the swarm fills its shape: 0 = a neat, shape-appropriate ordered arrangement — concentric "
-                + "rings for a disc, a dedicated lattice for each polygon shape. 1 = today's uniform-random "
-                + "scatter. In between blends the two. Path mode ignores this — its placement is already "
-                + "ordered, by outline progress.",
-                v => Dirty(() => s.swarmChaos = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.swarmChaos))));
-            distRow.Add(Z.MicroSlider("Spawn order", s.swarmSpawnChaos, 0f, 1f,
-                "The ORDER particles are revealed in, independent of where they sit: 0 = neighbour order — "
-                + "spawns hop from one spot to the next-closest one. 1 = a full shuffle — which spot appears "
-                + "next is decoupled from spatial position.",
-                v => Dirty(() => s.swarmSpawnChaos = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.swarmSpawnChaos))));
-            bool showReverse = s.swarmSpawnMode == SwarmSpawnMode.Area && s.swarmShapeKind != SwarmShapeKind.Line;
-            if (showReverse)
-                distRow.Add(Z.Toggle("Reverse", s.swarmShapeKind == SwarmShapeKind.Circle
-                        || s.swarmShapeKind == SwarmShapeKind.Custom
-                        ? "Which end the ring fill starts from: off = centre-out (innermost ring first), on = "
-                          + "edge-in (outermost ring first)."
-                        : "Which corner the grid fill starts from — flips both row and column order.",
-                    s.swarmGridReverse, v => Dirty(() => s.swarmGridReverse = v)));
-            if (s.swarmSpawnMode == SwarmSpawnMode.Path) distRow.RemoveAt(0);   // Distribution is Area-only
-            swarmBody.Add(Z.HGroup(distRow.ToArray()));
+            // Placement (v2): Layout = where the spots are, Order = which spot each successive spawn takes, Jitter =
+            // a random nudge around each spot. A layer still on the legacy Distribution / Reverse / Spawn-order
+            // fields SHOWS the closest v2 equivalent (PlacementView) and converts on the first edit here.
+            var pv = PlacementView(s);
+            bool isLine = s.swarmShapeKind == SwarmShapeKind.Line;
+            var placeRow = new List<VisualElement>();
+            if (s.swarmSpawnMode == SwarmSpawnMode.Area && !isLine)
+            {
+                string layoutTip = "WHERE the spots are inside the shape. Neat = evenly spaced (rings in a circle, a "
+                    + "lattice in a polygon). Bloom = the sunflower arrangement — each spot a little further out than "
+                    + "the last and as far as possible from the ones before it. Random = scattered anywhere.";
+                placeRow.Add(Z.Field("Layout", layoutTip,
+                    Z.Segmented((int)pv.layout, SwarmLayoutLabels, layoutTip,
+                        v => { Dirty(() => { EnsurePlacementV2(s); s.swarmLayout = (SwarmLayout)v; }); RebuildSwarm(); })));
+            }
+            string orderTip = "WHICH spot each successive spawn takes. Neighbour = hop to the nearest spot each time. "
+                + "Outward = centre first, then further and further out (spots at the same distance are taken far "
+                + "apart). Inward = the edge first, then closer in. Shuffle = any order.";
+            placeRow.Add(Z.Field("Order", orderTip,
+                Z.Segmented((int)pv.order, SwarmOrderLabels, orderTip,
+                    v => { Dirty(() => { EnsurePlacementV2(s); s.swarmOrder = (SwarmOrder)v; }); RebuildSwarm(); })));
+            swarmBody.Add(WrapRow(placeRow.ToArray()));
+            swarmBody.Add(Z.MicroSlider("Jitter", pv.jitter, 0f, 1f,
+                "Nudge every spot randomly around its own position — the spread stays even, it just stops looking "
+                + "machine-made. 0 = exact; 1 = up to about half the gap between spots.",
+                v => Dirty(() => { EnsurePlacementV2(s); s.swarmJitter = v; }), 150f, showValue: true, defaultValue: 0f));
 
             // Per-particle FACING as each is placed (S1). Rebuild on change so the composed tooltip re-reads the
             // current mode (Tangent means something different in Area vs Path). GREY it out when the current
@@ -2485,7 +2486,7 @@ namespace Laubrary.Pyre.Editor
             // Per-particle SIZE by index (S1) + shared DEATH point (S1). The curve's X axis is the particle
             // INDEX (not time), so it gets INDEX markers (one per particle, count = swarmCount) and Index/Scale
             // axis captions instead of the frame lines every other Val shows.
-            swarmBody.Add(ValIndexed("Scale by index",
+            swarmBody.Add(ValIndexed("Size by index",
                 "Multiplies each particle's size by a factor read from its index (0 = first, 1 = last). Static 1 = "
                 + "every particle full size; a Curve tapers the swarm (ends-vs-middle, centre-vs-edge — author it "
                 + "freely, Bars-style); MinMax gives each particle a random size.",
@@ -2494,6 +2495,59 @@ namespace Laubrary.Pyre.Editor
                 "All particles fade out at the SAME timeline moment (spawn-window end + particle life) instead of "
                 + "each dying one particle-life after its own spawn — a burst that vanishes as one.",
                 s.swarmDieTogether, v => Dirty(() => s.swarmDieTogether = v)));
+
+
+            // Shared shape transform — every field a per-spawn snapshot (see the box tooltip). This is the SPAWNER
+            // transform (where particles are PLACED); the separate Swarm spin box below rotates the placed cloud live.
+            // ── Spawn shape: WHERE new particles appear. Every field is read at each particle's own spawn moment
+            // and kept for its life, so changing it never moves particles already out (an animated curve leaves a
+            // trail of placements instead). Turn / tilt / roll fold into one line until used.
+            var xform = Z.BoxKeyed("Spawn shape",
+                "WHERE new particles appear: the shape they are placed onto — its offset, size and rotation. Every "
+                + "value is read at the moment each particle appears and kept for its life, so changing it never "
+                + "moves particles that are already out (animating it leaves a trail of placements instead). To move "
+                + "the particles that are already out, use Cloud motion below.",
+                "pyreplus.transform");
+            xform.Add(Val2D("Offset",
+                "Where the spawn shape sits, in canvas pixels from the middle. Read when each particle appears — "
+                + "animating it leaves a trail rather than sliding particles already out.",
+                s.shapeOffsetX, s.shapeOffsetY,
+                WithTransportClock(new ZuiValue2DControl.Options().WithRange(-half, half, -half, half).WithDefault(Vector2.zero))));
+            xform.Add(WrapRow(
+                Val("Size (px)", "Radius of the spawn shape in canvas pixels. Read when each particle appears — it "
+                    + "never resizes particles already out (a growing curve leaves a trail of wider rings). To grow "
+                    + "the whole cloud that is already out, use Grow in Cloud motion.", s.shapeScale, 0f, spec.canvasSize),
+                Z.MicroSlider("Snap", s.shapeScaleSnap, 0f, spec.canvasSize * 0.25f,
+                    "Round the size to the nearest multiple of this, so placements land on fixed radii. 0 = off.",
+                    v => Dirty(() => s.shapeScaleSnap = Mathf.Clamp(v, 0f, spec.canvasSize * 0.25f)), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.shapeScaleSnap)))));
+            AddRotationFold(xform, s, false,
+                ("Turn °", "Turn the spawn shape around the VERTICAL axis (turntable), in degrees. Read when each "
+                    + "particle appears, so a rising curve spreads new spawns into a trail.", s.shapeYaw, false),
+                ("Tilt °", "Tip the spawn shape toward/away (pseudo-3D, nearer parts spawn bigger and brighter), in "
+                    + "degrees. Read when each particle appears.", s.shapePitch, false),
+                ("Roll °", "Rotate the spawn shape flat in the canvas, in degrees. Read when each particle appears, so "
+                    + "a rising curve spreads spawns around the shape.", s.shapeRotation, false));
+            swarmBody.Add(xform);
+
+            // ── Cloud motion: moves EVERY particle already out, on every frame (the live counterpart of Spawn shape).
+            s.swarmTurn ??= new ZUIValue(0f);
+            s.swarmTilt ??= new ZUIValue(0f);
+            s.swarmRoll ??= new ZUIValue(0f);
+            s.swarmScale ??= new ZUIValue(1f);
+            var spin = Z.BoxKeyed("Cloud motion",
+                "Moves EVERY particle that is already out, on every frame, around the middle — the whole cloud grows "
+                + "or turns as one group with its arrangement kept. The live counterpart of Spawn shape, which only "
+                + "decides where new particles appear.",
+                "pyreplus.swarmspin");
+            spin.Add(Val("Grow",
+                "Grow or shrink the whole cloud that is already out, around the middle, every frame. 1 = unchanged; "
+                + "a rising curve makes the swarm expand as one group.",
+                s.swarmScale, 0f, 4f));
+            AddRotationFold(spin, s, true,
+                ("Turn °", "Turn the whole cloud around the VERTICAL axis (turntable), every frame.", s.swarmTurn, true),
+                ("Tilt °", "Tip the whole cloud toward/away (pseudo-3D), every frame.", s.swarmTilt, true),
+                ("Roll °", "Spin the whole cloud flat in the canvas, every frame.", s.swarmRoll, true));
+            swarmBody.Add(spin);
 
             // Fling (explosion study #4): throw every particle from where it was placed, over its own life.
             swarmBody.Add(Z.Toggle("Fling",
@@ -2536,109 +2590,39 @@ namespace Laubrary.Pyre.Editor
                 swarmBody.Add(fling);
             }
 
-            // Shared shape transform — every field a per-spawn snapshot (see the box tooltip). This is the SPAWNER
-            // transform (where particles are PLACED); the separate Swarm spin box below rotates the placed cloud live.
-            var xform = Z.BoxKeyed("Transform",
-                "The SPAWNER transform — offset, size, rotation and pseudo-3D tilt of the shape particles spawn "
-                + "onto. Every field is a per-spawn SNAPSHOT: each particle reads it at its OWN spawn moment and "
-                + "keeps that value for life. Animating a field therefore does NOT move particles already placed — "
-                + "it spreads a TRAIL of new spawns along the curve (rotate past 360, or travel past once-around, "
-                + "for several laps). To spin the already-placed cloud live instead, use Swarm spin below.",
-                "pyreplus.transform");
-            xform.Add(Val2D("Offset",
-                "Shape-centre offset in canvas pixels — drag to move the whole shape off the origin. Animating it "
-                + "does NOT slide placed particles; each takes the offset at its own spawn moment, leaving a trail.",
-                s.shapeOffsetX, s.shapeOffsetY,
-                WithTransportClock(new ZuiValue2DControl.Options().WithRange(-half, half, -half, half).WithDefault(Vector2.zero))));
-            xform.Add(WrapRow(
-                Val("Scale (px)", "The shape's radius in canvas pixels. Animating this does NOT resize placed "
-                    + "particles — each takes the radius at its own spawn moment, so a growing curve leaves a "
-                    + "trail of expanding rings.", s.shapeScale, 0f, spec.canvasSize),   // max = canvas (was 64)
-                Z.MicroSlider("Snap", s.shapeScaleSnap, 0f, spec.canvasSize * 0.25f,
-                    "Round the evaluated scale to the nearest multiple of this, so placements land on "
-                    + "fixed radii. 0 = off.",
-                    v => Dirty(() => s.shapeScaleSnap = Mathf.Clamp(v, 0f, spec.canvasSize * 0.25f)), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.shapeScaleSnap)))));
-            // The spawner's rotation as the SAME three-axis Turn/Tilt/Roll stack the Solid box uses — one animatable
-            // Val per axis (rather than a yaw×pitch 2D pad), so it reads consistently AND, prefixed "Spawner", is
-            // unmistakable from the live Swarm spin box below. These are what the user pictured as "a stack of 3
-            // controls". Turn = yaw (shapeYaw), Tilt = pitch (shapePitch), Roll = the in-plane Z (shapeRotation);
-            // each is a per-spawn SNAPSHOT (animating spreads a placement trail, it does not live-spin the cloud).
-            xform.Add(Val("Spawner turn °",
-                "Yaw the whole spawn shape around the VERTICAL axis (turntable), in degrees. A per-spawn SNAPSHOT: "
-                + "each particle takes the value at its OWN spawn moment, so animating it does NOT re-turn placed "
-                + "particles — it SPREADS new spawns into a trail (several laps past 360). Rotates WHERE particles "
-                + "are placed (the spawner), not the placed cloud — for that, use Swarm spin below.",
-                s.shapeYaw, -1440f, 1440f));
-            xform.Add(Val("Spawner tilt °",
-                "Pitch the whole spawn shape around the HORIZONTAL axis (tip it toward/away), in degrees — pseudo-3D, "
-                + "so nearer parts spawn bigger and brighter. A per-spawn SNAPSHOT: each particle takes the tilt at "
-                + "its OWN spawn moment, spreading a trail rather than re-tilting placed particles.",
-                s.shapePitch, -1440f, 1440f));
-            xform.Add(Val("Spawner roll °",
-                "Roll the whole spawn shape in the canvas plane (about the axis pointing at you), in degrees. A "
-                + "per-spawn SNAPSHOT: each particle takes the value at its OWN spawn moment, so a rising curve "
-                + "spreads spawns around the shape (several laps past 360) rather than spinning placed particles.",
-                s.shapeRotation, -1440f, 1440f));
-            swarmBody.Add(xform);
-
-            // Swarm spin (Issue 2B) — a SEPARATE box, the deliberate counterpart to the Spawner rotation above: a
-            // LIVE rigid rotation of the whole placed cloud, evaluated at the CURRENT frame (not a spawn snapshot),
-            // so animating an axis spins the entire swarm as one solid group with its arrangement preserved. Same
-            // three-axis Turn/Tilt/Roll stack, so the two rotations read as a matched pair. All default 0 (no spin).
-            s.swarmTurn ??= new ZUIValue(0f);
-            s.swarmTilt ??= new ZUIValue(0f);
-            s.swarmRoll ??= new ZUIValue(0f);
-            s.swarmScale ??= new ZUIValue(1f);
-            var spin = Z.BoxKeyed("Swarm spin",
-                "A LIVE rigid rotation of the whole placed swarm around the shape centre, evaluated at the CURRENT "
-                + "frame — every particle rotates together keeping the arrangement, so animating an axis spins the "
-                + "cloud as one solid group (a turning constellation). DISTINCT from the Spawner rotation in "
-                + "Transform above: that snapshots per spawn to SPREAD placements into a trail; this spins the "
-                + "already-placed cloud. All three default to 0 (no spin).",
-                "pyreplus.swarmspin");
-            spin.Add(Val("Swarm turn °",
-                "Yaw the whole placed cloud around the VERTICAL axis (turntable), live at the current frame — the "
-                + "swarm spins as one, arrangement preserved. Animate it for a rotating cloud.",
-                s.swarmTurn, -1440f, 1440f, cyclic: true));
-            spin.Add(Val("Swarm tilt °",
-                "Pitch the whole placed cloud around the HORIZONTAL axis, live at the current frame — tips the cloud "
-                + "toward/away (pseudo-3D). Animate it to roll the swarm forward/back.",
-                s.swarmTilt, -1440f, 1440f, cyclic: true));
-            spin.Add(Val("Swarm roll °",
-                "Roll the whole placed cloud in the screen plane (about the axis pointing at you), live at the "
-                + "current frame. Animate it to spin the swarm flat against the screen.",
-                s.swarmRoll, -1440f, 1440f, cyclic: true));
-            spin.Add(Val("Swarm scale",
-                "A LIVE uniform radial scale of the whole placed cloud about the shape centre, at the current frame "
-                + "— the sibling of the three spin axes above. 1 = identity (no change); animate it to make the swarm "
-                + "expand or contract as one group (a live breathing cloud). DISTINCT from the Spawner scale/radius in "
-                + "Transform above, which snapshots per spawn and leaves a trail; this resizes the already-placed "
-                + "cloud. Default 1 (no scaling).",
-                s.swarmScale, 0f, 4f));
-            swarmBody.Add(spin);
-
             // ── Coalesce render mode — how the placed cloud turns into pixels. Off = draw + Over-composite each
             // particle (every form). Fuse = MetaBlob: read the WHOLE cloud as one metaball field and composite a
             // single gradient-shaded merged blob (overlapping particles melt with necks). Ramp = HeightBalls: fuse
             // the cloud into density/height fields, relief-light the height slope and shade one smoke→fire cloud. A
             // wrapped MiniRadio (Off / Fuse / Ramp), rebuilt on change so the Fuse/Ramp box appears/disappears. Sits
             // at the end since, like the Swarm spin/scale above, it reads the already-placed cloud as a whole.
-            string coalesceTip = "How the placed swarm turns into pixels. Off = each particle is drawn and "
-                + "Over-composited (every form). Fuse = MetaBlob: the whole cloud is read as ONE metaball field and "
-                + "composited as a single smooth, gradient-shaded blob — overlapping particles MELT together (necks "
-                + "between them). Ramp = HeightBalls: the cloud fuses into density/height fields, relief-lit from the "
-                + "height slope and shaded as one carved smoke→fire mass. Both are best with an overlapping swarm.";
+            string coalesceTip = "How the swarm's particles turn into pixels. Off = each particle is drawn on its own. "
+                + "Merge = the particles melt into ONE smooth, gradient-shaded blob (overlapping particles grow necks "
+                + "between them). Ramp = they fuse into one relief-lit cloud, shaded from smoke to fire. Both are best "
+                + "with an overlapping swarm; with Keep shape off they merge as round blobs.";
             int coalesceSel = (int)s.coalesce;
-            swarmBody.Add(Z.Field("Coalesce", coalesceTip,
-                Z.MiniRadio(coalesceSel, CoalesceChoices, coalesceTip,
-                    v => { Dirty(() => s.coalesce = (LayerCoalesce)v); RebuildSwarm(); },
-                    wrap: true)));
+            var coalesceRow = new List<VisualElement>
+            {
+                Z.Field("Coalesce", coalesceTip,
+                    Z.MiniRadio(coalesceSel, CoalesceChoices, coalesceTip,
+                        v => { Dirty(() => s.coalesce = (LayerCoalesce)v); RebuildSwarm(); },
+                        wrap: true)),
+            };
+            if (s.coalesce != LayerCoalesce.Off)
+                coalesceRow.Add(Z.Toggle("Keep shape",
+                    s.coalesceKeepShape
+                        ? "On: the particles merge by their REAL silhouettes — crescents, stars and letters keep their "
+                          + "shape while they melt together. Click to merge them as round blobs."
+                        : "Merge the particles by their real silhouettes (a crescent stays a crescent) instead of round "
+                          + "blobs. Off: every particle merges as a circle of its size.",
+                    s.coalesceKeepShape, v => Dirty(() => s.coalesceKeepShape = v)));
+            swarmBody.Add(WrapRow(coalesceRow.ToArray()));
 
             if (s.coalesce == LayerCoalesce.Fuse)
             {
-                var fuse = Z.BoxKeyed("Fuse",
-                    "MetaBlob field-pass: the placed particles become metaball circles summed into ONE field, then "
-                    + "thresholded and gradient-shaded (by the Shape's Fill) into a single merged blob. Threshold "
+                var fuse = Z.BoxKeyed("Merge",
+                    "The particles are summed into ONE field, then thresholded and gradient-shaded (by the Shape's "
+                    + "Fill) into a single merged blob. Threshold "
                     + "sets how eagerly they fuse; Shade range maps the gradient surface→core; Softness is the edge AA.",
                     "pyreplus.fuse");
                 fuse.Add(Z.MicroSlider("Threshold", s.fuseThreshold, 0.02f, 2f,
@@ -2803,6 +2787,60 @@ namespace Laubrary.Pyre.Editor
         // 2D analog of Val — an animatable XY pair, same Undo-record + preview-dirty wiring.
         VisualElement Val2D(string label, string tooltip, ZUIValue x, ZUIValue y, ZuiValue2DControl.Options o)
             => Z.Value2D(label, x, y, o, tooltip, () => MarkDirty(), () => Undo.RecordObject(spec, "Edit Pyre Plus"));
+
+        // ── Placement v2 conversion (convert on first edit) ────────────────────────────────────────────────
+        // A layer still on the legacy Distribution / Reverse / Spawn-order fields renders through them untouched;
+        // the Layout / Order / Jitter controls SHOW the closest v2 equivalent and only write it (switching the layer
+        // to v2) when one of them is first edited. Exact where v2 has the same code path: Distribution 0 → Neat,
+        // Distribution 1 → Random, Spawn order 0 → Neighbour, Spawn order 1 → Shuffle. Approximate otherwise: a
+        // Distribution blend between 0 and 1 becomes Neat + that much Jitter; a partial Spawn order becomes Shuffle
+        // from 0.5; Reverse (edge first) becomes Inward.
+        static (SwarmLayout layout, SwarmOrder order, float jitter) PlacementView(PyreLayer s)
+        {
+            if (s.swarmPlacementV2) return (s.swarmLayout, s.swarmOrder, s.swarmJitter);
+            float c = Mathf.Clamp01(s.swarmChaos);
+            var layout = c >= 1f ? SwarmLayout.Random : SwarmLayout.Neat;
+            float jitter = c > 0f && c < 1f ? c : 0f;
+            bool area = s.swarmSpawnMode == SwarmSpawnMode.Area && s.swarmShapeKind != SwarmShapeKind.Line;
+            var order = s.swarmSpawnChaos >= 0.5f ? SwarmOrder.Shuffle
+                      : (area && s.swarmGridReverse) ? SwarmOrder.Inward
+                      : SwarmOrder.Neighbour;
+            return (layout, order, jitter);
+        }
+
+        static void EnsurePlacementV2(PyreLayer s)
+        {
+            if (s.swarmPlacementV2) return;
+            var v = PlacementView(s);
+            s.swarmLayout = v.layout; s.swarmOrder = v.order; s.swarmJitter = v.jitter;
+            s.swarmPlacementV2 = true;
+        }
+
+        // Turn / tilt / roll fold for the Spawn shape and Cloud motion boxes: one compact line until used. The rows
+        // show while the line is open OR while any of them holds a value (a used control is never hidden). Which
+        // lines are open is VIEW state only — no undo, kept per layer + box for the session.
+        static readonly HashSet<(PyreLayer, bool)> s_openRotationFolds = new HashSet<(PyreLayer, bool)>();
+
+        void AddRotationFold(VisualElement box, PyreLayer s, bool cloud,
+            params (string label, string tip, ZUIValue value, bool cyclic)[] rows)
+        {
+            bool used = false;
+            foreach (var r in rows)
+                if (r.value != null && !(r.value.mode == ZUIValue.Mode.Static && r.value.staticValue == 0f)) used = true;
+            bool open = used || s_openRotationFolds.Contains((s, cloud));
+            string what = cloud ? "the whole cloud that is already out" : "the spawn shape";
+            box.Add(Z.Toggle("Turn · tilt · roll: " + (used ? "on" : "off"),
+                used
+                    ? "Turning, tipping or rolling " + what + " is in use, so its rows stay shown. Set them all back to 0 to fold this line away."
+                    : "Turn, tip (pseudo-3D) or roll " + what + ". All at 0 — click to show the three rows.",
+                open, v =>
+                {
+                    if (v) s_openRotationFolds.Add((s, cloud)); else s_openRotationFolds.Remove((s, cloud));
+                    RebuildSwarm();
+                }));
+            if (!open) return;
+            foreach (var r in rows) box.Add(Val(r.label, r.tip, r.value, -1440f, 1440f, cyclic: r.cyclic));
+        }
 
         // Mass shading (explosion study #2): one block shared by both height tools (the Ramp cloud and "Height
         // from" channel). Toggle first; the rest only appears when it's on (rebuild re-lays the section).

@@ -1609,6 +1609,8 @@ namespace Laubrary.Pyre
             bool ramp = layer.coalesce == LayerCoalesce.Ramp;
             List<FieldParticle> fieldParts = fuse ? new List<FieldParticle>(Mathf.Max(2, spawns.Count)) : null;
             List<RampParticle> rampParts = ramp ? new List<RampParticle>(Mathf.Max(2, spawns.Count)) : null;
+            // Keep shape: one silhouette per merged particle, same order as fieldParts / rampParts. Off ⇒ null.
+            List<ShapeQ> mergeShapes = (fuse || ramp) && layer.coalesceKeepShape ? new List<ShapeQ>(Mathf.Max(2, spawns.Count)) : null;
 
             for (int i = 0; i < spawns.Count; i++)
             {
@@ -1660,6 +1662,8 @@ namespace Laubrary.Pyre
                     dp = new Vector2(cx + (dp.x - cx) * sScale, cy + (dp.y - cy) * sScale);
                 // Fling (#4): thrown from where it was placed, over its own life. Off ⇒ dp untouched.
                 if (layer.swarmFling) dp += FlingOffset(spec, layer, i, own);
+                float orientDeg = layer.swarmOrient == SwarmOrient.Radial
+                    ? RadialOrientDeg(dp, cx, cy, sp.orientDeg) : sp.orientDeg;
 
                 // ── Coalesce seam (slice 0 → Fuse slice 1 → Ramp slice 2) ────────────────────────────────────
                 // Off (default) → per-particle Over-compositing (DrawParticle below), byte-identical to
@@ -1674,7 +1678,13 @@ namespace Laubrary.Pyre
                     if (fr > 0.01f)
                     {
                         float fa = Mathf.Clamp01(Eval(layer.alpha, own, spec.seed, i, FldAlpha));
-                        if (fa > 0.002f) fieldParts.Add(new FieldParticle(dp.x - cx, dp.y - cy, fr, fa));
+                        if (fa > 0.002f)
+                        {
+                            fieldParts.Add(new FieldParticle(dp.x - cx, dp.y - cy, fr, fa));
+                            if (mergeShapes != null)
+                                mergeShapes.Add(BuildShapeQ(W, H, dp.x, dp.y, own, spec, layer, i, phase, frameIndex,
+                                                            sizeMul, brightMul, orientDeg, lenByIndex));
+                        }
                     }
                     continue;   // no per-particle draw — the whole set is fused after the loop
                 }
@@ -1692,12 +1702,15 @@ namespace Laubrary.Pyre
                         float rd = Mathf.Max(0f, Eval(layer.density, own, spec.seed, i, FldRampDensity));
                         float rh = Mathf.Max(0f, Eval(layer.heat, own, spec.seed, i, FldRampHeat));
                         if (ra > 0.002f && (rd > 0.0005f || rh > 0.0005f))
+                        {
                             rampParts.Add(new RampParticle(dp.x - cx, dp.y - cy, rr, rd, rh, ra));
+                            if (mergeShapes != null)
+                                mergeShapes.Add(BuildShapeQ(W, H, dp.x, dp.y, own, spec, layer, i, phase, frameIndex,
+                                                            sizeMul, brightMul, orientDeg, lenByIndex));
+                        }
                     }
                     continue;   // no per-particle draw — the whole set is fused after the loop
                 }
-                float orientDeg = layer.swarmOrient == SwarmOrient.Radial
-                    ? RadialOrientDeg(dp, cx, cy, sp.orientDeg) : sp.orientDeg;
                 DrawParticle(buf, W, H, dp.x, dp.y, own, spec, layer, i, mods, phase, frameIndex,
                              sizeMul, brightMul, orientDeg, lenByIndex);
             }
@@ -1705,11 +1718,11 @@ namespace Laubrary.Pyre
             // layer's isolated scratch, BEFORE ApplyLayerPost (so Post modifiers still shape the fused result). Off
             // leaves fieldParts null and skips this entirely, so it renders exactly as before.
             if (fuse)
-                RenderPlusFusedField(buf, W, H, life, spec, layer, mods, phase, frameIndex, fieldParts, cx, cy);
+                RenderPlusFusedField(buf, W, H, life, spec, layer, mods, phase, frameIndex, fieldParts, cx, cy, mergeShapes);
             // Ramp (HeightBalls) field-pass: three SmoothMax dome fields → relief light → one smoke→fire cloud, on the
             // same isolated scratch, BEFORE ApplyLayerPost. Off/Fuse leave rampParts null and skip this.
             else if (ramp)
-                RenderPlusRampField(buf, W, H, life, spec, layer, mods, phase, frameIndex, rampParts, cx, cy);
+                RenderPlusRampField(buf, W, H, life, spec, layer, mods, phase, frameIndex, rampParts, cx, cy, mergeShapes);
         }
 
         // ── Fuse (MetaBlob) field-pass (slice 1) ─────────────────────────────────────────────────────────────
@@ -1731,8 +1744,81 @@ namespace Laubrary.Pyre
         // seeded ComputeSpawns placements. (The "·layerAlpha" in the design resolves to the fill's own alpha here,
         // exactly as RenderFusedField composites `a * fc.a`; Pyre has no separate whole-layer opacity field, and
         // the per-particle alpha already fades the blob by shrinking each circle's field weight.)
+        // ── Keep shape (Coalesce): each merged particle's own silhouette ─────────────────────────────────────
+        // A particle is drawn once, clean (no modifiers), into a scratch canvas; its inside-distance transform gives
+        // every covered pixel's distance to the particle's own edge. q = (1 − dist/maxDist)² is 0 at the deepest
+        // point and rises toward 1 at the outline — for a disc that is exactly the centre-distance q (d/r)² the round
+        // path uses, so the melt maths downstream is unchanged, only the footprint follows the real shape. Stored
+        // cropped to the particle's bounding box; pixels outside the silhouette count as q ≥ 1 (no contribution).
+        sealed class ShapeQ { public int x0, y0, w, h; public float[] q; }
+        [System.ThreadStatic] static Color32[] _shapeScratch;
+
+        static ShapeQ BuildShapeQ(int W, int H, float px, float py, float own, Pyre spec, PyreLayer layer, int i,
+                                  float phase, int frameIndex, float sizeMul, float brightMul, float orientDeg, float lenByIndex)
+        {
+            if (_shapeScratch == null || _shapeScratch.Length != W * H) _shapeScratch = new Color32[W * H];
+            else System.Array.Clear(_shapeScratch, 0, _shapeScratch.Length);
+            DrawParticle(_shapeScratch, W, H, px, py, own, spec, layer, i, ModSet.Empty, phase, frameIndex,
+                         sizeMul, brightMul, orientDeg, lenByIndex);
+            float[] dist = BorderInsideDistance(_shapeScratch, W, H);
+            int x0 = W, y0 = H, x1 = -1, y1 = -1; float max = 0f;
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    if (_shapeScratch[y * W + x].a == 0) continue;
+                    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+                    if (dist[y * W + x] > max) max = dist[y * W + x];
+                }
+            var s = new ShapeQ();
+            if (x1 < 0 || max <= 0f) { s.w = 0; s.h = 0; s.q = System.Array.Empty<float>(); return s; }
+            s.x0 = x0; s.y0 = y0; s.w = x1 - x0 + 1; s.h = y1 - y0 + 1;
+            s.q = new float[s.w * s.h];
+            for (int y = 0; y < s.h; y++)
+                for (int x = 0; x < s.w; x++)
+                {
+                    int gi = (y + y0) * W + (x + x0);
+                    if (_shapeScratch[gi].a == 0) { s.q[y * s.w + x] = 1f; continue; }
+                    float t = 1f - dist[gi] / (max + 0.5f);
+                    s.q[y * s.w + x] = t * t;
+                }
+            return s;
+        }
+
+        // PyreField.AccumulateDomes with each dome's q read from its particle's own silhouette (same SmoothMax melt,
+        // same √(1−q) dome, same shared rim deform).
+        static void AccumulateShapedDomes(float[] field, int W, int H, List<FieldParticle> domes, List<ShapeQ> shapes,
+                                          float knee, float[] rimInv2)
+        {
+            int n = domes.Count;
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    int idx = y * W + x;
+                    float inv = rimInv2 != null ? rimInv2[idx] : 1f;
+                    float acc = 0f;
+                    for (int i = 0; i < n; i++)
+                    {
+                        if (domes[i].weight <= 0f) continue;
+                        float q = ShapeQAt(shapes[i], x, y);
+                        if (q >= 1f) continue;              // outside this particle's silhouette — BEFORE the rim scale
+                        q *= inv;
+                        if (q >= 1f) continue;
+                        acc = PyreField.SmoothMax(acc, Mathf.Sqrt(1f - q) * domes[i].weight, knee);
+                    }
+                    field[idx] = acc;
+                }
+        }
+
+        static float ShapeQAt(ShapeQ s, int x, int y)
+        {
+            int lx = x - s.x0, ly = y - s.y0;
+            if (lx < 0 || ly < 0 || lx >= s.w || ly >= s.h) return 1f;
+            return s.q[ly * s.w + lx];
+        }
+
         static void RenderPlusFusedField(Color32[] buf, int W, int H, float life, Pyre spec, PyreLayer layer,
-                                         in ModSet mods, float phase, int frameIndex, List<FieldParticle> parts, float cx, float cy)
+                                         in ModSet mods, float phase, int frameIndex, List<FieldParticle> parts, float cx, float cy,
+                                         List<ShapeQ> shapes = null)
         {
             int n = parts.Count;
             if (n == 0) return;
@@ -1764,7 +1850,21 @@ namespace Laubrary.Pyre
                     Vector2 off = new Vector2((x + 0.5f) - cx, (y + 0.5f) - cy);
                     if (anyGeo) off = ApplyGeo(mods.geo, off, phase, ctx);
 
-                    float field = PyreField.Sample(parts, off.x, off.y);
+                    float field;
+                    if (shapes == null) field = PyreField.Sample(parts, off.x, off.y);
+                    else
+                    {
+                        // Keep shape: the same kernel (1 − q)², with q read from each particle's own silhouette.
+                        int sx = Mathf.FloorToInt(cx + off.x), sy = Mathf.FloorToInt(cy + off.y);
+                        field = 0f;
+                        for (int k = 0; k < n; k++)
+                        {
+                            if (parts[k].weight <= 0.001f) continue;
+                            float q = ShapeQAt(shapes[k], sx, sy);
+                            if (q >= 1f) continue;
+                            float kk = 1f - q; field += parts[k].weight * kk * kk;
+                        }
+                    }
                     if (!PyreField.ThresholdShade(field, layer.fuseThreshold, layer.fuseSoftness, layer.fuseShadeRange,
                                                       out float a, out float frac))
                         continue;
@@ -1812,7 +1912,8 @@ namespace Laubrary.Pyre
         // Accumulate/AccumulateDomes); pixel modifiers still recolour/drop each lit pixel, and Post modifiers still
         // shape the finished layer via ApplyLayerPost.
         static void RenderPlusRampField(Color32[] buf, int W, int H, float life, Pyre spec, PyreLayer layer,
-                                        in ModSet mods, float phase, int frameIndex, List<RampParticle> parts, float cx, float cy)
+                                        in ModSet mods, float phase, int frameIndex, List<RampParticle> parts, float cx, float cy,
+                                        List<ShapeQ> shapes = null)
         {
             int n = parts.Count;
             if (n == 0) return;
@@ -1874,9 +1975,18 @@ namespace Laubrary.Pyre
                 heParts.Add(new FieldParticle(b.x, b.y, b.radius, b.heat));
                 hiParts.Add(new FieldParticle(b.x, b.y, b.radius, b.density * 2.65f + b.heat * 0.72f));
             }
-            PyreField.AccumulateDomes(density, W, H, dParts, kD, cx, cy, rimInv2);
-            PyreField.AccumulateDomes(heat, W, H, heParts, kHe, cx, cy, rimInv2);
-            PyreField.AccumulateDomes(height, W, H, hiParts, kHi, cx, cy, rimInv2);
+            if (shapes == null)
+            {
+                PyreField.AccumulateDomes(density, W, H, dParts, kD, cx, cy, rimInv2);
+                PyreField.AccumulateDomes(heat, W, H, heParts, kHe, cx, cy, rimInv2);
+                PyreField.AccumulateDomes(height, W, H, hiParts, kHi, cx, cy, rimInv2);
+            }
+            else
+            {
+                AccumulateShapedDomes(density, W, H, dParts, shapes, kD, rimInv2);
+                AccumulateShapedDomes(heat, W, H, heParts, shapes, kHe, rimInv2);
+                AccumulateShapedDomes(height, W, H, hiParts, shapes, kHi, rimInv2);
+            }
             // Interior roughness (height takes the noise directly where cloud is present) + clamp all three to 0..1.
             for (int i = 0; i < W * H; i++)
             {
@@ -1900,10 +2010,20 @@ namespace Laubrary.Pyre
                     for (int i = 0; i < n; i++)
                     {
                         var b = parts[i];
-                        float r2 = b.radius * b.radius;
-                        if (r2 <= 0f) continue;
-                        float dx = ox - b.x, dy = oy - b.y;
-                        float q = (dx * dx + dy * dy) / r2 * inv;
+                        float q;
+                        if (shapes != null)
+                        {
+                            q = ShapeQAt(shapes[i], x, y);
+                            if (q >= 1f) continue;          // outside this particle's silhouette — BEFORE the rim scale
+                            q *= inv;
+                        }
+                        else
+                        {
+                            float r2 = b.radius * b.radius;
+                            if (r2 <= 0f) continue;
+                            float dx = ox - b.x, dy = oy - b.y;
+                            q = (dx * dx + dy * dy) / r2 * inv;
+                        }
                         if (q >= 1f) continue;
                         float s = Mathf.Sqrt(1f - q);
                         float w = s * (b.density + b.heat) * b.alpha;
@@ -2488,6 +2608,41 @@ namespace Laubrary.Pyre
         static Vector2 PlaceParticle(Pyre spec, PyreLayer layer, int i, float spawnLife, float cx, float cy, float r,
                                      int n, float progressAdd = 0f)
         {
+            Vector2 p = PlaceParticleCore(spec, layer, i, spawnLife, cx, cy, r, n, progressAdd);
+            // Placement v2 Jitter: nudge the spot randomly around its own position, up to ~half the average spacing
+            // (r·√(π/n)) at Jitter 1. Seeded per particle + layer, so it is stable across frames and bakes.
+            if (layer.swarmPlacementV2 && layer.swarmJitter > 0f && n > 0)
+            {
+                float spacing = r * Mathf.Sqrt(Mathf.PI / n);
+                float u1 = HashUniform(spec.seed, i, FldPlacement, _layerSalt ^ 0x3C6EF372);
+                float u2 = HashUniform(spec.seed, i, FldPlacement, _layerSalt ^ unchecked((int)0xA54FF53A));
+                float rr = 0.5f * spacing * Mathf.Clamp01(layer.swarmJitter) * Mathf.Sqrt(u1);
+                float a = u2 * 2f * Mathf.PI;
+                p += new Vector2(rr * Mathf.Cos(a), rr * Mathf.Sin(a));
+            }
+            return p;
+        }
+
+        /// Placement v2 Bloom: the sunflower (golden-angle) arrangement. Spot i sits at radius √((i+½)/n) of the shape
+        /// and 137.5° round from spot i−1, so each successive spot lands a little further out and as far as possible
+        /// from the ones before it. For a polygon the radius is scaled to that polygon's own edge at the angle.
+        static Vector2 BloomPoint(float cx, float cy, float r, int n, int i, int sides)
+        {
+            float t = (i + 0.5f) / Mathf.Max(1, n);
+            float ang = Mathf.PI / 2f + i * 2.39996323f;   // start at the top, like PolyVertex
+            float rad = r * Mathf.Sqrt(t);
+            if (sides >= 3)
+            {
+                float sector = 2f * Mathf.PI / sides;
+                float delta = Mathf.Repeat(ang - Mathf.PI / 2f, sector) - sector * 0.5f;
+                rad *= Mathf.Cos(Mathf.PI / sides) / Mathf.Cos(delta);
+            }
+            return new Vector2(cx + rad * Mathf.Cos(ang), cy + rad * Mathf.Sin(ang));
+        }
+
+        static Vector2 PlaceParticleCore(Pyre spec, PyreLayer layer, int i, float spawnLife, float cx, float cy, float r,
+                                         int n, float progressAdd = 0f)
+        {
             var kind = layer.swarmShapeKind;
 
             // Line (slice 3 — Bars row): particle i sits at fraction f = i/(n-1) along a straight HORIZONTAL segment
@@ -2523,6 +2678,16 @@ namespace Laubrary.Pyre
                 // tiling exists) → the ring idea redone with equal-AREA bands and perimeter-uniform spacing).
                 float chaos = Mathf.Clamp01(layer.swarmChaos);
                 bool gridReverse = layer.swarmGridReverse;
+                // Placement v2: Neat / Random run the legacy Distribution 0 / 1 paths exactly (no reverse — Order
+                // handles direction); Bloom is the sunflower arrangement.
+                if (layer.swarmPlacementV2)
+                {
+                    if (layer.swarmLayout == SwarmLayout.Bloom)
+                        return BloomPoint(cx, cy, r, n, i,
+                            kind == SwarmShapeKind.Circle || kind == SwarmShapeKind.Custom ? 0 : SideCount(kind));
+                    chaos = layer.swarmLayout == SwarmLayout.Random ? 1f : 0f;
+                    gridReverse = false;
+                }
                 // Custom is Path-only (the UI enforces it), so Area+Custom falls back to a disc — as does Circle.
                 if (kind == SwarmShapeKind.Circle || kind == SwarmShapeKind.Custom)
                 {
@@ -2922,6 +3087,18 @@ namespace Laubrary.Pyre
             for (int i = 0; i < n; i++) perm[i] = i;
             if (n <= 1) return perm;
 
+            // Placement v2 Order: Neighbour / Shuffle ARE the legacy Spawn order 0 / 1 (below); Outward / Inward
+            // order the spots by distance from the middle.
+            if (layer.swarmPlacementV2)
+            {
+                switch (layer.swarmOrder)
+                {
+                    case SwarmOrder.Neighbour: spawnChaos = 0f; break;
+                    case SwarmOrder.Shuffle: spawnChaos = 1f; break;
+                    default: return RadialOrder(spec, layer, n, layer.swarmOrder == SwarmOrder.Inward);
+                }
+            }
+
             int[] baseRank;
             if (layer.swarmSpawnMode == SwarmSpawnMode.Area && layer.swarmShapeKind != SwarmShapeKind.Line)
             {
@@ -2945,6 +3122,42 @@ namespace Laubrary.Pyre
             System.Array.Sort(perm, (a, b) => keys[a].CompareTo(keys[b]));
             return perm;
         }
+
+        /// Placement v2 Outward / Inward: spawn slot k takes the spot k-th closest to (or farthest from) the middle.
+        /// Spots at the same distance (a neat ring) are taken in golden-ratio steps round the ring instead of walking
+        /// it, so successive spawns on one ring land far apart. perm[slot] = spot index.
+        static int[] RadialOrder(Pyre spec, PyreLayer layer, int n, bool inward)
+        {
+            var pts = new Vector2[n];
+            for (int j = 0; j < n; j++) pts[j] = PlaceParticle(spec, layer, j, 0f, 0f, 0f, 1f, n);
+            var idx = new int[n];
+            for (int j = 0; j < n; j++) idx[j] = j;
+            // band = distance rounded to 1/1000 of the shape radius; within a band, by angle
+            System.Array.Sort(idx, (a, b) =>
+            {
+                int ba = Mathf.RoundToInt(pts[a].magnitude * 1000f), bb = Mathf.RoundToInt(pts[b].magnitude * 1000f);
+                if (ba != bb) return ba.CompareTo(bb);
+                return Mathf.Atan2(pts[a].y, pts[a].x).CompareTo(Mathf.Atan2(pts[b].y, pts[b].x));
+            });
+            var order = new int[n];
+            int k = 0;
+            while (k < n)
+            {
+                int band = Mathf.RoundToInt(pts[idx[k]].magnitude * 1000f);
+                int end = k;
+                while (end < n && Mathf.RoundToInt(pts[idx[end]].magnitude * 1000f) == band) end++;
+                int m = end - k;
+                // golden-ratio stride through the ring (a stride coprime to m visits every spot exactly once)
+                int stride = Mathf.Max(1, Mathf.RoundToInt(m * 0.618034f));
+                while (m > 1 && Gcd(stride, m) != 1) stride++;
+                for (int t = 0; t < m; t++) order[k + t] = idx[k + (t * stride) % m];
+                k = end;
+            }
+            if (inward) System.Array.Reverse(order);
+            return order;
+        }
+
+        static int Gcd(int a, int b) { while (b != 0) { int t = a % b; a = b; b = t; } return a; }
 
         /// Greedy nearest-neighbour walk over a point set: starts at index 0, repeatedly jumps to whichever
         /// unvisited point is closest, and returns the visiting order. Not an optimal TSP tour — doesn't need

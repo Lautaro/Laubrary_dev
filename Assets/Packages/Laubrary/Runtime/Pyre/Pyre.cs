@@ -25,6 +25,12 @@ namespace Laubrary.Pyre
     // APPEND ONLY — serialized as an int, so never reorder or insert (Line was appended after Custom).
     public enum SwarmShapeKind { Circle, Triangle, Square, Pentagon, Hexagon, Custom, Line }
 
+    // Placement model v2 (see PyreLayer.swarmPlacementV2). Layout = WHERE the N spots are; Order = WHICH spot each
+    // successive spawn takes. Neat = the evenly-spaced fill (rings / lattices), Bloom = the sunflower (golden-angle)
+    // arrangement growing outward, Random = uniform scatter. APPEND ONLY — both serialize as ints.
+    public enum SwarmLayout { Neat, Bloom, Random }
+    public enum SwarmOrder { Neighbour, Outward, Inward, Shuffle }
+
     // How the swarm ORIENTS each particle as it's placed — the per-particle facing the renderer folds into the
     // form's own rotation (Streak forward, Disc/Sprite spin, Text/solid roll). None = no turning (every particle
     // keeps its own orientation). Outward = face away from the shape centre. PathTangent = face along the outline
@@ -271,6 +277,10 @@ namespace Laubrary.Pyre
         // (slice 2, the density/heat envelopes + ramp* knobs below). Value type ⇒ Clone()'s MemberwiseClone copies
         // it for free (like matteRole). APPEND ONLY — serialized as an int.
         public LayerCoalesce coalesce = LayerCoalesce.Off;
+        // Keep shape: merge the particles by their REAL silhouettes (a crescent stays a crescent, a star a star)
+        // instead of round blobs. Each particle's closeness-to-its-own-edge replaces closeness-to-its-centre, which
+        // for a disc is the same number, so the melt reads the same; off (default) = the round path, untouched.
+        public bool coalesceKeepShape = false;
 
         // ── Fuse (Coalesce == Fuse) field-pass dials (slice 1) — MetaBlob's iso-surface controls ─────────
         // Only read when coalesce == Fuse. The swarm's placed particles become metaball circles summed into ONE
@@ -746,6 +756,17 @@ namespace Laubrary.Pyre
         // order. Values between smoothly scramble more of the mapping. Applies to Area AND Path modes alike
         // (Path: which point along the outline is revealed when). Default 0 (neighbour order).
         [Range(0f, 1f)] public float swarmSpawnChaos = 0f;
+        // Placement model v2: Layout + Order + a real Jitter replace the three fields above (Distribution, Reverse,
+        // Spawn order). false (every existing asset, and a fresh layer) = those legacy fields drive placement
+        // exactly as before; the editor switches a layer to v2 on the first edit of Layout / Order / Jitter,
+        // converting the legacy values to the closest v2 equivalent. v2's Neat / Random / Neighbour / Shuffle ARE
+        // the legacy Distribution 0 / 1 and Spawn order 0 / 1 code paths, so those conversions are pixel-exact.
+        public bool swarmPlacementV2 = false;
+        public SwarmLayout swarmLayout = SwarmLayout.Neat;
+        public SwarmOrder swarmOrder = SwarmOrder.Neighbour;
+        // Nudges every spot randomly around its own neat position (up to about half the average spacing at 1) —
+        // keeps the even spread, unlike the legacy Distribution blend toward an unrelated random point.
+        [Range(0f, 1f)] public float swarmJitter = 0f;
         // Custom shape (Path only): the hand-drawn polyline authored as a PAIR of envelopes over progress —
         // x(progress) and y(progress) in Curve mode, values in canvas-pixel offsets from the shape centre.
         // The polyline IS these two curves: point order is progress/time, so the T5 preview click-to-adds a
