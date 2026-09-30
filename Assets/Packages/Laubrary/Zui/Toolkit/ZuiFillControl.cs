@@ -317,8 +317,10 @@ namespace Laubrary.Zui
                 case ZuiFill.TextureKind.Noise:
                 {
                     box.Add(GradientControl());
-                    box.Add(Z.Box("Pattern", "The noise shape, and how it's anchored / scaled / centred.",
-                        MakeRow(NoiseKindField(), SpaceField()), ZoomVal(), CenterVal()));
+                    var pattern = Z.Box("Pattern", "The noise shape, and how it's anchored / scaled / centred.",
+                        MakeRow(NoiseKindField(), SpaceField(), PixelToggle()), ZoomVal(), CenterVal());
+                    if (_fill.noisePixelScale) pattern.Add(PixelRow());
+                    box.Add(pattern);
                     break;
                 }
 
@@ -459,6 +461,34 @@ namespace Laubrary.Zui
                 () => { _swatch?.Refresh(); OnChanged?.Invoke(); },
                 () => OnBeforeMutate?.Invoke());
         }
+
+        // Pixel scale (ZuiFill.noisePixelScale): the noise measured in canvas pixels instead of the shape's box.
+        VisualElement PixelToggle()
+            => Z.Toggle("Pixel",
+                _fill.noisePixelScale
+                    ? "On: the noise is measured in canvas pixels — features are Cell pixels across whatever size the "
+                      + "shape is, never stretch as it grows, and no detail layer is ever smaller than one pixel. Click "
+                      + "to go back to the shape-relative noise."
+                    : "Measure the noise in canvas pixels, so its features stay a fixed pixel size and never shimmer "
+                      + "below one pixel (pixel-art friendly). Off: the noise scales with the shape.",
+                _fill.noisePixelScale, v => { Mutate(() => _fill.noisePixelScale = v); RebuildAll(); });
+
+        VisualElement PixelRow()
+            => MakeRow(
+                Z.MicroSlider("Cell px", _fill.noiseCellPx, 1f, 32f,
+                    "Size of the noise features in canvas pixels (the Zoom dial above scales it over life).",
+                    v => Mutate(() => _fill.noiseCellPx = Mathf.Max(0.5f, v)), 130f, defaultValue: 4f, decimals: 1),
+                Z.MicroSlider("Detail", _fill.noiseDetail, 1f, 5f,
+                    "Layers of finer noise on top, each half the size of the last. Layers that would be smaller than "
+                    + "one canvas pixel are skipped automatically.",
+                    v => Mutate(() => _fill.noiseDetail = Mathf.Clamp(Mathf.RoundToInt(v), 1, 5)), 110f,
+                    defaultValue: 2f, decimals: 0),
+                Z.MicroSlider("Seed", _fill.noiseSeed, 0f, 99f,
+                    "Which noise pattern — every number is a different, repeatable pattern.",
+                    v => Mutate(() => _fill.noiseSeed = Mathf.RoundToInt(v)), 110f, defaultValue: 0f, decimals: 0),
+                Z.MicroSlider("Bands", _fill.noiseSteps, 0f, 16f,
+                    "Cut the noise into this many hard bands before it goes through the gradient (0 = smooth).",
+                    v => Mutate(() => _fill.noiseSteps = Mathf.RoundToInt(v)), 110f, defaultValue: 0f, decimals: 0));
 
         static readonly string[] NoiseKindLabels = { "Value", "Ridged", "Steps" };
 

@@ -3017,7 +3017,7 @@ namespace Laubrary.Pyre
                         float edge = d <= inner ? 1f : 1f - Mathf.InverseLerp(inner, radius, d);
                         if (fillSpatial)   // spatial fill → this pixel's colour at its (spun) local (u,v) or canvas-anchored (Fixed); Solid/OverLife never enter here (byte-identical)
                         {
-                            col = EvalFill(fill, life, dx / radius, dy / radius, x, y, W, H);
+                            col = EvalFill(fill, life, dx / radius, dy / radius, x, y, W, H, radius);
                             cr = col.r; cg = col.g; cb = col.b;
                             if (brightMul != 1f) { cr = Mathf.Clamp01(cr * brightMul); cg = Mathf.Clamp01(cg * brightMul); cb = Mathf.Clamp01(cb * brightMul); }
                         }
@@ -3095,7 +3095,7 @@ namespace Laubrary.Pyre
                     float edge = d <= inner ? 1f : 1f - Mathf.InverseLerp(inner, radius, d);
                     if (fillSpatial)   // spatial fill uses the (spun/warped) local offset (dx,dy)/radius, or canvas-anchored (Fixed); Solid/OverLife skip (byte-identical)
                     {
-                        col = EvalFill(fill, life, dx / radius, dy / radius, x, y, W, H);
+                        col = EvalFill(fill, life, dx / radius, dy / radius, x, y, W, H, radius);
                         cr = col.r; cg = col.g; cb = col.b;
                         if (brightMul != 1f) { cr = Mathf.Clamp01(cr * brightMul); cg = Mathf.Clamp01(cg * brightMul); cb = Mathf.Clamp01(cb * brightMul); }
                     }
@@ -3223,7 +3223,7 @@ namespace Laubrary.Pyre
                     if (biteEdge <= 0.001f) continue;
                     if (fillSpatial)   // spatial fill → this lit pixel's colour at its local (u,v) or canvas-anchored (Fixed); constant fills skip (byte-identical)
                     {
-                        col = EvalFill(fill, life, dx / radius, dy / radius, x, y, W, H);
+                        col = EvalFill(fill, life, dx / radius, dy / radius, x, y, W, H, radius);
                         cr = col.r; cg = col.g; cb = col.b;
                         if (brightMul != 1f) { cr = Mathf.Clamp01(cr * brightMul); cg = Mathf.Clamp01(cg * brightMul); cb = Mathf.Clamp01(cb * brightMul); }
                     }
@@ -3363,7 +3363,7 @@ namespace Laubrary.Pyre
                     float edge = d <= rInner ? 1f : 1f - Mathf.InverseLerp(rInner, bound, d);
                     if (fillSpatial)   // spatial fill → this pixel's colour at its (spun/warped) local (u,v) or canvas-anchored (Fixed); constant fills skip
                     {
-                        col = EvalFill(fill, life, dx / R, dy / R, x, y, W, H);
+                        col = EvalFill(fill, life, dx / R, dy / R, x, y, W, H, R);
                         cr = col.r; cg = col.g; cb = col.b;
                         if (brightMul != 1f) { cr = Mathf.Clamp01(cr * brightMul); cg = Mathf.Clamp01(cg * brightMul); cb = Mathf.Clamp01(cb * brightMul); }
                     }
@@ -3461,7 +3461,7 @@ namespace Laubrary.Pyre
                     float edge = d <= rInner ? 1f : 1f - Mathf.InverseLerp(rInner, bound, d);
                     if (fillSpatial)   // spatial fill → this pixel's colour at its (spun/warped) local (u,v) or canvas-anchored (Fixed); constant fills skip
                     {
-                        col = EvalFill(fill, life, dx / R, dy / R, x, y, W, H);
+                        col = EvalFill(fill, life, dx / R, dy / R, x, y, W, H, R);
                         cr = col.r; cg = col.g; cb = col.b;
                         if (brightMul != 1f) { cr = Mathf.Clamp01(cr * brightMul); cg = Mathf.Clamp01(cg * brightMul); cb = Mathf.Clamp01(cb * brightMul); }
                     }
@@ -3548,7 +3548,7 @@ namespace Laubrary.Pyre
                     float sr = cr, sg = cg, sb = cb, sa = baseAlpha;
                     if (fillSpatial)   // spatial fill → this cell's colour + alpha at its local (u,v) or canvas-anchored (Fixed); constant fills skip (byte-identical)
                     {
-                        col = EvalFill(fill, life, dx / radius, dy / radius, x, y, W, H);
+                        col = EvalFill(fill, life, dx / radius, dy / radius, x, y, W, H, radius);
                         sr = col.r; sg = col.g; sb = col.b; sa = alpha * col.a;
                         if (brightMul != 1f) { sr = Mathf.Clamp01(sr * brightMul); sg = Mathf.Clamp01(sg * brightMul); sb = Mathf.Clamp01(sb * brightMul); }
                     }
@@ -5004,8 +5004,19 @@ namespace Laubrary.Pyre
         /// position on the canvas (unrotated, unspun, untravelled), so the shape moves THROUGH a stationary pattern
         /// (mask-like). Matches the background fill's own canvas (u,v): (px+0.5 − W/2)/(W/2) ≡ (px+0.5)/W·2 − 1.
         /// `f` is always non-null here — every call site is gated by IsSpatialFill (or an explicit != null).
-        static Color EvalFill(ZuiFill f, float life, float lu, float lv, int px, int py, int W, int H)
+        static Color EvalFill(ZuiFill f, float life, float lu, float lv, int px, int py, int W, int H,
+                              float localRadius = 0f)
         {
+            // Pixel-scale noise measures its pattern in canvas pixels. Stamped: whole-pixel offsets from the
+            // particle (lu·radius is the pixel's offset from the particle centre, spin included), so the pattern
+            // travels and spins with the particle but never stretches as it grows. Fixed, or a caller that
+            // doesn't pass its radius: whole-pixel offsets from the canvas centre.
+            if (f.UsesPixelCoords)
+            {
+                if (f.space == ZuiFill.FillSpace.Fixed || localRadius <= 0f)
+                    return f.EvaluatePixel(life, lu, lv, px + 0.5f - W * 0.5f, py + 0.5f - H * 0.5f);
+                return f.EvaluatePixel(life, lu, lv, Mathf.Floor(lu * localRadius) + 0.5f, Mathf.Floor(lv * localRadius) + 0.5f);
+            }
             if (f.space == ZuiFill.FillSpace.Fixed)
                 return f.Evaluate(life, (px + 0.5f - W * 0.5f) / (W * 0.5f), (py + 0.5f - H * 0.5f) / (H * 0.5f));
             return f.Evaluate(life, lu, lv);

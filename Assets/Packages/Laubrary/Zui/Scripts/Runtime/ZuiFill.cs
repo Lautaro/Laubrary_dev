@@ -139,6 +139,17 @@ public class ZuiFill : ISerializationCallbackReceiver
     public Sprite textureSprite;
     // Noise: the FNV value noise, shaped by noiseKind, mapped through `gradient`; `zoom` + `center` move the sample.
     public NoiseKind noiseKind = NoiseKind.Value;
+    // PIXEL scale (opt-in; off = the classic shape-relative noise above, untouched). The noise is measured in
+    // the consumer's CANVAS PIXELS instead of the shape's -1..1 box: features are noiseCellPx pixels across
+    // whatever size the shape is (they don't stretch as it grows), finer detail layers stop before they get
+    // smaller than one pixel (no shimmering sub-pixel speckle), the pattern has its own seed, and noiseSteps can
+    // hard-band it before the gradient. A consumer that knows pixel positions calls EvaluatePixel; any other
+    // consumer still gets the pattern through Evaluate, as if the shape were a 64-pixel box.
+    public bool noisePixelScale = false;
+    [Min(0.5f)] public float noiseCellPx = 4f;       // feature size in canvas pixels (the Zoom dial scales it)
+    [Range(1, 5)] public int noiseDetail = 2;        // noise layers, each half the size of the last (capped at 1 px)
+    public int noiseSeed = 0;
+    [Range(0, 16)] public int noiseSteps = 0;        // 0 = smooth; N = N hard bands before the gradient lookup
     // Grid: a rotated line grid. spacing = cell size in local units; lineWidth = line thickness as a fraction of
     // spacing; V/H pick which axes draw lines. Ink = `color`; off-line pixels are transparent (alpha carries the mask).
     public float gridAngle = 0f;
@@ -282,6 +293,7 @@ public class ZuiFill : ISerializationCallbackReceiver
     // coords, exactly like v1's Noise mode did (which this texture replaces). Null gradient ⇒ fall back to color.
     Color EvaluateNoise(float life, float u, float v)
     {
+        if (noisePixelScale) return EvaluatePixelNoise(life, u * 32f, v * 32f);   // no pixel info: a nominal 64-px box
         if (!HasGrad) return color;
         float z = SpatialFrequency(life);
         float cx = EvalCompanion(centerXAnim, life, center.x);
@@ -294,6 +306,54 @@ public class ZuiFill : ISerializationCallbackReceiver
             // Value: n unchanged (byte-identical to v1's value noise).
         }
         return EvalGrad(Mathf.Clamp01(n), life);
+    }
+
+    /// <summary>True when this fill wants canvas-pixel positions (see <see cref="EvaluatePixel"/>).</summary>
+    public bool UsesPixelCoords => texture == TextureKind.Noise && noisePixelScale;
+
+    /// <summary>Evaluate at a point the consumer can also give in canvas pixels. <paramref name="pxX"/>/
+    /// <paramref name="pxY"/> are the pixel's offset, in whole canvas pixels, from the pattern's anchor (the
+    /// shape's centre for a stamped fill, the canvas centre for a fixed one). Only the pixel-scale noise reads
+    /// them; everything else is exactly <see cref="Evaluate"/>.</summary>
+    public Color EvaluatePixel(float life, float u, float v, float pxX, float pxY)
+        => UsesPixelCoords ? EvaluatePixelNoise(life, pxX, pxY) : Evaluate(life, u, v);
+
+    // Pixel-scale noise: seeded value noise measured in canvas pixels. The Zoom dial (a SIZE) scales the cell, the
+    // Centre dials drift the pattern (in cells), and each detail layer halves the size until the next would be
+    // smaller than one pixel.
+    Color EvaluatePixelNoise(float life, float pxX, float pxY)
+    {
+        if (!HasGrad) return color;
+        float cell = Mathf.Max(0.5f, noiseCellPx / Mathf.Max(0.0001f, SpatialFrequency(life)));
+        float x = pxX / cell - EvalCompanion(centerXAnim, life, center.x);
+        float y = pxY / cell - EvalCompanion(centerYAnim, life, center.y);
+        float n = 0f, norm = 0f, amp = 1f, freq = 1f;
+        int layers = Mathf.Clamp(noiseDetail, 1, 5);
+        for (int o = 0; o < layers; o++)
+        {
+            if (o > 0 && cell / freq < 1f) break;   // the next layer's features would be under one pixel
+            n += amp * SeededValueNoise(x * freq + o * 17.31f, y * freq - o * 9.73f, noiseSeed * 7919 + o * 104729);
+            norm += amp;
+            amp *= 0.5f; freq *= 2f;
+        }
+        n /= Mathf.Max(0.0001f, norm);
+        switch (noiseKind)
+        {
+            case NoiseKind.Ridged: n = 1f - Mathf.Abs(2f * n - 1f); break;
+            case NoiseKind.Steps:  n = Mathf.Floor(n * 4f) / 3f; break;
+        }
+        if (noiseSteps > 1) n = Mathf.Min(noiseSteps - 1, Mathf.Floor(n * noiseSteps)) / (noiseSteps - 1);
+        return EvalGrad(Mathf.Clamp01(n), life);
+    }
+
+    static float SeededValueNoise(float x, float y, int seed)
+    {
+        int x0 = Mathf.FloorToInt(x), y0 = Mathf.FloorToInt(y);
+        float fx = x - x0, fy = y - y0;
+        float sx = fx * fx * (3f - 2f * fx), sy = fy * fy * (3f - 2f * fy);
+        float nx0 = Mathf.Lerp(Hash01(x0 ^ seed, y0), Hash01((x0 + 1) ^ seed, y0), sx);
+        float nx1 = Mathf.Lerp(Hash01(x0 ^ seed, y0 + 1), Hash01((x0 + 1) ^ seed, y0 + 1), sx);
+        return Mathf.Lerp(nx0, nx1, sy);
     }
 
     // Grid: work in CELL SPACE — rotate (u,v)−center by −gridAngle, then divide by spacing so 1 unit = 1 cell.
@@ -514,6 +574,14 @@ public class ZuiFill : ISerializationCallbackReceiver
             h = h * 31 ^ (int)fit;
             h = h * 31 ^ (int)space;
             h = h * 31 ^ (int)texture;
+            if (noisePixelScale)   // folded in only when on, so an existing fill's hash is unchanged
+            {
+                h = h * 31 ^ 0x5E1;
+                h = h * 31 ^ noiseCellPx.GetHashCode();
+                h = h * 31 ^ noiseDetail;
+                h = h * 31 ^ noiseSeed;
+                h = h * 31 ^ noiseSteps;
+            }
 
             const int N = 5;
             for (int y = 0; y < N; y++)
