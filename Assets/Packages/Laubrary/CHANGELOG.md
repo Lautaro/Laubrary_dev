@@ -19,6 +19,9 @@ Commits are prefixed `Pyre (feedback):` and `Pyre (study):`. Every new feature i
 - **Mass shading** for both height tools (Ramp and Height from channel): soot below a line, fire above it, Ignition for how abruptly, Bleed to make the bands tongue into each other, optional ordered Dither.
 - **Edge response** on every layer: brightness / contrast / hue / saturation at the rim, an inner glow, grain that gets finer toward the edge, and Flow, which makes the pattern's grain run along the outline. Measured by true distance to the layer's own outline.
 - **Fling** on Swarm: every particle thrown with its own distance, direction inside a spread, drag, gravity and life jitter.
+- **Coalesce "Fuse" is now "Merge"**, and a **Keep shape** option merges particles by their real silhouettes (crescents, stars and letters stay themselves) instead of round blobs.
+- **Swarm regrouped:** "Spawn shape" (where new particles appear: Offset, Size, Snap) and "Cloud motion" (moves everything already out: Grow, formerly Swarm scale, plus rotation). Turn / tilt / roll fold into one line until used.
+- **Placement:** Distribution / Reverse / Spawn order are replaced by **Layout** (Neat / Bloom / Random), **Order** (Neighbour / Outward / Inward / Shuffle) and a real **Jitter**. Bloom is the sunflower arrangement growing outward. Existing pyres keep their old placement until one of the new controls is first edited, then convert to the closest equivalent (exact for Distribution 0 or 1 and Spawn order 0 or 1).
 
 ### Pyre — positions keyed at frames, pad zoom, and Radial facing (T-0537..T-0541)
 
