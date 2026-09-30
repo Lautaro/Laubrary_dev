@@ -2764,13 +2764,14 @@ namespace Laubrary.Pyre.Editor
             return null;
         }
 
-        VisualElement Val(string label, string tooltip, ZUIValue v, float lo, float hi, bool cyclic = false)
+        // grow = false keeps the row at its own width so two short values can share a line (the Edge response box).
+        VisualElement Val(string label, string tooltip, ZUIValue v, float lo, float hi, bool cyclic = false, bool grow = true)
         {
             var o = new ZuiValueControl.Options
             {
                 absMin = lo, absMax = hi,
                 hideCurveTiming = true, hideCurveRange = true, hideLiveReadout = true,
-                controlWidth = 170f, grow = true,
+                controlWidth = 170f, grow = grow,
                 cyclic = cyclic,   // a wrapping angle (rotation / spin) → offer the Cycles envelope generator
                 // Show where each bake frame lands on the curve (numbers thin out when frames are dense).
                 frameCount = spec != null ? spec.frameCount : 0,
@@ -2807,20 +2808,23 @@ namespace Laubrary.Pyre.Editor
         // from" channel). Toggle first; the rest only appears when it's on (rebuild re-lays the section).
         VisualElement MassShadingBlock(PyreLayer s, System.Action rebuild)
         {
+            // Same shape as the Border / Edge response boxes: off = one compact toggle, on = a titled box.
+            if (!s.massShading)
+                return Z.Toggle("Mass shading",
+                    "Colour the height like burning mass: soot below a line, fire above it, bands bleeding into each "
+                    + "other. Off: the height is looked up straight into the Fill.",
+                    s.massShading, v => { Dirty(() => s.massShading = v); rebuild(); });
             var box = Z.BoxKeyed("Mass shading",
                 "Read height like MASS: below the soot line it's coloured from the Soot ramp, above it the height runs "
                 + "across the Fill (the fire ramp). Ignition sets how abruptly soot turns to fire; Bleed nudges each "
                 + "pixel's height with pixel-sized noise so the bands tongue into each other instead of meeting on a "
                 + "clean contour.",
                 "pyre.massShading");
-            box.Add(Z.Toggle("Mass shading",
-                s.massShading
-                    ? "On: soot below the soot line, fire above it, with bleeding bands. Click to go back to the plain "
-                      + "height → Fill lookup."
-                    : "Colour the height like burning mass: soot below a line, fire above it, bands bleeding into each "
-                      + "other. Off: the height is looked up straight into the Fill.",
+            box.SetHeaderSuffix(() => s.massShading ? " (on)" : "");
+            box.Add(Z.Toggle("Enable",
+                "Mass shading on: soot below the soot line, fire above it, with bleeding bands. Click to go back to "
+                + "the plain height → Fill lookup.",
                 s.massShading, v => { Dirty(() => s.massShading = v); rebuild(); }));
-            if (!s.massShading) return box;
             box.Add(WrapRow(
                 Z.MicroSlider("Soot line", s.massSootLine, 0f, 1f,
                     "The height below which colour comes from the Soot ramp (0 = no soot, 1 = all soot).",
@@ -2976,14 +2980,14 @@ namespace Laubrary.Pyre.Editor
                     v => Dirty(() => s.edgeRespFalloff = v), 150f, defaultValue: Def(nameof(PyreLayer.edgeRespFalloff)))));
             box.Add(WrapRow(
                 Val("Brightness", "Brightness multiplier at the rim (1 = unchanged, below 1 darkens the edge — a rounded "
-                    + "body; above 1 brightens it).", s.edgeRespBrightness, 0f, 3f),
-                Val("Contrast", "Contrast at the rim, around mid-grey (1 = unchanged).", s.edgeRespContrast, 0f, 3f)));
+                    + "body; above 1 brightens it).", s.edgeRespBrightness, 0f, 3f, grow: false),
+                Val("Contrast", "Contrast at the rim, around mid-grey (1 = unchanged).", s.edgeRespContrast, 0f, 3f, grow: false)));
             box.Add(WrapRow(
-                Val("Hue", "Hue shift at the rim, in degrees (0 = unchanged).", s.edgeRespHue, -180f, 180f, cyclic: true),
-                Val("Saturation", "Saturation multiplier at the rim (1 = unchanged, 0 = grey).", s.edgeRespSaturation, 0f, 3f)));
+                Val("Hue", "Hue shift at the rim, in degrees (0 = unchanged).", s.edgeRespHue, -180f, 180f, cyclic: true, grow: false),
+                Val("Saturation", "Saturation multiplier at the rim (1 = unchanged, 0 = grey).", s.edgeRespSaturation, 0f, 3f, grow: false)));
             box.Add(WrapRow(
                 Val("Glow", "Inner glow at the rim — ADDS the glow colour as light (it doesn't replace the colour). "
-                    + "0 = none.", s.edgeRespGlow, 0f, 2f),
+                    + "0 = none.", s.edgeRespGlow, 0f, 2f, grow: false),
                 Z.Field("Glow colour", "The inner glow's colour.",
                     Z.Color(s.edgeRespGlowColor, "The inner glow's colour.",
                         c => Dirty(() => s.edgeRespGlowColor = c), 110f))));
