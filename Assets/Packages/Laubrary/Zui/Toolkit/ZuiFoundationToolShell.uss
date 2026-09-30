@@ -1,0 +1,130 @@
+/* Tool-window shell and list-row presentation (UI separation, phase 3).
+
+   Most Laubrary tool windows are built the same way: a full-height root, a scrolling column of controls beside
+   a growing preview pane, a non-shrinking strip of chrome under it, and a list whose rows carry a drag grip and
+   a stretching name field. Until this sheet existed every one of those tools spelled that layout out again as
+   inline C# numbers, so a change of shape meant editing every tool and no tool could be restyled from outside.
+
+   These are DEFAULT rules for a normal instance: they carry no tool name, and a tool that wants to differ adds
+   rules under its own `lau-tool-<name>` root class in its own sheet. Live values - a measured position, a
+   value-derived size - stay in C#. */
+
+:root {
+    /* Selected row wash. Deliberately the accent hue at low strength so a selected row reads as picked
+       without competing with the row's own contents. */
+    --zui-row-selected-bg: rgba(89, 140, 242, 0.18);
+}
+
+/* ── window shell ──────────────────────────────────────────────────────────────────────────────────────── */
+
+/* The tool's outermost content element: fills the window and lets its children shrink below content size,
+   which is what lets an inner scroll view actually scroll instead of pushing the window open. */
+.lau-tool-shell {
+    flex-grow: 1;
+    min-height: 0;
+}
+
+/* Controls beside preview. */
+.lau-tool-shell__split {
+    flex-direction: row;
+    flex-grow: 1;
+    align-items: stretch;
+    min-height: 0;
+}
+
+/* The controls side. It may grow, but never narrows past the point where a labelled field stops fitting. */
+.lau-tool-shell__side {
+    min-width: 320px;
+}
+
+/* A controls side that keeps one width instead of sharing the split, with a gap before the preview. */
+.lau-tool-shell__side--fixed {
+    width: 320px;
+    flex-shrink: 0;
+    margin-right: 4px;
+    min-height: 0;
+}
+
+/* A column inside the shell that takes the leftover height. */
+.lau-tool-shell__column {
+    flex-grow: 1;
+}
+
+/* A scroll view that owns the remaining height rather than sizing to its contents. */
+.lau-tool-shell__scroll {
+    flex-grow: 1;
+    min-height: 0;
+}
+
+/* The preview side of the split. */
+.lau-tool-shell__pane {
+    flex-grow: 1;
+    min-width: 260px;
+    min-height: 0;
+}
+
+/* The preview viewport itself: takes the height it is given, but stays tall enough to show something. */
+.lau-tool-shell__preview {
+    flex-grow: 1;
+    min-height: 220px;
+}
+
+/* A preview that needs more room before it reads at all. */
+.lau-tool-shell__preview--tall {
+    min-height: 260px;
+}
+
+/* A preview that is a fixed strip rather than a growing pane. */
+.lau-tool-shell__preview--band {
+    height: 140px;
+    flex-shrink: 0;
+}
+
+/* A strip of controls under or beside a preview that must keep its full height. */
+.lau-tool-shell__chrome {
+    flex-shrink: 0;
+}
+
+/* A surface whose children are drawn or positioned freely and must not spill past its edge. */
+.lau-tool-shell__clip {
+    overflow: hidden;
+}
+
+/* A label or image placed by measured coordinates on top of such a surface. The coordinates stay in C#;
+   only the fact that it is taken out of layout belongs here. */
+.lau-tool-shell__overlay {
+    position: absolute;
+}
+
+/* An inspector block that needs breathing room under the fields Unity drew above it. */
+.lau-tool-shell__inspector-block {
+    padding-top: 6px;
+}
+
+/* ── list rows ─────────────────────────────────────────────────────────────────────────────────────────── */
+
+/* The drag handle at the head of a reorderable row. */
+.zui-row__grip {
+    width: 16px;
+}
+
+/* A grip drawn with a glyph that needs weight to read at its small size. */
+.zui-row__grip--bold {
+    -unity-font-style: bold;
+}
+
+/* The row's name field: takes whatever width the row has left, and gives up width before the row wraps.
+   Written against the toolkit root on purpose. The toolkit's own `.zui-root .unity-base-field` rule pins every
+   field to no-grow/no-shrink, and a single-class selector cannot outrank it, so this rule has to match that
+   reach to be able to hand one named field back its stretch. */
+.zui-root .zui-row__name {
+    width: auto;
+    min-width: 50px;
+    flex-grow: 1;
+    flex-shrink: 1;
+}
+
+/* The picked row. */
+.zui-row--selected {
+    background-color: var(--zui-row-selected-bg);
+}

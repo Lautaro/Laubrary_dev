@@ -41,11 +41,11 @@ namespace Laubrary.Tapestry.Editor
 
             var row = new VisualElement();
             row.AddToClassList("zui-row");
-            if (sel) row.style.backgroundColor = new Color(0.35f, 0.55f, 0.95f, 0.18f);
+            row.EnableInClassList("zui-row--selected", sel);
 
             var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder this layer in the stack.");
-            grip.style.unityFontStyleAndWeight = FontStyle.Bold;
-            grip.style.width = 16f;
+            grip.AddToClassList("zui-row__grip");
+            grip.AddToClassList("zui-row__grip--bold");
             ZuiReorder.MakeGrip(grip, row, listHost, (from, to) =>
             {
                 Dirty(() =>
@@ -70,10 +70,7 @@ namespace Laubrary.Tapestry.Editor
 
             var name = Z.TextInput(layer.name ?? "", "This layer's name — rename it right here.",
                 v => Dirty(() => layer.name = v), 0f);
-            name.style.width = StyleKeyword.Auto;
-            name.style.flexGrow = 1f;
-            name.style.flexShrink = 1f;
-            name.style.minWidth = 50f;
+            name.AddToClassList("zui-row__name");
             name.AddToClassList("zui-audit-allow-stretch");
             name.RegisterCallback<PointerDownEvent>(_ => { if (layerSel != i) { layerSel = i; Rebuild(); } });
             row.Add(name);

@@ -138,13 +138,13 @@ namespace Laubrary.Tapestry.Editor
         // ── layout ───────────────────────────────────────────────────────────────────────────────────
         protected override void BuildAsset(VisualElement root, TapestrySpec s)
         {
-            root.style.flexGrow = 1f;
-            root.style.minHeight = 0f;
+            Z.AttachTool(rootVisualElement, "tapestry");
+            root.AddToClassList("lau-tool-shell");
 
             var left = new ScrollView(ScrollViewMode.Vertical);
-            left.style.minWidth = 320f;
+            left.AddToClassList("lau-tool-shell__side");
             var col = left.contentContainer;
-            col.style.flexGrow = 1f;
+            col.AddToClassList("lau-tool-shell__column");
 
             BuildCanvasBox(col, s);
             BuildLayersList(col, s);
@@ -161,19 +161,16 @@ namespace Laubrary.Tapestry.Editor
             BuildGlobalModifiersBox(col, s);
 
             var rightPane = new VisualElement();
-            rightPane.style.flexGrow = 1f;
-            rightPane.style.minWidth = 260f;
-            rightPane.style.minHeight = 0f;
+            rightPane.AddToClassList("lau-tool-shell__pane");
 
             preview = new IMGUIContainer(() => DrawPreview(s));
-            preview.style.flexGrow = 1f;
-            preview.style.minHeight = 220f;
+            preview.AddToClassList("lau-tool-shell__preview");
             preview.AddToClassList("zui-stage");
             preview.tooltip = "Scroll to zoom.";
             rightPane.Add(preview);
 
             var chrome = new VisualElement();
-            chrome.style.flexShrink = 0f;
+            chrome.AddToClassList("lau-tool-shell__chrome");
             BuildTransport(chrome, s);
             chrome.Add(Z.HGroup(
                 Z.Toggle("Tiled", "Show a 3x3 tiled repeat of the texture, to check it seams cleanly.",

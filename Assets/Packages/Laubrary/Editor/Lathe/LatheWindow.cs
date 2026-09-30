@@ -126,13 +126,13 @@ namespace Laubrary.Lathe.Editor
         // ── layout ───────────────────────────────────────────────────────────────────
         protected override void BuildAsset(VisualElement root, LatheSpec s)
         {
-            root.style.flexGrow = 1f;
-            root.style.minHeight = 0f;
+            Z.AttachTool(rootVisualElement, "lathe");
+            root.AddToClassList("lau-tool-shell");
 
             var left = new ScrollView(ScrollViewMode.Vertical);
-            left.style.minWidth = 320f;
+            left.AddToClassList("lau-tool-shell__side");
             var col = left.contentContainer;
-            col.style.flexGrow = 1f;
+            col.AddToClassList("lau-tool-shell__column");
 
             BuildCanvasBox(col, s);
             BuildSolidsList(col, s);
@@ -147,19 +147,16 @@ namespace Laubrary.Lathe.Editor
             }
 
             var rightPane = new VisualElement();
-            rightPane.style.flexGrow = 1f;
-            rightPane.style.minWidth = 260f;
-            rightPane.style.minHeight = 0f;
+            rightPane.AddToClassList("lau-tool-shell__pane");
 
             preview = new IMGUIContainer(() => DrawPreview(s));
-            preview.style.flexGrow = 1f;
-            preview.style.minHeight = 220f;
+            preview.AddToClassList("lau-tool-shell__preview");
             preview.AddToClassList("zui-stage");
             preview.tooltip = "Drag to orbit, scroll to zoom. The turntable spin (below) is independent of this camera.";
             rightPane.Add(preview);
 
             var chrome = new VisualElement();
-            chrome.style.flexShrink = 0f;
+            chrome.AddToClassList("lau-tool-shell__chrome");
             BuildTransport(chrome, s);
             chrome.Add(Z.Field("Background", "The preview's clear colour — cosmetic, never baked.",
                 Z.Color(s.previewBackground, "The preview's clear colour.",

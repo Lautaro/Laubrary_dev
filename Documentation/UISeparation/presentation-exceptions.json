@@ -3,6 +3,15 @@
   "baseline": "9eb3d9c",
   "targets": [
     "Assets/Packages/Laubrary/Editor/AssetKit/ZuiAssetWindow.cs",
+    "Assets/Packages/Laubrary/Editor/BackSplash/BackSplashElement.cs",
+    "Assets/Packages/Laubrary/Editor/BackSplash/BackSplashWindow.cs",
+    "Assets/Packages/Laubrary/Editor/Cabinets/CabinetEditor.cs",
+    "Assets/Packages/Laubrary/Editor/Choreographer/ChoreographerWindow.cs",
+    "Assets/Packages/Laubrary/Editor/Lathe/LatheMoldWindow.cs",
+    "Assets/Packages/Laubrary/Editor/Lathe/LatheWindow.Solids.cs",
+    "Assets/Packages/Laubrary/Editor/Lathe/LatheWindow.cs",
+    "Assets/Packages/Laubrary/Editor/Tapestry/TapestryWindow.Layers.cs",
+    "Assets/Packages/Laubrary/Editor/Tapestry/TapestryWindow.cs",
     "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
     "Assets/Packages/Laubrary/Zui/Toolkit/ZuiBox.cs",
     "Assets/Packages/Laubrary/Zui/Toolkit/ZuiColumnFlow.cs",
@@ -22,80 +31,789 @@
     "Assets/Packages/Laubrary/Zui/Toolkit/ZuiToggleButton.cs"
   ],
   "exceptions": [
-    { "path": "Assets/Packages/Laubrary/Editor/AssetKit/ZuiAssetWindow.cs", "kind": "inline-style", "line": "cell.style.width = CellSize;", "count": 1, "category": "compatibility", "reason": "Virtual CellSize preserves derived asset-window sizing." },
-    { "path": "Assets/Packages/Laubrary/Editor/AssetKit/ZuiAssetWindow.cs", "kind": "inline-style", "line": "img.style.height = ThumbSize - 6f;", "count": 1, "category": "compatibility", "reason": "Virtual ThumbSize preserves derived asset-window thumbnail sizing." },
-    { "path": "Assets/Packages/Laubrary/Editor/AssetKit/ZuiAssetWindow.cs", "kind": "inline-style", "line": "img.style.width = ThumbSize - 6f;", "count": 1, "category": "compatibility", "reason": "Virtual ThumbSize preserves derived asset-window thumbnail sizing." },
-    { "path": "Assets/Packages/Laubrary/Editor/AssetKit/ZuiAssetWindow.cs", "kind": "inline-style", "line": "name.style.maxWidth = CellSize - 4f;", "count": 1, "category": "compatibility", "reason": "Virtual CellSize preserves derived asset-window caption sizing." },
-    { "path": "Assets/Packages/Laubrary/Editor/AssetKit/ZuiAssetWindow.cs", "kind": "inline-style", "line": "thumbBox.style.height = ThumbSize;", "count": 1, "category": "compatibility", "reason": "Virtual ThumbSize preserves derived asset-window thumbnail sizing." },
-    { "path": "Assets/Packages/Laubrary/Editor/AssetKit/ZuiAssetWindow.cs", "kind": "inline-style", "line": "thumbBox.style.width = ThumbSize;", "count": 1, "category": "compatibility", "reason": "Virtual ThumbSize preserves derived asset-window thumbnail sizing." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs", "kind": "inline-style", "line": "b.style.height = size;", "count": 1, "category": "content", "reason": "Icon button height follows the supplied icon size." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs", "kind": "inline-style", "line": "b.style.width = size;", "count": 1, "category": "content", "reason": "Icon button width follows the supplied icon size." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs", "kind": "inline-style", "line": "buttons[i].style.marginBottom = 0f;", "count": 1, "category": "compatibility", "reason": "Segmented controls clear inherited margin for their historical layout." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs", "kind": "inline-style", "line": "buttons[i].style.marginTop = 0f;", "count": 1, "category": "compatibility", "reason": "Segmented controls clear inherited margin for their historical layout." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs", "kind": "inline-style", "line": "col.style.width = width;", "count": 2, "category": "dynamicgeometry", "reason": "Column width is supplied by the caller." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs", "kind": "inline-style", "line": "if (height >= 0f) f.style.height = height;", "count": 2, "category": "compatibility", "reason": "Explicit caller height preserves the legacy factory contract." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs", "kind": "inline-style", "line": "if (width >= 0f) d.style.width = width;", "count": 2, "category": "compatibility", "reason": "Explicit caller width preserves the legacy divider contract." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs", "kind": "inline-style", "line": "if (width >= 0f) f.style.width = width;", "count": 5, "category": "compatibility", "reason": "Explicit caller width preserves the legacy factory contract." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs", "kind": "inline-style", "line": "if (left != null) left.style.width = initialLeftWidth; // what the drag itself writes", "count": 1, "category": "state", "reason": "Split view restores the persisted drag width." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs", "kind": "inline-style", "line": "if (totalHeight > 0f) buttons[i].style.height = totalHeight / options.Length;", "count": 1, "category": "dynamicgeometry", "reason": "Segment height is calculated from the requested total height." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs", "kind": "inline-style", "line": "if (width >= 0f) f.style.width = width;", "count": 3, "category": "compatibility", "reason": "Explicit caller width preserves the legacy overload contract." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs", "kind": "inline-style", "line": "if (width >= 0f) s.style.width = width;", "count": 2, "category": "compatibility", "reason": "Explicit caller width preserves the legacy overload contract." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs", "kind": "inline-style", "line": "if (width >= 0f) s.style.width = width; // Explicit legacy override; omitted width belongs to USS.", "count": 2, "category": "compatibility", "reason": "Explicit caller width preserves the legacy overload contract." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs", "kind": "inline-style", "line": "it.style.marginBottom = StyleKeyword.Null;", "count": 1, "category": "compatibility", "reason": "Control reset restores stylesheet-owned spacing." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs", "kind": "inline-style", "line": "s.style.width = width;", "count": 2, "category": "dynamicgeometry", "reason": "Spacer width is supplied by the caller." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs", "kind": "inline-style", "line": "if (sliderWidth >= 0f) slider.style.width = sliderWidth;", "count": 1, "category": "compatibility", "reason": "Explicit caller sliderWidth preserves the MinMax factory's legacy width parameter." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs", "kind": "inline-style", "line": "t.style.height = size;", "count": 1, "category": "content", "reason": "Texture element height follows the supplied asset size." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs", "kind": "inline-style", "line": "t.style.width = size;", "count": 1, "category": "content", "reason": "Texture element width follows the supplied asset size." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs", "kind": "inline-style", "line": "v.style.backgroundImage = Background.FromTexture2D(tex);", "count": 1, "category": "content", "reason": "The caller-provided texture is content, not a theme color." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs", "kind": "inline-style", "line": "if (px >= 0f) v.style.height = px; // Explicit spacing remains a caller contract.", "count": 1, "category": "compatibility", "reason": "Explicit caller spacing preserves the legacy spacer contract." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs", "kind": "inline-style", "line": "v.style.height = size;", "count": 1, "category": "content", "reason": "Image element height follows the supplied asset size." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs", "kind": "inline-style", "line": "if (px >= 0f) v.style.width = px; // Explicit spacing remains a caller contract.", "count": 1, "category": "compatibility", "reason": "Explicit caller spacing preserves the legacy spacer contract." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs", "kind": "inline-style", "line": "v.style.width = size;", "count": 1, "category": "content", "reason": "Image element width follows the supplied asset size." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs", "kind": "inline-style", "line": "ve.style.height = height;", "count": 1, "category": "dynamicgeometry", "reason": "Sized element height is supplied by the caller." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs", "kind": "inline-style", "line": "ve.style.width = width;", "count": 1, "category": "dynamicgeometry", "reason": "Sized element width is supplied by the caller." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiBox.cs", "kind": "inline-style", "line": "tog.style.marginLeft = indent;", "count": 1, "category": "dynamicgeometry", "reason": "Nested toggle indentation depends on the current depth." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiColumnFlow.cs", "kind": "inline-style", "line": "_columns[i].style.marginLeft = i > 0 ? _resolvedGutter : 0f;", "count": 1, "category": "dynamicgeometry", "reason": "Existing columns receive the resolved live gutter." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiColumnFlow.cs", "kind": "inline-style", "line": "col.style.marginLeft = index > 0 ? _resolvedGutter : 0f;", "count": 1, "category": "dynamicgeometry", "reason": "New columns receive the resolved live gutter." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiColumnFlow.cs", "kind": "inline-style", "line": "k.style.marginBottom = StyleKeyword.Null;", "count": 1, "category": "compatibility", "reason": "Column-flow reset returns bottom margin ownership to USS." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiColumnFlow.cs", "kind": "inline-style", "line": "k.style.marginRight = StyleKeyword.Null;", "count": 1, "category": "compatibility", "reason": "Column-flow reset returns right margin ownership to USS." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiColumnFlow.cs", "kind": "inline-style", "line": "u.style.marginBottom = StyleKeyword.Null;", "count": 1, "category": "compatibility", "reason": "Column-flow reset returns bottom margin ownership to USS." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiEnvelopePresentation.cs", "kind": "hardcoded-color", "line": "background = def.background != null ? def.background.GetColorA(sheet) : Color.clear,", "count": 1, "category": "compatibility", "reason": "Clear fallback preserves a null legacy envelope background." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiEnvelopePresentation.cs", "kind": "hardcoded-color", "line": "borderColor = def.border != null ? def.border.color.GetColorA(sheet) : Color.clear,", "count": 1, "category": "compatibility", "reason": "Clear fallback preserves a null legacy envelope border." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiMicroMinMax.cs", "kind": "hardcoded-color", "line": "Color _resolvedFillLeft = new Color(28f / 255f, 44f / 255f, 78f / 255f, 0.92f);", "count": 1, "category": "compatibility", "reason": "Legacy fallback used before stylesheet resolution or when optional custom property is absent; USS already owns the styled value." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiMicroMinMax.cs", "kind": "hardcoded-color", "line": "Color _resolvedFillRight = new Color(70f / 255f, 120f / 255f, 200f / 255f, 0.85f);", "count": 1, "category": "compatibility", "reason": "Legacy fallback used before stylesheet resolution or when optional custom property is absent; USS already owns the styled value." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiMicroMinMax.cs", "kind": "hardcoded-color", "line": "Color _resolvedTrackColor = new Color(0f, 0f, 0f, 0.30f);", "count": 1, "category": "compatibility", "reason": "Legacy fallback used before stylesheet resolution or when optional custom property is absent; USS already owns the styled value." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiMicroMinMax.cs", "kind": "hardcoded-color", "line": "public Color FillLeft = new Color(28f / 255f, 44f / 255f, 78f / 255f, 0.92f);", "count": 1, "category": "compatibility", "reason": "Public default keeps existing caller-defined min-max appearance." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiMicroMinMax.cs", "kind": "hardcoded-color", "line": "public Color FillRight = new Color(70f / 255f, 120f / 255f, 200f / 255f, 0.85f);", "count": 1, "category": "compatibility", "reason": "Public default keeps existing caller-defined min-max appearance." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiMicroMinMax.cs", "kind": "hardcoded-color", "line": "public Color TrackColor = new Color(0f, 0f, 0f, 0.30f);", "count": 1, "category": "compatibility", "reason": "Public default keeps existing caller-defined min-max appearance." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiMicroSlider.cs", "kind": "hardcoded-color", "line": "Color _resolvedFillLeft = new Color(28f / 255f, 44f / 255f, 78f / 255f, 0.92f);", "count": 1, "category": "compatibility", "reason": "Legacy fallback used before stylesheet resolution or when optional custom property is absent; USS already owns the styled value." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiMicroSlider.cs", "kind": "hardcoded-color", "line": "Color _resolvedFillRight = new Color(70f / 255f, 120f / 255f, 200f / 255f, 0.85f);", "count": 1, "category": "compatibility", "reason": "Legacy fallback used before stylesheet resolution or when optional custom property is absent; USS already owns the styled value." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiMicroSlider.cs", "kind": "hardcoded-color", "line": "Color _resolvedTrackColor = new Color(0f, 0f, 0f, 0.30f);", "count": 1, "category": "compatibility", "reason": "Legacy fallback used before stylesheet resolution or when optional custom property is absent; USS already owns the styled value." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiMicroSlider.cs", "kind": "hardcoded-color", "line": "public Color FillLeft = new Color(28f / 255f, 44f / 255f, 78f / 255f, 0.92f);", "count": 1, "category": "compatibility", "reason": "Public default keeps existing caller-defined slider appearance." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiMicroSlider.cs", "kind": "hardcoded-color", "line": "public Color FillRight = new Color(70f / 255f, 120f / 255f, 200f / 255f, 0.85f);", "count": 1, "category": "compatibility", "reason": "Public default keeps existing caller-defined slider appearance." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiMicroSlider.cs", "kind": "hardcoded-color", "line": "public Color TrackColor = new Color(0f, 0f, 0f, 0.30f);", "count": 1, "category": "compatibility", "reason": "Public default keeps existing caller-defined slider appearance." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiPopover.cs", "kind": "inline-style", "line": "_scrim.style.paddingLeft = 0; _scrim.style.paddingRight = 0;", "count": 1, "category": "compatibility", "reason": "Detached popover scrim must clear host padding for full-overlay placement." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiPopover.cs", "kind": "inline-style", "line": "_scrim.style.paddingTop = 0; _scrim.style.paddingBottom = 0;", "count": 1, "category": "compatibility", "reason": "Detached popover scrim must clear host padding for full-overlay placement." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiPopover.cs", "kind": "inline-style", "line": "if (_opt.maxWidth > 0f) _panel.style.maxWidth = _opt.maxWidth;", "count": 1, "category": "dynamicgeometry", "reason": "Popover maximum width comes from the opening options." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiPopover.cs", "kind": "inline-style", "line": "if (_opt.minWidth > 0f) _panel.style.minWidth = _opt.minWidth;", "count": 1, "category": "dynamicgeometry", "reason": "Popover minimum width comes from the opening options." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiReflect.cs", "kind": "inline-style", "line": "f.style.width = width;", "count": 1, "category": "dynamicgeometry", "reason": "Reflected field width is supplied by the caller." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSerialized.cs", "kind": "inline-style", "line": "f.style.width = width;", "count": 1, "category": "dynamicgeometry", "reason": "Serialized field width is supplied by the caller." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSerialized.cs", "kind": "inline-style", "line": "if (width > 0f) pf.style.width = width;", "count": 1, "category": "compatibility", "reason": "Explicit serialized-property width preserves the legacy API." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinBandSliders.cs", "kind": "inline-style", "line": "_bars[i].style.left = x; _bars[i].style.width = bw;", "count": 1, "category": "dynamicgeometry", "reason": "Band width follows the current plotting rectangle." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinBandSliders.cs", "kind": "inline-style", "line": "_baseLine.style.height = _baselineThickness;", "count": 1, "category": "dynamicgeometry", "reason": "Baseline thickness is the resolved live paint metric." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinBandSliders.cs", "kind": "inline-style", "line": "c.style.left = x; c.style.width = bw; c.style.height = _capThickness; c.style.top = v > _max ? 0f : h - _capThickness;", "count": 1, "category": "dynamicgeometry", "reason": "Out-of-range cap position and size follow the current band geometry." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinBandSliders.cs", "kind": "inline-style", "line": "f.style.left = x; f.style.width = bw;", "count": 1, "category": "dynamicgeometry", "reason": "Band fill width follows the current plotting rectangle." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinBandSliders.cs", "kind": "inline-style", "line": "f.style.top = Mathf.Min(yv, yBase); f.style.height = Mathf.Max(1f, Mathf.Abs(yBase - yv));", "count": 1, "category": "dynamicgeometry", "reason": "Band fill height follows the live value and baseline." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinBandSliders.cs", "kind": "inline-style", "line": "hv.style.left = x; hv.style.width = bw;", "count": 1, "category": "dynamicgeometry", "reason": "Hover overlay width follows the current plotting rectangle." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinEnvelope.cs", "kind": "hardcoded-color", "line": "Dotted(p2, dotted, Color.Lerp(style.curveColor, Color.white, style.dottedWhiteMix), Px(Mathf.Max(style.curveThickness, style.dottedMinWidth)));", "count": 1, "category": "state", "reason": "Dotted curve color is derived from the resolved theme curve color." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinEnvelope.cs", "kind": "hardcoded-color", "line": "Ellipse(p2, c, Mathf.Max(ex, 1f), Mathf.Max(ey, 1f), new Color(style.curveColor.r, style.curveColor.g, style.curveColor.b, style.uncertaintyFillAlpha),", "count": 1, "category": "state", "reason": "Uncertainty fill derives RGB from the resolved curve color and theme alpha." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinEnvelope.cs", "kind": "hardcoded-color", "line": "FillRect(p2, box, new Color(1f, 1f, 1f, style.selectionBoxFillAlpha));", "count": 1, "category": "state", "reason": "Selection overlay alpha is resolved from the presentation profile." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinEnvelope.cs", "kind": "hardcoded-color", "line": "new Color(style.curveColor.r, style.curveColor.g, style.curveColor.b, style.uncertaintyStrokeAlpha), Px(style.uncertaintyStrokeThickness));", "count": 1, "category": "state", "reason": "Uncertainty stroke derives RGB from the resolved curve color and theme alpha." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinMinMax.cs", "kind": "inline-style", "line": "_fieldOne.style.width = per * 2f + 4f;", "count": 1, "category": "compatibility", "reason": "Configured valueWidth preserves the min-max field sizing API." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinMinMax.cs", "kind": "inline-style", "line": "e.style.marginLeft = float.IsNaN(w) ? 0f : -w * 0.5f;", "count": 1, "category": "dynamicgeometry", "reason": "Thumb centering margin derives from measured thumb width." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinMinMax.cs", "kind": "inline-style", "line": "e.style.width = Length.Percent(Mathf.Max(0f, b01 - a01) * 100f);", "count": 1, "category": "dynamicgeometry", "reason": "Fill width is the live normalized interval." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinMinMax.cs", "kind": "inline-style", "line": "f.style.width = per;", "count": 1, "category": "compatibility", "reason": "Configured valueWidth preserves the min-max field sizing API." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinRangeSlider.cs", "kind": "inline-style", "line": "e.style.left = r.x; e.style.top = r.y; e.style.width = Mathf.Max(0f, r.width); e.style.height = Mathf.Max(0f, r.height);", "count": 1, "category": "dynamicgeometry", "reason": "Interaction overlay tracks the measured visible range rectangle." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinSlider.cs", "kind": "inline-style", "line": "_fill.style.width = Length.Percent(t * 100f);", "count": 1, "category": "dynamicgeometry", "reason": "Slider fill width is the live normalized value." },
-    { "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinSlider.cs", "kind": "inline-style", "line": "_rest.style.width = Length.Percent((1f - t) * 100f);", "count": 1, "category": "dynamicgeometry", "reason": "Slider remainder width is the live normalized value." }
+    {
+      "path": "Assets/Packages/Laubrary/Editor/AssetKit/ZuiAssetWindow.cs",
+      "kind": "inline-style",
+      "line": "cell.style.width = CellSize;",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Virtual CellSize preserves derived asset-window sizing."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/AssetKit/ZuiAssetWindow.cs",
+      "kind": "inline-style",
+      "line": "img.style.height = ThumbSize - 6f;",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Virtual ThumbSize preserves derived asset-window thumbnail sizing."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/AssetKit/ZuiAssetWindow.cs",
+      "kind": "inline-style",
+      "line": "img.style.width = ThumbSize - 6f;",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Virtual ThumbSize preserves derived asset-window thumbnail sizing."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/AssetKit/ZuiAssetWindow.cs",
+      "kind": "inline-style",
+      "line": "name.style.maxWidth = CellSize - 4f;",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Virtual CellSize preserves derived asset-window caption sizing."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/AssetKit/ZuiAssetWindow.cs",
+      "kind": "inline-style",
+      "line": "thumbBox.style.height = ThumbSize;",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Virtual ThumbSize preserves derived asset-window thumbnail sizing."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/AssetKit/ZuiAssetWindow.cs",
+      "kind": "inline-style",
+      "line": "thumbBox.style.width = ThumbSize;",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Virtual ThumbSize preserves derived asset-window thumbnail sizing."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/BackSplash/BackSplashElement.cs",
+      "kind": "inline-style",
+      "line": "_image.style.backgroundImage = Background.FromSprite(sprite);",
+      "count": 1,
+      "category": "content",
+      "reason": "The backdrop's own sprite, or its absence, is asset data the tool places; it is not a styling choice."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/BackSplash/BackSplashElement.cs",
+      "kind": "inline-style",
+      "line": "_image.style.backgroundImage = null;",
+      "count": 1,
+      "category": "content",
+      "reason": "The backdrop's own sprite, or its absence, is asset data the tool places; it is not a styling choice."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/BackSplash/BackSplashElement.cs",
+      "kind": "inline-style",
+      "line": "_image.style.height = h;",
+      "count": 1,
+      "category": "dynamicgeometry",
+      "reason": "Sized from the measured viewport and the authored zoom, so the value only exists at run time."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/BackSplash/BackSplashElement.cs",
+      "kind": "inline-style",
+      "line": "_image.style.width = w;",
+      "count": 1,
+      "category": "dynamicgeometry",
+      "reason": "Sized from the measured viewport and the authored zoom, so the value only exists at run time."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/Choreographer/ChoreographerWindow.cs",
+      "kind": "hardcoded-color",
+      "line": "Dot(p, N2P(ChoreographySampler.SamplePosition(choreo, i, n, choreo.launchBlend, an)), 5f, new Color(0.3f, 0.95f, 0.4f, 0.9f));",
+      "count": 1,
+      "category": "legacydebt",
+      "reason": "A custom-painter colour on the choreography stage. Painter palettes become USS custom properties in the dense-surface phase; recorded here so that move is visible when it happens."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/Choreographer/ChoreographerWindow.cs",
+      "kind": "hardcoded-color",
+      "line": "Dot(p, pos, 10f, i == dragIndex ? Color.yellow : sel ? new Color(0.3f, 0.9f, 1f) : new Color(1f, 0.8f, 0.2f, 0.9f));",
+      "count": 1,
+      "category": "legacydebt",
+      "reason": "A custom-painter colour on the choreography stage. Painter palettes become USS custom properties in the dense-surface phase; recorded here so that move is visible when it happens."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/Choreographer/ChoreographerWindow.cs",
+      "kind": "hardcoded-color",
+      "line": "Fill(p, r, new Color(0.3f, 0.7f, 1f, 0.12f));",
+      "count": 1,
+      "category": "legacydebt",
+      "reason": "A custom-painter colour on the choreography stage. Painter palettes become USS custom properties in the dense-surface phase; recorded here so that move is visible when it happens."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/Choreographer/ChoreographerWindow.cs",
+      "kind": "hardcoded-color",
+      "line": "Poly(p, new[] { new Vector2(r.x, r.y), new(r.xMax, r.y), new(r.xMax, r.yMax), new(r.x, r.yMax), new(r.x, r.y) }, Color.white, 1f);",
+      "count": 1,
+      "category": "legacydebt",
+      "reason": "A custom-painter colour on the choreography stage. Painter palettes become USS custom properties in the dense-surface phase; recorded here so that move is visible when it happens."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/Choreographer/ChoreographerWindow.cs",
+      "kind": "hardcoded-color",
+      "line": "Poly(p, new[] { pos, tip }, new Color(1, 1, 1, 0.7f), 1.5f);",
+      "count": 1,
+      "category": "legacydebt",
+      "reason": "A custom-painter colour on the choreography stage. Painter palettes become USS custom properties in the dense-surface phase; recorded here so that move is visible when it happens."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/Choreographer/ChoreographerWindow.cs",
+      "kind": "hardcoded-color",
+      "line": "Poly(p, pts.ToArray(), new Color(0.4f, 0.8f, 1f, 0.5f), 1.5f);",
+      "count": 1,
+      "category": "legacydebt",
+      "reason": "A custom-painter colour on the choreography stage. Painter palettes become USS custom properties in the dense-surface phase; recorded here so that move is visible when it happens."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/Choreographer/ChoreographerWindow.cs",
+      "kind": "hardcoded-color",
+      "line": "Poly(p, pts.ToArray(), new Color(1f, 0.8f, 0.2f, 0.35f), 1.5f);",
+      "count": 1,
+      "category": "legacydebt",
+      "reason": "A custom-painter colour on the choreography stage. Painter palettes become USS custom properties in the dense-surface phase; recorded here so that move is visible when it happens."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/Choreographer/ChoreographerWindow.cs",
+      "kind": "hardcoded-color",
+      "line": "if (an.hasLauncher) Dot(p, N2P(an.launcher), 12f, new Color(0.3f, 0.95f, 0.4f));",
+      "count": 1,
+      "category": "legacydebt",
+      "reason": "A custom-painter colour on the choreography stage. Painter palettes become USS custom properties in the dense-surface phase; recorded here so that move is visible when it happens."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/Choreographer/ChoreographerWindow.cs",
+      "kind": "hardcoded-color",
+      "line": "if (an.hasTarget) Dot(p, N2P(an.target), 12f, new Color(0.95f, 0.3f, 0.3f));",
+      "count": 1,
+      "category": "legacydebt",
+      "reason": "A custom-painter colour on the choreography stage. Painter palettes become USS custom properties in the dense-surface phase; recorded here so that move is visible when it happens."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/Choreographer/ChoreographerWindow.cs",
+      "kind": "hardcoded-color",
+      "line": "var axis = new Color(1, 1, 1, 0.08f);",
+      "count": 1,
+      "category": "legacydebt",
+      "reason": "A custom-painter colour on the choreography stage. Painter palettes become USS custom properties in the dense-surface phase; recorded here so that move is visible when it happens."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/Choreographer/ChoreographerWindow.cs",
+      "kind": "hardcoded-color",
+      "line": "var c = w.indexColor ? IndexColor(ChoreographySampler.Ni(i, n)) : Color.white;",
+      "count": 2,
+      "category": "legacydebt",
+      "reason": "A custom-painter colour on the choreography stage. Painter palettes become USS custom properties in the dense-surface phase; recorded here so that move is visible when it happens."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/Choreographer/ChoreographerWindow.cs",
+      "kind": "hardcoded-color",
+      "line": "var c = w.indexColor ? IndexColor(ChoreographySampler.Ni(i, n)) : new Color(0.6f, 0.6f, 0.6f);",
+      "count": 1,
+      "category": "legacydebt",
+      "reason": "A custom-painter colour on the choreography stage. Painter palettes become USS custom properties in the dense-surface phase; recorded here so that move is visible when it happens."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/Choreographer/ChoreographerWindow.cs",
+      "kind": "hardcoded-color",
+      "line": "var c = w.indexColor ? IndexColor(ChoreographySampler.Ni(i, n)) : new Color(0.9f, 0.9f, 0.95f);",
+      "count": 1,
+      "category": "legacydebt",
+      "reason": "A custom-painter colour on the choreography stage. Painter palettes become USS custom properties in the dense-surface phase; recorded here so that move is visible when it happens."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/Choreographer/ChoreographerWindow.cs",
+      "kind": "inline-style",
+      "line": "img.style.height = size;",
+      "count": 1,
+      "category": "dynamicgeometry",
+      "reason": "Sized from the measured viewport and the authored zoom, so the value only exists at run time."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/Choreographer/ChoreographerWindow.cs",
+      "kind": "inline-style",
+      "line": "img.style.width = size;",
+      "count": 1,
+      "category": "dynamicgeometry",
+      "reason": "Sized from the measured viewport and the authored zoom, so the value only exists at run time."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/Lathe/LatheMoldWindow.cs",
+      "kind": "hardcoded-color",
+      "line": "previewSpec.previewBackground = new Color(0.16f, 0.16f, 0.18f, 1f);",
+      "count": 1,
+      "category": "content",
+      "reason": "Seeds the throwaway preview specification the way an authored asset would. It is preview subject matter, not window chrome."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/Lathe/LatheMoldWindow.cs",
+      "kind": "hardcoded-color",
+      "line": "previewSpec.solids.Add(new LatheSolid { name = \"Preview\", module = previewModule, tint = new Color(0.75f, 0.75f, 0.8f) });",
+      "count": 1,
+      "category": "content",
+      "reason": "Seeds the throwaway preview specification the way an authored asset would. It is preview subject matter, not window chrome."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/Lathe/LatheMoldWindow.cs",
+      "kind": "inline-style",
+      "line": "name.style.minWidth = 50f;",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "This row's name field deliberately keeps its inline sizing. The shared name class also restores flex-shrink, which this window never set, so adopting it would be a real change rather than a like-for-like move; migrate it with the rest of the row once that difference is accepted."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Editor/Lathe/LatheMoldWindow.cs",
+      "kind": "inline-style",
+      "line": "name.style.width = StyleKeyword.Auto;",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "This row's name field deliberately keeps its inline sizing. The shared name class also restores flex-shrink, which this window never set, so adopting it would be a real change rather than a like-for-like move; migrate it with the rest of the row once that difference is accepted."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
+      "kind": "inline-style",
+      "line": "b.style.height = size;",
+      "count": 1,
+      "category": "content",
+      "reason": "Icon button height follows the supplied icon size."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
+      "kind": "inline-style",
+      "line": "b.style.width = size;",
+      "count": 1,
+      "category": "content",
+      "reason": "Icon button width follows the supplied icon size."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
+      "kind": "inline-style",
+      "line": "buttons[i].style.marginBottom = 0f;",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Segmented controls clear inherited margin for their historical layout."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
+      "kind": "inline-style",
+      "line": "buttons[i].style.marginTop = 0f;",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Segmented controls clear inherited margin for their historical layout."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
+      "kind": "inline-style",
+      "line": "col.style.width = width;",
+      "count": 2,
+      "category": "dynamicgeometry",
+      "reason": "Column width is supplied by the caller."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
+      "kind": "inline-style",
+      "line": "if (height >= 0f) f.style.height = height;",
+      "count": 2,
+      "category": "compatibility",
+      "reason": "Explicit caller height preserves the legacy factory contract."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
+      "kind": "inline-style",
+      "line": "if (left != null) left.style.width = initialLeftWidth; // what the drag itself writes",
+      "count": 1,
+      "category": "state",
+      "reason": "Split view restores the persisted drag width."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
+      "kind": "inline-style",
+      "line": "if (px >= 0f) v.style.height = px; // Explicit spacing remains a caller contract.",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Explicit caller spacing preserves the legacy spacer contract."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
+      "kind": "inline-style",
+      "line": "if (px >= 0f) v.style.width = px; // Explicit spacing remains a caller contract.",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Explicit caller spacing preserves the legacy spacer contract."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
+      "kind": "inline-style",
+      "line": "if (sliderWidth >= 0f) slider.style.width = sliderWidth;",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Explicit caller sliderWidth preserves the MinMax factory's legacy width parameter."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
+      "kind": "inline-style",
+      "line": "if (totalHeight > 0f) buttons[i].style.height = totalHeight / options.Length;",
+      "count": 1,
+      "category": "dynamicgeometry",
+      "reason": "Segment height is calculated from the requested total height."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
+      "kind": "inline-style",
+      "line": "if (width >= 0f) d.style.width = width;",
+      "count": 2,
+      "category": "compatibility",
+      "reason": "Explicit caller width preserves the legacy divider contract."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
+      "kind": "inline-style",
+      "line": "if (width >= 0f) f.style.width = width;",
+      "count": 5,
+      "category": "compatibility",
+      "reason": "Explicit caller width preserves the legacy factory contract."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
+      "kind": "inline-style",
+      "line": "if (width >= 0f) f.style.width = width;",
+      "count": 3,
+      "category": "compatibility",
+      "reason": "Explicit caller width preserves the legacy overload contract."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
+      "kind": "inline-style",
+      "line": "if (width >= 0f) s.style.width = width;",
+      "count": 2,
+      "category": "compatibility",
+      "reason": "Explicit caller width preserves the legacy overload contract."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
+      "kind": "inline-style",
+      "line": "if (width >= 0f) s.style.width = width; // Explicit legacy override; omitted width belongs to USS.",
+      "count": 2,
+      "category": "compatibility",
+      "reason": "Explicit caller width preserves the legacy overload contract."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
+      "kind": "inline-style",
+      "line": "it.style.marginBottom = StyleKeyword.Null;",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Control reset restores stylesheet-owned spacing."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
+      "kind": "inline-style",
+      "line": "s.style.width = width;",
+      "count": 2,
+      "category": "dynamicgeometry",
+      "reason": "Spacer width is supplied by the caller."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
+      "kind": "inline-style",
+      "line": "t.style.height = size;",
+      "count": 1,
+      "category": "content",
+      "reason": "Texture element height follows the supplied asset size."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
+      "kind": "inline-style",
+      "line": "t.style.width = size;",
+      "count": 1,
+      "category": "content",
+      "reason": "Texture element width follows the supplied asset size."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
+      "kind": "inline-style",
+      "line": "v.style.backgroundImage = Background.FromTexture2D(tex);",
+      "count": 1,
+      "category": "content",
+      "reason": "The caller-provided texture is content, not a theme color."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
+      "kind": "inline-style",
+      "line": "v.style.height = size;",
+      "count": 1,
+      "category": "content",
+      "reason": "Image element height follows the supplied asset size."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
+      "kind": "inline-style",
+      "line": "v.style.width = size;",
+      "count": 1,
+      "category": "content",
+      "reason": "Image element width follows the supplied asset size."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
+      "kind": "inline-style",
+      "line": "ve.style.height = height;",
+      "count": 1,
+      "category": "dynamicgeometry",
+      "reason": "Sized element height is supplied by the caller."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/Zui.cs",
+      "kind": "inline-style",
+      "line": "ve.style.width = width;",
+      "count": 1,
+      "category": "dynamicgeometry",
+      "reason": "Sized element width is supplied by the caller."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiBox.cs",
+      "kind": "inline-style",
+      "line": "tog.style.marginLeft = indent;",
+      "count": 1,
+      "category": "dynamicgeometry",
+      "reason": "Nested toggle indentation depends on the current depth."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiColumnFlow.cs",
+      "kind": "inline-style",
+      "line": "_columns[i].style.marginLeft = i > 0 ? _resolvedGutter : 0f;",
+      "count": 1,
+      "category": "dynamicgeometry",
+      "reason": "Existing columns receive the resolved live gutter."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiColumnFlow.cs",
+      "kind": "inline-style",
+      "line": "col.style.marginLeft = index > 0 ? _resolvedGutter : 0f;",
+      "count": 1,
+      "category": "dynamicgeometry",
+      "reason": "New columns receive the resolved live gutter."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiColumnFlow.cs",
+      "kind": "inline-style",
+      "line": "k.style.marginBottom = StyleKeyword.Null;",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Column-flow reset returns bottom margin ownership to USS."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiColumnFlow.cs",
+      "kind": "inline-style",
+      "line": "k.style.marginRight = StyleKeyword.Null;",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Column-flow reset returns right margin ownership to USS."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiColumnFlow.cs",
+      "kind": "inline-style",
+      "line": "u.style.marginBottom = StyleKeyword.Null;",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Column-flow reset returns bottom margin ownership to USS."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiEnvelopePresentation.cs",
+      "kind": "hardcoded-color",
+      "line": "background = def.background != null ? def.background.GetColorA(sheet) : Color.clear,",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Clear fallback preserves a null legacy envelope background."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiEnvelopePresentation.cs",
+      "kind": "hardcoded-color",
+      "line": "borderColor = def.border != null ? def.border.color.GetColorA(sheet) : Color.clear,",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Clear fallback preserves a null legacy envelope border."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiMicroMinMax.cs",
+      "kind": "hardcoded-color",
+      "line": "Color _resolvedFillLeft = new Color(28f / 255f, 44f / 255f, 78f / 255f, 0.92f);",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Legacy fallback used before stylesheet resolution or when optional custom property is absent; USS already owns the styled value."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiMicroMinMax.cs",
+      "kind": "hardcoded-color",
+      "line": "Color _resolvedFillRight = new Color(70f / 255f, 120f / 255f, 200f / 255f, 0.85f);",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Legacy fallback used before stylesheet resolution or when optional custom property is absent; USS already owns the styled value."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiMicroMinMax.cs",
+      "kind": "hardcoded-color",
+      "line": "Color _resolvedTrackColor = new Color(0f, 0f, 0f, 0.30f);",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Legacy fallback used before stylesheet resolution or when optional custom property is absent; USS already owns the styled value."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiMicroMinMax.cs",
+      "kind": "hardcoded-color",
+      "line": "public Color FillLeft = new Color(28f / 255f, 44f / 255f, 78f / 255f, 0.92f);",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Public default keeps existing caller-defined min-max appearance."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiMicroMinMax.cs",
+      "kind": "hardcoded-color",
+      "line": "public Color FillRight = new Color(70f / 255f, 120f / 255f, 200f / 255f, 0.85f);",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Public default keeps existing caller-defined min-max appearance."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiMicroMinMax.cs",
+      "kind": "hardcoded-color",
+      "line": "public Color TrackColor = new Color(0f, 0f, 0f, 0.30f);",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Public default keeps existing caller-defined min-max appearance."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiMicroSlider.cs",
+      "kind": "hardcoded-color",
+      "line": "Color _resolvedFillLeft = new Color(28f / 255f, 44f / 255f, 78f / 255f, 0.92f);",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Legacy fallback used before stylesheet resolution or when optional custom property is absent; USS already owns the styled value."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiMicroSlider.cs",
+      "kind": "hardcoded-color",
+      "line": "Color _resolvedFillRight = new Color(70f / 255f, 120f / 255f, 200f / 255f, 0.85f);",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Legacy fallback used before stylesheet resolution or when optional custom property is absent; USS already owns the styled value."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiMicroSlider.cs",
+      "kind": "hardcoded-color",
+      "line": "Color _resolvedTrackColor = new Color(0f, 0f, 0f, 0.30f);",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Legacy fallback used before stylesheet resolution or when optional custom property is absent; USS already owns the styled value."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiMicroSlider.cs",
+      "kind": "hardcoded-color",
+      "line": "public Color FillLeft = new Color(28f / 255f, 44f / 255f, 78f / 255f, 0.92f);",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Public default keeps existing caller-defined slider appearance."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiMicroSlider.cs",
+      "kind": "hardcoded-color",
+      "line": "public Color FillRight = new Color(70f / 255f, 120f / 255f, 200f / 255f, 0.85f);",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Public default keeps existing caller-defined slider appearance."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiMicroSlider.cs",
+      "kind": "hardcoded-color",
+      "line": "public Color TrackColor = new Color(0f, 0f, 0f, 0.30f);",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Public default keeps existing caller-defined slider appearance."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiPopover.cs",
+      "kind": "inline-style",
+      "line": "_scrim.style.paddingLeft = 0; _scrim.style.paddingRight = 0;",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Detached popover scrim must clear host padding for full-overlay placement."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiPopover.cs",
+      "kind": "inline-style",
+      "line": "_scrim.style.paddingTop = 0; _scrim.style.paddingBottom = 0;",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Detached popover scrim must clear host padding for full-overlay placement."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiPopover.cs",
+      "kind": "inline-style",
+      "line": "if (_opt.maxWidth > 0f) _panel.style.maxWidth = _opt.maxWidth;",
+      "count": 1,
+      "category": "dynamicgeometry",
+      "reason": "Popover maximum width comes from the opening options."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiPopover.cs",
+      "kind": "inline-style",
+      "line": "if (_opt.minWidth > 0f) _panel.style.minWidth = _opt.minWidth;",
+      "count": 1,
+      "category": "dynamicgeometry",
+      "reason": "Popover minimum width comes from the opening options."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiReflect.cs",
+      "kind": "inline-style",
+      "line": "f.style.width = width;",
+      "count": 1,
+      "category": "dynamicgeometry",
+      "reason": "Reflected field width is supplied by the caller."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSerialized.cs",
+      "kind": "inline-style",
+      "line": "f.style.width = width;",
+      "count": 1,
+      "category": "dynamicgeometry",
+      "reason": "Serialized field width is supplied by the caller."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSerialized.cs",
+      "kind": "inline-style",
+      "line": "if (width > 0f) pf.style.width = width;",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Explicit serialized-property width preserves the legacy API."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinBandSliders.cs",
+      "kind": "inline-style",
+      "line": "_bars[i].style.left = x; _bars[i].style.width = bw;",
+      "count": 1,
+      "category": "dynamicgeometry",
+      "reason": "Band width follows the current plotting rectangle."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinBandSliders.cs",
+      "kind": "inline-style",
+      "line": "_baseLine.style.height = _baselineThickness;",
+      "count": 1,
+      "category": "dynamicgeometry",
+      "reason": "Baseline thickness is the resolved live paint metric."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinBandSliders.cs",
+      "kind": "inline-style",
+      "line": "c.style.left = x; c.style.width = bw; c.style.height = _capThickness; c.style.top = v > _max ? 0f : h - _capThickness;",
+      "count": 1,
+      "category": "dynamicgeometry",
+      "reason": "Out-of-range cap position and size follow the current band geometry."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinBandSliders.cs",
+      "kind": "inline-style",
+      "line": "f.style.left = x; f.style.width = bw;",
+      "count": 1,
+      "category": "dynamicgeometry",
+      "reason": "Band fill width follows the current plotting rectangle."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinBandSliders.cs",
+      "kind": "inline-style",
+      "line": "f.style.top = Mathf.Min(yv, yBase); f.style.height = Mathf.Max(1f, Mathf.Abs(yBase - yv));",
+      "count": 1,
+      "category": "dynamicgeometry",
+      "reason": "Band fill height follows the live value and baseline."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinBandSliders.cs",
+      "kind": "inline-style",
+      "line": "hv.style.left = x; hv.style.width = bw;",
+      "count": 1,
+      "category": "dynamicgeometry",
+      "reason": "Hover overlay width follows the current plotting rectangle."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinEnvelope.cs",
+      "kind": "hardcoded-color",
+      "line": "Dotted(p2, dotted, Color.Lerp(style.curveColor, Color.white, style.dottedWhiteMix), Px(Mathf.Max(style.curveThickness, style.dottedMinWidth)));",
+      "count": 1,
+      "category": "state",
+      "reason": "Dotted curve color is derived from the resolved theme curve color."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinEnvelope.cs",
+      "kind": "hardcoded-color",
+      "line": "Ellipse(p2, c, Mathf.Max(ex, 1f), Mathf.Max(ey, 1f), new Color(style.curveColor.r, style.curveColor.g, style.curveColor.b, style.uncertaintyFillAlpha),",
+      "count": 1,
+      "category": "state",
+      "reason": "Uncertainty fill derives RGB from the resolved curve color and theme alpha."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinEnvelope.cs",
+      "kind": "hardcoded-color",
+      "line": "FillRect(p2, box, new Color(1f, 1f, 1f, style.selectionBoxFillAlpha));",
+      "count": 1,
+      "category": "state",
+      "reason": "Selection overlay alpha is resolved from the presentation profile."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinEnvelope.cs",
+      "kind": "hardcoded-color",
+      "line": "new Color(style.curveColor.r, style.curveColor.g, style.curveColor.b, style.uncertaintyStrokeAlpha), Px(style.uncertaintyStrokeThickness));",
+      "count": 1,
+      "category": "state",
+      "reason": "Uncertainty stroke derives RGB from the resolved curve color and theme alpha."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinMinMax.cs",
+      "kind": "inline-style",
+      "line": "_fieldOne.style.width = per * 2f + 4f;",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Configured valueWidth preserves the min-max field sizing API."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinMinMax.cs",
+      "kind": "inline-style",
+      "line": "e.style.marginLeft = float.IsNaN(w) ? 0f : -w * 0.5f;",
+      "count": 1,
+      "category": "dynamicgeometry",
+      "reason": "Thumb centering margin derives from measured thumb width."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinMinMax.cs",
+      "kind": "inline-style",
+      "line": "e.style.width = Length.Percent(Mathf.Max(0f, b01 - a01) * 100f);",
+      "count": 1,
+      "category": "dynamicgeometry",
+      "reason": "Fill width is the live normalized interval."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinMinMax.cs",
+      "kind": "inline-style",
+      "line": "f.style.width = per;",
+      "count": 1,
+      "category": "compatibility",
+      "reason": "Configured valueWidth preserves the min-max field sizing API."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinRangeSlider.cs",
+      "kind": "inline-style",
+      "line": "e.style.left = r.x; e.style.top = r.y; e.style.width = Mathf.Max(0f, r.width); e.style.height = Mathf.Max(0f, r.height);",
+      "count": 1,
+      "category": "dynamicgeometry",
+      "reason": "Interaction overlay tracks the measured visible range rectangle."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinSlider.cs",
+      "kind": "inline-style",
+      "line": "_fill.style.width = Length.Percent(t * 100f);",
+      "count": 1,
+      "category": "dynamicgeometry",
+      "reason": "Slider fill width is the live normalized value."
+    },
+    {
+      "path": "Assets/Packages/Laubrary/Zui/Toolkit/ZuiSkinSlider.cs",
+      "kind": "inline-style",
+      "line": "_rest.style.width = Length.Percent((1f - t) * 100f);",
+      "count": 1,
+      "category": "dynamicgeometry",
+      "reason": "Slider remainder width is the live normalized value."
+    }
   ]
 }

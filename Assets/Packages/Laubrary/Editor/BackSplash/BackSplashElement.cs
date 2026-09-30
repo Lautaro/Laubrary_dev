@@ -39,10 +39,10 @@ namespace Laubrary.BackSplash.Editor
             pickingMode = PickingMode.Ignore;
             // The clip. BackSplashPainter uses GUI.BeginClip for the same reason: a zoomed-in image must not
             // paint outside the viewport it belongs to.
-            style.overflow = Overflow.Hidden;
+            AddToClassList("lau-tool-shell__clip");
 
             _image = new VisualElement { pickingMode = PickingMode.Ignore };
-            _image.style.position = Position.Absolute;
+            _image.AddToClassList("lau-tool-shell__overlay");
             Add(_image);
 
             // The image rect is a fraction of the VIEW, so it can only be placed once the view has a size.

@@ -186,27 +186,21 @@ namespace Laubrary.Choreographer.Editor
 
         protected override void BuildAsset(VisualElement root, Choreography asset)
         {
-            root.style.flexGrow = 1f;
+            Z.AttachTool(rootVisualElement, "choreographer");
+            root.AddToClassList("lau-tool-shell");
 
             infoLabel = Z.Text("", ZuiText.Small, "Cached path length and the dancer count currently previewed.");
             root.Add(infoLabel);
             RefreshInfoLabel();
 
             var split = new VisualElement();
-            split.style.flexDirection = FlexDirection.Row;
-            split.style.flexGrow = 1f;
-            split.style.alignItems = Align.Stretch;
-            split.style.minHeight = 0f;   // flexbox: content height must not become a floor, or the column overflows the window
+            split.AddToClassList("lau-tool-shell__split");   // min-height 0: content height must not become a floor, or the column overflows the window
             root.Add(split);
 
             var left = new VisualElement();
-            left.style.width = 320f;
-            left.style.flexShrink = 0f;
-            left.style.marginRight = 4f;
-            left.style.minHeight = 0f;
+            left.AddToClassList("lau-tool-shell__side--fixed");
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.flexGrow = 1f;
-            scroll.style.minHeight = 0f;
+            scroll.AddToClassList("lau-tool-shell__scroll");
             BuildControls(scroll.contentContainer);
             left.Add(scroll);
             left.Add(BuildTransport());   // pinned under the list
@@ -548,7 +542,7 @@ namespace Laubrary.Choreographer.Editor
             {
                 w = window;
                 AddToClassList("zui-stage");
-                style.overflow = Overflow.Hidden;
+                AddToClassList("lau-tool-shell__clip");
                 tooltip = "The live stage. Drag orange handles to shape the path; drag the green/red markers to move " +
                     "the launcher/target; click the curve to insert a point; right-click a handle to remove it.";
 
@@ -568,7 +562,7 @@ namespace Laubrary.Choreographer.Editor
             {
                 var l = new Label(text);
                 l.AddToClassList("zui-text--small");
-                l.style.position = Position.Absolute;
+                l.AddToClassList("lau-tool-shell__overlay");
                 l.pickingMode = PickingMode.Ignore;
                 Add(l);
                 return l;
@@ -650,7 +644,7 @@ namespace Laubrary.Choreographer.Editor
                 while (spritePool.Count < wanted)
                 {
                     var img = new Image { scaleMode = ScaleMode.ScaleToFit };
-                    img.style.position = Position.Absolute;
+                    img.AddToClassList("lau-tool-shell__overlay");
                     img.pickingMode = PickingMode.Ignore;
                     Add(img);
                     spritePool.Add(img);

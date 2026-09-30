@@ -46,13 +46,13 @@ namespace Laubrary.Lathe.Editor
 
         protected override void BuildAsset(VisualElement root, LatheMoldAsset asset)
         {
-            root.style.flexGrow = 1f;
-            root.style.minHeight = 0f;
+            Z.AttachTool(rootVisualElement, "lathe-mold");
+            root.AddToClassList("lau-tool-shell");
 
             var left = new ScrollView(ScrollViewMode.Vertical);
-            left.style.minWidth = 320f;
+            left.AddToClassList("lau-tool-shell__side");
             var col = left.contentContainer;
-            col.style.flexGrow = 1f;
+            col.AddToClassList("lau-tool-shell__column");
 
             BuildSettingsBox(col, asset);
             BuildNodeList(col, asset);
@@ -60,13 +60,11 @@ namespace Laubrary.Lathe.Editor
                 col.Add(BuildNodeBox(asset.nodes[nodeSel]));
 
             var rightPane = new VisualElement();
-            rightPane.style.flexGrow = 1f;
-            rightPane.style.minWidth = 260f;
-            rightPane.style.minHeight = 0f;
+            rightPane.AddToClassList("lau-tool-shell__pane");
 
             preview = new IMGUIContainer(() => DrawPreview(asset));
-            preview.style.flexGrow = 1f;
-            preview.style.minHeight = 260f;
+            preview.AddToClassList("lau-tool-shell__preview");
+            preview.AddToClassList("lau-tool-shell__preview--tall");
             preview.AddToClassList("zui-stage");
             preview.tooltip = "Drag to orbit, scroll to zoom.";
             rightPane.Add(preview);
@@ -119,10 +117,10 @@ namespace Laubrary.Lathe.Editor
             bool sel = i == nodeSel;
             var row = new VisualElement();
             row.AddToClassList("zui-row");
-            if (sel) row.style.backgroundColor = new Color(0.35f, 0.55f, 0.95f, 0.18f);
+            row.EnableInClassList("zui-row--selected", sel);
 
             var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder this node.");
-            grip.style.width = 16f;
+            grip.AddToClassList("zui-row__grip");
             ZuiReorder.MakeGrip(grip, row, nodeListHost, (from, to) =>
             {
                 Dirty(() =>

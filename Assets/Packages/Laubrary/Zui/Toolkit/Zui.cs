@@ -27,7 +27,7 @@ namespace Laubrary.Zui
     {
         // ── stylesheet ──────────────────────────────────────────────────────────────
         static StyleSheet _sheet;
-        static readonly string[] PresentationSheetNames = { "ZuiPilotStandard", "ZuiPilotBands", "ZuiPilotEnvelope", "ZuiPresentation", "ZuiFoundationContainers", "ZuiFoundationFields", "ZuiFoundationLayout", "ZuiFoundationFlow", "ZuiFoundationAssetBrowser" };
+        static readonly string[] PresentationSheetNames = { "ZuiPilotStandard", "ZuiPilotBands", "ZuiPilotEnvelope", "ZuiPresentation", "ZuiFoundationContainers", "ZuiFoundationFields", "ZuiFoundationLayout", "ZuiFoundationFlow", "ZuiFoundationAssetBrowser", "ZuiFoundationToolShell" };
         static readonly System.Collections.Generic.Dictionary<string, StyleSheet> PresentationSheets = new System.Collections.Generic.Dictionary<string, StyleSheet>();
 
         /// The shared ZuiToolkit.uss, located by search so the path works both in this dev host
@@ -68,6 +68,20 @@ namespace Laubrary.Zui
                     if (presentation != null && !root.styleSheets.Contains(presentation)) root.styleSheets.Add(presentation);
                 }
             }
+        }
+
+        /// <summary>
+        /// Tags a tool window's root with its own class, so a later sheet can restyle that one tool's controls
+        /// through ordinary selector specificity (`.lau-tool-lathe .zui-slider { … }`) without the controls
+        /// themselves ever knowing which tool they are in. Safe to call on every rebuild.
+        /// </summary>
+        /// <param name="root">The window's root element.</param>
+        /// <param name="tool">The tool's own name, lower case, without the `lau-tool-` prefix.</param>
+        public static void AttachTool(VisualElement root, string tool)
+        {
+            if (root == null || string.IsNullOrEmpty(tool)) return;
+            string cls = "lau-tool-" + tool;
+            if (!root.ClassListContains(cls)) root.AddToClassList(cls);
         }
 
         // ── containers ──────────────────────────────────────────────────────────────

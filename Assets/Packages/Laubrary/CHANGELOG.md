@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### UI separation, phase 3 — five smaller tools moved onto the shared stylesheet (T-0551)
+
+Five tool surfaces (BackSplash, Cabinets, Choreographer, Lathe, Lathe Mold and Tapestry) no longer write their layout onto their own elements. The shape they all shared — a full-height shell, a controls side beside a growing preview, a strip of chrome that must not shrink, and list rows with a drag handle, a stretching name and a picked-row wash — now lives once in a new shared stylesheet under names that say what each part is. Each of those windows also tags its own outermost element, so a later stylesheet can restyle one tool's controls without any control knowing which tool it is in.
+
+Appearance and behaviour are unchanged, and that was measured rather than assumed: fifteen window states were photographed and their whole element trees measured, before and after, with the change temporarily set aside and restored inside one editor session. Thirteen of the fifteen are identical down to the pixel. The other two are the Choreographer with an asset loaded, which animates while it is open; a run compared against itself reproduces the same difference, so it is the window moving, not the change.
+
+Pyre and Chunks were deliberately left alone and captured as they stand, to serve as the acceptance reference for the next phase. Zounds keeps its own Colorful skin and is not part of that reference.
+
+Full write-up, including what was deliberately left in code and why: `Documentation/UISeparation/PHASE3.md`.
+
 ### Pyre — owner feedback fixes and the explosion-study features (T-0542..T-0549)
 
 Commits are prefixed `Pyre (feedback):` and `Pyre (study):`. Every new feature is opt-in; with it off, existing pyres render exactly as before (each measured pixel-identical).

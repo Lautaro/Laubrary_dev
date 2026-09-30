@@ -39,11 +39,11 @@ namespace Laubrary.Lathe.Editor
 
             var row = new VisualElement();
             row.AddToClassList("zui-row");
-            if (sel) row.style.backgroundColor = new Color(0.35f, 0.55f, 0.95f, 0.18f);
+            row.EnableInClassList("zui-row--selected", sel);
 
             var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder this solid in the stack.");
-            grip.style.unityFontStyleAndWeight = FontStyle.Bold;
-            grip.style.width = 16f;
+            grip.AddToClassList("zui-row__grip");
+            grip.AddToClassList("zui-row__grip--bold");
             ZuiReorder.MakeGrip(grip, row, listHost, (from, to) =>
             {
                 Dirty(() =>
@@ -68,10 +68,7 @@ namespace Laubrary.Lathe.Editor
 
             var name = Z.TextInput(solid.name ?? "", "This solid's name — rename it right here.",
                 v => Dirty(() => solid.name = v), 0f);
-            name.style.width = StyleKeyword.Auto;
-            name.style.flexGrow = 1f;
-            name.style.flexShrink = 1f;
-            name.style.minWidth = 50f;
+            name.AddToClassList("zui-row__name");
             name.AddToClassList("zui-audit-allow-stretch");
             name.RegisterCallback<PointerDownEvent>(_ => { if (solidSel != i) { solidSel = i; Rebuild(); } });
             row.Add(name);

@@ -67,12 +67,11 @@ namespace Laubrary.BackSplash.Editor
 
         protected override void BuildAsset(VisualElement root, BackSplash bs)
         {
-            root.style.flexGrow = 1f;
-            root.style.minHeight = 0f;
+            Z.AttachTool(rootVisualElement, "backsplash");
+            root.AddToClassList("lau-tool-shell");
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.flexGrow = 1f;
-            scroll.style.minHeight = 0f;
+            scroll.AddToClassList("lau-tool-shell__scroll");
             var body = scroll.contentContainer;
 
             const string cameraTip = "Solid colour a real Camera clears to behind the image (drawn as a flat fill by tools that paint their preview instead).";
@@ -105,8 +104,7 @@ namespace Laubrary.BackSplash.Editor
             {
                 tooltip = "The live backdrop. Left-drag to reposition the image (one undo step per drag)."
             };
-            previewContainer.style.height = 140f;
-            previewContainer.style.flexShrink = 0f;
+            previewContainer.AddToClassList("lau-tool-shell__preview--band");
             body.Add(previewContainer);
 
             root.Add(scroll);

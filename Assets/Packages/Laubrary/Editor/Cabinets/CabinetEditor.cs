@@ -38,7 +38,8 @@ namespace Laubrary.Cabinets.Editor
             // Z.Attach FIRST on any root ZUI does not own, or every control renders unstyled.
             var block = new VisualElement();
             Z.Attach(block);
-            block.style.paddingTop = 6f;
+            Z.AttachTool(block, "cabinets");
+            block.AddToClassList("lau-tool-shell__inspector-block");
             root.Add(block);
 
             var section = Z.Section("Fit",
