@@ -72,9 +72,10 @@ namespace Laubrary.Pyre.Editor
             if (s == null) return;
             if (Event.current.type == EventType.Repaint) lastPreviewView = view;
 
-            // CherryFraming's blank-during-delay sentinel (frame == -1, see PyreWindow.CherryAdvanceOneBeat):
-            // just the backdrop, no frame texture, no overlay — the preview holds visually empty for the gap.
-            if (s.cherryEnabled && frame < 0)
+            // The blank-during-Delay sentinel (frame == -1): set between loop iterations by both the plain loop and
+            // CherryFraming (see PyreWindow.Tick / CherryAdvanceOneBeat). Just the backdrop, no frame texture, no
+            // overlay — the preview holds visually empty for the gap.
+            if (frame < 0)
             {
                 if (Event.current.type == EventType.Repaint)
                 {

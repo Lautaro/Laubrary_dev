@@ -5,6 +5,8 @@
 // design's Zolumn dependency is dropped. SLICE 1: the Shape section + a live preview. Swarm and Modifiers
 // sections follow. Deliberately a separate menu item and asset type from real Pyre, which is untouched.
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using Laubrary.AssetKit.Editor;
 using Laubrary.BackSplash.Editor;
 using Laubrary.Zui;
@@ -202,9 +204,32 @@ namespace Laubrary.Pyre.Editor
                 }
                 else
                 {
-                    int next = (frame + 1) % Mathf.Max(1, spec.frameCount);
-                    if (!IsFrameReady(next)) { acc = 1f; break; }
-                    frame = next;
+                    // Plain loop. After the last frame, Delay holds the preview BLANK (frame -1, the same sentinel
+                    // CherryFraming uses) for previewDelay seconds before restarting at frame 0.
+                    int fc = Mathf.Max(1, spec.frameCount);
+                    if (cherryDelayActive)
+                    {
+                        cherryDelayBeatsLeft -= 1f;
+                        if (cherryDelayBeatsLeft > 0f) { frame = -1; }
+                        else
+                        {
+                            if (!IsFrameReady(0)) { cherryDelayBeatsLeft = 1f; acc = 1f; break; }
+                            cherryDelayActive = false;
+                            frame = 0;
+                        }
+                    }
+                    else if (frame >= fc - 1 && spec.previewDelay > 0f)
+                    {
+                        cherryDelayActive = true;
+                        cherryDelayBeatsLeft = Mathf.Max(1f, spec.previewDelay * Mathf.Max(1f, spec.previewFps));
+                        frame = -1;
+                    }
+                    else
+                    {
+                        int next = (Mathf.Max(0, frame) + 1) % fc;
+                        if (!IsFrameReady(next)) { acc = 1f; break; }
+                        frame = next;
+                    }
                 }
                 acc -= 1f;
                 advanced = true;
@@ -550,7 +575,7 @@ namespace Laubrary.Pyre.Editor
                     "Size of each frame tile in the contact sheet, in pixels (32–256). Only changes how the strip is "
                     + "laid out — the frames aren't re-rendered.",
                     v => DirtyRepaintOnly(() => s.previewStripSize = Mathf.Clamp(v, 32f, 256f)), 150f,
-                    showValue: true, decimals: 0));
+                    showValue: true, decimals: 0, defaultValue: Def(nameof(Pyre.previewStripSize))));
             // GIF export (G3): the button opens a Save dialog and writes an animated GIF; the packed scale field is
             // its nearest-neighbour upscale. The scale is a cosmetic spec field — record Undo + SetDirty, no
             // re-render (it doesn't touch the preview frames).
@@ -568,7 +593,7 @@ namespace Laubrary.Pyre.Editor
                     Undo.RecordObject(spec, "Edit Pyre Plus");
                     s.previewGifScale = Mathf.Clamp(Mathf.RoundToInt(v), 1, 8);
                     EditorUtility.SetDirty(spec);
-                }, 150f, showValue: true, decimals: 0));
+                }, 150f, showValue: true, decimals: 0, defaultValue: Def(nameof(Pyre.previewGifScale))));
             kids.Add(Z.Toggle("GIF dither",
                 "GIF transparency is one bit — every pixel is either fully opaque or fully invisible, so a soft "
                 + "edge has to be kept or dropped. On (recommended) stipples the partly-transparent band so soft "
@@ -613,11 +638,11 @@ namespace Laubrary.Pyre.Editor
                 "Magnification of the single-frame preview (canvas pixels × zoom). Does not affect the filmstrip or "
                 + "the baked frames.",
                 v => DirtyRepaintOnly(() => s.previewZoom = Mathf.Max(1f, Mathf.Round(v))), 150f,
-                showValue: true, decimals: 0);
+                showValue: true, decimals: 0, defaultValue: Def(nameof(Pyre.previewZoom)));
             var speedMs = Z.MicroSlider("Speed", s.previewFps, 1f, 30f,
                 "Preview playback rate in frames per second — how fast the loop plays (also the exported GIF's rate).",
                 v => DirtyRepaintOnly(() => s.previewFps = Mathf.Clamp(Mathf.Round(v), 1f, 30f)), 150f,
-                showValue: true, decimals: 0);
+                showValue: true, decimals: 0, defaultValue: Def(nameof(Pyre.previewFps)));
             frameReadout = Z.Text("", ZuiText.Subtle, "The frame currently shown / the total frame count.");
             // Reserved-width and hidden (not removed) when idle, so its appearance never reflows the row.
             fillReadout = Z.Text("", ZuiText.Subtle, "");
@@ -629,7 +654,7 @@ namespace Laubrary.Pyre.Editor
             var delayMs = Z.MicroSlider("Delay", s.previewDelay, 0f, 5f,
                 "Seconds the preview holds BLANK between loop iterations before restarting. 0 = no gap.",
                 v => DirtyRepaintOnly(() => { s.previewDelay = Mathf.Clamp(v, 0f, 5f); ResetCherryPlayback(); }), 150f,
-                showValue: true, decimals: 2);
+                showValue: true, decimals: 2, defaultValue: Def(nameof(Pyre.previewDelay)));
             transportHost.Add(WrapRow(zoomMs, speedMs, delayMs, frameReadout, fillReadout));
 
             RefreshTransportReadout();
@@ -642,6 +667,7 @@ namespace Laubrary.Pyre.Editor
         {
             if (spec == null) return;
             frame = Mathf.Clamp(f, 0, Mathf.Max(0, spec.frameCount - 1));
+            cherryDelayActive = false;   // a seek ends any blank Delay gap
             playing = false;
             if (playButton != null) playButton.text = "▶ Play";
             preview?.MarkDirtyRepaint();
@@ -725,7 +751,7 @@ namespace Laubrary.Pyre.Editor
                 "Square canvas size in pixels. Every pixel-ranged dial (Shape size, shape Scale, offsets, "
                 + "Streak length…) scales its maximum off this, so releasing the drag refreshes those ranges.",
                 v => Dirty(() => s.canvasSize = Mathf.Clamp(Mathf.RoundToInt(v), 16, 256)), 150f,
-                showValue: true, decimals: 0);
+                showValue: true, decimals: 0, defaultValue: Def(nameof(Pyre.canvasSize)));
             sizeSlider.RegisterCallback<PointerUpEvent>(_ => ScheduleRangeRebuild());
             // PPU is stamped onto every sprite this Pyre bakes, so two Pyres carrying different values render
             // their pixels at different apparent sizes side by side (T-0383). Auto — the default, for assets
@@ -799,7 +825,7 @@ namespace Laubrary.Pyre.Editor
             var framesSlider = Z.MicroSlider("Frames", s.frameCount, 1f, 64f,
                 "How many frames the animation bakes to.",
                 v => Dirty(() => s.frameCount = Mathf.Clamp(Mathf.RoundToInt(v), 1, 64)), 150f,
-                showValue: true, decimals: 0);
+                showValue: true, decimals: 0, defaultValue: Def(nameof(Pyre.frameCount)));
             framesSlider.RegisterCallback<PointerUpEvent>(_ => ScheduleRangeRebuild());
             box.Add(WrapRow(
                 framesSlider,
@@ -1062,7 +1088,7 @@ namespace Laubrary.Pyre.Editor
                         "Which of the four mask channels (0–3) this layer's coverage writes into. A Draw layer above "
                         + "picks the same number in its Clip-by to be stencilled by this layer.",
                         v => Dirty(() => layer.matteChannel = Mathf.Clamp(Mathf.RoundToInt(v), 0, 3)), 150f,
-                        showValue: true, decimals: 0),
+                        showValue: true, decimals: 0, defaultValue: Def(nameof(PyreLayer.matteChannel))),
                     Z.Field("Combine",
                         "How this layer's coverage merges with anything an earlier matte layer already wrote into "
                         + "the same channel. Max = union; Add = accumulate; Subtract = carve out.",
@@ -1167,10 +1193,10 @@ namespace Laubrary.Pyre.Editor
                         Z.MicroSlider("Relief", layer.heightRelief, 0f, 8f,
                             "How steeply the fused field's slope carves the surface into lit highlights and shadow. "
                             + "0 = a flat gradient-mapped field with no relief lighting.",
-                            v => Dirty(() => layer.heightRelief = v), 150f, showValue: true),
+                            v => Dirty(() => layer.heightRelief = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.heightRelief))),
                         Z.MicroSlider("Light angle", layer.heightLightAngle, 0f, 360f,
                             "Direction (degrees, screen plane) the relief light falls across the fused heightmap surface.",
-                            v => Dirty(() => layer.heightLightAngle = v), 150f, showValue: true)));
+                            v => Dirty(() => layer.heightLightAngle = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.heightLightAngle)))));
             }
             return box;
         }
@@ -1524,13 +1550,13 @@ namespace Laubrary.Pyre.Editor
                 solid.Add(Z.HGroup(
                     Z.MicroSlider("Sides", s.gemSides, 3f, 8f,
                         "Girdle vertex count — 4 is the classic octahedral gem; more sides make a rounder crystal.",
-                        v => Dirty(() => s.gemSides = Mathf.Clamp(Mathf.RoundToInt(v), 3, 8)), 150f, showValue: true, decimals: 0),
+                        v => Dirty(() => s.gemSides = Mathf.Clamp(Mathf.RoundToInt(v), 3, 8)), 150f, showValue: true, decimals: 0, defaultValue: Def(nameof(PyreLayer.gemSides))),
                     Z.MicroSlider("Crown", s.gemCrown, 0.2f, 2.5f,
                         "Crown height (the top point) as a fraction of the gem's radius.",
-                        v => Dirty(() => s.gemCrown = v), 150f, showValue: true),
+                        v => Dirty(() => s.gemCrown = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.gemCrown))),
                     Z.MicroSlider("Pavilion", s.gemPavilion, 0.2f, 2.5f,
                         "Pavilion depth (the bottom point) as a fraction of the gem's radius.",
-                        v => Dirty(() => s.gemPavilion = v), 150f, showValue: true)));
+                        v => Dirty(() => s.gemPavilion = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.gemPavilion)))));
                 shapeBody.Add(solid);
             }
             else if (s.shapeForm == ShapeForm.Box || s.shapeForm == ShapeForm.Pyramid || s.shapeForm == ShapeForm.Can)
@@ -1543,13 +1569,13 @@ namespace Laubrary.Pyre.Editor
                     Z.MicroSlider("Aspect", s.solidAspect, 0.3f, 3f,
                         "Height as a fraction of width (1 = as tall as wide). Box height, Pyramid apex height, Can "
                         + "height.",
-                        v => Dirty(() => s.solidAspect = v), 150f, showValue: true),
+                        v => Dirty(() => s.solidAspect = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.solidAspect))),
                 };
                 if (s.shapeForm != ShapeForm.Can)
                     geo.Add(Z.MicroSlider("Depth", s.solidDepth, 0.2f, 2f,
                         "Depth (front-to-back) as a fraction of width. Box: its third dimension; Pyramid: its base "
                         + "front-to-back (1 = the square base).",
-                        v => Dirty(() => s.solidDepth = v), 150f, showValue: true));
+                        v => Dirty(() => s.solidDepth = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.solidDepth))));
                 solid.Add(WrapRow(geo.ToArray()));
                 shapeBody.Add(solid);
             }
@@ -1560,7 +1586,7 @@ namespace Laubrary.Pyre.Editor
                 solid.Add(Z.MicroSlider("Inner", s.ringInner, 0.1f, 0.92f,
                     "Inner radius as a fraction of the outer radius — the size of the ring's hole (0.1 = a nearly "
                     + "solid disc, 0.92 = a thin hoop).",
-                    v => Dirty(() => s.ringInner = v), 150f, showValue: true));
+                    v => Dirty(() => s.ringInner = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.ringInner))));
                 shapeBody.Add(solid);
             }
 
@@ -1596,20 +1622,20 @@ namespace Laubrary.Pyre.Editor
                 Z.MicroSlider("Ambient", s.gemAmbient, 0f, 1f,
                     "Non-directional BASE light on every face (it doesn't come from a direction). Near zero keeps the "
                     + "solid contrasty; raise it to flatten the shading.",
-                    v => Dirty(() => s.gemAmbient = v), 150f, showValue: true),
+                    v => Dirty(() => s.gemAmbient = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.gemAmbient))),
                 Z.MicroSlider("Diffuse", s.gemDiffuse, 0f, 3f,
                     "The key light's DIFFUSE strength on the faces it hits (the Lambert term). 0 = only Ambient + "
                     + "Specular light the faces; 2.1 is the default look. This is the dial that was missing — with it "
                     + "at 0 and Ambient/Specular at 0 the faces finally go dark instead of staying diffuse-lit.",
-                    v => Dirty(() => s.gemDiffuse = v), 150f, showValue: true),
+                    v => Dirty(() => s.gemDiffuse = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.gemDiffuse))),
                 Z.MicroSlider("Specular", s.gemSpecular, 0f, 2f,
                     "Strength of the tight highlight (the bright hot spot) where the key light reflects — pair it with "
                     + "Spec power for the hotspot's tightness.",
-                    v => Dirty(() => s.gemSpecular = v), 150f, showValue: true),
+                    v => Dirty(() => s.gemSpecular = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.gemSpecular))),
                 Z.MicroSlider("Spec power", s.gemSpecPower, 2f, 128f,
                     "TIGHTNESS of the specular hotspot — higher = a smaller, sharper glint; lower spreads it into a "
                     + "broad sheen. (The old fixed 48 was so tight the highlight rarely showed — lower it to see it.)",
-                    v => Dirty(() => s.gemSpecPower = v), 150f, showValue: true),
+                    v => Dirty(() => s.gemSpecPower = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.gemSpecPower))),
                 SlotFill("Spec fill", "Fill for the specular highlight — Solid, or a gradient/spatial fill (alpha-capable).",
                     s.gemSpecularFill)));
             shapeBody.Add(light);
@@ -1619,7 +1645,7 @@ namespace Laubrary.Pyre.Editor
             lines.Add(WrapRow(
                 Z.MicroSlider("Line width", s.gemLineWidth, 0f, 3f,
                     "Width of the hard facet edge lines in pixels (0 = no lines). The lines catch the key light.",
-                    v => Dirty(() => s.gemLineWidth = v), 150f, showValue: true),
+                    v => Dirty(() => s.gemLineWidth = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.gemLineWidth))),
                 SlotFill("Line fill", "Fill for the facet edge lines — Solid, or a gradient/spatial fill (alpha-capable).",
                     s.gemLineFill)));
             shapeBody.Add(lines);
@@ -1705,7 +1731,7 @@ namespace Laubrary.Pyre.Editor
                 Z.MicroSlider("Size px", s.sparkleSize, 1f, 4f,
                     "Size of each lit sparkle block in pixels (1 = single pixels, up to 4).",
                     v => Dirty(() => s.sparkleSize = Mathf.Clamp(Mathf.RoundToInt(v), 1, 4)), 150f,
-                    showValue: true, decimals: 0)));
+                    showValue: true, decimals: 0, defaultValue: Def(nameof(PyreLayer.sparkleSize)))));
         }
 
         // Sprite form rows — no Edge row. The stamped image picker + the tint toggle, packed.
@@ -1746,11 +1772,11 @@ namespace Laubrary.Pyre.Editor
                     "Where the particle sits ALONG the streak, from tail to tip: 0 = at the TAIL (the streak grows "
                     + "forward), 0.5 = CENTRED (Length grows both ways, so it never slides off the particle), 1 = at "
                     + "the TIP (grows backward).",
-                    v => Dirty(() => s.streakAnchor = v), 150f, showValue: true),
+                    v => Dirty(() => s.streakAnchor = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.streakAnchor))),
                 Z.MicroSlider("Tip", s.streakSoftTip, 0f, 1f,
                     "End softness — how much of EACH end (forward and back) feathers out to transparent (0 = hard "
                     + "flat ends; 1 = the streak fades from its centre to both tips).",
-                    v => Dirty(() => s.streakSoftTip = v), 150f, showValue: true)));
+                    v => Dirty(() => s.streakSoftTip = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.streakSoftTip)))));
 
             shapeBody.Add(EdgeRow(s,
                 "Soft sides (1) vs hard pixel edges (0) — feathers the streak's two long SIDES (both ends are "
@@ -1779,7 +1805,7 @@ namespace Laubrary.Pyre.Editor
                 Z.MicroSlider("Arms", s.starArms, 2f, 20f,
                     "How many points the star has (2–20). 5 = the classic five-pointed star; 6 = a Star of David.",
                     v => Dirty(() => s.starArms = Mathf.Clamp(Mathf.RoundToInt(v), 2, 20)), 150f,
-                    showValue: true, decimals: 0),
+                    showValue: true, decimals: 0, defaultValue: Def(nameof(PyreLayer.starArms))),
                 Val("Skew °",
                     "Swirls the arms by rotating the inner (valley) vertices, in degrees, over the particle's own "
                     + "life — 0 = straight symmetric arms, ± twists them into a pinwheel. (Clamped so a valley "
@@ -1811,7 +1837,7 @@ namespace Laubrary.Pyre.Editor
                 + "An even count rests on a flat edge (a square sits flat, not a diamond); an odd count points a vertex "
                 + "up (an upright triangle/pentagon). Radius is set by Size (px), above.",
                 v => Dirty(() => s.polygonSides = Mathf.Clamp(Mathf.RoundToInt(v), 3, 12)), 150f,
-                showValue: true, decimals: 0));
+                showValue: true, decimals: 0, defaultValue: Def(nameof(PyreLayer.polygonSides))));
 
             shapeBody.Add(EdgeRow(s,
                 "Soft rim (1) vs a hard pixel edge (0) — feathers the polygon's whole outline inward along each ray."));
@@ -1847,16 +1873,16 @@ namespace Laubrary.Pyre.Editor
             box.Add(Z.HGroup(
                 Z.MicroSlider("Speed", s.playbackSpeed, 0.05f, 4f,
                     "Multiplies the prefab's ParticleSystem simulation speed. 1 = authored speed.",
-                    v => Dirty(() => s.playbackSpeed = v), 150f, showValue: true),
+                    v => Dirty(() => s.playbackSpeed = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.playbackSpeed))),
                 Z.MicroSlider("Scale", s.playbackScale, 0.05f, 5f,
                     "Uniform scale applied to the instantiated prefab (also scales each ParticleSystem's start size).",
-                    v => Dirty(() => s.playbackScale = v), 150f, showValue: true)));
+                    v => Dirty(() => s.playbackScale = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.playbackScale)))));
 
             box.Add(Z.MicroSlider("Zoom", s.playbackZoom, 0.25f, 4f,
                 "Preview framing. The camera automatically frames the dense body of the effect (a full-extent fit "
                 + "would shrink the fire to a dot to fit the smoke column and stray sparks); this zooms in above 1 "
                 + "or pulls back below 1 from that fit — pull back to bring a tall smoke plume into frame.",
-                v => { Dirty(() => s.playbackZoom = v); RefreshPlayback3DPreview(); }, 150f, showValue: true));
+                v => { Dirty(() => s.playbackZoom = v); RefreshPlayback3DPreview(); }, 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.playbackZoom))));
 
             box.Add(Z.HGroup(
                 Z.Field("Tint",
@@ -1869,7 +1895,7 @@ namespace Laubrary.Pyre.Editor
                     "Strength of the bloom/glow pass. VFX packs author fire far brighter than white and ship a "
                     + "Bloom volume with their demo scene — without a glow pass the same particles read as flat, "
                     + "clipped colour. 1 matches the pack's own demo-scene setting; 0 turns the glow off.",
-                    v => { Dirty(() => s.playbackGlow = v); RefreshPlayback3DPreview(); }, 150f, showValue: true)));
+                    v => { Dirty(() => s.playbackGlow = v); RefreshPlayback3DPreview(); }, 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.playbackGlow)))));
 
             box.Add(Z.HGroup(
                 Z.MicroSlider("Scrub", s.playbackScrub01, 0f, 1f,
@@ -1878,7 +1904,7 @@ namespace Laubrary.Pyre.Editor
                     v => Dirty(() => s.playbackScrub01 = v), 150f, showValue: true),
                 Z.MicroSlider("Loop (s)", s.playbackLoopDuration, 0.1f, 10f,
                     "How long (seconds) one preview loop is — the range Scrub maps across, and the length Play loops over.",
-                    v => Dirty(() => s.playbackLoopDuration = v), 150f, showValue: true, decimals: 2)));
+                    v => Dirty(() => s.playbackLoopDuration = v), 150f, showValue: true, decimals: 2, defaultValue: Def(nameof(PyreLayer.playbackLoopDuration)))));
 
             box.Add(Z.HGroup(
                 Z.Toggle("Pixelated preview", "Switch the preview from the live 3D render to a downsampled, "
@@ -1953,7 +1979,7 @@ namespace Laubrary.Pyre.Editor
                 Z.MicroSlider("Arms", s.fireArms, 1f, 8f,
                     "How many flame arms radiate from the centre. 1 = a single directional flame; Pinch opens the "
                     + "cold gaps between arms, so a 3-arm fire is a 3-point star, not a filled triangle.",
-                    v => Dirty(() => s.fireArms = Mathf.Clamp(Mathf.RoundToInt(v), 1, 8)), 150f, showValue: true, decimals: 0),
+                    v => Dirty(() => s.fireArms = Mathf.Clamp(Mathf.RoundToInt(v), 1, 8)), 150f, showValue: true, decimals: 0, defaultValue: Def(nameof(PyreLayer.fireArms))),
                 Z.Field("Mode",
                     "Mirror = every arm emits identically (kaleidoscope symmetry). Vary = each arm gets its own seed, "
                     + "so the flames genuinely differ while sharing these dials.",
@@ -2028,13 +2054,13 @@ namespace Laubrary.Pyre.Editor
                 Z.MicroSlider("Steps", s.fireSteps, 1f, 8f,
                     "Simulation steps per frame — more = smoother, faster-evolving motion for the same frame count "
                     + "(it does not change the flame's shape, only how far it gets each frame).",
-                    v => Dirty(() => s.fireSteps = Mathf.Clamp(Mathf.RoundToInt(v), 1, 8)), 150f, showValue: true, decimals: 0),
+                    v => Dirty(() => s.fireSteps = Mathf.Clamp(Mathf.RoundToInt(v), 1, 8)), 150f, showValue: true, decimals: 0, defaultValue: Def(nameof(PyreLayer.fireSteps))),
                 Z.MicroSlider("Threshold", s.fireThreshold, 0f, 0.9f,
                     "Heat below this reads as empty — raise it to carve a crisper silhouette.",
-                    v => Dirty(() => s.fireThreshold = v), 150f, showValue: true)));
+                    v => Dirty(() => s.fireThreshold = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.fireThreshold)))));
             box.Add(Z.MicroSlider("Contrast", s.fireContrast, 0.05f, 2f,
                 "Contrast on the gradient lookup — below 1 pushes more of the flame toward the hot end of the ramp.",
-                v => Dirty(() => s.fireContrast = v), 150f, showValue: true));
+                v => Dirty(() => s.fireContrast = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.fireContrast))));
 
             shapeBody.Add(box);
         }
@@ -2074,7 +2100,7 @@ namespace Laubrary.Pyre.Editor
                 Z.MicroSlider("Arms", s.fireballArms, 1f, 12f,
                     "Radial wedges the flame is mirrored into. 1 = a plain outward burst; more give a kaleidoscope "
                     + "explosion — a 5-arm fireball is a 5-point star. Sharpness opens the cold gaps between arms.",
-                    v => Dirty(() => s.fireballArms = Mathf.Clamp(Mathf.RoundToInt(v), 1, 12)), 150f, showValue: true, decimals: 0),
+                    v => Dirty(() => s.fireballArms = Mathf.Clamp(Mathf.RoundToInt(v), 1, 12)), 150f, showValue: true, decimals: 0, defaultValue: Def(nameof(PyreLayer.fireballArms))),
                 Z.Field("Mode",
                     "Mirror = alternate wedges are reflected, so neighbours meet at a seam (a true kaleidoscope). "
                     + "Repeat = each wedge is the same, just rotated. Only matters with more than one arm.",
@@ -2105,10 +2131,10 @@ namespace Laubrary.Pyre.Editor
             box.Add(Z.HGroup(
                 Z.MicroSlider("Threshold", s.fireballThreshold, 0f, 0.9f,
                     "Heat below this reads as empty — raise it to carve a crisper silhouette.",
-                    v => Dirty(() => s.fireballThreshold = v), 150f, showValue: true),
+                    v => Dirty(() => s.fireballThreshold = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.fireballThreshold))),
                 Z.MicroSlider("Contrast", s.fireballContrast, 0.05f, 2f,
                     "Contrast on the gradient lookup — below 1 pushes more of the flame toward the hot end of the ramp.",
-                    v => Dirty(() => s.fireballContrast = v), 150f, showValue: true)));
+                    v => Dirty(() => s.fireballContrast = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.fireballContrast)))));
 
             shapeBody.Add(box);
         }
@@ -2146,7 +2172,7 @@ namespace Laubrary.Pyre.Editor
             box.Add(Z.MicroSlider("Spacing", s.textSpacing, 0.6f, 1.6f,
                 "Letter advance multiplier for the centred line layout — below 1 tightens the letters, above 1 "
                 + "spreads them apart. (Only affects the swarm-off line; a swarm places letters by its own shape.)",
-                v => Dirty(() => s.textSpacing = v), 150f, showValue: true));
+                v => Dirty(() => s.textSpacing = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.textSpacing))));
 
             // Sweep is a wrapped MiniRadio (was a Dropdown/context-menu): three modes read as radio buttons that
             // fold onto a second line in a narrow column. On its own row (the labels are long), with Angle below.
@@ -2162,7 +2188,7 @@ namespace Laubrary.Pyre.Editor
             box.Add(Z.MicroSlider("Angle", s.textGradientAngle, -180f, 180f,
                 "Rotates the fill axis. 0 = vertical bottom→top for per-char gradient; 0 = left→right across "
                 + "the line for text gradient. (Per-char step is index-based and ignores it.)",
-                v => Dirty(() => s.textGradientAngle = v), 150f, showValue: true));
+                v => Dirty(() => s.textGradientAngle = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.textGradientAngle))));
 
             box.Add(FillRow("Fill",
                 "The letter fill — a solid colour, a gradient (swept per the Sweep mode above), or a texture "
@@ -2173,7 +2199,7 @@ namespace Laubrary.Pyre.Editor
             box.Add(Z.MicroSlider("Border px", s.textBorderWidth, 0f, 4f,
                 "Letter outline width in screen pixels (0 = no border). Drawn as an SDF band just inside each "
                 + "glyph edge, coloured from the Border fill below.",
-                v => Dirty(() => s.textBorderWidth = v), 150f, showValue: true));
+                v => Dirty(() => s.textBorderWidth = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.textBorderWidth))));
             box.Add(FillRow("Border",
                 "The letter outline fill, sampled the same way as the Fill (solid / gradient / texture). A single "
                 + "colour reads as a solid outline.",
@@ -2186,7 +2212,7 @@ namespace Laubrary.Pyre.Editor
             if (s.textSolid)
                 box.Add(Z.MicroSlider("Depth", s.textDepth, 0.05f, 1f,
                     "Extrusion depth as a fraction of the character size — how deep the 3D letter boxes are.",
-                    v => Dirty(() => s.textDepth = v), 150f, showValue: true));
+                    v => Dirty(() => s.textDepth = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.textDepth))));
 
             shapeBody.Add(box);
         }
@@ -2298,11 +2324,11 @@ namespace Laubrary.Pyre.Editor
                 baseRow.Add(Z.MicroSlider("Count", s.swarmCount, 2f, 200f,
                     "How many particles the swarm places (at least 2).",
                     v => Dirty(() => s.swarmCount = Mathf.Clamp(Mathf.RoundToInt(v), 2, 200)), 150f,
-                    showValue: true, decimals: 0));
+                    showValue: true, decimals: 0, defaultValue: Def(nameof(PyreLayer.swarmCount))));
             baseRow.Add(Z.MicroSlider("Particle life", s.swarmParticleLife, 0.05f, 1f,
                 "How long each particle lives, as a fraction of the timeline. Its colour/alpha/size envelopes "
                 + "always play over ITS OWN life, not the timeline.",
-                v => Dirty(() => s.swarmParticleLife = v), 150f, showValue: true));
+                v => Dirty(() => s.swarmParticleLife = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.swarmParticleLife))));
             swarmBody.Add(Z.HGroup(baseRow.ToArray()));
 
             // Timing mode (G3): Window spreads the spawns across a fraction of the timeline; Frames spawns the first
@@ -2383,12 +2409,12 @@ namespace Laubrary.Pyre.Editor
                 + "rings for a disc, a dedicated lattice for each polygon shape. 1 = today's uniform-random "
                 + "scatter. In between blends the two. Path mode ignores this — its placement is already "
                 + "ordered, by outline progress.",
-                v => Dirty(() => s.swarmChaos = v), 150f, showValue: true));
+                v => Dirty(() => s.swarmChaos = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.swarmChaos))));
             distRow.Add(Z.MicroSlider("Spawn order", s.swarmSpawnChaos, 0f, 1f,
                 "The ORDER particles are revealed in, independent of where they sit: 0 = neighbour order — "
                 + "spawns hop from one spot to the next-closest one. 1 = a full shuffle — which spot appears "
                 + "next is decoupled from spatial position.",
-                v => Dirty(() => s.swarmSpawnChaos = v), 150f, showValue: true));
+                v => Dirty(() => s.swarmSpawnChaos = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.swarmSpawnChaos))));
             bool showReverse = s.swarmSpawnMode == SwarmSpawnMode.Area && s.swarmShapeKind != SwarmShapeKind.Line;
             if (showReverse)
                 distRow.Add(Z.Toggle("Reverse", s.swarmShapeKind == SwarmShapeKind.Circle
@@ -2448,7 +2474,7 @@ namespace Laubrary.Pyre.Editor
                     evenRow.Add(Z.MicroSlider("Spread", s.swarmPathSpread, 0f, 1f,
                         "How much of the outline the evenly-spaced string covers (1 = the whole path start-to-end; "
                         + "smaller packs the particles into a shorter arc).",
-                        v => Dirty(() => s.swarmPathSpread = v), 150f, showValue: true));
+                        v => Dirty(() => s.swarmPathSpread = v), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.swarmPathSpread))));
                 swarmBody.Add(WrapRow(evenRow.ToArray()));
             }
 
@@ -2486,7 +2512,7 @@ namespace Laubrary.Pyre.Editor
                 Z.MicroSlider("Snap", s.shapeScaleSnap, 0f, spec.canvasSize * 0.25f,
                     "Round the evaluated scale to the nearest multiple of this, so placements land on "
                     + "fixed radii. 0 = off.",
-                    v => Dirty(() => s.shapeScaleSnap = Mathf.Clamp(v, 0f, spec.canvasSize * 0.25f)), 150f, showValue: true)));
+                    v => Dirty(() => s.shapeScaleSnap = Mathf.Clamp(v, 0f, spec.canvasSize * 0.25f)), 150f, showValue: true, defaultValue: Def(nameof(PyreLayer.shapeScaleSnap)))));
             // The spawner's rotation as the SAME three-axis Turn/Tilt/Roll stack the Solid box uses — one animatable
             // Val per axis (rather than a yaw×pitch 2D pad), so it reads consistently AND, prefixed "Spawner", is
             // unmistakable from the live Swarm spin box below. These are what the user pictured as "a stack of 3
@@ -2573,15 +2599,15 @@ namespace Laubrary.Pyre.Editor
                 fuse.Add(Z.MicroSlider("Threshold", s.fuseThreshold, 0.02f, 2f,
                     "Iso-threshold. Lower = the particles fuse more eagerly (fatter necks, one shape); higher = "
                     + "distinct lobes pull apart.",
-                    v => Dirty(() => s.fuseThreshold = v), 170f, showValue: true));
+                    v => Dirty(() => s.fuseThreshold = v), 170f, showValue: true, defaultValue: Def(nameof(PyreLayer.fuseThreshold))));
                 fuse.Add(Z.MicroSlider("Shade range", s.fuseShadeRange, 0.05f, 4f,
                     "How much field above the threshold spans the Fill gradient (surface → core). Smaller = a "
                     + "punchier, brighter core.",
-                    v => Dirty(() => s.fuseShadeRange = v), 170f, showValue: true));
+                    v => Dirty(() => s.fuseShadeRange = v), 170f, showValue: true, defaultValue: Def(nameof(PyreLayer.fuseShadeRange))));
                 fuse.Add(Z.MicroSlider("Softness", s.fuseSoftness, 0.01f, 1f,
                     "Edge softness — the alpha AA band across the iso-surface (internally capped at the Threshold). "
                     + "0.01 ≈ crisp.",
-                    v => Dirty(() => s.fuseSoftness = v), 170f, showValue: true));
+                    v => Dirty(() => s.fuseSoftness = v), 170f, showValue: true, defaultValue: Def(nameof(PyreLayer.fuseSoftness))));
                 swarmBody.Add(fuse);
             }
             else if (s.coalesce == LayerCoalesce.Ramp)
@@ -2607,10 +2633,10 @@ namespace Laubrary.Pyre.Editor
                 ramp.Add(Z.MicroSlider("Fusion", s.rampFusion, 0f, 1f,
                     "How eagerly neighbouring domes MELT into one mass. 0 = a hard max (distinct orbs); higher = a "
                     + "smoother, heavier merged cloud.",
-                    v => Dirty(() => s.rampFusion = v), 170f, showValue: true));
+                    v => Dirty(() => s.rampFusion = v), 170f, showValue: true, defaultValue: Def(nameof(PyreLayer.rampFusion))));
                 ramp.Add(Z.MicroSlider("Coverage", s.rampCoverage, 0.1f, 24f,
                     "Opacity gain — how much combined density+heat becomes alpha. Higher = a more solid, opaque cloud.",
-                    v => Dirty(() => s.rampCoverage = v), 170f, showValue: true));
+                    v => Dirty(() => s.rampCoverage = v), 170f, showValue: true, defaultValue: Def(nameof(PyreLayer.rampCoverage))));
                 ramp.Add(Z.Toggle("Relief lighting",
                     "Light the cloud's relief from the height field's local slope — carved highlights and shadow. "
                     + "Off = a flat gradient cloud.",
@@ -2620,16 +2646,16 @@ namespace Laubrary.Pyre.Editor
                     ramp.Add(Z.MicroSlider("Relief", s.rampRelief, 0.01f, 8f,
                         "How steeply the height slope bends the surface normal. Higher = a more sharply carved, "
                         + "bumpier lit surface.",
-                        v => Dirty(() => s.rampRelief = v), 170f, showValue: true));
+                        v => Dirty(() => s.rampRelief = v), 170f, showValue: true, defaultValue: Def(nameof(PyreLayer.rampRelief))));
                     ramp.Add(Z.MicroSlider("Light angle", s.rampLightAngle, 0f, 360f,
                         "The relief light's angle in degrees (screen plane) — which way the highlights fall across "
                         + "the cloud.",
-                        v => Dirty(() => s.rampLightAngle = v), 170f, showValue: true));
+                        v => Dirty(() => s.rampLightAngle = v), 170f, showValue: true, defaultValue: Def(nameof(PyreLayer.rampLightAngle))));
                 }
                 ramp.Add(Z.MicroSlider("Rim boil", s.rampRimScale, 0f, 1f,
                     "Surface-noise rim — deforms the shared cloud rim so neighbouring domes bulge/pinch together and "
                     + "read as ONE boiling mass instead of fused flat discs. 0 = a smooth rim.",
-                    v => Dirty(() => s.rampRimScale = v), 170f, showValue: true));
+                    v => Dirty(() => s.rampRimScale = v), 170f, showValue: true, defaultValue: Def(nameof(PyreLayer.rampRimScale))));
                 swarmBody.Add(ramp);
             }
         }
@@ -2638,6 +2664,58 @@ namespace Laubrary.Pyre.Editor
         static VisualElement WrapRow(params VisualElement[] kids)
         {
             var r = Z.Row(kids); r.style.flexWrap = Wrap.Wrap; return r;
+        }
+
+        // ── double-click reset targets ───────────────────────────────────────────────────────────────────
+        // A slider resets on double-click only when told what to reset to. The answer is always "what a fresh
+        // layer / fresh pyre / fresh CherryFraming slot starts with", i.e. the field initializers, so read them
+        // off one throwaway instance of each type (made once per editor session, never saved).
+        static PyreLayer s_freshLayer;
+        static Pyre s_freshSpec;
+        static CherryFrame s_freshCherry;
+        static FieldInfo[] s_layerValueFields;
+
+        /// The number field `name` starts at on a fresh PyreLayer, Pyre or CherryFrame (the three types never
+        /// share a field name). A curve/min-max default has no single number, so it yields null (no reset).
+        static float? Def(string name)
+        {
+            s_freshLayer ??= new PyreLayer();
+            s_freshCherry ??= new CherryFrame();
+            if (s_freshSpec == null)
+            {
+                s_freshSpec = ScriptableObject.CreateInstance<Pyre>();
+                s_freshSpec.hideFlags = HideFlags.HideAndDontSave;
+            }
+            foreach (var probe in new object[] { s_freshLayer, s_freshSpec, s_freshCherry })
+            {
+                var f = probe.GetType().GetField(name, BindingFlags.Public | BindingFlags.Instance);
+                if (f == null) continue;
+                object dv = f.GetValue(probe);
+                if (dv is float fl) return fl;
+                if (dv is int i) return i;
+                if (dv is ZUIValue zv && zv.mode == ZUIValue.Mode.Static) return zv.staticValue;
+                // An animatable `<name>Anim` companion starts empty on a fresh layer (it is created on first
+                // edit from its plain legacy field) — that legacy field holds the real starting value.
+                if (dv == null && name.EndsWith("Anim")) return Def(name.Substring(0, name.Length - 4));
+                return null;
+            }
+            return null;
+        }
+
+        /// Reset target for an animatable value passed to Val: find which layer field holds this exact value
+        /// object and return that field's fresh Static number (null when not found or it starts as a curve).
+        float? DefFor(ZUIValue v)
+        {
+            if (v == null || spec == null) return null;
+            s_layerValueFields ??= typeof(PyreLayer).GetFields(BindingFlags.Public | BindingFlags.Instance)
+                .Where(f => f.FieldType == typeof(ZUIValue)).ToArray();
+            foreach (var layer in spec.layers)
+            {
+                if (layer == null) continue;
+                foreach (var f in s_layerValueFields)
+                    if (ReferenceEquals(f.GetValue(layer), v)) return Def(f.Name);
+            }
+            return null;
         }
 
         VisualElement Val(string label, string tooltip, ZUIValue v, float lo, float hi, bool cyclic = false)
@@ -2650,6 +2728,7 @@ namespace Laubrary.Pyre.Editor
                 cyclic = cyclic,   // a wrapping angle (rotation / spin) → offer the Cycles envelope generator
                 // Show where each bake frame lands on the curve (numbers thin out when frames are dense).
                 frameCount = spec != null ? spec.frameCount : 0,
+                staticDefault = DefFor(v),   // double-click reset target (the field's fresh-layer number)
             };
             return Z.Value(label, v, o, tooltip, () => MarkDirty(), () => Undo.RecordObject(spec, "Edit Pyre Plus"));
         }
@@ -2669,6 +2748,7 @@ namespace Laubrary.Pyre.Editor
                 controlWidth = 170f, grow = true,
                 indexMarkerCount = Mathf.Max(0, indexCount),
                 xAxisLabel = xAxisLabel, yAxisLabel = yAxisLabel,
+                staticDefault = DefFor(v),
             };
             return Z.Value(label, v, o, tooltip, () => MarkDirty(), () => Undo.RecordObject(spec, "Edit Pyre Plus"));
         }

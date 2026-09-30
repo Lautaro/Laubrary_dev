@@ -71,15 +71,15 @@ namespace Laubrary.Zui
             // T-0140 — packed 2-3 per row instead of six stacked full-width rows (caught live by a project
             // owner screenshot): these are all compact Z.Value rows (controlWidth 150), the same "share a
             // row, don't stack" rule already applied everywhere else in this codebase.
-            var hue = BuildVal("Hue",        _g.hueShiftAnim,   -1f, 1f, "Rotate the hue of the whole ramp (±1 = ±180°). Animatable over life.");
-            var sat = BuildVal("Saturation", _g.saturationAnim,  0f, 2f, "Multiply saturation across the ramp (1 = unchanged). Animatable over life.");
-            var bri = BuildVal("Brightness", _g.brightnessAnim,  0f, 2f, "Multiply brightness across the ramp (1 = unchanged). Animatable over life.");
-            var con = BuildVal("Contrast",   _g.contrastAnim,    0f, 2f, "Contrast around mid-grey (1 = unchanged). Animatable over life.");
+            var hue = BuildVal("Hue",        _g.hueShiftAnim,   -1f, 1f, 0f, "Rotate the hue of the whole ramp (±1 = ±180°). Animatable over life.");
+            var sat = BuildVal("Saturation", _g.saturationAnim,  0f, 2f, 1f, "Multiply saturation across the ramp (1 = unchanged). Animatable over life.");
+            var bri = BuildVal("Brightness", _g.brightnessAnim,  0f, 2f, 1f, "Multiply brightness across the ramp (1 = unchanged). Animatable over life.");
+            var con = BuildVal("Contrast",   _g.contrastAnim,    0f, 2f, 1f, "Contrast around mid-grey (1 = unchanged). Animatable over life.");
             // Phase gets a Y-axis colour legend (#9): at phase v the ramp origin shows the base colour at v, so the
             // envelope's vertical strip + tinted points read as "this phase lands on THIS colour". The whole-ramp
             // transforms (Hue/Sat/Brightness/Contrast) act on every stop at once, so a single "colour at value v" is
             // undefined for them — deliberately no strip there.
-            var pha = BuildVal("Phase",      _g.phaseAnim,       0f, 2f, "Scroll the ramp along its length, 0..2. 0→1 plays it FORWARD, 1→2 plays it "
+            var pha = BuildVal("Phase",      _g.phaseAnim,       0f, 2f, 0f, "Scroll the ramp along its length, 0..2. 0→1 plays it FORWARD, 1→2 plays it "
                                                                     + "back REVERSED, and 2 lands exactly where 0 did — so animating Phase over life (a rising Curve 0→2) "
                                                                     + "scrolls the gradient in a SEAMLESS loop, no jump, no shader. The mirrored second half is what makes "
                                                                     + "it smooth (the ramp mirrors instead of snapping from its end back to its start).",
@@ -94,11 +94,11 @@ namespace Laubrary.Zui
                 ? Z.MicroSlider("Bands", _g.quantiseSteps, 1, 16,
                     "How many discrete colour steps this palette samples from the ramp below. Purely a resolution "
                     + "knob — it never touches the ramp itself, so raising/lowering it and coming back loses nothing.",
-                    v => Mutate(() => _g.quantiseSteps = Mathf.Max(1, Mathf.RoundToInt(v))), decimals: 0, prefsKey: "grad.bands")
+                    v => Mutate(() => _g.quantiseSteps = Mathf.Max(1, Mathf.RoundToInt(v))), defaultValue: 1f, decimals: 0, prefsKey: "grad.bands")
                 : Z.MicroSlider("Quantise", _g.quantiseSteps, 0, 16,
                     "Snap the ramp to N discrete bands (0 = smooth) — the gradient Posterize. Not animatable (a shifting "
                     + "band count reads as flicker, not motion).",
-                    v => Mutate(() => _g.quantiseSteps = Mathf.RoundToInt(v)), decimals: 0, prefsKey: "grad.quantise");
+                    v => Mutate(() => _g.quantiseSteps = Mathf.RoundToInt(v)), defaultValue: 0f, decimals: 0, prefsKey: "grad.quantise");
             Adjust.Add(Z.HGroup(
                 quantiseCtrl,
                 Z.Toggle("Cycle", "This ramp wants to colour-cycle (a ZuiPaletteCycle driver advances the phase at runtime).",
@@ -113,13 +113,14 @@ namespace Laubrary.Zui
         // rows are hidden — a gradient transform is sampled over the 0..1 life with a fixed range, so they're noise
         // (matches Pyre's own Val()). Edits re-bake the Output preview. Returns the built control (T-0140 — was
         // "AddVal", adding itself straight into the parent; now the caller packs several into one Z.HGroup row).
-        VisualElement BuildVal(string label, ZUIValue v, float min, float max, string tip, Func<float, Color> yColor = null)
+        VisualElement BuildVal(string label, ZUIValue v, float min, float max, float neutral, string tip, Func<float, Color> yColor = null)
         {
             var o = new ZuiValueControl.Options
             {
                 controlWidth = 150f, hideCurveTiming = true, hideCurveRange = true, hideLiveReadout = true,
             };
             o.WithRange(min, max);
+            o.WithDefault(neutral);   // double-click reset = the value that leaves the ramp unchanged
             if (yColor != null) o.WithYColor(yColor);
             return Z.Value(label, v, o, tip,
                 () => { Refresh(); OnChanged?.Invoke(); },

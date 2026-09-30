@@ -209,6 +209,21 @@ namespace Laubrary.Zui
             catch { return null; }
         }
 
+        /// The Static number an animatable-value field (ZUIValue) holds on a fresh `ownerType`, or null when
+        /// no probe could be made or the fresh value is not in Static mode (a curve/min-max default has no
+        /// single number to reset to).
+        static float? DefaultStaticValueOf(Type ownerType, FieldInfo field)
+        {
+            var probe = DefaultProbe(ownerType);
+            if (probe == null) return null;
+            try
+            {
+                return field.GetValue(probe) is ZUIValue zv && zv.mode == ZUIValue.Mode.Static
+                    ? zv.staticValue : (float?)null;
+            }
+            catch { return null; }
+        }
+
         /// The same, one level deeper: the float inside a duck-typed wrapper field (a Rulesets RuleParam's
         /// `staticValue`) on a fresh owner. Null when either level is unavailable.
         static float? DefaultWrappedNumberOf(Type ownerType, FieldInfo field, PropertyInfo wrapperProp)
@@ -531,6 +546,10 @@ namespace Laubrary.Zui
                 // A value the effect rounds to a whole number must be AUTHORED in whole numbers, or the
                 // slider spends half its first unit doing nothing and then jumps a full step at once.
                 if (Attribute.IsDefined(field, typeof(ZUIWholeNumberAttribute))) vopt.decimals = 0;
+                // Double-click reset for an animatable value: the plain number the field starts at on a fresh
+                // owner. Only when that fresh value IS a plain number — a field that starts as a curve has no
+                // single number to go back to.
+                vopt.staticDefault = opt.DefaultFor?.Invoke(field) ?? DefaultStaticValueOf(owner.GetType(), field);
                 opt.ConfigureValue?.Invoke(field, vopt);
                 // A float→ZUIValue migration companion is conventionally named `<legacy>Value` (the frozen
                 // legacy float keeps the plain name) — strip the suffix so the label reads as the PARAM

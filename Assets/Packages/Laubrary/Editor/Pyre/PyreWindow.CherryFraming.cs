@@ -106,7 +106,7 @@ namespace Laubrary.Pyre.Editor
                     "Thumbnail size in the source/cherry grids below (32–256px). Only changes layout — frames "
                     + "aren't re-rendered.",
                     v => DirtyRepaintOnly(() => s.previewCherryStripSize = Mathf.Clamp(v, 32f, 256f)), 150f,
-                    showValue: true, decimals: 0),
+                    showValue: true, decimals: 0, defaultValue: Def(nameof(Pyre.previewCherryStripSize))),
                 Z.Button("+ Add selected", "Append every selected source frame to Cherry slots, in index order.",
                     () => AddSelectedSourceToCherry(s))));
             section.Add(sourceBox);
@@ -362,7 +362,7 @@ namespace Laubrary.Pyre.Editor
                     panel.Add(Z.MicroSlider("Source frame", first.sourceIndex, 0f, Mathf.Max(0, s.frameCount - 1),
                         "Which baked frame this slot plays (when MultiFrame is off).",
                         v => DirtyRepaintOnly(() => s.cherryFrames[i].sourceIndex = Mathf.Clamp(Mathf.RoundToInt(v), 0, Mathf.Max(0, s.frameCount - 1))),
-                        180f, showValue: true, decimals: 0));
+                        180f, showValue: true, decimals: 0, defaultValue: Def(nameof(CherryFrame.sourceIndex))));
 
                 panel.Add(Z.Toggle("Variable length",
                     "Randomise how many beats this slot holds each time it plays, between Min and Max below.",
@@ -372,13 +372,13 @@ namespace Laubrary.Pyre.Editor
                 panel.Add(Z.MicroSlider("Length ×", first.lengthMultiplier, 0.25f, 8f,
                     "Fixed beats this slot holds. 1 = normal. Ignored when Variable length is on.",
                     v => DirtyRepaintOnly(() => { foreach (var idx in indices) s.cherryFrames[idx].lengthMultiplier = v; }),
-                    180f, showValue: true));
+                    180f, showValue: true, defaultValue: Def(nameof(CherryFrame.lengthMultiplier))));
 
                 panel.Add(WrapRow(
                     Z.MicroSlider("Min", first.minLengthMultiplier, 0.25f, 8f, "Variable-length lower bound.",
-                        v => DirtyRepaintOnly(() => { foreach (var idx in indices) s.cherryFrames[idx].minLengthMultiplier = v; }), 100f, showValue: true),
+                        v => DirtyRepaintOnly(() => { foreach (var idx in indices) s.cherryFrames[idx].minLengthMultiplier = v; }), 100f, showValue: true, defaultValue: Def(nameof(CherryFrame.minLengthMultiplier))),
                     Z.MicroSlider("Max", first.maxLengthMultiplier, 0.25f, 8f, "Variable-length upper bound.",
-                        v => DirtyRepaintOnly(() => { foreach (var idx in indices) s.cherryFrames[idx].maxLengthMultiplier = v; }), 100f, showValue: true)));
+                        v => DirtyRepaintOnly(() => { foreach (var idx in indices) s.cherryFrames[idx].maxLengthMultiplier = v; }), 100f, showValue: true, defaultValue: Def(nameof(CherryFrame.maxLengthMultiplier)))));
 
                 panel.Add(Z.Toggle("MultiFrame",
                     "Pick a random source frame from this slot's own list, each time it plays, instead of a fixed source frame.",
