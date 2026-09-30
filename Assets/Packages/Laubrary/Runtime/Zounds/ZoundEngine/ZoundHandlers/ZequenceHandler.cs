@@ -417,11 +417,32 @@ namespace Laubrary.Zounds {
                 if (runtimeEntry.token != null) ExtendDuration(runtimeEntry.token.duration + runtimeEntry.delay);
             }
 
+            // Over when every track that played has ended. A track whose length cannot be known in advance (a Klip with
+            // live speed) declares a generous upper bound, and taking that as this Zequence's length kept it "playing"
+            // long after it went quiet: measured 2026-09-30 on the owner's Clop, a 26 s walk loop with live speed made the
+            // Zequence last 529 s, so its row in the browser kept flashing (T-0505). The tracks know when they end.
+            if (AllTracksEnded()) {
+                OnCompleteDuration();
+                return ZoundUpdateResult.Kill;
+            }
+
             ZoundUpdateResult nextTreatment = base.OnUpdate(deltaDspTime);
             if (nextTreatment != ZoundUpdateResult.Kill) {
                 UpdateChildrenMute();
             }
             return nextTreatment;
+        }
+
+        /// <summary>True when at least one track played and every track that played has ended by itself.</summary>
+        private bool AllTracksEnded() {
+            if (runtimeZoundEntries == null) return false;
+            bool any = false;
+            foreach (var re in runtimeZoundEntries) {
+                if (re.token == null) continue;              // not played (chance, or not the one picked)
+                any = true;
+                if (re.token.state != ZoundToken.State.Killed) return false;
+            }
+            return any;
         }
 
         private void UpdateChildrenMute() {
