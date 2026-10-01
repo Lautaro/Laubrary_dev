@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — non-destructive multitrack editing in the Zequence window (T-0558..T-0568)
+
+Commits are prefixed `Zounds (nondestructive-edit):`. A Zequence of placed, trimmed Klips is the non-destructive edit: no edit reads, writes or copies audio; the only thing that writes a file is an explicit Bake.
+
+- **Curves stay on their audio.** A curve that follows the waveform can be anchored to seconds in the source file instead of to "a fraction of the trim", so a point over a sound stays on it through any re-trim, split or slip. An older sound converts exactly on its first curve or trim edit (kept check 30); a sound nobody edits is left as it is. Preset-linked chains are never converted.
+- **One time window for every track.** A ruler, an overview strip with a draggable view box, Ctrl+wheel zoom around the pointer, wheel and middle-drag pan, Fit / zoom to selection / zoom to a track's whole source, and Follow (pages the view along with playback, off by default).
+- **Each track drawn as it really sounds.** Its length from the live play plan (trim or excerpt, pitch and time curves, stretch), the original audio's waveform at any zoom from an in-memory min/max summary, the part of the source it does not play dimmed where it would sound, the chain's tail as a band after the end, a per-play pitch range as an end band, markers saying where an out-of-view piece or playhead is, and one playhead per read head where it is really reading its source, beside a shared time cursor.
+- **Editing verbs.** Drag where you grab: the waveform selects, the thin top strip moves, an edge trims (the kept audio stays where it was), Alt-drag slips. Trim to selection (T), Untrim, Split (S), Delete (Delete), Copy / Cut / Paste (Ctrl+C/X/V), Own sound, and a Ripple toggle (off by default; a track sounding across the edit point stays and is marked). Every action is one undo step.
+- **A track can play its own excerpt of its Klip.** Pieces split from one sound share it and its effects, each playing its own part. A trim made in a Zequence never changes the sound anywhere else: a local Klip played by that track alone has its own trim edited; a library Klip, or one shared by pieces, gives the track its own excerpt. Removing or converting a track no longer deletes a local Klip another track still plays.
+- **Audition and Play from here.** Play only the selection (Space) through the live chains, once or looping; play the whole Zequence from a clicked moment, tracks already sounding starting part-way through their audio.
+- **Curves on the track.** The sound's own Volume, Pitch and Time curves are drawn over its audio and can be edited on the track (pick one on the track's chips); one track at a time can be focused to make it taller. The track's own volume curve is drawn dashed, because it belongs to the timeline and does not move with the audio.
+- **Bake.** The whole Zequence or the selected range to a new audio file and a new Klip, offline through the same voice code, tails included, at resting values or as a seeded random run; imported Decompress On Load. Render to Klip no longer renders Klips as a side effect.
+- Kept checks 31 (excerpts, play from here) and 32 (the verbs and the bake).
+
 ### Laumination Builder workspace and document safety
 
 - Added lazy rail thumbnails for unbaked standalone animations, separated preview from edit selection, made entry names update while typing, and corrected removal icons.

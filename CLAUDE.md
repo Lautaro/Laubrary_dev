@@ -101,6 +101,17 @@ Game code shapes a playing sound through its token: ZPOC values on modifiers (`t
 - **Amber means game code**, blue means a modulator. Do not reuse amber for anything else in the Zounds UI.
 - Settings that size a voice's memory (a delay's longest time) are deliberately left out of snapshots.
 
+### Non-destructive editing in a Zequence, as of 2026-10-01 — read before touching trims, curves or the Zequence window
+
+A Zequence of placed, trimmed Klips is the non-destructive edit; the design and the decisions taken for it are in `D:/Claude@GDrive/Zounds Non-Destructive Editing Research 2026-09-29.md` (section 13). Rules that are easy to break:
+
+- **A curve that follows the waveform says where its x axis is anchored** (`ZoundModifier.curveAnchor`): the trim (older sounds) or the source file's own seconds. Anything that reads or draws such a curve goes through `CurveAnchor`; never write a second mapping. A sound converts on its first curve or trim edit, never on load, and a preset-linked chain never converts.
+- **A track can play its own excerpt** (`ZoundEntry.ownTrim` + `trimStart`/`trimEnd`, source seconds), passed to the play as `ZoundArgs.excerpt`. A play of an excerpt reads old trim-anchored curves from a converted COPY of the chain; the saved sound is not touched.
+- **A trim made in a Zequence never changes the sound anywhere else** (`TimelineEdits.EditsKlipTrim`): only a local Klip played by that one track has its own trim edited.
+- **Pieces split from one sound share one local Klip.** Anything that removes or converts a track must check `CompositeZoundEditing.SharedLocally` before deleting or moving that Klip.
+- **The timeline draws a track through the engine's own source-to-time integration** (`ZoundSapPlayback.TryMapSourceToPlay`), so a drawn piece ends exactly where a play does. The waveform comes from an in-memory summary, never a file.
+- Kept checks 30 (anchoring), 31 (excerpts, play from here) and 32 (the verbs, the bake) measure these.
+
 Background documents: the authoritative technical foundation is `D:/Claude@GDrive/Zounds GC-Stutter-Free Audio Architecture Research 2026-09-26.md` (sections 1 and 7 for the plan, 8 for the validation test). `D:/Claude@GDrive/HH2 Audio Effect Chains Architecture.md` describes the existing engine the new path has to match. The 2026-09-25 native-DSP roadmap is **partly superseded** — its phases assume a hand-written C++ plugin as the target, which the 2026-09-26 research replaces; read it for history, not direction. The 2026-09-11 lifetime health report is at `D:/Claude@GDrive/Zounds Lifetime Health Report 2026-09-11.md`.
 
 ## Cartographer and MetaMapper — developed HERE since 2026-10-02
