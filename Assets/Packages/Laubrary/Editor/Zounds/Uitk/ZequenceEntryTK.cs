@@ -223,6 +223,9 @@ namespace Laubrary.Zounds.Uitk {
                 entry.delay = v * parentPitch;
                 CompositeZoundEditing.RecalculateMaxDuration(win.zeq, win.AutoDuration);
             }));
+            delay.tooltip = "When this track starts, in seconds after the Zequence starts. Or drag the thin strip along the top of its piece.";
+            var drag = delay.Q(className: "unity-base-slider__drag-container");
+            if (drag != null) drag.style.display = DisplayStyle.None;
             // The track's lane on the shared timeline (T-0560..T-0566): the piece where and how it sounds, and its gestures.
             var strip = new TrackStripTK(win, entry);
             Add(strip);
@@ -243,7 +246,7 @@ namespace Laubrary.Zounds.Uitk {
             Add(up); Add(down);
 
             layouts.Add(w => {
-                var rect = new Rect(0f, 0f, w, W.EntryHeight);
+                var rect = new Rect(0f, 0f, w, float.IsNaN(layout.height) || layout.height < W.EntryHeight ? W.EntryHeight : layout.height);
                 var content = isGroupChild ? new Rect(rect.x, rect.y + 4f, rect.width, rect.height - 8f) : new Rect(rect.x + 4f, rect.y + 4f, rect.width - 8f, rect.height - 8f);
                 flashRect = content;
                 float leftOffset = isGroupChild ? W.GroupEntryLeftOffset : 0f;
@@ -283,7 +286,9 @@ namespace Laubrary.Zounds.Uitk {
                 float total = right.width - FieldBoxWidth - 15f;
                 float parentOffset = parentDelay / globalMax * total;
                 float delayRectWidth = total - parentOffset;
-                Place(delay, new Rect(right.x + parentOffset, right.y, delayRectWidth + FieldBoxWidth + 15f, LH));
+                // Only the number box: the piece itself is moved by dragging its top strip on the zoomable timeline, so a
+                // slider on a fixed axis would no longer line up with it (T-0562).
+                Place(delay, new Rect(right.x + total + 15f - 4f, right.y, FieldBoxWidth + 4f, LH));
                 delay.lowValue = 0f; delay.highValue = globalMax - parentDelay;
                 if (delay.focusController?.focusedElement == null || !delay.Contains(delay.focusController.focusedElement as VisualElement))
                     delay.SetValueWithoutNotify(entry.delay / parentPitch);

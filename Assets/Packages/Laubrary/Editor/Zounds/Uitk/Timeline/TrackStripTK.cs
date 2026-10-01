@@ -53,6 +53,9 @@ namespace Laubrary.Zounds.Uitk {
             style.position = Position.Absolute;
             style.overflow = Overflow.Hidden;
             focusable = true;
+            tooltip = "Drag on the waveform to select a part (Shift adds this track to the selection; double-click selects the whole piece). "
+                    + "Drag the thin strip along the top to move the piece, an edge to trim it, Alt-drag to slip which part of the sound it plays. "
+                    + "Ctrl+wheel zooms, the wheel pans. Keys: Space auditions, T trims to the selection, S splits, Delete deletes, Ctrl+C/X/V.";
             generateVisualContent += Paint;
             leftMark = Mark(); rightMark = Mark();
             leftMark.RegisterCallback<PointerDownEvent>(e => { if (e.clickCount == 2) JumpToPiece(); e.StopPropagation(); });
@@ -226,10 +229,16 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         static float TimeAtCurveX(TrackPlacement p, ZoundModifier m, float x, in CurveAnchor.Axis own) {
-            float total = own.sourceLength + Mathf.Max(0f, m.Param(0));
-            float s = x * total;
-            if (s > own.sourceLength) return p.End + (s - own.sourceLength) / Mathf.Max(p.pitch, 0.01f);
-            return p.SourceToTime(s);
+            float extra = Mathf.Max(0f, m.Param(0));
+            if (m.curveAnchor == CurveAnchor.Source) {
+                float s = x * (own.sourceLength + extra);
+                if (s > own.sourceLength) return p.End + (s - own.sourceLength) / Mathf.Max(p.pitch, 0.01f);
+                return p.SourceToTime(s);
+            }
+            // Still on "a fraction of the sound's own trim" (an older sound, until its first edit): the audio part, then the extra time.
+            float len = own.TrimLength, r = len + extra > 0f ? len / (len + extra) : 1f;
+            if (x <= r) return p.SourceToTime(own.trimStart + (r > 0f ? x / r : 0f) * len);
+            return p.End + (x - r) * (len + extra) / Mathf.Max(p.pitch, 0.01f);
         }
 
         void SyncTrackCurve() {
@@ -276,16 +285,16 @@ namespace Laubrary.Zounds.Uitk {
             // Where the authored duration ends.
             float ax = X(TL.authored);
             if (ax > 0 && ax < W) Rect(p2, ax, 0, W - ax, H, new Color(0f, 0f, 0f, 0.18f));
-            // The selection's time range, strong on selected tracks, faint on the others.
-            if (TL.hasSel) {
-                bool mine = TL.selTracks.Contains(entry);
-                float a = X(TL.selA), b = X(TL.selB);
-                Rect(p2, a, 0, Mathf.Max(1f, b - a), H, mine ? new Color(0.35f, 0.62f, 1f, 0.28f) : new Color(0.35f, 0.62f, 1f, 0.07f));
-                if (mine) { Rect(p2, a, 0, 1f, H, new Color(0.5f, 0.75f, 1f, 0.9f)); Rect(p2, b - 1f, 0, 1f, H, new Color(0.5f, 0.75f, 1f, 0.9f)); }
-            }
             if (p != null && p.found) {
                 if (p.klip != null) PaintKlip(p2, p);
                 else PaintBlock(p2, p);
+            }
+            // The selection's time range over the piece, strong on selected tracks, faint on the others.
+            if (TL.hasSel) {
+                bool mine = TL.selTracks.Contains(entry);
+                float a = X(TL.selA), b = X(TL.selB);
+                Rect(p2, a, 0, Mathf.Max(1f, b - a), H, mine ? new Color(0.35f, 0.62f, 1f, 0.30f) : new Color(0.35f, 0.62f, 1f, 0.07f));
+                if (mine) { Rect(p2, a, 0, 1f, H, new Color(0.5f, 0.75f, 1f, 0.9f)); Rect(p2, b - 1f, 0, 1f, H, new Color(0.5f, 0.75f, 1f, 0.9f)); }
             }
             if (TL.cursor >= 0f) { float cx = X(TL.cursor); if (cx >= 0f && cx <= W) Rect(p2, cx, 0, 1f, H, new Color(1f, 1f, 1f, 0.55f)); }
             if (p != null) foreach (var h in Heads(p)) { float hx = X(h); if (hx >= 0f && hx <= W) Rect(p2, hx - 0.75f, 0, 1.5f, H, Es.playerHeadColor); }
