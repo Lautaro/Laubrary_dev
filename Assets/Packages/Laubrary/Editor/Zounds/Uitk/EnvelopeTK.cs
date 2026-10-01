@@ -32,6 +32,15 @@ namespace Laubrary.Zounds.Uitk {
         public Action<int, Vector2> onPointContext;
         /// <summary>Curves drawn dotted over this one: what the plays under way actually hear (T-0484). Null: nothing extra.</summary>
         public List<Func<float, float>> liveCurves;
+        /// <summary>
+        /// Only a press on a point or on the line is this editor's (non-destructive editing, T-0566): a press anywhere else
+        /// passes through to whatever is underneath, so a curve drawn over a Zequence track leaves selecting, moving and
+        /// trimming the track to the track.
+        /// </summary>
+        public bool pointsAndLineOnly;
+        /// <summary>Drawn dashed: a curve that belongs to the timeline (a track's or the Zequence's own), which stays where
+        /// it is when a piece moves, unlike the sound's own curves that travel with its audio (T-0566).</summary>
+        public bool dashed;
 
         int draggedPoint = -1, draggedLine = -1, draggedExponent = -1;
         bool boxSelecting, pressed, multiMoveStarted;
@@ -143,6 +152,7 @@ namespace Laubrary.Zounds.Uitk {
                 e.StopPropagation();
                 return;
             }
+            if (pointsAndLineOnly) return;
             if (e.button == 0 && Inside(l)) {
                 if (e.clickCount == 2) {
                     onBegin?.Invoke();
@@ -342,6 +352,23 @@ namespace Laubrary.Zounds.Uitk {
             // drawn 2.25 times as wide at a 225 % display (measured against the old window).
             p2.strokeColor = color; p2.lineWidth = width / Mathf.Max(1f, UnityEditor.EditorGUIUtility.pixelsPerPoint);
             p2.BeginPath();
+            if (dashed) {
+                // 6 px drawn, 4 px gap, along the curve.
+                Vector2 prev = default; float run = 0f; bool on = true;
+                for (int it = 0; it <= n; it++) {
+                    var pt = new Vector2((t - envelope.xMin) / total * Size.x, Size.y - (envelope.Evaluate(t) - envelope.yMin) / YRange * Size.y);
+                    if (it == 0) p2.MoveTo(pt);
+                    else {
+                        run += Vector2.Distance(prev, pt);
+                        if (on) p2.LineTo(pt); else p2.MoveTo(pt);
+                        if (run >= (on ? 6f : 4f)) { run = 0f; on = !on; }
+                    }
+                    prev = pt;
+                    if (it < n) { t += step; if (t > end) t = end; }
+                }
+                p2.Stroke();
+                return;
+            }
             for (int it = 0; it <= n; it++) {
                 var pt = new Vector2((t - envelope.xMin) / total * Size.x, Size.y - (envelope.Evaluate(t) - envelope.yMin) / YRange * Size.y);
                 if (it == 0) p2.MoveTo(pt); else p2.LineTo(pt);

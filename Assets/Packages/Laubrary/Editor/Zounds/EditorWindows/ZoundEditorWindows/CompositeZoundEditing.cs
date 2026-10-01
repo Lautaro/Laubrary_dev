@@ -50,7 +50,8 @@ namespace Laubrary.Zounds {
         public static void RemoveEntry(CompositeZound parentZound, int entryIndexToRemove) {
             ZoundsWindow.ModifyZoundsProject("remove zound entry", () => {
                 var entryToRemove = parentZound.zoundEntries[entryIndexToRemove];
-                if (entryToRemove.local) {
+                // Pieces split from one sound share its local Klip (T-0565): it goes only with the last track using it.
+                if (entryToRemove.local && !SharedLocally(parentZound, entryToRemove)) {
                     int klipIndex = parentZound.localKlips.FindIndex(k => k.id == entryToRemove.zoundId);
                     if (klipIndex >= 0) {
                         parentZound.localKlips.RemoveAt(klipIndex);
@@ -69,7 +70,15 @@ namespace Laubrary.Zounds {
             ZoundsProject zoundsProject = ZoundsProject.Instance;
             ZoundsWindow.ModifyZoundsProject("convert zound entry", () => {
                 var entryToConvert = parentZound.zoundEntries[entryIndexToConvert];
-                if (entryToConvert.local) {
+                if (entryToConvert.local && SharedLocally(parentZound, entryToConvert)
+                    && parentZound.TryGetEntryZound(entryToConvert, out var sharedLocal) && sharedLocal is Klip sharedKlip) {
+                    // Another piece still plays this local Klip (T-0565): this track takes a library copy, the others keep theirs.
+                    var copy = new Klip(ZoundLibrary.GetUniqueZoundId(), sharedKlip);
+                    copy.parentId = 0; copy.name = ZoundDictionary.EnsureUniqueZoundName(sharedKlip.name);
+                    zoundsProject.zoundLibrary.klips.Add(copy);
+                    entryToConvert.zoundId = copy.id;
+                }
+                else if (entryToConvert.local) {
                     int localZoundId = entryToConvert.zoundId;
                     if (parentZound.TryGetEntryZound(entryToConvert, out var zoundToConvert)) {
                         zoundToConvert.name = ZoundDictionary.EnsureUniqueZoundName(zoundToConvert.name);
@@ -128,6 +137,14 @@ namespace Laubrary.Zounds {
             });
             ZoundsAssetPostProcessor.RefreshAudioClipsCache();
             ZoundsWindow.RepaintWindow();
+        }
+
+        /// <summary>Whether another track of <paramref name="parent"/> plays the same local sound as <paramref name="entry"/>
+        /// (pieces split from one sound share it, T-0565).</summary>
+        public static bool SharedLocally(CompositeZound parent, CompositeZound.ZoundEntry entry) {
+            if (!entry.local) return false;
+            foreach (var e in parent.zoundEntries) if (!ReferenceEquals(e, entry) && e.local && e.zoundId == entry.zoundId) return true;
+            return false;
         }
 
         static void BreakEntryAsLocal(CompositeZound parentZound, CompositeZound.ZoundEntry entryToConvert, Zound zoundToConvert, Zound convertedZound) {
@@ -250,17 +267,15 @@ namespace Laubrary.Zounds {
 
             float zoundDuration;
             if (zound is Klip klip) {
-                // Priority 1: Use the actual rendered clip if it exists and is valid.
-                // This is the absolute truth of what the user will hear.
-                if (klip.HasActiveEdits() && !string.IsNullOrEmpty(klip.renderedClipPath)) {
-                    var renderedClip = AssetDatabase.LoadAssetAtPath<AudioClip>(klip.renderedClipPath);
-                    if (renderedClip != null) {
-                        return renderedClip.length / parentPitch;
-                    }
-                }
-                // Priority 2: Fallback to calculation if no render exists yet (newly created or duplicated).
-                // We use trim settings as a placeholder for the visual width.
-                if (klip.trimEnabled) {
+                // What a play actually lasts (T-0502): the original audio through the live chain -- trim or the track's own
+                // excerpt, pitch and time curves, stretch -- worked out exactly as the play works it out. A rendered file is
+                // never in the play's path any more, so it says nothing about the length.
+                var excerpt = entry.ownTrim && entry.trimEnd > entry.trimStart ? Dsp.ZoundSapPlayback.Excerpt.Of(entry.trimStart, entry.trimEnd) : default;
+                if (Dsp.ZoundSapPlayback.TryGetPlayLength(klip, excerpt, out float playLength))
+                    return playLength / Mathf.Max(effectivePitch, 0.01f);
+                // The source cannot be read: the trimmed length as a placeholder for the width.
+                if (excerpt.on) zoundDuration = (excerpt.end - excerpt.start) / effectivePitch;
+                else if (klip.trimEnabled) {
                     zoundDuration = (klip.trimEnd - klip.trimStart) / effectivePitch;
                 }
                 else if (klip.GetAudioClipReference().editorAsset is AudioClip audioClip) {

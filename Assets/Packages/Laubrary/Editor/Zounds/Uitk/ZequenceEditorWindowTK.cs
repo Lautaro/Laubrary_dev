@@ -40,6 +40,19 @@ namespace Laubrary.Zounds.Uitk {
         ZoundFieldsRowTK fields;
         Button playButton;
 
+        // -- the shared timeline (non-destructive editing, T-0558) --
+        /// <summary>One time window, selection and set of switches for every track (view state: not saved with the sound).</summary>
+        internal ZequenceTimeline timeline;
+        TimelineHeaderTK header;
+        internal readonly List<TrackStripTK> strips = new List<TrackStripTK>();
+        [SerializeField] float viewT0, viewT1 = 1f;
+        [SerializeField] bool viewFitted = true, viewFollow, viewRipple, viewLoop;
+        [NonSerialized] ZoundToken hereToken;
+        [NonSerialized] float hereOffset;
+        [NonSerialized] readonly Dictionary<CompositeZound.ZoundEntry, List<ZoundToken>> auditionTokens = new Dictionary<CompositeZound.ZoundEntry, List<ZoundToken>>();
+        [NonSerialized] ZoundToken auditionWhole;
+        [NonSerialized] float auditionFrom;
+
         /// <summary>
         /// Opens this Zequence's editor — the main one since 2026-09-28. One that is already open is brought forward
         /// instead of opening a second copy, as the old window always did.
@@ -111,6 +124,7 @@ namespace Laubrary.Zounds.Uitk {
                 audition.Dispose();
                 audition = null;
             }
+            StopTimelinePlays();
             if (entryTokens != null) {
                 foreach (var t in entryTokens.Values) {
                     try { if (t != null && t.state != ZoundToken.State.Killed) t.Kill(); }
@@ -158,6 +172,8 @@ namespace Laubrary.Zounds.Uitk {
             titleContent = new GUIContent("Zequence: " + zeq.name);
             EnsureAudition();
             EnsureEnvelopes();
+            EnsureTimeline();
+            strips.Clear();
 
             fields = new ZoundFieldsRowTK(zeq, isLocalZound, () => titleContent = new GUIContent("Zequence: " + zeq.name));
             root.Add(fields);
@@ -169,6 +185,9 @@ namespace Laubrary.Zounds.Uitk {
             root.Add(box);
             box.Add(Toolbar());
             box.Add(Space(5f));
+            header = new TimelineHeaderTK(this);
+            box.Add(header);
+            box.Add(Space(3f));
             if (zeq.zoundEntries.Count == 0) {
                 var none = new Label("No zound entry.");
                 none.AddToClassList("zs-lbl"); none.AddToClassList("zs-greymini");
@@ -181,7 +200,7 @@ namespace Laubrary.Zounds.Uitk {
             box.Add(scroll);
             bool darker = false;
             for (int i = 0; i < zeq.zoundEntries.Count; i++) {
-                scroll.Add(new ZequenceEntryTK(this, zeq, zeq.zoundEntries[i], i, zeq.minPitch, 0f, darker, false));
+                scroll.Add(new ZequenceEntryTK(this, zeq, zeq.zoundEntries[i], i, ZequenceTimeline.Mid(zeq), 0f, darker, false));
                 scroll.Add(Space(4f));
                 darker = !darker;
             }
@@ -189,6 +208,8 @@ namespace Laubrary.Zounds.Uitk {
             box.Add(AddRow(zeq, true));
 
             builtSig = Signature();
+            root.focusable = true;
+            root.RegisterCallback<KeyDownEvent>(OnKey, TrickleDown.TrickleDown);
             root.schedule.Execute(Tick).Every(200);
             root.schedule.Execute(LiveTick).Every(33);
         }
@@ -203,6 +224,7 @@ namespace Laubrary.Zounds.Uitk {
             var sb = new StringBuilder();
             Append(sb, zeq);
             sb.Append(zeq.masterVolumeEnvelope != null && zeq.masterVolumeEnvelope.enabled ? 'M' : 'm');
+            sb.Append(timeline != null && timeline.focus != null ? timeline.focus.GetHashCode() : 0);
             return sb.ToString();
         }
 
@@ -224,12 +246,21 @@ namespace Laubrary.Zounds.Uitk {
             if (FindZequence(targetZoundID) != zeq || Signature() != builtSig) { EnsureEnvelopes(); Rebuild(); return; }
             fields?.Sync();
             SyncPlayButton();
+            timeline?.Rebuild();
             foreach (var r in refreshers) r();
+            header?.Sync();
+            SaveView();
         }
 
         void LiveTick() {
             if (zeq == null) return;
             foreach (var r in liveRefreshers) r();
+            if (timeline == null) return;
+            UpdateLane();
+            timeline.cursor = CursorTime();
+            timeline.FollowCursor();
+            foreach (var s in strips) s.Sync();
+            header?.Repaint();
         }
 
         /// <summary>The old window's OnValidateEnvelopeGUIs: a Zequence always has a master volume envelope, and every entry a volume envelope.</summary>
@@ -445,5 +476,166 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         internal bool AutoDuration => autoDuration;
+
+        // ─────────────────────────── the shared timeline ───────────────────────────
+
+        void EnsureTimeline() {
+            if (timeline == null) {
+                timeline = new ZequenceTimeline { t0 = viewT0, t1 = Mathf.Max(viewT0 + 0.01f, viewT1), fitted = viewFitted, follow = viewFollow, ripple = viewRipple, loop = viewLoop };
+                timeline.changed += () => { foreach (var s in strips) s.MarkDirtyRepaint(); header?.Repaint(); header?.Sync(); };
+            }
+            if (!ReferenceEquals(timeline.zeq, zeq)) { timeline.zeq = zeq; timeline.ClearSelection(); timeline.focus = null; timeline.editingCurve.Clear(); }
+            timeline.Rebuild();
+        }
+
+        void SaveView() {
+            if (timeline == null) return;
+            viewT0 = timeline.t0; viewT1 = timeline.t1; viewFitted = timeline.fitted;
+            viewFollow = timeline.follow; viewRipple = timeline.ripple; viewLoop = timeline.loop;
+        }
+
+        /// <summary>The lane every track and the ruler draw in: the first top-level card's timeline area (the old window's
+        /// rect maths), so all of them line up whatever the scroll bar does.</summary>
+        void UpdateLane() {
+            foreach (var s in strips) {
+                if (!(s.parent is ZequenceEntryTK card) || card.IsGroupChild) continue;
+                var wb = card.worldBound;
+                if (wb.width < 50f) continue;
+                float x = wb.x + ZequenceEntryTK.LaneLeft;
+                float w = wb.width - ZequenceEntryTK.LaneLeft - ZequenceEntryTK.LaneRight;
+                var lane = new Rect(x, 0f, Mathf.Max(10f, w), 0f);
+                if (lane != timeline.laneWorld) { timeline.laneWorld = lane; header?.Repaint(); }
+                return;
+            }
+            if (header != null) {
+                var wb = header.worldBound;
+                timeline.laneWorld = new Rect(wb.x + ZequenceEntryTK.LaneLeft, 0f, Mathf.Max(10f, wb.width - ZequenceEntryTK.LaneLeft - ZequenceEntryTK.LaneRight), 0f);
+            }
+        }
+
+        /// <summary>After any edit on the timeline: placements again, then every lane and the header.</summary>
+        internal void OnTimelineChanged() {
+            if (timeline == null) return;
+            timeline.Rebuild();
+            foreach (var s in strips) s.Sync();
+            header?.Sync(); header?.Repaint();
+            foreach (var r in refreshers) r();
+        }
+
+        /// <summary>After the view moved (zoom, pan): redraw only.</summary>
+        internal void OnViewChanged() {
+            foreach (var s in strips) s.Sync();
+            header?.Repaint();
+        }
+
+        /// <summary>Applies a structural view change now (a focused track is taller, so the cards are rebuilt).</summary>
+        internal void RefreshNow() => Tick();
+
+        internal void Say(string s) { if (timeline != null) { timeline.readout = s ?? ""; header?.Sync(); } }
+
+        /// <summary>The Zequence time the window's own plays are at: Play from here, the audition, or Play.</summary>
+        float CursorTime() {
+            if (hereToken != null && hereToken.state != ZoundToken.State.Killed) return hereOffset + hereToken.time;
+            if (auditionWhole != null && auditionWhole.state != ZoundToken.State.Killed) {
+                float t = auditionFrom + auditionWhole.time;
+                // The audition of a range stops at the range's end (a tail still rings out); with Loop it starts again.
+                if (timeline.hasSel && t > timeline.selB) {
+                    auditionWhole.Kill(timeline.loop ? 0.03f : 0.25f);
+                    if (timeline.loop) { auditionWhole = TimelineEdits.PlayFrom(zeq, timeline.selA, isLocalZound); return timeline.selA; }
+                    return -1f;
+                }
+                return t;
+            }
+            foreach (var kv in auditionTokens)
+                foreach (var t in kv.Value) if (t != null && t.state != ZoundToken.State.Killed) return auditionFrom + t.time;
+            if (currentToken != null && currentToken.state != ZoundToken.State.Killed) return currentToken.time;
+            return -1f;
+        }
+
+        /// <summary>Every play of <paramref name="entry"/> this window can see: through its Zequence's plays, and auditions.</summary>
+        internal List<ZoundToken> TokensPlaying(CompositeZound.ZoundEntry entry) {
+            s_tokens.Clear();
+            if (timeline != null && timeline.byEntry.TryGetValue(entry, out var p) && p.parent != null && ZoundEngine.CullingGroups.TryGetValue(p.parent, out var playing)) {
+                foreach (var token in playing) {
+                    if (token == null || token.state == ZoundToken.State.Killed) continue;
+                    if (!token.TryGetEntryToken(entry, out var child) || child.state == ZoundToken.State.Killed) continue;
+                    if (token.IsEntryMuted(entry)) continue;
+                    s_tokens.Add(child);
+                }
+            }
+            if (auditionTokens.TryGetValue(entry, out var aud)) foreach (var t in aud) if (t != null && t.state != ZoundToken.State.Killed) s_tokens.Add(t);
+            return s_tokens;
+        }
+        static readonly List<ZoundToken> s_tokens = new List<ZoundToken>();
+
+        void StopTimelinePlays() {
+            try { if (hereToken != null && hereToken.state != ZoundToken.State.Killed) hereToken.Kill(); } catch (Exception e) { Debug.LogException(e); }
+            try { if (auditionWhole != null && auditionWhole.state != ZoundToken.State.Killed) auditionWhole.Kill(); } catch (Exception e) { Debug.LogException(e); }
+            foreach (var kv in auditionTokens) foreach (var t in kv.Value) { try { if (t != null && t.state != ZoundToken.State.Killed) t.Kill(); } catch (Exception e) { Debug.LogException(e); } }
+            auditionTokens.Clear();
+            hereToken = null; auditionWhole = null;
+        }
+
+        bool TimelinePlaying() {
+            if (hereToken != null && hereToken.state != ZoundToken.State.Killed) return true;
+            if (auditionWhole != null && auditionWhole.state != ZoundToken.State.Killed) return true;
+            foreach (var kv in auditionTokens) foreach (var t in kv.Value) if (t != null && t.state != ZoundToken.State.Killed) return true;
+            return false;
+        }
+
+        /// <summary>Play the whole Zequence from the clicked moment (or the selection's start). Pressed again: stop.</summary>
+        internal void PlayFromHere() {
+            if (TimelinePlaying()) { StopTimelinePlays(); return; }
+            float from = timeline.hasSel ? timeline.selA : Mathf.Max(0f, timeline.t0);
+            hereOffset = from;
+            hereToken = TimelineEdits.PlayFrom(zeq, from, isLocalZound);
+            Say(hereToken != null ? "Playing from " + ZequenceTimeline.Seconds(from) + "." : "Nothing to play from there.");
+        }
+
+        /// <summary>Play only the selection (Space). Pressed again while it sounds: stop.</summary>
+        internal void AuditionSelection() {
+            if (TimelinePlaying()) { StopTimelinePlays(); return; }
+            if (!timeline.hasSel || timeline.selB <= timeline.selA) { Say("Select a time range to audition."); return; }
+            auditionFrom = timeline.selA;
+            var tracks = TimelineEdits.Selected(timeline);
+            if (tracks.Count == 0) { auditionWhole = TimelineEdits.PlayFrom(zeq, timeline.selA, isLocalZound); return; }
+            var tokens = TimelineEdits.Audition(timeline, isLocalZound);
+            // Pair each audition play with its track, for its playhead (Audition plays them in the same order).
+            int i = 0;
+            foreach (var p in tracks) {
+                if (p.klip == null || i >= tokens.Count) continue;
+                float a = Mathf.Max(p.exA, p.TimeToSource(timeline.selA)), b = Mathf.Min(p.exB, p.TimeToSource(timeline.selB));
+                if (b <= a + 0.002f) continue;
+                if (!auditionTokens.TryGetValue(p.entry, out var list)) auditionTokens[p.entry] = list = new List<ZoundToken>();
+                list.Add(tokens[i++]);
+            }
+            if (tokens.Count == 0) Say("The selection holds no audio of the selected tracks.");
+        }
+
+        internal float PasteTime() => timeline.hasSel ? timeline.selA : timeline.cursor >= 0f ? timeline.cursor : Mathf.Max(0f, timeline.t0);
+
+        internal void OpenBake() => ZequenceBakePopup.Show(header != null ? header.worldBound.position + new Vector2(200f, 20f) : Vector2.zero, zeq, timeline, isLocalZound);
+
+        void OnKey(KeyDownEvent e) {
+            if (timeline == null) return;
+            // Typing into a field is never a timeline command.
+            if (e.target is VisualElement ve && (ve is TextField || ve is FloatField || ve is IntegerField
+                || ve.GetFirstAncestorOfType<TextField>() != null || ve.GetFirstAncestorOfType<FloatField>() != null || ve.GetFirstAncestorOfType<IntegerField>() != null)) return;
+            bool ctrl = e.ctrlKey || e.commandKey;
+            switch (e.keyCode) {
+                case KeyCode.Space: AuditionSelection(); break;
+                case KeyCode.T when !ctrl: Say(TimelineEdits.TrimToSelection(this, timeline)); break;
+                case KeyCode.S when !ctrl: Say(TimelineEdits.Split(this, timeline)); break;
+                case KeyCode.Delete: Say(TimelineEdits.Delete(this, timeline)); break;
+                case KeyCode.C when ctrl: Say(TimelineEdits.Copy(timeline)); break;
+                case KeyCode.X when ctrl: Say(TimelineEdits.Copy(timeline) + " " + TimelineEdits.Delete(this, timeline)); break;
+                case KeyCode.V when ctrl: Say(TimelineEdits.Paste(this, timeline, PasteTime())); break;
+                case KeyCode.Escape: timeline.ClearSelection(); break;
+                default: return;
+            }
+            OnTimelineChanged();
+            e.StopPropagation();
+        }
+
     }
 }

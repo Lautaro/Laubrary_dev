@@ -307,9 +307,31 @@ namespace Laubrary.Zounds {
                     soloOverride = args.soloOverride;
                 }
 
+                // The track's own excerpt (T-0565), and a play started part-way along the timeline (T-0563).
+                float delaySeconds = data.delay / parentPitchOverride;
+                bool hasExcerpt = false; float exStart = 0f, exEnd = 0f; float childStartAt = 0f;
+                if (data.ownTrim && childZound is Klip && data.trimEnd > data.trimStart) { hasExcerpt = true; exStart = data.trimStart; exEnd = data.trimEnd; }
+                if (args.startAt > 0f) {
+                    if (args.startAt <= delaySeconds) delaySeconds -= args.startAt;
+                    else {
+                        float into = args.startAt - delaySeconds;
+                        delaySeconds = 0f;
+                        if (childZound is Klip ck) {
+                            if (!hasExcerpt && !KlipRegion(ck, out exStart, out exEnd)) { runtimeEntry.token = null; continue; }
+                            hasExcerpt = true;
+                            // At the track's drawn speed: its pitch (a pitch or time curve is not followed here).
+                            exStart += into * Mathf.Max(pitchOverride, 0.01f);
+                            if (exStart >= exEnd - 1e-4f) { runtimeEntry.token = null; continue; }   // already over
+                        }
+                        else childStartAt = into;
+                    }
+                }
+
                 var entryArgs = new ZoundArgs() {
                     startImmediately = false,
-                    delay = data.delay / parentPitchOverride,
+                    delay = delaySeconds,
+                    excerpt = hasExcerpt, excerptStart = exStart, excerptEnd = exEnd,
+                    startAt = childStartAt,
                     volumeOverride = volumeOverride,
                     pitchOverride = pitchOverride,
                     chanceOverride = data.overrideChance ? data.chance : data.chance * childZound.chance,
@@ -344,6 +366,19 @@ namespace Laubrary.Zounds {
             }
 
             return duration;
+        }
+
+        /// <summary>The part of a Klip's ORIGINAL source file its own trim plays, in seconds; false when the source is unknown.</summary>
+        static bool KlipRegion(Klip k, out float start, out float end) {
+            start = 0f; end = 0f;
+            var clip = Dsp.ZoundSapPlayback.LoadSourceClip(k, out bool alreadyTrimmed);
+            if (clip == null) return false;
+            if (k.trimEnabled) {
+                start = k.trimStart;
+                end = alreadyTrimmed ? k.trimStart + clip.length : (k.trimEnd > k.trimStart ? Mathf.Min(k.trimEnd, clip.length) : clip.length);
+            }
+            else end = clip.length;
+            return end > start;
         }
 
         public override void ApplyZpoc(string key) {

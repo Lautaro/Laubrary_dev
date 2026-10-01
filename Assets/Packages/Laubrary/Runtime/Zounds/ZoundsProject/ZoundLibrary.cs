@@ -710,6 +710,16 @@ namespace Laubrary.Zounds
             /// </summary>
             public string zpocId = "";
 
+            /// <summary>
+            /// The track plays its own excerpt of its Klip (non-destructive editing, T-0565): <see cref="trimStart"/> to
+            /// <see cref="trimEnd"/>, in seconds of the Klip's source file, instead of the Klip's own trim. This is how two
+            /// pieces split from one sound share that sound's processing while each plays a different part of it. The
+            /// Klip's curves are anchored to source seconds, so each piece hears the part of each curve over its own audio.
+            /// Off (the default) means the Klip's own trim, exactly as before.
+            /// </summary>
+            public bool ownTrim;
+            public float trimStart, trimEnd;
+
 #if UNITY_EDITOR
             [HideInInspector] public int editor_instanceID;
             [HideInInspector] public bool editor_foldoutExpanded = true;

@@ -215,7 +215,7 @@ namespace Laubrary.Zounds {
 
 
         private void Render(AudioMixerGroup mixerGroup) {
-            RenderZequenceToKlipPopup.EnsureAllKlipsRendered(targetZound);
+            // No side-effect renders (T-0502): every Klip plays its original audio through its live chain.
 
             ZoundsWindow.ModifyZoundsProject("set rendered audio clip", () => {
                 targetZound.renderedClipRef = new UnityEngine.AddressableAssets.AssetReference();
