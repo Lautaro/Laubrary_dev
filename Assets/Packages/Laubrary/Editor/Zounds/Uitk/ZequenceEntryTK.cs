@@ -34,14 +34,21 @@ namespace Laubrary.Zounds.Uitk {
         float LH => EditorGUIUtility.singleLineHeight;
         const float FieldBoxWidth = 50f;   // EditorGUIUtility.fieldWidth at the time the old right section is drawn
 
+        /// <summary>Where a top-level card's timeline lane starts and how much it leaves at the right (the old rect maths:
+        /// 4 padding + the left section + 5 + 5, and the delay slider's number box + 15 + the padding).</summary>
+        internal const float LaneLeft = 4f + W.LeftSectionWidth + 5f + 5f, LaneRight = 4f + FieldBoxWidth + 15f - 5f;
+        /// <summary>How much taller the focused track is, for precise work on its curves.</summary>
+        internal const float FocusExtra = 150f;
+        internal bool IsGroupChild => isGroupChild;
+
         public ZequenceEntryTK(W win, CompositeZound parent, CompositeZound.ZoundEntry entry, int index, float parentPitch, float parentDelay, bool darker, bool isGroupChild) {
             this.win = win; this.parent = parent; this.entry = entry; this.index = index;
             this.parentPitch = parentPitch; this.parentDelay = parentDelay; this.isGroupChild = isGroupChild;
             AddToClassList("zs-zequence-entry__root");
             found = parent.TryGetEntryZound(entry, out zound);
 
-            // Height: a plain entry is fixed; a local Zequence group grows with its master envelope and its children.
-            float h = W.EntryHeight;
+            // Height: a plain entry is fixed (taller while focused); a local Zequence group grows with its master envelope and its children.
+            float h = W.EntryHeight + (win.timeline != null && ReferenceEquals(win.timeline.focus, entry) ? FocusExtra : 0f);
             if (found && entry.local && zound is CompositeZound comp) {
                 h = W.GroupHeaderHeight;
                 if (entry.editor_foldoutExpanded) h += comp.zoundEntries.Count * (W.EntryHeight + 4f) + LH + 10f;
@@ -214,32 +221,10 @@ namespace Laubrary.Zounds.Uitk {
                 entry.delay = v * parentPitch;
                 CompositeZoundEditing.RecalculateMaxDuration(win.zeq, win.AutoDuration);
             }));
-            var timelineBG = Abs(new Color(1f, 1f, 1f, 0.1f));
-            var spectrumBG = Abs(es.klipWaveformBGColor);
-            var wave = new Image { scaleMode = ScaleMode.StretchToFill, pickingMode = PickingMode.Ignore };
-            wave.AddToClassList("zs-zequence-entry__plain-wave");
-            Add(wave);
-            // Clicking the waveform plays/stops the entry, identical to the play button.
-            var waveHit = new VisualElement();
-            waveHit.AddToClassList("zs-zequence-entry__plain-wave-hit");
-            waveHit.RegisterCallback<PointerDownEvent>(e => {
-                if (e.button != 0) return;
-                CompositeZoundEditing.ToggleEntryPlay(win.zeq, ref win.entryTokens, entry, win);
-                e.StopPropagation();
-            });
-            Add(waveHit);
-            EnvelopeTK curve = null;
-            if (entry.volumeEnvelope.enabled) {
-                var copy = entry.volumeEnvelope.DeepCopy();
-                curve = new EnvelopeTK(copy, es.volumeEnvelopeColor) { thickness = es.volumeEnvelopeThickness };
-                curve.AddToClassList("zs-zequence-entry__plain-curve");
-                curve.onChanged = () => win.Modify("modify entry volume envelope", () => { entry.volumeEnvelope = copy.DeepCopy(); entry.volumeEnvelope.enabled = true; });
-                Add(curve);
-            }
-            var heads = new VisualElement { pickingMode = PickingMode.Ignore };
-            heads.AddToClassList("zs-zequence-entry__plain-heads");
-            Add(heads);
-            var preLabel = Duration(); var postLabel = Duration();
+            // The track's lane on the shared timeline (T-0560..T-0566): the piece where and how it sounds, and its gestures.
+            var strip = new TrackStripTK(win, entry);
+            Add(strip);
+            win.strips.Add(strip);
 
             Button dup = W.IconButton("duplicate", "Duplicate this zound entry.", "RichButton", ZUICornerMask.Left, -1f, 20f, () => CompositeZoundEditing.DuplicateEntry(parent, index));
             Button rem = W.IconButton("remove", "Remove this zound entry.", "RichButton", ZUICornerMask.Right, -1f, 20f, () => CompositeZoundEditing.RemoveEntry(parent, index));
@@ -275,10 +260,11 @@ namespace Laubrary.Zounds.Uitk {
                 Place(idChip, new Rect(chipX, content.y, chipW, LH));
                 Place(play, new Rect(content.xMax - 18f, content.y, 18f, LH));
                 float y = content.y + LH - 3f;
-                float dur = CompositeZoundEditing.GetEntryDuration(parent, entry, parentPitch);
+                // The length a play really lasts (the live plan: trim or excerpt, curves, stretch), at the drawn speed (T-0502).
+                float dur = PlacedLength(out float endsAt);
                 Place(duration, new Rect(left.x, y, left.width * 0.75f, LH));
-                float d = parentDelay + entry.delay;
-                duration.text = dur.ToString("0.00") + " sec" + (d > 0f ? " (" + (dur + d).ToString("0.00") + " sec)" : "");
+                duration.text = dur.ToString("0.00") + " sec" + (endsAt > dur + 1e-3f ? " (" + endsAt.ToString("0.00") + " sec)" : "");
+                duration.tooltip = "How long this track plays, from its original audio through its live effects, at the middle of its pitch range" + (endsAt > dur + 1e-3f ? "; in brackets, when it ends on the Zequence's timeline." : ".");
                 if (entry.local) {
                     for (int i = 0; i < sliders.Count; i++) Place(sliders[i].e, new Rect(left.x, y + LH + 1f + i * (LH + 5f), left.width - 1f, LH));
                 }
@@ -300,33 +286,9 @@ namespace Laubrary.Zounds.Uitk {
                 if (delay.focusController?.focusedElement == null || !delay.Contains(delay.focusController.focusedElement as VisualElement))
                     delay.SetValueWithoutNotify(entry.delay / parentPitch);
                 var timeline = new Rect(right.x + 5f, right.y + 18f, total, right.height - 18f);
-                var tbg = new Rect(right.x + parentOffset + 5f, right.y + 18f, delayRectWidth, right.height - 18f);
-                Place(timelineBG, tbg);
-                float accDelay = parentDelay + entry.delay / parentPitch;
-                float sx = accDelay / globalMax * timeline.width, sw = dur / globalMax * timeline.width;
-                if (sx + sw > timeline.width) {
-                    CompositeZoundEditing.RecalculateMaxDuration(win.zeq, win.AutoDuration);
-                    globalMax = win.zeq.editor_maxDuration / parentPitch;
-                    sx = accDelay / globalMax * timeline.width; sw = dur / globalMax * timeline.width;
-                }
-                var spectrum = new Rect(timeline.x + sx, timeline.y, sw, timeline.height);
-                Place(spectrumBG, spectrum); Place(waveHit, spectrum);
-                spectrumBG.style.display = zound is Klip || zound is Zequence ? DisplayStyle.Flex : DisplayStyle.None;
-                wave.style.display = DisplayStyle.None;
-                if (zound is Klip klip && klip.GetAudioClipReference().editorAsset is AudioClip clip) {
-                    var tex = AudioWaveformUtility.GetWaveformSpectrumTexture(clip, Mathf.FloorToInt(spectrum.width), Mathf.FloorToInt(spectrum.height), es.waveformColor, klip.id.ToString());
-                    if (tex != null) { wave.image = tex; Place(wave, spectrum); wave.style.display = DisplayStyle.Flex; }
-                }
-                if (curve != null) Place(curve, spectrum);
-                heads.userData = (spectrum, timeline);
-
-                preLabel.style.display = entry.delay >= Mathf.Epsilon ? DisplayStyle.Flex : DisplayStyle.None;
-                Place(preLabel, new Rect(tbg.x + 2f, tbg.center.y + 10f, 50f, 20f));
-                preLabel.text = entry.delay.ToString("0.00") + " s";
-                bool post = entry.delay + dur < win.zeq.editor_maxDuration;
-                postLabel.style.display = post ? DisplayStyle.Flex : DisplayStyle.None;
-                Place(postLabel, new Rect(tbg.xMax - 52f, tbg.center.y + 10f, 50f, 20f));
-                postLabel.text = (win.zeq.editor_maxDuration - entry.delay - dur).ToString("0.00") + " s";
+                // The strip keeps to the shared lane horizontally (it places itself); here only its rows.
+                strip.style.top = timeline.y; strip.style.height = Mathf.Max(8f, timeline.height);
+                if (win.timeline == null || win.timeline.laneWorld.width < 2f) { strip.style.left = timeline.x; strip.style.width = timeline.width; }
 
                 // Button column.
                 var col = new Rect(timeline.xMax + 5f, timeline.y, right.width - timeline.width - 10f, 20f);
@@ -340,13 +302,10 @@ namespace Laubrary.Zounds.Uitk {
                 Place(up, new Rect(ro.x, ro.y, ro.width / 2f, 20f)); Place(down, new Rect(ro.x + ro.width / 2f, ro.y, ro.width / 2f, 20f));
             });
 
-            // Playheads (one per sounding token of this entry) and the flash.
-            var headPool = new List<VisualElement>();
+            // The flash while this entry sounds (its playheads are the strip's, where each play reads its source).
             win.liveRefreshers.Add(() => {
-                int n = 0;
                 bool flashing = false;
-                if (heads.userData is ValueTuple<Rect, Rect> geom && ZoundEngine.CullingGroups.TryGetValue(parent, out var playingTokens)) {
-                    var (spectrum, timeline) = geom;
+                if (ZoundEngine.CullingGroups.TryGetValue(parent, out var playingTokens)) {
                     foreach (var token in playingTokens) {
                         if (token == null || token.state == ZoundToken.State.Killed) continue;
                         if (!token.TryGetEntryToken(entry, out var child) || child.state == ZoundToken.State.Killed) continue;
@@ -354,18 +313,19 @@ namespace Laubrary.Zounds.Uitk {
                         if (token.soloOverride != null && token.soloOverride != entry) continue;
                         if (token.zound is Zequence tz && token.isRealtime && tz.mode != CompositeZound.Mode.Parallel && token.playedEntryIndex != index) continue;
                         flashing = true;
-                        if (child.duration > Mathf.Epsilon) {
-                            if (n >= headPool.Count) { var h = new VisualElement { pickingMode = PickingMode.Ignore }; h.AddToClassList("zs-zequence-entry__plain-h"); heads.Add(h); headPool.Add(h); }
-                            var head = headPool[n++];
-                            head.style.display = DisplayStyle.Flex;
-                            head.style.backgroundColor = ZoundsProject.Instance.projectSettings.editorStyle.playerHeadColor;
-                            Place(head, new Rect(spectrum.x + child.time / child.duration * spectrum.width, timeline.y, 1.5f, timeline.height));
-                        }
                     }
                 }
-                for (int i = n; i < headPool.Count; i++) headPool[i].style.display = DisplayStyle.None;
                 Flash(flashing);
             });
+        }
+
+        /// <summary>This track's drawn length and where it ends on the Zequence timeline, from the shared placements.</summary>
+        float PlacedLength(out float endsAt) {
+            endsAt = 0f;
+            if (win.timeline != null && win.timeline.byEntry.TryGetValue(entry, out var p) && p.found) { endsAt = p.End; return p.PlayLength; }
+            float dur = CompositeZoundEditing.GetEntryDuration(parent, entry, parentPitch);
+            endsAt = parentDelay + entry.delay / Mathf.Max(parentPitch, 0.01f) + dur;
+            return dur;
         }
 
         void Flash(bool on) {
@@ -529,8 +489,8 @@ namespace Laubrary.Zounds.Uitk {
             if (entry.editor_foldoutExpanded) {
                 bool darker = false;
                 for (int i = 0; i < comp.zoundEntries.Count; i++) {
-                    float childPitch = win.zeq.minPitch * comp.minPitch;
-                    var child = new ZequenceEntryTK(win, comp, comp.zoundEntries[i], i, childPitch, entry.delay / childPitch, darker, true);
+                    float groupPitch = parentPitch * (entry.overridePitch ? entry.pitch : entry.pitch * ZequenceTimeline.Mid(comp));
+                    var child = new ZequenceEntryTK(win, comp, comp.zoundEntries[i], i, groupPitch, parentDelay + entry.delay / Mathf.Max(parentPitch, 0.01f), darker, true);
                     child.AddToClassList("zs-zequence-entry__group-child");
                     Add(child); children.Add(child);
                     darker = !darker;
@@ -556,9 +516,9 @@ namespace Laubrary.Zounds.Uitk {
                 if (noPlay != null) { xOff += W.GroupEntryLeftOffset; Place(noPlay, new Rect(left.x + xOff, y, 22f, 20f)); xOff += 24f; }
                 Place(mode, new Rect(left.x + xOff, y + 1f, left.width - xOff, 20f));
                 y += 22f;
-                float dur = CompositeZoundEditing.GetEntryDuration(parent, entry, win.zeq.minPitch);
+                float dur = PlacedLength(out float endsAt);
                 Place(duration, new Rect(left.x, y, left.width * 0.75f, lh));
-                duration.text = dur.ToString("0.00") + " sec" + (entry.delay > 0f ? " (" + (dur + entry.delay).ToString("0.00") + " sec)" : "");
+                duration.text = dur.ToString("0.00") + " sec" + (endsAt > dur + 1e-3f ? " (" + endsAt.ToString("0.00") + " sec)" : "");
 
                 float ry = right.y;
                 Place(fieldsRow, new Rect(right.x, ry, right.width, lh));

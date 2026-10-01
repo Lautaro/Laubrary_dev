@@ -122,7 +122,7 @@ namespace Laubrary.Zounds {
             // same kind of double application T-0443 fixed for pitch).
             m_voice = Dsp.ZoundSapPlayback.StartVoice(zound, audioSource, sourceClip, basePitch, 1f,
                                                      playId, out string reason, out m_chainDuration,
-                                                     sourceAlreadyTrimmed);
+                                                     sourceAlreadyTrimmed, Dsp.ZoundSapPlayback.Excerpt.From(in args));
             if (m_voice != null) {
                 m_chainPath = true;
                 // The voice applies the pitch itself, as it reads the source (basePitch above), so the audio source that
@@ -149,7 +149,7 @@ namespace Laubrary.Zounds {
                 }
                 // A Looper (T-0473) plays until it is stopped: it has no length of its own. Stopping it (a kill, a
                 // culling, a parent stopping) goes through OnKill, which stops the voice itself.
-                if (zound.IsLooper) m_chainDuration = float.PositiveInfinity;
+                if (zound.IsLooper || (args.excerpt && args.excerptLoop)) m_chainDuration = float.PositiveInfinity;
                 return;
             }
 

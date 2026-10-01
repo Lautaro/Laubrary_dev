@@ -812,6 +812,22 @@ namespace Laubrary.Zounds {
         internal float pitchRandomFactor;
         internal float volumeRandomFactor;
 
+        /// <summary>
+        /// Play only <see cref="excerptStart"/> to <see cref="excerptEnd"/> of a Klip's source file (seconds), instead of
+        /// its own trim (T-0565): a Zequence track's own excerpt, an audition of a selection, or a play started part-way.
+        /// Nothing about the saved sound changes. Ignored by anything but a Klip.
+        /// </summary>
+        public bool excerpt;
+        public float excerptStart, excerptEnd;
+        /// <summary>Loop the excerpt until stopped (an audition loop). Only with <see cref="excerpt"/>.</summary>
+        public bool excerptLoop;
+        /// <summary>
+        /// Start this play <see cref="startAt"/> seconds in (the editor's "Play from here", T-0563): a Zequence skips
+        /// that much of its timeline -- tracks that would already have ended do not play, tracks already sounding start
+        /// part-way through their audio at their drawn speed. 0 plays from the start.
+        /// </summary>
+        public float startAt;
+
         /// <summary>Returns a default ZoundArgs ready for immediate playback with no overrides.</summary>
         public static ZoundArgs Default => new ZoundArgs {
             startImmediately = true,

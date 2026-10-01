@@ -38,7 +38,7 @@ namespace Laubrary.Zounds.Dsp {
         public static ZoundSapVoiceGenerator StartVoice(Zound zound, AudioSource carrier, AudioClip sourceClip,
                                                        float basePitch, float outGain, long tokenId,
                                                        out string reason, out float duration,
-                                                       bool sourceAlreadyTrimmed = false) {
+                                                       bool sourceAlreadyTrimmed = false, in Excerpt excerpt = default) {
             reason = null;
             duration = 0f;
             if (zound == null || carrier == null) { reason = "no sound or no audio source"; return null; }
@@ -57,22 +57,14 @@ namespace Laubrary.Zounds.Dsp {
 
             // Trim is part of the chain era's source stage rather than something baked into a file: it simply
             // decides where reading starts and stops.
-            double startFrame = 0d;
-            double endFrame = pcm.frames;
-            // Skipped when the audio handed to us is already the trimmed copy: trimming it again would cut a second
-            // time into an already-cut region and lose the end of the sound.
-            if (!sourceAlreadyTrimmed && zound is Klip klip && klip.trimEnabled) {
-                double rate = pcm.frequency;
-                startFrame = Mathf.Clamp(klip.trimStart, 0f, pcm.LengthSeconds) * rate;
-                if (klip.trimEnd > klip.trimStart) endFrame = Mathf.Min(klip.trimEnd, pcm.LengthSeconds) * rate;
-            }
+            Region(zound, pcm, sourceAlreadyTrimmed, in excerpt, out double startFrame, out double endFrame);
             if (endFrame <= startFrame) { reason = "the trimmed region is empty"; return null; }
 
             // What this play is made of (T-0481): the chain (with an old stretch setting converted into a time curve),
             // whether the live stretcher runs and at what speed. A pitch or time curve consumes the source at a changing
             // rate, so the play length is the integral of that rate. The duration reported is the nominal one at the
             // current speed; a stretched voice reports its real end itself, because the speed may change while it plays.
-            var plan = Plan(zound, startFrame, endFrame, pcm.frequency, pcm.frames);
+            var plan = Plan(zound, startFrame, endFrame, pcm.frequency, pcm.frames, OwnAxisFor(zound, pcm, sourceAlreadyTrimmed, in excerpt));
             var chain = plan.chain;
             var layout = chain != null && !chain.IsEmpty ? ZoundDspPlayback.GetLayoutFor(chain, zound, sampleRate)
                                                         : ChainLayout.Empty;
@@ -84,12 +76,12 @@ namespace Laubrary.Zounds.Dsp {
 
             var generator = EnsureGenerator(carrier);
             // A Looper (T-0473) loops its region inside the voice, with its crossmix, until it is stopped.
-            bool looping = zound is Klip loopKlip && loopKlip.IsLooper;
+            bool looping = (zound is Klip loopKlip && loopKlip.IsLooper) || (excerpt.on && excerpt.loop);
             generator.SetPlay(pcm, layout, startFrame, endFrame, basePitch, outGain, duration,
                               loop: looping, tokenId: tokenId, heavyTier: layout.heavy, zound: zound,
                               stretch: stretch, authoredSpeed: authoredSpeed);
-            if (looping) {
-                ((Klip)zound).loop.Effective((float)((endFrame - startFrame) / pcm.frequency), out float xMin, out float xMax);
+            if (looping && zound is Klip lk && lk.IsLooper) {
+                lk.loop.Effective((float)((endFrame - startFrame) / pcm.frequency), out float xMin, out float xMax);
                 generator.SetLoopCrossmix(xMin, xMax);
             }
             else generator.SetLoopCrossmix(0f, 0f);
@@ -161,21 +153,120 @@ namespace Laubrary.Zounds.Dsp {
         /// <see cref="StartVoice"/> works it out — same source, same trim, same allowance for a pitch curve — so that a
         /// display drawn along "the play" lines up with what is heard. False when the source cannot be read.
         /// </summary>
-        public static bool TryGetPlayLength(Zound zound, out float seconds) {
+        public static bool TryGetPlayLength(Zound zound, out float seconds) => TryGetPlayLength(zound, default, out seconds);
+
+        /// <summary>As above, for a play of just <paramref name="excerpt"/> of the source (a track's own excerpt, T-0565).</summary>
+        public static bool TryGetPlayLength(Zound zound, in Excerpt excerpt, out float seconds) {
             seconds = 0f;
             var clip = LoadSourceClip(zound, out bool alreadyTrimmed);
             if (clip == null || !string.IsNullOrEmpty(ZoundPcmCache.Validate(clip))) return false;
             var pcm = ZoundPcmCache.Get(clip);
             if (pcm == null || !pcm.valid) return false;
-            double startFrame = 0d, endFrame = pcm.frames;
-            if (!alreadyTrimmed && zound is Klip klip && klip.trimEnabled) {
-                startFrame = Mathf.Clamp(klip.trimStart, 0f, pcm.LengthSeconds) * pcm.frequency;
-                if (klip.trimEnd > klip.trimStart) endFrame = Mathf.Min(klip.trimEnd, pcm.LengthSeconds) * pcm.frequency;
-            }
+            Region(zound, pcm, alreadyTrimmed, in excerpt, out double startFrame, out double endFrame);
             if (endFrame <= startFrame) return false;
-            var plan = Plan(zound, startFrame, endFrame, pcm.frequency, pcm.frames);
+            var plan = Plan(zound, startFrame, endFrame, pcm.frequency, pcm.frames, OwnAxisFor(zound, pcm, alreadyTrimmed, in excerpt));
             seconds = PlayLength(in plan, (endFrame - startFrame) / pcm.frequency, 1f, false);
             return seconds > 0f;
+        }
+
+        /// <summary>
+        /// Where a play of <paramref name="zound"/> (its trim, or <paramref name="excerpt"/>) is in its source at each moment,
+        /// for drawing it on a timeline (T-0562): <paramref name="playSeconds"/>[i] is how long the play has run, at pitch one,
+        /// when it reaches source second <paramref name="sourceSeconds"/>[i]; the two arrays run evenly over the region read,
+        /// from its start to its end. Pitch and time curves and a stretch warp it exactly as they warp the play -- the same
+        /// integration as <see cref="TryGetPlayLength(Zound, in Excerpt, out float)"/>, so the last entry is that length.
+        /// Also gives the file's length. False when the source cannot be read. Editor use; allocates nothing itself.
+        /// </summary>
+        public static bool TryMapSourceToPlay(Zound zound, in Excerpt excerpt, float[] sourceSeconds, float[] playSeconds, out float fileLength) {
+            fileLength = 0f;
+            int n = sourceSeconds != null && playSeconds != null ? Mathf.Min(sourceSeconds.Length, playSeconds.Length) : 0;
+            if (n < 2) return false;
+            var clip = LoadSourceClip(zound, out bool alreadyTrimmed);
+            if (clip == null || !string.IsNullOrEmpty(ZoundPcmCache.Validate(clip))) return false;
+            var pcm = ZoundPcmCache.Get(clip);
+            if (pcm == null || !pcm.valid) return false;
+            Region(zound, pcm, alreadyTrimmed, in excerpt, out double startFrame, out double endFrame);
+            if (endFrame <= startFrame) return false;
+            var plan = Plan(zound, startFrame, endFrame, pcm.frequency, pcm.frames, OwnAxisFor(zound, pcm, alreadyTrimmed, in excerpt));
+            float region = (float)((endFrame - startFrame) / pcm.frequency);
+            float shift = alreadyTrimmed && zound is Klip k && k.trimEnabled ? k.trimStart : 0f;
+            float a = (float)(startFrame / pcm.frequency) + shift;
+            fileLength = alreadyTrimmed ? pcm.LengthSeconds + shift : pcm.LengthSeconds;
+            var axis = plan.axis.Valid ? plan.axis : (CurveAnchor.Axis?)null;
+            var chain = plan.chain;
+            bool plain = chain == null || chain.IsEmpty;
+            float speedDiv = plan.stretched ? Mathf.Max(plan.authoredSpeed, SapStretch.MinSpeed) : 1f;
+            // The same 400-step rule as the play length, sampled onto n points.
+            const int steps = 400;
+            double total = 0; int written = 0;
+            sourceSeconds[0] = a; playSeconds[0] = 0f; written = 1;
+            for (int i = 0; i < steps; i++) {
+                float t = (i + 0.5f) / steps;
+                float rate = 1f;
+                if (!plain) {
+                    rate = plan.keepLength && plan.stretched ? 1f : ZoundDspPlayback.PitchAtSource(chain, t, region, plan.drawn, plan.seed, axis);
+                    if (plan.stretched) rate *= ZoundDspPlayback.SpeedAtSource(chain, t, region, plan.drawn, plan.seed, axis);
+                }
+                total += (region / steps) / Mathf.Max(rate, 1e-3f);
+                float reached = (float)(i + 1) / steps;
+                while (written < n && (float)written / (n - 1) <= reached + 1e-6f) {
+                    float want = (float)written / (n - 1);
+                    // Linear within this step.
+                    double before = total - (region / steps) / Mathf.Max(rate, 1e-3f);
+                    float within = Mathf.Clamp01((want - (float)i / steps) * steps);
+                    sourceSeconds[written] = a + want * region;
+                    playSeconds[written] = (float)((before + within * (total - before)) / speedDiv);
+                    written++;
+                }
+            }
+            for (; written < n; written++) { sourceSeconds[written] = a + region; playSeconds[written] = (float)(total / speedDiv); }
+            return true;
+        }
+
+        /// <summary>
+        /// A part of a Klip's source to play instead of its own trim (T-0565), in seconds of the ORIGINAL source file.
+        /// Default (off) plays the Klip's own trim.
+        /// </summary>
+        public struct Excerpt {
+            public bool on;
+            public float start, end;
+            /// <summary>Loop it until stopped (an audition loop).</summary>
+            public bool loop;
+            public static Excerpt Of(float start, float end, bool loop = false) => new Excerpt { on = true, start = start, end = end, loop = loop };
+            public static Excerpt From(in ZoundArgs a) => a.excerpt ? new Excerpt { on = true, start = a.excerptStart, end = a.excerptEnd, loop = a.excerptLoop } : default;
+        }
+
+        /// <summary>
+        /// The frames of <paramref name="pcm"/> a play reads: the Klip's trim, or the excerpt. When the audio is the shipped
+        /// copy, which already holds only the Klip's trim, an excerpt is shifted into it and clamped to what it holds.
+        /// </summary>
+        static void Region(Zound zound, PcmClip pcm, bool alreadyTrimmed, in Excerpt excerpt, out double startFrame, out double endFrame) {
+            double rate = pcm.frequency;
+            startFrame = 0d; endFrame = pcm.frames;
+            var klip = zound as Klip;
+            if (excerpt.on && klip != null) {
+                float shift = alreadyTrimmed && klip.trimEnabled ? klip.trimStart : 0f;
+                float a = Mathf.Clamp(excerpt.start - shift, 0f, pcm.LengthSeconds);
+                float b = Mathf.Clamp(excerpt.end - shift, 0f, pcm.LengthSeconds);
+                startFrame = a * rate; endFrame = b * rate;
+                return;
+            }
+            // Skipped when the audio handed to us is already the trimmed copy: trimming it again would cut a second
+            // time into an already-cut region and lose the end of the sound.
+            if (!alreadyTrimmed && klip != null && klip.trimEnabled) {
+                startFrame = Mathf.Clamp(klip.trimStart, 0f, pcm.LengthSeconds) * rate;
+                if (klip.trimEnd > klip.trimStart) endFrame = Mathf.Min(klip.trimEnd, pcm.LengthSeconds) * rate;
+            }
+        }
+
+        /// <summary>
+        /// For a play of an excerpt: the Klip's OWN trim, so its curves still anchored to "a fraction of the trim" can be
+        /// read on a converted copy exactly as they are drawn (see <see cref="Plan"/>). Null for an ordinary play.
+        /// </summary>
+        static CurveAnchor.Axis? OwnAxisFor(Zound zound, PcmClip pcm, bool alreadyTrimmed, in Excerpt excerpt) {
+            if (!excerpt.on || alreadyTrimmed || !(zound is Klip k)) return null;
+            var axis = CurveAnchor.Axis.Of(k, pcm.LengthSeconds);
+            return axis.Valid ? axis : (CurveAnchor.Axis?)null;
         }
 
         private static long s_playSerial;
@@ -212,8 +303,17 @@ namespace Laubrary.Zounds.Dsp {
         /// curve, or keeps its length under a pitch curve; every other sound reads its source directly, exactly as
         /// before. The one place StartVoice and every length display decide this, so they cannot disagree.
         /// </summary>
-        public static PlayPlan Plan(Zound zound, double startFrame, double endFrame, double frequency, double totalFrames = 0d) {
+        public static PlayPlan Plan(Zound zound, double startFrame, double endFrame, double frequency, double totalFrames = 0d,
+                                    CurveAnchor.Axis? ownAxis = null) {
             var plan = new PlayPlan { chain = ResolveChainForPlayback(zound), stretch = SapStretchConfig.Off, authoredSpeed = 1f };
+            // An excerpt of a sound whose curves still sit on "a fraction of its trim" (T-0565): they are read from a copy
+            // converted to source seconds against the sound's OWN trim, so each point is heard over the audio it is drawn
+            // over whatever part of the source this play reads. The saved sound is not touched; it converts on its first edit.
+            if (ownAxis.HasValue && plan.chain != null && NeedsAnchorConversion(plan.chain)) {
+                var c = plan.chain.DeepCopy();
+                foreach (var m in c.modifiers) CurveAnchor.ConvertToSource(m, ownAxis.Value);
+                plan.chain = c;
+            }
             // Where the region sits in the whole file, for source-anchored curves (T-0501); unknown without the file's length.
             if (frequency > 0 && totalFrames > 0)
                 plan.axis = new CurveAnchor.Axis { trimStart = (float)(startFrame / frequency), trimEnd = (float)(endFrame / frequency), sourceLength = (float)(totalFrames / frequency) };
@@ -242,6 +342,11 @@ namespace Laubrary.Zounds.Dsp {
             plan.stretch.keepLength = keep;
             plan.authoredSpeed = Mathf.Clamp((ts.liveEnabled ? ts.liveSpeed : 1f) * LegacyStretch.UniformSpeed(k), SapStretch.MinSpeed, SapStretch.MaxSpeed);
             return plan;
+        }
+
+        static bool NeedsAnchorConversion(ZoundEffectChain chain) {
+            foreach (var m in chain.modifiers) if (m.curveAnchor != CurveAnchor.Source && CurveAnchor.FollowsWaveform(m)) return true;
+            return false;
         }
 
         /// <summary>How long a play made to <paramref name="plan"/> lasts, for <paramref name="sourceSeconds"/> of source at

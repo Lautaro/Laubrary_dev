@@ -29,6 +29,15 @@ namespace Laubrary.Zui
         /// hearing (Zounds, T-0484: a curve with random points is drawn afresh for every play). Null or empty: nothing extra.
         /// </summary>
         public List<System.Func<float, float>> liveCurves;
+        /// <summary>
+        /// Only a press on a point or on the line is this envelope's (Zounds non-destructive editing, T-0566): a press anywhere
+        /// else is not consumed and passes through to whatever is underneath, so a curve drawn over a Zequence track leaves
+        /// selecting, moving and trimming the track to the track.
+        /// </summary>
+        public bool pointsAndLineOnly;
+        /// <summary>Drawn dashed: a curve that belongs to the timeline (a track's or the Zequence's own), which stays where it is
+        /// when a piece moves, unlike the sound's own curves that travel with its audio (T-0566).</summary>
+        public bool dashed;
 
         int _dragPoint = -1, _dragLine = -1, _dragExponent = -1, _hoverPoint = -1, _hoverLine = -1;
         bool _boxSelecting, _pressed, _shift;
@@ -252,6 +261,7 @@ namespace Laubrary.Zui
                 _pressed = true; Focus(); Repaint(); return true;
             }
             bool onFlatLine = points.Count == 1 && Mathf.Abs(m.y - ValueToY(points[0].value, r)) <= configuration.lineHitDistance;
+            if (pointsAndLineOnly && line <= 0 && !onFlatLine) return false;
             if (button == 0 && !shift && rt.allowAddPoints && configuration.addOnLinePress && (line > 0 || onFlatLine))
             {
                 InsertAt(m, true, true); return true;
@@ -586,11 +596,21 @@ namespace Laubrary.Zui
                 p2.strokeColor = style.curveColor; p2.lineWidth = StrokeWidth(style.curveThickness);
                 p2.lineJoin = LineJoin.Round; p2.lineCap = LineCap.Round;
                 p2.BeginPath();
+                Vector2 prevPt = default; float dashRun = 0f; bool dashOn = true;
                 for (int i = 0; i <= n; i++)
                 {
                     float t = rt.xMin + (rt.xMax - rt.xMin) * i / n;
                     var pt = new Vector2(TimeToX(t, r), ValueToY(Evaluate(points, t, rt.yMax), r));
-                    if (i == 0) p2.MoveTo(pt); else p2.LineTo(pt);
+                    if (i == 0) p2.MoveTo(pt);
+                    else if (dashed)
+                    {
+                        // 6 px drawn, 4 px gap, along the curve.
+                        dashRun += Vector2.Distance(prevPt, pt);
+                        if (dashOn) p2.LineTo(pt); else p2.MoveTo(pt);
+                        if (dashRun >= (dashOn ? 6f : 4f)) { dashRun = 0f; dashOn = !dashOn; }
+                    }
+                    else p2.LineTo(pt);
+                    prevPt = pt;
                 }
                 p2.Stroke();
                 if (_hoverLine > 0 && _hoverLine < points.Count && _shift)

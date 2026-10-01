@@ -158,7 +158,7 @@ namespace Laubrary.Zounds {
             }
             isPreviewing = true;
             startTime = Time.realtimeSinceStartup;
-            EnsureAllKlipsRendered(zequence);
+            // No side-effect renders (T-0502): every Klip plays its original audio through its live chain.
             var token = ZoundPreviewPlayback.Play(previewOwner, zequence, new ZoundArgs() {
                 startImmediately = true,
                 delay = 0f,
@@ -178,7 +178,7 @@ namespace Laubrary.Zounds {
         }
 
         private void RenderToKlip() {
-            EnsureAllKlipsRendered(zequence);
+            // No side-effect renders (T-0502): every Klip plays its original audio through its live chain.
 
             var token = ZoundEngine.PlayZound(zequence, new ZoundArgs() {
                 startImmediately = false,
