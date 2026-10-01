@@ -1032,7 +1032,7 @@ namespace Laubrary.Zounds {
         /// Ensures an AudioClip at the given asset path is registered as Addressable.
         /// Returns the AssetReference, or null on failure.
         /// </summary>
-        private static UnityEngine.AddressableAssets.AssetReference EnsureClipAddressable(string assetPath) {
+        internal static UnityEngine.AddressableAssets.AssetReference EnsureClipAddressable(string assetPath) {
             var audioClip = AssetDatabase.LoadAssetAtPath<AudioClip>(assetPath);
             var audioRef = AudioRenderUtility.GetAudioReference(audioClip);
             if (audioRef != null) return audioRef;

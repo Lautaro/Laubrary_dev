@@ -139,7 +139,10 @@ namespace Laubrary.Zounds.Uitk {
                 imp.SaveAndReimport();
             }
             var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(path);
+            // Nothing plays the new file yet, so it is not addressable on import; the new Klip will, so register it now.
+            KlipEditorWindow.EnsureClipAddressable(path);
             var audioRef = AudioRenderUtility.GetAudioReference(clip);
+            if (audioRef == null) { Debug.LogError("[Zounds] The baked file " + path + " could not be made addressable, so no Klip was made for it."); return null; }
             Klip made = null;
             ZoundsWindow.ModifyZoundsProject("bake zequence to klip", () => {
                 var k = new Klip(ZoundLibrary.GetUniqueZoundId());
