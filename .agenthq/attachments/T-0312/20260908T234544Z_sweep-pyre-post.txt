@@ -1,0 +1,52 @@
+########## pyre layer 0  pane 400
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets bound=AuditT0312 layers=2 sel=0 layer0.form=<none/Disc> layer1.form=TorchForm pane=400 win=(x:20.00, y:40.00, width:1700.00, height:1000.00) elements=514
+
+D:/UNITY/Laubrary Dev/.agenthq/workspace/T-0312/out/audit-pyre-post-L0-p400.txt
+columns=1 flowWidth=360
+pyre-post-L0-p400 | elements=514 drawn=253 text=84 controls=72 leafControls=43 captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=1 
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → This Pyre matches what is on disk — nothing to save.
+
+########## pyre layer 0  pane 900
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets bound=AuditT0312 layers=2 sel=0 layer0.form=<none/Disc> layer1.form=TorchForm pane=900 win=(x:20.00, y:40.00, width:1700.00, height:1000.00) elements=514
+
+D:/UNITY/Laubrary Dev/.agenthq/workspace/T-0312/out/audit-pyre-post-L0-p900.txt
+columns=1 flowWidth=360
+pyre-post-L0-p900 | elements=514 drawn=253 text=84 controls=72 leafControls=43 captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=1 
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → This Pyre matches what is on disk — nothing to save.
+
+########## pyre layer 1  pane 400
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets bound=AuditT0312 layers=2 sel=1 layer0.form=<none/Disc> layer1.form=TorchForm pane=400 win=(x:20.00, y:40.00, width:1700.00, height:1000.00) elements=1243
+
+D:/UNITY/Laubrary Dev/.agenthq/workspace/T-0312/out/audit-pyre-post-L1-p400.txt
+columns=1 flowWidth=347
+pyre-post-L1-p400 | elements=1243 drawn=604 text=239 controls=162 leafControls=54 captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=1 
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → This Pyre matches what is on disk — nothing to save.
+
+########## pyre layer 1  pane 900
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets bound=AuditT0312 layers=2 sel=1 layer0.form=<none/Disc> layer1.form=TorchForm pane=900 win=(x:20.00, y:40.00, width:1700.00, height:1000.00) elements=1243
+
+D:/UNITY/Laubrary Dev/.agenthq/workspace/T-0312/out/audit-pyre-post-L1-p900.txt
+columns=1 flowWidth=347
+pyre-post-L1-p900 | elements=1243 drawn=604 text=239 controls=162 leafControls=54 captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=1 
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → This Pyre matches what is on disk — nothing to save.
+

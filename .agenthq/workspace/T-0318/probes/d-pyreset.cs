@@ -1,0 +1,11 @@
+var win = ZWin("PyreWindow"); if (win == null) return "NO PYRE";
+float lpw = float.Parse(UnityEditor.EditorPrefs.GetString("T318.lpw","360"));
+float ww  = float.Parse(UnityEditor.EditorPrefs.GetString("T318.winw","820"));
+var BFi = System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Public;
+win.GetType().GetField("leftPaneWidth", BFi).SetValue(win, lpw);
+win.position = new UnityEngine.Rect(5, 20, ww, 900);
+System.Reflection.MethodInfo rb = null;
+for (var t = win.GetType(); t != null && rb == null; t = t.BaseType) rb = t.GetMethod("Rebuild", BFi|System.Reflection.BindingFlags.DeclaredOnly);
+if (rb != null) rb.Invoke(win, null);
+win.Repaint();
+return "set intent=" + lpw + " win=" + ww;

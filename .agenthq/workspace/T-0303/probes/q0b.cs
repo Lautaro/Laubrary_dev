@@ -1,0 +1,1 @@
+UnityEditor.EditorPrefs.SetString("A25.menu","Laubrary/Laumination Builder"); UnityEditor.EditorPrefs.SetString("A25.type","LauminationBuilderWindow"); UnityEditor.EditorPrefs.SetString("A25.capName","launimator"); return "x";

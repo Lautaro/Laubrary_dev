@@ -1,0 +1,39 @@
+case	maxDiff	perFrameDiff	baselineLit	note
+ArcBurst.keepHueFloor @ Bolt defaults	0	0·0·0·0·0·0·0·0	0·488·776·897·898·768·576·0	0.36 -> 0
+ArcBurst.keepHueFloor @ Bolt trunks+6	798	0·361·661·744·798·713·562·0	0·678·1183·1446·1487·1410·1151·0	more trunks -> more ghosts
+ArcBurst.ghostDeepLo @ Bolt defaults (ghostDeepP=0)	0	0·0·0·0·0·0·0·0	0·488·776·897·898·768·576·0	expected 0 — guard shut
+ArcBurst.ghostDeepLo @ Bolt ghostDeepP=0.9	0	0·0·0·0·0·0·0·0	0·488·776·897·898·768·576·0	guard opened
+ArcBurst.ghostDeepHi @ Bolt ghostDeepP=0.9	0	0·0·0·0·0·0·0·0	0·488·776·897·898·768·576·0	guard opened
+ArcBurst.lattice.flyLo @ Lattice defaults (burstStart=0.60)	1736	0·0·0·0·0·1736·1703·0	0·605·1041·1319·1859·1736·1421·0	0.7 -> 0, all 8 frames
+ArcBurst.lattice.flyHi @ Lattice defaults	1757	0·0·0·0·0·1757·1523·0	0·605·1041·1319·1859·1736·1421·0	1.25 -> 2, all 8 frames
+ArcBurst.lattice.flyLo @ burstStart=1.0	0	0·0·0·0·0·0·0·0	0·605·1041·1319·1859·1930·1422·0	the guard actually shut
+ArcBurst.cage.coolK @ Cage defaults (coolStart=0.88, 8 frames)	0	0·0·0·0·0·0·0·0	0·635·1171·1690·2028·1995·1263·0	1.4 -> 3
+ArcBurst.cage.coolK @ coolStart=0.2	1459	0·0·996·1459·1433·931·222·0	0·635·1152·1550·1639·1377·925·0	guard opened early
+PlasmaBloom.driftEase @ defaults	0	0·0·0·0·0·0·0·0	0·1469·1494·1689·1495·842·218·0	expected 0 — drift shut
+PlasmaBloom.driftEase @ driftX=1 driftAmt=0.8	1429	0·1297·1299·1429·1316·894·326·0	0·1083·1108·1254·1107·643·164·0	guards opened
+PlasmaBloom.driftLin @ driftX=1 driftAmt=0.8	1853	0·1595·1624·1853·1833·1451·543·0	0·1083·1108·1254·1107·643·164·0	guards opened
+PlasmaBloom.driftLag @ driftX=1 driftAmt=0.8	1745	0·1745·1595·1733·1676·1270·469·0	0·1083·1108·1254·1107·643·164·0	guards opened
+PlasmaBloom.driftEase @ driftX=1 only	0	0·0·0·0·0·0·0·0	0·1469·1494·1689·1495·842·218·0	expected 0 — driftAmt still 0
+PlasmaBloom.driftEase @ driftAmt=0.8 only	0	0·0·0·0·0·0·0·0	0·1469·1494·1689·1495·842·218·0	expected 0 — driftX/Y still 0
+PlasmaBloom.mode Bloom->Plume @ lobes=0	0	0·0·0·0·0·0·0·0	0·1469·1494·1689·1495·842·218·0	expected 0 — Plume needs Lobe Count >= 2
+PlasmaBloom.mode Bloom->Plume @ lobes=4	0	0·0·0·0·0·0·0·0	0·1469·1494·1689·1495·842·218·0	guard opened
+PlasmaBloom.gateGain @ lobeMode=Noise, lobes=0	0	0·0·0·0·0·0·0·0	0·1469·1494·1689·1495·842·218·0	expected 0 — the whole lobe block is skipped
+PlasmaBloom.gateGain @ lobeMode=Noise, lobes=4	0	0·0·0·0·0·0·0·0	0·1469·1494·1689·1495·842·218·0	guard opened
+PlasmaBloom.plumeAmp @ Plume, lobes=0	0	0·0·0·0·0·0·0·0	0·1469·1494·1689·1495·842·218·0	expected 0
+PlasmaBloom.plumeAmp @ Plume, lobes=4	1941	0·1642·1708·1941·1933·1475·604·0	0·1469·1494·1689·1495·842·218·0	guard opened
+PlasmaBloom.plumeReach @ Plume, lobes=0	0	0·0·0·0·0·0·0·0	0·1469·1494·1689·1495·842·218·0	expected 0
+PlasmaBloom.plumeReach @ Plume, lobes=4	0	0·0·0·0·0·0·0·0	0·1469·1494·1689·1495·842·218·0	guard opened
+PlasmaBloom.plumeW @ Plume, lobes=0	0	0·0·0·0·0·0·0·0	0·1469·1494·1689·1495·842·218·0	expected 0
+PlasmaBloom.plumeW @ Plume, lobes=4	0	0·0·0·0·0·0·0·0	0·1469·1494·1689·1495·842·218·0	guard opened
+PlasmaBloom.plumeVary @ Plume, lobes=0	0	0·0·0·0·0·0·0·0	0·1469·1494·1689·1495·842·218·0	expected 0
+PlasmaBloom.plumeVary @ Plume, lobes=4	1952	0·1563·1790·1952·1948·1451·657·0	0·1382·1455·1643·1558·1015·295·0	guard opened
+PlasmaBloom.plumeVary @ Plume, lobes=4, warp=0	0	0·0·0·0·0·0·0·0	0·1212·1432·1666·1627·1104·363·0	expected 0 — second guard shut
+PlasmaBloom.chunks.swirl @ form swirl=0	0	0·0·0·0·0·0·0·0	0·1469·1494·1689·1495·842·218·0	expected 0
+PlasmaBloom.chunks.swirl @ form swirl=3	2120	0·1834·1909·2120·2064·1454·516·0	0·1562·1576·1764·1606·893·206·0	guard opened
+PlasmaBloom.embers.swirl @ form swirl=0	0	0·0·0·0·0·0·0·0	0·1469·1494·1689·1495·842·218·0	expected 0
+PlasmaBloom.embers.swirl @ form swirl=3	2079	0·1712·1810·2079·1983·1361·533·0	0·1562·1576·1764·1606·893·206·0	guard opened
+PlasmaBloom.motes.swirl @ form swirl=0	0	0·0·0·0·0·0·0·0	0·1469·1494·1689·1495·842·218·0	expected 0
+PlasmaBloom.motes.swirl @ form swirl=3	1110	0·274·582·1023·1110·877·323·0	0·1562·1576·1764·1606·893·206·0	guard opened
+ForkBlast.flash @ defaults, all 8 frames	0	0·0·0·0·0·0·0·0	0·1799·3309·3376·1410·0·0·0	0.7 -> 0
+ForkBlast.flash 0.7 -> 1, all 8 frames	0	0·0·0·0·0·0·0·0	0·1799·3309·3376·1410·0·0·0	
+ForkBlast.opacity @ the source's DEFAULT fill	0	0·0·0·0·0·0·0·0	0·1799·3309·3376·1410·0·0·0	0.55 -> 1.5

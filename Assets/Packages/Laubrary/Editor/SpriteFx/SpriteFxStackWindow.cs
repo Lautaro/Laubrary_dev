@@ -146,8 +146,8 @@ namespace Laubrary.SpriteFx.Editor
 
         protected override void BuildAsset(VisualElement root, SpriteFxSpec spec)
         {
-            root.style.flexGrow = 1f;
-            root.style.minHeight = 0f;
+            Z.AttachTool(root, "spritefx");
+            root.AddToClassList("lau-tool-shell");
 
             // Who hosts this stack is resolved BEFORE anything is drawn, because the answer decides what this
             // window is even allowed to own: on a Zoe event the duration and the visual are the event's, and
@@ -162,7 +162,7 @@ namespace Laubrary.SpriteFx.Editor
             // pinning changes; a user only hides Preview by explicitly switching into Toggle Bar mode and
             // clicking it off, which is their own informed choice.
             var barHost = new VisualElement();
-            barHost.style.flexShrink = 0f;
+            barHost.AddToClassList("lau-tool-shell__chrome");
             if (_barReservedH > 0f) barHost.style.minHeight = _barReservedH;   // space reserved before anything paints
             root.Add(barHost);
 
@@ -172,13 +172,12 @@ namespace Laubrary.SpriteFx.Editor
             // scrolling a stack of a dozen effects must never take it off screen — which is exactly what
             // happened while all three sections shared one ScrollView.
             var pinned = new VisualElement();
-            pinned.style.flexShrink = 0f;
+            pinned.AddToClassList("lau-tool-shell__chrome");
             Unit(pinned, spec, "Preview", BuildPreview);
             root.Add(pinned);
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.flexGrow = 1f;
-            scroll.style.minHeight = 0f;
+            scroll.AddToClassList("lau-tool-shell__scroll");
             var body = scroll.contentContainer;
 
             Unit(body, spec, "Stack", BuildStack);
@@ -362,9 +361,7 @@ namespace Laubrary.SpriteFx.Editor
             _subjectLine = Z.Text("", ZuiText.Subtle,
                 "Where the preview frames come from and how long the play-through runs. A stack used by a Zoe " +
                 "event previews on that event's own visual, over that event's own length.");
-            _subjectLine.style.height = 14f;
-            _subjectLine.style.whiteSpace = WhiteSpace.NoWrap;
-            _subjectLine.style.overflow = Overflow.Hidden;
+            _subjectLine.AddToClassList("lau-tool-shell__status-line");
             s.Add(_subjectLine);
 
             s.Add(Z.VSpace(4f));
@@ -380,35 +377,29 @@ namespace Laubrary.SpriteFx.Editor
             // just gets shrunk back to fit, which is what made a padded buffer squash the character again;
             // absolute placement lets it hang outside the border, which is exactly where the overflow goes.
             _previewStage = new VisualElement();
-            _previewStage.style.width = PreviewBox;
-            _previewStage.style.height = PreviewBox;
-            _previewStage.style.flexShrink = 0f;
-            _previewStage.style.alignItems = Align.Center;
-            _previewStage.style.justifyContent = Justify.Center;
+            _previewStage.AddToClassList("lau-tool-shell__sprite-stage");
             _previewStage.tooltip = "The sprite with the current stack applied at the scrub position, scaled up " +
                 "point-filtered (nearest-neighbour) so pixels stay crisp. The border marks the SPRITE's own " +
                 "frame — anything an effect draws beyond it spills outside, exactly as it does in game.";
 
             _frameBox = new VisualElement();
-            _frameBox.style.flexShrink = 0f;
-            _frameBox.style.backgroundColor = new Color(0.11f, 0.11f, 0.12f, 1f);
+            _frameBox.AddToClassList("lau-tool-shell__sprite-frame");
             StageBorder(_frameBox);
             _previewStage.Add(_frameBox);
 
             _previewImage = new UnityEngine.UIElements.Image { scaleMode = ScaleMode.StretchToFill };
-            _previewImage.style.position = Position.Absolute;
+            _previewImage.AddToClassList("lau-tool-shell__overlay");
             _frameBox.Add(_previewImage);
 
             _previewHint = new Label { pickingMode = PickingMode.Ignore };
-            _previewHint.style.whiteSpace = WhiteSpace.Normal;
-            _previewHint.style.unityTextAlign = TextAnchor.MiddleCenter;
+            _previewHint.AddToClassList("lau-tool-shell__preview-hint");
             _previewHint.style.maxWidth = PreviewBox - 20f;
             _previewStage.Add(_previewHint);
 
 
             // 3) Transport: Play/Stop plus the preview-only view toggles, packed beside the stage.
             _playButton = Z.Button(_previewPlaying ? "Stop" : "Play", PlayTooltip(), TogglePlay);
-            _playButton.style.width = 60f;
+            _playButton.AddToClassList("lau-tool-shell__play-action");
 
             // Preview-only: the same stack against a reversed clock — what an attachment set to Once Reversed
             // shows. Nothing about the asset changes; this is how you check that one stack covers both
@@ -436,12 +427,11 @@ namespace Laubrary.SpriteFx.Editor
             // empty rectangle to its right — and height is the scarce resource in a window whose whole point
             // is that the stack below stays reachable. Wraps back to stacked if the pane ever is that narrow.
             var controls = Z.Column(Z.Row(_playButton, reverseToggle), Z.VSpace(2f), _overlayStrip);
-            controls.style.flexShrink = 1f;
-            controls.style.minWidth = 0f;
+            controls.AddToClassList("lau-tool-shell__preview-controls");
 
             var stageRow = Z.Row(_previewStage, Z.HSpace(), controls);
-            stageRow.style.flexWrap = Wrap.Wrap;
-            stageRow.style.alignItems = Align.FlexStart;
+            stageRow.AddToClassList("zui-row--wrap");
+            stageRow.AddToClassList("zui-row--top");
             s.Add(stageRow);
 
             // 4) THE SCRUB, below the stage and FULL WIDTH. It goes under the preview rather than beside it
@@ -514,8 +504,8 @@ namespace Laubrary.SpriteFx.Editor
             // must not read as one run of dials, and the gap that marks a boundary is a sheet-wide value.
             var paramRow = Z.Row(Banded(ActiveBand, durationTip, durationControl), Z.HSpace(),
                                  Banded(GapBand, idleTip, idleSlider));
-            paramRow.style.flexWrap = Wrap.Wrap;
-            paramRow.style.alignItems = Align.Center;
+            paramRow.AddToClassList("zui-row--wrap");
+            paramRow.AddToClassList("zui-row--center");
             s.Add(Z.VSpace());
             s.Add(paramRow);
 
@@ -565,13 +555,11 @@ namespace Laubrary.SpriteFx.Editor
         static VisualElement Banded(Color band, string tooltip, VisualElement dial)
         {
             var chip = new VisualElement { tooltip = tooltip };
-            chip.style.width = 8f;
-            chip.style.height = 14f;
-            chip.style.flexShrink = 0f;
+            chip.AddToClassList("lau-tool-shell__timeline-key");
             chip.style.backgroundColor = band;
             StageBorder(chip);
             var row = Z.Row(chip, Z.HSpace(4f), dial);
-            row.style.alignItems = Align.Center;
+            row.AddToClassList("zui-row--center");
             return row;
         }
 
@@ -660,11 +648,7 @@ namespace Laubrary.SpriteFx.Editor
 
         static void StageBorder(VisualElement v)
         {
-            var c = new Color(0f, 0f, 0f, 0.5f);
-            v.style.borderTopWidth = 1f; v.style.borderBottomWidth = 1f;
-            v.style.borderLeftWidth = 1f; v.style.borderRightWidth = 1f;
-            v.style.borderTopColor = c; v.style.borderBottomColor = c;
-            v.style.borderLeftColor = c; v.style.borderRightColor = c;
+            v.AddToClassList("lau-tool-shell__frame-border");
         }
 
         // ── picker / scrub / transport callbacks ─────────────────────────────────────────────────────────────

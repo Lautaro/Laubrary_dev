@@ -1,0 +1,17 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.InputGuide",
+    "rootNamespace": "Laubrary.InputGuide",
+    "references": [
+        "Unity.InputSystem",
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

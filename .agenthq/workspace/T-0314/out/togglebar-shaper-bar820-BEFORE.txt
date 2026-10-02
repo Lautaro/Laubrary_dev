@@ -1,0 +1,16 @@
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+ShaperWindow window=820.0x1000 minSize=(820.00, 520.00) rootWorld=0.0..820.0
+BAR ZuiSectionToggleBar w=812.0 x=4.0..816.0 wrap=Wrap
+  SEG 'Sections' w=146.2 x=10.2..156.4 wrap=NoWrap grow/shrink=0/0
+    btn 'Sections' w=67.1 x=10.2..77.3 wrap=NoWrap grow/shrink=0/0
+    btn 'Toggle Bar' w=79.1 x=77.3..156.4 wrap=NoWrap grow/shrink=0/0
+  SEG 'Views' w=471.6 x=164.4..636.0 wrap=NoWrap grow/shrink=0/0
+    btn 'Views' w=53.3 x=164.4..217.8 wrap=NoWrap grow/shrink=0/0
+    btn 'Canvas' w=59.1 x=217.8..276.9 wrap=NoWrap grow/shrink=0/0
+    btn 'Layers' w=54.7 x=276.9..331.6 wrap=NoWrap grow/shrink=0/0
+    btn 'Shape' w=52.9 x=331.6..384.4 wrap=NoWrap grow/shrink=0/0
+    btn 'Fill' w=32.9 x=384.4..417.3 wrap=NoWrap grow/shrink=0/0
+    btn 'Swarm' w=56.0 x=417.3..473.3 wrap=NoWrap grow/shrink=0/0
+    btn 'SpriteFX' w=65.3 x=473.3..538.7 wrap=NoWrap grow/shrink=0/0
+    btn 'Lights' w=52.9 x=538.7..591.6 wrap=NoWrap grow/shrink=0/0
+    btn 'Tags' w=44.4 x=591.6..636.0 wrap=NoWrap grow/shrink=0/0

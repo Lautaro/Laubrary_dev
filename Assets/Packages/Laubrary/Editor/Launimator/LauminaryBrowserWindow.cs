@@ -162,8 +162,7 @@ namespace Laubrary.Launimator.Editor
 
         protected override void BuildUI(VisualElement root)
         {
-            root.style.flexGrow = 1f;
-            root.style.minHeight = 0f;
+            root.AddToClassList("lau-tool-shell");
 
             var nameField = Z.TextInput(_newName, "Name for a brand-new lauminary.", v => _newName = v, 140f);
             root.Add(Z.Row(
@@ -179,27 +178,19 @@ namespace Laubrary.Launimator.Editor
                 }).W(100f)));
 
             var split = new VisualElement();
-            split.style.flexDirection = FlexDirection.Row;
-            split.style.flexGrow = 1f;
-            split.style.minHeight = 0f;
+            split.AddToClassList("lau-tool-shell__split");
             root.Add(split);
 
             var left = new VisualElement();
-            left.style.width = 240f;
-            left.style.flexShrink = 0f;
-            left.style.minHeight = 0f;
+            left.AddToClassList("lau-tool-shell__side--catalog");
             _listHost = left;
             BuildLauminaryList(left);
             split.Add(left);
 
             var right = new VisualElement();
-            right.style.flexGrow = 1f;
-            right.style.minWidth = 0f;
-            right.style.minHeight = 0f;
-            right.style.marginLeft = 4f;
+            right.AddToClassList("lau-tool-shell__pane--unbounded");
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.flexGrow = 1f;
-            scroll.style.minHeight = 0f;
+            scroll.AddToClassList("lau-tool-shell__scroll");
             _detailHost = scroll.contentContainer;
             BuildLauminaryDetail(_detailHost);
             right.Add(scroll);
@@ -212,7 +203,7 @@ namespace Laubrary.Launimator.Editor
             root.Add(Z.Text("Lauminaries", ZuiText.Section, "Every lauminary found under the Launimator lauminary root."));
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.height = 170f;
+            scroll.AddToClassList("lau-animation-browser__lauminaries");
             root.Add(scroll);
             var list = scroll.contentContainer;
 
@@ -352,7 +343,7 @@ namespace Laubrary.Launimator.Editor
             root.Add(Z.Text($"Animations ({_orphans.Count})", ZuiText.Section, "Every orphaned animation in the project."));
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.height = 160f;
+            scroll.AddToClassList("lau-animation-browser__animations");
             root.Add(scroll);
             var list = scroll.contentContainer;
 
@@ -370,7 +361,7 @@ namespace Laubrary.Launimator.Editor
         {
             var def = o.animation;
             var row = Z.Row();
-            if (i == _animSel) row.style.backgroundColor = new Color(0.35f, 0.55f, 0.95f, 0.18f);
+            row.EnableInClassList("lau-authoring__selected-row", i == _animSel);
 
             if (_renamingOrphan == i)
             {
@@ -383,8 +374,7 @@ namespace Laubrary.Launimator.Editor
 
             int index = i;
             var pick = Z.Button(def.name, "Preview this orphaned animation.", () => SelectOrphanForPreview(index, o));
-            pick.style.flexGrow = 1f;
-            pick.style.minWidth = 60f;
+            pick.AddToClassList("lau-animation-browser__pick");
             pick.AddToClassList("zui-audit-allow-stretch");
             row.Add(pick);
 
@@ -484,7 +474,7 @@ namespace Laubrary.Launimator.Editor
                 "Every animation in the selected version."));
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.height = 160f;
+            scroll.AddToClassList("lau-animation-browser__animations");
             root.Add(scroll);
             for (int i = 0; i < version.animations.Count; i++)
                 scroll.contentContainer.Add(BuildAnimRow(i, version.animations[i], isDraft));
@@ -505,7 +495,7 @@ namespace Laubrary.Launimator.Editor
         private VisualElement BuildAnimRow(int i, Laumination def, bool isDraft)
         {
             var row = Z.Row();
-            if (i == _animSel) row.style.backgroundColor = new Color(0.35f, 0.55f, 0.95f, 0.18f);
+            row.EnableInClassList("lau-authoring__selected-row", i == _animSel);
 
             if (isDraft && _renamingAnim == i)
             {
@@ -562,8 +552,7 @@ namespace Laubrary.Launimator.Editor
             {
                 tooltip = "The selected animation, played by the same AnimationPlayback the game uses."
             };
-            _previewBox.style.height = 160f;
-            _previewBox.style.flexShrink = 0f;
+            _previewBox.AddToClassList("lau-animation-browser__preview");
             root.Add(_previewBox);
         }
 

@@ -272,8 +272,8 @@ namespace Laubrary.Pyre.Editor
             header.AddToClassList("zui-row");
 
             var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder — a modifier's position IS its apply order.");
-            grip.style.unityFontStyleAndWeight = FontStyle.Bold;
-            grip.style.width = 16f;
+            grip.AddToClassList("zui-row__grip");
+            grip.AddToClassList("zui-row__grip--bold");
             ZuiReorder.MakeGrip(grip, box, listHost, (from, to) =>
             {
                 Dirty(() =>

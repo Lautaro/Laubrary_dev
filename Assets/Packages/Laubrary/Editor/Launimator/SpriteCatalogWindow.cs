@@ -66,8 +66,8 @@ namespace Laubrary.Launimator.Editor
 
         protected override void BuildAsset(VisualElement root, SpriteCatalog asset)
         {
-            root.style.flexGrow = 1f;
-            root.style.minHeight = 0f;
+            root.AddToClassList("lau-sprite-catalog");
+            root.AddToClassList("lau-tool-shell");
 
             root.Add(Z.Field("Sheet", "The source sheet these sprites are sliced from.",
                 Z.Object<Texture2D>(asset.sheet, "The source sheet these sprites are sliced from.",
@@ -77,18 +77,13 @@ namespace Laubrary.Launimator.Editor
                     v => Edit("Catalog PPU", () => asset.pixelsPerUnit = Mathf.Max(1f, v)), 70f)));
 
             var split = new VisualElement();
-            split.style.flexDirection = FlexDirection.Row;
-            split.style.flexGrow = 1f;
-            split.style.minHeight = 0f;
+            split.AddToClassList("lau-sprite-catalog__split");
             root.Add(split);
 
             var left = new VisualElement();
-            left.style.width = 320f;
-            left.style.flexShrink = 0f;
-            left.style.minHeight = 0f;
+            left.AddToClassList("lau-sprite-catalog__controls");
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.flexGrow = 1f;
-            scroll.style.minHeight = 0f;
+            scroll.AddToClassList("lau-tool-shell__scroll");
             controlsHost = scroll.contentContainer;
             BuildControls(controlsHost);
             left.Add(scroll);
@@ -98,9 +93,7 @@ namespace Laubrary.Launimator.Editor
             {
                 tooltip = "The sheet with every catalog cell outlined and named — a read-only overview of what Slice will produce."
             };
-            stage.style.flexGrow = 1f;
-            stage.style.minWidth = 0f;
-            stage.style.marginLeft = 4f;
+            stage.AddToClassList("lau-sprite-catalog__stage");
             split.Add(stage);
         }
 
@@ -147,15 +140,12 @@ namespace Laubrary.Launimator.Editor
 
             // Native Image instead of an IMGUI blit — this "preview" was only ever GUI.DrawTexture.
             var thumbBox = new VisualElement { tooltip = $"Preview of '{e.name}' once sliced." };
-            thumbBox.style.width = 24f;
-            thumbBox.style.height = 24f;
-            thumbBox.style.flexShrink = 0f;
-            thumbBox.style.backgroundColor = new Color(0f, 0f, 0f, 0.2f);
+            thumbBox.AddToClassList("lau-sprite-catalog__thumbnail");
             var tex = e.sprite != null ? AssetPreview.GetAssetPreview(e.sprite) : null;
             if (tex != null)
             {
                 var img = new Image { image = tex, scaleMode = ScaleMode.ScaleToFit };
-                img.style.flexGrow = 1f;
+                img.AddToClassList("lau-tool-shell__column");
                 thumbBox.Add(img);
             }
             row.Add(thumbBox);

@@ -44,6 +44,15 @@ namespace ZuiRuntime
         public void Header(string text, float pts = 18f, Color? color = null)
             => Label(text, pts, color, bold: true);
 
+        /// <summary>Measures and draws a label using its authored runtime semantic role.</summary>
+        public void Label(string text, ZuiRuntimeSkin skin, ZuiTextRole role)
+        {
+            var style = Zui.TextStyle(skin, role);
+            var content = new GUIContent(text);
+            var rect = Next(style.CalcHeight(content, _area.width));
+            GUI.Label(rect, content, style);
+        }
+
         /// <summary>
         /// Draw text into an EXPLICIT rect on the stack's baseline — the escape hatch that does NOT
         /// auto-size, so text can clip if the rect is too small.

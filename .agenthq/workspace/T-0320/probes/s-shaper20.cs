@@ -1,0 +1,33 @@
+// Shaper setup for T-0320.  prefs: T320.doc, T320.layer, T320.pane, T320.winw, T320.winh, T320.sel
+var sb = new System.Text.StringBuilder();
+string docPath = UnityEditor.EditorPrefs.GetString("T320.doc", "Assets/Demos/ShaperDemo/ShaperDemoDoc.asset");
+int layerIx = UnityEditor.EditorPrefs.GetInt("T320.layer", 0);
+float pane = float.Parse(UnityEditor.EditorPrefs.GetString("T320.pane", "400"));
+float winw = float.Parse(UnityEditor.EditorPrefs.GetString("T320.winw", "1400"));
+float winh = float.Parse(UnityEditor.EditorPrefs.GetString("T320.winh", "900"));
+string sel = UnityEditor.EditorPrefs.GetString("T320.sel", "Views=1;Canvas=1;Layers=1;Shape=1;Fill=1;Swarm=1;SpriteFX=1;Lights=1;Tags=1");
+var shT = ZType("ShaperWindow");
+var BFi = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.FlattenHierarchy;
+UnityEditor.EditorPrefs.SetString("ZuiSectionToggleBar.ShaperWindow.userSel", sel);
+UnityEditor.EditorPrefs.DeleteKey("ZuiSectionToggleBar.ShaperWindow.solo");
+UnityEditor.EditorPrefs.SetFloat("ZUI.Split.shaper.window.split.v1", pane);
+var win = ZWin("ShaperWindow");
+if (win == null) { UnityEditor.EditorApplication.ExecuteMenuItem("Laubrary/Shaper"); win = ZWin("ShaperWindow"); }
+if (win == null) return "NO SHAPER WINDOW";
+win.position = new UnityEngine.Rect(0, 20, winw, winh);
+win.titleContent = new GUIContent("T320Tag");
+win.Show(); win.Repaint();
+var doc = UnityEditor.AssetDatabase.LoadMainAssetAtPath(docPath);
+if (doc == null) return "NO DOCUMENT at " + docPath;
+bool dirtyBefore = UnityEditor.EditorUtility.IsDirty(doc);
+System.Reflection.MethodInfo setAsset = null;
+for (var t = shT; t != null && setAsset == null; t = t.BaseType) setAsset = t.GetMethod("SetAsset", BFi | System.Reflection.BindingFlags.DeclaredOnly);
+setAsset.Invoke(win, new object[] { doc });
+System.Reflection.FieldInfo selF = null;
+for (var t = shT; t != null && selF == null; t = t.BaseType) selF = t.GetField("selectedLayer", BFi);
+if (selF != null) selF.SetValue(win, layerIx);
+System.Reflection.MethodInfo rebuild = null;
+for (var t = shT; t != null && rebuild == null; t = t.BaseType) rebuild = t.GetMethod("Rebuild", BFi | System.Reflection.BindingFlags.DeclaredOnly);
+rebuild.Invoke(win, null); win.Repaint();
+sb.Append("bound=").Append(doc.name).Append(" dirtyBefore=").Append(dirtyBefore).Append(" dirtyAfter=").Append(UnityEditor.EditorUtility.IsDirty(doc)).Append(" win=").Append(win.position).Append(" elements=").Append(ZAll(win.rootVisualElement).Count);
+return sb.ToString();

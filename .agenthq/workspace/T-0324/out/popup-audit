@@ -1,0 +1,43 @@
+content=Laubrary.AssetKit.Editor.LauAssetBrowser popupSize=(x:1250.67, y:285.78, width:456.00, height:510.22)
+field _mode = Curated
+list field '_eagerEntries' count=47
+field _unityTypeFilter = null
+field _excludePath = null
+field _onPick = System.Action`1[UnityEngine.Object]
+field _current = null
+field _thumbCache = System.Collections.Generic.Dictionary`2[UnityEngine.Object,UnityEngine.Texture2D]
+field _tagLib = LauTagLibrary (Laubrary.AssetKit.Editor.LauTagLibrary)
+field _filterTagIds = System.Collections.Generic.HashSet`1[System.Int32]
+field _onCreateNew = null
+field _pickHint = Zoe / Blast
+field _newName = 
+field _showTagFilter = False
+field _scroll = (0.00, 0.00)
+field _search = 
+field _sort = NameAsc
+list field '_rawResults' count=0
+field _totalMatched = 0
+field _animateAll = False
+field _hoveredThumb = null
+field _lastTick = 17802.9196033
+field _filterTypes = System.Collections.Generic.HashSet`1[System.Type]
+field _showTypeFilter = False
+field _distinctTypes = System.Collections.Generic.List`1[System.Type]
+field _unwatchInvalidation = System.Action
+rows=47  names wider than the 92px label: 16  (AssetPreview null for 47, not the browser's own path)
+   OVER PreviewShooterZoe (94.6)
+   OVER Hit Event Palette Demo (111)
+   OVER Blob Explosion Plus (93.6)
+   OVER Directional Grenade Blast 1 Plus (150.4)
+   OVER Directional Grenade Blast 2 Plus (151.8)
+   OVER Directional Grenade Side Blast Plus (166.2)
+   OVER Driectional Blast Plus (101.1)
+   OVER Explotion Twirl Plus (93.4)
+   OVER Floating Disc Hit Plus (101.6)
+   OVER Metafield Pyre 1 Plus (100.3)
+   OVER Metafield Pyre Plus (93)
+   OVER NoiseField Ball Plus (93.8)
+   OVER Old School Explo 2 Plus (112.8)
+   OVER Voronoi Abbility Plus (98.7)
+   OVER Floating Disc Blowup (100.3)
+   OVER ShaperDemoDoc Clip (102.7)

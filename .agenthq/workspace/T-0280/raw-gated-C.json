@@ -1,0 +1,592 @@
+{
+ "Jet|pulse": {
+  "header": "GEN=Jet STAGE=C canvas=160x92 frames=5 test=1,2,3 litF1=2803/14720 gates=pulse",
+  "rows": {
+   "form.gout.pulseN": {
+    "verdict": "LIVE",
+    "px": 3069,
+    "at": "2->0"
+   },
+   "form.gout.pulseDepth": {
+    "verdict": "LIVE",
+    "px": 3069,
+    "at": "Static->Static 0"
+   }
+  }
+ },
+ "Jet|shock": {
+  "header": "GEN=Jet STAGE=C canvas=160x92 frames=5 test=1,2,3 litF1=2599/14720 gates=shock",
+  "rows": {
+   "form.gout.shockN": {
+    "verdict": "LIVE",
+    "px": 3175,
+    "at": "3->0"
+   },
+   "form.gout.shockDepth": {
+    "verdict": "LIVE",
+    "px": 3175,
+    "at": "Static->Static 0"
+   }
+  }
+ },
+ "Jet|sweep": {
+  "header": "GEN=Jet STAGE=C canvas=160x92 frames=5 test=1,2,3 litF1=2892/14720 gates=sweep",
+  "rows": {
+   "form.gout.sweepN": {
+    "verdict": "LIVE",
+    "px": 3951,
+    "at": "1->4"
+   }
+  }
+ },
+ "Jet|ring": {
+  "header": "GEN=Jet STAGE=C canvas=160x92 frames=5 test=1,2,3 litF1=2921/14720 gates=ringN=3",
+  "rows": {
+   "form.gout.ringK": {
+    "verdict": "LIVE",
+    "px": 641,
+    "at": "12->48"
+   },
+   "form.gout.ringR0": {
+    "verdict": "LIVE",
+    "px": 1455,
+    "at": "Static->Static 0.5"
+   },
+   "form.gout.ringGrow": {
+    "verdict": "LIVE",
+    "px": 1307,
+    "at": "0.5->0"
+   },
+   "form.gout.ringLife": {
+    "verdict": "LIVE",
+    "px": 1303,
+    "at": "0.8->0.5"
+   },
+   "form.gout.ringReach": {
+    "verdict": "LIVE",
+    "px": 1882,
+    "at": "Static->Static 0.5"
+   },
+   "form.gout.ringAmp": {
+    "verdict": "LIVE",
+    "px": 1110,
+    "at": "Static->Static 0"
+   }
+  }
+ },
+ "Jet|ring,ringflat": {
+  "header": "GEN=Jet STAGE=C canvas=160x92 frames=5 test=1,2,3 litF1=2921/14720 gates=ringN=3|ringFlat",
+  "rows": {
+   "form.gout.ringFlat": {
+    "verdict": "UNRESOLVED",
+    "px": 0,
+    "at": ""
+   },
+   "form.gout.ringArc": {
+    "verdict": "UNRESOLVED",
+    "px": 0,
+    "at": ""
+   }
+  }
+ },
+ "Jet|lobe": {
+  "header": "GEN=Jet STAGE=C canvas=160x92 frames=5 test=1,2,3 litF1=2668/14720 gates=lobes=4",
+  "rows": {
+   "form.gout.lobes": {
+    "verdict": "UNRESOLVED",
+    "px": 0,
+    "at": ""
+   },
+   "form.gout.lobeDepth": {
+    "verdict": "UNRESOLVED",
+    "px": 0,
+    "at": ""
+   },
+   "form.gout.lobeKick": {
+    "verdict": "UNRESOLVED",
+    "px": 0,
+    "at": ""
+   }
+  }
+ },
+ "Jet|rootr": {
+  "header": "GEN=Jet STAGE=C canvas=160x92 frames=5 test=1,2,3 litF1=2675/14720 gates=rootR=4",
+  "rows": {
+   "form.gout.rootR": {
+    "verdict": "LIVE",
+    "px": 74,
+    "at": "Static->Static 0"
+   },
+   "form.gout.rootAmp": {
+    "verdict": "LIVE",
+    "px": 74,
+    "at": "Static->Static 0"
+   }
+  }
+ },
+ "Jet|srck": {
+  "header": "GEN=Jet STAGE=C canvas=160x92 frames=5 test=1,2,3 litF1=2668/14720 gates=srcR=0.12,rootK=8",
+  "rows": {
+   "form.gout.rootK": {
+    "verdict": "UNRESOLVED",
+    "px": 0,
+    "at": ""
+   }
+  }
+ },
+ "Jet|flash": {
+  "header": "GEN=Jet STAGE=C canvas=160x92 frames=5 test=1,2,3 litF1=2668/14720 gates=",
+  "rows": {
+   "form.gout.flash.radius": {
+    "verdict": "UNRESOLVED",
+    "px": 0,
+    "at": ""
+   },
+   "form.gout.flash.amp": {
+    "verdict": "UNRESOLVED",
+    "px": 0,
+    "at": ""
+   },
+   "form.gout.flash.grow": {
+    "verdict": "UNRESOLVED",
+    "px": 0,
+    "at": ""
+   },
+   "form.gout.flash.elong": {
+    "verdict": "UNRESOLVED",
+    "px": 0,
+    "at": ""
+   }
+  }
+ },
+ "Jet|blast": {
+  "header": "GEN=Jet STAGE=C canvas=160x92 frames=5 test=1,2,3 litF1=2668/14720 gates=",
+  "rows": {
+   "form.gout.blasts[0].share": {
+    "verdict": "UNRESOLVED",
+    "px": 0,
+    "at": ""
+   }
+  }
+ },
+ "RadialJet|pulse": {
+  "header": "GEN=RadialJet STAGE=C canvas=176x176 frames=5 test=1,2,3 litF1=8116/30976 gates=pulse",
+  "rows": {
+   "form.corona.pulseN": {
+    "verdict": "LIVE",
+    "px": 8966,
+    "at": "2->0"
+   },
+   "form.corona.pulseDepth": {
+    "verdict": "LIVE",
+    "px": 8966,
+    "at": "Static->Static 0"
+   }
+  }
+ },
+ "RadialJet|shock": {
+  "header": "GEN=RadialJet STAGE=C canvas=176x176 frames=5 test=1,2,3 litF1=8789/30976 gates=shock",
+  "rows": {
+   "form.corona.shockN": {
+    "verdict": "LIVE",
+    "px": 8847,
+    "at": "3->0"
+   },
+   "form.corona.shockDepth": {
+    "verdict": "LIVE",
+    "px": 8847,
+    "at": "Static->Static 0"
+   }
+  }
+ },
+ "RadialJet|sweep": {
+  "header": "GEN=RadialJet STAGE=C canvas=176x176 frames=5 test=1,2,3 litF1=8868/30976 gates=sweep",
+  "rows": {
+   "form.corona.sweepN": {
+    "verdict": "LIVE",
+    "px": 9429,
+    "at": "1->4"
+   }
+  }
+ },
+ "RadialJet|ring": {
+  "header": "GEN=RadialJet STAGE=C canvas=176x176 frames=5 test=1,2,3 litF1=8760/30976 gates=ringN=3",
+  "rows": {
+   "form.corona.ringK": {
+    "verdict": "LIVE",
+    "px": 963,
+    "at": "12->48"
+   },
+   "form.corona.ringR0": {
+    "verdict": "LIVE",
+    "px": 1053,
+    "at": "Static->Static 0.5"
+   },
+   "form.corona.ringGrow": {
+    "verdict": "LIVE",
+    "px": 1038,
+    "at": "0.5->0"
+   },
+   "form.corona.ringLife": {
+    "verdict": "LIVE",
+    "px": 1232,
+    "at": "0.8->0.5"
+   },
+   "form.corona.ringReach": {
+    "verdict": "LIVE",
+    "px": 1165,
+    "at": "Static->Static 0.5"
+   },
+   "form.corona.ringAmp": {
+    "verdict": "LIVE",
+    "px": 1003,
+    "at": "Static->Static 0"
+   }
+  }
+ },
+ "RadialJet|ring,ringflat": {
+  "header": "GEN=RadialJet STAGE=C canvas=176x176 frames=5 test=1,2,3 litF1=8760/30976 gates=ringN=3|ringFlat",
+  "rows": {
+   "form.corona.ringFlat": {
+    "verdict": "LIVE",
+    "px": 4451,
+    "at": "True->False"
+   },
+   "form.corona.ringArc": {
+    "verdict": "UNRESOLVED",
+    "px": 0,
+    "at": ""
+   }
+  }
+ },
+ "RadialJet|lobe": {
+  "header": "GEN=RadialJet STAGE=C canvas=176x176 frames=5 test=1,2,3 litF1=6796/30976 gates=lobes=4",
+  "rows": {
+   "form.corona.lobes": {
+    "verdict": "LIVE",
+    "px": 8799,
+    "at": "4->0"
+   },
+   "form.corona.lobeDepth": {
+    "verdict": "LIVE",
+    "px": 6958,
+    "at": "Static->Static 0"
+   },
+   "form.corona.lobeKick": {
+    "verdict": "LIVE",
+    "px": 8334,
+    "at": "Static->Static 0"
+   }
+  }
+ },
+ "RadialJet|rootr": {
+  "header": "GEN=RadialJet STAGE=C canvas=176x176 frames=5 test=1,2,3 litF1=8760/30976 gates=rootR=4",
+  "rows": {
+   "form.corona.rootR": {
+    "verdict": "LIVE",
+    "px": 4,
+    "at": "Static->Static 0"
+   },
+   "form.corona.rootAmp": {
+    "verdict": "LIVE",
+    "px": 4,
+    "at": "Static->Static 0"
+   }
+  }
+ },
+ "RadialJet|srck": {
+  "header": "GEN=RadialJet STAGE=C canvas=176x176 frames=5 test=1,2,3 litF1=14422/30976 gates=srcR=0.12,rootK=8",
+  "rows": {
+   "form.corona.rootK": {
+    "verdict": "LIVE",
+    "px": 760,
+    "at": "8->0"
+   }
+  }
+ },
+ "RadialJet|flash": {
+  "header": "GEN=RadialJet STAGE=C canvas=176x176 frames=5 test=1,2,3 litF1=8760/30976 gates=",
+  "rows": {
+   "form.corona.flash.radius": {
+    "verdict": "UNRESOLVED",
+    "px": 0,
+    "at": ""
+   },
+   "form.corona.flash.amp": {
+    "verdict": "UNRESOLVED",
+    "px": 0,
+    "at": ""
+   },
+   "form.corona.flash.grow": {
+    "verdict": "UNRESOLVED",
+    "px": 0,
+    "at": ""
+   },
+   "form.corona.flash.elong": {
+    "verdict": "UNRESOLVED",
+    "px": 0,
+    "at": ""
+   }
+  }
+ },
+ "RadialJet|blast": {
+  "header": "GEN=RadialJet STAGE=C canvas=176x176 frames=5 test=1,2,3 litF1=8760/30976 gates=",
+  "rows": {
+   "form.corona.blasts[0].share": {
+    "verdict": "UNRESOLVED",
+    "px": 0,
+    "at": ""
+   }
+  }
+ },
+ "ExplosiveJet|pulse": {
+  "header": "GEN=ExplosiveJet STAGE=C canvas=184x184 frames=5 test=1,2,3 litF1=11050/33856 gates=pulse",
+  "rows": {
+   "form.detonate.pulseN": {
+    "verdict": "LIVE",
+    "px": 9869,
+    "at": "2->0"
+   },
+   "form.detonate.pulseDepth": {
+    "verdict": "LIVE",
+    "px": 9869,
+    "at": "Static->Static 0"
+   }
+  }
+ },
+ "ExplosiveJet|shock": {
+  "header": "GEN=ExplosiveJet STAGE=C canvas=184x184 frames=5 test=1,2,3 litF1=10196/33856 gates=shock",
+  "rows": {
+   "form.detonate.shockN": {
+    "verdict": "LIVE",
+    "px": 9275,
+    "at": "3->0"
+   },
+   "form.detonate.shockDepth": {
+    "verdict": "LIVE",
+    "px": 9275,
+    "at": "Static->Static 0"
+   }
+  }
+ },
+ "ExplosiveJet|sweep": {
+  "header": "GEN=ExplosiveJet STAGE=C canvas=184x184 frames=5 test=1,2,3 litF1=10454/33856 gates=sweep",
+  "rows": {
+   "form.detonate.sweepN": {
+    "verdict": "LIVE",
+    "px": 9541,
+    "at": "1->4"
+   }
+  }
+ },
+ "ExplosiveJet|ring": {
+  "header": "GEN=ExplosiveJet STAGE=C canvas=184x184 frames=5 test=1,2,3 litF1=10444/33856 gates=ringN=3",
+  "rows": {
+   "form.detonate.ringK": {
+    "verdict": "LIVE",
+    "px": 183,
+    "at": "12->48"
+   },
+   "form.detonate.ringR0": {
+    "verdict": "LIVE",
+    "px": 291,
+    "at": "Static->Static 0.5"
+   },
+   "form.detonate.ringGrow": {
+    "verdict": "LIVE",
+    "px": 306,
+    "at": "0.5->0"
+   },
+   "form.detonate.ringLife": {
+    "verdict": "LIVE",
+    "px": 526,
+    "at": "0.8->0.5"
+   },
+   "form.detonate.ringReach": {
+    "verdict": "LIVE",
+    "px": 245,
+    "at": "Static->Static 0.5"
+   },
+   "form.detonate.ringAmp": {
+    "verdict": "LIVE",
+    "px": 317,
+    "at": "Static->Static 0"
+   }
+  }
+ },
+ "ExplosiveJet|ring,ringflat": {
+  "header": "GEN=ExplosiveJet STAGE=C canvas=184x184 frames=5 test=1,2,3 litF1=10444/33856 gates=ringN=3|ringFlat",
+  "rows": {
+   "form.detonate.ringFlat": {
+    "verdict": "LIVE",
+    "px": 907,
+    "at": "True->False"
+   },
+   "form.detonate.ringArc": {
+    "verdict": "LIVE",
+    "px": 966,
+    "at": "140->5"
+   }
+  }
+ },
+ "ExplosiveJet|lobe": {
+  "header": "GEN=ExplosiveJet STAGE=C canvas=184x184 frames=5 test=1,2,3 litF1=8272/33856 gates=lobes=4",
+  "rows": {
+   "form.detonate.lobes": {
+    "verdict": "LIVE",
+    "px": 9523,
+    "at": "4->0"
+   },
+   "form.detonate.lobeDepth": {
+    "verdict": "LIVE",
+    "px": 7506,
+    "at": "0.5->0"
+   },
+   "form.detonate.lobeKick": {
+    "verdict": "LIVE",
+    "px": 9264,
+    "at": "0.3->0"
+   }
+  }
+ },
+ "ExplosiveJet|rootr": {
+  "header": "GEN=ExplosiveJet STAGE=C canvas=184x184 frames=5 test=1,2,3 litF1=10444/33856 gates=rootR=4",
+  "rows": {
+   "form.detonate.rootR": {
+    "verdict": "LIVE",
+    "px": 28,
+    "at": "Static->Static 0"
+   },
+   "form.detonate.rootAmp": {
+    "verdict": "LIVE",
+    "px": 28,
+    "at": "Static->Static 0"
+   }
+  }
+ },
+ "ExplosiveJet|srck": {
+  "header": "GEN=ExplosiveJet STAGE=C canvas=184x184 frames=5 test=1,2,3 litF1=18693/33856 gates=srcR=0.12,rootK=8",
+  "rows": {
+   "form.detonate.rootK": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": ""
+   }
+  }
+ },
+ "ExplosiveJet|flash": {
+  "header": "GEN=ExplosiveJet STAGE=C canvas=184x184 frames=5 test=1,2,3 litF1=10444/33856 gates=flash",
+  "rows": {
+   "form.detonate.flash.radius": {
+    "verdict": "LIVE",
+    "px": 52,
+    "at": "8->0"
+   },
+   "form.detonate.flash.amp": {
+    "verdict": "LIVE",
+    "px": 52,
+    "at": "2->0"
+   },
+   "form.detonate.flash.grow": {
+    "verdict": "LIVE",
+    "px": 34,
+    "at": "0.6->0"
+   },
+   "form.detonate.flash.elong": {
+    "verdict": "LIVE",
+    "px": 15,
+    "at": "1.4->1"
+   }
+  }
+ },
+ "ExplosiveJet|blast": {
+  "header": "GEN=ExplosiveJet STAGE=C canvas=184x184 frames=5 test=1,2,3 litF1=9377/33856 gates=blasts=2",
+  "rows": {
+   "form.detonate.blasts[0].share": {
+    "verdict": "LIVE",
+    "px": 9413,
+    "at": "1->0.05"
+   }
+  }
+ },
+ "Torch|lash": {
+  "header": "GEN=Torch STAGE=C canvas=128x128 frames=5 test=1,2,3 litF1=2336/16384 gates=lash=8",
+  "rows": {
+   "form.barbs.lashK": {
+    "verdict": "LIVE",
+    "px": 2491,
+    "at": "1->4"
+   },
+   "form.barbs.lashWave": {
+    "verdict": "LIVE",
+    "px": 2289,
+    "at": "2.6->0"
+   },
+   "form.barbs.lashPh": {
+    "verdict": "LIVE",
+    "px": 4,
+    "at": "0->6.2832"
+   }
+  }
+ },
+ "Torch|pulse": {
+  "header": "GEN=Torch STAGE=C canvas=128x128 frames=5 test=1,2,3 litF1=3104/16384 gates=pulse/gain/bulge on",
+  "rows": {
+   "form.barbs.pulse": {
+    "verdict": "LIVE",
+    "px": 2581,
+    "at": "Static->Static 0"
+   },
+   "form.barbs.pulseN": {
+    "verdict": "LIVE",
+    "px": 2731,
+    "at": "2->1"
+   },
+   "form.barbs.pulsePh": {
+    "verdict": "LIVE",
+    "px": 2892,
+    "at": "0->0.5"
+   },
+   "form.barbs.pulseGain": {
+    "verdict": "LIVE",
+    "px": 1944,
+    "at": "Static->Static 0"
+   },
+   "form.barbs.bulge": {
+    "verdict": "LIVE",
+    "px": 1598,
+    "at": "Static->Static 0"
+   },
+   "form.barbs.bulgeW": {
+    "verdict": "LIVE",
+    "px": 1488,
+    "at": "Static->Static 0.05"
+   }
+  }
+ },
+ "Torch|curl": {
+  "header": "GEN=Torch STAGE=C canvas=128x128 frames=5 test=1,2,3 litF1=2318/16384 gates=curl=8",
+  "rows": {
+   "form.barbs.curlX": {
+    "verdict": "LIVE",
+    "px": 1531,
+    "at": "1->0.1"
+   },
+   "form.barbs.curlY": {
+    "verdict": "LIVE",
+    "px": 1405,
+    "at": "0.55->0.05"
+   }
+  }
+ },
+ "Fireball|arms": {
+  "header": "GEN=Fireball STAGE=C canvas=128x128 frames=5 test=1,2,3 litF1=82/16384 gates=arms=3",
+  "rows": {
+   "src.sharpness": {
+    "verdict": "LIVE",
+    "px": 133,
+    "at": "Static->Static 5.3"
+   }
+  }
+ }
+}

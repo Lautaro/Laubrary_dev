@@ -1,0 +1,7 @@
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets window=(x:4.89, y:20.00, width:1000.00, height:1000.22)
+dial-pane viewport = 4.0..351.1
+SPILLED 'Share' ZuiMicroSlider x=275.6..375.6  OUTSIDE the pane viewport (clipped: invisible + unclickable)  overlapsOtherControls=0
+SPILLED 'Seat X' ZuiMicroSlider x=381.8..481.8  OUTSIDE the pane viewport (clipped: invisible + unclickable)  overlapsOtherControls=0
+SPILLED 'Seat Y' ZuiMicroSlider x=488.0..588.0  OUTSIDE the pane viewport (clipped: invisible + unclickable)  overlapsOtherControls=0
+SPILLED 'Seat Y' VisualElement x=594.2..594.2  OUTSIDE the pane viewport (clipped: invisible + unclickable)  overlapsOtherControls=0
+SPILLED '×' Button x=603.6..625.3  OUTSIDE the pane viewport (clipped: invisible + unclickable)  overlapsOtherControls=0

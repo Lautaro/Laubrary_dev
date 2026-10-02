@@ -1,0 +1,12 @@
+UnityEditor.EditorPrefs.SetString("T0312.out","D:/UNITY/Laubrary Dev/.agenthq/workspace/T-0323/out");
+var sb = new System.Text.StringBuilder();
+sb.Append("dataPath=").Append(UnityEngine.Application.dataPath).Append("\n");
+sb.Append("compileFailed=").Append(UnityEditor.EditorUtility.scriptCompilationFailed).Append("\n");
+sb.Append("isPlaying=").Append(UnityEngine.Application.isPlaying).Append("\n");
+sb.Append("isCompiling=").Append(UnityEditor.EditorApplication.isCompiling).Append("\n");
+sb.Append("outdir=").Append(UnityEditor.EditorPrefs.GetString("T0312.out","?")).Append("\n");
+var wins = UnityEngine.Resources.FindObjectsOfTypeAll<UnityEditor.EditorWindow>();
+var names = new System.Collections.Generic.SortedSet<string>();
+foreach (var w in wins) if (w!=null) names.Add(w.GetType().Name);
+sb.Append("openWindows=").Append(string.Join(",", System.Linq.Enumerable.ToArray(names))).Append("\n");
+return sb.ToString();

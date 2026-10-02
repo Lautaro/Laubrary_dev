@@ -1,0 +1,22 @@
+=== ZoeWindow ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:20.00, y:20.00, width:900.00, height:880.22) rootWorld=(x:0.00, y:26.22, width:900.00, height:880.00)
+elements=77 drawn=57 textElements=19 controls=8 leafControls=8
+captionShort=1 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=0
+
+-- captions --
+CAPTION 'Hit Event Palette Demo' need=109.8 have=96.9 short=12.9 | VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>VisualElement>Label | cls=unity-text-element.unity-label.zui-cell__name
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+-- every leaf control --
+LEAF 'AuditT323Zoe' ObjectField rect=4,31 200.0x18.2 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=The Zoe asset being edited — assign one directly, or use Browse. | EditorPanelRootElement#unity-panel-container13>VisualElement#rootVisualContainer14>VisualElement>ObjectField
+LEAF 'Save' Button rect=232,31 52.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Write this Zoe's edits to disk now. | EditorPanelRootElement#unity-panel-container13>VisualElement#rootVisualContainer14>VisualElement>Button
+LEAF 'New' Button rect=293,31 40.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a brand new Zoe asset (undoable). | EditorPanelRootElement#unity-panel-container13>VisualElement#rootVisualContainer14>VisualElement>Button
+LEAF 'Close browser' Button rect=342,31 96.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Toggle the thumbnail browser of every Zoe in the project. | EditorPanelRootElement#unity-panel-container13>VisualElement#rootVisualContainer14>VisualElement>Button
+LEAF 'Duplicate' Button rect=448,31 68.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a copy of this Zoe next to it and switch to editing the copy (u… | EditorPanelRootElement#unity-panel-container13>VisualElement#rootVisualContainer14>VisualElement>Button
+LEAF 'Rename' Button rect=525,31 60.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Rename this asset's file. | EditorPanelRootElement#unity-panel-container13>VisualElement#rootVisualContainer14>VisualElement>Button
+LEAF 'Delete' Button rect=595,31 51.1x18.2 enabled=True cls=unity-text-element.unity-button tip=Delete this asset's file (asks first — file deletion cannot be undone)… | EditorPanelRootElement#unity-panel-container13>VisualElement#rootVisualContainer14>VisualElement>Button
+LEAF 'Refresh' Button rect=832,122 57.8x18.2 enabled=True cls=unity-text-element.unity-button tip=Re-scan the project for assets. | EditorPanelRootElement#unity-panel-container13>VisualElement#rootVisualContainer14>VisualElement>VisualElement>Button

@@ -1,0 +1,399 @@
+form	path	type	gateField	gateValueUsed	visible	pixels	valueTried	note
+ArcBurstForm	layout	Layout			VISIBLE	1609	Core	
+ArcBurstForm	aref	ZUIValue			VISIBLE	858	0	
+ArcBurstForm	agamma	ZUIValue			VISIBLE	858	0	
+ArcBurstForm	bloomRadius	ZUIValue			VISIBLE	906	0	
+ArcBurstForm	bloomStrength	ZUIValue			VISIBLE	906	0	
+ArcBurstForm	bloomAlpha	ZUIValue			VISIBLE	886	0	
+ArcBurstForm	widthScale	ZUIValue			VISIBLE	907	0	
+ArcBurstForm	ampScale	ZUIValue			VISIBLE	907	0	
+ArcBurstForm	keepHueFloor	ZUIValue			VISIBLE	0		
+ArcBurstForm	ghostDeepLo	Single			VISIBLE	0		
+ArcBurstForm	ghostDeepHi	Single			VISIBLE	0		
+ArcBurstForm	rerollPerFrame	Boolean			VISIBLE	1035	False	
+ArcBurstForm	palette	ZuiGradient			VISIBLE	607	stop0=magenta	
+ArcBurstForm	core	CoreSettings	layout	Core	CONTAINER	0		nested settings object — its own dials follow
+ArcBurstForm	core.whips	Int32			VISIBLE	1215	0	
+ArcBurstForm	core.curl	Single			VISIBLE	1216	0	
+ArcBurstForm	core.reachLo	Single			VISIBLE	1250	0	
+ArcBurstForm	core.reachHi	Single			VISIBLE	1182	0	
+ArcBurstForm	core.ghostP	Single			VISIBLE	734	0	
+ArcBurstForm	core.ghostLo	Single			VISIBLE	113	0	
+ArcBurstForm	core.ghostHi	Single			VISIBLE	223	0	
+ArcBurstForm	core.ghostDeepP	Single			VISIBLE	263	0	
+ArcBurstForm	core.dissolveStart	Single			VISIBLE	1306	0	
+ArcBurstForm	core.coolStart	Single			VISIBLE	1180	0	
+ArcBurstForm	core.rough	ZUIValue			VISIBLE	1018	0	
+ArcBurstForm	core.detail	Int32			VISIBLE	1311	0	
+ArcBurstForm	core.forkP	ZUIValue			VISIBLE	1123	0	
+ArcBurstForm	core.crawlers	Int32			VISIBLE	323	0	
+ArcBurstForm	core.bodyAmp	ZUIValue			VISIBLE	565	0	
+ArcBurstForm	core.bodyOpa	ZUIValue			VISIBLE	546	0	
+ArcBurstForm	weave	WeaveSettings	layout	Weave	CONTAINER	0		nested settings object — its own dials follow
+ArcBurstForm	weave.arcs	Int32			VISIBLE	2021	0	
+ArcBurstForm	weave.spanLo	Single			VISIBLE	1444	0	
+ArcBurstForm	weave.spanHi	Single			VISIBLE	1488	0	
+ArcBurstForm	weave.ghostP	Single			VISIBLE	1656	0	
+ArcBurstForm	weave.ghostLo	Single			VISIBLE	576	0	
+ArcBurstForm	weave.ghostHi	Single			VISIBLE	600	0	
+ArcBurstForm	weave.ghostDeepP	Single			VISIBLE	90	0.25	
+ArcBurstForm	weave.dieLo	Single			VISIBLE	2075	0	
+ArcBurstForm	weave.dieHi	Single			VISIBLE	2009	0	
+ArcBurstForm	weave.dissolveStart	Single			VISIBLE	412	0	
+ArcBurstForm	weave.coolStart	Single			VISIBLE	1760	0	
+ArcBurstForm	weave.chords	Int32			VISIBLE	770	0	
+ArcBurstForm	weave.spurs	Int32			VISIBLE	132	0	
+ArcBurstForm	weave.jitter	ZUIValue			VISIBLE	2017	0	
+ArcBurstForm	weave.shutterStart	Single			VISIBLE	922	0	
+ArcBurstForm	weave.shutterDepth	ZUIValue			VISIBLE	815	0	
+ArcBurstForm	bolt	BoltSettings	layout	Bolt	CONTAINER	0		nested settings object — its own dials follow
+ArcBurstForm	bolt.trunks	Int32			VISIBLE	907	0	
+ArcBurstForm	bolt.reachLo	Single			VISIBLE	933	0	
+ArcBurstForm	bolt.reachHi	Single			VISIBLE	924	0	
+ArcBurstForm	bolt.branchMin	Int32			VISIBLE	931	0	
+ArcBurstForm	bolt.branchMax	Int32			VISIBLE	982	0	
+ArcBurstForm	bolt.depth	Int32			VISIBLE	972	0	
+ArcBurstForm	bolt.rough	ZUIValue			VISIBLE	1055	0	
+ArcBurstForm	bolt.detail	Int32			VISIBLE	1181	0	
+ArcBurstForm	bolt.branchScale	ZUIValue			VISIBLE	268	0	
+ArcBurstForm	bolt.branchSpread	ZUIValue			VISIBLE	445	0	
+ArcBurstForm	bolt.branchAmp	ZUIValue			VISIBLE	401	0	
+ArcBurstForm	bolt.ghostP	Single			VISIBLE	1015	1	
+ArcBurstForm	bolt.ghostLo	Single			VISIBLE	0		
+ArcBurstForm	bolt.ghostHi	Single			VISIBLE	0		
+ArcBurstForm	bolt.ghostDeepP	Single			VISIBLE	0		
+ArcBurstForm	bolt.blowLo	Single			VISIBLE	799	0	
+ArcBurstForm	bolt.blowHi	Single			VISIBLE	711	0	
+ArcBurstForm	bolt.veilP	ZUIValue			VISIBLE	904	0	
+ArcBurstForm	bolt.dissolveStart	Single			VISIBLE	907	0	
+ArcBurstForm	bolt.coolStart	Single			VISIBLE	907	0	
+ArcBurstForm	bolt.flashAmp	ZUIValue			VISIBLE	0		
+ArcBurstForm	crown	CrownSettings	layout	Crown	CONTAINER	0		nested settings object — its own dials follow
+ArcBurstForm	crown.lobes	Int32			VISIBLE	1409	0	
+ArcBurstForm	crown.reachLo	Single			VISIBLE	1107	0	
+ArcBurstForm	crown.reachHi	Single			VISIBLE	1143	0	
+ArcBurstForm	crown.widthLo	Single			VISIBLE	1125	0	
+ArcBurstForm	crown.widthHi	Single			VISIBLE	1110	0	
+ArcBurstForm	crown.ghostLo	Single			VISIBLE	1193	0	
+ArcBurstForm	crown.ghostSpan	Single			VISIBLE	1081	0	
+ArcBurstForm	crown.swapStart	Single			VISIBLE	1245	0	
+ArcBurstForm	crown.swapEnd	Single			VISIBLE	1319	0	
+ArcBurstForm	crown.dissolveStart	Single			VISIBLE	1134	0	
+ArcBurstForm	crown.dissolveK	Single			VISIBLE	961	0	
+ArcBurstForm	crown.coolStart	Single			VISIBLE	1148	0	
+ArcBurstForm	crown.lobeAmp	ZUIValue			VISIBLE	1178	0	
+ArcBurstForm	crown.crackleP	ZUIValue			VISIBLE	173	0	
+ArcBurstForm	crown.rough	ZUIValue			VISIBLE	777	0	
+ArcBurstForm	lattice	LatticeSettings	layout	Lattice	CONTAINER	0		nested settings object — its own dials follow
+ArcBurstForm	lattice.outer	Int32			VISIBLE	1699	1	
+ArcBurstForm	lattice.inner	Int32			VISIBLE	1667	1	
+ArcBurstForm	lattice.chords	Int32			VISIBLE	1046	0	
+ArcBurstForm	lattice.rough	ZUIValue			VISIBLE	1679	0	
+ArcBurstForm	lattice.detail	Int32			VISIBLE	1696	0	
+ArcBurstForm	lattice.ghostFloor	ZUIValue			VISIBLE	1162	0	
+ArcBurstForm	lattice.rimFloor	ZUIValue			VISIBLE	736	0	
+ArcBurstForm	lattice.dissolveStart	Single			VISIBLE	1693	0	
+ArcBurstForm	lattice.coolStart	Single			VISIBLE	1699	0	
+ArcBurstForm	lattice.burstStart	Single			VISIBLE	1972	0	
+ArcBurstForm	lattice.veilP	ZUIValue			VISIBLE	1740	0	
+ArcBurstForm	lattice.flyLo	Single			VISIBLE	0		
+ArcBurstForm	lattice.flyHi	Single			VISIBLE	0		
+ArcBurstForm	terminal	TerminalSettings	layout	Terminal	CONTAINER	0		nested settings object — its own dials follow
+ArcBurstForm	terminal.nodes	Int32			VISIBLE	1171	0	
+ArcBurstForm	terminal.reachLo	Single			VISIBLE	1280	0	
+ArcBurstForm	terminal.reachHi	Single			VISIBLE	1359	0	
+ArcBurstForm	terminal.fireLo	Single			VISIBLE	68	0	
+ArcBurstForm	terminal.fireHi	Single			VISIBLE	465	0	
+ArcBurstForm	terminal.ghostP	Single			VISIBLE	861	0	
+ArcBurstForm	terminal.ghostLo	Single			VISIBLE	221	0	
+ArcBurstForm	terminal.ghostHi	Single			VISIBLE	238	0	
+ArcBurstForm	terminal.ghostDeepP	Single			VISIBLE	64	0	
+ArcBurstForm	terminal.dissolveStart	Single			VISIBLE	741	0	
+ArcBurstForm	terminal.coolStart	Single			VISIBLE	303	0	
+ArcBurstForm	terminal.rough	ZUIValue			VISIBLE	673	0	
+ArcBurstForm	terminal.detail	Int32			VISIBLE	1333	0	
+ArcBurstForm	terminal.sweepStart	Single			VISIBLE	1068	0	
+ArcBurstForm	terminal.sweepDepth	ZUIValue			VISIBLE	670	0	
+ArcBurstForm	cage	CageSettings	layout	Cage	CONTAINER	0		nested settings object — its own dials follow
+ArcBurstForm	cage.ribs	Int32			VISIBLE	1997	0	
+ArcBurstForm	cage.spanLo	Single			VISIBLE	1767	0	
+ArcBurstForm	cage.spanHi	Single			VISIBLE	1894	0	
+ArcBurstForm	cage.snapLo	Single			VISIBLE	2055	0	
+ArcBurstForm	cage.snapHi	Single			VISIBLE	2158	0	
+ArcBurstForm	cage.ghostP	Single			VISIBLE	713	0	
+ArcBurstForm	cage.ghostLo	Single			VISIBLE	320	0	
+ArcBurstForm	cage.ghostHi	Single			VISIBLE	278	0	
+ArcBurstForm	cage.ghostDeepP	Single			VISIBLE	330	0.25	
+ArcBurstForm	cage.backOpa	ZUIValue			VISIBLE	1509	0	
+ArcBurstForm	cage.depthGamma	ZUIValue			VISIBLE	1798	0	
+ArcBurstForm	cage.jitter	ZUIValue			VISIBLE	2070	0	
+ArcBurstForm	cage.dissolveStart	Single			VISIBLE	1716	0	
+ArcBurstForm	cage.coolStart	Single			VISIBLE	1800	0	
+ArcBurstForm	cage.coolK	Single			VISIBLE	0		
+ArcBurstForm	cage.breakouts	Int32			VISIBLE	339	0	
+ArcBurstForm	cage.sparks	Int32			VISIBLE	17	0	
+ArcBurstForm	cage.ballOpa	ZUIValue			VISIBLE	360	0	
+ArcBurstForm	stipple	StippleSettings	layout	Stipple	CONTAINER	0		nested settings object — its own dials follow
+ArcBurstForm	stipple.shards	Int32			VISIBLE	1533	0	
+ArcBurstForm	stipple.arcs	Int32			VISIBLE	1464	0	
+ArcBurstForm	stipple.speedLo	Single			VISIBLE	1473	0	
+ArcBurstForm	stipple.speedHi	Single			VISIBLE	1581	0	
+ArcBurstForm	stipple.lenLo	Single			VISIBLE	530	0	
+ArcBurstForm	stipple.lenHi	Single			VISIBLE	675	0	
+ArcBurstForm	stipple.ghostP	Single			VISIBLE	1736	0	
+ArcBurstForm	stipple.ghostLo	Single			VISIBLE	463	0	
+ArcBurstForm	stipple.ghostHi	Single			VISIBLE	537	0	
+ArcBurstForm	stipple.ghostDeepP	Single			VISIBLE	242	0.25	
+ArcBurstForm	stipple.breakLo	Single			VISIBLE	890	0	
+ArcBurstForm	stipple.breakHi	Single			VISIBLE	1421	0	
+ArcBurstForm	stipple.dissolveStart	Single			VISIBLE	1461	0	
+ArcBurstForm	stipple.coolStart	Single			VISIBLE	1067	0	
+ArcBurstForm	stipple.rough	ZUIValue			VISIBLE	823	0	
+ArcBurstForm	stipple.depth	Int32			VISIBLE	1609	0	
+ArcBurstForm	stipple.branchMin	Int32			VISIBLE	1560	0	
+ArcBurstForm	stipple.branchMax	Int32			VISIBLE	1628	0	
+ArcBurstForm	stipple.hairP	ZUIValue			VISIBLE	816	0	
+ArcBurstForm	stipple.crossP	ZUIValue			VISIBLE	968	0	
+ArcBurstForm	pinch	PinchSettings	layout	Pinch	CONTAINER	0		nested settings object — its own dials follow
+ArcBurstForm	pinch.tilt	Single			VISIBLE	883	0	
+ArcBurstForm	pinch.ring	Int32			VISIBLE	537	0	
+ArcBurstForm	pinch.ringSpan	ZUIValue			VISIBLE	526	0	
+ArcBurstForm	pinch.ghostP	Single			VISIBLE	539	0	
+ArcBurstForm	pinch.ghostLo	Single			VISIBLE	215	0	
+ArcBurstForm	pinch.ghostHi	Single			VISIBLE	259	0	
+ArcBurstForm	pinch.ghostDeepP	Single			VISIBLE	72	0.25	
+ArcBurstForm	pinch.dissolveStart	Single			VISIBLE	960	0	
+ArcBurstForm	pinch.coolStart	Single			VISIBLE	569	0	
+ArcBurstForm	pinch.ringCoolStart	Single			VISIBLE	521	0	
+ArcBurstForm	pinch.rough	ZUIValue			VISIBLE	552	0	
+ArcBurstForm	pinch.depth	Int32			VISIBLE	921	0	
+ArcBurstForm	pinch.branchMin	Int32			VISIBLE	1066	0	
+ArcBurstForm	pinch.branchMax	Int32			VISIBLE	1016	0	
+ArcBurstForm	pinch.branchScale	ZUIValue			VISIBLE	169	0	
+ArcBurstForm	pinch.branchSpread	ZUIValue			VISIBLE	205	0	
+ArcBurstForm	pinch.axisRatio	ZUIValue			VISIBLE	713	0	
+ArcBurstForm	pinch.jetSpread	Single			VISIBLE	503	0	
+ArcBurstForm	pinch.lensOpa	ZUIValue			VISIBLE	71	0	
+ArcBurstForm	lichten	LichtenSettings	layout	Lichten	CONTAINER	0		nested settings object — its own dials follow
+ArcBurstForm	lichten.roots	Int32			VISIBLE	1196	0	
+ArcBurstForm	lichten.reachLo	Single			VISIBLE	1178	0	
+ArcBurstForm	lichten.reachHi	Single			VISIBLE	1166	0	
+ArcBurstForm	lichten.ghostP	Single			VISIBLE	651	0	
+ArcBurstForm	lichten.ghostLo	Single			VISIBLE	466	0	
+ArcBurstForm	lichten.ghostHi	Single			VISIBLE	436	0	
+ArcBurstForm	lichten.ghostDeepP	Single			VISIBLE	165	0	
+ArcBurstForm	lichten.dissolveStart	Single			VISIBLE	1112	0	
+ArcBurstForm	lichten.coolStart	Single			VISIBLE	1104	0	
+ArcBurstForm	lichten.rough	ZUIValue			VISIBLE	1263	0	
+ArcBurstForm	lichten.detail	Int32			VISIBLE	1402	0	
+ArcBurstForm	lichten.depth	Int32			VISIBLE	1294	0	
+ArcBurstForm	lichten.branchMin	Int32			VISIBLE	1404	0	
+ArcBurstForm	lichten.branchMax	Int32			VISIBLE	1377	0	
+ArcBurstForm	lichten.branchScale	ZUIValue			VISIBLE	672	0	
+ArcBurstForm	lichten.branchSpread	ZUIValue			VISIBLE	914	0	
+ArcBurstForm	lichten.branchAmp	ZUIValue			VISIBLE	844	0	
+ArcBurstForm	lichten.hollowStart	Single			VISIBLE	693	0	
+ArcBurstForm	lichten.sparks	Int32			VISIBLE	169	0	
+ArcBurstForm	lichten.fadeAmt	ZUIValue			VISIBLE	873	0	
+ArcBurstForm	lichten.veilP	ZUIValue			VISIBLE	1306	0	
+ArcBurstForm	swarmSize	ZUIValue			ABSENT	0		[PyreSwarmOnly] — deliberately absented by PyreFormShaperUI's Skip (a composite hosts no swarm)
+PlasmaBloomForm	clockStart	Single			VISIBLE	1773	0	
+PlasmaBloomForm	clockEnd	Single			VISIBLE	1749	0	
+PlasmaBloomForm	autoFit	Boolean			VISIBLE	3814	False	
+PlasmaBloomForm	fill	Single	autoFit	True	VISIBLE	1744	0	
+PlasmaBloomForm	fitVis	Single	autoFit	True	VISIBLE	1968	0	
+PlasmaBloomForm	borderCap	Int32	autoFit	True	VISIBLE	1786	0	
+PlasmaBloomForm	autoOrg	Single	autoFit	True	VISIBLE	1875	0	
+PlasmaBloomForm	scale	Single	autoFit	False	VISIBLE	3767	0	
+PlasmaBloomForm	orgX	Single	autoFit	False	VISIBLE	3911	0	
+PlasmaBloomForm	orgY	Single	autoFit	False	VISIBLE	3823	0	
+PlasmaBloomForm	expRate	Single			VISIBLE	1944	0.25	
+PlasmaBloomForm	shellLin	Single			VISIBLE	1925	0	
+PlasmaBloomForm	w0	ZUIValue			VISIBLE	1699	0	
+PlasmaBloomForm	wGrow	Single			VISIBLE	1551	0	
+PlasmaBloomForm	biasAmt	ZUIValue			VISIBLE	2013	0.25	
+PlasmaBloomForm	biasDir	ZUIValue			VISIBLE	0		
+PlasmaBloomForm	biasK	Single			VISIBLE	0		
+PlasmaBloomForm	halfAmt	ZUIValue			VISIBLE	1861	0.25	
+PlasmaBloomForm	halfDir	ZUIValue			VISIBLE	0		
+PlasmaBloomForm	halfSoft	ZUIValue			VISIBLE	0		
+PlasmaBloomForm	halfK	Single			VISIBLE	0		
+PlasmaBloomForm	driftX	ZUIValue			VISIBLE	0		
+PlasmaBloomForm	driftY	ZUIValue			VISIBLE	0		
+PlasmaBloomForm	driftAmt	ZUIValue			VISIBLE	0		
+PlasmaBloomForm	driftEase	Single			VISIBLE	0		
+PlasmaBloomForm	driftLin	Single			VISIBLE	0		
+PlasmaBloomForm	driftLag	ZUIValue			VISIBLE	0		
+PlasmaBloomForm	turb	ZUIValue			VISIBLE	2347	0	
+PlasmaBloomForm	turbPow	ZUIValue			VISIBLE	2594	0	
+PlasmaBloomForm	ku	Int32			VISIBLE	1917	0	
+PlasmaBloomForm	kv	Single			VISIBLE	2202	0	
+PlasmaBloomForm	oct	Int32			VISIBLE	1821	0	
+PlasmaBloomForm	flow	Single			VISIBLE	2012	0	
+PlasmaBloomForm	swirl	Single			VISIBLE	1991	0.25	
+PlasmaBloomForm	warp	ZUIValue			VISIBLE	2049	0	
+PlasmaBloomForm	warpGrow	Single			VISIBLE	1546	0	
+PlasmaBloomForm	warpK	Int32			VISIBLE	1869	0	
+PlasmaBloomForm	mode	Mode			VISIBLE	0		
+PlasmaBloomForm	lobes	Int32			VISIBLE	0		
+PlasmaBloomForm	lobeMode	LobeMode	lobes	2	VISIBLE	0		
+PlasmaBloomForm	lobeAmp	ZUIValue	lobes	2	VISIBLE	916	0.25	
+PlasmaBloomForm	lobePow	ZUIValue	lobes	2	VISIBLE	0		
+PlasmaBloomForm	lobePh	ZUIValue	lobes	2	VISIBLE	0		
+PlasmaBloomForm	gateGain	ZUIValue	lobeMode	Noise	VISIBLE	0		
+PlasmaBloomForm	plumeAmp	ZUIValue	mode	Plume	VISIBLE	0		
+PlasmaBloomForm	plumeReach	ZUIValue	mode	Plume	VISIBLE	0		
+PlasmaBloomForm	plumeW	ZUIValue	mode	Plume	VISIBLE	0		
+PlasmaBloomForm	plumeVary	ZUIValue	mode	Plume	VISIBLE	0		
+PlasmaBloomForm	fracT0	Single			VISIBLE	1961	0.25	
+PlasmaBloomForm	fracT1	Single			VISIBLE	2073	0.5	
+PlasmaBloomForm	fracMax	ZUIValue			VISIBLE	2926	0	
+PlasmaBloomForm	chunks	PlasmaPopulation			CONTAINER	0		nested settings object — its own dials follow
+PlasmaBloomForm	chunks.n	Int32			VISIBLE	1928	0	
+PlasmaBloomForm	chunks.rhoLo	Single			VISIBLE	1080	0	
+PlasmaBloomForm	chunks.rhoHi	Single			VISIBLE	1930	0	
+PlasmaBloomForm	chunks.size	Single			VISIBLE	1919	0	
+PlasmaBloomForm	chunks.grow	Single			VISIBLE	1690	0	
+PlasmaBloomForm	chunks.stretch	Single			VISIBLE	1950	0	
+PlasmaBloomForm	chunks.streak	Single			VISIBLE	1597	0	
+PlasmaBloomForm	chunks.tilt	Single			VISIBLE	1322	0	
+PlasmaBloomForm	chunks.spread	Single			VISIBLE	2100	0	
+PlasmaBloomForm	chunks.lat	Single			VISIBLE	1962	0	
+PlasmaBloomForm	chunks.amp	ZUIValue			VISIBLE	1928	0	
+PlasmaBloomForm	chunks.ease	Single			VISIBLE	1928	0	
+PlasmaBloomForm	chunks.lin	Single			VISIBLE	2012	0	
+PlasmaBloomForm	chunks.farFade	Single			VISIBLE	2008	0	
+PlasmaBloomForm	chunks.spdBase	Single			VISIBLE	1936	0	
+PlasmaBloomForm	chunks.t0	Single			VISIBLE	1553	0	
+PlasmaBloomForm	chunks.t1	Single			VISIBLE	2082	0	
+PlasmaBloomForm	chunks.life	Single			VISIBLE	1928	0	
+PlasmaBloomForm	chunks.ramp	Single			VISIBLE	1331	0.5	
+PlasmaBloomForm	chunks.fade	Single			VISIBLE	1877	0	
+PlasmaBloomForm	chunks.swirl	Single			VISIBLE	0		
+PlasmaBloomForm	chunks.spin	Single			VISIBLE	1925	0.25	
+PlasmaBloomForm	chunks.clusters	Int32			VISIBLE	2129	2	
+PlasmaBloomForm	chunks.clusterW	Single	clusters	2	VISIBLE	1673	0	
+PlasmaBloomForm	embers	PlasmaPopulation			CONTAINER	0		nested settings object — its own dials follow
+PlasmaBloomForm	embers.n	Int32			VISIBLE	2096	0	
+PlasmaBloomForm	embers.rhoLo	Single			VISIBLE	1744	0	
+PlasmaBloomForm	embers.rhoHi	Single			VISIBLE	2024	0	
+PlasmaBloomForm	embers.size	Single			VISIBLE	1722	0	
+PlasmaBloomForm	embers.grow	Single			VISIBLE	1276	0	
+PlasmaBloomForm	embers.stretch	Single			VISIBLE	2002	0	
+PlasmaBloomForm	embers.streak	Single			VISIBLE	1715	0	
+PlasmaBloomForm	embers.tilt	Single			VISIBLE	1939	0	
+PlasmaBloomForm	embers.spread	Single			VISIBLE	1927	0	
+PlasmaBloomForm	embers.lat	Single			VISIBLE	1880	0	
+PlasmaBloomForm	embers.amp	ZUIValue			VISIBLE	2096	0	
+PlasmaBloomForm	embers.ease	Single			VISIBLE	2096	0	
+PlasmaBloomForm	embers.lin	Single			VISIBLE	1867	0	
+PlasmaBloomForm	embers.farFade	Single			VISIBLE	1860	0	
+PlasmaBloomForm	embers.spdBase	Single			VISIBLE	2083	0	
+PlasmaBloomForm	embers.t0	Single			VISIBLE	1340	0	
+PlasmaBloomForm	embers.t1	Single			VISIBLE	1953	0	
+PlasmaBloomForm	embers.life	Single			VISIBLE	2096	0	
+PlasmaBloomForm	embers.ramp	Single			VISIBLE	286	0.25	
+PlasmaBloomForm	embers.fade	Single			VISIBLE	1832	0	
+PlasmaBloomForm	embers.swirl	Single			VISIBLE	0		
+PlasmaBloomForm	embers.spin	Single			VISIBLE	1966	0.25	
+PlasmaBloomForm	embers.clusters	Int32			VISIBLE	1939	2	
+PlasmaBloomForm	embers.clusterW	Single	clusters	2	VISIBLE	1436	0	
+PlasmaBloomForm	motes	PlasmaPopulation			CONTAINER	0		nested settings object — its own dials follow
+PlasmaBloomForm	motes.n	Int32			VISIBLE	1918	0	
+PlasmaBloomForm	motes.rhoLo	Single			VISIBLE	753	0	
+PlasmaBloomForm	motes.rhoHi	Single			VISIBLE	1924	0	
+PlasmaBloomForm	motes.size	Single			VISIBLE	756	0	
+PlasmaBloomForm	motes.grow	Single			VISIBLE	693	0	
+PlasmaBloomForm	motes.stretch	Single			VISIBLE	1927	0	
+PlasmaBloomForm	motes.streak	Single			VISIBLE	543	0	
+PlasmaBloomForm	motes.tilt	Single			VISIBLE	297	0.25	
+PlasmaBloomForm	motes.spread	Single			VISIBLE	936	0	
+PlasmaBloomForm	motes.lat	Single			VISIBLE	785	0	
+PlasmaBloomForm	motes.amp	ZUIValue			VISIBLE	1918	0	
+PlasmaBloomForm	motes.ease	Single			VISIBLE	1918	0	
+PlasmaBloomForm	motes.lin	Single			VISIBLE	1933	0	
+PlasmaBloomForm	motes.farFade	Single			VISIBLE	1943	0	
+PlasmaBloomForm	motes.spdBase	Single			VISIBLE	1925	0	
+PlasmaBloomForm	motes.t0	Single			VISIBLE	724	0	
+PlasmaBloomForm	motes.t1	Single			VISIBLE	1886	0	
+PlasmaBloomForm	motes.life	Single			VISIBLE	1918	0	
+PlasmaBloomForm	motes.ramp	Single			VISIBLE	226	0	
+PlasmaBloomForm	motes.fade	Single			VISIBLE	1883	0	
+PlasmaBloomForm	motes.swirl	Single			VISIBLE	0		
+PlasmaBloomForm	motes.spin	Single			VISIBLE	803	0.25	
+PlasmaBloomForm	motes.clusters	Int32			VISIBLE	936	2	
+PlasmaBloomForm	motes.clusterW	Single	clusters	2	VISIBLE	1577	0	
+PlasmaBloomForm	coreGain	ZUIValue			VISIBLE	5	0	
+PlasmaBloomForm	coreR	ZUIValue			VISIBLE	3	0.25	
+PlasmaBloomForm	coreFollow	ZUIValue			VISIBLE	5	0	
+PlasmaBloomForm	coreTau	Single			VISIBLE	5	0	
+PlasmaBloomForm	flash	ZUIValue			VISIBLE	0		
+PlasmaBloomForm	flashTau	Single			VISIBLE	2	0.5	
+PlasmaBloomForm	remnant	ZUIValue			VISIBLE	1366	0	
+PlasmaBloomForm	remnantR	ZUIValue			VISIBLE	1366	0	
+PlasmaBloomForm	remnantTau	Single			VISIBLE	1366	0	
+PlasmaBloomForm	ring2	ZUIValue			VISIBLE	1935	1	
+PlasmaBloomForm	ring2R	ZUIValue			VISIBLE	5	0	
+PlasmaBloomForm	ring2Life	Single			VISIBLE	1937	1	
+PlasmaBloomForm	ring2W	ZUIValue			VISIBLE	44	0.25	
+PlasmaBloomForm	ring2Lin	Single			VISIBLE	1	1	
+PlasmaBloomForm	ring2Bead	ZUIValue			VISIBLE	1935	0	
+PlasmaBloomForm	ring2K	Int32			VISIBLE	1927	5	
+PlasmaBloomForm	beadT0	Single			VISIBLE	1935	0.25	
+PlasmaBloomForm	beadT1	Single			VISIBLE	1875	0.25	
+PlasmaBloomForm	rise	Single			VISIBLE	1821	0.5	
+PlasmaBloomForm	hold	Single			VISIBLE	1743	0	
+PlasmaBloomForm	tailFast	Single			VISIBLE	2009	0	
+PlasmaBloomForm	tailSlow	Single			VISIBLE	1817	0	
+PlasmaBloomForm	tailMix	Single			VISIBLE	2080	0	
+PlasmaBloomForm	hueA	PyreRamp			VISIBLE	0	(no perturbable member)	
+PlasmaBloomForm	hueB	PyreRamp			VISIBLE	0	(no perturbable member)	
+PlasmaBloomForm	rimMix	ZUIValue			VISIBLE	1209	0	
+PlasmaBloomForm	rimLo	ZUIValue			VISIBLE	1714	0	
+PlasmaBloomForm	rimHi	ZUIValue			VISIBLE	1278	0	
+PlasmaBloomForm	eNorm	ZUIValue			VISIBLE	1744	0	
+PlasmaBloomForm	cGamma	ZUIValue			VISIBLE	1744	0	
+PlasmaBloomForm	aLo	Single			VISIBLE	3449	0	
+PlasmaBloomForm	aHi	Single			VISIBLE	1900	0	
+PlasmaBloomForm	aGamma	Single			VISIBLE	4096	0	
+PlasmaBloomForm	swarmSize	ZUIValue			ABSENT	0		[PyreSwarmOnly] — deliberately absented by PyreFormShaperUI's Skip (a composite hosts no swarm)
+ForkBlastForm	progress	ZUIValue			VISIBLE	2752	0	
+ForkBlastForm	reach	ZUIValue			VISIBLE	2752	0	
+ForkBlastForm	flash	ZUIValue			VISIBLE	0		
+ForkBlastForm	spread	Single			VISIBLE	2769	0	
+ForkBlastForm	aim	Single			VISIBLE	0		
+ForkBlastForm	bias	Single			VISIBLE	2823	0	
+ForkBlastForm	puffs	Int32			VISIBLE	2752	0	
+ForkBlastForm	drag	Single			VISIBLE	2664	0	
+ForkBlastForm	buoyancy	Single			VISIBLE	2651	0	
+ForkBlastForm	growth	Single			VISIBLE	2685	0	
+ForkBlastForm	swell	Single			VISIBLE	2750	0	
+ForkBlastForm	elongation	Single			VISIBLE	2563	0	
+ForkBlastForm	roundAt	Single			VISIBLE	2563	0	
+ForkBlastForm	jitter	Single			VISIBLE	2752	0	
+ForkBlastForm	fillVolume	Single			VISIBLE	3866	0	
+ForkBlastForm	birthSkew	Single			VISIBLE	3509	0	
+ForkBlastForm	birthSpan	Single			VISIBLE	2752	0	
+ForkBlastForm	puffLife	Single			VISIBLE	2752	0	
+ForkBlastForm	cool	Single			VISIBLE	3680	0	
+ForkBlastForm	hold	Single			VISIBLE	2718	0	
+ForkBlastForm	opacity	Single			VISIBLE	0		
+ForkBlastForm	shrink	Single			VISIBLE	3138	0	
+ForkBlastForm	shrinkAt	Single			VISIBLE	2618	0	
+ForkBlastForm	leadDie	Single			VISIBLE	3445	0	
+ForkBlastForm	gobs	Int32			VISIBLE	163	1	
+ForkBlastForm	gobSizePx	Single			VISIBLE	0		
+ForkBlastForm	gobReach	Single			VISIBLE	0		
+ForkBlastForm	gobSwell	Single			VISIBLE	0		
+ForkBlastForm	gobLife	Single			VISIBLE	0		
+ForkBlastForm	gobAmount	Single			VISIBLE	0		
+ForkBlastForm	gobTiming	Single			VISIBLE	0		
+ForkBlastForm	puffSizePx	Single			VISIBLE	2729	0	
+ForkBlastForm	turbulencePx	Single			VISIBLE	2598	0	
+ForkBlastForm	soot	Single			VISIBLE	2752	0	
+ForkBlastForm	edgeSoftness	Single			VISIBLE	854	0	
+ForkBlastForm	autoExposure	Boolean			VISIBLE	2546	False	
+ForkBlastForm	exposure	Single	autoExposure	True	VISIBLE	2548	0	
+ForkBlastForm	fieldLow	Single			VISIBLE	3643	0	
+ForkBlastForm	fieldHigh	Single	autoExposure	False	VISIBLE	1205	0	
+ForkBlastForm	curve	Single			VISIBLE	2548	0	

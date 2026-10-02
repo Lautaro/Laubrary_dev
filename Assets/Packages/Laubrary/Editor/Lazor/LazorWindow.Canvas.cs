@@ -2,6 +2,12 @@
 // cursor) and pan (middle-drag or space-drag), with the selected layer's mirror symmetry shown as guide
 // spokes and the whole shape previewed live through LazorGeometry (so the canvas shows exactly what the
 // game will draw). Pen adds/closes strokes, Edit drags vertices, Erase removes them.
+//
+// This is bespoke canvas painting, so it stays RAW IMGUI even though the rest of the window is UI Toolkit:
+// it lives in the IMGUIContainer that LazorWindow.BuildCanvasPane creates, which means the rect handed to
+// DrawCanvas is already clip-local (origin 0,0) — exactly the space every transform below works in — and a
+// redraw has to be requested with RepaintCanvas() (MarkDirtyRepaint), not a bare EditorWindow.Repaint().
+// The zoom readout and Fit button are NOT drawn here any more; they're real ZUI chrome above the container.
 
 using System.Collections.Generic;
 using UnityEditor;
@@ -86,9 +92,9 @@ namespace Laubrary.Lazor.Editor
 
             var e = Event.current;
 
-            // Frame the content on first show — but only on a Repaint with a real rect. DrawAsset carves the canvas
-            // rect out of the GUILayout flow, so on the Layout pass it isn't resolved yet (near-zero); fitting then
-            // would bake a bogus zoom that never re-fits. Gate on Repaint + a sane size so Fit sees the true rect.
+            // Frame the content on first show — but only on a Repaint with a real rect. The host IMGUIContainer's
+            // contentRect isn't resolved on the very first layout pass (near-zero); fitting then would bake a bogus
+            // zoom that never re-fits. Gate on Repaint + a sane size so Fit sees the true rect.
             if (!zoomInitialized && e.type == EventType.Repaint && canvasRect.width > 40f && canvasRect.height > 40f)
             { FitView(canvasRect); zoomInitialized = true; }
 
@@ -124,7 +130,7 @@ namespace Laubrary.Lazor.Editor
                 HandleCanvasInput(canvasRect, mouseLocal, inside, e);
             }
 
-            DrawCanvasHud(canvasRect);
+            SyncZoomLabel();   // the zoom readout is real ZUI chrome now — push the wheel-zoomed value into it
         }
 
         void FitView(Rect canvasRect)
@@ -297,18 +303,6 @@ namespace Laubrary.Lazor.Editor
             }
         }
 
-        void DrawCanvasHud(Rect canvasRect)
-        {
-            var hud = new Rect(canvasRect.xMax - 168, canvasRect.y + 6, 162, 22);
-            using (new GUILayout.AreaScope(hud))
-            using (new GUILayout.HorizontalScope())
-            {
-                GUILayout.Label($"{Mathf.RoundToInt(zoom)} px/cell", EditorStyles.miniLabel);
-                if (GUILayout.Button(new GUIContent("Fit", "Frame the whole grid in the canvas."), EditorStyles.miniButton, GUILayout.Width(34)))
-                    FitView(canvasRect);
-            }
-        }
-
         // ---- Input ----
 
         Vector2 _lastMouseLocal;
@@ -324,7 +318,7 @@ namespace Laubrary.Lazor.Editor
                 Vector2 gridUnder = LocalToGrid(mouseLocal);
                 zoom = Mathf.Clamp(zoom * (e.delta.y < 0 ? 1.1f : 1f / 1.1f), 2f, 200f);
                 pan = mouseLocal - _canvasCenter - new Vector2(gridUnder.x * zoom, -gridUnder.y * zoom);
-                e.Use(); Repaint(); return;
+                e.Use(); RepaintCanvas(); return;
             }
 
             // Middle-drag (or space/alt + left-drag) pans the canvas; a middle click that DOESN'T drag pops up the
@@ -334,7 +328,7 @@ namespace Laubrary.Lazor.Editor
             { draggingPan = true; _panButton = e.button; _panDist = 0f; e.Use(); return; }
             if (draggingPan)
             {
-                if (e.type == EventType.MouseDrag) { pan += e.delta; _panDist += e.delta.magnitude; Repaint(); e.Use(); }
+                if (e.type == EventType.MouseDrag) { pan += e.delta; _panDist += e.delta.magnitude; RepaintCanvas(); e.Use(); }
                 if (e.type == EventType.MouseUp)
                 {
                     draggingPan = false;
@@ -378,7 +372,7 @@ namespace Laubrary.Lazor.Editor
                     if (d < best) { best = d; hoverVertex = i; hoverVertexPath = pi; }
                 }
             }
-            Repaint();
+            RepaintCanvas();
         }
 
         void HandlePen(Vector2 mouseLocal, bool inside, Event e)
@@ -396,7 +390,7 @@ namespace Laubrary.Lazor.Editor
                     if (ap.points.Count >= 3 && Vector2.Distance(mouseLocal, GridToLocal(ap.points[0])) < 10f)
                     {
                         RecordShape("Close Lazor stroke");
-                        ap.closed = true; activePath = -1; MarkDirty(); e.Use(); Repaint(); return;
+                        ap.closed = true; activePath = -1; MarkDirty(); e.Use(); RepaintCanvas(); return;
                     }
                 }
 
@@ -416,23 +410,23 @@ namespace Laubrary.Lazor.Editor
                     activePath = layer.paths.Count - 1;
                 }
                 layer.paths[activePath].points.Add(g);
-                MarkDirty(); e.Use(); Repaint(); return;
+                MarkDirty(); e.Use(); RepaintCanvas(); return;
             }
 
             if (e.type == EventType.MouseDown && e.button == 1) { FinishStroke(); e.Use(); return; } // right-click finishes
             if (e.type == EventType.KeyDown)
             {
-                if (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.Escape) { FinishStroke(); e.Use(); Repaint(); }
+                if (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.Escape) { FinishStroke(); e.Use(); RepaintCanvas(); }
                 else if (e.keyCode == KeyCode.Backspace && activePath >= 0 && activePath < layer.paths.Count)
                 {
                     RecordShape("Undo Lazor point");
                     var ap = layer.paths[activePath];
                     if (ap.points.Count > 0) ap.points.RemoveAt(ap.points.Count - 1);
                     if (ap.points.Count == 0) { layer.paths.RemoveAt(activePath); activePath = -1; }
-                    MarkDirty(); e.Use(); Repaint();
+                    MarkDirty(); e.Use(); RepaintCanvas();
                 }
             }
-            if (e.type == EventType.MouseMove) Repaint();
+            if (e.type == EventType.MouseMove) RepaintCanvas();
         }
 
         void FinishStroke()
@@ -463,7 +457,7 @@ namespace Laubrary.Lazor.Editor
             else if (e.type == EventType.MouseDrag && dragVertex >= 0)
             {
                 layer.paths[dragVertexPath].points[dragVertex] = SnapGrid(LocalToGrid(mouseLocal));
-                MarkDirty(); Repaint(); e.Use();
+                MarkDirty(); RepaintCanvas(); e.Use();
             }
             else if (e.type == EventType.MouseUp && dragVertex >= 0)
             {
@@ -484,7 +478,7 @@ namespace Laubrary.Lazor.Editor
                 if (path.points.Count < 2) layer.paths.RemoveAt(hoverVertexPath);
             }
             hoverVertex = hoverVertexPath = -1;
-            MarkDirty(); e.Use(); Repaint();
+            MarkDirty(); e.Use(); RepaintCanvas();
         }
 
         // ---- GUI primitives (clip-local; rotated-quad lines, no camera needed) ----
@@ -564,15 +558,15 @@ namespace Laubrary.Lazor.Editor
             menu.AddItem(new GUIContent("Edit"), tool == Tool.Edit, () => SetTool(Tool.Edit));
             menu.AddItem(new GUIContent("Erase"), tool == Tool.Erase, () => SetTool(Tool.Erase));
             menu.AddSeparator("");
-            menu.AddItem(new GUIContent("Undo"), false, () => { FinishStroke(); Undo.PerformUndo(); Repaint(); });
-            menu.AddItem(new GUIContent("Redo"), false, () => { Undo.PerformRedo(); Repaint(); });
+            menu.AddItem(new GUIContent("Undo"), false, () => { FinishStroke(); Undo.PerformUndo(); RepaintCanvas(); });
+            menu.AddItem(new GUIContent("Redo"), false, () => { Undo.PerformRedo(); RepaintCanvas(); });
             menu.ShowAsContext();
         }
 
         void SetTool(Tool t)
         {
             if (tool == Tool.Pen && t != Tool.Pen) FinishStroke();
-            tool = t; Repaint();
+            tool = t; RepaintCanvas();
         }
 
         void GuiRectOutline(Rect r, Color c, float t)

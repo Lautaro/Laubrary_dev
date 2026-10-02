@@ -1,0 +1,28 @@
+form	path	gate	openedBy	pixels
+ArcBurstForm	keepHueFloor		(no single sibling opened it)	0
+ArcBurstForm	ghostDeepLo		(no single sibling opened it)	0
+ArcBurstForm	ghostDeepHi		(no single sibling opened it)	0
+ArcBurstForm	bolt.ghostLo	layout=Bolt	bolt.trunks	127
+ArcBurstForm	bolt.ghostHi	layout=Bolt	bolt.trunks	128
+ArcBurstForm	bolt.ghostDeepP	layout=Bolt	bolt.trunks	114
+ArcBurstForm	lattice.flyLo	layout=Lattice	(no single sibling opened it)	0
+ArcBurstForm	lattice.flyHi	layout=Lattice	(no single sibling opened it)	0
+ArcBurstForm	cage.coolK	layout=Cage	(no single sibling opened it)	0
+PlasmaBloomForm	driftAmt		driftX	1082
+PlasmaBloomForm	driftEase		(no single sibling opened it)	0
+PlasmaBloomForm	driftLin		(no single sibling opened it)	0
+PlasmaBloomForm	driftLag		(no single sibling opened it)	0
+PlasmaBloomForm	mode		(no single sibling opened it)	0
+PlasmaBloomForm	lobes		lobeAmp	724
+PlasmaBloomForm	gateGain	lobes=6	(no single sibling opened it)	0
+PlasmaBloomForm	plumeAmp	mode=Plume	lobes	812
+PlasmaBloomForm	plumeReach	mode=Plume	(no single sibling opened it)	0
+PlasmaBloomForm	plumeW	mode=Plume	(no single sibling opened it)	0
+PlasmaBloomForm	plumeVary	mode=Plume	(no single sibling opened it)	0
+PlasmaBloomForm	chunks.swirl		(no single sibling opened it)	0
+PlasmaBloomForm	embers.swirl		(no single sibling opened it)	0
+PlasmaBloomForm	motes.swirl		(no single sibling opened it)	0
+PlasmaBloomForm	flash		coreTau	21
+ForkBlastForm	flash		(no single sibling opened it)	0
+ForkBlastForm	aim		spread	464
+ForkBlastForm	opacity		(no single sibling opened it)	0

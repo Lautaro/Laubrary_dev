@@ -278,6 +278,7 @@ MonoBehaviour:
       type: {class: PyreBlast, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: e39282ea6cc84968b25f8b48b8237505
+        colorSlot: -1
         enabled: 1
         displayName: A
         delay: 0
@@ -309,11 +310,13 @@ MonoBehaviour:
         alphaMin: 1
         alphaMax: 1
         seed: 0
-        blastSeconds: 0.6
+        blastSeconds: 1.6666666
+        blastSecondsAuto: 1
     - rid: 4065707408189817343
       type: {class: PyreBlast, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: c32bdd9cc1f14777a740a10b7cfc64a6
+        colorSlot: -1
         enabled: 1
         displayName: B
         delay: 0.3
@@ -345,11 +348,13 @@ MonoBehaviour:
         alphaMin: 1
         alphaMax: 1
         seed: 0
-        blastSeconds: 0.6
+        blastSeconds: 1.3333334
+        blastSecondsAuto: 1
     - rid: 4065707408189817344
       type: {class: PyreBlast, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: 9adc7d776c7742e2a2a5b27df50d86ed
+        colorSlot: -1
         enabled: 1
         displayName: C
         delay: 0.9
@@ -381,11 +386,13 @@ MonoBehaviour:
         alphaMin: 1
         alphaMax: 1
         seed: 0
-        blastSeconds: 0.6
+        blastSeconds: 1.3333334
+        blastSecondsAuto: 1
     - rid: 4065707408189817345
       type: {class: PyreBlast, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: 50cf177484e541d69d47af69c77fc68b
+        colorSlot: -1
         enabled: 1
         displayName: D
         delay: 0.6
@@ -417,4 +424,5 @@ MonoBehaviour:
         alphaMin: 1
         alphaMax: 1
         seed: 0
-        blastSeconds: 0.6
+        blastSeconds: 1.3333334
+        blastSecondsAuto: 1

@@ -1,0 +1,14 @@
+var sb = new System.Text.StringBuilder();
+sb.Append("dataPath=").Append(UnityEngine.Application.dataPath).Append("\n");
+System.Func<string, System.Type> FT = n => { foreach (var a in System.AppDomain.CurrentDomain.GetAssemblies()) foreach (var t in a.GetTypes()) if (t.Name == n) return t; return null; };
+var pyreT = FT("PyreWindow");
+var BFi = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.FlattenHierarchy;
+UnityEditor.EditorWindow win = null;
+foreach (var w0 in UnityEngine.Resources.FindObjectsOfTypeAll<UnityEditor.EditorWindow>()) if (w0 != null && w0.GetType() == pyreT) win = w0;
+System.Reflection.MethodInfo rebuild = null;
+for (var t = pyreT; t != null && rebuild == null; t = t.BaseType) rebuild = t.GetMethod("Rebuild", BFi | System.Reflection.BindingFlags.DeclaredOnly);
+var lpwF = pyreT.GetField("leftPaneWidth", BFi);
+lpwF.SetValue(win, 1458f);
+win.position = new UnityEngine.Rect(40, 40, 900, 700);
+rebuild.Invoke(win, null);
+return sb.Append("set 900x700 with leftPaneWidth=1458\n").ToString();

@@ -1,0 +1,7 @@
+family	source	frame	visibleDiff	exactDiff	maxCh	covPyre	covShaper
+Simulation	Fire	0	0	0	0	0	0
+Simulation	Fire	4	71	71	255	52	69
+Simulation	Fire	7	0	0	0	0	0
+Simulation	Fireball	0	0	0	0	0	0
+Simulation	Fireball	4	163	163	197	163	163
+Simulation	Fireball	7	0	0	0	0	0

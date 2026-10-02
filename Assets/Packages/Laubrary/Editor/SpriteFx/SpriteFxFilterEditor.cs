@@ -48,6 +48,7 @@ namespace Laubrary.SpriteFx.Editor
         {
             var root = new VisualElement();
             Z.Attach(root);   // this root isn't owned by a ZuiWindow — attach the shared stylesheet ourselves
+            Z.AttachTool(root, "spritefx");
 
             var section = Z.Section("SpriteFx",
                 "The colour / mask filter this component plays over its SpriteRenderer on Play(). Assign a shared " +
@@ -151,7 +152,7 @@ namespace Laubrary.SpriteFx.Editor
                 ZuiText.Subtle,
                 "SpriteFxFilter reads its modifiers, duration and seed from the Stack asset whenever one " +
                 "is assigned (see EffectiveModifiers / EffectiveDuration / EffectiveSeed).");
-            note.style.whiteSpace = WhiteSpace.Normal;
+            note.AddToClassList("lau-tool-shell__note");
             _body.Add(note);
         }
     }

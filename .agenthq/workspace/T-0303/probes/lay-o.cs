@@ -1,0 +1,1 @@
+UnityEditor.EditorPrefs.SetString("A25.open", "Tags,Views,Canvas,Layers,Global Modifiers,Shape,Torch,Placement,Barbs,Whip,Surge,Curl warp,Fuel bed glow,Tongues,Embers,Colour,Adjust,Texture,Breathing,Sway & lean,Swarm,Transform,Swarm spin,Modifiers,Simulation (always last),Preview backdrop,Cherry Framing"); return "x";

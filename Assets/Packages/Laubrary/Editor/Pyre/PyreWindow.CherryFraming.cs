@@ -66,8 +66,7 @@ namespace Laubrary.Pyre.Editor
         void BuildCherryPanel(VisualElement root, Pyre s)
         {
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.flexGrow = 1f;
-            scroll.style.minHeight = 0f;
+            scroll.AddToClassList("lau-tool-shell__scroll");
             cherryPanelHost = scroll;
             root.Add(scroll);
             RebuildCherryPanel(s);
@@ -170,8 +169,7 @@ namespace Laubrary.Pyre.Editor
             EnsureCherryStripCache(s);
 
             cherrySourceFlex = new VisualElement();
-            cherrySourceFlex.style.flexDirection = FlexDirection.Row;
-            cherrySourceFlex.style.flexWrap = Wrap.Wrap;
+            cherrySourceFlex.AddToClassList("lau-tool-shell__row-wrap");
             int n = Mathf.Max(1, s.frameCount);
             for (int i = 0; i < n; i++)
                 cherrySourceFlex.Add(BuildSourceTile(s, i));
@@ -186,16 +184,13 @@ namespace Laubrary.Pyre.Editor
                 tooltip = $"Frame {i + 1}. Click to select (Shift = range, Ctrl/Cmd = toggle); double-click to add to Cherry slots."
             };
             tile.style.width = size; tile.style.height = size;
-            tile.style.marginRight = 2f; tile.style.marginBottom = 2f;
-            tile.style.borderTopWidth = 2f; tile.style.borderBottomWidth = 2f;
-            tile.style.borderLeftWidth = 2f; tile.style.borderRightWidth = 2f;
+            tile.AddToClassList("lau-pyre__cherry-card");
             StyleCherryCardSelection(tile, sourceSelected.Contains(i));
             if (cherryStripCache != null && i < cherryStripCache.Length && cherryStripCache[i] != null)
                 tile.style.backgroundImage = Background.FromTexture2D(cherryStripCache[i]);
 
             var badge = Z.Text((i + 1).ToString(), ZuiText.Small, "");
-            badge.style.position = Position.Absolute;
-            badge.style.left = 2f; badge.style.top = 2f;
+            badge.AddToClassList("lau-pyre__cherry-badge");
             tile.Add(badge);
 
             tile.RegisterCallback<PointerDownEvent>(e =>
@@ -240,8 +235,7 @@ namespace Laubrary.Pyre.Editor
             EnsureCherryStripCache(s);
 
             cherrySlotFlex = new VisualElement();
-            cherrySlotFlex.style.flexDirection = FlexDirection.Row;
-            cherrySlotFlex.style.flexWrap = Wrap.Wrap;
+            cherrySlotFlex.AddToClassList("lau-tool-shell__row-wrap");
             for (int i = 0; i < s.cherryFrames.Count; i++)
                 cherrySlotFlex.Add(BuildCherrySlotCard(s, i));
             cherrySlotGridHost.Add(cherrySlotFlex);
@@ -257,22 +251,17 @@ namespace Laubrary.Pyre.Editor
                 tooltip = "Click to select (Shift = range, Ctrl/Cmd = toggle); drag onto another slot to reorder; right-click to edit."
             };
             card.style.width = size;
-            card.style.marginRight = 2f; card.style.marginBottom = 2f;
-            card.style.borderTopWidth = 2f; card.style.borderBottomWidth = 2f;
-            card.style.borderLeftWidth = 2f; card.style.borderRightWidth = 2f;
+            card.AddToClassList("lau-pyre__cherry-card");
             StyleCherryCardSelection(card, cherrySelected.Contains(i));
 
             var header = new VisualElement();
-            header.style.flexDirection = FlexDirection.Row;
-            header.style.justifyContent = Justify.SpaceBetween;
-            header.style.paddingLeft = 2f; header.style.paddingRight = 2f;
+            header.AddToClassList("lau-pyre__cherry-header");
             header.Add(Z.Text((i + 1).ToString(), ZuiText.Small, ""));
             if (slot.multiFrame)
                 header.Add(Z.Text("M", ZuiText.Small, "MultiFrame — a random source frame is picked each time this slot plays."));
             var del = Z.Button("×", "Remove this slot (or the whole selection, if this slot is part of one).",
                 () => DeleteCherrySlotOrSelection(s, i));
-            del.style.width = 16f; del.style.height = 16f;
-            del.style.marginTop = 0f; del.style.marginBottom = 0f; del.style.marginLeft = 0f; del.style.marginRight = 0f;
+            del.AddToClassList("lau-pyre__cherry-remove");
             header.Add(del);
             card.Add(header);
 

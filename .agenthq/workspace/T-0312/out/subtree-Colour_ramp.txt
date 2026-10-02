@@ -1,0 +1,10 @@
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+
+##### zui-field 'Colour ramp' hit 1
+parent VisualElement content=313.3 cls=
+VisualElement w=313.3 content=313.3 x=21..334 h=271.6 flex=0/1 basis=389.2222 styleW=Null self=Auto dir=Row cls=zui-field.zui-field--wrap
+  Label w=72.0 content=68.9 x=21..93 h=14.7 flex=0/0 basis=72 styleW=72px self=Auto dir=Column cls=unity-text-element.unity-label.zui-field__label text='Colour ramp'
+  ZuiGradientControl w=237.3 content=237.3 x=97..334 h=271.6 flex=0/1 basis=313.2222 styleW=Null self=Auto dir=Column cls=zui-gradient-control
+    VisualElement w=237.3 content=237.3 x=97..334 h=25.8 flex=0/1 basis=26 styleW=Null self=Auto dir=Row cls=
+    ZuiRampControl w=237.3 content=237.3 x=97..334 h=45.8 flex=1/1 basis=45.77778 styleW=Null self=Auto dir=Column cls=zui-ramp
+    ZuiBox w=237.3 content=227.6 x=97..334 h=189.8 flex=0/1 basis=189.5556 styleW=Null self=Auto dir=Column cls=zui-box.zui-align-scope

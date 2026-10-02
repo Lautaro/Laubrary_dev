@@ -1,0 +1,13 @@
+string outp = UnityEditor.EditorPrefs.GetString("T323.capOut","D:/UNITY/Laubrary Dev/.agenthq/workspace/T-0323/shots/rect.png");
+string rc = UnityEditor.EditorPrefs.GetString("T323.capRect","0,0,500,600");
+var p=rc.Split(','); 
+var pp = (float)typeof(UnityEditor.EditorGUIUtility).GetProperty("pixelsPerPoint", System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic).GetValue(null);
+int x=Mathf.RoundToInt(float.Parse(p[0])*pp), y=Mathf.RoundToInt(float.Parse(p[1])*pp), w=Mathf.RoundToInt(float.Parse(p[2])*pp), h=Mathf.RoundToInt(float.Parse(p[3])*pp);
+var asm = System.Reflection.Assembly.Load("System.Drawing");
+var bmpT = asm.GetType("System.Drawing.Bitmap"); var gT = asm.GetType("System.Drawing.Graphics"); var szT = asm.GetType("System.Drawing.Size");
+var bmp = System.Activator.CreateInstance(bmpT, new object[]{ w, h });
+var g = gT.GetMethod("FromImage").Invoke(null, new object[]{ bmp });
+var size = System.Activator.CreateInstance(szT, new object[]{ w, h });
+gT.GetMethod("CopyFromScreen", new System.Type[]{ typeof(int), typeof(int), typeof(int), typeof(int), szT }).Invoke(g, new object[]{ x, y, 0, 0, size });
+bmpT.GetMethod("Save", new System.Type[]{ typeof(string) }).Invoke(bmp, new object[]{ outp });
+return "wrote "+outp+" "+w+"x"+h;

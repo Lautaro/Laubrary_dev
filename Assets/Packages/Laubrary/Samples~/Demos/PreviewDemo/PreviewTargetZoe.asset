@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0413ec766917e0b4bb054a79ec22ed07, type: 3}
+  m_Name: PreviewTargetZoe
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Zoetrope::Laubrary.Zoetrope.Zoe
+  displayName: Preview Target
+  maxHealth: 30
+  faction: {fileID: 0}
+  invulnerableAfterHit: 0
+  view:
+    rid: 1452078146085191773
+  hit:
+    rid: -2
+  death:
+    rid: -2
+  brain:
+    rid: -2
+  loadout: []
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
+    - rid: 1452078146085191773
+      type: {class: SpriteView, ns: Laubrary.Zoetrope, asm: com.Lautaro-Arino.Laubrary.Zoetrope}
+      data:
+        sprite: {fileID: 21300000, guid: 37520d6bf069a5643a80f5a773319490, type: 3}
+        scale: 1

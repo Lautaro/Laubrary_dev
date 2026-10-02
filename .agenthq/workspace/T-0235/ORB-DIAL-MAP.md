@@ -23,15 +23,15 @@ A group's box is created where its **first** member is declared, so declaration 
 |---|---|---|---|---|
 | `variant` | Variant | Orb type | *(none — top of card)* | Which of the five programs draws. Each has its own settings box. |
 | `radius` | Radius | Core size | Placement & size | The ball's radius as a fraction of frame width; every length in the variant scales with it. |
-| `noseX` | Nose X | Nose across frame | Placement & size | Where the ball sits left↔right inside its own frame; the trail fills the space to its left. |
+| `noseX` | Nose X | Nose X | Placement & size | Where the ball sits left↔right inside its own frame; the trail fills the space to its left. |
 | `axisY` | Axis Y | Travel line | Placement & size | Which height down the frame the whole thing is built on. |
 | `wake` | Wake | Trail length | Placement & size | How far behind the ball the trail/shells/tail reach, in core radii. |
-| `swarmSize` | Swarm Size | Swarm orb size | Placement & size | Each swarm particle's orb as a fraction of Core size. |
+| `swarmSize` | Swarm Size | Swarm size | Placement & size | Each swarm particle's orb as a fraction of Core size. |
 | `emberdrift` … `voltcore` | Emberdrift … Voltcore | *(unchanged)* | *(none — the variant's own box)* | Only the active variant's box is shown. |
 | `softenPasses` | Soften Passes | Blur passes | Cleanup **(advanced)** | Blurs the summed energy before colouring; 1 fuses the seams between shapes, 2 softens the head away. |
-| `floor` | Floor | Hide below alpha | Cleanup **(advanced)** | Pixels fainter than this are dropped outright. |
-| `despeckle` | Despeckle | Remove stray specks | Cleanup **(advanced)** | Drops faint lone pixels — the sampled edge of a falloff, not artwork. |
-| `despeckleBelow` | Despeckle Below | Speck alpha limit | Cleanup **(advanced)** | How faint a lone pixel has to be before it counts as a speck. |
+| `floor` | Floor | Hide alpha | Cleanup **(advanced)** | Pixels fainter than this are dropped outright. |
+| `despeckle` | Despeckle | De-speck | Cleanup **(advanced)** | Drops faint lone pixels — the sampled edge of a falloff, not artwork. |
+| `despeckleBelow` | Despeckle Below | Speck alpha | Cleanup **(advanced)** | How faint a lone pixel has to be before it counts as a speck. |
 
 ## Every variant — shared look dials (`StyleSettings`)
 
@@ -42,11 +42,11 @@ A group's box is created where its **first** member is declared, so declaration 
 | `a0` | A 0 | Fade-in point | Opacity | How dim a pixel can be and still show at all. |
 | `a1` | A 1 | Solid point | Opacity | **The hardness dial.** Near 1 the orb reads as fog with a bright patch; lower and it becomes a solid nucleus with a gradient rim. |
 | `acurve` | Acurve | Fade shape | Opacity | Below 1 puts a visible edge on the head without drawing a line. |
-| `amax` | Amax | Maximum opacity | Opacity | Ceiling — below 1 nothing is ever fully opaque (Membrane's whole subject). |
+| `amax` | Amax | Max alpha | Opacity | Ceiling — below 1 nothing is ever fully opaque (Membrane's whole subject). |
 | `noseSquash` | Nose Squash | Front flatten | Body & halo | Squashes the leading half of the ball, so it is blunter in front than behind. |
 | `glowWide` | Glow Wide | Halo width | Body & halo | How far the light the ball sits in reaches, in core radii. |
 | `glowTail` | Glow Tail | Halo trail | Body & halo | How much of that halo is dragged out behind the ball. |
-| `glowAmp` | Glow Amp | Halo brightness | Body & halo | How strong the halo is against the ball. |
+| `glowAmp` | Glow Amp | Halo glow | Body & halo | How strong the halo is against the ball. |
 
 ## Emberdrift — boiling body, torn smeared wake, embers
 
@@ -54,27 +54,27 @@ A group's box is created where its **first** member is declared, so declaration 
 |---|---|---|---|
 | `turbScale` | Turb Scale | Tear size | Wake |
 | `turbW` | Turb W | Tear strength | Wake |
-| `turbScale2` | Turb Scale 2 | Fine tear size | Wake |
-| `turbW2` | Turb W 2 | Fine tear strength | Wake |
-| `smearTaps` | Smear Taps | Wake smear length | Wake |
-| `smearDecay` | Smear Decay | Wake smear falloff | Wake |
-| `smearNorm` | Smear Norm | Smear as motion blur | Wake |
+| `turbScale2` | Turb Scale 2 | Tear size | Wake |
+| `turbW2` | Turb W 2 | Tear amount | Wake |
+| `smearTaps` | Smear Taps | Wake smear | Wake |
+| `smearDecay` | Smear Decay | Wake falloff | Wake |
+| `smearNorm` | Smear Norm | Motion blur | Wake |
 | `turbScaleBody` | Turb Scale Body | Boil size | Body |
 | `coreWarp` | Core Warp | Boil depth | Body |
-| `coreAmp` | Core Amp | Core brightness | Body |
+| `coreAmp` | Core Amp | Core glow | Body |
 | `coreP` | Core P | Core softness | Body |
 | `emitPeriod` | Emit Period | Burst every | Embers |
-| `emitLife` | Emit Life | Ember lifetime | Embers |
-| `embersPerPiece` | Embers Per Piece | Embers per burst | Embers |
-| `emberAmp` | Ember Amp | Ember brightness | Embers |
-| `emberFadeP` | Ember Fade P | Ember fade shape | Embers |
+| `emitLife` | Emit Life | Ember life | Embers |
+| `embersPerPiece` | Embers Per Piece | Ember count | Embers |
+| `emberAmp` | Ember Amp | Ember glow | Embers |
+| `emberFadeP` | Ember Fade P | Ember fade | Embers |
 | `emberElong` | Ember Elong | Ember streak | Embers |
 | `turbOct` | Turb Oct | Tear detail | Noise detail **(advanced)** |
 | `turbAniso` | Turb Aniso | Tear stretch | Noise detail **(advanced)** |
 | `turbSeedOff` | Turb Seed Off | Tear seed | Noise detail **(advanced)** |
-| `turbOct2` | Turb Oct 2 | Fine tear detail | Noise detail **(advanced)** |
-| `turbAniso2` | Turb Aniso 2 | Fine tear stretch | Noise detail **(advanced)** |
-| `turbSeedOff2` | Turb Seed Off 2 | Fine tear seed | Noise detail **(advanced)** |
+| `turbOct2` | Turb Oct 2 | Tear detail | Noise detail **(advanced)** |
+| `turbAniso2` | Turb Aniso 2 | Tear stretch | Noise detail **(advanced)** |
+| `turbSeedOff2` | Turb Seed Off 2 | Tear seed | Noise detail **(advanced)** |
 | `turbOctBody` | Turb Oct Body | Boil detail | Noise detail **(advanced)** |
 | `turbAnisoBody` | Turb Aniso Body | Boil stretch | Noise detail **(advanced)** |
 | `turbSeedOffBody` | Turb Seed Off Body | Boil seed | Noise detail **(advanced)** |
@@ -85,19 +85,19 @@ Effects: *Tear size* sets how big the torn tongues in the wake are; *Tear streng
 
 | serialized | old label | new label | group |
 |---|---|---|---|
-| `tubeStamps` | Tube Stamps | Trail smoothness | Trail |
-| `tubeP` | Tube P | Trail edge softness | Trail |
+| `tubeStamps` | Tube Stamps | Trail smooth | Trail |
+| `tubeP` | Tube P | Trail edge | Trail |
 | `tubeXstretch` | Tube Xstretch | Trail stretch | Trail |
-| `smearTaps` | Smear Taps | Trail smear length | Trail |
-| `smearDecay` | Smear Decay | Trail smear falloff | Trail |
-| `smearNorm` | Smear Norm | Smear as motion blur | Trail |
-| `smearPostScale` | Smear Post Scale | Trail brightness | Trail |
-| `cloudAmp` | Cloud Amp | Cloud brightness | Head |
-| `cloudP` | Cloud P | Cloud softness | Head |
-| `nucleusAmp` | Nucleus Amp | Core brightness | Head |
+| `smearTaps` | Smear Taps | Trail smear | Trail |
+| `smearDecay` | Smear Decay | Trail falloff | Trail |
+| `smearNorm` | Smear Norm | Motion blur | Trail |
+| `smearPostScale` | Smear Post Scale | Trail glow | Trail |
+| `cloudAmp` | Cloud Amp | Cloud glow | Head |
+| `cloudP` | Cloud P | Cloud soft | Head |
+| `nucleusAmp` | Nucleus Amp | Core glow | Head |
 | `nucleusFlat` | Nucleus Flat | Core flat top | Head |
 | `nucleusP` | Nucleus P | Core softness | Head |
-| `nucleus2Amp` | Nucleus 2 Amp | Second core brightness | Head |
+| `nucleus2Amp` | Nucleus 2 Amp | Core glow 2 | Head |
 | `veilAmp` | Veil Amp | Veil strength | Veils |
 | `turbScaleVeil` | Turb Scale Veil | Veil size | Veils |
 | `turbOctVeil` | Turb Oct Veil | Veil detail | Noise detail **(advanced)** |
@@ -110,90 +110,90 @@ Effects: *Tear size* sets how big the torn tongues in the wake are; *Tear streng
 |---|---|---|---|
 | `prominences` | Prominences | Flare count | Prominences |
 | `prominenceSegments` | Prominence Segments | Flare length | Prominences |
-| `prominenceAmp` | Prominence Amp | Flare brightness | Prominences |
-| `prominenceP` | Prominence P | Flare softness | Prominences |
-| `smearTaps` | Smear Taps | Flare smear length | Prominences |
-| `smearDecay` | Smear Decay | Flare smear falloff | Prominences |
-| `smearNorm` | Smear Norm | Smear as motion blur | Prominences |
-| `coreAmp` | Core Amp | Star brightness | Star body |
+| `prominenceAmp` | Prominence Amp | Flare glow | Prominences |
+| `prominenceP` | Prominence P | Flare soft | Prominences |
+| `smearTaps` | Smear Taps | Flare smear | Prominences |
+| `smearDecay` | Smear Decay | Flare falloff | Prominences |
+| `smearNorm` | Smear Norm | Motion blur | Prominences |
+| `coreAmp` | Core Amp | Star glow | Star body |
 | `coreP` | Core P | Star softness | Star body |
 | `coreGranulation` | Core Granulation | Granule depth | Star body |
 | `turbScaleBody` | Turb Scale Body | Granule size | Star body |
-| `limbAmp` | Limb Amp | Rim brightness | Rim |
+| `limbAmp` | Limb Amp | Rim glow | Rim |
 | `limbR` | Limb R | Rim position | Rim |
 | `limbW` | Limb W | Rim thickness | Rim |
 | `limbP` | Limb P | Rim softness | Rim |
-| `turbOctBody` | Turb Oct Body | Granule detail | Noise detail **(advanced)** |
-| `turbAnisoBody` | Turb Aniso Body | Granule stretch | Noise detail **(advanced)** |
+| `turbOctBody` | Turb Oct Body | Granule det. | Noise detail **(advanced)** |
+| `turbAnisoBody` | Turb Aniso Body | Granule str. | Noise detail **(advanced)** |
 | `turbSeedOffBody` | Turb Seed Off Body | Granule seed | Noise detail **(advanced)** |
 
 ## Membrane — see-through bubble shedding a dissolving veil and motes
 
 | serialized | old label | new label | group |
 |---|---|---|---|
-| `emitPeriod` | Emit Period | Shell shed every | Shed shells |
-| `emitLife` | Emit Life | Shell lifetime | Shed shells |
-| `shellAmp` | Shell Amp | Shell brightness | Shed shells |
-| `shellP` | Shell P | Shell softness | Shed shells |
+| `emitPeriod` | Emit Period | Shell every | Shed shells |
+| `emitLife` | Emit Life | Shell life | Shed shells |
+| `shellAmp` | Shell Amp | Shell glow | Shed shells |
+| `shellP` | Shell P | Shell soft | Shed shells |
 | `turbScaleShell` | Turb Scale Shell | Break-up size | Shed shells |
-| `smearTaps` | Smear Taps | Shell smear length | Shed shells |
-| `smearDecay` | Smear Decay | Shell smear falloff | Shed shells |
-| `smearNorm` | Smear Norm | Smear as motion blur | Shed shells |
-| `emitPeriodMotes` | Emit Period Motes | Mote shed every | Motes |
+| `smearTaps` | Smear Taps | Shell smear | Shed shells |
+| `smearDecay` | Smear Decay | Shell falloff | Shed shells |
+| `smearNorm` | Smear Norm | Motion blur | Shed shells |
+| `emitPeriodMotes` | Emit Period Motes | Mote every | Motes |
 | `emitLifeMotes` | Emit Life Motes | Mote lifetime | Motes |
-| `motesPerPiece` | Motes Per Piece | Motes per shed | Motes |
-| `moteAmp` | Mote Amp | Mote brightness | Motes |
+| `motesPerPiece` | Motes Per Piece | Mote count | Motes |
+| `moteAmp` | Mote Amp | Mote glow | Motes |
 | `moteElong` | Mote Elong | Mote streak | Motes |
-| `windowAmp` | Window Amp | Interior brightness | Bubble |
-| `windowP` | Window P | Interior softness | Bubble |
-| `skinAmp` | Skin Amp | Skin brightness | Bubble |
+| `windowAmp` | Window Amp | Interior glow | Bubble |
+| `windowP` | Window P | Interior soft | Bubble |
+| `skinAmp` | Skin Amp | Skin glow | Bubble |
 | `skinR` | Skin R | Skin position | Bubble |
-| `skinW` | Skin W | Skin thickness | Bubble |
+| `skinW` | Skin W | Skin thick | Bubble |
 | `skinP` | Skin P | Skin softness | Bubble |
-| `ripAmp` | Rip Amp | Ripple strength | Ripples |
+| `ripAmp` | Rip Amp | Ripple amt. | Ripples |
 | `ripOrder` | Rip Order | Ripple count | Ripples |
 | `ripDepth` | Rip Depth | Ripple depth | Ripples |
-| `ripR` | Rip R | Ripple position | Ripples |
-| `ripW` | Rip W | Ripple thickness | Ripples |
-| `ripP` | Rip P | Ripple softness | Ripples |
-| `nucleusAmp` | Nucleus Amp | Knot brightness | Inner knot |
+| `ripR` | Rip R | Ripple pos. | Ripples |
+| `ripW` | Rip W | Ripple thick | Ripples |
+| `ripP` | Rip P | Ripple soft | Ripples |
+| `nucleusAmp` | Nucleus Amp | Knot glow | Inner knot |
 | `nucleusFlat` | Nucleus Flat | Knot flat top | Inner knot |
 | `nucleusP` | Nucleus P | Knot softness | Inner knot |
-| `turbOctShell` | Turb Oct Shell | Break-up detail | Noise detail **(advanced)** |
-| `turbAnisoShell` | Turb Aniso Shell | Break-up stretch | Noise detail **(advanced)** |
+| `turbOctShell` | Turb Oct Shell | Break det. | Noise detail **(advanced)** |
+| `turbAnisoShell` | Turb Aniso Shell | Break str. | Noise detail **(advanced)** |
 | `turbSeedOffShell` | Turb Seed Off Shell | Break-up seed | Noise detail **(advanced)** |
 
 ## Voltcore — hyper-bright bead, filaments and a plasma tail
 
 | serialized | old label | new label | group |
 |---|---|---|---|
-| `emitPeriod` | Emit Period | Filament shed every | Filaments |
-| `emitLife` | Emit Life | Filament lifetime | Filaments |
-| `branchesPerPiece` | Branches Per Piece | Filaments per shed | Filaments |
-| `filamentSteps` | Filament Steps | Filament length | Filaments |
-| `filamentAmp` | Filament Amp | Filament brightness | Filaments |
-| `filamentElong` | Filament Elong | Filament streak | Filaments |
-| `smearTaps` | Smear Taps | Filament smear length | Filaments |
-| `smearDecay` | Smear Decay | Filament smear falloff | Filaments |
-| `smearNorm` | Smear Norm | Smear as motion blur | Filaments |
-| `tailStamps` | Tail Stamps | Tail smoothness | Plasma tail |
-| `tailP` | Tail P | Tail edge softness | Plasma tail |
-| `tailSmearTaps` | Tail Smear Taps | Tail smear length | Plasma tail |
-| `tailSmearDecay` | Tail Smear Decay | Tail smear falloff | Plasma tail |
-| `tailSmearNorm` | Tail Smear Norm | Tail smear as motion blur | Plasma tail |
-| `tailPostScale` | Tail Post Scale | Tail brightness | Plasma tail |
-| `envelopeAmp` | Envelope Amp | Haze brightness | Haze & charge |
+| `emitPeriod` | Emit Period | Fil. every | Filaments |
+| `emitLife` | Emit Life | Fil. life | Filaments |
+| `branchesPerPiece` | Branches Per Piece | Fil. count | Filaments |
+| `filamentSteps` | Filament Steps | Fil. length | Filaments |
+| `filamentAmp` | Filament Amp | Fil. glow | Filaments |
+| `filamentElong` | Filament Elong | Fil. streak | Filaments |
+| `smearTaps` | Smear Taps | Fil. smear | Filaments |
+| `smearDecay` | Smear Decay | Fil. falloff | Filaments |
+| `smearNorm` | Smear Norm | Motion blur | Filaments |
+| `tailStamps` | Tail Stamps | Tail smooth | Plasma tail |
+| `tailP` | Tail P | Tail edge | Plasma tail |
+| `tailSmearTaps` | Tail Smear Taps | Tail smear | Plasma tail |
+| `tailSmearDecay` | Tail Smear Decay | Tail falloff | Plasma tail |
+| `tailSmearNorm` | Tail Smear Norm | Tail m.blur | Plasma tail |
+| `tailPostScale` | Tail Post Scale | Tail glow | Plasma tail |
+| `envelopeAmp` | Envelope Amp | Haze glow | Haze & charge |
 | `envelopeP` | Envelope P | Haze softness | Haze & charge |
-| `chargeAmp` | Charge Amp | Charge strength | Haze & charge |
+| `chargeAmp` | Charge Amp | Charge amt. | Haze & charge |
 | `turbScaleCharge` | Turb Scale Charge | Charge size | Haze & charge |
-| `beadAmp` | Bead Amp | Bead brightness | Bead & ball |
+| `beadAmp` | Bead Amp | Bead glow | Bead & ball |
 | `beadFlat` | Bead Flat | Bead flat top | Bead & ball |
 | `beadP` | Bead P | Bead softness | Bead & ball |
-| `bead2Amp` | Bead 2 Amp | Bead halo brightness | Bead & ball |
-| `ballAmp` | Ball Amp | Ball brightness | Bead & ball |
+| `bead2Amp` | Bead 2 Amp | Bead halo | Bead & ball |
+| `ballAmp` | Ball Amp | Ball glow | Bead & ball |
 | `ballP` | Ball P | Ball softness | Bead & ball |
 | `turbOctCharge` | Turb Oct Charge | Charge detail | Noise detail **(advanced)** |
-| `turbAnisoCharge` | Turb Aniso Charge | Charge stretch | Noise detail **(advanced)** |
+| `turbAnisoCharge` | Turb Aniso Charge | Charge str. | Noise detail **(advanced)** |
 | `turbSeedOffCharge` | Turb Seed Off Charge | Charge seed | Noise detail **(advanced)** |
 
 ---
@@ -216,28 +216,28 @@ Done as well (step 4). **One** settings class draws Plasma Bloom's **Chunks, Emb
 |---|---|---|---|
 | `n` | N | Count | Population |
 | `amp` | Amp | Brightness | Population |
-| `rhoLo` | Rho Lo | Inner start radius | Population |
-| `rhoHi` | Rho Hi | Outer start radius | Population |
-| `clusters` | Clusters | Angular groups | Population |
+| `rhoLo` | Rho Lo | Inner radius | Population |
+| `rhoHi` | Rho Hi | Outer radius | Population |
+| `clusters` | Clusters | Angle groups | Population |
 | `clusterW` | Cluster W | Group width | Population |
 | `size` | Size | Piece size | Piece shape |
-| `grow` | Grow | Growth over life | Piece shape |
-| `stretch` | Stretch | Stretch at birth | Piece shape |
-| `streak` | Streak | Extra stretch in flight | Piece shape |
+| `grow` | Grow | Growth | Piece shape |
+| `stretch` | Stretch | Birth stretch | Piece shape |
+| `streak` | Streak | Fly stretch | Piece shape |
 | `tilt` | Tilt | Smear tilt | Piece shape |
 | `spdBase` | Spd Base | Base speed | Flight |
 | `spread` | Spread | Speed spread | Flight |
-| `lat` | Lat | Sideways drift | Flight |
+| `lat` | Lat | Side drift | Flight |
 | `ease` | Ease | Slowdown | Flight |
-| `lin` | Lin | Steady travel share | Flight |
-| `farFade` | Far Fade | Fade the fastest | Flight |
+| `lin` | Lin | Travel share | Flight |
+| `farFade` | Far Fade | Fastest fade | Flight |
 | `swirl` | Swirl | Swirl follow | Flight |
 | `spin` | Spin | Spin rate | Flight |
 | `t0` | T 0 | First birth | Timing |
 | `t1` | T 1 | Last birth | Timing |
-| `life` | Life | Piece lifetime | Timing |
+| `life` | Life | Piece life | Timing |
 | `ramp` | Ramp | Fade-in | Timing |
-| `fade` | Fade | Fade-out shape | Timing |
+| `fade` | Fade | Fade shape | Timing |
 
 Three tooltips referred to dials by their old captions ("between Rho lo and Rho hi", "around Spd base", "(Spd base − Spread)") and now name them by the new ones — a tooltip pointing at a label that no longer exists is worse than no tooltip. The same was done in Orb ("one orb at Nose X / Axis Y", "sized by Swarm Size", "alpha under Despeckle Below").
 

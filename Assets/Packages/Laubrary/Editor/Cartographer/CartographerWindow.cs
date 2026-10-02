@@ -226,23 +226,20 @@ namespace Laubrary.Cartographer.Editor
 
         protected override void BuildAsset(VisualElement root, LevelAsset asset)
         {
-            root.style.flexGrow = 1f;
-            root.style.minHeight = 0f;
+            root.AddToClassList("lau-tool-shell");
 
             // T-0084 — the section toggle bar rides at the very top of the per-asset UI, spanning the full
             // window width (same placement as Pyre/Chunks). Its host is added FIRST (empty) and filled LAST,
             // once every section below exists for it to address.
             var barHost = new VisualElement();
-            barHost.style.flexShrink = 0f;
+            barHost.AddToClassList("lau-tool-shell__chrome");
             if (_barReservedH > 0f) barHost.style.minHeight = _barReservedH;   // space reserved before anything paints
             root.Add(barHost);
 
             var left = new VisualElement();
-            left.style.minWidth = 260f;
-            left.style.minHeight = 0f;
+            left.AddToClassList("lau-tool-shell__side--compact");
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.flexGrow = 1f;
-            scroll.style.minHeight = 0f;
+            scroll.AddToClassList("lau-tool-shell__scroll");
             left.Add(scroll);
             var body = scroll.contentContainer;
 
@@ -250,11 +247,10 @@ namespace Laubrary.Cartographer.Editor
             // the at-a-glance whole-level read beside the tools, refreshed on every edit.
             var previewPane = new VisualElement();
             previewPane.AddToClassList("zui-stage");
-            previewPane.style.flexGrow = 1f;
-            previewPane.style.minWidth = 120f;
+            previewPane.AddToClassList("lau-tool-shell__pane--compact");
             previewPane.tooltip = "The whole level, rasterised live. Paint in the Scene view; glance here.";
             levelPreview = new Image { scaleMode = ScaleMode.ScaleToFit, pickingMode = PickingMode.Ignore };
-            levelPreview.style.flexGrow = 1f;
+            levelPreview.AddToClassList("lau-tool-shell__column");
             previewPane.Add(levelPreview);
 
             root.Add(Z.Split("cartographer", 380f, left, previewPane));
@@ -502,10 +498,10 @@ namespace Laubrary.Cartographer.Editor
                 bool isActive = idx == activeLayer;
 
                 var card = new VisualElement();
-                card.style.marginBottom = 4f;
+                card.AddToClassList("lau-map-layer__card");
 
                 var grip = Z.Text("≡", ZuiText.Subtle, "Drag to reorder this layer.");
-                grip.style.width = 14f;
+                grip.AddToClassList("lau-map-layer__grip");
 
                 var header = Z.Row(
                     grip,
@@ -642,7 +638,7 @@ namespace Laubrary.Cartographer.Editor
                 if (i % colsP == 0)
                 {
                     row = new VisualElement();
-                    row.style.flexDirection = FlexDirection.Row;
+                    row.AddToClassList("lau-tile-palette__row");
                     paletteGrid.Add(row);
                 }
                 var t = i < set.tiles.Count ? set.tiles[i] : null;
@@ -650,8 +646,7 @@ namespace Laubrary.Cartographer.Editor
                 if (t == null)
                 {
                     var spacer = new VisualElement();
-                    spacer.style.width = 37f;
-                    spacer.style.height = 37f;
+                    spacer.AddToClassList("lau-tile-palette__empty-cell");
                     row.Add(spacer);
                     continue;
                 }
@@ -669,9 +664,8 @@ namespace Laubrary.Cartographer.Editor
             // never shove the boxes below it.
             var patternLine = (Label)Z.Text(brush.Count > 1 ? $"Pattern brush: {brush.Count} tiles paint together." : "",
                 ZuiText.Small, "The Ctrl-selected cells form a temporary clump — painting stamps the whole arrangement.");
-            patternLine.style.height = 16f;
-            patternLine.style.whiteSpace = WhiteSpace.NoWrap;
-            patternLine.style.overflow = Overflow.Hidden;
+            patternLine.AddToClassList("lau-tool-shell__status-line");
+            patternLine.AddToClassList("lau-tool-shell__status-line--tall");
             paletteGrid.Add(patternLine);
 
             // Clumps: the tileset's locked arrangements — click one and the whole OBJECT is the brush,
@@ -682,8 +676,7 @@ namespace Laubrary.Cartographer.Editor
                     "Locked tile arrangements from this tileset. Painting stamps the whole object; cells " +
                     "marked 'one layer in front' in the builder route themselves there."));
                 var wrap = new VisualElement();
-                wrap.style.flexDirection = FlexDirection.Row;
-                wrap.style.flexWrap = Wrap.Wrap;
+                wrap.AddToClassList("lau-tool-shell__row-wrap");
                 foreach (var cl in set.clumps)
                 {
                     if (cl?.cells == null || cl.cells.Count == 0) continue;
@@ -721,8 +714,7 @@ namespace Laubrary.Cartographer.Editor
             }
 
             var grid = new VisualElement();
-            grid.style.flexDirection = FlexDirection.Row;
-            grid.style.flexWrap = Wrap.Wrap;
+            grid.AddToClassList("lau-tool-shell__row-wrap");
             propsGrid.Add(grid);
 
             foreach (var prop in props)
@@ -817,7 +809,7 @@ namespace Laubrary.Cartographer.Editor
             if (sprite != null)
             {
                 swatch.style.backgroundImage = Background.FromSprite(sprite);
-                swatch.style.unityBackgroundScaleMode = ScaleMode.ScaleToFit;
+                swatch.AddToClassList("lau-tile-palette__picture");
             }
             return swatch;
         }
@@ -835,30 +827,17 @@ namespace Laubrary.Cartographer.Editor
                 onClick(e is IPointerEvent pe ? pe.ctrlKey : e is IMouseEvent me && me.ctrlKey);
             swatch.style.width = size;
             swatch.style.height = size;
-            swatch.style.marginRight = 1f;
-            swatch.style.marginBottom = 1f;
+            swatch.AddToClassList("lau-tile-palette__swatch");
             if (thumb != null)
             {
                 swatch.style.backgroundImage = Background.FromTexture2D(thumb);
-                swatch.style.unityBackgroundScaleMode = ScaleMode.ScaleToFit;
+                swatch.AddToClassList("lau-tile-palette__picture");
             }
-            if (selected)
-            {
-                swatch.style.borderTopWidth = swatch.style.borderBottomWidth =
-                    swatch.style.borderLeftWidth = swatch.style.borderRightWidth = 2f;
-                var c = new Color(1f, 0.75f, 0.2f);
-                swatch.style.borderTopColor = swatch.style.borderBottomColor =
-                    swatch.style.borderLeftColor = swatch.style.borderRightColor = c;
-            }
+            swatch.EnableInClassList("lau-tile-palette__choice--selected", selected);
             if (!string.IsNullOrEmpty(badge))
             {
                 var b = new Label(badge) { pickingMode = PickingMode.Ignore };
-                b.style.position = Position.Absolute;
-                b.style.right = 1f;
-                b.style.bottom = 1f;
-                b.style.fontSize = 9f;
-                b.style.color = Color.white;
-                b.style.backgroundColor = new Color(0f, 0f, 0f, 0.6f);
+                b.AddToClassList("lau-tile-palette__badge");
                 swatch.Add(b);
             }
             return swatch;

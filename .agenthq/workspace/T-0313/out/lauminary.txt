@@ -1,0 +1,27 @@
+Laubrary.Launimator.Lauminary fields:
+  String lauminaryId
+  String lauminaryName
+  Int32 latestVersion
+  Single pixelsPerUnit
+  prop String name
+  prop HideFlags hideFlags
+
+ASSET Assets/Launimator/Lauminaries/ProtoGuy_25cf2dfd/ProtoGuy.asset
+   lauminaryId='25cf2dfd213d475aa81457cfc0de28f1'
+   lauminaryName='ProtoGuy'
+   subAssets=1 [Lauminary:ProtoGuy]
+
+ASSET Assets/Launimator/Reels/Bullets_19e9e153/Bullets.asset
+   lauminaryId='19e9e153fcac4b5fbed1daf02073ce33'
+   lauminaryName='Bullets'
+   subAssets=1 [Lauminary:Bullets]
+
+ASSET Assets/Launimator/Reels/Floating Disc_4da19404/Floating Disc.asset
+   lauminaryId='4da1940490c34dc686741ca4dca60512'
+   lauminaryName='Floating Disc'
+   subAssets=1 [Lauminary:Floating Disc]
+
+ASSET Assets/Launimator/Reels/Hero_7bf74f52/Hero.asset
+   lauminaryId='7bf74f52be5b467788c81d7725872d7f'
+   lauminaryName='Hero'
+   subAssets=1 [Lauminary:Hero]

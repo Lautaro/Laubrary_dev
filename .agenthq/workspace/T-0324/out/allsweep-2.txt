@@ -1,0 +1,9 @@
+MirageWindow: elements=127 drawn=93 controls=27 captionShort=0 overflowX=0 offWindow=0 noTooltip=0 inertNoReason=0 | ZuiAudit findings=0 of which clipped-input=0 foldedSkipped=4
+ZoeWindow: elements=667 drawn=533 controls=135 captionShort=1 overflowX=0 offWindow=0 noTooltip=0 inertNoReason=0 | ZuiAudit findings=3 of which clipped-input=0 foldedSkipped=2
+TextSplashWindow: elements=707 drawn=378 controls=111 captionShort=1 overflowX=0 offWindow=0 noTooltip=0 inertNoReason=0 | ZuiAudit findings=0 of which clipped-input=0 foldedSkipped=44
+SpriteFxStackWindow: elements=403 drawn=278 controls=79 captionShort=0 overflowX=0 offWindow=0 noTooltip=0 inertNoReason=0 | ZuiAudit findings=0 of which clipped-input=0 foldedSkipped=45
+LarderWindow: elements=208 drawn=161 controls=52 captionShort=0 overflowX=0 offWindow=0 noTooltip=0 inertNoReason=0 | ZuiAudit findings=0 of which clipped-input=0 foldedSkipped=8
+LatheWindow: elements=424 drawn=340 controls=80 captionShort=0 overflowX=0 offWindow=0 noTooltip=0 inertNoReason=0 | ZuiAudit findings=0 of which clipped-input=0 foldedSkipped=23
+PyreWindow: elements=889 drawn=651 controls=195 captionShort=0 overflowX=0 offWindow=0 noTooltip=0 inertNoReason=0 | ZuiAudit findings=0 of which clipped-input=0 foldedSkipped=86
+ShaperWindow: elements=1320 drawn=965 controls=280 captionShort=0 overflowX=0 offWindow=0 noTooltip=0 inertNoReason=0 | ZuiAudit findings=0 of which clipped-input=0 foldedSkipped=136
+

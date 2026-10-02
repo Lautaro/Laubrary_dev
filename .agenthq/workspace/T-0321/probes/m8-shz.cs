@@ -1,0 +1,16 @@
+var win = ZWin("ShaperWindow"); var sb=new System.Text.StringBuilder();
+UnityEngine.UIElements.VisualElement stage=null;
+foreach (var e in ZAll(win.rootVisualElement)) if (e.GetType().Name=="ShaperPreviewStage") stage=e;
+var BF2 = System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Public;
+var zf = stage.GetType().GetField("Zoom", BF2);
+sb.Append("zoomWas=").Append(zf.GetValue(stage)).Append("\n");
+zf.SetValue(stage, 14);
+var lm = stage.GetType().GetMethod("LayoutImage", BF2); if (lm!=null) lm.Invoke(stage,null);
+var rm = stage.GetType().GetMethod("Refresh", BF2); if (rm!=null && rm.GetParameters().Length==0) rm.Invoke(stage,null);
+sb.Append("stage=").Append(stage.worldBound).Append("\n");
+var img = stage.GetType().GetField("_image", BF2).GetValue(stage) as UnityEngine.UIElements.VisualElement;
+sb.Append("image=").Append(img.worldBound).Append("\n");
+win.Repaint();
+UnityEditor.EditorPrefs.SetString("T320.capWin","ShaperWindow");
+UnityEditor.EditorPrefs.SetString("T320.capOut","D:/UNITY/Laubrary Dev/.agenthq/workspace/T-0321/shots/sh-zoom.png");
+return sb.ToString();

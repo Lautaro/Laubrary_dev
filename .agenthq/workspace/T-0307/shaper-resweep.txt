@@ -1,0 +1,15 @@
+360 | shaperPane=360 | errors=0 warnings=0 logs=0
+440 | shaperPane=440 | errors=0 warnings=0 logs=0
+520 | shaperPane=520 | errors=0 warnings=0 logs=0
+600 | shaperPane=600 | errors=0 warnings=0 logs=0
+680 | shaperPane=680 | errors=0 warnings=0 logs=0
+760 | shaperPane=760 | errors=0 warnings=0 logs=0
+840 | shaperPane=840 | errors=0 warnings=0 logs=0
+920 | shaperPane=920 | errors=0 warnings=0 logs=0
+1000 | shaperPane=1000 | errors=0 warnings=0 logs=0
+1080 | shaperPane=1080 | errors=0 warnings=0 logs=0
+1160 | shaperPane=1160 | errors=0 warnings=0 logs=0
+1240 | shaperPane=1240 | errors=0 warnings=0 logs=0
+1320 | shaperPane=1320 | errors=0 warnings=0 logs=0
+1400 | shaperPane=1400 | errors=0 warnings=0 logs=0
+DONE

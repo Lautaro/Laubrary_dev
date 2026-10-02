@@ -1,0 +1,9 @@
+pyre winw=820 | errors=0 warnings=0 logs=0
+pyre winw=930 | errors=0 warnings=0 logs=0
+pyre winw=1040 | errors=0 warnings=0 logs=0
+pyre winw=1150 | errors=0 warnings=0 logs=0
+pyre winw=1260 | errors=0 warnings=0 logs=0
+pyre winw=1370 | errors=0 warnings=0 logs=0
+pyre winw=1480 | errors=0 warnings=0 logs=0
+pyre winw=1590 | errors=0 warnings=0 logs=0
+pyre winw=1700 | errors=0 warnings=0 logs=0

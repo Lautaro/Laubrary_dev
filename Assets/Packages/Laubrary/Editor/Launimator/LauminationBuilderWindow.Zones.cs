@@ -44,8 +44,7 @@ namespace Laubrary.Launimator.Editor
             {
                 tooltip = "Every zone drawn across the sequence, with the playhead — a read-only overview."
             };
-            _zoneBarIM.style.height = 26f;
-            _zoneBarIM.style.flexShrink = 0f;
+            _zoneBarIM.AddToClassList("lau-animation-builder__zone-track");
             root.Add(_zoneBarIM);
 
             for (int zi = 0; zi < _zones.Count; zi++)
@@ -55,9 +54,7 @@ namespace Laubrary.Launimator.Editor
                 var row = WrapRow();
 
                 var swatch = new VisualElement { tooltip = "This zone's colour on the bar and on each frame's border." };
-                swatch.style.width = 12f;
-                swatch.style.height = 16f;
-                swatch.style.flexShrink = 0f;
+                swatch.AddToClassList("lau-animation-builder__zone-key");
                 swatch.style.backgroundColor = ZoneColor(zi);
                 row.Add(swatch);
 

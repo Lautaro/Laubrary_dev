@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 using GV = UnityEditor.Experimental.GraphView;
@@ -50,24 +51,20 @@ namespace Laubrary.GraphViewKit
 
         public UniversalRerouteNode()
         {
-            style.width = Size.x; style.height = Size.y;
-            style.minWidth = Size.x; style.maxWidth = Size.x;
-            style.minHeight = Size.y; style.maxHeight = Size.y;
-            style.overflow = Overflow.Hidden;
-            float r = Height / 2f;
-            style.borderTopLeftRadius = r; style.borderTopRightRadius = r;
-            style.borderBottomLeftRadius = r; style.borderBottomRightRadius = r;
-            style.backgroundColor = new Color(0.25f, 0.25f, 0.25f);
-
-            titleContainer.style.display = DisplayStyle.None;
-            extensionContainer.style.display = DisplayStyle.None;
+            AddToClassList("lau-graph-reroute");
+            // A reroute also serves non-Loom hosts, so it owns the sheet its pill chrome needs.
+            var sheet = AssetDatabase.LoadAssetAtPath<StyleSheet>("Assets/Packages/Laubrary/Zui/Toolkit/ZuiFoundationToolShell.uss")
+                ?? AssetDatabase.LoadAssetAtPath<StyleSheet>("Packages/com.lautaro.arino.laubrary/Zui/Toolkit/ZuiFoundationToolShell.uss");
+            if (sheet != null) styleSheets.Add(sheet);
+            titleContainer.AddToClassList("lau-graph-reroute__hidden");
+            extensionContainer.AddToClassList("lau-graph-reroute__hidden");
 
             // The default Node chrome reserves a title-row's worth of height above the port row, so the port's
             // actual connector (what a wire anchors to) sits well above this pill's visual center. Pin every
             // layer to the same fixed band, centered, so the connector lines up with the visible shape.
-            Squash(mainContainer, Size.x);
-            Squash(inputContainer, HalfWidth);
-            Squash(outputContainer, HalfWidth);
+            Squash(mainContainer, fullWidth: true);
+            Squash(inputContainer, fullWidth: false);
+            Squash(outputContainer, fullWidth: false);
 
             BuildSlotPorts(slotA: true, GV.Orientation.Horizontal);
             BuildSlotPorts(slotA: false, GV.Orientation.Horizontal);
@@ -208,27 +205,17 @@ namespace Laubrary.GraphViewKit
         {
             var p = GV.Port.Create<GV.Edge>(orientation, dir, GV.Port.Capacity.Single, typeof(bool));
             p.portName = "";
-            p.style.width = HalfWidth; p.style.minWidth = HalfWidth; p.style.maxWidth = HalfWidth;
-            p.style.height = Height; p.style.minHeight = Height; p.style.maxHeight = Height;
-            p.style.paddingTop = 0; p.style.paddingBottom = 0; p.style.paddingLeft = 0; p.style.paddingRight = 0;
-            p.style.marginTop = 0; p.style.marginBottom = 0;
-            p.style.alignItems = Align.Center;
-            p.style.justifyContent = slotA ? Justify.FlexStart : Justify.FlexEnd;
-            p.style.flexDirection = slotA ? FlexDirection.Row : FlexDirection.RowReverse;
+            p.AddToClassList("lau-graph-reroute__port");
+            p.AddToClassList(slotA ? "lau-graph-reroute__port--a" : "lau-graph-reroute__port--b");
             var lbl = p.Q<Label>();
-            if (lbl != null) lbl.style.display = DisplayStyle.None;
+            if (lbl != null) lbl.AddToClassList("lau-graph-reroute__hidden");
             return p;
         }
 
-        static void Squash(VisualElement e, float width)
+        static void Squash(VisualElement e, bool fullWidth)
         {
-            e.style.width = width; e.style.minWidth = width; e.style.maxWidth = width;
-            e.style.minHeight = Height; e.style.maxHeight = Height;
-            e.style.paddingTop = 0; e.style.paddingBottom = 0; e.style.paddingLeft = 0; e.style.paddingRight = 0;
-            e.style.marginTop = 0; e.style.marginBottom = 0;
-            e.style.alignItems = Align.Center;
-            e.style.justifyContent = Justify.Center;
-            e.style.backgroundColor = Color.clear;
+            e.AddToClassList("lau-graph-reroute__band");
+            e.AddToClassList(fullWidth ? "lau-graph-reroute__band--main" : "lau-graph-reroute__band--slot");
         }
     }
 }

@@ -1,0 +1,3 @@
+burst-t0.png at t=0.25 children=6
+burst-t1.png at t=1.02 children=6
+burst-t2.png at t=1.90 children=3

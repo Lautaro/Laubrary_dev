@@ -76,9 +76,7 @@ namespace Laubrary.DotGen.Editor
         {
             preview = new IMGUIContainer(DrawPreview);
             preview.style.height = Mathf.Clamp(previewHeight, PreviewHeightMin, PreviewHeightMax);
-            preview.style.flexGrow = 0f;
-            preview.style.flexShrink = 0f;
-            preview.style.minWidth = 200f;
+            preview.AddToClassList("lau-tool-shell__stage");
             preview.focusable = true;   // so the four zoom keys reach it
             preview.AddToClassList("zui-stage");
             rightPane.Add(preview);
@@ -87,30 +85,27 @@ namespace Laubrary.DotGen.Editor
             // A fixed-height, never-wrapping row holding every viewing control at all times: nothing here
             // appears or disappears, so the picture above it can never be shoved around by its own chrome.
             chromeRow = Z.Row();
-            chromeRow.style.flexWrap = Wrap.NoWrap;
-            chromeRow.style.height = 24f;
-            chromeRow.style.flexShrink = 0f;
-            chromeRow.style.overflow = Overflow.Hidden;
+            chromeRow.AddToClassList("lau-tool-shell__preview-toolbar");
 
-            chromeRow.Add(Z.Button("−", "Zoom out.", () => SetZoom(previewZoom / ZoomStep, lastPreviewView)).W(24f));
+            var zoomOut = Z.Button("−", "Zoom out.", () => SetZoom(previewZoom / ZoomStep, lastPreviewView));
+            zoomOut.AddToClassList("lau-tool-shell__zoom-action");
+            chromeRow.Add(zoomOut);
             zoomLabel = Z.Text("100%", ZuiText.Body, "The preview's current magnification.");
-            zoomLabel.style.width = 46f;
-            zoomLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+            zoomLabel.AddToClassList("lau-tool-shell__zoom-readout");
             chromeRow.Add(zoomLabel);
-            chromeRow.Add(Z.Button("+", "Zoom in.", () => SetZoom(previewZoom * ZoomStep, lastPreviewView)).W(24f));
+            var zoomIn = Z.Button("+", "Zoom in.", () => SetZoom(previewZoom * ZoomStep, lastPreviewView));
+            zoomIn.AddToClassList("lau-tool-shell__zoom-action");
+            chromeRow.Add(zoomIn);
             chromeRow.Add(Z.Button("Fit", "Show the whole frame, centred.", FitView));
 
             gizmoLabel = Z.Text("", ZuiText.Small,
                 "Which module's process overlays are drawn — change it in the Frame section.");
-            gizmoLabel.style.whiteSpace = WhiteSpace.NoWrap;
-            gizmoLabel.style.marginLeft = 10f;
+            gizmoLabel.AddToClassList("lau-tool-shell__gizmo-readout");
             chromeRow.Add(gizmoLabel);
 
             // Variable-width content goes LAST in its row, so nothing sits after it to be pushed when it grows.
             legendHost = Z.Row();
-            legendHost.style.flexWrap = Wrap.NoWrap;
-            legendHost.style.overflow = Overflow.Hidden;
-            legendHost.style.marginLeft = 10f;
+            legendHost.AddToClassList("lau-tool-shell__legend");
             chromeRow.Add(legendHost);
 
             rightPane.Add(chromeRow);
@@ -125,9 +120,8 @@ namespace Laubrary.DotGen.Editor
         VisualElement BuildPreviewResizeBar()
         {
             var bar = new VisualElement { tooltip = "Drag to resize the preview vertically." };
-            bar.style.height = 6f;
-            bar.style.flexShrink = 0f;
-            bar.style.backgroundColor = new Color(0f, 0f, 0f, 0.25f);
+            bar.AddToClassList("lau-tool-shell__resize-grip");
+            bar.AddToClassList("lau-tool-shell__resize-grip--horizontal");
             bar.RegisterCallback<PointerDownEvent>(e => { if (e.button == 0) { bar.CapturePointer(e.pointerId); e.StopPropagation(); } });
             bar.RegisterCallback<PointerMoveEvent>(e =>
             {
@@ -379,21 +373,16 @@ namespace Laubrary.DotGen.Editor
         VisualElement BuildLegendEntry(DotGenerator g)
         {
             var entry = Z.Row();
-            entry.style.flexWrap = Wrap.NoWrap;
-            entry.style.marginRight = 8f;
+            entry.AddToClassList("lau-tool-shell__legend-entry");
 
             var chip = new VisualElement { tooltip = "Dots drawn in this colour come from " + g.name + "." };
-            chip.style.width = 8f;
-            chip.style.height = 8f;
-            chip.style.flexShrink = 0f;
-            chip.style.marginRight = 4f;
+            chip.AddToClassList("zui-row__swatch");
+            chip.AddToClassList("zui-row__swatch--legend");
             chip.style.backgroundColor = g.color;
-            chip.style.borderTopLeftRadius = chip.style.borderTopRightRadius =
-                chip.style.borderBottomLeftRadius = chip.style.borderBottomRightRadius = 4f;
             entry.Add(chip);
 
             var label = Z.Text(g.name, ZuiText.Small, "Dots drawn in this colour come from " + g.name + ".");
-            label.style.whiteSpace = WhiteSpace.NoWrap;
+            label.AddToClassList("lau-tool-shell__legend-label");
             entry.Add(label);
             return entry;
         }

@@ -1,0 +1,12 @@
+var t = ZType("LauminationBuilderWindow");
+var lt = ZType("Lauminary");
+var guids = UnityEditor.AssetDatabase.FindAssets("t:" + (lt != null ? lt.Name : "Lauminary"));
+if (guids.Length == 0) return "no Lauminary assets";
+var asset = UnityEditor.AssetDatabase.LoadMainAssetAtPath(UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]));
+var so = new UnityEditor.SerializedObject(asset);
+var clips = so.FindProperty("lauminations") ?? so.FindProperty("animations") ?? so.FindProperty("clips");
+string name = clips != null && clips.isArray && clips.arraySize > 0 ? (clips.GetArrayElementAtIndex(0).FindPropertyRelative("name") != null ? clips.GetArrayElementAtIndex(0).FindPropertyRelative("name").stringValue : "") : "";
+var m = t.GetMethod("OpenForEdit", System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic);
+m.Invoke(null, new object[]{ asset, name });
+var win = ZWin("LauminationBuilderWindow");
+return "opened for " + asset.name + " clip='" + name + "' win=" + (win != null ? win.position.ToString() : "null");

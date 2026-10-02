@@ -1,0 +1,10 @@
+var sb = new System.Text.StringBuilder();
+sb.Append("dataPath=").Append(UnityEngine.Application.dataPath).Append("\n");
+foreach (var w0 in UnityEngine.Resources.FindObjectsOfTypeAll<Laubrary.Shaper.Editor.ShaperWindow>()) w0.Close();
+var doc = UnityEditor.AssetDatabase.LoadAssetAtPath<Laubrary.Shaper.ShaperDocument>("Assets/Shaper/AuditA24a.asset");
+Laubrary.Shaper.Editor.ShaperWindow.OpenFor(doc);
+var win = UnityEditor.EditorWindow.GetWindow<Laubrary.Shaper.Editor.ShaperWindow>();
+win.position = new UnityEngine.Rect(50, 50, 2100, 1150);
+win.Show(); win.Focus(); win.Repaint();
+sb.Append("reopened on ").Append(doc.name).Append(" layers=").Append(doc.layers.Count).Append("\n");
+return sb.ToString();

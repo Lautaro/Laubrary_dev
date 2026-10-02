@@ -134,5 +134,19 @@ namespace Laubrary.PixelScale
             Gizmos.color = coreColor;
             Gizmos.DrawWireCube(transform.position, new Vector3(core.x, core.y, 0f));
         }
+
+        // Play-mode-only label naming the yellow core rect's own resolution and PPU, so "is this on-screen
+        // thing the right size in game pixels" can be judged by eye against a number, not just an outline.
+        void OnGUI()
+        {
+            if (!enableVisualizer || !Application.isPlaying) return;
+            var settings = PixelScaleProjectSettings.Instance;
+            var style = new GUIStyle(GUI.skin.label) { fontSize = 20, alignment = TextAnchor.UpperRight };
+            style.normal.textColor = coreColor;
+            string text = $"Core: {settings.targetResolution.x}×{settings.targetResolution.y} " +
+                          $"@ {settings.pixelsPerUnit} px/unit — 1 game pixel = " +
+                          $"1/{settings.targetResolution.y} of this rect's height";
+            GUI.Label(new Rect(Screen.width - 620f, 10f, 610f, 28f), text, style);
+        }
     }
 }

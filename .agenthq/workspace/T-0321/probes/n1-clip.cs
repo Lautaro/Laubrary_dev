@@ -1,0 +1,13 @@
+var sw = ZWin("ShaperWindow");
+UnityEngine.UIElements.VisualElement st=null; foreach (var e in ZAll(sw.rootVisualElement)) if (e.GetType().Name=="ShaperPreviewStage") st=e;
+var BF2 = System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Public;
+st.GetType().GetField("Zoom", BF2).SetValue(st, 1);
+foreach (var m in st.GetType().GetMethods(BF2|System.Reflection.BindingFlags.DeclaredOnly)) if (m.GetParameters().Length==0 && (m.Name=="LayoutImage"||m.Name=="Refresh")) m.Invoke(st,null);
+sw.Repaint();
+var win = ZWin("PyreWindow");
+var pv = win.GetType().GetField("preview", BF2).GetValue(win) as UnityEngine.UIElements.VisualElement;
+pv.style.overflow = UnityEngine.UIElements.Overflow.Hidden;
+UnityEditor.EditorPrefs.SetString("T320.capWin","PyreWindow");
+UnityEditor.EditorPrefs.SetString("T320.capOut","D:/UNITY/Laubrary Dev/.agenthq/workspace/T-0321/shots/pyre9.png");
+win.Focus(); win.Repaint();
+return "clip set";

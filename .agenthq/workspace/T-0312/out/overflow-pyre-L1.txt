@@ -1,0 +1,292 @@
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets (x:5.78, y:20.00, width:1700.00, height:1000.22)
+ZuiColumnFlow w=347 columns=1
+
+### OVERFLOW-X 27.6px  'Root spread'
+  EditorPanelRootElement#unity-panel-container13 w=1700.0 content=1700.0 x=0..1700 flex=0/1 dir=Column wrap=NoWrap cls=
+   VisualElement#rootVisualContainer14 w=1700.0 content=1692.0 x=0..1700 flex=0/1 dir=Column wrap=NoWrap cls=zui-root
+    VisualElement w=1692.0 content=1692.0 x=4..1696 flex=1/1 dir=Column wrap=NoWrap cls=
+     VisualElement w=1692.0 content=1692.0 x=4..1696 flex=1/1 dir=Row wrap=NoWrap cls=
+      ScrollView w=360.0 content=360.0 x=4..364 flex=0/0 dir=Column wrap=NoWrap cls=unity-scroll-view.unity-scroll-view--scroll.unity-scroll-view--vertical
+       VisualElement#unity-content-and-vertical-scroll-container w=360.0 content=360.0 x=4..364 flex=1/1 dir=Row wrap=NoWrap cls=unity-scroll-view__content-and-vertical-scroll-container
+        VisualElement#unity-content-viewport w=347.1 content=347.1 x=4..351 flex=1/1 dir=Column wrap=NoWrap cls=unity-scroll-view__content-viewport.unity-scroll-view__content-viewport--vertical
+         VisualElement#unity-content-container w=347.1 content=347.1 x=4..351 flex=1/0 dir=Column wrap=NoWrap cls=unity-scroll-view__content-container.unity-scroll-view__content-container--vertical
+          ZuiColumnFlow w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-column-flow
+           VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Row wrap=NoWrap cls=zui-column-flow__row
+            VisualElement w=347.1 content=347.1 x=4..351 flex=1/1 dir=Column wrap=NoWrap cls=zui-column-flow__column
+             ZuiSection w=347.1 content=347.1 x=4..351 flex=0/0 dir=Column wrap=NoWrap cls=zui-section.zui-align-scope
+              VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-section__body
+               VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=
+                ZuiBox w=347.1 content=332.9 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                 VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                  VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=
+                   VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Row wrap=Wrap cls=
+                    ZuiBox w=332.9 content=323.1 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                     VisualElement w=323.1 content=323.1 x=16..339 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                      ZuiBox w=323.1 content=313.3 x=16..339 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                       VisualElement w=313.3 content=313.3 x=21..334 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                        VisualElement w=313.3 content=313.3 x=21..334 flex=0/1 dir=Row wrap=Wrap cls=
+                       » VisualElement w=340.9 content=340.9 x=21..362 flex=0/0 dir=Row wrap=NoWrap cls=zui-field
+   children of the offender:
+     [0] Label 'Root spread' w=84.0 x=21..105 cls=unity-text-element.unity-label.zui-field__label
+     [1] VisualElement '8' w=252.9 x=109..362 cls=zui-row
+
+### OVERFLOW-X 27.6px  'Root height'
+  EditorPanelRootElement#unity-panel-container13 w=1700.0 content=1700.0 x=0..1700 flex=0/1 dir=Column wrap=NoWrap cls=
+   VisualElement#rootVisualContainer14 w=1700.0 content=1692.0 x=0..1700 flex=0/1 dir=Column wrap=NoWrap cls=zui-root
+    VisualElement w=1692.0 content=1692.0 x=4..1696 flex=1/1 dir=Column wrap=NoWrap cls=
+     VisualElement w=1692.0 content=1692.0 x=4..1696 flex=1/1 dir=Row wrap=NoWrap cls=
+      ScrollView w=360.0 content=360.0 x=4..364 flex=0/0 dir=Column wrap=NoWrap cls=unity-scroll-view.unity-scroll-view--scroll.unity-scroll-view--vertical
+       VisualElement#unity-content-and-vertical-scroll-container w=360.0 content=360.0 x=4..364 flex=1/1 dir=Row wrap=NoWrap cls=unity-scroll-view__content-and-vertical-scroll-container
+        VisualElement#unity-content-viewport w=347.1 content=347.1 x=4..351 flex=1/1 dir=Column wrap=NoWrap cls=unity-scroll-view__content-viewport.unity-scroll-view__content-viewport--vertical
+         VisualElement#unity-content-container w=347.1 content=347.1 x=4..351 flex=1/0 dir=Column wrap=NoWrap cls=unity-scroll-view__content-container.unity-scroll-view__content-container--vertical
+          ZuiColumnFlow w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-column-flow
+           VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Row wrap=NoWrap cls=zui-column-flow__row
+            VisualElement w=347.1 content=347.1 x=4..351 flex=1/1 dir=Column wrap=NoWrap cls=zui-column-flow__column
+             ZuiSection w=347.1 content=347.1 x=4..351 flex=0/0 dir=Column wrap=NoWrap cls=zui-section.zui-align-scope
+              VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-section__body
+               VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=
+                ZuiBox w=347.1 content=332.9 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                 VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                  VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=
+                   VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Row wrap=Wrap cls=
+                    ZuiBox w=332.9 content=323.1 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                     VisualElement w=323.1 content=323.1 x=16..339 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                      ZuiBox w=323.1 content=313.3 x=16..339 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                       VisualElement w=313.3 content=313.3 x=21..334 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                        VisualElement w=313.3 content=313.3 x=21..334 flex=0/1 dir=Row wrap=Wrap cls=
+                       » VisualElement w=340.9 content=340.9 x=21..362 flex=0/0 dir=Row wrap=NoWrap cls=zui-field
+   children of the offender:
+     [0] Label 'Root height' w=84.0 x=21..105 cls=unity-text-element.unity-label.zui-field__label
+     [1] VisualElement '8' w=252.9 x=109..362 cls=zui-row
+
+### OVERFLOW-X 27.6px  'Tongue climb'
+  EditorPanelRootElement#unity-panel-container13 w=1700.0 content=1700.0 x=0..1700 flex=0/1 dir=Column wrap=NoWrap cls=
+   VisualElement#rootVisualContainer14 w=1700.0 content=1692.0 x=0..1700 flex=0/1 dir=Column wrap=NoWrap cls=zui-root
+    VisualElement w=1692.0 content=1692.0 x=4..1696 flex=1/1 dir=Column wrap=NoWrap cls=
+     VisualElement w=1692.0 content=1692.0 x=4..1696 flex=1/1 dir=Row wrap=NoWrap cls=
+      ScrollView w=360.0 content=360.0 x=4..364 flex=0/0 dir=Column wrap=NoWrap cls=unity-scroll-view.unity-scroll-view--scroll.unity-scroll-view--vertical
+       VisualElement#unity-content-and-vertical-scroll-container w=360.0 content=360.0 x=4..364 flex=1/1 dir=Row wrap=NoWrap cls=unity-scroll-view__content-and-vertical-scroll-container
+        VisualElement#unity-content-viewport w=347.1 content=347.1 x=4..351 flex=1/1 dir=Column wrap=NoWrap cls=unity-scroll-view__content-viewport.unity-scroll-view__content-viewport--vertical
+         VisualElement#unity-content-container w=347.1 content=347.1 x=4..351 flex=1/0 dir=Column wrap=NoWrap cls=unity-scroll-view__content-container.unity-scroll-view__content-container--vertical
+          ZuiColumnFlow w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-column-flow
+           VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Row wrap=NoWrap cls=zui-column-flow__row
+            VisualElement w=347.1 content=347.1 x=4..351 flex=1/1 dir=Column wrap=NoWrap cls=zui-column-flow__column
+             ZuiSection w=347.1 content=347.1 x=4..351 flex=0/0 dir=Column wrap=NoWrap cls=zui-section.zui-align-scope
+              VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-section__body
+               VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=
+                ZuiBox w=347.1 content=332.9 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                 VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                  VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=
+                   VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Row wrap=Wrap cls=
+                    ZuiBox w=332.9 content=323.1 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                     VisualElement w=323.1 content=323.1 x=16..339 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                      ZuiBox w=323.1 content=313.3 x=16..339 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                       VisualElement w=313.3 content=313.3 x=21..334 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                        VisualElement w=313.3 content=313.3 x=21..334 flex=0/1 dir=Row wrap=Wrap cls=
+                       » VisualElement w=340.9 content=340.9 x=21..362 flex=0/0 dir=Row wrap=NoWrap cls=zui-field
+   children of the offender:
+     [0] Label 'Tongue climb' w=84.0 x=21..105 cls=unity-text-element.unity-label.zui-field__label
+     [1] VisualElement '9' w=252.9 x=109..362 cls=zui-row
+
+### OVERFLOW-X 27.6px  'Tongue peel'
+  EditorPanelRootElement#unity-panel-container13 w=1700.0 content=1700.0 x=0..1700 flex=0/1 dir=Column wrap=NoWrap cls=
+   VisualElement#rootVisualContainer14 w=1700.0 content=1692.0 x=0..1700 flex=0/1 dir=Column wrap=NoWrap cls=zui-root
+    VisualElement w=1692.0 content=1692.0 x=4..1696 flex=1/1 dir=Column wrap=NoWrap cls=
+     VisualElement w=1692.0 content=1692.0 x=4..1696 flex=1/1 dir=Row wrap=NoWrap cls=
+      ScrollView w=360.0 content=360.0 x=4..364 flex=0/0 dir=Column wrap=NoWrap cls=unity-scroll-view.unity-scroll-view--scroll.unity-scroll-view--vertical
+       VisualElement#unity-content-and-vertical-scroll-container w=360.0 content=360.0 x=4..364 flex=1/1 dir=Row wrap=NoWrap cls=unity-scroll-view__content-and-vertical-scroll-container
+        VisualElement#unity-content-viewport w=347.1 content=347.1 x=4..351 flex=1/1 dir=Column wrap=NoWrap cls=unity-scroll-view__content-viewport.unity-scroll-view__content-viewport--vertical
+         VisualElement#unity-content-container w=347.1 content=347.1 x=4..351 flex=1/0 dir=Column wrap=NoWrap cls=unity-scroll-view__content-container.unity-scroll-view__content-container--vertical
+          ZuiColumnFlow w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-column-flow
+           VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Row wrap=NoWrap cls=zui-column-flow__row
+            VisualElement w=347.1 content=347.1 x=4..351 flex=1/1 dir=Column wrap=NoWrap cls=zui-column-flow__column
+             ZuiSection w=347.1 content=347.1 x=4..351 flex=0/0 dir=Column wrap=NoWrap cls=zui-section.zui-align-scope
+              VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-section__body
+               VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=
+                ZuiBox w=347.1 content=332.9 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                 VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                  VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=
+                   VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Row wrap=Wrap cls=
+                    ZuiBox w=332.9 content=323.1 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                     VisualElement w=323.1 content=323.1 x=16..339 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                      ZuiBox w=323.1 content=313.3 x=16..339 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                       VisualElement w=313.3 content=313.3 x=21..334 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                        VisualElement w=313.3 content=313.3 x=21..334 flex=0/1 dir=Row wrap=Wrap cls=
+                       » VisualElement w=340.9 content=340.9 x=21..362 flex=0/0 dir=Row wrap=NoWrap cls=zui-field
+   children of the offender:
+     [0] Label 'Tongue peel' w=84.0 x=21..105 cls=unity-text-element.unity-label.zui-field__label
+     [1] VisualElement '3' w=252.9 x=109..362 cls=zui-row
+
+### OVERFLOW-X 27.6px  'Tongue width'
+  EditorPanelRootElement#unity-panel-container13 w=1700.0 content=1700.0 x=0..1700 flex=0/1 dir=Column wrap=NoWrap cls=
+   VisualElement#rootVisualContainer14 w=1700.0 content=1692.0 x=0..1700 flex=0/1 dir=Column wrap=NoWrap cls=zui-root
+    VisualElement w=1692.0 content=1692.0 x=4..1696 flex=1/1 dir=Column wrap=NoWrap cls=
+     VisualElement w=1692.0 content=1692.0 x=4..1696 flex=1/1 dir=Row wrap=NoWrap cls=
+      ScrollView w=360.0 content=360.0 x=4..364 flex=0/0 dir=Column wrap=NoWrap cls=unity-scroll-view.unity-scroll-view--scroll.unity-scroll-view--vertical
+       VisualElement#unity-content-and-vertical-scroll-container w=360.0 content=360.0 x=4..364 flex=1/1 dir=Row wrap=NoWrap cls=unity-scroll-view__content-and-vertical-scroll-container
+        VisualElement#unity-content-viewport w=347.1 content=347.1 x=4..351 flex=1/1 dir=Column wrap=NoWrap cls=unity-scroll-view__content-viewport.unity-scroll-view__content-viewport--vertical
+         VisualElement#unity-content-container w=347.1 content=347.1 x=4..351 flex=1/0 dir=Column wrap=NoWrap cls=unity-scroll-view__content-container.unity-scroll-view__content-container--vertical
+          ZuiColumnFlow w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-column-flow
+           VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Row wrap=NoWrap cls=zui-column-flow__row
+            VisualElement w=347.1 content=347.1 x=4..351 flex=1/1 dir=Column wrap=NoWrap cls=zui-column-flow__column
+             ZuiSection w=347.1 content=347.1 x=4..351 flex=0/0 dir=Column wrap=NoWrap cls=zui-section.zui-align-scope
+              VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-section__body
+               VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=
+                ZuiBox w=347.1 content=332.9 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                 VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                  VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=
+                   VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Row wrap=Wrap cls=
+                    ZuiBox w=332.9 content=323.1 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                     VisualElement w=323.1 content=323.1 x=16..339 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                      ZuiBox w=323.1 content=313.3 x=16..339 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                       VisualElement w=313.3 content=313.3 x=21..334 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                        VisualElement w=313.3 content=313.3 x=21..334 flex=0/1 dir=Row wrap=Wrap cls=
+                       » VisualElement w=340.9 content=340.9 x=21..362 flex=0/0 dir=Row wrap=NoWrap cls=zui-field
+   children of the offender:
+     [0] Label 'Tongue width' w=84.0 x=21..105 cls=unity-text-element.unity-label.zui-field__label
+     [1] VisualElement '1.2' w=252.9 x=109..362 cls=zui-row
+
+### OVERFLOW-X 27.6px  'Tongue length'
+  EditorPanelRootElement#unity-panel-container13 w=1700.0 content=1700.0 x=0..1700 flex=0/1 dir=Column wrap=NoWrap cls=
+   VisualElement#rootVisualContainer14 w=1700.0 content=1692.0 x=0..1700 flex=0/1 dir=Column wrap=NoWrap cls=zui-root
+    VisualElement w=1692.0 content=1692.0 x=4..1696 flex=1/1 dir=Column wrap=NoWrap cls=
+     VisualElement w=1692.0 content=1692.0 x=4..1696 flex=1/1 dir=Row wrap=NoWrap cls=
+      ScrollView w=360.0 content=360.0 x=4..364 flex=0/0 dir=Column wrap=NoWrap cls=unity-scroll-view.unity-scroll-view--scroll.unity-scroll-view--vertical
+       VisualElement#unity-content-and-vertical-scroll-container w=360.0 content=360.0 x=4..364 flex=1/1 dir=Row wrap=NoWrap cls=unity-scroll-view__content-and-vertical-scroll-container
+        VisualElement#unity-content-viewport w=347.1 content=347.1 x=4..351 flex=1/1 dir=Column wrap=NoWrap cls=unity-scroll-view__content-viewport.unity-scroll-view__content-viewport--vertical
+         VisualElement#unity-content-container w=347.1 content=347.1 x=4..351 flex=1/0 dir=Column wrap=NoWrap cls=unity-scroll-view__content-container.unity-scroll-view__content-container--vertical
+          ZuiColumnFlow w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-column-flow
+           VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Row wrap=NoWrap cls=zui-column-flow__row
+            VisualElement w=347.1 content=347.1 x=4..351 flex=1/1 dir=Column wrap=NoWrap cls=zui-column-flow__column
+             ZuiSection w=347.1 content=347.1 x=4..351 flex=0/0 dir=Column wrap=NoWrap cls=zui-section.zui-align-scope
+              VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-section__body
+               VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=
+                ZuiBox w=347.1 content=332.9 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                 VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                  VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=
+                   VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Row wrap=Wrap cls=
+                    ZuiBox w=332.9 content=323.1 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                     VisualElement w=323.1 content=323.1 x=16..339 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                      ZuiBox w=323.1 content=313.3 x=16..339 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                       VisualElement w=313.3 content=313.3 x=21..334 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                        VisualElement w=313.3 content=313.3 x=21..334 flex=0/1 dir=Row wrap=Wrap cls=
+                       » VisualElement w=340.9 content=340.9 x=21..362 flex=0/0 dir=Row wrap=NoWrap cls=zui-field
+   children of the offender:
+     [0] Label 'Tongue length' w=84.0 x=21..105 cls=unity-text-element.unity-label.zui-field__label
+     [1] VisualElement '3.5' w=252.9 x=109..362 cls=zui-row
+
+### OVERFLOW-X 27.6px  'Tongue life'
+  EditorPanelRootElement#unity-panel-container13 w=1700.0 content=1700.0 x=0..1700 flex=0/1 dir=Column wrap=NoWrap cls=
+   VisualElement#rootVisualContainer14 w=1700.0 content=1692.0 x=0..1700 flex=0/1 dir=Column wrap=NoWrap cls=zui-root
+    VisualElement w=1692.0 content=1692.0 x=4..1696 flex=1/1 dir=Column wrap=NoWrap cls=
+     VisualElement w=1692.0 content=1692.0 x=4..1696 flex=1/1 dir=Row wrap=NoWrap cls=
+      ScrollView w=360.0 content=360.0 x=4..364 flex=0/0 dir=Column wrap=NoWrap cls=unity-scroll-view.unity-scroll-view--scroll.unity-scroll-view--vertical
+       VisualElement#unity-content-and-vertical-scroll-container w=360.0 content=360.0 x=4..364 flex=1/1 dir=Row wrap=NoWrap cls=unity-scroll-view__content-and-vertical-scroll-container
+        VisualElement#unity-content-viewport w=347.1 content=347.1 x=4..351 flex=1/1 dir=Column wrap=NoWrap cls=unity-scroll-view__content-viewport.unity-scroll-view__content-viewport--vertical
+         VisualElement#unity-content-container w=347.1 content=347.1 x=4..351 flex=1/0 dir=Column wrap=NoWrap cls=unity-scroll-view__content-container.unity-scroll-view__content-container--vertical
+          ZuiColumnFlow w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-column-flow
+           VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Row wrap=NoWrap cls=zui-column-flow__row
+            VisualElement w=347.1 content=347.1 x=4..351 flex=1/1 dir=Column wrap=NoWrap cls=zui-column-flow__column
+             ZuiSection w=347.1 content=347.1 x=4..351 flex=0/0 dir=Column wrap=NoWrap cls=zui-section.zui-align-scope
+              VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-section__body
+               VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=
+                ZuiBox w=347.1 content=332.9 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                 VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                  VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=
+                   VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Row wrap=Wrap cls=
+                    ZuiBox w=332.9 content=323.1 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                     VisualElement w=323.1 content=323.1 x=16..339 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                      ZuiBox w=323.1 content=313.3 x=16..339 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                       VisualElement w=313.3 content=313.3 x=21..334 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                        VisualElement w=313.3 content=313.3 x=21..334 flex=0/1 dir=Row wrap=Wrap cls=
+                       » VisualElement w=340.9 content=340.9 x=21..362 flex=0/0 dir=Row wrap=NoWrap cls=zui-field
+   children of the offender:
+     [0] Label 'Tongue life' w=84.0 x=21..105 cls=unity-text-element.unity-label.zui-field__label
+     [1] VisualElement '0.3' w=252.9 x=109..362 cls=zui-row
+
+### OVERFLOW-X 8.4px  'Ember rise'
+  EditorPanelRootElement#unity-panel-container13 w=1700.0 content=1700.0 x=0..1700 flex=0/1 dir=Column wrap=NoWrap cls=
+   VisualElement#rootVisualContainer14 w=1700.0 content=1692.0 x=0..1700 flex=0/1 dir=Column wrap=NoWrap cls=zui-root
+    VisualElement w=1692.0 content=1692.0 x=4..1696 flex=1/1 dir=Column wrap=NoWrap cls=
+     VisualElement w=1692.0 content=1692.0 x=4..1696 flex=1/1 dir=Row wrap=NoWrap cls=
+      ScrollView w=360.0 content=360.0 x=4..364 flex=0/0 dir=Column wrap=NoWrap cls=unity-scroll-view.unity-scroll-view--scroll.unity-scroll-view--vertical
+       VisualElement#unity-content-and-vertical-scroll-container w=360.0 content=360.0 x=4..364 flex=1/1 dir=Row wrap=NoWrap cls=unity-scroll-view__content-and-vertical-scroll-container
+        VisualElement#unity-content-viewport w=347.1 content=347.1 x=4..351 flex=1/1 dir=Column wrap=NoWrap cls=unity-scroll-view__content-viewport.unity-scroll-view__content-viewport--vertical
+         VisualElement#unity-content-container w=347.1 content=347.1 x=4..351 flex=1/0 dir=Column wrap=NoWrap cls=unity-scroll-view__content-container.unity-scroll-view__content-container--vertical
+          ZuiColumnFlow w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-column-flow
+           VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Row wrap=NoWrap cls=zui-column-flow__row
+            VisualElement w=347.1 content=347.1 x=4..351 flex=1/1 dir=Column wrap=NoWrap cls=zui-column-flow__column
+             ZuiSection w=347.1 content=347.1 x=4..351 flex=0/0 dir=Column wrap=NoWrap cls=zui-section.zui-align-scope
+              VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-section__body
+               VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=
+                ZuiBox w=347.1 content=332.9 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                 VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                  VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=
+                   VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Row wrap=Wrap cls=
+                    ZuiBox w=332.9 content=323.1 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                     VisualElement w=323.1 content=323.1 x=16..339 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                      ZuiBox w=323.1 content=313.3 x=16..339 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                       VisualElement w=313.3 content=313.3 x=21..334 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                        VisualElement w=313.3 content=313.3 x=21..334 flex=0/1 dir=Row wrap=Wrap cls=
+                       » VisualElement w=321.8 content=321.8 x=21..343 flex=0/0 dir=Row wrap=NoWrap cls=zui-field
+   children of the offender:
+     [0] Label 'Ember rise' w=64.9 x=21..86 cls=unity-text-element.unity-label.zui-field__label
+     [1] VisualElement '40' w=252.9 x=90..343 cls=zui-row
+
+### OVERFLOW-X 8.4px  'Ember size'
+  EditorPanelRootElement#unity-panel-container13 w=1700.0 content=1700.0 x=0..1700 flex=0/1 dir=Column wrap=NoWrap cls=
+   VisualElement#rootVisualContainer14 w=1700.0 content=1692.0 x=0..1700 flex=0/1 dir=Column wrap=NoWrap cls=zui-root
+    VisualElement w=1692.0 content=1692.0 x=4..1696 flex=1/1 dir=Column wrap=NoWrap cls=
+     VisualElement w=1692.0 content=1692.0 x=4..1696 flex=1/1 dir=Row wrap=NoWrap cls=
+      ScrollView w=360.0 content=360.0 x=4..364 flex=0/0 dir=Column wrap=NoWrap cls=unity-scroll-view.unity-scroll-view--scroll.unity-scroll-view--vertical
+       VisualElement#unity-content-and-vertical-scroll-container w=360.0 content=360.0 x=4..364 flex=1/1 dir=Row wrap=NoWrap cls=unity-scroll-view__content-and-vertical-scroll-container
+        VisualElement#unity-content-viewport w=347.1 content=347.1 x=4..351 flex=1/1 dir=Column wrap=NoWrap cls=unity-scroll-view__content-viewport.unity-scroll-view__content-viewport--vertical
+         VisualElement#unity-content-container w=347.1 content=347.1 x=4..351 flex=1/0 dir=Column wrap=NoWrap cls=unity-scroll-view__content-container.unity-scroll-view__content-container--vertical
+          ZuiColumnFlow w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-column-flow
+           VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Row wrap=NoWrap cls=zui-column-flow__row
+            VisualElement w=347.1 content=347.1 x=4..351 flex=1/1 dir=Column wrap=NoWrap cls=zui-column-flow__column
+             ZuiSection w=347.1 content=347.1 x=4..351 flex=0/0 dir=Column wrap=NoWrap cls=zui-section.zui-align-scope
+              VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-section__body
+               VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=
+                ZuiBox w=347.1 content=332.9 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                 VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                  VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=
+                   VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Row wrap=Wrap cls=
+                    ZuiBox w=332.9 content=323.1 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                     VisualElement w=323.1 content=323.1 x=16..339 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                      ZuiBox w=323.1 content=313.3 x=16..339 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                       VisualElement w=313.3 content=313.3 x=21..334 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                        VisualElement w=313.3 content=313.3 x=21..334 flex=0/1 dir=Row wrap=Wrap cls=
+                       » VisualElement w=321.8 content=321.8 x=21..343 flex=0/0 dir=Row wrap=NoWrap cls=zui-field
+   children of the offender:
+     [0] Label 'Ember size' w=64.9 x=21..86 cls=unity-text-element.unity-label.zui-field__label
+     [1] VisualElement '0.7' w=252.9 x=90..343 cls=zui-row
+
+### OVERFLOW-X 76.0px  'Colour ramp'
+  EditorPanelRootElement#unity-panel-container13 w=1700.0 content=1700.0 x=0..1700 flex=0/1 dir=Column wrap=NoWrap cls=
+   VisualElement#rootVisualContainer14 w=1700.0 content=1692.0 x=0..1700 flex=0/1 dir=Column wrap=NoWrap cls=zui-root
+    VisualElement w=1692.0 content=1692.0 x=4..1696 flex=1/1 dir=Column wrap=NoWrap cls=
+     VisualElement w=1692.0 content=1692.0 x=4..1696 flex=1/1 dir=Row wrap=NoWrap cls=
+      ScrollView w=360.0 content=360.0 x=4..364 flex=0/0 dir=Column wrap=NoWrap cls=unity-scroll-view.unity-scroll-view--scroll.unity-scroll-view--vertical
+       VisualElement#unity-content-and-vertical-scroll-container w=360.0 content=360.0 x=4..364 flex=1/1 dir=Row wrap=NoWrap cls=unity-scroll-view__content-and-vertical-scroll-container
+        VisualElement#unity-content-viewport w=347.1 content=347.1 x=4..351 flex=1/1 dir=Column wrap=NoWrap cls=unity-scroll-view__content-viewport.unity-scroll-view__content-viewport--vertical
+         VisualElement#unity-content-container w=347.1 content=347.1 x=4..351 flex=1/0 dir=Column wrap=NoWrap cls=unity-scroll-view__content-container.unity-scroll-view__content-container--vertical
+          ZuiColumnFlow w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-column-flow
+           VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Row wrap=NoWrap cls=zui-column-flow__row
+            VisualElement w=347.1 content=347.1 x=4..351 flex=1/1 dir=Column wrap=NoWrap cls=zui-column-flow__column
+             ZuiSection w=347.1 content=347.1 x=4..351 flex=0/0 dir=Column wrap=NoWrap cls=zui-section.zui-align-scope
+              VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-section__body
+               VisualElement w=347.1 content=347.1 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=
+                ZuiBox w=347.1 content=332.9 x=4..351 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                 VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                  VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=
+                   VisualElement w=332.9 content=332.9 x=11..344 flex=0/1 dir=Row wrap=Wrap cls=
+                    ZuiBox w=332.9 content=323.1 x=11..344 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                     VisualElement w=323.1 content=323.1 x=16..339 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                      ZuiBox w=323.1 content=313.3 x=16..339 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                       VisualElement w=313.3 content=313.3 x=21..334 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                        VisualElement w=313.3 content=313.3 x=21..334 flex=0/1 dir=Row wrap=Wrap cls=
+                       » VisualElement w=389.3 content=389.3 x=21..410 flex=0/0 dir=Row wrap=NoWrap cls=zui-field
+   children of the offender:
+     [0] Label 'Colour ramp' w=72.0 x=21..93 cls=unity-text-element.unity-label.zui-field__label
+     [1] ZuiGradientControl '★' w=313.3 x=97..410 cls=zui-gradient-control

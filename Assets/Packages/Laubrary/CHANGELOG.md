@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Runtime semantic skins (T-0554)
+
+- Added player-safe semantic skin assets for runtime HUDs and menus. A consumer can keep its own skin, or fall back to the shipped default, without changing another consumer or adopting an editor theme.
+- Moved the controls legend and rebinding overlay's static colours, typography, spacing, focus treatment and capture prompt presentation into that skin. Its live bindings, device diagrams, layout decisions and input handling remain runtime code.
+
+### Notifyer Log — UI Toolkit migration (T-0553)
+
+- Moved the live editor event log from IMGUI to ZUI's UI Toolkit window pattern without changing its menu, session-only view state, filters, type mute/pin gestures, column visibility controls, or narrow mode.
+
 ### UI separation, phase 3 — five smaller tools moved onto the shared stylesheet (T-0551)
 
 Five tool surfaces (BackSplash, Cabinets, Choreographer, Lathe, Lathe Mold and Tapestry) no longer write their layout onto their own elements. The shape they all shared — a full-height shell, a controls side beside a growing preview, a strip of chrome that must not shrink, and list rows with a drag handle, a stretching name and a picked-row wash — now lives once in a new shared stylesheet under names that say what each part is. Each of those windows also tags its own outermost element, so a later stylesheet can restyle one tool's controls without any control knowing which tool it is in.
@@ -15,7 +24,7 @@ Appearance and behaviour are unchanged, and that was measured rather than assume
 
 Pyre and Chunks were deliberately left alone and captured as they stand, to serve as the acceptance reference for the next phase. Zounds keeps its own Colorful skin and is not part of that reference.
 
-Full write-up, including what was deliberately left in code and why: `Documentation/UISeparation/PHASE3.md`.
+The installed-package styling workflow is in [UI_STYLING.md](UI_STYLING.md). The host-only parity evidence and capture harness remain in `Documentation/UISeparation/PHASE3.md` in the development repository.
 
 ### Pyre — owner feedback fixes and the explosion-study features (T-0542..T-0549)
 

@@ -1,0 +1,45 @@
+== Solid ==
+Kind | Blending | Space | [GREY] Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Colour | HDR | — | Posterise | 0 | Width | Sits | Kind | Blending | Space | [GREY] Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Colour | HDR | — | Posterise | 0 | 
+
+== Gradient ==
+Kind | Blending | Space | Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Mode | Ramp | Hue | 0 | Saturation | 1 | Brightness | 1 | Contrast | 1 | Phase | 0 | Quantise | Angle | 0 | Posterise | 0 | Width | Sits | Kind | Blending | Space | [GREY] Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Colour | HDR | — | Posterise | 0 | 
+
+== RampByQuantity ==
+Kind | Blending | Space | [GREY] Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Quantity | Ramp | Hue | 0 | Saturation | 1 | Brightness | 1 | Contrast | 1 | Phase | 0 | Quantise | Presets | Input low | 0 | Input high | 1 | Posterise | 0 | Width | Sits | Kind | Blending | Space | [GREY] Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Colour | HDR | — | Posterise | 0 | 
+
+== Texture ==
+Texture fill has no texture assigned; painting flat tint instead. | Kind | Blending | Space | Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Texture | None (Texture 2D) | Mapping | [GREY] Tiles X | [GREY] 1 | [GREY] Tiles Y | [GREY] 1 | Offset U | 0 | Offset V | 0 | Angle | 0 | Tint | HDR | — | Posterise | 0 | Width | Sits | Kind | Blending | Space | [GREY] Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Colour | HDR | — | Posterise | 0 | 
+
+== IndexedStrip ==
+Kind | Blending | Space | Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Band direction | Repeats | 1 | Orientation | 0 | Offset | 0 | Reach | 1 | [GREY] Plain colour | [GREY] HDR | [GREY] — | ≡ | HDR | — | [GREY] Height | ≡ | HDR | — | [GREY] Height | Posterise | 0 | Width | Sits | Kind | Blending | Space | [GREY] Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Colour | HDR | — | Posterise | 0 | 
+
+== HeightField ==
+Height field fill has no field assigned; painting flat tint instead. | Kind | Blending | Space | Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Height field | None (Texture 2D) | [GREY] Scale | [GREY] 1 | Tint | HDR | — | Posterise | 0 | Width | Sits | Kind | Blending | Space | [GREY] Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Colour | HDR | — | Posterise | 0 | 
+
+== TapestrySteel ==
+Kind | Blending | Space | Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Cells | 6 | Octaves | 4 | Grain seed | 0 | Grain | 0.06 | Rust amount | 0.25 | Rust reach | 24 | Base low | HDR | — | Base high | HDR | — | Rust | HDR | — | Posterise | 0 | Width | Sits | Kind | Blending | Space | [GREY] Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Colour | HDR | — | Posterise | 0 | 
+
+== OverPhase ==
+Kind | Blending | Space | [GREY] Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Ramp | Hue | 0 | Saturation | 1 | Brightness | 1 | Contrast | 1 | Phase | 0 | Quantise | Posterise | 0 | Width | Sits | Kind | Blending | Space | [GREY] Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Colour | HDR | — | Posterise | 0 | 
+
+== Procedural ==
+Kind | Blending | Space | Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Pattern | Scale | 0.5 | Offset U | 0 | Offset V | 0 | Angle | 0 | Noise shape | Ramp | Hue | 0 | Saturation | 1 | Brightness | 1 | Contrast | 1 | Phase | 0 | Quantise | Posterise | 0 | Width | Sits | Kind | Blending | Space | [GREY] Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Colour | HDR | — | Posterise | 0 | 
+
+== Texture, Mapping=Repeat, Animated, Columns=4 ==
+Texture fill has no texture assigned; painting flat tint instead. | Kind | Blending | Space | Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Texture | None (Texture 2D) | Mapping | Tiles X | 1 | Tiles Y | 1 | Offset U | 0 | Offset V | 0 | Angle | 0 | Tint | HDR | — | Columns | 4 | Rows | 1 | Frames | Posterise | 0 | Width | Sits | Kind | Blending | Space | [GREY] Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Colour | HDR | — | Posterise | 0 | 
+
+== Texture, Animated, Columns=1 Rows=1 ==
+Texture fill has no texture assigned; painting flat tint instead. | Kind | Blending | Space | Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Texture | None (Texture 2D) | Mapping | [GREY] Tiles X | [GREY] 1 | [GREY] Tiles Y | [GREY] 1 | Offset U | 0 | Offset V | 0 | Angle | 0 | Tint | HDR | — | Columns | 1 | Rows | 1 | [GREY] Frames | Posterise | 0 | Width | Sits | Kind | Blending | Space | [GREY] Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Colour | HDR | — | Posterise | 0 | 
+
+== HeightField on a SOLID ==
+Height field fill has no field assigned; painting flat tint instead. | Kind | Blending | Space | Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Height field | None (Texture 2D) | Scale | 1 | Tint | HDR | — | Posterise | 0 | 
+
+== IndexedStrip, Reach 0.2 ==
+Kind | Blending | Space | Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Band direction | Repeats | 1 | Orientation | 0 | Offset | 0 | Reach | 0.2 | Plain colour | HDR | — | ≡ | HDR | — | [GREY] Height | ≡ | HDR | — | [GREY] Height | Posterise | 0 | Width | Sits | Kind | Blending | Space | [GREY] Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Colour | HDR | — | Posterise | 0 | 
+
+== Gradient, Mode = from the edge inwards ==
+Kind | Blending | Space | [GREY] Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Mode | Ramp | Hue | 0 | Saturation | 1 | Brightness | 1 | Contrast | 1 | Phase | 0 | Quantise | Angle | 0 | Ramp depth | 8 | Posterise | 0 | Width | Sits | Kind | Blending | Space | [GREY] Fit | Fade | 1 | [GREY] Height change | [GREY] 0 | Colour | HDR | — | Posterise | 0 | 
+
+== IndexedStrip, TWO contributing layers ==
+Kind | Blending | Space | Fit | Fade | 1 | Height change | 0 | Band direction | Repeats | 1 | Orientation | 0 | Offset | 0 | Reach | 1 | [GREY] Plain colour | [GREY] HDR | [GREY] — | ≡ | HDR | — | Height | ≡ | HDR | — | Height | Posterise | 0 | Width | Sits | Kind | Blending | Space | [GREY] Fit | Fade | 1 | Height change | 0 | Colour | HDR | — | Posterise | 0 | 
+

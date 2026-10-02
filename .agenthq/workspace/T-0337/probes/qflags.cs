@@ -1,0 +1,23 @@
+var win = ZWin("ShaperWindow"); if (win==null) return "no shaper";
+var BFi = System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.FlattenHierarchy;
+System.Reflection.FieldInfo assetF=null; for(var t=win.GetType();t!=null;t=t.BaseType) if(assetF==null) assetF=t.GetField("asset",BFi);
+var d = assetF.GetValue(win) as UnityEngine.ScriptableObject; if(d==null) return "no asset";
+var bakerT = ZType("ShaperBaker");
+var renderM = bakerT.GetMethod("RenderFrame", System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.Static);
+System.Func<int,string> h=f=>{ var px=renderM.Invoke(null,new object[]{d,f}) as UnityEngine.Color32[]; if(px==null) return "null";
+  unchecked{uint x=2166136261u; foreach(var p in px){x=(x^p.r)*16777619u;x=(x^p.g)*16777619u;x=(x^p.b)*16777619u;x=(x^p.a)*16777619u;} return x.ToString("X8");} };
+var sb=new System.Text.StringBuilder(); sb.Append(d.name).Append("  ");
+var l = d.GetType().GetField("layers",BFi).GetValue(d) as System.Collections.IList;
+var root = l[0].GetType().GetField("root",BFi).GetValue(l[0]);
+System.Action<object,string> one=(nd,tag)=>{ if(nd==null) return;
+  foreach(var g in nd.GetType().GetFields(BFi)){ if(g.Name!="fill"&&g.Name!="border") continue; var v=g.GetValue(nd);
+    if(v==null){ sb.Append(tag).Append('.').Append(g.Name).Append("=null "); continue; }
+    var af=v.GetType().GetField("authored",BFi);
+    if(af!=null) sb.Append(tag).Append('.').Append(g.Name.Substring(0,1)).Append(".auth=").Append(af.GetValue(v)).Append(' '); } };
+one(root,"root");
+var ch = root.GetType().GetField("children",BFi).GetValue(root) as System.Collections.IList;
+sb.Append("children=").Append(ch==null?0:ch.Count).Append(' ');
+if(ch!=null) for(int i=0;i<ch.Count;i++) one(ch[i],"c"+i);
+sb.Append("\n  render 0,1,2,4,8,11,12,15: ");
+foreach(int f in new int[]{0,1,2,4,8,11,12,15}) sb.Append(h(f)).Append(' ');
+return sb.ToString();

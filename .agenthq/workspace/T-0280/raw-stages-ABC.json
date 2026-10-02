@@ -1,0 +1,1766 @@
+{
+ "Orb:A": {
+  "ok": true,
+  "header": "GEN=Orb STAGE=A canvas=32x32 frames=3 test=1 litF1=126/1024 gates=",
+  "rows": {
+   "form.despeckle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.despeckleBelow": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.emberdrift.ramp.space": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "PyreRampSpace"
+   },
+   "form.emberdrift.ramp.adjust.cycle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.emberdrift.ramp.adjust.cycleSpeed": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   }
+  }
+ },
+ "Orb:B": {
+  "ok": true,
+  "header": "GEN=Orb STAGE=B canvas=128x128 frames=5 test=1,2,3 litF1=1575/16384 gates=",
+  "rows": {
+   "form.despeckle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.despeckleBelow": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.emberdrift.ramp.space": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "PyreRampSpace"
+   },
+   "form.emberdrift.ramp.adjust.cycle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.emberdrift.ramp.adjust.cycleSpeed": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   }
+  }
+ },
+ "Orb:C": {
+  "ok": true,
+  "header": "GEN=Orb STAGE=C canvas=128x128 frames=5 test=1,2,3 litF1=1575/16384 gates=despeckle=true",
+  "rows": {
+   "form.despeckle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.despeckleBelow": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.emberdrift.ramp.space": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "PyreRampSpace"
+   },
+   "form.emberdrift.ramp.adjust.cycle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.emberdrift.ramp.adjust.cycleSpeed": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   }
+  }
+ },
+ "Torch:A": {
+  "ok": true,
+  "header": "GEN=Torch STAGE=A canvas=32x32 frames=3 test=1 litF1=174/1024 gates=",
+  "rows": {
+   "form.barbs.lashK": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.barbs.lashWave": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.barbs.lashPh": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.barbs.pulse": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.barbs.pulseN": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.barbs.pulsePh": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.barbs.pulseGain": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.barbs.bulge": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.barbs.bulgeW": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.barbs.curlX": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.barbs.curlY": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.barbs.ramp.bandLocked": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.barbs.ramp.cycle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.barbs.ramp.cycleSpeed": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   }
+  }
+ },
+ "Torch:B": {
+  "ok": true,
+  "header": "GEN=Torch STAGE=B canvas=128x128 frames=5 test=1,2,3 litF1=2365/16384 gates=",
+  "rows": {
+   "form.barbs.lashK": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.barbs.lashWave": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.barbs.lashPh": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.barbs.pulse": {
+    "verdict": "LIVE",
+    "px": 2926,
+    "at": "Static->Static 1",
+    "kind": "mode=Static"
+   },
+   "form.barbs.pulseN": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.barbs.pulsePh": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.barbs.pulseGain": {
+    "verdict": "LIVE",
+    "px": 1700,
+    "at": "Static->Static 1",
+    "kind": "mode=Static"
+   },
+   "form.barbs.bulge": {
+    "verdict": "LIVE",
+    "px": 1631,
+    "at": "Static->Static 1",
+    "kind": "mode=Static"
+   },
+   "form.barbs.bulgeW": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.barbs.curlX": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.barbs.curlY": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.barbs.ramp.bandLocked": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.barbs.ramp.cycle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.barbs.ramp.cycleSpeed": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   }
+  }
+ },
+ "Torch:C": {
+  "ok": true,
+  "header": "GEN=Torch STAGE=C canvas=128x128 frames=5 test=1,2,3 litF1=3158/16384 gates=lash=8,pulse=.5,pulseGain=.35,bulge=.4",
+  "rows": {
+   "form.barbs.lashK": {
+    "verdict": "LIVE",
+    "px": 2511,
+    "at": "1->4",
+    "kind": "Int32"
+   },
+   "form.barbs.lashWave": {
+    "verdict": "LIVE",
+    "px": 2997,
+    "at": "2.6->0",
+    "kind": "Single"
+   },
+   "form.barbs.lashPh": {
+    "verdict": "LIVE",
+    "px": 7,
+    "at": "0->6.2832",
+    "kind": "Single"
+   },
+   "form.barbs.pulse": {
+    "verdict": "LIVE",
+    "px": 2683,
+    "at": "Static->Static 0",
+    "kind": "mode=Static"
+   },
+   "form.barbs.pulseN": {
+    "verdict": "LIVE",
+    "px": 2753,
+    "at": "2->1",
+    "kind": "Int32"
+   },
+   "form.barbs.pulsePh": {
+    "verdict": "LIVE",
+    "px": 2976,
+    "at": "0->0.5",
+    "kind": "Single"
+   },
+   "form.barbs.pulseGain": {
+    "verdict": "LIVE",
+    "px": 1898,
+    "at": "Static->Static 0",
+    "kind": "mode=Static"
+   },
+   "form.barbs.bulge": {
+    "verdict": "LIVE",
+    "px": 1628,
+    "at": "Static->Static 0",
+    "kind": "mode=Static"
+   },
+   "form.barbs.bulgeW": {
+    "verdict": "LIVE",
+    "px": 1515,
+    "at": "Static->Static 0.05",
+    "kind": "mode=Static"
+   },
+   "form.barbs.curlX": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.barbs.curlY": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.barbs.ramp.bandLocked": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.barbs.ramp.cycle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.barbs.ramp.cycleSpeed": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   }
+  }
+ },
+ "Jet:A": {
+  "ok": true,
+  "header": "GEN=Jet STAGE=A canvas=32x32 frames=3 test=1 litF1=114/1024 gates=",
+  "rows": {
+   "form.gout.pulseN": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.gout.pulseDepth": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.gout.sweepN": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.gout.shockN": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.gout.shockDepth": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.gout.ringK": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.gout.ringR0": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.gout.ringGrow": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.gout.ringLife": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.gout.ringReach": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.gout.ringAmp": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.gout.ramp.space": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "PyreRampSpace"
+   },
+   "form.gout.ramp.adjust.cycle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.gout.ramp.adjust.cycleSpeed": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.gout.sootRamp.space": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "PyreRampSpace"
+   },
+   "form.gout.sootRamp.adjust.cycle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.gout.sootRamp.adjust.cycleSpeed": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   }
+  }
+ },
+ "Jet:B": {
+  "ok": true,
+  "header": "GEN=Jet STAGE=B canvas=160x92 frames=5 test=1,2,3 litF1=2668/14720 gates=",
+  "rows": {
+   "form.gout.pulseN": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.gout.pulseDepth": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.gout.sweepN": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.gout.shockN": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.gout.shockDepth": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.gout.ringK": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.gout.ringR0": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.gout.ringGrow": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.gout.ringLife": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.gout.ringReach": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.gout.ringAmp": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.gout.ramp.space": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "PyreRampSpace"
+   },
+   "form.gout.ramp.adjust.cycle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.gout.ramp.adjust.cycleSpeed": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.gout.sootRamp.space": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "PyreRampSpace"
+   },
+   "form.gout.sootRamp.adjust.cycle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.gout.sootRamp.adjust.cycleSpeed": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   }
+  }
+ },
+ "Jet:C": {
+  "ok": true,
+  "header": "GEN=Jet STAGE=C canvas=160x92 frames=5 test=1,2,3 litF1=3141/14720 gates=ringN=3,pulseN=2,shockN=3,sweep=20,root/lobe/flash on,2 blasts",
+  "rows": {
+   "form.gout.pulseN": {
+    "verdict": "LIVE",
+    "px": 3125,
+    "at": "2->0",
+    "kind": "Int32"
+   },
+   "form.gout.pulseDepth": {
+    "verdict": "LIVE",
+    "px": 3125,
+    "at": "Static->Static 0",
+    "kind": "mode=Static"
+   },
+   "form.gout.sweepN": {
+    "verdict": "LIVE",
+    "px": 3889,
+    "at": "1->4",
+    "kind": "Int32"
+   },
+   "form.gout.shockN": {
+    "verdict": "LIVE",
+    "px": 3223,
+    "at": "3->0",
+    "kind": "Single"
+   },
+   "form.gout.shockDepth": {
+    "verdict": "LIVE",
+    "px": 3223,
+    "at": "Static->Static 0",
+    "kind": "mode=Static"
+   },
+   "form.gout.ringK": {
+    "verdict": "LIVE",
+    "px": 524,
+    "at": "12->48",
+    "kind": "Int32"
+   },
+   "form.gout.ringR0": {
+    "verdict": "LIVE",
+    "px": 1206,
+    "at": "Static->Static 0.5",
+    "kind": "mode=Static"
+   },
+   "form.gout.ringGrow": {
+    "verdict": "LIVE",
+    "px": 1118,
+    "at": "0.5->0",
+    "kind": "Single"
+   },
+   "form.gout.ringLife": {
+    "verdict": "LIVE",
+    "px": 1410,
+    "at": "0.8->0.5",
+    "kind": "Single"
+   },
+   "form.gout.ringReach": {
+    "verdict": "LIVE",
+    "px": 1542,
+    "at": "Static->Static 0.5",
+    "kind": "mode=Static"
+   },
+   "form.gout.ringAmp": {
+    "verdict": "LIVE",
+    "px": 938,
+    "at": "Static->Static 0",
+    "kind": "mode=Static"
+   },
+   "form.gout.ramp.space": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "PyreRampSpace"
+   },
+   "form.gout.ramp.adjust.cycle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.gout.ramp.adjust.cycleSpeed": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.gout.sootRamp.space": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "PyreRampSpace"
+   },
+   "form.gout.sootRamp.adjust.cycle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.gout.sootRamp.adjust.cycleSpeed": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   }
+  }
+ },
+ "RadialJet:A": {
+  "ok": true,
+  "header": "GEN=RadialJet STAGE=A canvas=32x32 frames=3 test=1 litF1=277/1024 gates=",
+  "rows": {
+   "form.corona.h": {
+    "verdict": "LIVE",
+    "px": 219,
+    "at": "176->16",
+    "kind": "Int32"
+   },
+   "form.corona.pulseN": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.corona.pulseDepth": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.corona.sweepN": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.corona.shockN": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.corona.shockDepth": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.corona.rootAmp": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.corona.ringK": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.corona.ringR0": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.corona.ringGrow": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.corona.ringLife": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.corona.ringReach": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.corona.ringAmp": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.corona.ramp.space": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "PyreRampSpace"
+   },
+   "form.corona.ramp.adjust.cycle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.corona.ramp.adjust.cycleSpeed": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.corona.sootRamp.space": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "PyreRampSpace"
+   },
+   "form.corona.sootRamp.adjust.cycle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.corona.sootRamp.adjust.cycleSpeed": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.corona.lobes": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.corona.lobeDepth": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.corona.lobeKick": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.corona.rootK": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.corona.ringFlat": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   }
+  }
+ },
+ "RadialJet:B": {
+  "ok": true,
+  "header": "GEN=RadialJet STAGE=B canvas=176x176 frames=5 test=1,2,3 litF1=8760/30976 gates=",
+  "rows": {
+   "form.corona.h": {
+    "verdict": "LIVE",
+    "px": 7124,
+    "at": "176->16",
+    "kind": "Int32"
+   },
+   "form.corona.pulseN": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.corona.pulseDepth": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.corona.sweepN": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.corona.shockN": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.corona.shockDepth": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.corona.rootAmp": {
+    "verdict": "LIVE",
+    "px": 9,
+    "at": "Static->Static 0",
+    "kind": "mode=Static"
+   },
+   "form.corona.ringK": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.corona.ringR0": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.corona.ringGrow": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.corona.ringLife": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.corona.ringReach": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.corona.ringAmp": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.corona.ramp.space": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "PyreRampSpace"
+   },
+   "form.corona.ramp.adjust.cycle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.corona.ramp.adjust.cycleSpeed": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.corona.sootRamp.space": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "PyreRampSpace"
+   },
+   "form.corona.sootRamp.adjust.cycle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.corona.sootRamp.adjust.cycleSpeed": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.corona.lobes": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.corona.lobeDepth": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.corona.lobeKick": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.corona.rootK": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.corona.ringFlat": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   }
+  }
+ },
+ "RadialJet:C": {
+  "ok": true,
+  "header": "GEN=RadialJet STAGE=C canvas=176x176 frames=5 test=1,2,3 litF1=0/30976 gates=ringN=3,pulseN=2,shockN=3,sweep=20,root/lobe/flash on,2 blasts",
+  "rows": {
+   "form.corona.h": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.corona.pulseN": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.corona.pulseDepth": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.corona.sweepN": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.corona.shockN": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.corona.shockDepth": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.corona.rootAmp": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.corona.ringK": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.corona.ringR0": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.corona.ringGrow": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.corona.ringLife": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.corona.ringReach": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.corona.ringAmp": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.corona.ramp.space": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "PyreRampSpace"
+   },
+   "form.corona.ramp.adjust.cycle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.corona.ramp.adjust.cycleSpeed": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.corona.sootRamp.space": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "PyreRampSpace"
+   },
+   "form.corona.sootRamp.adjust.cycle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.corona.sootRamp.adjust.cycleSpeed": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.corona.lobes": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.corona.lobeDepth": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.corona.lobeKick": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.corona.rootK": {
+    "verdict": "LIVE",
+    "px": 39,
+    "at": "8->0",
+    "kind": "Int32"
+   },
+   "form.corona.ringFlat": {
+    "verdict": "LIVE",
+    "px": 629,
+    "at": "True->False",
+    "kind": "Boolean"
+   }
+  }
+ },
+ "ExplosiveJet:A": {
+  "ok": true,
+  "header": "GEN=ExplosiveJet STAGE=A canvas=32x32 frames=3 test=1 litF1=184/1024 gates=",
+  "rows": {
+   "form.detonate.h": {
+    "verdict": "LIVE",
+    "px": 147,
+    "at": "184->16",
+    "kind": "Int32"
+   },
+   "form.detonate.pulseN": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.detonate.pulseDepth": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.detonate.sweepN": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.detonate.shockN": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.shockDepth": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.detonate.rootR": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.detonate.rootAmp": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.detonate.ringK": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.detonate.ringR0": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.detonate.ringGrow": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.ringLife": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.ringReach": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.detonate.ringAmp": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.detonate.ramp.space": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "PyreRampSpace"
+   },
+   "form.detonate.ramp.adjust.cycle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.detonate.ramp.adjust.cycleSpeed": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.sootRamp.space": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "PyreRampSpace"
+   },
+   "form.detonate.sootRamp.adjust.cycle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.detonate.sootRamp.adjust.cycleSpeed": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.lobes": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.detonate.lobeDepth": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.lobeKick": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.rootK": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.detonate.ringFlat": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.detonate.ringArc": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.blasts[0].share": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.flash.radius": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.flash.amp": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.flash.grow": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.flash.elong": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   }
+  }
+ },
+ "ExplosiveJet:B": {
+  "ok": true,
+  "header": "GEN=ExplosiveJet STAGE=B canvas=184x184 frames=5 test=1,2,3 litF1=10444/33856 gates=",
+  "rows": {
+   "form.detonate.h": {
+    "verdict": "LIVE",
+    "px": 8530,
+    "at": "184->16",
+    "kind": "Int32"
+   },
+   "form.detonate.pulseN": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.detonate.pulseDepth": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.detonate.sweepN": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.detonate.shockN": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.shockDepth": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.detonate.rootR": {
+    "verdict": "LIVE",
+    "px": 28,
+    "at": "Static->Static 0",
+    "kind": "mode=Static"
+   },
+   "form.detonate.rootAmp": {
+    "verdict": "LIVE",
+    "px": 28,
+    "at": "Static->Static 0",
+    "kind": "mode=Static"
+   },
+   "form.detonate.ringK": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.detonate.ringR0": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.detonate.ringGrow": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.ringLife": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.ringReach": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.detonate.ringAmp": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   },
+   "form.detonate.ramp.space": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "PyreRampSpace"
+   },
+   "form.detonate.ramp.adjust.cycle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.detonate.ramp.adjust.cycleSpeed": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.sootRamp.space": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "PyreRampSpace"
+   },
+   "form.detonate.sootRamp.adjust.cycle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.detonate.sootRamp.adjust.cycleSpeed": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.lobes": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.detonate.lobeDepth": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.lobeKick": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.rootK": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.detonate.ringFlat": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.detonate.ringArc": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.blasts[0].share": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.flash.radius": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.flash.amp": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.flash.grow": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.flash.elong": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   }
+  }
+ },
+ "ExplosiveJet:C": {
+  "ok": true,
+  "header": "GEN=ExplosiveJet STAGE=C canvas=184x184 frames=5 test=1,2,3 litF1=8184/33856 gates=blasts=2|ringN=3,pulseN=2,shockN=3,sweep=20,root/lobe/flash on,2 blasts",
+  "rows": {
+   "form.detonate.h": {
+    "verdict": "LIVE",
+    "px": 6453,
+    "at": "184->16",
+    "kind": "Int32"
+   },
+   "form.detonate.pulseN": {
+    "verdict": "LIVE",
+    "px": 7951,
+    "at": "2->0",
+    "kind": "Int32"
+   },
+   "form.detonate.pulseDepth": {
+    "verdict": "LIVE",
+    "px": 7951,
+    "at": "Static->Static 0",
+    "kind": "mode=Static"
+   },
+   "form.detonate.sweepN": {
+    "verdict": "LIVE",
+    "px": 7691,
+    "at": "1->4",
+    "kind": "Int32"
+   },
+   "form.detonate.shockN": {
+    "verdict": "LIVE",
+    "px": 7318,
+    "at": "3->0",
+    "kind": "Single"
+   },
+   "form.detonate.shockDepth": {
+    "verdict": "LIVE",
+    "px": 7318,
+    "at": "Static->Static 0",
+    "kind": "mode=Static"
+   },
+   "form.detonate.rootR": {
+    "verdict": "LIVE",
+    "px": 29,
+    "at": "Static->Static 0",
+    "kind": "mode=Static"
+   },
+   "form.detonate.rootAmp": {
+    "verdict": "LIVE",
+    "px": 29,
+    "at": "Static->Static 0",
+    "kind": "mode=Static"
+   },
+   "form.detonate.ringK": {
+    "verdict": "LIVE",
+    "px": 847,
+    "at": "12->3",
+    "kind": "Int32"
+   },
+   "form.detonate.ringR0": {
+    "verdict": "LIVE",
+    "px": 1242,
+    "at": "Static->Static 0.5",
+    "kind": "mode=Static"
+   },
+   "form.detonate.ringGrow": {
+    "verdict": "LIVE",
+    "px": 1186,
+    "at": "0.5->0",
+    "kind": "Single"
+   },
+   "form.detonate.ringLife": {
+    "verdict": "LIVE",
+    "px": 2927,
+    "at": "0.8->0.5",
+    "kind": "Single"
+   },
+   "form.detonate.ringReach": {
+    "verdict": "LIVE",
+    "px": 1175,
+    "at": "Static->Static 0.5",
+    "kind": "mode=Static"
+   },
+   "form.detonate.ringAmp": {
+    "verdict": "LIVE",
+    "px": 1341,
+    "at": "Static->Static 0",
+    "kind": "mode=Static"
+   },
+   "form.detonate.ramp.space": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "PyreRampSpace"
+   },
+   "form.detonate.ramp.adjust.cycle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.detonate.ramp.adjust.cycleSpeed": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.sootRamp.space": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "PyreRampSpace"
+   },
+   "form.detonate.sootRamp.adjust.cycle": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Boolean"
+   },
+   "form.detonate.sootRamp.adjust.cycleSpeed": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Single"
+   },
+   "form.detonate.lobes": {
+    "verdict": "LIVE",
+    "px": 9771,
+    "at": "4->0",
+    "kind": "Int32"
+   },
+   "form.detonate.lobeDepth": {
+    "verdict": "LIVE",
+    "px": 7776,
+    "at": "0.5->0",
+    "kind": "Single"
+   },
+   "form.detonate.lobeKick": {
+    "verdict": "LIVE",
+    "px": 9248,
+    "at": "0.3->0",
+    "kind": "Single"
+   },
+   "form.detonate.rootK": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "Int32"
+   },
+   "form.detonate.ringFlat": {
+    "verdict": "LIVE",
+    "px": 1359,
+    "at": "True->False",
+    "kind": "Boolean"
+   },
+   "form.detonate.ringArc": {
+    "verdict": "LIVE",
+    "px": 1280,
+    "at": "140->5",
+    "kind": "Single"
+   },
+   "form.detonate.blasts[0].share": {
+    "verdict": "LIVE",
+    "px": 8209,
+    "at": "1->0.05",
+    "kind": "Single"
+   },
+   "form.detonate.flash.radius": {
+    "verdict": "LIVE",
+    "px": 104,
+    "at": "8->0",
+    "kind": "Single"
+   },
+   "form.detonate.flash.amp": {
+    "verdict": "LIVE",
+    "px": 104,
+    "at": "2->0",
+    "kind": "Single"
+   },
+   "form.detonate.flash.grow": {
+    "verdict": "LIVE",
+    "px": 88,
+    "at": "0.6->0",
+    "kind": "Single"
+   },
+   "form.detonate.flash.elong": {
+    "verdict": "LIVE",
+    "px": 58,
+    "at": "1.4->1",
+    "kind": "Single"
+   }
+  }
+ },
+ "Fireball:A": {
+  "ok": true,
+  "header": "GEN=Fireball STAGE=A canvas=32x32 frames=3 test=1 litF1=157/1024 gates=",
+  "rows": {
+   "src.sharpness": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   }
+  }
+ },
+ "Fireball:B": {
+  "ok": true,
+  "header": "GEN=Fireball STAGE=B canvas=128x128 frames=5 test=1,2,3 litF1=81/16384 gates=",
+  "rows": {
+   "src.sharpness": {
+    "verdict": "DEAD",
+    "px": 0,
+    "at": "",
+    "kind": "mode=Static"
+   }
+  }
+ },
+ "Fireball:C": {
+  "ok": true,
+  "header": "GEN=Fireball STAGE=C canvas=128x128 frames=5 test=1,2,3 litF1=82/16384 gates=arms=3",
+  "rows": {
+   "src.sharpness": {
+    "verdict": "LIVE",
+    "px": 133,
+    "at": "Static->Static 5.3",
+    "kind": "mode=Static"
+   }
+  }
+ }
+}

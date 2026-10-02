@@ -1,0 +1,45 @@
+=== SpriteFxStackWindow ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:20.00, y:20.00, width:900.00, height:880.22) rootWorld=(x:0.00, y:26.22, width:900.00, height:880.00)
+elements=324 drawn=222 textElements=83 controls=59 leafControls=30
+captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=2
+
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → This SpriteFx Stack matches what is on disk — nothing to save.
+inert 'Paste' → Append a copy of the last-copied effect.
+-- every leaf control --
+LEAF 'AuditT322Fx' ObjectField rect=4,31 200.0x18.2 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=The SpriteFx Stack asset being edited — assign one directly, or use Br… | EditorPanelRootElement#unity-panel-container14>VisualElement#rootVisualContainer14>VisualElement>ObjectField
+LEAF 'Save' Button rect=232,31 52.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=This SpriteFx Stack matches what is on disk — nothing to save. | EditorPanelRootElement#unity-panel-container14>VisualElement#rootVisualContainer14>VisualElement>Button
+LEAF 'New' Button rect=293,31 40.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a brand new SpriteFx Stack asset (undoable). | EditorPanelRootElement#unity-panel-container14>VisualElement#rootVisualContainer14>VisualElement>Button
+LEAF 'Browse' Button rect=342,31 56.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Toggle the thumbnail browser of every SpriteFx Stack in the project. | EditorPanelRootElement#unity-panel-container14>VisualElement#rootVisualContainer14>VisualElement>Button
+LEAF 'Duplicate' Button rect=408,31 68.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a copy of this SpriteFx Stack next to it and switch to editing … | EditorPanelRootElement#unity-panel-container14>VisualElement#rootVisualContainer14>VisualElement>Button
+LEAF 'Rename' Button rect=485,31 60.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Rename this asset's file. | EditorPanelRootElement#unity-panel-container14>VisualElement#rootVisualContainer14>VisualElement>Button
+LEAF 'Delete' Button rect=555,31 51.1x18.2 enabled=True cls=unity-text-element.unity-button tip=Delete this asset's file (asks first — file deletion cannot be undone)… | EditorPanelRootElement#unity-panel-container14>VisualElement#rootVisualContainer14>VisualElement>Button
+LEAF 'Sections' Button rect=10,93 68.9x18.2 enabled=True cls=unity-text-element.unity-button.zui-segmented__seg.zui-segmented__first.zui-segmented__on tip=Sections: each section folds via its own header, like before. Toggle B… | VisualElement#rootVisualContainer14>VisualElement>VisualElement>ZuiSectionToggleBar>ZuiSegmented>Button
+LEAF 'Toggle Bar' Button rect=79,93 77.8x18.2 enabled=True cls=unity-text-element.unity-button.zui-segmented__seg.zui-segmented__last tip=Sections: each section folds via its own header, like before. Toggle B… | VisualElement#rootVisualContainer14>VisualElement>VisualElement>ZuiSectionToggleBar>ZuiSegmented>Button
+LEAF 'None (Sprite)' ObjectField rect=74,163 200.0x17.8 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=Preview the stack on THIS sprite. Used when the stack is not on a Zoe … | VisualElement>VisualElement>ZuiSection>VisualElement>VisualElement>ObjectField
+LEAF 'Play' Button rect=228,208 60.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Run the whole loop below — the stack's own Duration, then a gap with t… | ZuiSection>VisualElement>VisualElement>VisualElement>VisualElement>Button
+LEAF 'Reverse' ZuiToggleButton rect=297,207 63.6x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton tip=Run the preview backwards (life 1→0), exactly as the Once Reversed pla… | ZuiSection>VisualElement>VisualElement>VisualElement>VisualElement>ZuiToggleButton
+LEAF 'Light radius' Button rect=224,237 84.4x18.2 enabled=True cls=unity-text-element.unity-button.zui-segmented__seg.zui-segmented__first.zui-segmented__last tip=Hidden — click to show it on the preview. Marks this Fake Light's posi… | VisualElement>VisualElement>VisualElement>VisualElement>ZuiSegmented>Button
+LEAF 'Active' ZuiTimeline rect=4,416 892.0x35.6 enabled=True cls=zui-timeline tip=One whole loop of the preview, drawn to scale: the stack's own Duratio… | VisualElement#rootVisualContainer14>VisualElement>VisualElement>ZuiSection>VisualElement>ZuiTimeline
+LEAF '12345' IntegerField rect=40,531 70.2x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-integer-field tip=Seed for any hashing effect below (LayerDissolve scatter, AlphaMask no… | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>IntegerField
+LEAF '✔' ZuiToggleButton rect=36,568 29.8x18.2 enabled=True cls=unity-text-element.unity-button.zui-togglebutton.zui-togglebutton--mark.zui-togglebutton--on tip=Enable or disable this effect. | VisualElement>VisualElement>ZuiBox>VisualElement>VisualElement>ZuiToggleButton
+LEAF 'Copy' Button rect=805,568 46.2x18.2 enabled=True cls=unity-text-element.unity-button tip=Copy this effect's settings to the clipboard. | VisualElement>VisualElement>ZuiBox>VisualElement>VisualElement>Button
+LEAF '×' Button rect=861,568 21.8x18.2 enabled=True cls=unity-text-element.unity-button tip=Remove this effect (undoable). | VisualElement>VisualElement>ZuiBox>VisualElement>VisualElement>Button
+LEAF 'Silhouette' Button rect=98,592 73.8x18.2 enabled=True cls=unity-text-element.unity-button.zui-radio__on.zui-radio__first tip=Which signal from the sprite's own pixels becomes the fake surface. Si… | VisualElement>VisualElement>VisualElement>VisualElement>VisualElement>Button
+LEAF 'Slab' Button rect=172,592 39.1x18.2 enabled=True cls=unity-text-element.unity-button tip=Which signal from the sprite's own pixels becomes the fake surface. Si… | VisualElement>VisualElement>VisualElement>VisualElement>VisualElement>Button
+LEAF 'Brightness' Button rect=211,592 74.7x18.2 enabled=True cls=unity-text-element.unity-button.zui-radio__last tip=Which signal from the sprite's own pixels becomes the fake surface. Si… | VisualElement>VisualElement>VisualElement>VisualElement>VisualElement>Button
+LEAF 'Directional' Button rect=98,616 74.7x18.2 enabled=True cls=unity-text-element.unity-button.zui-radio__first tip=Directional is a light infinitely far away — one angle over the whole … | VisualElement>VisualElement>VisualElement>VisualElement>VisualElement>Button
+LEAF 'Point' Button rect=173,616 44.4x18.2 enabled=True cls=unity-text-element.unity-button.zui-radio__on.zui-radio__last tip=Directional is a light infinitely far away — one angle over the whole … | VisualElement>VisualElement>VisualElement>VisualElement>VisualElement>Button
+LEAF 'Painted' Button rect=313,616 57.3x18.2 enabled=True cls=unity-text-element.unity-button.zui-radio__first tip=Painted: hand-animate Light Position below, same as ever. Meta Layer: … | VisualElement>VisualElement>VisualElement>VisualElement>VisualElement>Button
+LEAF 'External' Button rect=370,616 62.2x18.2 enabled=True cls=unity-text-element.unity-button.zui-radio__on.zui-radio__last tip=Painted: hand-animate Light Position below, same as ever. Meta Layer: … | VisualElement>VisualElement>VisualElement>VisualElement>VisualElement>Button
+LEAF 'Muzzle' TextField rect=517,616 149.8x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-field tip=Which MetaLayer (Point or Vector mode) supplies this light's live posi… | ZuiBox>VisualElement>VisualElement>VisualElement>VisualElement>TextField
+LEAF 'Light position' ZuiValue2DControl rect=11,639 877.8x26.2 enabled=True cls=zui-value2d.zui-kbd-focus tip=Where the light sits over the picture. (0,0) is the centre of the fram… | VisualElement>ZuiBox>VisualElement>VisualElement>VisualElement>ZuiValue2DControl
+LEAF 'HDR' ColorField rect=380,688 110.2x16.0 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-color-field tip=Colour of the light. Tint and the additive flash both carry it; the pl… | ZuiBox>VisualElement>VisualElement>VisualElement>VisualElement>ColorField
+LEAF '+ Add SpriteFx' Button rect=7,745 99.1x18.2 enabled=True cls=unity-text-element.unity-button tip=Add a colour / mask effect to the stack. | ZuiSection>VisualElement>VisualElement>VisualElement>VisualElement>Button
+LEAF 'Paste' Button rect=116,745 46.2x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=Append a copy of the last-copied effect. | ZuiSection>VisualElement>VisualElement>VisualElement>VisualElement>Button

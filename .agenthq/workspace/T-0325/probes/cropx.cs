@@ -1,0 +1,20 @@
+// one-off crop; edit the four constants
+string src = "D:/UNITY/Laubrary Dev/.agenthq/workspace/T-0325/shots/cap.png";
+string dst = "D:/UNITY/Laubrary Dev/.agenthq/workspace/T-0325/shots/crop.png";
+int cx = 0, cy = 0, cw = 1500, ch = 520; float sc = 1.0f;
+var asm = System.Reflection.Assembly.Load("System.Drawing");
+var bmpT = asm.GetType("System.Drawing.Bitmap"); var gT = asm.GetType("System.Drawing.Graphics");
+var imgT = asm.GetType("System.Drawing.Image"); var rectT = asm.GetType("System.Drawing.Rectangle");
+var srcBmp = System.Activator.CreateInstance(bmpT, new object[]{ src });
+int sw = (int)bmpT.GetProperty("Width").GetValue(srcBmp), sh = (int)bmpT.GetProperty("Height").GetValue(srcBmp);
+if (cx<0) cx=0; if (cy<0) cy=0; if (cx+cw>sw) cw=sw-cx; if (cy+ch>sh) ch=sh-cy;
+int dw = Mathf.RoundToInt(cw*sc), dh = Mathf.RoundToInt(ch*sc);
+var outBmp = System.Activator.CreateInstance(bmpT, new object[]{ dw, dh });
+var g = gT.GetMethod("FromImage").Invoke(null, new object[]{ outBmp });
+gT.GetProperty("InterpolationMode").SetValue(g, System.Enum.Parse(asm.GetType("System.Drawing.Drawing2D.InterpolationMode"),"NearestNeighbor"));
+var dr = System.Activator.CreateInstance(rectT, new object[]{ 0,0,dw,dh });
+var sr = System.Activator.CreateInstance(rectT, new object[]{ cx,cy,cw,ch });
+var gu = asm.GetType("System.Drawing.GraphicsUnit");
+gT.GetMethod("DrawImage", new System.Type[]{ imgT, rectT, rectT, gu }).Invoke(g, new object[]{ srcBmp, dr, sr, System.Enum.Parse(gu,"Pixel") });
+bmpT.GetMethod("Save", new System.Type[]{ typeof(string) }).Invoke(outBmp, new object[]{ dst });
+return "wrote " + dst + " " + dw + "x" + dh + " src " + sw + "x" + sh;

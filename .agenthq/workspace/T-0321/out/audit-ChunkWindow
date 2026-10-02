@@ -1,0 +1,21 @@
+=== ChunkWindow ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:0.00, y:26.00, width:900.00, height:880.22) rootWorld=(x:0.00, y:26.22, width:1400.00, height:875.56)
+elements=68 drawn=48 textElements=14 controls=5 leafControls=5
+captionShort=1 overflowParentX=1 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=1
+
+-- captions --
+CAPTION 'Floating Disc Blowup' need=98.7 have=96.9 short=1.8 | VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>VisualElement>Label | cls=unity-text-element.unity-label.zui-cell__name
+-- overflow (parent) --
+OVERFLOW-X 500.0px 'None (Chunk)' (x:0.00, y:26.22, width:1400.00, height:875.56) out of (x:0.00, y:0.00, width:900.00, height:906.22) | EditorPanelRootElement#unity-panel-container9>VisualElement#rootVisualContainer10
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → No Chunk is open, so there is nothing to save.
+-- every leaf control --
+LEAF 'None (Chunk)' ObjectField rect=4,31 200.0x17.8 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=The Chunk asset being edited — assign one directly, or use Browse. | EditorPanelRootElement#unity-panel-container9>VisualElement#rootVisualContainer10>VisualElement>ObjectField
+LEAF 'Save' Button rect=232,31 52.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=No Chunk is open, so there is nothing to save. | EditorPanelRootElement#unity-panel-container9>VisualElement#rootVisualContainer10>VisualElement>Button
+LEAF 'New' Button rect=293,31 40.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a brand new Chunk asset (undoable). | EditorPanelRootElement#unity-panel-container9>VisualElement#rootVisualContainer10>VisualElement>Button
+LEAF 'Browse' Button rect=342,31 56.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Toggle the thumbnail browser of every Chunk in the project. | EditorPanelRootElement#unity-panel-container9>VisualElement#rootVisualContainer10>VisualElement>Button
+LEAF 'Refresh' Button rect=1332,61 57.8x18.2 enabled=True cls=unity-text-element.unity-button tip=Re-scan the project for assets. | EditorPanelRootElement#unity-panel-container9>VisualElement#rootVisualContainer10>VisualElement>VisualElement>Button

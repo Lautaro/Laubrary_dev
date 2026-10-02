@@ -1,0 +1,19 @@
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets window=1400 card='Canvas'
+card ZuiSection w=390.2 at 249
+
+-- static: every leaf control in reading order --
+  focusable   '96' FloatField tabIndex=0 delegatesFocus=True enabled=True at 95,279
+  focusable   '152' FloatField tabIndex=0 delegatesFocus=True enabled=True at 241,279
+  focusable   '424242' IntegerField tabIndex=0 delegatesFocus=True enabled=True at 246,322
+  focusable   '16' FloatField tabIndex=0 delegatesFocus=True enabled=True at 95,324
+  focusable   'HDR' ColorField tabIndex=0 delegatesFocus=True enabled=True at 100,343
+leafControls=5 notFocusable=0
+
+-- live: NavigationMoveEvent(Next), the event Tab raises --
+  step 0 focus='96' FloatField
+  step 1 focus='152' FloatField
+  step 2 focus='16' FloatField
+  step 3 focus='424242' IntegerField
+  step 4 focus='HDR' ColorField
+  step 5 focus='HDR' ColorField   (left the card)
+leafControls reached by Tab=5 of 5

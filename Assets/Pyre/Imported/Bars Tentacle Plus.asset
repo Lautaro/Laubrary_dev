@@ -18,6 +18,11 @@ MonoBehaviour:
   previewLayerSel: 0
   background: {r: 0, g: 0, b: 0, a: 0}
   pixelsPerUnit: 64
+  pixelsPerUnitAuto: 1
+  anchorEnabled: 0
+  anchorKind: 0
+  anchorOrigin: {x: 0.5, y: 0.5}
+  anchorDirection: {x: 1, y: 0}
   backgroundUseFill: 0
   backgroundFill:
     mode: 0

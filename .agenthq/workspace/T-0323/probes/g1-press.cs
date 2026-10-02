@@ -1,0 +1,13 @@
+var sb=new System.Text.StringBuilder();
+string wn=UnityEditor.EditorPrefs.GetString("T323.pressWin","");
+string bt=UnityEditor.EditorPrefs.GetString("T323.pressText","");
+int nth=UnityEditor.EditorPrefs.GetInt("T323.pressNth",0);
+string ap=UnityEditor.EditorPrefs.GetString("T323.pressAsset","");
+var w=ZWin(wn); if (w==null) return "no window "+wn;
+sb.Append("BEFORE ").Append(ZState(w,ap)).Append("\n");
+var b=ZFindBtn(w,bt,nth);
+if (b==null) return sb.Append("NO BUTTON '").Append(bt).Append("' #").Append(nth).Append("\n").ToString();
+sb.Append("button rect=").Append(b.worldBound).Append(" onscreen=").Append(b.worldBound.yMax<=w.position.height).Append("\n");
+ZClick(b);
+sb.Append("AFTER  ").Append(ZState(w,ap)).Append("\n");
+return sb.ToString();

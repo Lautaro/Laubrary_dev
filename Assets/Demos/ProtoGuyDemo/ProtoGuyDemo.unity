@@ -193,9 +193,6 @@ MonoBehaviour:
   - recipe: {fileID: 11400000, guid: 930b1be39ad6e4449af078af73355b8b, type: 2}
     key: 6
     label: UC6 Disc Breakup
-  - recipe: {fileID: 11400000, guid: ef6700b0a94360f479de02b76eb32956, type: 2}
-    key: 7
-    label: UC7 Bullet Hole
   restoreKey: 0
   showKeyLegend: 1
 --- !u!1 &388000100
@@ -214,7 +211,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &388000101
 Transform:
   m_ObjectHideFlags: 0
@@ -356,7 +353,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3ea71831e7a06164bb6d36ed12d62344, type: 3}
   m_Name: 
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Demos::Laubrary.Demos.ProtoGuyDemo.ProtoGuySpawner
-  zoeDef: {fileID: 11400000, guid: 274caf83063e4f9bacdde7542d2b804d, type: 2}
+  zoeDef: {fileID: 11400000, guid: 1c5498954f144c05b536646d00af6511, type: 2}
 --- !u!4 &1432643070
 Transform:
   m_ObjectHideFlags: 0

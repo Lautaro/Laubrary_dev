@@ -2,7 +2,8 @@
     "name": "com.Lautaro-Arino.Laubrary.Notifyer.Editor",
     "rootNamespace": "Laubrary.Notifyer",
     "references": [
-        "GUID:9560cbe273b2583499cfb054d469db7b"
+        "GUID:9560cbe273b2583499cfb054d469db7b",
+        "com.Lautaro-Arino.Laubrary.Zui.Editor"
     ],
     "includePlatforms": [
         "Editor"

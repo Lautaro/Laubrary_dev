@@ -1,0 +1,2155 @@
+#DOC	6	Primitives	Star	controls=241	opaqueMid=2752	layerOwnPixels=2752	kind=Primitive	deep=True	canvas=96x64	msPerFrame=7
+Star	Primitives	Primitive	Document/light	lights[0].range	yes	ZUIValue	Document/light/point	0	2752	0	0	
+Star	Primitives	Primitive	Document/light	lights[0].posZ	yes	ZUIValue	Document/light/point	0	2752	0	0	
+Star	Primitives	Primitive	Document/light	lights[0].posY	yes	ZUIValue	Document/light/point	16	2750	0	0	
+Star	Primitives	Primitive	Document/light	lights[0].posX	yes	ZUIValue	Document/light/point	16	2752	0	0	
+Star	Primitives	Primitive	Edge (border)	enabled	yes	Boolean	Edge	False	268	0	0	
+Star	Primitives	Primitive	Edge (border)	alignment	yes	ShaperShellAlignment	Edge	Centred	622	0	0	
+Star	Primitives	Primitive	Edge (border)	width	yes	ZUIValue	Edge	0	268	0	0	
+Star	Primitives	Primitive	Edge (border)	joinsCoverage	yes	Boolean	Edge		0	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.gradientMode	yes	ShaperGradientMode	Edge/fill/Gradient	Radial	1054	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.fit	yes	ShaperFillFit	Edge/fill/Gradient		0	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.gradientAngleDegrees	yes	ZUIValue	Edge/fill/Gradient	16	1024	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.gradient	yes	ZuiGradient	Edge/fill/Gradient	stop0=magenta	1075	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.space	yes	ShaperFillSpace	Edge/fill/Gradient	Fixed	947	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.gradientTint	yes	Color	Edge/fill/Gradient		0	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.quantiseLevels	yes	ZUIValue	Edge/fill/Gradient		0	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.kind	yes	ShaperFillKind	Edge/fill/Gradient	Solid	1070	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.veil	yes	ZUIValue	Edge/fill/Gradient	0	1070	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.composite	yes	ShaperFillComposite	Edge/fill/Gradient	Add	1074	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.heightDelta	yes	ZUIValue	Edge/fill/Gradient		0	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.gradientDepthPixels	yes	ZUIValue	Edge/fill/Gradient/ByEdgeDistance	0	822	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.gradientCentreX	yes	ZUIValue	Edge/fill/Gradient/Radial	16	1074	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.gradientCentreY	yes	ZUIValue	Edge/fill/Gradient/Radial	16	1074	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.gradientSize	yes	ZUIValue	Edge/fill/Gradient/Radial	0	1076	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.heightFieldTint	yes	Color	Edge/fill/HeightField	magenta	1076	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.heightFieldScale	yes	ZUIValue	Edge/fill/HeightField		0	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.stripSlots[0].color	yes	Color	Edge/fill/IndexedStrip	magenta	596	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.stripPlainColor	yes	Color	Edge/fill/IndexedStrip		0	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.stripSlots[0].height	yes	Single	Edge/fill/IndexedStrip		0	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.stripReach	yes	ZUIValue	Edge/fill/IndexedStrip	0	822	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.stripSlots[1].color	yes	Color	Edge/fill/IndexedStrip	magenta	480	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.stripOrientationDegrees	yes	ZUIValue	Edge/fill/IndexedStrip	16	106	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.stripRepeats	yes	ZUIValue	Edge/fill/IndexedStrip	16	537	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.stripSlots[1].height	yes	Single	Edge/fill/IndexedStrip		0	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.stripParameterisation	yes	ShaperStripParameterisation	Edge/fill/IndexedStrip	Projection	535	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.stripOffset	yes	ZUIValue	Edge/fill/IndexedStrip		0	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.overPhaseTint	yes	Color	Edge/fill/OverPhase		0	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.overPhaseGradient	yes	ZuiGradient	Edge/fill/OverPhase	stop0=magenta	1070	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.proceduralAngleDegrees	yes	ZUIValue	Edge/fill/Procedural	16	1057	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.proceduralOffsetV	yes	ZUIValue	Edge/fill/Procedural	16	1057	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.proceduralOffsetU	yes	ZUIValue	Edge/fill/Procedural	16	1050	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.proceduralTint	yes	Color	Edge/fill/Procedural		0	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.proceduralGradient	yes	ZuiGradient	Edge/fill/Procedural	stop0=magenta	1074	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.noiseKind	yes	ShaperNoiseKind	Edge/fill/Procedural	Ridged	1061	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.proceduralKind	yes	ShaperProceduralKind	Edge/fill/Procedural	Grid	1072	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.proceduralScale	yes	ZUIValue	Edge/fill/Procedural	0	1059	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.dotStagger	yes	Boolean	Edge/fill/Procedural/Dots	False	14	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.dotSize	yes	ZUIValue	Edge/fill/Procedural/Dots	0	72	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.gridVertical	yes	Boolean	Edge/fill/Procedural/Grid	False	30	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.gridHorizontal	yes	Boolean	Edge/fill/Procedural/Grid	False	26	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.gridLineWidth	yes	ZUIValue	Edge/fill/Procedural/Grid	0	66	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.rampTint	yes	Color	Edge/fill/RampByQuantity		0	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.rampGradient	yes	ZuiGradient	Edge/fill/RampByQuantity	stop0=magenta	518	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.rampInputLow	yes	ZUIValue	Edge/fill/RampByQuantity	16	518	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.rampQuantity	yes	ShaperQuantity	Edge/fill/RampByQuantity	Height	1076	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.rampInputHigh	yes	ZUIValue	Edge/fill/RampByQuantity	0	518	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.solidColor	yes	Color	Edge/fill/Solid	magenta	1076	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.steelGrain	yes	ZUIValue	Edge/fill/TapestrySteel	0	928	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.steelRustReachPixels	yes	ZUIValue	Edge/fill/TapestrySteel	0	822	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.steelRustAmount	yes	ZUIValue	Edge/fill/TapestrySteel	0	244	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.steelRustColor	yes	Color	Edge/fill/TapestrySteel	magenta	645	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.steelBaseHigh	yes	Color	Edge/fill/TapestrySteel	magenta	1073	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.steelBaseLow	yes	Color	Edge/fill/TapestrySteel	magenta	1069	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.steelSeed	yes	ZUIValue	Edge/fill/TapestrySteel	16	1021	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.steelOctaves	yes	ZUIValue	Edge/fill/TapestrySteel	0	997	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.steelCells	yes	ZUIValue	Edge/fill/TapestrySteel	0	1043	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.textureMapping	yes	ShaperTextureMapping	Edge/fill/Texture	Tiled	617	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.textureFrameCount	yes	ZUIValue	Edge/fill/Texture		0	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.textureFrameRows	yes	ZUIValue	Edge/fill/Texture		0	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.textureFrameColumns	yes	ZUIValue	Edge/fill/Texture		0	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.textureTint	yes	Color	Edge/fill/Texture	green a=0	1076	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.textureTilesX	yes	ZUIValue	Edge/fill/Texture		0	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.textureTilesY	yes	ZUIValue	Edge/fill/Texture		0	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.textureOffsetU	yes	ZUIValue	Edge/fill/Texture	16	538	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.textureOffsetV	yes	ZUIValue	Edge/fill/Texture	16	694	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.textureAngleDegrees	yes	ZUIValue	Edge/fill/Texture	16	337	0	0	
+Star	Primitives	Primitive	Edge (border)	fill.textureAnimated	yes	Boolean	Edge/fill/Texture		0	0	0	
+Star	Primitives	Primitive	Fill	gradientMode	yes	ShaperGradientMode	Fill/Gradient	Radial	2735	0	0	
+Star	Primitives	Primitive	Fill	quantiseLevels	yes	ZUIValue	Fill/Gradient		0	0	0	
+Star	Primitives	Primitive	Fill	kind	yes	ShaperFillKind	Fill/Gradient	Solid	2752	0	0	
+Star	Primitives	Primitive	Fill	fit	yes	ShaperFillFit	Fill/Gradient		0	0	0	
+Star	Primitives	Primitive	Fill	veil	yes	ZUIValue	Fill/Gradient	0	2752	0	0	
+Star	Primitives	Primitive	Fill	composite	yes	ShaperFillComposite	Fill/Gradient	Add	2752	0	0	
+Star	Primitives	Primitive	Fill	gradientAngleDegrees	yes	ZUIValue	Fill/Gradient	16	2663	0	0	
+Star	Primitives	Primitive	Fill	space	yes	ShaperFillSpace	Fill/Gradient	Fixed	2385	0	0	
+Star	Primitives	Primitive	Fill	gradient	yes	ZuiGradient	Fill/Gradient	stop0=magenta	2752	0	0	
+Star	Primitives	Primitive	Fill	heightDelta	yes	ZUIValue	Fill/Gradient		0	0	0	
+Star	Primitives	Primitive	Fill	gradientTint	yes	Color	Fill/Gradient		0	0	0	
+Star	Primitives	Primitive	Fill	gradientDepthPixels	yes	ZUIValue	Fill/Gradient/ByEdgeDistance	0	1922	0	0	
+Star	Primitives	Primitive	Fill	gradientSize	yes	ZUIValue	Fill/Gradient/Radial	0	2752	0	0	
+Star	Primitives	Primitive	Fill	gradientCentreY	yes	ZUIValue	Fill/Gradient/Radial	16	2750	0	0	
+Star	Primitives	Primitive	Fill	gradientCentreX	yes	ZUIValue	Fill/Gradient/Radial	16	2750	0	0	
+Star	Primitives	Primitive	Fill	heightFieldScale	yes	ZUIValue	Fill/HeightField		0	0	0	
+Star	Primitives	Primitive	Fill	heightFieldTint	yes	Color	Fill/HeightField	magenta	2752	0	0	
+Star	Primitives	Primitive	Fill	stripPlainColor	yes	Color	Fill/IndexedStrip		0	0	0	
+Star	Primitives	Primitive	Fill	stripSlots[0].color	yes	Color	Fill/IndexedStrip	magenta	1500	0	0	
+Star	Primitives	Primitive	Fill	stripParameterisation	yes	ShaperStripParameterisation	Fill/IndexedStrip	Projection	1376	0	0	
+Star	Primitives	Primitive	Fill	stripSlots[1].height	yes	Single	Fill/IndexedStrip		0	0	0	
+Star	Primitives	Primitive	Fill	stripRepeats	yes	ZUIValue	Fill/IndexedStrip	16	1385	0	0	
+Star	Primitives	Primitive	Fill	stripOrientationDegrees	yes	ZUIValue	Fill/IndexedStrip	16	246	0	0	
+Star	Primitives	Primitive	Fill	stripOffset	yes	ZUIValue	Fill/IndexedStrip		0	0	0	
+Star	Primitives	Primitive	Fill	stripReach	yes	ZUIValue	Fill/IndexedStrip	0	2584	0	0	
+Star	Primitives	Primitive	Fill	stripSlots[0].height	yes	Single	Fill/IndexedStrip		0	0	0	
+Star	Primitives	Primitive	Fill	stripSlots[1].color	yes	Color	Fill/IndexedStrip	magenta	1252	0	0	
+Star	Primitives	Primitive	Fill	overPhaseTint	yes	Color	Fill/OverPhase		0	0	0	
+Star	Primitives	Primitive	Fill	overPhaseGradient	yes	ZuiGradient	Fill/OverPhase	stop0=magenta	2752	0	0	
+Star	Primitives	Primitive	Fill	proceduralAngleDegrees	yes	ZUIValue	Fill/Procedural	16	2718	0	0	
+Star	Primitives	Primitive	Fill	proceduralScale	yes	ZUIValue	Fill/Procedural	0	2738	0	0	
+Star	Primitives	Primitive	Fill	proceduralTint	yes	Color	Fill/Procedural		0	0	0	
+Star	Primitives	Primitive	Fill	proceduralGradient	yes	ZuiGradient	Fill/Procedural	stop0=magenta	2752	0	0	
+Star	Primitives	Primitive	Fill	noiseKind	yes	ShaperNoiseKind	Fill/Procedural	Ridged	2736	0	0	
+Star	Primitives	Primitive	Fill	proceduralKind	yes	ShaperProceduralKind	Fill/Procedural	Grid	2752	0	0	
+Star	Primitives	Primitive	Fill	proceduralOffsetU	yes	ZUIValue	Fill/Procedural	16	2725	0	0	
+Star	Primitives	Primitive	Fill	proceduralOffsetV	yes	ZUIValue	Fill/Procedural	16	2727	0	0	
+Star	Primitives	Primitive	Fill	dotStagger	yes	Boolean	Fill/Procedural/Dots	False	396	0	0	
+Star	Primitives	Primitive	Fill	dotSize	yes	ZUIValue	Fill/Procedural/Dots	0	542	0	0	
+Star	Primitives	Primitive	Fill	gridHorizontal	yes	Boolean	Fill/Procedural/Grid	False	370	0	0	
+Star	Primitives	Primitive	Fill	gridVertical	yes	Boolean	Fill/Procedural/Grid	False	346	0	0	
+Star	Primitives	Primitive	Fill	gridLineWidth	yes	ZUIValue	Fill/Procedural/Grid	0	754	0	0	
+Star	Primitives	Primitive	Fill	rampQuantity	yes	ShaperQuantity	Fill/RampByQuantity	Height	2752	0	0	
+Star	Primitives	Primitive	Fill	rampGradient	yes	ZuiGradient	Fill/RampByQuantity	stop0=magenta	268	0	0	
+Star	Primitives	Primitive	Fill	rampInputHigh	yes	ZUIValue	Fill/RampByQuantity	0	268	0	0	
+Star	Primitives	Primitive	Fill	rampInputLow	yes	ZUIValue	Fill/RampByQuantity	16	268	0	0	
+Star	Primitives	Primitive	Fill	rampTint	yes	Color	Fill/RampByQuantity		0	0	0	
+Star	Primitives	Primitive	Fill	solidColor	yes	Color	Fill/Solid	magenta	2752	0	0	
+Star	Primitives	Primitive	Fill	steelGrain	yes	ZUIValue	Fill/TapestrySteel	0	2608	0	0	
+Star	Primitives	Primitive	Fill	steelRustReachPixels	yes	ZUIValue	Fill/TapestrySteel	0	2584	0	0	
+Star	Primitives	Primitive	Fill	steelRustAmount	yes	ZUIValue	Fill/TapestrySteel	0	2203	0	0	
+Star	Primitives	Primitive	Fill	steelBaseLow	yes	Color	Fill/TapestrySteel	magenta	2752	0	0	
+Star	Primitives	Primitive	Fill	steelBaseHigh	yes	Color	Fill/TapestrySteel	magenta	2752	0	0	
+Star	Primitives	Primitive	Fill	steelSeed	yes	ZUIValue	Fill/TapestrySteel	16	2700	0	0	
+Star	Primitives	Primitive	Fill	steelOctaves	yes	ZUIValue	Fill/TapestrySteel	0	2668	0	0	
+Star	Primitives	Primitive	Fill	steelCells	yes	ZUIValue	Fill/TapestrySteel	0	2733	0	0	
+Star	Primitives	Primitive	Fill	steelRustColor	yes	Color	Fill/TapestrySteel	magenta	2527	0	0	
+Star	Primitives	Primitive	Fill	textureMapping	yes	ShaperTextureMapping	Fill/Texture	Tiled	1477	0	0	
+Star	Primitives	Primitive	Fill	textureTilesX	yes	ZUIValue	Fill/Texture		0	0	0	
+Star	Primitives	Primitive	Fill	textureTilesY	yes	ZUIValue	Fill/Texture		0	0	0	
+Star	Primitives	Primitive	Fill	textureOffsetU	yes	ZUIValue	Fill/Texture	16	1376	0	0	
+Star	Primitives	Primitive	Fill	textureOffsetV	yes	ZUIValue	Fill/Texture	16	1592	0	0	
+Star	Primitives	Primitive	Fill	textureAngleDegrees	yes	ZUIValue	Fill/Texture	16	697	0	0	
+Star	Primitives	Primitive	Fill	textureTint	yes	Color	Fill/Texture	green a=0	2752	0	0	
+Star	Primitives	Primitive	Fill	textureAnimated	yes	Boolean	Fill/Texture		0	0	0	
+Star	Primitives	Primitive	Fill	textureFrameColumns	yes	ZUIValue	Fill/Texture		0	0	0	
+Star	Primitives	Primitive	Fill	textureFrameRows	yes	ZUIValue	Fill/Texture		0	0	0	
+Star	Primitives	Primitive	Fill	textureFrameCount	yes	ZUIValue	Fill/Texture		0	0	0	
+Star	Primitives	Primitive	Layer/height	steps	yes	ZUIValue	Layer/height		0	0	0	
+Star	Primitives	Primitive	Layer/height	angle	yes	ZUIValue	Layer/height	0	2423	0	0	
+Star	Primitives	Primitive	Layer/height	depth	yes	ZUIValue	Layer/height	0	2402	0	0	
+Star	Primitives	Primitive	Layer/height	technique	yes	ShaperExtrusionTechnique	Layer/height	Flat	2141	0	0	
+Star	Primitives	Primitive	Layer/height	bevel	yes	ShaperBevelTechnique	Layer/height	None	2402	0	0	
+Star	Primitives	Primitive	Layer/height	taper	yes	ZUIValue	Layer/height		0	0	0	
+Star	Primitives	Primitive	Layer/height	bevelSteps	yes	ZUIValue	Layer/height		0	0	0	
+Star	Primitives	Primitive	Layer/height	curve	yes	ZUIValue	Layer/height		0	0	0	
+Star	Primitives	Primitive	Layer/height	bevelAmount	yes	ZUIValue	Layer/height	0	2402	0	0	
+Star	Primitives	Primitive	Layer/mask	sourceLayerId	yes	Int32	Layer/mask	0	2	0	0	
+Star	Primitives	Primitive	Layer/mask	mode	yes	ShaperMaskMode	Layer/mask	Subtract	2752	0	0	
+Star	Primitives	Primitive	Layer/mask	quantity	yes	ShaperMaskQuantity	Layer/mask	EdgeDistance	4	0	0	
+Star	Primitives	Primitive	Layer/mask	fullAt	yes	ZUIValue	Layer/mask		0	0	0	
+Star	Primitives	Primitive	Layer/mask	invert	yes	Boolean	Layer/mask	True	2752	0	0	
+Star	Primitives	Primitive	Position	originY	yes	ZUIValue	Position/pivot	16	1233	0	0	
+Star	Primitives	Primitive	Position	originX	yes	ZUIValue	Position/pivot	16	2496	0	0	
+Star	Primitives	Primitive	Shell	enabled	yes	Boolean	Shell	False	3008	0	0	
+Star	Primitives	Primitive	Shell	thicknessDial	yes	ZUIValue	Shell	0	1346	0	0	
+Star	Primitives	Primitive	Shell	alignment	yes	ShaperShellAlignment	Shell	Inward	1604	0	0	
+Star	Primitives	Primitive	Swarm	spawnTiming	yes	ZUIValue	Swarm		0	0	0	
+Star	Primitives	Primitive	Swarm	interact	yes	Boolean	Swarm		0	0	0	
+Star	Primitives	Primitive	Swarm	merge.carveStrengthDial	yes	ZUIValue	Swarm		0	0	0	
+Star	Primitives	Primitive	Swarm	merge.widthDial	yes	ZUIValue	Swarm	16	705	0	0	
+Star	Primitives	Primitive	Swarm	enabled	yes	Boolean	Swarm	False	2224	0	0	
+Star	Primitives	Primitive	Swarm	count	yes	Int32	Swarm	1	2224	0	0	
+Star	Primitives	Primitive	Swarm	positionJitterX	yes	ZUIValue	Swarm	0	1623	0	0	
+Star	Primitives	Primitive	Swarm	positionJitterY	yes	ZUIValue	Swarm	0	1317	0	0	
+Star	Primitives	Primitive	Swarm	rotationJitterDegreesDial	yes	ZUIValue	Swarm	16	1117	0	0	
+Star	Primitives	Primitive	Swarm	scaleJitterDial	yes	ZUIValue	Swarm	16	1551	0	0	
+Star	Primitives	Primitive	Swarm	lifetimeStagger	yes	Single	Swarm		0	0	0	
+Star	Primitives	Primitive	Swarm	shape	yes	ShaperSwarmShape	Swarm	None	1965	0	0	
+Star	Primitives	Primitive	Swarm	spawnMode	yes	ShaperSwarmSpawnMode	Swarm	Path	1668	0	0	
+Star	Primitives	Primitive	Swarm	spawnerRadius	yes	ZUIValue	Swarm	0	1965	0	0	
+Star	Primitives	Primitive	Swarm	timing	yes	ShaperSwarmTiming	Swarm	Window	3551	0	0	
+Star	Primitives	Primitive	Swarm	scaleByIndex	yes	ZUIValue	Swarm	0	4661	0	0	
+Star	Primitives	Primitive	Swarm	orient	yes	ShaperSwarmOrient	Swarm	Outward	1323	0	0	
+Star	Primitives	Primitive	Swarm	spawnPhaseStep	yes	Single	Swarm		0	0	0	
+Star	Primitives	Primitive	Swarm	instanceLife	yes	Single	Swarm		0	0	0	
+Star	Primitives	Primitive	Swarm	dieTogether	yes	Boolean	Swarm		0	0	0	
+Star	Primitives	Primitive	Swarm	firstSpawnPhase	yes	Single	Swarm		0	0	0	
+Star	Primitives	Primitive	Swarm	spawnOrderChaos	yes	Single	Swarm	1	1731	0	0	
+Star	Primitives	Primitive	Swarm	distribution	yes	Single	Swarm	1	1936	0	0	
+Star	Primitives	Primitive	Swarm	spawnerYawDegrees	yes	ZUIValue	Swarm	16	422	0	0	
+Star	Primitives	Primitive	Swarm	spawnerPitchDegrees	yes	ZUIValue	Swarm	16	273	0	0	
+Star	Primitives	Primitive	Swarm	spawnerRotationDegrees	yes	ZUIValue	Swarm	16	1280	0	0	
+Star	Primitives	Primitive	Swarm	spawnerOffsetY	yes	ZUIValue	Swarm	16	1702	0	0	
+Star	Primitives	Primitive	Swarm	spawnerOffsetX	yes	ZUIValue	Swarm	16	1861	0	0	
+Star	Primitives	Primitive	Swarm	gridReverse	yes	Boolean	Swarm		0	0	0	
+Star	Primitives	Primitive	Swarm	merge.sharpnessDial	yes	ZUIValue	Swarm		0	0	0	
+Star	Primitives	Primitive	Swarm	pathProgress	yes	ZUIValue	Swarm/path	16	4	0	0	
+Star	Primitives	Primitive	Swarm	pathSpread	yes	Single	Swarm/path	0	1857	0	0	
+Star	Primitives	Primitive	Swarm	evenSpacing	yes	Boolean	Swarm/path	False	1857	0	0	
+Star	Primitives	Primitive	Sweep	startFractionDial	yes	ZUIValue	Sweep		0	0	0	
+Star	Primitives	Primitive	Sweep	startDegreesDial	yes	ZUIValue	Sweep	16	278	0	0	
+Star	Primitives	Primitive	Sweep	extentDegreesDial	yes	ZUIValue	Sweep	0	973	0	0	
+Star	Primitives	Primitive	Sweep	extentFractionDial	yes	ZUIValue	Sweep		0	0	0	
+Star	Primitives	Primitive	Sweep	enabled	yes	Boolean	Sweep/off		0	0	0	
+Star	Primitives	Primitive	Layer/lighting	receiveShadows	yes	Boolean	base		0	0	0	
+Star	Primitives	Primitive	Layer/lighting	rimStrength	yes	ZUIValue	base		0	0	0	
+Star	Primitives	Primitive	Layer/lighting	specular	yes	ZUIValue	base	16	2752	0	0	
+Star	Primitives	Primitive	Layer/lighting	specularPower	yes	ZUIValue	base	0	2752	0	0	
+Star	Primitives	Primitive	Layer/lighting	specularTint	yes	Color	base		0	0	0	
+Star	Primitives	Primitive	Layer/lighting	normalKind	yes	ShaperNormalKind	base		0	0	0	
+Star	Primitives	Primitive	Layer/lighting	normalConstant	yes	Vector3	base		0	0	0	
+Star	Primitives	Primitive	Layer/lighting	rimPower	yes	ZUIValue	base		0	0	0	
+Star	Primitives	Primitive	Document/light	lights[0].yaw	yes	ZUIValue	base	0	2752	0	0	
+Star	Primitives	Primitive	Document/light	lights[0].intensity	yes	ZUIValue	base	0	2752	0	0	
+Star	Primitives	Primitive	Document/light	lights[0].colour	yes	Color	base	magenta	2752	0	0	
+Star	Primitives	Primitive	Document/light	lights[0].kind	yes	ShaperLightKind	base	Point	2752	0	0	
+Star	Primitives	Primitive	Document/light	lights[0].enabled	yes	Boolean	base	False	2752	0	0	
+Star	Primitives	Primitive	Document/light	ambientIntensity	yes	ZUIValue	base	0	2752	0	0	
+Star	Primitives	Primitive	Document/light	ambientColour	yes	Color	base	magenta	2752	0	0	
+Star	Primitives	Primitive	Document/light	lights[0].pitch	yes	ZUIValue	base	0	2752	0	0	
+Star	Primitives	Primitive	Layer/lighting	castShadows	yes	Boolean	base		0	0	0	
+Star	Primitives	Primitive	Shape/primitive	kind	yes	ShaperPrimitiveKind	base	Rect	1508	0	0	
+Star	Primitives	Primitive	Layer/lighting	receiveLighting	yes	Boolean	base	False	2752	0	0	
+Star	Primitives	Primitive	Shape/primitive	starArms	yes	Int32	base	2	1590	0	0	
+Star	Primitives	Primitive	Shape/primitive	starRadiusDial	yes	ZUIValue	base	0	2752	0	0	
+Star	Primitives	Primitive	Shape/primitive	starLength	yes	ZUIValue	base	0	3276	0	0	
+Star	Primitives	Primitive	Shape/primitive	starBaseWidth	yes	ZUIValue	base	0	1796	0	0	
+Star	Primitives	Primitive	Shape/primitive	starSkew	yes	ZUIValue	base	16	738	0	0	
+Star	Primitives	Primitive	Position	translateX	yes	ZUIValue	base	16	2398	0	0	
+Star	Primitives	Primitive	Position	translateY	yes	ZUIValue	base	16	2646	0	0	
+Star	Primitives	Primitive	Position	rotationDegrees	yes	ZUIValue	base	16	1812	0	0	
+Star	Primitives	Primitive	Position	scaleX	yes	ZUIValue	base	0	2752	0	0	
+Star	Primitives	Primitive	Position	scaleY	yes	ZUIValue	base	0	2752	0	0	
+Star	Primitives	Primitive	Position	skewX	yes	ZUIValue	base	16	1033	0	0	
+Star	Primitives	Primitive	Position	skewY	yes	ZUIValue	base	16	1318	0	0	
+Star	Primitives	Primitive	Layer	enabled	yes	Boolean	base	False	2752	0	0	
+Star	Primitives	Primitive	Layer	zOffset	yes	ZUIValue	base		0	0	0	
+Star	Primitives	Primitive	Layer	startFrame	yes	Int32	base	16	2752	0	0	
+Star	Primitives	Primitive	Layer	endFrame	yes	Int32	base	0	2752	0	0	
+Star	Primitives	Primitive	Layer	contributesToPicture	yes	Boolean	base	False	2752	0	0	
+Star	Primitives	Primitive	Document	layerSpacing	yes	Single	base		0	0	0	
+Star	Primitives	Primitive	Document	background	yes	Color	base	magenta	3660	0	0	
+Star	Primitives	Primitive	Layer/lighting	intensityScale	yes	ZUIValue	base	0	2752	0	0	
+Star	Primitives	Primitive	Document/light	lights[0].specular	yes	ZUIValue	base	16	2752	0	0	
+#DOC	9	Solids	Box	controls=78	opaqueMid=2000	layerOwnPixels=2000	kind=Solid	deep=False	canvas=96x64	msPerFrame=5
+Box	Solids	Solid	Fill	veil	yes	ZUIValue	Fill/Solid	0	2000	0	0	
+Box	Solids	Solid	Fill	solidColor	yes	Color	Fill/Solid	magenta	1748	0	0	
+Box	Solids	Solid	Position	originY	ABSENT	ZUIValue	Position/pivot	16	2684	0	0	
+Box	Solids	Solid	Position	originX	ABSENT	ZUIValue	Position/pivot	16	3335	0	0	
+Box	Solids	Solid	Shell	enabled	ABSENT	Boolean	Shell		0	0	0	
+Box	Solids	Solid	Shell	thicknessDial	ABSENT	ZUIValue	Shell		0	0	0	
+Box	Solids	Solid	Shell	alignment	ABSENT	ShaperShellAlignment	Shell		0	0	0	
+Box	Solids	Solid	Swarm	spawnPhaseStep	yes	Single	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	interact	yes	Boolean	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	enabled	yes	Boolean	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	count	yes	Int32	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	merge.carveStrengthDial	yes	ZUIValue	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	positionJitterY	yes	ZUIValue	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	rotationJitterDegreesDial	yes	ZUIValue	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	merge.sharpnessDial	yes	ZUIValue	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	merge.widthDial	yes	ZUIValue	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	scaleJitterDial	yes	ZUIValue	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	lifetimeStagger	yes	Single	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	shape	yes	ShaperSwarmShape	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	spawnMode	yes	ShaperSwarmSpawnMode	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	instanceLife	yes	Single	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	spawnerRadius	yes	ZUIValue	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	spawnerOffsetY	yes	ZUIValue	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	spawnerRotationDegrees	yes	ZUIValue	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	dieTogether	yes	Boolean	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	spawnerYawDegrees	yes	ZUIValue	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	distribution	yes	Single	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	gridReverse	yes	Boolean	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	spawnOrderChaos	yes	Single	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	orient	yes	ShaperSwarmOrient	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	scaleByIndex	yes	ZUIValue	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	timing	yes	ShaperSwarmTiming	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	spawnTiming	yes	ZUIValue	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	firstSpawnPhase	yes	Single	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	spawnerOffsetX	yes	ZUIValue	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	spawnerPitchDegrees	yes	ZUIValue	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	positionJitterX	yes	ZUIValue	Swarm		0	0	0	
+Box	Solids	Solid	Swarm	pathSpread	yes	Single	Swarm/path		0	0	0	
+Box	Solids	Solid	Swarm	evenSpacing	yes	Boolean	Swarm/path		0	0	0	
+Box	Solids	Solid	Swarm	pathProgress	yes	ZUIValue	Swarm/path		0	0	0	
+Box	Solids	Solid	Sweep	startFractionDial	ABSENT	ZUIValue	Sweep		0	0	0	
+Box	Solids	Solid	Sweep	extentDegreesDial	ABSENT	ZUIValue	Sweep		0	0	0	
+Box	Solids	Solid	Sweep	startDegreesDial	ABSENT	ZUIValue	Sweep		0	0	0	
+Box	Solids	Solid	Sweep	extentFractionDial	ABSENT	ZUIValue	Sweep		0	0	0	
+Box	Solids	Solid	Sweep	enabled	ABSENT	Boolean	Sweep/off		0	0	0	
+Box	Solids	Solid	Shape/solid	gemSides	yes	ZUIValue	base		0	0	0	
+Box	Solids	Solid	Shape/solid	depth	yes	ZUIValue	base	0	1495	0	0	
+Box	Solids	Solid	Shape/solid	aspect	yes	ZUIValue	base	0	2000	0	0	
+Box	Solids	Solid	Shape/solid	centreY	yes	ZUIValue	base	16	1798	0	0	
+Box	Solids	Solid	Shape/solid	size	yes	ZUIValue	base	0	2000	0	0	
+Box	Solids	Solid	Shape/solid	gemCrown	yes	ZUIValue	base		0	0	0	
+Box	Solids	Solid	Layer	enabled	yes	Boolean	base	False	2000	0	0	
+Box	Solids	Solid	Layer	zOffset	yes	ZUIValue	base		0	0	0	
+#DOC	10	Solids	Pyramid	controls=254	opaqueMid=900	layerOwnPixels=900	kind=Solid	deep=True	canvas=96x64	msPerFrame=4
+Box	Solids	Solid	Layer	startFrame	yes	Int32	base	16	2000	0	0	
+Box	Solids	Solid	Layer	endFrame	yes	Int32	base	0	2000	0	0	
+Box	Solids	Solid	Layer	contributesToPicture	yes	Boolean	base	False	2000	0	0	
+Box	Solids	Solid	Document	layerSpacing	yes	Single	base		0	0	0	
+Box	Solids	Solid	Document	background	yes	Color	base	magenta	4144	0	0	
+Box	Solids	Solid	Shape/solid	centreX	yes	ZUIValue	base	16	2052	0	0	
+Box	Solids	Solid	Shape/solid	gemPavilion	yes	ZUIValue	base		0	0	0	
+Box	Solids	Solid	Shape/solid	roll	yes	ZUIValue	base	16	1558	0	0	
+Box	Solids	Solid	Shape/solid	yaw	yes	ZUIValue	base	16	2343	0	0	
+Box	Solids	Solid	Position	skewY	ABSENT	ZUIValue	base	16	1629	0	0	
+Box	Solids	Solid	Position	skewX	ABSENT	ZUIValue	base	16	820	0	0	
+Box	Solids	Solid	Position	scaleY	ABSENT	ZUIValue	base	16	1438	0	0	
+Box	Solids	Solid	Position	scaleX	ABSENT	ZUIValue	base	16	6144	0	0	
+Box	Solids	Solid	Position	rotationDegrees	ABSENT	ZUIValue	base	16	1558	0	0	
+Box	Solids	Solid	Position	translateY	ABSENT	ZUIValue	base	16	1798	0	0	
+Box	Solids	Solid	Shape/solid	ringInner	yes	ZUIValue	base		0	0	0	
+Box	Solids	Solid	Position	translateX	ABSENT	ZUIValue	base	16	2052	0	0	
+Box	Solids	Solid	Shape/solid	innerGlow	yes	ZUIValue	base	0	1640	0	0	
+Box	Solids	Solid	Shape/solid	edgeGlowColour	yes	Color	base	magenta	804	0	0	
+Box	Solids	Solid	Shape/solid	edgeGlow	yes	ZUIValue	base	0	804	0	0	
+Box	Solids	Solid	Shape/solid	lineColour	yes	Color	base	magenta	252	0	0	
+Box	Solids	Solid	Shape/solid	lineWidth	yes	ZUIValue	base	16	1592	0	0	
+Box	Solids	Solid	Shape/solid	tilt	yes	ZUIValue	base	0	2000	0	0	
+Box	Solids	Solid	Shape/solid	innerGlowColour	yes	Color	base	magenta	1640	0	0	
+Box	Solids	Solid	Shape/solid	form	yes	ShaperSolidForm	base	Pyramid	2000	0	0	
+Pyramid	Solids	Solid	Document/light	lights[0].range	yes	ZUIValue	Document/light/point	0	644	0	0	
+Pyramid	Solids	Solid	Document/light	lights[0].posZ	yes	ZUIValue	Document/light/point	0	644	0	0	
+Pyramid	Solids	Solid	Document/light	lights[0].posY	yes	ZUIValue	Document/light/point	16	872	0	0	
+Pyramid	Solids	Solid	Document/light	lights[0].posX	yes	ZUIValue	Document/light/point	16	766	0	0	
+Pyramid	Solids	Solid	Edge (border)	enabled	yes	Boolean	Edge		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	alignment	yes	ShaperShellAlignment	Edge		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	width	yes	ZUIValue	Edge		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	joinsCoverage	yes	Boolean	Edge		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.gradientMode	yes	ShaperGradientMode	Edge/fill/Gradient		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.fit	yes	ShaperFillFit	Edge/fill/Gradient		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.gradientAngleDegrees	yes	ZUIValue	Edge/fill/Gradient		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.gradient	yes	ZuiGradient	Edge/fill/Gradient		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.space	yes	ShaperFillSpace	Edge/fill/Gradient		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.gradientTint	yes	Color	Edge/fill/Gradient		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.quantiseLevels	yes	ZUIValue	Edge/fill/Gradient		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.kind	yes	ShaperFillKind	Edge/fill/Gradient		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.veil	yes	ZUIValue	Edge/fill/Gradient		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.composite	yes	ShaperFillComposite	Edge/fill/Gradient		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.heightDelta	yes	ZUIValue	Edge/fill/Gradient		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.gradientDepthPixels	yes	ZUIValue	Edge/fill/Gradient/ByEdgeDistance		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.gradientCentreX	yes	ZUIValue	Edge/fill/Gradient/Radial		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.gradientCentreY	yes	ZUIValue	Edge/fill/Gradient/Radial		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.gradientSize	yes	ZUIValue	Edge/fill/Gradient/Radial		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.heightFieldTint	yes	Color	Edge/fill/HeightField		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.heightFieldScale	yes	ZUIValue	Edge/fill/HeightField		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.stripSlots[0].color	yes	Color	Edge/fill/IndexedStrip		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.stripPlainColor	yes	Color	Edge/fill/IndexedStrip		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.stripSlots[0].height	yes	Single	Edge/fill/IndexedStrip		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.stripReach	yes	ZUIValue	Edge/fill/IndexedStrip		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.stripSlots[1].color	yes	Color	Edge/fill/IndexedStrip		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.stripOrientationDegrees	yes	ZUIValue	Edge/fill/IndexedStrip		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.stripRepeats	yes	ZUIValue	Edge/fill/IndexedStrip		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.stripSlots[1].height	yes	Single	Edge/fill/IndexedStrip		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.stripParameterisation	yes	ShaperStripParameterisation	Edge/fill/IndexedStrip		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.stripOffset	yes	ZUIValue	Edge/fill/IndexedStrip		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.overPhaseTint	yes	Color	Edge/fill/OverPhase		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.overPhaseGradient	yes	ZuiGradient	Edge/fill/OverPhase		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.proceduralAngleDegrees	yes	ZUIValue	Edge/fill/Procedural		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.proceduralOffsetV	yes	ZUIValue	Edge/fill/Procedural		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.proceduralOffsetU	yes	ZUIValue	Edge/fill/Procedural		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.proceduralTint	yes	Color	Edge/fill/Procedural		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.proceduralGradient	yes	ZuiGradient	Edge/fill/Procedural		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.noiseKind	yes	ShaperNoiseKind	Edge/fill/Procedural		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.proceduralKind	yes	ShaperProceduralKind	Edge/fill/Procedural		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.proceduralScale	yes	ZUIValue	Edge/fill/Procedural		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.dotStagger	yes	Boolean	Edge/fill/Procedural/Dots		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.dotSize	yes	ZUIValue	Edge/fill/Procedural/Dots		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.gridVertical	yes	Boolean	Edge/fill/Procedural/Grid		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.gridHorizontal	yes	Boolean	Edge/fill/Procedural/Grid		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.gridLineWidth	yes	ZUIValue	Edge/fill/Procedural/Grid		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.rampTint	yes	Color	Edge/fill/RampByQuantity		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.rampQuantity	yes	ShaperQuantity	Edge/fill/RampByQuantity		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.rampInputLow	yes	ZUIValue	Edge/fill/RampByQuantity		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.rampGradient	yes	ZuiGradient	Edge/fill/RampByQuantity		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.rampInputHigh	yes	ZUIValue	Edge/fill/RampByQuantity		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.solidColor	yes	Color	Edge/fill/Solid		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.steelGrain	yes	ZUIValue	Edge/fill/TapestrySteel		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.steelRustReachPixels	yes	ZUIValue	Edge/fill/TapestrySteel		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.steelRustAmount	yes	ZUIValue	Edge/fill/TapestrySteel		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.steelRustColor	yes	Color	Edge/fill/TapestrySteel		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.steelBaseHigh	yes	Color	Edge/fill/TapestrySteel		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.steelBaseLow	yes	Color	Edge/fill/TapestrySteel		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.steelSeed	yes	ZUIValue	Edge/fill/TapestrySteel		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.steelOctaves	yes	ZUIValue	Edge/fill/TapestrySteel		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.steelCells	yes	ZUIValue	Edge/fill/TapestrySteel		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.textureFrameCount	yes	ZUIValue	Edge/fill/Texture		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.textureMapping	yes	ShaperTextureMapping	Edge/fill/Texture		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.textureFrameColumns	yes	ZUIValue	Edge/fill/Texture		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.textureFrameRows	yes	ZUIValue	Edge/fill/Texture		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.textureTilesX	yes	ZUIValue	Edge/fill/Texture		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.textureTilesY	yes	ZUIValue	Edge/fill/Texture		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.textureOffsetU	yes	ZUIValue	Edge/fill/Texture		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.textureAngleDegrees	yes	ZUIValue	Edge/fill/Texture		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.textureTint	yes	Color	Edge/fill/Texture		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.textureOffsetV	yes	ZUIValue	Edge/fill/Texture		0	0	0	
+Pyramid	Solids	Solid	Edge (border)	fill.textureAnimated	yes	Boolean	Edge/fill/Texture		0	0	0	
+Pyramid	Solids	Solid	Fill	gradient	yes	ZuiGradient	Fill/Gradient	stop0=magenta	624	0	0	
+Pyramid	Solids	Solid	Fill	gradientAngleDegrees	yes	ZUIValue	Fill/Gradient	16	606	0	0	
+Pyramid	Solids	Solid	Fill	gradientTint	yes	Color	Fill/Gradient		0	0	0	
+Pyramid	Solids	Solid	Fill	gradientMode	yes	ShaperGradientMode	Fill/Gradient	Radial	619	0	0	
+Pyramid	Solids	Solid	Fill	quantiseLevels	yes	ZUIValue	Fill/Gradient		0	0	0	
+Pyramid	Solids	Solid	Fill	fit	yes	ShaperFillFit	Fill/Gradient		0	0	0	
+Pyramid	Solids	Solid	Fill	composite	yes	ShaperFillComposite	Fill/Gradient	Add	900	0	0	
+Pyramid	Solids	Solid	Fill	heightDelta	yes	ZUIValue	Fill/Gradient		0	0	0	
+Pyramid	Solids	Solid	Fill	veil	yes	ZUIValue	Fill/Gradient	0	900	0	0	
+Pyramid	Solids	Solid	Fill	kind	yes	ShaperFillKind	Fill/Gradient	Solid	624	0	0	
+Pyramid	Solids	Solid	Fill	space	yes	ShaperFillSpace	Fill/Gradient	Fixed	624	0	0	
+Pyramid	Solids	Solid	Fill	gradientDepthPixels	yes	ZUIValue	Fill/Gradient/ByEdgeDistance	0	452	0	0	
+Pyramid	Solids	Solid	Fill	gradientCentreX	yes	ZUIValue	Fill/Gradient/Radial	16	618	0	0	
+Pyramid	Solids	Solid	Fill	gradientCentreY	yes	ZUIValue	Fill/Gradient/Radial	16	618	0	0	
+Pyramid	Solids	Solid	Fill	gradientSize	yes	ZUIValue	Fill/Gradient/Radial	0	624	0	0	
+Pyramid	Solids	Solid	Fill	heightFieldTint	yes	Color	Fill/HeightField	magenta	624	0	0	
+Pyramid	Solids	Solid	Fill	heightFieldScale	yes	ZUIValue	Fill/HeightField	0	87	0	0	
+Pyramid	Solids	Solid	Fill	stripParameterisation	yes	ShaperStripParameterisation	Fill/IndexedStrip	Projection	312	0	0	
+Pyramid	Solids	Solid	Fill	stripSlots[0].color	yes	Color	Fill/IndexedStrip	magenta	228	0	0	
+Pyramid	Solids	Solid	Fill	stripSlots[0].height	yes	Single	Fill/IndexedStrip		0	0	0	
+Pyramid	Solids	Solid	Fill	stripSlots[1].color	yes	Color	Fill/IndexedStrip	magenta	396	0	0	
+Pyramid	Solids	Solid	Fill	stripSlots[1].height	yes	Single	Fill/IndexedStrip		0	0	0	
+Pyramid	Solids	Solid	Fill	stripOrientationDegrees	yes	ZUIValue	Fill/IndexedStrip	16	66	0	0	
+Pyramid	Solids	Solid	Fill	stripOffset	yes	ZUIValue	Fill/IndexedStrip		0	0	0	
+Pyramid	Solids	Solid	Fill	stripReach	yes	ZUIValue	Fill/IndexedStrip	0	624	0	0	
+Pyramid	Solids	Solid	Fill	stripPlainColor	yes	Color	Fill/IndexedStrip		0	0	0	
+Pyramid	Solids	Solid	Fill	stripRepeats	yes	ZUIValue	Fill/IndexedStrip	16	316	0	0	
+Pyramid	Solids	Solid	Fill	overPhaseGradient	yes	ZuiGradient	Fill/OverPhase	stop0=magenta	624	0	0	
+Pyramid	Solids	Solid	Fill	overPhaseTint	yes	Color	Fill/OverPhase		0	0	0	
+Pyramid	Solids	Solid	Fill	proceduralTint	yes	Color	Fill/Procedural		0	0	0	
+Pyramid	Solids	Solid	Fill	proceduralAngleDegrees	yes	ZUIValue	Fill/Procedural	16	619	0	0	
+Pyramid	Solids	Solid	Fill	proceduralOffsetV	yes	ZUIValue	Fill/Procedural	16	623	0	0	
+Pyramid	Solids	Solid	Fill	proceduralOffsetU	yes	ZUIValue	Fill/Procedural	16	623	0	0	
+Pyramid	Solids	Solid	Fill	proceduralScale	yes	ZUIValue	Fill/Procedural	0	622	0	0	
+Pyramid	Solids	Solid	Fill	proceduralGradient	yes	ZuiGradient	Fill/Procedural	stop0=magenta	624	0	0	
+Pyramid	Solids	Solid	Fill	proceduralKind	yes	ShaperProceduralKind	Fill/Procedural	Grid	900	0	0	
+Pyramid	Solids	Solid	Fill	noiseKind	yes	ShaperNoiseKind	Fill/Procedural	Ridged	622	0	0	
+Pyramid	Solids	Solid	Fill	dotSize	yes	ZUIValue	Fill/Procedural/Dots	0	124	0	0	
+Pyramid	Solids	Solid	Fill	dotStagger	yes	Boolean	Fill/Procedural/Dots	False	156	0	0	
+Pyramid	Solids	Solid	Fill	gridLineWidth	yes	ZUIValue	Fill/Procedural/Grid	0	340	0	0	
+Pyramid	Solids	Solid	Fill	gridVertical	yes	Boolean	Fill/Procedural/Grid	False	144	0	0	
+Pyramid	Solids	Solid	Fill	gridHorizontal	yes	Boolean	Fill/Procedural/Grid	False	160	0	0	
+Pyramid	Solids	Solid	Fill	rampInputHigh	yes	ZUIValue	Fill/RampByQuantity	16	624	0	0	
+Pyramid	Solids	Solid	Fill	rampInputLow	yes	ZUIValue	Fill/RampByQuantity		0	0	0	
+Pyramid	Solids	Solid	Fill	rampQuantity	yes	ShaperQuantity	Fill/RampByQuantity	Height	624	0	0	
+Pyramid	Solids	Solid	Fill	rampTint	yes	Color	Fill/RampByQuantity		0	0	0	
+Pyramid	Solids	Solid	Fill	rampGradient	yes	ZuiGradient	Fill/RampByQuantity		0	0	0	
+Pyramid	Solids	Solid	Fill	solidColor	yes	Color	Fill/Solid	magenta	624	0	0	
+Pyramid	Solids	Solid	Fill	steelBaseLow	yes	Color	Fill/TapestrySteel	magenta	624	0	0	
+Pyramid	Solids	Solid	Fill	steelSeed	yes	ZUIValue	Fill/TapestrySteel	16	617	0	0	
+Pyramid	Solids	Solid	Fill	steelOctaves	yes	ZUIValue	Fill/TapestrySteel	0	603	0	0	
+Pyramid	Solids	Solid	Fill	steelCells	yes	ZUIValue	Fill/TapestrySteel	0	617	0	0	
+Pyramid	Solids	Solid	Fill	steelRustAmount	yes	ZUIValue	Fill/TapestrySteel	0	565	0	0	
+Pyramid	Solids	Solid	Fill	steelRustReachPixels	yes	ZUIValue	Fill/TapestrySteel	0	624	0	0	
+Pyramid	Solids	Solid	Fill	steelGrain	yes	ZUIValue	Fill/TapestrySteel	0	577	0	0	
+Pyramid	Solids	Solid	Fill	steelRustColor	yes	Color	Fill/TapestrySteel	magenta	624	0	0	
+Pyramid	Solids	Solid	Fill	steelBaseHigh	yes	Color	Fill/TapestrySteel	magenta	624	0	0	
+Pyramid	Solids	Solid	Fill	textureMapping	yes	ShaperTextureMapping	Fill/Texture	Tiled	318	0	0	
+Pyramid	Solids	Solid	Fill	textureTilesY	yes	ZUIValue	Fill/Texture		0	0	0	
+Pyramid	Solids	Solid	Fill	textureOffsetU	yes	ZUIValue	Fill/Texture	16	312	0	0	
+Pyramid	Solids	Solid	Fill	textureOffsetV	yes	ZUIValue	Fill/Texture	16	268	0	0	
+Pyramid	Solids	Solid	Fill	textureAngleDegrees	yes	ZUIValue	Fill/Texture	16	207	0	0	
+Pyramid	Solids	Solid	Fill	textureTint	yes	Color	Fill/Texture	green a=0	624	0	0	
+Pyramid	Solids	Solid	Fill	textureAnimated	yes	Boolean	Fill/Texture		0	0	0	
+Pyramid	Solids	Solid	Fill	textureFrameColumns	yes	ZUIValue	Fill/Texture		0	0	0	
+Pyramid	Solids	Solid	Fill	textureFrameRows	yes	ZUIValue	Fill/Texture		0	0	0	
+Pyramid	Solids	Solid	Fill	textureFrameCount	yes	ZUIValue	Fill/Texture		0	0	0	
+Pyramid	Solids	Solid	Fill	textureTilesX	yes	ZUIValue	Fill/Texture		0	0	0	
+Pyramid	Solids	Solid	Layer/height	technique	yes	ShaperExtrusionTechnique	Layer/height		0	0	0	
+Pyramid	Solids	Solid	Layer/height	angle	yes	ZUIValue	Layer/height		0	0	0	
+Pyramid	Solids	Solid	Layer/height	depth	yes	ZUIValue	Layer/height		0	0	0	
+Pyramid	Solids	Solid	Layer/height	bevelSteps	yes	ZUIValue	Layer/height		0	0	0	
+Pyramid	Solids	Solid	Layer/height	steps	yes	ZUIValue	Layer/height		0	0	0	
+Pyramid	Solids	Solid	Layer/height	curve	yes	ZUIValue	Layer/height		0	0	0	
+Pyramid	Solids	Solid	Layer/height	taper	yes	ZUIValue	Layer/height		0	0	0	
+Pyramid	Solids	Solid	Layer/height	bevelAmount	yes	ZUIValue	Layer/height		0	0	0	
+Pyramid	Solids	Solid	Layer/height	bevel	yes	ShaperBevelTechnique	Layer/height		0	0	0	
+Pyramid	Solids	Solid	Layer/mask	sourceLayerId	yes	Int32	Layer/mask		0	0	0	
+Pyramid	Solids	Solid	Layer/mask	invert	yes	Boolean	Layer/mask	True	900	0	0	
+Pyramid	Solids	Solid	Layer/mask	fullAt	yes	ZUIValue	Layer/mask		0	0	0	
+Pyramid	Solids	Solid	Layer/mask	quantity	yes	ShaperMaskQuantity	Layer/mask	Luma	900	0	0	
+Pyramid	Solids	Solid	Layer/mask	mode	yes	ShaperMaskMode	Layer/mask	Subtract	900	0	0	
+Pyramid	Solids	Solid	Position	originX	ABSENT	ZUIValue	Position/pivot	16	1465	0	0	
+Pyramid	Solids	Solid	Position	originY	ABSENT	ZUIValue	Position/pivot	16	1030	0	0	
+Pyramid	Solids	Solid	Shell	enabled	ABSENT	Boolean	Shell		0	0	0	
+Pyramid	Solids	Solid	Shell	thicknessDial	ABSENT	ZUIValue	Shell		0	0	0	
+Pyramid	Solids	Solid	Shell	alignment	ABSENT	ShaperShellAlignment	Shell		0	0	0	
+Pyramid	Solids	Solid	Swarm	scaleJitterDial	yes	ZUIValue	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	orient	yes	ShaperSwarmOrient	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	dieTogether	yes	Boolean	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	merge.widthDial	yes	ZUIValue	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	merge.sharpnessDial	yes	ZUIValue	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	merge.carveStrengthDial	yes	ZUIValue	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	firstSpawnPhase	yes	Single	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	spawnTiming	yes	ZUIValue	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	timing	yes	ShaperSwarmTiming	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	enabled	yes	Boolean	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	count	yes	Int32	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	positionJitterX	yes	ZUIValue	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	positionJitterY	yes	ZUIValue	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	rotationJitterDegreesDial	yes	ZUIValue	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	spawnPhaseStep	yes	Single	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	instanceLife	yes	Single	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	shape	yes	ShaperSwarmShape	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	spawnMode	yes	ShaperSwarmSpawnMode	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	spawnerRadius	yes	ZUIValue	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	spawnerOffsetX	yes	ZUIValue	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	spawnerOffsetY	yes	ZUIValue	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	spawnerRotationDegrees	yes	ZUIValue	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	spawnerPitchDegrees	yes	ZUIValue	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	spawnerYawDegrees	yes	ZUIValue	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	distribution	yes	Single	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	gridReverse	yes	Boolean	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	spawnOrderChaos	yes	Single	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	scaleByIndex	yes	ZUIValue	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	interact	yes	Boolean	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	lifetimeStagger	yes	Single	Swarm		0	0	0	
+Pyramid	Solids	Solid	Swarm	pathSpread	yes	Single	Swarm/path		0	0	0	
+Pyramid	Solids	Solid	Swarm	pathProgress	yes	ZUIValue	Swarm/path		0	0	0	
+Pyramid	Solids	Solid	Swarm	evenSpacing	yes	Boolean	Swarm/path		0	0	0	
+Pyramid	Solids	Solid	Sweep	extentDegreesDial	ABSENT	ZUIValue	Sweep		0	0	0	
+Pyramid	Solids	Solid	Sweep	startFractionDial	ABSENT	ZUIValue	Sweep		0	0	0	
+Pyramid	Solids	Solid	Sweep	extentFractionDial	ABSENT	ZUIValue	Sweep		0	0	0	
+Pyramid	Solids	Solid	Sweep	startDegreesDial	ABSENT	ZUIValue	Sweep		0	0	0	
+Pyramid	Solids	Solid	Sweep	enabled	ABSENT	Boolean	Sweep/off		0	0	0	
+Pyramid	Solids	Solid	Layer/lighting	rimStrength	yes	ZUIValue	base	16	750	0	0	
+Pyramid	Solids	Solid	Layer/lighting	receiveLighting	yes	Boolean	base	False	772	0	0	
+Pyramid	Solids	Solid	Layer/lighting	intensityScale	yes	ZUIValue	base	0	772	0	0	
+Pyramid	Solids	Solid	Document/light	lights[0].pitch	yes	ZUIValue	base	0	736	0	0	
+Pyramid	Solids	Solid	Document/light	lights[0].yaw	yes	ZUIValue	base	0	900	0	0	
+Pyramid	Solids	Solid	Document/light	lights[0].intensity	yes	ZUIValue	base	0	772	0	0	
+Pyramid	Solids	Solid	Document/light	lights[0].colour	yes	Color	base	magenta	772	0	0	
+Pyramid	Solids	Solid	Document/light	lights[0].kind	yes	ShaperLightKind	base	Point	768	0	0	
+Pyramid	Solids	Solid	Layer/lighting	receiveShadows	yes	Boolean	base		0	0	0	
+Pyramid	Solids	Solid	Document/light	lights[0].enabled	yes	Boolean	base	False	762	0	0	
+Pyramid	Solids	Solid	Document/light	ambientColour	yes	Color	base	magenta	864	0	0	
+Pyramid	Solids	Solid	Layer/lighting	castShadows	yes	Boolean	base		0	0	0	
+Pyramid	Solids	Solid	Layer/lighting	normalConstant	yes	Vector3	base		0	0	0	
+Pyramid	Solids	Solid	Layer/lighting	normalKind	yes	ShaperNormalKind	base		0	0	0	
+Pyramid	Solids	Solid	Layer/lighting	specularTint	yes	Color	base	magenta	644	0	0	
+Pyramid	Solids	Solid	Layer/lighting	specularPower	yes	ZUIValue	base	0	772	0	0	
+Pyramid	Solids	Solid	Layer/lighting	specular	yes	ZUIValue	base	0	644	0	0	
+Pyramid	Solids	Solid	Document/light	ambientIntensity	yes	ZUIValue	base	0	864	0	0	
+Pyramid	Solids	Solid	Layer/lighting	rimPower	yes	ZUIValue	base		0	0	0	
+Pyramid	Solids	Solid	Shape/solid	form	yes	ShaperSolidForm	base	Box	2000	0	0	
+Pyramid	Solids	Solid	Document	layerSpacing	yes	Single	base		0	0	0	
+Pyramid	Solids	Solid	Shape/solid	size	yes	ZUIValue	base	0	900	0	0	
+Pyramid	Solids	Solid	Shape/solid	centreX	yes	ZUIValue	base	16	1264	0	0	
+Pyramid	Solids	Solid	Shape/solid	centreY	yes	ZUIValue	base	16	1508	0	0	
+Pyramid	Solids	Solid	Shape/solid	aspect	yes	ZUIValue	base	0	917	0	0	
+Pyramid	Solids	Solid	Shape/solid	depth	yes	ZUIValue	base	0	900	0	0	
+Pyramid	Solids	Solid	Shape/solid	gemSides	yes	ZUIValue	base		0	0	0	
+Pyramid	Solids	Solid	Shape/solid	gemCrown	yes	ZUIValue	base		0	0	0	
+#DOC	11	Solids	Can	controls=78	opaqueMid=1904	layerOwnPixels=1904	kind=Solid	deep=False	canvas=96x64	msPerFrame=14
+Pyramid	Solids	Solid	Shape/solid	gemPavilion	yes	ZUIValue	base		0	0	0	
+Pyramid	Solids	Solid	Shape/solid	ringInner	yes	ZUIValue	base		0	0	0	
+Pyramid	Solids	Solid	Shape/solid	yaw	yes	ZUIValue	base	16	841	0	0	
+Pyramid	Solids	Solid	Shape/solid	tilt	yes	ZUIValue	base	0	891	0	0	
+Pyramid	Solids	Solid	Shape/solid	roll	yes	ZUIValue	base	16	943	0	0	
+Pyramid	Solids	Solid	Shape/solid	lineWidth	yes	ZUIValue	base	0	32	0	0	
+Pyramid	Solids	Solid	Shape/solid	lineColour	yes	Color	base	magenta	276	0	0	
+Pyramid	Solids	Solid	Document	background	yes	Color	base	magenta	5244	0	0	
+Pyramid	Solids	Solid	Shape/solid	edgeGlow	yes	ZUIValue	base	0	490	0	0	
+Pyramid	Solids	Solid	Shape/solid	innerGlow	yes	ZUIValue	base	0	555	0	0	
+Pyramid	Solids	Solid	Shape/solid	innerGlowColour	yes	Color	base	magenta	461	0	0	
+Pyramid	Solids	Solid	Position	translateX	ABSENT	ZUIValue	base	16	1264	0	0	
+Pyramid	Solids	Solid	Position	translateY	ABSENT	ZUIValue	base	16	1508	0	0	
+Pyramid	Solids	Solid	Position	rotationDegrees	ABSENT	ZUIValue	base	16	943	0	0	
+Pyramid	Solids	Solid	Position	scaleX	ABSENT	ZUIValue	base	16	6116	0	0	
+Pyramid	Solids	Solid	Position	scaleY	ABSENT	ZUIValue	base	16	2068	0	0	
+Pyramid	Solids	Solid	Position	skewX	ABSENT	ZUIValue	base	16	705	0	0	
+Pyramid	Solids	Solid	Position	skewY	ABSENT	ZUIValue	base	16	963	0	0	
+Pyramid	Solids	Solid	Layer	enabled	yes	Boolean	base	False	900	0	0	
+Pyramid	Solids	Solid	Layer	zOffset	yes	ZUIValue	base		0	0	0	
+Pyramid	Solids	Solid	Layer	startFrame	yes	Int32	base	16	900	0	0	
+Pyramid	Solids	Solid	Layer	endFrame	yes	Int32	base	0	900	0	0	
+Pyramid	Solids	Solid	Layer	contributesToPicture	yes	Boolean	base	False	900	0	0	
+Pyramid	Solids	Solid	Shape/solid	edgeGlowColour	yes	Color	base	magenta	446	0	0	
+Pyramid	Solids	Solid	Document/light	lights[0].specular	yes	ZUIValue	base	0	644	0	0	
+Can	Solids	Solid	Fill	veil	yes	ZUIValue	Fill/Solid	0	1904	0	0	
+Can	Solids	Solid	Fill	solidColor	yes	Color	Fill/Solid	magenta	1720	0	0	
+Can	Solids	Solid	Position	originY	ABSENT	ZUIValue	Position/pivot	16	2743	0	0	
+Can	Solids	Solid	Position	originX	ABSENT	ZUIValue	Position/pivot	16	3404	0	0	
+Can	Solids	Solid	Shell	enabled	ABSENT	Boolean	Shell		0	0	0	
+Can	Solids	Solid	Shell	thicknessDial	ABSENT	ZUIValue	Shell		0	0	0	
+Can	Solids	Solid	Shell	alignment	ABSENT	ShaperShellAlignment	Shell		0	0	0	
+Can	Solids	Solid	Swarm	spawnPhaseStep	yes	Single	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	interact	yes	Boolean	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	enabled	yes	Boolean	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	count	yes	Int32	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	merge.carveStrengthDial	yes	ZUIValue	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	positionJitterY	yes	ZUIValue	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	rotationJitterDegreesDial	yes	ZUIValue	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	merge.sharpnessDial	yes	ZUIValue	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	merge.widthDial	yes	ZUIValue	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	scaleJitterDial	yes	ZUIValue	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	lifetimeStagger	yes	Single	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	shape	yes	ShaperSwarmShape	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	spawnMode	yes	ShaperSwarmSpawnMode	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	instanceLife	yes	Single	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	spawnerRadius	yes	ZUIValue	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	spawnerOffsetY	yes	ZUIValue	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	spawnerRotationDegrees	yes	ZUIValue	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	dieTogether	yes	Boolean	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	spawnerYawDegrees	yes	ZUIValue	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	distribution	yes	Single	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	gridReverse	yes	Boolean	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	spawnOrderChaos	yes	Single	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	orient	yes	ShaperSwarmOrient	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	scaleByIndex	yes	ZUIValue	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	timing	yes	ShaperSwarmTiming	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	spawnTiming	yes	ZUIValue	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	firstSpawnPhase	yes	Single	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	spawnerOffsetX	yes	ZUIValue	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	spawnerPitchDegrees	yes	ZUIValue	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	positionJitterX	yes	ZUIValue	Swarm		0	0	0	
+Can	Solids	Solid	Swarm	pathSpread	yes	Single	Swarm/path		0	0	0	
+Can	Solids	Solid	Swarm	evenSpacing	yes	Boolean	Swarm/path		0	0	0	
+Can	Solids	Solid	Swarm	pathProgress	yes	ZUIValue	Swarm/path		0	0	0	
+Can	Solids	Solid	Sweep	startFractionDial	ABSENT	ZUIValue	Sweep		0	0	0	
+Can	Solids	Solid	Sweep	extentDegreesDial	ABSENT	ZUIValue	Sweep		0	0	0	
+Can	Solids	Solid	Sweep	startDegreesDial	ABSENT	ZUIValue	Sweep		0	0	0	
+Can	Solids	Solid	Sweep	extentFractionDial	ABSENT	ZUIValue	Sweep		0	0	0	
+Can	Solids	Solid	Sweep	enabled	ABSENT	Boolean	Sweep/off		0	0	0	
+Can	Solids	Solid	Shape/solid	gemSides	yes	ZUIValue	base		0	0	0	
+Can	Solids	Solid	Shape/solid	depth	yes	ZUIValue	base		0	0	0	
+Can	Solids	Solid	Shape/solid	aspect	yes	ZUIValue	base	0	1904	0	0	
+Can	Solids	Solid	Shape/solid	centreY	yes	ZUIValue	base	16	1840	0	0	
+Can	Solids	Solid	Shape/solid	size	yes	ZUIValue	base	0	1904	0	0	
+Can	Solids	Solid	Shape/solid	gemCrown	yes	ZUIValue	base		0	0	0	
+Can	Solids	Solid	Layer	enabled	yes	Boolean	base	False	1904	0	0	
+Can	Solids	Solid	Layer	zOffset	yes	ZUIValue	base		0	0	0	
+Can	Solids	Solid	Layer	startFrame	yes	Int32	base	16	1904	0	0	
+Can	Solids	Solid	Layer	endFrame	yes	Int32	base	0	1904	0	0	
+Can	Solids	Solid	Layer	contributesToPicture	yes	Boolean	base	False	1904	0	0	
+Can	Solids	Solid	Document	layerSpacing	yes	Single	base		0	0	0	
+Can	Solids	Solid	Document	background	yes	Color	base	magenta	4240	0	0	
+Can	Solids	Solid	Shape/solid	centreX	yes	ZUIValue	base	16	2669	0	0	
+Can	Solids	Solid	Shape/solid	gemPavilion	yes	ZUIValue	base		0	0	0	
+#DOC	12	Solids	Orb	controls=78	opaqueMid=1264	layerOwnPixels=1264	kind=Solid	deep=False	canvas=96x64	msPerFrame=2
+Can	Solids	Solid	Shape/solid	roll	yes	ZUIValue	base	16	1782	0	0	
+Can	Solids	Solid	Shape/solid	yaw	yes	ZUIValue	base	16	1235	0	0	
+Can	Solids	Solid	Position	skewY	ABSENT	ZUIValue	base	16	1833	0	0	
+Can	Solids	Solid	Position	skewX	ABSENT	ZUIValue	base	16	832	0	0	
+Can	Solids	Solid	Position	scaleY	ABSENT	ZUIValue	base	16	1528	0	0	
+Can	Solids	Solid	Position	scaleX	ABSENT	ZUIValue	base	16	6112	0	0	
+Can	Solids	Solid	Position	rotationDegrees	ABSENT	ZUIValue	base	16	1782	0	0	
+Can	Solids	Solid	Position	translateY	ABSENT	ZUIValue	base	16	1840	0	0	
+Can	Solids	Solid	Shape/solid	ringInner	yes	ZUIValue	base		0	0	0	
+Can	Solids	Solid	Position	translateX	ABSENT	ZUIValue	base	16	2669	0	0	
+Can	Solids	Solid	Shape/solid	innerGlow	yes	ZUIValue	base	0	1617	0	0	
+Can	Solids	Solid	Shape/solid	edgeGlowColour	yes	Color	base	magenta	541	0	0	
+Can	Solids	Solid	Shape/solid	edgeGlow	yes	ZUIValue	base	0	541	0	0	
+Can	Solids	Solid	Shape/solid	lineColour	yes	Color	base	magenta	184	0	0	
+Can	Solids	Solid	Shape/solid	lineWidth	yes	ZUIValue	base	0	21	0	0	
+Can	Solids	Solid	Shape/solid	tilt	yes	ZUIValue	base	0	1755	0	0	
+Can	Solids	Solid	Shape/solid	innerGlowColour	yes	Color	base	magenta	1617	0	0	
+Can	Solids	Solid	Shape/solid	form	yes	ShaperSolidForm	base	Box	1913	0	0	
+Orb	Solids	Solid	Fill	veil	yes	ZUIValue	Fill/Solid	0	1264	0	0	
+Orb	Solids	Solid	Fill	solidColor	yes	Color	Fill/Solid	magenta	1124	0	0	
+Orb	Solids	Solid	Position	originY	ABSENT	ZUIValue	Position/pivot	16	3055	0	0	
+Orb	Solids	Solid	Position	originX	ABSENT	ZUIValue	Position/pivot	16	3538	0	0	
+Orb	Solids	Solid	Shell	enabled	ABSENT	Boolean	Shell		0	0	0	
+Orb	Solids	Solid	Shell	thicknessDial	ABSENT	ZUIValue	Shell		0	0	0	
+Orb	Solids	Solid	Shell	alignment	ABSENT	ShaperShellAlignment	Shell		0	0	0	
+Orb	Solids	Solid	Swarm	spawnPhaseStep	yes	Single	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	interact	yes	Boolean	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	enabled	yes	Boolean	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	count	yes	Int32	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	merge.carveStrengthDial	yes	ZUIValue	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	positionJitterY	yes	ZUIValue	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	rotationJitterDegreesDial	yes	ZUIValue	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	merge.sharpnessDial	yes	ZUIValue	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	merge.widthDial	yes	ZUIValue	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	scaleJitterDial	yes	ZUIValue	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	lifetimeStagger	yes	Single	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	shape	yes	ShaperSwarmShape	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	spawnMode	yes	ShaperSwarmSpawnMode	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	instanceLife	yes	Single	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	spawnerRadius	yes	ZUIValue	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	spawnerOffsetY	yes	ZUIValue	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	spawnerRotationDegrees	yes	ZUIValue	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	dieTogether	yes	Boolean	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	spawnerYawDegrees	yes	ZUIValue	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	distribution	yes	Single	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	gridReverse	yes	Boolean	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	spawnOrderChaos	yes	Single	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	orient	yes	ShaperSwarmOrient	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	scaleByIndex	yes	ZUIValue	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	timing	yes	ShaperSwarmTiming	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	spawnTiming	yes	ZUIValue	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	firstSpawnPhase	yes	Single	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	spawnerOffsetX	yes	ZUIValue	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	spawnerPitchDegrees	yes	ZUIValue	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	positionJitterX	yes	ZUIValue	Swarm		0	0	0	
+Orb	Solids	Solid	Swarm	pathSpread	yes	Single	Swarm/path		0	0	0	
+Orb	Solids	Solid	Swarm	evenSpacing	yes	Boolean	Swarm/path		0	0	0	
+Orb	Solids	Solid	Swarm	pathProgress	yes	ZUIValue	Swarm/path		0	0	0	
+Orb	Solids	Solid	Sweep	startFractionDial	ABSENT	ZUIValue	Sweep		0	0	0	
+Orb	Solids	Solid	Sweep	extentDegreesDial	ABSENT	ZUIValue	Sweep		0	0	0	
+Orb	Solids	Solid	Sweep	startDegreesDial	ABSENT	ZUIValue	Sweep		0	0	0	
+Orb	Solids	Solid	Sweep	extentFractionDial	ABSENT	ZUIValue	Sweep		0	0	0	
+Orb	Solids	Solid	Sweep	enabled	ABSENT	Boolean	Sweep/off		0	0	0	
+Orb	Solids	Solid	Shape/solid	gemSides	yes	ZUIValue	base		0	0	0	
+#DOC	13	Solids	Gem	controls=78	opaqueMid=564	layerOwnPixels=564	kind=Solid	deep=False	canvas=96x64	msPerFrame=4
+Orb	Solids	Solid	Shape/solid	depth	yes	ZUIValue	base		0	0	0	
+Orb	Solids	Solid	Shape/solid	aspect	yes	ZUIValue	base		0	0	0	
+Orb	Solids	Solid	Shape/solid	centreY	yes	ZUIValue	base	16	1820	0	0	
+Orb	Solids	Solid	Shape/solid	size	yes	ZUIValue	base	0	1264	0	0	
+Orb	Solids	Solid	Shape/solid	gemCrown	yes	ZUIValue	base		0	0	0	
+Orb	Solids	Solid	Layer	enabled	yes	Boolean	base	False	1264	0	0	
+Orb	Solids	Solid	Layer	zOffset	yes	ZUIValue	base		0	0	0	
+Orb	Solids	Solid	Layer	startFrame	yes	Int32	base	16	1264	0	0	
+Orb	Solids	Solid	Layer	endFrame	yes	Int32	base	0	1264	0	0	
+Orb	Solids	Solid	Layer	contributesToPicture	yes	Boolean	base	False	1264	0	0	
+Orb	Solids	Solid	Document	layerSpacing	yes	Single	base		0	0	0	
+Orb	Solids	Solid	Document	background	yes	Color	base	magenta	4880	0	0	
+Orb	Solids	Solid	Shape/solid	centreX	yes	ZUIValue	base	16	1887	0	0	
+Orb	Solids	Solid	Shape/solid	gemPavilion	yes	ZUIValue	base		0	0	0	
+Orb	Solids	Solid	Shape/solid	roll	yes	ZUIValue	base	16	724	0	0	
+Orb	Solids	Solid	Shape/solid	yaw	yes	ZUIValue	base	16	690	0	0	
+Orb	Solids	Solid	Position	skewY	ABSENT	ZUIValue	base	16	1092	0	0	
+Orb	Solids	Solid	Position	skewX	ABSENT	ZUIValue	base		0	0	0	
+Orb	Solids	Solid	Position	scaleY	ABSENT	ZUIValue	base		0	0	0	
+Orb	Solids	Solid	Position	scaleX	ABSENT	ZUIValue	base	16	6134	0	0	
+Orb	Solids	Solid	Position	rotationDegrees	ABSENT	ZUIValue	base	16	724	0	0	
+Orb	Solids	Solid	Position	translateY	ABSENT	ZUIValue	base	16	1820	0	0	
+Orb	Solids	Solid	Shape/solid	ringInner	yes	ZUIValue	base		0	0	0	
+Orb	Solids	Solid	Position	translateX	ABSENT	ZUIValue	base	16	1887	0	0	
+Orb	Solids	Solid	Shape/solid	innerGlow	yes	ZUIValue	base	0	991	0	0	
+Orb	Solids	Solid	Shape/solid	edgeGlowColour	yes	Color	base	magenta	349	0	0	
+Orb	Solids	Solid	Shape/solid	edgeGlow	yes	ZUIValue	base	0	350	0	0	
+Orb	Solids	Solid	Shape/solid	lineColour	yes	Color	base	magenta	140	0	0	
+Orb	Solids	Solid	Shape/solid	lineWidth	yes	ZUIValue	base	0	31	0	0	
+Orb	Solids	Solid	Shape/solid	tilt	yes	ZUIValue	base	0	762	0	0	
+Orb	Solids	Solid	Shape/solid	innerGlowColour	yes	Color	base	magenta	989	0	0	
+Orb	Solids	Solid	Shape/solid	form	yes	ShaperSolidForm	base	Box	1989	0	0	
+Gem	Solids	Solid	Fill	veil	yes	ZUIValue	Fill/Solid	0	564	0	0	
+Gem	Solids	Solid	Fill	solidColor	yes	Color	Fill/Solid	magenta	294	0	0	
+Gem	Solids	Solid	Position	originY	ABSENT	ZUIValue	Position/pivot	16	1178	0	0	
+Gem	Solids	Solid	Position	originX	ABSENT	ZUIValue	Position/pivot	16	1578	0	0	
+Gem	Solids	Solid	Shell	enabled	ABSENT	Boolean	Shell		0	0	0	
+Gem	Solids	Solid	Shell	thicknessDial	ABSENT	ZUIValue	Shell		0	0	0	
+Gem	Solids	Solid	Shell	alignment	ABSENT	ShaperShellAlignment	Shell		0	0	0	
+Gem	Solids	Solid	Swarm	spawnPhaseStep	yes	Single	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	interact	yes	Boolean	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	enabled	yes	Boolean	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	count	yes	Int32	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	merge.carveStrengthDial	yes	ZUIValue	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	positionJitterY	yes	ZUIValue	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	rotationJitterDegreesDial	yes	ZUIValue	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	merge.sharpnessDial	yes	ZUIValue	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	merge.widthDial	yes	ZUIValue	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	scaleJitterDial	yes	ZUIValue	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	lifetimeStagger	yes	Single	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	shape	yes	ShaperSwarmShape	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	spawnMode	yes	ShaperSwarmSpawnMode	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	instanceLife	yes	Single	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	spawnerRadius	yes	ZUIValue	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	spawnerOffsetY	yes	ZUIValue	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	spawnerRotationDegrees	yes	ZUIValue	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	dieTogether	yes	Boolean	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	spawnerYawDegrees	yes	ZUIValue	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	distribution	yes	Single	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	gridReverse	yes	Boolean	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	spawnOrderChaos	yes	Single	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	orient	yes	ShaperSwarmOrient	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	scaleByIndex	yes	ZUIValue	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	timing	yes	ShaperSwarmTiming	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	spawnTiming	yes	ZUIValue	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	firstSpawnPhase	yes	Single	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	spawnerOffsetX	yes	ZUIValue	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	spawnerPitchDegrees	yes	ZUIValue	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	positionJitterX	yes	ZUIValue	Swarm		0	0	0	
+Gem	Solids	Solid	Swarm	pathSpread	yes	Single	Swarm/path		0	0	0	
+Gem	Solids	Solid	Swarm	evenSpacing	yes	Boolean	Swarm/path		0	0	0	
+Gem	Solids	Solid	Swarm	pathProgress	yes	ZUIValue	Swarm/path		0	0	0	
+Gem	Solids	Solid	Sweep	startFractionDial	ABSENT	ZUIValue	Sweep		0	0	0	
+Gem	Solids	Solid	Sweep	extentDegreesDial	ABSENT	ZUIValue	Sweep		0	0	0	
+Gem	Solids	Solid	Sweep	startDegreesDial	ABSENT	ZUIValue	Sweep		0	0	0	
+Gem	Solids	Solid	Sweep	extentFractionDial	ABSENT	ZUIValue	Sweep		0	0	0	
+Gem	Solids	Solid	Sweep	enabled	ABSENT	Boolean	Sweep/off		0	0	0	
+Gem	Solids	Solid	Shape/solid	gemSides	yes	ZUIValue	base	0	404	0	0	
+Gem	Solids	Solid	Shape/solid	depth	yes	ZUIValue	base		0	0	0	
+Gem	Solids	Solid	Shape/solid	aspect	yes	ZUIValue	base		0	0	0	
+#DOC	14	Solids	Ring	controls=78	opaqueMid=840	layerOwnPixels=840	kind=Solid	deep=False	canvas=96x64	msPerFrame=2
+Gem	Solids	Solid	Shape/solid	centreY	yes	ZUIValue	base	16	1030	0	0	
+Gem	Solids	Solid	Shape/solid	size	yes	ZUIValue	base	0	564	0	0	
+Gem	Solids	Solid	Shape/solid	gemCrown	yes	ZUIValue	base	0	390	0	0	
+Gem	Solids	Solid	Layer	enabled	yes	Boolean	base	False	564	0	0	
+Gem	Solids	Solid	Layer	zOffset	yes	ZUIValue	base		0	0	0	
+Gem	Solids	Solid	Layer	startFrame	yes	Int32	base	16	564	0	0	
+Gem	Solids	Solid	Layer	endFrame	yes	Int32	base	0	564	0	0	
+Gem	Solids	Solid	Layer	contributesToPicture	yes	Boolean	base	False	564	0	0	
+Gem	Solids	Solid	Document	layerSpacing	yes	Single	base		0	0	0	
+Gem	Solids	Solid	Document	background	yes	Color	base	magenta	5580	0	0	
+Gem	Solids	Solid	Shape/solid	centreX	yes	ZUIValue	base	16	910	0	0	
+Gem	Solids	Solid	Shape/solid	gemPavilion	yes	ZUIValue	base	0	279	0	0	
+Gem	Solids	Solid	Shape/solid	roll	yes	ZUIValue	base	16	475	0	0	
+Gem	Solids	Solid	Shape/solid	yaw	yes	ZUIValue	base	16	421	0	0	
+Gem	Solids	Solid	Position	skewY	ABSENT	ZUIValue	base	16	487	0	0	
+Gem	Solids	Solid	Position	skewX	ABSENT	ZUIValue	base		0	0	0	
+Gem	Solids	Solid	Position	scaleY	ABSENT	ZUIValue	base		0	0	0	
+Gem	Solids	Solid	Position	scaleX	ABSENT	ZUIValue	base	16	5947	0	0	
+Gem	Solids	Solid	Position	rotationDegrees	ABSENT	ZUIValue	base	16	475	0	0	
+Gem	Solids	Solid	Position	translateY	ABSENT	ZUIValue	base	16	1030	0	0	
+Gem	Solids	Solid	Shape/solid	ringInner	yes	ZUIValue	base		0	0	0	
+Gem	Solids	Solid	Position	translateX	ABSENT	ZUIValue	base	16	910	0	0	
+Gem	Solids	Solid	Shape/solid	innerGlow	yes	ZUIValue	base	0	154	0	0	
+Gem	Solids	Solid	Shape/solid	edgeGlowColour	yes	Color	base	magenta	348	0	0	
+Gem	Solids	Solid	Shape/solid	edgeGlow	yes	ZUIValue	base	0	348	0	0	
+Gem	Solids	Solid	Shape/solid	lineColour	yes	Color	base	magenta	270	0	0	
+Gem	Solids	Solid	Shape/solid	lineWidth	yes	ZUIValue	base	0	19	0	0	
+Gem	Solids	Solid	Shape/solid	tilt	yes	ZUIValue	base	0	438	0	0	
+Gem	Solids	Solid	Shape/solid	innerGlowColour	yes	Color	base	magenta	154	0	0	
+Gem	Solids	Solid	Shape/solid	form	yes	ShaperSolidForm	base	Box	1997	0	0	
+Ring	Solids	Solid	Fill	veil	yes	ZUIValue	Fill/Solid	0	840	0	0	
+Ring	Solids	Solid	Fill	solidColor	yes	Color	Fill/Solid	magenta	624	0	0	
+Ring	Solids	Solid	Position	originY	ABSENT	ZUIValue	Position/pivot	16	2688	0	0	
+Ring	Solids	Solid	Position	originX	ABSENT	ZUIValue	Position/pivot	16	3011	0	0	
+Ring	Solids	Solid	Shell	enabled	ABSENT	Boolean	Shell		0	0	0	
+Ring	Solids	Solid	Shell	thicknessDial	ABSENT	ZUIValue	Shell		0	0	0	
+Ring	Solids	Solid	Shell	alignment	ABSENT	ShaperShellAlignment	Shell		0	0	0	
+Ring	Solids	Solid	Swarm	spawnPhaseStep	yes	Single	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	interact	yes	Boolean	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	enabled	yes	Boolean	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	count	yes	Int32	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	merge.carveStrengthDial	yes	ZUIValue	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	positionJitterY	yes	ZUIValue	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	rotationJitterDegreesDial	yes	ZUIValue	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	merge.sharpnessDial	yes	ZUIValue	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	merge.widthDial	yes	ZUIValue	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	scaleJitterDial	yes	ZUIValue	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	lifetimeStagger	yes	Single	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	shape	yes	ShaperSwarmShape	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	spawnMode	yes	ShaperSwarmSpawnMode	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	instanceLife	yes	Single	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	spawnerRadius	yes	ZUIValue	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	spawnerOffsetY	yes	ZUIValue	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	spawnerRotationDegrees	yes	ZUIValue	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	dieTogether	yes	Boolean	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	spawnerYawDegrees	yes	ZUIValue	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	distribution	yes	Single	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	gridReverse	yes	Boolean	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	spawnOrderChaos	yes	Single	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	orient	yes	ShaperSwarmOrient	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	scaleByIndex	yes	ZUIValue	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	timing	yes	ShaperSwarmTiming	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	spawnTiming	yes	ZUIValue	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	firstSpawnPhase	yes	Single	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	spawnerOffsetX	yes	ZUIValue	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	spawnerPitchDegrees	yes	ZUIValue	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	positionJitterX	yes	ZUIValue	Swarm		0	0	0	
+Ring	Solids	Solid	Swarm	pathSpread	yes	Single	Swarm/path		0	0	0	
+Ring	Solids	Solid	Swarm	evenSpacing	yes	Boolean	Swarm/path		0	0	0	
+Ring	Solids	Solid	Swarm	pathProgress	yes	ZUIValue	Swarm/path		0	0	0	
+Ring	Solids	Solid	Sweep	startFractionDial	ABSENT	ZUIValue	Sweep		0	0	0	
+Ring	Solids	Solid	Sweep	extentDegreesDial	ABSENT	ZUIValue	Sweep		0	0	0	
+Ring	Solids	Solid	Sweep	startDegreesDial	ABSENT	ZUIValue	Sweep		0	0	0	
+Ring	Solids	Solid	Sweep	extentFractionDial	ABSENT	ZUIValue	Sweep		0	0	0	
+Ring	Solids	Solid	Sweep	enabled	ABSENT	Boolean	Sweep/off		0	0	0	
+Ring	Solids	Solid	Shape/solid	gemSides	yes	ZUIValue	base		0	0	0	
+Ring	Solids	Solid	Shape/solid	depth	yes	ZUIValue	base		0	0	0	
+Ring	Solids	Solid	Shape/solid	aspect	yes	ZUIValue	base		0	0	0	
+Ring	Solids	Solid	Shape/solid	centreY	yes	ZUIValue	base	16	1438	0	0	
+Ring	Solids	Solid	Shape/solid	size	yes	ZUIValue	base	0	840	0	0	
+Ring	Solids	Solid	Shape/solid	gemCrown	yes	ZUIValue	base		0	0	0	
+Ring	Solids	Solid	Layer	enabled	yes	Boolean	base	False	840	0	0	
+Ring	Solids	Solid	Layer	zOffset	yes	ZUIValue	base		0	0	0	
+Ring	Solids	Solid	Layer	startFrame	yes	Int32	base	16	840	0	0	
+Ring	Solids	Solid	Layer	endFrame	yes	Int32	base	0	840	0	0	
+Ring	Solids	Solid	Layer	contributesToPicture	yes	Boolean	base	False	840	0	0	
+Ring	Solids	Solid	Document	layerSpacing	yes	Single	base		0	0	0	
+Ring	Solids	Solid	Document	background	yes	Color	base	magenta	5304	0	0	
+Ring	Solids	Solid	Shape/solid	centreX	yes	ZUIValue	base	16	1460	0	0	
+Ring	Solids	Solid	Shape/solid	gemPavilion	yes	ZUIValue	base		0	0	0	
+Ring	Solids	Solid	Shape/solid	roll	yes	ZUIValue	base		0	0	0	
+Ring	Solids	Solid	Shape/solid	yaw	yes	ZUIValue	base	16	874	0	0	
+Ring	Solids	Solid	Position	skewY	ABSENT	ZUIValue	base	16	780	0	0	
+Ring	Solids	Solid	Position	skewX	ABSENT	ZUIValue	base		0	0	0	
+Ring	Solids	Solid	Position	scaleY	ABSENT	ZUIValue	base		0	0	0	
+Ring	Solids	Solid	Position	scaleX	ABSENT	ZUIValue	base	16	840	0	0	
+Ring	Solids	Solid	Position	rotationDegrees	ABSENT	ZUIValue	base		0	0	0	
+Ring	Solids	Solid	Position	translateY	ABSENT	ZUIValue	base	16	1438	0	0	
+Ring	Solids	Solid	Shape/solid	ringInner	yes	ZUIValue	base	0	688	0	0	
+Ring	Solids	Solid	Position	translateX	ABSENT	ZUIValue	base	16	1460	0	0	
+Ring	Solids	Solid	Shape/solid	innerGlow	yes	ZUIValue	base	0	548	0	0	
+Ring	Solids	Solid	Shape/solid	edgeGlowColour	yes	Color	base	magenta	656	0	0	
+Ring	Solids	Solid	Shape/solid	edgeGlow	yes	ZUIValue	base	0	656	0	0	
+Ring	Solids	Solid	Shape/solid	lineColour	yes	Color	base	magenta	216	0	0	
+Ring	Solids	Solid	Shape/solid	lineWidth	yes	ZUIValue	base	0	20	0	0	
+Ring	Solids	Solid	Shape/solid	tilt	yes	ZUIValue	base	0	904	0	0	
+Ring	Solids	Solid	Shape/solid	innerGlowColour	yes	Color	base	magenta	548	0	0	
+Ring	Solids	Solid	Shape/solid	form	yes	ShaperSolidForm	base	Box	1908	0	0	
+#DOC	18	Kiln/Energy Explosion	Arc Burst	controls=447	opaqueMid=1716	layerOwnPixels=1716	kind=Composite	deep=True	canvas=96x64	msPerFrame=65
+Arc Burst	Kiln/Energy Explosion	Composite	Document/light	lights[0].posZ	yes	ZUIValue	Document/light/point		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Document/light	lights[0].posY	yes	ZUIValue	Document/light/point		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Document/light	lights[0].posX	yes	ZUIValue	Document/light/point		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Document/light	lights[0].range	yes	ZUIValue	Document/light/point		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	enabled	ABSENT	Boolean	Edge		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	alignment	ABSENT	ShaperShellAlignment	Edge		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	width	ABSENT	ZUIValue	Edge		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	joinsCoverage	ABSENT	Boolean	Edge		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.heightDelta	ABSENT	ZUIValue	Edge/fill/Gradient		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.gradientMode	ABSENT	ShaperGradientMode	Edge/fill/Gradient		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.quantiseLevels	ABSENT	ZUIValue	Edge/fill/Gradient		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.fit	ABSENT	ShaperFillFit	Edge/fill/Gradient		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.space	ABSENT	ShaperFillSpace	Edge/fill/Gradient		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.kind	ABSENT	ShaperFillKind	Edge/fill/Gradient		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.gradientAngleDegrees	ABSENT	ZUIValue	Edge/fill/Gradient		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.veil	ABSENT	ZUIValue	Edge/fill/Gradient		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.gradient	ABSENT	ZuiGradient	Edge/fill/Gradient		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.composite	ABSENT	ShaperFillComposite	Edge/fill/Gradient		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.gradientTint	ABSENT	Color	Edge/fill/Gradient		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.gradientDepthPixels	ABSENT	ZUIValue	Edge/fill/Gradient/ByEdgeDistance		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.gradientCentreX	ABSENT	ZUIValue	Edge/fill/Gradient/Radial		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.gradientCentreY	ABSENT	ZUIValue	Edge/fill/Gradient/Radial		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.gradientSize	ABSENT	ZUIValue	Edge/fill/Gradient/Radial		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.heightFieldTint	ABSENT	Color	Edge/fill/HeightField		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.heightFieldScale	ABSENT	ZUIValue	Edge/fill/HeightField		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.stripSlots[0].height	ABSENT	Single	Edge/fill/IndexedStrip		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.stripPlainColor	ABSENT	Color	Edge/fill/IndexedStrip		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.stripReach	ABSENT	ZUIValue	Edge/fill/IndexedStrip		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.stripOffset	ABSENT	ZUIValue	Edge/fill/IndexedStrip		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.stripOrientationDegrees	ABSENT	ZUIValue	Edge/fill/IndexedStrip		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.stripRepeats	ABSENT	ZUIValue	Edge/fill/IndexedStrip		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.stripSlots[1].height	ABSENT	Single	Edge/fill/IndexedStrip		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.stripParameterisation	ABSENT	ShaperStripParameterisation	Edge/fill/IndexedStrip		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.stripSlots[0].color	ABSENT	Color	Edge/fill/IndexedStrip		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.stripSlots[1].color	ABSENT	Color	Edge/fill/IndexedStrip		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.overPhaseTint	ABSENT	Color	Edge/fill/OverPhase		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.overPhaseGradient	ABSENT	ZuiGradient	Edge/fill/OverPhase		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.proceduralKind	ABSENT	ShaperProceduralKind	Edge/fill/Procedural		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.proceduralAngleDegrees	ABSENT	ZUIValue	Edge/fill/Procedural		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.proceduralOffsetV	ABSENT	ZUIValue	Edge/fill/Procedural		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.proceduralOffsetU	ABSENT	ZUIValue	Edge/fill/Procedural		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.proceduralScale	ABSENT	ZUIValue	Edge/fill/Procedural		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.proceduralTint	ABSENT	Color	Edge/fill/Procedural		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.proceduralGradient	ABSENT	ZuiGradient	Edge/fill/Procedural		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.noiseKind	ABSENT	ShaperNoiseKind	Edge/fill/Procedural		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.dotStagger	ABSENT	Boolean	Edge/fill/Procedural/Dots		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.dotSize	ABSENT	ZUIValue	Edge/fill/Procedural/Dots		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.gridVertical	ABSENT	Boolean	Edge/fill/Procedural/Grid		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.gridHorizontal	ABSENT	Boolean	Edge/fill/Procedural/Grid		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.gridLineWidth	ABSENT	ZUIValue	Edge/fill/Procedural/Grid		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.rampInputHigh	ABSENT	ZUIValue	Edge/fill/RampByQuantity		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.rampInputLow	ABSENT	ZUIValue	Edge/fill/RampByQuantity		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.rampTint	ABSENT	Color	Edge/fill/RampByQuantity		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.rampGradient	ABSENT	ZuiGradient	Edge/fill/RampByQuantity		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.rampQuantity	ABSENT	ShaperQuantity	Edge/fill/RampByQuantity		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.solidColor	ABSENT	Color	Edge/fill/Solid		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.steelRustReachPixels	ABSENT	ZUIValue	Edge/fill/TapestrySteel		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.steelRustAmount	ABSENT	ZUIValue	Edge/fill/TapestrySteel		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.steelRustColor	ABSENT	Color	Edge/fill/TapestrySteel		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.steelBaseHigh	ABSENT	Color	Edge/fill/TapestrySteel		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.steelCells	ABSENT	ZUIValue	Edge/fill/TapestrySteel		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.steelBaseLow	ABSENT	Color	Edge/fill/TapestrySteel		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.steelSeed	ABSENT	ZUIValue	Edge/fill/TapestrySteel		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.steelGrain	ABSENT	ZUIValue	Edge/fill/TapestrySteel		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.steelOctaves	ABSENT	ZUIValue	Edge/fill/TapestrySteel		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.textureFrameRows	ABSENT	ZUIValue	Edge/fill/Texture		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.textureTilesX	ABSENT	ZUIValue	Edge/fill/Texture		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.textureTilesY	ABSENT	ZUIValue	Edge/fill/Texture		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.textureOffsetU	ABSENT	ZUIValue	Edge/fill/Texture		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.textureAngleDegrees	ABSENT	ZUIValue	Edge/fill/Texture		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.textureTint	ABSENT	Color	Edge/fill/Texture		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.textureAnimated	ABSENT	Boolean	Edge/fill/Texture		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.textureMapping	ABSENT	ShaperTextureMapping	Edge/fill/Texture		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.textureFrameColumns	ABSENT	ZUIValue	Edge/fill/Texture		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.textureOffsetV	ABSENT	ZUIValue	Edge/fill/Texture		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Edge (border)	fill.textureFrameCount	ABSENT	ZUIValue	Edge/fill/Texture		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	gradientMode	ABSENT	ShaperGradientMode	Fill/Gradient		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	quantiseLevels	ABSENT	ZUIValue	Fill/Gradient		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	kind	ABSENT	ShaperFillKind	Fill/Gradient		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	veil	ABSENT	ZUIValue	Fill/Gradient	0	1716	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	heightDelta	ABSENT	ZUIValue	Fill/Gradient		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	composite	ABSENT	ShaperFillComposite	Fill/Gradient	Add	1716	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	space	ABSENT	ShaperFillSpace	Fill/Gradient		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	fit	ABSENT	ShaperFillFit	Fill/Gradient		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	gradient	ABSENT	ZuiGradient	Fill/Gradient		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	gradientTint	ABSENT	Color	Fill/Gradient		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	gradientAngleDegrees	ABSENT	ZUIValue	Fill/Gradient		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	gradientDepthPixels	ABSENT	ZUIValue	Fill/Gradient/ByEdgeDistance		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	gradientCentreX	ABSENT	ZUIValue	Fill/Gradient/Radial		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	gradientCentreY	ABSENT	ZUIValue	Fill/Gradient/Radial		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	gradientSize	ABSENT	ZUIValue	Fill/Gradient/Radial		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	heightFieldTint	ABSENT	Color	Fill/HeightField		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	heightFieldScale	ABSENT	ZUIValue	Fill/HeightField		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	stripPlainColor	ABSENT	Color	Fill/IndexedStrip		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	stripReach	ABSENT	ZUIValue	Fill/IndexedStrip		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	stripOffset	ABSENT	ZUIValue	Fill/IndexedStrip		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	stripOrientationDegrees	ABSENT	ZUIValue	Fill/IndexedStrip		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	stripRepeats	ABSENT	ZUIValue	Fill/IndexedStrip		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	stripParameterisation	ABSENT	ShaperStripParameterisation	Fill/IndexedStrip		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	stripSlots[1].height	ABSENT	Single	Fill/IndexedStrip		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	stripSlots[1].color	ABSENT	Color	Fill/IndexedStrip		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	stripSlots[0].color	ABSENT	Color	Fill/IndexedStrip		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	stripSlots[0].height	ABSENT	Single	Fill/IndexedStrip		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	overPhaseTint	ABSENT	Color	Fill/OverPhase		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	overPhaseGradient	ABSENT	ZuiGradient	Fill/OverPhase		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	proceduralKind	ABSENT	ShaperProceduralKind	Fill/Procedural	Grid	1468	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	noiseKind	ABSENT	ShaperNoiseKind	Fill/Procedural		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	proceduralAngleDegrees	ABSENT	ZUIValue	Fill/Procedural		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	proceduralOffsetV	ABSENT	ZUIValue	Fill/Procedural		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	proceduralOffsetU	ABSENT	ZUIValue	Fill/Procedural		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	proceduralScale	ABSENT	ZUIValue	Fill/Procedural		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	proceduralTint	ABSENT	Color	Fill/Procedural		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	proceduralGradient	ABSENT	ZuiGradient	Fill/Procedural		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	dotStagger	ABSENT	Boolean	Fill/Procedural/Dots	False	375	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	dotSize	ABSENT	ZUIValue	Fill/Procedural/Dots	0	293	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	gridHorizontal	ABSENT	Boolean	Fill/Procedural/Grid	False	252	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	gridVertical	ABSENT	Boolean	Fill/Procedural/Grid	False	206	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	gridLineWidth	ABSENT	ZUIValue	Fill/Procedural/Grid	0	480	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	rampInputLow	ABSENT	ZUIValue	Fill/RampByQuantity		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	rampTint	ABSENT	Color	Fill/RampByQuantity		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	rampInputHigh	ABSENT	ZUIValue	Fill/RampByQuantity		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	rampQuantity	ABSENT	ShaperQuantity	Fill/RampByQuantity		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	rampGradient	ABSENT	ZuiGradient	Fill/RampByQuantity		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	solidColor	ABSENT	Color	Fill/Solid		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	steelOctaves	ABSENT	ZUIValue	Fill/TapestrySteel		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	steelCells	ABSENT	ZUIValue	Fill/TapestrySteel		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	steelGrain	ABSENT	ZUIValue	Fill/TapestrySteel		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	steelRustColor	ABSENT	Color	Fill/TapestrySteel		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	steelRustAmount	ABSENT	ZUIValue	Fill/TapestrySteel		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	steelRustReachPixels	ABSENT	ZUIValue	Fill/TapestrySteel		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	steelBaseLow	ABSENT	Color	Fill/TapestrySteel		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	steelSeed	ABSENT	ZUIValue	Fill/TapestrySteel		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	steelBaseHigh	ABSENT	Color	Fill/TapestrySteel		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	textureFrameCount	ABSENT	ZUIValue	Fill/Texture		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	textureMapping	ABSENT	ShaperTextureMapping	Fill/Texture		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	textureTilesX	ABSENT	ZUIValue	Fill/Texture		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	textureTilesY	ABSENT	ZUIValue	Fill/Texture		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	textureOffsetU	ABSENT	ZUIValue	Fill/Texture		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	textureOffsetV	ABSENT	ZUIValue	Fill/Texture		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	textureAngleDegrees	ABSENT	ZUIValue	Fill/Texture		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	textureTint	ABSENT	Color	Fill/Texture		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	textureAnimated	ABSENT	Boolean	Fill/Texture		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	textureFrameColumns	ABSENT	ZUIValue	Fill/Texture		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Fill	textureFrameRows	ABSENT	ZUIValue	Fill/Texture		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer/height	depth	yes	ZUIValue	Layer/height		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer/height	angle	yes	ZUIValue	Layer/height		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer/height	technique	yes	ShaperExtrusionTechnique	Layer/height		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer/height	bevelSteps	yes	ZUIValue	Layer/height		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer/height	bevelAmount	yes	ZUIValue	Layer/height		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer/height	bevel	yes	ShaperBevelTechnique	Layer/height		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer/height	taper	yes	ZUIValue	Layer/height		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer/height	curve	yes	ZUIValue	Layer/height		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer/height	steps	yes	ZUIValue	Layer/height		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer/mask	fullAt	yes	ZUIValue	Layer/mask		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer/mask	quantity	yes	ShaperMaskQuantity	Layer/mask	Luma	1716	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer/mask	invert	yes	Boolean	Layer/mask	True	1716	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer/mask	sourceLayerId	yes	Int32	Layer/mask		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer/mask	mode	yes	ShaperMaskMode	Layer/mask	Subtract	1716	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Position	originX	yes	ZUIValue	Position/pivot	16	3914	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Position	originY	yes	ZUIValue	Position/pivot	16	3505	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shell	thicknessDial	yes	ZUIValue	Shell	0	6144	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shell	alignment	yes	ShaperShellAlignment	Shell	Inward	6056	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shell	enabled	yes	Boolean	Shell	False	6056	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	scaleByIndex	yes	ZUIValue	Swarm	0	3733	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	orient	yes	ShaperSwarmOrient	Swarm	Outward	4491	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	timing	yes	ShaperSwarmTiming	Swarm	Window	3694	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	spawnTiming	yes	ZUIValue	Swarm		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	firstSpawnPhase	yes	Single	Swarm		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	spawnPhaseStep	yes	Single	Swarm		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	instanceLife	yes	Single	Swarm		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	dieTogether	yes	Boolean	Swarm		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	merge.widthDial	yes	ZUIValue	Swarm	16	5871	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	merge.sharpnessDial	yes	ZUIValue	Swarm		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	merge.carveStrengthDial	yes	ZUIValue	Swarm		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	interact	yes	Boolean	Swarm		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	spawnOrderChaos	yes	Single	Swarm	1	5204	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	gridReverse	yes	Boolean	Swarm		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	distribution	yes	Single	Swarm	1	4959	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	spawnerPitchDegrees	yes	ZUIValue	Swarm	16	2149	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	spawnerYawDegrees	yes	ZUIValue	Swarm	16	3660	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	rotationJitterDegreesDial	yes	ZUIValue	Swarm	16	4197	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	spawnerOffsetY	yes	ZUIValue	Swarm	16	3882	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	spawnerOffsetX	yes	ZUIValue	Swarm	16	4621	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	spawnerRadius	yes	ZUIValue	Swarm	0	5071	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	spawnMode	yes	ShaperSwarmSpawnMode	Swarm	Path	4659	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	shape	yes	ShaperSwarmShape	Swarm	None	5071	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	lifetimeStagger	yes	Single	Swarm	0	4258	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	scaleJitterDial	yes	ZUIValue	Swarm	16	5972	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	spawnerRotationDegrees	yes	ZUIValue	Swarm	16	4358	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	positionJitterY	yes	ZUIValue	Swarm	0	4221	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	positionJitterX	yes	ZUIValue	Swarm	0	5094	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	count	yes	Int32	Swarm	1	3984	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	enabled	yes	Boolean	Swarm	False	3984	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	pathProgress	yes	ZUIValue	Swarm/path	16	3	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	pathSpread	yes	Single	Swarm/path	0	4039	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Swarm	evenSpacing	yes	Boolean	Swarm/path	False	4039	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Sweep	startDegreesDial	yes	ZUIValue	Sweep	16	238	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Sweep	startFractionDial	yes	ZUIValue	Sweep		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Sweep	extentDegreesDial	yes	ZUIValue	Sweep	0	387	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Sweep	extentFractionDial	yes	ZUIValue	Sweep		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Sweep	enabled	yes	Boolean	Sweep/off		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer	enabled	yes	Boolean	base	False	1716	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer/lighting	intensityScale	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Document/light	lights[0].pitch	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer/lighting	castShadows	yes	Boolean	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Document/light	lights[0].yaw	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Document/light	lights[0].intensity	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Document/light	lights[0].colour	yes	Color	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Document/light	lights[0].kind	yes	ShaperLightKind	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer/lighting	receiveShadows	yes	Boolean	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer/lighting	rimStrength	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer/lighting	specular	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer/lighting	specularPower	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer/lighting	specularTint	yes	Color	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer/lighting	normalConstant	yes	Vector3	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer/lighting	rimPower	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Document/light	ambientColour	yes	Color	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Document/light	ambientIntensity	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Document/light	lights[0].enabled	yes	Boolean	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Document	background	yes	Color	base	magenta	6056	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Document	layerSpacing	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer	contributesToPicture	yes	Boolean	base	False	1716	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer	endFrame	yes	Int32	base	0	1716	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer	startFrame	yes	Int32	base	16	1716	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer	zOffset	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer/lighting	normalKind	yes	ShaperNormalKind	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Layer/lighting	receiveLighting	yes	Boolean	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.layout	yes	Layout	base	Core	3447	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Position	skewX	yes	ZUIValue	base	16	6138	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.crown.lobeAmp	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.crown.coolStart	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.crown.dissolveK	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.crown.dissolveStart	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.crown.swapEnd	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.crown.swapStart	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.crown.ghostSpan	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.crown.ghostLo	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.crown.widthHi	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.crown.widthLo	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.crown.reachHi	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.crown.reachLo	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.crown.lobes	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.bolt.flashAmp	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.bolt.coolStart	yes	Single	base	0	1716	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.bolt.dissolveStart	yes	Single	base	0	1716	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.bolt.veilP	yes	ZUIValue	base	0	1604	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.bolt.blowHi	yes	Single	base	0	1887	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.bolt.blowLo	yes	Single	base	0	784	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.bolt.ghostDeepP	yes	Single	base	1	532	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.bolt.ghostHi	yes	Single	base	0	516	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.bolt.ghostLo	yes	Single	base	0	525	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.bolt.ghostP	yes	Single	base	0	1255	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.crown.crackleP	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.crown.rough	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lattice.outer	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lattice.inner	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.terminal.detail	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.terminal.rough	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.terminal.coolStart	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.terminal.dissolveStart	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.terminal.ghostDeepP	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.terminal.ghostHi	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.terminal.ghostLo	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.terminal.ghostP	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.terminal.fireHi	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.terminal.fireLo	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.terminal.reachHi	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.bolt.branchAmp	yes	ZUIValue	base	0.2	690	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.terminal.reachLo	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lattice.flyHi	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lattice.flyLo	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lattice.veilP	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lattice.burstStart	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lattice.coolStart	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lattice.dissolveStart	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lattice.rimFloor	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lattice.ghostFloor	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lattice.detail	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lattice.rough	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lattice.chords	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.terminal.nodes	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.terminal.sweepStart	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.bolt.branchSpread	yes	ZUIValue	base	0.3	744	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.bolt.detail	yes	Int32	base	2	2113	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.core.rough	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.core.coolStart	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.core.dissolveStart	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.core.ghostDeepP	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.core.ghostHi	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.core.ghostLo	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.core.ghostP	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.core.reachHi	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.core.reachLo	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.core.curl	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.core.whips	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.palette	yes	ZuiGradient	base	stop0=magenta	1148	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.rerollPerFrame	yes	Boolean	base	False	2102	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.ghostDeepHi	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.ghostDeepLo	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.keepHueFloor	yes	ZUIValue	base	0	517	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.ampScale	yes	ZUIValue	base	0.3	1716	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.widthScale	yes	ZUIValue	base	0.3	1716	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.bloomAlpha	yes	ZUIValue	base	0	1713	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.bloomStrength	yes	ZUIValue	base	0	1716	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.bloomRadius	yes	ZUIValue	base	0	1716	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.agamma	yes	ZUIValue	base	0.3	1630	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.aref	yes	ZUIValue	base	0.1	1630	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.core.detail	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.core.forkP	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.core.crawlers	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.core.bodyAmp	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.bolt.rough	yes	ZUIValue	base	0	1970	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.bolt.depth	yes	Int32	base	0	1664	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.bolt.branchMax	yes	Int32	base	0	1690	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.bolt.branchMin	yes	Int32	base	0	1747	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.bolt.reachHi	yes	Single	base	0.2	1768	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.bolt.reachLo	yes	Single	base	0.2	1692	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.bolt.trunks	yes	Int32	base	1	1695	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.weave.shutterDepth	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.weave.shutterStart	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.weave.jitter	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.weave.spurs	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.bolt.branchScale	yes	ZUIValue	base	0.1	600	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.weave.chords	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.weave.dissolveStart	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.weave.dieHi	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.weave.dieLo	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.weave.ghostDeepP	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.weave.ghostHi	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.weave.ghostLo	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.weave.ghostP	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.weave.spanHi	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.weave.spanLo	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.weave.arcs	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.core.bodyOpa	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.weave.coolStart	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Position	skewY	yes	ZUIValue	base	16	6135	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.terminal.sweepDepth	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.cage.spanLo	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	shapeFill.mode	yes	Mode	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.swarmSize	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lichten.veilP	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lichten.fadeAmt	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lichten.sparks	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lichten.hollowStart	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lichten.branchAmp	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lichten.branchSpread	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lichten.branchScale	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lichten.branchMax	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lichten.branchMin	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lichten.depth	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lichten.detail	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lichten.rough	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lichten.coolStart	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lichten.dissolveStart	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lichten.ghostDeepP	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lichten.ghostHi	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lichten.ghostLo	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lichten.ghostP	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lichten.reachHi	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lichten.reachLo	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.lichten.roots	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	shapeFill.color	yes	Color	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	shapeFill.gradient	yes	Gradient	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	shapeFill.gradientAnim	yes	ZuiGradient	base		0	0	0	no-stops
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	shapeFill.angleDeg	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Position	scaleY	yes	ZUIValue	base	0	1716	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Position	scaleX	yes	ZUIValue	base	0	1716	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Position	rotationDegrees	yes	ZUIValue	base	16	2838	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Position	translateY	yes	ZUIValue	base	16	2603	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Position	translateX	yes	ZUIValue	base	16	2669	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	frames	yes	Int32	base	1	2102	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	alpha	yes	ZUIValue	base	0	1716	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	shapeFill.dotStagger	yes	Boolean	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	shapeFill.dotSpacing	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	shapeFill.dotSize	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	shapeFill.gridHorizontal	yes	Boolean	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.pinch.lensOpa	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	shapeFill.gridVertical	yes	Boolean	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	shapeFill.gridSpacing	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	shapeFill.gridAngle	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	shapeFill.noiseKind	yes	NoiseKind	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	shapeFill.texture	yes	TextureKind	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	shapeFill.fit	yes	FillFit	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	shapeFill.space	yes	FillSpace	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	shapeFill.centerYAnim	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	shapeFill.centerXAnim	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	shapeFill.zoomAnim	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	shapeFill.center	yes	Vector2	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	shapeFill.zoom	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	shapeFill.gridLineWidth	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.cage.ribs	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.pinch.jetSpread	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.pinch.branchSpread	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.stipple.ghostP	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.stipple.lenHi	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.stipple.lenLo	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.stipple.speedHi	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.stipple.speedLo	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.stipple.arcs	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.stipple.shards	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.cage.ballOpa	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.cage.sparks	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.cage.breakouts	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.cage.coolK	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.cage.coolStart	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.cage.dissolveStart	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.cage.jitter	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.cage.depthGamma	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.cage.backOpa	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.cage.ghostDeepP	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.cage.ghostHi	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.cage.ghostLo	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.cage.ghostP	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.cage.snapHi	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.cage.snapLo	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.cage.spanHi	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.stipple.ghostLo	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.stipple.ghostHi	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.stipple.ghostDeepP	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.stipple.breakLo	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.pinch.branchScale	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.pinch.branchMax	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.pinch.branchMin	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.pinch.depth	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.pinch.rough	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.pinch.ringCoolStart	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.pinch.coolStart	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.pinch.dissolveStart	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.pinch.ghostDeepP	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.pinch.ghostHi	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.pinch.ghostLo	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.pinch.axisRatio	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.pinch.ghostP	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.pinch.ring	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.pinch.tilt	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.stipple.crossP	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.stipple.hairP	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.stipple.branchMax	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.stipple.branchMin	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.stipple.depth	yes	Int32	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.stipple.rough	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.stipple.coolStart	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.stipple.dissolveStart	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.stipple.breakHi	yes	Single	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Shape/generator	form.pinch.ringSpan	yes	ZUIValue	base		0	0	0	
+Arc Burst	Kiln/Energy Explosion	Composite	Document/light	lights[0].specular	yes	ZUIValue	base		0	0	0	
+#DOC	27	Pyre	Disc	controls=574	opaqueMid=1340	layerOwnPixels=1340	kind=Composite	deep=True	canvas=96x64	msPerFrame=7
+Disc	Pyre	Composite	Document/light	lights[0].range	yes	ZUIValue	Document/light/point		0	0	0	
+Disc	Pyre	Composite	Document/light	lights[0].posZ	yes	ZUIValue	Document/light/point		0	0	0	
+Disc	Pyre	Composite	Document/light	lights[0].posY	yes	ZUIValue	Document/light/point		0	0	0	
+Disc	Pyre	Composite	Document/light	lights[0].posX	yes	ZUIValue	Document/light/point		0	0	0	
+Disc	Pyre	Composite	Edge (border)	enabled	ABSENT	Boolean	Edge		0	0	0	
+Disc	Pyre	Composite	Edge (border)	alignment	ABSENT	ShaperShellAlignment	Edge		0	0	0	
+Disc	Pyre	Composite	Edge (border)	width	ABSENT	ZUIValue	Edge		0	0	0	
+Disc	Pyre	Composite	Edge (border)	joinsCoverage	ABSENT	Boolean	Edge		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.gradientAngleDegrees	ABSENT	ZUIValue	Edge/fill/Gradient		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.gradient	ABSENT	ZuiGradient	Edge/fill/Gradient		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.gradientMode	ABSENT	ShaperGradientMode	Edge/fill/Gradient		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.fit	ABSENT	ShaperFillFit	Edge/fill/Gradient		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.gradientTint	ABSENT	Color	Edge/fill/Gradient		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.composite	ABSENT	ShaperFillComposite	Edge/fill/Gradient		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.space	ABSENT	ShaperFillSpace	Edge/fill/Gradient		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.kind	ABSENT	ShaperFillKind	Edge/fill/Gradient		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.quantiseLevels	ABSENT	ZUIValue	Edge/fill/Gradient		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.veil	ABSENT	ZUIValue	Edge/fill/Gradient		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.heightDelta	ABSENT	ZUIValue	Edge/fill/Gradient		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.gradientDepthPixels	ABSENT	ZUIValue	Edge/fill/Gradient/ByEdgeDistance		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.gradientCentreX	ABSENT	ZUIValue	Edge/fill/Gradient/Radial		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.gradientCentreY	ABSENT	ZUIValue	Edge/fill/Gradient/Radial		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.gradientSize	ABSENT	ZUIValue	Edge/fill/Gradient/Radial		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.heightFieldScale	ABSENT	ZUIValue	Edge/fill/HeightField		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.heightFieldTint	ABSENT	Color	Edge/fill/HeightField		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.stripPlainColor	ABSENT	Color	Edge/fill/IndexedStrip		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.stripReach	ABSENT	ZUIValue	Edge/fill/IndexedStrip		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.stripOffset	ABSENT	ZUIValue	Edge/fill/IndexedStrip		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.stripSlots[1].height	ABSENT	Single	Edge/fill/IndexedStrip		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.stripRepeats	ABSENT	ZUIValue	Edge/fill/IndexedStrip		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.stripSlots[0].height	ABSENT	Single	Edge/fill/IndexedStrip		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.stripParameterisation	ABSENT	ShaperStripParameterisation	Edge/fill/IndexedStrip		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.stripOrientationDegrees	ABSENT	ZUIValue	Edge/fill/IndexedStrip		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.stripSlots[0].color	ABSENT	Color	Edge/fill/IndexedStrip		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.stripSlots[1].color	ABSENT	Color	Edge/fill/IndexedStrip		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.overPhaseGradient	ABSENT	ZuiGradient	Edge/fill/OverPhase		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.overPhaseTint	ABSENT	Color	Edge/fill/OverPhase		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.proceduralKind	ABSENT	ShaperProceduralKind	Edge/fill/Procedural		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.noiseKind	ABSENT	ShaperNoiseKind	Edge/fill/Procedural		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.proceduralGradient	ABSENT	ZuiGradient	Edge/fill/Procedural		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.proceduralTint	ABSENT	Color	Edge/fill/Procedural		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.proceduralScale	ABSENT	ZUIValue	Edge/fill/Procedural		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.proceduralOffsetU	ABSENT	ZUIValue	Edge/fill/Procedural		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.proceduralOffsetV	ABSENT	ZUIValue	Edge/fill/Procedural		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.proceduralAngleDegrees	ABSENT	ZUIValue	Edge/fill/Procedural		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.dotSize	ABSENT	ZUIValue	Edge/fill/Procedural/Dots		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.dotStagger	ABSENT	Boolean	Edge/fill/Procedural/Dots		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.gridLineWidth	ABSENT	ZUIValue	Edge/fill/Procedural/Grid		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.gridHorizontal	ABSENT	Boolean	Edge/fill/Procedural/Grid		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.gridVertical	ABSENT	Boolean	Edge/fill/Procedural/Grid		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.rampQuantity	ABSENT	ShaperQuantity	Edge/fill/RampByQuantity		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.rampGradient	ABSENT	ZuiGradient	Edge/fill/RampByQuantity		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.rampTint	ABSENT	Color	Edge/fill/RampByQuantity		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.rampInputLow	ABSENT	ZUIValue	Edge/fill/RampByQuantity		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.rampInputHigh	ABSENT	ZUIValue	Edge/fill/RampByQuantity		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.solidColor	ABSENT	Color	Edge/fill/Solid		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.steelRustReachPixels	ABSENT	ZUIValue	Edge/fill/TapestrySteel		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.steelRustAmount	ABSENT	ZUIValue	Edge/fill/TapestrySteel		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.steelRustColor	ABSENT	Color	Edge/fill/TapestrySteel		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.steelBaseHigh	ABSENT	Color	Edge/fill/TapestrySteel		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.steelBaseLow	ABSENT	Color	Edge/fill/TapestrySteel		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.steelSeed	ABSENT	ZUIValue	Edge/fill/TapestrySteel		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.steelOctaves	ABSENT	ZUIValue	Edge/fill/TapestrySteel		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.steelGrain	ABSENT	ZUIValue	Edge/fill/TapestrySteel		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.steelCells	ABSENT	ZUIValue	Edge/fill/TapestrySteel		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.textureOffsetV	ABSENT	ZUIValue	Edge/fill/Texture		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.textureOffsetU	ABSENT	ZUIValue	Edge/fill/Texture		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.textureTilesY	ABSENT	ZUIValue	Edge/fill/Texture		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.textureTilesX	ABSENT	ZUIValue	Edge/fill/Texture		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.textureMapping	ABSENT	ShaperTextureMapping	Edge/fill/Texture		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.textureAngleDegrees	ABSENT	ZUIValue	Edge/fill/Texture		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.textureTint	ABSENT	Color	Edge/fill/Texture		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.textureAnimated	ABSENT	Boolean	Edge/fill/Texture		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.textureFrameColumns	ABSENT	ZUIValue	Edge/fill/Texture		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.textureFrameCount	ABSENT	ZUIValue	Edge/fill/Texture		0	0	0	
+Disc	Pyre	Composite	Edge (border)	fill.textureFrameRows	ABSENT	ZUIValue	Edge/fill/Texture		0	0	0	
+Disc	Pyre	Composite	Fill	space	ABSENT	ShaperFillSpace	Fill/Gradient		0	0	0	
+Disc	Pyre	Composite	Fill	quantiseLevels	ABSENT	ZUIValue	Fill/Gradient		0	0	0	
+Disc	Pyre	Composite	Fill	kind	ABSENT	ShaperFillKind	Fill/Gradient		0	0	0	
+Disc	Pyre	Composite	Fill	composite	ABSENT	ShaperFillComposite	Fill/Gradient	Add	1340	0	0	
+Disc	Pyre	Composite	Fill	veil	ABSENT	ZUIValue	Fill/Gradient	0	1340	0	0	
+Disc	Pyre	Composite	Fill	heightDelta	ABSENT	ZUIValue	Fill/Gradient		0	0	0	
+Disc	Pyre	Composite	Fill	gradientAngleDegrees	ABSENT	ZUIValue	Fill/Gradient		0	0	0	
+Disc	Pyre	Composite	Fill	gradientTint	ABSENT	Color	Fill/Gradient		0	0	0	
+Disc	Pyre	Composite	Fill	gradient	ABSENT	ZuiGradient	Fill/Gradient		0	0	0	
+Disc	Pyre	Composite	Fill	gradientMode	ABSENT	ShaperGradientMode	Fill/Gradient		0	0	0	
+Disc	Pyre	Composite	Fill	fit	ABSENT	ShaperFillFit	Fill/Gradient		0	0	0	
+Disc	Pyre	Composite	Fill	gradientDepthPixels	ABSENT	ZUIValue	Fill/Gradient/ByEdgeDistance		0	0	0	
+Disc	Pyre	Composite	Fill	gradientCentreY	ABSENT	ZUIValue	Fill/Gradient/Radial		0	0	0	
+Disc	Pyre	Composite	Fill	gradientCentreX	ABSENT	ZUIValue	Fill/Gradient/Radial		0	0	0	
+Disc	Pyre	Composite	Fill	gradientSize	ABSENT	ZUIValue	Fill/Gradient/Radial		0	0	0	
+Disc	Pyre	Composite	Fill	heightFieldTint	ABSENT	Color	Fill/HeightField		0	0	0	
+Disc	Pyre	Composite	Fill	heightFieldScale	ABSENT	ZUIValue	Fill/HeightField		0	0	0	
+Disc	Pyre	Composite	Fill	stripReach	ABSENT	ZUIValue	Fill/IndexedStrip		0	0	0	
+Disc	Pyre	Composite	Fill	stripPlainColor	ABSENT	Color	Fill/IndexedStrip		0	0	0	
+Disc	Pyre	Composite	Fill	stripOrientationDegrees	ABSENT	ZUIValue	Fill/IndexedStrip		0	0	0	
+Disc	Pyre	Composite	Fill	stripOffset	ABSENT	ZUIValue	Fill/IndexedStrip		0	0	0	
+Disc	Pyre	Composite	Fill	stripRepeats	ABSENT	ZUIValue	Fill/IndexedStrip		0	0	0	
+Disc	Pyre	Composite	Fill	stripSlots[1].height	ABSENT	Single	Fill/IndexedStrip		0	0	0	
+Disc	Pyre	Composite	Fill	stripSlots[1].color	ABSENT	Color	Fill/IndexedStrip		0	0	0	
+Disc	Pyre	Composite	Fill	stripSlots[0].height	ABSENT	Single	Fill/IndexedStrip		0	0	0	
+Disc	Pyre	Composite	Fill	stripSlots[0].color	ABSENT	Color	Fill/IndexedStrip		0	0	0	
+Disc	Pyre	Composite	Fill	stripParameterisation	ABSENT	ShaperStripParameterisation	Fill/IndexedStrip		0	0	0	
+Disc	Pyre	Composite	Fill	overPhaseTint	ABSENT	Color	Fill/OverPhase		0	0	0	
+Disc	Pyre	Composite	Fill	overPhaseGradient	ABSENT	ZuiGradient	Fill/OverPhase		0	0	0	
+Disc	Pyre	Composite	Fill	proceduralOffsetV	ABSENT	ZUIValue	Fill/Procedural		0	0	0	
+Disc	Pyre	Composite	Fill	proceduralOffsetU	ABSENT	ZUIValue	Fill/Procedural		0	0	0	
+Disc	Pyre	Composite	Fill	proceduralScale	ABSENT	ZUIValue	Fill/Procedural		0	0	0	
+Disc	Pyre	Composite	Fill	proceduralTint	ABSENT	Color	Fill/Procedural		0	0	0	
+Disc	Pyre	Composite	Fill	proceduralGradient	ABSENT	ZuiGradient	Fill/Procedural		0	0	0	
+Disc	Pyre	Composite	Fill	noiseKind	ABSENT	ShaperNoiseKind	Fill/Procedural		0	0	0	
+Disc	Pyre	Composite	Fill	proceduralAngleDegrees	ABSENT	ZUIValue	Fill/Procedural		0	0	0	
+Disc	Pyre	Composite	Fill	proceduralKind	ABSENT	ShaperProceduralKind	Fill/Procedural	Grid	1176	0	0	
+Disc	Pyre	Composite	Fill	dotSize	ABSENT	ZUIValue	Fill/Procedural/Dots	0	302	0	0	
+Disc	Pyre	Composite	Fill	dotStagger	ABSENT	Boolean	Fill/Procedural/Dots	False	302	0	0	
+Disc	Pyre	Composite	Fill	gridLineWidth	ABSENT	ZUIValue	Fill/Procedural/Grid	0	320	0	0	
+Disc	Pyre	Composite	Fill	gridVertical	ABSENT	Boolean	Fill/Procedural/Grid	False	156	0	0	
+Disc	Pyre	Composite	Fill	gridHorizontal	ABSENT	Boolean	Fill/Procedural/Grid	False	156	0	0	
+Disc	Pyre	Composite	Fill	rampInputHigh	ABSENT	ZUIValue	Fill/RampByQuantity		0	0	0	
+Disc	Pyre	Composite	Fill	rampInputLow	ABSENT	ZUIValue	Fill/RampByQuantity		0	0	0	
+Disc	Pyre	Composite	Fill	rampTint	ABSENT	Color	Fill/RampByQuantity		0	0	0	
+Disc	Pyre	Composite	Fill	rampGradient	ABSENT	ZuiGradient	Fill/RampByQuantity		0	0	0	
+Disc	Pyre	Composite	Fill	rampQuantity	ABSENT	ShaperQuantity	Fill/RampByQuantity		0	0	0	
+Disc	Pyre	Composite	Fill	solidColor	ABSENT	Color	Fill/Solid		0	0	0	
+Disc	Pyre	Composite	Fill	steelRustColor	ABSENT	Color	Fill/TapestrySteel		0	0	0	
+Disc	Pyre	Composite	Fill	steelGrain	ABSENT	ZUIValue	Fill/TapestrySteel		0	0	0	
+Disc	Pyre	Composite	Fill	steelBaseHigh	ABSENT	Color	Fill/TapestrySteel		0	0	0	
+Disc	Pyre	Composite	Fill	steelBaseLow	ABSENT	Color	Fill/TapestrySteel		0	0	0	
+Disc	Pyre	Composite	Fill	steelRustAmount	ABSENT	ZUIValue	Fill/TapestrySteel		0	0	0	
+Disc	Pyre	Composite	Fill	steelOctaves	ABSENT	ZUIValue	Fill/TapestrySteel		0	0	0	
+Disc	Pyre	Composite	Fill	steelCells	ABSENT	ZUIValue	Fill/TapestrySteel		0	0	0	
+Disc	Pyre	Composite	Fill	steelSeed	ABSENT	ZUIValue	Fill/TapestrySteel		0	0	0	
+Disc	Pyre	Composite	Fill	steelRustReachPixels	ABSENT	ZUIValue	Fill/TapestrySteel		0	0	0	
+Disc	Pyre	Composite	Fill	textureTilesX	ABSENT	ZUIValue	Fill/Texture		0	0	0	
+Disc	Pyre	Composite	Fill	textureMapping	ABSENT	ShaperTextureMapping	Fill/Texture		0	0	0	
+Disc	Pyre	Composite	Fill	textureFrameRows	ABSENT	ZUIValue	Fill/Texture		0	0	0	
+Disc	Pyre	Composite	Fill	textureOffsetU	ABSENT	ZUIValue	Fill/Texture		0	0	0	
+Disc	Pyre	Composite	Fill	textureOffsetV	ABSENT	ZUIValue	Fill/Texture		0	0	0	
+Disc	Pyre	Composite	Fill	textureAngleDegrees	ABSENT	ZUIValue	Fill/Texture		0	0	0	
+Disc	Pyre	Composite	Fill	textureAnimated	ABSENT	Boolean	Fill/Texture		0	0	0	
+Disc	Pyre	Composite	Fill	textureFrameColumns	ABSENT	ZUIValue	Fill/Texture		0	0	0	
+Disc	Pyre	Composite	Fill	textureTilesY	ABSENT	ZUIValue	Fill/Texture		0	0	0	
+Disc	Pyre	Composite	Fill	textureFrameCount	ABSENT	ZUIValue	Fill/Texture		0	0	0	
+Disc	Pyre	Composite	Fill	textureTint	ABSENT	Color	Fill/Texture		0	0	0	
+Disc	Pyre	Composite	Layer/height	taper	yes	ZUIValue	Layer/height		0	0	0	
+Disc	Pyre	Composite	Layer/height	angle	yes	ZUIValue	Layer/height		0	0	0	
+Disc	Pyre	Composite	Layer/height	bevel	yes	ShaperBevelTechnique	Layer/height		0	0	0	
+Disc	Pyre	Composite	Layer/height	bevelAmount	yes	ZUIValue	Layer/height		0	0	0	
+Disc	Pyre	Composite	Layer/height	bevelSteps	yes	ZUIValue	Layer/height		0	0	0	
+Disc	Pyre	Composite	Layer/height	curve	yes	ZUIValue	Layer/height		0	0	0	
+Disc	Pyre	Composite	Layer/height	steps	yes	ZUIValue	Layer/height		0	0	0	
+Disc	Pyre	Composite	Layer/height	technique	yes	ShaperExtrusionTechnique	Layer/height		0	0	0	
+Disc	Pyre	Composite	Layer/height	depth	yes	ZUIValue	Layer/height		0	0	0	
+Disc	Pyre	Composite	Layer/mask	quantity	yes	ShaperMaskQuantity	Layer/mask	Luma	1340	0	0	
+Disc	Pyre	Composite	Layer/mask	fullAt	yes	ZUIValue	Layer/mask		0	0	0	
+Disc	Pyre	Composite	Layer/mask	invert	yes	Boolean	Layer/mask	True	1340	0	0	
+Disc	Pyre	Composite	Layer/mask	sourceLayerId	yes	Int32	Layer/mask		0	0	0	
+Disc	Pyre	Composite	Layer/mask	mode	yes	ShaperMaskMode	Layer/mask	Subtract	1340	0	0	
+Disc	Pyre	Composite	Position	originX	yes	ZUIValue	Position/pivot	16	2544	0	0	
+Disc	Pyre	Composite	Position	originY	yes	ZUIValue	Position/pivot	16	2138	0	0	
+Disc	Pyre	Composite	Shell	thicknessDial	yes	ZUIValue	Shell	0	6144	0	0	
+Disc	Pyre	Composite	Shell	alignment	yes	ShaperShellAlignment	Shell	Inward	5660	0	0	
+Disc	Pyre	Composite	Shell	enabled	yes	Boolean	Shell	False	5660	0	0	
+Disc	Pyre	Composite	Swarm	spawnTiming	yes	ZUIValue	Swarm		0	0	0	
+Disc	Pyre	Composite	Swarm	timing	yes	ShaperSwarmTiming	Swarm	Window	2032	0	0	
+Disc	Pyre	Composite	Swarm	scaleByIndex	yes	ZUIValue	Swarm	0	2115	0	0	
+Disc	Pyre	Composite	Swarm	firstSpawnPhase	yes	Single	Swarm		0	0	0	
+Disc	Pyre	Composite	Swarm	orient	yes	ShaperSwarmOrient	Swarm	Outward	297	0	0	
+Disc	Pyre	Composite	Swarm	gridReverse	yes	Boolean	Swarm		0	0	0	
+Disc	Pyre	Composite	Swarm	distribution	yes	Single	Swarm	1	3939	0	0	
+Disc	Pyre	Composite	Swarm	spawnPhaseStep	yes	Single	Swarm		0	0	0	
+Disc	Pyre	Composite	Swarm	spawnerYawDegrees	yes	ZUIValue	Swarm	16	1389	0	0	
+Disc	Pyre	Composite	Swarm	spawnerPitchDegrees	yes	ZUIValue	Swarm	16	766	0	0	
+Disc	Pyre	Composite	Swarm	spawnerRotationDegrees	yes	ZUIValue	Swarm	16	1854	0	0	
+Disc	Pyre	Composite	Swarm	rotationJitterDegreesDial	yes	ZUIValue	Swarm	16	593	0	0	
+Disc	Pyre	Composite	Swarm	spawnerOffsetX	yes	ZUIValue	Swarm	16	2789	0	0	
+Disc	Pyre	Composite	Swarm	spawnerRadius	yes	ZUIValue	Swarm	0	3873	0	0	
+Disc	Pyre	Composite	Swarm	spawnMode	yes	ShaperSwarmSpawnMode	Swarm	Path	3006	0	0	
+Disc	Pyre	Composite	Swarm	shape	yes	ShaperSwarmShape	Swarm	None	3873	0	0	
+Disc	Pyre	Composite	Swarm	lifetimeStagger	yes	Single	Swarm	0	1678	0	0	
+Disc	Pyre	Composite	Swarm	scaleJitterDial	yes	ZUIValue	Swarm	16	5302	0	0	
+Disc	Pyre	Composite	Swarm	positionJitterY	yes	ZUIValue	Swarm	0	2024	0	0	
+Disc	Pyre	Composite	Swarm	positionJitterX	yes	ZUIValue	Swarm	0	3418	0	0	
+Disc	Pyre	Composite	Swarm	count	yes	Int32	Swarm	1	2283	0	0	
+Disc	Pyre	Composite	Swarm	instanceLife	yes	Single	Swarm		0	0	0	
+Disc	Pyre	Composite	Swarm	enabled	yes	Boolean	Swarm	False	2283	0	0	
+Disc	Pyre	Composite	Swarm	spawnerOffsetY	yes	ZUIValue	Swarm	16	2309	0	0	
+Disc	Pyre	Composite	Swarm	dieTogether	yes	Boolean	Swarm		0	0	0	
+Disc	Pyre	Composite	Swarm	spawnOrderChaos	yes	Single	Swarm	1	4594	0	0	
+Disc	Pyre	Composite	Swarm	merge.sharpnessDial	yes	ZUIValue	Swarm		0	0	0	
+Disc	Pyre	Composite	Swarm	merge.carveStrengthDial	yes	ZUIValue	Swarm		0	0	0	
+Disc	Pyre	Composite	Swarm	interact	yes	Boolean	Swarm		0	0	0	
+Disc	Pyre	Composite	Swarm	merge.widthDial	yes	ZUIValue	Swarm	16	5301	0	0	
+Disc	Pyre	Composite	Swarm	pathProgress	yes	ZUIValue	Swarm/path	16	5	0	0	
+Disc	Pyre	Composite	Swarm	pathSpread	yes	Single	Swarm/path	0	3757	0	0	
+Disc	Pyre	Composite	Swarm	evenSpacing	yes	Boolean	Swarm/path	False	3757	0	0	
+Disc	Pyre	Composite	Sweep	startFractionDial	yes	ZUIValue	Sweep		0	0	0	
+Disc	Pyre	Composite	Sweep	extentFractionDial	yes	ZUIValue	Sweep		0	0	0	
+Disc	Pyre	Composite	Sweep	startDegreesDial	yes	ZUIValue	Sweep	16	140	0	0	
+Disc	Pyre	Composite	Sweep	extentDegreesDial	yes	ZUIValue	Sweep	0	457	0	0	
+Disc	Pyre	Composite	Sweep	enabled	yes	Boolean	Sweep/off		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.swarmProgress	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.swarmSpawnChaos	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.swarmCustomX	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.swarmCustomY	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.swarmSpawnTiming	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.swarmFrameStep	yes	Int32	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.swarmFirstFrame	yes	Int32	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.swarmGridReverse	yes	Boolean	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.swarmParticleLife	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.swarmOrient	yes	SwarmOrient	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.swarmScaleByIndex	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.swarmEvenPath	yes	Boolean	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.swarmPathSpread	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.swarmDieTogether	yes	Boolean	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeOffsetX	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.swarmTiming	yes	SwarmTiming	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.swarmChaos	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.swarmCount	yes	Int32	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.swarmSpawnMode	yes	SwarmSpawnMode	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireballSpread	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireballReach	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireballArms	yes	Int32	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireballMirror	yes	Boolean	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireballThreshold	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireballContrast	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.playbackSpeed	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.playbackScale	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.playbackTint	yes	Color	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.playbackZoom	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.playbackGlow	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.playbackScrub01	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.playbackLoopDuration	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.playbackPixelated	yes	Boolean	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.playbackPixelGrid	yes	Int32	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.playbackPixelLevels	yes	Int32	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.particlePathX	yes	ZUIValue	base	16	1868	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.particlePathY	yes	ZUIValue	base	16	1786	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.particleSpin	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.swarmEnabled	yes	Boolean	base	True	3574	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeOffsetY	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.swarmShapeKind	yes	SwarmShapeKind	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeScale	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.swarmTilt	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeRotation	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Layer/lighting	normalKind	yes	ShaperNormalKind	base		0	0	0	
+Disc	Pyre	Composite	Layer/lighting	normalConstant	yes	Vector3	base		0	0	0	
+Disc	Pyre	Composite	Layer/lighting	rimPower	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Document/light	ambientColour	yes	Color	base		0	0	0	
+Disc	Pyre	Composite	Document/light	ambientIntensity	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Document/light	lights[0].enabled	yes	Boolean	base		0	0	0	
+Disc	Pyre	Composite	Document/light	lights[0].kind	yes	ShaperLightKind	base		0	0	0	
+Disc	Pyre	Composite	Document/light	lights[0].colour	yes	Color	base		0	0	0	
+Disc	Pyre	Composite	Layer/lighting	specularTint	yes	Color	base		0	0	0	
+Disc	Pyre	Composite	Document/light	lights[0].intensity	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Document/light	lights[0].pitch	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Document	background	yes	Color	base	magenta	5660	0	0	
+Disc	Pyre	Composite	Document	layerSpacing	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Layer	contributesToPicture	yes	Boolean	base	False	1340	0	0	
+Disc	Pyre	Composite	Layer	endFrame	yes	Int32	base	0	1340	0	0	
+Disc	Pyre	Composite	Layer	startFrame	yes	Int32	base	16	1340	0	0	
+Disc	Pyre	Composite	Layer	zOffset	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Layer	enabled	yes	Boolean	base	False	1340	0	0	
+Disc	Pyre	Composite	Document/light	lights[0].yaw	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeScaleSnap	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Layer/lighting	specularPower	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Layer/lighting	rimStrength	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapePitch	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeYaw	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.swarmTurn	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.swarmRoll	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.swarmScale	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	frames	yes	Int32	base	0	1340	0	0	
+Disc	Pyre	Composite	Position	translateX	yes	ZUIValue	base	16	1868	0	0	
+Disc	Pyre	Composite	Position	translateY	yes	ZUIValue	base	16	1786	0	0	
+Disc	Pyre	Composite	Layer/lighting	specular	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Position	rotationDegrees	yes	ZUIValue	base	16	336	0	0	
+Disc	Pyre	Composite	Position	scaleY	yes	ZUIValue	base	0	1340	0	0	
+Disc	Pyre	Composite	Position	skewX	yes	ZUIValue	base	16	6138	0	0	
+Disc	Pyre	Composite	Position	skewY	yes	ZUIValue	base	16	6138	0	0	
+Disc	Pyre	Composite	Layer/lighting	receiveLighting	yes	Boolean	base		0	0	0	
+Disc	Pyre	Composite	Layer/lighting	intensityScale	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Layer/lighting	castShadows	yes	Boolean	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireballSharpness	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Layer/lighting	receiveShadows	yes	Boolean	base		0	0	0	
+Disc	Pyre	Composite	Position	scaleX	yes	ZUIValue	base	0	1340	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.enabled	yes	Boolean	base	False	1340	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireballCooling	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireballSource	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemLineFill.centerYAnim	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemLineFill.centerXAnim	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemLineFill.zoomAnim	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemLineFill.center	yes	Vector2	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemLineFill.zoom	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemLineFill.angleDeg	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemLineFill.gradientAnim	yes	ZuiGradient	base		0	0	0	no-stops
+Disc	Pyre	Composite	Shape/generator	layer.gemLineFill.gradient	yes	Gradient	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemLineFill.color	yes	Color	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemLineFill.mode	yes	Mode	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemLineWidth	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemSpecularFill.dotStagger	yes	Boolean	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemSpecularFill.dotSpacing	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemSpecularFill.dotSize	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemSpecularFill.gridHorizontal	yes	Boolean	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemSpecularFill.gridVertical	yes	Boolean	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemSpecularFill.gridLineWidth	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemSpecularFill.gradient	yes	Gradient	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemSpecularFill.gradientAnim	yes	ZuiGradient	base		0	0	0	no-stops
+Disc	Pyre	Composite	Shape/generator	layer.gemSpecularFill.angleDeg	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemSpecularFill.zoom	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemSpecularFill.center	yes	Vector2	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemSpecularFill.zoomAnim	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemLineFill.space	yes	FillSpace	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemSpecularFill.centerXAnim	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemSpecularFill.space	yes	FillSpace	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemSpecularFill.fit	yes	FillFit	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemSpecularFill.texture	yes	TextureKind	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemSpecularFill.noiseKind	yes	NoiseKind	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemSpecularFill.gridAngle	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemSpecularFill.gridSpacing	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemSpecularFill.centerYAnim	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemLineFill.fit	yes	FillFit	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemLineFill.texture	yes	TextureKind	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemLineFill.noiseKind	yes	NoiseKind	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemEdgeGlowFill.centerYAnim	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemEdgeGlowFill.space	yes	FillSpace	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemEdgeGlowFill.fit	yes	FillFit	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemEdgeGlowFill.texture	yes	TextureKind	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemEdgeGlowFill.noiseKind	yes	NoiseKind	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemEdgeGlowFill.gridAngle	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemEdgeGlowFill.centerXAnim	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemEdgeGlowFill.gridSpacing	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemEdgeGlowFill.gridVertical	yes	Boolean	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemEdgeGlowFill.gridHorizontal	yes	Boolean	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemEdgeGlowFill.dotSize	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemEdgeGlowFill.dotSpacing	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemEdgeGlowFill.dotStagger	yes	Boolean	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemInnerGlow	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemEdgeGlowFill.gridLineWidth	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemSpecularFill.color	yes	Color	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemEdgeGlowFill.zoomAnim	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemEdgeGlowFill.zoom	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemLineFill.gridAngle	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemLineFill.gridSpacing	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemLineFill.gridLineWidth	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemLineFill.gridVertical	yes	Boolean	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemLineFill.gridHorizontal	yes	Boolean	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemLineFill.dotSize	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemEdgeGlowFill.center	yes	Vector2	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemLineFill.dotSpacing	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemEdgeGlow	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemEdgeGlowFill.mode	yes	Mode	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemEdgeGlowFill.color	yes	Color	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemEdgeGlowFill.gradient	yes	Gradient	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemEdgeGlowFill.gradientAnim	yes	ZuiGradient	base		0	0	0	no-stops
+Disc	Pyre	Composite	Shape/generator	layer.gemEdgeGlowFill.angleDeg	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemLineFill.dotStagger	yes	Boolean	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemSpecularFill.mode	yes	Mode	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemSpecPower	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemSpecular	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.matteHueDegrees	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.coalesce	yes	LayerCoalesce	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fuseThreshold	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fuseShadeRange	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fuseSoftness	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.density	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.matteDisplaceAmount	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.heat	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.rampCoverage	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.rampLighting	yes	Boolean	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.rampRelief	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.rampLightAngle	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.rampRimScale	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeForm	yes	ShapeForm	base	Gem	1678	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.rampFusion	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeFill.mode	yes	Mode	base	Solid	1340	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.matteBlurAmount	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.matteAlphaSource	yes	Boolean	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.startFrame	yes	Int32	base	16	1340	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.endFrame	yes	Int32	base	0	1340	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.matteRole	yes	MatteRole	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.matteChannel	yes	Int32	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.matteCombine	yes	MatteCombine	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.clipByChannel	yes	Int32	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.matteStrength	yes	ZUIValue	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.clipInvert	yes	Boolean	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.heightFromChannel	yes	Int32	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.heightRelief	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.heightLightAngle	yes	Single	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.matteFlags	yes	MatteChannel	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.matteScope	yes	MatteScope	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.matteInvert	yes	Boolean	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.matteWriteLuma	yes	Boolean	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemInnerGlowFill.mode	yes	Mode	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeFill.color	yes	Color	base		0	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeFill.gradientAnim	yes	ZuiGradient	base		0	0	0	no-stops
+Disc	Pyre	Composite	Shape/generator	layer.alpha	yes	ZUIValue	base	0	1340	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.size	yes	ZUIValue	base	0	1340	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.edgeSoftness	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.edgeSoftnessAnim	yes	ZUIValue	base	16	1340	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemSides	yes	Int32	base	3	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemCrown	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeFill.dotStagger	yes	Boolean	base	False	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemPavilion	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemRoll	yes	ZUIValue	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemLightYaw	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemLightPitch	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemLightDistance	yes	Single	base	1.5	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemAmbient	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemDiffuse	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemTilt	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeFill.gradient	yes	Gradient	base	magenta->cyan	1348	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeFill.dotSpacing	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeFill.gridHorizontal	yes	Boolean	base	False	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeFill.angleDeg	yes	Single	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeFill.zoom	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeFill.center	yes	Vector2	base	(16,-16)	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeFill.zoomAnim	yes	ZUIValue	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeFill.centerXAnim	yes	ZUIValue	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeFill.centerYAnim	yes	ZUIValue	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeFill.dotSize	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeFill.space	yes	FillSpace	base	Fixed	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeFill.texture	yes	TextureKind	base	Sprite	1348	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeFill.noiseKind	yes	NoiseKind	base	Ridged	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeFill.gridAngle	yes	Single	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeFill.gridSpacing	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeFill.gridLineWidth	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeFill.gridVertical	yes	Boolean	base	False	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.shapeFill.fit	yes	FillFit	base	Stretch	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemInnerGlowFill.color	yes	Color	base	magenta	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemInnerGlowFill.gradient	yes	Gradient	base	magenta->cyan	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemInnerGlowFill.gradientAnim	yes	ZuiGradient	base		0	0	0	no-stops
+Disc	Pyre	Composite	Shape/generator	layer.borderWidth	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.borderFill.mode	yes	Mode	base	OverLife	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.borderFill.color	yes	Color	base	magenta	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.borderFill.gradient	yes	Gradient	base	magenta->cyan	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.borderFill.gradientAnim	yes	ZuiGradient	base		0	0	0	no-stops
+Disc	Pyre	Composite	Shape/generator	layer.borderFill.angleDeg	yes	Single	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.borderEnabled	yes	Boolean	base	True	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.borderFill.zoom	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.borderFill.zoomAnim	yes	ZUIValue	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.borderFill.centerXAnim	yes	ZUIValue	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.borderFill.centerYAnim	yes	ZUIValue	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.borderFill.space	yes	FillSpace	base	Fixed	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.borderFill.fit	yes	FillFit	base	Stretch	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.borderFill.texture	yes	TextureKind	base	Sprite	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.borderFill.center	yes	Vector2	base	(16,-16)	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.borderFill.noiseKind	yes	NoiseKind	base	Ridged	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.polygonSides	yes	Int32	base	3	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.starBaseWidth	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.crescentAngle	yes	ZUIValue	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.crescentOffset	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.crescentCenterXAnim	yes	ZUIValue	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.crescentCenterYAnim	yes	ZUIValue	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.sparkleDensity	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.sparkleSize	yes	Int32	base	4	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.starSkew	yes	ZUIValue	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.spriteTint	yes	Boolean	base	False	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.streakWidth	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.streakAnchor	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.streakSoftTip	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.streakScaleLengthOnly	yes	Boolean	base	True	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.starArms	yes	Int32	base	2	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.starLength	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.streakLength	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.crescentBite	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.borderFill.gridAngle	yes	Single	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.borderFill.gridLineWidth	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireCurlScale	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireFlicker	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireStretch	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.firePinch	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireBreakup	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireDissipation	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireCurl	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireBurn	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireEdgeCooling	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireSteps	yes	Int32	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireThreshold	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireContrast	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireSwarmEmitters	yes	Boolean	base	True	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireEmitterOffset	yes	Vector2	base	(16,-16)	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireReach	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.borderFill.gridSpacing	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireBuoyancy	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.firePulse	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.borderFill.gridVertical	yes	Boolean	base	False	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.borderFill.gridHorizontal	yes	Boolean	base	False	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.borderFill.dotSize	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.borderFill.dotSpacing	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.borderFill.dotStagger	yes	Boolean	base	False	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.borderOverMatte	yes	Boolean	base	True	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireFlow	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireIntensity	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireArmMode	yes	FireArmMode	base	Vary	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireDirection	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireEmitterWidth	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireEmitterInset	yes	ZUIValue	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireHeat	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireFuel	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireArms	yes	Int32	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.fireballSourceRadius	yes	ZUIValue	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textDepth	yes	Single	base	0.05	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textSpacing	yes	Single	base	0.6	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.solidAspect	yes	Single	base	0.3	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.solidDepth	yes	Single	base	0.2	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.ringInner	yes	Single	base	0.1	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textFillMode	yes	TextFillMode	base	PerCharStep	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textFill.mode	yes	Mode	base	Solid	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textFill.color	yes	Color	base	magenta	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemInnerGlowFill.dotStagger	yes	Boolean	base	False	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textFill.gradient	yes	Gradient	base	magenta->cyan	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textFill.angleDeg	yes	Single	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textFill.zoom	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textFill.center	yes	Vector2	base	(16,-16)	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textFill.zoomAnim	yes	ZUIValue	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textFill.centerXAnim	yes	ZUIValue	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textFill.centerYAnim	yes	ZUIValue	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textFill.gradientAnim	yes	ZuiGradient	base		0	0	0	no-stops
+Disc	Pyre	Composite	Shape/generator	layer.textFill.space	yes	FillSpace	base	Fixed	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemInnerGlowFill.dotSpacing	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemInnerGlowFill.gridHorizontal	yes	Boolean	base	False	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemInnerGlowFill.angleDeg	yes	Single	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemInnerGlowFill.zoom	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemInnerGlowFill.center	yes	Vector2	base	(16,-16)	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemInnerGlowFill.zoomAnim	yes	ZUIValue	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemInnerGlowFill.centerXAnim	yes	ZUIValue	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemInnerGlowFill.centerYAnim	yes	ZUIValue	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemInnerGlowFill.dotSize	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemInnerGlowFill.space	yes	FillSpace	base	Fixed	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemInnerGlowFill.texture	yes	TextureKind	base	Sprite	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemInnerGlowFill.noiseKind	yes	NoiseKind	base	Ridged	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemInnerGlowFill.gridAngle	yes	Single	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemInnerGlowFill.gridSpacing	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemInnerGlowFill.gridLineWidth	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemInnerGlowFill.gridVertical	yes	Boolean	base	False	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.gemInnerGlowFill.fit	yes	FillFit	base	Stretch	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textSolid	yes	Boolean	base	False	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textFill.fit	yes	FillFit	base	Stretch	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textFill.noiseKind	yes	NoiseKind	base	Ridged	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textBorder.centerXAnim	yes	ZUIValue	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textBorder.centerYAnim	yes	ZUIValue	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textBorder.space	yes	FillSpace	base	Fixed	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textBorder.fit	yes	FillFit	base	Stretch	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textBorder.texture	yes	TextureKind	base	Sprite	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textBorder.noiseKind	yes	NoiseKind	base	Ridged	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textBorder.zoomAnim	yes	ZUIValue	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textBorder.gridAngle	yes	Single	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textBorder.gridLineWidth	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textBorder.gridVertical	yes	Boolean	base	False	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textBorder.gridHorizontal	yes	Boolean	base	False	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textBorder.dotSize	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textBorder.dotSpacing	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textBorder.dotStagger	yes	Boolean	base	False	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textBorder.gridSpacing	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textFill.texture	yes	TextureKind	base	Sprite	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textBorder.center	yes	Vector2	base	(16,-16)	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textBorder.angleDeg	yes	Single	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textFill.gridAngle	yes	Single	base	16	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textFill.gridSpacing	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textFill.gridLineWidth	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textFill.gridVertical	yes	Boolean	base	False	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textFill.gridHorizontal	yes	Boolean	base	False	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textFill.dotSize	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textBorder.zoom	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textFill.dotSpacing	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textGradientAngle	yes	Single	base	-180	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textBorderWidth	yes	Single	base	0	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textBorder.mode	yes	Mode	base	Solid	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textBorder.color	yes	Color	base	magenta	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textBorder.gradient	yes	Gradient	base	magenta->cyan	864	0	0	
+Disc	Pyre	Composite	Shape/generator	layer.textBorder.gradientAnim	yes	ZuiGradient	base		0	0	0	no-stops
+Disc	Pyre	Composite	Shape/generator	layer.textFill.dotStagger	yes	Boolean	base	False	864	0	0	
+Disc	Pyre	Composite	Document/light	lights[0].specular	yes	ZUIValue	base	0	864	0	0	
+#DOC	43	Bag	Bag (2 members)	controls=239	opaqueMid=1218	layerOwnPixels=1218	kind=Bag	deep=True	canvas=96x64	msPerFrame=8
+Bag (2 members)	Bag	Bag	Document/light	lights[0].posZ	yes	ZUIValue	Document/light/point	0	1218	0	0	
+Bag (2 members)	Bag	Bag	Document/light	lights[0].posY	yes	ZUIValue	Document/light/point	16	1218	0	0	
+Bag (2 members)	Bag	Bag	Document/light	lights[0].posX	yes	ZUIValue	Document/light/point	16	1218	0	0	
+Bag (2 members)	Bag	Bag	Document/light	lights[0].range	yes	ZUIValue	Document/light/point	0	1218	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	alignment	yes	ShaperShellAlignment	Edge	Centred	306	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	joinsCoverage	yes	Boolean	Edge		0	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	enabled	yes	Boolean	Edge	False	86	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	width	yes	ZUIValue	Edge	0	86	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.gradient	yes	ZuiGradient	Edge/fill/Gradient	stop0=magenta	438	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.gradientTint	yes	Color	Edge/fill/Gradient		0	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.kind	yes	ShaperFillKind	Edge/fill/Gradient	Solid	438	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.veil	yes	ZUIValue	Edge/fill/Gradient	0	438	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.composite	yes	ShaperFillComposite	Edge/fill/Gradient	Add	438	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.quantiseLevels	yes	ZUIValue	Edge/fill/Gradient		0	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.fit	yes	ShaperFillFit	Edge/fill/Gradient		0	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.gradientAngleDegrees	yes	ZUIValue	Edge/fill/Gradient	16	426	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.gradientMode	yes	ShaperGradientMode	Edge/fill/Gradient	Radial	424	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.space	yes	ShaperFillSpace	Edge/fill/Gradient	Fixed	434	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.heightDelta	yes	ZUIValue	Edge/fill/Gradient		0	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.gradientDepthPixels	yes	ZUIValue	Edge/fill/Gradient/ByEdgeDistance	0	364	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.gradientSize	yes	ZUIValue	Edge/fill/Gradient/Radial	0	438	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.gradientCentreY	yes	ZUIValue	Edge/fill/Gradient/Radial	16	420	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.gradientCentreX	yes	ZUIValue	Edge/fill/Gradient/Radial	16	420	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.heightFieldTint	yes	Color	Edge/fill/HeightField	magenta	438	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.heightFieldScale	yes	ZUIValue	Edge/fill/HeightField		0	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.stripSlots[1].color	yes	Color	Edge/fill/IndexedStrip	magenta	219	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.stripSlots[0].color	yes	Color	Edge/fill/IndexedStrip	magenta	219	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.stripSlots[0].height	yes	Single	Edge/fill/IndexedStrip		0	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.stripSlots[1].height	yes	Single	Edge/fill/IndexedStrip		0	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.stripRepeats	yes	ZUIValue	Edge/fill/IndexedStrip	16	214	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.stripOrientationDegrees	yes	ZUIValue	Edge/fill/IndexedStrip	16	41	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.stripReach	yes	ZUIValue	Edge/fill/IndexedStrip	0	364	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.stripPlainColor	yes	Color	Edge/fill/IndexedStrip		0	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.stripParameterisation	yes	ShaperStripParameterisation	Edge/fill/IndexedStrip	Projection	219	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.stripOffset	yes	ZUIValue	Edge/fill/IndexedStrip		0	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.overPhaseGradient	yes	ZuiGradient	Edge/fill/OverPhase	stop0=magenta	438	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.overPhaseTint	yes	Color	Edge/fill/OverPhase		0	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.proceduralKind	yes	ShaperProceduralKind	Edge/fill/Procedural	Grid	438	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.noiseKind	yes	ShaperNoiseKind	Edge/fill/Procedural	Ridged	434	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.proceduralTint	yes	Color	Edge/fill/Procedural		0	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.proceduralAngleDegrees	yes	ZUIValue	Edge/fill/Procedural	16	431	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.proceduralGradient	yes	ZuiGradient	Edge/fill/Procedural	stop0=magenta	437	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.proceduralOffsetU	yes	ZUIValue	Edge/fill/Procedural	16	432	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.proceduralOffsetV	yes	ZUIValue	Edge/fill/Procedural	16	429	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.proceduralScale	yes	ZUIValue	Edge/fill/Procedural	0	434	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.dotSize	yes	ZUIValue	Edge/fill/Procedural/Dots	0	13	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.dotStagger	yes	Boolean	Edge/fill/Procedural/Dots	False	13	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.gridLineWidth	yes	ZUIValue	Edge/fill/Procedural/Grid	0	10	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.gridHorizontal	yes	Boolean	Edge/fill/Procedural/Grid	False	8	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.gridVertical	yes	Boolean	Edge/fill/Procedural/Grid	False	14	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.rampQuantity	yes	ShaperQuantity	Edge/fill/RampByQuantity	Height	438	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.rampGradient	yes	ZuiGradient	Edge/fill/RampByQuantity	stop0=magenta	154	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.rampInputLow	yes	ZUIValue	Edge/fill/RampByQuantity	16	154	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.rampTint	yes	Color	Edge/fill/RampByQuantity		0	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.rampInputHigh	yes	ZUIValue	Edge/fill/RampByQuantity	0	154	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.solidColor	yes	Color	Edge/fill/Solid	magenta	438	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.steelBaseLow	yes	Color	Edge/fill/TapestrySteel	magenta	438	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.steelBaseHigh	yes	Color	Edge/fill/TapestrySteel	magenta	438	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.steelSeed	yes	ZUIValue	Edge/fill/TapestrySteel	16	414	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.steelRustColor	yes	Color	Edge/fill/TapestrySteel	magenta	306	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.steelOctaves	yes	ZUIValue	Edge/fill/TapestrySteel	0	400	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.steelRustAmount	yes	ZUIValue	Edge/fill/TapestrySteel	0	118	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.steelRustReachPixels	yes	ZUIValue	Edge/fill/TapestrySteel	0	364	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.steelGrain	yes	ZUIValue	Edge/fill/TapestrySteel	0	369	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.steelCells	yes	ZUIValue	Edge/fill/TapestrySteel	0	420	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.textureAnimated	yes	Boolean	Edge/fill/Texture		0	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.textureFrameCount	yes	ZUIValue	Edge/fill/Texture		0	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.textureMapping	yes	ShaperTextureMapping	Edge/fill/Texture	Tiled	160	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.textureFrameRows	yes	ZUIValue	Edge/fill/Texture		0	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.textureTilesY	yes	ZUIValue	Edge/fill/Texture		0	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.textureOffsetU	yes	ZUIValue	Edge/fill/Texture	16	214	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.textureOffsetV	yes	ZUIValue	Edge/fill/Texture	16	201	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.textureAngleDegrees	yes	ZUIValue	Edge/fill/Texture	16	181	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.textureTint	yes	Color	Edge/fill/Texture	green a=0	438	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.textureFrameColumns	yes	ZUIValue	Edge/fill/Texture		0	0	0	
+Bag (2 members)	Bag	Bag	Edge (border)	fill.textureTilesX	yes	ZUIValue	Edge/fill/Texture		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	veil	yes	ZUIValue	Fill/Gradient		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	heightDelta	yes	ZUIValue	Fill/Gradient		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	kind	yes	ShaperFillKind	Fill/Gradient		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	quantiseLevels	yes	ZUIValue	Fill/Gradient		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	composite	yes	ShaperFillComposite	Fill/Gradient		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	gradientAngleDegrees	yes	ZUIValue	Fill/Gradient		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	gradientTint	yes	Color	Fill/Gradient		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	gradient	yes	ZuiGradient	Fill/Gradient		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	gradientMode	yes	ShaperGradientMode	Fill/Gradient		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	fit	yes	ShaperFillFit	Fill/Gradient		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	space	yes	ShaperFillSpace	Fill/Gradient		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	gradientDepthPixels	yes	ZUIValue	Fill/Gradient/ByEdgeDistance		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	gradientSize	yes	ZUIValue	Fill/Gradient/Radial		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	gradientCentreY	yes	ZUIValue	Fill/Gradient/Radial		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	gradientCentreX	yes	ZUIValue	Fill/Gradient/Radial		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	heightFieldScale	yes	ZUIValue	Fill/HeightField		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	heightFieldTint	yes	Color	Fill/HeightField		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	stripPlainColor	yes	Color	Fill/IndexedStrip		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	stripReach	yes	ZUIValue	Fill/IndexedStrip		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	stripOffset	yes	ZUIValue	Fill/IndexedStrip		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	stripOrientationDegrees	yes	ZUIValue	Fill/IndexedStrip		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	stripRepeats	yes	ZUIValue	Fill/IndexedStrip		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	stripSlots[1].height	yes	Single	Fill/IndexedStrip		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	stripSlots[1].color	yes	Color	Fill/IndexedStrip		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	stripSlots[0].height	yes	Single	Fill/IndexedStrip		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	stripParameterisation	yes	ShaperStripParameterisation	Fill/IndexedStrip		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	stripSlots[0].color	yes	Color	Fill/IndexedStrip		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	overPhaseGradient	yes	ZuiGradient	Fill/OverPhase		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	overPhaseTint	yes	Color	Fill/OverPhase		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	proceduralKind	yes	ShaperProceduralKind	Fill/Procedural		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	proceduralAngleDegrees	yes	ZUIValue	Fill/Procedural		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	proceduralOffsetV	yes	ZUIValue	Fill/Procedural		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	proceduralOffsetU	yes	ZUIValue	Fill/Procedural		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	proceduralScale	yes	ZUIValue	Fill/Procedural		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	proceduralTint	yes	Color	Fill/Procedural		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	proceduralGradient	yes	ZuiGradient	Fill/Procedural		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	noiseKind	yes	ShaperNoiseKind	Fill/Procedural		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	dotSize	yes	ZUIValue	Fill/Procedural/Dots		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	dotStagger	yes	Boolean	Fill/Procedural/Dots		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	gridVertical	yes	Boolean	Fill/Procedural/Grid		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	gridHorizontal	yes	Boolean	Fill/Procedural/Grid		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	gridLineWidth	yes	ZUIValue	Fill/Procedural/Grid		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	rampInputHigh	yes	ZUIValue	Fill/RampByQuantity		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	rampInputLow	yes	ZUIValue	Fill/RampByQuantity		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	rampTint	yes	Color	Fill/RampByQuantity		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	rampGradient	yes	ZuiGradient	Fill/RampByQuantity		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	rampQuantity	yes	ShaperQuantity	Fill/RampByQuantity		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	solidColor	yes	Color	Fill/Solid		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	steelGrain	yes	ZUIValue	Fill/TapestrySteel		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	steelRustReachPixels	yes	ZUIValue	Fill/TapestrySteel		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	steelCells	yes	ZUIValue	Fill/TapestrySteel		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	steelRustColor	yes	Color	Fill/TapestrySteel		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	steelBaseHigh	yes	Color	Fill/TapestrySteel		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	steelBaseLow	yes	Color	Fill/TapestrySteel		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	steelSeed	yes	ZUIValue	Fill/TapestrySteel		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	steelOctaves	yes	ZUIValue	Fill/TapestrySteel		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	steelRustAmount	yes	ZUIValue	Fill/TapestrySteel		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	textureMapping	yes	ShaperTextureMapping	Fill/Texture		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	textureTilesX	yes	ZUIValue	Fill/Texture		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	textureTilesY	yes	ZUIValue	Fill/Texture		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	textureOffsetU	yes	ZUIValue	Fill/Texture		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	textureOffsetV	yes	ZUIValue	Fill/Texture		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	textureAngleDegrees	yes	ZUIValue	Fill/Texture		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	textureTint	yes	Color	Fill/Texture		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	textureAnimated	yes	Boolean	Fill/Texture		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	textureFrameColumns	yes	ZUIValue	Fill/Texture		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	textureFrameRows	yes	ZUIValue	Fill/Texture		0	0	0	
+Bag (2 members)	Bag	Bag	Fill	textureFrameCount	yes	ZUIValue	Fill/Texture		0	0	0	
+Bag (2 members)	Bag	Bag	Layer/height	technique	yes	ShaperExtrusionTechnique	Layer/height	Flat	916	0	0	
+Bag (2 members)	Bag	Bag	Layer/height	depth	yes	ZUIValue	Layer/height	0	1175	0	0	
+Bag (2 members)	Bag	Bag	Layer/height	angle	yes	ZUIValue	Layer/height	0	843	0	0	
+Bag (2 members)	Bag	Bag	Layer/height	steps	yes	ZUIValue	Layer/height		0	0	0	
+Bag (2 members)	Bag	Bag	Layer/height	curve	yes	ZUIValue	Layer/height		0	0	0	
+Bag (2 members)	Bag	Bag	Layer/height	taper	yes	ZUIValue	Layer/height		0	0	0	
+Bag (2 members)	Bag	Bag	Layer/height	bevel	yes	ShaperBevelTechnique	Layer/height	None	645	0	0	
+Bag (2 members)	Bag	Bag	Layer/height	bevelAmount	yes	ZUIValue	Layer/height	0	645	0	0	
+Bag (2 members)	Bag	Bag	Layer/height	bevelSteps	yes	ZUIValue	Layer/height		0	0	0	
+Bag (2 members)	Bag	Bag	Layer/mask	sourceLayerId	yes	Int32	Layer/mask		0	0	0	
+Bag (2 members)	Bag	Bag	Layer/mask	invert	yes	Boolean	Layer/mask	True	1218	0	0	
+Bag (2 members)	Bag	Bag	Layer/mask	mode	yes	ShaperMaskMode	Layer/mask	Subtract	1218	0	0	
+Bag (2 members)	Bag	Bag	Layer/mask	quantity	yes	ShaperMaskQuantity	Layer/mask	Luma	1218	0	0	
+Bag (2 members)	Bag	Bag	Layer/mask	fullAt	yes	ZUIValue	Layer/mask		0	0	0	
+Bag (2 members)	Bag	Bag	Position	originX	yes	ZUIValue	Position/pivot	16	1551	0	0	
+Bag (2 members)	Bag	Bag	Position	originY	yes	ZUIValue	Position/pivot	16	812	0	0	
+Bag (2 members)	Bag	Bag	Shell	enabled	yes	Boolean	Shell	False	1316	0	0	
+Bag (2 members)	Bag	Bag	Shell	thicknessDial	yes	ZUIValue	Shell	0	618	0	0	
+Bag (2 members)	Bag	Bag	Shell	alignment	yes	ShaperShellAlignment	Shell	Inward	654	0	0	
+Bag (2 members)	Bag	Bag	Swarm	spawnerRadius	yes	ZUIValue	Swarm	0	2442	0	0	
+Bag (2 members)	Bag	Bag	Swarm	spawnMode	yes	ShaperSwarmSpawnMode	Swarm	Path	2352	0	0	
+Bag (2 members)	Bag	Bag	Swarm	shape	yes	ShaperSwarmShape	Swarm	None	2442	0	0	
+Bag (2 members)	Bag	Bag	Swarm	lifetimeStagger	yes	Single	Swarm		0	0	0	
+Bag (2 members)	Bag	Bag	Swarm	enabled	yes	Boolean	Swarm	False	1548	0	0	
+Bag (2 members)	Bag	Bag	Swarm	rotationJitterDegreesDial	yes	ZUIValue	Swarm	16	392	0	0	
+Bag (2 members)	Bag	Bag	Swarm	positionJitterY	yes	ZUIValue	Swarm	0	1157	0	0	
+Bag (2 members)	Bag	Bag	Swarm	positionJitterX	yes	ZUIValue	Swarm	0	1941	0	0	
+Bag (2 members)	Bag	Bag	Swarm	count	yes	Int32	Swarm	1	1548	0	0	
+Bag (2 members)	Bag	Bag	Swarm	spawnerOffsetX	yes	ZUIValue	Swarm	16	1966	0	0	
+Bag (2 members)	Bag	Bag	Swarm	scaleJitterDial	yes	ZUIValue	Swarm	16	2579	0	0	
+Bag (2 members)	Bag	Bag	Swarm	spawnerOffsetY	yes	ZUIValue	Swarm	16	2044	0	0	
+Bag (2 members)	Bag	Bag	Swarm	gridReverse	yes	Boolean	Swarm		0	0	0	
+Bag (2 members)	Bag	Bag	Swarm	spawnerPitchDegrees	yes	ZUIValue	Swarm	16	292	0	0	
+Bag (2 members)	Bag	Bag	Swarm	interact	yes	Boolean	Swarm		0	0	0	
+Bag (2 members)	Bag	Bag	Swarm	merge.carveStrengthDial	yes	ZUIValue	Swarm		0	0	0	
+Bag (2 members)	Bag	Bag	Swarm	merge.sharpnessDial	yes	ZUIValue	Swarm		0	0	0	
+Bag (2 members)	Bag	Bag	Swarm	spawnerRotationDegrees	yes	ZUIValue	Swarm	16	1013	0	0	
+Bag (2 members)	Bag	Bag	Swarm	dieTogether	yes	Boolean	Swarm		0	0	0	
+Bag (2 members)	Bag	Bag	Swarm	instanceLife	yes	Single	Swarm		0	0	0	
+Bag (2 members)	Bag	Bag	Swarm	spawnPhaseStep	yes	Single	Swarm		0	0	0	
+Bag (2 members)	Bag	Bag	Swarm	firstSpawnPhase	yes	Single	Swarm		0	0	0	
+Bag (2 members)	Bag	Bag	Swarm	spawnTiming	yes	ZUIValue	Swarm		0	0	0	
+Bag (2 members)	Bag	Bag	Swarm	merge.widthDial	yes	ZUIValue	Swarm	16	470	0	0	
+Bag (2 members)	Bag	Bag	Swarm	scaleByIndex	yes	ZUIValue	Swarm	0	2674	0	0	
+Bag (2 members)	Bag	Bag	Swarm	spawnerYawDegrees	yes	ZUIValue	Swarm	16	392	0	0	
+Bag (2 members)	Bag	Bag	Swarm	timing	yes	ShaperSwarmTiming	Swarm	Window	2241	0	0	
+Bag (2 members)	Bag	Bag	Swarm	spawnOrderChaos	yes	Single	Swarm	1	3522	0	0	
+Bag (2 members)	Bag	Bag	Swarm	distribution	yes	Single	Swarm	1	2962	0	0	
+Bag (2 members)	Bag	Bag	Swarm	orient	yes	ShaperSwarmOrient	Swarm	Outward	716	0	0	
+Bag (2 members)	Bag	Bag	Swarm	pathProgress	yes	ZUIValue	Swarm/path	16	6	0	0	
+Bag (2 members)	Bag	Bag	Swarm	evenSpacing	yes	Boolean	Swarm/path	False	2823	0	0	
+Bag (2 members)	Bag	Bag	Swarm	pathSpread	yes	Single	Swarm/path	0	2823	0	0	
+Bag (2 members)	Bag	Bag	Sweep	startFractionDial	yes	ZUIValue	Sweep		0	0	0	
+Bag (2 members)	Bag	Bag	Sweep	extentDegreesDial	yes	ZUIValue	Sweep	0	401	0	0	
+Bag (2 members)	Bag	Bag	Sweep	startDegreesDial	yes	ZUIValue	Sweep	16	155	0	0	
+Bag (2 members)	Bag	Bag	Sweep	extentFractionDial	yes	ZUIValue	Sweep		0	0	0	
+Bag (2 members)	Bag	Bag	Sweep	enabled	yes	Boolean	Sweep/off		0	0	0	
+Bag (2 members)	Bag	Bag	Layer/lighting	rimStrength	yes	ZUIValue	base		0	0	0	
+Bag (2 members)	Bag	Bag	Layer/lighting	specular	yes	ZUIValue	base	16	1218	0	0	
+Bag (2 members)	Bag	Bag	Layer/lighting	specularPower	yes	ZUIValue	base	0	1218	0	0	
+Bag (2 members)	Bag	Bag	Layer/lighting	specularTint	yes	Color	base		0	0	0	
+Bag (2 members)	Bag	Bag	Layer/lighting	normalKind	yes	ShaperNormalKind	base		0	0	0	
+Bag (2 members)	Bag	Bag	Layer/lighting	normalConstant	yes	Vector3	base		0	0	0	
+Bag (2 members)	Bag	Bag	Layer/lighting	rimPower	yes	ZUIValue	base		0	0	0	
+Bag (2 members)	Bag	Bag	Document/light	lights[0].kind	yes	ShaperLightKind	base	Point	1218	0	0	
+Bag (2 members)	Bag	Bag	Document/light	ambientIntensity	yes	ZUIValue	base	0	1218	0	0	
+Bag (2 members)	Bag	Bag	Document/light	lights[0].enabled	yes	Boolean	base	False	1218	0	0	
+Bag (2 members)	Bag	Bag	Document/light	lights[0].colour	yes	Color	base	magenta	1218	0	0	
+Bag (2 members)	Bag	Bag	Document/light	lights[0].pitch	yes	ZUIValue	base	0	1218	0	0	
+Bag (2 members)	Bag	Bag	Document/light	lights[0].yaw	yes	ZUIValue	base	0	1218	0	0	
+Bag (2 members)	Bag	Bag	Document/light	lights[0].intensity	yes	ZUIValue	base	0	1218	0	0	
+Bag (2 members)	Bag	Bag	Document/light	ambientColour	yes	Color	base	magenta	1218	0	0	
+Bag (2 members)	Bag	Bag	Layer/lighting	receiveShadows	yes	Boolean	base		0	0	0	
+Bag (2 members)	Bag	Bag	Position	translateX	yes	ZUIValue	base	16	1082	0	0	
+Bag (2 members)	Bag	Bag	Layer/lighting	intensityScale	yes	ZUIValue	base	0	1218	0	0	
+Bag (2 members)	Bag	Bag	Position	translateY	yes	ZUIValue	base	16	1528	0	0	
+Bag (2 members)	Bag	Bag	Position	rotationDegrees	yes	ZUIValue	base	16	288	0	0	
+Bag (2 members)	Bag	Bag	Position	scaleX	yes	ZUIValue	base	0	1218	0	0	
+Bag (2 members)	Bag	Bag	Position	scaleY	yes	ZUIValue	base	0	1218	0	0	
+Bag (2 members)	Bag	Bag	Position	skewX	yes	ZUIValue	base	16	275	0	0	
+Bag (2 members)	Bag	Bag	Position	skewY	yes	ZUIValue	base	16	445	0	0	
+Bag (2 members)	Bag	Bag	Combine (member)	widthDial	yes	ZUIValue	base	16	218	0	0	
+Bag (2 members)	Bag	Bag	Combine (member)	sharpnessDial	yes	ZUIValue	base		0	0	0	
+Bag (2 members)	Bag	Bag	Layer/lighting	castShadows	yes	Boolean	base		0	0	0	
+Bag (2 members)	Bag	Bag	Combine (member)	carveStrengthDial	yes	ZUIValue	base		0	0	0	
+Bag (2 members)	Bag	Bag	Layer	enabled	yes	Boolean	base	False	1218	0	0	
+Bag (2 members)	Bag	Bag	Layer	zOffset	yes	ZUIValue	base		0	0	0	
+Bag (2 members)	Bag	Bag	Layer	startFrame	yes	Int32	base	16	1218	0	0	
+Bag (2 members)	Bag	Bag	Layer	endFrame	yes	Int32	base	0	1218	0	0	
+Bag (2 members)	Bag	Bag	Layer	contributesToPicture	yes	Boolean	base	False	1218	0	0	
+Bag (2 members)	Bag	Bag	Document	layerSpacing	yes	Single	base		0	0	0	
+Bag (2 members)	Bag	Bag	Document	background	yes	Color	base	magenta	5012	0	0	
+Bag (2 members)	Bag	Bag	Layer/lighting	receiveLighting	yes	Boolean	base	False	1218	0	0	
+Bag (2 members)	Bag	Bag	Combine (member)	mode	yes	ShaperCombineMode	base	Subtract	560	0	0	
+Bag (2 members)	Bag	Bag	Document/light	lights[0].specular	yes	ZUIValue	base	16	1218	0	0	

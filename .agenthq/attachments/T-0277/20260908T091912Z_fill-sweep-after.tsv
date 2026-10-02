@@ -1,0 +1,409 @@
+doc	kind	card	control	type	state	value	pixels
+Star	Primitive	Fill	kind	ShaperFillKind	Fill/Gradient	Solid	864
+Star	Primitive	Fill	veil	ZUIValue	Fill/Gradient	0	864
+Star	Primitive	Fill	heightDelta	ZUIValue	Fill/Gradient		0
+Star	Primitive	Fill	composite	ShaperFillComposite	Fill/Gradient	Add	864
+Star	Primitive	Fill	space	ShaperFillSpace	Fill/Gradient	Fixed	864
+Star	Primitive	Fill	fit	ShaperFillFit	Fill/Gradient		0
+Star	Primitive	Fill	solidColor	Color	Fill/Solid	magenta	864
+Star	Primitive	Fill	gradientMode	ShaperGradientMode	Fill/Gradient	Radial	859
+Star	Primitive	Fill	gradient	ZuiGradient	Fill/Gradient	stop0=magenta	864
+Star	Primitive	Fill	gradientTint	Color	Fill/Gradient		0
+Star	Primitive	Fill	gradientAngleDegrees	ZUIValue	Fill/Gradient	16	843
+Star	Primitive	Fill	gradientCentreX	ZUIValue	Fill/Gradient/Radial	16	862
+Star	Primitive	Fill	gradientCentreY	ZUIValue	Fill/Gradient/Radial	16	862
+Star	Primitive	Fill	gradientSize	ZUIValue	Fill/Gradient/Radial	0	864
+Star	Primitive	Fill	gradientDepthPixels	ZUIValue	Fill/Gradient/ByEdgeDistance	0	738
+Star	Primitive	Fill	rampQuantity	ShaperQuantity	Fill/RampByQuantity	Height	864
+Star	Primitive	Fill	rampGradient	ZuiGradient	Fill/RampByQuantity	stop0=magenta	176
+Star	Primitive	Fill	rampTint	Color	Fill/RampByQuantity		0
+Star	Primitive	Fill	rampInputLow	ZUIValue	Fill/RampByQuantity	16	176
+Star	Primitive	Fill	rampInputHigh	ZUIValue	Fill/RampByQuantity	0	176
+Star	Primitive	Fill	textureMapping	ShaperTextureMapping	Fill/Texture	Tiled	444
+Star	Primitive	Fill	textureTilesX	ZUIValue	Fill/Texture		0
+Star	Primitive	Fill	textureTilesY	ZUIValue	Fill/Texture		0
+Star	Primitive	Fill	textureOffsetU	ZUIValue	Fill/Texture	16	432
+Star	Primitive	Fill	textureOffsetV	ZUIValue	Fill/Texture	16	498
+Star	Primitive	Fill	textureAngleDegrees	ZUIValue	Fill/Texture	16	250
+Star	Primitive	Fill	textureTint	Color	Fill/Texture	green a=0	864
+Star	Primitive	Fill	textureAnimated	Boolean	Fill/Texture		0
+Star	Primitive	Fill	textureFrameColumns	ZUIValue	Fill/Texture		0
+Star	Primitive	Fill	textureFrameRows	ZUIValue	Fill/Texture		0
+Star	Primitive	Fill	textureFrameCount	ZUIValue	Fill/Texture		0
+Star	Primitive	Fill	overPhaseGradient	ZuiGradient	Fill/OverPhase	stop0=magenta	864
+Star	Primitive	Fill	overPhaseTint	Color	Fill/OverPhase		0
+Star	Primitive	Fill	proceduralKind	ShaperProceduralKind	Fill/Procedural	Grid	864
+Star	Primitive	Fill	noiseKind	ShaperNoiseKind	Fill/Procedural	Ridged	863
+Star	Primitive	Fill	proceduralGradient	ZuiGradient	Fill/Procedural	stop0=magenta	864
+Star	Primitive	Fill	proceduralTint	Color	Fill/Procedural		0
+Star	Primitive	Fill	proceduralScale	ZUIValue	Fill/Procedural	0	858
+Star	Primitive	Fill	proceduralOffsetU	ZUIValue	Fill/Procedural	16	859
+Star	Primitive	Fill	proceduralOffsetV	ZUIValue	Fill/Procedural	16	856
+Star	Primitive	Fill	proceduralAngleDegrees	ZUIValue	Fill/Procedural	16	856
+Star	Primitive	Fill	gridLineWidth	ZUIValue	Fill/Procedural/Grid	0	240
+Star	Primitive	Fill	gridVertical	Boolean	Fill/Procedural/Grid	False	122
+Star	Primitive	Fill	gridHorizontal	Boolean	Fill/Procedural/Grid	False	96
+Star	Primitive	Fill	dotSize	ZUIValue	Fill/Procedural/Dots	0	198
+Star	Primitive	Fill	dotStagger	Boolean	Fill/Procedural/Dots	False	148
+Star	Primitive	Fill	stripParameterisation	ShaperStripParameterisation	Fill/IndexedStrip	Projection	432
+Star	Primitive	Fill	stripSlots[0].color	Color	Fill/IndexedStrip	magenta	478
+Star	Primitive	Fill	stripSlots[0].height	Single	Fill/IndexedStrip		0
+Star	Primitive	Fill	stripSlots[1].color	Color	Fill/IndexedStrip	magenta	386
+Star	Primitive	Fill	stripSlots[1].height	Single	Fill/IndexedStrip		0
+Star	Primitive	Fill	stripRepeats	ZUIValue	Fill/IndexedStrip	16	437
+Star	Primitive	Fill	stripOrientationDegrees	ZUIValue	Fill/IndexedStrip	16	70
+Star	Primitive	Fill	stripOffset	ZUIValue	Fill/IndexedStrip		0
+Star	Primitive	Fill	stripReach	ZUIValue	Fill/IndexedStrip	0	752
+Star	Primitive	Fill	stripPlainColor	Color	Fill/IndexedStrip		0
+Star	Primitive	Fill	heightFieldScale	ZUIValue	Fill/HeightField		0
+Star	Primitive	Fill	heightFieldTint	Color	Fill/HeightField	magenta	864
+Star	Primitive	Fill	steelCells	ZUIValue	Fill/TapestrySteel	0	856
+Star	Primitive	Fill	steelOctaves	ZUIValue	Fill/TapestrySteel	0	841
+Star	Primitive	Fill	steelSeed	ZUIValue	Fill/TapestrySteel	16	845
+Star	Primitive	Fill	steelBaseLow	Color	Fill/TapestrySteel	magenta	864
+Star	Primitive	Fill	steelBaseHigh	Color	Fill/TapestrySteel	magenta	864
+Star	Primitive	Fill	steelRustColor	Color	Fill/TapestrySteel	magenta	714
+Star	Primitive	Fill	steelRustAmount	ZUIValue	Fill/TapestrySteel	0	531
+Star	Primitive	Fill	steelRustReachPixels	ZUIValue	Fill/TapestrySteel	0	752
+Star	Primitive	Fill	steelGrain	ZUIValue	Fill/TapestrySteel	0	792
+Star	Primitive	Fill	quantiseLevels	ZUIValue	Fill/Gradient	16	864
+Star	Primitive	Edge (border)	kind	ShaperFillKind	Edge/fill/Gradient	Solid	608
+Star	Primitive	Edge (border)	veil	ZUIValue	Edge/fill/Gradient	0	608
+Star	Primitive	Edge (border)	heightDelta	ZUIValue	Edge/fill/Gradient		0
+Star	Primitive	Edge (border)	composite	ShaperFillComposite	Edge/fill/Gradient	Add	608
+Star	Primitive	Edge (border)	space	ShaperFillSpace	Edge/fill/Gradient	Fixed	593
+Star	Primitive	Edge (border)	fit	ShaperFillFit	Edge/fill/Gradient		0
+Star	Primitive	Edge (border)	solidColor	Color	Edge/fill/Solid	magenta	608
+Star	Primitive	Edge (border)	gradientMode	ShaperGradientMode	Edge/fill/Gradient	Radial	599
+Star	Primitive	Edge (border)	gradient	ZuiGradient	Edge/fill/Gradient	stop0=magenta	608
+Star	Primitive	Edge (border)	gradientTint	Color	Edge/fill/Gradient		0
+Star	Primitive	Edge (border)	gradientAngleDegrees	ZUIValue	Edge/fill/Gradient	16	582
+Star	Primitive	Edge (border)	gradientCentreX	ZUIValue	Edge/fill/Gradient/Radial	16	606
+Star	Primitive	Edge (border)	gradientCentreY	ZUIValue	Edge/fill/Gradient/Radial	16	606
+Star	Primitive	Edge (border)	gradientSize	ZUIValue	Edge/fill/Gradient/Radial	0	608
+Star	Primitive	Edge (border)	gradientDepthPixels	ZUIValue	Edge/fill/Gradient/ByEdgeDistance	0	456
+Star	Primitive	Edge (border)	rampQuantity	ShaperQuantity	Edge/fill/RampByQuantity	Height	608
+Star	Primitive	Edge (border)	rampGradient	ZuiGradient	Edge/fill/RampByQuantity	stop0=magenta	264
+Star	Primitive	Edge (border)	rampTint	Color	Edge/fill/RampByQuantity		0
+Star	Primitive	Edge (border)	rampInputLow	ZUIValue	Edge/fill/RampByQuantity	16	264
+Star	Primitive	Edge (border)	rampInputHigh	ZUIValue	Edge/fill/RampByQuantity	0	264
+Star	Primitive	Edge (border)	textureMapping	ShaperTextureMapping	Edge/fill/Texture	Tiled	355
+Star	Primitive	Edge (border)	textureTilesX	ZUIValue	Edge/fill/Texture		0
+Star	Primitive	Edge (border)	textureTilesY	ZUIValue	Edge/fill/Texture		0
+Star	Primitive	Edge (border)	textureOffsetU	ZUIValue	Edge/fill/Texture	16	304
+Star	Primitive	Edge (border)	textureOffsetV	ZUIValue	Edge/fill/Texture	16	356
+Star	Primitive	Edge (border)	textureAngleDegrees	ZUIValue	Edge/fill/Texture	16	205
+Star	Primitive	Edge (border)	textureTint	Color	Edge/fill/Texture	green a=0	608
+Star	Primitive	Edge (border)	textureAnimated	Boolean	Edge/fill/Texture		0
+Star	Primitive	Edge (border)	textureFrameColumns	ZUIValue	Edge/fill/Texture		0
+Star	Primitive	Edge (border)	textureFrameRows	ZUIValue	Edge/fill/Texture		0
+Star	Primitive	Edge (border)	textureFrameCount	ZUIValue	Edge/fill/Texture		0
+Star	Primitive	Edge (border)	overPhaseGradient	ZuiGradient	Edge/fill/OverPhase	stop0=magenta	608
+Star	Primitive	Edge (border)	overPhaseTint	Color	Edge/fill/OverPhase		0
+Star	Primitive	Edge (border)	proceduralKind	ShaperProceduralKind	Edge/fill/Procedural	Grid	608
+Star	Primitive	Edge (border)	noiseKind	ShaperNoiseKind	Edge/fill/Procedural	Ridged	605
+Star	Primitive	Edge (border)	proceduralGradient	ZuiGradient	Edge/fill/Procedural	stop0=magenta	608
+Star	Primitive	Edge (border)	proceduralTint	Color	Edge/fill/Procedural		0
+Star	Primitive	Edge (border)	proceduralScale	ZUIValue	Edge/fill/Procedural	0	603
+Star	Primitive	Edge (border)	proceduralOffsetU	ZUIValue	Edge/fill/Procedural	16	598
+Star	Primitive	Edge (border)	proceduralOffsetV	ZUIValue	Edge/fill/Procedural	16	597
+Star	Primitive	Edge (border)	proceduralAngleDegrees	ZUIValue	Edge/fill/Procedural	16	600
+Star	Primitive	Edge (border)	gridLineWidth	ZUIValue	Edge/fill/Procedural/Grid	0	42
+Star	Primitive	Edge (border)	gridVertical	Boolean	Edge/fill/Procedural/Grid	False	20
+Star	Primitive	Edge (border)	gridHorizontal	Boolean	Edge/fill/Procedural/Grid	False	12
+Star	Primitive	Edge (border)	dotSize	ZUIValue	Edge/fill/Procedural/Dots	0	40
+Star	Primitive	Edge (border)	dotStagger	Boolean	Edge/fill/Procedural/Dots	False	18
+Star	Primitive	Edge (border)	stripParameterisation	ShaperStripParameterisation	Edge/fill/IndexedStrip	Projection	304
+Star	Primitive	Edge (border)	stripSlots[0].color	Color	Edge/fill/IndexedStrip	magenta	336
+Star	Primitive	Edge (border)	stripSlots[0].height	Single	Edge/fill/IndexedStrip		0
+Star	Primitive	Edge (border)	stripSlots[1].color	Color	Edge/fill/IndexedStrip	magenta	272
+Star	Primitive	Edge (border)	stripSlots[1].height	Single	Edge/fill/IndexedStrip		0
+Star	Primitive	Edge (border)	stripRepeats	ZUIValue	Edge/fill/IndexedStrip	16	307
+Star	Primitive	Edge (border)	stripOrientationDegrees	ZUIValue	Edge/fill/IndexedStrip	16	50
+Star	Primitive	Edge (border)	stripOffset	ZUIValue	Edge/fill/IndexedStrip		0
+Star	Primitive	Edge (border)	stripReach	ZUIValue	Edge/fill/IndexedStrip	0	456
+Star	Primitive	Edge (border)	stripPlainColor	Color	Edge/fill/IndexedStrip		0
+Star	Primitive	Edge (border)	heightFieldScale	ZUIValue	Edge/fill/HeightField		0
+Star	Primitive	Edge (border)	heightFieldTint	Color	Edge/fill/HeightField	magenta	608
+Star	Primitive	Edge (border)	steelCells	ZUIValue	Edge/fill/TapestrySteel	0	585
+Star	Primitive	Edge (border)	steelOctaves	ZUIValue	Edge/fill/TapestrySteel	0	565
+Star	Primitive	Edge (border)	steelSeed	ZUIValue	Edge/fill/TapestrySteel	16	574
+Star	Primitive	Edge (border)	steelBaseLow	Color	Edge/fill/TapestrySteel	magenta	606
+Star	Primitive	Edge (border)	steelBaseHigh	Color	Edge/fill/TapestrySteel	magenta	608
+Star	Primitive	Edge (border)	steelRustColor	Color	Edge/fill/TapestrySteel	magenta	392
+Star	Primitive	Edge (border)	steelRustAmount	ZUIValue	Edge/fill/TapestrySteel	0	149
+Star	Primitive	Edge (border)	steelRustReachPixels	ZUIValue	Edge/fill/TapestrySteel	0	456
+Star	Primitive	Edge (border)	steelGrain	ZUIValue	Edge/fill/TapestrySteel	0	523
+Star	Primitive	Edge (border)	quantiseLevels	ZUIValue	Edge/fill/Gradient	16	582
+Pyramid	Solid	Fill	kind	ShaperFillKind	Fill/Gradient	Solid	624
+Pyramid	Solid	Fill	veil	ZUIValue	Fill/Gradient	0	900
+Pyramid	Solid	Fill	heightDelta	ZUIValue	Fill/Gradient		0
+Pyramid	Solid	Fill	composite	ShaperFillComposite	Fill/Gradient	Add	900
+Pyramid	Solid	Fill	space	ShaperFillSpace	Fill/Gradient	Fixed	624
+Pyramid	Solid	Fill	fit	ShaperFillFit	Fill/Gradient		0
+Pyramid	Solid	Fill	solidColor	Color	Fill/Solid	magenta	624
+Pyramid	Solid	Fill	gradientMode	ShaperGradientMode	Fill/Gradient	Radial	619
+Pyramid	Solid	Fill	gradient	ZuiGradient	Fill/Gradient	stop0=magenta	624
+Pyramid	Solid	Fill	gradientTint	Color	Fill/Gradient		0
+Pyramid	Solid	Fill	gradientAngleDegrees	ZUIValue	Fill/Gradient	16	606
+Pyramid	Solid	Fill	gradientCentreX	ZUIValue	Fill/Gradient/Radial	16	618
+Pyramid	Solid	Fill	gradientCentreY	ZUIValue	Fill/Gradient/Radial	16	618
+Pyramid	Solid	Fill	gradientSize	ZUIValue	Fill/Gradient/Radial	0	624
+Pyramid	Solid	Fill	gradientDepthPixels	ZUIValue	Fill/Gradient/ByEdgeDistance	0	452
+Pyramid	Solid	Fill	rampQuantity	ShaperQuantity	Fill/RampByQuantity	Height	624
+Pyramid	Solid	Fill	rampGradient	ZuiGradient	Fill/RampByQuantity		0
+Pyramid	Solid	Fill	rampTint	Color	Fill/RampByQuantity		0
+Pyramid	Solid	Fill	rampInputLow	ZUIValue	Fill/RampByQuantity		0
+Pyramid	Solid	Fill	rampInputHigh	ZUIValue	Fill/RampByQuantity	16	624
+Pyramid	Solid	Fill	textureMapping	ShaperTextureMapping	Fill/Texture	Tiled	318
+Pyramid	Solid	Fill	textureTilesX	ZUIValue	Fill/Texture		0
+Pyramid	Solid	Fill	textureTilesY	ZUIValue	Fill/Texture		0
+Pyramid	Solid	Fill	textureOffsetU	ZUIValue	Fill/Texture	16	312
+Pyramid	Solid	Fill	textureOffsetV	ZUIValue	Fill/Texture	16	268
+Pyramid	Solid	Fill	textureAngleDegrees	ZUIValue	Fill/Texture	16	207
+Pyramid	Solid	Fill	textureTint	Color	Fill/Texture	green a=0	624
+Pyramid	Solid	Fill	textureAnimated	Boolean	Fill/Texture		0
+Pyramid	Solid	Fill	textureFrameColumns	ZUIValue	Fill/Texture		0
+Pyramid	Solid	Fill	textureFrameRows	ZUIValue	Fill/Texture		0
+Pyramid	Solid	Fill	textureFrameCount	ZUIValue	Fill/Texture		0
+Pyramid	Solid	Fill	overPhaseGradient	ZuiGradient	Fill/OverPhase	stop0=magenta	624
+Pyramid	Solid	Fill	overPhaseTint	Color	Fill/OverPhase		0
+Pyramid	Solid	Fill	proceduralKind	ShaperProceduralKind	Fill/Procedural	Grid	900
+Pyramid	Solid	Fill	noiseKind	ShaperNoiseKind	Fill/Procedural	Ridged	622
+Pyramid	Solid	Fill	proceduralGradient	ZuiGradient	Fill/Procedural	stop0=magenta	624
+Pyramid	Solid	Fill	proceduralTint	Color	Fill/Procedural		0
+Pyramid	Solid	Fill	proceduralScale	ZUIValue	Fill/Procedural	0	622
+Pyramid	Solid	Fill	proceduralOffsetU	ZUIValue	Fill/Procedural	16	623
+Pyramid	Solid	Fill	proceduralOffsetV	ZUIValue	Fill/Procedural	16	623
+Pyramid	Solid	Fill	proceduralAngleDegrees	ZUIValue	Fill/Procedural	16	619
+Pyramid	Solid	Fill	gridLineWidth	ZUIValue	Fill/Procedural/Grid	0	340
+Pyramid	Solid	Fill	gridVertical	Boolean	Fill/Procedural/Grid	False	144
+Pyramid	Solid	Fill	gridHorizontal	Boolean	Fill/Procedural/Grid	False	160
+Pyramid	Solid	Fill	dotSize	ZUIValue	Fill/Procedural/Dots	0	124
+Pyramid	Solid	Fill	dotStagger	Boolean	Fill/Procedural/Dots	False	156
+Pyramid	Solid	Fill	stripParameterisation	ShaperStripParameterisation	Fill/IndexedStrip	Projection	312
+Pyramid	Solid	Fill	stripSlots[0].color	Color	Fill/IndexedStrip	magenta	228
+Pyramid	Solid	Fill	stripSlots[0].height	Single	Fill/IndexedStrip		0
+Pyramid	Solid	Fill	stripSlots[1].color	Color	Fill/IndexedStrip	magenta	396
+Pyramid	Solid	Fill	stripSlots[1].height	Single	Fill/IndexedStrip		0
+Pyramid	Solid	Fill	stripRepeats	ZUIValue	Fill/IndexedStrip	16	316
+Pyramid	Solid	Fill	stripOrientationDegrees	ZUIValue	Fill/IndexedStrip	16	66
+Pyramid	Solid	Fill	stripOffset	ZUIValue	Fill/IndexedStrip		0
+Pyramid	Solid	Fill	stripReach	ZUIValue	Fill/IndexedStrip	0	624
+Pyramid	Solid	Fill	stripPlainColor	Color	Fill/IndexedStrip		0
+Pyramid	Solid	Fill	heightFieldScale	ZUIValue	Fill/HeightField	0	604
+Pyramid	Solid	Fill	heightFieldTint	Color	Fill/HeightField	magenta	624
+Pyramid	Solid	Fill	steelCells	ZUIValue	Fill/TapestrySteel	0	617
+Pyramid	Solid	Fill	steelOctaves	ZUIValue	Fill/TapestrySteel	0	603
+Pyramid	Solid	Fill	steelSeed	ZUIValue	Fill/TapestrySteel	16	617
+Pyramid	Solid	Fill	steelBaseLow	Color	Fill/TapestrySteel	magenta	624
+Pyramid	Solid	Fill	steelBaseHigh	Color	Fill/TapestrySteel	magenta	624
+Pyramid	Solid	Fill	steelRustColor	Color	Fill/TapestrySteel	magenta	624
+Pyramid	Solid	Fill	steelRustAmount	ZUIValue	Fill/TapestrySteel	0	565
+Pyramid	Solid	Fill	steelRustReachPixels	ZUIValue	Fill/TapestrySteel	0	624
+Pyramid	Solid	Fill	steelGrain	ZUIValue	Fill/TapestrySteel	0	577
+Pyramid	Solid	Fill	quantiseLevels	ZUIValue	Fill/Gradient	16	624
+Pyramid	Solid	Edge (border)	kind	ShaperFillKind	Edge/fill/Gradient		0
+Pyramid	Solid	Edge (border)	veil	ZUIValue	Edge/fill/Gradient		0
+Pyramid	Solid	Edge (border)	heightDelta	ZUIValue	Edge/fill/Gradient		0
+Pyramid	Solid	Edge (border)	composite	ShaperFillComposite	Edge/fill/Gradient		0
+Pyramid	Solid	Edge (border)	space	ShaperFillSpace	Edge/fill/Gradient		0
+Pyramid	Solid	Edge (border)	fit	ShaperFillFit	Edge/fill/Gradient		0
+Pyramid	Solid	Edge (border)	solidColor	Color	Edge/fill/Solid		0
+Pyramid	Solid	Edge (border)	gradientMode	ShaperGradientMode	Edge/fill/Gradient		0
+Pyramid	Solid	Edge (border)	gradient	ZuiGradient	Edge/fill/Gradient		0
+Pyramid	Solid	Edge (border)	gradientTint	Color	Edge/fill/Gradient		0
+Pyramid	Solid	Edge (border)	gradientAngleDegrees	ZUIValue	Edge/fill/Gradient		0
+Pyramid	Solid	Edge (border)	gradientCentreX	ZUIValue	Edge/fill/Gradient/Radial		0
+Pyramid	Solid	Edge (border)	gradientCentreY	ZUIValue	Edge/fill/Gradient/Radial		0
+Pyramid	Solid	Edge (border)	gradientSize	ZUIValue	Edge/fill/Gradient/Radial		0
+Pyramid	Solid	Edge (border)	gradientDepthPixels	ZUIValue	Edge/fill/Gradient/ByEdgeDistance		0
+Pyramid	Solid	Edge (border)	rampQuantity	ShaperQuantity	Edge/fill/RampByQuantity		0
+Pyramid	Solid	Edge (border)	rampGradient	ZuiGradient	Edge/fill/RampByQuantity		0
+Pyramid	Solid	Edge (border)	rampTint	Color	Edge/fill/RampByQuantity		0
+Pyramid	Solid	Edge (border)	rampInputLow	ZUIValue	Edge/fill/RampByQuantity		0
+Pyramid	Solid	Edge (border)	rampInputHigh	ZUIValue	Edge/fill/RampByQuantity		0
+Pyramid	Solid	Edge (border)	textureMapping	ShaperTextureMapping	Edge/fill/Texture		0
+Pyramid	Solid	Edge (border)	textureTilesX	ZUIValue	Edge/fill/Texture		0
+Pyramid	Solid	Edge (border)	textureTilesY	ZUIValue	Edge/fill/Texture		0
+Pyramid	Solid	Edge (border)	textureOffsetU	ZUIValue	Edge/fill/Texture		0
+Pyramid	Solid	Edge (border)	textureOffsetV	ZUIValue	Edge/fill/Texture		0
+Pyramid	Solid	Edge (border)	textureAngleDegrees	ZUIValue	Edge/fill/Texture		0
+Pyramid	Solid	Edge (border)	textureTint	Color	Edge/fill/Texture		0
+Pyramid	Solid	Edge (border)	textureAnimated	Boolean	Edge/fill/Texture		0
+Pyramid	Solid	Edge (border)	textureFrameColumns	ZUIValue	Edge/fill/Texture		0
+Pyramid	Solid	Edge (border)	textureFrameRows	ZUIValue	Edge/fill/Texture		0
+Pyramid	Solid	Edge (border)	textureFrameCount	ZUIValue	Edge/fill/Texture		0
+Pyramid	Solid	Edge (border)	overPhaseGradient	ZuiGradient	Edge/fill/OverPhase		0
+Pyramid	Solid	Edge (border)	overPhaseTint	Color	Edge/fill/OverPhase		0
+Pyramid	Solid	Edge (border)	proceduralKind	ShaperProceduralKind	Edge/fill/Procedural		0
+Pyramid	Solid	Edge (border)	noiseKind	ShaperNoiseKind	Edge/fill/Procedural		0
+Pyramid	Solid	Edge (border)	proceduralGradient	ZuiGradient	Edge/fill/Procedural		0
+Pyramid	Solid	Edge (border)	proceduralTint	Color	Edge/fill/Procedural		0
+Pyramid	Solid	Edge (border)	proceduralScale	ZUIValue	Edge/fill/Procedural		0
+Pyramid	Solid	Edge (border)	proceduralOffsetU	ZUIValue	Edge/fill/Procedural		0
+Pyramid	Solid	Edge (border)	proceduralOffsetV	ZUIValue	Edge/fill/Procedural		0
+Pyramid	Solid	Edge (border)	proceduralAngleDegrees	ZUIValue	Edge/fill/Procedural		0
+Pyramid	Solid	Edge (border)	gridLineWidth	ZUIValue	Edge/fill/Procedural/Grid		0
+Pyramid	Solid	Edge (border)	gridVertical	Boolean	Edge/fill/Procedural/Grid		0
+Pyramid	Solid	Edge (border)	gridHorizontal	Boolean	Edge/fill/Procedural/Grid		0
+Pyramid	Solid	Edge (border)	dotSize	ZUIValue	Edge/fill/Procedural/Dots		0
+Pyramid	Solid	Edge (border)	dotStagger	Boolean	Edge/fill/Procedural/Dots		0
+Pyramid	Solid	Edge (border)	stripParameterisation	ShaperStripParameterisation	Edge/fill/IndexedStrip		0
+Pyramid	Solid	Edge (border)	stripSlots[0].color	Color	Edge/fill/IndexedStrip		0
+Pyramid	Solid	Edge (border)	stripSlots[0].height	Single	Edge/fill/IndexedStrip		0
+Pyramid	Solid	Edge (border)	stripSlots[1].color	Color	Edge/fill/IndexedStrip		0
+Pyramid	Solid	Edge (border)	stripSlots[1].height	Single	Edge/fill/IndexedStrip		0
+Pyramid	Solid	Edge (border)	stripRepeats	ZUIValue	Edge/fill/IndexedStrip		0
+Pyramid	Solid	Edge (border)	stripOrientationDegrees	ZUIValue	Edge/fill/IndexedStrip		0
+Pyramid	Solid	Edge (border)	stripOffset	ZUIValue	Edge/fill/IndexedStrip		0
+Pyramid	Solid	Edge (border)	stripReach	ZUIValue	Edge/fill/IndexedStrip		0
+Pyramid	Solid	Edge (border)	stripPlainColor	Color	Edge/fill/IndexedStrip		0
+Pyramid	Solid	Edge (border)	heightFieldScale	ZUIValue	Edge/fill/HeightField		0
+Pyramid	Solid	Edge (border)	heightFieldTint	Color	Edge/fill/HeightField		0
+Pyramid	Solid	Edge (border)	steelCells	ZUIValue	Edge/fill/TapestrySteel		0
+Pyramid	Solid	Edge (border)	steelOctaves	ZUIValue	Edge/fill/TapestrySteel		0
+Pyramid	Solid	Edge (border)	steelSeed	ZUIValue	Edge/fill/TapestrySteel		0
+Pyramid	Solid	Edge (border)	steelBaseLow	Color	Edge/fill/TapestrySteel		0
+Pyramid	Solid	Edge (border)	steelBaseHigh	Color	Edge/fill/TapestrySteel		0
+Pyramid	Solid	Edge (border)	steelRustColor	Color	Edge/fill/TapestrySteel		0
+Pyramid	Solid	Edge (border)	steelRustAmount	ZUIValue	Edge/fill/TapestrySteel		0
+Pyramid	Solid	Edge (border)	steelRustReachPixels	ZUIValue	Edge/fill/TapestrySteel		0
+Pyramid	Solid	Edge (border)	steelGrain	ZUIValue	Edge/fill/TapestrySteel		0
+Pyramid	Solid	Edge (border)	quantiseLevels	ZUIValue	Edge/fill/Gradient		0
+Bag (2 members)	Bag	Fill	kind	ShaperFillKind	Fill/Gradient		0
+Bag (2 members)	Bag	Fill	veil	ZUIValue	Fill/Gradient		0
+Bag (2 members)	Bag	Fill	heightDelta	ZUIValue	Fill/Gradient		0
+Bag (2 members)	Bag	Fill	composite	ShaperFillComposite	Fill/Gradient		0
+Bag (2 members)	Bag	Fill	space	ShaperFillSpace	Fill/Gradient		0
+Bag (2 members)	Bag	Fill	fit	ShaperFillFit	Fill/Gradient		0
+Bag (2 members)	Bag	Fill	solidColor	Color	Fill/Solid		0
+Bag (2 members)	Bag	Fill	gradientMode	ShaperGradientMode	Fill/Gradient		0
+Bag (2 members)	Bag	Fill	gradient	ZuiGradient	Fill/Gradient		0
+Bag (2 members)	Bag	Fill	gradientTint	Color	Fill/Gradient		0
+Bag (2 members)	Bag	Fill	gradientAngleDegrees	ZUIValue	Fill/Gradient		0
+Bag (2 members)	Bag	Fill	gradientCentreX	ZUIValue	Fill/Gradient/Radial		0
+Bag (2 members)	Bag	Fill	gradientCentreY	ZUIValue	Fill/Gradient/Radial		0
+Bag (2 members)	Bag	Fill	gradientSize	ZUIValue	Fill/Gradient/Radial		0
+Bag (2 members)	Bag	Fill	gradientDepthPixels	ZUIValue	Fill/Gradient/ByEdgeDistance		0
+Bag (2 members)	Bag	Fill	rampQuantity	ShaperQuantity	Fill/RampByQuantity		0
+Bag (2 members)	Bag	Fill	rampGradient	ZuiGradient	Fill/RampByQuantity		0
+Bag (2 members)	Bag	Fill	rampTint	Color	Fill/RampByQuantity		0
+Bag (2 members)	Bag	Fill	rampInputLow	ZUIValue	Fill/RampByQuantity		0
+Bag (2 members)	Bag	Fill	rampInputHigh	ZUIValue	Fill/RampByQuantity		0
+Bag (2 members)	Bag	Fill	textureMapping	ShaperTextureMapping	Fill/Texture		0
+Bag (2 members)	Bag	Fill	textureTilesX	ZUIValue	Fill/Texture		0
+Bag (2 members)	Bag	Fill	textureTilesY	ZUIValue	Fill/Texture		0
+Bag (2 members)	Bag	Fill	textureOffsetU	ZUIValue	Fill/Texture		0
+Bag (2 members)	Bag	Fill	textureOffsetV	ZUIValue	Fill/Texture		0
+Bag (2 members)	Bag	Fill	textureAngleDegrees	ZUIValue	Fill/Texture		0
+Bag (2 members)	Bag	Fill	textureTint	Color	Fill/Texture		0
+Bag (2 members)	Bag	Fill	textureAnimated	Boolean	Fill/Texture		0
+Bag (2 members)	Bag	Fill	textureFrameColumns	ZUIValue	Fill/Texture		0
+Bag (2 members)	Bag	Fill	textureFrameRows	ZUIValue	Fill/Texture		0
+Bag (2 members)	Bag	Fill	textureFrameCount	ZUIValue	Fill/Texture		0
+Bag (2 members)	Bag	Fill	overPhaseGradient	ZuiGradient	Fill/OverPhase		0
+Bag (2 members)	Bag	Fill	overPhaseTint	Color	Fill/OverPhase		0
+Bag (2 members)	Bag	Fill	proceduralKind	ShaperProceduralKind	Fill/Procedural		0
+Bag (2 members)	Bag	Fill	noiseKind	ShaperNoiseKind	Fill/Procedural		0
+Bag (2 members)	Bag	Fill	proceduralGradient	ZuiGradient	Fill/Procedural		0
+Bag (2 members)	Bag	Fill	proceduralTint	Color	Fill/Procedural		0
+Bag (2 members)	Bag	Fill	proceduralScale	ZUIValue	Fill/Procedural		0
+Bag (2 members)	Bag	Fill	proceduralOffsetU	ZUIValue	Fill/Procedural		0
+Bag (2 members)	Bag	Fill	proceduralOffsetV	ZUIValue	Fill/Procedural		0
+Bag (2 members)	Bag	Fill	proceduralAngleDegrees	ZUIValue	Fill/Procedural		0
+Bag (2 members)	Bag	Fill	gridLineWidth	ZUIValue	Fill/Procedural/Grid		0
+Bag (2 members)	Bag	Fill	gridVertical	Boolean	Fill/Procedural/Grid		0
+Bag (2 members)	Bag	Fill	gridHorizontal	Boolean	Fill/Procedural/Grid		0
+Bag (2 members)	Bag	Fill	dotSize	ZUIValue	Fill/Procedural/Dots		0
+Bag (2 members)	Bag	Fill	dotStagger	Boolean	Fill/Procedural/Dots		0
+Bag (2 members)	Bag	Fill	stripParameterisation	ShaperStripParameterisation	Fill/IndexedStrip		0
+Bag (2 members)	Bag	Fill	stripSlots[0].color	Color	Fill/IndexedStrip		0
+Bag (2 members)	Bag	Fill	stripSlots[0].height	Single	Fill/IndexedStrip		0
+Bag (2 members)	Bag	Fill	stripSlots[1].color	Color	Fill/IndexedStrip		0
+Bag (2 members)	Bag	Fill	stripSlots[1].height	Single	Fill/IndexedStrip		0
+Bag (2 members)	Bag	Fill	stripRepeats	ZUIValue	Fill/IndexedStrip		0
+Bag (2 members)	Bag	Fill	stripOrientationDegrees	ZUIValue	Fill/IndexedStrip		0
+Bag (2 members)	Bag	Fill	stripOffset	ZUIValue	Fill/IndexedStrip		0
+Bag (2 members)	Bag	Fill	stripReach	ZUIValue	Fill/IndexedStrip		0
+Bag (2 members)	Bag	Fill	stripPlainColor	Color	Fill/IndexedStrip		0
+Bag (2 members)	Bag	Fill	heightFieldScale	ZUIValue	Fill/HeightField		0
+Bag (2 members)	Bag	Fill	heightFieldTint	Color	Fill/HeightField		0
+Bag (2 members)	Bag	Fill	steelCells	ZUIValue	Fill/TapestrySteel		0
+Bag (2 members)	Bag	Fill	steelOctaves	ZUIValue	Fill/TapestrySteel		0
+Bag (2 members)	Bag	Fill	steelSeed	ZUIValue	Fill/TapestrySteel		0
+Bag (2 members)	Bag	Fill	steelBaseLow	Color	Fill/TapestrySteel		0
+Bag (2 members)	Bag	Fill	steelBaseHigh	Color	Fill/TapestrySteel		0
+Bag (2 members)	Bag	Fill	steelRustColor	Color	Fill/TapestrySteel		0
+Bag (2 members)	Bag	Fill	steelRustAmount	ZUIValue	Fill/TapestrySteel		0
+Bag (2 members)	Bag	Fill	steelRustReachPixels	ZUIValue	Fill/TapestrySteel		0
+Bag (2 members)	Bag	Fill	steelGrain	ZUIValue	Fill/TapestrySteel		0
+Bag (2 members)	Bag	Fill	quantiseLevels	ZUIValue	Fill/Gradient		0
+Bag (2 members)	Bag	Edge (border)	kind	ShaperFillKind	Edge/fill/Gradient	Solid	582
+Bag (2 members)	Bag	Edge (border)	veil	ZUIValue	Edge/fill/Gradient	0	582
+Bag (2 members)	Bag	Edge (border)	heightDelta	ZUIValue	Edge/fill/Gradient		0
+Bag (2 members)	Bag	Edge (border)	composite	ShaperFillComposite	Edge/fill/Gradient	Add	582
+Bag (2 members)	Bag	Edge (border)	space	ShaperFillSpace	Edge/fill/Gradient	Fixed	564
+Bag (2 members)	Bag	Edge (border)	fit	ShaperFillFit	Edge/fill/Gradient		0
+Bag (2 members)	Bag	Edge (border)	solidColor	Color	Edge/fill/Solid	magenta	582
+Bag (2 members)	Bag	Edge (border)	gradientMode	ShaperGradientMode	Edge/fill/Gradient	Radial	554
+Bag (2 members)	Bag	Edge (border)	gradient	ZuiGradient	Edge/fill/Gradient	stop0=magenta	580
+Bag (2 members)	Bag	Edge (border)	gradientTint	Color	Edge/fill/Gradient		0
+Bag (2 members)	Bag	Edge (border)	gradientAngleDegrees	ZUIValue	Edge/fill/Gradient	16	559
+Bag (2 members)	Bag	Edge (border)	gradientCentreX	ZUIValue	Edge/fill/Gradient/Radial	16	566
+Bag (2 members)	Bag	Edge (border)	gradientCentreY	ZUIValue	Edge/fill/Gradient/Radial	16	566
+Bag (2 members)	Bag	Edge (border)	gradientSize	ZUIValue	Edge/fill/Gradient/Radial	0	582
+Bag (2 members)	Bag	Edge (border)	gradientDepthPixels	ZUIValue	Edge/fill/Gradient/ByEdgeDistance	0	440
+Bag (2 members)	Bag	Edge (border)	rampQuantity	ShaperQuantity	Edge/fill/RampByQuantity	Height	582
+Bag (2 members)	Bag	Edge (border)	rampGradient	ZuiGradient	Edge/fill/RampByQuantity	stop0=magenta	262
+Bag (2 members)	Bag	Edge (border)	rampTint	Color	Edge/fill/RampByQuantity		0
+Bag (2 members)	Bag	Edge (border)	rampInputLow	ZUIValue	Edge/fill/RampByQuantity	16	262
+Bag (2 members)	Bag	Edge (border)	rampInputHigh	ZUIValue	Edge/fill/RampByQuantity	0	262
+Bag (2 members)	Bag	Edge (border)	textureMapping	ShaperTextureMapping	Edge/fill/Texture	Tiled	236
+Bag (2 members)	Bag	Edge (border)	textureTilesX	ZUIValue	Edge/fill/Texture		0
+Bag (2 members)	Bag	Edge (border)	textureTilesY	ZUIValue	Edge/fill/Texture		0
+Bag (2 members)	Bag	Edge (border)	textureOffsetU	ZUIValue	Edge/fill/Texture	16	284
+Bag (2 members)	Bag	Edge (border)	textureOffsetV	ZUIValue	Edge/fill/Texture	16	291
+Bag (2 members)	Bag	Edge (border)	textureAngleDegrees	ZUIValue	Edge/fill/Texture	16	283
+Bag (2 members)	Bag	Edge (border)	textureTint	Color	Edge/fill/Texture	green a=0	582
+Bag (2 members)	Bag	Edge (border)	textureAnimated	Boolean	Edge/fill/Texture		0
+Bag (2 members)	Bag	Edge (border)	textureFrameColumns	ZUIValue	Edge/fill/Texture		0
+Bag (2 members)	Bag	Edge (border)	textureFrameRows	ZUIValue	Edge/fill/Texture		0
+Bag (2 members)	Bag	Edge (border)	textureFrameCount	ZUIValue	Edge/fill/Texture		0
+Bag (2 members)	Bag	Edge (border)	overPhaseGradient	ZuiGradient	Edge/fill/OverPhase	stop0=magenta	582
+Bag (2 members)	Bag	Edge (border)	overPhaseTint	Color	Edge/fill/OverPhase		0
+Bag (2 members)	Bag	Edge (border)	proceduralKind	ShaperProceduralKind	Edge/fill/Procedural	Grid	579
+Bag (2 members)	Bag	Edge (border)	noiseKind	ShaperNoiseKind	Edge/fill/Procedural	Ridged	578
+Bag (2 members)	Bag	Edge (border)	proceduralGradient	ZuiGradient	Edge/fill/Procedural	stop0=magenta	581
+Bag (2 members)	Bag	Edge (border)	proceduralTint	Color	Edge/fill/Procedural		0
+Bag (2 members)	Bag	Edge (border)	proceduralScale	ZUIValue	Edge/fill/Procedural	0	574
+Bag (2 members)	Bag	Edge (border)	proceduralOffsetU	ZUIValue	Edge/fill/Procedural	16	564
+Bag (2 members)	Bag	Edge (border)	proceduralOffsetV	ZUIValue	Edge/fill/Procedural	16	564
+Bag (2 members)	Bag	Edge (border)	proceduralAngleDegrees	ZUIValue	Edge/fill/Procedural	16	571
+Bag (2 members)	Bag	Edge (border)	gridLineWidth	ZUIValue	Edge/fill/Procedural/Grid	0	50
+Bag (2 members)	Bag	Edge (border)	gridVertical	Boolean	Edge/fill/Procedural/Grid	False	28
+Bag (2 members)	Bag	Edge (border)	gridHorizontal	Boolean	Edge/fill/Procedural/Grid	False	18
+Bag (2 members)	Bag	Edge (border)	dotSize	ZUIValue	Edge/fill/Procedural/Dots	0	20
+Bag (2 members)	Bag	Edge (border)	dotStagger	Boolean	Edge/fill/Procedural/Dots	False	20
+Bag (2 members)	Bag	Edge (border)	stripParameterisation	ShaperStripParameterisation	Edge/fill/IndexedStrip	Projection	291
+Bag (2 members)	Bag	Edge (border)	stripSlots[0].color	Color	Edge/fill/IndexedStrip	magenta	291
+Bag (2 members)	Bag	Edge (border)	stripSlots[0].height	Single	Edge/fill/IndexedStrip		0
+Bag (2 members)	Bag	Edge (border)	stripSlots[1].color	Color	Edge/fill/IndexedStrip	magenta	291
+Bag (2 members)	Bag	Edge (border)	stripSlots[1].height	Single	Edge/fill/IndexedStrip		0
+Bag (2 members)	Bag	Edge (border)	stripRepeats	ZUIValue	Edge/fill/IndexedStrip	16	292
+Bag (2 members)	Bag	Edge (border)	stripOrientationDegrees	ZUIValue	Edge/fill/IndexedStrip	16	56
+Bag (2 members)	Bag	Edge (border)	stripOffset	ZUIValue	Edge/fill/IndexedStrip		0
+Bag (2 members)	Bag	Edge (border)	stripReach	ZUIValue	Edge/fill/IndexedStrip	0	440
+Bag (2 members)	Bag	Edge (border)	stripPlainColor	Color	Edge/fill/IndexedStrip		0
+Bag (2 members)	Bag	Edge (border)	heightFieldScale	ZUIValue	Edge/fill/HeightField		0
+Bag (2 members)	Bag	Edge (border)	heightFieldTint	Color	Edge/fill/HeightField	magenta	582
+Bag (2 members)	Bag	Edge (border)	steelCells	ZUIValue	Edge/fill/TapestrySteel	0	564
+Bag (2 members)	Bag	Edge (border)	steelOctaves	ZUIValue	Edge/fill/TapestrySteel	0	538
+Bag (2 members)	Bag	Edge (border)	steelSeed	ZUIValue	Edge/fill/TapestrySteel	16	547
+Bag (2 members)	Bag	Edge (border)	steelBaseLow	Color	Edge/fill/TapestrySteel	magenta	581
+Bag (2 members)	Bag	Edge (border)	steelBaseHigh	Color	Edge/fill/TapestrySteel	magenta	582
+Bag (2 members)	Bag	Edge (border)	steelRustColor	Color	Edge/fill/TapestrySteel	magenta	379
+Bag (2 members)	Bag	Edge (border)	steelRustAmount	ZUIValue	Edge/fill/TapestrySteel	0	140
+Bag (2 members)	Bag	Edge (border)	steelRustReachPixels	ZUIValue	Edge/fill/TapestrySteel	0	440
+Bag (2 members)	Bag	Edge (border)	steelGrain	ZUIValue	Edge/fill/TapestrySteel	0	495
+Bag (2 members)	Bag	Edge (border)	quantiseLevels	ZUIValue	Edge/fill/Gradient	16	558

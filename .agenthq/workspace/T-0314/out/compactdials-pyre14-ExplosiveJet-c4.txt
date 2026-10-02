@@ -1,0 +1,18 @@
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets window=1900
+
+##### row 1  row=393.3..696.9  card body=393.3..696.9 (303.6px)  spill=0.0px  rowHeight=65.8
+   index '#1' x=393.3..419.6
+   STRIP w=233.3 content=425.8..659.1 wrap=Wrap height=65.8
+     [0] ZuiMicroSlider 'Blast at' w=104.9 x=425.8..530.7 line=0 dy=0.0
+           caption 'Blast at' need=39.1 have=48.4  ok
+     [1] ZuiMicroSlider 'Violence' w=104.9 x=536.9..641.8 line=0 dy=0.0
+           caption 'Violence' need=44.9 have=48.0  ok
+     [2] ZuiMicroSlider 'Share' w=104.9 x=425.8..530.7 line=1 dy=22.2
+           caption 'Share' need=30.2 have=48.4  ok
+     [3] ZuiMicroSlider 'Seat X' w=104.9 x=536.9..641.8 line=1 dy=22.2
+           caption 'Seat X' need=34.2 have=48.0  ok
+     [4] ZuiMicroSlider 'Seat Y' w=104.9 x=425.8..530.7 line=2 dy=44.0
+           caption 'Seat Y' need=34.2 have=48.4  ok
+   remove '×' x=668.4..690.7  inside the card
+
+compact rows found=1

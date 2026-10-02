@@ -1,0 +1,15 @@
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets window=(x:4.89, y:20.00, width:1000.00, height:1000.22)
+
+##### row 1  rowWidth=293.8 rowX=30.7..324.4  parentContent=30.7..324.4 (293.8px)  spill=0.0px
+      path=VisualElement>ZuiBox>VisualElement>ZuiBox>VisualElement>VisualElement
+   [0] Label '#1' w=26.2 x=30.7..56.9 grow/shrink=0/0 minW=0
+   [1] VisualElement 'Blast at' w=223.6 x=63.1..286.7 grow/shrink=1/1 minW=0
+   [2] Button '×' w=22.2 x=296.0..318.2 grow/shrink=0/0 minW=0
+      anc[0] VisualElement w=293.8 overflow=Null:- cls=zui-box__body
+      anc[1] ZuiBox w=303.6 overflow=Null:- cls=zui-box.zui-align-scope
+      anc[2] VisualElement w=303.6 overflow=Null:- cls=zui-box__body
+      anc[3] ZuiBox w=313.3 overflow=Null:- cls=zui-box.zui-align-scope
+      anc[4] VisualElement w=313.3 overflow=Null:- cls=
+      anc[5] VisualElement w=313.3 overflow=Null:- cls=zui-box__body
+
+compact rows found=1

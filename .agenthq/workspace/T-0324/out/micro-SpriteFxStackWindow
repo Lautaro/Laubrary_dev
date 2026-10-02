@@ -1,0 +1,23 @@
+caption	ownW	capNeed	capHave	valText	valNeed	valHave	numDisp	numText	numNeed	numHave
+Duration (s)	150.22	61.33	92.89	0.04	23.56	23.56	False	0	7.56	0
+Idle gap (s)	149.78	58.67	93.33	0.61	21.33	21.33	False	0	7.56	0
+Depth Radius	149.78	69.78	93.33	13	12.44	12.44	False	0	7.56	0
+Edge Threshold	150.22	81.78	92.89	0.72	22.67	22.67	False	0	7.56	0
+Soften	149.78	34.67	93.33	4	7.11	7.11	False	0	7.56	0
+Relief	149.78	29.33	93.33	12.1	19.11	19.11	False	0	7.56	0
+Light Height	150.22	63.56	92.89	1.13	19.11	19.11	False	0	7.56	0
+Radius	128.89	35.11	72	1.8	14.22	14.22	False	0	7.56	0
+Falloff	150.22	32.44	92.89	0.8	16.44	16.44	False	0	7.56	0
+Ambient	149.78	43.56	93.33	0.56	23.11	23.11	False	0	7.56	0
+Diffuse	150.22	37.33	92.89	2	6.67	6.67	False	0	7.56	0
+Specular	150.22	45.78	92.89	1.11	17.33	17.33	False	0	7.56	0
+Shine	149.78	29.33	93.33	58	13.78	13.78	False	0	7.56	0
+Shading	149.78	42.67	93.33	0	7.11	7.11	False	0	7.56	0
+Tint	150.22	20.44	92.89	0.31	21.78	21.78	False	0	7.56	0
+Add	150.22	21.33	92.89	0.46	23.56	23.56	False	0	7.56	0
+Size	149.78	22.22	93.33		0	0	True	1	5.78	35.56
+Alpha Threshold	150.22	84.89	92.89	0.08	23.11	23.11	False	0	7.56	0
+Inner Softness	150.22	75.56	92.89	0	7.11	7.11	False	0	7.56	0
+Inner Softness Curve	168	109.78	111.56	1	5.33	5.33	False	0	7.56	0
+Outer Softness	150.22	78.22	92.89	0	7.11	7.11	False	0	7.56	0
+Outer Softness Curve	170.67	112.44	114.22	1	5.33	5.33	False	0	7.56	0

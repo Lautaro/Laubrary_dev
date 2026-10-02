@@ -1,0 +1,2855 @@
+form	path	key	hasReason	hasCondition	isGuard	reason
+InfernoForm	progress	InfernoForm.progress	no	no		
+InfernoForm	blastSize	InfernoForm.blastSize	no	no		
+InfernoForm	flash	InfernoForm.flash	no	no		
+InfernoForm	bangSpeed	InfernoForm.bangSpeed	no	no		
+InfernoForm	punch	InfernoForm.punch	no	no		
+InfernoForm	flashReach	InfernoForm.flashReach	no	no		
+InfernoForm	flashSoftness	InfernoForm.flashSoftness	no	no		
+InfernoForm	recoil	InfernoForm.recoil	no	no		
+InfernoForm	edgeSoftness	InfernoForm.edgeSoftness	no	no		
+InfernoForm	safeMargin	InfernoForm.safeMargin	no	no		
+InfernoForm	frameFade	InfernoForm.frameFade	no	no		
+InfernoForm	clumps	InfernoForm.clumps	no	no		
+InfernoForm	clumpSpread	InfernoForm.clumpSpread	no	no		
+InfernoForm	billow	InfernoForm.billow	no	no		
+InfernoForm	jagged	InfernoForm.jagged	no	no		
+InfernoForm	coreDensity	InfernoForm.coreDensity	no	no		
+InfernoForm	cohesion	InfernoForm.cohesion	no	no		
+InfernoForm	hollow	InfernoForm.hollow	no	no		
+InfernoForm	hollowRim	InfernoForm.hollowRim	no	no		
+InfernoForm	outerRim	InfernoForm.outerRim	no	no		
+InfernoForm	churn	InfernoForm.churn	no	no		
+InfernoForm	rotation	InfernoForm.rotation	no	no		
+InfernoForm	pulse	InfernoForm.pulse	no	no		
+InfernoForm	fire	InfernoForm.fire	no	no		
+InfernoForm	heatPockets	InfernoForm.heatPockets	no	no		
+InfernoForm	cooling	InfernoForm.cooling	no	no		
+InfernoForm	coreGlow	InfernoForm.coreGlow	no	no		
+InfernoForm	smoke	InfernoForm.smoke	no	no		
+InfernoForm	smokeSpread	InfernoForm.smokeSpread	no	no		
+InfernoForm	darkness	InfernoForm.darkness	no	no		
+InfernoForm	linger	InfernoForm.linger	no	no		
+InfernoForm	body	InfernoForm.body	no	no		
+InfernoForm	dieOut	InfernoForm.dieOut	no	no		
+InfernoForm	embers	InfernoForm.embers	no	no		
+InfernoForm	lighting	InfernoForm.lighting	no	no		
+InfernoForm	contrast	InfernoForm.contrast	no	no		
+OrbForm	variant	OrbForm.variant	no	no		
+OrbForm	noseX	OrbForm.noseX	no	YES		
+OrbForm	axisY	OrbForm.axisY	no	YES		
+OrbForm	radius	OrbForm.radius	no	no		
+OrbForm	wake	OrbForm.wake	no	no		
+OrbForm	softenPasses	OrbForm.softenPasses	no	no		
+OrbForm	floor	OrbForm.floor	no	no		
+OrbForm	despeckle	OrbForm.despeckle	no	YES		
+OrbForm	despeckleBelow	OrbForm.despeckleBelow	no	YES		
+OrbForm	emberdrift.ramp	StyleSettings.ramp	no	no		
+OrbForm	emberdrift.gain	StyleSettings.gain	no	no		
+OrbForm	emberdrift.a0	StyleSettings.a0	no	no		
+OrbForm	emberdrift.a1	StyleSettings.a1	no	no		
+OrbForm	emberdrift.acurve	StyleSettings.acurve	no	no		
+OrbForm	emberdrift.amax	StyleSettings.amax	no	no		
+OrbForm	emberdrift.noseSquash	StyleSettings.noseSquash	no	no		
+OrbForm	emberdrift.glowWide	StyleSettings.glowWide	no	no		
+OrbForm	emberdrift.glowTail	StyleSettings.glowTail	no	no		
+OrbForm	emberdrift.glowAmp	StyleSettings.glowAmp	no	no		
+OrbForm	emberdrift.turbScale	EmberdriftSettings.turbScale	no	no		
+OrbForm	emberdrift.turbOct	EmberdriftSettings.turbOct	no	no		
+OrbForm	emberdrift.turbAniso	EmberdriftSettings.turbAniso	no	no		
+OrbForm	emberdrift.turbW	EmberdriftSettings.turbW	no	no		
+OrbForm	emberdrift.turbSeedOff	EmberdriftSettings.turbSeedOff	no	no		
+OrbForm	emberdrift.turbScale2	EmberdriftSettings.turbScale2	no	no		
+OrbForm	emberdrift.turbOct2	EmberdriftSettings.turbOct2	no	no		
+OrbForm	emberdrift.turbAniso2	EmberdriftSettings.turbAniso2	no	no		
+OrbForm	emberdrift.turbW2	EmberdriftSettings.turbW2	no	no		
+OrbForm	emberdrift.turbSeedOff2	EmberdriftSettings.turbSeedOff2	no	no		
+OrbForm	emberdrift.smearTaps	EmberdriftSettings.smearTaps	no	no		
+OrbForm	emberdrift.smearDecay	EmberdriftSettings.smearDecay	no	no		
+OrbForm	emberdrift.smearNorm	EmberdriftSettings.smearNorm	no	no		
+OrbForm	emberdrift.turbScaleBody	EmberdriftSettings.turbScaleBody	no	no		
+OrbForm	emberdrift.turbOctBody	EmberdriftSettings.turbOctBody	no	no		
+OrbForm	emberdrift.turbAnisoBody	EmberdriftSettings.turbAnisoBody	no	no		
+OrbForm	emberdrift.turbSeedOffBody	EmberdriftSettings.turbSeedOffBody	no	no		
+OrbForm	emberdrift.coreWarp	EmberdriftSettings.coreWarp	no	no		
+OrbForm	emberdrift.coreAmp	EmberdriftSettings.coreAmp	no	no		
+OrbForm	emberdrift.coreP	EmberdriftSettings.coreP	no	no		
+OrbForm	emberdrift.emitPeriod	EmberdriftSettings.emitPeriod	no	no		
+OrbForm	emberdrift.emitLife	EmberdriftSettings.emitLife	no	no		
+OrbForm	emberdrift.embersPerPiece	EmberdriftSettings.embersPerPiece	no	no		
+OrbForm	emberdrift.emberAmp	EmberdriftSettings.emberAmp	no	no		
+OrbForm	emberdrift.emberFadeP	EmberdriftSettings.emberFadeP	no	no		
+OrbForm	emberdrift.emberElong	EmberdriftSettings.emberElong	no	no		
+OrbForm	wisp.ramp	StyleSettings.ramp	no	no		
+OrbForm	wisp.gain	StyleSettings.gain	no	no		
+OrbForm	wisp.a0	StyleSettings.a0	no	no		
+OrbForm	wisp.a1	StyleSettings.a1	no	no		
+OrbForm	wisp.acurve	StyleSettings.acurve	no	no		
+OrbForm	wisp.amax	StyleSettings.amax	no	no		
+OrbForm	wisp.noseSquash	StyleSettings.noseSquash	no	no		
+OrbForm	wisp.glowWide	StyleSettings.glowWide	no	no		
+OrbForm	wisp.glowTail	StyleSettings.glowTail	no	no		
+OrbForm	wisp.glowAmp	StyleSettings.glowAmp	no	no		
+OrbForm	wisp.tubeStamps	WispSettings.tubeStamps	no	no		
+OrbForm	wisp.tubeP	WispSettings.tubeP	no	no		
+OrbForm	wisp.tubeXstretch	WispSettings.tubeXstretch	no	no		
+OrbForm	wisp.smearTaps	WispSettings.smearTaps	no	no		
+OrbForm	wisp.smearDecay	WispSettings.smearDecay	no	no		
+OrbForm	wisp.smearNorm	WispSettings.smearNorm	no	no		
+OrbForm	wisp.smearPostScale	WispSettings.smearPostScale	no	no		
+OrbForm	wisp.cloudAmp	WispSettings.cloudAmp	no	no		
+OrbForm	wisp.cloudP	WispSettings.cloudP	no	no		
+OrbForm	wisp.nucleusAmp	WispSettings.nucleusAmp	no	no		
+OrbForm	wisp.nucleusFlat	WispSettings.nucleusFlat	no	no		
+OrbForm	wisp.nucleusP	WispSettings.nucleusP	no	no		
+OrbForm	wisp.nucleus2Amp	WispSettings.nucleus2Amp	no	no		
+OrbForm	wisp.turbScaleVeil	WispSettings.turbScaleVeil	no	no		
+OrbForm	wisp.turbOctVeil	WispSettings.turbOctVeil	no	no		
+OrbForm	wisp.turbAnisoVeil	WispSettings.turbAnisoVeil	no	no		
+OrbForm	wisp.turbSeedOffVeil	WispSettings.turbSeedOffVeil	no	no		
+OrbForm	wisp.veilAmp	WispSettings.veilAmp	no	no		
+OrbForm	coronal.ramp	StyleSettings.ramp	no	no		
+OrbForm	coronal.gain	StyleSettings.gain	no	no		
+OrbForm	coronal.a0	StyleSettings.a0	no	no		
+OrbForm	coronal.a1	StyleSettings.a1	no	no		
+OrbForm	coronal.acurve	StyleSettings.acurve	no	no		
+OrbForm	coronal.amax	StyleSettings.amax	no	no		
+OrbForm	coronal.noseSquash	StyleSettings.noseSquash	no	no		
+OrbForm	coronal.glowWide	StyleSettings.glowWide	no	no		
+OrbForm	coronal.glowTail	StyleSettings.glowTail	no	no		
+OrbForm	coronal.glowAmp	StyleSettings.glowAmp	no	no		
+OrbForm	coronal.prominences	CoronalSettings.prominences	no	no		
+OrbForm	coronal.prominenceSegments	CoronalSettings.prominenceSegments	no	no		
+OrbForm	coronal.prominenceAmp	CoronalSettings.prominenceAmp	no	no		
+OrbForm	coronal.prominenceP	CoronalSettings.prominenceP	no	no		
+OrbForm	coronal.smearTaps	CoronalSettings.smearTaps	no	no		
+OrbForm	coronal.smearDecay	CoronalSettings.smearDecay	no	no		
+OrbForm	coronal.smearNorm	CoronalSettings.smearNorm	no	no		
+OrbForm	coronal.turbScaleBody	CoronalSettings.turbScaleBody	no	no		
+OrbForm	coronal.turbOctBody	CoronalSettings.turbOctBody	no	no		
+OrbForm	coronal.turbAnisoBody	CoronalSettings.turbAnisoBody	no	no		
+OrbForm	coronal.turbSeedOffBody	CoronalSettings.turbSeedOffBody	no	no		
+OrbForm	coronal.coreAmp	CoronalSettings.coreAmp	no	no		
+OrbForm	coronal.coreP	CoronalSettings.coreP	no	no		
+OrbForm	coronal.coreGranulation	CoronalSettings.coreGranulation	no	no		
+OrbForm	coronal.limbAmp	CoronalSettings.limbAmp	no	no		
+OrbForm	coronal.limbR	CoronalSettings.limbR	no	no		
+OrbForm	coronal.limbW	CoronalSettings.limbW	no	no		
+OrbForm	coronal.limbP	CoronalSettings.limbP	no	no		
+OrbForm	membrane.ramp	StyleSettings.ramp	no	no		
+OrbForm	membrane.gain	StyleSettings.gain	no	no		
+OrbForm	membrane.a0	StyleSettings.a0	no	no		
+OrbForm	membrane.a1	StyleSettings.a1	no	no		
+OrbForm	membrane.acurve	StyleSettings.acurve	no	no		
+OrbForm	membrane.amax	StyleSettings.amax	no	no		
+OrbForm	membrane.noseSquash	StyleSettings.noseSquash	no	no		
+OrbForm	membrane.glowWide	StyleSettings.glowWide	no	no		
+OrbForm	membrane.glowTail	StyleSettings.glowTail	no	no		
+OrbForm	membrane.glowAmp	StyleSettings.glowAmp	no	no		
+OrbForm	membrane.emitPeriod	MembraneSettings.emitPeriod	no	no		
+OrbForm	membrane.emitLife	MembraneSettings.emitLife	no	no		
+OrbForm	membrane.shellAmp	MembraneSettings.shellAmp	no	no		
+OrbForm	membrane.shellP	MembraneSettings.shellP	no	no		
+OrbForm	membrane.turbScaleShell	MembraneSettings.turbScaleShell	no	no		
+OrbForm	membrane.turbOctShell	MembraneSettings.turbOctShell	no	no		
+OrbForm	membrane.turbAnisoShell	MembraneSettings.turbAnisoShell	no	no		
+OrbForm	membrane.turbSeedOffShell	MembraneSettings.turbSeedOffShell	no	no		
+OrbForm	membrane.smearTaps	MembraneSettings.smearTaps	no	no		
+OrbForm	membrane.smearDecay	MembraneSettings.smearDecay	no	no		
+OrbForm	membrane.smearNorm	MembraneSettings.smearNorm	no	no		
+OrbForm	membrane.emitPeriodMotes	MembraneSettings.emitPeriodMotes	no	no		
+OrbForm	membrane.emitLifeMotes	MembraneSettings.emitLifeMotes	no	no		
+OrbForm	membrane.motesPerPiece	MembraneSettings.motesPerPiece	no	no		
+OrbForm	membrane.moteAmp	MembraneSettings.moteAmp	no	no		
+OrbForm	membrane.moteElong	MembraneSettings.moteElong	no	no		
+OrbForm	membrane.windowAmp	MembraneSettings.windowAmp	no	no		
+OrbForm	membrane.windowP	MembraneSettings.windowP	no	no		
+OrbForm	membrane.skinAmp	MembraneSettings.skinAmp	no	no		
+OrbForm	membrane.skinR	MembraneSettings.skinR	no	no		
+OrbForm	membrane.skinW	MembraneSettings.skinW	no	no		
+OrbForm	membrane.skinP	MembraneSettings.skinP	no	no		
+OrbForm	membrane.ripAmp	MembraneSettings.ripAmp	no	no		
+OrbForm	membrane.ripOrder	MembraneSettings.ripOrder	no	no		
+OrbForm	membrane.ripDepth	MembraneSettings.ripDepth	no	no		
+OrbForm	membrane.ripR	MembraneSettings.ripR	no	no		
+OrbForm	membrane.ripW	MembraneSettings.ripW	no	no		
+OrbForm	membrane.ripP	MembraneSettings.ripP	no	no		
+OrbForm	membrane.nucleusAmp	MembraneSettings.nucleusAmp	no	no		
+OrbForm	membrane.nucleusFlat	MembraneSettings.nucleusFlat	no	no		
+OrbForm	membrane.nucleusP	MembraneSettings.nucleusP	no	no		
+OrbForm	voltcore.ramp	StyleSettings.ramp	no	no		
+OrbForm	voltcore.gain	StyleSettings.gain	no	no		
+OrbForm	voltcore.a0	StyleSettings.a0	no	no		
+OrbForm	voltcore.a1	StyleSettings.a1	no	no		
+OrbForm	voltcore.acurve	StyleSettings.acurve	no	no		
+OrbForm	voltcore.amax	StyleSettings.amax	no	no		
+OrbForm	voltcore.noseSquash	StyleSettings.noseSquash	no	no		
+OrbForm	voltcore.glowWide	StyleSettings.glowWide	no	no		
+OrbForm	voltcore.glowTail	StyleSettings.glowTail	no	no		
+OrbForm	voltcore.glowAmp	StyleSettings.glowAmp	no	no		
+OrbForm	voltcore.emitPeriod	VoltcoreSettings.emitPeriod	no	no		
+OrbForm	voltcore.emitLife	VoltcoreSettings.emitLife	no	no		
+OrbForm	voltcore.branchesPerPiece	VoltcoreSettings.branchesPerPiece	no	no		
+OrbForm	voltcore.filamentSteps	VoltcoreSettings.filamentSteps	no	no		
+OrbForm	voltcore.filamentAmp	VoltcoreSettings.filamentAmp	no	no		
+OrbForm	voltcore.filamentElong	VoltcoreSettings.filamentElong	no	no		
+OrbForm	voltcore.smearTaps	VoltcoreSettings.smearTaps	no	no		
+OrbForm	voltcore.smearDecay	VoltcoreSettings.smearDecay	no	no		
+OrbForm	voltcore.smearNorm	VoltcoreSettings.smearNorm	no	no		
+OrbForm	voltcore.tailStamps	VoltcoreSettings.tailStamps	no	no		
+OrbForm	voltcore.tailP	VoltcoreSettings.tailP	no	no		
+OrbForm	voltcore.tailSmearTaps	VoltcoreSettings.tailSmearTaps	no	no		
+OrbForm	voltcore.tailSmearDecay	VoltcoreSettings.tailSmearDecay	no	no		
+OrbForm	voltcore.tailSmearNorm	VoltcoreSettings.tailSmearNorm	no	no		
+OrbForm	voltcore.tailPostScale	VoltcoreSettings.tailPostScale	no	no		
+OrbForm	voltcore.envelopeAmp	VoltcoreSettings.envelopeAmp	no	no		
+OrbForm	voltcore.envelopeP	VoltcoreSettings.envelopeP	no	no		
+OrbForm	voltcore.turbScaleCharge	VoltcoreSettings.turbScaleCharge	no	no		
+OrbForm	voltcore.turbOctCharge	VoltcoreSettings.turbOctCharge	no	no		
+OrbForm	voltcore.turbAnisoCharge	VoltcoreSettings.turbAnisoCharge	no	no		
+OrbForm	voltcore.turbSeedOffCharge	VoltcoreSettings.turbSeedOffCharge	no	no		
+OrbForm	voltcore.chargeAmp	VoltcoreSettings.chargeAmp	no	no		
+OrbForm	voltcore.beadAmp	VoltcoreSettings.beadAmp	no	no		
+OrbForm	voltcore.beadFlat	VoltcoreSettings.beadFlat	no	no		
+OrbForm	voltcore.beadP	VoltcoreSettings.beadP	no	no		
+OrbForm	voltcore.bead2Amp	VoltcoreSettings.bead2Amp	no	no		
+OrbForm	voltcore.ballAmp	VoltcoreSettings.ballAmp	no	no		
+OrbForm	voltcore.ballP	VoltcoreSettings.ballP	no	no		
+TorchForm	variant	TorchForm.variant	no	no		
+TorchForm	axisX	TorchForm.axisX	no	no		
+TorchForm	ground	TorchForm.ground	no	no		
+TorchForm	height	TorchForm.height	no	no		
+TorchForm	emberbed.hFlame	TorchSettings.hFlame	no	no		
+TorchForm	emberbed.w0	TorchSettings.w0	no	no		
+TorchForm	emberbed.wp	TorchSettings.wp	no	no		
+TorchForm	emberbed.wmin	TorchSettings.wmin	no	no		
+TorchForm	emberbed.uexp	TorchSettings.uexp	no	no		
+TorchForm	emberbed.ku	TorchSettings.ku	no	no		
+TorchForm	emberbed.vexp	TorchSettings.vexp	no	no		
+TorchForm	emberbed.kv	TorchSettings.kv	no	no		
+TorchForm	emberbed.gain	TorchSettings.gain	no	no		
+TorchForm	emberbed.cap0	TorchSettings.cap0	no	no		
+TorchForm	emberbed.cap1	TorchSettings.cap1	no	no		
+TorchForm	emberbed.rmin	TorchSettings.rmin	no	no		
+TorchForm	emberbed.rh	TorchSettings.rh	no	no		
+TorchForm	emberbed.xsc	TorchSettings.xsc	no	no		
+TorchForm	emberbed.ysc	TorchSettings.ysc	no	no		
+TorchForm	emberbed.foot	TorchSettings.foot	no	no		
+TorchForm	emberbed.footH	TorchSettings.footH	no	no		
+TorchForm	emberbed.frx	TorchSettings.frx	no	no		
+TorchForm	emberbed.fry	TorchSettings.fry	no	no		
+TorchForm	emberbed.rvar	TorchSettings.rvar	no	no		
+TorchForm	emberbed.breathe	TorchSettings.breathe	no	no		
+TorchForm	emberbed.breathe2	TorchSettings.breathe2	no	no		
+TorchForm	emberbed.bphase	TorchSettings.bphase	no	no		
+TorchForm	emberbed.fw	TorchSettings.fw	no	no		
+TorchForm	emberbed.yaniso	TorchSettings.yaniso	no	no		
+TorchForm	emberbed.sway	TorchSettings.sway	no	no		
+TorchForm	emberbed.lean	TorchSettings.lean	no	no		
+TorchForm	emberbed.lphase	TorchSettings.lphase	no	no		
+TorchForm	emberbed.lash	TorchSettings.lash	no	no	guard	
+TorchForm	emberbed.lashK	TorchSettings.lashK	YES	YES		Nothing until Whip amount is above 0.
+TorchForm	emberbed.lashWave	TorchSettings.lashWave	YES	YES		Nothing until Whip amount is above 0.
+TorchForm	emberbed.lashPh	TorchSettings.lashPh	YES	YES		Nothing until Whip amount is above 0.
+TorchForm	emberbed.pulse	TorchSettings.pulse	no	no	guard	
+TorchForm	emberbed.pulseN	TorchSettings.pulseN	YES	YES		Nothing until Surge jump, Surge glow or Heat lump is above 0 — the surge is computed either way, but nothing reads it.
+TorchForm	emberbed.pulsePh	TorchSettings.pulsePh	YES	YES		Nothing until Surge jump, Surge glow or Heat lump is above 0.
+TorchForm	emberbed.pulseSkew	TorchSettings.pulseSkew	no	no		
+TorchForm	emberbed.pulseSharp	TorchSettings.pulseSharp	no	no		
+TorchForm	emberbed.pulseGain	TorchSettings.pulseGain	no	no	guard	
+TorchForm	emberbed.bulge	TorchSettings.bulge	no	no	guard	
+TorchForm	emberbed.bulgeW	TorchSettings.bulgeW	YES	YES		Nothing until Heat lump is above 0.
+TorchForm	emberbed.curl	TorchSettings.curl	no	no	guard	
+TorchForm	emberbed.curlX	TorchSettings.curlX	YES	YES		Nothing until Curl warp is above 0.
+TorchForm	emberbed.curlY	TorchSettings.curlY	YES	YES		Nothing until Curl warp is above 0.
+TorchForm	emberbed.fbx	TorchSettings.fbx	no	no		
+TorchForm	emberbed.fby	TorchSettings.fby	no	no		
+TorchForm	emberbed.bigKind	TorchSettings.bigKind	no	no		
+TorchForm	emberbed.abig	TorchSettings.abig	no	no		
+TorchForm	emberbed.ftx	TorchSettings.ftx	no	no		
+TorchForm	emberbed.fty	TorchSettings.fty	no	no		
+TorchForm	emberbed.toct	TorchSettings.toct	no	no		
+TorchForm	emberbed.turbKind	TorchSettings.turbKind	no	no		
+TorchForm	emberbed.alick	TorchSettings.alick	no	no		
+TorchForm	emberbed.bias	TorchSettings.bias	no	no		
+TorchForm	emberbed.pexp	TorchSettings.pexp	no	no		
+TorchForm	emberbed.still	TorchSettings.still	no	no		
+TorchForm	emberbed.glow	TorchSettings.glow	no	no		
+TorchForm	emberbed.glowW	TorchSettings.glowW	no	no		
+TorchForm	emberbed.glowH	TorchSettings.glowH	no	no		
+TorchForm	emberbed.glowY	TorchSettings.glowY	no	no		
+TorchForm	emberbed.tongues	TorchSettings.tongues	no	no		
+TorchForm	emberbed.tongueGain	TorchSettings.tongueGain	no	no		
+TorchForm	emberbed.tongueX	TorchSettings.tongueX	no	no		
+TorchForm	emberbed.tongueY	TorchSettings.tongueY	no	no		
+TorchForm	emberbed.tongueRise	TorchSettings.tongueRise	no	no		
+TorchForm	emberbed.tongueOut	TorchSettings.tongueOut	no	no		
+TorchForm	emberbed.tongueW	TorchSettings.tongueW	no	no		
+TorchForm	emberbed.tongueL	TorchSettings.tongueL	no	no		
+TorchForm	emberbed.tongueLife	TorchSettings.tongueLife	no	no		
+TorchForm	emberbed.tongueLean	TorchSettings.tongueLean	no	no		
+TorchForm	emberbed.embers	TorchSettings.embers	no	no		
+TorchForm	emberbed.emberSpread	TorchSettings.emberSpread	no	no		
+TorchForm	emberbed.emberRise	TorchSettings.emberRise	no	no		
+TorchForm	emberbed.emberDrift	TorchSettings.emberDrift	no	no		
+TorchForm	emberbed.emberWobble	TorchSettings.emberWobble	no	no		
+TorchForm	emberbed.emberSize	TorchSettings.emberSize	no	no		
+TorchForm	emberbed.emberY0	TorchSettings.emberY0	no	no		
+TorchForm	emberbed.emberGain	TorchSettings.emberGain	no	no		
+TorchForm	emberbed.cool	TorchSettings.cool	no	no		
+TorchForm	emberbed.aLo	TorchSettings.aLo	no	no		
+TorchForm	emberbed.aHi	TorchSettings.aHi	no	no		
+TorchForm	emberbed.ramp	TorchSettings.ramp	no	no		
+TorchForm	emberbed.rampTop	TorchSettings.rampTop	no	no		
+TorchForm	surge.hFlame	TorchSettings.hFlame	no	no		
+TorchForm	surge.w0	TorchSettings.w0	no	no		
+TorchForm	surge.wp	TorchSettings.wp	no	no		
+TorchForm	surge.wmin	TorchSettings.wmin	no	no		
+TorchForm	surge.uexp	TorchSettings.uexp	no	no		
+TorchForm	surge.ku	TorchSettings.ku	no	no		
+TorchForm	surge.vexp	TorchSettings.vexp	no	no		
+TorchForm	surge.kv	TorchSettings.kv	no	no		
+TorchForm	surge.gain	TorchSettings.gain	no	no		
+TorchForm	surge.cap0	TorchSettings.cap0	no	no		
+TorchForm	surge.cap1	TorchSettings.cap1	no	no		
+TorchForm	surge.rmin	TorchSettings.rmin	no	no		
+TorchForm	surge.rh	TorchSettings.rh	no	no		
+TorchForm	surge.xsc	TorchSettings.xsc	no	no		
+TorchForm	surge.ysc	TorchSettings.ysc	no	no		
+TorchForm	surge.foot	TorchSettings.foot	no	no		
+TorchForm	surge.footH	TorchSettings.footH	no	no		
+TorchForm	surge.frx	TorchSettings.frx	no	no		
+TorchForm	surge.fry	TorchSettings.fry	no	no		
+TorchForm	surge.rvar	TorchSettings.rvar	no	no		
+TorchForm	surge.breathe	TorchSettings.breathe	no	no		
+TorchForm	surge.breathe2	TorchSettings.breathe2	no	no		
+TorchForm	surge.bphase	TorchSettings.bphase	no	no		
+TorchForm	surge.fw	TorchSettings.fw	no	no		
+TorchForm	surge.yaniso	TorchSettings.yaniso	no	no		
+TorchForm	surge.sway	TorchSettings.sway	no	no		
+TorchForm	surge.lean	TorchSettings.lean	no	no		
+TorchForm	surge.lphase	TorchSettings.lphase	no	no		
+TorchForm	surge.lash	TorchSettings.lash	no	no	guard	
+TorchForm	surge.lashK	TorchSettings.lashK	YES	YES		Nothing until Whip amount is above 0.
+TorchForm	surge.lashWave	TorchSettings.lashWave	YES	YES		Nothing until Whip amount is above 0.
+TorchForm	surge.lashPh	TorchSettings.lashPh	YES	YES		Nothing until Whip amount is above 0.
+TorchForm	surge.pulse	TorchSettings.pulse	no	no	guard	
+TorchForm	surge.pulseN	TorchSettings.pulseN	no	YES		
+TorchForm	surge.pulsePh	TorchSettings.pulsePh	no	YES		
+TorchForm	surge.pulseSkew	TorchSettings.pulseSkew	no	no		
+TorchForm	surge.pulseSharp	TorchSettings.pulseSharp	no	no		
+TorchForm	surge.pulseGain	TorchSettings.pulseGain	no	no	guard	
+TorchForm	surge.bulge	TorchSettings.bulge	no	no	guard	
+TorchForm	surge.bulgeW	TorchSettings.bulgeW	no	YES		
+TorchForm	surge.curl	TorchSettings.curl	no	no	guard	
+TorchForm	surge.curlX	TorchSettings.curlX	YES	YES		Nothing until Curl warp is above 0.
+TorchForm	surge.curlY	TorchSettings.curlY	YES	YES		Nothing until Curl warp is above 0.
+TorchForm	surge.fbx	TorchSettings.fbx	no	no		
+TorchForm	surge.fby	TorchSettings.fby	no	no		
+TorchForm	surge.bigKind	TorchSettings.bigKind	no	no		
+TorchForm	surge.abig	TorchSettings.abig	no	no		
+TorchForm	surge.ftx	TorchSettings.ftx	no	no		
+TorchForm	surge.fty	TorchSettings.fty	no	no		
+TorchForm	surge.toct	TorchSettings.toct	no	no		
+TorchForm	surge.turbKind	TorchSettings.turbKind	no	no		
+TorchForm	surge.alick	TorchSettings.alick	no	no		
+TorchForm	surge.bias	TorchSettings.bias	no	no		
+TorchForm	surge.pexp	TorchSettings.pexp	no	no		
+TorchForm	surge.still	TorchSettings.still	no	no		
+TorchForm	surge.glow	TorchSettings.glow	no	no		
+TorchForm	surge.glowW	TorchSettings.glowW	no	no		
+TorchForm	surge.glowH	TorchSettings.glowH	no	no		
+TorchForm	surge.glowY	TorchSettings.glowY	no	no		
+TorchForm	surge.tongues	TorchSettings.tongues	no	no		
+TorchForm	surge.tongueGain	TorchSettings.tongueGain	no	no		
+TorchForm	surge.tongueX	TorchSettings.tongueX	no	no		
+TorchForm	surge.tongueY	TorchSettings.tongueY	no	no		
+TorchForm	surge.tongueRise	TorchSettings.tongueRise	no	no		
+TorchForm	surge.tongueOut	TorchSettings.tongueOut	no	no		
+TorchForm	surge.tongueW	TorchSettings.tongueW	no	no		
+TorchForm	surge.tongueL	TorchSettings.tongueL	no	no		
+TorchForm	surge.tongueLife	TorchSettings.tongueLife	no	no		
+TorchForm	surge.tongueLean	TorchSettings.tongueLean	no	no		
+TorchForm	surge.embers	TorchSettings.embers	no	no		
+TorchForm	surge.emberSpread	TorchSettings.emberSpread	no	no		
+TorchForm	surge.emberRise	TorchSettings.emberRise	no	no		
+TorchForm	surge.emberDrift	TorchSettings.emberDrift	no	no		
+TorchForm	surge.emberWobble	TorchSettings.emberWobble	no	no		
+TorchForm	surge.emberSize	TorchSettings.emberSize	no	no		
+TorchForm	surge.emberY0	TorchSettings.emberY0	no	no		
+TorchForm	surge.emberGain	TorchSettings.emberGain	no	no		
+TorchForm	surge.cool	TorchSettings.cool	no	no		
+TorchForm	surge.aLo	TorchSettings.aLo	no	no		
+TorchForm	surge.aHi	TorchSettings.aHi	no	no		
+TorchForm	surge.ramp	TorchSettings.ramp	no	no		
+TorchForm	surge.rampTop	TorchSettings.rampTop	no	no		
+TorchForm	barbs.hFlame	TorchSettings.hFlame	no	no		
+TorchForm	barbs.w0	TorchSettings.w0	no	no		
+TorchForm	barbs.wp	TorchSettings.wp	no	no		
+TorchForm	barbs.wmin	TorchSettings.wmin	no	no		
+TorchForm	barbs.uexp	TorchSettings.uexp	no	no		
+TorchForm	barbs.ku	TorchSettings.ku	no	no		
+TorchForm	barbs.vexp	TorchSettings.vexp	no	no		
+TorchForm	barbs.kv	TorchSettings.kv	no	no		
+TorchForm	barbs.gain	TorchSettings.gain	no	no		
+TorchForm	barbs.cap0	TorchSettings.cap0	no	no		
+TorchForm	barbs.cap1	TorchSettings.cap1	no	no		
+TorchForm	barbs.rmin	TorchSettings.rmin	no	no		
+TorchForm	barbs.rh	TorchSettings.rh	no	no		
+TorchForm	barbs.xsc	TorchSettings.xsc	no	no		
+TorchForm	barbs.ysc	TorchSettings.ysc	no	no		
+TorchForm	barbs.foot	TorchSettings.foot	no	no		
+TorchForm	barbs.footH	TorchSettings.footH	no	no		
+TorchForm	barbs.frx	TorchSettings.frx	no	no		
+TorchForm	barbs.fry	TorchSettings.fry	no	no		
+TorchForm	barbs.rvar	TorchSettings.rvar	no	no		
+TorchForm	barbs.breathe	TorchSettings.breathe	no	no		
+TorchForm	barbs.breathe2	TorchSettings.breathe2	no	no		
+TorchForm	barbs.bphase	TorchSettings.bphase	no	no		
+TorchForm	barbs.fw	TorchSettings.fw	no	no		
+TorchForm	barbs.yaniso	TorchSettings.yaniso	no	no		
+TorchForm	barbs.sway	TorchSettings.sway	no	no		
+TorchForm	barbs.lean	TorchSettings.lean	no	no		
+TorchForm	barbs.lphase	TorchSettings.lphase	no	no		
+TorchForm	barbs.lash	TorchSettings.lash	no	no	guard	
+TorchForm	barbs.lashK	TorchSettings.lashK	YES	YES		Nothing until Whip amount is above 0.
+TorchForm	barbs.lashWave	TorchSettings.lashWave	YES	YES		Nothing until Whip amount is above 0.
+TorchForm	barbs.lashPh	TorchSettings.lashPh	YES	YES		Nothing until Whip amount is above 0.
+TorchForm	barbs.pulse	TorchSettings.pulse	no	no	guard	
+TorchForm	barbs.pulseN	TorchSettings.pulseN	YES	YES		Nothing until Surge jump, Surge glow or Heat lump is above 0 — the surge is computed either way, but nothing reads it.
+TorchForm	barbs.pulsePh	TorchSettings.pulsePh	YES	YES		Nothing until Surge jump, Surge glow or Heat lump is above 0.
+TorchForm	barbs.pulseSkew	TorchSettings.pulseSkew	no	no		
+TorchForm	barbs.pulseSharp	TorchSettings.pulseSharp	no	no		
+TorchForm	barbs.pulseGain	TorchSettings.pulseGain	no	no	guard	
+TorchForm	barbs.bulge	TorchSettings.bulge	no	no	guard	
+TorchForm	barbs.bulgeW	TorchSettings.bulgeW	YES	YES		Nothing until Heat lump is above 0.
+TorchForm	barbs.curl	TorchSettings.curl	no	no	guard	
+TorchForm	barbs.curlX	TorchSettings.curlX	YES	YES		Nothing until Curl warp is above 0.
+TorchForm	barbs.curlY	TorchSettings.curlY	YES	YES		Nothing until Curl warp is above 0.
+TorchForm	barbs.fbx	TorchSettings.fbx	no	no		
+TorchForm	barbs.fby	TorchSettings.fby	no	no		
+TorchForm	barbs.bigKind	TorchSettings.bigKind	no	no		
+TorchForm	barbs.abig	TorchSettings.abig	no	no		
+TorchForm	barbs.ftx	TorchSettings.ftx	no	no		
+TorchForm	barbs.fty	TorchSettings.fty	no	no		
+TorchForm	barbs.toct	TorchSettings.toct	no	no		
+TorchForm	barbs.turbKind	TorchSettings.turbKind	no	no		
+TorchForm	barbs.alick	TorchSettings.alick	no	no		
+TorchForm	barbs.bias	TorchSettings.bias	no	no		
+TorchForm	barbs.pexp	TorchSettings.pexp	no	no		
+TorchForm	barbs.still	TorchSettings.still	no	no		
+TorchForm	barbs.glow	TorchSettings.glow	no	no		
+TorchForm	barbs.glowW	TorchSettings.glowW	no	no		
+TorchForm	barbs.glowH	TorchSettings.glowH	no	no		
+TorchForm	barbs.glowY	TorchSettings.glowY	no	no		
+TorchForm	barbs.tongues	TorchSettings.tongues	no	no		
+TorchForm	barbs.tongueGain	TorchSettings.tongueGain	no	no		
+TorchForm	barbs.tongueX	TorchSettings.tongueX	no	no		
+TorchForm	barbs.tongueY	TorchSettings.tongueY	no	no		
+TorchForm	barbs.tongueRise	TorchSettings.tongueRise	no	no		
+TorchForm	barbs.tongueOut	TorchSettings.tongueOut	no	no		
+TorchForm	barbs.tongueW	TorchSettings.tongueW	no	no		
+TorchForm	barbs.tongueL	TorchSettings.tongueL	no	no		
+TorchForm	barbs.tongueLife	TorchSettings.tongueLife	no	no		
+TorchForm	barbs.tongueLean	TorchSettings.tongueLean	no	no		
+TorchForm	barbs.embers	TorchSettings.embers	no	no		
+TorchForm	barbs.emberSpread	TorchSettings.emberSpread	no	no		
+TorchForm	barbs.emberRise	TorchSettings.emberRise	no	no		
+TorchForm	barbs.emberDrift	TorchSettings.emberDrift	no	no		
+TorchForm	barbs.emberWobble	TorchSettings.emberWobble	no	no		
+TorchForm	barbs.emberSize	TorchSettings.emberSize	no	no		
+TorchForm	barbs.emberY0	TorchSettings.emberY0	no	no		
+TorchForm	barbs.emberGain	TorchSettings.emberGain	no	no		
+TorchForm	barbs.cool	TorchSettings.cool	no	no		
+TorchForm	barbs.aLo	TorchSettings.aLo	no	no		
+TorchForm	barbs.aHi	TorchSettings.aHi	no	no		
+TorchForm	barbs.ramp	TorchSettings.ramp	no	no		
+TorchForm	barbs.rampTop	TorchSettings.rampTop	no	no		
+TorchForm	curl.hFlame	TorchSettings.hFlame	no	no		
+TorchForm	curl.w0	TorchSettings.w0	no	no		
+TorchForm	curl.wp	TorchSettings.wp	no	no		
+TorchForm	curl.wmin	TorchSettings.wmin	no	no		
+TorchForm	curl.uexp	TorchSettings.uexp	no	no		
+TorchForm	curl.ku	TorchSettings.ku	no	no		
+TorchForm	curl.vexp	TorchSettings.vexp	no	no		
+TorchForm	curl.kv	TorchSettings.kv	no	no		
+TorchForm	curl.gain	TorchSettings.gain	no	no		
+TorchForm	curl.cap0	TorchSettings.cap0	no	no		
+TorchForm	curl.cap1	TorchSettings.cap1	no	no		
+TorchForm	curl.rmin	TorchSettings.rmin	no	no		
+TorchForm	curl.rh	TorchSettings.rh	no	no		
+TorchForm	curl.xsc	TorchSettings.xsc	no	no		
+TorchForm	curl.ysc	TorchSettings.ysc	no	no		
+TorchForm	curl.foot	TorchSettings.foot	no	no		
+TorchForm	curl.footH	TorchSettings.footH	no	no		
+TorchForm	curl.frx	TorchSettings.frx	no	no		
+TorchForm	curl.fry	TorchSettings.fry	no	no		
+TorchForm	curl.rvar	TorchSettings.rvar	no	no		
+TorchForm	curl.breathe	TorchSettings.breathe	no	no		
+TorchForm	curl.breathe2	TorchSettings.breathe2	no	no		
+TorchForm	curl.bphase	TorchSettings.bphase	no	no		
+TorchForm	curl.fw	TorchSettings.fw	no	no		
+TorchForm	curl.yaniso	TorchSettings.yaniso	no	no		
+TorchForm	curl.sway	TorchSettings.sway	no	no		
+TorchForm	curl.lean	TorchSettings.lean	no	no		
+TorchForm	curl.lphase	TorchSettings.lphase	no	no		
+TorchForm	curl.lash	TorchSettings.lash	no	no	guard	
+TorchForm	curl.lashK	TorchSettings.lashK	YES	YES		Nothing until Whip amount is above 0.
+TorchForm	curl.lashWave	TorchSettings.lashWave	YES	YES		Nothing until Whip amount is above 0.
+TorchForm	curl.lashPh	TorchSettings.lashPh	YES	YES		Nothing until Whip amount is above 0.
+TorchForm	curl.pulse	TorchSettings.pulse	no	no	guard	
+TorchForm	curl.pulseN	TorchSettings.pulseN	YES	YES		Nothing until Surge jump, Surge glow or Heat lump is above 0 — the surge is computed either way, but nothing reads it.
+TorchForm	curl.pulsePh	TorchSettings.pulsePh	YES	YES		Nothing until Surge jump, Surge glow or Heat lump is above 0.
+TorchForm	curl.pulseSkew	TorchSettings.pulseSkew	no	no		
+TorchForm	curl.pulseSharp	TorchSettings.pulseSharp	no	no		
+TorchForm	curl.pulseGain	TorchSettings.pulseGain	no	no	guard	
+TorchForm	curl.bulge	TorchSettings.bulge	no	no	guard	
+TorchForm	curl.bulgeW	TorchSettings.bulgeW	YES	YES		Nothing until Heat lump is above 0.
+TorchForm	curl.curl	TorchSettings.curl	no	no	guard	
+TorchForm	curl.curlX	TorchSettings.curlX	no	YES		
+TorchForm	curl.curlY	TorchSettings.curlY	no	YES		
+TorchForm	curl.fbx	TorchSettings.fbx	no	no		
+TorchForm	curl.fby	TorchSettings.fby	no	no		
+TorchForm	curl.bigKind	TorchSettings.bigKind	no	no		
+TorchForm	curl.abig	TorchSettings.abig	no	no		
+TorchForm	curl.ftx	TorchSettings.ftx	no	no		
+TorchForm	curl.fty	TorchSettings.fty	no	no		
+TorchForm	curl.toct	TorchSettings.toct	no	no		
+TorchForm	curl.turbKind	TorchSettings.turbKind	no	no		
+TorchForm	curl.alick	TorchSettings.alick	no	no		
+TorchForm	curl.bias	TorchSettings.bias	no	no		
+TorchForm	curl.pexp	TorchSettings.pexp	no	no		
+TorchForm	curl.still	TorchSettings.still	no	no		
+TorchForm	curl.glow	TorchSettings.glow	no	no		
+TorchForm	curl.glowW	TorchSettings.glowW	no	no		
+TorchForm	curl.glowH	TorchSettings.glowH	no	no		
+TorchForm	curl.glowY	TorchSettings.glowY	no	no		
+TorchForm	curl.tongues	TorchSettings.tongues	no	no		
+TorchForm	curl.tongueGain	TorchSettings.tongueGain	no	no		
+TorchForm	curl.tongueX	TorchSettings.tongueX	no	no		
+TorchForm	curl.tongueY	TorchSettings.tongueY	no	no		
+TorchForm	curl.tongueRise	TorchSettings.tongueRise	no	no		
+TorchForm	curl.tongueOut	TorchSettings.tongueOut	no	no		
+TorchForm	curl.tongueW	TorchSettings.tongueW	no	no		
+TorchForm	curl.tongueL	TorchSettings.tongueL	no	no		
+TorchForm	curl.tongueLife	TorchSettings.tongueLife	no	no		
+TorchForm	curl.tongueLean	TorchSettings.tongueLean	no	no		
+TorchForm	curl.embers	TorchSettings.embers	no	no		
+TorchForm	curl.emberSpread	TorchSettings.emberSpread	no	no		
+TorchForm	curl.emberRise	TorchSettings.emberRise	no	no		
+TorchForm	curl.emberDrift	TorchSettings.emberDrift	no	no		
+TorchForm	curl.emberWobble	TorchSettings.emberWobble	no	no		
+TorchForm	curl.emberSize	TorchSettings.emberSize	no	no		
+TorchForm	curl.emberY0	TorchSettings.emberY0	no	no		
+TorchForm	curl.emberGain	TorchSettings.emberGain	no	no		
+TorchForm	curl.cool	TorchSettings.cool	no	no		
+TorchForm	curl.aLo	TorchSettings.aLo	no	no		
+TorchForm	curl.aHi	TorchSettings.aHi	no	no		
+TorchForm	curl.ramp	TorchSettings.ramp	no	no		
+TorchForm	curl.rampTop	TorchSettings.rampTop	no	no		
+TorchForm	lash.hFlame	TorchSettings.hFlame	no	no		
+TorchForm	lash.w0	TorchSettings.w0	no	no		
+TorchForm	lash.wp	TorchSettings.wp	no	no		
+TorchForm	lash.wmin	TorchSettings.wmin	no	no		
+TorchForm	lash.uexp	TorchSettings.uexp	no	no		
+TorchForm	lash.ku	TorchSettings.ku	no	no		
+TorchForm	lash.vexp	TorchSettings.vexp	no	no		
+TorchForm	lash.kv	TorchSettings.kv	no	no		
+TorchForm	lash.gain	TorchSettings.gain	no	no		
+TorchForm	lash.cap0	TorchSettings.cap0	no	no		
+TorchForm	lash.cap1	TorchSettings.cap1	no	no		
+TorchForm	lash.rmin	TorchSettings.rmin	no	no		
+TorchForm	lash.rh	TorchSettings.rh	no	no		
+TorchForm	lash.xsc	TorchSettings.xsc	no	no		
+TorchForm	lash.ysc	TorchSettings.ysc	no	no		
+TorchForm	lash.foot	TorchSettings.foot	no	no		
+TorchForm	lash.footH	TorchSettings.footH	no	no		
+TorchForm	lash.frx	TorchSettings.frx	no	no		
+TorchForm	lash.fry	TorchSettings.fry	no	no		
+TorchForm	lash.rvar	TorchSettings.rvar	no	no		
+TorchForm	lash.breathe	TorchSettings.breathe	no	no		
+TorchForm	lash.breathe2	TorchSettings.breathe2	no	no		
+TorchForm	lash.bphase	TorchSettings.bphase	no	no		
+TorchForm	lash.fw	TorchSettings.fw	no	no		
+TorchForm	lash.yaniso	TorchSettings.yaniso	no	no		
+TorchForm	lash.sway	TorchSettings.sway	no	no		
+TorchForm	lash.lean	TorchSettings.lean	no	no		
+TorchForm	lash.lphase	TorchSettings.lphase	no	no		
+TorchForm	lash.lash	TorchSettings.lash	no	no	guard	
+TorchForm	lash.lashK	TorchSettings.lashK	no	YES		
+TorchForm	lash.lashWave	TorchSettings.lashWave	no	YES		
+TorchForm	lash.lashPh	TorchSettings.lashPh	no	YES		
+TorchForm	lash.pulse	TorchSettings.pulse	no	no	guard	
+TorchForm	lash.pulseN	TorchSettings.pulseN	YES	YES		Nothing until Surge jump, Surge glow or Heat lump is above 0 — the surge is computed either way, but nothing reads it.
+TorchForm	lash.pulsePh	TorchSettings.pulsePh	YES	YES		Nothing until Surge jump, Surge glow or Heat lump is above 0.
+TorchForm	lash.pulseSkew	TorchSettings.pulseSkew	no	no		
+TorchForm	lash.pulseSharp	TorchSettings.pulseSharp	no	no		
+TorchForm	lash.pulseGain	TorchSettings.pulseGain	no	no	guard	
+TorchForm	lash.bulge	TorchSettings.bulge	no	no	guard	
+TorchForm	lash.bulgeW	TorchSettings.bulgeW	YES	YES		Nothing until Heat lump is above 0.
+TorchForm	lash.curl	TorchSettings.curl	no	no	guard	
+TorchForm	lash.curlX	TorchSettings.curlX	YES	YES		Nothing until Curl warp is above 0.
+TorchForm	lash.curlY	TorchSettings.curlY	YES	YES		Nothing until Curl warp is above 0.
+TorchForm	lash.fbx	TorchSettings.fbx	no	no		
+TorchForm	lash.fby	TorchSettings.fby	no	no		
+TorchForm	lash.bigKind	TorchSettings.bigKind	no	no		
+TorchForm	lash.abig	TorchSettings.abig	no	no		
+TorchForm	lash.ftx	TorchSettings.ftx	no	no		
+TorchForm	lash.fty	TorchSettings.fty	no	no		
+TorchForm	lash.toct	TorchSettings.toct	no	no		
+TorchForm	lash.turbKind	TorchSettings.turbKind	no	no		
+TorchForm	lash.alick	TorchSettings.alick	no	no		
+TorchForm	lash.bias	TorchSettings.bias	no	no		
+TorchForm	lash.pexp	TorchSettings.pexp	no	no		
+TorchForm	lash.still	TorchSettings.still	no	no		
+TorchForm	lash.glow	TorchSettings.glow	no	no		
+TorchForm	lash.glowW	TorchSettings.glowW	no	no		
+TorchForm	lash.glowH	TorchSettings.glowH	no	no		
+TorchForm	lash.glowY	TorchSettings.glowY	no	no		
+TorchForm	lash.tongues	TorchSettings.tongues	no	no		
+TorchForm	lash.tongueGain	TorchSettings.tongueGain	no	no		
+TorchForm	lash.tongueX	TorchSettings.tongueX	no	no		
+TorchForm	lash.tongueY	TorchSettings.tongueY	no	no		
+TorchForm	lash.tongueRise	TorchSettings.tongueRise	no	no		
+TorchForm	lash.tongueOut	TorchSettings.tongueOut	no	no		
+TorchForm	lash.tongueW	TorchSettings.tongueW	no	no		
+TorchForm	lash.tongueL	TorchSettings.tongueL	no	no		
+TorchForm	lash.tongueLife	TorchSettings.tongueLife	no	no		
+TorchForm	lash.tongueLean	TorchSettings.tongueLean	no	no		
+TorchForm	lash.embers	TorchSettings.embers	no	no		
+TorchForm	lash.emberSpread	TorchSettings.emberSpread	no	no		
+TorchForm	lash.emberRise	TorchSettings.emberRise	no	no		
+TorchForm	lash.emberDrift	TorchSettings.emberDrift	no	no		
+TorchForm	lash.emberWobble	TorchSettings.emberWobble	no	no		
+TorchForm	lash.emberSize	TorchSettings.emberSize	no	no		
+TorchForm	lash.emberY0	TorchSettings.emberY0	no	no		
+TorchForm	lash.emberGain	TorchSettings.emberGain	no	no		
+TorchForm	lash.cool	TorchSettings.cool	no	no		
+TorchForm	lash.aLo	TorchSettings.aLo	no	no		
+TorchForm	lash.aHi	TorchSettings.aHi	no	no		
+TorchForm	lash.ramp	TorchSettings.ramp	no	no		
+TorchForm	lash.rampTop	TorchSettings.rampTop	no	no		
+JetForm	anchorX	JetFormBase.anchorX	no	no		
+JetForm	anchorY	JetFormBase.anchorY	no	no		
+JetForm	scale	JetFormBase.scale	no	no		
+JetForm	variant	JetForm.variant	no	no		
+JetForm	lance.w	JetSettings.w	no	no		
+JetForm	lance.h	JetSettings.h	no	no		
+JetForm	lance.nozzleX	JetSettings.nozzleX	no	no		
+JetForm	lance.nozzleY	JetSettings.nozzleY	no	no		
+JetForm	lance.aim	JetSettings.aim	no	no		
+JetForm	lance.reach	JetSettings.reach	no	no		
+JetForm	lance.spread	JetSettings.spread	no	no		
+JetForm	lance.drag	JetSettings.drag	no	no		
+JetForm	lance.buoy	JetSettings.buoy	no	no		
+JetForm	lance.grav	JetSettings.grav	no	no		
+JetForm	lance.r0	JetSettings.r0	no	no		
+JetForm	lance.growth	JetSettings.growth	no	no		
+JetForm	lance.elong	JetSettings.elong	no	no		
+JetForm	lance.roundAt	JetSettings.roundAt	no	no		
+JetForm	lance.slots	JetSettings.slots	no	no		
+JetForm	lance.life	JetSettings.life	no	no		
+JetForm	lance.jitter	JetSettings.jitter	no	no		
+JetForm	lance.strength	JetSettings.strength	no	no		
+JetForm	lance.cool	JetSettings.cool	no	no		
+JetForm	lance.soot	JetSettings.soot	no	no		
+JetForm	lance.pulseN	JetSettings.pulseN	no	YES		
+JetForm	lance.pulseDepth	JetSettings.pulseDepth	no	YES		
+JetForm	lance.sweep	JetSettings.sweep	no	no	guard	
+JetForm	lance.sweepN	JetSettings.sweepN	YES	YES		Nothing until Sweep angle is above 0.
+JetForm	lance.shockN	JetSettings.shockN	no	YES		
+JetForm	lance.shockDepth	JetSettings.shockDepth	no	YES		
+JetForm	lance.rootR	JetSettings.rootR	no	no	guard	
+JetForm	lance.rootAmp	JetSettings.rootAmp	no	YES		
+JetForm	lance.shed	JetSettings.shed	no	no		
+JetForm	lance.shedKick	JetSettings.shedKick	no	no		
+JetForm	lance.shedLife	JetSettings.shedLife	no	no		
+JetForm	lance.sparks	JetSettings.sparks	no	no		
+JetForm	lance.sparkR	JetSettings.sparkR	no	no		
+JetForm	lance.ringN	JetSettings.ringN	no	no	guard	
+JetForm	lance.ringK	JetSettings.ringK	YES	YES		Nothing until Ring count is above 0.
+JetForm	lance.ringR0	JetSettings.ringR0	YES	YES		Nothing until Ring count is above 0.
+JetForm	lance.ringGrow	JetSettings.ringGrow	YES	YES		Nothing until Ring count is above 0.
+JetForm	lance.ringLife	JetSettings.ringLife	YES	YES		Nothing until Ring count is above 0.
+JetForm	lance.ringReach	JetSettings.ringReach	YES	YES		Nothing until Ring count is above 0.
+JetForm	lance.ringAmp	JetSettings.ringAmp	YES	YES		Nothing until Ring count is above 0.
+JetForm	lance.warp0	JetSettings.warp0	no	no		
+JetForm	lance.warp1	JetSettings.warp1	no	no		
+JetForm	lance.warpCell	JetSettings.warpCell	no	no		
+JetForm	lance.warpOct	JetSettings.warpOct	no	no		
+JetForm	lance.lo	JetSettings.lo	no	no		
+JetForm	lance.hi	JetSettings.hi	no	no		
+JetForm	lance.curve	JetSettings.curve	no	no		
+JetForm	lance.steps	JetSettings.steps	no	no		
+JetForm	lance.soft	JetSettings.soft	no	no		
+JetForm	lance.gain	JetSettings.gain	no	no		
+JetForm	lance.ramp	JetSettings.ramp	no	no		
+JetForm	lance.sootRamp	JetSettings.sootRamp	no	no		
+JetForm	lance.sootLo	JetSettings.sootLo	no	no		
+JetForm	lance.sootHi	JetSettings.sootHi	no	no		
+JetForm	gout.w	JetSettings.w	no	no		
+JetForm	gout.h	JetSettings.h	no	no		
+JetForm	gout.nozzleX	JetSettings.nozzleX	no	no		
+JetForm	gout.nozzleY	JetSettings.nozzleY	no	no		
+JetForm	gout.aim	JetSettings.aim	no	no		
+JetForm	gout.reach	JetSettings.reach	no	no		
+JetForm	gout.spread	JetSettings.spread	no	no		
+JetForm	gout.drag	JetSettings.drag	no	no		
+JetForm	gout.buoy	JetSettings.buoy	no	no		
+JetForm	gout.grav	JetSettings.grav	no	no		
+JetForm	gout.r0	JetSettings.r0	no	no		
+JetForm	gout.growth	JetSettings.growth	no	no		
+JetForm	gout.elong	JetSettings.elong	no	no		
+JetForm	gout.roundAt	JetSettings.roundAt	no	no		
+JetForm	gout.slots	JetSettings.slots	no	no		
+JetForm	gout.life	JetSettings.life	no	no		
+JetForm	gout.jitter	JetSettings.jitter	no	no		
+JetForm	gout.strength	JetSettings.strength	no	no		
+JetForm	gout.cool	JetSettings.cool	no	no		
+JetForm	gout.soot	JetSettings.soot	no	no		
+JetForm	gout.pulseN	JetSettings.pulseN	no	YES		
+JetForm	gout.pulseDepth	JetSettings.pulseDepth	no	YES		
+JetForm	gout.sweep	JetSettings.sweep	no	no	guard	
+JetForm	gout.sweepN	JetSettings.sweepN	YES	YES		Nothing until Sweep angle is above 0.
+JetForm	gout.shockN	JetSettings.shockN	no	YES		
+JetForm	gout.shockDepth	JetSettings.shockDepth	no	YES		
+JetForm	gout.rootR	JetSettings.rootR	no	no	guard	
+JetForm	gout.rootAmp	JetSettings.rootAmp	no	YES		
+JetForm	gout.shed	JetSettings.shed	no	no		
+JetForm	gout.shedKick	JetSettings.shedKick	no	no		
+JetForm	gout.shedLife	JetSettings.shedLife	no	no		
+JetForm	gout.sparks	JetSettings.sparks	no	no		
+JetForm	gout.sparkR	JetSettings.sparkR	no	no		
+JetForm	gout.ringN	JetSettings.ringN	no	no	guard	
+JetForm	gout.ringK	JetSettings.ringK	YES	YES		Nothing until Ring count is above 0.
+JetForm	gout.ringR0	JetSettings.ringR0	YES	YES		Nothing until Ring count is above 0.
+JetForm	gout.ringGrow	JetSettings.ringGrow	YES	YES		Nothing until Ring count is above 0.
+JetForm	gout.ringLife	JetSettings.ringLife	YES	YES		Nothing until Ring count is above 0.
+JetForm	gout.ringReach	JetSettings.ringReach	YES	YES		Nothing until Ring count is above 0.
+JetForm	gout.ringAmp	JetSettings.ringAmp	YES	YES		Nothing until Ring count is above 0.
+JetForm	gout.warp0	JetSettings.warp0	no	no		
+JetForm	gout.warp1	JetSettings.warp1	no	no		
+JetForm	gout.warpCell	JetSettings.warpCell	no	no		
+JetForm	gout.warpOct	JetSettings.warpOct	no	no		
+JetForm	gout.lo	JetSettings.lo	no	no		
+JetForm	gout.hi	JetSettings.hi	no	no		
+JetForm	gout.curve	JetSettings.curve	no	no		
+JetForm	gout.steps	JetSettings.steps	no	no		
+JetForm	gout.soft	JetSettings.soft	no	no		
+JetForm	gout.gain	JetSettings.gain	no	no		
+JetForm	gout.ramp	JetSettings.ramp	no	no		
+JetForm	gout.sootRamp	JetSettings.sootRamp	no	no		
+JetForm	gout.sootLo	JetSettings.sootLo	no	no		
+JetForm	gout.sootHi	JetSettings.sootHi	no	no		
+JetForm	sputter.w	JetSettings.w	no	no		
+JetForm	sputter.h	JetSettings.h	no	no		
+JetForm	sputter.nozzleX	JetSettings.nozzleX	no	no		
+JetForm	sputter.nozzleY	JetSettings.nozzleY	no	no		
+JetForm	sputter.aim	JetSettings.aim	no	no		
+JetForm	sputter.reach	JetSettings.reach	no	no		
+JetForm	sputter.spread	JetSettings.spread	no	no		
+JetForm	sputter.drag	JetSettings.drag	no	no		
+JetForm	sputter.buoy	JetSettings.buoy	no	no		
+JetForm	sputter.grav	JetSettings.grav	no	no		
+JetForm	sputter.r0	JetSettings.r0	no	no		
+JetForm	sputter.growth	JetSettings.growth	no	no		
+JetForm	sputter.elong	JetSettings.elong	no	no		
+JetForm	sputter.roundAt	JetSettings.roundAt	no	no		
+JetForm	sputter.slots	JetSettings.slots	no	no		
+JetForm	sputter.life	JetSettings.life	no	no		
+JetForm	sputter.jitter	JetSettings.jitter	no	no		
+JetForm	sputter.strength	JetSettings.strength	no	no		
+JetForm	sputter.cool	JetSettings.cool	no	no		
+JetForm	sputter.soot	JetSettings.soot	no	no		
+JetForm	sputter.pulseN	JetSettings.pulseN	no	YES		
+JetForm	sputter.pulseDepth	JetSettings.pulseDepth	no	YES		
+JetForm	sputter.sweep	JetSettings.sweep	no	no	guard	
+JetForm	sputter.sweepN	JetSettings.sweepN	YES	YES		Nothing until Sweep angle is above 0.
+JetForm	sputter.shockN	JetSettings.shockN	no	YES		
+JetForm	sputter.shockDepth	JetSettings.shockDepth	no	YES		
+JetForm	sputter.rootR	JetSettings.rootR	no	no	guard	
+JetForm	sputter.rootAmp	JetSettings.rootAmp	no	YES		
+JetForm	sputter.shed	JetSettings.shed	no	no		
+JetForm	sputter.shedKick	JetSettings.shedKick	no	no		
+JetForm	sputter.shedLife	JetSettings.shedLife	no	no		
+JetForm	sputter.sparks	JetSettings.sparks	no	no		
+JetForm	sputter.sparkR	JetSettings.sparkR	no	no		
+JetForm	sputter.ringN	JetSettings.ringN	no	no	guard	
+JetForm	sputter.ringK	JetSettings.ringK	YES	YES		Nothing until Ring count is above 0.
+JetForm	sputter.ringR0	JetSettings.ringR0	YES	YES		Nothing until Ring count is above 0.
+JetForm	sputter.ringGrow	JetSettings.ringGrow	YES	YES		Nothing until Ring count is above 0.
+JetForm	sputter.ringLife	JetSettings.ringLife	YES	YES		Nothing until Ring count is above 0.
+JetForm	sputter.ringReach	JetSettings.ringReach	YES	YES		Nothing until Ring count is above 0.
+JetForm	sputter.ringAmp	JetSettings.ringAmp	YES	YES		Nothing until Ring count is above 0.
+JetForm	sputter.warp0	JetSettings.warp0	no	no		
+JetForm	sputter.warp1	JetSettings.warp1	no	no		
+JetForm	sputter.warpCell	JetSettings.warpCell	no	no		
+JetForm	sputter.warpOct	JetSettings.warpOct	no	no		
+JetForm	sputter.lo	JetSettings.lo	no	no		
+JetForm	sputter.hi	JetSettings.hi	no	no		
+JetForm	sputter.curve	JetSettings.curve	no	no		
+JetForm	sputter.steps	JetSettings.steps	no	no		
+JetForm	sputter.soft	JetSettings.soft	no	no		
+JetForm	sputter.gain	JetSettings.gain	no	no		
+JetForm	sputter.ramp	JetSettings.ramp	no	no		
+JetForm	sputter.sootRamp	JetSettings.sootRamp	no	no		
+JetForm	sputter.sootLo	JetSettings.sootLo	no	no		
+JetForm	sputter.sootHi	JetSettings.sootHi	no	no		
+JetForm	whip.w	JetSettings.w	no	no		
+JetForm	whip.h	JetSettings.h	no	no		
+JetForm	whip.nozzleX	JetSettings.nozzleX	no	no		
+JetForm	whip.nozzleY	JetSettings.nozzleY	no	no		
+JetForm	whip.aim	JetSettings.aim	no	no		
+JetForm	whip.reach	JetSettings.reach	no	no		
+JetForm	whip.spread	JetSettings.spread	no	no		
+JetForm	whip.drag	JetSettings.drag	no	no		
+JetForm	whip.buoy	JetSettings.buoy	no	no		
+JetForm	whip.grav	JetSettings.grav	no	no		
+JetForm	whip.r0	JetSettings.r0	no	no		
+JetForm	whip.growth	JetSettings.growth	no	no		
+JetForm	whip.elong	JetSettings.elong	no	no		
+JetForm	whip.roundAt	JetSettings.roundAt	no	no		
+JetForm	whip.slots	JetSettings.slots	no	no		
+JetForm	whip.life	JetSettings.life	no	no		
+JetForm	whip.jitter	JetSettings.jitter	no	no		
+JetForm	whip.strength	JetSettings.strength	no	no		
+JetForm	whip.cool	JetSettings.cool	no	no		
+JetForm	whip.soot	JetSettings.soot	no	no		
+JetForm	whip.pulseN	JetSettings.pulseN	no	YES		
+JetForm	whip.pulseDepth	JetSettings.pulseDepth	no	YES		
+JetForm	whip.sweep	JetSettings.sweep	no	no	guard	
+JetForm	whip.sweepN	JetSettings.sweepN	no	YES		
+JetForm	whip.shockN	JetSettings.shockN	no	YES		
+JetForm	whip.shockDepth	JetSettings.shockDepth	no	YES		
+JetForm	whip.rootR	JetSettings.rootR	no	no	guard	
+JetForm	whip.rootAmp	JetSettings.rootAmp	no	YES		
+JetForm	whip.shed	JetSettings.shed	no	no		
+JetForm	whip.shedKick	JetSettings.shedKick	no	no		
+JetForm	whip.shedLife	JetSettings.shedLife	no	no		
+JetForm	whip.sparks	JetSettings.sparks	no	no		
+JetForm	whip.sparkR	JetSettings.sparkR	no	no		
+JetForm	whip.ringN	JetSettings.ringN	no	no	guard	
+JetForm	whip.ringK	JetSettings.ringK	YES	YES		Nothing until Ring count is above 0.
+JetForm	whip.ringR0	JetSettings.ringR0	YES	YES		Nothing until Ring count is above 0.
+JetForm	whip.ringGrow	JetSettings.ringGrow	YES	YES		Nothing until Ring count is above 0.
+JetForm	whip.ringLife	JetSettings.ringLife	YES	YES		Nothing until Ring count is above 0.
+JetForm	whip.ringReach	JetSettings.ringReach	YES	YES		Nothing until Ring count is above 0.
+JetForm	whip.ringAmp	JetSettings.ringAmp	YES	YES		Nothing until Ring count is above 0.
+JetForm	whip.warp0	JetSettings.warp0	no	no		
+JetForm	whip.warp1	JetSettings.warp1	no	no		
+JetForm	whip.warpCell	JetSettings.warpCell	no	no		
+JetForm	whip.warpOct	JetSettings.warpOct	no	no		
+JetForm	whip.lo	JetSettings.lo	no	no		
+JetForm	whip.hi	JetSettings.hi	no	no		
+JetForm	whip.curve	JetSettings.curve	no	no		
+JetForm	whip.steps	JetSettings.steps	no	no		
+JetForm	whip.soft	JetSettings.soft	no	no		
+JetForm	whip.gain	JetSettings.gain	no	no		
+JetForm	whip.ramp	JetSettings.ramp	no	no		
+JetForm	whip.sootRamp	JetSettings.sootRamp	no	no		
+JetForm	whip.sootLo	JetSettings.sootLo	no	no		
+JetForm	whip.sootHi	JetSettings.sootHi	no	no		
+JetForm	wyrm.w	JetSettings.w	no	no		
+JetForm	wyrm.h	JetSettings.h	no	no		
+JetForm	wyrm.nozzleX	JetSettings.nozzleX	no	no		
+JetForm	wyrm.nozzleY	JetSettings.nozzleY	no	no		
+JetForm	wyrm.aim	JetSettings.aim	no	no		
+JetForm	wyrm.reach	JetSettings.reach	no	no		
+JetForm	wyrm.spread	JetSettings.spread	no	no		
+JetForm	wyrm.drag	JetSettings.drag	no	no		
+JetForm	wyrm.buoy	JetSettings.buoy	no	no		
+JetForm	wyrm.grav	JetSettings.grav	no	no		
+JetForm	wyrm.r0	JetSettings.r0	no	no		
+JetForm	wyrm.growth	JetSettings.growth	no	no		
+JetForm	wyrm.elong	JetSettings.elong	no	no		
+JetForm	wyrm.roundAt	JetSettings.roundAt	no	no		
+JetForm	wyrm.slots	JetSettings.slots	no	no		
+JetForm	wyrm.life	JetSettings.life	no	no		
+JetForm	wyrm.jitter	JetSettings.jitter	no	no		
+JetForm	wyrm.strength	JetSettings.strength	no	no		
+JetForm	wyrm.cool	JetSettings.cool	no	no		
+JetForm	wyrm.soot	JetSettings.soot	no	no		
+JetForm	wyrm.pulseN	JetSettings.pulseN	no	YES		
+JetForm	wyrm.pulseDepth	JetSettings.pulseDepth	no	YES		
+JetForm	wyrm.sweep	JetSettings.sweep	no	no	guard	
+JetForm	wyrm.sweepN	JetSettings.sweepN	YES	YES		Nothing until Sweep angle is above 0.
+JetForm	wyrm.shockN	JetSettings.shockN	no	YES		
+JetForm	wyrm.shockDepth	JetSettings.shockDepth	no	YES		
+JetForm	wyrm.rootR	JetSettings.rootR	no	no	guard	
+JetForm	wyrm.rootAmp	JetSettings.rootAmp	no	YES		
+JetForm	wyrm.shed	JetSettings.shed	no	no		
+JetForm	wyrm.shedKick	JetSettings.shedKick	no	no		
+JetForm	wyrm.shedLife	JetSettings.shedLife	no	no		
+JetForm	wyrm.sparks	JetSettings.sparks	no	no		
+JetForm	wyrm.sparkR	JetSettings.sparkR	no	no		
+JetForm	wyrm.ringN	JetSettings.ringN	no	no	guard	
+JetForm	wyrm.ringK	JetSettings.ringK	no	YES		
+JetForm	wyrm.ringR0	JetSettings.ringR0	no	YES		
+JetForm	wyrm.ringGrow	JetSettings.ringGrow	no	YES		
+JetForm	wyrm.ringLife	JetSettings.ringLife	no	YES		
+JetForm	wyrm.ringReach	JetSettings.ringReach	no	YES		
+JetForm	wyrm.ringAmp	JetSettings.ringAmp	no	YES		
+JetForm	wyrm.warp0	JetSettings.warp0	no	no		
+JetForm	wyrm.warp1	JetSettings.warp1	no	no		
+JetForm	wyrm.warpCell	JetSettings.warpCell	no	no		
+JetForm	wyrm.warpOct	JetSettings.warpOct	no	no		
+JetForm	wyrm.lo	JetSettings.lo	no	no		
+JetForm	wyrm.hi	JetSettings.hi	no	no		
+JetForm	wyrm.curve	JetSettings.curve	no	no		
+JetForm	wyrm.steps	JetSettings.steps	no	no		
+JetForm	wyrm.soft	JetSettings.soft	no	no		
+JetForm	wyrm.gain	JetSettings.gain	no	no		
+JetForm	wyrm.ramp	JetSettings.ramp	no	no		
+JetForm	wyrm.sootRamp	JetSettings.sootRamp	no	no		
+JetForm	wyrm.sootLo	JetSettings.sootLo	no	no		
+JetForm	wyrm.sootHi	JetSettings.sootHi	no	no		
+RadialJetForm	anchorX	JetFormBase.anchorX	no	no		
+RadialJetForm	anchorY	JetFormBase.anchorY	no	no		
+RadialJetForm	scale	JetFormBase.scale	no	no		
+RadialJetForm	variant	RadialJetForm.variant	no	no		
+RadialJetForm	corona.w	JetSettings.w	no	no		
+RadialJetForm	corona.h	JetSettings.h	no	no		
+RadialJetForm	corona.nozzleX	JetSettings.nozzleX	no	no		
+RadialJetForm	corona.nozzleY	JetSettings.nozzleY	no	no		
+RadialJetForm	corona.aim	JetSettings.aim	no	no		
+RadialJetForm	corona.reach	JetSettings.reach	no	no		
+RadialJetForm	corona.spread	JetSettings.spread	no	no		
+RadialJetForm	corona.drag	JetSettings.drag	no	no		
+RadialJetForm	corona.buoy	JetSettings.buoy	no	no		
+RadialJetForm	corona.grav	JetSettings.grav	no	no		
+RadialJetForm	corona.r0	JetSettings.r0	no	no		
+RadialJetForm	corona.growth	JetSettings.growth	no	no		
+RadialJetForm	corona.elong	JetSettings.elong	no	no		
+RadialJetForm	corona.roundAt	JetSettings.roundAt	no	no		
+RadialJetForm	corona.slots	JetSettings.slots	no	no		
+RadialJetForm	corona.life	JetSettings.life	no	no		
+RadialJetForm	corona.jitter	JetSettings.jitter	no	no		
+RadialJetForm	corona.strength	JetSettings.strength	no	no		
+RadialJetForm	corona.cool	JetSettings.cool	no	no		
+RadialJetForm	corona.soot	JetSettings.soot	no	no		
+RadialJetForm	corona.pulseN	JetSettings.pulseN	no	YES		
+RadialJetForm	corona.pulseDepth	JetSettings.pulseDepth	no	YES		
+RadialJetForm	corona.sweep	JetSettings.sweep	no	no	guard	
+RadialJetForm	corona.sweepN	JetSettings.sweepN	YES	YES		Nothing until Sweep angle is above 0.
+RadialJetForm	corona.shockN	JetSettings.shockN	no	YES		
+RadialJetForm	corona.shockDepth	JetSettings.shockDepth	no	YES		
+RadialJetForm	corona.rootR	JetSettings.rootR	no	no	guard	
+RadialJetForm	corona.rootAmp	JetSettings.rootAmp	no	YES		
+RadialJetForm	corona.shed	JetSettings.shed	no	no		
+RadialJetForm	corona.shedKick	JetSettings.shedKick	no	no		
+RadialJetForm	corona.shedLife	JetSettings.shedLife	no	no		
+RadialJetForm	corona.sparks	JetSettings.sparks	no	no		
+RadialJetForm	corona.sparkR	JetSettings.sparkR	no	no		
+RadialJetForm	corona.ringN	JetSettings.ringN	no	no	guard	
+RadialJetForm	corona.ringK	JetSettings.ringK	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	corona.ringR0	JetSettings.ringR0	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	corona.ringGrow	JetSettings.ringGrow	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	corona.ringLife	JetSettings.ringLife	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	corona.ringReach	JetSettings.ringReach	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	corona.ringAmp	JetSettings.ringAmp	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	corona.warp0	JetSettings.warp0	no	no		
+RadialJetForm	corona.warp1	JetSettings.warp1	no	no		
+RadialJetForm	corona.warpCell	JetSettings.warpCell	no	no		
+RadialJetForm	corona.warpOct	JetSettings.warpOct	no	no		
+RadialJetForm	corona.lo	JetSettings.lo	no	no		
+RadialJetForm	corona.hi	JetSettings.hi	no	no		
+RadialJetForm	corona.curve	JetSettings.curve	no	no		
+RadialJetForm	corona.steps	JetSettings.steps	no	no		
+RadialJetForm	corona.soft	JetSettings.soft	no	no		
+RadialJetForm	corona.gain	JetSettings.gain	no	no		
+RadialJetForm	corona.ramp	JetSettings.ramp	no	no		
+RadialJetForm	corona.sootRamp	JetSettings.sootRamp	no	no		
+RadialJetForm	corona.sootLo	JetSettings.sootLo	no	no		
+RadialJetForm	corona.sootHi	JetSettings.sootHi	no	no		
+RadialJetForm	corona.bias	RadialJetSettings.bias	no	no		
+RadialJetForm	corona.srcR	RadialJetSettings.srcR	no	no	guard	
+RadialJetForm	corona.swirl	RadialJetSettings.swirl	no	no		
+RadialJetForm	corona.spin	RadialJetSettings.spin	no	no		
+RadialJetForm	corona.lobes	RadialJetSettings.lobes	no	YES		
+RadialJetForm	corona.lobeDepth	RadialJetSettings.lobeDepth	no	YES		
+RadialJetForm	corona.lobeKick	RadialJetSettings.lobeKick	no	YES		
+RadialJetForm	corona.rootK	RadialJetSettings.rootK	YES	YES		Nothing until Burn radius is above 0.
+RadialJetForm	corona.ringFlat	RadialJetSettings.ringFlat	YES	YES		Nothing until Ring count is above 0 — there are no rings to turn face-on.
+RadialJetForm	corona.warpSpin	RadialJetSettings.warpSpin	no	no		
+RadialJetForm	fan.w	JetSettings.w	no	no		
+RadialJetForm	fan.h	JetSettings.h	no	no		
+RadialJetForm	fan.nozzleX	JetSettings.nozzleX	no	no		
+RadialJetForm	fan.nozzleY	JetSettings.nozzleY	no	no		
+RadialJetForm	fan.aim	JetSettings.aim	no	no		
+RadialJetForm	fan.reach	JetSettings.reach	no	no		
+RadialJetForm	fan.spread	JetSettings.spread	no	no		
+RadialJetForm	fan.drag	JetSettings.drag	no	no		
+RadialJetForm	fan.buoy	JetSettings.buoy	no	no		
+RadialJetForm	fan.grav	JetSettings.grav	no	no		
+RadialJetForm	fan.r0	JetSettings.r0	no	no		
+RadialJetForm	fan.growth	JetSettings.growth	no	no		
+RadialJetForm	fan.elong	JetSettings.elong	no	no		
+RadialJetForm	fan.roundAt	JetSettings.roundAt	no	no		
+RadialJetForm	fan.slots	JetSettings.slots	no	no		
+RadialJetForm	fan.life	JetSettings.life	no	no		
+RadialJetForm	fan.jitter	JetSettings.jitter	no	no		
+RadialJetForm	fan.strength	JetSettings.strength	no	no		
+RadialJetForm	fan.cool	JetSettings.cool	no	no		
+RadialJetForm	fan.soot	JetSettings.soot	no	no		
+RadialJetForm	fan.pulseN	JetSettings.pulseN	no	YES		
+RadialJetForm	fan.pulseDepth	JetSettings.pulseDepth	no	YES		
+RadialJetForm	fan.sweep	JetSettings.sweep	no	no	guard	
+RadialJetForm	fan.sweepN	JetSettings.sweepN	YES	YES		Nothing until Sweep angle is above 0.
+RadialJetForm	fan.shockN	JetSettings.shockN	no	YES		
+RadialJetForm	fan.shockDepth	JetSettings.shockDepth	no	YES		
+RadialJetForm	fan.rootR	JetSettings.rootR	no	no	guard	
+RadialJetForm	fan.rootAmp	JetSettings.rootAmp	no	YES		
+RadialJetForm	fan.shed	JetSettings.shed	no	no		
+RadialJetForm	fan.shedKick	JetSettings.shedKick	no	no		
+RadialJetForm	fan.shedLife	JetSettings.shedLife	no	no		
+RadialJetForm	fan.sparks	JetSettings.sparks	no	no		
+RadialJetForm	fan.sparkR	JetSettings.sparkR	no	no		
+RadialJetForm	fan.ringN	JetSettings.ringN	no	no	guard	
+RadialJetForm	fan.ringK	JetSettings.ringK	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	fan.ringR0	JetSettings.ringR0	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	fan.ringGrow	JetSettings.ringGrow	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	fan.ringLife	JetSettings.ringLife	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	fan.ringReach	JetSettings.ringReach	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	fan.ringAmp	JetSettings.ringAmp	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	fan.warp0	JetSettings.warp0	no	no		
+RadialJetForm	fan.warp1	JetSettings.warp1	no	no		
+RadialJetForm	fan.warpCell	JetSettings.warpCell	no	no		
+RadialJetForm	fan.warpOct	JetSettings.warpOct	no	no		
+RadialJetForm	fan.lo	JetSettings.lo	no	no		
+RadialJetForm	fan.hi	JetSettings.hi	no	no		
+RadialJetForm	fan.curve	JetSettings.curve	no	no		
+RadialJetForm	fan.steps	JetSettings.steps	no	no		
+RadialJetForm	fan.soft	JetSettings.soft	no	no		
+RadialJetForm	fan.gain	JetSettings.gain	no	no		
+RadialJetForm	fan.ramp	JetSettings.ramp	no	no		
+RadialJetForm	fan.sootRamp	JetSettings.sootRamp	no	no		
+RadialJetForm	fan.sootLo	JetSettings.sootLo	no	no		
+RadialJetForm	fan.sootHi	JetSettings.sootHi	no	no		
+RadialJetForm	fan.bias	RadialJetSettings.bias	no	no		
+RadialJetForm	fan.srcR	RadialJetSettings.srcR	no	no	guard	
+RadialJetForm	fan.swirl	RadialJetSettings.swirl	no	no		
+RadialJetForm	fan.spin	RadialJetSettings.spin	no	no		
+RadialJetForm	fan.lobes	RadialJetSettings.lobes	no	YES		
+RadialJetForm	fan.lobeDepth	RadialJetSettings.lobeDepth	no	YES		
+RadialJetForm	fan.lobeKick	RadialJetSettings.lobeKick	no	YES		
+RadialJetForm	fan.rootK	RadialJetSettings.rootK	YES	YES		Nothing until Burn radius is above 0.
+RadialJetForm	fan.ringFlat	RadialJetSettings.ringFlat	YES	YES		Nothing until Ring count is above 0 — there are no rings to turn face-on.
+RadialJetForm	fan.warpSpin	RadialJetSettings.warpSpin	no	no		
+RadialJetForm	crown.w	JetSettings.w	no	no		
+RadialJetForm	crown.h	JetSettings.h	no	no		
+RadialJetForm	crown.nozzleX	JetSettings.nozzleX	no	no		
+RadialJetForm	crown.nozzleY	JetSettings.nozzleY	no	no		
+RadialJetForm	crown.aim	JetSettings.aim	no	no		
+RadialJetForm	crown.reach	JetSettings.reach	no	no		
+RadialJetForm	crown.spread	JetSettings.spread	no	no		
+RadialJetForm	crown.drag	JetSettings.drag	no	no		
+RadialJetForm	crown.buoy	JetSettings.buoy	no	no		
+RadialJetForm	crown.grav	JetSettings.grav	no	no		
+RadialJetForm	crown.r0	JetSettings.r0	no	no		
+RadialJetForm	crown.growth	JetSettings.growth	no	no		
+RadialJetForm	crown.elong	JetSettings.elong	no	no		
+RadialJetForm	crown.roundAt	JetSettings.roundAt	no	no		
+RadialJetForm	crown.slots	JetSettings.slots	no	no		
+RadialJetForm	crown.life	JetSettings.life	no	no		
+RadialJetForm	crown.jitter	JetSettings.jitter	no	no		
+RadialJetForm	crown.strength	JetSettings.strength	no	no		
+RadialJetForm	crown.cool	JetSettings.cool	no	no		
+RadialJetForm	crown.soot	JetSettings.soot	no	no		
+RadialJetForm	crown.pulseN	JetSettings.pulseN	no	YES		
+RadialJetForm	crown.pulseDepth	JetSettings.pulseDepth	no	YES		
+RadialJetForm	crown.sweep	JetSettings.sweep	no	no	guard	
+RadialJetForm	crown.sweepN	JetSettings.sweepN	YES	YES		Nothing until Sweep angle is above 0.
+RadialJetForm	crown.shockN	JetSettings.shockN	no	YES		
+RadialJetForm	crown.shockDepth	JetSettings.shockDepth	no	YES		
+RadialJetForm	crown.rootR	JetSettings.rootR	no	no	guard	
+RadialJetForm	crown.rootAmp	JetSettings.rootAmp	no	YES		
+RadialJetForm	crown.shed	JetSettings.shed	no	no		
+RadialJetForm	crown.shedKick	JetSettings.shedKick	no	no		
+RadialJetForm	crown.shedLife	JetSettings.shedLife	no	no		
+RadialJetForm	crown.sparks	JetSettings.sparks	no	no		
+RadialJetForm	crown.sparkR	JetSettings.sparkR	no	no		
+RadialJetForm	crown.ringN	JetSettings.ringN	no	no	guard	
+RadialJetForm	crown.ringK	JetSettings.ringK	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	crown.ringR0	JetSettings.ringR0	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	crown.ringGrow	JetSettings.ringGrow	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	crown.ringLife	JetSettings.ringLife	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	crown.ringReach	JetSettings.ringReach	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	crown.ringAmp	JetSettings.ringAmp	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	crown.warp0	JetSettings.warp0	no	no		
+RadialJetForm	crown.warp1	JetSettings.warp1	no	no		
+RadialJetForm	crown.warpCell	JetSettings.warpCell	no	no		
+RadialJetForm	crown.warpOct	JetSettings.warpOct	no	no		
+RadialJetForm	crown.lo	JetSettings.lo	no	no		
+RadialJetForm	crown.hi	JetSettings.hi	no	no		
+RadialJetForm	crown.curve	JetSettings.curve	no	no		
+RadialJetForm	crown.steps	JetSettings.steps	no	no		
+RadialJetForm	crown.soft	JetSettings.soft	no	no		
+RadialJetForm	crown.gain	JetSettings.gain	no	no		
+RadialJetForm	crown.ramp	JetSettings.ramp	no	no		
+RadialJetForm	crown.sootRamp	JetSettings.sootRamp	no	no		
+RadialJetForm	crown.sootLo	JetSettings.sootLo	no	no		
+RadialJetForm	crown.sootHi	JetSettings.sootHi	no	no		
+RadialJetForm	crown.bias	RadialJetSettings.bias	no	no		
+RadialJetForm	crown.srcR	RadialJetSettings.srcR	no	no	guard	
+RadialJetForm	crown.swirl	RadialJetSettings.swirl	no	no		
+RadialJetForm	crown.spin	RadialJetSettings.spin	no	no		
+RadialJetForm	crown.lobes	RadialJetSettings.lobes	no	YES		
+RadialJetForm	crown.lobeDepth	RadialJetSettings.lobeDepth	no	YES		
+RadialJetForm	crown.lobeKick	RadialJetSettings.lobeKick	no	YES		
+RadialJetForm	crown.rootK	RadialJetSettings.rootK	no	YES		
+RadialJetForm	crown.ringFlat	RadialJetSettings.ringFlat	YES	YES		Nothing until Ring count is above 0 — there are no rings to turn face-on.
+RadialJetForm	crown.warpSpin	RadialJetSettings.warpSpin	no	no		
+RadialJetForm	whirl.w	JetSettings.w	no	no		
+RadialJetForm	whirl.h	JetSettings.h	no	no		
+RadialJetForm	whirl.nozzleX	JetSettings.nozzleX	no	no		
+RadialJetForm	whirl.nozzleY	JetSettings.nozzleY	no	no		
+RadialJetForm	whirl.aim	JetSettings.aim	no	no		
+RadialJetForm	whirl.reach	JetSettings.reach	no	no		
+RadialJetForm	whirl.spread	JetSettings.spread	no	no		
+RadialJetForm	whirl.drag	JetSettings.drag	no	no		
+RadialJetForm	whirl.buoy	JetSettings.buoy	no	no		
+RadialJetForm	whirl.grav	JetSettings.grav	no	no		
+RadialJetForm	whirl.r0	JetSettings.r0	no	no		
+RadialJetForm	whirl.growth	JetSettings.growth	no	no		
+RadialJetForm	whirl.elong	JetSettings.elong	no	no		
+RadialJetForm	whirl.roundAt	JetSettings.roundAt	no	no		
+RadialJetForm	whirl.slots	JetSettings.slots	no	no		
+RadialJetForm	whirl.life	JetSettings.life	no	no		
+RadialJetForm	whirl.jitter	JetSettings.jitter	no	no		
+RadialJetForm	whirl.strength	JetSettings.strength	no	no		
+RadialJetForm	whirl.cool	JetSettings.cool	no	no		
+RadialJetForm	whirl.soot	JetSettings.soot	no	no		
+RadialJetForm	whirl.pulseN	JetSettings.pulseN	no	YES		
+RadialJetForm	whirl.pulseDepth	JetSettings.pulseDepth	no	YES		
+RadialJetForm	whirl.sweep	JetSettings.sweep	no	no	guard	
+RadialJetForm	whirl.sweepN	JetSettings.sweepN	YES	YES		Nothing until Sweep angle is above 0.
+RadialJetForm	whirl.shockN	JetSettings.shockN	no	YES		
+RadialJetForm	whirl.shockDepth	JetSettings.shockDepth	no	YES		
+RadialJetForm	whirl.rootR	JetSettings.rootR	no	no	guard	
+RadialJetForm	whirl.rootAmp	JetSettings.rootAmp	no	YES		
+RadialJetForm	whirl.shed	JetSettings.shed	no	no		
+RadialJetForm	whirl.shedKick	JetSettings.shedKick	no	no		
+RadialJetForm	whirl.shedLife	JetSettings.shedLife	no	no		
+RadialJetForm	whirl.sparks	JetSettings.sparks	no	no		
+RadialJetForm	whirl.sparkR	JetSettings.sparkR	no	no		
+RadialJetForm	whirl.ringN	JetSettings.ringN	no	no	guard	
+RadialJetForm	whirl.ringK	JetSettings.ringK	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	whirl.ringR0	JetSettings.ringR0	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	whirl.ringGrow	JetSettings.ringGrow	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	whirl.ringLife	JetSettings.ringLife	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	whirl.ringReach	JetSettings.ringReach	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	whirl.ringAmp	JetSettings.ringAmp	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	whirl.warp0	JetSettings.warp0	no	no		
+RadialJetForm	whirl.warp1	JetSettings.warp1	no	no		
+RadialJetForm	whirl.warpCell	JetSettings.warpCell	no	no		
+RadialJetForm	whirl.warpOct	JetSettings.warpOct	no	no		
+RadialJetForm	whirl.lo	JetSettings.lo	no	no		
+RadialJetForm	whirl.hi	JetSettings.hi	no	no		
+RadialJetForm	whirl.curve	JetSettings.curve	no	no		
+RadialJetForm	whirl.steps	JetSettings.steps	no	no		
+RadialJetForm	whirl.soft	JetSettings.soft	no	no		
+RadialJetForm	whirl.gain	JetSettings.gain	no	no		
+RadialJetForm	whirl.ramp	JetSettings.ramp	no	no		
+RadialJetForm	whirl.sootRamp	JetSettings.sootRamp	no	no		
+RadialJetForm	whirl.sootLo	JetSettings.sootLo	no	no		
+RadialJetForm	whirl.sootHi	JetSettings.sootHi	no	no		
+RadialJetForm	whirl.bias	RadialJetSettings.bias	no	no		
+RadialJetForm	whirl.srcR	RadialJetSettings.srcR	no	no	guard	
+RadialJetForm	whirl.swirl	RadialJetSettings.swirl	no	no		
+RadialJetForm	whirl.spin	RadialJetSettings.spin	no	no		
+RadialJetForm	whirl.lobes	RadialJetSettings.lobes	no	YES		
+RadialJetForm	whirl.lobeDepth	RadialJetSettings.lobeDepth	no	YES		
+RadialJetForm	whirl.lobeKick	RadialJetSettings.lobeKick	no	YES		
+RadialJetForm	whirl.rootK	RadialJetSettings.rootK	YES	YES		Nothing until Burn radius is above 0.
+RadialJetForm	whirl.ringFlat	RadialJetSettings.ringFlat	YES	YES		Nothing until Ring count is above 0 — there are no rings to turn face-on.
+RadialJetForm	whirl.warpSpin	RadialJetSettings.warpSpin	no	no		
+RadialJetForm	shockring.w	JetSettings.w	no	no		
+RadialJetForm	shockring.h	JetSettings.h	no	no		
+RadialJetForm	shockring.nozzleX	JetSettings.nozzleX	no	no		
+RadialJetForm	shockring.nozzleY	JetSettings.nozzleY	no	no		
+RadialJetForm	shockring.aim	JetSettings.aim	no	no		
+RadialJetForm	shockring.reach	JetSettings.reach	no	no		
+RadialJetForm	shockring.spread	JetSettings.spread	no	no		
+RadialJetForm	shockring.drag	JetSettings.drag	no	no		
+RadialJetForm	shockring.buoy	JetSettings.buoy	no	no		
+RadialJetForm	shockring.grav	JetSettings.grav	no	no		
+RadialJetForm	shockring.r0	JetSettings.r0	no	no		
+RadialJetForm	shockring.growth	JetSettings.growth	no	no		
+RadialJetForm	shockring.elong	JetSettings.elong	no	no		
+RadialJetForm	shockring.roundAt	JetSettings.roundAt	no	no		
+RadialJetForm	shockring.slots	JetSettings.slots	no	no		
+RadialJetForm	shockring.life	JetSettings.life	no	no		
+RadialJetForm	shockring.jitter	JetSettings.jitter	no	no		
+RadialJetForm	shockring.strength	JetSettings.strength	no	no		
+RadialJetForm	shockring.cool	JetSettings.cool	no	no		
+RadialJetForm	shockring.soot	JetSettings.soot	no	no		
+RadialJetForm	shockring.pulseN	JetSettings.pulseN	no	YES		
+RadialJetForm	shockring.pulseDepth	JetSettings.pulseDepth	no	YES		
+RadialJetForm	shockring.sweep	JetSettings.sweep	no	no	guard	
+RadialJetForm	shockring.sweepN	JetSettings.sweepN	YES	YES		Nothing until Sweep angle is above 0.
+RadialJetForm	shockring.shockN	JetSettings.shockN	no	YES		
+RadialJetForm	shockring.shockDepth	JetSettings.shockDepth	no	YES		
+RadialJetForm	shockring.rootR	JetSettings.rootR	no	no	guard	
+RadialJetForm	shockring.rootAmp	JetSettings.rootAmp	no	YES		
+RadialJetForm	shockring.shed	JetSettings.shed	no	no		
+RadialJetForm	shockring.shedKick	JetSettings.shedKick	no	no		
+RadialJetForm	shockring.shedLife	JetSettings.shedLife	no	no		
+RadialJetForm	shockring.sparks	JetSettings.sparks	no	no		
+RadialJetForm	shockring.sparkR	JetSettings.sparkR	no	no		
+RadialJetForm	shockring.ringN	JetSettings.ringN	no	no	guard	
+RadialJetForm	shockring.ringK	JetSettings.ringK	no	YES		
+RadialJetForm	shockring.ringR0	JetSettings.ringR0	no	YES		
+RadialJetForm	shockring.ringGrow	JetSettings.ringGrow	no	YES		
+RadialJetForm	shockring.ringLife	JetSettings.ringLife	no	YES		
+RadialJetForm	shockring.ringReach	JetSettings.ringReach	no	YES		
+RadialJetForm	shockring.ringAmp	JetSettings.ringAmp	no	YES		
+RadialJetForm	shockring.warp0	JetSettings.warp0	no	no		
+RadialJetForm	shockring.warp1	JetSettings.warp1	no	no		
+RadialJetForm	shockring.warpCell	JetSettings.warpCell	no	no		
+RadialJetForm	shockring.warpOct	JetSettings.warpOct	no	no		
+RadialJetForm	shockring.lo	JetSettings.lo	no	no		
+RadialJetForm	shockring.hi	JetSettings.hi	no	no		
+RadialJetForm	shockring.curve	JetSettings.curve	no	no		
+RadialJetForm	shockring.steps	JetSettings.steps	no	no		
+RadialJetForm	shockring.soft	JetSettings.soft	no	no		
+RadialJetForm	shockring.gain	JetSettings.gain	no	no		
+RadialJetForm	shockring.ramp	JetSettings.ramp	no	no		
+RadialJetForm	shockring.sootRamp	JetSettings.sootRamp	no	no		
+RadialJetForm	shockring.sootLo	JetSettings.sootLo	no	no		
+RadialJetForm	shockring.sootHi	JetSettings.sootHi	no	no		
+RadialJetForm	shockring.bias	RadialJetSettings.bias	no	no		
+RadialJetForm	shockring.srcR	RadialJetSettings.srcR	no	no	guard	
+RadialJetForm	shockring.swirl	RadialJetSettings.swirl	no	no		
+RadialJetForm	shockring.spin	RadialJetSettings.spin	no	no		
+RadialJetForm	shockring.lobes	RadialJetSettings.lobes	no	YES		
+RadialJetForm	shockring.lobeDepth	RadialJetSettings.lobeDepth	no	YES		
+RadialJetForm	shockring.lobeKick	RadialJetSettings.lobeKick	no	YES		
+RadialJetForm	shockring.rootK	RadialJetSettings.rootK	YES	YES		Nothing until Burn radius is above 0.
+RadialJetForm	shockring.ringFlat	RadialJetSettings.ringFlat	no	YES		
+RadialJetForm	shockring.warpSpin	RadialJetSettings.warpSpin	no	no		
+RadialJetForm	maw.w	JetSettings.w	no	no		
+RadialJetForm	maw.h	JetSettings.h	no	no		
+RadialJetForm	maw.nozzleX	JetSettings.nozzleX	no	no		
+RadialJetForm	maw.nozzleY	JetSettings.nozzleY	no	no		
+RadialJetForm	maw.aim	JetSettings.aim	no	no		
+RadialJetForm	maw.reach	JetSettings.reach	no	no		
+RadialJetForm	maw.spread	JetSettings.spread	no	no		
+RadialJetForm	maw.drag	JetSettings.drag	no	no		
+RadialJetForm	maw.buoy	JetSettings.buoy	no	no		
+RadialJetForm	maw.grav	JetSettings.grav	no	no		
+RadialJetForm	maw.r0	JetSettings.r0	no	no		
+RadialJetForm	maw.growth	JetSettings.growth	no	no		
+RadialJetForm	maw.elong	JetSettings.elong	no	no		
+RadialJetForm	maw.roundAt	JetSettings.roundAt	no	no		
+RadialJetForm	maw.slots	JetSettings.slots	no	no		
+RadialJetForm	maw.life	JetSettings.life	no	no		
+RadialJetForm	maw.jitter	JetSettings.jitter	no	no		
+RadialJetForm	maw.strength	JetSettings.strength	no	no		
+RadialJetForm	maw.cool	JetSettings.cool	no	no		
+RadialJetForm	maw.soot	JetSettings.soot	no	no		
+RadialJetForm	maw.pulseN	JetSettings.pulseN	no	YES		
+RadialJetForm	maw.pulseDepth	JetSettings.pulseDepth	no	YES		
+RadialJetForm	maw.sweep	JetSettings.sweep	no	no	guard	
+RadialJetForm	maw.sweepN	JetSettings.sweepN	YES	YES		Nothing until Sweep angle is above 0.
+RadialJetForm	maw.shockN	JetSettings.shockN	no	YES		
+RadialJetForm	maw.shockDepth	JetSettings.shockDepth	no	YES		
+RadialJetForm	maw.rootR	JetSettings.rootR	no	no	guard	
+RadialJetForm	maw.rootAmp	JetSettings.rootAmp	no	YES		
+RadialJetForm	maw.shed	JetSettings.shed	no	no		
+RadialJetForm	maw.shedKick	JetSettings.shedKick	no	no		
+RadialJetForm	maw.shedLife	JetSettings.shedLife	no	no		
+RadialJetForm	maw.sparks	JetSettings.sparks	no	no		
+RadialJetForm	maw.sparkR	JetSettings.sparkR	no	no		
+RadialJetForm	maw.ringN	JetSettings.ringN	no	no	guard	
+RadialJetForm	maw.ringK	JetSettings.ringK	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	maw.ringR0	JetSettings.ringR0	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	maw.ringGrow	JetSettings.ringGrow	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	maw.ringLife	JetSettings.ringLife	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	maw.ringReach	JetSettings.ringReach	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	maw.ringAmp	JetSettings.ringAmp	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	maw.warp0	JetSettings.warp0	no	no		
+RadialJetForm	maw.warp1	JetSettings.warp1	no	no		
+RadialJetForm	maw.warpCell	JetSettings.warpCell	no	no		
+RadialJetForm	maw.warpOct	JetSettings.warpOct	no	no		
+RadialJetForm	maw.lo	JetSettings.lo	no	no		
+RadialJetForm	maw.hi	JetSettings.hi	no	no		
+RadialJetForm	maw.curve	JetSettings.curve	no	no		
+RadialJetForm	maw.steps	JetSettings.steps	no	no		
+RadialJetForm	maw.soft	JetSettings.soft	no	no		
+RadialJetForm	maw.gain	JetSettings.gain	no	no		
+RadialJetForm	maw.ramp	JetSettings.ramp	no	no		
+RadialJetForm	maw.sootRamp	JetSettings.sootRamp	no	no		
+RadialJetForm	maw.sootLo	JetSettings.sootLo	no	no		
+RadialJetForm	maw.sootHi	JetSettings.sootHi	no	no		
+RadialJetForm	maw.bias	RadialJetSettings.bias	no	no		
+RadialJetForm	maw.srcR	RadialJetSettings.srcR	no	no	guard	
+RadialJetForm	maw.swirl	RadialJetSettings.swirl	no	no		
+RadialJetForm	maw.spin	RadialJetSettings.spin	no	no		
+RadialJetForm	maw.lobes	RadialJetSettings.lobes	no	YES		
+RadialJetForm	maw.lobeDepth	RadialJetSettings.lobeDepth	no	YES		
+RadialJetForm	maw.lobeKick	RadialJetSettings.lobeKick	no	YES		
+RadialJetForm	maw.rootK	RadialJetSettings.rootK	YES	YES		Nothing until Burn radius is above 0.
+RadialJetForm	maw.ringFlat	RadialJetSettings.ringFlat	YES	YES		Nothing until Ring count is above 0 — there are no rings to turn face-on.
+RadialJetForm	maw.warpSpin	RadialJetSettings.warpSpin	no	no		
+RadialJetForm	starburst.w	JetSettings.w	no	no		
+RadialJetForm	starburst.h	JetSettings.h	no	no		
+RadialJetForm	starburst.nozzleX	JetSettings.nozzleX	no	no		
+RadialJetForm	starburst.nozzleY	JetSettings.nozzleY	no	no		
+RadialJetForm	starburst.aim	JetSettings.aim	no	no		
+RadialJetForm	starburst.reach	JetSettings.reach	no	no		
+RadialJetForm	starburst.spread	JetSettings.spread	no	no		
+RadialJetForm	starburst.drag	JetSettings.drag	no	no		
+RadialJetForm	starburst.buoy	JetSettings.buoy	no	no		
+RadialJetForm	starburst.grav	JetSettings.grav	no	no		
+RadialJetForm	starburst.r0	JetSettings.r0	no	no		
+RadialJetForm	starburst.growth	JetSettings.growth	no	no		
+RadialJetForm	starburst.elong	JetSettings.elong	no	no		
+RadialJetForm	starburst.roundAt	JetSettings.roundAt	no	no		
+RadialJetForm	starburst.slots	JetSettings.slots	no	no		
+RadialJetForm	starburst.life	JetSettings.life	no	no		
+RadialJetForm	starburst.jitter	JetSettings.jitter	no	no		
+RadialJetForm	starburst.strength	JetSettings.strength	no	no		
+RadialJetForm	starburst.cool	JetSettings.cool	no	no		
+RadialJetForm	starburst.soot	JetSettings.soot	no	no		
+RadialJetForm	starburst.pulseN	JetSettings.pulseN	no	YES		
+RadialJetForm	starburst.pulseDepth	JetSettings.pulseDepth	no	YES		
+RadialJetForm	starburst.sweep	JetSettings.sweep	no	no	guard	
+RadialJetForm	starburst.sweepN	JetSettings.sweepN	YES	YES		Nothing until Sweep angle is above 0.
+RadialJetForm	starburst.shockN	JetSettings.shockN	no	YES		
+RadialJetForm	starburst.shockDepth	JetSettings.shockDepth	no	YES		
+RadialJetForm	starburst.rootR	JetSettings.rootR	no	no	guard	
+RadialJetForm	starburst.rootAmp	JetSettings.rootAmp	no	YES		
+RadialJetForm	starburst.shed	JetSettings.shed	no	no		
+RadialJetForm	starburst.shedKick	JetSettings.shedKick	no	no		
+RadialJetForm	starburst.shedLife	JetSettings.shedLife	no	no		
+RadialJetForm	starburst.sparks	JetSettings.sparks	no	no		
+RadialJetForm	starburst.sparkR	JetSettings.sparkR	no	no		
+RadialJetForm	starburst.ringN	JetSettings.ringN	no	no	guard	
+RadialJetForm	starburst.ringK	JetSettings.ringK	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	starburst.ringR0	JetSettings.ringR0	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	starburst.ringGrow	JetSettings.ringGrow	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	starburst.ringLife	JetSettings.ringLife	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	starburst.ringReach	JetSettings.ringReach	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	starburst.ringAmp	JetSettings.ringAmp	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	starburst.warp0	JetSettings.warp0	no	no		
+RadialJetForm	starburst.warp1	JetSettings.warp1	no	no		
+RadialJetForm	starburst.warpCell	JetSettings.warpCell	no	no		
+RadialJetForm	starburst.warpOct	JetSettings.warpOct	no	no		
+RadialJetForm	starburst.lo	JetSettings.lo	no	no		
+RadialJetForm	starburst.hi	JetSettings.hi	no	no		
+RadialJetForm	starburst.curve	JetSettings.curve	no	no		
+RadialJetForm	starburst.steps	JetSettings.steps	no	no		
+RadialJetForm	starburst.soft	JetSettings.soft	no	no		
+RadialJetForm	starburst.gain	JetSettings.gain	no	no		
+RadialJetForm	starburst.ramp	JetSettings.ramp	no	no		
+RadialJetForm	starburst.sootRamp	JetSettings.sootRamp	no	no		
+RadialJetForm	starburst.sootLo	JetSettings.sootLo	no	no		
+RadialJetForm	starburst.sootHi	JetSettings.sootHi	no	no		
+RadialJetForm	starburst.bias	RadialJetSettings.bias	no	no		
+RadialJetForm	starburst.srcR	RadialJetSettings.srcR	no	no	guard	
+RadialJetForm	starburst.swirl	RadialJetSettings.swirl	no	no		
+RadialJetForm	starburst.spin	RadialJetSettings.spin	no	no		
+RadialJetForm	starburst.lobes	RadialJetSettings.lobes	no	YES		
+RadialJetForm	starburst.lobeDepth	RadialJetSettings.lobeDepth	no	YES		
+RadialJetForm	starburst.lobeKick	RadialJetSettings.lobeKick	no	YES		
+RadialJetForm	starburst.rootK	RadialJetSettings.rootK	YES	YES		Nothing until Burn radius is above 0.
+RadialJetForm	starburst.ringFlat	RadialJetSettings.ringFlat	YES	YES		Nothing until Ring count is above 0 — there are no rings to turn face-on.
+RadialJetForm	starburst.warpSpin	RadialJetSettings.warpSpin	no	no		
+RadialJetForm	halo.w	JetSettings.w	no	no		
+RadialJetForm	halo.h	JetSettings.h	no	no		
+RadialJetForm	halo.nozzleX	JetSettings.nozzleX	no	no		
+RadialJetForm	halo.nozzleY	JetSettings.nozzleY	no	no		
+RadialJetForm	halo.aim	JetSettings.aim	no	no		
+RadialJetForm	halo.reach	JetSettings.reach	no	no		
+RadialJetForm	halo.spread	JetSettings.spread	no	no		
+RadialJetForm	halo.drag	JetSettings.drag	no	no		
+RadialJetForm	halo.buoy	JetSettings.buoy	no	no		
+RadialJetForm	halo.grav	JetSettings.grav	no	no		
+RadialJetForm	halo.r0	JetSettings.r0	no	no		
+RadialJetForm	halo.growth	JetSettings.growth	no	no		
+RadialJetForm	halo.elong	JetSettings.elong	no	no		
+RadialJetForm	halo.roundAt	JetSettings.roundAt	no	no		
+RadialJetForm	halo.slots	JetSettings.slots	no	no		
+RadialJetForm	halo.life	JetSettings.life	no	no		
+RadialJetForm	halo.jitter	JetSettings.jitter	no	no		
+RadialJetForm	halo.strength	JetSettings.strength	no	no		
+RadialJetForm	halo.cool	JetSettings.cool	no	no		
+RadialJetForm	halo.soot	JetSettings.soot	no	no		
+RadialJetForm	halo.pulseN	JetSettings.pulseN	no	YES		
+RadialJetForm	halo.pulseDepth	JetSettings.pulseDepth	no	YES		
+RadialJetForm	halo.sweep	JetSettings.sweep	no	no	guard	
+RadialJetForm	halo.sweepN	JetSettings.sweepN	YES	YES		Nothing until Sweep angle is above 0.
+RadialJetForm	halo.shockN	JetSettings.shockN	no	YES		
+RadialJetForm	halo.shockDepth	JetSettings.shockDepth	no	YES		
+RadialJetForm	halo.rootR	JetSettings.rootR	no	no	guard	
+RadialJetForm	halo.rootAmp	JetSettings.rootAmp	no	YES		
+RadialJetForm	halo.shed	JetSettings.shed	no	no		
+RadialJetForm	halo.shedKick	JetSettings.shedKick	no	no		
+RadialJetForm	halo.shedLife	JetSettings.shedLife	no	no		
+RadialJetForm	halo.sparks	JetSettings.sparks	no	no		
+RadialJetForm	halo.sparkR	JetSettings.sparkR	no	no		
+RadialJetForm	halo.ringN	JetSettings.ringN	no	no	guard	
+RadialJetForm	halo.ringK	JetSettings.ringK	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	halo.ringR0	JetSettings.ringR0	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	halo.ringGrow	JetSettings.ringGrow	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	halo.ringLife	JetSettings.ringLife	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	halo.ringReach	JetSettings.ringReach	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	halo.ringAmp	JetSettings.ringAmp	YES	YES		Nothing until Ring count is above 0.
+RadialJetForm	halo.warp0	JetSettings.warp0	no	no		
+RadialJetForm	halo.warp1	JetSettings.warp1	no	no		
+RadialJetForm	halo.warpCell	JetSettings.warpCell	no	no		
+RadialJetForm	halo.warpOct	JetSettings.warpOct	no	no		
+RadialJetForm	halo.lo	JetSettings.lo	no	no		
+RadialJetForm	halo.hi	JetSettings.hi	no	no		
+RadialJetForm	halo.curve	JetSettings.curve	no	no		
+RadialJetForm	halo.steps	JetSettings.steps	no	no		
+RadialJetForm	halo.soft	JetSettings.soft	no	no		
+RadialJetForm	halo.gain	JetSettings.gain	no	no		
+RadialJetForm	halo.ramp	JetSettings.ramp	no	no		
+RadialJetForm	halo.sootRamp	JetSettings.sootRamp	no	no		
+RadialJetForm	halo.sootLo	JetSettings.sootLo	no	no		
+RadialJetForm	halo.sootHi	JetSettings.sootHi	no	no		
+RadialJetForm	halo.bias	RadialJetSettings.bias	no	no		
+RadialJetForm	halo.srcR	RadialJetSettings.srcR	no	no	guard	
+RadialJetForm	halo.swirl	RadialJetSettings.swirl	no	no		
+RadialJetForm	halo.spin	RadialJetSettings.spin	no	no		
+RadialJetForm	halo.lobes	RadialJetSettings.lobes	no	YES		
+RadialJetForm	halo.lobeDepth	RadialJetSettings.lobeDepth	no	YES		
+RadialJetForm	halo.lobeKick	RadialJetSettings.lobeKick	no	YES		
+RadialJetForm	halo.rootK	RadialJetSettings.rootK	YES	YES		Nothing until Burn radius is above 0.
+RadialJetForm	halo.ringFlat	RadialJetSettings.ringFlat	YES	YES		Nothing until Ring count is above 0 — there are no rings to turn face-on.
+RadialJetForm	halo.warpSpin	RadialJetSettings.warpSpin	no	no		
+ExplosiveJetForm	anchorX	JetFormBase.anchorX	no	no		
+ExplosiveJetForm	anchorY	JetFormBase.anchorY	no	no		
+ExplosiveJetForm	scale	JetFormBase.scale	no	no		
+ExplosiveJetForm	variant	ExplosiveJetForm.variant	no	no		
+ExplosiveJetForm	detonate.w	JetSettings.w	no	no		
+ExplosiveJetForm	detonate.h	JetSettings.h	no	no		
+ExplosiveJetForm	detonate.nozzleX	JetSettings.nozzleX	no	no		
+ExplosiveJetForm	detonate.nozzleY	JetSettings.nozzleY	no	no		
+ExplosiveJetForm	detonate.aim	JetSettings.aim	no	no		
+ExplosiveJetForm	detonate.reach	JetSettings.reach	no	no		
+ExplosiveJetForm	detonate.spread	JetSettings.spread	no	no		
+ExplosiveJetForm	detonate.drag	JetSettings.drag	no	no		
+ExplosiveJetForm	detonate.buoy	JetSettings.buoy	no	no		
+ExplosiveJetForm	detonate.grav	JetSettings.grav	no	no		
+ExplosiveJetForm	detonate.r0	JetSettings.r0	no	no		
+ExplosiveJetForm	detonate.growth	JetSettings.growth	no	no		
+ExplosiveJetForm	detonate.elong	JetSettings.elong	no	no		
+ExplosiveJetForm	detonate.roundAt	JetSettings.roundAt	no	no		
+ExplosiveJetForm	detonate.slots	JetSettings.slots	no	no		
+ExplosiveJetForm	detonate.life	JetSettings.life	no	no		
+ExplosiveJetForm	detonate.jitter	JetSettings.jitter	no	no		
+ExplosiveJetForm	detonate.strength	JetSettings.strength	no	no		
+ExplosiveJetForm	detonate.cool	JetSettings.cool	no	no		
+ExplosiveJetForm	detonate.soot	JetSettings.soot	no	no		
+ExplosiveJetForm	detonate.pulseN	JetSettings.pulseN	no	YES		
+ExplosiveJetForm	detonate.pulseDepth	JetSettings.pulseDepth	no	YES		
+ExplosiveJetForm	detonate.sweep	JetSettings.sweep	no	no	guard	
+ExplosiveJetForm	detonate.sweepN	JetSettings.sweepN	YES	YES		Nothing until Sweep angle is above 0.
+ExplosiveJetForm	detonate.shockN	JetSettings.shockN	no	YES		
+ExplosiveJetForm	detonate.shockDepth	JetSettings.shockDepth	no	YES		
+ExplosiveJetForm	detonate.rootR	JetSettings.rootR	no	no	guard	
+ExplosiveJetForm	detonate.rootAmp	JetSettings.rootAmp	no	YES		
+ExplosiveJetForm	detonate.shed	JetSettings.shed	no	no		
+ExplosiveJetForm	detonate.shedKick	JetSettings.shedKick	no	no		
+ExplosiveJetForm	detonate.shedLife	JetSettings.shedLife	no	no		
+ExplosiveJetForm	detonate.sparks	JetSettings.sparks	no	no		
+ExplosiveJetForm	detonate.sparkR	JetSettings.sparkR	no	no		
+ExplosiveJetForm	detonate.ringN	JetSettings.ringN	no	no	guard	
+ExplosiveJetForm	detonate.ringK	JetSettings.ringK	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	detonate.ringR0	JetSettings.ringR0	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	detonate.ringGrow	JetSettings.ringGrow	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	detonate.ringLife	JetSettings.ringLife	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	detonate.ringReach	JetSettings.ringReach	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	detonate.ringAmp	JetSettings.ringAmp	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	detonate.warp0	JetSettings.warp0	no	no		
+ExplosiveJetForm	detonate.warp1	JetSettings.warp1	no	no		
+ExplosiveJetForm	detonate.warpCell	JetSettings.warpCell	no	no		
+ExplosiveJetForm	detonate.warpOct	JetSettings.warpOct	no	no		
+ExplosiveJetForm	detonate.lo	JetSettings.lo	no	no		
+ExplosiveJetForm	detonate.hi	JetSettings.hi	no	no		
+ExplosiveJetForm	detonate.curve	JetSettings.curve	no	no		
+ExplosiveJetForm	detonate.steps	JetSettings.steps	no	no		
+ExplosiveJetForm	detonate.soft	JetSettings.soft	no	no		
+ExplosiveJetForm	detonate.gain	JetSettings.gain	no	no		
+ExplosiveJetForm	detonate.ramp	JetSettings.ramp	no	no		
+ExplosiveJetForm	detonate.sootRamp	JetSettings.sootRamp	no	no		
+ExplosiveJetForm	detonate.sootLo	JetSettings.sootLo	no	no		
+ExplosiveJetForm	detonate.sootHi	JetSettings.sootHi	no	no		
+ExplosiveJetForm	detonate.bias	ExplosiveJetSettings.bias	no	no		
+ExplosiveJetForm	detonate.srcR	ExplosiveJetSettings.srcR	no	no	guard	
+ExplosiveJetForm	detonate.swirl	ExplosiveJetSettings.swirl	no	no		
+ExplosiveJetForm	detonate.spin	ExplosiveJetSettings.spin	no	no		
+ExplosiveJetForm	detonate.lobes	ExplosiveJetSettings.lobes	no	YES		
+ExplosiveJetForm	detonate.lobeDepth	ExplosiveJetSettings.lobeDepth	no	YES		
+ExplosiveJetForm	detonate.lobeKick	ExplosiveJetSettings.lobeKick	no	YES		
+ExplosiveJetForm	detonate.rootK	ExplosiveJetSettings.rootK	YES	YES		Nothing until Burn radius is above 0 AND the Blast schedule is empty — a scheduled detonation has no standing source, so its seat is one lump per blast.
+ExplosiveJetForm	detonate.ringFlat	ExplosiveJetSettings.ringFlat	YES	YES	guard	Nothing until Ring count is above 0 — there are no rings to turn face-on.
+ExplosiveJetForm	detonate.ringArc	ExplosiveJetSettings.ringArc	YES	YES		Nothing until Rings face-on is on and Ring count is above 0.
+ExplosiveJetForm	detonate.warpSpin	ExplosiveJetSettings.warpSpin	no	no		
+ExplosiveJetForm	detonate.blasts[0].at	ExplosiveBlast.at	no	no		
+ExplosiveJetForm	detonate.blasts[0].pow	ExplosiveBlast.pow	no	no		
+ExplosiveJetForm	detonate.blasts[0].share	ExplosiveBlast.share	no	YES		
+ExplosiveJetForm	detonate.blasts[0].offX	ExplosiveBlast.offX	no	no		
+ExplosiveJetForm	detonate.blasts[0].offY	ExplosiveBlast.offY	no	no		
+ExplosiveJetForm	detonate.blastSpan	ExplosiveJetSettings.blastSpan	no	no		
+ExplosiveJetForm	detonate.blastSkew	ExplosiveJetSettings.blastSkew	no	no		
+ExplosiveJetForm	detonate.blastFront	ExplosiveJetSettings.blastFront	no	no		
+ExplosiveJetForm	detonate.velSpread	ExplosiveJetSettings.velSpread	no	no		
+ExplosiveJetForm	detonate.swell	ExplosiveJetSettings.swell	no	no		
+ExplosiveJetForm	detonate.hold	ExplosiveJetSettings.hold	no	no		
+ExplosiveJetForm	detonate.shrink	ExplosiveJetSettings.shrink	no	no		
+ExplosiveJetForm	detonate.shrinkAt	ExplosiveJetSettings.shrinkAt	no	no		
+ExplosiveJetForm	detonate.leadDie	ExplosiveJetSettings.leadDie	no	no		
+ExplosiveJetForm	detonate.opaq	ExplosiveJetSettings.opaq	no	no		
+ExplosiveJetForm	detonate.shedSwell	ExplosiveJetSettings.shedSwell	no	no		
+ExplosiveJetForm	detonate.fracture.chance	ExplosiveFracture.chance	no	no		
+ExplosiveJetForm	detonate.fracture.pieces	ExplosiveFracture.pieces	no	no		
+ExplosiveJetForm	detonate.fracture.at	ExplosiveFracture.at	no	no		
+ExplosiveJetForm	detonate.fracture.open	ExplosiveFracture.open	no	no		
+ExplosiveJetForm	detonate.fracture.kick	ExplosiveFracture.kick	no	no		
+ExplosiveJetForm	detonate.fracture.spin	ExplosiveFracture.spin	no	no		
+ExplosiveJetForm	detonate.fracture.grip	ExplosiveFracture.grip	no	no		
+ExplosiveJetForm	detonate.fracture.rot	ExplosiveFracture.rot	no	no		
+ExplosiveJetForm	detonate.fracture.drift	ExplosiveFracture.drift	no	no		
+ExplosiveJetForm	detonate.fracture.stagger	ExplosiveFracture.stagger	no	no		
+ExplosiveJetForm	detonate.fracture.cut	ExplosiveFracture.cut	no	no		
+ExplosiveJetForm	detonate.fracture.body	ExplosiveFracture.body	no	no		
+ExplosiveJetForm	detonate.fracture2.chance	ExplosiveFracture2.chance	no	no		
+ExplosiveJetForm	detonate.fracture2.at	ExplosiveFracture2.at	no	no		
+ExplosiveJetForm	detonate.fracture2.open	ExplosiveFracture2.open	no	no		
+ExplosiveJetForm	detonate.fracture2.cut	ExplosiveFracture2.cut	no	no		
+ExplosiveJetForm	detonate.fracture2.kick	ExplosiveFracture2.kick	no	no		
+ExplosiveJetForm	detonate.fracture2.drift	ExplosiveFracture2.drift	no	no		
+ExplosiveJetForm	detonate.fracture2.spin	ExplosiveFracture2.spin	no	no		
+ExplosiveJetForm	detonate.fracture2.stagger	ExplosiveFracture2.stagger	no	no		
+ExplosiveJetForm	detonate.flash.radius	ExplosiveFlash.radius	no	no		
+ExplosiveJetForm	detonate.flash.amp	ExplosiveFlash.amp	no	no		
+ExplosiveJetForm	detonate.flash.life	ExplosiveFlash.life	no	no		
+ExplosiveJetForm	detonate.flash.grow	ExplosiveFlash.grow	no	no		
+ExplosiveJetForm	detonate.flash.elong	ExplosiveFlash.elong	no	no		
+ExplosiveJetForm	detonate.chunks.count	ExplosiveChunks.count	no	no		
+ExplosiveJetForm	detonate.chunks.radius	ExplosiveChunks.radius	no	no		
+ExplosiveJetForm	detonate.chunks.reach	ExplosiveChunks.reach	no	no		
+ExplosiveJetForm	detonate.chunks.drag	ExplosiveChunks.drag	no	no		
+ExplosiveJetForm	detonate.chunks.life	ExplosiveChunks.life	no	no		
+ExplosiveJetForm	detonate.chunks.sag	ExplosiveChunks.sag	no	no		
+ExplosiveJetForm	detonate.chunks.trail	ExplosiveChunks.trail	no	no		
+ExplosiveJetForm	detonate.chunks.amp	ExplosiveChunks.amp	no	no		
+ExplosiveJetForm	detonate.chunks.wide	ExplosiveChunks.wide	no	no		
+ExplosiveJetForm	detonate.gobs.count	ExplosiveGobs.count	no	no		
+ExplosiveJetForm	detonate.gobs.radius	ExplosiveGobs.radius	no	no		
+ExplosiveJetForm	detonate.gobs.reach	ExplosiveGobs.reach	no	no		
+ExplosiveJetForm	detonate.gobs.drag	ExplosiveGobs.drag	no	no		
+ExplosiveJetForm	detonate.gobs.life	ExplosiveGobs.life	no	no		
+ExplosiveJetForm	detonate.gobs.amp	ExplosiveGobs.amp	no	no		
+ExplosiveJetForm	detonate.gobs.swell	ExplosiveGobs.swell	no	no		
+ExplosiveJetForm	detonate.gobs.sag	ExplosiveGobs.sag	no	no		
+ExplosiveJetForm	detonate.gobs.wide	ExplosiveGobs.wide	no	no		
+ExplosiveJetForm	detonate.gobs.early	ExplosiveGobs.early	no	no		
+ExplosiveJetForm	detonate.gobs.trail	ExplosiveGobs.trail	no	no		
+ExplosiveJetForm	detonate.dust.count	ExplosiveDust.count	no	no		
+ExplosiveJetForm	detonate.dust.radius	ExplosiveDust.radius	no	no		
+ExplosiveJetForm	detonate.dust.from	ExplosiveDust.from	no	no		
+ExplosiveJetForm	detonate.dust.to	ExplosiveDust.to	no	no		
+ExplosiveJetForm	detonate.dust.bias	ExplosiveDust.bias	no	no		
+ExplosiveJetForm	detonate.dust.where	ExplosiveDust.where	no	no		
+ExplosiveJetForm	detonate.dust.reach	ExplosiveDust.reach	no	no		
+ExplosiveJetForm	detonate.dust.drag	ExplosiveDust.drag	no	no		
+ExplosiveJetForm	detonate.dust.life	ExplosiveDust.life	no	no		
+ExplosiveJetForm	detonate.dust.amp	ExplosiveDust.amp	no	no		
+ExplosiveJetForm	detonate.dust.sag	ExplosiveDust.sag	no	no		
+ExplosiveJetForm	detonate.dust.scatter	ExplosiveDust.scatter	no	no		
+ExplosiveJetForm	detonate.dust.wide	ExplosiveDust.wide	no	no		
+ExplosiveJetForm	detonate.dust.trail	ExplosiveDust.trail	no	no		
+ExplosiveJetForm	backdraft.w	JetSettings.w	no	no		
+ExplosiveJetForm	backdraft.h	JetSettings.h	no	no		
+ExplosiveJetForm	backdraft.nozzleX	JetSettings.nozzleX	no	no		
+ExplosiveJetForm	backdraft.nozzleY	JetSettings.nozzleY	no	no		
+ExplosiveJetForm	backdraft.aim	JetSettings.aim	no	no		
+ExplosiveJetForm	backdraft.reach	JetSettings.reach	no	no		
+ExplosiveJetForm	backdraft.spread	JetSettings.spread	no	no		
+ExplosiveJetForm	backdraft.drag	JetSettings.drag	no	no		
+ExplosiveJetForm	backdraft.buoy	JetSettings.buoy	no	no		
+ExplosiveJetForm	backdraft.grav	JetSettings.grav	no	no		
+ExplosiveJetForm	backdraft.r0	JetSettings.r0	no	no		
+ExplosiveJetForm	backdraft.growth	JetSettings.growth	no	no		
+ExplosiveJetForm	backdraft.elong	JetSettings.elong	no	no		
+ExplosiveJetForm	backdraft.roundAt	JetSettings.roundAt	no	no		
+ExplosiveJetForm	backdraft.slots	JetSettings.slots	no	no		
+ExplosiveJetForm	backdraft.life	JetSettings.life	no	no		
+ExplosiveJetForm	backdraft.jitter	JetSettings.jitter	no	no		
+ExplosiveJetForm	backdraft.strength	JetSettings.strength	no	no		
+ExplosiveJetForm	backdraft.cool	JetSettings.cool	no	no		
+ExplosiveJetForm	backdraft.soot	JetSettings.soot	no	no		
+ExplosiveJetForm	backdraft.pulseN	JetSettings.pulseN	no	YES		
+ExplosiveJetForm	backdraft.pulseDepth	JetSettings.pulseDepth	no	YES		
+ExplosiveJetForm	backdraft.sweep	JetSettings.sweep	no	no	guard	
+ExplosiveJetForm	backdraft.sweepN	JetSettings.sweepN	YES	YES		Nothing until Sweep angle is above 0.
+ExplosiveJetForm	backdraft.shockN	JetSettings.shockN	no	YES		
+ExplosiveJetForm	backdraft.shockDepth	JetSettings.shockDepth	no	YES		
+ExplosiveJetForm	backdraft.rootR	JetSettings.rootR	no	no	guard	
+ExplosiveJetForm	backdraft.rootAmp	JetSettings.rootAmp	no	YES		
+ExplosiveJetForm	backdraft.shed	JetSettings.shed	no	no		
+ExplosiveJetForm	backdraft.shedKick	JetSettings.shedKick	no	no		
+ExplosiveJetForm	backdraft.shedLife	JetSettings.shedLife	no	no		
+ExplosiveJetForm	backdraft.sparks	JetSettings.sparks	no	no		
+ExplosiveJetForm	backdraft.sparkR	JetSettings.sparkR	no	no		
+ExplosiveJetForm	backdraft.ringN	JetSettings.ringN	no	no	guard	
+ExplosiveJetForm	backdraft.ringK	JetSettings.ringK	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	backdraft.ringR0	JetSettings.ringR0	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	backdraft.ringGrow	JetSettings.ringGrow	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	backdraft.ringLife	JetSettings.ringLife	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	backdraft.ringReach	JetSettings.ringReach	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	backdraft.ringAmp	JetSettings.ringAmp	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	backdraft.warp0	JetSettings.warp0	no	no		
+ExplosiveJetForm	backdraft.warp1	JetSettings.warp1	no	no		
+ExplosiveJetForm	backdraft.warpCell	JetSettings.warpCell	no	no		
+ExplosiveJetForm	backdraft.warpOct	JetSettings.warpOct	no	no		
+ExplosiveJetForm	backdraft.lo	JetSettings.lo	no	no		
+ExplosiveJetForm	backdraft.hi	JetSettings.hi	no	no		
+ExplosiveJetForm	backdraft.curve	JetSettings.curve	no	no		
+ExplosiveJetForm	backdraft.steps	JetSettings.steps	no	no		
+ExplosiveJetForm	backdraft.soft	JetSettings.soft	no	no		
+ExplosiveJetForm	backdraft.gain	JetSettings.gain	no	no		
+ExplosiveJetForm	backdraft.ramp	JetSettings.ramp	no	no		
+ExplosiveJetForm	backdraft.sootRamp	JetSettings.sootRamp	no	no		
+ExplosiveJetForm	backdraft.sootLo	JetSettings.sootLo	no	no		
+ExplosiveJetForm	backdraft.sootHi	JetSettings.sootHi	no	no		
+ExplosiveJetForm	backdraft.bias	ExplosiveJetSettings.bias	no	no		
+ExplosiveJetForm	backdraft.srcR	ExplosiveJetSettings.srcR	no	no	guard	
+ExplosiveJetForm	backdraft.swirl	ExplosiveJetSettings.swirl	no	no		
+ExplosiveJetForm	backdraft.spin	ExplosiveJetSettings.spin	no	no		
+ExplosiveJetForm	backdraft.lobes	ExplosiveJetSettings.lobes	no	YES		
+ExplosiveJetForm	backdraft.lobeDepth	ExplosiveJetSettings.lobeDepth	no	YES		
+ExplosiveJetForm	backdraft.lobeKick	ExplosiveJetSettings.lobeKick	no	YES		
+ExplosiveJetForm	backdraft.rootK	ExplosiveJetSettings.rootK	YES	YES		Nothing until Burn radius is above 0 AND the Blast schedule is empty — a scheduled detonation has no standing source, so its seat is one lump per blast.
+ExplosiveJetForm	backdraft.ringFlat	ExplosiveJetSettings.ringFlat	YES	YES	guard	Nothing until Ring count is above 0 — there are no rings to turn face-on.
+ExplosiveJetForm	backdraft.ringArc	ExplosiveJetSettings.ringArc	YES	YES		Nothing until Rings face-on is on and Ring count is above 0.
+ExplosiveJetForm	backdraft.warpSpin	ExplosiveJetSettings.warpSpin	no	no		
+ExplosiveJetForm	backdraft.blasts[0].at	ExplosiveBlast.at	no	no		
+ExplosiveJetForm	backdraft.blasts[0].pow	ExplosiveBlast.pow	no	no		
+ExplosiveJetForm	backdraft.blasts[0].share	ExplosiveBlast.share	no	YES		
+ExplosiveJetForm	backdraft.blasts[0].offX	ExplosiveBlast.offX	no	no		
+ExplosiveJetForm	backdraft.blasts[0].offY	ExplosiveBlast.offY	no	no		
+ExplosiveJetForm	backdraft.blastSpan	ExplosiveJetSettings.blastSpan	no	no		
+ExplosiveJetForm	backdraft.blastSkew	ExplosiveJetSettings.blastSkew	no	no		
+ExplosiveJetForm	backdraft.blastFront	ExplosiveJetSettings.blastFront	no	no		
+ExplosiveJetForm	backdraft.velSpread	ExplosiveJetSettings.velSpread	no	no		
+ExplosiveJetForm	backdraft.swell	ExplosiveJetSettings.swell	no	no		
+ExplosiveJetForm	backdraft.hold	ExplosiveJetSettings.hold	no	no		
+ExplosiveJetForm	backdraft.shrink	ExplosiveJetSettings.shrink	no	no		
+ExplosiveJetForm	backdraft.shrinkAt	ExplosiveJetSettings.shrinkAt	no	no		
+ExplosiveJetForm	backdraft.leadDie	ExplosiveJetSettings.leadDie	no	no		
+ExplosiveJetForm	backdraft.opaq	ExplosiveJetSettings.opaq	no	no		
+ExplosiveJetForm	backdraft.shedSwell	ExplosiveJetSettings.shedSwell	no	no		
+ExplosiveJetForm	backdraft.fracture.chance	ExplosiveFracture.chance	no	no		
+ExplosiveJetForm	backdraft.fracture.pieces	ExplosiveFracture.pieces	no	no		
+ExplosiveJetForm	backdraft.fracture.at	ExplosiveFracture.at	no	no		
+ExplosiveJetForm	backdraft.fracture.open	ExplosiveFracture.open	no	no		
+ExplosiveJetForm	backdraft.fracture.kick	ExplosiveFracture.kick	no	no		
+ExplosiveJetForm	backdraft.fracture.spin	ExplosiveFracture.spin	no	no		
+ExplosiveJetForm	backdraft.fracture.grip	ExplosiveFracture.grip	no	no		
+ExplosiveJetForm	backdraft.fracture.rot	ExplosiveFracture.rot	no	no		
+ExplosiveJetForm	backdraft.fracture.drift	ExplosiveFracture.drift	no	no		
+ExplosiveJetForm	backdraft.fracture.stagger	ExplosiveFracture.stagger	no	no		
+ExplosiveJetForm	backdraft.fracture.cut	ExplosiveFracture.cut	no	no		
+ExplosiveJetForm	backdraft.fracture.body	ExplosiveFracture.body	no	no		
+ExplosiveJetForm	backdraft.fracture2.chance	ExplosiveFracture2.chance	no	no		
+ExplosiveJetForm	backdraft.fracture2.at	ExplosiveFracture2.at	no	no		
+ExplosiveJetForm	backdraft.fracture2.open	ExplosiveFracture2.open	no	no		
+ExplosiveJetForm	backdraft.fracture2.cut	ExplosiveFracture2.cut	no	no		
+ExplosiveJetForm	backdraft.fracture2.kick	ExplosiveFracture2.kick	no	no		
+ExplosiveJetForm	backdraft.fracture2.drift	ExplosiveFracture2.drift	no	no		
+ExplosiveJetForm	backdraft.fracture2.spin	ExplosiveFracture2.spin	no	no		
+ExplosiveJetForm	backdraft.fracture2.stagger	ExplosiveFracture2.stagger	no	no		
+ExplosiveJetForm	backdraft.flash.radius	ExplosiveFlash.radius	no	no		
+ExplosiveJetForm	backdraft.flash.amp	ExplosiveFlash.amp	no	no		
+ExplosiveJetForm	backdraft.flash.life	ExplosiveFlash.life	no	no		
+ExplosiveJetForm	backdraft.flash.grow	ExplosiveFlash.grow	no	no		
+ExplosiveJetForm	backdraft.flash.elong	ExplosiveFlash.elong	no	no		
+ExplosiveJetForm	backdraft.chunks.count	ExplosiveChunks.count	no	no		
+ExplosiveJetForm	backdraft.chunks.radius	ExplosiveChunks.radius	no	no		
+ExplosiveJetForm	backdraft.chunks.reach	ExplosiveChunks.reach	no	no		
+ExplosiveJetForm	backdraft.chunks.drag	ExplosiveChunks.drag	no	no		
+ExplosiveJetForm	backdraft.chunks.life	ExplosiveChunks.life	no	no		
+ExplosiveJetForm	backdraft.chunks.sag	ExplosiveChunks.sag	no	no		
+ExplosiveJetForm	backdraft.chunks.trail	ExplosiveChunks.trail	no	no		
+ExplosiveJetForm	backdraft.chunks.amp	ExplosiveChunks.amp	no	no		
+ExplosiveJetForm	backdraft.chunks.wide	ExplosiveChunks.wide	no	no		
+ExplosiveJetForm	backdraft.gobs.count	ExplosiveGobs.count	no	no		
+ExplosiveJetForm	backdraft.gobs.radius	ExplosiveGobs.radius	no	no		
+ExplosiveJetForm	backdraft.gobs.reach	ExplosiveGobs.reach	no	no		
+ExplosiveJetForm	backdraft.gobs.drag	ExplosiveGobs.drag	no	no		
+ExplosiveJetForm	backdraft.gobs.life	ExplosiveGobs.life	no	no		
+ExplosiveJetForm	backdraft.gobs.amp	ExplosiveGobs.amp	no	no		
+ExplosiveJetForm	backdraft.gobs.swell	ExplosiveGobs.swell	no	no		
+ExplosiveJetForm	backdraft.gobs.sag	ExplosiveGobs.sag	no	no		
+ExplosiveJetForm	backdraft.gobs.wide	ExplosiveGobs.wide	no	no		
+ExplosiveJetForm	backdraft.gobs.early	ExplosiveGobs.early	no	no		
+ExplosiveJetForm	backdraft.gobs.trail	ExplosiveGobs.trail	no	no		
+ExplosiveJetForm	backdraft.dust.count	ExplosiveDust.count	no	no		
+ExplosiveJetForm	backdraft.dust.radius	ExplosiveDust.radius	no	no		
+ExplosiveJetForm	backdraft.dust.from	ExplosiveDust.from	no	no		
+ExplosiveJetForm	backdraft.dust.to	ExplosiveDust.to	no	no		
+ExplosiveJetForm	backdraft.dust.bias	ExplosiveDust.bias	no	no		
+ExplosiveJetForm	backdraft.dust.where	ExplosiveDust.where	no	no		
+ExplosiveJetForm	backdraft.dust.reach	ExplosiveDust.reach	no	no		
+ExplosiveJetForm	backdraft.dust.drag	ExplosiveDust.drag	no	no		
+ExplosiveJetForm	backdraft.dust.life	ExplosiveDust.life	no	no		
+ExplosiveJetForm	backdraft.dust.amp	ExplosiveDust.amp	no	no		
+ExplosiveJetForm	backdraft.dust.sag	ExplosiveDust.sag	no	no		
+ExplosiveJetForm	backdraft.dust.scatter	ExplosiveDust.scatter	no	no		
+ExplosiveJetForm	backdraft.dust.wide	ExplosiveDust.wide	no	no		
+ExplosiveJetForm	backdraft.dust.trail	ExplosiveDust.trail	no	no		
+ExplosiveJetForm	chain.w	JetSettings.w	no	no		
+ExplosiveJetForm	chain.h	JetSettings.h	no	no		
+ExplosiveJetForm	chain.nozzleX	JetSettings.nozzleX	no	no		
+ExplosiveJetForm	chain.nozzleY	JetSettings.nozzleY	no	no		
+ExplosiveJetForm	chain.aim	JetSettings.aim	no	no		
+ExplosiveJetForm	chain.reach	JetSettings.reach	no	no		
+ExplosiveJetForm	chain.spread	JetSettings.spread	no	no		
+ExplosiveJetForm	chain.drag	JetSettings.drag	no	no		
+ExplosiveJetForm	chain.buoy	JetSettings.buoy	no	no		
+ExplosiveJetForm	chain.grav	JetSettings.grav	no	no		
+ExplosiveJetForm	chain.r0	JetSettings.r0	no	no		
+ExplosiveJetForm	chain.growth	JetSettings.growth	no	no		
+ExplosiveJetForm	chain.elong	JetSettings.elong	no	no		
+ExplosiveJetForm	chain.roundAt	JetSettings.roundAt	no	no		
+ExplosiveJetForm	chain.slots	JetSettings.slots	no	no		
+ExplosiveJetForm	chain.life	JetSettings.life	no	no		
+ExplosiveJetForm	chain.jitter	JetSettings.jitter	no	no		
+ExplosiveJetForm	chain.strength	JetSettings.strength	no	no		
+ExplosiveJetForm	chain.cool	JetSettings.cool	no	no		
+ExplosiveJetForm	chain.soot	JetSettings.soot	no	no		
+ExplosiveJetForm	chain.pulseN	JetSettings.pulseN	no	YES		
+ExplosiveJetForm	chain.pulseDepth	JetSettings.pulseDepth	no	YES		
+ExplosiveJetForm	chain.sweep	JetSettings.sweep	no	no	guard	
+ExplosiveJetForm	chain.sweepN	JetSettings.sweepN	YES	YES		Nothing until Sweep angle is above 0.
+ExplosiveJetForm	chain.shockN	JetSettings.shockN	no	YES		
+ExplosiveJetForm	chain.shockDepth	JetSettings.shockDepth	no	YES		
+ExplosiveJetForm	chain.rootR	JetSettings.rootR	no	no	guard	
+ExplosiveJetForm	chain.rootAmp	JetSettings.rootAmp	no	YES		
+ExplosiveJetForm	chain.shed	JetSettings.shed	no	no		
+ExplosiveJetForm	chain.shedKick	JetSettings.shedKick	no	no		
+ExplosiveJetForm	chain.shedLife	JetSettings.shedLife	no	no		
+ExplosiveJetForm	chain.sparks	JetSettings.sparks	no	no		
+ExplosiveJetForm	chain.sparkR	JetSettings.sparkR	no	no		
+ExplosiveJetForm	chain.ringN	JetSettings.ringN	no	no	guard	
+ExplosiveJetForm	chain.ringK	JetSettings.ringK	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	chain.ringR0	JetSettings.ringR0	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	chain.ringGrow	JetSettings.ringGrow	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	chain.ringLife	JetSettings.ringLife	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	chain.ringReach	JetSettings.ringReach	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	chain.ringAmp	JetSettings.ringAmp	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	chain.warp0	JetSettings.warp0	no	no		
+ExplosiveJetForm	chain.warp1	JetSettings.warp1	no	no		
+ExplosiveJetForm	chain.warpCell	JetSettings.warpCell	no	no		
+ExplosiveJetForm	chain.warpOct	JetSettings.warpOct	no	no		
+ExplosiveJetForm	chain.lo	JetSettings.lo	no	no		
+ExplosiveJetForm	chain.hi	JetSettings.hi	no	no		
+ExplosiveJetForm	chain.curve	JetSettings.curve	no	no		
+ExplosiveJetForm	chain.steps	JetSettings.steps	no	no		
+ExplosiveJetForm	chain.soft	JetSettings.soft	no	no		
+ExplosiveJetForm	chain.gain	JetSettings.gain	no	no		
+ExplosiveJetForm	chain.ramp	JetSettings.ramp	no	no		
+ExplosiveJetForm	chain.sootRamp	JetSettings.sootRamp	no	no		
+ExplosiveJetForm	chain.sootLo	JetSettings.sootLo	no	no		
+ExplosiveJetForm	chain.sootHi	JetSettings.sootHi	no	no		
+ExplosiveJetForm	chain.bias	ExplosiveJetSettings.bias	no	no		
+ExplosiveJetForm	chain.srcR	ExplosiveJetSettings.srcR	no	no	guard	
+ExplosiveJetForm	chain.swirl	ExplosiveJetSettings.swirl	no	no		
+ExplosiveJetForm	chain.spin	ExplosiveJetSettings.spin	no	no		
+ExplosiveJetForm	chain.lobes	ExplosiveJetSettings.lobes	no	YES		
+ExplosiveJetForm	chain.lobeDepth	ExplosiveJetSettings.lobeDepth	no	YES		
+ExplosiveJetForm	chain.lobeKick	ExplosiveJetSettings.lobeKick	no	YES		
+ExplosiveJetForm	chain.rootK	ExplosiveJetSettings.rootK	YES	YES		Nothing until Burn radius is above 0 AND the Blast schedule is empty — a scheduled detonation has no standing source, so its seat is one lump per blast.
+ExplosiveJetForm	chain.ringFlat	ExplosiveJetSettings.ringFlat	YES	YES	guard	Nothing until Ring count is above 0 — there are no rings to turn face-on.
+ExplosiveJetForm	chain.ringArc	ExplosiveJetSettings.ringArc	YES	YES		Nothing until Rings face-on is on and Ring count is above 0.
+ExplosiveJetForm	chain.warpSpin	ExplosiveJetSettings.warpSpin	no	no		
+ExplosiveJetForm	chain.blasts[0].at	ExplosiveBlast.at	no	no		
+ExplosiveJetForm	chain.blasts[0].pow	ExplosiveBlast.pow	no	no		
+ExplosiveJetForm	chain.blasts[0].share	ExplosiveBlast.share	no	YES		
+ExplosiveJetForm	chain.blasts[0].offX	ExplosiveBlast.offX	no	no		
+ExplosiveJetForm	chain.blasts[0].offY	ExplosiveBlast.offY	no	no		
+ExplosiveJetForm	chain.blasts[1].at	ExplosiveBlast.at	no	no		
+ExplosiveJetForm	chain.blasts[1].pow	ExplosiveBlast.pow	no	no		
+ExplosiveJetForm	chain.blasts[1].share	ExplosiveBlast.share	no	YES		
+ExplosiveJetForm	chain.blasts[1].offX	ExplosiveBlast.offX	no	no		
+ExplosiveJetForm	chain.blasts[1].offY	ExplosiveBlast.offY	no	no		
+ExplosiveJetForm	chain.blastSpan	ExplosiveJetSettings.blastSpan	no	no		
+ExplosiveJetForm	chain.blastSkew	ExplosiveJetSettings.blastSkew	no	no		
+ExplosiveJetForm	chain.blastFront	ExplosiveJetSettings.blastFront	no	no		
+ExplosiveJetForm	chain.velSpread	ExplosiveJetSettings.velSpread	no	no		
+ExplosiveJetForm	chain.swell	ExplosiveJetSettings.swell	no	no		
+ExplosiveJetForm	chain.hold	ExplosiveJetSettings.hold	no	no		
+ExplosiveJetForm	chain.shrink	ExplosiveJetSettings.shrink	no	no		
+ExplosiveJetForm	chain.shrinkAt	ExplosiveJetSettings.shrinkAt	no	no		
+ExplosiveJetForm	chain.leadDie	ExplosiveJetSettings.leadDie	no	no		
+ExplosiveJetForm	chain.opaq	ExplosiveJetSettings.opaq	no	no		
+ExplosiveJetForm	chain.shedSwell	ExplosiveJetSettings.shedSwell	no	no		
+ExplosiveJetForm	chain.fracture.chance	ExplosiveFracture.chance	no	no		
+ExplosiveJetForm	chain.fracture.pieces	ExplosiveFracture.pieces	no	no		
+ExplosiveJetForm	chain.fracture.at	ExplosiveFracture.at	no	no		
+ExplosiveJetForm	chain.fracture.open	ExplosiveFracture.open	no	no		
+ExplosiveJetForm	chain.fracture.kick	ExplosiveFracture.kick	no	no		
+ExplosiveJetForm	chain.fracture.spin	ExplosiveFracture.spin	no	no		
+ExplosiveJetForm	chain.fracture.grip	ExplosiveFracture.grip	no	no		
+ExplosiveJetForm	chain.fracture.rot	ExplosiveFracture.rot	no	no		
+ExplosiveJetForm	chain.fracture.drift	ExplosiveFracture.drift	no	no		
+ExplosiveJetForm	chain.fracture.stagger	ExplosiveFracture.stagger	no	no		
+ExplosiveJetForm	chain.fracture.cut	ExplosiveFracture.cut	no	no		
+ExplosiveJetForm	chain.fracture.body	ExplosiveFracture.body	no	no		
+ExplosiveJetForm	chain.fracture2.chance	ExplosiveFracture2.chance	no	no		
+ExplosiveJetForm	chain.fracture2.at	ExplosiveFracture2.at	no	no		
+ExplosiveJetForm	chain.fracture2.open	ExplosiveFracture2.open	no	no		
+ExplosiveJetForm	chain.fracture2.cut	ExplosiveFracture2.cut	no	no		
+ExplosiveJetForm	chain.fracture2.kick	ExplosiveFracture2.kick	no	no		
+ExplosiveJetForm	chain.fracture2.drift	ExplosiveFracture2.drift	no	no		
+ExplosiveJetForm	chain.fracture2.spin	ExplosiveFracture2.spin	no	no		
+ExplosiveJetForm	chain.fracture2.stagger	ExplosiveFracture2.stagger	no	no		
+ExplosiveJetForm	chain.flash.radius	ExplosiveFlash.radius	no	no		
+ExplosiveJetForm	chain.flash.amp	ExplosiveFlash.amp	no	no		
+ExplosiveJetForm	chain.flash.life	ExplosiveFlash.life	no	no		
+ExplosiveJetForm	chain.flash.grow	ExplosiveFlash.grow	no	no		
+ExplosiveJetForm	chain.flash.elong	ExplosiveFlash.elong	no	no		
+ExplosiveJetForm	chain.chunks.count	ExplosiveChunks.count	no	no		
+ExplosiveJetForm	chain.chunks.radius	ExplosiveChunks.radius	no	no		
+ExplosiveJetForm	chain.chunks.reach	ExplosiveChunks.reach	no	no		
+ExplosiveJetForm	chain.chunks.drag	ExplosiveChunks.drag	no	no		
+ExplosiveJetForm	chain.chunks.life	ExplosiveChunks.life	no	no		
+ExplosiveJetForm	chain.chunks.sag	ExplosiveChunks.sag	no	no		
+ExplosiveJetForm	chain.chunks.trail	ExplosiveChunks.trail	no	no		
+ExplosiveJetForm	chain.chunks.amp	ExplosiveChunks.amp	no	no		
+ExplosiveJetForm	chain.chunks.wide	ExplosiveChunks.wide	no	no		
+ExplosiveJetForm	chain.gobs.count	ExplosiveGobs.count	no	no		
+ExplosiveJetForm	chain.gobs.radius	ExplosiveGobs.radius	no	no		
+ExplosiveJetForm	chain.gobs.reach	ExplosiveGobs.reach	no	no		
+ExplosiveJetForm	chain.gobs.drag	ExplosiveGobs.drag	no	no		
+ExplosiveJetForm	chain.gobs.life	ExplosiveGobs.life	no	no		
+ExplosiveJetForm	chain.gobs.amp	ExplosiveGobs.amp	no	no		
+ExplosiveJetForm	chain.gobs.swell	ExplosiveGobs.swell	no	no		
+ExplosiveJetForm	chain.gobs.sag	ExplosiveGobs.sag	no	no		
+ExplosiveJetForm	chain.gobs.wide	ExplosiveGobs.wide	no	no		
+ExplosiveJetForm	chain.gobs.early	ExplosiveGobs.early	no	no		
+ExplosiveJetForm	chain.gobs.trail	ExplosiveGobs.trail	no	no		
+ExplosiveJetForm	chain.dust.count	ExplosiveDust.count	no	no		
+ExplosiveJetForm	chain.dust.radius	ExplosiveDust.radius	no	no		
+ExplosiveJetForm	chain.dust.from	ExplosiveDust.from	no	no		
+ExplosiveJetForm	chain.dust.to	ExplosiveDust.to	no	no		
+ExplosiveJetForm	chain.dust.bias	ExplosiveDust.bias	no	no		
+ExplosiveJetForm	chain.dust.where	ExplosiveDust.where	no	no		
+ExplosiveJetForm	chain.dust.reach	ExplosiveDust.reach	no	no		
+ExplosiveJetForm	chain.dust.drag	ExplosiveDust.drag	no	no		
+ExplosiveJetForm	chain.dust.life	ExplosiveDust.life	no	no		
+ExplosiveJetForm	chain.dust.amp	ExplosiveDust.amp	no	no		
+ExplosiveJetForm	chain.dust.sag	ExplosiveDust.sag	no	no		
+ExplosiveJetForm	chain.dust.scatter	ExplosiveDust.scatter	no	no		
+ExplosiveJetForm	chain.dust.wide	ExplosiveDust.wide	no	no		
+ExplosiveJetForm	chain.dust.trail	ExplosiveDust.trail	no	no		
+ExplosiveJetForm	frag.w	JetSettings.w	no	no		
+ExplosiveJetForm	frag.h	JetSettings.h	no	no		
+ExplosiveJetForm	frag.nozzleX	JetSettings.nozzleX	no	no		
+ExplosiveJetForm	frag.nozzleY	JetSettings.nozzleY	no	no		
+ExplosiveJetForm	frag.aim	JetSettings.aim	no	no		
+ExplosiveJetForm	frag.reach	JetSettings.reach	no	no		
+ExplosiveJetForm	frag.spread	JetSettings.spread	no	no		
+ExplosiveJetForm	frag.drag	JetSettings.drag	no	no		
+ExplosiveJetForm	frag.buoy	JetSettings.buoy	no	no		
+ExplosiveJetForm	frag.grav	JetSettings.grav	no	no		
+ExplosiveJetForm	frag.r0	JetSettings.r0	no	no		
+ExplosiveJetForm	frag.growth	JetSettings.growth	no	no		
+ExplosiveJetForm	frag.elong	JetSettings.elong	no	no		
+ExplosiveJetForm	frag.roundAt	JetSettings.roundAt	no	no		
+ExplosiveJetForm	frag.slots	JetSettings.slots	no	no		
+ExplosiveJetForm	frag.life	JetSettings.life	no	no		
+ExplosiveJetForm	frag.jitter	JetSettings.jitter	no	no		
+ExplosiveJetForm	frag.strength	JetSettings.strength	no	no		
+ExplosiveJetForm	frag.cool	JetSettings.cool	no	no		
+ExplosiveJetForm	frag.soot	JetSettings.soot	no	no		
+ExplosiveJetForm	frag.pulseN	JetSettings.pulseN	no	YES		
+ExplosiveJetForm	frag.pulseDepth	JetSettings.pulseDepth	no	YES		
+ExplosiveJetForm	frag.sweep	JetSettings.sweep	no	no	guard	
+ExplosiveJetForm	frag.sweepN	JetSettings.sweepN	YES	YES		Nothing until Sweep angle is above 0.
+ExplosiveJetForm	frag.shockN	JetSettings.shockN	no	YES		
+ExplosiveJetForm	frag.shockDepth	JetSettings.shockDepth	no	YES		
+ExplosiveJetForm	frag.rootR	JetSettings.rootR	no	no	guard	
+ExplosiveJetForm	frag.rootAmp	JetSettings.rootAmp	no	YES		
+ExplosiveJetForm	frag.shed	JetSettings.shed	no	no		
+ExplosiveJetForm	frag.shedKick	JetSettings.shedKick	no	no		
+ExplosiveJetForm	frag.shedLife	JetSettings.shedLife	no	no		
+ExplosiveJetForm	frag.sparks	JetSettings.sparks	no	no		
+ExplosiveJetForm	frag.sparkR	JetSettings.sparkR	no	no		
+ExplosiveJetForm	frag.ringN	JetSettings.ringN	no	no	guard	
+ExplosiveJetForm	frag.ringK	JetSettings.ringK	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	frag.ringR0	JetSettings.ringR0	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	frag.ringGrow	JetSettings.ringGrow	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	frag.ringLife	JetSettings.ringLife	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	frag.ringReach	JetSettings.ringReach	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	frag.ringAmp	JetSettings.ringAmp	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	frag.warp0	JetSettings.warp0	no	no		
+ExplosiveJetForm	frag.warp1	JetSettings.warp1	no	no		
+ExplosiveJetForm	frag.warpCell	JetSettings.warpCell	no	no		
+ExplosiveJetForm	frag.warpOct	JetSettings.warpOct	no	no		
+ExplosiveJetForm	frag.lo	JetSettings.lo	no	no		
+ExplosiveJetForm	frag.hi	JetSettings.hi	no	no		
+ExplosiveJetForm	frag.curve	JetSettings.curve	no	no		
+ExplosiveJetForm	frag.steps	JetSettings.steps	no	no		
+ExplosiveJetForm	frag.soft	JetSettings.soft	no	no		
+ExplosiveJetForm	frag.gain	JetSettings.gain	no	no		
+ExplosiveJetForm	frag.ramp	JetSettings.ramp	no	no		
+ExplosiveJetForm	frag.sootRamp	JetSettings.sootRamp	no	no		
+ExplosiveJetForm	frag.sootLo	JetSettings.sootLo	no	no		
+ExplosiveJetForm	frag.sootHi	JetSettings.sootHi	no	no		
+ExplosiveJetForm	frag.bias	ExplosiveJetSettings.bias	no	no		
+ExplosiveJetForm	frag.srcR	ExplosiveJetSettings.srcR	no	no	guard	
+ExplosiveJetForm	frag.swirl	ExplosiveJetSettings.swirl	no	no		
+ExplosiveJetForm	frag.spin	ExplosiveJetSettings.spin	no	no		
+ExplosiveJetForm	frag.lobes	ExplosiveJetSettings.lobes	no	YES		
+ExplosiveJetForm	frag.lobeDepth	ExplosiveJetSettings.lobeDepth	no	YES		
+ExplosiveJetForm	frag.lobeKick	ExplosiveJetSettings.lobeKick	no	YES		
+ExplosiveJetForm	frag.rootK	ExplosiveJetSettings.rootK	YES	YES		Nothing until Burn radius is above 0 AND the Blast schedule is empty — a scheduled detonation has no standing source, so its seat is one lump per blast.
+ExplosiveJetForm	frag.ringFlat	ExplosiveJetSettings.ringFlat	YES	YES	guard	Nothing until Ring count is above 0 — there are no rings to turn face-on.
+ExplosiveJetForm	frag.ringArc	ExplosiveJetSettings.ringArc	YES	YES		Nothing until Rings face-on is on and Ring count is above 0.
+ExplosiveJetForm	frag.warpSpin	ExplosiveJetSettings.warpSpin	no	no		
+ExplosiveJetForm	frag.blasts[0].at	ExplosiveBlast.at	no	no		
+ExplosiveJetForm	frag.blasts[0].pow	ExplosiveBlast.pow	no	no		
+ExplosiveJetForm	frag.blasts[0].share	ExplosiveBlast.share	no	YES		
+ExplosiveJetForm	frag.blasts[0].offX	ExplosiveBlast.offX	no	no		
+ExplosiveJetForm	frag.blasts[0].offY	ExplosiveBlast.offY	no	no		
+ExplosiveJetForm	frag.blasts[1].at	ExplosiveBlast.at	no	no		
+ExplosiveJetForm	frag.blasts[1].pow	ExplosiveBlast.pow	no	no		
+ExplosiveJetForm	frag.blasts[1].share	ExplosiveBlast.share	no	YES		
+ExplosiveJetForm	frag.blasts[1].offX	ExplosiveBlast.offX	no	no		
+ExplosiveJetForm	frag.blasts[1].offY	ExplosiveBlast.offY	no	no		
+ExplosiveJetForm	frag.blastSpan	ExplosiveJetSettings.blastSpan	no	no		
+ExplosiveJetForm	frag.blastSkew	ExplosiveJetSettings.blastSkew	no	no		
+ExplosiveJetForm	frag.blastFront	ExplosiveJetSettings.blastFront	no	no		
+ExplosiveJetForm	frag.velSpread	ExplosiveJetSettings.velSpread	no	no		
+ExplosiveJetForm	frag.swell	ExplosiveJetSettings.swell	no	no		
+ExplosiveJetForm	frag.hold	ExplosiveJetSettings.hold	no	no		
+ExplosiveJetForm	frag.shrink	ExplosiveJetSettings.shrink	no	no		
+ExplosiveJetForm	frag.shrinkAt	ExplosiveJetSettings.shrinkAt	no	no		
+ExplosiveJetForm	frag.leadDie	ExplosiveJetSettings.leadDie	no	no		
+ExplosiveJetForm	frag.opaq	ExplosiveJetSettings.opaq	no	no		
+ExplosiveJetForm	frag.shedSwell	ExplosiveJetSettings.shedSwell	no	no		
+ExplosiveJetForm	frag.fracture.chance	ExplosiveFracture.chance	no	no		
+ExplosiveJetForm	frag.fracture.pieces	ExplosiveFracture.pieces	no	no		
+ExplosiveJetForm	frag.fracture.at	ExplosiveFracture.at	no	no		
+ExplosiveJetForm	frag.fracture.open	ExplosiveFracture.open	no	no		
+ExplosiveJetForm	frag.fracture.kick	ExplosiveFracture.kick	no	no		
+ExplosiveJetForm	frag.fracture.spin	ExplosiveFracture.spin	no	no		
+ExplosiveJetForm	frag.fracture.grip	ExplosiveFracture.grip	no	no		
+ExplosiveJetForm	frag.fracture.rot	ExplosiveFracture.rot	no	no		
+ExplosiveJetForm	frag.fracture.drift	ExplosiveFracture.drift	no	no		
+ExplosiveJetForm	frag.fracture.stagger	ExplosiveFracture.stagger	no	no		
+ExplosiveJetForm	frag.fracture.cut	ExplosiveFracture.cut	no	no		
+ExplosiveJetForm	frag.fracture.body	ExplosiveFracture.body	no	no		
+ExplosiveJetForm	frag.fracture2.chance	ExplosiveFracture2.chance	no	no		
+ExplosiveJetForm	frag.fracture2.at	ExplosiveFracture2.at	no	no		
+ExplosiveJetForm	frag.fracture2.open	ExplosiveFracture2.open	no	no		
+ExplosiveJetForm	frag.fracture2.cut	ExplosiveFracture2.cut	no	no		
+ExplosiveJetForm	frag.fracture2.kick	ExplosiveFracture2.kick	no	no		
+ExplosiveJetForm	frag.fracture2.drift	ExplosiveFracture2.drift	no	no		
+ExplosiveJetForm	frag.fracture2.spin	ExplosiveFracture2.spin	no	no		
+ExplosiveJetForm	frag.fracture2.stagger	ExplosiveFracture2.stagger	no	no		
+ExplosiveJetForm	frag.flash.radius	ExplosiveFlash.radius	no	no		
+ExplosiveJetForm	frag.flash.amp	ExplosiveFlash.amp	no	no		
+ExplosiveJetForm	frag.flash.life	ExplosiveFlash.life	no	no		
+ExplosiveJetForm	frag.flash.grow	ExplosiveFlash.grow	no	no		
+ExplosiveJetForm	frag.flash.elong	ExplosiveFlash.elong	no	no		
+ExplosiveJetForm	frag.chunks.count	ExplosiveChunks.count	no	no		
+ExplosiveJetForm	frag.chunks.radius	ExplosiveChunks.radius	no	no		
+ExplosiveJetForm	frag.chunks.reach	ExplosiveChunks.reach	no	no		
+ExplosiveJetForm	frag.chunks.drag	ExplosiveChunks.drag	no	no		
+ExplosiveJetForm	frag.chunks.life	ExplosiveChunks.life	no	no		
+ExplosiveJetForm	frag.chunks.sag	ExplosiveChunks.sag	no	no		
+ExplosiveJetForm	frag.chunks.trail	ExplosiveChunks.trail	no	no		
+ExplosiveJetForm	frag.chunks.amp	ExplosiveChunks.amp	no	no		
+ExplosiveJetForm	frag.chunks.wide	ExplosiveChunks.wide	no	no		
+ExplosiveJetForm	frag.gobs.count	ExplosiveGobs.count	no	no		
+ExplosiveJetForm	frag.gobs.radius	ExplosiveGobs.radius	no	no		
+ExplosiveJetForm	frag.gobs.reach	ExplosiveGobs.reach	no	no		
+ExplosiveJetForm	frag.gobs.drag	ExplosiveGobs.drag	no	no		
+ExplosiveJetForm	frag.gobs.life	ExplosiveGobs.life	no	no		
+ExplosiveJetForm	frag.gobs.amp	ExplosiveGobs.amp	no	no		
+ExplosiveJetForm	frag.gobs.swell	ExplosiveGobs.swell	no	no		
+ExplosiveJetForm	frag.gobs.sag	ExplosiveGobs.sag	no	no		
+ExplosiveJetForm	frag.gobs.wide	ExplosiveGobs.wide	no	no		
+ExplosiveJetForm	frag.gobs.early	ExplosiveGobs.early	no	no		
+ExplosiveJetForm	frag.gobs.trail	ExplosiveGobs.trail	no	no		
+ExplosiveJetForm	frag.dust.count	ExplosiveDust.count	no	no		
+ExplosiveJetForm	frag.dust.radius	ExplosiveDust.radius	no	no		
+ExplosiveJetForm	frag.dust.from	ExplosiveDust.from	no	no		
+ExplosiveJetForm	frag.dust.to	ExplosiveDust.to	no	no		
+ExplosiveJetForm	frag.dust.bias	ExplosiveDust.bias	no	no		
+ExplosiveJetForm	frag.dust.where	ExplosiveDust.where	no	no		
+ExplosiveJetForm	frag.dust.reach	ExplosiveDust.reach	no	no		
+ExplosiveJetForm	frag.dust.drag	ExplosiveDust.drag	no	no		
+ExplosiveJetForm	frag.dust.life	ExplosiveDust.life	no	no		
+ExplosiveJetForm	frag.dust.amp	ExplosiveDust.amp	no	no		
+ExplosiveJetForm	frag.dust.sag	ExplosiveDust.sag	no	no		
+ExplosiveJetForm	frag.dust.scatter	ExplosiveDust.scatter	no	no		
+ExplosiveJetForm	frag.dust.wide	ExplosiveDust.wide	no	no		
+ExplosiveJetForm	frag.dust.trail	ExplosiveDust.trail	no	no		
+ExplosiveJetForm	fuelair.w	JetSettings.w	no	no		
+ExplosiveJetForm	fuelair.h	JetSettings.h	no	no		
+ExplosiveJetForm	fuelair.nozzleX	JetSettings.nozzleX	no	no		
+ExplosiveJetForm	fuelair.nozzleY	JetSettings.nozzleY	no	no		
+ExplosiveJetForm	fuelair.aim	JetSettings.aim	no	no		
+ExplosiveJetForm	fuelair.reach	JetSettings.reach	no	no		
+ExplosiveJetForm	fuelair.spread	JetSettings.spread	no	no		
+ExplosiveJetForm	fuelair.drag	JetSettings.drag	no	no		
+ExplosiveJetForm	fuelair.buoy	JetSettings.buoy	no	no		
+ExplosiveJetForm	fuelair.grav	JetSettings.grav	no	no		
+ExplosiveJetForm	fuelair.r0	JetSettings.r0	no	no		
+ExplosiveJetForm	fuelair.growth	JetSettings.growth	no	no		
+ExplosiveJetForm	fuelair.elong	JetSettings.elong	no	no		
+ExplosiveJetForm	fuelair.roundAt	JetSettings.roundAt	no	no		
+ExplosiveJetForm	fuelair.slots	JetSettings.slots	no	no		
+ExplosiveJetForm	fuelair.life	JetSettings.life	no	no		
+ExplosiveJetForm	fuelair.jitter	JetSettings.jitter	no	no		
+ExplosiveJetForm	fuelair.strength	JetSettings.strength	no	no		
+ExplosiveJetForm	fuelair.cool	JetSettings.cool	no	no		
+ExplosiveJetForm	fuelair.soot	JetSettings.soot	no	no		
+ExplosiveJetForm	fuelair.pulseN	JetSettings.pulseN	no	YES		
+ExplosiveJetForm	fuelair.pulseDepth	JetSettings.pulseDepth	no	YES		
+ExplosiveJetForm	fuelair.sweep	JetSettings.sweep	no	no	guard	
+ExplosiveJetForm	fuelair.sweepN	JetSettings.sweepN	YES	YES		Nothing until Sweep angle is above 0.
+ExplosiveJetForm	fuelair.shockN	JetSettings.shockN	no	YES		
+ExplosiveJetForm	fuelair.shockDepth	JetSettings.shockDepth	no	YES		
+ExplosiveJetForm	fuelair.rootR	JetSettings.rootR	no	no	guard	
+ExplosiveJetForm	fuelair.rootAmp	JetSettings.rootAmp	no	YES		
+ExplosiveJetForm	fuelair.shed	JetSettings.shed	no	no		
+ExplosiveJetForm	fuelair.shedKick	JetSettings.shedKick	no	no		
+ExplosiveJetForm	fuelair.shedLife	JetSettings.shedLife	no	no		
+ExplosiveJetForm	fuelair.sparks	JetSettings.sparks	no	no		
+ExplosiveJetForm	fuelair.sparkR	JetSettings.sparkR	no	no		
+ExplosiveJetForm	fuelair.ringN	JetSettings.ringN	no	no	guard	
+ExplosiveJetForm	fuelair.ringK	JetSettings.ringK	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	fuelair.ringR0	JetSettings.ringR0	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	fuelair.ringGrow	JetSettings.ringGrow	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	fuelair.ringLife	JetSettings.ringLife	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	fuelair.ringReach	JetSettings.ringReach	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	fuelair.ringAmp	JetSettings.ringAmp	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	fuelair.warp0	JetSettings.warp0	no	no		
+ExplosiveJetForm	fuelair.warp1	JetSettings.warp1	no	no		
+ExplosiveJetForm	fuelair.warpCell	JetSettings.warpCell	no	no		
+ExplosiveJetForm	fuelair.warpOct	JetSettings.warpOct	no	no		
+ExplosiveJetForm	fuelair.lo	JetSettings.lo	no	no		
+ExplosiveJetForm	fuelair.hi	JetSettings.hi	no	no		
+ExplosiveJetForm	fuelair.curve	JetSettings.curve	no	no		
+ExplosiveJetForm	fuelair.steps	JetSettings.steps	no	no		
+ExplosiveJetForm	fuelair.soft	JetSettings.soft	no	no		
+ExplosiveJetForm	fuelair.gain	JetSettings.gain	no	no		
+ExplosiveJetForm	fuelair.ramp	JetSettings.ramp	no	no		
+ExplosiveJetForm	fuelair.sootRamp	JetSettings.sootRamp	no	no		
+ExplosiveJetForm	fuelair.sootLo	JetSettings.sootLo	no	no		
+ExplosiveJetForm	fuelair.sootHi	JetSettings.sootHi	no	no		
+ExplosiveJetForm	fuelair.bias	ExplosiveJetSettings.bias	no	no		
+ExplosiveJetForm	fuelair.srcR	ExplosiveJetSettings.srcR	no	no	guard	
+ExplosiveJetForm	fuelair.swirl	ExplosiveJetSettings.swirl	no	no		
+ExplosiveJetForm	fuelair.spin	ExplosiveJetSettings.spin	no	no		
+ExplosiveJetForm	fuelair.lobes	ExplosiveJetSettings.lobes	no	YES		
+ExplosiveJetForm	fuelair.lobeDepth	ExplosiveJetSettings.lobeDepth	no	YES		
+ExplosiveJetForm	fuelair.lobeKick	ExplosiveJetSettings.lobeKick	no	YES		
+ExplosiveJetForm	fuelair.rootK	ExplosiveJetSettings.rootK	YES	YES		Nothing until Burn radius is above 0 AND the Blast schedule is empty — a scheduled detonation has no standing source, so its seat is one lump per blast.
+ExplosiveJetForm	fuelair.ringFlat	ExplosiveJetSettings.ringFlat	YES	YES	guard	Nothing until Ring count is above 0 — there are no rings to turn face-on.
+ExplosiveJetForm	fuelair.ringArc	ExplosiveJetSettings.ringArc	YES	YES		Nothing until Rings face-on is on and Ring count is above 0.
+ExplosiveJetForm	fuelair.warpSpin	ExplosiveJetSettings.warpSpin	no	no		
+ExplosiveJetForm	fuelair.blasts[0].at	ExplosiveBlast.at	no	no		
+ExplosiveJetForm	fuelair.blasts[0].pow	ExplosiveBlast.pow	no	no		
+ExplosiveJetForm	fuelair.blasts[0].share	ExplosiveBlast.share	no	YES		
+ExplosiveJetForm	fuelair.blasts[0].offX	ExplosiveBlast.offX	no	no		
+ExplosiveJetForm	fuelair.blasts[0].offY	ExplosiveBlast.offY	no	no		
+ExplosiveJetForm	fuelair.blastSpan	ExplosiveJetSettings.blastSpan	no	no		
+ExplosiveJetForm	fuelair.blastSkew	ExplosiveJetSettings.blastSkew	no	no		
+ExplosiveJetForm	fuelair.blastFront	ExplosiveJetSettings.blastFront	no	no		
+ExplosiveJetForm	fuelair.velSpread	ExplosiveJetSettings.velSpread	no	no		
+ExplosiveJetForm	fuelair.swell	ExplosiveJetSettings.swell	no	no		
+ExplosiveJetForm	fuelair.hold	ExplosiveJetSettings.hold	no	no		
+ExplosiveJetForm	fuelair.shrink	ExplosiveJetSettings.shrink	no	no		
+ExplosiveJetForm	fuelair.shrinkAt	ExplosiveJetSettings.shrinkAt	no	no		
+ExplosiveJetForm	fuelair.leadDie	ExplosiveJetSettings.leadDie	no	no		
+ExplosiveJetForm	fuelair.opaq	ExplosiveJetSettings.opaq	no	no		
+ExplosiveJetForm	fuelair.shedSwell	ExplosiveJetSettings.shedSwell	no	no		
+ExplosiveJetForm	fuelair.fracture.chance	ExplosiveFracture.chance	no	no		
+ExplosiveJetForm	fuelair.fracture.pieces	ExplosiveFracture.pieces	no	no		
+ExplosiveJetForm	fuelair.fracture.at	ExplosiveFracture.at	no	no		
+ExplosiveJetForm	fuelair.fracture.open	ExplosiveFracture.open	no	no		
+ExplosiveJetForm	fuelair.fracture.kick	ExplosiveFracture.kick	no	no		
+ExplosiveJetForm	fuelair.fracture.spin	ExplosiveFracture.spin	no	no		
+ExplosiveJetForm	fuelair.fracture.grip	ExplosiveFracture.grip	no	no		
+ExplosiveJetForm	fuelair.fracture.rot	ExplosiveFracture.rot	no	no		
+ExplosiveJetForm	fuelair.fracture.drift	ExplosiveFracture.drift	no	no		
+ExplosiveJetForm	fuelair.fracture.stagger	ExplosiveFracture.stagger	no	no		
+ExplosiveJetForm	fuelair.fracture.cut	ExplosiveFracture.cut	no	no		
+ExplosiveJetForm	fuelair.fracture.body	ExplosiveFracture.body	no	no		
+ExplosiveJetForm	fuelair.fracture2.chance	ExplosiveFracture2.chance	no	no		
+ExplosiveJetForm	fuelair.fracture2.at	ExplosiveFracture2.at	no	no		
+ExplosiveJetForm	fuelair.fracture2.open	ExplosiveFracture2.open	no	no		
+ExplosiveJetForm	fuelair.fracture2.cut	ExplosiveFracture2.cut	no	no		
+ExplosiveJetForm	fuelair.fracture2.kick	ExplosiveFracture2.kick	no	no		
+ExplosiveJetForm	fuelair.fracture2.drift	ExplosiveFracture2.drift	no	no		
+ExplosiveJetForm	fuelair.fracture2.spin	ExplosiveFracture2.spin	no	no		
+ExplosiveJetForm	fuelair.fracture2.stagger	ExplosiveFracture2.stagger	no	no		
+ExplosiveJetForm	fuelair.flash.radius	ExplosiveFlash.radius	no	no		
+ExplosiveJetForm	fuelair.flash.amp	ExplosiveFlash.amp	no	no		
+ExplosiveJetForm	fuelair.flash.life	ExplosiveFlash.life	no	no		
+ExplosiveJetForm	fuelair.flash.grow	ExplosiveFlash.grow	no	no		
+ExplosiveJetForm	fuelair.flash.elong	ExplosiveFlash.elong	no	no		
+ExplosiveJetForm	fuelair.chunks.count	ExplosiveChunks.count	no	no		
+ExplosiveJetForm	fuelair.chunks.radius	ExplosiveChunks.radius	no	no		
+ExplosiveJetForm	fuelair.chunks.reach	ExplosiveChunks.reach	no	no		
+ExplosiveJetForm	fuelair.chunks.drag	ExplosiveChunks.drag	no	no		
+ExplosiveJetForm	fuelair.chunks.life	ExplosiveChunks.life	no	no		
+ExplosiveJetForm	fuelair.chunks.sag	ExplosiveChunks.sag	no	no		
+ExplosiveJetForm	fuelair.chunks.trail	ExplosiveChunks.trail	no	no		
+ExplosiveJetForm	fuelair.chunks.amp	ExplosiveChunks.amp	no	no		
+ExplosiveJetForm	fuelair.chunks.wide	ExplosiveChunks.wide	no	no		
+ExplosiveJetForm	fuelair.gobs.count	ExplosiveGobs.count	no	no		
+ExplosiveJetForm	fuelair.gobs.radius	ExplosiveGobs.radius	no	no		
+ExplosiveJetForm	fuelair.gobs.reach	ExplosiveGobs.reach	no	no		
+ExplosiveJetForm	fuelair.gobs.drag	ExplosiveGobs.drag	no	no		
+ExplosiveJetForm	fuelair.gobs.life	ExplosiveGobs.life	no	no		
+ExplosiveJetForm	fuelair.gobs.amp	ExplosiveGobs.amp	no	no		
+ExplosiveJetForm	fuelair.gobs.swell	ExplosiveGobs.swell	no	no		
+ExplosiveJetForm	fuelair.gobs.sag	ExplosiveGobs.sag	no	no		
+ExplosiveJetForm	fuelair.gobs.wide	ExplosiveGobs.wide	no	no		
+ExplosiveJetForm	fuelair.gobs.early	ExplosiveGobs.early	no	no		
+ExplosiveJetForm	fuelair.gobs.trail	ExplosiveGobs.trail	no	no		
+ExplosiveJetForm	fuelair.dust.count	ExplosiveDust.count	no	no		
+ExplosiveJetForm	fuelair.dust.radius	ExplosiveDust.radius	no	no		
+ExplosiveJetForm	fuelair.dust.from	ExplosiveDust.from	no	no		
+ExplosiveJetForm	fuelair.dust.to	ExplosiveDust.to	no	no		
+ExplosiveJetForm	fuelair.dust.bias	ExplosiveDust.bias	no	no		
+ExplosiveJetForm	fuelair.dust.where	ExplosiveDust.where	no	no		
+ExplosiveJetForm	fuelair.dust.reach	ExplosiveDust.reach	no	no		
+ExplosiveJetForm	fuelair.dust.drag	ExplosiveDust.drag	no	no		
+ExplosiveJetForm	fuelair.dust.life	ExplosiveDust.life	no	no		
+ExplosiveJetForm	fuelair.dust.amp	ExplosiveDust.amp	no	no		
+ExplosiveJetForm	fuelair.dust.sag	ExplosiveDust.sag	no	no		
+ExplosiveJetForm	fuelair.dust.scatter	ExplosiveDust.scatter	no	no		
+ExplosiveJetForm	fuelair.dust.wide	ExplosiveDust.wide	no	no		
+ExplosiveJetForm	fuelair.dust.trail	ExplosiveDust.trail	no	no		
+ExplosiveJetForm	lash.w	JetSettings.w	no	no		
+ExplosiveJetForm	lash.h	JetSettings.h	no	no		
+ExplosiveJetForm	lash.nozzleX	JetSettings.nozzleX	no	no		
+ExplosiveJetForm	lash.nozzleY	JetSettings.nozzleY	no	no		
+ExplosiveJetForm	lash.aim	JetSettings.aim	no	no		
+ExplosiveJetForm	lash.reach	JetSettings.reach	no	no		
+ExplosiveJetForm	lash.spread	JetSettings.spread	no	no		
+ExplosiveJetForm	lash.drag	JetSettings.drag	no	no		
+ExplosiveJetForm	lash.buoy	JetSettings.buoy	no	no		
+ExplosiveJetForm	lash.grav	JetSettings.grav	no	no		
+ExplosiveJetForm	lash.r0	JetSettings.r0	no	no		
+ExplosiveJetForm	lash.growth	JetSettings.growth	no	no		
+ExplosiveJetForm	lash.elong	JetSettings.elong	no	no		
+ExplosiveJetForm	lash.roundAt	JetSettings.roundAt	no	no		
+ExplosiveJetForm	lash.slots	JetSettings.slots	no	no		
+ExplosiveJetForm	lash.life	JetSettings.life	no	no		
+ExplosiveJetForm	lash.jitter	JetSettings.jitter	no	no		
+ExplosiveJetForm	lash.strength	JetSettings.strength	no	no		
+ExplosiveJetForm	lash.cool	JetSettings.cool	no	no		
+ExplosiveJetForm	lash.soot	JetSettings.soot	no	no		
+ExplosiveJetForm	lash.pulseN	JetSettings.pulseN	no	YES		
+ExplosiveJetForm	lash.pulseDepth	JetSettings.pulseDepth	no	YES		
+ExplosiveJetForm	lash.sweep	JetSettings.sweep	no	no	guard	
+ExplosiveJetForm	lash.sweepN	JetSettings.sweepN	YES	YES		Nothing until Sweep angle is above 0.
+ExplosiveJetForm	lash.shockN	JetSettings.shockN	no	YES		
+ExplosiveJetForm	lash.shockDepth	JetSettings.shockDepth	no	YES		
+ExplosiveJetForm	lash.rootR	JetSettings.rootR	no	no	guard	
+ExplosiveJetForm	lash.rootAmp	JetSettings.rootAmp	no	YES		
+ExplosiveJetForm	lash.shed	JetSettings.shed	no	no		
+ExplosiveJetForm	lash.shedKick	JetSettings.shedKick	no	no		
+ExplosiveJetForm	lash.shedLife	JetSettings.shedLife	no	no		
+ExplosiveJetForm	lash.sparks	JetSettings.sparks	no	no		
+ExplosiveJetForm	lash.sparkR	JetSettings.sparkR	no	no		
+ExplosiveJetForm	lash.ringN	JetSettings.ringN	no	no	guard	
+ExplosiveJetForm	lash.ringK	JetSettings.ringK	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	lash.ringR0	JetSettings.ringR0	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	lash.ringGrow	JetSettings.ringGrow	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	lash.ringLife	JetSettings.ringLife	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	lash.ringReach	JetSettings.ringReach	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	lash.ringAmp	JetSettings.ringAmp	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	lash.warp0	JetSettings.warp0	no	no		
+ExplosiveJetForm	lash.warp1	JetSettings.warp1	no	no		
+ExplosiveJetForm	lash.warpCell	JetSettings.warpCell	no	no		
+ExplosiveJetForm	lash.warpOct	JetSettings.warpOct	no	no		
+ExplosiveJetForm	lash.lo	JetSettings.lo	no	no		
+ExplosiveJetForm	lash.hi	JetSettings.hi	no	no		
+ExplosiveJetForm	lash.curve	JetSettings.curve	no	no		
+ExplosiveJetForm	lash.steps	JetSettings.steps	no	no		
+ExplosiveJetForm	lash.soft	JetSettings.soft	no	no		
+ExplosiveJetForm	lash.gain	JetSettings.gain	no	no		
+ExplosiveJetForm	lash.ramp	JetSettings.ramp	no	no		
+ExplosiveJetForm	lash.sootRamp	JetSettings.sootRamp	no	no		
+ExplosiveJetForm	lash.sootLo	JetSettings.sootLo	no	no		
+ExplosiveJetForm	lash.sootHi	JetSettings.sootHi	no	no		
+ExplosiveJetForm	lash.bias	ExplosiveJetSettings.bias	no	no		
+ExplosiveJetForm	lash.srcR	ExplosiveJetSettings.srcR	no	no	guard	
+ExplosiveJetForm	lash.swirl	ExplosiveJetSettings.swirl	no	no		
+ExplosiveJetForm	lash.spin	ExplosiveJetSettings.spin	no	no		
+ExplosiveJetForm	lash.lobes	ExplosiveJetSettings.lobes	no	YES		
+ExplosiveJetForm	lash.lobeDepth	ExplosiveJetSettings.lobeDepth	no	YES		
+ExplosiveJetForm	lash.lobeKick	ExplosiveJetSettings.lobeKick	no	YES		
+ExplosiveJetForm	lash.rootK	ExplosiveJetSettings.rootK	YES	YES		Nothing until Burn radius is above 0 AND the Blast schedule is empty — a scheduled detonation has no standing source, so its seat is one lump per blast.
+ExplosiveJetForm	lash.ringFlat	ExplosiveJetSettings.ringFlat	YES	YES	guard	Nothing until Ring count is above 0 — there are no rings to turn face-on.
+ExplosiveJetForm	lash.ringArc	ExplosiveJetSettings.ringArc	YES	YES		Nothing until Rings face-on is on and Ring count is above 0.
+ExplosiveJetForm	lash.warpSpin	ExplosiveJetSettings.warpSpin	no	no		
+ExplosiveJetForm	lash.blasts[0].at	ExplosiveBlast.at	no	no		
+ExplosiveJetForm	lash.blasts[0].pow	ExplosiveBlast.pow	no	no		
+ExplosiveJetForm	lash.blasts[0].share	ExplosiveBlast.share	no	YES		
+ExplosiveJetForm	lash.blasts[0].offX	ExplosiveBlast.offX	no	no		
+ExplosiveJetForm	lash.blasts[0].offY	ExplosiveBlast.offY	no	no		
+ExplosiveJetForm	lash.blasts[1].at	ExplosiveBlast.at	no	no		
+ExplosiveJetForm	lash.blasts[1].pow	ExplosiveBlast.pow	no	no		
+ExplosiveJetForm	lash.blasts[1].share	ExplosiveBlast.share	no	YES		
+ExplosiveJetForm	lash.blasts[1].offX	ExplosiveBlast.offX	no	no		
+ExplosiveJetForm	lash.blasts[1].offY	ExplosiveBlast.offY	no	no		
+ExplosiveJetForm	lash.blastSpan	ExplosiveJetSettings.blastSpan	no	no		
+ExplosiveJetForm	lash.blastSkew	ExplosiveJetSettings.blastSkew	no	no		
+ExplosiveJetForm	lash.blastFront	ExplosiveJetSettings.blastFront	no	no		
+ExplosiveJetForm	lash.velSpread	ExplosiveJetSettings.velSpread	no	no		
+ExplosiveJetForm	lash.swell	ExplosiveJetSettings.swell	no	no		
+ExplosiveJetForm	lash.hold	ExplosiveJetSettings.hold	no	no		
+ExplosiveJetForm	lash.shrink	ExplosiveJetSettings.shrink	no	no		
+ExplosiveJetForm	lash.shrinkAt	ExplosiveJetSettings.shrinkAt	no	no		
+ExplosiveJetForm	lash.leadDie	ExplosiveJetSettings.leadDie	no	no		
+ExplosiveJetForm	lash.opaq	ExplosiveJetSettings.opaq	no	no		
+ExplosiveJetForm	lash.shedSwell	ExplosiveJetSettings.shedSwell	no	no		
+ExplosiveJetForm	lash.fracture.chance	ExplosiveFracture.chance	no	no		
+ExplosiveJetForm	lash.fracture.pieces	ExplosiveFracture.pieces	no	no		
+ExplosiveJetForm	lash.fracture.at	ExplosiveFracture.at	no	no		
+ExplosiveJetForm	lash.fracture.open	ExplosiveFracture.open	no	no		
+ExplosiveJetForm	lash.fracture.kick	ExplosiveFracture.kick	no	no		
+ExplosiveJetForm	lash.fracture.spin	ExplosiveFracture.spin	no	no		
+ExplosiveJetForm	lash.fracture.grip	ExplosiveFracture.grip	no	no		
+ExplosiveJetForm	lash.fracture.rot	ExplosiveFracture.rot	no	no		
+ExplosiveJetForm	lash.fracture.drift	ExplosiveFracture.drift	no	no		
+ExplosiveJetForm	lash.fracture.stagger	ExplosiveFracture.stagger	no	no		
+ExplosiveJetForm	lash.fracture.cut	ExplosiveFracture.cut	no	no		
+ExplosiveJetForm	lash.fracture.body	ExplosiveFracture.body	no	no		
+ExplosiveJetForm	lash.fracture2.chance	ExplosiveFracture2.chance	no	no		
+ExplosiveJetForm	lash.fracture2.at	ExplosiveFracture2.at	no	no		
+ExplosiveJetForm	lash.fracture2.open	ExplosiveFracture2.open	no	no		
+ExplosiveJetForm	lash.fracture2.cut	ExplosiveFracture2.cut	no	no		
+ExplosiveJetForm	lash.fracture2.kick	ExplosiveFracture2.kick	no	no		
+ExplosiveJetForm	lash.fracture2.drift	ExplosiveFracture2.drift	no	no		
+ExplosiveJetForm	lash.fracture2.spin	ExplosiveFracture2.spin	no	no		
+ExplosiveJetForm	lash.fracture2.stagger	ExplosiveFracture2.stagger	no	no		
+ExplosiveJetForm	lash.flash.radius	ExplosiveFlash.radius	no	no		
+ExplosiveJetForm	lash.flash.amp	ExplosiveFlash.amp	no	no		
+ExplosiveJetForm	lash.flash.life	ExplosiveFlash.life	no	no		
+ExplosiveJetForm	lash.flash.grow	ExplosiveFlash.grow	no	no		
+ExplosiveJetForm	lash.flash.elong	ExplosiveFlash.elong	no	no		
+ExplosiveJetForm	lash.chunks.count	ExplosiveChunks.count	no	no		
+ExplosiveJetForm	lash.chunks.radius	ExplosiveChunks.radius	no	no		
+ExplosiveJetForm	lash.chunks.reach	ExplosiveChunks.reach	no	no		
+ExplosiveJetForm	lash.chunks.drag	ExplosiveChunks.drag	no	no		
+ExplosiveJetForm	lash.chunks.life	ExplosiveChunks.life	no	no		
+ExplosiveJetForm	lash.chunks.sag	ExplosiveChunks.sag	no	no		
+ExplosiveJetForm	lash.chunks.trail	ExplosiveChunks.trail	no	no		
+ExplosiveJetForm	lash.chunks.amp	ExplosiveChunks.amp	no	no		
+ExplosiveJetForm	lash.chunks.wide	ExplosiveChunks.wide	no	no		
+ExplosiveJetForm	lash.gobs.count	ExplosiveGobs.count	no	no		
+ExplosiveJetForm	lash.gobs.radius	ExplosiveGobs.radius	no	no		
+ExplosiveJetForm	lash.gobs.reach	ExplosiveGobs.reach	no	no		
+ExplosiveJetForm	lash.gobs.drag	ExplosiveGobs.drag	no	no		
+ExplosiveJetForm	lash.gobs.life	ExplosiveGobs.life	no	no		
+ExplosiveJetForm	lash.gobs.amp	ExplosiveGobs.amp	no	no		
+ExplosiveJetForm	lash.gobs.swell	ExplosiveGobs.swell	no	no		
+ExplosiveJetForm	lash.gobs.sag	ExplosiveGobs.sag	no	no		
+ExplosiveJetForm	lash.gobs.wide	ExplosiveGobs.wide	no	no		
+ExplosiveJetForm	lash.gobs.early	ExplosiveGobs.early	no	no		
+ExplosiveJetForm	lash.gobs.trail	ExplosiveGobs.trail	no	no		
+ExplosiveJetForm	lash.dust.count	ExplosiveDust.count	no	no		
+ExplosiveJetForm	lash.dust.radius	ExplosiveDust.radius	no	no		
+ExplosiveJetForm	lash.dust.from	ExplosiveDust.from	no	no		
+ExplosiveJetForm	lash.dust.to	ExplosiveDust.to	no	no		
+ExplosiveJetForm	lash.dust.bias	ExplosiveDust.bias	no	no		
+ExplosiveJetForm	lash.dust.where	ExplosiveDust.where	no	no		
+ExplosiveJetForm	lash.dust.reach	ExplosiveDust.reach	no	no		
+ExplosiveJetForm	lash.dust.drag	ExplosiveDust.drag	no	no		
+ExplosiveJetForm	lash.dust.life	ExplosiveDust.life	no	no		
+ExplosiveJetForm	lash.dust.amp	ExplosiveDust.amp	no	no		
+ExplosiveJetForm	lash.dust.sag	ExplosiveDust.sag	no	no		
+ExplosiveJetForm	lash.dust.scatter	ExplosiveDust.scatter	no	no		
+ExplosiveJetForm	lash.dust.wide	ExplosiveDust.wide	no	no		
+ExplosiveJetForm	lash.dust.trail	ExplosiveDust.trail	no	no		
+ExplosiveJetForm	muzzle.w	JetSettings.w	no	no		
+ExplosiveJetForm	muzzle.h	JetSettings.h	no	no		
+ExplosiveJetForm	muzzle.nozzleX	JetSettings.nozzleX	no	no		
+ExplosiveJetForm	muzzle.nozzleY	JetSettings.nozzleY	no	no		
+ExplosiveJetForm	muzzle.aim	JetSettings.aim	no	no		
+ExplosiveJetForm	muzzle.reach	JetSettings.reach	no	no		
+ExplosiveJetForm	muzzle.spread	JetSettings.spread	no	no		
+ExplosiveJetForm	muzzle.drag	JetSettings.drag	no	no		
+ExplosiveJetForm	muzzle.buoy	JetSettings.buoy	no	no		
+ExplosiveJetForm	muzzle.grav	JetSettings.grav	no	no		
+ExplosiveJetForm	muzzle.r0	JetSettings.r0	no	no		
+ExplosiveJetForm	muzzle.growth	JetSettings.growth	no	no		
+ExplosiveJetForm	muzzle.elong	JetSettings.elong	no	no		
+ExplosiveJetForm	muzzle.roundAt	JetSettings.roundAt	no	no		
+ExplosiveJetForm	muzzle.slots	JetSettings.slots	no	no		
+ExplosiveJetForm	muzzle.life	JetSettings.life	no	no		
+ExplosiveJetForm	muzzle.jitter	JetSettings.jitter	no	no		
+ExplosiveJetForm	muzzle.strength	JetSettings.strength	no	no		
+ExplosiveJetForm	muzzle.cool	JetSettings.cool	no	no		
+ExplosiveJetForm	muzzle.soot	JetSettings.soot	no	no		
+ExplosiveJetForm	muzzle.pulseN	JetSettings.pulseN	no	YES		
+ExplosiveJetForm	muzzle.pulseDepth	JetSettings.pulseDepth	no	YES		
+ExplosiveJetForm	muzzle.sweep	JetSettings.sweep	no	no	guard	
+ExplosiveJetForm	muzzle.sweepN	JetSettings.sweepN	YES	YES		Nothing until Sweep angle is above 0.
+ExplosiveJetForm	muzzle.shockN	JetSettings.shockN	no	YES		
+ExplosiveJetForm	muzzle.shockDepth	JetSettings.shockDepth	no	YES		
+ExplosiveJetForm	muzzle.rootR	JetSettings.rootR	no	no	guard	
+ExplosiveJetForm	muzzle.rootAmp	JetSettings.rootAmp	no	YES		
+ExplosiveJetForm	muzzle.shed	JetSettings.shed	no	no		
+ExplosiveJetForm	muzzle.shedKick	JetSettings.shedKick	no	no		
+ExplosiveJetForm	muzzle.shedLife	JetSettings.shedLife	no	no		
+ExplosiveJetForm	muzzle.sparks	JetSettings.sparks	no	no		
+ExplosiveJetForm	muzzle.sparkR	JetSettings.sparkR	no	no		
+ExplosiveJetForm	muzzle.ringN	JetSettings.ringN	no	no	guard	
+ExplosiveJetForm	muzzle.ringK	JetSettings.ringK	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	muzzle.ringR0	JetSettings.ringR0	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	muzzle.ringGrow	JetSettings.ringGrow	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	muzzle.ringLife	JetSettings.ringLife	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	muzzle.ringReach	JetSettings.ringReach	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	muzzle.ringAmp	JetSettings.ringAmp	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	muzzle.warp0	JetSettings.warp0	no	no		
+ExplosiveJetForm	muzzle.warp1	JetSettings.warp1	no	no		
+ExplosiveJetForm	muzzle.warpCell	JetSettings.warpCell	no	no		
+ExplosiveJetForm	muzzle.warpOct	JetSettings.warpOct	no	no		
+ExplosiveJetForm	muzzle.lo	JetSettings.lo	no	no		
+ExplosiveJetForm	muzzle.hi	JetSettings.hi	no	no		
+ExplosiveJetForm	muzzle.curve	JetSettings.curve	no	no		
+ExplosiveJetForm	muzzle.steps	JetSettings.steps	no	no		
+ExplosiveJetForm	muzzle.soft	JetSettings.soft	no	no		
+ExplosiveJetForm	muzzle.gain	JetSettings.gain	no	no		
+ExplosiveJetForm	muzzle.ramp	JetSettings.ramp	no	no		
+ExplosiveJetForm	muzzle.sootRamp	JetSettings.sootRamp	no	no		
+ExplosiveJetForm	muzzle.sootLo	JetSettings.sootLo	no	no		
+ExplosiveJetForm	muzzle.sootHi	JetSettings.sootHi	no	no		
+ExplosiveJetForm	muzzle.bias	ExplosiveJetSettings.bias	no	no		
+ExplosiveJetForm	muzzle.srcR	ExplosiveJetSettings.srcR	no	no	guard	
+ExplosiveJetForm	muzzle.swirl	ExplosiveJetSettings.swirl	no	no		
+ExplosiveJetForm	muzzle.spin	ExplosiveJetSettings.spin	no	no		
+ExplosiveJetForm	muzzle.lobes	ExplosiveJetSettings.lobes	no	YES		
+ExplosiveJetForm	muzzle.lobeDepth	ExplosiveJetSettings.lobeDepth	no	YES		
+ExplosiveJetForm	muzzle.lobeKick	ExplosiveJetSettings.lobeKick	no	YES		
+ExplosiveJetForm	muzzle.rootK	ExplosiveJetSettings.rootK	YES	YES		Nothing until Burn radius is above 0 AND the Blast schedule is empty — a scheduled detonation has no standing source, so its seat is one lump per blast.
+ExplosiveJetForm	muzzle.ringFlat	ExplosiveJetSettings.ringFlat	YES	YES	guard	Nothing until Ring count is above 0 — there are no rings to turn face-on.
+ExplosiveJetForm	muzzle.ringArc	ExplosiveJetSettings.ringArc	YES	YES		Nothing until Rings face-on is on and Ring count is above 0.
+ExplosiveJetForm	muzzle.warpSpin	ExplosiveJetSettings.warpSpin	no	no		
+ExplosiveJetForm	muzzle.blasts[0].at	ExplosiveBlast.at	no	no		
+ExplosiveJetForm	muzzle.blasts[0].pow	ExplosiveBlast.pow	no	no		
+ExplosiveJetForm	muzzle.blasts[0].share	ExplosiveBlast.share	no	YES		
+ExplosiveJetForm	muzzle.blasts[0].offX	ExplosiveBlast.offX	no	no		
+ExplosiveJetForm	muzzle.blasts[0].offY	ExplosiveBlast.offY	no	no		
+ExplosiveJetForm	muzzle.blasts[1].at	ExplosiveBlast.at	no	no		
+ExplosiveJetForm	muzzle.blasts[1].pow	ExplosiveBlast.pow	no	no		
+ExplosiveJetForm	muzzle.blasts[1].share	ExplosiveBlast.share	no	YES		
+ExplosiveJetForm	muzzle.blasts[1].offX	ExplosiveBlast.offX	no	no		
+ExplosiveJetForm	muzzle.blasts[1].offY	ExplosiveBlast.offY	no	no		
+ExplosiveJetForm	muzzle.blastSpan	ExplosiveJetSettings.blastSpan	no	no		
+ExplosiveJetForm	muzzle.blastSkew	ExplosiveJetSettings.blastSkew	no	no		
+ExplosiveJetForm	muzzle.blastFront	ExplosiveJetSettings.blastFront	no	no		
+ExplosiveJetForm	muzzle.velSpread	ExplosiveJetSettings.velSpread	no	no		
+ExplosiveJetForm	muzzle.swell	ExplosiveJetSettings.swell	no	no		
+ExplosiveJetForm	muzzle.hold	ExplosiveJetSettings.hold	no	no		
+ExplosiveJetForm	muzzle.shrink	ExplosiveJetSettings.shrink	no	no		
+ExplosiveJetForm	muzzle.shrinkAt	ExplosiveJetSettings.shrinkAt	no	no		
+ExplosiveJetForm	muzzle.leadDie	ExplosiveJetSettings.leadDie	no	no		
+ExplosiveJetForm	muzzle.opaq	ExplosiveJetSettings.opaq	no	no		
+ExplosiveJetForm	muzzle.shedSwell	ExplosiveJetSettings.shedSwell	no	no		
+ExplosiveJetForm	muzzle.fracture.chance	ExplosiveFracture.chance	no	no		
+ExplosiveJetForm	muzzle.fracture.pieces	ExplosiveFracture.pieces	no	no		
+ExplosiveJetForm	muzzle.fracture.at	ExplosiveFracture.at	no	no		
+ExplosiveJetForm	muzzle.fracture.open	ExplosiveFracture.open	no	no		
+ExplosiveJetForm	muzzle.fracture.kick	ExplosiveFracture.kick	no	no		
+ExplosiveJetForm	muzzle.fracture.spin	ExplosiveFracture.spin	no	no		
+ExplosiveJetForm	muzzle.fracture.grip	ExplosiveFracture.grip	no	no		
+ExplosiveJetForm	muzzle.fracture.rot	ExplosiveFracture.rot	no	no		
+ExplosiveJetForm	muzzle.fracture.drift	ExplosiveFracture.drift	no	no		
+ExplosiveJetForm	muzzle.fracture.stagger	ExplosiveFracture.stagger	no	no		
+ExplosiveJetForm	muzzle.fracture.cut	ExplosiveFracture.cut	no	no		
+ExplosiveJetForm	muzzle.fracture.body	ExplosiveFracture.body	no	no		
+ExplosiveJetForm	muzzle.fracture2.chance	ExplosiveFracture2.chance	no	no		
+ExplosiveJetForm	muzzle.fracture2.at	ExplosiveFracture2.at	no	no		
+ExplosiveJetForm	muzzle.fracture2.open	ExplosiveFracture2.open	no	no		
+ExplosiveJetForm	muzzle.fracture2.cut	ExplosiveFracture2.cut	no	no		
+ExplosiveJetForm	muzzle.fracture2.kick	ExplosiveFracture2.kick	no	no		
+ExplosiveJetForm	muzzle.fracture2.drift	ExplosiveFracture2.drift	no	no		
+ExplosiveJetForm	muzzle.fracture2.spin	ExplosiveFracture2.spin	no	no		
+ExplosiveJetForm	muzzle.fracture2.stagger	ExplosiveFracture2.stagger	no	no		
+ExplosiveJetForm	muzzle.flash.radius	ExplosiveFlash.radius	no	no		
+ExplosiveJetForm	muzzle.flash.amp	ExplosiveFlash.amp	no	no		
+ExplosiveJetForm	muzzle.flash.life	ExplosiveFlash.life	no	no		
+ExplosiveJetForm	muzzle.flash.grow	ExplosiveFlash.grow	no	no		
+ExplosiveJetForm	muzzle.flash.elong	ExplosiveFlash.elong	no	no		
+ExplosiveJetForm	muzzle.chunks.count	ExplosiveChunks.count	no	no		
+ExplosiveJetForm	muzzle.chunks.radius	ExplosiveChunks.radius	no	no		
+ExplosiveJetForm	muzzle.chunks.reach	ExplosiveChunks.reach	no	no		
+ExplosiveJetForm	muzzle.chunks.drag	ExplosiveChunks.drag	no	no		
+ExplosiveJetForm	muzzle.chunks.life	ExplosiveChunks.life	no	no		
+ExplosiveJetForm	muzzle.chunks.sag	ExplosiveChunks.sag	no	no		
+ExplosiveJetForm	muzzle.chunks.trail	ExplosiveChunks.trail	no	no		
+ExplosiveJetForm	muzzle.chunks.amp	ExplosiveChunks.amp	no	no		
+ExplosiveJetForm	muzzle.chunks.wide	ExplosiveChunks.wide	no	no		
+ExplosiveJetForm	muzzle.gobs.count	ExplosiveGobs.count	no	no		
+ExplosiveJetForm	muzzle.gobs.radius	ExplosiveGobs.radius	no	no		
+ExplosiveJetForm	muzzle.gobs.reach	ExplosiveGobs.reach	no	no		
+ExplosiveJetForm	muzzle.gobs.drag	ExplosiveGobs.drag	no	no		
+ExplosiveJetForm	muzzle.gobs.life	ExplosiveGobs.life	no	no		
+ExplosiveJetForm	muzzle.gobs.amp	ExplosiveGobs.amp	no	no		
+ExplosiveJetForm	muzzle.gobs.swell	ExplosiveGobs.swell	no	no		
+ExplosiveJetForm	muzzle.gobs.sag	ExplosiveGobs.sag	no	no		
+ExplosiveJetForm	muzzle.gobs.wide	ExplosiveGobs.wide	no	no		
+ExplosiveJetForm	muzzle.gobs.early	ExplosiveGobs.early	no	no		
+ExplosiveJetForm	muzzle.gobs.trail	ExplosiveGobs.trail	no	no		
+ExplosiveJetForm	muzzle.dust.count	ExplosiveDust.count	no	no		
+ExplosiveJetForm	muzzle.dust.radius	ExplosiveDust.radius	no	no		
+ExplosiveJetForm	muzzle.dust.from	ExplosiveDust.from	no	no		
+ExplosiveJetForm	muzzle.dust.to	ExplosiveDust.to	no	no		
+ExplosiveJetForm	muzzle.dust.bias	ExplosiveDust.bias	no	no		
+ExplosiveJetForm	muzzle.dust.where	ExplosiveDust.where	no	no		
+ExplosiveJetForm	muzzle.dust.reach	ExplosiveDust.reach	no	no		
+ExplosiveJetForm	muzzle.dust.drag	ExplosiveDust.drag	no	no		
+ExplosiveJetForm	muzzle.dust.life	ExplosiveDust.life	no	no		
+ExplosiveJetForm	muzzle.dust.amp	ExplosiveDust.amp	no	no		
+ExplosiveJetForm	muzzle.dust.sag	ExplosiveDust.sag	no	no		
+ExplosiveJetForm	muzzle.dust.scatter	ExplosiveDust.scatter	no	no		
+ExplosiveJetForm	muzzle.dust.wide	ExplosiveDust.wide	no	no		
+ExplosiveJetForm	muzzle.dust.trail	ExplosiveDust.trail	no	no		
+ExplosiveJetForm	shatter.w	JetSettings.w	no	no		
+ExplosiveJetForm	shatter.h	JetSettings.h	no	no		
+ExplosiveJetForm	shatter.nozzleX	JetSettings.nozzleX	no	no		
+ExplosiveJetForm	shatter.nozzleY	JetSettings.nozzleY	no	no		
+ExplosiveJetForm	shatter.aim	JetSettings.aim	no	no		
+ExplosiveJetForm	shatter.reach	JetSettings.reach	no	no		
+ExplosiveJetForm	shatter.spread	JetSettings.spread	no	no		
+ExplosiveJetForm	shatter.drag	JetSettings.drag	no	no		
+ExplosiveJetForm	shatter.buoy	JetSettings.buoy	no	no		
+ExplosiveJetForm	shatter.grav	JetSettings.grav	no	no		
+ExplosiveJetForm	shatter.r0	JetSettings.r0	no	no		
+ExplosiveJetForm	shatter.growth	JetSettings.growth	no	no		
+ExplosiveJetForm	shatter.elong	JetSettings.elong	no	no		
+ExplosiveJetForm	shatter.roundAt	JetSettings.roundAt	no	no		
+ExplosiveJetForm	shatter.slots	JetSettings.slots	no	no		
+ExplosiveJetForm	shatter.life	JetSettings.life	no	no		
+ExplosiveJetForm	shatter.jitter	JetSettings.jitter	no	no		
+ExplosiveJetForm	shatter.strength	JetSettings.strength	no	no		
+ExplosiveJetForm	shatter.cool	JetSettings.cool	no	no		
+ExplosiveJetForm	shatter.soot	JetSettings.soot	no	no		
+ExplosiveJetForm	shatter.pulseN	JetSettings.pulseN	no	YES		
+ExplosiveJetForm	shatter.pulseDepth	JetSettings.pulseDepth	no	YES		
+ExplosiveJetForm	shatter.sweep	JetSettings.sweep	no	no	guard	
+ExplosiveJetForm	shatter.sweepN	JetSettings.sweepN	YES	YES		Nothing until Sweep angle is above 0.
+ExplosiveJetForm	shatter.shockN	JetSettings.shockN	no	YES		
+ExplosiveJetForm	shatter.shockDepth	JetSettings.shockDepth	no	YES		
+ExplosiveJetForm	shatter.rootR	JetSettings.rootR	no	no	guard	
+ExplosiveJetForm	shatter.rootAmp	JetSettings.rootAmp	no	YES		
+ExplosiveJetForm	shatter.shed	JetSettings.shed	no	no		
+ExplosiveJetForm	shatter.shedKick	JetSettings.shedKick	no	no		
+ExplosiveJetForm	shatter.shedLife	JetSettings.shedLife	no	no		
+ExplosiveJetForm	shatter.sparks	JetSettings.sparks	no	no		
+ExplosiveJetForm	shatter.sparkR	JetSettings.sparkR	no	no		
+ExplosiveJetForm	shatter.ringN	JetSettings.ringN	no	no	guard	
+ExplosiveJetForm	shatter.ringK	JetSettings.ringK	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	shatter.ringR0	JetSettings.ringR0	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	shatter.ringGrow	JetSettings.ringGrow	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	shatter.ringLife	JetSettings.ringLife	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	shatter.ringReach	JetSettings.ringReach	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	shatter.ringAmp	JetSettings.ringAmp	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	shatter.warp0	JetSettings.warp0	no	no		
+ExplosiveJetForm	shatter.warp1	JetSettings.warp1	no	no		
+ExplosiveJetForm	shatter.warpCell	JetSettings.warpCell	no	no		
+ExplosiveJetForm	shatter.warpOct	JetSettings.warpOct	no	no		
+ExplosiveJetForm	shatter.lo	JetSettings.lo	no	no		
+ExplosiveJetForm	shatter.hi	JetSettings.hi	no	no		
+ExplosiveJetForm	shatter.curve	JetSettings.curve	no	no		
+ExplosiveJetForm	shatter.steps	JetSettings.steps	no	no		
+ExplosiveJetForm	shatter.soft	JetSettings.soft	no	no		
+ExplosiveJetForm	shatter.gain	JetSettings.gain	no	no		
+ExplosiveJetForm	shatter.ramp	JetSettings.ramp	no	no		
+ExplosiveJetForm	shatter.sootRamp	JetSettings.sootRamp	no	no		
+ExplosiveJetForm	shatter.sootLo	JetSettings.sootLo	no	no		
+ExplosiveJetForm	shatter.sootHi	JetSettings.sootHi	no	no		
+ExplosiveJetForm	shatter.bias	ExplosiveJetSettings.bias	no	no		
+ExplosiveJetForm	shatter.srcR	ExplosiveJetSettings.srcR	no	no	guard	
+ExplosiveJetForm	shatter.swirl	ExplosiveJetSettings.swirl	no	no		
+ExplosiveJetForm	shatter.spin	ExplosiveJetSettings.spin	no	no		
+ExplosiveJetForm	shatter.lobes	ExplosiveJetSettings.lobes	no	YES		
+ExplosiveJetForm	shatter.lobeDepth	ExplosiveJetSettings.lobeDepth	no	YES		
+ExplosiveJetForm	shatter.lobeKick	ExplosiveJetSettings.lobeKick	no	YES		
+ExplosiveJetForm	shatter.rootK	ExplosiveJetSettings.rootK	YES	YES		Nothing until Burn radius is above 0 AND the Blast schedule is empty — a scheduled detonation has no standing source, so its seat is one lump per blast.
+ExplosiveJetForm	shatter.ringFlat	ExplosiveJetSettings.ringFlat	YES	YES	guard	Nothing until Ring count is above 0 — there are no rings to turn face-on.
+ExplosiveJetForm	shatter.ringArc	ExplosiveJetSettings.ringArc	YES	YES		Nothing until Rings face-on is on and Ring count is above 0.
+ExplosiveJetForm	shatter.warpSpin	ExplosiveJetSettings.warpSpin	no	no		
+ExplosiveJetForm	shatter.blasts[0].at	ExplosiveBlast.at	no	no		
+ExplosiveJetForm	shatter.blasts[0].pow	ExplosiveBlast.pow	no	no		
+ExplosiveJetForm	shatter.blasts[0].share	ExplosiveBlast.share	no	YES		
+ExplosiveJetForm	shatter.blasts[0].offX	ExplosiveBlast.offX	no	no		
+ExplosiveJetForm	shatter.blasts[0].offY	ExplosiveBlast.offY	no	no		
+ExplosiveJetForm	shatter.blastSpan	ExplosiveJetSettings.blastSpan	no	no		
+ExplosiveJetForm	shatter.blastSkew	ExplosiveJetSettings.blastSkew	no	no		
+ExplosiveJetForm	shatter.blastFront	ExplosiveJetSettings.blastFront	no	no		
+ExplosiveJetForm	shatter.velSpread	ExplosiveJetSettings.velSpread	no	no		
+ExplosiveJetForm	shatter.swell	ExplosiveJetSettings.swell	no	no		
+ExplosiveJetForm	shatter.hold	ExplosiveJetSettings.hold	no	no		
+ExplosiveJetForm	shatter.shrink	ExplosiveJetSettings.shrink	no	no		
+ExplosiveJetForm	shatter.shrinkAt	ExplosiveJetSettings.shrinkAt	no	no		
+ExplosiveJetForm	shatter.leadDie	ExplosiveJetSettings.leadDie	no	no		
+ExplosiveJetForm	shatter.opaq	ExplosiveJetSettings.opaq	no	no		
+ExplosiveJetForm	shatter.shedSwell	ExplosiveJetSettings.shedSwell	no	no		
+ExplosiveJetForm	shatter.fracture.chance	ExplosiveFracture.chance	no	no		
+ExplosiveJetForm	shatter.fracture.pieces	ExplosiveFracture.pieces	no	no		
+ExplosiveJetForm	shatter.fracture.at	ExplosiveFracture.at	no	no		
+ExplosiveJetForm	shatter.fracture.open	ExplosiveFracture.open	no	no		
+ExplosiveJetForm	shatter.fracture.kick	ExplosiveFracture.kick	no	no		
+ExplosiveJetForm	shatter.fracture.spin	ExplosiveFracture.spin	no	no		
+ExplosiveJetForm	shatter.fracture.grip	ExplosiveFracture.grip	no	no		
+ExplosiveJetForm	shatter.fracture.rot	ExplosiveFracture.rot	no	no		
+ExplosiveJetForm	shatter.fracture.drift	ExplosiveFracture.drift	no	no		
+ExplosiveJetForm	shatter.fracture.stagger	ExplosiveFracture.stagger	no	no		
+ExplosiveJetForm	shatter.fracture.cut	ExplosiveFracture.cut	no	no		
+ExplosiveJetForm	shatter.fracture.body	ExplosiveFracture.body	no	no		
+ExplosiveJetForm	shatter.fracture2.chance	ExplosiveFracture2.chance	no	no		
+ExplosiveJetForm	shatter.fracture2.at	ExplosiveFracture2.at	no	no		
+ExplosiveJetForm	shatter.fracture2.open	ExplosiveFracture2.open	no	no		
+ExplosiveJetForm	shatter.fracture2.cut	ExplosiveFracture2.cut	no	no		
+ExplosiveJetForm	shatter.fracture2.kick	ExplosiveFracture2.kick	no	no		
+ExplosiveJetForm	shatter.fracture2.drift	ExplosiveFracture2.drift	no	no		
+ExplosiveJetForm	shatter.fracture2.spin	ExplosiveFracture2.spin	no	no		
+ExplosiveJetForm	shatter.fracture2.stagger	ExplosiveFracture2.stagger	no	no		
+ExplosiveJetForm	shatter.flash.radius	ExplosiveFlash.radius	no	no		
+ExplosiveJetForm	shatter.flash.amp	ExplosiveFlash.amp	no	no		
+ExplosiveJetForm	shatter.flash.life	ExplosiveFlash.life	no	no		
+ExplosiveJetForm	shatter.flash.grow	ExplosiveFlash.grow	no	no		
+ExplosiveJetForm	shatter.flash.elong	ExplosiveFlash.elong	no	no		
+ExplosiveJetForm	shatter.chunks.count	ExplosiveChunks.count	no	no		
+ExplosiveJetForm	shatter.chunks.radius	ExplosiveChunks.radius	no	no		
+ExplosiveJetForm	shatter.chunks.reach	ExplosiveChunks.reach	no	no		
+ExplosiveJetForm	shatter.chunks.drag	ExplosiveChunks.drag	no	no		
+ExplosiveJetForm	shatter.chunks.life	ExplosiveChunks.life	no	no		
+ExplosiveJetForm	shatter.chunks.sag	ExplosiveChunks.sag	no	no		
+ExplosiveJetForm	shatter.chunks.trail	ExplosiveChunks.trail	no	no		
+ExplosiveJetForm	shatter.chunks.amp	ExplosiveChunks.amp	no	no		
+ExplosiveJetForm	shatter.chunks.wide	ExplosiveChunks.wide	no	no		
+ExplosiveJetForm	shatter.gobs.count	ExplosiveGobs.count	no	no		
+ExplosiveJetForm	shatter.gobs.radius	ExplosiveGobs.radius	no	no		
+ExplosiveJetForm	shatter.gobs.reach	ExplosiveGobs.reach	no	no		
+ExplosiveJetForm	shatter.gobs.drag	ExplosiveGobs.drag	no	no		
+ExplosiveJetForm	shatter.gobs.life	ExplosiveGobs.life	no	no		
+ExplosiveJetForm	shatter.gobs.amp	ExplosiveGobs.amp	no	no		
+ExplosiveJetForm	shatter.gobs.swell	ExplosiveGobs.swell	no	no		
+ExplosiveJetForm	shatter.gobs.sag	ExplosiveGobs.sag	no	no		
+ExplosiveJetForm	shatter.gobs.wide	ExplosiveGobs.wide	no	no		
+ExplosiveJetForm	shatter.gobs.early	ExplosiveGobs.early	no	no		
+ExplosiveJetForm	shatter.gobs.trail	ExplosiveGobs.trail	no	no		
+ExplosiveJetForm	shatter.dust.count	ExplosiveDust.count	no	no		
+ExplosiveJetForm	shatter.dust.radius	ExplosiveDust.radius	no	no		
+ExplosiveJetForm	shatter.dust.from	ExplosiveDust.from	no	no		
+ExplosiveJetForm	shatter.dust.to	ExplosiveDust.to	no	no		
+ExplosiveJetForm	shatter.dust.bias	ExplosiveDust.bias	no	no		
+ExplosiveJetForm	shatter.dust.where	ExplosiveDust.where	no	no		
+ExplosiveJetForm	shatter.dust.reach	ExplosiveDust.reach	no	no		
+ExplosiveJetForm	shatter.dust.drag	ExplosiveDust.drag	no	no		
+ExplosiveJetForm	shatter.dust.life	ExplosiveDust.life	no	no		
+ExplosiveJetForm	shatter.dust.amp	ExplosiveDust.amp	no	no		
+ExplosiveJetForm	shatter.dust.sag	ExplosiveDust.sag	no	no		
+ExplosiveJetForm	shatter.dust.scatter	ExplosiveDust.scatter	no	no		
+ExplosiveJetForm	shatter.dust.wide	ExplosiveDust.wide	no	no		
+ExplosiveJetForm	shatter.dust.trail	ExplosiveDust.trail	no	no		
+ExplosiveJetForm	shockfront.w	JetSettings.w	no	no		
+ExplosiveJetForm	shockfront.h	JetSettings.h	no	no		
+ExplosiveJetForm	shockfront.nozzleX	JetSettings.nozzleX	no	no		
+ExplosiveJetForm	shockfront.nozzleY	JetSettings.nozzleY	no	no		
+ExplosiveJetForm	shockfront.aim	JetSettings.aim	no	no		
+ExplosiveJetForm	shockfront.reach	JetSettings.reach	no	no		
+ExplosiveJetForm	shockfront.spread	JetSettings.spread	no	no		
+ExplosiveJetForm	shockfront.drag	JetSettings.drag	no	no		
+ExplosiveJetForm	shockfront.buoy	JetSettings.buoy	no	no		
+ExplosiveJetForm	shockfront.grav	JetSettings.grav	no	no		
+ExplosiveJetForm	shockfront.r0	JetSettings.r0	no	no		
+ExplosiveJetForm	shockfront.growth	JetSettings.growth	no	no		
+ExplosiveJetForm	shockfront.elong	JetSettings.elong	no	no		
+ExplosiveJetForm	shockfront.roundAt	JetSettings.roundAt	no	no		
+ExplosiveJetForm	shockfront.slots	JetSettings.slots	no	no		
+ExplosiveJetForm	shockfront.life	JetSettings.life	no	no		
+ExplosiveJetForm	shockfront.jitter	JetSettings.jitter	no	no		
+ExplosiveJetForm	shockfront.strength	JetSettings.strength	no	no		
+ExplosiveJetForm	shockfront.cool	JetSettings.cool	no	no		
+ExplosiveJetForm	shockfront.soot	JetSettings.soot	no	no		
+ExplosiveJetForm	shockfront.pulseN	JetSettings.pulseN	no	YES		
+ExplosiveJetForm	shockfront.pulseDepth	JetSettings.pulseDepth	no	YES		
+ExplosiveJetForm	shockfront.sweep	JetSettings.sweep	no	no	guard	
+ExplosiveJetForm	shockfront.sweepN	JetSettings.sweepN	YES	YES		Nothing until Sweep angle is above 0.
+ExplosiveJetForm	shockfront.shockN	JetSettings.shockN	no	YES		
+ExplosiveJetForm	shockfront.shockDepth	JetSettings.shockDepth	no	YES		
+ExplosiveJetForm	shockfront.rootR	JetSettings.rootR	no	no	guard	
+ExplosiveJetForm	shockfront.rootAmp	JetSettings.rootAmp	no	YES		
+ExplosiveJetForm	shockfront.shed	JetSettings.shed	no	no		
+ExplosiveJetForm	shockfront.shedKick	JetSettings.shedKick	no	no		
+ExplosiveJetForm	shockfront.shedLife	JetSettings.shedLife	no	no		
+ExplosiveJetForm	shockfront.sparks	JetSettings.sparks	no	no		
+ExplosiveJetForm	shockfront.sparkR	JetSettings.sparkR	no	no		
+ExplosiveJetForm	shockfront.ringN	JetSettings.ringN	no	no	guard	
+ExplosiveJetForm	shockfront.ringK	JetSettings.ringK	no	YES		
+ExplosiveJetForm	shockfront.ringR0	JetSettings.ringR0	no	YES		
+ExplosiveJetForm	shockfront.ringGrow	JetSettings.ringGrow	no	YES		
+ExplosiveJetForm	shockfront.ringLife	JetSettings.ringLife	no	YES		
+ExplosiveJetForm	shockfront.ringReach	JetSettings.ringReach	no	YES		
+ExplosiveJetForm	shockfront.ringAmp	JetSettings.ringAmp	no	YES		
+ExplosiveJetForm	shockfront.warp0	JetSettings.warp0	no	no		
+ExplosiveJetForm	shockfront.warp1	JetSettings.warp1	no	no		
+ExplosiveJetForm	shockfront.warpCell	JetSettings.warpCell	no	no		
+ExplosiveJetForm	shockfront.warpOct	JetSettings.warpOct	no	no		
+ExplosiveJetForm	shockfront.lo	JetSettings.lo	no	no		
+ExplosiveJetForm	shockfront.hi	JetSettings.hi	no	no		
+ExplosiveJetForm	shockfront.curve	JetSettings.curve	no	no		
+ExplosiveJetForm	shockfront.steps	JetSettings.steps	no	no		
+ExplosiveJetForm	shockfront.soft	JetSettings.soft	no	no		
+ExplosiveJetForm	shockfront.gain	JetSettings.gain	no	no		
+ExplosiveJetForm	shockfront.ramp	JetSettings.ramp	no	no		
+ExplosiveJetForm	shockfront.sootRamp	JetSettings.sootRamp	no	no		
+ExplosiveJetForm	shockfront.sootLo	JetSettings.sootLo	no	no		
+ExplosiveJetForm	shockfront.sootHi	JetSettings.sootHi	no	no		
+ExplosiveJetForm	shockfront.bias	ExplosiveJetSettings.bias	no	no		
+ExplosiveJetForm	shockfront.srcR	ExplosiveJetSettings.srcR	no	no	guard	
+ExplosiveJetForm	shockfront.swirl	ExplosiveJetSettings.swirl	no	no		
+ExplosiveJetForm	shockfront.spin	ExplosiveJetSettings.spin	no	no		
+ExplosiveJetForm	shockfront.lobes	ExplosiveJetSettings.lobes	no	YES		
+ExplosiveJetForm	shockfront.lobeDepth	ExplosiveJetSettings.lobeDepth	no	YES		
+ExplosiveJetForm	shockfront.lobeKick	ExplosiveJetSettings.lobeKick	no	YES		
+ExplosiveJetForm	shockfront.rootK	ExplosiveJetSettings.rootK	YES	YES		Nothing until Burn radius is above 0 AND the Blast schedule is empty — a scheduled detonation has no standing source, so its seat is one lump per blast.
+ExplosiveJetForm	shockfront.ringFlat	ExplosiveJetSettings.ringFlat	no	YES	guard	
+ExplosiveJetForm	shockfront.ringArc	ExplosiveJetSettings.ringArc	no	YES		
+ExplosiveJetForm	shockfront.warpSpin	ExplosiveJetSettings.warpSpin	no	no		
+ExplosiveJetForm	shockfront.blasts[0].at	ExplosiveBlast.at	no	no		
+ExplosiveJetForm	shockfront.blasts[0].pow	ExplosiveBlast.pow	no	no		
+ExplosiveJetForm	shockfront.blasts[0].share	ExplosiveBlast.share	no	YES		
+ExplosiveJetForm	shockfront.blasts[0].offX	ExplosiveBlast.offX	no	no		
+ExplosiveJetForm	shockfront.blasts[0].offY	ExplosiveBlast.offY	no	no		
+ExplosiveJetForm	shockfront.blasts[1].at	ExplosiveBlast.at	no	no		
+ExplosiveJetForm	shockfront.blasts[1].pow	ExplosiveBlast.pow	no	no		
+ExplosiveJetForm	shockfront.blasts[1].share	ExplosiveBlast.share	no	YES		
+ExplosiveJetForm	shockfront.blasts[1].offX	ExplosiveBlast.offX	no	no		
+ExplosiveJetForm	shockfront.blasts[1].offY	ExplosiveBlast.offY	no	no		
+ExplosiveJetForm	shockfront.blastSpan	ExplosiveJetSettings.blastSpan	no	no		
+ExplosiveJetForm	shockfront.blastSkew	ExplosiveJetSettings.blastSkew	no	no		
+ExplosiveJetForm	shockfront.blastFront	ExplosiveJetSettings.blastFront	no	no		
+ExplosiveJetForm	shockfront.velSpread	ExplosiveJetSettings.velSpread	no	no		
+ExplosiveJetForm	shockfront.swell	ExplosiveJetSettings.swell	no	no		
+ExplosiveJetForm	shockfront.hold	ExplosiveJetSettings.hold	no	no		
+ExplosiveJetForm	shockfront.shrink	ExplosiveJetSettings.shrink	no	no		
+ExplosiveJetForm	shockfront.shrinkAt	ExplosiveJetSettings.shrinkAt	no	no		
+ExplosiveJetForm	shockfront.leadDie	ExplosiveJetSettings.leadDie	no	no		
+ExplosiveJetForm	shockfront.opaq	ExplosiveJetSettings.opaq	no	no		
+ExplosiveJetForm	shockfront.shedSwell	ExplosiveJetSettings.shedSwell	no	no		
+ExplosiveJetForm	shockfront.fracture.chance	ExplosiveFracture.chance	no	no		
+ExplosiveJetForm	shockfront.fracture.pieces	ExplosiveFracture.pieces	no	no		
+ExplosiveJetForm	shockfront.fracture.at	ExplosiveFracture.at	no	no		
+ExplosiveJetForm	shockfront.fracture.open	ExplosiveFracture.open	no	no		
+ExplosiveJetForm	shockfront.fracture.kick	ExplosiveFracture.kick	no	no		
+ExplosiveJetForm	shockfront.fracture.spin	ExplosiveFracture.spin	no	no		
+ExplosiveJetForm	shockfront.fracture.grip	ExplosiveFracture.grip	no	no		
+ExplosiveJetForm	shockfront.fracture.rot	ExplosiveFracture.rot	no	no		
+ExplosiveJetForm	shockfront.fracture.drift	ExplosiveFracture.drift	no	no		
+ExplosiveJetForm	shockfront.fracture.stagger	ExplosiveFracture.stagger	no	no		
+ExplosiveJetForm	shockfront.fracture.cut	ExplosiveFracture.cut	no	no		
+ExplosiveJetForm	shockfront.fracture.body	ExplosiveFracture.body	no	no		
+ExplosiveJetForm	shockfront.fracture2.chance	ExplosiveFracture2.chance	no	no		
+ExplosiveJetForm	shockfront.fracture2.at	ExplosiveFracture2.at	no	no		
+ExplosiveJetForm	shockfront.fracture2.open	ExplosiveFracture2.open	no	no		
+ExplosiveJetForm	shockfront.fracture2.cut	ExplosiveFracture2.cut	no	no		
+ExplosiveJetForm	shockfront.fracture2.kick	ExplosiveFracture2.kick	no	no		
+ExplosiveJetForm	shockfront.fracture2.drift	ExplosiveFracture2.drift	no	no		
+ExplosiveJetForm	shockfront.fracture2.spin	ExplosiveFracture2.spin	no	no		
+ExplosiveJetForm	shockfront.fracture2.stagger	ExplosiveFracture2.stagger	no	no		
+ExplosiveJetForm	shockfront.flash.radius	ExplosiveFlash.radius	no	no		
+ExplosiveJetForm	shockfront.flash.amp	ExplosiveFlash.amp	no	no		
+ExplosiveJetForm	shockfront.flash.life	ExplosiveFlash.life	no	no		
+ExplosiveJetForm	shockfront.flash.grow	ExplosiveFlash.grow	no	no		
+ExplosiveJetForm	shockfront.flash.elong	ExplosiveFlash.elong	no	no		
+ExplosiveJetForm	shockfront.chunks.count	ExplosiveChunks.count	no	no		
+ExplosiveJetForm	shockfront.chunks.radius	ExplosiveChunks.radius	no	no		
+ExplosiveJetForm	shockfront.chunks.reach	ExplosiveChunks.reach	no	no		
+ExplosiveJetForm	shockfront.chunks.drag	ExplosiveChunks.drag	no	no		
+ExplosiveJetForm	shockfront.chunks.life	ExplosiveChunks.life	no	no		
+ExplosiveJetForm	shockfront.chunks.sag	ExplosiveChunks.sag	no	no		
+ExplosiveJetForm	shockfront.chunks.trail	ExplosiveChunks.trail	no	no		
+ExplosiveJetForm	shockfront.chunks.amp	ExplosiveChunks.amp	no	no		
+ExplosiveJetForm	shockfront.chunks.wide	ExplosiveChunks.wide	no	no		
+ExplosiveJetForm	shockfront.gobs.count	ExplosiveGobs.count	no	no		
+ExplosiveJetForm	shockfront.gobs.radius	ExplosiveGobs.radius	no	no		
+ExplosiveJetForm	shockfront.gobs.reach	ExplosiveGobs.reach	no	no		
+ExplosiveJetForm	shockfront.gobs.drag	ExplosiveGobs.drag	no	no		
+ExplosiveJetForm	shockfront.gobs.life	ExplosiveGobs.life	no	no		
+ExplosiveJetForm	shockfront.gobs.amp	ExplosiveGobs.amp	no	no		
+ExplosiveJetForm	shockfront.gobs.swell	ExplosiveGobs.swell	no	no		
+ExplosiveJetForm	shockfront.gobs.sag	ExplosiveGobs.sag	no	no		
+ExplosiveJetForm	shockfront.gobs.wide	ExplosiveGobs.wide	no	no		
+ExplosiveJetForm	shockfront.gobs.early	ExplosiveGobs.early	no	no		
+ExplosiveJetForm	shockfront.gobs.trail	ExplosiveGobs.trail	no	no		
+ExplosiveJetForm	shockfront.dust.count	ExplosiveDust.count	no	no		
+ExplosiveJetForm	shockfront.dust.radius	ExplosiveDust.radius	no	no		
+ExplosiveJetForm	shockfront.dust.from	ExplosiveDust.from	no	no		
+ExplosiveJetForm	shockfront.dust.to	ExplosiveDust.to	no	no		
+ExplosiveJetForm	shockfront.dust.bias	ExplosiveDust.bias	no	no		
+ExplosiveJetForm	shockfront.dust.where	ExplosiveDust.where	no	no		
+ExplosiveJetForm	shockfront.dust.reach	ExplosiveDust.reach	no	no		
+ExplosiveJetForm	shockfront.dust.drag	ExplosiveDust.drag	no	no		
+ExplosiveJetForm	shockfront.dust.life	ExplosiveDust.life	no	no		
+ExplosiveJetForm	shockfront.dust.amp	ExplosiveDust.amp	no	no		
+ExplosiveJetForm	shockfront.dust.sag	ExplosiveDust.sag	no	no		
+ExplosiveJetForm	shockfront.dust.scatter	ExplosiveDust.scatter	no	no		
+ExplosiveJetForm	shockfront.dust.wide	ExplosiveDust.wide	no	no		
+ExplosiveJetForm	shockfront.dust.trail	ExplosiveDust.trail	no	no		
+ExplosiveJetForm	starshell.w	JetSettings.w	no	no		
+ExplosiveJetForm	starshell.h	JetSettings.h	no	no		
+ExplosiveJetForm	starshell.nozzleX	JetSettings.nozzleX	no	no		
+ExplosiveJetForm	starshell.nozzleY	JetSettings.nozzleY	no	no		
+ExplosiveJetForm	starshell.aim	JetSettings.aim	no	no		
+ExplosiveJetForm	starshell.reach	JetSettings.reach	no	no		
+ExplosiveJetForm	starshell.spread	JetSettings.spread	no	no		
+ExplosiveJetForm	starshell.drag	JetSettings.drag	no	no		
+ExplosiveJetForm	starshell.buoy	JetSettings.buoy	no	no		
+ExplosiveJetForm	starshell.grav	JetSettings.grav	no	no		
+ExplosiveJetForm	starshell.r0	JetSettings.r0	no	no		
+ExplosiveJetForm	starshell.growth	JetSettings.growth	no	no		
+ExplosiveJetForm	starshell.elong	JetSettings.elong	no	no		
+ExplosiveJetForm	starshell.roundAt	JetSettings.roundAt	no	no		
+ExplosiveJetForm	starshell.slots	JetSettings.slots	no	no		
+ExplosiveJetForm	starshell.life	JetSettings.life	no	no		
+ExplosiveJetForm	starshell.jitter	JetSettings.jitter	no	no		
+ExplosiveJetForm	starshell.strength	JetSettings.strength	no	no		
+ExplosiveJetForm	starshell.cool	JetSettings.cool	no	no		
+ExplosiveJetForm	starshell.soot	JetSettings.soot	no	no		
+ExplosiveJetForm	starshell.pulseN	JetSettings.pulseN	no	YES		
+ExplosiveJetForm	starshell.pulseDepth	JetSettings.pulseDepth	no	YES		
+ExplosiveJetForm	starshell.sweep	JetSettings.sweep	no	no	guard	
+ExplosiveJetForm	starshell.sweepN	JetSettings.sweepN	YES	YES		Nothing until Sweep angle is above 0.
+ExplosiveJetForm	starshell.shockN	JetSettings.shockN	no	YES		
+ExplosiveJetForm	starshell.shockDepth	JetSettings.shockDepth	no	YES		
+ExplosiveJetForm	starshell.rootR	JetSettings.rootR	no	no	guard	
+ExplosiveJetForm	starshell.rootAmp	JetSettings.rootAmp	no	YES		
+ExplosiveJetForm	starshell.shed	JetSettings.shed	no	no		
+ExplosiveJetForm	starshell.shedKick	JetSettings.shedKick	no	no		
+ExplosiveJetForm	starshell.shedLife	JetSettings.shedLife	no	no		
+ExplosiveJetForm	starshell.sparks	JetSettings.sparks	no	no		
+ExplosiveJetForm	starshell.sparkR	JetSettings.sparkR	no	no		
+ExplosiveJetForm	starshell.ringN	JetSettings.ringN	no	no	guard	
+ExplosiveJetForm	starshell.ringK	JetSettings.ringK	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	starshell.ringR0	JetSettings.ringR0	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	starshell.ringGrow	JetSettings.ringGrow	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	starshell.ringLife	JetSettings.ringLife	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	starshell.ringReach	JetSettings.ringReach	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	starshell.ringAmp	JetSettings.ringAmp	YES	YES		Nothing until Ring count is above 0.
+ExplosiveJetForm	starshell.warp0	JetSettings.warp0	no	no		
+ExplosiveJetForm	starshell.warp1	JetSettings.warp1	no	no		
+ExplosiveJetForm	starshell.warpCell	JetSettings.warpCell	no	no		
+ExplosiveJetForm	starshell.warpOct	JetSettings.warpOct	no	no		
+ExplosiveJetForm	starshell.lo	JetSettings.lo	no	no		
+ExplosiveJetForm	starshell.hi	JetSettings.hi	no	no		
+ExplosiveJetForm	starshell.curve	JetSettings.curve	no	no		
+ExplosiveJetForm	starshell.steps	JetSettings.steps	no	no		
+ExplosiveJetForm	starshell.soft	JetSettings.soft	no	no		
+ExplosiveJetForm	starshell.gain	JetSettings.gain	no	no		
+ExplosiveJetForm	starshell.ramp	JetSettings.ramp	no	no		
+ExplosiveJetForm	starshell.sootRamp	JetSettings.sootRamp	no	no		
+ExplosiveJetForm	starshell.sootLo	JetSettings.sootLo	no	no		
+ExplosiveJetForm	starshell.sootHi	JetSettings.sootHi	no	no		
+ExplosiveJetForm	starshell.bias	ExplosiveJetSettings.bias	no	no		
+ExplosiveJetForm	starshell.srcR	ExplosiveJetSettings.srcR	no	no	guard	
+ExplosiveJetForm	starshell.swirl	ExplosiveJetSettings.swirl	no	no		
+ExplosiveJetForm	starshell.spin	ExplosiveJetSettings.spin	no	no		
+ExplosiveJetForm	starshell.lobes	ExplosiveJetSettings.lobes	no	YES		
+ExplosiveJetForm	starshell.lobeDepth	ExplosiveJetSettings.lobeDepth	no	YES		
+ExplosiveJetForm	starshell.lobeKick	ExplosiveJetSettings.lobeKick	no	YES		
+ExplosiveJetForm	starshell.rootK	ExplosiveJetSettings.rootK	YES	YES		Nothing until Burn radius is above 0 AND the Blast schedule is empty — a scheduled detonation has no standing source, so its seat is one lump per blast.
+ExplosiveJetForm	starshell.ringFlat	ExplosiveJetSettings.ringFlat	YES	YES	guard	Nothing until Ring count is above 0 — there are no rings to turn face-on.
+ExplosiveJetForm	starshell.ringArc	ExplosiveJetSettings.ringArc	YES	YES		Nothing until Rings face-on is on and Ring count is above 0.
+ExplosiveJetForm	starshell.warpSpin	ExplosiveJetSettings.warpSpin	no	no		
+ExplosiveJetForm	starshell.blasts[0].at	ExplosiveBlast.at	no	no		
+ExplosiveJetForm	starshell.blasts[0].pow	ExplosiveBlast.pow	no	no		
+ExplosiveJetForm	starshell.blasts[0].share	ExplosiveBlast.share	no	YES		
+ExplosiveJetForm	starshell.blasts[0].offX	ExplosiveBlast.offX	no	no		
+ExplosiveJetForm	starshell.blasts[0].offY	ExplosiveBlast.offY	no	no		
+ExplosiveJetForm	starshell.blasts[1].at	ExplosiveBlast.at	no	no		
+ExplosiveJetForm	starshell.blasts[1].pow	ExplosiveBlast.pow	no	no		
+ExplosiveJetForm	starshell.blasts[1].share	ExplosiveBlast.share	no	YES		
+ExplosiveJetForm	starshell.blasts[1].offX	ExplosiveBlast.offX	no	no		
+ExplosiveJetForm	starshell.blasts[1].offY	ExplosiveBlast.offY	no	no		
+ExplosiveJetForm	starshell.blastSpan	ExplosiveJetSettings.blastSpan	no	no		
+ExplosiveJetForm	starshell.blastSkew	ExplosiveJetSettings.blastSkew	no	no		
+ExplosiveJetForm	starshell.blastFront	ExplosiveJetSettings.blastFront	no	no		
+ExplosiveJetForm	starshell.velSpread	ExplosiveJetSettings.velSpread	no	no		
+ExplosiveJetForm	starshell.swell	ExplosiveJetSettings.swell	no	no		
+ExplosiveJetForm	starshell.hold	ExplosiveJetSettings.hold	no	no		
+ExplosiveJetForm	starshell.shrink	ExplosiveJetSettings.shrink	no	no		
+ExplosiveJetForm	starshell.shrinkAt	ExplosiveJetSettings.shrinkAt	no	no		
+ExplosiveJetForm	starshell.leadDie	ExplosiveJetSettings.leadDie	no	no		
+ExplosiveJetForm	starshell.opaq	ExplosiveJetSettings.opaq	no	no		
+ExplosiveJetForm	starshell.shedSwell	ExplosiveJetSettings.shedSwell	no	no		
+ExplosiveJetForm	starshell.fracture.chance	ExplosiveFracture.chance	no	no		
+ExplosiveJetForm	starshell.fracture.pieces	ExplosiveFracture.pieces	no	no		
+ExplosiveJetForm	starshell.fracture.at	ExplosiveFracture.at	no	no		
+ExplosiveJetForm	starshell.fracture.open	ExplosiveFracture.open	no	no		
+ExplosiveJetForm	starshell.fracture.kick	ExplosiveFracture.kick	no	no		
+ExplosiveJetForm	starshell.fracture.spin	ExplosiveFracture.spin	no	no		
+ExplosiveJetForm	starshell.fracture.grip	ExplosiveFracture.grip	no	no		
+ExplosiveJetForm	starshell.fracture.rot	ExplosiveFracture.rot	no	no		
+ExplosiveJetForm	starshell.fracture.drift	ExplosiveFracture.drift	no	no		
+ExplosiveJetForm	starshell.fracture.stagger	ExplosiveFracture.stagger	no	no		
+ExplosiveJetForm	starshell.fracture.cut	ExplosiveFracture.cut	no	no		
+ExplosiveJetForm	starshell.fracture.body	ExplosiveFracture.body	no	no		
+ExplosiveJetForm	starshell.fracture2.chance	ExplosiveFracture2.chance	no	no		
+ExplosiveJetForm	starshell.fracture2.at	ExplosiveFracture2.at	no	no		
+ExplosiveJetForm	starshell.fracture2.open	ExplosiveFracture2.open	no	no		
+ExplosiveJetForm	starshell.fracture2.cut	ExplosiveFracture2.cut	no	no		
+ExplosiveJetForm	starshell.fracture2.kick	ExplosiveFracture2.kick	no	no		
+ExplosiveJetForm	starshell.fracture2.drift	ExplosiveFracture2.drift	no	no		
+ExplosiveJetForm	starshell.fracture2.spin	ExplosiveFracture2.spin	no	no		
+ExplosiveJetForm	starshell.fracture2.stagger	ExplosiveFracture2.stagger	no	no		
+ExplosiveJetForm	starshell.flash.radius	ExplosiveFlash.radius	no	no		
+ExplosiveJetForm	starshell.flash.amp	ExplosiveFlash.amp	no	no		
+ExplosiveJetForm	starshell.flash.life	ExplosiveFlash.life	no	no		
+ExplosiveJetForm	starshell.flash.grow	ExplosiveFlash.grow	no	no		
+ExplosiveJetForm	starshell.flash.elong	ExplosiveFlash.elong	no	no		
+ExplosiveJetForm	starshell.chunks.count	ExplosiveChunks.count	no	no		
+ExplosiveJetForm	starshell.chunks.radius	ExplosiveChunks.radius	no	no		
+ExplosiveJetForm	starshell.chunks.reach	ExplosiveChunks.reach	no	no		
+ExplosiveJetForm	starshell.chunks.drag	ExplosiveChunks.drag	no	no		
+ExplosiveJetForm	starshell.chunks.life	ExplosiveChunks.life	no	no		
+ExplosiveJetForm	starshell.chunks.sag	ExplosiveChunks.sag	no	no		
+ExplosiveJetForm	starshell.chunks.trail	ExplosiveChunks.trail	no	no		
+ExplosiveJetForm	starshell.chunks.amp	ExplosiveChunks.amp	no	no		
+ExplosiveJetForm	starshell.chunks.wide	ExplosiveChunks.wide	no	no		
+ExplosiveJetForm	starshell.gobs.count	ExplosiveGobs.count	no	no		
+ExplosiveJetForm	starshell.gobs.radius	ExplosiveGobs.radius	no	no		
+ExplosiveJetForm	starshell.gobs.reach	ExplosiveGobs.reach	no	no		
+ExplosiveJetForm	starshell.gobs.drag	ExplosiveGobs.drag	no	no		
+ExplosiveJetForm	starshell.gobs.life	ExplosiveGobs.life	no	no		
+ExplosiveJetForm	starshell.gobs.amp	ExplosiveGobs.amp	no	no		
+ExplosiveJetForm	starshell.gobs.swell	ExplosiveGobs.swell	no	no		
+ExplosiveJetForm	starshell.gobs.sag	ExplosiveGobs.sag	no	no		
+ExplosiveJetForm	starshell.gobs.wide	ExplosiveGobs.wide	no	no		
+ExplosiveJetForm	starshell.gobs.early	ExplosiveGobs.early	no	no		
+ExplosiveJetForm	starshell.gobs.trail	ExplosiveGobs.trail	no	no		
+ExplosiveJetForm	starshell.dust.count	ExplosiveDust.count	no	no		
+ExplosiveJetForm	starshell.dust.radius	ExplosiveDust.radius	no	no		
+ExplosiveJetForm	starshell.dust.from	ExplosiveDust.from	no	no		
+ExplosiveJetForm	starshell.dust.to	ExplosiveDust.to	no	no		
+ExplosiveJetForm	starshell.dust.bias	ExplosiveDust.bias	no	no		
+ExplosiveJetForm	starshell.dust.where	ExplosiveDust.where	no	no		
+ExplosiveJetForm	starshell.dust.reach	ExplosiveDust.reach	no	no		
+ExplosiveJetForm	starshell.dust.drag	ExplosiveDust.drag	no	no		
+ExplosiveJetForm	starshell.dust.life	ExplosiveDust.life	no	no		
+ExplosiveJetForm	starshell.dust.amp	ExplosiveDust.amp	no	no		
+ExplosiveJetForm	starshell.dust.sag	ExplosiveDust.sag	no	no		
+ExplosiveJetForm	starshell.dust.scatter	ExplosiveDust.scatter	no	no		
+ExplosiveJetForm	starshell.dust.wide	ExplosiveDust.wide	no	no		
+ExplosiveJetForm	starshell.dust.trail	ExplosiveDust.trail	no	no		

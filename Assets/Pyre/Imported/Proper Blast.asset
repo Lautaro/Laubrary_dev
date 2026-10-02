@@ -18,6 +18,11 @@ MonoBehaviour:
   previewLayerSel: 1
   background: {r: 0, g: 0, b: 0, a: 0}
   pixelsPerUnit: 64
+  pixelsPerUnitAuto: 1
+  anchorEnabled: 0
+  anchorKind: 0
+  anchorOrigin: {x: 0.5, y: 0.5}
+  anchorDirection: {x: 1, y: 0}
   backgroundUseFill: 0
   backgroundFill:
     mode: 0
@@ -78,9 +83,9 @@ MonoBehaviour:
     dotStagger: 1
     fillVersion: 1
   layers:
-  - enabled: 0
+  - enabled: 1
     name: Smoke
-    startFrame: 0
+    startFrame: 4
     endFrame: -1
     matteEnabled: 0
     matteRole: 0
@@ -169,9 +174,9 @@ MonoBehaviour:
       m_oscRateMax: 8
       m_multiplierId: 
     coalesce: 0
-    fuseThreshold: 0.6
-    fuseShadeRange: 1.5
-    fuseSoftness: 0.18
+    fuseThreshold: 0.61714
+    fuseShadeRange: 1.72196
+    fuseSoftness: 0.09905
     density:
       m_mode: 2
       m_static: 1
@@ -182,14 +187,23 @@ MonoBehaviour:
         value: 0.15
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.35
         value: 0.9
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0.5
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -212,14 +226,23 @@ MonoBehaviour:
         value: 0.95
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.5
         value: 0.55
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0.12
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -232,12 +255,12 @@ MonoBehaviour:
       m_oscRate: []
       m_oscRateMax: 8
       m_multiplierId: 
-    rampFusion: 0.35
-    rampCoverage: 8
+    rampFusion: 0.24339
+    rampCoverage: 6.42275
     rampLighting: 1
-    rampRelief: 3
-    rampLightAngle: 135
-    rampRimScale: 0.35
+    rampRelief: 2.88471
+    rampLightAngle: 129.52383
+    rampRimScale: 0.32804
     shapeForm: 0
     form:
       rid: -2
@@ -309,18 +332,30 @@ MonoBehaviour:
         value: 1
         exponent: 1
         editState: 0
-      - time: 0.33198816
-        value: 0.622507
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
+      - time: 0.44224
+        value: 0.99824
         exponent: 1
         editState: 0
-      - time: 0.6150121
-        value: 0.5370374
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
+      - time: 0.59481
+        value: 0.45951
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.9981168
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -343,18 +378,30 @@ MonoBehaviour:
         value: 1.3219401
         exponent: 1
         editState: 0
-      - time: 0.10768
-        value: 21.07043
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
+      - time: 0.08576
+        value: 10.47887
         exponent: 1
         editState: 0
-      - time: 0.27555734
-        value: 8.853909
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
+      - time: 0.58672
+        value: 16.11269
         exponent: 1
         editState: 0
-      - time: 1
-        value: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
+      - time: 0.98982
+        value: 23.77464
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 64
       m_duration: 4
@@ -884,14 +931,23 @@ MonoBehaviour:
         value: 5
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.4
         value: 26
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 18
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 28
       m_duration: 4
@@ -1069,18 +1125,30 @@ MonoBehaviour:
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.18
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.7
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -1434,18 +1502,30 @@ MonoBehaviour:
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.12
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.6
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -1619,12 +1699,12 @@ MonoBehaviour:
       m_multiplierId: 
     shapeAdvanced: 0
     swarmEnabled: 1
-    swarmCount: 24
+    swarmCount: 14
     swarmSpawnMode: 0
     swarmShapeKind: 0
     swarmChaos: 0
     swarmGridReverse: 0
-    swarmSpawnChaos: 0
+    swarmSpawnChaos: 1
     swarmCustomX:
       m_mode: 2
       m_static: 1
@@ -1635,14 +1715,23 @@ MonoBehaviour:
         value: -16
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.5
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 16
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: -32
       m_yMax: 32
       m_duration: 4
@@ -1665,14 +1754,23 @@ MonoBehaviour:
         value: -10
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.5
         value: 14
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: -10
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: -32
       m_yMax: 32
       m_duration: 4
@@ -1695,10 +1793,16 @@ MonoBehaviour:
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -1721,10 +1825,16 @@ MonoBehaviour:
         value: 0
         exponent: 1
         editState: 0
-      - time: 1
-        value: 0.4948156
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
+      - time: 0.97723
+        value: 0.0581
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -1762,10 +1872,10 @@ MonoBehaviour:
       m_multiplierId: 
     swarmEvenPath: 0
     swarmPathSpread: 1
-    swarmDieTogether: 0
+    swarmDieTogether: 1
     shapeOffsetX:
       m_mode: 0
-      m_static: -0.009529114
+      m_static: 0
       m_min: 0
       m_max: 1
       m_points: []
@@ -1783,7 +1893,7 @@ MonoBehaviour:
       m_multiplierId: 
     shapeOffsetY:
       m_mode: 0
-      m_static: -0.20703125
+      m_static: 0
       m_min: 0
       m_max: 1
       m_points: []
@@ -1800,25 +1910,48 @@ MonoBehaviour:
       m_oscRateMax: 8
       m_multiplierId: 
     shapeScale:
-      m_mode: 0
+      m_mode: 2
       m_static: 16.90464
       m_min: 0
       m_max: 32
       m_points:
       - time: 0
-        value: 6.08162
+        value: 3.04227
         exponent: 1
         editState: 0
-      - time: 0.27495292
-        value: 32
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
+      - time: 0.0276
+        value: 9.80282
         exponent: 1
         editState: 0
-      - time: 1
-        value: 32
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
+      - time: 0.13644
+        value: 7.09858
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
+      - time: 0.36987
+        value: 10.70423
+        exponent: 1
+        editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
+      - time: 0.99606
+        value: 17.69014
+        exponent: 1
+        editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
-      m_yMax: 32
+      m_yMax: 64
       m_duration: 4
       m_warmup: 0
       m_cooldown: -1
@@ -1940,7 +2073,7 @@ MonoBehaviour:
       m_multiplierId: 
     swarmScale:
       m_mode: 0
-      m_static: 1
+      m_static: 1.72487
       m_min: 0
       m_max: 1
       m_points: []
@@ -1962,7 +2095,7 @@ MonoBehaviour:
   - enabled: 1
     name: Fire Globes
     startFrame: 0
-    endFrame: 10
+    endFrame: -1
     matteEnabled: 0
     matteRole: 0
     matteChannel: 0
@@ -2063,14 +2196,23 @@ MonoBehaviour:
         value: 0.15
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.35
         value: 0.9
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0.5
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -2093,14 +2235,23 @@ MonoBehaviour:
         value: 0.95
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.5
         value: 0.55
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0.12
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -2166,9 +2317,9 @@ MonoBehaviour:
         rid: 1702917541709742644
       centerYAnim:
         rid: 1702917541709742645
-      space: 1
+      space: 0
       fit: 0
-      texture: 0
+      texture: 2
       textureSprite: {fileID: 0}
       noiseKind: 0
       gridAngle: 0
@@ -2190,14 +2341,23 @@ MonoBehaviour:
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.91121
         value: 0.49472
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.9966794
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -2217,21 +2377,33 @@ MonoBehaviour:
       m_max: 1
       m_points:
       - time: 0
-        value: 0
+        value: 1.23946
         exponent: 1
         editState: 0
-      - time: 0.08636
-        value: 19.94364
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
+      - time: 0.18847
+        value: 8.00001
         exponent: 1
         editState: 0
-      - time: 0.39156
-        value: 10.92955
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
+      - time: 0.3968
+        value: 20.61974
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 64
       m_duration: 4
@@ -2761,14 +2933,23 @@ MonoBehaviour:
         value: 5
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.4
         value: 26
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 18
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 28
       m_duration: 4
@@ -2946,18 +3127,30 @@ MonoBehaviour:
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.18
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.7
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -3311,18 +3504,30 @@ MonoBehaviour:
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.12
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.6
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -3496,12 +3701,12 @@ MonoBehaviour:
       m_multiplierId: 
     shapeAdvanced: 0
     swarmEnabled: 1
-    swarmCount: 11
+    swarmCount: 8
     swarmSpawnMode: 0
     swarmShapeKind: 0
-    swarmChaos: 0.54192
+    swarmChaos: 0
     swarmGridReverse: 1
-    swarmSpawnChaos: 0.38739
+    swarmSpawnChaos: 1
     swarmCustomX:
       m_mode: 2
       m_static: 1
@@ -3512,14 +3717,23 @@ MonoBehaviour:
         value: -16
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.5
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 16
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: -32
       m_yMax: 32
       m_duration: 4
@@ -3542,14 +3756,23 @@ MonoBehaviour:
         value: -10
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.5
         value: 14
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: -10
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: -32
       m_yMax: 32
       m_duration: 4
@@ -3572,10 +3795,16 @@ MonoBehaviour:
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 8
       m_duration: 4
@@ -3598,10 +3827,23 @@ MonoBehaviour:
         value: 0
         exponent: 1
         editState: 0
-      - time: 0.99393
-        value: 0.44894
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
+      - time: 0.73498
+        value: 0.07218
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
+      - time: 1
+        value: 0.21655
+        exponent: 1
+        editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -3639,7 +3881,7 @@ MonoBehaviour:
       m_multiplierId: 
     swarmEvenPath: 0
     swarmPathSpread: 1
-    swarmDieTogether: 0
+    swarmDieTogether: 1
     shapeOffsetX:
       m_mode: 1
       m_static: 0
@@ -3678,12 +3920,19 @@ MonoBehaviour:
       m_multiplierId: 
     shapeScale:
       m_mode: 0
-      m_static: 17.73087
+      m_static: 17.39314
       m_min: 0
       m_max: 32
-      m_points: []
+      m_points:
+      - time: 0
+        value: 17.39314
+        exponent: 1
+        editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
-      m_yMax: 32
+      m_yMax: 64
       m_duration: 4
       m_warmup: 0
       m_cooldown: -1
@@ -3804,19 +4053,39 @@ MonoBehaviour:
       m_oscRateMax: 8
       m_multiplierId: 
     swarmScale:
-      m_mode: 0
-      m_static: 1.02337
+      m_mode: 2
+      m_static: 0.63492
       m_min: 0
       m_max: 1
       m_points:
-      - time: 0.02767
-        value: 0.64085
+      - time: 0.0095
+        value: 0
         exponent: 1
         editState: 0
-      - time: 0.98906
-        value: 1.85211
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
+      - time: 0.3015
+        value: 0.35916
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
+      - time: 0.4645
+        value: 0.90845
+        exponent: 1
+        editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
+      - time: 0.9945
+        value: 1.24648
+        exponent: 1
+        editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 4
       m_duration: 4
@@ -3830,11 +4099,11 @@ MonoBehaviour:
       m_oscRateMax: 8
       m_multiplierId: 
     modifiers:
-    - rid: 1702917541955895632
     - rid: 1702917541955895630
+    - rid: 1702917541955895632
     simulationModifier:
       rid: -2
-  - enabled: 0
+  - enabled: 1
     name: Shockwave
     startFrame: 0
     endFrame: -1
@@ -3938,14 +4207,23 @@ MonoBehaviour:
         value: 0.15
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.35
         value: 0.9
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0.5
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -3968,14 +4246,23 @@ MonoBehaviour:
         value: 0.95
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.5
         value: 0.55
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0.12
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -4061,18 +4348,48 @@ MonoBehaviour:
       m_min: 0
       m_max: 1
       m_points:
-      - time: 0
+      - time: 0.00824
+        value: 0.32923
+        exponent: 1
+        editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
+      - time: 0.05092
+        value: 1
+        exponent: 1
+        editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
+      - time: 0.05092
+        value: 0.4243
+        exponent: 1
+        editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
+      - time: 0.19641
+        value: 0.41725
+        exponent: 1
+        editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
+      - time: 0.33414
         value: 0
         exponent: 1
         editState: 0
-      - time: 0.30455
-        value: 0.24472
-        exponent: 1
-        editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -4092,13 +4409,33 @@ MonoBehaviour:
       m_max: 1
       m_points:
       - time: 0
+        value: 14.98592
+        exponent: 1
+        editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
+      - time: 0.02958
+        value: 32.5634
+        exponent: 1
+        editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
+      - time: 0.32153
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.97338
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 64
       m_duration: 4
@@ -4628,14 +4965,23 @@ MonoBehaviour:
         value: 5
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.4
         value: 26
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 18
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 28
       m_duration: 4
@@ -4725,10 +5071,10 @@ MonoBehaviour:
       m_oscRateMax: 8
       m_multiplierId: 
     polygonSides: 4
-    borderEnabled: 1
+    borderEnabled: 0
     borderWidth:
       m_mode: 0
-      m_static: 2.64599
+      m_static: 3.75726
       m_min: 0
       m_max: 1
       m_points: []
@@ -4813,18 +5159,30 @@ MonoBehaviour:
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.18
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.7
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -5178,18 +5536,30 @@ MonoBehaviour:
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.12
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.6
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -5379,14 +5749,23 @@ MonoBehaviour:
         value: -16
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.5
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 16
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: -32
       m_yMax: 32
       m_duration: 4
@@ -5409,14 +5788,23 @@ MonoBehaviour:
         value: -10
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.5
         value: 14
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: -10
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: -32
       m_yMax: 32
       m_duration: 4
@@ -5439,10 +5827,16 @@ MonoBehaviour:
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -5465,10 +5859,16 @@ MonoBehaviour:
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0.5
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -5692,12 +6092,12 @@ MonoBehaviour:
     simulationModifier:
       rid: -2
   globalModifiers: []
-  previewZoom: 1
-  previewFps: 12
+  previewZoom: 5
+  previewFps: 16
   previewGifScale: 4
   previewGifDither: 1
   previewFrame: 0
-  previewShowFrame: 1
+  previewShowFrame: 0
   previewStrip: 0
   previewStripSize: 96
   previewShowShape: 0
@@ -6621,7 +7021,7 @@ MonoBehaviour:
         gradient:
           serializedVersion: 2
           key0: {r: 1, g: 1, b: 1, a: 1}
-          key1: {r: 1, g: 0.92, b: 0.5, a: 0}
+          key1: {r: 1, g: 0.92, b: 0.5, a: 0.41960785}
           key2: {r: 1, g: 0.55, b: 0.12, a: 0}
           key3: {r: 0.7, g: 0.12, b: 0.05, a: 0}
           key4: {r: 0.34591198, g: 0.093621016, b: 0.06272825, a: 0}
@@ -6671,7 +7071,7 @@ MonoBehaviour:
       type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
       data:
         m_mode: 0
-        m_static: 1.3666657
+        m_static: 0.94175
         m_min: 0
         m_max: 1
         m_points: []
@@ -11023,7 +11423,7 @@ MonoBehaviour:
       type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
       data:
         m_mode: 0
-        m_static: 0.15385
+        m_static: 0.41953
         m_min: 0
         m_max: 1
         m_points: []
@@ -11066,7 +11466,7 @@ MonoBehaviour:
         noise: 1
         amplitude:
           m_mode: 0
-          m_static: 9.19761
+          m_static: 8.26427
           m_min: 0
           m_max: 1
           m_points: []
@@ -11084,7 +11484,7 @@ MonoBehaviour:
           m_multiplierId: 
         zoom:
           m_mode: 0
-          m_static: 12.12874
+          m_static: 9.13515
           m_min: 0
           m_max: 1
           m_points: []
@@ -11107,17 +11507,19 @@ MonoBehaviour:
           m_max: 1
           m_points:
           - time: 0
-            value: -220.5632
+            value: -316.90063
             exponent: 1
             editState: 0
-          - time: 0.44076
-            value: -149.57715
-            exponent: 1
-            editState: 0
+            randomX: 0
+            randomY: 0
+            randomBias: 0.5
           - time: 1
-            value: 180.0006
+            value: -12.67646
             exponent: 1
             editState: 0
+            randomX: 0
+            randomY: 0
+            randomBias: 0.5
           m_yMin: -720
           m_yMax: 720
           m_duration: 4
@@ -11132,7 +11534,7 @@ MonoBehaviour:
           m_multiplierId: 
         offsetX:
           m_mode: 0
-          m_static: 10.73053
+          m_static: 0.67267
           m_min: 0
           m_max: 1
           m_points: []
@@ -11150,7 +11552,7 @@ MonoBehaviour:
           m_multiplierId: 
         offsetY:
           m_mode: 0
-          m_static: 0
+          m_static: 0.4805
           m_min: 0
           m_max: 1
           m_points: []
@@ -11168,7 +11570,7 @@ MonoBehaviour:
           m_multiplierId: 
         warp:
           m_mode: 0
-          m_static: 0.38922
+          m_static: 0
           m_min: 0
           m_max: 1
           m_points: []
@@ -11190,7 +11592,7 @@ MonoBehaviour:
         enabled: 1
         radius:
           m_mode: 0
-          m_static: 2
+          m_static: 0
           m_min: 0
           m_max: 1
           m_points: []
@@ -11208,7 +11610,7 @@ MonoBehaviour:
           m_multiplierId: 
         threshold:
           m_mode: 0
-          m_static: 0.68263
+          m_static: 0.48348
           m_min: 0
           m_max: 1
           m_points: []
@@ -11226,7 +11628,7 @@ MonoBehaviour:
           m_multiplierId: 
         softness:
           m_mode: 0
-          m_static: 0.62443
+          m_static: 0.45556
           m_min: 0
           m_max: 1
           m_points: []
@@ -11244,7 +11646,7 @@ MonoBehaviour:
           m_multiplierId: 
         colorBleed:
           m_mode: 0
-          m_static: 0.55988
+          m_static: 0.3964
           m_min: 0
           m_max: 1
           m_points: []
@@ -11263,11 +11665,39 @@ MonoBehaviour:
     - rid: 1702917541955895633
       type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
       data:
-        m_mode: 0
-        m_static: 0.3616324
+        m_mode: 2
+        m_static: 0.4723
         m_min: 0
         m_max: 1
-        m_points: []
+        m_points:
+        - time: 0.0134
+          value: 0
+          exponent: 1
+          editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
+        - time: 0.172
+          value: 0.2412
+          exponent: 1
+          editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
+        - time: 0.59254
+          value: 0.24824
+          exponent: 1
+          editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
+        - time: 0.99273
+          value: 0.73063
+          exponent: 1
+          editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
         m_yMin: 0
         m_yMax: 1
         m_duration: 4

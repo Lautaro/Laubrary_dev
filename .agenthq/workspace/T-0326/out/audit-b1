@@ -1,0 +1,109 @@
+=== BackSplashWindow ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:80.00, y:60.00, width:620.00, height:620.22) rootWorld=(x:0.00, y:26.22, width:620.00, height:620.00)
+elements=52 drawn=32 textElements=10 controls=5 leafControls=5
+captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=1
+
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → No BackSplash is open, so there is nothing to save.
+-- every leaf control --
+LEAF 'None (BackSplash)' ObjectField rect=4,31 200.0x17.8 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=The BackSplash asset being edited — assign one directly, or use Browse… | EditorPanelRootElement#unity-panel-container29>VisualElement#rootVisualContainer16>VisualElement>ObjectField
+LEAF 'Save' Button rect=232,31 52.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=No BackSplash is open, so there is nothing to save. | EditorPanelRootElement#unity-panel-container29>VisualElement#rootVisualContainer16>VisualElement>Button
+LEAF 'New' Button rect=293,31 40.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a brand new BackSplash asset (undoable). | EditorPanelRootElement#unity-panel-container29>VisualElement#rootVisualContainer16>VisualElement>Button
+LEAF 'Browse' Button rect=342,31 56.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Toggle the thumbnail browser of every BackSplash in the project. | EditorPanelRootElement#unity-panel-container29>VisualElement#rootVisualContainer16>VisualElement>Button
+LEAF 'Refresh' Button rect=552,61 57.8x18.2 enabled=True cls=unity-text-element.unity-button tip=Re-scan the project for assets. | EditorPanelRootElement#unity-panel-container29>VisualElement#rootVisualContainer16>VisualElement>VisualElement>Button
+
+=== ZuiAudit(BackSplashWindow) expanded=0 folded=0 total=0 ===
+
+
+=== ChoreographerWindow ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:185.78, y:92.89, width:987.56, height:802.89) rootWorld=(x:0.00, y:26.22, width:987.56, height:802.67)
+elements=56 drawn=36 textElements=15 controls=5 leafControls=5
+captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=1
+
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → No Choreography is open, so there is nothing to save.
+-- every leaf control --
+LEAF 'None (Choreography)' ObjectField rect=4,31 200.0x17.8 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=The Choreography asset being edited — assign one directly, or use Brow… | EditorPanelRootElement#unity-panel-container30>VisualElement#rootVisualContainer17>VisualElement>ObjectField
+LEAF 'Save' Button rect=232,31 52.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=No Choreography is open, so there is nothing to save. | EditorPanelRootElement#unity-panel-container30>VisualElement#rootVisualContainer17>VisualElement>Button
+LEAF 'New' Button rect=293,31 40.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a brand new Choreography asset (undoable). | EditorPanelRootElement#unity-panel-container30>VisualElement#rootVisualContainer17>VisualElement>Button
+LEAF 'Browse' Button rect=342,31 56.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Toggle the thumbnail browser of every Choreography in the project. | EditorPanelRootElement#unity-panel-container30>VisualElement#rootVisualContainer17>VisualElement>Button
+LEAF 'Refresh' Button rect=920,61 57.8x18.2 enabled=True cls=unity-text-element.unity-button tip=Re-scan the project for assets. | EditorPanelRootElement#unity-panel-container30>VisualElement#rootVisualContainer17>VisualElement>VisualElement>Button
+
+=== ZuiAudit(ChoreographerWindow) expanded=0 folded=0 total=0 ===
+
+
+=== TapestryWindow ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:100.00, y:95.56, width:1100.00, height:800.22) rootWorld=(x:0.00, y:26.22, width:1100.00, height:800.00)
+elements=42 drawn=22 textElements=8 controls=5 leafControls=5
+captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=1
+
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → No Tapestry is open, so there is nothing to save.
+-- every leaf control --
+LEAF 'None (Tapestry)' ObjectField rect=4,31 200.0x17.8 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=The Tapestry asset being edited — assign one directly, or use Browse. | EditorPanelRootElement#unity-panel-container31>VisualElement#rootVisualContainer18>VisualElement>ObjectField
+LEAF 'Save' Button rect=232,31 52.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=No Tapestry is open, so there is nothing to save. | EditorPanelRootElement#unity-panel-container31>VisualElement#rootVisualContainer18>VisualElement>Button
+LEAF 'New' Button rect=293,31 40.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a brand new Tapestry asset (undoable). | EditorPanelRootElement#unity-panel-container31>VisualElement#rootVisualContainer18>VisualElement>Button
+LEAF 'Browse' Button rect=342,31 56.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Toggle the thumbnail browser of every Tapestry in the project. | EditorPanelRootElement#unity-panel-container31>VisualElement#rootVisualContainer18>VisualElement>Button
+LEAF 'Refresh' Button rect=1032,61 57.8x18.2 enabled=True cls=unity-text-element.unity-button tip=Re-scan the project for assets. | EditorPanelRootElement#unity-panel-container31>VisualElement#rootVisualContainer18>VisualElement>VisualElement>Button
+
+=== ZuiAudit(TapestryWindow) expanded=0 folded=0 total=0 ===
+
+
+=== LatheMoldWindow ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:305.33, y:87.56, width:1000.00, height:750.00) rootWorld=(x:0.00, y:26.22, width:1000.00, height:749.78)
+elements=42 drawn=22 textElements=8 controls=5 leafControls=5
+captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=1
+
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → No Lathe Mold is open, so there is nothing to save.
+-- every leaf control --
+LEAF 'None (Lathe Mold)' ObjectField rect=4,31 200.0x17.8 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=The Lathe Mold asset being edited — assign one directly, or use Browse… | EditorPanelRootElement#unity-panel-container32>VisualElement#rootVisualContainer19>VisualElement>ObjectField
+LEAF 'Save' Button rect=232,31 52.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=No Lathe Mold is open, so there is nothing to save. | EditorPanelRootElement#unity-panel-container32>VisualElement#rootVisualContainer19>VisualElement>Button
+LEAF 'New' Button rect=293,31 40.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a brand new Lathe Mold asset (undoable). | EditorPanelRootElement#unity-panel-container32>VisualElement#rootVisualContainer19>VisualElement>Button
+LEAF 'Browse' Button rect=342,31 56.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Toggle the thumbnail browser of every Lathe Mold in the project. | EditorPanelRootElement#unity-panel-container32>VisualElement#rootVisualContainer19>VisualElement>Button
+LEAF 'Refresh' Button rect=932,61 57.8x18.2 enabled=True cls=unity-text-element.unity-button tip=Re-scan the project for assets. | EditorPanelRootElement#unity-panel-container32>VisualElement#rootVisualContainer19>VisualElement>VisualElement>Button
+
+=== ZuiAudit(LatheMoldWindow) expanded=0 folded=0 total=0 ===
+
+
+=== LazorWindow ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:1774.22, y:91.56, width:1068.00, height:783.33) rootWorld=(x:0.00, y:26.22, width:1068.00, height:783.11)
+elements=1 drawn=1 textElements=0 controls=0 leafControls=0
+captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=0
+
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+-- every leaf control --
+
+=== ZuiAudit(LazorWindow) expanded=0 folded=0 total=0 ===
+
+

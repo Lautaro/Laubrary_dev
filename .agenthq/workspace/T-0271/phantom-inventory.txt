@@ -1,0 +1,59 @@
+T-0271 — output of phantom-inventory-probe.cs (the 285 "ok" rows are collapsed to their count; the full
+list is reproducible by re-running the probe).
+
+== A. PHANTOM INVENTORY ==
+plain-class fields NULL in memory (Unity will materialise a default for each):
+  PHANTOM-ON-SAVE  doc.layers[0].root.children[0].fill : ShaperFillDef [plain]
+  PHANTOM-ON-SAVE  doc.layers[0].root.children[0].border : ShaperBorderDef [plain]
+  PHANTOM-ON-SAVE  doc.layers[0].root.children[1].fill : ShaperFillDef [plain]
+  PHANTOM-ON-SAVE  doc.layers[0].root.children[1].border : ShaperBorderDef [plain]
+  PHANTOM-ON-SAVE  doc.layers[0].root.border : ShaperBorderDef [plain]
+  PHANTOM-ON-SAVE  doc.previewBackSplash : BackSplashSettings [plain]
+plain-class fields that always exist in memory too (no phantom possible):  285 rows, all with a
+  `= new X()` initialiser — blend / transform (9 dials) / sweep (4) / shell / swarm (14 + merge) /
+  primitive (24) / composite / solid (16) per node, the layer's response (5) / mask / zOffset, the
+  document's lightRig (+ ambientIntensity and each light's 8 dials), and the root fill's own 34 ZUIValue
+  and 4 ZuiGradient dials. None of these can differ between memory and disk: they exist in both.
+  (ShaperBorderDef.fill is a fifth phantom-capable field; it does not appear above only because no border
+  was authored in this fixture, so the walk never descended into one.)
+
+YAML of that document: 260478 bytes, 6 fill blocks, 3 border blocks, 9 authored keys
+after reload: bag.fill obj=True IsAuthored=True | bag.border obj=True IsAuthored=False
+            | m0.fill obj=True IsAuthored=False | m0.border obj=True IsAuthored=False
+
+== C. BAG FILL DIAL ON A SAVED DOCUMENT ==
+bag fill set to red on the reloaded document: 6144 pixels changed at frame 0
+the same edit with the pre-T-0271 rule (every phantom counts): 0 pixels changed
+
+== B. DEMO DOCUMENT (loaded, rendered, never saved) ==
+nodes=2 fills read as authored=2 fills read as phantom=0 borders read as phantom=0
+frames=16  pixels that the pre-T-0271 rule would paint differently: total=0 worst frame=0
+demo re-imported from disk; never saved by this probe.
+
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+
+== YAML PROBE (phantom-yaml-probe.cs), the load-bearing measurement ==
+IN MEMORY: root.fill=null root.border=null m1.fill=null
+YAML BYTES 172315
+  fill:            border:
+    kind: 0          enabled: 0
+    veil:            alignment: 1
+      m_mode: 0      width:
+      m_static: 1      m_static: 2
+  -> Unity writes the C# INITIALISER values for a null plain-class field, not zeroes.
+AFTER RELOAD: root.fill=obj kind=Solid color=RGBA(1,1,1,1) composite=Over
+              root.border=obj enabled=False
+              m1.fill=obj kind=Solid color=RGBA(1,1,1,1)
+
+== CARD READBACK (card-readback-probe.cs), on a SAVED document ==
+  bag  (fill seeded by NewLayer, authored)     : [Solid] [Gradient] [Ramp by value] [Texture] [Colour bands]
+        [Height field] [Brushed metal] [One colour over time] [Pattern] [Over] [Add] [Moves with the shape]
+        [Stays put] [Keep proportions] [Stretch to fit] [Remove fill] [Add edge]
+  m0   (never given a fill -> phantom on disk) : [Add fill] [Add edge]
+  m1   (authored green fill)                   : … [Remove fill] [Add edge]
+  IsAuthored: bag=True m0=False m1=True
+  border IsAuthored: bag=False m0=False
+
+== PLAYBACK ==
+playback started 11:34:46.803 -> read back at 11:35:12.044: still playing=True previewFrame=6 currentFrame=6
+playback stopped; scriptCompilationFailed=False; no console error raised by this task.

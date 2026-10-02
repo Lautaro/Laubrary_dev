@@ -145,15 +145,12 @@ namespace Laubrary.Cartographer.Editor
 
         protected override void BuildAsset(VisualElement root, Tileset asset)
         {
-            root.style.flexGrow = 1f;
-            root.style.minHeight = 0f;
+            root.AddToClassList("lau-tool-shell");
 
             var left = new VisualElement();
-            left.style.minWidth = 240f;
-            left.style.minHeight = 0f;
+            left.AddToClassList("lau-tileset__controls");
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.flexGrow = 1f;
-            scroll.style.minHeight = 0f;
+            scroll.AddToClassList("lau-tool-shell__scroll");
             BuildControls(scroll.contentContainer);
             left.Add(scroll);
 
@@ -202,9 +199,7 @@ namespace Laubrary.Cartographer.Editor
             statusLine = (Label)Z.Text("", ZuiText.Subtle, "Sheet and selection state.");
             // Stable-layout rule: the status is ONE reserved line; long text truncates rather than wraps,
             // because a wrapping status would shove the whole column below it.
-            statusLine.style.height = 18f;
-            statusLine.style.whiteSpace = WhiteSpace.NoWrap;
-            statusLine.style.overflow = Overflow.Hidden;
+            statusLine.AddToClassList("lau-tileset__status");
             root.Add(statusLine);
 
             root.Add(Z.Box("Make tiles", "Turn the selected sheet cells into tiles. Right-drag a marquee on the sheet to select; selection order is variant/frame order. Selected cells can also be DRAGGED straight onto the tileset grid.",
@@ -222,8 +217,7 @@ namespace Laubrary.Cartographer.Editor
                         v => animFps = v, 150f))));
 
             animPreview = new Image { scaleMode = ScaleMode.ScaleToFit };
-            animPreview.style.width = 64f;
-            animPreview.style.height = 64f;
+            animPreview.AddToClassList("lau-tileset__animation-preview");
             animPreview.tooltip = "The selected sheet cells, cycling at the Settings FPS — how this group would look as an animated tile.";
             root.Add(Z.Box("Animation preview", "Plays the current sheet selection as frames, at the Settings FPS.",
                 animPreview));
@@ -305,15 +299,13 @@ namespace Laubrary.Cartographer.Editor
             if (set == null) return;
 
             gridToolbar = new VisualElement();
-            gridToolbar.style.flexDirection = FlexDirection.Row;
-            gridToolbar.style.flexWrap = Wrap.Wrap;
+            gridToolbar.AddToClassList("lau-tileset__toolbar");
             tilesStrip.Add(gridToolbar);
 
             // One row for both switches (the mockup layout): WHAT you look at (Tiles|Clumps) and HOW a
             // click acts (Select|…|Collision), side by side. View dials live on the box header above.
             var switchRow = new VisualElement();
-            switchRow.style.flexDirection = FlexDirection.Row;
-            switchRow.style.alignItems = Align.Center;
+            switchRow.AddToClassList("lau-tileset__switch-row");
             switchRow.Add(Z.MiniRadio(libraryTab, new[] { "Tiles", "Clumps" },
                 "Tiles: loose tiles, one per cell, arranged into paintable patterns. Clumps: locked " +
                 "multi-tile objects (urns, doors, wall columns) placed and painted as one thing.",
@@ -324,7 +316,7 @@ namespace Laubrary.Cartographer.Editor
             // Wide grids (high zoom × many columns) scroll horizontally inside their own box instead of
             // clipping — vertical stays with the pane's own scroller. Middle-drag moves both at once.
             var gridScroll = new ScrollView(ScrollViewMode.Horizontal);
-            gridScroll.style.flexShrink = 0f;
+            gridScroll.AddToClassList("lau-tool-shell__chrome");
 
             if (libraryTab == 0)
             {
@@ -460,11 +452,7 @@ namespace Laubrary.Cartographer.Editor
         {
             if (gridToolbar == null || set == null) return;
             gridToolbar.Clear();
-            gridToolbar.style.flexDirection = FlexDirection.Row;
-            gridToolbar.style.flexWrap = Wrap.NoWrap;
-            gridToolbar.style.alignItems = Align.Center;
-            gridToolbar.style.minHeight = 26f;
-            gridToolbar.style.height = 26f;
+            gridToolbar.AddToClassList("lau-tileset__toolbar--contextual");
 
             gridToolbar.Add(Z.Field("Grid", "The tileset grid's width and height, in cells. Height grows on its own when tiles are placed lower.",
                 Z.Row(
@@ -541,9 +529,9 @@ namespace Laubrary.Cartographer.Editor
             if (ic != null)
             {
                 b.text = "";
-                ic.style.marginLeft = ic.style.marginRight = 4f;
+                ic.AddToClassList("lau-tileset__action-icon");
                 b.Add(ic);
-                b.style.minWidth = 26f;
+                b.AddToClassList("lau-tileset__icon-action");
             }
             return b;
         }
@@ -623,13 +611,11 @@ namespace Laubrary.Cartographer.Editor
             // Oscillating pair and static pair occupy the SAME slots — overlay them per slot.
             var slotA = new VisualElement();
             slotA.Add(speed);
-            colour.style.position = Position.Absolute;
-            colour.style.left = colour.style.top = 0f;
+            colour.AddToClassList("lau-authoring__overlay-origin");
             slotA.Add(colour);
             var slotB = new VisualElement();
             slotB.Add(amount);
-            alpha.style.position = Position.Absolute;
-            alpha.style.left = alpha.style.top = 0f;
+            alpha.AddToClassList("lau-authoring__overlay-origin");
             slotB.Add(alpha);
 
             return Z.Row(
@@ -1140,17 +1126,10 @@ namespace Laubrary.Cartographer.Editor
             var local = root.WorldToLocal(panelPos);
 
             var card = new VisualElement();
-            card.style.position = Position.Absolute;
+            card.AddToClassList("lau-tool-shell__overlay");
             card.style.left = local.x;
             card.style.top = local.y;
-            card.style.backgroundColor = new Color(0.16f, 0.16f, 0.18f, 0.98f);
-            card.style.borderTopWidth = card.style.borderBottomWidth =
-                card.style.borderLeftWidth = card.style.borderRightWidth = 1f;
-            var edge = new Color(0f, 0f, 0f, 0.85f);
-            card.style.borderTopColor = card.style.borderBottomColor =
-                card.style.borderLeftColor = card.style.borderRightColor = edge;
-            card.style.paddingLeft = card.style.paddingRight = card.style.paddingTop = card.style.paddingBottom = 4f;
-            card.style.minWidth = 140f;
+            card.AddToClassList("lau-tileset__selection-menu");
 
             var header = Z.Row(
                 Z.Text("Selection", ZuiText.Small, "Actions for the grid selection. Drag this bar to move the menu."),
@@ -1266,22 +1245,20 @@ namespace Laubrary.Cartographer.Editor
             public TilesetGrid(TilesetBuilderWindow window)
             {
                 w = window;
-                style.marginTop = 4f;
+                AddToClassList("lau-tileset__grid");
 
                 // Behind the thumbs: the same checkerboard as the sheet canvas — a tile's transparent
                 // pixels are its layering promise, and the grid must show them as such.
                 checker = new VisualElement { pickingMode = PickingMode.Ignore };
-                checker.style.position = Position.Absolute;
-                checker.style.left = checker.style.top = 0f;
+                checker.AddToClassList("lau-authoring__overlay-origin");
                 Add(checker);
 
                 thumbs = new VisualElement { pickingMode = PickingMode.Ignore };
-                thumbs.style.position = Position.Absolute;
+                thumbs.AddToClassList("lau-tool-shell__overlay");
                 Add(thumbs);
 
                 overlay = new VisualElement { pickingMode = PickingMode.Ignore };
-                overlay.style.position = Position.Absolute;
-                overlay.style.left = overlay.style.top = overlay.style.right = overlay.style.bottom = 0f;
+                overlay.AddToClassList("lau-authoring__canvas-overlay");
                 overlay.generateVisualContent += PaintOverlay;
                 Add(overlay);
 
@@ -1363,7 +1340,7 @@ namespace Laubrary.Cartographer.Editor
                 float gw = Cols * (Cell + Gap) + Gap, gh = Rows * (Cell + Gap) + Gap;
                 style.width = gw;
                 style.height = gh;
-                style.flexShrink = 0f;
+                AddToClassList("lau-tool-shell__chrome");
 
                 StyleAsChecker(checker, ref checkerTex);
                 checker.style.width = gw;
@@ -1379,7 +1356,7 @@ namespace Laubrary.Cartographer.Editor
                     var r = CellRect(IdxToCell(i));
                     var img = new Image { pickingMode = PickingMode.Ignore, scaleMode = ScaleMode.ScaleToFit };
                     img.tooltip = tile.displayName;
-                    img.style.position = Position.Absolute;
+                    img.AddToClassList("lau-tool-shell__overlay");
                     img.style.left = r.xMin;
                     img.style.top = r.yMin;
                     img.style.width = Cell;
@@ -1984,20 +1961,18 @@ namespace Laubrary.Cartographer.Editor
             public ClumpsGrid(TilesetBuilderWindow window)
             {
                 w = window;
-                style.marginTop = 4f;
+                AddToClassList("lau-tileset__grid");
 
                 checker = new VisualElement { pickingMode = PickingMode.Ignore };
-                checker.style.position = Position.Absolute;
-                checker.style.left = checker.style.top = 0f;
+                checker.AddToClassList("lau-authoring__overlay-origin");
                 Add(checker);
 
                 thumbs = new VisualElement { pickingMode = PickingMode.Ignore };
-                thumbs.style.position = Position.Absolute;
+                thumbs.AddToClassList("lau-tool-shell__overlay");
                 Add(thumbs);
 
                 overlay = new VisualElement { pickingMode = PickingMode.Ignore };
-                overlay.style.position = Position.Absolute;
-                overlay.style.left = overlay.style.top = overlay.style.right = overlay.style.bottom = 0f;
+                overlay.AddToClassList("lau-authoring__canvas-overlay");
                 overlay.generateVisualContent += PaintOverlay;
                 Add(overlay);
 
@@ -2062,7 +2037,7 @@ namespace Laubrary.Cartographer.Editor
                 float gw = Cols * (Cell + Gap) + Gap, gh = Rows * (Cell + Gap) + Gap;
                 style.width = gw;
                 style.height = gh;
-                style.flexShrink = 0f;
+                AddToClassList("lau-tool-shell__chrome");
 
                 StyleAsChecker(checker, ref checkerTex);
                 checker.style.width = gw;
@@ -2078,7 +2053,7 @@ namespace Laubrary.Cartographer.Editor
                         var r = CellRect(pr.gridPos + pc.offset);
                         var img = new Image { pickingMode = PickingMode.Ignore, scaleMode = ScaleMode.ScaleToFit };
                         img.tooltip = pr.displayName;
-                        img.style.position = Position.Absolute;
+                        img.AddToClassList("lau-tool-shell__overlay");
                         img.style.left = r.xMin;
                         img.style.top = r.yMin;
                         img.style.width = Cell;
@@ -2383,8 +2358,8 @@ namespace Laubrary.Cartographer.Editor
             {
                 w = window;
                 AddToClassList("zui-stage");
-                style.flexGrow = 1f;
-                style.overflow = Overflow.Hidden;
+                AddToClassList("lau-tool-shell__column");
+                AddToClassList("lau-tool-shell__clip");
                 tooltip = "The sheet. Right-drag a marquee to select cells; Ctrl-click toggles one. Green = " +
                           "already plucked by this tileset. Wheel zooms toward the pointer; middle-drag pans " +
                           "while zoomed.";
@@ -2393,28 +2368,22 @@ namespace Laubrary.Cartographer.Editor
                 // regions show the dark stage background and read as BLACK ART — indistinguishable from
                 // actual black pixels (a real user question, 2026-08-01).
                 checker = new VisualElement { pickingMode = PickingMode.Ignore };
-                checker.style.position = Position.Absolute;
+                checker.AddToClassList("lau-tool-shell__overlay");
                 Add(checker);
 
                 image = new Image { pickingMode = PickingMode.Ignore, scaleMode = ScaleMode.StretchToFill };
-                image.style.position = Position.Absolute;
+                image.AddToClassList("lau-tool-shell__overlay");
                 Add(image);
 
                 overlay = new VisualElement { pickingMode = PickingMode.Ignore };
-                overlay.style.position = Position.Absolute;
-                overlay.style.left = overlay.style.top = overlay.style.right = overlay.style.bottom = 0f;
+                overlay.AddToClassList("lau-authoring__canvas-overlay");
                 overlay.generateVisualContent += PaintOverlay;
                 Add(overlay);
 
                 // The canvas explains itself — an empty void teaches nothing.
                 guide = new Label { pickingMode = PickingMode.Ignore };
-                guide.style.position = Position.Absolute;
-                guide.style.left = guide.style.right = 0f;
-                guide.style.top = 12f;
-                guide.style.unityTextAlign = TextAnchor.MiddleCenter;
-                guide.style.fontSize = 13f;
-                guide.style.color = new Color(1f, 1f, 1f, 0.55f);
-                guide.style.whiteSpace = WhiteSpace.Normal;
+                guide.AddToClassList("lau-authoring__sheet-guide-overlay");
+                guide.AddToClassList("lau-tileset__sheet-guide");
                 Add(guide);
 
                 RegisterCallback<PointerDownEvent>(OnDown);

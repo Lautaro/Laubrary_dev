@@ -37,16 +37,26 @@ namespace Laubrary.Loom.Editor
         void OnEnable()
         {
             rootVisualElement.Clear();
-            var toolbar = new VisualElement { style = { flexDirection = FlexDirection.Row, paddingLeft = 6, paddingTop = 4, paddingBottom = 4 } };
-            _header = new Label("No graph loaded") { style = { unityFontStyleAndWeight = FontStyle.Bold, marginRight = 12, alignSelf = Align.Center } };
+            rootVisualElement.AddToClassList("lau-graph");
+            // Attach only semantic graph presentation: the full toolkit sheet would also restyle native fields.
+            var sheet = AssetDatabase.LoadAssetAtPath<StyleSheet>("Assets/Packages/Laubrary/Zui/Toolkit/ZuiFoundationToolShell.uss")
+                ?? AssetDatabase.LoadAssetAtPath<StyleSheet>("Packages/com.lautaro.arino.laubrary/Zui/Toolkit/ZuiFoundationToolShell.uss");
+            if (sheet != null && !rootVisualElement.styleSheets.Contains(sheet)) rootVisualElement.styleSheets.Add(sheet);
+            var toolbar = new VisualElement();
+            toolbar.AddToClassList("lau-graph__toolbar");
+            _header = new Label("No graph loaded");
+            _header.AddToClassList("lau-graph__header");
             toolbar.Add(_header);
             toolbar.Add(new Button(() => { _view?.SaveToAsset(); AssetDatabase.SaveAssets(); }) { text = "Save" });
             toolbar.Add(new Button(() => _view?.FrameAll()) { text = "Frame All" });
 
-            var fadeLabel = new Label("Fade") { style = { alignSelf = Align.Center, marginLeft = 12, marginRight = 4, opacity = 0.8f } };
+            var fadeLabel = new Label("Fade");
+            fadeLabel.AddToClassList("lau-graph__fade-label");
             toolbar.Add(fadeLabel);
-            var fadeSlider = new Slider(0.1f, 5f) { value = EditorPrefs.GetFloat("Laubrary.Loom.FadeSeconds", 1.5f), style = { width = 100, alignSelf = Align.Center } };
-            var fadeValueLabel = new Label(fadeSlider.value.ToString("0.0") + "s") { style = { alignSelf = Align.Center, marginLeft = 4, marginRight = 8, opacity = 0.7f, minWidth = 30 } };
+            var fadeSlider = new Slider(0.1f, 5f) { value = EditorPrefs.GetFloat("Laubrary.Loom.FadeSeconds", 1.5f) };
+            fadeSlider.AddToClassList("lau-graph__fade-slider");
+            var fadeValueLabel = new Label(fadeSlider.value.ToString("0.0") + "s");
+            fadeValueLabel.AddToClassList("lau-graph__fade-readout");
             fadeSlider.RegisterValueChangedCallback(e =>
             {
                 if (_view != null) _view.FadeSeconds = e.newValue;
@@ -56,11 +66,13 @@ namespace Laubrary.Loom.Editor
             toolbar.Add(fadeSlider);
             toolbar.Add(fadeValueLabel);
 
-            toolbar.Add(new Label("  Add nodes: right-click the canvas.  Edit field values in-node or the Inspector.")
-            { style = { alignSelf = Align.Center, opacity = 0.7f } });
+            var hint = new Label("  Add nodes: right-click the canvas.  Edit field values in-node or the Inspector.");
+            hint.AddToClassList("lau-graph__hint");
+            toolbar.Add(hint);
             rootVisualElement.Add(toolbar);
 
-            _view = new LoomGraphView { style = { flexGrow = 1 } };
+            _view = new LoomGraphView();
+            _view.AddToClassList("lau-graph__canvas");
             rootVisualElement.Add(_view);
             if (_asset != null) Load(_asset);
 
@@ -462,10 +474,12 @@ namespace Laubrary.Loom.Editor
         public LoomNodeView(INode node, IGraphAsset asset)
         {
             Node = node; _asset = asset;
-            style.minWidth = 240;
+            AddToClassList("lau-graph__node");
             title = TitleText();
 
-            mainContainer.Add(new Label(node.GetType().Name) { style = { opacity = 0.6f, marginLeft = 6, marginBottom = 2, fontSize = 10 } });
+            var kind = new Label(node.GetType().Name);
+            kind.AddToClassList("lau-graph__node-kind");
+            mainContainer.Add(kind);
 
             if (!asset.IsEntryNode(node))
             {
@@ -505,7 +519,8 @@ namespace Laubrary.Loom.Editor
         // [Serializable] elements). Everything else points to the Inspector (SerializeReference etc.).
         void BuildFields()
         {
-            var section = new VisualElement { style = { paddingLeft = 6, paddingRight = 6, paddingTop = 2, paddingBottom = 4 } };
+            var section = new VisualElement();
+            section.AddToClassList("lau-graph__fields");
             foreach (var fi in Node.GetType().GetFields(BindingFlags.Public | BindingFlags.Instance))
                 section.Add(BuildField(fi, Node));
             extensionContainer.Add(section);
@@ -521,16 +536,18 @@ namespace Laubrary.Loom.Editor
 
                 bool multi = fi.GetCustomAttribute<TextAreaAttribute>() != null;
                 var f = new TextField(name) { value = (string)fi.GetValue(target) ?? "", multiline = multi };
-                f.labelElement.style.minWidth = 70;
+                f.labelElement.AddToClassList("lau-graph__field-label");
                 f.RegisterValueChangedCallback(e => { Dirty(); fi.SetValue(target, e.newValue); if (name == "Title" && target == (object)Node) title = TitleText(); });
                 return f;
             }
-            if (t == typeof(int)) { var f = new IntegerField(name) { value = (int)fi.GetValue(target) }; f.labelElement.style.minWidth = 70; f.RegisterValueChangedCallback(e => { Dirty(); fi.SetValue(target, e.newValue); }); return f; }
-            if (t == typeof(float)) { var f = new FloatField(name) { value = (float)fi.GetValue(target) }; f.labelElement.style.minWidth = 70; f.RegisterValueChangedCallback(e => { Dirty(); fi.SetValue(target, e.newValue); }); return f; }
-            if (t == typeof(bool)) { var f = new Toggle(name) { value = (bool)fi.GetValue(target) }; f.labelElement.style.minWidth = 70; f.RegisterValueChangedCallback(e => { Dirty(); fi.SetValue(target, e.newValue); }); return f; }
-            if (t.IsEnum) { var f = new EnumField(name, (Enum)fi.GetValue(target)); f.labelElement.style.minWidth = 70; f.RegisterValueChangedCallback(e => { Dirty(); fi.SetValue(target, e.newValue); }); return f; }
+            if (t == typeof(int)) { var f = new IntegerField(name) { value = (int)fi.GetValue(target) }; f.labelElement.AddToClassList("lau-graph__field-label"); f.RegisterValueChangedCallback(e => { Dirty(); fi.SetValue(target, e.newValue); }); return f; }
+            if (t == typeof(float)) { var f = new FloatField(name) { value = (float)fi.GetValue(target) }; f.labelElement.AddToClassList("lau-graph__field-label"); f.RegisterValueChangedCallback(e => { Dirty(); fi.SetValue(target, e.newValue); }); return f; }
+            if (t == typeof(bool)) { var f = new Toggle(name) { value = (bool)fi.GetValue(target) }; f.labelElement.AddToClassList("lau-graph__field-label"); f.RegisterValueChangedCallback(e => { Dirty(); fi.SetValue(target, e.newValue); }); return f; }
+            if (t.IsEnum) { var f = new EnumField(name, (Enum)fi.GetValue(target)); f.labelElement.AddToClassList("lau-graph__field-label"); f.RegisterValueChangedCallback(e => { Dirty(); fi.SetValue(target, e.newValue); }); return f; }
             if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(List<>)) return BuildList(fi, target);
-            return new Label(name + ": (edit in Inspector)") { style = { opacity = 0.5f, fontSize = 10, marginTop = 2, whiteSpace = WhiteSpace.Normal } };
+            var hint = new Label(name + ": (edit in Inspector)");
+            hint.AddToClassList("lau-graph__field-hint");
+            return hint;
         }
 
         // A dropdown for a [GraphDropdown]-annotated string field. Options come from an instance method on the
@@ -543,7 +560,7 @@ namespace Laubrary.Loom.Editor
             if (options.Count == 0) options.Add("");
 
             var f = new DropdownField(fi.Name, options, Mathf.Max(0, options.IndexOf(cur)));
-            f.labelElement.style.minWidth = 70;
+            f.labelElement.AddToClassList("lau-graph__field-label");
             f.RegisterValueChangedCallback(e =>
             {
                 Dirty();
@@ -569,13 +586,17 @@ namespace Laubrary.Loom.Editor
         VisualElement BuildList(FieldInfo fi, object target)
         {
             var elemType = fi.FieldType.GetGenericArguments()[0];
-            var box = new VisualElement { style = { marginTop = 3, paddingLeft = 4, borderLeftWidth = 2, borderLeftColor = new Color(1f, 1f, 1f, 0.15f) } };
+            var box = new VisualElement();
+            box.AddToClassList("lau-graph__list");
             Action rebuild = null;
             rebuild = () =>
             {
                 box.Clear();
-                var head = new VisualElement { style = { flexDirection = FlexDirection.Row, marginBottom = 2 } };
-                head.Add(new Label(fi.Name) { style = { unityFontStyleAndWeight = FontStyle.Bold, fontSize = 11, flexGrow = 1 } });
+                var head = new VisualElement();
+                head.AddToClassList("lau-graph__list-header");
+                var name = new Label(fi.Name);
+                name.AddToClassList("lau-graph__list-name");
+                head.Add(name);
                 head.Add(new Button(() => { Dirty(); EnsureList(fi, target).Add(NewElem(elemType)); rebuild(); }) { text = "+ Add" });
                 box.Add(head);
                 var list = fi.GetValue(target) as System.Collections.IList;
@@ -583,9 +604,13 @@ namespace Laubrary.Loom.Editor
                     for (int i = 0; i < list.Count; i++)
                     {
                         int idx = i; var item = list[idx];
-                        var row = new VisualElement { style = { marginBottom = 3, paddingLeft = 3, paddingBottom = 2, borderLeftWidth = 1, borderLeftColor = new Color(1f, 1f, 1f, 0.1f) } };
-                        var rowHead = new VisualElement { style = { flexDirection = FlexDirection.Row } };
-                        rowHead.Add(new Label("#" + idx) { style = { flexGrow = 1, fontSize = 10, opacity = 0.6f } });
+                        var row = new VisualElement();
+                        row.AddToClassList("lau-graph__list-entry");
+                        var rowHead = new VisualElement();
+                        rowHead.AddToClassList("lau-graph__entry-header");
+                        var ordinal = new Label("#" + idx);
+                        ordinal.AddToClassList("lau-graph__entry-ordinal");
+                        rowHead.Add(ordinal);
                         rowHead.Add(new Button(() => { Dirty(); EnsureList(fi, target).RemoveAt(idx); rebuild(); }) { text = "✕" });
                         row.Add(rowHead);
                         if (item != null)

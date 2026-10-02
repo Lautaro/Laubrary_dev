@@ -1,0 +1,1 @@
+UnityEditor.EditorPrefs.SetString("T337.form","JetForm"); UnityEditor.EditorPrefs.SetString("T337.paths","lance.soot|lance.shedKick|lance.shedLife|lance.ramp|lance.sootRamp|lance.sootLo|lance.sootHi"); return "ok";

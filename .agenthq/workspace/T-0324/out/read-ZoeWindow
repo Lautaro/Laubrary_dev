@@ -1,0 +1,78 @@
+[BTN] AuditT324Zoe2
+[GREY] Save   why: This Zoe matches what is on disk — nothing to save.
+[BTN] New
+[BTN] Browse
+[BTN] Duplicate
+[BTN] Rename
+[BTN] Delete
+      AuditT324Zoe2
+      ●
+[BTN] Sections
+[BTN] Toggle Bar
+[BTN] Tags
+[BTN] Identity
+[BTN] Stats
+[BTN] Look
+[BTN] Reactions
+[BTN] AI
+[BTN] Weapons
+[BTN] Cues
+      Look
+      ?
+[BTN] Sprite View ▾
+      View
+      ▸
+      Reactions
+      ?
+[GREY] ▶   why: Nothing to preview yet: this character declares no animations, so the throwaway spawn would be invisible. Give it a View with at least one animation under Look first.
+      [HURT]
+      ▾ Hit
+[BTN] Clip Loops
+[BTN] Fixed Seconds
+[GREY] None declared   why: No animations to choose from: this character's View declares none yet. Author one on the View, then pick it here.
+[BTN] 1
+[BTN] 0
+[BTN] 0
+      None declared
+      Clip
+      Lasts
+      Loops
+      Seconds
+      Stun
+      1
+      0
+      0
+      No clip — this character's View declares no animations yet. Author one on the View, or switch to Fixed seconds to give this event a length.
+      Effects  (0)
+[BTN] + Add effect  ▾
+[GREY] ▶   why: Nothing to preview yet: this character declares no animations, so the throwaway spawn would be invisible. Give it a View with at least one animation under Look first.
+      [DEATH]
+      ▾ Death
+[BTN] Clip Loops
+[BTN] Fixed Seconds
+[GREY] None declared   why: No animations to choose from: this character's View declares none yet. Author one on the View, then pick it here.
+[BTN] 1
+[BTN] 0
+[BTN] 0
+      None declared
+      Clip
+      Lasts
+      Loops
+      Seconds
+      Stun
+      1
+      0
+      0
+      No clip — this character's View declares no animations yet. Author one on the View, or switch to Fixed seconds to give this event a length.
+      Effects  (0)
+[BTN] + Add effect  ▾
+      ▾ Custom events  (0)
+      None declared — this character plays only Hit and Death.
+[BTN] + New event
+[BTN] 0
+[BTN] Loadout
+      Loadout
+      0
+      List is empty
+[BTN] +
+[GREY] -   why: Pluggable weapons + abilities the character can activate; triggered by the brain (enemies) or input (player) via the LoadoutController.

@@ -1,0 +1,49 @@
+case	lit_f0	lit_fmid	lit_flast	diff_f0	diff_fmid	diff_flast	verdict	prefix_f0	prefix_fmid	prefix_flast
+Rectangle	504	2124	1536	0	0	0	IDENTICAL	0	0	0
+Ellipse	5896	5896	5896	0	0	0	IDENTICAL	0	0	0
+Diamond	4404	4404	4404	0	0	0	IDENTICAL	0	0	0
+Triangle	3264	3264	3264	0	0	0	IDENTICAL	0	0	0
+Pill	3832	3832	3832	0	0	0	IDENTICAL	0	0	0
+Polygon	5468	5468	5468	0	0	0	IDENTICAL	0	0	0
+Star	2750	2752	2750	0	0	0	IDENTICAL	0	0	0
+Image	0	0	0	0	0	0	IDENTICAL (blank - no sprite assigned)	0	0	0
+Text	909	909	909	0	0	0	IDENTICAL	0	0	0
+Box	2000	2000	2000	0	0	0	IDENTICAL	0	0	0
+Pyramid	900	900	900	0	0	0	IDENTICAL	0	0	0
+Can	1904	1904	1904	0	0	0	IDENTICAL	0	0	0
+Orb	1264	1264	1264	0	0	0	IDENTICAL	0	0	0
+Gem	564	564	564	0	0	0	IDENTICAL	0	0	0
+Ring	840	840	840	0	0	0	IDENTICAL	0	0	0
+Combine children	0	0	0	0	0	0	IDENTICAL (blank - empty bag)	0	0	0
+Fork Blast	0	4213	0	0	0	0	IDENTICAL	0	0	0
+Inferno	0	3935	0	0	0	0	IDENTICAL	0	0	0
+Arc Burst	0	1723	0	0	0	0	IDENTICAL	0	0	0
+Plasma Bloom	SKIPPED (cost)
+Explosive Jet	0	1741	0	0	0	0	IDENTICAL	0	0	0
+Jet	SKIPPED (cost)
+Radial Jet	0	2635	0	0	0	0	IDENTICAL	0	0	0
+Torch	SKIPPED (cost)
+Fire	SKIPPED (cost)
+Fireball	SKIPPED (cost)
+Disc	0	1340	0	0	0	0	IDENTICAL	0	0	0
+Crescent	0	940	0	0	0	0	IDENTICAL	0	0	0
+Streak	0	48	0	0	0	0	IDENTICAL	0	0	0
+Sparkle	0	482	0	0	0	0	IDENTICAL	0	0	0
+Sprite	0	1340	0	0	0	0	IDENTICAL	0	0	0
+Bag (2 members)	976	980	976	0	0	0	IDENTICAL	980	0	980
+Bag authored bag fill	980	980	980	0	0	0	IDENTICAL	980	980	980
+Bag authored child fill	980	980	980	0	0	0	IDENTICAL	440	440	440
+Primitive default-valued fill (flagged)	2752	2752	2752	0	0	0	IDENTICAL	0	0	0
+Primitive default-valued fill (pre-flag)	2752	2752	2752	0	0	0	IDENTICAL	0	0	0
+Bag child pre-flag default fill	980	980	980	0	0	0	IDENTICAL	980	980	980
+Star with authored edge	2752	2752	2752	0	0	0	IDENTICAL	0	0	0
+
+ROWS 33	DIFFERING 0
+# lit_*      = pixels with alpha != 0 in the IN-MEMORY render, so a row can be seen to be a real picture.
+# diff_*     = pixels differing between the in-memory render and the render after CreateAsset +
+#              SaveAssetIfDirty + ForceReserializeAssets + ImportAsset(ForceUpdate) + LoadAssetAtPath.
+#              0 on every row = the round trip is byte-identical.
+# prefix_*   = pixels the SAME saved document would paint differently under the pre-T-0271 rule
+#              (`fill != null` / `border != null`, i.e. every phantom counts). This is the size of the bug.
+# Canvas 96x64, 16 frames, seed 7, frames sampled 0 / 8 / 15. Documents built with ShaperWindow.NewLayer
+# plus the shape picker's own entry.Apply, i.e. the window's own construction path.

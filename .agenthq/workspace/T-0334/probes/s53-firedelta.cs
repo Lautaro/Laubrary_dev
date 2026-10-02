@@ -1,0 +1,30 @@
+// Where does the Fire simulation's extra coverage come from — the sim, or the ramp's alpha tail?
+const int W=64,H=64,N=8,SEED=1234567;
+var pyreT=ZType("Pyre"); var pyreLayerT=ZType("PyreLayer"); var rendT=ZType("PyreRenderer"); var shapeEnum=ZType("ShapeForm");
+var BFs=System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.Static;
+var BFi=System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.Instance;
+var spec=UnityEngine.ScriptableObject.CreateInstance(pyreT);
+pyreT.GetField("canvasSize",BFi).SetValue(spec,W); pyreT.GetField("frameCount",BFi).SetValue(spec,N); pyreT.GetField("seed",BFi).SetValue(spec,SEED);
+var layer=System.Activator.CreateInstance(pyreLayerT);
+pyreLayerT.GetField("matteEnabled",BFi).SetValue(layer,false);
+pyreLayerT.GetField("shapeForm",BFi).SetValue(layer, System.Enum.Parse(shapeEnum,"Fire"));
+var listT=typeof(System.Collections.Generic.List<>).MakeGenericType(pyreLayerT);
+var list=System.Activator.CreateInstance(listT); listT.GetMethod("Add").Invoke(list,new object[]{layer});
+pyreT.GetField("layers",BFi).SetValue(spec,list);
+var a=rendT.GetMethod("RenderFrame",BFs).Invoke(null,new object[]{spec,4}) as UnityEngine.Color32[];
+var srcT=ZType("FireCompositeSource"); var src=System.Activator.CreateInstance(srcT);
+var ff=srcT.GetField("frames",BFi); if (ff!=null) ff.SetValue(src,N);
+var b=new UnityEngine.Color32[W*H];
+srcT.GetMethod("Render",BFi).Invoke(src,new object[]{W,H,0.5714286f,(uint)SEED,b});
+int onlyA=0,onlyB=0,both=0; var extra=new System.Collections.Generic.List<int>(); var missing=new System.Collections.Generic.List<int>();
+for(int i=0;i<a.Length;i++){ bool la=a[i].a>0, lb=b[i].a>0;
+  if(la&&lb) both++; else if(la){onlyA++; missing.Add(a[i].a);} else if(lb){onlyB++; extra.Add(b[i].a);} }
+extra.Sort(); missing.Sort();
+var sb=new System.Text.StringBuilder();
+sb.Append("both=").Append(both).Append(" onlyPyre=").Append(onlyA).Append(" onlyShaper=").Append(onlyB).Append("\n");
+sb.Append("alpha of the texels only Shaper lights: ");
+foreach(var v in extra) sb.Append(v).Append(" ");
+sb.Append("\nalpha of the texels only Pyre lights: ");
+foreach(var v in missing) sb.Append(v).Append(" ");
+UnityEngine.Object.DestroyImmediate(spec);
+return sb.ToString();

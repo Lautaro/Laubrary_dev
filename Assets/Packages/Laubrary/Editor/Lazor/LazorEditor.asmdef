@@ -5,6 +5,7 @@
         "com.Lautaro-Arino.Laubrary.Lazor",
         "com.Lautaro-Arino.Laubrary.AssetKit.Editor",
         "ZUI.Editor",
+        "com.Lautaro-Arino.Laubrary.Zui.Editor",
         "com.Lautaro-Arino.Laubrary.ZuiRuntime",
         "com.Lautaro-Arino.Laubrary.VectorRendering",
         "Unity.RenderPipelines.Universal.Runtime"

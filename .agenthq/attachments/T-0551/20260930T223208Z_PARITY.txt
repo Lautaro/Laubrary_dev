@@ -1,0 +1,21 @@
+backsplash-empty-wide              OK   styles: 0 differences, 41 elements re-classed  |  pixels: 0 changed pixels (worst channel delta 0) of 4924800
+backsplash-populated-narrow        OK   styles: 0 differences, 0 elements re-classed  |  pixels: 0 changed pixels (worst channel delta 0) of 3001050
+backsplash-populated-wide          OK   styles: 0 differences, 0 elements re-classed  |  pixels: 0 changed pixels (worst channel delta 0) of 4924800
+cabinets-inspector                 OK   styles: 0 differences, 0 elements re-classed  |  pixels: 0 changed pixels (worst channel delta 0) of 2154600
+choreographer-empty-wide           OK   styles: 0 differences, 45 elements re-classed  |  pixels: 0 changed pixels (worst channel delta 0) of 4924800
+choreographer-populated-narrow     DIFF  styles: 2 differences, 0 elements re-classed  |  pixels: 2526 changed pixels (worst channel delta 224) of 3001050
+      ! [228] /rootVisualContainer/VisualElement/VisualElement/VisualElement/ZuiBox/VisualElement/Slider/VisualElement/unity-text-field/unity-text-input/TextElement rect 3.11,1.78,62.67,15.11 -> 3.11,1.78,61.78,15.11
+      ! [243] /rootVisualContainer/VisualElement/VisualElement/ChoreoStage/Label rect 8,636.44,55.11,12.44 -> 8,636.44,54.22,12.44
+choreographer-populated-wide       DIFF  styles: 2 differences, 0 elements re-classed  |  pixels: 2245 changed pixels (worst channel delta 224) of 4924800
+      ! [228] /rootVisualContainer/VisualElement/VisualElement/VisualElement/ZuiBox/VisualElement/Slider/VisualElement/unity-text-field/unity-text-input/TextElement rect 3.11,1.78,64.89,15.11 -> 3.11,1.78,63.56,15.11
+      ! [243] /rootVisualContainer/VisualElement/VisualElement/ChoreoStage/Label rect 8,636.44,53.78,12.44 -> 8,636.44,56,12.44
+lathe-empty-wide                   OK   styles: 0 differences, 24 elements re-classed  |  pixels: 0 changed pixels (worst channel delta 0) of 4924800
+lathe-populated-narrow             OK   styles: 0 differences, 0 elements re-classed  |  pixels: 927373 changed pixels (worst channel delta 214) of 3001050
+lathe-populated-wide               OK   styles: 0 differences, 0 elements re-classed  |  pixels: 0 changed pixels (worst channel delta 0) of 4924800
+lathemold-empty-wide               OK   styles: 0 differences, 24 elements re-classed  |  pixels: 0 changed pixels (worst channel delta 0) of 4924800
+lathemold-populated-wide           OK   styles: 0 differences, 0 elements re-classed  |  pixels: 0 changed pixels (worst channel delta 0) of 4924800
+tapestry-empty-wide                OK   styles: 0 differences, 24 elements re-classed  |  pixels: 0 changed pixels (worst channel delta 0) of 4924800
+tapestry-populated-narrow          OK   styles: 0 differences, 0 elements re-classed  |  pixels: 0 changed pixels (worst channel delta 0) of 3001050
+tapestry-populated-wide            OK   styles: 0 differences, 0 elements re-classed  |  pixels: 0 changed pixels (worst channel delta 0) of 4924800
+
+2 of 15 states differ in resolved style.

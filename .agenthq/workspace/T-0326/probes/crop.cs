@@ -1,0 +1,22 @@
+// crop: T321.src, T321.dst, T321.rect="x,y,w,h" (source pixels), optional T321.scale (float)
+string src = UnityEditor.EditorPrefs.GetString("T321.src","");
+string dst = UnityEditor.EditorPrefs.GetString("T321.dst","");
+string rc  = UnityEditor.EditorPrefs.GetString("T321.rect","0,0,100,100");
+float sc   = UnityEditor.EditorPrefs.GetFloat("T321.scale",1f);
+var p = rc.Split(','); int cx=int.Parse(p[0]), cy=int.Parse(p[1]), cw=int.Parse(p[2]), ch=int.Parse(p[3]);
+var asm = System.Reflection.Assembly.Load("System.Drawing");
+var bmpT = asm.GetType("System.Drawing.Bitmap"); var gT = asm.GetType("System.Drawing.Graphics");
+var imgT = asm.GetType("System.Drawing.Image"); var rectT = asm.GetType("System.Drawing.Rectangle");
+var srcBmp = System.Activator.CreateInstance(bmpT, new object[]{ src });
+int sw = (int)bmpT.GetProperty("Width").GetValue(srcBmp), sh = (int)bmpT.GetProperty("Height").GetValue(srcBmp);
+if (cx<0) cx=0; if (cy<0) cy=0; if (cx+cw>sw) cw=sw-cx; if (cy+ch>sh) ch=sh-cy;
+int dw = Mathf.RoundToInt(cw*sc), dh = Mathf.RoundToInt(ch*sc);
+var outBmp = System.Activator.CreateInstance(bmpT, new object[]{ dw, dh });
+var g = gT.GetMethod("FromImage").Invoke(null, new object[]{ outBmp });
+gT.GetProperty("InterpolationMode").SetValue(g, System.Enum.Parse(asm.GetType("System.Drawing.Drawing2D.InterpolationMode"),"NearestNeighbor"));
+var dr = System.Activator.CreateInstance(rectT, new object[]{ 0,0,dw,dh });
+var sr = System.Activator.CreateInstance(rectT, new object[]{ cx,cy,cw,ch });
+var gu = asm.GetType("System.Drawing.GraphicsUnit");
+gT.GetMethod("DrawImage", new System.Type[]{ imgT, rectT, rectT, gu }).Invoke(g, new object[]{ srcBmp, dr, sr, System.Enum.Parse(gu,"Pixel") });
+bmpT.GetMethod("Save", new System.Type[]{ typeof(string) }).Invoke(outBmp, new object[]{ dst });
+return "wrote " + dst + " " + dw + "x" + dh + " src " + sw + "x" + sh;

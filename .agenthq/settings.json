@@ -1,3 +1,4 @@
 {
-  "max_concurrent_agents": 10
+  "max_concurrent_agents": 10,
+  "pm_max_agents": 5
 }

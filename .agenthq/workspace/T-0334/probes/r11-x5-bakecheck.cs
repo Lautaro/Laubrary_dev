@@ -1,0 +1,13 @@
+var sb = new System.Text.StringBuilder();
+const string png = "Assets/Shaper/AuditT334W1.png";
+var imp = UnityEditor.AssetImporter.GetAtPath(png) as UnityEditor.TextureImporter;
+var tex = UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.Texture2D>(png);
+sb.AppendLine("png " + (tex != null ? tex.width + "x" + tex.height : "null") + " ppu=" + (imp != null ? imp.spritePixelsPerUnit.ToString() : "?") + " mode=" + (imp != null ? imp.spriteImportMode.ToString() : "?") + " filter=" + (imp != null ? imp.filterMode.ToString() : "?"));
+var subs = UnityEditor.AssetDatabase.LoadAllAssetsAtPath(png);
+int sprites = 0; foreach (var s in subs) if (s is UnityEngine.Sprite) sprites++;
+sb.AppendLine("sprites in sheet = " + sprites);
+var clip = UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.AnimationClip>("Assets/Shaper/AuditT334W1.anim");
+sb.AppendLine("anim " + (clip != null ? clip.name + " len=" + clip.length + " fps=" + clip.frameRate : "null"));
+var sc = UnityEditor.AssetDatabase.LoadMainAssetAtPath("Assets/Shaper/AuditT334W1 Clip.asset");
+sb.AppendLine("shaperclip " + (sc != null ? sc.GetType().Name + " '" + sc.name + "'" : "null"));
+return sb.ToString();

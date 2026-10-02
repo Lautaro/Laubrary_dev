@@ -1,0 +1,37 @@
+dial	state	pixels
+fit	Gradient/Radial on a WIDE ellipse (34x13)	968
+fit	Gradient/Radial on a SQUARE ellipse (34x34)	0
+fit	Solid (no anchor read)	0
+quantiseLevels	TapestrySteel	1032
+quantiseLevels	Gradient	1032
+quantiseLevels	Texture	214
+textureTilesX	Texture, Mapping=Fit once	0
+textureTilesY	Texture, Mapping=Fit once	0
+textureTilesX	Texture, Mapping=Repeat	819
+textureTilesY	Texture, Mapping=Repeat	398
+textureAnimated	on, Columns=1 Rows=1 (the defaults)	0
+textureFrameColumns	Animated on	873
+textureFrameRows	Animated on	446
+textureFrameCount	Animated on, Columns=4, Frames 4->2	784
+textureFrameCount	Animated on, Columns=1 Rows=1	0
+stripOffset	IndexedStrip, offset 0->16 (a whole turn)	0
+stripOffset	IndexedStrip, offset 0->0.5	1048
+stripPlainColor	IndexedStrip, Reach 1 (the default)	0
+stripPlainColor	IndexedStrip, Reach 0.2	596
+stripSlots[0].height	IndexedStrip, two layers, spacing 0.75	242
+stripSlots[0].height	IndexedStrip, layer B off (one layer)	0
+heightDelta	Solid, two layers, spacing 0.75	484
+heightDelta	Solid, layer B off (one layer)	0
+heightFieldScale	HeightField on a PRIMITIVE, two layers	0
+heightFieldScale	HeightField on a PRIMITIVE, one layer	0
+heightFieldScale	HeightField on a SOLID (Pyramid), one layer	671
+heightDelta	Solid (Pyramid) + HeightField fill, one layer	0
+gradientTint	Gradient, NO ramp authored	1032
+gradientTint	Gradient, ramp authored	0
+rampTint	Ramp, NO ramp authored	1032
+rampTint	Ramp, ramp authored	0
+overPhaseTint	Over phase, NO ramp authored	1032
+overPhaseTint	Over phase, ramp authored	0
+proceduralTint	Procedural/Noise, NO ramp authored	1032
+proceduralTint	Procedural/Noise, ramp authored	0
+proceduralTint	Procedural/Grid (the ink)	188

@@ -157,25 +157,23 @@ namespace Laubrary.DotGen.Editor
 
         protected override void BuildAsset(VisualElement root, DotGen d)
         {
+            Z.AttachTool(root, "dotgen");
             // Repair anything the document could be missing (a root, a placement, an id) before anything reads
             // it. Idempotent, and it never overwrites a value the document already carries.
             d.Normalize();
 
             var split = new VisualElement();
-            split.style.flexDirection = FlexDirection.Row;
-            split.style.flexGrow = 1f;
-            split.style.minHeight = 0f;
+            split.AddToClassList("lau-tool-shell__split");
 
             // ── left: the dials ──────────────────────────────────────────────────
             var left = new ScrollView(ScrollViewMode.Vertical);
             leftPane = left;
             left.style.width = Mathf.Clamp(leftPaneWidth, LeftPaneMin, LeftPaneMax);
-            left.style.flexShrink = 0f;
+            left.AddToClassList("lau-tool-shell__side--resizable");
             // Nothing in this pane is ever wider than the pane, so the horizontal scroller is an inert stub —
             // and a horizontal scrollbar on a pane meant to fit is read as a layout bug, not as chrome.
             left.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
-            left.style.minHeight = 0f;
-            left.contentContainer.style.flexGrow = 1f;
+            left.contentContainer.AddToClassList("lau-tool-shell__column");
 
             // One width-driven column flow: a single 360px column that splits into more as the pane widens.
             // Each Build* below adds EXACTLY ONE top-level unit, in reading order.
@@ -195,17 +193,14 @@ namespace Laubrary.DotGen.Editor
 
             // ── right: the picture ───────────────────────────────────────────────
             var rightPane = new VisualElement();
-            rightPane.style.flexGrow = 1f;
-            rightPane.style.minWidth = 260f;
-            rightPane.style.minHeight = 0f;
+            rightPane.AddToClassList("lau-tool-shell__pane");
             BuildPreviewPane(rightPane, d);   // DotGenWindow.Preview.cs
 
             split.Add(left);
             split.Add(BuildVerticalSplitter());
             split.Add(rightPane);
 
-            root.style.flexGrow = 1f;
-            root.style.minHeight = 0f;
+            root.AddToClassList("lau-tool-shell");
 
             // The toggle bar spans the whole window above everything else. TagsSection was already parented by
             // the base class; re-adding it here pulls it down to just below the bar, where it reads as one more
@@ -233,9 +228,8 @@ namespace Laubrary.DotGen.Editor
         VisualElement BuildVerticalSplitter()
         {
             var s = new VisualElement { tooltip = "Drag to resize the dial pane (wider = more control columns)." };
-            s.style.width = 6f;
-            s.style.flexShrink = 0f;
-            s.style.backgroundColor = new Color(0f, 0f, 0f, 0.25f);
+            s.AddToClassList("lau-tool-shell__resize-grip");
+            s.AddToClassList("lau-tool-shell__resize-grip--vertical");
             s.RegisterCallback<PointerDownEvent>(e => { if (e.button == 0) { s.CapturePointer(e.pointerId); e.StopPropagation(); } });
             s.RegisterCallback<PointerMoveEvent>(e =>
             {
@@ -340,9 +334,8 @@ namespace Laubrary.DotGen.Editor
             // shoves the buttons above it around.
             frameReadout = Z.Text("—", ZuiText.Subtle,
                 "Dots that would be drawn, and how many generator areas were evaluated to produce them.");
-            frameReadout.style.height = 16f;
-            frameReadout.style.whiteSpace = WhiteSpace.NoWrap;
-            frameReadout.style.overflow = Overflow.Hidden;
+            frameReadout.AddToClassList("lau-tool-shell__status-line");
+            frameReadout.AddToClassList("lau-tool-shell__status-line--tall");
             frameSection.Add(frameReadout);
 
             host.Add(frameSection);
@@ -419,7 +412,7 @@ namespace Laubrary.DotGen.Editor
             // A fixed, never-wrapping row holding EVERY command at all times — what varies is whether they are
             // enabled, so nothing under the pointer moves when the selection changes.
             hierarchyButtonsHost = Z.Row();
-            hierarchyButtonsHost.style.flexWrap = Wrap.NoWrap;
+            hierarchyButtonsHost.AddToClassList("zui-row--nowrap");
             hierarchySection.Add(hierarchyButtonsHost);
 
             host.Add(hierarchySection);
@@ -453,11 +446,11 @@ namespace Laubrary.DotGen.Editor
 
             var wrap = new VisualElement();
             wrap.style.paddingLeft = depth * 20f;
-            if (selected) wrap.style.backgroundColor = new Color(0.35f, 0.55f, 0.95f, 0.18f);
+            wrap.EnableInClassList("lau-authoring__selected-row", selected);
 
             var row = new VisualElement();
             row.AddToClassList("zui-row");
-            row.style.flexWrap = Wrap.NoWrap;
+            row.AddToClassList("zui-row--nowrap");
 
             row.Add(Z.Toggle("", "Off stops this generator and everything below it: no areas, no dots, no "
                 + "drawers, no children. Its settings are kept.", g.enabled,
@@ -467,38 +460,27 @@ namespace Laubrary.DotGen.Editor
             {
                 tooltip = "This generator's dot, legend and gizmo colour — set it in the Generator section."
             };
-            chip.style.width = 10f;
-            chip.style.height = 10f;
-            chip.style.flexShrink = 0f;
-            chip.style.marginLeft = 4f;
-            chip.style.marginRight = 6f;
+            chip.AddToClassList("zui-row__swatch");
+            chip.AddToClassList("zui-row__swatch--round");
             chip.style.backgroundColor = g.color;
-            chip.style.borderTopLeftRadius = chip.style.borderTopRightRadius =
-                chip.style.borderBottomLeftRadius = chip.style.borderBottomRightRadius = 5f;
             row.Add(chip);
 
             var name = Z.Text(string.IsNullOrEmpty(g.name) ? "(unnamed)" : g.name, ZuiText.Body,
                 "Click to edit this generator below.");
-            name.style.flexGrow = 1f;
-            name.style.flexShrink = 1f;
-            name.style.overflow = Overflow.Hidden;
-            name.style.whiteSpace = WhiteSpace.NoWrap;
+            name.AddToClassList("zui-row__title");
             name.AddToClassList("zui-audit-allow-stretch");
             row.Add(name);
 
             var count = Z.Text(childCount > 0 ? childCount + " ▾" : "", ZuiText.Small,
                 "How many child generators hang off this one.");
-            count.style.flexShrink = 0f;
-            count.style.whiteSpace = WhiteSpace.NoWrap;
+            count.AddToClassList("zui-row__kind");
             row.Add(count);
             wrap.Add(row);
 
             var meta = Z.Text("—", ZuiText.Small,
                 "This generator's placement, how many dots it currently produces, and how many drawers paint from them.");
-            meta.style.marginLeft = 22f;
-            meta.style.height = 14f;
-            meta.style.whiteSpace = WhiteSpace.NoWrap;
-            meta.style.overflow = Overflow.Hidden;
+            meta.AddToClassList("lau-tool-shell__status-line");
+            meta.AddToClassList("zui-row__metadata");
             wrap.Add(meta);
             treeMeta.Add((g.id, meta, count));
 

@@ -1,0 +1,45 @@
+stepsprobe.cs (in-memory Rect, DefaultRootFill, one light "Key"):
+
+normalKind=Constant (engine default):
+baseline opaque=9216/9216
+depth 24->60: 0 px changed
+technique Stepped->Dome: 0 px changed
+bevel Stepped->None: 0 px changed
+steps 4->32 (technique=Stepped): 0 px changed
+steps 4->2 (technique=Stepped): 0 px changed
+bevelSteps 3->16 (bevel=Stepped): 0 px changed
+bevelSteps 3->2 (bevel=Stepped): 0 px changed
+compiled op with steps=4: n=4 bevelN=3 body=24 present=True
+compiled op with steps=32: n=32 bevelN=3
+
+normalKind=Profile (Follow the surface):
+baseline opaque=9216/9216
+depth 24->60: 0 px changed
+technique Stepped->Dome: 9163 px changed
+bevel Stepped->None: 0 px changed
+steps 4->32 (technique=Stepped): 0 px changed
+steps 4->2 (technique=Stepped): 0 px changed
+bevelSteps 3->16 (bevel=Stepped): 0 px changed
+bevelSteps 3->2 (bevel=Stepped): 0 px changed
+compiled op with steps=4: n=4 bevelN=3 body=24 present=True
+compiled op with steps=32: n=32 bevelN=3
+
+t0278_saved_probe.cs (SAVED + reloaded Rect and Star, technique=Stepped, bevel=Stepped,
+depth=24, normalKind=Profile, canvas 96x96, 3 frames each):
+
+== Assets/Shaper/AuditT0278Rect.asset (reloaded, present=True) ==
+frame 0:  opaque=9216/9216 steps4->32 diff=0 bevelSteps3->16 diff=0 technique Stepped->Dome diff=9163
+frame 8:  opaque=9216/9216 steps4->32 diff=0 bevelSteps3->16 diff=0 technique Stepped->Dome diff=9163
+frame 15: opaque=9216/9216 steps4->32 diff=0 bevelSteps3->16 diff=0 technique Stepped->Dome diff=9163
+== Assets/Shaper/AuditT0278Star.asset (reloaded, present=True) ==
+frame 0:  opaque=2970/9216 steps4->32 diff=0 bevelSteps3->16 diff=0 technique Stepped->Dome diff=2753
+frame 8:  opaque=2970/9216 steps4->32 diff=0 bevelSteps3->16 diff=0 technique Stepped->Dome diff=2753
+frame 15: opaque=2970/9216 steps4->32 diff=0 bevelSteps3->16 diff=0 technique Stepped->Dome diff=2753
+
+Conclusion: steps/bevelSteps never move a pixel on any technique/bevel, including Stepped
+itself, because ExtrusionDerivative's Stepped case (ShaperHeight.cs:615-619) and
+BevelDerivative's Stepped case (ShaperHeight.cs:682-684) both hard-return 0f -- the analytic
+surface-normal derivative used for shading never expresses a tread riser. technique/bevel
+themselves DO move pixels (9163px / 2753px sanity control) once normalKind=Profile is set,
+proving the Height stage and its normal-provider path are genuinely live; the gap is specific
+to the two Stepped derivatives. Test assets deleted after measurement.

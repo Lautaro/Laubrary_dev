@@ -1,0 +1,12 @@
+JetForm: declared=274 reachable=274 moving=212 zeroPixels=62 notPerturbed=0 neverVisible=0 absentedSwarmOnly=1
+  coverage frames 0..7 = 0·409·417·350·397·462·441·0
+  measured at phases 0.714,0.857,0.286
+  elapsed=3461ms truncated=False
+RadialJetForm: declared=516 reachable=516 moving=377 zeroPixels=139 notPerturbed=0 neverVisible=0 absentedSwarmOnly=1
+  coverage frames 0..7 = 0·1205·1200·1135·1137·1176·1207·0
+  measured at phases 0.857,0.143,0.286
+  elapsed=14740ms truncated=False
+ExplosiveJetForm: declared=1434 reachable=1434 moving=1130 zeroPixels=304 notPerturbed=0 neverVisible=0 absentedSwarmOnly=1
+  coverage frames 0..7 = 0·732·1348·1296·1027·75·0·0
+  measured at phases 0.286,0.429,0.571
+  elapsed=36318ms truncated=False

@@ -89,23 +89,17 @@ namespace Laubrary.Cartographer.Editor
 
         protected override void BuildAsset(VisualElement root, Prop asset)
         {
-            root.style.flexGrow = 1f;
+            root.AddToClassList("lau-prop");
+            root.AddToClassList("lau-prop__root");
 
             var split = new VisualElement();
-            split.style.flexDirection = FlexDirection.Row;
-            split.style.flexGrow = 1f;
-            split.style.alignItems = Align.Stretch;
-            split.style.minHeight = 0f;   // flexbox: content height must not become a floor, or the column overflows
+            split.AddToClassList("lau-tool-shell__split");
             root.Add(split);
 
             var left = new VisualElement();
-            left.style.width = 330f;
-            left.style.flexShrink = 0f;
-            left.style.marginRight = 4f;
-            left.style.minHeight = 0f;
+            left.AddToClassList("lau-prop__controls");
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.flexGrow = 1f;
-            scroll.style.minHeight = 0f;
+            scroll.AddToClassList("lau-tool-shell__scroll");
             BuildControls(scroll.contentContainer);
             left.Add(scroll);
             split.Add(left);
@@ -193,8 +187,7 @@ namespace Laubrary.Cartographer.Editor
 
             if (paletteRow == null) return;
             paletteRow.Clear();
-            paletteRow.style.flexDirection = FlexDirection.Row;
-            paletteRow.style.flexWrap = Wrap.Wrap;
+            paletteRow.AddToClassList("lau-tool-shell__row-wrap");
 
             for (int i = 0; i < palette.Count; i++)
             {
@@ -204,23 +197,13 @@ namespace Laubrary.Cartographer.Editor
                 {
                     tooltip = palette[i] != null ? palette[i].name : "(missing tile)"
                 };
-                swatch.style.width = 36f;
-                swatch.style.height = 36f;
-                swatch.style.marginRight = 2f;
-                swatch.style.marginBottom = 2f;
+                swatch.AddToClassList("lau-prop__tile-choice");
                 if (sprite != null && sprite.texture != null)
                 {
                     swatch.style.backgroundImage = Background.FromTexture2D(sprite.texture);
-                    swatch.style.unityBackgroundScaleMode = ScaleMode.ScaleToFit;
+                    swatch.AddToClassList("lau-tile-palette__picture");
                 }
-                if (idx == brushIndex)
-                {
-                    swatch.style.borderTopWidth = swatch.style.borderBottomWidth =
-                        swatch.style.borderLeftWidth = swatch.style.borderRightWidth = 2f;
-                    var c = new Color(1f, 0.75f, 0.2f);
-                    swatch.style.borderTopColor = swatch.style.borderBottomColor =
-                        swatch.style.borderLeftColor = swatch.style.borderRightColor = c;
-                }
+                swatch.EnableInClassList("lau-tile-palette__choice--selected", idx == brushIndex);
                 paletteRow.Add(swatch);
             }
 
@@ -428,8 +411,8 @@ namespace Laubrary.Cartographer.Editor
             {
                 w = window;
                 AddToClassList("zui-stage");
-                style.flexGrow = 1f;
-                style.overflow = Overflow.Hidden;
+                AddToClassList("lau-tool-shell__column");
+                AddToClassList("lau-tool-shell__clip");
                 tooltip = "The paint grid. Click or drag to paint the selected tile; hold Alt (or use the right " +
                           "button) to erase. Spots show as orange rings.";
 
@@ -440,8 +423,7 @@ namespace Laubrary.Cartographer.Editor
                 RegisterCallback<GeometryChangedEvent>(_ => Refresh());
 
                 overlay = new VisualElement { pickingMode = PickingMode.Ignore };
-                overlay.style.position = Position.Absolute;
-                overlay.style.left = overlay.style.top = overlay.style.right = overlay.style.bottom = 0f;
+                overlay.AddToClassList("lau-authoring__canvas-overlay");
                 overlay.generateVisualContent += PaintOverlay;
                 Add(overlay);
             }
@@ -495,7 +477,7 @@ namespace Laubrary.Cartographer.Editor
                 while (tilePool.Count < visible.Count)
                 {
                     var img = new Image { pickingMode = PickingMode.Ignore, scaleMode = ScaleMode.ScaleToFit };
-                    img.style.position = Position.Absolute;
+                    img.AddToClassList("lau-tool-shell__overlay");
                     tilePool.Add(img);
                     Add(img);
                 }

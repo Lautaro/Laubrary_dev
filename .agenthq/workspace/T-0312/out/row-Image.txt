@@ -1,0 +1,11 @@
+
+##### row holding 'Image' hit 1  rowContent=292.0
+VisualElement w=292.0 x=1384..1676 flex=0/1 styleW=Null cls=zui-row
+  VisualElement w=137.3 x=1384..1521 flex=0/0 styleW=Null cls=zui-field
+    Label w=40.0 x=1384..1424 flex=0/0 styleW=40px cls=unity-text-element.unity-label.zui-field__label text='Colour'
+    ColorField w=90.2 x=1428..1518 flex=0/0 styleW=90px cls=unity-base-field.unity-base-field--no-label.unity-color-field
+      VisualElement w=90.2 x=1428..1518 flex=1/0 styleW=Null cls=unity-base-field__input.unity-color-field__input
+  VisualElement w=167.1 x=1528..1695 flex=0/0 styleW=Null cls=zui-field
+    Label w=40.0 x=1528..1568 flex=0/0 styleW=40px cls=unity-text-element.unity-label.zui-field__label text='Image'
+    ObjectField w=120.0 x=1572..1692 flex=0/0 styleW=120px cls=unity-base-field.unity-base-field--no-label.unity-object-field
+      VisualElement w=120.0 x=1572..1692 flex=1/0 styleW=Null cls=unity-base-field__input.unity-object-field__input

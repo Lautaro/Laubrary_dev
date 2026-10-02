@@ -1,0 +1,182 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 956a68d690604d46a8b0ffc598ca942f, type: 3}
+  m_Name: ZUIRuntimeSemanticSkin
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.ZuiRuntime::ZuiRuntime.ZuiRuntimeSkin
+  backdrop: {r: 0, g: 0, b: 0, a: 0.72}
+  panel: {r: 0.055, g: 0.065, b: 0.085, a: 0.98}
+  segment: {r: 1, g: 1, b: 1, a: 0.065}
+  segmentHovered: {r: 1, g: 1, b: 1, a: 0.13}
+  segmentSelected: {r: 0.25, g: 0.56, b: 0.78, a: 0.92}
+  segmentAccent: {r: 0.68, g: 0.93, b: 1, a: 1}
+  segmentAccentHeight: 3
+  menuFocus: {r: 1, g: 1, b: 1, a: 0.14}
+  menuVerticalPadding: 8
+  menuFocusOutset: 4
+  promptBackdrop: {r: 0, g: 0, b: 0, a: 0.82}
+  promptPanel: {r: 0.12, g: 0.15, b: 0.2, a: 1}
+  overlay:
+    panelSize: {x: 1180, y: 760}
+    viewportFraction: {x: 0.94, y: 0.92}
+    panelPadding: 18
+    headerHeight: 46
+    titleWidthFraction: 0.46
+    tooltipHeight: 26
+    bodyGap: 8
+    bodyReservedSpacing: 14
+    tabHeight: 34
+    tabWidth: 112
+    closeWidth: 72
+    controlGap: 6
+    detailsWidthFraction: 0.31
+    detailsWidthRange: {x: 250, y: 370}
+    legendGap: 18
+    graphicTop: 30
+    deviceHeadingHeight: 26
+    stackGap: 5
+    switchHeight: 36
+    listGap: 10
+    resetGap: 8
+    promptWidthFraction: 0.7
+    promptHeight: 140
+    promptPadding: 18
+    promptTextHeight: 58
+    promptHintBottom: 44
+    promptHintHeight: 26
+  title:
+    points: 25
+    font: {fileID: 0}
+    color: {r: 0.65, g: 0.9, b: 1, a: 1}
+    overrideColor: 1
+    bold: 1
+    wrap: 0
+    alignment: 3
+  glyph:
+    points: 14
+    font: {fileID: 0}
+    color: {r: 1, g: 1, b: 1, a: 1}
+    overrideColor: 1
+    bold: 1
+    wrap: 0
+    alignment: 4
+  caption:
+    points: 10
+    font: {fileID: 0}
+    color: {r: 1, g: 1, b: 1, a: 1}
+    overrideColor: 1
+    bold: 0
+    wrap: 1
+    alignment: 4
+  device:
+    points: 14
+    font: {fileID: 0}
+    color: {r: 1, g: 1, b: 1, a: 0.75}
+    overrideColor: 1
+    bold: 1
+    wrap: 0
+    alignment: 3
+  tooltip:
+    points: 12
+    font: {fileID: 0}
+    color: {r: 1, g: 1, b: 1, a: 0.62}
+    overrideColor: 1
+    bold: 0
+    wrap: 0
+    alignment: 3
+  category:
+    points: 13
+    font: {fileID: 0}
+    color: {r: 0.65, g: 0.88, b: 1, a: 1}
+    overrideColor: 1
+    bold: 1
+    wrap: 1
+    alignment: 0
+  body:
+    points: 14
+    font: {fileID: 0}
+    color: {r: 1, g: 1, b: 1, a: 1}
+    overrideColor: 1
+    bold: 1
+    wrap: 1
+    alignment: 0
+  description:
+    points: 12
+    font: {fileID: 0}
+    color: {r: 1, g: 1, b: 1, a: 0.68}
+    overrideColor: 1
+    bold: 0
+    wrap: 1
+    alignment: 0
+  overflow:
+    points: 12
+    font: {fileID: 0}
+    color: {r: 1, g: 1, b: 1, a: 1}
+    overrideColor: 1
+    bold: 0
+    wrap: 1
+    alignment: 0
+  menu:
+    points: 15
+    font: {fileID: 0}
+    color: {r: 1, g: 1, b: 1, a: 1}
+    overrideColor: 0
+    bold: 0
+    wrap: 0
+    alignment: 4
+  action:
+    points: 14
+    font: {fileID: 0}
+    color: {r: 1, g: 1, b: 1, a: 1}
+    overrideColor: 0
+    bold: 0
+    wrap: 0
+    alignment: 4
+  button:
+    points: 14
+    font: {fileID: 0}
+    color: {r: 1, g: 1, b: 1, a: 1}
+    overrideColor: 0
+    bold: 0
+    wrap: 0
+    alignment: 4
+  segmentText:
+    points: 14
+    font: {fileID: 0}
+    color: {r: 1, g: 1, b: 1, a: 0.72}
+    overrideColor: 1
+    bold: 0
+    wrap: 0
+    alignment: 4
+  selectedSegmentText:
+    points: 14
+    font: {fileID: 0}
+    color: {r: 1, g: 1, b: 1, a: 1}
+    overrideColor: 1
+    bold: 1
+    wrap: 0
+    alignment: 4
+  prompt:
+    points: 20
+    font: {fileID: 0}
+    color: {r: 1, g: 1, b: 1, a: 1}
+    overrideColor: 1
+    bold: 1
+    wrap: 1
+    alignment: 4
+  promptHint:
+    points: 13
+    font: {fileID: 0}
+    color: {r: 1, g: 1, b: 1, a: 0.58}
+    overrideColor: 1
+    bold: 0
+    wrap: 0
+    alignment: 4

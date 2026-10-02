@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8fb722b93d5302040a59b670a0262ca5, type: 3}
+  m_Name: PreviewWeapon
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Zoetrope::Laubrary.Zoetrope.WeaponDef
+  displayName: Preview Weapon
+  automatic: 0
+  fireRate: 2
+  damage: 10
+  projectileSpeed: 8
+  spreadDeg: 0
+  projectilesPerShot: 1
+  ammoTypes:
+  - {fileID: 11400000, guid: 90dae11213b4ad3439f7415e41f1faca, type: 2}
+  muzzle:
+    rid: 1452078146085191784
+  muzzleOffset: {x: 0.6, y: 0.2}
+  fireZoundName: 
+  references:
+    version: 2
+    RefIds:
+    - rid: 1452078146085191784
+      type: {class: PyreChunksFx, ns: Laubrary.ZoetropePyre, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Pyre}
+      data:
+        blast: {fileID: 11400000, guid: 1854130e91419a94f9c580ea5030a45d, type: 2}
+        blastFps: 24
+        chunks: {fileID: 0}
+        sortingOrder: 10

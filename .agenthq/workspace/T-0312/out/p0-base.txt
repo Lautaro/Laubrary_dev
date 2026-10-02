@@ -1,0 +1,64 @@
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+compileFailed=False isCompiling=False playing=False
+DIRTY Assets/Packages/Laubrary/Zui/Shaders/SpriteColorRemap.shader
+DIRTY Assets/Packages/Laubrary/Zui/Shaders/SpritePaletteCycle.shader
+DIRTY Assets/Plugins/TextMesh Pro/Shaders/TMP_SDF Overlay.shader
+DIRTY Assets/Plugins/TextMesh Pro/Shaders/TMP_SDF SSD.shader
+DIRTY Assets/Plugins/TextMesh Pro/Shaders/TMP_SDF.shader
+DIRTY Assets/Vefects/Free Fire VFX URP/_ Extra/Resources/Shaders/SH_Vefects_Extra_Billboard_01.shader
+DIRTY Assets/Vefects/Free Fire VFX URP/_ Extra/Resources/Shaders/SH_Vefects_Extra_Grid_01_URP.shader
+DIRTY Assets/Vefects/Free Fire VFX URP/Shaders/SH_Vefects_VFX_URP_Fire_Flames_01.shader
+DIRTY Assets/Vefects/Free Fire VFX URP/Shaders/SH_Vefects_VFX_URP_Heat_Haze_01.shader
+DIRTY Assets/Vefects/Free Fire VFX URP/Shaders/SH_Vefects_VFX_URP_Particles_Erosion_01.shader
+dirtyCount=10
+FILE Assets/Shaper/New Shaper 1.asset 202944 C4A9D96FF1A247D7
+FILE Assets/Shaper/New Shaper.asset 294909 A44CF96402E2E942
+FILE Assets/Pyre/Green Lantern.asset 146381 4D007E92A8443AD6
+FILE Assets/Pyre/Green_Lantern.anim 8177 2BF212CB411D7BE5
+FILE Assets/Pyre/Green_Lantern.png 91057 FC6909E58C64D606
+FILE Assets/Pyre/Imported/Bars Tentacle Plus.asset 93479 8025489A60440A1D
+FILE Assets/Pyre/Imported/Blob Explosion Plus.asset 170034 A71357E14E2A7FA8
+FILE Assets/Pyre/Imported/Curl Plus.asset 106350 1FB2FEDD82222B35
+FILE Assets/Pyre/Imported/Directional Grenade Blast 1 Plus.asset 61908 320278F7F679CD83
+FILE Assets/Pyre/Imported/Directional Grenade Blast 2 Plus.asset 63035 EFEEDB97DBF3119A
+FILE Assets/Pyre/Imported/Directional Grenade Side Blast Plus.asset 62552 F7AD5403D21BFB87
+FILE Assets/Pyre/Imported/Driectional Blast Plus.asset 31267 EB448E98FE1DA498
+FILE Assets/Pyre/Imported/Explotion Twirl Plus.asset 164676 5CC5916E0240FC7A
+FILE Assets/Pyre/Imported/Floating Disc Hit Plus.asset 32924 99C22C8017A07A84
+FILE Assets/Pyre/Imported/Fluid Blast Plus.asset 290088 AC0F9527CB567B27
+FILE Assets/Pyre/Imported/Heightballs Plus.asset 59334 0332E9A9DFE6F29D
+FILE Assets/Pyre/Imported/HollowBlast Plus.asset 117695 3F992008827BB33A
+FILE Assets/Pyre/Imported/MetaBall Blast Plus.asset 34076 B1052743F0C6EC59
+FILE Assets/Pyre/Imported/Metafield Pyre 1 Plus.asset 176366 1DF9BE1EEA2145F6
+FILE Assets/Pyre/Imported/Metafield Pyre Plus.asset 174171 E3019BFB4B8FD849
+FILE Assets/Pyre/Imported/New Pyre Plus.asset 162741 36E389095D199234
+FILE Assets/Pyre/Imported/NoiseField Ball Plus.asset 163703 18B6FC8930A1788F
+FILE Assets/Pyre/Imported/Old School Explo 2 Plus.asset 177178 2A8A46D7F1EC8E04
+FILE Assets/Pyre/Imported/Perlin Blast Plus.asset 40056 6EE2A4C5538E7221
+FILE Assets/Pyre/Imported/Proper Blast.asset 263892 0C2A6C3B1BD6608A
+FILE Assets/Pyre/Imported/ProperBlast Plus.asset 121282 4F82767460308C4D
+FILE Assets/Pyre/Imported/Rose Blast Plus.asset 180928 106C14E8141EC026
+FILE Assets/Pyre/Imported/SmokePuff Plus.asset 144974 5EC63FF93BA4918B
+FILE Assets/Pyre/Imported/Sparkle Blast Plus.asset 59644 D7820665EB1705B6
+FILE Assets/Pyre/Imported/SparkleBlast Plus.asset 90555 739C45188D50E852
+FILE Assets/Pyre/Imported/SparkleBurst Plus.asset 144977 64F3878F50DF2493
+FILE Assets/Pyre/Imported/Voronoi Abbility Plus.asset 37736 0134518ACD5AC7EE
+FILE Assets/Pyre/Imported/Voronoi Blast Plus.asset 38310 867997E7C7419D81
+FILE Assets/Pyre/New Pyre Plus 1.asset 91587 E3BA47220DC6EC33
+FILE Assets/Pyre/New Pyre Plus.asset 216435 32AEDD46F9859002
+FILE Assets/Pyre/New Pyre Plus§.asset 349374 DB017944D7965058
+WIN UnityEditor.MainToolbarWindow | UnityEditor.MainToolbarWindow | (x:0.00, y:40.00, width:1706.67, height:36.00)
+WIN UnityEditor.InspectorWindow | Inspector | (x:431.56, y:76.00, width:334.44, height:800.67)
+WIN UnityEditor.ConsoleWindow | Console | (x:1203.11, y:76.00, width:502.56, height:800.67)
+WIN UnityEditor.ProjectBrowser | Project | (x:0.00, y:76.00, width:430.56, height:800.67)
+WIN UnityEditor.SceneHierarchyWindow | Hierarchy | (x:768.00, y:63.11, width:433.11, height:856.11)
+WIN UnityEditor.SceneView | Scene | (x:768.00, y:63.11, width:433.11, height:818.78)
+WIN UnityEditor.GameView | Game | (x:768.00, y:76.00, width:433.11, height:800.67)
+PREF ZuiSectionToggleBar.ShaperWindow.userSel = Views=1;Canvas=0;Layers=0;Shape=0;Fill=0;Swarm=0;SpriteFX=0;Lights=1;Tags=0
+PREF ZuiSectionToggleBar.ShaperWindow.solo = <none-or-nonstring>
+PREF ZUI.Split.shaper.window.split.v1 = <none-or-nonstring>
+PREF ZUI.Split.pyre.window.split.v1 = <none-or-nonstring>
+PREF Shaper.lastView = <none-or-nonstring>
+PREF barMode = True
+splitShaperFloat = -1
+splitPyreFloat = -1

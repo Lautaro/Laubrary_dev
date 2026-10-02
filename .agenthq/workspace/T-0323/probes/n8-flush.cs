@@ -1,0 +1,13 @@
+var sb=new System.Text.StringBuilder();
+var w=ZWin("MirageWindow");
+var T=w.GetType();
+var BFi=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
+T.GetField("_rebuildQueued",BFi).SetValue(w,false);
+var host = T.GetField("_bodyHost",BFi).GetValue(w) as UnityEngine.UIElements.VisualElement;
+var cur = T.GetProperty("Current", System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.FlattenHierarchy).GetValue(w);
+T.GetMethod("ResetBodyRefs",BFi).Invoke(w,null);
+host.Clear();
+T.GetMethod("BuildBody",BFi).Invoke(w,new object[]{host,cur});
+T.GetMethod("RefreshBar",BFi).Invoke(w,null);
+w.Repaint();
+return "flushed";

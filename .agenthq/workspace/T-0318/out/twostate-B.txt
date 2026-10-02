@@ -1,0 +1,44 @@
+ButtonRefreshunity-text-element.unity-buttonENABLEDRe-scan the project for lauminaries and orphaned animations.
+TextFieldHerounity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-fieldENABLEDName for a brand-new lauminary.
+ButtonNew lauminaryunity-text-element.unity-buttonENABLEDCreate a lauminary with the typed name and select it.
+ButtonOrphaned   (0)unity-text-element.unity-buttonENABLEDStandalone animations that aren't part of any lauminary yet.
+ButtonProtoGuy   (latest v0)unity-text-element.unity-button.zui-radio__onENABLEDSelect this lauminary to browse its versions and animations.
+ButtonDuplicateunity-text-element.unity-buttonENABLEDCreate a copy of the selected lauminary (draft only).
+TextField<unnamed>unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-fieldENABLEDNew name for the selected lauminary.
+ButtonRenameunity-text-element.unity-buttonENABLEDRename the selected lauminary.
+ButtonDelete…unity-text-element.unity-buttonENABLEDDelete the selected lauminary and every one of its versions (asks first).
+DropdownFielddraftunity-base-field.unity-base-field--no-label.unity-base-popup-field.unity-popup-fieldENABLEDWhich version of this lauminary to browse — the editable draft, or a committed snapshot.
+ButtonSave draft as new versionunity-text-element.unity-buttonENABLEDSnapshot the draft into a new immutable version.
+ButtonLegsWalk_Nunity-text-element.unity-buttonENABLEDPreview this animation.
+FloatField10unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-fieldENABLEDPlayback speed in frames per second.
+ButtonEditunity-text-element.unity-buttonENABLEDOpen this animation in the Laumination Builder.
+ButtonRenameunity-text-element.unity-buttonENABLEDRename this animation.
+ButtonDupunity-text-element.unity-buttonENABLEDDuplicate this animation.
+ButtonXunity-text-element.unity-buttonENABLEDDelete this animation from the draft.
+ButtonLegsWalk_Eunity-text-element.unity-buttonENABLEDPreview this animation.
+FloatField10unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-fieldENABLEDPlayback speed in frames per second.
+ButtonEditunity-text-element.unity-buttonENABLEDOpen this animation in the Laumination Builder.
+ButtonRenameunity-text-element.unity-buttonENABLEDRename this animation.
+ButtonDupunity-text-element.unity-buttonENABLEDDuplicate this animation.
+ButtonXunity-text-element.unity-buttonENABLEDDelete this animation from the draft.
+ButtonLegsWalk_Sunity-text-element.unity-buttonENABLEDPreview this animation.
+FloatField10unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-fieldENABLEDPlayback speed in frames per second.
+ButtonEditunity-text-element.unity-buttonENABLEDOpen this animation in the Laumination Builder.
+ButtonRenameunity-text-element.unity-buttonENABLEDRename this animation.
+ButtonDupunity-text-element.unity-buttonENABLEDDuplicate this animation.
+ButtonXunity-text-element.unity-buttonENABLEDDelete this animation from the draft.
+ButtonLegsIdleRotationunity-text-element.unity-buttonENABLEDPreview this animation.
+FloatField12unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-fieldENABLEDPlayback speed in frames per second.
+ButtonEditunity-text-element.unity-buttonENABLEDOpen this animation in the Laumination Builder.
+ButtonRenameunity-text-element.unity-buttonENABLEDRename this animation.
+ButtonDupunity-text-element.unity-buttonENABLEDDuplicate this animation.
+ButtonXunity-text-element.unity-buttonENABLEDDelete this animation from the draft.
+ButtonUpperAimRotationunity-text-element.unity-buttonENABLEDPreview this animation.
+FloatField12unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-fieldENABLEDPlayback speed in frames per second.
+ButtonEditunity-text-element.unity-buttonENABLEDOpen this animation in the Laumination Builder.
+ButtonRenameunity-text-element.unity-buttonENABLEDRename this animation.
+ButtonDupunity-text-element.unity-buttonENABLEDDuplicate this animation.
+ButtonXunity-text-element.unity-buttonENABLEDDelete this animation from the draft.
+TextFieldIdleunity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-fieldENABLEDName for a new (empty) animation on this lauminary's draft.
+ButtonNew animationunity-text-element.unity-buttonENABLEDAdd an empty animation with this name to the draft.
+Button❚❚unity-text-element.unity-buttonENABLEDPlay or pause the looping preview.

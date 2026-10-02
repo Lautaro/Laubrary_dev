@@ -1,0 +1,39 @@
+T-0264 - physical pixels per simulated pixel, measured out of screen captures
+Editor: D:\UNITY\Laubrary Dev - Shaper, EditorGUIUtility.pixelsPerPoint = 2.25
+ZuiPixelStage.TargetScale = 4 (fallback: no PixelScaleProjectSettings in this worktree)
+Expected: zoom 1 -> 4 physical px per simulated px, zoom 2 -> 8, every block identical
+
+== Ruler 1: the preview's own canvas-edge frame border, measured end to end ==
+Pyre  zoom 1 (64x64 canvas)        border 256x256 px  ->  4.0 x 4.0 physical px per simulated px
+Pyre  zoom 2 (64x64 canvas)        border 512x512 px  ->  8.0 x 8.0 physical px per simulated px
+Pyre  zoom 1, mid-playback         border 256x256 px  ->  4.0 x 4.0 physical px per simulated px
+Shaper zoom 1 (96x152 canvas)      border 384x608 px  ->  4.0 x 4.0 physical px per simulated px
+Shaper zoom 1, mid-playback        border 384x608 px  ->  4.0 x 4.0 physical px per simulated px
+Shaper zoom 2: the frame border is off the pane (the picture is deliberately clipped at a zoom
+               bigger than the stage), so it is measured by block size below instead.
+
+== Ruler 2: the PICTURE itself - GCD of every constant-colour run along scanlines through it ==
+   (a single simulated pixel one physical pixel wider than its neighbour collapses the GCD to 1)
+Pyre       zoom 1                  block GCD 4 px, smallest run 4 px, 521 runs sampled
+Pyre       zoom 2                  block GCD 8 px, smallest run 8 px, 1062 runs sampled
+Pyre       zoom 1, mid-playback    block GCD 4 px, smallest run 4 px, 83 runs sampled
+Shaper     zoom 1                  block GCD 4 px, smallest run 4 px, 67 runs sampled
+Shaper     zoom 2                  block GCD 8 px, smallest run 8 px, 125 runs sampled
+Shaper     zoom 1, mid-playback    block GCD 4 px, smallest run 4 px, 730 runs sampled
+Chunks     zoom 1                  block GCD 4 px, smallest run 4 px, 123 runs sampled
+Chunks     zoom 2                  block GCD 8 px, smallest run 8 px, 174 runs sampled
+Launimator zoom 1                  block GCD 4 px, smallest run 4 px, 10 runs sampled
+Launimator zoom 2                  block GCD 8 px, smallest run 8 px, 16 runs sampled
+
+== Ruler 3: the drawn sheet's own width, Launimator (19 px wide source) ==
+Launimator zoom 1                  sheet drawn 76 px wide for 19 source px -> 4.0 physical px per source px
+Launimator zoom 2                  sheet drawn 152 px wide for 19 source px -> 8.0 physical px per source px
+
+== Fit, pressed as a person presses it (the real Button, found by its text in the live tree) ==
+Pyre   : zoom 4 -> 2, and the Zoom slider then reads 2 (900x760pt window, 64x64 canvas)
+Shaper : zoom 1 -> 1  (correct: a 96x152 canvas at zoom 1 is already 384x608 device px in a
+         stage ~700 device px tall, so 1 IS the largest whole zoom that fits)
+
+== Tool playback (the tools' own transports, not Unity Play mode) ==
+Pyre  : frame 5 -> 17 over 3 s at 14 fps; measured 4.0 px/simulated px mid-playback
+Shaper: frame 0 -> 4 over 3 s at 12 fps; measured 4.0 px/simulated px mid-playback

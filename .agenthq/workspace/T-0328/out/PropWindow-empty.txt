@@ -1,0 +1,19 @@
+=== PropWindow-empty ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:1994.67, y:231.56, width:820.00, height:614.89) rootWorld=(x:0.00, y:26.22, width:820.00, height:614.67)
+elements=44 drawn=24 textElements=8 controls=5 leafControls=5
+captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=1
+
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → No Prop is open, so there is nothing to save.
+-- every leaf control --
+LEAF 'None (Prop)' ObjectField rect=4,31 200.0x17.8 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=The Prop asset being edited — assign one directly, or use Browse. | EditorPanelRootElement#unity-panel-container16>VisualElement#rootVisualContainer17>VisualElement>ObjectField
+LEAF 'Save' Button rect=232,31 52.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=No Prop is open, so there is nothing to save. | EditorPanelRootElement#unity-panel-container16>VisualElement#rootVisualContainer17>VisualElement>Button
+LEAF 'New' Button rect=293,31 40.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a brand new Prop asset (undoable). | EditorPanelRootElement#unity-panel-container16>VisualElement#rootVisualContainer17>VisualElement>Button
+LEAF 'Browse' Button rect=342,31 56.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Toggle the thumbnail browser of every Prop in the project. | EditorPanelRootElement#unity-panel-container16>VisualElement#rootVisualContainer17>VisualElement>Button
+LEAF 'Refresh' Button rect=752,61 57.8x18.2 enabled=True cls=unity-text-element.unity-button tip=Re-scan the project for assets. | EditorPanelRootElement#unity-panel-container16>VisualElement#rootVisualContainer17>VisualElement>VisualElement>Button

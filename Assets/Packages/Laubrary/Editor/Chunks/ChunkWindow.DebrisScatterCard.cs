@@ -210,8 +210,7 @@ namespace Laubrary.Chunks.Editor
             field.Bind(so);
             // A PropertyField's inner ListView is not a BaseField, so the sheet's flex-grow:0 guard doesn't
             // reach it and it would otherwise span the whole card.
-            field.style.width = 300f;
-            field.style.flexShrink = 0f;
+            field.AddToClassList("lau-chunks__debris-sprites-field");
             return field;
         }
 
@@ -336,8 +335,8 @@ namespace Laubrary.Chunks.Editor
             header.AddToClassList("zui-row");
 
             var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder — a modifier's position is its apply order.");
-            grip.style.unityFontStyleAndWeight = FontStyle.Bold;
-            grip.style.width = 16f;
+            grip.AddToClassList("zui-row__grip");
+            grip.AddToClassList("zui-row__grip--bold");
             ZuiReorder.MakeGrip(grip, box, listHost, (from, to) =>
                 DialAndRebuildCard(id, "Reorder Modifier", () =>
                 {

@@ -1,0 +1,15 @@
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets PyreWindow window=1000 leafControls=54 not-focusable=9
+  ZuiMicroMinMax x9 UNREACHABLE
+  ObjectField x2 focusable
+  Button x30 focusable
+  IntegerField x2 focusable
+  MinMaxSlider x1 focusable
+  GradientField x1 focusable
+  ZuiToggleButton x5 focusable
+  TextField x1 focusable
+  FloatField x1 focusable
+  ColorField x1 focusable
+  Toggle x1 focusable
+  UNREACHABLE 'Root spread' ZuiMicroMinMax enabled=True focusable=False at 21,966 | ZuiBox>VisualElement>ZuiBox>VisualElement>VisualElement>ZuiMicroMinMax
+  UNREACHABLE 'Root height' ZuiMicroMinMax enabled=True focusable=False at 171,966 | ZuiBox>VisualElement>ZuiBox>VisualElement>VisualElement>ZuiMicroMinMax
+  UNREACHABLE 'Tongue climb' ZuiMicroMinMax enabled=True focusable=False at 21,988 | ZuiBox>VisualElement>ZuiBox>VisualElement>VisualElement>ZuiMicroMinMax

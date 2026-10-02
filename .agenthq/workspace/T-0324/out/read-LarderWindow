@@ -1,0 +1,90 @@
+[BTN] AuditT324Ware
+[GREY] Save   why: This Ware matches what is on disk — nothing to save.
+[BTN] New
+[BTN] Browse
+[BTN] Duplicate
+[BTN] Rename
+[BTN] Delete
+      AuditT324Ware
+      ●
+      Tags
+      ?
+      Identity
+      ?
+[BTN] Randomize seed
+      Seed 12345
+[BTN] Book
+[BTN] Can
+[BTN] Box
+[BTN] Crate
+[BTN] Carton
+      Kind
+[BTN] Rect
+[BTN] Rounded
+[BTN] Round
+[BTN] Sphere
+      Shape
+      Silhouette
+      ?
+      Width
+[BTN] 0.72
+      0.72
+      Height
+[BTN] 0.95
+      0.95
+      Body
+      ?
+[BTN] Solid
+[BTN] Gradient
+[BTN] Glow
+[BTN] Shadow
+      Fill
+      Damage stages
+[BTN] Custom colours
+      Palette
+      2
+      Decoration
+      ?
+[BTN] None
+[BTN] Horiz
+[BTN] Diag
+[BTN] Patch
+      Label
+      intact
+      dmg 1
+      dmg 2
+      Box · seed 12345 · 35×46 px
+      Label width
+      0.6
+[BTN] None
+[BTN] Triangle
+[BTN] Rounded
+[BTN] Cut
+      Corners
+[BTN] None
+[BTN] Horiz
+[BTN] Vert
+[BTN] Diag
+      Bands
+      Band count
+      2
+[BTN] None
+[BTN] Circle
+[BTN] Spots
+      Spots
+[BTN] Lid strip
+      Output
+      ?
+      Resolution
+      48
+      Damage stages
+      3
+      Pixels/unit
+      48
+      Actions
+      ?
+[BTN] Randomize whole Ware
+[BTN] Bake this Ware
+[BTN] Bake variation grid
+[BTN] 6
+      6

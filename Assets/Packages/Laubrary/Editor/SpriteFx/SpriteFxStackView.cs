@@ -136,8 +136,8 @@ namespace Laubrary.SpriteFx.Editor
                 header.AddToClassList("zui-row");
 
                 var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder — an effect's position IS its apply order.");
-                grip.style.unityFontStyleAndWeight = FontStyle.Bold;
-                grip.style.width = 16f;
+                grip.AddToClassList("zui-row__grip");
+                grip.AddToClassList("zui-row__grip--bold");
                 ZuiReorder.MakeGrip(grip, box, listHost, (from, to) =>
                 {
                     Dirty(() =>
@@ -164,14 +164,16 @@ namespace Laubrary.SpriteFx.Editor
                 {
                     s_clipboard = m.Clone();
                     Rebuild();   // refresh the Paste button's label / enabled state (no data change → not Structural)
-                }).W(46f);
+                });
+                copyBtn.AddToClassList("zui-row__copy-action");
                 header.Add(copyBtn);
 
                 var removeBtn = Z.Button("×", "Remove this effect (undoable).", () =>
                 {
                     int at = stack.IndexOf(m);
                     if (at >= 0) { Dirty(() => stack.RemoveAt(at)); Structural(); }
-                }).W(22f);
+                });
+                removeBtn.AddToClassList("zui-row__remove-action");
                 header.Add(removeBtn);
                 box.Add(header);
 
@@ -258,8 +260,7 @@ namespace Laubrary.SpriteFx.Editor
                 menu.Custom((body, close) =>
                 {
                     var columns = new VisualElement();
-                    columns.style.flexDirection = FlexDirection.Row;
-                    columns.style.alignItems = Align.FlexStart;
+                    columns.AddToClassList("lau-tool-shell__catalog");
 
                     string section = null;
                     VisualElement col = null;
@@ -269,8 +270,7 @@ namespace Laubrary.SpriteFx.Editor
                         {
                             section = e.section;
                             col = new VisualElement();
-                            col.style.marginRight = 10f;
-                            col.style.minWidth = 150f;
+                            col.AddToClassList("lau-tool-shell__catalog-column");
                             col.Add(Z.Text(section, ZuiText.Section, $"Effects that {section.ToLowerInvariant()}."));
                             columns.Add(col);
                         }
@@ -303,7 +303,7 @@ namespace Laubrary.SpriteFx.Editor
         static VisualElement WrapRow(params VisualElement[] kids)
         {
             var r = Z.Row(kids);
-            r.style.flexWrap = Wrap.Wrap;
+            r.AddToClassList("zui-row--wrap");
             return r;
         }
 

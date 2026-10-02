@@ -1,0 +1,20 @@
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets window=(x:4.89, y:20.00, width:1000.00, height:1000.22)
+
+##### row 1  rowWidth=293.8 rowX=30.7..324.4  parentContent=30.7..324.4 (293.8px)  spill=0.0px
+      path=VisualElement>ZuiBox>VisualElement>ZuiBox>VisualElement>VisualElement
+   [0] Label '#1' w=26.2 x=30.7..56.9 grow/shrink=0/0 minW=0
+   [1] ZuiMicroSlider 'Blast at' w=100.0 x=63.1..163.1 grow/shrink=0/0 minW=60
+   [2] ZuiMicroSlider 'Violence' w=100.0 x=169.3..269.3 grow/shrink=0/0 minW=60
+   [3] ZuiMicroSlider 'Share' w=100.0 x=275.6..375.6 grow/shrink=0/0 minW=60  << PAST THE BOX
+   [4] ZuiMicroSlider 'Seat X' w=100.0 x=381.8..481.8 grow/shrink=0/0 minW=60  << PAST THE BOX
+   [5] ZuiMicroSlider 'Seat Y' w=100.0 x=488.0..588.0 grow/shrink=0/0 minW=60  << PAST THE BOX
+   [6] VisualElement 'Seat Y' w=0.0 x=594.2..594.2 grow/shrink=1/1 minW=0  << PAST THE BOX
+   [7] Button '×' w=21.8 x=603.6..625.3 grow/shrink=0/0 minW=0  << PAST THE BOX
+      anc[0] VisualElement w=293.8 overflow=Null:- cls=zui-box__body
+      anc[1] ZuiBox w=303.6 overflow=Null:- cls=zui-box.zui-align-scope
+      anc[2] VisualElement w=303.6 overflow=Null:- cls=zui-box__body
+      anc[3] ZuiBox w=313.3 overflow=Null:- cls=zui-box.zui-align-scope
+      anc[4] VisualElement w=313.3 overflow=Null:- cls=
+      anc[5] VisualElement w=313.3 overflow=Null:- cls=zui-box__body
+
+compact rows found=1

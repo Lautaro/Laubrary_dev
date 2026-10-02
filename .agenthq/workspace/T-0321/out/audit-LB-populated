@@ -1,0 +1,32 @@
+=== LauminationBuilder-populated ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:20.00, y:20.00, width:1200.00, height:900.22) rootWorld=(x:0.00, y:26.22, width:1200.00, height:900.00)
+elements=72 drawn=51 textElements=18 controls=15 leafControls=15
+captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=4
+
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → Write slicing state (regions, cells, pivots) to a JSON sidecar.
+inert 'Restore' → No sheet is loaded, so there is no saved slicing to restore or clear.
+inert 'Clear' → No sheet is loaded, so there is no saved slicing to restore or clear.
+inert 'Download' → Type a URL above first — there is nothing to download yet.
+-- every leaf control --
+LEAF '◀ Hide sheet & canvas' Button rect=7,111 220.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Fold the sheet/canvas half away so the sprite palette, the animation a… | EditorPanelRootElement#unity-panel-container12>VisualElement#rootVisualContainer13>VisualElement>VisualElement>Button
+LEAF 'None (Texture 2D)' ObjectField rect=76,141 200.0x17.8 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=The sprite sheet to slice sprites out of. | VisualElement#rootVisualContainer13>VisualElement>VisualElement>VisualElement>VisualElement>ObjectField
+LEAF 'Load' Button rect=286,141 48.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Load the assigned sheet (re-reads its saved slicing state). | VisualElement#rootVisualContainer13>VisualElement>VisualElement>VisualElement>VisualElement>Button
+LEAF 'Recent ▾' Button rect=343,141 76.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Pick a sheet from Assets/SpriteSheets (downloaded or previously sliced… | VisualElement#rootVisualContainer13>VisualElement>VisualElement>VisualElement>VisualElement>Button
+LEAF 'Save' Button rect=456,141 48.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=Write slicing state (regions, cells, pivots) to a JSON sidecar. | VisualElement#rootVisualContainer13>VisualElement>VisualElement>VisualElement>VisualElement>Button
+LEAF 'Restore' Button rect=514,141 60.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=No sheet is loaded, so there is no saved slicing to restore or clear. | VisualElement#rootVisualContainer13>VisualElement>VisualElement>VisualElement>VisualElement>Button
+LEAF 'Clear' Button rect=583,141 48.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=No sheet is loaded, so there is no saved slicing to restore or clear. | VisualElement#rootVisualContainer13>VisualElement>VisualElement>VisualElement>VisualElement>Button
+LEAF 'URL' TextField rect=50,172 365.3x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-field.zui-audit-allow-stretch tip=Download an image straight into Assets/SpriteSheets and load it. | VisualElement#rootVisualContainer13>VisualElement>VisualElement>VisualElement>VisualElement>TextField
+LEAF 'URL' TextField rect=422,172 120.0x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-field tip=Optional display name for the downloaded sheet. | VisualElement#rootVisualContainer13>VisualElement>VisualElement>VisualElement>VisualElement>TextField
+LEAF 'Download' Button rect=551,171 80.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=Type a URL above first — there is nothing to download yet. | VisualElement#rootVisualContainer13>VisualElement>VisualElement>VisualElement>VisualElement>Button
+LEAF '● LegsWalk_N' Button rect=652,161 98.7x20.0 enabled=True cls=unity-text-element.unity-button.zui-radio__on tip=8f @ 10fps — click to edit | VisualElement>ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>Button
+LEAF 'LegsWalk_E' Button rect=756,161 80.9x20.0 enabled=True cls=unity-text-element.unity-button tip=8f @ 10fps — click to edit | VisualElement>ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>Button
+LEAF 'LegsWalk_S' Button rect=844,161 81.3x20.0 enabled=True cls=unity-text-element.unity-button tip=8f @ 10fps — click to edit | VisualElement>ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>Button
+LEAF 'LegsIdleRotation' Button rect=931,161 109.3x20.0 enabled=True cls=unity-text-element.unity-button tip=16f @ 12fps — click to edit | VisualElement>ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>Button
+LEAF 'UpperAimRotation' Button rect=1047,161 117.8x20.0 enabled=True cls=unity-text-element.unity-button tip=16f @ 12fps — click to edit | VisualElement>ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>Button

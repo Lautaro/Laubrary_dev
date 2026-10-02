@@ -1,0 +1,6 @@
+System.Func<string, System.Type> FT = n => { foreach (var a in System.AppDomain.CurrentDomain.GetAssemblies()) foreach (var t in a.GetTypes()) if (t.Name == n) return t; return null; };
+var pyreT = FT("PyreWindow");
+UnityEditor.EditorWindow win = null;
+foreach (var w0 in UnityEngine.Resources.FindObjectsOfTypeAll<UnityEditor.EditorWindow>()) if (w0 != null && w0.GetType() == pyreT) win = w0;
+win.position = new UnityEngine.Rect(40, 40, 1900, 1100);
+return "widened to 1900x1100 (no rebuild) dataPath=" + UnityEngine.Application.dataPath;

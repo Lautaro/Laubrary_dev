@@ -1,0 +1,38 @@
+=== BrainGraphWindow ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:1899.11, y:176.89, width:1204.89, height:718.89) rootWorld=(x:0.00, y:26.22, width:1204.89, height:718.67)
+elements=15 drawn=11 textElements=5 controls=3 leafControls=2
+captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=0
+
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+-- every leaf control --
+LEAF 'Save' Button rect=120,31 42.2x20.0 enabled=True cls=unity-text-element.unity-button tip=Write the node positions, wiring and field values back to the graph as… | EditorPanelRootElement#unity-panel-container10>VisualElement#rootVisualContainer10>VisualElement>Button
+LEAF 'Frame All' Button rect=169,31 67.1x20.0 enabled=True cls=unity-text-element.unity-button tip=Zoom and pan the canvas so every node in the graph is on screen. | EditorPanelRootElement#unity-panel-container10>VisualElement#rootVisualContainer10>VisualElement>Button
+
+=== ZuiAudit(BrainGraphWindow) expanded=0 folded=1 total=0 ===
+
+
+=== StoryGraphWindow ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:172.00, y:51.56, width:1510.67, height:791.78) rootWorld=(x:0.00, y:26.22, width:1510.67, height:791.56)
+elements=15 drawn=11 textElements=5 controls=3 leafControls=2
+captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=0
+
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+-- every leaf control --
+LEAF 'Save' Button rect=120,31 42.2x20.0 enabled=True cls=unity-text-element.unity-button tip=Write the node positions, wiring and field values back to the graph as… | EditorPanelRootElement#unity-panel-container31>VisualElement#rootVisualContainer18>VisualElement>Button
+LEAF 'Frame All' Button rect=169,31 67.1x20.0 enabled=True cls=unity-text-element.unity-button tip=Zoom and pan the canvas so every node in the graph is on screen. | EditorPanelRootElement#unity-panel-container31>VisualElement#rootVisualContainer18>VisualElement>Button
+
+=== ZuiAudit(StoryGraphWindow) expanded=0 folded=1 total=0 ===
+
+

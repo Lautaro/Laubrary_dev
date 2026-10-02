@@ -1,0 +1,17 @@
+=== zoeprev-protoguy ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:493.33, y:160.89, width:589.78, height:552.22) rootWorld=(x:0.00, y:26.22, width:589.78, height:552.00)
+elements=34 drawn=30 textElements=10 controls=5 leafControls=4
+captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=0
+
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+-- every leaf control --
+LEAF 'ProtoGuy (Zoe)' ObjectField rect=33,31 220.0x18.2 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=The character to spawn. | EditorPanelRootElement#unity-panel-container14>VisualElement#rootVisualContainer14>ZuiHGroup>VisualElement>ObjectField
+LEAF 'None (Weapon Def)' ObjectField rect=316,31 220.0x17.8 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=The weapon to equip, if any. | EditorPanelRootElement#unity-panel-container14>VisualElement#rootVisualContainer14>ZuiHGroup>VisualElement>ObjectField
+LEAF '(none)' DropdownField rect=33,534 150.2x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-popup-field.unity-popup-field tip=Which declared animation every part plays. The list is this character'… | EditorPanelRootElement#unity-panel-container14>VisualElement#rootVisualContainer14>ZuiHGroup>VisualElement>DropdownField
+LEAF 'Restart' Button rect=196,534 55.6x18.2 enabled=True cls=unity-text-element.unity-button tip=Replays the picked clip on every part from its first frame. | EditorPanelRootElement#unity-panel-container14>VisualElement#rootVisualContainer14>ZuiHGroup>Button

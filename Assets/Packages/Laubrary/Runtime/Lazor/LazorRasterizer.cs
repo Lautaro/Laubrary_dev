@@ -31,12 +31,14 @@ namespace Laubrary.Lazor
             Vector2 center = b.center;
             Vector2 mid = new Vector2(size * 0.5f, size * 0.5f);
 
+            bool drewAny = false;
             foreach (var poly in resolved)
             {
                 if (poly.points == null || poly.points.Length < 2) continue;
                 float halfW = Mathf.Max(0.6f, poly.thickness * fitScale * 0.5f);
                 int count = poly.points.Length;
                 int last = poly.closed ? count : count - 1;
+                if (last > 0) drewAny = true;
                 for (int i = 0; i < last; i++)
                 {
                     Vector2 a = ToPixel(poly.points[i], center, fitScale, mid, size);
@@ -45,10 +47,41 @@ namespace Laubrary.Lazor
                 }
             }
 
+            // A shape that resolves to nothing (every layer disabled, or no strokes authored yet) would otherwise
+            // come back as a flat slab of `background` — indistinguishable, in a browser grid, from a thumbnail
+            // that failed to render. Mark it instead, so "empty" reads as deliberate rather than broken.
+            if (!drewAny) DrawEmptyMarker(px, size);
+
             var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear };
             tex.SetPixels(px);
             tex.Apply();
             return tex;
+        }
+
+        /// The "intentionally empty" marker: a faint inset frame plus one corner-to-corner diagonal, in a low-alpha
+        /// tint of the foreground. Deliberately quiet — it should read as an empty slot, not as content.
+        static void DrawEmptyMarker(Color[] px, int size)
+        {
+            var tint = new Color(1f, 1f, 1f, 0.16f);
+            int inset = Mathf.Max(1, size / 12);
+            int lo = inset, hi = size - 1 - inset;
+            if (hi <= lo) return;
+
+            for (int x = lo; x <= hi; x++) { Tint(px, size, x, lo, tint); Tint(px, size, x, hi, tint); }
+            for (int y = lo; y <= hi; y++) { Tint(px, size, lo, y, tint); Tint(px, size, hi, y, tint); }
+            for (int i = 0; i <= hi - lo; i++) Tint(px, size, lo + i, lo + i, tint);
+        }
+
+        static void Tint(Color[] px, int size, int x, int y, Color tint)
+        {
+            if (x < 0 || y < 0 || x >= size || y >= size) return;
+            int idx = y * size + x;
+            Color dst = px[idx];
+            dst.r = Mathf.Lerp(dst.r, tint.r, tint.a);
+            dst.g = Mathf.Lerp(dst.g, tint.g, tint.a);
+            dst.b = Mathf.Lerp(dst.b, tint.b, tint.a);
+            dst.a = Mathf.Max(dst.a, tint.a);
+            px[idx] = dst;
         }
 
         static Vector2 ToPixel(Vector2 norm, Vector2 center, float fitScale, Vector2 mid, int size)

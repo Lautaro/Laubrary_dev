@@ -143,8 +143,53 @@
     },
     {
       "id": "ZoundsSap-2026-09-26",
-      "name": "Zounds SAP — move audio generation off the managed callback onto Burst-compiled generators",
+      "name": "Zounds SAP \u2014 move audio generation off the managed callback onto Burst-compiled generators",
       "parent": "Zounds"
+    },
+    {
+      "id": "Editor_Bridge_Tooling",
+      "name": "Editor Bridge Tooling",
+      "parent": null
+    },
+    {
+      "id": "ZoundsProgrammaticControl-2026-09-29",
+      "name": "Zounds programmatic control (tokens, snapshot lerp) -- research + plan",
+      "parent": "Zounds"
+    },
+    {
+      "id": "ZoundsAuditionMenu-2026-09-29",
+      "name": "Zounds editor audition menu (Play on change, Burst, Loop)",
+      "parent": "Zounds"
+    },
+    {
+      "id": "ZPOC-Build-2026-09-29",
+      "name": "ZPOC build: programmatic control, snapshots, own values + waveform view",
+      "parent": "Zounds"
+    },
+    {
+      "id": "LaubraryUssPilot-2026-09-30",
+      "name": "UI separation - phases 0 and 1",
+      "parent": null
+    },
+    {
+      "id": "LaubraryUssFoundations-2026-09-30",
+      "name": "UI separation - shared foundations",
+      "parent": null
+    },
+    {
+      "id": "PyrePadImprovements-2026-09-30",
+      "name": "Pyre pad + symmetry improvements (2026-09-30)",
+      "parent": "PyrePlus"
+    },
+    {
+      "id": "PyreOwnerFeedback-2026-09-30",
+      "name": "Pyre owner feedback batch (2026-09-30)",
+      "parent": "PyrePlus"
+    },
+    {
+      "id": "PyreNextSession",
+      "name": "Pyre - owner notes for the next session (FUTURE, not scheduled)",
+      "parent": "PyrePlus"
     }
   ]
 }

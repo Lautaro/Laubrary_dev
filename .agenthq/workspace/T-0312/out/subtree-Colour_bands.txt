@@ -1,0 +1,24 @@
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+
+##### zui-field 'Colour bands' hit 1
+parent VisualElement content=415.1 cls=
+VisualElement w=496.9 content=496.9 x=476..973 h=187.1 flex=0/0 basis=497.0741 styleW=Null self=Auto dir=Row cls=zui-field
+  Label w=77.8 content=74.7 x=476..554 h=14.7 flex=0/0 basis=78 styleW=78px self=Auto dir=Column cls=unity-text-element.unity-label.zui-field__label text='Colour bands'
+  ZuiGradientControl w=415.1 content=415.1 x=558..973 h=187.1 flex=0/1 basis=478.4445 styleW=Null self=Auto dir=Column cls=zui-gradient-control
+    VisualElement w=415.1 content=415.1 x=558..973 h=25.8 flex=0/1 basis=26 styleW=Null self=Auto dir=Row cls=
+      Image w=386.2 content=386.2 x=558..944 h=21.8 flex=1/1 basis=0 styleW=Null self=Auto dir=Column cls=unity-image
+      Button w=21.8 content=7.6 x=948..970 h=18.2 flex=0/0 basis=22 styleW=22px self=Auto dir=Column cls=unity-text-element.unity-button text='★'
+    ZuiRampControl w=415.1 content=415.1 x=558..973 h=25.8 flex=1/1 basis=25.77778 styleW=Null self=Auto dir=Column cls=zui-ramp
+      VisualElement w=415.1 content=415.1 x=558..973 h=21.8 flex=0/1 basis=21.77778 styleW=100% self=Auto dir=Row cls=zui-row
+        GradientField w=269.8 content=269.8 x=558..828 h=20.0 flex=1/1 basis=0 styleW=Null self=Auto dir=Row cls=unity-base-field.unity-base-field--no-label.unity-gradient-field.zui-audit-allow-stretch
+        ZuiSegmented w=132.9 content=132.9 x=834..967 h=20.0 flex=0/0 basis=132.8889 styleW=Null self=Auto dir=Row cls=zui-segmented
+    ZuiBox w=415.1 content=405.3 x=558..973 h=125.3 flex=0/1 basis=125.1111 styleW=Null self=Auto dir=Column cls=zui-box.zui-align-scope
+      VisualElement w=405.3 content=405.3 x=563..968 h=14.7 flex=0/1 basis=14.66667 styleW=Null self=Auto dir=Row cls=zui-box__titlerow
+        Label w=12.0 content=8.9 x=563..575 h=12.0 flex=0/0 basis=12 styleW=Null self=Auto dir=Column cls=unity-text-element.unity-label.zui-box__caret text='▾'
+        Label w=40.9 content=37.8 x=575..616 h=14.7 flex=0/0 basis=40.88889 styleW=Null self=Auto dir=Column cls=unity-text-element.unity-label.zui-box__title text='Adjust'
+        VisualElement w=342.7 content=342.7 x=616..958 h=0.0 flex=1/1 basis=0 styleW=Null self=Auto dir=Column cls=
+        Label w=9.8 content=6.7 x=958..968 h=14.7 flex=0/0 basis=9.777778 styleW=Null self=Auto dir=Column cls=unity-text-element.unity-label.zui-help text='?'
+      VisualElement w=405.3 content=405.3 x=563..968 h=96.9 flex=0/1 basis=96.66666 styleW=Null self=Auto dir=Column cls=zui-box__body
+        ZuiHGroup w=405.3 content=405.3 x=563..968 h=40.4 flex=0/1 basis=40.44444 styleW=Null self=Stretch dir=Row cls=zui-hgroup
+        ZuiHGroup w=405.3 content=405.3 x=563..968 h=20.4 flex=0/1 basis=20.22222 styleW=Null self=Stretch dir=Row cls=zui-hgroup
+        ZuiHGroup w=405.3 content=405.3 x=563..968 h=24.0 flex=0/1 basis=24 styleW=Null self=Stretch dir=Row cls=zui-hgroup

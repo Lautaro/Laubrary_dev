@@ -1,0 +1,45 @@
+form	path	gate	guard	pixelsAtLiveFrames	pixelsWithGuardOpen	valueTried
+ArcBurstForm	keepHueFloor			0	0	
+ArcBurstForm	ghostDeepLo			0	0	
+ArcBurstForm	ghostDeepHi			0	0	
+ArcBurstForm	bolt.ghostLo	layout=Bolt		0	0	
+ArcBurstForm	bolt.ghostHi	layout=Bolt		0	0	
+ArcBurstForm	bolt.ghostDeepP	layout=Bolt		0	0	
+ArcBurstForm	bolt.flashAmp	layout=Bolt		130	130	
+ArcBurstForm	lattice.flyLo	layout=Lattice		0	0	
+ArcBurstForm	lattice.flyHi	layout=Lattice		0	0	
+ArcBurstForm	cage.coolK	layout=Cage		0	0	
+PlasmaBloomForm	biasDir		biasAmt=1	0	1796	
+PlasmaBloomForm	biasK		biasAmt=1	0	1700	
+PlasmaBloomForm	halfDir		halfAmt=1	0	2039	
+PlasmaBloomForm	halfSoft		halfAmt=1	0	1902	
+PlasmaBloomForm	halfK		halfAmt=1	0	1823	
+PlasmaBloomForm	driftX		driftAmt=4	0	1763	
+PlasmaBloomForm	driftY		driftAmt=4	0	1775	
+PlasmaBloomForm	driftAmt			0	0	
+PlasmaBloomForm	driftEase		driftAmt=4	0	0	
+PlasmaBloomForm	driftLin		driftAmt=4	0	0	
+PlasmaBloomForm	driftLag		driftAmt=4	0	0	
+PlasmaBloomForm	mode			0	0	
+PlasmaBloomForm	lobes			0	0	
+PlasmaBloomForm	lobeMode	lobes=6	lobeAmp=1	0	1331	
+PlasmaBloomForm	lobePow	lobes=6	lobeAmp=1	0	1758	
+PlasmaBloomForm	lobePh	lobes=6	lobeAmp=1	0	970	
+PlasmaBloomForm	gateGain	lobes=6	lobeAmp=1	0	0	
+PlasmaBloomForm	plumeAmp	mode=Plume		0	0	
+PlasmaBloomForm	plumeReach	mode=Plume		0	0	
+PlasmaBloomForm	plumeW	mode=Plume		0	0	
+PlasmaBloomForm	plumeVary	mode=Plume		0	0	
+PlasmaBloomForm	chunks.swirl			0	0	
+PlasmaBloomForm	embers.swirl			0	0	
+PlasmaBloomForm	motes.swirl			0	0	
+PlasmaBloomForm	flash			2	2	
+ForkBlastForm	flash			0	0	
+ForkBlastForm	aim			0	0	
+ForkBlastForm	opacity			0	0	
+ForkBlastForm	gobSizePx		gobs=6	0	2297	
+ForkBlastForm	gobReach		gobs=6	0	1517	
+ForkBlastForm	gobSwell		gobs=6	0	1435	
+ForkBlastForm	gobLife		gobs=6	0	1899	
+ForkBlastForm	gobAmount		gobs=6	0	1209	
+ForkBlastForm	gobTiming		gobs=6	0	1453	

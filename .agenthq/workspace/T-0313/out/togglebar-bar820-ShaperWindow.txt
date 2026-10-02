@@ -1,0 +1,2 @@
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+ShaperWindow window=820.0x900 minSize=(820.00, 520.00) rootWorld=0.0..820.0

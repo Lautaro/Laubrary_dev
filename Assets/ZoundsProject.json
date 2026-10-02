@@ -1,9 +1,9 @@
 {
     "browserSettings": {
         "multicolumn": false,
-        "itemWidth": 300.0,
+        "itemWidth": 218.0,
         "killOnPlay": false,
-        "showAudioClips": false,
+        "showAudioClips": true,
         "msOnly": false,
         "showNameField": true,
         "showVolume": true,
@@ -64,9 +64,9 @@
             },
             "playerHeadThickness": 1.5,
             "klipWaveformBGColor": {
-                "r": 0.9882352948188782,
-                "g": 0.7529411911964417,
-                "b": 0.027450980618596078,
+                "r": 0.1267552524805069,
+                "g": 0.1302264928817749,
+                "b": 0.3207547068595886,
                 "a": 1.0
             },
             "volumeEnvelopeColor": {
@@ -114,17 +114,17 @@
                 "b": 0.8500000238418579,
                 "a": 1.0
             },
-            "autoRender": false,
+            "autoRender": true,
             "envelopeHandleSize": 4.0
         }
     },
     "zoundLibrary": {
         "klips": [
             {
-                "id": -500736323,
+                "id": -2075474308,
                 "originalId": 0,
                 "parentId": 0,
-                "name": "Placeholder Klip 1",
+                "name": "New Klip2",
                 "minVolume": 1.0,
                 "maxVolume": 1.0,
                 "minPitch": 1.0,
@@ -140,28 +140,320 @@
                     "m_SubObjectGUID": "",
                     "m_EditorAssetChanged": false
                 },
+                "effectChain": {
+                    "nodes": [
+                        {
+                            "type": 0,
+                            "enabled": true,
+                            "p": [
+                                1.0
+                            ],
+                            "uid": ""
+                        },
+                        {
+                            "type": 12,
+                            "enabled": true,
+                            "p": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0,
+                                10.0,
+                                22000.0
+                            ],
+                            "uid": ""
+                        }
+                    ],
+                    "modifiers": [
+                        {
+                            "type": 0,
+                            "enabled": false,
+                            "name": "Volume",
+                            "p": [
+                                0.0,
+                                0.0
+                            ],
+                            "curve": {
+                                "m_enabled": false,
+                                "m_xMin": 0.0,
+                                "m_xMax": 1.0,
+                                "m_yMin": 0.0,
+                                "m_yMax": 1.0,
+                                "m_points": [
+                                    {
+                                        "time": 0.0,
+                                        "value": 0.4773083031177521,
+                                        "exponent": 1.0,
+                                        "editState": 2,
+                                        "randomX": 0.0,
+                                        "randomY": 0.0,
+                                        "randomBias": 0.5
+                                    },
+                                    {
+                                        "time": 1.0,
+                                        "value": 0.0,
+                                        "exponent": 1.0,
+                                        "editState": 2,
+                                        "randomX": 0.0,
+                                        "randomY": 0.0,
+                                        "randomBias": 0.5
+                                    }
+                                ]
+                            },
+                            "steps": [],
+                            "zpocId": "",
+                            "zpocMode": 0,
+                            "zpocRest": -1.0,
+                            "zpocSmoothMs": 30.0,
+                            "uid": ""
+                        },
+                        {
+                            "type": 0,
+                            "enabled": true,
+                            "name": "Pitch",
+                            "p": [
+                                0.0,
+                                0.0
+                            ],
+                            "curve": {
+                                "m_enabled": true,
+                                "m_xMin": 0.0,
+                                "m_xMax": 1.0,
+                                "m_yMin": 0.0,
+                                "m_yMax": 1.0,
+                                "m_points": [
+                                    {
+                                        "time": 0.0,
+                                        "value": 0.47905072569847109,
+                                        "exponent": 1.0,
+                                        "editState": 2,
+                                        "randomX": 0.0,
+                                        "randomY": 0.0,
+                                        "randomBias": 0.5
+                                    },
+                                    {
+                                        "time": 0.1725846379995346,
+                                        "value": 0.7343749403953552,
+                                        "exponent": 1.0,
+                                        "editState": 0,
+                                        "randomX": 0.0,
+                                        "randomY": 0.0,
+                                        "randomBias": 0.5
+                                    },
+                                    {
+                                        "time": 0.3195706307888031,
+                                        "value": 0.3999999463558197,
+                                        "exponent": 1.0,
+                                        "editState": 0,
+                                        "randomX": 0.0,
+                                        "randomY": 0.0,
+                                        "randomBias": 0.5
+                                    },
+                                    {
+                                        "time": 0.3534267842769623,
+                                        "value": 0.2906249165534973,
+                                        "exponent": 1.0,
+                                        "editState": 0,
+                                        "randomX": 0.0,
+                                        "randomY": 0.0,
+                                        "randomBias": 0.5
+                                    },
+                                    {
+                                        "time": 0.466556578874588,
+                                        "value": 0.2718750238418579,
+                                        "exponent": 1.0,
+                                        "editState": 0,
+                                        "randomX": 0.0,
+                                        "randomY": 0.0,
+                                        "randomBias": 0.5
+                                    },
+                                    {
+                                        "time": 0.52518630027771,
+                                        "value": 0.4979257583618164,
+                                        "exponent": 1.0,
+                                        "editState": 0,
+                                        "randomX": 0.0,
+                                        "randomY": 0.0,
+                                        "randomBias": 0.5
+                                    },
+                                    {
+                                        "time": 0.6215992569923401,
+                                        "value": 0.6812499165534973,
+                                        "exponent": 1.0,
+                                        "editState": 0,
+                                        "randomX": 0.0,
+                                        "randomY": 0.0,
+                                        "randomBias": 0.5
+                                    },
+                                    {
+                                        "time": 0.7200665473937988,
+                                        "value": 0.5001813173294067,
+                                        "exponent": 1.0,
+                                        "editState": 0,
+                                        "randomX": 0.0,
+                                        "randomY": 0.0,
+                                        "randomBias": 0.5
+                                    },
+                                    {
+                                        "time": 1.0,
+                                        "value": 0.0,
+                                        "exponent": 1.047097086906433,
+                                        "editState": 2,
+                                        "randomX": 0.0,
+                                        "randomY": 0.0,
+                                        "randomBias": 0.5
+                                    }
+                                ]
+                            },
+                            "steps": [],
+                            "zpocId": "",
+                            "zpocMode": 0,
+                            "zpocRest": -1.0,
+                            "zpocSmoothMs": 30.0,
+                            "uid": ""
+                        }
+                    ],
+                    "bindings": [
+                        {
+                            "modifierIndex": 0,
+                            "nodeIndex": -1,
+                            "paramIndex": 3,
+                            "combine": 1,
+                            "depth": 1.0,
+                            "schema": 2,
+                            "op": 0
+                        },
+                        {
+                            "modifierIndex": 1,
+                            "nodeIndex": -1,
+                            "paramIndex": 0,
+                            "combine": 5,
+                            "depth": 1.0,
+                            "schema": 2,
+                            "op": 0
+                        }
+                    ]
+                },
+                "chainPresetId": 0,
+                "detachedChainPresetId": 0,
+                "chainOverrides": [],
+                "snapshots": [],
+                "timeStretch": {
+                    "enabled": true,
+                    "algorithm": 0,
+                    "mode": 0,
+                    "factor": 1.0,
+                    "speedEnvelope": {
+                        "m_enabled": false,
+                        "m_xMin": 0.0,
+                        "m_xMax": 1.0,
+                        "m_yMin": 0.25,
+                        "m_yMax": 4.0,
+                        "m_points": [
+                            {
+                                "time": 0.0,
+                                "value": 1.0,
+                                "exponent": 1.0,
+                                "editState": 0,
+                                "randomX": 0.0,
+                                "randomY": 0.0,
+                                "randomBias": 0.5
+                            },
+                            {
+                                "time": 1.0,
+                                "value": 1.0,
+                                "exponent": 1.0,
+                                "editState": 0,
+                                "randomX": 0.0,
+                                "randomY": 0.0,
+                                "randomBias": 0.5
+                            }
+                        ]
+                    },
+                    "regionStart": 0.0,
+                    "regionEnd": 0.0,
+                    "algorithmParams": [
+                        60.0,
+                        0.5,
+                        0.20000000298023225,
+                        40.0
+                    ],
+                    "liveEnabled": false,
+                    "liveSpeed": 1.0,
+                    "liveAlgorithm": 0,
+                    "liveWindowMs": 10.0,
+                    "liveKeepHits": true,
+                    "pitchKeepsLength": true
+                },
+                "loop": {
+                    "enabled": false,
+                    "crossmixMin": 0.0,
+                    "crossmixMax": 0.0
+                },
+                "boost": 0.0,
                 "gain": 1.0,
                 "gainEnabled": false,
                 "showRenderedWaveform": false,
                 "trimEnabled": true,
-                "trimStart": 0.0,
-                "trimEnd": 0.0,
+                "trimStart": 0.3629978895187378,
+                "trimEnd": 1.2798264026641846,
                 "clampToTrim": true,
                 "volumeEnvelope": {
                     "m_enabled": false,
                     "m_xMin": 0.0,
-                    "m_xMax": 0.0,
+                    "m_xMax": 1.0,
                     "m_yMin": 0.0,
-                    "m_yMax": 0.0,
-                    "m_points": []
+                    "m_yMax": 1.0,
+                    "m_points": [
+                        {
+                            "time": 0.0,
+                            "value": 1.0,
+                            "exponent": 1.0,
+                            "editState": 0,
+                            "randomX": 0.0,
+                            "randomY": 0.0,
+                            "randomBias": 0.5
+                        },
+                        {
+                            "time": 1.0,
+                            "value": 1.0,
+                            "exponent": 1.0,
+                            "editState": 0,
+                            "randomX": 0.0,
+                            "randomY": 0.0,
+                            "randomBias": 0.5
+                        }
+                    ]
                 },
                 "pitchEnvelope": {
                     "m_enabled": false,
                     "m_xMin": 0.0,
-                    "m_xMax": 0.0,
-                    "m_yMin": 0.0,
-                    "m_yMax": 0.0,
-                    "m_points": []
+                    "m_xMax": 1.0,
+                    "m_yMin": 0.10000000149011612,
+                    "m_yMax": 2.0,
+                    "m_points": [
+                        {
+                            "time": 0.0,
+                            "value": 1.0,
+                            "exponent": 1.0,
+                            "editState": 0,
+                            "randomX": 0.0,
+                            "randomY": 0.0,
+                            "randomBias": 0.5
+                        },
+                        {
+                            "time": 1.0,
+                            "value": 1.0,
+                            "exponent": 1.0,
+                            "editState": 0,
+                            "randomX": 0.0,
+                            "randomY": 0.0,
+                            "randomBias": 0.5
+                        }
+                    ]
                 },
                 "subGain": 0.0,
                 "lowGain": 0.0,
@@ -185,211 +477,27 @@
                 "fadeInDuration": 0.0,
                 "fadeOutDuration": 0.0,
                 "fadeUseSCurve": false,
-                "audioClipPath": "Assets/ZoundsData/PlaceholderSources/Placeholder_Klip_1.wav",
-                "renderedClipPath": "",
-                "outputClipPath": "Assets/ZoundsData/SystemFiles/ZoundFiles/Placeholder Klip 1.wav",
+                "audioClipPath": "Assets/ZoundsData/Sources/New Klip2.wav",
+                "renderedClipPath": "Assets/ZoundsData/SystemFiles/ZoundFiles/New Klip2.wav",
+                "outputClipPath": "Assets/ZoundsData/SystemFiles/ZoundFiles/New Klip2.wav",
                 "externalSourcePath": "",
-                "needsRender": false,
+                "needsRender": true,
                 "audioClipRef": {
-                    "m_AssetGUID": "fb8136da653802a4dbc3104fd71d0e54",
+                    "m_AssetGUID": "920e216146d064547807a9efaf7974fe",
                     "m_SubObjectName": "",
                     "m_SubObjectType": "",
                     "m_SubObjectGUID": "",
                     "m_EditorAssetChanged": false
                 },
                 "renderedClipRef": {
-                    "m_AssetGUID": "",
+                    "m_AssetGUID": "1930415ec0a78e34e86e05e4ea73b950",
                     "m_SubObjectName": "",
                     "m_SubObjectType": "",
                     "m_SubObjectGUID": "",
                     "m_EditorAssetChanged": false
                 },
                 "outputClipRef": {
-                    "m_AssetGUID": "f49eeadac39b52b45aac9b295dedf02b",
-                    "m_SubObjectName": "",
-                    "m_SubObjectType": "",
-                    "m_SubObjectGUID": "",
-                    "m_EditorAssetChanged": false
-                }
-            },
-            {
-                "id": 1252080669,
-                "originalId": 0,
-                "parentId": 0,
-                "name": "Placeholder Klip 2",
-                "minVolume": 1.0,
-                "maxVolume": 1.0,
-                "minPitch": 1.0,
-                "maxPitch": 1.0,
-                "chance": 1.0,
-                "tags": [],
-                "mute": false,
-                "solo": false,
-                "manuallySetMixerGroupRef": {
-                    "m_AssetGUID": "",
-                    "m_SubObjectName": "",
-                    "m_SubObjectType": "",
-                    "m_SubObjectGUID": "",
-                    "m_EditorAssetChanged": false
-                },
-                "gain": 1.0,
-                "gainEnabled": false,
-                "showRenderedWaveform": false,
-                "trimEnabled": true,
-                "trimStart": 0.0,
-                "trimEnd": 0.0,
-                "clampToTrim": true,
-                "volumeEnvelope": {
-                    "m_enabled": false,
-                    "m_xMin": 0.0,
-                    "m_xMax": 0.0,
-                    "m_yMin": 0.0,
-                    "m_yMax": 0.0,
-                    "m_points": []
-                },
-                "pitchEnvelope": {
-                    "m_enabled": false,
-                    "m_xMin": 0.0,
-                    "m_xMax": 0.0,
-                    "m_yMin": 0.0,
-                    "m_yMax": 0.0,
-                    "m_points": []
-                },
-                "subGain": 0.0,
-                "lowGain": 0.0,
-                "lowMidGain": 0.0,
-                "midGain": 0.0,
-                "highMidGain": 0.0,
-                "highGain": 0.0,
-                "airGain": 0.0,
-                "eqEnabled": false,
-                "lpFrequency": 22000.0,
-                "hpFrequency": 10.0,
-                "compressionEnabled": false,
-                "compThreshold": -10.0,
-                "compRatio": 4.0,
-                "compAttack": 10.0,
-                "compRelease": 100.0,
-                "compMakeupGain": 0.0,
-                "normalizationEnabled": false,
-                "normalizeTargetDB": -0.5,
-                "fadeEnabled": false,
-                "fadeInDuration": 0.0,
-                "fadeOutDuration": 0.0,
-                "fadeUseSCurve": false,
-                "audioClipPath": "Assets/ZoundsData/PlaceholderSources/Placeholder_Klip_2.wav",
-                "renderedClipPath": "",
-                "outputClipPath": "Assets/ZoundsData/SystemFiles/ZoundFiles/Placeholder Klip 2.wav",
-                "externalSourcePath": "",
-                "needsRender": false,
-                "audioClipRef": {
-                    "m_AssetGUID": "d63cb0a7a7aeeaf4b9628bdac7ec456f",
-                    "m_SubObjectName": "",
-                    "m_SubObjectType": "",
-                    "m_SubObjectGUID": "",
-                    "m_EditorAssetChanged": false
-                },
-                "renderedClipRef": {
-                    "m_AssetGUID": "",
-                    "m_SubObjectName": "",
-                    "m_SubObjectType": "",
-                    "m_SubObjectGUID": "",
-                    "m_EditorAssetChanged": false
-                },
-                "outputClipRef": {
-                    "m_AssetGUID": "e14f7e1df307fa343a34507ebf243586",
-                    "m_SubObjectName": "",
-                    "m_SubObjectType": "",
-                    "m_SubObjectGUID": "",
-                    "m_EditorAssetChanged": false
-                }
-            },
-            {
-                "id": 99818130,
-                "originalId": 0,
-                "parentId": 0,
-                "name": "Placeholder Klip 3",
-                "minVolume": 1.0,
-                "maxVolume": 1.0,
-                "minPitch": 1.0,
-                "maxPitch": 1.0,
-                "chance": 1.0,
-                "tags": [],
-                "mute": false,
-                "solo": false,
-                "manuallySetMixerGroupRef": {
-                    "m_AssetGUID": "",
-                    "m_SubObjectName": "",
-                    "m_SubObjectType": "",
-                    "m_SubObjectGUID": "",
-                    "m_EditorAssetChanged": false
-                },
-                "gain": 1.0,
-                "gainEnabled": false,
-                "showRenderedWaveform": false,
-                "trimEnabled": true,
-                "trimStart": 0.0,
-                "trimEnd": 0.0,
-                "clampToTrim": true,
-                "volumeEnvelope": {
-                    "m_enabled": false,
-                    "m_xMin": 0.0,
-                    "m_xMax": 0.0,
-                    "m_yMin": 0.0,
-                    "m_yMax": 0.0,
-                    "m_points": []
-                },
-                "pitchEnvelope": {
-                    "m_enabled": false,
-                    "m_xMin": 0.0,
-                    "m_xMax": 0.0,
-                    "m_yMin": 0.0,
-                    "m_yMax": 0.0,
-                    "m_points": []
-                },
-                "subGain": 0.0,
-                "lowGain": 0.0,
-                "lowMidGain": 0.0,
-                "midGain": 0.0,
-                "highMidGain": 0.0,
-                "highGain": 0.0,
-                "airGain": 0.0,
-                "eqEnabled": false,
-                "lpFrequency": 22000.0,
-                "hpFrequency": 10.0,
-                "compressionEnabled": false,
-                "compThreshold": -10.0,
-                "compRatio": 4.0,
-                "compAttack": 10.0,
-                "compRelease": 100.0,
-                "compMakeupGain": 0.0,
-                "normalizationEnabled": false,
-                "normalizeTargetDB": -0.5,
-                "fadeEnabled": false,
-                "fadeInDuration": 0.0,
-                "fadeOutDuration": 0.0,
-                "fadeUseSCurve": false,
-                "audioClipPath": "Assets/ZoundsData/PlaceholderSources/Placeholder_Klip_3.wav",
-                "renderedClipPath": "",
-                "outputClipPath": "Assets/ZoundsData/SystemFiles/ZoundFiles/Placeholder Klip 3.wav",
-                "externalSourcePath": "",
-                "needsRender": false,
-                "audioClipRef": {
-                    "m_AssetGUID": "0caff0b3e7a253449809b469ca8a6e3d",
-                    "m_SubObjectName": "",
-                    "m_SubObjectType": "",
-                    "m_SubObjectGUID": "",
-                    "m_EditorAssetChanged": false
-                },
-                "renderedClipRef": {
-                    "m_AssetGUID": "",
-                    "m_SubObjectName": "",
-                    "m_SubObjectType": "",
-                    "m_SubObjectGUID": "",
-                    "m_EditorAssetChanged": false
-                },
-                "outputClipRef": {
-                    "m_AssetGUID": "ec08175060d1ade4a9972335300d7712",
+                    "m_AssetGUID": "1930415ec0a78e34e86e05e4ea73b950",
                     "m_SubObjectName": "",
                     "m_SubObjectType": "",
                     "m_SubObjectGUID": "",
@@ -399,10 +507,10 @@
         ],
         "zequences": [
             {
-                "id": 1435159950,
+                "id": 708862382,
                 "originalId": 0,
                 "parentId": 0,
-                "name": "Placeholder Zeq 1",
+                "name": "Clop",
                 "minVolume": 1.0,
                 "maxVolume": 1.0,
                 "minPitch": 1.0,
@@ -418,12 +526,506 @@
                     "m_SubObjectGUID": "",
                     "m_EditorAssetChanged": false
                 },
+                "effectChain": {
+                    "nodes": [],
+                    "modifiers": [],
+                    "bindings": []
+                },
+                "chainPresetId": 0,
+                "detachedChainPresetId": 0,
+                "chainOverrides": [],
+                "snapshots": [],
                 "mode": 0,
                 "noPlayWeight": 0,
-                "zoundEntries": [],
-                "localKlips": [],
+                "zoundEntries": [
+                    {
+                        "zoundId": -1772994058,
+                        "local": true,
+                        "delay": 0.0,
+                        "volume": 1.0,
+                        "pitch": 1.0,
+                        "chance": 1.0,
+                        "overrideVolume": false,
+                        "overridePitch": false,
+                        "overrideChance": false,
+                        "mute": false,
+                        "solo": false,
+                        "volumeEnvelope": {
+                            "m_enabled": false,
+                            "m_xMin": 0.0,
+                            "m_xMax": 1.0,
+                            "m_yMin": 0.0,
+                            "m_yMax": 1.0,
+                            "m_points": [
+                                {
+                                    "time": 0.0,
+                                    "value": 1.0,
+                                    "exponent": 1.0,
+                                    "editState": 0,
+                                    "randomX": 0.0,
+                                    "randomY": 0.0,
+                                    "randomBias": 0.5
+                                },
+                                {
+                                    "time": 1.0,
+                                    "value": 1.0,
+                                    "exponent": 1.0,
+                                    "editState": 0,
+                                    "randomX": 0.0,
+                                    "randomY": 0.0,
+                                    "randomBias": 0.5
+                                }
+                            ]
+                        },
+                        "chanceWeight": 1,
+                        "repeatEnabled": false,
+                        "repeatRetrigger": false,
+                        "repeatMode": 0,
+                        "repeatCount": 3,
+                        "repeatTotalDuration": 2.0,
+                        "repeatInterval": 0.25,
+                        "repeatSpaceFromEnd": false,
+                        "zpocId": "",
+                        "editor_instanceID": 0,
+                        "editor_foldoutExpanded": true,
+                        "editor_isRenaming": false
+                    }
+                ],
+                "localKlips": [
+                    {
+                        "id": -1772994058,
+                        "originalId": 0,
+                        "parentId": 708862382,
+                        "name": "PM_SDNG_Stereo_Walk_Seamless_Loop_1",
+                        "minVolume": 1.0,
+                        "maxVolume": 1.0,
+                        "minPitch": 1.0,
+                        "maxPitch": 1.0,
+                        "chance": 1.0,
+                        "tags": [],
+                        "mute": false,
+                        "solo": false,
+                        "manuallySetMixerGroupRef": {
+                            "m_AssetGUID": "",
+                            "m_SubObjectName": "",
+                            "m_SubObjectType": "",
+                            "m_SubObjectGUID": "",
+                            "m_EditorAssetChanged": false
+                        },
+                        "effectChain": {
+                            "nodes": [
+                                {
+                                    "type": 0,
+                                    "enabled": true,
+                                    "p": [
+                                        1.2168999910354615
+                                    ],
+                                    "uid": ""
+                                },
+                                {
+                                    "type": 13,
+                                    "enabled": true,
+                                    "p": [
+                                        -8.535209655761719
+                                    ],
+                                    "uid": ""
+                                }
+                            ],
+                            "modifiers": [
+                                {
+                                    "type": 0,
+                                    "enabled": true,
+                                    "name": "Time",
+                                    "p": [
+                                        0.0,
+                                        0.0
+                                    ],
+                                    "curve": {
+                                        "m_enabled": true,
+                                        "m_xMin": 0.0,
+                                        "m_xMax": 1.0,
+                                        "m_yMin": 0.0,
+                                        "m_yMax": 1.0,
+                                        "m_points": [
+                                            {
+                                                "time": 0.0,
+                                                "value": 0.4874999523162842,
+                                                "exponent": 1.0,
+                                                "editState": 2,
+                                                "randomX": 0.0,
+                                                "randomY": 0.0,
+                                                "randomBias": 0.5
+                                            },
+                                            {
+                                                "time": 0.004909993149340153,
+                                                "value": 0.4874999523162842,
+                                                "exponent": 1.0,
+                                                "editState": 0,
+                                                "randomX": 0.0,
+                                                "randomY": 0.40237000584602358,
+                                                "randomBias": 0.5
+                                            },
+                                            {
+                                                "time": 0.1142568290233612,
+                                                "value": 0.581250011920929,
+                                                "exponent": 1.0,
+                                                "editState": 0,
+                                                "randomX": 0.0,
+                                                "randomY": 0.39792999625205996,
+                                                "randomBias": 0.5
+                                            },
+                                            {
+                                                "time": 0.4893832504749298,
+                                                "value": 0.5937499403953552,
+                                                "exponent": 1.0,
+                                                "editState": 0,
+                                                "randomX": 0.0,
+                                                "randomY": 0.40533000230789187,
+                                                "randomBias": 0.8507900238037109
+                                            },
+                                            {
+                                                "time": 0.7912032604217529,
+                                                "value": 0.609375,
+                                                "exponent": 1.0,
+                                                "editState": 0,
+                                                "randomX": 0.0,
+                                                "randomY": 0.36243000626564028,
+                                                "randomBias": 0.5
+                                            },
+                                            {
+                                                "time": 0.9949444532394409,
+                                                "value": 0.49062493443489077,
+                                                "exponent": 1.0,
+                                                "editState": 0,
+                                                "randomX": 0.0,
+                                                "randomY": 0.21153999865055085,
+                                                "randomBias": 0.5
+                                            },
+                                            {
+                                                "time": 1.0,
+                                                "value": 0.49687501788139346,
+                                                "exponent": 1.0,
+                                                "editState": 2,
+                                                "randomX": 0.0,
+                                                "randomY": 0.0,
+                                                "randomBias": 0.5
+                                            }
+                                        ]
+                                    },
+                                    "steps": [],
+                                    "zpocId": "",
+                                    "zpocMode": 0,
+                                    "zpocRest": -1.0,
+                                    "zpocSmoothMs": 30.0,
+                                    "uid": ""
+                                },
+                                {
+                                    "type": 0,
+                                    "enabled": false,
+                                    "name": "Pitch",
+                                    "p": [
+                                        0.0,
+                                        0.0
+                                    ],
+                                    "curve": {
+                                        "m_enabled": false,
+                                        "m_xMin": 0.0,
+                                        "m_xMax": 1.0,
+                                        "m_yMin": 0.0,
+                                        "m_yMax": 1.0,
+                                        "m_points": [
+                                            {
+                                                "time": 0.0,
+                                                "value": 0.49062493443489077,
+                                                "exponent": 1.0,
+                                                "editState": 2,
+                                                "randomX": 0.0,
+                                                "randomY": 0.0,
+                                                "randomBias": 0.5
+                                            },
+                                            {
+                                                "time": 0.18368637561798097,
+                                                "value": 0.5,
+                                                "exponent": 1.0,
+                                                "editState": 0,
+                                                "randomX": 0.005919999908655882,
+                                                "randomY": 0.1434900015592575,
+                                                "randomBias": 0.5
+                                            },
+                                            {
+                                                "time": 0.4240126311779022,
+                                                "value": 0.44999998807907107,
+                                                "exponent": 1.0,
+                                                "editState": 0,
+                                                "randomX": 0.0,
+                                                "randomY": 0.0,
+                                                "randomBias": 0.5
+                                            },
+                                            {
+                                                "time": 0.6552922129631043,
+                                                "value": 0.5406249761581421,
+                                                "exponent": 1.0,
+                                                "editState": 0,
+                                                "randomX": 0.00443999981507659,
+                                                "randomY": 0.08727999776601792,
+                                                "randomBias": 0.5
+                                            },
+                                            {
+                                                "time": 1.0,
+                                                "value": 0.5124999284744263,
+                                                "exponent": 1.0,
+                                                "editState": 2,
+                                                "randomX": 0.0,
+                                                "randomY": 0.0,
+                                                "randomBias": 0.5
+                                            }
+                                        ]
+                                    },
+                                    "steps": [],
+                                    "zpocId": "",
+                                    "zpocMode": 0,
+                                    "zpocRest": -1.0,
+                                    "zpocSmoothMs": 30.0,
+                                    "uid": ""
+                                },
+                                {
+                                    "type": 0,
+                                    "enabled": false,
+                                    "name": "Volume",
+                                    "p": [
+                                        0.0,
+                                        0.0
+                                    ],
+                                    "curve": {
+                                        "m_enabled": false,
+                                        "m_xMin": 0.0,
+                                        "m_xMax": 1.0,
+                                        "m_yMin": 0.0,
+                                        "m_yMax": 1.0,
+                                        "m_points": [
+                                            {
+                                                "time": 0.0,
+                                                "value": 1.0,
+                                                "exponent": 1.0,
+                                                "editState": 2,
+                                                "randomX": 0.0,
+                                                "randomY": 0.0,
+                                                "randomBias": 0.5
+                                            },
+                                            {
+                                                "time": 1.0,
+                                                "value": 1.0,
+                                                "exponent": 1.0,
+                                                "editState": 2,
+                                                "randomX": 0.0,
+                                                "randomY": 0.0,
+                                                "randomBias": 0.5
+                                            }
+                                        ]
+                                    },
+                                    "steps": [],
+                                    "zpocId": "",
+                                    "zpocMode": 0,
+                                    "zpocRest": -1.0,
+                                    "zpocSmoothMs": 30.0,
+                                    "uid": ""
+                                }
+                            ],
+                            "bindings": [
+                                {
+                                    "modifierIndex": 0,
+                                    "nodeIndex": -1,
+                                    "paramIndex": 2,
+                                    "combine": 5,
+                                    "depth": 1.0,
+                                    "schema": 2,
+                                    "op": 0
+                                },
+                                {
+                                    "modifierIndex": 1,
+                                    "nodeIndex": -1,
+                                    "paramIndex": 0,
+                                    "combine": 5,
+                                    "depth": 1.0,
+                                    "schema": 2,
+                                    "op": 0
+                                },
+                                {
+                                    "modifierIndex": 2,
+                                    "nodeIndex": -1,
+                                    "paramIndex": 3,
+                                    "combine": 1,
+                                    "depth": 1.0,
+                                    "schema": 2,
+                                    "op": 0
+                                }
+                            ]
+                        },
+                        "chainPresetId": 0,
+                        "detachedChainPresetId": 0,
+                        "chainOverrides": [],
+                        "snapshots": [],
+                        "timeStretch": {
+                            "enabled": false,
+                            "algorithm": 0,
+                            "mode": 0,
+                            "factor": 1.0,
+                            "speedEnvelope": {
+                                "m_enabled": false,
+                                "m_xMin": 0.0,
+                                "m_xMax": 1.0,
+                                "m_yMin": 0.25,
+                                "m_yMax": 4.0,
+                                "m_points": [
+                                    {
+                                        "time": 0.0,
+                                        "value": 1.0,
+                                        "exponent": 1.0,
+                                        "editState": 0,
+                                        "randomX": 0.0,
+                                        "randomY": 0.0,
+                                        "randomBias": 0.5
+                                    },
+                                    {
+                                        "time": 1.0,
+                                        "value": 1.0,
+                                        "exponent": 1.0,
+                                        "editState": 0,
+                                        "randomX": 0.0,
+                                        "randomY": 0.0,
+                                        "randomBias": 0.5
+                                    }
+                                ]
+                            },
+                            "regionStart": 0.0,
+                            "regionEnd": 0.0,
+                            "algorithmParams": [],
+                            "liveEnabled": true,
+                            "liveSpeed": 1.0,
+                            "liveAlgorithm": 1,
+                            "liveWindowMs": 28.0,
+                            "liveKeepHits": false,
+                            "pitchKeepsLength": false
+                        },
+                        "loop": {
+                            "enabled": false,
+                            "crossmixMin": 0.0,
+                            "crossmixMax": 0.0
+                        },
+                        "boost": 0.0,
+                        "gain": 1.0,
+                        "gainEnabled": false,
+                        "showRenderedWaveform": false,
+                        "trimEnabled": true,
+                        "trimStart": 0.7192027568817139,
+                        "trimEnd": 1.211841344833374,
+                        "clampToTrim": true,
+                        "volumeEnvelope": {
+                            "m_enabled": false,
+                            "m_xMin": 0.0,
+                            "m_xMax": 1.0,
+                            "m_yMin": 0.0,
+                            "m_yMax": 1.0,
+                            "m_points": [
+                                {
+                                    "time": 0.0,
+                                    "value": 1.0,
+                                    "exponent": 1.0,
+                                    "editState": 0,
+                                    "randomX": 0.0,
+                                    "randomY": 0.0,
+                                    "randomBias": 0.5
+                                },
+                                {
+                                    "time": 1.0,
+                                    "value": 1.0,
+                                    "exponent": 1.0,
+                                    "editState": 0,
+                                    "randomX": 0.0,
+                                    "randomY": 0.0,
+                                    "randomBias": 0.5
+                                }
+                            ]
+                        },
+                        "pitchEnvelope": {
+                            "m_enabled": false,
+                            "m_xMin": 0.0,
+                            "m_xMax": 1.0,
+                            "m_yMin": 0.10000000149011612,
+                            "m_yMax": 2.0,
+                            "m_points": [
+                                {
+                                    "time": 0.0,
+                                    "value": 1.0,
+                                    "exponent": 1.0,
+                                    "editState": 0,
+                                    "randomX": 0.0,
+                                    "randomY": 0.0,
+                                    "randomBias": 0.5
+                                },
+                                {
+                                    "time": 1.0,
+                                    "value": 1.0,
+                                    "exponent": 1.0,
+                                    "editState": 0,
+                                    "randomX": 0.0,
+                                    "randomY": 0.0,
+                                    "randomBias": 0.5
+                                }
+                            ]
+                        },
+                        "subGain": 0.0,
+                        "lowGain": 0.0,
+                        "lowMidGain": 0.0,
+                        "midGain": 0.0,
+                        "highMidGain": 0.0,
+                        "highGain": 0.0,
+                        "airGain": 0.0,
+                        "eqEnabled": false,
+                        "lpFrequency": 22000.0,
+                        "hpFrequency": 10.0,
+                        "compressionEnabled": false,
+                        "compThreshold": -10.0,
+                        "compRatio": 4.0,
+                        "compAttack": 10.0,
+                        "compRelease": 100.0,
+                        "compMakeupGain": 0.0,
+                        "normalizationEnabled": false,
+                        "normalizeTargetDB": -0.5,
+                        "fadeEnabled": false,
+                        "fadeInDuration": 0.0,
+                        "fadeOutDuration": 0.0,
+                        "fadeUseSCurve": false,
+                        "audioClipPath": "",
+                        "renderedClipPath": "Assets/ZoundsData/SystemFiles/ZoundFiles/PM_SDNG_Stereo_Walk_Seamless_Loop_1 (708862382).wav",
+                        "outputClipPath": "Assets/ZoundsData/SystemFiles/ZoundFiles/PM_SDNG_Stereo_Walk_Seamless_Loop_1 (708862382).wav",
+                        "externalSourcePath": "",
+                        "needsRender": true,
+                        "audioClipRef": {
+                            "m_AssetGUID": "779cca829a643e44dbeef1a98096a387",
+                            "m_SubObjectName": "",
+                            "m_SubObjectType": "",
+                            "m_SubObjectGUID": "",
+                            "m_EditorAssetChanged": false
+                        },
+                        "renderedClipRef": {
+                            "m_AssetGUID": "da31d0d509da12b43ad29f52ae024cf3",
+                            "m_SubObjectName": "",
+                            "m_SubObjectType": "",
+                            "m_SubObjectGUID": "",
+                            "m_EditorAssetChanged": false
+                        },
+                        "outputClipRef": {
+                            "m_AssetGUID": "da31d0d509da12b43ad29f52ae024cf3",
+                            "m_SubObjectName": "",
+                            "m_SubObjectType": "",
+                            "m_SubObjectGUID": "",
+                            "m_EditorAssetChanged": false
+                        }
+                    }
+                ],
                 "localZequences": [],
-                "editor_maxDuration": 3.0,
+                "editor_maxDuration": 0.4000625014305115,
                 "masterVolumeEnvelope": {
                     "m_enabled": false,
                     "m_xMin": 0.0,
@@ -435,13 +1037,19 @@
                             "time": 0.0,
                             "value": 1.0,
                             "exponent": 1.0,
-                            "editState": 0
+                            "editState": 0,
+                            "randomX": 0.0,
+                            "randomY": 0.0,
+                            "randomBias": 0.5
                         },
                         {
                             "time": 1.0,
                             "value": 1.0,
                             "exponent": 1.0,
-                            "editState": 0
+                            "editState": 0,
+                            "randomX": 0.0,
+                            "randomY": 0.0,
+                            "randomBias": 0.5
                         }
                     ]
                 },
@@ -455,10 +1063,10 @@
                 }
             },
             {
-                "id": 218149684,
+                "id": 2107758767,
                 "originalId": 0,
                 "parentId": 0,
-                "name": "Placeholder Zeq 2",
+                "name": "New Zequence",
                 "minVolume": 1.0,
                 "maxVolume": 1.0,
                 "minPitch": 1.0,
@@ -474,12 +1082,443 @@
                     "m_SubObjectGUID": "",
                     "m_EditorAssetChanged": false
                 },
+                "effectChain": {
+                    "nodes": [],
+                    "modifiers": [],
+                    "bindings": []
+                },
+                "chainPresetId": 0,
+                "detachedChainPresetId": 0,
+                "chainOverrides": [],
+                "snapshots": [],
                 "mode": 0,
                 "noPlayWeight": 0,
-                "zoundEntries": [],
-                "localKlips": [],
+                "zoundEntries": [
+                    {
+                        "zoundId": -508123804,
+                        "local": true,
+                        "delay": 0.0,
+                        "volume": 1.0,
+                        "pitch": 1.0,
+                        "chance": 1.0,
+                        "overrideVolume": false,
+                        "overridePitch": false,
+                        "overrideChance": false,
+                        "mute": false,
+                        "solo": false,
+                        "volumeEnvelope": {
+                            "m_enabled": false,
+                            "m_xMin": 0.0,
+                            "m_xMax": 1.0,
+                            "m_yMin": 0.0,
+                            "m_yMax": 1.0,
+                            "m_points": [
+                                {
+                                    "time": 0.0,
+                                    "value": 1.0,
+                                    "exponent": 1.0,
+                                    "editState": 0,
+                                    "randomX": 0.0,
+                                    "randomY": 0.0,
+                                    "randomBias": 0.5
+                                },
+                                {
+                                    "time": 1.0,
+                                    "value": 1.0,
+                                    "exponent": 1.0,
+                                    "editState": 0,
+                                    "randomX": 0.0,
+                                    "randomY": 0.0,
+                                    "randomBias": 0.5
+                                }
+                            ]
+                        },
+                        "chanceWeight": 1,
+                        "repeatEnabled": false,
+                        "repeatRetrigger": false,
+                        "repeatMode": 0,
+                        "repeatCount": 3,
+                        "repeatTotalDuration": 2.0,
+                        "repeatInterval": 0.25,
+                        "repeatSpaceFromEnd": false,
+                        "zpocId": "",
+                        "editor_instanceID": 1146953567,
+                        "editor_foldoutExpanded": true,
+                        "editor_isRenaming": false
+                    }
+                ],
+                "localKlips": [
+                    {
+                        "id": -508123804,
+                        "originalId": 0,
+                        "parentId": 2107758767,
+                        "name": "Game over 4",
+                        "minVolume": 1.0,
+                        "maxVolume": 1.0,
+                        "minPitch": 1.0,
+                        "maxPitch": 1.0,
+                        "chance": 1.0,
+                        "tags": [],
+                        "mute": false,
+                        "solo": false,
+                        "manuallySetMixerGroupRef": {
+                            "m_AssetGUID": "",
+                            "m_SubObjectName": "",
+                            "m_SubObjectType": "",
+                            "m_SubObjectGUID": "",
+                            "m_EditorAssetChanged": false
+                        },
+                        "effectChain": {
+                            "nodes": [
+                                {
+                                    "type": 0,
+                                    "enabled": true,
+                                    "p": [
+                                        4.0
+                                    ],
+                                    "uid": ""
+                                }
+                            ],
+                            "modifiers": [
+                                {
+                                    "type": 0,
+                                    "enabled": true,
+                                    "name": "Time",
+                                    "p": [
+                                        0.0,
+                                        0.0
+                                    ],
+                                    "curve": {
+                                        "m_enabled": true,
+                                        "m_xMin": 0.0,
+                                        "m_xMax": 1.0,
+                                        "m_yMin": 0.0,
+                                        "m_yMax": 1.0,
+                                        "m_points": [
+                                            {
+                                                "time": 0.0,
+                                                "value": 0.4843749403953552,
+                                                "exponent": 1.0,
+                                                "editState": 2,
+                                                "randomX": 0.0,
+                                                "randomY": 0.2425999939441681,
+                                                "randomBias": 0.5015900135040283
+                                            },
+                                            {
+                                                "time": 0.10852017998695374,
+                                                "value": 0.5124999284744263,
+                                                "exponent": 1.0,
+                                                "editState": 0,
+                                                "randomX": 0.0014799999771639705,
+                                                "randomY": 0.3136099874973297,
+                                                "randomBias": 0.5
+                                            },
+                                            {
+                                                "time": 0.2533632516860962,
+                                                "value": 0.5104690194129944,
+                                                "exponent": 1.0,
+                                                "editState": 0,
+                                                "randomX": 0.005929999984800816,
+                                                "randomY": 0.27219000458717348,
+                                                "randomBias": 0.5
+                                            },
+                                            {
+                                                "time": 0.4403587281703949,
+                                                "value": 0.5078470706939697,
+                                                "exponent": 1.0,
+                                                "editState": 0,
+                                                "randomX": 0.0,
+                                                "randomY": 0.28845998644828799,
+                                                "randomBias": 0.5
+                                            },
+                                            {
+                                                "time": 0.4923766553401947,
+                                                "value": 0.5071176886558533,
+                                                "exponent": 1.0,
+                                                "editState": 0,
+                                                "randomX": 0.0,
+                                                "randomY": 0.0,
+                                                "randomBias": 0.5
+                                            },
+                                            {
+                                                "time": 0.6609865427017212,
+                                                "value": 0.5047535300254822,
+                                                "exponent": 1.0,
+                                                "editState": 0,
+                                                "randomX": 0.0,
+                                                "randomY": 0.27959001064300539,
+                                                "randomBias": 0.5
+                                            },
+                                            {
+                                                "time": 0.8363228440284729,
+                                                "value": 0.5022950172424316,
+                                                "exponent": 1.0,
+                                                "editState": 0,
+                                                "randomX": 0.0,
+                                                "randomY": 0.21893000602722169,
+                                                "randomBias": 0.5
+                                            },
+                                            {
+                                                "time": 1.0,
+                                                "value": 0.5,
+                                                "exponent": 1.0,
+                                                "editState": 2,
+                                                "randomX": 0.0014799999771639705,
+                                                "randomY": 0.22928999364376069,
+                                                "randomBias": 0.5
+                                            }
+                                        ]
+                                    },
+                                    "steps": [],
+                                    "zpocId": "",
+                                    "zpocMode": 0,
+                                    "zpocRest": -1.0,
+                                    "zpocSmoothMs": 30.0,
+                                    "uid": ""
+                                },
+                                {
+                                    "type": 0,
+                                    "enabled": true,
+                                    "name": "Pitch",
+                                    "p": [
+                                        0.0,
+                                        0.0
+                                    ],
+                                    "curve": {
+                                        "m_enabled": true,
+                                        "m_xMin": 0.0,
+                                        "m_xMax": 1.0,
+                                        "m_yMin": 0.0,
+                                        "m_yMax": 1.0,
+                                        "m_points": [
+                                            {
+                                                "time": 0.0,
+                                                "value": 0.528124988079071,
+                                                "exponent": 1.0,
+                                                "editState": 2,
+                                                "randomX": 0.0,
+                                                "randomY": 0.03846000134944916,
+                                                "randomBias": 0.5
+                                            },
+                                            {
+                                                "time": 0.48206281661987307,
+                                                "value": 0.5,
+                                                "exponent": 1.0,
+                                                "editState": 0,
+                                                "randomX": 0.0,
+                                                "randomY": 0.023669999092817308,
+                                                "randomBias": 0.5
+                                            },
+                                            {
+                                                "time": 1.0,
+                                                "value": 0.5,
+                                                "exponent": 1.0,
+                                                "editState": 2,
+                                                "randomX": 0.0,
+                                                "randomY": 0.029589999467134477,
+                                                "randomBias": 0.5
+                                            }
+                                        ]
+                                    },
+                                    "steps": [],
+                                    "zpocId": "",
+                                    "zpocMode": 0,
+                                    "zpocRest": -1.0,
+                                    "zpocSmoothMs": 30.0,
+                                    "uid": ""
+                                }
+                            ],
+                            "bindings": [
+                                {
+                                    "modifierIndex": 0,
+                                    "nodeIndex": -1,
+                                    "paramIndex": 2,
+                                    "combine": 5,
+                                    "depth": 1.0,
+                                    "schema": 2,
+                                    "op": 0
+                                },
+                                {
+                                    "modifierIndex": 1,
+                                    "nodeIndex": -1,
+                                    "paramIndex": 0,
+                                    "combine": 5,
+                                    "depth": 1.0,
+                                    "schema": 2,
+                                    "op": 0
+                                }
+                            ]
+                        },
+                        "chainPresetId": 0,
+                        "detachedChainPresetId": 0,
+                        "chainOverrides": [],
+                        "snapshots": [],
+                        "timeStretch": {
+                            "enabled": false,
+                            "algorithm": 0,
+                            "mode": 1,
+                            "factor": 0.4848330616950989,
+                            "speedEnvelope": {
+                                "m_enabled": false,
+                                "m_xMin": 0.0,
+                                "m_xMax": 1.0,
+                                "m_yMin": 0.25,
+                                "m_yMax": 4.0,
+                                "m_points": [
+                                    {
+                                        "time": 0.0,
+                                        "value": 1.0,
+                                        "exponent": 1.0,
+                                        "editState": 0,
+                                        "randomX": 0.0,
+                                        "randomY": 0.0,
+                                        "randomBias": 0.5
+                                    },
+                                    {
+                                        "time": 1.0,
+                                        "value": 1.0,
+                                        "exponent": 1.0,
+                                        "editState": 0,
+                                        "randomX": 0.0,
+                                        "randomY": 0.0,
+                                        "randomBias": 0.5
+                                    }
+                                ]
+                            },
+                            "regionStart": 0.24115000665187837,
+                            "regionEnd": 0.5179105401039124,
+                            "algorithmParams": [
+                                60.0,
+                                0.3014799952507019,
+                                0.6074100136756897,
+                                65.9259033203125
+                            ],
+                            "liveEnabled": false,
+                            "liveSpeed": 0.6359178423881531,
+                            "liveAlgorithm": 0,
+                            "liveWindowMs": 10.0,
+                            "liveKeepHits": false,
+                            "pitchKeepsLength": false
+                        },
+                        "loop": {
+                            "enabled": false,
+                            "crossmixMin": 0.0,
+                            "crossmixMax": 0.0
+                        },
+                        "boost": 0.0,
+                        "gain": 1.0,
+                        "gainEnabled": true,
+                        "showRenderedWaveform": false,
+                        "trimEnabled": true,
+                        "trimStart": 0.12942573428153993,
+                        "trimEnd": 0.9056956171989441,
+                        "clampToTrim": true,
+                        "volumeEnvelope": {
+                            "m_enabled": false,
+                            "m_xMin": 0.0,
+                            "m_xMax": 1.0,
+                            "m_yMin": 0.0,
+                            "m_yMax": 1.0,
+                            "m_points": [
+                                {
+                                    "time": 0.0,
+                                    "value": 1.0,
+                                    "exponent": 1.0,
+                                    "editState": 0,
+                                    "randomX": 0.0,
+                                    "randomY": 0.0,
+                                    "randomBias": 0.5
+                                },
+                                {
+                                    "time": 1.0,
+                                    "value": 1.0,
+                                    "exponent": 1.0,
+                                    "editState": 0,
+                                    "randomX": 0.0,
+                                    "randomY": 0.0,
+                                    "randomBias": 0.5
+                                }
+                            ]
+                        },
+                        "pitchEnvelope": {
+                            "m_enabled": false,
+                            "m_xMin": 0.0,
+                            "m_xMax": 1.0,
+                            "m_yMin": 0.10000000149011612,
+                            "m_yMax": 2.0,
+                            "m_points": [
+                                {
+                                    "time": 0.0,
+                                    "value": 1.0,
+                                    "exponent": 1.0,
+                                    "editState": 0,
+                                    "randomX": 0.0,
+                                    "randomY": 0.0,
+                                    "randomBias": 0.5
+                                },
+                                {
+                                    "time": 1.0,
+                                    "value": 1.0,
+                                    "exponent": 1.0,
+                                    "editState": 0,
+                                    "randomX": 0.0,
+                                    "randomY": 0.0,
+                                    "randomBias": 0.5
+                                }
+                            ]
+                        },
+                        "subGain": 0.0,
+                        "lowGain": 0.0,
+                        "lowMidGain": 8.059700012207032,
+                        "midGain": 16.895530700683595,
+                        "highMidGain": 0.0,
+                        "highGain": 0.0,
+                        "airGain": 0.0,
+                        "eqEnabled": false,
+                        "lpFrequency": 21999.990234375,
+                        "hpFrequency": 546.0971069335938,
+                        "compressionEnabled": false,
+                        "compThreshold": -10.0,
+                        "compRatio": 4.0,
+                        "compAttack": 10.0,
+                        "compRelease": 100.0,
+                        "compMakeupGain": 0.0,
+                        "normalizationEnabled": false,
+                        "normalizeTargetDB": -0.5,
+                        "fadeEnabled": false,
+                        "fadeInDuration": 0.0,
+                        "fadeOutDuration": 0.0,
+                        "fadeUseSCurve": false,
+                        "audioClipPath": "Assets/ZoundsData/Sources/Game over 4.wav",
+                        "renderedClipPath": "Assets/ZoundsData/SystemFiles/ZoundFiles/Game over 4 (2107758767).wav",
+                        "outputClipPath": "Assets/ZoundsData/SystemFiles/ZoundFiles/Game over 4 (2107758767).wav",
+                        "externalSourcePath": "",
+                        "needsRender": false,
+                        "audioClipRef": {
+                            "m_AssetGUID": "0dd5beca1ec6fcf489cbb542b2e4eeba",
+                            "m_SubObjectName": "",
+                            "m_SubObjectType": "",
+                            "m_SubObjectGUID": "",
+                            "m_EditorAssetChanged": false
+                        },
+                        "renderedClipRef": {
+                            "m_AssetGUID": "931186e7fb9e7394580df6295e872391",
+                            "m_SubObjectName": "",
+                            "m_SubObjectType": "",
+                            "m_SubObjectGUID": "",
+                            "m_EditorAssetChanged": false
+                        },
+                        "outputClipRef": {
+                            "m_AssetGUID": "931186e7fb9e7394580df6295e872391",
+                            "m_SubObjectName": "",
+                            "m_SubObjectType": "",
+                            "m_SubObjectGUID": "",
+                            "m_EditorAssetChanged": false
+                        }
+                    }
+                ],
                 "localZequences": [],
-                "editor_maxDuration": 3.0,
+                "editor_maxDuration": 1.0681178569793702,
                 "masterVolumeEnvelope": {
                     "m_enabled": false,
                     "m_xMin": 0.0,
@@ -491,13 +1530,331 @@
                             "time": 0.0,
                             "value": 1.0,
                             "exponent": 1.0,
-                            "editState": 0
+                            "editState": 0,
+                            "randomX": 0.0,
+                            "randomY": 0.0,
+                            "randomBias": 0.5
                         },
                         {
                             "time": 1.0,
                             "value": 1.0,
                             "exponent": 1.0,
-                            "editState": 0
+                            "editState": 0,
+                            "randomX": 0.0,
+                            "randomY": 0.0,
+                            "randomBias": 0.5
+                        }
+                    ]
+                },
+                "renderedClipPath": "",
+                "renderedClipRef": {
+                    "m_AssetGUID": "",
+                    "m_SubObjectName": "",
+                    "m_SubObjectType": "",
+                    "m_SubObjectGUID": "",
+                    "m_EditorAssetChanged": false
+                }
+            },
+            {
+                "id": -523818070,
+                "originalId": 0,
+                "parentId": 0,
+                "name": "Z1 Loop",
+                "minVolume": 1.0,
+                "maxVolume": 1.0,
+                "minPitch": 1.0,
+                "maxPitch": 1.0,
+                "chance": 1.0,
+                "tags": [],
+                "mute": false,
+                "solo": false,
+                "manuallySetMixerGroupRef": {
+                    "m_AssetGUID": "",
+                    "m_SubObjectName": "",
+                    "m_SubObjectType": "",
+                    "m_SubObjectGUID": "",
+                    "m_EditorAssetChanged": false
+                },
+                "effectChain": {
+                    "nodes": [],
+                    "modifiers": [],
+                    "bindings": []
+                },
+                "chainPresetId": 0,
+                "detachedChainPresetId": 0,
+                "chainOverrides": [],
+                "snapshots": [],
+                "mode": 0,
+                "noPlayWeight": 0,
+                "zoundEntries": [
+                    {
+                        "zoundId": 1588967805,
+                        "local": true,
+                        "delay": 0.0,
+                        "volume": 1.0,
+                        "pitch": 1.0,
+                        "chance": 1.0,
+                        "overrideVolume": false,
+                        "overridePitch": false,
+                        "overrideChance": false,
+                        "mute": false,
+                        "solo": false,
+                        "volumeEnvelope": {
+                            "m_enabled": false,
+                            "m_xMin": 0.0,
+                            "m_xMax": 1.0,
+                            "m_yMin": 0.0,
+                            "m_yMax": 1.0,
+                            "m_points": [
+                                {
+                                    "time": 0.0,
+                                    "value": 1.0,
+                                    "exponent": 1.0,
+                                    "editState": 0,
+                                    "randomX": 0.0,
+                                    "randomY": 0.0,
+                                    "randomBias": 0.5
+                                },
+                                {
+                                    "time": 1.0,
+                                    "value": 1.0,
+                                    "exponent": 1.0,
+                                    "editState": 0,
+                                    "randomX": 0.0,
+                                    "randomY": 0.0,
+                                    "randomBias": 0.5
+                                }
+                            ]
+                        },
+                        "chanceWeight": 1,
+                        "repeatEnabled": false,
+                        "repeatRetrigger": false,
+                        "repeatMode": 0,
+                        "repeatCount": 3,
+                        "repeatTotalDuration": 2.0,
+                        "repeatInterval": 0.25,
+                        "repeatSpaceFromEnd": false,
+                        "zpocId": "",
+                        "editor_instanceID": 0,
+                        "editor_foldoutExpanded": true,
+                        "editor_isRenaming": false
+                    }
+                ],
+                "localKlips": [
+                    {
+                        "id": 1588967805,
+                        "originalId": 0,
+                        "parentId": -523818070,
+                        "name": "THUN_InsJ_Thunder_Close_Rain_02",
+                        "minVolume": 1.0,
+                        "maxVolume": 1.0,
+                        "minPitch": 1.0,
+                        "maxPitch": 1.0,
+                        "chance": 1.0,
+                        "tags": [],
+                        "mute": false,
+                        "solo": false,
+                        "manuallySetMixerGroupRef": {
+                            "m_AssetGUID": "",
+                            "m_SubObjectName": "",
+                            "m_SubObjectType": "",
+                            "m_SubObjectGUID": "",
+                            "m_EditorAssetChanged": false
+                        },
+                        "effectChain": {
+                            "nodes": [],
+                            "modifiers": [],
+                            "bindings": []
+                        },
+                        "chainPresetId": 0,
+                        "detachedChainPresetId": 0,
+                        "chainOverrides": [],
+                        "snapshots": [],
+                        "timeStretch": {
+                            "enabled": false,
+                            "algorithm": 0,
+                            "mode": 0,
+                            "factor": 1.0,
+                            "speedEnvelope": {
+                                "m_enabled": false,
+                                "m_xMin": 0.0,
+                                "m_xMax": 1.0,
+                                "m_yMin": 0.25,
+                                "m_yMax": 4.0,
+                                "m_points": [
+                                    {
+                                        "time": 0.0,
+                                        "value": 1.0,
+                                        "exponent": 1.0,
+                                        "editState": 0,
+                                        "randomX": 0.0,
+                                        "randomY": 0.0,
+                                        "randomBias": 0.5
+                                    },
+                                    {
+                                        "time": 1.0,
+                                        "value": 1.0,
+                                        "exponent": 1.0,
+                                        "editState": 0,
+                                        "randomX": 0.0,
+                                        "randomY": 0.0,
+                                        "randomBias": 0.5
+                                    }
+                                ]
+                            },
+                            "regionStart": 0.0,
+                            "regionEnd": 0.0,
+                            "algorithmParams": [],
+                            "liveEnabled": false,
+                            "liveSpeed": 1.0,
+                            "liveAlgorithm": 0,
+                            "liveWindowMs": 30.0,
+                            "liveKeepHits": true,
+                            "pitchKeepsLength": false
+                        },
+                        "loop": {
+                            "enabled": true,
+                            "crossmixMin": 1.8342715501785279,
+                            "crossmixMax": 1.8342715501785279
+                        },
+                        "boost": 0.0,
+                        "gain": 1.0,
+                        "gainEnabled": false,
+                        "showRenderedWaveform": false,
+                        "trimEnabled": true,
+                        "trimStart": 0.2025299370288849,
+                        "trimEnd": 9.046338081359864,
+                        "clampToTrim": true,
+                        "volumeEnvelope": {
+                            "m_enabled": false,
+                            "m_xMin": 0.0,
+                            "m_xMax": 1.0,
+                            "m_yMin": 0.0,
+                            "m_yMax": 1.0,
+                            "m_points": [
+                                {
+                                    "time": 0.0,
+                                    "value": 1.0,
+                                    "exponent": 1.0,
+                                    "editState": 0,
+                                    "randomX": 0.0,
+                                    "randomY": 0.0,
+                                    "randomBias": 0.5
+                                },
+                                {
+                                    "time": 1.0,
+                                    "value": 1.0,
+                                    "exponent": 1.0,
+                                    "editState": 0,
+                                    "randomX": 0.0,
+                                    "randomY": 0.0,
+                                    "randomBias": 0.5
+                                }
+                            ]
+                        },
+                        "pitchEnvelope": {
+                            "m_enabled": false,
+                            "m_xMin": 0.0,
+                            "m_xMax": 1.0,
+                            "m_yMin": 0.10000000149011612,
+                            "m_yMax": 2.0,
+                            "m_points": [
+                                {
+                                    "time": 0.0,
+                                    "value": 1.0,
+                                    "exponent": 1.0,
+                                    "editState": 0,
+                                    "randomX": 0.0,
+                                    "randomY": 0.0,
+                                    "randomBias": 0.5
+                                },
+                                {
+                                    "time": 1.0,
+                                    "value": 1.0,
+                                    "exponent": 1.0,
+                                    "editState": 0,
+                                    "randomX": 0.0,
+                                    "randomY": 0.0,
+                                    "randomBias": 0.5
+                                }
+                            ]
+                        },
+                        "subGain": 0.0,
+                        "lowGain": 0.0,
+                        "lowMidGain": 0.0,
+                        "midGain": 0.0,
+                        "highMidGain": 0.0,
+                        "highGain": 0.0,
+                        "airGain": 0.0,
+                        "eqEnabled": false,
+                        "lpFrequency": 22000.0,
+                        "hpFrequency": 10.0,
+                        "compressionEnabled": false,
+                        "compThreshold": -10.0,
+                        "compRatio": 4.0,
+                        "compAttack": 10.0,
+                        "compRelease": 100.0,
+                        "compMakeupGain": 0.0,
+                        "normalizationEnabled": false,
+                        "normalizeTargetDB": -0.5,
+                        "fadeEnabled": false,
+                        "fadeInDuration": 0.0,
+                        "fadeOutDuration": 0.0,
+                        "fadeUseSCurve": false,
+                        "audioClipPath": "",
+                        "renderedClipPath": "Assets/ZoundsData/SystemFiles/ZoundFiles/THUN_InsJ_Thunder_Close_Rain_02 (-523818070).wav",
+                        "outputClipPath": "Assets/ZoundsData/SystemFiles/ZoundFiles/THUN_InsJ_Thunder_Close_Rain_02 (-523818070).wav",
+                        "externalSourcePath": "",
+                        "needsRender": false,
+                        "audioClipRef": {
+                            "m_AssetGUID": "35feede672b394e49b5f16b11fc5cff2",
+                            "m_SubObjectName": "",
+                            "m_SubObjectType": "",
+                            "m_SubObjectGUID": "",
+                            "m_EditorAssetChanged": false
+                        },
+                        "renderedClipRef": {
+                            "m_AssetGUID": "0068cfb6136471149938e005883ed428",
+                            "m_SubObjectName": "",
+                            "m_SubObjectType": "",
+                            "m_SubObjectGUID": "",
+                            "m_EditorAssetChanged": false
+                        },
+                        "outputClipRef": {
+                            "m_AssetGUID": "0068cfb6136471149938e005883ed428",
+                            "m_SubObjectName": "",
+                            "m_SubObjectType": "",
+                            "m_SubObjectGUID": "",
+                            "m_EditorAssetChanged": false
+                        }
+                    }
+                ],
+                "localZequences": [],
+                "editor_maxDuration": 19.5,
+                "masterVolumeEnvelope": {
+                    "m_enabled": false,
+                    "m_xMin": 0.0,
+                    "m_xMax": 1.0,
+                    "m_yMin": 0.0,
+                    "m_yMax": 1.0,
+                    "m_points": [
+                        {
+                            "time": 0.0,
+                            "value": 1.0,
+                            "exponent": 1.0,
+                            "editState": 0,
+                            "randomX": 0.0,
+                            "randomY": 0.0,
+                            "randomBias": 0.5
+                        },
+                        {
+                            "time": 1.0,
+                            "value": 1.0,
+                            "exponent": 1.0,
+                            "editState": 0,
+                            "randomX": 0.0,
+                            "randomY": 0.0,
+                            "randomBias": 0.5
                         }
                     ]
                 },

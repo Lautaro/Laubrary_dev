@@ -1,0 +1,239 @@
+=== BackSplashWindow ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:80.00, y:60.00, width:620.00, height:620.22) rootWorld=(x:0.00, y:26.22, width:620.00, height:620.00)
+elements=133 drawn=90 textElements=23 controls=15 leafControls=14
+captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=1
+
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → This BackSplash matches what is on disk — nothing to save.
+-- every leaf control --
+LEAF 'AuditT326Back' ObjectField rect=4,31 200.0x18.2 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=The BackSplash asset being edited — assign one directly, or use Browse… | EditorPanelRootElement#unity-panel-container13>VisualElement#rootVisualContainer14>VisualElement>ObjectField
+LEAF 'Save' Button rect=232,31 52.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=This BackSplash matches what is on disk — nothing to save. | EditorPanelRootElement#unity-panel-container13>VisualElement#rootVisualContainer14>VisualElement>Button
+LEAF 'New' Button rect=293,31 40.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a brand new BackSplash asset (undoable). | EditorPanelRootElement#unity-panel-container13>VisualElement#rootVisualContainer14>VisualElement>Button
+LEAF 'Browse' Button rect=342,31 56.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Toggle the thumbnail browser of every BackSplash in the project. | EditorPanelRootElement#unity-panel-container13>VisualElement#rootVisualContainer14>VisualElement>Button
+LEAF 'Duplicate' Button rect=408,31 68.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a copy of this BackSplash next to it and switch to editing the … | EditorPanelRootElement#unity-panel-container13>VisualElement#rootVisualContainer14>VisualElement>Button
+LEAF 'Rename' Button rect=485,31 60.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Rename this asset's file. | EditorPanelRootElement#unity-panel-container13>VisualElement#rootVisualContainer14>VisualElement>Button
+LEAF 'Delete' Button rect=555,31 51.1x18.2 enabled=True cls=unity-text-element.unity-button tip=Delete this asset's file (asks first — file deletion cannot be undone)… | EditorPanelRootElement#unity-panel-container13>VisualElement#rootVisualContainer14>VisualElement>Button
+LEAF 'HDR' ColorField rect=48,121 110.2x16.0 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-color-field tip=Solid colour a real Camera clears to behind the image (drawn as a flat… | ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>ColorField
+LEAF 'None (Sprite)' ObjectField rect=45,181 200.0x17.8 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=The backdrop picture. Leave empty for a plain colour backdrop. | ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>ObjectField
+LEAF 'HDR' ColorField rect=33,204 110.2x16.0 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-color-field tip=Multiplies the image's own colours — dim it, or wash it toward a hue. | ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>ColorField
+LEAF '1' TextField rect=144,226 50.2x18.2 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-field.unity-base-slider__text-field tip=How much of the viewport the image fills — 1 fits the viewport exactly… | VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>Slider>VisualElement>TextField#unity-text-field
+LEAF '<unnamed>' ZuiPad rect=56,249 68.0x68.0 enabled=True cls=zui-pad.zui-kbd-focus tip=Offsets the image within the viewport. Drag the pad (or the preview be… | VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>VisualElement>ZuiPad
+LEAF '0' FloatField rect=146,273 68.0x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-field tip=Horizontal offset in the viewport's own units. | VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>VisualElement>VisualElement>FloatField
+LEAF '0' FloatField rect=238,273 68.0x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-field tip=Vertical offset in the viewport's own units. | VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>VisualElement>VisualElement>FloatField
+
+=== ZuiAudit(BackSplashWindow) expanded=1 folded=8 total=0 ===
+
+
+=== ChoreographerWindow ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:185.78, y:92.89, width:987.56, height:802.89) rootWorld=(x:0.00, y:26.22, width:987.56, height:802.67)
+elements=269 drawn=173 textElements=65 controls=54 leafControls=45
+captionShort=0 overflowParentX=1 overflowParentY=1 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=2
+
+-- captions --
+-- overflow (parent) --
+OVERFLOW-Y 3.6px '0.4189339' (x:100.00, y:769.78, width:149.78, height:17.78) out of (x:11.11, y:773.33, width:305.78, height:10.67) | VisualElement>VisualElement>ZuiBox>VisualElement>VisualElement>Slider
+OVERFLOW-X 22.2px '0.4189339' (x:203.11, y:771.56, width:65.78, height:15.11) out of (x:203.11, y:771.56, width:43.56, height:15.11) | VisualElement>Slider>VisualElement>TextField#unity-text-field>TextInput#unity-text-input>TextElement
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → This Choreography matches what is on disk — nothing to save.
+inert '- point' → Remove the last control point (a path keeps at least two).
+-- every leaf control --
+LEAF 'AuditT326Choreo' ObjectField rect=4,31 200.0x18.2 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=The Choreography asset being edited — assign one directly, or use Brow… | EditorPanelRootElement#unity-panel-container2>VisualElement#rootVisualContainer2>VisualElement>ObjectField
+LEAF 'Save' Button rect=232,31 52.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=This Choreography matches what is on disk — nothing to save. | EditorPanelRootElement#unity-panel-container2>VisualElement#rootVisualContainer2>VisualElement>Button
+LEAF 'New' Button rect=293,31 40.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a brand new Choreography asset (undoable). | EditorPanelRootElement#unity-panel-container2>VisualElement#rootVisualContainer2>VisualElement>Button
+LEAF 'Browse' Button rect=342,31 56.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Toggle the thumbnail browser of every Choreography in the project. | EditorPanelRootElement#unity-panel-container2>VisualElement#rootVisualContainer2>VisualElement>Button
+LEAF 'Duplicate' Button rect=408,31 68.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a copy of this Choreography next to it and switch to editing th… | EditorPanelRootElement#unity-panel-container2>VisualElement#rootVisualContainer2>VisualElement>Button
+LEAF 'Rename' Button rect=485,31 60.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Rename this asset's file. | EditorPanelRootElement#unity-panel-container2>VisualElement#rootVisualContainer2>VisualElement>Button
+LEAF 'Delete' Button rect=555,31 51.1x18.2 enabled=True cls=unity-text-element.unity-button tip=Delete this asset's file (asks first — file deletion cannot be undone)… | EditorPanelRootElement#unity-panel-container2>VisualElement#rootVisualContainer2>VisualElement>Button
+LEAF 'Line' Button rect=7,134 38.2x18.2 enabled=True cls=unity-text-element.unity-button tip=Replace the path with a straight line preset. | ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>Button
+LEAF 'Sine' Button rect=55,134 39.1x18.2 enabled=True cls=unity-text-element.unity-button tip=Replace the path with a sine-wave preset. | ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>Button
+LEAF 'Arc' Button rect=103,134 33.3x18.2 enabled=True cls=unity-text-element.unity-button tip=Replace the path with an arc preset. | ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>Button
+LEAF 'S' Button rect=146,134 22.2x18.2 enabled=True cls=unity-text-element.unity-button tip=Replace the path with an S-curve preset. | ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>Button
+LEAF 'Smooth (spline)' ZuiToggleButton rect=7,158 110.2x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton.zui-togglebutton--on tip=Interpolate the control points as a smooth spline instead of straight … | VisualElement>ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiToggleButton
+LEAF 'Constant speed' ZuiToggleButton rect=7,180 110.2x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton.zui-togglebutton--on tip=Reparameterise so dancers move at uniform speed along the whole path. | VisualElement>ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiToggleButton
+LEAF '+ point' Button rect=7,216 54.2x18.2 enabled=True cls=unity-text-element.unity-button tip=Extend the path by one control point, continuing its last direction. | ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>Button
+LEAF '- point' Button rect=71,216 52.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=Remove the last control point (a path keeps at least two). | ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>Button
+LEAF '1' TextField rect=171,323 50.2x18.2 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-field.unity-base-slider__text-field tip=Total width of the dancer fan, in path-space units. | VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>Slider>VisualElement>TextField#unity-text-field
+LEAF '0' TextField rect=160,347 50.2x17.8 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-field.unity-base-slider__text-field tip=0 = straight start line, 1 = fully bent into a circle around the path. | VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>Slider>VisualElement>TextField#unity-text-field
+LEAF 'Fixed' Button rect=4,403 45.8x18.2 enabled=True cls=unity-text-element.unity-button.zui-radio__on.zui-radio__first tip=Fixed = every dancer faces the same angle. Radial = each faces along i… | ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>Button
+LEAF 'Radial' Button rect=50,403 48.9x18.2 enabled=True cls=unity-text-element.unity-button.zui-radio__last tip=Fixed = every dancer faces the same angle. Radial = each faces along i… | ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>Button
+LEAF '0' TextField rect=164,422 50.2x18.2 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-field.unity-base-slider__text-field tip=Facing angle in degrees — absolute in Fixed mode, added to the travel … | VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>Slider>VisualElement>TextField#unity-text-field
+LEAF '5' TextField rect=208,478 50.2x17.8 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-field.unity-base-slider__text-field tip=Dancer count a ChoreographyPlayer uses unless told otherwise. | VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>SliderInt>VisualElement>TextField#unity-text-field
+LEAF '2' TextField rect=198,502 50.2x18.2 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-field.unity-base-slider__text-field tip=Seconds one full travel of the path takes. | VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>Slider>VisualElement>TextField#unity-text-field
+LEAF '0' TextField rect=176,526 50.2x17.8 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-field.unity-base-slider__text-field tip=0 = all dancers move together, 1 = starts spread evenly across the who… | VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>Slider>VisualElement>TextField#unity-text-field
+LEAF 'Scatter' Button rect=4,550 56.9x18.2 enabled=True cls=unity-text-element.unity-button.zui-radio__on.zui-radio__first tip=Scatter = dancers travel outward from the path start. Gather = they ru… | ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>Button
+LEAF 'Gather' Button rect=61,550 53.3x18.2 enabled=True cls=unity-text-element.unity-button.zui-radio__last tip=Scatter = dancers travel outward from the path start. Gather = they ru… | ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>Button
+LEAF 'Loop' ZuiToggleButton rect=7,570 46.7x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton.zui-togglebutton--on tip=Restart the cycle when it completes instead of stopping at the end. | VisualElement>ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiToggleButton
+LEAF 'Use launcher' ZuiToggleButton rect=7,624 92.4x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton tip=Anchor the path start to a live Launcher transform at runtime. | VisualElement>ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiToggleButton
+LEAF 'Use target' ZuiToggleButton rect=7,647 77.8x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton tip=Anchor the path end to a live Target transform at runtime. | VisualElement>ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiToggleButton
+LEAF '0' TextField rect=212,701 50.2x18.2 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-field.unity-base-slider__text-field tip=Dancer count for THIS preview only — 0 falls back to the asset's defau… | VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>SliderInt>VisualElement>TextField#unity-text-field
+LEAF 'Grid' ZuiToggleButton rect=7,725 142.2x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton.zui-togglebutton--on tip=Show the reference unit box and axes. | ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>ZuiToggleButton
+LEAF 'Path + handles' ZuiToggleButton rect=159,725 141.8x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton.zui-togglebutton--on tip=Show the authored path template and its draggable control points. | ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>ZuiToggleButton
+LEAF 'Spread line' ZuiToggleButton rect=7,752 142.2x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton.zui-togglebutton--on tip=Show the dancer fan at mid-flight, where the spread is fullest. | ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>ZuiToggleButton
+LEAF 'Path lines' ZuiToggleButton rect=159,752 141.8x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton.zui-togglebutton--on tip=Show the actual route each sampled dancer travels. | ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>ZuiToggleButton
+LEAF 'Onion-skin' ZuiToggleButton rect=7,779 142.2x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton tip=Show ghosted dancer positions at several time-steps at once. | ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>ZuiToggleButton
+LEAF 'Trails' ZuiToggleButton rect=159,779 141.8x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton tip=Show a fading trail behind each dancer. | ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>ZuiToggleButton
+LEAF 'Dots' ZuiToggleButton rect=7,805 142.2x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton.zui-togglebutton--on tip=Show each dancer as a coloured dot. | ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>ZuiToggleButton
+LEAF 'Facing ticks' ZuiToggleButton rect=159,805 141.8x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton.zui-togglebutton--on tip=Show a small tick indicating each dancer's facing. | ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>ZuiToggleButton
+LEAF 'Sprites' ZuiToggleButton rect=7,832 142.2x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton tip=Show dancers as the sample sprites listed below instead of dots. | ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>ZuiToggleButton
+LEAF 'Anchors' ZuiToggleButton rect=159,832 141.8x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton.zui-togglebutton--on tip=Show the draggable Launcher/Target preview markers. | ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>ZuiToggleButton
+LEAF 'Blend marks' ZuiToggleButton rect=7,859 142.2x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton.zui-togglebutton--on tip=Mark where launch fan-out completes and where target convergence begin… | ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>ZuiToggleButton
+LEAF 'Colour by index' ZuiToggleButton rect=159,859 141.8x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton.zui-togglebutton--on tip=Tint every per-dancer element by its index instead of a flat colour. | ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>ZuiToggleButton
+LEAF '❚❚' Button rect=14,774 38.2x9.3 enabled=True cls=unity-text-element.unity-button tip=Play or pause the looping preview. | VisualElement>VisualElement>ZuiBox>VisualElement>VisualElement>Button
+LEAF '|<' Button rect=62,774 32.0x9.3 enabled=True cls=unity-text-element.unity-button tip=Rewind the preview to the start of the cycle. | VisualElement>VisualElement>ZuiBox>VisualElement>VisualElement>Button
+LEAF '0.4189339' TextField rect=200,770 49.8x17.8 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-field.unity-base-slider__text-field tip=Scrub the preview to an exact phase of the cycle (pauses playback). | ZuiBox>VisualElement>VisualElement>Slider>VisualElement>TextField#unity-text-field
+LEAF '1' TextField rect=174,789 49.8x17.8 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-field.unity-base-slider__text-field tip=Preview playback speed multiplier. | ZuiBox>VisualElement>VisualElement>Slider>VisualElement>TextField#unity-text-field
+
+=== ZuiAudit(ChoreographerWindow) expanded=0 folded=10 total=1 ===
+   [clipped-input] TextInput #unity-text-input [unity-base-text-field__input,unity-base-text-field__input--single-line,unity-base-field__input,unity-text-field__input] — "0.4189339" needs 61.3px, the field shows 43.6px
+
+
+=== TapestryWindow ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:100.00, y:95.56, width:1100.00, height:800.22) rootWorld=(x:0.00, y:26.22, width:1100.00, height:800.00)
+elements=158 drawn=107 textElements=38 controls=23 leafControls=17
+captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=1
+
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → This Tapestry matches what is on disk — nothing to save.
+-- every leaf control --
+LEAF 'AuditT326Tapestry' ObjectField rect=4,31 200.0x18.2 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=The Tapestry asset being edited — assign one directly, or use Browse. | EditorPanelRootElement#unity-panel-container18>VisualElement#rootVisualContainer20>VisualElement>ObjectField
+LEAF 'Save' Button rect=232,31 52.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=This Tapestry matches what is on disk — nothing to save. | EditorPanelRootElement#unity-panel-container18>VisualElement#rootVisualContainer20>VisualElement>Button
+LEAF 'New' Button rect=293,31 40.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a brand new Tapestry asset (undoable). | EditorPanelRootElement#unity-panel-container18>VisualElement#rootVisualContainer20>VisualElement>Button
+LEAF 'Browse' Button rect=342,31 56.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Toggle the thumbnail browser of every Tapestry in the project. | EditorPanelRootElement#unity-panel-container18>VisualElement#rootVisualContainer20>VisualElement>Button
+LEAF 'Duplicate' Button rect=408,31 68.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a copy of this Tapestry next to it and switch to editing the co… | EditorPanelRootElement#unity-panel-container18>VisualElement#rootVisualContainer20>VisualElement>Button
+LEAF 'Rename' Button rect=485,31 60.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Rename this asset's file. | EditorPanelRootElement#unity-panel-container18>VisualElement#rootVisualContainer20>VisualElement>Button
+LEAF 'Delete' Button rect=555,31 51.1x18.2 enabled=True cls=unity-text-element.unity-button tip=Delete this asset's file (asks first — file deletion cannot be undone)… | EditorPanelRootElement#unity-panel-container18>VisualElement#rootVisualContainer20>VisualElement>Button
+LEAF '1234' IntegerField rect=207,128 70.2x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-integer-field tip=Random seed. | VisualElement#unity-content-container>ZuiSection>VisualElement>ZuiHGroup>VisualElement>IntegerField
+LEAF '+ Add layer' Button rect=7,219 79.6x18.2 enabled=True cls=unity-text-element.unity-button tip=Append a new layer to the stack (undoable). | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>ZuiHGroup>Button
+LEAF 'Duplicate' Button rect=96,219 68.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Duplicate the selected layer, inserted right after it (undoable). | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>ZuiHGroup>Button
+LEAF '+ Add modifier' Button rect=7,287 353.8x18.2 enabled=True cls=unity-text-element.unity-button tip=Add a modifier to this stack (undoable). | VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>Button
+LEAF '▶ Play' Button rect=368,688 724.9x19.6 enabled=True cls=unity-text-element.unity-button tip=Play or pause the animation loop — only visible effect if a layer has … | TwoPaneSplitView>VisualElement#unity-content-container>VisualElement>VisualElement>VisualElement>Button
+LEAF '1' TextField rect=558,710 49.8x17.8 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-field.unity-base-slider__text-field tip=Scrub to an exact frame — dragging pauses playback. | VisualElement>VisualElement>VisualElement>SliderInt>VisualElement>TextField#unity-text-field
+LEAF 'Tiled' ZuiToggleButton rect=368,749 46.7x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton.zui-togglebutton--on tip=Show a 3x3 tiled repeat of the texture, to check it seams cleanly. | TwoPaneSplitView>VisualElement#unity-content-container>VisualElement>VisualElement>ZuiHGroup>ZuiToggleButton
+LEAF 'Export Texture…' Button rect=424,751 107.6x18.2 enabled=True cls=unity-text-element.unity-button tip=Save the CURRENT frame's bake as a single PNG on disk. | TwoPaneSplitView>VisualElement#unity-content-container>VisualElement>VisualElement>ZuiHGroup>Button
+LEAF 'Export Strip…' Button rect=541,751 91.6x18.2 enabled=True cls=unity-text-element.unity-button tip=Bake every frame of the animation loop and save them as one PNG strip … | TwoPaneSplitView>VisualElement#unity-content-container>VisualElement>VisualElement>ZuiHGroup>Button
+LEAF 'HDR' ColorField rect=440,801 110.2x16.0 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-color-field tip=The preview's clear colour. | TwoPaneSplitView>VisualElement#unity-content-container>VisualElement>VisualElement>VisualElement>ColorField
+
+=== ZuiAudit(TapestryWindow) expanded=0 folded=9 total=1 ===
+   [over-width] Button "▶ Play" [unity-text-element,unity-button] — 725px wide (cap 600)
+
+
+=== LatheMoldWindow ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:305.33, y:87.56, width:1000.00, height:750.00) rootWorld=(x:0.00, y:26.22, width:1000.00, height:749.78)
+elements=91 drawn=62 textElements=26 controls=15 leafControls=13
+captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=1
+
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → This Lathe Mold matches what is on disk — nothing to save.
+-- every leaf control --
+LEAF 'AuditT326Mold' ObjectField rect=4,31 200.0x18.2 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=The Lathe Mold asset being edited — assign one directly, or use Browse… | EditorPanelRootElement#unity-panel-container6>VisualElement#rootVisualContainer6>VisualElement>ObjectField
+LEAF 'Save' Button rect=232,31 52.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=This Lathe Mold matches what is on disk — nothing to save. | EditorPanelRootElement#unity-panel-container6>VisualElement#rootVisualContainer6>VisualElement>Button
+LEAF 'New' Button rect=293,31 40.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a brand new Lathe Mold asset (undoable). | EditorPanelRootElement#unity-panel-container6>VisualElement#rootVisualContainer6>VisualElement>Button
+LEAF 'Browse' Button rect=342,31 56.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Toggle the thumbnail browser of every Lathe Mold in the project. | EditorPanelRootElement#unity-panel-container6>VisualElement#rootVisualContainer6>VisualElement>Button
+LEAF 'Duplicate' Button rect=408,31 68.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a copy of this Lathe Mold next to it and switch to editing the … | EditorPanelRootElement#unity-panel-container6>VisualElement#rootVisualContainer6>VisualElement>Button
+LEAF 'Rename' Button rect=485,31 60.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Rename this asset's file. | EditorPanelRootElement#unity-panel-container6>VisualElement#rootVisualContainer6>VisualElement>Button
+LEAF 'Delete' Button rect=555,31 51.1x18.2 enabled=True cls=unity-text-element.unity-button tip=Delete this asset's file (asks first — file deletion cannot be undone)… | EditorPanelRootElement#unity-panel-container6>VisualElement#rootVisualContainer6>VisualElement>Button
+LEAF '✔' ZuiToggleButton rect=29,194 29.8x18.2 enabled=True cls=unity-text-element.unity-button.zui-togglebutton.zui-togglebutton--mark.zui-togglebutton--on tip=Enable or disable this node without removing it. | VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>VisualElement>ZuiToggleButton
+LEAF '○' Button rect=68,194 24.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Select this node to edit it below. | VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>VisualElement>Button
+LEAF 'Node 1' TextField rect=123,194 203.6x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-field tip=This node's name. | VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>VisualElement>TextField
+LEAF '×' Button rect=336,194 21.8x18.2 enabled=True cls=unity-text-element.unity-button tip=Remove this node (undoable). | VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>VisualElement>Button
+LEAF '+ Add node' Button rect=7,218 80.9x18.2 enabled=True cls=unity-text-element.unity-button tip=Append a new node (undoable). | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>ZuiHGroup>Button
+LEAF 'Duplicate' Button rect=97,218 68.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Duplicate the selected node (undoable). | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>ZuiHGroup>Button
+
+=== ZuiAudit(LatheMoldWindow) expanded=0 folded=2 total=1 ===
+   [stretch] TextField [unity-base-field,unity-base-field--no-label,unity-base-text-field,unity-text-field] — BaseField resolved flex-grow 1
+
+
+=== WeaponDefWindow ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:331.56, y:61.33, width:732.89, height:820.22) rootWorld=(x:0.00, y:26.22, width:732.89, height:820.00)
+elements=129 drawn=98 textElements=38 controls=17 leafControls=17
+captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=1
+
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → This Weapon matches what is on disk — nothing to save.
+-- every leaf control --
+LEAF 'AuditT326Weapon' ObjectField rect=4,31 200.0x18.2 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=The Weapon asset being edited — assign one directly, or use Browse. | EditorPanelRootElement#unity-panel-container27>VisualElement#rootVisualContainer28>VisualElement>ObjectField
+LEAF 'Save' Button rect=232,31 52.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=This Weapon matches what is on disk — nothing to save. | EditorPanelRootElement#unity-panel-container27>VisualElement#rootVisualContainer28>VisualElement>Button
+LEAF 'New' Button rect=293,31 40.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a brand new Weapon asset (undoable). | EditorPanelRootElement#unity-panel-container27>VisualElement#rootVisualContainer28>VisualElement>Button
+LEAF 'Browse' Button rect=342,31 56.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Toggle the thumbnail browser of every Weapon in the project. | EditorPanelRootElement#unity-panel-container27>VisualElement#rootVisualContainer28>VisualElement>Button
+LEAF 'Duplicate' Button rect=408,31 68.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a copy of this Weapon next to it and switch to editing the copy… | EditorPanelRootElement#unity-panel-container27>VisualElement#rootVisualContainer28>VisualElement>Button
+LEAF 'Rename' Button rect=485,31 60.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Rename this asset's file. | EditorPanelRootElement#unity-panel-container27>VisualElement#rootVisualContainer28>VisualElement>Button
+LEAF 'Delete' Button rect=555,31 51.1x18.2 enabled=True cls=unity-text-element.unity-button tip=Delete this asset's file (asks first — file deletion cannot be undone)… | EditorPanelRootElement#unity-panel-container27>VisualElement#rootVisualContainer28>VisualElement>Button
+LEAF 'New Weapon' TextField rect=88,128 200.0x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-field tip=The name shown to the player. | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>TextField
+LEAF '6' FloatField rect=61,193 70.2x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-field tip=Shots per second. | VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>VisualElement>FloatField
+LEAF '10' FloatField rect=209,193 69.8x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-field tip=Damage each projectile deals on hit. | VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>VisualElement>FloatField
+LEAF '12' FloatField rect=61,220 70.2x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-field tip=How fast each projectile travels. | VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>VisualElement>FloatField
+LEAF '0' FloatField rect=202,220 69.8x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-field tip=Cone of random aim error, in degrees. | VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>VisualElement>FloatField
+LEAF '1' IntegerField rect=337,220 50.2x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-integer-field tip=How many projectiles leave the muzzle per shot. | VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>VisualElement>IntegerField
+LEAF '+ Add Ammo Type' Button rect=7,289 160.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Append another Ammo Type entry. | VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>Button
+LEAF 'None ▾' Button rect=678,355 47.6x16.0 enabled=True cls=unity-text-element.unity-button.zui-mref__type tip=Which kind this is (None). Click to switch it for another. | VisualElement#unity-content-container>ZuiSection>VisualElement>ZuiManagedRef>VisualElement>Button
+LEAF 'Offset' ZuiPad rect=4,392 70.2x69.8 enabled=True cls=zui-pad.zui-kbd-focus tip=Fallback muzzle position for a shooter with no meta-layers — x is forw… | VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>ZuiPad
+LEAF '— zound —' Button rect=74,505 160.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Zound played once per successful shot, at the same moment as the muzzl… | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>Button
+
+=== ZuiAudit(WeaponDefWindow) expanded=0 folded=0 total=0 ===
+
+
+=== AmmoDefWindow ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:60.00, y:60.00, width:800.00, height:800.22) rootWorld=(x:0.00, y:26.22, width:800.00, height:800.00)
+elements=126 drawn=93 textElements=40 controls=19 leafControls=19
+captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=1
+
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → This Ammo matches what is on disk — nothing to save.
+-- every leaf control --
+LEAF 'AuditT326Ammo' ObjectField rect=4,31 200.0x18.2 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=The Ammo asset being edited — assign one directly, or use Browse. | EditorPanelRootElement#unity-panel-container29>VisualElement#rootVisualContainer30>VisualElement>ObjectField
+LEAF 'Save' Button rect=232,31 52.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=This Ammo matches what is on disk — nothing to save. | EditorPanelRootElement#unity-panel-container29>VisualElement#rootVisualContainer30>VisualElement>Button
+LEAF 'New' Button rect=293,31 40.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a brand new Ammo asset (undoable). | EditorPanelRootElement#unity-panel-container29>VisualElement#rootVisualContainer30>VisualElement>Button
+LEAF 'Browse' Button rect=342,31 56.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Toggle the thumbnail browser of every Ammo in the project. | EditorPanelRootElement#unity-panel-container29>VisualElement#rootVisualContainer30>VisualElement>Button
+LEAF 'Duplicate' Button rect=408,31 68.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a copy of this Ammo next to it and switch to editing the copy (… | EditorPanelRootElement#unity-panel-container29>VisualElement#rootVisualContainer30>VisualElement>Button
+LEAF 'Rename' Button rect=485,31 60.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Rename this asset's file. | EditorPanelRootElement#unity-panel-container29>VisualElement#rootVisualContainer30>VisualElement>Button
+LEAF 'Delete' Button rect=555,31 51.1x18.2 enabled=True cls=unity-text-element.unity-button tip=Delete this asset's file (asks first — file deletion cannot be undone)… | EditorPanelRootElement#unity-panel-container29>VisualElement#rootVisualContainer30>VisualElement>Button
+LEAF 'New Ammo' TextField rect=88,128 200.0x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-field tip=The name shown to the player. | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>TextField
+LEAF '· none ·' ZuiChip rect=4,192 71.1x18.2 enabled=True cls=zui-chip.zui-chip--empty tip=A Pyre blast or a Lauminary animation — anything a chunk can play. Onl… | VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>ZuiChip
+LEAF '1' FloatField rect=42,211 69.8x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-field tip=Size multiplier applied to the projectile's sprite. | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>FloatField
+LEAF 'Spin' ZuiToggleButton rect=7,234 42.7x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton tip=Spin the sprite while it flies (rotating rocket / grenade). | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>ZuiToggleButton
+LEAF '360' FloatField rect=114,234 70.2x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-field tip=Spin rate in degrees per second. | VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>VisualElement>FloatField
+LEAF 'Face Travel' ZuiToggleButton rect=211,234 83.1x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton tip=Point the sprite along its travel direction (bolts/arrows). | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>ZuiToggleButton
+LEAF '3' FloatField rect=56,304 70.2x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-field tip=Seconds before the projectile expires on its own. | VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>VisualElement>FloatField
+LEAF 'Pierce' ZuiToggleButton rect=153,304 53.3x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton tip=Pass through targets instead of dying on the first hit. | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>ZuiToggleButton
+LEAF '0' FloatField rect=56,331 70.2x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-field tip=Not wired into flight yet — a future ballistic motion would consume it… | VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>VisualElement>FloatField
+LEAF 'Homing' ZuiToggleButton rect=153,331 61.8x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton tip=Not wired into flight yet — a future homing motion would consume it. | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>ZuiToggleButton
+LEAF 'Planar Motion ▾' Button rect=706,361 87.1x16.0 enabled=True cls=unity-text-element.unity-button.zui-mref__type tip=Which kind this is (Planar Motion). Click to switch it for another. | VisualElement#unity-content-container>ZuiSection>VisualElement>ZuiManagedRef>VisualElement>Button
+LEAF 'None ▾' Button rect=745,429 47.6x16.0 enabled=True cls=unity-text-element.unity-button.zui-mref__type tip=Which kind this is (None). Click to switch it for another. | VisualElement#unity-content-container>ZuiSection>VisualElement>ZuiManagedRef>VisualElement>Button
+
+=== ZuiAudit(AmmoDefWindow) expanded=0 folded=0 total=0 ===
+
+

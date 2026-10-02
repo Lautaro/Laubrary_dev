@@ -1,0 +1,13 @@
+# UI separation pilot harness
+
+`Laubrary/UI Separation Pilot` opens one reusable baseline/candidate window pair with one hidden, Undo-recorded fixture, serialized to one EditorPrefs JSON value across close/reopen. The baseline uses frozen controls and frozen sheets; the candidate uses the current toolkit and Zounds attachment. The UXML template exposes the same `controls-slot` and `preview-slot` in both windows. Interaction updates the shared fixture and refreshes compatible value controls in place, so pointer capture is never invalidated by a window rebuild.
+
+The reference side assigns the historical 150 px factory width to frozen direct micro-slider constructors. The candidate receives no inline default width, so `PilotOverride.uss` can demonstrate its 190 px `.lau-tool-pilot` override. Its envelope also carries `zui-envelope--legacy-profile` to exercise the extracted profile rules.
+
+Use `PilotWindow.OpenPair(bool colorful)`, `SetOverride(bool)`, `CapturePair(string)`, `State()`, `Geometry()`, and an instance `Rebuild(bool reference, bool colorful)` from editor evaluation. Capture writes `_baseline`, `_candidate`, `_pair`, and `_diff` images to the existing comparison output folder only after rejecting unequal dimensions and single-colour captures. The harness has no project-asset mutation or delayed same-call layout assertion; the coordinator performs live settling and visual acceptance.
+
+For the human walkthrough, open the menu, drag Amount and watch the preview change, toggle Enabled, reset, switch Colorful, toggle Tool override, and choose a width from the toolbar. The parent override affects the candidate only. Both windows edit the same synthetic fixture. Parameter 1–5 are additional views of Amount used to show wrapping. Minimum supported size is 420×600 UI units; acceptance also checks 620 and 900 widths. Both roots retain Unity's editor theme and fonts.
+
+The general controls use their current default appearance in Default mode and existing Zounds button styles in Colorful mode. The skin-specific interval, thumb range and band controls retain the existing Zounds skin in both modes: the package has no historical general-toolkit skin for these types, and inventing one would be a reskin. They are not left invisible to manufacture a passing comparison.
+
+The fixture is stored under a pilot-specific EditorPrefs key, and slider display preferences also use pilot-specific keys. No real sound asset is edited. Undo synchronizes both windows and rebinds envelope lists after Unity deserializes them. Domain reload reconstructs both roots from their serialized roles; stylesheet switches retain the actual control instances.

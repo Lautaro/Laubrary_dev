@@ -46,19 +46,15 @@ namespace Laubrary.Launimator.Editor
             if (!showBrowser) { BuildSheetSection(root); return; }
 
             var row = new VisualElement();
-            row.style.flexDirection = FlexDirection.Row;
-            row.style.flexWrap = Wrap.Wrap;
+            row.AddToClassList("lau-tool-shell__row-wrap");
 
             var left = new VisualElement();
-            left.style.flexGrow = 1f;
-            left.style.minWidth = 420f;
+            left.AddToClassList("lau-animation-builder__sheet-controls");
             BuildSheetSection(left);
             row.Add(left);
 
             var right = new VisualElement();
-            right.style.flexGrow = 1f;
-            right.style.minWidth = 240f;
-            right.style.marginLeft = 4f;
+            right.AddToClassList("lau-tool-shell__tools");
             if (charMode) BuildLauminaryAnimBrowser(right);
             else BuildOrphanBrowser(right, orphans);
             row.Add(right);
@@ -78,17 +74,15 @@ namespace Laubrary.Launimator.Editor
 
             // flex-wrap replaces the old hand-computed per-row width budget.
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.maxHeight = 76f;
+            scroll.AddToClassList("lau-animation-builder__animation-list");
             var wrap = scroll.contentContainer;
-            wrap.style.flexDirection = FlexDirection.Row;
-            wrap.style.flexWrap = Wrap.Wrap;
+            wrap.AddToClassList("lau-tool-shell__row-wrap");
 
             for (int i = 0; i < items.Count; i++)
             {
                 int idx = i;
                 var b = Z.Button(items[i].label, items[i].tip, () => onClick(idx));
-                b.style.height = 20f;
-                b.style.maxWidth = 240f;
+                b.AddToClassList("lau-animation-builder__animation-choice");
                 if (items[i].current) b.AddToClassList("zui-radio__on");
                 wrap.Add(b);
             }

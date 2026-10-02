@@ -1,0 +1,47 @@
+form	path	bestPixels	where	isInertGuard	inertReasonAtDefaults	tooltipNamesCondition	tooltipTail
+ArcBurstForm	keepHueFloor	432	layout=Core	False	(null — guard open, or not live-checkable)	no	 energy is multiplied by floor + (1 − floor) × its opacity, so a translucent core lands in the saturated band instead of rendering as grey string. Source: 0.36.
+ArcBurstForm	ghostDeepLo	334	layout=Core	False	(null — guard open, or not live-checkable)	no	Full name: "Deep ghost opacity (low)". Opacity range of the DEEP ghosts (the fifth of translucent arms that are barely there). Source: 0.05..0.13. The low end.
+ArcBurstForm	ghostDeepHi	214	layout=Core	False	(null — guard open, or not live-checkable)	no	Full name: "Deep ghost opacity (high)". The high end of the deep-ghost opacity range. Source: 0.13.
+ArcBurstForm	bolt.ghostLo	0		False	(null — guard open, or not live-checkable)	no	Full name: "Faintest ghost opacity". Faintest ghost trunk opacity (source 0.24).
+ArcBurstForm	bolt.ghostHi	0		False	(null — guard open, or not live-checkable)	no	Full name: "Brightest ghost opacity". Most opaque ghost trunk opacity (source 0.50).
+ArcBurstForm	bolt.ghostDeepP	0		False	(null — guard open, or not live-checkable)	no	Full name: "Deep ghost share". Share of ghosts that are deep (source 0).
+ArcBurstForm	bolt.flashAmp	0		False	(null — guard open, or not live-checkable)	no	Full name: "Root flash energy". Energy of the flash the trunks are rooted in, gone by frame 7 (source 1.95).
+ArcBurstForm	lattice.flyLo	0		False	(null — guard open, or not live-checkable)	no	Full name: "Slowest escape speed". Slowest escaping node (source 0.7).
+ArcBurstForm	lattice.flyHi	0		False	(null — guard open, or not live-checkable)	no	Full name: "Fastest escape speed". Fastest escaping node (source 1.25).
+ArcBurstForm	cage.coolK	0		False	(null — guard open, or not live-checkable)	no	Exponent of that cooling (source 1.4).
+PlasmaBloomForm	biasDir	0		False	(null — guard open, or not live-checkable)	no	Direction of the bias, radians (0 = right, +π/2 = down).
+PlasmaBloomForm	biasK	0		False	(null — guard open, or not live-checkable)	no	Harmonic of the bias: 1 = one lobe (a thrown blast), 2 = two opposite lobes (a bipolar jet with a thin waist).
+PlasmaBloomForm	halfDir	0		False	(null — guard open, or not live-checkable)	no	Direction the gate keeps, radians.
+PlasmaBloomForm	halfSoft	0		False	(null — guard open, or not live-checkable)	no	Width of the gate's transition: small = a WALL (flat face, hard corner — an impact), large = a CONE thinning smoothly to nothing behind.
+PlasmaBloomForm	halfK	0		False	(null — guard open, or not live-checkable)	no	Harmonic of the gate: 2 keeps two opposite jets and empties the waist between them.
+PlasmaBloomForm	driftX	0		False	(null — guard open, or not live-checkable)	no	Drift direction X (−1..1): the whole burst is CARRIED this way as it expands (0,0 = no drift).
+PlasmaBloomForm	driftY	0		False	(null — guard open, or not live-checkable)	no	Drift direction Y (−1..1, +1 = down).
+PlasmaBloomForm	driftAmt	0		False	(null — guard open, or not live-checkable)	no	How far the source travels over the clock, as a fraction of the blast radius.
+PlasmaBloomForm	driftEase	0		False	(null — guard open, or not live-checkable)	no	Multiplier on Exp rate for the drift's easing.
+PlasmaBloomForm	driftLin	0		False	(null — guard open, or not live-checkable)	no	Linear share of the drift.
+PlasmaBloomForm	driftLag	0		False	(null — guard open, or not live-checkable)	no	o where the source was at its birth and lags behind by this share of the distance the source has travelled since — a trail, falling out of the staggered births.
+PlasmaBloomForm	mode	0		False	(null — guard open, or not live-checkable)	no	Bloom = one shell. Plume = tongues are ADDED as a second, longer shell gated by angle (needs Lobes ≥ 2).
+PlasmaBloomForm	lobes	0		False	(null — guard open, or not live-checkable)	no	Angular lobes: 0 or 1 = none; 2 or more gates the shell (Bloom) or shapes the tongues (Plume).
+PlasmaBloomForm	lobeMode	0		False	(null — guard open, or not live-checkable)	no	Cos = evenly spaced lobes. Noise = lobes cut by an angular noise (unequal, irregular).
+PlasmaBloomForm	lobePow	0		False	(null — guard open, or not live-checkable)	no	Sharpness of the lobes (gate^power): never flat-tops, so the silhouette curves everywhere.
+PlasmaBloomForm	lobePh	0		False	(null — guard open, or not live-checkable)	no	Angular phase of the lobes, radians.
+PlasmaBloomForm	gateGain	0		False	(null — guard open, or not live-checkable)	no	Gain on the noise lobe gate before clipping to 0..1.
+PlasmaBloomForm	plumeAmp	0		False	(null — guard open, or not live-checkable)	no	Brightness of the tongues.
+PlasmaBloomForm	plumeReach	0		False	(null — guard open, or not live-checkable)	no	How far the tongues reach, as a multiple of the shell radius.
+PlasmaBloomForm	plumeW	0		False	(null — guard open, or not live-checkable)	no	Radial width of a tongue's tip, in shell thicknesses.
+PlasmaBloomForm	plumeVary	0		False	(null — guard open, or not live-checkable)	no	Unequal tongue reach from the warp noise (equal tongues are a snowflake).
+PlasmaBloomForm	chunks.swirl	0		False	(null — guard open, or not live-checkable)	no	How much of the global Swirl this population follows (its angle turns by Swirl × this × time).
+PlasmaBloomForm	embers.swirl	0		False	(null — guard open, or not live-checkable)	no	How much of the global Swirl this population follows (its angle turns by Swirl × this × time).
+PlasmaBloomForm	motes.swirl	0		False	(null — guard open, or not live-checkable)	no	How much of the global Swirl this population follows (its angle turns by Swirl × this × time).
+PlasmaBloomForm	flash	0		False	(null — guard open, or not live-checkable)	no	Extra spike on the core at the instant of detonation (spatially bounded — never on the whole field).
+PlasmaBloomForm	hueA	737	factory defaults	False	(null — guard open, or not live-checkable)	no	The core ramp (position 0 = the faintest energy, 1 = white-hot). Presets: PyreRampPresets.PlasmaIon / Cryo / Volt / Toxin / Flare.
+PlasmaBloomForm	hueB	486	factory defaults	False	(null — guard open, or not live-checkable)	no	The rim ramp the colour crossfades into by RADIUS over the travelling front — the cool skirt round a hot core.
+ForkBlastForm	flash	0		False	(null — guard open, or not live-checkable)	no	Full name: "Ignition flash". White-hot ignition flash at each blast's birth, over life. Tinted from the Fill's hot end.
+ForkBlastForm	aim	0		False	(null — guard open, or not live-checkable)	YES	The arc's centre direction, degrees. Only visible when Spread is below 180 (a full circle has no facing).
+ForkBlastForm	opacity	0		False	(null — guard open, or not live-checkable)	no	a ceiling. Below 1 pushes the body toward solid while doing least at the coolest, already-thin rim — so the body opens up without trading away the edge falloff.
+ForkBlastForm	gobSizePx	0		False	(null — guard open, or not live-checkable)	no	A gob's radius — mass, not a spark; several times a puff's own size.
+ForkBlastForm	gobReach	0		False	(null — guard open, or not live-checkable)	no	A gob's travel, as a fraction of Reach.
+ForkBlastForm	gobSwell	0		False	(null — guard open, or not live-checkable)	no	A gob DISSIPATES — it balloons as it goes out, the opposite of the body, which shrinks and stays solid.
+ForkBlastForm	gobLife	0		False	(null — guard open, or not live-checkable)	no	A gob's life, as a multiple of Puff life.
+ForkBlastForm	gobAmount	0		False	(null — guard open, or not live-checkable)	no	Full name: "Gob brightness". Gob brightness.
+ForkBlastForm	gobTiming	0		False	(null — guard open, or not live-checkable)	no	 "Gob birth window". Gobs are born inside this fraction of the birth span — the opening phase. A gob that leaves late just reads as a second, smaller explosion.

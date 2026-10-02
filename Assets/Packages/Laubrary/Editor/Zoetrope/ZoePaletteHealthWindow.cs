@@ -34,7 +34,7 @@ namespace Laubrary.Zoetrope.Editor
         protected override void BuildUI(VisualElement root)
         {
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.flexGrow = 1f;
+            scroll.AddToClassList("lau-tool-shell__column");
             root.Add(scroll);
             var body = scroll.contentContainer;
 

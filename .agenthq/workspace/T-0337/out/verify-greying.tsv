@@ -1,0 +1,59 @@
+case	state	reason
+ArcBurst.ghostDeepLo (Bolt) @ defaults	GREYED	Nothing until Deep ghost, in the arc pattern's own Ghosts group, is above 0 — and the Crown and Lattice patterns draw no ghosts at all.
+ArcBurst.ghostDeepLo (Bolt) @ guard raised	LIVE	
+ArcBurst.ghostDeepHi (Bolt) @ defaults	GREYED	Nothing until Deep ghost, in the arc pattern's own Ghosts group, is above 0 — and the Crown and Lattice patterns draw no ghosts at all.
+ArcBurst.ghostDeepHi (Bolt) @ guard raised	LIVE	
+ArcBurst.ghostDeepLo @ layout=Core (ships 0.18)	LIVE	
+ArcBurst.ghostDeepLo @ layout=Crown (no ghosts at all)	GREYED	Nothing until Deep ghost, in the arc pattern's own Ghosts group, is above 0 — and the Crown and Lattice patterns draw no ghosts at all.
+ArcBurst.ghostDeepHi @ layout=Lattice (no ghosts at all)	GREYED	Nothing until Deep ghost, in the arc pattern's own Ghosts group, is above 0 — and the Crown and Lattice patterns draw no ghosts at all.
+ArcBurst.keepHueFloor (must stay LIVE)	LIVE	
+lattice.flyLo (must stay LIVE)	LIVE	
+lattice.flyHi (must stay LIVE)	LIVE	
+cage.coolK (must stay LIVE)	LIVE	
+PlasmaBloom.driftEase @ defaults	GREYED	Nothing until Drift Amount is above 0 and Drift X or Drift Y is non-zero — with no drift there is nothing to ease.
+PlasmaBloom.driftEase @ guard raised	LIVE	
+PlasmaBloom.driftLin @ defaults	GREYED	Nothing until Drift Amount is above 0 and Drift X or Drift Y is non-zero.
+PlasmaBloom.driftLin @ guard raised	LIVE	
+PlasmaBloom.driftLag @ defaults	GREYED	Nothing until Drift Amount is above 0 and Drift X or Drift Y is non-zero — the wake lags behind a source that has not moved.
+PlasmaBloom.driftLag @ guard raised	LIVE	
+PlasmaBloom.driftEase @ Drift X alone	GREYED	Nothing until Drift Amount is above 0 and Drift X or Drift Y is non-zero — with no drift there is nothing to ease.
+PlasmaBloom.mode @ defaults	GREYED	Nothing until Lobe Count is 2 or more and either Lobe Amount or Plume Amount is above 0 — below that, Plume paints exactly what Bloom does.
+PlasmaBloom.mode @ guard raised	LIVE	
+PlasmaBloom.gateGain @ defaults	GREYED	Nothing until Lobe Count is 2 or more and either Lobe Amount or Plume Amount is above 0 — the lobe gate this sharpens is not read otherwise.
+PlasmaBloom.gateGain @ guard raised	LIVE	
+PlasmaBloom.plumeAmp @ defaults	GREYED	Nothing until Lobe Count is 2 or more — the tongues are cut out of the lobes, so with fewer there are none to brighten.
+PlasmaBloom.plumeAmp @ guard raised	LIVE	
+PlasmaBloom.plumeReach @ defaults	GREYED	Nothing until Lobe Count is 2 or more and Plume Amount is above 0 — there is no tongue to reach.
+PlasmaBloom.plumeReach @ guard raised	LIVE	
+PlasmaBloom.plumeW @ defaults	GREYED	Nothing until Lobe Count is 2 or more and Plume Amount is above 0 — there is no tongue to widen.
+PlasmaBloom.plumeW @ guard raised	LIVE	
+PlasmaBloom.plumeVary @ defaults	GREYED	Nothing until Lobe Count is 2 or more, Plume Amount is above 0 and Front Warp is above 0 — the unevenness is read off the warp noise.
+PlasmaBloom.plumeVary @ guard raised	LIVE	
+PlasmaBloom.plumeAmp @ lobes=1 (one lobe is no lobes)	GREYED	Nothing until Lobe Count is 2 or more — the tongues are cut out of the lobes, so with fewer there are none to brighten.
+PlasmaBloom.plumeAmp @ lobes=2 (the boundary)	LIVE	
+PlasmaBloom.plumeVary @ warp=0 (third guard shut)	GREYED	Nothing until Lobe Count is 2 or more, Plume Amount is above 0 and Front Warp is above 0 — the unevenness is read off the warp noise.
+PlasmaBloom.chunks.swirl @ form Swirl=0	GREYED	Nothing until Swirl, on the generator itself, is non-zero — this is only that turn's share for this population.
+PlasmaBloom.chunks.swirl @ form Swirl=3	LIVE	
+PlasmaBloom.chunks.swirl with NO card being built (must fail OPEN)	LIVE	
+PlasmaBloom.embers.swirl @ form Swirl=0	GREYED	Nothing until Swirl, on the generator itself, is non-zero — this is only that turn's share for this population.
+PlasmaBloom.embers.swirl @ form Swirl=3	LIVE	
+PlasmaBloom.embers.swirl with NO card being built (must fail OPEN)	LIVE	
+PlasmaBloom.motes.swirl @ form Swirl=0	GREYED	Nothing until Swirl, on the generator itself, is non-zero — this is only that turn's share for this population.
+PlasmaBloom.motes.swirl @ form Swirl=3	LIVE	
+PlasmaBloom.motes.swirl with NO card being built (must fail OPEN)	LIVE	
+ForkBlast.flash (must stay LIVE)	LIVE	
+  tooltip: Full name: "Ignition flash". White-hot ignition flash at each blast's birth, over life. Tinted from the Fill's hot end. Its whole life is the first eighth of a blast's own (PyreForkBlast.cs:418), so a short document can step straight over it: measured, nothing at all over 8 frames and 936 pixels over 16.
+ForkBlast.opacity (must stay LIVE)	LIVE	
+  tooltip: Exponent on the Fill's own alpha ceiling. Below 1 pushes the body toward solid while doing least at the coolest, already-thin rim — so the body opens up without trading away the edge falloff. An exponent on the Fill's alpha ceiling, so it does nothing while that alpha is 1 — which is what the Fill above ships as. Author a fill whose alpha drops below 1 and this takes hold.
+guard ArcBurstForm.layout	NO — a freed dial would stay grey	
+guard BoltSettings.ghostDeepP	yes	
+guard CoreSettings.ghostDeepP	yes	
+guard CageSettings.ghostDeepP	yes	
+guard PlasmaBloomForm.driftX	yes	
+guard PlasmaBloomForm.driftY	yes	
+guard PlasmaBloomForm.driftAmt	yes	
+guard PlasmaBloomForm.lobes	yes	
+guard PlasmaBloomForm.lobeAmp	yes	
+guard PlasmaBloomForm.plumeAmp	yes	
+guard PlasmaBloomForm.warp	yes	
+guard PlasmaBloomForm.swirl	yes	

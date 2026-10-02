@@ -63,7 +63,7 @@ namespace Laubrary.DotGen.Editor
                 if (f == null) continue;
 
                 var row = Z.Row();
-                row.style.flexWrap = Wrap.NoWrap;
+                row.AddToClassList("zui-row--nowrap");
 
                 row.Add(Z.Fill("Fill " + (idx + 1), f,
                     "One of the fills this drawer chooses between. Which target gets which is fixed by the "
@@ -74,17 +74,20 @@ namespace Laubrary.DotGen.Editor
                     idx > 0
                         ? "Move this fill one place earlier in the list."
                         : "Already first in the list.",
-                    () => MoveFill(d, idx, idx - 1, rebuild)).W(22f);
+                    () => MoveFill(d, idx, idx - 1, rebuild));
+                up.AddToClassList("zui-row__reorder-action");
                 var down = Z.Button("▼",
                     idx < d.fills.Count - 1
                         ? "Move this fill one place later in the list."
                         : "Already last in the list.",
-                    () => MoveFill(d, idx, idx + 1, rebuild)).W(22f);
+                    () => MoveFill(d, idx, idx + 1, rebuild));
+                down.AddToClassList("zui-row__reorder-action");
                 var del = Z.Button("×",
                     last
                         ? "The list keeps at least one fill — add another before removing this one."
                         : "Remove this fill from the list (undoable).",
-                    () => RemoveFill(d, idx, rebuild)).W(22f);
+                    () => RemoveFill(d, idx, rebuild));
+                del.AddToClassList("zui-row__remove-action");
 
                 up.SetEnabled(idx > 0);
                 down.SetEnabled(idx < d.fills.Count - 1);
@@ -101,7 +104,7 @@ namespace Laubrary.DotGen.Editor
                     () => AddFill(d, DotGenFills.NewFlat(), rebuild)),
                 Z.Button("Add gradient", "Add a two-colour gradient to the end of the list.",
                     () => AddFill(d, DotGenFills.NewGradient(), rebuild)));
-            addRow.style.flexWrap = Wrap.NoWrap;
+            addRow.AddToClassList("zui-row--nowrap");
             box.Add(addRow);
 
             body.Add(box);

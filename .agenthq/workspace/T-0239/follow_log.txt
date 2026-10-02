@@ -1,0 +1,22 @@
+FIRED=True aim=(1.00, 0.00)
+f01 aim=9 muzzle=(1.310,0.958) blast=(1.370,0.958) |blast-muzzle|=0.0594 rotZ=270 flip=False blasts=1 followers=1
+f02 aim=18 muzzle=(1.360,0.958) blast=(1.420,0.958) |blast-muzzle|=0.0594 rotZ=270 flip=False blasts=1 followers=1
+f03 aim=27 muzzle=(1.410,0.958) blast=(1.470,0.958) |blast-muzzle|=0.0594 rotZ=270 flip=False blasts=1 followers=1
+f04 aim=36 muzzle=(1.581,1.574) blast=(1.622,1.634) |blast-muzzle|=0.0731 rotZ=303 flip=False blasts=1 followers=1
+f05 aim=45 muzzle=(1.631,1.574) blast=(1.672,1.634) |blast-muzzle|=0.0731 rotZ=303 flip=False blasts=1 followers=1
+f06 aim=54 muzzle=(1.167,1.546) blast=(1.195,1.623) |blast-muzzle|=0.0813 rotZ=314 flip=False blasts=1 followers=1
+f07 aim=63 muzzle=(1.217,1.546) blast=(1.245,1.623) |blast-muzzle|=0.0813 rotZ=314 flip=False blasts=1 followers=1
+f08 aim=72 muzzle=(1.267,1.546) blast=(1.295,1.623) |blast-muzzle|=0.0813 rotZ=314 flip=False blasts=1 followers=1
+f09 aim=81 muzzle=(1.173,1.731) blast=(1.160,1.834) |blast-muzzle|=0.1037 rotZ=340 flip=False blasts=1 followers=1
+f10 aim=90 muzzle=(1.223,1.731) blast=(1.210,1.834) |blast-muzzle|=0.1037 rotZ=340 flip=False blasts=1 followers=1
+f11 aim=99 muzzle=(0.894,1.870) blast=(0.846,1.980) |blast-muzzle|=0.1193 rotZ=359 flip=False blasts=1 followers=1
+f12 aim=108 muzzle=(0.944,1.870) blast=(0.896,1.980) |blast-muzzle|=0.1193 rotZ=359 flip=False blasts=1 followers=1
+f13 aim=117 muzzle=(0.994,1.870) blast=(0.946,1.980) |blast-muzzle|=0.1193 rotZ=359 flip=False blasts=1 followers=1
+f14 aim=126 muzzle=(0.146,1.657) blast=(0.056,1.759) |blast-muzzle|=0.1358 rotZ=21 flip=True blasts=1 followers=1
+f15 aim=135 muzzle=(0.196,1.657) blast=(0.106,1.759) |blast-muzzle|=0.1358 rotZ=21 flip=True blasts=1 followers=1
+---
+samples=15 maxConcurrentBlasts=1 followersOnBlast=1
+muzzle point travelled (net)=1.316  (path length=2.993)
+|blast-muzzle| min=0.0594 max=0.1358 spread=0.0764
+rotZ first=270 last=21 turned=111 deg
+VERDICT followsPosition=True followsDirection=True exactlyOneBlast=True exactlyOneFollower=True

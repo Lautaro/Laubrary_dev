@@ -1,0 +1,60 @@
+e\JIT\a518dad097fe910735f2db1b4b939b9e.dll:a518dad097fe910735f2db1b4b939b9e.dll (00007FF8EF2A0000), size: 32768 (result: 0), SymType: '-deferred-', PDB: ''
+D:\UNITY\Laubrary Dev\Library\BurstCache\JIT\742ee1b38f886adc3f26e471a66e016a.dll:742ee1b38f886adc3f26e471a66e016a.dll (00007FF8EF290000), size: 53248 (result: 0), SymType: '-deferred-', PDB: ''
+D:\UNITY\Laubrary Dev\Library\BurstCache\JIT\2179b9712b6fb143762af4854ce37513.dll:2179b9712b6fb143762af4854ce37513.dll (00007FF8ECEC0000), size: 49152 (result: 0), SymType: '-deferred-', PDB: ''
+D:\UNITY\Laubrary Dev\Library\BurstCache\JIT\64f34ea00cb4eb2df651cb3a6e78a088.dll:64f34ea00cb4eb2df651cb3a6e78a088.dll (00007FF8EC000000), size: 28672 (result: 0), SymType: '-deferred-', PDB: ''
+D:\UNITY\Laubrary Dev\Library\BurstCache\JIT\01a825821c1eaf5c98a7b096caaa74ac.dll:01a825821c1eaf5c98a7b096caaa74ac.dll (00007FF8EBD60000), size: 24576 (result: 0), SymType: '-deferred-', PDB: ''
+D:\UNITY\Laubrary Dev\Library\BurstCache\JIT\225964f0feffa712aaac3f58f80c9914.dll:225964f0feffa712aaac3f58f80c9914.dll (00007FF8E3680000), size: 69632 (result: 0), SymType: '-deferred-', PDB: ''
+C:\WINDOWS\system32\dataexchange.dll:dataexchange.dll (00007FF945F10000), size: 376832 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.26100.9278
+C:\WINDOWS\system32\twinapi.appcore.dll:twinapi.appcore.dll (00007FF96FDD0000), size: 2424832 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.26100.9444
+C:\Windows\System32\Windows.Gaming.Input.dll:Windows.Gaming.Input.dll (00007FF970220000), size: 884736 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.26100.9278
+C:\WINDOWS\SYSTEM32\inputhost.dll:inputhost.dll (00007FF9533A0000), size: 1978368 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.26100.9278
+C:\Windows\System32\CoreMessaging.dll:CoreMessaging.dll (00007FF975270000), size: 1224704 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.26100.9444
+C:\WINDOWS\SYSTEM32\xinput1_3.dll:xinput1_3.dll (0000000000400000), size: 122880 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 9.18.944.0
+C:\Windows\System32\ffbroker.dll:ffbroker.dll (00007FF968CF0000), size: 98304 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.26100.7019
+C:\Windows\System32\deviceaccess.dll:deviceaccess.dll (00007FF968CA0000), size: 286720 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.26100.9278
+C:\Windows\System32\Windows.System.UserDeviceAssociation.dll:Windows.System.UserDeviceAssociation.dll (00007FF8F02F0000), size: 114688 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.26100.8115
+C:\Windows\System32\usermgrproxy.dll:usermgrproxy.dll (00007FF970580000), size: 442368 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.26100.9278
+C:\Program Files\Unity\Hub\Editor\6000.3.10f1\Editor\Data\MonoBleedingEdge\EmbedRuntime\MonoPosixHelper.dll:MonoPosixHelper.dll (00007FF8DE790000), size: 626688 (result: 0), SymType: '-deferred-', PDB: ''
+C:\WINDOWS\SYSTEM32\CoreUIComponents.dll:CoreUIComponents.dll (00007FF971570000), size: 3031040 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.26100.9278
+C:\WINDOWS\SYSTEM32\PROPSYS.dll:PROPSYS.dll (00007FF973310000), size: 1003520 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 7.0.26100.9278
+C:\Windows\System32\Windows.System.Launcher.dll:Windows.System.Launcher.dll (00007FF955450000), size: 1572864 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.26100.9444
+C:\Windows\System32\thumbcache.dll:thumbcache.dll (00007FF933BE0000), size: 475136 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.26100.9444
+D:\UNITY\Laubrary Dev\Library\BurstCache\JIT\64f247f52e557f2b42c147bd06131168.dll:64f247f52e557f2b42c147bd06131168.dll (00007FF907A90000), size: 155648 (result: 0), SymType: '-deferred-', PDB: ''
+D:\UNITY\Laubrary Dev\Library\BurstCache\JIT\5536fb3db923f15a4f3af72bbcc6f81b.dll:5536fb3db923f15a4f3af72bbcc6f81b.dll (00007FF8F0D80000), size: 155648 (result: 0), SymType: '-deferred-', PDB: ''
+C:\WINDOWS\SYSTEM32\dbghelp.dll:dbghelp.dll (00007FF966190000), size: 2408448 (result: 0), SymType: '-deferred-', PDB: '', fileVersion: 10.0.26100.9444
+
+========== OUTPUTTING STACK TRACE ==================
+
+0x00007FF89B7CA721 (Unity) audio::DualThreadManager::Realtime::ValidateCanUse
+0x00007FF89B7CA567 (Unity) audio::DualThreadManager::Realtime::ValidateCanProcess
+0x00007FF89B7CA6D4 (Unity) audio::DualThreadManager::RealtimeAccess::ValidateCanProcess
+0x00007FF89B810479 (Unity) audio::GeneratorFMODRead
+0x00007FF89E6C05E8 (Unity) FMOD::DSPFilter::read
+0x00007FF89E6C0274 (Unity) FMOD::DSPFilter::read
+0x00007FF89E737751 (Unity) FMOD::DSPResamplerMultiInput::read
+0x00007FF89E6C0274 (Unity) FMOD::DSPFilter::read
+0x00007FF89E6C0274 (Unity) FMOD::DSPFilter::read
+0x00007FF89E6C0274 (Unity) FMOD::DSPFilter::read
+0x00007FF89E6C0274 (Unity) FMOD::DSPFilter::read
+0x00007FF89E6C0274 (Unity) FMOD::DSPFilter::read
+0x00007FF89E6C0274 (Unity) FMOD::DSPFilter::read
+0x00007FF89E6C0274 (Unity) FMOD::DSPFilter::read
+0x00007FF89E6C0274 (Unity) FMOD::DSPFilter::read
+0x00007FF89E6C0274 (Unity) FMOD::DSPFilter::read
+0x00007FF89E6C0274 (Unity) FMOD::DSPFilter::read
+0x00007FF89E737BAC (Unity) FMOD::DSPSoundCard::read
+0x00007FF89E6E2F09 (Unity) FMOD::Output::mix
+0x00007FF89E732472 (Unity) FMOD::OutputWASAPI::mixerUpdate
+0x00007FF89E6B903D (Unity) FMOD::Thread::callback
+0x00007FF89F104356 (Unity) thread_start<unsigned int (__cdecl*)(void *),1>
+0x00007FF97A9BCD87 (KERNEL32) BaseThreadInitThunk
+0x00007FF97B7CCAEC (ntdll) RtlUserThreadStart
+
+========== END OF STACKTRACE ===========
+
+A crash has been intercepted by the crash handler. For call stack and other details, see the latest crash report generated in:
+ * C:/Users/Lauta/AppData/Local/Temp/Unity/Editor/Crashes
+[9/27/2026 2:54:17 PM] FATAL WebSocket.connect
+
+  No connection could be made because the target machine actively refused it.
+  

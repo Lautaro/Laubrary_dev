@@ -1,0 +1,44 @@
+var SB = new System.Text.StringBuilder();
+var BF = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.FlattenHierarchy;
+System.Func<System.Type,string,System.Reflection.FieldInfo> F = (t,n) => { for (var x=t; x!=null; x=x.BaseType) { var f=x.GetField(n,BF); if (f!=null) return f; } return null; };
+System.Func<System.Type,string,System.Reflection.MethodInfo> M = (t,n) => { for (var x=t; x!=null; x=x.BaseType) { var m=x.GetMethod(n,BF); if (m!=null) return m; } return null; };
+System.Func<System.Type,string,System.Reflection.PropertyInfo> P = (t,n) => { for (var x=t; x!=null; x=x.BaseType) { var p=x.GetProperty(n,BF); if (p!=null) return p; } return null; };
+System.Func<Laubrary.Shaper.Editor.ShaperWindow> Win = () => UnityEditor.EditorWindow.GetWindow<Laubrary.Shaper.Editor.ShaperWindow>();
+System.Action<UnityEngine.UIElements.VisualElement, System.Collections.Generic.List<UnityEngine.UIElements.VisualElement>> WalkT = null;
+WalkT = (e, into) => { if (e==null) return; into.Add(e); for (int i=0;i<e.hierarchy.childCount;i++) WalkT(e.hierarchy[i], into); };
+System.Func<System.Collections.Generic.List<UnityEngine.UIElements.VisualElement>> Tree = () => { var l = new System.Collections.Generic.List<UnityEngine.UIElements.VisualElement>(); WalkT(Win().rootVisualElement, l); return l; };
+System.Func<UnityEngine.UIElements.VisualElement,string> TextOf = v => { var p = v.GetType().GetProperty("text", System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public); if (p!=null && p.PropertyType==typeof(string)) { try { return (string)p.GetValue(v); } catch {} } return null; };
+System.Func<string,UnityEngine.UIElements.Button> FindBtn = s => { foreach (var v in Tree()) if (v is UnityEngine.UIElements.Button b && b.text!=null && b.text.Contains(s) && v.resolvedStyle.display!=UnityEngine.UIElements.DisplayStyle.None) return b; return null; };
+System.Func<UnityEngine.UIElements.VisualElement,string,string> Click = (e,lbl) => { using (var ev = UnityEngine.UIElements.NavigationSubmitEvent.GetPooled()) { ev.target = e; e.SendEvent(ev); } return lbl; };
+System.Func<string,string> Press = s => { var b = FindBtn(s); if (b==null) return "NOTFOUND:"+s; bool en=b.enabledInHierarchy; Click(b,""); return "pressed \""+b.text+"\" en="+en; };
+System.Func<string,System.Type> FT = n => { foreach (var a in System.AppDomain.CurrentDomain.GetAssemblies()) { System.Type[] ts; try { ts=a.GetTypes(); } catch { continue; } foreach (var t in ts) if (t.Name==n) return t; } return null; };
+var _secT = FT("ZuiSection"); var _boxT = FT("ZuiBox");
+var _secOpen = _secT.GetProperty("IsOpen"); var _boxOpen = _boxT.GetProperty("IsOpen");
+var _secTitle = F(_secT,"_titleText"); var _boxTitle = F(_boxT,"_titleText");
+System.Func<UnityEngine.UIElements.VisualElement,string> SecTitle = v => (string)(_secTitle.GetValue(v) ?? "");
+System.Func<UnityEngine.UIElements.VisualElement,string> BoxTitle = v => (string)(_boxTitle.GetValue(v) ?? "");
+System.Func<string,string> OnlySection = want => { int n=0; var names=new System.Text.StringBuilder(); foreach (var v in Tree()) if (_secT.IsInstanceOfType(v)) { string t = SecTitle(v); names.Append(t).Append('|'); _secOpen.SetValue(v, t==want); n++; } return "sections="+n+" ["+names+"]"; };
+System.Func<string,string> OpenBoxes = want => { int n=0; foreach (var v in Tree()) if (_boxT.IsInstanceOfType(v)) { string t = BoxTitle(v); if (t!=null && want!=null && t.Contains(want)) { _boxOpen.SetValue(v, true); n++; } } return "boxes opened="+n; };
+var win = Win(); var wt = win.GetType();
+var docp = P(wt,"Current"); var doc = docp.GetValue(win) as Laubrary.Shaper.ShaperDocument;
+M(wt,"Rebuild").Invoke(win,null);
+OnlySection("Layers");
+System.Func<string,UnityEngine.UIElements.VisualElement> ByTip = frag => { foreach (var v in Tree()) if (v.tooltip!=null && v.tooltip.Contains(frag) && v.resolvedStyle.display!=UnityEngine.UIElements.DisplayStyle.None) return v; return null; };
+var maskToggle = ByTip("Turning this on");
+SB.Append("Mask toggle: ").Append(maskToggle==null?"NOTFOUND":(maskToggle.GetType().Name+" text=\""+TextOf(maskToggle)+"\"")).Append('\n');
+int before = Tree().Count;
+Click(maskToggle,"");
+var after = Tree();
+SB.Append("elements ").Append(before).Append(" -> ").Append(after.Count).Append(" (menu opened)\n");
+var rows = new System.Collections.Generic.List<UnityEngine.UIElements.VisualElement>();
+foreach (var v in after) { var tx = TextOf(v); if (tx!=null && (tx=="None"||tx.StartsWith("Layer "))) { rows.Add(v); SB.Append("  menu row \"").Append(tx).Append("\" tip=\"").Append(v.tooltip==null?"":(v.tooltip.Length>70?v.tooltip.Substring(0,70)+"…":v.tooltip)).Append("\"\n"); } }
+// pick "Layer 2" as the mask source
+UnityEngine.UIElements.VisualElement chosen = null;
+foreach (var r in rows) if (TextOf(r)=="Layer 2") chosen = r;
+if (chosen!=null) { Click(chosen,""); SB.Append("clicked \"Layer 2\"\n"); }
+var m = doc.layers[0].mask;
+SB.Append("mask: sourceId=").Append(m.sourceLayerId).Append(" mode=").Append(m.mode).Append(" quantity=").Append(m.quantity).Append(" invert=").Append(m.invert).Append('\n');
+SB.Append(OpenBoxes("Mask")).Append('\n');
+System.Func<int,int> Lit = f => { var px = Laubrary.Shaper.ShaperDocumentRenderer.RenderFrame(doc, f); int n=0; foreach (var c in px) if (c.a>0) n++; return n; };
+SB.Append("lit@0 masked = ").Append(Lit(0)).Append('\n');
+return SB.ToString();

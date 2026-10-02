@@ -1,0 +1,144 @@
+=== WeaponDefWindow ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:331.56, y:61.33, width:732.89, height:820.22) rootWorld=(x:0.00, y:26.22, width:732.89, height:820.00)
+elements=58 drawn=38 textElements=12 controls=5 leafControls=5
+captionShort=1 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=1
+
+-- captions --
+CAPTION 'ProtoGuy Scattergun' need=99.1 have=96.9 short=2.2 | VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>VisualElement>Label | cls=unity-text-element.unity-label.zui-cell__name
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → No Weapon is open, so there is nothing to save.
+-- every leaf control --
+LEAF 'None (Weapon)' ObjectField rect=4,31 200.0x17.8 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=The Weapon asset being edited — assign one directly, or use Browse. | EditorPanelRootElement#unity-panel-container34>VisualElement#rootVisualContainer22>VisualElement>ObjectField
+LEAF 'Save' Button rect=232,31 52.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=No Weapon is open, so there is nothing to save. | EditorPanelRootElement#unity-panel-container34>VisualElement#rootVisualContainer22>VisualElement>Button
+LEAF 'New' Button rect=293,31 40.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a brand new Weapon asset (undoable). | EditorPanelRootElement#unity-panel-container34>VisualElement#rootVisualContainer22>VisualElement>Button
+LEAF 'Browse' Button rect=342,31 56.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Toggle the thumbnail browser of every Weapon in the project. | EditorPanelRootElement#unity-panel-container34>VisualElement#rootVisualContainer22>VisualElement>Button
+LEAF 'Refresh' Button rect=665,61 57.8x18.2 enabled=True cls=unity-text-element.unity-button tip=Re-scan the project for assets. | EditorPanelRootElement#unity-panel-container34>VisualElement#rootVisualContainer22>VisualElement>VisualElement>Button
+
+=== ZuiAudit(WeaponDefWindow) expanded=0 folded=0 total=0 ===
+
+
+=== AmmoDefWindow ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:60.00, y:60.00, width:800.00, height:800.22) rootWorld=(x:0.00, y:26.22, width:800.00, height:800.00)
+elements=47 drawn=27 textElements=9 controls=5 leafControls=5
+captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=1
+
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → No Ammo is open, so there is nothing to save.
+-- every leaf control --
+LEAF 'None (Ammo)' ObjectField rect=4,31 200.0x17.8 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=The Ammo asset being edited — assign one directly, or use Browse. | EditorPanelRootElement#unity-panel-container35>VisualElement#rootVisualContainer23>VisualElement>ObjectField
+LEAF 'Save' Button rect=232,31 52.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=No Ammo is open, so there is nothing to save. | EditorPanelRootElement#unity-panel-container35>VisualElement#rootVisualContainer23>VisualElement>Button
+LEAF 'New' Button rect=293,31 40.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a brand new Ammo asset (undoable). | EditorPanelRootElement#unity-panel-container35>VisualElement#rootVisualContainer23>VisualElement>Button
+LEAF 'Browse' Button rect=342,31 56.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Toggle the thumbnail browser of every Ammo in the project. | EditorPanelRootElement#unity-panel-container35>VisualElement#rootVisualContainer23>VisualElement>Button
+LEAF 'Refresh' Button rect=732,61 57.8x18.2 enabled=True cls=unity-text-element.unity-button tip=Re-scan the project for assets. | EditorPanelRootElement#unity-panel-container35>VisualElement#rootVisualContainer23>VisualElement>VisualElement>Button
+
+=== ZuiAudit(AmmoDefWindow) expanded=0 folded=0 total=0 ===
+
+
+=== ZoePaletteHealthWindow ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:2779.11, y:296.00, width:320.89, height:552.22) rootWorld=(x:0.00, y:26.22, width:320.89, height:552.00)
+elements=40 drawn=20 textElements=7 controls=2 leafControls=2
+captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=0
+
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+-- every leaf control --
+LEAF 'Clear log' Button rect=7,129 120.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Wipe every observed request/miss. Not undoable — this is observed hist… | VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>Button
+LEAF 'Scan Project' Button rect=7,191 120.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Search every .cs file under Assets/ (excluding Laubrary's own package)… | VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>Button
+
+=== ZuiAudit(ZoePaletteHealthWindow) expanded=0 folded=0 total=0 ===
+
+
+=== RulesEditorWindow ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:233.33, y:232.44, width:665.78, height:621.56) rootWorld=(x:0.00, y:26.22, width:665.78, height:621.33)
+elements=9 drawn=9 textElements=3 controls=3 leafControls=3
+captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=0
+
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+-- every leaf control --
+LEAF 'Rules' Button rect=4,31 46.2x18.2 enabled=True cls=unity-text-element.unity-button.zui-radio__on.zui-radio__first tip=Rules = tune the active ruleset. Rulesets = manage RuleSet assets. Glo… | EditorPanelRootElement#unity-panel-container37>VisualElement#rootVisualContainer25>VisualElement>Button
+LEAF 'Rulesets' Button rect=50,31 62.7x18.2 enabled=True cls=unity-text-element.unity-button tip=Rules = tune the active ruleset. Rulesets = manage RuleSet assets. Glo… | EditorPanelRootElement#unity-panel-container37>VisualElement#rootVisualContainer25>VisualElement>Button
+LEAF 'Global Rules' Button rect=113,31 84.4x18.2 enabled=True cls=unity-text-element.unity-button.zui-radio__last tip=Rules = tune the active ruleset. Rulesets = manage RuleSet assets. Glo… | EditorPanelRootElement#unity-panel-container37>VisualElement#rootVisualContainer25>VisualElement>Button
+
+=== ZuiAudit(RulesEditorWindow) expanded=0 folded=0 total=0 ===
+
+
+=== ZuiGallery ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:450.67, y:52.44, width:620.00, height:820.22) rootWorld=(x:0.00, y:26.22, width:620.00, height:820.00)
+elements=325 drawn=267 textElements=90 controls=61 leafControls=41
+captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=0
+
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+-- every leaf control --
+LEAF '12' FloatField rect=252,132 45.8x12.4 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-field.zui-microslider__numfield tip=Just the fill, label only.  ·  Drag to set; Shift = fine.  ·  Right-cl… | VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>ZuiMicroSlider>FloatField
+LEAF 'Enabled' ZuiToggleButton rect=14,156 84.9x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton.zui-btn--iconrow.zui-togglebutton--on tip=A button that stays pressed when on — no checkmark. | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>ZuiToggleButton
+LEAF 'Loop' ZuiToggleButton rect=108,156 66.7x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton.zui-btn--iconrow tip=Another button toggle, with an icon. | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>ZuiToggleButton
+LEAF 'Mirror' ZuiToggleButton rect=184,156 73.3x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton.zui-btn--iconrow.zui-togglebutton--on tip=And another. | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>ZuiToggleButton
+LEAF 'Area' Button rect=141,183 64.0x18.2 enabled=True cls=unity-text-element.unity-button.zui-btn--iconrow.zui-segmented__seg.zui-segmented__first tip=Pick one. | VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>ZuiSegmented>Button
+LEAF 'Ring' Button rect=205,183 62.7x18.2 enabled=True cls=unity-text-element.unity-button.zui-btn--iconrow.zui-segmented__seg.zui-segmented__on tip=Pick one. | VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>ZuiSegmented>Button
+LEAF 'Rosing' Button rect=268,183 75.1x18.2 enabled=True cls=unity-text-element.unity-button.zui-btn--iconrow.zui-segmented__seg.zui-segmented__last tip=Pick one. | VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>ZuiSegmented>Button
+LEAF 'Alpha' Button rect=141,207 51.6x18.2 enabled=True cls=unity-text-element.unity-button.zui-segmented__seg.zui-segmented__first.zui-segmented__on tip=Tick any combination. | VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>ZuiSegmented>Button
+LEAF 'Hue' Button rect=193,207 40.0x18.2 enabled=True cls=unity-text-element.unity-button.zui-segmented__seg tip=Tick any combination. | VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>ZuiSegmented>Button
+LEAF 'Blur' Button rect=233,207 40.0x18.2 enabled=True cls=unity-text-element.unity-button.zui-segmented__seg.zui-segmented__on tip=Tick any combination. | VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>ZuiSegmented>Button
+LEAF 'Warp' Button rect=273,207 46.2x18.2 enabled=True cls=unity-text-element.unity-button.zui-segmented__seg.zui-segmented__last tip=Tick any combination. | VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>ZuiSegmented>Button
+LEAF '0.6' TextField rect=182,270 49.8x18.2 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-field.unity-base-slider__text-field tip=Standard slider. | ZuiBox>VisualElement>VisualElement>Slider>VisualElement>TextField#unity-text-field
+LEAF '0.3' FloatField rect=62,294 41.8x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-field tip=A low/high range. | VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>VisualElement>FloatField
+LEAF '0.3' MinMaxSlider rect=110,294 130.2x16.0 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-min-max-slider tip=A low/high range.  ·  Double-click to reset. | VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>VisualElement>MinMaxSlider
+LEAF '0.7' FloatField rect=247,294 41.8x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-field tip=A low/high range. | VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>VisualElement>FloatField
+LEAF '1.5' FloatField rect=62,321 69.8x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-field tip=A float. | VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>VisualElement>FloatField
+LEAF '4' IntegerField rect=177,321 60.0x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-integer-field tip=An int. | VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>VisualElement>IntegerField
+LEAF 'Checkbox' ZuiToggleButton rect=14,387 76.4x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton.zui-togglebutton--on tip=Vanilla checkbox toggle. | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>ZuiToggleButton
+LEAF 'Another' ZuiToggleButton rect=114,387 63.1x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton tip=A second checkbox. | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>ZuiToggleButton
+LEAF 'Area' Button rect=129,414 40.4x18.2 enabled=True cls=unity-text-element.unity-button.zui-radio__first tip=Pick one. | VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>VisualElement>Button
+LEAF 'Ring' Button rect=170,414 40.0x18.2 enabled=True cls=unity-text-element.unity-button.zui-radio__on tip=Pick one. | VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>VisualElement>Button
+LEAF 'Rosing' Button rect=210,414 52.4x18.2 enabled=True cls=unity-text-element.unity-button.zui-radio__last tip=Pick one. | VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>VisualElement>Button
+LEAF 'Area' Button rect=129,438 60.4x18.2 enabled=True cls=unity-text-element.unity-button.zui-btn--iconrow.zui-radio__first tip=Pick one. | VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>VisualElement>Button
+LEAF 'Ring' Button rect=190,438 60.0x18.2 enabled=True cls=unity-text-element.unity-button.zui-btn--iconrow.zui-radio__on tip=Pick one. | VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>VisualElement>Button
+LEAF 'Rosing' Button rect=250,438 72.4x18.2 enabled=True cls=unity-text-element.unity-button.zui-btn--iconrow.zui-radio__last tip=Pick one. | VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>VisualElement>Button
+LEAF 'Once' Button rect=132,462 64.4x18.2 enabled=True cls=unity-text-element.unity-button.zui-btn--iconrow tip=Click to cycle. | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>Button
+LEAF 'HDR' ColorField rect=129,486 89.8x16.0 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-color-field tip=A colour. | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>ColorField
+LEAF '<unnamed>' ZuiPad rect=11,546 80.0x80.0 enabled=True cls=zui-pad.zui-kbd-focus tip=A 2D offset — drag the dot.  ·  Drag to set. Tab to focus, arrows to n… | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>ZuiPad
+LEAF '-55' FloatField rect=204,572 54.2x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-field tip=Yaw (azimuth) in degrees — which side the direction comes FROM (left/r… | ZuiFrame>VisualElement>ZuiDirection3D>VisualElement>VisualElement>FloatField
+LEAF '38' FloatField rect=208,596 54.2x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-field tip=Pitch (elevation) in degrees — the direction's height (negative = from… | ZuiFrame>VisualElement>ZuiDirection3D>VisualElement>VisualElement>FloatField
+LEAF '3.5' FloatField rect=202,619 54.2x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-field tip=Distance from the surface, as a multiple of its radius — the direction… | ZuiFrame>VisualElement>ZuiDirection3D>VisualElement>VisualElement>FloatField
+LEAF 'Pin preview' ZuiToggleButton rect=177,644 83.6x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton tip=Keep the larger 3D preview open (it otherwise shows only while the poi… | VisualElement>ZuiFrame>VisualElement>ZuiDirection3D>VisualElement>ZuiToggleButton
+LEAF '★' Button rect=571,726 22.2x18.2 enabled=True cls=unity-text-element.unity-button tip=This project's saved gradients — click to apply one, or save the CURRE… | VisualElement#unity-content-container>ZuiBox>VisualElement>ZuiGradientControl>VisualElement>Button
+LEAF '<unnamed>' GradientField rect=11,749 439.6x20.0 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-gradient-field.zui-audit-allow-stretch tip=The SOURCE ramp you edit — click it for Unity's gradient editor. The t… | ZuiBox>VisualElement>ZuiGradientControl>ZuiRampControl>VisualElement>GradientField
+LEAF 'Linear Light' Button rect=457,750 84.4x18.2 enabled=True cls=unity-text-element.unity-button.zui-segmented__seg.zui-segmented__first tip=How two neighbouring stops are mixed between them. This changes the CO… | VisualElement>ZuiGradientControl>ZuiRampControl>VisualElement>ZuiSegmented>Button
+LEAF 'sRGB' Button rect=541,750 48.4x18.2 enabled=True cls=unity-text-element.unity-button.zui-segmented__seg.zui-segmented__last.zui-segmented__on tip=How two neighbouring stops are mixed between them. This changes the CO… | VisualElement>ZuiGradientControl>ZuiRampControl>VisualElement>ZuiSegmented>Button
+LEAF '0' FloatField rect=117,855 45.8x12.4 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-field.zui-microslider__numfield tip=Snap the ramp to N discrete bands (0 = smooth) — the gradient Posteriz… | ZuiGradientControl>ZuiBox>VisualElement>ZuiHGroup>ZuiMicroSlider>FloatField
+LEAF 'Cycle' ZuiToggleButton rect=176,851 49.8x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton tip=This ramp wants to colour-cycle (a ZuiPaletteCycle driver advances the… | VisualElement>ZuiGradientControl>ZuiBox>VisualElement>ZuiHGroup>ZuiToggleButton
+LEAF 'Reverse' ZuiToggleButton rect=235,851 63.6x20.9 enabled=True cls=unity-text-element.unity-button.zui-togglebutton tip=Sample the gradient backwards (1-t). | VisualElement>ZuiGradientControl>ZuiBox>VisualElement>ZuiHGroup>ZuiToggleButton
+LEAF 'Open menu ▾' Button rect=14,929 88.9x18.2 enabled=True cls=unity-text-element.unity-button tip=Every ZuiMenu row type in one menu — icon items, a checkmark, a disabl… | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>Button
+LEAF 'Flyout…' Button rect=112,929 59.1x18.2 enabled=True cls=unity-text-element.unity-button tip=A bespoke Z.Popover holding arbitrary ZUI controls — not a menu. | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>Button
+
+=== ZuiAudit(ZuiGallery) expanded=0 folded=17 total=0 ===
+
+

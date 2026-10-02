@@ -213,12 +213,7 @@ namespace Laubrary.SpriteFx.Editor
         public static VisualElement BuildStrip(List<Entry> entries, Action onChanged)
         {
             var strip = new VisualElement();
-            strip.style.flexDirection = FlexDirection.Row;
-            strip.style.flexWrap = Wrap.Wrap;
-            strip.style.flexShrink = 1f;
-            strip.style.minWidth = 0f;
-            strip.style.alignItems = Align.Center;
-            strip.style.minHeight = 22f;
+            strip.AddToClassList("lau-tool-shell__overlay-strip");
             FillStrip(strip, entries, onChanged);
             return strip;
         }
@@ -262,8 +257,7 @@ namespace Laubrary.SpriteFx.Editor
                 });
 
             // The strip must never be the thing that decides how wide the pane has to be.
-            seg.style.flexShrink = 1f;
-            seg.style.minWidth = 0f;
+            seg.AddToClassList("lau-tool-shell__overlay-segments");
 
             ApplySegmentTooltips(seg, entries);
             strip.tooltip = shared;

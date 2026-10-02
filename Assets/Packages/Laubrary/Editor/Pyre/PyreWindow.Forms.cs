@@ -70,9 +70,7 @@ namespace Laubrary.Pyre.Editor
                 {
                     group = e.group;
                     col = new VisualElement();
-                    col.style.flexDirection = FlexDirection.Column;
-                    col.style.marginRight = 12;
-                    col.style.minWidth = 104;
+                    col.AddToClassList("zui-menu__column");
                     var head = new Label(group)
                     {
                         tooltip = $"{group} — plug-in forms (each is its own module with its own dials; the Swarm places whole-layer forms, one instance per particle).",
@@ -85,13 +83,11 @@ namespace Laubrary.Pyre.Editor
                 var type = e.type;
                 var item = new VisualElement { tooltip = $"{e.label}: switch this layer to the {e.label} form (its dials appear in the Shape section; the current form's settings are replaced — undoable)." };
                 item.AddToClassList("zui-menu__item");
-                item.style.flexDirection = FlexDirection.Row;
-                item.style.alignItems = Align.Center;
                 var check = new Label(s.form != null && s.form.GetType() == type ? "✓" : "") { pickingMode = PickingMode.Ignore };
                 check.AddToClassList("zui-menu__check");
                 item.Add(check);
                 var img = e.icon != null ? Z.Icon(e.icon, 14f) : null;
-                if (img != null) { img.pickingMode = PickingMode.Ignore; img.style.marginRight = 5f; item.Add(img); }
+                if (img != null) { img.pickingMode = PickingMode.Ignore; img.AddToClassList("zui-menu__icon"); item.Add(img); }
                 var lbl = new Label(e.label) { pickingMode = PickingMode.Ignore };
                 lbl.AddToClassList("zui-menu__label");
                 item.Add(lbl);

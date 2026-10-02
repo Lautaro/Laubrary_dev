@@ -1,0 +1,18 @@
+=== AnimationAsepriteWindow ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:20.00, y:20.00, width:820.00, height:260.22) rootWorld=(x:0.00, y:26.22, width:820.00, height:260.00)
+elements=20 drawn=20 textElements=6 controls=4 leafControls=4
+captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=1
+
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Sync from Aseprite' → Nothing to sync yet — this animation has no owned .aseprite. Press "Edit in Aseprite" firs…
+-- every leaf control --
+LEAF 'ProtoGuy (Lauminary)' ObjectField rect=70,31 240.0x18.2 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=The lauminary whose draft animation you want to round-trip through Ase… | EditorPanelRootElement#unity-panel-container4>VisualElement#rootVisualContainer4>VisualElement>ObjectField
+LEAF 'LegsWalk_N' DropdownField rect=68,55 200.0x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-popup-field.unity-popup-field tip=Which of this lauminary's draft animations to round-trip. | EditorPanelRootElement#unity-panel-container4>VisualElement#rootVisualContainer4>VisualElement>DropdownField
+LEAF 'Edit in Aseprite' Button rect=7,100 100.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Promote this animation to an owned editable .aseprite in the lauminary… | EditorPanelRootElement#unity-panel-container4>VisualElement#rootVisualContainer4>VisualElement>Button
+LEAF 'Sync from Aseprite' Button rect=116,100 122.7x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=Nothing to sync yet — this animation has no owned .aseprite. Press "Ed… | EditorPanelRootElement#unity-panel-container4>VisualElement#rootVisualContainer4>VisualElement>Button

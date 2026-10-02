@@ -1,0 +1,14 @@
+var win = ZWin("ShaperWindow");
+win.position = new Rect(950, 40, 820, 900);
+var BF2 = System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.FlattenHierarchy;
+UnityEngine.UIElements.VisualElement stage=null;
+foreach (var e in ZAll(win.rootVisualElement)) if (e.GetType().Name=="ShaperPreviewStage") stage=e;
+var sb=new System.Text.StringBuilder();
+if (stage==null) return "no stage";
+var zp = stage.GetType().GetProperty("Zoom", BF2);
+sb.Append("zoom=").Append(zp.GetValue(stage)).Append(" stage=").Append(stage.worldBound).Append(" overflow=").Append("").Append("\n");
+zp.SetValue(stage, 12);
+win.Repaint();
+UnityEditor.EditorPrefs.SetString("T320.capWin","ShaperWindow");
+UnityEditor.EditorPrefs.SetString("T320.capOut","D:/UNITY/Laubrary Dev/.agenthq/workspace/T-0321/shots/sh-zoom.png");
+return sb.ToString();

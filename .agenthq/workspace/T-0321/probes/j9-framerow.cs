@@ -1,0 +1,11 @@
+var win = ZWin("PyreWindow"); var sb=new System.Text.StringBuilder();
+UnityEngine.UIElements.VisualElement sl=null;
+foreach (var e in ZAll(win.rootVisualElement)) if (e.GetType().Name=="SliderInt" && ZDrawn(e)) sl=e;
+if (sl==null) return "none";
+var chain = new System.Collections.Generic.List<UnityEngine.UIElements.VisualElement>();
+for (var p=sl; p!=null && chain.Count<6; p=p.hierarchy.parent) chain.Add(p);
+foreach (var p in chain) sb.Append(p.GetType().Name).Append(" cls=").Append(ZCls(p)).Append(" wb=").Append(p.worldBound).Append(" flexDir=").Append(p.resolvedStyle.flexDirection).Append("\n");
+sb.Append("--- children of the Z.Field row ---\n");
+var row = chain[1];
+foreach (var c in ZAll(row)) if (ZDrawn(c)) sb.Append("  ").Append(c.GetType().Name).Append(" '").Append(ZOwnText(c)).Append("' cls=").Append(ZCls(c)).Append(" wb=").Append(c.worldBound).Append("\n");
+return sb.ToString();

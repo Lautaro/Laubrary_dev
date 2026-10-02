@@ -1,0 +1,2 @@
+OVERFLOWS dials=5  ExplosiveJetSettings.blasts -> ExplosiveBlast
+(a compact row is 26px index + N x 100px dials + 6.2px gaps + a 22px x; a 360px dial pane gives a card body 293.8px, so N=2 is 258.6 and fits, N=3 is 364.8 and does not)

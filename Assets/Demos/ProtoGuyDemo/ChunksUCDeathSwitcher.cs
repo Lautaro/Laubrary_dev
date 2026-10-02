@@ -201,7 +201,7 @@ namespace Laubrary.Demos.ProtoGuyDemo
         {
             if (!showKeyLegend) return;
 
-            var style = new GUIStyle(GUI.skin.label) { fontSize = 14 };
+            var style = new GUIStyle(GUI.skin.label) { fontSize = 24 };
             style.normal.textColor = Color.white;
 
             var text = new System.Text.StringBuilder();
@@ -216,8 +216,8 @@ namespace Laubrary.Demos.ProtoGuyDemo
             }
             text.Append(restoreKey).Append(": the disc's own");
 
-            float height = 20f * (entries.Length + 2) + 10f;
-            GUI.Label(new Rect(10f, 10f, 620f, height), text.ToString(), style);
+            float height = 34f * (entries.Length + 2) + 10f;
+            GUI.Label(new Rect(10f, 10f, 820f, height), text.ToString(), style);
         }
     }
 }

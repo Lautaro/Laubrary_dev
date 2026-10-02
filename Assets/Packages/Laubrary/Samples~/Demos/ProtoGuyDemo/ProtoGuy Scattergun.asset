@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8fb722b93d5302040a59b670a0262ca5, type: 3}
+  m_Name: ProtoGuy Scattergun
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Zoetrope::Laubrary.Zoetrope.WeaponDef
+  displayName: ProtoGuy Scattergun
+  automatic: 0
+  fireRate: 2
+  damage: 6
+  projectileSpeed: 10
+  spreadDeg: 22
+  projectilesPerShot: 5
+  ammoTypes:
+  - {fileID: 11400000, guid: 90fb17f480489cc4fb40e04b2109be29, type: 2}
+  muzzle:
+    rid: 1702917591583949366
+  muzzleOffset: {x: 0.5, y: 0}
+  fireZoundName: 
+  references:
+    version: 2
+    RefIds:
+    - rid: 1702917591583949366
+      type: {class: PyreChunksFx, ns: Laubrary.ZoetropePyre, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Pyre}
+      data:
+        blast: {fileID: 11400000, guid: 488a65d8a897c3a4e88b8536a1a6f088, type: 2}
+        blastFps: 20
+        chunks: {fileID: 0}
+        sortingOrder: 10

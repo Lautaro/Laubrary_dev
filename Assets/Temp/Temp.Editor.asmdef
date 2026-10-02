@@ -1,0 +1,19 @@
+{
+    "name": "Temp.Editor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:9284af6d2bf39954f967b2e5ede7708a",
+        "GUID:466fed1eda9de8e4ca6bb199902818be"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

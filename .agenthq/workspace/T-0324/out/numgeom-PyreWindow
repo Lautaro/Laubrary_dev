@@ -1,0 +1,24 @@
+── Quantise  slider w=150.22 wb=(x:16.00, y:302.67, width:150.22, height:18.22)
+   numfield w=45.78 wb=(x:117.33, y:305.78, width:45.78, height:12.44)
+   · FloatField [unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-field.zui-microslider__numfield] wb=(x:117.33, y:305.78, width:45.78, height:12.44) cw=45.78
+   · FloatInput [unity-base-text-field__input.unity-base-text-field__input--single-line.unity-base-field__input.unity-float-field__input] wb=(x:117.33, y:305.78, width:45.78, height:12.44) cw=39.56
+   · TextElement [unity-text-element.unity-text-element__selectable.unity-text-element--inner-input-field-component] wb=(x:120.44, y:307.56, width:39.56, height:9.78) cw=35.11 text='0' need=7.56
+   slider xMax=166.22 field xMax=163.11
+── Size  slider w=190.22 wb=(x:16.00, y:388.44, width:190.22, height:18.22)
+   numfield w=63.56 wb=(x:139.56, y:391.11, width:63.56, height:12.44)
+   · FloatField [unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-field.zui-microslider__numfield] wb=(x:139.56, y:391.11, width:63.56, height:12.44) cw=63.56
+   · FloatInput [unity-base-text-field__input.unity-base-text-field__input--single-line.unity-base-field__input.unity-float-field__input] wb=(x:139.56, y:391.11, width:63.56, height:12.44) cw=57.33
+   · TextElement [unity-text-element.unity-text-element__selectable.unity-text-element--inner-input-field-component] wb=(x:142.67, y:392.89, width:57.78, height:9.78) cw=53.33 text='1.366666' need=53.33
+   slider xMax=206.22 field xMax=203.11
+── Speed  slider w=149.78 wb=(x:580.00, y:495.11, width:149.78, height:18.22)
+   numfield w=46.22 wb=(x:680.89, y:497.78, width:46.22, height:12.44)
+   · FloatField [unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-field.zui-microslider__numfield] wb=(x:680.89, y:497.78, width:46.22, height:12.44) cw=46.22
+   · FloatInput [unity-base-text-field__input.unity-base-text-field__input--single-line.unity-base-field__input.unity-float-field__input] wb=(x:680.89, y:497.78, width:46.22, height:12.44) cw=40
+   · TextElement [unity-text-element.unity-text-element__selectable.unity-text-element--inner-input-field-component] wb=(x:684.00, y:499.56, width:40.00, height:9.78) cw=35.56 text='12' need=12.89
+   slider xMax=729.78 field xMax=727.11
+
+prefs zui.microslider.*.num currently true:
+  ON  zui.microslider.lbl:Size.num
+  ON  zui.microslider.lbl:Speed.num
+  ON  zui.microslider.lbl:Width.num
+  ON  zui.microslider.lbl:Height.num

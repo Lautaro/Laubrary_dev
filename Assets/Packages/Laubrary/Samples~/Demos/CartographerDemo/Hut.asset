@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8578ac84dcb967a4697f334207a8e390, type: 3}
+  m_Name: Hut
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Cartographer::Laubrary.Cartographer.Clump
+  displayName: Hut
+  cells:
+  - offset: {x: 0, y: 0}
+    tile: {fileID: 11400000, guid: db8bcbc387fc65542a7fe295131fb217, type: 2}
+    layer: Terrain
+  - offset: {x: 0, y: 1}
+    tile: {fileID: 11400000, guid: db8bcbc387fc65542a7fe295131fb217, type: 2}
+    layer: Terrain
+  - offset: {x: 0, y: 2}
+    tile: {fileID: 11400000, guid: 2622cd83ed495504c9b26d7455c8e2c3, type: 2}
+    layer: Structures
+  - offset: {x: 1, y: 0}
+    tile: {fileID: 11400000, guid: db8bcbc387fc65542a7fe295131fb217, type: 2}
+    layer: Terrain
+  - offset: {x: 1, y: 1}
+    tile: {fileID: 11400000, guid: db8bcbc387fc65542a7fe295131fb217, type: 2}
+    layer: Terrain
+  - offset: {x: 1, y: 2}
+    tile: {fileID: 11400000, guid: 2622cd83ed495504c9b26d7455c8e2c3, type: 2}
+    layer: Structures
+  - offset: {x: 2, y: 0}
+    tile: {fileID: 11400000, guid: db8bcbc387fc65542a7fe295131fb217, type: 2}
+    layer: Terrain
+  - offset: {x: 2, y: 1}
+    tile: {fileID: 11400000, guid: db8bcbc387fc65542a7fe295131fb217, type: 2}
+    layer: Terrain
+  - offset: {x: 2, y: 2}
+    tile: {fileID: 11400000, guid: 2622cd83ed495504c9b26d7455c8e2c3, type: 2}
+    layer: Structures
+  - offset: {x: 3, y: 0}
+    tile: {fileID: 11400000, guid: db8bcbc387fc65542a7fe295131fb217, type: 2}
+    layer: Terrain
+  - offset: {x: 3, y: 1}
+    tile: {fileID: 11400000, guid: db8bcbc387fc65542a7fe295131fb217, type: 2}
+    layer: Terrain
+  - offset: {x: 3, y: 2}
+    tile: {fileID: 11400000, guid: 2622cd83ed495504c9b26d7455c8e2c3, type: 2}
+    layer: Structures
+  tags:
+  - {fileID: 11400000, guid: 370c3e3964aa4e04c85abe894b9ab208, type: 2}
+  prefabChoices: []
+  spots:
+  - spotName: hut-door
+    offset: {x: 1.5, y: 0}

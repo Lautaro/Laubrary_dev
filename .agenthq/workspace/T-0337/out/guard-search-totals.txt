@@ -1,0 +1,7 @@
+InfernoForm: examined=2 openedBySomething=2 stillDead=0 unresolved=0 truncated=False elapsed=1750ms
+OrbForm: examined=1 openedBySomething=0 stillDead=1 unresolved=0 truncated=False elapsed=344ms
+TorchForm: examined=3 openedBySomething=0 stillDead=3 unresolved=0 truncated=False elapsed=36289ms
+TorchForm: examined=3 openedBySomething=0 stillDead=3 unresolved=0 truncated=False elapsed=30944ms
+RadialJetForm: examined=5 openedBySomething=0 stillDead=5 unresolved=0 truncated=False elapsed=5231ms
+ExplosiveJetForm: examined=49 openedBySomething=4 stillDead=45 unresolved=0 truncated=False elapsed=23595ms
+JetForm: examined=7 openedBySomething=0 stillDead=7 unresolved=0 truncated=False elapsed=3234ms

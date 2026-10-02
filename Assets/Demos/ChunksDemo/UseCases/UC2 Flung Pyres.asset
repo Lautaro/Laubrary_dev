@@ -18,11 +18,11 @@ MonoBehaviour:
   - rid: 4065707408189817097
   directionDeg: 90
   previewBackSplash:
-    cameraColor: {r: 0.08, g: 0.08, b: 0.1, a: 1}
-    image: {fileID: 0}
-    imageTint: {r: 1, g: 1, b: 1, a: 1}
-    imageZoom: 1
-    imagePos: {x: 0, y: 0}
+    cameraColor: {r: 0.2830189, g: 0.25048652, b: 0.35686275, a: 1}
+    image: {fileID: 21300000, guid: 866c877b4deb2864d99414e91ef88449, type: 3}
+    imageTint: {r: 0.6283537, g: 0.59410226, b: 0.6771488, a: 1}
+    imageZoom: 1.0521
+    imagePos: {x: -3.5816975, y: 5}
   countMin: 8
   countMax: 16
   speedMin: 3
@@ -276,6 +276,7 @@ MonoBehaviour:
       type: {class: PyreBlast, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: 465f5326c718433bb34ce59e1b1ef4ec
+        colorSlot: -1
         enabled: 1
         displayName: Six blasts
         delay: 0
@@ -288,7 +289,7 @@ MonoBehaviour:
           count: 6
           length: 4
           angleDeg: 0
-          radius: 0.5
+          radius: 0.1
           arcDeg: 360
           startAngleDeg: 0
           positionJitter: 0
@@ -301,30 +302,36 @@ MonoBehaviour:
         fixedAngleDeg: 0
         randomAngleMinDeg: 0
         randomAngleMaxDeg: 360
-        scaleMin: 1
-        scaleMax: 1
+        scaleMin: 0.99
+        scaleMax: 0.99
         tint: {r: 1, g: 1, b: 1, a: 1}
         alphaMin: 1
         alphaMax: 1
         seed: 0
-        blastSeconds: 1.33
+        blastSeconds: 1.3333334
+        blastSecondsAuto: 1
     - rid: 4065707408189817097
       type: {class: Trajectory, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: 2abb2231f3084dd8a11ea43574a35485
+        colorSlot: -1
         enabled: 1
         displayName: 
         delay: 0
-        targetId: 
+        targetId: 465f5326c718433bb34ce59e1b1ef4ec
         speedMin: 5
         speedMax: 9
         inheritBurstDirection: 1
+        directionModeMigrated: 1
+        directionMode: 0
         directionDeg: 90
         spreadDeg: 60
         upwardBias: 3
         gravity: 14
         drag: 0.4
         faceVelocity: 1
+        spinDegMin: 0
+        spinDegMax: 0
         untilTargetEnds: 1
         lifeSeconds: 1
         seed: 0

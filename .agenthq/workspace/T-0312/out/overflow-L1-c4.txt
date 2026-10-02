@@ -1,0 +1,49 @@
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets (x:5.78, y:20.00, width:1700.00, height:1000.22)
+ZuiColumnFlow w=1359 columns=3
+
+### OVERFLOW-X 81.8px  'Colour bands'
+  EditorPanelRootElement#unity-panel-container12 w=1700.0 content=1700.0 x=0..1700 flex=0/1 dir=Column wrap=NoWrap cls=
+   VisualElement#rootVisualContainer13 w=1700.0 content=1692.0 x=0..1700 flex=0/1 dir=Column wrap=NoWrap cls=zui-root
+    VisualElement w=1692.0 content=1692.0 x=4..1696 flex=1/1 dir=Column wrap=NoWrap cls=
+     TwoPaneSplitView w=1692.0 content=1692.0 x=4..1696 flex=1/1 dir=Column wrap=NoWrap cls=unity-two-pane-split-view
+      VisualElement#unity-content-container w=1692.0 content=1691.1 x=4..1696 flex=1/1 dir=Row wrap=NoWrap cls=unity-two-pane-split-view__content-container.unity-two-pane-split-view--horizontal
+       ScrollView w=1372.0 content=1372.0 x=4..1376 flex=0/0 dir=Column wrap=NoWrap cls=unity-scroll-view.unity-scroll-view--scroll.unity-scroll-view--vertical
+        VisualElement#unity-content-and-vertical-scroll-container w=1372.0 content=1372.0 x=4..1376 flex=1/1 dir=Row wrap=NoWrap cls=unity-scroll-view__content-and-vertical-scroll-container
+         VisualElement#unity-content-viewport w=1359.1 content=1359.1 x=4..1363 flex=1/1 dir=Column wrap=NoWrap cls=unity-scroll-view__content-viewport.unity-scroll-view__content-viewport--vertical
+          VisualElement#unity-content-container w=1359.1 content=1359.1 x=4..1363 flex=1/0 dir=Column wrap=NoWrap cls=unity-scroll-view__content-container.unity-scroll-view__content-container--vertical
+           ZuiColumnFlow w=1359.1 content=1359.1 x=4..1363 flex=0/1 dir=Column wrap=NoWrap cls=zui-column-flow
+            VisualElement w=1359.1 content=1359.1 x=4..1363 flex=0/1 dir=Row wrap=NoWrap cls=zui-column-flow__row
+             VisualElement w=448.9 content=448.9 x=459..908 flex=1/1 dir=Column wrap=NoWrap cls=zui-column-flow__column
+              ZuiSection w=448.9 content=448.9 x=459..908 flex=0/0 dir=Column wrap=NoWrap cls=zui-section.zui-align-scope
+               VisualElement w=448.9 content=448.9 x=459..908 flex=0/1 dir=Column wrap=NoWrap cls=zui-section__body
+                ZuiBox w=448.9 content=434.7 x=459..908 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                 VisualElement w=434.7 content=434.7 x=466..901 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                  ZuiBox w=434.7 content=424.9 x=466..901 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                   VisualElement w=424.9 content=424.9 x=471..896 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                    VisualElement w=424.9 content=424.9 x=471..896 flex=0/1 dir=Column wrap=NoWrap cls=
+                     ZuiBox w=424.9 content=415.1 x=471..896 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+                      VisualElement w=415.1 content=415.1 x=476..891 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+                       VisualElement w=415.1 content=415.1 x=476..891 flex=0/1 dir=Row wrap=Wrap cls=
+                      » VisualElement w=496.9 content=496.9 x=476..973 flex=0/0 dir=Row wrap=NoWrap cls=zui-field
+   children of the offender:
+     [0] Label 'Colour bands' w=77.8 x=476..554 cls=unity-text-element.unity-label.zui-field__label
+     [1] ZuiGradientControl '★' w=415.1 x=558..973 cls=zui-gradient-control
+
+### OVERFLOW-X 18.7px  'Image'
+  EditorPanelRootElement#unity-panel-container12 w=1700.0 content=1700.0 x=0..1700 flex=0/1 dir=Column wrap=NoWrap cls=
+   VisualElement#rootVisualContainer13 w=1700.0 content=1692.0 x=0..1700 flex=0/1 dir=Column wrap=NoWrap cls=zui-root
+    VisualElement w=1692.0 content=1692.0 x=4..1696 flex=1/1 dir=Column wrap=NoWrap cls=
+     TwoPaneSplitView w=1692.0 content=1692.0 x=4..1696 flex=1/1 dir=Column wrap=NoWrap cls=unity-two-pane-split-view
+      VisualElement#unity-content-container w=1692.0 content=1691.1 x=4..1696 flex=1/1 dir=Row wrap=NoWrap cls=unity-two-pane-split-view__content-container.unity-two-pane-split-view--horizontal
+       ScrollView w=319.1 content=319.1 x=1377..1696 flex=1/0 dir=Column wrap=NoWrap cls=unity-scroll-view.unity-scroll-view--scroll.unity-scroll-view--vertical
+        VisualElement#unity-content-and-vertical-scroll-container w=319.1 content=319.1 x=1377..1696 flex=1/1 dir=Row wrap=NoWrap cls=unity-scroll-view__content-and-vertical-scroll-container
+         VisualElement#unity-content-viewport w=306.2 content=306.2 x=1377..1683 flex=1/1 dir=Column wrap=NoWrap cls=unity-scroll-view__content-viewport.unity-scroll-view__content-viewport--vertical
+          VisualElement#unity-content-container w=306.2 content=306.2 x=1377..1683 flex=0/0 dir=Column wrap=NoWrap cls=unity-scroll-view__content-container.unity-scroll-view__content-container--vertical
+           VisualElement w=306.2 content=306.2 x=1377..1683 flex=0/1 dir=Column wrap=NoWrap cls=
+            ZuiBox w=306.2 content=292.0 x=1377..1683 flex=0/1 dir=Column wrap=NoWrap cls=zui-box.zui-align-scope
+             VisualElement w=292.0 content=292.0 x=1384..1676 flex=0/1 dir=Column wrap=NoWrap cls=zui-box__body
+              VisualElement w=292.0 content=292.0 x=1384..1676 flex=0/1 dir=Row wrap=NoWrap cls=zui-row
+             » VisualElement w=167.1 content=167.1 x=1528..1695 flex=0/0 dir=Row wrap=NoWrap cls=zui-field
+   children of the offender:
+     [0] Label 'Image' w=40.0 x=1528..1568 cls=unity-text-element.unity-label.zui-field__label
+     [1] ObjectField 'None (Sprite)' w=120.0 x=1572..1692 cls=unity-base-field.unity-base-field--no-label.unity-object-field

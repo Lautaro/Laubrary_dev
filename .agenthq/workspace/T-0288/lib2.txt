@@ -1,0 +1,27 @@
+System.Action<UnityEngine.UIElements.VisualElement, System.Collections.Generic.List<UnityEngine.UIElements.VisualElement>> HW = null;
+HW = (e,l) => { if (e==null) return; l.Add(e); for (int i=0;i<e.hierarchy.childCount;i++) HW(e.hierarchy[i], l); };
+System.Func<System.Collections.Generic.List<UnityEngine.UIElements.VisualElement>> HAll = () => { var l = new System.Collections.Generic.List<UnityEngine.UIElements.VisualElement>(); HW(Win().rootVisualElement, l); return l; };
+System.Func<UnityEngine.UIElements.VisualElement,System.Collections.Generic.List<UnityEngine.UIElements.VisualElement>> HSub = r => { var l = new System.Collections.Generic.List<UnityEngine.UIElements.VisualElement>(); HW(r,l); return l; };
+System.Action<UnityEngine.UIElements.VisualElement> Submit = e => { using (var ev = UnityEngine.UIElements.NavigationSubmitEvent.GetPooled()) { ev.target=e; e.SendEvent(ev); } };
+var _pdPos = typeof(UnityEngine.UIElements.PointerEventBase<UnityEngine.UIElements.PointerDownEvent>).GetProperty("localPosition");
+var _pdPos2 = typeof(UnityEngine.UIElements.PointerEventBase<UnityEngine.UIElements.PointerDownEvent>).GetProperty("position");
+var _pdBtn = typeof(UnityEngine.UIElements.PointerEventBase<UnityEngine.UIElements.PointerDownEvent>).GetProperty("button");
+var _puPos = typeof(UnityEngine.UIElements.PointerEventBase<UnityEngine.UIElements.PointerUpEvent>).GetProperty("localPosition");
+var _puPos2 = typeof(UnityEngine.UIElements.PointerEventBase<UnityEngine.UIElements.PointerUpEvent>).GetProperty("position");
+// Find the ZuiMicroSlider whose caption Label reads `cap`, then click it at fraction f of its width.
+System.Func<string,float,string> DragSlider = (cap, f) => {
+  UnityEngine.UIElements.VisualElement sl = null;
+  foreach (var v in HAll()) if (v.GetType().Name=="ZuiMicroSlider") { foreach (var c in HSub(v)) { var t = TextOf(c); if (t==cap) { sl=v; break; } } if (sl!=null) break; }
+  if (sl==null) return "NO SLIDER \""+cap+"\"";
+  float w = sl.worldBound.width, h = sl.worldBound.height;
+  var d = UnityEngine.UIElements.PointerDownEvent.GetPooled(); d.target = sl;
+  if (_pdBtn!=null && _pdBtn.CanWrite) _pdBtn.SetValue(d, 0);
+  if (_pdPos!=null && _pdPos.CanWrite) _pdPos.SetValue(d, new UnityEngine.Vector3(w*f, h*0.5f, 0f));
+  if (_pdPos2!=null && _pdPos2.CanWrite) _pdPos2.SetValue(d, new UnityEngine.Vector3(sl.worldBound.x + w*f, sl.worldBound.center.y, 0f));
+  sl.SendEvent(d);
+  var u = UnityEngine.UIElements.PointerUpEvent.GetPooled(); u.target = sl;
+  if (_puPos!=null && _puPos.CanWrite) _puPos.SetValue(u, new UnityEngine.Vector3(w*f, h*0.5f, 0f));
+  if (_puPos2!=null && _puPos2.CanWrite) _puPos2.SetValue(u, new UnityEngine.Vector3(sl.worldBound.x + w*f, sl.worldBound.center.y, 0f));
+  sl.SendEvent(u);
+  return "dragged \""+cap+"\" to "+f;
+};

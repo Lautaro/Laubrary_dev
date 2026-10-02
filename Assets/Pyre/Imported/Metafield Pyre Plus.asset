@@ -18,6 +18,11 @@ MonoBehaviour:
   previewLayerSel: 1
   background: {r: 0, g: 0, b: 0, a: 0}
   pixelsPerUnit: 64
+  pixelsPerUnitAuto: 1
+  anchorEnabled: 0
+  anchorKind: 0
+  anchorOrigin: {x: 0.5, y: 0.5}
+  anchorDirection: {x: 1, y: 0}
   backgroundUseFill: 0
   backgroundFill:
     mode: 0
@@ -68,6 +73,11 @@ MonoBehaviour:
     texture: 0
     textureSprite: {fileID: 0}
     noiseKind: 0
+    noisePixelScale: 0
+    noiseCellPx: 4
+    noiseDetail: 2
+    noiseSeed: 0
+    noiseSteps: 0
     gridAngle: 0
     gridSpacing: 0.5
     gridLineWidth: 0.08
@@ -169,6 +179,7 @@ MonoBehaviour:
       m_oscRateMax: 8
       m_multiplierId: 
     coalesce: 0
+    coalesceKeepShape: 0
     fuseThreshold: 0.6
     fuseShadeRange: 1.5
     fuseSoftness: 0.18
@@ -182,14 +193,23 @@ MonoBehaviour:
         value: 0.15
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.35
         value: 0.9
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0.5
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -212,14 +232,23 @@ MonoBehaviour:
         value: 0.95
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.5
         value: 0.55
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0.12
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -238,6 +267,173 @@ MonoBehaviour:
     rampRelief: 3
     rampLightAngle: 135
     rampRimScale: 0.35
+    massShading: 0
+    massSootLine: 0.3
+    massIgnition: 0.7
+    massSootFill:
+      mode: 1
+      color: {r: 1, g: 1, b: 1, a: 1}
+      gradient:
+        serializedVersion: 2
+        key0: {r: 0.05, g: 0.04, b: 0.04, a: 1}
+        key1: {r: 0.22, g: 0.2, b: 0.19, a: 1}
+        key2: {r: 0.42, g: 0.38, b: 0.35, a: 0}
+        key3: {r: 0, g: 0, b: 0, a: 0}
+        key4: {r: 0, g: 0, b: 0, a: 0}
+        key5: {r: 0, g: 0, b: 0, a: 0}
+        key6: {r: 0, g: 0, b: 0, a: 0}
+        key7: {r: 0, g: 0, b: 0, a: 0}
+        ctime0: 0
+        ctime1: 39321
+        ctime2: 65535
+        ctime3: 0
+        ctime4: 0
+        ctime5: 0
+        ctime6: 0
+        ctime7: 0
+        atime0: 0
+        atime1: 65535
+        atime2: 0
+        atime3: 0
+        atime4: 0
+        atime5: 0
+        atime6: 0
+        atime7: 0
+        m_Mode: 0
+        m_ColorSpace: -1
+        m_NumColorKeys: 3
+        m_NumAlphaKeys: 2
+      gradientAnim:
+        rid: 4065707725719340440
+      angleDeg: 0
+      zoom: 1
+      center: {x: 0, y: 0}
+      zoomAnim:
+        rid: 4065707725719340441
+      centerXAnim:
+        rid: 4065707725719340442
+      centerYAnim:
+        rid: 4065707725719340443
+      space: 0
+      fit: 0
+      texture: 0
+      textureSprite: {fileID: 0}
+      noiseKind: 0
+      noisePixelScale: 0
+      noiseCellPx: 4
+      noiseDetail: 2
+      noiseSeed: 0
+      noiseSteps: 0
+      gridAngle: 0
+      gridSpacing: 0.5
+      gridLineWidth: 0.08
+      gridVertical: 1
+      gridHorizontal: 1
+      dotSize: 0.5
+      dotSpacing: 0.35
+      dotStagger: 1
+      fillVersion: 1
+    massBleed: 0.12
+    massBleedCellPx: 2
+    massDither: 0
+    edgeResponse: 0
+    edgeRespWidth: 5
+    edgeRespFalloff: 1
+    edgeRespBrightness:
+      m_mode: 0
+      m_static: 1
+      m_min: 0
+      m_max: 1
+      m_points: []
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
+      m_multiplierId: 
+    edgeRespContrast:
+      m_mode: 0
+      m_static: 1
+      m_min: 0
+      m_max: 1
+      m_points: []
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
+      m_multiplierId: 
+    edgeRespHue:
+      m_mode: 0
+      m_static: 0
+      m_min: 0
+      m_max: 1
+      m_points: []
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
+      m_multiplierId: 
+    edgeRespSaturation:
+      m_mode: 0
+      m_static: 1
+      m_min: 0
+      m_max: 1
+      m_points: []
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
+      m_multiplierId: 
+    edgeRespGlow:
+      m_mode: 0
+      m_static: 0
+      m_min: 0
+      m_max: 1
+      m_points: []
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
+      m_multiplierId: 
+    edgeRespGlowColor: {r: 1, g: 0.85, b: 0.45, a: 1}
+    edgeRespGrain: 0
+    edgeRespGrainRimPx: 1.5
+    edgeRespGrainCorePx: 6
+    edgeRespFlow: 0
     shapeForm: 0
     form:
       rid: -2
@@ -290,6 +486,11 @@ MonoBehaviour:
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
+      noisePixelScale: 0
+      noiseCellPx: 4
+      noiseDetail: 2
+      noiseSeed: 0
+      noiseSteps: 0
       gridAngle: 0
       gridSpacing: 0.5
       gridLineWidth: 0.08
@@ -309,18 +510,30 @@ MonoBehaviour:
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.20901825
         value: 0.69800454
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.75901884
         value: 0.69800454
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -343,14 +556,23 @@ MonoBehaviour:
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.35
         value: 14
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 32
       m_duration: 4
@@ -461,6 +683,11 @@ MonoBehaviour:
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
+      noisePixelScale: 0
+      noiseCellPx: 4
+      noiseDetail: 2
+      noiseSeed: 0
+      noiseSteps: 0
       gridAngle: 0
       gridSpacing: 0.5
       gridLineWidth: 0.08
@@ -520,6 +747,11 @@ MonoBehaviour:
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
+      noisePixelScale: 0
+      noiseCellPx: 4
+      noiseDetail: 2
+      noiseSeed: 0
+      noiseSteps: 0
       gridAngle: 0
       gridSpacing: 0.5
       gridLineWidth: 0.08
@@ -596,6 +828,11 @@ MonoBehaviour:
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
+      noisePixelScale: 0
+      noiseCellPx: 4
+      noiseDetail: 2
+      noiseSeed: 0
+      noiseSteps: 0
       gridAngle: 0
       gridSpacing: 0.5
       gridLineWidth: 0.08
@@ -672,6 +909,11 @@ MonoBehaviour:
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
+      noisePixelScale: 0
+      noiseCellPx: 4
+      noiseDetail: 2
+      noiseSeed: 0
+      noiseSteps: 0
       gridAngle: 0
       gridSpacing: 0.5
       gridLineWidth: 0.08
@@ -736,6 +978,11 @@ MonoBehaviour:
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
+      noisePixelScale: 0
+      noiseCellPx: 4
+      noiseDetail: 2
+      noiseSeed: 0
+      noiseSteps: 0
       gridAngle: 0
       gridSpacing: 0.5
       gridLineWidth: 0.08
@@ -796,6 +1043,11 @@ MonoBehaviour:
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
+      noisePixelScale: 0
+      noiseCellPx: 4
+      noiseDetail: 2
+      noiseSeed: 0
+      noiseSteps: 0
       gridAngle: 0
       gridSpacing: 0.5
       gridLineWidth: 0.08
@@ -880,14 +1132,23 @@ MonoBehaviour:
         value: 5
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.4
         value: 26
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 18
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 28
       m_duration: 4
@@ -1045,6 +1306,11 @@ MonoBehaviour:
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
+      noisePixelScale: 0
+      noiseCellPx: 4
+      noiseDetail: 2
+      noiseSeed: 0
+      noiseSteps: 0
       gridAngle: 0
       gridSpacing: 0.5
       gridLineWidth: 0.08
@@ -1065,18 +1331,30 @@ MonoBehaviour:
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.18
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.7
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -1430,18 +1708,30 @@ MonoBehaviour:
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.12
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.6
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -1621,6 +1911,10 @@ MonoBehaviour:
     swarmChaos: 0
     swarmGridReverse: 0
     swarmSpawnChaos: 0
+    swarmPlacementV2: 0
+    swarmLayout: 0
+    swarmOrder: 0
+    swarmJitter: 0
     swarmCustomX:
       m_mode: 2
       m_static: 1
@@ -1631,14 +1925,23 @@ MonoBehaviour:
         value: -16
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.5
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 16
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: -32
       m_yMax: 32
       m_duration: 4
@@ -1661,14 +1964,23 @@ MonoBehaviour:
         value: -10
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.5
         value: 14
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: -10
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: -32
       m_yMax: 32
       m_duration: 4
@@ -1691,10 +2003,16 @@ MonoBehaviour:
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -1751,6 +2069,14 @@ MonoBehaviour:
     swarmEvenPath: 0
     swarmPathSpread: 1
     swarmDieTogether: 0
+    swarmFling: 0
+    flingDistMin: 10
+    flingDistMax: 28
+    flingDirection: 90
+    flingSpread: 360
+    flingDrag: 0.5
+    flingGravity: 0
+    flingLifeJitter: 0
     shapeOffsetX:
       m_mode: 0
       m_static: 0
@@ -2026,6 +2352,7 @@ MonoBehaviour:
       m_oscRateMax: 8
       m_multiplierId: 
     coalesce: 1
+    coalesceKeepShape: 0
     fuseThreshold: 0.25600022
     fuseShadeRange: 1.5222619
     fuseSoftness: 0.24326229
@@ -2039,14 +2366,23 @@ MonoBehaviour:
         value: 0.15
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.35
         value: 0.9
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0.5
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -2069,14 +2405,23 @@ MonoBehaviour:
         value: 0.95
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.5
         value: 0.55
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0.12
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -2095,6 +2440,173 @@ MonoBehaviour:
     rampRelief: 3
     rampLightAngle: 135
     rampRimScale: 0.35
+    massShading: 0
+    massSootLine: 0.3
+    massIgnition: 0.7
+    massSootFill:
+      mode: 1
+      color: {r: 1, g: 1, b: 1, a: 1}
+      gradient:
+        serializedVersion: 2
+        key0: {r: 0.05, g: 0.04, b: 0.04, a: 1}
+        key1: {r: 0.22, g: 0.2, b: 0.19, a: 1}
+        key2: {r: 0.42, g: 0.38, b: 0.35, a: 0}
+        key3: {r: 0, g: 0, b: 0, a: 0}
+        key4: {r: 0, g: 0, b: 0, a: 0}
+        key5: {r: 0, g: 0, b: 0, a: 0}
+        key6: {r: 0, g: 0, b: 0, a: 0}
+        key7: {r: 0, g: 0, b: 0, a: 0}
+        ctime0: 0
+        ctime1: 39321
+        ctime2: 65535
+        ctime3: 0
+        ctime4: 0
+        ctime5: 0
+        ctime6: 0
+        ctime7: 0
+        atime0: 0
+        atime1: 65535
+        atime2: 0
+        atime3: 0
+        atime4: 0
+        atime5: 0
+        atime6: 0
+        atime7: 0
+        m_Mode: 0
+        m_ColorSpace: -1
+        m_NumColorKeys: 3
+        m_NumAlphaKeys: 2
+      gradientAnim:
+        rid: 4065707725719340444
+      angleDeg: 0
+      zoom: 1
+      center: {x: 0, y: 0}
+      zoomAnim:
+        rid: 4065707725719340445
+      centerXAnim:
+        rid: 4065707725719340446
+      centerYAnim:
+        rid: 4065707725719340447
+      space: 0
+      fit: 0
+      texture: 0
+      textureSprite: {fileID: 0}
+      noiseKind: 0
+      noisePixelScale: 0
+      noiseCellPx: 4
+      noiseDetail: 2
+      noiseSeed: 0
+      noiseSteps: 0
+      gridAngle: 0
+      gridSpacing: 0.5
+      gridLineWidth: 0.08
+      gridVertical: 1
+      gridHorizontal: 1
+      dotSize: 0.5
+      dotSpacing: 0.35
+      dotStagger: 1
+      fillVersion: 1
+    massBleed: 0.12
+    massBleedCellPx: 2
+    massDither: 0
+    edgeResponse: 0
+    edgeRespWidth: 5
+    edgeRespFalloff: 1
+    edgeRespBrightness:
+      m_mode: 0
+      m_static: 1
+      m_min: 0
+      m_max: 1
+      m_points: []
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
+      m_multiplierId: 
+    edgeRespContrast:
+      m_mode: 0
+      m_static: 1
+      m_min: 0
+      m_max: 1
+      m_points: []
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
+      m_multiplierId: 
+    edgeRespHue:
+      m_mode: 0
+      m_static: 0
+      m_min: 0
+      m_max: 1
+      m_points: []
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
+      m_multiplierId: 
+    edgeRespSaturation:
+      m_mode: 0
+      m_static: 1
+      m_min: 0
+      m_max: 1
+      m_points: []
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
+      m_multiplierId: 
+    edgeRespGlow:
+      m_mode: 0
+      m_static: 0
+      m_min: 0
+      m_max: 1
+      m_points: []
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
+      m_multiplierId: 
+    edgeRespGlowColor: {r: 1, g: 0.85, b: 0.45, a: 1}
+    edgeRespGrain: 0
+    edgeRespGrainRimPx: 1.5
+    edgeRespGrainCorePx: 6
+    edgeRespFlow: 0
     shapeForm: 0
     form:
       rid: -2
@@ -2147,6 +2659,11 @@ MonoBehaviour:
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
+      noisePixelScale: 0
+      noiseCellPx: 4
+      noiseDetail: 2
+      noiseSeed: 0
+      noiseSteps: 0
       gridAngle: 0
       gridSpacing: 0.5
       gridLineWidth: 0.08
@@ -2166,18 +2683,30 @@ MonoBehaviour:
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.4667269
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.62089735
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0.10398904
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -2306,6 +2835,11 @@ MonoBehaviour:
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
+      noisePixelScale: 0
+      noiseCellPx: 4
+      noiseDetail: 2
+      noiseSeed: 0
+      noiseSteps: 0
       gridAngle: 0
       gridSpacing: 0.5
       gridLineWidth: 0.08
@@ -2365,6 +2899,11 @@ MonoBehaviour:
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
+      noisePixelScale: 0
+      noiseCellPx: 4
+      noiseDetail: 2
+      noiseSeed: 0
+      noiseSteps: 0
       gridAngle: 0
       gridSpacing: 0.5
       gridLineWidth: 0.08
@@ -2441,6 +2980,11 @@ MonoBehaviour:
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
+      noisePixelScale: 0
+      noiseCellPx: 4
+      noiseDetail: 2
+      noiseSeed: 0
+      noiseSteps: 0
       gridAngle: 0
       gridSpacing: 0.5
       gridLineWidth: 0.08
@@ -2517,6 +3061,11 @@ MonoBehaviour:
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
+      noisePixelScale: 0
+      noiseCellPx: 4
+      noiseDetail: 2
+      noiseSeed: 0
+      noiseSteps: 0
       gridAngle: 0
       gridSpacing: 0.5
       gridLineWidth: 0.08
@@ -2581,6 +3130,11 @@ MonoBehaviour:
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
+      noisePixelScale: 0
+      noiseCellPx: 4
+      noiseDetail: 2
+      noiseSeed: 0
+      noiseSteps: 0
       gridAngle: 0
       gridSpacing: 0.5
       gridLineWidth: 0.08
@@ -2641,6 +3195,11 @@ MonoBehaviour:
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
+      noisePixelScale: 0
+      noiseCellPx: 4
+      noiseDetail: 2
+      noiseSeed: 0
+      noiseSteps: 0
       gridAngle: 0
       gridSpacing: 0.5
       gridLineWidth: 0.08
@@ -2725,14 +3284,23 @@ MonoBehaviour:
         value: 5
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.4
         value: 26
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 18
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 28
       m_duration: 4
@@ -2890,6 +3458,11 @@ MonoBehaviour:
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
+      noisePixelScale: 0
+      noiseCellPx: 4
+      noiseDetail: 2
+      noiseSeed: 0
+      noiseSteps: 0
       gridAngle: 0
       gridSpacing: 0.5
       gridLineWidth: 0.08
@@ -2910,18 +3483,30 @@ MonoBehaviour:
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.18
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.7
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -3275,18 +3860,30 @@ MonoBehaviour:
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.12
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.6
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -3466,6 +4063,10 @@ MonoBehaviour:
     swarmChaos: 0
     swarmGridReverse: 0
     swarmSpawnChaos: 0
+    swarmPlacementV2: 0
+    swarmLayout: 0
+    swarmOrder: 0
+    swarmJitter: 0
     swarmCustomX:
       m_mode: 2
       m_static: 1
@@ -3476,14 +4077,23 @@ MonoBehaviour:
         value: -16
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.5
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 16
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: -32
       m_yMax: 32
       m_duration: 4
@@ -3506,14 +4116,23 @@ MonoBehaviour:
         value: -10
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.5
         value: 14
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: -10
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: -32
       m_yMax: 32
       m_duration: 4
@@ -3536,10 +4155,16 @@ MonoBehaviour:
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 1
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -3596,6 +4221,14 @@ MonoBehaviour:
     swarmEvenPath: 0
     swarmPathSpread: 1
     swarmDieTogether: 0
+    swarmFling: 0
+    flingDistMin: 10
+    flingDistMax: 28
+    flingDirection: 90
+    flingSpread: 360
+    flingDrag: 0.5
+    flingGravity: 0
+    flingLifeJitter: 0
     shapeOffsetX:
       m_mode: 0
       m_static: 0
@@ -3769,18 +4402,30 @@ MonoBehaviour:
         value: 0.35916
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.16789444
         value: 0.7606835
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 0.50798035
         value: 1.222222
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       - time: 1
         value: 0
         exponent: 1
         editState: 0
+        randomX: 0
+        randomY: 0
+        randomBias: 0.5
       m_yMin: 0
       m_yMax: 4
       m_duration: 4
@@ -7429,6 +8074,430 @@ MonoBehaviour:
         m_oscRateMax: 8
         m_multiplierId: 
     - rid: 1702917545006467392
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4065707725719340440
+      type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        gradient:
+          serializedVersion: 2
+          key0: {r: 0.05, g: 0.04, b: 0.04, a: 1}
+          key1: {r: 0.22, g: 0.2, b: 0.19, a: 1}
+          key2: {r: 0.42, g: 0.38, b: 0.35, a: 0}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 39321
+          ctime2: 65535
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 65535
+          atime2: 0
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 3
+          m_NumAlphaKeys: 2
+        reverse: 0
+        quantiseSteps: 0
+        bandLocked: 0
+        hueShift: 0
+        saturation: 1
+        brightness: 1
+        contrast: 1
+        hueShiftAnim:
+          rid: 4065707725761021216
+        saturationAnim:
+          rid: 4065707725761021217
+        brightnessAnim:
+          rid: 4065707725761021218
+        contrastAnim:
+          rid: 4065707725761021219
+        phaseAnim:
+          rid: 4065707725761021220
+        cycle: 0
+        cycleSpeed: 0.5
+    - rid: 4065707725719340441
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4065707725719340442
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4065707725719340443
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4065707725719340444
+      type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        gradient:
+          serializedVersion: 2
+          key0: {r: 0.05, g: 0.04, b: 0.04, a: 1}
+          key1: {r: 0.22, g: 0.2, b: 0.19, a: 1}
+          key2: {r: 0.42, g: 0.38, b: 0.35, a: 0}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 39321
+          ctime2: 65535
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 65535
+          atime2: 0
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 3
+          m_NumAlphaKeys: 2
+        reverse: 0
+        quantiseSteps: 0
+        bandLocked: 0
+        hueShift: 0
+        saturation: 1
+        brightness: 1
+        contrast: 1
+        hueShiftAnim:
+          rid: 4065707725761021221
+        saturationAnim:
+          rid: 4065707725761021222
+        brightnessAnim:
+          rid: 4065707725761021223
+        contrastAnim:
+          rid: 4065707725761021224
+        phaseAnim:
+          rid: 4065707725761021225
+        cycle: 0
+        cycleSpeed: 0.5
+    - rid: 4065707725719340445
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4065707725719340446
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4065707725719340447
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4065707725761021216
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4065707725761021217
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4065707725761021218
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4065707725761021219
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4065707725761021220
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4065707725761021221
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4065707725761021222
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4065707725761021223
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4065707725761021224
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4065707725761021225
       type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
       data:
         m_mode: 0

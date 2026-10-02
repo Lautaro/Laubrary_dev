@@ -52,14 +52,14 @@ namespace Laubrary.Chunks.Editor
             var row = plan.rows[index];
             var producer = FindById(c, row.capabilityId);
             var host = Z.Row();
-            host.style.marginBottom = 1f;
+            host.AddToClassList("lau-chunks__layer-row");
 
             var grip = Z.Text("≡", ZuiText.Body,
                 "Drag to change what draws in front. The top row draws first and is furthest back; each row " +
                 "below it draws in front of the one above.");
-            grip.style.unityFontStyleAndWeight = FontStyle.Bold;
-            grip.style.width = 14f;
-            grip.style.unityTextAlign = TextAnchor.MiddleCenter;
+            grip.AddToClassList("zui-row__grip");
+            grip.AddToClassList("zui-row__grip--bold");
+            grip.AddToClassList("zui-row__grip--compact");
             ZuiReorder.MakeGrip(grip, host, listHost, (from, to) =>
             {
                 Dial("Reorder Depth", () => plan.Move(from, to));
@@ -76,9 +76,7 @@ namespace Laubrary.Chunks.Editor
                         ? "Row " + plan.RowCount + " of " + plan.RowCount + " — drawn last, so it is in FRONT " +
                           "of everything else this recipe draws."
                         : "Row " + (index + 1) + " of " + plan.RowCount + ", counting from the back.");
-            number.style.width = 22f;
-            number.style.unityTextAlign = TextAnchor.MiddleRight;
-            number.style.marginRight = 4f;
+            number.AddToClassList("zui-row__ordinal");
             host.Add(number);
 
             // The card's own colour — the same chip its header, its Timing lane and its outline on the preview
@@ -86,14 +84,7 @@ namespace Laubrary.Chunks.Editor
             var colour = producer != null ? ChunkCardColors.For(c, producer) : Color.grey;
             var chip = new Label();
             chip.style.backgroundColor = colour;
-            chip.style.width = 10f;
-            chip.style.height = 10f;
-            chip.style.flexShrink = 0f;
-            chip.style.marginRight = 5f;
-            chip.style.borderTopLeftRadius = 2f;
-            chip.style.borderTopRightRadius = 2f;
-            chip.style.borderBottomLeftRadius = 2f;
-            chip.style.borderBottomRightRadius = 2f;
+            chip.AddToClassList("zui-row__swatch");
             chip.tooltip = "This card's colour, the same one its header, its Timing lane and its outlines on " +
                            "the preview wear.";
             host.Add(chip);
@@ -105,7 +96,7 @@ namespace Laubrary.Chunks.Editor
                     ? "Everything " + title + " draws, on this one row. Click to jump to its card."
                     : "Piece " + (row.instance + 1) + " of " + title + " — numbered clockwise from the top of " +
                       "the picture, the same number the preview prints on it. Click to jump to its card.");
-            name.style.flexGrow = 0f;
+            name.AddToClassList("lau-chunks__layer-title");
             name.RegisterCallback<PointerDownEvent>(e =>
             {
                 if (e.button != 0 || producer == null) return;

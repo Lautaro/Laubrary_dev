@@ -20,10 +20,13 @@ namespace Laubrary.Demos.ProtoGuyDemo
         {
             if (!enableSlider || backdrop == null || backdrop.backSplash == null) return;
 
-            const float w = 260f, h = 20f, pad = 8f;
-            float y = pad + 34f; // sit below FireDirectionVisualizer's "Clear Fire Lines" button
-            GUI.Label(new Rect(pad, y, w, h), $"Background Zoom: {backdrop.backSplash.imageZoom:0.00}");
-            float newZoom = GUI.HorizontalSlider(new Rect(pad, y + h, w, h), backdrop.backSplash.imageZoom, minZoom, maxZoom);
+            var labelStyle = new GUIStyle(GUI.skin.label) { fontSize = 22 };
+            labelStyle.normal.textColor = Color.white;
+
+            const float w = 360f, h = 30f, pad = 8f;
+            float y = pad + 210f; // sit below ChunksUCDeathSwitcher's key legend, now drawn at a larger font
+            GUI.Label(new Rect(pad, y, w, h), $"Background Zoom: {backdrop.backSplash.imageZoom:0.00}", labelStyle);
+            float newZoom = GUI.HorizontalSlider(new Rect(pad, y + h + 4f, w, h), backdrop.backSplash.imageZoom, minZoom, maxZoom);
             if (!Mathf.Approximately(newZoom, backdrop.backSplash.imageZoom))
             {
                 backdrop.backSplash.imageZoom = newZoom;

@@ -58,6 +58,20 @@ namespace ZuiRuntime
         /// Activate() while focused. Hovering with the mouse moves focus, so both inputs agree.
         /// </summary>
         public bool Item(ref ZuiStack s, string label, float pts = 16f)
+            => Item(ref s, label, Zui.ButtonStyle(pts), HighlightColor, 8f, 4f);
+
+        /// <summary>
+        /// Draws an entry with a consumer's runtime skin, including its text, focus tint and padding.
+        /// Skin selection remains local to this call; navigation and scrolling state remain on this menu.
+        /// </summary>
+        public bool Item(ref ZuiStack s, string label, ZuiRuntimeSkin skin, ZuiTextRole role = ZuiTextRole.Menu)
+        {
+            skin = Zui.ResolveRuntimeSkin(skin);
+            return Item(ref s, label, Zui.ButtonStyle(skin, role), skin.menuFocus,
+                skin.menuVerticalPadding, skin.menuFocusOutset);
+        }
+
+        bool Item(ref ZuiStack s, string label, GUIStyle style, Color focusColor, float padding, float outset)
         {
             int index = _drawIndex++;
             bool focused = index == Focus;
@@ -65,8 +79,7 @@ namespace ZuiRuntime
             // drawn on a non-scrolling stack must not blank this out.
             if (s.Scrolling && s.ScrollKey != null) { _scrollKey = s.ScrollKey; _scrolling = true; }
 
-            var style = Zui.ButtonStyle(pts);
-            float h = style.CalcSize(new GUIContent(label)).y + UIScale.S(8f);
+            float h = style.CalcSize(new GUIContent(label)).y + UIScale.S(padding);
             var r = s.Next(h);
 
             if (r.Contains(Event.current.mousePosition)) Focus = index;
@@ -77,7 +90,7 @@ namespace ZuiRuntime
                 _revealPending = false;
             }
             if (focused)
-                Zui.FillRect(new Rect(r.x - UIScale.S(4f), r.y, r.width + UIScale.S(8f), r.height), HighlightColor);
+                Zui.FillRect(new Rect(r.x - UIScale.S(outset), r.y, r.width + UIScale.S(outset * 2f), r.height), focusColor);
 
             bool clicked = GUI.Button(r, label, style);
             bool activated = focused && _activate;

@@ -1,0 +1,1 @@
+var sb=new System.Text.StringBuilder(); foreach (var w in UnityEngine.Resources.FindObjectsOfTypeAll<UnityEditor.EditorWindow>()) if (w.GetType().Name=="ShaperWindow") sb.Append(w.position.x).Append(" ").Append(w.position.y); return sb.ToString();

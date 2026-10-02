@@ -1,0 +1,42 @@
+=== MirageWindow ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:40.00, y:20.00, width:900.00, height:700.22) rootWorld=(x:0.00, y:26.22, width:900.00, height:700.00)
+elements=127 drawn=93 textElements=37 controls=27 leafControls=25
+captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=1
+
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → This Mirage View matches what is on disk — nothing to save.
+-- every leaf control --
+LEAF 'AuditT324Mirage' ObjectField rect=4,31 200.0x18.2 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=The Mirage View asset being edited — assign one directly, or use Brows… | EditorPanelRootElement#unity-panel-container5>VisualElement#rootVisualContainer6>VisualElement>ObjectField
+LEAF 'Save' Button rect=232,31 52.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=This Mirage View matches what is on disk — nothing to save. | EditorPanelRootElement#unity-panel-container5>VisualElement#rootVisualContainer6>VisualElement>Button
+LEAF 'New' Button rect=293,31 40.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a brand new Mirage View asset (undoable). | EditorPanelRootElement#unity-panel-container5>VisualElement#rootVisualContainer6>VisualElement>Button
+LEAF 'Browse' Button rect=342,31 56.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Toggle the thumbnail browser of every Mirage View in the project. | EditorPanelRootElement#unity-panel-container5>VisualElement#rootVisualContainer6>VisualElement>Button
+LEAF 'Duplicate' Button rect=408,31 68.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a copy of this Mirage View next to it and switch to editing the… | EditorPanelRootElement#unity-panel-container5>VisualElement#rootVisualContainer6>VisualElement>Button
+LEAF 'Rename' Button rect=485,31 60.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Rename this asset's file. | EditorPanelRootElement#unity-panel-container5>VisualElement#rootVisualContainer6>VisualElement>Button
+LEAF 'Delete' Button rect=555,31 51.1x18.2 enabled=True cls=unity-text-element.unity-button tip=Delete this asset's file (asks first — file deletion cannot be undone)… | EditorPanelRootElement#unity-panel-container5>VisualElement#rootVisualContainer6>VisualElement>Button
+LEAF 'Sections' Button rect=10,120 67.1x18.2 enabled=True cls=unity-text-element.unity-button.zui-segmented__seg.zui-segmented__first tip=Sections: each section folds via its own header, like before. Toggle B… | VisualElement#rootVisualContainer6>VisualElement>VisualElement>ZuiSectionToggleBar>ZuiSegmented>Button
+LEAF 'Toggle Bar' Button rect=77,120 79.1x18.2 enabled=True cls=unity-text-element.unity-button.zui-segmented__seg.zui-segmented__last.zui-segmented__on tip=Sections: each section folds via its own header, like before. Toggle B… | VisualElement#rootVisualContainer6>VisualElement>VisualElement>ZuiSectionToggleBar>ZuiSegmented>Button
+LEAF 'View' Button rect=164,120 46.2x18.2 enabled=True cls=unity-text-element.unity-button.zui-segmented__seg.zui-segmented__first.zui-segmented__on tip=Show or hide a whole section — only active in Toggle Bar mode. Right-c… | VisualElement#rootVisualContainer6>VisualElement>VisualElement>ZuiSectionToggleBar>ZuiSegmented>Button
+LEAF 'Previewables' Button rect=211,120 94.7x18.2 enabled=True cls=unity-text-element.unity-button.zui-segmented__seg.zui-segmented__last.zui-segmented__on tip=Show or hide a whole section — only active in Toggle Bar mode. Right-c… | VisualElement#rootVisualContainer6>VisualElement>VisualElement>ZuiSectionToggleBar>ZuiSegmented>Button
+LEAF '16' FloatField rect=79,190 60.0x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-float-field tip=Every previewable is scaled so its own source PPU maps to this — the "… | VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>VisualElement>FloatField
+LEAF 'Add Previewable' Button rect=152,192 110.2x18.2 enabled=True cls=unity-text-element.unity-button tip=Browse Zoes and Blasts — the LauAsset-registered types this view can p… | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>Button
+LEAF 'Browse Sprite...' Button rect=271,192 103.1x18.2 enabled=True cls=unity-text-element.unity-button tip=Browse every Sprite in the project (search-driven — nothing loads unti… | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>Button
+LEAF 'Open preview stage' Button rect=384,190 150.2x18.2 enabled=True cls=unity-text-element.unity-button tip=Opens Assets/Mirage/MirageStage.unity, the scene whose MirageRig rende… | VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>VisualElement>Button
+LEAF 'Recall…' Button rect=14,244 58.2x18.2 enabled=True cls=unity-text-element.unity-button tip=Copy colour/image/position/zoom/tint FROM an existing preset — a one-t… | ZuiSection>VisualElement>ZuiBox>VisualElement>VisualElement>Button
+LEAF 'Save…' Button rect=82,244 52.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Write this copy's current values TO a preset you pick (overwriting it)… | ZuiSection>VisualElement>ZuiBox>VisualElement>VisualElement>Button
+LEAF 'HDR' ColorField rect=55,268 90.2x16.0 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-color-field tip=Solid background fill behind the image. | VisualElement>ZuiBox>VisualElement>VisualElement>VisualElement>ColorField
+LEAF 'None (Sprite)' ObjectField rect=196,268 120.0x17.8 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=The backdrop image sprite. | VisualElement>ZuiBox>VisualElement>VisualElement>VisualElement>ObjectField
+LEAF 'PreviewShooterZoe  @ (0, 0)' Button rect=7,351 300.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Select this previewable to edit it below (click it again to deselect). | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>Button
+LEAF 'Ping' Button rect=316,351 46.2x18.2 enabled=True cls=unity-text-element.unity-button tip=Flash this previewable in the Game view and select its live object. | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>Button
+LEAF 'Remove' Button rect=372,351 69.8x18.2 enabled=True cls=unity-text-element.unity-button tip=Delete this previewable from the view. | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>Button
+LEAF 'Hero  @ (0, 0)' Button rect=7,375 300.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Select this previewable to edit it below (click it again to deselect). | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>Button
+LEAF 'Ping' Button rect=316,375 46.2x18.2 enabled=True cls=unity-text-element.unity-button tip=Flash this previewable in the Game view and select its live object. | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>Button
+LEAF 'Remove' Button rect=372,375 69.8x18.2 enabled=True cls=unity-text-element.unity-button tip=Delete this previewable from the view. | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>Button
+
+
+=== ZuiAudit (package) opened=0 folded=4 total=0 ===

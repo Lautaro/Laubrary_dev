@@ -1,0 +1,4 @@
+frames reached: 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
+t=0.00s frame=0 hash=2611D4BA lit=5078
+t=1.50s frame=1 hash=53BA27A5 lit=5078
+t=3.92s frame=1 hash=53BA27A5 lit=5078

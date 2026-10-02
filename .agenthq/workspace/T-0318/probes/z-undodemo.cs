@@ -1,0 +1,12 @@
+var doc = UnityEditor.AssetDatabase.LoadMainAssetAtPath("Assets/Demos/ShaperDemo/ShaperDemoDoc.asset");
+var sb = new System.Text.StringBuilder();
+sb.Append("dirtyBefore=").Append(UnityEditor.EditorUtility.IsDirty(doc)).Append("\n");
+for (int i = 0; i < 6; i++) UnityEditor.Undo.PerformUndo();
+UnityEditor.Undo.FlushUndoRecordObjects();
+var win = ZWin("ShaperWindow");
+var BFa = System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.FlattenHierarchy;
+System.Reflection.MethodInfo rb = null;
+if (win != null) for (var t = win.GetType(); t != null && rb == null; t = t.BaseType) rb = t.GetMethod("Rebuild", BFa|System.Reflection.BindingFlags.DeclaredOnly);
+if (rb != null) rb.Invoke(win, null);
+sb.Append("dirtyAfterUndo=").Append(UnityEditor.EditorUtility.IsDirty(doc)).Append("\n");
+return sb.ToString();

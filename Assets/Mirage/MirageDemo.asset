@@ -58,7 +58,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: eabf43b8a0b86a840a8982b5dfe791ab, type: 3}
   m_Name: PreviewDemo
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Preview::Laubrary.Preview.PreviewSetup
-  displayPixelsPerUnit: 16
+  useProjectPixelScale: 1
+  displayPixelsPerUnitOverride: 16
   previewables:
   - id: 195a07d16eed40398381a2aff54d34dc
     content: {fileID: 11400000, guid: 63b163823e619894f9fd29f5cfb83289, type: 2}
@@ -113,9 +114,9 @@ MonoBehaviour:
     respawnDelay: 2
     manualControls: 0
   backSplash:
-    cameraColor: {r: 0.2830189, g: 0.25048652, b: 0.35686275, a: 1}
-    image: {fileID: 21300000, guid: 866c877b4deb2864d99414e91ef88449, type: 3}
-    imageTint: {r: 0.6283537, g: 0.59410226, b: 0.6771488, a: 1}
-    imageZoom: 0.22
-    imagePos: {x: -3.5816975, y: 5}
+    cameraColor: {r: 0.08, g: 0.08, b: 0.1, a: 1}
+    image: {fileID: 21300000, guid: 41e1cf439b424d74eb08aa7f9c3d61d3, type: 3}
+    imageTint: {r: 1, g: 1, b: 1, a: 1}
+    imageZoom: 1.00449
+    imagePos: {x: 0, y: 0}
   thumbnail: {fileID: -5555989063998786557}

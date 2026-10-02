@@ -1,0 +1,7 @@
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets window=1700
+split child[0] VisualElement w=1692.0
+split child[1] VisualElement w=0.9
+FIELD 'Destination' w=1116.9 x=572.0..1688.9  parentContent=1116.9 (572.0..1688.9)
+   text 'Destination' (11 chars) needs=64.4 has=64.0 whiteSpace=NoWrap overflowClip=Clip   fits
+   text 'Assets/Demos/ShaperDemo' (23 chars) needs=160.0 has=160.0 whiteSpace=NoWrap overflowClip=Clip   fits
+destination fields found=1

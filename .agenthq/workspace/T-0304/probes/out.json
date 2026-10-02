@@ -1,0 +1,12 @@
+{
+  "success": false,
+  "command": "unity command eval_file",
+  "data": null,
+  "errors": [
+    {
+      "code": "COMMAND_FAILED",
+      "message": "Compilation Failed\n  'VisualElement' does not contain a definition for 'Q' and no accessible extension method 'Q' accepting a first argument of type 'VisualElement' could be found (are you missing a using directive or an assembly reference?) (line 25, col 23)\n  Unreachable code detected (line 33, col 12)\n  The variable 'BFi' is assigned but its value is never used (line 4, col 4)"
+    }
+  ],
+  "warnings": []
+}

@@ -1,0 +1,31 @@
+== SpriteCatalogWindow: 0 drawn text inputs
+== LatheMoldWindow: 0 drawn text inputs
+== ChoreographerWindow: 0 drawn text inputs
+== LazorWindow: 0 drawn text inputs
+== RulesEditorWindow: 0 drawn text inputs
+== TapestryWindow: 0 drawn text inputs
+LauminationBuilderWindow | TEXTFIELD label='' value='' caption='URL'
+    tip=Download an image straight into Assets/SpriteSheets and load it.
+    path=EditorPanelRootElement#unity-panel-container18>VisualElement#rootVisualContainer19>VisualElement>VisualElement>TextField
+LauminationBuilderWindow | TEXTFIELD label='' value='' caption='URL'
+    tip=Optional display name for the downloaded sheet.
+    path=EditorPanelRootElement#unity-panel-container18>VisualElement#rootVisualContainer19>VisualElement>VisualElement>TextField
+== LauminationBuilderWindow: 2 drawn text inputs
+LauminaryBrowserWindow | TEXTFIELD label='' value='Hero' caption='Hero'
+    tip=Name for a brand-new lauminary.
+    path=EditorPanelRootElement#unity-panel-container17>VisualElement#rootVisualContainer18>VisualElement>TextField
+LauminaryBrowserWindow | TEXTFIELD label='' value='' caption='<unnamed>'
+    tip=No lauminary is selected, so there is nothing to rename.
+    path=EditorPanelRootElement#unity-panel-container17>VisualElement#rootVisualContainer18>VisualElement>VisualElement>VisualElement>TextField
+== LauminaryBrowserWindow: 2 drawn text inputs
+== CartographerWindow: 0 drawn text inputs
+== TextSplashWindow: 0 drawn text inputs
+== SpriteFxStackWindow: 0 drawn text inputs
+== LarderWindow: 0 drawn text inputs
+== LatheWindow: 0 drawn text inputs
+== ChunkWindow: 0 drawn text inputs
+== PyreWindow: 0 drawn text inputs
+== ShaperWindow: 0 drawn text inputs
+== ZoeWindow: 0 drawn text inputs
+== MirageWindow: 0 drawn text inputs
+

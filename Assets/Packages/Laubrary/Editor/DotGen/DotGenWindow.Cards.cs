@@ -520,7 +520,7 @@ namespace Laubrary.DotGen.Editor
             if (!showCategory) card.tooltip = categoryTip;
 
             var header = Z.Row();
-            header.style.flexWrap = Wrap.NoWrap;
+            header.AddToClassList("zui-row--nowrap");
 
             // Controls that must never fold the card out from under the pointer (POC §16.6).
             var nonFolding = new List<VisualElement>();
@@ -533,9 +533,8 @@ namespace Laubrary.DotGen.Editor
             {
                 var grip = Z.Text("≡", ZuiText.Body,
                     "Drag to reorder — this card's position IS the order it runs in.");
-                grip.style.unityFontStyleAndWeight = FontStyle.Bold;
-                grip.style.width = 16f;
-                grip.style.flexShrink = 0f;
+                grip.AddToClassList("zui-row__grip");
+                grip.AddToClassList("zui-row__grip--bold");
                 ZuiReorder.MakeGrip(grip, card, listHost, onMoved);
                 header.Add(grip);
             }
@@ -550,7 +549,7 @@ namespace Laubrary.DotGen.Editor
                         Dirty(() => m.enabled = v, "Toggle DotGen module");
                         rebuild();
                     });
-                enable.style.flexShrink = 0f;
+                enable.AddToClassList("zui-row__toggle");
                 header.Add(enable);
                 nonFolding.Add(enable);
             }
@@ -573,9 +572,8 @@ namespace Laubrary.DotGen.Editor
                 // The name is the header's variable-width content, so it takes the slack itself rather than
                 // sharing it with a flexible spacer — a field sized to half the slack clipped the last letter
                 // of an ordinary default name ("Edge margin" → "Edge margi"), which reads as a data bug.
-                nameField.style.flexGrow = 1f;
-                nameField.style.flexShrink = 1f;
-                nameField.style.minWidth = 90f;
+                nameField.AddToClassList("zui-row__name");
+                nameField.AddToClassList("zui-row__name--card");
                 nameField.AddToClassList("zui-audit-allow-stretch");
                 header.Add(nameField);
                 nonFolding.Add(nameField);
@@ -583,16 +581,14 @@ namespace Laubrary.DotGen.Editor
                 if (showCategory)
                 {
                     var cat = Z.Text(category, ZuiText.Small, categoryTip);
-                    cat.style.flexShrink = 0f;
-                    cat.style.whiteSpace = WhiteSpace.NoWrap;
+                    cat.AddToClassList("zui-row__kind");
                     header.Add(cat);
                 }
             }
             else if (showCategory)
             {
                 var cat = Z.Text(category, ZuiText.Body, categoryTip);
-                cat.style.flexShrink = 0f;
-                cat.style.whiteSpace = WhiteSpace.NoWrap;
+                cat.AddToClassList("zui-row__kind");
                 header.Add(cat);
             }
 
@@ -603,7 +599,8 @@ namespace Laubrary.DotGen.Editor
             if (onRemove != null)
             {
                 var remove = Z.Button("×", "Remove this " + category.ToLowerInvariant() + " (undoable).",
-                    onRemove).W(22f);
+                    onRemove);
+                remove.AddToClassList("zui-row__remove-action");
                 header.Add(remove);
                 nonFolding.Add(remove);
             }
@@ -752,7 +749,7 @@ namespace Laubrary.DotGen.Editor
             }
 
             var row = Z.Row(btn);
-            row.style.flexWrap = Wrap.NoWrap;
+            row.AddToClassList("zui-row--nowrap");
             return row;
         }
 

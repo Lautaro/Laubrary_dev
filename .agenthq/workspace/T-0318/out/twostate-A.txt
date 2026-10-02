@@ -1,0 +1,10 @@
+ButtonRefreshunity-text-element.unity-buttonENABLEDRe-scan the project for lauminaries and orphaned animations.
+TextFieldHerounity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-fieldENABLEDName for a brand-new lauminary.
+ButtonNew lauminaryunity-text-element.unity-buttonENABLEDCreate a lauminary with the typed name and select it.
+ButtonOrphaned   (0)unity-text-element.unity-buttonENABLEDStandalone animations that aren't part of any lauminary yet.
+ButtonProtoGuy   (latest v0)unity-text-element.unity-buttonENABLEDSelect this lauminary to browse its versions and animations.
+ButtonDuplicateunity-text-element.unity-button.unity-disabledDISABLEDNo lauminary is selected, so there is nothing to duplicate.
+TextField<unnamed>unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-fieldDISABLEDNo lauminary is selected, so there is nothing to rename.
+ButtonRenameunity-text-element.unity-buttonDISABLEDNo lauminary is selected, so there is nothing to rename.
+ButtonDelete…unity-text-element.unity-button.unity-disabledDISABLEDNo lauminary is selected, so there is nothing to delete.
+ButtonOpen Laumination Builderunity-text-element.unity-buttonENABLEDOpen the Laumination Builder window.

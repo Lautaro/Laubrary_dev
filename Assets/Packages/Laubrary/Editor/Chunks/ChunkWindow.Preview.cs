@@ -125,15 +125,13 @@ namespace Laubrary.Chunks.Editor
             stage.tooltip = StageTooltipBase;
             stageTipKey = 0;
             stage.style.height = Mathf.Clamp(previewHeight, PreviewHeightMin, PreviewHeightMax);
-            stage.style.flexGrow = 0f;
-            stage.style.flexShrink = 0f;
-            stage.style.minWidth = 200f;
+            stage.AddToClassList("lau-tool-shell__stage");
             stage.AddToClassList("zui-stage");
             previewSection.Add(stage);
             previewSection.Add(BuildPreviewResizeBar());
 
             var chrome = new VisualElement();
-            chrome.style.flexShrink = 0f;
+            chrome.AddToClassList("lau-tool-shell__chrome");
             BuildTransport(chrome, c);
             BuildBackdropPanel(chrome);
             previewSection.Add(chrome);
@@ -146,9 +144,8 @@ namespace Laubrary.Chunks.Editor
         VisualElement BuildPreviewResizeBar()
         {
             var bar = new VisualElement { tooltip = "Drag to make the preview taller or shorter." };
-            bar.style.height = 6f;
-            bar.style.flexShrink = 0f;
-            bar.style.backgroundColor = new Color(0f, 0f, 0f, 0.25f);
+            bar.AddToClassList("lau-tool-shell__resize-grip");
+            bar.AddToClassList("lau-tool-shell__resize-grip--horizontal");
             bar.RegisterCallback<PointerDownEvent>(e =>
             {
                 if (e.button == 0) { bar.CapturePointer(e.pointerId); e.StopPropagation(); }
@@ -197,7 +194,7 @@ namespace Laubrary.Chunks.Editor
                 }, 220f, showInput: false);
 
             timeReadout = Z.Text("", ZuiText.Subtle, "Where the clock is, and how long this recipe runs for.");
-            timeReadout.style.width = 110f;
+            timeReadout.AddToClassList("lau-tool-shell__readout");
 
             // The composition's own aim: the direction every producer that inherits the burst direction fires
             // along when the caller passes none. It sits here rather than on a card because it belongs to the
@@ -232,7 +229,7 @@ namespace Laubrary.Chunks.Editor
                   "a burst would put nothing on screen. Switch one on, or add a producer.";
 
             var button = Z.Button("Preview in Mirage", tooltip, () => PreviewInMirage(c));
-            button.style.width = 150f;
+            button.AddToClassList("lau-chunks__mirage-button");
             button.SetEnabled(worth);
 
             // A disabled UI Toolkit element does not reliably receive the pointer events a tooltip resolves

@@ -1,0 +1,13 @@
+var win = ZWin("ShaperWindow"); var sb=new System.Text.StringBuilder();
+UnityEngine.UIElements.VisualElement stage=null;
+foreach (var e in ZAll(win.rootVisualElement)) if (e.GetType().Name=="ShaperPreviewStage") stage=e;
+var BF2 = System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Public;
+var img = stage.GetType().GetField("_image", BF2).GetValue(stage) as UnityEngine.UIElements.VisualElement;
+var zf = stage.GetType().GetField("Zoom", BF2);
+zf.SetValue(stage, 20);
+foreach (var m in stage.GetType().GetMethods(BF2|System.Reflection.BindingFlags.DeclaredOnly)) if (m.GetParameters().Length==0 && (m.Name=="LayoutImage"||m.Name=="Refresh")) m.Invoke(stage,null);
+sb.Append("zoom=").Append(zf.GetValue(stage)).Append("\n");
+sb.Append("stage wb=").Append(stage.worldBound).Append(" clip=").Append(stage.GetType().GetProperty("worldClip",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.FlattenHierarchy).GetValue(stage)).Append("\n");
+sb.Append("image wb=").Append(img.worldBound).Append(" clip=").Append(img.GetType().GetProperty("worldClip",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.FlattenHierarchy).GetValue(img)).Append("\n");
+sb.Append("image style l/t/w/h=").Append(img.style.left).Append(" ").Append(img.style.top).Append(" ").Append(img.style.width).Append(" ").Append(img.style.height).Append("\n");
+return sb.ToString();

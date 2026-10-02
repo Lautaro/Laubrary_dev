@@ -1,0 +1,1 @@
+UnityEditor.EditorPrefs.SetString("A25.menu","Laubrary/Chunks"); UnityEditor.EditorPrefs.SetString("A25.type","ChunkWindow"); UnityEditor.EditorPrefs.SetString("A25.capName","chunks"); UnityEditor.EditorPrefs.SetFloat("A25.capW",1500f); UnityEditor.EditorPrefs.SetFloat("A25.capH",1100f); return "x";

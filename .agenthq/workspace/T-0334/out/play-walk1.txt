@@ -1,0 +1,4 @@
+frames reached: 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
+t=0.00s frame=0 hash=2DECBF92 lit=4103
+t=1.61s frame=13 hash=5CBC3CB1 lit=4261
+t=3.03s frame=14 hash=D1C2C49C lit=4213

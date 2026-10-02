@@ -1051,6 +1051,13 @@
     flex-shrink: 0;
 }
 
+/* One vertical group in a multi-column menu. This is structure, not a tool-specific look. */
+.zui-menu__column {
+    flex-direction: column;
+    margin-right: 12px;
+    min-width: 104px;
+}
+
 .zui-menu__label {
     white-space: nowrap;
     -unity-text-align: middle-left;

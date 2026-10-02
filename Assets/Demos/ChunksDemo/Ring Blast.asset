@@ -277,6 +277,7 @@ MonoBehaviour:
       type: {class: PyreBlast, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: 6f1b1667d73641bb82b4b269887941b4
+        colorSlot: -1
         enabled: 1
         displayName: 
         delay: 0
@@ -310,11 +311,13 @@ MonoBehaviour:
         alphaMin: 1
         alphaMax: 1
         seed: 7
-        blastSeconds: 0.6
+        blastSeconds: 1.3333334
+        blastSecondsAuto: 1
     - rid: 2235495221543567507
       type: {class: Trajectory, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: d8076361befb4015b2c1b0e062dd3893
+        colorSlot: -1
         enabled: 1
         displayName: 
         delay: 0
@@ -322,12 +325,16 @@ MonoBehaviour:
         speedMin: 2.5
         speedMax: 4.5
         inheritBurstDirection: 1
+        directionModeMigrated: 1
+        directionMode: 0
         directionDeg: 90
         spreadDeg: 25
         upwardBias: 1
         gravity: 14
         drag: 0.5
         faceVelocity: 0
+        spinDegMin: 0
+        spinDegMax: 0
         untilTargetEnds: 1
         lifeSeconds: 1
         seed: 11
@@ -335,6 +342,7 @@ MonoBehaviour:
       type: {class: Cues, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: d47bc661be71461aa903cbfa88484cfa
+        colorSlot: -1
         enabled: 1
         displayName: 
         delay: 0

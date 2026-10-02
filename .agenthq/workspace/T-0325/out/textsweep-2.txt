@@ -1,0 +1,100 @@
+== SpriteCatalogWindow: 0 drawn text inputs
+LatheMoldWindow | TEXTFIELD label='' value='Node 1' caption='Node 1'
+    tip=This node's name.
+    path=VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>VisualElement>TextField
+LatheMoldWindow | TEXTFIELD label='' value='Node 2' caption='Node 2'
+    tip=This node's name.
+    path=VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>VisualElement>TextField
+== LatheMoldWindow: 2 drawn text inputs
+ChoreographerWindow | TEXTFIELD label='' value='1.2' caption='1.2'
+    tip=Total width of the dancer fan, in path-space units.
+    path=VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>Slider>VisualElement>TextField#unity-text-field
+ChoreographerWindow | TEXTFIELD label='' value='0.1' caption='0.1'
+    tip=0 = straight start line, 1 = fully bent into a circle around the path.
+    path=VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>Slider>VisualElement>TextField#unity-text-field
+ChoreographerWindow | TEXTFIELD label='' value='0' caption='0'
+    tip=Facing angle in degrees — absolute in Fixed mode, added to the travel direction in Radial mode.
+    path=VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>Slider>VisualElement>TextField#unity-text-field
+ChoreographerWindow | TEXTFIELD label='' value='8' caption='8'
+    tip=Dancer count a ChoreographyPlayer uses unless told otherwise.
+    path=VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>SliderInt>VisualElement>TextField#unity-text-field
+ChoreographerWindow | TEXTFIELD label='' value='4' caption='4'
+    tip=Seconds one full travel of the path takes.
+    path=VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>Slider>VisualElement>TextField#unity-text-field
+ChoreographerWindow | TEXTFIELD label='' value='0.5' caption='0.5'
+    tip=0 = all dancers move together, 1 = starts spread evenly across the whole cycle.
+    path=VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>Slider>VisualElement>TextField#unity-text-field
+ChoreographerWindow | TEXTFIELD label='' value='0' caption='0'
+    tip=Dancer count for THIS preview only — 0 falls back to the asset's default count.
+    path=VisualElement#unity-content-viewport>VisualElement#unity-content-container>VisualElement>SliderInt>VisualElement>TextField#unity-text-field
+ChoreographerWindow | TEXTFIELD label='' value='0.2833334' caption='0.2833334'
+    tip=Scrub the preview to an exact phase of the cycle (pauses playback).
+    path=ZuiBox>VisualElement>VisualElement>Slider>VisualElement>TextField#unity-text-field
+ChoreographerWindow | TEXTFIELD label='' value='1' caption='1'
+    tip=Preview playback speed multiplier.
+    path=ZuiBox>VisualElement>VisualElement>Slider>VisualElement>TextField#unity-text-field
+== ChoreographerWindow: 9 drawn text inputs
+== LazorWindow: 0 drawn text inputs
+== RulesEditorWindow: 0 drawn text inputs
+TapestryWindow | TEXTFIELD label='' value='1' caption='1'
+    tip=Scrub to an exact frame — dragging pauses playback.
+    path=VisualElement>VisualElement>VisualElement>SliderInt>VisualElement>TextField#unity-text-field
+== TapestryWindow: 1 drawn text inputs
+LauminationBuilderWindow | TEXTFIELD label='' value='' caption='URL'
+    tip=Download an image straight into Assets/SpriteSheets and load it.
+    path=EditorPanelRootElement#unity-panel-container18>VisualElement#rootVisualContainer19>VisualElement>VisualElement>TextField
+LauminationBuilderWindow | TEXTFIELD label='' value='' caption='URL'
+    tip=Optional display name for the downloaded sheet.
+    path=EditorPanelRootElement#unity-panel-container18>VisualElement#rootVisualContainer19>VisualElement>VisualElement>TextField
+== LauminationBuilderWindow: 2 drawn text inputs
+LauminaryBrowserWindow | TEXTFIELD label='' value='Hero' caption='Hero'
+    tip=Name for a brand-new lauminary.
+    path=EditorPanelRootElement#unity-panel-container17>VisualElement#rootVisualContainer18>VisualElement>TextField
+LauminaryBrowserWindow | TEXTFIELD label='' value='' caption='<unnamed>'
+    tip=No lauminary is selected, so there is nothing to rename.
+    path=EditorPanelRootElement#unity-panel-container17>VisualElement#rootVisualContainer18>VisualElement>VisualElement>VisualElement>TextField
+== LauminaryBrowserWindow: 2 drawn text inputs
+== CartographerWindow: 0 drawn text inputs
+TextSplashWindow | TEXTFIELD label='' value='SPLASH!' caption='SPLASH!'
+    tip=The line to splash.
+    path=VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>TextField
+== TextSplashWindow: 1 drawn text inputs
+SpriteFxStackWindow | TEXTFIELD label='' value='Muzzle' caption='Muzzle'
+    tip=Which MetaLayer (Point or Vector mode) supplies this light's live position. Meaningless to this effect beyond being a lookup key — whatever plays it (
+    path=ZuiBox>VisualElement>VisualElement>VisualElement>VisualElement>TextField
+== SpriteFxStackWindow: 1 drawn text inputs
+== LarderWindow: 0 drawn text inputs
+LatheWindow | TEXTFIELD label='' value='Relief Test Sphere' caption='Relief Test Sphere'
+    tip=This solid's name — rename it right here.
+    path=VisualElement#unity-content-container>ZuiSection>VisualElement>VisualElement>VisualElement>TextField
+LatheWindow | TEXTFIELD label='' value='21' caption='21'
+    tip=Scrub the turntable to an exact frame — dragging pauses playback.
+    path=VisualElement>VisualElement>VisualElement>SliderInt>VisualElement>TextField#unity-text-field
+== LatheWindow: 2 drawn text inputs
+ChunkWindow | TEXTFIELD label='' value='' caption='<unnamed>'
+    tip=What this blast is called on its card and on its timeline lane. Only there to tell several blasts apart — it never changes what is spawned. Leave it e
+    path=VisualElement>VisualElement>ZuiBox>VisualElement>VisualElement>TextField
+ChunkWindow | TEXTFIELD label='' value='0' caption='0'
+    tip=The list is empty, so there is nothing here to fold or resize by typing — use the + below to add a sprite.
+    path=VisualElement#unity-content-container>ZuiSection>VisualElement>PropertyField>ListView#unity-list-sprites>TextField#unity-list-view__size-field
+== ChunkWindow: 2 drawn text inputs
+PyreWindow | TEXTFIELD label='' value='18' caption='18'
+    tip=Scrub to an exact frame — dragging pauses playback and holds that frame (works in the filmstrip too).
+    path=VisualElement>VisualElement>VisualElement>SliderInt>VisualElement>TextField#unity-text-field
+== PyreWindow: 1 drawn text inputs
+ShaperWindow | TEXTFIELD label='' value='' caption='<unnamed>'
+    tip=Type a name, then Save as to store the current arrangement as a new view, or Rename view to give the SELECTED view this name.
+    path=VisualElement>ZuiSection>VisualElement>ZuiViewBar>VisualElement>TextField
+ShaperWindow | TEXTFIELD label='' value='Key' caption='Key'
+    tip=This light's name.
+    path=VisualElement>VisualElement>ZuiBox>VisualElement>VisualElement>TextField
+ShaperWindow | TEXTFIELD label='' value='Rim' caption='Rim'
+    tip=This light's name.
+    path=VisualElement>VisualElement>ZuiBox>VisualElement>VisualElement>TextField
+== ShaperWindow: 3 drawn text inputs
+ZoeWindow | TEXTFIELD label='' value='0' caption='0'
+    tip=Pluggable weapons + abilities the character can activate; triggered by the brain or by input. Unused today.
+    path=VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>PropertyField>ListView#unity-list-loadout>TextField#unity-list-view__size-field
+== ZoeWindow: 1 drawn text inputs
+== MirageWindow: 0 drawn text inputs
+

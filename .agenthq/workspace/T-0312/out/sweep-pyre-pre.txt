@@ -1,0 +1,116 @@
+########## pyre layer 0  pane 400
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets bound=AuditT0312 layers=2 sel=0 layer0.form=<none/Disc> layer1.form=TorchForm pane=400 win=(x:20.00, y:40.00, width:1700.00, height:1000.00) elements=514
+
+D:/UNITY/Laubrary Dev/.agenthq/workspace/T-0312/out/audit-pyre-pre-L0-p400.txt
+pyre-pre-L0-p400 | elements=514 drawn=253 text=84 controls=72 leafControls=43 captionShort=1 overflowParentX=2 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=1 
+-- captions --
+CAPTION '★' need=12.9 have=7.6 short=5.3 | ZuiBox>VisualElement>VisualElement>VisualElement>VisualElement>Button | cls=unity-text-element.unity-button
+-- overflow (parent) --
+OVERFLOW-X 7.1px '<unnamed>' (x:130.22, y:135.56, width:7.11, height:10.22) out of (x:137.33, y:136.44, width:116.00, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-min
+OVERFLOW-X 7.1px '<unnamed>' (x:253.33, y:135.56, width:7.11, height:10.22) out of (x:137.33, y:136.44, width:116.00, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-max
+-- overflow (window) --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → This Pyre matches what is on disk — nothing to save.
+
+########## pyre layer 0  pane 900
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets bound=AuditT0312 layers=2 sel=0 layer0.form=<none/Disc> layer1.form=TorchForm pane=900 win=(x:20.00, y:40.00, width:1700.00, height:1000.00) elements=514
+
+D:/UNITY/Laubrary Dev/.agenthq/workspace/T-0312/out/audit-pyre-pre-L0-p900.txt
+pyre-pre-L0-p900 | elements=514 drawn=253 text=84 controls=72 leafControls=43 captionShort=1 overflowParentX=2 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=1 
+-- captions --
+CAPTION '★' need=12.9 have=7.6 short=5.3 | ZuiBox>VisualElement>VisualElement>VisualElement>VisualElement>Button | cls=unity-text-element.unity-button
+-- overflow (parent) --
+OVERFLOW-X 7.1px '<unnamed>' (x:130.22, y:135.56, width:7.11, height:10.22) out of (x:137.33, y:136.44, width:116.00, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-min
+OVERFLOW-X 7.1px '<unnamed>' (x:253.33, y:135.56, width:7.11, height:10.22) out of (x:137.33, y:136.44, width:116.00, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-max
+-- overflow (window) --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → This Pyre matches what is on disk — nothing to save.
+
+########## pyre layer 1  pane 400
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets bound=AuditT0312 layers=2 sel=1 layer0.form=<none/Disc> layer1.form=TorchForm pane=400 win=(x:20.00, y:40.00, width:1700.00, height:1000.00) elements=1369
+
+D:/UNITY/Laubrary Dev/.agenthq/workspace/T-0312/out/audit-pyre-pre-L1-p400.txt
+pyre-pre-L1-p400 | elements=1369 drawn=736 text=248 controls=180 leafControls=72 captionShort=1 overflowParentX=30 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=1 
+-- captions --
+CAPTION '★' need=12.9 have=8.0 short=4.9 | VisualElement>VisualElement>VisualElement>ZuiGradientControl>VisualElement>Button | cls=unity-text-element.unity-button
+-- overflow (parent) --
+OVERFLOW-X 7.1px '<unnamed>' (x:130.22, y:135.56, width:7.11, height:10.22) out of (x:137.33, y:136.44, width:116.00, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-min
+OVERFLOW-X 7.1px '<unnamed>' (x:253.33, y:135.56, width:7.11, height:10.22) out of (x:137.33, y:136.44, width:116.00, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-max
+OVERFLOW-X 27.6px 'Root spread' (x:20.89, y:966.22, width:340.89, height:23.11) out of (x:20.89, y:944.00, width:313.33, height:233.78) | ZuiBox>VisualElement>ZuiBox>VisualElement>VisualElement>VisualElement
+OVERFLOW-X 6.7px '<unnamed>' (x:184.44, y:971.56, width:6.67, height:10.22) out of (x:191.11, y:972.44, width:13.78, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-min
+OVERFLOW-X 7.1px '<unnamed>' (x:204.89, y:971.56, width:7.11, height:10.22) out of (x:191.11, y:972.44, width:13.78, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-max
+OVERFLOW-X 27.6px 'Root height' (x:20.89, y:993.33, width:340.89, height:23.11) out of (x:20.89, y:944.00, width:313.33, height:233.78) | ZuiBox>VisualElement>ZuiBox>VisualElement>VisualElement>VisualElement
+OVERFLOW-X 6.7px '<unnamed>' (x:168.44, y:998.67, width:6.67, height:10.22) out of (x:175.11, y:999.56, width:73.33, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-min
+OVERFLOW-X 7.1px '<unnamed>' (x:248.44, y:998.67, width:7.11, height:10.22) out of (x:175.11, y:999.56, width:73.33, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-max
+OVERFLOW-X 27.6px 'Tongue climb' (x:20.89, y:1020.44, width:340.89, height:23.11) out of (x:20.89, y:944.00, width:313.33, height:233.78) | ZuiBox>VisualElement>ZuiBox>VisualElement>VisualElement>VisualElement
+OVERFLOW-X 6.7px '<unnamed>' (x:177.78, y:1025.78, width:6.67, height:10.22) out of (x:184.44, y:1026.67, width:29.33, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-min
+OVERFLOW-X 7.1px '<unnamed>' (x:213.78, y:1025.78, width:7.11, height:10.22) out of (x:184.44, y:1026.67, width:29.33, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-max
+OVERFLOW-X 27.6px 'Tongue peel' (x:20.89, y:1047.56, width:340.89, height:23.11) out of (x:20.89, y:944.00, width:313.33, height:233.78) | ZuiBox>VisualElement>ZuiBox>VisualElement>VisualElement>VisualElement
+OVERFLOW-X 6.7px '<unnamed>' (x:174.22, y:1052.89, width:6.67, height:10.22) out of (x:180.89, y:1053.78, width:28.44, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-min
+OVERFLOW-X 7.1px '<unnamed>' (x:209.33, y:1052.89, width:7.11, height:10.22) out of (x:180.89, y:1053.78, width:28.44, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-max
+OVERFLOW-X 27.6px 'Tongue width' (x:20.89, y:1074.67, width:340.89, height:23.11) out of (x:20.89, y:944.00, width:313.33, height:233.78) | ZuiBox>VisualElement>ZuiBox>VisualElement>VisualElement>VisualElement
+OVERFLOW-X 6.7px '<unnamed>' (x:178.67, y:1080.00, width:6.67, height:10.22) out of (x:185.33, y:1080.89, width:21.78, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-min
+OVERFLOW-X 7.1px '<unnamed>' (x:207.11, y:1080.00, width:7.11, height:10.22) out of (x:185.33, y:1080.89, width:21.78, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-max
+OVERFLOW-X 27.6px 'Tongue length' (x:20.89, y:1101.78, width:340.89, height:23.11) out of (x:20.89, y:944.00, width:313.33, height:233.78) | ZuiBox>VisualElement>ZuiBox>VisualElement>VisualElement>VisualElement
+OVERFLOW-X 6.7px '<unnamed>' (x:180.00, y:1107.11, width:6.67, height:10.22) out of (x:186.67, y:1108.00, width:31.56, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-min
+OVERFLOW-X 7.1px '<unnamed>' (x:218.22, y:1107.11, width:7.11, height:10.22) out of (x:186.67, y:1108.00, width:31.56, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-max
+OVERFLOW-X 27.6px 'Tongue life' (x:20.89, y:1128.89, width:340.89, height:23.11) out of (x:20.89, y:944.00, width:313.33, height:233.78) | ZuiBox>VisualElement>ZuiBox>VisualElement>VisualElement>VisualElement
+OVERFLOW-X 6.7px '<unnamed>' (x:193.33, y:1134.22, width:6.67, height:10.22) out of (x:200.00, y:1135.11, width:42.67, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-min
+OVERFLOW-X 7.1px '<unnamed>' (x:242.67, y:1134.22, width:7.11, height:10.22) out of (x:200.00, y:1135.11, width:42.67, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-max
+OVERFLOW-X 8.4px 'Ember rise' (x:20.89, y:1234.67, width:321.78, height:23.11) out of (x:20.89, y:1212.44, width:313.33, height:120.44) | ZuiBox>VisualElement>ZuiBox>VisualElement>VisualElement>VisualElement
+OVERFLOW-X 7.1px '<unnamed>' (x:176.89, y:1240.00, width:7.11, height:10.22) out of (x:184.00, y:1240.89, width:42.67, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-min
+OVERFLOW-X 7.1px '<unnamed>' (x:226.67, y:1240.00, width:7.11, height:10.22) out of (x:184.00, y:1240.89, width:42.67, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-max
+OVERFLOW-X 8.4px 'Ember size' (x:20.89, y:1283.56, width:321.78, height:23.11) out of (x:20.89, y:1212.44, width:313.33, height:120.44) | ZuiBox>VisualElement>ZuiBox>VisualElement>VisualElement>VisualElement
+OVERFLOW-X 7.1px '<unnamed>' (x:156.00, y:1289.33, width:7.11, height:9.78) out of (x:163.11, y:1290.22, width:24.89, height:8.00) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-min
+OVERFLOW-X 7.1px '<unnamed>' (x:188.00, y:1289.33, width:7.11, height:9.78) out of (x:163.11, y:1290.22, width:24.89, height:8.00) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-max
+OVERFLOW-X 76.0px 'Colour ramp' (x:20.89, y:1411.56, width:389.33, height:227.56) out of (x:20.89, y:1367.56, width:313.33, height:297.33) | ZuiBox>VisualElement>ZuiBox>VisualElement>VisualElement>VisualElement
+-- overflow (window) --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → This Pyre matches what is on disk — nothing to save.
+
+########## pyre layer 1  pane 900
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets bound=AuditT0312 layers=2 sel=1 layer0.form=<none/Disc> layer1.form=TorchForm pane=900 win=(x:20.00, y:40.00, width:1700.00, height:1000.00) elements=1369
+
+D:/UNITY/Laubrary Dev/.agenthq/workspace/T-0312/out/audit-pyre-pre-L1-p900.txt
+pyre-pre-L1-p900 | elements=1369 drawn=736 text=248 controls=180 leafControls=72 captionShort=1 overflowParentX=30 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=1 
+-- captions --
+CAPTION '★' need=12.9 have=8.0 short=4.9 | VisualElement>VisualElement>VisualElement>ZuiGradientControl>VisualElement>Button | cls=unity-text-element.unity-button
+-- overflow (parent) --
+OVERFLOW-X 7.1px '<unnamed>' (x:130.22, y:135.56, width:7.11, height:10.22) out of (x:137.33, y:136.44, width:116.00, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-min
+OVERFLOW-X 7.1px '<unnamed>' (x:253.33, y:135.56, width:7.11, height:10.22) out of (x:137.33, y:136.44, width:116.00, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-max
+OVERFLOW-X 27.6px 'Root spread' (x:20.89, y:966.22, width:340.89, height:23.11) out of (x:20.89, y:944.00, width:313.33, height:233.78) | ZuiBox>VisualElement>ZuiBox>VisualElement>VisualElement>VisualElement
+OVERFLOW-X 6.7px '<unnamed>' (x:184.44, y:971.56, width:6.67, height:10.22) out of (x:191.11, y:972.44, width:13.78, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-min
+OVERFLOW-X 7.1px '<unnamed>' (x:204.89, y:971.56, width:7.11, height:10.22) out of (x:191.11, y:972.44, width:13.78, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-max
+OVERFLOW-X 27.6px 'Root height' (x:20.89, y:993.33, width:340.89, height:23.11) out of (x:20.89, y:944.00, width:313.33, height:233.78) | ZuiBox>VisualElement>ZuiBox>VisualElement>VisualElement>VisualElement
+OVERFLOW-X 6.7px '<unnamed>' (x:168.44, y:998.67, width:6.67, height:10.22) out of (x:175.11, y:999.56, width:73.33, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-min
+OVERFLOW-X 7.1px '<unnamed>' (x:248.44, y:998.67, width:7.11, height:10.22) out of (x:175.11, y:999.56, width:73.33, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-max
+OVERFLOW-X 27.6px 'Tongue climb' (x:20.89, y:1020.44, width:340.89, height:23.11) out of (x:20.89, y:944.00, width:313.33, height:233.78) | ZuiBox>VisualElement>ZuiBox>VisualElement>VisualElement>VisualElement
+OVERFLOW-X 6.7px '<unnamed>' (x:177.78, y:1025.78, width:6.67, height:10.22) out of (x:184.44, y:1026.67, width:29.33, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-min
+OVERFLOW-X 7.1px '<unnamed>' (x:213.78, y:1025.78, width:7.11, height:10.22) out of (x:184.44, y:1026.67, width:29.33, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-max
+OVERFLOW-X 27.6px 'Tongue peel' (x:20.89, y:1047.56, width:340.89, height:23.11) out of (x:20.89, y:944.00, width:313.33, height:233.78) | ZuiBox>VisualElement>ZuiBox>VisualElement>VisualElement>VisualElement
+OVERFLOW-X 6.7px '<unnamed>' (x:174.22, y:1052.89, width:6.67, height:10.22) out of (x:180.89, y:1053.78, width:28.44, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-min
+OVERFLOW-X 7.1px '<unnamed>' (x:209.33, y:1052.89, width:7.11, height:10.22) out of (x:180.89, y:1053.78, width:28.44, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-max
+OVERFLOW-X 27.6px 'Tongue width' (x:20.89, y:1074.67, width:340.89, height:23.11) out of (x:20.89, y:944.00, width:313.33, height:233.78) | ZuiBox>VisualElement>ZuiBox>VisualElement>VisualElement>VisualElement
+OVERFLOW-X 6.7px '<unnamed>' (x:178.67, y:1080.00, width:6.67, height:10.22) out of (x:185.33, y:1080.89, width:21.78, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-min
+OVERFLOW-X 7.1px '<unnamed>' (x:207.11, y:1080.00, width:7.11, height:10.22) out of (x:185.33, y:1080.89, width:21.78, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-max
+OVERFLOW-X 27.6px 'Tongue length' (x:20.89, y:1101.78, width:340.89, height:23.11) out of (x:20.89, y:944.00, width:313.33, height:233.78) | ZuiBox>VisualElement>ZuiBox>VisualElement>VisualElement>VisualElement
+OVERFLOW-X 6.7px '<unnamed>' (x:180.00, y:1107.11, width:6.67, height:10.22) out of (x:186.67, y:1108.00, width:31.56, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-min
+OVERFLOW-X 7.1px '<unnamed>' (x:218.22, y:1107.11, width:7.11, height:10.22) out of (x:186.67, y:1108.00, width:31.56, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-max
+OVERFLOW-X 27.6px 'Tongue life' (x:20.89, y:1128.89, width:340.89, height:23.11) out of (x:20.89, y:944.00, width:313.33, height:233.78) | ZuiBox>VisualElement>ZuiBox>VisualElement>VisualElement>VisualElement
+OVERFLOW-X 6.7px '<unnamed>' (x:193.33, y:1134.22, width:6.67, height:10.22) out of (x:200.00, y:1135.11, width:42.67, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-min
+OVERFLOW-X 7.1px '<unnamed>' (x:242.67, y:1134.22, width:7.11, height:10.22) out of (x:200.00, y:1135.11, width:42.67, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-max
+OVERFLOW-X 8.4px 'Ember rise' (x:20.89, y:1234.67, width:321.78, height:23.11) out of (x:20.89, y:1212.44, width:313.33, height:120.44) | ZuiBox>VisualElement>ZuiBox>VisualElement>VisualElement>VisualElement
+OVERFLOW-X 7.1px '<unnamed>' (x:176.89, y:1240.00, width:7.11, height:10.22) out of (x:184.00, y:1240.89, width:42.67, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-min
+OVERFLOW-X 7.1px '<unnamed>' (x:226.67, y:1240.00, width:7.11, height:10.22) out of (x:184.00, y:1240.89, width:42.67, height:8.44) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-max
+OVERFLOW-X 8.4px 'Ember size' (x:20.89, y:1283.56, width:321.78, height:23.11) out of (x:20.89, y:1212.44, width:313.33, height:120.44) | ZuiBox>VisualElement>ZuiBox>VisualElement>VisualElement>VisualElement
+OVERFLOW-X 7.1px '<unnamed>' (x:156.00, y:1289.33, width:7.11, height:9.78) out of (x:163.11, y:1290.22, width:24.89, height:8.00) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-min
+OVERFLOW-X 7.1px '<unnamed>' (x:188.00, y:1289.33, width:7.11, height:9.78) out of (x:163.11, y:1290.22, width:24.89, height:8.00) | VisualElement>VisualElement>MinMaxSlider>VisualElement>VisualElement#unity-dragger>VisualElement#unity-thumb-max
+OVERFLOW-X 76.0px 'Colour ramp' (x:20.89, y:1411.56, width:389.33, height:227.56) out of (x:20.89, y:1367.56, width:313.33, height:297.33) | ZuiBox>VisualElement>ZuiBox>VisualElement>VisualElement>VisualElement
+-- overflow (window) --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → This Pyre matches what is on disk — nothing to save.
+

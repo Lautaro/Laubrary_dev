@@ -1,0 +1,19 @@
+=== CartographerWindow ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:20.00, y:20.00, width:900.00, height:880.22) rootWorld=(x:0.00, y:26.22, width:900.00, height:880.00)
+elements=43 drawn=23 textElements=8 controls=5 leafControls=5
+captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=1
+
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → No Level is open, so there is nothing to save.
+-- every leaf control --
+LEAF 'None (Level)' ObjectField rect=4,31 200.0x17.8 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=The Level asset being edited — assign one directly, or use Browse. | EditorPanelRootElement#unity-panel-container2>VisualElement#rootVisualContainer2>VisualElement>ObjectField
+LEAF 'Save' Button rect=232,31 52.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=No Level is open, so there is nothing to save. | EditorPanelRootElement#unity-panel-container2>VisualElement#rootVisualContainer2>VisualElement>Button
+LEAF 'New' Button rect=293,31 40.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a brand new Level asset (undoable). | EditorPanelRootElement#unity-panel-container2>VisualElement#rootVisualContainer2>VisualElement>Button
+LEAF 'Browse' Button rect=342,31 56.4x18.2 enabled=True cls=unity-text-element.unity-button tip=Toggle the thumbnail browser of every Level in the project. | EditorPanelRootElement#unity-panel-container2>VisualElement#rootVisualContainer2>VisualElement>Button
+LEAF 'Refresh' Button rect=832,61 57.8x18.2 enabled=True cls=unity-text-element.unity-button tip=Re-scan the project for assets. | EditorPanelRootElement#unity-panel-container2>VisualElement#rootVisualContainer2>VisualElement>VisualElement>Button

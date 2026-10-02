@@ -1,0 +1,8 @@
+w3-words | microCaptions=77 rawIdent=1 captionOver13=6 paragraphs=0 noTooltip=0
+CAPTION>13 (20) 'Depth between layers' | VisualElement>VisualElement>ZuiSection>VisualElement>ZuiHGroup>ZuiMicroSlider
+RAW-IDENT 'sRGB' cls=unity-text-element.unity-button.zui-segmented__seg.zui-segmented__last.zui-segmented__on | VisualElement>ZuiGradientControl>ZuiRampControl>VisualElement>ZuiSegmented>Button
+CAPTION>13 (15) 'Rotation jitter' | VisualElement>ZuiHGroup>ZuiValueControl>VisualElement>VisualElement>ZuiMicroSlider
+CAPTION>13 (16) 'Lifetime stagger' | ZuiSection>VisualElement>ZuiBox>VisualElement>ZuiHGroup>ZuiMicroSlider
+CAPTION>13 (16) 'Appearance order' | ZuiSection>VisualElement>ZuiBox>VisualElement>ZuiHGroup>ZuiMicroSlider
+CAPTION>13 (15) 'Merge sharpness' | VisualElement>ZuiHGroup>ZuiValueControl>VisualElement>VisualElement>ZuiMicroSlider
+CAPTION>13 (15) 'Pixels per unit' | VisualElement#unity-content-viewport>VisualElement#unity-content-container>ZuiBox>VisualElement>VisualElement>ZuiMicroSlider

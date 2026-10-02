@@ -1,0 +1,10 @@
+var sb=new System.Text.StringBuilder();
+sb.AppendLine(ZBind("PyreWindow","Assets/Shaper/AuditT324Pyre.asset"));
+sb.AppendLine(ZBind("LatheWindow","Assets/Shaper/AuditT324Lathe.asset"));
+sb.AppendLine(ZBind("LarderWindow","Assets/Larder/AuditT324Ware.asset"));
+sb.AppendLine(ZBind("SpriteFxStackWindow","Assets/Shaper/AuditT324Fx.asset"));
+sb.AppendLine(ZBind("TextSplashWindow","Assets/Shaper/AuditT324Splash.asset"));
+sb.AppendLine(ZBind("ZoeWindow","Assets/Demos/ProtoGuyDemo/ProtoGuy.asset"));
+sb.AppendLine(ZBind("MirageWindow","Assets/Mirage/AuditT324Mirage.asset"));
+sb.AppendLine(ZBind("ShaperWindow","Assets/Demos/ShaperDemo/ShaperDemoDoc.asset"));
+return "rebound";

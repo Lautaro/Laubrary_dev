@@ -1,0 +1,28 @@
+=== LauminaryBrowserWindow-w1400 ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:4.89, y:20.00, width:1400.00, height:1000.22) rootWorld=(x:0.00, y:26.22, width:1400.00, height:1000.00)
+elements=69 drawn=32 textElements=10 controls=10 leafControls=10
+captionShort=0 overflowParentX=1 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=4
+
+-- captions --
+-- overflow (parent) --
+OVERFLOW-X 3.6px 'Rename' (x:183.56, y:276.89, width:64.00, height:18.22) out of (x:4.00, y:276.00, width:240.00, height:20.00) | EditorPanelRootElement#unity-panel-container16>VisualElement#rootVisualContainer17>VisualElement>VisualElement>VisualElement>Button
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Duplicate' → Create a copy of the selected lauminary (draft only).
+inert '<unnamed>' → New name for the selected lauminary.
+inert 'Rename' → Rename the selected lauminary.
+inert 'Delete…' → Delete the selected lauminary and every one of its versions (asks first).
+-- every leaf control --
+LEAF 'Refresh' Button rect=7,31 64.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Re-scan the project for lauminaries and orphaned animations. | EditorPanelRootElement#unity-panel-container16>VisualElement#rootVisualContainer17>VisualElement>Button
+LEAF 'Hero' TextField rect=1140,32 140.0x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-field tip=Name for a brand-new lauminary. | EditorPanelRootElement#unity-panel-container16>VisualElement#rootVisualContainer17>VisualElement>TextField
+LEAF 'New lauminary' Button rect=1290,31 100.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Create a lauminary with the typed name and select it. | EditorPanelRootElement#unity-panel-container16>VisualElement#rootVisualContainer17>VisualElement>Button
+LEAF 'Orphaned   (0)' Button rect=7,87 233.8x18.2 enabled=True cls=unity-text-element.unity-button tip=Standalone animations that aren't part of any lauminary yet. | VisualElement>ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>Button
+LEAF 'ProtoGuy   (latest v0)' Button rect=7,107 233.8x18.2 enabled=True cls=unity-text-element.unity-button tip=Select this lauminary to browse its versions and animations. | VisualElement>ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>Button
+LEAF 'Duplicate' Button rect=7,257 233.8x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=Create a copy of the selected lauminary (draft only). | EditorPanelRootElement#unity-panel-container16>VisualElement#rootVisualContainer17>VisualElement>VisualElement>Button
+LEAF '<unnamed>' TextField rect=4,277 170.2x17.3 enabled=False cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-field tip=New name for the selected lauminary. | EditorPanelRootElement#unity-panel-container16>VisualElement#rootVisualContainer17>VisualElement>VisualElement>VisualElement>TextField
+LEAF 'Rename' Button rect=184,277 64.0x18.2 enabled=False cls=unity-text-element.unity-button tip=Rename the selected lauminary. | EditorPanelRootElement#unity-panel-container16>VisualElement#rootVisualContainer17>VisualElement>VisualElement>VisualElement>Button
+LEAF 'Delete…' Button rect=7,301 233.8x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=Delete the selected lauminary and every one of its versions (asks firs… | EditorPanelRootElement#unity-panel-container16>VisualElement#rootVisualContainer17>VisualElement>VisualElement>Button
+LEAF 'Open Laumination Builder' Button rect=251,95 180.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Open the Laumination Builder window. | VisualElement>ScrollView>VisualElement#unity-content-and-vertical-scroll-container>VisualElement#unity-content-viewport>VisualElement#unity-content-container>Button

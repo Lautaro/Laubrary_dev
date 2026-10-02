@@ -400,7 +400,7 @@ namespace Laubrary.Launimator.Editor
         private static VisualElement WrapRow(params VisualElement[] children)
         {
             var row = Z.Row(children);
-            row.style.flexWrap = Wrap.Wrap;
+            row.AddToClassList("zui-row--wrap");
             return row;
         }
 
@@ -432,8 +432,8 @@ namespace Laubrary.Launimator.Editor
 
         protected override void BuildUI(VisualElement root)
         {
-            root.style.flexGrow = 1f;
-            root.style.minHeight = 0f;
+            root.AddToClassList("lau-animation-builder");
+            root.AddToClassList("lau-tool-shell");
 
             // Sprite keys (A/D + arrow nudge) and the window's own snapshot Undo are handled on the ROOT with
             // TrickleDown so they win over a focused IMGUI island (the canvas would otherwise eat Left/Right).
@@ -456,7 +456,7 @@ namespace Laubrary.Launimator.Editor
             root.Add(_topHost);
 
             _statusLabel = Z.Text(_status ?? "", ZuiText.Subtle, "The last thing this window did, or why it couldn't.");
-            _statusLabel.style.whiteSpace = WhiteSpace.Normal;
+            _statusLabel.AddToClassList("lau-tool-shell__note");
 
             if (_sheet == null) { root.Add(_statusLabel); return; }
 
@@ -497,27 +497,21 @@ namespace Laubrary.Launimator.Editor
             // ownership for this pass, and its own layout (a collapse toggle plus a conditional two-column
             // sheet/browser split) isn't a single clean block to wrap without touching that file.
             _barHost = new VisualElement();
-            _barHost.style.flexShrink = 0f;
+            _barHost.AddToClassList("lau-tool-shell__chrome");
             if (_barReservedH > 0f) _barHost.style.minHeight = _barReservedH;
             root.Add(_barHost);
             _barUnits.Clear();
 
             _splitRow = new VisualElement();
-            _splitRow.style.flexDirection = FlexDirection.Row;
-            _splitRow.style.flexGrow = 1f;
-            _splitRow.style.minHeight = 0f;
+            _splitRow.AddToClassList("lau-animation-builder__split");
             root.Add(_splitRow);
 
             if (!_leftCollapsed)
             {
                 _leftPane = new VisualElement();
-                _leftPane.style.width = new Length(56f, LengthUnit.Percent);
-                _leftPane.style.minWidth = 360f;
-                _leftPane.style.flexShrink = 0f;
-                _leftPane.style.minHeight = 0f;
+                _leftPane.AddToClassList("lau-animation-builder__sheet-pane");
                 var leftScroll = new ScrollView(ScrollViewMode.Vertical);
-                leftScroll.style.flexGrow = 1f;
-                leftScroll.style.minHeight = 0f;
+                leftScroll.AddToClassList("lau-tool-shell__scroll");
 
                 _leftControlsHost = new VisualElement();
                 Unit(_leftControlsHost, "Identify Sprites", BuildRegionGridUI);
@@ -528,7 +522,7 @@ namespace Laubrary.Launimator.Editor
                     tooltip = "The sheet. Left-drag marquees (Grid/Box) or picks a sprite (Pick); right-drag auto-detects sprites inside the marquee."
                 };
                 _canvasIM.style.height = Mathf.Max(240f, position.height * 0.48f);
-                _canvasIM.style.flexShrink = 0f;
+                _canvasIM.AddToClassList("lau-tool-shell__chrome");
                 leftScroll.contentContainer.Add(_canvasIM);
 
                 _leftPane.Add(leftScroll);
@@ -536,13 +530,9 @@ namespace Laubrary.Launimator.Editor
             }
 
             var rightPane = new VisualElement();
-            rightPane.style.flexGrow = 1f;
-            rightPane.style.minWidth = 0f;
-            rightPane.style.minHeight = 0f;
-            rightPane.style.marginLeft = 4f;
+            rightPane.AddToClassList("lau-tool-shell__pane--unbounded");
             var rightScroll = new ScrollView(ScrollViewMode.Vertical);
-            rightScroll.style.flexGrow = 1f;
-            rightScroll.style.minHeight = 0f;
+            rightScroll.AddToClassList("lau-tool-shell__scroll");
 
             _paletteHost = new VisualElement();
             BuildPaletteSection(_paletteHost);
@@ -712,10 +702,7 @@ namespace Laubrary.Launimator.Editor
 
             var urlField = Z.TextInput(_sheetUrl, "Download an image straight into Assets/SpriteSheets and load it.",
                 v => _sheetUrl = v, 0f);
-            urlField.style.width = StyleKeyword.Auto;
-            urlField.style.flexGrow = 1f;
-            urlField.style.minWidth = 120f;
-            urlField.style.maxWidth = 520f;                        // wide (URLs are long) but never runaway-wide
+            urlField.AddToClassList("lau-animation-builder__sheet-url");
             urlField.AddToClassList("zui-audit-allow-stretch");   // a URL is arbitrarily long — the rulebook's exception
             var downloadButton = Z.Button("Download", "Save the image to Assets/SpriteSheets and load it as the sheet.",
                 () => { DownloadSheetFromUrl(); Refresh(); }).W(80f);
@@ -1204,31 +1191,26 @@ namespace Laubrary.Launimator.Editor
                 {
                     tooltip = PaletteHelp
                 };
-                _paletteGridIM.style.height = 132f;
-                _paletteGridIM.style.flexShrink = 0f;
+                _paletteGridIM.AddToClassList("lau-animation-builder__palette");
                 root.Add(_paletteGridIM);
             }
 
             // Preview (registration canvas) on the LEFT, all its tools/controls on the RIGHT.
             var row = new VisualElement();
-            row.style.flexDirection = FlexDirection.Row;
-            row.style.flexWrap = Wrap.Wrap;
+            row.AddToClassList("lau-tool-shell__row-wrap");
             root.Add(row);
 
             var previewCol = new VisualElement();
-            previewCol.style.width = 300f;
-            previewCol.style.flexShrink = 0f;
+            previewCol.AddToClassList("lau-tool-shell__registration-preview");
             // An IMGUIContainer's declared style.height isn't always honoured by the layout engine's OWN
             // height reservation for this column (a known IMGUIContainer/flex measurement quirk) — without an
             // explicit minHeight here, the section BELOW this one (Animation — sequence) can get positioned as
             // if this column were shorter than it visually renders, overlapping its own trailing caption text.
-            previewCol.style.minHeight = 250f;
             _regCanvasIM = new IMGUIContainer(DrawRegistrationCanvasGUI)
             {
                 tooltip = "Registration stage: drag the selected sprite to move its pivot relative to the green crosshair."
             };
-            _regCanvasIM.style.height = 220f;
-            _regCanvasIM.style.flexShrink = 0f;
+            _regCanvasIM.AddToClassList("lau-tool-shell__canvas-band");
             previewCol.Add(_regCanvasIM);
             previewCol.Add(Z.Text(HasSelectedCell()
                     ? (_fixedFrame ? "Drag to place the sprite in the box. Faint = other frames."
@@ -1238,9 +1220,7 @@ namespace Laubrary.Launimator.Editor
             row.Add(previewCol);
 
             var toolsCol = new VisualElement();
-            toolsCol.style.flexGrow = 1f;
-            toolsCol.style.minWidth = 240f;
-            toolsCol.style.marginLeft = 4f;
+            toolsCol.AddToClassList("lau-tool-shell__tools");
             // T-0084 — these two are structurally separate from the registration CANVAS above (it lives in
             // `previewCol`, a sibling column, not in `toolsCol`), so promoting them to their own Sections and
             // registering them on the toggle bar never risks hiding the thing you actually drag on. See
@@ -2120,15 +2100,11 @@ namespace Laubrary.Launimator.Editor
             // Tools on the LEFT, animation PREVIEW (doubles as the meta paint/point/vector editor) on the
             // RIGHT — one drag-resizable window, not a separate box per meta-layer mode.
             var row = new VisualElement();
-            row.style.flexDirection = FlexDirection.Row;
-            row.style.flexWrap = Wrap.Wrap;
+            row.AddToClassList("lau-tool-shell__row-wrap");
             root.Add(row);
 
             var toolsCol = new VisualElement();
-            toolsCol.style.flexGrow = 0f;
-            toolsCol.style.flexShrink = 0f;
-            toolsCol.style.width = 380f;
-            toolsCol.style.marginRight = 4f;
+            toolsCol.AddToClassList("lau-animation-builder__tools");
             // T-0084 — both are structurally separate from the play-area CANVAS (_playIM is a sibling added
             // to `row` below, not a child of `toolsCol`), so promoting them to their own Sections and
             // registering them on the toggle bar never risks hiding the live preview/paint surface. See
@@ -2147,15 +2123,14 @@ namespace Laubrary.Launimator.Editor
             };
             _playIM.style.width = _playW;
             _playIM.style.height = _playH;
-            _playIM.style.flexShrink = 0f;
+            _playIM.AddToClassList("lau-tool-shell__chrome");
             row.Add(_playIM);
 
             _seqStripIM = new IMGUIContainer(DrawSequenceStripGUI)
             {
                 tooltip = "The sequence. Drag to reorder · Ctrl/Shift-click = multi-select · Right-click → menu."
             };
-            _seqStripIM.style.height = 96f;
-            _seqStripIM.style.flexShrink = 0f;
+            _seqStripIM.AddToClassList("lau-animation-builder__sequence");
             root.Add(_seqStripIM);
             root.Add(Z.Text("Drag to reorder · Ctrl/Shift-click = multi-select · Right-click → menu · (Reverse/Duplicate/Delete in the tools panel).",
                 ZuiText.Subtle, "How to work the sequence strip above."));
@@ -2378,7 +2353,7 @@ namespace Laubrary.Launimator.Editor
 
                 var solid = new Color(L.color.r, L.color.g, L.color.b, 1f);
                 var swatch = Z.Button("", "Pick this layer's colour from the shared palette.", null).W(28f);
-                swatch.style.height = 16f;
+                swatch.AddToClassList("lau-animation-builder__layer-colour");
                 swatch.style.backgroundColor = solid;
                 swatch.clicked += () =>
                 {

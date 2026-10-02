@@ -1,0 +1,27 @@
+=== laumination-w900 ===
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+window=(x:4.89, y:20.00, width:900.00, height:1000.22) rootWorld=(x:0.00, y:26.22, width:900.00, height:1000.00)
+elements=35 drawn=32 textElements=10 controls=10 leafControls=10
+captionShort=0 overflowParentX=0 overflowParentY=0 offWindow=0 noTooltip=0 inertNoReason=0 inertWithReason=4
+
+-- captions --
+-- overflow (parent) --
+-- overflow (window) --
+-- controls with no effective tooltip --
+-- disabled without a reason --
+-- disabled, reason given --
+inert 'Save' → Write slicing state (regions, cells, pivots) to a JSON sidecar.
+inert 'Restore' → Reload slicing state from this sheet's sidecar.
+inert 'Clear' → Delete this sheet's saved slicing sidecar and empty the palette (#4). Your saved animation…
+inert 'Download' → Save the image to Assets/SpriteSheets and load it as the sheet.
+-- every leaf control --
+LEAF '◀ Hide sheet & canvas' Button rect=7,111 220.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Fold the sheet/canvas half away so the sprite palette, the animation a… | EditorPanelRootElement#unity-panel-container15>VisualElement#rootVisualContainer16>VisualElement>VisualElement>Button
+LEAF 'None (Texture 2D)' ObjectField rect=76,141 200.0x17.8 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-object-field tip=The sprite sheet to slice sprites out of. | EditorPanelRootElement#unity-panel-container15>VisualElement#rootVisualContainer16>VisualElement>VisualElement>ObjectField
+LEAF 'Load' Button rect=286,141 48.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Load the assigned sheet (re-reads its saved slicing state). | EditorPanelRootElement#unity-panel-container15>VisualElement#rootVisualContainer16>VisualElement>VisualElement>Button
+LEAF 'Recent ▾' Button rect=343,141 76.0x18.2 enabled=True cls=unity-text-element.unity-button tip=Pick a sheet from Assets/SpriteSheets (downloaded or previously sliced… | EditorPanelRootElement#unity-panel-container15>VisualElement#rootVisualContainer16>VisualElement>VisualElement>Button
+LEAF 'Save' Button rect=715,141 48.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=Write slicing state (regions, cells, pivots) to a JSON sidecar. | EditorPanelRootElement#unity-panel-container15>VisualElement#rootVisualContainer16>VisualElement>VisualElement>Button
+LEAF 'Restore' Button rect=772,141 60.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=Reload slicing state from this sheet's sidecar. | EditorPanelRootElement#unity-panel-container15>VisualElement#rootVisualContainer16>VisualElement>VisualElement>Button
+LEAF 'Clear' Button rect=842,141 48.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=Delete this sheet's saved slicing sidecar and empty the palette (#4). … | EditorPanelRootElement#unity-panel-container15>VisualElement#rootVisualContainer16>VisualElement>VisualElement>Button
+LEAF 'URL' TextField rect=50,172 520.0x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-field.zui-audit-allow-stretch tip=Download an image straight into Assets/SpriteSheets and load it. | EditorPanelRootElement#unity-panel-container15>VisualElement#rootVisualContainer16>VisualElement>VisualElement>TextField
+LEAF 'URL' TextField rect=576,172 120.0x17.3 enabled=True cls=unity-base-field.unity-base-field--no-label.unity-base-text-field.unity-text-field tip=Optional display name for the downloaded sheet. | EditorPanelRootElement#unity-panel-container15>VisualElement#rootVisualContainer16>VisualElement>VisualElement>TextField
+LEAF 'Download' Button rect=706,171 80.0x18.2 enabled=False cls=unity-text-element.unity-button.unity-disabled tip=Save the image to Assets/SpriteSheets and load it as the sheet. | EditorPanelRootElement#unity-panel-container15>VisualElement#rootVisualContainer16>VisualElement>VisualElement>Button

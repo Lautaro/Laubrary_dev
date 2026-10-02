@@ -1,0 +1,2967 @@
+form	path	type	gateField	gateValueUsed	visible	pixels	valueTried	note
+InfernoForm	progress	ZUIValue			VISIBLE	2169	0	
+InfernoForm	mutation	Single			ABSENT	0		[PyreSwarmOnly] — absented by PyreFormShaperUI's Skip (a composite hosts no swarm)
+InfernoForm	heatStacking	Single			ABSENT	0		[PyreSwarmOnly] — absented by PyreFormShaperUI's Skip (a composite hosts no swarm)
+InfernoForm	characterDrift	Single			ABSENT	0		[PyreSwarmOnly] — absented by PyreFormShaperUI's Skip (a composite hosts no swarm)
+InfernoForm	characterJitter	Single			ABSENT	0		[PyreSwarmOnly] — absented by PyreFormShaperUI's Skip (a composite hosts no swarm)
+InfernoForm	blastSize	ZUIValue			VISIBLE	2169	0	
+InfernoForm	flash	ZUIValue			VISIBLE	815	0	
+InfernoForm	bangSpeed	Single			VISIBLE	2118	0	
+InfernoForm	punch	Single			VISIBLE	2113	0.25	
+InfernoForm	flashReach	Single			VISIBLE	812	0	
+InfernoForm	flashSoftness	Single			VISIBLE	779	0	
+InfernoForm	recoil	Single			VISIBLE	1844	0	
+InfernoForm	edgeSoftness	ZUIValue			VISIBLE	1157	0	
+InfernoForm	safeMargin	Single			VISIBLE	2948	0	
+InfernoForm	frameFade	Single			VISIBLE	664	0	
+InfernoForm	clumps	Int32			VISIBLE	1898	0	
+InfernoForm	clumpSpread	ZUIValue			VISIBLE	1782	0	
+InfernoForm	billow	ZUIValue			VISIBLE	1785	0	
+InfernoForm	jagged	ZUIValue			VISIBLE	1424	0	
+InfernoForm	coreDensity	ZUIValue			VISIBLE	1211	0	
+InfernoForm	cohesion	ZUIValue			VISIBLE	1494	0	
+InfernoForm	hollow	ZUIValue			VISIBLE	1191	0.25	
+InfernoForm	hollowRim	ZUIValue			VISIBLE	0		
+InfernoForm	outerRim	ZUIValue			VISIBLE	1334	0.25	
+InfernoForm	churn	ZUIValue			VISIBLE	2120	0	
+InfernoForm	rotation	ZUIValue			VISIBLE	2088	0	
+InfernoForm	pulse	Single			VISIBLE	2032	0	
+InfernoForm	fire	ZUIValue			VISIBLE	2160	0	
+InfernoForm	heatPockets	Single			VISIBLE	2089	0	
+InfernoForm	cooling	Single			VISIBLE	110	0	
+InfernoForm	coreGlow	ZUIValue			VISIBLE	1782	0	
+InfernoForm	smoke	ZUIValue			VISIBLE	1460	0	
+InfernoForm	smokeSpread	ZUIValue			VISIBLE	836	0	
+InfernoForm	darkness	ZUIValue			VISIBLE	1476	0	
+InfernoForm	linger	Single			VISIBLE	0		
+InfernoForm	body	ZUIValue			VISIBLE	1395	0	
+InfernoForm	dieOut	Single			VISIBLE	2144	1	
+InfernoForm	embers	Single			VISIBLE	128	0	
+InfernoForm	lighting	Single			VISIBLE	2156	0	
+InfernoForm	contrast	Single			VISIBLE	1909	0	
+OrbForm	variant	Variant			VISIBLE	512	Wisp	
+OrbForm	noseX	ZUIValue			VISIBLE	497	0	
+OrbForm	axisY	ZUIValue			VISIBLE	663	0	
+OrbForm	radius	ZUIValue			VISIBLE	441	0	
+OrbForm	wake	ZUIValue			VISIBLE	400	0	
+OrbForm	softenPasses	Int32			VISIBLE	427	0	
+OrbForm	floor	Int32			VISIBLE	3668	0	
+OrbForm	despeckle	Boolean			VISIBLE	0	False	
+OrbForm	despeckleBelow	Int32	despeckle	True	VISIBLE	0		
+OrbForm	emberdrift	EmberdriftSettings	variant	Emberdrift	CONTAINER	0		nested settings object — its own dials follow
+OrbForm	emberdrift.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+OrbForm	emberdrift.gain	ZUIValue			VISIBLE	441	0	
+OrbForm	emberdrift.a0	ZUIValue			VISIBLE	645	0	
+OrbForm	emberdrift.a1	ZUIValue			VISIBLE	435	0	
+OrbForm	emberdrift.acurve	ZUIValue			VISIBLE	4084	0	
+OrbForm	emberdrift.amax	ZUIValue			VISIBLE	441	0	
+OrbForm	emberdrift.noseSquash	ZUIValue			VISIBLE	180	0	
+OrbForm	emberdrift.glowWide	ZUIValue			VISIBLE	195	0	
+OrbForm	emberdrift.glowTail	ZUIValue			VISIBLE	312	0	
+OrbForm	emberdrift.glowAmp	ZUIValue			VISIBLE	374	0	
+OrbForm	emberdrift.turbScale	Single			VISIBLE	407	0	
+OrbForm	emberdrift.turbOct	Int32			VISIBLE	388	0	
+OrbForm	emberdrift.turbAniso	Single			VISIBLE	387	0	
+OrbForm	emberdrift.turbW	ZUIValue			VISIBLE	383	0	
+OrbForm	emberdrift.turbSeedOff	Int32			VISIBLE	386	0	
+OrbForm	emberdrift.turbScale2	Single			VISIBLE	393	0	
+OrbForm	emberdrift.turbOct2	Int32			VISIBLE	392	0	
+OrbForm	emberdrift.turbAniso2	Single			VISIBLE	393	0	
+OrbForm	emberdrift.turbW2	ZUIValue			VISIBLE	399	0	
+OrbForm	emberdrift.turbSeedOff2	Int32			VISIBLE	399	0	
+OrbForm	emberdrift.smearTaps	Int32			VISIBLE	389	0	
+OrbForm	emberdrift.smearDecay	ZUIValue			VISIBLE	389	0	
+OrbForm	emberdrift.smearNorm	Boolean			VISIBLE	434	False	
+OrbForm	emberdrift.turbScaleBody	Single			VISIBLE	143	0	
+OrbForm	emberdrift.turbOctBody	Int32			VISIBLE	131	0	
+OrbForm	emberdrift.turbAnisoBody	Single			VISIBLE	130	0	
+OrbForm	emberdrift.turbSeedOffBody	Int32			VISIBLE	135	0	
+OrbForm	emberdrift.coreWarp	ZUIValue			VISIBLE	129	0	
+OrbForm	emberdrift.coreAmp	ZUIValue			VISIBLE	131	0	
+OrbForm	emberdrift.coreP	ZUIValue			VISIBLE	151	0	
+OrbForm	emberdrift.emitPeriod	Int32			VISIBLE	120	0	
+OrbForm	emberdrift.emitLife	Int32			VISIBLE	72	0	
+OrbForm	emberdrift.embersPerPiece	Int32			VISIBLE	72	0	
+OrbForm	emberdrift.emberAmp	ZUIValue			VISIBLE	72	0	
+OrbForm	emberdrift.emberFadeP	Single			VISIBLE	79	0	
+OrbForm	emberdrift.emberElong	ZUIValue			VISIBLE	72	0	
+OrbForm	wisp	WispSettings	variant	Wisp	CONTAINER	0		nested settings object — its own dials follow
+OrbForm	wisp.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+OrbForm	wisp.gain	ZUIValue			VISIBLE	426	0	
+OrbForm	wisp.a0	ZUIValue			VISIBLE	638	0	
+OrbForm	wisp.a1	ZUIValue			VISIBLE	443	0	
+OrbForm	wisp.acurve	ZUIValue			VISIBLE	4069	0	
+OrbForm	wisp.amax	ZUIValue			VISIBLE	426	0	
+OrbForm	wisp.noseSquash	ZUIValue			VISIBLE	305	0	
+OrbForm	wisp.glowWide	ZUIValue			VISIBLE	273	0	
+OrbForm	wisp.glowTail	ZUIValue			VISIBLE	274	0	
+OrbForm	wisp.glowAmp	ZUIValue			VISIBLE	397	0	
+OrbForm	wisp.tubeStamps	Int32			VISIBLE	175	0	
+OrbForm	wisp.tubeP	ZUIValue			VISIBLE	231	0	
+OrbForm	wisp.tubeXstretch	ZUIValue			VISIBLE	175	0	
+OrbForm	wisp.smearTaps	Int32			VISIBLE	166	0	
+OrbForm	wisp.smearDecay	ZUIValue			VISIBLE	166	0	
+OrbForm	wisp.smearNorm	Boolean			VISIBLE	169	True	
+OrbForm	wisp.smearPostScale	ZUIValue			VISIBLE	175	0	
+OrbForm	wisp.cloudAmp	ZUIValue			VISIBLE	225	0	
+OrbForm	wisp.cloudP	ZUIValue			VISIBLE	288	0	
+OrbForm	wisp.nucleusAmp	ZUIValue			VISIBLE	117	0	
+OrbForm	wisp.nucleusFlat	ZUIValue			VISIBLE	100	0	
+OrbForm	wisp.nucleusP	ZUIValue			VISIBLE	127	0	
+OrbForm	wisp.nucleus2Amp	ZUIValue			VISIBLE	78	0	
+OrbForm	wisp.turbScaleVeil	Single			VISIBLE	305	0	
+OrbForm	wisp.turbOctVeil	Int32			VISIBLE	261	0	
+OrbForm	wisp.turbAnisoVeil	Single			VISIBLE	298	0	
+OrbForm	wisp.turbSeedOffVeil	Int32			VISIBLE	321	0	
+OrbForm	wisp.veilAmp	ZUIValue			VISIBLE	265	0	
+OrbForm	coronal	CoronalSettings	variant	Coronal	CONTAINER	0		nested settings object — its own dials follow
+OrbForm	coronal.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+OrbForm	coronal.gain	ZUIValue			VISIBLE	339	0	
+OrbForm	coronal.a0	ZUIValue			VISIBLE	530	0	
+OrbForm	coronal.a1	ZUIValue			VISIBLE	318	0	
+OrbForm	coronal.acurve	ZUIValue			VISIBLE	4060	0	
+OrbForm	coronal.amax	ZUIValue			VISIBLE	339	0	
+OrbForm	coronal.noseSquash	ZUIValue			VISIBLE	239	0	
+OrbForm	coronal.glowWide	ZUIValue			VISIBLE	265	0	
+OrbForm	coronal.glowTail	ZUIValue			VISIBLE	211	0	
+OrbForm	coronal.glowAmp	ZUIValue			VISIBLE	339	0	
+OrbForm	coronal.prominences	Int32			VISIBLE	302	0	
+OrbForm	coronal.prominenceSegments	Int32			VISIBLE	305	0	
+OrbForm	coronal.prominenceAmp	ZUIValue			VISIBLE	305	0	
+OrbForm	coronal.prominenceP	ZUIValue			VISIBLE	348	0	
+OrbForm	coronal.smearTaps	Int32			VISIBLE	290	0	
+OrbForm	coronal.smearDecay	ZUIValue			VISIBLE	290	0	
+OrbForm	coronal.smearNorm	Boolean			VISIBLE	309	False	
+OrbForm	coronal.turbScaleBody	Single			VISIBLE	102	0	
+OrbForm	coronal.turbOctBody	Int32			VISIBLE	84	0	
+OrbForm	coronal.turbAnisoBody	Single			VISIBLE	96	0	
+OrbForm	coronal.turbSeedOffBody	Int32			VISIBLE	98	0	
+OrbForm	coronal.coreAmp	ZUIValue			VISIBLE	125	0	
+OrbForm	coronal.coreP	ZUIValue			VISIBLE	136	0	
+OrbForm	coronal.coreGranulation	ZUIValue			VISIBLE	91	0	
+OrbForm	coronal.limbAmp	ZUIValue			VISIBLE	171	0	
+OrbForm	coronal.limbR	ZUIValue			VISIBLE	174	0	
+OrbForm	coronal.limbW	ZUIValue			VISIBLE	171	0	
+OrbForm	coronal.limbP	ZUIValue			VISIBLE	187	0	
+OrbForm	membrane	MembraneSettings	variant	Membrane	CONTAINER	0		nested settings object — its own dials follow
+OrbForm	membrane.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+OrbForm	membrane.gain	ZUIValue			VISIBLE	393	0	
+OrbForm	membrane.a0	ZUIValue			VISIBLE	450	0	
+OrbForm	membrane.a1	ZUIValue			VISIBLE	409	0	
+OrbForm	membrane.acurve	ZUIValue			VISIBLE	4083	0	
+OrbForm	membrane.amax	ZUIValue			VISIBLE	393	0	
+OrbForm	membrane.noseSquash	ZUIValue			VISIBLE	256	0	
+OrbForm	membrane.glowWide	ZUIValue			VISIBLE	207	0	
+OrbForm	membrane.glowTail	ZUIValue			VISIBLE	243	0	
+OrbForm	membrane.glowAmp	ZUIValue			VISIBLE	352	0	
+OrbForm	membrane.emitPeriod	Int32			VISIBLE	327	0	
+OrbForm	membrane.emitLife	Int32			VISIBLE	300	0	
+OrbForm	membrane.shellAmp	ZUIValue			VISIBLE	300	0	
+OrbForm	membrane.shellP	ZUIValue			VISIBLE	383	0	
+OrbForm	membrane.turbScaleShell	Single			VISIBLE	252	0	
+OrbForm	membrane.turbOctShell	Int32			VISIBLE	266	0	
+OrbForm	membrane.turbAnisoShell	Single			VISIBLE	275	0	
+OrbForm	membrane.turbSeedOffShell	Int32			VISIBLE	273	0	
+OrbForm	membrane.smearTaps	Int32			VISIBLE	279	0	
+OrbForm	membrane.smearDecay	ZUIValue			VISIBLE	279	0	
+OrbForm	membrane.smearNorm	Boolean			VISIBLE	299	False	
+OrbForm	membrane.emitPeriodMotes	Int32			VISIBLE	199	0	
+OrbForm	membrane.emitLifeMotes	Int32			VISIBLE	110	0	
+OrbForm	membrane.motesPerPiece	Int32			VISIBLE	110	0	
+OrbForm	membrane.moteAmp	ZUIValue			VISIBLE	110	0	
+OrbForm	membrane.moteElong	ZUIValue			VISIBLE	110	0	
+OrbForm	membrane.windowAmp	ZUIValue			VISIBLE	122	0	
+OrbForm	membrane.windowP	ZUIValue			VISIBLE	129	0	
+OrbForm	membrane.skinAmp	ZUIValue			VISIBLE	181	0	
+OrbForm	membrane.skinR	ZUIValue			VISIBLE	181	0	
+OrbForm	membrane.skinW	ZUIValue			VISIBLE	181	0	
+OrbForm	membrane.skinP	ZUIValue			VISIBLE	213	0	
+OrbForm	membrane.ripAmp	ZUIValue			VISIBLE	154	0	
+OrbForm	membrane.ripOrder	Int32			VISIBLE	103	0	
+OrbForm	membrane.ripDepth	ZUIValue			VISIBLE	108	0	
+OrbForm	membrane.ripR	ZUIValue			VISIBLE	165	0	
+OrbForm	membrane.ripW	ZUIValue			VISIBLE	154	0	
+OrbForm	membrane.ripP	ZUIValue			VISIBLE	167	0	
+OrbForm	membrane.nucleusAmp	ZUIValue			VISIBLE	31	0	
+OrbForm	membrane.nucleusFlat	ZUIValue			VISIBLE	22	0	
+OrbForm	membrane.nucleusP	ZUIValue			VISIBLE	34	0	
+OrbForm	voltcore	VoltcoreSettings	variant	Voltcore	CONTAINER	0		nested settings object — its own dials follow
+OrbForm	voltcore.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+OrbForm	voltcore.gain	ZUIValue			VISIBLE	354	0	
+OrbForm	voltcore.a0	ZUIValue			VISIBLE	546	0	
+OrbForm	voltcore.a1	ZUIValue			VISIBLE	363	0	
+OrbForm	voltcore.acurve	ZUIValue			VISIBLE	4074	0	
+OrbForm	voltcore.amax	ZUIValue			VISIBLE	354	0	
+OrbForm	voltcore.noseSquash	ZUIValue			VISIBLE	178	0	
+OrbForm	voltcore.glowWide	ZUIValue			VISIBLE	218	0	
+OrbForm	voltcore.glowTail	ZUIValue			VISIBLE	246	0	
+OrbForm	voltcore.glowAmp	ZUIValue			VISIBLE	347	0	
+OrbForm	voltcore.emitPeriod	Int32			VISIBLE	271	2	
+OrbForm	voltcore.emitLife	Int32			VISIBLE	233	0	
+OrbForm	voltcore.branchesPerPiece	Int32			VISIBLE	233	0	
+OrbForm	voltcore.filamentSteps	Int32			VISIBLE	235	0	
+OrbForm	voltcore.filamentAmp	ZUIValue			VISIBLE	233	0	
+OrbForm	voltcore.filamentElong	ZUIValue			VISIBLE	233	0	
+OrbForm	voltcore.smearTaps	Int32			VISIBLE	219	0	
+OrbForm	voltcore.smearDecay	ZUIValue			VISIBLE	219	0	
+OrbForm	voltcore.smearNorm	Boolean			VISIBLE	237	False	
+OrbForm	voltcore.tailStamps	Int32			VISIBLE	199	0	
+OrbForm	voltcore.tailP	ZUIValue			VISIBLE	296	0	
+OrbForm	voltcore.tailSmearTaps	Int32			VISIBLE	187	0	
+OrbForm	voltcore.tailSmearDecay	ZUIValue			VISIBLE	187	0	
+OrbForm	voltcore.tailSmearNorm	Boolean			VISIBLE	192	True	
+OrbForm	voltcore.tailPostScale	ZUIValue			VISIBLE	199	0	
+OrbForm	voltcore.envelopeAmp	ZUIValue			VISIBLE	174	0	
+OrbForm	voltcore.envelopeP	ZUIValue			VISIBLE	230	0	
+OrbForm	voltcore.turbScaleCharge	Single			VISIBLE	152	0	
+OrbForm	voltcore.turbOctCharge	Int32			VISIBLE	115	0	
+OrbForm	voltcore.turbAnisoCharge	Single			VISIBLE	131	0	
+OrbForm	voltcore.turbSeedOffCharge	Int32			VISIBLE	140	0	
+OrbForm	voltcore.chargeAmp	ZUIValue			VISIBLE	123	0	
+OrbForm	voltcore.beadAmp	ZUIValue			VISIBLE	26	0	
+OrbForm	voltcore.beadFlat	ZUIValue			VISIBLE	22	0	
+OrbForm	voltcore.beadP	ZUIValue			VISIBLE	27	0	
+OrbForm	voltcore.bead2Amp	ZUIValue			VISIBLE	66	0	
+OrbForm	voltcore.ballAmp	ZUIValue			VISIBLE	131	0	
+OrbForm	voltcore.ballP	ZUIValue			VISIBLE	143	0	
+OrbForm	swarmSize	ZUIValue			ABSENT	0		[PyreSwarmOnly] — absented by PyreFormShaperUI's Skip (a composite hosts no swarm)
+TorchForm	variant	Variant			VISIBLE	2773	Emberbed	
+TorchForm	axisX	ZUIValue			VISIBLE	990	0	
+TorchForm	ground	ZUIValue			VISIBLE	714	0	
+TorchForm	height	ZUIValue			VISIBLE	661	0	
+TorchForm	emberbed	TorchSettings	variant	Emberbed	CONTAINER	0		nested settings object — its own dials follow
+TorchForm	emberbed.hFlame	Single			VISIBLE	3992	0	
+TorchForm	emberbed.w0	ZUIValue			VISIBLE	2382	0	
+TorchForm	emberbed.wp	ZUIValue			VISIBLE	1763	0	
+TorchForm	emberbed.wmin	ZUIValue			VISIBLE	1828	0	
+TorchForm	emberbed.uexp	ZUIValue			VISIBLE	2891	0	
+TorchForm	emberbed.ku	ZUIValue			VISIBLE	1896	0	
+TorchForm	emberbed.vexp	ZUIValue			VISIBLE	2717	0	
+TorchForm	emberbed.kv	ZUIValue			VISIBLE	1763	0	
+TorchForm	emberbed.gain	ZUIValue			VISIBLE	2738	0	
+TorchForm	emberbed.cap0	ZUIValue			VISIBLE	1933	0	
+TorchForm	emberbed.cap1	ZUIValue			VISIBLE	639	0	
+TorchForm	emberbed.rmin	ZUIValue			VISIBLE	331	0	
+TorchForm	emberbed.rh	ZUIValue			VISIBLE	0		
+TorchForm	emberbed.xsc	Single			VISIBLE	2158	0.25	
+TorchForm	emberbed.ysc	Single			VISIBLE	2059	0.25	
+TorchForm	emberbed.foot	ZUIValue			VISIBLE	117	0	
+TorchForm	emberbed.footH	ZUIValue			VISIBLE	85	0.25	
+TorchForm	emberbed.frx	Single			VISIBLE	1711	0	
+TorchForm	emberbed.fry	Single			VISIBLE	1443	0	
+TorchForm	emberbed.rvar	ZUIValue			VISIBLE	1352	0	
+TorchForm	emberbed.breathe	ZUIValue			VISIBLE	1558	0	
+TorchForm	emberbed.breathe2	ZUIValue			VISIBLE	1149	0	
+TorchForm	emberbed.bphase	Single			VISIBLE	1306	0	
+TorchForm	emberbed.fw	Single			VISIBLE	876	0	
+TorchForm	emberbed.yaniso	Single			VISIBLE	773	0	
+TorchForm	emberbed.sway	ZUIValue			VISIBLE	834	0	
+TorchForm	emberbed.lean	ZUIValue			VISIBLE	924	0	
+TorchForm	emberbed.lphase	Single			VISIBLE	562	0	
+TorchForm	emberbed.lash	ZUIValue			VISIBLE	673	0.25	
+TorchForm	emberbed.lashK	Int32			VISIBLE	0		
+TorchForm	emberbed.lashWave	Single			VISIBLE	0		
+TorchForm	emberbed.lashPh	Single			VISIBLE	0		
+TorchForm	emberbed.pulse	ZUIValue			VISIBLE	2206	0.25	
+TorchForm	emberbed.pulseN	Int32			VISIBLE	0		
+TorchForm	emberbed.pulsePh	Single			VISIBLE	0		
+TorchForm	emberbed.pulseSkew	Single			VISIBLE	0		
+TorchForm	emberbed.pulseSharp	Single			VISIBLE	0		
+TorchForm	emberbed.pulseGain	ZUIValue			VISIBLE	1524	0.25	
+TorchForm	emberbed.bulge	ZUIValue			VISIBLE	1290	0.25	
+TorchForm	emberbed.bulgeW	ZUIValue			VISIBLE	0		
+TorchForm	emberbed.curl	Single			VISIBLE	475	0.25	
+TorchForm	emberbed.curlX	Single			VISIBLE	0		
+TorchForm	emberbed.curlY	Single			VISIBLE	0		
+TorchForm	emberbed.fbx	Single			VISIBLE	1493	0	
+TorchForm	emberbed.fby	Single			VISIBLE	1510	0	
+TorchForm	emberbed.bigKind	TorchNoiseKind			VISIBLE	1970	Ridged	
+TorchForm	emberbed.abig	ZUIValue			VISIBLE	1447	0	
+TorchForm	emberbed.ftx	Single			VISIBLE	1683	0	
+TorchForm	emberbed.fty	Single			VISIBLE	1429	0	
+TorchForm	emberbed.toct	Int32			VISIBLE	1198	1	
+TorchForm	emberbed.turbKind	TorchNoiseKind			VISIBLE	2067	Fbm	
+TorchForm	emberbed.alick	ZUIValue			VISIBLE	2097	0	
+TorchForm	emberbed.bias	ZUIValue			VISIBLE	1693	0	
+TorchForm	emberbed.pexp	ZUIValue			VISIBLE	2657	0	
+TorchForm	emberbed.still	ZUIValue			VISIBLE	88	0	
+TorchForm	emberbed.glow	ZUIValue			VISIBLE	140	0	
+TorchForm	emberbed.glowW	ZUIValue			VISIBLE	140	0	
+TorchForm	emberbed.glowH	ZUIValue			VISIBLE	116	0.25	
+TorchForm	emberbed.glowY	ZUIValue			VISIBLE	20	0.25	
+TorchForm	emberbed.tongues	Int32			VISIBLE	625	0	
+TorchForm	emberbed.tongueGain	ZUIValue			VISIBLE	625	0	
+TorchForm	emberbed.tongueX	Vector2			VISIBLE	776	+8,+8	
+TorchForm	emberbed.tongueY	Vector2			VISIBLE	890	+8,+8	
+TorchForm	emberbed.tongueRise	Vector2			VISIBLE	738	+8,+8	
+TorchForm	emberbed.tongueOut	Vector2			VISIBLE	747	+8,+8	
+TorchForm	emberbed.tongueW	Vector2			VISIBLE	1211	+8,+8	
+TorchForm	emberbed.tongueL	Vector2			VISIBLE	999	+8,+8	
+TorchForm	emberbed.tongueLife	Vector2			VISIBLE	701	+8,+8	
+TorchForm	emberbed.tongueLean	ZUIValue			VISIBLE	312	0	
+TorchForm	emberbed.embers	Int32			VISIBLE	68	0	
+TorchForm	emberbed.emberSpread	Single			VISIBLE	116	0	
+TorchForm	emberbed.emberRise	Vector2			VISIBLE	133	+8,+8	
+TorchForm	emberbed.emberDrift	Single			VISIBLE	61	0	
+TorchForm	emberbed.emberWobble	ZUIValue			VISIBLE	48	0	
+TorchForm	emberbed.emberSize	Vector2			VISIBLE	1696	+8,+8	
+TorchForm	emberbed.emberY0	ZUIValue			VISIBLE	98	0	
+TorchForm	emberbed.emberGain	ZUIValue			VISIBLE	68	0	
+TorchForm	emberbed.cool	ZUIValue			VISIBLE	1315	0	
+TorchForm	emberbed.aLo	ZUIValue			VISIBLE	473	0	
+TorchForm	emberbed.aHi	ZUIValue			VISIBLE	297	0	
+TorchForm	emberbed.ramp	ZuiGradient			VISIBLE	547	stop0=magenta	
+TorchForm	emberbed.rampTop	ZUIValue			VISIBLE	1959	0	
+TorchForm	surge	TorchSettings	variant	Surge	CONTAINER	0		nested settings object — its own dials follow
+TorchForm	surge.hFlame	Single			VISIBLE	4027	0	
+TorchForm	surge.w0	ZUIValue			VISIBLE	1289	0	
+TorchForm	surge.wp	ZUIValue			VISIBLE	1171	0	
+TorchForm	surge.wmin	ZUIValue			VISIBLE	1135	0	
+TorchForm	surge.uexp	ZUIValue			VISIBLE	2430	0	
+TorchForm	surge.ku	ZUIValue			VISIBLE	2065	0	
+TorchForm	surge.vexp	ZUIValue			VISIBLE	1367	0	
+TorchForm	surge.kv	ZUIValue			VISIBLE	873	0	
+TorchForm	surge.gain	ZUIValue			VISIBLE	1383	0	
+TorchForm	surge.cap0	ZUIValue			VISIBLE	1015	0	
+TorchForm	surge.cap1	ZUIValue			VISIBLE	257	0	
+TorchForm	surge.rmin	ZUIValue			VISIBLE	159	0	
+TorchForm	surge.rh	ZUIValue			VISIBLE	177	0	
+TorchForm	surge.xsc	Single			VISIBLE	1133	0.25	
+TorchForm	surge.ysc	Single			VISIBLE	1119	0.25	
+TorchForm	surge.foot	ZUIValue			VISIBLE	40	0	
+TorchForm	surge.footH	ZUIValue			VISIBLE	34	0.25	
+TorchForm	surge.frx	Single			VISIBLE	868	0	
+TorchForm	surge.fry	Single			VISIBLE	815	0	
+TorchForm	surge.rvar	ZUIValue			VISIBLE	710	0	
+TorchForm	surge.breathe	ZUIValue			VISIBLE	900	0	
+TorchForm	surge.breathe2	ZUIValue			VISIBLE	766	0	
+TorchForm	surge.bphase	Single			VISIBLE	421	0	
+TorchForm	surge.fw	Single			VISIBLE	841	0	
+TorchForm	surge.yaniso	Single			VISIBLE	733	0	
+TorchForm	surge.sway	ZUIValue			VISIBLE	666	0	
+TorchForm	surge.lean	ZUIValue			VISIBLE	829	0	
+TorchForm	surge.lphase	Single			VISIBLE	505	0	
+TorchForm	surge.lash	ZUIValue			VISIBLE	370	0.25	
+TorchForm	surge.lashK	Int32			VISIBLE	0		
+TorchForm	surge.lashWave	Single			VISIBLE	0		
+TorchForm	surge.lashPh	Single			VISIBLE	0		
+TorchForm	surge.pulse	ZUIValue			VISIBLE	1169	0	
+TorchForm	surge.pulseN	Int32			VISIBLE	1196	0	
+TorchForm	surge.pulsePh	Single			VISIBLE	1262	0	
+TorchForm	surge.pulseSkew	Single			VISIBLE	1261	0	
+TorchForm	surge.pulseSharp	Single			VISIBLE	1222	0	
+TorchForm	surge.pulseGain	ZUIValue			VISIBLE	987	0	
+TorchForm	surge.bulge	ZUIValue			VISIBLE	491	0	
+TorchForm	surge.bulgeW	ZUIValue			VISIBLE	491	0	
+TorchForm	surge.curl	Single			VISIBLE	398	0.25	
+TorchForm	surge.curlX	Single			VISIBLE	0		
+TorchForm	surge.curlY	Single			VISIBLE	0		
+TorchForm	surge.fbx	Single			VISIBLE	821	0	
+TorchForm	surge.fby	Single			VISIBLE	840	0	
+TorchForm	surge.bigKind	TorchNoiseKind			VISIBLE	1114	Ridged	
+TorchForm	surge.abig	ZUIValue			VISIBLE	800	0	
+TorchForm	surge.ftx	Single			VISIBLE	876	0	
+TorchForm	surge.fty	Single			VISIBLE	886	0	
+TorchForm	surge.toct	Int32			VISIBLE	778	1	
+TorchForm	surge.turbKind	TorchNoiseKind			VISIBLE	1119	Fbm	
+TorchForm	surge.alick	ZUIValue			VISIBLE	1122	0	
+TorchForm	surge.bias	ZUIValue			VISIBLE	1004	0	
+TorchForm	surge.pexp	ZUIValue			VISIBLE	2036	0	
+TorchForm	surge.still	ZUIValue			VISIBLE	70	0	
+TorchForm	surge.glow	ZUIValue			VISIBLE	76	0	
+TorchForm	surge.glowW	ZUIValue			VISIBLE	76	0	
+TorchForm	surge.glowH	ZUIValue			VISIBLE	74	0.25	
+TorchForm	surge.glowY	ZUIValue			VISIBLE	15	0.25	
+TorchForm	surge.tongues	Int32			VISIBLE	78	0	
+TorchForm	surge.tongueGain	ZUIValue			VISIBLE	78	0	
+TorchForm	surge.tongueX	Vector2			VISIBLE	165	+8,+8	
+TorchForm	surge.tongueY	Vector2			VISIBLE	125	+8,+8	
+TorchForm	surge.tongueRise	Vector2			VISIBLE	87	+8,+8	
+TorchForm	surge.tongueOut	Vector2			VISIBLE	104	+8,+8	
+TorchForm	surge.tongueW	Vector2			VISIBLE	314	+8,+8	
+TorchForm	surge.tongueL	Vector2			VISIBLE	152	+8,+8	
+TorchForm	surge.tongueLife	Vector2			VISIBLE	127	+8,+8	
+TorchForm	surge.tongueLean	ZUIValue			VISIBLE	45	0	
+TorchForm	surge.embers	Int32			VISIBLE	33	0	
+TorchForm	surge.emberSpread	Single			VISIBLE	47	0	
+TorchForm	surge.emberRise	Vector2			VISIBLE	53	+8,+8	
+TorchForm	surge.emberDrift	Single			VISIBLE	23	0	
+TorchForm	surge.emberWobble	ZUIValue			VISIBLE	34	0	
+TorchForm	surge.emberSize	Vector2			VISIBLE	884	+8,+8	
+TorchForm	surge.emberY0	ZUIValue			VISIBLE	41	0	
+TorchForm	surge.emberGain	ZUIValue			VISIBLE	33	0	
+TorchForm	surge.cool	ZUIValue			VISIBLE	583	0	
+TorchForm	surge.aLo	ZUIValue			VISIBLE	782	0	
+TorchForm	surge.aHi	ZUIValue			VISIBLE	393	0	
+TorchForm	surge.ramp	ZuiGradient			VISIBLE	575	stop0=magenta	
+TorchForm	surge.rampTop	ZUIValue			VISIBLE	1090	0	
+TorchForm	barbs	TorchSettings	variant	Barbs	CONTAINER	0		nested settings object — its own dials follow
+TorchForm	barbs.hFlame	Single			VISIBLE	4068	0	
+TorchForm	barbs.w0	ZUIValue			VISIBLE	589	0	
+TorchForm	barbs.wp	ZUIValue			VISIBLE	444	0	
+TorchForm	barbs.wmin	ZUIValue			VISIBLE	535	0	
+TorchForm	barbs.uexp	ZUIValue			VISIBLE	1540	0	
+TorchForm	barbs.ku	ZUIValue			VISIBLE	1519	0	
+TorchForm	barbs.vexp	ZUIValue			VISIBLE	603	0	
+TorchForm	barbs.kv	ZUIValue			VISIBLE	394	0	
+TorchForm	barbs.gain	ZUIValue			VISIBLE	602	0	
+TorchForm	barbs.cap0	ZUIValue			VISIBLE	474	0	
+TorchForm	barbs.cap1	ZUIValue			VISIBLE	129	0	
+TorchForm	barbs.rmin	ZUIValue			VISIBLE	66	0	
+TorchForm	barbs.rh	ZUIValue			VISIBLE	69	0	
+TorchForm	barbs.xsc	Single			VISIBLE	581	0.25	
+TorchForm	barbs.ysc	Single			VISIBLE	600	0.25	
+TorchForm	barbs.foot	ZUIValue			VISIBLE	23	0	
+TorchForm	barbs.footH	ZUIValue			VISIBLE	23	0.25	
+TorchForm	barbs.frx	Single			VISIBLE	411	0	
+TorchForm	barbs.fry	Single			VISIBLE	420	0	
+TorchForm	barbs.rvar	ZUIValue			VISIBLE	391	0	
+TorchForm	barbs.breathe	ZUIValue			VISIBLE	374	0	
+TorchForm	barbs.breathe2	ZUIValue			VISIBLE	372	0	
+TorchForm	barbs.bphase	Single			VISIBLE	489	0	
+TorchForm	barbs.fw	Single			VISIBLE	383	0	
+TorchForm	barbs.yaniso	Single			VISIBLE	355	0	
+TorchForm	barbs.sway	ZUIValue			VISIBLE	354	0	
+TorchForm	barbs.lean	ZUIValue			VISIBLE	453	0	
+TorchForm	barbs.lphase	Single			VISIBLE	327	0	
+TorchForm	barbs.lash	ZUIValue			VISIBLE	254	0.25	
+TorchForm	barbs.lashK	Int32			VISIBLE	0		
+TorchForm	barbs.lashWave	Single			VISIBLE	0		
+TorchForm	barbs.lashPh	Single			VISIBLE	0		
+TorchForm	barbs.pulse	ZUIValue			VISIBLE	595	0.25	
+TorchForm	barbs.pulseN	Int32			VISIBLE	0		
+TorchForm	barbs.pulsePh	Single			VISIBLE	0		
+TorchForm	barbs.pulseSkew	Single			VISIBLE	0		
+TorchForm	barbs.pulseSharp	Single			VISIBLE	0		
+TorchForm	barbs.pulseGain	ZUIValue			VISIBLE	445	0.25	
+TorchForm	barbs.bulge	ZUIValue			VISIBLE	347	0.25	
+TorchForm	barbs.bulgeW	ZUIValue			VISIBLE	0		
+TorchForm	barbs.curl	Single			VISIBLE	161	0.25	
+TorchForm	barbs.curlX	Single			VISIBLE	0		
+TorchForm	barbs.curlY	Single			VISIBLE	0		
+TorchForm	barbs.fbx	Single			VISIBLE	349	0	
+TorchForm	barbs.fby	Single			VISIBLE	359	0	
+TorchForm	barbs.bigKind	TorchNoiseKind			VISIBLE	500	Ridged	
+TorchForm	barbs.abig	ZUIValue			VISIBLE	372	0	
+TorchForm	barbs.ftx	Single			VISIBLE	425	0	
+TorchForm	barbs.fty	Single			VISIBLE	418	0	
+TorchForm	barbs.toct	Int32			VISIBLE	341	1	
+TorchForm	barbs.turbKind	TorchNoiseKind			VISIBLE	532	Fbm	
+TorchForm	barbs.alick	ZUIValue			VISIBLE	523	0	
+TorchForm	barbs.bias	ZUIValue			VISIBLE	470	0	
+TorchForm	barbs.pexp	ZUIValue			VISIBLE	1723	0	
+TorchForm	barbs.still	ZUIValue			VISIBLE	34	0	
+TorchForm	barbs.glow	ZUIValue			VISIBLE	44	0	
+TorchForm	barbs.glowW	ZUIValue			VISIBLE	44	0	
+TorchForm	barbs.glowH	ZUIValue			VISIBLE	42	0.25	
+TorchForm	barbs.glowY	ZUIValue			VISIBLE	19	0.25	
+TorchForm	barbs.tongues	Int32			VISIBLE	173	0	
+TorchForm	barbs.tongueGain	ZUIValue			VISIBLE	173	0	
+TorchForm	barbs.tongueX	Vector2			VISIBLE	337	+8,+8	
+TorchForm	barbs.tongueY	Vector2			VISIBLE	237	+8,+8	
+TorchForm	barbs.tongueRise	Vector2			VISIBLE	201	+8,+8	
+TorchForm	barbs.tongueOut	Vector2			VISIBLE	236	+8,+8	
+TorchForm	barbs.tongueW	Vector2			VISIBLE	626	+8,+8	
+TorchForm	barbs.tongueL	Vector2			VISIBLE	299	+8,+8	
+TorchForm	barbs.tongueLife	Vector2			VISIBLE	225	+8,+8	
+TorchForm	barbs.tongueLean	ZUIValue			VISIBLE	101	0	
+TorchForm	barbs.embers	Int32			VISIBLE	22	0	
+TorchForm	barbs.emberSpread	Single			VISIBLE	26	0	
+TorchForm	barbs.emberRise	Vector2			VISIBLE	38	+8,+8	
+TorchForm	barbs.emberDrift	Single			VISIBLE	15	0	
+TorchForm	barbs.emberWobble	ZUIValue			VISIBLE	22	0	
+TorchForm	barbs.emberSize	Vector2			VISIBLE	685	+8,+8	
+TorchForm	barbs.emberY0	ZUIValue			VISIBLE	28	0	
+TorchForm	barbs.emberGain	ZUIValue			VISIBLE	22	0	
+TorchForm	barbs.cool	ZUIValue			VISIBLE	316	0	
+TorchForm	barbs.aLo	ZUIValue			VISIBLE	357	0	
+TorchForm	barbs.aHi	ZUIValue			VISIBLE	217	0	
+TorchForm	barbs.ramp	ZuiGradient			VISIBLE	336	stop0=magenta	
+TorchForm	barbs.rampTop	ZUIValue			VISIBLE	567	0	
+TorchForm	curl	TorchSettings	variant	Curl	CONTAINER	0		nested settings object — its own dials follow
+TorchForm	curl.hFlame	Single			VISIBLE	4047	0	
+TorchForm	curl.w0	ZUIValue			VISIBLE	1028	0	
+TorchForm	curl.wp	ZUIValue			VISIBLE	720	0	
+TorchForm	curl.wmin	ZUIValue			VISIBLE	859	0	
+TorchForm	curl.uexp	ZUIValue			VISIBLE	1615	0	
+TorchForm	curl.ku	ZUIValue			VISIBLE	1779	0	
+TorchForm	curl.vexp	ZUIValue			VISIBLE	1092	0	
+TorchForm	curl.kv	ZUIValue			VISIBLE	981	0	
+TorchForm	curl.gain	ZUIValue			VISIBLE	1094	0	
+TorchForm	curl.cap0	ZUIValue			VISIBLE	847	0	
+TorchForm	curl.cap1	ZUIValue			VISIBLE	108	0	
+TorchForm	curl.rmin	ZUIValue			VISIBLE	178	0	
+TorchForm	curl.rh	ZUIValue			VISIBLE	191	0	
+TorchForm	curl.xsc	Single			VISIBLE	1230	0.25	
+TorchForm	curl.ysc	Single			VISIBLE	1197	0.25	
+TorchForm	curl.foot	ZUIValue			VISIBLE	109	0	
+TorchForm	curl.footH	ZUIValue			VISIBLE	109	0.25	
+TorchForm	curl.frx	Single			VISIBLE	594	0	
+TorchForm	curl.fry	Single			VISIBLE	569	0	
+TorchForm	curl.rvar	ZUIValue			VISIBLE	524	0	
+TorchForm	curl.breathe	ZUIValue			VISIBLE	712	0	
+TorchForm	curl.breathe2	ZUIValue			VISIBLE	598	0	
+TorchForm	curl.bphase	Single			VISIBLE	933	0	
+TorchForm	curl.fw	Single			VISIBLE	463	0	
+TorchForm	curl.yaniso	Single			VISIBLE	390	0	
+TorchForm	curl.sway	ZUIValue			VISIBLE	383	0	
+TorchForm	curl.lean	ZUIValue			VISIBLE	486	0	
+TorchForm	curl.lphase	Single			VISIBLE	337	0	
+TorchForm	curl.lash	ZUIValue			VISIBLE	204	0.25	
+TorchForm	curl.lashK	Int32			VISIBLE	0		
+TorchForm	curl.lashWave	Single			VISIBLE	0		
+TorchForm	curl.lashPh	Single			VISIBLE	0		
+TorchForm	curl.pulse	ZUIValue			VISIBLE	996	0.25	
+TorchForm	curl.pulseN	Int32			VISIBLE	0		
+TorchForm	curl.pulsePh	Single			VISIBLE	0		
+TorchForm	curl.pulseSkew	Single			VISIBLE	0		
+TorchForm	curl.pulseSharp	Single			VISIBLE	0		
+TorchForm	curl.pulseGain	ZUIValue			VISIBLE	1204	0.25	
+TorchForm	curl.bulge	ZUIValue			VISIBLE	867	0.25	
+TorchForm	curl.bulgeW	ZUIValue			VISIBLE	0		
+TorchForm	curl.curl	Single			VISIBLE	868	0	
+TorchForm	curl.curlX	Single			VISIBLE	913	0	
+TorchForm	curl.curlY	Single			VISIBLE	870	0	
+TorchForm	curl.fbx	Single			VISIBLE	859	0	
+TorchForm	curl.fby	Single			VISIBLE	1026	0	
+TorchForm	curl.bigKind	TorchNoiseKind			VISIBLE	1570	Fbm	
+TorchForm	curl.abig	ZUIValue			VISIBLE	1453	0	
+TorchForm	curl.ftx	Single			VISIBLE	749	0	
+TorchForm	curl.fty	Single			VISIBLE	765	0	
+TorchForm	curl.toct	Int32			VISIBLE	672	1	
+TorchForm	curl.turbKind	TorchNoiseKind			VISIBLE	1135	Fbm	
+TorchForm	curl.alick	ZUIValue			VISIBLE	1089	0	
+TorchForm	curl.bias	ZUIValue			VISIBLE	1124	0	
+TorchForm	curl.pexp	ZUIValue			VISIBLE	858	0	
+TorchForm	curl.still	ZUIValue			VISIBLE	117	0	
+TorchForm	curl.glow	ZUIValue			VISIBLE	30	0	
+TorchForm	curl.glowW	ZUIValue			VISIBLE	30	0	
+TorchForm	curl.glowH	ZUIValue			VISIBLE	30	0.25	
+TorchForm	curl.glowY	ZUIValue			VISIBLE	8	0.25	
+TorchForm	curl.tongues	Int32			VISIBLE	154	0	
+TorchForm	curl.tongueGain	ZUIValue			VISIBLE	154	0	
+TorchForm	curl.tongueX	Vector2			VISIBLE	263	+8,+8	
+TorchForm	curl.tongueY	Vector2			VISIBLE	211	+8,+8	
+TorchForm	curl.tongueRise	Vector2			VISIBLE	183	+8,+8	
+TorchForm	curl.tongueOut	Vector2			VISIBLE	177	+8,+8	
+TorchForm	curl.tongueW	Vector2			VISIBLE	399	+8,+8	
+TorchForm	curl.tongueL	Vector2			VISIBLE	270	+8,+8	
+TorchForm	curl.tongueLife	Vector2			VISIBLE	169	+8,+8	
+TorchForm	curl.tongueLean	ZUIValue			VISIBLE	71	0	
+TorchForm	curl.embers	Int32			VISIBLE	37	0	
+TorchForm	curl.emberSpread	Single			VISIBLE	61	0	
+TorchForm	curl.emberRise	Vector2			VISIBLE	61	+8,+8	
+TorchForm	curl.emberDrift	Single			VISIBLE	43	0	
+TorchForm	curl.emberWobble	ZUIValue			VISIBLE	45	0	
+TorchForm	curl.emberSize	Vector2			VISIBLE	614	+8,+8	
+TorchForm	curl.emberY0	ZUIValue			VISIBLE	77	0	
+TorchForm	curl.emberGain	ZUIValue			VISIBLE	37	0	
+TorchForm	curl.cool	ZUIValue			VISIBLE	370	0	
+TorchForm	curl.aLo	ZUIValue			VISIBLE	290	0	
+TorchForm	curl.aHi	ZUIValue			VISIBLE	226	0	
+TorchForm	curl.ramp	ZuiGradient			VISIBLE	529	stop0=magenta	
+TorchForm	curl.rampTop	ZUIValue			VISIBLE	1094	0	
+TorchForm	lash	TorchSettings	variant	Lash	CONTAINER	0		nested settings object — its own dials follow
+TorchForm	lash.hFlame	Single			VISIBLE	4064	0	
+TorchForm	lash.w0	ZUIValue			VISIBLE	1175	0	
+TorchForm	lash.wp	ZUIValue			VISIBLE	1247	0	
+TorchForm	lash.wmin	ZUIValue			VISIBLE	1083	0	
+TorchForm	lash.uexp	ZUIValue			VISIBLE	3027	0	
+TorchForm	lash.ku	ZUIValue			VISIBLE	2802	0	
+TorchForm	lash.vexp	ZUIValue			VISIBLE	1319	0	
+TorchForm	lash.kv	ZUIValue			VISIBLE	868	0	
+TorchForm	lash.gain	ZUIValue			VISIBLE	1285	0	
+TorchForm	lash.cap0	ZUIValue			VISIBLE	965	0	
+TorchForm	lash.cap1	ZUIValue			VISIBLE	316	0	
+TorchForm	lash.rmin	ZUIValue			VISIBLE	126	0	
+TorchForm	lash.rh	ZUIValue			VISIBLE	137	0	
+TorchForm	lash.xsc	Single			VISIBLE	1238	0.25	
+TorchForm	lash.ysc	Single			VISIBLE	1246	0.25	
+TorchForm	lash.foot	ZUIValue			VISIBLE	38	0	
+TorchForm	lash.footH	ZUIValue			VISIBLE	37	0.25	
+TorchForm	lash.frx	Single			VISIBLE	951	0	
+TorchForm	lash.fry	Single			VISIBLE	877	0	
+TorchForm	lash.rvar	ZUIValue			VISIBLE	840	0	
+TorchForm	lash.breathe	ZUIValue			VISIBLE	900	0	
+TorchForm	lash.breathe2	ZUIValue			VISIBLE	902	0	
+TorchForm	lash.bphase	Single			VISIBLE	820	0	
+TorchForm	lash.fw	Single			VISIBLE	862	0	
+TorchForm	lash.yaniso	Single			VISIBLE	776	0	
+TorchForm	lash.sway	ZUIValue			VISIBLE	771	0	
+TorchForm	lash.lean	ZUIValue			VISIBLE	759	0	
+TorchForm	lash.lphase	Single			VISIBLE	524	0	
+TorchForm	lash.lash	ZUIValue			VISIBLE	1135	0	
+TorchForm	lash.lashK	Int32			VISIBLE	1197	0	
+TorchForm	lash.lashWave	Single			VISIBLE	1241	0	
+TorchForm	lash.lashPh	Single			VISIBLE	1052	0	
+TorchForm	lash.pulse	ZUIValue			VISIBLE	1252	0.25	
+TorchForm	lash.pulseN	Int32			VISIBLE	0		
+TorchForm	lash.pulsePh	Single			VISIBLE	0		
+TorchForm	lash.pulseSkew	Single			VISIBLE	0		
+TorchForm	lash.pulseSharp	Single			VISIBLE	0		
+TorchForm	lash.pulseGain	ZUIValue			VISIBLE	839	0.25	
+TorchForm	lash.bulge	ZUIValue			VISIBLE	740	0.25	
+TorchForm	lash.bulgeW	ZUIValue			VISIBLE	0		
+TorchForm	lash.curl	Single			VISIBLE	463	0.25	
+TorchForm	lash.curlX	Single			VISIBLE	0		
+TorchForm	lash.curlY	Single			VISIBLE	0		
+TorchForm	lash.fbx	Single			VISIBLE	899	0	
+TorchForm	lash.fby	Single			VISIBLE	886	0	
+TorchForm	lash.bigKind	TorchNoiseKind			VISIBLE	1109	Ridged	
+TorchForm	lash.abig	ZUIValue			VISIBLE	892	0	
+TorchForm	lash.ftx	Single			VISIBLE	909	0	
+TorchForm	lash.fty	Single			VISIBLE	908	0	
+TorchForm	lash.toct	Int32			VISIBLE	876	1	
+TorchForm	lash.turbKind	TorchNoiseKind			VISIBLE	1112	Fbm	
+TorchForm	lash.alick	ZUIValue			VISIBLE	1090	0	
+TorchForm	lash.bias	ZUIValue			VISIBLE	1056	0	
+TorchForm	lash.pexp	ZUIValue			VISIBLE	2986	0	
+TorchForm	lash.still	ZUIValue			VISIBLE	80	0	
+TorchForm	lash.glow	ZUIValue			VISIBLE	68	0	
+TorchForm	lash.glowW	ZUIValue			VISIBLE	68	0	
+TorchForm	lash.glowH	ZUIValue			VISIBLE	64	0.25	
+TorchForm	lash.glowY	ZUIValue			VISIBLE	7	0.25	
+TorchForm	lash.tongues	Int32			VISIBLE	131	0	
+TorchForm	lash.tongueGain	ZUIValue			VISIBLE	131	0	
+TorchForm	lash.tongueX	Vector2			VISIBLE	229	+8,+8	
+TorchForm	lash.tongueY	Vector2			VISIBLE	214	+8,+8	
+TorchForm	lash.tongueRise	Vector2			VISIBLE	170	+8,+8	
+TorchForm	lash.tongueOut	Vector2			VISIBLE	169	+8,+8	
+TorchForm	lash.tongueW	Vector2			VISIBLE	370	+8,+8	
+TorchForm	lash.tongueL	Vector2			VISIBLE	273	+8,+8	
+TorchForm	lash.tongueLife	Vector2			VISIBLE	208	+8,+8	
+TorchForm	lash.tongueLean	ZUIValue			VISIBLE	65	0	
+TorchForm	lash.embers	Int32			VISIBLE	71	0	
+TorchForm	lash.emberSpread	Single			VISIBLE	107	0	
+TorchForm	lash.emberRise	Vector2			VISIBLE	120	+8,+8	
+TorchForm	lash.emberDrift	Single			VISIBLE	82	0	
+TorchForm	lash.emberWobble	ZUIValue			VISIBLE	89	0	
+TorchForm	lash.emberSize	Vector2			VISIBLE	959	+8,+8	
+TorchForm	lash.emberY0	ZUIValue			VISIBLE	88	0	
+TorchForm	lash.emberGain	ZUIValue			VISIBLE	71	0	
+TorchForm	lash.cool	ZUIValue			VISIBLE	550	0	
+TorchForm	lash.aLo	ZUIValue			VISIBLE	843	0	
+TorchForm	lash.aHi	ZUIValue			VISIBLE	410	0	
+TorchForm	lash.ramp	ZuiGradient			VISIBLE	579	stop0=magenta	
+TorchForm	lash.rampTop	ZUIValue			VISIBLE	1054	0	
+TorchForm	swarmSize	ZUIValue			ABSENT	0		[PyreSwarmOnly] — absented by PyreFormShaperUI's Skip (a composite hosts no swarm)
+JetForm	anchorX	ZUIValue			VISIBLE	572	0	
+JetForm	anchorY	ZUIValue			VISIBLE	631	0	
+JetForm	scale	ZUIValue			VISIBLE	462	0	
+JetForm	swarmSize	ZUIValue			ABSENT	0		[PyreSwarmOnly] — absented by PyreFormShaperUI's Skip (a composite hosts no swarm)
+JetForm	variant	Variant			VISIBLE	494	Lance	
+JetForm	lance	JetSettings	variant	Lance	CONTAINER	0		nested settings object — its own dials follow
+JetForm	lance.w	Int32			VISIBLE	164	0	
+JetForm	lance.h	Int32			VISIBLE	164	0	
+JetForm	lance.nozzleX	Single			VISIBLE	171	0	
+JetForm	lance.nozzleY	Single			VISIBLE	165	0	
+JetForm	lance.aim	ZUIValue			VISIBLE	170	0.25	
+JetForm	lance.reach	ZUIValue			VISIBLE	168	0	
+JetForm	lance.spread	ZUIValue			VISIBLE	167	0	
+JetForm	lance.drag	Single			VISIBLE	169	0	
+JetForm	lance.buoy	Single			VISIBLE	195	0	
+JetForm	lance.grav	Single			VISIBLE	278	0.25	
+JetForm	lance.r0	ZUIValue			VISIBLE	164	0	
+JetForm	lance.growth	Single			VISIBLE	164	0	
+JetForm	lance.elong	ZUIValue			VISIBLE	164	0	
+JetForm	lance.roundAt	Single			VISIBLE	164	0	
+JetForm	lance.slots	Int32			VISIBLE	164	0	
+JetForm	lance.life	Single			VISIBLE	164	0	
+JetForm	lance.jitter	ZUIValue			VISIBLE	178	0	
+JetForm	lance.strength	ZUIValue			VISIBLE	164	0	
+JetForm	lance.cool	ZUIValue			VISIBLE	283	0	
+JetForm	lance.soot	ZUIValue			VISIBLE	0		
+JetForm	lance.pulseN	Int32			VISIBLE	0		
+JetForm	lance.pulseDepth	ZUIValue			VISIBLE	0		
+JetForm	lance.sweep	ZUIValue			VISIBLE	156	0.25	
+JetForm	lance.sweepN	Int32			VISIBLE	0		
+JetForm	lance.shockN	Single			VISIBLE	176	0	
+JetForm	lance.shockDepth	ZUIValue			VISIBLE	176	0	
+JetForm	lance.rootR	ZUIValue			VISIBLE	6	0	
+JetForm	lance.rootAmp	ZUIValue			VISIBLE	6	0	
+JetForm	lance.shed	ZUIValue			VISIBLE	186	0.25	
+JetForm	lance.shedKick	ZUIValue			VISIBLE	0		
+JetForm	lance.shedLife	Single			VISIBLE	0		
+JetForm	lance.sparks	Int32			VISIBLE	2	0	
+JetForm	lance.sparkR	ZUIValue			VISIBLE	2	0	
+JetForm	lance.ringN	Int32			VISIBLE	39	1	
+JetForm	lance.ringK	Int32			VISIBLE	0		
+JetForm	lance.ringR0	ZUIValue			VISIBLE	0		
+JetForm	lance.ringGrow	Single			VISIBLE	0		
+JetForm	lance.ringLife	Single			VISIBLE	0		
+JetForm	lance.ringReach	ZUIValue			VISIBLE	0		
+JetForm	lance.ringAmp	ZUIValue			VISIBLE	0		
+JetForm	lance.warp0	ZUIValue			VISIBLE	142	0	
+JetForm	lance.warp1	ZUIValue			VISIBLE	160	0	
+JetForm	lance.warpCell	Single			VISIBLE	164	0	
+JetForm	lance.warpOct	Int32			VISIBLE	164	0	
+JetForm	lance.lo	ZUIValue			VISIBLE	343	0	
+JetForm	lance.hi	ZUIValue			VISIBLE	164	0	
+JetForm	lance.curve	ZUIValue			VISIBLE	164	0	
+JetForm	lance.steps	Int32			VISIBLE	164	2	
+JetForm	lance.soft	ZUIValue			VISIBLE	32	0	
+JetForm	lance.gain	ZUIValue			VISIBLE	164	0	
+JetForm	lance.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+JetForm	lance.sootRamp	PyreRamp			VISIBLE	0	(no perturbable member)	
+JetForm	lance.sootLo	ZUIValue			VISIBLE	0		
+JetForm	lance.sootHi	ZUIValue			VISIBLE	0		
+JetForm	gout	JetSettings	variant	Gout	CONTAINER	0		nested settings object — its own dials follow
+JetForm	gout.w	Int32			VISIBLE	462	0	
+JetForm	gout.h	Int32			VISIBLE	462	0	
+JetForm	gout.nozzleX	Single			VISIBLE	479	0	
+JetForm	gout.nozzleY	Single			VISIBLE	466	0	
+JetForm	gout.aim	ZUIValue			VISIBLE	487	0	
+JetForm	gout.reach	ZUIValue			VISIBLE	465	0	
+JetForm	gout.spread	ZUIValue			VISIBLE	488	0	
+JetForm	gout.drag	Single			VISIBLE	497	0	
+JetForm	gout.buoy	Single			VISIBLE	580	0	
+JetForm	gout.grav	Single			VISIBLE	587	0.25	
+JetForm	gout.r0	ZUIValue			VISIBLE	461	0	
+JetForm	gout.growth	Single			VISIBLE	461	0	
+JetForm	gout.elong	ZUIValue			VISIBLE	461	0	
+JetForm	gout.roundAt	Single			VISIBLE	461	0	
+JetForm	gout.slots	Int32			VISIBLE	461	0	
+JetForm	gout.life	Single			VISIBLE	462	0	
+JetForm	gout.jitter	ZUIValue			VISIBLE	535	0	
+JetForm	gout.strength	ZUIValue			VISIBLE	461	0	
+JetForm	gout.cool	ZUIValue			VISIBLE	1025	0	
+JetForm	gout.soot	ZUIValue			VISIBLE	254	0	
+JetForm	gout.pulseN	Int32			VISIBLE	0		
+JetForm	gout.pulseDepth	ZUIValue			VISIBLE	0		
+JetForm	gout.sweep	ZUIValue			VISIBLE	403	0.25	
+JetForm	gout.sweepN	Int32			VISIBLE	0		
+JetForm	gout.shockN	Single			VISIBLE	0		
+JetForm	gout.shockDepth	ZUIValue			VISIBLE	0		
+JetForm	gout.rootR	ZUIValue			VISIBLE	10	0	
+JetForm	gout.rootAmp	ZUIValue			VISIBLE	10	0	
+JetForm	gout.shed	ZUIValue			VISIBLE	446	0	
+JetForm	gout.shedKick	ZUIValue			VISIBLE	446	0	
+JetForm	gout.shedLife	Single			VISIBLE	375	0	
+JetForm	gout.sparks	Int32			VISIBLE	5	0	
+JetForm	gout.sparkR	ZUIValue			VISIBLE	5	0	
+JetForm	gout.ringN	Int32			VISIBLE	73	1	
+JetForm	gout.ringK	Int32			VISIBLE	0		
+JetForm	gout.ringR0	ZUIValue			VISIBLE	0		
+JetForm	gout.ringGrow	Single			VISIBLE	0		
+JetForm	gout.ringLife	Single			VISIBLE	0		
+JetForm	gout.ringReach	ZUIValue			VISIBLE	0		
+JetForm	gout.ringAmp	ZUIValue			VISIBLE	0		
+JetForm	gout.warp0	ZUIValue			VISIBLE	404	0	
+JetForm	gout.warp1	ZUIValue			VISIBLE	461	0	
+JetForm	gout.warpCell	Single			VISIBLE	462	0	
+JetForm	gout.warpOct	Int32			VISIBLE	462	0	
+JetForm	gout.lo	ZUIValue			VISIBLE	1188	0	
+JetForm	gout.hi	ZUIValue			VISIBLE	467	0	
+JetForm	gout.curve	ZUIValue			VISIBLE	467	0	
+JetForm	gout.steps	Int32			VISIBLE	461	2	
+JetForm	gout.soft	ZUIValue			VISIBLE	191	0	
+JetForm	gout.gain	ZUIValue			VISIBLE	462	0	
+JetForm	gout.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+JetForm	gout.sootRamp	PyreRamp			VISIBLE	0	(no perturbable member)	
+JetForm	gout.sootLo	ZUIValue			VISIBLE	452	0	
+JetForm	gout.sootHi	ZUIValue			VISIBLE	277	0	
+JetForm	sputter	JetSettings	variant	Sputter	CONTAINER	0		nested settings object — its own dials follow
+JetForm	sputter.w	Int32			VISIBLE	692	0	
+JetForm	sputter.h	Int32			VISIBLE	692	0	
+JetForm	sputter.nozzleX	Single			VISIBLE	633	0	
+JetForm	sputter.nozzleY	Single			VISIBLE	632	0	
+JetForm	sputter.aim	ZUIValue			VISIBLE	870	0	
+JetForm	sputter.reach	ZUIValue			VISIBLE	696	0	
+JetForm	sputter.spread	ZUIValue			VISIBLE	699	0	
+JetForm	sputter.drag	Single			VISIBLE	759	0	
+JetForm	sputter.buoy	Single			VISIBLE	573	0	
+JetForm	sputter.grav	Single			VISIBLE	746	0	
+JetForm	sputter.r0	ZUIValue			VISIBLE	689	0	
+JetForm	sputter.growth	Single			VISIBLE	687	0	
+JetForm	sputter.elong	ZUIValue			VISIBLE	630	0	
+JetForm	sputter.roundAt	Single			VISIBLE	630	0	
+JetForm	sputter.slots	Int32			VISIBLE	689	0	
+JetForm	sputter.life	Single			VISIBLE	689	0	
+JetForm	sputter.jitter	ZUIValue			VISIBLE	708	0	
+JetForm	sputter.strength	ZUIValue			VISIBLE	689	0	
+JetForm	sputter.cool	ZUIValue			VISIBLE	968	0	
+JetForm	sputter.soot	ZUIValue			VISIBLE	465	0	
+JetForm	sputter.pulseN	Int32			VISIBLE	753	0	
+JetForm	sputter.pulseDepth	ZUIValue			VISIBLE	753	0	
+JetForm	sputter.sweep	ZUIValue			VISIBLE	254	0.25	
+JetForm	sputter.sweepN	Int32			VISIBLE	0		
+JetForm	sputter.shockN	Single			VISIBLE	0		
+JetForm	sputter.shockDepth	ZUIValue			VISIBLE	0		
+JetForm	sputter.rootR	ZUIValue			VISIBLE	10	0	
+JetForm	sputter.rootAmp	ZUIValue			VISIBLE	10	0	
+JetForm	sputter.shed	ZUIValue			VISIBLE	629	0	
+JetForm	sputter.shedKick	ZUIValue			VISIBLE	610	0	
+JetForm	sputter.shedLife	Single			VISIBLE	534	0	
+JetForm	sputter.sparks	Int32			VISIBLE	6	0	
+JetForm	sputter.sparkR	ZUIValue			VISIBLE	6	0	
+JetForm	sputter.ringN	Int32			VISIBLE	145	1	
+JetForm	sputter.ringK	Int32			VISIBLE	0		
+JetForm	sputter.ringR0	ZUIValue			VISIBLE	0		
+JetForm	sputter.ringGrow	Single			VISIBLE	0		
+JetForm	sputter.ringLife	Single			VISIBLE	0		
+JetForm	sputter.ringReach	ZUIValue			VISIBLE	0		
+JetForm	sputter.ringAmp	ZUIValue			VISIBLE	0		
+JetForm	sputter.warp0	ZUIValue			VISIBLE	396	0	
+JetForm	sputter.warp1	ZUIValue			VISIBLE	573	0	
+JetForm	sputter.warpCell	Single			VISIBLE	692	0	
+JetForm	sputter.warpOct	Int32			VISIBLE	692	0	
+JetForm	sputter.lo	ZUIValue			VISIBLE	1093	0	
+JetForm	sputter.hi	ZUIValue			VISIBLE	704	0	
+JetForm	sputter.curve	ZUIValue			VISIBLE	704	0	
+JetForm	sputter.steps	Int32			VISIBLE	657	0	
+JetForm	sputter.soft	ZUIValue			VISIBLE	202	0	
+JetForm	sputter.gain	ZUIValue			VISIBLE	692	0	
+JetForm	sputter.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+JetForm	sputter.sootRamp	PyreRamp			VISIBLE	0	(no perturbable member)	
+JetForm	sputter.sootLo	ZUIValue			VISIBLE	674	0	
+JetForm	sputter.sootHi	ZUIValue			VISIBLE	492	0	
+JetForm	whip	JetSettings	variant	Whip	CONTAINER	0		nested settings object — its own dials follow
+JetForm	whip.w	Int32			VISIBLE	382	0	
+JetForm	whip.h	Int32			VISIBLE	382	0	
+JetForm	whip.nozzleX	Single			VISIBLE	389	0	
+JetForm	whip.nozzleY	Single			VISIBLE	407	0	
+JetForm	whip.aim	ZUIValue			VISIBLE	223	0.25	
+JetForm	whip.reach	ZUIValue			VISIBLE	388	0	
+JetForm	whip.spread	ZUIValue			VISIBLE	391	0	
+JetForm	whip.drag	Single			VISIBLE	415	0	
+JetForm	whip.buoy	Single			VISIBLE	342	0	
+JetForm	whip.grav	Single			VISIBLE	444	0.25	
+JetForm	whip.r0	ZUIValue			VISIBLE	381	0	
+JetForm	whip.growth	Single			VISIBLE	380	0	
+JetForm	whip.elong	ZUIValue			VISIBLE	380	0	
+JetForm	whip.roundAt	Single			VISIBLE	380	0	
+JetForm	whip.slots	Int32			VISIBLE	381	0	
+JetForm	whip.life	Single			VISIBLE	382	0	
+JetForm	whip.jitter	ZUIValue			VISIBLE	377	0	
+JetForm	whip.strength	ZUIValue			VISIBLE	381	0	
+JetForm	whip.cool	ZUIValue			VISIBLE	713	0	
+JetForm	whip.soot	ZUIValue			VISIBLE	306	0	
+JetForm	whip.pulseN	Int32			VISIBLE	0		
+JetForm	whip.pulseDepth	ZUIValue			VISIBLE	0		
+JetForm	whip.sweep	ZUIValue			VISIBLE	476	0	
+JetForm	whip.sweepN	Int32			VISIBLE	476	0	
+JetForm	whip.shockN	Single			VISIBLE	0		
+JetForm	whip.shockDepth	ZUIValue			VISIBLE	0		
+JetForm	whip.rootR	ZUIValue			VISIBLE	7	0	
+JetForm	whip.rootAmp	ZUIValue			VISIBLE	7	0	
+JetForm	whip.shed	ZUIValue			VISIBLE	252	0	
+JetForm	whip.shedKick	ZUIValue			VISIBLE	175	0	
+JetForm	whip.shedLife	Single			VISIBLE	224	0	
+JetForm	whip.sparks	Int32			VISIBLE	6	0	
+JetForm	whip.sparkR	ZUIValue			VISIBLE	6	0	
+JetForm	whip.ringN	Int32			VISIBLE	64	1	
+JetForm	whip.ringK	Int32			VISIBLE	0		
+JetForm	whip.ringR0	ZUIValue			VISIBLE	0		
+JetForm	whip.ringGrow	Single			VISIBLE	0		
+JetForm	whip.ringLife	Single			VISIBLE	0		
+JetForm	whip.ringReach	ZUIValue			VISIBLE	0		
+JetForm	whip.ringAmp	ZUIValue			VISIBLE	0		
+JetForm	whip.warp0	ZUIValue			VISIBLE	194	0	
+JetForm	whip.warp1	ZUIValue			VISIBLE	355	0	
+JetForm	whip.warpCell	Single			VISIBLE	382	0	
+JetForm	whip.warpOct	Int32			VISIBLE	382	0	
+JetForm	whip.lo	ZUIValue			VISIBLE	852	0	
+JetForm	whip.hi	ZUIValue			VISIBLE	382	0	
+JetForm	whip.curve	ZUIValue			VISIBLE	382	0	
+JetForm	whip.steps	Int32			VISIBLE	358	0	
+JetForm	whip.soft	ZUIValue			VISIBLE	145	0	
+JetForm	whip.gain	ZUIValue			VISIBLE	382	0	
+JetForm	whip.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+JetForm	whip.sootRamp	PyreRamp			VISIBLE	0	(no perturbable member)	
+JetForm	whip.sootLo	ZUIValue			VISIBLE	373	0	
+JetForm	whip.sootHi	ZUIValue			VISIBLE	325	0	
+JetForm	wyrm	JetSettings	variant	Wyrm	CONTAINER	0		nested settings object — its own dials follow
+JetForm	wyrm.w	Int32			VISIBLE	284	0	
+JetForm	wyrm.h	Int32			VISIBLE	284	0	
+JetForm	wyrm.nozzleX	Single			VISIBLE	304	0	
+JetForm	wyrm.nozzleY	Single			VISIBLE	288	0	
+JetForm	wyrm.aim	ZUIValue			VISIBLE	216	0.25	
+JetForm	wyrm.reach	ZUIValue			VISIBLE	287	0	
+JetForm	wyrm.spread	ZUIValue			VISIBLE	242	0	
+JetForm	wyrm.drag	Single			VISIBLE	337	0	
+JetForm	wyrm.buoy	Single			VISIBLE	308	0	
+JetForm	wyrm.grav	Single			VISIBLE	316	0.25	
+JetForm	wyrm.r0	ZUIValue			VISIBLE	285	0	
+JetForm	wyrm.growth	Single			VISIBLE	282	0	
+JetForm	wyrm.elong	ZUIValue			VISIBLE	237	0	
+JetForm	wyrm.roundAt	Single			VISIBLE	237	0	
+JetForm	wyrm.slots	Int32			VISIBLE	252	0	
+JetForm	wyrm.life	Single			VISIBLE	284	0	
+JetForm	wyrm.jitter	ZUIValue			VISIBLE	225	0	
+JetForm	wyrm.strength	ZUIValue			VISIBLE	284	0	
+JetForm	wyrm.cool	ZUIValue			VISIBLE	474	0	
+JetForm	wyrm.soot	ZUIValue			VISIBLE	0		
+JetForm	wyrm.pulseN	Int32			VISIBLE	0		
+JetForm	wyrm.pulseDepth	ZUIValue			VISIBLE	0		
+JetForm	wyrm.sweep	ZUIValue			VISIBLE	111	0.25	
+JetForm	wyrm.sweepN	Int32			VISIBLE	0		
+JetForm	wyrm.shockN	Single			VISIBLE	0		
+JetForm	wyrm.shockDepth	ZUIValue			VISIBLE	0		
+JetForm	wyrm.rootR	ZUIValue			VISIBLE	6	0	
+JetForm	wyrm.rootAmp	ZUIValue			VISIBLE	6	0	
+JetForm	wyrm.shed	ZUIValue			VISIBLE	152	0	
+JetForm	wyrm.shedKick	ZUIValue			VISIBLE	101	0	
+JetForm	wyrm.shedLife	Single			VISIBLE	128	0	
+JetForm	wyrm.sparks	Int32			VISIBLE	3	0	
+JetForm	wyrm.sparkR	ZUIValue			VISIBLE	3	0	
+JetForm	wyrm.ringN	Int32			VISIBLE	152	0	
+JetForm	wyrm.ringK	Int32			VISIBLE	9	16	
+JetForm	wyrm.ringR0	ZUIValue			VISIBLE	161	0	
+JetForm	wyrm.ringGrow	Single			VISIBLE	169	0	
+JetForm	wyrm.ringLife	Single			VISIBLE	152	0	
+JetForm	wyrm.ringReach	ZUIValue			VISIBLE	161	0	
+JetForm	wyrm.ringAmp	ZUIValue			VISIBLE	152	0	
+JetForm	wyrm.warp0	ZUIValue			VISIBLE	147	0	
+JetForm	wyrm.warp1	ZUIValue			VISIBLE	263	0	
+JetForm	wyrm.warpCell	Single			VISIBLE	284	0	
+JetForm	wyrm.warpOct	Int32			VISIBLE	284	0	
+JetForm	wyrm.lo	ZUIValue			VISIBLE	524	0	
+JetForm	wyrm.hi	ZUIValue			VISIBLE	287	0	
+JetForm	wyrm.curve	ZUIValue			VISIBLE	287	0	
+JetForm	wyrm.steps	Int32			VISIBLE	268	0	
+JetForm	wyrm.soft	ZUIValue			VISIBLE	125	0	
+JetForm	wyrm.gain	ZUIValue			VISIBLE	284	0	
+JetForm	wyrm.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+JetForm	wyrm.sootRamp	PyreRamp			VISIBLE	0	(no perturbable member)	
+JetForm	wyrm.sootLo	ZUIValue			VISIBLE	0		
+JetForm	wyrm.sootHi	ZUIValue			VISIBLE	0		
+RadialJetForm	anchorX	ZUIValue			VISIBLE	1744	0	
+RadialJetForm	anchorY	ZUIValue			VISIBLE	1768	0	
+RadialJetForm	scale	ZUIValue			VISIBLE	1215	0	
+RadialJetForm	swarmSize	ZUIValue			ABSENT	0		[PyreSwarmOnly] — absented by PyreFormShaperUI's Skip (a composite hosts no swarm)
+RadialJetForm	variant	Variant			VISIBLE	2292	Fan	
+RadialJetForm	corona	RadialJetSettings	variant	Corona	CONTAINER	0		nested settings object — its own dials follow
+RadialJetForm	corona.w	Int32			VISIBLE	1215	0	
+RadialJetForm	corona.h	Int32			VISIBLE	1215	0	
+RadialJetForm	corona.nozzleX	Single			VISIBLE	587	0	
+RadialJetForm	corona.nozzleY	Single			VISIBLE	657	0	
+RadialJetForm	corona.aim	ZUIValue			VISIBLE	979	0.25	
+RadialJetForm	corona.reach	ZUIValue			VISIBLE	1204	0	
+RadialJetForm	corona.spread	ZUIValue			VISIBLE	1230	0	
+RadialJetForm	corona.drag	Single			VISIBLE	1191	0	
+RadialJetForm	corona.buoy	Single			VISIBLE	1238	0	
+RadialJetForm	corona.grav	Single			VISIBLE	1289	0.25	
+RadialJetForm	corona.r0	ZUIValue			VISIBLE	1215	0	
+RadialJetForm	corona.growth	Single			VISIBLE	1208	0	
+RadialJetForm	corona.elong	ZUIValue			VISIBLE	1214	0	
+RadialJetForm	corona.roundAt	Single			VISIBLE	1214	0	
+RadialJetForm	corona.slots	Int32			VISIBLE	1215	0	
+RadialJetForm	corona.life	Single			VISIBLE	1215	0	
+RadialJetForm	corona.jitter	ZUIValue			VISIBLE	1201	0	
+RadialJetForm	corona.strength	ZUIValue			VISIBLE	1215	0	
+RadialJetForm	corona.cool	ZUIValue			VISIBLE	1683	0	
+RadialJetForm	corona.soot	ZUIValue			VISIBLE	876	0	
+RadialJetForm	corona.pulseN	Int32			VISIBLE	0		
+RadialJetForm	corona.pulseDepth	ZUIValue			VISIBLE	0		
+RadialJetForm	corona.sweep	ZUIValue			VISIBLE	883	0.25	
+RadialJetForm	corona.sweepN	Int32			VISIBLE	0		
+RadialJetForm	corona.shockN	Single			VISIBLE	0		
+RadialJetForm	corona.shockDepth	ZUIValue			VISIBLE	0		
+RadialJetForm	corona.rootR	ZUIValue			VISIBLE	2	0	
+RadialJetForm	corona.rootAmp	ZUIValue			VISIBLE	2	0	
+RadialJetForm	corona.shed	ZUIValue			VISIBLE	1086	0	
+RadialJetForm	corona.shedKick	ZUIValue			VISIBLE	749	0	
+RadialJetForm	corona.shedLife	Single			VISIBLE	1029	0	
+RadialJetForm	corona.sparks	Int32			VISIBLE	10	0	
+RadialJetForm	corona.sparkR	ZUIValue			VISIBLE	10	0	
+RadialJetForm	corona.ringN	Int32			VISIBLE	49	1	
+RadialJetForm	corona.ringK	Int32			VISIBLE	0		
+RadialJetForm	corona.ringR0	ZUIValue			VISIBLE	0		
+RadialJetForm	corona.ringGrow	Single			VISIBLE	0		
+RadialJetForm	corona.ringLife	Single			VISIBLE	0		
+RadialJetForm	corona.ringReach	ZUIValue			VISIBLE	0		
+RadialJetForm	corona.ringAmp	ZUIValue			VISIBLE	0		
+RadialJetForm	corona.warp0	ZUIValue			VISIBLE	1043	0	
+RadialJetForm	corona.warp1	ZUIValue			VISIBLE	1191	0	
+RadialJetForm	corona.warpCell	Single			VISIBLE	1215	0	
+RadialJetForm	corona.warpOct	Int32			VISIBLE	1215	0	
+RadialJetForm	corona.lo	ZUIValue			VISIBLE	1687	0	
+RadialJetForm	corona.hi	ZUIValue			VISIBLE	1189	0	
+RadialJetForm	corona.curve	ZUIValue			VISIBLE	1189	0	
+RadialJetForm	corona.steps	Int32			VISIBLE	1185	2	
+RadialJetForm	corona.soft	ZUIValue			VISIBLE	171	0	
+RadialJetForm	corona.gain	ZUIValue			VISIBLE	1215	0	
+RadialJetForm	corona.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+RadialJetForm	corona.sootRamp	PyreRamp			VISIBLE	0	(no perturbable member)	
+RadialJetForm	corona.sootLo	ZUIValue			VISIBLE	1212	0	
+RadialJetForm	corona.sootHi	ZUIValue			VISIBLE	912	0	
+RadialJetForm	corona.bias	ZUIValue			VISIBLE	1238	0	
+RadialJetForm	corona.srcR	ZUIValue			VISIBLE	3107	0.25	
+RadialJetForm	corona.swirl	ZUIValue			VISIBLE	760	0.25	
+RadialJetForm	corona.spin	Int32			VISIBLE	1279	1	
+RadialJetForm	corona.lobes	Int32			VISIBLE	0		
+RadialJetForm	corona.lobeDepth	ZUIValue			VISIBLE	0		
+RadialJetForm	corona.lobeKick	ZUIValue			VISIBLE	0		
+RadialJetForm	corona.rootK	Int32			VISIBLE	0		
+RadialJetForm	corona.ringFlat	Boolean			VISIBLE	0	True	
+RadialJetForm	corona.warpSpin	Int32			VISIBLE	1212	1	
+RadialJetForm	fan	RadialJetSettings	variant	Fan	CONTAINER	0		nested settings object — its own dials follow
+RadialJetForm	fan.w	Int32			VISIBLE	1646	0	
+RadialJetForm	fan.h	Int32			VISIBLE	1646	0	
+RadialJetForm	fan.nozzleX	Single			VISIBLE	7	0	
+RadialJetForm	fan.nozzleY	Single			VISIBLE	865	0	
+RadialJetForm	fan.aim	ZUIValue			VISIBLE	1681	0	
+RadialJetForm	fan.reach	ZUIValue			VISIBLE	1658	0	
+RadialJetForm	fan.spread	ZUIValue			VISIBLE	1636	0	
+RadialJetForm	fan.drag	Single			VISIBLE	1651	0	
+RadialJetForm	fan.buoy	Single			VISIBLE	1614	0	
+RadialJetForm	fan.grav	Single			VISIBLE	1674	0.25	
+RadialJetForm	fan.r0	ZUIValue			VISIBLE	1646	0	
+RadialJetForm	fan.growth	Single			VISIBLE	1642	0	
+RadialJetForm	fan.elong	ZUIValue			VISIBLE	1646	0	
+RadialJetForm	fan.roundAt	Single			VISIBLE	1646	0	
+RadialJetForm	fan.slots	Int32			VISIBLE	1646	0	
+RadialJetForm	fan.life	Single			VISIBLE	1646	0	
+RadialJetForm	fan.jitter	ZUIValue			VISIBLE	1665	0	
+RadialJetForm	fan.strength	ZUIValue			VISIBLE	1646	0	
+RadialJetForm	fan.cool	ZUIValue			VISIBLE	1798	0	
+RadialJetForm	fan.soot	ZUIValue			VISIBLE	1321	0	
+RadialJetForm	fan.pulseN	Int32			VISIBLE	0		
+RadialJetForm	fan.pulseDepth	ZUIValue			VISIBLE	0		
+RadialJetForm	fan.sweep	ZUIValue			VISIBLE	1347	0.25	
+RadialJetForm	fan.sweepN	Int32			VISIBLE	0		
+RadialJetForm	fan.shockN	Single			VISIBLE	0		
+RadialJetForm	fan.shockDepth	ZUIValue			VISIBLE	0		
+RadialJetForm	fan.rootR	ZUIValue			VISIBLE	8	0	
+RadialJetForm	fan.rootAmp	ZUIValue			VISIBLE	8	0	
+RadialJetForm	fan.shed	ZUIValue			VISIBLE	1598	0	
+RadialJetForm	fan.shedKick	ZUIValue			VISIBLE	1634	0	
+RadialJetForm	fan.shedLife	Single			VISIBLE	1372	0	
+RadialJetForm	fan.sparks	Int32			VISIBLE	9	0	
+RadialJetForm	fan.sparkR	ZUIValue			VISIBLE	9	0	
+RadialJetForm	fan.ringN	Int32			VISIBLE	64	1	
+RadialJetForm	fan.ringK	Int32			VISIBLE	0		
+RadialJetForm	fan.ringR0	ZUIValue			VISIBLE	0		
+RadialJetForm	fan.ringGrow	Single			VISIBLE	0		
+RadialJetForm	fan.ringLife	Single			VISIBLE	0		
+RadialJetForm	fan.ringReach	ZUIValue			VISIBLE	0		
+RadialJetForm	fan.ringAmp	ZUIValue			VISIBLE	0		
+RadialJetForm	fan.warp0	ZUIValue			VISIBLE	1364	0	
+RadialJetForm	fan.warp1	ZUIValue			VISIBLE	1623	0	
+RadialJetForm	fan.warpCell	Single			VISIBLE	1646	0	
+RadialJetForm	fan.warpOct	Int32			VISIBLE	1646	0	
+RadialJetForm	fan.lo	ZUIValue			VISIBLE	1867	0	
+RadialJetForm	fan.hi	ZUIValue			VISIBLE	1637	0	
+RadialJetForm	fan.curve	ZUIValue			VISIBLE	1637	0	
+RadialJetForm	fan.steps	Int32			VISIBLE	1622	2	
+RadialJetForm	fan.soft	ZUIValue			VISIBLE	232	0	
+RadialJetForm	fan.gain	ZUIValue			VISIBLE	1646	0	
+RadialJetForm	fan.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+RadialJetForm	fan.sootRamp	PyreRamp			VISIBLE	0	(no perturbable member)	
+RadialJetForm	fan.sootLo	ZUIValue			VISIBLE	1629	0	
+RadialJetForm	fan.sootHi	ZUIValue			VISIBLE	1434	0	
+RadialJetForm	fan.bias	ZUIValue			VISIBLE	1789	0	
+RadialJetForm	fan.srcR	ZUIValue			VISIBLE	1768	0.25	
+RadialJetForm	fan.swirl	ZUIValue			VISIBLE	1182	0.25	
+RadialJetForm	fan.spin	Int32			VISIBLE	1957	1	
+RadialJetForm	fan.lobes	Int32			VISIBLE	0		
+RadialJetForm	fan.lobeDepth	ZUIValue			VISIBLE	0		
+RadialJetForm	fan.lobeKick	ZUIValue			VISIBLE	0		
+RadialJetForm	fan.rootK	Int32			VISIBLE	0		
+RadialJetForm	fan.ringFlat	Boolean			VISIBLE	0	True	
+RadialJetForm	fan.warpSpin	Int32			VISIBLE	1639	1	
+RadialJetForm	crown	RadialJetSettings	variant	Crown	CONTAINER	0		nested settings object — its own dials follow
+RadialJetForm	crown.w	Int32			VISIBLE	924	0	
+RadialJetForm	crown.h	Int32			VISIBLE	924	0	
+RadialJetForm	crown.nozzleX	Single			VISIBLE	457	0	
+RadialJetForm	crown.nozzleY	Single			VISIBLE	578	0	
+RadialJetForm	crown.aim	ZUIValue			VISIBLE	870	0.25	
+RadialJetForm	crown.reach	ZUIValue			VISIBLE	953	0	
+RadialJetForm	crown.spread	ZUIValue			VISIBLE	966	0	
+RadialJetForm	crown.drag	Single			VISIBLE	960	0	
+RadialJetForm	crown.buoy	Single			VISIBLE	1056	0	
+RadialJetForm	crown.grav	Single			VISIBLE	973	0.25	
+RadialJetForm	crown.r0	ZUIValue			VISIBLE	920	0	
+RadialJetForm	crown.growth	Single			VISIBLE	918	0	
+RadialJetForm	crown.elong	ZUIValue			VISIBLE	919	0	
+RadialJetForm	crown.roundAt	Single			VISIBLE	919	0	
+RadialJetForm	crown.slots	Int32			VISIBLE	920	0	
+RadialJetForm	crown.life	Single			VISIBLE	928	0	
+RadialJetForm	crown.jitter	ZUIValue			VISIBLE	952	0	
+RadialJetForm	crown.strength	ZUIValue			VISIBLE	920	0	
+RadialJetForm	crown.cool	ZUIValue			VISIBLE	1389	0	
+RadialJetForm	crown.soot	ZUIValue			VISIBLE	775	0	
+RadialJetForm	crown.pulseN	Int32			VISIBLE	0		
+RadialJetForm	crown.pulseDepth	ZUIValue			VISIBLE	0		
+RadialJetForm	crown.sweep	ZUIValue			VISIBLE	828	0.25	
+RadialJetForm	crown.sweepN	Int32			VISIBLE	0		
+RadialJetForm	crown.shockN	Single			VISIBLE	0		
+RadialJetForm	crown.shockDepth	ZUIValue			VISIBLE	0		
+RadialJetForm	crown.rootR	ZUIValue			VISIBLE	60	0	
+RadialJetForm	crown.rootAmp	ZUIValue			VISIBLE	60	0	
+RadialJetForm	crown.shed	ZUIValue			VISIBLE	741	0	
+RadialJetForm	crown.shedKick	ZUIValue			VISIBLE	529	0	
+RadialJetForm	crown.shedLife	Single			VISIBLE	666	0	
+RadialJetForm	crown.sparks	Int32			VISIBLE	5	0	
+RadialJetForm	crown.sparkR	ZUIValue			VISIBLE	5	0	
+RadialJetForm	crown.ringN	Int32			VISIBLE	53	1	
+RadialJetForm	crown.ringK	Int32			VISIBLE	0		
+RadialJetForm	crown.ringR0	ZUIValue			VISIBLE	0		
+RadialJetForm	crown.ringGrow	Single			VISIBLE	0		
+RadialJetForm	crown.ringLife	Single			VISIBLE	0		
+RadialJetForm	crown.ringReach	ZUIValue			VISIBLE	0		
+RadialJetForm	crown.ringAmp	ZUIValue			VISIBLE	0		
+RadialJetForm	crown.warp0	ZUIValue			VISIBLE	861	0	
+RadialJetForm	crown.warp1	ZUIValue			VISIBLE	990	0	
+RadialJetForm	crown.warpCell	Single			VISIBLE	924	0	
+RadialJetForm	crown.warpOct	Int32			VISIBLE	924	0	
+RadialJetForm	crown.lo	ZUIValue			VISIBLE	1463	0	
+RadialJetForm	crown.hi	ZUIValue			VISIBLE	927	0	
+RadialJetForm	crown.curve	ZUIValue			VISIBLE	927	0	
+RadialJetForm	crown.steps	Int32			VISIBLE	920	2	
+RadialJetForm	crown.soft	ZUIValue			VISIBLE	219	0	
+RadialJetForm	crown.gain	ZUIValue			VISIBLE	924	0	
+RadialJetForm	crown.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+RadialJetForm	crown.sootRamp	PyreRamp			VISIBLE	0	(no perturbable member)	
+RadialJetForm	crown.sootLo	ZUIValue			VISIBLE	811	0	
+RadialJetForm	crown.sootHi	ZUIValue			VISIBLE	706	0	
+RadialJetForm	crown.bias	ZUIValue			VISIBLE	946	0	
+RadialJetForm	crown.srcR	ZUIValue			VISIBLE	1050	0	
+RadialJetForm	crown.swirl	ZUIValue			VISIBLE	700	0.25	
+RadialJetForm	crown.spin	Int32			VISIBLE	1035	1	
+RadialJetForm	crown.lobes	Int32			VISIBLE	0		
+RadialJetForm	crown.lobeDepth	ZUIValue			VISIBLE	0		
+RadialJetForm	crown.lobeKick	ZUIValue			VISIBLE	0		
+RadialJetForm	crown.rootK	Int32			VISIBLE	62	0	
+RadialJetForm	crown.ringFlat	Boolean			VISIBLE	0	True	
+RadialJetForm	crown.warpSpin	Int32			VISIBLE	1027	1	
+RadialJetForm	whirl	RadialJetSettings	variant	Whirl	CONTAINER	0		nested settings object — its own dials follow
+RadialJetForm	whirl.w	Int32			VISIBLE	675	0	
+RadialJetForm	whirl.h	Int32			VISIBLE	675	0	
+RadialJetForm	whirl.nozzleX	Single			VISIBLE	356	0	
+RadialJetForm	whirl.nozzleY	Single			VISIBLE	373	0	
+RadialJetForm	whirl.aim	ZUIValue			VISIBLE	556	0.25	
+RadialJetForm	whirl.reach	ZUIValue			VISIBLE	668	0	
+RadialJetForm	whirl.spread	ZUIValue			VISIBLE	759	0	
+RadialJetForm	whirl.drag	Single			VISIBLE	681	0	
+RadialJetForm	whirl.buoy	Single			VISIBLE	691	0	
+RadialJetForm	whirl.grav	Single			VISIBLE	726	0.25	
+RadialJetForm	whirl.r0	ZUIValue			VISIBLE	675	0	
+RadialJetForm	whirl.growth	Single			VISIBLE	671	0	
+RadialJetForm	whirl.elong	ZUIValue			VISIBLE	675	0	
+RadialJetForm	whirl.roundAt	Single			VISIBLE	675	0	
+RadialJetForm	whirl.slots	Int32			VISIBLE	675	0	
+RadialJetForm	whirl.life	Single			VISIBLE	675	0	
+RadialJetForm	whirl.jitter	ZUIValue			VISIBLE	719	0	
+RadialJetForm	whirl.strength	ZUIValue			VISIBLE	675	0	
+RadialJetForm	whirl.cool	ZUIValue			VISIBLE	1145	0	
+RadialJetForm	whirl.soot	ZUIValue			VISIBLE	0		
+RadialJetForm	whirl.pulseN	Int32			VISIBLE	0		
+RadialJetForm	whirl.pulseDepth	ZUIValue			VISIBLE	0		
+RadialJetForm	whirl.sweep	ZUIValue			VISIBLE	470	0.25	
+RadialJetForm	whirl.sweepN	Int32			VISIBLE	0		
+RadialJetForm	whirl.shockN	Single			VISIBLE	0		
+RadialJetForm	whirl.shockDepth	ZUIValue			VISIBLE	0		
+RadialJetForm	whirl.rootR	ZUIValue			VISIBLE	2	0	
+RadialJetForm	whirl.rootAmp	ZUIValue			VISIBLE	2	0	
+RadialJetForm	whirl.shed	ZUIValue			VISIBLE	477	0	
+RadialJetForm	whirl.shedKick	ZUIValue			VISIBLE	284	0	
+RadialJetForm	whirl.shedLife	Single			VISIBLE	374	0	
+RadialJetForm	whirl.sparks	Int32			VISIBLE	6	0	
+RadialJetForm	whirl.sparkR	ZUIValue			VISIBLE	6	0	
+RadialJetForm	whirl.ringN	Int32			VISIBLE	25	1	
+RadialJetForm	whirl.ringK	Int32			VISIBLE	0		
+RadialJetForm	whirl.ringR0	ZUIValue			VISIBLE	0		
+RadialJetForm	whirl.ringGrow	Single			VISIBLE	0		
+RadialJetForm	whirl.ringLife	Single			VISIBLE	0		
+RadialJetForm	whirl.ringReach	ZUIValue			VISIBLE	0		
+RadialJetForm	whirl.ringAmp	ZUIValue			VISIBLE	0		
+RadialJetForm	whirl.warp0	ZUIValue			VISIBLE	580	0	
+RadialJetForm	whirl.warp1	ZUIValue			VISIBLE	650	0	
+RadialJetForm	whirl.warpCell	Single			VISIBLE	675	0	
+RadialJetForm	whirl.warpOct	Int32			VISIBLE	675	0	
+RadialJetForm	whirl.lo	ZUIValue			VISIBLE	1200	0	
+RadialJetForm	whirl.hi	ZUIValue			VISIBLE	669	0	
+RadialJetForm	whirl.curve	ZUIValue			VISIBLE	669	0	
+RadialJetForm	whirl.steps	Int32			VISIBLE	666	2	
+RadialJetForm	whirl.soft	ZUIValue			VISIBLE	133	0	
+RadialJetForm	whirl.gain	ZUIValue			VISIBLE	675	0	
+RadialJetForm	whirl.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+RadialJetForm	whirl.sootRamp	PyreRamp			VISIBLE	0	(no perturbable member)	
+RadialJetForm	whirl.sootLo	ZUIValue			VISIBLE	0		
+RadialJetForm	whirl.sootHi	ZUIValue			VISIBLE	0		
+RadialJetForm	whirl.bias	ZUIValue			VISIBLE	677	0	
+RadialJetForm	whirl.srcR	ZUIValue			VISIBLE	1796	0.25	
+RadialJetForm	whirl.swirl	ZUIValue			VISIBLE	877	0	
+RadialJetForm	whirl.spin	Int32			VISIBLE	854	0	
+RadialJetForm	whirl.lobes	Int32			VISIBLE	1005	0	
+RadialJetForm	whirl.lobeDepth	ZUIValue			VISIBLE	714	0	
+RadialJetForm	whirl.lobeKick	ZUIValue			VISIBLE	917	0	
+RadialJetForm	whirl.rootK	Int32			VISIBLE	0		
+RadialJetForm	whirl.ringFlat	Boolean			VISIBLE	0	True	
+RadialJetForm	whirl.warpSpin	Int32			VISIBLE	667	0	
+RadialJetForm	shockring	RadialJetSettings	variant	Shockring	CONTAINER	0		nested settings object — its own dials follow
+RadialJetForm	shockring.w	Int32			VISIBLE	1141	0	
+RadialJetForm	shockring.h	Int32			VISIBLE	1141	0	
+RadialJetForm	shockring.nozzleX	Single			VISIBLE	555	0	
+RadialJetForm	shockring.nozzleY	Single			VISIBLE	614	0	
+RadialJetForm	shockring.aim	ZUIValue			VISIBLE	510	0.25	
+RadialJetForm	shockring.reach	ZUIValue			VISIBLE	1139	0	
+RadialJetForm	shockring.spread	ZUIValue			VISIBLE	879	0	
+RadialJetForm	shockring.drag	Single			VISIBLE	1244	0	
+RadialJetForm	shockring.buoy	Single			VISIBLE	1228	0	
+RadialJetForm	shockring.grav	Single			VISIBLE	900	0.25	
+RadialJetForm	shockring.r0	ZUIValue			VISIBLE	862	0	
+RadialJetForm	shockring.growth	Single			VISIBLE	859	0	
+RadialJetForm	shockring.elong	ZUIValue			VISIBLE	791	0	
+RadialJetForm	shockring.roundAt	Single			VISIBLE	791	0	
+RadialJetForm	shockring.slots	Int32			VISIBLE	866	0	
+RadialJetForm	shockring.life	Single			VISIBLE	1141	0	
+RadialJetForm	shockring.jitter	ZUIValue			VISIBLE	838	0	
+RadialJetForm	shockring.strength	ZUIValue			VISIBLE	1141	0	
+RadialJetForm	shockring.cool	ZUIValue			VISIBLE	1378	0	
+RadialJetForm	shockring.soot	ZUIValue			VISIBLE	0		
+RadialJetForm	shockring.pulseN	Int32			VISIBLE	0		
+RadialJetForm	shockring.pulseDepth	ZUIValue			VISIBLE	0		
+RadialJetForm	shockring.sweep	ZUIValue			VISIBLE	416	0.25	
+RadialJetForm	shockring.sweepN	Int32			VISIBLE	0		
+RadialJetForm	shockring.shockN	Single			VISIBLE	0		
+RadialJetForm	shockring.shockDepth	ZUIValue			VISIBLE	0		
+RadialJetForm	shockring.rootR	ZUIValue			VISIBLE	5	0	
+RadialJetForm	shockring.rootAmp	ZUIValue			VISIBLE	5	0	
+RadialJetForm	shockring.shed	ZUIValue			VISIBLE	306	0	
+RadialJetForm	shockring.shedKick	ZUIValue			VISIBLE	170	0	
+RadialJetForm	shockring.shedLife	Single			VISIBLE	248	0	
+RadialJetForm	shockring.sparks	Int32			VISIBLE	5	0	
+RadialJetForm	shockring.sparkR	ZUIValue			VISIBLE	5	0	
+RadialJetForm	shockring.ringN	Int32			VISIBLE	893	0	
+RadialJetForm	shockring.ringK	Int32			VISIBLE	0		
+RadialJetForm	shockring.ringR0	ZUIValue			VISIBLE	875	0	
+RadialJetForm	shockring.ringGrow	Single			VISIBLE	865	0	
+RadialJetForm	shockring.ringLife	Single			VISIBLE	893	0	
+RadialJetForm	shockring.ringReach	ZUIValue			VISIBLE	904	0	
+RadialJetForm	shockring.ringAmp	ZUIValue			VISIBLE	893	0	
+RadialJetForm	shockring.warp0	ZUIValue			VISIBLE	1027	0	
+RadialJetForm	shockring.warp1	ZUIValue			VISIBLE	1193	0	
+RadialJetForm	shockring.warpCell	Single			VISIBLE	1141	0	
+RadialJetForm	shockring.warpOct	Int32			VISIBLE	1141	0	
+RadialJetForm	shockring.lo	ZUIValue			VISIBLE	1417	0	
+RadialJetForm	shockring.hi	ZUIValue			VISIBLE	1125	0	
+RadialJetForm	shockring.curve	ZUIValue			VISIBLE	1125	0	
+RadialJetForm	shockring.steps	Int32			VISIBLE	1115	2	
+RadialJetForm	shockring.soft	ZUIValue			VISIBLE	200	0	
+RadialJetForm	shockring.gain	ZUIValue			VISIBLE	1141	0	
+RadialJetForm	shockring.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+RadialJetForm	shockring.sootRamp	PyreRamp			VISIBLE	0	(no perturbable member)	
+RadialJetForm	shockring.sootLo	ZUIValue			VISIBLE	0		
+RadialJetForm	shockring.sootHi	ZUIValue			VISIBLE	0		
+RadialJetForm	shockring.bias	ZUIValue			VISIBLE	887	0	
+RadialJetForm	shockring.srcR	ZUIValue			VISIBLE	2571	0.25	
+RadialJetForm	shockring.swirl	ZUIValue			VISIBLE	362	0.25	
+RadialJetForm	shockring.spin	Int32			VISIBLE	923	1	
+RadialJetForm	shockring.lobes	Int32			VISIBLE	0		
+RadialJetForm	shockring.lobeDepth	ZUIValue			VISIBLE	0		
+RadialJetForm	shockring.lobeKick	ZUIValue			VISIBLE	0		
+RadialJetForm	shockring.rootK	Int32			VISIBLE	0		
+RadialJetForm	shockring.ringFlat	Boolean			VISIBLE	927	False	
+RadialJetForm	shockring.warpSpin	Int32			VISIBLE	1243	1	
+RadialJetForm	maw	RadialJetSettings	variant	Maw	CONTAINER	0		nested settings object — its own dials follow
+RadialJetForm	maw.w	Int32			VISIBLE	881	0	
+RadialJetForm	maw.h	Int32			VISIBLE	881	0	
+RadialJetForm	maw.nozzleX	Single			VISIBLE	434	0	
+RadialJetForm	maw.nozzleY	Single			VISIBLE	791	0	
+RadialJetForm	maw.aim	ZUIValue			VISIBLE	1111	0	
+RadialJetForm	maw.reach	ZUIValue			VISIBLE	883	0	
+RadialJetForm	maw.spread	ZUIValue			VISIBLE	892	0	
+RadialJetForm	maw.drag	Single			VISIBLE	872	0	
+RadialJetForm	maw.buoy	Single			VISIBLE	873	0	
+RadialJetForm	maw.grav	Single			VISIBLE	890	0	
+RadialJetForm	maw.r0	ZUIValue			VISIBLE	881	0	
+RadialJetForm	maw.growth	Single			VISIBLE	881	0	
+RadialJetForm	maw.elong	ZUIValue			VISIBLE	881	0	
+RadialJetForm	maw.roundAt	Single			VISIBLE	881	0	
+RadialJetForm	maw.slots	Int32			VISIBLE	881	0	
+RadialJetForm	maw.life	Single			VISIBLE	881	0	
+RadialJetForm	maw.jitter	ZUIValue			VISIBLE	872	0	
+RadialJetForm	maw.strength	ZUIValue			VISIBLE	881	0	
+RadialJetForm	maw.cool	ZUIValue			VISIBLE	1106	0	
+RadialJetForm	maw.soot	ZUIValue			VISIBLE	686	0	
+RadialJetForm	maw.pulseN	Int32			VISIBLE	887	0	
+RadialJetForm	maw.pulseDepth	ZUIValue			VISIBLE	887	0	
+RadialJetForm	maw.sweep	ZUIValue			VISIBLE	459	0.25	
+RadialJetForm	maw.sweepN	Int32			VISIBLE	0		
+RadialJetForm	maw.shockN	Single			VISIBLE	0		
+RadialJetForm	maw.shockDepth	ZUIValue			VISIBLE	0		
+RadialJetForm	maw.rootR	ZUIValue			VISIBLE	6	0	
+RadialJetForm	maw.rootAmp	ZUIValue			VISIBLE	6	0	
+RadialJetForm	maw.shed	ZUIValue			VISIBLE	858	0	
+RadialJetForm	maw.shedKick	ZUIValue			VISIBLE	865	0	
+RadialJetForm	maw.shedLife	Single			VISIBLE	796	0	
+RadialJetForm	maw.sparks	Int32			VISIBLE	9	0	
+RadialJetForm	maw.sparkR	ZUIValue			VISIBLE	9	0	
+RadialJetForm	maw.ringN	Int32			VISIBLE	44	1	
+RadialJetForm	maw.ringK	Int32			VISIBLE	0		
+RadialJetForm	maw.ringR0	ZUIValue			VISIBLE	0		
+RadialJetForm	maw.ringGrow	Single			VISIBLE	0		
+RadialJetForm	maw.ringLife	Single			VISIBLE	0		
+RadialJetForm	maw.ringReach	ZUIValue			VISIBLE	0		
+RadialJetForm	maw.ringAmp	ZUIValue			VISIBLE	0		
+RadialJetForm	maw.warp0	ZUIValue			VISIBLE	697	0	
+RadialJetForm	maw.warp1	ZUIValue			VISIBLE	839	0	
+RadialJetForm	maw.warpCell	Single			VISIBLE	881	0	
+RadialJetForm	maw.warpOct	Int32			VISIBLE	881	0	
+RadialJetForm	maw.lo	ZUIValue			VISIBLE	1124	0	
+RadialJetForm	maw.hi	ZUIValue			VISIBLE	864	0	
+RadialJetForm	maw.curve	ZUIValue			VISIBLE	864	0	
+RadialJetForm	maw.steps	Int32			VISIBLE	862	2	
+RadialJetForm	maw.soft	ZUIValue			VISIBLE	122	0	
+RadialJetForm	maw.gain	ZUIValue			VISIBLE	881	0	
+RadialJetForm	maw.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+RadialJetForm	maw.sootRamp	PyreRamp			VISIBLE	0	(no perturbable member)	
+RadialJetForm	maw.sootLo	ZUIValue			VISIBLE	849	0	
+RadialJetForm	maw.sootHi	ZUIValue			VISIBLE	698	0	
+RadialJetForm	maw.bias	ZUIValue			VISIBLE	956	0	
+RadialJetForm	maw.srcR	ZUIValue			VISIBLE	2026	0.25	
+RadialJetForm	maw.swirl	ZUIValue			VISIBLE	467	0.25	
+RadialJetForm	maw.spin	Int32			VISIBLE	1143	1	
+RadialJetForm	maw.lobes	Int32			VISIBLE	0		
+RadialJetForm	maw.lobeDepth	ZUIValue			VISIBLE	0		
+RadialJetForm	maw.lobeKick	ZUIValue			VISIBLE	0		
+RadialJetForm	maw.rootK	Int32			VISIBLE	0		
+RadialJetForm	maw.ringFlat	Boolean			VISIBLE	0	True	
+RadialJetForm	maw.warpSpin	Int32			VISIBLE	885	1	
+RadialJetForm	starburst	RadialJetSettings	variant	Starburst	CONTAINER	0		nested settings object — its own dials follow
+RadialJetForm	starburst.w	Int32			VISIBLE	636	0	
+RadialJetForm	starburst.h	Int32			VISIBLE	636	0	
+RadialJetForm	starburst.nozzleX	Single			VISIBLE	348	0	
+RadialJetForm	starburst.nozzleY	Single			VISIBLE	326	0	
+RadialJetForm	starburst.aim	ZUIValue			VISIBLE	572	0.25	
+RadialJetForm	starburst.reach	ZUIValue			VISIBLE	626	0	
+RadialJetForm	starburst.spread	ZUIValue			VISIBLE	659	0	
+RadialJetForm	starburst.drag	Single			VISIBLE	628	0	
+RadialJetForm	starburst.buoy	Single			VISIBLE	643	0	
+RadialJetForm	starburst.grav	Single			VISIBLE	716	0.25	
+RadialJetForm	starburst.r0	ZUIValue			VISIBLE	636	0	
+RadialJetForm	starburst.growth	Single			VISIBLE	629	0	
+RadialJetForm	starburst.elong	ZUIValue			VISIBLE	636	0	
+RadialJetForm	starburst.roundAt	Single			VISIBLE	634	0	
+RadialJetForm	starburst.slots	Int32			VISIBLE	636	0	
+RadialJetForm	starburst.life	Single			VISIBLE	636	0	
+RadialJetForm	starburst.jitter	ZUIValue			VISIBLE	643	0	
+RadialJetForm	starburst.strength	ZUIValue			VISIBLE	636	0	
+RadialJetForm	starburst.cool	ZUIValue			VISIBLE	1110	0	
+RadialJetForm	starburst.soot	ZUIValue			VISIBLE	0		
+RadialJetForm	starburst.pulseN	Int32			VISIBLE	0		
+RadialJetForm	starburst.pulseDepth	ZUIValue			VISIBLE	0		
+RadialJetForm	starburst.sweep	ZUIValue			VISIBLE	507	0.25	
+RadialJetForm	starburst.sweepN	Int32			VISIBLE	0		
+RadialJetForm	starburst.shockN	Single			VISIBLE	0		
+RadialJetForm	starburst.shockDepth	ZUIValue			VISIBLE	0		
+RadialJetForm	starburst.rootR	ZUIValue			VISIBLE	3	0	
+RadialJetForm	starburst.rootAmp	ZUIValue			VISIBLE	3	0	
+RadialJetForm	starburst.shed	ZUIValue			VISIBLE	459	0	
+RadialJetForm	starburst.shedKick	ZUIValue			VISIBLE	297	0	
+RadialJetForm	starburst.shedLife	Single			VISIBLE	426	0	
+RadialJetForm	starburst.sparks	Int32			VISIBLE	7	0	
+RadialJetForm	starburst.sparkR	ZUIValue			VISIBLE	7	0	
+RadialJetForm	starburst.ringN	Int32			VISIBLE	30	1	
+RadialJetForm	starburst.ringK	Int32			VISIBLE	0		
+RadialJetForm	starburst.ringR0	ZUIValue			VISIBLE	0		
+RadialJetForm	starburst.ringGrow	Single			VISIBLE	0		
+RadialJetForm	starburst.ringLife	Single			VISIBLE	0		
+RadialJetForm	starburst.ringReach	ZUIValue			VISIBLE	0		
+RadialJetForm	starburst.ringAmp	ZUIValue			VISIBLE	0		
+RadialJetForm	starburst.warp0	ZUIValue			VISIBLE	557	0	
+RadialJetForm	starburst.warp1	ZUIValue			VISIBLE	622	0	
+RadialJetForm	starburst.warpCell	Single			VISIBLE	636	0	
+RadialJetForm	starburst.warpOct	Int32			VISIBLE	636	0	
+RadialJetForm	starburst.lo	ZUIValue			VISIBLE	1144	0	
+RadialJetForm	starburst.hi	ZUIValue			VISIBLE	624	0	
+RadialJetForm	starburst.curve	ZUIValue			VISIBLE	624	0	
+RadialJetForm	starburst.steps	Int32			VISIBLE	619	2	
+RadialJetForm	starburst.soft	ZUIValue			VISIBLE	114	0	
+RadialJetForm	starburst.gain	ZUIValue			VISIBLE	636	0	
+RadialJetForm	starburst.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+RadialJetForm	starburst.sootRamp	PyreRamp			VISIBLE	0	(no perturbable member)	
+RadialJetForm	starburst.sootLo	ZUIValue			VISIBLE	0		
+RadialJetForm	starburst.sootHi	ZUIValue			VISIBLE	0		
+RadialJetForm	starburst.bias	ZUIValue			VISIBLE	635	0	
+RadialJetForm	starburst.srcR	ZUIValue			VISIBLE	1675	0.25	
+RadialJetForm	starburst.swirl	ZUIValue			VISIBLE	452	0.25	
+RadialJetForm	starburst.spin	Int32			VISIBLE	825	1	
+RadialJetForm	starburst.lobes	Int32			VISIBLE	926	0	
+RadialJetForm	starburst.lobeDepth	ZUIValue			VISIBLE	675	0	
+RadialJetForm	starburst.lobeKick	ZUIValue			VISIBLE	845	0	
+RadialJetForm	starburst.rootK	Int32			VISIBLE	0		
+RadialJetForm	starburst.ringFlat	Boolean			VISIBLE	0	True	
+RadialJetForm	starburst.warpSpin	Int32			VISIBLE	649	1	
+RadialJetForm	halo	RadialJetSettings	variant	Halo	CONTAINER	0		nested settings object — its own dials follow
+RadialJetForm	halo.w	Int32			VISIBLE	786	0	
+RadialJetForm	halo.h	Int32			VISIBLE	786	0	
+RadialJetForm	halo.nozzleX	Single			VISIBLE	392	0	
+RadialJetForm	halo.nozzleY	Single			VISIBLE	449	0	
+RadialJetForm	halo.aim	ZUIValue			VISIBLE	679	0.25	
+RadialJetForm	halo.reach	ZUIValue			VISIBLE	781	0	
+RadialJetForm	halo.spread	ZUIValue			VISIBLE	822	0	
+RadialJetForm	halo.drag	Single			VISIBLE	802	0	
+RadialJetForm	halo.buoy	Single			VISIBLE	821	0	
+RadialJetForm	halo.grav	Single			VISIBLE	862	0.25	
+RadialJetForm	halo.r0	ZUIValue			VISIBLE	786	0	
+RadialJetForm	halo.growth	Single			VISIBLE	782	0	
+RadialJetForm	halo.elong	ZUIValue			VISIBLE	785	0	
+RadialJetForm	halo.roundAt	Single			VISIBLE	785	0	
+RadialJetForm	halo.slots	Int32			VISIBLE	786	0	
+RadialJetForm	halo.life	Single			VISIBLE	786	0	
+RadialJetForm	halo.jitter	ZUIValue			VISIBLE	826	0	
+RadialJetForm	halo.strength	ZUIValue			VISIBLE	786	0	
+RadialJetForm	halo.cool	ZUIValue			VISIBLE	1414	0	
+RadialJetForm	halo.soot	ZUIValue			VISIBLE	0		
+RadialJetForm	halo.pulseN	Int32			VISIBLE	0		
+RadialJetForm	halo.pulseDepth	ZUIValue			VISIBLE	0		
+RadialJetForm	halo.sweep	ZUIValue			VISIBLE	630	0.25	
+RadialJetForm	halo.sweepN	Int32			VISIBLE	0		
+RadialJetForm	halo.shockN	Single			VISIBLE	789	0	
+RadialJetForm	halo.shockDepth	ZUIValue			VISIBLE	789	0	
+RadialJetForm	halo.rootR	ZUIValue			VISIBLE	3	0	
+RadialJetForm	halo.rootAmp	ZUIValue			VISIBLE	3	0	
+RadialJetForm	halo.shed	ZUIValue			VISIBLE	675	0	
+RadialJetForm	halo.shedKick	ZUIValue			VISIBLE	476	0	
+RadialJetForm	halo.shedLife	Single			VISIBLE	586	0	
+RadialJetForm	halo.sparks	Int32			VISIBLE	4	0	
+RadialJetForm	halo.sparkR	ZUIValue			VISIBLE	4	0	
+RadialJetForm	halo.ringN	Int32			VISIBLE	33	1	
+RadialJetForm	halo.ringK	Int32			VISIBLE	0		
+RadialJetForm	halo.ringR0	ZUIValue			VISIBLE	0		
+RadialJetForm	halo.ringGrow	Single			VISIBLE	0		
+RadialJetForm	halo.ringLife	Single			VISIBLE	0		
+RadialJetForm	halo.ringReach	ZUIValue			VISIBLE	0		
+RadialJetForm	halo.ringAmp	ZUIValue			VISIBLE	0		
+RadialJetForm	halo.warp0	ZUIValue			VISIBLE	693	0	
+RadialJetForm	halo.warp1	ZUIValue			VISIBLE	798	0	
+RadialJetForm	halo.warpCell	Single			VISIBLE	786	0	
+RadialJetForm	halo.warpOct	Int32			VISIBLE	786	0	
+RadialJetForm	halo.lo	ZUIValue			VISIBLE	1408	0	
+RadialJetForm	halo.hi	ZUIValue			VISIBLE	785	0	
+RadialJetForm	halo.curve	ZUIValue			VISIBLE	785	0	
+RadialJetForm	halo.steps	Int32			VISIBLE	779	2	
+RadialJetForm	halo.soft	ZUIValue			VISIBLE	291	0	
+RadialJetForm	halo.gain	ZUIValue			VISIBLE	786	0	
+RadialJetForm	halo.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+RadialJetForm	halo.sootRamp	PyreRamp			VISIBLE	0	(no perturbable member)	
+RadialJetForm	halo.sootLo	ZUIValue			VISIBLE	0		
+RadialJetForm	halo.sootHi	ZUIValue			VISIBLE	0		
+RadialJetForm	halo.bias	ZUIValue			VISIBLE	810	0	
+RadialJetForm	halo.srcR	ZUIValue			VISIBLE	1717	0.25	
+RadialJetForm	halo.swirl	ZUIValue			VISIBLE	548	0.25	
+RadialJetForm	halo.spin	Int32			VISIBLE	868	1	
+RadialJetForm	halo.lobes	Int32			VISIBLE	0		
+RadialJetForm	halo.lobeDepth	ZUIValue			VISIBLE	0		
+RadialJetForm	halo.lobeKick	ZUIValue			VISIBLE	0		
+RadialJetForm	halo.rootK	Int32			VISIBLE	0		
+RadialJetForm	halo.ringFlat	Boolean			VISIBLE	0	True	
+RadialJetForm	halo.warpSpin	Int32			VISIBLE	817	1	
+ExplosiveJetForm	anchorX	ZUIValue			VISIBLE	1880	0	
+ExplosiveJetForm	anchorY	ZUIValue			VISIBLE	1848	0	
+ExplosiveJetForm	scale	ZUIValue			VISIBLE	1348	0	
+ExplosiveJetForm	swarmSize	ZUIValue			ABSENT	0		[PyreSwarmOnly] — absented by PyreFormShaperUI's Skip (a composite hosts no swarm)
+ExplosiveJetForm	variant	Variant			VISIBLE	1445	Backdraft	
+ExplosiveJetForm	detonate	ExplosiveJetSettings	variant	Detonate	CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	detonate.w	Int32			VISIBLE	1348	0	
+ExplosiveJetForm	detonate.h	Int32			VISIBLE	1348	0	
+ExplosiveJetForm	detonate.nozzleX	Single			VISIBLE	676	0	
+ExplosiveJetForm	detonate.nozzleY	Single			VISIBLE	860	0	
+ExplosiveJetForm	detonate.aim	ZUIValue			VISIBLE	960	0.25	
+ExplosiveJetForm	detonate.reach	ZUIValue			VISIBLE	1334	0	
+ExplosiveJetForm	detonate.spread	ZUIValue			VISIBLE	1401	0	
+ExplosiveJetForm	detonate.drag	Single			VISIBLE	1308	0	
+ExplosiveJetForm	detonate.buoy	Single			VISIBLE	1368	0	
+ExplosiveJetForm	detonate.grav	Single			VISIBLE	1401	0.25	
+ExplosiveJetForm	detonate.r0	ZUIValue			VISIBLE	1348	0	
+ExplosiveJetForm	detonate.growth	Single			VISIBLE	1335	0	
+ExplosiveJetForm	detonate.elong	ZUIValue			VISIBLE	1301	0	
+ExplosiveJetForm	detonate.roundAt	Single			VISIBLE	1301	0	
+ExplosiveJetForm	detonate.slots	Int32			VISIBLE	1348	0	
+ExplosiveJetForm	detonate.life	Single			VISIBLE	1348	0	
+ExplosiveJetForm	detonate.jitter	ZUIValue			VISIBLE	1400	0	
+ExplosiveJetForm	detonate.strength	ZUIValue			VISIBLE	1348	0	
+ExplosiveJetForm	detonate.cool	ZUIValue			VISIBLE	1830	0	
+ExplosiveJetForm	detonate.soot	ZUIValue			VISIBLE	1237	0	
+ExplosiveJetForm	detonate.pulseN	Int32			VISIBLE	0		
+ExplosiveJetForm	detonate.pulseDepth	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	detonate.sweep	ZUIValue			VISIBLE	460	0.25	
+ExplosiveJetForm	detonate.sweepN	Int32			VISIBLE	0		
+ExplosiveJetForm	detonate.shockN	Single			VISIBLE	0		
+ExplosiveJetForm	detonate.shockDepth	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	detonate.rootR	ZUIValue			VISIBLE	6	0	
+ExplosiveJetForm	detonate.rootAmp	ZUIValue			VISIBLE	6	0	
+ExplosiveJetForm	detonate.shed	ZUIValue			VISIBLE	1279	0	
+ExplosiveJetForm	detonate.shedKick	ZUIValue			VISIBLE	1044	0	
+ExplosiveJetForm	detonate.shedLife	Single			VISIBLE	1260	0	
+ExplosiveJetForm	detonate.sparks	Int32			VISIBLE	23	0	
+ExplosiveJetForm	detonate.sparkR	ZUIValue			VISIBLE	23	0	
+ExplosiveJetForm	detonate.ringN	Int32			VISIBLE	41	1	
+ExplosiveJetForm	detonate.ringK	Int32			VISIBLE	0		
+ExplosiveJetForm	detonate.ringR0	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	detonate.ringGrow	Single			VISIBLE	0		
+ExplosiveJetForm	detonate.ringLife	Single			VISIBLE	0		
+ExplosiveJetForm	detonate.ringReach	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	detonate.ringAmp	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	detonate.warp0	ZUIValue			VISIBLE	1022	0	
+ExplosiveJetForm	detonate.warp1	ZUIValue			VISIBLE	1298	0	
+ExplosiveJetForm	detonate.warpCell	Single			VISIBLE	1348	0	
+ExplosiveJetForm	detonate.warpOct	Int32			VISIBLE	1348	0	
+ExplosiveJetForm	detonate.lo	ZUIValue			VISIBLE	2083	0	
+ExplosiveJetForm	detonate.hi	ZUIValue			VISIBLE	1307	0	
+ExplosiveJetForm	detonate.curve	ZUIValue			VISIBLE	1307	0	
+ExplosiveJetForm	detonate.steps	Int32			VISIBLE	1296	2	
+ExplosiveJetForm	detonate.soft	ZUIValue			VISIBLE	290	0	
+ExplosiveJetForm	detonate.gain	ZUIValue			VISIBLE	1348	0	
+ExplosiveJetForm	detonate.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+ExplosiveJetForm	detonate.sootRamp	PyreRamp			VISIBLE	0	(no perturbable member)	
+ExplosiveJetForm	detonate.sootLo	ZUIValue			VISIBLE	1348	0	
+ExplosiveJetForm	detonate.sootHi	ZUIValue			VISIBLE	1271	0	
+ExplosiveJetForm	detonate.bias	Single			VISIBLE	1385	0	
+ExplosiveJetForm	detonate.srcR	Single			VISIBLE	3498	0.25	
+ExplosiveJetForm	detonate.swirl	Single			VISIBLE	826	0.25	
+ExplosiveJetForm	detonate.spin	Int32			VISIBLE	1373	1	
+ExplosiveJetForm	detonate.lobes	Int32			VISIBLE	0		
+ExplosiveJetForm	detonate.lobeDepth	Single			VISIBLE	0		
+ExplosiveJetForm	detonate.lobeKick	Single			VISIBLE	0		
+ExplosiveJetForm	detonate.rootK	Int32			VISIBLE	0		
+ExplosiveJetForm	detonate.ringFlat	Boolean			VISIBLE	0	True	
+ExplosiveJetForm	detonate.ringArc	Single			VISIBLE	0		
+ExplosiveJetForm	detonate.warpSpin	Int32			VISIBLE	1362	1	
+ExplosiveJetForm	detonate.blasts	List<ExplosiveBlast>			LIST	0	1	reorderable list of ExplosiveBlast
+ExplosiveJetForm	detonate.blasts[0].at	Single			VISIBLE	1442	0.25	
+ExplosiveJetForm	detonate.blasts[0].pow	Single			VISIBLE	1348	0	
+ExplosiveJetForm	detonate.blasts[0].share	Single			VISIBLE	0		
+ExplosiveJetForm	detonate.blasts[0].offX	Single			VISIBLE	1893	0.25	
+ExplosiveJetForm	detonate.blasts[0].offY	Single			VISIBLE	1951	0.25	
+ExplosiveJetForm	detonate.blastSpan	Single			VISIBLE	1379	0	
+ExplosiveJetForm	detonate.blastSkew	Single			VISIBLE	1296	0	
+ExplosiveJetForm	detonate.blastFront	Single			VISIBLE	1310	0	
+ExplosiveJetForm	detonate.velSpread	Single			VISIBLE	2055	0	
+ExplosiveJetForm	detonate.swell	Single			VISIBLE	1315	0	
+ExplosiveJetForm	detonate.hold	Single			VISIBLE	1328	0	
+ExplosiveJetForm	detonate.shrink	Single			VISIBLE	1632	0	
+ExplosiveJetForm	detonate.shrinkAt	Single			VISIBLE	1213	0	
+ExplosiveJetForm	detonate.leadDie	Single			VISIBLE	1556	0	
+ExplosiveJetForm	detonate.opaq	Single			VISIBLE	1285	0	
+ExplosiveJetForm	detonate.shedSwell	Single			VISIBLE	1260	0	
+ExplosiveJetForm	detonate.fracture	ExplosiveFracture			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	detonate.fracture.chance	Single			VISIBLE	1341	0	
+ExplosiveJetForm	detonate.fracture.pieces	Int32			VISIBLE	1341	0	
+ExplosiveJetForm	detonate.fracture.at	Single			VISIBLE	1483	0	
+ExplosiveJetForm	detonate.fracture.open	Single			VISIBLE	1401	0	
+ExplosiveJetForm	detonate.fracture.kick	Single			VISIBLE	1265	0	
+ExplosiveJetForm	detonate.fracture.spin	Single			VISIBLE	1225	0	
+ExplosiveJetForm	detonate.fracture.grip	Single			VISIBLE	1341	0	
+ExplosiveJetForm	detonate.fracture.rot	Single			VISIBLE	1466	0	
+ExplosiveJetForm	detonate.fracture.drift	Single			VISIBLE	1395	0	
+ExplosiveJetForm	detonate.fracture.stagger	Single			VISIBLE	1367	0	
+ExplosiveJetForm	detonate.fracture.cut	Single			VISIBLE	1380	0	
+ExplosiveJetForm	detonate.fracture.body	Single			VISIBLE	1323	0	
+ExplosiveJetForm	detonate.fracture2	ExplosiveFracture2			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	detonate.fracture2.chance	Single			VISIBLE	319	0	
+ExplosiveJetForm	detonate.fracture2.at	Single			VISIBLE	230	0	
+ExplosiveJetForm	detonate.fracture2.open	Single			VISIBLE	336	0	
+ExplosiveJetForm	detonate.fracture2.cut	Single			VISIBLE	343	0	
+ExplosiveJetForm	detonate.fracture2.kick	Single			VISIBLE	275	0	
+ExplosiveJetForm	detonate.fracture2.drift	Single			VISIBLE	332	0	
+ExplosiveJetForm	detonate.fracture2.spin	Single			VISIBLE	289	0	
+ExplosiveJetForm	detonate.fracture2.stagger	Single			VISIBLE	168	0	
+ExplosiveJetForm	detonate.flash	ExplosiveFlash			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	detonate.flash.radius	Single			VISIBLE	0		
+ExplosiveJetForm	detonate.flash.amp	Single			VISIBLE	0		
+ExplosiveJetForm	detonate.flash.life	Single			VISIBLE	86	0.5	
+ExplosiveJetForm	detonate.flash.grow	Single			VISIBLE	0		
+ExplosiveJetForm	detonate.flash.elong	Single			VISIBLE	0		
+ExplosiveJetForm	detonate.chunks	ExplosiveChunks			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	detonate.chunks.count	Int32			VISIBLE	63	0	
+ExplosiveJetForm	detonate.chunks.radius	Single			VISIBLE	63	0	
+ExplosiveJetForm	detonate.chunks.reach	Single			VISIBLE	72	0	
+ExplosiveJetForm	detonate.chunks.drag	Single			VISIBLE	92	0	
+ExplosiveJetForm	detonate.chunks.life	Single			VISIBLE	63	0	
+ExplosiveJetForm	detonate.chunks.sag	Single			VISIBLE	82	0	
+ExplosiveJetForm	detonate.chunks.trail	Int32			VISIBLE	30	0	
+ExplosiveJetForm	detonate.chunks.amp	Single			VISIBLE	63	0	
+ExplosiveJetForm	detonate.chunks.wide	Single			VISIBLE	80	0	
+ExplosiveJetForm	detonate.gobs	ExplosiveGobs			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	detonate.gobs.count	Int32			VISIBLE	453	0	
+ExplosiveJetForm	detonate.gobs.radius	Single			VISIBLE	453	0	
+ExplosiveJetForm	detonate.gobs.reach	Single			VISIBLE	463	0	
+ExplosiveJetForm	detonate.gobs.drag	Single			VISIBLE	431	0	
+ExplosiveJetForm	detonate.gobs.life	Single			VISIBLE	453	0	
+ExplosiveJetForm	detonate.gobs.amp	Single			VISIBLE	453	0	
+ExplosiveJetForm	detonate.gobs.swell	Single			VISIBLE	452	0	
+ExplosiveJetForm	detonate.gobs.sag	Single			VISIBLE	364	0	
+ExplosiveJetForm	detonate.gobs.wide	Single			VISIBLE	487	0	
+ExplosiveJetForm	detonate.gobs.early	Single			VISIBLE	374	0	
+ExplosiveJetForm	detonate.gobs.trail	Int32			VISIBLE	371	0	
+ExplosiveJetForm	detonate.dust	ExplosiveDust			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	detonate.dust.count	Int32			VISIBLE	90	0	
+ExplosiveJetForm	detonate.dust.radius	Single			VISIBLE	90	0	
+ExplosiveJetForm	detonate.dust.from	Single			VISIBLE	109	0	
+ExplosiveJetForm	detonate.dust.to	Single			VISIBLE	96	0	
+ExplosiveJetForm	detonate.dust.bias	Single			VISIBLE	90	0	
+ExplosiveJetForm	detonate.dust.where	Single			VISIBLE	129	0	
+ExplosiveJetForm	detonate.dust.reach	Single			VISIBLE	149	0	
+ExplosiveJetForm	detonate.dust.drag	Single			VISIBLE	118	0	
+ExplosiveJetForm	detonate.dust.life	Single			VISIBLE	90	0	
+ExplosiveJetForm	detonate.dust.amp	Single			VISIBLE	90	0	
+ExplosiveJetForm	detonate.dust.sag	Single			VISIBLE	88	0	
+ExplosiveJetForm	detonate.dust.scatter	Single			VISIBLE	105	0	
+ExplosiveJetForm	detonate.dust.wide	Single			VISIBLE	99	0	
+ExplosiveJetForm	detonate.dust.trail	Int32			VISIBLE	39	2	
+ExplosiveJetForm	backdraft	ExplosiveJetSettings	variant	Backdraft	CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	backdraft.w	Int32			VISIBLE	912	0	
+ExplosiveJetForm	backdraft.h	Int32			VISIBLE	912	0	
+ExplosiveJetForm	backdraft.nozzleX	Single			VISIBLE	447	0	
+ExplosiveJetForm	backdraft.nozzleY	Single			VISIBLE	828	0	
+ExplosiveJetForm	backdraft.aim	ZUIValue			VISIBLE	1198	0	
+ExplosiveJetForm	backdraft.reach	ZUIValue			VISIBLE	942	0	
+ExplosiveJetForm	backdraft.spread	ZUIValue			VISIBLE	1002	0	
+ExplosiveJetForm	backdraft.drag	Single			VISIBLE	915	0	
+ExplosiveJetForm	backdraft.buoy	Single			VISIBLE	1032	0	
+ExplosiveJetForm	backdraft.grav	Single			VISIBLE	903	0	
+ExplosiveJetForm	backdraft.r0	ZUIValue			VISIBLE	912	0	
+ExplosiveJetForm	backdraft.growth	Single			VISIBLE	912	0	
+ExplosiveJetForm	backdraft.elong	ZUIValue			VISIBLE	911	0	
+ExplosiveJetForm	backdraft.roundAt	Single			VISIBLE	911	0	
+ExplosiveJetForm	backdraft.slots	Int32			VISIBLE	912	0	
+ExplosiveJetForm	backdraft.life	Single			VISIBLE	912	0	
+ExplosiveJetForm	backdraft.jitter	ZUIValue			VISIBLE	919	0	
+ExplosiveJetForm	backdraft.strength	ZUIValue			VISIBLE	912	0	
+ExplosiveJetForm	backdraft.cool	ZUIValue			VISIBLE	1204	0	
+ExplosiveJetForm	backdraft.soot	ZUIValue			VISIBLE	911	0	
+ExplosiveJetForm	backdraft.pulseN	Int32			VISIBLE	0		
+ExplosiveJetForm	backdraft.pulseDepth	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	backdraft.sweep	ZUIValue			VISIBLE	377	0.25	
+ExplosiveJetForm	backdraft.sweepN	Int32			VISIBLE	0		
+ExplosiveJetForm	backdraft.shockN	Single			VISIBLE	0		
+ExplosiveJetForm	backdraft.shockDepth	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	backdraft.rootR	ZUIValue			VISIBLE	4	0	
+ExplosiveJetForm	backdraft.rootAmp	ZUIValue			VISIBLE	4	0	
+ExplosiveJetForm	backdraft.shed	ZUIValue			VISIBLE	914	0	
+ExplosiveJetForm	backdraft.shedKick	ZUIValue			VISIBLE	1001	0	
+ExplosiveJetForm	backdraft.shedLife	Single			VISIBLE	889	0	
+ExplosiveJetForm	backdraft.sparks	Int32			VISIBLE	9	0	
+ExplosiveJetForm	backdraft.sparkR	ZUIValue			VISIBLE	9	0	
+ExplosiveJetForm	backdraft.ringN	Int32			VISIBLE	38	1	
+ExplosiveJetForm	backdraft.ringK	Int32			VISIBLE	0		
+ExplosiveJetForm	backdraft.ringR0	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	backdraft.ringGrow	Single			VISIBLE	0		
+ExplosiveJetForm	backdraft.ringLife	Single			VISIBLE	0		
+ExplosiveJetForm	backdraft.ringReach	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	backdraft.ringAmp	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	backdraft.warp0	ZUIValue			VISIBLE	762	0	
+ExplosiveJetForm	backdraft.warp1	ZUIValue			VISIBLE	910	0	
+ExplosiveJetForm	backdraft.warpCell	Single			VISIBLE	912	0	
+ExplosiveJetForm	backdraft.warpOct	Int32			VISIBLE	912	0	
+ExplosiveJetForm	backdraft.lo	ZUIValue			VISIBLE	1506	0	
+ExplosiveJetForm	backdraft.hi	ZUIValue			VISIBLE	916	0	
+ExplosiveJetForm	backdraft.curve	ZUIValue			VISIBLE	916	0	
+ExplosiveJetForm	backdraft.steps	Int32			VISIBLE	912	2	
+ExplosiveJetForm	backdraft.soft	ZUIValue			VISIBLE	151	0	
+ExplosiveJetForm	backdraft.gain	ZUIValue			VISIBLE	912	0	
+ExplosiveJetForm	backdraft.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+ExplosiveJetForm	backdraft.sootRamp	PyreRamp			VISIBLE	0	(no perturbable member)	
+ExplosiveJetForm	backdraft.sootLo	ZUIValue			VISIBLE	912	0	
+ExplosiveJetForm	backdraft.sootHi	ZUIValue			VISIBLE	912	0	
+ExplosiveJetForm	backdraft.bias	Single			VISIBLE	1002	0	
+ExplosiveJetForm	backdraft.srcR	Single			VISIBLE	2187	0.25	
+ExplosiveJetForm	backdraft.swirl	Single			VISIBLE	556	0.25	
+ExplosiveJetForm	backdraft.spin	Int32			VISIBLE	1057	1	
+ExplosiveJetForm	backdraft.lobes	Int32			VISIBLE	0		
+ExplosiveJetForm	backdraft.lobeDepth	Single			VISIBLE	0		
+ExplosiveJetForm	backdraft.lobeKick	Single			VISIBLE	0		
+ExplosiveJetForm	backdraft.rootK	Int32			VISIBLE	0		
+ExplosiveJetForm	backdraft.ringFlat	Boolean			VISIBLE	0	True	
+ExplosiveJetForm	backdraft.ringArc	Single			VISIBLE	0		
+ExplosiveJetForm	backdraft.warpSpin	Int32			VISIBLE	933	1	
+ExplosiveJetForm	backdraft.blasts	List<ExplosiveBlast>			LIST	0	1	reorderable list of ExplosiveBlast
+ExplosiveJetForm	backdraft.blasts[0].at	Single			VISIBLE	939	0.25	
+ExplosiveJetForm	backdraft.blasts[0].pow	Single			VISIBLE	912	0	
+ExplosiveJetForm	backdraft.blasts[0].share	Single			VISIBLE	0		
+ExplosiveJetForm	backdraft.blasts[0].offX	Single			VISIBLE	1263	0.25	
+ExplosiveJetForm	backdraft.blasts[0].offY	Single			VISIBLE	1389	0.25	
+ExplosiveJetForm	backdraft.blastSpan	Single			VISIBLE	938	0	
+ExplosiveJetForm	backdraft.blastSkew	Single			VISIBLE	921	0	
+ExplosiveJetForm	backdraft.blastFront	Single			VISIBLE	914	0	
+ExplosiveJetForm	backdraft.velSpread	Single			VISIBLE	1271	0	
+ExplosiveJetForm	backdraft.swell	Single			VISIBLE	912	0	
+ExplosiveJetForm	backdraft.hold	Single			VISIBLE	912	0	
+ExplosiveJetForm	backdraft.shrink	Single			VISIBLE	825	0	
+ExplosiveJetForm	backdraft.shrinkAt	Single			VISIBLE	739	0	
+ExplosiveJetForm	backdraft.leadDie	Single			VISIBLE	1033	0	
+ExplosiveJetForm	backdraft.opaq	Single			VISIBLE	914	0	
+ExplosiveJetForm	backdraft.shedSwell	Single			VISIBLE	889	0	
+ExplosiveJetForm	backdraft.fracture	ExplosiveFracture			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	backdraft.fracture.chance	Single			VISIBLE	871	0	
+ExplosiveJetForm	backdraft.fracture.pieces	Int32			VISIBLE	871	0	
+ExplosiveJetForm	backdraft.fracture.at	Single			VISIBLE	1001	0	
+ExplosiveJetForm	backdraft.fracture.open	Single			VISIBLE	690	0	
+ExplosiveJetForm	backdraft.fracture.kick	Single			VISIBLE	806	0	
+ExplosiveJetForm	backdraft.fracture.spin	Single			VISIBLE	599	0	
+ExplosiveJetForm	backdraft.fracture.grip	Single			VISIBLE	871	0	
+ExplosiveJetForm	backdraft.fracture.rot	Single			VISIBLE	910	0	
+ExplosiveJetForm	backdraft.fracture.drift	Single			VISIBLE	872	0	
+ExplosiveJetForm	backdraft.fracture.stagger	Single			VISIBLE	916	0	
+ExplosiveJetForm	backdraft.fracture.cut	Single			VISIBLE	838	0	
+ExplosiveJetForm	backdraft.fracture.body	Single			VISIBLE	848	0	
+ExplosiveJetForm	backdraft.fracture2	ExplosiveFracture2			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	backdraft.fracture2.chance	Single			VISIBLE	605	0	
+ExplosiveJetForm	backdraft.fracture2.at	Single			VISIBLE	755	0	
+ExplosiveJetForm	backdraft.fracture2.open	Single			VISIBLE	379	0	
+ExplosiveJetForm	backdraft.fracture2.cut	Single			VISIBLE	556	0	
+ExplosiveJetForm	backdraft.fracture2.kick	Single			VISIBLE	321	0	
+ExplosiveJetForm	backdraft.fracture2.drift	Single			VISIBLE	564	0	
+ExplosiveJetForm	backdraft.fracture2.spin	Single			VISIBLE	340	0	
+ExplosiveJetForm	backdraft.fracture2.stagger	Single			VISIBLE	558	0	
+ExplosiveJetForm	backdraft.flash	ExplosiveFlash			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	backdraft.flash.radius	Single			VISIBLE	0		
+ExplosiveJetForm	backdraft.flash.amp	Single			VISIBLE	0		
+ExplosiveJetForm	backdraft.flash.life	Single			VISIBLE	68	0.5	
+ExplosiveJetForm	backdraft.flash.grow	Single			VISIBLE	0		
+ExplosiveJetForm	backdraft.flash.elong	Single			VISIBLE	0		
+ExplosiveJetForm	backdraft.chunks	ExplosiveChunks			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	backdraft.chunks.count	Int32			VISIBLE	34	0	
+ExplosiveJetForm	backdraft.chunks.radius	Single			VISIBLE	34	0	
+ExplosiveJetForm	backdraft.chunks.reach	Single			VISIBLE	37	0	
+ExplosiveJetForm	backdraft.chunks.drag	Single			VISIBLE	49	0	
+ExplosiveJetForm	backdraft.chunks.life	Single			VISIBLE	34	0	
+ExplosiveJetForm	backdraft.chunks.sag	Single			VISIBLE	61	0	
+ExplosiveJetForm	backdraft.chunks.trail	Int32			VISIBLE	19	0	
+ExplosiveJetForm	backdraft.chunks.amp	Single			VISIBLE	34	0	
+ExplosiveJetForm	backdraft.chunks.wide	Single			VISIBLE	45	0	
+ExplosiveJetForm	backdraft.gobs	ExplosiveGobs			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	backdraft.gobs.count	Int32			VISIBLE	240	0	
+ExplosiveJetForm	backdraft.gobs.radius	Single			VISIBLE	240	0	
+ExplosiveJetForm	backdraft.gobs.reach	Single			VISIBLE	254	0	
+ExplosiveJetForm	backdraft.gobs.drag	Single			VISIBLE	205	0	
+ExplosiveJetForm	backdraft.gobs.life	Single			VISIBLE	240	0	
+ExplosiveJetForm	backdraft.gobs.amp	Single			VISIBLE	240	0	
+ExplosiveJetForm	backdraft.gobs.swell	Single			VISIBLE	239	0	
+ExplosiveJetForm	backdraft.gobs.sag	Single			VISIBLE	221	0	
+ExplosiveJetForm	backdraft.gobs.wide	Single			VISIBLE	234	0	
+ExplosiveJetForm	backdraft.gobs.early	Single			VISIBLE	183	0	
+ExplosiveJetForm	backdraft.gobs.trail	Int32			VISIBLE	179	0	
+ExplosiveJetForm	backdraft.dust	ExplosiveDust			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	backdraft.dust.count	Int32			VISIBLE	113	0	
+ExplosiveJetForm	backdraft.dust.radius	Single			VISIBLE	113	0	
+ExplosiveJetForm	backdraft.dust.from	Single			VISIBLE	135	0	
+ExplosiveJetForm	backdraft.dust.to	Single			VISIBLE	127	0	
+ExplosiveJetForm	backdraft.dust.bias	Single			VISIBLE	113	0	
+ExplosiveJetForm	backdraft.dust.where	Single			VISIBLE	138	0	
+ExplosiveJetForm	backdraft.dust.reach	Single			VISIBLE	171	0	
+ExplosiveJetForm	backdraft.dust.drag	Single			VISIBLE	140	0	
+ExplosiveJetForm	backdraft.dust.life	Single			VISIBLE	113	0	
+ExplosiveJetForm	backdraft.dust.amp	Single			VISIBLE	113	0	
+ExplosiveJetForm	backdraft.dust.sag	Single			VISIBLE	127	0	
+ExplosiveJetForm	backdraft.dust.scatter	Single			VISIBLE	114	0	
+ExplosiveJetForm	backdraft.dust.wide	Single			VISIBLE	125	0	
+ExplosiveJetForm	backdraft.dust.trail	Int32			VISIBLE	52	2	
+ExplosiveJetForm	chain	ExplosiveJetSettings	variant	Chain	CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	chain.w	Int32			VISIBLE	178	0	
+ExplosiveJetForm	chain.h	Int32			VISIBLE	178	0	
+ExplosiveJetForm	chain.nozzleX	Single			VISIBLE	178	0	
+ExplosiveJetForm	chain.nozzleY	Single			VISIBLE	152	0	
+ExplosiveJetForm	chain.aim	ZUIValue			VISIBLE	285	0	
+ExplosiveJetForm	chain.reach	ZUIValue			VISIBLE	191	0	
+ExplosiveJetForm	chain.spread	ZUIValue			VISIBLE	241	0	
+ExplosiveJetForm	chain.drag	Single			VISIBLE	187	0	
+ExplosiveJetForm	chain.buoy	Single			VISIBLE	205	0	
+ExplosiveJetForm	chain.grav	Single			VISIBLE	178	0	
+ExplosiveJetForm	chain.r0	ZUIValue			VISIBLE	178	0	
+ExplosiveJetForm	chain.growth	Single			VISIBLE	178	0	
+ExplosiveJetForm	chain.elong	ZUIValue			VISIBLE	178	0	
+ExplosiveJetForm	chain.roundAt	Single			VISIBLE	178	0	
+ExplosiveJetForm	chain.slots	Int32			VISIBLE	178	0	
+ExplosiveJetForm	chain.life	Single			VISIBLE	178	0	
+ExplosiveJetForm	chain.jitter	ZUIValue			VISIBLE	182	0	
+ExplosiveJetForm	chain.strength	ZUIValue			VISIBLE	178	0	
+ExplosiveJetForm	chain.cool	ZUIValue			VISIBLE	451	0	
+ExplosiveJetForm	chain.soot	ZUIValue			VISIBLE	177	0	
+ExplosiveJetForm	chain.pulseN	Int32			VISIBLE	0		
+ExplosiveJetForm	chain.pulseDepth	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	chain.sweep	ZUIValue			VISIBLE	88	0.25	
+ExplosiveJetForm	chain.sweepN	Int32			VISIBLE	0		
+ExplosiveJetForm	chain.shockN	Single			VISIBLE	0		
+ExplosiveJetForm	chain.shockDepth	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	chain.rootR	ZUIValue			VISIBLE	1	0	
+ExplosiveJetForm	chain.rootAmp	ZUIValue			VISIBLE	1	0	
+ExplosiveJetForm	chain.shed	ZUIValue			VISIBLE	177	0	
+ExplosiveJetForm	chain.shedKick	ZUIValue			VISIBLE	233	0	
+ExplosiveJetForm	chain.shedLife	Single			VISIBLE	175	0	
+ExplosiveJetForm	chain.sparks	Int32			VISIBLE	2	0	
+ExplosiveJetForm	chain.sparkR	ZUIValue			VISIBLE	2	0	
+ExplosiveJetForm	chain.ringN	Int32			VISIBLE	14	1	
+ExplosiveJetForm	chain.ringK	Int32			VISIBLE	0		
+ExplosiveJetForm	chain.ringR0	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	chain.ringGrow	Single			VISIBLE	0		
+ExplosiveJetForm	chain.ringLife	Single			VISIBLE	0		
+ExplosiveJetForm	chain.ringReach	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	chain.ringAmp	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	chain.warp0	ZUIValue			VISIBLE	144	0	
+ExplosiveJetForm	chain.warp1	ZUIValue			VISIBLE	182	0	
+ExplosiveJetForm	chain.warpCell	Single			VISIBLE	178	0	
+ExplosiveJetForm	chain.warpOct	Int32			VISIBLE	178	0	
+ExplosiveJetForm	chain.lo	ZUIValue			VISIBLE	525	0	
+ExplosiveJetForm	chain.hi	ZUIValue			VISIBLE	179	0	
+ExplosiveJetForm	chain.curve	ZUIValue			VISIBLE	179	0	
+ExplosiveJetForm	chain.steps	Int32			VISIBLE	178	2	
+ExplosiveJetForm	chain.soft	ZUIValue			VISIBLE	56	0	
+ExplosiveJetForm	chain.gain	ZUIValue			VISIBLE	178	0	
+ExplosiveJetForm	chain.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+ExplosiveJetForm	chain.sootRamp	PyreRamp			VISIBLE	0	(no perturbable member)	
+ExplosiveJetForm	chain.sootLo	ZUIValue			VISIBLE	178	0	
+ExplosiveJetForm	chain.sootHi	ZUIValue			VISIBLE	177	0	
+ExplosiveJetForm	chain.bias	Single			VISIBLE	202	0	
+ExplosiveJetForm	chain.srcR	Single			VISIBLE	400	0.25	
+ExplosiveJetForm	chain.swirl	Single			VISIBLE	103	0.25	
+ExplosiveJetForm	chain.spin	Int32			VISIBLE	224	1	
+ExplosiveJetForm	chain.lobes	Int32			VISIBLE	0		
+ExplosiveJetForm	chain.lobeDepth	Single			VISIBLE	0		
+ExplosiveJetForm	chain.lobeKick	Single			VISIBLE	0		
+ExplosiveJetForm	chain.rootK	Int32			VISIBLE	0		
+ExplosiveJetForm	chain.ringFlat	Boolean			VISIBLE	0	True	
+ExplosiveJetForm	chain.ringArc	Single			VISIBLE	0		
+ExplosiveJetForm	chain.warpSpin	Int32			VISIBLE	189	1	
+ExplosiveJetForm	chain.blasts	List<ExplosiveBlast>			LIST	0	3	reorderable list of ExplosiveBlast
+ExplosiveJetForm	chain.blasts[0].at	Single			VISIBLE	311	0.25	
+ExplosiveJetForm	chain.blasts[0].pow	Single			VISIBLE	178	0	
+ExplosiveJetForm	chain.blasts[0].share	Single			VISIBLE	178	0	
+ExplosiveJetForm	chain.blasts[0].offX	Single			VISIBLE	303	0	
+ExplosiveJetForm	chain.blasts[0].offY	Single			VISIBLE	203	0	
+ExplosiveJetForm	chain.blasts[1].at	Single			VISIBLE	150	0	
+ExplosiveJetForm	chain.blasts[1].pow	Single			VISIBLE	168	0	
+ExplosiveJetForm	chain.blasts[1].share	Single			VISIBLE	238	0	
+ExplosiveJetForm	chain.blasts[1].offX	Single			VISIBLE	153	0	
+ExplosiveJetForm	chain.blasts[1].offY	Single			VISIBLE	166	0	
+ExplosiveJetForm	chain.blastSpan	Single			VISIBLE	178	0	
+ExplosiveJetForm	chain.blastSkew	Single			VISIBLE	220	0	
+ExplosiveJetForm	chain.blastFront	Single			VISIBLE	183	0	
+ExplosiveJetForm	chain.velSpread	Single			VISIBLE	318	0	
+ExplosiveJetForm	chain.swell	Single			VISIBLE	178	0	
+ExplosiveJetForm	chain.hold	Single			VISIBLE	178	0	
+ExplosiveJetForm	chain.shrink	Single			VISIBLE	131	0	
+ExplosiveJetForm	chain.shrinkAt	Single			VISIBLE	112	0	
+ExplosiveJetForm	chain.leadDie	Single			VISIBLE	395	0	
+ExplosiveJetForm	chain.opaq	Single			VISIBLE	179	0	
+ExplosiveJetForm	chain.shedSwell	Single			VISIBLE	175	0	
+ExplosiveJetForm	chain.fracture	ExplosiveFracture			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	chain.fracture.chance	Single			VISIBLE	153	0	
+ExplosiveJetForm	chain.fracture.pieces	Int32			VISIBLE	153	0	
+ExplosiveJetForm	chain.fracture.at	Single			VISIBLE	158	0	
+ExplosiveJetForm	chain.fracture.open	Single			VISIBLE	121	0	
+ExplosiveJetForm	chain.fracture.kick	Single			VISIBLE	129	0	
+ExplosiveJetForm	chain.fracture.spin	Single			VISIBLE	110	0	
+ExplosiveJetForm	chain.fracture.grip	Single			VISIBLE	153	0	
+ExplosiveJetForm	chain.fracture.rot	Single			VISIBLE	150	0	
+ExplosiveJetForm	chain.fracture.drift	Single			VISIBLE	150	0	
+ExplosiveJetForm	chain.fracture.stagger	Single			VISIBLE	135	0	
+ExplosiveJetForm	chain.fracture.cut	Single			VISIBLE	140	0	
+ExplosiveJetForm	chain.fracture.body	Single			VISIBLE	146	0	
+ExplosiveJetForm	chain.fracture2	ExplosiveFracture2			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	chain.fracture2.chance	Single			VISIBLE	55	0	
+ExplosiveJetForm	chain.fracture2.at	Single			VISIBLE	63	0	
+ExplosiveJetForm	chain.fracture2.open	Single			VISIBLE	23	0	
+ExplosiveJetForm	chain.fracture2.cut	Single			VISIBLE	37	0	
+ExplosiveJetForm	chain.fracture2.kick	Single			VISIBLE	33	0	
+ExplosiveJetForm	chain.fracture2.drift	Single			VISIBLE	46	0	
+ExplosiveJetForm	chain.fracture2.spin	Single			VISIBLE	40	0	
+ExplosiveJetForm	chain.fracture2.stagger	Single			VISIBLE	34	0	
+ExplosiveJetForm	chain.flash	ExplosiveFlash			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	chain.flash.radius	Single			VISIBLE	0		
+ExplosiveJetForm	chain.flash.amp	Single			VISIBLE	0		
+ExplosiveJetForm	chain.flash.life	Single			VISIBLE	11	0.25	
+ExplosiveJetForm	chain.flash.grow	Single			VISIBLE	0		
+ExplosiveJetForm	chain.flash.elong	Single			VISIBLE	0		
+ExplosiveJetForm	chain.chunks	ExplosiveChunks			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	chain.chunks.count	Int32			VISIBLE	9	0	
+ExplosiveJetForm	chain.chunks.radius	Single			VISIBLE	9	0	
+ExplosiveJetForm	chain.chunks.reach	Single			VISIBLE	10	0	
+ExplosiveJetForm	chain.chunks.drag	Single			VISIBLE	10	0	
+ExplosiveJetForm	chain.chunks.life	Single			VISIBLE	9	0	
+ExplosiveJetForm	chain.chunks.sag	Single			VISIBLE	10	0	
+ExplosiveJetForm	chain.chunks.trail	Int32			VISIBLE	5	0	
+ExplosiveJetForm	chain.chunks.amp	Single			VISIBLE	9	0	
+ExplosiveJetForm	chain.chunks.wide	Single			VISIBLE	10	0	
+ExplosiveJetForm	chain.gobs	ExplosiveGobs			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	chain.gobs.count	Int32			VISIBLE	61	0	
+ExplosiveJetForm	chain.gobs.radius	Single			VISIBLE	61	0	
+ExplosiveJetForm	chain.gobs.reach	Single			VISIBLE	76	0	
+ExplosiveJetForm	chain.gobs.drag	Single			VISIBLE	75	0	
+ExplosiveJetForm	chain.gobs.life	Single			VISIBLE	61	0	
+ExplosiveJetForm	chain.gobs.amp	Single			VISIBLE	61	0	
+ExplosiveJetForm	chain.gobs.swell	Single			VISIBLE	61	0	
+ExplosiveJetForm	chain.gobs.sag	Single			VISIBLE	67	0	
+ExplosiveJetForm	chain.gobs.wide	Single			VISIBLE	76	0	
+ExplosiveJetForm	chain.gobs.early	Single			VISIBLE	51	0	
+ExplosiveJetForm	chain.gobs.trail	Int32			VISIBLE	31	0	
+ExplosiveJetForm	chain.dust	ExplosiveDust			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	chain.dust.count	Int32			VISIBLE	15	0	
+ExplosiveJetForm	chain.dust.radius	Single			VISIBLE	15	0	
+ExplosiveJetForm	chain.dust.from	Single			VISIBLE	19	0	
+ExplosiveJetForm	chain.dust.to	Single			VISIBLE	20	0	
+ExplosiveJetForm	chain.dust.bias	Single			VISIBLE	19	0	
+ExplosiveJetForm	chain.dust.where	Single			VISIBLE	18	0	
+ExplosiveJetForm	chain.dust.reach	Single			VISIBLE	20	0	
+ExplosiveJetForm	chain.dust.drag	Single			VISIBLE	21	0	
+ExplosiveJetForm	chain.dust.life	Single			VISIBLE	15	0	
+ExplosiveJetForm	chain.dust.amp	Single			VISIBLE	15	0	
+ExplosiveJetForm	chain.dust.sag	Single			VISIBLE	12	0	
+ExplosiveJetForm	chain.dust.scatter	Single			VISIBLE	15	0	
+ExplosiveJetForm	chain.dust.wide	Single			VISIBLE	20	0	
+ExplosiveJetForm	chain.dust.trail	Int32			VISIBLE	8	2	
+ExplosiveJetForm	frag	ExplosiveJetSettings	variant	Frag	CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	frag.w	Int32			VISIBLE	384	0	
+ExplosiveJetForm	frag.h	Int32			VISIBLE	384	0	
+ExplosiveJetForm	frag.nozzleX	Single			VISIBLE	85	0	
+ExplosiveJetForm	frag.nozzleY	Single			VISIBLE	119	0	
+ExplosiveJetForm	frag.aim	ZUIValue			VISIBLE	325	0.25	
+ExplosiveJetForm	frag.reach	ZUIValue			VISIBLE	378	0	
+ExplosiveJetForm	frag.spread	ZUIValue			VISIBLE	419	0	
+ExplosiveJetForm	frag.drag	Single			VISIBLE	394	0	
+ExplosiveJetForm	frag.buoy	Single			VISIBLE	377	0	
+ExplosiveJetForm	frag.grav	Single			VISIBLE	310	0	
+ExplosiveJetForm	frag.r0	ZUIValue			VISIBLE	375	0	
+ExplosiveJetForm	frag.growth	Single			VISIBLE	374	0	
+ExplosiveJetForm	frag.elong	ZUIValue			VISIBLE	370	0	
+ExplosiveJetForm	frag.roundAt	Single			VISIBLE	370	0	
+ExplosiveJetForm	frag.slots	Int32			VISIBLE	375	0	
+ExplosiveJetForm	frag.life	Single			VISIBLE	384	0	
+ExplosiveJetForm	frag.jitter	ZUIValue			VISIBLE	421	0	
+ExplosiveJetForm	frag.strength	ZUIValue			VISIBLE	375	0	
+ExplosiveJetForm	frag.cool	ZUIValue			VISIBLE	428	0	
+ExplosiveJetForm	frag.soot	ZUIValue			VISIBLE	280	0	
+ExplosiveJetForm	frag.pulseN	Int32			VISIBLE	0		
+ExplosiveJetForm	frag.pulseDepth	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	frag.sweep	ZUIValue			VISIBLE	237	0.25	
+ExplosiveJetForm	frag.sweepN	Int32			VISIBLE	0		
+ExplosiveJetForm	frag.shockN	Single			VISIBLE	0		
+ExplosiveJetForm	frag.shockDepth	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	frag.rootR	ZUIValue			VISIBLE	2	0	
+ExplosiveJetForm	frag.rootAmp	ZUIValue			VISIBLE	2	0	
+ExplosiveJetForm	frag.shed	ZUIValue			VISIBLE	252	0	
+ExplosiveJetForm	frag.shedKick	ZUIValue			VISIBLE	176	0	
+ExplosiveJetForm	frag.shedLife	Single			VISIBLE	245	0	
+ExplosiveJetForm	frag.sparks	Int32			VISIBLE	5	0	
+ExplosiveJetForm	frag.sparkR	ZUIValue			VISIBLE	5	0	
+ExplosiveJetForm	frag.ringN	Int32			VISIBLE	26	1	
+ExplosiveJetForm	frag.ringK	Int32			VISIBLE	0		
+ExplosiveJetForm	frag.ringR0	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	frag.ringGrow	Single			VISIBLE	0		
+ExplosiveJetForm	frag.ringLife	Single			VISIBLE	0		
+ExplosiveJetForm	frag.ringReach	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	frag.ringAmp	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	frag.warp0	ZUIValue			VISIBLE	348	0	
+ExplosiveJetForm	frag.warp1	ZUIValue			VISIBLE	408	0	
+ExplosiveJetForm	frag.warpCell	Single			VISIBLE	384	0	
+ExplosiveJetForm	frag.warpOct	Int32			VISIBLE	384	0	
+ExplosiveJetForm	frag.lo	ZUIValue			VISIBLE	640	0	
+ExplosiveJetForm	frag.hi	ZUIValue			VISIBLE	380	0	
+ExplosiveJetForm	frag.curve	ZUIValue			VISIBLE	380	0	
+ExplosiveJetForm	frag.steps	Int32			VISIBLE	373	2	
+ExplosiveJetForm	frag.soft	ZUIValue			VISIBLE	128	0	
+ExplosiveJetForm	frag.gain	ZUIValue			VISIBLE	384	0	
+ExplosiveJetForm	frag.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+ExplosiveJetForm	frag.sootRamp	PyreRamp			VISIBLE	0	(no perturbable member)	
+ExplosiveJetForm	frag.sootLo	ZUIValue			VISIBLE	376	0	
+ExplosiveJetForm	frag.sootHi	ZUIValue			VISIBLE	326	0	
+ExplosiveJetForm	frag.bias	Single			VISIBLE	404	0	
+ExplosiveJetForm	frag.srcR	Single			VISIBLE	806	0.25	
+ExplosiveJetForm	frag.swirl	Single			VISIBLE	234	0.25	
+ExplosiveJetForm	frag.spin	Int32			VISIBLE	466	1	
+ExplosiveJetForm	frag.lobes	Int32			VISIBLE	0		
+ExplosiveJetForm	frag.lobeDepth	Single			VISIBLE	0		
+ExplosiveJetForm	frag.lobeKick	Single			VISIBLE	0		
+ExplosiveJetForm	frag.rootK	Int32			VISIBLE	0		
+ExplosiveJetForm	frag.ringFlat	Boolean			VISIBLE	0	True	
+ExplosiveJetForm	frag.ringArc	Single			VISIBLE	0		
+ExplosiveJetForm	frag.warpSpin	Int32			VISIBLE	417	1	
+ExplosiveJetForm	frag.blasts	List<ExplosiveBlast>			LIST	0	5	reorderable list of ExplosiveBlast
+ExplosiveJetForm	frag.blasts[0].at	Single			VISIBLE	467	0.25	
+ExplosiveJetForm	frag.blasts[0].pow	Single			VISIBLE	400	0	
+ExplosiveJetForm	frag.blasts[0].share	Single			VISIBLE	493	0	
+ExplosiveJetForm	frag.blasts[0].offX	Single			VISIBLE	120	0	
+ExplosiveJetForm	frag.blasts[0].offY	Single			VISIBLE	99	0	
+ExplosiveJetForm	frag.blasts[1].at	Single			VISIBLE	110	0	
+ExplosiveJetForm	frag.blasts[1].pow	Single			VISIBLE	212	0	
+ExplosiveJetForm	frag.blasts[1].share	Single			VISIBLE	492	0	
+ExplosiveJetForm	frag.blasts[1].offX	Single			VISIBLE	229	0	
+ExplosiveJetForm	frag.blasts[1].offY	Single			VISIBLE	174	0	
+ExplosiveJetForm	frag.blastSpan	Single			VISIBLE	436	0	
+ExplosiveJetForm	frag.blastSkew	Single			VISIBLE	369	0	
+ExplosiveJetForm	frag.blastFront	Single			VISIBLE	380	0	
+ExplosiveJetForm	frag.velSpread	Single			VISIBLE	593	0	
+ExplosiveJetForm	frag.swell	Single			VISIBLE	595	0.25	
+ExplosiveJetForm	frag.hold	Single			VISIBLE	377	0	
+ExplosiveJetForm	frag.shrink	Single			VISIBLE	361	0	
+ExplosiveJetForm	frag.shrinkAt	Single			VISIBLE	366	0	
+ExplosiveJetForm	frag.leadDie	Single			VISIBLE	443	0	
+ExplosiveJetForm	frag.opaq	Single			VISIBLE	372	0	
+ExplosiveJetForm	frag.shedSwell	Single			VISIBLE	245	0	
+ExplosiveJetForm	frag.fracture	ExplosiveFracture			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	frag.fracture.chance	Single			VISIBLE	358	0	
+ExplosiveJetForm	frag.fracture.pieces	Int32			VISIBLE	358	0	
+ExplosiveJetForm	frag.fracture.at	Single			VISIBLE	457	0	
+ExplosiveJetForm	frag.fracture.open	Single			VISIBLE	299	0	
+ExplosiveJetForm	frag.fracture.kick	Single			VISIBLE	242	0	
+ExplosiveJetForm	frag.fracture.spin	Single			VISIBLE	269	0	
+ExplosiveJetForm	frag.fracture.grip	Single			VISIBLE	358	0	
+ExplosiveJetForm	frag.fracture.rot	Single			VISIBLE	362	0	
+ExplosiveJetForm	frag.fracture.drift	Single			VISIBLE	353	0	
+ExplosiveJetForm	frag.fracture.stagger	Single			VISIBLE	345	0	
+ExplosiveJetForm	frag.fracture.cut	Single			VISIBLE	322	0	
+ExplosiveJetForm	frag.fracture.body	Single			VISIBLE	293	0	
+ExplosiveJetForm	frag.fracture2	ExplosiveFracture2			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	frag.fracture2.chance	Single			VISIBLE	46	0	
+ExplosiveJetForm	frag.fracture2.at	Single			VISIBLE	314	0	
+ExplosiveJetForm	frag.fracture2.open	Single			VISIBLE	49	0	
+ExplosiveJetForm	frag.fracture2.cut	Single			VISIBLE	49	0	
+ExplosiveJetForm	frag.fracture2.kick	Single			VISIBLE	37	0	
+ExplosiveJetForm	frag.fracture2.drift	Single			VISIBLE	54	0	
+ExplosiveJetForm	frag.fracture2.spin	Single			VISIBLE	38	0	
+ExplosiveJetForm	frag.fracture2.stagger	Single			VISIBLE	135	0	
+ExplosiveJetForm	frag.flash	ExplosiveFlash			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	frag.flash.radius	Single			VISIBLE	0		
+ExplosiveJetForm	frag.flash.amp	Single			VISIBLE	0		
+ExplosiveJetForm	frag.flash.life	Single			VISIBLE	18	0.25	
+ExplosiveJetForm	frag.flash.grow	Single			VISIBLE	0		
+ExplosiveJetForm	frag.flash.elong	Single			VISIBLE	0		
+ExplosiveJetForm	frag.chunks	ExplosiveChunks			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	frag.chunks.count	Int32			VISIBLE	42	0	
+ExplosiveJetForm	frag.chunks.radius	Single			VISIBLE	42	0	
+ExplosiveJetForm	frag.chunks.reach	Single			VISIBLE	46	0	
+ExplosiveJetForm	frag.chunks.drag	Single			VISIBLE	39	0	
+ExplosiveJetForm	frag.chunks.life	Single			VISIBLE	42	0	
+ExplosiveJetForm	frag.chunks.sag	Single			VISIBLE	46	0	
+ExplosiveJetForm	frag.chunks.trail	Int32			VISIBLE	16	0	
+ExplosiveJetForm	frag.chunks.amp	Single			VISIBLE	42	0	
+ExplosiveJetForm	frag.chunks.wide	Single			VISIBLE	51	0	
+ExplosiveJetForm	frag.gobs	ExplosiveGobs			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	frag.gobs.count	Int32			VISIBLE	101	0	
+ExplosiveJetForm	frag.gobs.radius	Single			VISIBLE	101	0	
+ExplosiveJetForm	frag.gobs.reach	Single			VISIBLE	104	0	
+ExplosiveJetForm	frag.gobs.drag	Single			VISIBLE	97	0	
+ExplosiveJetForm	frag.gobs.life	Single			VISIBLE	101	0	
+ExplosiveJetForm	frag.gobs.amp	Single			VISIBLE	101	0	
+ExplosiveJetForm	frag.gobs.swell	Single			VISIBLE	99	0	
+ExplosiveJetForm	frag.gobs.sag	Single			VISIBLE	97	0	
+ExplosiveJetForm	frag.gobs.wide	Single			VISIBLE	112	0	
+ExplosiveJetForm	frag.gobs.early	Single			VISIBLE	90	0	
+ExplosiveJetForm	frag.gobs.trail	Int32			VISIBLE	60	0	
+ExplosiveJetForm	frag.dust	ExplosiveDust			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	frag.dust.count	Int32			VISIBLE	20	0	
+ExplosiveJetForm	frag.dust.radius	Single			VISIBLE	20	0	
+ExplosiveJetForm	frag.dust.from	Single			VISIBLE	26	0	
+ExplosiveJetForm	frag.dust.to	Single			VISIBLE	33	0	
+ExplosiveJetForm	frag.dust.bias	Single			VISIBLE	30	0	
+ExplosiveJetForm	frag.dust.where	Single			VISIBLE	29	0	
+ExplosiveJetForm	frag.dust.reach	Single			VISIBLE	37	0	
+ExplosiveJetForm	frag.dust.drag	Single			VISIBLE	29	0	
+ExplosiveJetForm	frag.dust.life	Single			VISIBLE	20	0	
+ExplosiveJetForm	frag.dust.amp	Single			VISIBLE	20	0	
+ExplosiveJetForm	frag.dust.sag	Single			VISIBLE	20	0	
+ExplosiveJetForm	frag.dust.scatter	Single			VISIBLE	23	0	
+ExplosiveJetForm	frag.dust.wide	Single			VISIBLE	31	0	
+ExplosiveJetForm	frag.dust.trail	Int32			VISIBLE	9	2	
+ExplosiveJetForm	fuelair	ExplosiveJetSettings	variant	Fuelair	CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	fuelair.w	Int32			VISIBLE	796	0	
+ExplosiveJetForm	fuelair.h	Int32			VISIBLE	796	0	
+ExplosiveJetForm	fuelair.nozzleX	Single			VISIBLE	377	0	
+ExplosiveJetForm	fuelair.nozzleY	Single			VISIBLE	464	0	
+ExplosiveJetForm	fuelair.aim	ZUIValue			VISIBLE	477	0.25	
+ExplosiveJetForm	fuelair.reach	ZUIValue			VISIBLE	787	0	
+ExplosiveJetForm	fuelair.spread	ZUIValue			VISIBLE	805	0	
+ExplosiveJetForm	fuelair.drag	Single			VISIBLE	752	0	
+ExplosiveJetForm	fuelair.buoy	Single			VISIBLE	816	0	
+ExplosiveJetForm	fuelair.grav	Single			VISIBLE	797	0.25	
+ExplosiveJetForm	fuelair.r0	ZUIValue			VISIBLE	796	0	
+ExplosiveJetForm	fuelair.growth	Single			VISIBLE	786	0	
+ExplosiveJetForm	fuelair.elong	ZUIValue			VISIBLE	790	0	
+ExplosiveJetForm	fuelair.roundAt	Single			VISIBLE	790	0	
+ExplosiveJetForm	fuelair.slots	Int32			VISIBLE	796	0	
+ExplosiveJetForm	fuelair.life	Single			VISIBLE	796	0	
+ExplosiveJetForm	fuelair.jitter	ZUIValue			VISIBLE	756	0	
+ExplosiveJetForm	fuelair.strength	ZUIValue			VISIBLE	796	0	
+ExplosiveJetForm	fuelair.cool	ZUIValue			VISIBLE	913	0	
+ExplosiveJetForm	fuelair.soot	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	fuelair.pulseN	Int32			VISIBLE	0		
+ExplosiveJetForm	fuelair.pulseDepth	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	fuelair.sweep	ZUIValue			VISIBLE	362	0.25	
+ExplosiveJetForm	fuelair.sweepN	Int32			VISIBLE	0		
+ExplosiveJetForm	fuelair.shockN	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.shockDepth	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	fuelair.rootR	ZUIValue			VISIBLE	3	0	
+ExplosiveJetForm	fuelair.rootAmp	ZUIValue			VISIBLE	3	0	
+ExplosiveJetForm	fuelair.shed	ZUIValue			VISIBLE	704	0	
+ExplosiveJetForm	fuelair.shedKick	ZUIValue			VISIBLE	494	0	
+ExplosiveJetForm	fuelair.shedLife	Single			VISIBLE	673	0	
+ExplosiveJetForm	fuelair.sparks	Int32			VISIBLE	5	0	
+ExplosiveJetForm	fuelair.sparkR	ZUIValue			VISIBLE	5	0	
+ExplosiveJetForm	fuelair.ringN	Int32			VISIBLE	39	1	
+ExplosiveJetForm	fuelair.ringK	Int32			VISIBLE	0		
+ExplosiveJetForm	fuelair.ringR0	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	fuelair.ringGrow	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.ringLife	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.ringReach	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	fuelair.ringAmp	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	fuelair.warp0	ZUIValue			VISIBLE	598	0	
+ExplosiveJetForm	fuelair.warp1	ZUIValue			VISIBLE	782	0	
+ExplosiveJetForm	fuelair.warpCell	Single			VISIBLE	796	0	
+ExplosiveJetForm	fuelair.warpOct	Int32			VISIBLE	796	0	
+ExplosiveJetForm	fuelair.lo	ZUIValue			VISIBLE	1064	0	
+ExplosiveJetForm	fuelair.hi	ZUIValue			VISIBLE	760	0	
+ExplosiveJetForm	fuelair.curve	ZUIValue			VISIBLE	760	0	
+ExplosiveJetForm	fuelair.steps	Int32			VISIBLE	755	2	
+ExplosiveJetForm	fuelair.soft	ZUIValue			VISIBLE	136	0	
+ExplosiveJetForm	fuelair.gain	ZUIValue			VISIBLE	796	0	
+ExplosiveJetForm	fuelair.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+ExplosiveJetForm	fuelair.sootRamp	PyreRamp			VISIBLE	0	(no perturbable member)	
+ExplosiveJetForm	fuelair.sootLo	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	fuelair.sootHi	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	fuelair.bias	Single			VISIBLE	797	0	
+ExplosiveJetForm	fuelair.srcR	Single			VISIBLE	2832	0.25	
+ExplosiveJetForm	fuelair.swirl	Single			VISIBLE	370	0.25	
+ExplosiveJetForm	fuelair.spin	Int32			VISIBLE	791	1	
+ExplosiveJetForm	fuelair.lobes	Int32			VISIBLE	0		
+ExplosiveJetForm	fuelair.lobeDepth	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.lobeKick	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.rootK	Int32			VISIBLE	0		
+ExplosiveJetForm	fuelair.ringFlat	Boolean			VISIBLE	0	True	
+ExplosiveJetForm	fuelair.ringArc	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.warpSpin	Int32			VISIBLE	787	1	
+ExplosiveJetForm	fuelair.blasts	List<ExplosiveBlast>			LIST	0	1	reorderable list of ExplosiveBlast
+ExplosiveJetForm	fuelair.blasts[0].at	Single			VISIBLE	819	0.25	
+ExplosiveJetForm	fuelair.blasts[0].pow	Single			VISIBLE	796	0	
+ExplosiveJetForm	fuelair.blasts[0].share	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.blasts[0].offX	Single			VISIBLE	1284	0.25	
+ExplosiveJetForm	fuelair.blasts[0].offY	Single			VISIBLE	1243	0.25	
+ExplosiveJetForm	fuelair.blastSpan	Single			VISIBLE	872	0	
+ExplosiveJetForm	fuelair.blastSkew	Single			VISIBLE	757	0	
+ExplosiveJetForm	fuelair.blastFront	Single			VISIBLE	750	0	
+ExplosiveJetForm	fuelair.velSpread	Single			VISIBLE	1062	0	
+ExplosiveJetForm	fuelair.swell	Single			VISIBLE	769	0	
+ExplosiveJetForm	fuelair.hold	Single			VISIBLE	770	0	
+ExplosiveJetForm	fuelair.shrink	Single			VISIBLE	821	0	
+ExplosiveJetForm	fuelair.shrinkAt	Single			VISIBLE	755	0	
+ExplosiveJetForm	fuelair.leadDie	Single			VISIBLE	868	0	
+ExplosiveJetForm	fuelair.opaq	Single			VISIBLE	803	0	
+ExplosiveJetForm	fuelair.shedSwell	Single			VISIBLE	719	0.25	
+ExplosiveJetForm	fuelair.fracture	ExplosiveFracture			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	fuelair.fracture.chance	Single			VISIBLE	620	0	
+ExplosiveJetForm	fuelair.fracture.pieces	Int32			VISIBLE	620	0	
+ExplosiveJetForm	fuelair.fracture.at	Single			VISIBLE	849	0	
+ExplosiveJetForm	fuelair.fracture.open	Single			VISIBLE	548	0	
+ExplosiveJetForm	fuelair.fracture.kick	Single			VISIBLE	496	0	
+ExplosiveJetForm	fuelair.fracture.spin	Single			VISIBLE	348	0	
+ExplosiveJetForm	fuelair.fracture.grip	Single			VISIBLE	620	0	
+ExplosiveJetForm	fuelair.fracture.rot	Single			VISIBLE	596	0	
+ExplosiveJetForm	fuelair.fracture.drift	Single			VISIBLE	576	0	
+ExplosiveJetForm	fuelair.fracture.stagger	Single			VISIBLE	585	0	
+ExplosiveJetForm	fuelair.fracture.cut	Single			VISIBLE	583	0	
+ExplosiveJetForm	fuelair.fracture.body	Single			VISIBLE	540	0	
+ExplosiveJetForm	fuelair.fracture2	ExplosiveFracture2			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	fuelair.fracture2.chance	Single			VISIBLE	104	0.25	
+ExplosiveJetForm	fuelair.fracture2.at	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.fracture2.open	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.fracture2.cut	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.fracture2.kick	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.fracture2.drift	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.fracture2.spin	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.fracture2.stagger	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.flash	ExplosiveFlash			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	fuelair.flash.radius	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.flash.amp	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.flash.life	Single			VISIBLE	142	0.5	
+ExplosiveJetForm	fuelair.flash.grow	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.flash.elong	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.chunks	ExplosiveChunks			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	fuelair.chunks.count	Int32			VISIBLE	5	1	
+ExplosiveJetForm	fuelair.chunks.radius	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.chunks.reach	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.chunks.drag	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.chunks.life	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.chunks.sag	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.chunks.trail	Int32			VISIBLE	0		
+ExplosiveJetForm	fuelair.chunks.amp	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.chunks.wide	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.gobs	ExplosiveGobs			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	fuelair.gobs.count	Int32			VISIBLE	64	1	
+ExplosiveJetForm	fuelair.gobs.radius	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.gobs.reach	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.gobs.drag	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.gobs.life	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.gobs.amp	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.gobs.swell	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.gobs.sag	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.gobs.wide	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.gobs.early	Single			VISIBLE	0		
+ExplosiveJetForm	fuelair.gobs.trail	Int32			VISIBLE	0		
+ExplosiveJetForm	fuelair.dust	ExplosiveDust			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	fuelair.dust.count	Int32			VISIBLE	69	0	
+ExplosiveJetForm	fuelair.dust.radius	Single			VISIBLE	69	0	
+ExplosiveJetForm	fuelair.dust.from	Single			VISIBLE	88	0	
+ExplosiveJetForm	fuelair.dust.to	Single			VISIBLE	80	0	
+ExplosiveJetForm	fuelair.dust.bias	Single			VISIBLE	69	0	
+ExplosiveJetForm	fuelair.dust.where	Single			VISIBLE	89	0	
+ExplosiveJetForm	fuelair.dust.reach	Single			VISIBLE	109	0	
+ExplosiveJetForm	fuelair.dust.drag	Single			VISIBLE	86	0	
+ExplosiveJetForm	fuelair.dust.life	Single			VISIBLE	69	0	
+ExplosiveJetForm	fuelair.dust.amp	Single			VISIBLE	69	0	
+ExplosiveJetForm	fuelair.dust.sag	Single			VISIBLE	59	0	
+ExplosiveJetForm	fuelair.dust.scatter	Single			VISIBLE	75	0	
+ExplosiveJetForm	fuelair.dust.wide	Single			VISIBLE	74	0	
+ExplosiveJetForm	fuelair.dust.trail	Int32			VISIBLE	37	2	
+ExplosiveJetForm	lash	ExplosiveJetSettings	variant	Lash	CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	lash.w	Int32			VISIBLE	554	0	
+ExplosiveJetForm	lash.h	Int32			VISIBLE	554	0	
+ExplosiveJetForm	lash.nozzleX	Single			VISIBLE	324	0	
+ExplosiveJetForm	lash.nozzleY	Single			VISIBLE	284	0	
+ExplosiveJetForm	lash.aim	ZUIValue			VISIBLE	468	0.25	
+ExplosiveJetForm	lash.reach	ZUIValue			VISIBLE	574	0	
+ExplosiveJetForm	lash.spread	ZUIValue			VISIBLE	748	0	
+ExplosiveJetForm	lash.drag	Single			VISIBLE	578	0	
+ExplosiveJetForm	lash.buoy	Single			VISIBLE	605	0	
+ExplosiveJetForm	lash.grav	Single			VISIBLE	641	0.25	
+ExplosiveJetForm	lash.r0	ZUIValue			VISIBLE	551	0	
+ExplosiveJetForm	lash.growth	Single			VISIBLE	551	0	
+ExplosiveJetForm	lash.elong	ZUIValue			VISIBLE	551	0	
+ExplosiveJetForm	lash.roundAt	Single			VISIBLE	551	0	
+ExplosiveJetForm	lash.slots	Int32			VISIBLE	551	0	
+ExplosiveJetForm	lash.life	Single			VISIBLE	554	0	
+ExplosiveJetForm	lash.jitter	ZUIValue			VISIBLE	592	0	
+ExplosiveJetForm	lash.strength	ZUIValue			VISIBLE	551	0	
+ExplosiveJetForm	lash.cool	ZUIValue			VISIBLE	986	0	
+ExplosiveJetForm	lash.soot	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	lash.pulseN	Int32			VISIBLE	0		
+ExplosiveJetForm	lash.pulseDepth	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	lash.sweep	ZUIValue			VISIBLE	358	0.25	
+ExplosiveJetForm	lash.sweepN	Int32			VISIBLE	0		
+ExplosiveJetForm	lash.shockN	Single			VISIBLE	0		
+ExplosiveJetForm	lash.shockDepth	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	lash.rootR	ZUIValue			VISIBLE	2	0	
+ExplosiveJetForm	lash.rootAmp	ZUIValue			VISIBLE	2	0	
+ExplosiveJetForm	lash.shed	ZUIValue			VISIBLE	471	0	
+ExplosiveJetForm	lash.shedKick	ZUIValue			VISIBLE	420	0	
+ExplosiveJetForm	lash.shedLife	Single			VISIBLE	472	0	
+ExplosiveJetForm	lash.sparks	Int32			VISIBLE	6	0	
+ExplosiveJetForm	lash.sparkR	ZUIValue			VISIBLE	6	0	
+ExplosiveJetForm	lash.ringN	Int32			VISIBLE	40	1	
+ExplosiveJetForm	lash.ringK	Int32			VISIBLE	0		
+ExplosiveJetForm	lash.ringR0	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	lash.ringGrow	Single			VISIBLE	0		
+ExplosiveJetForm	lash.ringLife	Single			VISIBLE	0		
+ExplosiveJetForm	lash.ringReach	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	lash.ringAmp	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	lash.warp0	ZUIValue			VISIBLE	480	0	
+ExplosiveJetForm	lash.warp1	ZUIValue			VISIBLE	560	0	
+ExplosiveJetForm	lash.warpCell	Single			VISIBLE	554	0	
+ExplosiveJetForm	lash.warpOct	Int32			VISIBLE	554	0	
+ExplosiveJetForm	lash.lo	ZUIValue			VISIBLE	1259	0	
+ExplosiveJetForm	lash.hi	ZUIValue			VISIBLE	559	0	
+ExplosiveJetForm	lash.curve	ZUIValue			VISIBLE	559	0	
+ExplosiveJetForm	lash.steps	Int32			VISIBLE	554	2	
+ExplosiveJetForm	lash.soft	ZUIValue			VISIBLE	216	0	
+ExplosiveJetForm	lash.gain	ZUIValue			VISIBLE	554	0	
+ExplosiveJetForm	lash.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+ExplosiveJetForm	lash.sootRamp	PyreRamp			VISIBLE	0	(no perturbable member)	
+ExplosiveJetForm	lash.sootLo	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	lash.sootHi	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	lash.bias	Single			VISIBLE	648	0	
+ExplosiveJetForm	lash.srcR	Single			VISIBLE	1162	0.25	
+ExplosiveJetForm	lash.swirl	Single			VISIBLE	704	0	
+ExplosiveJetForm	lash.spin	Int32			VISIBLE	673	1	
+ExplosiveJetForm	lash.lobes	Int32			VISIBLE	705	0	
+ExplosiveJetForm	lash.lobeDepth	Single			VISIBLE	585	0	
+ExplosiveJetForm	lash.lobeKick	Single			VISIBLE	681	0	
+ExplosiveJetForm	lash.rootK	Int32			VISIBLE	0		
+ExplosiveJetForm	lash.ringFlat	Boolean			VISIBLE	0	True	
+ExplosiveJetForm	lash.ringArc	Single			VISIBLE	0		
+ExplosiveJetForm	lash.warpSpin	Int32			VISIBLE	566	0	
+ExplosiveJetForm	lash.blasts	List<ExplosiveBlast>			LIST	0	2	reorderable list of ExplosiveBlast
+ExplosiveJetForm	lash.blasts[0].at	Single			VISIBLE	1195	0.25	
+ExplosiveJetForm	lash.blasts[0].pow	Single			VISIBLE	554	0	
+ExplosiveJetForm	lash.blasts[0].share	Single			VISIBLE	551	0	
+ExplosiveJetForm	lash.blasts[0].offX	Single			VISIBLE	690	0	
+ExplosiveJetForm	lash.blasts[0].offY	Single			VISIBLE	660	0	
+ExplosiveJetForm	lash.blasts[1].at	Single			VISIBLE	598	0	
+ExplosiveJetForm	lash.blasts[1].pow	Single			VISIBLE	549	0	
+ExplosiveJetForm	lash.blasts[1].share	Single			VISIBLE	818	0	
+ExplosiveJetForm	lash.blasts[1].offX	Single			VISIBLE	0		
+ExplosiveJetForm	lash.blasts[1].offY	Single			VISIBLE	0		
+ExplosiveJetForm	lash.blastSpan	Single			VISIBLE	562	0	
+ExplosiveJetForm	lash.blastSkew	Single			VISIBLE	631	0	
+ExplosiveJetForm	lash.blastFront	Single			VISIBLE	583	0	
+ExplosiveJetForm	lash.velSpread	Single			VISIBLE	903	0	
+ExplosiveJetForm	lash.swell	Single			VISIBLE	1134	0.25	
+ExplosiveJetForm	lash.hold	Single			VISIBLE	552	0	
+ExplosiveJetForm	lash.shrink	Single			VISIBLE	611	0	
+ExplosiveJetForm	lash.shrinkAt	Single			VISIBLE	470	0	
+ExplosiveJetForm	lash.leadDie	Single			VISIBLE	1018	0	
+ExplosiveJetForm	lash.opaq	Single			VISIBLE	559	0	
+ExplosiveJetForm	lash.shedSwell	Single			VISIBLE	472	0	
+ExplosiveJetForm	lash.fracture	ExplosiveFracture			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	lash.fracture.chance	Single			VISIBLE	606	0	
+ExplosiveJetForm	lash.fracture.pieces	Int32			VISIBLE	606	0	
+ExplosiveJetForm	lash.fracture.at	Single			VISIBLE	587	0	
+ExplosiveJetForm	lash.fracture.open	Single			VISIBLE	527	0	
+ExplosiveJetForm	lash.fracture.kick	Single			VISIBLE	551	0	
+ExplosiveJetForm	lash.fracture.spin	Single			VISIBLE	513	0	
+ExplosiveJetForm	lash.fracture.grip	Single			VISIBLE	606	0	
+ExplosiveJetForm	lash.fracture.rot	Single			VISIBLE	621	0	
+ExplosiveJetForm	lash.fracture.drift	Single			VISIBLE	624	0	
+ExplosiveJetForm	lash.fracture.stagger	Single			VISIBLE	549	0	
+ExplosiveJetForm	lash.fracture.cut	Single			VISIBLE	582	0	
+ExplosiveJetForm	lash.fracture.body	Single			VISIBLE	565	0	
+ExplosiveJetForm	lash.fracture2	ExplosiveFracture2			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	lash.fracture2.chance	Single			VISIBLE	397	0	
+ExplosiveJetForm	lash.fracture2.at	Single			VISIBLE	503	0	
+ExplosiveJetForm	lash.fracture2.open	Single			VISIBLE	339	0	
+ExplosiveJetForm	lash.fracture2.cut	Single			VISIBLE	375	0	
+ExplosiveJetForm	lash.fracture2.kick	Single			VISIBLE	298	0	
+ExplosiveJetForm	lash.fracture2.drift	Single			VISIBLE	367	0	
+ExplosiveJetForm	lash.fracture2.spin	Single			VISIBLE	250	0	
+ExplosiveJetForm	lash.fracture2.stagger	Single			VISIBLE	432	0	
+ExplosiveJetForm	lash.flash	ExplosiveFlash			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	lash.flash.radius	Single			VISIBLE	0		
+ExplosiveJetForm	lash.flash.amp	Single			VISIBLE	0		
+ExplosiveJetForm	lash.flash.life	Single			VISIBLE	106	0.5	
+ExplosiveJetForm	lash.flash.grow	Single			VISIBLE	0		
+ExplosiveJetForm	lash.flash.elong	Single			VISIBLE	0		
+ExplosiveJetForm	lash.chunks	ExplosiveChunks			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	lash.chunks.count	Int32			VISIBLE	18	0	
+ExplosiveJetForm	lash.chunks.radius	Single			VISIBLE	18	0	
+ExplosiveJetForm	lash.chunks.reach	Single			VISIBLE	22	0	
+ExplosiveJetForm	lash.chunks.drag	Single			VISIBLE	35	0	
+ExplosiveJetForm	lash.chunks.life	Single			VISIBLE	18	0	
+ExplosiveJetForm	lash.chunks.sag	Single			VISIBLE	30	0	
+ExplosiveJetForm	lash.chunks.trail	Int32			VISIBLE	8	0	
+ExplosiveJetForm	lash.chunks.amp	Single			VISIBLE	18	0	
+ExplosiveJetForm	lash.chunks.wide	Single			VISIBLE	30	0	
+ExplosiveJetForm	lash.gobs	ExplosiveGobs			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	lash.gobs.count	Int32			VISIBLE	158	0	
+ExplosiveJetForm	lash.gobs.radius	Single			VISIBLE	158	0	
+ExplosiveJetForm	lash.gobs.reach	Single			VISIBLE	206	0	
+ExplosiveJetForm	lash.gobs.drag	Single			VISIBLE	199	0	
+ExplosiveJetForm	lash.gobs.life	Single			VISIBLE	158	0	
+ExplosiveJetForm	lash.gobs.amp	Single			VISIBLE	158	0	
+ExplosiveJetForm	lash.gobs.swell	Single			VISIBLE	158	0	
+ExplosiveJetForm	lash.gobs.sag	Single			VISIBLE	155	0	
+ExplosiveJetForm	lash.gobs.wide	Single			VISIBLE	208	0	
+ExplosiveJetForm	lash.gobs.early	Single			VISIBLE	152	0	
+ExplosiveJetForm	lash.gobs.trail	Int32			VISIBLE	89	0	
+ExplosiveJetForm	lash.dust	ExplosiveDust			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	lash.dust.count	Int32			VISIBLE	16	0	
+ExplosiveJetForm	lash.dust.radius	Single			VISIBLE	16	0	
+ExplosiveJetForm	lash.dust.from	Single			VISIBLE	28	0	
+ExplosiveJetForm	lash.dust.to	Single			VISIBLE	21	0	
+ExplosiveJetForm	lash.dust.bias	Single			VISIBLE	16	0	
+ExplosiveJetForm	lash.dust.where	Single			VISIBLE	30	0	
+ExplosiveJetForm	lash.dust.reach	Single			VISIBLE	32	0	
+ExplosiveJetForm	lash.dust.drag	Single			VISIBLE	26	0	
+ExplosiveJetForm	lash.dust.life	Single			VISIBLE	16	0	
+ExplosiveJetForm	lash.dust.amp	Single			VISIBLE	16	0	
+ExplosiveJetForm	lash.dust.sag	Single			VISIBLE	18	0	
+ExplosiveJetForm	lash.dust.scatter	Single			VISIBLE	22	0	
+ExplosiveJetForm	lash.dust.wide	Single			VISIBLE	29	0	
+ExplosiveJetForm	lash.dust.trail	Int32			VISIBLE	9	2	
+ExplosiveJetForm	muzzle	ExplosiveJetSettings	variant	Muzzle	CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	muzzle.w	Int32			VISIBLE	203	0	
+ExplosiveJetForm	muzzle.h	Int32			VISIBLE	203	0	
+ExplosiveJetForm	muzzle.nozzleX	Single			VISIBLE	203	1	
+ExplosiveJetForm	muzzle.nozzleY	Single			VISIBLE	106	0	
+ExplosiveJetForm	muzzle.aim	ZUIValue			VISIBLE	192	0.25	
+ExplosiveJetForm	muzzle.reach	ZUIValue			VISIBLE	208	0	
+ExplosiveJetForm	muzzle.spread	ZUIValue			VISIBLE	205	0	
+ExplosiveJetForm	muzzle.drag	Single			VISIBLE	215	0	
+ExplosiveJetForm	muzzle.buoy	Single			VISIBLE	208	0	
+ExplosiveJetForm	muzzle.grav	Single			VISIBLE	227	0.25	
+ExplosiveJetForm	muzzle.r0	ZUIValue			VISIBLE	201	0	
+ExplosiveJetForm	muzzle.growth	Single			VISIBLE	202	0	
+ExplosiveJetForm	muzzle.elong	ZUIValue			VISIBLE	201	0	
+ExplosiveJetForm	muzzle.roundAt	Single			VISIBLE	201	0	
+ExplosiveJetForm	muzzle.slots	Int32			VISIBLE	202	0	
+ExplosiveJetForm	muzzle.life	Single			VISIBLE	203	0	
+ExplosiveJetForm	muzzle.jitter	ZUIValue			VISIBLE	233	0	
+ExplosiveJetForm	muzzle.strength	ZUIValue			VISIBLE	202	0	
+ExplosiveJetForm	muzzle.cool	ZUIValue			VISIBLE	225	0	
+ExplosiveJetForm	muzzle.soot	ZUIValue			VISIBLE	4	0	
+ExplosiveJetForm	muzzle.pulseN	Int32			VISIBLE	0		
+ExplosiveJetForm	muzzle.pulseDepth	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	muzzle.sweep	ZUIValue			VISIBLE	188	0.25	
+ExplosiveJetForm	muzzle.sweepN	Int32			VISIBLE	0		
+ExplosiveJetForm	muzzle.shockN	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.shockDepth	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	muzzle.rootR	ZUIValue			VISIBLE	1	0	
+ExplosiveJetForm	muzzle.rootAmp	ZUIValue			VISIBLE	1	0	
+ExplosiveJetForm	muzzle.shed	ZUIValue			VISIBLE	172	0	
+ExplosiveJetForm	muzzle.shedKick	ZUIValue			VISIBLE	191	0	
+ExplosiveJetForm	muzzle.shedLife	Single			VISIBLE	148	0	
+ExplosiveJetForm	muzzle.sparks	Int32			VISIBLE	3	0	
+ExplosiveJetForm	muzzle.sparkR	ZUIValue			VISIBLE	3	0	
+ExplosiveJetForm	muzzle.ringN	Int32			VISIBLE	15	1	
+ExplosiveJetForm	muzzle.ringK	Int32			VISIBLE	0		
+ExplosiveJetForm	muzzle.ringR0	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	muzzle.ringGrow	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.ringLife	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.ringReach	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	muzzle.ringAmp	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	muzzle.warp0	ZUIValue			VISIBLE	158	0	
+ExplosiveJetForm	muzzle.warp1	ZUIValue			VISIBLE	207	0	
+ExplosiveJetForm	muzzle.warpCell	Single			VISIBLE	203	0	
+ExplosiveJetForm	muzzle.warpOct	Int32			VISIBLE	203	0	
+ExplosiveJetForm	muzzle.lo	ZUIValue			VISIBLE	313	0	
+ExplosiveJetForm	muzzle.hi	ZUIValue			VISIBLE	201	0	
+ExplosiveJetForm	muzzle.curve	ZUIValue			VISIBLE	201	0	
+ExplosiveJetForm	muzzle.steps	Int32			VISIBLE	199	2	
+ExplosiveJetForm	muzzle.soft	ZUIValue			VISIBLE	44	0	
+ExplosiveJetForm	muzzle.gain	ZUIValue			VISIBLE	203	0	
+ExplosiveJetForm	muzzle.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+ExplosiveJetForm	muzzle.sootRamp	PyreRamp			VISIBLE	0	(no perturbable member)	
+ExplosiveJetForm	muzzle.sootLo	ZUIValue			VISIBLE	200	0	
+ExplosiveJetForm	muzzle.sootHi	ZUIValue			VISIBLE	15	0	
+ExplosiveJetForm	muzzle.bias	Single			VISIBLE	292	0	
+ExplosiveJetForm	muzzle.srcR	Single			VISIBLE	463	0.25	
+ExplosiveJetForm	muzzle.swirl	Single			VISIBLE	168	0.25	
+ExplosiveJetForm	muzzle.spin	Int32			VISIBLE	380	1	
+ExplosiveJetForm	muzzle.lobes	Int32			VISIBLE	0		
+ExplosiveJetForm	muzzle.lobeDepth	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.lobeKick	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.rootK	Int32			VISIBLE	0		
+ExplosiveJetForm	muzzle.ringFlat	Boolean			VISIBLE	0	True	
+ExplosiveJetForm	muzzle.ringArc	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.warpSpin	Int32			VISIBLE	221	1	
+ExplosiveJetForm	muzzle.blasts	List<ExplosiveBlast>			LIST	0	4	reorderable list of ExplosiveBlast
+ExplosiveJetForm	muzzle.blasts[0].at	Single			VISIBLE	249	0.25	
+ExplosiveJetForm	muzzle.blasts[0].pow	Single			VISIBLE	200	0	
+ExplosiveJetForm	muzzle.blasts[0].share	Single			VISIBLE	274	0	
+ExplosiveJetForm	muzzle.blasts[0].offX	Single			VISIBLE	2	0.25	
+ExplosiveJetForm	muzzle.blasts[0].offY	Single			VISIBLE	1	0.25	
+ExplosiveJetForm	muzzle.blasts[1].at	Single			VISIBLE	203	0	
+ExplosiveJetForm	muzzle.blasts[1].pow	Single			VISIBLE	203	0	
+ExplosiveJetForm	muzzle.blasts[1].share	Single			VISIBLE	202	0	
+ExplosiveJetForm	muzzle.blasts[1].offX	Single			VISIBLE	335	0.25	
+ExplosiveJetForm	muzzle.blasts[1].offY	Single			VISIBLE	363	0.25	
+ExplosiveJetForm	muzzle.blastSpan	Single			VISIBLE	205	0	
+ExplosiveJetForm	muzzle.blastSkew	Single			VISIBLE	213	0	
+ExplosiveJetForm	muzzle.blastFront	Single			VISIBLE	210	0	
+ExplosiveJetForm	muzzle.velSpread	Single			VISIBLE	318	0	
+ExplosiveJetForm	muzzle.swell	Single			VISIBLE	352	0.25	
+ExplosiveJetForm	muzzle.hold	Single			VISIBLE	202	0	
+ExplosiveJetForm	muzzle.shrink	Single			VISIBLE	197	0	
+ExplosiveJetForm	muzzle.shrinkAt	Single			VISIBLE	187	0	
+ExplosiveJetForm	muzzle.leadDie	Single			VISIBLE	223	0	
+ExplosiveJetForm	muzzle.opaq	Single			VISIBLE	200	0	
+ExplosiveJetForm	muzzle.shedSwell	Single			VISIBLE	162	0.25	
+ExplosiveJetForm	muzzle.fracture	ExplosiveFracture			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	muzzle.fracture.chance	Single			VISIBLE	163	1	
+ExplosiveJetForm	muzzle.fracture.pieces	Int32			VISIBLE	161	2	
+ExplosiveJetForm	muzzle.fracture.at	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.fracture.open	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.fracture.kick	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.fracture.spin	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.fracture.grip	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.fracture.rot	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.fracture.drift	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.fracture.stagger	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.fracture.cut	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.fracture.body	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.fracture2	ExplosiveFracture2			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	muzzle.fracture2.chance	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.fracture2.at	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.fracture2.open	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.fracture2.cut	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.fracture2.kick	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.fracture2.drift	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.fracture2.spin	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.fracture2.stagger	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.flash	ExplosiveFlash			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	muzzle.flash.radius	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.flash.amp	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.flash.life	Single			VISIBLE	44	0.25	
+ExplosiveJetForm	muzzle.flash.grow	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.flash.elong	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.chunks	ExplosiveChunks			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	muzzle.chunks.count	Int32			VISIBLE	7	0	
+ExplosiveJetForm	muzzle.chunks.radius	Single			VISIBLE	7	0	
+ExplosiveJetForm	muzzle.chunks.reach	Single			VISIBLE	8	0	
+ExplosiveJetForm	muzzle.chunks.drag	Single			VISIBLE	9	0	
+ExplosiveJetForm	muzzle.chunks.life	Single			VISIBLE	7	0	
+ExplosiveJetForm	muzzle.chunks.sag	Single			VISIBLE	12	0	
+ExplosiveJetForm	muzzle.chunks.trail	Int32			VISIBLE	3	0	
+ExplosiveJetForm	muzzle.chunks.amp	Single			VISIBLE	7	0	
+ExplosiveJetForm	muzzle.chunks.wide	Single			VISIBLE	7	0	
+ExplosiveJetForm	muzzle.gobs	ExplosiveGobs			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	muzzle.gobs.count	Int32			VISIBLE	13	2	
+ExplosiveJetForm	muzzle.gobs.radius	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.gobs.reach	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.gobs.drag	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.gobs.life	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.gobs.amp	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.gobs.swell	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.gobs.sag	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.gobs.wide	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.gobs.early	Single			VISIBLE	0		
+ExplosiveJetForm	muzzle.gobs.trail	Int32			VISIBLE	0		
+ExplosiveJetForm	muzzle.dust	ExplosiveDust			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	muzzle.dust.count	Int32			VISIBLE	0		
+ExplosiveJetForm	muzzle.dust.radius	Single			VISIBLE	4	4	
+ExplosiveJetForm	muzzle.dust.from	Single			VISIBLE	1	1	
+ExplosiveJetForm	muzzle.dust.to	Single			VISIBLE	4	0	
+ExplosiveJetForm	muzzle.dust.bias	Single			VISIBLE	1	4	
+ExplosiveJetForm	muzzle.dust.where	Single			VISIBLE	1	0	
+ExplosiveJetForm	muzzle.dust.reach	Single			VISIBLE	1	0	
+ExplosiveJetForm	muzzle.dust.drag	Single			VISIBLE	1	0	
+ExplosiveJetForm	muzzle.dust.life	Single			VISIBLE	1	0.25	
+ExplosiveJetForm	muzzle.dust.amp	Single			VISIBLE	1	16	
+ExplosiveJetForm	muzzle.dust.sag	Single			VISIBLE	1	1	
+ExplosiveJetForm	muzzle.dust.scatter	Single			VISIBLE	1	0.25	
+ExplosiveJetForm	muzzle.dust.wide	Single			VISIBLE	1	4	
+ExplosiveJetForm	muzzle.dust.trail	Int32			VISIBLE	0		
+ExplosiveJetForm	shatter	ExplosiveJetSettings	variant	Shatter	CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	shatter.w	Int32			VISIBLE	1366	0	
+ExplosiveJetForm	shatter.h	Int32			VISIBLE	1366	0	
+ExplosiveJetForm	shatter.nozzleX	Single			VISIBLE	624	0	
+ExplosiveJetForm	shatter.nozzleY	Single			VISIBLE	667	0	
+ExplosiveJetForm	shatter.aim	ZUIValue			VISIBLE	1079	0.25	
+ExplosiveJetForm	shatter.reach	ZUIValue			VISIBLE	1366	0	
+ExplosiveJetForm	shatter.spread	ZUIValue			VISIBLE	1377	0	
+ExplosiveJetForm	shatter.drag	Single			VISIBLE	1341	0	
+ExplosiveJetForm	shatter.buoy	Single			VISIBLE	1370	0	
+ExplosiveJetForm	shatter.grav	Single			VISIBLE	1417	0.25	
+ExplosiveJetForm	shatter.r0	ZUIValue			VISIBLE	1364	0	
+ExplosiveJetForm	shatter.growth	Single			VISIBLE	1366	0	
+ExplosiveJetForm	shatter.elong	ZUIValue			VISIBLE	1359	0	
+ExplosiveJetForm	shatter.roundAt	Single			VISIBLE	1359	0	
+ExplosiveJetForm	shatter.slots	Int32			VISIBLE	1366	0	
+ExplosiveJetForm	shatter.life	Single			VISIBLE	1366	0	
+ExplosiveJetForm	shatter.jitter	ZUIValue			VISIBLE	1381	0	
+ExplosiveJetForm	shatter.strength	ZUIValue			VISIBLE	1366	0	
+ExplosiveJetForm	shatter.cool	ZUIValue			VISIBLE	1638	0	
+ExplosiveJetForm	shatter.soot	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	shatter.pulseN	Int32			VISIBLE	0		
+ExplosiveJetForm	shatter.pulseDepth	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	shatter.sweep	ZUIValue			VISIBLE	459	0.25	
+ExplosiveJetForm	shatter.sweepN	Int32			VISIBLE	0		
+ExplosiveJetForm	shatter.shockN	Single			VISIBLE	0		
+ExplosiveJetForm	shatter.shockDepth	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	shatter.rootR	ZUIValue			VISIBLE	2	0	
+ExplosiveJetForm	shatter.rootAmp	ZUIValue			VISIBLE	2	0	
+ExplosiveJetForm	shatter.shed	ZUIValue			VISIBLE	1165	0	
+ExplosiveJetForm	shatter.shedKick	ZUIValue			VISIBLE	812	0	
+ExplosiveJetForm	shatter.shedLife	Single			VISIBLE	1162	0	
+ExplosiveJetForm	shatter.sparks	Int32			VISIBLE	12	0	
+ExplosiveJetForm	shatter.sparkR	ZUIValue			VISIBLE	12	0	
+ExplosiveJetForm	shatter.ringN	Int32			VISIBLE	28	1	
+ExplosiveJetForm	shatter.ringK	Int32			VISIBLE	0		
+ExplosiveJetForm	shatter.ringR0	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	shatter.ringGrow	Single			VISIBLE	0		
+ExplosiveJetForm	shatter.ringLife	Single			VISIBLE	0		
+ExplosiveJetForm	shatter.ringReach	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	shatter.ringAmp	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	shatter.warp0	ZUIValue			VISIBLE	1126	0	
+ExplosiveJetForm	shatter.warp1	ZUIValue			VISIBLE	1343	0	
+ExplosiveJetForm	shatter.warpCell	Single			VISIBLE	1366	0	
+ExplosiveJetForm	shatter.warpOct	Int32			VISIBLE	1366	0	
+ExplosiveJetForm	shatter.lo	ZUIValue			VISIBLE	2010	0	
+ExplosiveJetForm	shatter.hi	ZUIValue			VISIBLE	1337	0	
+ExplosiveJetForm	shatter.curve	ZUIValue			VISIBLE	1337	0	
+ExplosiveJetForm	shatter.steps	Int32			VISIBLE	1335	2	
+ExplosiveJetForm	shatter.soft	ZUIValue			VISIBLE	246	0	
+ExplosiveJetForm	shatter.gain	ZUIValue			VISIBLE	1366	0	
+ExplosiveJetForm	shatter.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+ExplosiveJetForm	shatter.sootRamp	PyreRamp			VISIBLE	0	(no perturbable member)	
+ExplosiveJetForm	shatter.sootLo	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	shatter.sootHi	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	shatter.bias	Single			VISIBLE	1398	0	
+ExplosiveJetForm	shatter.srcR	Single			VISIBLE	3471	0.25	
+ExplosiveJetForm	shatter.swirl	Single			VISIBLE	889	0.25	
+ExplosiveJetForm	shatter.spin	Int32			VISIBLE	1386	1	
+ExplosiveJetForm	shatter.lobes	Int32			VISIBLE	0		
+ExplosiveJetForm	shatter.lobeDepth	Single			VISIBLE	0		
+ExplosiveJetForm	shatter.lobeKick	Single			VISIBLE	0		
+ExplosiveJetForm	shatter.rootK	Int32			VISIBLE	0		
+ExplosiveJetForm	shatter.ringFlat	Boolean			VISIBLE	0	True	
+ExplosiveJetForm	shatter.ringArc	Single			VISIBLE	0		
+ExplosiveJetForm	shatter.warpSpin	Int32			VISIBLE	1375	1	
+ExplosiveJetForm	shatter.blasts	List<ExplosiveBlast>			LIST	0	1	reorderable list of ExplosiveBlast
+ExplosiveJetForm	shatter.blasts[0].at	Single			VISIBLE	1373	0.25	
+ExplosiveJetForm	shatter.blasts[0].pow	Single			VISIBLE	1366	0	
+ExplosiveJetForm	shatter.blasts[0].share	Single			VISIBLE	0		
+ExplosiveJetForm	shatter.blasts[0].offX	Single			VISIBLE	1872	0.25	
+ExplosiveJetForm	shatter.blasts[0].offY	Single			VISIBLE	1875	0.25	
+ExplosiveJetForm	shatter.blastSpan	Single			VISIBLE	1342	0	
+ExplosiveJetForm	shatter.blastSkew	Single			VISIBLE	1337	0	
+ExplosiveJetForm	shatter.blastFront	Single			VISIBLE	1337	0	
+ExplosiveJetForm	shatter.velSpread	Single			VISIBLE	1770	0	
+ExplosiveJetForm	shatter.swell	Single			VISIBLE	1362	0	
+ExplosiveJetForm	shatter.hold	Single			VISIBLE	1366	0	
+ExplosiveJetForm	shatter.shrink	Single			VISIBLE	1421	0	
+ExplosiveJetForm	shatter.shrinkAt	Single			VISIBLE	1342	0	
+ExplosiveJetForm	shatter.leadDie	Single			VISIBLE	1442	0	
+ExplosiveJetForm	shatter.opaq	Single			VISIBLE	1235	0	
+ExplosiveJetForm	shatter.shedSwell	Single			VISIBLE	1152	0	
+ExplosiveJetForm	shatter.fracture	ExplosiveFracture			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	shatter.fracture.chance	Single			VISIBLE	1561	0	
+ExplosiveJetForm	shatter.fracture.pieces	Int32			VISIBLE	1561	0	
+ExplosiveJetForm	shatter.fracture.at	Single			VISIBLE	1351	0	
+ExplosiveJetForm	shatter.fracture.open	Single			VISIBLE	1356	0	
+ExplosiveJetForm	shatter.fracture.kick	Single			VISIBLE	1377	0	
+ExplosiveJetForm	shatter.fracture.spin	Single			VISIBLE	1108	0	
+ExplosiveJetForm	shatter.fracture.grip	Single			VISIBLE	1561	0	
+ExplosiveJetForm	shatter.fracture.rot	Single			VISIBLE	1635	0	
+ExplosiveJetForm	shatter.fracture.drift	Single			VISIBLE	1507	0	
+ExplosiveJetForm	shatter.fracture.stagger	Single			VISIBLE	1266	0	
+ExplosiveJetForm	shatter.fracture.cut	Single			VISIBLE	1357	0	
+ExplosiveJetForm	shatter.fracture.body	Single			VISIBLE	1318	0	
+ExplosiveJetForm	shatter.fracture2	ExplosiveFracture2			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	shatter.fracture2.chance	Single			VISIBLE	881	0	
+ExplosiveJetForm	shatter.fracture2.at	Single			VISIBLE	1118	0	
+ExplosiveJetForm	shatter.fracture2.open	Single			VISIBLE	905	0	
+ExplosiveJetForm	shatter.fracture2.cut	Single			VISIBLE	902	0	
+ExplosiveJetForm	shatter.fracture2.kick	Single			VISIBLE	797	0	
+ExplosiveJetForm	shatter.fracture2.drift	Single			VISIBLE	878	0	
+ExplosiveJetForm	shatter.fracture2.spin	Single			VISIBLE	820	0	
+ExplosiveJetForm	shatter.fracture2.stagger	Single			VISIBLE	905	0	
+ExplosiveJetForm	shatter.flash	ExplosiveFlash			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	shatter.flash.radius	Single			VISIBLE	0		
+ExplosiveJetForm	shatter.flash.amp	Single			VISIBLE	0		
+ExplosiveJetForm	shatter.flash.life	Single			VISIBLE	67	0.5	
+ExplosiveJetForm	shatter.flash.grow	Single			VISIBLE	0		
+ExplosiveJetForm	shatter.flash.elong	Single			VISIBLE	0		
+ExplosiveJetForm	shatter.chunks	ExplosiveChunks			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	shatter.chunks.count	Int32			VISIBLE	36	0	
+ExplosiveJetForm	shatter.chunks.radius	Single			VISIBLE	36	0	
+ExplosiveJetForm	shatter.chunks.reach	Single			VISIBLE	41	0	
+ExplosiveJetForm	shatter.chunks.drag	Single			VISIBLE	58	0	
+ExplosiveJetForm	shatter.chunks.life	Single			VISIBLE	36	0	
+ExplosiveJetForm	shatter.chunks.sag	Single			VISIBLE	57	0	
+ExplosiveJetForm	shatter.chunks.trail	Int32			VISIBLE	20	0	
+ExplosiveJetForm	shatter.chunks.amp	Single			VISIBLE	36	0	
+ExplosiveJetForm	shatter.chunks.wide	Single			VISIBLE	50	0	
+ExplosiveJetForm	shatter.gobs	ExplosiveGobs			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	shatter.gobs.count	Int32			VISIBLE	199	0	
+ExplosiveJetForm	shatter.gobs.radius	Single			VISIBLE	199	0	
+ExplosiveJetForm	shatter.gobs.reach	Single			VISIBLE	230	0	
+ExplosiveJetForm	shatter.gobs.drag	Single			VISIBLE	236	0	
+ExplosiveJetForm	shatter.gobs.life	Single			VISIBLE	199	0	
+ExplosiveJetForm	shatter.gobs.amp	Single			VISIBLE	199	0	
+ExplosiveJetForm	shatter.gobs.swell	Single			VISIBLE	199	0	
+ExplosiveJetForm	shatter.gobs.sag	Single			VISIBLE	188	0	
+ExplosiveJetForm	shatter.gobs.wide	Single			VISIBLE	235	0	
+ExplosiveJetForm	shatter.gobs.early	Single			VISIBLE	101	0	
+ExplosiveJetForm	shatter.gobs.trail	Int32			VISIBLE	96	0	
+ExplosiveJetForm	shatter.dust	ExplosiveDust			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	shatter.dust.count	Int32			VISIBLE	68	0	
+ExplosiveJetForm	shatter.dust.radius	Single			VISIBLE	68	0	
+ExplosiveJetForm	shatter.dust.from	Single			VISIBLE	98	0	
+ExplosiveJetForm	shatter.dust.to	Single			VISIBLE	101	0	
+ExplosiveJetForm	shatter.dust.bias	Single			VISIBLE	123	0	
+ExplosiveJetForm	shatter.dust.where	Single			VISIBLE	106	0	
+ExplosiveJetForm	shatter.dust.reach	Single			VISIBLE	131	0	
+ExplosiveJetForm	shatter.dust.drag	Single			VISIBLE	95	0	
+ExplosiveJetForm	shatter.dust.life	Single			VISIBLE	68	0	
+ExplosiveJetForm	shatter.dust.amp	Single			VISIBLE	68	0	
+ExplosiveJetForm	shatter.dust.sag	Single			VISIBLE	69	0	
+ExplosiveJetForm	shatter.dust.scatter	Single			VISIBLE	93	0	
+ExplosiveJetForm	shatter.dust.wide	Single			VISIBLE	82	0	
+ExplosiveJetForm	shatter.dust.trail	Int32			VISIBLE	33	2	
+ExplosiveJetForm	shockfront	ExplosiveJetSettings	variant	Shockfront	CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	shockfront.w	Int32			VISIBLE	905	0	
+ExplosiveJetForm	shockfront.h	Int32			VISIBLE	905	0	
+ExplosiveJetForm	shockfront.nozzleX	Single			VISIBLE	905	1	
+ExplosiveJetForm	shockfront.nozzleY	Single			VISIBLE	472	0	
+ExplosiveJetForm	shockfront.aim	ZUIValue			VISIBLE	947	0	
+ExplosiveJetForm	shockfront.reach	ZUIValue			VISIBLE	922	0	
+ExplosiveJetForm	shockfront.spread	ZUIValue			VISIBLE	924	0	
+ExplosiveJetForm	shockfront.drag	Single			VISIBLE	966	0	
+ExplosiveJetForm	shockfront.buoy	Single			VISIBLE	936	0	
+ExplosiveJetForm	shockfront.grav	Single			VISIBLE	975	0.25	
+ExplosiveJetForm	shockfront.r0	ZUIValue			VISIBLE	899	0	
+ExplosiveJetForm	shockfront.growth	Single			VISIBLE	899	0	
+ExplosiveJetForm	shockfront.elong	ZUIValue			VISIBLE	899	0	
+ExplosiveJetForm	shockfront.roundAt	Single			VISIBLE	899	0	
+ExplosiveJetForm	shockfront.slots	Int32			VISIBLE	899	0	
+ExplosiveJetForm	shockfront.life	Single			VISIBLE	905	0	
+ExplosiveJetForm	shockfront.jitter	ZUIValue			VISIBLE	899	0	
+ExplosiveJetForm	shockfront.strength	ZUIValue			VISIBLE	899	0	
+ExplosiveJetForm	shockfront.cool	ZUIValue			VISIBLE	979	0	
+ExplosiveJetForm	shockfront.soot	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	shockfront.pulseN	Int32			VISIBLE	0		
+ExplosiveJetForm	shockfront.pulseDepth	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	shockfront.sweep	ZUIValue			VISIBLE	296	0.25	
+ExplosiveJetForm	shockfront.sweepN	Int32			VISIBLE	0		
+ExplosiveJetForm	shockfront.shockN	Single			VISIBLE	0		
+ExplosiveJetForm	shockfront.shockDepth	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	shockfront.rootR	ZUIValue			VISIBLE	229	64	
+ExplosiveJetForm	shockfront.rootAmp	ZUIValue			VISIBLE	1	8	
+ExplosiveJetForm	shockfront.shed	ZUIValue			VISIBLE	681	0	
+ExplosiveJetForm	shockfront.shedKick	ZUIValue			VISIBLE	794	0	
+ExplosiveJetForm	shockfront.shedLife	Single			VISIBLE	622	0	
+ExplosiveJetForm	shockfront.sparks	Int32			VISIBLE	3	0	
+ExplosiveJetForm	shockfront.sparkR	ZUIValue			VISIBLE	3	0	
+ExplosiveJetForm	shockfront.ringN	Int32			VISIBLE	304	0	
+ExplosiveJetForm	shockfront.ringK	Int32			VISIBLE	281	0	
+ExplosiveJetForm	shockfront.ringR0	ZUIValue			VISIBLE	301	0	
+ExplosiveJetForm	shockfront.ringGrow	Single			VISIBLE	304	0	
+ExplosiveJetForm	shockfront.ringLife	Single			VISIBLE	304	0	
+ExplosiveJetForm	shockfront.ringReach	ZUIValue			VISIBLE	306	0	
+ExplosiveJetForm	shockfront.ringAmp	ZUIValue			VISIBLE	304	0	
+ExplosiveJetForm	shockfront.warp0	ZUIValue			VISIBLE	699	0	
+ExplosiveJetForm	shockfront.warp1	ZUIValue			VISIBLE	904	0	
+ExplosiveJetForm	shockfront.warpCell	Single			VISIBLE	905	0	
+ExplosiveJetForm	shockfront.warpOct	Int32			VISIBLE	905	0	
+ExplosiveJetForm	shockfront.lo	ZUIValue			VISIBLE	1149	0	
+ExplosiveJetForm	shockfront.hi	ZUIValue			VISIBLE	910	0	
+ExplosiveJetForm	shockfront.curve	ZUIValue			VISIBLE	910	0	
+ExplosiveJetForm	shockfront.steps	Int32			VISIBLE	905	2	
+ExplosiveJetForm	shockfront.soft	ZUIValue			VISIBLE	235	0	
+ExplosiveJetForm	shockfront.gain	ZUIValue			VISIBLE	905	0	
+ExplosiveJetForm	shockfront.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+ExplosiveJetForm	shockfront.sootRamp	PyreRamp			VISIBLE	0	(no perturbable member)	
+ExplosiveJetForm	shockfront.sootLo	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	shockfront.sootHi	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	shockfront.bias	Single			VISIBLE	997	0	
+ExplosiveJetForm	shockfront.srcR	Single			VISIBLE	1251	0.25	
+ExplosiveJetForm	shockfront.swirl	Single			VISIBLE	687	0.25	
+ExplosiveJetForm	shockfront.spin	Int32			VISIBLE	953	1	
+ExplosiveJetForm	shockfront.lobes	Int32			VISIBLE	0		
+ExplosiveJetForm	shockfront.lobeDepth	Single			VISIBLE	0		
+ExplosiveJetForm	shockfront.lobeKick	Single			VISIBLE	0		
+ExplosiveJetForm	shockfront.rootK	Int32			VISIBLE	0		
+ExplosiveJetForm	shockfront.ringFlat	Boolean			VISIBLE	329	False	
+ExplosiveJetForm	shockfront.ringArc	Single			VISIBLE	306	0	
+ExplosiveJetForm	shockfront.warpSpin	Int32			VISIBLE	902	1	
+ExplosiveJetForm	shockfront.blasts	List<ExplosiveBlast>			LIST	0	2	reorderable list of ExplosiveBlast
+ExplosiveJetForm	shockfront.blasts[0].at	Single			VISIBLE	915	0.25	
+ExplosiveJetForm	shockfront.blasts[0].pow	Single			VISIBLE	905	0	
+ExplosiveJetForm	shockfront.blasts[0].share	Single			VISIBLE	899	0	
+ExplosiveJetForm	shockfront.blasts[0].offX	Single			VISIBLE	1102	0.25	
+ExplosiveJetForm	shockfront.blasts[0].offY	Single			VISIBLE	1055	0.25	
+ExplosiveJetForm	shockfront.blasts[1].at	Single			VISIBLE	422	0	
+ExplosiveJetForm	shockfront.blasts[1].pow	Single			VISIBLE	201	0	
+ExplosiveJetForm	shockfront.blasts[1].share	Single			VISIBLE	975	0	
+ExplosiveJetForm	shockfront.blasts[1].offX	Single			VISIBLE	0		
+ExplosiveJetForm	shockfront.blasts[1].offY	Single			VISIBLE	0		
+ExplosiveJetForm	shockfront.blastSpan	Single			VISIBLE	917	0	
+ExplosiveJetForm	shockfront.blastSkew	Single			VISIBLE	936	0	
+ExplosiveJetForm	shockfront.blastFront	Single			VISIBLE	913	0	
+ExplosiveJetForm	shockfront.velSpread	Single			VISIBLE	1059	0	
+ExplosiveJetForm	shockfront.swell	Single			VISIBLE	1493	0.25	
+ExplosiveJetForm	shockfront.hold	Single			VISIBLE	899	0	
+ExplosiveJetForm	shockfront.shrink	Single			VISIBLE	843	0	
+ExplosiveJetForm	shockfront.shrinkAt	Single			VISIBLE	774	0	
+ExplosiveJetForm	shockfront.leadDie	Single			VISIBLE	929	0.25	
+ExplosiveJetForm	shockfront.opaq	Single			VISIBLE	909	0	
+ExplosiveJetForm	shockfront.shedSwell	Single			VISIBLE	621	0	
+ExplosiveJetForm	shockfront.fracture	ExplosiveFracture			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	shockfront.fracture.chance	Single			VISIBLE	727	0	
+ExplosiveJetForm	shockfront.fracture.pieces	Int32			VISIBLE	727	0	
+ExplosiveJetForm	shockfront.fracture.at	Single			VISIBLE	945	0	
+ExplosiveJetForm	shockfront.fracture.open	Single			VISIBLE	565	0	
+ExplosiveJetForm	shockfront.fracture.kick	Single			VISIBLE	543	0	
+ExplosiveJetForm	shockfront.fracture.spin	Single			VISIBLE	535	0	
+ExplosiveJetForm	shockfront.fracture.grip	Single			VISIBLE	724	0	
+ExplosiveJetForm	shockfront.fracture.rot	Single			VISIBLE	770	0.25	
+ExplosiveJetForm	shockfront.fracture.drift	Single			VISIBLE	674	0	
+ExplosiveJetForm	shockfront.fracture.stagger	Single			VISIBLE	830	0	
+ExplosiveJetForm	shockfront.fracture.cut	Single			VISIBLE	715	0	
+ExplosiveJetForm	shockfront.fracture.body	Single			VISIBLE	393	0	
+ExplosiveJetForm	shockfront.fracture2	ExplosiveFracture2			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	shockfront.fracture2.chance	Single			VISIBLE	209	0	
+ExplosiveJetForm	shockfront.fracture2.at	Single			VISIBLE	187	0	
+ExplosiveJetForm	shockfront.fracture2.open	Single			VISIBLE	142	0	
+ExplosiveJetForm	shockfront.fracture2.cut	Single			VISIBLE	214	0	
+ExplosiveJetForm	shockfront.fracture2.kick	Single			VISIBLE	166	0	
+ExplosiveJetForm	shockfront.fracture2.drift	Single			VISIBLE	209	0	
+ExplosiveJetForm	shockfront.fracture2.spin	Single			VISIBLE	170	0	
+ExplosiveJetForm	shockfront.fracture2.stagger	Single			VISIBLE	134	0	
+ExplosiveJetForm	shockfront.flash	ExplosiveFlash			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	shockfront.flash.radius	Single			VISIBLE	0		
+ExplosiveJetForm	shockfront.flash.amp	Single			VISIBLE	0		
+ExplosiveJetForm	shockfront.flash.life	Single			VISIBLE	32	0.5	
+ExplosiveJetForm	shockfront.flash.grow	Single			VISIBLE	0		
+ExplosiveJetForm	shockfront.flash.elong	Single			VISIBLE	0		
+ExplosiveJetForm	shockfront.chunks	ExplosiveChunks			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	shockfront.chunks.count	Int32			VISIBLE	15	0	
+ExplosiveJetForm	shockfront.chunks.radius	Single			VISIBLE	15	0	
+ExplosiveJetForm	shockfront.chunks.reach	Single			VISIBLE	17	0	
+ExplosiveJetForm	shockfront.chunks.drag	Single			VISIBLE	27	0	
+ExplosiveJetForm	shockfront.chunks.life	Single			VISIBLE	15	0	
+ExplosiveJetForm	shockfront.chunks.sag	Single			VISIBLE	29	0	
+ExplosiveJetForm	shockfront.chunks.trail	Int32			VISIBLE	5	0	
+ExplosiveJetForm	shockfront.chunks.amp	Single			VISIBLE	15	0	
+ExplosiveJetForm	shockfront.chunks.wide	Single			VISIBLE	24	0	
+ExplosiveJetForm	shockfront.gobs	ExplosiveGobs			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	shockfront.gobs.count	Int32			VISIBLE	77	0	
+ExplosiveJetForm	shockfront.gobs.radius	Single			VISIBLE	77	0	
+ExplosiveJetForm	shockfront.gobs.reach	Single			VISIBLE	94	0	
+ExplosiveJetForm	shockfront.gobs.drag	Single			VISIBLE	108	0	
+ExplosiveJetForm	shockfront.gobs.life	Single			VISIBLE	77	0	
+ExplosiveJetForm	shockfront.gobs.amp	Single			VISIBLE	77	0	
+ExplosiveJetForm	shockfront.gobs.swell	Single			VISIBLE	77	0	
+ExplosiveJetForm	shockfront.gobs.sag	Single			VISIBLE	88	0	
+ExplosiveJetForm	shockfront.gobs.wide	Single			VISIBLE	113	0	
+ExplosiveJetForm	shockfront.gobs.early	Single			VISIBLE	51	0	
+ExplosiveJetForm	shockfront.gobs.trail	Int32			VISIBLE	39	0	
+ExplosiveJetForm	shockfront.dust	ExplosiveDust			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	shockfront.dust.count	Int32			VISIBLE	15	0	
+ExplosiveJetForm	shockfront.dust.radius	Single			VISIBLE	15	0	
+ExplosiveJetForm	shockfront.dust.from	Single			VISIBLE	34	0	
+ExplosiveJetForm	shockfront.dust.to	Single			VISIBLE	31	0	
+ExplosiveJetForm	shockfront.dust.bias	Single			VISIBLE	30	0	
+ExplosiveJetForm	shockfront.dust.where	Single			VISIBLE	20	0	
+ExplosiveJetForm	shockfront.dust.reach	Single			VISIBLE	28	0	
+ExplosiveJetForm	shockfront.dust.drag	Single			VISIBLE	24	0	
+ExplosiveJetForm	shockfront.dust.life	Single			VISIBLE	15	0	
+ExplosiveJetForm	shockfront.dust.amp	Single			VISIBLE	15	0	
+ExplosiveJetForm	shockfront.dust.sag	Single			VISIBLE	19	0	
+ExplosiveJetForm	shockfront.dust.scatter	Single			VISIBLE	23	0	
+ExplosiveJetForm	shockfront.dust.wide	Single			VISIBLE	24	0	
+ExplosiveJetForm	shockfront.dust.trail	Int32			VISIBLE	9	2	
+ExplosiveJetForm	starshell	ExplosiveJetSettings	variant	Starshell	CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	starshell.w	Int32			VISIBLE	222	0	
+ExplosiveJetForm	starshell.h	Int32			VISIBLE	222	0	
+ExplosiveJetForm	starshell.nozzleX	Single			VISIBLE	108	0	
+ExplosiveJetForm	starshell.nozzleY	Single			VISIBLE	126	0	
+ExplosiveJetForm	starshell.aim	ZUIValue			VISIBLE	197	0.25	
+ExplosiveJetForm	starshell.reach	ZUIValue			VISIBLE	221	0	
+ExplosiveJetForm	starshell.spread	ZUIValue			VISIBLE	232	0	
+ExplosiveJetForm	starshell.drag	Single			VISIBLE	222	0	
+ExplosiveJetForm	starshell.buoy	Single			VISIBLE	225	0	
+ExplosiveJetForm	starshell.grav	Single			VISIBLE	246	0.25	
+ExplosiveJetForm	starshell.r0	ZUIValue			VISIBLE	222	0	
+ExplosiveJetForm	starshell.growth	Single			VISIBLE	222	0	
+ExplosiveJetForm	starshell.elong	ZUIValue			VISIBLE	222	0	
+ExplosiveJetForm	starshell.roundAt	Single			VISIBLE	222	0	
+ExplosiveJetForm	starshell.slots	Int32			VISIBLE	222	0	
+ExplosiveJetForm	starshell.life	Single			VISIBLE	222	0	
+ExplosiveJetForm	starshell.jitter	ZUIValue			VISIBLE	232	0	
+ExplosiveJetForm	starshell.strength	ZUIValue			VISIBLE	222	0	
+ExplosiveJetForm	starshell.cool	ZUIValue			VISIBLE	280	0	
+ExplosiveJetForm	starshell.soot	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	starshell.pulseN	Int32			VISIBLE	0		
+ExplosiveJetForm	starshell.pulseDepth	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	starshell.sweep	ZUIValue			VISIBLE	165	0.25	
+ExplosiveJetForm	starshell.sweepN	Int32			VISIBLE	0		
+ExplosiveJetForm	starshell.shockN	Single			VISIBLE	0		
+ExplosiveJetForm	starshell.shockDepth	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	starshell.rootR	ZUIValue			VISIBLE	3	0	
+ExplosiveJetForm	starshell.rootAmp	ZUIValue			VISIBLE	3	0	
+ExplosiveJetForm	starshell.shed	ZUIValue			VISIBLE	105	0	
+ExplosiveJetForm	starshell.shedKick	ZUIValue			VISIBLE	67	0	
+ExplosiveJetForm	starshell.shedLife	Single			VISIBLE	103	0	
+ExplosiveJetForm	starshell.sparks	Int32			VISIBLE	4	0	
+ExplosiveJetForm	starshell.sparkR	ZUIValue			VISIBLE	4	0	
+ExplosiveJetForm	starshell.ringN	Int32			VISIBLE	19	1	
+ExplosiveJetForm	starshell.ringK	Int32			VISIBLE	0		
+ExplosiveJetForm	starshell.ringR0	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	starshell.ringGrow	Single			VISIBLE	0		
+ExplosiveJetForm	starshell.ringLife	Single			VISIBLE	0		
+ExplosiveJetForm	starshell.ringReach	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	starshell.ringAmp	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	starshell.warp0	ZUIValue			VISIBLE	209	0	
+ExplosiveJetForm	starshell.warp1	ZUIValue			VISIBLE	222	0	
+ExplosiveJetForm	starshell.warpCell	Single			VISIBLE	222	0	
+ExplosiveJetForm	starshell.warpOct	Int32			VISIBLE	222	0	
+ExplosiveJetForm	starshell.lo	ZUIValue			VISIBLE	360	0	
+ExplosiveJetForm	starshell.hi	ZUIValue			VISIBLE	223	0	
+ExplosiveJetForm	starshell.curve	ZUIValue			VISIBLE	223	0	
+ExplosiveJetForm	starshell.steps	Int32			VISIBLE	221	2	
+ExplosiveJetForm	starshell.soft	ZUIValue			VISIBLE	43	0	
+ExplosiveJetForm	starshell.gain	ZUIValue			VISIBLE	222	0	
+ExplosiveJetForm	starshell.ramp	PyreRamp			VISIBLE	0	(no perturbable member)	
+ExplosiveJetForm	starshell.sootRamp	PyreRamp			VISIBLE	0	(no perturbable member)	
+ExplosiveJetForm	starshell.sootLo	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	starshell.sootHi	ZUIValue			VISIBLE	0		
+ExplosiveJetForm	starshell.bias	Single			VISIBLE	226	0	
+ExplosiveJetForm	starshell.srcR	Single			VISIBLE	610	0.25	
+ExplosiveJetForm	starshell.swirl	Single			VISIBLE	145	0.25	
+ExplosiveJetForm	starshell.spin	Int32			VISIBLE	272	1	
+ExplosiveJetForm	starshell.lobes	Int32			VISIBLE	320	0	
+ExplosiveJetForm	starshell.lobeDepth	Single			VISIBLE	237	0	
+ExplosiveJetForm	starshell.lobeKick	Single			VISIBLE	294	0	
+ExplosiveJetForm	starshell.rootK	Int32			VISIBLE	0		
+ExplosiveJetForm	starshell.ringFlat	Boolean			VISIBLE	0	True	
+ExplosiveJetForm	starshell.ringArc	Single			VISIBLE	0		
+ExplosiveJetForm	starshell.warpSpin	Int32			VISIBLE	226	1	
+ExplosiveJetForm	starshell.blasts	List<ExplosiveBlast>			LIST	0	3	reorderable list of ExplosiveBlast
+ExplosiveJetForm	starshell.blasts[0].at	Single			VISIBLE	773	0.25	
+ExplosiveJetForm	starshell.blasts[0].pow	Single			VISIBLE	248	0	
+ExplosiveJetForm	starshell.blasts[0].share	Single			VISIBLE	300	0	
+ExplosiveJetForm	starshell.blasts[0].offX	Single			VISIBLE	51	0.25	
+ExplosiveJetForm	starshell.blasts[0].offY	Single			VISIBLE	51	0.25	
+ExplosiveJetForm	starshell.blasts[1].at	Single			VISIBLE	222	0	
+ExplosiveJetForm	starshell.blasts[1].pow	Single			VISIBLE	222	0	
+ExplosiveJetForm	starshell.blasts[1].share	Single			VISIBLE	222	0	
+ExplosiveJetForm	starshell.blasts[1].offX	Single			VISIBLE	420	0.25	
+ExplosiveJetForm	starshell.blasts[1].offY	Single			VISIBLE	422	0.25	
+ExplosiveJetForm	starshell.blastSpan	Single			VISIBLE	226	0	
+ExplosiveJetForm	starshell.blastSkew	Single			VISIBLE	221	0	
+ExplosiveJetForm	starshell.blastFront	Single			VISIBLE	221	0	
+ExplosiveJetForm	starshell.velSpread	Single			VISIBLE	296	0	
+ExplosiveJetForm	starshell.swell	Single			VISIBLE	387	0.25	
+ExplosiveJetForm	starshell.hold	Single			VISIBLE	221	0	
+ExplosiveJetForm	starshell.shrink	Single			VISIBLE	107	0	
+ExplosiveJetForm	starshell.shrinkAt	Single			VISIBLE	221	0	
+ExplosiveJetForm	starshell.leadDie	Single			VISIBLE	227	0	
+ExplosiveJetForm	starshell.opaq	Single			VISIBLE	223	0	
+ExplosiveJetForm	starshell.shedSwell	Single			VISIBLE	106	0.25	
+ExplosiveJetForm	starshell.fracture	ExplosiveFracture			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	starshell.fracture.chance	Single			VISIBLE	27	0	
+ExplosiveJetForm	starshell.fracture.pieces	Int32			VISIBLE	27	0	
+ExplosiveJetForm	starshell.fracture.at	Single			VISIBLE	241	0	
+ExplosiveJetForm	starshell.fracture.open	Single			VISIBLE	17	0	
+ExplosiveJetForm	starshell.fracture.kick	Single			VISIBLE	18	0	
+ExplosiveJetForm	starshell.fracture.spin	Single			VISIBLE	18	0	
+ExplosiveJetForm	starshell.fracture.grip	Single			VISIBLE	27	0	
+ExplosiveJetForm	starshell.fracture.rot	Single			VISIBLE	26	0	
+ExplosiveJetForm	starshell.fracture.drift	Single			VISIBLE	28	0	
+ExplosiveJetForm	starshell.fracture.stagger	Single			VISIBLE	99	0	
+ExplosiveJetForm	starshell.fracture.cut	Single			VISIBLE	28	0	
+ExplosiveJetForm	starshell.fracture.body	Single			VISIBLE	25	0	
+ExplosiveJetForm	starshell.fracture2	ExplosiveFracture2			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	starshell.fracture2.chance	Single			VISIBLE	3	0	
+ExplosiveJetForm	starshell.fracture2.at	Single			VISIBLE	11	0	
+ExplosiveJetForm	starshell.fracture2.open	Single			VISIBLE	2	0	
+ExplosiveJetForm	starshell.fracture2.cut	Single			VISIBLE	3	0	
+ExplosiveJetForm	starshell.fracture2.kick	Single			VISIBLE	2	0	
+ExplosiveJetForm	starshell.fracture2.drift	Single			VISIBLE	2	0	
+ExplosiveJetForm	starshell.fracture2.spin	Single			VISIBLE	1	0	
+ExplosiveJetForm	starshell.fracture2.stagger	Single			VISIBLE	11	0	
+ExplosiveJetForm	starshell.flash	ExplosiveFlash			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	starshell.flash.radius	Single			VISIBLE	0		
+ExplosiveJetForm	starshell.flash.amp	Single			VISIBLE	0		
+ExplosiveJetForm	starshell.flash.life	Single			VISIBLE	20	0.25	
+ExplosiveJetForm	starshell.flash.grow	Single			VISIBLE	0		
+ExplosiveJetForm	starshell.flash.elong	Single			VISIBLE	0		
+ExplosiveJetForm	starshell.chunks	ExplosiveChunks			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	starshell.chunks.count	Int32			VISIBLE	10	0	
+ExplosiveJetForm	starshell.chunks.radius	Single			VISIBLE	10	0	
+ExplosiveJetForm	starshell.chunks.reach	Single			VISIBLE	12	0	
+ExplosiveJetForm	starshell.chunks.drag	Single			VISIBLE	17	0	
+ExplosiveJetForm	starshell.chunks.life	Single			VISIBLE	10	0	
+ExplosiveJetForm	starshell.chunks.sag	Single			VISIBLE	13	0	
+ExplosiveJetForm	starshell.chunks.trail	Int32			VISIBLE	5	0	
+ExplosiveJetForm	starshell.chunks.amp	Single			VISIBLE	10	0	
+ExplosiveJetForm	starshell.chunks.wide	Single			VISIBLE	18	0	
+ExplosiveJetForm	starshell.gobs	ExplosiveGobs			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	starshell.gobs.count	Int32			VISIBLE	22	1	
+ExplosiveJetForm	starshell.gobs.radius	Single			VISIBLE	0		
+ExplosiveJetForm	starshell.gobs.reach	Single			VISIBLE	0		
+ExplosiveJetForm	starshell.gobs.drag	Single			VISIBLE	0		
+ExplosiveJetForm	starshell.gobs.life	Single			VISIBLE	0		
+ExplosiveJetForm	starshell.gobs.amp	Single			VISIBLE	0		
+ExplosiveJetForm	starshell.gobs.swell	Single			VISIBLE	0		
+ExplosiveJetForm	starshell.gobs.sag	Single			VISIBLE	0		
+ExplosiveJetForm	starshell.gobs.wide	Single			VISIBLE	0		
+ExplosiveJetForm	starshell.gobs.early	Single			VISIBLE	0		
+ExplosiveJetForm	starshell.gobs.trail	Int32			VISIBLE	0		
+ExplosiveJetForm	starshell.dust	ExplosiveDust			CONTAINER	0		nested settings object — its own dials follow
+ExplosiveJetForm	starshell.dust.count	Int32			VISIBLE	5	0	
+ExplosiveJetForm	starshell.dust.radius	Single			VISIBLE	5	0	
+ExplosiveJetForm	starshell.dust.from	Single			VISIBLE	6	0	
+ExplosiveJetForm	starshell.dust.to	Single			VISIBLE	12	0	
+ExplosiveJetForm	starshell.dust.bias	Single			VISIBLE	5	0	
+ExplosiveJetForm	starshell.dust.where	Single			VISIBLE	9	0	
+ExplosiveJetForm	starshell.dust.reach	Single			VISIBLE	7	0	
+ExplosiveJetForm	starshell.dust.drag	Single			VISIBLE	6	0	
+ExplosiveJetForm	starshell.dust.life	Single			VISIBLE	5	0	
+ExplosiveJetForm	starshell.dust.amp	Single			VISIBLE	5	0	
+ExplosiveJetForm	starshell.dust.sag	Single			VISIBLE	6	0	
+ExplosiveJetForm	starshell.dust.scatter	Single			VISIBLE	8	0	
+ExplosiveJetForm	starshell.dust.wide	Single			VISIBLE	6	0	
+ExplosiveJetForm	starshell.dust.trail	Int32			VISIBLE	3	2	

@@ -1,0 +1,767 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 187d847a7ab02394ebe5d6f4ead62de0, type: 3}
+  m_Name: "W Disc Zoe B \u2014 Chunks"
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Chunks::Laubrary.Chunks.ChunkSpec
+  schemaVersion: 1
+  capabilities:
+  - rid: 4065707408484729615
+  - rid: 4065707408484729616
+  - rid: 4065707408484729617
+  - rid: 4065707408484729618
+  - rid: 4065707408484729619
+  - rid: 4065707408484729620
+  directionDeg: 90
+  previewBackSplash:
+    cameraColor: {r: 0.08, g: 0.08, b: 0.1, a: 1}
+    image: {fileID: 0}
+    imageTint: {r: 1, g: 1, b: 1, a: 1}
+    imageZoom: 1
+    imagePos: {x: 0, y: 0}
+  countMin: 8
+  countMax: 16
+  speedMin: 3
+  speedMax: 7
+  spreadDeg: 180
+  upwardBias: 1.5
+  gravity: 20
+  drag: 0.6
+  angularSpeedMin: 90
+  angularSpeedMax: 540
+  faceVelocity: 0
+  lifeMin: 0.6
+  lifeMax: 1.1
+  sizeMin: 0.08
+  sizeMax: 0.18
+  sizeOverLife:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  alphaOverLife:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.65
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  colorOverLife:
+    serializedVersion: 2
+    key0: {r: 1, g: 1, b: 1, a: 1}
+    key1: {r: 1, g: 1, b: 1, a: 1}
+    key2: {r: 0, g: 0, b: 0, a: 0}
+    key3: {r: 0, g: 0, b: 0, a: 0}
+    key4: {r: 0, g: 0, b: 0, a: 0}
+    key5: {r: 0, g: 0, b: 0, a: 0}
+    key6: {r: 0, g: 0, b: 0, a: 0}
+    key7: {r: 0, g: 0, b: 0, a: 0}
+    ctime0: 0
+    ctime1: 65535
+    ctime2: 0
+    ctime3: 0
+    ctime4: 0
+    ctime5: 0
+    ctime6: 0
+    ctime7: 0
+    atime0: 0
+    atime1: 65535
+    atime2: 0
+    atime3: 0
+    atime4: 0
+    atime5: 0
+    atime6: 0
+    atime7: 0
+    m_Mode: 0
+    m_ColorSpace: -1
+    m_NumColorKeys: 2
+    m_NumAlphaKeys: 2
+  sprites: []
+  pixelsPerUnit: 32
+  useFloor: 1
+  floorY: 0
+  bounciness: 0.35
+  floorFriction: 0.5
+  restOnFloor: 1
+  sampleSource: {fileID: 0}
+  samplePxMin: 5
+  samplePxMax: 20
+  tumble: 1
+  tumbleSpeedMin: 180
+  tumbleSpeedMax: 720
+  tumbleShadeStrength: 0.6
+  tintMode: 0
+  tintColor: {r: 1, g: 0.35, b: 0.08, a: 1}
+  tintStrength: 0.6
+  edgeThicknessPx: 1
+  modifiers: []
+  animationSource: {fileID: 0}
+  particleSplash:
+    enabled: 0
+    layerName: Splash
+    sprite: {fileID: 0}
+    emitFromFootprint: 1
+    countMin: 6
+    countMax: 14
+    sizePxMin: 1
+    sizePxMax: 3
+    speedMin: 1.5
+    speedMax: 5
+    inheritBurstDirection: 0
+    directionDeg: 90
+    spreadDeg: 180
+    gravity: 6
+    drag: 0.4
+    lifeMin: 0.15
+    lifeMax: 0.4
+    alphaOverLife:
+      serializedVersion: 2
+      m_Curve: []
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    seed: 0
+  pyreSpawn:
+    enabled: 0
+    layerName: Blast
+    label: 
+    useFormation: 0
+    formation:
+      shape: 1
+      count: 5
+      length: 4
+      angleDeg: 0
+      radius: 2
+      arcDeg: 360
+      startAngleDeg: 0
+      positionJitter: 0
+      staggerSeconds: 0.05
+      staggerJitter: 0
+      staggerOrder: 0
+      seed: 0
+    source: {fileID: 0}
+    pool: []
+    offset: {x: 0, y: 0}
+    rotationMode: 0
+    fixedAngleDeg: 0
+    randomAngleMinDeg: 0
+    randomAngleMaxDeg: 360
+    scaleMin: 1
+    scaleMax: 1
+    seed: 0
+  pyreMotion:
+    enabled: 0
+    speedMin: 3
+    speedMax: 7
+    inheritBurstDirection: 1
+    directionDeg: 90
+    spreadDeg: 20
+    upwardBias: 0
+    gravity: 20
+    drag: 0.6
+    faceVelocity: 0
+    untilTargetEnds: 1
+    lifeSeconds: 1
+    seed: 0
+  fragmentSlicer:
+    enabled: 0
+    layerName: Fragments
+    sourceVisual: {fileID: 0}
+    source: {fileID: 0}
+    pieceCount: 3
+    seed: 0
+    minPieceAreaPx: 24
+    speedMin: 1.5
+    speedMax: 3.5
+    useBurstDirection: 1
+    directionDeg: 90
+    spreadDeg: 180
+    gravity: 8
+    drag: 0.4
+    angularSpeedMin: 30
+    angularSpeedMax: 180
+    lifeMin: 1.2
+    lifeMax: 2
+    alphaOverLife:
+      serializedVersion: 2
+      m_Curve: []
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+  spawnFormation:
+    enabled: 0
+    layerName: Blast
+    formation:
+      shape: 1
+      count: 5
+      length: 4
+      angleDeg: 0
+      radius: 2
+      arcDeg: 360
+      startAngleDeg: 0
+      positionJitter: 0
+      staggerSeconds: 0.05
+      staggerJitter: 0
+      staggerOrder: 0
+      seed: 0
+  blastGroups: []
+  layers:
+    sortingLayerName: Default
+    baseOrder: 0
+    step: 10
+    layers: []
+  timeline:
+    enabled: 0
+    tracks: []
+    markers: []
+    windowSeconds: 2
+  useHitDetection: 0
+  hitDamage: 5
+  hitRadiusScale: 0.5
+  trailSource: {fileID: 0}
+  trailInterval: 0.08
+  references:
+    version: 2
+    RefIds:
+    - rid: 4065707408484729615
+      type: {class: LayerPlan, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
+      data:
+        id: 0ad898f9034044b1b8d05ac9fcd5f322
+        colorSlot: -1
+        enabled: 1
+        displayName: 
+        delay: 0
+        rows:
+        - capabilityId: e15b7084c3d64275b5588643799da45f
+          instance: -1
+        - capabilityId: 06763c5d415f4367b90a29e01a1c9c25
+          instance: -1
+        - capabilityId: 7786c856a22841dfa03141e20bb3e485
+          instance: -1
+        - capabilityId: 225b402634214ee09ea714624bd619be
+          instance: -1
+        - capabilityId: e2060ec4279740309d1ebbb65235f295
+          instance: -1
+        layers:
+          sortingLayerName: Default
+          baseOrder: 0
+          step: 10
+          layers:
+          - Big pyre
+          - Fragments
+          - Small pyres
+          - Particles
+        rowsMigrated: 1
+    - rid: 4065707408484729616
+      type: {class: PyreBlast, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
+      data:
+        id: e15b7084c3d64275b5588643799da45f
+        colorSlot: -1
+        enabled: 1
+        displayName: Big pyre
+        delay: 0
+        layerName: Big pyre
+        source: {fileID: 11400000, guid: 7ee6fc84e04b50e47937065741fe879d, type: 2}
+        pool: []
+        useFormation: 0
+        formation:
+          shape: 1
+          count: 5
+          length: 4
+          angleDeg: 0
+          radius: 2
+          arcDeg: 360
+          startAngleDeg: 0
+          positionJitter: 0
+          staggerSeconds: 0.05
+          staggerJitter: 0
+          staggerOrder: 0
+          seed: 0
+        offset: {x: 0, y: 0}
+        rotationMode: 0
+        fixedAngleDeg: 0
+        randomAngleMinDeg: 0
+        randomAngleMaxDeg: 360
+        scaleMin: 2.2
+        scaleMax: 2.2
+        tint: {r: 1, g: 1, b: 1, a: 1}
+        alphaMin: 1
+        alphaMax: 1
+        seed: 0
+        blastSeconds: 1.67
+        blastSecondsAuto: 1
+    - rid: 4065707408484729617
+      type: {class: FragmentFracture, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
+      data:
+        id: 06763c5d415f4367b90a29e01a1c9c25
+        colorSlot: -1
+        enabled: 1
+        displayName: Disc pieces
+        delay: 0
+        layerName: Fragments
+        sourceVisual: {fileID: 11400000, guid: df6d774acf094b948b983102c9ef9a34, type: 2}
+        source: {fileID: 0}
+        pieceCount: 3
+        useProjectPixelScale: 1
+        pixelsPerUnitOverride: 32
+        minPieceAreaPx: 24
+        seed: 7
+        speedMin: 3
+        speedMax: 6
+        useBurstDirection: 1
+        directionDeg: 90
+        spreadDeg: 180
+        gravity: 8
+        drag: 0.4
+        angularSpeedMin: 30
+        angularSpeedMax: 180
+        lifeMin: 1.2
+        lifeMax: 2
+        alphaOverLife:
+          serializedVersion: 2
+          m_Curve:
+          - serializedVersion: 3
+            time: 0
+            value: 1
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          - serializedVersion: 3
+            time: 0.7
+            value: 1
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          - serializedVersion: 3
+            time: 1
+            value: 0
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          m_PreInfinity: 2
+          m_PostInfinity: 2
+          m_RotationOrder: 4
+        curvesMigrated: 1
+        alphaEnvelope:
+        - time: 0
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.125
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.25
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.375
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.5
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.625
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.75
+          value: 0.9259259
+          exponent: 1
+          editState: 0
+        - time: 0.875
+          value: 0.37615734
+          exponent: 1
+          editState: 0
+        - time: 1
+          value: 0
+          exponent: 1
+          editState: 0
+    - rid: 4065707408484729618
+      type: {class: PaletteSplash, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
+      data:
+        id: 225b402634214ee09ea714624bd619be
+        colorSlot: -1
+        enabled: 1
+        displayName: Particles up
+        delay: 0
+        layerName: Particles
+        sourceVisual: {fileID: 0}
+        sprite: {fileID: 0}
+        emitFromFootprint: 1
+        particleLook: 0
+        cropPxMin: 1
+        cropPxMax: 4
+        maskCropEdges: 0
+        edgeMaskStrength: 0.55
+        edgeMaskJitter: 0.4
+        useHitRadius: 0
+        hitRadiusPx: 6
+        hitOffsetPx: {x: 0, y: 0}
+        tintCropEdges: 0
+        edgeTintPreset: 0
+        customEdgeTint:
+          serializedVersion: 2
+          key0: {r: 0.34, g: 0.15, b: 0.05, a: 1}
+          key1: {r: 0.72, g: 0.36, b: 0.12, a: 0.7}
+          key2: {r: 0.5, g: 0.33, b: 0.18, a: 0.25}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 32768
+          ctime2: 65535
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 32768
+          atime2: 65535
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 3
+          m_NumAlphaKeys: 3
+        edgeTintStrength: 0.7
+        edgeTintThicknessPx: 1
+        countMin: 20
+        countMax: 28
+        sizePxMin: 1
+        sizePxMax: 3
+        useProjectPixelScale: 1
+        pixelsPerUnitOverride: 32
+        speedMin: 2
+        speedMax: 6
+        inheritBurstDirection: 0
+        directionDeg: 90
+        spreadDeg: 90
+        gravity: 6
+        drag: 0.4
+        lifeMin: 0.4
+        lifeMax: 0.9
+        alphaOverLife:
+          serializedVersion: 2
+          m_Curve:
+          - serializedVersion: 3
+            time: 0
+            value: 1
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          - serializedVersion: 3
+            time: 0.7
+            value: 1
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          - serializedVersion: 3
+            time: 1
+            value: 0
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          m_PreInfinity: 2
+          m_PostInfinity: 2
+          m_RotationOrder: 4
+        curvesMigrated: 1
+        spreadMigrated: 1
+        alphaEnvelope:
+        - time: 0
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.125
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.25
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.375
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.5
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.625
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.75
+          value: 0.9259259
+          exponent: 1
+          editState: 0
+        - time: 0.875
+          value: 0.37615734
+          exponent: 1
+          editState: 0
+        - time: 1
+          value: 0
+          exponent: 1
+          editState: 0
+        seed: 0
+    - rid: 4065707408484729619
+      type: {class: PaletteSplash, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
+      data:
+        id: e2060ec4279740309d1ebbb65235f295
+        colorSlot: -1
+        enabled: 1
+        displayName: Particles down
+        delay: 0
+        layerName: Particles
+        sourceVisual: {fileID: 0}
+        sprite: {fileID: 0}
+        emitFromFootprint: 1
+        particleLook: 0
+        cropPxMin: 1
+        cropPxMax: 4
+        maskCropEdges: 0
+        edgeMaskStrength: 0.55
+        edgeMaskJitter: 0.4
+        useHitRadius: 0
+        hitRadiusPx: 6
+        hitOffsetPx: {x: 0, y: 0}
+        tintCropEdges: 0
+        edgeTintPreset: 0
+        customEdgeTint:
+          serializedVersion: 2
+          key0: {r: 0.34, g: 0.15, b: 0.05, a: 1}
+          key1: {r: 0.72, g: 0.36, b: 0.12, a: 0.7}
+          key2: {r: 0.5, g: 0.33, b: 0.18, a: 0.25}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 32768
+          ctime2: 65535
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 32768
+          atime2: 65535
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 3
+          m_NumAlphaKeys: 3
+        edgeTintStrength: 0.7
+        edgeTintThicknessPx: 1
+        countMin: 20
+        countMax: 28
+        sizePxMin: 1
+        sizePxMax: 3
+        useProjectPixelScale: 1
+        pixelsPerUnitOverride: 32
+        speedMin: 2
+        speedMax: 6
+        inheritBurstDirection: 0
+        directionDeg: 270
+        spreadDeg: 90
+        gravity: 6
+        drag: 0.4
+        lifeMin: 0.4
+        lifeMax: 0.9
+        alphaOverLife:
+          serializedVersion: 2
+          m_Curve:
+          - serializedVersion: 3
+            time: 0
+            value: 1
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          - serializedVersion: 3
+            time: 0.7
+            value: 1
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          - serializedVersion: 3
+            time: 1
+            value: 0
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          m_PreInfinity: 2
+          m_PostInfinity: 2
+          m_RotationOrder: 4
+        curvesMigrated: 1
+        spreadMigrated: 1
+        alphaEnvelope:
+        - time: 0
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.125
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.25
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.375
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.5
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.625
+          value: 1
+          exponent: 1
+          editState: 0
+        - time: 0.75
+          value: 0.9259259
+          exponent: 1
+          editState: 0
+        - time: 0.875
+          value: 0.37615734
+          exponent: 1
+          editState: 0
+        - time: 1
+          value: 0
+          exponent: 1
+          editState: 0
+        seed: 0
+    - rid: 4065707408484729620
+      type: {class: PyreBlast, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
+      data:
+        id: 7786c856a22841dfa03141e20bb3e485
+        colorSlot: -1
+        enabled: 1
+        displayName: Small pyres
+        delay: 0.1
+        layerName: Small pyres
+        source: {fileID: 11400000, guid: 1854130e91419a94f9c580ea5030a45d, type: 2}
+        pool: []
+        useFormation: 1
+        formation:
+          shape: 1
+          count: 3
+          length: 4
+          angleDeg: 0
+          radius: 0.9
+          arcDeg: 360
+          startAngleDeg: 0
+          positionJitter: 0
+          staggerSeconds: 0.08
+          staggerJitter: 0
+          staggerOrder: 0
+          seed: 0
+        offset: {x: 0, y: 0}
+        rotationMode: 0
+        fixedAngleDeg: 0
+        randomAngleMinDeg: 0
+        randomAngleMaxDeg: 360
+        scaleMin: 0.5
+        scaleMax: 0.5
+        tint: {r: 1, g: 1, b: 1, a: 1}
+        alphaMin: 1
+        alphaMax: 1
+        seed: 0
+        blastSeconds: 1.33
+        blastSecondsAuto: 1

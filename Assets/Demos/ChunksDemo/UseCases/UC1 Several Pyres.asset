@@ -14,10 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Chunks::Laubrary.Chunks.ChunkSpec
   schemaVersion: 1
   capabilities:
-  - rid: 4065707408189816832
   - rid: 4065707408189816833
-  - rid: 4065707408189816834
-  - rid: 4065707408189816835
+  - rid: 4065707408189816832
   directionDeg: 90
   previewBackSplash:
     cameraColor: {r: 0.08, g: 0.08, b: 0.1, a: 1}
@@ -278,11 +276,12 @@ MonoBehaviour:
       type: {class: PyreBlast, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: 6d3d4978882a4d68a901fd599dd7e710
+        colorSlot: 0
         enabled: 1
         displayName: Left
-        delay: 0
+        delay: 0.01
         layerName: 
-        source: {fileID: 11400000, guid: 262ba8350478ea5419851c0574a7a5ca, type: 2}
+        source: {fileID: 11400000, guid: 07c0be51849c5414a95add1edcd225d3, type: 2}
         pool: []
         useFormation: 0
         formation:
@@ -298,7 +297,7 @@ MonoBehaviour:
           staggerJitter: 0
           staggerOrder: 0
           seed: 0
-        offset: {x: -3, y: 0}
+        offset: {x: -0.03412725, y: 0.034128666}
         rotationMode: 0
         fixedAngleDeg: 0
         randomAngleMinDeg: 0
@@ -310,31 +309,33 @@ MonoBehaviour:
         alphaMax: 1
         seed: 0
         blastSeconds: 0.6
+        blastSecondsAuto: 1
     - rid: 4065707408189816833
       type: {class: PyreBlast, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: df33e389ff9c461587cc46d043f27b15
+        colorSlot: 1
         enabled: 1
         displayName: Small
-        delay: 0.25
+        delay: 0.19999999
         layerName: 
         source: {fileID: 11400000, guid: 262ba8350478ea5419851c0574a7a5ca, type: 2}
         pool: []
-        useFormation: 0
+        useFormation: 1
         formation:
           shape: 1
           count: 5
           length: 4
           angleDeg: 0
-          radius: 2
+          radius: 0.1
           arcDeg: 360
           startAngleDeg: 0
           positionJitter: 0
-          staggerSeconds: 0.05
+          staggerSeconds: 0.08
           staggerJitter: 0
           staggerOrder: 0
           seed: 0
-        offset: {x: -1, y: 1.5}
+        offset: {x: -0.04102111, y: -0.061431408}
         rotationMode: 0
         fixedAngleDeg: 0
         randomAngleMinDeg: 0
@@ -346,75 +347,4 @@ MonoBehaviour:
         alphaMax: 0.8
         seed: 0
         blastSeconds: 0.6
-    - rid: 4065707408189816834
-      type: {class: PyreBlast, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
-      data:
-        id: c72f1b94c46a42808115689f340f4b78
-        enabled: 1
-        displayName: Big
-        delay: 0.5
-        layerName: 
-        source: {fileID: 11400000, guid: 262ba8350478ea5419851c0574a7a5ca, type: 2}
-        pool: []
-        useFormation: 0
-        formation:
-          shape: 1
-          count: 5
-          length: 4
-          angleDeg: 0
-          radius: 2
-          arcDeg: 360
-          startAngleDeg: 0
-          positionJitter: 0
-          staggerSeconds: 0.05
-          staggerJitter: 0
-          staggerOrder: 0
-          seed: 0
-        offset: {x: 1, y: -0.5}
-        rotationMode: 0
-        fixedAngleDeg: 0
-        randomAngleMinDeg: 0
-        randomAngleMaxDeg: 360
-        scaleMin: 1.4
-        scaleMax: 1.4
-        tint: {r: 0.3, g: 0.9, b: 1, a: 1}
-        alphaMin: 0.6
-        alphaMax: 0.6
-        seed: 0
-        blastSeconds: 0.6
-    - rid: 4065707408189816835
-      type: {class: PyreBlast, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
-      data:
-        id: d865f7e292c041b28ea41aaa380f9830
-        enabled: 1
-        displayName: Right
-        delay: 0.75
-        layerName: 
-        source: {fileID: 11400000, guid: 8959a935fbd3e254c98229a6d147c6f4, type: 2}
-        pool: []
-        useFormation: 0
-        formation:
-          shape: 1
-          count: 5
-          length: 4
-          angleDeg: 0
-          radius: 2
-          arcDeg: 360
-          startAngleDeg: 0
-          positionJitter: 0
-          staggerSeconds: 0.05
-          staggerJitter: 0
-          staggerOrder: 0
-          seed: 0
-        offset: {x: 3, y: 1}
-        rotationMode: 0
-        fixedAngleDeg: 0
-        randomAngleMinDeg: 0
-        randomAngleMaxDeg: 360
-        scaleMin: 1
-        scaleMax: 1
-        tint: {r: 0.4, g: 1, b: 0.4, a: 1}
-        alphaMin: 0.4
-        alphaMax: 0.4
-        seed: 0
-        blastSeconds: 0.6
+        blastSecondsAuto: 1

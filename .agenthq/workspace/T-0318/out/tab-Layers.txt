@@ -1,0 +1,49 @@
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets window=1400 card='Layers'
+card ZuiSection w=390.2 at 841
+
+-- static: every leaf control in reading order --
+  focusable   '✔' ZuiToggleButton tabIndex=0 delegatesFocus=False enabled=True at 29,868
+  focusable   '●' Button tabIndex=0 delegatesFocus=False enabled=True at 68,868
+  focusable   'Dup' Button tabIndex=0 delegatesFocus=False enabled=True at 317,868
+  focusable   '×' Button tabIndex=0 delegatesFocus=False enabled=True at 366,868
+  focusable   'Star' TextField tabIndex=0 delegatesFocus=True enabled=True at 99,869
+  focusable   '✔' ZuiToggleButton tabIndex=0 delegatesFocus=False enabled=True at 29,892
+  focusable   '○' Button tabIndex=0 delegatesFocus=False enabled=True at 68,892
+  focusable   'Dup' Button tabIndex=0 delegatesFocus=False enabled=True at 317,892
+  focusable   '×' Button tabIndex=0 delegatesFocus=False enabled=True at 366,892
+  focusable   'ArcBurst' TextField tabIndex=0 delegatesFocus=True enabled=True at 99,893
+  focusable   '+ Add layer' Button tabIndex=0 delegatesFocus=False enabled=True at 7,916
+  focusable   'Lifetime' ZuiMicroMinMax tabIndex=0 delegatesFocus=False enabled=True at 4,942
+  focusable   'Height' ZuiToggleButton tabIndex=0 delegatesFocus=False enabled=True at 7,963
+  focusable   'Mask' ZuiToggleButton tabIndex=0 delegatesFocus=False enabled=True at 73,963
+  focusable   'Lighting' ZuiToggleButton tabIndex=0 delegatesFocus=False enabled=True at 131,963
+  focusable   'Draws into the picture' ZuiToggleButton tabIndex=0 delegatesFocus=False enabled=True at 205,963
+  focusable   'HDR' ColorField tabIndex=0 delegatesFocus=True enabled=True at 288,1088
+  focusable   'Flat' Button tabIndex=0 delegatesFocus=False enabled=True at 88,1112
+  focusable   'Follow the surface' Button tabIndex=0 delegatesFocus=False enabled=True at 128,1112
+  focusable   'Direction XY' ZuiPad tabIndex=0 delegatesFocus=False enabled=True at 88,1135
+leafControls=20 notFocusable=0
+
+-- live: NavigationMoveEvent(Next), the event Tab raises --
+  step 0 focus='✔' ZuiToggleButton
+  step 1 focus='●' Button
+  step 2 focus='Star' TextField
+  step 3 focus='Dup' Button
+  step 4 focus='×' Button
+  step 5 focus='✔' ZuiToggleButton
+  step 6 focus='○' Button
+  step 7 focus='ArcBurst' TextField
+  step 8 focus='Dup' Button
+  step 9 focus='×' Button
+  step 10 focus='+ Add layer' Button
+  step 11 focus='Lifetime' ZuiMicroMinMax
+  step 12 focus='Height' ZuiToggleButton
+  step 13 focus='Mask' ZuiToggleButton
+  step 14 focus='Lighting' ZuiToggleButton
+  step 15 focus='Draws into the picture' ZuiToggleButton
+  step 16 focus='HDR' ColorField
+  step 17 focus='Flat' Button
+  step 18 focus='Follow the surface' Button
+  step 19 focus='Direction XY' ZuiPad
+  step 20 focus='Star' Button   (left the card)
+leafControls reached by Tab=20 of 20

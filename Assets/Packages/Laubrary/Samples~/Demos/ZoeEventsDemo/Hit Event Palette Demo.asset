@@ -1,0 +1,106 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0413ec766917e0b4bb054a79ec22ed07, type: 3}
+  m_Name: Hit Event Palette Demo
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Zoetrope::Laubrary.Zoetrope.Zoe
+  displayName: Hit Event Palette Demo
+  maxHealth: 30
+  faction: {fileID: 0}
+  invulnerableAfterHit: 0
+  view:
+    rid: 1452078332721497657
+  hit:
+    clip: 
+    bodyFx: {fileID: 0}
+    fx:
+    - trigger: 0
+      eventName: 
+      placement: 0
+      metaLayerId: 
+      direction: 0
+      scalar: 0
+      follow: 0
+      fx:
+        rid: 1452078332721497662
+    - trigger: 0
+      eventName: 
+      placement: 1
+      metaLayerId: 
+      direction: 1
+      scalar: 0
+      follow: 0
+      fx:
+        rid: 1452078332721497663
+    - trigger: 0
+      eventName: 
+      placement: 0
+      metaLayerId: 
+      direction: 0
+      scalar: 0
+      follow: 0
+      fx:
+        rid: 1452078332721497664
+    - trigger: 0
+      eventName: 
+      placement: 0
+      metaLayerId: 
+      direction: 0
+      scalar: 0
+      follow: 0
+      fx:
+        rid: 1452078332721497665
+  death:
+    clip: 
+    bodyFx: {fileID: 0}
+    fx: []
+  brain:
+    rid: -2
+  loadout: []
+  weapons: []
+  defaultActiveWeapon: 0
+  cues: []
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
+    - rid: 1452078332721497657
+      type: {class: SpriteView, ns: Laubrary.Zoetrope, asm: com.Lautaro-Arino.Laubrary.Zoetrope}
+      data:
+        sprite: {fileID: 0}
+        scale: 1
+    - rid: 1452078332721497662
+      type: {class: BodySpriteFxEffect, ns: Laubrary.Zoetrope, asm: com.Lautaro-Arino.Laubrary.Zoetrope}
+      data:
+        stack: {fileID: 0}
+    - rid: 1452078332721497663
+      type: {class: SpawnPyreFx, ns: Laubrary.ZoetropePyre, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Pyre}
+      data:
+        blast: {fileID: 0}
+        blastFps: 24
+        sortingOrder: 10
+        baseScale: 1
+        scalePerAmount: 0
+    - rid: 1452078332721497664
+      type: {class: SpawnChunkFx, ns: Laubrary.ZoetropePyre, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Pyre}
+      data:
+        chunks: {fileID: 0}
+        sampleReelColours: 1
+        sampleCount: 6
+        baseScale: 1
+        scalePerAmount: 0
+    - rid: 1452078332721497665
+      type: {class: PushbackEffect, ns: Laubrary.Zoetrope, asm: com.Lautaro-Arino.Laubrary.Zoetrope}
+      data:
+        force: 5
+        forcePerAmount: 0
+        invert: 0
