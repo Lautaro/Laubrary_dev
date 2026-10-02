@@ -1,127 +1,293 @@
 # SaveGame Demo
 
-This demo showcases the **SaveGame** system - a generic, game-agnostic save/load system with minimal sidecar metadata and lazy-loading capabilities.
+This demo showcases the **SaveGame** system - a generic, game-agnostic save/load system with sidecar metadata, lazy-loading, and thumbnail support.
+
+## Demo Overview
+
+A fully interactive demonstration with three panels:
+- **Left Panel (Controls)**: Create and manage save files, add snapshots, open save folder
+- **Middle Panel (Save List)**: Scrollable list of all saves with expandable snapshots and thumbnails
+- **Right Panel (Details)**: Selected save/snapshot details with full metadata and thumbnail preview
+
+The demo features:
+- **Mock Data Generation**: Automatically generates random world data and game states
+- **Thumbnail System**: 128x128 blocky pixel art thumbnails (4px/8px/16px blocks, 2-5 random colors)
+- **Expandable List**: Click arrows to expand/collapse snapshots for each save
+- **Selection System**: Click any save or snapshot to view detailed information
+- **Fast Metadata Browsing**: List reads only sidecar files (no zip extraction)
+- **Folder Access**: One-click button to open the save files directory
 
 ## Features Demonstrated
 
-- ✅ **Create Save Files** with optional WorldData
-- ✅ **Add Snapshots** with game state data
-- ✅ **Save to Disk** (creates .gamesave + .gamesave.meta sidecar)
-- ✅ **Load from Disk** 
-- ✅ **Fast Metadata Browsing** (reads sidecar files without unzipping)
-- ✅ **Delete Saves** and snapshots
-- ✅ **Metadata Properties** for quick-access custom data
-- ✅ **Optional Thumbnails** for saves and snapshots
+- ✅ **Create Save Files** with mock world data and thumbnails
+- ✅ **Add Snapshots** with mock game state and screenshot thumbnails  
+- ✅ **Visual List** showing all saves and their snapshots with thumbnails
+- ✅ **Expandable Hierarchy** - expand/collapse snapshots per save
+- ✅ **Selection & Details** - click to view full metadata
+- ✅ **Save to Disk** (creates `.gamesave` + `.gamesave.meta` sidecar)
+- ✅ **Load from Disk** with full state restoration
+- ✅ **Fast Browsing** via sidecar metadata (no zip extraction)
+- ✅ **Delete Operations** for entire save files
+- ✅ **Metadata Dictionaries** for custom searchable properties
+- ✅ **Thumbnail Serialization** - images saved and loaded with saves
+- ✅ **Open Save Folder** button for easy file access
 
-## How to Use
+## Quick Start
 
-### UI Buttons
+1. Open the scene: `/Assets/Demos/SaveGameDemo/SaveGameDemo.unity`
+2. Enter Play mode
+3. The demo shows three panels:
+   - **Left Panel**: Controls for creating/loading saves  
+   - **Middle Panel**: Scrollable list of saves with thumbnails
+   - **Right Panel**: Detailed information for selected save/snapshot
 
-1. **Create New Save** - Creates a new save file with the name from the input field
-2. **Add Snapshot** - Adds a new snapshot to the current save with current game state
-3. **Save to Disk** - Writes the current save to disk (.gamesave zip file)
-4. **Load Save** - Loads a save from disk by name
-5. **Delete Save** - Deletes a save file completely
-6. **Simulate Gameplay** - Changes game state (health, level, position)
-7. **Refresh List** - Updates the list of all saves
+### How to Use
 
-### Workflow Example
+**Create Your First Save:**
+1. Type a name in the input field (or leave blank for "DemoSave")
+2. Click **Create Save** - creates a save file with mock world data and a blocky pixel thumbnail
 
-1. Enter a save name (e.g., "MySave")
-2. Click **Create New Save**
-3. Click **Simulate Gameplay** to change game state
-4. Enter a snapshot name (e.g., "Before Boss Fight")
-5. Click **Add Snapshot**
-6. Repeat steps 3-5 to create more snapshots
-7. Click **Save to Disk**
-8. Click **Refresh List** to see your save in the list
-9. Try **Load Save** to restore the save
+**Add Snapshots:**
+1. Make sure you've created or loaded a save first
+2. Click **Add Snapshot** - adds a checkpoint with mock game state and thumbnail
+3. The middle panel updates to show your new snapshot
 
-## Save File Structure
+**Browse and Explore:**
+1. Click the arrow (▶) next to a save name to expand its snapshots
+2. Click on any save or snapshot to view full details in the right panel
+3. Thumbnails show at different sizes: 128x128 in details, 64x64 for saves, 48x48 for snapshots
+
+**Load a Save:**
+1. Type the save name in the input field
+2. Click **Load Save** - loads the save into memory for adding more snapshots
+
+**Delete a Save:**
+1. Type the save name
+2. Click **Delete Save** - removes the entire save file and all snapshots
+
+**Other Actions:**
+- Click **Refresh List** to reload from disk
+- Click **Open Save Folder** to browse files in your file system
+
+### Visual Layout
+
+The demo presents a three-panel interface:
+
+```
+┌──────────────┬───────────────────────┬──────────────────┐
+│  Controls    │    Save Files         │    Details       │
+├──────────────┼───────────────────────┼──────────────────┤
+│ [Input]      │ ▶ [🖼] MySave         │  [128x128 IMG]   │
+│ Create Save  │   3 snapshots         │                  │
+│ Add Snapshot │   Modified: 3:30 PM   │  MySave          │
+│ Load Save    │                       │  Created: ...    │
+│ Delete Save  │ ▼ [🖼] TestSave       │  Modified: ...   │
+│ Refresh      │   2 snapshots         │  Snapshots: 3    │
+│ Open Folder  │   Modified: 2:15 PM   │                  │
+│              │   ⤷ [🖼] Checkpoint 1  │  Properties:     │
+│              │   ⤷ [🖼] Checkpoint 2  │  • class: Warrior│
+│              │                       │  • mode: Demo    │
+└──────────────┴───────────────────────┴──────────────────┘
+```
+
+**Thumbnails:**
+- Generated as 128x128 blocky pixel art
+- Random 4px, 8px, or 16px block sizes
+- 2-5 random colors per thumbnail
+- Saved with each save file and snapshot
+- Displayed at different sizes throughout UI
+
+## Key Concepts
+
+### Mock Data System
+
+The demo automatically generates realistic test data:
+
+**World Data (per save):**
+- Random seed (1000-9999)
+- Difficulty: Easy, Normal, Hard, or Nightmare
+- Player Class: Warrior, Mage, Rogue, Cleric, or Ranger
+- World Name: "World_XXX"
+
+**Game State (per snapshot):**
+- Player Name: Hero, Adventurer, Champion, etc.
+- Health: 50-100
+- Level: 1-20
+- Location: Forest, Castle, Dungeon, Village, Mountain, or Cave
+- Gold: 100-10,000
+- Experience: 0-1,000
+
+### Thumbnail Generation
+
+Thumbnails are procedurally generated blocky pixel art:
+- Size: 128x128 pixels
+- Block sizes: Randomly 4px, 8px, or 16px
+- Colors: 2-5 random colors per image
+- Saved as PNG with save files
+- Automatically serialized/deserialized
+
+### SaveGame Architecture
 
 ```
 Saves/
-├── MySave.gamesave.meta      (Lightweight sidecar - fast access)
-└── MySave.gamesave           (Zip archive)
+├── MyGame.gamesave.meta      (Sidecar - fast access)
+│   └── Contains: metadata, snapshot list, properties
+└── MyGame.gamesave           (Zip archive)
     ├── metadata.json         (Save metadata)
-    ├── savefile_thumb.png    (Optional save thumbnail)
     ├── WorldData.json        (Optional shared data)
     └── Snapshots/
-        ├── snapshot_001.meta (Snapshot metadata)
-        ├── snapshot_001.data (Game state JSON)
-        ├── snapshot_001.png  (Optional screenshot)
+        ├── snapshot_XXX.meta (Snapshot metadata)
+        ├── snapshot_XXX.data (SnapshotData)
+        ├── snapshot_XXX.png  (Optional screenshot)
         └── ...
 ```
 
-## Save Location
+### Data Separation
 
-Saves are stored in:
-- **Windows**: `%USERPROFILE%\AppData\LocalLow\CompanyName\ProductName\Saves\`
-- **Mac**: `~/Library/Application Support/CompanyName/ProductName/Saves/`
-- **Linux**: `~/.config/unity3d/CompanyName/ProductName/Saves/`
+- **WorldData**: Shared across all snapshots (e.g., world seed, difficulty, player class)
+- **SnapshotData**: Specific to each snapshot (e.g., player state, health, location)
+- **MetadataProperties**: Quick-access searchable data in sidecar file
+- **Thumbnails**: PNG images serialized as byte arrays, saved in save files and snapshots
 
-You can find the exact path in the status message after saving.
+## Code Example
 
-## Code Overview
-
-### Creating a Save
+The demo shows how to use the SaveGame system with thumbnails:
 
 ```csharp
-SaveManager saveManager = new SaveManager();
-GameSaveFile save = saveManager.CreateSaveFile("MySave", worldData: myJson);
-save.MetadataProperties["difficulty"] = "Hard";
-```
+// Initialize manager
+SaveManager manager = new SaveManager
+{
+    DebugMode = true,
+    MaxSnapshotsPerSave = 10,
+    DefaultGameVersion = "1.0.0"
+};
 
-### Adding Snapshots
+// Generate a thumbnail (128x128 blocky pixel art)
+byte[] thumbnail = GenerateMockThumbnail();
 
-```csharp
-var gameState = new { health = 100, position = Vector3.zero };
-saveManager.AddSnapshot(
+// Create save with world data and thumbnail
+var worldData = new { seed = 12345, difficulty = "Normal", playerClass = "Warrior" };
+GameSaveFile save = manager.CreateSaveFile("MySave", JsonUtility.ToJson(worldData));
+save.MetadataProperties["gameMode"] = "Demo";
+save.ThumbnailPNG = thumbnail;
+
+// Add snapshot with game state and screenshot
+var gameState = new { health = 100, level = 5, location = "Castle" };
+byte[] screenshot = GenerateMockThumbnail();
+
+manager.AddSnapshot(
     save,
     snapshotData: JsonUtility.ToJson(gameState),
     saveType: SaveType.ManualSave,
-    playTimeInSeconds: 3600,
     playerDefinedName: "Checkpoint 1",
-    screenshotPNG: screenshot?.EncodeToPNG(),
-    metadata: new Dictionary<string, string> { {"location", "Castle"} }
+    screenshotPNG: screenshot,
+    metadata: new Dictionary<string, string> {
+        {"location", "Castle"},
+        {"health", "100"}
+    }
 );
+
+// Save to disk
+manager.Save(save);
+
+// Fast browse (reads sidecar only - no zip extraction)
+List<SaveFileMetadata> allSaves = manager.GetAllSaveMetadata();
+
+// Load thumbnails on demand (lazy loading with cache)
+Texture2D saveThumb = manager.GetSaveFileThumbnail("MySave");
+Texture2D snapshotThumb = manager.GetSnapshotThumbnail("MySave", "snapshot_001");
+
+// Load full save
+GameSaveFile loaded = manager.Load("MySave");
+var state = JsonUtility.FromJson<MyState>(loaded.LatestSnapshot.SnapshotData);
 ```
 
-### Saving and Loading
+## What You'll Learn
+
+- ✅ How to create save files with custom world data
+- ✅ How to add snapshots with game state checkpoints
+- ✅ How to generate and save thumbnails with saves
+- ✅ How to use metadata for quick filtering and display
+- ✅ Fast browsing with sidecar files (no zip extraction)
+- ✅ Lazy-loading thumbnails from zip archives
+- ✅ Loading and restoring complete game state
+- ✅ Managing save file lifecycles (create, load, delete)
+- ✅ Opening save folder for debugging
+- ✅ Building interactive save/load UIs
+
+## Technical Implementation
+
+### Thumbnail System
+
+The demo includes a complete thumbnail generation system:
 
 ```csharp
-// Save
-saveManager.Save(save);
-
-// Fast browse (no zip extraction)
-List<SaveFileMetadata> allSaves = saveManager.GetAllSaveMetadata();
-
-// Load
-GameSaveFile loaded = saveManager.Load("MySave");
+byte[] GenerateMockThumbnail()
+{
+    int size = 128;
+    int pixelSize = Random.choice(4, 8, 16);  // Block size
+    int colorCount = Random.Range(2, 6);      // 2-5 colors
+    
+    // Generate random color palette
+    Color[] palette = new Color[colorCount];
+    for (int i = 0; i < colorCount; i++)
+        palette[i] = new Color(Random.value, Random.value, Random.value);
+    
+    // Create blocky pixel art texture
+    Texture2D texture = new Texture2D(size, size);
+    // ... fill with blocks of random colors
+    
+    // Encode as PNG and return bytes
+    return texture.EncodeToPNG();
+}
 ```
 
-## Concepts
+**Key Features:**
+- Procedurally generated unique thumbnails
+- Saved as PNG byte arrays with save files
+- Automatically serialized/deserialized by SaveManager
+- Lazy-loaded from zip archives (cached after first load)
+- Displayed at multiple sizes in UI (128x128, 64x64, 48x48)
 
-### WorldData
-Optional string stored once per save file, shared across all snapshots. Use for:
-- World seed
-- Campaign settings
-- Difficulty level
-- Player profile data
+### UI Architecture
 
-### SnapshotData
-Required string stored per snapshot. Use for:
-- Player position/stats
-- Inventory
-- Quest progress
-- Current enemies
+The demo uses a three-panel responsive layout:
 
-### Metadata Properties
-Dictionary<string, string> on both saves and snapshots for quick-access data without loading the full save.
+**Left Panel (30% width):**
+- Input field and action buttons
+- VerticalLayoutGroup with LayoutElements
+- Color-coded buttons for different actions
 
-## Performance
+**Middle Panel (30% width):**
+- ScrollRect with ContentSizeFitter
+- Dynamic list of SaveListItem prefabs
+- Expandable/collapsible snapshot hierarchy
+- Thumbnails displayed at 64x64 and 48x48
 
-- **Fast Browsing**: ~500ms for 100 saves (reads sidecar files only)
-- **Single Metadata**: ~1-5ms (no zip extraction)
-- **Load Thumbnail**: ~10-20ms (from zip, then cached)
-- **Full Load**: ~100-500ms (depends on data size)
+**Right Panel (33% width):**
+- Details display for selected item
+- Large 128x128 thumbnail preview
+- Scrollable metadata information
+- Hidden when nothing is selected
+
+## Performance Notes
+
+- **Browse 100 saves**: ~500ms (reads sidecar files only)
+- **Load single save**: ~100-500ms (depends on data size)
+- **Metadata access**: ~1-5ms per save (no zip extraction)
+- **Thumbnail loading**: ~10-20ms first load, then cached
+- **List refresh**: Instant for metadata, lazy-loads thumbnails
+
+## File Locations
+
+- **Save files**: `Application.persistentDataPath/Saves/`
+  - Windows: `%USERPROFILE%\AppData\LocalLow\CompanyName\ProductName\Saves\`
+  - Mac: `~/Library/Application Support/CompanyName/ProductName/Saves/`
+  - Linux: `~/.config/unity3d/CompanyName/ProductName/Saves/`
+
+## Additional Resources
+
+For complete documentation and advanced usage:
+- `/Assets/Packages/Laubrary/Runtime/SaveGame/` - Source code
+- `SaveGame System Refactoring` page - Architecture details
+- `/Assets/Demos/SaveGameDemo/PREFAB_SETUP.md` - UI setup instructions

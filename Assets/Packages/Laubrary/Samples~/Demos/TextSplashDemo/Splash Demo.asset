@@ -1,0 +1,930 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 787c6bfa76f1d2a49b612d229276c85b, type: 3}
+  m_Name: Splash Demo
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.TextSplash::Laubrary.TextSplash.TextSplash
+  text: SPLASH!
+  font: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  size:
+    value:
+      m_mode: 0
+      m_static: 150
+      m_min: 101
+      m_max: 185
+      m_points:
+      - time: 0
+        value: 8
+        exponent: 1
+        editState: 0
+      - time: 0.1787
+        value: 300
+        exponent: 1
+        editState: 0
+      - time: 0.9665499
+        value: 298.97183
+        exponent: 1
+        editState: 0
+      m_yMin: 8
+      m_yMax: 300
+      m_duration: 1
+      m_warmup: 0
+      m_cooldown: -1
+      m_smoothness: 0
+      m_multiplierId: 
+    perLetter: 0
+  fill:
+    mode: 0
+    color: {r: 1, g: 1, b: 1, a: 1}
+    gradient:
+      serializedVersion: 2
+      key0: {r: 1, g: 1, b: 1, a: 1}
+      key1: {r: 1, g: 1, b: 1, a: 1}
+      key2: {r: 0, g: 0, b: 0, a: 0}
+      key3: {r: 0, g: 0, b: 0, a: 0}
+      key4: {r: 0, g: 0, b: 0, a: 0}
+      key5: {r: 0, g: 0, b: 0, a: 0}
+      key6: {r: 0, g: 0, b: 0, a: 0}
+      key7: {r: 0, g: 0, b: 0, a: 0}
+      ctime0: 0
+      ctime1: 65535
+      ctime2: 0
+      ctime3: 0
+      ctime4: 0
+      ctime5: 0
+      ctime6: 0
+      ctime7: 0
+      atime0: 0
+      atime1: 65535
+      atime2: 0
+      atime3: 0
+      atime4: 0
+      atime5: 0
+      atime6: 0
+      atime7: 0
+      m_Mode: 0
+      m_ColorSpace: -1
+      m_NumColorKeys: 2
+      m_NumAlphaKeys: 2
+    gradientAnim:
+      rid: 1452078395867005016
+    angleDeg: 90
+    zoom: 1
+    center: {x: 0, y: 0}
+    zoomAnim:
+      rid: 1452078395867005017
+    centerXAnim:
+      rid: 1452078395867005018
+    centerYAnim:
+      rid: 1452078395867005019
+    space: 1
+    texture: 0
+    textureSprite: {fileID: 0}
+    noiseKind: 0
+    gridAngle: 0
+    gridSpacing: 0.5
+    gridLineWidth: 0.08
+    gridVertical: 1
+    gridHorizontal: 1
+    dotSize: 0.5
+    dotSpacing: 0.35
+    dotStagger: 1
+  alpha:
+    value:
+      m_mode: 0
+      m_static: 1
+      m_min: 0
+      m_max: 1
+      m_points:
+      - time: 0
+        value: 0
+        exponent: 1
+        editState: 0
+      - time: 0.54489
+        value: 1
+        exponent: 1
+        editState: 0
+      - time: 0.66461
+        value: 1
+        exponent: 1
+        editState: 0
+      - time: 1
+        value: 1
+        exponent: 1
+        editState: 0
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 1
+      m_warmup: 0
+      m_cooldown: -1
+      m_smoothness: 0
+      m_multiplierId: 
+    perLetter: 0
+  borderFill:
+    mode: 0
+    color: {r: 0.06, g: 0.05, b: 0.12, a: 1}
+    gradient:
+      serializedVersion: 2
+      key0: {r: 1, g: 1, b: 1, a: 1}
+      key1: {r: 1, g: 1, b: 1, a: 1}
+      key2: {r: 0, g: 0, b: 0, a: 0}
+      key3: {r: 0, g: 0, b: 0, a: 0}
+      key4: {r: 0, g: 0, b: 0, a: 0}
+      key5: {r: 0, g: 0, b: 0, a: 0}
+      key6: {r: 0, g: 0, b: 0, a: 0}
+      key7: {r: 0, g: 0, b: 0, a: 0}
+      ctime0: 0
+      ctime1: 65535
+      ctime2: 0
+      ctime3: 0
+      ctime4: 0
+      ctime5: 0
+      ctime6: 0
+      ctime7: 0
+      atime0: 0
+      atime1: 65535
+      atime2: 0
+      atime3: 0
+      atime4: 0
+      atime5: 0
+      atime6: 0
+      atime7: 0
+      m_Mode: 0
+      m_ColorSpace: -1
+      m_NumColorKeys: 2
+      m_NumAlphaKeys: 2
+    gradientAnim:
+      rid: 1452078395867005020
+    angleDeg: 0
+    zoom: 1
+    center: {x: 0, y: 0}
+    zoomAnim:
+      rid: 1452078395867005021
+    centerXAnim:
+      rid: 1452078395867005022
+    centerYAnim:
+      rid: 1452078395867005023
+    space: 0
+    texture: 0
+    textureSprite: {fileID: 0}
+    noiseKind: 0
+    gridAngle: 0
+    gridSpacing: 0.5
+    gridLineWidth: 0.08
+    gridVertical: 1
+    gridHorizontal: 1
+    dotSize: 0.5
+    dotSpacing: 0.35
+    dotStagger: 1
+  borderWidth:
+    value:
+      m_mode: 0
+      m_static: 0.07
+      m_min: 0
+      m_max: 1
+      m_points: []
+      m_yMin: 0
+      m_yMax: 0.5
+      m_duration: 1
+      m_warmup: 0
+      m_cooldown: -1
+      m_smoothness: 0
+      m_multiplierId: 
+    perLetter: 0
+  borderAtlasPadding: 0
+  borderAtlasSize: 512
+  bakedBorderFont: {fileID: 11400000, guid: b74bed57a67d471468222d2f6e13142d, type: 2}
+  bakedBorderSource: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  bakedBorderPadding: 14
+  bakedBorderAtlas: 512
+  anchor: {x: 0.5, y: 0.5}
+  holdDuration: 30
+  inTransition:
+    duration: 3
+    direction: 4
+    slideDistance: 0.69
+    ease: 0
+    easeCurve:
+      m_mode: 2
+      m_static: 1
+      m_min: 0
+      m_max: 1
+      m_points:
+      - time: 0
+        value: 0
+        exponent: 1
+        editState: 0
+      - time: 0.18897
+        value: 0.4419
+        exponent: 1
+        editState: 0
+      - time: 0.39632
+        value: 0.75176
+        exponent: 1
+        editState: 0
+      - time: 0.64044
+        value: 0.89965
+        exponent: 1
+        editState: 0
+      - time: 1
+        value: 1
+        exponent: 1
+        editState: 0
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 1
+      m_warmup: 0
+      m_cooldown: -1
+      m_smoothness: 0
+      m_multiplierId: 
+    spinDegrees: -293
+    spinAxis: 1
+    scale: 0
+  outTransition:
+    duration: 0
+    direction: 3
+    slideDistance: 0
+    ease: 3
+    easeCurve:
+      m_mode: 2
+      m_static: 1
+      m_min: 0
+      m_max: 1
+      m_points:
+      - time: 0
+        value: 0
+        exponent: 1
+        editState: 0
+      - time: 1
+        value: 1
+        exponent: 1
+        editState: 0
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 1
+      m_warmup: 0
+      m_cooldown: -1
+      m_smoothness: 0
+      m_multiplierId: 
+    spinDegrees: -308
+    spinAxis: 2
+    scale: 0.58
+  spawnStagger: 0
+  order: 2
+  exitSameAsEntrance: 1
+  exitStagger: 0.05
+  exitOrder: 0
+  perLetterMotion: 1
+  cycleFill: 0
+  cycleSpeed: 1.85
+  cyclePerLetter: 0.22
+  bevel:
+    enabled: 0
+    amount: 1
+    offset: -0.02
+    width: 0.5
+    roundness: 0
+    clamp: 0
+    lightAngle: 360
+    specularColor: {r: 1, g: 0.047169805, b: 0.6367577, a: 1}
+    specularPower: 2
+    diffuse: 0.52
+    ambient: 0.5
+  depth:
+    enabled: 0
+    layers: 23
+    distance: 0.82
+    darken: 0.88
+    flatSides: 1
+    sideFill:
+      mode: 0
+      color: {r: 1, g: 1, b: 1, a: 1}
+      gradient:
+        serializedVersion: 2
+        key0: {r: 1, g: 1, b: 1, a: 1}
+        key1: {r: 1, g: 1, b: 1, a: 1}
+        key2: {r: 0, g: 0, b: 0, a: 0}
+        key3: {r: 0, g: 0, b: 0, a: 0}
+        key4: {r: 0, g: 0, b: 0, a: 0}
+        key5: {r: 0, g: 0, b: 0, a: 0}
+        key6: {r: 0, g: 0, b: 0, a: 0}
+        key7: {r: 0, g: 0, b: 0, a: 0}
+        ctime0: 0
+        ctime1: 65535
+        ctime2: 0
+        ctime3: 0
+        ctime4: 0
+        ctime5: 0
+        ctime6: 0
+        ctime7: 0
+        atime0: 0
+        atime1: 65535
+        atime2: 0
+        atime3: 0
+        atime4: 0
+        atime5: 0
+        atime6: 0
+        atime7: 0
+        m_Mode: 0
+        m_ColorSpace: -1
+        m_NumColorKeys: 2
+        m_NumAlphaKeys: 2
+      gradientAnim:
+        rid: 1452078395867005037
+      angleDeg: 0
+      zoom: 1
+      center: {x: 0, y: 0}
+      zoomAnim:
+        rid: 1452078395867005034
+      centerXAnim:
+        rid: 1452078395867005035
+      centerYAnim:
+        rid: 1452078395867005036
+      space: 0
+      texture: 0
+      textureSprite: {fileID: 0}
+      noiseKind: 0
+      gridAngle: 0
+      gridSpacing: 0.5
+      gridLineWidth: 0.08
+      gridVertical: 1
+      gridHorizontal: 1
+      dotSize: 0.5
+      dotSpacing: 0.35
+      dotStagger: 1
+    sideBrightness: 1.01
+    sideSaturation: 1.58
+    tilt: {x: 66, y: 30}
+  pixelation:
+    enabled: 1
+    pixelSize: 8
+    colorSteps: 0
+    alphaCutoff: 0.5
+    snapMotion: 1
+    fixEdgeAlpha: 1
+    version: 1
+    spriteFx: {fileID: 0}
+  references:
+    version: 2
+    RefIds:
+    - rid: 1452078395867005016
+      type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        gradient:
+          serializedVersion: 2
+          key0: {r: 0.7851153, g: 1, b: 0.94973046, a: 1}
+          key1: {r: 0.2352941, g: 0.6015494, b: 0.8235294, a: 1}
+          key2: {r: 0.6771488, g: 0.034780186, b: 0.49435872, a: 0}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 33367
+          ctime2: 65535
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 65535
+          atime2: 0
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: 0
+          m_NumColorKeys: 3
+          m_NumAlphaKeys: 2
+        reverse: 0
+        quantiseSteps: 0
+        hueShift: 0
+        saturation: 1
+        brightness: 1
+        contrast: 1
+        hueShiftAnim:
+          rid: 1452078395867005024
+        saturationAnim:
+          rid: 1452078395867005025
+        brightnessAnim:
+          rid: 1452078395867005026
+        contrastAnim:
+          rid: 1452078395867005027
+        phaseAnim:
+          rid: 1452078395867005028
+        cycle: 0
+        cycleSpeed: 0.5
+    - rid: 1452078395867005017
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0.98868
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_multiplierId: 
+    - rid: 1452078395867005018
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: -0.02251
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_multiplierId: 
+    - rid: 1452078395867005019
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0.02894
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_multiplierId: 
+    - rid: 1452078395867005020
+      type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        gradient:
+          serializedVersion: 2
+          key0: {r: 1, g: 1, b: 1, a: 1}
+          key1: {r: 1, g: 1, b: 1, a: 1}
+          key2: {r: 0, g: 0, b: 0, a: 0}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 65535
+          ctime2: 0
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 65535
+          atime2: 0
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 2
+          m_NumAlphaKeys: 2
+        reverse: 0
+        quantiseSteps: 0
+        hueShift: 0
+        saturation: 1
+        brightness: 1
+        contrast: 1
+        hueShiftAnim:
+          rid: 1452078395867005029
+        saturationAnim:
+          rid: 1452078395867005030
+        brightnessAnim:
+          rid: 1452078395867005031
+        contrastAnim:
+          rid: 1452078395867005032
+        phaseAnim:
+          rid: 1452078395867005033
+        cycle: 0
+        cycleSpeed: 0.5
+    - rid: 1452078395867005021
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_multiplierId: 
+    - rid: 1452078395867005022
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_multiplierId: 
+    - rid: 1452078395867005023
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_multiplierId: 
+    - rid: 1452078395867005024
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_multiplierId: 
+    - rid: 1452078395867005025
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_multiplierId: 
+    - rid: 1452078395867005026
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_multiplierId: 
+    - rid: 1452078395867005027
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_multiplierId: 
+    - rid: 1452078395867005028
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points:
+        - time: 0
+          value: 0
+          exponent: 1
+          editState: 0
+        - time: 0.18947
+          value: 2
+          exponent: 1
+          editState: 0
+        - time: 0.18947
+          value: 0
+          exponent: 1
+          editState: 0
+        - time: 0.46619
+          value: 2
+          exponent: 1
+          editState: 0
+        - time: 0.46619
+          value: 0
+          exponent: 1
+          editState: 0
+        - time: 0.72091
+          value: 2
+          exponent: 1
+          editState: 0
+        - time: 0.72091
+          value: 0
+          exponent: 1
+          editState: 0
+        - time: 0.85613
+          value: 2
+          exponent: 1
+          editState: 0
+        - time: 0.85613
+          value: 0
+          exponent: 1
+          editState: 0
+        - time: 1
+          value: 2
+          exponent: 1
+          editState: 0
+        m_yMin: 0
+        m_yMax: 2
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_multiplierId: 
+    - rid: 1452078395867005029
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_multiplierId: 
+    - rid: 1452078395867005030
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_multiplierId: 
+    - rid: 1452078395867005031
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_multiplierId: 
+    - rid: 1452078395867005032
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_multiplierId: 
+    - rid: 1452078395867005033
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_multiplierId: 
+    - rid: 1452078395867005034
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_multiplierId: 
+    - rid: 1452078395867005035
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_multiplierId: 
+    - rid: 1452078395867005036
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_multiplierId: 
+    - rid: 1452078395867005037
+      type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        gradient:
+          serializedVersion: 2
+          key0: {r: 1, g: 1, b: 1, a: 1}
+          key1: {r: 1, g: 1, b: 1, a: 1}
+          key2: {r: 0, g: 0, b: 0, a: 0}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 65535
+          ctime2: 0
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 65535
+          atime2: 0
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 2
+          m_NumAlphaKeys: 2
+        reverse: 0
+        quantiseSteps: 0
+        hueShift: 0
+        saturation: 1
+        brightness: 1
+        contrast: 1
+        hueShiftAnim:
+          rid: 1452078395867005038
+        saturationAnim:
+          rid: 1452078395867005039
+        brightnessAnim:
+          rid: 1452078395867005040
+        contrastAnim:
+          rid: 1452078395867005041
+        phaseAnim:
+          rid: 1452078395867005042
+        cycle: 0
+        cycleSpeed: 0.5
+    - rid: 1452078395867005038
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_multiplierId: 
+    - rid: 1452078395867005039
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_multiplierId: 
+    - rid: 1452078395867005040
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_multiplierId: 
+    - rid: 1452078395867005041
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_multiplierId: 
+    - rid: 1452078395867005042
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_multiplierId: 

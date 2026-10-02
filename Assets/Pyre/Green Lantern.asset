@@ -2050,7 +2050,7 @@ MonoBehaviour:
     - rid: 1702917456380824211
       type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
       data:
-        gradient:
+        legacyGradient:
           serializedVersion: 2
           key0: {r: 1, g: 1, b: 1, a: 1}
           key1: {r: 1, g: 0.92, b: 0.5, a: 1}
@@ -2080,6 +2080,9 @@ MonoBehaviour:
           m_ColorSpace: 0
           m_NumColorKeys: 7
           m_NumAlphaKeys: 2
+        stops: []
+        space: 1
+        stopsAuthored: 0
         reverse: 0
         quantiseSteps: 0
         bandLocked: 0
@@ -2282,7 +2285,7 @@ MonoBehaviour:
     - rid: 1702917474563129819
       type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
       data:
-        gradient:
+        legacyGradient:
           serializedVersion: 2
           key0: {r: 1, g: 1, b: 1, a: 1}
           key1: {r: 1, g: 1, b: 1, a: 1}
@@ -2312,6 +2315,9 @@ MonoBehaviour:
           m_ColorSpace: -1
           m_NumColorKeys: 2
           m_NumAlphaKeys: 2
+        stops: []
+        space: 1
+        stopsAuthored: 0
         reverse: 0
         quantiseSteps: 0
         bandLocked: 0
@@ -2334,7 +2340,7 @@ MonoBehaviour:
     - rid: 1702917474563129820
       type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
       data:
-        gradient:
+        legacyGradient:
           serializedVersion: 2
           key0: {r: 1, g: 1, b: 1, a: 1}
           key1: {r: 1, g: 1, b: 1, a: 1}
@@ -2364,6 +2370,9 @@ MonoBehaviour:
           m_ColorSpace: -1
           m_NumColorKeys: 2
           m_NumAlphaKeys: 2
+        stops: []
+        space: 1
+        stopsAuthored: 0
         reverse: 0
         quantiseSteps: 0
         bandLocked: 0
@@ -2446,7 +2455,7 @@ MonoBehaviour:
     - rid: 1702917474563129824
       type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
       data:
-        gradient:
+        legacyGradient:
           serializedVersion: 2
           key0: {r: 1, g: 1, b: 1, a: 1}
           key1: {r: 1, g: 1, b: 1, a: 1}
@@ -2476,6 +2485,9 @@ MonoBehaviour:
           m_ColorSpace: -1
           m_NumColorKeys: 2
           m_NumAlphaKeys: 2
+        stops: []
+        space: 1
+        stopsAuthored: 0
         reverse: 0
         quantiseSteps: 0
         bandLocked: 0
@@ -2558,7 +2570,7 @@ MonoBehaviour:
     - rid: 1702917474563129828
       type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
       data:
-        gradient:
+        legacyGradient:
           serializedVersion: 2
           key0: {r: 1, g: 1, b: 1, a: 1}
           key1: {r: 1, g: 1, b: 1, a: 1}
@@ -2588,6 +2600,9 @@ MonoBehaviour:
           m_ColorSpace: -1
           m_NumColorKeys: 2
           m_NumAlphaKeys: 2
+        stops: []
+        space: 1
+        stopsAuthored: 0
         reverse: 0
         quantiseSteps: 0
         bandLocked: 0
@@ -2670,7 +2685,7 @@ MonoBehaviour:
     - rid: 1702917474563129832
       type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
       data:
-        gradient:
+        legacyGradient:
           serializedVersion: 2
           key0: {r: 1, g: 1, b: 1, a: 1}
           key1: {r: 1, g: 1, b: 1, a: 1}
@@ -2700,6 +2715,9 @@ MonoBehaviour:
           m_ColorSpace: -1
           m_NumColorKeys: 2
           m_NumAlphaKeys: 2
+        stops: []
+        space: 1
+        stopsAuthored: 0
         reverse: 0
         quantiseSteps: 0
         bandLocked: 0
@@ -2782,7 +2800,7 @@ MonoBehaviour:
     - rid: 1702917474563129836
       type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
       data:
-        gradient:
+        legacyGradient:
           serializedVersion: 2
           key0: {r: 0.55, g: 0.08, b: 0.1, a: 1}
           key1: {r: 0.95, g: 0.45, b: 0.1, a: 1}
@@ -2812,6 +2830,9 @@ MonoBehaviour:
           m_ColorSpace: -1
           m_NumColorKeys: 3
           m_NumAlphaKeys: 2
+        stops: []
+        space: 1
+        stopsAuthored: 0
         reverse: 0
         quantiseSteps: 0
         bandLocked: 0
@@ -2894,7 +2915,7 @@ MonoBehaviour:
     - rid: 1702917474563129840
       type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
       data:
-        gradient:
+        legacyGradient:
           serializedVersion: 2
           key0: {r: 1, g: 0.97, b: 0.88, a: 1}
           key1: {r: 1, g: 0.97, b: 0.88, a: 1}
@@ -2924,6 +2945,9 @@ MonoBehaviour:
           m_ColorSpace: -1
           m_NumColorKeys: 2
           m_NumAlphaKeys: 2
+        stops: []
+        space: 1
+        stopsAuthored: 0
         reverse: 0
         quantiseSteps: 0
         bandLocked: 0
@@ -3006,7 +3030,7 @@ MonoBehaviour:
     - rid: 1702917474563129844
       type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
       data:
-        gradient:
+        legacyGradient:
           serializedVersion: 2
           key0: {r: 1, g: 1, b: 1, a: 1}
           key1: {r: 1, g: 1, b: 1, a: 1}
@@ -3036,6 +3060,9 @@ MonoBehaviour:
           m_ColorSpace: -1
           m_NumColorKeys: 2
           m_NumAlphaKeys: 2
+        stops: []
+        space: 1
+        stopsAuthored: 0
         reverse: 0
         quantiseSteps: 0
         bandLocked: 0
@@ -4031,6 +4058,16 @@ MonoBehaviour:
             - pos: 1
               color: {r: 1, g: 0.9882353, b: 0.9098039, a: 1}
             space: 1
+            adjust:
+              reverse: 0
+              phase: 0
+              quantiseSteps: 0
+              hueShift: 0
+              saturation: 1
+              brightness: 1
+              contrast: 1
+              cycle: 0
+              cycleSpeed: 0.5
           gain:
             m_mode: 0
             m_static: 0.58
@@ -4375,6 +4412,16 @@ MonoBehaviour:
             - pos: 1
               color: {r: 0.98039216, g: 0.99607843, b: 1, a: 1}
             space: 1
+            adjust:
+              reverse: 0
+              phase: 0
+              quantiseSteps: 0
+              hueShift: 0
+              saturation: 1
+              brightness: 1
+              contrast: 1
+              cycle: 0
+              cycleSpeed: 0.5
           gain:
             m_mode: 0
             m_static: 0.95
@@ -4762,6 +4809,16 @@ MonoBehaviour:
             - pos: 1
               color: {r: 1, g: 1, b: 0.9647059, a: 1}
             space: 1
+            adjust:
+              reverse: 0
+              phase: 0
+              quantiseSteps: 0
+              hueShift: 0
+              saturation: 1
+              brightness: 1
+              contrast: 1
+              cycle: 0
+              cycleSpeed: 0.5
           gain:
             m_mode: 0
             m_static: 0.95
@@ -5132,6 +5189,16 @@ MonoBehaviour:
             - pos: 1
               color: {r: 0.98039216, g: 1, b: 0.93333334, a: 1}
             space: 1
+            adjust:
+              reverse: 0
+              phase: 0
+              quantiseSteps: 0
+              hueShift: 0
+              saturation: 1
+              brightness: 1
+              contrast: 1
+              cycle: 0
+              cycleSpeed: 0.5
           gain:
             m_mode: 0
             m_static: 0.61078
@@ -5668,6 +5735,16 @@ MonoBehaviour:
             - pos: 1
               color: {r: 1, g: 0.9647059, b: 1, a: 1}
             space: 1
+            adjust:
+              reverse: 0
+              phase: 0
+              quantiseSteps: 0
+              hueShift: 0
+              saturation: 1
+              brightness: 1
+              contrast: 1
+              cycle: 0
+              cycleSpeed: 0.5
           gain:
             m_mode: 0
             m_static: 1

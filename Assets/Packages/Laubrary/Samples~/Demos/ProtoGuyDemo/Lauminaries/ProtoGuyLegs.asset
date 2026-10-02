@@ -1,0 +1,1043 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f47c6b625f5940a4983f47cb1f8f879d, type: 3}
+  m_Name: ProtoGuyLegs
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Launimator::Laubrary.Launimator.LauminaryVersion
+  versionNumber: 0
+  createdUtc: 
+  animations:
+  - name: LegsIdle_N
+    fps: 1
+    recipe: []
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 21300000, guid: 2121882a114a69647a4f52eaa636a876, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 0}
+    sourceTextureGuid: 
+    clip: {fileID: 0}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: LegsIdle_NNE
+    fps: 1
+    recipe: []
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 21300000, guid: c740e0b159c877443b6a393a20047ecb, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 0}
+    sourceTextureGuid: 
+    clip: {fileID: 0}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: LegsIdle_NE
+    fps: 1
+    recipe: []
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 21300000, guid: d49bd96b8b7500f43bb76f0bc2003da5, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 0}
+    sourceTextureGuid: 
+    clip: {fileID: 0}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: LegsIdle_ENE
+    fps: 1
+    recipe: []
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 21300000, guid: 1e8d901f038792b4f98f7c765a90563c, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 0}
+    sourceTextureGuid: 
+    clip: {fileID: 0}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: LegsIdle_E
+    fps: 1
+    recipe: []
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 21300000, guid: 4a0b3406a4925444ba725690534cea2a, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 0}
+    sourceTextureGuid: 
+    clip: {fileID: 0}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: LegsIdle_ESE
+    fps: 1
+    recipe: []
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 21300000, guid: ff2b1a4e537eddf46804247d43e9069a, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 0}
+    sourceTextureGuid: 
+    clip: {fileID: 0}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: LegsIdle_SE
+    fps: 1
+    recipe: []
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 21300000, guid: 3677d48d29bb11b4690c595f2992095f, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 0}
+    sourceTextureGuid: 
+    clip: {fileID: 0}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: LegsIdle_SSE
+    fps: 1
+    recipe: []
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 21300000, guid: ed31d7531e65005439b0aa6d654791ab, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 0}
+    sourceTextureGuid: 
+    clip: {fileID: 0}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: LegsIdle_S
+    fps: 1
+    recipe: []
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 21300000, guid: 38c5f1ddf5ac033448371d6a40ae2d95, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 0}
+    sourceTextureGuid: 
+    clip: {fileID: 0}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: LegsIdle_SSW
+    fps: 1
+    recipe: []
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 21300000, guid: 1c72229aa921941449cfce9d016ba80b, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 0}
+    sourceTextureGuid: 
+    clip: {fileID: 0}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: LegsIdle_SW
+    fps: 1
+    recipe: []
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 21300000, guid: a1b18507979a40a4c9e77cdc01d0b334, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 0}
+    sourceTextureGuid: 
+    clip: {fileID: 0}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: LegsIdle_WSW
+    fps: 1
+    recipe: []
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 21300000, guid: ea236aff131eec840aa7ca5411fe66e5, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 0}
+    sourceTextureGuid: 
+    clip: {fileID: 0}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: LegsIdle_W
+    fps: 1
+    recipe: []
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 21300000, guid: 07e535aeb3e35ce4b9840c0b73bbd43d, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 0}
+    sourceTextureGuid: 
+    clip: {fileID: 0}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: LegsIdle_WNW
+    fps: 1
+    recipe: []
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 21300000, guid: da30035c452ba164cbb8e72bb8d3d718, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 0}
+    sourceTextureGuid: 
+    clip: {fileID: 0}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: LegsIdle_NW
+    fps: 1
+    recipe: []
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 21300000, guid: 8c258fee0530f61408e8a6cda1f6f9e8, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 0}
+    sourceTextureGuid: 
+    clip: {fileID: 0}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: LegsIdle_NNW
+    fps: 1
+    recipe: []
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 21300000, guid: 23508a8bf4c46d84e8c1c24ff2c3ae6c, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 0}
+    sourceTextureGuid: 
+    clip: {fileID: 0}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: LegsWalk_N
+    fps: 10
+    recipe: []
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: -2740301809757994586, guid: 5f495e56324067642aa28a30ce4af6c5, type: 3}
+    - {fileID: -8588726637425862230, guid: 5f495e56324067642aa28a30ce4af6c5, type: 3}
+    - {fileID: -875078927710876694, guid: 5f495e56324067642aa28a30ce4af6c5, type: 3}
+    - {fileID: 4220191943138761539, guid: 5f495e56324067642aa28a30ce4af6c5, type: 3}
+    - {fileID: 6770268278389013230, guid: 5f495e56324067642aa28a30ce4af6c5, type: 3}
+    - {fileID: -7684941524669461347, guid: 5f495e56324067642aa28a30ce4af6c5, type: 3}
+    - {fileID: 7112082176252951175, guid: 5f495e56324067642aa28a30ce4af6c5, type: 3}
+    - {fileID: 7336486274385578491, guid: 5f495e56324067642aa28a30ce4af6c5, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 0}
+    sourceTextureGuid: 
+    clip: {fileID: 0}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: LegsWalk_E
+    fps: 10
+    recipe: []
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: -5957594800809542783, guid: cc5c9ef98898c6f428818e949e301e84, type: 3}
+    - {fileID: 2866636463033237981, guid: cc5c9ef98898c6f428818e949e301e84, type: 3}
+    - {fileID: -9019488973393718533, guid: cc5c9ef98898c6f428818e949e301e84, type: 3}
+    - {fileID: 8280520857839271228, guid: cc5c9ef98898c6f428818e949e301e84, type: 3}
+    - {fileID: -603986358123689041, guid: cc5c9ef98898c6f428818e949e301e84, type: 3}
+    - {fileID: 1625924065243438189, guid: cc5c9ef98898c6f428818e949e301e84, type: 3}
+    - {fileID: -2360944827193237170, guid: cc5c9ef98898c6f428818e949e301e84, type: 3}
+    - {fileID: -1846478576526454511, guid: cc5c9ef98898c6f428818e949e301e84, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 0}
+    sourceTextureGuid: 
+    clip: {fileID: 0}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: LegsWalk_S
+    fps: 10
+    recipe: []
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 5090339205929563454, guid: 6514727dde1dff24196976e0510cdce7, type: 3}
+    - {fileID: -5011302448858895190, guid: 6514727dde1dff24196976e0510cdce7, type: 3}
+    - {fileID: -7840355981504557353, guid: 6514727dde1dff24196976e0510cdce7, type: 3}
+    - {fileID: -9085415434702084331, guid: 6514727dde1dff24196976e0510cdce7, type: 3}
+    - {fileID: 3616501841276767005, guid: 6514727dde1dff24196976e0510cdce7, type: 3}
+    - {fileID: 2981609360705444391, guid: 6514727dde1dff24196976e0510cdce7, type: 3}
+    - {fileID: -1203358135159325812, guid: 6514727dde1dff24196976e0510cdce7, type: 3}
+    - {fileID: -1547705394784716489, guid: 6514727dde1dff24196976e0510cdce7, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 0}
+    sourceTextureGuid: 
+    clip: {fileID: 0}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  sets:
+  - name: LegsIdle16
+    directionMode: 2
+    members:
+    - angleDegrees: 0
+      laumination:
+        name: LegsIdle_N
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: 2121882a114a69647a4f52eaa636a876, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 22.5
+      laumination:
+        name: LegsIdle_NNE
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: c740e0b159c877443b6a393a20047ecb, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 45
+      laumination:
+        name: LegsIdle_NE
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: d49bd96b8b7500f43bb76f0bc2003da5, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 67.5
+      laumination:
+        name: LegsIdle_ENE
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: 1e8d901f038792b4f98f7c765a90563c, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 90
+      laumination:
+        name: LegsIdle_E
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: 4a0b3406a4925444ba725690534cea2a, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 112.5
+      laumination:
+        name: LegsIdle_ESE
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: ff2b1a4e537eddf46804247d43e9069a, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 135
+      laumination:
+        name: LegsIdle_SE
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: 3677d48d29bb11b4690c595f2992095f, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 157.5
+      laumination:
+        name: LegsIdle_SSE
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: ed31d7531e65005439b0aa6d654791ab, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 180
+      laumination:
+        name: LegsIdle_S
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: 38c5f1ddf5ac033448371d6a40ae2d95, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 202.5
+      laumination:
+        name: LegsIdle_SSW
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: 1c72229aa921941449cfce9d016ba80b, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 225
+      laumination:
+        name: LegsIdle_SW
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: a1b18507979a40a4c9e77cdc01d0b334, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 247.5
+      laumination:
+        name: LegsIdle_WSW
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: ea236aff131eec840aa7ca5411fe66e5, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 270
+      laumination:
+        name: LegsIdle_W
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: 07e535aeb3e35ce4b9840c0b73bbd43d, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 292.5
+      laumination:
+        name: LegsIdle_WNW
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: da30035c452ba164cbb8e72bb8d3d718, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 315
+      laumination:
+        name: LegsIdle_NW
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: 8c258fee0530f61408e8a6cda1f6f9e8, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 337.5
+      laumination:
+        name: LegsIdle_NNW
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: 23508a8bf4c46d84e8c1c24ff2c3ae6c, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    mirrorBuiltIn: 0
+    snapStepDeg: 0
+    framePivot: {x: 0.5, y: 0}
+  - name: LegsWalk3
+    directionMode: 2
+    members:
+    - angleDegrees: 0
+      laumination:
+        name: LegsWalk_N
+        fps: 10
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: -2740301809757994586, guid: 5f495e56324067642aa28a30ce4af6c5, type: 3}
+        - {fileID: -8588726637425862230, guid: 5f495e56324067642aa28a30ce4af6c5, type: 3}
+        - {fileID: -875078927710876694, guid: 5f495e56324067642aa28a30ce4af6c5, type: 3}
+        - {fileID: 4220191943138761539, guid: 5f495e56324067642aa28a30ce4af6c5, type: 3}
+        - {fileID: 6770268278389013230, guid: 5f495e56324067642aa28a30ce4af6c5, type: 3}
+        - {fileID: -7684941524669461347, guid: 5f495e56324067642aa28a30ce4af6c5, type: 3}
+        - {fileID: 7112082176252951175, guid: 5f495e56324067642aa28a30ce4af6c5, type: 3}
+        - {fileID: 7336486274385578491, guid: 5f495e56324067642aa28a30ce4af6c5, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 90
+      laumination:
+        name: LegsWalk_E
+        fps: 10
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: -5957594800809542783, guid: cc5c9ef98898c6f428818e949e301e84, type: 3}
+        - {fileID: 2866636463033237981, guid: cc5c9ef98898c6f428818e949e301e84, type: 3}
+        - {fileID: -9019488973393718533, guid: cc5c9ef98898c6f428818e949e301e84, type: 3}
+        - {fileID: 8280520857839271228, guid: cc5c9ef98898c6f428818e949e301e84, type: 3}
+        - {fileID: -603986358123689041, guid: cc5c9ef98898c6f428818e949e301e84, type: 3}
+        - {fileID: 1625924065243438189, guid: cc5c9ef98898c6f428818e949e301e84, type: 3}
+        - {fileID: -2360944827193237170, guid: cc5c9ef98898c6f428818e949e301e84, type: 3}
+        - {fileID: -1846478576526454511, guid: cc5c9ef98898c6f428818e949e301e84, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 180
+      laumination:
+        name: LegsWalk_S
+        fps: 10
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 5090339205929563454, guid: 6514727dde1dff24196976e0510cdce7, type: 3}
+        - {fileID: -5011302448858895190, guid: 6514727dde1dff24196976e0510cdce7, type: 3}
+        - {fileID: -7840355981504557353, guid: 6514727dde1dff24196976e0510cdce7, type: 3}
+        - {fileID: -9085415434702084331, guid: 6514727dde1dff24196976e0510cdce7, type: 3}
+        - {fileID: 3616501841276767005, guid: 6514727dde1dff24196976e0510cdce7, type: 3}
+        - {fileID: 2981609360705444391, guid: 6514727dde1dff24196976e0510cdce7, type: 3}
+        - {fileID: -1203358135159325812, guid: 6514727dde1dff24196976e0510cdce7, type: 3}
+        - {fileID: -1547705394784716489, guid: 6514727dde1dff24196976e0510cdce7, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    mirrorBuiltIn: 1
+    snapStepDeg: 0
+    framePivot: {x: 0.5, y: 0}
+  prefab: {fileID: 0}
+  controller: {fileID: 0}

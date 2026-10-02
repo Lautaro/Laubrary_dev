@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 93520977a47bb8d47951be5305400ae1, type: 3}
+  m_Name: PreviewAmmo
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Zoetrope::Laubrary.Zoetrope.AmmoDef
+  displayName: Preview Bolt
+  visual: {fileID: 0}
+  scale: 1
+  spin: 0
+  spinSpeed: 360
+  faceTravel: 0
+  lifetime: 2
+  pierce: 0
+  motion:
+    rid: 1452078146085191771
+  gravity: 0
+  homing: 0
+  impact:
+    rid: -2
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
+    - rid: 1452078146085191771
+      type: {class: PlanarMotion, ns: Laubrary.Combat2D, asm: com.Lautaro-Arino.Laubrary.Combat2D}
+      data: 
