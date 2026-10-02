@@ -93,6 +93,12 @@ namespace Laubrary.Zui
             _headerContent.Add(e);
         }
 
+        /// Remove only controls hosted by AddHeaderContent, keeping the box's title and fold chrome.
+        public void ClearHeaderContent()
+        {
+            _headerContent?.Clear();
+        }
+
         /// Host an element at the START of the title row, right after the fold caret and before the icon —
         /// where a repeating card keeps its identity (a drag grip, a colour chip), per the card-layout rule.
         /// Elements are kept in the order they are added. Like AddHeaderContent, a press inside never folds

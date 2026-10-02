@@ -460,6 +460,15 @@ namespace Laubrary.Zui
             return b;
         }
 
+        /// A standard action button with a leading ZUI glyph; an empty label makes it icon-only.
+        public static Button Button(string label, string tooltip, Action onClick, string icon)
+        {
+            var b = Button(string.Empty, tooltip, onClick);
+            FillButton(b, label, icon);
+            if (string.IsNullOrEmpty(label)) b.AddToClassList("zui-btn--icononly");
+            return b;
+        }
+
         /// A compact ICON-ONLY button: one ZUI glyph in a square, for an action that must be visible on a row
         /// too tight for a word (the "open this reference in its editor" pencil beside a ZuiChip). It is the
         /// exception, not the default — a button with room for a label gets the label, because a glyph alone
