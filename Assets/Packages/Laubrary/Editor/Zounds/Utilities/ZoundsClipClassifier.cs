@@ -73,7 +73,8 @@ namespace Laubrary.Zounds {
                     break;
 
                 default:
-                    status.shouldShip = false;
+                    // SAP renders the original PCM, including referenced clips outside managed folders.
+                    status.shouldShip = isOutputClip;
                     break;
             }
 
@@ -100,6 +101,11 @@ namespace Laubrary.Zounds {
             bool isOutput = false;
             zoundLibrary.ForEachZound(z => {
                 if (z is Klip klip) {
+                    // SAP applies edits live, so a promoted/rendered copy never replaces its original input.
+                    if (klip.audioClipRef != null && klip.audioClipRef.AssetGUID == assetGuid) {
+                        isOutput = true;
+                        return true;
+                    }
                     // Promoted output clip — the primary check after output promotion.
                     if (klip.outputClipRef != null && klip.outputClipRef.AssetGUID == assetGuid) {
                         isOutput = true;
@@ -146,7 +152,7 @@ namespace Laubrary.Zounds {
             else if (inSources) folder = ClipFolder.Sources;
             else if (inWork) folder = ClipFolder.Work;
             else if (inZoundFiles) folder = ClipFolder.ZoundFiles;
-            else return false;
+            else folder = ClipFolder.Unknown;
 
             if (folder == ClipFolder.Library) {
                 return true; // Classify always returns shouldShip=true for Library
