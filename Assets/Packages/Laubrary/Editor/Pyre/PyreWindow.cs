@@ -332,9 +332,7 @@ namespace Laubrary.Pyre.Editor
         protected override void BuildAsset(VisualElement root, Pyre s)
         {
             var split = new VisualElement();
-            split.style.flexDirection = FlexDirection.Row;
-            split.style.flexGrow = 1f;
-            split.style.minHeight = 0f;
+            split.AddToClassList("lau-tool-shell__split");
 
             // ── left: dials ──────────────────────────────────────────────────────
             // A FIXED-width pane the user resizes by dragging the vertical splitter (mirrors Pyre1). The width
@@ -343,12 +341,11 @@ namespace Laubrary.Pyre.Editor
             var left = new ScrollView(ScrollViewMode.Vertical);
             leftPane = left;
             left.style.width = Mathf.Clamp(leftPaneWidth, 360f, 4f * 360f + 3f * 6f);
-            left.style.flexShrink = 0f;                  // fixed — the preview takes the remaining width
-            left.style.minHeight = 0f;
+            left.AddToClassList("lau-tool-shell__side--resizable");
             var dials = left.contentContainer;
             // The ScrollView's content container is content-sized by default; stretch it so the flow fills the pane
             // width (otherwise the flow would size to its widest unit, never the pane, and never split).
-            dials.style.flexGrow = 1f;
+            dials.AddToClassList("lau-tool-shell__column");
 
             // The whole dial stack is ONE width-driven column flow: a single 360px column that splits into 2–4
             // contiguous columns as the pane widens. Each Build* below adds EXACTLY ONE top-level unit (a box or a
@@ -389,22 +386,18 @@ namespace Laubrary.Pyre.Editor
             // ── right: preview + transport + backdrop ────────────────────────────
             // The dial pane is a fixed width; the preview takes whatever remains (flexGrow 1).
             var rightPane = new VisualElement();
-            rightPane.style.flexGrow = 1f;
-            rightPane.style.minWidth = 260f;
-            rightPane.style.minHeight = 0f;
+            rightPane.AddToClassList("lau-tool-shell__pane");
 
             preview = new IMGUIContainer(() => DrawPreview(s));
             preview.style.height = Mathf.Clamp(previewHeight, PreviewHeightMin, PreviewHeightMax);
-            preview.style.flexGrow = 0f;
-            preview.style.flexShrink = 0f;
-            preview.style.minWidth = 200f;
+            preview.AddToClassList("lau-tool-shell__stage");
             preview.AddToClassList("zui-stage");
             rightPane.Add(preview);
             rightPane.Add(BuildPreviewResizeBar());
 
             // Transport (Play/Pause + Frame border) and the shared BackSplash backdrop panel sit below the preview.
             var chrome = new VisualElement();
-            chrome.style.flexShrink = 0f;
+            chrome.AddToClassList("lau-tool-shell__chrome");
             BuildTransport(chrome, s);
             BuildBackdropPanel(chrome);
             rightPane.Add(chrome);
@@ -416,8 +409,7 @@ namespace Laubrary.Pyre.Editor
             split.Add(left);
             split.Add(BuildVerticalSplitter());   // drag to resize the dial pane (and change its column count)
             split.Add(rightPane);
-            root.style.flexGrow = 1f;
-            root.style.minHeight = 0f;
+            root.AddToClassList("lau-tool-shell");
             // T-0065 — the section toggle bar sits ABOVE everything else, spanning the full window width, so
             // it reads as the absolute top of the per-asset UI rather than a unit squeezed into the 360px
             // dial column. TagsSection was already parented under the WINDOW's root by the base class
@@ -438,9 +430,8 @@ namespace Laubrary.Pyre.Editor
         VisualElement BuildVerticalSplitter()
         {
             var s = new VisualElement { tooltip = "Drag to resize the dial pane (wider = more control columns)." };
-            s.style.width = 6f;
-            s.style.flexShrink = 0f;
-            s.style.backgroundColor = new Color(0f, 0f, 0f, 0.25f);
+            s.AddToClassList("lau-tool-shell__resize-grip");
+            s.AddToClassList("lau-tool-shell__resize-grip--vertical");
             s.RegisterCallback<PointerDownEvent>(e => { if (e.button == 0) { s.CapturePointer(e.pointerId); e.StopPropagation(); } });
             s.RegisterCallback<PointerMoveEvent>(e =>
             {
@@ -460,9 +451,8 @@ namespace Laubrary.Pyre.Editor
         VisualElement BuildPreviewResizeBar()
         {
             var bar = new VisualElement { tooltip = "Drag to resize the preview vertically." };
-            bar.style.height = 6f;
-            bar.style.flexShrink = 0f;
-            bar.style.backgroundColor = new Color(0f, 0f, 0f, 0.25f);
+            bar.AddToClassList("lau-tool-shell__resize-grip");
+            bar.AddToClassList("lau-tool-shell__resize-grip--horizontal");
             bar.RegisterCallback<PointerDownEvent>(e => { if (e.button == 0) { bar.CapturePointer(e.pointerId); e.StopPropagation(); } });
             bar.RegisterCallback<PointerMoveEvent>(e =>
             {
@@ -646,7 +636,7 @@ namespace Laubrary.Pyre.Editor
             frameReadout = Z.Text("", ZuiText.Subtle, "The frame currently shown / the total frame count.");
             // Reserved-width and hidden (not removed) when idle, so its appearance never reflows the row.
             fillReadout = Z.Text("", ZuiText.Subtle, "");
-            fillReadout.style.width = 110f;
+            fillReadout.AddToClassList("lau-tool-shell__readout");
             fillReadout.style.visibility = Visibility.Hidden;
             // Delay lives HERE (a transport concern — how long the preview holds blank between loop iterations),
             // not inside the CherryFraming list below, and it applies regardless of whether CherryFraming is on:
@@ -904,11 +894,11 @@ namespace Laubrary.Pyre.Editor
 
             var row = new VisualElement();
             row.AddToClassList("zui-row");
-            if (sel) row.style.backgroundColor = new Color(0.35f, 0.55f, 0.95f, 0.18f);
+            row.AddToClassList("lau-pyre__layer-row");
+            row.EnableInClassList("zui-row--selected", sel);
 
             var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder this layer in the paint stack.");
-            grip.style.unityFontStyleAndWeight = FontStyle.Bold;
-            grip.style.width = 16f;
+            grip.AddToClassList("lau-pyre__layer-grip");
             ZuiReorder.MakeGrip(grip, wrap, listHost, (from, to) =>
             {
                 Dirty(() =>
@@ -932,11 +922,8 @@ namespace Laubrary.Pyre.Editor
                 Undo.RecordObject(spec, "Rename layer");
                 layer.name = v;
                 EditorUtility.SetDirty(spec);
-            }, 0f);
-            name.style.width = StyleKeyword.Auto;
-            name.style.flexGrow = 1f;
-            name.style.flexShrink = 1f;
-            name.style.minWidth = 50f;
+            });
+            name.AddToClassList("zui-row__name");
             name.AddToClassList("zui-audit-allow-stretch");   // the rulebook's name-field stretch exception
             name.RegisterCallback<PointerDownEvent>(_ => { if (layerSel != li) SelectLayer(li); });
             row.Add(name);
@@ -1068,7 +1055,7 @@ namespace Laubrary.Pyre.Editor
                 + "its coverage into one of four numbered mask channels. A Draw layer can then Clip its own opacity "
                 + "by any channel a layer BELOW it wrote, so an earlier shape can mask or cut into a later one.",
                 $"pyreplus.matte:{li}", "mask-happy");
-            box.style.marginLeft = 16f;   // indent under its row, so the list still reads as a list
+            box.AddToClassList("lau-pyre__layer-details");
 
             box.Add(Z.Field("Role",
                 "Draw = composite this layer onto the frame normally. Write matte = don't draw it; write its "
@@ -1293,7 +1280,7 @@ namespace Laubrary.Pyre.Editor
             menu.Custom((body, close) =>
             {
                 var row = new VisualElement();
-                row.style.flexDirection = FlexDirection.Row;
+                row.AddToClassList("lau-pyre__form-columns");
                 row.Add(FormColumn(s, "3D", Forms3DTip, Forms3D, close));
                 row.Add(FormColumn(s, "2D", Forms2DTip, Forms2D, close));
                 row.Add(FormColumn(s, "Special", FormsSpecialTip, FormsSpecial, close));
@@ -1308,9 +1295,7 @@ namespace Laubrary.Pyre.Editor
             (string label, ShapeForm form, string icon)[] group, System.Action close)
         {
             var col = new VisualElement();
-            col.style.flexDirection = FlexDirection.Column;
-            col.style.marginRight = 12;
-            col.style.minWidth = 104;
+            col.AddToClassList("lau-pyre__form-column");
             var head = new Label(title) { tooltip = tip, pickingMode = PickingMode.Ignore };
             head.AddToClassList("zui-menu__section");
             col.Add(head);
@@ -1319,14 +1304,13 @@ namespace Laubrary.Pyre.Editor
                 var f = form;
                 var item = new VisualElement { tooltip = tip };
                 item.AddToClassList("zui-menu__item");
-                item.style.flexDirection = FlexDirection.Row;
-                item.style.alignItems = Align.Center;
+                item.AddToClassList("lau-pyre__form-choice");
                 // A plug-in form, when set, overrides the enum — so the enum columns show no check while one is active.
                 var check = new Label(s.form == null && s.shapeForm == f ? "✓" : "") { pickingMode = PickingMode.Ignore };
                 check.AddToClassList("zui-menu__check");
                 item.Add(check);
                 var img = Z.Icon(icon, 14f);
-                if (img != null) { img.pickingMode = PickingMode.Ignore; img.style.marginRight = 5f; item.Add(img); }
+                if (img != null) { img.pickingMode = PickingMode.Ignore; img.AddToClassList("lau-pyre__form-icon"); item.Add(img); }
                 var lbl = new Label(label) { pickingMode = PickingMode.Ignore };
                 lbl.AddToClassList("zui-menu__label");
                 item.Add(lbl);
@@ -2284,9 +2268,7 @@ namespace Laubrary.Pyre.Editor
                     : "Fireball is single-source — heat blooms from one central point, folded into kaleidoscope arms. "
                       + "The Swarm doesn't place it (Fireball stays single-source by design). Use the Fireball box's "
                       + "Arms / Cooling / Sharpness to shape the explosion instead.");
-                note.style.whiteSpace = WhiteSpace.Normal;
-                note.style.opacity = 0.7f;
-                note.style.marginTop = 2; note.style.marginBottom = 2;
+                note.AddToClassList("lau-pyre__swarm-note");
                 swarmBody.Add(note);
                 return;
             }
@@ -2298,9 +2280,7 @@ namespace Laubrary.Pyre.Editor
                 var note = new Label("Swarm emitters ON — each alive swarm particle injects heat/fuel into ONE shared "
                     + "fire field. Place them with the controls below; the Fire box's Emitter width / Heat / Fuel set "
                     + "each source's size and strength, and Arms / Direction shape the field's buoyancy.");
-                note.style.whiteSpace = WhiteSpace.Normal;
-                note.style.opacity = 0.7f;
-                note.style.marginTop = 2; note.style.marginBottom = 2;
+                note.AddToClassList("lau-pyre__swarm-note");
                 swarmBody.Add(note);
             }
 
@@ -2693,7 +2673,7 @@ namespace Laubrary.Pyre.Editor
         // ── helpers ──────────────────────────────────────────────────────────────
         static VisualElement WrapRow(params VisualElement[] kids)
         {
-            var r = Z.Row(kids); r.style.flexWrap = Wrap.Wrap; return r;
+            var r = Z.Row(kids); r.AddToClassList("zui-row--wrap"); return r;
         }
 
         // ── double-click reset targets ───────────────────────────────────────────────────────────────────

@@ -72,11 +72,9 @@ namespace Laubrary.Zoetrope.Editor
         {
             So = new SerializedObject(asset);
 
-            root.style.flexGrow = 1f;
-            root.style.minHeight = 0f;
+            root.AddToClassList("lau-tool-shell");
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.flexGrow = 1f;
-            scroll.style.minHeight = 0f;
+            scroll.AddToClassList("lau-tool-shell__scroll");
             BuildBody(scroll.contentContainer, asset);
             root.Add(scroll);
 
@@ -357,7 +355,7 @@ namespace Laubrary.Zoetrope.Editor
                 drawer.OnGUI(rect, p, GUIContent.none);
                 so.ApplyModifiedProperties();
             };
-            container.style.flexShrink = 0f;
+            container.AddToClassList("lau-tool-shell__chrome");
             return container;
         }
 
@@ -742,19 +740,17 @@ namespace Laubrary.Zoetrope.Editor
             So = new SerializedObject(zoe);
             _validators.Clear();
 
-            root.style.flexGrow = 1f;
-            root.style.minHeight = 0f;
+            root.AddToClassList("lau-tool-shell");
 
             var barHost = new VisualElement();
-            barHost.style.flexShrink = 0f;
+            barHost.AddToClassList("lau-tool-shell__chrome");
             if (_barReservedH > 0f) barHost.style.minHeight = _barReservedH;
             root.Add(barHost);
 
             if (TagsSection != null) root.Add(TagsSection);
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.flexGrow = 1f;
-            scroll.style.minHeight = 0f;
+            scroll.AddToClassList("lau-tool-shell__scroll");
             root.Add(scroll);
             var body = scroll.contentContainer;
 
@@ -1081,8 +1077,9 @@ namespace Laubrary.Zoetrope.Editor
         {
             if (zoe == null) return;
             EnsureMirageStageOpen();
-            var view = ScriptableObject.CreateInstance<MirageView>();
-            view.name = $"{zoe.name} (Rig Preview)";
+            // CreateTransient, not CreateInstance: a throwaway preview view normalizes to the PROJECT's own
+            // pixels-per-unit rather than MirageView's hardcoded 16 default (T-0383).
+            var view = MirageView.CreateTransient($"{zoe.name} (Rig Preview)");
             var entry = view.AddEntry(zoe, Vector2.zero);
 
             // THIS is the editor asking Mirage for a control surface. Manual controls are opt-in per entry, so
@@ -1159,7 +1156,7 @@ namespace Laubrary.Zoetrope.Editor
             }
 
             var box = new IMGUIContainer(() => DrawRigSchematic(composite));
-            box.style.height = 220f;
+            box.AddToClassList("lau-rig__schematic");
             root.Add(box);
         }
 
@@ -1407,7 +1404,7 @@ namespace Laubrary.Zoetrope.Editor
             // picking one appends an entry with that effect already assigned — nicer than adding a blank entry and
             // hunting the type switcher. The per-card switcher below still lets you re-type an existing entry.
             var addBtn = Z.Button("+ Add effect  ▾", "Pick an effect kind to add to this reaction.", null);
-            addBtn.style.width = AddButtonWidth;
+            addBtn.AddToClassList("lau-effect-list__add-action");
             addBtn.clicked += () => ShowAddEffectMenu(addBtn, fxPath);
             root.Add(addBtn);
         }
@@ -1442,7 +1439,7 @@ namespace Laubrary.Zoetrope.Editor
             // Clip and its duration share one wrapping row: three short controls, and vertical space is the
             // scarce resource in a card that already stacks an effect list under it.
             var row = Z.Row();
-            row.style.flexWrap = Wrap.Wrap;
+            row.AddToClassList("zui-row--wrap");
             row.Add(clipField);
             row.Add(Z.HSpace());
             row.Add(EnumPicker(modeProp, "Lasts", modeTip));
@@ -1517,9 +1514,7 @@ namespace Laubrary.Zoetrope.Editor
             var line = Z.Text(text, ZuiText.Subtle,
                 "What the duration above actually comes out as, from this character's own visual. Everything " +
                 "riding the event — a Body SpriteFx stack, a timed playback binding — is measured against it.");
-            line.style.height = 14f;
-            line.style.whiteSpace = WhiteSpace.NoWrap;
-            line.style.overflow = Overflow.Hidden;
+            line.AddToClassList("lau-tool-shell__status-line");
             return line;
         }
 
@@ -1633,8 +1628,7 @@ namespace Laubrary.Zoetrope.Editor
             header.AddToClassList("zui-row");
 
             var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder. Order is presentation only — an event is raised by name.");
-            grip.style.unityFontStyleAndWeight = FontStyle.Bold;
-            grip.style.width = 16f;
+            grip.AddToClassList("lau-effect-list__grip");
             ZuiReorder.MakeGrip(grip, box, listHost, (from, to) =>
             {
                 Commit(listPath, p => p.MoveArrayElement(from, to));
@@ -1949,8 +1943,7 @@ namespace Laubrary.Zoetrope.Editor
             header.AddToClassList("zui-row");
 
             var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder. Order is presentation only — cues fire off the animation.");
-            grip.style.unityFontStyleAndWeight = FontStyle.Bold;
-            grip.style.width = 16f;
+            grip.AddToClassList("lau-effect-list__grip");
             ZuiReorder.MakeGrip(grip, box, listHost, (from, to) =>
             {
                 Commit(listPath, p => p.MoveArrayElement(from, to));
@@ -2136,15 +2129,10 @@ namespace Laubrary.Zoetrope.Editor
 
         // Amber, and always PRESENT (its text is what changes, never its existence) so a warning appearing
         // never reflows the card out from under the pointer — the stable-workspace rule.
-        static readonly UnityEngine.Color WarningColor = new UnityEngine.Color(1f, 0.72f, 0.25f);
-
         static Label WarningBadge()
         {
             var l = Z.Text("", ZuiText.Small);
-            l.style.color = WarningColor;
-            l.style.unityFontStyleAndWeight = FontStyle.Bold;
-            l.style.marginLeft = 6f;
-            l.style.flexShrink = 0f;
+            l.AddToClassList("lau-effect-list__warning");
             return l;
         }
 
@@ -2210,8 +2198,7 @@ namespace Laubrary.Zoetrope.Editor
             header.AddToClassList("zui-row");
 
             var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder — an effect's position IS its fire order.");
-            grip.style.unityFontStyleAndWeight = FontStyle.Bold;
-            grip.style.width = 16f;
+            grip.AddToClassList("lau-effect-list__grip");
             ZuiReorder.MakeGrip(grip, box, listHost, (from, to) =>
             {
                 Commit(fxPath, p => p.MoveArrayElement(from, to));
@@ -2233,7 +2220,7 @@ namespace Laubrary.Zoetrope.Editor
                     Commit(enabledPath, p => p.boolValue = v);
                     box.style.opacity = v ? 1f : 0.45f;
                 });
-            mute.style.marginRight = 4f;
+            mute.AddToClassList("lau-effect-list__mute");
             // The header folds the card on click; muting must not also fold it.
             mute.RegisterCallback<PointerDownEvent>(e => e.StopPropagation());
             header.Add(mute);
@@ -2265,12 +2252,9 @@ namespace Laubrary.Zoetrope.Editor
             // effect's own fields are drawn — and vertical space is the scarce resource here, per the layout
             // rules' first pre-flight check. Wrapping means a narrow pane still breaks them sensibly.
             var picks = Z.Row();
-            picks.style.flexWrap = Wrap.Wrap;
             // On the header it must shrink, never grow, or it claims the whole line and pushes the type name
             // down. In the body it is free to use the width it has.
-            picks.style.flexGrow = 0f;
-            picks.style.flexShrink = 1f;
-            picks.style.minWidth = 0f;
+            picks.AddToClassList("lau-effect-list__pickers");
 
             // In the non-compact layout each GROUP gets its own row: when it fires / where it spawns / how it
             // is aimed and sized. One idea per line reads; a single ragged wrap does not.
@@ -2279,7 +2263,7 @@ namespace Laubrary.Zoetrope.Editor
             VisualElement Group()
             {
                 var r = Z.Row();
-                r.style.flexWrap = Wrap.Wrap;
+                r.AddToClassList("zui-row--wrap");
                 body.Add(r);
                 return r;
             }
@@ -2550,7 +2534,7 @@ namespace Laubrary.Zoetrope.Editor
                 "animates."));
 
             var side = new VisualElement();
-            side.style.marginLeft = 6f;
+            side.AddToClassList("lau-effect-list__sample-details");
             row.Add(side);
 
             if (sampleColours)
@@ -2561,7 +2545,7 @@ namespace Laubrary.Zoetrope.Editor
                 foreach (var c in SampleColours(liveSprite, sampleCount))
                 {
                     var sw = new VisualElement();
-                    sw.style.width = 16f; sw.style.height = 16f; sw.style.marginRight = 2f;
+                    sw.AddToClassList("lau-effect-list__sample-colour");
                     sw.style.backgroundColor = c;
                     swatches.Add(sw);
                 }
@@ -2663,8 +2647,8 @@ namespace Laubrary.Zoetrope.Editor
         static VisualElement ThumbOf(Sprite sprite, string tooltip, float size = LivePreviewThumbPx)
         {
             var slot = new VisualElement { tooltip = tooltip };
-            slot.style.width = size; slot.style.height = size; slot.style.marginRight = 4f;
-            slot.style.backgroundColor = new Color(0.11f, 0.12f, 0.15f);
+            slot.style.width = size; slot.style.height = size;
+            slot.AddToClassList("lau-effect-list__sample-frame");
             var image = new UnityEngine.UIElements.Image { scaleMode = ScaleMode.ScaleToFit, sprite = sprite };
             image.style.width = size; image.style.height = size;
             slot.Add(image);
@@ -2965,7 +2949,7 @@ namespace Laubrary.Zoetrope.Editor
             string zoundLabel = string.IsNullOrEmpty(w.fireZoundName) ? "— zound —" : w.fireZoundName;
             const string zoundTip = "Zound played once per successful shot, at the same moment as the muzzle effect. Click to pick.";
             var zoundButton = Z.Button(zoundLabel, zoundTip, null);
-            zoundButton.style.width = 160f;
+            zoundButton.AddToClassList("lau-effect-list__audio-picker");
             zoundButton.clicked += () => ZoundPickerPopup.Show(zoundButton.worldBound.position, picked =>
             {
                 // The popup's callback fires on a LATER event than the click that opened it, so it commits

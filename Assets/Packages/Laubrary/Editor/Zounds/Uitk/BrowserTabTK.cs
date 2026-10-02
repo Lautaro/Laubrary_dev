@@ -52,9 +52,9 @@ namespace Laubrary.Zounds.Uitk {
 
         public BrowserTabTK(ZoundsWindowTK win) {
             this.win = win;
-            style.flexGrow = 1; style.flexShrink = 1;
-            top = new VisualElement(); top.style.flexShrink = 0;
-            listHost = new VisualElement(); listHost.style.flexGrow = 1; listHost.style.flexShrink = 1;
+            AddToClassList("zs-browser__root");
+            top = new VisualElement(); top.AddToClassList("zs-browser__top");
+            listHost = new VisualElement(); listHost.AddToClassList("zs-browser__list-host");
             Add(top); Add(listHost);
             RefreshFiltered();
             BuildTop();
@@ -183,15 +183,15 @@ namespace Laubrary.Zounds.Uitk {
         VisualElement TitleBox() {
             var box = new VisualElement();
             box.AddToClassList("zs-box-default");
-            box.style.flexShrink = 0;
+            box.AddToClassList("zs-browser__title-box-box");
             var bs = ZoundsProject.Instance.browserSettings;
             string fileName = ZoundsWindow.CurrentProjectJSON != null ? ZoundsWindow.CurrentProjectJSON.name : "No Project Loaded";
             var row = new VisualElement();
-            row.style.flexDirection = FlexDirection.Row; row.style.alignItems = Align.FlexStart;
+            row.AddToClassList("zs-browser__title-box-row");
             if (bs.fancyTitle) row.Add(ZequenceEditorWindowTK.Flex());
             var title = new Label(fileName);
             if (bs.fancyTitle) { title.AddToClassList("zs-title"); title.AddToClassList("zs-text-title"); }
-            else { title.AddToClassList("zs-lbl"); title.AddToClassList("zs-bold"); title.style.height = 18f; }
+            else { title.AddToClassList("zs-lbl"); title.AddToClassList("zs-bold"); title.AddToClassList("zs-browser__title-box-title"); }
             row.Add(title);
             row.Add(ZequenceEditorWindowTK.Flex());
             var gear = new Button(() => { s_showSettings = !s_showSettings; BuildTop(); }) { tooltip = "Toggle browser settings." };
@@ -229,12 +229,12 @@ namespace Laubrary.Zounds.Uitk {
             // VPC Sliders: label (80), the two-way radio, Input Boxes.
             {
                 var r = Row();
-                var l = new Label("VPC Sliders"); l.AddToClassList("zs-lbl"); l.style.width = 80f; l.style.height = 18f;
+                var l = new Label("VPC Sliders"); l.AddToClassList("zs-lbl"); l.AddToClassList("zs-browser__slider-settings-label");
                 r.Add(l);
                 bool sliderType = ZoundsProject.Instance.browserSettings.vpcShowSliderType;
                 var a = ZS.Toggle("Type+Values", "", sliderType, _ => { Prop("vpcShowSliderType").boolValue = true; Apply(); }, "RichToggle", ZUICornerMask.Left, -1f, 18f);
                 var b = ZS.Toggle("Only Values", "", !sliderType, _ => { Prop("vpcShowSliderType").boolValue = false; Apply(); }, "RichToggle", ZUICornerMask.Right, -1f, 18f);
-                a.style.width = b.style.width = 100f;   // the radio's cells, measured 100 each
+                a.AddToClassList("zs-browser__slider-mode-option"); b.AddToClassList("zs-browser__slider-mode-option");   // the radio's cells, measured 100 each
                 r.Add(a); r.Add(b);
                 r.Add(ZequenceEditorWindowTK.Gap(ZS.MediumSpacing));
                 r.Add(SettingToggle("vpcShowInputBoxes", "Input Boxes", ZUICornerMask.None));
@@ -253,14 +253,14 @@ namespace Laubrary.Zounds.Uitk {
                 var bsm = new PropertyField(Prop("buttonSizeMode"), "Button Size Mode");
                 var mode = new EnumField("Button Size Mode", ZoundsProject.Instance.browserSettings.buttonSizeMode) { tooltip = "Choose how zound buttons calculate their width." };
                 mode.AddToClassList("zs-imgui-field"); mode.AddToClassList("zs-label-110");
-                mode.style.maxWidth = 200f; mode.style.flexGrow = 1;
+                mode.AddToClassList("zs-browser__settings-panel-mode");
                 mode.RegisterValueChangedCallback(e => { Prop("buttonSizeMode").enumValueIndex = (int)(ZoundsProject.BrowserSettings.ButtonSizeMode)e.newValue; Apply(); BuildTop(); });
                 r.Add(mode);
                 r.Add(ZequenceEditorWindowTK.Gap(10f));
                 if (ZoundsProject.Instance.browserSettings.buttonSizeMode != ZoundsProject.BrowserSettings.ButtonSizeMode.Auto) {
                     var width = new Slider("Width", 38f, 800f) { value = ZoundsProject.Instance.browserSettings.itemWidth, showInputField = true, tooltip = "Width of each element." };
                     width.AddToClassList("zs-imgui-slider"); width.AddToClassList("zs-imgui-field"); width.AddToClassList("zs-label-45");
-                    width.style.maxWidth = 200f; width.style.flexGrow = 1;
+                    width.AddToClassList("zs-browser__settings-panel-width");
                     width.RegisterValueChangedCallback(e => { Prop("itemWidth").floatValue = e.newValue; Apply(); });
                     r.Add(width);
                     r.Add(ZequenceEditorWindowTK.Gap(10f));
@@ -298,7 +298,7 @@ namespace Laubrary.Zounds.Uitk {
                 r.AddToClassList("zs-skinrow");
                 var skin = new PopupField<string>("Skin", options, idx);
                 skin.AddToClassList("zs-imgui-field"); skin.AddToClassList("zs-label-34");
-                skin.style.maxWidth = 200f; skin.style.flexGrow = 1;
+                skin.AddToClassList("zs-browser__settings-panel-skin");
                 skin.RegisterValueChangedCallback(e => {
                     if (sheet == null) return;
                     sheet.SetActiveSkin(e.newValue == "Default" ? null : e.newValue);
@@ -329,7 +329,7 @@ namespace Laubrary.Zounds.Uitk {
 
         static VisualElement Row() {
             var r = new VisualElement();
-            r.style.flexDirection = FlexDirection.Row; r.style.flexShrink = 0; r.style.alignItems = Align.FlexStart;
+            r.AddToClassList("zs-browser__row");
             return r;
         }
 
@@ -360,8 +360,8 @@ namespace Laubrary.Zounds.Uitk {
         /// <summary>An IMGUI toggle that stretches (the RichToggle style): the row's spare width is shared equally, each
         /// between 28 and <paramref name="maxWidth"/> (no cap when it is not positive).</summary>
         static void Stretch(VisualElement t, float maxWidth) {
-            t.style.flexGrow = 1; t.style.flexShrink = 1; t.style.flexBasis = 0;
-            t.style.minWidth = 28f;
+            t.AddToClassList("zs-browser__setting-toggle");
+            t.AddToClassList("zs-browser__setting-toggle");
             t.style.maxWidth = maxWidth > 0f ? maxWidth : StyleKeyword.None;
         }
 
@@ -381,24 +381,24 @@ namespace Laubrary.Zounds.Uitk {
             float h = BrowserTab.PresetsBarHeight(WindowWidth, out _);
             var bar = new VisualElement();
             bar.AddToClassList("zs-presets");
-            bar.style.height = h; bar.style.flexShrink = 0;
+            bar.style.height = h; bar.AddToClassList("zs-browser__presets-bar");
             var label = new Label("Presets:");
             label.AddToClassList("zs-lbl");
-            label.style.position = Position.Absolute; label.style.left = 0; label.style.top = 0;
-            label.style.width = PresetsBarDrawer.presetsLabelWidth; label.style.height = EditorGUIUtility.singleLineHeight;
+            label.AddToClassList("zs-browser__presets-bar-label");
+            label.AddToClassList("zs-browser__presets-label"); label.style.height = EditorGUIUtility.singleLineHeight;
             bar.Add(label);
             var viewport = new VisualElement();
-            viewport.style.position = Position.Absolute; viewport.style.left = PresetsBarDrawer.presetsLabelWidth; viewport.style.top = 0;
-            viewport.style.right = 0; viewport.style.bottom = 0;
-            viewport.style.backgroundColor = new Color(0.2f, 0.2f, 0.2f, 1f);
+            viewport.AddToClassList("zs-browser__presets-bar-viewport"); viewport.AddToClassList("zs-browser__presets-viewport");
+            viewport.AddToClassList("zs-browser__presets-bar-viewport");
+            viewport.AddToClassList("zs-browser__presets-background");
             bar.Add(viewport);
             var scroll = new ScrollView(ScrollViewMode.Horizontal);
             scroll.AddToClassList("zs-presets__scroll");
-            scroll.style.position = Position.Absolute; scroll.style.left = 0; scroll.style.top = 0; scroll.style.bottom = 0;
-            scroll.style.right = PresetsBarDrawer.savePresetButtonWidth + 4f;
+            scroll.AddToClassList("zs-browser__presets-bar-scroll");
+            scroll.AddToClassList("zs-browser__presets-scroll");
             scroll.verticalScrollerVisibility = ScrollerVisibility.Hidden;
             scroll.horizontalScrollerVisibility = h > 20f ? ScrollerVisibility.Auto : ScrollerVisibility.Hidden;
-            scroll.contentContainer.style.flexDirection = FlexDirection.Row;
+            scroll.contentContainer.AddToClassList("zs-browser__presets-bar-scroll-content-container");
             viewport.Add(scroll);
             scroll.Add(PresetButton(null));
             var presets = ZoundsEditorPresets.Instance != null ? ZoundsEditorPresets.Instance.viewPresets : null;
@@ -406,8 +406,8 @@ namespace Laubrary.Zounds.Uitk {
             var save = new Button { text = "Save Preset", tooltip = "Save as a new preset, or use an existing preset name to override it." };
             save.clicked += () => SavePresetPopup.Show(save.worldBound, s_lastPresetName, SavePreset);
             save.AddToClassList("zs-imgui-button");
-            save.style.position = Position.Absolute; save.style.right = 2f; save.style.top = 2f;
-            save.style.width = PresetsBarDrawer.savePresetButtonWidth; save.style.height = h - 4f;
+            save.AddToClassList("zs-browser__presets-bar-save");
+            save.AddToClassList("zs-browser__presets-save"); save.style.height = h - 4f;
             bar.Add(save);
             return bar;
         }
@@ -444,14 +444,14 @@ namespace Laubrary.Zounds.Uitk {
             bool sideBy = WindowWidth >= 420f || !showBoth;
             if (!bs.showSearch && !bs.showMasterVolume) return null;
             var host = new VisualElement();
-            host.style.flexShrink = 0;
+            host.AddToClassList("zs-browser__search-and-volume-host");
             host.style.flexDirection = sideBy ? FlexDirection.Row : FlexDirection.Column;
             host.AddToClassList("zs-searchvolume");
             // IMGUI shares the spare width equally between the two halves after each one's own minimum, and the search half's
             // minimum is the larger (measured: search box to 507, the volume label from 550, at a 1000 pt window): an 82 pt head start reproduces that.
-            if (bs.showSearch) { var s = SearchRow(); if (sideBy) { s.style.flexGrow = 1; s.style.flexBasis = showBoth ? 82f : 0f; } host.Add(s); }
+            if (bs.showSearch) { var s = SearchRow(); if (sideBy) { s.AddToClassList("zs-browser__search--paired"); s.style.flexBasis = showBoth ? 82f : 0f; } host.Add(s); }
             if (showBoth) host.Add(sideBy ? ZequenceEditorWindowTK.Gap(8f) : ZequenceEditorWindowTK.Space(6f));
-            if (bs.showMasterVolume) { var v = VolumeRow(); if (sideBy) { v.style.flexGrow = 1; v.style.flexBasis = 0; } host.Add(v); }
+            if (bs.showMasterVolume) { var v = VolumeRow(); if (sideBy) { v.AddToClassList("zs-browser__volume--paired"); } host.Add(v); }
             return host;
         }
 
@@ -460,7 +460,7 @@ namespace Laubrary.Zounds.Uitk {
             r.AddToClassList("zs-searchrow");
             search = new TextField { value = Props.searchText };
             search.AddToClassList("zs-search");
-            search.style.flexGrow = 1; search.style.flexShrink = 1;
+            search.AddToClassList("zs-browser__search-row-search");
             var ghost = new Label("Search...") { pickingMode = PickingMode.Ignore };
             ghost.AddToClassList("zs-search__ghost");
             search.Add(ghost);
@@ -510,7 +510,7 @@ namespace Laubrary.Zounds.Uitk {
                 volume.text = VolumeLabel(v);
             });
             volume.AddToClassList("zs-slider-bigslider");
-            volume.style.height = 26f;
+            volume.AddToClassList("zs-browser__volume-row-volume");
             SyncTop += () => { volume.SetValueWithoutNotify(MasterVolume * 100f); volume.text = VolumeLabel(MasterVolume); };
             return volume;
         }
@@ -541,8 +541,8 @@ namespace Laubrary.Zounds.Uitk {
 
         /// <summary>A Flat button's width: its text (13 px, the sheet's Flat font) plus the style's 20 + 20 padding.</summary>
         float FlatWidth(string text) {
-            if (s_measure == null) { s_measure = new Label(); s_measure.style.fontSize = 13f; }
-            if (s_measure.panel == null) { s_measure.style.position = Position.Absolute; s_measure.style.visibility = Visibility.Hidden; Add(s_measure); }
+            if (s_measure == null) { s_measure = new Label(); s_measure.AddToClassList("zs-browser__toolbar-measurement"); }
+            if (s_measure.panel == null) { s_measure.AddToClassList("zs-browser__toolbar-measurement"); s_measure.style.visibility = Visibility.Hidden; Add(s_measure); }
             var sz = s_measure.MeasureTextSize(text, 0, MeasureMode.Undefined, 0, MeasureMode.Undefined);
             return Mathf.Ceil(sz.x) + FlatExtra;
         }
@@ -550,10 +550,10 @@ namespace Laubrary.Zounds.Uitk {
 
         VisualElement Toolbar() {
             var bs = ZoundsProject.Instance.browserSettings;
-            var host = new VisualElement(); host.style.flexShrink = 0;
+            var host = new VisualElement(); host.AddToClassList("zs-browser__toolbar-host");
             VisualElement r = null;
             bool rowHasItem = false;
-            void NewRow() { r = Row(); r.AddToClassList("zs-toolbar"); r.style.height = ToolbarHeight; r.Add(ZequenceEditorWindowTK.Gap(5f)); host.Add(r); rowHasItem = false; }
+            void NewRow() { r = Row(); r.AddToClassList("zs-toolbar"); r.AddToClassList("zs-browser__toolbar-row"); r.Add(ZequenceEditorWindowTK.Gap(5f)); host.Add(r); rowHasItem = false; }
             void Gap() { if (rowHasItem) r.Add(ZequenceEditorWindowTK.Gap(ToolbarGap)); rowHasItem = true; }
             NewRow();
 
@@ -580,13 +580,13 @@ namespace Laubrary.Zounds.Uitk {
                 var m = Flat("M", "", ZUICornerMask.Square, () => ZoundsWindow.ModifyZoundsProject("mute all visible", () => {
                     foreach (var z in filtered) if (z is Klip || z is Zequence) z.mute = true;
                 }));
-                m.style.backgroundColor = OverFlat(new Color(0.8f, 0.2f, 0.15f, 0.7f));
+                m.AddToClassList("zs-browser__mute-visible");
                 r.Add(m);
                 var s = Flat("S", "", ZUICornerMask.Right, () => ZoundsWindow.ModifyZoundsProject("solo all visible", () => {
                     foreach (var z in filtered) if (z is Klip || z is Zequence) z.solo = true;
                     ZoundsProject.Instance.zoundLibrary.soloStatusNeedsUpdate = true;
                 }));
-                s.style.backgroundColor = OverFlat(new Color(0.15f, 0.65f, 0.25f, 0.7f));
+                s.AddToClassList("zs-browser__solo-visible");
                 r.Add(s);
             }
 
@@ -673,13 +673,6 @@ namespace Laubrary.Zounds.Uitk {
             return host;
         }
 
-        /// <summary>ZUI.OverrideButtonBgColor on a Flat button: the colour is laid over the style's border colour
-        /// (measured: M = 153,59,64 = 0.7 × override + 0.3 × (32,79,124)).</summary>
-        static Color OverFlat(Color c) {
-            var under = new Color(32 / 255f, 79 / 255f, 124 / 255f, 1f);
-            return new Color(Mathf.Lerp(under.r, c.r, c.a), Mathf.Lerp(under.g, c.g, c.a), Mathf.Lerp(under.b, c.b, c.a), 1f);
-        }
-
         static Button Flat(string text, string tooltip, ZUICornerMask corners, Action onClick) {
             var b = ZS.Button(text, tooltip, "Flat", onClick, corners, -1f, ToolbarHeight);
             b.AddToClassList("zs-toolbarbutton");
@@ -691,14 +684,14 @@ namespace Laubrary.Zounds.Uitk {
             var g = new VisualElement();
             g.AddToClassList("zs-segments");
             g.AddToClassList(icons ? "zs-segments--layout" : "zs-segments--mode");
-            g.style.flexDirection = FlexDirection.Row; g.style.width = width; g.style.height = ToolbarHeight; g.style.flexShrink = 0;
+            g.AddToClassList("zs-browser__segments"); g.style.width = width;
             for (int i = 0; i < items.Length; i++) {
                 int index = i;
                 var b = new Button(() => { if (index != selected) onSelect(index); }) { tooltip = items[i].tooltip };
                 b.AddToClassList("zs-segment");
                 b.AddToClassList(i == 0 ? "zs-segment--left" : i == items.Length - 1 ? "zs-segment--right" : "zs-segment--mid");
                 b.EnableInClassList("zs-on", i == selected);
-                b.style.flexGrow = 1; b.style.flexBasis = 0;
+                b.AddToClassList("zs-browser__segment");
                 if (icons) {
                     var tex = ZUI.FindIcon(items[i].content) ?? Resources.Load<Texture>("ZoundsWindowIcons/" + items[i].content);
                     var img = new Image { image = tex, scaleMode = ScaleMode.ScaleToFit, pickingMode = PickingMode.Ignore };
@@ -761,11 +754,11 @@ namespace Laubrary.Zounds.Uitk {
                 return;
             }
             var frame = Row();
-            frame.style.flexGrow = 1; frame.style.flexShrink = 1; frame.style.alignItems = Align.Stretch;
-            frame.style.marginLeft = 5f; frame.style.marginRight = 5f; frame.style.marginBottom = 5f;
+            frame.AddToClassList("zs-browser__list-frame");
+            frame.AddToClassList("zs-browser__list-frame");
             var scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.AddToClassList("zs-browserlist");
-            scroll.style.flexGrow = 1; scroll.style.flexShrink = 1;
+            scroll.AddToClassList("zs-browser__list-scroll");
             frame.Add(scroll);
             listHost.Add(frame);
             if (bs.multicolumn) BuildGrid(scroll);
@@ -799,8 +792,8 @@ namespace Laubrary.Zounds.Uitk {
 
         /// <summary>The ZoundBtn style's natural width for a name: its 16 px bold text plus 10 + 10 padding.</summary>
         float MeasureZoundBtn(string name) {
-            if (s_btnMeasure == null) { s_btnMeasure = new Label(); s_btnMeasure.style.fontSize = 16f; s_btnMeasure.style.unityFontStyleAndWeight = FontStyle.Bold; }
-            if (s_btnMeasure.panel == null) { s_btnMeasure.style.position = Position.Absolute; s_btnMeasure.style.visibility = Visibility.Hidden; Add(s_btnMeasure); }
+            if (s_btnMeasure == null) { s_btnMeasure = new Label(); s_btnMeasure.AddToClassList("zs-browser__name-measurement"); }
+            if (s_btnMeasure.panel == null) { s_btnMeasure.AddToClassList("zs-browser__name-measurement"); s_btnMeasure.style.visibility = Visibility.Hidden; Add(s_btnMeasure); }
             return Mathf.Ceil(s_btnMeasure.MeasureTextSize(name, 0, MeasureMode.Undefined, 0, MeasureMode.Undefined).x) + 20f;
         }
         static Label s_btnMeasure;
@@ -819,11 +812,11 @@ namespace Laubrary.Zounds.Uitk {
                 void FixedRow(bool first) {
                     if (!first) scroll.Add(ZequenceEditorWindowTK.Space(BrowserTab.MULTICOLUMN_V_GAP));
                     var r = Row();
-                    r.style.justifyContent = Justify.Center;
+                    r.AddToClassList("zs-browser__grid-row");
                     int start = index;
                     for (int c = 0; c < columns; c++) {
                         if (c > 0) r.Add(ZequenceEditorWindowTK.Gap(BrowserTab.MULTICOLUMN_H_GAP));
-                        if (index >= filtered.Count) { var ph = new VisualElement(); ph.style.width = itemWidth; ph.style.height = 24f; ph.style.flexShrink = 0; r.Add(ph); }
+                        if (index >= filtered.Count) { var ph = new VisualElement(); ph.style.width = itemWidth; ph.AddToClassList("zs-browser__grid-placeholder"); r.Add(ph); }
                         else { var cell = new GridCellTK(filtered[index], this, itemWidth, index == selectedIndex); cells.Add(cell); r.Add(cell); }
                         index++;
                     }
@@ -901,17 +894,15 @@ namespace Laubrary.Zounds.Uitk {
                 isMissing = !isClip && zound.id == 0;
                 klipIssue = zound is Klip k && string.IsNullOrEmpty(k.externalSourcePath)
                             && (k.audioClipRef == null || !k.audioClipRef.RuntimeKeyIsValid() || k.audioClipRef.editorAsset == null);
-                style.width = width; style.height = 24f; style.flexShrink = 0;
+                style.width = width; AddToClassList("zs-browser__grid-cell");
                 pulseFill = Part(); pulseBorder = Part(); highlight = Part(); wash = Part();
-                pulseBorder.style.borderTopWidth = pulseBorder.style.borderBottomWidth = pulseBorder.style.borderLeftWidth = pulseBorder.style.borderRightWidth = 3f;
-                highlight.style.left = -1f; highlight.style.top = -1f; highlight.style.right = -1.5f; highlight.style.bottom = -1f;
+                pulseBorder.AddToClassList("zs-browser__grid-pulse-border");
+                highlight.AddToClassList("zs-browser__grid-highlight");
                 Add(pulseFill); Add(pulseBorder); Add(highlight); Add(wash);
                 if (isMissing) {
                     var l = new Label(zound.name);
                     l.AddToClassList("zs-lbl");
-                    l.style.unityTextAlign = TextAnchor.MiddleCenter;
-                    l.style.color = new Color(0.8f, 0.4f, 0.4f, 1f);
-                    l.style.position = Position.Absolute; l.style.left = 0; l.style.top = 0; l.style.right = 0; l.style.bottom = 0;
+                    l.AddToClassList("zs-browser__grid-missing-label");
                     l.RegisterCallback<PointerUpEvent>(e => { if (e.button == 0 || e.button == 1) tab.ToggleSelect(zound); });
                     Add(l);
                 }
@@ -919,21 +910,21 @@ namespace Laubrary.Zounds.Uitk {
                     button = ZS.Button(zound.name, zound.name + ": Left click to play. Right click to open configuration panel. Middle click or Alt left click to copy the name to clipboard.",
                                        "ZoundBtn", null, ZUICornerMask.None, -1f, -1f);
                     button.clickable = null;
-                    button.style.position = Position.Absolute; button.style.left = 0; button.style.top = 0; button.style.right = 0; button.style.bottom = 0;
+                    button.AddToClassList("zs-browser__grid-button");
                     button.RegisterCallback<PointerDownEvent>(e => { if (e.button != 0) e.StopPropagation(); });
                     button.RegisterCallback<PointerUpEvent>(OnClick);
                     Add(button);
                 }
                 stripe = Part(); zeqStripe = Part();
-                stripe.style.left = 1f; stripe.style.right = 1f; stripe.style.top = 0; stripe.style.bottom = StyleKeyword.Auto; stripe.style.height = 2f;
-                zeqStripe.style.left = 1f; zeqStripe.style.right = 1f; zeqStripe.style.top = StyleKeyword.Auto; zeqStripe.style.bottom = 0; zeqStripe.style.height = 1.5f;
+                stripe.AddToClassList("zs-browser__grid-stripe");
+                zeqStripe.AddToClassList("zs-browser__grid-zeq-stripe");
                 Add(stripe); Add(zeqStripe);
                 Sync(); Live();
             }
 
             static VisualElement Part() {
                 var e = new VisualElement { pickingMode = PickingMode.Ignore };
-                e.style.position = Position.Absolute; e.style.left = 0; e.style.top = 0; e.style.right = 0; e.style.bottom = 0;
+                e.AddToClassList("zs-browser__grid-overlay");
                 return e;
             }
 
@@ -1004,9 +995,9 @@ namespace Laubrary.Zounds.Uitk {
             public GridInspectorTK(Zound zound, BrowserTabTK tab) {
                 this.zound = zound; this.tab = tab;
                 AddToClassList("zs-helpbox");
-                style.height = BrowserTab.inspectorHeight; style.flexShrink = 0;
+                style.height = BrowserTab.inspectorHeight; AddToClassList("zs-browser__inspector");
                 area = new VisualElement();
-                area.style.position = Position.Absolute;
+                area.AddToClassList("zs-browser__inspector-content");
                 Add(area);
                 parts = new ZoundListRowTKParts(zound, this, area, vertical: true);
                 RegisterCallback<GeometryChangedEvent>(_ => Layout());

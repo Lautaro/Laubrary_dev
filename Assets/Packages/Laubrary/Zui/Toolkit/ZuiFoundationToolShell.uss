@@ -13,6 +13,7 @@
     /* Selected row wash. Deliberately the accent hue at low strength so a selected row reads as picked
        without competing with the row's own contents. */
     --zui-row-selected-bg: rgba(89, 140, 242, 0.18);
+    --lau-pyre-layer-selected-bg: rgba(89.25, 140.25, 242.25, 0.18);
 }
 
 /* ── window shell ──────────────────────────────────────────────────────────────────────────────────────── */
@@ -42,6 +43,25 @@
     width: 320px;
     flex-shrink: 0;
     margin-right: 4px;
+    min-height: 0;
+}
+
+/* A control side whose width is kept live by a user-facing resize grip. */
+.lau-tool-shell__side--resizable {
+    flex-shrink: 0;
+    min-height: 0;
+}
+
+/* A compact controls side used where 260 pixels is sufficient for the tool's labels. */
+.lau-tool-shell__side--compact {
+    min-width: 260px;
+    min-height: 0;
+}
+
+/* A fixed-width catalog list beside an editable detail pane. */
+.lau-tool-shell__side--catalog {
+    width: 240px;
+    flex-shrink: 0;
     min-height: 0;
 }
 
@@ -85,6 +105,84 @@
     flex-shrink: 0;
 }
 
+/* A compact picture pane can remain useful at a narrower width than a full preview. */
+.lau-tool-shell__pane--compact {
+    flex-grow: 1;
+    min-width: 120px;
+}
+
+/* A details pane may use all remaining width rather than enforcing a preview minimum. */
+.lau-tool-shell__pane--unbounded {
+    flex-grow: 1;
+    min-width: 0;
+    min-height: 0;
+    margin-left: 4px;
+}
+
+/* A wrapped strip of view toggles that may yield width before it pushes its preview out of place. */
+.lau-tool-shell__overlay-strip {
+    flex-direction: row;
+    flex-wrap: wrap;
+    flex-shrink: 1;
+    min-width: 0;
+    align-items: center;
+    min-height: 22px;
+}
+
+/* The joined options inside an overlay strip share its width budget. */
+.lau-tool-shell__overlay-segments {
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+/* Two tool regions that can stack on a narrow window instead of squeezing their controls. */
+.lau-tool-shell__row-wrap {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+/* The registration canvas needs a fixed readable column and a matching reserved height. */
+.lau-tool-shell__registration-preview {
+    width: 300px;
+    flex-shrink: 0;
+    min-height: 250px;
+}
+
+/* A fixed-height IMGUI canvas embedded in a retained-mode authoring surface. */
+.lau-tool-shell__canvas-band {
+    height: 220px;
+    flex-shrink: 0;
+}
+
+/* Controls beside a compact canvas use remaining width but keep a readable field width. */
+.lau-tool-shell__tools {
+    flex-grow: 1;
+    min-width: 240px;
+    margin-left: 4px;
+}
+
+/* A stage whose height is chosen by a user-facing resize grip. Its live height stays in C#; these are the stable constraints that keep it from taking the layout's leftover space or collapsing sideways. */
+.lau-tool-shell__stage {
+    flex-grow: 0;
+    flex-shrink: 0;
+    min-width: 200px;
+}
+
+/* The unobtrusive grip below or beside a resizable stage. Pointer handling and the resulting size remain live. */
+.lau-tool-shell__resize-grip {
+    flex-shrink: 0;
+    background-color: rgba(0, 0, 0, 0.25);
+}
+
+.lau-tool-shell__resize-grip--horizontal {
+    height: 6px;
+}
+
+/* The fixed-width time/fill readout used beside a preview transport. Its text and visibility stay live. */
+.lau-tool-shell__readout {
+    width: 110px;
+}
+
 /* A surface whose children are drawn or positioned freely and must not spill past its edge. */
 .lau-tool-shell__clip {
     overflow: hidden;
@@ -106,11 +204,37 @@
 /* The drag handle at the head of a reorderable row. */
 .zui-row__grip {
     width: 16px;
+    flex-shrink: 0;
 }
 
 /* A grip drawn with a glyph that needs weight to read at its small size. */
 .zui-row__grip--bold {
     -unity-font-style: bold;
+}
+
+/* A compact grip used when a row also carries an explicit order number. */
+.zui-row__grip--compact {
+    width: 14px;
+    -unity-text-align: middle-center;
+}
+
+/* The ordinal beside a reorderable row. */
+.zui-row__ordinal {
+    width: 22px;
+    margin-right: 4px;
+    -unity-text-align: middle-right;
+}
+
+/* A small colour key. The colour itself belongs to the authored item and is deliberately set live. */
+.zui-row__swatch {
+    width: 10px;
+    height: 10px;
+    flex-shrink: 0;
+    margin-right: 5px;
+    border-top-left-radius: 2px;
+    border-top-right-radius: 2px;
+    border-bottom-left-radius: 2px;
+    border-bottom-right-radius: 2px;
 }
 
 /* The row's name field: takes whatever width the row has left, and gives up width before the row wraps.
@@ -124,7 +248,835 @@
     flex-shrink: 1;
 }
 
+/* A card header needs room for a meaningful authored name before it may wrap. */
+.zui-root .zui-row__name--card {
+    min-width: 90px;
+}
+
+/* A header setting is small chrome, never the part that grows or wraps the row. */
+.zui-row__toggle,
+.zui-row__kind {
+    flex-shrink: 0;
+}
+
+.zui-row__kind {
+    white-space: nowrap;
+}
+
 /* The picked row. */
 .zui-row--selected {
     background-color: var(--zui-row-selected-bg);
 }
+
+/* Dense tool chrome. These roles preserve fixed presentation; colours taken from authored items, measured geometry and user-resized dimensions remain inline. Root-qualified selectors also outrank toolkit field/text defaults. */
+.lau-tool-shell__resize-grip--vertical {
+    width: 6px;
+}
+
+.zui-root .lau-tool-shell__status-line {
+    height: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.zui-root .lau-tool-shell__status-line--tall {
+    height: 16px;
+}
+
+/* A reserved sprite stage surrounds a live-sized frame. The preview image's position and scale stay in code. */
+.lau-tool-shell__sprite-stage {
+    width: 200px;
+    height: 200px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+}
+
+.lau-tool-shell__sprite-frame {
+    flex-shrink: 0;
+    background-color: rgb(28.05, 28.05, 30.6);
+}
+
+.lau-tool-shell__frame-border {
+    border-width: 1px;
+    border-color: rgba(0, 0, 0, 0.5);
+}
+
+.zui-root .lau-tool-shell__preview-hint {
+    white-space: normal;
+    -unity-text-align: middle-center;
+}
+
+.zui-root .lau-tool-shell__play-action {
+    width: 60px;
+}
+
+.lau-tool-shell__preview-controls {
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+/* A timeline key shares its live colour with the painted band; only its footprint is static. */
+.lau-tool-shell__timeline-key {
+    width: 8px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
+.lau-tool-shell__catalog {
+    flex-direction: row;
+    align-items: flex-start;
+}
+
+.lau-tool-shell__catalog-column {
+    margin-right: 10px;
+    min-width: 150px;
+}
+
+.zui-root .lau-tool-shell__note {
+    white-space: normal;
+}
+
+/* Fixed-height preview controls reserve their space even when the live readouts change. */
+.zui-root .lau-tool-shell__preview-toolbar {
+    flex-wrap: nowrap;
+    height: 24px;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.zui-root .lau-tool-shell__zoom-readout {
+    width: 46px;
+    -unity-text-align: middle-center;
+}
+
+.zui-root .lau-tool-shell__gizmo-readout {
+    white-space: nowrap;
+    margin-left: 10px;
+}
+
+.zui-root .lau-tool-shell__legend {
+    flex-wrap: nowrap;
+    overflow: hidden;
+    margin-left: 10px;
+}
+
+.zui-root .lau-tool-shell__legend-entry {
+    flex-wrap: nowrap;
+    margin-right: 8px;
+}
+
+.zui-root .lau-tool-shell__legend-label {
+    white-space: nowrap;
+}
+
+/* Named row behaviours, rather than literal size/alignment utility classes. */
+.zui-root .zui-row--nowrap {
+    flex-wrap: nowrap;
+}
+
+.zui-root .zui-row--wrap {
+    flex-wrap: wrap;
+}
+
+.zui-root .zui-row--top {
+    align-items: flex-start;
+}
+
+.zui-root .zui-row--center {
+    align-items: center;
+}
+
+/* A read-only row title takes the slack without acquiring the minimum width of an editable name field. */
+.zui-root .zui-row__title {
+    flex-grow: 1;
+    flex-shrink: 1;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.zui-root .zui-row__metadata {
+    margin-left: 22px;
+}
+
+/* Hierarchy and legend keys keep their original circles, spacing and live authored colours. */
+.zui-root .zui-row__swatch--round {
+    margin-left: 4px;
+    margin-right: 6px;
+    border-radius: 5px;
+}
+
+.zui-root .zui-row__swatch--legend {
+    width: 8px;
+    height: 8px;
+    margin-right: 4px;
+    border-radius: 4px;
+}
+
+.zui-root .zui-row__copy-action {
+    width: 46px;
+}
+
+.zui-root .zui-row__remove-action,
+.zui-root .zui-row__reorder-action {
+    width: 22px;
+}
+
+.zui-root .lau-tool-shell__zoom-action {
+    width: 24px;
+}
+
+/* These compact actions replace the width helper, which also pinned both flex factors to zero. */
+.zui-root .zui-row__copy-action,
+.zui-root .zui-row__remove-action,
+.zui-root .zui-row__reorder-action,
+.zui-root .lau-tool-shell__zoom-action {
+    flex-grow: 0;
+    flex-shrink: 0;
+}
+
+/* Dense catalog and effect-card presentation. Root qualification preserves the precedence formerly supplied by inline styles without altering live state or authored canvas geometry. */
+.zui-root .lau-previewable__select {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 140px;
+    max-width: 300px;
+    -unity-text-align: middle-left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.zui-root .lau-previewable__step-label {
+    min-width: 120px;
+}
+
+.zui-root .lau-asset-reference__swatch {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    background-color: rgb(28.05, 30.6, 38.25);
+    justify-content: center;
+    align-items: center;
+}
+
+.zui-root .lau-asset-reference__name {
+    -unity-font-style: bold;
+    max-width: 160px;
+    overflow: hidden;
+}
+
+.zui-root .lau-asset-reference__image {
+    width: 36px;
+    height: 36px;
+}
+
+.zui-root .lau-rig__schematic {
+    height: 220px;
+}
+
+.zui-root .lau-effect-list__add-action,
+.zui-root .lau-effect-list__audio-picker {
+    width: 160px;
+}
+
+.zui-root .lau-effect-list__grip {
+    -unity-font-style: bold;
+    width: 16px;
+}
+
+.zui-root .lau-effect-list__warning {
+    color: rgb(255, 183.6, 63.75);
+    -unity-font-style: bold;
+    margin-left: 6px;
+    flex-shrink: 0;
+}
+
+.zui-root .lau-effect-list__mute {
+    margin-right: 4px;
+}
+
+.zui-root .lau-effect-list__pickers {
+    flex-wrap: wrap;
+    flex-grow: 0;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.zui-root .lau-effect-list__sample-details {
+    margin-left: 6px;
+}
+
+.zui-root .lau-effect-list__sample-colour {
+    width: 16px;
+    height: 16px;
+    margin-right: 2px;
+}
+
+.zui-root .lau-effect-list__sample-frame {
+    margin-right: 4px;
+    background-color: rgb(28.05, 30.6, 38.25);
+}
+
+.zui-root .lau-map-layer__card {
+    margin-bottom: 4px;
+}
+
+.zui-root .lau-map-layer__grip {
+    width: 14px;
+}
+
+.zui-root .lau-tile-palette__row {
+    flex-direction: row;
+}
+
+.zui-root .lau-tile-palette__empty-cell {
+    width: 37px;
+    height: 37px;
+}
+
+.zui-root .lau-tile-palette__swatch {
+    margin-right: 1px;
+    margin-bottom: 1px;
+}
+
+.zui-root .lau-tile-palette__picture {
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.zui-root .lau-tile-palette__badge {
+    position: absolute;
+    right: 1px;
+    bottom: 1px;
+    font-size: 9px;
+    color: white;
+    background-color: rgba(0, 0, 0, 0.6);
+}
+
+.zui-root .lau-tileset__controls {
+    min-width: 240px;
+    min-height: 0;
+}
+
+.zui-root .lau-tileset__status {
+    height: 18px;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.zui-root .lau-tileset__animation-preview {
+    width: 64px;
+    height: 64px;
+}
+
+.zui-root .lau-tileset__toolbar {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.zui-root .lau-tileset__toolbar--contextual {
+    flex-wrap: nowrap;
+    align-items: center;
+    min-height: 26px;
+    height: 26px;
+}
+
+.zui-root .lau-tileset__switch-row {
+    flex-direction: row;
+    align-items: center;
+}
+
+.zui-root .lau-tileset__action-icon {
+    margin-left: 4px;
+    margin-right: 4px;
+}
+
+.zui-root .lau-tileset__icon-action {
+    min-width: 26px;
+}
+
+.zui-root .lau-tileset__selection-menu {
+    background-color: rgba(40.8, 40.8, 45.9, 0.98);
+    border-width: 1px;
+    border-color: rgba(0, 0, 0, 0.85);
+    padding: 4px;
+    min-width: 140px;
+}
+
+.zui-root .lau-tileset__grid {
+    margin-top: 4px;
+}
+
+.zui-root .lau-tileset__sheet-guide {
+    -unity-text-align: middle-center;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.55);
+    white-space: normal;
+}
+
+/* Pyre's layer rows and form catalogue. A grip retains the row's original flex behaviour. */
+.zui-root .lau-pyre__layer-row.zui-row--selected {
+    background-color: var(--lau-pyre-layer-selected-bg);
+}
+
+.zui-root .lau-pyre__layer-grip {
+    width: 16px;
+    -unity-font-style: bold;
+}
+
+.zui-root .lau-pyre__layer-details {
+    margin-left: 16px;
+}
+
+.lau-pyre__form-columns,
+.lau-pyre__form-choice {
+    flex-direction: row;
+}
+
+.lau-pyre__form-column {
+    flex-direction: column;
+    margin-right: 12px;
+    min-width: 104px;
+}
+
+.lau-pyre__form-choice {
+    align-items: center;
+}
+
+.lau-pyre__form-icon {
+    margin-right: 5px;
+}
+
+.zui-root .lau-pyre__swarm-note {
+    white-space: normal;
+    opacity: 0.7;
+    margin-top: 2px;
+    margin-bottom: 2px;
+}
+
+/* Cherry-frame dimensions and picture/selection colours stay live; only the static card chrome is here. */
+.lau-pyre__cherry-card {
+    margin-right: 2px;
+    margin-bottom: 2px;
+    border-width: 2px;
+}
+
+.zui-root .lau-pyre__cherry-badge {
+    position: absolute;
+    left: 2px;
+    top: 2px;
+}
+
+.lau-pyre__cherry-header {
+    flex-direction: row;
+    justify-content: space-between;
+    padding-left: 2px;
+    padding-right: 2px;
+}
+
+.zui-root .lau-pyre__cherry-remove {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+}
+
+/* The recipe's minimum width is the measured packed-card width, independent of the persisted split width. */
+.lau-chunks__recipe-pane {
+    min-width: 460px;
+    min-height: 0;
+}
+
+.zui-root .lau-chunks__debris-sprites-field { width: 300px; flex-shrink: 0; }
+.zui-root .lau-chunks__layer-row { margin-bottom: 1px; }
+.zui-root .lau-chunks__layer-title { flex-grow: 0; }
+.zui-root .lau-chunks__mirage-button { width: 150px; }
+
+.zui-root .lau-chunks__add-capability {
+    width: 160px;
+    align-self: flex-start;
+}
+
+.zui-root .lau-chunks__card-grip {
+    width: 14px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.zui-root .lau-chunks__card-action {
+    width: 22px;
+}
+
+.zui-root .lau-chunks__card-action--icon {
+    align-items: center;
+    justify-content: center;
+}
+
+.zui-root .chunks-card-chip {
+    min-width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    margin-left: 2px;
+    margin-right: 5px;
+    padding-left: 3px;
+    padding-right: 3px;
+    padding-top: 0;
+    padding-bottom: 0;
+    font-size: 10px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    border-radius: 3px;
+}
+
+.zui-root .lau-chunks__depth-action {
+    align-self: flex-start;
+}
+
+/* Loom deliberately attaches this semantic-only sheet: native GraphView controls keep their existing skin. */
+.lau-graph .lau-graph__toolbar {
+    flex-direction: row;
+    padding-left: 6px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+
+.lau-graph .lau-graph__header {
+    -unity-font-style: bold;
+    margin-right: 12px;
+    align-self: center;
+}
+
+.lau-graph .lau-graph__fade-label {
+    align-self: center;
+    margin-left: 12px;
+    margin-right: 4px;
+    opacity: 0.8;
+}
+
+.lau-graph .lau-graph__fade-slider {
+    width: 100px;
+    align-self: center;
+}
+
+.lau-graph .lau-graph__fade-readout {
+    align-self: center;
+    margin-left: 4px;
+    margin-right: 8px;
+    opacity: 0.7;
+    min-width: 30px;
+}
+
+.lau-graph .lau-graph__hint {
+    align-self: center;
+    opacity: 0.7;
+}
+
+.lau-graph .lau-graph__canvas {
+    flex-grow: 1;
+}
+
+.lau-graph .lau-graph__node {
+    min-width: 240px;
+}
+
+.lau-graph .lau-graph__node-kind {
+    opacity: 0.6;
+    margin-left: 6px;
+    margin-bottom: 2px;
+    font-size: 10px;
+}
+
+.lau-graph .lau-graph__fields {
+    padding-left: 6px;
+    padding-right: 6px;
+    padding-top: 2px;
+    padding-bottom: 4px;
+}
+
+.lau-graph .lau-graph__field-label {
+    min-width: 70px;
+}
+
+.lau-graph .lau-graph__field-hint {
+    opacity: 0.5;
+    font-size: 10px;
+    margin-top: 2px;
+    white-space: normal;
+}
+
+.lau-graph .lau-graph__list {
+    margin-top: 3px;
+    padding-left: 4px;
+    border-left-width: 2px;
+    border-left-color: rgba(255, 255, 255, 0.15);
+}
+
+.lau-graph .lau-graph__list-header {
+    flex-direction: row;
+    margin-bottom: 2px;
+}
+
+.lau-graph .lau-graph__list-name {
+    -unity-font-style: bold;
+    font-size: 11px;
+    flex-grow: 1;
+}
+
+.lau-graph .lau-graph__list-entry {
+    margin-bottom: 3px;
+    padding-left: 3px;
+    padding-bottom: 2px;
+    border-left-width: 1px;
+    border-left-color: rgba(255, 255, 255, 0.1);
+}
+
+.lau-graph .lau-graph__entry-header {
+    flex-direction: row;
+}
+
+.lau-graph .lau-graph__entry-ordinal {
+    flex-grow: 1;
+    font-size: 10px;
+    opacity: 0.6;
+}
+
+/* Reroute pills also work outside Loom. Match native Node/Port id selectors where their chrome is overridden.
+   Fixed band dimensions match UniversalRerouteNode.Size, HalfWidth and Height; SetPosition uses that contract. */
+.node.lau-graph-reroute {
+    width: 36px;
+    min-width: 36px;
+    max-width: 36px;
+    height: 16px;
+    min-height: 16px;
+    max-height: 16px;
+    overflow: hidden;
+    border-radius: 8px;
+    background-color: rgb(63.75, 63.75, 63.75);
+}
+
+.lau-graph-reroute #title.lau-graph-reroute__hidden,
+.lau-graph-reroute #extension.lau-graph-reroute__hidden,
+.lau-graph-reroute .lau-graph-reroute__hidden {
+    display: none;
+}
+
+.lau-graph-reroute #main.lau-graph-reroute__band,
+.lau-graph-reroute #input.lau-graph-reroute__band,
+.lau-graph-reroute #output.lau-graph-reroute__band,
+.node.lau-graph-reroute > #main > #contents > #top > #input.lau-graph-reroute__band,
+.node.lau-graph-reroute > #main > #contents > #top > #output.lau-graph-reroute__band {
+    min-height: 16px;
+    max-height: 16px;
+    padding: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    align-items: center;
+    justify-content: center;
+    background-color: transparent;
+}
+
+.lau-graph-reroute #main.lau-graph-reroute__band--main {
+    width: 36px;
+    min-width: 36px;
+    max-width: 36px;
+}
+
+.lau-graph-reroute #input.lau-graph-reroute__band--slot,
+.lau-graph-reroute #output.lau-graph-reroute__band--slot,
+.node.lau-graph-reroute > #main > #contents > #top > #input.lau-graph-reroute__band--slot,
+.node.lau-graph-reroute > #main > #contents > #top > #output.lau-graph-reroute__band--slot {
+    width: 18px;
+    min-width: 18px;
+    max-width: 18px;
+}
+
+.lau-graph-reroute .port.lau-graph-reroute__port {
+    width: 18px;
+    min-width: 18px;
+    max-width: 18px;
+    height: 16px;
+    min-height: 16px;
+    max-height: 16px;
+    padding: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    align-items: center;
+}
+
+.lau-graph-reroute .port.lau-graph-reroute__port--a {
+    justify-content: flex-start;
+    flex-direction: row;
+}
+
+.lau-graph-reroute .port.lau-graph-reroute__port--b {
+    justify-content: flex-end;
+    flex-direction: row-reverse;
+}
+
+/* Residual authoring surfaces: fixed presentation only. The displayed asset, canvas measurements and live interaction geometry stay in C#. */
+.zui-root .lau-prop__root {
+    flex-grow: 1;
+}
+
+.zui-root .lau-prop__controls {
+    width: 330px;
+    flex-shrink: 0;
+    margin-right: 4px;
+    min-height: 0;
+}
+
+.zui-root .lau-prop__tile-choice {
+    width: 36px;
+    height: 36px;
+    margin-right: 2px;
+    margin-bottom: 2px;
+}
+
+.zui-root .lau-sprite-catalog__split,
+.zui-root .lau-animation-builder__split {
+    flex-direction: row;
+    flex-grow: 1;
+    min-height: 0;
+}
+
+.zui-root .lau-sprite-catalog__controls {
+    width: 320px;
+    flex-shrink: 0;
+    min-height: 0;
+}
+
+.zui-root .lau-sprite-catalog__stage {
+    flex-grow: 1;
+    min-width: 0;
+    margin-left: 4px;
+}
+
+.zui-root .lau-sprite-catalog__thumbnail {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+.zui-root .lau-animation-builder__sheet-pane {
+    width: 56%;
+    min-width: 360px;
+    flex-shrink: 0;
+    min-height: 0;
+}
+
+.zui-root .lau-animation-builder__sheet-url {
+    width: auto;
+    flex-grow: 1;
+    min-width: 120px;
+    max-width: 520px;
+}
+
+.zui-root .lau-animation-builder__palette {
+    height: 132px;
+    flex-shrink: 0;
+}
+
+.zui-root .lau-animation-builder__tools {
+    flex-grow: 0;
+    flex-shrink: 0;
+    width: 380px;
+    margin-right: 4px;
+}
+
+.zui-root .lau-animation-builder__sequence {
+    height: 96px;
+    flex-shrink: 0;
+}
+
+.zui-root .lau-animation-builder__layer-colour {
+    height: 16px;
+}
+
+.zui-root .lau-animation-builder__sheet-controls {
+    flex-grow: 1;
+    min-width: 420px;
+}
+
+.zui-root .lau-animation-builder__animation-list {
+    max-height: 76px;
+}
+
+.zui-root .lau-animation-builder__animation-choice {
+    height: 20px;
+    max-width: 240px;
+}
+
+.zui-root .lau-animation-builder__zone-track {
+    height: 26px;
+    flex-shrink: 0;
+}
+
+.zui-root .lau-animation-builder__zone-key {
+    width: 12px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.zui-root .lau-animation-browser__lauminaries {
+    height: 170px;
+}
+
+.zui-root .lau-animation-browser__animations {
+    height: 160px;
+}
+
+.zui-root .lau-animation-browser__pick {
+    flex-grow: 1;
+    min-width: 60px;
+}
+
+.zui-root .lau-animation-browser__preview {
+    height: 160px;
+    flex-shrink: 0;
+}
+
+.zui-root .lau-authoring__selected-row {
+    background-color: rgba(89.25, 140.25, 242.25, 0.18);
+}
+
+.zui-root .lau-authoring__canvas-overlay {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.zui-root .lau-authoring__overlay-origin {
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
+.zui-root .lau-authoring__sheet-guide-overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 12px;
+}
+
+.zui-root .lau-tile-palette__choice--selected {
+    border-width: 2px;
+    border-color: rgb(255, 191.25, 51);
+}
+
+/* Live event-log layout. View-controlled widths, heights and event colours remain in the window. */
+.lau-event-log { flex-grow: 1; min-height: 0; }
+.lau-event-log__toolbar, .lau-event-log__settings, .lau-event-log__content, .lau-event-log__entry, .lau-event-log__entry-line, .lau-event-log__type-row { flex-direction: row; }
+.lau-event-log__toolbar, .lau-event-log__settings { flex-wrap: wrap; flex-shrink: 0; align-items: center; }
+.lau-event-log__settings { flex-basis: 100%; }
+.lau-event-log__content { flex-grow: 1; min-height: 0; }
+.lau-event-log__types { flex-shrink: 0; min-height: 0; }
+.lau-event-log__log { flex-grow: 1; min-width: 0; min-height: 0; }
+.lau-event-log__scroll { flex-grow: 1; min-height: 0; }
+.lau-event-log__type-row, .lau-event-log__entry, .lau-event-log__entry-line { flex-shrink: 0; align-items: center; overflow: hidden; }
+.lau-event-log__type-row--pinned, .lau-event-log__entry--pinned { border-width: 1px; }
+.lau-event-log__entry--narrow { flex-direction: column; align-items: stretch; }
+.lau-event-log__entry-line { flex-grow: 1; min-height: 0; }
+.lau-event-log__timestamp, .lau-event-log__type, .lau-event-log__data, .lau-event-log__message { flex-shrink: 0; overflow: hidden; white-space: nowrap; }
+.lau-event-log__message { white-space: normal; }

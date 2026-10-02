@@ -132,9 +132,8 @@ namespace Laubrary.Chunks.Editor
 
             // ── left: the recipe ─────────────────────────────────────────────────
             leftPane = new ScrollView(ScrollViewMode.Vertical);
-            leftPane.style.minWidth = DefaultLeftWidth;
-            leftPane.style.minHeight = 0f;
-            leftPane.contentContainer.style.flexGrow = 1f;
+            leftPane.AddToClassList("lau-chunks__recipe-pane");
+            leftPane.contentContainer.AddToClassList("lau-tool-shell__column");
             // The offset is written back on every scroll so it survives a rebuild — a card that grows or
             // shrinks under the cursor must not also throw the user back to the top of the stack.
             leftPane.verticalScroller.valueChanged += _ => leftScroll = leftPane.scrollOffset;
@@ -154,10 +153,8 @@ namespace Laubrary.Chunks.Editor
             // timing lanes drew straight over the transport. Scrolling is the honest answer; shrinking the
             // stage instead would move the picture every time a capability was added.
             var rightPane = new ScrollView(ScrollViewMode.Vertical);
-            rightPane.style.flexGrow = 1f;
-            rightPane.style.minWidth = 260f;
-            rightPane.style.minHeight = 0f;
-            rightPane.contentContainer.style.flexGrow = 1f;
+            rightPane.AddToClassList("lau-tool-shell__pane");
+            rightPane.contentContainer.AddToClassList("lau-tool-shell__column");
 
             BuildPreviewSection(rightPane, c);
             BuildTimingSection(rightPane, c);
@@ -167,8 +164,7 @@ namespace Laubrary.Chunks.Editor
             // first run). Pyre's own splitter predates that control and has no reset.
             var split = Z.Split("Chunks.dials", DefaultLeftWidth, leftPane, rightPane);
 
-            root.style.flexGrow = 1f;
-            root.style.minHeight = 0f;
+            root.AddToClassList("lau-tool-shell");
 
             // The toggle bar spans the whole window above everything. Tags was parented by the base class
             // before BuildAsset ran; re-adding it here moves it (VisualElement.Add detaches first) to just

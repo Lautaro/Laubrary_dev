@@ -58,7 +58,7 @@ namespace Laubrary.Zounds.Uitk {
             zpocTest = new ZpocTestPanelTK(zound);
             snapshotsRow = new SnapshotsRowTK(zound, (undo, action) => Modify(undo, action));
             AddToClassList("zs-chain");
-            style.flexShrink = 0;
+            AddToClassList("zs-chain-editor__root");
             RegisterCallback<GeometryChangedEvent>(_ => Tick());
             // Continuous edits hold one Undo step from the first change to the release, as the old editor's do.
             RegisterCallback<PointerUpEvent>(_ => EndDrag(), TrickleDown.TrickleDown);
@@ -177,11 +177,11 @@ namespace Laubrary.Zounds.Uitk {
             var sections = new VisualElement();
             sections.style.flexDirection = two ? FlexDirection.Row : FlexDirection.Column;
             // Side by side: each column at its set width, tops aligned. Stacked: each spans the whole width, as before.
-            sections.style.alignItems = two ? Align.FlexStart : Align.Stretch; sections.style.flexShrink = 0;
+            sections.style.alignItems = two ? Align.FlexStart : Align.Stretch; sections.AddToClassList("zs-chain-editor__sections");
             VisualElement Column(bool second) {
                 var c = new VisualElement();
-                c.style.flexShrink = 0; c.style.minWidth = MinCardW;
-                if (two) { c.style.width = sectionW; if (second) c.style.marginLeft = ColumnGap; }
+                c.AddToClassList("zs-chain-editor__section");
+                if (two) { c.style.width = sectionW; if (second) c.AddToClassList("zs-chain-editor__section--second"); }
                 sections.Add(c);
                 return c;
             }
@@ -213,23 +213,23 @@ namespace Laubrary.Zounds.Uitk {
 
         // ─────────────────────────── small element helpers ───────────────────────────
 
-        static VisualElement VSpace(float h) { var e = new VisualElement(); e.style.height = h; e.style.flexShrink = 0; return e; }
+        static VisualElement VSpace(float h) { var e = new VisualElement(); e.style.height = h; e.AddToClassList("zs-chain-editor__vertical-space"); return e; }
 
         static VisualElement Row(float h = G.RowH) {
             var r = new VisualElement();
             r.AddToClassList("zs-chain-row");
-            r.style.height = h; r.style.flexShrink = 0;
+            r.style.height = h; r.AddToClassList("zs-chain-editor__row");
             return r;
         }
 
         static VisualElement HRow(float h = G.RowH) {
             var r = new VisualElement();
-            r.style.flexDirection = FlexDirection.Row; r.style.height = h; r.style.flexShrink = 0;
+            r.AddToClassList("zs-chain-editor__horizontal-row"); r.style.height = h;
             return r;
         }
 
         static T Place<T>(T e, float x, float y, float w, float h) where T : VisualElement {
-            e.style.position = Position.Absolute;
+            e.AddToClassList("zs-chain-editor__positioned-control");
             e.style.left = x; e.style.top = y;
             if (w >= 0f) e.style.width = w;
             if (h >= 0f) e.style.height = h;
@@ -237,7 +237,7 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         static T PlaceRight<T>(T e, float right, float y, float w, float h) where T : VisualElement {
-            e.style.position = Position.Absolute;
+            e.AddToClassList("zs-chain-editor__right-positioned-control");
             e.style.right = right; e.style.top = y; e.style.width = w; e.style.height = h;
             return e;
         }
@@ -251,8 +251,8 @@ namespace Laubrary.Zounds.Uitk {
 
         static VisualElement Fill(Color c) {
             var e = new VisualElement { pickingMode = PickingMode.Ignore };
-            e.style.position = Position.Absolute;
-            e.style.left = 0; e.style.right = 0; e.style.top = 0; e.style.bottom = 0;
+            e.AddToClassList("zs-chain-editor__overlay");
+            e.AddToClassList("zs-chain-editor__overlay");
             e.style.backgroundColor = c;
             return e;
         }
@@ -262,7 +262,7 @@ namespace Laubrary.Zounds.Uitk {
         VisualElement LibraryBar(ZoundEffectChain chain, ZoundChainPreset preset) {
             var r = HRow();
             var title = Text("", "", "zs-text-subheader", "zs-subheader");
-            title.style.width = 220f;
+            title.AddToClassList("zs-chain-editor__library-bar-title");
             refreshers.Add(() => {
                 var ch = ZoundDspPlayback.ResolveChain(zound, out var p);
                 int users = p != null ? ZoundChainLibrary.CountUsers(p.id) : 0;
@@ -297,16 +297,16 @@ namespace Laubrary.Zounds.Uitk {
             return r;
         }
 
-        static VisualElement Flex() { var e = new VisualElement(); e.style.flexGrow = 1; return e; }
+        static VisualElement Flex() { var e = new VisualElement(); e.AddToClassList("zs-chain-editor__spacer"); return e; }
 
         // ─────────────────────────── error row ───────────────────────────
 
         VisualElement ErrorRow(ZoundEffectChain chain, bool linked) {
             var r = Row(EditorGUIUtility.singleLineHeight);
             var bar = Place(new VisualElement(), 0f, 0f, 3f, -1f);
-            bar.style.bottom = 0; bar.style.backgroundColor = new Color(0.95f, 0.75f, 0.3f);
+            bar.AddToClassList("zs-chain-editor__error-row-bar");
             var msg = Place(Text("", "", "zs-mini", "zs-warntext"), 7f, 0f, -1f, -1f);
-            msg.style.right = 0; msg.style.bottom = 0;
+            msg.AddToClassList("zs-chain-editor__error-row-msg");
             r.Add(bar); r.Add(msg);
             refreshers.Add(() => {
                 var ch = ZoundDspPlayback.ResolveChain(zound, out var p);
@@ -355,7 +355,7 @@ namespace Laubrary.Zounds.Uitk {
 
         VisualElement Nodes(ZoundEffectChain chain, bool linked, float w) {
             nodesBox = new VisualElement();
-            nodesBox.style.flexShrink = 0;
+            nodesBox.AddToClassList("zs-chain-editor__nodes-nodes-box");
             if (chain.nodes.Count == 0) {
                 var none = Text("No effects.", "", "zs-subtle");
                 none.style.height = EditorGUIUtility.singleLineHeight;
@@ -412,7 +412,7 @@ namespace Laubrary.Zounds.Uitk {
                 }
                 else {
                     var summary = Place(Text("", "", "zs-mini"), nameX + G.NameW, 0f, -1f, G.RowH);
-                    summary.style.right = G.RemoveW + 4f;
+                    summary.AddToClassList("zs-chain-editor__effect-summary");
                     summary.tooltip = selected ? "Click to fold the settings away." : "Click to show all " + units.Count + " settings. They do not fit on this row at the window's current width.";
                     refreshers.Add(() => {
                         var ch = ZoundDspPlayback.ResolveChain(zound, out _);
@@ -433,7 +433,7 @@ namespace Laubrary.Zounds.Uitk {
                 if (!inline && selected) Wrap(chain, units, u => NodeValue(ni, u.paramIndex), w, nodesBox);
             }
             dropLine = new VisualElement { pickingMode = PickingMode.Ignore };
-            dropLine.style.position = Position.Absolute; dropLine.style.left = 0; dropLine.style.right = 0; dropLine.style.height = 2f;
+            dropLine.AddToClassList("zs-chain-editor__nodes-drop-line");
             dropLine.style.backgroundColor = new Color(0.4f, 0.8f, 1f, 0.9f);
             dropLine.style.display = DisplayStyle.None;
             nodesBox.Add(dropLine);
@@ -499,7 +499,7 @@ namespace Laubrary.Zounds.Uitk {
             r.Add(Flex());
             if (ZoundEffectDescriptors.TailBudgetSeconds(chain) > 0f) {
                 var tail = Text("", "How long this chain keeps ringing after the source stops (delay and reverb decay). Audio End waits at most this long.", "zs-mini");
-                tail.style.width = 110f; tail.style.height = G.RowH;
+                tail.AddToClassList("zs-chain-editor__add-effect-row-tail"); tail.AddToClassList("zs-chain-editor__add-effect-tail");
                 refreshers.Add(() => tail.text = "tail " + ZoundEffectDescriptors.TailBudgetSeconds(ZoundDspPlayback.ResolveChain(zound, out _)).ToString("0.00") + " s");
                 r.Add(tail);
             }
@@ -723,7 +723,7 @@ namespace Laubrary.Zounds.Uitk {
             var r = HRow();
             var l = Text("Modifiers", "Value sources that drive effect parameters and the source stage (pitch, source gain): envelopes over the play, LFOs, a random value per play, or a step list. Bind one from a parameter's right-click menu.",
                          "zs-text-subheader", "zs-subheader");
-            l.style.width = 80f;
+            l.AddToClassList("zs-chain-editor__modifiers-header-label");
             r.Add(l);
             r.Add(Flex());
             r.Add(ZS.Button("Add modifier…", "Adds a modifier to the stack; bind it to a parameter from that parameter's right-click menu.", "RichButton", () => {
@@ -752,9 +752,9 @@ namespace Laubrary.Zounds.Uitk {
         /// </summary>
         VisualElement OwnValuesRow(ZoundEffectChain chain) {
             var r = HRow();
-            r.style.marginBottom = 2f;
+            r.AddToClassList("zs-chain-editor__own-values-row-row");
             var title = Text("Sound", "The sound's own values, as opposed to its effects: its Volume (after every effect, so fading it fades the tails too), Pitch, Speed (without changing pitch) and Drive (the level going into the effects). Right-click one to make a modifier move it, as on any effect setting. Where each rests is the play's own: the volume and pitch ranges above, drawn per play, or x1.", "zs-guilabel");
-            title.style.width = G.GripW + 6f + 44f; title.style.flexShrink = 0; title.style.paddingLeft = G.GripW + 6f;
+            title.AddToClassList("zs-chain-editor__own-values-label"); title.AddToClassList("zs-chain-editor__own-values-row-title");
             r.Add(title);
             foreach (int k in OwnValueOrder) {
                 r.Add(OwnValue(chain, k));
@@ -763,18 +763,18 @@ namespace Laubrary.Zounds.Uitk {
             return r;
         }
 
-        static VisualElement VSpaceW(float w) { var e = new VisualElement(); e.style.width = w; e.style.flexShrink = 0; return e; }
+        static VisualElement VSpaceW(float w) { var e = new VisualElement(); e.style.width = w; e.AddToClassList("zs-chain-editor__horizontal-space"); return e; }
 
         VisualElement OwnValue(ZoundEffectChain chain, int k) {
             var pd = ZoundEffectDescriptors.SourceStageParams[k];
             var box = new VisualElement();
             box.AddToClassList("zs-ownvalue");
-            box.style.width = OwnValueW; box.style.height = G.RowH - 2f; box.style.marginTop = 1f; box.style.flexShrink = 0;
+            box.AddToClassList("zs-chain-editor__own-value-box"); box.AddToClassList("zs-chain-editor__own-value-control");
             var overlay = new ZuiLiveOverlay();
             box.Add(overlay);
             var text = new Label { pickingMode = PickingMode.Ignore };
             text.AddToClassList("zs-ownvalue__text");
-            text.style.position = Position.Absolute; text.style.left = 0; text.style.right = 0; text.style.top = 0; text.style.bottom = 0;
+            text.AddToClassList("zs-chain-editor__own-value-text");
             box.Add(text);
             bool bound = G.IsBound(chain, -1, k);
             string ids = bound ? ZpocIdsOn(chain, -1, k) : null;
@@ -874,7 +874,7 @@ namespace Laubrary.Zounds.Uitk {
             float chipX = typeX + 62f + 2f + 120f + 6f;
             r.Add(Place(ZpocChip(mod), chipX, 1f, ZpocChipW, G.RowH - 2f));
             var targets = Place(Text("", "The parameters this modifier drives." + foldTip, "zs-mini"), chipX + ZpocChipW + 6f, 0f, -1f, G.RowH);
-            targets.style.right = G.RemoveW + 10f;
+            targets.AddToClassList("zs-chain-editor__binding-targets");
             targets.AddToClassList(FoldHit);
             r.Add(targets);
             refreshers.Add(() => {
@@ -930,13 +930,13 @@ namespace Laubrary.Zounds.Uitk {
             // plain text. While the sound plays, where code has it shows as a thin meter under the label.
             var chip = new VisualElement();
             chip.AddToClassList("zs-zpocchip");
-            chip.style.flexDirection = FlexDirection.Row; chip.style.alignItems = Align.Center;
+            chip.AddToClassList("zs-chain-editor__binding-chip");
             var bolt = new ZpocBolt { pickingMode = PickingMode.Ignore };
-            bolt.style.width = 12f; bolt.style.height = 14f; bolt.style.flexShrink = 0;
+            bolt.AddToClassList("zs-chain-editor__zpoc-chip-bolt");
             var spread = new VisualElement { pickingMode = PickingMode.Ignore }; spread.AddToClassList("zs-zpocchip__spread");
             var fill = new VisualElement { pickingMode = PickingMode.Ignore }; fill.AddToClassList("zs-zpocchip__fill");
             var text = new Label { pickingMode = PickingMode.Ignore }; text.AddToClassList("zs-zpocchip__text");
-            text.style.flexGrow = 1; text.style.flexShrink = 1;
+            text.AddToClassList("zs-chain-editor__zpoc-chip-text");
             chip.Add(bolt); chip.Add(text); chip.Add(spread); chip.Add(fill);
             chip.RegisterCallback<PointerDownEvent>(e => {
                 if (e.button != 0 && e.button != 1) return;
@@ -973,7 +973,7 @@ namespace Laubrary.Zounds.Uitk {
                     w -= 14f;   // the meter runs under the label, after the bolt
                     float lo = Mathf.Clamp01(sum.lo), hi = Mathf.Clamp01(sum.hi);
                     fill.style.display = sum.count == 1 ? DisplayStyle.Flex : DisplayStyle.None;
-                    fill.style.left = 14f; fill.style.width = w * lo;
+                    fill.AddToClassList("zs-chain-editor__zpoc-chip-fill"); fill.style.width = w * lo;
                     if (sum.count > 1) {
                         spread.style.display = DisplayStyle.Flex; spread.style.left = 14f + w * lo; spread.style.width = Mathf.Max(1f, w * (hi - lo));
                         text.text = name + " " + Short(sum.lo) + "–" + Short(sum.hi) + " ×" + sum.count + Src(mod);
@@ -1043,9 +1043,9 @@ namespace Laubrary.Zounds.Uitk {
         VisualElement CurveGround(ZoundEffectChain chain, ZoundModifier mod) {
             bool isLfoRamp = mod.type == ZoundModifierType.Lfo;
             var holder = new VisualElement();
-            holder.style.height = 56f; holder.style.flexShrink = 0;
+            holder.AddToClassList("zs-chain-editor__curve-ground-holder");
             var ground = new VisualElement();
-            ground.style.position = Position.Absolute; ground.style.left = G.GripW + 6f; ground.style.right = 0; ground.style.top = 0; ground.style.bottom = 0;
+            ground.AddToClassList("zs-chain-editor__curve-ground"); ground.AddToClassList("zs-chain-editor__curve-stage");
             ground.style.backgroundColor = new Color(0.10f, 0.10f, 0.12f);
             ground.tooltip = (isLfoRamp
                 ? "How strongly this oscillator applies as the sound plays, from its start on the left to its end on the right. It does NOT change the wave's shape — that is the Shape buttons above. Flat at the top means full strength throughout, which is how it starts. Drag points; double-click to add one."
@@ -1056,9 +1056,9 @@ namespace Laubrary.Zounds.Uitk {
             var grid = new Color(1f, 1f, 1f, 0.06f);
             for (int q = 1; q < 4; q++) {
                 var h = new VisualElement { pickingMode = PickingMode.Ignore };
-                h.style.position = Position.Absolute; h.style.left = 0; h.style.right = 0; h.style.top = Length.Percent(q * 25f); h.style.height = 1f; h.style.backgroundColor = grid;
+                h.AddToClassList("zs-chain-editor__curve-grid-horizontal"); h.style.top = Length.Percent(q * 25f); h.style.backgroundColor = grid;
                 var v = new VisualElement { pickingMode = PickingMode.Ignore };
-                v.style.position = Position.Absolute; v.style.top = 0; v.style.bottom = 0; v.style.left = Length.Percent(q * 25f); v.style.width = 1f; v.style.backgroundColor = grid;
+                v.AddToClassList("zs-chain-editor__curve-grid-vertical"); v.style.left = Length.Percent(q * 25f); v.style.backgroundColor = grid;
                 ground.Add(h); ground.Add(v);
             }
             if (isLfoRamp) {
@@ -1066,7 +1066,7 @@ namespace Laubrary.Zounds.Uitk {
                 // divided by Amount so the strength curve is exactly its ceiling (the old backdrop's rule, measured from
                 // the engine, not re-derived).
                 var output = new VisualElement { pickingMode = PickingMode.Ignore };
-                output.style.position = Position.Absolute; output.style.left = 0; output.style.right = 0; output.style.top = 0; output.style.bottom = 0;
+                output.AddToClassList("zs-chain-editor__curve-ground-output");
                 output.generateVisualContent += ctx => {
                     var ch = ZoundDspPlayback.ResolveChain(zound, out _);
                     int mi = ch != null ? ch.modifiers.IndexOf(mod) : -1;
@@ -1099,10 +1099,10 @@ namespace Laubrary.Zounds.Uitk {
 
             // The moment being heard, while the sound plays: an upright line and a dot on the curve (the old playhead).
             var head = new VisualElement { pickingMode = PickingMode.Ignore };
-            head.style.position = Position.Absolute; head.style.top = 0; head.style.bottom = 0; head.style.width = 1.5f;
+            head.AddToClassList("zs-chain-editor__curve-ground-head");
             head.style.backgroundColor = new Color(1f, 1f, 1f, 0.9f);
             var dot = new VisualElement { pickingMode = PickingMode.Ignore };
-            dot.style.position = Position.Absolute; dot.style.width = 6f; dot.style.height = 6f;
+            dot.AddToClassList("zs-chain-editor__curve-ground-dot");
             dot.style.backgroundColor = new Color(1f, 0.85f, 0.35f);
             liveRefreshers.Add(() => {
                 bool on = SapVoiceRegistry.TryReadPlayPosition(zound, out float elapsed, out float duration) && duration > 0f;
@@ -1126,23 +1126,23 @@ namespace Laubrary.Zounds.Uitk {
             });
 
             var baseLine = new VisualElement { pickingMode = PickingMode.Ignore };
-            baseLine.style.position = Position.Absolute; baseLine.style.left = 0; baseLine.style.right = 0; baseLine.style.bottom = 0; baseLine.style.height = 1f;
+            baseLine.AddToClassList("zs-chain-editor__curve-ground-base-line");
             baseLine.style.backgroundColor = new Color(1f, 1f, 1f, 0.12f);
             ground.Add(baseLine);
 
             var cap = Place(Text(isLfoRamp ? "strength over the play" : "shape over the play", "", "zs-curvecap"), 9f, 0f, 200f, 13f);
             var top = Text(isLfoRamp ? "full" : "top", "", "zs-curvelabel", "zs-right");
-            top.style.position = Position.Absolute; top.style.right = 2f; top.style.top = 0; top.style.width = 60f; top.style.height = 12f;
+            top.AddToClassList("zs-chain-editor__curve-upper-label");
             var bottom = Text(isLfoRamp ? "none" : "bottom", "", "zs-curvelabel");
-            bottom.style.position = Position.Absolute; bottom.style.left = 9f; bottom.style.bottom = 1f; bottom.style.width = 60f; bottom.style.height = 12f;
+            bottom.AddToClassList("zs-chain-editor__curve-lower-label");
             var secs = Text("", "", "zs-curvelabel", "zs-right");
-            secs.style.position = Position.Absolute; secs.style.right = 2f; secs.style.bottom = 1f; secs.style.width = 60f; secs.style.height = 12f;
+            secs.AddToClassList("zs-chain-editor__curve-duration-label");
             // What the curve's top, middle and bottom mean for what it drives (T-0479): semitones on a pitch curve, ratios
             // on another Ratio curve, the parameter's own ends under Set. A centre line marks "no change" where there is one.
             var mid = Text("", "", "zs-curvelabel");
-            mid.style.position = Position.Absolute; mid.style.left = 9f; mid.style.width = 60f; mid.style.height = 12f;
+            mid.AddToClassList("zs-chain-editor__curve-middle-label");
             var midLine = new VisualElement { pickingMode = PickingMode.Ignore };
-            midLine.style.position = Position.Absolute; midLine.style.left = 0; midLine.style.right = 0; midLine.style.height = 1f;
+            midLine.AddToClassList("zs-chain-editor__curve-middle-label-line");
             midLine.style.backgroundColor = new Color(1f, 1f, 1f, 0.18f);
             void Axis() {
                 if (isLfoRamp) return;
@@ -1165,7 +1165,7 @@ namespace Laubrary.Zounds.Uitk {
             if (mod.curve == null) mod.curve = new Envelope(0f, 1f);
             var es = ZoundsProject.Instance.projectSettings.editorStyle;
             var curve = new EnvelopeTK(mod.curve, mod.type == ZoundModifierType.Envelope ? es.volumeEnvelopeColor : es.pitchEnvelopeColor);
-            curve.style.position = Position.Absolute; curve.style.left = 0; curve.style.right = 0; curve.style.top = 0; curve.style.bottom = 0;
+            curve.AddToClassList("zs-chain-editor__curve-ground-curve");
             curve.tooltip = ground.tooltip;
             curve.onBegin = () => {
                 if (dragUndoOpen) return;

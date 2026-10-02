@@ -103,8 +103,7 @@ namespace Laubrary.Chunks.Editor
                 "Put another capability in this recipe — a producer that throws something, a modifier that " +
                 "decorates what a producer made, or a coordinator that arranges them.",
                 () => ShowAddMenu(c));
-            add.style.width = 160f;
-            add.style.alignSelf = Align.FlexStart;
+            add.AddToClassList("lau-chunks__add-capability");
             stackHost.Add(Z.VSpace(6f));
             stackHost.Add(add);
         }
@@ -141,9 +140,7 @@ namespace Laubrary.Chunks.Editor
                       "not what draws in front: the Depth card owns that."
                     : "Drag to move this card in the recipe. Its place is ALSO its drawing order — a card lower " +
                       "down draws in front of the ones above it. Add a Depth card to author that separately.");
-            grip.style.unityFontStyleAndWeight = FontStyle.Bold;
-            grip.style.width = 14f;
-            grip.style.unityTextAlign = TextAnchor.MiddleCenter;
+            grip.AddToClassList("lau-chunks__card-grip");
             ZuiReorder.MakeGrip(grip, box, cardList, (from, to) => MoveShown(c, shown, from, to));
             box.AddHeaderLead(grip);
             box.AddHeaderLead(CardChip(cap, colour));
@@ -175,7 +172,7 @@ namespace Laubrary.Chunks.Editor
         static Button SmallButton(string glyph, string tooltip, bool enabled, Action onClick)
         {
             var b = Z.Button(glyph, tooltip, onClick);
-            b.style.width = 22f;
+            b.AddToClassList("lau-chunks__card-action");
             b.SetEnabled(enabled);
             return b;
         }
@@ -186,8 +183,7 @@ namespace Laubrary.Chunks.Editor
             var b = SmallButton("", tooltip, true, onClick);
             var glyph = Z.Icon(icon, 12f);
             if (glyph == null) { b.text = fallbackGlyph; return b; }
-            b.style.alignItems = Align.Center;
-            b.style.justifyContent = Justify.Center;
+            b.AddToClassList("lau-chunks__card-action--icon");
             b.Add(glyph);
             return b;
         }
@@ -200,22 +196,6 @@ namespace Laubrary.Chunks.Editor
             chip.AddToClassList("chunks-card-chip");
             chip.style.backgroundColor = colour;
             chip.style.color = ChunkCardColors.InkOn(colour);
-            chip.style.minWidth = 14f;
-            chip.style.height = 14f;
-            chip.style.flexShrink = 0f;
-            chip.style.marginLeft = 2f;
-            chip.style.marginRight = 5f;
-            chip.style.paddingLeft = 3f;
-            chip.style.paddingRight = 3f;
-            chip.style.paddingTop = 0f;
-            chip.style.paddingBottom = 0f;
-            chip.style.fontSize = 10f;
-            chip.style.unityFontStyleAndWeight = FontStyle.Bold;
-            chip.style.unityTextAlign = TextAnchor.MiddleCenter;
-            chip.style.borderTopLeftRadius = 3f;
-            chip.style.borderTopRightRadius = 3f;
-            chip.style.borderBottomLeftRadius = 3f;
-            chip.style.borderBottomRightRadius = 3f;
             chip.tooltip = cap is PyreBlast
                 ? "This card's colour — its Timing lane and its outlines on the preview wear it too. The " +
                   "numbers are the order its blasts go off in across the whole recipe, the same numbers the " +
@@ -582,7 +562,7 @@ namespace Laubrary.Chunks.Editor
                       "back. Click to open the Depth list, where the order is dragged.",
                 () => RevealCard(plan.id));
             button.W(100f);
-            button.style.alignSelf = Align.FlexStart;
+            button.AddToClassList("lau-chunks__depth-action");
             return button;
         }
 

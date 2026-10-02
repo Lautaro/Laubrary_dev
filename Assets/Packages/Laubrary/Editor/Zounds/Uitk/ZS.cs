@@ -83,7 +83,7 @@ namespace Laubrary.Zounds.Uitk {
                 if (icon != null) t.Remove(icon);
                 icon = Z.Icon(v ? "eye" : "eye-closed", 13f);
                 if (icon != null) {
-                    icon.style.position = Position.Absolute; icon.style.left = (width - 13f) * 0.5f; icon.style.top = (height - 13f) * 0.5f;
+                    icon.AddToClassList("zs-eye__icon"); icon.style.left = (width - 13f) * 0.5f; icon.style.top = (height - 13f) * 0.5f;
                     t.Add(icon);
                 }
                 t.tooltip = tooltip(v);
@@ -195,13 +195,12 @@ namespace Laubrary.Zounds.Uitk {
         static void Size(VisualElement e, float width, float height) {
             if (width > 0f) e.style.width = width;
             if (height > 0f) e.style.height = height;
-            e.style.flexShrink = 0;
-            e.style.flexGrow = 0;
+            e.AddToClassList("zs-control__fixed");
         }
 
         /// <summary>Places <paramref name="e"/> at an exact position, for pixel-for-pixel comparisons with an IMGUI rect.</summary>
         public static T At<T>(this T e, float x, float y) where T : VisualElement {
-            e.style.position = Position.Absolute;
+            e.AddToClassList("zs-control__positioned");
             e.style.left = x; e.style.top = y;
             return e;
         }

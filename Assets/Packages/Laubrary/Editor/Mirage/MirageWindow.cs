@@ -48,7 +48,6 @@ namespace Laubrary.Mirage.Editor
 
         /// Width of the previewable list's name column — wide enough for a full asset name plus its
         /// position readout, and the same on every row so the Ping/Remove buttons form real columns.
-        const float RowLabelWidth = 300f;
 
         [MenuItem("Laubrary/Mirage")]
         public static void Open() => GetWindow<MirageWindow>("Mirage");
@@ -261,22 +260,20 @@ namespace Laubrary.Mirage.Editor
         // ── window build ────────────────────────────────────────────────────────────────────
         protected override void BuildAsset(VisualElement root, MirageView view)
         {
-            root.style.flexGrow = 1f;
-            root.style.minHeight = 0f;
+            root.AddToClassList("lau-tool-shell");
 
             // T-0084 — section toggle bar rides at the very top, spanning the full window width (Chunks/
             // Pyre's placement). Host added FIRST so it reserves its space before anything paints; filled by
             // RefreshBar once BuildBody below has registered this pass's top-level sections into _barUnits.
             _barHost = new VisualElement();
-            _barHost.style.flexShrink = 0f;
+            _barHost.AddToClassList("lau-tool-shell__chrome");
             if (_barReservedH > 0f) _barHost.style.minHeight = _barReservedH;
             root.Add(_barHost);
 
             // The entry editor below (Weapon/Target Practice/Clips/Choreography) can grow well past window
             // height — a real scroll view, not window resizing, is the only fix for content overflow.
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.flexGrow = 1f;
-            scroll.style.minHeight = 0f;
+            scroll.AddToClassList("lau-tool-shell__scroll");
             _bodyHost = scroll.contentContainer;
             BuildBody(_bodyHost, view);
             root.Add(scroll);
@@ -421,7 +418,7 @@ namespace Laubrary.Mirage.Editor
                 var captured = entry;
                 var row = new VisualElement();
                 row.AddToClassList("zui-row");
-                if (ReferenceEquals(_selected, entry)) row.style.backgroundColor = new Color(0.35f, 0.55f, 0.95f, 0.18f);
+                row.EnableInClassList("lau-authoring__selected-row", ReferenceEquals(_selected, entry));
 
                 // The label button carries an asset name plus a live position readout, so its natural width
                 // differs per row — which left Ping/Remove at a different x on every row, reading as three
@@ -433,14 +430,7 @@ namespace Laubrary.Mirage.Editor
                 var select = Z.Button(EntryLabel(entry),
                     "Select this previewable to edit it below (click it again to deselect).",
                     () => { _selected = ReferenceEquals(_selected, captured) ? null : captured; RebuildBody(); });
-                select.style.flexGrow = 1f;
-                select.style.flexShrink = 1f;
-                select.style.minWidth = 140f;
-                select.style.maxWidth = RowLabelWidth;
-                select.style.unityTextAlign = TextAnchor.MiddleLeft;
-                select.style.whiteSpace = WhiteSpace.NoWrap;
-                select.style.overflow = Overflow.Hidden;
-                select.style.textOverflow = TextOverflow.Ellipsis;
+                select.AddToClassList("lau-previewable__select");
                 _rowButtons.Add((captured, select));
                 row.Add(select);
                 row.Add(Z.Button("Ping", "Flash this previewable in the Game view and select its live object.",
@@ -645,20 +635,13 @@ namespace Laubrary.Mirage.Editor
             var row = WrapRow();
 
             var swatch = new VisualElement { tooltip = nameTooltip };
-            swatch.style.width = 40f;
-            swatch.style.height = 40f;
-            swatch.style.flexShrink = 0f;
-            swatch.style.backgroundColor = new Color(0.11f, 0.12f, 0.15f);
-            swatch.style.justifyContent = Justify.Center;
-            swatch.style.alignItems = Align.Center;
+            swatch.AddToClassList("lau-asset-reference__swatch");
             FillSwatch(swatch, current);
             row.Add(swatch);
 
             var name = Z.Text(current != null ? current.name : "· none ·", ZuiText.Body,
                 current != null ? current.GetType().Name : nameTooltip);
-            name.style.unityFontStyleAndWeight = FontStyle.Bold;
-            name.style.maxWidth = 160f;
-            name.style.overflow = Overflow.Hidden;
+            name.AddToClassList("lau-asset-reference__name");
             row.Add(name);
 
             var recall = Z.Button("Recall...", "Pick an existing asset from a thumbnail browser.", null);
@@ -725,8 +708,7 @@ namespace Laubrary.Mirage.Editor
         static void AddThumb(VisualElement swatch, Texture2D tex)
         {
             var img = new Image { image = tex, scaleMode = ScaleMode.ScaleToFit, pickingMode = PickingMode.Ignore };
-            img.style.width = 36f;
-            img.style.height = 36f;
+            img.AddToClassList("lau-asset-reference__image");
             swatch.Add(img);
         }
 
@@ -886,7 +868,7 @@ namespace Laubrary.Mirage.Editor
                 }).W(34f);
                 up.SetEnabled(index > 0);
                 var stepLabel = Z.Text($"{index + 1}. {step.clip}", ZuiText.Body, "This step's animation clip.");
-                stepLabel.style.minWidth = 120f;
+                stepLabel.AddToClassList("lau-previewable__step-label");
                 root.Add(Z.Row(
                     stepLabel, up,
                     Z.Button("X", "Remove this step from the list.", () =>
@@ -975,7 +957,7 @@ namespace Laubrary.Mirage.Editor
         static VisualElement WrapRow(params VisualElement[] children)
         {
             var row = Z.Row(children);
-            row.style.flexWrap = Wrap.Wrap;
+            row.AddToClassList("zui-row--wrap");
             return row;
         }
     }
