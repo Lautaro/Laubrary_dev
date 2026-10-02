@@ -41,7 +41,8 @@ namespace Laubrary.MetaMapper.Editor
                  "subject's own origin is not the picture's corner — the negative-offset clump case.")]
         public Vector2 originPx;
 
-        [Tooltip("Texture pixels per ONE map unit: 1 for SpritePixels, the cell's pixel size for GridCells.")]
+        [Tooltip("Texture pixels per ONE map unit: 1 for SpritePixels, the cell's pixel size for GridCells, the " +
+                 "picture's pixels-per-unit for LocalUnits.")]
         public float pixelsPerUnit = 1f;
 
         [Tooltip("Which space the coordinates the author produces are in. MUST match the map being edited — " +
@@ -165,7 +166,8 @@ namespace Laubrary.MetaMapper.Editor
         public static MetaSubjectVisual Blank(MapSpace space, Vector2Int refSize, Vector2 footprintMin, string label)
         {
             int w = Mathf.Clamp(refSize.x, 1, 1024), h = Mathf.Clamp(refSize.y, 1, 1024);
-            float ppu = space == MapSpace.GridCells ? 16f : 1f;   // cells need pixels to be visible at all
+            // Cells and local units need pixels to be visible at all; a sprite pixel IS one.
+            float ppu = space == MapSpace.SpritePixels ? 1f : 16f;
             var tex = new Texture2D(Mathf.Max(1, (int)(w * ppu)), Mathf.Max(1, (int)(h * ppu)),
                 TextureFormat.RGBA32, false)
             { filterMode = FilterMode.Point, hideFlags = HideFlags.HideAndDontSave };
@@ -250,6 +252,9 @@ namespace Laubrary.MetaMapper.Editor
             if (e.marks != null)
                 foreach (var m in e.marks)
                     if (m != null && !box.Contains(m.pos + artShift)) return true;
+            if (e.shapes != null)
+                foreach (var sh in e.shapes)
+                    if (sh != null && !box.Contains(sh.center + artShift)) return true;
             if (!e.MaskUsable) return false;
             Vector2 cs = d.MaskCellToMapScale(e);
             for (int y = 0; y < e.maskH; y++)

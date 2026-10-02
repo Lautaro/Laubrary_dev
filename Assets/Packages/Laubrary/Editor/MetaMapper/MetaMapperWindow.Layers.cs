@@ -16,9 +16,10 @@ namespace Laubrary.MetaMapper.Editor
     /// expands losslessly.
     public partial class MetaMapperWindow
     {
-        static readonly string[] KindNames = { "Points", "Directions", "Mask" };
+        static readonly string[] KindNames = { "Points", "Directions", "Mask", "Shapes" };
 
         readonly List<VisualElement> layerCards = new List<VisualElement>();
+        VisualElement declaredHost;
         string flash;
         double flashUntil;
 
@@ -257,21 +258,59 @@ namespace Laubrary.MetaMapper.Editor
             col.Add(Z.Row(
                 Z.Field("Kind", "FIXED at creation: changing a layer's kind once content is authored invites " +
                                 "nonsense, so delete and recreate instead. Points = dots. Directions = a dot " +
-                                "that also aims. Mask = a painted area.",
-                    Z.Segmented(newLayerKind, KindNames,
-                        "Points = dots · Directions = dots that aim · Mask = a painted area.",
-                        i => newLayerKind = i))));
+                                "that also aims. Mask = a painted area. Shapes = rectangles and circles.",
+                    Z.MiniRadio(Mathf.Clamp(newLayerKind, 0, KindNames.Length - 1), KindNames,
+                        "Points = dots · Directions = dots that aim · Mask = a painted area · Shapes = " +
+                        "rectangles and circles (collision footprints, foot circles).",
+                        i => newLayerKind = i, wrap: true))));
 
+            // The ids game code has DECLARED it reads, offered as one-click choices: a name is typed once, where
+            // it is declared, and picked everywhere else. Refreshed with the layer list, so an id disappears from
+            // here the moment this map carries it.
+            declaredHost = new VisualElement();
+            col.Add(declaredHost);
             return col;
+        }
+
+        void RefreshDeclared()
+        {
+            if (declaredHost == null) return;
+            declaredHost.Clear();
+            var d = Data;
+            if (d == null) return;
+
+            var flow = new VisualElement();
+            flow.style.flexDirection = FlexDirection.Row;
+            flow.style.flexWrap = Wrap.Wrap;
+            foreach (var decl in MetaLayerRegistry.All)
+            {
+                if (d.HasLayer(decl.id)) continue;
+                var dc = decl;
+                string what = string.IsNullOrEmpty(dc.description) ? "" : " " + dc.description;
+                flow.Add(Z.Button(dc.id,
+                    $"Add the layer '{dc.id}' as {dc.kind} — the kind its reader expects.{what} (Declared by " +
+                    $"{dc.declaredBy}.)",
+                    () => AddLayerAs(dc.id, dc.kind)));
+            }
+            if (flow.childCount == 0) return;
+            declaredHost.Add(Z.Field("Declared", "Layer ids game code says it reads ([MetaLayerId] or " +
+                                                 "MetaLayerRegistry.Declare). Click one to add it with the " +
+                                                 "right id and kind — nothing to type, nothing to misspell.",
+                flow));
         }
 
         void AddLayer()
         {
+            var kind = (LayerKind)Mathf.Clamp(newLayerKind, 0, KindNames.Length - 1);
+            AddLayerAs(newLayerId, kind);
+        }
+
+        void AddLayerAs(string id, LayerKind kind)
+        {
             var d = Data;
             if (d == null) return;
-            var kind = (LayerKind)Mathf.Clamp(newLayerKind, 0, 2);
             MetaMapLayer added = null;
-            session.Edit("Add meta layer", () => added = d.AddLayer(newLayerId, kind));
+            session.Edit("Add meta layer", () => added = d.AddLayer(id, kind));
             activeLayerIndex = d.LayerCount - 1;
             stage?.ClearSelection();
             RebuildLayers();
@@ -290,6 +329,7 @@ namespace Laubrary.MetaMapper.Editor
             if (layersBody == null) return;
             layersBody.Clear();
             layerCards.Clear();
+            RefreshDeclared();
 
             var d = Data;
             if (d == null || d.LayerCount == 0)
@@ -360,7 +400,23 @@ namespace Laubrary.MetaMapper.Editor
                 i => SetBinding(L, i == 1));
             binding.style.width = 126f;
 
-            var rowB = Z.Row(kindLabel, binding);
+            // A QUIET hint, never an error: a map may carry any id at all. The slot is always there (fixed
+            // width) so a layer becoming declared or undeclared never shifts its row.
+            MetaLayerRegistry.TryGet(L.id, out var decl);
+            string mark = decl == null ? "?" : decl.kind != L.kind ? "⚠" : "";
+            var declared = (Label)Z.Text(mark, ZuiText.Subtle,
+                decl == null
+                    ? $"No code declares the id '{L.id}', so nothing may read this layer yet — or its reader has " +
+                      "not declared it with [MetaLayerId]. A hint, not an error."
+                    : decl.kind != L.kind
+                        ? $"'{L.id}' is declared by {decl.declaredBy} as a {decl.kind} layer, but this one stores " +
+                          $"{L.kind}. That reader asks for {decl.kind} and will not find this layer."
+                        : $"Read by {decl.declaredBy}" +
+                          (string.IsNullOrEmpty(decl.description) ? "." : ": " + decl.description));
+            declared.style.width = 16f;
+            declared.style.unityTextAlign = TextAnchor.MiddleCenter;
+
+            var rowB = Z.Row(kindLabel, binding, declared);
             rowB.style.flexWrap = Wrap.NoWrap;
 
             card.Add(rowA);

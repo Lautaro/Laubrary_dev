@@ -189,6 +189,14 @@ namespace Laubrary.Zoetrope
                  "Only takes effect if the view provides an ICueSink (e.g. ZonedLauminaryView).")]
         public List<CueBinding> cues = new List<CueBinding>();
 
+        [Header("Metadata")]
+        [Tooltip("Named shapes, points and areas on this character — a foot circle, a hurt box — in its own " +
+                 "LOCAL UNITS, origin at its root (the point it stands on). Laubrary gives them no meaning and " +
+                 "builds nothing from them by itself: game code looks a layer up by id and decides what it is " +
+                 "for. Drawn over the character's picture with Edit metadata… in the Zoe window.")]
+        public Laubrary.MetaMapper.MetaMapData meta =
+            new Laubrary.MetaMapper.MetaMapData { space = Laubrary.MetaMapper.MapSpace.LocalUnits };
+
         // TODO(zounds): onHit / onDied Zound refs — embedded + registered if the Zounds engine is present.
 
         // ── IVisualPreview ──

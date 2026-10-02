@@ -125,6 +125,7 @@ namespace Laubrary.MetaMapper.Editor
         [SerializeField] int brushValue = 5;
         [SerializeField] string newLayerId = "LootShelf";
         [SerializeField] int newLayerKind;
+        [SerializeField] int newShapeKind;
         [SerializeField] List<string> hiddenLayerIds = new List<string>();
 
         // View position survives a rebuild: switching frame or layer must not throw the canvas back to fit.
@@ -160,6 +161,25 @@ namespace Laubrary.MetaMapper.Editor
         internal bool SnapQuarter => snapQuarter;
         internal int BrushSize => brushSize;
         internal int BrushValue => brushValue;
+        internal ShapeKind NewShapeKind => (ShapeKind)Mathf.Clamp(newShapeKind, 0, 1);
+
+        /// The shape the stage has selected on the active Shapes layer, or null.
+        internal MetaShape SelectedShapeObject()
+        {
+            var L = ActiveLayer;
+            if (L == null || L.kind != LayerKind.Shapes || stage == null || Data == null) return null;
+            var e = Data.EntryAt(L, Frame);
+            int i = stage.SelectedShape;
+            return e?.shapes != null && i >= 0 && i < e.shapes.Count ? e.shapes[i] : null;
+        }
+
+        /// The tool row shows the selected shape's kind and name, so it follows the selection. Only the tool
+        /// row is rebuilt — never the stage the gesture is happening on.
+        internal void OnShapeSelectionChanged()
+        {
+            RebuildToolRow();
+            UpdateStatus();
+        }
 
         internal MetaMapLayer ActiveLayer
         {
@@ -592,29 +612,31 @@ namespace Laubrary.MetaMapper.Editor
         {
             var L = ActiveLayer;
             bool mask = L != null && L.kind == LayerKind.Mask;
-            bool marks = L != null && L.kind != LayerKind.Mask;
+            bool shapes = L != null && L.kind == LayerKind.Shapes;
+            bool marks = L != null && !mask && !shapes;
             bool cells = Space == MapSpace.GridCells;
 
-            var snap = Vis(Z.Toggle("Snap ¼", "Snap placement to quarter-cells — everyday tidiness. Hold Alt " +
-                                              "while placing for a free, fully fractional position.",
-                snapQuarter, v => { snapQuarter = v; stage?.Refresh(); }), marks && cells);
+            // Snapping has a natural grain in every space but one: quarter cells, one picture pixel for a
+            // character, whole pixels for a shape on a sprite. A sprite's MARKS keep their historical freedom.
+            var snap = Vis(Z.Toggle(cells ? "Snap ¼" : "Snap px",
+                cells
+                    ? "Snap placement to quarter-cells — everyday tidiness. Hold Alt while placing for a free, " +
+                      "fully fractional position."
+                    : "Snap placement to whole pixels of the picture, so an edge sits exactly between two of " +
+                      "them. Hold Alt while placing for a free position.",
+                snapQuarter, v => { snapQuarter = v; stage?.Refresh(); }),
+                shapes || (marks && Space != MapSpace.SpritePixels));
             snap.style.width = 74f;
 
-            var brush = Vis(Z.MicroSlider("Brush", brushSize, 1f, 8f,
-                "Paint brush width, in mask cells.", v => { brushSize = Mathf.RoundToInt(v); stage?.Refresh(); },
-                118f, true, 1f, 0), mask);
-
-            var value = Vis(Z.MicroSlider("Value", brushValue, 1f, 10f,
-                "The 0–10 intensity painted cells get. The queries read >0 as \"inside\"; the value ramps the " +
-                "layer colour's BRIGHTNESS so painted regions read apart.",
-                v => { brushValue = Mathf.RoundToInt(v); stage?.Refresh(); }, 118f, true, 5f, 0), mask);
-
-            var single = Vis(Z.Toggle("1 cell", "Single-cell paint: each dab clears the previous one instead of " +
-                                                "accumulating a blob. Stored on the layer as `pointHint` — an " +
-                                                "authoring hint, never a data rule.",
-                L != null && L.pointHint,
-                v => { if (L != null) session.Edit("Toggle single-cell paint", () => L.pointHint = v); AfterEdit(); }), mask);
-            single.style.width = 62f;
+            // ONE reserved slot for the kind-specific tools. The mask brush and the shape tools never show at
+            // the same time, so they share a fixed-width slot instead of each claiming its own width in a row
+            // that must never wrap — the canvas below cannot move whichever kind is active.
+            var slot = new VisualElement();
+            slot.style.flexDirection = FlexDirection.Row;
+            slot.style.flexShrink = 0f;
+            slot.style.width = 300f;
+            if (mask) BuildMaskTools(slot, L);
+            else if (shapes) BuildShapeTools(slot);
 
             var grid = Z.Toggle("Grid", "Draw the map's unit grid and its origin cross over the subject.",
                 showGrid, v => { showGrid = v; stage?.Refresh(); });
@@ -630,11 +652,76 @@ namespace Laubrary.MetaMapper.Editor
             kind.style.whiteSpace = WhiteSpace.NoWrap;
             kind.style.overflow = Overflow.Hidden;
 
-            var row = Z.Row(kind, snap, brush, value, single, grid, all, Z.Flexible());
+            var row = Z.Row(kind, snap, slot, grid, all, Z.Flexible());
             row.style.flexWrap = Wrap.NoWrap;
             row.style.flexShrink = 0f;
             row.style.minHeight = 22f;
             return row;
+        }
+
+        void BuildMaskTools(VisualElement slot, MetaMapLayer L)
+        {
+            slot.Add(Z.MicroSlider("Brush", brushSize, 1f, 8f,
+                "Paint brush width, in mask cells.", v => { brushSize = Mathf.RoundToInt(v); stage?.Refresh(); },
+                118f, true, 1f, 0));
+
+            slot.Add(Z.MicroSlider("Value", brushValue, 1f, 10f,
+                "The 0–10 intensity painted cells get. The queries read >0 as \"inside\"; the value ramps the " +
+                "layer colour's BRIGHTNESS so painted regions read apart.",
+                v => { brushValue = Mathf.RoundToInt(v); stage?.Refresh(); }, 118f, true, 5f, 0));
+
+            var single = Z.Toggle("1 cell", "Single-cell paint: each dab clears the previous one instead of " +
+                                            "accumulating a blob. Stored on the layer as `pointHint` — an " +
+                                            "authoring hint, never a data rule.",
+                L != null && L.pointHint,
+                v => { if (L != null) session.Edit("Toggle single-cell paint", () => L.pointHint = v); AfterEdit(); });
+            single.style.width = 62f;
+            slot.Add(single);
+        }
+
+        /// The shape tools: Rect/Circle (the selected shape's kind, or what the next drag draws when nothing is
+        /// selected) and the selected shape's name. Both describe the CURRENT state in their tooltips.
+        void BuildShapeTools(VisualElement slot)
+        {
+            var sel = SelectedShapeObject();
+            var kinds = new[] { "Rect", "Circle" };
+            int cur = sel != null ? (int)sel.kind : (int)NewShapeKind;
+            string kindTip = sel != null
+                ? $"The selected shape is a {(sel.kind == ShapeKind.Circle ? "circle" : "rectangle")}. Click the " +
+                  "other to change it in place — it keeps its centre, and a circle takes the box's width as its " +
+                  "diameter. New shapes are drawn as whichever is chosen."
+                : "What dragging on empty canvas draws next: a rectangle (corner to corner) or a circle (centre " +
+                  "outwards). Select a shape to change its own kind here.";
+            var seg = Z.Segmented(cur, kinds, kindTip, i =>
+            {
+                newShapeKind = i;
+                var target = SelectedShapeObject();
+                if (target != null && (int)target.kind != i)
+                {
+                    session.Edit("Change meta shape kind", () => { target.kind = (ShapeKind)i; target.Normalize(); });
+                    AfterEdit();
+                }
+                else stage?.Refresh();
+                RebuildToolRow();
+            });
+            seg.style.width = 110f;
+            slot.Add(seg);
+
+            string nameTip = sel != null
+                ? "The selected shape's name — optional; give one only when code looks a shape up BY NAME " +
+                  "(\"feet\" beside \"body\" on one layer). Press Enter or click away to apply."
+                : "Select a shape on the canvas to name it.";
+            var nameField = Z.TextInput(sel != null ? sel.name : "", nameTip, v =>
+            {
+                var target = SelectedShapeObject();
+                v = v != null ? v.Trim() : "";
+                if (target == null || v == target.name) return;
+                session.Edit("Rename meta shape", () => target.name = v);
+                UpdateStatus();
+            }, 118f);
+            nameField.isDelayed = true;
+            nameField.SetEnabled(sel != null);
+            slot.Add(Z.Field("Name", nameTip, nameField));
         }
 
         VisualElement BuildFrameStrip()
@@ -670,8 +757,8 @@ namespace Laubrary.MetaMapper.Editor
 
             string where = "";
             if (stage != null && stage.TryGetHover(out var m))
-                where = Space == MapSpace.GridCells
-                    ? $"cell ({m.x:0.00}, {m.y:0.00})"
+                where = Space == MapSpace.GridCells ? $"cell ({m.x:0.00}, {m.y:0.00})"
+                    : Space == MapSpace.LocalUnits ? $"local ({m.x:0.000}, {m.y:0.000})"
                     : $"px ({m.x:0.0}, {m.y:0.0})";
 
             var L = ActiveLayer;
@@ -680,9 +767,21 @@ namespace Laubrary.MetaMapper.Editor
             else
             {
                 var e = d.EntryAt(L, Frame);
-                what = L.kind == LayerKind.Mask
-                    ? $"'{L.id}' · {(e != null && e.MaskUsable ? e.maskW + "×" + e.maskH : "unpainted")}"
-                    : $"'{L.id}' · {(e?.marks != null ? e.marks.Count : 0)} mark(s)";
+                if (L.kind == LayerKind.Mask)
+                    what = $"'{L.id}' · {(e != null && e.MaskUsable ? e.maskW + "×" + e.maskH : "unpainted")}";
+                else if (L.kind == LayerKind.Shapes)
+                {
+                    what = $"'{L.id}' · {(e?.shapes != null ? e.shapes.Count : 0)} shape(s)";
+                    var sel = SelectedShapeObject();
+                    if (sel != null)
+                    {
+                        string nm = string.IsNullOrEmpty(sel.name) ? "" : $" '{sel.name}'";
+                        what += sel.kind == ShapeKind.Circle
+                            ? $" · circle{nm} Ø {sel.size.x:0.###} at ({sel.center.x:0.###}, {sel.center.y:0.###})"
+                            : $" · rect{nm} {sel.size.x:0.###}×{sel.size.y:0.###} at ({sel.center.x:0.###}, {sel.center.y:0.###})";
+                    }
+                }
+                else what = $"'{L.id}' · {(e?.marks != null ? e.marks.Count : 0)} mark(s)";
                 if (L.binding == FrameBinding.PerFrame) what += $" · frame {Frame + 1}/{d.frameCount}";
             }
 

@@ -16,7 +16,8 @@ namespace Laubrary.MetaMapper
     /// either paying for the other.
     ///
     /// All queries answer in MAP SPACE. World conversion is the bindings' job — <see cref="MetaMapSprite"/> for
-    /// SpritePixels, <see cref="MetaMapCells"/> for GridCells.
+    /// SpritePixels, <see cref="MetaMapCells"/> for GridCells; LocalUnits needs none (map space IS the subject's
+    /// local frame). <see cref="MetaMapColliders"/> turns a Shapes layer into 2D colliders through any of them.
     /// </summary>
     [Serializable]
     public class MetaMapData
@@ -469,6 +470,65 @@ namespace Laubrary.MetaMapper
         public Rect Footprint => new Rect(footprintMin.x, footprintMin.y,
             Mathf.Max(1, refSize.x), Mathf.Max(1, refSize.y));
 
+        // ── Shapes ───────────────────────────────────────────────────────────────────
+        // Answers hand back the authored MetaShape objects themselves, not copies: a per-frame caller allocates
+        // nothing. They are the map's own data — read them, never mutate them from game code.
+
+        /// <summary>Every shape of a SHAPES layer, authored order, into the caller's list (cleared first).</summary>
+        public int GetShapes(string layerId, List<MetaShape> results, int frame = 0)
+        {
+            if (results == null) return 0;
+            results.Clear();
+            var e = KindEntry(layerId, LayerKind.Shapes, frame);
+            if (e == null || e.shapes == null) return 0;
+            for (int i = 0; i < e.shapes.Count; i++)
+                if (e.shapes[i] != null) results.Add(e.shapes[i]);
+            return results.Count;
+        }
+
+        /// <summary>First shape of the layer — the one-shape ergonomics, for the common "the feet" case.</summary>
+        public bool TryGetShape(string layerId, out MetaShape shape, int frame = 0)
+        {
+            shape = null;
+            var e = KindEntry(layerId, LayerKind.Shapes, frame);
+            if (e == null || e.shapes == null) return false;
+            for (int i = 0; i < e.shapes.Count; i++)
+                if (e.shapes[i] != null) { shape = e.shapes[i]; return true; }
+            return false;
+        }
+
+        /// <summary>The named individual (case-insensitive), for a layer holding several meanings' worth of
+        /// shapes ("feet" and "body" on one "collision" layer).</summary>
+        public bool TryGetShape(string layerId, string shapeName, out MetaShape shape, int frame = 0)
+        {
+            shape = null;
+            if (string.IsNullOrEmpty(shapeName)) return false;
+            var e = KindEntry(layerId, LayerKind.Shapes, frame);
+            if (e == null || e.shapes == null) return false;
+            for (int i = 0; i < e.shapes.Count; i++)
+            {
+                var sh = e.shapes[i];
+                if (sh != null && string.Equals(sh.name, shapeName, StringComparison.OrdinalIgnoreCase))
+                { shape = sh; return true; }
+            }
+            return false;
+        }
+
+        /// <summary>Is this MAP-SPACE position inside any shape of the layer? Outputs the first one hit, in
+        /// authored order.</summary>
+        public bool ShapeContains(string layerId, Vector2 pos, out MetaShape hit, int frame = 0)
+        {
+            hit = null;
+            var e = KindEntry(layerId, LayerKind.Shapes, frame);
+            if (e == null || e.shapes == null) return false;
+            for (int i = 0; i < e.shapes.Count; i++)
+            {
+                var sh = e.shapes[i];
+                if (sh != null && sh.Contains(pos)) { hit = sh; return true; }
+            }
+            return false;
+        }
+
         // ── param ────────────────────────────────────────────────────────────────────
 
         /// <summary>This frame's free-text param for the layer, or "" when there is none. Never null, never
@@ -564,6 +624,10 @@ namespace Laubrary.MetaMapper
                     var m = e.marks[i];
                     if (m != null) m.pos += artShift;
                 }
+            // A shape is an authored position with an extent: it travels exactly like a mark.
+            if (moveMarks && e.shapes != null && artShift != Vector2.zero)
+                for (int i = 0; i < e.shapes.Count; i++)
+                    if (e.shapes[i] != null) e.shapes[i].center += artShift;
 
             if (!e.MaskUsable) return;
 
@@ -590,7 +654,7 @@ namespace Laubrary.MetaMapper
             e.maskW = nw; e.maskH = nh; e.mask = moved;
         }
 
-        /// <summary>Heal drift: rescale every mark PROPORTIONALLY and resample every mask by nearest neighbour
+        /// <summary>Heal drift: rescale every mark and shape PROPORTIONALLY and resample every mask by nearest neighbour
         /// (MetaFrame.EnsureSize's behaviour, promoted to the model), then adopt the new refSize. Facings are
         /// left alone — a direction is a semantic heading, not a length. Applies to Uniform and PerFrame
         /// entries alike, so nothing survives a resize in the old scale.</summary>
@@ -624,6 +688,18 @@ namespace Laubrary.MetaMapper
                 {
                     var m = e.marks[i];
                     if (m != null) m.pos = new Vector2(m.pos.x * sx, m.pos.y * sy);
+                }
+            if (e.shapes != null)
+                for (int i = 0; i < e.shapes.Count; i++)
+                {
+                    var sh = e.shapes[i];
+                    if (sh == null) continue;
+                    sh.center = new Vector2(sh.center.x * sx, sh.center.y * sy);
+                    // A circle stays a circle under a non-uniform rescale: it takes the mean of the two factors
+                    // rather than silently becoming an ellipse nothing can represent.
+                    sh.size = sh.kind == ShapeKind.Circle
+                        ? Vector2.one * (sh.size.x * (sx + sy) * 0.5f)
+                        : new Vector2(sh.size.x * sx, sh.size.y * sy);
                 }
             if (e.maskW > 0 && e.maskH > 0)
                 e.EnsureMaskSize(Mathf.Max(1, Mathf.RoundToInt(e.maskW * sx)),

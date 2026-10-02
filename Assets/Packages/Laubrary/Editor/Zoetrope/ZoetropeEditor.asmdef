@@ -16,7 +16,10 @@
         "com.Lautaro-Arino.Laubrary.Launimator.Editor",
         "com.Lautaro-Arino.Laubrary.Zoetrope.Launimator",
         "com.Lautaro-Arino.Laubrary.Mirage",
-        "com.Lautaro-Arino.Laubrary.Mirage.Editor"
+        "com.Lautaro-Arino.Laubrary.Mirage.Editor",
+        "com.Lautaro-Arino.Laubrary.MetaMapper",
+        "com.Lautaro-Arino.Laubrary.MetaMapper.Editor",
+        "com.Lautaro-Arino.Laubrary.PreviewKit"
     ],
     "includePlatforms": [
         "Editor"

@@ -45,15 +45,21 @@ namespace Laubrary.MetaMapper.Editor
         readonly Dictionary<long, MaskEntry> maskCache = new Dictionary<long, MaskEntry>();
         readonly List<Image> maskViews = new List<Image>();
 
-        enum Gesture { None, MoveMark, AimMark, Paint, Erase }
+        enum Gesture { None, MoveMark, AimMark, Paint, Erase, DrawShape, MoveShape, ResizeShape }
         Gesture gesture;
         int gestureMark = -1;
+        Vector2 gestureAnchor;           // DrawShape/ResizeShape: the fixed point; MoveShape: the press point
+        Vector2 gestureStartCenter;      // MoveShape: where the shape was when the drag began
         Vector2 lastMapPos;
         bool hasHover;
         Vector2 hoverMap;
 
         /// The mark the last gesture touched — what Delete removes and what the overlay rings.
         internal int SelectedMark { get; private set; } = -1;
+
+        /// The shape the last gesture touched on a Shapes layer — what Delete removes, what shows resize
+        /// handles, and what the tool row's name field edits.
+        internal int SelectedShape { get; private set; } = -1;
 
         public MetaStage(MetaMapperWindow window)
         {
@@ -139,19 +145,26 @@ namespace Laubrary.MetaMapper.Editor
                 return "⚠ " + vis.drift.what + "\nNothing has moved yet — choose Re-anchor or Keep coords " +
                        "under Subject, on the left.";
             var layer = w.ActiveLayer;
+            // A character's map has no picture corner to read the origin off: say what the amber cross is.
+            string root = w.Space == MapSpace.LocalUnits ? "Amber cross = the root (map origin) · " : "";
             if (layer == null)
-                return "Add a layer on the left.\nA layer that merely EXISTS is already the answer to " +
+                return root + "Add a layer on the left.\nA layer that merely EXISTS is already the answer to " +
                        "\"is this thing a loot shelf?\" — no marks required.";
             switch (layer.kind)
             {
+                case LayerKind.Shapes:
+                    return root + "Drag on empty space to draw a " +
+                           (w.NewShapeKind == ShapeKind.Circle ? "circle" : "rectangle") +
+                           " · drag a shape to move it · drag a white handle to resize · Delete removes · " +
+                           "Alt places freely";
                 case LayerKind.Points:
-                    return w.Space == MapSpace.GridCells
+                    return root + (w.Space == MapSpace.GridCells
                         ? "Click to place a point · drag one to move it · Delete removes · hold Alt for free placement"
-                        : "Click to place a point · drag one to move it · Delete removes";
+                        : "Click to place a point · drag one to move it · Delete removes");
                 case LayerKind.Directions:
-                    return "Press and drag to place-and-aim · drag a head to re-aim, a base to move · Delete removes";
+                    return root + "Press and drag to place-and-aim · drag a head to re-aim, a base to move · Delete removes";
                 case LayerKind.Mask:
-                    return "Drag to paint · right-drag (or Alt) erases · brush size and value are above";
+                    return root + "Drag to paint · right-drag (or Alt) erases · brush size and value are above";
                 default:
                     return "";
             }
@@ -361,13 +374,35 @@ namespace Laubrary.MetaMapper.Editor
         internal Vector2 LocalToMap(Vector2 local)
             => w.Visual != null ? w.Visual.TextureToMap(LocalToTex(local)) : Vector2.zero;
 
-        /// Quarter-cell tidiness in GridCells (PropSpot's mid-cell freedom made everyday), Alt for free
-        /// placement. SpritePixels never snaps: a pixel IS the grid.
+        /// Quarter-cell tidiness in GridCells (PropSpot's mid-cell freedom made everyday), one picture pixel in
+        /// LocalUnits (a character's art is the only grid it has), whole pixels for a SHAPE in SpritePixels (a
+        /// box edge between pixels is what a collider wants); Alt for free placement. Marks in SpritePixels
+        /// never snap: a pixel IS the grid, and a mark's fraction there has always been the author's own.
         Vector2 Snap(Vector2 mapPos, bool alt)
         {
-            if (alt || w.Space != MapSpace.GridCells || !w.SnapQuarter) return mapPos;
-            return new Vector2(Mathf.Round(mapPos.x * 4f) / 4f, Mathf.Round(mapPos.y * 4f) / 4f);
+            if (alt || !w.SnapQuarter) return mapPos;
+            float step;
+            switch (w.Space)
+            {
+                case MapSpace.GridCells: step = 0.25f; break;
+                case MapSpace.LocalUnits: step = PictureStep; break;
+                default:
+                    step = w.ActiveLayer != null && w.ActiveLayer.kind == LayerKind.Shapes ? 1f : 0f;
+                    break;
+            }
+            if (step <= 0f) return mapPos;
+            return new Vector2(Mathf.Round(mapPos.x / step) * step, Mathf.Round(mapPos.y / step) * step);
         }
+
+        /// One picture pixel in map units — the natural grain of a LocalUnits subject.
+        float PictureStep => w.Visual != null && w.Visual.pixelsPerUnit > 0f ? 1f / w.Visual.pixelsPerUnit : 0.0625f;
+
+        /// The smallest sensible shape extent, and the size a click-without-drag gets, per space.
+        float MinShapeExtent => w.Space == MapSpace.GridCells ? 0.25f
+            : w.Space == MapSpace.LocalUnits ? PictureStep : 1f;
+
+        float DefaultShapeExtent => w.Space == MapSpace.GridCells ? 1f
+            : w.Space == MapSpace.LocalUnits ? 0.5f : 8f;
 
         // ── painting ────────────────────────────────────────────────────────────────
 
@@ -384,6 +419,7 @@ namespace Laubrary.MetaMapper.Editor
             var p = ctx.painter2D;
 
             if (w.ShowGrid) PaintGrid(p, vis);
+            if (w.Space == MapSpace.LocalUnits) PaintRootMarker(p);
 
             var layers = data.layers;
             if (layers == null) return;
@@ -400,7 +436,8 @@ namespace Laubrary.MetaMapper.Editor
 
                 // Masks are NOT painted here — they are baked textures on maskHost (see SyncMaskViews).
                 // Only marks, arrows, the grid and the brush cursor are geometry.
-                if (L.kind != LayerKind.Mask) PaintMarks(p, L, entry, isActive);
+                if (L.kind == LayerKind.Shapes) PaintShapes(p, L, entry, isActive);
+                else if (L.kind != LayerKind.Mask) PaintMarks(p, L, entry, isActive);
             }
 
             if (hasHover && active != null && active.kind == LayerKind.Mask) PaintBrushCursor(p);
@@ -437,7 +474,9 @@ namespace Laubrary.MetaMapper.Editor
             }
             p.Stroke();
 
-            // The map ORIGIN, so a negative-offset subject (the clump case) is never guessed at.
+            // The map ORIGIN, so a negative-offset subject (the clump case) is never guessed at. LocalUnits
+            // draws its own, larger root marker whether or not the grid is on (PaintRootMarker).
+            if (w.Space == MapSpace.LocalUnits) return;
             var o = MapToLocal(Vector2.zero);
             p.strokeColor = new Color(1f, 0.85f, 0.2f, 0.5f);
             p.lineWidth = 1.5f;
@@ -489,6 +528,180 @@ namespace Laubrary.MetaMapper.Editor
             }
         }
 
+        /// The ROOT of a LocalUnits subject — map (0,0), the point the game positions the character by. Always
+        /// drawn, not only with the grid: on a character every shape is authored relative to it ("a foot circle
+        /// centred just above the root"), so it is the one landmark the author can never be without.
+        void PaintRootMarker(Painter2D p)
+        {
+            var o = MapToLocal(Vector2.zero);
+            for (int pass = 0; pass < 2; pass++)
+            {
+                p.strokeColor = pass == 0 ? new Color(0f, 0f, 0f, 0.7f) : new Color(1f, 0.78f, 0.15f, 0.95f);
+                p.lineWidth = pass == 0 ? 3.5f : 1.6f;
+                p.BeginPath();
+                p.MoveTo(new Vector2(o.x - 11f, o.y)); p.LineTo(new Vector2(o.x + 11f, o.y));
+                p.MoveTo(new Vector2(o.x, o.y - 11f)); p.LineTo(new Vector2(o.x, o.y + 11f));
+                p.Stroke();
+                Ring(p, o, 5f);
+            }
+        }
+
+        // ── shapes ──────────────────────────────────────────────────────────────────
+
+        const float HandlePx = 4f;
+        const int CircleHandle = 4;
+
+        /// A shape's box in local GUI pixels (+y down), from its map-space centre and full extent.
+        Rect LocalRect(MetaShape sh)
+        {
+            var a = MapToLocal(sh.center - sh.size * 0.5f);
+            var b = MapToLocal(sh.center + sh.size * 0.5f);
+            return Rect.MinMaxRect(Mathf.Min(a.x, b.x), Mathf.Min(a.y, b.y), Mathf.Max(a.x, b.x), Mathf.Max(a.y, b.y));
+        }
+
+        float LocalRadius(MetaShape sh)
+            => Vector2.Distance(MapToLocal(sh.center), MapToLocal(sh.center + new Vector2(sh.Radius, 0f)));
+
+        /// Handle positions in local pixels: a rect's four corners in map order (BL, BR, TR, TL — map is +y up,
+        /// so the "top" corners have the SMALLER gui y), a circle's single radius handle on its right edge.
+        Vector2 HandleLocal(MetaShape sh, int handle)
+            => sh.kind == ShapeKind.Circle
+                ? MapToLocal(sh.center + new Vector2(sh.Radius, 0f))
+                : MapToLocal(CornerMap(sh, handle));
+
+        static Vector2 CornerMap(MetaShape sh, int corner)
+        {
+            Vector2 h = sh.size * 0.5f;
+            switch (corner)
+            {
+                case 0: return sh.center + new Vector2(-h.x, -h.y);
+                case 1: return sh.center + new Vector2(h.x, -h.y);
+                case 2: return sh.center + new Vector2(h.x, h.y);
+                default: return sh.center + new Vector2(-h.x, h.y);
+            }
+        }
+
+        void PaintShapes(Painter2D p, MetaMapLayer L, MetaEntry entry, bool isActive)
+        {
+            if (entry.shapes == null) return;
+            var fill = L.color; fill.a = isActive ? 0.24f : 0.12f;
+            var edge = L.color; edge.a = isActive ? 1f : 0.6f;
+            var shadow = new Color(0f, 0f, 0f, 0.6f);
+            for (int i = 0; i < entry.shapes.Count; i++)
+            {
+                var sh = entry.shapes[i];
+                if (sh == null) continue;
+                bool selected = isActive && i == SelectedShape;
+
+                if (sh.kind == ShapeKind.Circle)
+                {
+                    var c = MapToLocal(sh.center);
+                    float r = Mathf.Max(1f, LocalRadius(sh));
+                    Disc(p, c, r, fill, 40);
+                    p.strokeColor = shadow; p.lineWidth = 3f; Ring(p, c, r, 40);
+                    p.strokeColor = selected ? Color.white : edge; p.lineWidth = selected ? 1.8f : 1.4f;
+                    Ring(p, c, r, 40);
+                    Disc(p, c, 2f, edge);                 // the centre — what a collider's offset will be
+                }
+                else
+                {
+                    var r = LocalRect(sh);
+                    p.fillColor = fill;
+                    p.BeginPath();
+                    p.MoveTo(r.min); p.LineTo(new Vector2(r.xMax, r.yMin));
+                    p.LineTo(r.max); p.LineTo(new Vector2(r.xMin, r.yMax));
+                    p.ClosePath();
+                    p.Fill();
+                    p.strokeColor = shadow; p.lineWidth = 3f; Box(p, r);
+                    p.strokeColor = selected ? Color.white : edge; p.lineWidth = selected ? 1.8f : 1.4f;
+                    Box(p, r);
+                }
+
+                if (!selected) continue;
+                int handles = sh.kind == ShapeKind.Circle ? 1 : 4;
+                for (int h = 0; h < handles; h++)
+                {
+                    var at = HandleLocal(sh, sh.kind == ShapeKind.Circle ? CircleHandle : h);
+                    var hr = new Rect(at.x - HandlePx, at.y - HandlePx, HandlePx * 2f, HandlePx * 2f);
+                    p.fillColor = Color.white;
+                    p.BeginPath();
+                    p.MoveTo(hr.min); p.LineTo(new Vector2(hr.xMax, hr.yMin));
+                    p.LineTo(hr.max); p.LineTo(new Vector2(hr.xMin, hr.yMax));
+                    p.ClosePath();
+                    p.Fill();
+                    p.strokeColor = new Color(0f, 0f, 0f, 0.85f); p.lineWidth = 1f; Box(p, hr);
+                }
+            }
+        }
+
+        /// An open rectangle outline, closed back by hand (see PaintGrid's note on closed subpaths).
+        static void Box(Painter2D p, Rect r)
+        {
+            p.BeginPath();
+            p.MoveTo(r.min); p.LineTo(new Vector2(r.xMax, r.yMin));
+            p.LineTo(r.max); p.LineTo(new Vector2(r.xMin, r.yMax)); p.LineTo(r.min);
+            p.Stroke();
+        }
+
+        /// The selected shape's handle under the pointer, or -1. Only the SELECTED shape shows handles, so only
+        /// it can be resized — a crowded layer never resizes the wrong neighbour.
+        int HandleAt(MetaEntry entry, Vector2 local)
+        {
+            if (entry.shapes == null || SelectedShape < 0 || SelectedShape >= entry.shapes.Count) return -1;
+            var sh = entry.shapes[SelectedShape];
+            if (sh == null) return -1;
+            if (sh.kind == ShapeKind.Circle)
+                return Vector2.Distance(HandleLocal(sh, CircleHandle), local) <= GrabPx ? CircleHandle : -1;
+            for (int i = 0; i < 4; i++)
+                if (Vector2.Distance(HandleLocal(sh, i), local) <= GrabPx) return i;
+            return -1;
+        }
+
+        /// The TOPMOST shape under the pointer (the last drawn), with a few pixels' grace on its edge so a thin
+        /// footprint is still grabbable.
+        int ShapeAt(MetaEntry entry, Vector2 local)
+        {
+            if (entry.shapes == null) return -1;
+            const float grace = 3f;
+            for (int i = entry.shapes.Count - 1; i >= 0; i--)
+            {
+                var sh = entry.shapes[i];
+                if (sh == null) continue;
+                if (sh.kind == ShapeKind.Circle)
+                {
+                    if (Vector2.Distance(MapToLocal(sh.center), local) <= LocalRadius(sh) + grace) return i;
+                }
+                else
+                {
+                    var r = LocalRect(sh);
+                    r.xMin -= grace; r.yMin -= grace; r.xMax += grace; r.yMax += grace;
+                    if (r.Contains(local)) return i;
+                }
+            }
+            return -1;
+        }
+
+        /// A shape spanning two map points: a rect corner-to-corner, a circle centred on the first.
+        static void SpanShape(MetaShape sh, Vector2 a, Vector2 b)
+        {
+            if (sh.kind == ShapeKind.Circle)
+            {
+                float d = (b - a).magnitude * 2f;
+                sh.center = a;
+                sh.size = new Vector2(d, d);
+                return;
+            }
+            sh.center = (a + b) * 0.5f;
+            sh.size = new Vector2(Mathf.Abs(b.x - a.x), Mathf.Abs(b.y - a.y));
+        }
+
+        void SelectShape(int index)
+        {
+            if (SelectedShape == index) return;
+            SelectedShape = index;
+            w.OnShapeSelectionChanged();
+        }
+
         void PaintBrushCursor(Painter2D p)
         {
             var vis = w.Visual;
@@ -511,13 +724,13 @@ namespace Laubrary.MetaMapper.Editor
 
         /// A filled polygon disc. Deliberately NOT Painter2D.Arc: a 12-gon is indistinguishable at these
         /// radii and keeps every path in this file to plain MoveTo/LineTo.
-        static void Disc(Painter2D p, Vector2 c, float radius, Color color)
+        static void Disc(Painter2D p, Vector2 c, float radius, Color color, int segments = 12)
         {
             p.fillColor = color;
             p.BeginPath();
-            for (int i = 0; i < 12; i++)
+            for (int i = 0; i < segments; i++)
             {
-                float a = i / 12f * Mathf.PI * 2f;
+                float a = i / (float)segments * Mathf.PI * 2f;
                 var v = new Vector2(c.x + Mathf.Cos(a) * radius, c.y + Mathf.Sin(a) * radius);
                 if (i == 0) p.MoveTo(v); else p.LineTo(v);
             }
@@ -527,12 +740,12 @@ namespace Laubrary.MetaMapper.Editor
 
         /// An OPEN 12-gon outline — closed back to its first point by hand rather than via ClosePath, so the
         /// miter-join tessellation never sees a closed subpath (see PaintGrid's note).
-        static void Ring(Painter2D p, Vector2 c, float radius)
+        static void Ring(Painter2D p, Vector2 c, float radius, int segments = 12)
         {
             p.BeginPath();
-            for (int i = 0; i <= 12; i++)
+            for (int i = 0; i <= segments; i++)
             {
-                float a = i / 12f * Mathf.PI * 2f;
+                float a = i / (float)segments * Mathf.PI * 2f;
                 var v = new Vector2(c.x + Mathf.Cos(a) * radius, c.y + Mathf.Sin(a) * radius);
                 if (i == 0) p.MoveTo(v); else p.LineTo(v);
             }
@@ -599,6 +812,38 @@ namespace Laubrary.MetaMapper.Editor
                     gesture = Gesture.AimMark; gestureMark = SelectedMark;
                     break;
                 }
+                case LayerKind.Shapes:
+                {
+                    if (e.button != 0) return;
+                    if (entry.shapes == null) entry.shapes = new List<MetaShape>();
+                    int handle = HandleAt(entry, e.localPosition);
+                    if (handle >= 0)
+                    {
+                        var sh = entry.shapes[SelectedShape];
+                        w.Session.Begin("Resize meta shape");
+                        gesture = Gesture.ResizeShape; gestureMark = SelectedShape;
+                        // The corner OPPOSITE the grabbed one stays put; a circle resizes about its centre.
+                        gestureAnchor = sh.kind == ShapeKind.Circle ? sh.center : CornerMap(sh, (handle + 2) % 4);
+                        break;
+                    }
+                    int hit = ShapeAt(entry, e.localPosition);
+                    if (hit >= 0)
+                    {
+                        SelectShape(hit);
+                        w.Session.Begin("Move meta shape");
+                        gesture = Gesture.MoveShape; gestureMark = hit;
+                        gestureAnchor = mapPos;
+                        gestureStartCenter = entry.shapes[hit].center;
+                        break;
+                    }
+                    // Empty space: the press starts a new shape and the drag gives it its size.
+                    w.Session.Begin("Draw meta shape");
+                    entry.shapes.Add(new MetaShape { kind = w.NewShapeKind, center = mapPos, size = Vector2.zero });
+                    gesture = Gesture.DrawShape; gestureMark = entry.shapes.Count - 1;
+                    gestureAnchor = mapPos;
+                    SelectShape(gestureMark);
+                    break;
+                }
                 case LayerKind.Mask:
                 {
                     bool erase = e.button == 1 || e.altKey;
@@ -645,6 +890,17 @@ namespace Laubrary.MetaMapper.Editor
                         if (d.sqrMagnitude > 1e-6f) m.dir = d.normalized;
                     }
                     break;
+                case Gesture.DrawShape:
+                case Gesture.ResizeShape:
+                    if (entry.shapes != null && gestureMark >= 0 && gestureMark < entry.shapes.Count
+                        && entry.shapes[gestureMark] != null)
+                        SpanShape(entry.shapes[gestureMark], gestureAnchor, mapPos);
+                    break;
+                case Gesture.MoveShape:
+                    if (entry.shapes != null && gestureMark >= 0 && gestureMark < entry.shapes.Count
+                        && entry.shapes[gestureMark] != null)
+                        entry.shapes[gestureMark].center = gestureStartCenter + (mapPos - gestureAnchor);
+                    break;
                 case Gesture.Paint:
                 case Gesture.Erase:
                     // Interpolate along the segment: a fast drag otherwise leaves gaps between samples.
@@ -670,11 +926,31 @@ namespace Laubrary.MetaMapper.Editor
                     entry.marks[gestureMark].dir = Vector2.up;
             }
 
+            // A shape with no size is invisible and ungrabbable: a click-without-drag gets a sensible default,
+            // and a drag that collapsed one axis gets the smallest extent the space can show.
+            if (gesture == Gesture.DrawShape || gesture == Gesture.ResizeShape)
+            {
+                var entry = w.ActiveEntry(createIfMissing: false);
+                if (entry?.shapes != null && gestureMark >= 0 && gestureMark < entry.shapes.Count
+                    && entry.shapes[gestureMark] != null)
+                {
+                    var sh = entry.shapes[gestureMark];
+                    float min = MinShapeExtent;
+                    if (gesture == Gesture.DrawShape && sh.size.x < min && sh.size.y < min)
+                        sh.size = Vector2.one * DefaultShapeExtent;
+                    sh.size = new Vector2(Mathf.Max(min, sh.size.x), Mathf.Max(min, sh.size.y));
+                    sh.Normalize();
+                }
+            }
+
+            bool shapeGesture = gesture == Gesture.DrawShape || gesture == Gesture.MoveShape
+                                || gesture == Gesture.ResizeShape;
             gesture = Gesture.None;
             gestureMark = -1;
             this.ReleasePointer(e.pointerId);
             w.Session?.End();
             w.AfterEdit();
+            if (shapeGesture) w.OnShapeSelectionChanged();   // the readouts now describe the shape as dropped
             e.StopPropagation();
         }
 
@@ -684,6 +960,17 @@ namespace Laubrary.MetaMapper.Editor
             var layer = w.ActiveLayer;
             var entry = w.ActiveEntry(createIfMissing: false);
             if (layer == null || entry == null || layer.kind == LayerKind.Mask) return;
+            if (layer.kind == LayerKind.Shapes)
+            {
+                if (entry.shapes == null || SelectedShape < 0 || SelectedShape >= entry.shapes.Count) return;
+                int doomed = SelectedShape;
+                w.Session.Edit("Delete meta shape", () => entry.shapes.RemoveAt(doomed));
+                SelectedShape = -1;
+                w.AfterEdit();
+                w.OnShapeSelectionChanged();
+                e.StopPropagation();
+                return;
+            }
             if (SelectedMark < 0 || SelectedMark >= entry.marks.Count) return;
 
             w.Session.Edit("Delete meta mark", () => entry.marks.RemoveAt(SelectedMark));
@@ -773,6 +1060,6 @@ namespace Laubrary.MetaMapper.Editor
             return hasHover && w.Visual != null;
         }
 
-        internal void ClearSelection() => SelectedMark = -1;
+        internal void ClearSelection() { SelectedMark = -1; SelectedShape = -1; }
     }
 }

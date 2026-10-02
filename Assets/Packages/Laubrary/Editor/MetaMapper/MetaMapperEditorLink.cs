@@ -100,6 +100,18 @@ namespace Laubrary.MetaMapper.Editor
                         }
                 }
 
+                if (L.kind == LayerKind.Shapes && e.shapes != null)
+                    foreach (var sh in e.shapes)
+                    {
+                        if (sh == null) continue;
+                        var lo = visual.MapToTexture(sh.center - sh.size * 0.5f) * zoom;
+                        var hi = visual.MapToTexture(sh.center + sh.size * 0.5f) * zoom;
+                        if (sh.kind == ShapeKind.Circle)
+                            BlendDisc(px, ow, oh, (lo + hi) * 0.5f, Mathf.Abs(hi.x - lo.x) * 0.5f, L.color, 0.45f);
+                        else
+                            Blend(px, ow, oh, lo, hi, L.color, 0.45f);
+                    }
+
                 if (e.marks == null) continue;
                 for (int i = 0; i < e.marks.Count; i++)
                 {
@@ -115,6 +127,19 @@ namespace Laubrary.MetaMapper.Editor
                     Blend(px, ow, oh, new Vector2(t.x - r, t.y - r), new Vector2(t.x + r, t.y + r), L.color, 1f);
                 }
             }
+        }
+
+        static void BlendDisc(Color32[] px, int w, int h, Vector2 c, float r, Color color, float alpha)
+        {
+            int x0 = Mathf.Clamp(Mathf.FloorToInt(c.x - r), 0, w), x1 = Mathf.Clamp(Mathf.CeilToInt(c.x + r), 0, w);
+            int y0 = Mathf.Clamp(Mathf.FloorToInt(c.y - r), 0, h), y1 = Mathf.Clamp(Mathf.CeilToInt(c.y + r), 0, h);
+            for (int y = y0; y < y1; y++)
+                for (int x = x0; x < x1; x++)
+                {
+                    float dx = x + 0.5f - c.x, dy = y + 0.5f - c.y;
+                    if (dx * dx + dy * dy <= r * r)
+                        Blend(px, w, h, new Vector2(x, y), new Vector2(x + 1, y + 1), color, alpha);
+                }
         }
 
         static void Blend(Color32[] px, int w, int h, Vector2 lo, Vector2 hi, Color color, float alpha)

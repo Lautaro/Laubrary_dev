@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Laubrary.MetaMapper;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
@@ -428,6 +429,35 @@ namespace Laubrary.Cartographer
                     spots[s.spotName] = Grid.LocalToWorld(Grid.CellToLocalInterpolated(cell));
                 }
             }
+        }
+
+        /// <summary>
+        /// Every clump placement's shapes on the Shapes layer <paramref name="layerId"/>, in WORLD space — a
+        /// stamped shelf's floor footprint, ready for game code to turn into colliders or overlap tests. Reads
+        /// each placed clump's own embedded metadata and places it through <see cref="MetaMapCells.ShapeToWorld"/>,
+        /// the same mirror-then-quarter-turn the stamp applied to the clump's cells, so a footprint drawn on the
+        /// clump's base row lands on that row in every orientation.
+        ///
+        /// Nothing calls this on its own: what a layer means, and whether it becomes physics, is the game's call.
+        /// Fills the caller's list (cleared first) in placement order, then authored shape order; returns the count.
+        /// </summary>
+        public int GetClumpShapes(string layerId, List<(ClumpPlacement placement, MetaWorldShape shape)> results,
+            int frame = 0)
+        {
+            if (results == null) return 0;
+            results.Clear();
+            if (level == null || level.clumpPlacements == null || string.IsNullOrEmpty(layerId)) return 0;
+
+            var shapes = new List<MetaShape>();
+            foreach (var cp in level.clumpPlacements)
+            {
+                var meta = cp?.Resolve()?.meta;
+                if (meta == null || meta.space != MapSpace.GridCells) continue;
+                if (meta.GetShapes(layerId, shapes, frame) == 0) continue;
+                foreach (var sh in shapes)
+                    results.Add((cp, MetaMapCells.ShapeToWorld(sh, cp.cell, cp.rotation, cp.mirrorX, Grid)));
+            }
+            return results.Count;
         }
 
         void SpawnPlacementPrefabs()

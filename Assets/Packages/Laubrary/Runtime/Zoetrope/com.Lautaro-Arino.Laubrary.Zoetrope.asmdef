@@ -7,7 +7,8 @@
         "com.Lautaro-Arino.Laubrary.SpriteFx",
         "com.Lautaro-Arino.Laubrary.ZuiRuntime",
         "com.Lautaro-Arino.Laubrary.Zounds",
-        "com.Lautaro-Arino.Laubrary.PreviewKit"
+        "com.Lautaro-Arino.Laubrary.PreviewKit",
+        "com.Lautaro-Arino.Laubrary.MetaMapper"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

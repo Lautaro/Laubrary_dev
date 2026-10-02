@@ -18,6 +18,13 @@ namespace Laubrary.MetaMapper
         /// (0,0)). Fractional values are legal and meaningful: (2.5, 1.33) is "cell (2,1), a third of the way
         /// up" — no second intra-cell offset field is needed. Serves clumps, props, level regions.</summary>
         GridCells = 1,
+
+        /// <summary>Unit = one world unit in the subject's OWN local frame, origin at its root (the pivot the
+        /// game positions it by — a character's feet). For subjects whose metadata belongs to neither one
+        /// sprite's pixels nor a grid: a Zoe character, whose look may be many sprites, a composite body or no
+        /// art at all, but whose root is always the same point. Converting to local space is the identity, so
+        /// a collider or a query built on the root's transform inherits its scale and flip for free.</summary>
+        LocalUnits = 2,
     }
 
     /// <summary>What a layer stores. Fixed at layer creation: changing kind with content authored invites
@@ -35,6 +42,19 @@ namespace Laubrary.MetaMapper
         /// <summary>A painted byte grid (values 0..10) at map resolution — an area, a hitbox, a mouth. One kind
         /// for both "painted region" and "painted meta-mask": they were never two things.</summary>
         Mask = 2,
+
+        /// <summary>Rectangles and circles with a centre and a size — a shelf's floor footprint, a character's
+        /// foot circle, a hurt box. The shape, not a painted grid, because the consumer wants geometry it can
+        /// hand to physics as-is (a box, a circle), and a mask can only ever approximate that.</summary>
+        Shapes = 3,
+    }
+
+    /// <summary>What one <see cref="MetaShape"/> is. Two primitives only: they are exactly what Unity's 2D
+    /// physics offers as cheap solid shapes, and a game wanting anything else can still read the box.</summary>
+    public enum ShapeKind
+    {
+        Rect = 0,
+        Circle = 1,
     }
 
     /// <summary>How a layer maps onto the map's frames. THIS IS AN AUTHORED CHOICE, NEVER AN INFERENCE
@@ -79,8 +99,57 @@ namespace Laubrary.MetaMapper
         public void Normalize() { if (name == null) name = ""; }
     }
 
-    /// <summary>One frame's worth of ONE layer. Carries both <see cref="marks"/> and the mask fields, with the
-    /// layer's <see cref="LayerKind"/> deciding which is live — the same mild slack Launimator's MetaLayer
+    /// <summary>One authored shape on a <see cref="LayerKind.Shapes"/> layer, in MAP SPACE.
+    ///
+    /// SIZE CONVENTION: <see cref="size"/> is the shape's full extent, never a half-extent or a radius — a
+    /// rect's width and height, a circle's DIAMETER in <c>size.x</c> (<see cref="Normalize"/> mirrors it into
+    /// <c>size.y</c>, so the shape's bounding box always reads correctly). One field for both kinds keeps the
+    /// editor's resize, the map rescale and the placement transform kind-blind: every one of them is "scale a
+    /// box".</summary>
+    [System.Serializable]
+    public class MetaShape
+    {
+        [Tooltip("Optional. \"\" for the common anonymous case; name only the individuals a consumer looks up " +
+                 "BY NAME (\"feet\" versus \"head\" on one layer). Compared case-insensitively, like layer ids.")]
+        public string name = "";
+
+        [Tooltip("Rectangle or circle. Unlike a layer's kind this may change freely — both store the same box.")]
+        public ShapeKind kind = ShapeKind.Rect;
+
+        [Tooltip("The shape's CENTRE in map space (pixels, cells or local units — see the map's space).")]
+        public Vector2 center;
+
+        [Tooltip("Full extent in map units: a rect's width and height; a circle's DIAMETER in x (y mirrors it). " +
+                 "Never negative.")]
+        public Vector2 size = Vector2.one;
+
+        public float Radius => size.x * 0.5f;
+
+        /// <summary>The map-space box the shape occupies (a circle's bounding square).</summary>
+        public Rect Bounds => new Rect(center - size * 0.5f, size);
+
+        public MetaShape Clone() => new MetaShape { name = name, kind = kind, center = center, size = size };
+
+        /// <summary>Heal rather than throw: null name, negative size and a circle whose y disagrees with its
+        /// diameter are all repaired in place.</summary>
+        public void Normalize()
+        {
+            if (name == null) name = "";
+            size = new Vector2(Mathf.Abs(size.x), Mathf.Abs(size.y));
+            if (kind == ShapeKind.Circle) size.y = size.x;
+        }
+
+        /// <summary>Is this map-space position inside the shape? Edges count as inside.</summary>
+        public bool Contains(Vector2 p)
+        {
+            if (kind == ShapeKind.Circle) return (p - center).sqrMagnitude <= Radius * Radius;
+            Vector2 d = p - center;
+            return Mathf.Abs(d.x) <= size.x * 0.5f && Mathf.Abs(d.y) <= size.y * 0.5f;
+        }
+    }
+
+    /// <summary>One frame's worth of ONE layer. Carries <see cref="marks"/>, <see cref="shapes"/> and the mask
+    /// fields side by side, with the layer's <see cref="LayerKind"/> deciding which is live — the same mild slack Launimator's MetaLayer
     /// already tolerates (mode + frames on one type), chosen deliberately over [SerializeReference]
     /// polymorphism, whose serialization fragility this codebase has no precedent for.</summary>
     [System.Serializable]
@@ -93,6 +162,10 @@ namespace Laubrary.MetaMapper
         [Tooltip("Points/Directions kinds. AUTHORED ORDER IS STABLE AND LOAD-BEARING: consumers that walk marks " +
                  "with a seeded System.Random (ShelfLoot) get the same result only while this order holds.")]
         public List<MetaMark> marks = new List<MetaMark>();
+
+        [Tooltip("Shapes kind. Authored order is stable, like marks: a consumer building one collider per shape " +
+                 "gets them back in the order they were drawn.")]
+        public List<MetaShape> shapes = new List<MetaShape>();
 
         [Tooltip("Mask kind: grid width in cells. PER ENTRY, not per map — a mask may be COARSER than the " +
                  "subject rect (refSize / maskW is the cell's size in map units).")]
@@ -122,6 +195,16 @@ namespace Laubrary.MetaMapper
             }
         }
 
+        public bool HasShapes
+        {
+            get
+            {
+                if (shapes == null) return false;
+                for (int i = 0; i < shapes.Count; i++) if (shapes[i] != null) return true;
+                return false;
+            }
+        }
+
         public bool HasPaint
         {
             get
@@ -134,7 +217,7 @@ namespace Laubrary.MetaMapper
 
         /// <summary>"Is anything spatial authored here." An explicitly EMPTY entry mid-track answers false —
         /// and that is a real, authored answer, not a defect (see <see cref="FrameBinding"/>).</summary>
-        public bool IsEmpty => !HasMarks && !HasPaint;
+        public bool IsEmpty => !HasMarks && !HasPaint && !HasShapes;
 
         public byte MaskGet(int x, int y)
             => (MaskUsable && x >= 0 && x < maskW && y >= 0 && y < maskH) ? mask[y * maskW + x] : (byte)0;
@@ -181,9 +264,12 @@ namespace Laubrary.MetaMapper
                 maskH = maskH,
                 mask = mask != null ? (byte[])mask.Clone() : null,
                 marks = new List<MetaMark>(marks != null ? marks.Count : 0),
+                shapes = new List<MetaShape>(shapes != null ? shapes.Count : 0),
             };
             if (marks != null)
                 for (int i = 0; i < marks.Count; i++) c.marks.Add(marks[i] != null ? marks[i].Clone() : new MetaMark());
+            if (shapes != null)
+                for (int i = 0; i < shapes.Count; i++) if (shapes[i] != null) c.shapes.Add(shapes[i].Clone());
             return c;
         }
 
@@ -198,6 +284,13 @@ namespace Laubrary.MetaMapper
             {
                 if (marks[i] == null) marks.RemoveAt(i);
                 else marks[i].Normalize();
+            }
+            // An asset saved before Shapes existed has no such field at all; it must load as "no shapes".
+            if (shapes == null) shapes = new List<MetaShape>();
+            for (int i = shapes.Count - 1; i >= 0; i--)
+            {
+                if (shapes[i] == null) shapes.RemoveAt(i);
+                else shapes[i].Normalize();
             }
 
             if (maskW < 0) maskW = 0;

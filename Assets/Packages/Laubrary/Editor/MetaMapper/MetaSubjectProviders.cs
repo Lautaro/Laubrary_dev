@@ -43,6 +43,15 @@ namespace Laubrary.MetaMapper.Editor
         static readonly Dictionary<MetaSubjectKind, Func<MetaSubjectRef, MetaEditSession>> sessions =
             new Dictionary<MetaSubjectKind, Func<MetaSubjectRef, MetaEditSession>>();
 
+        // MetaSubjectKind.Other is shared by every tool that is not worth a value in the enum, so it is
+        // dispatched one level further, by the subject Object's runtime TYPE. A Zoe and some future tool's asset
+        // can both be "Other" without either knowing the other exists.
+        static readonly Dictionary<Type, Func<MetaSubjectRef, MetaSubjectVisual>> otherProviders =
+            new Dictionary<Type, Func<MetaSubjectRef, MetaSubjectVisual>>();
+
+        static readonly Dictionary<Type, Func<MetaSubjectRef, MetaEditSession>> otherSessions =
+            new Dictionary<Type, Func<MetaSubjectRef, MetaEditSession>>();
+
         static MetaSubjectProviders()
         {
             // Sprite is built in: it is the ONE subject type this module can name (Sprite is UnityEngine's
@@ -77,11 +86,36 @@ namespace Laubrary.MetaMapper.Editor
             else sessions[kind] = resolver;
         }
 
+        /// <summary>Register both halves for one asset TYPE under <see cref="MetaSubjectKind.Other"/> — the way
+        /// a tool with embedded metadata joins without growing the enum. The subject ref then names the asset
+        /// (<c>kind = Other, subject = theAsset</c>) and dispatch goes by its runtime type, nearest base type
+        /// first. Last registration for a type wins, so a reloaded [InitializeOnLoad] ctor is idempotent.</summary>
+        public static void RegisterOther(Type subjectType, Func<MetaSubjectRef, MetaSubjectVisual> visual,
+            Func<MetaSubjectRef, MetaEditSession> session)
+        {
+            if (subjectType == null) return;
+            if (visual == null) otherProviders.Remove(subjectType); else otherProviders[subjectType] = visual;
+            if (session == null) otherSessions.Remove(subjectType); else otherSessions[subjectType] = session;
+        }
+
+        /// <summary>The provider for this subject: by type for <see cref="MetaSubjectKind.Other"/>, by kind
+        /// for everything else.</summary>
+        static Func<MetaSubjectRef, T> Lookup<T>(MetaSubjectRef subject,
+            Dictionary<MetaSubjectKind, Func<MetaSubjectRef, T>> byKind,
+            Dictionary<Type, Func<MetaSubjectRef, T>> byType)
+        {
+            if (subject.kind == MetaSubjectKind.Other && subject.subject != null)
+                for (var t = subject.subject.GetType(); t != null; t = t.BaseType)
+                    if (byType.TryGetValue(t, out var typed) && typed != null) return typed;
+            return byKind.TryGetValue(subject.kind, out var fn) ? fn : null;
+        }
+
         /// <summary>Re-open an editing session on an embedded subject, or null when nobody can. Never throws.</summary>
         public static MetaEditSession ResolveSession(MetaSubjectRef subject)
         {
             if (subject == null || !subject.IsSet) return null;
-            if (!sessions.TryGetValue(subject.kind, out var fn) || fn == null) return null;
+            var fn = Lookup(subject, sessions, otherSessions);
+            if (fn == null) return null;
             try { return fn(subject); }
             catch (Exception e)
             {
@@ -103,7 +137,8 @@ namespace Laubrary.MetaMapper.Editor
         public static MetaSubjectVisual Resolve(MetaSubjectRef subject)
         {
             if (subject == null || !subject.IsSet) return null;
-            if (!providers.TryGetValue(subject.kind, out var fn) || fn == null) return null;
+            var fn = Lookup(subject, providers, otherProviders);
+            if (fn == null) return null;
             try { return fn(subject); }
             catch (Exception e)
             {

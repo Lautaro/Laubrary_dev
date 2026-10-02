@@ -772,6 +772,7 @@ namespace Laubrary.Zoetrope.Editor
 
             Unit(body, zoe, "Weapons", BuildWeaponsUnit);
             Unit(body, zoe, "Cues", BuildCues);
+            Unit(body, zoe, "Metadata", BuildMetadata);
 
             var bar = new ZuiSectionToggleBar("Zoe", _barUnits.ToArray());
             barHost.Add(bar);
@@ -1908,6 +1909,36 @@ namespace Laubrary.Zoetrope.Editor
             "WHOLE reaction (its clip, its body SpriteFx, its effect list), which the Effect slot below cannot " +
             "express on its own. The list is this Zoe's own Custom events, so a name that only fails at runtime " +
             "cannot be typed here.";
+
+        /// The character's spatial metadata (a foot circle, a hurt box) is edited in MetaMapper, which owns the
+        /// drawing surface; this section names what the character declares and opens the editor on it. An
+        /// embedded copy of the stage would need the MetaMapper window's own pan/zoom, tool row and layer panel,
+        /// and this window is a scrolling form with nowhere to put a canvas that size.
+        void BuildMetadata(VisualElement root, Zoe zoe)
+        {
+            var sec = Z.Section("Metadata", "Named shapes, points and areas on this character — a foot circle, " +
+                "a hurt box — in its own local units with the origin at its root. Game code reads them by layer " +
+                "id; Laubrary builds nothing from them by itself.");
+
+            string Summary() => zoe.meta == null || zoe.meta.LayerCount == 0
+                ? "No layers"
+                : string.Join(", ", zoe.meta.LayerIds);
+
+            var summary = Z.Text(Summary(), ZuiText.Body, "The layer ids this character declares.");
+            summary.style.flexShrink = 1f;
+            summary.style.minWidth = 0f;
+            summary.style.whiteSpace = WhiteSpace.NoWrap;
+            summary.style.overflow = Overflow.Hidden;
+            summary.style.textOverflow = TextOverflow.Ellipsis;
+
+            var edit = Z.Button("Edit metadata…", "Open MetaMapper on this character: draw shapes and points " +
+                "over its picture, with its root marked as the origin.",
+                () => ZoeMetaSubject.Open(zoe, () => { if (summary.panel != null) summary.text = Summary(); }));
+            edit.style.flexShrink = 0f;
+
+            sec.Add(Z.Row(edit, summary));
+            root.Add(sec);
+        }
 
         void BuildCues(VisualElement root, Zoe zoe)
         {
