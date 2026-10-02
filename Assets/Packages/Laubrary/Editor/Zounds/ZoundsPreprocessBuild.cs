@@ -11,7 +11,8 @@ namespace Laubrary.Zounds {
 
         private const string DestAssetPath = "Assets/StreamingAssets/DefaultZoundsProject.json";
 
-        public int callbackOrder { get { return 100; } }
+        // Reconcile source entries before Addressables snapshots the group (its order is 1).
+        public int callbackOrder { get { return -100; } }
 
         public void OnPreprocessBuild(BuildReport report) {
             RunPreBuildAudit();
