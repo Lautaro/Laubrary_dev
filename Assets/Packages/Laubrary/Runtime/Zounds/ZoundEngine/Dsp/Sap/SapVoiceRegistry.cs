@@ -124,6 +124,15 @@ namespace Laubrary.Zounds.Dsp {
         /// </summary>
         public static bool Quitting { get; private set; }
 
+        // T-0503: stopping during Application.quitting is too late on affected standalone players.
+        // Keep ordinary player frames running after the source stops, just as the measured -stopFirst
+        // control did. This is a bounded shutdown workaround, not a claim to fix Unity's native crash.
+        internal static bool QuitDraining { get; private set; }
+        private static bool quitDrainComplete;
+        private static double quitDrainStarted;
+        private static int quitDrainFrames;
+        private static RuntimeUpdater quitUpdater;
+
         /// <summary>
         /// Tears every playing sound down while the application is quitting, BEFORE the scene's objects are destroyed and
         /// while the audio graph is still running (T-0449).
@@ -139,8 +148,57 @@ namespace Laubrary.Zounds.Dsp {
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void HookQuit() {
             Quitting = false;
+            QuitDraining = false;
+            quitDrainComplete = false;
+            if (quitUpdater != null) quitUpdater.onUpdate -= UpdateQuitDrain;
+            quitUpdater = null;
+            Application.wantsToQuit -= OnWantsToQuit;
+            Application.wantsToQuit += OnWantsToQuit;
             Application.quitting -= OnQuitting;
             Application.quitting += OnQuitting;
+        }
+
+        private static bool OnWantsToQuit() {
+            // Editor Play-mode exit cannot be cancelled, and mobile/forced termination is not guarded.
+            // Only the standalone platforms this engine currently ships on use this workaround.
+            if (Application.isEditor ||
+                (Application.platform != RuntimePlatform.WindowsPlayer &&
+                 Application.platform != RuntimePlatform.LinuxPlayer &&
+                 Application.platform != RuntimePlatform.OSXPlayer)) return true;
+            if (quitDrainComplete) return true;
+            if (QuitDraining) return false;
+            Prune();
+            if (live.Count == 0) return true;
+
+            QuitDraining = true;
+            quitDrainStarted = Time.realtimeSinceStartupAsDouble;
+            quitDrainFrames = 0;
+            Application.runInBackground = true;
+            StopAll();
+            for (int i = live.Count - 1; i >= 0; i--) {
+                var g = live[i];
+                if (g != null) g.SilenceForTeardown();
+            }
+            quitUpdater = RuntimeUpdater.Instance;
+            quitUpdater.onUpdate += UpdateQuitDrain;
+            return false;
+        }
+
+        private static void UpdateQuitDrain() {
+            quitDrainFrames++;
+            // Other game updates can try to retrigger a pooled carrier during these final frames.
+            // CreateInstance refuses new voices during the drain; stop any such carrier again here.
+            for (int i = live.Count - 1; i >= 0; i--) {
+                var g = live[i];
+                if (g != null) g.SilenceForTeardown();
+            }
+            if (quitDrainFrames < 2 || Time.realtimeSinceStartupAsDouble - quitDrainStarted < 0.3d) return;
+            if (quitUpdater != null) quitUpdater.onUpdate -= UpdateQuitDrain;
+            quitUpdater = null;
+            quitDrainComplete = true;
+            // The cancellation event does not expose the requested exit code. Normal game/window
+            // exits are zero; diagnostic callers needing another code must drain before their Quit.
+            Application.Quit();
         }
 
         private static void OnQuitting() {

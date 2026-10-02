@@ -323,6 +323,9 @@ namespace Laubrary.Zounds.Dsp {
         public GeneratorInstance CreateInstance(ControlContext context,
                                                 AudioFormat? nestedConfiguration,
                                                 CreationParameters creationParameters) {
+            // Once a standalone quit has begun draining, later game updates must not start a fresh
+            // native reader and undo the stopped-before-shutdown control (T-0503).
+            if (SapVoiceRegistry.QuitDraining || SapVoiceRegistry.Quitting) return default;
             ReleaseOwnVoice();
 
             preparedSampleRate = AudioSettings.outputSampleRate;
