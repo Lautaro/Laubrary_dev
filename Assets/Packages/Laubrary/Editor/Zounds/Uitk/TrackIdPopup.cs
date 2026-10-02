@@ -32,20 +32,20 @@ namespace Laubrary.Zounds.Uitk {
         public override void OnOpen() {
             var root = editorWindow.rootVisualElement;
             ZS.Attach(root);
-            root.style.paddingLeft = 6f; root.style.paddingTop = 6f;
+            root.AddToClassList("zs-track-id-popup__popup-root");
             var r = new VisualElement();
-            r.style.flexDirection = FlexDirection.Row; r.style.height = RowH; r.style.flexShrink = 0;
+            r.AddToClassList("zs-track-id-popup__popup-row");
             string tip = "A name game code can reach this track by: token.Track(\"" + (string.IsNullOrEmpty(entry.zpocId) ? "name" : entry.zpocId) + "\"), as well as by its number. Case, spaces, underscores and hyphens are ignored, as for Zound names. Only has to be unique within this Zequence; a Zequence playing this one reaches it by the same name. Empty: reached by number only.";
             var l = new Label("⚡ Id") { tooltip = tip };
             l.AddToClassList("zs-zpocmark");
-            l.style.width = 32f; l.style.flexShrink = 0; l.style.unityTextAlign = TextAnchor.MiddleLeft;
+            l.AddToClassList("zs-track-id-popup__popup-label");
             r.Add(l);
             var id = new TextField { value = entry.zpocId ?? "", tooltip = tip };
             id.AddToClassList("zs-namefield");
-            id.style.width = 130f; id.style.height = RowH - 2f; id.style.flexShrink = 0;
+            id.AddToClassList("zs-track-id-popup__popup-id");
             var dup = new Label("⚠") { tooltip = "Another track of this Zequence already has this id, so one call reaches both. Give one a different id unless that is what you want." };
             dup.AddToClassList("zs-warnmark");
-            dup.style.width = 14f; dup.style.flexShrink = 0;
+            dup.AddToClassList("zs-track-id-popup__popup-duplicate-warning");
             dup.style.visibility = Duplicate() ? Visibility.Visible : Visibility.Hidden;
             id.RegisterValueChangedCallback(e => {
                 if (!begun) { begun = true; ZoundsWindow.BeginDragUndo("track id"); }

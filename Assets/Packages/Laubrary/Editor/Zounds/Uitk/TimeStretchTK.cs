@@ -28,7 +28,7 @@ namespace Laubrary.Zounds.Uitk {
 
         public TimeStretchTK(Klip klip) {
             this.klip = klip;
-            style.flexShrink = 0;
+            AddToClassList("zs-time-stretch__root");
             Build();
             // The real length follows every edit anywhere in the window (trim, pitch and time curves, speed).
             schedule.Execute(UpdateLength).Every(250);
@@ -47,11 +47,11 @@ namespace Laubrary.Zounds.Uitk {
 
         static VisualElement Row() {
             var r = new VisualElement();
-            r.style.flexDirection = FlexDirection.Row; r.style.height = RowH; r.style.flexShrink = 0;
+            r.AddToClassList("zs-time-stretch__row");
             return r;
         }
-        static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.style.flexShrink = 0; return e; }
-        static VisualElement Flex() { var e = new VisualElement(); e.style.flexGrow = 1; return e; }
+        static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.AddToClassList("zs-time-stretch__gap"); return e; }
+        static VisualElement Flex() { var e = new VisualElement(); e.AddToClassList("zs-time-stretch__spacer"); return e; }
 
         /// <summary>Whether the live stretcher runs for a play of this sound, and why (for the tooltips).</summary>
         internal static bool StretcherRuns(Klip klip, out string why) {
@@ -113,7 +113,7 @@ namespace Laubrary.Zounds.Uitk {
                 tooltip = "This sound carries a stretch setting from before the live stretcher. It used to be computed only for the editor and was never heard when the sound played; it is now played through the live stretcher at every play, so this is what you hear. It is not edited here any more: Convert moves it into the Speed slider (Uniform) or the time curve on the waveform (Region and Curve), where it can be edited."
             };
             l.AddToClassList("zs-lbl");
-            l.style.width = 300f; l.style.flexShrink = 0; l.style.unityTextAlign = TextAnchor.MiddleLeft;
+            l.AddToClassList("zs-time-stretch__legacy-label");
             r.Add(l);
             r.Add(Gap(6f));
             r.Add(ZS.Button("Convert", "Makes it permanent in the current controls, sounding the same: a Uniform stretch becomes this sound's Speed (Live speed on), a Region or Curve stretch becomes its time curve following the waveform. The old setting is then switched off.", "RichButton",
@@ -176,7 +176,7 @@ namespace Laubrary.Zounds.Uitk {
             r.Add(Flex());
             length = new Label();
             length.AddToClassList("zs-minilabel");
-            length.style.width = 110f; length.style.flexShrink = 0; length.style.unityTextAlign = TextAnchor.MiddleRight;
+            length.AddToClassList("zs-time-stretch__live-length");
             r.Add(length);
             UpdateLength();
             return r;

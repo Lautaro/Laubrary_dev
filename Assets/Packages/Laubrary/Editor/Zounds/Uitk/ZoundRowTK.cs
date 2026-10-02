@@ -109,7 +109,7 @@ namespace Laubrary.Zounds.Uitk {
             }
         }
 
-        static T Abs<T>(T e) where T : VisualElement { e.style.position = Position.Absolute; return e; }
+        static T Abs<T>(T e) where T : VisualElement { e.AddToClassList("zs-zound-row__positioned-control"); return e; }
 
         internal static void Place(VisualElement e, Rect r) {
             if (e == null) return;
@@ -338,34 +338,32 @@ namespace Laubrary.Zounds.Uitk {
             isClip = zound.IsClipOrLocalZound();
             isMissing = !isClip && zound.id == 0;
             tagsOwnRow = !isMissing && bs.showTags && bs.tagsOnOwnRow;
-            style.flexShrink = 0;
-            style.height = BrowserTab.ROW_HEIGHT;
+            AddToClassList("zs-zound-row__list-row");
+            AddToClassList("zs-zound-row__list-height");
 
             pulseFill = Plain(); pulseBorder = Plain();
-            pulseBorder.style.borderTopWidth = pulseBorder.style.borderBottomWidth = pulseBorder.style.borderLeftWidth = pulseBorder.style.borderRightWidth = 3f;
+            pulseBorder.AddToClassList("zs-zound-row__list-pulse-border");
             wash = Plain();
             Add(pulseFill); Add(pulseBorder); Add(wash);
 
             if (isMissing) {
                 missingLabel = new Label(zound.name) { pickingMode = PickingMode.Ignore };
                 missingLabel.AddToClassList("zs-lbl");
-                missingLabel.style.position = Position.Absolute;
-                missingLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
-                missingLabel.style.color = new Color(0.8f, 0.4f, 0.4f, 1f);
+                missingLabel.AddToClassList("zs-zound-row__list-missing-label");
                 Add(missingLabel);
             }
             else {
                 nameButton = ZS.Button(zound.name, zound.name + ": Left click to play. Right click to open edit mode. Middle click or Alt left click to copy the name to clipboard.",
                                        "ZoundBtn", null, ZUICornerMask.None, -1f, -1f);
                 nameButton.clickable = null;
-                nameButton.style.position = Position.Absolute;
+                nameButton.AddToClassList("zs-zound-row__list-name-button");
                 nameButton.RegisterCallback<PointerDownEvent>(e => { if (e.button != 0) e.StopPropagation(); });
                 nameButton.RegisterCallback<PointerUpEvent>(OnNameClick);
                 Add(nameButton);
             }
 
             var fields = new VisualElement { pickingMode = PickingMode.Ignore };
-            fields.style.position = Position.Absolute; fields.style.left = 0; fields.style.top = 0; fields.style.right = 0; fields.style.bottom = 0;
+            fields.AddToClassList("zs-zound-row__list-fields");
             Add(fields);
             parts = new ZoundListRowTKParts(zound, host, fields, vertical: false);
 
@@ -373,7 +371,7 @@ namespace Laubrary.Zounds.Uitk {
             if (tagsOwnRow) {
                 tagsBelow = new Button(() => TagsEditorWindow.OpenWindow(zound)) { text = BrowserTab.GetZoundTagsString(zound) };
                 tagsBelow.AddToClassList("zs-tagsfield"); tagsBelow.AddToClassList("zs-tagsfield--multiline"); tagsBelow.AddToClassList("zs-text-zounds-tags");
-                tagsBelow.style.position = Position.Absolute;
+                tagsBelow.AddToClassList("zs-zound-row__list-tags-below");
                 tagsBelow.SetEnabled(!isClip);
                 fields.Add(tagsBelow);
             }
@@ -388,7 +386,7 @@ namespace Laubrary.Zounds.Uitk {
 
         static VisualElement Plain() {
             var e = new VisualElement { pickingMode = PickingMode.Ignore };
-            e.style.position = Position.Absolute;
+            e.AddToClassList("zs-zound-row__plain-element");
             return e;
         }
 

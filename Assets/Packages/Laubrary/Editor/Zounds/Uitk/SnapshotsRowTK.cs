@@ -25,7 +25,7 @@ namespace Laubrary.Zounds.Uitk {
 
         public SnapshotsRowTK(Zound zound, Action<string, Action> modify) {
             this.zound = zound; this.modify = modify;
-            style.flexDirection = FlexDirection.Row; style.height = RowH; style.flexShrink = 0; style.marginBottom = 2f;
+            AddToClassList("zs-snapshots-row__root");
             schedule.Execute(Tick).Every(33);
         }
 
@@ -60,7 +60,7 @@ namespace Laubrary.Zounds.Uitk {
                 tooltip = "Named sets of this sound's settings. Game code glides a playing sound to one over a time it chooses (token.GlideToSnapshot(\"name\", ms)), from wherever the sound is. Click one to hear that here: every play of this sound glides to it. Right-click one to load it into the editor, capture it again, rename or delete it. Right-click this title for the whole list, to glide to any of them."
             };
             title.AddToClassList("zs-guilabel");
-            title.style.width = 76f; title.style.flexShrink = 0; title.style.unityTextAlign = TextAnchor.MiddleLeft;
+            title.AddToClassList("zs-snapshots-row__title");
             // Right-click the title: every snapshot, for when there are more chips than the strip can show.
             title.RegisterCallback<PointerDownEvent>(e => {
                 if (e.button != 1) return;
@@ -85,8 +85,8 @@ namespace Laubrary.Zounds.Uitk {
             Add(glide);
             Add(Gap(8f));
             strip = new VisualElement();
-            strip.style.flexDirection = FlexDirection.Row; strip.style.flexShrink = 1; strip.style.flexGrow = 1;
-            strip.style.overflow = Overflow.Hidden;
+            strip.AddToClassList("zs-snapshots-row__strip");
+            strip.AddToClassList("zs-snapshots-row__strip");
             Add(strip);
             AddChip(ZoundSnapshots.DefaultName, null);
             if (zound.snapshots != null) foreach (var s in zound.snapshots) if (s != null) AddChip(s.name, s);
@@ -117,10 +117,10 @@ namespace Laubrary.Zounds.Uitk {
             fill.AddToClassList("zs-snapchip__fill");
             var text = new Label(name) { pickingMode = PickingMode.Ignore };
             text.AddToClassList("zs-snapchip__text");
-            text.style.overflow = Overflow.Hidden; text.style.textOverflow = TextOverflow.Ellipsis;
+            text.AddToClassList("zs-snapshots-row__add-chip-text");
             chip.Add(fill); chip.Add(text);
             float w = Mathf.Clamp(24f + name.Length * 6.5f, 56f, 140f);
-            chip.style.width = w; chip.style.height = RowH - 2f; chip.style.marginTop = 1f; chip.style.marginRight = 3f; chip.style.flexShrink = 0;
+            chip.style.width = w; chip.AddToClassList("zs-snapshots-row__snapshot-chip");
             chip.tooltip = snapshot == null
                 ? "Default: the settings as they are in the editor. Click: every play of this sound glides back to them. Right-click: capture them as a new snapshot."
                 : "'" + name + "'. Click: every play of this sound here glides to it over the glide time, as game code would. Right-click: load it into the editor to edit it, capture it again from the current settings, rename or delete it.";
@@ -196,7 +196,7 @@ namespace Laubrary.Zounds.Uitk {
             chain?.Touch();
         }
 
-        static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.style.flexShrink = 0; return e; }
+        static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.AddToClassList("zs-snapshots-row__gap"); return e; }
     }
 
     /// <summary>A one-field popover for naming something where it is declared. Changes apply on Enter or when it closes.</summary>
@@ -214,16 +214,16 @@ namespace Laubrary.Zounds.Uitk {
         public override void OnOpen() {
             var root = editorWindow.rootVisualElement;
             ZS.Attach(root);
-            root.style.paddingLeft = 6f; root.style.paddingTop = 6f; root.style.flexDirection = FlexDirection.Row;
-            var l = new Label(label) { tooltip = tooltip }; l.AddToClassList("zs-guilabel"); l.style.width = 44f; l.style.unityTextAlign = TextAnchor.MiddleLeft;
+            root.AddToClassList("zs-snapshots-row__popup-root");
+            var l = new Label(label) { tooltip = tooltip }; l.AddToClassList("zs-guilabel"); l.AddToClassList("zs-snapshots-row__popup-label");
             field = new TextField { value = value, tooltip = tooltip }; field.AddToClassList("zs-namefield");
-            field.style.width = 180f; field.style.height = 18f;
+            field.AddToClassList("zs-snapshots-row__popup-field");
             field.RegisterCallback<KeyDownEvent>(e => {
                 if (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter) editorWindow.Close();
                 else if (e.keyCode == KeyCode.Escape) { cancelled = true; editorWindow.Close(); }
             });
             // The warning's space is always reserved, so it appearing moves nothing.
-            warn = new Label("⚠"); warn.AddToClassList("zs-lbl"); warn.style.width = 14f; warn.style.color = new Color(1f, 0.59f, 0.16f);
+            warn = new Label("⚠"); warn.AddToClassList("zs-lbl"); warn.AddToClassList("zs-snapshots-row__popup-warn");
             warn.style.visibility = Visibility.Hidden;
             field.RegisterValueChangedCallback(e => {
                 string why = problem?.Invoke(e.newValue);

@@ -57,7 +57,7 @@ namespace Laubrary.Zounds.Uitk {
         public override void OnOpen() {
             var root = editorWindow.rootVisualElement;
             ZS.Attach(root);
-            root.style.paddingLeft = 6f; root.style.paddingTop = 6f;
+            root.AddToClassList("zs-random-point-popup__popup-root");
             Build(root);
         }
 
@@ -75,7 +75,7 @@ namespace Laubrary.Zounds.Uitk {
         void Build(VisualElement root) {
             root.Clear();
             var r = new VisualElement();
-            r.style.flexDirection = FlexDirection.Row; r.style.height = RowH; r.style.flexShrink = 0;
+            r.AddToClassList("zs-random-point-popup__r");
             // Actions first, so switching Random on or off never moves them.
             bool many = group.Count > 1;
             var reset = ZS.Button("Reset", many
@@ -142,6 +142,6 @@ namespace Laubrary.Zounds.Uitk {
             });
         }
 
-        static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.style.flexShrink = 0; return e; }
+        static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.AddToClassList("zs-random-point-popup__gap"); return e; }
     }
 }

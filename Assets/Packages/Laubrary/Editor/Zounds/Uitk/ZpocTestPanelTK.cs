@@ -40,7 +40,7 @@ namespace Laubrary.Zounds.Uitk {
 
         public ZpocTestPanelTK(Zound zound) {
             this.zound = zound;
-            style.flexShrink = 0;
+            AddToClassList("zs-zpoc-test-panel__root");
             schedule.Execute(Tick).Every(33);
             RegisterCallback<DetachFromPanelEvent>(_ => StopDriving());
         }
@@ -77,11 +77,11 @@ namespace Laubrary.Zounds.Uitk {
 
         VisualElement HRow() {
             var r = new VisualElement();
-            r.style.flexDirection = FlexDirection.Row; r.style.height = RowH; r.style.flexShrink = 0; r.style.marginBottom = 1f;
+            r.AddToClassList("zs-zpoc-test-panel__row");
             return r;
         }
 
-        static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.style.flexShrink = 0; return e; }
+        static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.AddToClassList("zs-zpoc-test-panel__gap"); return e; }
 
         VisualElement Header() {
             var r = HRow();
@@ -89,7 +89,7 @@ namespace Laubrary.Zounds.Uitk {
                 tooltip = "Pretends to be the game: while Drive is on, every play of this sound in the editor takes the values below, sent through its token exactly as game code would (token.SetZpoc). Watch the amber on the chain above while it plays. Nothing here is saved."
             };
             title.AddToClassList("zs-text-subheader"); title.AddToClassList("zs-subheader");
-            title.style.width = 128f; title.style.flexShrink = 0;
+            title.AddToClassList("zs-zpoc-test-panel__header-title");
             r.Add(title);
             ZuiToggleButton driveT = null;
             driveT = ZS.Toggle("Drive", "On: every play of this sound in the editor follows the values below. Off: plays go back to where each ZPOC rests (or to the game's values in Play mode).",
@@ -118,7 +118,7 @@ namespace Laubrary.Zounds.Uitk {
             var r = HRow();
             var label = new Label("⚡ " + row.id) { tooltip = "What game code would send as '" + row.id + "'." };
             label.AddToClassList("zs-zpocmark");
-            label.style.width = 128f; label.style.flexShrink = 0; label.style.unityTextAlign = TextAnchor.MiddleLeft;
+            label.AddToClassList("zs-zpoc-test-panel__id-row-label");
             r.Add(label);
             ZuiSkinSlider s = null;
             s = ZS.Slider("Value  " + row.value.ToString("0.00"), row.value, 0f, 1f, "",

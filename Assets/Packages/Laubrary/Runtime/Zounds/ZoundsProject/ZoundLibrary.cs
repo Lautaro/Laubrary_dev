@@ -223,6 +223,17 @@ namespace Laubrary.Zounds
     [System.Serializable]
     public class Zound
     {
+        /// <summary>How the gap between authored retriggers is measured.</summary>
+        public enum RetriggerGap
+        {
+            /// <summary>A fixed rhythm based on the first play's actual length plus the gap.</summary>
+            Steady,
+            /// <summary>The gap is measured between the starts of consecutive plays, so they may overlap.</summary>
+            FromStart,
+            /// <summary>The gap is silence after each play has ended.</summary>
+            FromEnd
+        }
+
         internal const float MinVolumeRange = 0f;
         internal const float MaxVolumeRange = 1f;
         internal const float MinPitchRange = 0.1f;
@@ -242,6 +253,24 @@ namespace Laubrary.Zounds
         public List<int> tags = new List<int>();
         public bool mute;
         public bool solo;
+
+        /// <summary>When enabled, every request to play this Klip or Zequence starts a short authored burst instead.</summary>
+        public bool retriggerEnabled;
+        /// <summary>Total plays in an authored retrigger burst, including the first.</summary>
+        public int retriggerCount = 4;
+        /// <summary>Seconds between retriggers, interpreted by <see cref="retriggerGapMode"/>.</summary>
+        public float retriggerGap = 0.5f;
+        public RetriggerGap retriggerGapMode = RetriggerGap.FromEnd;
+
+        /// <summary>Enables retriggering and upgrades old saved Zounds, whose newly added fields deserialize as zero.</summary>
+        public void EnableRetrigger() {
+            if (retriggerCount < 2) {
+                retriggerCount = 4;
+                retriggerGap = 0.5f;
+                retriggerGapMode = RetriggerGap.FromEnd;
+            }
+            retriggerEnabled = true;
+        }
 
         public AssetReference manuallySetMixerGroupRef;
 
@@ -271,6 +300,10 @@ namespace Laubrary.Zounds
             tags.AddRange(source.tags);
             mute = source.mute;
             solo = source.solo;
+            retriggerEnabled = source.retriggerEnabled;
+            retriggerCount = source.retriggerCount;
+            retriggerGap = source.retriggerGap;
+            retriggerGapMode = source.retriggerGapMode;
             manuallySetMixerGroupRef = source.manuallySetMixerGroupRef;
             effectChain = source.effectChain != null ? source.effectChain.DeepCopy() : new ZoundEffectChain();
             chainPresetId = source.chainPresetId;

@@ -43,21 +43,21 @@ namespace Laubrary.Zounds.Uitk {
 
         public DependencyMapTabTK(ZoundsWindowTK win) {
             this.win = win;
-            style.flexGrow = 1; style.flexShrink = 1;
+            AddToClassList("zs-dependency-map__root");
             RefreshAnalysis();
             var box = new VisualElement();
             box.AddToClassList("zs-box-default");
-            box.style.flexGrow = 1; box.style.flexShrink = 1;
+            box.AddToClassList("zs-dependency-map__box");
             Add(box);
             box.Add(ZequenceEditorWindowTK.Space(4f));
             toolbar = new VisualElement();
             toolbar.AddToClassList("zs-depbar");
-            toolbar.style.flexDirection = FlexDirection.Row; toolbar.style.flexShrink = 0;
+            toolbar.AddToClassList("zs-dependency-map__toolbar");
             box.Add(toolbar);
             box.Add(ZequenceEditorWindowTK.Space(2f));
             scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.AddToClassList("zs-depscroll");
-            scroll.style.flexGrow = 1; scroll.style.flexShrink = 1;
+            scroll.AddToClassList("zs-dependency-map__scroll");
             box.Add(scroll);
             Rebuild();
         }
@@ -153,14 +153,14 @@ namespace Laubrary.Zounds.Uitk {
         static VisualElement HelpBox(bool row = false) {
             var v = new VisualElement();
             v.AddToClassList("zs-dephelp");
-            if (row) v.style.flexDirection = FlexDirection.Row;
+            if (row) v.AddToClassList("zs-dependency-map__help-box-panel");
             return v;
         }
 
         static VisualElement Row() {
             var r = new VisualElement();
             r.AddToClassList("zs-deprow");
-            r.style.flexDirection = FlexDirection.Row; r.style.flexShrink = 0; r.style.alignItems = Align.FlexStart;
+            r.AddToClassList("zs-dependency-map__row");
             return r;
         }
 
@@ -173,7 +173,7 @@ namespace Laubrary.Zounds.Uitk {
             var lbl = f.Q<Label>();
             if (lbl != null) lbl.enableRichText = true;
             f.RegisterValueChangedCallback(e => { if (e.target == f) { toggled(e.newValue); Rebuild(); } });
-            f.style.flexGrow = 1;
+            f.AddToClassList("zs-dependency-map__foldout-row-foldout");
             return f;
         }
 
@@ -183,7 +183,7 @@ namespace Laubrary.Zounds.Uitk {
             var l = Rich(richText, cls, 0);
             l.AddToClassList("zs-link");
             l.RegisterCallback<ClickEvent>(_ => onClick());
-            l.style.flexGrow = 0; l.style.flexShrink = 1;
+            l.AddToClassList("zs-dependency-map__clickable-label");
             return l;
         }
 
@@ -212,15 +212,15 @@ namespace Laubrary.Zounds.Uitk {
         void DependencyBrowser(VisualElement into) {
             var r = Row();
             r.AddToClassList("zs-depsearch");
-            var l = Rich("Search:"); l.style.width = 50f; l.style.height = 18f;
+            var l = Rich("Search:"); l.AddToClassList("zs-dependency-map__dependency-browser-label");
             r.Add(l);
             search = new TextField { value = s_search };
             search.AddToClassList("zs-imgui-field");
-            search.style.flexGrow = 1; search.style.flexShrink = 1;
+            search.AddToClassList("zs-dependency-map__dependency-browser-search");
             search.RegisterValueChangedCallback(e => { s_search = e.newValue; RebuildNodes(); });
             r.Add(search);
             var x = new Button(() => { s_search = ""; search.SetValueWithoutNotify(""); search.Blur(); RebuildNodes(); }) { text = "X" };
-            x.AddToClassList("zs-imgui-button"); x.style.width = 20f;
+            x.AddToClassList("zs-imgui-button"); x.AddToClassList("zs-dependency-map__dependency-browser-clear");
             r.Add(x);
             into.Add(r);
             into.Add(ZequenceEditorWindowTK.Space(4f));
@@ -236,7 +236,7 @@ namespace Laubrary.Zounds.Uitk {
             string filter = s_search.ToLowerInvariant();
             var nodes = analyzer.zoundNodes.Values.Where(n => !(n.zound is ClipZound)).Where(n => n.zound.parentId == 0).OrderBy(n => n.zound.name).ToList();
             if (!string.IsNullOrEmpty(filter)) nodes = nodes.Where(n => n.zound.name.ToLowerInvariant().Contains(filter)).ToList();
-            if (nodes.Count == 0) { var none = Rich("No Zounds match the filter.", "zs-greymini"); none.style.height = 18f; nodesHost.Add(none); return; }
+            if (nodes.Count == 0) { var none = Rich("No Zounds match the filter.", "zs-greymini"); none.AddToClassList("zs-dependency-map__rebuild-nodes-none"); nodesHost.Add(none); return; }
             foreach (var n in nodes) nodesHost.Add(ZoundNode(n));
         }
 
@@ -331,7 +331,7 @@ namespace Laubrary.Zounds.Uitk {
             }
             string path = AssetDatabase.GUIDToAssetPath(clipRef.AssetGUID);
             var r = Row();
-            var l = Rich($"  <color=#AAAAAA>{label}:</color>", "zs-lbl", indent); l.style.width = 100f; l.style.flexShrink = 0; l.style.marginRight = 3.5f;
+            var l = Rich($"  <color=#AAAAAA>{label}:</color>", "zs-lbl", indent); l.AddToClassList("zs-dependency-map__clip-ref-line-label");
             r.Add(l);
             r.Add(PlayableClip(path));
             r.Add(ZequenceEditorWindowTK.Flex());
@@ -344,11 +344,11 @@ namespace Laubrary.Zounds.Uitk {
         void Broken(VisualElement into) {
             if (analyzer.brokenGroups.Count == 0) {
                 into.Add(ZequenceEditorWindowTK.Space(20f));
-                var l = Rich("No broken references detected.", "zs-greymini"); l.style.height = 18f;
+                var l = Rich("No broken references detected.", "zs-greymini"); l.AddToClassList("zs-dependency-map__broken-label");
                 into.Add(l);
                 return;
             }
-            var title = Rich($"{analyzer.brokenGroups.Count} missing file(s) identified:", "zs-bold"); title.style.height = 18f;
+            var title = Rich($"{analyzer.brokenGroups.Count} missing file(s) identified:", "zs-bold"); title.AddToClassList("zs-dependency-map__broken-title");
             into.Add(title);
             into.Add(ZequenceEditorWindowTK.Space(4f));
             foreach (var kvp in analyzer.brokenGroups) {
@@ -375,16 +375,16 @@ namespace Laubrary.Zounds.Uitk {
                 var fix = HelpBox(true);
                 var field = new ObjectField("Replace with:") { objectType = typeof(AudioClip), allowSceneObjects = false, value = group.stagedFix };
                 field.AddToClassList("zs-imgui-field"); field.AddToClassList("zs-label-150");
-                field.style.flexGrow = 1;
+                field.AddToClassList("zs-dependency-map__broken-field");
                 field.RegisterValueChangedCallback(e => { group.stagedFix = e.newValue as AudioClip; Rebuild(); });
                 fix.Add(field);
                 if (group.stagedFix != null) {
                     var all = new Button(() => { if (DependencyMapTab.ApplyGroupFixShared(group)) { RefreshAnalysis(); Rebuild(); } }) { text = "FIX ALL" };
                     all.AddToClassList("zs-imgui-button"); all.AddToClassList("zs-fixall");
-                    all.style.width = 80f;
+                    all.AddToClassList("zs-dependency-map__broken-all");
                     fix.Add(all);
                     var clear = new Button(() => { group.stagedFix = null; Rebuild(); }) { text = "X" };
-                    clear.AddToClassList("zs-imgui-button"); clear.style.width = 20f;
+                    clear.AddToClassList("zs-imgui-button"); clear.AddToClassList("zs-dependency-map__broken-clear");
                     fix.Add(clear);
                 }
                 box.Add(fix);
@@ -410,7 +410,7 @@ namespace Laubrary.Zounds.Uitk {
                             RefreshAnalysis(); Rebuild();
                         }
                     }) { text = "Delete All Orphans" };
-                    del.AddToClassList("zs-imgui-button"); del.style.width = 130f;
+                    del.AddToClassList("zs-imgui-button"); del.AddToClassList("zs-dependency-map__orphans-del");
                     head.Add(del);
                 }
                 box.Add(head);
@@ -434,12 +434,12 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         void CleanupList(VisualElement box, List<ZoundDependencyAnalyzer.ClipNode> clips, string emptyText) {
-            if (clips.Count == 0) { var l = Rich(emptyText, "zs-greymini"); l.style.height = 18f; box.Add(l); return; }
+            if (clips.Count == 0) { var l = Rich(emptyText, "zs-greymini"); l.AddToClassList("zs-dependency-map__cleanup-list-label"); box.Add(l); return; }
             box.Add(ZequenceEditorWindowTK.Space(4f));
             foreach (var cn in clips) {
                 var row = HelpBox(true);
                 row.Add(PlayableClip(cn.assetPath, "zs-lbl", cn.fileName));
-                var path = Rich(cn.assetPath, "zs-mini"); path.style.flexGrow = 1; path.style.flexShrink = 1;
+                var path = Rich(cn.assetPath, "zs-mini"); path.AddToClassList("zs-dependency-map__cleanup-list-path");
                 row.Add(path);
                 row.Add(MiniButton("Ping", 35f, () => { if (cn.clip != null) EditorGUIUtility.PingObject(cn.clip); }));
                 var del = MiniButton("Delete", 50f, () => {
@@ -547,7 +547,7 @@ namespace Laubrary.Zounds.Uitk {
                 box.Add(Rich("Related Issues", "zs-bold"));
                 if (report.hasBrokenRefs) {
                     var r = Row();
-                    var l = Rich($"  {report.brokenRefCount} Zound(s) with broken audio references", "zs-mini"); l.style.flexGrow = 1;
+                    var l = Rich($"  {report.brokenRefCount} Zound(s) with broken audio references", "zs-mini"); l.AddToClassList("zs-dependency-map__l");
                     l.style.color = new Color(0.824f, 0.4f * 0.824f, 0.4f * 0.824f);
                     r.Add(l);
                     r.Add(MiniButton("Go to Broken tab", 110f, () => Select(Section.BrokenZounds)));
@@ -555,7 +555,7 @@ namespace Laubrary.Zounds.Uitk {
                 }
                 if (report.orphanCount > 0) {
                     var r = Row();
-                    var l = Rich($"  {report.orphanCount} orphaned file(s) in Work/ZoundFiles", "zs-mini"); l.style.flexGrow = 1;
+                    var l = Rich($"  {report.orphanCount} orphaned file(s) in Work/ZoundFiles", "zs-mini"); l.AddToClassList("zs-dependency-map__l");
                     r.Add(l);
                     r.Add(MiniButton("Go to Orphans tab", 110f, () => Select(Section.Orphans)));
                     box.Add(r);
@@ -567,13 +567,13 @@ namespace Laubrary.Zounds.Uitk {
             into.Add(ZequenceEditorWindowTK.Space(8f));
             var actions = Row();
             var refresh = new Button(() => { RefreshAnalysis(); buildReport = ZoundsBuildReport.Generate(analyzer); Rebuild(); }) { text = "Refresh Report" };
-            refresh.AddToClassList("zs-imgui-button"); refresh.style.height = 24f; refresh.style.flexGrow = 1; refresh.style.flexBasis = 0;
+            refresh.AddToClassList("zs-imgui-button"); refresh.AddToClassList("zs-dependency-map__refresh");
             actions.Add(refresh);
             if (report.hasDiscrepancies) {
                 int fixCount = report.staleEntries.Count + report.missingEntries.Count + report.invalidEntries.Count;
                 var reconcile = new Button(() => { report.Reconcile(); RefreshAnalysis(); buildReport = ZoundsBuildReport.Generate(analyzer); Rebuild(); }) { text = $"Reconcile ({fixCount} fixes)" };
                 reconcile.AddToClassList("zs-imgui-button"); reconcile.AddToClassList("zs-reconcile");
-                reconcile.style.height = 24f; reconcile.style.flexGrow = 1; reconcile.style.flexBasis = 0;
+                reconcile.AddToClassList("zs-dependency-map__reconcile");
                 actions.Add(reconcile);
             }
             into.Add(actions);
@@ -585,7 +585,7 @@ namespace Laubrary.Zounds.Uitk {
         static VisualElement Pair(string label, string value) {
             var r = Row();
             var a = Rich(label); a.AddToClassList("zs-paircol");   // the label column in the editor's label style, the value mini
-            var b = Rich(value, "zs-mini"); b.style.flexGrow = 1;
+            var b = Rich(value, "zs-mini"); b.AddToClassList("zs-dependency-map__summary-value");
             r.Add(a); r.Add(b);
             return r;
         }
@@ -596,7 +596,7 @@ namespace Laubrary.Zounds.Uitk {
             if (expanded)
                 foreach (var p in paths) {
                     var r = Row();
-                    var l = Rich(p, "zs-mini"); l.style.flexGrow = 1;
+                    var l = Rich(p, "zs-mini"); l.AddToClassList("zs-dependency-map__path-list-label");
                     r.Add(l);
                     r.Add(MiniButton("Ping", 35f, () => Ping(p)));
                     box.Add(r);
@@ -626,7 +626,7 @@ namespace Laubrary.Zounds.Uitk {
                     foreach (var z in deps) {
                         var r = Row();
                         r.Add(PlayableZound(z, true, "  "));
-                        if (z.parentId != 0) { var loc = Rich(" <color=#888888>(local)</color>"); loc.style.width = 50f; r.Add(loc); }
+                        if (z.parentId != 0) { var loc = Rich(" <color=#888888>(local)</color>"); loc.AddToClassList("zs-dependency-map__shipping-clip-loc"); r.Add(loc); }
                         box.Add(r);
                     }
                 }

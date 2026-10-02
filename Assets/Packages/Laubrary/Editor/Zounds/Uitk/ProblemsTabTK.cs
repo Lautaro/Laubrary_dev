@@ -35,16 +35,16 @@ namespace Laubrary.Zounds.Uitk {
                                   "warned about once in the console. Nothing here ever stopped a sound: a miss only does nothing. Not saved.";
 
         public ProblemsTabTK() {
-            style.flexShrink = 1; style.flexGrow = 1;
+            AddToClassList("zs-problems__root");
             box = new VisualElement();
             box.AddToClassList("zs-box-default");
-            box.style.flexShrink = 1; box.style.flexGrow = 1;
+            box.AddToClassList("zs-problems__box");
             Add(box);
 
             const float h = 30f;
             var bar = new VisualElement();
             bar.AddToClassList("zs-toolbar");
-            bar.style.flexDirection = FlexDirection.Row; bar.style.flexShrink = 0; bar.style.height = h;
+            bar.AddToClassList("zs-problems__bar"); bar.AddToClassList("zs-problems__toolbar-height");
             bar.Add(ZequenceEditorWindowTK.Gap(5f));
             var clear = ZS.Button("Clear", "Empties the list. Anything that happens again comes back, with its console warning.", "Flat",
                 () => ZoundDiagnostics.Clear(), ZUICornerMask.All, 70f, h);
@@ -53,7 +53,7 @@ namespace Laubrary.Zounds.Uitk {
             bar.Add(ZequenceEditorWindowTK.Gap(ZS.MediumSpacing));
             summary = new Label { tooltip = SummaryTip };
             summary.AddToClassList("zs-lbl");
-            summary.style.unityTextAlign = TextAnchor.MiddleLeft; summary.style.width = 160f; summary.style.flexShrink = 0;
+            summary.AddToClassList("zs-problems__summary");
             bar.Add(summary);
             box.Add(bar);
             box.Add(ZequenceEditorWindowTK.Space(ZS.RowSpace));
@@ -62,7 +62,7 @@ namespace Laubrary.Zounds.Uitk {
             listHost = new VisualElement();
             box.Add(listHost);
             scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.flexShrink = 1; scroll.style.flexGrow = 1;
+            scroll.AddToClassList("zs-problems__scroll");
             box.Add(scroll);
             Build();
         }
@@ -167,16 +167,16 @@ namespace Laubrary.Zounds.Uitk {
 
         static VisualElement RowBox() {
             var r = new VisualElement();
-            r.style.flexDirection = FlexDirection.Row; r.style.flexShrink = 0; r.style.height = RowH; r.style.alignItems = Align.Center;
-            r.style.paddingLeft = 6f;
+            r.AddToClassList("zs-problems__row-box-row");
+            r.AddToClassList("zs-problems__row-box-row");
             return r;
         }
 
         static Label Cell(string text, float w, string tip) {
             var l = new Label(text) { tooltip = tip };
             l.AddToClassList("zs-lbl");
-            l.style.width = w; l.style.flexShrink = 0; l.style.overflow = Overflow.Hidden; l.style.textOverflow = TextOverflow.Ellipsis;
-            l.style.unityTextAlign = TextAnchor.MiddleLeft;
+            l.style.width = w; l.AddToClassList("zs-problems__cell");
+            l.AddToClassList("zs-problems__cell");
             return l;
         }
 

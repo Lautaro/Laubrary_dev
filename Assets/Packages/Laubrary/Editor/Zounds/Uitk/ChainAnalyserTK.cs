@@ -31,7 +31,7 @@ namespace Laubrary.Zounds.Uitk {
 
         public ChainAnalyserTK(Zound zound) {
             this.zound = zound;
-            style.flexShrink = 0;
+            AddToClassList("zs-chain-analyser__root");
             schedule.Execute(Tick).Every(33);
             RegisterCallback<AttachToPanelEvent>(_ => Tick());
         }
@@ -60,7 +60,7 @@ namespace Laubrary.Zounds.Uitk {
 
         static VisualElement HRow(float h) {
             var r = new VisualElement();
-            r.style.flexDirection = FlexDirection.Row; r.style.flexShrink = 0;
+            r.AddToClassList("zs-chain-analyser__row");
             if (h > 0f) r.style.height = h;
             return r;
         }
@@ -76,7 +76,7 @@ namespace Laubrary.Zounds.Uitk {
         /// <summary>The old StatusLine: a reserved single-line row, the message clipped into it with the whole text on hover.</summary>
         Label StatusLine(Func<string> text, Func<string> tip = null) {
             var l = Mini("", NoteColour);
-            l.style.height = EditorGUIUtility.singleLineHeight; l.style.flexShrink = 0;
+            l.style.height = EditorGUIUtility.singleLineHeight; l.AddToClassList("zs-chain-analyser__status-line-label");
             perFrame.Add(() => { var t = text(); l.text = t ?? ""; l.tooltip = t == null ? "" : tip?.Invoke() ?? t; });
             return l;
         }
@@ -103,7 +103,7 @@ namespace Laubrary.Zounds.Uitk {
             }
             else {
                 Add(LiveGraph());
-                var spacer = new VisualElement(); spacer.style.height = 13f; spacer.style.flexShrink = 0;
+                var spacer = new VisualElement(); spacer.AddToClassList("zs-chain-analyser__spacer");
                 Add(spacer);
                 Add(StatusLine(() => ChainAnalyserPanel.LiveFooter(liveplaying)));
             }
@@ -121,15 +121,15 @@ namespace Laubrary.Zounds.Uitk {
                 r.Add(l);
                 return r;
             }
-            var gap = new VisualElement(); gap.style.width = 6f; gap.style.flexShrink = 0; r.Add(gap);
+            var gap = new VisualElement(); gap.AddToClassList("zs-chain-analyser__header-gap"); r.Add(gap);
             Tab(r, ChainAnalyserPanel.View.Combined, "Combined");
             Tab(r, ChainAnalyserPanel.View.LiveSpectrum, "Spectrum");
             Tab(r, ChainAnalyserPanel.View.LiveOverTime, "Over time");
             Tab(r, ChainAnalyserPanel.View.LiveWaveform, "Waveform");
-            var flex = new VisualElement(); flex.style.flexGrow = 1; r.Add(flex);
+            var flex = new VisualElement(); flex.AddToClassList("zs-chain-analyser__header-spacer"); r.Add(flex);
             if (model.view == ChainAnalyserPanel.View.Combined) {
                 var note = Mini(ChainAnalyserPanel.Bands + " bands, 20 Hz–20 kHz", NoteColour);
-                note.style.width = 150f; note.style.height = EditorGUIUtility.singleLineHeight;
+                note.AddToClassList("zs-chain-analyser__header-note"); note.style.height = EditorGUIUtility.singleLineHeight;
                 note.tooltip = "The whole range of hearing, 20 Hz to 20 kHz, in " + ChainAnalyserPanel.Bands + " bands, with the vertical scale fitted to whatever was "
                              + "measured. The bars are live: every frame they show what the chain does at that instant.";
                 r.Add(note);
@@ -140,7 +140,7 @@ namespace Laubrary.Zounds.Uitk {
                 r.Add(l);
                 // EditorGUILayout.Slider: UI Toolkit's own slider with its number box, 90 px, 0.25 to 16.
                 var s = new Slider(0.25f, 16f) { value = model.Live.gain, showInputField = true };
-                s.style.width = 90f; s.style.marginLeft = 0; s.style.marginRight = 3f;   // IMGUI's 3 px field margin
+                s.AddToClassList("zs-chain-analyser__mode-selector");   // IMGUI's 3 px field margin
                 s.AddToClassList("zs-narrowslider");
                 s.RegisterValueChangedCallback(e => model.Live.gain = e.newValue);
                 r.Add(s);
@@ -159,9 +159,9 @@ namespace Laubrary.Zounds.Uitk {
         VisualElement Lane(int r) {
             var row = HRow(ChainAnalyserPanel.LaneHeight);
             var label = Mini("");
-            label.style.width = ChainAnalyserPanel.LaneLabelWidth; label.style.flexShrink = 0;
+            label.AddToClassList("zs-chain-analyser__lane-label");
             var canvas = new ZuiRectCanvas((area, fill) => model.PaintLane(r, area, playTime, following, fill));
-            canvas.style.flexGrow = 1; canvas.style.marginTop = 1f; canvas.style.marginBottom = 1f;
+            canvas.AddToClassList("zs-chain-analyser__lane-canvas");
             row.Add(label); row.Add(canvas);
             perFrame.Add(() => {
                 model.LaneText(r, following, out string text, out string tip);
@@ -173,18 +173,18 @@ namespace Laubrary.Zounds.Uitk {
 
         VisualElement BarsGraph() {
             var holder = new VisualElement();
-            holder.style.height = GraphH; holder.style.flexShrink = 0;
+            holder.AddToClassList("zs-chain-analyser__bars-graph-holder");
             int unmeasurable = 0;
             var canvas = new ZuiRectCanvas((area, fill) => {
                 if (Chain == null || Chain.IsEmpty || !model.HasPicture) { ChainAnalyserPanel.PaintEmptyGraph(area, fill); unmeasurable = 0; }
                 else unmeasurable = model.PaintBars(area, hoveredBand, fill);
             });
-            canvas.style.position = Position.Absolute; canvas.style.left = 0; canvas.style.right = 0; canvas.style.top = 0; canvas.style.bottom = 0;
+            canvas.AddToClassList("zs-chain-analyser__bars-graph-canvas");
             holder.Add(canvas);
             Label Scale(float top, bool fromBottom) {
                 var l = Mini("", new Color(0.7f, 0.7f, 0.76f), TextAnchor.UpperLeft);
-                l.style.position = Position.Absolute; l.style.left = 3f; l.style.width = 70f; l.style.height = 14f;
-                if (fromBottom) l.style.bottom = 1f; else l.style.top = top;
+                l.AddToClassList("zs-chain-analyser__axis-label");
+                if (fromBottom) l.AddToClassList("zs-chain-analyser__axis-label--bottom"); else l.style.top = top;
                 holder.Add(l);
                 return l;
             }
@@ -192,7 +192,7 @@ namespace Laubrary.Zounds.Uitk {
             var zero = Scale(GraphH * 0.5f - 15f, false);
             var bottom = Scale(0f, true);
             var hover = Mini("", new Color(0.95f, 0.95f, 1f), TextAnchor.UpperRight);
-            hover.style.position = Position.Absolute; hover.style.right = 4f; hover.style.top = 1f; hover.style.width = 356f; hover.style.height = 14f;
+            hover.AddToClassList("zs-chain-analyser__bars-graph-hover");
             holder.Add(hover);
             holder.RegisterCallback<PointerMoveEvent>(e => hoveredBand = ChainAnalyserPanel.BandAt(e.localPosition.x / Mathf.Max(1f, holder.layout.width)));
             holder.RegisterCallback<PointerLeaveEvent>(_ => hoveredBand = -1);
@@ -208,11 +208,11 @@ namespace Laubrary.Zounds.Uitk {
 
         VisualElement FrequencyLabels() {
             var row = new VisualElement();
-            row.style.height = 13f; row.style.flexShrink = 0;
+            row.AddToClassList("zs-chain-analyser__frequency-labels-row");
             var labels = new List<(Label l, float x01)>();
             foreach (var (text, x01) in ChainAnalyserPanel.FrequencyLabels()) {
                 var l = Mini(text, new Color(0.6f, 0.6f, 0.65f), TextAnchor.UpperCenter);
-                l.style.position = Position.Absolute; l.style.top = 0; l.style.width = 40f; l.style.height = 13f;
+                l.AddToClassList("zs-chain-analyser__frequency-labels-label");
                 row.Add(l); labels.Add((l, x01));
             }
             // Only when there is a picture: the empty graph reserves the row but draws no labels, as the old one does.
@@ -236,17 +236,17 @@ namespace Laubrary.Zounds.Uitk {
 
         VisualElement LiveGraph() {
             var holder = new VisualElement();
-            holder.style.height = GraphH; holder.style.flexShrink = 0;
+            holder.AddToClassList("zs-chain-analyser__live-graph-holder");
             var mode = model.view == ChainAnalyserPanel.View.LiveSpectrum ? LiveOutputView.Mode.Spectrum
                      : model.view == ChainAnalyserPanel.View.LiveOverTime ? LiveOutputView.Mode.Spectrogram
                      : LiveOutputView.Mode.Waveform;
             var canvas = new ZuiRectCanvas((area, fill) => model.Live.Paint(area, mode, fill));
-            canvas.style.position = Position.Absolute; canvas.style.left = 0; canvas.style.right = 0; canvas.style.top = 0; canvas.style.bottom = 0;
+            canvas.AddToClassList("zs-chain-analyser__live-graph-canvas");
             holder.Add(canvas);
             var peak = Mini("", null, TextAnchor.UpperRight);
-            peak.style.position = Position.Absolute; peak.style.left = 0; peak.style.right = 6f; peak.style.top = 4f; peak.style.height = 16f;
+            peak.AddToClassList("zs-chain-analyser__live-graph-peak");
             var state = Mini("", null, TextAnchor.UpperLeft);
-            state.style.position = Position.Absolute; state.style.left = 6f; state.style.right = 6f; state.style.top = 4f; state.style.height = 16f;
+            state.AddToClassList("zs-chain-analyser__live-graph-state");
             holder.Add(peak); holder.Add(state);
             perFrame.Insert(0, () => { liveplaying = model.Live.Sample(out liveSource); });
             perFrame.Add(() => {
@@ -268,12 +268,12 @@ namespace Laubrary.Zounds.Uitk {
             for (int i = 0; i < chain.nodes.Count; i++) {
                 int ni = i;
                 var row = new VisualElement();
-                row.style.height = EditorGUIUtility.singleLineHeight; row.style.flexShrink = 0;
+                row.style.height = EditorGUIUtility.singleLineHeight; row.AddToClassList("zs-chain-analyser__roster-row");
                 var dot = new VisualElement();
-                dot.style.position = Position.Absolute; dot.style.left = 0; dot.style.width = 9f; dot.style.height = 9f;
+                dot.AddToClassList("zs-chain-analyser__roster-dot");
                 dot.style.top = (EditorGUIUtility.singleLineHeight - 9f) * 0.5f;
                 var text = Mini("");
-                text.style.position = Position.Absolute; text.style.left = 13f; text.style.right = 0; text.style.top = 0; text.style.bottom = 0;
+                text.AddToClassList("zs-chain-analyser__roster-text");
                 row.Add(dot); row.Add(text);
                 Add(row);
                 perFrame.Add(() => {

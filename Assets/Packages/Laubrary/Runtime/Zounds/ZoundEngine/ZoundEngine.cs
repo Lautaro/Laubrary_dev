@@ -68,8 +68,84 @@ namespace Laubrary.Zounds {
         private Dictionary<Zound, float> zoundLastPlayedTimes = new Dictionary<Zound, float>();
         private Dictionary<Zound, LinkedList<ZoundToken>> cullingGroups = new Dictionary<Zound, LinkedList<ZoundToken>>();
         private List<ZoundToken> tokens = new List<ZoundToken>();
+        private readonly List<RetriggerRun> retriggerRuns = new List<RetriggerRun>();
 
         private const float missingZoundsDuration = 10f;
+
+        // This is deliberately a normal main-thread scheduler. It only decides when a new voice should be
+        // requested; every voice itself still enters the Scriptable Audio Pipeline exactly as a normal play.
+        // Keeping it here also means a Stop All or cache clear can cancel pending plays before they restart sound.
+        private sealed class RetriggerRun {
+            private const float MinStartGap = 0.05f;
+
+            private readonly Zound zound;
+            private ZoundArgs args;
+            private readonly int count;
+            private int started;
+            private readonly double runStart;
+            private double period = -1d;
+            private double nextAt = -1d;
+            private double plannedStartAt;
+            private ZoundToken lastPlay;
+
+            public RetriggerRun(Zound zound, ZoundArgs args, ZoundToken firstPlay) {
+                this.zound = zound;
+                this.args = args;
+                count = zound.retriggerCount < 2 ? 4 : Mathf.Clamp(zound.retriggerCount, 2, 32);
+                started = 1;
+                runStart = Time.realtimeSinceStartup;
+                plannedStartAt = runStart;
+                lastPlay = firstPlay;
+                ScheduleNext();
+            }
+
+            /// <summary>True once every authored play has been started. The final voice keeps running independently.</summary>
+            public bool Complete => started >= count;
+
+            public void Tick() {
+                if (Complete) return;
+                double now = Time.realtimeSinceStartup;
+                if (zound.retriggerGapMode == Zound.RetriggerGap.FromEnd && nextAt < 0d) {
+                    if (lastPlay == null || lastPlay.state == ZoundToken.State.Killed) nextAt = now + Mathf.Max(0f, zound.retriggerGap);
+                }
+                else if (zound.retriggerGapMode == Zound.RetriggerGap.Steady && period < 0d && nextAt < 0d) {
+                    if (lastPlay == null || lastPlay.state == ZoundToken.State.Killed) {
+                        period = System.Math.Max(MinStartGap, (now - runStart) + Mathf.Max(0f, zound.retriggerGap));
+                        nextAt = runStart + started * period;
+                    }
+                }
+
+                if (nextAt >= 0d && now >= nextAt) Fire();
+            }
+
+            private void ScheduleNext() {
+                switch (zound.retriggerGapMode) {
+                    case Zound.RetriggerGap.Steady:
+                        nextAt = period < 0d ? -1d : runStart + started * period;
+                        break;
+                    case Zound.RetriggerGap.FromStart:
+                        nextAt = plannedStartAt + System.Math.Max(MinStartGap, Mathf.Max(0f, zound.retriggerGap));
+                        if (nextAt < Time.realtimeSinceStartup) nextAt = Time.realtimeSinceStartup;
+                        break;
+                    case Zound.RetriggerGap.FromEnd:
+                        nextAt = -1d;
+                        break;
+                }
+            }
+
+            private void Fire() {
+                plannedStartAt = nextAt >= 0d ? nextAt : Time.realtimeSinceStartup;
+                // A retrigger is a new requested play, so it gets fresh chance/random draws; it must not be
+                // blocked by the project's ordinary per-zound cooldown or schedule another burst recursively.
+                args.suppressAuthoredRetrigger = true;
+                args.isAuthoredRetrigger = true;
+                args.ignoreCooldown = true;
+                lastPlay = PlayZound(zound, args);
+                started++;
+                nextAt = -1d;
+                if (!Complete) ScheduleNext();
+            }
+        }
 
         internal bool hasAnySoloZoundThisFrame = false;
 
@@ -113,6 +189,7 @@ namespace Laubrary.Zounds {
 #endif
             if (instance == this) {
                 instance = null;
+                retriggerRuns.Clear();
                 // Project-wide ZPOC values are runtime state: they end with the engine, like the plays they drove.
                 ZpocGlobals.ClearAll();
             }
@@ -155,6 +232,7 @@ namespace Laubrary.Zounds {
             instance.missingZounds.Clear();
             instance.cullingGroups.Clear();
             instance.tokens.Clear();
+            instance.retriggerRuns.Clear();
             instance.zoundLastPlayedTimes.Clear();
             // Tear down what is playing BEFORE throwing away what it is playing from. Without this, a cache clear
             // leaves sounds running from decoded audio and effect chains the engine believes it has dropped --
@@ -293,6 +371,7 @@ namespace Laubrary.Zounds {
 
         public static void StopAllZounds(bool cleanupPool = false) {
             var inst = Instance;
+            inst.retriggerRuns.Clear();
             foreach (var token in inst.tokens) {
                 token.Kill();
             }
@@ -357,7 +436,11 @@ namespace Laubrary.Zounds {
                 return null;
             }
 
-            return Admit(zound, zoundArgs, null);
+            var token = Admit(zound, zoundArgs, null);
+            if (token != null && zound.retriggerEnabled && !zoundArgs.suppressAuthoredRetrigger && zound.retriggerCount > 1) {
+                Instance.retriggerRuns.Add(new RetriggerRun(zound, zoundArgs, token));
+            }
+            return token;
         }
 
         /// <summary>
@@ -607,6 +690,12 @@ namespace Laubrary.Zounds {
                 }
             }
 
+            for (int i = retriggerRuns.Count - 1; i >= 0; i--) {
+                var run = retriggerRuns[i];
+                run.Tick();
+                if (run.Complete) retriggerRuns.RemoveAt(i);
+            }
+
 #if UNITY_EDITOR
             if (!Application.isPlaying && tokens.Count > 0) {
                 EditorApplication.QueuePlayerLoopUpdate();
@@ -696,6 +785,10 @@ namespace Laubrary.Zounds {
         public CompositeZound.ZoundEntry soloOverride;
         public bool bypassGlobalSolo;
         public bool ignoreCooldown;
+        /// <summary>Internal guard for an authored retrigger's follow-up plays; otherwise every follow-up would start another burst.</summary>
+        internal bool suppressAuthoredRetrigger;
+        /// <summary>Marks a follow-up play so burst diagnostics do not mistake intentional authoring for an accidental play storm.</summary>
+        internal bool isAuthoredRetrigger;
         /// <summary>The top-level token whose track settings (volume, mute, enabled...) this play follows (T-0497): set by
         /// the token itself, and passed down to every track so a Zequence can skip disabled tracks when it picks one.</summary>
         internal ZoundToken settingsRoot;

@@ -30,11 +30,11 @@ namespace Laubrary.Zounds.Uitk {
 
         static VisualElement Row() {
             var r = new VisualElement();
-            r.style.flexDirection = FlexDirection.Row; r.style.height = RowH; r.style.flexShrink = 0;
+            r.AddToClassList("zs-audition-popup__row");
             return r;
         }
 
-        static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.style.flexShrink = 0; return e; }
+        static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.AddToClassList("zs-audition-popup__gap"); return e; }
 
         static string BurstLabel(ZoundAudition s) => s.BurstRunning ? "Burst " + s.BurstDone + "/" + s.settings.count : "Burst";
 
@@ -78,7 +78,7 @@ namespace Laubrary.Zounds.Uitk {
                 "From start: the gap counts from when the previous play started, whatever its length, so plays can overlap.\n\n" +
                 "From end: the gap counts from when the previous play really finished, however long it took.",
                 i => { s.settings.mode = (AuditionGap)i; s.SaveSettings(); s.changed?.Invoke(); });
-            mode.style.height = RowH; mode.style.flexShrink = 0;
+            mode.AddToClassList("zs-audition-popup__mode");
             r2.Add(mode);
             panel.Add(r2);
 

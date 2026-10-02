@@ -101,6 +101,9 @@ namespace Laubrary.Zounds.Dsp {
         /// <summary>Called by ZoundEngine.PlayZound for every play that produced a token (children included).</summary>
         internal static void OnPlay(Zound zound, ZoundToken token, in ZoundArgs args) {
             if (!enabled || zound == null) return;
+            // A saved retrigger deliberately starts a short burst. Its first play remains visible to this
+            // diagnostic; follow-ups are marked by the scheduler so it still catches accidental storms.
+            if (args.isAuthoredRetrigger) return;
             if (!histories.TryGetValue(zound, out var h)) { h = new History(); histories[zound] = h; }
             Track(zound, h, token, in args, null);
             string clipKey = ClipKey(zound);

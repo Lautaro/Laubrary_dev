@@ -29,7 +29,6 @@ namespace Laubrary.Zounds.Uitk {
         readonly VisualElement flash;
         Rect flashRect;
 
-        static readonly Color DurationBlue = new Color32(121, 183, 255, 255);
         static readonly Color MuteOn = new Color32(107, 50, 48, 255), SoloOn = new Color(.14f, .34f, .14f, 1f);
 
         float LH => EditorGUIUtility.singleLineHeight;
@@ -38,7 +37,7 @@ namespace Laubrary.Zounds.Uitk {
         public ZequenceEntryTK(W win, CompositeZound parent, CompositeZound.ZoundEntry entry, int index, float parentPitch, float parentDelay, bool darker, bool isGroupChild) {
             this.win = win; this.parent = parent; this.entry = entry; this.index = index;
             this.parentPitch = parentPitch; this.parentDelay = parentDelay; this.isGroupChild = isGroupChild;
-            style.flexShrink = 0;
+            AddToClassList("zs-zequence-entry__root");
             found = parent.TryGetEntryZound(entry, out zound);
 
             // Height: a plain entry is fixed; a local Zequence group grows with its master envelope and its children.
@@ -52,15 +51,15 @@ namespace Laubrary.Zounds.Uitk {
 
             // Background band.
             var bg = new VisualElement { pickingMode = PickingMode.Ignore };
-            bg.style.position = Position.Absolute; bg.style.top = 0; bg.style.bottom = 0;
+            bg.AddToClassList("zs-zequence-entry__bg");
             if (isGroupChild) {
                 // The old bgRect: x + (offset − 2), width − (offset − 4): starts 8 in, ends 2 past the right edge.
-                bg.style.left = W.GroupEntryLeftOffset - 2f; bg.style.right = -2f;
-                bg.style.backgroundColor = darker ? new Color(0.25f, 0.25f, 0.25f, 0.4f) : new Color(0.45f, 0.45f, 0.45f, 0.4f);
+                bg.AddToClassList("zs-zequence-entry__background--group-child");
+                bg.AddToClassList(darker ? "zs-zequence-entry__background--group-child-dark" : "zs-zequence-entry__background--group-child-light");
             }
             else {
-                bg.style.left = 0; bg.style.right = 0;
-                bg.style.backgroundColor = darker ? new Color(0.25f, 0.25f, 0.30f, 0.22f) : new Color(0.35f, 0.35f, 0.42f, 0.15f);
+                bg.AddToClassList("zs-zequence-entry__background--plain");
+                bg.AddToClassList(darker ? "zs-zequence-entry__background--plain-dark" : "zs-zequence-entry__background--plain-light");
             }
             Add(bg);
 
@@ -70,7 +69,7 @@ namespace Laubrary.Zounds.Uitk {
 
             // The entry flash while it plays (the old FlashEntry: white, 0 → 0.25 → 0 every half second).
             flash = new VisualElement { pickingMode = PickingMode.Ignore };
-            flash.style.position = Position.Absolute; flash.style.display = DisplayStyle.None;
+            flash.AddToClassList("zs-zequence-entry__flash"); flash.style.display = DisplayStyle.None;
             Add(flash);
 
             RegisterCallback<GeometryChangedEvent>(_ => Layout());
@@ -87,7 +86,7 @@ namespace Laubrary.Zounds.Uitk {
         Label Duration() {
             var l = new Label { pickingMode = PickingMode.Ignore };
             l.AddToClassList("zs-lbl"); l.AddToClassList("zs-greymini");
-            l.style.color = DurationBlue;
+            l.AddToClassList("zs-zequence-entry__duration-label");
             Add(l);
             return l;
         }
@@ -96,8 +95,7 @@ namespace Laubrary.Zounds.Uitk {
 
         void BuildBroken() {
             var tint = new VisualElement { pickingMode = PickingMode.Ignore };
-            tint.style.position = Position.Absolute; tint.style.left = 0; tint.style.right = 0; tint.style.top = 0; tint.style.bottom = 0;
-            tint.style.backgroundColor = new Color(1f, 0.4f, 0.4f, 0.2f);
+            tint.AddToClassList("zs-zequence-entry__broken-tint");
             Add(tint);
             var title = new Label("BROKEN ENTRY"); title.AddToClassList("zs-lbl"); title.AddToClassList("zs-bold"); Add(title);
             var help = new HelpBox("Zound data is missing or invalid for this entry.", HelpBoxMessageType.Error); Add(help);
@@ -142,12 +140,12 @@ namespace Laubrary.Zounds.Uitk {
             // The track's ZPOC mark (T-0514): a dull bolt alone with no id; the lit bolt and the id as plain text with one.
             var idChip = new VisualElement { tooltip = "" };
             idChip.AddToClassList("zs-zpocchip");
-            idChip.style.flexDirection = FlexDirection.Row; idChip.style.alignItems = Align.Center;
+            idChip.AddToClassList("zs-zequence-entry__plain-id-chip");
             var idBolt = new ZpocBolt { pickingMode = PickingMode.Ignore };
-            idBolt.style.width = 12f; idBolt.style.height = 14f; idBolt.style.flexShrink = 0;
+            idBolt.AddToClassList("zs-zequence-entry__plain-id-bolt");
             var idText = new Label { pickingMode = PickingMode.Ignore };
             idText.AddToClassList("zs-zpocchip__text");
-            idText.style.flexShrink = 1;
+            idText.AddToClassList("zs-zequence-entry__plain-id-text");
             idChip.Add(idBolt); idChip.Add(idText);
             idChip.RegisterCallback<PointerDownEvent>(e => {
                 if (e.button != 0 && e.button != 1) return;
@@ -219,11 +217,11 @@ namespace Laubrary.Zounds.Uitk {
             var timelineBG = Abs(new Color(1f, 1f, 1f, 0.1f));
             var spectrumBG = Abs(es.klipWaveformBGColor);
             var wave = new Image { scaleMode = ScaleMode.StretchToFill, pickingMode = PickingMode.Ignore };
-            wave.style.position = Position.Absolute;
+            wave.AddToClassList("zs-zequence-entry__plain-wave");
             Add(wave);
             // Clicking the waveform plays/stops the entry, identical to the play button.
             var waveHit = new VisualElement();
-            waveHit.style.position = Position.Absolute;
+            waveHit.AddToClassList("zs-zequence-entry__plain-wave-hit");
             waveHit.RegisterCallback<PointerDownEvent>(e => {
                 if (e.button != 0) return;
                 CompositeZoundEditing.ToggleEntryPlay(win.zeq, ref win.entryTokens, entry);
@@ -234,12 +232,12 @@ namespace Laubrary.Zounds.Uitk {
             if (entry.volumeEnvelope.enabled) {
                 var copy = entry.volumeEnvelope.DeepCopy();
                 curve = new EnvelopeTK(copy, es.volumeEnvelopeColor) { thickness = es.volumeEnvelopeThickness };
-                curve.style.position = Position.Absolute;
+                curve.AddToClassList("zs-zequence-entry__plain-curve");
                 curve.onChanged = () => win.Modify("modify entry volume envelope", () => { entry.volumeEnvelope = copy.DeepCopy(); entry.volumeEnvelope.enabled = true; });
                 Add(curve);
             }
             var heads = new VisualElement { pickingMode = PickingMode.Ignore };
-            heads.style.position = Position.Absolute; heads.style.left = 0; heads.style.top = 0; heads.style.right = 0; heads.style.bottom = 0;
+            heads.AddToClassList("zs-zequence-entry__plain-heads");
             Add(heads);
             var preLabel = Duration(); var postLabel = Duration();
 
@@ -273,7 +271,7 @@ namespace Laubrary.Zounds.Uitk {
                 float chipRoom = Mathf.Max(18f, content.xMax - 18f - 2f - chipX);
                 float textW = string.IsNullOrEmpty(idText.text) ? 0f : idText.MeasureTextSize(idText.text, 0f, MeasureMode.Undefined, LH, MeasureMode.Exactly).x + 6f;
                 float chipW = Mathf.Clamp(14f + textW, 16f, chipRoom);
-                idChip.style.overflow = Overflow.Hidden;
+                idChip.AddToClassList("zs-zequence-entry__plain-id-chip");
                 Place(idChip, new Rect(chipX, content.y, chipW, LH));
                 Place(play, new Rect(content.xMax - 18f, content.y, 18f, LH));
                 float y = content.y + LH - 3f;
@@ -357,7 +355,7 @@ namespace Laubrary.Zounds.Uitk {
                         if (token.zound is Zequence tz && token.isRealtime && tz.mode != CompositeZound.Mode.Parallel && token.playedEntryIndex != index) continue;
                         flashing = true;
                         if (child.duration > Mathf.Epsilon) {
-                            if (n >= headPool.Count) { var h = new VisualElement { pickingMode = PickingMode.Ignore }; h.style.position = Position.Absolute; heads.Add(h); headPool.Add(h); }
+                            if (n >= headPool.Count) { var h = new VisualElement { pickingMode = PickingMode.Ignore }; h.AddToClassList("zs-zequence-entry__plain-h"); heads.Add(h); headPool.Add(h); }
                             var head = headPool[n++];
                             head.style.display = DisplayStyle.Flex;
                             head.style.backgroundColor = ZoundsProject.Instance.projectSettings.editorStyle.playerHeadColor;
@@ -382,7 +380,7 @@ namespace Laubrary.Zounds.Uitk {
 
         VisualElement Abs(Color c) {
             var e = new VisualElement { pickingMode = PickingMode.Ignore };
-            e.style.position = Position.Absolute; e.style.backgroundColor = c;
+            e.AddToClassList("zs-zequence-entry__positioned-control"); e.style.backgroundColor = c;
             Add(e);
             return e;
         }
@@ -493,7 +491,7 @@ namespace Laubrary.Zounds.Uitk {
 
             // Right: the local Zequence's own fields, the button strip, the delay, its master envelope.
             var fieldsRow = new ZoundFieldsRowTK(comp, true, null, drawName: false, drawTags: false);
-            fieldsRow.style.position = Position.Absolute;
+            fieldsRow.AddToClassList("zs-zequence-entry__group-fields-row");
             Add(fieldsRow);
             win.refreshers.Add(fieldsRow.Sync);
             var renameBtn = ZS.Button(entry.editor_isRenaming ? "Done" : "Rename", "", "RichButton", () => {
@@ -520,7 +518,7 @@ namespace Laubrary.Zounds.Uitk {
                 envBG = Abs(new Color(0.75f, 0.75f, 0.75f, 0.1f));
                 var copy = entry.volumeEnvelope.DeepCopy();
                 curve = new EnvelopeTK(copy, es.volumeEnvelopeColor) { thickness = es.volumeEnvelopeThickness };
-                curve.style.position = Position.Absolute;
+                curve.AddToClassList("zs-zequence-entry__group-curve");
                 curve.onChanged = () => win.Modify("modify group volume envelope", () => { entry.volumeEnvelope = copy.DeepCopy(); entry.volumeEnvelope.enabled = true; });
                 Add(curve);
             }
@@ -533,7 +531,7 @@ namespace Laubrary.Zounds.Uitk {
                 for (int i = 0; i < comp.zoundEntries.Count; i++) {
                     float childPitch = win.zeq.minPitch * comp.minPitch;
                     var child = new ZequenceEntryTK(win, comp, comp.zoundEntries[i], i, childPitch, entry.delay / childPitch, darker, true);
-                    child.style.position = Position.Absolute;
+                    child.AddToClassList("zs-zequence-entry__group-child");
                     Add(child); children.Add(child);
                     darker = !darker;
                 }

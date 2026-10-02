@@ -22,15 +22,15 @@ namespace Laubrary.Zounds.Uitk {
         VisualElement themeRow;
 
         public SettingsTabTK() {
-            style.flexGrow = 1; style.flexShrink = 1;
+            AddToClassList("zs-settings__root");
             so = new SerializedObject(ZoundsProject.Instance);
             var box = new VisualElement();
             box.AddToClassList("zs-box-default");
-            box.style.flexGrow = 1; box.style.flexShrink = 1;
+            box.AddToClassList("zs-settings__box");
             Add(box);
             var scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.AddToClassList("zs-settingsscroll");
-            scroll.style.flexGrow = 1; scroll.style.flexShrink = 1;
+            scroll.AddToClassList("zs-settings__scroll");
             box.Add(scroll);
             Build(scroll);
         }
@@ -131,16 +131,16 @@ namespace Laubrary.Zounds.Uitk {
         VisualElement ThicknessColor(string label, string thicknessPath, string colorPath, float lw) {
             var r = new VisualElement();
             r.AddToClassList("zs-settingsrow");
-            r.style.flexDirection = FlexDirection.Row;
+            r.AddToClassList("zs-settings__thickness-color-row");
             var l = new Label(label);
             l.AddToClassList("zs-lbl");
-            l.style.width = lw; l.style.flexShrink = 0;
+            l.AddToClassList("zs-settings__thickness-color-label");
             r.Add(l);
             var t = Field<FloatField, float>(new FloatField(), thicknessPath, 0f, p => p.floatValue, (p, v) => p.floatValue = v);
-            t.style.width = 45f; t.style.flexShrink = 0;
+            t.AddToClassList("zs-settings__thickness-field");
             r.Add(t);
             var c = Field<ColorField, Color>(new ColorField(), colorPath, 0f, p => p.colorValue, (p, v) => p.colorValue = v);
-            c.style.flexGrow = 1;
+            c.AddToClassList("zs-settings__color-field");
             r.Add(c);
             return r;
         }
@@ -151,13 +151,13 @@ namespace Laubrary.Zounds.Uitk {
             var host = new VisualElement();
             var r = new VisualElement();
             r.AddToClassList("zs-settingsrow");
-            r.style.flexDirection = FlexDirection.Row;
+            r.AddToClassList("zs-settings__external-root-row");
             var l = new Label("External Source Root");
-            l.AddToClassList("zs-lbl"); l.style.width = lw; l.style.flexShrink = 0;
+            l.AddToClassList("zs-lbl"); l.AddToClassList("zs-settings__external-root-label");
             r.Add(l);
             var path = new TextField { isReadOnly = true };
             path.AddToClassList("zs-settingsfield");
-            path.style.flexGrow = 1;
+            path.AddToClassList("zs-settings__external-root-path");
             r.Add(path);
             var browse = new Button(() => {
                 string start = ProjectSettingsTab.ExternalSourceRoot;
@@ -166,10 +166,10 @@ namespace Laubrary.Zounds.Uitk {
                     if (!string.IsNullOrEmpty(selected)) ProjectSettingsTab.ExternalSourceRoot = selected;
                 };
             }) { text = "Browse" };
-            browse.AddToClassList("zs-imgui-button"); browse.style.width = 60f;
+            browse.AddToClassList("zs-imgui-button"); browse.AddToClassList("zs-settings__external-root-browse");
             r.Add(browse);
             var clear = new Button(() => ProjectSettingsTab.ExternalSourceRoot = "") { text = "Clear" };
-            clear.AddToClassList("zs-imgui-button"); clear.style.width = 50f;
+            clear.AddToClassList("zs-imgui-button"); clear.AddToClassList("zs-settings__external-root-clear");
             r.Add(clear);
             host.Add(r);
             var status = new Label();
@@ -194,16 +194,16 @@ namespace Laubrary.Zounds.Uitk {
             themeRow.Clear();
             themes = ProjectSettingsTab.ThemeNames();
             var r = new VisualElement();
-            r.style.flexDirection = FlexDirection.Row;
+            r.AddToClassList("zs-settings__theme-row-row");
             var names = new List<string>(themes);
             var popup = new PopupField<string>("Available Themes", names, -1);
             popup.AddToClassList("zs-settingsfield");
-            popup.labelElement.style.minWidth = popup.labelElement.style.width = lw - 3f;
-            popup.style.flexGrow = 1;
+            popup.labelElement.AddToClassList("zs-settings__theme-row-popup-label-element");
+            popup.AddToClassList("zs-settings__theme-row-popup");
             popup.RegisterValueChangedCallback(e => { if (!string.IsNullOrEmpty(e.newValue)) ProjectSettingsTab.ApplyTheme(e.newValue); });
             r.Add(popup);
             var refresh = new Button(() => BuildThemeRow(lw)) { text = "Refresh" };
-            refresh.AddToClassList("zs-imgui-button"); refresh.style.width = 60f;
+            refresh.AddToClassList("zs-imgui-button"); refresh.AddToClassList("zs-settings__theme-row-refresh");
             r.Add(refresh);
             themeRow.Add(r);
         }

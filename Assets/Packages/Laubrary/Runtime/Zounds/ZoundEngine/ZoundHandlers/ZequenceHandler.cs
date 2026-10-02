@@ -317,6 +317,7 @@ namespace Laubrary.Zounds {
                     soloOverride = soloOverride,
                     bypassGlobalSolo = true,
                     ignoreCooldown = args.ignoreCooldown,
+                    isAuthoredRetrigger = args.isAuthoredRetrigger,
                     repeatEntry = data.repeatEnabled ? data : null,
                     pitchRandomFactor = pitchRandomFactor,
                     volumeRandomFactor = volumeRandomFactor,

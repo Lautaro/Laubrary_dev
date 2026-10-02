@@ -39,6 +39,7 @@ namespace Laubrary.Zounds.Uitk {
         string builtSig;
         ZoundFieldsRowTK fields;
         Button playButton;
+        ZuiToggleButton retriggerButton;
 
         /// <summary>
         /// Opens this Zequence's editor — the main one since 2026-09-28. One that is already open is brought forward
@@ -151,7 +152,7 @@ namespace Laubrary.Zounds.Uitk {
             root.AddToClassList("zs-zequence");
             // The old window draws its fields row from the very top of the window (no leading row space, unlike the Klip
             // window), so none of the Klip window's 3 px origin offset applies here (measured: every row 3.1 px low with it).
-            root.style.paddingTop = 0;
+            root.AddToClassList("zs-zequence-editor__root");
             refreshers.Clear(); liveRefreshers.Clear();
             zeq = ZoundsProject.isJSONLoaded ? FindZequence(targetZoundID) : null;
             if (zeq == null) { root.Add(new Label(ZoundsProject.isJSONLoaded ? "Zequence no longer exists in the project." : "Zounds Project is not loaded.")); return; }
@@ -165,7 +166,7 @@ namespace Laubrary.Zounds.Uitk {
 
             var box = new VisualElement();
             box.AddToClassList("zs-box-default");
-            box.style.flexGrow = 1;
+            box.AddToClassList("zs-zequence-editor__box");
             root.Add(box);
             box.Add(Toolbar());
             box.Add(Space(5f));
@@ -177,7 +178,7 @@ namespace Laubrary.Zounds.Uitk {
             }
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.flexGrow = 0; scroll.style.flexShrink = 1;
+            scroll.AddToClassList("zs-zequence-editor__scroll");
             box.Add(scroll);
             bool darker = false;
             for (int i = 0; i < zeq.zoundEntries.Count; i++) {
@@ -193,9 +194,9 @@ namespace Laubrary.Zounds.Uitk {
             root.schedule.Execute(LiveTick).Every(33);
         }
 
-        internal static VisualElement Space(float h) { var e = new VisualElement(); e.style.height = h; e.style.flexShrink = 0; return e; }
-        internal static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.style.flexShrink = 0; return e; }
-        internal static VisualElement Flex() { var e = new VisualElement(); e.style.flexGrow = 1; return e; }
+        internal static VisualElement Space(float h) { var e = new VisualElement(); e.style.height = h; e.AddToClassList("zs-zequence-editor__space"); return e; }
+        internal static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.AddToClassList("zs-zequence-editor__gap"); return e; }
+        internal static VisualElement Flex() { var e = new VisualElement(); e.AddToClassList("zs-zequence-editor__spacer"); return e; }
 
         /// <summary>Everything that decides the tree's shape; when it changes, the window is rebuilt.</summary>
         string Signature() {
@@ -224,6 +225,7 @@ namespace Laubrary.Zounds.Uitk {
             if (FindZequence(targetZoundID) != zeq || Signature() != builtSig) { EnsureEnvelopes(); Rebuild(); return; }
             fields?.Sync();
             SyncPlayButton();
+            SyncRetriggerButton();
             foreach (var r in refreshers) r();
         }
 
@@ -255,11 +257,11 @@ namespace Laubrary.Zounds.Uitk {
         VisualElement Toolbar() {
             var r = new VisualElement();
             r.AddToClassList("zs-zeq-toolbar");
-            r.style.flexDirection = FlexDirection.Row; r.style.flexShrink = 0; r.style.alignItems = Align.FlexStart;
+            r.AddToClassList("zs-zequence-editor__toolbar-row");
             if (zeq.mode == CompositeZound.Mode.Randomizer) {
                 var noPlay = new IntegerField("No-Play") { value = zeq.noPlayWeight, tooltip = "Chance weight for this randomizer to not play any sound." };
                 noPlay.AddToClassList("zs-imgui-field"); noPlay.AddToClassList("zs-label-50");
-                noPlay.style.width = 120f;
+                noPlay.AddToClassList("zs-zequence-editor__toolbar-no-play");
                 noPlay.RegisterValueChangedCallback(e => Modify("change no play weight", () => zeq.noPlayWeight = e.newValue));
                 refreshers.Add(() => { if (noPlay.focusController?.focusedElement != noPlay) noPlay.SetValueWithoutNotify(zeq.noPlayWeight); });
                 r.Add(noPlay);
@@ -267,12 +269,12 @@ namespace Laubrary.Zounds.Uitk {
             r.Add(Flex());
             var mode = new EnumField("Mode", zeq.mode);
             mode.AddToClassList("zs-imgui-field"); mode.AddToClassList("zs-label-38");
-            mode.style.width = 140f;
+            mode.AddToClassList("zs-zequence-editor__toolbar-mode");
             mode.RegisterValueChangedCallback(e => Modify("change zequence mode", () => zeq.mode = (CompositeZound.Mode)e.newValue));
             r.Add(mode);
             var duration = new FloatField("Duration") { tooltip = "This is only used to determine editor width, and doesn't affect runtime behaviour." };
             duration.AddToClassList("zs-imgui-field"); duration.AddToClassList("zs-label-55");
-            duration.style.width = 130f;
+            duration.AddToClassList("zs-zequence-editor__toolbar-duration");
             duration.SetValueWithoutNotify(zeq.editor_maxDuration / zeq.minPitch);
             duration.RegisterValueChangedCallback(e => Modify("change max duration", () => {
                 zeq.editor_maxDuration = e.newValue * zeq.minPitch;
@@ -294,7 +296,7 @@ namespace Laubrary.Zounds.Uitk {
             r.Add(Gap(4f + 6f));
             var auto = new Toggle { text = "Auto-duration", value = autoDuration, tooltip = "Automatically set Duration to the length of the longest nested klip on every change." };
             auto.AddToClassList("zs-toggleleft");
-            auto.style.width = 105f;
+            auto.AddToClassList("zs-zequence-editor__toolbar-auto");
             auto.RegisterValueChangedCallback(e => { autoDuration = e.newValue; if (autoDuration) CompositeZoundEditing.AutoApplyDuration(zeq); Tick(); });
             r.Add(auto);
             r.Add(Gap(5f));
@@ -302,6 +304,17 @@ namespace Laubrary.Zounds.Uitk {
                                () => EditorTools.ZoundGcStressTest.Run(IsPlaying()), ZUICornerMask.All, 72f, -1f);
             gc.AddToClassList("zs-layoutbutton");
             r.Add(gc);
+            r.Add(Gap(5f));
+            retriggerButton = ZS.Toggle("Retrigger", "When enabled, every trigger starts this Zequence several times. Right-click to set plays, gap and timing.", zeq.retriggerEnabled,
+                value => { Modify("toggle zequence retrigger", () => { if (value) zeq.EnableRetrigger(); else zeq.retriggerEnabled = false; }); SyncRetriggerButton(); },
+                "RichToggle", ZUICornerMask.All, 88f, EditorGUIUtility.singleLineHeight);
+            retriggerButton.AddToClassList("zs-layoutbutton");
+            retriggerButton.RegisterCallback<PointerDownEvent>(e => {
+                if (e.button != 1) return;
+                e.StopPropagation();
+                RetriggerPopupTK.Show(retriggerButton, zeq, Tick);
+            });
+            r.Add(retriggerButton);
             r.Add(Gap(5f));
             playButton = ZS.Button("Play", "", "Default", () => {
                 EnsureAudition();
@@ -320,7 +333,17 @@ namespace Laubrary.Zounds.Uitk {
             });
             r.Add(playButton);
             SyncPlayButton();
+            SyncRetriggerButton();
             return r;
+        }
+
+        void SyncRetriggerButton() {
+            if (retriggerButton == null || zeq == null) return;
+            retriggerButton.SetValueWithoutNotify(zeq.retriggerEnabled);
+            retriggerButton.text = zeq.retriggerEnabled ? "Retrigger " + RetriggerPopupTK.Summary(zeq) : "Retrigger";
+            retriggerButton.tooltip = zeq.retriggerEnabled
+                ? "Every trigger starts this Zequence " + zeq.retriggerCount + " times. Right-click to change plays, gap and timing."
+                : "Enable several plays for every trigger. Right-click to set plays, gap and timing.";
         }
 
         void RemoveZound() {
@@ -345,11 +368,11 @@ namespace Laubrary.Zounds.Uitk {
             float lh = EditorGUIUtility.singleLineHeight;
             bool enabled = zeq.masterVolumeEnvelope.enabled;
             var rect = new VisualElement();
-            rect.style.height = enabled ? EntryHeight : lh * 2f + 10f; rect.style.flexShrink = 0;
+            rect.style.height = enabled ? EntryHeight : lh * 2f + 10f; rect.AddToClassList("zs-zequence-editor__master-section-rect");
             var label = new Label("MASTER");
             label.AddToClassList("zs-lbl"); label.AddToClassList("zs-text-subheader"); label.AddToClassList("zs-subheader");
             Place(label, 4f, 4f, LeftSectionWidth, lh);
-            label.style.unityTextAlign = TextAnchor.UpperLeft;
+            label.AddToClassList("zs-zequence-editor__master-section-label");
             rect.Add(label);
             var use = ZS.Toggle("Use Volume Envelope", "", enabled, v => Modify("toggle master volume envelope", () => zeq.masterVolumeEnvelope.enabled = v),
                                 "Default", ZUICornerMask.None, LeftSectionWidth, lh);
@@ -358,16 +381,16 @@ namespace Laubrary.Zounds.Uitk {
             if (enabled) {
                 // The master curve over the Zequence's own length, edited on a copy written back through the modify path.
                 var bg = new VisualElement { pickingMode = PickingMode.Ignore };
-                bg.style.position = Position.Absolute; bg.style.backgroundColor = new Color(0.75f, 0.75f, 0.75f, 0.1f);
+                bg.AddToClassList("zs-zequence-editor__master-section-bg");
                 rect.Add(bg);
                 var copy = zeq.masterVolumeEnvelope.DeepCopy();
                 var es = ZoundsProject.Instance.projectSettings.editorStyle;
                 var curve = new EnvelopeTK(copy, es.volumeEnvelopeColor) { thickness = es.volumeEnvelopeThickness };
-                curve.style.position = Position.Absolute;
+                curve.AddToClassList("zs-zequence-editor__master-section-curve");
                 curve.onChanged = () => Modify("modify master volume envelope", () => { zeq.masterVolumeEnvelope = copy.DeepCopy(); zeq.masterVolumeEnvelope.enabled = true; });
                 rect.Add(curve);
                 var head = new VisualElement { pickingMode = PickingMode.Ignore };
-                head.style.position = Position.Absolute; head.style.width = 1f;
+                head.AddToClassList("zs-zequence-editor__master-section-head");
                 head.style.backgroundColor = es.playerHeadColor;
                 rect.Add(head);
                 void Layout() {
@@ -397,7 +420,7 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         internal static void Place(VisualElement e, float x, float y, float w, float h) {
-            e.style.position = Position.Absolute;
+            e.AddToClassList("zs-zequence-editor__positioned-control");
             e.style.left = x; e.style.top = y;
             if (w >= 0f) e.style.width = Mathf.Max(0f, w);
             if (h >= 0f) e.style.height = Mathf.Max(0f, h);
@@ -408,7 +431,7 @@ namespace Laubrary.Zounds.Uitk {
         /// <summary>The "+ Local Klip / + Local Zequence / + Shared Zound" row under the entries (the top level's).</summary>
         VisualElement AddRow(CompositeZound parent, bool topLevel) {
             var r = new VisualElement();
-            r.style.flexDirection = FlexDirection.Row; r.style.flexShrink = 0;
+            r.AddToClassList("zs-zequence-editor__add-row-row");
             r.Add(Flex());
             Button localKlip = null, sharedZound = null;
             localKlip = ZS.Button("+ Local Klip", "", "RichButton", () => AddLocalKlip(parent, localKlip), ZUICornerMask.Left, 85f, -1f);

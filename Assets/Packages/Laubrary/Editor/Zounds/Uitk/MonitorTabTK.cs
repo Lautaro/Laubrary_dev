@@ -33,7 +33,7 @@ namespace Laubrary.Zounds.Uitk {
 
         public MonitorTabTK(ZoundsWindowTK win) {
             this.win = win;
-            style.flexShrink = 1;
+            AddToClassList("zs-monitor__root");
             box = new VisualElement();
             box.AddToClassList("zs-box-default");
             box.AddToClassList("zs-monitor");
@@ -42,7 +42,6 @@ namespace Laubrary.Zounds.Uitk {
             box.Add(ZequenceEditorWindowTK.Space(ZS.RowSpace));
 
             var head = new VisualElement();
-            head.style.flexDirection = FlexDirection.Row; head.style.flexShrink = 0;
             head.AddToClassList("zs-monitor__head");
             var recent = new Label("Recent");
             recent.AddToClassList("zs-boxtext");
@@ -63,7 +62,7 @@ namespace Laubrary.Zounds.Uitk {
             const float h = 30f;
             var r = new VisualElement();
             r.AddToClassList("zs-toolbar");
-            r.style.flexDirection = FlexDirection.Row; r.style.flexShrink = 0; r.style.height = h;
+            r.AddToClassList("zs-monitor__toolbar-row"); r.AddToClassList("zs-monitor__toolbar-height");
             r.Add(ZequenceEditorWindowTK.Gap(5f));
             pause = ZS.Button("Pause", "", "Flat", () => { ZoundsRecentHistory.paused = !ZoundsRecentHistory.paused; SyncToolbar(); }, ZUICornerMask.All, 70f, h);
             r.Add(pause);
@@ -84,7 +83,7 @@ namespace Laubrary.Zounds.Uitk {
             r.Add(ZequenceEditorWindowTK.Gap(ZS.MediumSpacing));
             var filter = new TextField { value = s_filter, tooltip = "Filter the list by zound name." };
             filter.AddToClassList("zs-search"); filter.AddToClassList("zs-monitor__filter");
-            filter.style.width = 160f; filter.style.height = h;
+            filter.AddToClassList("zs-monitor__toolbar-filter"); filter.AddToClassList("zs-monitor__filter-height");
             var ghost = new Label("Filter by name...") { pickingMode = PickingMode.Ignore };
             ghost.AddToClassList("zs-search__ghost"); ghost.AddToClassList("zs-monitor__ghost");
             filter.Add(ghost);
@@ -97,8 +96,8 @@ namespace Laubrary.Zounds.Uitk {
             r.Add(ZequenceEditorWindowTK.Flex());
             statusLabel = new Label();
             statusLabel.AddToClassList("zs-lbl");
-            statusLabel.style.width = 170f; statusLabel.style.height = h; statusLabel.style.flexShrink = 0;
-            statusLabel.style.unityTextAlign = TextAnchor.MiddleRight;
+            statusLabel.AddToClassList("zs-monitor__toolbar-status-label"); statusLabel.AddToClassList("zs-monitor__status-height");
+            statusLabel.AddToClassList("zs-monitor__toolbar-status-label");
             r.Add(statusLabel);
             SyncToolbar();
             return r;
@@ -146,7 +145,7 @@ namespace Laubrary.Zounds.Uitk {
             rowLayout = BrowserTab.PrepareListRowLayoutShared(candidates, ZS.ItemSpacing, ZS.MediumSpacing);
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.flexGrow = 1; scroll.style.flexShrink = 1;
+            scroll.AddToClassList("zs-monitor__list-scroll");
             listHost.Add(scroll);
             for (int i = 0; i < filtered.Count; i++) {
                 var entry = filtered[i];
@@ -163,9 +162,7 @@ namespace Laubrary.Zounds.Uitk {
                 else {
                     var l = new Label((string.IsNullOrEmpty(entry.name) ? "(unknown)" : entry.name) + " — no longer in the library");
                     l.AddToClassList("zs-lbl");
-                    l.style.color = new Color(0.8f, 0.4f, 0.4f, 1f);
-                    l.style.unityFontStyleAndWeight = FontStyle.Italic;
-                    l.style.height = 18f;
+                    l.AddToClassList("zs-monitor__list-label");
                     card.Add(l);
                 }
                 scroll.Add(card);
@@ -183,19 +180,19 @@ namespace Laubrary.Zounds.Uitk {
         /// state, the instance count, the progress bar and Stop.</summary>
         VisualElement InfoLine(ZoundsRecentHistory.Entry entry, Zound zound) {
             var r = new VisualElement();
-            r.style.flexDirection = FlexDirection.Row; r.style.height = 18f; r.style.flexShrink = 0;
-            var frame = Mini("#" + entry.frame); frame.style.width = FrameW; r.Add(frame);
+            r.AddToClassList("zs-monitor__info-line-row");
+            var frame = Mini("#" + entry.frame); frame.AddToClassList("zs-monitor__info-line-frame"); r.Add(frame);
             string callerText = string.IsNullOrEmpty(entry.caller) ? "—" : entry.caller;
-            var caller = Mini(callerText); caller.tooltip = callerText; caller.style.maxWidth = CallerMaxW; caller.style.flexShrink = 1;
+            var caller = Mini(callerText); caller.tooltip = callerText; caller.AddToClassList("zs-monitor__info-line-caller");
             r.Add(caller);
             r.Add(ZequenceEditorWindowTK.Flex());
             var live = new VisualElement();
-            live.style.flexDirection = FlexDirection.Row; live.style.width = StateW + CountW + BarW + StopW; live.style.flexShrink = 0;
-            var state = Mini(""); state.style.width = StateW;
-            var cnt = Mini(""); cnt.style.width = CountW;
+            live.AddToClassList("zs-monitor__info-line-live");
+            var state = Mini(""); state.AddToClassList("zs-monitor__info-line-state");
+            var cnt = Mini(""); cnt.AddToClassList("zs-monitor__instance-count");
             var bar = new ProgressBar { lowValue = 0f, highValue = 1f };
             bar.AddToClassList("zs-progress");
-            bar.style.width = BarW; bar.style.height = 16f;
+            bar.AddToClassList("zs-monitor__info-line-bar");
             ZoundToken token = null;
             var stop = ZS.Button("Stop", "Stop this playing Zound now.", "Flat", () => {
                 if (token != null) token.Kill(ZoundsProject.Instance.projectSettings.cullFadeDuration);
@@ -227,7 +224,7 @@ namespace Laubrary.Zounds.Uitk {
         static Label Mini(string text) {
             var l = new Label(text);
             l.AddToClassList("zs-lbl"); l.AddToClassList("zs-mini");
-            l.style.flexShrink = 0;
+            l.AddToClassList("zs-monitor__mini-label");
             return l;
         }
 

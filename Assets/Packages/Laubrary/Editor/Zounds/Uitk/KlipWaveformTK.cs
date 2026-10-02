@@ -47,12 +47,12 @@ namespace Laubrary.Zounds.Uitk {
 
         public KlipWaveformTK(AudioSpectrumView model, Klip klip) {
             this.model = model; this.klip = klip;
-            style.flexShrink = 0;
+            AddToClassList("zs-klip-waveform__root");
             float lh = EditorGUIUtility.singleLineHeight;
 
             // ── toolbar ──
             var bar = new VisualElement();
-            bar.style.flexDirection = FlexDirection.Row; bar.style.height = lh; bar.style.flexShrink = 0;
+            bar.AddToClassList("zs-klip-waveform__bar"); bar.style.height = lh;
             trim = ZS.Toggle("Trim", "", model.TrimEnabled, v => { model.SetTrimEnabled(v); Refresh(); }, "RichToggle", ZUICornerMask.Left, 60f, lh);
             clamp = ZS.Toggle("Clamp", "", model.ClampToTrim, v => { model.SetClampToTrim(v); Refresh(); }, "RichToggle", ZUICornerMask.Right, 60f, lh);
             vol = ZS.Toggle("Volume", "", model.VolumeEnvelope.enabled, v => { model.RequestVolumeEnabled(v); Refresh(); }, "RichToggle", ZUICornerMask.Left, 75f, lh);
@@ -63,11 +63,11 @@ namespace Laubrary.Zounds.Uitk {
             pitchEye = CurveEye(AudioSpectrumView.Curve.Pitch);
             length = new Label();
             length.AddToClassList("zs-lbl"); length.AddToClassList("zs-mini");
-            length.style.width = 50f; length.style.flexShrink = 0;
+            length.AddToClassList("zs-klip-waveform__length");
             // A fixed slot beside the Pitch toggle, shown only while the pitch curve is still on its old scale.
             pitchOld = new Label("\u26A0") { tooltip = KlipChainEnvelopes.OldScaleTip };
             pitchOld.AddToClassList("zs-lbl");
-            pitchOld.style.width = 16f; pitchOld.style.flexShrink = 0; pitchOld.style.unityTextAlign = TextAnchor.MiddleCenter;
+            pitchOld.AddToClassList("zs-klip-waveform__pitch-old");
             pitchOld.style.visibility = Visibility.Hidden;
             // Keep length (on the pitch curve) and the time curve, T-0482. Present only for a Klip's chain curves.
             keepLen = ZS.Toggle("Keep length", AudioSpectrumView.KeepLengthTip(model.KeepLength), model.KeepLength,
@@ -77,7 +77,7 @@ namespace Laubrary.Zounds.Uitk {
             timeEye = CurveEye(AudioSpectrumView.Curve.Time);
             bar.Add(trim); bar.Add(clamp); bar.Add(Gap(6f)); bar.Add(vol); bar.Add(volEdit); bar.Add(Gap(1f)); bar.Add(volEye); bar.Add(Gap(6f)); bar.Add(pitch); bar.Add(pitchEdit); bar.Add(Gap(1f)); bar.Add(pitchEye); bar.Add(pitchOld);
             if (model.HasKlip) { bar.Add(Gap(2f)); bar.Add(keepLen); bar.Add(Gap(6f)); bar.Add(time); bar.Add(timeEdit); bar.Add(Gap(1f)); bar.Add(timeEye); }
-            var flex = new VisualElement(); flex.style.flexGrow = 1; bar.Add(flex);
+            var flex = new VisualElement(); flex.AddToClassList("zs-klip-waveform__flex"); bar.Add(flex);
             bar.Add(length);
             Add(bar);
             Add(Space(5f));   // ZUI.RowSpace(0.5f)
@@ -85,16 +85,16 @@ namespace Laubrary.Zounds.Uitk {
             // ── the waveform area: GUI.Box, then the picture inset by 4 ──
             box = new VisualElement();
             box.AddToClassList("zs-waveform-box");
-            box.style.height = AreaH; box.style.flexShrink = 0;
+            box.AddToClassList("zs-klip-waveform__box");
             Add(box);
             area = new VisualElement { tooltip = "Mouse wheel: zoom within the trimmed range." };
             area.AddToClassList("zs-waveform-area");
-            area.style.position = Position.Absolute; area.style.left = 4; area.style.right = 4; area.style.top = 4; area.style.bottom = 4;
+            area.AddToClassList("zs-klip-waveform__area");
             // Not clipped: the old view lets an envelope's end handles spill past the picture's edge, and so does this.
             box.Add(area);
             bg = Abs(); area.Add(bg);
             wave = new Image { scaleMode = ScaleMode.StretchToFill, pickingMode = PickingMode.Ignore };
-            wave.style.position = Position.Absolute; wave.style.left = 0; wave.style.right = 0; wave.style.top = 0; wave.style.bottom = 0;
+            wave.AddToClassList("zs-klip-waveform__wave");
             area.Add(wave);
             dimStart = Abs(); dimEnd = Abs(); area.Add(dimStart); area.Add(dimEnd);
             // A Looper's crossmix spans (T-0476): the longest possible span, and the part every loop uses, at both ends.
@@ -110,7 +110,7 @@ namespace Laubrary.Zounds.Uitk {
             area.Add(pitchTop); area.Add(pitchMid); area.Add(pitchBottom);
             timeLine = Abs(); area.Add(timeLine);
             timeTop = AxisLabel(); timeMid = AxisLabel(); timeBottom = AxisLabel();
-            foreach (var l in new[] { timeTop, timeMid, timeBottom }) { l.style.unityTextAlign = TextAnchor.UpperRight; l.style.width = 26f; area.Add(l); }
+            foreach (var l in new[] { timeTop, timeMid, timeBottom }) { l.AddToClassList("zs-klip-waveform__time-axis-label"); area.Add(l); }
             timeTop.text = "×4"; timeMid.text = "×1"; timeBottom.text = "×¼";
             // The combined results, under the playheads and the editable curves (T-0494).
             combined = Abs(); combined.pickingMode = PickingMode.Ignore;
@@ -122,7 +122,7 @@ namespace Laubrary.Zounds.Uitk {
             volEnv = new ZuiSkinEnvelope(null, Color.white, null, null, standalone: false) { pickingMode = PickingMode.Ignore };
             pitchEnv = new ZuiSkinEnvelope(null, Color.white, null, null, standalone: false) { pickingMode = PickingMode.Ignore };
             timeEnv = new ZuiSkinEnvelope(null, Color.white, null, null, standalone: false) { pickingMode = PickingMode.Ignore };
-            foreach (var e in new[] { volEnv, pitchEnv, timeEnv }) { e.style.position = Position.Absolute; area.Add(e); }
+            foreach (var e in new[] { volEnv, pitchEnv, timeEnv }) { e.AddToClassList("zs-klip-waveform__envelope"); area.Add(e); }
             // Right-click a point: its random settings (T-0483). The pitch curve moves off its old scale first, inside
             // the same Undo step, as any other edit of it does.
             foreach (var e in new[] { volEnv, pitchEnv, timeEnv }) {
@@ -153,16 +153,16 @@ namespace Laubrary.Zounds.Uitk {
             schedule.Execute(Refresh).Every(33);
         }
 
-        static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.style.flexShrink = 0; return e; }
+        static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.AddToClassList("zs-klip-waveform__gap"); return e; }
 
         static Label AxisLabel() {
             var l = new Label { pickingMode = PickingMode.Ignore };
             l.AddToClassList("zs-lbl"); l.AddToClassList("zs-mini");
-            l.style.position = Position.Absolute; l.style.left = 3f; l.style.width = 44f; l.style.height = 13f;
+            l.AddToClassList("zs-klip-waveform__axis-label");
             // A dark backing so a label reads on the bright waveform as well as on the dimmed parts.
             l.style.backgroundColor = new Color(0f, 0f, 0f, 0.55f);
-            l.style.paddingLeft = 2f; l.style.paddingRight = 2f;
-            l.style.borderTopLeftRadius = l.style.borderTopRightRadius = l.style.borderBottomLeftRadius = l.style.borderBottomRightRadius = 2f;
+            l.AddToClassList("zs-klip-waveform__axis-label");
+            l.AddToClassList("zs-klip-waveform__axis-label");
             return l;
         }
 
@@ -178,7 +178,7 @@ namespace Laubrary.Zounds.Uitk {
             float my = Mathf.Round(envRect.y + envRect.height * 0.5f);
             timeMid.style.top = my - 14f;
             timeLine.style.left = envRect.x; timeLine.style.width = Mathf.Max(0f, envRect.width);
-            timeLine.style.top = my; timeLine.style.height = 1f;
+            timeLine.style.top = my; timeLine.AddToClassList("zs-klip-waveform__place-time-axis-time-line");
             timeLine.style.backgroundColor = new Color(c.r, c.g, c.b, 0.3f);
         }
 
@@ -203,13 +203,13 @@ namespace Laubrary.Zounds.Uitk {
             float my = Mathf.Round(envRect.y + envRect.height * 0.5f);
             pitchMid.style.top = my - 14f;
             pitchLine.style.left = envRect.x; pitchLine.style.width = Mathf.Max(0f, envRect.width);
-            pitchLine.style.top = my; pitchLine.style.height = 1f;
+            pitchLine.style.top = my; pitchLine.AddToClassList("zs-klip-waveform__place-pitch-axis-pitch-line");
             pitchLine.style.backgroundColor = new Color(c.r, c.g, c.b, 0.35f);
         }
-        static VisualElement Space(float h) { var e = new VisualElement(); e.style.height = h; e.style.flexShrink = 0; return e; }
+        static VisualElement Space(float h) { var e = new VisualElement(); e.style.height = h; e.AddToClassList("zs-klip-waveform__space"); return e; }
         static VisualElement Abs() {
             var e = new VisualElement { pickingMode = PickingMode.Ignore };
-            e.style.position = Position.Absolute;
+            e.AddToClassList("zs-klip-waveform__positioned-control");
             return e;
         }
 
@@ -280,7 +280,7 @@ namespace Laubrary.Zounds.Uitk {
 
             var r = AreaRect;
             if (r.width <= 1f || r.height <= 1f) return;
-            bg.style.left = 0; bg.style.top = 0; bg.style.width = r.width; bg.style.height = r.height;
+            bg.AddToClassList("zs-klip-waveform__refresh-bg"); bg.style.width = r.width; bg.style.height = r.height;
             bg.style.backgroundColor = es.klipWaveformBGColor;
 
             // The IMGUI view sizes its texture in whole points of its rect; the same numbers here give the same texture.
@@ -442,13 +442,13 @@ namespace Laubrary.Zounds.Uitk {
         VisualElement PlayHead() {
             var es = ZoundsProject.Instance.projectSettings.editorStyle;
             var root = Abs();
-            root.style.width = 0f;
+            root.AddToClassList("zs-klip-waveform__play-head-root");
             var cursor = new Image { image = AudioWaveformUtility.playerHeadTexture, scaleMode = ScaleMode.StretchToFill, pickingMode = PickingMode.Ignore, tintColor = AudioWaveformUtility.playerHeadColor };
             var sz = AudioWaveformUtility.playerHeadSize;
-            cursor.style.position = Position.Absolute; cursor.style.left = -sz.x / 2f; cursor.style.top = 0; cursor.style.width = sz.x; cursor.style.height = sz.x * 1.82f;
+            cursor.AddToClassList("zs-klip-waveform__play-head-cursor"); cursor.style.left = -sz.x / 2f; cursor.style.width = sz.x; cursor.style.height = sz.x * 1.82f;
             var line = Abs();
             float th = AudioWaveformUtility.playerHeadThickness;
-            line.style.left = -th * 0.5f; line.style.width = th; line.style.top = sz.y; line.style.bottom = 0;
+            line.style.left = -th * 0.5f; line.style.width = th; line.style.top = sz.y; line.AddToClassList("zs-klip-waveform__play-head-line");
             line.style.backgroundColor = AudioWaveformUtility.playerHeadColor;
             root.Add(line); root.Add(cursor);
             return root;

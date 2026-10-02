@@ -35,7 +35,7 @@ namespace Laubrary.Zounds.Uitk {
 
         public RoutingTabTK(ZoundsWindowTK win) {
             this.win = win;
-            style.flexGrow = 1; style.flexShrink = 1;
+            AddToClassList("zs-routing__root");
             Build();
         }
 
@@ -63,11 +63,11 @@ namespace Laubrary.Zounds.Uitk {
 
             var box = new VisualElement();
             box.AddToClassList("zs-box-default");
-            box.style.flexGrow = 1; box.style.flexShrink = 1;
+            box.AddToClassList("zs-routing__box");
             Add(box);
 
             var top = new VisualElement();
-            top.style.flexDirection = FlexDirection.Row; top.style.flexShrink = 0;
+            top.AddToClassList("zs-routing__top");
             top.Add(ZequenceEditorWindowTK.Flex());
             top.Add(ToggleLeft("Show Active Zounds", props.showActiveZounds, 150f, v => {
                 Undo.RecordObject(props, "toggle show active zounds.");
@@ -85,7 +85,7 @@ namespace Laubrary.Zounds.Uitk {
             box.Add(ZequenceEditorWindowTK.Space(5f));
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.flexGrow = 1; scroll.style.flexShrink = 1;
+            scroll.AddToClassList("zs-routing__scroll");
             box.Add(scroll);
 
             var rulesProp = so.FindProperty("zoundRoutings.rules");
@@ -156,17 +156,17 @@ namespace Laubrary.Zounds.Uitk {
             var content = new VisualElement();
             // The ReorderableList's element rect starts after its drag handle and stops short of the right edge
             // (measured: 20 pt in, 2 pt short); the old code then insets its content by 5.
-            content.style.position = Position.Absolute; content.style.left = 5f; content.style.top = 5f; content.style.right = 5f + RightInset;
-            content.style.height = BaseRuleSectionHeight - 10f;
-            content.style.flexDirection = FlexDirection.Row;
+            content.AddToClassList("zs-routing__bind-rule-content");
+            content.AddToClassList("zs-routing__bind-rule-content");
+            content.AddToClassList("zs-routing__bind-rule-content");
             e.Add(content);
 
             var left = Conditions(index, rule);
-            left.style.width = Length.Percent(50);
+            left.AddToClassList("zs-routing__bind-rule-left");
             content.Add(left);
 
             var right = new VisualElement();
-            right.style.flexGrow = 1; right.style.marginLeft = 4f;
+            right.AddToClassList("zs-routing__bind-rule-right");
             var ruleProp = so.FindProperty("zoundRoutings.rules").GetArrayElementAtIndex(index);
             // Addressables draws an AssetReference only through its IMGUI property drawer; UI Toolkit has no version of it, so
             // this one field is hosted in an IMGUIContainer, drawn exactly as the old tab draws it (label width 74).
@@ -208,13 +208,13 @@ namespace Laubrary.Zounds.Uitk {
         VisualElement Conditions(int index, ZoundRoutings.Rule rule) {
             var scroll = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
             scroll.AddToClassList("zs-rules__conditions");
-            scroll.style.height = BaseRuleSectionHeight - 10f;
+            scroll.AddToClassList("zs-routing__conditions-scroll");
             var flow = scroll.contentContainer;
-            flow.style.flexDirection = FlexDirection.Row; flow.style.flexWrap = Wrap.Wrap; flow.style.paddingLeft = 2f;
+            flow.AddToClassList("zs-routing__conditions-flow");
             if (rule.conditions.Count == 0) {
                 var empty = new Label("Empty");
                 empty.AddToClassList("zs-greymini");
-                empty.style.width = Length.Percent(100); empty.style.height = BaseRuleSectionHeight - 10f;
+                empty.AddToClassList("zs-routing__conditions-empty");
                 flow.Add(empty);
                 return scroll;
             }
@@ -245,17 +245,17 @@ namespace Laubrary.Zounds.Uitk {
         /// <summary>A labelled box of name chips (Active Zounds in green, Manually Routed Zounds plain).</summary>
         VisualElement Section(string label, float labelWidth, float y, float height, System.Func<List<Zound>> zounds, bool green, bool inRule = true) {
             var s = new VisualElement();
-            s.style.position = Position.Absolute; s.style.left = 5f; s.style.right = 5f + (inRule ? RightInset : 0f); s.style.top = y; s.style.height = height;
-            s.style.flexDirection = FlexDirection.Row;
+            s.AddToClassList("zs-routing__section"); s.style.right = 5f + (inRule ? RightInset : 0f); s.style.top = y; s.style.height = height;
+            s.AddToClassList("zs-routing__section");
             var l = new Label(label);
             l.AddToClassList("zs-lbl"); l.AddToClassList("zs-cliplabel");
-            l.style.width = labelWidth; l.style.height = EditorGUIUtility.singleLineHeight; l.style.flexShrink = 0;
+            l.style.width = labelWidth; l.style.height = EditorGUIUtility.singleLineHeight; l.AddToClassList("zs-routing__section-label");
             s.Add(l);
             var box = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
             box.AddToClassList("zs-guibox");
-            box.style.flexGrow = 1; box.style.marginLeft = 5f;
+            box.AddToClassList("zs-routing__section-box");
             var flow = box.contentContainer;
-            flow.style.flexDirection = FlexDirection.Row; flow.style.flexWrap = Wrap.Wrap; flow.style.paddingLeft = 2f;
+            flow.AddToClassList("zs-routing__section-flow");
             s.Add(box);
             string last = null;
             void Refresh() {
@@ -288,7 +288,7 @@ namespace Laubrary.Zounds.Uitk {
             RoutingTab.CollectUnruledMixerGroups(all, unruled);
             if (unruled.Count == 0) return;
             var title = new Label("Unruled Manual Routings");
-            title.AddToClassList("zs-lbl"); title.AddToClassList("zs-bold"); title.style.height = 18f; title.style.marginTop = 2f; title.style.marginBottom = 2f;
+            title.AddToClassList("zs-lbl"); title.AddToClassList("zs-bold"); title.AddToClassList("zs-routing__unruled-title");
             unruledHost.Add(title);
             unruledHost.Add(ZequenceEditorWindowTK.Space(6f));
             for (int i = 0; i < unruled.Count; i++) {
@@ -296,12 +296,12 @@ namespace Laubrary.Zounds.Uitk {
                 bool hasManual = RoutingTab.HasManualRoutedZounds(mg.audioMixer, mg.name);
                 float h = EditorGUIUtility.singleLineHeight + 10f + (props.showActiveZounds ? ActiveZoundsSectionHeight + 5f : 0f) + (hasManual ? ManualRoutingSectionHeight + 5f : 0f);
                 var e = new VisualElement();
-                e.style.height = h; e.style.flexShrink = 0;
+                e.style.height = h; e.AddToClassList("zs-routing__unruled-element");
                 e.style.backgroundColor = i % 2 == 0 ? EvenRow : OddRow;
                 var field = new ObjectField { objectType = typeof(AudioMixerGroup), allowSceneObjects = false, value = mg };
                 field.AddToClassList("zs-imgui-field");
                 field.SetEnabled(false);
-                field.style.position = Position.Absolute; field.style.left = 5f; field.style.right = 5f; field.style.top = 5f;
+                field.AddToClassList("zs-routing__unruled-field");
                 e.Add(field);
                 float y = 5f + EditorGUIUtility.singleLineHeight + 5f;
                 if (props.showActiveZounds) {

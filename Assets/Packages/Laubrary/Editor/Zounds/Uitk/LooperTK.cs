@@ -23,7 +23,7 @@ namespace Laubrary.Zounds.Uitk {
 
         public LooperTK(Klip klip) {
             this.klip = klip;
-            style.flexShrink = 0;
+            AddToClassList("zs-looper__root");
             Build();
             // The limit follows the loop's length, so a trim edit elsewhere in the window re-bounds the range.
             schedule.Execute(Sync).Every(250);
@@ -50,7 +50,7 @@ namespace Laubrary.Zounds.Uitk {
 
         void Rebuild() { Clear(); Build(); }
 
-        static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.style.flexShrink = 0; return e; }
+        static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.AddToClassList("zs-looper__gap"); return e; }
 
         void Build() {
             var lp = Loop;
@@ -58,7 +58,7 @@ namespace Laubrary.Zounds.Uitk {
             builtLimit = limit; builtEnabled = lp.enabled;
 
             var r = new VisualElement();
-            r.style.flexDirection = FlexDirection.Row; r.style.height = RowH; r.style.flexShrink = 0;
+            r.AddToClassList("zs-looper__r");
             r.Add(ZS.Toggle("Looper", lp.enabled
                     ? "Stop looping: the sound plays its (trimmed) source once and ends, like any Klip."
                     : "Make this a Looper: it plays its trimmed region over and over until it is stopped. The trim points are the loop points. Applies from the next play.",
@@ -87,7 +87,7 @@ namespace Laubrary.Zounds.Uitk {
                     },
                     "Default", ZuiSkinMinMax.LabelMode.LabelAndValues, false, 240f, RowH - 2f));
             }
-            var flex = new VisualElement(); flex.style.flexGrow = 1; r.Add(flex);
+            var flex = new VisualElement(); flex.AddToClassList("zs-looper__flex"); r.Add(flex);
             Add(r);
         }
     }

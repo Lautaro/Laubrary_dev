@@ -25,6 +25,7 @@ namespace Laubrary.Zounds.Uitk {
         ZoundFieldsRowTK fields;
         IVisualElementScheduledItem syncTick;
         Button playButton;
+        ZuiToggleButton retriggerButton;
 
         // Every play this window starts (Play, Play on change, Burst, Loop) goes through its audition session and dies
         // with the window (T-0486). The session itself is never serialized, so a reload or a restored layout always
@@ -153,14 +154,14 @@ namespace Laubrary.Zounds.Uitk {
 
         static VisualElement VSpace(float h) {
             var e = new VisualElement();
-            e.style.height = h; e.style.flexShrink = 0;
+            e.style.height = h; e.AddToClassList("zs-klip-editor__vertical-space");
             return e;
         }
 
         static VisualElement HRow(float height) {
             var r = new VisualElement();
-            r.style.flexDirection = FlexDirection.Row;
-            r.style.flexShrink = 0;
+            r.AddToClassList("zs-klip-editor__row");
+            r.AddToClassList("zs-klip-editor__row");
             if (height > 0f) r.style.height = height;
             return r;
         }
@@ -189,7 +190,7 @@ namespace Laubrary.Zounds.Uitk {
             // ── content box (ZUI.Box, "Default") ──
             var box = new VisualElement();
             box.AddToClassList("zs-box-default");
-            box.style.flexGrow = 1;
+            box.AddToClassList("zs-klip-editor__box");
             root.Add(box);
             box.Add(VSpace(Row));
 
@@ -222,7 +223,7 @@ namespace Laubrary.Zounds.Uitk {
             if (!sourceAvailable && outputAsset != null) spectrum.audioSource.clip = outputAsset;
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.flexGrow = 1;
+            scroll.AddToClassList("zs-klip-editor__scroll");
             box.Add(scroll);
             scroll.Add(VSpace(Row));
 
@@ -267,7 +268,17 @@ namespace Laubrary.Zounds.Uitk {
             r.Add(Gap(4f));
             r.Add(ZS.Button("Force GC", EditorTools.ZoundGcStressTest.Tooltip + "\n\n" + EditorTools.ZoundGcStressTest.lastResult, "RichButton",
                             () => EditorTools.ZoundGcStressTest.Run(IsPlaying()), ZUICornerMask.All, 72f, h));
-            r.Add(Gap(8f));
+            r.Add(Gap(5f));
+            retriggerButton = ZS.Toggle("Retrigger", "When enabled, every trigger starts this Klip several times. Right-click to set plays, gap and timing.", klip.retriggerEnabled,
+                value => { ZoundsWindow.ModifyZoundsProject("toggle klip retrigger", () => { if (value) klip.EnableRetrigger(); else klip.retriggerEnabled = false; }); SyncRetriggerButton(); },
+                "RichToggle", ZUICornerMask.All, 88f, h);
+            retriggerButton.RegisterCallback<PointerDownEvent>(e => {
+                if (e.button != 1) return;
+                e.StopPropagation();
+                RetriggerPopupTK.Show(retriggerButton, klip, Sync);
+            });
+            r.Add(retriggerButton);
+            r.Add(Gap(5f));
             playButton = ZS.Button("Play", "", "RichButton", PlayOrStop, ZUICornerMask.All, 60f, h);
             WireAuditionMenu(playButton);
             r.Add(playButton);
@@ -296,8 +307,17 @@ namespace Laubrary.Zounds.Uitk {
                                + "\n\nRight-click: Play on change, Burst, Loop.";
         }
 
-        static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.style.flexShrink = 0; return e; }
-        static VisualElement Flex() { var e = new VisualElement(); e.style.flexGrow = 1; return e; }
+        void SyncRetriggerButton() {
+            if (retriggerButton == null || klip == null) return;
+            retriggerButton.SetValueWithoutNotify(klip.retriggerEnabled);
+            retriggerButton.text = klip.retriggerEnabled ? "Retrigger " + RetriggerPopupTK.Summary(klip) : "Retrigger";
+            retriggerButton.tooltip = klip.retriggerEnabled
+                ? "Every trigger starts this Klip " + klip.retriggerCount + " times. Right-click to change plays, gap and timing."
+                : "Enable several plays for every trigger. Right-click to set plays, gap and timing.";
+        }
+
+        static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.AddToClassList("zs-klip-editor__gap"); return e; }
+        static VisualElement Flex() { var e = new VisualElement(); e.AddToClassList("zs-klip-editor__spacer"); return e; }
 
         /// <summary>Anything this window started still sounding or queued (the old single-token check, widened to the
         /// audition helpers).</summary>
@@ -338,9 +358,9 @@ namespace Laubrary.Zounds.Uitk {
             var r = HRow(EditorGUIUtility.singleLineHeight + 2f);
             var label = new Label("Source:");
             label.AddToClassList("zs-lbl");
-            label.style.width = EditorGUIUtility.labelWidth; label.style.flexShrink = 0;
+            label.style.width = EditorGUIUtility.labelWidth; label.AddToClassList("zs-klip-editor__external-source-row-label");
             var name = new TextField { value = System.IO.Path.GetFileName(klip.externalSourcePath), isReadOnly = true };
-            name.style.flexGrow = 1; name.style.marginLeft = 0;
+            name.AddToClassList("zs-klip-editor__external-source-row-name");
             var browse = new Button(() => {
                 string dir = System.IO.Path.GetDirectoryName(klip.externalSourcePath);
                 EditorApplication.delayCall += () => {
@@ -354,9 +374,9 @@ namespace Laubrary.Zounds.Uitk {
                     Rebuild();
                 };
             }) { text = "Browse" };
-            browse.style.width = 60f;
+            browse.AddToClassList("zs-klip-editor__external-source-row-browse");
             var reveal = new Button(() => EditorUtility.RevealInFinder(klip.externalSourcePath)) { text = "Reveal" };
-            reveal.style.width = 50f;
+            reveal.AddToClassList("zs-klip-editor__external-source-row-reveal");
             r.Add(label); r.Add(name); r.Add(browse); r.Add(reveal);
             return r;
         }
@@ -395,6 +415,7 @@ namespace Laubrary.Zounds.Uitk {
             if (FindKlip(targetZoundID) != klip) { Rebuild(); return; }
             fields?.Sync();
             SyncPlayButton();
+            SyncRetriggerButton();
         }
     }
 }

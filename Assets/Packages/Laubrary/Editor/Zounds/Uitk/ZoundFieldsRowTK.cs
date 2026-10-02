@@ -33,7 +33,7 @@ namespace Laubrary.Zounds.Uitk {
         public ZoundFieldsRowTK(Zound zound, bool isLocal, System.Action onRenamed = null, bool drawName = true, bool drawTags = true) {
             this.zound = zound; this.isLocal = isLocal; this.drawName = drawName; this.drawTags = drawTags; this.onRenamed = onRenamed;
             style.height = UnityEditor.EditorGUIUtility.singleLineHeight;
-            style.flexShrink = 0;
+            AddToClassList("zs-zound-fields-row__root");
             var bs = ZoundsProject.Instance.browserSettings;
             SetEnabled(!(zound is ClipZound));
 
@@ -100,7 +100,7 @@ namespace Laubrary.Zounds.Uitk {
         /// <summary>Always one decimal ("x1.0" .. "x10.0"); the label's width is fixed, so no length ever moves anything.</summary>
         static string BoostText(float v) => "x" + v.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
 
-        static VisualElement Abs(VisualElement e) { e.style.position = Position.Absolute; e.style.top = 0; e.style.bottom = 0; return e; }
+        static VisualElement Abs(VisualElement e) { e.AddToClassList("zs-zound-fields-row__positioned-control"); return e; }
 
         void Place(VisualElement e, float x, float w) { if (e == null) return; e.style.left = x; e.style.width = Mathf.Max(0f, w); }
 

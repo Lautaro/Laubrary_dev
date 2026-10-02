@@ -36,7 +36,7 @@ namespace Laubrary.Zounds.Uitk {
         public override void OnOpen() {
             var root = editorWindow.rootVisualElement;
             ZS.Attach(root);
-            root.style.paddingLeft = 6f; root.style.paddingTop = 6f;
+            root.AddToClassList("zs-zpoc-popup__popup-root");
             Build(root);
         }
 
@@ -65,19 +65,19 @@ namespace Laubrary.Zounds.Uitk {
         void Build(VisualElement root) {
             root.Clear();
             var r = new VisualElement();
-            r.style.flexDirection = FlexDirection.Row; r.style.height = RowH; r.style.flexShrink = 0;
+            r.AddToClassList("zs-zpoc-popup__r");
 
             var idLabel = new Label("⚡ Id");
             idLabel.AddToClassList("zs-zpocmark");
             idLabel.tooltip = "The name game code reaches this modifier by, through a play's token: token.SetZpoc(\"" + (mod.HasZpoc ? mod.zpocId : "name") + "\", value). Case, spaces, underscores and hyphens are ignored, as for Zound names. It only has to be unique within this Zound; sibling sounds in a Zequence may share it, and one call then reaches them all. Empty: not exposed.";
-            idLabel.style.width = 32f; idLabel.style.flexShrink = 0; idLabel.style.unityTextAlign = TextAnchor.MiddleLeft;
+            idLabel.AddToClassList("zs-zpoc-popup__id-label");
             r.Add(idLabel);
             var id = new TextField { value = mod.zpocId ?? "", tooltip = idLabel.tooltip };
             id.AddToClassList("zs-namefield");
-            id.style.width = 130f; id.style.height = RowH - 2f; id.style.flexShrink = 0;
+            id.AddToClassList("zs-zpoc-popup__id");
             var dup = new Label("⚠") { tooltip = "Another modifier in this Zound already has this id, so one call reaches both. Give one of them a different id unless that is what you want." };
             dup.AddToClassList("zs-warnmark");
-            dup.style.width = 14f; dup.style.flexShrink = 0;
+            dup.AddToClassList("zs-zpoc-popup__dup");
             dup.style.visibility = Duplicate() ? Visibility.Visible : Visibility.Hidden;
             id.RegisterValueChangedCallback(e => {
                 Change(() => mod.zpocId = e.newValue.Trim());
@@ -124,6 +124,6 @@ namespace Laubrary.Zounds.Uitk {
             root.Add(r);
         }
 
-        static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.style.flexShrink = 0; return e; }
+        static VisualElement Gap(float w) { var e = new VisualElement(); e.style.width = w; e.AddToClassList("zs-zpoc-popup__gap"); return e; }
     }
 }

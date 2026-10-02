@@ -67,7 +67,7 @@ namespace Laubrary.Zounds.Uitk {
 
             box = new VisualElement();
             box.AddToClassList("zs-box-alternative");
-            box.style.flexGrow = 1;
+            box.AddToClassList("zs-window__fill");
             root.Add(box);
 
             wasLoaded = ZoundsProject.isJSONLoaded;
@@ -75,7 +75,7 @@ namespace Laubrary.Zounds.Uitk {
                 box.Add(ZequenceEditorWindowTK.Space(30f));
                 var l = new Label("No Zounds Project Loaded");
                 l.AddToClassList("zs-lbl"); l.AddToClassList("zs-bold");
-                l.style.height = 18f;
+                l.AddToClassList("zs-window__row-label");
                 box.Add(l);
                 box.Add(ProjectFileRow(() => Rebuild()));
                 tick = root.schedule.Execute(() => { if (ZoundsProject.isJSONLoaded != wasLoaded) Rebuild(); }).Every(250);
@@ -85,18 +85,18 @@ namespace Laubrary.Zounds.Uitk {
             if (selectedTab < 0 || selectedTab >= TabNames.Length) selectedTab = Mathf.Clamp(ZoundsWindowProperties.Instance.selectedMainTab, 0, TabNames.Length - 1);
             var tabs = new VisualElement();
             tabs.AddToClassList("zs-maintabs");
-            tabs.style.flexDirection = FlexDirection.Row; tabs.style.flexShrink = 0;
+            tabs.AddToClassList("zs-window__tabs");
             for (int i = 0; i < TabNames.Length; i++) {
                 int index = i;
                 var t = ZS.Toggle(TabNames[i], "", i == selectedTab, v => SelectTab(index), "MainTab", ZUICornerMask.None, -1f, 30f);
-                t.style.flexGrow = 1; t.style.flexShrink = 1;
+                t.AddToClassList("zs-window__tab");
                 tabs.Add(t);
                 tabButtons.Add(t);
             }
             box.Add(tabs);
 
             content = new VisualElement();
-            content.style.flexGrow = 1; content.style.flexShrink = 1;
+            content.AddToClassList("zs-window__content");
             box.Add(content);
             ShowTab();
 
@@ -194,25 +194,25 @@ namespace Laubrary.Zounds.Uitk {
         internal static VisualElement ProjectFileRow(Action changed) {
             var row = new VisualElement();
             row.AddToClassList("zs-projectrow");
-            row.style.flexDirection = FlexDirection.Row; row.style.flexShrink = 0;
+            row.AddToClassList("zs-window__project-row");
             var field = new ObjectField("Project JSON") { objectType = typeof(TextAsset), allowSceneObjects = false, value = ZoundsWindow.CurrentProjectJSON };
             field.AddToClassList("zs-imgui-field"); field.AddToClassList("zs-label-80");
-            field.style.flexGrow = 1; field.style.flexShrink = 1;
+            field.AddToClassList("zs-window__project-field");
             field.RegisterValueChangedCallback(e => { ZoundsWindow.AssignProjectJSON(e.newValue as TextAsset); changed?.Invoke(); });
             row.Add(field);
             var create = new Button(() => { ZoundsWindow.CreateNewProject(); changed?.Invoke(); }) { text = "Create New" };
-            create.AddToClassList("zs-imgui-button"); create.style.width = 85f;
+            create.AddToClassList("zs-imgui-button"); create.AddToClassList("zs-window__create-button");
             row.Add(create);
             var load = new Button(() => { ZoundsWindow.LoadProject(); changed?.Invoke(); }) { text = "Load" };
-            load.AddToClassList("zs-imgui-button"); load.style.width = 60f;
+            load.AddToClassList("zs-imgui-button"); load.AddToClassList("zs-window__small-button");
             row.Add(load);
             var auto = new Toggle("Auto-Save") { value = ZoundsWindowProperties.Instance.autoSave };
             auto.AddToClassList("zs-imgui-field"); auto.AddToClassList("zs-label-65");
-            auto.style.width = 82f;
+            auto.AddToClassList("zs-window__autosave");
             auto.RegisterValueChangedCallback(e => ZoundsWindow.SetAutoSave(e.newValue));
             row.Add(auto);
             var save = new Button(ZoundsWindow.SaveToJSON) { text = "Save" };
-            save.AddToClassList("zs-imgui-button"); save.style.width = 60f;
+            save.AddToClassList("zs-imgui-button"); save.AddToClassList("zs-window__small-button");
             row.Add(save);
             void Sync() {
                 bool has = ZoundsWindow.CurrentProjectJSON != null;
