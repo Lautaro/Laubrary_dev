@@ -45,23 +45,23 @@ namespace Laubrary.Zounds.Uitk {
                 Add(Abs(mute)); Add(Abs(solo));
             }
             if (drawName) {
-                nameField = new TextField { isDelayed = true, value = zound.name, tooltip = "" };
+                nameField = new TextField { isDelayed = true, value = zound.name, tooltip = "Rename this sound when you confirm the field." };
                 nameField.AddToClassList("zs-namefield");
                 nameField.RegisterValueChangedCallback(e => Rename(e.newValue));
                 Add(Abs(nameField));
             }
             var vMode = bs.vpcShowSliderType ? ZuiSkinMinMax.LabelMode.LabelAndValues : ZuiSkinMinMax.LabelMode.ValuesOnly;
             volume = ZS.MinMax("Volume", zound.minVolume * 100f, zound.maxVolume * 100f, Zound.MinVolumeRange * 100f, Zound.MaxVolumeRange * 100f,
-                               "Volume", (lo, hi) => ZoundsWindow.ModifyZoundsProject("change zound volume", () => {
+                               "Choose the loudness range; each play draws a value between these limits.", (lo, hi) => ZoundsWindow.ModifyZoundsProject("change zound volume", () => {
                                    zound.minVolume = ZoundBrowserEditor<Zound>.RoundTo3DecimalPlaces(lo / 100f);
                                    zound.maxVolume = ZoundBrowserEditor<Zound>.RoundTo3DecimalPlaces(hi / 100f);
                                }), "MinMax", vMode, bs.vpcShowInputBoxes);
             pitch = ZS.MinMax("Pitch", zound.minPitch * 100f, zound.maxPitch * 100f, Zound.MinPitchRange * 100f, Zound.MaxPitchRange * 100f,
-                              "Pitch", (lo, hi) => ZoundsWindow.ModifyZoundsProject("change zound pitch", () => {
+                              "Choose the pitch range; each play draws a value between these limits.", (lo, hi) => ZoundsWindow.ModifyZoundsProject("change zound pitch", () => {
                                   zound.minPitch = ZoundBrowserEditor<Zound>.RoundTo3DecimalPlaces(lo / 100f);
                                   zound.maxPitch = ZoundBrowserEditor<Zound>.RoundTo3DecimalPlaces(hi / 100f);
                               }), "MinMaxPitch", vMode, bs.vpcShowInputBoxes);
-            chance = ZS.Slider("Chance", zound.chance * 100f, Zound.MinChanceRange * 100f, Zound.MaxChanceRange * 100f, "Chance",
+            chance = ZS.Slider("Chance", zound.chance * 100f, Zound.MinChanceRange * 100f, Zound.MaxChanceRange * 100f, "Set the percentage chance that a trigger plays this sound.",
                                v => ZoundsWindow.ModifyZoundsProject("change zound chance", () => zound.chance = ZoundBrowserEditor<Zound>.RoundTo3DecimalPlaces(v / 100f)),
                                bs.vpcShowSliderType ? ZuiSkinSlider.LabelMode.LabelAndValue : ZuiSkinSlider.LabelMode.ValueOnly, null, "Chance");
             Add(Abs(volume)); Add(Abs(pitch)); Add(Abs(chance));
@@ -88,7 +88,7 @@ namespace Laubrary.Zounds.Uitk {
                 });
             }
             if (drawTags) {
-                tags = new Button(() => TagsEditorWindow.OpenWindow(zound)) { text = BrowserTab.GetZoundTagsString(zound) };
+                tags = new Button(() => TagsEditorWindow.OpenWindow(zound)) { text = BrowserTab.GetZoundTagsString(zound), tooltip = "Open the tag editor to organise and filter this sound." };
                 tags.AddToClassList("zs-tagsfield");
                 tags.AddToClassList("zs-text-zounds-tags");
                 Add(Abs(tags));

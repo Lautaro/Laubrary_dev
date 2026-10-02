@@ -203,7 +203,7 @@ namespace Laubrary.Zounds.Uitk {
                 // A reference was assigned but no longer resolves: genuinely broken, so nothing below can be shown.
                 box.Add(new HelpBox(hasExternalSource ? "External source file not found:\n" + klip.externalSourcePath
                                                       : "Source Audio Clip is missing or invalid. Please fix it in the 'Clip References' tab.", HelpBoxMessageType.Error));
-                box.Add(ZS.Button("Close Window", "", "Default", Close, ZUICornerMask.All, -1f, 20f));
+                box.Add(ZS.Button("Close Window", "Close this sound editor.", "Default", Close, ZUICornerMask.All, -1f, 20f));
                 syncTick = root.schedule.Execute(Sync).Every(200);
                 return;
             }
@@ -251,16 +251,16 @@ namespace Laubrary.Zounds.Uitk {
             const float h = 20f;
             var r = HRow(h);
             // The file actions need the source (disabled on a machine without it), as in the old row.
-            var render = ZS.Button("Render", "", "RichButton", () => { KlipEditorWindow.ValidateKlip(klip); spectrum.audioSource.clip = KlipEditorWindow.RenderKlip(klip); }, ZUICornerMask.All, 60f, h);
+            var render = ZS.Button("Render", "Bounce the source and its processing into an audio file for this sound.", "RichButton", () => { KlipEditorWindow.ValidateKlip(klip); spectrum.audioSource.clip = KlipEditorWindow.RenderKlip(klip); }, ZUICornerMask.All, 60f, h);
             render.SetEnabled(sourceAvailable);
             r.Add(render);
             r.Add(Gap(4f));
-            var remove = ZS.Button("Remove", "", "RichButton", Remove, ZUICornerMask.All, 70f, h);
+            var remove = ZS.Button("Remove", "Remove this sound after confirmation.", "RichButton", Remove, ZUICornerMask.All, 70f, h);
             remove.SetEnabled(sourceAvailable);
             r.Add(remove);
             if (klip.parentId == 0 && ZoundsProject.Instance.browserSettings.showConvertToZequence) {
                 r.Add(Gap(4f));
-                var convert = ZS.Button("Convert to Zeq", "", "RichButton", ConvertToZeq, ZUICornerMask.All, 100f, h);
+                var convert = ZS.Button("Convert to Zeq", "Make a sequence containing this sound as a local entry.", "RichButton", ConvertToZeq, ZUICornerMask.All, 100f, h);
                 convert.SetEnabled(sourceAvailable);
                 r.Add(convert);
             }

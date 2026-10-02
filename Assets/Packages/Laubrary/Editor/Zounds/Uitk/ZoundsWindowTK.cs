@@ -22,6 +22,14 @@ namespace Laubrary.Zounds.Uitk {
         [SerializeField] int selectedTab = -1;
 
         internal static readonly string[] TabNames = { "Browser", "Monitor", "Routing", "Dep. Map", "Settings", "Problems" };
+        static readonly string[] TabTips = {
+            "Browse, edit and preview the sound library.",
+            "Inspect sounds that are currently playing.",
+            "Choose where sounds are routed in the audio mixer.",
+            "Inspect the audio assets used by the sound library.",
+            "Configure this project's audio and authoring settings.",
+            "Inspect missing sound or game-code control requests reported this session."
+        };
 
         VisualElement content, box;
         readonly List<ZuiToggleButton> tabButtons = new List<ZuiToggleButton>();
@@ -88,7 +96,7 @@ namespace Laubrary.Zounds.Uitk {
             tabs.AddToClassList("zs-window__tabs");
             for (int i = 0; i < TabNames.Length; i++) {
                 int index = i;
-                var t = ZS.Toggle(TabNames[i], "", i == selectedTab, v => SelectTab(index), "MainTab", ZUICornerMask.None, -1f, 30f);
+                var t = ZS.Toggle(TabNames[i], TabTips[i], i == selectedTab, v => SelectTab(index), "MainTab", ZUICornerMask.None, -1f, 30f);
                 t.AddToClassList("zs-window__tab");
                 tabs.Add(t);
                 tabButtons.Add(t);

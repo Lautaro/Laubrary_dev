@@ -418,7 +418,7 @@ namespace Laubrary.Zounds.Uitk {
 
         VisualElement PresetButton(string presetName) {
             string text = presetName ?? "Default";
-            var b = ZS.Button(text, "", "Default", null, ZUICornerMask.None, -1f, 22f);
+            var b = ZS.Button(text, presetName == null ? "Apply the default browser view." : "Apply this browser view. Right-click to rename, replace or delete the preset.", "Default", null, ZUICornerMask.None, -1f, 22f);
             b.AddToClassList("zs-presetbutton");
             b.clickable = null;
             b.RegisterCallback<PointerUpEvent>(e => {
@@ -458,7 +458,7 @@ namespace Laubrary.Zounds.Uitk {
         VisualElement SearchRow() {
             var r = Row();
             r.AddToClassList("zs-searchrow");
-            search = new TextField { value = Props.searchText };
+            search = new TextField { value = Props.searchText, tooltip = "Filter the sound library by name." };
             search.AddToClassList("zs-search");
             search.AddToClassList("zs-browser__search-row-search");
             var ghost = new Label("Search...") { pickingMode = PickingMode.Ignore };
@@ -477,7 +477,7 @@ namespace Laubrary.Zounds.Uitk {
             search.RegisterCallback<FocusOutEvent>(_ => Ghost());
             Ghost();
             r.Add(search);
-            var x = new Button { text = "X" };
+            var x = new Button { text = "X", tooltip = "Clear the search and browser filters." };
             x.AddToClassList("zs-imgui-button"); x.AddToClassList("zs-searchclear");
             x.clicked += () => {
                 Undo.RecordObject(ZoundsWindowProperties.Instance, "change search text");
@@ -510,6 +510,7 @@ namespace Laubrary.Zounds.Uitk {
                 volume.text = VolumeLabel(v);
             });
             volume.AddToClassList("zs-slider-bigslider");
+            volume.tooltip = "Set the master loudness for editor previews, or for the running game while in Play mode.";
             volume.AddToClassList("zs-browser__volume-row-volume");
             SyncTop += () => { volume.SetValueWithoutNotify(MasterVolume * 100f); volume.text = VolumeLabel(MasterVolume); };
             return volume;
@@ -576,20 +577,20 @@ namespace Laubrary.Zounds.Uitk {
             }
             if (bs.showStopAll) {
                 Gap();
-                r.Add(Flat("Kill", "", ZUICornerMask.All, () => ZoundEngine.StopAllZounds()));
+                r.Add(Flat("Kill", "Stop all playing sounds and queued repeats.", ZUICornerMask.All, () => ZoundEngine.StopAllZounds()));
             }
             if (bs.showMSClean) {
                 Gap();
-                r.Add(Flat("X", "", ZUICornerMask.Left, () => ZoundsWindow.ModifyZoundsProject("clean mute/solo", () => {
+                r.Add(Flat("X", "Clear mute and solo on every sound in this library.", ZUICornerMask.Left, () => ZoundsWindow.ModifyZoundsProject("clean mute/solo", () => {
                     ZoundsProject.Instance.zoundLibrary.ForEachZound(z => { z.mute = false; z.solo = false; });
                     ZoundsProject.Instance.zoundLibrary.soloStatusNeedsUpdate = true;
                 })));
-                var m = Flat("M", "", ZUICornerMask.Square, () => ZoundsWindow.ModifyZoundsProject("mute all visible", () => {
+                var m = Flat("M", "Mute every visible sound.", ZUICornerMask.Square, () => ZoundsWindow.ModifyZoundsProject("mute all visible", () => {
                     foreach (var z in filtered) if (z is Klip || z is Zequence) z.mute = true;
                 }));
                 m.AddToClassList("zs-browser__mute-visible");
                 r.Add(m);
-                var s = Flat("S", "", ZUICornerMask.Right, () => ZoundsWindow.ModifyZoundsProject("solo all visible", () => {
+                var s = Flat("S", "Solo every visible sound.", ZUICornerMask.Right, () => ZoundsWindow.ModifyZoundsProject("solo all visible", () => {
                     foreach (var z in filtered) if (z is Klip || z is Zequence) z.solo = true;
                     ZoundsProject.Instance.zoundLibrary.soloStatusNeedsUpdate = true;
                 }));
@@ -608,7 +609,7 @@ namespace Laubrary.Zounds.Uitk {
                 if (!show) return;
                 if (!typeDrawn) Gap(); else r.Add(ZequenceEditorWindowTK.Gap(ToolbarGap));
                 bool on = Props.selectedTypes.HasFlag(type);
-                var t = ZS.Toggle(label, "", on, v => {
+                var t = ZS.Toggle(label, "Include or exclude " + label + " items in the browser.", on, v => {
                     Undo.RecordObject(ZoundsWindowProperties.Instance, "toggle type filter");
                     if (!v) Props.selectedTypes &= ~type; else Props.selectedTypes |= type;
                     EditorUtility.SetDirty(ZoundsWindowProperties.Instance);

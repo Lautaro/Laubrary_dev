@@ -716,3 +716,11 @@
 /* Colorful's fixed action fills, pre-blended over its (32,79,124) border at the original 70% opacity. */
 .zs-root .zs-browser__mute-visible.zs-Flat.unity-button { background-color: rgb(152.4,59.4,63.975); }
 .zs-root .zs-browser__solo-visible.zs-Flat.unity-button { background-color: rgb(36.375,139.725,81.825); }
+
+/* Keep long sound names inside their existing preview-button slots; the tooltip retains the full name. */
+.zs-root .zs-browser__grid-button,
+.zs-root .zs-zound-row__list-name-button {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

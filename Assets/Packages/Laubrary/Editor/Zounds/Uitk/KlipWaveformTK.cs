@@ -53,13 +53,13 @@ namespace Laubrary.Zounds.Uitk {
             // ── toolbar ──
             var bar = new VisualElement();
             bar.AddToClassList("zs-klip-waveform__bar"); bar.style.height = lh;
-            trim = ZS.Toggle("Trim", "", model.TrimEnabled, v => { model.SetTrimEnabled(v); Refresh(); }, "RichToggle", ZUICornerMask.Left, 60f, lh);
-            clamp = ZS.Toggle("Clamp", "", model.ClampToTrim, v => { model.SetClampToTrim(v); Refresh(); }, "RichToggle", ZUICornerMask.Right, 60f, lh);
-            vol = ZS.Toggle("Volume", "", model.VolumeEnvelope.enabled, v => { model.RequestVolumeEnabled(v); Refresh(); }, "RichToggle", ZUICornerMask.Left, 75f, lh);
-            volEdit = IconToggle(model.ShowVolumeHandles, v => { Select(AudioSpectrumView.Curve.Volume, v); Refresh(); });
+            trim = ZS.Toggle("Trim", "Enable or disable the authored source trim.", model.TrimEnabled, v => { model.SetTrimEnabled(v); Refresh(); }, "RichToggle", ZUICornerMask.Left, 60f, lh);
+            clamp = ZS.Toggle("Clamp", "Choose whether curves span the trimmed source or the whole recording.", model.ClampToTrim, v => { model.SetClampToTrim(v); Refresh(); }, "RichToggle", ZUICornerMask.Right, 60f, lh);
+            vol = ZS.Toggle("Volume", "Enable or disable volume shaping over the sound's duration.", model.VolumeEnvelope.enabled, v => { model.RequestVolumeEnabled(v); Refresh(); }, "RichToggle", ZUICornerMask.Left, 75f, lh);
+            volEdit = IconToggle(model.ShowVolumeHandles, v => { Select(AudioSpectrumView.Curve.Volume, v); Refresh(); }, "Choose the volume curve's editing handles.");
             volEye = CurveEye(AudioSpectrumView.Curve.Volume);
-            pitch = ZS.Toggle("Pitch", "", model.PitchEnvelope.enabled, v => { model.RequestPitchEnabled(v); Refresh(); }, "RichToggle", ZUICornerMask.Left, 65f, lh);
-            pitchEdit = IconToggle(model.ShowPitchHandles, v => { Select(AudioSpectrumView.Curve.Pitch, v); Refresh(); });
+            pitch = ZS.Toggle("Pitch", "Enable or disable pitch shaping over the sound's duration.", model.PitchEnvelope.enabled, v => { model.RequestPitchEnabled(v); Refresh(); }, "RichToggle", ZUICornerMask.Left, 65f, lh);
+            pitchEdit = IconToggle(model.ShowPitchHandles, v => { Select(AudioSpectrumView.Curve.Pitch, v); Refresh(); }, "Choose the pitch curve's editing handles.");
             pitchEye = CurveEye(AudioSpectrumView.Curve.Pitch);
             length = new Label();
             length.AddToClassList("zs-lbl"); length.AddToClassList("zs-mini");
@@ -73,7 +73,7 @@ namespace Laubrary.Zounds.Uitk {
             keepLen = ZS.Toggle("Keep length", AudioSpectrumView.KeepLengthTip(model.KeepLength), model.KeepLength,
                 v => { model.RequestKeepLength(v); keepLen.tooltip = AudioSpectrumView.KeepLengthTip(v); Refresh(); }, "RichToggle", ZUICornerMask.All, 90f, lh);
             time = ZS.Toggle("Time", AudioSpectrumView.TimeTip, model.TimeEnvelope.enabled, v => { model.RequestTimeEnabled(v); Refresh(); }, "RichToggle", ZUICornerMask.Left, 60f, lh);
-            timeEdit = IconToggle(model.ShowTimeHandles, v => { Select(AudioSpectrumView.Curve.Time, v); Refresh(); });
+            timeEdit = IconToggle(model.ShowTimeHandles, v => { Select(AudioSpectrumView.Curve.Time, v); Refresh(); }, "Choose the time curve's editing handles.");
             timeEye = CurveEye(AudioSpectrumView.Curve.Time);
             bar.Add(trim); bar.Add(clamp); bar.Add(Gap(6f)); bar.Add(vol); bar.Add(volEdit); bar.Add(Gap(1f)); bar.Add(volEye); bar.Add(Gap(6f)); bar.Add(pitch); bar.Add(pitchEdit); bar.Add(Gap(1f)); bar.Add(pitchEye); bar.Add(pitchOld);
             if (model.HasKlip) { bar.Add(Gap(2f)); bar.Add(keepLen); bar.Add(Gap(6f)); bar.Add(time); bar.Add(timeEdit); bar.Add(Gap(1f)); bar.Add(timeEye); }
@@ -249,8 +249,8 @@ namespace Laubrary.Zounds.Uitk {
                 v => { CurveView.SetVisible(ModifierOf(which), v); Refresh(); }, ZUICornerMask.All, 22f, EditorGUIUtility.singleLineHeight);
         }
 
-        ZuiToggleButton IconToggle(bool value, System.Action<bool> onChanged) {
-            var t = ZS.Toggle("", "", value, onChanged, "RichToggle", ZUICornerMask.Right, 25f, EditorGUIUtility.singleLineHeight);
+        ZuiToggleButton IconToggle(bool value, System.Action<bool> onChanged, string tooltip) {
+            var t = ZS.Toggle("", tooltip, value, onChanged, "RichToggle", ZUICornerMask.Right, 25f, EditorGUIUtility.singleLineHeight);
             t.markWhenOn = false;
             var img = new Image { image = AudioSpectrumView.editIcon, scaleMode = ScaleMode.ScaleToFit, pickingMode = PickingMode.Ignore };
             img.AddToClassList("zs-editicon");
@@ -277,6 +277,12 @@ namespace Laubrary.Zounds.Uitk {
             volEdit.SetValueWithoutNotify(model.ShowVolumeHandles);
             pitchEdit.SetValueWithoutNotify(model.ShowPitchHandles);
             length.text = model.LengthText;
+            trim.tooltip = model.TrimEnabled ? "Source trim is active. Click to use the whole recording." : "Source trim is off. Click to use the authored start and end points.";
+            clamp.tooltip = model.ClampToTrim ? "Curves span the trimmed source. Click to span the whole recording." : "Curves span the whole recording. Click to span the trimmed source.";
+            vol.tooltip = model.VolumeEnvelope.enabled ? "Volume shaping is active. Click to bypass its curve." : "Volume shaping is bypassed. Click to enable its curve.";
+            pitch.tooltip = model.PitchEnvelope.enabled ? "Pitch shaping is active. Click to bypass its curve." : "Pitch shaping is bypassed. Click to enable its curve.";
+            volEdit.tooltip = model.ShowVolumeHandles ? "Volume handles are selected. Click to hide them." : "Click to select the volume curve's editing handles.";
+            pitchEdit.tooltip = model.ShowPitchHandles ? "Pitch handles are selected. Click to hide them." : "Click to select the pitch curve's editing handles.";
 
             var r = AreaRect;
             if (r.width <= 1f || r.height <= 1f) return;
@@ -339,6 +345,7 @@ namespace Laubrary.Zounds.Uitk {
                 keepLen.SetValueWithoutNotify(model.KeepLength);
                 time.SetValueWithoutNotify(model.TimeEnvelope.enabled);
                 timeEdit.SetValueWithoutNotify(model.ShowTimeHandles);
+                timeEdit.tooltip = model.ShowTimeHandles ? "Time handles are selected. Click to hide them." : "Click to select the time curve's editing handles.";
             }
         }
 
