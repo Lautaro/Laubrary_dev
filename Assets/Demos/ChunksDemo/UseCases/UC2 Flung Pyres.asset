@@ -276,6 +276,7 @@ MonoBehaviour:
       type: {class: PyreBlast, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: 465f5326c718433bb34ce59e1b1ef4ec
+        colorSlot: -1
         enabled: 1
         displayName: Six blasts
         delay: 0
@@ -308,10 +309,12 @@ MonoBehaviour:
         alphaMax: 1
         seed: 0
         blastSeconds: 1.33
+        blastSecondsAuto: 1
     - rid: 4065707408189817097
       type: {class: Trajectory, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: 2abb2231f3084dd8a11ea43574a35485
+        colorSlot: -1
         enabled: 1
         displayName: 
         delay: 0
@@ -319,12 +322,16 @@ MonoBehaviour:
         speedMin: 5
         speedMax: 9
         inheritBurstDirection: 1
+        directionModeMigrated: 1
+        directionMode: 0
         directionDeg: 90
         spreadDeg: 60
         upwardBias: 3
         gravity: 14
         drag: 0.4
         faceVelocity: 1
+        spinDegMin: 0
+        spinDegMax: 0
         untilTargetEnds: 1
         lifeSeconds: 1
         seed: 0

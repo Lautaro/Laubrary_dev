@@ -14,7 +14,27 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.Addressables.Editor::UnityEditor.AddressableAssets.Settings.AddressableAssetGroup
   m_GroupName: Zounds Default Local Group
   m_GUID: f7a494e4a2465d743b62b799a922838d
-  m_SerializeEntries: []
+  m_SerializeEntries:
+  - m_GUID: 0fe0a452e8d91b64d988ee1b1a72af91
+    m_Address: Assets/ZoundsData/SystemFiles/WorkFiles/ND Test (baked).wav
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 955d7faa46bb493489476be66097d795
+    m_Address: Assets/ZoundsData/SystemFiles/ZoundFiles/ND Test (baked).wav
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b2f8dde974ccefa4eae683cedda2af80
+    m_Address: Assets/ZoundsData/SystemFiles/ZoundFiles/ND Test (baked) (1).wav
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c2efca3f40ab425418294c78fe3d4954
+    m_Address: Assets/ZoundsData/SystemFiles/WorkFiles/ND Test (baked) 1.wav
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   m_ReadOnly: 0
   m_Settings: {fileID: 11400000, guid: 1a60d2d2b5fdcef4693b1934a2c8eee3, type: 2}
   m_SchemaSet:

@@ -29,6 +29,9 @@ public class ZUIEnvelopeRuntime
     // Domain
     public float xMin = 0f;
     public float xMax = 1f;
+    /// <summary>Full data-domain bounds when xMin/xMax describe a zoomed viewport.</summary>
+    public float dataXMin = 0f;
+    public float dataXMax = 1f;
     public float yMin = 0f;
     public float yMax = 1f;
 

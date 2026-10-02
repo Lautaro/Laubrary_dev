@@ -397,9 +397,15 @@ MonoBehaviour:
       type: {class: LayerPlan, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: 91f04acaed50482c9e920bb6792a1aaa
+        colorSlot: -1
         enabled: 1
         displayName: 
         delay: 0
+        rows:
+        - capabilityId: 343f1fc4a5534fa6bdc0c4c52b9ab7ac
+          instance: -1
+        - capabilityId: 0712169ed7484892b6e3b1a8dd0fd67e
+          instance: -1
         layers:
           sortingLayerName: Default
           baseOrder: 0
@@ -407,10 +413,12 @@ MonoBehaviour:
           layers:
           - Splash
           - Fragments
+        rowsMigrated: 1
     - rid: 2235495221543567510
       type: {class: FragmentFracture, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: 0712169ed7484892b6e3b1a8dd0fd67e
+        colorSlot: -1
         enabled: 1
         displayName: 
         delay: 0
@@ -418,6 +426,8 @@ MonoBehaviour:
         sourceVisual: {fileID: 11400000, guid: df6d774acf094b948b983102c9ef9a34, type: 2}
         source: {fileID: 0}
         pieceCount: 4
+        useProjectPixelScale: 1
+        pixelsPerUnitOverride: 32
         minPieceAreaPx: 8
         seed: 5
         speedMin: 1.5
@@ -470,58 +480,131 @@ MonoBehaviour:
           value: 1
           exponent: 1
           editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
         - time: 0.125
           value: 1
           exponent: 1
           editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
         - time: 0.25
           value: 1
           exponent: 1
           editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
         - time: 0.375
           value: 1
           exponent: 1
           editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
         - time: 0.5
           value: 1
           exponent: 1
           editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
         - time: 0.625
           value: 1
           exponent: 1
           editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
         - time: 0.75
           value: 0.9259259
           exponent: 1
           editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
         - time: 0.875
           value: 0.37615734
           exponent: 1
           editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
         - time: 1
           value: 0
           exponent: 1
           editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
     - rid: 2235495221543567511
       type: {class: PaletteSplash, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
         id: 343f1fc4a5534fa6bdc0c4c52b9ab7ac
+        colorSlot: -1
         enabled: 1
         displayName: 
         delay: 0
         layerName: Splash
+        sourceVisual: {fileID: 0}
         sprite: {fileID: 0}
         emitFromFootprint: 1
+        particleLook: 0
+        cropPxMin: 1
+        cropPxMax: 4
+        maskCropEdges: 0
+        edgeMaskStrength: 0.55
+        edgeMaskJitter: 0.4
+        useHitRadius: 0
+        hitRadiusPx: 6
+        hitOffsetPx: {x: 0, y: 0}
+        tintCropEdges: 0
+        edgeTintPreset: 0
+        customEdgeTint:
+          serializedVersion: 2
+          key0: {r: 0.34, g: 0.15, b: 0.05, a: 1}
+          key1: {r: 0.72, g: 0.36, b: 0.12, a: 0.7}
+          key2: {r: 0.5, g: 0.33, b: 0.18, a: 0.25}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 32768
+          ctime2: 65535
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 32768
+          atime2: 65535
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 3
+          m_NumAlphaKeys: 3
+        edgeTintStrength: 0.7
+        edgeTintThicknessPx: 1
         countMin: 8
         countMax: 16
         sizePxMin: 1
         sizePxMax: 3
-        pixelsPerUnit: 16
+        useProjectPixelScale: 1
+        pixelsPerUnitOverride: 16
         speedMin: 1.5
         speedMax: 5
         inheritBurstDirection: 0
         directionDeg: 90
-        spreadDeg: 180
+        spreadDeg: 90
         gravity: 6
         drag: 0.4
         lifeMin: 0.15
@@ -560,41 +643,69 @@ MonoBehaviour:
           m_PostInfinity: 2
           m_RotationOrder: 4
         curvesMigrated: 1
+        spreadMigrated: 1
         alphaEnvelope:
         - time: 0
           value: 1
           exponent: 1
           editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
         - time: 0.125
           value: 1
           exponent: 1
           editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
         - time: 0.25
           value: 1
           exponent: 1
           editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
         - time: 0.375
           value: 1
           exponent: 1
           editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
         - time: 0.5
           value: 1
           exponent: 1
           editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
         - time: 0.625
           value: 1
           exponent: 1
           editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
         - time: 0.75
           value: 0.9259259
           exponent: 1
           editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
         - time: 0.875
           value: 0.37615734
           exponent: 1
           editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
         - time: 1
           value: 0
           exponent: 1
           editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
         seed: 3
