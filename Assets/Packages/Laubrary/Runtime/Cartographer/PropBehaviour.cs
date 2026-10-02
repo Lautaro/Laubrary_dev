@@ -37,14 +37,34 @@ namespace Laubrary.Cartographer
         /// an editing scene shows the level, not the gameplay.
         protected virtual void OnPlaced() { }
 
-        /// The procgen pass's entry point, called by LevelProcgen.Run for every placement whose prop is
-        /// marked `procgen`. This runs on a LEVEL ASSET — possibly a runtime clone, never necessarily a
-        /// built instance — and it is invoked on the PREFAB's component directly, without a spawned scene
-        /// object. So implementations mutate `level` only, via Paint(..., Origin.Generated) / ErasePaint /
-        /// Place(..., Origin.Generated), and must never touch their transform, Level or Placement — none of
-        /// those exist yet. `rng` is one stream shared across the whole run (same seed, same level); its
-        /// state depends on pass order, so a behaviour that must agree with its OTHER placements derives a
-        /// private System.Random from `seed` instead of drawing from the stream.
-        public virtual void OnProcgen(LevelAsset level, PropPlacement placement, System.Random rng, int seed) { }
+        /// What this behaviour does, in one line, addressed to whoever is placing the prop in the level
+        /// editor — NOT to a programmer reading the class. Code attached to a prop is invisible work: the
+        /// author sees a stamp go down and has no way to know it will seal a corridor or roll an exit when
+        /// the level generates. Overriding this is how a behaviour tells them.
+        ///
+        /// Called on the PREFAB's component, so the answer may quote the prefab's configured values ("Seals
+        /// aisles up to 6 cells long") — that is the point, a flavour is a prefab variant. Cartographer only
+        /// relays the string; it still never learns what a behaviour means, the same line the tag system
+        /// draws. The default names the type, which is honest but rarely enough — override it.
+        public virtual string Describe() => Spaced(GetType().Name);
+
+        /// "AisleGateBehaviour" → "Aisle Gate". Runtime-safe: ObjectNames.NicifyVariableName is editor-only
+        /// and this type lives in the runtime assembly.
+        static string Spaced(string typeName)
+        {
+            if (typeName.EndsWith("Behaviour")) typeName = typeName.Substring(0, typeName.Length - 9);
+            var sb = new System.Text.StringBuilder(typeName.Length + 8);
+            for (int i = 0; i < typeName.Length; i++)
+            {
+                if (i > 0 && char.IsUpper(typeName[i]) && !char.IsUpper(typeName[i - 1])) sb.Append(' ');
+                sb.Append(typeName[i]);
+            }
+            return sb.ToString();
+        }
+
+        // ☠️ There is deliberately NO virtual OnProcgen here. A behaviour that rewrites the level at procgen
+        // time declares itself by implementing ILevelMutator — an interface the compiler checks — because
+        // the virtual-with-an-empty-body version could be left unoverridden, and then a prop marked procgen
+        // carrying that behaviour ran the pass and changed nothing, with nothing anywhere saying so.
     }
 }

@@ -66,7 +66,7 @@ namespace Laubrary.Cartographer
             if (w <= 0 || w > CartographerPreview.MaxSide || cell > CartographerPreview.MaxSide) return null;
 
             var tex = CartographerPreview.NewCanvas(w, cell);
-            for (int i = 0; i < sprites.Count; i++) CartographerPreview.Blit(tex, sprites[i], i * cell, 0);
+            for (int i = 0; i < sprites.Count; i++) CartographerPreview.Blit(tex, sprites[i], i * cell, 0, cell);
 
             if (tint != Color.white)
             {

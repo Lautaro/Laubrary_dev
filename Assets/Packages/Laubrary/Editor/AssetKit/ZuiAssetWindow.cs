@@ -177,7 +177,10 @@ namespace Laubrary.AssetKit.Editor
             ClearThumbs();
         }
 
-        void OnProjectChanged() { RefreshBrowse(); Rebuild(); }
+        // Virtual so a window with live editing state can replace the blunt full rebuild with a targeted refresh:
+        // the Tileset Builder overrides it, because a full rebuild mid-edit throws away the grid, the selection and
+        // the scroll position (came from OutBurner with the Cartographer promotion, 2026-10-02).
+        protected virtual void OnProjectChanged() { RefreshBrowse(); Rebuild(); }
 
         void TickThumbAnimation()
         {

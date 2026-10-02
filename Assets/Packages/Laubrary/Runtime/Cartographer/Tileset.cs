@@ -26,15 +26,61 @@ namespace Laubrary.Cartographer
     [System.Serializable]
     public class Clump
     {
-        [Tooltip("Name shown in palettes and pickers.")]
+        [Tooltip("STABLE OPAQUE IDENTITY — a GUID minted once, never shown, never edited, never reused. This " +
+                 "is what a ClumpPlacement records and what MetaMapper names a subject by, which is precisely " +
+                 "why two clumps may both be called 'Shelf' without either one stealing the other's stamps or " +
+                 "metadata. Empty on a clump authored before ids existed; EnsureId() mints one the first time " +
+                 "anything touches it, and a placement with no id keeps resolving by name until then.")]
+        public string id = "";
+
+        [Tooltip("Name shown in palettes and pickers. PURELY COSMETIC since ids exist — duplicates are legal " +
+                 "and harmless.")]
         public string displayName = "Clump";
 
         [Tooltip("Anchor cell of this clump in the tileset's CLUMP grid — layout state, not level data.")]
         public Vector2Int gridPos;
 
+        [Tooltip("THE FOOTPRINT THIS CLUMP'S METADATA WAS AUTHORED AGAINST — the drift guard for `meta`. Marks " +
+                 "and masks are stored relative to the footprint's own corner, so growing the clump a row on " +
+                 "top moves every authored mark onto different art. Comparing this against Bounds is the only " +
+                 "way to know WHICH WAY the art moved (a size change alone cannot tell 'a row on top' from 'a " +
+                 "row at the bottom'). Width 0 = never recorded; the first touch adopts the current bounds.")]
+        public RectInt metaFootprint;
+
+        /// This clump's stable id, minting one if it has never had it. Returns the id; safe to call every
+        /// time. Callers that persist assets should dirty the owning Tileset when <see cref="HasId"/> was
+        /// false beforehand.
+        public string EnsureId()
+        {
+            if (string.IsNullOrEmpty(id)) id = System.Guid.NewGuid().ToString("N");
+            return id;
+        }
+
+        public bool HasId => !string.IsNullOrEmpty(id);
+
         [Tooltip("The locked arrangement: each member tile at its offset from the anchor. Painting a clump " +
                  "stamps exactly this pattern.")]
         public List<ClumpCell> cells = new();
+
+        [Tooltip("Spatial metadata about this clump: what it IS and where things happen on it. A layer named " +
+                 "'LootShelf' is what makes this clump a loot shelf; Points marks on that layer are where the " +
+                 "wares sit. Cartographer stores it and never interprets it — the same line the tag system " +
+                 "draws.")]
+        // EMBEDDED, not a reference to a MetaMap asset. MetaMapper deliberately ships two shapes of the same
+        // model (design §3): MetaMapData embeds in any asset and its subject is implicit — it IS its owner —
+        // while the MetaMap ScriptableObject exists only for subjects that cannot own one (a bare Sprite).
+        // A clump lives inside a Tileset, which IS an asset, so it owns its metadata directly: nothing to
+        // create, nothing to name, nothing to go looking for, and it can never be pointed at the wrong clump.
+        // Named `meta` to match the AnimationDef.meta the Launimator migration already plans.
+        public Laubrary.MetaMapper.MetaMapData meta = new();
+
+        /// True if this clump declares `layerId` — the IDENTITY question, and the cheapest one: a layer that
+        /// merely EXISTS is already a useful answer, so a clump can be marked as a shelf without anyone
+        /// authoring a single mark on it.
+        public bool Declares(string layerId) => meta != null && meta.HasLayer(layerId);
+
+        /// True when this clump declares ANY meaning at all — what the Clumps tab's identity badge marks.
+        public bool DeclaresAnything => meta != null && meta.LayerCount > 0;
 
         /// The clump's footprint relative to its anchor (offsets can be any shape; this is the bounding box).
         public RectInt Bounds
@@ -92,8 +138,8 @@ namespace Laubrary.Cartographer
         }
 
         [Tooltip("The tile a new paint uses when the author has not picked one. A convenience default for " +
-                 "the palette — a LAYER's default tile (which fills unpainted cells) is a separate setting " +
-                 "on the layer itself.")]
+                 "the palette — a LAYER's BACKGROUND TILE (which fills its unpainted cells) is a separate " +
+                 "setting on the layer itself.")]
         public LevelTile defaultTile;
 
         [Header("Clumps")]
@@ -115,6 +161,50 @@ namespace Laubrary.Cartographer
                         if (p != null) max = Mathf.Max(max, p.gridPos.y + p.Bounds.yMax + 2);
                 return max;
             }
+        }
+
+        /// THE identity lookup: the clump carrying this stable id, or null. Exact, ordinal, unambiguous —
+        /// unlike a name, an id cannot be shared by two clumps, so this can never hand back "whichever one
+        /// happened to be first".
+        public Clump GetClumpById(string clumpId)
+        {
+            if (string.IsNullOrEmpty(clumpId) || clumps == null) return null;
+            foreach (var c in clumps)
+                if (c != null && string.Equals(c.id, clumpId, System.StringComparison.Ordinal)) return c;
+            return null;
+        }
+
+        /// The clump named `displayName`, or null — the LEGACY / user-facing lookup, kept because a record
+        /// written before ids existed has nothing else to go on, and because a human typing a name means the
+        /// name. Case-insensitive, and answers the FIRST match: two clumps may legitimately share a name, so
+        /// nothing that needs to identify ONE clump should come through here.
+        public Clump GetClump(string displayName)
+        {
+            if (string.IsNullOrEmpty(displayName) || clumps == null) return null;
+            foreach (var c in clumps)
+                if (c != null && string.Equals(c.displayName, displayName, System.StringComparison.OrdinalIgnoreCase))
+                    return c;
+            return null;
+        }
+
+        /// THE RESOLUTION RULE every stored reference to a clump follows: the id wins, and the name is only
+        /// consulted when there is no id at all. That fallback is the entire migration story — a placement
+        /// recorded before ids existed keeps working, unchanged, forever if need be — and it is deliberately
+        /// NOT a fallback for an id that fails to resolve: an id that no longer exists means that clump is
+        /// gone, and quietly substituting a same-named one is exactly the silent mis-resolution ids were
+        /// added to end.
+        public Clump ResolveClump(string clumpId, string displayName)
+            => string.IsNullOrEmpty(clumpId) ? GetClump(displayName) : GetClumpById(clumpId);
+
+        /// Mint an id for every clump that has none, returning how many were minted. Idempotent and silent —
+        /// the migration is meant to be invisible. The CALLER dirties the asset when this returns > 0.
+        public int EnsureClumpIds()
+        {
+            if (clumps == null) return 0;
+            int minted = 0;
+            foreach (var c in clumps)
+                if (c != null && !c.HasId) { c.EnsureId(); minted++; }
+            return minted;
         }
 
         /// True if `tile` belongs to this palette.
@@ -140,12 +230,34 @@ namespace Laubrary.Cartographer
             }
             if (sprites.Count == 0) return null;
 
-            int cell = CartographerPreview.CellPixels(sprites[0]);
-            int w = sprites.Count * cell;
-            if (w <= 0 || w > CartographerPreview.MaxSide || cell > CartographerPreview.MaxSide) return null;
+            // A GRID of the first few tiles, not a row of all of them.
+            //
+            // ☠️ This used to lay every tile in ONE ROW and bail when that exceeded MaxSide — so a tileset
+            // of 256 tiles asked for an 8192px strip, got null, and showed a BLANK square forever. Every
+            // real tileset is past that limit, which meant the thumbnail worked only on toy data: exactly
+            // the failure mode the "a thumbnail is a promise" rule in the UI guide exists to forbid.
+            // A square-ish sample identifies a palette at a glance, which is all a thumbnail owes anyone.
+            const int MaxTilesShown = 16;
+            int shown = Mathf.Min(sprites.Count, MaxTilesShown);
+            int cols = Mathf.CeilToInt(Mathf.Sqrt(shown));
+            int rows = Mathf.CeilToInt(shown / (float)cols);
 
-            var tex = CartographerPreview.NewCanvas(w, cell);
-            for (int i = 0; i < sprites.Count; i++) CartographerPreview.Blit(tex, sprites[i], i * cell, 0);
+            // A tileset may legitimately mix cell sizes (16px and 32px plucks side by side) — the canvas
+            // must fit the LARGEST, or bigger sprites overrun their block.
+            int cell = 0;
+            for (int i = 0; i < shown; i++) cell = Mathf.Max(cell, CartographerPreview.CellPixels(sprites[i]));
+            if (cell <= 0) return null;
+            // Shrink the cell rather than give up: the promise is a picture, not a picture at native size.
+            cell = Mathf.Min(cell, CartographerPreview.MaxSide / Mathf.Max(cols, rows));
+            if (cell <= 0) return null;
+
+            var tex = CartographerPreview.NewCanvas(cols * cell, rows * cell);
+            for (int i = 0; i < shown; i++)
+            {
+                int cx = i % cols;
+                int cy = rows - 1 - i / cols;      // fill top-left first; texture rows run up
+                CartographerPreview.Blit(tex, sprites[i], cx * cell, cy * cell, cell);
+            }
             tex.Apply();
             return tex;
         }

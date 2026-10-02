@@ -18,7 +18,7 @@ That is the whole of it. It is not a clump editor, not a procgen toy, and not a 
 2. Tiles come from a **tileset**; tilesets belong to a **biome**.
 3. **Layers** of tilesets.
 4. A tileset may have **no tile = transparent**.
-5. There may be a **default tile**.
+5. There may be a **background tile** (called a "default tile" in the original brief; renamed 2026-08-03 for what it does — it is the layer's background, not a fallback).
 6. A tile may be a **group of interchangeable tiles** — painting picks one, with policies: random, round-robin, never-repeat-last, …
 7. **Free sprites on layers** — behave like tiles but any size and shape.
 8. **Reusable multi-tile structures** — a chunk of level you author once and stamp many times.
@@ -102,10 +102,10 @@ Two of the four policies depend on **order of painting**, not on position:
 ```
 displayName
 tiles       : List<LevelTile>
-defaultTile : LevelTile      // req 5 — see below
+backgroundTile : LevelTile   // req 5 — see below
 ```
 
-**"Default tile" (req 5)** is deliberately supported in two places because the brief allows both readings, and they are not the same feature:
+**"Background tile" (req 5)** is deliberately supported in two places because the brief allows both readings, and they are not the same feature:
 
 - **Tileset default** — the tile a new paint uses when the author has not picked one. A convenience.
 - **Layer default** — a tile that *fills every unpainted cell inside the level's bounds*. This is the useful one: a floor layer needs no painting at all, and a level gains a base surface for free.
@@ -174,7 +174,7 @@ If key/value metadata is needed later, add `LevelTag` subclasses carrying typed 
 ```
 name
 tileset      : Tileset        // req 3 — layers OF tilesets
-defaultTile  : LevelTile      // fills unpainted cells in bounds (see 3.2)
+backgroundTile : LevelTile    // fills unpainted cells in bounds (see 3.2)
 sortingOrder, opacity, visible, locked
 solid, oneWay, colliderShape, solidTag
 tags         : List<LevelTag>
@@ -193,7 +193,7 @@ rooms      : List<Room>        // unchanged from today
 
 **Both `paints` and `placements` are stored, and that is deliberate.** Single-tile painting is the primary interaction and must not be forced through a fake 1×1 pattern. Clump *placements* are recorded separately so a stamped structure keeps its identity — its tags, its prefab hook, its named spots, and the ability to rebuild or regenerate. A Tilemap alone remembers neither; that lesson is already burnt into the current tool and must not be un-learnt.
 
-**Rebuild order:** layer default fill → pattern placements (in order) → single paints (so a hand touch-up always wins over the structure beneath it) → decals.
+**Rebuild order:** layer background fill → pattern placements (in order) → single paints (so a hand touch-up always wins over the structure beneath it) → decals.
 
 Storage is **sparse** (a list of painted cells), not a dense array. Levels are mostly empty, and a dense array of a 200×100×4 level is 80 000 entries of nothing.
 
@@ -233,7 +233,7 @@ A `ZuiAssetWindow<LevelAsset>`. **The level is the subject.** The browser lists 
 Boxes, top to bottom:
 
 - **Level** — name, biome, bounds, and the scene `LevelInstance` it is currently previewing through.
-- **Layers** — reorderable list: visibility, lock, name, tileset, default tile, sorting, collision flags. Active layer is what painting affects.
+- **Layers** — reorderable list: visibility, lock, name, tileset, background tile (a read-out; set from the Tileset box), sorting, collision flags. Active layer is what painting affects.
 - **Palette** — the active layer's tileset, drawn as a sprite grid. Click to select the paint tile. A tile with variants shows a badge with its policy.
 - **Clumps** — the biome's clumps as thumbnails; selecting one switches to the stamp tool.
 - **Decals** — a sprite field plus the placed list.
@@ -250,7 +250,7 @@ Every edit routes through `Undo.RecordObject` on the `LevelAsset`. A level edito
 
 ## 5. Runtime
 
-- **`LevelInstance`** builds the level: creates the `Grid`, one `Tilemap` per layer, applies default fill + placements + paints, spawns decals (SpriteRenderers, or prefabs where a decal names one), resolves pattern prefab hooks, publishes named spots, and bakes colliders.
+- **`LevelInstance`** builds the level: creates the `Grid`, one `Tilemap` per layer, applies background fill + placements + paints, spawns decals (SpriteRenderers, or prefabs where a decal names one), resolves pattern prefab hooks, publishes named spots, and bakes colliders.
 - **Collision** as today: per-layer `solid` / `oneWay` / `colliderShape`, composite for top-down, `PlatformEffector2D` for side-scrolling, `solidTag` narrowing a solid layer per cell.
 - **Queries** for gameplay: `TagsAt`, `HasTag`, `CellsWith`, `TryGetSpot`, `WorldToCell`/`CellToWorld`.
 - **Procgen** stays a *composer*: a generator emits `placements`/`paints` into a `LevelAsset` through the same calls the editor uses, so a generated level is indistinguishable from a hand-built one. Keep `LevelRecipe`; keep the "biome gates what may be placed" rule.
@@ -285,7 +285,7 @@ Every edit routes through `Undo.RecordObject` on the `LevelAsset`. A level edito
 | No variants, no animation, no per-cell metadata | Requirements 6, 9, 10 do not exist in any form today.                                                                                                                            |
 | No decals                                       | Requirement 7 does not exist.                                                                                                                                                    |
 | Thin `CartographerBiome`                        | Holds tile refs and allowed clumps but is not wired to layers or the palette.                                                                                                    |
-| No default tile                                 | Requirement 5 does not exist.                                                                                                                                                    |
+| No background tile                                 | Requirement 5 does not exist.                                                                                                                                                    |
 
 **Honest summary: this is a rebuild that reuses perhaps 40% of the existing code.** The data-model instincts were right and the Scene-view interaction is good. The window, the level's home, and everything about tilesets/variants/animation/decals/metadata is new. **Do not try to evolve the current window** — start the window fresh with `LevelAsset` as its subject and port the stamper into it.
 
@@ -296,7 +296,7 @@ Every edit routes through `Undo.RecordObject` on the `LevelAsset`. A level edito
 Each phase ends with something demonstrable. Do not start the next until the last is verified in the editor.
 
 1. **Data model** — `LevelTile`, `Tileset`, `LevelTag`, `Clump`, `LevelLayer`, `LevelAsset`, `Decal`. **Include the `Origin { Authored, Generated }` flag on paints, placements and decals from the start** (§3.9) — it is one byte and it is what makes hybrid levels possible later instead of a rewrite. No UI. Verify by constructing one in code and asserting it serialises.
-2. **`LevelInstance`** — build a hand-constructed `LevelAsset` into a scene: grid, layers, default fill, paints, placements, decals, colliders. This is the moment the whole model is proven.
+2. **`LevelInstance`** — build a hand-constructed `LevelAsset` into a scene: grid, layers, background fill, paints, placements, decals, colliders. This is the moment the whole model is proven.
 3. **Variant resolution** — paint-time resolution with all four policies, stored per cell. Verify determinism: the same level rebuilt twice is identical, and no cell re-rolls on a chunk refresh.
 4. **Animation** — animated `LevelTile` via `GetTileAnimationData`; animated decals. Verify in play mode *and* in the editor.
 5. **The window** — level browser with thumbnails, layer stack, palette. Selecting and inspecting only; no painting yet.

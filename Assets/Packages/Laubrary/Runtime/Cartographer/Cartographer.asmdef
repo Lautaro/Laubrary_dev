@@ -3,7 +3,8 @@
     "rootNamespace": "Laubrary.Cartographer",
     "references": [
         "com.Lautaro-Arino.Laubrary.PreviewKit",
-        "Unity.2D.Tilemap.Extras"
+        "Unity.2D.Tilemap.Extras",
+        "com.Lautaro-Arino.Laubrary.MetaMapper"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

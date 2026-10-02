@@ -20,9 +20,13 @@ namespace Laubrary.Cartographer.Editor
     /// The shape is borrowed from Launimator's Laumination Builder, whose own history settled the design
     /// question: whole-sheet auto-grouping was tried and removed as a dead end; what survived is a human
     /// AIMING a marquee and the machine doing the mechanical half inside it.
-    public class TilesetBuilderWindow : ZuiAssetWindow<Tileset>
+    ///
+    /// The tileset GRID half of this window is not its own: `TilesetGridView` is the shared control the
+    /// Cartographer's Tileset box hosts too (extracted 2026-08-03), and this window is its host —
+    /// supplying the tileset, the view dials, the status line, and the source SHEET that only exists here.
+    public class TilesetBuilderWindow : ZuiAssetWindow<Tileset>, ITilesetGridHost, ITilesetGridSheetSource
     {
-        // No menu item on purpose: reached from the Cartographer window's Palette box, the same way the
+        // No menu item on purpose: reached from the Cartographer window's Tileset box, the same way the
         // Prop Editor is reached from its Props box.
         public static void OpenFor(Tileset target)
         {
@@ -51,22 +55,13 @@ namespace Laubrary.Cartographer.Editor
         [SerializeField] int originX;
         [SerializeField] int originY;
         [SerializeField] bool gridOscillate = true;
-        [SerializeField] float gridOscSpeed = 1.2f;      // cycles per second
         [SerializeField] float gridOscAmplitude = 1f;    // 0 = static mid-grey, 1 = full black↔white swing
         [SerializeField] float gridBrightness = 0.75f;   // static grid: 0 = black, 1 = white
         [SerializeField] float gridAlpha = 0.8f;         // static grid opacity
-        [SerializeField] bool overwriteOnDrop;           // grid editor: dropping onto occupied cells
-        [SerializeField] float tilesetCellZoom = 40f;    // VIEW-only cell size of the grid editor
-        [SerializeField] float tilesetGridBrightness = 0.75f;   // grid editor lattice: white ↔ black
-        [SerializeField] float tilesetGridAlpha = 0.35f;        // grid editor lattice opacity
-        [SerializeField] bool tilesetSeamless;                  // gapless view — tiles butt together, no lattice
-        [SerializeField] bool tilesetSeamlessMarks = true;      // seamless: oscillating hover/selection frames
-        [SerializeField] int libraryTab;                        // 0 = loose tiles, 1 = clumps
-        [SerializeField] int clumpEditMode;                     // 0 = Select, 1 = Layers, 2 = Collision
-        [SerializeField] int tileEditMode;                      // 0 = Select, 1 = Collision
-        [SerializeField] bool showAnimated;                     // grid: every animated tile plays its frames
-        [SerializeField] bool cycleRandoms;                     // grid: every Random tile cycles its variants
-        [SerializeField] TileTag activeTag;                     // the tag Tags mode paints and tints with
+        // Every dial the SHARED grid editor renders by, in the one object TilesetGridView reads. The
+        // oscillation SPEED lives in here too even though the sheet canvas also uses it: one clock, dialled
+        // once, so both canvases pulse together instead of drifting apart.
+        [SerializeField] TilesetGridOptions gridOptions = new();
         [SerializeField] float sheetZoom = 1f;           // sheet canvas: 1 = fit the pane, wheel-driven up to 16×
         Vector2 sheetPan;                                // view offset while zoomed; Layout clamps it and zeroes it at fit
         [SerializeField] string nextName = "Tile";
@@ -80,7 +75,6 @@ namespace Laubrary.Cartographer.Editor
 
         SheetStage stage;
         Label statusLine;
-        VisualElement tilesStrip;
         Button btnAdd, btnRandom, btnAnimated;
         Image animPreview;
         Texture2D previewTex;                                    // reused canvas for the animation preview
@@ -89,14 +83,22 @@ namespace Laubrary.Cartographer.Editor
 
         protected override void OnEnable()
         {
+            RestoreWindowState();   // FIRST — everything below (and the base build) feeds off these fields
             base.OnEnable();
             EditorApplication.playModeStateChanged += OnPlayModeChanged;
             // The path string survives domain reloads; the readable pixel copy does not — rebuild it.
-            if (!string.IsNullOrEmpty(sheetPath)) LoadSheet();
+            // Neither does the md5 (plain field) — recompute it, or the used-cells tint and the sheet
+            // memory silently stop matching after every reload/reopen.
+            if (!string.IsNullOrEmpty(sheetPath))
+            {
+                if (string.IsNullOrEmpty(sheetMd5)) sheetMd5 = SheetProvenance.Md5OfFile(sheetPath);
+                LoadSheet();
+            }
         }
 
         protected override void OnDisable()
         {
+            SaveWindowState();
             EditorApplication.playModeStateChanged -= OnPlayModeChanged;
             base.OnDisable();
             LauAssetGridGUI.ClearCache(tileThumbs);
@@ -109,12 +111,154 @@ namespace Laubrary.Cartographer.Editor
             // Same retained-tree lesson as the Cartographer window: transitions kill unflagged textures.
             if (change != PlayModeStateChange.EnteredEditMode && change != PlayModeStateChange.EnteredPlayMode) return;
             LauAssetGridGUI.ClearCache(tileThumbs);
-            RebuildTilesStrip();
+            tilesetView?.Rebuild();
         }
+
+        // ── window-state persistence: the dials survive close/reopen, not just domain reloads ─────────
+        // A targeted DTO on purpose, NOT EditorJsonUtility.ToJson(this): whole-window JSON stores the
+        // asset/sheet/tag REFERENCES as session-local instanceIDs (dead after an editor restart, wrong
+        // object in the worst case) and would overwrite EditorWindow/ZuiAssetWindow serialized internals
+        // behind the base's back (`asset` outside SetAsset, window chrome state). Plain values travel
+        // as-is; the two asset references travel as GUIDs, which are stable forever. Key is per-project —
+        // EditorPrefs is machine-global and Laubrary runs in many projects at once.
+        static string StateKey => "Laubrary.TilesetBuilder.State." + PlayerSettings.productGUID;
+
+        [System.Serializable]
+        class WindowState
+        {
+            public int tileSize, spacingX, spacingY, originX, originY;
+            public bool gridOscillate;
+            public float gridOscSpeed, gridOscAmplitude, gridBrightness, gridAlpha;
+            public bool overwriteOnDrop;
+            public float tilesetCellZoom, tilesetGridBrightness, tilesetGridAlpha;
+            public bool tilesetSeamless, tilesetSeamlessMarks;
+            public int libraryTab, clumpEditMode, tileEditMode;
+            public bool showAnimated, cycleRandoms;
+            public float sheetZoom;
+            public string nextName;
+            public int nextPolicy;
+            public float animFps;
+            public string sheetPath;
+            public string tilesetGuid, activeTagGuid;
+        }
+
+        static string GuidOf(Object o)
+        {
+            string p = o != null ? AssetDatabase.GetAssetPath(o) : null;
+            return string.IsNullOrEmpty(p) ? "" : AssetDatabase.AssetPathToGUID(p);
+        }
+
+        // The JSON field names are deliberately UNCHANGED by the 2026-08-03 extraction, even though the
+        // values now live inside `gridOptions` — a renamed key silently resets every dial the user had set.
+        void SaveWindowState()
+        {
+            var s = new WindowState
+            {
+                tileSize = tileSize, spacingX = spacingX, spacingY = spacingY, originX = originX, originY = originY,
+                gridOscillate = gridOscillate, gridOscSpeed = gridOptions.oscSpeed, gridOscAmplitude = gridOscAmplitude,
+                gridBrightness = gridBrightness, gridAlpha = gridAlpha,
+                overwriteOnDrop = gridOptions.overwriteOnDrop, tilesetCellZoom = gridOptions.cellZoom,
+                tilesetGridBrightness = gridOptions.lineBrightness, tilesetGridAlpha = gridOptions.lineAlpha,
+                tilesetSeamless = gridOptions.seamless, tilesetSeamlessMarks = gridOptions.seamlessMarks,
+                libraryTab = gridOptions.tab, clumpEditMode = gridOptions.clumpEditMode, tileEditMode = gridOptions.tileEditMode,
+                showAnimated = gridOptions.showAnimated, cycleRandoms = gridOptions.cycleRandoms,
+                sheetZoom = sheetZoom, nextName = nextName, nextPolicy = (int)nextPolicy, animFps = animFps,
+                sheetPath = sheetPath, tilesetGuid = GuidOf(set), activeTagGuid = GuidOf(gridOptions.activeTag),
+            };
+            EditorPrefs.SetString(StateKey, EditorJsonUtility.ToJson(s));
+        }
+
+        void RestoreWindowState()
+        {
+            string json = EditorPrefs.GetString(StateKey, "");
+            if (string.IsNullOrEmpty(json)) return;
+            var s = new WindowState();
+            try { EditorJsonUtility.FromJsonOverwrite(json, s); }
+            catch { return; }
+
+            tileSize = Mathf.Max(4, s.tileSize);
+            spacingX = Mathf.Max(0, s.spacingX);
+            spacingY = Mathf.Max(0, s.spacingY);
+            originX = Mathf.Max(0, s.originX);
+            originY = Mathf.Max(0, s.originY);
+            gridOscillate = s.gridOscillate;
+            gridOscAmplitude = s.gridOscAmplitude;
+            gridBrightness = s.gridBrightness;
+            gridAlpha = s.gridAlpha;
+            gridOptions.oscSpeed = s.gridOscSpeed;
+            gridOptions.overwriteOnDrop = s.overwriteOnDrop;
+            gridOptions.cellZoom = s.tilesetCellZoom;
+            gridOptions.lineBrightness = s.tilesetGridBrightness;
+            gridOptions.lineAlpha = s.tilesetGridAlpha;
+            gridOptions.seamless = s.tilesetSeamless;
+            gridOptions.seamlessMarks = s.tilesetSeamlessMarks;
+            gridOptions.tab = s.libraryTab;
+            gridOptions.clumpEditMode = s.clumpEditMode;
+            gridOptions.tileEditMode = s.tileEditMode;
+            gridOptions.showAnimated = s.showAnimated;
+            gridOptions.cycleRandoms = s.cycleRandoms;
+            gridOptions.Clamp();   // a prefs blob from an older build can carry values out of range
+            sheetZoom = s.sheetZoom;
+            if (!string.IsNullOrEmpty(s.nextName)) nextName = s.nextName;
+            nextPolicy = (VariantPolicy)s.nextPolicy;
+            animFps = s.animFps;
+
+            // Unity's own layout serialization restores an already-open window (editor restart) with its
+            // references intact — never stomp a live value with the prefs copy; only fill the fresh-open void.
+            if (string.IsNullOrEmpty(sheetPath) && !string.IsNullOrEmpty(s.sheetPath))
+            {
+                sheetPath = s.sheetPath;
+                ResolveSheetAsset();
+            }
+            if (asset == null && !string.IsNullOrEmpty(s.tilesetGuid))
+                asset = AssetDatabase.LoadAssetAtPath<Tileset>(AssetDatabase.GUIDToAssetPath(s.tilesetGuid));
+            if (gridOptions.activeTag == null && !string.IsNullOrEmpty(s.activeTagGuid))
+                gridOptions.activeTag = AssetDatabase.LoadAssetAtPath<TileTag>(AssetDatabase.GUIDToAssetPath(s.activeTagGuid));
+        }
+
+        // ── ITilesetGridHost / ITilesetGridSheetSource: this window as the shared grid's host ─────────
+        Tileset ITilesetGridHost.GridTileset => set;
+        TilesetGridOptions ITilesetGridHost.GridOptions => gridOptions;
+        VisualElement ITilesetGridHost.GridCardHost => rootVisualElement;
+
+        void ITilesetGridHost.GridWarn(string message) => FlashStatus(message);
+
+        /// The grid's own report goes in FRONT of the standing sheet readout, so "Pasted 3 tile(s)" is
+        /// read first and the context it happened in survives underneath it.
+        void ITilesetGridHost.GridReport(string message)
+        {
+            if (statusLine == null) return;
+            statusLine.text = message + " " + statusLine.text;
+        }
+
+        void ITilesetGridHost.GridContentChanged()
+        {
+            // Baked thumbnails would keep showing pre-edit pixels after an atlas flip; the sheet's
+            // used-cells tint and the status line both describe state the grid just changed.
+            InvalidateTileThumbs();
+            RefreshUsed();
+            stage?.Refresh();
+            UpdateStatus();
+        }
+
+        /// The Builder's selection means exactly one thing — what the edit actions act on — and the grid
+        /// already owns that. Nothing further to do here; the Cartographer is where this seam earns its keep.
+        void ITilesetGridHost.GridSelectionChanged() { }
+
+        /// Picking a clump here selects it for moving, deleting and METADATA — and the pick is remembered by
+        /// id so a rebuild can hand it back (see savedClumpId).
+        void ITilesetGridHost.GridClumpPicked(Clump clump)
+            => savedClumpId = clump != null ? clump.EnsureId() : "";
+
+        IReadOnlyList<(Vector2Int off, Vector2Int cell)> ITilesetGridSheetSource.GridSheetDragCells => sheetDragCells;
+        void ITilesetGridSheetSource.GridSheetDropTiles(Vector2Int anchor, bool push, Vector2Int pushDir) =>
+            MintDropFromSheet(anchor, push, pushDir);
+        void ITilesetGridSheetSource.GridSheetDropClump(Vector2Int anchor) => MintClumpFromSheet(anchor);
 
         protected override void OnAssetChanged()
         {
             selection.Clear();
+            resetScrollOnBuild = true;   // a different tileset is a new context — start at the top
             LauAssetGridGUI.ClearCache(tileThumbs);
 
             // A tileset that already has tiles knows its sheet — reopen it so the window starts mid-flow
@@ -151,6 +295,15 @@ namespace Laubrary.Cartographer.Editor
             left.AddToClassList("lau-tileset__controls");
             var scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.AddToClassList("lau-tool-shell__scroll");
+            leftScroll = scroll;
+            // Give back the place OnBeforeRebuild captured. Only AFTER the fresh content has real
+            // geometry — setting the offset now clamps against a zero-sized layout and silently
+            // becomes 0 (the "pane snaps to the top" bug).
+            if (savedLeftScroll.y > 0.5f)
+            {
+                var want = savedLeftScroll;
+                scroll.contentContainer.RegisterCallbackOnce<GeometryChangedEvent>(_ => scroll.scrollOffset = want);
+            }
             BuildControls(scroll.contentContainer);
             left.Add(scroll);
 
@@ -197,6 +350,7 @@ namespace Laubrary.Cartographer.Editor
                 OscillationRow()));
 
             statusLine = (Label)Z.Text("", ZuiText.Subtle, "Sheet and selection state.");
+            statusFlashSeq = 0;   // fresh label — recapture its theme colour on the next flash
             // Stable-layout rule: the status is ONE reserved line; long text truncates rather than wraps,
             // because a wrapping status would shove the whole column below it.
             statusLine.AddToClassList("lau-tileset__status");
@@ -244,296 +398,73 @@ namespace Laubrary.Cartographer.Editor
                 animPreview.image = previewTex;
             }).Every(50);
 
-            tilesStrip = new VisualElement();
-            var libraryBox = Z.Box("Tileset", "The tileset AS A GRID — positions are the patterns the Cartographer palette shows. Tiles and Clumps are its two tabs. Click / Ctrl-click / marquee to select; drag a selection to move it; Ctrl-drag duplicates; right-click for actions.",
-                tilesStrip);
+            // The SHARED tileset editor — the same control the Cartographer's Tileset box hosts.
+            tilesetView = new TilesetGridView(this, savedGridScrollX);
+            // Hand the clump selection back. A new TilesetGridView starts with nothing selected, and this
+            // window is recreated on every undo/redo and every domain reload — so without this one line, a
+            // single Ctrl+Z blanks and disables the whole Metadata row (Edit meta…, Clear, the "declares:"
+            // readout and the drift warning all describe the SELECTED clump) with no visible cause.
+            tilesetView.SelectClumpById(savedClumpId);
+            var libraryBox = Z.Box("Tileset", "The tileset AS A GRID — positions are the patterns the Cartographer's Tileset box shows. Tiles and Clumps are its two tabs. Click / Ctrl-click / marquee to select; drag a selection to move it; Ctrl-drag duplicates as INDEPENDENT copies (editing one never affects the other); right-click for actions.",
+                tilesetView);
 
             // View dials live ON the header line (the user's own mockup, 2026-08-01): they govern how the
             // grids display, so they cost no body row and stay put across tab switches.
-            libraryBox.AddHeaderContent(Z.MicroSlider("Zoom", tilesetCellZoom, 20f, 72f,
-                "Display size of the grid's cells — a view convenience only, tile data is untouched.",
-                v => { tilesetCellZoom = v; tilesGrid?.RebuildCells(); clumpsGrid?.RebuildCells(); }, 90f));
-            libraryBox.AddHeaderContent(Z.MicroSlider("Lines", tilesetGridBrightness, 0f, 1f,
-                "Grid line colour, black to white — same dial as the sheet canvas.",
-                v => { tilesetGridBrightness = v; tilesGrid?.RepaintOverlay(); clumpsGrid?.RepaintOverlay(); }, 70f));
-            libraryBox.AddHeaderContent(Z.MicroSlider("Alpha", tilesetGridAlpha, 0f, 1f,
-                "Grid line opacity.",
-                v => { tilesetGridAlpha = v; tilesGrid?.RepaintOverlay(); clumpsGrid?.RepaintOverlay(); }, 70f));
-            var marksToggle = Z.ToggleButton("Osc frame",
-                "In seamless view: pulse an oscillating frame around the hovered and selected cells, so " +
-                "editing stays possible without the grid. Off = a pure, uninterrupted preview.",
-                tilesetSeamlessMarks, v => { tilesetSeamlessMarks = v; tilesGrid?.RepaintOverlay(); clumpsGrid?.RepaintOverlay(); });
-            libraryBox.AddHeaderContent(Z.ToggleButton("Seamless",
-                "Remove the gaps and grid entirely — adjacent tiles butt together and preview exactly as " +
-                "they would paint into a level.",
-                tilesetSeamless, v =>
-                {
-                    tilesetSeamless = v;
-                    marksToggle.SetEnabled(v);
-                    tilesGrid?.RebuildCells();
-                    tilesGrid?.RepaintOverlay();
-                    clumpsGrid?.RebuildCells();
-                    clumpsGrid?.RepaintOverlay();
-                }));
-            marksToggle.SetEnabled(tilesetSeamless);
-            libraryBox.AddHeaderContent(marksToggle);
+            tilesetView.AddHeaderDials(libraryBox);
 
             root.Add(libraryBox);
-            RebuildTilesStrip();
             UpdateStatus();
         }
 
-        VisualElement gridToolbar;
-        TilesetGrid tilesGrid;
-        ClumpsGrid clumpsGrid;
+        TilesetGridView tilesetView;
 
-        /// The live sheet-drag payload, readable by whichever canvas is about to accept the drop.
-        internal List<(Vector2Int off, Vector2Int cell)> SheetDragCells => sheetDragCells;
+        // ── workspace stability: rebuilds must never cost the user their place ────────────────────
+        ScrollView leftScroll;        // the left pane's vertical scroller — recreated by full rebuilds
+        Vector2 savedLeftScroll;      // captured before a rebuild, reapplied once the new pane has geometry
+        float savedGridScrollX;       // the shared grid view's horizontal place, handed to its successor
+        [SerializeField] string savedClumpId = "";   // the picked clump, BY ID — survives rebuilds AND reloads
+        bool resetScrollOnBuild;      // an asset SWITCH is a new context — restore nothing then
+        bool projectRefreshQueued;
 
-        /// The tileset as an editable 2D GRID: positions ARE the pattern data the Cartographer palette
-        /// mirrors. Selection + toolbar replace per-tile buttons; nothing here deletes assets, only cells.
-        void RebuildTilesStrip()
+        /// Full rebuilds (undo/redo, asset chrome ops, external project changes) recreate both
+        /// scrollers at offset 0 — capture the user's place first so the rebuilt pane can give it back.
+        protected override void OnBeforeRebuild()
         {
-            if (tilesStrip == null) return;
-            tilesStrip.Clear();
-            if (set == null) return;
-
-            gridToolbar = new VisualElement();
-            gridToolbar.AddToClassList("lau-tileset__toolbar");
-            tilesStrip.Add(gridToolbar);
-
-            // One row for both switches (the mockup layout): WHAT you look at (Tiles|Clumps) and HOW a
-            // click acts (Select|…|Collision), side by side. View dials live on the box header above.
-            var switchRow = new VisualElement();
-            switchRow.AddToClassList("lau-tileset__switch-row");
-            switchRow.Add(Z.MiniRadio(libraryTab, new[] { "Tiles", "Clumps" },
-                "Tiles: loose tiles, one per cell, arranged into paintable patterns. Clumps: locked " +
-                "multi-tile objects (urns, doors, wall columns) placed and painted as one thing.",
-                i => { libraryTab = i; RebuildTilesStrip(); }));
-            switchRow.Add(Z.HSpace());
-            tilesStrip.Add(switchRow);
-
-            // Wide grids (high zoom × many columns) scroll horizontally inside their own box instead of
-            // clipping — vertical stays with the pane's own scroller. Middle-drag moves both at once.
-            var gridScroll = new ScrollView(ScrollViewMode.Horizontal);
-            gridScroll.AddToClassList("lau-tool-shell__chrome");
-
-            if (libraryTab == 0)
+            base.OnBeforeRebuild();
+            if (resetScrollOnBuild)
             {
-                clumpsGrid = null;
-                // Tiles carry their own collision (auto-guessed at pluck); layer is a paint-time choice
-                // and deliberately NOT tile data — so this tab has no Layers mode.
-                switchRow.Add(Z.MiniRadio(tileEditMode, new[] { "Select", "Collision", "Tags" },
-                    "Select: normal selection, moving and dragging. Collision: tiles tint by blocking — " +
-                    "red = full square, yellow = sprite outline, no tint = pass-through; click a tile to cycle. " +
-                    "Tags: tiles carrying the picked tag tint in its colour; click a tile to toggle the tag.",
-                    i => { tileEditMode = i; RebuildTilesStrip(); }));
-                tilesStrip.Add(gridScroll);
-                tilesGrid = new TilesetGrid(this);
-                gridScroll.Add(tilesGrid);
-                RefreshGridToolbar();
-                tilesGrid.RebuildCells();
+                resetScrollOnBuild = false;
+                savedLeftScroll = Vector2.zero;
+                savedGridScrollX = 0f;
+                return;
             }
-            else
-            {
-                tilesGrid = null;
-                // Edit modes: Select handles whole clumps; Layers and Collision PAINT per-cell properties,
-                // with coloured translucent overlays so a clump's routing reads at a glance.
-                switchRow.Add(Z.MiniRadio(clumpEditMode, new[] { "Select", "Layers", "Collision", "Tags" },
-                    "Select: click and drag whole clumps. Layers: cells tint by target layer — blue = the " +
-                    "stamped layer, orange = one layer in front (overhangs); click a cell to toggle. " +
-                    "Collision: cells tint by blocking — red = full square, yellow = sprite outline, " +
-                    "no tint = pass-through; click a cell to cycle. Tags: cells carrying the picked tag " +
-                    "tint in its colour; click a cell to toggle the tag on its tile.",
-                    i => { clumpEditMode = i; RebuildTilesStrip(); }));
-                tilesStrip.Add(gridScroll);
-                clumpsGrid = new ClumpsGrid(this);
-                gridScroll.Add(clumpsGrid);
-                RefreshGridToolbar();
-                clumpsGrid.RebuildCells();
-            }
-
-            // Tag controls: always present on the row (reserved space), enabled only in a Tags mode.
-            bool tagsMode = libraryTab == 0 ? tileEditMode == 2 : clumpEditMode == 3;
-            tagPickBtn = Z.Button(activeTag != null ? activeTag.name : "Pick tag…",
-                "The Tile Tag that Tags mode paints with — cells carrying it tint in the tag's own colour.",
-                ShowTagPicker);
-            tagPickBtn.SetEnabled(tagsMode);
-            switchRow.Add(tagPickBtn);
-            tagManageBtn = Z.Button("Tags…",
-                "Create, rename and delete Tile Tag assets — the open-ended gameplay labels tiles carry.",
-                ShowTagManager);
-            tagManageBtn.SetEnabled(tagsMode);
-            switchRow.Add(tagManageBtn);
+            if (leftScroll != null) savedLeftScroll = leftScroll.scrollOffset;
+            if (tilesetView != null) savedGridScrollX = tilesetView.ScrollX;
         }
 
-        // ── Tile Tags: picker + CRUD ───────────────────────────────────────────
-        const string TagsFolder = "Assets/Cartographer/Tags";
-
-        void ShowTagPicker()
+        /// Mid-edit, a project change must NOT rebuild the window. The base's full rebuild does two
+        /// kinds of damage here (both proven live, 2026-08-03): it recreates the left pane, the grid
+        /// and its scrollers from scratch — offset 0, empty selection, pinned action cards gone (the
+        /// "copy/paste snaps the pane to the top" bug) — and it runs in the very tick the import batch
+        /// lands, where a just-forked tile asset still reads as NULL out of Set.tiles, so the fresh
+        /// grid skips that cell's Image and the pasted tile renders EMPTY until the next refresh.
+        /// Instead: one deferred, targeted refresh a tick later, when references resolve — the
+        /// workspace stays exactly where the user left it.
+        protected override void OnProjectChanged()
         {
-            var menu = Z.Menu(tagPickBtn);
-            int n = 0;
-            foreach (var guid in AssetDatabase.FindAssets("t:TileTag"))
+            if (asset == null || IsBrowsing) { base.OnProjectChanged(); return; }
+            if (projectRefreshQueued) return;
+            projectRefreshQueued = true;
+            EditorApplication.delayCall += () =>
             {
-                var tag = AssetDatabase.LoadAssetAtPath<TileTag>(AssetDatabase.GUIDToAssetPath(guid));
-                if (tag == null) continue;
-                n++;
-                var tg = tag;
-                menu.Item(tag.name,
-                    string.IsNullOrEmpty(tag.description) ? "Paint with this tag." : tag.description,
-                    () => { activeTag = tg; RebuildTilesStrip(); });
-            }
-            if (n == 0)
-                menu.Item("(no Tile Tags yet — use Tags… to create one)",
-                    "Tags are tiny named assets; gameplay decides what they mean.", () => { });
-            menu.Show();
-        }
-
-        /// The CRUD card: every Tile Tag as a rename-in-place row with a delete, plus New. Renames commit
-        /// on Enter/blur (never per keystroke — each rename is an asset operation).
-        void ShowTagManager()
-        {
-            var menu = Z.Menu(tagManageBtn);
-            menu.Custom((body, close) =>
-            {
-                foreach (var guid in AssetDatabase.FindAssets("t:TileTag"))
-                {
-                    string path = AssetDatabase.GUIDToAssetPath(guid);
-                    var tag = AssetDatabase.LoadAssetAtPath<TileTag>(path);
-                    if (tag == null) continue;
-                    var tg = tag;
-                    string p2 = path;
-                    var nameField = Z.TextInput(tag.name,
-                        "Rename this tag — the asset renames with it. Commit with Enter.",
-                        v =>
-                        {
-                            if (string.IsNullOrWhiteSpace(v) || v.Trim() == tg.name) return;
-                            AssetDatabase.RenameAsset(p2, v.Trim());
-                            RebuildTilesStrip();
-                        }, 130f);
-                    nameField.isDelayed = true;
-                    body.Add(Z.Row(
-                        nameField,
-                        Z.Button("×", "Delete this tag asset. Tiles that carried it simply lose the label.", () =>
-                        {
-                            if (!EditorUtility.DisplayDialog("Delete tag?",
-                                    $"Delete Tile Tag '{tg.name}'? Tiles that carry it just lose the label.",
-                                    "Delete", "Cancel")) return;
-                            if (activeTag == tg) activeTag = null;
-                            AssetDatabase.DeleteAsset(p2);
-                            close();
-                            RebuildTilesStrip();
-                        })));
-                }
-                body.Add(Z.Button("+ New tag", "Create a Tile Tag asset in " + TagsFolder + " and make it active.", () =>
-                {
-                    if (!AssetDatabase.IsValidFolder(TagsFolder))
-                    {
-                        if (!AssetDatabase.IsValidFolder("Assets/Cartographer"))
-                            AssetDatabase.CreateFolder("Assets", "Cartographer");
-                        AssetDatabase.CreateFolder("Assets/Cartographer", "Tags");
-                    }
-                    var tag = ScriptableObject.CreateInstance<TileTag>();
-                    AssetDatabase.CreateAsset(tag, AssetDatabase.GenerateUniqueAssetPath(TagsFolder + "/New TileTag.asset"));
-                    activeTag = tag;
-                    close();
-                    RebuildTilesStrip();
-                    ShowTagManager();   // reopen with the new row ready to rename
-                }));
-            });
-            menu.Show();
-        }
-
-        /// The contextual toolbar. STABLE-LAYOUT RULE: every control exists at all times in one non-wrapping
-        /// fixed-height row; what varies is VISIBILITY, never geometry — the workspace below must never
-        /// jump because a selection appeared. (Hidden keeps its space; that is the whole point.)
-        internal void RefreshGridToolbar()
-        {
-            if (gridToolbar == null || set == null) return;
-            gridToolbar.Clear();
-            gridToolbar.AddToClassList("lau-tileset__toolbar--contextual");
-
-            gridToolbar.Add(Z.Field("Grid", "The tileset grid's width and height, in cells. Height grows on its own when tiles are placed lower.",
-                Z.Row(
-                    Z.Int(set.paletteColumns, "Grid width in cells. Changing it re-reads every position.", v =>
-                    {
-                        Undo.RecordObject(set, "Tileset grid width");
-                        set.paletteColumns = Mathf.Max(1, v);
-                        EditorUtility.SetDirty(set);
-                        RebuildTilesStrip();
-                    }, 36f),
-                    Z.Int(set.paletteRows, "Grid height in cells.", v =>
-                    {
-                        Undo.RecordObject(set, "Tileset grid height");
-                        set.paletteRows = Mathf.Max(1, v);
-                        EditorUtility.SetDirty(set);
-                        RebuildTilesStrip();
-                    }, 36f))));
-
-            gridToolbar.Add(Z.ToggleButton("Overwrite", "When ON, dropping or pasting tiles replaces whatever the target cells hold. " +
-                "When OFF, a drop only lands if every target cell is empty (hold Alt to PUSH occupants aside instead).",
-                overwriteOnDrop, v => overwriteOnDrop = v));
-
-            gridToolbar.Add(Z.ToggleButton("Show animated",
-                "Play every animated tile's frames right in the grid, so the tileset previews alive. " +
-                "Off: animated tiles hold their first frame; hovering one still previews it.",
-                showAnimated, v => { showAnimated = v; tilesGrid?.RebuildCells(); }));
-
-            gridToolbar.Add(Z.ToggleButton("Cycle randoms",
-                "Cycle every Random tile through its variants in the grid, so a group reads as a group. " +
-                "Off: each shows its first variant; hovering one still previews it.",
-                cycleRandoms, v => { cycleRandoms = v; tilesGrid?.RebuildCells(); }));
-
-            int selCount = tilesGrid != null ? tilesGrid.SelectionCount : 0;
-
-            // The action buttons live in the RIGHT-CLICK card, not here — chrome stays out of the window.
-            var cancel = ToolbarButton("x", "Cancel paste", "Stop pasting.", () => tilesGrid.CancelPaste());
-            SetShown(cancel, tilesGrid != null && tilesGrid.Pasting);
-            gridToolbar.Add(cancel);
-
-            // Last in the row on purpose: its text length varies, and nothing sits after it to be moved.
-            var count = (Label)Z.Text(selCount > 0 ? $"{selCount} selected · right-click for actions" : "", ZuiText.Small,
-                "Cells currently selected in the grid. Copy/Delete/Paste live on the right-click menu.");
-            gridToolbar.Add(count);
-        }
-
-        /// Visibility, not display: a hidden control KEEPS its space, so toggling it cannot move anything.
-        static void SetShown(VisualElement e, bool shown) =>
-            e.style.visibility = shown ? Visibility.Visible : Visibility.Hidden;
-
-        /// Checkerboard styling shared by the sheet canvas and the grid editor: transparency must read as
-        /// "nothing here" on BOTH sides of the pluck, or black art and holes stay indistinguishable.
-        /// Screen-fixed 16px squares (image-editor convention), 2×2 texture tiled by the GPU.
-        internal static void StyleAsChecker(VisualElement e, ref Texture2D tex)
-        {
-            if (tex == null)
-            {
-                var dark = new Color32(52, 52, 52, 255);
-                var light = new Color32(68, 68, 68, 255);
-                tex = new Texture2D(2, 2, TextureFormat.RGBA32, false)
-                    { hideFlags = HideFlags.HideAndDontSave, filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Repeat };
-                tex.SetPixels32(new[] { dark, light, light, dark });
-                tex.Apply();
-            }
-            e.style.backgroundImage = Background.FromTexture2D(tex);
-            e.style.backgroundRepeat = new BackgroundRepeat(Repeat.Repeat, Repeat.Repeat);
-            e.style.backgroundSize = new BackgroundSize(new Length(16f, LengthUnit.Pixel), new Length(16f, LengthUnit.Pixel));
-        }
-
-        /// An icon button that degrades to its label when the icon name doesn't resolve.
-        static VisualElement ToolbarButton(string icon, string label, string tooltip, System.Action onClick)
-        {
-            var b = Z.Button(label, tooltip, onClick);
-            var ic = Z.Icon(icon, 14f);
-            if (ic != null)
-            {
-                b.text = "";
-                ic.AddToClassList("lau-tileset__action-icon");
-                b.Add(ic);
-                b.AddToClassList("lau-tileset__icon-action");
-            }
-            return b;
+                projectRefreshQueued = false;
+                if (this == null || asset == null) return;
+                RefreshUsed();
+                tilesetView?.RefreshCells();
+                stage?.Refresh();
+                // Deliberately NOT UpdateStatus(): it would overwrite the feedback an operation just
+                // wrote ("Pasted 3 tile(s)…") one tick after every gesture.
+            };
         }
 
         void UpdateStatus()
@@ -568,6 +499,38 @@ namespace Laubrary.Cartographer.Editor
             b.tooltip = ready ? does : does + " Disabled: " + why;
         }
 
+        // ── blocked-operation emphasis ─────────────────────────────────────────
+        int statusFlashSeq;
+        Color statusFlashBase;
+
+        /// A BLOCKED operation must be unmissable — a user who misses the quiet grey line concludes
+        /// the feature is broken (the 2026-08-03 "flip doesn't mirror" report). Same reserved status
+        /// line, same geometry (the stable-layout rule leaves text and COLOUR as the only free
+        /// channels): the message lands in warning red and fades back to the label's own colour.
+        internal void FlashStatus(string message)
+        {
+            if (statusLine == null) return;
+            statusLine.text = message;
+            if (statusFlashSeq == 0)
+            {
+                // First flash on this label: its resolved colour IS the theme's subtle grey.
+                var c = statusLine.resolvedStyle.color;
+                statusFlashBase = c.a > 0.01f ? c : new Color(0.6f, 0.6f, 0.6f);
+            }
+            int seq = ++statusFlashSeq;
+            var red = new Color(1f, 0.38f, 0.32f);
+            statusLine.style.color = red;
+            double t0 = EditorApplication.timeSinceStartup;
+            const float fade = 1.6f;
+            statusLine.schedule.Execute(() =>
+            {
+                if (seq != statusFlashSeq) return;   // a newer flash owns the line
+                float k = Mathf.Clamp01((float)(EditorApplication.timeSinceStartup - t0) / fade);
+                if (k >= 1f) statusLine.style.color = new StyleColor(StyleKeyword.Null);   // hand colour back to the stylesheet
+                else statusLine.style.color = Color.Lerp(red, statusFlashBase, k);
+            }).Every(60).ForDuration((long)(fade * 1000f) + 200);
+        }
+
         // ── grid geometry: size + spacing + origin, one source of truth ────────
         /// Pixel X of a column's left edge; origin measured from the sheet's top-left, the way humans read sheets.
         int CellPxX(int c) => originX + c * (tileSize + spacingX);
@@ -584,14 +547,18 @@ namespace Laubrary.Cartographer.Editor
 
         Button recentBtn;
         TextField nameInput;
-        Button tagPickBtn, tagManageBtn;
+
+        /// Visibility, not display: a hidden control KEEPS its space, so toggling it cannot move anything.
+        static void SetShown(VisualElement e, bool shown) =>
+            e.style.visibility = shown ? Visibility.Visible : Visibility.Hidden;
 
         /// One row, four dials, two visible: Speed/Amount while oscillating, Colour/Alpha when static.
         /// They swap IN PLACE (visibility, same slots), so toggling never reflows the pane.
         VisualElement OscillationRow()
         {
-            var speed = Z.MicroSlider("Speed", gridOscSpeed, 0.2f, 4f, "Grid oscillation speed, cycles per second.",
-                v => gridOscSpeed = v, 110f);
+            var speed = Z.MicroSlider("Speed", gridOptions.oscSpeed, 0.2f, 4f,
+                "Oscillation speed, cycles per second — one clock for the sheet grid AND the tileset grid's seamless marks.",
+                v => gridOptions.oscSpeed = v, 110f);
             var amount = Z.MicroSlider("Amount", gridOscAmplitude, 0f, 1f, "How far the oscillation swings: 0 stays mid-grey, 1 swings fully black to white.",
                 v => gridOscAmplitude = v, 110f);
             var colour = Z.MicroSlider("Colour", gridBrightness, 0f, 1f, "Static grid brightness: 0 is black, 1 is white.",
@@ -688,19 +655,22 @@ namespace Laubrary.Cartographer.Editor
             if (sheetAsset != null) SheetProvenance.Save(AssetDatabase.GetAssetPath(sheetAsset), src);
         }
 
+        /// Resolve project membership so the ObjectField can show the asset — purely cosmetic.
+        void ResolveSheetAsset()
+        {
+            sheetAsset = null;
+            if (string.IsNullOrEmpty(sheetPath)) return;
+            string projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, "..")).Replace('\\', '/');
+            string full = Path.GetFullPath(sheetPath).Replace('\\', '/');
+            if (full.StartsWith(projectRoot + "/", System.StringComparison.OrdinalIgnoreCase))
+                sheetAsset = AssetDatabase.LoadAssetAtPath<Texture2D>(full.Substring(projectRoot.Length + 1));
+        }
+
         /// Point the builder at a sheet file. THE single assignment path: identity, memory, pixels, UI.
         internal void SetSheetPath(string absolutePath, bool rebuild = true)
         {
             sheetPath = absolutePath;
-            sheetAsset = null;
-            if (!string.IsNullOrEmpty(absolutePath))
-            {
-                // Resolve project membership so the ObjectField can show the asset — purely cosmetic.
-                string projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, "..")).Replace('\\', '/');
-                string full = Path.GetFullPath(absolutePath).Replace('\\', '/');
-                if (full.StartsWith(projectRoot + "/", System.StringComparison.OrdinalIgnoreCase))
-                    sheetAsset = AssetDatabase.LoadAssetAtPath<Texture2D>(full.Substring(projectRoot.Length + 1));
-            }
+            ResolveSheetAsset();
 
             sheetMd5 = SheetProvenance.Md5OfFile(sheetPath);
             ApplyRememberedSettings();   // before LoadSheet — the grid scan needs the right cell size
@@ -859,16 +829,16 @@ namespace Laubrary.Cartographer.Editor
             var cells = new List<Vector2Int>();
             foreach (var cell in selection)
                 if (filled.Contains(cell)) cells.Add(cell);
-            if (cells.Count == 0) { statusLine.text = "Nothing selected — marquee cells on the sheet first."; return; }
+            if (cells.Count == 0) { FlashStatus("Nothing selected — marquee cells on the sheet first."); return; }
 
             // The PLUCK: the selected cells' pixels leave the sheet and enter the tileset's atlas — one
             // file write, one import, however many cells.
             var blocks = new List<Color32[]>();
             foreach (var cell in cells) blocks.Add(CellPixels(cell));
             var picked = TilesetAtlas.AddCells(set, tileSize, blocks, nextName);
-            if (picked == null) { statusLine.text = "Could not write the tileset's atlas — is the tileset saved?"; return; }
+            if (picked == null) { FlashStatus("Could not write the tileset's atlas — is the tileset saved?"); return; }
 
-            string folder = TilesFolder();
+            string folder = TilesetForge.TilesFolder(set);
             var minted = new List<LevelTile>();
 
             if (mode == MintMode.PerCell)
@@ -894,7 +864,9 @@ namespace Laubrary.Cartographer.Editor
             selection.Clear();
             BumpName();
             RefreshUsed();
-            RebuildTilesStrip();
+            // Cells changed, not the strip's structure — RebuildCells refreshes them in place. The
+            // full strip rebuild would replace the grid and its scroller, costing the user's place.
+            tilesetView?.RefreshCells();
             stage?.Refresh();
             UpdateStatus();
             statusLine.text = $"Minted {minted.Count} tile(s) into '{set.displayName}'. " + statusLine.text;
@@ -928,17 +900,6 @@ namespace Laubrary.Cartographer.Editor
             return t;
         }
 
-        /// Tiles land in a folder beside their tileset, named after it.
-        string TilesFolder()
-        {
-            string setPath = AssetDatabase.GetAssetPath(set);
-            string dir = Path.GetDirectoryName(setPath)?.Replace('\\', '/');
-            string folder = $"{dir}/{set.name} Tiles";
-            if (!AssetDatabase.IsValidFolder(folder))
-                AssetDatabase.CreateFolder(dir, $"{set.name} Tiles");
-            return folder;
-        }
-
         void BumpName()
         {
             int i = nextName.Length;
@@ -951,7 +912,6 @@ namespace Laubrary.Cartographer.Editor
         }
 
         // ── sheet-selection → tileset-grid drag ────────────────────────────────
-        internal const string SheetDragKey = "laubrary.sheet.cells";
         List<(Vector2Int off, Vector2Int cell)> sheetDragCells;
 
         /// Start an editor drag carrying the sheet selection (offsets normalised, arrangement preserved).
@@ -968,7 +928,7 @@ namespace Laubrary.Cartographer.Editor
 
             DragAndDrop.PrepareStartDrag();
             DragAndDrop.objectReferences = new Object[0];
-            DragAndDrop.SetGenericData(SheetDragKey, this);
+            DragAndDrop.SetGenericData(TilesetGridView.SheetDragKey, this);
             DragAndDrop.StartDrag($"{sheetDragCells.Count} tile(s) from sheet");
         }
 
@@ -984,12 +944,12 @@ namespace Laubrary.Cartographer.Editor
             var plucked = TilesetAtlas.AddCells(set, tileSize, blocks, nextName);
             if (plucked == null)
             {
-                statusLine.text = "Could not write the tileset's atlas — is the tileset saved?";
+                FlashStatus("Could not write the tileset's atlas — is the tileset saved?");
                 sheetDragCells = null;
                 return;
             }
 
-            string folder = TilesFolder();
+            string folder = TilesetForge.TilesFolder(set);
             var pattern = new List<(Vector2Int off, LevelTile tile)>();
             var made = new List<LevelTile>();
             for (int i = 0; i < sheetDragCells.Count; i++)
@@ -1001,7 +961,7 @@ namespace Laubrary.Cartographer.Editor
                 pattern.Add((off, t));
             }
 
-            if (tilesGrid != null && tilesGrid.PlaceMinted(pattern, anchor, push, pushDir))
+            if (tilesetView != null && tilesetView.PlaceMinted(pattern, anchor, push, pushDir))
             {
                 BumpName();
                 selection.Clear();
@@ -1015,7 +975,7 @@ namespace Laubrary.Cartographer.Editor
                 foreach (var t in made) AssetDatabase.DeleteAsset(AssetDatabase.GetAssetPath(t));
                 TilesetAtlas.RemoveCells(set, tileSize, plucked);
                 AssetDatabase.SaveAssets();
-                statusLine.text = "Drop blocked — target cells are occupied. Hold Alt to push, enable Overwrite, or drop on empty cells.";
+                FlashStatus("Drop blocked — target cells are occupied. Hold Alt to push, enable Overwrite, or drop on empty cells.");
             }
             sheetDragCells = null;
         }
@@ -1036,7 +996,7 @@ namespace Laubrary.Cartographer.Editor
                 var c = anchor + off;
                 if (c.x < 0 || c.y < 0 || c.x >= Mathf.Max(1, set.clumpColumns) || taken.Contains(c))
                 {
-                    statusLine.text = "Drop blocked — the clump needs free cells inside the clump grid.";
+                    FlashStatus("Drop blocked — the clump needs free cells inside the clump grid.");
                     sheetDragCells = null;
                     return;
                 }
@@ -1047,13 +1007,17 @@ namespace Laubrary.Cartographer.Editor
             var plucked = TilesetAtlas.AddCells(set, tileSize, blocks, nextName);
             if (plucked == null)
             {
-                statusLine.text = "Could not write the tileset's atlas — is the tileset saved?";
+                FlashStatus("Could not write the tileset's atlas — is the tileset saved?");
                 sheetDragCells = null;
                 return;
             }
 
-            string folder = TilesFolder();
-            var clump = new Clump { displayName = nextName, gridPos = anchor };
+            string folder = TilesetForge.TilesFolder(set);
+            // The id is IDENTITY (a stamp and this clump's metadata both link by it, and it is unique by
+            // construction); the uniquified name is only a courtesy, so a tileset does not fill up with six
+            // clumps called "Tile". Duplicate names are harmless now — nothing resolves through them.
+            var clump = new Clump { displayName = TilesetForge.UniqueClumpName(set, nextName), gridPos = anchor };
+            clump.EnsureId();
             for (int i = 0; i < sheetDragCells.Count; i++)
             {
                 var (off, cell) = sheetDragCells[i];
@@ -1070,134 +1034,16 @@ namespace Laubrary.Cartographer.Editor
             BumpName();
             selection.Clear();
             RefreshUsed();
-            clumpsGrid?.RebuildCells();
+            tilesetView?.RefreshCells();
             stage?.Refresh();
             UpdateStatus();
             statusLine.text = $"Plucked clump '{clump.displayName}' ({clump.cells.Count} tile(s)). " + statusLine.text;
             sheetDragCells = null;
         }
 
-        /// Delete a clump AND its member tile assets and atlas cells — members are exclusively the clump's,
-        /// so unlike loose-tile cell deletion this really destroys assets. Hence the confirmation.
-        internal void DeleteClump(Clump clump)
-        {
-            if (clump == null || set == null) return;
-            if (!EditorUtility.DisplayDialog("Delete clump?",
-                    $"'{clump.displayName}' and its {clump.cells.Count} member tile asset(s) will be deleted. " +
-                    "Levels already painted with them will lose those cells.", "Delete", "Cancel")) return;
-
-            var bySize = new Dictionary<int, List<Sprite>>();
-            foreach (var pc in clump.cells)
-            {
-                var s = pc.tile != null && pc.tile.variants != null && pc.tile.variants.Count > 0
-                    ? pc.tile.variants[0] : null;
-                if (s != null)
-                {
-                    int cs = (int)s.rect.width;
-                    if (!bySize.TryGetValue(cs, out var list)) bySize[cs] = list = new List<Sprite>();
-                    list.Add(s);
-                }
-            }
-            // Free the atlas cells BEFORE the sprites' tile assets go away.
-            foreach (var kv in bySize) TilesetAtlas.RemoveCells(set, kv.Key, kv.Value);
-            foreach (var pc in clump.cells)
-                if (pc.tile != null) AssetDatabase.DeleteAsset(AssetDatabase.GetAssetPath(pc.tile));
-
-            Undo.RecordObject(set, "Delete clump");
-            set.clumps.Remove(clump);
-            EditorUtility.SetDirty(set);
-            AssetDatabase.SaveAssets();
-
-            RefreshUsed();
-            clumpsGrid?.RebuildCells();
-            stage?.Refresh();
-            UpdateStatus();
-        }
-
-        // ── the selection actions card: a right-click popover, pinnable and draggable ──
-        VisualElement actionsCard;
-        bool actionsPinned;
-        EventCallback<PointerDownEvent> actionsOutsideHandler;
-
-        internal void ShowGridActions(Vector2 panelPos)
-        {
-            CloseGridActions();
-            var root = rootVisualElement;
-            var local = root.WorldToLocal(panelPos);
-
-            var card = new VisualElement();
-            card.AddToClassList("lau-tool-shell__overlay");
-            card.style.left = local.x;
-            card.style.top = local.y;
-            card.AddToClassList("lau-tileset__selection-menu");
-
-            var header = Z.Row(
-                Z.Text("Selection", ZuiText.Small, "Actions for the grid selection. Drag this bar to move the menu."),
-                Z.Flexible(),
-                Z.ToggleButton("Pin", "Keep this menu open after actions and outside clicks.", actionsPinned,
-                    v => actionsPinned = v),
-                Z.Button("×", "Close this menu.", CloseGridActions).W(20f));
-            bool draggingCard = false;
-            Vector2 dragOff = default;
-            header.RegisterCallback<PointerDownEvent>(e =>
-            {
-                draggingCard = true;
-                dragOff = (Vector2)e.position - new Vector2(card.resolvedStyle.left, card.resolvedStyle.top);
-                header.CapturePointer(e.pointerId);
-                e.StopPropagation();
-            });
-            header.RegisterCallback<PointerMoveEvent>(e =>
-            {
-                if (!draggingCard) return;
-                var p = (Vector2)e.position - dragOff;
-                card.style.left = p.x;
-                card.style.top = p.y;
-            });
-            header.RegisterCallback<PointerUpEvent>(e =>
-            {
-                draggingCard = false;
-                header.ReleasePointer(e.pointerId);
-            });
-            card.Add(header);
-
-            int selCount = tilesGrid != null ? tilesGrid.SelectionCount : 0;
-            var copy = Z.Button("Copy", "Copy the selected tile(s) as a pattern.",
-                () => { tilesGrid.CopySelection(); AfterCardAction(); });
-            var del = Z.Button("Delete", "Clear the selected cell(s); the tile assets stay on disk. Undoable.",
-                () => { tilesGrid.DeleteSelection(); AfterCardAction(); });
-            var paste = Z.Button("Paste", "Paste the copied pattern: click a grid cell to drop it. Right-click cancels; Alt pushes.",
-                () => { tilesGrid.BeginPaste(); AfterCardAction(); });
-            copy.SetEnabled(selCount > 0);
-            del.SetEnabled(selCount > 0);
-            paste.SetEnabled(TilesetGrid.ClipboardCount > 0);
-            card.Add(copy);
-            card.Add(del);
-            card.Add(paste);
-
-            actionsOutsideHandler = e =>
-            {
-                if (actionsPinned || actionsCard == null) return;
-                if (!actionsCard.worldBound.Contains((Vector2)e.position)) CloseGridActions();
-            };
-            root.RegisterCallback(actionsOutsideHandler, TrickleDown.TrickleDown);
-            root.Add(card);
-            card.BringToFront();
-            actionsCard = card;
-        }
-
-        void AfterCardAction()
-        {
-            if (!actionsPinned) CloseGridActions();
-        }
-
-        internal void CloseGridActions()
-        {
-            if (actionsCard == null) return;
-            if (actionsOutsideHandler != null)
-                rootVisualElement.UnregisterCallback(actionsOutsideHandler, TrickleDown.TrickleDown);
-            actionsCard.RemoveFromHierarchy();
-            actionsCard = null;
-        }
+        /// Drop every cached RenderPreviewTexture copy. For pixel-level atlas edits (flips): the live
+        /// sprites reimport in place, but these baked thumbs would keep showing the pre-edit pixels.
+        internal void InvalidateTileThumbs() => LauAssetGridGUI.ClearCache(tileThumbs);
 
         internal Texture2D TileThumb(LevelTile tile)
         {
@@ -1207,1134 +1053,6 @@ namespace Laubrary.Cartographer.Editor
             if (thumb != null) thumb.hideFlags = HideFlags.HideAndDontSave;
             tileThumbs[tile] = thumb;
             return thumb;
-        }
-
-        // ── the tileset grid editor ────────────────────────────────────────────
-        /// The tileset laid out as the 2D grid it IS: 1px gaps, marquee/Ctrl selection, drag to move a
-        /// selection, Ctrl-drag to duplicate it, and empty cells as first-class citizens. Cell edits only —
-        /// tile assets are never deleted here.
-        internal class TilesetGrid : VisualElement
-        {
-            // Seamless view removes the gaps entirely: adjacent tiles butt together and preview exactly as
-            // they would paint into a level — the whole point of position-as-pattern.
-            float Gap => w.tilesetSeamless ? 0f : 1f;
-            float Cell => Mathf.Clamp(w.tilesetCellZoom, 20f, 72f);   // VIEW zoom only — tile data unaffected
-
-            readonly TilesetBuilderWindow w;
-            readonly VisualElement thumbs;    // Image children
-            readonly VisualElement overlay;   // selection/marquee/ghost — IN FRONT, always
-
-            readonly HashSet<int> sel = new();
-            static readonly List<(Vector2Int off, LevelTile tile)> clipboard = new();
-
-            int hoverIdx = -1;
-            bool marqueeing, dragPending, draggingTiles, dupDrag, ctrlAtDown, altHeld;
-            int pendingToggle = -1;
-            Vector2 downPos;
-            int anchorIdx = -1;
-            bool pasting;
-
-            public int SelectionCount => sel.Count;
-            public static int ClipboardCount => clipboard.Count;
-            public bool Pasting => pasting;
-
-            Tileset Set => w.set;
-            int Cols => Mathf.Max(1, Set.paletteColumns);
-            int Rows => Set.EffectiveRows;
-
-            public TilesetGrid(TilesetBuilderWindow window)
-            {
-                w = window;
-                AddToClassList("lau-tileset__grid");
-
-                // Behind the thumbs: the same checkerboard as the sheet canvas — a tile's transparent
-                // pixels are its layering promise, and the grid must show them as such.
-                checker = new VisualElement { pickingMode = PickingMode.Ignore };
-                checker.AddToClassList("lau-authoring__overlay-origin");
-                Add(checker);
-
-                thumbs = new VisualElement { pickingMode = PickingMode.Ignore };
-                thumbs.AddToClassList("lau-tool-shell__overlay");
-                Add(thumbs);
-
-                overlay = new VisualElement { pickingMode = PickingMode.Ignore };
-                overlay.AddToClassList("lau-authoring__canvas-overlay");
-                overlay.generateVisualContent += PaintOverlay;
-                Add(overlay);
-
-                RegisterCallback<PointerDownEvent>(OnDown);
-                RegisterCallback<PointerMoveEvent>(OnMove);
-                RegisterCallback<PointerUpEvent>(OnUp);
-
-                // A sheet selection dragged over lands here: dropping MINTS the cells as tiles at the drop
-                // position, arrangement preserved — same rules as any placement (Overwrite / Alt-push).
-                RegisterCallback<DragUpdatedEvent>(e =>
-                {
-                    if (DragAndDrop.GetGenericData(TilesetBuilderWindow.SheetDragKey) == null) return;
-                    DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
-                    hoverIdx = CellAt(this.WorldToLocal(e.mousePosition));
-                    overlay.MarkDirtyRepaint();
-                });
-                RegisterCallback<DragPerformEvent>(e =>
-                {
-                    if (DragAndDrop.GetGenericData(TilesetBuilderWindow.SheetDragKey) == null) return;
-                    DragAndDrop.AcceptDrag();
-                    DragAndDrop.SetGenericData(TilesetBuilderWindow.SheetDragKey, null);
-                    var local = this.WorldToLocal(e.mousePosition);
-                    int idx = CellAt(local);
-                    if (idx < 0) return;
-                    w.MintDropFromSheet(IdxToCell(idx), e.altKey, PushDirAt(local, idx));
-                });
-
-                schedule.Execute(TickThumbAnimation).Every(80);
-            }
-
-            internal bool PlaceMinted(List<(Vector2Int off, LevelTile tile)> pattern, Vector2Int anchor,
-                bool push, Vector2Int pushDir)
-                => TryPlace(pattern, anchor, null, "Drop tiles from sheet", push, pushDir);
-
-            // ── geometry ────────────────────────────────────────────────────────
-            void EnsureListSize()
-            {
-                int n = Cols * Rows;
-                while (Set.tiles.Count < n) Set.tiles.Add(null);
-            }
-
-            Vector2Int IdxToCell(int idx) => new(idx % Cols, idx / Cols);
-            int CellToIdx(Vector2Int c) => c.y * Cols + c.x;
-
-            Rect CellRect(Vector2Int c) => new(
-                Gap + c.x * (Cell + Gap), Gap + c.y * (Cell + Gap), Cell, Cell);
-
-            int CellAt(Vector2 p)
-            {
-                int x = Mathf.FloorToInt((p.x - Gap) / (Cell + Gap));
-                int y = Mathf.FloorToInt((p.y - Gap) / (Cell + Gap));
-                if (x < 0 || y < 0 || x >= Cols || y >= Rows) return -1;
-                return y * Cols + x;
-            }
-
-            LevelTile TileAt(int idx) =>
-                idx >= 0 && idx < Set.tiles.Count ? Set.tiles[idx] : null;
-
-            /// The Alt-push direction: which side of the hovered cell's CENTRE the pointer sits on decides
-            /// where displaced tiles go — drop left-of-centre and occupants shove left, and so on.
-            Vector2Int PushDirAt(Vector2 pointer, int cellIdx)
-            {
-                if (cellIdx < 0) return Vector2Int.zero;
-                var d = pointer - CellRect(IdxToCell(cellIdx)).center;
-                return Mathf.Abs(d.x) >= Mathf.Abs(d.y)
-                    ? new Vector2Int(d.x >= 0 ? 1 : -1, 0)
-                    : new Vector2Int(0, d.y >= 0 ? 1 : -1);
-            }
-
-            // ── building ────────────────────────────────────────────────────────
-            readonly VisualElement checker;
-            Texture2D checkerTex;
-
-            internal void RepaintOverlay() => overlay.MarkDirtyRepaint();
-
-            public void RebuildCells()
-            {
-                EnsureListSize();
-                float gw = Cols * (Cell + Gap) + Gap, gh = Rows * (Cell + Gap) + Gap;
-                style.width = gw;
-                style.height = gh;
-                AddToClassList("lau-tool-shell__chrome");
-
-                StyleAsChecker(checker, ref checkerTex);
-                checker.style.width = gw;
-                checker.style.height = gh;
-
-                thumbs.Clear();
-                cellImages.Clear();
-                lastFrame.Clear();
-                for (int i = 0; i < Set.tiles.Count; i++)
-                {
-                    var tile = Set.tiles[i];
-                    if (tile == null) continue;
-                    var r = CellRect(IdxToCell(i));
-                    var img = new Image { pickingMode = PickingMode.Ignore, scaleMode = ScaleMode.ScaleToFit };
-                    img.tooltip = tile.displayName;
-                    img.AddToClassList("lau-tool-shell__overlay");
-                    img.style.left = r.xMin;
-                    img.style.top = r.yMin;
-                    img.style.width = Cell;
-                    img.style.height = Cell;
-                    // The real FULL-CELL sprite, never the browser thumbnail — thumbnails crop to visible
-                    // pixels, which re-centres partial art and scrambles any multi-cell arrangement
-                    // (the 2026-08-01 "my shelf clump is broken" report — it was only the preview).
-                    img.sprite = tile.IsAnimated ? tile.animation[0] : tile.SpriteOfVariant(0);
-                    thumbs.Add(img);
-                    cellImages[i] = img;
-                }
-                overlay.BringToFront();
-                overlay.MarkDirtyRepaint();
-            }
-
-            // ── live multi-tile preview: hovering (or single-selecting) a variant/animated tile cycles it ──
-            readonly Dictionary<int, Image> cellImages = new();
-            int animatingIdx = -1;
-
-            readonly Dictionary<int, int> lastFrame = new();   // cell → last drawn frame, so unchanged frames cost nothing
-
-            /// True when the grid-wide toggles keep this tile playing without hover.
-            bool PlaysUnattended(LevelTile t) => t != null &&
-                (t.IsAnimated ? w.showAnimated
-                    : w.cycleRandoms && t.variants != null && t.variants.Count > 1);
-
-            void TickThumbAnimation()
-            {
-                // Seamless osc frames pulse on this same tick — repaint only while something shows one.
-                if (w.tilesetSeamless && w.tilesetSeamlessMarks && (hoverIdx >= 0 || sel.Count > 0))
-                    overlay.MarkDirtyRepaint();
-
-                int target = hoverIdx >= 0 && IsMulti(hoverIdx) ? hoverIdx
-                    : sel.Count == 1 && IsMulti(First(sel)) ? First(sel) : -1;
-
-                if (animatingIdx >= 0 && animatingIdx != target)
-                {
-                    // Only snap back to the static frame if the grid-wide toggles won't keep it playing.
-                    if (!PlaysUnattended(TileAt(animatingIdx))) RestoreThumb(animatingIdx);
-                    lastFrame.Remove(animatingIdx);
-                }
-                animatingIdx = target;
-
-                // Grid-wide playback (Show animated / Cycle randoms): the whole tileset previews alive
-                // instead of frame-one-of-everything.
-                if (w.showAnimated || w.cycleRandoms)
-                    foreach (var kv in cellImages)
-                    {
-                        if (kv.Key == target) continue;   // the hover/selection preview owns that cell
-                        var t = TileAt(kv.Key);
-                        if (PlaysUnattended(t)) AnimateCell(kv.Value, t, kv.Key);
-                    }
-
-                if (target < 0 || !cellImages.TryGetValue(target, out var img)) return;
-                AnimateCell(img, TileAt(target), target);
-            }
-
-            void AnimateCell(Image img, LevelTile tile, int idx)
-            {
-                var frames = tile.IsAnimated ? tile.animation : tile.variants;
-                if (frames == null || frames.Count == 0) return;
-                float fps = tile.IsAnimated ? tile.animationFps : 4f;
-                int f = (int)(EditorApplication.timeSinceStartup * fps) % frames.Count;
-                if (lastFrame.TryGetValue(idx, out int prev) && prev == f) return;
-                lastFrame[idx] = f;
-                img.image = null;
-                img.sprite = frames[f];
-            }
-
-            bool IsMulti(int idx)
-            {
-                var t = TileAt(idx);
-                return t != null && (t.IsAnimated || (t.variants != null && t.variants.Count > 1));
-            }
-
-            static int First(HashSet<int> s) { foreach (var i in s) return i; return -1; }
-
-            void RestoreThumb(int idx)
-            {
-                if (!cellImages.TryGetValue(idx, out var img)) return;
-                var t = TileAt(idx);
-                img.image = null;
-                img.sprite = t != null ? (t.IsAnimated ? t.animation[0] : t.SpriteOfVariant(0)) : null;
-            }
-
-            // ── selection + toolbar ops ─────────────────────────────────────────
-            public void CopySelection()
-            {
-                clipboard.Clear();
-                if (sel.Count == 0) return;
-                int minX = int.MaxValue, minY = int.MaxValue;
-                foreach (var i in sel) { var c = IdxToCell(i); minX = Mathf.Min(minX, c.x); minY = Mathf.Min(minY, c.y); }
-                foreach (var i in sel)
-                {
-                    var tile = TileAt(i);
-                    if (tile == null) continue;
-                    var c = IdxToCell(i);
-                    clipboard.Add((new Vector2Int(c.x - minX, c.y - minY), tile));
-                }
-                w.RefreshGridToolbar();
-            }
-
-            public void DeleteSelection()
-            {
-                if (sel.Count == 0) return;
-                Undo.RecordObject(Set, "Clear tileset cells");
-                foreach (var i in sel) if (i < Set.tiles.Count) Set.tiles[i] = null;
-                sel.Clear();
-                Commit();
-            }
-
-            public void BeginPaste() { pasting = clipboard.Count > 0; w.RefreshGridToolbar(); overlay.MarkDirtyRepaint(); }
-            public void CancelPaste() { pasting = false; w.RefreshGridToolbar(); overlay.MarkDirtyRepaint(); }
-
-            /// Write a pattern at `anchor`. Shared by paste and drop; enforces the Overwrite toggle
-            /// atomically — a placement either fully lands or nothing changes. With `push`, occupants of
-            /// target cells are shoved one cell along `pushDir` instead (cascading; the grid grows when
-            /// pushing down), so a selection can land in a crowd without overwriting anything.
-            bool TryPlace(List<(Vector2Int off, LevelTile tile)> pattern, Vector2Int anchor,
-                HashSet<int> ignoreOccupied, string undoLabel, bool push = false, Vector2Int pushDir = default)
-            {
-                var targets = new List<(int idx, LevelTile tile)>();
-                foreach (var (off, tile) in pattern)
-                {
-                    var c = anchor + off;
-                    if (c.x < 0 || c.x >= Cols || c.y < 0) return false;
-                    if (c.y >= Rows)
-                    {
-                        Set.paletteRows = c.y + 1;    // the grid grows downward on demand
-                        EnsureListSize();
-                    }
-                    int idx = CellToIdx(c);
-                    EnsureListSize();
-                    bool occupied = TileAt(idx) != null && (ignoreOccupied == null || !ignoreOccupied.Contains(idx));
-                    if (occupied && !w.overwriteOnDrop && !push) return false;
-                    targets.Add((idx, tile));
-                }
-
-                if (push && pushDir != Vector2Int.zero)
-                {
-                    // Simulate the shoves on a copy so the whole drop is atomic.
-                    var sim = new List<LevelTile>(Set.tiles);
-                    int simRows = Rows;
-                    var targetSet = new HashSet<int>();
-                    foreach (var (idx, _) in targets) targetSet.Add(idx);
-
-                    // Farthest target along the push direction moves its chain first, so cascades don't
-                    // trample each other.
-                    var occupiedTargets = new List<int>();
-                    foreach (var (idx, _) in targets)
-                        if (sim[idx] != null && (ignoreOccupied == null || !ignoreOccupied.Contains(idx)))
-                            occupiedTargets.Add(idx);
-                    occupiedTargets.Sort((a, b) =>
-                    {
-                        var ca = IdxToCell(a); var cb = IdxToCell(b);
-                        return (cb.x * pushDir.x + cb.y * pushDir.y).CompareTo(ca.x * pushDir.x + ca.y * pushDir.y);
-                    });
-
-                    foreach (var start in occupiedTargets)
-                    {
-                        if (sim[start] == null) continue;   // an earlier chain already moved it
-
-                        // The contiguous occupied run from the target along the push direction.
-                        var run = new List<int> { start };
-                        while (true)
-                        {
-                            var nextCell = IdxToCell(run[run.Count - 1]) + pushDir;
-                            if (nextCell.x < 0 || nextCell.x >= Cols || nextCell.y < 0) return false;
-                            if (nextCell.y >= simRows)
-                            {
-                                if (pushDir.y <= 0) return false;
-                                simRows = nextCell.y + 1;
-                                while (sim.Count < Cols * simRows) sim.Add(null);
-                            }
-                            int nextIdx = nextCell.y * Cols + nextCell.x;
-                            if (targetSet.Contains(nextIdx)) return false;   // pushing INTO the drop = ambiguous, refuse
-                            if (sim[nextIdx] == null) { run.Add(nextIdx); break; }
-                            run.Add(nextIdx);
-                        }
-
-                        // Shift the run one step, far end first; the start cell empties.
-                        for (int i = run.Count - 1; i > 0; i--) sim[run[i]] = sim[run[i - 1]];
-                        sim[run[0]] = null;
-                    }
-
-                    Undo.RecordObject(Set, undoLabel);
-                    Set.tiles.Clear();
-                    Set.tiles.AddRange(sim);
-                    Set.paletteRows = Mathf.Max(Set.paletteRows, simRows);
-                    foreach (var (idx, tile) in targets) Set.tiles[idx] = tile;
-                    sel.Clear();
-                    foreach (var (idx, _) in targets) sel.Add(idx);
-                    Commit();
-                    return true;
-                }
-
-                Undo.RecordObject(Set, undoLabel);
-                foreach (var (idx, tile) in targets) Set.tiles[idx] = tile;
-                sel.Clear();
-                foreach (var (idx, _) in targets) sel.Add(idx);
-                Commit();
-                return true;
-            }
-
-            void MoveOrDuplicateSelection(Vector2Int delta, bool duplicate, bool push, Vector2Int pushDir)
-            {
-                if (sel.Count == 0 || delta == Vector2Int.zero && !duplicate) { return; }
-
-                var pattern = new List<(Vector2Int off, LevelTile tile)>();
-                int minX = int.MaxValue, minY = int.MaxValue;
-                foreach (var i in sel) { var c = IdxToCell(i); minX = Mathf.Min(minX, c.x); minY = Mathf.Min(minY, c.y); }
-                foreach (var i in sel)
-                {
-                    var tile = TileAt(i);
-                    if (tile == null) continue;
-                    var c = IdxToCell(i);
-                    pattern.Add((new Vector2Int(c.x - minX, c.y - minY), tile));
-                }
-                if (pattern.Count == 0) return;
-
-                var sources = duplicate ? null : new HashSet<int>(sel);
-                var anchor = new Vector2Int(minX, minY) + delta;
-
-                if (!duplicate)
-                {
-                    // Clear sources inside the same undo step; TryPlace records first, so group the two.
-                    Undo.RecordObject(Set, "Move tiles");
-                    foreach (var i in sel) Set.tiles[i] = null;
-                    if (!TryPlace(pattern, anchor, sources, "Move tiles", push, pushDir))
-                    {
-                        // Blocked: put the sources back exactly as they were.
-                        int k = 0;
-                        foreach (var i in sel) { Set.tiles[i] = pattern[k].tile; k++; }
-                        w.statusLine.text = "Move blocked — target cells are occupied. Hold Alt to push, enable Overwrite, or drop on empty cells.";
-                        return;
-                    }
-                }
-                else if (!TryPlace(pattern, anchor, null, "Duplicate tiles", push, pushDir))
-                {
-                    w.statusLine.text = "Duplicate blocked — target cells are occupied. Hold Alt to push, enable Overwrite, or drop on empty cells.";
-                }
-            }
-
-            void Commit()
-            {
-                EditorUtility.SetDirty(Set);
-                AssetDatabase.SaveAssets();
-                w.RefreshUsed();
-                w.stage?.Refresh();
-                RebuildCells();
-                w.RefreshGridToolbar();
-                w.UpdateStatus();
-            }
-
-            // ── pointers ────────────────────────────────────────────────────────
-            bool midPanning;
-            Vector3 midLast;
-
-            void OnDown(PointerDownEvent e)
-            {
-                // Middle button scrolls the grid's scrollers (horizontal box + the pane's vertical) —
-                // works in every mode, including mid-paste.
-                if (e.button == 2)
-                {
-                    midPanning = true;
-                    midLast = e.position;
-                    this.CapturePointer(e.pointerId);
-                    e.StopPropagation();
-                    return;
-                }
-
-                int idx = CellAt(e.localPosition);
-                hoverIdx = idx;
-
-                if (pasting)
-                {
-                    if (e.button == 1 || idx < 0) CancelPaste();
-                    else if (TryPlace(clipboard, IdxToCell(idx), null, "Paste tiles",
-                                 e.altKey, PushDirAt(e.localPosition, idx))) pasting = false;
-                    else w.statusLine.text = "Paste blocked — target cells are occupied. Hold Alt to push, enable Overwrite, or pick an empty spot.";
-                    w.RefreshGridToolbar();
-                    e.StopPropagation();
-                    return;
-                }
-                if (e.button == 1)
-                {
-                    // The selection actions live in a right-click card, not in the window chrome.
-                    w.ShowGridActions(e.position);
-                    e.StopPropagation();
-                    return;
-                }
-                if (e.button != 0) return;
-
-                // Collision mode: a left click cycles the tile's own blocking shape — no selection, no drag.
-                if (w.tileEditMode == 1)
-                {
-                    var ct = TileAt(idx);
-                    if (ct != null)
-                    {
-                        Undo.RecordObject(ct, "Tile collision");
-                        ct.colliderShape = ct.colliderShape == Tile.ColliderType.Grid ? Tile.ColliderType.Sprite
-                            : ct.colliderShape == Tile.ColliderType.Sprite ? Tile.ColliderType.None
-                            : Tile.ColliderType.Grid;
-                        EditorUtility.SetDirty(ct);
-                        overlay.MarkDirtyRepaint();
-                    }
-                    e.StopPropagation();
-                    return;
-                }
-
-                // Tags mode: a left click toggles the active tag on the tile.
-                if (w.tileEditMode == 2)
-                {
-                    var tt = TileAt(idx);
-                    if (tt != null && w.activeTag != null)
-                    {
-                        Undo.RecordObject(tt, "Tile tag");
-                        if (!tt.tags.Remove(w.activeTag)) tt.tags.Add(w.activeTag);
-                        EditorUtility.SetDirty(tt);
-                        overlay.MarkDirtyRepaint();
-                    }
-                    e.StopPropagation();
-                    return;
-                }
-
-                ctrlAtDown = e.ctrlKey;
-                downPos = e.localPosition;
-                pendingToggle = -1;
-                anchorIdx = idx;
-
-                if (idx >= 0 && TileAt(idx) != null)
-                {
-                    if (e.ctrlKey && sel.Contains(idx)) pendingToggle = idx;        // maybe toggle-off, maybe dup-drag
-                    else if (e.ctrlKey) { sel.Add(idx); overlay.MarkDirtyRepaint(); w.RefreshGridToolbar(); }
-                    else if (!sel.Contains(idx)) { sel.Clear(); sel.Add(idx); overlay.MarkDirtyRepaint(); w.RefreshGridToolbar(); }
-                    dragPending = true;
-                }
-                else
-                {
-                    if (!e.ctrlKey && sel.Count > 0) { sel.Clear(); overlay.MarkDirtyRepaint(); w.RefreshGridToolbar(); }
-                    marqueeing = true;
-                }
-                this.CapturePointer(e.pointerId);
-                e.StopPropagation();
-            }
-
-            void OnMove(PointerMoveEvent e)
-            {
-                if (midPanning)
-                {
-                    // Content follows the pointer; each enclosing scroller clamps its own axis, so pushing
-                    // both axes at every level is safe. Panel-space delta — local space scrolls under us.
-                    var d = (Vector2)(e.position - midLast);
-                    midLast = e.position;
-                    for (var sv = this.GetFirstAncestorOfType<ScrollView>(); sv != null;
-                         sv = sv.GetFirstAncestorOfType<ScrollView>())
-                        sv.scrollOffset -= d;
-                    return;
-                }
-
-                int idx = CellAt(e.localPosition);
-                if (idx != hoverIdx || altHeld != e.altKey) { hoverIdx = idx; altHeld = e.altKey; overlay.MarkDirtyRepaint(); }
-
-                if (dragPending && !draggingTiles && (e.localPosition - (Vector3)downPos).sqrMagnitude > 16f)
-                {
-                    draggingTiles = true;
-                    dupDrag = ctrlAtDown;
-                    pendingToggle = -1;
-                }
-                if (draggingTiles || marqueeing || pasting) overlay.MarkDirtyRepaint();
-            }
-
-            void OnUp(PointerUpEvent e)
-            {
-                if (midPanning)
-                {
-                    midPanning = false;
-                    this.ReleasePointer(e.pointerId);
-                    e.StopPropagation();
-                    return;
-                }
-
-                this.ReleasePointer(e.pointerId);
-                int idx = CellAt(e.localPosition);
-
-                if (draggingTiles && anchorIdx >= 0 && idx >= 0)
-                    MoveOrDuplicateSelection(IdxToCell(idx) - IdxToCell(anchorIdx), dupDrag,
-                        e.altKey, PushDirAt(e.localPosition, idx));
-                else if (pendingToggle >= 0)
-                {
-                    sel.Remove(pendingToggle);
-                    w.RefreshGridToolbar();
-                }
-                else if (marqueeing && anchorIdx >= 0 && idx >= 0)
-                {
-                    var a = IdxToCell(anchorIdx);
-                    var b = IdxToCell(idx);
-                    if (!ctrlAtDown) sel.Clear();
-                    for (int y = Mathf.Min(a.y, b.y); y <= Mathf.Max(a.y, b.y); y++)
-                        for (int x = Mathf.Min(a.x, b.x); x <= Mathf.Max(a.x, b.x); x++)
-                        {
-                            int i = CellToIdx(new Vector2Int(x, y));
-                            if (TileAt(i) != null) sel.Add(i);
-                        }
-                    w.RefreshGridToolbar();
-                }
-
-                marqueeing = dragPending = draggingTiles = dupDrag = false;
-                pendingToggle = -1;
-                overlay.MarkDirtyRepaint();
-            }
-
-            // ── overlay ─────────────────────────────────────────────────────────
-            void PaintOverlay(MeshGenerationContext ctx)
-            {
-                var p = ctx.painter2D;
-
-                void Path(Rect r)
-                {
-                    p.BeginPath();
-                    p.MoveTo(r.min); p.LineTo(new Vector2(r.xMax, r.yMin));
-                    p.LineTo(r.max); p.LineTo(new Vector2(r.xMin, r.yMax));
-                    p.ClosePath();
-                }
-
-                // Seamless view: no fills, no lattice — the art IS the display. Hover/selection get their
-                // own oscillating frames below (optional), everything else stays out of the way.
-                if (!w.tilesetSeamless)
-                {
-                    // Empty-cell fills batch fine (fill tessellation has no joins) — but each subpath must
-                    // be PROPERLY closed with ClosePath.
-                    p.fillColor = new Color(1f, 1f, 1f, 0.04f);
-                    p.BeginPath();
-                    for (int y = 0; y < Rows; y++)
-                        for (int x = 0; x < Cols; x++)
-                        {
-                            var c = new Vector2Int(x, y);
-                            if (TileAt(CellToIdx(c)) != null) continue;
-                            var r = CellRect(c);
-                            p.MoveTo(r.min); p.LineTo(new Vector2(r.xMax, r.yMin));
-                            p.LineTo(r.max); p.LineTo(new Vector2(r.xMin, r.yMax));
-                            p.ClosePath();
-                        }
-                    p.Fill();
-
-                    // DISCONNECTED SEGMENTS on purpose — bulk-stroking closed subpaths crashes Painter2D's
-                    // miter-join tessellator (the 2026-08-01 launch-crash loop). Single-segment subpaths
-                    // have no joins, so the crashing code never runs.
-                    float b = w.tilesetGridBrightness;
-                    p.strokeColor = new Color(b, b, b, w.tilesetGridAlpha);
-                    p.lineWidth = 1f;
-                    p.BeginPath();
-                    for (int y = 0; y < Rows; y++)
-                        for (int x = 0; x < Cols; x++)
-                        {
-                            var r = CellRect(new Vector2Int(x, y));
-                            p.MoveTo(new Vector2(r.xMin, r.yMin)); p.LineTo(new Vector2(r.xMax, r.yMin));
-                            p.MoveTo(new Vector2(r.xMax, r.yMin)); p.LineTo(new Vector2(r.xMax, r.yMax));
-                            p.MoveTo(new Vector2(r.xMax, r.yMax)); p.LineTo(new Vector2(r.xMin, r.yMax));
-                            p.MoveTo(new Vector2(r.xMin, r.yMax)); p.LineTo(new Vector2(r.xMin, r.yMin));
-                        }
-                    p.Stroke();
-                }
-
-                // Collision assessment: occupied cells tint by blocking — red square, yellow outline,
-                // nothing at all for pass-through. Same colour language as the Clumps tab.
-                if (w.tileEditMode == 1)
-                    for (int ti = 0; ti < Set.tiles.Count; ti++)
-                    {
-                        var tt = Set.tiles[ti];
-                        if (tt == null || tt.colliderShape == Tile.ColliderType.None) continue;
-                        p.fillColor = tt.colliderShape == Tile.ColliderType.Grid
-                            ? new Color(1f, 0.25f, 0.2f, 0.38f)
-                            : new Color(1f, 0.85f, 0.2f, 0.35f);
-                        Path(CellRect(IdxToCell(ti)));
-                        p.Fill();
-                    }
-
-                // Tags assessment: cells carrying the active tag tint in the tag's OWN colour.
-                if (w.tileEditMode == 2 && w.activeTag != null)
-                    for (int ti = 0; ti < Set.tiles.Count; ti++)
-                    {
-                        var tt = Set.tiles[ti];
-                        if (tt == null || !tt.HasTag(w.activeTag)) continue;
-                        var c = w.activeTag.editorColor;
-                        p.fillColor = new Color(c.r, c.g, c.b, 0.4f);
-                        Path(CellRect(IdxToCell(ti)));
-                        p.Fill();
-                    }
-
-                // Oscillating white↔black on the sheet's own clock — one pulse rules every canvas.
-                float osc = 0.5f + 0.5f * Mathf.Sin((float)(EditorApplication.timeSinceStartup * w.gridOscSpeed * Mathf.PI * 2.0));
-
-                if (!w.tilesetSeamless)
-                    foreach (var i in sel)
-                    {
-                        var r = CellRect(IdxToCell(i));
-                        p.fillColor = new Color(1f, 0.75f, 0.2f, 0.25f);
-                        Path(r); p.Fill();
-                        p.strokeColor = Color.black; p.lineWidth = 3f; Path(r); p.Stroke();
-                        p.strokeColor = new Color(1f, 0.75f, 0.2f); p.lineWidth = 1.5f; Path(r); p.Stroke();
-                    }
-                else if (w.tilesetSeamlessMarks)
-                    foreach (var i in sel)
-                    {
-                        var r = CellRect(IdxToCell(i));
-                        p.strokeColor = new Color(osc, osc, osc, 1f); p.lineWidth = 2f; Path(r); p.Stroke();
-                    }
-
-                if (marqueeing && anchorIdx >= 0 && hoverIdx >= 0)
-                {
-                    var a = CellRect(IdxToCell(anchorIdx));
-                    var b = CellRect(IdxToCell(hoverIdx));
-                    var rect = Rect.MinMaxRect(Mathf.Min(a.xMin, b.xMin), Mathf.Min(a.yMin, b.yMin),
-                        Mathf.Max(a.xMax, b.xMax), Mathf.Max(a.yMax, b.yMax));
-                    p.strokeColor = Color.black; p.lineWidth = 3f; Path(rect); p.Stroke();
-                    p.strokeColor = Color.white; p.lineWidth = 1f; Path(rect); p.Stroke();
-                }
-
-                // Drop/paste ghost: each landing cell outlined, red when it would be blocked.
-                List<(Vector2Int off, LevelTile tile)> ghost = null;
-                Vector2Int ghostAnchor = default;
-                HashSet<int> ignore = null;
-                if (draggingTiles && anchorIdx >= 0 && hoverIdx >= 0 && sel.Count > 0)
-                {
-                    ghost = new List<(Vector2Int, LevelTile)>();
-                    int minX = int.MaxValue, minY = int.MaxValue;
-                    foreach (var i in sel) { var c = IdxToCell(i); minX = Mathf.Min(minX, c.x); minY = Mathf.Min(minY, c.y); }
-                    foreach (var i in sel)
-                    {
-                        var c = IdxToCell(i);
-                        ghost.Add((new Vector2Int(c.x - minX, c.y - minY), TileAt(i)));
-                    }
-                    ghostAnchor = new Vector2Int(minX, minY) + (IdxToCell(hoverIdx) - IdxToCell(anchorIdx));
-                    if (!dupDrag) ignore = sel;
-                }
-                else if (pasting && hoverIdx >= 0)
-                {
-                    ghost = clipboard;
-                    ghostAnchor = IdxToCell(hoverIdx);
-                }
-
-                if (ghost != null)
-                    foreach (var (off, _) in ghost)
-                    {
-                        var c = ghostAnchor + off;
-                        if (c.x < 0 || c.x >= Cols || c.y < 0) continue;
-                        bool blocked = c.y < Rows && TileAt(CellToIdx(c)) != null && !w.overwriteOnDrop
-                                       && (ignore == null || !ignore.Contains(CellToIdx(c)));
-                        var r = CellRect(c);
-                        // Cyan = "occupied, but Alt is held: the occupant will be PUSHED aside, not blocked."
-                        p.strokeColor = blocked
-                            ? (altHeld ? new Color(0.25f, 0.85f, 1f) : new Color(1f, 0.25f, 0.2f))
-                            : new Color(0.3f, 1f, 0.4f);
-                        p.lineWidth = 2f;
-                        Path(r); p.Stroke();
-                    }
-
-                if (!marqueeing && !draggingTiles && hoverIdx >= 0)
-                {
-                    var r = CellRect(IdxToCell(hoverIdx));
-                    if (!w.tilesetSeamless)
-                    {
-                        p.strokeColor = new Color(1f, 1f, 1f, 0.6f); p.lineWidth = 1f; Path(r); p.Stroke();
-                    }
-                    else if (w.tilesetSeamlessMarks)
-                    {
-                        p.strokeColor = new Color(osc, osc, osc, 0.9f); p.lineWidth = 1.5f; Path(r); p.Stroke();
-                    }
-                }
-            }
-        }
-
-        // ── the clumps grid: object-shaped content, every interaction whole-clump ──
-        /// A clump's arrangement is LOCKED by definition, so hover, selection and movement all act on the
-        /// whole clump — grab any member cell and you hold the object. Creation is drag-in from the sheet;
-        /// deletion is on the right-click menu; content editing is a later workflow, deliberately.
-        internal class ClumpsGrid : VisualElement
-        {
-            readonly TilesetBuilderWindow w;
-            readonly VisualElement checker;
-            Texture2D checkerTex;
-            readonly VisualElement thumbs;
-            readonly VisualElement overlay;
-
-            int hoverClump = -1, selClump = -1;
-            Vector2Int hoverCell = new(-1, -1);
-            bool dragPending, draggingClump, sheetDropHover;
-            Vector2 downPos;
-            Vector2Int grabOff;             // grabbed cell relative to the dragged clump's anchor
-            bool midPanning;
-            Vector3 midLast;
-
-            readonly Dictionary<Vector2Int, int> occupancy = new();
-
-            Tileset Set => w.set;
-            float Gap => w.tilesetSeamless ? 0f : 1f;
-            float Cell => Mathf.Clamp(w.tilesetCellZoom, 20f, 72f);
-            int Cols => Mathf.Max(1, Set.clumpColumns);
-            int Rows => Set.EffectiveClumpRows;
-
-            public ClumpsGrid(TilesetBuilderWindow window)
-            {
-                w = window;
-                AddToClassList("lau-tileset__grid");
-
-                checker = new VisualElement { pickingMode = PickingMode.Ignore };
-                checker.AddToClassList("lau-authoring__overlay-origin");
-                Add(checker);
-
-                thumbs = new VisualElement { pickingMode = PickingMode.Ignore };
-                thumbs.AddToClassList("lau-tool-shell__overlay");
-                Add(thumbs);
-
-                overlay = new VisualElement { pickingMode = PickingMode.Ignore };
-                overlay.AddToClassList("lau-authoring__canvas-overlay");
-                overlay.generateVisualContent += PaintOverlay;
-                Add(overlay);
-
-                tooltip = "Clumps: locked tile arrangements placed as one object. Drag a sheet selection " +
-                          "here to pluck it as a clump; drag a clump to move it; right-click for actions.";
-
-                RegisterCallback<PointerDownEvent>(OnDown);
-                RegisterCallback<PointerMoveEvent>(OnMove);
-                RegisterCallback<PointerUpEvent>(OnUp);
-                RegisterCallback<PointerLeaveEvent>(_ => { hoverClump = -1; sheetDropHover = false; overlay.MarkDirtyRepaint(); });
-
-                RegisterCallback<DragUpdatedEvent>(e =>
-                {
-                    if (DragAndDrop.GetGenericData(TilesetBuilderWindow.SheetDragKey) == null) return;
-                    DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
-                    sheetDropHover = CellAt(this.WorldToLocal(e.mousePosition), out hoverCell);
-                    overlay.MarkDirtyRepaint();
-                });
-                RegisterCallback<DragPerformEvent>(e =>
-                {
-                    if (DragAndDrop.GetGenericData(TilesetBuilderWindow.SheetDragKey) == null) return;
-                    DragAndDrop.AcceptDrag();
-                    DragAndDrop.SetGenericData(TilesetBuilderWindow.SheetDragKey, null);
-                    sheetDropHover = false;
-                    if (CellAt(this.WorldToLocal(e.mousePosition), out var cell)) w.MintClumpFromSheet(cell);
-                });
-                RegisterCallback<DragExitedEvent>(_ => { sheetDropHover = false; overlay.MarkDirtyRepaint(); });
-
-                // Seamless osc frames pulse here too — repaint only while something shows one.
-                schedule.Execute(() =>
-                {
-                    if (w.tilesetSeamless && w.tilesetSeamlessMarks && (hoverClump >= 0 || selClump >= 0))
-                        overlay.MarkDirtyRepaint();
-                }).Every(80);
-            }
-
-            internal void RepaintOverlay() => overlay.MarkDirtyRepaint();
-
-            Rect CellRect(Vector2Int c) => new(
-                Gap + c.x * (Cell + Gap), Gap + c.y * (Cell + Gap), Cell, Cell);
-
-            bool CellAt(Vector2 p, out Vector2Int cell)
-            {
-                cell = new Vector2Int(
-                    Mathf.FloorToInt((p.x - Gap) / (Cell + Gap)),
-                    Mathf.FloorToInt((p.y - Gap) / (Cell + Gap)));
-                return cell.x >= 0 && cell.y >= 0 && cell.x < Cols && cell.y < Rows;
-            }
-
-            int ClumpAt(Vector2Int cell) => occupancy.TryGetValue(cell, out var i) ? i : -1;
-
-            public void RebuildCells()
-            {
-                occupancy.Clear();
-                for (int i = 0; i < Set.clumps.Count; i++)
-                {
-                    var pr = Set.clumps[i];
-                    if (pr?.cells == null) continue;
-                    foreach (var pc in pr.cells) occupancy[pr.gridPos + pc.offset] = i;
-                }
-
-                float gw = Cols * (Cell + Gap) + Gap, gh = Rows * (Cell + Gap) + Gap;
-                style.width = gw;
-                style.height = gh;
-                AddToClassList("lau-tool-shell__chrome");
-
-                StyleAsChecker(checker, ref checkerTex);
-                checker.style.width = gw;
-                checker.style.height = gh;
-
-                thumbs.Clear();
-                foreach (var pr in Set.clumps)
-                {
-                    if (pr?.cells == null) continue;
-                    foreach (var pc in pr.cells)
-                    {
-                        if (pc.tile == null) continue;
-                        var r = CellRect(pr.gridPos + pc.offset);
-                        var img = new Image { pickingMode = PickingMode.Ignore, scaleMode = ScaleMode.ScaleToFit };
-                        img.tooltip = pr.displayName;
-                        img.AddToClassList("lau-tool-shell__overlay");
-                        img.style.left = r.xMin;
-                        img.style.top = r.yMin;
-                        img.style.width = Cell;
-                        img.style.height = Cell;
-                        // Full-cell sprite, never the cropped thumbnail — a clump preview must compose
-                        // exactly like the level will render it.
-                        img.sprite = pc.tile.IsAnimated ? pc.tile.animation[0] : pc.tile.SpriteOfVariant(0);
-                        thumbs.Add(img);
-                    }
-                }
-                overlay.BringToFront();
-                overlay.MarkDirtyRepaint();
-            }
-
-            bool CanPlace(Clump clump, Vector2Int anchor, int selfIdx)
-            {
-                foreach (var pc in clump.cells)
-                {
-                    var c = anchor + pc.offset;
-                    if (c.x < 0 || c.y < 0 || c.x >= Cols) return false;
-                    int at = ClumpAt(c);
-                    if (at >= 0 && at != selfIdx) return false;
-                }
-                return true;
-            }
-
-            void OnDown(PointerDownEvent e)
-            {
-                if (e.button == 2)
-                {
-                    midPanning = true;
-                    midLast = e.position;
-                    this.CapturePointer(e.pointerId);
-                    e.StopPropagation();
-                    return;
-                }
-
-                bool onGrid = CellAt(e.localPosition, out var cell);
-                int idx = onGrid ? ClumpAt(cell) : -1;
-
-                if (e.button == 1)
-                {
-                    if (idx >= 0)
-                    {
-                        selClump = idx;
-                        overlay.MarkDirtyRepaint();
-                        var clump = Set.clumps[idx];
-                        var menu = new GenericMenu();
-                        menu.AddItem(new GUIContent($"Delete '{clump.displayName}'"), false, () => w.DeleteClump(clump));
-                        menu.ShowAsContext();
-                    }
-                    e.StopPropagation();
-                    return;
-                }
-                if (e.button != 0) return;
-
-                // Layers / Collision modes: a left click PAINTS the property of the exact member cell
-                // under the cursor — no selection, no dragging, just assessment and correction.
-                if (w.clumpEditMode != 0)
-                {
-                    if (idx >= 0)
-                    {
-                        var pr = Set.clumps[idx];
-                        foreach (var pc in pr.cells)
-                        {
-                            if (pr.gridPos + pc.offset != cell) continue;
-                            if (w.clumpEditMode == 1)
-                            {
-                                Undo.RecordObject(Set, "Clump cell layer");
-                                pc.layerShift = pc.layerShift == 0 ? 1 : 0;
-                                EditorUtility.SetDirty(Set);
-                            }
-                            else if (w.clumpEditMode == 2 && pc.tile != null)
-                            {
-                                Undo.RecordObject(pc.tile, "Clump cell collision");
-                                pc.tile.colliderShape =
-                                    pc.tile.colliderShape == Tile.ColliderType.Grid ? Tile.ColliderType.Sprite
-                                    : pc.tile.colliderShape == Tile.ColliderType.Sprite ? Tile.ColliderType.None
-                                    : Tile.ColliderType.Grid;
-                                EditorUtility.SetDirty(pc.tile);
-                            }
-                            else if (w.clumpEditMode == 3 && pc.tile != null && w.activeTag != null)
-                            {
-                                Undo.RecordObject(pc.tile, "Tile tag");
-                                if (!pc.tile.tags.Remove(w.activeTag)) pc.tile.tags.Add(w.activeTag);
-                                EditorUtility.SetDirty(pc.tile);
-                            }
-                            break;
-                        }
-                        overlay.MarkDirtyRepaint();
-                    }
-                    e.StopPropagation();
-                    return;
-                }
-
-                selClump = idx;
-                if (idx >= 0)
-                {
-                    grabOff = cell - Set.clumps[idx].gridPos;
-                    dragPending = true;
-                    downPos = e.localPosition;
-                    this.CapturePointer(e.pointerId);
-                }
-                overlay.MarkDirtyRepaint();
-                e.StopPropagation();
-            }
-
-            void OnMove(PointerMoveEvent e)
-            {
-                if (midPanning)
-                {
-                    var d = (Vector2)(e.position - midLast);
-                    midLast = e.position;
-                    for (var sv = this.GetFirstAncestorOfType<ScrollView>(); sv != null;
-                         sv = sv.GetFirstAncestorOfType<ScrollView>())
-                        sv.scrollOffset -= d;
-                    return;
-                }
-
-                bool onGrid = CellAt(e.localPosition, out var cell);
-                hoverCell = cell;
-                int idx = onGrid ? ClumpAt(cell) : -1;
-                if (idx != hoverClump) { hoverClump = idx; overlay.MarkDirtyRepaint(); }
-
-                if (dragPending && !draggingClump && (e.localPosition - (Vector3)downPos).sqrMagnitude > 16f)
-                    draggingClump = true;
-                if (draggingClump) overlay.MarkDirtyRepaint();
-            }
-
-            void OnUp(PointerUpEvent e)
-            {
-                if (midPanning)
-                {
-                    midPanning = false;
-                    this.ReleasePointer(e.pointerId);
-                    e.StopPropagation();
-                    return;
-                }
-
-                this.ReleasePointer(e.pointerId);
-                if (draggingClump && selClump >= 0 && CellAt(e.localPosition, out var cell))
-                {
-                    var clump = Set.clumps[selClump];
-                    var target = cell - grabOff;
-                    if (CanPlace(clump, target, selClump))
-                    {
-                        Undo.RecordObject(Set, "Move clump");
-                        clump.gridPos = target;
-                        EditorUtility.SetDirty(Set);
-                        RebuildCells();
-                    }
-                    else w.statusLine.text = "Move blocked — the clump needs free cells inside the clump grid.";
-                }
-                dragPending = draggingClump = false;
-                overlay.MarkDirtyRepaint();
-            }
-
-            void PaintOverlay(MeshGenerationContext ctx)
-            {
-                var p = ctx.painter2D;
-
-                void Path(Rect r)
-                {
-                    p.BeginPath();
-                    p.MoveTo(r.min); p.LineTo(new Vector2(r.xMax, r.yMin));
-                    p.LineTo(r.max); p.LineTo(new Vector2(r.xMin, r.yMax));
-                    p.ClosePath();
-                }
-
-                if (!w.tilesetSeamless)
-                {
-                    // DISCONNECTED SEGMENTS — same Painter2D miter-join crash rule as every canvas here.
-                    float b = w.tilesetGridBrightness;
-                    p.strokeColor = new Color(b, b, b, w.tilesetGridAlpha);
-                    p.lineWidth = 1f;
-                    p.BeginPath();
-                    for (int y = 0; y < Rows; y++)
-                        for (int x = 0; x < Cols; x++)
-                        {
-                            var r = CellRect(new Vector2Int(x, y));
-                            p.MoveTo(new Vector2(r.xMin, r.yMin)); p.LineTo(new Vector2(r.xMax, r.yMin));
-                            p.MoveTo(new Vector2(r.xMax, r.yMin)); p.LineTo(new Vector2(r.xMax, r.yMax));
-                            p.MoveTo(new Vector2(r.xMax, r.yMax)); p.LineTo(new Vector2(r.xMin, r.yMax));
-                            p.MoveTo(new Vector2(r.xMin, r.yMax)); p.LineTo(new Vector2(r.xMin, r.yMin));
-                        }
-                    p.Stroke();
-                }
-
-                // Layers / Collision assessment tints: every member cell of every clump gets a coloured
-                // translucent overlay, so the whole tab's routing is readable in one glance.
-                if (w.clumpEditMode != 0)
-                    foreach (var pr in Set.clumps)
-                    {
-                        if (pr?.cells == null) continue;
-                        foreach (var pc in pr.cells)
-                        {
-                            Color tint;
-                            if (w.clumpEditMode == 1)
-                                tint = pc.layerShift > 0
-                                    ? new Color(1f, 0.6f, 0.15f, 0.45f)     // orange: one layer in front
-                                    : new Color(0.25f, 0.5f, 1f, 0.28f);    // blue: the stamped layer
-                            else if (w.clumpEditMode == 2)
-                            {
-                                var shape = pc.tile != null ? pc.tile.colliderShape : Tile.ColliderType.Grid;
-                                // No collision = NO TINT — absence must read as absence.
-                                if (shape == Tile.ColliderType.None) continue;
-                                tint = shape == Tile.ColliderType.Grid ? new Color(1f, 0.25f, 0.2f, 0.38f)
-                                    : new Color(1f, 0.85f, 0.2f, 0.35f);
-                            }
-                            else
-                            {
-                                // Tags mode: only cells carrying the active tag tint, in the tag's colour.
-                                if (w.activeTag == null || pc.tile == null || !pc.tile.HasTag(w.activeTag)) continue;
-                                var c = w.activeTag.editorColor;
-                                tint = new Color(c.r, c.g, c.b, 0.4f);
-                            }
-                            p.fillColor = tint;
-                            Path(CellRect(pr.gridPos + pc.offset));
-                            p.Fill();
-                        }
-                    }
-
-                float osc = 0.5f + 0.5f * Mathf.Sin((float)(EditorApplication.timeSinceStartup * w.gridOscSpeed * Mathf.PI * 2.0));
-
-                void StrokeClump(int idx, Color normal, float width, bool oscillate)
-                {
-                    if (idx < 0 || idx >= Set.clumps.Count || Set.clumps[idx]?.cells == null) return;
-                    var pr = Set.clumps[idx];
-                    p.strokeColor = oscillate ? new Color(osc, osc, osc, normal.a) : normal;
-                    p.lineWidth = width;
-                    foreach (var pc in pr.cells) { Path(CellRect(pr.gridPos + pc.offset)); p.Stroke(); }
-                }
-
-                // Selection: whole clump, always. Orange like the tiles grid, osc frame in seamless.
-                if (selClump >= 0)
-                {
-                    if (!w.tilesetSeamless)
-                    {
-                        var pr = Set.clumps[selClump];
-                        if (pr?.cells != null)
-                            foreach (var pc in pr.cells)
-                            {
-                                var r = CellRect(pr.gridPos + pc.offset);
-                                p.fillColor = new Color(1f, 0.75f, 0.2f, 0.25f);
-                                Path(r); p.Fill();
-                            }
-                        StrokeClump(selClump, new Color(1f, 0.75f, 0.2f), 1.5f, false);
-                    }
-                    else if (w.tilesetSeamlessMarks)
-                        StrokeClump(selClump, new Color(1f, 1f, 1f, 1f), 2f, true);
-                }
-
-                // Hover: whole clump, unless we are dragging one around.
-                if (!draggingClump && hoverClump >= 0 && hoverClump != selClump)
-                {
-                    if (!w.tilesetSeamless) StrokeClump(hoverClump, new Color(1f, 1f, 1f, 0.6f), 1f, false);
-                    else if (w.tilesetSeamlessMarks) StrokeClump(hoverClump, new Color(1f, 1f, 1f, 0.9f), 1.5f, true);
-                }
-
-                // Move ghost: the clump's footprint at the target, green when it fits, red when blocked.
-                if (draggingClump && selClump >= 0)
-                {
-                    var pr = Set.clumps[selClump];
-                    var target = hoverCell - grabOff;
-                    bool ok = CanPlace(pr, target, selClump);
-                    p.strokeColor = ok ? new Color(0.3f, 1f, 0.4f) : new Color(1f, 0.25f, 0.2f);
-                    p.lineWidth = 2f;
-                    foreach (var pc in pr.cells) { Path(CellRect(target + pc.offset)); p.Stroke(); }
-                }
-
-                // Sheet-drop ghost: where the plucked clump would land.
-                if (sheetDropHover && w.SheetDragCells != null)
-                    foreach (var (off, _) in w.SheetDragCells)
-                    {
-                        var c = hoverCell + off;
-                        bool ok = c.x >= 0 && c.y >= 0 && c.x < Cols && ClumpAt(c) < 0;
-                        p.strokeColor = ok ? new Color(0.3f, 1f, 0.4f) : new Color(1f, 0.25f, 0.2f);
-                        p.lineWidth = 2f;
-                        Path(CellRect(c)); p.Stroke();
-                    }
-            }
         }
 
         // ── the sheet canvas ───────────────────────────────────────────────────
@@ -2501,7 +1219,7 @@ namespace Laubrary.Cartographer.Editor
             Texture2D checkerTex;
 
             /// Lazy so a dock/tab detach that killed the texture heals on the next layout.
-            void EnsureChecker() => StyleAsChecker(checker, ref checkerTex);
+            void EnsureChecker() => TilesetGridView.StyleAsChecker(checker, ref checkerTex);
 
             Rect CellRect(Vector2Int cell) => new(
                 origin.x + w.CellPxX(cell.x) * scale,
@@ -2537,7 +1255,7 @@ namespace Laubrary.Cartographer.Editor
                 // whole editor feel busy.
                 float osc = w.gridOscillate
                     ? 0.5f + 0.5f * w.gridOscAmplitude *
-                      Mathf.Sin((float)(EditorApplication.timeSinceStartup * w.gridOscSpeed * Mathf.PI * 2.0))
+                      Mathf.Sin((float)(EditorApplication.timeSinceStartup * w.gridOptions.oscSpeed * Mathf.PI * 2.0))
                     : w.gridBrightness;   // static mode: the user's own colour; selections follow it too
                 // DISCONNECTED SEGMENTS on purpose — a single-segment subpath has no joins, and Painter2D's
                 // native miter-join tessellation CRASHES on manually-closed subpaths at this count (the

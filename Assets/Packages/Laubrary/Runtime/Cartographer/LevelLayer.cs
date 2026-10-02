@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.Tilemaps;
 
 namespace Laubrary.Cartographer
@@ -19,24 +20,50 @@ namespace Laubrary.Cartographer
                  "layer is active.")]
         public Tileset tileset;
 
-        [Tooltip("When set, every unpainted cell inside the level's bounds shows this tile — a floor layer " +
-                 "needs no painting at all. Painted cells and placed props draw over it.")]
-        public LevelTile defaultTile;
+        [Tooltip("THE LAYER'S BACKGROUND. This tile fills every cell of this layer that has nothing painted " +
+                 "on it, inside the level's bounds — so a floor layer needs no painting at all. It cannot be " +
+                 "erased cell by cell: painting simply COVERS it, and erasing that paint uncovers it again. " +
+                 "Set it by right-clicking a tile in the Cartographer's Tileset box.")]
+        [FormerlySerializedAs("defaultTile")]
+        public LevelTile backgroundTile;
 
         [Header("Rendering")]
-        [Tooltip("Draw order among the level's layers. Higher draws in front.")]
+        [Tooltip("Draw order among the level's layers. Higher draws in front. Ignored when Y Sort is on — " +
+                 "that layer joins the actor band instead, and position decides.")]
         public int sortingOrder;
 
-        [Tooltip("Layer opacity, multiplied into every tile's colour. 1 is opaque.")]
+        [Tooltip("Sort this layer's tiles against the ACTORS by world Y, so a character walks in front of " +
+                 "the bottom of a tall object and behind its top. Turn it on for anything the player can be " +
+                 "on both sides of — shelves, walls, furniture. Costs a little performance: each tile is " +
+                 "sorted on its own instead of the layer being drawn as one block.")]
+        public bool ySort;
+
+        [Tooltip("Layer opacity IN THE GAME, multiplied into every tile's colour. 1 is opaque. A shipped " +
+                 "setting, not a preview dial: LevelInstance writes it into the built Tilemap's colour, so a " +
+                 "layer left at 0.5 here ships at 0.5. To dim a layer only while authoring, use Editor " +
+                 "Opacity below.")]
         [Range(0f, 1f)] public float opacity = 1f;
 
         [Header("Authoring")]
-        [Tooltip("Whether the layer draws, in the editor and at runtime. Hiding a layer is an authoring aid, " +
-                 "not a gameplay switch.")]
+        [Tooltip("Whether the layer draws IN THE GAME. LevelInstance disables the built Tilemap's renderer " +
+                 "for a hidden layer, so this ships — it is not a preview toggle (that is Editor Hidden " +
+                 "below).  ⚠️ It hides the layer, it does not disable it: colliders are built from 'Solid' " +
+                 "and never consult this, so hiding a SOLID layer leaves walls that still block the player.")]
         public bool visible = true;
 
         [Tooltip("A locked layer cannot be painted on. Protects a finished layer from stray clicks.")]
         public bool locked;
+
+        [Tooltip("EDITING ONLY — this never reaches the game. Hides the layer in the Cartographer's canvas so " +
+                 "you can see what is underneath it. LevelInstance does not read this field at all: the built " +
+                 "scene and the shipped game still draw the layer. For 'hidden in the game too', use Visible.")]
+        public bool editorHidden;
+
+        [Tooltip("EDITING ONLY — this never reaches the game. Dims the layer in the Cartographer's canvas " +
+                 "while you work on another one. MULTIPLIED with the runtime Opacity rather than replacing " +
+                 "it, so a layer that ships at 0.5 and is dimmed to 0.5 here draws at 0.25 while editing and " +
+                 "still ships at 0.5.")]
+        [Range(0f, 1f)] public float editorOpacity = 1f;
 
         [Header("Collision")]
         [Tooltip("Whether this layer's tiles are solid. Drives the colliders the level builds for it.")]

@@ -59,7 +59,16 @@ namespace Laubrary.Cartographer
             // Deferred: OnValidate runs mid-serialization, where DestroyImmediate is illegal.
             if (!autoBuild || !isActiveAndEnabled) return;
 #if UNITY_EDITOR
-            UnityEditor.EditorApplication.delayCall += () => { if (this != null && isActiveAndEnabled) Rebuild(); };
+            // ⚠️ Only in the play state it was queued in (OutBurner 2026-09-25). A recompile in an UNFOCUSED editor
+            // runs OnValidate but does not tick delayCall until Play starts (HANDOVER trap 7.11) — so the edit-mode
+            // rebuild landed AFTER the scene's Start and rebuilt the live level from scratch, discarding whatever
+            // the game had done to the built layers. Measured in Scavenge: the Walls moved back to Default, so the
+            // flashlight lost every occluder and saw through all shelves on that Play session.
+            bool queuedInPlay = Application.isPlaying;
+            UnityEditor.EditorApplication.delayCall += () =>
+            {
+                if (this != null && isActiveAndEnabled && Application.isPlaying == queuedInPlay) Rebuild();
+            };
 #endif
         }
 
@@ -78,11 +87,35 @@ namespace Laubrary.Cartographer
                 var go = NewPart(string.IsNullOrEmpty(layer.name) ? "Layer" : layer.name, layersRoot.transform);
                 var map = go.AddComponent<Tilemap>();
                 var renderer = go.AddComponent<TilemapRenderer>();
-                renderer.sortingOrder = layer.sortingOrder;
+                // A Y-SORTED layer joins the actor band instead of claiming its own draw order, and this is
+                // the part that is easy to get wrong: Unity compares sorting layer, THEN sorting order, and
+                // only then the transparency sort axis. A layer sitting at 20 against actors at 15 wins on
+                // ORDER, so position is never consulted and no amount of sort-axis configuration helps.
+                // Sharing the band is what hands the decision to Y.
+                //
+                // Individual mode matters just as much: the default (Chunk) sorts the whole tilemap as ONE
+                // unit, so the entire layer would flip in front of or behind the player as a block instead
+                // of per tile.
+                if (layer.ySort)
+                {
+                    renderer.mode = TilemapRenderer.Mode.Individual;
+                    renderer.sortingOrder = ActorSortingOrder;
+                }
+                else renderer.sortingOrder = layer.sortingOrder;
                 renderer.enabled = layer.visible;
                 map.color = new Color(1f, 1f, 1f, layer.opacity);
 
                 var cells = level.ResolveLayer(layer);
+                // A marker-only prop's tiles exist for the author, not the player: shown while editing, dropped
+                // in Play (Prop.markerOnly). Filtered here, before the tiles land and the colliders are built,
+                // so the cell is simply absent in Play rather than painted and then erased.
+                if (Application.isPlaying)
+                {
+                    List<Vector2Int> markers = null;
+                    foreach (var kv in cells)
+                        if (kv.Value.source != null && kv.Value.source.markerOnly) (markers ??= new List<Vector2Int>()).Add(kv.Key);
+                    if (markers != null) foreach (var c in markers) cells.Remove(c);
+                }
                 builtLayers[layer.name] = new BuiltLayer { layer = layer, map = map, cells = cells };
                 if (cells.Count > 0)
                 {
@@ -104,11 +137,31 @@ namespace Laubrary.Cartographer
                 }
 
                 BuildColliders(layer, map, cells);
+                if (layer.ySort && cells.Count > 0) GroupTallStamps(layer, map, renderer, cells, layersRoot.transform);
             }
 
             PublishSpots();
             SpawnPlacementPrefabs();
             SpawnDecals();
+        }
+
+        /// Re-read every layer's LOOK — its runtime visibility and opacity — into the already-built objects,
+        /// without rebuilding anything. The fast path for dragging an opacity slider in the editor, where a
+        /// full Rebuild() per pointer move would re-resolve and re-lay every cell of the level for the sake
+        /// of one colour.
+        ///
+        /// Deliberately reads `visible` and `opacity` ONLY. `editorHidden` / `editorOpacity` are authoring
+        /// state and this object is the mirror of what the GAME shows — a mirror that honoured them would
+        /// stop being evidence.
+        public void ApplyLayerLook()
+        {
+            foreach (var built in builtLayers.Values)
+            {
+                if (built?.map == null || built.layer == null) continue;
+                var r = built.map.GetComponent<TilemapRenderer>();
+                if (r != null) r.enabled = built.layer.visible;
+                built.map.color = new Color(1f, 1f, 1f, built.layer.opacity);
+            }
         }
 
         /// Re-resolve ONE cell of one layer from the asset and update the built tilemap in place — the fast
@@ -144,6 +197,7 @@ namespace Laubrary.Cartographer
             UnregisterMaps();
             spots.Clear();
             builtLayers.Clear();
+            stampGroupOf.Clear();
 
             var parts = GetComponentsInChildren<LevelInstancePart>(true);
             foreach (var p in parts)
@@ -225,17 +279,76 @@ namespace Laubrary.Cartographer
         /// Shift an actor's renderers into the level's actor band, PRESERVING internal offsets —
         /// Launimator's layered views stack +1 per layer above their base renderer, and a flat overwrite
         /// would squash that. Spawners call this on whatever they instantiate; no prefab needs hand-set
-        /// sorting, and the same character sorts correctly in any level's stack.
+        /// sorting, and the same character sorts correctly in any level's stack. Y-sorted levels compare an
+        /// actor at its authored pivot (normally its feet), not at the centre of its sprite: otherwise a tall
+        /// actor flips behind a shelf when its torso crosses the shelf rather than when its feet do.
         public void ApplyActorSorting(GameObject actor)
         {
             if (actor == null) return;
             var renderers = actor.GetComponentsInChildren<SpriteRenderer>(true);
             if (renderers == null || renderers.Length == 0) return;
             int min = int.MaxValue;
-            foreach (var r in renderers) min = Mathf.Min(min, r.sortingOrder);
+            foreach (var r in renderers)
+            {
+                r.spriteSortPoint = SpriteSortPoint.Pivot;
+                min = Mathf.Min(min, r.sortingOrder);
+            }
             int delta = ActorSortingOrder - min;
-            if (delta == 0) return;
-            foreach (var r in renderers) r.sortingOrder += delta;
+            if (delta != 0)
+                foreach (var r in renderers) r.sortingOrder += delta;
+
+            // ★ A LAYERED RIG SORTS AS ONE OBJECT (OutBurner 2026-09-25, T-0041). Keeping the +1-per-layer offsets means
+            // a composite character's upper body sits at band + 1 — above a y-sorted shelf at the band wherever the
+            // character stands, so ProtoGuy behind a shelf showed his legs behind it and his torso over it. A
+            // SortingGroup on the root at the band makes the whole rig sort by its root (the same point its body
+            // collides at), and the offsets keep layering the parts INSIDE the group. Overlays far above the band
+            // (an aim pointer, at +45) get their own sortAtRoot group so they stay on top of the world as before.
+            bool layered = false;
+            foreach (var r in renderers) if (r.sortingOrder != ActorSortingOrder) { layered = true; break; }
+            if (!layered) return;
+            var group = actor.GetComponent<UnityEngine.Rendering.SortingGroup>();
+            if (group == null) group = actor.AddComponent<UnityEngine.Rendering.SortingGroup>();
+            group.sortingLayerID = renderers[0].sortingLayerID;
+            group.sortingOrder = ActorSortingOrder;
+            foreach (var r in renderers)
+            {
+                if (r.sortingOrder < ActorSortingOrder + OverlayOffset || r.gameObject == actor) continue;
+                var own = r.GetComponent<UnityEngine.Rendering.SortingGroup>();
+                if (own == null) own = r.gameObject.AddComponent<UnityEngine.Rendering.SortingGroup>();
+                own.sortAtRoot = true;
+                own.sortingLayerID = r.sortingLayerID;
+                own.sortingOrder = r.sortingOrder;
+            }
+        }
+
+        /// A renderer this far above the actor band is an overlay (aim pointer, marker), not a body layer.
+        const int OverlayOffset = 20;
+
+        /// The draw order of things LYING on the floor: one below the actor band, so it is above every floor layer
+        /// drawn at its own lower order and below everything that stands.
+        public int FloorBodySortingOrder => ActorSortingOrder - 1;
+
+        /// Lay an actor down: from now on it draws as part of the floor, under every standing actor, instead of
+        /// y-sorting among them. Call it when a body goes down (a corpse, a knocked-out character); the game decides
+        /// when, the level owns where.
+        ///
+        /// Why a y-sort cannot do this (OutBurner 2026-10-02): a standing actor sorts at its feet, and a corpse keeps
+        /// those feet — but its picture now lies across the floor BEHIND them. Anyone standing on that picture has
+        /// their feet further back than the corpse's, so the y-sort drew the corpse over them. A body on the floor is
+        /// under whoever stands on it wherever they stand, which is a draw order, not a position.
+        ///
+        /// Trade-off: y-sorted level layers share the actor band, so a corpse also draws under them — one that falls
+        /// against the front of a tall stamp tucks under its picture rather than over it.
+        public void ApplyFloorSorting(GameObject actor)
+        {
+            if (actor == null) return;
+            var group = actor.GetComponent<UnityEngine.Rendering.SortingGroup>();
+            if (group != null) { group.sortingOrder = FloorBodySortingOrder; return; }
+            // Not layered (ApplyActorSorting added no group): every body renderer sits on the band itself. Overlays far
+            // above it keep their order.
+            foreach (var r in actor.GetComponentsInChildren<SpriteRenderer>(true))
+                if (r.sortingOrder >= ActorSortingOrder && r.sortingOrder < ActorSortingOrder + OverlayOffset)
+                    r.sortingOrder -= ActorSortingOrder - FloorBodySortingOrder;
         }
 
         public Vector3 CellToWorld(Vector2Int cell) =>
@@ -386,6 +499,83 @@ namespace Laubrary.Cartographer
                     var anim = go.AddComponent<DecalAnimator>();
                     anim.frames = d.animation;
                     anim.fps = d.animationFps;
+                }
+            }
+        }
+
+        // ── tall stamps: one object, one sort point ───────────────────────────────────
+
+        readonly Dictionary<Vector2Int, Transform> stampGroupOf = new();
+
+        /// The SortingGroup a multi-row stamp of a y-sorted layer renders in, for anything that must draw AS PART OF
+        /// that object (a shelf's wares): parent it under the returned transform and give it a sortingOrder above 0
+        /// (the stamp's tiles draw at 0 inside the group). Null when the cell is not part of such a stamp.
+        public Transform SortGroupAt(Vector2Int cell) => stampGroupOf.TryGetValue(cell, out var t) ? t : null;
+
+        /// ★ A TALL STAMP SORTS AS ONE OBJECT, AT ITS BASE (OutBurner 2026-09-25, T-0041).
+        ///
+        /// Individual mode sorts every TILE by its own cell. For a one-row wall that is the object's own sorting, but a
+        /// shelf is a stamp drawn 4 rows tall and solid only on its bottom row: its upper rows are the shelf's HEIGHT
+        /// drawn up the screen, not floor further back. Sorted per tile, an imp standing in the walkable cells behind
+        /// the base sorted IN FRONT of those upper rows and was drawn standing on the shelf (measured with
+        /// ScavengeShelfProbe.SortScan once the y-sort actually took effect). So each multi-row stamp's tiles render
+        /// from their own small tilemap inside a SortingGroup whose pivot is the centre of the stamp's footprint row:
+        /// the whole shelf is in front of anything whose feet are in front of that row and behind anything whose feet
+        /// are behind it — and a body cannot stand inside it, it is solid.
+        ///
+        /// The layer's own tilemap KEEPS every tile, only tinted clear, so its colliders, collider-type reads
+        /// (ScavengeGame's shot silhouettes) and cell queries are exactly what they were; nothing else changes.
+        void GroupTallStamps(LevelLayer layer, Tilemap map, TilemapRenderer mainRenderer,
+                             Dictionary<Vector2Int, ResolvedCell> cells, Transform parent)
+        {
+            if (level == null || level.clumpPlacements == null) return;
+            GameObject root = null;
+            foreach (var cp in level.clumpPlacements)
+            {
+                if (cp == null) continue;
+                List<Vector2Int> mine = null;
+                foreach (var (at, _, lyr) in level.ClumpCellsOf(cp))
+                    if (lyr == layer.name && cells.ContainsKey(at) && !stampGroupOf.ContainsKey(at)) (mine ??= new List<Vector2Int>()).Add(at);
+                if (mine == null) continue;
+
+                int minY = int.MaxValue, maxY = int.MinValue, minX = int.MaxValue, maxX = int.MinValue, footY = int.MaxValue;
+                foreach (var c in mine)
+                {
+                    minY = Mathf.Min(minY, c.y); maxY = Mathf.Max(maxY, c.y);
+                    minX = Mathf.Min(minX, c.x); maxX = Mathf.Max(maxX, c.x);
+                    if (map.GetColliderType(new Vector3Int(c.x, c.y, 0)) != Tile.ColliderType.None) footY = Mathf.Min(footY, c.y);
+                }
+                if (maxY == minY) continue;              // one row tall: per-tile sorting already IS the object's
+                if (footY == int.MaxValue) footY = minY; // nothing solid: its lowest row stands in for the footprint
+
+                root ??= NewPart(layer.name + " (tall stamps)", parent);
+                var go = NewPart($"stamp {minX},{minY}", root.transform);
+                var a = CellToWorld(new Vector2Int(minX, footY));
+                var b = CellToWorld(new Vector2Int(maxX, footY));
+                go.transform.position = (a + b) * 0.5f;
+                var group = go.AddComponent<UnityEngine.Rendering.SortingGroup>();
+                group.sortingLayerID = mainRenderer.sortingLayerID;
+                group.sortingOrder = mainRenderer.sortingOrder;
+
+                var tilesGo = NewPart("tiles", go.transform);
+                tilesGo.transform.SetPositionAndRotation(map.transform.position, map.transform.rotation);
+                var sub = tilesGo.AddComponent<Tilemap>();
+                sub.tileAnchor = map.tileAnchor;
+                sub.color = map.color;
+                var subR = tilesGo.AddComponent<TilemapRenderer>();
+                subR.sharedMaterial = mainRenderer.sharedMaterial;
+                subR.sortingLayerID = mainRenderer.sortingLayerID;
+                subR.sortingOrder = 0;
+                subR.enabled = mainRenderer.enabled;
+                LevelTileVariants.Register(sub, new VariantSource(cells));
+                builtMaps.Add(sub);
+
+                foreach (var c in mine)
+                {
+                    var c3 = new Vector3Int(c.x, c.y, 0);
+                    sub.SetTile(c3, cells[c].tile);
+                    map.SetColor(c3, Color.clear);   // stays for physics; drawn by the stamp's own map instead
+                    stampGroupOf[c] = go.transform;
                 }
             }
         }

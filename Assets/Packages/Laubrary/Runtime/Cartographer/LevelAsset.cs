@@ -61,18 +61,77 @@ namespace Laubrary.Cartographer
                  "determinism rule paints follow for variants.")]
         public int prefabChoice = -1;
 
+        [Tooltip("The layer this placement belongs to, for authoring: which layer's visibility hides it and " +
+                 "which layer owns it. A prop that draws tiles gets its layer from those cells instead; this " +
+                 "is what gives a CELL-LESS prop — a spawn point, a procgen director — a home.")]
+        public string layer;
+
         [Tooltip("Whether a human placed this prop or a generator did.")]
         public Origin origin = Origin.Authored;
     }
 
-    /// One cell of a resolved layer: what actually shows there once default fill, placements and paints have
+    /// A CLUMP as it was actually stamped. The exact twin of PropPlacement, and it exists for the exact same
+    /// reason: without it a stamped clump dissolves into anonymous tile paints, and the level can no longer
+    /// answer "which of these cells are a shelf, and which shelf". That question is the whole basis of
+    /// metadata-driven gameplay — a clump's MetaMap says what it IS, and a level with no record of the stamp
+    /// can never consult it.
+    ///
+    /// Clump identity is a STABLE OPAQUE ID, not a reference and not a name: a Clump is a serializable class
+    /// living inside a Tileset rather than an Object, so no hard ref can be taken, and a NAME cannot identify
+    /// one either — two clumps may legitimately both be called "Shelf", and name-lookup would silently hand
+    /// back whichever came first. The tileset IS a hard ref; `clumpId` picks the clump inside it exactly.
+    /// `clumpName` rides along for two reasons, both real: a placement recorded before ids existed has
+    /// nothing else to resolve by (and still resolves, forever), and a human reading the serialized YAML of a
+    /// level can see WHAT was stamped instead of a GUID.
+    [System.Serializable]
+    public class ClumpPlacement
+    {
+        [Tooltip("The tileset that owns the stamped clump.")]
+        public Tileset tileset;
+
+        [Tooltip("THE IDENTITY: the clump's stable opaque id within that tileset. Empty only on a placement " +
+                 "recorded before ids existed, which then resolves by name instead.")]
+        public string clumpId;
+
+        [Tooltip("The clump's display name when it was stamped — READABILITY, and the legacy resolution path. " +
+                 "Only consulted when `clumpId` is empty. Not kept in sync with a later rename: the id is what " +
+                 "the link runs on.")]
+        public string clumpName;
+
+        [Tooltip("Cell the clump's own origin was stamped at.")]
+        public Vector2Int cell;
+
+        [Tooltip("The layer the clump's unshifted cells landed on. Cells marked 'one layer in front' route " +
+                 "themselves relative to THIS layer, which is why the base layer has to be recorded and not " +
+                 "recomputed later.")]
+        public string layer = "Terrain";
+
+        [Tooltip("Quarter-turns anticlockwise applied when it was stamped.")]
+        public int rotation;
+
+        [Tooltip("Whether it was mirrored along X when stamped.")]
+        public bool mirrorX;
+
+        [Tooltip("Whether a human stamped this clump or a generator did.")]
+        public Origin origin = Origin.Authored;
+
+        /// The clump this placement refers to, or null if the tileset lost it. By id; by name ONLY when this
+        /// placement has no id (see <see cref="Tileset.ResolveClump"/> for why the name is not a fallback for
+        /// an id that fails).
+        public Clump Resolve() => tileset != null ? tileset.ResolveClump(clumpId, clumpName) : null;
+    }
+
+    /// One cell of a resolved layer: what actually shows there once the background fill, placements and paints have
     /// all had their say. `source` is the prop that supplied the tile, or null for a paint or the default
     /// fill — kept because collision narrowing needs to know which placement a cell came from.
+    /// `clumpSource` is the same knowledge for clump stamps: which STAMP put this cell here, so a consumer
+    /// can group cells by the object they belong to and read that object's metadata.
     public struct ResolvedCell
     {
         public TileBase tile;
         public int variant;
         public Prop source;
+        public ClumpPlacement clumpSource;
     }
 
     /// How a level's solid layers are collided with. One enum on the level rather than two level types,
@@ -126,6 +185,11 @@ namespace Laubrary.Cartographer
         [Tooltip("Every prop stamped into this level, in placement order.")]
         public List<PropPlacement> placements = new();
 
+        [Tooltip("Every clump stamped into this level, in stamp order. Separate from `placements` because a " +
+                 "clump is a tile arrangement and a prop is a prefab-carrying object; both are stamps that " +
+                 "keep their identity.")]
+        public List<ClumpPlacement> clumpPlacements = new();
+
         [Tooltip("Every free sprite placed in this level.")]
         public List<Decal> decals = new();
 
@@ -176,11 +240,96 @@ namespace Laubrary.Cartographer
         /// Record a prop placement. The editor and the generator both come through here — that is what
         /// keeps a generated level indistinguishable from a hand-built one.
         public PropPlacement Place(Prop prop, Vector2Int cell, int rotation = 0, bool mirrorX = false,
-            Origin origin = Origin.Authored)
+            Origin origin = Origin.Authored, string layer = null)
         {
-            var p = new PropPlacement { prop = prop, cell = cell, rotation = rotation, mirrorX = mirrorX, origin = origin };
+            var p = new PropPlacement
+            {
+                prop = prop, cell = cell, rotation = rotation, mirrorX = mirrorX,
+                origin = origin, layer = layer,
+            };
             placements.Add(p);
             return p;
+        }
+
+        /// Record a clump stamp. The twin of Place(), and the ONLY way a stamped clump keeps its identity —
+        /// painting a clump's tiles individually would render the same pixels and lose the object.
+        public ClumpPlacement PlaceClump(Tileset tileset, Clump clump, Vector2Int cell, string layer,
+            int rotation = 0, bool mirrorX = false, Origin origin = Origin.Authored)
+        {
+            if (tileset == null || clump == null) return null;
+            var p = new ClumpPlacement
+            {
+                tileset = tileset,
+                // BOTH, deliberately: the id is the link, the name is what makes the YAML readable to a human
+                // debugging a level. Minting here means even a clump that predates ids gets one the moment it
+                // is first stamped — the migration needs no sweep and no user-visible event.
+                clumpId = clump.EnsureId(),
+                clumpName = clump.displayName,
+                cell = cell,
+                layer = string.IsNullOrEmpty(layer) ? "Terrain" : layer,
+                rotation = rotation,
+                mirrorX = mirrorX,
+                origin = origin,
+            };
+            clumpPlacements.Add(p);
+            return p;
+        }
+
+        /// Remove the clump placement whose stamp COVERS `cell` on `layer`, most recent first — the
+        /// whole-object erase rule props already follow, for the same reason: erasing a stamp cell-by-cell
+        /// would punch holes in an overlapping one. Returns the removed placement, or null.
+        public ClumpPlacement EraseClumpAt(Vector2Int cell, string layer)
+        {
+            if (clumpPlacements == null) return null;
+            for (int i = clumpPlacements.Count - 1; i >= 0; i--)
+            {
+                var p = clumpPlacements[i];
+                if (p == null) continue;
+                foreach (var (at, _, lyr) in ClumpCellsOf(p))
+                {
+                    if (at != cell || lyr != layer) continue;
+                    clumpPlacements.RemoveAt(i);
+                    return p;
+                }
+            }
+            return null;
+        }
+
+        /// THE canonical clump-stamp geometry: where each of a placement's member cells lands, and on which
+        /// layer. Every consumer — resolution, erase, thumbnails, the editor's ghost — must come through
+        /// here, or a stamp will preview in one place and build in another.
+        ///
+        /// Two transforms compose, in this order. First the clump's own authoring flip: a Tileset's rows run
+        /// DOWN the screen while a level's run UP, so a member at builder-offset (x, y) sits at level-offset
+        /// (x − min.x, −(y − min.y)). Then the placement's mirror-and-rotate, through the same canonical
+        /// `Prop.TransformOffset` every other stamp uses.
+        public IEnumerable<(Vector2Int cell, LevelTile tile, string layer)> ClumpCellsOf(ClumpPlacement p)
+        {
+            var clump = p?.Resolve();
+            if (clump?.cells == null) yield break;
+            var b = clump.Bounds;
+            var baseLayer = GetLayer(p.layer);
+
+            foreach (var pc in clump.cells)
+            {
+                if (pc == null || pc.tile == null) continue;
+                var local = new Vector2Int(pc.offset.x - b.xMin, -(pc.offset.y - b.yMin));
+                var at = p.cell + Prop.TransformOffset(local, p.rotation, p.mirrorX);
+                var target = ShiftedLayer(baseLayer, pc.layerShift);
+                yield return (at, pc.tile, target != null ? target.name : p.layer);
+            }
+        }
+
+        /// The layer `shift` steps further FRONT than `baseLayer` in this level's back-to-front list,
+        /// clamped. A clump cell says only "one layer in front"; what that MEANS is the level's to decide,
+        /// which is why the resolution lives here and not on the clump.
+        public LevelLayer ShiftedLayer(LevelLayer baseLayer, int shift)
+        {
+            if (baseLayer == null || layers == null || layers.Count == 0) return baseLayer;
+            if (shift == 0) return baseLayer;
+            int idx = layers.IndexOf(baseLayer);
+            if (idx < 0) return baseLayer;
+            return layers[Mathf.Clamp(idx + shift, 0, layers.Count - 1)];
         }
 
         /// Remove every generated paint, placement and decal, leaving authored content untouched. This is
@@ -189,11 +338,12 @@ namespace Laubrary.Cartographer
         {
             paints?.RemoveAll(p => p != null && p.origin == Origin.Generated);
             placements?.RemoveAll(p => p != null && p.origin == Origin.Generated);
+            clumpPlacements?.RemoveAll(p => p != null && p.origin == Origin.Generated);
             decals?.RemoveAll(d => d != null && d.origin == Origin.Generated);
         }
 
         /// What ONE cell of `layer` shows — the single-cell twin of ResolveLayer, with identical semantics
-        /// (paints beat placements beat default fill; among equals the later record wins). Exists so painting
+        /// (paints beat placements beat the background fill; among equals the later record wins). Exists so painting
         /// can refresh one cell without re-resolving the level.
         public bool ResolveCell(LevelLayer layer, Vector2Int cell, out ResolvedCell result)
         {
@@ -207,6 +357,21 @@ namespace Laubrary.Cartographer
                     if (p == null || p.tile == null || p.cell != cell || p.layer != layer.name) continue;
                     result = new ResolvedCell { tile = p.tile, variant = p.variant, source = null };
                     return true;
+                }
+
+            // Clump stamps beat prop stamps — see ResolveLayer for why — and both walk backwards, mirroring
+            // ResolveLayer's later-write-wins exactly.
+            if (clumpPlacements != null)
+                for (int i = clumpPlacements.Count - 1; i >= 0; i--)
+                {
+                    var p = clumpPlacements[i];
+                    if (p == null) continue;
+                    foreach (var (at, tile, lyr) in ClumpCellsOf(p))
+                    {
+                        if (at != cell || lyr != layer.name) continue;
+                        result = new ResolvedCell { tile = tile, variant = 0, source = null, clumpSource = p };
+                        return true;
+                    }
                 }
 
             if (placements != null)
@@ -227,16 +392,17 @@ namespace Laubrary.Cartographer
                     }
                 }
 
-            if (layer.defaultTile != null && bounds.Contains(cell))
+            if (layer.backgroundTile != null && bounds.Contains(cell))
             {
-                result = new ResolvedCell { tile = layer.defaultTile, variant = 0, source = null };
+                result = new ResolvedCell { tile = layer.backgroundTile,
+                    variant = PaintVariants.ResolveFill(layer.backgroundTile, cell), source = null };
                 return true;
             }
 
             return false;
         }
 
-        /// What each cell of `layer` actually shows, honouring the rebuild order: default fill first, then
+        /// What each cell of `layer` actually shows, honouring the rebuild order: background fill first, then
         /// placements in placement order, then paints — so a hand touch-up always wins over the structure
         /// beneath it. The LevelInstance build and the thumbnail both consume this; neither owns a second
         /// interpretation of the data.
@@ -245,10 +411,11 @@ namespace Laubrary.Cartographer
             var cells = new Dictionary<Vector2Int, ResolvedCell>();
             if (layer == null) return cells;
 
-            if (layer.defaultTile != null)
+            if (layer.backgroundTile != null)
             {
                 foreach (var pos in bounds.allPositionsWithin)
-                    cells[pos] = new ResolvedCell { tile = layer.defaultTile, variant = 0, source = null };
+                    cells[pos] = new ResolvedCell { tile = layer.backgroundTile,
+                        variant = PaintVariants.ResolveFill(layer.backgroundTile, pos), source = null };
             }
 
             if (placements != null)
@@ -263,6 +430,23 @@ namespace Laubrary.Cartographer
                         if (wanted != layer.name) continue;
                         var o = Prop.TransformOffset(c.offset, p.rotation, p.mirrorX);
                         cells[p.cell + o] = new ResolvedCell { tile = c.tile, variant = 0, source = p.prop };
+                    }
+                }
+            }
+
+            // Clump stamps after prop stamps: both are stamps, but they live in separate lists so a strict
+            // interleave by stamp time is not available without a shared sequence number. Clumps last is the
+            // useful default — a clump is tile arrangement laid ONTO structure. If interleaving ever matters,
+            // give both records a monotonic seq and merge-sort here; nothing else would need to change.
+            if (clumpPlacements != null)
+            {
+                foreach (var p in clumpPlacements)
+                {
+                    if (p == null) continue;
+                    foreach (var (at, tile, lyr) in ClumpCellsOf(p))
+                    {
+                        if (lyr != layer.name) continue;
+                        cells[at] = new ResolvedCell { tile = tile, variant = 0, source = null, clumpSource = p };
                     }
                 }
             }
@@ -383,6 +567,47 @@ namespace Laubrary.Cartographer
                     return (byte)(count - 1);
                 }
 
+                default:
+                    return (byte)(Hash(cell) % count);
+            }
+        }
+
+        /// The variant a BACKGROUND FILL shows at `cell`. A fill has no paint order and no history, so the
+        /// two order-dependent policies cannot mean what they mean for painting — they resolve from the
+        /// CELL instead, which is the only stable thing a fill has. Nothing here consults the level, so the
+        /// answer never changes on a rebuild, an undo, or a re-open.
+        ///
+        /// Exists because the background hard-coded variant 0 and so a multi-variant tile tiled the whole
+        /// layer with its first sprite — "i set a multi-tile as background expecting the tiles to be
+        /// variants. But it seems to only use the first tile" (2026-08-03).
+        public static byte ResolveFill(LevelTile tile, Vector2Int cell)
+        {
+            int count = tile != null && tile.variants != null ? tile.variants.Count : 0;
+            if (count <= 1) return 0;
+
+            switch (tile.variantPolicy)
+            {
+                // A fill has no "previous cell", so the sequence becomes a POSITION: stepping by x+y lays
+                // the variants in diagonal bands, which is what a repeating floor usually wants.
+                case VariantPolicy.RoundRobin:
+                    return (byte)(((cell.x + cell.y) % count + count) % count);
+
+                case VariantPolicy.Weighted:
+                {
+                    float total = 0f;
+                    for (int i = 0; i < count; i++) total += WeightOf(tile, i);
+                    if (total <= 0f) return 0;
+                    float roll = (Hash(cell) % 10007) / 10007f * total;
+                    for (int i = 0; i < count; i++)
+                    {
+                        roll -= WeightOf(tile, i);
+                        if (roll < 0f) return (byte)i;
+                    }
+                    return (byte)(count - 1);
+                }
+
+                // Random, and NeverRepeatLast — whose "last" is a paint-order idea a fill does not have —
+                // both become the per-cell hash, the same one Random already uses when painting.
                 default:
                     return (byte)(Hash(cell) % count);
             }

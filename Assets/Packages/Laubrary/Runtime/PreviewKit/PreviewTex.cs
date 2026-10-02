@@ -12,6 +12,42 @@ namespace Laubrary.PreviewKit
     /// Blitting through a temporary RenderTexture reads anything the GPU can sample, readable or not.
     public static class PreviewTex
     {
+        /// A fresh texture holding EXACTLY `area` of `source`, readable or not. Caller owns it.
+        ///
+        /// Exists because `Sprite.textureRect` is not a reliable pixel rect. With the importer's default
+        /// TIGHT mesh, Unity derives it from the generated outline, so it comes back FRACTIONAL and
+        /// trigonometric — real values seen in this project: 27.92388 (32·cos22.5°) and 21.70711 (·1/√2).
+        /// Anything compositing a GRID wants the sprite's DECLARED `rect` instead, which is always the exact
+        /// slice, and needs to read that rect verbatim rather than the trimmed outline's bounding box.
+        public static Texture2D ReadRect(Texture source, Rect area)
+        {
+            if (source == null) return null;
+            int w = Mathf.Max(1, Mathf.RoundToInt(area.width)), h = Mathf.Max(1, Mathf.RoundToInt(area.height));
+
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
+            var rt = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.ARGB32);
+            var prev = RenderTexture.active;
+            try
+            {
+                Graphics.Blit(source, rt);
+                RenderTexture.active = rt;
+                // ReadPixels' origin is the RT's bottom-left — the same convention sprite rects use.
+                tex.ReadPixels(new Rect(area.x, area.y, w, h), 0, 0);
+                tex.Apply();
+            }
+            catch
+            {
+                Object.DestroyImmediate(tex);
+                tex = null;
+            }
+            finally
+            {
+                RenderTexture.active = prev;
+                RenderTexture.ReleaseTemporary(rt);
+            }
+            return tex;
+        }
+
         /// A fresh texture holding just this sprite's own rect. Caller owns it. Null if there is nothing to read.
         public static Texture2D CropSprite(Sprite s)
         {

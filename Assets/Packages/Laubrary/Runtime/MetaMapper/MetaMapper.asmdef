@@ -1,0 +1,16 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.MetaMapper",
+    "rootNamespace": "Laubrary.MetaMapper",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.PreviewKit"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
