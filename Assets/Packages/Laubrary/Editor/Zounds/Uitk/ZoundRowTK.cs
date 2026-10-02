@@ -69,7 +69,7 @@ namespace Laubrary.Zounds.Uitk {
             }
             if (!isMissing) {
                 if (bs.showNameField) {
-                    nameField = new TextField { isDelayed = true, value = zound.name };
+                    nameField = new TextField { isDelayed = true, value = zound.name, tooltip = "Rename this sound when you confirm the field." };
                     nameField.AddToClassList("zs-namefield"); nameField.AddToClassList("zs-rowname");
                     nameField.RegisterValueChangedCallback(e => Rename(e.newValue));
                     nameField.SetEnabled(enabledFields);
@@ -101,7 +101,7 @@ namespace Laubrary.Zounds.Uitk {
             }
             MakeRightGroup(into, enabledFields);
             if (!isMissing && bs.showTags) {
-                tags = new Button(() => TagsEditorWindow.OpenWindow(zound)) { text = BrowserTab.GetZoundTagsString(zound) };
+                tags = new Button(() => TagsEditorWindow.OpenWindow(zound)) { text = BrowserTab.GetZoundTagsString(zound), tooltip = "Open the tag editor to assign or remove this sound's tags." };
                 tags.AddToClassList("zs-tagsfield");
                 tags.AddToClassList("zs-text-zounds-tags");
                 tags.SetEnabled(enabledFields);
@@ -369,7 +369,7 @@ namespace Laubrary.Zounds.Uitk {
 
             // Tags on their own row: a full-width wrapping strip below row 1, then the sheet's "V Zounds Tag Gap" (4.24 px).
             if (tagsOwnRow) {
-                tagsBelow = new Button(() => TagsEditorWindow.OpenWindow(zound)) { text = BrowserTab.GetZoundTagsString(zound) };
+                tagsBelow = new Button(() => TagsEditorWindow.OpenWindow(zound)) { text = BrowserTab.GetZoundTagsString(zound), tooltip = "Open the tag editor to assign or remove this sound's tags." };
                 tagsBelow.AddToClassList("zs-tagsfield"); tagsBelow.AddToClassList("zs-tagsfield--multiline"); tagsBelow.AddToClassList("zs-text-zounds-tags");
                 tagsBelow.AddToClassList("zs-zound-row__list-tags-below");
                 tagsBelow.SetEnabled(!isClip);

@@ -628,13 +628,13 @@ namespace Laubrary.Zounds.Uitk {
             if (bs.showTagsFilter) {
                 Gap();
                 Button tags = null;
-                tags = Flat("Tags", "", ZUICornerMask.All, () => OpenTagsMenu(tags));
+                tags = Flat("Tags", Props.selectedTags.Count > 0 ? "A tag filter is active. Choose which sound tags to include." : "Choose sound tags to filter the browser.", ZUICornerMask.All, () => OpenTagsMenu(tags));
                 if (Props.selectedTags.Count > 0) tags.AddToClassList("zs-Active");
                 r.Add(tags);
             }
             if (bs.showGroupBy) {
                 Gap();
-                var group = Flat("Grouping", "", ZUICornerMask.All, () => {
+                var group = Flat("Grouping", Props.groupBy == GroupBy.None ? "Sounds are not grouped. Choose how to organise the browser." : "Sounds are grouped by " + Props.groupBy + ". Choose another grouping or turn it off.", ZUICornerMask.All, () => {
                     var menu = new GenericMenu();
                     foreach (GroupBy g in Enum.GetValues(typeof(GroupBy))) {
                         string label = g == GroupBy.None ? "No Grouping" : g.ToString();

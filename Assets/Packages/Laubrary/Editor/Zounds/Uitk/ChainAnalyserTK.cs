@@ -112,7 +112,7 @@ namespace Laubrary.Zounds.Uitk {
 
         VisualElement Header() {
             var r = HRow(-1f);
-            var toggle = ZS.Toggle(model.open ? "Analyse ▾" : "Analyse ▸", "", model.open, v => { model.open = v; Tick(); },
+            var toggle = ZS.Toggle(model.open ? "Analyse ▾" : "Analyse ▸", model.open ? "Hide the chain's measurement graphs." : "Show the chain's measured processing and live output graphs.", model.open, v => { model.open = v; Tick(); },
                                    "RichToggle", ZUICornerMask.All, 90f, 30.52f);
             r.Add(toggle);
             if (!model.open) {
@@ -139,7 +139,7 @@ namespace Laubrary.Zounds.Uitk {
                 l.AddToClassList("zs-lbl"); l.AddToClassList("zs-text-default"); l.AddToClassList("zs-subtle");
                 r.Add(l);
                 // EditorGUILayout.Slider: UI Toolkit's own slider with its number box, 90 px, 0.25 to 16.
-                var s = new Slider(0.25f, 16f) { value = model.Live.gain, showInputField = true };
+                var s = new Slider(0.25f, 16f) { value = model.Live.gain, showInputField = true, tooltip = "Magnify the live graph without changing the sound's loudness." };
                 s.AddToClassList("zs-chain-analyser__mode-selector");   // IMGUI's 3 px field margin
                 s.AddToClassList("zs-narrowslider");
                 s.RegisterValueChangedCallback(e => model.Live.gain = e.newValue);
@@ -150,8 +150,12 @@ namespace Laubrary.Zounds.Uitk {
 
         void Tab(VisualElement row, ChainAnalyserPanel.View which, string label) {
             bool on = model.view == which;
+            string tip = which == ChainAnalyserPanel.View.Combined ? "Inspect the combined effect chain's measured response."
+                : which == ChainAnalyserPanel.View.LiveSpectrum ? "Inspect the frequencies in the currently playing output."
+                : which == ChainAnalyserPanel.View.LiveOverTime ? "Inspect how the playing output's frequencies change over time."
+                : "Inspect the currently playing output waveform.";
             ZuiToggleButton t = null;
-            t = ZS.Toggle(label, "", on, v => { if (model.view == which) { t.SetValueWithoutNotify(true); return; } model.view = which; Tick(); },
+            t = ZS.Toggle(label, tip, on, v => { if (model.view == which) { t.SetValueWithoutNotify(true); return; } model.view = which; Tick(); },
                           "RichToggle", ZUICornerMask.All, 74f, 30.52f);
             row.Add(t);
         }
