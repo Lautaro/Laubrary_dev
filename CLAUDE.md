@@ -5,6 +5,26 @@ lives at `Assets/Packages/Laubrary/` (`Runtime/<Tool>/`, `Editor/<Tool>/`, `Samp
 consumer projects' `Packages/com.lautaro.arino.laubrary/`. Git repo: `Laubrary_dev` (branch `master`).
 The canonical Unity rules live in `D:\Unity\UNITY_DEV_GUIDE.md` (mandatory read).
 
+## ⚖️ Framework or game? The balance every Laubrary change must hold
+
+This applies to every agent touching Laubrary, here or in a consumer's embedded copy (OutBurner develops part of Laubrary inside its own `Packages/` folder). Two goals pull against each other, and neither may win by neglect.
+
+1. **Laubrary is a framework for the core functions 2D games share.** Shooting, health and hits, characters and animation, levels and collision, draw order, fog, menus, saving, audio. It does them through assets and editors, and it is modular: a game adds its own kinds of things (its own weapon behaviour, its own effect, its own enemy brain) by writing a small piece of native code that plugs into a seam Laubrary offers, and that piece then shows up in Laubrary's editors without Laubrary itself being edited. Every such seam widens what every game can do.
+2. **Laubrary must not grow to carry one game's special cases.** A feature that only makes sense for the game it was written for, pushed into the library, is paid for by every other game that uses it: more fields to ignore, more fixed lists, more code to load and understand. That is bloat.
+3. **So hold the balance, and check it regularly.** The answer is almost never "put all of it in Laubrary" or "keep all of it in the game". It is: Laubrary owns the general *concept*, the *data* an author edits, and the *seam*; the game owns the specific *rules* and the *decision of when*. Drift toward either extreme usually happens by accident, one convenient shortcut at a time, so it has to be looked for on purpose.
+
+**How to decide where a piece goes.** Ask: would a second, different 2D game (a top-down shooter, a platformer, a 3/4-view brawler) need this same idea, in some form? If yes, the idea belongs in Laubrary, expressed so the game can fill in its own specifics: an asset field, an editor control, a seam (an interface or a plug-in type that appears in a dropdown). If only this game would ever want it, it stays in the game and plugs into a seam Laubrary already offers. If the seam is missing, adding the *seam* to Laubrary is the right move; adding the *special case* is not.
+
+**Warning signs of drift toward the game-in-the-library extreme:** a Laubrary enum or fixed list gaining a game's specific entry; a Laubrary field whose name only makes sense in one game; a Laubrary method branching on what kind of game is running.
+
+**Warning signs of drift toward the library-too-thin extreme:** game code overwriting, at runtime, something a Laubrary editor lets an author set (so the editor shows one thing and the game does another); a magic number in game code for something every game of the genre needs (a character's foot size, how many rows of an object are solid); the same fix being written a second time in a second game; a comment saying "keep this local until it earns a reusable model" that nobody ever comes back to.
+
+**Worked examples from OutBurner (2026-10-02).**
+- *Balanced: weapons.* Laubrary supplies the weapon (rate, damage, pellets, spread, projectile pooling), the hit pipeline, and two seams: how a projectile moves, and a veto any game can attach to a hit. OutBurner adds its own weapon kinds and tuning, its own range-limited movement through the movement seam, and its own "no hits through a shelf" rule through the veto seam, without Laubrary knowing any of it exists.
+- *Drifting thin: the warehouse's collision and depth.* Draw order is in Laubrary and is general (a tall object sorts by its base; a character sorts by its feet), which is right. But the collision that decides depth is game code with numbers in it: which rows of a shelf are solid is a hard-coded "bottom two rows" that overwrites what the tile editor says about each tile; the line bullets stop on is a hard-coded strip generated at load; every character's foot circle is a hard-coded size, and the player's is moved down by a hard-coded amount to suit one character's gun. Any 3/4-view game needs "this object's footprint is these rows" and "this character stands on a circle this big, here", so those belong on the tile/prop and the character assets in Laubrary, with the game keeping only its own rules about bullets and melee.
+
+**Regular assessment.** Re-check the balance (a) whenever a new game or subgame starts using a Laubrary tool, (b) whenever game code overrides something a Laubrary editor exposes, and (c) whenever the same fix appears in a second place. Write what you find, both directions, in the task or handover you are working on, and raise a task for any drift rather than leaving it in a comment.
+
 ## Coplay bridge — target THIS editor first (before any Coplay action)
 
 This project has a project-scoped `coplay-mcp` server (`.mcp.json`). The Coplay MCP discovers *every* open
