@@ -59,3 +59,72 @@
     margin-left: 0;
     margin-right: 4px;
 }
+
+.zui-section__controls {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    margin-right: 4px;
+}
+
+.zui-section--disabled .zui-section__title,
+.zui-section--disabled .zui-section__icon {
+    opacity: 0.45;
+}
+
+.zui-section--disabled .zui-section__header:hover {
+    background-color: transparent;
+}
+
+.zui-root .zui-quiet-toggle {
+    height: 16px;
+    min-height: 16px;
+    min-width: 38px;
+    flex-grow: 0;
+    flex-shrink: 0;
+    align-self: flex-start;
+    margin: 0 1px;
+    padding: 0 5px;
+    font-size: 10px;
+    -unity-font-style: normal;
+    -unity-text-align: middle-center;
+    color: rgb(137, 156, 170);
+    background-color: transparent;
+    border-width: 0;
+    border-radius: 3px;
+}
+
+.zui-root .zui-quiet-toggle:hover {
+    color: rgb(212, 229, 239);
+    background-color: rgba(130, 173, 200, 0.12);
+}
+
+.zui-root .zui-quiet-toggle.zui-quiet-toggle--on {
+    color: rgb(183, 216, 235);
+    background-color: rgba(88, 139, 169, 0.24);
+    -unity-font-style: bold;
+}
+
+.zui-root .zui-quiet-toggle:focus {
+    background-color: rgba(112, 167, 199, 0.32);
+}
+
+.zui-root .zui-quiet-toggle:active {
+    background-color: rgba(61, 102, 130, 0.45);
+}
+
+.zui-root .zui-quiet-toggle:disabled {
+    color: rgb(94, 106, 116);
+    background-color: transparent;
+    opacity: 0.55;
+}
+
+.zui-section__controls .zui-quiet-toggle {
+    width: 42px;
+    align-self: center;
+}
+
+.zui-row .zui-quiet-toggle,
+.zui-hgroup .zui-quiet-toggle {
+    align-self: center;
+}

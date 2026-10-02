@@ -20,6 +20,7 @@ namespace Laubrary.Chunks.Editor
 {
     public partial class ChunkWindow : ZuiAssetWindow<ChunkSpec>
     {
+        protected override string PresentationTool => "chunks";
         [MenuItem("Laubrary/Chunks")]
         public static void Open() => GetWindow<ChunkWindow>("Chunks");
 

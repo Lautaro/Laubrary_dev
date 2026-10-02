@@ -1,0 +1,13 @@
+/* Generated fields carry these semantic classes; tool roots can override by role, group, family or size. */
+.zui-generated-field.zui-size-compact .zui-float-field,
+.zui-generated-field.zui-size-compact .zui-foundation-int-field,
+.zui-generated-field.zui-size-compact.zui-float-field,
+.zui-generated-field.zui-size-compact.zui-foundation-int-field {
+    width: 80px;
+}
+
+/* Vector components have deliberate three-column geometry, independent of scalar defaults. */
+.zui-generated-field.zui-family--spatial .zui-float-field { width: 60px; }
+
+/* Component labels name an axis; they do not need a full parent label column. */
+.zui-generated-field.zui-family--spatial .zui-row .zui-field__label { min-width: 14px; width: 14px; }

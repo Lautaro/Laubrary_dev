@@ -21,6 +21,7 @@ namespace Laubrary.Pyre.Editor
     // IMGUI preview island + the Swarm authoring overlay (shape outline, spawn dots, drag handles).
     public partial class PyreWindow : ZuiAssetWindow<Pyre>
     {
+        protected override string PresentationTool => "pyre";
         [MenuItem("Laubrary/Pyre")]
         public static void Open() => GetWindow<PyreWindow>("Pyre");
 
@@ -35,8 +36,8 @@ namespace Laubrary.Pyre.Editor
         }
 
         Pyre spec => Current;
-        protected override string TypeLabel => "Pyre Plus";
-        protected override string NewAssetName => "New Pyre Plus";
+        protected override string TypeLabel => "Pyre";
+        protected override string NewAssetName => "New Pyre";
         protected override string DefaultFolder => "Assets/Pyre";
 
         protected override Texture2D RenderThumbnail(Pyre item)
@@ -68,6 +69,9 @@ namespace Laubrary.Pyre.Editor
         // reloads. The ColumnFlow reads this width, so dragging the divider wider adds columns.
         [SerializeField] float leftPaneWidth = 360f;
         ScrollView leftPane;
+        const float MinDialPaneWidth = 180f;
+        const float MinPreviewPaneWidth = 300f;
+        const float VerticalSplitterWidth = 6f;
 
         // preview state
         IMGUIContainer preview;
@@ -340,7 +344,7 @@ namespace Laubrary.Pyre.Editor
             // splits into two columns, past 1080 into three, and so on (up to the maxWidth four-column cap).
             var left = new ScrollView(ScrollViewMode.Vertical);
             leftPane = left;
-            left.style.width = Mathf.Clamp(leftPaneWidth, 360f, 4f * 360f + 3f * 6f);
+            left.style.width = FitDialPaneWidth(position.width);
             left.AddToClassList("lau-tool-shell__side--resizable");
             var dials = left.contentContainer;
             // The ScrollView's content container is content-sized by default; stretch it so the flow fills the pane
@@ -409,6 +413,12 @@ namespace Laubrary.Pyre.Editor
             split.Add(left);
             split.Add(BuildVerticalSplitter());   // drag to resize the dial pane (and change its column count)
             split.Add(rightPane);
+            split.RegisterCallback<GeometryChangedEvent>(e =>
+            {
+                float fitted = FitDialPaneWidth(e.newRect.width);
+                if (leftPane != null && !Mathf.Approximately(leftPane.resolvedStyle.width, fitted))
+                    leftPane.style.width = fitted;
+            });
             root.AddToClassList("lau-tool-shell");
             // T-0065 — the section toggle bar sits ABOVE everything else, spanning the full window width, so
             // it reads as the absolute top of the per-asset UI rather than a unit squeezed into the 360px
@@ -426,7 +436,14 @@ namespace Laubrary.Pyre.Editor
 
         // A 6px draggable divider between the dial pane and the preview (mirrors Pyre1's splitter). Dragging sets
         // leftPaneWidth + the pane's fixed width live; the ColumnFlow reads that width, so a wider pane = more
-        // columns. Clamped between one column (360) and the four-column cap (or the window width, whichever is less).
+        // columns. Window resizing only changes the displayed width, preserving the user's preferred width.
+        float FitDialPaneWidth(float availableWidth)
+        {
+            float max = Mathf.Min(4f * 360f + 3f * 6f,
+                Mathf.Max(MinDialPaneWidth, availableWidth - VerticalSplitterWidth - MinPreviewPaneWidth));
+            return Mathf.Clamp(leftPaneWidth, MinDialPaneWidth, max);
+        }
+
         VisualElement BuildVerticalSplitter()
         {
             var s = new VisualElement { tooltip = "Drag to resize the dial pane (wider = more control columns)." };
@@ -436,8 +453,11 @@ namespace Laubrary.Pyre.Editor
             s.RegisterCallback<PointerMoveEvent>(e =>
             {
                 if (!s.HasPointerCapture(e.pointerId)) return;
-                float cap = Mathf.Min(4f * 360f + 3f * 6f, Mathf.Max(360f, position.width - 260f));
-                leftPaneWidth = Mathf.Clamp(leftPaneWidth + e.deltaPosition.x, 360f, cap);
+                float available = leftPane != null && leftPane.parent != null
+                    ? leftPane.parent.resolvedStyle.width : position.width;
+                float cap = Mathf.Min(4f * 360f + 3f * 6f,
+                    Mathf.Max(MinDialPaneWidth, available - VerticalSplitterWidth - MinPreviewPaneWidth));
+                leftPaneWidth = Mathf.Clamp(leftPaneWidth + e.deltaPosition.x, MinDialPaneWidth, cap);
                 if (leftPane != null) leftPane.style.width = leftPaneWidth;
                 e.StopPropagation();
             });
@@ -2250,6 +2270,21 @@ namespace Laubrary.Pyre.Editor
                     if (s.form != null) RebuildShape();
                 });
 
+            // View aids belong beside the section help, independently of its fold state.
+            swarmSection.HeaderControls.Clear();
+            swarmSection.HeaderControls.Add(Z.QuietToggle("Shape",
+                on => (on ? "Showing" : "Hidden")
+                    + " — the cyan spawn shape and its editing handles at the current frame, before whole-swarm "
+                    + "spin and scale. " + (on ? "Click to hide." : "Click to show."),
+                spec.previewShowShape, v => DirtyRepaintOnly(() => spec.previewShowShape = v)));
+            swarmSection.HeaderControls.Add(Z.QuietToggle("Trace",
+                on => (on ? "Showing" : "Hidden")
+                    + " — numbered actual spawn positions and an amber reference path over the full timeline. "
+                    + "Area mode traces the moving centre; Path mode traces progress along the shape; Line traces "
+                    + "the particle row. Random ranges use their midpoint for the reference path. "
+                    + (on ? "Click to hide." : "Click to show."),
+                spec.previewShowTrace, v => DirtyRepaintOnly(() => spec.previewShowTrace = v)));
+
             // Whole-layer plug-in forms: the swarm IS the placement — one instance per particle (off = one centred). The
             // section shows its normal controls; what it drives is said by the header toggle's TOOLTIP (an
             // on-screen instruction label here was a UI-Guide violation — "tooltip, not title").
@@ -2259,6 +2294,8 @@ namespace Laubrary.Pyre.Editor
             // emitters' on (slice 8), which DOES source its emitters from the swarm and so wants the real placement
             // controls. Show a note instead of the (inert) swarm controls only when the swarm truly doesn't drive it.
             bool fireSwarm = s.shapeForm == ShapeForm.Fire && s.fireSwarmEmitters;
+            swarmSection.HeaderControls.SetEnabled(s.swarmEnabled
+                && (s.shapeForm != ShapeForm.Fireball && (s.shapeForm != ShapeForm.Fire || fireSwarm)));
             if ((s.shapeForm == ShapeForm.Fire || s.shapeForm == ShapeForm.Fireball) && !fireSwarm)
             {
                 var note = new Label(s.shapeForm == ShapeForm.Fire
@@ -2285,21 +2322,6 @@ namespace Laubrary.Pyre.Editor
             }
 
             if (!s.swarmEnabled) return;
-
-            // Dual spawn-path visualisation (P4): two independent overlay toggles — the authored Shape (outline +
-            // drag handle + numbered spawn dots) and the objective spawner Trace (the canonical spine). Both are
-            // cosmetic preview aids on the SPEC (never baked; they never re-render the frames → DirtyRepaintOnly),
-            // and both may be on at once. Neither on = no overlay at all. (Spec-level, not per-layer: the overlay
-            // is a single global aid that follows whichever layer is selected.)
-            swarmBody.Add(Z.HGroup(
-                Z.Toggle("Show shape",
-                    "Draw the authored spawn shape — its outline, the drag handle and a numbered dot at every "
-                    + "particle's actual spawn point.",
-                    spec.previewShowShape, v => DirtyRepaintOnly(() => spec.previewShowShape = v)),
-                Z.Toggle("Show trace",
-                    "Draw the objective spawner trace — the canonical amber path the spawn point sweeps through "
-                    + "space over the whole timeline, under the spawn dots.",
-                    spec.previewShowTrace, v => DirtyRepaintOnly(() => spec.previewShowTrace = v))));
 
             float half = Mathf.Max(1f, spec.canvasSize * 0.5f);
 

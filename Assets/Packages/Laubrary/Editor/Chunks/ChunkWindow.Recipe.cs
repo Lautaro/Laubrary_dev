@@ -511,8 +511,8 @@ namespace Laubrary.Chunks.Editor
 
         /// When this capability fires, in seconds from the start of the recipe — or NULL when it has no moment
         /// of its own. A lone capability owns the whole clock, so a Delay dial there would offer to move the
-        /// only thing on screen relative to nothing at all: the dial is then built HIDDEN rather than left out,
-        /// so its space is already held and the card does not reflow when a second card brings the clock in.
+        /// only thing on screen relative to nothing at all. In that case the dial is removed from layout: an
+        /// invisible reserved row reads as a broken gap between Name and the capability's real controls.
         ///
         /// It is a number rather than a slider on purpose: a delay's ceiling is the clock's own length, which
         /// this dial is one of the things that decides, so any range would clamp exactly the edit that was
@@ -528,7 +528,7 @@ namespace Laubrary.Chunks.Editor
             delayFields[cap.EnsureId()] = field;
             var row = Z.Field("Delay",
                 "Seconds from the start of the recipe before this fires. Capabilities overlap freely.", field);
-            if (!ChunkClock.NeedsTimingSurface(c)) row.style.visibility = Visibility.Hidden;
+            if (!ChunkClock.NeedsTimingSurface(c)) row.style.display = DisplayStyle.None;
             return row;
         }
 

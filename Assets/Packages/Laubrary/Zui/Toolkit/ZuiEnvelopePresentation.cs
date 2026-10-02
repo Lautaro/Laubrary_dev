@@ -16,6 +16,8 @@ namespace Laubrary.Zui
         internal struct Values
         {
             internal Color background, borderColor, gridColor, curveColor, selectedColor;
+            internal Color frameLineColor, frameEdgeColor, frameLabelColor, axisLabelColor, valueLabelColor, legendBorderColor;
+            internal float markerLabelSize, markerLabelSpacing, axisLabelSize, valueLabelSize;
             internal float borderTop, borderRight, borderBottom, borderLeft;
             internal float paddingTop, paddingRight, paddingBottom, paddingLeft;
             internal float curveThickness, curveHoverThickness, hitRadiusExtra;
@@ -83,6 +85,16 @@ namespace Laubrary.Zui
             Set(style, "--zui-envelope-curve-thickness", CurveThickness); Set(style, "--zui-envelope-curve-hover-thickness", CurveHoverThickness); Set(style, "--zui-envelope-hit-radius-extra", HitRadiusExtra); Set(style, "--zui-envelope-grid-rows", GridRows);
             Set(style, "--zui-envelope-grid-thickness", GridThickness); Set(style, "--zui-envelope-selected-stroke-thickness", SelectedStrokeThickness); Set(style, "--zui-envelope-selection-box-fill-alpha", SelectionBoxFillAlpha); Set(style, "--zui-envelope-hover-saturation-scale", HoverSaturationScale); Set(style, "--zui-envelope-hover-value-scale", HoverValueScale); Set(style, "--zui-envelope-uncertainty-fill-alpha", UncertaintyFillAlpha); Set(style, "--zui-envelope-uncertainty-stroke-alpha", UncertaintyStrokeAlpha); Set(style, "--zui-envelope-uncertainty-stroke-thickness", UncertaintyStrokeThickness); Set(style, "--zui-envelope-dotted-white-mix", DottedWhiteMix); Set(style, "--zui-envelope-dotted-min-width", DottedMinWidth); Set(style, "--zui-envelope-ghost-opacity", GhostOpacity);
             SetHandle(style, "editable"); SetHandle(style, "x-editable"); SetHandle(style, "y-editable"); SetHandle(style, "not-editable");
+            foreach (string name in new[] { "frame-line-color", "frame-edge-color", "frame-label-color", "axis-label-color", "value-label-color", "legend-border-color" })
+            {
+                string key = "--zui-envelope-" + name;
+                Set(style, key, new CustomStyleProperty<Color>(key));
+            }
+            foreach (string name in new[] { "marker-label-size", "marker-label-spacing", "axis-label-size", "value-label-size" })
+            {
+                string key = "--zui-envelope-" + name;
+                Set(style, key, new CustomStyleProperty<float>(key));
+            }
             _hasStyle = true;
             RefreshFallbacks(def, curveColor);
         }
@@ -90,6 +102,16 @@ namespace Laubrary.Zui
         internal void RefreshFallbacks(ZUIEnvelopeDef def, Color curveColor)
         {
             Current = FromDefinition(def, curveColor);
+            Current.frameLineColor = ColorOf("--zui-envelope-frame-line-color", new Color(0.55f, 0.6f, 0.72f, 0.15f));
+            Current.frameEdgeColor = ColorOf("--zui-envelope-frame-edge-color", new Color(0.55f, 0.6f, 0.72f, 0.30f));
+            Current.frameLabelColor = ColorOf("--zui-envelope-frame-label-color", new Color(0.75f, 0.8f, 0.92f, 0.6f));
+            Current.axisLabelColor = ColorOf("--zui-envelope-axis-label-color", new Color(0.82f, 0.86f, 0.96f, 0.8f));
+            Current.valueLabelColor = ColorOf("--zui-envelope-value-label-color", new Color(1f, 1f, 1f, 0.9f));
+            Current.legendBorderColor = ColorOf("--zui-envelope-legend-border-color", new Color(0f, 0f, 0f, 0.35f));
+            Current.markerLabelSize = NonNegative(FloatOf("--zui-envelope-marker-label-size", 9f));
+            Current.markerLabelSpacing = NonNegative(FloatOf("--zui-envelope-marker-label-spacing", 22f));
+            Current.axisLabelSize = NonNegative(FloatOf("--zui-envelope-axis-label-size", 9f));
+            Current.valueLabelSize = NonNegative(FloatOf("--zui-envelope-value-label-size", 11f));
             if (!_hasStyle) return;
             Current.background = ColorOf("--zui-envelope-background", Current.background); Current.borderColor = ColorOf("--zui-envelope-border-color", Current.borderColor); Current.gridColor = ColorOf("--zui-envelope-grid-color", Current.gridColor); Current.curveColor = ColorOf("--zui-envelope-curve-color", Current.curveColor); Current.selectedColor = ColorOf("--zui-envelope-selected-color", Current.selectedColor);
             Current.borderTop = FloatOf("--zui-envelope-border-top", Current.borderTop); Current.borderRight = FloatOf("--zui-envelope-border-right", Current.borderRight); Current.borderBottom = FloatOf("--zui-envelope-border-bottom", Current.borderBottom); Current.borderLeft = FloatOf("--zui-envelope-border-left", Current.borderLeft);

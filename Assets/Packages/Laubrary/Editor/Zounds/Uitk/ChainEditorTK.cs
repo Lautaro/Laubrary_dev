@@ -843,6 +843,8 @@ namespace Laubrary.Zounds.Uitk {
             bool isFolded = folded.Contains(mod);
             var r = Row();
             var fill = Fill(new Color(1f, 1f, 1f, 0.04f));
+            r.AddToClassList("lau-card__header");
+            r.AddToClassList("lau-region-identity");
             fill.AddToClassList(FoldHit);
             r.Add(fill);
             r.AddToClassList(FoldHit);

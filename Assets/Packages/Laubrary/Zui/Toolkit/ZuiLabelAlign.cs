@@ -41,7 +41,7 @@ namespace Laubrary.Zui
             var mine = new List<Label>();
             scope.Query<Label>(className: "zui-field__label").ForEach(l =>
             {
-                if (NearestScope(l) != scope) return;   // belongs to a nested scope — that one handles it
+                if (l.ClassListContains("zui-component-label") || NearestScope(l) != scope) return;
                 mine.Add(l);
                 float w = l.MeasureTextSize(l.text ?? string.Empty, 0f, VisualElement.MeasureMode.Undefined,
                                             0f, VisualElement.MeasureMode.Undefined).x;

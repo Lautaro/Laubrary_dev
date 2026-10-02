@@ -1,0 +1,30 @@
+/* A subtle metallic finish; normal USS colors, border widths/radii and state rules remain authoritative.
+   Scope any custom property to a tool/role, or set strength to zero to keep a flat surface. */
+.zui-button-surface {
+    --zui-button-metallic-strength: 1;
+    --zui-button-fill-top: rgba(255, 255, 255, 0.15);
+    --zui-button-fill-middle: rgba(255, 255, 255, 0.015);
+    --zui-button-fill-bottom: rgba(0, 0, 0, 0.2);
+    --zui-button-border-top: rgba(255, 255, 255, 0.34);
+    --zui-button-border-bottom: rgba(0, 0, 0, 0.38);
+}
+
+.zui-button-surface:active {
+    --zui-button-fill-top: rgba(0, 0, 0, 0.18);
+    --zui-button-fill-middle: rgba(0, 0, 0, 0.025);
+    --zui-button-fill-bottom: rgba(255, 255, 255, 0.07);
+    --zui-button-border-top: rgba(0, 0, 0, 0.3);
+    --zui-button-border-bottom: rgba(255, 255, 255, 0.2);
+}
+
+.zui-button-surface:focus {
+    --zui-button-metallic-strength: 0.6;
+}
+
+.zui-button-surface:disabled {
+    --zui-button-metallic-strength: 0.25;
+}
+
+.zui-button-surface.zui-button-plain {
+    --zui-button-metallic-strength: 0;
+}

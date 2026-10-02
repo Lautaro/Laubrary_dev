@@ -44,6 +44,7 @@ namespace Laubrary.Mirage.Editor
     /// </summary>
     public class MirageWindow : ZuiAssetWindow<MirageView>
     {
+        protected override string PresentationTool => "mirage";
         const string ActiveViewGuidKey = "Laubrary.Mirage.ActiveViewGuid";
 
         /// Width of the previewable list's name column — wide enough for a full asset name plus its
@@ -413,11 +414,13 @@ namespace Laubrary.Mirage.Editor
                 "pixel-perfect result.",
                 stateKey: "Mirage.Previewables");
 
+            var grid = new VisualElement();
+            grid.AddToClassList("lau-previewable__grid");
             foreach (var entry in view.previewables.ToArray())
             {
                 var captured = entry;
                 var row = new VisualElement();
-                row.AddToClassList("zui-row");
+                row.AddToClassList("lau-previewable__card");
                 row.EnableInClassList("lau-authoring__selected-row", ReferenceEquals(_selected, entry));
 
                 // The label button carries an asset name plus a live position readout, so its natural width
@@ -427,9 +430,10 @@ namespace Laubrary.Mirage.Editor
                 // pass is the one thing that can't be trusted on a freshly built tree — the panel's first
                 // scheduled tick can still run before styles resolve). Ellipsis, not overflow, is what a
                 // name too long for the column does.
-                var select = Z.Button(EntryLabel(entry),
+                var select = Z.Toggle(EntryLabel(entry),
                     "Select this previewable to edit it below (click it again to deselect).",
-                    () => { _selected = ReferenceEquals(_selected, captured) ? null : captured; RebuildBody(); });
+                    ReferenceEquals(_selected, entry),
+                    _ => { _selected = ReferenceEquals(_selected, captured) ? null : captured; RebuildBody(); });
                 select.AddToClassList("lau-previewable__select");
                 _rowButtons.Add((captured, select));
                 row.Add(select);
@@ -437,8 +441,10 @@ namespace Laubrary.Mirage.Editor
                     () => PingEntry(captured)).W(46f));
                 row.Add(Z.Button("Remove", "Delete this previewable from the view.",
                     () => { RemoveEntry(view, captured); RebuildBody(); }).W(70f));
-                section.Add(row);
+                grid.Add(row);
             }
+
+            section.Add(grid);
 
             if (view.previewables.Count == 0)
                 section.Add(Z.Text("No previewables yet — Add Previewable above.", ZuiText.Subtle));

@@ -306,12 +306,8 @@ namespace Laubrary.Pyre.Editor
         // spawn-frame snapshot), so they keep marking real placements while the outline animates over them.
         void DrawSwarmOverlay(Rect view, Pyre s, PyreLayer sel, float life)
         {
-            // Two independent visualisations (Part B), each spec-gated:
-            //   Show shape  → the authored spawn shape: its outline, the drag handle, the Custom path points, AND
-            //                 the numbered spawn dots. This whole cluster is the only INTERACTIVE chrome.
-            //   Show trace  → the objective spawner-trace spine (a read-only amber polyline), plus the same dots.
-            // The spawn dots belong to BOTH (they mark the real placements), so they draw when EITHER is on. Neither
-            // on ⇒ nothing draws (handle included) and no interaction runs.
+            // Shape edits the current spawn geometry; Trace inspects the temporal reference and real placements.
+            // Keep the numbered spawn dots with Trace so enabling Shape alone does not duplicate that diagnostic.
             bool showShape = s.previewShowShape;
             bool showTrace = s.previewShowTrace;
             if (!showShape && !showTrace) return;
@@ -353,9 +349,12 @@ namespace Laubrary.Pyre.Editor
             Handles.BeginGUI();
             var prevC = Handles.color;
             // Trace first, so it reads as a spine UNDER the outline + dots.
-            if (showTrace) DrawSpawnTrace(view, s, sel, life);
+            if (showTrace)
+            {
+                DrawSpawnTrace(view, s, sel, life);
+                DrawSpawnDots(view, s, sel, delta, life);
+            }
             if (showShape) DrawShapeOutline(sel, r, rot, yaw, pitch, drawOff, cx, cy);
-            DrawSpawnDots(view, s, sel, delta, life);   // the dots belong to both visualisations (life → live swarm spin)
             if (showShape)
             {
                 DrawCustomPoints(view, sel, r, rot, yaw, pitch, drawOff, cx, cy);
@@ -426,7 +425,12 @@ namespace Laubrary.Pyre.Editor
             var kind = s.swarmShapeKind;
             var pts = outlineScratch; pts.Clear();
 
-            if (s.swarmSpawnMode == SwarmSpawnMode.Path && kind == SwarmShapeKind.Custom)
+            if (kind == SwarmShapeKind.Line)
+            {
+                pts.Add(ToScreen3(ApplyXform(new Vector2(-r, 0f), r, rot, yaw, pitch, off.x, off.y, cx, cy)));
+                pts.Add(ToScreen3(ApplyXform(new Vector2(r, 0f), r, rot, yaw, pitch, off.x, off.y, cx, cy)));
+            }
+            else if (s.swarmSpawnMode == SwarmSpawnMode.Path && kind == SwarmShapeKind.Custom)
             {
                 // The two envelopes ARE the path — sample x(t)/y(t) as canvas-pixel local offsets (open, not
                 // closed). Reads committed values, so mid-drag it snaps consistent on mouse-up.

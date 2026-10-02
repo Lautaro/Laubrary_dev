@@ -29,12 +29,19 @@ namespace Laubrary.Zounds.Uitk {
         /// <summary>The sheet's vertical spacing: ZUI.RowSpace().</summary>
         public const float RowSpace = 10f;
 
-        const string SkinPath = ZoundsSkinExtractor.SkinFolder + "/ZoundsSkin.uss";
         static StyleSheet s_skin;
+
+        static StyleSheet PackageSheet(string relativePath) {
+            var shared = Z.Sheet;
+            if (shared == null) return null;
+            string path = AssetDatabase.GetAssetPath(shared);
+            int suffix = path.LastIndexOf("/Zui/Toolkit/", StringComparison.Ordinal);
+            return suffix < 0 ? null : AssetDatabase.LoadAssetAtPath<StyleSheet>(path.Substring(0, suffix) + "/" + relativePath);
+        }
 
         static StyleSheet Skin {
             get {
-                if (s_skin == null) s_skin = AssetDatabase.LoadAssetAtPath<StyleSheet>(SkinPath);
+                if (s_skin == null) s_skin = PackageSheet("Editor/Zounds/Uitk/Skin/ZoundsSkin.uss");
                 return s_skin;
             }
         }
@@ -46,12 +53,17 @@ namespace Laubrary.Zounds.Uitk {
             if (Layout != null && !root.styleSheets.Contains(Layout)) root.styleSheets.Add(Layout);
             root.AddToClassList("zs-root");
             root.AddToClassList("lau-tool-zounds");
+            var overrides = AssetDatabase.LoadAssetAtPath<StyleSheet>("Assets/LaubraryUI.uss");
+            if (overrides != null) {
+                if (root.styleSheets.Contains(overrides)) root.styleSheets.Remove(overrides);
+                root.styleSheets.Add(overrides);
+            }
         }
 
         static StyleSheet s_layout;
         static StyleSheet Layout {
             get {
-                if (s_layout == null) s_layout = AssetDatabase.LoadAssetAtPath<StyleSheet>("Assets/Packages/Laubrary/Editor/Zounds/Uitk/ZoundsUitk.uss");
+                if (s_layout == null) s_layout = PackageSheet("Editor/Zounds/Uitk/ZoundsUitk.uss");
                 return s_layout;
             }
         }

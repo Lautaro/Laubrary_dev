@@ -8,6 +8,8 @@ namespace Laubrary.Zui
     public sealed class ZuiPresentationContext
     {
         const string ToolClassPrefix = "lau-tool-";
+        const string ThemeClassPrefix = "lau-theme-";
+        const string DensityClassPrefix = "lau-density-";
         readonly StyleSheet[] _styleSheets;
         readonly string[] _toolClasses;
 
@@ -38,7 +40,16 @@ namespace Laubrary.Zui
                     if (sheet != null && seenSheets.Add(sheet)) sheets.Add(sheet);
                 }
                 foreach (var className in root.GetClasses())
-                    if ((className.StartsWith(ToolClassPrefix, StringComparison.Ordinal) || explicitClasses.Contains(className)) && seenClasses.Add(className)) classes.Add(className);
+                {
+                    string axis = className.StartsWith(ThemeClassPrefix, StringComparison.Ordinal) ? ThemeClassPrefix : className.StartsWith(DensityClassPrefix, StringComparison.Ordinal) ? DensityClassPrefix : null;
+                    if (axis != null)
+                    {
+                        // The closest declared theme/density is effective on a detached root.
+                        for (int i = classes.Count - 1; i >= 0; i--)
+                            if (classes[i].StartsWith(axis, StringComparison.Ordinal)) { seenClasses.Remove(classes[i]); classes.RemoveAt(i); }
+                    }
+                    if ((className.StartsWith(ToolClassPrefix, StringComparison.Ordinal) || axis != null || explicitClasses.Contains(className)) && seenClasses.Add(className)) classes.Add(className);
+                }
             }
             return new ZuiPresentationContext(sheets.ToArray(), classes.ToArray());
         }
@@ -50,6 +61,12 @@ namespace Laubrary.Zui
             Z.Attach(root);
             foreach (var sheet in _styleSheets)
                 if (sheet != null && !root.styleSheets.Contains(sheet)) root.styleSheets.Add(sheet);
+            var hostSheet = UnityEditor.AssetDatabase.LoadAssetAtPath<StyleSheet>("Assets/LaubraryUI.uss");
+            if (hostSheet != null && root.styleSheets.Contains(hostSheet))
+            {
+                root.styleSheets.Remove(hostSheet);
+                root.styleSheets.Add(hostSheet);
+            }
             foreach (var className in _toolClasses) root.AddToClassList(className);
             root.AddToClassList("zui-root");
         }

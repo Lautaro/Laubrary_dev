@@ -200,7 +200,9 @@ namespace Laubrary.AssetKit.Editor
             // Neutral shell class: concrete tools add their own root class separately, while shared asset
             // browser chrome remains independently skinnable.
             root.AddToClassList("lau-asset-browser");
-            root.Add(BuildToolbar());
+            var identity = BuildToolbar();
+            identity.AddToClassList("lau-region-identity");
+            root.Add(identity);
             if (creating) root.Add(BuildCreateRow());
             if (renaming && !string.IsNullOrEmpty(AssetLibrary<T>.PathOf(asset))) root.Add(BuildRenameRow());
 
@@ -227,6 +229,7 @@ namespace Laubrary.AssetKit.Editor
             {
                 var host = new VisualElement();
                 host.AddToClassList("lau-asset-browser__editor-host");
+                host.AddToClassList("lau-region-content");
                 // T-0381: tell every LauAsset chip built in here what this window is editing, so "make this
                 // reference a private copy that lives inside the thing I am editing" is available on a
                 // reflected field too — not only where a tool remembered to pass the owner by hand. Scoped

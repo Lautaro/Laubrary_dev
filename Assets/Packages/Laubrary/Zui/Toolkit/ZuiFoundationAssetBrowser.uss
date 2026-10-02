@@ -5,6 +5,13 @@
     flex-shrink: 0;
 }
 
+/* Asset actions and search remain reachable when all file actions are present. */
+.lau-asset-browser .lau-region-identity {
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    align-items: center;
+}
+
 .lau-asset-browser__editor-host {
     flex-grow: 1;
     min-height: 0;

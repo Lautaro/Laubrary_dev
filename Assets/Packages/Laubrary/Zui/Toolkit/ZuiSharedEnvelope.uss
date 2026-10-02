@@ -1,0 +1,48 @@
+/* Shared canvas presentation. Domain, permissions and authored colour legends stay in configuration. */
+.zui-envelope {
+    --zui-envelope-frame-line-color: rgba(140, 153, 184, 0.15);
+    --zui-envelope-frame-edge-color: rgba(140, 153, 184, 0.30);
+    --zui-envelope-frame-label-color: rgba(191, 204, 235, 0.6);
+    --zui-envelope-axis-label-color: rgba(209, 219, 245, 0.8);
+    --zui-envelope-value-label-color: rgba(255, 255, 255, 0.9);
+    --zui-envelope-legend-border-color: rgba(0, 0, 0, 0.35);
+    --zui-envelope-marker-label-size: 9;
+    --zui-envelope-marker-label-spacing: 22;
+    --zui-envelope-axis-label-size: 9;
+    --zui-envelope-value-label-size: 11;
+}
+
+.zui-envelope--standard {
+    width: 220px;
+    height: 80px;
+    max-width: 100%;
+    flex-shrink: 1;
+    align-self: flex-start;
+    --zui-envelope-padding-top: 6;
+    --zui-envelope-padding-right: 6;
+    --zui-envelope-padding-bottom: 6;
+    --zui-envelope-padding-left: 6;
+    --zui-envelope-grid-color: rgba(128, 128, 128, 0.18);
+    --zui-envelope-curve-thickness: 1.5;
+    --zui-envelope-curve-hover-thickness: 2.5;
+    --zui-envelope-hit-radius-extra: 5;
+    --zui-envelope-editable-radius: 3;
+    --zui-envelope-editable-hover-radius: 5;
+    --zui-envelope-x-editable-radius: 3;
+    --zui-envelope-x-editable-hover-radius: 5;
+    --zui-envelope-y-editable-radius: 3;
+    --zui-envelope-y-editable-hover-radius: 5;
+    --zui-envelope-not-editable-radius: 2.1;
+}
+
+.zui-envelope--audio {
+    --zui-envelope-background: rgba(0, 0, 0, 0);
+    --zui-envelope-border-top: 0;
+    --zui-envelope-border-right: 0;
+    --zui-envelope-border-bottom: 0;
+    --zui-envelope-border-left: 0;
+    --zui-envelope-padding-top: 0;
+    --zui-envelope-padding-right: 0;
+    --zui-envelope-padding-bottom: 0;
+    --zui-envelope-padding-left: 0;
+}

@@ -30,6 +30,7 @@ namespace Laubrary.Zui
         readonly VisualElement _header;   // the clickable header row, so the checkbox can be inserted into it
         readonly Label _title;            // the title label, so the checkbox lands just to its LEFT
         readonly string _titleText;       // base title text, so a collapsed-only suffix can be appended/removed
+        readonly VisualElement _headerControls;
         Toggle _headerToggle;
         Action<bool> _headerToggleChanged;
 
@@ -59,6 +60,10 @@ namespace Laubrary.Zui
 
         /// Children go into the body, not next to the header.
         public override VisualElement contentContainer => _body;
+
+        /// Compact secondary controls, aligned at the right of the header just before its help icon.
+        /// Their pointer gestures never fold the section. Keep this slot stable when changing view state.
+        public VisualElement HeaderControls => _headerControls;
 
         public bool IsOpen
         {
@@ -98,9 +103,14 @@ namespace Laubrary.Zui
             _title = text;
             _titleText = title ?? string.Empty;
 
+            header.Add(Z.Flexible());
+            _headerControls = new VisualElement();
+            _headerControls.AddToClassList("zui-section__controls");
+            _headerControls.RegisterCallback<PointerDownEvent>(e => e.StopPropagation());
+            header.Add(_headerControls);
+
             if (!string.IsNullOrEmpty(tooltip))
             {
-                header.Add(Z.Flexible());
                 var help = Z.HelpIcon(tooltip);
                 help.pickingMode = PickingMode.Ignore;
                 header.Add(help);
@@ -115,7 +125,7 @@ namespace Laubrary.Zui
             // buttons beside it, which are known to work in these windows.
             header.AddManipulator(new Clickable(() =>
             {
-                if (_headerFoldDisabled) return;   // bar-controlled — only the toggle bar's own button folds it
+                if (_headerFoldDisabled || (_headerToggle != null && !_headerToggle.value)) return;
                 IsOpen = !IsOpen; ViewChanged?.Invoke();
             }));
             hierarchy.Add(header);
@@ -149,9 +159,11 @@ namespace Laubrary.Zui
 
         void Apply()
         {
-            bool open = IsOpen;
+            bool enabled = _headerToggle == null || _headerToggle.value;
+            bool open = IsOpen && enabled;
             _body.style.display = open ? DisplayStyle.Flex : DisplayStyle.None;
             EnableInClassList("zui-section--closed", !open);
+            EnableInClassList("zui-section--disabled", !enabled);
             // A COLLAPSED section can hide active content (e.g. enabled modifiers). Show the suffix its
             // provider returns (a count like " (2)") on the header while closed; drop it again when open,
             // where the content itself is visible. No provider ⇒ the title is exactly the base text.
@@ -163,7 +175,7 @@ namespace Laubrary.Zui
             // WHOLE section (header included) to actually save space, which is the point of the bar (T-0065).
             // Classic mode always keeps the header visible even when closed, since clicking it IS how it
             // reopens.
-            style.display = (_headerFoldDisabled && !open) ? DisplayStyle.None : DisplayStyle.Flex;
+            style.display = (_headerFoldDisabled && !IsOpen) ? DisplayStyle.None : DisplayStyle.Flex;
         }
 
         // ── collapsed-only header suffix ──────────────────────────────────────────────────────────────
@@ -217,7 +229,11 @@ namespace Laubrary.Zui
                 _headerToggle.AddToClassList("zui-section__toggle");
                 // Do not let a click on the checkbox fold the section (see ZuiBox's gear StopPropagation).
                 _headerToggle.RegisterCallback<PointerDownEvent>(e => e.StopPropagation());
-                _headerToggle.RegisterValueChangedCallback(e => _headerToggleChanged?.Invoke(e.newValue));
+                _headerToggle.RegisterValueChangedCallback(e =>
+                {
+                    Apply();
+                    _headerToggleChanged?.Invoke(e.newValue);
+                });
 
                 int idx = _header.IndexOf(_title);   // insert just to the LEFT of the title (after the caret)
                 if (idx < 0) idx = _header.childCount;
@@ -229,11 +245,15 @@ namespace Laubrary.Zui
             }
 
             _headerToggle.SetValueWithoutNotify(value);
+            Apply();
         }
 
         /// Refresh the header checkbox's value from outside WITHOUT firing onChanged (e.g. after an undo or
         /// an external state change). No-op if SetHeaderToggle was never called.
         public void SetHeaderToggleWithoutNotify(bool value)
-            => _headerToggle?.SetValueWithoutNotify(value);
+        {
+            _headerToggle?.SetValueWithoutNotify(value);
+            Apply();
+        }
     }
 }

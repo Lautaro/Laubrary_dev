@@ -1,0 +1,313 @@
+/* Shared Zounds-inspired ZUI theme.
+   Zui.Attach loads this after the toolkit and foundation sheets. Consumer and tool sheets load after it. */
+
+.zui-root {
+    background-color: rgb(26, 39, 50);
+    color: rgb(232, 238, 243);
+    /* Zounds' retained skin uses this slate/blue family. Keep interaction accents separate from data roles. */
+    --zui-accent: rgb(123, 176, 211);
+    --zui-accent-soft: rgb(47, 75, 100);
+    --zui-line: rgb(32, 79, 124);
+    --zui-bg-inset: rgb(23, 29, 34);
+    --zui-sub-fill: rgba(36, 57, 73, 0.62);
+    --zui-sub-fill-2: rgba(25, 42, 57, 0.76);
+    --zui-section-title: rgb(123, 176, 211);
+    --zui-stage-bg: rgb(26, 39, 50);
+    --zui-icon-neutral: rgba(220, 229, 237, 0.9);
+
+    --zui-chip-fill: rgba(89, 153, 194, 0.15);
+    --zui-chip-fill-hover: rgba(89, 153, 194, 0.28);
+    --zui-chip-line: rgba(123, 176, 211, 0.5);
+    --zui-row-selected-bg: rgba(89, 153, 194, 0.2);
+
+    /* The shared controls copy the browser settings panel's own control language: bronze actions,
+       blue outlined settings at rest, and orange/gold only for a latched choice. */
+    --zui-action: rgb(104, 86, 65);
+    --zui-action-hover: rgb(173, 128, 89);
+    --zui-action-active: rgb(152, 84, 20);
+    --zui-action-line: rgb(139, 114, 83);
+    --zui-choice: rgb(152, 84, 20);
+    --zui-choice-line: rgb(211, 136, 47);
+    --zui-choice-text: rgb(217, 207, 181);
+    --zui-focus: rgb(205, 239, 255);
+    --zui-control-text: rgb(232, 238, 243);
+}
+
+/* Labeled actions use the Zounds browser's muted bronze face. */
+.zui-root .zui-button {
+    color: var(--zui-choice-text);
+    background-color: var(--zui-action);
+    border-width: 1px;
+    border-color: var(--zui-action-line);
+    border-radius: 6px;
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-top: 1px;
+    padding-bottom: 1px;
+    -unity-font-style: normal;
+}
+
+.zui-root .zui-button:hover {
+    background-color: var(--zui-action-hover);
+    border-color: var(--zui-choice-text);
+}
+
+.zui-root .zui-button:active {
+    background-color: var(--zui-action-active);
+    border-color: var(--zui-choice-line);
+    color: white;
+}
+
+.zui-root .zui-button:focus {
+    border-color: var(--zui-focus);
+}
+
+.zui-root .zui-button:disabled {
+    color: rgba(232, 238, 243, 0.55);
+    background-color: rgba(74, 83, 91, 0.7);
+    border-color: rgba(136, 148, 157, 0.48);
+    opacity: 0.7;
+}
+
+/* Icon-only actions stay quiet so a dense row does not become a strip of orange blocks. */
+.zui-root .zui-iconbtn {
+    color: var(--zui-control-text);
+    background-color: var(--zui-bg-inset);
+    border-width: 1px;
+    border-color: var(--zui-line);
+    border-radius: 4px;
+}
+
+.zui-root .zui-iconbtn:hover {
+    color: white;
+    background-color: var(--zui-accent-soft);
+    border-color: var(--zui-accent);
+}
+
+.zui-root .zui-iconbtn:focus {
+    border-color: var(--zui-focus);
+}
+
+.zui-root .zui-iconbtn:disabled {
+    opacity: 0.45;
+}
+
+/* Native-backed fields use the same inset surface and blue focus cue as ZUI's painted controls. */
+.zui-root .unity-base-field__input {
+    color: var(--zui-control-text);
+    background-color: var(--zui-bg-inset);
+    border-width: 1px;
+    border-color: var(--zui-line);
+    border-radius: 3px;
+}
+
+.zui-root .unity-base-field__input:hover {
+    border-color: rgba(123, 176, 211, 0.62);
+}
+
+.zui-root .unity-base-field__input:focus {
+    border-color: var(--zui-focus);
+}
+
+.zui-root .unity-base-field:disabled .unity-base-field__input {
+    color: rgba(232, 238, 243, 0.48);
+    opacity: 0.65;
+}
+
+/* RichToggle from the hidden browser settings panel: blue outline at rest, orange/gold when latched. */
+.zui-root .zui-togglebutton {
+    color: var(--zui-accent);
+    background-color: var(--zui-bg-inset);
+    border-color: var(--zui-line);
+    border-width: 1px;
+    border-radius: 6px;
+    -unity-font-style: normal;
+}
+
+.zui-root .zui-togglebutton:hover {
+    background-color: var(--zui-accent-soft);
+    border-color: var(--zui-line);
+}
+
+.zui-root .zui-togglebutton:active {
+    color: var(--zui-choice-text);
+    background-color: var(--zui-choice);
+    border-color: var(--zui-choice-line);
+}
+
+.zui-root .zui-togglebutton.zui-togglebutton--on,
+.zui-root .zui-togglebutton.zui-togglebutton--on:hover,
+.zui-root .zui-togglebutton.zui-togglebutton--on:active {
+    color: var(--zui-choice-text);
+    background-color: var(--zui-choice);
+    border-color: var(--zui-choice-line);
+    -unity-font-style: normal;
+}
+
+.zui-root .zui-togglebutton:focus {
+    border-color: var(--zui-focus);
+}
+
+.zui-root .zui-togglebutton:disabled {
+    color: rgba(232, 238, 243, 0.48);
+    background-color: rgba(12, 25, 36, 0.45);
+    border-color: rgba(123, 176, 211, 0.18);
+    opacity: 0.65;
+}
+
+/* Joined radio/segmented choices use the same off-blue/on-orange states as RichToggle. */
+.zui-root .zui-segmented > .zui-segmented__seg,
+.zui-root .zui-radio > .unity-button {
+    color: var(--zui-accent);
+    background-color: var(--zui-bg-inset);
+    border-color: var(--zui-line);
+    -unity-font-style: normal;
+}
+
+.zui-root .zui-segmented > .zui-segmented__seg:hover,
+.zui-root .zui-radio > .unity-button:hover {
+    color: var(--zui-accent);
+    background-color: var(--zui-accent-soft);
+    border-color: var(--zui-line);
+}
+
+.zui-root .zui-segmented > .zui-segmented__seg:active,
+.zui-root .zui-radio > .unity-button:active {
+    color: var(--zui-choice-text);
+    background-color: var(--zui-choice);
+    border-color: var(--zui-choice-line);
+}
+
+.zui-root .zui-segmented > .zui-segmented__seg.zui-segmented__on,
+.zui-root .zui-segmented > .zui-segmented__seg.zui-segmented__on:hover,
+.zui-root .zui-segmented > .zui-segmented__seg.zui-segmented__on:active,
+.zui-root .zui-radio > .unity-button.zui-radio__on,
+.zui-root .zui-radio > .unity-button.zui-radio__on:hover,
+.zui-root .zui-radio > .unity-button.zui-radio__on:active {
+    color: var(--zui-choice-text);
+    background-color: var(--zui-choice);
+    border-color: var(--zui-choice-line);
+    -unity-font-style: normal;
+}
+
+.zui-root .zui-segmented > .zui-segmented__seg:focus,
+.zui-root .zui-radio > .unity-button:focus {
+    border-color: var(--zui-focus);
+}
+
+.zui-root .zui-segmented > .zui-segmented__seg:disabled,
+.zui-root .zui-radio > .unity-button:disabled {
+    color: rgba(232, 238, 243, 0.46);
+    background-color: rgba(12, 25, 36, 0.42);
+    border-color: rgba(123, 176, 211, 0.16);
+    opacity: 0.65;
+}
+
+.zui-root .zui-segmented > .zui-segmented__seg.zui-segmented__on:disabled,
+.zui-root .zui-radio > .unity-button.zui-radio__on:disabled {
+    color: rgba(217, 207, 181, 0.58);
+    background-color: rgba(152, 84, 20, 0.35);
+    border-color: rgba(211, 136, 47, 0.45);
+}
+
+/* Shared grouped regions: one framed surface, quieter nested fills, and blue section hierarchy. */
+.zui-box {
+    color: var(--zui-control-text);
+    background-color: rgba(35, 53, 68, 0.58);
+}
+
+.zui-box__title,
+.zui-field__label,
+.zui-section__title {
+    color: var(--zui-control-text);
+}
+
+.zui-section__title,
+.zui-text--section {
+    color: var(--zui-section-title);
+}
+
+.zui-section__header {
+    border-bottom-color: var(--zui-line);
+}
+
+.zui-divider {
+    background-color: var(--zui-line);
+}
+
+.zui-chip:hover {
+    border-color: var(--zui-accent);
+}
+
+.zui-root .zui-cell--selected .zui-cell__thumb {
+    border-color: var(--zui-accent);
+}
+
+/* Density changes spacing and control padding only; it never changes measured or authored geometry. */
+.zui-root.lau-density-compact .zui-box {
+    padding: 4px;
+    margin-bottom: 4px;
+}
+
+.zui-root.lau-density-compact .zui-section {
+    margin-top: 8px;
+    margin-bottom: 2px;
+}
+
+.zui-root.lau-density-compact .zui-section__header {
+    padding-top: 1px;
+    padding-bottom: 2px;
+    margin-bottom: 2px;
+}
+
+.zui-root.lau-density-compact .zui-row,
+.zui-root.lau-density-compact .zui-field,
+.zui-root.lau-density-compact .zui-value,
+.zui-root.lau-density-compact .zui-fill,
+.zui-root.lau-density-compact .zui-microslider {
+    margin-bottom: 2px;
+}
+
+.zui-root.lau-density-compact .zui-button,
+.zui-root.lau-density-compact .zui-togglebutton,
+.zui-root.lau-density-compact .zui-segmented__seg,
+.zui-root.lau-density-compact .zui-radio > .unity-button {
+    padding-left: 6px;
+    padding-right: 6px;
+    padding-top: 1px;
+    padding-bottom: 1px;
+}
+
+.zui-root.lau-density-roomy .zui-box {
+    padding: 8px;
+    margin-bottom: 8px;
+}
+
+.zui-root.lau-density-roomy .zui-section {
+    margin-top: 16px;
+    margin-bottom: 6px;
+}
+
+.zui-root.lau-density-roomy .zui-section__header {
+    padding-top: 4px;
+    padding-bottom: 5px;
+    margin-bottom: 6px;
+}
+
+.zui-root.lau-density-roomy .zui-row,
+.zui-root.lau-density-roomy .zui-field,
+.zui-root.lau-density-roomy .zui-value,
+.zui-root.lau-density-roomy .zui-fill,
+.zui-root.lau-density-roomy .zui-microslider {
+    margin-bottom: 6px;
+}
+
+.zui-root.lau-density-roomy .zui-button,
+.zui-root.lau-density-roomy .zui-togglebutton,
+.zui-root.lau-density-roomy .zui-segmented__seg,
+.zui-root.lau-density-roomy .zui-radio > .unity-button {
+    padding-left: 11px;
+    padding-right: 11px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+}

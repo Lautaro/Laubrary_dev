@@ -27,7 +27,7 @@ namespace Laubrary.Zui
     {
         // ── stylesheet ──────────────────────────────────────────────────────────────
         static StyleSheet _sheet;
-        static readonly string[] PresentationSheetNames = { "ZuiPilotStandard", "ZuiPilotBands", "ZuiPilotEnvelope", "ZuiPresentation", "ZuiFoundationContainers", "ZuiFoundationFields", "ZuiFoundationLayout", "ZuiFoundationFlow", "ZuiFoundationAssetBrowser", "ZuiFoundationToolShell" };
+        static readonly string[] PresentationSheetNames = { "ZuiPilotStandard", "ZuiPilotBands", "ZuiPilotEnvelope", "ZuiSharedEnvelope", "ZuiPresentation", "ZuiFoundationContainers", "ZuiFoundationFields", "ZuiFoundationLayout", "ZuiFoundationFlow", "ZuiFoundationAssetBrowser", "ZuiFoundationToolShell", "ZuiFieldPresentation", "ZuiSharedTheme", "ZuiButtonSurface" };
         static readonly System.Collections.Generic.Dictionary<string, StyleSheet> PresentationSheets = new System.Collections.Generic.Dictionary<string, StyleSheet>();
 
         /// The shared ZuiToolkit.uss, located by search so the path works both in this dev host
@@ -68,6 +68,9 @@ namespace Laubrary.Zui
                     if (presentation != null && !root.styleSheets.Contains(presentation)) root.styleSheets.Add(presentation);
                 }
             }
+            // Host-owned design overrides ship independently of the reusable package.
+            var overrides = AssetDatabase.LoadAssetAtPath<StyleSheet>("Assets/LaubraryUI.uss");
+            if (overrides != null && !root.styleSheets.Contains(overrides)) root.styleSheets.Add(overrides);
         }
 
         /// <summary>
@@ -116,21 +119,55 @@ namespace Laubrary.Zui
         {
             string prefKey = "ZUI.Split." + stateKey;
             float width = EditorPrefs.GetFloat(prefKey, initialLeftWidth);
+            float preferredWidth = width;
 
             var split = new TwoPaneSplitView(0, width, TwoPaneSplitViewOrientation.Horizontal);
             split.AddToClassList("zui-split");
-            if (left != null) split.Add(left);
-            if (right != null) split.Add(right);
+            if (left != null) { left.AddToClassList("zui-split__left"); split.Add(left); }
+            if (right != null) { right.AddToClassList("zui-split__right"); split.Add(right); }
 
-            // Persist the divider wherever the user leaves it. The fixed pane's width IS the state.
+            // Keep the preferred divider width separate from its narrow-window fit. A small window temporarily
+            // gives the preview/workspace a useful minimum width without overwriting the user's saved position.
             bool restoring = false;
-            left?.RegisterCallback<GeometryChangedEvent>(_ =>
+            const float minLeftWidth = 180f;
+            const float minRightWidth = 300f;
+            const float dividerWidth = 6f;
+            const float compactBreakpoint = 800f;
+            float lastAvailableWidth = -1f;
+            void FitToAvailableWidth(bool force = false)
             {
-                if (restoring) return;
-                float w = left.resolvedStyle.width;
-                if (w > 1f && !Mathf.Approximately(w, EditorPrefs.GetFloat(prefKey, -1f)))
-                    EditorPrefs.SetFloat(prefKey, w);
-            });
+                float available = split.resolvedStyle.width;
+                if (available <= 1f) return;
+                split.EnableInClassList("zui-split--compact", available < compactBreakpoint);
+                if (!force && Mathf.Approximately(available, lastAvailableWidth)) return;
+                lastAvailableWidth = available;
+                // Child min-width rules otherwise override fixedPaneInitialDimension (for example, Chunks' 460px
+                // recipe preference). Give the two panes explicit responsive floors before fitting the divider.
+                float maxLeft = Mathf.Max(minLeftWidth, available - minRightWidth - dividerWidth);
+                float fitted = Mathf.Clamp(preferredWidth, minLeftWidth, maxLeft);
+                if (Mathf.Approximately(fitted, split.fixedPaneInitialDimension)) return;
+                restoring = true;
+                split.fixedPaneInitialDimension = fitted;
+                if (left != null) left.style.width = fitted;
+                split.schedule.Execute(() => { restoring = false; FitToAvailableWidth(true); TipDivider(split); }).ExecuteLater(120);
+            }
+            split.RegisterCallback<GeometryChangedEvent>(_ => FitToAvailableWidth());
+
+            // Persist only a completed divider drag. Window resizes call FitToAvailableWidth but never change
+            // the preference; reopening wide restores the last width the user actually chose.
+            split.RegisterCallback<PointerUpEvent>(e =>
+            {
+                if (restoring || !(e.target is VisualElement t) ||
+                    (t.name != "unity-dragline-anchor" && t.name != "unity-dragline")) return;
+                split.schedule.Execute(() =>
+                {
+                    if (restoring || left == null) return;
+                    float chosen = left.resolvedStyle.width;
+                    if (chosen <= 1f) return;
+                    preferredWidth = chosen;
+                    EditorPrefs.SetFloat(prefKey, preferredWidth);
+                }).ExecuteLater(20);
+            }, TrickleDown.TrickleDown);
 
             // The divider only exists once TwoPaneSplitView has built its own children, so the tooltip is
             // applied on attach rather than queried for here.
@@ -151,10 +188,11 @@ namespace Laubrary.Zui
                 // and leave the key it was asked to clear in place.
                 restoring = true;
                 EditorPrefs.DeleteKey(prefKey);
+                preferredWidth = initialLeftWidth;
                 if (!Mathf.Approximately(split.fixedPaneInitialDimension, initialLeftWidth))
                     split.fixedPaneInitialDimension = initialLeftWidth;
                 if (left != null) left.style.width = initialLeftWidth;   // what the drag itself writes
-                split.schedule.Execute(() => { restoring = false; TipDivider(split); }).ExecuteLater(120);
+                split.schedule.Execute(() => { restoring = false; FitToAvailableWidth(true); TipDivider(split); }).ExecuteLater(120);
                 e.StopPropagation();
             }, TrickleDown.TrickleDown);
             return split;
@@ -418,6 +456,7 @@ namespace Laubrary.Zui
         {
             var b = new Button(onClick) { text = label, tooltip = tooltip };
             b.AddToClassList("zui-button");
+            ZuiButtonSurface.Attach(b);
             return b;
         }
 
@@ -475,6 +514,11 @@ namespace Laubrary.Zui
         public static ZuiToggleButton ToggleButton(string label, string tooltip, bool value, Action<bool> onChanged,
             string icon = null)
             => new ZuiToggleButton(label, tooltip, value, onChanged, icon);
+
+        /// A subdued, borderless view toggle for secondary chrome. Tooltip follows the current value.
+        public static ZuiQuietToggle QuietToggle(string label, Func<bool, string> tooltip, bool value,
+            Action<bool> onChanged)
+            => new ZuiQuietToggle(label, tooltip, value, onChanged);
 
         /// A joined row of buttons, single-select (radio look, custom-drawn) — the themed twin of MiniRadio.
         /// `icons` (optional, one name per segment) draws a leading glyph in each — null entries stay text-only.
@@ -578,6 +622,7 @@ float width = -1f, bool allowSceneObjects = false) where T : UnityEngine.Object
         /// falls back to the plain text path, so a typo never leaves a blank button.
         internal static void FillButton(Button b, string label, string icon)
         {
+            ZuiButtonSurface.Attach(b);
             b.Clear();
             var ic = string.IsNullOrEmpty(icon) ? null : Icon(icon, 13f);
             if (ic == null) { b.text = label ?? string.Empty; return; }
@@ -1075,7 +1120,7 @@ float width = -1f, bool allowSceneObjects = false) where T : UnityEngine.Object
         /// owning asset — it fires once per gesture, before the first mutation.
         public static ZuiEnvelope Envelope(List<ZUIEnvelopePoint> points, ZuiEnvelopeOptions options,
             string tooltip, Action onChanged, Action onBeforeMutate = null,
-            float width = 220f, float height = 80f)
+            float width = float.NaN, float height = float.NaN)
         {
             var env = new ZuiEnvelope(points, options, tooltip, width, height);
             if (onChanged != null) env.OnChanged += onChanged;

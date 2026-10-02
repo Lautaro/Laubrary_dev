@@ -525,23 +525,30 @@ namespace Laubrary.Zounds.Uitk {
         /// <summary>The old toolbar's wrap test: the sum of the items' widths (without the gaps) against the view width - 16.</summary>
         bool NeedsToolbarWrap() {
             var bs = ZoundsProject.Instance.browserSettings;
-            float needed = 5f;
-            if (bs.showAddZound) needed += ToolbarHeight;
-            if (bs.showStopAll) needed += FlatWidth("Kill");
-            if (bs.showMSClean) needed += FlatWidth("X") + FlatWidth("M") + FlatWidth("S");
-            if (bs.showTypeKlip) needed += FlatWidth("Klip");
-            if (bs.showTypeZeq) needed += FlatWidth("Zeq");
-            if (bs.showTypeFiles) needed += FlatWidth("Files");
-            if (bs.showTypeMissing) needed += FlatWidth("Missing");
-            if (bs.showTagsFilter) needed += FlatWidth("Tags");
-            if (bs.showGroupBy) needed += FlatWidth("Grouping");
-            if (bs.showColumnMode) needed += 60f;
+            float needed = 5f, itemCount = 0f;
+            void Add(float width) { if (itemCount++ > 0f) needed += ToolbarGap; needed += width; }
+            if (bs.showAddZound) Add(ToolbarHeight);
+            if (bs.showStopAll) Add(FlatWidth("Kill"));
+            if (bs.showMSClean) { Add(FlatWidth("X")); Add(FlatWidth("M")); Add(FlatWidth("S")); }
+            if (bs.showTypeKlip) Add(FlatWidth("Klip"));
+            if (bs.showTypeZeq) Add(FlatWidth("Zeq"));
+            if (bs.showTypeFiles) Add(FlatWidth("Files"));
+            if (bs.showTypeMissing) Add(FlatWidth("Missing"));
+            if (bs.showTagsFilter) Add(FlatWidth("Tags"));
+            if (bs.showGroupBy) Add(FlatWidth("Grouping"));
+            if (bs.showColumnMode) { Add(60f); if (!bs.multicolumn) Add(ToolbarHeight); }
+            Add(96.5f); // All / Recent mode selector is always present.
+            if (s_recent) Add(FlatWidth("Clear recent"));
             return needed > WindowWidth - 16f;
         }
 
         /// <summary>A Flat button's width: its text (13 px, the sheet's Flat font) plus the style's 20 + 20 padding.</summary>
         float FlatWidth(string text) {
             if (s_measure == null) { s_measure = new Label(); s_measure.AddToClassList("zs-browser__toolbar-measurement"); }
+            // The first toolbar is assembled in this element's constructor, before it belongs to a panel. Unity's text
+            // measurement asks that panel for its DPI and logs a warning if we call it early. Use a conservative logical-
+            // pixel estimate for that first pass; the geometry callback runs again after attachment and measures exactly.
+            if (panel == null) return Mathf.Ceil(text.Length * 7.25f) + FlatExtra;
             if (s_measure.panel == null) { s_measure.AddToClassList("zs-browser__toolbar-measurement"); s_measure.style.visibility = Visibility.Hidden; Add(s_measure); }
             var sz = s_measure.MeasureTextSize(text, 0, MeasureMode.Undefined, 0, MeasureMode.Undefined);
             return Mathf.Ceil(sz.x) + FlatExtra;
@@ -756,7 +763,9 @@ namespace Laubrary.Zounds.Uitk {
             var frame = Row();
             frame.AddToClassList("zs-browser__list-frame");
             frame.AddToClassList("zs-browser__list-frame");
-            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            // List rows retain their aligned controls at narrow widths. The browser rows can be wider than the
+            // viewport when many optional fields/actions are enabled, so keep them reachable by scrolling sideways.
+            var scroll = new ScrollView(bs.multicolumn ? ScrollViewMode.Vertical : ScrollViewMode.VerticalAndHorizontal);
             scroll.AddToClassList("zs-browserlist");
             scroll.AddToClassList("zs-browser__list-scroll");
             frame.Add(scroll);
@@ -767,9 +776,11 @@ namespace Laubrary.Zounds.Uitk {
 
         void BuildRows(ScrollView scroll) {
             rowLayout = BrowserTab.PrepareListRowLayoutShared(filtered, ZS.ItemSpacing, ZS.MediumSpacing, MeasureZoundBtn);
+            float minRowWidth = MinimumListRowWidth(rowLayout);
             scroll.Add(ZequenceEditorWindowTK.Space(1f));
             void AddRow(int i) {
                 var row = new ZoundListRowTK(filtered[i], this, () => rowLayout);
+                row.style.minWidth = minRowWidth;
                 rows.Add(row);
                 scroll.Add(row);
                 if (i < filtered.Count - 1) scroll.Add(ZequenceEditorWindowTK.Space(ZS.RowSpace * 0.5f));
@@ -782,6 +793,23 @@ namespace Laubrary.Zounds.Uitk {
                 }
             }
             else for (int i = 0; i < filtered.Count; i++) AddRow(i);
+        }
+
+        static float MinimumListRowWidth(BrowserTab.ZoundListRowLayout layout) {
+            var bs = ZoundsProject.Instance.browserSettings;
+            float spacing = ZS.ItemSpacing;
+            bool hasLeft = layout.editRectWidth > 0f || layout.muteSoloWidth > 0f;
+            float width = layout.editRectWidth + layout.muteSoloWidth;
+            if (layout.editRectWidth > 0f && layout.muteSoloWidth > 0f) width += spacing;
+            if (hasLeft) width += BrowserTab.LEFT_BUTTONS_TO_NAME_GAP;
+            width += layout.itemWidth;
+            if (bs.showNameField) width += spacing + layout.nameInputWidth;
+            if (bs.showVolume) width += spacing + BrowserTab.MIN_VPC_WIDTH;
+            if (bs.showPitch) width += spacing + BrowserTab.MIN_VPC_WIDTH;
+            if (bs.showChance) width += spacing + BrowserTab.MIN_VPC_WIDTH;
+            if (layout.rightGroupWidth > 0f) width += spacing + layout.rightGroupWidth;
+            if (bs.showTags && !bs.tagsOnOwnRow) width += spacing + BrowserTab.TAGS_INLINE_AREA_WIDTH;
+            return Mathf.Ceil(width + 2f);
         }
 
         static Label GroupLabel(string text) {

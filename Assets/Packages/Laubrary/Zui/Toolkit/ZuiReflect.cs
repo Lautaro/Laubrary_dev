@@ -39,50 +39,14 @@ namespace Laubrary.Zui
             };
             f.AddToClassList("zui-foundation-object");
             // Width is an explicit caller contract, not a presentation default.
-            f.style.width = width;
+            if (width >= 0f) f.style.width = width;
             f.RegisterValueChangedCallback(e => onChanged?.Invoke(e.newValue));
             return f;
         }
 
-        /// A reflected enum as WRAPPED MINI-RADIOS — never a native EnumField dropdown (ui-layout-rules:
-        /// an enum is a radio/segmented). A [Flags] enum instead becomes a multi-select segmented row over
-        /// its single-bit members, so several flags can light at once. `onChanged` gets the new Enum value.
+        /// A reflected enum as a ZUI segmented/radio control; flags become multi-select segments.
         public static VisualElement EnumControl(Enum value, string tooltip, Action<Enum> onChanged)
-        {
-            var t = value.GetType();
-            string[] names = Enum.GetNames(t);
-            Array values = Enum.GetValues(t);
-            var labels = new string[names.Length];
-            for (int i = 0; i < names.Length; i++) labels[i] = ObjectNames.NicifyVariableName(names[i]);
-
-            if (Attribute.IsDefined(t, typeof(FlagsAttribute)))
-            {
-                // Single-bit members only (skip 0 = "None" and any pre-combined masks); toggle bits on the value.
-                var bits = new List<long>();
-                var bitLabels = new List<string>();
-                for (int i = 0; i < values.Length; i++)
-                {
-                    long bv = Convert.ToInt64(values.GetValue(i));
-                    if (bv != 0 && (bv & (bv - 1)) == 0) { bits.Add(bv); bitLabels.Add(labels[i]); }
-                }
-                long cur = Convert.ToInt64(value);
-                return Z.SegmentedMulti(i => (cur & bits[i]) != 0, bitLabels.ToArray(), tooltip,
-                    (i, on) => { cur = on ? (cur | bits[i]) : (cur & ~bits[i]); onChanged?.Invoke((Enum)Enum.ToObject(t, cur)); });
-            }
-
-            int sel = 0;
-            for (int i = 0; i < values.Length; i++) if (values.GetValue(i).Equals(value)) { sel = i; break; }
-
-            // A short set is a Z.Segmented, a long one wraps as mini-radios — the same split every hand-written
-            // ZUI window already makes (ui-layout-rules: "Segmented for short 2–3 single-line sets", and "the
-            // same KIND of value should use the same control everywhere"). Before this, a three-option enum
-            // drawn by hand and the same enum drawn by reflection looked like two different controls in one
-            // window, which reads as an oversight even when each choice is defensible on its own.
-            if (values.Length <= 3)
-                return Z.Segmented(sel, labels, tooltip, i => onChanged?.Invoke((Enum)values.GetValue(i)));
-
-            return Z.MiniRadio(sel, labels, tooltip, i => onChanged?.Invoke((Enum)values.GetValue(i)), wrap: true);
-        }
+            => ZuiFieldPresentation.EnumControl(value, tooltip, onChanged);
 
         /// A compact X/Y pair. Deliberately NOT the 2D pad: a reflected Vector2 is just as likely to be a
         /// min/max or a size as a spatial position, and a drag-pad would misrepresent those. Use
@@ -133,7 +97,10 @@ namespace Laubrary.Zui
             /// generator and 4x4 on a child, one type serving two roles — where a reset to the type's own
             /// number would quietly be the wrong number.
             public Func<FieldInfo, float?> DefaultFor;
-            public float ControlWidth = 150f;
+            /// Semantic selector overrides. The binding identity is retained unless the returned metadata supplies one.
+            public Func<FieldInfo, ZuiFieldPresentation, ZuiFieldPresentation> PresentationFor;
+            /// Negative means use the field family's USS width; non-negative values are explicit caller overrides.
+            public float ControlWidth = -1f;
         }
 
         /// Every public, serializable, non-hidden instance field of `owner`'s type, base-first.
@@ -244,6 +211,9 @@ namespace Laubrary.Zui
 
         /// Build a control for every field of `owner`, appended to `root`.
         public static void BuildFields(VisualElement root, object owner, Options opt)
+            => BuildFields(root, owner, opt, owner?.GetType().FullName);
+
+        static void BuildFields(VisualElement root, object owner, Options opt, string bindingPrefix)
         {
             if (owner == null) return;
             var fields = FieldsOf(owner.GetType());
@@ -265,7 +235,7 @@ namespace Laubrary.Zui
                 if (consumed != null && consumed.Contains(f.Name)) continue;
                 if (!VisibleNow(owner, f, fields)) continue;
                 if (opt?.Skip != null && opt.Skip(f)) continue;
-                var ve = BuildField(owner, f, opt);
+                var ve = BuildField(owner, f, opt, bindingPrefix);
                 if (ve != null) root.Add(ve);
             }
         }
@@ -322,10 +292,13 @@ namespace Laubrary.Zui
         /// that draws a curve or a plot takes a line of its own. The shared implementation of the
         /// space-economy rule, so a nested list element and a top-level effect card lay out the same way.
         public static void FlowFields(VisualElement host, object owner, Options opt)
+            => FlowFields(host, owner, opt, owner?.GetType().FullName);
+
+        static void FlowFields(VisualElement host, object owner, Options opt, string bindingPrefix)
         {
             var flow = new VisualElement();
             flow.AddToClassList("zui-foundation-flow");
-            BuildFields(flow, owner, opt);
+            BuildFields(flow, owner, opt, bindingPrefix);
 
             void ApplyWidths()
             {
@@ -378,6 +351,23 @@ namespace Laubrary.Zui
 
         /// Build one control for `field` on `owner`, or null when the type isn't renderable.
         public static VisualElement BuildField(object owner, FieldInfo field, Options opt)
+            => BuildField(owner, field, opt, owner?.GetType().FullName);
+
+        static VisualElement BuildField(object owner, FieldInfo field, Options opt, string bindingPrefix)
+        {
+            var control = BuildFieldCore(owner, field, opt, Binding(bindingPrefix, field));
+            if (control == null) return null;
+            var metadata = ZuiFieldPresentation.ForField(field, owner?.GetType(), Binding(bindingPrefix, field), control);
+            metadata = opt?.PresentationFor?.Invoke(field, metadata) ?? metadata;
+            // An override may adjust semantic axes, but cannot accidentally detach styling from the stable member path.
+            if (string.IsNullOrWhiteSpace(metadata.bindingIdentity)) metadata.bindingIdentity = Binding(bindingPrefix, field);
+            return ZuiFieldPresentation.Stamp(control, metadata);
+        }
+
+        static string Binding(string prefix, FieldInfo field)
+            => string.IsNullOrWhiteSpace(prefix) ? field?.Name : prefix + "." + field?.Name;
+
+        static VisualElement BuildFieldCore(object owner, FieldInfo field, Options opt, string bindingIdentity)
         {
             opt ??= new Options();
             string nice = ObjectNames.NicifyVariableName(field.Name);
@@ -431,7 +421,7 @@ namespace Laubrary.Zui
                     ? (VisualElement)Z.MicroSlider(nice, (float)v, range.min, range.max, tip,
                         nv => Set(nv), opt.ControlWidth, showValue: true,
                         defaultValue: opt.DefaultFor?.Invoke(field) ?? DefaultNumberOf(owner.GetType(), field))
-                    : Z.Field(nice, tip, Z.Float((float)v, tip, nv => Set(nv), 80f));
+                    : Z.Field(nice, tip, Z.Float((float)v, tip, nv => Set(nv), opt.ControlWidth));
 
             if (t == typeof(int))
                 // Bounded int → a whole-number MicroSlider (decimals 0, rounded at the setter), matching how the
@@ -442,7 +432,7 @@ namespace Laubrary.Zui
                         nv => Set(Mathf.RoundToInt(nv)), opt.ControlWidth, showValue: true,
                         defaultValue: opt.DefaultFor?.Invoke(field) ?? DefaultNumberOf(owner.GetType(), field),
                         decimals: 0)
-                    : Z.Field(nice, tip, Z.Int((int)v, tip, nv => Set(nv), 80f));
+                    : Z.Field(nice, tip, Z.Int((int)v, tip, nv => Set(nv), opt.ControlWidth));
 
             if (t == typeof(bool))
                 return Z.Toggle(nice, tip, (bool)v, nv => Set(nv));
@@ -454,7 +444,7 @@ namespace Laubrary.Zui
             {
                 // The field row itself must be allowed to shrink to the pane, or the wrapped radio inside it never sees a
                 // narrower container and a five-option set runs off the pane edge (T-0047's Variant row did).
-                var enumRow = Z.Field(nice, tip, EnumControl((Enum)v, tip, nv => Set(nv)));
+                var enumRow = Z.Field(nice, tip, ZuiFieldPresentation.EnumControl((Enum)v, tip, nv => Set(nv)));
                 enumRow.AddToClassList("zui-foundation-enum-field");
                 return enumRow;
             }
@@ -582,7 +572,7 @@ namespace Laubrary.Zui
                     ? (VisualElement)Z.MicroSlider(nice, cur, range.min, range.max, tip,
                         SetWrapped, opt.ControlWidth, showValue: true,
                         defaultValue: DefaultWrappedNumberOf(owner.GetType(), field, wrapperProp))
-                    : Z.Field(nice, tip, Z.Float(cur, tip, SetWrapped, 80f));
+                    : Z.Field(nice, tip, Z.Float(cur, tip, SetWrapped, opt.ControlWidth));
             }
 
             // A ZuiGradient (the richer base-Gradient-plus-transform-knobs type, NOT Unity's Gradient handled above)
@@ -628,7 +618,7 @@ namespace Laubrary.Zui
             }
 
             if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(List<>))
-                return BuildList(owner, field, nice, tip, opt);
+                return BuildList(owner, field, nice, tip, opt, bindingIdentity);
 
             // A nested plain [Serializable] settings object (a Pyre PyreRamp, a future grouped-options class):
             // a titled box flowing ITS fields, keyed stably by owner type + field name like a list. Null-valued
@@ -640,7 +630,7 @@ namespace Laubrary.Zui
                 if (v == null) { v = Activator.CreateInstance(t); field.SetValue(owner, v); }
                 var box = Z.BoxKeyed(nice, tip, $"reflect.nested.{owner.GetType().Name}.{field.Name}");
                 _nestDepth++;
-                try { FlowFields(box, v, opt); }
+                try { FlowFields(box, v, opt, bindingIdentity); }
                 finally { _nestDepth--; }
                 return box;
             }
@@ -648,7 +638,7 @@ namespace Laubrary.Zui
             return null;   // not a type this renderer knows how to show
         }
 
-        static VisualElement BuildList(object owner, FieldInfo field, string nice, string tip, Options opt)
+        static VisualElement BuildList(object owner, FieldInfo field, string nice, string tip, Options opt, string bindingIdentity)
         {
             var elemType = field.FieldType.GetGenericArguments()[0];
             if (field.GetValue(owner) is not IList list)
@@ -697,7 +687,7 @@ namespace Laubrary.Zui
                     row.AddToClassList("zui-foundation-compact-row");
                     row.Add(Z.Text($"#{idx + 1}", ZuiText.Small,
                         $"{Singular(nice)} {idx + 1} of {nice}.").W(26f));
-                    BuildFields(row, elem, elemOpt);
+                    BuildFields(row, elem, elemOpt, bindingIdentity + "[" + idx + "]");
                     row.Add(Z.Flexible());
                     row.Add(remove);
                     card.Add(row);
@@ -720,12 +710,17 @@ namespace Laubrary.Zui
                     // FLOWED, not stacked. A nested element's fields used to run straight down a narrow
                     // column with the whole width beside them empty — nine sliders tall for one hue
                     // replacement, so two replacements filled the window and you could not see them together.
-                    FlowFields(card, elem, opt);
+                    FlowFields(card, elem, opt, bindingIdentity + "[" + idx + "]");
                 }
                 else
                 {
                     var ve = BuildElement(list, idx, elemType, tip, opt);
-                    if (ve != null) card.Add(ve);
+                    if (ve != null)
+                    {
+                        ZuiFieldPresentation.Stamp(ve, ZuiFieldPresentation.ForElement(elemType,
+                            bindingIdentity + "[*]", field.DeclaringType?.Name, ve));
+                        card.Add(ve);
+                    }
                 }
                 box.Add(card);
             }
@@ -794,7 +789,10 @@ namespace Laubrary.Zui
             FloatWrapperProperty = o.FloatWrapperProperty,
             ConfigureValue = o.ConfigureValue,
             DefaultFor = o.DefaultFor,
-            ControlWidth = 100f,
+            PresentationFor = o.PresentationFor,
+            // List elements carry their own compact presentation stamp; let the shared USS provide the 80 px
+            // default instead of embedding a second width in every generated numeric control.
+            ControlWidth = -1f,
         };
 
         static VisualElement BuildElement(IList list, int idx, Type elemType, string tip, Options opt)
@@ -810,11 +808,11 @@ namespace Laubrary.Zui
             if (typeof(UnityEngine.Object).IsAssignableFrom(elemType))
                 return ObjectByType(elemType, (UnityEngine.Object)list[idx], etip, nv => Set(nv), opt.ControlWidth);
             if (elemType.IsEnum)
-                return EnumControl((Enum)list[idx], etip, nv => Set(nv));
+                return ZuiFieldPresentation.EnumControl((Enum)list[idx], etip, nv => Set(nv));
             if (elemType == typeof(float))
-                return Z.Float((float)list[idx], etip, nv => Set(nv), 80f);
+                return Z.Float((float)list[idx], etip, nv => Set(nv), opt.ControlWidth);
             if (elemType == typeof(int))
-                return Z.Int((int)list[idx], etip, nv => Set(nv), 80f);
+                return Z.Int((int)list[idx], etip, nv => Set(nv), opt.ControlWidth);
             if (elemType == typeof(string))
                 return Z.TextInput((string)(list[idx] ?? ""), etip, nv => Set(nv), opt.ControlWidth);
             if (elemType == typeof(Vector2))

@@ -77,6 +77,7 @@ namespace Laubrary.Zui
             {
                 _headerContent = new VisualElement();
                 _headerContent.AddToClassList("zui-box__headercontent");
+                _headerContent.AddToClassList("lau-card__actions");
                 _headerContent.RegisterCallback<PointerDownEvent>(ev => ev.StopPropagation());
                 if (_help != null)
                     _titleRow.Insert(_titleRow.IndexOf(_help), _headerContent);
@@ -146,9 +147,11 @@ namespace Laubrary.Zui
         public ZuiBox(string title, string tooltip, string stateKey = null, string icon = null)
         {
             AddToClassList("zui-box");
+            AddToClassList("lau-card");
 
             _body = new VisualElement();
             _body.AddToClassList("zui-box__body");
+            _body.AddToClassList("lau-card__body");
 
             if (!string.IsNullOrEmpty(title))
             {
@@ -156,6 +159,7 @@ namespace Laubrary.Zui
 
                 _titleRow = new VisualElement();
                 _titleRow.AddToClassList("zui-box__titlerow");
+                _titleRow.AddToClassList("lau-card__header");
                 if (!string.IsNullOrEmpty(tooltip)) _titleRow.tooltip = tooltip;
 
                 _caret = new Label("▾");

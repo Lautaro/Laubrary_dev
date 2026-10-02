@@ -38,7 +38,19 @@ namespace Laubrary.Zui
         /// A labelled control for one property. `onChanged` (optional) fires after a committed edit — for a
         /// window that has to repaint a preview or rebuild a dependent section.
         public static VisualElement Field(SerializedProperty prop, string label = null, string tooltip = null,
-            float width = DefaultWidth, System.Action onChanged = null)
+            float width = -1f, System.Action onChanged = null)
+        {
+            var control = FieldCore(prop, label, tooltip, width, onChanged);
+            if (control == null) return null;
+            var field = FieldInfoOf(prop);
+            var metadata = field != null
+                ? ZuiFieldPresentation.ForProperty(prop.propertyPath, field, prop.serializedObject.targetObject?.GetType(), control)
+                : ZuiFieldPresentation.ForProperty(prop.propertyPath, PropertyType(prop), isWide: width > DefaultPropertyMaxWidth);
+            return ZuiFieldPresentation.Stamp(control, metadata);
+        }
+
+        static VisualElement FieldCore(SerializedProperty prop, string label, string tooltip,
+            float width, System.Action onChanged)
         {
             string nice = label ?? ObjectNames.NicifyVariableName(prop.name);
             string tip = tooltip ?? TooltipOf(prop);
@@ -62,11 +74,11 @@ namespace Laubrary.Zui
             {
                 case SerializedPropertyType.Float:
                     return Z.Field(nice, tip, Z.Float(prop.floatValue, tip,
-                        v => Commit(p => p.floatValue = v), Mathf.Min(width, 80f)));
+                        v => Commit(p => p.floatValue = v), NumericWidth(width)));
 
                 case SerializedPropertyType.Integer:
                     return Z.Field(nice, tip, Z.Int(prop.intValue, tip,
-                        v => Commit(p => p.intValue = v), Mathf.Min(width, 80f)));
+                        v => Commit(p => p.intValue = v), NumericWidth(width)));
 
                 case SerializedPropertyType.Boolean:
                     return Z.Toggle(nice, tip, prop.boolValue, v => Commit(p => p.boolValue = v));
@@ -77,9 +89,23 @@ namespace Laubrary.Zui
 
                 case SerializedPropertyType.Enum:
                 {
-                    var choices = new List<string>(prop.enumDisplayNames);
-                    return Z.Field(nice, tip, Z.Dropdown(prop.enumValueIndex, choices, tip,
-                        v => Commit(p => p.enumValueIndex = v), width));
+                    var enumType = FieldInfoOf(prop)?.FieldType;
+                    if (enumType == null || !enumType.IsEnum)
+                        return Property(prop, nice, tip, width);
+                    var current = (System.Enum)System.Enum.ToObject(enumType, prop.intValue);
+                    bool flags = System.Attribute.IsDefined(enumType, typeof(System.FlagsAttribute));
+                    return Z.Field(nice, tip, ZuiFieldPresentation.EnumControl(current, tip, value => Commit(p =>
+                    {
+                        if (flags) p.intValue = System.Convert.ToInt32(value);
+                        else
+                        {
+                            var values = System.Enum.GetValues(enumType);
+                            int index = 0;
+                            for (int i = 0; i < values.Length; i++)
+                                if (values.GetValue(i).Equals(value)) { index = i; break; }
+                            p.enumValueIndex = index;
+                        }
+                    })));
                 }
 
                 case SerializedPropertyType.Color:
@@ -96,12 +122,24 @@ namespace Laubrary.Zui
                             nv => Commit(p => p.vector2Value = new Vector2(p.vector2Value.x, nv)), 60f))));
                 }
 
+                case SerializedPropertyType.Vector3:
+                {
+                    var v = prop.vector3Value;
+                    return Z.Field(nice, tip, Z.Row(
+                        Z.Field("X", tip + " (X)", Z.Float(v.x, tip + " (X)",
+                            nv => Commit(p => p.vector3Value = new Vector3(nv, p.vector3Value.y, p.vector3Value.z)), -1f)),
+                        Z.Field("Y", tip + " (Y)", Z.Float(v.y, tip + " (Y)",
+                            nv => Commit(p => p.vector3Value = new Vector3(p.vector3Value.x, nv, p.vector3Value.z)), -1f)),
+                        Z.Field("Z", tip + " (Z)", Z.Float(v.z, tip + " (Z)",
+                            nv => Commit(p => p.vector3Value = new Vector3(p.vector3Value.x, p.vector3Value.y, nv)), -1f))));
+                }
+
                 case SerializedPropertyType.ObjectReference:
                 {
                     var f = new ObjectField { objectType = TypeOfObjectField(prop), value = prop.objectReferenceValue, tooltip = tip };
                     f.AddToClassList("zui-foundation-object");
                     // Width is an explicit caller contract, not a presentation default.
-                    f.style.width = width;
+                    if (width >= 0f) f.style.width = width;
                     f.RegisterValueChangedCallback(e => Commit(p => p.objectReferenceValue = e.newValue));
                     return Z.Field(nice, tip, f);
                 }
@@ -144,6 +182,56 @@ namespace Laubrary.Zui
                 System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic |
                 System.Reflection.BindingFlags.Instance) : null;
             return field != null && typeof(Object).IsAssignableFrom(field.FieldType) ? field.FieldType : typeof(Object);
+        }
+
+        static float NumericWidth(float width) => width < 0f ? width : Mathf.Min(width, 80f);
+
+        static System.Type PropertyType(SerializedProperty prop)
+        {
+            switch (prop.propertyType)
+            {
+                case SerializedPropertyType.Float: return typeof(float);
+                case SerializedPropertyType.Integer: return typeof(int);
+                case SerializedPropertyType.Boolean: return typeof(bool);
+                case SerializedPropertyType.String: return typeof(string);
+                case SerializedPropertyType.Color: return typeof(Color);
+                case SerializedPropertyType.Vector2: return typeof(Vector2);
+                case SerializedPropertyType.Vector3: return typeof(Vector3);
+                case SerializedPropertyType.Enum: return typeof(System.Enum);
+                case SerializedPropertyType.ObjectReference: return TypeOfObjectField(prop);
+                default: return typeof(object);
+            }
+        }
+
+        static System.Reflection.FieldInfo FieldInfoOf(SerializedProperty prop)
+        {
+            var target = prop?.serializedObject?.targetObject;
+            if (target == null) return null;
+            System.Type type = target.GetType();
+            System.Reflection.FieldInfo found = null;
+            string[] parts = prop.propertyPath.Split('.');
+            for (int i = 0; i < parts.Length; i++)
+            {
+                if (parts[i] == "Array")
+                {
+                    if (type.IsArray) type = type.GetElementType();
+                    else if (type.IsGenericType) type = type.GetGenericArguments()[0];
+                    if (i + 1 < parts.Length && parts[i + 1].StartsWith("data[")) i++;
+                    continue;
+                }
+
+                found = null;
+                for (System.Type current = type; current != null; current = current.BaseType)
+                {
+                    found = current.GetField(parts[i], System.Reflection.BindingFlags.Public |
+                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance |
+                        System.Reflection.BindingFlags.DeclaredOnly);
+                    if (found != null) break;
+                }
+                if (found == null) return null;
+                type = found.FieldType;
+            }
+            return found;
         }
     }
 }

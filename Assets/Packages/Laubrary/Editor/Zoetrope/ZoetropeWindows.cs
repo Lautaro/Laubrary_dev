@@ -664,6 +664,7 @@ namespace Laubrary.Zoetrope.Editor
 
     public class ZoeWindow : ZoetropeDefWindow<Zoe>
     {
+        protected override string PresentationTool => "zoe";
         [MenuItem("Laubrary/Zoetrope/Zoes")]
         public static void Open() => GetWindow<ZoeWindow>("Zoes");
         protected override string TypeLabel => "Zoe";
@@ -1389,8 +1390,17 @@ namespace Laubrary.Zoetrope.Editor
             foreach (var (id, _) in WeaponAttachmentLibrary.FindMuzzleLayerCandidates(zoe)) if (!layerIdList.Contains(id)) layerIdList.Add(id);
             string[] pointLayerIds = layerIdList.ToArray();
 
-            root.Add(Z.Text($"Effects  ({fxListProp.arraySize})", ZuiText.Subtle,
-                "Every effect this reaction fires, in order — each picks which of the event's params it reads."));
+            const string effectsTip = "Every effect this reaction fires, in order — each picks which of the event's params it reads.";
+
+            // The Add-effect menu is also the empty-state exit. When there are no cards, keep the count and
+            // action on one line rather than spending two rows on two short elements.
+            var addBtn = Z.Button("+ Add effect  ▾", "Pick an effect kind to add to this reaction.", null);
+            addBtn.AddToClassList("lau-effect-list__add-action");
+            addBtn.clicked += () => ShowAddEffectMenu(addBtn, fxPath);
+            if (fxListProp.arraySize == 0)
+                root.Add(Z.Row(Z.Text("Effects  (0)", ZuiText.Subtle, effectsTip), addBtn, Z.Flexible()));
+            else
+                root.Add(Z.Text($"Effects  ({fxListProp.arraySize})", ZuiText.Subtle, effectsTip));
 
             // A dedicated host so the reorder insertion line + index math only ever see effect cards, never the
             // Add button below (mirrors SpriteFxStackView's listHost split).
@@ -1400,13 +1410,8 @@ namespace Laubrary.Zoetrope.Editor
                 BuildFxEntry(listHost, fxListProp.GetArrayElementAtIndex(i), fxPath, i, clipFrames, pointLayerIds, zoe,
                              clipProp.stringValue);
 
-            // The Add-effect menu: a Z.Menu of icon rows listing every IEffect kind (grouped by module), so
-            // picking one appends an entry with that effect already assigned — nicer than adding a blank entry and
-            // hunting the type switcher. The per-card switcher below still lets you re-type an existing entry.
-            var addBtn = Z.Button("+ Add effect  ▾", "Pick an effect kind to add to this reaction.", null);
-            addBtn.AddToClassList("lau-effect-list__add-action");
-            addBtn.clicked += () => ShowAddEffectMenu(addBtn, fxPath);
-            root.Add(addBtn);
+            // With cards present the action stays after the list, where it appends another card naturally.
+            if (fxListProp.arraySize > 0) root.Add(addBtn);
         }
 
         /// The event's own TIMEBASE, authored beside the clip that supplies it: how long this reaction lasts,
@@ -1445,18 +1450,19 @@ namespace Laubrary.Zoetrope.Editor
             row.Add(EnumPicker(modeProp, "Lasts", modeTip));
             row.Add(Z.HSpace());
 
-            // Both numerics stay in the row at all times with `visibility` doing the showing — switching mode
-            // must not reflow the card under the cursor (the stable-workspace rule).
+            // Both numerics stay alive with `visibility` doing the showing, but share one fixed slot. Reserving
+            // two consecutive slots pushed Stun onto a row by itself despite the wide editor surface.
             var loopsField = IntFieldClamped("Loops", loopsProp.propertyPath, Mathf.Max(1, loopsProp.intValue),
                 loopsTip, v => Mathf.Max(1, v));
             loopsField.style.visibility = fixedSeconds ? Visibility.Hidden : Visibility.Visible;
             var secondsField = NumField("Seconds", secondsProp.propertyPath, secondsProp.floatValue,
                 secsTip, v => Mathf.Max(0f, v));
             secondsField.style.visibility = fixedSeconds ? Visibility.Visible : Visibility.Hidden;
-            // Absolutely positioned over each other would be cleverer and more fragile; two reserved slots keep
-            // the row's geometry identical in both modes, which is the property that matters.
-            row.Add(loopsField);
-            row.Add(secondsField);
+            var durationSlot = new VisualElement();
+            durationSlot.AddToClassList("lau-reaction__duration-slot");
+            durationSlot.Add(loopsField);
+            durationSlot.Add(secondsField);
+            row.Add(durationSlot);
 
             // Stun joins this row rather than starting one: it is a short numeric that belongs to the same
             // question the row already asks ("how does this reaction sit in time"), and vertical space is the
@@ -1592,10 +1598,15 @@ namespace Laubrary.Zoetrope.Editor
 
             root.Add(Z.Text($"Custom events  ({eventsProp.arraySize})", ZuiText.Section, EventsTip));
 
-            // The empty state is a screen of its own: a character with no custom events must still say what
-            // this block is for and offer the one move that gets out of it.
+            var add = Z.Button("+ New event",
+                "Declare another named reaction on this character, and start naming it.",
+                () => AddEvent(listPath, zoe)).W(AddButtonWidth);
+
+            // The empty state is a screen of its own, but its short status and exit action share one line.
             if (eventsProp.arraySize == 0)
-                root.Add(Z.Text("None declared — this character plays only Hit and Death.", ZuiText.Subtle, EventsTip));
+                root.Add(Z.Row(add,
+                    Z.Text("None declared — this character plays only Hit and Death.", ZuiText.Subtle, EventsTip),
+                    Z.Flexible()));
 
             // Cards only, so the reorder insertion line and its index maths never see the Add button.
             var listHost = new VisualElement();
@@ -1603,9 +1614,7 @@ namespace Laubrary.Zoetrope.Editor
             for (int i = 0; i < eventsProp.arraySize; i++)
                 BuildEventCard(listHost, eventsProp.GetArrayElementAtIndex(i), listPath, i, zoe);
 
-            root.Add(Z.Button("+ New event",
-                "Declare another named reaction on this character, and start naming it.",
-                () => AddEvent(listPath, zoe)).W(AddButtonWidth));
+            if (eventsProp.arraySize > 0) root.Add(add);
         }
 
         /// One named event: a header carrying its id (the identity, editable in place) and a body that is the
@@ -2327,8 +2336,11 @@ namespace Laubrary.Zoetrope.Editor
                     "point to the Zoe (it rides along, from where the hit landed). A Random direction is rolled " +
                     "once at spawn and held, so it scatters rather than spins.",
                     followProp.boolValue, v => Commit(followPath, p => p.boolValue = v));
-                posRow.Add(Z.HSpace());
-                posRow.Add(follow);
+                // Keep this on its own row. The placement picker can wrap to multiple lines; placing Follow as
+                // a sibling in that row let the next Rotate group begin before the wrapped row had reserved its
+                // final line on narrow editor windows.
+                var followRow = Group();
+                followRow.Add(follow);
             }
 
             // Direction + Scalar pickers share one row (both short), each shown only when the effect reads it.

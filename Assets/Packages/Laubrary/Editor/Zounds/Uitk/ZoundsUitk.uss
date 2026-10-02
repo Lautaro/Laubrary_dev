@@ -378,14 +378,15 @@
 .zs-root.zs-browser__top, .zs-root .zs-browser__top { flex-shrink: 0; }
 .zs-root.zs-browser__list-host, .zs-root .zs-browser__list-host { flex-grow: 1; flex-shrink: 1; }
 .zs-root.zs-browser__title-box-box, .zs-root .zs-browser__title-box-box { flex-shrink: 0; }
-.zs-root.zs-browser__title-box-row, .zs-root .zs-browser__title-box-row { flex-direction: row; align-items: flex-start; }
+.zs-root.zs-browser__title-box-row, .zs-root .zs-browser__title-box-row { flex-direction: row; align-items: flex-start; min-width: 0; }
+.zs-root .zs-browser__title-box-row > .zs-title { min-width: 0; flex-shrink: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .zs-root.zs-browser__title-box-title, .zs-root .zs-browser__title-box-title { height: 18px; }
 .zs-root.zs-browser__slider-settings-label, .zs-root .zs-browser__slider-settings-label { width: 80px; height: 18px; }
 .zs-root.zs-browser__slider-mode-option, .zs-root .zs-browser__slider-mode-option { width: 100px; }
 .zs-root.zs-browser__settings-panel-mode, .zs-root .zs-browser__settings-panel-mode { max-width: 200px; flex-grow: 1; }
 .zs-root.zs-browser__settings-panel-width, .zs-root .zs-browser__settings-panel-width { max-width: 200px; flex-grow: 1; }
 .zs-root.zs-browser__settings-panel-skin, .zs-root .zs-browser__settings-panel-skin { max-width: 200px; flex-grow: 1; }
-.zs-root.zs-browser__row, .zs-root .zs-browser__row { flex-direction: row; flex-shrink: 0; align-items: flex-start; }
+.zs-root.zs-browser__row, .zs-root .zs-browser__row { flex-direction: row; flex-wrap: wrap; flex-shrink: 0; align-items: flex-start; }
 .zs-root.zs-browser__setting-toggle, .zs-root .zs-browser__setting-toggle { flex-grow: 1; flex-shrink: 1; flex-basis: 0; min-width: 28px; }
 .zs-root.zs-browser__presets-bar, .zs-root .zs-browser__presets-bar { flex-shrink: 0; }
 .zs-root.zs-browser__presets-bar-label, .zs-root .zs-browser__presets-bar-label { position: absolute; left: 0px; top: 0px; }
@@ -400,7 +401,7 @@
 .zs-root.zs-browser__volume-row-volume, .zs-root .zs-browser__volume-row-volume { height: 26px; }
 .zs-root.zs-browser__toolbar-measurement, .zs-root .zs-browser__toolbar-measurement { font-size: 13px; position: absolute; }
 .zs-root.zs-browser__toolbar-host, .zs-root .zs-browser__toolbar-host { flex-shrink: 0; }
-.zs-root.zs-browser__toolbar-row, .zs-root .zs-browser__toolbar-row { height: 30px; }
+.zs-root.zs-browser__toolbar-row, .zs-root .zs-browser__toolbar-row { min-height: 30px; flex-shrink: 0; flex-wrap: wrap; }
 .zs-root.zs-browser__segments, .zs-root .zs-browser__segments { flex-direction: row; height: 30px; flex-shrink: 0; }
 .zs-root.zs-browser__segment, .zs-root .zs-browser__segment { flex-grow: 1; flex-basis: 0; }
 .zs-root.zs-browser__list-frame, .zs-root .zs-browser__list-frame { flex-grow: 1; flex-shrink: 1; align-items: stretch; margin-left: 5px; margin-right: 5px; margin-bottom: 5px; }
@@ -684,6 +685,7 @@
 .zs-root .zs-browser__presets-viewport { left: 50px; }
 .zs-root .zs-browser__presets-scroll { right: 84px; }
 .zs-root .zs-browser__presets-save { width: 80px; }
+.zs-root .zs-browser__list-scroll > .zs-zound-row__list-row { flex-shrink: 0; }
 .zs-root .zs-browser__inspector { flex-shrink: 0; }
 .zs-root .zs-chain-analyser__lane-label { width: 150px; }
 .zs-root .zs-chain-editor__effect-summary { right: 24px; }

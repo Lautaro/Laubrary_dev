@@ -4,23 +4,8 @@ using UnityEngine.UIElements;
 
 namespace Laubrary.Zui
 {
-    /// A UI Toolkit twin of the IMGUI <c>ZUI.Envelope(rect, points, curveColor, def, runtime)</c> (added for the Zounds UI
-    /// Toolkit port, T-0468), driven by the very same <see cref="ZUIEnvelopeDef"/> (look) and <see cref="ZUIEnvelopeRuntime"/>
-    /// (domain, permissions, callbacks) objects, with the IMGUI control's rules one for one:
-    ///
-    /// - drawn inside the def's padding: background and border on the outer rect, then the optional grid, the curve
-    ///   (sampled every 3 px, bent segments), the Shift-hover segment highlight, the point handles (per-edit-state
-    ///   radius and colours, hover grow + selection ring, value tag), the add-point ghost, and the selection box;
-    /// - press on a point drags it (double-click removes it when allowed; Shift+right-press bends its segment); press on
-    ///   the line adds a point there and drags it; Shift+press on the line drags the segment, Shift+right-press bends it;
-    ///   press on empty plot starts a box select; dragging with several selected moves them all; Delete removes the
-    ///   selection; a one-point envelope can grow back from a press on its flat line;
-    /// - the runtime's onDragStarted / onDragUpdated / onMutated fire exactly where the IMGUI control fires them.
-    ///
-    /// Why this exists beside <see cref="ZuiEnvelope"/>: that control is the Toolkit-native envelope with its own
-    /// established gestures (double-click to insert, right-click to remove) and fixed look, used by other tools. This one
-    /// is the exact twin of the sheet-styled IMGUI control, for ports that must behave and look like the IMGUI original.
-    ///
+    /// Shared retained-mode envelope canvas. Configuration controls gestures, permissions and decorations; adapters
+    /// retain the established entry points without maintaining separate painters or editing algorithms.
     /// Several envelopes stacked over one area (the Klip waveform draws volume and pitch over the same rect) must be offered
     /// each event in turn, as IMGUI offers it to each in draw order; a host does that by setting <c>pickingMode</c> to
     /// Ignore and calling <see cref="PointerDown"/> / <see cref="PointerMove"/> / <see cref="PointerUp"/> /
@@ -33,6 +18,7 @@ namespace Laubrary.Zui
         public Color curveColor;
         public ZUIEnvelopeDef def;
         public ZUIEnvelopeRuntime rt;
+        public readonly ZuiEnvelopeConfiguration configuration = new ZuiEnvelopeConfiguration();
         /// <summary>
         /// Right-click on a point (without Shift, which bends a segment): the host's settings for that point, such as a
         /// random point's ellipse (Zounds, T-0483). Given the point's index and its centre in world space. Null: ignored.
@@ -49,6 +35,7 @@ namespace Laubrary.Zui
         Vector2 _boxStart, _pointer = new Vector2(float.NaN, float.NaN);
         readonly List<int> _selected = new List<int>();
         bool _multiDrag;
+        bool _gestureRecorded, _pendingMultiDrag;
         readonly ZuiEnvelopePresentation _presentation = new ZuiEnvelopePresentation();
 
         /// <summary>The selected points, as indices (a host's point menu acts on them when the clicked point is one).</summary>
@@ -75,11 +62,28 @@ namespace Laubrary.Zui
                 RegisterCallback<PointerUpEvent>(e => { PointerUp(); if (this.HasPointerCapture(e.pointerId)) this.ReleasePointer(e.pointerId); });
                 RegisterCallback<PointerLeaveEvent>(_ => { if (!_pressed) { _hoverPoint = _hoverLine = -1; _pointer = new Vector2(float.NaN, float.NaN); Repaint(); } });
                 RegisterCallback<KeyDownEvent>(e => { if (KeyDown(e.keyCode)) e.StopPropagation(); });
+                RegisterCallback<PointerCaptureOutEvent>(_ => PointerUp());
+                RegisterCallback<DetachFromPanelEvent>(_ => PointerUp());
             }
         }
 
         /// <summary>Redraw after the points or the look changed elsewhere.</summary>
-        public void Repaint() { MarkDirtyRepaint(); UpdateTag(); }
+        public void Repaint() { Prepare(); MarkDirtyRepaint(); UpdateTag(); }
+
+        /// <summary>Adapters refresh mutable domain/configuration before drawing and editing.</summary>
+        protected virtual void Prepare() { }
+
+        void BeginGesture()
+        {
+            if (_gestureRecorded) return;
+            _gestureRecorded = true;
+            rt.onDragStarted?.Invoke();
+        }
+
+        void SelectionChanged() => configuration.onSelectionChanged?.Invoke();
+        bool ValidPlot(Rect r) => Finite(r.min) && Finite(r.size) && r.width > 0f && r.height > 0f
+            && rt != null && Finite(new Vector2(rt.xMin, rt.xMax)) && Finite(new Vector2(rt.yMin, rt.yMax))
+            && rt.xMax > rt.xMin && rt.yMax > rt.yMin;
 
         ZuiEnvelopePresentation.Values Presentation
         {
@@ -107,6 +111,7 @@ namespace Laubrary.Zui
         ZUIEnvelopeEditState State(int i)
         {
             if (rt.anchorsLocked && points.Count > 1 && (i == 0 || i == points.Count - 1)) return ZUIEnvelopeEditState.NotEditable;
+            if (configuration.pointState != null) return configuration.pointState(i);
             return points[i].editState;
         }
         static bool CanMoveX(ZUIEnvelopeEditState s) => s == ZUIEnvelopeEditState.Editable || s == ZUIEnvelopeEditState.XEditable;
@@ -132,19 +137,42 @@ namespace Laubrary.Zui
 
         int HitPoint(Rect r, Vector2 m)
         {
+            int best = -1; float bestDistance = float.PositiveInfinity;
             for (int i = 0; i < points.Count; i++)
             {
                 var h = Presentation.GetHandle(State(i));
-                if (Vector2.Distance(m, new Vector2(TimeToX(points[i].time, r), ValueToY(points[i].value, r))) <= h.radius + Presentation.hitRadiusExtra) return i;
+                float distance = Vector2.Distance(m, new Vector2(TimeToX(points[i].time, r), ValueToY(points[i].value, r)));
+                if (distance > h.radius + Presentation.hitRadiusExtra) continue;
+                if (!configuration.nearestPointHit) return i;
+                if (distance <= bestDistance) { best = i; bestDistance = distance; }
             }
-            return -1;
+            return best;
         }
 
         int HitLine(Rect r, Vector2 m)
         {
             if (points.Count < 2) return -1;
+            if (configuration.geometricSegmentHit)
+            {
+                for (int i = 1; i < points.Count; i++)
+                {
+                    var a = points[i - 1]; var b = points[i];
+                    Vector2 previous = new Vector2(TimeToX(a.time, r), ValueToY(a.value, r));
+                    for (int s = 1; s <= 16; s++)
+                    {
+                        float f = s / 16f;
+                        var current = new Vector2(TimeToX(Mathf.Lerp(a.time, b.time, f), r), ValueToY(ZUIEnvelopeEvaluator.Bend(a.value, b.value, f, b.exponent), r));
+                        Vector2 d = current - previous;
+                        float tOnLine = d.sqrMagnitude > 1e-6f ? Mathf.Clamp01(Vector2.Dot(m - previous, d) / d.sqrMagnitude) : 0f;
+                        if (Vector2.Distance(m, previous + d * tOnLine) <= configuration.lineHitDistance) return i;
+                        previous = current;
+                    }
+                }
+                return -1;
+            }
             float t = XToTime(m.x, r);
-            if (Mathf.Abs(m.y - ValueToY(Evaluate(points, t, rt.yMax), r)) > 6f) return -1;
+            if (t < points[0].time || t > points[points.Count - 1].time) return -1;
+            if (Mathf.Abs(m.y - ValueToY(Evaluate(points, t, rt.yMax), r)) > configuration.lineHitDistance) return -1;
             for (int i = 1; i < points.Count; i++) if (points[i].time >= t) return i;
             return -1;
         }
@@ -171,131 +199,161 @@ namespace Laubrary.Zui
         /// </summary>
         public bool IsOverPoint(Vector2 m)
         {
+            Prepare();
             if (points == null || rt == null || def == null || !rt.editable) return false;
             var r = Plot;
-            if (r.width <= 0f || r.height <= 0f || rt.xMax <= rt.xMin || rt.yMax <= rt.yMin) return false;
+            if (!ValidPlot(r)) return false;
             int hit = HitPoint(r, m);
             return hit >= 0 && State(hit) != ZUIEnvelopeEditState.NotEditable;
         }
 
-        /// <summary>The IMGUI MouseDown path. Returns true when this envelope took the press (the host should capture).</summary>
+        /// <summary>Returns true when the envelope consumed the press; overlapping hosts then capture the pointer.</summary>
         public bool PointerDown(Vector2 m, int button, int clickCount, bool shift)
         {
-            if (points == null || rt == null || def == null || !rt.editable) return false;
+            Prepare();
+            if (!CanEdit || !ValidPlot(Plot) || !Finite(m)) return false;
             _shift = shift; _pointer = m;
             UpdateHover(m);
             var r = Plot;
-            if (r.width <= 0f || r.height <= 0f || rt.xMax <= rt.xMin || rt.yMax <= rt.yMin) return false;
             float slop = MaxHandleRadius + Presentation.hitRadiusExtra;
             if (!new Rect(r.x - slop, r.y - slop, r.width + slop * 2f, r.height + slop * 2f).Contains(m)) return false;
-            bool inside = r.Contains(m);
-
             int hit = HitPoint(r, m);
+            if (button == 1 && shift && rt.allowExponentEdit)
+            {
+                int segment = hit > 0 ? hit : HitLine(r, m);
+                if (segment > 0)
+                {
+                    BeginGesture(); _dragExponent = segment; _pressed = true; Focus(); Repaint(); return true;
+                }
+            }
             if (hit >= 0)
             {
-                var es = State(hit);
-                if (es == ZUIEnvelopeEditState.NotEditable) return false;
-                if (button == 0)
+                if (State(hit) == ZUIEnvelopeEditState.NotEditable) return false;
+                if (button == 1 && !shift)
                 {
-                    if (clickCount == 2 && rt.allowRemovePoints && CanRemove(es) && points.Count > 1)
-                    {
-                        rt.onDragStarted?.Invoke();
-                        points.RemoveAt(hit);
-                        _selected.Clear();
-                        rt.onMutated?.Invoke();
-                        Repaint();
-                        return true;
-                    }
-                    rt.onDragStarted?.Invoke();
-                    // A point that is part of a selection of several drags the whole selection (T-0512); otherwise just it.
-                    if (_selected.Count > 1 && _selected.Contains(hit)) { _multiDrag = true; _dragPoint = -1; }
-                    else { _dragPoint = hit; _selected.Clear(); _selected.Add(hit); }
-                    Focus();
-                    _pressed = true; Repaint();
-                    return true;
+                    if (onPointContext != null) { onPointContext(hit, this.LocalToWorld(PointToLocal(points[hit].time, points[hit].value))); return true; }
+                    if (configuration.rightClickRemovesPoint) return RemovePoint(hit);
+                    return false;
                 }
-                if (button == 1 && shift && rt.allowExponentEdit && hit > 0)
-                {
-                    rt.onDragStarted?.Invoke();
-                    _dragExponent = hit;
-                    _pressed = true; Repaint();
-                    return true;
-                }
-                if (button == 1 && !shift && onPointContext != null)
-                {
-                    onPointContext(hit, this.LocalToWorld(new Vector2(TimeToX(points[hit].time, r), ValueToY(points[hit].value, r))));
-                    return true;
-                }
-                return false;
+                if (button != 0) return false;
+                if (clickCount == 2) return RemovePoint(hit);
+                BeginDrag(hit); Focus(); Repaint(); return true;
             }
-            if (!inside) return false;
-
-            if (points.Count == 1 && button == 0 && rt.allowAddPoints)
-            {
-                float t = XToTime(m.x, r), v = Evaluate(points, t, rt.yMax);
-                if (Mathf.Abs(m.y - ValueToY(v, r)) <= 6f)
-                {
-                    rt.onDragStarted?.Invoke();
-                    int ins = Insert(new ZUIEnvelopePoint(t, v, 1f));
-                    _dragPoint = ins; _selected.Clear(); _selected.Add(ins);
-                    rt.onMutated?.Invoke();
-                    _pressed = true; Repaint();
-                    return true;
-                }
-            }
+            if (!r.Contains(m)) return false;
             int line = HitLine(r, m);
-            if (line > 0)
+            if (line > 0 && shift && button == 0 && rt.allowSegmentDrag)
             {
-                if (shift && button == 0 && rt.allowSegmentDrag) { rt.onDragStarted?.Invoke(); _dragLine = line; _selected.Clear(); _pressed = true; Repaint(); return true; }
-                if (shift && button == 1 && rt.allowExponentEdit) { rt.onDragStarted?.Invoke(); _dragExponent = line; _selected.Clear(); _pressed = true; Repaint(); return true; }
-                if (button == 0 && rt.allowAddPoints)
-                {
-                    float t = XToTime(m.x, r), v = Evaluate(points, t, rt.yMax);
-                    rt.onDragStarted?.Invoke();
-                    int ins = Insert(new ZUIEnvelopePoint(t, v, 1f));
-                    _dragPoint = ins; _selected.Clear(); _selected.Add(ins);
-                    rt.onMutated?.Invoke();
-                    _pressed = true; Repaint();
-                    return true;
-                }
+                BeginGesture(); _dragLine = line; _selected.Clear(); SelectionChanged();
+                _pressed = true; Focus(); Repaint(); return true;
             }
-            // Double-click on empty curve area: a point there, where the pointer is (T-0511).
+            bool onFlatLine = points.Count == 1 && Mathf.Abs(m.y - ValueToY(points[0].value, r)) <= configuration.lineHitDistance;
+            if (button == 0 && !shift && rt.allowAddPoints && configuration.addOnLinePress && (line > 0 || onFlatLine))
+            {
+                InsertAt(m, true, true); return true;
+            }
             if (button == 0 && clickCount == 2 && rt.allowAddPoints)
             {
-                float t = Mathf.Clamp(XToTime(m.x, r), rt.xMin, rt.xMax);
-                float v = Mathf.Clamp(rt.yMin + (rt.yMax - rt.yMin) * (1f - (m.y - r.y) / r.height), rt.yMin, rt.yMax);
-                rt.onDragStarted?.Invoke();
-                int ins = Insert(new ZUIEnvelopePoint(t, v, 1f));
-                _selected.Clear(); _selected.Add(ins);
-                rt.onMutated?.Invoke();
-                Repaint();
-                return true;
+                InsertAt(m, false, configuration.dragAfterEmptyInsert); return true;
+            }
+            if (button == 0 && configuration.moveSelectionFromEmpty && _selected.Count > 1)
+            {
+                _pendingMultiDrag = true; _pressed = true; Focus(); Repaint(); return true;
             }
             if (button == 0 && rt.allowBoxSelect)
             {
-                _boxSelecting = true; _boxStart = m; _selected.Clear();
-                Focus();
-                _pressed = true; Repaint();
-                return true;
+                _boxSelecting = true; _boxStart = m; _selected.Clear(); SelectionChanged();
+                _pressed = true; Focus(); Repaint(); return true;
             }
             return false;
         }
 
-        /// <summary>The IMGUI MouseMove/MouseDrag path. <paramref name="pressedButtons"/> as UI Toolkit reports it (bit 0 = left).</summary>
+        bool CanEdit => points != null && rt != null && def != null && rt.editable && enabledInHierarchy;
+        static bool Finite(Vector2 p) => !float.IsNaN(p.x) && !float.IsNaN(p.y) && !float.IsInfinity(p.x) && !float.IsInfinity(p.y);
+        float Coordinate(float v) => configuration.roundCoordinates ? (float)System.Math.Round(v, 5) : v;
+
+        public Vector2 PointToLocal(float time, float value)
+        {
+            Prepare(); var r = Plot;
+            return ValidPlot(r) ? new Vector2(TimeToX(time, r), ValueToY(value, r)) : Vector2.zero;
+        }
+        public int FindPointIndexNear(Vector2 local) { Prepare(); return points != null && ValidPlot(Plot) ? HitPoint(Plot, local) : -1; }
+        /// <summary>The LEFT endpoint index of the hit segment, or -1.</summary>
+        public int FindSegmentIndexNear(Vector2 local) { Prepare(); int i = points != null && ValidPlot(Plot) ? HitLine(Plot, local) : -1; return i > 0 ? i - 1 : -1; }
+
+        int InsertAt(Vector2 local, bool onLine, bool drag)
+        {
+            Prepare();
+            if (!CanEdit || !rt.allowAddPoints || !ValidPlot(Plot) || !Finite(local)) return -1;
+            var r = Plot;
+            float t = Coordinate(Mathf.Clamp(XToTime(local.x, r), rt.xMin, rt.xMax));
+            float v = onLine ? Evaluate(points, t, rt.yMax) : rt.yMin + (rt.yMax - rt.yMin) * (1f - (local.y - r.y) / r.height);
+            v = Coordinate(Mathf.Clamp(v, rt.yMin, rt.yMax));
+            BeginGesture();
+            int index = Insert(new ZUIEnvelopePoint(t, v, 1f));
+            _selected.Clear(); _selected.Add(index); SelectionChanged();
+            _dragPoint = drag ? index : -1; _pressed = drag;
+            rt.onMutated?.Invoke();
+            if (!drag) _gestureRecorded = false;
+            Focus(); Repaint(); return index;
+        }
+        public int InsertPoint(Vector2 local) => InsertAt(local, false, false);
+
+        public bool RemovePoint(int index)
+        {
+            Prepare();
+            if (!CanEdit || !rt.allowRemovePoints || index < 0 || index >= points.Count
+                || points.Count <= Mathf.Max(0, configuration.minimumPoints) || !CanRemove(State(index))) return false;
+            BeginGesture(); points.RemoveAt(index);
+            _selected.Clear(); _hoverPoint = _hoverLine = -1; SelectionChanged();
+            rt.onMutated?.Invoke(); _gestureRecorded = false; Repaint(); return true;
+        }
+
+        public void SelectInBox(Vector2 fromLocal, Vector2 toLocal)
+        {
+            Prepare();
+            if (points == null || rt == null || !ValidPlot(Plot)) return;
+            _boxStart = fromLocal; BoxUpdate(Plot, toLocal); Repaint();
+        }
+
+        public void BeginDrag(int index)
+        {
+            Prepare();
+            if (!CanEdit || index < 0 || index >= points.Count || State(index) == ZUIEnvelopeEditState.NotEditable) return;
+            BeginGesture();
+            _pointer = PointToLocal(points[index].time, points[index].value);
+            if (_selected.Count > 1 && _selected.Contains(index)) { _multiDrag = true; _dragPoint = -1; }
+            else { _dragPoint = index; _selected.Clear(); _selected.Add(index); SelectionChanged(); }
+            _pressed = true;
+        }
+        public void DragToLocal(Vector2 local)
+        {
+            if (!CanEdit || !ValidPlot(Plot)) return;
+            Vector2 delta = local - _pointer;
+            if (!Finite(_pointer)) delta = Vector2.zero;
+            PointerMove(local, delta, _shift, 1);
+        }
+        public void EndDrag() => PointerUp();
+
+        /// <summary>Moves the captured gesture or refreshes hover; hosts may forward their own pointer stream.</summary>
         public bool PointerMove(Vector2 m, Vector2 delta, bool shift, int pressedButtons)
         {
-            if (points == null || rt == null || def == null) return false;
+            Prepare();
+            if (points == null || rt == null || def == null || !ValidPlot(Plot) || !Finite(m) || !Finite(delta)) return false;
             _shift = shift; _pointer = m;
             var r = Plot;
             bool used = false;
-            if (_pressed && r.width > 0f && r.height > 0f)
+            if (_pressed && CanEdit)
             {
                 float xRange = rt.xMax - rt.xMin, yRange = rt.yMax - rt.yMin;
+                if (_pendingMultiDrag && delta != Vector2.zero)
+                {
+                    _pendingMultiDrag = false; _multiDrag = true; BeginGesture();
+                }
                 if (_dragPoint >= 0 && _dragPoint < points.Count)
                 {
                     var p = points[_dragPoint]; var es = State(_dragPoint);
-                    float t = Mathf.Clamp(XToTime(m.x, r), rt.xMin, rt.xMax);
-                    float v = Mathf.Clamp(rt.yMin + yRange * (1f - (m.y - r.y) / r.height), rt.yMin, rt.yMax);
+                    float t = Coordinate(Mathf.Clamp(XToTime(m.x, r), rt.xMin, rt.xMax));
+                    float v = Coordinate(Mathf.Clamp(rt.yMin + yRange * (1f - (m.y - r.y) / r.height), rt.yMin, rt.yMax));
                     if (_dragPoint > 0) t = Mathf.Max(t, points[_dragPoint - 1].time);
                     if (_dragPoint < points.Count - 1) t = Mathf.Min(t, points[_dragPoint + 1].time);
                     if (CanMoveX(es)) p.time = t;
@@ -304,24 +362,21 @@ namespace Laubrary.Zui
                 }
                 else if (_dragLine > 0 && _dragLine < points.Count)
                 {
-                    if (!shift) _dragLine = -1;
+                    if (!shift && configuration.requireShiftDuringDrag) _dragLine = -1;
                     else { MoveSegment(_dragLine, xRange, yRange, r, delta); rt.onDragUpdated?.Invoke(); used = true; }
                 }
                 else if (_dragExponent > 0 && _dragExponent < points.Count)
                 {
-                    if (!shift) _dragExponent = -1;
+                    if (!shift && configuration.requireShiftDuringDrag) _dragExponent = -1;
                     else
                     {
                         var p = points[_dragExponent]; var prev = points[_dragExponent - 1];
-                        float dy = delta.y; if (p.value < prev.value) dy = -dy;
-                        p.exponent = BendStep(p.exponent, dy / r.height);
+                        float dy = p.value < prev.value ? -delta.y : delta.y;
+                        p.exponent = configuration.usePixelBend ? Mathf.Clamp(p.exponent * Mathf.Pow(1.02f, dy), 0.05f, 20f) : BendStep(p.exponent, dy / r.height);
                         rt.onDragUpdated?.Invoke(); used = true;
                     }
                 }
-                else if (_boxSelecting)
-                {
-                    BoxUpdate(r, m); used = true;
-                }
+                else if (_boxSelecting) { BoxUpdate(r, m); used = true; }
                 else if (_multiDrag && _selected.Count > 1 && (pressedButtons & 1) != 0)
                 {
                     MoveSelection(xRange * delta.x / r.width, -yRange * delta.y / r.height);
@@ -329,45 +384,48 @@ namespace Laubrary.Zui
                 }
             }
             else UpdateHover(m);
-            Repaint();
-            return used;
+            Repaint(); return used;
         }
 
         public void PointerUp()
         {
-            _pressed = false; _boxSelecting = false; _multiDrag = false;
+            if (_pendingMultiDrag) { _selected.Clear(); SelectionChanged(); }
+            _pressed = _boxSelecting = _multiDrag = _pendingMultiDrag = _gestureRecorded = false;
             _dragPoint = _dragLine = _dragExponent = -1;
             Repaint();
         }
 
-        /// <summary>Clears the pointer (it left the area), so no hover or ghost stays drawn.</summary>
         public void PointerLeft()
         {
             if (_pressed) return;
-            _hoverPoint = _hoverLine = -1; _pointer = new Vector2(float.NaN, float.NaN);
-            Repaint();
+            _hoverPoint = _hoverLine = -1; _pointer = new Vector2(float.NaN, float.NaN); Repaint();
         }
 
         public bool KeyDown(KeyCode key)
         {
+            Prepare();
             if (key == KeyCode.LeftShift || key == KeyCode.RightShift) { _shift = true; Repaint(); return false; }
-            if (key != KeyCode.Delete || rt == null || !rt.allowRemovePoints || _selected.Count == 0) return false;
-            rt.onDragStarted?.Invoke();
+            if (key != KeyCode.Delete || !CanEdit || !rt.allowRemovePoints || _selected.Count == 0) return false;
             _selected.Sort();
+            bool changed = false;
             for (int i = _selected.Count - 1; i >= 0; i--)
             {
-                if (points.Count <= 1) break;
+                if (points.Count <= Mathf.Max(0, configuration.minimumPoints)) break;
                 int idx = _selected[i];
                 if (idx < 0 || idx >= points.Count || !CanRemove(State(idx))) continue;
-                points.RemoveAt(idx);
+                BeginGesture(); points.RemoveAt(idx); changed = true;
             }
-            _selected.Clear();
-            rt.onMutated?.Invoke();
-            Repaint();
-            return true;
+            _selected.Clear(); SelectionChanged();
+            if (changed) rt.onMutated?.Invoke();
+            _gestureRecorded = false; Repaint(); return true;
         }
 
-        public void ResetState() { _dragPoint = _dragLine = _dragExponent = -1; _boxSelecting = false; _pressed = false; _selected.Clear(); _hoverPoint = _hoverLine = -1; Repaint(); }
+        public void ResetState()
+        {
+            _dragPoint = _dragLine = _dragExponent = _hoverPoint = _hoverLine = -1;
+            _boxSelecting = _pressed = _multiDrag = _pendingMultiDrag = _gestureRecorded = false;
+            _selected.Clear(); SelectionChanged(); Repaint();
+        }
 
         /// <summary>
         /// One step of a Shift-drag bend, in log space: <paramref name="step"/> (a share of the curve's height) multiplies the
@@ -426,7 +484,7 @@ namespace Laubrary.Zui
         {
             var a = points[endIdx - 1]; var b = points[endIdx];
             var aS = State(endIdx - 1); var bS = State(endIdx);
-            float dt = xRange * delta.x / r.width, dv = -yRange * delta.y / r.height;
+            float dt = configuration.segmentVerticalOnly ? 0f : xRange * delta.x / r.width, dv = -yRange * delta.y / r.height;
             if (CanMoveX(aS) && CanMoveX(bS))
             {
                 float aT = a.time + dt, bT = b.time + dt;
@@ -451,9 +509,12 @@ namespace Laubrary.Zui
                 float px = TimeToX(points[i].time, r), py = ValueToY(points[i].value, r);
                 if (px >= minX && px <= maxX && py >= minY && py <= maxY) _selected.Add(i);
             }
+            SelectionChanged();
         }
 
         // ─────────────────────────── drawing ───────────────────────────
+
+        float StrokeWidth(float width) => configuration.logicalStrokeWidths ? width : Px(width);
 
         static float Px(float devicePixels) => devicePixels / Mathf.Max(1f, UnityEditor.EditorGUIUtility.pixelsPerPoint);
 
@@ -486,7 +547,9 @@ namespace Laubrary.Zui
 
         void Paint(MeshGenerationContext ctx)
         {
+            Prepare();
             if (points == null || rt == null || def == null) return;
+            _selected.RemoveAll(i => i < 0 || i >= points.Count);
             var style = Presentation;
             var outer = contentRect;
             var p2 = ctx.painter2D;
@@ -503,18 +566,19 @@ namespace Laubrary.Zui
             }
             if (rt.xMax - rt.xMin <= 0f || rt.yMax - rt.yMin <= 0f) return;
             var r = Plot;
-            if (r.width <= 0f || r.height <= 0f) return;
+            if (!ValidPlot(r)) return;
 
             if (rt.showGrid && style.gridRows > 0)
             {
                 for (int i = 1; i < style.gridRows; i++) FillRect(p2, new Rect(r.x, r.y + r.height * i / style.gridRows, r.width, style.gridThickness), style.gridColor);
             }
+            DrawDecorations(ctx, p2, r, style);
 
             // Curve.
             if (points.Count > 0)
             {
                 int n = Mathf.Max(2, (int)(r.width / 3f));
-                p2.strokeColor = style.curveColor; p2.lineWidth = Px(style.curveThickness);
+                p2.strokeColor = style.curveColor; p2.lineWidth = StrokeWidth(style.curveThickness);
                 p2.lineJoin = LineJoin.Round; p2.lineCap = LineCap.Round;
                 p2.BeginPath();
                 for (int i = 0; i <= n; i++)
@@ -530,7 +594,7 @@ namespace Laubrary.Zui
                     int segPx = Mathf.Max(2, Mathf.CeilToInt(Mathf.Abs(TimeToX(b.time, r) - TimeToX(a.time, r)) / 2f));
                     Color.RGBToHSV(style.curveColor, out float h, out float s, out float vC);
                     p2.strokeColor = Color.HSVToRGB(h, Mathf.Clamp01(s * style.hoverSaturationScale), Mathf.Min(vC * style.hoverValueScale, 1f));
-                    p2.lineWidth = Px(style.curveHoverThickness);
+                    p2.lineWidth = StrokeWidth(style.curveHoverThickness);
                     p2.BeginPath();
                     for (int i = 0; i <= segPx; i++)
                     {
@@ -555,7 +619,7 @@ namespace Laubrary.Zui
                         float t = rt.xMin + (rt.xMax - rt.xMin) * i / n;
                         dotted[i] = new Vector2(TimeToX(t, r), ValueToY(f(t), r));
                     }
-                    Dotted(p2, dotted, Color.Lerp(style.curveColor, Color.white, style.dottedWhiteMix), Px(Mathf.Max(style.curveThickness, style.dottedMinWidth)));
+                    Dotted(p2, dotted, Color.Lerp(style.curveColor, Color.white, style.dottedWhiteMix), StrokeWidth(Mathf.Max(style.curveThickness, style.dottedMinWidth)));
                 }
             }
 
@@ -567,7 +631,7 @@ namespace Laubrary.Zui
                 var c = new Vector2(TimeToX(pt.time, r), ValueToY(pt.value, r));
                 float ex = pt.randomX / (rt.xMax - rt.xMin) * r.width, ey = pt.randomY / (rt.yMax - rt.yMin) * r.height;
                 Ellipse(p2, c, Mathf.Max(ex, 1f), Mathf.Max(ey, 1f), new Color(style.curveColor.r, style.curveColor.g, style.curveColor.b, style.uncertaintyFillAlpha),
-                        new Color(style.curveColor.r, style.curveColor.g, style.curveColor.b, style.uncertaintyStrokeAlpha), Px(style.uncertaintyStrokeThickness));
+                        new Color(style.curveColor.r, style.curveColor.g, style.curveColor.b, style.uncertaintyStrokeAlpha), StrokeWidth(style.uncertaintyStrokeThickness));
             }
 
             // Points.
@@ -581,11 +645,29 @@ namespace Laubrary.Zui
                 float vr = hover && es != ZUIEnvelopeEditState.NotEditable ? h.hoverRadius : h.radius;
                 var fill = hover ? h.hoverFillColor : h.fillColor;
                 if (isSel) fill = sel;
+                if (configuration.yColorFor != null)
+                {
+                    var tint = configuration.yColorFor(points[i].value);
+                    fill = new Color(tint.r, tint.g, tint.b, 1f);
+                }
+                if (!enabledInHierarchy) fill.a *= 0.5f;
                 if (h.borderWidth > 0f) Disc(p2, c, vr + h.borderWidth, h.borderColor);
                 Disc(p2, c, vr, fill);
+                if (configuration.yColorFor != null && (hover || isSel))
+                {
+                    p2.strokeColor = isSel ? sel : h.hoverFillColor; p2.lineWidth = StrokeWidth(style.selectedStrokeThickness);
+                    p2.BeginPath(); p2.Arc(c, vr + 0.5f, 0f, 360f); p2.Stroke();
+                }
+                if (rt.showValueLabels)
+                {
+                    string text = Fmt(points[i].value);
+                    float x = c.x + 7f;
+                    if (x + text.Length * 6.5f > r.xMax) x = c.x - 8f - text.Length * 6.5f;
+                    ctx.DrawText(text, new Vector2(x, c.y - 15f), style.valueLabelSize, style.valueLabelColor);
+                }
                 if (hover && !isSel && es != ZUIEnvelopeEditState.NotEditable)
                 {
-                    p2.strokeColor = sel; p2.lineWidth = Px(style.selectedStrokeThickness);
+                    p2.strokeColor = sel; p2.lineWidth = StrokeWidth(style.selectedStrokeThickness);
                     p2.BeginPath(); p2.Arc(c, vr + 1.5f, 0f, 360f); p2.Stroke();
                 }
             }
@@ -605,15 +687,56 @@ namespace Laubrary.Zui
                 var cur = new Vector2(Mathf.Clamp(_pointer.x, r.x, r.xMax), Mathf.Clamp(_pointer.y, r.y, r.yMax));
                 var box = Rect.MinMaxRect(Mathf.Min(_boxStart.x, cur.x), Mathf.Min(_boxStart.y, cur.y), Mathf.Max(_boxStart.x, cur.x), Mathf.Max(_boxStart.y, cur.y));
                 FillRect(p2, box, new Color(1f, 1f, 1f, style.selectionBoxFillAlpha));
-                p2.strokeColor = sel; p2.lineWidth = Px(style.selectedStrokeThickness);
+                p2.strokeColor = sel; p2.lineWidth = StrokeWidth(style.selectedStrokeThickness);
                 p2.BeginPath(); p2.MoveTo(box.min); p2.LineTo(new Vector2(box.xMax, box.yMin)); p2.LineTo(box.max); p2.LineTo(new Vector2(box.xMin, box.yMax)); p2.ClosePath(); p2.Stroke();
             }
         }
 
-        /// <summary>The value tag beside a hovered or selected point (the IMGUI DrawPointValueTag), as a positioned label.</summary>
+        void DrawDecorations(MeshGenerationContext ctx, Painter2D painter, Rect plot, ZuiEnvelopePresentation.Values style)
+        {
+            if (configuration.yColorFor != null)
+            {
+                float x0 = contentRect.x + 1f, x1 = Mathf.Max(x0 + 2f, plot.x - 1f);
+                int slices = Mathf.Clamp(Mathf.RoundToInt(plot.height / 2f), 8, 64);
+                for (int s = 0; s < slices; s++)
+                {
+                    float f0 = s / (float)slices, f1 = (s + 1) / (float)slices;
+                    var color = configuration.yColorFor(Mathf.Lerp(rt.yMax, rt.yMin, (f0 + f1) * 0.5f));
+                    FillRect(painter, new Rect(x0, plot.y + plot.height * f0, x1 - x0, plot.height * (f1 - f0)), new Color(color.r, color.g, color.b, 1f));
+                }
+                painter.strokeColor = style.legendBorderColor; painter.lineWidth = 1f;
+                painter.BeginPath(); painter.MoveTo(new Vector2(x0, plot.y)); painter.LineTo(new Vector2(x1, plot.y));
+                painter.LineTo(new Vector2(x1, plot.yMax)); painter.LineTo(new Vector2(x0, plot.yMax)); painter.ClosePath(); painter.Stroke();
+            }
+            if (configuration.showFrameLines && configuration.frameCount > 1)
+            {
+                int count = configuration.frameCount;
+                float spacing = plot.width / (count - 1);
+                int labelStep = Mathf.Max(1, Mathf.CeilToInt(style.markerLabelSpacing / Mathf.Max(1f, spacing)));
+                painter.lineWidth = 1f;
+                for (int i = 0; i < count; i++)
+                {
+                    float x = plot.x + plot.width * i / (count - 1);
+                    painter.strokeColor = i == 0 || i == count - 1 ? style.frameEdgeColor : style.frameLineColor;
+                    painter.BeginPath(); painter.MoveTo(new Vector2(x, plot.y)); painter.LineTo(new Vector2(x, plot.yMax)); painter.Stroke();
+                }
+                for (int i = 0; i < count; i += labelStep)
+                {
+                    float x = plot.x + plot.width * i / (count - 1);
+                    string text = i.ToString(); float w = text.Length * style.markerLabelSize * 0.61f + 3f;
+                    ctx.DrawText(text, new Vector2(x + w > plot.xMax ? x - w : x + 2f, plot.y + 1f), style.markerLabelSize, style.frameLabelColor);
+                }
+            }
+            if (!string.IsNullOrEmpty(configuration.xAxisLabel))
+                ctx.DrawText(configuration.xAxisLabel, new Vector2(plot.center.x - configuration.xAxisLabel.Length * style.axisLabelSize * 0.305f, plot.yMax - style.axisLabelSize - 2f), style.axisLabelSize, style.axisLabelColor);
+            if (!string.IsNullOrEmpty(configuration.yAxisLabel))
+                ctx.DrawText(configuration.yAxisLabel, new Vector2(plot.x + 3f, plot.center.y - style.axisLabelSize * 0.67f), style.axisLabelSize, style.axisLabelColor);
+        }
+
+        /// <summary>A positioned value tag beside the hovered or selected point.</summary>
         void UpdateTag()
         {
-            if (points == null || rt == null || def == null) { _tag.style.display = DisplayStyle.None; return; }
+            if (!configuration.showReadout || points == null || rt == null || def == null) { _tag.style.display = DisplayStyle.None; return; }
             int i = _dragPoint >= 0 ? _dragPoint : _hoverPoint >= 0 ? _hoverPoint : _selected.Count > 0 ? _selected[_selected.Count - 1] : -1;
             if (i < 0 || i >= points.Count || contentRect.width <= 0f) { _tag.style.display = DisplayStyle.None; return; }
             var r = Plot;
