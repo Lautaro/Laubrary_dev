@@ -103,6 +103,10 @@ Game code shapes a playing sound through its token: ZPOC values on modifiers (`t
 
 Background documents: the authoritative technical foundation is `D:/Claude@GDrive/Zounds GC-Stutter-Free Audio Architecture Research 2026-09-26.md` (sections 1 and 7 for the plan, 8 for the validation test). `D:/Claude@GDrive/HH2 Audio Effect Chains Architecture.md` describes the existing engine the new path has to match. The 2026-09-25 native-DSP roadmap is **partly superseded** — its phases assume a hand-written C++ plugin as the target, which the 2026-09-26 research replaces; read it for history, not direction. The 2026-09-11 lifetime health report is at `D:/Claude@GDrive/Zounds Lifetime Health Report 2026-09-11.md`.
 
+## Cartographer and MetaMapper — developed HERE since 2026-10-02
+
+The level tool (Cartographer: level editor, tileset builder, prop editor) and MetaMapper (named metadata layers on sprites, props and levels) were built inside OutBurner's embedded copy and came home on 2026-10-02 (`bed7c454`), by the owner's decision: they are meant to end up in Laubrary, so they are developed here. Edit them in this tree; OutBurner receives them by the three-way merge in its `HANDOVER.md` §7.7 (sync point: this `bed7c454` ↔ OutBurner `77fc36e2`). OutBurner still owns Fov and Lattice. Planned next for MetaMapper: a Shapes layer kind (rectangles and circles) for colliders, a MetaMapper panel in the Zoe editor, a generic "build colliders from a layer" helper, and moving Launimator's meta layers onto it (its design doc, `METAMAPPER_DESIGN.md`, is in the OutBurner repo).
+
 ## Tool conventions (mirror for every Laubrary tool)
 
 - Runtime tool: `Runtime/<Tool>/` → asmdef `com.Lautaro-Arino.Laubrary.<Tool>`, rootNamespace `Laubrary.<Tool>`.
