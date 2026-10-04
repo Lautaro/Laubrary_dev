@@ -20,6 +20,21 @@ namespace Laubrary.GoreLabDemo
         [Tooltip("A click that is not a drag becomes a swipe this long (world units) for slice and cut, and an aim line this long for shots.")]
         public float clickLength = 2.4f;
 
+        // ---- shotgun cone: a placeable object. Drag empty space to make one, drag its body to move it, drag its tip to aim it and set the power, Space or Fire to shoot.
+        enum ConeDrag { None, Create, Move, Aim }
+        bool _coneExists;
+        Vector2 _muzzle, _tip = new Vector2(3f, 0f);
+        float _coneLen = 3f;
+        int _pellets = 30;
+        ConeDrag _coneDrag;
+        Vector2 _coneGrab;
+        Rect _sliderRect;
+        Mesh _coneMesh;
+        MeshRenderer _coneRenderer;
+        LineRenderer _coneOutline, _muzzleRing, _tipRing;
+        const float RefLength = 3f, MinLength = 0.5f, MaxLength = 12f, HandleRadius = 0.4f;
+        const int ArcPoints = 14;
+
         Kind _kind = Kind.Bullet;
         bool _straightOn = true;
         bool _dragging;
@@ -41,6 +56,129 @@ namespace Laubrary.GoreLabDemo
             _line.positionCount = 2;
             _line.sortingOrder = 1000;
             _line.enabled = false;
+            BuildCone();
+            var rigForRecipes = spawner != null ? spawner.rig : null;
+            if (rigForRecipes != null && rigForRecipes.recipes != null)
+                foreach (var r in rigForRecipes.recipes) if (r is ShotgunRecipe sg) _pellets = Mathf.Max(1, sg.pellets);
+        }
+
+        LineRenderer MakeLine(string name, int points, Color c, float width)
+        {
+            var lr = new GameObject(name).AddComponent<LineRenderer>();
+            lr.transform.SetParent(transform);
+            lr.material = new Material(Shader.Find("Sprites/Default"));
+            lr.startColor = lr.endColor = c;
+            lr.startWidth = lr.endWidth = width;
+            lr.positionCount = points;
+            lr.loop = true;
+            lr.sortingOrder = 1001;
+            lr.useWorldSpace = true;
+            lr.enabled = false;
+            return lr;
+        }
+
+        void BuildCone()
+        {
+            var go = new GameObject("Shotgun cone");
+            go.transform.SetParent(transform);
+            _coneMesh = new Mesh { name = "ConeMesh" };
+            go.AddComponent<MeshFilter>().sharedMesh = _coneMesh;
+            _coneRenderer = go.AddComponent<MeshRenderer>();
+            _coneRenderer.sharedMaterial = new Material(Shader.Find("Sprites/Default")) { color = new Color(1f, 0.55f, 0.1f, 0.3f) };
+            _coneRenderer.sortingOrder = 900;
+            _coneRenderer.enabled = false;
+            _coneOutline = MakeLine("Cone outline", ArcPoints + 2, new Color(1f, 0.75f, 0.3f, 0.95f), 0.05f);
+            _muzzleRing = MakeLine("Cone muzzle handle", 20, new Color(1f, 1f, 1f, 0.9f), 0.05f);
+            _tipRing = MakeLine("Cone tip handle", 20, new Color(1f, 0.85f, 0.3f, 0.95f), 0.05f);
+        }
+
+        float ConeHalfAngleRad()
+        {
+            double deg = 12;
+            var rig = spawner != null ? spawner.rig : null;
+            if (rig != null && rig.recipes != null) foreach (var r in rig.recipes) if (r is ShotgunRecipe sg) deg = sg.coneDeg;
+            return (float)deg * Mathf.Deg2Rad;
+        }
+
+        static void Ring(LineRenderer lr, Vector2 c)
+        {
+            for (int i = 0; i < lr.positionCount; i++)
+            {
+                float a = i / (float)lr.positionCount * Mathf.PI * 2f;
+                lr.SetPosition(i, new Vector3(c.x + Mathf.Cos(a) * HandleRadius, c.y + Mathf.Sin(a) * HandleRadius, 0f));
+            }
+        }
+
+        void RefreshCone()
+        {
+            bool show = _kind == Kind.Shotgun && _coneExists;
+            _coneRenderer.enabled = _coneOutline.enabled = _muzzleRing.enabled = _tipRing.enabled = show;
+            if (!show) return;
+            Vector2 dir = (_tip - _muzzle).normalized;
+            float baseA = Mathf.Atan2(dir.y, dir.x), half = ConeHalfAngleRad();
+            var verts = new Vector3[ArcPoints + 2];
+            var tris = new int[ArcPoints * 3];
+            verts[0] = _muzzle;
+            for (int i = 0; i <= ArcPoints; i++)
+            {
+                float a = baseA - half + 2f * half * i / ArcPoints;
+                verts[i + 1] = new Vector3(_muzzle.x + Mathf.Cos(a) * _coneLen, _muzzle.y + Mathf.Sin(a) * _coneLen, 0f);
+            }
+            for (int i = 0; i < ArcPoints; i++) { tris[i * 3] = 0; tris[i * 3 + 1] = i + 1; tris[i * 3 + 2] = i + 2; }
+            _coneMesh.Clear();
+            _coneMesh.vertices = verts;
+            _coneMesh.triangles = tris;
+            for (int i = 0; i < verts.Length; i++) _coneOutline.SetPosition(i, verts[i]);
+            Ring(_muzzleRing, _muzzle);
+            Ring(_tipRing, _tip);
+        }
+
+        bool InsideCone(Vector2 p)
+        {
+            Vector2 v = p - _muzzle;
+            if (v.magnitude <= HandleRadius * 1.2f) return true;
+            if (v.magnitude > _coneLen) return false;
+            return Vector2.Angle(v, _tip - _muzzle) <= ConeHalfAngleRad() * Mathf.Rad2Deg;
+        }
+
+        void SetTip(Vector2 world)
+        {
+            Vector2 v = world - _muzzle;
+            if (v.sqrMagnitude < 1e-6f) v = Vector2.right * MinLength;
+            _coneLen = Mathf.Clamp(v.magnitude, MinLength, MaxLength);
+            _tip = _muzzle + v.normalized * _coneLen;
+        }
+
+        void ConeInput(Mouse mouse, Vector2 screen, Vector2 world)
+        {
+            if (mouse.leftButton.wasPressedThisFrame && !OverPanel(screen))
+            {
+                if (_coneExists && Vector2.Distance(world, _tip) <= HandleRadius * 1.5f) _coneDrag = ConeDrag.Aim;
+                else if (_coneExists && InsideCone(world)) { _coneDrag = ConeDrag.Move; _coneGrab = world - _muzzle; }
+                else { _coneExists = true; _muzzle = world; _coneLen = MinLength; _tip = world + Vector2.right * MinLength; _coneDrag = ConeDrag.Create; }
+            }
+            if ((_coneDrag == ConeDrag.Create || _coneDrag == ConeDrag.Aim) && mouse.leftButton.isPressed) SetTip(world);
+            else if (_coneDrag == ConeDrag.Move && mouse.leftButton.isPressed)
+            {
+                Vector2 delta = world - _coneGrab - _muzzle;
+                _muzzle += delta; _tip += delta;
+            }
+            if (mouse.leftButton.wasReleasedThisFrame) _coneDrag = ConeDrag.None;
+            var kb = Keyboard.current;
+            if (kb != null && kb.spaceKey.wasPressedThisFrame) FireCone();
+        }
+
+        /// <summary>The same blast goes to every imp: each one is cut by the pellets that reach it, on whichever limbs they cross.</summary>
+        void FireCone()
+        {
+            if (!_coneExists) { _last = "Drag on the ground to make a cone first."; return; }
+            var recipe = MakeRecipe() as ShotgunRecipe;
+            recipe.pellets = _pellets;
+            recipe.energy *= _coneLen / RefLength;
+            int seed = Random.Range(0, 100000), hit = 0;
+            foreach (var body in spawner.bodies)
+                if (body != null && body.ApplyWound(recipe, _muzzle, _tip, seed)) hit++;
+            _last = hit > 0 ? "Blast hit " + hit + " imp" + (hit > 1 ? "s" : "") + "." : "Nobody in the cone.";
         }
 
         void Update()
@@ -50,6 +188,13 @@ namespace Laubrary.GoreLabDemo
             Vector2 screen = mouse.position.ReadValue();
             Vector2 world = _cam.ScreenToWorldPoint(new Vector3(screen.x, screen.y, -_cam.transform.position.z));
 
+            if (_kind == Kind.Shotgun)
+            {
+                ConeInput(mouse, screen, world);
+                RefreshCone();
+                return;
+            }
+            RefreshCone();
             if (mouse.leftButton.wasPressedThisFrame && !OverPanel(screen)) { _dragging = true; _down = world; }
             if (_dragging)
             {
@@ -66,7 +211,11 @@ namespace Laubrary.GoreLabDemo
         }
 
         // The GUI panel works in top-left screen coordinates, the mouse in bottom-left.
-        bool OverPanel(Vector2 screen) { return _panelRect.Contains(new Vector2(screen.x, Screen.height - screen.y)); }
+        bool OverPanel(Vector2 screen)
+        {
+            var p = new Vector2(screen.x, Screen.height - screen.y);
+            return _panelRect.Contains(p) || (_kind == Kind.Shotgun && _coneExists && _sliderRect.Contains(p));
+        }
 
         int CountAlive()
         {
@@ -139,7 +288,7 @@ namespace Laubrary.GoreLabDemo
 
         void OnGUI()
         {
-            Rect rc = Zui.Panel(ZuiAnchor.TopLeft, 200f, 365f, PanelBg);
+            Rect rc = Zui.Panel(ZuiAnchor.TopLeft, 200f, 400f, PanelBg);
             float pad = UIScale.S(10f);
             _panelRect = new Rect(rc.x - pad, rc.y - pad, rc.width + pad * 2f, rc.height + pad * 2f);
             var s = new ZuiStack(rc);
@@ -147,7 +296,11 @@ namespace Laubrary.GoreLabDemo
             s.Label("Damage type", 13f);
             for (int i = 0; i < KindNames.Length; i++)
                 if (s.Toggle(KindNames[i], (int)_kind == i, 14f) && (int)_kind != i) _kind = (Kind)i;
-            if (_kind == Kind.Shotgun) _straightOn = s.Toggle("Straight on", _straightOn, 14f);
+            if (_kind == Kind.Shotgun)
+            {
+                _straightOn = s.Toggle("Straight on", _straightOn, 14f);
+                if (s.Button("Fire cone (Space)", 15f)) FireCone();
+            }
             s.Space();
             s.Label("Imps: " + CountAlive(), 13f);
             if (s.Button("+  Add imp", 15f)) { spawner.Add(); }
@@ -157,6 +310,16 @@ namespace Laubrary.GoreLabDemo
             s.Space(4f);
             s.Label("Drag across an imp. Slice and cut follow your line; shots use it as the aim.", 11f, new Color(0.75f, 0.78f, 0.85f));
             if (_last.Length > 0) s.Label(_last, 11f, new Color(1f, 0.82f, 0.4f));
+
+            // the mini slider for the pellet count sits next to the cone's muzzle
+            if (_kind == Kind.Shotgun && _coneExists && _cam != null)
+            {
+                Vector3 sp = _cam.WorldToScreenPoint(_muzzle);
+                _sliderRect = new Rect(sp.x - 60f, Screen.height - sp.y + 22f, 130f, 34f);
+                GUI.Box(_sliderRect, GUIContent.none);
+                GUI.Label(new Rect(_sliderRect.x + 4f, _sliderRect.y, 124f, 16f), "Pellets " + _pellets + "  Power " + (_coneLen / RefLength).ToString("0.0") + "x");
+                _pellets = Mathf.RoundToInt(GUI.HorizontalSlider(new Rect(_sliderRect.x + 6f, _sliderRect.y + 20f, 118f, 12f), _pellets, 3f, 100f));
+            }
         }
     }
 }
