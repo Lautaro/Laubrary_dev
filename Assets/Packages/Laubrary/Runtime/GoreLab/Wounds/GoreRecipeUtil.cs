@@ -30,9 +30,6 @@ namespace Laubrary.GoreLab
             return ctx.targets == null || (member < ctx.targets.Length && ctx.targets[member]);
         }
 
-        /// <summary>The member's depth radius: a ball (or a tag without rz) is as deep as it is wide.</summary>
-        public static double Depth(in MemberTag t) { return t.rz > 0 ? t.rz : t.rx; }
-
         /// <summary>Gives the removers made for one member their group, member and noise position, then appends them.</summary>
         public static void Append(WoundContext ctx, List<GoreRemover> into, int member, List<GoreRemover> made)
         {
@@ -76,10 +73,10 @@ namespace Laubrary.GoreLab
         public static void Shotgun(WoundContext ctx, int member, in ShotTuning s, List<GoreRemover> made)
         {
             var h = ctx.members[member].tag;
-            double cx = h.cx, cy = h.cy, mean = (h.rx + h.ry) / 2, rz = Depth(h);
+            double cx = h.cx, cy = h.cy, mean = (h.rx + h.ry) / 2, rz = GoreTagMath.Depth(h);
             var R = GoreRng.Rng(MemberSeed(ctx, member));
             double baseAngle = Math.Atan2(ctx.p1y - ctx.p0y, ctx.p1x - ctx.p0x), cone = (s.coneDeg * Math.PI) / 180;
-            double dc = Math.Sqrt((cx - ctx.p0x) * (cx - ctx.p0x) + (cy - ctx.p0y) * (cy - ctx.p0y));
+            double dc = JsMath.Hypot(cx - ctx.p0x, cy - ctx.p0y);
             double fall = Math.Max(0.35, 1 - s.rangeFalloff * Math.Max(0, dc - 10) / 100);
             for (int i = 0; i < s.pellets; i++)
             {
@@ -111,7 +108,7 @@ namespace Laubrary.GoreLab
             double cx = h.cx, cy = h.cy, mean = (h.rx + h.ry) / 2;
             var R = GoreRng.Rng(MemberSeed(ctx, member));
             double baseAngle = Math.Atan2(ctx.p1y - ctx.p0y, ctx.p1x - ctx.p0x), cone = (s.coneDeg * Math.PI) / 180;
-            double dc = Math.Sqrt((cx - ctx.p0x) * (cx - ctx.p0x) + (cy - ctx.p0y) * (cy - ctx.p0y));
+            double dc = JsMath.Hypot(cx - ctx.p0x, cy - ctx.p0y);
             double fall = Math.Max(0.35, 1 - s.rangeFalloff * Math.Max(0, dc - 10) / 100);
             var hits = new List<double>();
             for (int i = 0; i < count; i++)

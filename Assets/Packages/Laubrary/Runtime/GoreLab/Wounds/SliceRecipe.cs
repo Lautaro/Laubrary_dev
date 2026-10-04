@@ -52,7 +52,7 @@ namespace Laubrary.GoreLab
         int CrossingCount(WoundContext ctx, int member)
         {
             var tag = ctx.members[member].tag;
-            double dx = ctx.p1x - ctx.p0x, dy = ctx.p1y - ctx.p0y, len = Math.Sqrt(dx * dx + dy * dy);
+            double dx = ctx.p1x - ctx.p0x, dy = ctx.p1y - ctx.p0y, len = JsMath.Hypot(dx, dy);
             if (len == 0) len = 1;
             dx /= len; dy /= len;
             int n = 0;
@@ -68,7 +68,7 @@ namespace Laubrary.GoreLab
         {
             nx = ny = nz = d = 0;
             var h = ctx.members[member].tag;
-            double dx = ctx.p1x - ctx.p0x, dy = ctx.p1y - ctx.p0y, l = Math.Sqrt(dx * dx + dy * dy);
+            double dx = ctx.p1x - ctx.p0x, dy = ctx.p1y - ctx.p0y, l = JsMath.Hypot(dx, dy);
             if (l < minSwipeLength) return false;
 
             // The swipe's normal on screen, and its signed distance from the member centre.
@@ -76,11 +76,9 @@ namespace Laubrary.GoreLab
             double o = nsx * (ctx.p0x - h.cx) + nsy * (ctx.p0y - h.cy);
 
             // The plane contains the line of sight, so its normal in member coordinates is the screen normal read through each member axis.
-            var (e0, e1) = GoreTagMath.ToScreen(h, 1, 0, 0);
-            var (u0, u1) = GoreTagMath.ToScreen(h, 0, 1, 0);
-            var (f0, f1) = GoreTagMath.ToScreen(h, 0, 0, 1);
-            double mx = nsx * e0 + nsy * e1, my = nsx * u0 + nsy * u1, mz = nsx * f0 + nsy * f1;
-            double ml = Math.Sqrt(mx * mx + my * my + mz * mz);
+            var e = GoreTagMath.East(h);
+            double mx = h.rx * (nsx * e.x + nsy * e.y), my = h.ry * (nsx * h.ux + nsy * h.uy), mz = GoreTagMath.Depth(h) * (nsx * h.fx + nsy * h.fy);
+            double ml = JsMath.Hypot(mx, my, mz);
             if (ml < 1e-6) return false;
             nx = mx / ml; ny = my / ml; nz = mz / ml; d = o / ml;
             if (Math.Abs(d) >= planeMissLimit) return false;

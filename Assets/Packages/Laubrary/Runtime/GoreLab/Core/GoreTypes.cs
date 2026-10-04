@@ -179,5 +179,10 @@ namespace Laubrary.GoreLab
         /// <summary>Optional: how much of the animation shows a hole at this remover (0..1); used by recipes that pick a spot. May be null.</summary>
         public Func<GoreRemover, double> holeVisibility;
         public readonly List<GoreRemover> existing = new List<GoreRemover>();   // removers already on the body (for recipes that care)
+        /// <summary>
+        /// How many wounds this body has been dealt before this one (0 for the first). The caller sets seed = cut.seed * 131 + shotCounter, as the
+        /// prototype did; the bullet also needs the counter on its own to pick which member takes the shot.
+        /// </summary>
+        public int shotCounter;
     }
 }

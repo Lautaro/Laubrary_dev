@@ -39,8 +39,8 @@ namespace Laubrary.GoreLab
             }
             if (holes.Count == 0) return;
 
-            // One member takes the bullet, chosen by the wound's own seed so the same shot always lands the same way.
-            int pick = (int)Math.Floor(GoreRng.Hash(ctx.seed, 3, ctx.cut.seed) * holes.Count) % holes.Count;
+            // One member takes the bullet, chosen from the wound counter and the rig seed so the same shot always lands the same way.
+            int pick = (int)Math.Floor(GoreRng.Hash(ctx.shotCounter, 3, ctx.cut.seed) * holes.Count) % holes.Count;
             GoreRecipeUtil.Append(ctx, into, holes[pick].Key, holes[pick].Value);
         }
     }

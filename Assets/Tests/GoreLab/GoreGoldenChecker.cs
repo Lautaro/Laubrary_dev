@@ -1,6 +1,6 @@
 // Replays every engine case of GORELAB_GOLDEN.json (produced by running the web prototype) through the C# engine and compares the results.
 // Plain C# (no Unity, no NUnit) so the same file runs in the console harness outside the editor and in the editor tests.
-// Generator cases (planeFromSwipe, shotFromSwipe, straightShot, gashFromSwipe) belong to the wound recipes and are reported as skipped here,
+// Generator cases (planeFromSwipe, shotFromSwipe, straightShot, gashFromSwipe) belong to the wound recipes (GoreRecipeGoldenChecker) and are skipped here,
 // as is cleanBlood (source-sprite clean-up, not part of the cut engine).
 using System;
 using System.Collections.Generic;
@@ -407,7 +407,7 @@ namespace Laubrary.GoreLab.Tests
 
         // ------------------------------------------------------------------ sprites and hashes
 
-        static GoreGrid Sprite(Dictionary<string, object> sprites, string id)
+        internal static GoreGrid Sprite(Dictionary<string, object> sprites, string id)
         {
             var s = Obj(sprites[id]); int w = (int)Num(s["w"]), h = (int)Num(s["h"]);
             var g = new GoreGrid(w, h); int p = 0;
@@ -415,7 +415,7 @@ namespace Laubrary.GoreLab.Tests
             return g;
         }
 
-        static GoreGrid Place(GoreGrid spr, int W, int H, int sx, int sy)
+        internal static GoreGrid Place(GoreGrid spr, int W, int H, int sx, int sy)
         {
             var g = new GoreGrid(W, H);
             for (int y = 0; y < spr.h; y++)

@@ -39,7 +39,7 @@ namespace Laubrary.GoreLab
         {
             var h = ctx.members[member].tag;
             double cx = h.cx, cy = h.cy, mean = (h.rx + h.ry) / 2;
-            double dx0 = ctx.p1x - ctx.p0x, dy0 = ctx.p1y - ctx.p0y, len = Math.Sqrt(dx0 * dx0 + dy0 * dy0);
+            double dx0 = ctx.p1x - ctx.p0x, dy0 = ctx.p1y - ctx.p0y, len = JsMath.Hypot(dx0, dy0);
             if (len < 1) return;
             double dx = dx0 / len, dy = dy0 / len, nx = -dy, ny = dx;
             int seed = GoreRecipeUtil.MemberSeed(ctx, member);
