@@ -1,0 +1,293 @@
+// The left pane: undo / redo and the tab row on one line, the member chooser, then ONLY the active tab's controls.
+using System.Collections.Generic;
+using Laubrary.Launimator;
+using Laubrary.Zoetrope;
+using Laubrary.Zui;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.UIElements;
+
+namespace Laubrary.GoreLab.Editor
+{
+    public partial class GoreLabWindow
+    {
+        internal delegate void TagChange(ref MemberTag t);
+
+        const float SliderW = 150f;
+
+        void BuildLeft(VisualElement host)
+        {
+            var rig = Rig;
+            if (rig == null) return;
+
+            var tabs = Z.Segmented((int)tab, TabNames, "The tab is the mode: it decides what a drag on the frame does.", i => SetTab((Tab)i));
+            for (int i = 0; i < TabTips.Length; i++) tabs.SegmentAt(i).tooltip = TabTips[i];
+            var first = Z.Row(
+                Z.IconButton("arrow-counter-clockwise", "Undo the last edit to the rig (Ctrl+Z).", Undo.PerformUndo),
+                Z.IconButton("arrow-clockwise", "Redo (Ctrl+Y).", Undo.PerformRedo),
+                tabs);
+            host.Add(first);
+
+            if (tab != Tab.Test) host.Add(BuildMemberChooser());
+            if (!HasFrames && tab != Tab.Frame) host.Add(BuildTargetRow());
+
+            switch (tab)
+            {
+                case Tab.Shape: BuildShapeTab(host); break;
+                case Tab.Rotate: BuildRotateTab(host); break;
+                case Tab.Paint: BuildPaintTab(host); break;
+                case Tab.Frame: BuildFrameTab(host); break;
+                case Tab.Test: BuildTestTab(host); break;
+            }
+        }
+
+        void SetTab(Tab t)
+        {
+            if (tab == t) return;
+            tab = t;
+            hideFar = false;
+            pendingWound.Clear();
+            if (tab == Tab.Test) RecutShown();
+            AfterEdit();
+        }
+
+        VisualElement BuildMemberChooser()
+        {
+            if (MemberCount == 0)
+                return Z.Row(
+                    Z.Text("No members declared", ZuiText.Subtle, "A rig needs body members (a head ball, a torso box...) before anything can be tagged."),
+                    Z.Button("Add head and torso", "Give this rig the two default members: a Head (a ball) and a Torso (a box).",
+                        () => Edit("Add members", () => AddDefaultMembers(Rig))));
+
+            var names = new string[MemberCount];
+            for (int i = 0; i < names.Length; i++) names[i] = MemberName(i);
+            var seg = Z.Segmented(memberIndex, names, "The member every tab edits.", i => { memberIndex = i; AfterEdit(); });
+            for (int i = 0; i < names.Length; i++)
+                seg.SegmentAt(i).tooltip = $"Edit the {names[i]} ({(Rig.members[i] != null && Rig.members[i].kind == MemberKind.Box ? "a box" : "a ball")}) on every tab.";
+            return Z.Row(seg);
+        }
+
+        /// Change the active member's tag on the shown frame. Records first; the stage redraws, the panes do not
+        /// (a slider drag must not rebuild the slider under the pointer).
+        void ChangeTag(string what, TagChange change)
+        {
+            var mf = ActiveMemberFrame(false);
+            if (mf == null || !mf.present) return;
+            Record(what);
+            var t = mf.tag;
+            change(ref t);
+            mf.tag = t;
+            stage?.Refresh();
+        }
+
+        // ── Shape ─────────────────────────────────────────────────────────────────────────────────────
+
+        void BuildShapeTab(VisualElement host)
+        {
+            bool has = TryActiveTag(out var tag);
+            bool editable = has && CanEditShown;
+            bool box = ActiveMember != null && ActiveMember.kind == MemberKind.Box;
+
+            var sq = Z.MicroSlider("Squareness", has ? (float)tag.n : box ? 4f : 2f, 1.5f, 8f,
+                "Shape of the outline: 2 is an oval, higher is boxier. Only pixels inside the outline are ever cut; for a box it also rounds the 3D solid.",
+                v => ChangeTag("Squareness", (ref MemberTag t) => t.n = v), SliderW);
+            sq.SetEnabled(editable);
+
+            var row = Z.Row(sq);
+            if (box)
+            {
+                var depth = Z.MicroSlider("Depth", has ? (float)GoreTagEdit.Depth(tag) : 4f, 1f, 24f,
+                    "How thick the box is front to back, in pixels (its half depth).",
+                    v => ChangeTag("Depth", (ref MemberTag t) => t.rz = v), SliderW);
+                depth.SetEnabled(editable);
+                row.Add(depth);
+            }
+            var clear = Z.IconButton("trash", $"Delete the {MemberName(memberIndex)}'s shape on this frame, so a new box can be drawn (undoable).",
+                () => Edit("Clear shape", () => { var mf = ActiveMemberFrame(false); if (mf != null) mf.present = false; }));
+            clear.SetEnabled(editable);
+            row.Add(clear);
+            host.Add(row);
+            host.Add(Z.Row(ShapeOpacitySlider()));
+        }
+
+        VisualElement ShapeOpacitySlider()
+            => Z.MicroSlider("Outline", shapeAlpha, 0.05f, 1f,
+                "How visible the outline, the sphere or box wireframe and the dots are. Lower it to see the sprite through them.",
+                v => { shapeAlpha = v; stage?.Refresh(); }, SliderW);
+
+        // ── Rotate ────────────────────────────────────────────────────────────────────────────────────
+
+        void BuildRotateTab(VisualElement host)
+        {
+            bool editable = TryActiveTag(out _) && CanEditShown;
+            string me = MemberName(memberIndex);
+
+            VisualElement Turn(string label, float deg, string tip)
+            {
+                var b = Z.Button(label, tip, () => Edit("Turn " + me, () => TurnActive(deg)));
+                b.SetEnabled(editable);
+                return b;
+            }
+            host.Add(Z.Row(
+                Turn("-45°", -45f, $"Turn the {me} 45° about its up axis, front toward its left (west)."),
+                Turn("+45°", 45f, $"Turn the {me} 45° about its up axis, front toward its right (east)."),
+                Turn("180°", 180f, $"Turn the {me} round to face the other way.")));
+
+            string dirTip = shown != null && !float.IsNaN(shown.group.angle)
+                ? $"the way the {shown.group.label} direction looks"
+                : "the viewer (this frame is not part of a direction set)";
+            var def = Z.Button("Default", $"Point the {me}'s forward at {dirTip}, on this frame (undoable).",
+                () => Edit("Default orientation", () => FaceDefault(false)));
+            def.SetEnabled(editable);
+            var defAll = Z.Button("Default all", $"The same for every frame of this direction that has a {me} tag (undoable).",
+                () => Edit("Default orientation", () => FaceDefault(true)));
+            defAll.SetEnabled(CanEditShown);
+            host.Add(Z.Row(def, defAll, HoldHideFar()));
+            host.Add(Z.Row(ShapeOpacitySlider()));
+        }
+
+        void TurnActive(float deg)
+        {
+            var mf = ActiveMemberFrame(false);
+            if (mf == null || !mf.present) return;
+            var t = mf.tag;
+            GoreTagEdit.Yaw(ref t, deg);
+            mf.tag = t;
+        }
+
+        void FaceDefault(bool wholeDirection)
+        {
+            if (!CanEditShown) return;
+            var fwd = DefaultForward();
+            var sprites = wholeDirection ? shown.group.sprites : new List<Sprite> { shown.sprite };
+            foreach (var s in sprites)
+            {
+                var mf = MemberAt(FindFrame(s), memberIndex, false);
+                if (mf == null || !mf.present) continue;
+                var t = mf.tag;
+                GoreTagEdit.SetForward(ref t, fwd);
+                mf.tag = t;
+            }
+        }
+
+        /// A button that hides every far-side line and letter while it is HELD (not a latch).
+        VisualElement HoldHideFar()
+        {
+            var b = Z.Button("Hide far side", "Hold this: every line and letter on the far side of the member disappears, so only what faces you remains.", () => { });
+            b.AddToClassList("zui-togglebutton");
+            void Set(bool on)
+            {
+                hideFar = on;
+                b.EnableInClassList("zui-togglebutton--on", on);
+                stage?.Refresh();
+            }
+            b.RegisterCallback<PointerDownEvent>(e => { if (e.button == 0) Set(true); }, TrickleDown.TrickleDown);
+            b.RegisterCallback<PointerUpEvent>(_ => Set(false), TrickleDown.TrickleDown);
+            b.RegisterCallback<PointerCaptureOutEvent>(_ => Set(false));
+            b.RegisterCallback<PointerLeaveEvent>(_ => { if (hideFar) Set(false); });
+            return b;
+        }
+
+        // ── Paint ─────────────────────────────────────────────────────────────────────────────────────
+
+        void BuildPaintTab(VisualElement host)
+        {
+            bool editable = TryActiveTag(out _) && CanEditShown;
+            string me = MemberName(memberIndex);
+
+            var layer = Z.Segmented(paintLayer, new[] { "Behind", "In front" }, "Which mask the brush paints.", i => { paintLayer = i; stage?.Refresh(); });
+            layer.SegmentAt(0).tooltip = $"Behind (orange): body behind the {me}, for example the neck. When a cut removes it, it stays as dark gore instead of turning see-through.";
+            layer.SegmentAt(1).tooltip = $"In front (purple): something drawn in front of the {me}, for example an arm over the torso. It is never cut.";
+            var mode = Z.Segmented(paintErase ? 1 : 0, new[] { "Paint", "Erase" }, "Left-drag paints or erases; a right-drag always erases.", i => paintErase = i == 1);
+            host.Add(Z.Row(layer, mode));
+
+            var brush = Z.MicroSlider("Brush", brushSize, 1f, 6f, "Brush radius in pixels. Only solid sprite pixels inside the outline are painted.",
+                v => brushSize = Mathf.Clamp(Mathf.RoundToInt(v), 1, 6), SliderW, decimals: 0);
+            var fill = Z.Button("Fill shape", $"Paint every solid pixel inside the {me}'s outline into the chosen mask (undoable).",
+                () => Edit("Fill mask", FillMask));
+            fill.SetEnabled(editable);
+            var clear = Z.IconButton("trash", $"Clear the chosen mask of the {me} on this frame (undoable).",
+                () => Edit("Clear mask", ClearMask));
+            clear.SetEnabled(editable);
+            host.Add(Z.Row(brush, fill, clear));
+
+            host.Add(Z.Row(Z.MicroSlider("Paint", paintAlpha, 0.05f, 1f,
+                "How visible the painted Behind and In front masks are. Lower it to see the pixels under the paint.",
+                v => { paintAlpha = v; stage?.Refresh(); }, SliderW)));
+        }
+
+        void FillMask()
+        {
+            var mf = ActiveMemberFrame(false);
+            if (mf == null || !mf.present) return;
+            var mine = new HashSet<int>(paintLayer == 1 ? mf.exempt ?? new int[0] : mf.behind ?? new int[0]);
+            var other = new HashSet<int>(paintLayer == 1 ? mf.behind ?? new int[0] : mf.exempt ?? new int[0]);
+            var g = shown.pixels.grid;
+            for (int y = 0; y < g.h; y++)
+                for (int x = 0; x < g.w; x++)
+                {
+                    if (!g.Solid(x, y) || !GoreTagEdit.Inside(mf.tag, x + 0.5, y + 0.5)) continue;
+                    int k = y * g.w + x;
+                    mine.Add(k);
+                    other.Remove(k);
+                }
+            WriteMasks(mf, mine, other);
+        }
+
+        void ClearMask()
+        {
+            var mf = ActiveMemberFrame(false);
+            if (mf == null) return;
+            if (paintLayer == 1) mf.exempt = new int[0]; else mf.behind = new int[0];
+        }
+
+        /// `mine` is the chosen layer, `other` the opposite one (a pixel is in at most one).
+        internal void WriteMasks(GoreMemberFrame mf, HashSet<int> mine, HashSet<int> other)
+        {
+            if (paintLayer == 1) { mf.exempt = GoreTagEdit.ToArray(mine); mf.behind = GoreTagEdit.ToArray(other); }
+            else { mf.behind = GoreTagEdit.ToArray(mine); mf.exempt = GoreTagEdit.ToArray(other); }
+        }
+
+        // ── Frame ─────────────────────────────────────────────────────────────────────────────────────
+
+        void BuildFrameTab(VisualElement host)
+        {
+            string where = shown == null ? "No frame" : $"{shown.Label} of {shown.group.sprites.Count}" + (shown.mirrored ? " (mirror)" : "");
+            host.Add(Z.Row(
+                Z.IconButton("caret-left", "Previous frame of this direction.", () => StepFrame(-1)),
+                Z.IconButton("caret-right", "Next frame of this direction.", () => StepFrame(1)),
+                Z.IconButton("caret-double-left", "Previous direction (the same frame number).", () => StepDirection(-1)),
+                Z.IconButton("caret-double-right", "Next direction (the same frame number).", () => StepDirection(1)),
+                Z.Text(where, ZuiText.Body, "The frame shown on the stage. Mirrored directions are derived from their drawn partner and read only.")));
+
+            string me = MemberName(memberIndex);
+            var mf = ActiveMemberFrame(false);
+            bool skip = mf != null && mf.skip;
+            var hidden = Z.ToggleButton($"No {me.ToLowerInvariant()} here",
+                skip ? $"On: this frame is used as drawn for the {me} (nothing of it is cut here). Click to make it cuttable again."
+                     : $"Off: the {me} is cut on this frame. Click when the {me} is not visible here (for example a lying pose), so the frame plays as drawn.",
+                skip, on => Edit("Member visibility", () =>
+                {
+                    var m = ActiveMemberFrame(true);
+                    if (m != null) m.skip = on;
+                }));
+            hidden.SetEnabled(CanEditShown && ActiveMember != null);
+            host.Add(Z.Row(hidden));
+            host.Add(BuildTargetRow());
+        }
+
+        /// The rig's target: the character (or bare animation) whose frames are tagged. The character never learns
+        /// about the rig; the rig points at it.
+        VisualElement BuildTargetRow()
+        {
+            var rig = Rig;
+            var zoe = Z.Object<Zoe>(rig.zoe, "The character whose frames this rig tags. The character does not know this rig exists.",
+                v => { Undo.RecordObject(rig, "Set rig target"); rig.zoe = v; EditorUtility.SetDirty(rig); Rebuild(); }, 170f);
+            var reel = Z.Object<LauminaryVersion>(rig.reel, "Used instead of a character when the rig targets a bare animation version.",
+                v => { Undo.RecordObject(rig, "Set rig target"); rig.reel = v; EditorUtility.SetDirty(rig); Rebuild(); }, 170f);
+            return Z.Column(
+                Z.Field("Character", "The character whose frames this rig tags. The character does not know this rig exists.", zoe),
+                Z.Field("Animation", "Used instead of a character when the rig targets a bare animation version.", reel));
+        }
+    }
+}
