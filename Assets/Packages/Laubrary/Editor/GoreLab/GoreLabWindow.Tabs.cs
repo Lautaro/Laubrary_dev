@@ -273,6 +273,14 @@ namespace Laubrary.GoreLab.Editor
                 }));
             hidden.SetEnabled(CanEditShown && ActiveMember != null);
             host.Add(Z.Row(hidden));
+            string meL = me.ToLowerInvariant();
+            var copyNext = Z.Button("Copy to next", $"Copy the {meL}'s shape, orientation and paint from this frame to the next frame of this direction (undoable). Then nudge it into place.", () => CopyMemberForward(false));
+            var copyRest = Z.Button("Copy to rest", $"Copy the {meL} from this frame to every later frame of this direction (undoable).", () => CopyMemberForward(true));
+            var auto = Z.Button("Auto-tag", $"Put a rough {meL} on every frame of this direction that has none, as a starting point to correct (undoable). The torso guess needs the head tagged first.", AutoTagDirection);
+            copyNext.SetEnabled(CanEditShown && ActiveMember != null);
+            copyRest.SetEnabled(CanEditShown && ActiveMember != null);
+            auto.SetEnabled(CanEditShown && ActiveMember != null);
+            host.Add(Z.Row(copyNext, copyRest, auto));
             host.Add(BuildTargetRow());
         }
 

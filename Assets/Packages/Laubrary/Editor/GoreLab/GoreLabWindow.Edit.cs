@@ -96,6 +96,7 @@ namespace Laubrary.GoreLab.Editor
             f.EnsureMembers(MemberCount);
             Rig.frames.Add(f);
             Rig.InvalidateFrameCache();
+            if (shown != null && shown.sprite == s) shown.tags = f;   // the stage reads the shown frame's record: point it at the new one, or the first shape drawn is invisible
             return f;
         }
 
