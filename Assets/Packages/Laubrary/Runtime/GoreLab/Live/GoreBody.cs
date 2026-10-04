@@ -251,34 +251,23 @@ namespace Laubrary.GoreLab
         // ------------------------------------------------------------------ hole visibility (for recipes that choose a spot)
 
         // The share of this walk direction's frames that would show a hole at this remover, so a bullet is not wasted on a spot most frames hide.
+        readonly List<GoreGrid> _scoreGrids = new List<GoreGrid>();
+        readonly List<GoreMemberInput[]> _scoreMembers = new List<GoreMemberInput[]>();
+
         double HoleVisibility(GoreRemover op, bool flip)
         {
             List<Sprite> frames = CurrentClipSprites();
-            if (frames.Count == 0) return 1;
-            int seen = 0, total = 0;
+            _scoreGrids.Clear(); _scoreMembers.Clear();
             for (int i = 0; i < frames.Count; i++)
             {
                 Sprite spr = frames[i];
                 if (spr == null || !rig.TryGetFrame(spr, out var tags)) continue;
                 var slot = GetSlot(spr, flip, tags);
-                if (slot == null || op.member < 0 || op.member >= slot.members.Length) continue;
-                var m = slot.members[op.member];
-                if (!m.present || m.skip) continue;
-                total++;
-                var s = GoreTagMath.ToScreen(m.tag, (op.ax + op.bx) * 0.5, (op.ay + op.by) * 0.5, (op.az + op.bz) * 0.5);
-                double px = m.tag.cx + s.x, py = m.tag.cy + s.y;
-                int ix = (int)Math.Floor(px), iy = (int)Math.Floor(py);
-                if (!slot.grid.Solid(ix, iy) || !GoreTagMath.InsideOutline(m.tag, px, py)) continue;
-                int idx = iy * slot.w + ix;
-                if (m.exempt != null && m.exempt[idx] != 0) continue;
-                if (op.member != 0 && slot.members.Length > 0)
-                {
-                    var head = slot.members[0];                      // the head owns pixels under it
-                    if (head.present && !head.skip && GoreTagMath.InsideOutline(head.tag, px, py) && !(head.exempt != null && head.exempt[idx] != 0)) continue;
-                }
-                seen++;
+                if (slot == null) continue;
+                _scoreGrids.Add(slot.grid);
+                _scoreMembers.Add(slot.members);
             }
-            return total == 0 ? 1 : (double)seen / total;
+            return GoreHoleVisibility.Score(op, _scoreGrids, _scoreMembers);
         }
 
         List<Sprite> CurrentClipSprites()

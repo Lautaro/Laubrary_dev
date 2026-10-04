@@ -14,29 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.Addressables.Editor::UnityEditor.AddressableAssets.Settings.AddressableAssetGroup
   m_GroupName: Zounds Default Local Group
   m_GUID: f7a494e4a2465d743b62b799a922838d
-  m_SerializeEntries:
-  - m_GUID: 0068cfb6136471149938e005883ed428
-    m_Address: Assets/ZoundsData/SystemFiles/ZoundFiles/THUN_InsJ_Thunder_Close_Rain_02
-      (-523818070).wav
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 1930415ec0a78e34e86e05e4ea73b950
-    m_Address: Assets/ZoundsData/SystemFiles/ZoundFiles/New Klip2.wav
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 931186e7fb9e7394580df6295e872391
-    m_Address: Assets/ZoundsData/SystemFiles/ZoundFiles/Game over 4 (2107758767).wav
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: da31d0d509da12b43ad29f52ae024cf3
-    m_Address: Assets/ZoundsData/SystemFiles/ZoundFiles/PM_SDNG_Stereo_Walk_Seamless_Loop_1
-      (708862382).wav
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
+  m_SerializeEntries: []
   m_ReadOnly: 0
   m_Settings: {fileID: 11400000, guid: 1a60d2d2b5fdcef4693b1934a2c8eee3, type: 2}
   m_SchemaSet:

@@ -23,6 +23,9 @@ namespace Laubrary.GoreLab.Editor
         readonly GoreFrameResult cutResult = new GoreFrameResult();
         readonly GoreFrameResult previewResult = new GoreFrameResult();
         int woundCounter;
+        [SerializeField] int testTarget = -1;      // -1 = every tagged member the line reaches, else a member index
+        bool testPlaying;
+        double nextPlayStep;
         internal TestState testState;
         internal Texture2D resultTex;       // the wounded frame, shown in place of the sprite while wounds exist
         internal bool resultValid;
@@ -84,6 +87,12 @@ namespace Laubrary.GoreLab.Editor
                 i => { recipeIndex = i; pendingWound.Clear(); AfterEdit(); }, wrap: true);
             host.Add(pick);
 
+            var targetNames = new List<string> { "Auto" };
+            for (int i = 0; i < MemberCount; i++) targetNames.Add(MemberName(i));
+            host.Add(Z.Field("Target", "Which body member a swipe or shot is aimed at. Auto = every tagged member the line reaches (a slice goes to the one it crosses most).",
+                Z.MiniRadio(testTarget + 1, targetNames.ToArray(), "Which body member a swipe or shot is aimed at.",
+                    i => { testTarget = i - 1; pendingWound.Clear(); AfterEdit(); }, wrap: true)));
+
             var recipe = ActiveRecipe;
             var remove = Z.IconButton("trash", $"Remove {(recipe != null ? recipe.DisplayName : "this damage type")} from the rig (undoable).",
                 () => Edit("Remove damage type", () => { rig.recipes.RemoveAt(recipeIndex); recipeIndex = Mathf.Max(0, recipeIndex - 1); }));
@@ -94,7 +103,11 @@ namespace Laubrary.GoreLab.Editor
             var reset = Z.Button("Reset", "Remove every test wound; the frames show as drawn again. Test wounds are never saved.",
                 () => { ResetWounds(); RecutShown(); AfterEdit(); });
             reset.SetEnabled(removers.Count > 0);
-            host.Add(Z.Row(flip, reset, add, remove));
+            var play = Z.ToggleButton("Play walk", testPlaying
+                    ? "On: the frames of this direction play in turn, so you can watch the wounds follow the walk. Click to stop."
+                    : "Off: a still frame. Click to play this direction's frames in a loop and watch the wounds on every one.",
+                testPlaying, SetTestPlaying);
+            host.Add(Z.Row(flip, play, reset, add, remove));
 
             if (recipe == null) return;
             // No titled box: the chooser above already names the damage type these settings belong to.
@@ -188,6 +201,45 @@ namespace Laubrary.GoreLab.Editor
             return input.members != null;
         }
 
+        // The same spot rule the game uses for a bullet: how many frames of this direction would show a hole at this remover.
+        double ShownDirectionHoleVisibility(GoreRemover op)
+        {
+            if (shown == null) return 1;
+            var grids = new List<GoreGrid>();
+            var mems = new List<GoreMemberInput[]>();
+            foreach (var s in shown.group.sprites)
+            {
+                var px = Pixels(s, shown.mirrored);
+                var tags = FindFrame(s);
+                if (px == null || tags == null) continue;
+                grids.Add(px.grid);
+                mems.Add(GoreRigInputs.Build(tags, px.W, px.H, shown.mirrored, MemberCount));
+            }
+            return GoreHoleVisibility.Score(op, grids, mems);
+        }
+
+        void SetTestPlaying(bool on)
+        {
+            testPlaying = on;
+            EditorApplication.update -= TickTestPlay;
+            if (on) { nextPlayStep = EditorApplication.timeSinceStartup + 0.16; EditorApplication.update += TickTestPlay; }
+            AfterEdit();
+        }
+
+        // A light step: the panes are not rebuilt six times a second, only the picture changes.
+        void TickTestPlay()
+        {
+            if (this == null || !testPlaying || tab != Tab.Test || shown == null) { testPlaying = false; EditorApplication.update -= TickTestPlay; return; }
+            if (EditorApplication.timeSinceStartup < nextPlayStep) return;
+            nextPlayStep += 0.16;
+            int n = shown.group.sprites.Count;
+            selSprite = shown.group.sprites[(shown.index + 1) % n];
+            ResolveShown();
+            pendingWound.Clear();
+            RecutShown();
+            stage?.Refresh();
+        }
+
         int NextGroup()
         {
             int g = -1;
@@ -202,12 +254,14 @@ namespace Laubrary.GoreLab.Editor
             var recipe = ActiveRecipe;
             if (recipe == null || (p1 - p0).magnitude < 1f) return false;
             var targets = new bool[input.members.Length];
-            for (int i = 0; i < targets.Length; i++) targets[i] = true;
+            for (int i = 0; i < targets.Length; i++) targets[i] = testTarget < 0 || i == testTarget;
             var ctx = new WoundContext
             {
                 p0x = p0.x, p0y = p0.y, p1x = p1.x, p1y = p1.y,
                 group = NextGroup(),
                 seed = Rig.cut.seed * 131 + woundCounter,
+                shotCounter = woundCounter,
+                holeVisibility = ShownDirectionHoleVisibility,
                 grid = input.grid,
                 members = input.members,
                 targets = targets,
