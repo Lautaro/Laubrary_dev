@@ -11,6 +11,7 @@ conversation; call out drift.
 | **Zoetrope** | **Zoe** | A versioned 2D sprite character/animation. **FrameRef** = one sheet cell + pivot. **SpriteCatalog** = named static sprites from a sheet. |
 | **Larder** | **Ware** | A procedurally generated pixel-art shelf product seen from the front (book, can, box, crate, carton). |
 | **Pyre** | **Blast** | A procedurally baked pixel-art explosion/hit animation. |
+| **GoreLab** | **Gore Rig / Body member / Remover / Wound recipe** | A Gore Rig is the sidecar asset that tags a character's body members (head ball, torso box) on every drawn frame. A remover is one thing a wound takes out of a member (a slice plane, a capsule), stored in the member's own coordinates. A wound recipe is a damage type (Slice, Cut, Bullet, Shotgun, Remove head) that turns a swipe into removers. Not to be confused with a Launimator direction-set member. |
 
 ## Larder (lootable store interior)
 
