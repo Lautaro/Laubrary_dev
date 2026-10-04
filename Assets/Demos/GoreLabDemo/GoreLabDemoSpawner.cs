@@ -7,7 +7,7 @@ using Laubrary.ZoetropeLaunimator;
 namespace Laubrary.GoreLabDemo
 {
     /// <summary>
-    /// Stands the eight-direction imp in a grid, one imp per direction, each walking in place, and gives every one the gore body that lets it be wounded.
+    /// Fills an arena with imps that wander in random directions, lets imps be added and removed, and gives every one the gore body that lets it be wounded.
     /// The imp does not know about gore: the body is added to it here.
     /// </summary>
     public sealed class GoreLabDemoSpawner : MonoBehaviour
@@ -18,31 +18,49 @@ namespace Laubrary.GoreLabDemo
         [Tooltip("The gore rig for the imp: where its head and torso are on every frame.")]
         public GoreRig rig;
 
-        [Header("Layout")]
-        [Tooltip("The direction each imp faces, in degrees (0 = away from the camera, 180 = toward it, clockwise). Listed from the bottom row up, left to right.")]
-        public float[] headings = { 180f, 225f, 270f, 315f, 0f, 45f, 90f, 135f };
-        [Tooltip("How many imps stand in one row.")]
-        public int perRow = 4;
-        [Tooltip("Distance between neighbouring imps, in world units.")]
-        public Vector2 spacing = new Vector2(5f, 6.2f);
-        [Tooltip("Where the bottom-left imp stands (its feet).")]
-        public Vector2 origin = new Vector2(-7.5f, -5.2f);
+        [Header("Crowd")]
+        [Tooltip("How many imps stand in the arena when the demo starts.")]
+        public int startCount = 8;
+        [Tooltip("The area the imps wander in: where their feet may go (lower left and upper right).")]
+        public Vector2 arenaMin = new Vector2(-9f, -5.5f);
+        public Vector2 arenaMax = new Vector2(9f, 3.5f);
 
+        /// <summary>The imps in the order they were added; the first added is the first removed.</summary>
         public readonly List<GoreBody> bodies = new List<GoreBody>();
+        int _serial;
 
         void Start()
         {
             if (imp == null || rig == null) { Debug.LogWarning("GoreLabDemoSpawner needs an imp and a rig.", this); return; }
-            for (int i = 0; i < headings.Length; i++)
+            for (int i = 0; i < startCount; i++) Add();
+        }
+
+        /// <summary>Adds one imp at a random spot, walking in a random direction.</summary>
+        public GoreBody Add()
+        {
+            if (imp == null || rig == null) return null;
+            var pos = new Vector3(Random.Range(arenaMin.x, arenaMax.x), Random.Range(arenaMin.y, arenaMax.y), 0f);
+            GameObject go = ZoeSpawner.SpawnCharacter(imp, pos, transform);
+            go.name = "Imp " + (++_serial);
+            var walker = go.AddComponent<GoreLabDemoWalker>();
+            walker.arenaMin = arenaMin; walker.arenaMax = arenaMax;
+            var body = GoreBody.Attach(go, rig);
+            bodies.Add(body);
+            return body;
+        }
+
+        /// <summary>Removes the imp that was added first. Returns false when there are none.</summary>
+        public bool RemoveOldest()
+        {
+            while (bodies.Count > 0)
             {
-                var pos = new Vector3(origin.x + (i % perRow) * spacing.x, origin.y + (i / perRow) * spacing.y, 0f);
-                GameObject go = ZoeSpawner.SpawnCharacter(imp, pos, transform);
-                go.name = "Imp " + headings[i] + "°";
-                var pose = go.GetComponent<MotionPoseAnimator>();
-                if (pose != null) pose.SetPoseOverride(MotionCondition.Always, headings[i]);
-                var body = GoreBody.Attach(go, rig);
-                bodies.Add(body);
+                var b = bodies[0];
+                bodies.RemoveAt(0);
+                if (b == null) continue;
+                Destroy(b.gameObject);
+                return true;
             }
+            return false;
         }
 
         public void ResetAll()

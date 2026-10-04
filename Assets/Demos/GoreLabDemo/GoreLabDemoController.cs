@@ -68,6 +68,13 @@ namespace Laubrary.GoreLabDemo
         // The GUI panel works in top-left screen coordinates, the mouse in bottom-left.
         bool OverPanel(Vector2 screen) { return _panelRect.Contains(new Vector2(screen.x, Screen.height - screen.y)); }
 
+        int CountAlive()
+        {
+            int n = 0;
+            foreach (var b in spawner.bodies) if (b != null) n++;
+            return n;
+        }
+
         void Strike(Vector2 a, Vector2 b)
         {
             if ((b - a).magnitude < 0.3f)
@@ -132,7 +139,7 @@ namespace Laubrary.GoreLabDemo
 
         void OnGUI()
         {
-            Rect rc = Zui.Panel(ZuiAnchor.TopLeft, 200f, 292f, PanelBg);
+            Rect rc = Zui.Panel(ZuiAnchor.TopLeft, 200f, 365f, PanelBg);
             float pad = UIScale.S(10f);
             _panelRect = new Rect(rc.x - pad, rc.y - pad, rc.width + pad * 2f, rc.height + pad * 2f);
             var s = new ZuiStack(rc);
@@ -142,6 +149,10 @@ namespace Laubrary.GoreLabDemo
                 if (s.Toggle(KindNames[i], (int)_kind == i, 14f) && (int)_kind != i) _kind = (Kind)i;
             if (_kind == Kind.Shotgun) _straightOn = s.Toggle("Straight on", _straightOn, 14f);
             s.Space();
+            s.Label("Imps: " + CountAlive(), 13f);
+            if (s.Button("+  Add imp", 15f)) { spawner.Add(); }
+            if (s.Button("-  Remove oldest", 15f)) { spawner.RemoveOldest(); }
+            s.Space(4f);
             if (s.Button("Reset wounds", 15f)) { spawner.ResetAll(); _last = "Wounds cleared."; }
             s.Space(4f);
             s.Label("Drag across an imp. Slice and cut follow your line; shots use it as the aim.", 11f, new Color(0.75f, 0.78f, 0.85f));
