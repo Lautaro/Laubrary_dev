@@ -85,16 +85,31 @@ namespace Laubrary.GoreLabDemo
             _last = hit ? target.name + ": " + KindNames[(int)_kind] : target.name + ": nothing visible changed (try another spot)";
         }
 
+        // The rig's own tuned recipe of the chosen type (a copy, so the asset is never touched); a fresh default if the rig has none.
         IWoundRecipe MakeRecipe()
         {
+            System.Type want;
             switch (_kind)
             {
-                case Kind.Slice: return new SliceRecipe();
-                case Kind.Cut: return new CutRecipe();
-                case Kind.Shotgun: return new ShotgunRecipe { straightOn = _straightOn };
-                case Kind.RemoveHead: return new RemoveHeadRecipe();
-                default: return new BulletRecipe();
+                case Kind.Slice: want = typeof(SliceRecipe); break;
+                case Kind.Cut: want = typeof(CutRecipe); break;
+                case Kind.Shotgun: want = typeof(ShotgunRecipe); break;
+                case Kind.RemoveHead: want = typeof(RemoveHeadRecipe); break;
+                default: want = typeof(BulletRecipe); break;
             }
+            IWoundRecipe made = null;
+            var rig = spawner != null ? spawner.rig : null;
+            if (rig != null && rig.recipes != null)
+                foreach (var r in rig.recipes)
+                    if (r != null && r.GetType() == want)
+                    {
+                        made = (IWoundRecipe)System.Activator.CreateInstance(want);
+                        JsonUtility.FromJsonOverwrite(JsonUtility.ToJson(r), made);
+                        break;
+                    }
+            if (made == null) made = (IWoundRecipe)System.Activator.CreateInstance(want);
+            if (made is ShotgunRecipe sg) sg.straightOn = _straightOn;
+            return made;
         }
 
         // The imp whose picture the line touches; the end of the line wins, so a shot lands where it was aimed.

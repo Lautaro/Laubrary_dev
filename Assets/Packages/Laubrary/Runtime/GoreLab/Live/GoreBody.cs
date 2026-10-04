@@ -76,6 +76,15 @@ namespace Laubrary.GoreLab
 
         bool Ready { get { return rig != null && _player != null && _sr != null; } }
 
+        /// <summary>Gives a character the wound look in code: adds the component (if missing) and points it at the rig. In the editor the same is one Add Component and one object field.</summary>
+        public static GoreBody Attach(GameObject character, GoreRig rig)
+        {
+            var body = character.GetComponent<GoreBody>();
+            if (body == null) body = character.AddComponent<GoreBody>();
+            body.rig = rig;
+            return body;
+        }
+
         void Awake()
         {
             _player = GetComponent<ZonedAnimationPlayer>();

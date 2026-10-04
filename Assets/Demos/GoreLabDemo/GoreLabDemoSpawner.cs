@@ -40,8 +40,7 @@ namespace Laubrary.GoreLabDemo
                 go.name = "Imp " + headings[i] + "°";
                 var pose = go.GetComponent<MotionPoseAnimator>();
                 if (pose != null) pose.SetPoseOverride(MotionCondition.Always, headings[i]);
-                var body = go.AddComponent<GoreBody>();
-                body.rig = rig;
+                var body = GoreBody.Attach(go, rig);
                 bodies.Add(body);
             }
         }
