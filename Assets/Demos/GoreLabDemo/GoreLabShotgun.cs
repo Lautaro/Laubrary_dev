@@ -46,6 +46,7 @@ namespace Laubrary.GoreLabDemo
             public Vector2 origin, dir;
             public int seed;
             public Volley volley;
+            public IWoundRecipe custom;      // a single-shot weapon wounds with its own recipe along the contact instead of the pellet recipe
 
             public void OnHit(Hurtbox box, DamageInfo info)
             {
@@ -56,6 +57,11 @@ namespace Laubrary.GoreLabDemo
                 // the pellet's real flight distance fades its energy here instead.
                 float flown = Vector2.Distance(origin, info.point);
                 owner._recipe.energy = owner.energy * Mathf.Max(0.35f, 1f - owner.fadePerUnit * flown);
+                if (custom != null)
+                {
+                    if (body.ApplyWound(custom, info.point - dir * 0.7f, info.point + dir * 0.7f, seed)) { volley.wounds++; volley.imps.Add(body); }
+                    return;
+                }
                 Vector2 from = info.point - dir * 0.1f;
                 // A pellet that tunnels through leaves a hole that can be hidden behind the body; then it still scars the surface it struck.
                 owner._surface.energy = owner._recipe.energy;
@@ -188,6 +194,28 @@ namespace Laubrary.GoreLabDemo
             _last = volley;
             Refresh(volley);
             return volley.fired;
+        }
+
+        /// <summary>One real projectile from the muzzle toward the aim point; where it lands it wounds with the given recipe (a bullet, for example).</summary>
+        public void FireOne(Vector2 muzzle, Vector2 aim, IWoundRecipe recipe, int seed, float shotSpeed)
+        {
+            EnsureTemplate();
+            Vector2 dir = aim - muzzle;
+            if (dir.sqrMagnitude < 1e-6f) dir = Vector2.right;
+            dir.Normalize();
+            var volley = new Volley { fired = 1 };
+            var p = ProjectilePool.Get(_template);
+            p.transform.SetPositionAndRotation(muzzle, Quaternion.identity);
+            p.transform.SetParent(ProjectileContainer.Root, true);
+            if (!p.gameObject.activeSelf) p.gameObject.SetActive(true);
+            p.damage = damage;
+            p.lifetime = range / Mathf.Max(0.01f, shotSpeed);
+            var flight = new Flight { owner = this, projectile = p, origin = muzzle, dir = dir, seed = seed, volley = volley, custom = recipe };
+            p.Hit += flight.OnHit;
+            p.Expired += flight.OnExpired;
+            p.Launch(dir, null, gameObject, shotSpeed);
+            _last = volley;
+            Refresh(volley);
         }
 
         void Refresh(Volley v)

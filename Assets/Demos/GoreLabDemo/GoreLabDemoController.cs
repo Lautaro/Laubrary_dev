@@ -35,7 +35,7 @@ namespace Laubrary.GoreLabDemo
         const float RefLength = 3f, MinLength = 0.5f, MaxLength = 12f, HandleRadius = 0.4f;
         const int ArcPoints = 14;
 
-        GoreLabShotgun _shotgun2;
+        GoreLabShotgun _shotgun2, _coneGun, _bulletGun;
         int _blastSeed;
         Kind _kind = Kind.Bullet;
         bool _straightOn = true;
@@ -61,6 +61,12 @@ namespace Laubrary.GoreLabDemo
             BuildCone();
             _shotgun2 = gameObject.AddComponent<GoreLabShotgun>();
             _shotgun2.Init(spawner != null ? spawner.rig : null);
+            _coneGun = new GameObject("Cone gun").AddComponent<GoreLabShotgun>();
+            _coneGun.transform.SetParent(transform);
+            _coneGun.Init(spawner != null ? spawner.rig : null);
+            _bulletGun = new GameObject("Bullet gun").AddComponent<GoreLabShotgun>();
+            _bulletGun.transform.SetParent(transform);
+            _bulletGun.Init(spawner != null ? spawner.rig : null);
             var rigForRecipes = spawner != null ? spawner.rig : null;
             if (rigForRecipes != null && rigForRecipes.recipes != null)
                 foreach (var r in rigForRecipes.recipes) if (r is ShotgunRecipe sg) _pellets = Mathf.Max(1, sg.pellets);
@@ -172,17 +178,15 @@ namespace Laubrary.GoreLabDemo
             if (kb != null && kb.spaceKey.wasPressedThisFrame) FireCone();
         }
 
-        /// <summary>The same blast goes to every imp: each one is cut by the pellets that reach it, on whichever limbs they cross.</summary>
+        /// <summary>A real attack: the cone's fan of pellets flies as projectiles, and every pellet wounds the imp it reaches along its own line.</summary>
         void FireCone()
         {
             if (!_coneExists) { _last = "Drag on the ground to make a cone first."; return; }
-            var recipe = MakeRecipe() as ShotgunRecipe;
-            recipe.pellets = _pellets;
-            recipe.energy *= _coneLen / RefLength;
-            int seed = Random.Range(0, 100000), hit = 0;
-            foreach (var body in spawner.bodies)
-                if (body != null && body.ApplyWound(recipe, _muzzle, _tip, seed)) hit++;
-            _last = hit > 0 ? "Blast hit " + hit + " imp" + (hit > 1 ? "s" : "") + "." : "Nobody in the cone.";
+            _coneGun.pellets = _pellets;
+            _coneGun.coneDeg = ConeHalfAngleRad() * Mathf.Rad2Deg;
+            _coneGun.energy = _shotgun2.energy * _coneLen / RefLength;
+            int n = _coneGun.Fire(_muzzle, _tip, Random.Range(1, 1000000));
+            _last = "Fired " + n + " pellets.";
         }
 
         void Update()
@@ -256,10 +260,17 @@ namespace Laubrary.GoreLabDemo
                 _last = "Fired " + n + " pellets.";
                 return;
             }
-            GoreBody target = FindImp(a, b);
-            if (target == null) { _last = "Nothing under the line."; return; }
-            bool hit = target.ApplyWound(MakeRecipe(), a, b);
-            _last = hit ? target.name + ": " + KindNames[(int)_kind] : target.name + ": nothing visible changed (try another spot)";
+            int seed = Random.Range(1, 1000000);
+            if (_kind == Kind.Bullet)
+            {
+                // a real projectile; where it lands the bullet recipe digs its shallow hole
+                _bulletGun.FireOne(a, b, MakeRecipe(), seed, 45f);
+                _last = "Bullet fired.";
+                return;
+            }
+            // slice, cut and remove head are melee swings: a hitbox travels the swipe line and damages what it touches
+            GoreLabSwing.Begin(a, b, MakeRecipe(), seed);
+            _last = KindNames[(int)_kind] + ": swing started.";
         }
 
         // The rig's own tuned recipe of the chosen type (a copy, so the asset is never touched); a fresh default if the rig has none.
@@ -319,7 +330,6 @@ namespace Laubrary.GoreLabDemo
                 if (s.Toggle(KindNames[i], (int)_kind == i, 14f) && (int)_kind != i) _kind = (Kind)i;
             if (_kind == Kind.Shotgun)
             {
-                _straightOn = s.Toggle("Straight on", _straightOn, 14f);
                 if (s.Button("Fire cone (Space)", 15f)) FireCone();
             }
             if (_kind == Kind.Shotgun2)
@@ -336,7 +346,7 @@ namespace Laubrary.GoreLabDemo
             s.Space(4f);
             if (s.Button("Reset wounds", 15f)) { spawner.ResetAll(); _last = "Wounds cleared."; }
             s.Space(4f);
-            s.Label("Drag across an imp. Slice and cut follow your line; shots use it as the aim.", 11f, new Color(0.75f, 0.78f, 0.85f));
+            s.Label("Every attack is real: swings sweep your line, bullets and pellets fly and hit the first imp in their way.", 11f, new Color(0.75f, 0.78f, 0.85f));
             if (_kind == Kind.Shotgun2 && _shotgun2.Summary.Length > 0) s.Label(_shotgun2.Summary, 11f, new Color(0.55f, 1f, 0.6f));
             if (_last.Length > 0) s.Label(_last, 11f, new Color(1f, 0.82f, 0.4f));
 
