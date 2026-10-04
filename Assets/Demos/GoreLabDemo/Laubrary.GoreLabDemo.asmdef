@@ -1,0 +1,22 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.GoreLabDemo",
+    "rootNamespace": "Laubrary.GoreLabDemo",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.GoreLab",
+        "com.Lautaro-Arino.Laubrary.Zoetrope",
+        "com.Lautaro-Arino.Laubrary.Zoetrope.Launimator",
+        "com.Lautaro-Arino.Laubrary.Launimator",
+        "com.Lautaro-Arino.Laubrary.Combat2D",
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
