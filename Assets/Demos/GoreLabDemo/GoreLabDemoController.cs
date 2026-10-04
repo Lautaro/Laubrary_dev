@@ -11,8 +11,8 @@ namespace Laubrary.GoreLabDemo
     /// </summary>
     public sealed class GoreLabDemoController : MonoBehaviour
     {
-        enum Kind { Slice, Cut, Bullet, Shotgun, RemoveHead }
-        static readonly string[] KindNames = { "Slice (cuts through)", "Cut (knife)", "Bullet", "Shotgun", "Remove head" };
+        enum Kind { Slice, Cut, Bullet, Shotgun, RemoveHead, Shotgun2 }
+        static readonly string[] KindNames = { "Slice (cuts through)", "Cut (knife)", "Bullet", "Shotgun", "Remove head", "Shotgun 2 (pellets fly)" };
 
         [Tooltip("The spawner that owns the imps.")]
         public GoreLabDemoSpawner spawner;
@@ -35,6 +35,8 @@ namespace Laubrary.GoreLabDemo
         const float RefLength = 3f, MinLength = 0.5f, MaxLength = 12f, HandleRadius = 0.4f;
         const int ArcPoints = 14;
 
+        GoreLabShotgun _shotgun2;
+        int _blastSeed;
         Kind _kind = Kind.Bullet;
         bool _straightOn = true;
         bool _dragging;
@@ -57,6 +59,8 @@ namespace Laubrary.GoreLabDemo
             _line.sortingOrder = 1000;
             _line.enabled = false;
             BuildCone();
+            _shotgun2 = gameObject.AddComponent<GoreLabShotgun>();
+            _shotgun2.Init(spawner != null ? spawner.rig : null);
             var rigForRecipes = spawner != null ? spawner.rig : null;
             if (rigForRecipes != null && rigForRecipes.recipes != null)
                 foreach (var r in rigForRecipes.recipes) if (r is ShotgunRecipe sg) _pellets = Mathf.Max(1, sg.pellets);
@@ -195,17 +199,19 @@ namespace Laubrary.GoreLabDemo
                 return;
             }
             RefreshCone();
-            if (mouse.leftButton.wasPressedThisFrame && !OverPanel(screen)) { _dragging = true; _down = world; }
+            if (mouse.leftButton.wasPressedThisFrame && !OverPanel(screen)) { _dragging = true; _down = world; _blastSeed = Random.Range(1, 1000000); }
             if (_dragging)
             {
                 _line.enabled = true;
                 _line.SetPosition(0, _down);
                 _line.SetPosition(1, world);
+                if (_kind == Kind.Shotgun2) { ShotLine(_down, world, out var m, out var t); _shotgun2.ShowPreview(m, t, _blastSeed); }
             }
             if (mouse.leftButton.wasReleasedThisFrame && _dragging)
             {
                 _dragging = false;
                 _line.enabled = false;
+                _shotgun2.HidePreview();
                 Strike(_down, world);
             }
         }
@@ -224,6 +230,14 @@ namespace Laubrary.GoreLabDemo
             return n;
         }
 
+        // A click (no drag) aims from the lower left toward the clicked point.
+        void ShotLine(Vector2 a, Vector2 b, out Vector2 muzzle, out Vector2 target)
+        {
+            bool click = (b - a).magnitude < 0.3f;
+            muzzle = click ? b - new Vector2(1f, 0.6f).normalized * clickLength : a;
+            target = b;
+        }
+
         void Strike(Vector2 a, Vector2 b)
         {
             if ((b - a).magnitude < 0.3f)
@@ -234,6 +248,13 @@ namespace Laubrary.GoreLabDemo
                 Vector2 at = b;
                 a = swipe ? at - dir * clickLength * 0.5f : at - dir * clickLength;
                 b = swipe ? at + dir * clickLength * 0.5f : at;
+            }
+            if (_kind == Kind.Shotgun2)
+            {
+                // Pellets fly on their own and wound whatever they reach, so there is no target to pick here.
+                int n = _shotgun2.Fire(a, b, _blastSeed);
+                _last = "Fired " + n + " pellets.";
+                return;
             }
             GoreBody target = FindImp(a, b);
             if (target == null) { _last = "Nothing under the line."; return; }
@@ -288,7 +309,7 @@ namespace Laubrary.GoreLabDemo
 
         void OnGUI()
         {
-            Rect rc = Zui.Panel(ZuiAnchor.TopLeft, 200f, 400f, PanelBg);
+            Rect rc = Zui.Panel(ZuiAnchor.TopLeft, 200f, _kind == Kind.Shotgun2 ? 560f : 400f, PanelBg);
             float pad = UIScale.S(10f);
             _panelRect = new Rect(rc.x - pad, rc.y - pad, rc.width + pad * 2f, rc.height + pad * 2f);
             var s = new ZuiStack(rc);
@@ -301,6 +322,13 @@ namespace Laubrary.GoreLabDemo
                 _straightOn = s.Toggle("Straight on", _straightOn, 14f);
                 if (s.Button("Fire cone (Space)", 15f)) FireCone();
             }
+            if (_kind == Kind.Shotgun2)
+            {
+                _shotgun2.pellets = Mathf.RoundToInt(s.Slider("Pellets", _shotgun2.pellets, 1, 60, 13f, "0"));
+                _shotgun2.coneDeg = s.Slider("Cone", _shotgun2.coneDeg, 0f, 45f, 13f, "0.#");
+                _shotgun2.energy = s.Slider("Power", _shotgun2.energy, 0.3f, 30f, 13f, "0.#");
+                _shotgun2.speed = s.Slider("Speed", _shotgun2.speed, 5f, 100f, 13f, "0");
+            }
             s.Space();
             s.Label("Imps: " + CountAlive(), 13f);
             if (s.Button("+  Add imp", 15f)) { spawner.Add(); }
@@ -309,6 +337,7 @@ namespace Laubrary.GoreLabDemo
             if (s.Button("Reset wounds", 15f)) { spawner.ResetAll(); _last = "Wounds cleared."; }
             s.Space(4f);
             s.Label("Drag across an imp. Slice and cut follow your line; shots use it as the aim.", 11f, new Color(0.75f, 0.78f, 0.85f));
+            if (_kind == Kind.Shotgun2 && _shotgun2.Summary.Length > 0) s.Label(_shotgun2.Summary, 11f, new Color(0.55f, 1f, 0.6f));
             if (_last.Length > 0) s.Label(_last, 11f, new Color(1f, 0.82f, 0.4f));
 
             // the mini slider for the pellet count sits next to the cone's muzzle
