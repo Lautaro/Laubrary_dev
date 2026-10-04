@@ -132,7 +132,8 @@ namespace Laubrary.GoreLab
         void RestoreDisplay()
         {
             if (!_swapped) return;
-            _sr.flipX = _player.flipX;         // the animation player rewrites the sprite itself on its next update
+            _sr.sprite = _player.CurrentSprite;  // put the drawn frame back at once; a still pose would otherwise keep the wounded picture
+            _sr.flipX = _player.flipX;
             _swapped = false;
         }
 
@@ -198,7 +199,7 @@ namespace Laubrary.GoreLab
             _removers.Clear();
             _version++;
             StopBleeding();
-            if (_player != null && _sr != null) { _sr.flipX = _player.flipX; _swapped = false; }
+            if (_player != null && _sr != null) RestoreDisplay();
         }
 
         int NextGroup()

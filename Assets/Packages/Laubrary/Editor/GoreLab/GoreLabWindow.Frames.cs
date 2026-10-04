@@ -268,6 +268,7 @@ namespace Laubrary.GoreLab.Editor
                     int idx = i;
                     var mf = MemberAt(FindFrame(s), memberIndex, false);
                     string state = mf == null ? $"no {member} tag" : mf.skip ? $"{member} marked not visible" : mf.present ? $"{member} tagged" : $"no {member} tag";
+                    state += ". Dots at the bottom: one per body member (green tagged, grey not visible, red to do)";
                     var b = Z.Button("", $"{g.label} frame {i + 1}: {state}. Click to show it.", () => SelectFrame(g, idx));
                     b.style.width = ThumbW;
                     b.style.height = ThumbH;
@@ -279,13 +280,30 @@ namespace Laubrary.GoreLab.Editor
                     if (g.mirrored) img.style.scale = new Scale(new Vector3(-1f, 1f, 1f));
                     b.Add(img);
 
-                    var mark = new Label(mf == null ? "" : mf.skip ? "–" : mf.present ? "✔" : "") { pickingMode = PickingMode.Ignore };
-                    mark.style.position = Position.Absolute;
-                    mark.style.right = 1f;
-                    mark.style.bottom = 0f;
-                    mark.style.fontSize = 10f;
-                    mark.style.color = new Color(0.55f, 1f, 0.6f);
-                    b.Add(mark);
+                    // one dot per body member along the bottom: green = tagged, grey = marked not visible, red = still to do
+                    var ft = FindFrame(s);
+                    var dots = new VisualElement { pickingMode = PickingMode.Ignore };
+                    dots.style.position = Position.Absolute;
+                    dots.style.left = 2f; dots.style.right = 2f; dots.style.bottom = 1f;
+                    dots.style.flexDirection = FlexDirection.Row;
+                    dots.style.justifyContent = Justify.Center;
+                    for (int m = 0; m < MemberCount; m++)
+                    {
+                        var md = MemberAt(ft, m, false);
+                        var dot = new VisualElement { pickingMode = PickingMode.Ignore };
+                        dot.style.width = 6f; dot.style.height = 6f; dot.style.marginLeft = dot.style.marginRight = 1f;
+                        dot.style.borderTopLeftRadius = dot.style.borderTopRightRadius = dot.style.borderBottomLeftRadius = dot.style.borderBottomRightRadius = 3f;
+                        dot.style.backgroundColor = md != null && md.present ? new Color(0.45f, 0.95f, 0.5f)
+                            : md != null && md.skip ? new Color(0.6f, 0.6f, 0.6f) : new Color(0.9f, 0.35f, 0.3f);
+                        dots.Add(dot);
+                    }
+                    b.Add(dots);
+                    if (shown != null && shown.group == g && shown.index == i)
+                    {
+                        var orange = new Color(1f, 0.65f, 0.2f);
+                        b.style.borderTopColor = b.style.borderBottomColor = b.style.borderLeftColor = b.style.borderRightColor = orange;
+                        b.style.borderTopWidth = b.style.borderBottomWidth = b.style.borderLeftWidth = b.style.borderRightWidth = 2f;
+                    }
                     row.Add(b);
                 }
                 col.Add(row);

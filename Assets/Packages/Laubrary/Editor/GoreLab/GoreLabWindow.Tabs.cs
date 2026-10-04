@@ -282,6 +282,36 @@ namespace Laubrary.GoreLab.Editor
             auto.SetEnabled(CanEditShown && ActiveMember != null);
             host.Add(Z.Row(copyNext, copyRest, auto));
             host.Add(BuildTargetRow());
+            var attach = Z.Button("Attach to selected",
+                "Puts the wound component on the character(s) selected in the scene or project and points it at this rig, so they can be wounded in play (undoable). The rig's target is only for tagging; this is what makes a game character show wounds.",
+                AttachToSelection);
+            host.Add(Z.Row(attach));
+        }
+
+        void AttachToSelection()
+        {
+            var rig = Rig;
+            int n = 0;
+            foreach (var go in Selection.gameObjects)
+            {
+                if (go == null) continue;
+                GoreBody body = go.GetComponent<GoreBody>();
+                if (EditorUtility.IsPersistent(go))
+                {
+                    if (body == null) body = go.AddComponent<GoreBody>();
+                    body.rig = rig;
+                    EditorUtility.SetDirty(go);
+                }
+                else
+                {
+                    if (body == null) body = Undo.AddComponent<GoreBody>(go);
+                    Undo.RecordObject(body, "Attach GoreLab rig");
+                    body.rig = rig;
+                    EditorUtility.SetDirty(body);
+                }
+                n++;
+            }
+            ShowHint(n == 0 ? "Select the character in the scene (or a prefab) first." : $"Attached to {n} object{(n > 1 ? "s" : "")}.");
         }
 
         /// The rig's target: the character (or bare animation) whose frames are tagged. The character never learns

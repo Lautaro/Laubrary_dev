@@ -38,21 +38,25 @@ namespace Laubrary.GoreLab.Editor
                     var dst = MemberAt(ft, memberIndex, true);
                     dst.present = true;
                     dst.skip = src.skip;
-                    dst.tag = src.tag;
-                    dst.behind = CarryMask(src.behind, srcW, px, src.tag);
-                    dst.exempt = CarryMask(src.exempt, srcW, px, src.tag);
+                    // Frames of one direction can differ in size; the feet stay on the ground line and the body on the middle, so shift by the size difference.
+                    int dx = (px.W - srcW) / 2, dy = px.H - shown.H;
+                    var moved = src.tag;
+                    moved.cx += dx; moved.cy += dy;
+                    dst.tag = moved;
+                    dst.behind = CarryMask(src.behind, srcW, dx, dy, px, moved);
+                    dst.exempt = CarryMask(src.exempt, srcW, dx, dy, px, moved);
                 }
             });
         }
 
-        static int[] CarryMask(int[] source, int sourceWidth, GoreSpritePixels target, in MemberTag tag)
+        static int[] CarryMask(int[] source, int sourceWidth, int dx, int dy, GoreSpritePixels target, in MemberTag tag)
         {
             if (source == null || source.Length == 0 || sourceWidth <= 0) return new int[0];
             var kept = new List<int>(source.Length);
             for (int k = 0; k < source.Length; k++)
             {
-                int x = source[k] % sourceWidth, y = source[k] / sourceWidth;
-                if (x >= target.W || y >= target.H) continue;
+                int x = source[k] % sourceWidth + dx, y = source[k] / sourceWidth + dy;
+                if (x < 0 || y < 0 || x >= target.W || y >= target.H) continue;
                 if (!target.grid.Solid(x, y) || !GoreTagMath.InsideOutline(tag, x + 0.5, y + 0.5)) continue;
                 kept.Add(y * target.W + x);
             }

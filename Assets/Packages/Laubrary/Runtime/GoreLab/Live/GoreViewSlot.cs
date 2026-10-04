@@ -50,20 +50,36 @@ namespace Laubrary.GoreLab
     /// <summary>Reads a sprite's pixels into the engine's layout (0xAABBGGRR, top-left origin, y down).</summary>
     public static class GoreSourcePixels
     {
-        /// <summary>Returns null (and logs once per texture) when the sprite's texture is not readable.</summary>
+        /// <summary>
+        /// Reads the sprite's declared rectangle (the same one the editor window reads, so tags line up even on a packed atlas). A texture that is not
+        /// marked readable is read through a temporary GPU copy, so a rig that works in the editor also works in a game.
+        /// </summary>
         public static GoreGrid Read(Sprite s, bool mirrored)
         {
-            if (s == null) return null;
+            if (s == null || s.texture == null) return null;
             var tex = s.texture;
-            if (tex == null || !tex.isReadable)
-            {
-                Debug.LogWarning("GoreLab: the sprite '" + (s != null ? s.name : "?") + "' is not readable, so it cannot be wounded. Enable Read/Write on its texture import settings.", s);
-                return null;
-            }
-            Rect r = s.textureRect;
+            Rect r = s.rect;
             int rx = Mathf.RoundToInt(r.x), ry = Mathf.RoundToInt(r.y), w = Mathf.RoundToInt(r.width), h = Mathf.RoundToInt(r.height);
-            var px = tex.GetPixels32();
+            Color32[] px;
             int tw = tex.width;
+            if (tex.isReadable)
+            {
+                px = tex.GetPixels32();
+            }
+            else
+            {
+                var rt = RenderTexture.GetTemporary(tex.width, tex.height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
+                var prev = RenderTexture.active;
+                Graphics.Blit(tex, rt);
+                RenderTexture.active = rt;
+                var copy = new Texture2D(tex.width, tex.height, TextureFormat.RGBA32, false, true);
+                copy.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
+                copy.Apply(false);
+                RenderTexture.active = prev;
+                RenderTexture.ReleaseTemporary(rt);
+                px = copy.GetPixels32();
+                Object.Destroy(copy);
+            }
             var grid = new GoreGrid(w, h);
             for (int y = 0; y < h; y++)
             {
