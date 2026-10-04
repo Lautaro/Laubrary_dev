@@ -11,7 +11,7 @@ namespace Laubrary.GoreLab
             {
                 flesh = new[] { Rgb(110, 12, 14), Rgb(150, 22, 22), Rgb(190, 40, 34), Rgb(224, 94, 72) },
                 bone = new[] { Rgb(232, 222, 196), Rgb(196, 184, 152) },
-                blood = new[] { Rgb(70, 0, 0), Rgb(120, 6, 6), Rgb(170, 14, 14), Rgb(214, 34, 28) },
+                blood = new[] { Rgb(70, 0, 0), Rgb(120, 6, 6), Rgb(170, 14, 14), Rgb(214, 34, 28), Rgb(244, 78, 56) },
                 crater = Rgb(92, 6, 10),
                 goreDark = Rgb(78, 4, 8),
             };

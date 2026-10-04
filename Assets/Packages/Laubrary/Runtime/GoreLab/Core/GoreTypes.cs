@@ -92,7 +92,7 @@ namespace Laubrary.GoreLab
         public double jag;             // ragged edge amplitude (for a 6 px head)
         public double jagFreq;         // ragged edge frequency
         public bool bone;              // pale bone core in a slice
-        public static GoreCutConfig Default() { return new GoreCutConfig { seed = 1, jag = 1.0, jagFreq = 0.45, bone = true }; }
+        public static GoreCutConfig Default() { return new GoreCutConfig { seed = 1, jag = 1.2, jagFreq = 0.45, bone = true }; }
     }
 
     /// <summary>The colours the wounds are made of. Fleshy is the default; a game can build others (gooey, mechanical...).</summary>
