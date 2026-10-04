@@ -42,6 +42,13 @@ namespace Laubrary.GoreLabDemo
             var pos = new Vector3(Random.Range(arenaMin.x, arenaMax.x), Random.Range(arenaMin.y, arenaMax.y), 0f);
             GameObject go = ZoeSpawner.SpawnCharacter(imp, pos, transform);
             go.name = "Imp " + (++_serial);
+            // Projectiles only feel a trigger hurtbox that belongs to a physics body, so the imp carries a kinematic one (it is moved by its walker, not by physics).
+            if (go.GetComponent<Rigidbody2D>() == null)
+            {
+                var rb = go.AddComponent<Rigidbody2D>();
+                rb.bodyType = RigidbodyType2D.Kinematic;
+                rb.gravityScale = 0f;
+            }
             var walker = go.AddComponent<GoreLabDemoWalker>();
             walker.arenaMin = arenaMin; walker.arenaMax = arenaMax;
             var body = GoreBody.Attach(go, rig);
