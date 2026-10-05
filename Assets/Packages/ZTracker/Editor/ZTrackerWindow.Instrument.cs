@@ -32,6 +32,7 @@ namespace Laubrary.ZTracker.Editor
             { "baseNote", new Vector2(0,126) }, { "baseNoteB", new Vector2(0,126) }, { "midiNote", new Vector2(0,126) }, { "fineTune", new Vector2(-100,100) }, { "fineTuneB", new Vector2(-100,100) },
             { "attack", new Vector2(0,5) }, { "decay", new Vector2(0,5) }, { "release", new Vector2(0,10) }, { "blendAttack", new Vector2(0,5) }, { "blendDecay", new Vector2(0,5) }, { "blendRelease", new Vector2(0,10) },
             { "blend", new Vector2(0,1) }, { "pulseWidth", new Vector2(.01f,.99f) }, { "waveBRatio", new Vector2(.1f,16) }, { "pmDepth", new Vector2(0,10) }, { "unisonDetune", new Vector2(0,100) },
+            { "vibratoDepth", new Vector2(0,200) }, { "vibratoRate", new Vector2(0,20) }, { "unisonSpread", new Vector2(0,1) },
             { "vibratoFadeIn", new Vector2(0,5) }, { "arpeggioSpeed", new Vector2(.01f,1) }, { "volume", new Vector2(0,1) }, { "pan", new Vector2(-1,1) }, { "sustain", new Vector2(0,1) } };
         static string LabelFor(string name)
         {
