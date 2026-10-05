@@ -98,6 +98,7 @@ namespace Laubrary.GoreLab.Editor
 
             RegisterCallback<GeometryChangedEvent>(_ => Refresh());
             RegisterGestures();
+            schedule.Execute(() => { if (w.tab == GoreLabWindow.Tab.Paint && hasHover) overlay.MarkDirtyRepaint(); }).Every(33);
         }
 
         T Child<T>(T e) where T : VisualElement

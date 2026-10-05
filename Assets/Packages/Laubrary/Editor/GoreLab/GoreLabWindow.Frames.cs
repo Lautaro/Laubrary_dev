@@ -307,6 +307,7 @@ namespace Laubrary.GoreLab.Editor
                     b.style.width = ThumbW;
                     b.style.height = ThumbH;
                     b.style.paddingLeft = b.style.paddingRight = b.style.paddingTop = b.style.paddingBottom = 1f;
+                    if (g.mirrored) b.style.backgroundColor = new Color(0.20f, 0.34f, 0.58f);      // read-only mirrors are blue, drawn directions keep the golden button
                     if (shown != null && shown.group == g && shown.index == i) b.AddToClassList("zui-radio__on");
 
                     var img = new Image { sprite = s, scaleMode = ScaleMode.ScaleToFit, pickingMode = PickingMode.Ignore };

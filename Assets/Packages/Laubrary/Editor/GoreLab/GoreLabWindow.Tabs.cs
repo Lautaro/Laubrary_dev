@@ -207,8 +207,7 @@ namespace Laubrary.GoreLab.Editor
             var mode = Z.Segmented(paintErase ? 1 : 0, new[] { "Paint", "Erase" }, "Left-drag paints or erases; a right-drag always erases.", i => paintErase = i == 1);
             host.Add(Z.Row(layer, mode));
 
-            var brush = Z.MicroSlider("Brush", brushSize, 1f, 6f, "Brush radius in pixels. Only solid sprite pixels inside the outline are painted.",
-                v => brushSize = Mathf.Clamp(Mathf.RoundToInt(v), 1, 6), SliderW, decimals: 0);
+            var brush = BuildBrushRadio();
             var fill = Z.Button("Fill shape", $"Paint every solid pixel inside the {me}'s outline into the chosen mask (undoable).",
                 () => Edit("Fill mask", FillMask));
             fill.SetEnabled(editable);
@@ -224,6 +223,51 @@ namespace Laubrary.GoreLab.Editor
                 Z.MicroSlider("In front", frontAlpha, 0.05f, 1f,
                     "How visible the purple In front paint is. Lower it to see the pixels under it.",
                     v => { frontAlpha = v; stage?.Refresh(); }, SliderW)));
+        }
+
+        /// Six brushes, each drawn at its own size so the choice is visible: a round dot as wide as the brush reaches.
+        VisualElement BuildBrushRadio()
+        {
+            var row = new VisualElement();
+            row.style.flexDirection = FlexDirection.Row;
+            row.style.alignItems = Align.Center;
+            var buttons = new Button[7];
+            for (int size = 1; size <= 6; size++)
+            {
+                int sz = size;
+                var b = Z.Button("", $"Brush {sz}: radius {sz} pixel{(sz > 1 ? "s" : "")}. Only solid sprite pixels inside the outline are painted.", () =>
+                {
+                    brushSize = sz;
+                    for (int k = 1; k <= 6; k++) MarkBrushButton(buttons[k], k == brushSize);
+                    stage?.Refresh();
+                });
+                b.style.width = 30f;
+                b.style.height = 30f;
+                b.style.marginRight = 2f;
+                b.style.alignItems = Align.Center;
+                b.style.justifyContent = Justify.Center;
+                b.style.paddingLeft = b.style.paddingRight = b.style.paddingTop = b.style.paddingBottom = 0f;
+                float d = 4f + 3f * sz;
+                var dot = new VisualElement { pickingMode = PickingMode.Ignore };
+                dot.style.width = d; dot.style.height = d;
+                dot.style.borderTopLeftRadius = dot.style.borderTopRightRadius = dot.style.borderBottomLeftRadius = dot.style.borderBottomRightRadius = d * 0.5f;
+                dot.style.backgroundColor = new Color(0.92f, 0.94f, 1f);
+                b.Add(dot);
+                MarkBrushButton(b, sz == brushSize);
+                buttons[sz] = b;
+                row.Add(b);
+            }
+            return row;
+        }
+
+        // The chosen brush is the one with an orange frame and a warm fill (the radio class alone does not show on a plain button).
+        static void MarkBrushButton(Button b, bool on)
+        {
+            b.EnableInClassList("zui-radio__on", on);
+            var orange = new Color(1f, 0.65f, 0.2f);
+            b.style.borderTopColor = b.style.borderBottomColor = b.style.borderLeftColor = b.style.borderRightColor = on ? orange : new Color(0f, 0f, 0f, 0f);
+            b.style.borderTopWidth = b.style.borderBottomWidth = b.style.borderLeftWidth = b.style.borderRightWidth = on ? 2f : 0f;
+            b.style.backgroundColor = on ? new Color(0.55f, 0.33f, 0.1f, 0.85f) : new StyleColor(StyleKeyword.Null);
         }
 
         void FillMask()

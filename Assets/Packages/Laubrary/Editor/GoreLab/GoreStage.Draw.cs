@@ -6,6 +6,7 @@
 // Paths are plain MoveTo/LineTo, every closed outline closed by hand: Painter2D's join tessellation has crashed on
 // closed subpaths drawn in bulk in this codebase before (see MetaStage).
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -92,12 +93,43 @@ namespace Laubrary.GoreLab.Editor
             PaintMarks(p, t, a);
             PaintGizmo(p, t, Mathf.Max(0.6f, a));
             if (!s.mirrored) Disc(p, SpriteToLocal(t.cx, t.cy), 4f, new Color(1f, 1f, 1f, a));
-            if (w.tab == GoreLabWindow.Tab.Paint && hasHover && !s.mirrored)
-            {
-                p.strokeColor = new Color(1f, 1f, 1f, 0.8f);
-                p.lineWidth = 1f;
-                Ring(p, hoverLocal, Mathf.Max(2f, (w.brushSize - 0.25f) * Scale), 24);
-            }
+            if (w.tab == GoreLabWindow.Tab.Paint && hasHover && !s.mirrored) PaintBrushPreview(p, t);
+        }
+
+        /// Exactly the pixels the next dab would change glow in the colour of the chosen mask (red when erasing), three pulses a second, each with a
+        /// bright edge, and the brush ring around them. The pixel test is the one Dab uses, so what glows is what gets painted.
+        void PaintBrushPreview(Painter2D p, in MemberTag t)
+        {
+            var g = w.shown.pixels.grid;
+            Vector2 c = LocalToSprite(hoverLocal);
+            int size = Mathf.Clamp(w.brushSize, 1, 6);
+            float r = size - 0.25f;
+            int bx = Mathf.FloorToInt(c.x), by = Mathf.FloorToInt(c.y);
+            bool erase = w.paintErase;
+            Color baseCol = erase ? new Color(1f, 0.25f, 0.25f) : w.paintLayer == 1 ? new Color(0.78f, 0.45f, 1f) : new Color(1f, 0.6f, 0.2f);
+            float pulse = 0.5f + 0.5f * Mathf.Sin((float)(EditorApplication.timeSinceStartup * 3.0 * Mathf.PI * 2.0));   // 3 pulses a second
+            Color fill = baseCol; fill.a = Mathf.Lerp(0.35f, 0.95f, pulse);
+            Color edge = Color.white; edge.a = Mathf.Lerp(0.5f, 1f, pulse);
+            for (int dy = -size; dy <= size; dy++)
+                for (int dx = -size; dx <= size; dx++)
+                {
+                    int x = bx + dx, y = by + dy;
+                    if (new Vector2(x + 0.5f - c.x, y + 0.5f - c.y).magnitude > r) continue;
+                    if (!g.Solid(x, y) || !GoreTagEdit.Inside(t, x + 0.5, y + 0.5)) continue;
+                    Vector2 a = SpriteToLocal(x, y), b = SpriteToLocal(x + 1, y + 1);
+                    p.fillColor = fill;
+                    p.BeginPath();
+                    p.MoveTo(a); p.LineTo(new Vector2(b.x, a.y)); p.LineTo(b); p.LineTo(new Vector2(a.x, b.y)); p.ClosePath();
+                    p.Fill();
+                    p.strokeColor = edge;
+                    p.lineWidth = 1f;
+                    p.BeginPath();
+                    p.MoveTo(a); p.LineTo(new Vector2(b.x, a.y)); p.LineTo(b); p.LineTo(new Vector2(a.x, b.y)); p.LineTo(a);
+                    p.Stroke();
+                }
+            p.strokeColor = new Color(1f, 1f, 1f, 0.6f);
+            p.lineWidth = 1f;
+            Ring(p, hoverLocal, Mathf.Max(2f, r * Scale), 24);
         }
 
         /// The marked 2D outline, dashed.
