@@ -90,6 +90,7 @@ namespace Laubrary.GoreLab.Editor
             Outline(p, t, 0.9f * a);
             if (t.kind == MemberKind.Box) PaintBox(p, t, a); else PaintSphere(p, t, a);
             PaintMarks(p, t, a);
+            PaintGizmo(p, t, Mathf.Max(0.6f, a));
             if (!s.mirrored) Disc(p, SpriteToLocal(t.cx, t.cy), 4f, new Color(1f, 1f, 1f, a));
             if (w.tab == GoreLabWindow.Tab.Paint && hasHover && !s.mirrored)
             {

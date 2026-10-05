@@ -66,6 +66,8 @@ namespace Laubrary.GoreLab.Editor
                 letters[i] = l;
             }
 
+            BuildGizmoLetters();
+
             guide = Child(new Label());
             guide.style.left = guide.style.right = 0f;
             guide.style.top = 8f;
@@ -159,10 +161,12 @@ namespace Laubrary.GoreLab.Editor
             bool laidOut = Layout();
             SyncOverlays();
             PlaceLetters();
+            PlaceGizmoLetters();
             UpdateTexts();
             overlay.MarkDirtyRepaint();
             overlay.BringToFront();
             foreach (var l in letters) l.BringToFront();
+            foreach (var l in gizmoLetters) l.BringToFront();
             guide.BringToFront();
             warning.BringToFront();
             status.BringToFront();

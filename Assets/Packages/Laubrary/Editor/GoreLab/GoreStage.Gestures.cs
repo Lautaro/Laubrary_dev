@@ -13,7 +13,7 @@ namespace Laubrary.GoreLab.Editor
 {
     internal sealed partial class GoreStage
     {
-        enum DragKind { None, Ignore, New, Move, Edge, Up, Forward, Paint, Wound }
+        enum DragKind { None, Ignore, New, Move, Edge, Up, Forward, Paint, Wound, GizmoUp, GizmoForward, GizmoEast }
 
         DragKind dragging;
         bool gestureOpen;
@@ -49,7 +49,8 @@ namespace Laubrary.GoreLab.Editor
             pressSprite = lastSprite = p;
             dragging = DragKind.None;
 
-            switch (w.tab)
+            if (e.button == 0 && TryBeginGizmo(e.localPosition)) { }
+            else switch (w.tab)
             {
                 case GoreLabWindow.Tab.Test:
                     if (e.button != 0) return;
@@ -208,6 +209,11 @@ namespace Laubrary.GoreLab.Editor
                     mf.tag = t;
                     break;
                 }
+                case DragKind.GizmoUp:
+                case DragKind.GizmoForward:
+                case DragKind.GizmoEast:
+                    DragGizmo(e.localPosition);
+                    break;
                 case DragKind.Paint:
                 {
                     var mf = w.ActiveMemberFrame(false);
@@ -245,6 +251,7 @@ namespace Laubrary.GoreLab.Editor
                     mf.tag = t;
                 }
             }
+            if ((kind == DragKind.GizmoUp || kind == DragKind.GizmoForward || kind == DragKind.GizmoEast) && (p - pressSprite).magnitude < 1.5f) TapGizmo(kind);
             if (kind == DragKind.Wound)
             {
                 if ((p - pressSprite).magnitude >= 2f) w.FireWound(pressSprite, p);
@@ -270,6 +277,7 @@ namespace Laubrary.GoreLab.Editor
             if (gestureOpen) w.EndGesture();
             gestureOpen = false;
             dragging = DragKind.None;
+            gizmoAxis = -1;
             created = false;
             strokeMine = strokeOther = null;
         }
