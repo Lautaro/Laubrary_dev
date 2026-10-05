@@ -1,7 +1,8 @@
 // What a drag on the stage does, decided by the tab (the tab IS the mode):
 //   Shape / Frame — no shape yet: drag a box corner to corner (a tap makes nothing). A shape exists: drag inside to move
 //                   it, near its edge to resize it anchored (the far side stays put). A drag elsewhere never replaces it.
-//   Rotate        — drag the U or F dot (trackball: over the rim and back continues on the far half); tap flips a dot.
+//                   Also on Shape: drag a gizmo arrow head or the U / F dot to turn the member (trackball: over the rim and back continues on
+//                   the far half); a tap on one flips that axis.
 //   Paint         — brush the chosen mask; right-drag always erases.
 //   Test          — press, drag, release = a swipe / aim line, wounding the frame; the preview shows what will leave.
 // Middle-drag belongs to ZuiPanZoom in every tab. Each drag is one undo step (GoreLabWindow.BeginGesture/EndGesture).
@@ -63,9 +64,6 @@ namespace Laubrary.GoreLab.Editor
                 case GoreLabWindow.Tab.Paint:
                     BeginPaint(p, e.button == 1);
                     break;
-                case GoreLabWindow.Tab.Rotate:
-                    if (e.button == 0) BeginRotate(p);
-                    break;
                 default:
                     if (e.button == 0) BeginShape(p);
                     break;
@@ -87,6 +85,7 @@ namespace Laubrary.GoreLab.Editor
         {
             if (!EditableOrSay() || w.ActiveMember == null) return;
             if (!w.TryActiveTag(out var t)) { dragging = DragKind.New; created = false; return; }
+            if (TryBeginDot(p, t)) return;
 
             float hitR = Mathf.Max(4f, 26f / Mathf.Max(0.0001f, Scale));
             // The resize band never eats the whole inside of a small shape, so there is always a core to grab and move.
@@ -109,27 +108,27 @@ namespace Laubrary.GoreLab.Editor
                 if (!toldShapeStays)
                 {
                     toldShapeStays = true;
-                    Flash("The shape stays put: drag inside to move it, near its edge to resize it");
+                    Flash("The shape stays put: drag inside to move it, near its edge to resize it, the arrows or U / F dots to turn it");
                 }
                 return;
             }
             Open();
         }
 
-        void BeginRotate(Vector2 p)
+        /// A press on the U or F dot starts turning the member; returns false when the press is not on a dot.
+        bool TryBeginDot(Vector2 p, in MemberTag t)
         {
-            if (!EditableOrSay()) return;
-            if (!w.TryActiveTag(out var t)) { Flash("Nothing to rotate yet: draw the shape on the Shape tab"); return; }
             float hitDot = Mathf.Max(3f, 30f / Mathf.Max(0.0001f, Scale));
             float du = Vector2.Distance(p, GoreTagEdit.DotPosition(t, true));
             float df = Vector2.Distance(p, GoreTagEdit.DotPosition(t, false));
-            if (du >= hitDot && df >= hitDot) { dragging = DragKind.Ignore; Flash("Drag the U or the F dot to turn the member"); return; }
+            if (du >= hitDot && df >= hitDot) return false;
             bool up = du <= df;
             dragging = up ? DragKind.Up : DragKind.Forward;
             rimOut = false;
             double z = up ? t.uz : t.fz;
             zSign = z < 0 ? -1 : 1;
             Open();
+            return true;
         }
 
         void BeginPaint(Vector2 p, bool rightButton)

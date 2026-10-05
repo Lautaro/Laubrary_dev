@@ -3,7 +3,7 @@
 // the same engine the game runs.
 //
 // Shape: the shared tool layout (controls left, workspace right, Z.Split). The left pane is ONE row of tabs (Shape,
-// Rotate, Paint, Frame, Test) where the tab IS the mode: it decides what a drag on the stage does, so there are no
+// Paint, Frame, Test) where the tab IS the mode: it decides what a drag on the stage does, so there are no
 // separate mode toggles. The right pane is the frame strip (grouped by direction) over the stage.
 //
 // Undo: every data edit records the rig before it mutates it (Undo.RecordObject) and a drag collapses into one step.
@@ -53,12 +53,11 @@ namespace Laubrary.GoreLab.Editor
 
         // ── view state (not undoable: none of it is part of the asset) ─────────────────────────────────
 
-        internal enum Tab { Shape, Rotate, Paint, Frame, Test }
-        static readonly string[] TabNames = { "Shape", "Rotate", "Paint", "Frame", "Test" };
+        internal enum Tab { Shape, Paint, Frame, Test }
+        static readonly string[] TabNames = { "Shape", "Paint", "Frame", "Test" };
         static readonly string[] TabTips =
         {
-            "Shape: drag a box over the member to create its outline; drag inside to move it, near its edge to resize it.",
-            "Rotate: drag the U (up) and F (forward) dots to turn the member in 3D; tap a dot to flip it to the far side.",
+            "Shape: drag a box over the member to create its outline; drag inside to move it, near its edge to resize it. Turn it in 3D with the arrow gizmo beside it or the U and F dots; tap a head or dot to flip that axis.",
             "Paint: brush the Behind and In front masks of the member. Right-drag erases.",
             "Frame: step through frames and directions, choose the rig's target, mark a member as not visible here.",
             "Test: drag on the frame to wound it with one of the rig's damage types, using the game's own cut engine.",

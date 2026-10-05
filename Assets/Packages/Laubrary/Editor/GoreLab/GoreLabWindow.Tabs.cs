@@ -34,7 +34,6 @@ namespace Laubrary.GoreLab.Editor
             switch (tab)
             {
                 case Tab.Shape: BuildShapeTab(host); break;
-                case Tab.Rotate: BuildRotateTab(host); break;
                 case Tab.Paint: BuildPaintTab(host); break;
                 case Tab.Frame: BuildFrameTab(host); break;
                 case Tab.Test: BuildTestTab(host); break;
@@ -107,7 +106,7 @@ namespace Laubrary.GoreLab.Editor
             clear.SetEnabled(editable);
             row.Add(clear);
             host.Add(row);
-            host.Add(Z.Row(ShapeOpacitySlider()));
+            BuildTurnRows(host, editable);
         }
 
         VisualElement ShapeOpacitySlider()
@@ -115,11 +114,11 @@ namespace Laubrary.GoreLab.Editor
                 "How visible the outline, the sphere or box wireframe and the dots are. Lower it to see the sprite through them.",
                 v => { shapeAlpha = v; stage?.Refresh(); }, SliderW);
 
-        // ── Rotate ────────────────────────────────────────────────────────────────────────────────────
+        // ── Turning (part of the Shape tab) ───────────────────────────────────────────────────────────
 
-        void BuildRotateTab(VisualElement host)
+        // The turning controls sit under the shape's own sliders: a fixed-angle turn, the direction default, hold-to-hide-far-side and the outline opacity.
+        void BuildTurnRows(VisualElement host, bool editable)
         {
-            bool editable = TryActiveTag(out _) && CanEditShown;
             string me = MemberName(memberIndex);
 
             VisualElement Turn(string label, float deg, string tip)

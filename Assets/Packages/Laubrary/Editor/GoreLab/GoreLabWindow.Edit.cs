@@ -165,7 +165,7 @@ namespace Laubrary.GoreLab.Editor
             if (shown == null || !TryShownMember(memberIndex, out var t, out _, out _, out _)) return null;
             string me = MemberName(memberIndex);
             if (!float.IsNaN(shown.group.angle) && GoreTagEdit.DotForward(t, GoreTagEdit.ExpectedForward(shown.group.angle)) < 0)
-                return $"{me} faces away from where this direction looks (Rotate tab: Default)";
+                return $"{me} faces away from where this direction looks (Shape tab: Default)";
             for (int i = 0; i < MemberCount; i++)
             {
                 if (i == memberIndex || !TryShownMember(i, out var o, out _, out _, out bool skip) || skip) continue;
