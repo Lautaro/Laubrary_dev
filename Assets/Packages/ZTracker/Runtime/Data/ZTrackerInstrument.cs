@@ -420,7 +420,20 @@ public class ZTrackerInstrument : ScriptableObject
             delaySend, reverbSend);
     }
 
-    void PushSampleToNative(IntPtr ctx, int slotID, int presetIdx)
+    // Called only for already-uploaded sample/synth scalar edits under the playback owner's gate.
+    // It does not allocate curves, upload samples or refresh unrelated modulation/effect settings.
+    public bool RefreshScalarDefinition(IntPtr ctx, int slotID, int presetIdx)
+    {
+        if (type == InstrumentType.Synth) { PushSynthToNative(ctx, slotID, presetIdx, false); return true; }
+        if (type != InstrumentType.Sample) return false;
+        ResolveSampleParams(presetIdx, out AudioClip a, out _, out _);
+        ResolveSampleBParams(presetIdx, out AudioClip b, out _, out _);
+        if (ctx != s_clipCacheCtx || a == null || !s_clipCache.ContainsKey(a) || (b != null && !s_clipCache.ContainsKey(b))) return false;
+        PushSampleToNative(ctx, slotID, presetIdx, false);
+        return true;
+    }
+
+    void PushSampleToNative(IntPtr ctx, int slotID, int presetIdx, bool modulation = true)
     {
         ResolveSampleParams(presetIdx, out AudioClip clip, out int note, out float tune);
         if (clip == null) return;
@@ -446,7 +459,7 @@ public class ZTrackerInstrument : ScriptableObject
             blendEnvelope ? 1 : 0,
             blendAttack, blendDecay, blendSustain, blendRelease);
 
-        PushModulation(ctx, slotID, presetIdx);
+        if (modulation) PushModulation(ctx, slotID, presetIdx);
     }
 
     // Per-native-context clip cache. The editor re-pushes the instrument on
@@ -504,7 +517,7 @@ public class ZTrackerInstrument : ScriptableObject
         return id;
     }
 
-    void PushSynthToNative(IntPtr ctx, int slotID, int presetIdx)
+    void PushSynthToNative(IntPtr ctx, int slotID, int presetIdx, bool modulation = true)
     {
         ResolveSynthParams(presetIdx, out int wa, out int wb, out int bm, out int uv, out float us);
         ResolveVolPan(presetIdx, out float v, out float pn);
@@ -520,7 +533,7 @@ public class ZTrackerInstrument : ScriptableObject
             v, pn, a, d, s, rl,
             ResolvePulseWidth(presetIdx));
 
-        PushModulation(ctx, slotID, presetIdx);
+        if (modulation) PushModulation(ctx, slotID, presetIdx);
     }
 
     void PushKitToNative(IntPtr ctx, int slotID)

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Replaced the preview-only tracker surface with retained Laubrary ZUI song/order/pattern authoring, keyboard and clipboard editing, track mixing and multi-column editing, Sample/Synth/FM/Kit instruments, presets, envelopes, effects, arpeggios and macros. New songs start empty; asset edits support Undo and scoped saves.
+- Held-note blend and oscillator scalar edits now use the playback owner's gate and cached definitions without restarting the voice or uploading samples/curves; structural edits deliberately restart preview. Legacy macro mappings still use main-thread polling, not sample-accurate native modulation.
 - Introduced an optional sibling package for tracker song data, Windows x64 playback, and a compact Laubrary preview window using canonical ZUI. Creating a song provides saved synth content; playing remains explicit.
 - Sequenced notes now respect channel gain and pan, with channel gain retained across volume commands and slides without replacing instrument gain.
 - Added a native ABI check, platform capability result, preallocated rendering buffers, owned stop/reload/device-change cleanup, and silent idle components. This managed host does not preserve Zounds SAP garbage-collection immunity during simultaneous playback.
