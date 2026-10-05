@@ -64,6 +64,8 @@ namespace Laubrary.GoreLab.Editor
         };
 
         [SerializeField] internal Tab tab;
+        [SerializeField] internal float thumbSize = 30f;
+        [SerializeField] internal bool showDots = true;
         [SerializeField] internal int memberIndex;
         [SerializeField] internal Sprite selSprite;
         [SerializeField] internal bool selMirrored;
@@ -82,7 +84,7 @@ namespace Laubrary.GoreLab.Editor
 
         internal GoreRig Rig => Current;
         internal GoreStage stage;
-        VisualElement leftHost, stripHost;
+        VisualElement leftHost, stripHost, stripBody;
 
         // ── lifecycle ─────────────────────────────────────────────────────────────────────────────────
 
@@ -110,6 +112,7 @@ namespace Laubrary.GoreLab.Editor
             stage = null;
             leftHost = null;
             stripHost = null;
+            stripBody = null;
         }
 
         protected override void BuildAsset(VisualElement root, GoreRig rig)
@@ -138,7 +141,10 @@ namespace Laubrary.GoreLab.Editor
             stripHost = new VisualElement();
             stripHost.style.flexShrink = 0f;
             right.Add(stripHost);
-            BuildStrip(stripHost);
+            stripHost.Add(BuildStripControls());      // built once: a slider drag must not rebuild the slider under the pointer
+            stripBody = new VisualElement();
+            stripHost.Add(stripBody);
+            BuildStrip(stripBody);
             stage = new GoreStage(this);
             right.Add(stage);
 
@@ -154,8 +160,15 @@ namespace Laubrary.GoreLab.Editor
         internal void AfterEdit()
         {
             if (leftHost != null) { leftHost.Clear(); BuildLeft(leftHost); }
-            if (stripHost != null) { stripHost.Clear(); BuildStrip(stripHost); }
+            RebuildStrip();
             stage?.Refresh();
+        }
+
+        void RebuildStrip()
+        {
+            if (stripBody == null) return;
+            stripBody.Clear();
+            BuildStrip(stripBody);
         }
 
         // ── defaults ─────────────────────────────────────────────────────────────────────────────────

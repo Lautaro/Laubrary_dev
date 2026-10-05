@@ -219,7 +219,20 @@ namespace Laubrary.GoreLab.Editor
 
         // ── the strip ───────────────────────────────────────────────────────────────────────────────
 
-        const float ThumbW = 30f, ThumbH = 36f;
+        float ThumbW => thumbSize;
+        float ThumbH => thumbSize * 1.2f;
+        const float DotRowH = 9f;
+
+        /// The strip's own view controls: how big the thumbnails are and whether the per-member dots show.
+        VisualElement BuildStripControls()
+        {
+            var size = Z.MicroSlider("Thumbnails", thumbSize, 20f, 96f, "How big the frame thumbnails are.",
+                v => { thumbSize = Mathf.Round(v); RebuildStrip(); }, 170f);
+            var dots = Z.ToggleButton("Dots",
+                "Show a dot under each thumbnail for every body member: green = tagged, grey = marked not visible, red = still to do.",
+                showDots, on => { showDots = on; RebuildStrip(); });
+            return Z.Row(size, dots);
+        }
 
         /// A frame is "done" for the active member when it has a tag or is marked as not showing the member.
         bool FrameDone(Sprite s)
@@ -228,12 +241,33 @@ namespace Laubrary.GoreLab.Editor
             return mf != null && (mf.present || mf.skip);
         }
 
+        // One dot per body member, in a row of its own under the thumbnail (never over it): green = tagged, grey = marked not visible, red = to do.
+        VisualElement MemberDots(GoreFrameTags ft)
+        {
+            var dots = new VisualElement { pickingMode = PickingMode.Ignore };
+            dots.style.flexDirection = FlexDirection.Row;
+            dots.style.justifyContent = Justify.Center;
+            dots.style.height = DotRowH;
+            dots.style.marginTop = 1f;
+            for (int m = 0; m < MemberCount; m++)
+            {
+                var md = MemberAt(ft, m, false);
+                var dot = new VisualElement { pickingMode = PickingMode.Ignore };
+                dot.style.width = 6f; dot.style.height = 6f; dot.style.marginLeft = dot.style.marginRight = 1f;
+                dot.style.borderTopLeftRadius = dot.style.borderTopRightRadius = dot.style.borderBottomLeftRadius = dot.style.borderBottomRightRadius = 3f;
+                dot.style.backgroundColor = md != null && md.present ? new Color(0.45f, 0.95f, 0.5f)
+                    : md != null && md.skip ? new Color(0.6f, 0.6f, 0.6f) : new Color(0.9f, 0.35f, 0.3f);
+                dots.Add(dot);
+            }
+            return dots;
+        }
+
         void BuildStrip(VisualElement host)
         {
             if (Rig == null) return;
             var scroll = new ScrollView(ScrollViewMode.Horizontal);
             scroll.style.flexShrink = 0f;
-            scroll.style.height = ThumbH + 26f;
+            scroll.style.height = ThumbH + (showDots ? DotRowH : 0f) + 26f;
             scroll.contentContainer.style.flexDirection = FlexDirection.Row;
             host.Add(scroll);
 
@@ -280,31 +314,17 @@ namespace Laubrary.GoreLab.Editor
                     if (g.mirrored) img.style.scale = new Scale(new Vector3(-1f, 1f, 1f));
                     b.Add(img);
 
-                    // one dot per body member along the bottom: green = tagged, grey = marked not visible, red = still to do
-                    var ft = FindFrame(s);
-                    var dots = new VisualElement { pickingMode = PickingMode.Ignore };
-                    dots.style.position = Position.Absolute;
-                    dots.style.left = 2f; dots.style.right = 2f; dots.style.bottom = 1f;
-                    dots.style.flexDirection = FlexDirection.Row;
-                    dots.style.justifyContent = Justify.Center;
-                    for (int m = 0; m < MemberCount; m++)
-                    {
-                        var md = MemberAt(ft, m, false);
-                        var dot = new VisualElement { pickingMode = PickingMode.Ignore };
-                        dot.style.width = 6f; dot.style.height = 6f; dot.style.marginLeft = dot.style.marginRight = 1f;
-                        dot.style.borderTopLeftRadius = dot.style.borderTopRightRadius = dot.style.borderBottomLeftRadius = dot.style.borderBottomRightRadius = 3f;
-                        dot.style.backgroundColor = md != null && md.present ? new Color(0.45f, 0.95f, 0.5f)
-                            : md != null && md.skip ? new Color(0.6f, 0.6f, 0.6f) : new Color(0.9f, 0.35f, 0.3f);
-                        dots.Add(dot);
-                    }
-                    b.Add(dots);
                     if (shown != null && shown.group == g && shown.index == i)
                     {
                         var orange = new Color(1f, 0.65f, 0.2f);
                         b.style.borderTopColor = b.style.borderBottomColor = b.style.borderLeftColor = b.style.borderRightColor = orange;
                         b.style.borderTopWidth = b.style.borderBottomWidth = b.style.borderLeftWidth = b.style.borderRightWidth = 2f;
                     }
-                    row.Add(b);
+                    var cell = new VisualElement();
+                    cell.style.alignItems = Align.Center;
+                    cell.Add(b);
+                    if (showDots) cell.Add(MemberDots(FindFrame(s)));
+                    row.Add(cell);
                 }
                 col.Add(row);
                 scroll.Add(col);
