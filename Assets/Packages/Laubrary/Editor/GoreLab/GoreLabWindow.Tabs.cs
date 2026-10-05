@@ -34,6 +34,7 @@ namespace Laubrary.GoreLab.Editor
                 Z.MicroSlider("Outline", outlineAlpha, 0.05f, 1f,
                     "How visible the dashed outlines are: the marked shape of the active member and, fainter, the other members'.",
                     v => { outlineAlpha = v; stage?.Refresh(); }, SliderW)));
+            host.Add(PaintLayerGroup("Fill", "the tint on the pixels inside the marked shape", fillColor.a > 0f ? fillColor : MemberColour(memberIndex), c => fillColor = c, fillAlpha, v => fillAlpha = v));
 
             if (tab != Tab.Test) host.Add(BuildMemberChooser());
             if (!HasFrames && tab != Tab.Frame) host.Add(BuildTargetRow());

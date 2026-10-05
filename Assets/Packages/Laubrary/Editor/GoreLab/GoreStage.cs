@@ -244,8 +244,9 @@ namespace Laubrary.GoreLab.Editor
             if (edit && hasTag)
             {
                 // Every pixel inside the outline lights up (solid bright, empty faint), so what is marked is obvious.
-                var c = w.MemberColour(w.memberIndex);
+                var c = w.fillColor.a > 0f ? w.fillColor : w.MemberColour(w.memberIndex);
                 byte r = (byte)(c.r * 255), g = (byte)(c.g * 255), b = (byte)(c.b * 255);
+                byte solidA = (byte)Mathf.Clamp(Mathf.RoundToInt(255f * w.fillAlpha), 0, 255), emptyA = (byte)(solidA * 0.35f);
                 var ex = new System.Collections.Generic.HashSet<int>(exempt);
                 var grid = s.pixels.grid;
                 for (int y = 0; y < H; y++)
@@ -253,7 +254,7 @@ namespace Laubrary.GoreLab.Editor
                     {
                         int k = y * W + x;
                         bool on = !ex.Contains(k) && GoreTagEdit.Inside(tag, x + 0.5, y + 0.5);
-                        s_layer[k] = on ? new Color32(r, g, b, grid.Solid(x, y) ? (byte)51 : (byte)18) : default;
+                        s_layer[k] = on ? new Color32(r, g, b, grid.Solid(x, y) ? solidA : emptyA) : default;
                     }
                 highlightTex = Bake(highlightTex, W, H);
                 highlight.image = highlightTex;

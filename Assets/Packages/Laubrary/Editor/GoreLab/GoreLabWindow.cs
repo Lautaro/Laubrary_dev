@@ -70,6 +70,8 @@ namespace Laubrary.GoreLab.Editor
         [SerializeField] internal Sprite selSprite;
         [SerializeField] internal bool selMirrored;
         [SerializeField] internal float shapeAlpha = 1f;
+        [SerializeField] internal float fillAlpha = 0.2f;      // how strongly the pixels inside the marked shape are tinted
+        [SerializeField] internal Color fillColor;             // clear (alpha 0) = use the member's own editor colour
         [SerializeField] internal float outlineAlpha = 1f;     // the dashed 2D outlines
         [SerializeField] internal float behindAlpha = 1f;      // how visible the Behind paint is
         [SerializeField] internal Color behindColor = new Color(1f, 0.51f, 0.16f, 1f);
