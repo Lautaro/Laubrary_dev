@@ -104,8 +104,14 @@ namespace Laubrary.GoreLab.Editor
             var clear = Z.IconButton("trash", $"Delete the {MemberName(memberIndex)}'s shape on this frame, so a new box can be drawn (undoable).",
                 () => Edit("Clear shape", () => { var mf = ActiveMemberFrame(false); if (mf != null) mf.present = false; }));
             clear.SetEnabled(editable);
-            row.Add(clear);
+            var copy = Z.IconButton("copy", $"Copy the {MemberName(memberIndex)}'s marker on this frame: shape, orientation and paint (Ctrl+C with the frame focused).", CopyShape);
+            copy.SetEnabled(editable);
+            var paste = Z.IconButton("clipboard", HasShapeClip
+                    ? "Paste the copied marker onto this frame, replacing the shape here (undoable, Ctrl+V). Placed by feet and middle, so frames of another size line up."
+                    : "Paste the copied marker onto this frame. Nothing is copied yet.", PasteShape);
+            paste.SetEnabled(CanEditShown && HasShapeClip && ActiveMember != null);
             host.Add(row);
+            host.Add(Z.Row(copy, paste, clear));
             BuildTurnRows(host, editable);
         }
 

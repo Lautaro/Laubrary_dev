@@ -9,6 +9,67 @@ namespace Laubrary.GoreLab.Editor
     // can be put on every frame that has nothing yet. Both are starting points to be corrected by hand.
     public partial class GoreLabWindow
     {
+        // ── copy / paste of one member's marker ────────────────────────────────────────────────────────
+        // The clipboard is static so it survives the window being rebuilt (undo rebuilds it) and works across frames, directions and rigs.
+        sealed class ShapeClip
+        {
+            public MemberKind kind;
+            public string memberName;
+            public MemberTag tag;
+            public bool skip;
+            public int[] behind, exempt;
+            public int w, h;
+        }
+        static ShapeClip shapeClip;
+
+        internal bool HasShapeClip => shapeClip != null;
+
+        /// Copies the active member's marker from the shown frame: shape, orientation and both paint layers.
+        internal void CopyShape()
+        {
+            if (shown == null || ActiveMember == null) return;
+            var src = MemberAt(FindFrame(shown.sprite), memberIndex, false);
+            if (src == null || !src.present) { ShowHint($"Nothing to copy: draw the {MemberName(memberIndex).ToLowerInvariant()} on this frame first."); return; }
+            shapeClip = new ShapeClip
+            {
+                kind = ActiveMember.kind, memberName = MemberName(memberIndex), tag = src.tag, skip = src.skip,
+                behind = src.behind != null ? (int[])src.behind.Clone() : new int[0],
+                exempt = src.exempt != null ? (int[])src.exempt.Clone() : new int[0],
+                w = shown.W, h = shown.H,
+            };
+            ShowHint($"Copied the {shapeClip.memberName.ToLowerInvariant()}. Paste puts it on the shown frame (Ctrl+V).");
+            AfterEdit();
+        }
+
+        /// Pastes the copied marker onto the shown frame as the active member, replacing what is there. Placed with the same feet-and-middle
+        /// alignment as Copy to next, so frames of a different size still get it on the body.
+        internal void PasteShape()
+        {
+            if (shapeClip == null) { ShowHint("Nothing copied yet."); return; }
+            if (!CanEditShown || ActiveMember == null) return;
+            if (ActiveMember.kind != shapeClip.kind)
+            {
+                ShowHint($"The copied {shapeClip.memberName.ToLowerInvariant()} is {(shapeClip.kind == MemberKind.Box ? "a box" : "a ball")}; choose a {(shapeClip.kind == MemberKind.Box ? "box" : "ball")} member to paste it onto.");
+                return;
+            }
+            var px = shown.pixels;
+            if (px == null) return;
+            var clip = shapeClip;
+            Edit("Paste shape", () =>
+            {
+                var ft = GetOrCreateFrame(shown.sprite, shown.group.label + " " + (shown.index + 1));
+                var dst = MemberAt(ft, memberIndex, true);
+                int dx = (px.W - clip.w) / 2, dy = px.H - clip.h;
+                var moved = clip.tag;
+                moved.cx += dx; moved.cy += dy;
+                dst.present = true;
+                dst.skip = clip.skip;
+                dst.tag = moved;
+                dst.behind = CarryMask(clip.behind, clip.w, dx, dy, px, moved);
+                dst.exempt = CarryMask(clip.exempt, clip.w, dx, dy, px, moved);
+            });
+        }
+
         void ShowHint(string text) { ShowNotification(new GUIContent(text), 3.0); }
 
         /// <summary>

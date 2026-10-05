@@ -35,6 +35,7 @@ namespace Laubrary.GoreLab.Editor
             RegisterCallback<PointerMoveEvent>(OnMove);
             RegisterCallback<PointerUpEvent>(OnUp);
             RegisterCallback<PointerCaptureOutEvent>(_ => Cancel());
+            RegisterCallback<KeyDownEvent>(OnKey);
             RegisterCallback<PointerLeaveEvent>(_ => { hasHover = false; overlay.MarkDirtyRepaint(); });
         }
 
@@ -44,8 +45,17 @@ namespace Laubrary.GoreLab.Editor
             gestureOpen = true;
         }
 
+        // Ctrl+C / Ctrl+V copy and paste the active member's marker while the stage has focus (a click on it gives it focus).
+        void OnKey(KeyDownEvent e)
+        {
+            if (!(e.ctrlKey || e.commandKey) || w.tab == GoreLabWindow.Tab.Test) return;
+            if (e.keyCode == KeyCode.C) { w.CopyShape(); e.StopPropagation(); }
+            else if (e.keyCode == KeyCode.V) { w.PasteShape(); e.StopPropagation(); }
+        }
+
         void OnDown(PointerDownEvent e)
         {
+            Focus();
             if (e.button == 2 || w.shown == null || w.Rig == null) return;   // middle belongs to ZuiPanZoom
             var p = LocalToSprite(e.localPosition);
             pressSprite = lastSprite = p;
