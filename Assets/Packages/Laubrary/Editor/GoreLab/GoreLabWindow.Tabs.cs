@@ -202,8 +202,8 @@ namespace Laubrary.GoreLab.Editor
             string me = MemberName(memberIndex);
 
             var layer = Z.Segmented(paintLayer, new[] { "Behind", "In front" }, "Which mask the brush paints.", i => { paintLayer = i; stage?.Refresh(); });
-            layer.SegmentAt(0).tooltip = $"Behind (orange): body behind the {me}, for example the neck. When a cut removes it, it stays as dark gore instead of turning see-through.";
-            layer.SegmentAt(1).tooltip = $"In front (purple): something drawn in front of the {me}, for example an arm over the torso. It is never cut.";
+            layer.SegmentAt(0).tooltip = $"Behind: body behind the {me}, for example the neck. When a cut removes it, it stays as dark gore instead of turning see-through.";
+            layer.SegmentAt(1).tooltip = $"In front: something drawn in front of the {me}, for example an arm over the torso. It is never cut.";
             var mode = Z.Segmented(paintErase ? 1 : 0, new[] { "Paint", "Erase" }, "Left-drag paints or erases; a right-drag always erases.", i => paintErase = i == 1);
             host.Add(Z.Row(layer, mode));
 
@@ -216,13 +216,29 @@ namespace Laubrary.GoreLab.Editor
             clear.SetEnabled(editable);
             host.Add(Z.Row(brush, fill, clear));
 
-            host.Add(Z.Row(
-                Z.MicroSlider("Behind", behindAlpha, 0.05f, 1f,
-                    "How visible the orange Behind paint is. Lower it to see the pixels under it.",
-                    v => { behindAlpha = v; stage?.Refresh(); }, SliderW),
-                Z.MicroSlider("In front", frontAlpha, 0.05f, 1f,
-                    "How visible the purple In front paint is. Lower it to see the pixels under it.",
-                    v => { frontAlpha = v; stage?.Refresh(); }, SliderW)));
+            host.Add(PaintLayerGroup("Behind", "the Behind paint", BehindColour, c => behindColor = c, behindAlpha, v => behindAlpha = v));
+            host.Add(PaintLayerGroup("In front", "the In front paint", FrontColour, c => frontColor = c, frontAlpha, v => frontAlpha = v));
+        }
+
+        /// One paint layer's look: its colour picker and its opacity slider together in a framed group, so they read as one control.
+        VisualElement PaintLayerGroup(string label, string what, Color colour, System.Action<Color> setColour, float alpha, System.Action<float> setAlpha)
+        {
+            var box = new VisualElement();
+            box.style.flexDirection = FlexDirection.Row;
+            box.style.alignItems = Align.Center;
+            box.style.paddingLeft = box.style.paddingRight = 4f;
+            box.style.paddingTop = box.style.paddingBottom = 3f;
+            box.style.marginTop = 2f;
+            box.style.borderTopWidth = box.style.borderBottomWidth = box.style.borderLeftWidth = box.style.borderRightWidth = 1f;
+            box.style.borderTopColor = box.style.borderBottomColor = box.style.borderLeftColor = box.style.borderRightColor = new Color(1f, 1f, 1f, 0.18f);
+            box.style.borderTopLeftRadius = box.style.borderTopRightRadius = box.style.borderBottomLeftRadius = box.style.borderBottomRightRadius = 3f;
+            var pick = Z.Color(colour, $"The colour of {what}. Only changes how it looks in this window; the paint itself is the same.",
+                c => { c.a = 1f; setColour(c); stage?.Refresh(); }, 52f);
+            var slider = Z.MicroSlider(label, alpha, 0.05f, 1f, $"How visible {what} is. Lower it to see the pixels under it.",
+                v => { setAlpha(v); stage?.Refresh(); }, 150f);
+            box.Add(pick);
+            box.Add(slider);
+            return box;
         }
 
         /// Six brushes, each drawn at its own size so the choice is visible: a round dot as wide as the brush reaches.

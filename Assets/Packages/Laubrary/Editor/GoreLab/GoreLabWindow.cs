@@ -71,8 +71,13 @@ namespace Laubrary.GoreLab.Editor
         [SerializeField] internal bool selMirrored;
         [SerializeField] internal float shapeAlpha = 1f;
         [SerializeField] internal float outlineAlpha = 1f;     // the dashed 2D outlines
-        [SerializeField] internal float behindAlpha = 1f;      // the Behind paint colour
-        [SerializeField] internal float frontAlpha = 1f;       // the In front paint colour
+        [SerializeField] internal float behindAlpha = 1f;      // how visible the Behind paint is
+        [SerializeField] internal Color behindColor = new Color(1f, 0.51f, 0.16f, 1f);
+        [SerializeField] internal Color frontColor = new Color(0.75f, 0.35f, 1f, 1f);
+        // An older saved window has no colours yet and deserialises them as clear black: treat that as "not chosen" and use the defaults.
+        internal Color BehindColour => behindColor.a <= 0f ? new Color(1f, 0.51f, 0.16f, 1f) : behindColor;
+        internal Color FrontColour => frontColor.a <= 0f ? new Color(0.75f, 0.35f, 1f, 1f) : frontColor;
+        [SerializeField] internal float frontAlpha = 1f;       // how visible the In front paint is
         [SerializeField] internal int brushSize = 2;
         [SerializeField] internal int paintLayer;          // 0 = behind, 1 = in front
         [SerializeField] internal bool paintErase;

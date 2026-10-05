@@ -106,7 +106,7 @@ namespace Laubrary.GoreLab.Editor
             float r = size - 0.25f;
             int bx = Mathf.FloorToInt(c.x), by = Mathf.FloorToInt(c.y);
             bool erase = w.paintErase;
-            Color baseCol = erase ? new Color(1f, 0.25f, 0.25f) : w.paintLayer == 1 ? new Color(0.78f, 0.45f, 1f) : new Color(1f, 0.6f, 0.2f);
+            Color baseCol = erase ? new Color(1f, 0.25f, 0.25f) : w.paintLayer == 1 ? Color.Lerp(w.FrontColour, Color.white, 0.25f) : Color.Lerp(w.BehindColour, Color.white, 0.25f);
             float pulse = 0.5f + 0.5f * Mathf.Sin((float)(EditorApplication.timeSinceStartup * 3.0 * Mathf.PI * 2.0));   // 3 pulses a second
             Color fill = baseCol; fill.a = Mathf.Lerp(0.35f, 0.95f, pulse);
             Color edge = Color.white; edge.a = Mathf.Lerp(0.5f, 1f, pulse);

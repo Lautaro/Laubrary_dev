@@ -259,8 +259,8 @@ namespace Laubrary.GoreLab.Editor
                 highlight.image = highlightTex;
 
                 System.Array.Clear(s_layer, 0, n);
-                foreach (int k in behind) if (k >= 0 && k < n) s_layer[k] = new Color32(255, 130, 40, (byte)(153 * w.behindAlpha));
-                foreach (int k in exempt) if (k >= 0 && k < n) s_layer[k] = new Color32(190, 90, 255, (byte)(166 * w.frontAlpha));
+                foreach (int k in behind) if (k >= 0 && k < n) s_layer[k] = Tint32(w.BehindColour, 153 * w.behindAlpha);
+                foreach (int k in exempt) if (k >= 0 && k < n) s_layer[k] = Tint32(w.FrontColour, 166 * w.frontAlpha);
                 paintTex = Bake(paintTex, W, H);
                 paint.image = paintTex;
             }
@@ -272,6 +272,8 @@ namespace Laubrary.GoreLab.Editor
                 preview.image = previewTex;
             }
         }
+
+        static Color32 Tint32(Color c, float alpha) => new Color32((byte)(c.r * 255f), (byte)(c.g * 255f), (byte)(c.b * 255f), (byte)Mathf.Clamp(alpha, 0f, 255f));
 
         static Texture2D Bake(Texture2D tex, int W, int H)
         {
