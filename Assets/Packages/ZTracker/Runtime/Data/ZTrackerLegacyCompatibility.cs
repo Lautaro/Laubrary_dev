@@ -35,7 +35,7 @@ namespace Laubrary.ZTracker.Model
     public static class ZTrackerLegacyCompatibility
     {
         static void Require(string error) { if (error != null) throw new InvalidOperationException(error); }
-        static string Json(object value) => JsonUtility.ToJson(value);
+        static string Json(object value) => ZTrackerMigration.Json(value);
         static bool Same(object a, object b) => Json(a) == Json(b);
         static bool MatchesLegacy(SongData model, LegacySongPayload legacy)
         {
@@ -119,9 +119,97 @@ namespace Laubrary.ZTracker.Model
         public static InstrumentParameters Project(InstrumentData model)
         {
             Require(ZTrackerModelValidation.Validate(model));
-            var restored = ZTrackerMigration.Convert(model.parameters,model.name,model.id);
-            if (!Same(restored,model)) throw new InvalidOperationException("Instrument zones, modulation, FX, macros, maps or parameters cannot roundtrip through the legacy editor/backend; retained read-only.");
-            return ZTrackerMigration.Copy(model.parameters);
+            if (!Enum.IsDefined(typeof(InstrumentType),model.parameters.type)) throw new InvalidOperationException("Unknown retained legacy engine; explicit repair is required before projection.");
+            // The retained payload preserves inactive legacy fields; it is not the
+            // playback source for fields now owned by the canonical sampler/engine.
+            var parameters = ZTrackerMigration.Copy(model.parameters);
+            var expected = ZTrackerMigration.Copy(model);
+            if (model.family == InstrumentFamily.Synth)
+            {
+                parameters.type = model.synthMode == SynthMode.FM ? InstrumentType.FM : InstrumentType.Synth;
+                // These two sampler fields were copied for legacy preservation even
+                // on synths. They have no synth meaning; the synth parameter set owns them.
+                expected.sampler.volume = parameters.volume; expected.sampler.pan = parameters.pan;
+            }
+            else
+            {
+                if (parameters.type != InstrumentType.Kit) parameters.type = InstrumentType.Sample;
+                if (parameters.type == InstrumentType.Sample)
+                {
+                    parameters.volume = model.sampler.volume; parameters.pan = model.sampler.pan;
+                    if (model.sampler.samples.Count != 1 || model.sampler.zones.Count != 1 || model.modulation.Count != 1)
+                        throw new InvalidOperationException("Legacy sample playback needs one full-range zone and one ADSR set; layers/extra sets retained read-only.");
+                    var sample = model.sampler.samples[0]; var zone = model.sampler.zones[0];
+                    parameters.sampleClip = sample.pcm; parameters.baseNote = sample.baseNote; parameters.fineTune = sample.fineTuneCents;
+                    CopyAdsr(model.modulation[0], out parameters.attack, out parameters.decay, out parameters.sustain, out parameters.release);
+                    parameters.sampleClipB = zone.blend?.pcmB;
+                    if (zone.blend != null)
+                    {
+                        var b = zone.blend;
+                        parameters.baseNoteB = b.baseNoteB; parameters.fineTuneB = b.fineTuneBCents; parameters.blendMode = b.mode; parameters.blend = b.amount; parameters.pmDepth = b.pmDepth;
+                        parameters.blendEnvelope = b.envelopeEnabled; parameters.blendAttack = b.attack; parameters.blendDecay = b.decay; parameters.blendSustain = b.sustain; parameters.blendRelease = b.release;
+                        parameters.blendEnvelopeData = ZTrackerMigration.Copy(b.blendEnvelope); parameters.pmDepthEnvelopeData = ZTrackerMigration.Copy(b.pmEnvelope);
+                    }
+                }
+                else
+                {
+                    int count = model.sampler.samples.Count;
+                    if (model.sampler.zones.Count != count || model.modulation.Count != count)
+                        throw new InvalidOperationException("Legacy kit needs one fixed-pitch zone and ADSR per sample; layers/extra sets retained read-only.");
+                    if (count != 0 || parameters.kitEntries != null) parameters.kitEntries = new ZTrackerInstrument.KitEntry[count];
+                    parameters.kitOverlap = model.sampler.nna == NewNoteAction.Continue;
+                    for (int i = 0; i < count; i++)
+                    {
+                        var sample = model.sampler.samples[i]; var zone = model.sampler.zones[i];
+                        // Preserve the old zero/default spelling until the effective
+                        // value is actually changed. Zero level on a modern kit sample
+                        // cannot mean silence in the old backend and fails the roundtrip.
+                        var entry = new ZTrackerInstrument.KitEntry { clip = sample.pcm, displayName = sample.name, midiNote = zone.noteMin,
+                            baseNote = zone.baseNote, volume = sample.volume == (sample.legacyVolume > 0 ? sample.legacyVolume : 1) ? sample.legacyVolume : sample.volume };
+                        CopyAdsr(model.modulation[i], out entry.attack, out entry.decay, out entry.sustain, out entry.release);
+                        parameters.kitEntries[i] = entry;
+                        expected.sampler.samples[i].legacyVolume = entry.volume;
+                        expected.sampler.samples[i].legacyBaseNote = entry.baseNote;
+                    }
+                }
+            }
+            ProjectMacros(model,parameters);
+            expected.parameters = ZTrackerMigration.Copy(parameters);
+            var restored = ZTrackerMigration.Convert(parameters,model.name,model.id);
+            if (!Same(restored,expected)) throw new InvalidOperationException("Instrument zones, modulation, FX, macros, maps or parameters cannot roundtrip through the legacy editor/backend; retained read-only.");
+            return parameters;
+        }
+        static void CopyAdsr(ModulationSet set, out float a, out float d, out float s, out float r)
+        {
+            if (set.devices.Count != 1 || set.devices[0].kind != ModulationDeviceKind.AHDSR)
+                throw new InvalidOperationException("Legacy modulation supports only its original amplitude ADSR; other devices retained read-only.");
+            var env = set.devices[0]; a = env.attack; d = env.decay; s = env.sustain; r = env.release;
+        }
+        static void ProjectMacros(InstrumentData model, InstrumentParameters parameters)
+        {
+            var original = ZTrackerMigration.Convert(parameters,model.name,model.id);
+            int count = parameters.macros?.Length ?? 0;
+            for (int m = 0; m < 8; m++) if (!Same(model.macros[m],original.macros[m]))
+            {
+                if (m >= 4) throw new InvalidOperationException("Legacy playback has four macros; edits to macros 5..8 require the new backend. Data retained.");
+                count = Math.Max(count,m+1);
+            }
+            if (count == 0) return;
+            var bank = new ZTrackerInstrument.MacroDef[count];
+            if (parameters.macros != null) Array.Copy(parameters.macros,bank,parameters.macros.Length);
+            for (int m = 0; m < Math.Min(count,8); m++)
+            {
+                if (Same(model.macros[m],original.macros[m]) && m < (parameters.macros?.Length ?? 0)) continue;
+                var macro = model.macros[m];
+                var links = new ZTrackerInstrument.MacroLink[macro.mappings.Count];
+                for (int n = 0; n < links.Length; n++)
+                {
+                    var map = macro.mappings[n];
+                    links[n] = new ZTrackerInstrument.MacroLink { parameterName = map.target.parameter, minValue = map.min, maxValue = map.max };
+                }
+                bank[m] = new ZTrackerInstrument.MacroDef { name = macro.name, defaultValue = macro.value, links = links };
+            }
+            parameters.macros = bank;
         }
         public static ZTrackerInstrument Prepare(ZTrackerInstrument source)
         {
@@ -130,7 +218,7 @@ namespace Laubrary.ZTracker.Model
             Require(ZTrackerModelValidation.Validate(ZTrackerMigration.Convert(parameters,source.name)));
             ValidateInstrumentUpload(parameters);
             var snapshot = ScriptableObject.CreateInstance<ZTrackerInstrument>(); snapshot.hideFlags = HideFlags.HideAndDontSave; snapshot.name = source.name;
-            JsonUtility.FromJsonOverwrite(Json(parameters),snapshot);
+            ZTrackerMigration.Overwrite(parameters,snapshot);
             snapshot.legacyPrepared = true;
             return snapshot;
         }
@@ -147,7 +235,7 @@ namespace Laubrary.ZTracker.Model
                 if (source.schemaVersion == 0) Require(ZTrackerModelValidation.Validate(ZTrackerMigration.Convert(legacy)));
                 CheckNativeLimits(legacy);
                 prepared.song = ScriptableObject.CreateInstance<ZTrackerSong>(); prepared.song.hideFlags = HideFlags.HideAndDontSave;
-                JsonUtility.FromJsonOverwrite(Json(legacy),prepared.song);
+                ZTrackerMigration.Overwrite(legacy,prepared.song);
                 prepared.song.legacyPrepared = true;
                 for (int i = 0; i < legacy.instruments.Count; i++) if (legacy.instruments[i] != null)
                 {
@@ -190,6 +278,38 @@ namespace Laubrary.ZTracker.Model
         static void ValidateInstrumentUpload(InstrumentParameters p)
         {
             if (!Enum.IsDefined(typeof(InstrumentType),p.type)) throw new InvalidOperationException("Unknown legacy instrument engine.");
+            void Finite(params float[] values) { foreach (float value in values) if (float.IsNaN(value) || float.IsInfinity(value)) throw new InvalidOperationException("Nonfinite active legacy instrument parameter; payload retained."); }
+            void Adsr(float a,float d,float s,float r) { Finite(a,d,s,r); if (a < 0 || d < 0 || r < 0) throw new InvalidOperationException("Negative active legacy ADSR duration; payload retained."); }
+            if (p.type == InstrumentType.Sample || p.type == InstrumentType.Synth)
+            {
+                Adsr(p.attack,p.decay,p.sustain,p.release);
+                Finite(p.volume,p.pan,p.blend,p.pmDepth,p.waveBRatio,p.unisonDetune,p.unisonSpread,p.pulseWidth,p.fineTune,p.fineTuneB,p.vibratoDepth,p.vibratoRate,p.vibratoFadeIn,p.vibratoRandomness);
+            }
+            if (p.type == InstrumentType.FM) { Finite(p.volume,p.pan,p.fmFeedback); if (p.fmOperators != null) foreach (var op in p.fmOperators) { Finite(op.freqRatio,op.freqFixed,op.level); Adsr(op.attack,op.decay,op.sustain,op.release); } }
+            if (p.type == InstrumentType.Kit && p.kitEntries != null) foreach (var entry in p.kitEntries) if (entry.clip != null) { Finite(entry.volume); Adsr(entry.attack,entry.decay,entry.sustain,entry.release); }
+            if (p.type == InstrumentType.FM && (p.fmOperators?.Length ?? 0) > 4) throw new InvalidOperationException("Legacy FM has four operators; extra authored operators retained, upload refused.");
+            if (p.arpeggioEnabled && (p.arpeggioNotes?.Length ?? 0) > 5) throw new InvalidOperationException("Legacy arpeggio has five notes; extra authored notes retained, upload refused.");
+            void Envelope(ZUIEnvelopeData env)
+            {
+                if (env == null || !env.enabled) return;
+                if (env.Count > 32) throw new InvalidOperationException("Legacy envelope has 32 points; extra authored points retained, upload refused.");
+                Finite(env.xMax,env.loopStart,env.loopEnd); foreach (var point in env.points) Finite(point.time,point.value,point.exponent);
+            }
+            Envelope(p.blendEnvelopeData); Envelope(p.pulseWidthEnvelopeData); Envelope(p.waveBRatioEnvelopeData); Envelope(p.pmDepthEnvelopeData); Envelope(p.unisonDetuneEnvelopeData);
+            if (p.presets != null) foreach (var preset in p.presets) if (preset != null)
+            {
+                if (preset.ovrVolPan && p.type != InstrumentType.Kit) Finite(preset.volume,preset.pan);
+                if (p.type == InstrumentType.Sample || p.type == InstrumentType.Synth)
+                {
+                    if (preset.ovrAdsr) Adsr(preset.attack,preset.decay,preset.sustain,preset.release);
+                    if (preset.ovrSampleParams) Finite(preset.fineTune,preset.fineTuneB);
+                    if (preset.ovrBlend) Finite(preset.blend); if (preset.ovrPulseWidth) Finite(preset.pulseWidth); if (preset.ovrBRatio) Finite(preset.waveBRatio);
+                    if (preset.ovrPMDepth) Finite(preset.pmDepth); if (preset.ovrDetune) Finite(preset.unisonDetune);
+                    if (preset.ovrVibrato) Finite(preset.vibratoDepth,preset.vibratoRate,preset.vibratoFadeIn,preset.vibratoRandomness);
+                }
+                if (preset.ovrBlend) Envelope(preset.blendEnvelopeData); if (preset.ovrPulseWidth) Envelope(preset.pulseWidthEnvelopeData);
+                if (preset.ovrBRatio) Envelope(preset.waveBRatioEnvelopeData); if (preset.ovrPMDepth) Envelope(preset.pmDepthEnvelopeData); if (preset.ovrDetune) Envelope(preset.unisonDetuneEnvelopeData);
+            }
             var clips = new HashSet<AudioClip>();
             void Clip(AudioClip c) { if (c == null || !clips.Add(c)) return; if (c.loadType != AudioClipLoadType.DecompressOnLoad || c.loadState != AudioDataLoadState.Loaded || !c.GetData(new float[checked(c.samples*c.channels)],0)) throw new InvalidOperationException("PCM clip is not readable: " + c.name); }
             if (p.type == InstrumentType.Sample) { Clip(p.sampleClip); Clip(p.sampleClipB); }
@@ -197,9 +317,28 @@ namespace Laubrary.ZTracker.Model
             if (p.presets != null) foreach (var preset in p.presets) { if (preset == null) throw new InvalidOperationException("Null preset retained; cannot upload."); if (p.type == InstrumentType.Sample && preset.ovrSampleParams) { Clip(preset.sampleClip); Clip(preset.sampleClipB); } }
             if (clips.Count > 512 || (p.type == InstrumentType.Kit && (p.kitEntries?.Length ?? 0) > 512)) throw new InvalidOperationException("Legacy sample capacity exceeded.");
         }
+
+        // A live scalar refresh is not a general upload. In particular it cannot
+        // add preset slots, change PCM, replace curves/macros or change the engine.
+        public static void RequireScalarRefresh(ZTrackerInstrument before, ZTrackerInstrument after)
+        {
+            if (before == null || after == null) throw new InvalidOperationException("No uploaded instrument to refresh.");
+            var original = ZTrackerMigration.Capture(before); var changed = ZTrackerMigration.Capture(after);
+            if (original.type != changed.type || (original.type != InstrumentType.Sample && original.type != InstrumentType.Synth))
+                throw new InvalidOperationException("Engine changes and FM/kit edits require a prepared playback restart.");
+            string[] fields = { "baseNote", "baseNoteB", "fineTune", "fineTuneB", "waveA", "waveB", "blendMode", "blend", "pmDepth", "waveBRatio", "blendEnvelope", "blendAttack", "blendDecay", "blendSustain", "blendRelease", "unisonVoices", "unisonDetune", "unisonSpread", "pulseWidth", "volume", "pan", "attack", "decay", "sustain", "release" };
+            foreach (string field in fields) { var f = typeof(InstrumentParameters).GetField(field); f.SetValue(original,f.GetValue(changed)); }
+            if ((original.presets?.Count ?? 0) != (changed.presets?.Count ?? 0)) throw new InvalidOperationException("Preset slot changes require a prepared playback restart.");
+            if (original.presets != null && changed.presets != null) for (int i = 0; i < original.presets.Count; i++)
+            {
+                if (original.presets[i] == null || changed.presets[i] == null) throw new InvalidOperationException("Null preset retained; live refresh refused.");
+                foreach (string field in fields) { var f = typeof(ZTrackerInstrument.InstrumentPreset).GetField(field); if (f != null) f.SetValue(original.presets[i],f.GetValue(changed.presets[i])); }
+            }
+            if (!Same(original,changed)) throw new InvalidOperationException("PCM, preset structure, curves, macros, modulation or effects changed; use a prepared playback restart.");
+        }
         static void CheckNativeLimits(LegacySongPayload song)
         {
-            if (song.patterns.Count > 256 || song.orderList.Count > 256 || song.channelCount < 1) throw new InvalidOperationException("Legacy pattern/order capacity exceeded.");
+            if (song.patterns.Count > 256 || song.orderList.Count > 256 || song.channelCount < 1 || song.instruments.Count > 512) throw new InvalidOperationException("Legacy pattern/order/user-instrument capacity exceeded.");
             int channels = 0, slots = 0, samples = 0;
             var clips = new HashSet<AudioClip>();
             foreach (var c in song.channels) channels += c.noteColumnCount;
@@ -228,7 +367,14 @@ namespace Laubrary.ZTracker.Model
                     samples++;
                 }
                 if (p.type == InstrumentType.Sample) { Clip(p.sampleClip); Clip(p.sampleClipB); if (p.presets != null) foreach (var preset in p.presets) if (preset.ovrSampleParams) { Clip(preset.sampleClip); Clip(preset.sampleClipB); } }
-                if (p.type == InstrumentType.Kit && p.kitEntries != null) foreach (var k in p.kitEntries) { Clip(k.clip); if (k.clip != null) samples += 1 + (p.presets?.Count ?? 0); }
+                if (p.type == InstrumentType.Kit && p.kitEntries != null)
+                {
+                    ValidateInstrumentUpload(p);
+                    // Kits upload each non-null entry for each band slot, without
+                    // using the shared Sample clip cache. Do not count an extra
+                    // deduplicated copy that is never uploaded.
+                    foreach (var k in p.kitEntries) if (k.clip != null) samples += 1 + (p.presets?.Count ?? 0);
+                }
             }
             if (slots > 512 || samples > 512) throw new InvalidOperationException("Legacy instrument/sample bank capacity exceeded.");
         }
@@ -237,18 +383,18 @@ namespace Laubrary.ZTracker.Model
         // contains no data omitted by the old UI. Caller owns one complete-object Undo.
         public static bool CanEdit(ZTrackerSong asset, out string error)
         {
-            try { Require(ZTrackerMigration.VersionError(asset.schemaVersion)); if (asset.schemaVersion != 0) { Project(asset.model); if (!MatchesLegacy(asset.model,ZTrackerMigration.Capture(asset))) throw new InvalidOperationException("Legacy view is stale; rebuild the view before editing."); } error = null; return true; }
+            try { Require(ZTrackerMigration.VersionError(asset.schemaVersion)); if (asset.schemaVersion == 0) Project(ZTrackerMigration.Convert(ZTrackerMigration.Capture(asset))); else { Project(asset.model); if (!MatchesLegacy(asset.model,ZTrackerMigration.Capture(asset))) throw new InvalidOperationException("Legacy view is stale; rebuild the view before editing."); } error = null; return true; }
             catch (Exception ex) { error = ex.Message; return false; }
         }
         public static bool CanEdit(ZTrackerInstrument asset, out string error)
         {
-            try { Require(ZTrackerMigration.VersionError(asset.schemaVersion)); if (asset.schemaVersion != 0) { var p = Project(asset.model); if (!Same(p,ZTrackerMigration.Capture(asset))) throw new InvalidOperationException("Legacy instrument view is stale; rebuild before editing."); } error = null; return true; }
+            try { Require(ZTrackerMigration.VersionError(asset.schemaVersion)); if (asset.schemaVersion == 0) Project(ZTrackerMigration.Convert(ZTrackerMigration.Capture(asset),asset.name)); else { var p = Project(asset.model); if (!Same(p,ZTrackerMigration.Capture(asset))) throw new InvalidOperationException("Legacy instrument view is stale; rebuild before editing."); } error = null; return true; }
             catch (Exception ex) { error = ex.Message; return false; }
         }
         public static void RefreshView(ZTrackerSong asset)
-        { if (asset != null && asset.schemaVersion == ZTrackerMigration.CurrentVersion) { var p = Project(asset.model); if (!MatchesLegacy(asset.model,ZTrackerMigration.Capture(asset))) JsonUtility.FromJsonOverwrite(Json(p),asset); } }
+        { if (asset != null && asset.schemaVersion == ZTrackerMigration.CurrentVersion) { var p = Project(asset.model); if (!MatchesLegacy(asset.model,ZTrackerMigration.Capture(asset))) ZTrackerMigration.Overwrite(p,asset); } }
         public static void RefreshView(ZTrackerInstrument asset)
-        { if (asset != null && asset.schemaVersion == ZTrackerMigration.CurrentVersion) { var p = Project(asset.model); if (!Same(p,ZTrackerMigration.Capture(asset))) JsonUtility.FromJsonOverwrite(Json(p),asset); } }
+        { if (asset != null && asset.schemaVersion == ZTrackerMigration.CurrentVersion) { var p = Project(asset.model); if (!Same(p,ZTrackerMigration.Capture(asset))) ZTrackerMigration.Overwrite(p,asset); } }
         public static void Reconcile(ZTrackerSong asset, SongData before)
         {
             var candidate = ZTrackerMigration.Convert(ZTrackerMigration.Capture(asset),before);

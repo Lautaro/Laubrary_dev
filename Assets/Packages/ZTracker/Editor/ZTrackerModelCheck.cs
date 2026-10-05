@@ -12,7 +12,7 @@ namespace Laubrary.ZTracker.Editor
     // Invoked directly or by the one requested menu. No Test Runner or live-asset save.
     public static class ZTrackerModelCheck
     {
-        public const string ImplementationWitness = "P2-song-schema-v1-r2";
+        public const string ImplementationWitness = "P2-song-schema-v1-r5-independent-review-final";
         static int passed, failed;
         static readonly List<string> results = new List<string>();
         static readonly List<UnityEngine.Object> temporary = new List<UnityEngine.Object>();
@@ -88,12 +88,203 @@ namespace Laubrary.ZTracker.Editor
                 Check("read-only prepare does not mutate sources", () => {
                     var s = Song(); var i = Temp<ZTrackerInstrument>(); i.type = InstrumentType.Synth; s.instruments.Add(i); string a = JsonUtility.ToJson(s), b = JsonUtility.ToJson(i); using (var p = ZTrackerLegacyCompatibility.Prepare(s)) { Assert(p.song != s && p.song.instruments[0] != i,"Snapshot aliases authoring"); } Assert(JsonUtility.ToJson(s) == a && JsonUtility.ToJson(i) == b,"Read-only load migrated live assets");
                 });
+                ReviewChecks();
                 LegacyEditorChecks();
                 PlaybackChecks();
                 DemoChecks();
             }
             finally { foreach (var t in temporary) if (t != null) { Undo.ClearUndo(t); UnityEngine.Object.DestroyImmediate(t); } temporary.Clear(); }
             return "ZTracker P2 MODEL CHECK passed=" + passed + " failed=" + failed + "\n" + string.Join("\n",results);
+        }
+        static void ReviewChecks()
+        {
+            Check("null capture / copy / malformed preset refusal without publication", () => {
+                var instrument = Temp<ZTrackerInstrument>(); instrument.presets.Add(null);
+                var captured = ZTrackerMigration.Capture(instrument);
+                Assert(captured.presets.Count == 1 && captured.presets[0] == null && ZTrackerMigration.Copy(captured).presets[0] == null,"JSON fabricated a preset");
+                Assert(!ZTrackerMigration.Upgrade(instrument,out var error) && error.Contains("Null legacy preset") && instrument.schemaVersion == 0 && instrument.model == null && instrument.presets[0] == null,"Null preset replaced/published");
+                Assert(!ZTrackerLegacyCompatibility.CanEdit(instrument,out _),"Malformed preset entered Undo/edit transaction");
+                var song = Song(); song.patterns[0].cells[0] = null;
+                Assert(ZTrackerMigration.Capture(song).patterns[0].cells[0] == null,"JSON fabricated a dense cell");
+                Assert(!ZTrackerLegacyCompatibility.CanEdit(song,out _) && song.schemaVersion == 0 && song.patterns[0].cells[0] == null,"Malformed song edit changed source");
+                song.channels[0] = null; Assert(!ZTrackerMigration.Upgrade(song,out _) && song.channels[0] == null && song.schemaVersion == 0,"Null channel manufactured/published");
+                var valid = Temp<ZTrackerInstrument>(); var playable = Song(); playable.instruments.Add(valid);
+                using (var prepared = ZTrackerLegacyCompatibility.Prepare(playable)) Assert(valid.fmOperators == null && valid.kitEntries == null,"Read-only projection normalized source nulls");
+                using (var edit = new ZTrackerLegacyEdit(valid,"null-safe edit")) { valid.blend = .3f; edit.Commit(); }
+                Assert(valid.legacyArchive.fmOperators == null && valid.legacyArchive.kitEntries == null,"Editor snapshot normalized legacy before archiving");
+                using (var edit = new ZTrackerLegacyEdit(valid,"null-safe abort")) { valid.blend = .9f; }
+                Assert(valid.legacyArchive.fmOperators == null && valid.model.parameters.fmOperators == null && valid.blend == .3f,"Abort lost nulls or canonical values");
+                var undoNull = Temp<ZTrackerInstrument>(); Undo.IncrementCurrentGroup();
+                using (var edit = new ZTrackerLegacyEdit(undoNull,"null-safe migration Undo")) { undoNull.blend = .6f; edit.Commit(); }
+                Undo.FlushUndoRecordObjects(); Undo.PerformUndo();
+                Assert(undoNull.schemaVersion == 0 && undoNull.fmOperators == null && undoNull.kitEntries == null,"Migration Undo normalized null legacy arrays");
+                Undo.PerformRedo(); Assert(undoNull.schemaVersion == 1 && undoNull.legacyArchive.fmOperators == null,"Migration Redo lost null archive");
+            });
+            Check("null archive survives actual scoped save/reload", () => {
+                string scratch = "Assets/ZTrackerP2NullScratch-" + Guid.NewGuid().ToString("N"); string full = Path.GetFullPath(scratch), assets = Path.GetFullPath("Assets") + Path.DirectorySeparatorChar;
+                Assert(full.StartsWith(assets,StringComparison.OrdinalIgnoreCase),"Scratch outside Assets");
+                ZTrackerSong song = null; ZTrackerInstrument instrument = null;
+                try {
+                    AssetDatabase.CreateFolder("Assets",Path.GetFileName(full)); song = ScriptableObject.CreateInstance<ZTrackerSong>(); song.channelCount = 1; song.channels.Add(new ZTrackerChannelConfig()); song.patterns.Add(new ZTrackerPattern("null",1,1)); song.patterns[0].cells[0] = null; song.orderList.Add(0);
+                    instrument = ScriptableObject.CreateInstance<ZTrackerInstrument>(); instrument.macros = new[] {new ZTrackerInstrument.MacroDef {name = null,links = null}};
+                    Upgrade(song); Upgrade(instrument);
+                    AssetDatabase.CreateAsset(song,scratch + "/Song.asset"); AssetDatabase.CreateAsset(instrument,scratch + "/Instrument.asset");
+                    EditorUtility.SetDirty(song); AssetDatabase.SaveAssetIfDirty(song); EditorUtility.SetDirty(instrument); AssetDatabase.SaveAssetIfDirty(instrument);
+                    Resources.UnloadAsset(song); Resources.UnloadAsset(instrument);
+                    AssetDatabase.ImportAsset(scratch + "/Song.asset",ImportAssetOptions.ForceSynchronousImport); AssetDatabase.ImportAsset(scratch + "/Instrument.asset",ImportAssetOptions.ForceSynchronousImport);
+                    song = AssetDatabase.LoadAssetAtPath<ZTrackerSong>(scratch + "/Song.asset"); instrument = AssetDatabase.LoadAssetAtPath<ZTrackerInstrument>(scratch + "/Instrument.asset");
+                    Assert(song.legacyArchive.patterns[0].cells[0] == null && song.legacyArchiveNulls.Contains("patterns/0/cells/0"),"Null archive cell lost on disk");
+                    Assert(instrument.legacyArchive.macros[0].name == null && instrument.legacyArchive.macros[0].links == null && instrument.legacyArchive.kitEntries == null && instrument.legacyArchive.fmOperators == null,"Null string/struct-array member/array lost on disk");
+                    Assert(!ZTrackerLegacyCompatibility.CanEdit(song,out _),"Malformed archive became editable after reload");
+                } finally {
+                    if (!Path.GetFullPath(scratch).Equals(full,StringComparison.OrdinalIgnoreCase) || !full.StartsWith(assets,StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Unsafe scratch deletion");
+                    AssetDatabase.DeleteAsset(scratch);
+                    if (song != null && !AssetDatabase.Contains(song)) UnityEngine.Object.DestroyImmediate(song);
+                    if (instrument != null && !AssetDatabase.Contains(instrument)) UnityEngine.Object.DestroyImmediate(instrument);
+                }
+            });
+            Check("independent zero pan+delay / column-track-global scope retention", () => {
+                var song = Song(); Upgrade(song);
+                var line = new PatternLine {line = 0};
+                line.notes.Add(new NoteCell {note = NoteKind.Note,pitch = 0,pan = new ColumnValue {kind = ValueKind.Value,value = 0},delayPresent = true,delay = 0,
+                    sampleFx = new CommandData {present = true,valuePresent = true,identifier = "0R",value = 0,scope = CommandScope.Column,targetColumn = 0}});
+                line.effects.Add(new EffectCell {column = 0,command = new CommandData {present = true,valuePresent = true,identifier = "0L",value = 0,scope = CommandScope.Track}});
+                line.effects.Add(new EffectCell {column = 1,command = new CommandData {present = true,valuePresent = true,identifier = "ZT",value = 120,scope = CommandScope.Global}});
+                song.model.patterns[0].tracks[0].WriteLine(line);
+                Assert(ZTrackerModelValidation.Validate(song.model) == null,"Valid independent column/command data rejected");
+                string before = JsonUtility.ToJson(song.model); var copy = ZTrackerMigration.Copy(song.model).patterns[0].tracks[0].lines[0];
+                Assert(copy.notes[0].pan.HasPayload && copy.notes[0].delayPresent && copy.notes[0].delay == 0 && copy.notes[0].sampleFx.scope == CommandScope.Column && copy.effects[0].command.scope == CommandScope.Track && copy.effects[1].command.scope == CommandScope.Global,"Zero or command scope lost");
+                Rejected(() => ZTrackerLegacyCompatibility.Prepare(song)); Assert(JsonUtility.ToJson(song.model) == before,"Unsupported modern commands/zero subcolumns silently altered");
+            });
+            Check("all modulation devices/targets / FX and external-map serialization", () => {
+                var data = ZTrackerMigration.Convert(new InstrumentParameters {type = InstrumentType.Synth},"modern synth");
+                var set = new ModulationSet {id = "modern",filterType = 3}; int index = 0;
+                foreach (ModulationDeviceKind kind in Enum.GetValues(typeof(ModulationDeviceKind))) set.devices.Add(new ModulationDevice {
+                    id = "device-" + index,kind = kind,target = (ModulationTarget)index++,operation = ModulationOperation.Add,hold = .1f,rate = 4,phase = .7f,min = -1,max = 2,curve = 2,
+                    points = new List<ModulationPoint> {new ModulationPoint {time = 0,value = 0},new ModulationPoint {time = 1,value = 1}},sustainEnabled = true,sustainPosition = .5,loopEnabled = true,loop = SampleLoop.PingPong,loopStart = .25,loopEnd = 1 });
+                data.modulation.Add(set); var chain = new AudioEffectChainData(); chain.nodes.Add(new AudioEffectNodeData {uid = "fx",p = new[] {.25f}}); data.fxChains.Add(chain);
+                data.externalParameters.Add(new ExternalParameterMapping {externalId = "stand-in-vst/parameter-12",mapping = new Mapping {target = new ParameterTarget {kind = ParameterKind.Synth,parameter = "blend"},min = -1,max = 2,curve = 3}});
+                Assert(ZTrackerModelValidation.Validate(data) == null,"Modern modulation/chains/map rejected");
+                string before = JsonUtility.ToJson(data); Assert(JsonUtility.ToJson(ZTrackerMigration.Copy(data)) == before,"Modern fields not serialized");
+                Rejected(() => ZTrackerLegacyCompatibility.Project(data)); Assert(JsonUtility.ToJson(data) == before,"Modern devices/map discarded");
+            });
+            Check("retained subtractive+FM fields and canonical preset count stable", () => {
+                var i = Temp<ZTrackerInstrument>(); i.type = InstrumentType.Synth; i.waveA = 1; i.waveB = 3; i.blendMode = 2; i.blend = .43f; i.pmDepth = 3; i.waveBRatio = 1.7f; i.pulseWidth = .3f;
+                i.unisonVoices = 4; i.unisonDetune = 13; i.unisonSpread = .5f; i.vibratoDepth = 31; i.vibratoRate = 7; i.vibratoFadeIn = .8f; i.vibratoRandomness = .2f;
+                i.arpeggioEnabled = true; i.arpeggioNotes = new[] {0,3,9}; i.arpeggioSpeed = .13f; i.instFilterEnabled = true; i.instFilterMode = 2; i.instFilterCutoff = .4f; i.instFilterResonance = 1.2f; i.instDelaySend = .2f; i.instReverbSend = .3f;
+                i.fmAlgorithm = 5; i.fmFeedback = .6f; i.fmOperators = Enumerable.Range(0,4).Select(n => new ZTrackerInstrument.FMOperatorData {freqRatio = n+1,freqFixed = n*100,level = .5f,waveform = n,attack = .1f,decay = .2f,sustain = .3f,release = .4f}).ToArray();
+                i.unisonDetuneEnvelopeData = new ZUIEnvelopeData(0,20) {loopEnabled = true,loopMode = 2,loopStart = .2f,loopEnd = .8f};
+                i.presets.Add(new ZTrackerInstrument.InstrumentPreset {ovrPulseWidth = true,pulseWidth = .65f,ovrVibrato = false,vibratoDepth = 99}); Upgrade(i);
+                var p = i.model.parameters;
+                Assert(p.waveA == 1 && p.waveB == 3 && p.blendMode == 2 && p.blend == .43f && p.pmDepth == 3 && p.waveBRatio == 1.7f && p.pulseWidth == .3f,"Oscillator/blend fields lost");
+                Assert(p.unisonVoices == 4 && p.unisonDetune == 13 && p.unisonSpread == .5f && p.vibratoDepth == 31 && p.vibratoRate == 7 && p.vibratoFadeIn == .8f && p.vibratoRandomness == .2f && p.arpeggioNotes[2] == 9 && p.arpeggioSpeed == .13f,"Unison/vibrato/arpeggio fields lost");
+                Assert(p.instFilterEnabled && p.instFilterMode == 2 && p.instFilterCutoff == .4f && p.instFilterResonance == 1.2f && p.instDelaySend == .2f && p.instReverbSend == .3f && p.fmAlgorithm == 5 && p.fmFeedback == .6f && p.fmOperators.Length == 4 && p.fmOperators[3].freqFixed == 300 && p.fmOperators[3].release == .4f && p.unisonDetuneEnvelopeData.loopMode == 2,"Effects/FM/envelope fields lost");
+                var song = Song(); song.instruments.Add(i); int count = song.instruments.Count; var sets = ZTrackerMigration.ResolveParameterSets(i.model);
+                Assert(song.instruments.Count == count && sets.Count == 2 && sets[1].data.parameters.pulseWidth == .65f && sets[1].data.parameters.vibratoDepth == 31,"Preset slots/inheritance corrupted");
+            });
+            Check("canonical sampler projection ignores stale legacy wrappers", () => {
+                var i = Temp<ZTrackerInstrument>(); var clip = AudioClip.Create("canonical PCM",32,1,48000,false); temporary.Add(clip); Upgrade(i);
+                i.model.sampler.volume = .31f; i.model.sampler.pan = -.25f; i.model.sampler.samples[0].pcm = clip;
+                i.model.sampler.samples[0].baseNote = i.model.sampler.zones[0].baseNote = 63; i.model.sampler.samples[0].fineTuneCents = 17;
+                i.model.modulation[0].devices[0].attack = .25f; i.volume = .99f; i.baseNote = 12;
+                string original = JsonUtility.ToJson(i);
+                var projected = ZTrackerLegacyCompatibility.Prepare(i);
+                try { Assert(projected.volume == .31f && projected.pan == -.25f && projected.sampleClip == clip && projected.baseNote == 63 && projected.fineTune == 17 && projected.attack == .25f,"Canonical sample edits not uploaded"); }
+                finally { UnityEngine.Object.DestroyImmediate(projected); }
+                Assert(JsonUtility.ToJson(i) == original,"Projection rewrote authority or archive");
+            });
+            Check("canonical synth parameters+mode and sample B projection", () => {
+                var i = Temp<ZTrackerInstrument>(); i.type = InstrumentType.Synth; Upgrade(i); i.model.parameters.volume = .37f; i.model.parameters.waveA = 1;
+                Assert(ZTrackerLegacyCompatibility.Project(i.model).volume == .37f,"Synth scalar rejected/stale");
+                i.model.synthMode = SynthMode.FM; Assert(ZTrackerLegacyCompatibility.Project(i.model).type == InstrumentType.FM,"Synth mode ignored");
+                i.OnBeforeSerialize(); i.model.parameters.fmOperators = new ZTrackerInstrument.FMOperatorData[4]; i.model.parameters.fmOperators[0].freqRatio = 3;
+                ZTrackerLegacyCompatibility.RefreshView(i);
+                Assert(i.fmOperators != null && i.fmOperators.Length == 4 && i.fmOperators[0].freqRatio == 3,"Stale null metadata erased a projected FM array");
+                var b = AudioClip.Create("B",32,1,48000,false); temporary.Add(b);
+                var data = ZTrackerMigration.Convert(new InstrumentParameters { sampleClipB = b },"sample");
+                data.sampler.zones[0].blend.amount = .73f; data.sampler.zones[0].blend.baseNoteB = 69; data.sampler.zones[0].blend.pmDepth = 2.5f;
+                var p = ZTrackerLegacyCompatibility.Project(data); Assert(p.blend == .73f && p.baseNoteB == 69 && p.pmDepth == 2.5f,"Canonical B shadowed");
+            });
+            Check("kit last uploaded duplicate / effective globals / zero refusal", () => {
+                var clip = AudioClip.Create("drum",32,1,48000,false); temporary.Add(clip);
+                var data = ZTrackerMigration.Convert(new InstrumentParameters { type = InstrumentType.Kit,volume = .2f,pan = .5f,kitEntries = new[] {
+                    new ZTrackerInstrument.KitEntry {midiNote = 36,clip = clip,volume = 0,baseNote = 0}, new ZTrackerInstrument.KitEntry {midiNote = 36,clip = null,volume = 1} } },"kit");
+                Assert(!data.sampler.zones[0].inactive && data.sampler.zones[1].inactive,"Null duplicate superseded uploaded mapping");
+                Assert(data.sampler.volume == 1 && data.sampler.pan == 0 && data.parameters.volume == .2f && data.parameters.pan == .5f,"Ineffective legacy global became active");
+                var p = ZTrackerLegacyCompatibility.Project(data); Assert(p.kitEntries[0].volume == 0 && p.kitEntries[0].baseNote == 0,"Authored zeros lost");
+                data.sampler.samples[0].volume = .29f; data.modulation[0].devices[0].release = .6f; p = ZTrackerLegacyCompatibility.Project(data);
+                Assert(p.kitEntries[0].volume == .29f && p.kitEntries[0].release == .6f,"Canonical kit shadowed");
+                data.sampler.samples[0].volume = 0; Rejected(() => ZTrackerLegacyCompatibility.Project(data));
+                data.sampler.samples[0].volume = .29f; data.sampler.volume = .5f; Rejected(() => ZTrackerLegacyCompatibility.Project(data));
+            });
+            Check("preset inherited modern blend/modulation and deep copies", () => {
+                var b = AudioClip.Create("inherited B",32,1,48000,false); temporary.Add(b);
+                var data = ZTrackerMigration.Convert(new InstrumentParameters { sampleClipB = b, presets = new List<ZTrackerInstrument.InstrumentPreset> {
+                    new ZTrackerInstrument.InstrumentPreset {ovrSampleParams = true,sampleClipB = b,baseNote = 65,ovrAdsr = true,attack = .5f} } },"sampler");
+                data.sampler.volume = .34f; data.sampler.zones[0].blend.amount = .76f; data.sampler.zones[0].blend.pmDepth = 3;
+                data.modulation[0].filterType = 7; data.modulation[0].devices[0].hold = .2f;
+                data.modulation[0].devices.Add(new ModulationDevice {id = "inherited-lfo",kind = ModulationDeviceKind.LFO,target = ModulationTarget.Pitch});
+                string before = JsonUtility.ToJson(data); var sets = ZTrackerMigration.ResolveParameterSets(data); var variant = sets[1].data;
+                Assert(sets[0].data.parameters.volume == .34f && sets[0].data.parameters.blend == .76f,"Base set inherited obsolete legacy values");
+                Assert(variant.sampler.volume == .34f && variant.sampler.zones[0].blend.amount == .76f && variant.sampler.zones[0].blend.pmDepth == 3,"Sample override replaced inherited blend");
+                Assert(variant.modulation[0].devices.Count == 2 && variant.modulation[0].filterType == 7 && variant.modulation[0].devices[0].hold == .2f && variant.modulation[0].devices[0].attack == .5f,"ADSR override replaced inherited modulation section");
+                variant.modulation[0].devices[1].depth = .1f; variant.sampler.zones[0].blend.amount = .2f;
+                Assert(JsonUtility.ToJson(data) == before && sets[0].data.sampler.zones[0].blend.amount == .76f,"Resolved sets alias authoring/each other");
+            });
+            Check("repeated gesture rejected commit restores complete original", () => {
+                var i = Temp<ZTrackerInstrument>(); string before = JsonUtility.ToJson(i);
+                using (var edit = new ZTrackerLegacyEdit(i,"repeated gesture")) { i.attack = .2f; edit.Commit(); i.attack = -1; Rejected(edit.Commit); }
+                Assert(JsonUtility.ToJson(i) == before,"Failed second move left invalid wrapper/authority");
+            });
+            Check("canonical macro edits / fifth macro and nonlinear mapping refusal", () => {
+                var data = ZTrackerMigration.Convert(new InstrumentParameters {type = InstrumentType.Synth},"macros");
+                data.macros[1].value = .4f; var p = ZTrackerLegacyCompatibility.Project(data);
+                Assert(p.macros.Length == 2 && p.macros[1].defaultValue == .4f && p.macros[0].name == "Macro 1","Macro edit not projected/padding corrupted");
+                data.macros[4].value = .2f; Rejected(() => ZTrackerLegacyCompatibility.Project(data)); data.macros[4].value = 0;
+                data.macros[1].mappings.Add(new Mapping {target = new ParameterTarget {kind = ParameterKind.Synth,parameter = "blend",units = "legacy parameter units"},legacyLink = "blend",curve = 2});
+                Rejected(() => ZTrackerLegacyCompatibility.Project(data));
+            });
+            Check("invalid modulation enum/shape and preserved legacy native capacities", () => {
+                var data = ZTrackerMigration.Convert(new InstrumentParameters(),"bad"); data.modulation[0].devices[0].kind = (ModulationDeviceKind)999;
+                Assert(ZTrackerModelValidation.Validate(data) != null,"Unknown modulation kind accepted"); data.modulation[0].devices[0].kind = ModulationDeviceKind.AHDSR; data.modulation[0].devices[0].phase = float.NaN;
+                Assert(ZTrackerModelValidation.Validate(data) != null,"Nonfinite modulation shape accepted");
+                var i = Temp<ZTrackerInstrument>(); i.type = InstrumentType.FM; i.fmOperators = new ZTrackerInstrument.FMOperatorData[5]; string raw = JsonUtility.ToJson(i);
+                Rejected(() => ZTrackerLegacyCompatibility.Prepare(i)); Assert(JsonUtility.ToJson(i) == raw,"Extra operators lost");
+                i.type = InstrumentType.Synth; i.fmOperators = null; i.arpeggioEnabled = true; i.arpeggioNotes = new[] {0,1,2,3,4,5}; Rejected(() => ZTrackerLegacyCompatibility.Prepare(i));
+                i.arpeggioEnabled = false; i.blendEnvelopeData = new ZUIEnvelopeData(0,1); i.blendEnvelopeData.enabled = true; i.blendEnvelopeData.points.Clear();
+                for (int n = 0; n < 33; n++) i.blendEnvelopeData.points.Add(new ZUIEnvelopePoint(n / 32f,n / 32f,1));
+                Rejected(() => ZTrackerLegacyCompatibility.Prepare(i));
+                i.blendEnvelopeData = null; i.attack = -1; Rejected(() => ZTrackerLegacyCompatibility.Prepare(i)); i.attack = .01f;
+                i.presets.Add(new ZTrackerInstrument.InstrumentPreset {ovrAdsr = true,attack = -1}); Rejected(() => ZTrackerLegacyCompatibility.Prepare(i)); i.presets.Clear();
+                i.type = (InstrumentType)999; Upgrade(i); string preserved = JsonUtility.ToJson(i);
+                Rejected(() => ZTrackerLegacyCompatibility.Prepare(i)); Assert(JsonUtility.ToJson(i) == preserved && i.model.diagnostics.Exists(d => d.StartsWith("Unknown legacy engine")),"Unknown engine silently converted to Sample");
+            });
+            Check("live refresh captured slot identity / repeated references / structural refusal", () => {
+                Assert(ZTrackerPlayback.Current == null,"Another playback active"); var song = Song(); var first = Temp<ZTrackerInstrument>(); first.type = InstrumentType.Synth;
+                var other = Temp<ZTrackerInstrument>(); other.type = InstrumentType.Synth; other.blend = .1f;
+                song.instruments.AddRange(new[] {first,other,first}); Upgrade(first); Upgrade(other); Upgrade(song);
+                ZTrackerPlayback playback = null;
+                try {
+                    Assert(ZTrackerPlayback.TryPlay(song,out playback,out var error),error);
+                    var field = typeof(ZTrackerPlayback).GetField("playingSong",System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic); var uploaded = (ZTrackerSong)field.GetValue(playback);
+                    song.model.instruments[0] = other; song.model.instruments[1] = first; first.model.parameters.blend = .8f;
+                    playback.RefreshInstrument(first,-1);
+                    Assert(uploaded.instruments[0].blend == .8f && uploaded.instruments[2].blend == .8f && uploaded.instruments[1].blend == .1f,"Mutable authoring list retargeted uploaded IDs");
+                    string before = JsonUtility.ToJson(uploaded); first.model.parameters.presets.Add(new ZTrackerInstrument.InstrumentPreset());
+                    Rejected(() => playback.RefreshInstrument(first,-1)); Assert(JsonUtility.ToJson(uploaded) == before,"Structural refresh changed snapshot before refusal");
+                } finally { if (playback != null) playback.Stop(); }
+            });
+            Check("exact legacy sample-bank limit / null user-slot capacity", () => {
+                var clip = AudioClip.Create("bank limit",8,1,48000,false); temporary.Add(clip);
+                var instrument = Temp<ZTrackerInstrument>(); instrument.type = InstrumentType.Kit;
+                instrument.kitEntries = new[] {new ZTrackerInstrument.KitEntry {midiNote = 36,clip = clip,volume = 1}};
+                for (int n = 0; n < 511; n++) instrument.presets.Add(new ZTrackerInstrument.InstrumentPreset());
+                var song = Song(); song.instruments.Add(instrument);
+                using (var prepared = ZTrackerLegacyCompatibility.Prepare(song)) Assert(prepared.song.instruments.Count == 1,"Exactly 512 uploads incorrectly refused");
+                instrument.presets.Add(new ZTrackerInstrument.InstrumentPreset()); Rejected(() => ZTrackerLegacyCompatibility.Prepare(song));
+                song.instruments.Clear(); for (int n = 0; n < 513; n++) song.instruments.Add(null);
+                Rejected(() => ZTrackerLegacyCompatibility.Prepare(song));
+            });
         }
         static void LegacyEditorChecks()
         {
@@ -202,12 +393,18 @@ namespace Laubrary.ZTracker.Editor
                         File.Copy(roots[n] + "/Song.asset",folder + "/Song.asset"); File.Copy(roots[n] + "/Synth.asset",folder + "/Synth.asset");
                         AssetDatabase.ImportAsset(folder + "/Synth.asset",ImportAssetOptions.ForceSynchronousImport); AssetDatabase.ImportAsset(folder + "/Song.asset",ImportAssetOptions.ForceSynchronousImport);
                         var song = AssetDatabase.LoadAssetAtPath<ZTrackerSong>(folder + "/Song.asset"); var inst = AssetDatabase.LoadAssetAtPath<ZTrackerInstrument>(folder + "/Synth.asset"); Assert(song != null && inst != null,"Retained script GUID/type failed");
+                        foreach (string file in new[] {"Song.asset","Synth.asset"})
+                        {
+                            string sourceGuid = System.Text.RegularExpressions.Regex.Match(File.ReadAllText(roots[n] + "/" + file + ".meta"),@"(?m)^guid: (\w+)").Groups[1].Value;
+                            string scratchGuid = AssetDatabase.AssetPathToGUID(folder + "/" + file);
+                            Assert(sourceGuid.Length == 32 && scratchGuid.Length == 32 && sourceGuid != scratchGuid,"Scratch reused/missed an asset GUID");
+                        }
                         song.instruments[0] = inst; Upgrade(inst); Upgrade(song); Assert(song.model.tracks.Count == 2 && song.model.patterns[0].tracks[0].lines.Count == 4,"Demo shape"); Assert(song.model.patterns[0].tracks[0].lines.Select(l => l.notes[0].pitch).SequenceEqual(new[] {60,64,67,72}),"Demo notes"); Assert(inst.model.macros.Length == 8 && song.model.bpm == 120 && song.model.linesPerBeat == 4 && song.model.ticksPerLine == 6,"Demo defaults");
-                        string id = song.model.id, iid = inst.model.id; string before = JsonUtility.ToJson(song.model);
+                        string id = song.model.id, iid = inst.model.id; string before = JsonUtility.ToJson(song.model), beforeInstrument = JsonUtility.ToJson(inst.model);
                         EditorUtility.SetDirty(inst); AssetDatabase.SaveAssetIfDirty(inst); EditorUtility.SetDirty(song); AssetDatabase.SaveAssetIfDirty(song);
                         Resources.UnloadAsset(song); Resources.UnloadAsset(inst); AssetDatabase.ImportAsset(folder + "/Synth.asset",ImportAssetOptions.ForceSynchronousImport); AssetDatabase.ImportAsset(folder + "/Song.asset",ImportAssetOptions.ForceSynchronousImport);
                         song = AssetDatabase.LoadAssetAtPath<ZTrackerSong>(folder + "/Song.asset"); inst = AssetDatabase.LoadAssetAtPath<ZTrackerInstrument>(folder + "/Synth.asset");
-                        Assert(song.schemaVersion == 1 && inst.schemaVersion == 1 && song.model.id == id && inst.model.id == iid,"Version/identity not persisted"); Assert(song.instruments[0] == inst && song.model.instruments[0] == inst,"Scratch reference points at live instrument"); Upgrade(song); Upgrade(inst); Assert(JsonUtility.ToJson(song.model) == before,"Reload upgrade changed payload"); using (var p = ZTrackerLegacyCompatibility.Prepare(song)) Assert(p.song.patterns[0].GetCell(0,0,1).note == 60,"Demo projection");
+                        Assert(song.schemaVersion == 1 && inst.schemaVersion == 1 && song.model.id == id && inst.model.id == iid,"Version/identity not persisted"); Assert(song.instruments[0] == inst && song.model.instruments[0] == inst,"Scratch reference points at live instrument"); Upgrade(song); Upgrade(inst); Assert(JsonUtility.ToJson(song.model) == before && JsonUtility.ToJson(inst.model) == beforeInstrument,"Reload upgrade changed song/instrument payload"); using (var p = ZTrackerLegacyCompatibility.Prepare(song)) Assert(p.song.patterns[0].GetCell(0,0,1).note == 60,"Demo projection");
                         Assert(File.ReadAllText(folder + "/Song.asset").Contains("c9234bbc80b22ff41a0ffb03c40c7bad") && File.ReadAllText(folder + "/Synth.asset").Contains("2b96e89e657daa44898819eea2fce0f6"),"Script GUID changed");
                     });
                 }

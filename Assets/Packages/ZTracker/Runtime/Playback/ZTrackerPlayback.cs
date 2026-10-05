@@ -29,7 +29,7 @@ namespace Laubrary.ZTracker
         ZTrackerSong playingSong;
         readonly float[] macroValues = new float[4];
         readonly bool[,] macroTouched = new bool[32, 4];
-        ZTrackerInstrument refreshInstrument;
+        readonly System.Collections.Generic.List<ZTrackerInstrument> refreshInstruments = new System.Collections.Generic.List<ZTrackerInstrument>();
         int refreshVariation;
         ZTrackerInstrument auditionInstrument;
         ZTrackerSong sourceSong;
@@ -141,27 +141,33 @@ namespace Laubrary.ZTracker
             var snapshot = Model.ZTrackerLegacyCompatibility.Prepare(instrument);
             try
             {
-                ZTrackerInstrument target = null;
-                if (sourceSong == null) { if (instrument == sourceAudition) target = auditionInstrument; }
+                var targets = new System.Collections.Generic.List<ZTrackerInstrument>();
+                if (sourceSong == null) { if (instrument == sourceAudition && auditionInstrument != null) targets.Add(auditionInstrument); }
                 else
                 {
-                    var sources = sourceSong.schemaVersion == 0 ? sourceSong.instruments : sourceSong.model.instruments;
-                    for (int i = 0; i < sources.Count && i < playingSong.instruments.Count; i++) if (sources[i] == instrument) { target = playingSong.instruments[i]; if (target != null) JsonUtility.FromJsonOverwrite(JsonUtility.ToJson(snapshot),target); }
+                    // These are the references at upload time, not the current source
+                    // list, which may have since been reordered or replaced.
+                    var sources = preparedSong.sourceModel.instruments;
+                    for (int i = 0; i < sources.Count && i < playingSong.instruments.Count; i++) if (sources[i] == instrument && playingSong.instruments[i] != null) targets.Add(playingSong.instruments[i]);
                 }
-                if (target != null) { JsonUtility.FromJsonOverwrite(JsonUtility.ToJson(snapshot),target); refreshInstrument = target; refreshVariation = preset; PumpInstrumentRefresh(); }
+                // Validate every affected slot before modifying any snapshot/native
+                // definition. Repeated authored references still own distinct slots.
+                foreach (var target in targets) Model.ZTrackerLegacyCompatibility.RequireScalarRefresh(target,snapshot);
+                foreach (var target in targets) { Model.ZTrackerMigration.Overwrite(snapshot,target); if (!refreshInstruments.Contains(target)) refreshInstruments.Add(target); }
+                refreshVariation = preset; PumpInstrumentRefresh();
             }
             finally { DestroyImmediate(snapshot); }
         }
 
         void PumpInstrumentRefresh()
         {
-            if (refreshInstrument == null || context == IntPtr.Zero || Interlocked.CompareExchange(ref gate,2,0) != 0) return;
+            if (refreshInstruments.Count == 0 || context == IntPtr.Zero || Interlocked.CompareExchange(ref gate,2,0) != 0) return;
             try
             {
-                var inst = refreshInstrument;
                 if (playingSong == null)
                 {
-                    if (inst != auditionInstrument) return;
+                    var inst = auditionInstrument;
+                    if (!refreshInstruments.Contains(inst)) return;
                     inst.RefreshScalarDefinition(context,0,refreshVariation);
                     for(int voice=0;voice<128;voice++)
                         if(ZTrackerNative.ZT_GetVoiceCurrentNote(context,voice)>=0)
@@ -173,18 +179,19 @@ namespace Laubrary.ZTracker
                     for(int user=0;user<playingSong.instruments.Count;user++)
                     {
                         var i=playingSong.instruments[user];if(i==null)continue;
-                        if(i==inst) { i.RefreshScalarDefinition(context,slot,-1); for(int p=0;p<(i.presets?.Count??0);p++)i.RefreshScalarDefinition(context,slot+p+1,p); }
+                        if(refreshInstruments.Contains(i)) { i.RefreshScalarDefinition(context,slot,-1); for(int p=0;p<(i.presets?.Count??0);p++)i.RefreshScalarDefinition(context,slot+p+1,p); }
                         slot+=1+(i.presets?.Count??0);
                     }
                     for(int ch=0;ch<playingSong.GetTotalNativeChannels();ch++)
                     {
                         int user=ZTrackerNative.ZT_GetChannelInstrument(context,ch),voice=ZTrackerNative.ZT_GetChannelVoiceID(context,ch);
-                        if(voice<0||user<0||user>=playingSong.instruments.Count||playingSong.instruments[user]!=inst)continue;
+                        if(voice<0||user<0||user>=playingSong.instruments.Count||!refreshInstruments.Contains(playingSong.instruments[user]))continue;
+                        var inst = playingSong.instruments[user];
                         int p=ZTrackerNative.ZT_GetChannelPreset(context,ch)-1;
                         ZTrackerNative.ZT_SetVoiceBlend(context,voice,inst.ResolveBlend(p));ZTrackerNative.ZT_SetVoicePulseWidth(context,voice,inst.ResolvePulseWidth(p));ZTrackerNative.ZT_SetVoiceWaveBRatio(context,voice,inst.ResolveWaveBRatio(p));
                     }
                 }
-                refreshInstrument=null;
+                refreshInstruments.Clear();
             }
             finally { Volatile.Write(ref gate,0); }
         }

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Independent P2 review fixed canonical instrument projection, inherited sampler preset sections, kit null-duplicate/effective-default migration, repeated-gesture rollback, live refresh slot ownership and Unity JSON null normalization. Added null archive save/reload and adversarial regression checks, exact sample-bank accounting and explicit refusal of structural scalar refreshes and native truncation; original assets and native DSP remain unchanged.
+
 - Added explicit version-1 song and Sampler/Synth authoring data: sparse independent columns, buses/routing, AudioCore chains, automation, sequence mutes, sampler zones/loops/modulation, eight macros and compiled preset parameter sets. Migration retains script identities, original legacy payloads and unsupported commands without rewriting live assets.
 - Added conservative main-thread legacy projections and Undo-safe edit reconciliation for the current editor, audition and runtime upload. Unrepresentable features are retained and rejected explicitly; saved-demo scratch migrations and the flat ZTracker Model Check verify serialization and compatibility. Native ABI/DSP behavior remains unchanged; new realtime features are deferred to later phases.
 

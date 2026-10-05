@@ -12,6 +12,7 @@ namespace Laubrary.ZTracker.Editor
     {
         readonly UnityEngine.Object owner;
         readonly string original;
+        readonly List<string> originalNulls;
         readonly SongData songBefore;
         readonly InstrumentData instrumentBefore;
         readonly List<ZTrackerPattern> patternObjects;
@@ -25,8 +26,10 @@ namespace Laubrary.ZTracker.Editor
             string error;
             bool allowed = asset is ZTrackerSong song ? ZTrackerLegacyCompatibility.CanEdit(song,out error) : asset is ZTrackerInstrument instrument ? ZTrackerLegacyCompatibility.CanEdit(instrument,out error) : throw new ArgumentException("Not a tracker asset");
             if (!allowed) throw new InvalidOperationException(error);
-            original = JsonUtility.ToJson(asset);
+            originalNulls = ZTrackerMigration.NullPaths(asset);
+            original = ZTrackerMigration.Json(asset);
             Undo.RegisterCompleteObjectUndo(asset,"Tracker: " + label);
+            ZTrackerMigration.RestoreNulls(asset,originalNulls);
             if (asset is ZTrackerSong s)
             {
                 if (!ZTrackerMigration.Upgrade(s,out error)) throw new InvalidOperationException(error);
@@ -41,6 +44,9 @@ namespace Laubrary.ZTracker.Editor
         }
         public void Commit()
         {
+            // A gesture may commit many moves against one Undo snapshot. A later
+            // rejected move must still restore the complete pre-gesture state.
+            committed = false;
             if (owner is ZTrackerSong song)
             {
                 // Existing objects carry their identity through deletion/reordering. Clones
@@ -64,7 +70,7 @@ namespace Laubrary.ZTracker.Editor
         }
         public void Dispose()
         {
-            if (!committed && owner != null) JsonUtility.FromJsonOverwrite(original,owner);
+            if (!committed && owner != null) { JsonUtility.FromJsonOverwrite(original,owner); ZTrackerMigration.RestoreNulls(owner,originalNulls); }
         }
     }
 }

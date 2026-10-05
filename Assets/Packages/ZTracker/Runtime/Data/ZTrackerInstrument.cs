@@ -2,11 +2,25 @@ using System;
 using UnityEngine;
 
 [CreateAssetMenu(menuName = "ZTracker/Instrument", fileName = "NewInstrument")]
-public class ZTrackerInstrument : ScriptableObject
+public class ZTrackerInstrument : ScriptableObject, ISerializationCallbackReceiver
 {
     public int schemaVersion;
     public Laubrary.ZTracker.Model.InstrumentData model;
     public Laubrary.ZTracker.Model.InstrumentParameters legacyArchive;
+    public System.Collections.Generic.List<string> legacyArchiveNulls = new System.Collections.Generic.List<string>();
+    [HideInInspector] public System.Collections.Generic.List<string> serializedNulls;
+    public void OnBeforeSerialize()
+    {
+        if (schemaVersion < 0 || schemaVersion > Laubrary.ZTracker.Model.ZTrackerMigration.CurrentVersion) return;
+        if (schemaVersion == Laubrary.ZTracker.Model.ZTrackerMigration.CurrentVersion) Laubrary.ZTracker.Model.ZTrackerMigration.RestoreNulls(legacyArchive,legacyArchiveNulls);
+        serializedNulls = Laubrary.ZTracker.Model.ZTrackerMigration.NullPaths(this); serializedNulls.Remove(nameof(serializedNulls));
+    }
+    public void OnAfterDeserialize()
+    {
+        if (schemaVersion < 0 || schemaVersion > Laubrary.ZTracker.Model.ZTrackerMigration.CurrentVersion) return;
+        Laubrary.ZTracker.Model.ZTrackerMigration.RestoreNulls(this,serializedNulls);
+        if (schemaVersion == Laubrary.ZTracker.Model.ZTrackerMigration.CurrentVersion) Laubrary.ZTracker.Model.ZTrackerMigration.RestoreNulls(legacyArchive,legacyArchiveNulls);
+    }
     [NonSerialized] internal bool legacyPrepared;
     public InstrumentType type = InstrumentType.Sample;
 

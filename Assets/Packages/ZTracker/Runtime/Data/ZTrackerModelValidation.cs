@@ -64,6 +64,7 @@ namespace Laubrary.ZTracker.Model
                         {
                             if (n == null || n.column < 0 || (!n.inactive && n.column >= 12) || !columns.Add(n.column) || n.volume == null || n.pan == null || n.sampleFx == null) return "Note column capacity/duplicate";
                             if (tracks[pt.trackId].kind != TrackKind.Sequencer) return "Bus/Event track contains notes";
+                            if (!Enum.IsDefined(typeof(NoteKind),n.note)) return "Unknown note kind";
                             if (n.note == NoteKind.Note && (n.pitch < 0 || n.pitch > 119)) return "Note outside profile";
                             if (n.delayPresent && (n.delay < 0 || n.delay > 255)) return "Delay outside profile";
                             error = Value(n.volume) ?? Value(n.pan) ?? Command(n.sampleFx); if (error != null) return error;
@@ -94,10 +95,11 @@ namespace Laubrary.ZTracker.Model
             if (!parentOnly) foreach (var send in t.sends) { e = e ?? Cycle(send.trackId,tracks,active,done,false); }
             active.Remove(id); done.Add(id); return e;
         }
-        static string Value(ColumnValue v) => v == null ? "Column value missing" : v.kind == ValueKind.Value && (v.value < 0 || v.value > 128) ? "Volume/pan outside profile" : Command(v.command);
+        static string Value(ColumnValue v) => v == null ? "Column value missing" : !Enum.IsDefined(typeof(ValueKind),v.kind) ? "Unknown column value kind" : v.kind == ValueKind.Value && (v.value < 0 || v.value > 128) ? "Volume/pan outside profile" : Command(v.command);
         static string Command(CommandData c)
         {
             if (c == null) return "Command missing";
+            if (!Enum.IsDefined(typeof(CommandScope),c.scope)) return "Unknown command scope";
             if (c.present && c.profile != "native-v0" && !c.unsupported && (c.identifier == null || c.identifier.Length != 2 || c.value < 0 || c.value > 255)) return "Command identifier/value outside profile";
             if (c.scope == CommandScope.Column && c.targetColumn < -1) return "Command column target invalid";
             return null;
@@ -105,6 +107,7 @@ namespace Laubrary.ZTracker.Model
         static string Target(ParameterTarget target, SongData song, string owner)
         {
             if (target.unresolved) return null;
+            if (!Enum.IsDefined(typeof(ParameterKind),target.kind)) return "Unknown parameter target kind";
             if (string.IsNullOrEmpty(target.parameter)) return "Parameter identity missing";
             string trackId = target.trackId == "" ? owner : target.trackId;
             var track = song.tracks.Find(t => t.id == trackId); if (track == null) return "Automation target track missing";
@@ -123,6 +126,7 @@ namespace Laubrary.ZTracker.Model
         public static string Validate(InstrumentData data)
         {
             if (data == null || data.parameters == null || data.sampler == null || data.macros == null || data.macros.Length != 8) return "Instrument requires parameters, sampler and exactly eight macros";
+            if (data.parameters.presets != null && data.parameters.presets.Exists(p => p == null)) return "Null legacy preset retained; explicit repair required before migration or playback";
             if (!Enum.IsDefined(typeof(InstrumentFamily),data.family) || !Enum.IsDefined(typeof(SynthMode),data.synthMode) || !Enum.IsDefined(typeof(NewNoteAction),data.sampler.nna)) return "Unknown instrument family/engine/NNA";
             if (data.modulation == null || data.fxChains == null || data.externalParameters == null || data.archivedMacros == null || data.sampler.samples == null || data.sampler.zones == null) return "Instrument collections missing";
             if (!Finite(data.sampler.volume) || !Finite(data.sampler.pan) || !Finite(data.sampler.fineTuneCents)) return "Invalid sampler globals";
@@ -139,6 +143,8 @@ namespace Laubrary.ZTracker.Model
                 foreach (var d in set.devices)
                 {
                     if (d == null || d.points == null || !Finite(d.attack) || !Finite(d.hold) || !Finite(d.decay) || !Finite(d.sustain) || !Finite(d.release) || !Finite(d.rate) || !Finite(d.depth) || d.attack < 0 || d.hold < 0 || d.decay < 0 || d.release < 0) return "Invalid modulation device";
+                    if (!Enum.IsDefined(typeof(ModulationDeviceKind),d.kind) || !Enum.IsDefined(typeof(ModulationTarget),d.target) || !Enum.IsDefined(typeof(ModulationOperation),d.operation) || !Enum.IsDefined(typeof(SampleLoop),d.loop)) return "Unknown modulation device/target/operation/loop";
+                    if (!Finite(d.phase) || !Finite(d.min) || !Finite(d.max) || !Finite(d.curve) || d.curve <= 0 || !Finite(d.sustainPosition) || !Finite(d.loopStart) || !Finite(d.loopEnd)) return "Invalid modulation shape/bounds";
                     double time = -1; foreach (var p in d.points) { if (p == null || !Finite(p.time) || !Finite(p.value) || !Finite(p.exponent) || p.time <= time) return "Modulation points must be ordered and unique"; time = p.time; }
                     if (d.loopEnabled && (d.loop == SampleLoop.Off || d.loopStart < 0 || d.loopEnd <= d.loopStart || d.loopEnd > time)) return "Modulation loop bounds";
                     if (d.sustainEnabled && (d.sustainPosition < 0 || d.sustainPosition > time)) return "Modulation sustain bounds";

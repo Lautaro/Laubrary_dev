@@ -3,12 +3,26 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [CreateAssetMenu(menuName = "ZTracker/Song", fileName = "NewSong")]
-public class ZTrackerSong : ScriptableObject
+public class ZTrackerSong : ScriptableObject, ISerializationCallbackReceiver
 {
     // Zero intentionally has no initializer: an absent YAML field is legacy.
     public int schemaVersion;
     public Laubrary.ZTracker.Model.SongData model;
     public Laubrary.ZTracker.Model.LegacySongPayload legacyArchive;
+    public List<string> legacyArchiveNulls = new List<string>();
+    [HideInInspector] public List<string> serializedNulls;
+    public void OnBeforeSerialize()
+    {
+        if (schemaVersion < 0 || schemaVersion > Laubrary.ZTracker.Model.ZTrackerMigration.CurrentVersion) return;
+        if (schemaVersion == Laubrary.ZTracker.Model.ZTrackerMigration.CurrentVersion) Laubrary.ZTracker.Model.ZTrackerMigration.RestoreNulls(legacyArchive,legacyArchiveNulls);
+        serializedNulls = Laubrary.ZTracker.Model.ZTrackerMigration.NullPaths(this); serializedNulls.Remove(nameof(serializedNulls));
+    }
+    public void OnAfterDeserialize()
+    {
+        if (schemaVersion < 0 || schemaVersion > Laubrary.ZTracker.Model.ZTrackerMigration.CurrentVersion) return;
+        Laubrary.ZTracker.Model.ZTrackerMigration.RestoreNulls(this,serializedNulls);
+        if (schemaVersion == Laubrary.ZTracker.Model.ZTrackerMigration.CurrentVersion) Laubrary.ZTracker.Model.ZTrackerMigration.RestoreNulls(legacyArchive,legacyArchiveNulls);
+    }
     [NonSerialized] internal bool legacyPrepared;
     public string songName = "Untitled";
     public int bpm = 120;

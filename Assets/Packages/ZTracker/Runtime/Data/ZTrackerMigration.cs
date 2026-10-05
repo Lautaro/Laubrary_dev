@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Collections;
+using System.Reflection;
 using UnityEngine;
 
 namespace Laubrary.ZTracker.Model
@@ -18,10 +20,97 @@ namespace Laubrary.ZTracker.Model
     {
         public const int CurrentVersion = 1;
         public const string CommandContract = "T-0017/COMMANDS.md revision 1 section 11";
-        public static T Copy<T>(T value) => value == null ? default : JsonUtility.FromJson<T>(JsonUtility.ToJson(value));
+        public static string Json(object value)
+        {
+            var paths = NullPaths(value);
+            try { return JsonUtility.ToJson(value); }
+            finally { RestoreNulls(value,paths); }
+        }
+        public static void Overwrite(object value, object target)
+        {
+            var paths = NullPaths(value);
+            // Partial legacy payloads do not contain the target's sidecar. Its
+            // previous paths must not erase newly projected non-null fields in
+            // Unity's deserialization callback.
+            if (target is ZTrackerSong song) song.serializedNulls = null;
+            if (target is ZTrackerInstrument instrument) instrument.serializedNulls = null;
+            JsonUtility.FromJsonOverwrite(Json(value),target);
+            RestoreNulls(target,paths);
+            if (target is ZTrackerSong s) { s.serializedNulls = NullPaths(s); s.serializedNulls.Remove(nameof(s.serializedNulls)); }
+            if (target is ZTrackerInstrument i) { i.serializedNulls = NullPaths(i); i.serializedNulls.Remove(nameof(i.serializedNulls)); }
+        }
+        public static T Copy<T>(T value)
+        {
+            if (value == null) return default;
+            var paths = NullPaths(value);
+            try { var copy = JsonUtility.FromJson<T>(JsonUtility.ToJson(value)); RestoreNulls(copy,paths); return copy; }
+            finally { RestoreNulls(value,paths); }
+        }
         public static string Identity() => Guid.NewGuid().ToString("N");
-        public static LegacySongPayload Capture(ZTrackerSong source) => JsonUtility.FromJson<LegacySongPayload>(JsonUtility.ToJson(source));
-        public static InstrumentParameters Capture(ZTrackerInstrument source) => JsonUtility.FromJson<InstrumentParameters>(JsonUtility.ToJson(source));
+        public static LegacySongPayload Capture(ZTrackerSong source)
+        {
+            var sourcePaths = NullPaths(source); var paths = NullPaths(source,typeof(LegacySongPayload));
+            try { var copy = JsonUtility.FromJson<LegacySongPayload>(JsonUtility.ToJson(source)); RestoreNulls(copy,paths); return copy; }
+            finally { RestoreNulls(source,sourcePaths); }
+        }
+        public static InstrumentParameters Capture(ZTrackerInstrument source)
+        {
+            var sourcePaths = NullPaths(source); var paths = NullPaths(source,typeof(InstrumentParameters));
+            try { var copy = JsonUtility.FromJson<InstrumentParameters>(JsonUtility.ToJson(source)); RestoreNulls(copy,paths); return copy; }
+            finally { RestoreNulls(source,sourcePaths); }
+        }
+
+        // Unity serializes a null managed record as a default record (and null
+        // strings/collections as empty values). Explicit paths preserve that
+        // distinction for clones and the immutable legacy archives on disk.
+        const BindingFlags Fields = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        static bool Serialized(FieldInfo field) => !field.IsStatic && !field.IsNotSerialized && (field.IsPublic || field.IsDefined(typeof(SerializeField),true));
+        public static List<string> NullPaths(object value, Type shape = null)
+        {
+            var paths = new List<string>();
+            void Visit(object current,Type type,string path)
+            {
+                if (current == null) { paths.Add(path); return; }
+                if (current is string || type.IsPrimitive || type.IsEnum) return;
+                if (current is UnityEngine.Object && path != "") return;
+                if (current is IList list)
+                {
+                    for (int n = 0; n < list.Count; n++) Visit(list[n],list[n]?.GetType() ?? typeof(object),path + "/" + n);
+                    return;
+                }
+                foreach (var field in type.GetFields(Fields))
+                {
+                    if (!Serialized(field)) continue;
+                    var source = current.GetType().GetField(field.Name,Fields); if (source == null) continue;
+                    // Unity object identity/null is already represented by Unity.
+                    if (typeof(UnityEngine.Object).IsAssignableFrom(field.FieldType)) continue;
+                    var child = source.GetValue(current);
+                    if (child is UnityEngine.Object) continue;
+                    Visit(child,field.FieldType,path == "" ? field.Name : path + "/" + field.Name);
+                }
+            }
+            if (value != null) Visit(value,shape ?? value.GetType(),"");
+            return paths;
+        }
+        public static void RestoreNulls(object value,List<string> paths)
+        {
+            if (value == null || paths == null) return;
+            object Restore(object current,string[] parts,int depth)
+            {
+                if (current == null || depth == parts.Length) return null;
+                if (current is IList list)
+                {
+                    if (int.TryParse(parts[depth],out int index) && index >= 0 && index < list.Count) list[index] = Restore(list[index],parts,depth+1);
+                }
+                else
+                {
+                    var field = current.GetType().GetField(parts[depth],Fields);
+                    if (field != null && Serialized(field)) field.SetValue(current,Restore(field.GetValue(current),parts,depth+1));
+                }
+                return current;
+            }
+            foreach (string path in paths) if (!string.IsNullOrEmpty(path)) Restore(value,path.Split('/'),0);
+        }
 
         public static bool Upgrade(ZTrackerSong asset, out string error)
         {
@@ -35,6 +124,7 @@ namespace Laubrary.ZTracker.Model
                 error = ZTrackerModelValidation.Validate(candidate);
                 if (error != null) return false;
                 asset.legacyArchive = Copy(legacy);
+                asset.legacyArchiveNulls = NullPaths(legacy);
                 asset.model = candidate;
                 asset.schemaVersion = CurrentVersion;
                 return true;
@@ -53,6 +143,7 @@ namespace Laubrary.ZTracker.Model
                 error = ZTrackerModelValidation.Validate(candidate);
                 if (error != null) return false;
                 asset.legacyArchive = Copy(legacy);
+                asset.legacyArchiveNulls = NullPaths(legacy);
                 asset.model = candidate;
                 asset.schemaVersion = CurrentVersion;
                 return true;
@@ -156,7 +247,11 @@ namespace Laubrary.ZTracker.Model
         public static InstrumentData Convert(InstrumentParameters old, string name, string id = null)
         {
             var data = new InstrumentData { id = id ?? Identity(), name = name, family = old.type == InstrumentType.Synth || old.type == InstrumentType.FM ? InstrumentFamily.Synth : InstrumentFamily.Sampler, synthMode = old.type == InstrumentType.FM ? SynthMode.FM : SynthMode.Subtractive, parameters = Copy(old), provenance = "native-v0; " + CommandContract };
-            data.sampler.volume = old.volume; data.sampler.pan = old.pan;
+            if (!Enum.IsDefined(typeof(InstrumentType),old.type)) data.diagnostics.Add("Unknown legacy engine " + (int)old.type + " retained; projection requires explicit repair.");
+            // Native kits ignore global level/pan. Keep those authored values in
+            // parameters, with the diagnostic below; canonical effective globals
+            // stay neutral instead of acquiring a new audible meaning in P3.
+            if (old.type != InstrumentType.Kit) { data.sampler.volume = old.volume; data.sampler.pan = old.pan; }
             data.sampler.nna = old.type == InstrumentType.Kit && old.kitOverlap ? NewNoteAction.Continue : NewNoteAction.NoteOff;
             if (data.family == InstrumentFamily.Sampler && old.type == InstrumentType.Kit)
             {
@@ -164,12 +259,14 @@ namespace Laubrary.ZTracker.Model
                 for (int i = 0; i < entries.Length; i++)
                 {
                     var k = entries[i]; bool displaced = false;
-                    for (int j = i+1; j < entries.Length; j++) if (entries[j].midiNote == k.midiNote) displaced = true;
+                    // Upload skips null PCM entries; they cannot supersede an earlier
+                    // audible mapping. Only the last actually uploaded duplicate wins.
+                    for (int j = i+1; j < entries.Length; j++) if (entries[j].midiNote == k.midiNote && entries[j].clip != null) displaced = true;
                     bool invalid = k.midiNote < 0 || k.midiNote > 119;
-                    data.sampler.samples.Add(new SampleData { id = "sample-" + i, name = k.displayName, pcm = k.clip, baseNote = k.baseNote <= 0 ? 60 : k.baseNote, volume = k.volume <= 0 ? 1 : k.volume, legacyBaseNote = k.baseNote, legacyVolume = k.volume, legacyKitDefaults = true, modulationSet = i, inactive = displaced || invalid, nna = data.sampler.nna });
-                    data.sampler.zones.Add(new Keyzone { id = "zone-" + i, sample = i, noteMin = k.midiNote, noteMax = k.midiNote, baseNote = k.baseNote, keyTracking = false, inactive = displaced || invalid, provenance = "kit-entry=" + i + "; fixed rate, no note transpose" });
+                    data.sampler.samples.Add(new SampleData { id = "sample-" + i, name = k.displayName, pcm = k.clip, baseNote = k.baseNote <= 0 ? 60 : k.baseNote, volume = k.volume <= 0 ? 1 : k.volume, legacyBaseNote = k.baseNote, legacyVolume = k.volume, legacyKitDefaults = true, modulationSet = i, inactive = displaced || invalid || k.clip == null, nna = data.sampler.nna });
+                    data.sampler.zones.Add(new Keyzone { id = "zone-" + i, sample = i, noteMin = k.midiNote, noteMax = k.midiNote, baseNote = k.baseNote, keyTracking = false, inactive = displaced || invalid || k.clip == null, provenance = "kit-entry=" + i + "; fixed rate, no note transpose" });
                     data.modulation.Add(Adsr("kit-" + i, k.attack, k.decay, k.sustain, k.release));
-                    if (displaced || invalid) data.diagnostics.Add("Kit entry " + i + " retained inactive: " + (displaced ? "superseded note" : "outside note profile"));
+                    if (displaced || invalid || k.clip == null) data.diagnostics.Add("Kit entry " + i + " retained inactive: " + (displaced ? "superseded note" : invalid ? "outside note profile" : "missing PCM; not uploaded"));
                 }
                 data.diagnostics.Add("Kit global level/modifiers/effects retained separately from effective native kit behavior.");
             }
@@ -188,7 +285,12 @@ namespace Laubrary.ZTracker.Model
                     bool known = typeof(InstrumentParameters).GetField(link.parameterName ?? "")?.FieldType == typeof(float);
                     macro.mappings.Add(new Mapping { target = new ParameterTarget { kind = ParameterKind.Synth, parameter = link.parameterName, unresolved = !known, units = "legacy parameter units" }, min = link.minValue, max = link.maxValue, legacyLink = link.parameterName });
                     if (!known) data.diagnostics.Add("Unresolved macro link: " + link.parameterName);
+                    bool direct = link.parameterName == "blend" || link.parameterName == "volume" || (data.family == InstrumentFamily.Synth && (link.parameterName == "pulseWidth" || link.parameterName == "waveBRatio"));
+                    bool nextNote = old.type == InstrumentType.Synth && (link.parameterName == "pmDepth" || link.parameterName == "unisonDetune" || link.parameterName == "unisonSpread" || link.parameterName == "pan" || link.parameterName == "attack" || link.parameterName == "decay" || link.parameterName == "sustain" || link.parameterName == "release" || link.parameterName == "vibratoDepth" || link.parameterName == "vibratoRate");
+                    if (known && !direct && !nextNote) data.diagnostics.Add("Legacy-only macro link not evaluated by this backend: " + link.parameterName);
+                    if (link.parameterName == "volume" && (link.minValue <= 0 || link.maxValue <= 0)) data.diagnostics.Add("Legacy macro volume floors zero at 0.001; exact-zero semantics require P3/P4.");
                 }
+                if (m >= 4 && (macro.value != 0 || macro.mappings.Count != 0)) data.diagnostics.Add("Macro " + (m+1) + " retained legacy-only; this backend evaluates macros 1..4.");
                 if (m < 8) data.macros[m] = macro; else { data.archivedMacros.Add(macro); data.diagnostics.Add("Macro " + m + " retained outside eight-macro bank."); }
             }
             return data;
@@ -201,13 +303,39 @@ namespace Laubrary.ZTracker.Model
         public static List<CompiledParameterSet> ResolveParameterSets(InstrumentData authored)
         {
             var output = new List<CompiledParameterSet>();
-            output.Add(new CompiledParameterSet { id = authored.id + "/base", data = Copy(authored) });
+            var effective = Copy(authored);
+            if (authored.family == InstrumentFamily.Synth) effective.parameters.type = authored.synthMode == SynthMode.FM ? InstrumentType.FM : InstrumentType.Synth;
+            else if (authored.parameters.type == InstrumentType.Sample)
+            {
+                var q = effective.parameters;
+                q.volume = authored.sampler.volume; q.pan = authored.sampler.pan;
+                if (authored.sampler.samples.Count > 0)
+                {
+                    var sample = authored.sampler.samples[0]; q.sampleClip = sample.pcm; q.baseNote = sample.baseNote; q.fineTune = sample.fineTuneCents;
+                    if (sample.modulationSet >= 0 && sample.modulationSet < authored.modulation.Count)
+                    {
+                        var env = authored.modulation[sample.modulationSet].devices.Find(d => d.kind == ModulationDeviceKind.AHDSR && d.target == ModulationTarget.Volume);
+                        if (env != null) { q.attack = env.attack; q.decay = env.decay; q.sustain = env.sustain; q.release = env.release; }
+                    }
+                }
+                if (authored.sampler.zones.Count > 0)
+                {
+                    var b = authored.sampler.zones[0].blend; q.sampleClipB = b?.pcmB;
+                    if (b != null)
+                    {
+                        q.baseNoteB = b.baseNoteB; q.fineTuneB = b.fineTuneBCents; q.blendMode = b.mode; q.blend = b.amount; q.pmDepth = b.pmDepth;
+                        q.blendEnvelope = b.envelopeEnabled; q.blendAttack = b.attack; q.blendDecay = b.decay; q.blendSustain = b.sustain; q.blendRelease = b.release;
+                        q.blendEnvelopeData = Copy(b.blendEnvelope); q.pmDepthEnvelopeData = Copy(b.pmEnvelope);
+                    }
+                }
+            }
+            output.Add(new CompiledParameterSet { id = authored.id + "/base", data = Copy(effective) });
             var presets = authored.parameters.presets;
             if (presets == null) return output;
             for (int i = 0; i < presets.Count; i++)
             {
                 var p = presets[i]; if (p == null) throw new InvalidOperationException("Null preset " + i);
-                var resolved = Copy(authored.parameters);
+                var resolved = Copy(effective.parameters);
                 Apply(p, resolved, p.ovrVolPan, "volume", "pan");
                 Apply(p, resolved, p.ovrSampleParams, "sampleClip", "baseNote", "fineTune", "sampleClipB", "baseNoteB", "fineTuneB");
                 Apply(p, resolved, p.ovrSynthParams, "waveA", "waveB", "blendMode", "unisonVoices", "unisonSpread");
@@ -221,10 +349,30 @@ namespace Laubrary.ZTracker.Model
                 var legacyResolved = Convert(resolved, authored.name, authored.id);
                 if (p.ovrSampleParams || p.ovrAdsr || p.ovrVolPan)
                 {
-                    if (authored.parameters.type == InstrumentType.Sample)
+                    if (authored.family == InstrumentFamily.Sampler && authored.parameters.type == InstrumentType.Sample && set.sampler.samples.Count > 0 && set.sampler.zones.Count > 0)
                     {
-                        if (p.ovrSampleParams) { set.sampler.samples[0].pcm = resolved.sampleClip; set.sampler.samples[0].baseNote = resolved.baseNote; set.sampler.samples[0].fineTuneCents = resolved.fineTune; set.sampler.zones[0].baseNote = resolved.baseNote; set.sampler.zones[0].blend = Copy(legacyResolved.sampler.zones[0].blend); }
-                        if (p.ovrAdsr && set.modulation.Count > 0) set.modulation[0] = Copy(legacyResolved.modulation[0]);
+                        if (p.ovrSampleParams)
+                        {
+                            set.sampler.samples[0].pcm = resolved.sampleClip; set.sampler.samples[0].baseNote = resolved.baseNote; set.sampler.samples[0].fineTuneCents = resolved.fineTune; set.sampler.zones[0].baseNote = resolved.baseNote;
+                            var b = set.sampler.zones[0].blend;
+                            if (resolved.sampleClipB == null) set.sampler.zones[0].blend = null;
+                            else
+                            {
+                                // A PCM/pitch override does not replace inherited blend
+                                // settings, envelopes or any other sampler section.
+                                if (b == null) b = Copy(legacyResolved.sampler.zones[0].blend);
+                                b.pcmB = resolved.sampleClipB; b.baseNoteB = resolved.baseNoteB; b.fineTuneBCents = resolved.fineTuneB;
+                                set.sampler.zones[0].blend = b;
+                            }
+                        }
+                        int modulationIndex = set.sampler.samples[0].modulationSet;
+                        if (p.ovrAdsr && modulationIndex >= 0 && modulationIndex < set.modulation.Count)
+                        {
+                            // Replace only the four overridden ADSR values, retaining
+                            // hold, routing, extra devices, sustain/loop and filter data.
+                            var env = set.modulation[modulationIndex].devices.Find(d => d.kind == ModulationDeviceKind.AHDSR && d.target == ModulationTarget.Volume);
+                            if (env != null) { env.attack = resolved.attack; env.decay = resolved.decay; env.sustain = resolved.sustain; env.release = resolved.release; }
+                        }
                         if (p.ovrVolPan) { set.sampler.volume = resolved.volume; set.sampler.pan = resolved.pan; }
                     }
                 }
