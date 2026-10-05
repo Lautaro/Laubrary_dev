@@ -1,0 +1,8 @@
+{
+  "name": "com.lautaro.arino.laubrary.ztracker",
+  "version": "0.9.0",
+  "displayName": "Laubrary ZTracker (optional)",
+  "description": "Optional Windows x64 tracker playback and song data. Explicit playback only; managed audio host does not preserve Zounds SAP GC immunity.",
+  "unity": "6000.3",
+  "dependencies": { "com.lautaro.arino.laubrary": "0.9.0" }
+}

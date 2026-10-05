@@ -1,0 +1,6 @@
+{
+  "name": "com.Lautaro-Arino.Laubrary.ZTracker",
+  "rootNamespace": "Laubrary.ZTracker",
+  "references": ["ZTracker"],
+  "autoReferenced": true
+}

@@ -1,0 +1,7 @@
+{
+  "name": "com.Lautaro-Arino.Laubrary.ZTracker.Editor",
+  "rootNamespace": "Laubrary.ZTracker.Editor",
+  "references": ["ZTracker", "com.Lautaro-Arino.Laubrary.ZTracker", "com.Lautaro-Arino.Laubrary.Zui.Editor"],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": true
+}
