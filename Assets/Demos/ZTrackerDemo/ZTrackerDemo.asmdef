@@ -1,0 +1,4 @@
+{
+  "name": "Laubrary.ZTracker.Demo",
+  "references": ["ZTracker", "com.Lautaro-Arino.Laubrary.ZTracker", "Unity.InputSystem"]
+}

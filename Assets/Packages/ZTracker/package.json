@@ -4,5 +4,6 @@
   "displayName": "Laubrary ZTracker (optional)",
   "description": "Optional Windows x64 tracker playback and song data. Explicit playback only; managed audio host does not preserve Zounds SAP GC immunity.",
   "unity": "6000.3",
-  "dependencies": { "com.lautaro.arino.laubrary": "0.9.0" }
+  "dependencies": { "com.lautaro.arino.laubrary": "0.9.0" },
+  "samples": [{ "displayName": "ZTracker Demo", "description": "Saved synth song and scene. Space explicitly starts/stops playback.", "path": "Samples~/ZTrackerDemo" }]
 }

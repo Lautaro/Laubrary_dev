@@ -478,7 +478,8 @@ public class ZTrackerInstrument : ScriptableObject
             return cachedID;
 
         float[] raw = new float[clip.samples * clip.channels];
-        clip.GetData(raw, 0);
+        if (!clip.GetData(raw, 0))
+            throw new InvalidOperationException("The sample must be readable (Decompress On Load): " + clip.name);
 
         float[] left, right;
         if (clip.channels >= 2)

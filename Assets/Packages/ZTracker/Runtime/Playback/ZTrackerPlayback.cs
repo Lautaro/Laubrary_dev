@@ -62,7 +62,8 @@ namespace Laubrary.ZTracker
                     ZTrackerNative.ZT_NoteOn(host.context, 0, Mathf.Clamp(note, 0, 126), 1f);
                 }
                 host.source = go.GetComponent<AudioSource>();
-                host.silence = AudioClip.Create("Tracker clock", 4096, 1, AudioSettings.outputSampleRate, false);
+                host.silence = AudioClip.Create("Tracker stream", AudioSettings.outputSampleRate, 2,
+                    AudioSettings.outputSampleRate, true, host.ReadAudio);
                 host.silence.hideFlags = HideFlags.HideAndDontSave;
                 host.source.clip = host.silence;
                 host.source.loop = true;
@@ -85,6 +86,8 @@ namespace Laubrary.ZTracker
         static bool Validate(ZTrackerSong song, out string error)
         {
             error = null;
+            if (song.patterns == null || song.orderList == null || song.channels == null || song.instruments == null)
+            { error = "The song has missing collections."; return false; }
             if (song.channelCount < 1 || song.GetTotalNativeChannels() > 32 ||
                 song.patterns.Count < 1 || song.patterns.Count > 256 || song.orderList.Count < 1 ||
                 song.orderList.Count > 256 || song.bpm < 1 || song.ticksPerRow < 1 || song.linesPerBeat < 1)
@@ -169,8 +172,10 @@ namespace Laubrary.ZTracker
         void OnDisable() => Release();
         void OnApplicationQuit() => Release();
 
-        void OnAudioFilterRead(float[] data, int channels)
+        void ReadAudio(float[] data)
         {
+            const int channels = 2;
+            Array.Clear(data, 0, data.Length);
             if (channels < 1 || Interlocked.CompareExchange(ref gate, 1, 0) != 0) return;
             try
             {

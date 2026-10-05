@@ -1,0 +1,123 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b96e89e657daa44898819eea2fce0f6, type: 3}
+  m_Name: Synth
+  m_EditorClassIdentifier: ZTracker::ZTrackerInstrument
+  type: 1
+  sampleClip: {fileID: 0}
+  baseNote: 60
+  fineTune: 0
+  sampleClipB: {fileID: 0}
+  baseNoteB: 60
+  fineTuneB: 0
+  waveA: 0
+  waveB: 0
+  blendMode: 0
+  blend: 0
+  pmDepth: 1
+  waveBRatio: 2
+  blendEnvelope: 0
+  blendAttack: 0.01
+  blendDecay: 0.1
+  blendSustain: 0.5
+  blendRelease: 0.3
+  unisonVoices: 1
+  unisonDetune: 10
+  unisonSpread: 0.8
+  pulseWidth: 0.5
+  volume: 0.25
+  pan: 0
+  attack: 0.01
+  decay: 0.2
+  sustain: 0.7
+  release: 0.5
+  vibratoDepth: 0
+  vibratoRate: 5
+  vibratoFadeIn: 0
+  vibratoRandomness: 0
+  arpeggioEnabled: 0
+  arpeggioNotes: 000000000400000007000000
+  arpeggioSpeed: 0.05
+  blendEnvelopeData:
+    m_enabled: 1
+    m_xMin: 0
+    m_xMax: 1
+    m_yMin: 0
+    m_yMax: 1
+    m_points: []
+    m_loopEnabled: 0
+    m_loopMode: 0
+    m_loopStart: 0
+    m_loopEnd: 1
+    requiresEndPoint: 1
+  pulseWidthEnvelopeData:
+    m_enabled: 1
+    m_xMin: 0
+    m_xMax: 1
+    m_yMin: 0
+    m_yMax: 1
+    m_points: []
+    m_loopEnabled: 0
+    m_loopMode: 0
+    m_loopStart: 0
+    m_loopEnd: 1
+    requiresEndPoint: 1
+  waveBRatioEnvelopeData:
+    m_enabled: 1
+    m_xMin: 0
+    m_xMax: 1
+    m_yMin: 0
+    m_yMax: 1
+    m_points: []
+    m_loopEnabled: 0
+    m_loopMode: 0
+    m_loopStart: 0
+    m_loopEnd: 1
+    requiresEndPoint: 1
+  pmDepthEnvelopeData:
+    m_enabled: 1
+    m_xMin: 0
+    m_xMax: 1
+    m_yMin: 0
+    m_yMax: 1
+    m_points: []
+    m_loopEnabled: 0
+    m_loopMode: 0
+    m_loopStart: 0
+    m_loopEnd: 1
+    requiresEndPoint: 1
+  unisonDetuneEnvelopeData:
+    m_enabled: 1
+    m_xMin: 0
+    m_xMax: 1
+    m_yMin: 0
+    m_yMax: 1
+    m_points: []
+    m_loopEnabled: 0
+    m_loopMode: 0
+    m_loopStart: 0
+    m_loopEnd: 1
+    requiresEndPoint: 1
+  instFilterEnabled: 0
+  instFilterMode: 0
+  instFilterCutoff: 1
+  instFilterResonance: 0.707
+  instDelaySend: 0
+  instReverbSend: 0
+  fmAlgorithm: 0
+  fmFeedback: 0
+  fmOperators: []
+  kitOverlap: 1
+  kitEntries: []
+  macros: []
+  presets: []
+  activePresetIndex: -1

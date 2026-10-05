@@ -25,14 +25,14 @@ namespace Laubrary.ZTracker.Editor
             var songPicker = Z.Object(song, "Choose an existing song. Selecting it does not start audio.", v =>
                 { StopPreview(); song = v; Rebuild(); }, 220);
             var newSong = Sized(Z.Button("New song", "Create a saved synth song with four notes in Assets/ZTracker.", CreateSong), 90);
-            var undo = Sized(Z.Button("Undo", "Undo the last asset edit.", Undo.PerformUndo, "undo"), 65);
-            var redo = Sized(Z.Button("Redo", "Redo an asset edit.", Undo.PerformRedo, "redo"), 65);
+            var undo = Sized(Z.Button("↶", "Undo the last asset edit.", Undo.PerformUndo), 28);
+            var redo = Sized(Z.Button("↷", "Redo an asset edit.", Undo.PerformRedo), 28);
             root.Add(Z.Row(songPicker, newSong, undo, redo));
 
             var tempo = Z.MicroSlider("Tempo", song != null ? song.bpm : 120, 32, 300,
                 "Song beats per minute. Changes are heard on the next Play.", v => EditSong(() => song.bpm = Mathf.RoundToInt(v)), 150, decimals: 0);
             tempo.SetEnabled(song != null);
-            var gain = Z.MicroSlider("Channel 1", song != null && song.channels.Count > 0 ? song.channels[0].volume : 1, 0, 1,
+            var gain = Z.MicroSlider("Gain", song != null && song.channels.Count > 0 ? song.channels[0].volume : 1, 0, 1,
                 "First channel gain. Zero silences its notes on the next Play.", v => EditSong(() => song.channels[0].volume = v), 150);
             var pan = Z.MicroSlider("Pan", song != null && song.channels.Count > 0 ? song.channels[0].pan : 0, -1, 1,
                 "First channel balance. Left is -1; right is 1. Heard on the next Play.", v => EditSong(() => song.channels[0].pan = v), 150);
@@ -82,6 +82,7 @@ namespace Laubrary.ZTracker.Editor
         {
             StopPreview();
             if (!AssetDatabase.IsValidFolder("Assets/ZTracker")) AssetDatabase.CreateFolder("Assets", "ZTracker");
+            Undo.IncrementCurrentGroup();
             int group = Undo.GetCurrentGroup();
             Undo.SetCurrentGroupName("Create tracker song");
             instrument = CreateInstance<ZTrackerInstrument>();
@@ -101,6 +102,7 @@ namespace Laubrary.ZTracker.Editor
             AssetDatabase.CreateAsset(song, AssetDatabase.GenerateUniqueAssetPath("Assets/ZTracker/Song.asset"));
             Undo.RegisterCreatedObjectUndo(song, "Create tracker song");
             Undo.CollapseUndoOperations(group);
+            Undo.IncrementCurrentGroup();
             AssetDatabase.SaveAssets();
             Selection.activeObject = song;
             Rebuild();

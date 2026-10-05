@@ -1,0 +1,64 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c9234bbc80b22ff41a0ffb03c40c7bad, type: 3}
+  m_Name: Song
+  m_EditorClassIdentifier: ZTracker::ZTrackerSong
+  songName: Untitled
+  bpm: 120
+  linesPerBeat: 4
+  ticksPerRow: 6
+  channelCount: 1
+  instruments:
+  - {fileID: 11400000, guid: 3864de16caa2405418593bf0fc199d58, type: 2}
+  patterns:
+  - name: Pattern 0
+    rowCount: 4
+    cells:
+    - note: 60
+      instrument: 0
+      volume: 255
+      effectCmd: 0
+      effectParam: 0
+      extraNotes: 
+      extraEffectCmds: 
+      extraEffectParams: 
+    - note: 64
+      instrument: 0
+      volume: 255
+      effectCmd: 0
+      effectParam: 0
+      extraNotes: 
+      extraEffectCmds: 
+      extraEffectParams: 
+    - note: 67
+      instrument: 0
+      volume: 255
+      effectCmd: 0
+      effectParam: 0
+      extraNotes: 
+      extraEffectCmds: 
+      extraEffectParams: 
+    - note: 72
+      instrument: 0
+      volume: 255
+      effectCmd: 0
+      effectParam: 0
+      extraNotes: 
+      extraEffectCmds: 
+      extraEffectParams: 
+  orderList: 00000000
+  channels:
+  - volume: 1
+    pan: 0
+    muted: 0
+    noteColumnCount: 1
+    fxColumnCount: 1
