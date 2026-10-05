@@ -16,6 +16,8 @@ Both complete generation invocations must run as separate foreground Python proc
 
 The manifest captures generator/specification fingerprints, all current native source and managed ABI declaration fingerprints, installed DLL SHA256/build identity, ABI version/struct sizes/offsets, sample rate, frame and render-buffer counts, nominal/native clock values, source PCM fingerprints and formulas, ordered native calls (arrays hashed), audio/event/trace hashes, signal peak/mean/stereo RMS and behavioral assertions. The fixed seed is zero for the procedural fixture specification, which uses periodic mathematical functions rather than a PRNG. Native noise cannot accept that seed. Cells and curve arrays can be reconstructed from the case specification; exact input-array bytes are fingerprinted in the ordered calls.
 
+Scoped Git attributes preserve LF for the tooling and golden JSON/Markdown and disable text conversion for raw float audio. This prevents Windows checkout line-ending conversion from changing recorded artifact bytes or tooling fingerprints.
+
 ## Data format and timeline
 
 Each `CASE.f32` is headerless little-endian IEEE float32 stereo, interleaved left/right: sample offset `2*frame+channel`. Length is exactly `frames*8` bytes. Each `CASE.events.json` stores `native_events` and separately labelled `harness_controls`. Events preserve every native field: type, uint64 samplePosition, patternIndex, rowIndex, channelIndex, noteValue, instrumentID, intParam, floatParam and stringPayload. Python JSON integers preserve uint64 exactly; consumers must avoid converting samplePosition through a JavaScript Number or floating-point timestamp. JSON object ordering is not event ordering; array order is authoritative.

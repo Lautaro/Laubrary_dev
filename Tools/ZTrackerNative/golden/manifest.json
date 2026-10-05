@@ -49212,7 +49212,7 @@
     "name": "generate_golden.py",
     "seed_policy": "procedural periodic PCM, no PRNG; legacy noise unseedable/statistical-only",
     "tool_sha256": {
-      "README.template.md": "137740c9b334765851045ab4a521d86df208c16e09ac20400508719d5945ba3f",
+      "README.template.md": "2c2770cee7835cc54b4113dcf5aab883e313c585225dbd2b489645b2fff65f5d",
       "compare_golden.py": "e4a3cdc17748349f0631e88884fc2d5c540c67beadedefc5fcdc8a232ea1371a",
       "generate_golden.py": "0d56bc3d9d17394a4784d435ca646c4748f5e0622c508f2e6c005d050b70bbb7",
       "golden_cases.py": "0858efc4c90e95096d8347f3eb103c27961f8e16fa5fd16bd42be1391ed428b7",

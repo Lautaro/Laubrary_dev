@@ -1,0 +1,7 @@
+.gitattributes text eol=lf
+.gitignore text eol=lf
+*.py text eol=lf
+README.template.md text eol=lf
+golden/*.json text eol=lf
+golden/*.md text eol=lf
+golden/*.f32 -text
