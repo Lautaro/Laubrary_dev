@@ -37,12 +37,20 @@ namespace Laubrary.GoreLab
         [NonSerialized] Dictionary<Sprite, GoreFrameTags> _byFrame;
         [NonSerialized] int _byFrameCount = -1;
 
+        /// <summary>Per member: may a slice or neck cut sever it? Parallel to the member list; passed to recipes through the wound context.</summary>
+        public bool[] SliceableFlags()
+        {
+            var f = new bool[members != null ? members.Count : 0];
+            for (int i = 0; i < f.Length; i++) f[i] = members[i] == null || members[i].sliceable;
+            return f;
+        }
+
         public static List<GoreMemberDef> DefaultMembers()
         {
             return new List<GoreMemberDef>
             {
                 new GoreMemberDef("Head", MemberKind.Ball, new Color(1f, 0.55f, 0.2f)),
-                new GoreMemberDef("Torso", MemberKind.Box, new Color(0.35f, 0.7f, 1f)),
+                new GoreMemberDef("Torso", MemberKind.Box, new Color(0.35f, 0.7f, 1f), sliceable: false),
             };
         }
 

@@ -30,6 +30,57 @@ namespace Laubrary.GoreLab
             return ctx.targets == null || (member < ctx.targets.Length && ctx.targets[member]);
         }
 
+        /// <summary>May a slice or neck cut sever this member? (True when the context says nothing.)</summary>
+        public static bool CanSever(WoundContext ctx, int member)
+            => ctx.sliceable == null || member < 0 || member >= ctx.sliceable.Length || ctx.sliceable[member];
+
+        // A member that cannot be severed keeps a core: nothing may reach deeper than this, measured on the member's own unit shape (surface = 1).
+        const double KeepCore = 0.5, MaxHoleRadius = 0.3;
+
+        static double UnitNorm(double x, double y, double z, bool box, double n)
+        {
+            if (!box) return System.Math.Sqrt(x * x + y * y + z * z);
+            n = System.Math.Max(1.5, n);
+            return System.Math.Pow(System.Math.Pow(System.Math.Abs(x), n) + System.Math.Pow(System.Math.Abs(y), n) + System.Math.Pow(System.Math.Abs(z), n), 1.0 / n);
+        }
+
+        /// <summary>
+        /// Makes a remover safe for a member that cannot be severed. A plane cut is dropped. A hole keeps its entry at the surface but is shortened
+        /// (and its radius limited) so it never reaches the member's core, so whatever the holes do the core still ties the whole member together.
+        /// Returns false when nothing of the remover is left.
+        /// </summary>
+        static bool MakeUnsevering(ref GoreRemover r, bool box, double squareness)
+        {
+            if (r.kind == RemoverKinds.Plane) return false;
+            if (r.kind != RemoverKinds.Capsule) return true;       // custom kinds are the game's responsibility
+            r.r = System.Math.Min(r.r, MaxHoleRadius);
+            double limit = KeepCore + r.r;
+            const int N = 24;
+            int bestStart = -1, bestLen = 0, runStart = -1;
+            for (int i = 0; i <= N + 1; i++)
+            {
+                bool ok = false;
+                if (i <= N)
+                {
+                    double t = i / (double)N;
+                    ok = UnitNorm(r.ax + (r.bx - r.ax) * t, r.ay + (r.by - r.ay) * t, r.az + (r.bz - r.az) * t, box, squareness) >= limit;
+                }
+                if (ok) { if (runStart < 0) runStart = i; }
+                else if (runStart >= 0)
+                {
+                    int len = i - runStart;
+                    if (len > bestLen) { bestLen = len; bestStart = runStart; }
+                    runStart = -1;
+                }
+            }
+            if (bestLen == 0) return false;
+            double t0 = bestStart / (double)N, t1 = (bestStart + bestLen - 1) / (double)N;
+            double ax = r.ax + (r.bx - r.ax) * t0, ay = r.ay + (r.by - r.ay) * t0, az = r.az + (r.bz - r.az) * t0;
+            double bx = r.ax + (r.bx - r.ax) * t1, by = r.ay + (r.by - r.ay) * t1, bz = r.az + (r.bz - r.az) * t1;
+            r.ax = ax; r.ay = ay; r.az = az; r.bx = bx; r.by = by; r.bz = bz;
+            return true;
+        }
+
         /// <summary>Gives the removers made for one member their group, member and noise position, then appends them.</summary>
         public static void Append(WoundContext ctx, List<GoreRemover> into, int member, List<GoreRemover> made)
         {
@@ -38,9 +89,11 @@ namespace Laubrary.GoreLab
             int n = 0;
             for (int i = 0; i < ctx.existing.Count; i++) if (ctx.existing[i].member == member) n++;
             for (int i = 0; i < into.Count; i++) if (into[i].member == member && into[i].group == ctx.group) n++;
+            bool unsevering = !CanSever(ctx, member) && ctx.members != null && member < ctx.members.Length;
             for (int i = 0; i < made.Count; i++)
             {
                 var r = made[i];
+                if (unsevering && !MakeUnsevering(ref r, ctx.members[member].tag.kind == MemberKind.Box, ctx.members[member].tag.n)) continue;
                 r.group = ctx.group;
                 r.member = member;
                 r.noiseIndex = n++;

@@ -20,7 +20,7 @@ namespace Laubrary.GoreLab
         {
             if (ctx.members == null || headMember < 0 || headMember >= ctx.members.Length) return;
             var head = ctx.members[headMember];
-            if (!head.present || head.skip) return;
+            if (!head.present || head.skip || !GoreRecipeUtil.CanSever(ctx, headMember)) return;
             if (HasNeckCut(ctx.existing) || HasNeckCut(into)) return;
 
             var made = new List<GoreRemover>(1)

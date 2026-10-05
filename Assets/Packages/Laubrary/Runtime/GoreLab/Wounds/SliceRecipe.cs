@@ -32,10 +32,10 @@ namespace Laubrary.GoreLab
             // Pick the member: the only usable one, or the one the swipe line crosses on most solid pixels (first wins ties).
             int member = -1, bestCount = -1;
             int usable = 0;
-            for (int i = 0; i < ctx.members.Length; i++) if (GoreRecipeUtil.Usable(ctx, i)) usable++;
+            for (int i = 0; i < ctx.members.Length; i++) if ((GoreRecipeUtil.Usable(ctx, i) && GoreRecipeUtil.CanSever(ctx, i))) usable++;
             for (int i = 0; i < ctx.members.Length; i++)
             {
-                if (!GoreRecipeUtil.Usable(ctx, i)) continue;
+                if (!(GoreRecipeUtil.Usable(ctx, i) && GoreRecipeUtil.CanSever(ctx, i))) continue;
                 int count = usable > 1 ? CrossingCount(ctx, i) : 0;
                 if (count > bestCount) { bestCount = count; member = i; }
             }

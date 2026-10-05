@@ -257,6 +257,7 @@ namespace Laubrary.GoreLab.Editor
             for (int i = 0; i < targets.Length; i++) targets[i] = testTarget < 0 || i == testTarget;
             var ctx = new WoundContext
             {
+                sliceable = Rig.SliceableFlags(),
                 p0x = p0.x, p0y = p0.y, p1x = p1.x, p1y = p1.y,
                 group = NextGroup(),
                 seed = Rig.cut.seed * 131 + woundCounter,

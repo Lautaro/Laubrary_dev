@@ -157,6 +157,7 @@ namespace Laubrary.GoreLab
             int shot = seed >= 0 ? seed : _shots;
             var ctx = new WoundContext
             {
+                sliceable = rig.SliceableFlags(),
                 p0x = a.x, p0y = a.y, p1x = b.x, p1y = b.y,
                 group = NextGroup(),
                 seed = rig.cut.seed * 131 + shot,

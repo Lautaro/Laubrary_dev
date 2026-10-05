@@ -111,6 +111,13 @@ namespace Laubrary.GoreLab.Editor
             var clear = Z.IconButton("trash", $"Delete the {MemberName(memberIndex)}'s shape on this frame, so a new box can be drawn (undoable).",
                 () => Edit("Clear shape", () => { var mf = ActiveMemberFrame(false); if (mf != null) mf.present = false; }));
             clear.SetEnabled(editable);
+            var sliceBtn = Z.ToggleButton("Sliceable",
+                ActiveMember != null && ActiveMember.sliceable
+                    ? $"On: a slice or neck cut can sever the {MemberName(memberIndex)} and a piece of it flies off. Click to make it unsliceable: wounds still dig holes and dents in it, but no part can ever be cut off."
+                    : $"Off: the {MemberName(memberIndex)} can be wounded (cuts, bullets, pellets dig holes that may start at the edges) but no part of it can ever be cut off. Click to let it be sliced.",
+                ActiveMember != null && ActiveMember.sliceable,
+                on => Edit("Sliceable", () => { if (ActiveMember != null) ActiveMember.sliceable = on; }));
+            sliceBtn.SetEnabled(ActiveMember != null);
             var copy = Z.IconButton("copy", $"Copy the {MemberName(memberIndex)}'s marker on this frame: shape, orientation and paint (Ctrl+C with the frame focused).", CopyShape);
             copy.SetEnabled(editable);
             var paste = Z.IconButton("clipboard", HasShapeClip
@@ -118,7 +125,7 @@ namespace Laubrary.GoreLab.Editor
                     : "Paste the copied marker onto this frame. Nothing is copied yet.", PasteShape);
             paste.SetEnabled(CanEditShown && HasShapeClip && ActiveMember != null);
             host.Add(row);
-            host.Add(Z.Row(copy, paste, clear));
+            host.Add(Z.Row(copy, paste, clear, sliceBtn));
             BuildTurnRows(host, editable);
         }
 

@@ -174,6 +174,7 @@ namespace Laubrary.GoreLab
         public GoreGrid grid;                 // the frame being shown (to find solid pixels)
         public GoreMemberInput[] members;     // tags of the frame being shown
         public bool[] targets;                // which members may be hit (all true = automatic)
+        public bool[] sliceable;              // which members may be severed (null = all). A member that is not sliceable gets holes and dents, never a cut-off part.
         public GoreCutConfig cut;             // engine config
         public bool flipSide;                 // slice: choose the other side to fly
         /// <summary>Optional: how much of the animation shows a hole at this remover (0..1); used by recipes that pick a spot. May be null.</summary>
