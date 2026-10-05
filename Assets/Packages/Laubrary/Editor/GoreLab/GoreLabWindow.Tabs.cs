@@ -209,11 +209,8 @@ namespace Laubrary.GoreLab.Editor
             bool editable = TryActiveTag(out _) && CanEditShown;
             string me = MemberName(memberIndex);
 
-            var layer = Z.Segmented(paintLayer, new[] { "Behind", "In front" }, "Which mask the brush paints.", i => { paintLayer = i; stage?.Refresh(); });
-            layer.SegmentAt(0).tooltip = $"Behind: body behind the {me}, for example the neck. When a cut removes it, it stays as dark gore instead of turning see-through.";
-            layer.SegmentAt(1).tooltip = $"In front: something drawn in front of the {me}, for example an arm over the torso. It is never cut.";
             var mode = Z.Segmented(paintErase ? 1 : 0, new[] { "Paint", "Erase" }, "Left-drag paints or erases; a right-drag always erases.", i => paintErase = i == 1);
-            host.Add(Z.Row(layer, mode));
+            host.Add(Z.Row(mode));
 
             var brush = BuildBrushRadio();
             var fill = Z.Button("Fill shape", $"Paint every solid pixel inside the {me}'s outline into the chosen mask (undoable).",
@@ -224,12 +221,19 @@ namespace Laubrary.GoreLab.Editor
             clear.SetEnabled(editable);
             host.Add(Z.Row(brush, fill, clear));
 
-            host.Add(PaintLayerGroup("Behind", "the Behind paint", BehindColour, c => behindColor = c, behindAlpha, v => behindAlpha = v));
-            host.Add(PaintLayerGroup("In front", "the In front paint", FrontColour, c => frontColor = c, frontAlpha, v => frontAlpha = v));
+            // The select icon on a layer's row chooses the mask the brush paints into (the frame marks the chosen one).
+            var selectBehind = Z.IconButton("paint-brush", $"Paint into Behind: body behind the {me}, for example the neck. When a cut removes it, it stays as dark gore instead of turning see-through.", null);
+            var selectFront = Z.IconButton("paint-brush", $"Paint into In front: something drawn in front of the {me}, for example an arm over the torso. It is never cut.", null);
+            void Mark() { MarkBrushButton(selectBehind, paintLayer == 0); MarkBrushButton(selectFront, paintLayer == 1); }
+            selectBehind.clicked += () => { paintLayer = 0; Mark(); stage?.Refresh(); };
+            selectFront.clicked += () => { paintLayer = 1; Mark(); stage?.Refresh(); };
+            Mark();
+            host.Add(PaintLayerGroup("Behind", "the Behind paint", BehindColour, c => behindColor = c, behindAlpha, v => behindAlpha = v, selectBehind));
+            host.Add(PaintLayerGroup("In front", "the In front paint", FrontColour, c => frontColor = c, frontAlpha, v => frontAlpha = v, selectFront));
         }
 
         /// One paint layer's look: its colour picker and its opacity slider together in a framed group, so they read as one control.
-        VisualElement PaintLayerGroup(string label, string what, Color colour, System.Action<Color> setColour, float alpha, System.Action<float> setAlpha)
+        VisualElement PaintLayerGroup(string label, string what, Color colour, System.Action<Color> setColour, float alpha, System.Action<float> setAlpha, Button select = null)
         {
             var box = new VisualElement();
             box.style.flexDirection = FlexDirection.Row;
@@ -244,6 +248,7 @@ namespace Laubrary.GoreLab.Editor
                 c => { c.a = 1f; setColour(c); stage?.Refresh(); }, 52f);
             var slider = Z.MicroSlider(label, alpha, 0.05f, 1f, $"How visible {what} is. Lower it to see the pixels under it.",
                 v => { setAlpha(v); stage?.Refresh(); }, 150f);
+            if (select != null) { select.style.marginRight = 4f; box.Add(select); }
             box.Add(pick);
             box.Add(slider);
             return box;
