@@ -1,0 +1,138 @@
+{
+  "event_timeline": "native cumulative playing samples; direct controls use hostFrame",
+  "harness_controls": [],
+  "native_events": [
+    {
+      "channelIndex": -1,
+      "floatParam": 0.0,
+      "instrumentID": -1,
+      "intParam": 0,
+      "noteValue": -1,
+      "patternIndex": -1,
+      "rowIndex": -1,
+      "samplePosition": 0,
+      "stringPayload": "",
+      "type": 2
+    },
+    {
+      "channelIndex": -1,
+      "floatParam": 0.0,
+      "instrumentID": -1,
+      "intParam": 0,
+      "noteValue": -1,
+      "patternIndex": 0,
+      "rowIndex": 0,
+      "samplePosition": 0,
+      "stringPayload": "",
+      "type": 0
+    },
+    {
+      "channelIndex": -1,
+      "floatParam": 0.0,
+      "instrumentID": -1,
+      "intParam": 0,
+      "noteValue": -1,
+      "patternIndex": 0,
+      "rowIndex": 0,
+      "samplePosition": 0,
+      "stringPayload": "",
+      "type": 9
+    },
+    {
+      "channelIndex": 0,
+      "floatParam": 0.0,
+      "instrumentID": 0,
+      "intParam": 0,
+      "noteValue": 69,
+      "patternIndex": 0,
+      "rowIndex": 0,
+      "samplePosition": 0,
+      "stringPayload": "",
+      "type": 5
+    },
+    {
+      "channelIndex": -1,
+      "floatParam": 0.0,
+      "instrumentID": -1,
+      "intParam": 0,
+      "noteValue": -1,
+      "patternIndex": 0,
+      "rowIndex": 1,
+      "samplePosition": 6000,
+      "stringPayload": "",
+      "type": 0
+    },
+    {
+      "channelIndex": -1,
+      "floatParam": 0.0,
+      "instrumentID": -1,
+      "intParam": 0,
+      "noteValue": -1,
+      "patternIndex": -1,
+      "rowIndex": -1,
+      "samplePosition": 6000,
+      "stringPayload": "",
+      "type": 3
+    },
+    {
+      "channelIndex": -1,
+      "floatParam": 0.0,
+      "instrumentID": -1,
+      "intParam": 0,
+      "noteValue": -1,
+      "patternIndex": -1,
+      "rowIndex": -1,
+      "samplePosition": 6000,
+      "stringPayload": "",
+      "type": 2
+    },
+    {
+      "channelIndex": -1,
+      "floatParam": 0.0,
+      "instrumentID": -1,
+      "intParam": 0,
+      "noteValue": -1,
+      "patternIndex": 0,
+      "rowIndex": 0,
+      "samplePosition": 6000,
+      "stringPayload": "",
+      "type": 0
+    },
+    {
+      "channelIndex": -1,
+      "floatParam": 0.0,
+      "instrumentID": -1,
+      "intParam": 0,
+      "noteValue": -1,
+      "patternIndex": 0,
+      "rowIndex": 0,
+      "samplePosition": 6000,
+      "stringPayload": "",
+      "type": 9
+    },
+    {
+      "channelIndex": 0,
+      "floatParam": 0.0,
+      "instrumentID": 0,
+      "intParam": 0,
+      "noteValue": 69,
+      "patternIndex": 0,
+      "rowIndex": 0,
+      "samplePosition": 6000,
+      "stringPayload": "",
+      "type": 5
+    },
+    {
+      "channelIndex": -1,
+      "floatParam": 0.0,
+      "instrumentID": -1,
+      "intParam": 0,
+      "noteValue": -1,
+      "patternIndex": 0,
+      "rowIndex": 1,
+      "samplePosition": 12000,
+      "stringPayload": "",
+      "type": 0
+    }
+  ]
+}

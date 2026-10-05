@@ -1,0 +1,1488 @@
+{
+  "event_timeline": "native cumulative playing samples; direct controls use hostFrame",
+  "harness_controls": [
+    {
+      "action": "noteOn",
+      "hostFrame": 0,
+      "instrument": 0,
+      "note": 48,
+      "provenance": "harness direct injection",
+      "returnedVoice": 0,
+      "velocity": 0.05
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 64,
+      "instrument": 0,
+      "note": 49,
+      "provenance": "harness direct injection",
+      "returnedVoice": 1,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 128,
+      "instrument": 0,
+      "note": 50,
+      "provenance": "harness direct injection",
+      "returnedVoice": 2,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 192,
+      "instrument": 0,
+      "note": 51,
+      "provenance": "harness direct injection",
+      "returnedVoice": 3,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 256,
+      "instrument": 0,
+      "note": 52,
+      "provenance": "harness direct injection",
+      "returnedVoice": 4,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 320,
+      "instrument": 0,
+      "note": 53,
+      "provenance": "harness direct injection",
+      "returnedVoice": 5,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 384,
+      "instrument": 0,
+      "note": 54,
+      "provenance": "harness direct injection",
+      "returnedVoice": 6,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 448,
+      "instrument": 0,
+      "note": 55,
+      "provenance": "harness direct injection",
+      "returnedVoice": 7,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 512,
+      "instrument": 0,
+      "note": 56,
+      "provenance": "harness direct injection",
+      "returnedVoice": 8,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 576,
+      "instrument": 0,
+      "note": 57,
+      "provenance": "harness direct injection",
+      "returnedVoice": 9,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 640,
+      "instrument": 0,
+      "note": 58,
+      "provenance": "harness direct injection",
+      "returnedVoice": 10,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 704,
+      "instrument": 0,
+      "note": 59,
+      "provenance": "harness direct injection",
+      "returnedVoice": 11,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 768,
+      "instrument": 0,
+      "note": 60,
+      "provenance": "harness direct injection",
+      "returnedVoice": 12,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 832,
+      "instrument": 0,
+      "note": 61,
+      "provenance": "harness direct injection",
+      "returnedVoice": 13,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 896,
+      "instrument": 0,
+      "note": 62,
+      "provenance": "harness direct injection",
+      "returnedVoice": 14,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 960,
+      "instrument": 0,
+      "note": 63,
+      "provenance": "harness direct injection",
+      "returnedVoice": 15,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 1024,
+      "instrument": 0,
+      "note": 64,
+      "provenance": "harness direct injection",
+      "returnedVoice": 16,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 1088,
+      "instrument": 0,
+      "note": 65,
+      "provenance": "harness direct injection",
+      "returnedVoice": 17,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 1152,
+      "instrument": 0,
+      "note": 66,
+      "provenance": "harness direct injection",
+      "returnedVoice": 18,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 1216,
+      "instrument": 0,
+      "note": 67,
+      "provenance": "harness direct injection",
+      "returnedVoice": 19,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 1280,
+      "instrument": 0,
+      "note": 68,
+      "provenance": "harness direct injection",
+      "returnedVoice": 20,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 1344,
+      "instrument": 0,
+      "note": 69,
+      "provenance": "harness direct injection",
+      "returnedVoice": 21,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 1408,
+      "instrument": 0,
+      "note": 70,
+      "provenance": "harness direct injection",
+      "returnedVoice": 22,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 1472,
+      "instrument": 0,
+      "note": 71,
+      "provenance": "harness direct injection",
+      "returnedVoice": 23,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 1536,
+      "instrument": 0,
+      "note": 72,
+      "provenance": "harness direct injection",
+      "returnedVoice": 24,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 1600,
+      "instrument": 0,
+      "note": 73,
+      "provenance": "harness direct injection",
+      "returnedVoice": 25,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 1664,
+      "instrument": 0,
+      "note": 74,
+      "provenance": "harness direct injection",
+      "returnedVoice": 26,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 1728,
+      "instrument": 0,
+      "note": 75,
+      "provenance": "harness direct injection",
+      "returnedVoice": 27,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 1792,
+      "instrument": 0,
+      "note": 76,
+      "provenance": "harness direct injection",
+      "returnedVoice": 28,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 1856,
+      "instrument": 0,
+      "note": 77,
+      "provenance": "harness direct injection",
+      "returnedVoice": 29,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 1920,
+      "instrument": 0,
+      "note": 78,
+      "provenance": "harness direct injection",
+      "returnedVoice": 30,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 1984,
+      "instrument": 0,
+      "note": 79,
+      "provenance": "harness direct injection",
+      "returnedVoice": 31,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 2048,
+      "instrument": 0,
+      "note": 80,
+      "provenance": "harness direct injection",
+      "returnedVoice": 32,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 2112,
+      "instrument": 0,
+      "note": 81,
+      "provenance": "harness direct injection",
+      "returnedVoice": 33,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 2176,
+      "instrument": 0,
+      "note": 82,
+      "provenance": "harness direct injection",
+      "returnedVoice": 34,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 2240,
+      "instrument": 0,
+      "note": 83,
+      "provenance": "harness direct injection",
+      "returnedVoice": 35,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 2304,
+      "instrument": 0,
+      "note": 48,
+      "provenance": "harness direct injection",
+      "returnedVoice": 36,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 2368,
+      "instrument": 0,
+      "note": 49,
+      "provenance": "harness direct injection",
+      "returnedVoice": 37,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 2432,
+      "instrument": 0,
+      "note": 50,
+      "provenance": "harness direct injection",
+      "returnedVoice": 38,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 2496,
+      "instrument": 0,
+      "note": 51,
+      "provenance": "harness direct injection",
+      "returnedVoice": 39,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 2560,
+      "instrument": 0,
+      "note": 52,
+      "provenance": "harness direct injection",
+      "returnedVoice": 40,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 2624,
+      "instrument": 0,
+      "note": 53,
+      "provenance": "harness direct injection",
+      "returnedVoice": 41,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 2688,
+      "instrument": 0,
+      "note": 54,
+      "provenance": "harness direct injection",
+      "returnedVoice": 42,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 2752,
+      "instrument": 0,
+      "note": 55,
+      "provenance": "harness direct injection",
+      "returnedVoice": 43,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 2816,
+      "instrument": 0,
+      "note": 56,
+      "provenance": "harness direct injection",
+      "returnedVoice": 44,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 2880,
+      "instrument": 0,
+      "note": 57,
+      "provenance": "harness direct injection",
+      "returnedVoice": 45,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 2944,
+      "instrument": 0,
+      "note": 58,
+      "provenance": "harness direct injection",
+      "returnedVoice": 46,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 3008,
+      "instrument": 0,
+      "note": 59,
+      "provenance": "harness direct injection",
+      "returnedVoice": 47,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 3072,
+      "instrument": 0,
+      "note": 60,
+      "provenance": "harness direct injection",
+      "returnedVoice": 48,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 3136,
+      "instrument": 0,
+      "note": 61,
+      "provenance": "harness direct injection",
+      "returnedVoice": 49,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 3200,
+      "instrument": 0,
+      "note": 62,
+      "provenance": "harness direct injection",
+      "returnedVoice": 50,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 3264,
+      "instrument": 0,
+      "note": 63,
+      "provenance": "harness direct injection",
+      "returnedVoice": 51,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 3328,
+      "instrument": 0,
+      "note": 64,
+      "provenance": "harness direct injection",
+      "returnedVoice": 52,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 3392,
+      "instrument": 0,
+      "note": 65,
+      "provenance": "harness direct injection",
+      "returnedVoice": 53,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 3456,
+      "instrument": 0,
+      "note": 66,
+      "provenance": "harness direct injection",
+      "returnedVoice": 54,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 3520,
+      "instrument": 0,
+      "note": 67,
+      "provenance": "harness direct injection",
+      "returnedVoice": 55,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 3584,
+      "instrument": 0,
+      "note": 68,
+      "provenance": "harness direct injection",
+      "returnedVoice": 56,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 3648,
+      "instrument": 0,
+      "note": 69,
+      "provenance": "harness direct injection",
+      "returnedVoice": 57,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 3712,
+      "instrument": 0,
+      "note": 70,
+      "provenance": "harness direct injection",
+      "returnedVoice": 58,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 3776,
+      "instrument": 0,
+      "note": 71,
+      "provenance": "harness direct injection",
+      "returnedVoice": 59,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 3840,
+      "instrument": 0,
+      "note": 72,
+      "provenance": "harness direct injection",
+      "returnedVoice": 60,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 3904,
+      "instrument": 0,
+      "note": 73,
+      "provenance": "harness direct injection",
+      "returnedVoice": 61,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 3968,
+      "instrument": 0,
+      "note": 74,
+      "provenance": "harness direct injection",
+      "returnedVoice": 62,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 4032,
+      "instrument": 0,
+      "note": 75,
+      "provenance": "harness direct injection",
+      "returnedVoice": 63,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 4096,
+      "instrument": 0,
+      "note": 76,
+      "provenance": "harness direct injection",
+      "returnedVoice": 64,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 4160,
+      "instrument": 0,
+      "note": 77,
+      "provenance": "harness direct injection",
+      "returnedVoice": 65,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 4224,
+      "instrument": 0,
+      "note": 78,
+      "provenance": "harness direct injection",
+      "returnedVoice": 66,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 4288,
+      "instrument": 0,
+      "note": 79,
+      "provenance": "harness direct injection",
+      "returnedVoice": 67,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 4352,
+      "instrument": 0,
+      "note": 80,
+      "provenance": "harness direct injection",
+      "returnedVoice": 68,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 4416,
+      "instrument": 0,
+      "note": 81,
+      "provenance": "harness direct injection",
+      "returnedVoice": 69,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 4480,
+      "instrument": 0,
+      "note": 82,
+      "provenance": "harness direct injection",
+      "returnedVoice": 70,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 4544,
+      "instrument": 0,
+      "note": 83,
+      "provenance": "harness direct injection",
+      "returnedVoice": 71,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 4608,
+      "instrument": 0,
+      "note": 48,
+      "provenance": "harness direct injection",
+      "returnedVoice": 72,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 4672,
+      "instrument": 0,
+      "note": 49,
+      "provenance": "harness direct injection",
+      "returnedVoice": 73,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 4736,
+      "instrument": 0,
+      "note": 50,
+      "provenance": "harness direct injection",
+      "returnedVoice": 74,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 4800,
+      "instrument": 0,
+      "note": 51,
+      "provenance": "harness direct injection",
+      "returnedVoice": 75,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 4864,
+      "instrument": 0,
+      "note": 52,
+      "provenance": "harness direct injection",
+      "returnedVoice": 76,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 4928,
+      "instrument": 0,
+      "note": 53,
+      "provenance": "harness direct injection",
+      "returnedVoice": 77,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 4992,
+      "instrument": 0,
+      "note": 54,
+      "provenance": "harness direct injection",
+      "returnedVoice": 78,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 5056,
+      "instrument": 0,
+      "note": 55,
+      "provenance": "harness direct injection",
+      "returnedVoice": 79,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 5120,
+      "instrument": 0,
+      "note": 56,
+      "provenance": "harness direct injection",
+      "returnedVoice": 80,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 5184,
+      "instrument": 0,
+      "note": 57,
+      "provenance": "harness direct injection",
+      "returnedVoice": 81,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 5248,
+      "instrument": 0,
+      "note": 58,
+      "provenance": "harness direct injection",
+      "returnedVoice": 82,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 5312,
+      "instrument": 0,
+      "note": 59,
+      "provenance": "harness direct injection",
+      "returnedVoice": 83,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 5376,
+      "instrument": 0,
+      "note": 60,
+      "provenance": "harness direct injection",
+      "returnedVoice": 84,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 5440,
+      "instrument": 0,
+      "note": 61,
+      "provenance": "harness direct injection",
+      "returnedVoice": 85,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 5504,
+      "instrument": 0,
+      "note": 62,
+      "provenance": "harness direct injection",
+      "returnedVoice": 86,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 5568,
+      "instrument": 0,
+      "note": 63,
+      "provenance": "harness direct injection",
+      "returnedVoice": 87,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 5632,
+      "instrument": 0,
+      "note": 64,
+      "provenance": "harness direct injection",
+      "returnedVoice": 88,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 5696,
+      "instrument": 0,
+      "note": 65,
+      "provenance": "harness direct injection",
+      "returnedVoice": 89,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 5760,
+      "instrument": 0,
+      "note": 66,
+      "provenance": "harness direct injection",
+      "returnedVoice": 90,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 5824,
+      "instrument": 0,
+      "note": 67,
+      "provenance": "harness direct injection",
+      "returnedVoice": 91,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 5888,
+      "instrument": 0,
+      "note": 68,
+      "provenance": "harness direct injection",
+      "returnedVoice": 92,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 5952,
+      "instrument": 0,
+      "note": 69,
+      "provenance": "harness direct injection",
+      "returnedVoice": 93,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 6016,
+      "instrument": 0,
+      "note": 70,
+      "provenance": "harness direct injection",
+      "returnedVoice": 94,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 6080,
+      "instrument": 0,
+      "note": 71,
+      "provenance": "harness direct injection",
+      "returnedVoice": 95,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 6144,
+      "instrument": 0,
+      "note": 72,
+      "provenance": "harness direct injection",
+      "returnedVoice": 96,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 6208,
+      "instrument": 0,
+      "note": 73,
+      "provenance": "harness direct injection",
+      "returnedVoice": 97,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 6272,
+      "instrument": 0,
+      "note": 74,
+      "provenance": "harness direct injection",
+      "returnedVoice": 98,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 6336,
+      "instrument": 0,
+      "note": 75,
+      "provenance": "harness direct injection",
+      "returnedVoice": 99,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 6400,
+      "instrument": 0,
+      "note": 76,
+      "provenance": "harness direct injection",
+      "returnedVoice": 100,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 6464,
+      "instrument": 0,
+      "note": 77,
+      "provenance": "harness direct injection",
+      "returnedVoice": 101,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 6528,
+      "instrument": 0,
+      "note": 78,
+      "provenance": "harness direct injection",
+      "returnedVoice": 102,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 6592,
+      "instrument": 0,
+      "note": 79,
+      "provenance": "harness direct injection",
+      "returnedVoice": 103,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 6656,
+      "instrument": 0,
+      "note": 80,
+      "provenance": "harness direct injection",
+      "returnedVoice": 104,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 6720,
+      "instrument": 0,
+      "note": 81,
+      "provenance": "harness direct injection",
+      "returnedVoice": 105,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 6784,
+      "instrument": 0,
+      "note": 82,
+      "provenance": "harness direct injection",
+      "returnedVoice": 106,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 6848,
+      "instrument": 0,
+      "note": 83,
+      "provenance": "harness direct injection",
+      "returnedVoice": 107,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 6912,
+      "instrument": 0,
+      "note": 48,
+      "provenance": "harness direct injection",
+      "returnedVoice": 108,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 6976,
+      "instrument": 0,
+      "note": 49,
+      "provenance": "harness direct injection",
+      "returnedVoice": 109,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 7040,
+      "instrument": 0,
+      "note": 50,
+      "provenance": "harness direct injection",
+      "returnedVoice": 110,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 7104,
+      "instrument": 0,
+      "note": 51,
+      "provenance": "harness direct injection",
+      "returnedVoice": 111,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 7168,
+      "instrument": 0,
+      "note": 52,
+      "provenance": "harness direct injection",
+      "returnedVoice": 112,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 7232,
+      "instrument": 0,
+      "note": 53,
+      "provenance": "harness direct injection",
+      "returnedVoice": 113,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 7296,
+      "instrument": 0,
+      "note": 54,
+      "provenance": "harness direct injection",
+      "returnedVoice": 114,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 7360,
+      "instrument": 0,
+      "note": 55,
+      "provenance": "harness direct injection",
+      "returnedVoice": 115,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 7424,
+      "instrument": 0,
+      "note": 56,
+      "provenance": "harness direct injection",
+      "returnedVoice": 116,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 7488,
+      "instrument": 0,
+      "note": 57,
+      "provenance": "harness direct injection",
+      "returnedVoice": 117,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 7552,
+      "instrument": 0,
+      "note": 58,
+      "provenance": "harness direct injection",
+      "returnedVoice": 118,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 7616,
+      "instrument": 0,
+      "note": 59,
+      "provenance": "harness direct injection",
+      "returnedVoice": 119,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 7680,
+      "instrument": 0,
+      "note": 60,
+      "provenance": "harness direct injection",
+      "returnedVoice": 120,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 7744,
+      "instrument": 0,
+      "note": 61,
+      "provenance": "harness direct injection",
+      "returnedVoice": 121,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 7808,
+      "instrument": 0,
+      "note": 62,
+      "provenance": "harness direct injection",
+      "returnedVoice": 122,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 7872,
+      "instrument": 0,
+      "note": 63,
+      "provenance": "harness direct injection",
+      "returnedVoice": 123,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 7936,
+      "instrument": 0,
+      "note": 64,
+      "provenance": "harness direct injection",
+      "returnedVoice": 124,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 8000,
+      "instrument": 0,
+      "note": 65,
+      "provenance": "harness direct injection",
+      "returnedVoice": 125,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 8064,
+      "instrument": 0,
+      "note": 66,
+      "provenance": "harness direct injection",
+      "returnedVoice": 126,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 8128,
+      "instrument": 0,
+      "note": 67,
+      "provenance": "harness direct injection",
+      "returnedVoice": 127,
+      "velocity": 0.8
+    },
+    {
+      "activeCount": 128,
+      "channels": [
+        {
+          "channel": 0,
+          "instrument": -1,
+          "macros": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pitch": 0.0,
+          "preset": -1,
+          "voice": -1
+        }
+      ],
+      "hostFrame": 8192,
+      "label": "full-pool",
+      "provenance": "harness block-boundary query"
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 8192,
+      "instrument": 0,
+      "note": 90,
+      "provenance": "harness direct injection",
+      "returnedVoice": 0,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 8384,
+      "instrument": 0,
+      "note": 91,
+      "provenance": "harness direct injection",
+      "returnedVoice": 17,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 8448,
+      "instrument": 0,
+      "note": 60,
+      "provenance": "harness direct injection",
+      "returnedVoice": 18,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 8512,
+      "instrument": 0,
+      "note": 61,
+      "provenance": "harness direct injection",
+      "returnedVoice": 1,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 8576,
+      "instrument": 0,
+      "note": 62,
+      "provenance": "harness direct injection",
+      "returnedVoice": 2,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 8640,
+      "instrument": 0,
+      "note": 63,
+      "provenance": "harness direct injection",
+      "returnedVoice": 3,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 8704,
+      "instrument": 0,
+      "note": 64,
+      "provenance": "harness direct injection",
+      "returnedVoice": 4,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 8768,
+      "instrument": 0,
+      "note": 65,
+      "provenance": "harness direct injection",
+      "returnedVoice": 5,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 8832,
+      "instrument": 0,
+      "note": 66,
+      "provenance": "harness direct injection",
+      "returnedVoice": 6,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 8896,
+      "instrument": 0,
+      "note": 67,
+      "provenance": "harness direct injection",
+      "returnedVoice": 7,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 8960,
+      "instrument": 0,
+      "note": 68,
+      "provenance": "harness direct injection",
+      "returnedVoice": 8,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 9024,
+      "instrument": 0,
+      "note": 69,
+      "provenance": "harness direct injection",
+      "returnedVoice": 0,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 9088,
+      "instrument": 0,
+      "note": 70,
+      "provenance": "harness direct injection",
+      "returnedVoice": 9,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 9152,
+      "instrument": 0,
+      "note": 71,
+      "provenance": "harness direct injection",
+      "returnedVoice": 10,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 9216,
+      "instrument": 0,
+      "note": 72,
+      "provenance": "harness direct injection",
+      "returnedVoice": 11,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 9280,
+      "instrument": 0,
+      "note": 73,
+      "provenance": "harness direct injection",
+      "returnedVoice": 12,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 9344,
+      "instrument": 0,
+      "note": 74,
+      "provenance": "harness direct injection",
+      "returnedVoice": 1,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 9408,
+      "instrument": 0,
+      "note": 75,
+      "provenance": "harness direct injection",
+      "returnedVoice": 2,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 9472,
+      "instrument": 0,
+      "note": 76,
+      "provenance": "harness direct injection",
+      "returnedVoice": 3,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 9536,
+      "instrument": 0,
+      "note": 77,
+      "provenance": "harness direct injection",
+      "returnedVoice": 4,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 9600,
+      "instrument": 0,
+      "note": 78,
+      "provenance": "harness direct injection",
+      "returnedVoice": 5,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 9664,
+      "instrument": 0,
+      "note": 79,
+      "provenance": "harness direct injection",
+      "returnedVoice": 6,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 9728,
+      "instrument": 0,
+      "note": 80,
+      "provenance": "harness direct injection",
+      "returnedVoice": 7,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 9792,
+      "instrument": 0,
+      "note": 81,
+      "provenance": "harness direct injection",
+      "returnedVoice": 8,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 9856,
+      "instrument": 0,
+      "note": 82,
+      "provenance": "harness direct injection",
+      "returnedVoice": 0,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 9920,
+      "instrument": 0,
+      "note": 83,
+      "provenance": "harness direct injection",
+      "returnedVoice": 9,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 9984,
+      "instrument": 0,
+      "note": 60,
+      "provenance": "harness direct injection",
+      "returnedVoice": 10,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 10048,
+      "instrument": 0,
+      "note": 61,
+      "provenance": "harness direct injection",
+      "returnedVoice": 11,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 10112,
+      "instrument": 0,
+      "note": 62,
+      "provenance": "harness direct injection",
+      "returnedVoice": 12,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 10176,
+      "instrument": 0,
+      "note": 63,
+      "provenance": "harness direct injection",
+      "returnedVoice": 1,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 10240,
+      "instrument": 0,
+      "note": 64,
+      "provenance": "harness direct injection",
+      "returnedVoice": 2,
+      "velocity": 0.8
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 10304,
+      "instrument": 0,
+      "note": 65,
+      "provenance": "harness direct injection",
+      "returnedVoice": 3,
+      "velocity": 0.8
+    },
+    {
+      "activeCount": 128,
+      "channels": [
+        {
+          "channel": 0,
+          "instrument": -1,
+          "macros": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pitch": 0.0,
+          "preset": -1,
+          "voice": -1
+        }
+      ],
+      "hostFrame": 10368,
+      "label": "after-160-requests",
+      "provenance": "harness block-boundary query"
+    }
+  ],
+  "native_events": []
+}

@@ -1,0 +1,22 @@
+{
+  "event_timeline": "native cumulative playing samples; direct controls use hostFrame",
+  "harness_controls": [
+    {
+      "action": "noteOn",
+      "hostFrame": 0,
+      "instrument": 0,
+      "note": 69,
+      "provenance": "harness direct injection",
+      "returnedVoice": 0,
+      "velocity": 1
+    },
+    {
+      "active": 1,
+      "hostFrame": 6000,
+      "label": "held",
+      "pitch": 0.9999999403953552,
+      "provenance": "harness direct query"
+    }
+  ],
+  "native_events": []
+}

@@ -1,0 +1,54 @@
+{
+  "event_timeline": "native cumulative playing samples; direct controls use hostFrame",
+  "harness_controls": [
+    {
+      "action": "noteOn",
+      "hostFrame": 0,
+      "instrument": 0,
+      "note": 37,
+      "provenance": "harness direct injection",
+      "returnedVoice": -1,
+      "velocity": 1
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 0,
+      "instrument": 0,
+      "note": 36,
+      "provenance": "harness direct injection",
+      "returnedVoice": 0,
+      "velocity": 1
+    },
+    {
+      "action": "noteOn",
+      "hostFrame": 1000,
+      "instrument": 0,
+      "note": 38,
+      "provenance": "harness direct injection",
+      "returnedVoice": 1,
+      "velocity": 1
+    },
+    {
+      "activeCount": 0,
+      "channels": [
+        {
+          "channel": 0,
+          "instrument": -1,
+          "macros": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pitch": 0.0,
+          "preset": -1,
+          "voice": -1
+        }
+      ],
+      "hostFrame": 16000,
+      "label": "kit-natural-end",
+      "provenance": "harness block-boundary query"
+    }
+  ],
+  "native_events": []
+}
