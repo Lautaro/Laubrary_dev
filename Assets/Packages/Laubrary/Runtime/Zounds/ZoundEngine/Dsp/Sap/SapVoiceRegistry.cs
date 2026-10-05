@@ -1,3 +1,4 @@
+using Laubrary.Audio;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -97,11 +98,7 @@ namespace Laubrary.Zounds.Dsp {
             get {
                 AudioSettings.GetDSPBufferSize(out int bufferLength, out int _);
                 int rate = AudioSettings.outputSampleRate;
-                double block = rate > 0 && bufferLength > 0 ? (double)bufferLength / rate : 0.021d;
-                double settle = block * 2.2d;
-                if (settle < 0.005d) settle = 0.005d;
-                if (settle > 0.060d) settle = 0.060d;
-                return settle;
+                return SapLifetime.DefaultSettleSeconds(bufferLength, rate);
             }
         }
 
@@ -127,10 +124,8 @@ namespace Laubrary.Zounds.Dsp {
         // T-0503: stopping during Application.quitting is too late on affected standalone players.
         // Keep ordinary player frames running after the source stops, just as the measured -stopFirst
         // control did. This is a bounded shutdown workaround, not a claim to fix Unity's native crash.
-        internal static bool QuitDraining { get; private set; }
-        private static bool quitDrainComplete;
-        private static double quitDrainStarted;
-        private static int quitDrainFrames;
+        internal static bool QuitDraining => quitDrain.RefuseNewRendering;
+        private static SapQuitDrain quitDrain;
         private static RuntimeUpdater quitUpdater;
 
         /// <summary>
@@ -148,8 +143,7 @@ namespace Laubrary.Zounds.Dsp {
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void HookQuit() {
             Quitting = false;
-            QuitDraining = false;
-            quitDrainComplete = false;
+            quitDrain = default;
             if (quitUpdater != null) quitUpdater.onUpdate -= UpdateQuitDrain;
             quitUpdater = null;
             Application.wantsToQuit -= OnWantsToQuit;
@@ -165,14 +159,12 @@ namespace Laubrary.Zounds.Dsp {
                 (Application.platform != RuntimePlatform.WindowsPlayer &&
                  Application.platform != RuntimePlatform.LinuxPlayer &&
                  Application.platform != RuntimePlatform.OSXPlayer)) return true;
-            if (quitDrainComplete) return true;
+            if (quitDrain.complete) return true;
             if (QuitDraining) return false;
             Prune();
             if (live.Count == 0) return true;
 
-            QuitDraining = true;
-            quitDrainStarted = Time.realtimeSinceStartupAsDouble;
-            quitDrainFrames = 0;
+            quitDrain.Begin(Time.realtimeSinceStartupAsDouble);
             Application.runInBackground = true;
             StopAll();
             for (int i = live.Count - 1; i >= 0; i--) {
@@ -185,17 +177,15 @@ namespace Laubrary.Zounds.Dsp {
         }
 
         private static void UpdateQuitDrain() {
-            quitDrainFrames++;
             // Other game updates can try to retrigger a pooled carrier during these final frames.
             // CreateInstance refuses new voices during the drain; stop any such carrier again here.
             for (int i = live.Count - 1; i >= 0; i--) {
                 var g = live[i];
                 if (g != null) g.SilenceForTeardown();
             }
-            if (quitDrainFrames < 2 || Time.realtimeSinceStartupAsDouble - quitDrainStarted < 0.3d) return;
+            if (!quitDrain.Tick(Time.realtimeSinceStartupAsDouble)) return;
             if (quitUpdater != null) quitUpdater.onUpdate -= UpdateQuitDrain;
             quitUpdater = null;
-            quitDrainComplete = true;
             // The cancellation event does not expose the requested exit code. Normal game/window
             // exits are zero; diagnostic callers needing another code must drain before their Quit.
             Application.Quit();
@@ -256,30 +246,7 @@ namespace Laubrary.Zounds.Dsp {
             if (voices == null || voices.Count == 0) return true;
             if (settleSeconds <= 0d) settleSeconds = DefaultSettleSeconds;
 
-            int n = voices.Count;
-            var last = new long[n];
-            for (int i = 0; i < n; i++) last[i] = TicketOf(voices[i]);
-
-            var clock = System.Diagnostics.Stopwatch.StartNew();
-            double quietSince = -1d;
-
-            while (true) {
-                bool still = true;
-                for (int i = 0; i < n; i++) {
-                    long now = TicketOf(voices[i]);
-                    // Moved, or caught mid-block: either way this is not quiet, and the new reading becomes the
-                    // baseline the settle window is measured from.
-                    if (now != last[i] || (now & 1L) != 0L) { still = false; last[i] = now; }
-                }
-
-                double elapsed = clock.Elapsed.TotalSeconds;
-                if (!still) quietSince = -1d;
-                else if (quietSince < 0d) quietSince = elapsed;
-                else if (elapsed - quietSince >= settleSeconds) return true;
-
-                if (elapsed >= timeoutSeconds) return false;
-                System.Threading.Thread.Sleep(1);
-            }
+            return SapLifetime.WaitUntilQuiet(voices.Count, i => TicketOf(voices[i]), settleSeconds, timeoutSeconds);
         }
 
         /// <summary>Waits on a single voice. Same meaning, same caveats.</summary>

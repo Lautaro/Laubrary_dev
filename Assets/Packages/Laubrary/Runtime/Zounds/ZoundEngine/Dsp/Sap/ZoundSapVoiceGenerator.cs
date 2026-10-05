@@ -6,6 +6,7 @@ using UnityEngine.Audio;
 using static UnityEngine.Audio.ProcessorInstance;
 
 namespace Laubrary.Zounds.Dsp {
+    using Laubrary.Audio;
 
     /// <summary>
     /// Plugs one <see cref="SapRealtimeVoice"/> into the audio graph, so a chain renders on the audio thread
@@ -97,11 +98,11 @@ namespace Laubrary.Zounds.Dsp {
         /// **Why they cannot simply be released when the voice is replaced.** A sound with a long tail can still be
         /// rendering when the pool hands its audio source to the next sound, so the previous voice's counter may still
         /// be being written. Releasing it then is the very use-after-free the counter exists to detect. Instead each
-        /// one is kept, with the last value seen beside it, and released on a later pass once it has been observed not
-        /// to have moved — which, since passes happen a whole play apart, is a generous margin.
+        /// one is kept with a quiet-window observation, and released only after an unchanged even counter has
+        /// been observed for the full settle window. Movement or an in-flight block restarts that window.
         /// </summary>
         private readonly List<NativeArray<long>> retiredTickets = new List<NativeArray<long>>();
-        private readonly List<long> retiredLastSeen = new List<long>();
+        private readonly List<SapQuietWindow> retiredQuiet = new List<SapQuietWindow>();
 
         /// <summary>
         /// How many recent samples each new voice should keep for a visualiser, or zero for none.
@@ -566,24 +567,23 @@ namespace Laubrary.Zounds.Dsp {
         private void RotateRenderTicket() {
             for (int i = retiredTickets.Count - 1; i >= 0; i--) {
                 var ticket = retiredTickets[i];
-                if (!ticket.IsCreated) { retiredTickets.RemoveAt(i); retiredLastSeen.RemoveAt(i); continue; }
-                long now = ticket[0];
-                // Unchanged since the last look and not mid-block: that voice is finished with it.
-                if (now == retiredLastSeen[i] && (now & 1L) == 0L) {
-                    ticket.Dispose();
-                    retiredTickets.RemoveAt(i);
-                    retiredLastSeen.RemoveAt(i);
+                if (!ticket.IsCreated) { retiredTickets.RemoveAt(i); retiredQuiet.RemoveAt(i); continue; }
+                var observation = retiredQuiet[i];
+                if (observation.Observe(SapRenderTicket.Read(ticket), Time.realtimeSinceStartupAsDouble, SapVoiceRegistry.DefaultSettleSeconds)) {
+                    ticket.Dispose(); retiredTickets.RemoveAt(i); retiredQuiet.RemoveAt(i);
                 }
-                else retiredLastSeen[i] = now;
+                else retiredQuiet[i] = observation;
             }
 
             if (renderTicket.IsCreated) {
                 retiredTickets.Add(renderTicket);
-                retiredLastSeen.Add(renderTicket[0]);
+                var observation = new SapQuietWindow();
+                observation.Observe(SapRenderTicket.Read(renderTicket), Time.realtimeSinceStartupAsDouble, SapVoiceRegistry.DefaultSettleSeconds);
+                retiredQuiet.Add(observation);
             }
             // [0]: the in-block counter the stopped-for-sure barrier reads. [1]: frames rendered, this play's own clock.
             // [2]: set once the voice has finished, tail and all (T-0409: a live-speed sound's end cannot be predicted).
-            renderTicket = new NativeArray<long>(3, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+            renderTicket = SapRenderTicket.Create(Allocator.Persistent);
         }
 
         // ───────────────────────── knowing a sound has actually stopped ─────────────────────────
@@ -597,14 +597,13 @@ namespace Laubrary.Zounds.Dsp {
         /// The raw block counter. Odd means a block is running right now, even means none is. -1 when this component
         /// has never started a voice, so there is nothing to have finished.
         ///
-        /// Read without any synchronisation, on purpose and safely: a single value is either odd or even, so no read
-        /// can see a state that never existed. The value may of course be out of date by the time it is looked at —
-        /// which is why nothing decides anything from ONE reading, only from a reading that has stopped changing.
+        /// Read with volatile ordering without taking a NativeArray safety lock. The value may be out of date by
+        /// the time it is looked at, so reclamation requires a full stable quiet window rather than one reading.
         /// </summary>
-        public long RenderTicket => renderTicket.IsCreated ? renderTicket[0] : -1L;
+        public long RenderTicket => renderTicket.IsCreated ? SapRenderTicket.Read(renderTicket) : -1L;
 
         /// <summary>True while the audio side is inside a block for this component's voice.</summary>
-        public bool RenderInProgress => renderTicket.IsCreated && (renderTicket[0] & 1L) != 0L;
+        public bool RenderInProgress => renderTicket.IsCreated && (SapRenderTicket.Read(renderTicket) & 1L) != 0L;
 
         /// <summary>
         /// Sends one change down the two-hop route the graph provides. There is no single call that reaches the
@@ -699,11 +698,11 @@ namespace Laubrary.Zounds.Dsp {
             for (int i = 0; i < retiredTickets.Count; i++) {
                 var ticket = retiredTickets[i];
                 if (!ticket.IsCreated) continue;
-                long now = ticket[0];
-                if (now == retiredLastSeen[i] && (now & 1L) == 0L) ticket.Dispose();
+                var observation = retiredQuiet[i];
+                if (observation.Observe(SapRenderTicket.Read(ticket), Time.realtimeSinceStartupAsDouble, SapVoiceRegistry.DefaultSettleSeconds)) ticket.Dispose();
             }
             retiredTickets.Clear();
-            retiredLastSeen.Clear();
+            retiredQuiet.Clear();
         }
 
         /// <summary>Releases the voice only while this component is still the owner (see <see cref="handedOff"/>).</summary>

@@ -1,6 +1,6 @@
 using Unity.Burst;
 
-namespace Laubrary.Zounds.Dsp {
+namespace Laubrary.Audio {
 
     /// <summary>
     /// Answers "has any of this engine's real-time audio run as ordinary managed code?" by measurement, not by
@@ -19,7 +19,7 @@ namespace Laubrary.Zounds.Dsp {
     /// Deliberately holds nothing but the two counters: code compiled by Burst reads them, so this type must stay free of
     /// anything Burst cannot compile.
     /// </summary>
-    public static class ZoundAudioThreadGuard {
+    public static class AudioThreadGuard {
         private struct BlocksKey { }
         private struct ManagedKey { }
 

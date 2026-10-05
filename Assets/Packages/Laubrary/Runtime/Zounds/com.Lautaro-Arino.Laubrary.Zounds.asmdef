@@ -7,7 +7,8 @@
         "com.Lautaro-Arino.Laubrary.ZuiRuntime",
         "Unity.Burst",
         "Unity.Collections",
-        "Unity.Mathematics"
+        "Unity.Mathematics",
+        "com.Lautaro-Arino.Laubrary.AudioCore"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

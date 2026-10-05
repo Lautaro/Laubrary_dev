@@ -3,35 +3,6 @@ using UnityEngine;
 
 namespace Laubrary.Zounds {
 
-    /// <summary>Effect node types. The number is serialized; append only, never renumber.</summary>
-    public enum ZoundEffectType {
-        Gain = 0,
-        Limiter = 1,
-        Compressor = 2,
-        Delay = 3,
-        Reverb = 4,
-        LowPass = 5,
-        HighPass = 6,
-        Flanger = 7,
-        Chorus = 8,
-        Phaser = 9,
-        BitCrush = 10,
-        Distortion = 11,
-        EQ = 12,
-        Normalize = 13,
-        Fade = 14,
-        TransientShaper = 15,
-    }
-
-    public enum ZoundModifierType {
-        Envelope = 0,
-        Lfo = 1,
-        Random = 2,
-        Step = 3,
-        /// <summary>Outputs whatever game code sends to its ZPOC id (0..1), eased; its own Value is where it rests.</summary>
-        Code = 4,
-    }
-
     /// <summary>
     /// How a modifier's ZPOC value acts on that modifier's bindings. The number is serialized; append only.
     /// </summary>
@@ -42,18 +13,6 @@ namespace Laubrary.Zounds {
         /// it, so one is the most this modifier can do and a value above the authored strength is reachable.</summary>
         Set = 1,
     }
-
-    public enum ModifierOp {
-        Multiply = 0,
-        Add = 1,
-        Replace = 2,
-    }
-
-    public enum LfoShape { Sine = 0, Triangle = 1, Saw = 2, Square = 3 }
-    public enum LfoMode { Oscillate = 0, Random = 1 }
-    public enum StepTiming { PerTrigger = 0, PerInterval = 1 }
-    public enum StepOrder { Sequential = 0, RoundRobinNoRepeat = 1 }
-
     /// <summary>
     /// One effect in a chain: a type, a bypass flag and positional parameters whose meaning comes from
     /// <see cref="Dsp.ZoundEffectDescriptors"/>. A tagged union rather than a class per effect because

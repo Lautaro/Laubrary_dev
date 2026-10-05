@@ -24,7 +24,7 @@ namespace Laubrary.Zounds.Dsp {
 
         /// <summary>Samples between modifier re-evaluations (750 Hz at 48 kHz). Values are ramped to
         /// per-sample resolution between these points; this is never the rate a DSP node sees.</summary>
-        public const int CONTROL_BLOCK = 64;
+        public const int CONTROL_BLOCK = Laubrary.Audio.AudioControl.BlockFrames;
         public const float INV_CONTROL_BLOCK = 1f / CONTROL_BLOCK;
 
         /// <summary>Arena sizes in floats. Heavy: 1 MB. Light: 32 KB.</summary>

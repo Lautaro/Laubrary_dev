@@ -1,0 +1,12 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.AudioCore",
+    "rootNamespace": "Laubrary.Audio",
+    "references": [
+        "Unity.Burst",
+        "Unity.Collections",
+        "Unity.Mathematics"
+    ],
+    "allowUnsafeCode": true,
+    "autoReferenced": true,
+    "noEngineReferences": false
+}

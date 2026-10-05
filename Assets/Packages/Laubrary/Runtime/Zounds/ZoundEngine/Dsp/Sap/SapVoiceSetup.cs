@@ -1,3 +1,4 @@
+using Laubrary.Audio;
 using Unity.Collections;
 
 namespace Laubrary.Zounds.Dsp {
@@ -222,10 +223,7 @@ namespace Laubrary.Zounds.Dsp {
         /// favours the minimum for a Bias above one, the opposite of what the setting says).
         /// </summary>
         internal static float DrawRandom(float min, float max, float bias, float r01) {
-            min = UnityEngine.Mathf.Clamp(min, -1f, 1f);
-            max = UnityEngine.Mathf.Clamp(max, -1f, 1f);
-            if (bias > 0f && System.Math.Abs(bias - 1f) > 1e-4f) r01 = UnityEngine.Mathf.Pow(r01, 1f / bias);
-            return min + (max - min) * r01;
+            return ChainModulation.DrawRandom(min, max, bias, r01);
         }
 
         /// <summary>
@@ -474,7 +472,7 @@ namespace Laubrary.Zounds.Dsp {
         internal static void BuildSnapshots(ref SapChainLayout sapLayout, ref SapPcm sapPcm,
                                             ChainLayout layout, PcmClip pcm, Allocator allocator) {
             if (sapLayout.IsCreated) sapLayout.Dispose();
-            sapLayout = SapChainLayout.Create(layout, allocator);
+            sapLayout = ZoundsAudioCoreLayout.Create(layout, allocator);
             if (sapPcm.IsCreated) sapPcm.Dispose();
             sapPcm = pcm != null ? SapPcm.Create(pcm, allocator) : default;
         }

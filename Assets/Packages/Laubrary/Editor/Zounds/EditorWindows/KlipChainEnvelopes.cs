@@ -1,3 +1,4 @@
+using Laubrary.Audio;
 using UnityEngine;
 using Laubrary.Zounds.Dsp;
 
@@ -274,7 +275,7 @@ namespace Laubrary.Zounds {
                 case Dsp.ModulationCombine.Set:
                 case Dsp.ModulationCombine.SetFromZero:
                     if (!Dsp.ChainModulationCompat.TryParam(chain, only, out var pd, out float set)) return false;
-                    value = Dsp.ModulationMath.ToPosition(set, pd.min, pd.max, Dsp.ModulationMath.IsRatioSpaced(pd.curve));
+                    value = Laubrary.Audio.ModulationMath.ToPosition(set, pd.min, pd.max, Laubrary.Audio.ModulationMath.IsRatioSpaced(pd.curve));
                     break;
                 case Dsp.ModulationCombine.ShiftFromCentre: value = 0.5f; break;
                 default: value = 0f; break;   // Shift (room-relative or whole range): nought does not move it

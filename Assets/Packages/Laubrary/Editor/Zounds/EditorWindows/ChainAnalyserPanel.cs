@@ -1,3 +1,4 @@
+using Laubrary.Audio;
 using UnityEditor;
 using UnityEngine;
 
@@ -771,7 +772,7 @@ namespace Laubrary.Zounds.EditorTools {
             var d = Dsp.ZoundEffectDescriptors.Get(chain.nodes[lane.nodeIndex].type);
             if (d == null || lane.paramIndex >= d.parameters.Length) return 0f;
             var pd = d.parameters[lane.paramIndex];
-            return Dsp.ModulationMath.FromPosition(position01, pd.min, pd.max, Dsp.ModulationMath.IsRatioSpaced(pd.curve));
+            return Laubrary.Audio.ModulationMath.FromPosition(position01, pd.min, pd.max, Laubrary.Audio.ModulationMath.IsRatioSpaced(pd.curve));
         }
 
         static float PositionOf(ZoundEffectChain chain, ChainSpectrumProbe.Lane lane, float value) {

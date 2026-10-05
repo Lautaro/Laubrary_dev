@@ -1,3 +1,4 @@
+using Laubrary.Audio;
 // A kept check for the curve-editing rules added 2026-09-30 (T-0509, T-0513).
 //
 //   1. Reset: a curve's "no change" value is read from its one binding: Ratio -> the middle, Scale -> one, Shift -> nought,

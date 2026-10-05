@@ -1,3 +1,4 @@
+using Laubrary.Audio;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.IntegerTime;
@@ -321,8 +322,7 @@ namespace Laubrary.Zounds.Dsp {
             // describes is wider than the window in which this voice's memory is actually in use, never narrower.
             // Erring wide only makes a waiting barrier wait slightly longer; erring narrow would let it conclude
             // "finished" while a block was still running, which is the one answer that must never be wrong.
-            bool ticketed = renderTicket.IsCreated;
-            if (ticketed) renderTicket[0] = renderTicket[0] + 1;   // now odd: inside a block
+            SapRenderTicket.Enter(renderTicket);   // now odd: inside a block
             // Counts this block, and separately counts it again only if it is running as managed code (T-0448).
             ZoundAudioThreadGuard.CountBlock();
 
@@ -333,15 +333,7 @@ namespace Laubrary.Zounds.Dsp {
             WriteTo(buffer, frames, produced);
             if (monitor.IsCreated && produced) CopyToMonitor(frames);
 
-            // The second slot counts frames rendered: this play's own clock, readable from the main thread, which is what
-            // the editor's displays follow a playing sound by. The wall clock is not the same thing — audio starts a moment
-            // after the voice is created and is produced in blocks — and following it put the analyser out of step (T-0443).
-            if (ticketed && renderTicket.Length > 1) renderTicket[1] = renderTicket[1] + frames;
-            // The third slot says the sound has ended, tail and all. A live-speed sound's length cannot be known in
-            // advance (T-0409), so whoever plays it learns the end from here rather than from a precomputed duration.
-            // It records WHEN (frames rendered at the end, never zero), so the play's true length is known afterwards.
-            if (ticketed && renderTicket.Length > 2 && finished && renderTicket[2] == 0) renderTicket[2] = renderTicket[1] > 0 ? renderTicket[1] : 1;
-            if (ticketed) renderTicket[0] = renderTicket[0] + 1;   // now even: between blocks
+            SapRenderTicket.Exit(renderTicket, frames, finished);
             return buffer.frameCount;
         }
 

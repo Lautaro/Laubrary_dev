@@ -1,19 +1,11 @@
-﻿using System.Threading;
+using Laubrary.Audio;
+using System.Threading;
 using Unity.Collections;
 using UnityEngine;
 
 namespace Laubrary.Zounds.Dsp {
 
     public enum VoiceState { Free = 0, Active = 1, Tailing = 2, Stopping = 3 }
-
-    /// <summary>Per-block values an effect may need beyond its parameters.</summary>
-    public struct VoiceContext {
-        public int sampleRate;
-        public float elapsedSeconds;     // since the source started, at block start
-        public float sourceDuration;     // resolved play length of the source material
-        public float sourcePeak;         // peak of the source PCM (for Normalize)
-        public bool sourceExhausted;
-    }
 
     /// <summary>How a repeating track re-arms its source: resolved on the main thread, executed by the voice.</summary>
     public struct RepeatPlan {

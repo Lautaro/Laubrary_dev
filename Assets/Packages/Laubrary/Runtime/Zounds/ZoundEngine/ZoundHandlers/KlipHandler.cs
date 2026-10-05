@@ -1,3 +1,4 @@
+using Laubrary.Audio;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -393,9 +394,9 @@ namespace Laubrary.Zounds {
                             if (n >= 0) {
                                 var pd = Dsp.ZoundEffectDescriptors.Get(chain.nodes[n].type).parameters[vb.param];
                                 if (ZoundSnapshots.MotionOf(pd, true) == ZoundSnapshots.Motion.Glide) {
-                                    bool ratio = Dsp.ModulationMath.IsRatioSpaced(pd.curve);
-                                    float pa = Dsp.ModulationMath.ToPosition(va.a, pd.min, pd.max, ratio), pb = Dsp.ModulationMath.ToPosition(vb.a, pd.min, pd.max, ratio);
-                                    v.a = Dsp.ModulationMath.FromPosition(pa + (pb - pa) * t, pd.min, pd.max, ratio);
+                                    bool ratio = Laubrary.Audio.ModulationMath.IsRatioSpaced(pd.curve);
+                                    float pa = Laubrary.Audio.ModulationMath.ToPosition(va.a, pd.min, pd.max, ratio), pb = Laubrary.Audio.ModulationMath.ToPosition(vb.a, pd.min, pd.max, ratio);
+                                    v.a = Laubrary.Audio.ModulationMath.FromPosition(pa + (pb - pa) * t, pd.min, pd.max, ratio);
                                 }
                                 else v.a = t >= 0.5f ? vb.a : va.a;
                             }

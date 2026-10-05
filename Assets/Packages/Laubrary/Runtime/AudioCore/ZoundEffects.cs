@@ -1,7 +1,9 @@
-﻿using Unity.Collections;
-using UnityEngine;
+using Unity.Collections;
+using Laubrary.Zounds;
+using Laubrary.Zounds.Dsp;
+using Mathf = Laubrary.Audio.AudioMath;
 
-namespace Laubrary.Zounds.Dsp {
+namespace Laubrary.Audio {
 
     /// <summary>
     /// Effect processing: one static method per effect over NativeArray<float> spans, a packed parameter block
@@ -399,17 +401,17 @@ namespace Laubrary.Zounds.Dsp {
         private const float SCALE_ROOM = 0.28f;
         private const float OFFSET_ROOM = 0.7f;
 
-        // Called only from main-thread layout building (ChainLayout.Build) and from ZoundEffectDescriptors'
+        // Called only from host-thread layout building and from the host descriptor's
         // sizing helper — never from the Burst-compiled render/reset path below, which only ever reads the
         // values these produce back out of the precomputed SapChainLayout.derivedFlat table. That split is
-        // what lets Burst compile Reset/Process without reaching ZoundEffectDescriptors' static tables.
-        internal static int CombLen(int i, int ch, int sr) => Mathf.CeilToInt(ZoundEffectDescriptors.ReverbCombTuning[i] * (sr / 44100f)) + (ch == 1 ? ZoundEffectDescriptors.ReverbStereoSpread : 0);
-        internal static int AllpassLen(int i, int ch, int sr) => Mathf.CeilToInt(ZoundEffectDescriptors.ReverbAllpassTuning[i] * (sr / 44100f)) + (ch == 1 ? ZoundEffectDescriptors.ReverbStereoSpread : 0);
+        // what lets Burst compile Reset/Process without reaching managed descriptor tables.
+        public static int CombLen(int i, int ch, int sr) => Mathf.CeilToInt(AudioEffectSizing.ReverbCombTuning[i] * (sr / 44100f)) + (ch == 1 ? AudioEffectSizing.ReverbStereoSpread : 0);
+        public static int AllpassLen(int i, int ch, int sr) => Mathf.CeilToInt(AudioEffectSizing.ReverbAllpassTuning[i] * (sr / 44100f)) + (ch == 1 ? AudioEffectSizing.ReverbStereoSpread : 0);
 
         // Header layout: [0..31] comb (index, filterstore) ×16, [32..39] allpass index ×8, [40..55] comb lengths ×16, [56..63] allpass lengths ×8.
-        // The lengths themselves are precomputed once on the main thread (ChainLayout.Build, via CombLen/AllpassLen
+        // The lengths themselves are precomputed once on the host thread (via CombLen/AllpassLen
         // above) and handed in here as `derived`/`dOff`; this keeps the render path from ever touching
-        // ZoundEffectDescriptors' static tuning tables, which is what blocked Burst compilation.
+        // managed descriptor tables.
         public static void Reset(NativeArray<float> st, int s, NativeArray<int> derived, int dOff) {
             for (int i = 0; i < HEADER; i++) st[s + i] = 0f;
             for (int c = 0; c < 8; c++) for (int ch = 0; ch < 2; ch++) st[s + 40 + c * 2 + ch] = derived[dOff + c * 2 + ch];
@@ -479,16 +481,15 @@ namespace Laubrary.Zounds.Dsp {
             }
         }
 
-        private const int SCRATCH = ZoundDspConstants.CONTROL_BLOCK;
+        private const int SCRATCH = AudioControl.BlockFrames;
     }
 
     // ── Flanger / Chorus: one stereo ring, LFO-modulated read taps. State: [0] write idx, [1] ring frames, [2] LFO phase, [4..) L ring then R ring. ──
     public static class ModDelayEffect {
         private const int HEADER = 4;
 
-        // ringFrames is precomputed once on the main thread (ChainLayout.Build, via ZoundEffectDescriptors.ModDelayFrames)
-        // and handed in here, so the render/reset path never calls into ZoundEffectDescriptors — that call was the
-        // other reach into its static tables that blocked Burst compilation.
+        // ringFrames is precomputed once on the host thread via AudioEffectSizing.ModDelayFrames
+        // and handed in here, keeping managed descriptor tables outside the render/reset path.
         public static void Reset(NativeArray<float> st, int s, int ringFrames) {
             st[s] = 0f;
             st[s + 1] = ringFrames;

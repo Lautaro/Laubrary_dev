@@ -1,32 +1,11 @@
-﻿using Unity.Collections;
+using Unity.Collections;
+using Laubrary.Zounds;
+using Laubrary.Zounds.Dsp;
+using Mathf = Laubrary.Audio.AudioMath;
 
-namespace Laubrary.Zounds.Dsp {
-
-    /// <summary>
-    /// The Burst-readable form of a <see cref="ChainLayout"/>: the same node, parameter, modifier and
-    /// binding tables, copied into native buffers so the audio thread can read them without touching a
-    /// managed object.
-    ///
-    /// One instance is owned exclusively by one play, taken when a voice starts and released when it
-    /// ends — it is deliberately NOT shared between voices, even when several play the same chain.
-    /// That is the whole point of it. A <see cref="ChainLayout"/> is cached and its cache is invalidated
-    /// wholesale, while a playing voice keeps the layout it started with for its entire life; today that
-    /// is safe only because the collector keeps an evicted layout alive for as long as a voice still
-    /// points at it. Native memory has no such protection, so putting native buffers in the shared
-    /// layout and freeing them when the cache evicts it would free memory the audio thread is still
-    /// reading — a use-after-free that would only appear when a chain is edited while something plays.
-    /// Copying per play removes that failure mode outright: nothing is shared, so nothing can be freed
-    /// underneath a reader, and the cache can go on simply dropping references.
-    ///
-    /// A layout is immutable once built and a voice never needs to see a later version, so the snapshot
-    /// loses nothing. The copy is a few kilobytes and happens once at voice start, never per block.
-    ///
-    /// Possible later optimisation, deliberately not taken: share one snapshot per layout behind
-    /// reference counting, to avoid duplicating it across voices playing the same chain. That trades a
-    /// small amount of memory for cross-thread lifetime bookkeeping on exactly the path that should stay
-    /// simple, and the memory is not a problem at the configured limits.
-    /// </summary>
-    public struct SapChainLayout {
+namespace Laubrary.Audio {
+    /// <summary>Native prepared tables. The owner disposes them only after all renderers borrowing them have stopped.</summary>
+    public struct SapChainLayout : System.IDisposable {
 
         // ── nodes ──
         public int nodeCount;
@@ -81,7 +60,7 @@ namespace Laubrary.Zounds.Dsp {
         public float tailSeconds;
         public bool pitchModulated;
 
-        /// <summary>Flat parameter index of (node, param); nodeIndex -1 is the source stage. Mirrors ChainLayout.</summary>
+        /// <summary>Flat parameter index of (node, param); nodeIndex -1 is the source stage. Source stage indexing is interpreted by the host.</summary>
         public readonly int FlatIndex(int nodeIndex, int paramIndex) {
             if (nodeIndex < 0) return paramIndex;
             return paramOffset[nodeIndex] + paramIndex;
@@ -89,8 +68,8 @@ namespace Laubrary.Zounds.Dsp {
 
         public readonly bool IsCreated => nodeType.IsCreated;
 
-        /// <summary>Copies a managed layout into native buffers. The source is not retained.</summary>
-        public static SapChainLayout Create(ChainLayout L, Allocator allocator) {
+        /// <summary>Copies plain managed arrays into native buffers on the preparation thread. The input is not retained.</summary>
+        public static SapChainLayout Create(AudioChainTables L, Allocator allocator) {
             var s = new SapChainLayout {
                 nodeCount = L.nodeCount,
                 paramCount = L.paramCount,
@@ -189,6 +168,7 @@ namespace Laubrary.Zounds.Dsp {
             if (bindOp.IsCreated) bindOp.Dispose();
             if (bindCombine.IsCreated) bindCombine.Dispose();
             if (bindDepth.IsCreated) bindDepth.Dispose();
+            this = default;
         }
     }
 }

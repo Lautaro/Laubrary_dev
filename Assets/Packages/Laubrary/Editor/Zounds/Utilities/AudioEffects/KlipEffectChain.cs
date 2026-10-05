@@ -1,3 +1,4 @@
+using Laubrary.Audio;
 namespace Laubrary.Zounds {
 
     public static class KlipEffectChain {
