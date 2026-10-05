@@ -17,7 +17,8 @@ namespace Laubrary.GoreLab.Editor
 
         DragKind dragging;
         bool gestureOpen;
-        Vector2 pressSprite, lastSprite;
+        Vector2 pressSprite, lastSprite, pressLocal;
+        bool pressMoved;      // the pointer travelled more than a tap's few screen pixels since it went down
         Vector2 grabOffset, edge0;
         MemberTag startTag;
         double zSign = 1;
@@ -47,6 +48,8 @@ namespace Laubrary.GoreLab.Editor
             if (e.button == 2 || w.shown == null || w.Rig == null) return;   // middle belongs to ZuiPanZoom
             var p = LocalToSprite(e.localPosition);
             pressSprite = lastSprite = p;
+            pressLocal = (Vector2)e.localPosition;
+            pressMoved = false;
             dragging = DragKind.None;
 
             if (e.button == 0 && TryBeginGizmo(e.localPosition)) { }
@@ -154,6 +157,7 @@ namespace Laubrary.GoreLab.Editor
                 if (w.tab == GoreLabWindow.Tab.Paint) overlay.MarkDirtyRepaint();
                 return;
             }
+            if (((Vector2)e.localPosition - pressLocal).magnitude > 4f) pressMoved = true;
             var p = LocalToSprite(e.localPosition);
             switch (dragging)
             {
@@ -239,7 +243,7 @@ namespace Laubrary.GoreLab.Editor
             var p = LocalToSprite(e.localPosition);
             var kind = dragging;
 
-            if ((kind == DragKind.Up || kind == DragKind.Forward) && (p - pressSprite).magnitude < 1.5f)
+            if ((kind == DragKind.Up || kind == DragKind.Forward) && !pressMoved)
             {
                 // A tap on a dot flips it to the other half of the sphere.
                 var mf = w.ActiveMemberFrame(false);
@@ -251,7 +255,7 @@ namespace Laubrary.GoreLab.Editor
                     mf.tag = t;
                 }
             }
-            if ((kind == DragKind.GizmoUp || kind == DragKind.GizmoForward || kind == DragKind.GizmoEast) && (p - pressSprite).magnitude < 1.5f) TapGizmo(kind);
+            if ((kind == DragKind.GizmoUp || kind == DragKind.GizmoForward || kind == DragKind.GizmoEast) && !pressMoved) TapGizmo(kind);
             if (kind == DragKind.Wound)
             {
                 if ((p - pressSprite).magnitude >= 2f) w.FireWound(pressSprite, p);
