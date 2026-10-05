@@ -12,7 +12,7 @@ HERE=Path(__file__).resolve().parent
 
 
 def write_json(path,value):
-    path.write_text(json.dumps(value,indent=2,sort_keys=True,allow_nan=False)+'\n',encoding='utf-8')
+    path.write_bytes((json.dumps(value,indent=2,sort_keys=True,allow_nan=False)+'\n').encode('utf-8'))
 
 
 def clock(spec):
@@ -145,7 +145,7 @@ def generate(output):
         policy='statistical only' if s.get('statistical_only') else 'explicit defect: '+', '.join(s['approved_defects']) if s['approved_defects'] else 'numeric + exact events'
         table.append('| %s | %d / %d | %s | %s |'%(s['id'],s['frames'],s['buffer'],s['description'],policy))
     readme=(HERE/'README.template.md').read_text(encoding='utf-8').replace('{{CASE_TABLE}}','\n'.join(table)).replace('{{CASE_COUNT}}',str(len(specs))).replace('{{AUDIO_BYTES}}',str(manifest['audio_bytes']))
-    (output/'README.md').write_text(readme,encoding='utf-8')
+    (output/'README.md').write_bytes(readme.encode('utf-8'))
     print('Generated %d cases, %d audio bytes, %d paired behavior assertions'%(len(specs),manifest['audio_bytes'],len(checks)))
     return manifest
 
