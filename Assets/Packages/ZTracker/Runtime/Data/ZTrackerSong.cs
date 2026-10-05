@@ -5,6 +5,11 @@ using UnityEngine;
 [CreateAssetMenu(menuName = "ZTracker/Song", fileName = "NewSong")]
 public class ZTrackerSong : ScriptableObject
 {
+    // Zero intentionally has no initializer: an absent YAML field is legacy.
+    public int schemaVersion;
+    public Laubrary.ZTracker.Model.SongData model;
+    public Laubrary.ZTracker.Model.LegacySongPayload legacyArchive;
+    [NonSerialized] internal bool legacyPrepared;
     public string songName = "Untitled";
     public int bpm = 120;
     public int linesPerBeat = 4;
@@ -25,6 +30,7 @@ public class ZTrackerSong : ScriptableObject
 
     public void EnsureDefaults()
     {
+        if (schemaVersion != 0) return;
         if (patterns.Count == 0)
             patterns.Add(new ZTrackerPattern("Pattern 0", 64, channelCount));
         if (orderList.Count == 0)
@@ -63,6 +69,13 @@ public class ZTrackerSong : ScriptableObject
 
     public void PushToNative(IntPtr ctx)
     {
+        using (var prepared = Laubrary.ZTracker.Model.ZTrackerLegacyCompatibility.Prepare(this))
+            prepared.PushToNative(ctx);
+    }
+
+    internal void PushLegacyToNative(IntPtr ctx)
+    {
+        if (!legacyPrepared) throw new InvalidOperationException("Upload requires a prepared compatibility snapshot.");
         ZTrackerNative.ZT_SetSongTempo(ctx, bpm, ticksPerRow);
         ZTrackerNative.ZT_SetLinesPerBeat(ctx, linesPerBeat);
 
@@ -200,7 +213,7 @@ public class ZTrackerPattern
             if (t < song.channels.Count)
             {
                 noteCols = Mathf.Clamp(song.channels[t].noteColumnCount, 1, 12);
-                fxCols   = Mathf.Clamp(song.channels[t].fxColumnCount, 1, 8);
+                fxCols   = Mathf.Clamp(song.channels[t].fxColumnCount, 0, 8);
             }
             int bandBase = song.GetTrackNativeBase(t);
 

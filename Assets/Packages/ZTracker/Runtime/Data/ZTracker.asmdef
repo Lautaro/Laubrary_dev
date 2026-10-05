@@ -1,6 +1,6 @@
 {
   "name": "ZTracker",
   "rootNamespace": "",
-  "references": ["com.Lautaro-Arino.Laubrary.ZuiRuntime"],
+  "references": ["com.Lautaro-Arino.Laubrary.ZuiRuntime", "com.Lautaro-Arino.Laubrary.AudioCore"],
   "autoReferenced": true
 }

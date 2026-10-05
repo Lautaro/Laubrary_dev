@@ -32,6 +32,9 @@ namespace Laubrary.ZTracker
         ZTrackerInstrument refreshInstrument;
         int refreshVariation;
         ZTrackerInstrument auditionInstrument;
+        ZTrackerSong sourceSong;
+        ZTrackerInstrument sourceAudition;
+        Model.PreparedLegacySong preparedSong;
 
         public static bool TryPlay(ZTrackerSong song, out ZTrackerPlayback playback, out string error, int order = 0, int row = 0)
             => TryStart(song, null, 69, out playback, out error, order, row, -1);
@@ -48,7 +51,6 @@ namespace Laubrary.ZTracker
             if (song == null && instrument == null) { error = "Choose a song or instrument first."; return false; }
             if (current != null) { error = "Stop the current tracker playback first."; return false; }
             if (!ZTrackerCapability.CheckNative(out error)) return false;
-            if (song != null && !Validate(song, out error)) return false;
 
             var go = new GameObject("ZTracker playback");
             if (Application.isPlaying) DontDestroyOnLoad(go);
@@ -56,6 +58,15 @@ namespace Laubrary.ZTracker
             var host = go.AddComponent<ZTrackerPlayback>();
             try
             {
+                host.sourceSong = song;
+                host.sourceAudition = instrument;
+                if (song != null)
+                {
+                    host.preparedSong = Model.ZTrackerLegacyCompatibility.Prepare(song);
+                    song = host.preparedSong.song;
+                    if (!Validate(song,out error)) throw new InvalidOperationException(error);
+                }
+                else { instrument = Model.ZTrackerLegacyCompatibility.Prepare(instrument); host.auditionInstrument = instrument; }
                 host.context = ZTrackerNative.ZT_Create(AudioSettings.outputSampleRate);
                 host.IsSong = song != null;
                 host.playingSong = song;
@@ -67,7 +78,7 @@ namespace Laubrary.ZTracker
                 // Upload finishes before the source can enter the renderer.
                 if (song != null)
                 {
-                    song.PushToNative(host.context);
+                    host.preparedSong.PushToNative(host.context);
                     order = Mathf.Clamp(order, 0, song.orderList.Count - 1);
                     row = Mathf.Clamp(row, 0, song.patterns[song.orderList[order]].rowCount - 1);
                     ZTrackerNative.ZT_Play(host.context, order, row);
@@ -114,11 +125,33 @@ namespace Laubrary.ZTracker
             }
             finally { Volatile.Write(ref gate, 0); }
         }
+        public bool TryMapNativeChannel(int nativeChannel, out string trackId, out int noteColumn)
+        {
+            trackId = null; noteColumn = -1;
+            if (preparedSong == null || nativeChannel < 0 || nativeChannel >= preparedSong.nativeTrackIds.Count) return false;
+            trackId = preparedSong.nativeTrackIds[nativeChannel]; noteColumn = preparedSong.nativeNoteColumns[nativeChannel]; return true;
+        }
 
         // Scalar sound edits retain the source, voice phase and envelope age. Structural edits use
         // the explicit restart path instead. The main thread retries on contention; audio never waits.
         public void RefreshInstrument(ZTrackerInstrument instrument, int preset)
-        { refreshInstrument = instrument; refreshVariation = preset; PumpInstrumentRefresh(); }
+        {
+            // Resolve the edited authoritative asset before polling or native scalar writes.
+            // Never consult an obsolete dense/source copy in the active host.
+            var snapshot = Model.ZTrackerLegacyCompatibility.Prepare(instrument);
+            try
+            {
+                ZTrackerInstrument target = null;
+                if (sourceSong == null) { if (instrument == sourceAudition) target = auditionInstrument; }
+                else
+                {
+                    var sources = sourceSong.schemaVersion == 0 ? sourceSong.instruments : sourceSong.model.instruments;
+                    for (int i = 0; i < sources.Count && i < playingSong.instruments.Count; i++) if (sources[i] == instrument) { target = playingSong.instruments[i]; if (target != null) JsonUtility.FromJsonOverwrite(JsonUtility.ToJson(snapshot),target); }
+                }
+                if (target != null) { JsonUtility.FromJsonOverwrite(JsonUtility.ToJson(snapshot),target); refreshInstrument = target; refreshVariation = preset; PumpInstrumentRefresh(); }
+            }
+            finally { DestroyImmediate(snapshot); }
+        }
 
         void PumpInstrumentRefresh()
         {
@@ -309,6 +342,8 @@ namespace Laubrary.ZTracker
                 else DestroyImmediate(silence);
                 silence = null;
             }
+            if (preparedSong != null) { preparedSong.Dispose(); preparedSong = null; }
+            if (auditionInstrument != null) { DestroyImmediate(auditionInstrument); auditionInstrument = null; }
         }
 
         void OnDisable() => Release();

@@ -1,7 +1,7 @@
 {
   "name": "com.Lautaro-Arino.Laubrary.ZTracker.Editor",
   "rootNamespace": "Laubrary.ZTracker.Editor",
-  "references": ["ZTracker", "com.Lautaro-Arino.Laubrary.ZTracker", "com.Lautaro-Arino.Laubrary.Zui.Editor", "com.Lautaro-Arino.Laubrary.ZuiRuntime"],
+  "references": ["ZTracker", "com.Lautaro-Arino.Laubrary.ZTracker", "com.Lautaro-Arino.Laubrary.Zui.Editor", "com.Lautaro-Arino.Laubrary.ZuiRuntime", "com.Lautaro-Arino.Laubrary.AudioCore"],
   "includePlatforms": ["Editor"],
   "autoReferenced": true
 }

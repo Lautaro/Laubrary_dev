@@ -27,11 +27,13 @@ namespace Laubrary.ZTracker.Editor
         bool refreshPending, refreshSong;
         int refreshPitch, refreshPreset, refreshOrder, refreshRow;
         int followedRow = -1;
+        ZTrackerLegacyEdit gesture;
         ZTrackerPattern Pattern => song != null && song.orderList.Count > 0 && song.patterns.Count > 0 ? song.patterns[Mathf.Clamp(song.orderList[Mathf.Clamp(order, 0, song.orderList.Count - 1)], 0, song.patterns.Count - 1)] : null;
         [MenuItem("Laubrary/ZTracker")]
         public static void Open() => GetWindow<ZTrackerWindow>("ZTracker");
         protected override void BuildUI(VisualElement root)
         {
+            SynchronizeView();
             minSize = new Vector2(760, 440); cellLabels.Clear();
             var sheetPath = AssetDatabase.FindAssets("ZTracker t:StyleSheet").Select(AssetDatabase.GUIDToAssetPath).FirstOrDefault(p => p.EndsWith("/ZTracker.uss"));
             var sheet = sheetPath == null ? null : AssetDatabase.LoadAssetAtPath<StyleSheet>(sheetPath);
@@ -55,9 +57,15 @@ namespace Laubrary.ZTracker.Editor
         void Change(UnityEngine.Object owner, string label, Action edit, bool rebuild = false, bool liveScalar = false)
         {
             if (owner == null) return;
+            gesture?.Dispose(); gesture = null;
+            ZTrackerLegacyEdit transaction;
+            try { transaction = new ZTrackerLegacyEdit(owner,label); }
+            catch (Exception ex) { lastError = ex.Message; RefreshTransport(); return; }
+            using (transaction)
+            {
             if(owner==instrument && playback!=null && playback.IsPlaying && liveScalar)
             {
-                Undo.RecordObject(owner,"Tracker: "+label);edit();EditorUtility.SetDirty(owner);
+                try { edit(); transaction.Commit(); } catch (Exception ex) { transaction.Dispose(); Rebuild(); lastError = ex.Message; RefreshTransport(); return; }
                 playback.RefreshInstrument(instrument,preset);
                 if(rebuild){RebuildControls();BuildPattern();}else RefreshCells();
                 return;
@@ -66,7 +74,8 @@ namespace Laubrary.ZTracker.Editor
             bool resume = active || refreshPending;
             int pitch = active ? playback.AuditionNote : refreshPitch, variation = active ? playback.AuditionPreset : refreshPreset, startOrder = refreshPending ? refreshOrder : order, startRow = refreshPending ? refreshRow : row;
             if (active && wasSong) playback.TryGetPosition(out startOrder, out startRow);
-            StopPreview(); Undo.RecordObject(owner, "Tracker: " + label); edit(); EditorUtility.SetDirty(owner);
+            StopPreview();
+            try { edit(); transaction.Commit(); } catch (Exception ex) { transaction.Dispose(); Rebuild(); lastError = ex.Message; RefreshTransport(); return; }
             if (rebuild) { RebuildControls(); BuildPattern(); } else RefreshCells();
             if (resume)
             {
@@ -80,35 +89,53 @@ namespace Laubrary.ZTracker.Editor
                     RefreshTransport();
                 }).StartingIn(80);
             }
+            }
         }
         void BeginInstrumentGesture(string label)
         {
+            gesture?.Dispose(); gesture = new ZTrackerLegacyEdit(instrument,label);
             bool active = playback != null && playback.IsPlaying;
             bool resume = active || refreshPending, isSong = active ? playback.IsSong : refreshSong;
             int pitch = active ? playback.AuditionNote : refreshPitch, variation = active ? playback.AuditionPreset : refreshPreset, o = refreshOrder, r = refreshRow;
             if (active && isSong) playback.TryGetPosition(out o,out r);
             StopPreview(); refreshPending = resume; refreshSong = isSong; refreshPitch = pitch; refreshPreset = variation; refreshOrder = o; refreshRow = r;
-            Undo.RecordObject(instrument,"Tracker: " + label);
         }
         void EndInstrumentGesture()
         {
-            EditorUtility.SetDirty(instrument);
+            if (gesture == null) return;
+            // ZUI starts once per drag but reports every move. Keep the transaction
+            // (and its single Undo snapshot) alive across all reported changes.
+            bool active = playback != null && playback.IsPlaying;
+            bool resume = active || refreshPending, isSong = active ? playback.IsSong : refreshSong;
+            int pitch = active ? playback.AuditionNote : refreshPitch, variation = active ? playback.AuditionPreset : refreshPreset, o = refreshOrder, r = refreshRow;
+            if (active && isSong) playback.TryGetPosition(out o,out r);
+            if (active) StopPreview();
+            try { gesture.Commit(); }
+            catch (Exception ex) { gesture.Dispose(); gesture = null; Rebuild(); lastError = ex.Message; RefreshTransport(); return; }
+            refreshPending = resume; refreshSong = isSong; refreshPitch = pitch; refreshPreset = variation; refreshOrder = o; refreshRow = r;
             if (!refreshPending) return;
             int version = ++refreshVersion;
             rootVisualElement.schedule.Execute(() => { if (version != refreshVersion || this == null) return; refreshPending = false; if (refreshSong) ZTrackerPlayback.TryPlay(song,out playback,out lastError,refreshOrder,refreshRow); else ZTrackerPlayback.TryAudition(instrument,refreshPitch,out playback,out lastError,refreshPreset); RefreshTransport(); }).StartingIn(80);
         }
         void SongEdit(string label, Action edit, bool rebuild = false) => Change(song, label, edit, rebuild);
         void InstrumentEdit(string label, Action edit, bool rebuild = false, bool liveScalar = false) => Change(instrument, label, edit, rebuild, liveScalar);
-        void Save() { if (song != null) AssetDatabase.SaveAssetIfDirty(song); if (instrument != null) AssetDatabase.SaveAssetIfDirty(instrument); }
+        void Save()
+        {
+            lastError = song != null ? Laubrary.ZTracker.Model.ZTrackerMigration.VersionError(song.schemaVersion) : null;
+            lastError = lastError ?? (instrument != null ? Laubrary.ZTracker.Model.ZTrackerMigration.VersionError(instrument.schemaVersion) : null);
+            if (lastError != null) { RefreshTransport(); return; }
+            if (song != null) AssetDatabase.SaveAssetIfDirty(song); if (instrument != null) AssetDatabase.SaveAssetIfDirty(instrument);
+        }
         static void Folder() { if (!AssetDatabase.IsValidFolder("Assets/ZTracker")) AssetDatabase.CreateFolder("Assets", "ZTracker"); }
         void CreateSong()
         {
-            StopPreview(); Folder(); song = CreateInstance<ZTrackerSong>(); song.EnsureDefaults(); AssetDatabase.CreateAsset(song, AssetDatabase.GenerateUniqueAssetPath("Assets/ZTracker/Song.asset"));
+            StopPreview(); Folder(); song = CreateInstance<ZTrackerSong>(); song.EnsureDefaults(); Laubrary.ZTracker.Model.ZTrackerMigration.Upgrade(song,out _); AssetDatabase.CreateAsset(song, AssetDatabase.GenerateUniqueAssetPath("Assets/ZTracker/Song.asset"));
             Undo.RegisterCreatedObjectUndo(song, "Tracker: create song"); AssetDatabase.SaveAssetIfDirty(song); order = row = track = sub = 0; instrument = null; entryInstrument = 0; Rebuild();
         }
         void CreateInstrument()
         {
             StopPreview(); Folder(); instrument = CreateInstance<ZTrackerInstrument>(); instrument.type = InstrumentType.Synth; instrument.waveA = 0; instrument.volume = .25f;
+            Laubrary.ZTracker.Model.ZTrackerMigration.Upgrade(instrument,out _);
             AssetDatabase.CreateAsset(instrument, AssetDatabase.GenerateUniqueAssetPath("Assets/ZTracker/Instrument.asset")); Undo.RegisterCreatedObjectUndo(instrument, "Tracker: create instrument");
             if (song != null) { SongEdit("add instrument", () => song.instruments.Add(instrument)); entryInstrument = song.instruments.Count - 1; }
             AssetDatabase.SaveAssetIfDirty(instrument); preset = -1; pane = 1; Rebuild();
@@ -127,12 +154,21 @@ namespace Laubrary.ZTracker.Editor
             else status.text = lastError != null ? "Unavailable" : active ? "Playing" : "Idle";
             status.tooltip = lastError ?? "Blend and oscillator edits update the held voice. Structural edits safely restart preview after a short pause. " + ZTrackerCapability.Description;
         }
-        protected override void OnBeforeRebuild() { StopPreview(); }
-        protected override void OnDisable() { StopPreview(); base.OnDisable(); }
+        protected override void OnBeforeRebuild() { gesture?.Dispose(); gesture = null; StopPreview(); }
+        protected override void OnDisable() { gesture?.Dispose(); gesture = null; StopPreview(); base.OnDisable(); }
+        void SynchronizeView()
+        {
+            try { Laubrary.ZTracker.Model.ZTrackerLegacyCompatibility.RefreshView(song); Laubrary.ZTracker.Model.ZTrackerLegacyCompatibility.RefreshView(instrument); }
+            catch (Exception ex) { lastError = ex.Message; }
+        }
         void RebuildControls()
         {
             if (controls == null) return; var scroll = controls.GetFirstAncestorOfType<ScrollView>(); Vector2 offset = scroll?.scrollOffset ?? Vector2.zero; controls.Clear();
             if (pane == 1) BuildInstrument(controls); else if (song != null) BuildSongControls();
+            bool editable = true; string reason = null;
+            if (pane == 1 && instrument != null) editable = Laubrary.ZTracker.Model.ZTrackerLegacyCompatibility.CanEdit(instrument,out reason);
+            else if (song != null) editable = Laubrary.ZTracker.Model.ZTrackerLegacyCompatibility.CanEdit(song,out reason);
+            controls.SetEnabled(editable); if (!editable) { lastError = reason; RefreshTransport(); }
             if (scroll != null) scroll.schedule.Execute(() => scroll.scrollOffset = offset);
         }
         void BuildSongControls()
@@ -154,7 +190,7 @@ namespace Laubrary.ZTracker.Editor
             tracks.Add(Flow(Button("Add track", "Add an empty track to every pattern.", () => { if (song.GetTotalNativeChannels() < 32) SongEdit("add track", () => { foreach (var p in song.patterns) p.Resize(p.rowCount, song.channelCount + 1, song.channelCount); song.channelCount++; song.channels.Add(new ZTrackerChannelConfig()); }, true); }), Button("Duplicate track", "Copy selected track and mixer settings to a new track.", DuplicateTrack), Button("Remove track", "Remove selected track and its cells. Undo restores them.", RemoveTrack)));
             for (int t = 0; t < song.channelCount && t < song.channels.Count; t++) { var c = song.channels[t]; var card = Z.BoxKeyed("Track " + (t + 1), "Mixer and column counts for this track.", "tracker.track." + t);
                 card.Add(Flow(Z.Toggle("Mute", "Silence all note columns on this track.", c.muted, v => SongEdit("mute track", () => c.muted = v)), DialSong("Gain", c.volume, 0, 1, "Gain applied to each voice on this track.", v => c.volume = v, decimals: 2), DialSong("Pan", c.pan, -1, 1, "Stereo balance; -1 left, 0 center, 1 right.", v => c.pan = v, decimals: 2)));
-                card.Add(Flow(DialSong("Notes", c.noteColumnCount, 1, 12, "Visible note columns; hidden notes are kept. Maximum 32 native channels across the song.", v => c.noteColumnCount = Mathf.Min((int)v, 32 - song.GetTotalNativeChannels() + c.noteColumnCount), true), DialSong("FX", c.fxColumnCount, 1, 8, "Visible effects. Extra effects wrap over note columns; later effects sharing a channel win.", v => c.fxColumnCount = (int)v, true))); tracks.Add(card); } controls.Add(tracks);
+                card.Add(Flow(DialSong("Notes", c.noteColumnCount, 1, 12, "Visible note columns; hidden notes are kept. Maximum 32 native channels across the song.", v => c.noteColumnCount = Mathf.Min((int)v, 32 - song.GetTotalNativeChannels() + c.noteColumnCount), true), DialSong("FX", c.fxColumnCount, 0, 8, "Visible effects; zero hides all effects without deleting them. Playback refuses nonempty effects that collide on one native channel.", v => c.fxColumnCount = (int)v, true))); tracks.Add(card); } controls.Add(tracks);
         }
         VisualElement DialSong(string label, float value, float min, float max, string tip, Action<float> apply, bool rebuild = false, int decimals = 0) => Named(Z.MicroSlider(label, value, min, max, tip, v => SongEdit(label, () => apply(v), rebuild), 145, decimals: decimals), "song-" + label);
         static T Clone<T>(T value) => JsonUtility.FromJson<T>(JsonUtility.ToJson(value));

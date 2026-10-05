@@ -4,6 +4,10 @@ using UnityEngine;
 [CreateAssetMenu(menuName = "ZTracker/Instrument", fileName = "NewInstrument")]
 public class ZTrackerInstrument : ScriptableObject
 {
+    public int schemaVersion;
+    public Laubrary.ZTracker.Model.InstrumentData model;
+    public Laubrary.ZTracker.Model.InstrumentParameters legacyArchive;
+    [NonSerialized] internal bool legacyPrepared;
     public InstrumentType type = InstrumentType.Sample;
 
     // Name comes from the asset filename
@@ -388,6 +392,13 @@ public class ZTrackerInstrument : ScriptableObject
     /// specific preset, so editor-preview choices never leak into playback.</summary>
     public void PushToNative(IntPtr ctx, int slotID, int presetIdx)
     {
+        if (!legacyPrepared)
+        {
+            var projection = Laubrary.ZTracker.Model.ZTrackerLegacyCompatibility.Prepare(this);
+            try { projection.PushToNative(ctx, slotID, presetIdx); }
+            finally { UnityEngine.Object.DestroyImmediate(projection); }
+            return;
+        }
         switch (type)
         {
             case InstrumentType.Sample:
@@ -424,6 +435,7 @@ public class ZTrackerInstrument : ScriptableObject
     // It does not allocate curves, upload samples or refresh unrelated modulation/effect settings.
     public bool RefreshScalarDefinition(IntPtr ctx, int slotID, int presetIdx)
     {
+        if (!legacyPrepared) throw new InvalidOperationException("Refresh requires a prepared compatibility instrument.");
         if (type == InstrumentType.Synth) { PushSynthToNative(ctx, slotID, presetIdx, false); return true; }
         if (type != InstrumentType.Sample) return false;
         ResolveSampleParams(presetIdx, out AudioClip a, out _, out _);

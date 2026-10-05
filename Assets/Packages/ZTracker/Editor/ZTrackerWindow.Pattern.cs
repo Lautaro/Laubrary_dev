@@ -11,7 +11,7 @@ namespace Laubrary.ZTracker.Editor
     public sealed partial class ZTrackerWindow
     {
         int Notes(int t) => Mathf.Clamp(song.channels[t].noteColumnCount, 1, 12);
-        int Effects(int t) => Mathf.Clamp(song.channels[t].fxColumnCount, 1, 8);
+        int Effects(int t) => Mathf.Clamp(song.channels[t].fxColumnCount, 0, 8);
         int Subs(int t) => Notes(t) + 2 + Effects(t);
         int entryNote = 60;
         static readonly string[] CommandNames = { "None", "1 Pitch up", "2 Pitch down", "3 Glide", "4 Vibrato", "5 Glide + volume", "6 Vibrato + volume", "7 Tremolo", "8 Pan", "9 Sample offset", "A Volume slide", "B Order jump", "C Volume", "D Pattern break", "E Extended", "F Tempo", "G Macro", "H Macro slide", "I Preset" };
@@ -19,6 +19,8 @@ namespace Laubrary.ZTracker.Editor
         void BuildPattern()
         {
             if (stage == null) return;
+            bool editable = song == null || Laubrary.ZTracker.Model.ZTrackerLegacyCompatibility.CanEdit(song,out _);
+            stage.SetEnabled(editable);
             Vector2 offset = grid?.scrollOffset ?? Vector2.zero; stage.Clear(); cellLabels.Clear();
             if (Pattern == null) return;
             row = Mathf.Clamp(row, 0, Pattern.rowCount - 1); track = Mathf.Clamp(track, 0, song.channelCount - 1); sub = Mathf.Clamp(sub, 0, Subs(track) - 1);
