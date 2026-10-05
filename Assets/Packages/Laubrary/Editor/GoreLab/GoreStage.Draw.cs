@@ -83,11 +83,11 @@ namespace Laubrary.GoreLab.Editor
             for (int i = 0; i < w.MemberCount; i++)
             {
                 if (i == w.memberIndex || !w.TryShownMember(i, out var other, out _, out _, out _)) continue;
-                Outline(p, other, 0.3f);                        // the other members, faint, for context
+                Outline(p, other, 0.3f * w.outlineAlpha);                        // the other members, faint, for context
             }
             if (!ShowsMember(out var t)) return;
             float a = w.shapeAlpha;
-            Outline(p, t, 0.9f * a);
+            Outline(p, t, 0.9f * w.outlineAlpha);
             if (t.kind == MemberKind.Box) PaintBox(p, t, a); else PaintSphere(p, t, a);
             PaintMarks(p, t, a);
             PaintGizmo(p, t, Mathf.Max(0.6f, a));
@@ -215,7 +215,7 @@ namespace Laubrary.GoreLab.Editor
         void PaintTest(Painter2D p)
         {
             for (int i = 0; i < w.MemberCount; i++)
-                if (w.TryShownMember(i, out var t, out _, out _, out bool skip) && !skip) Outline(p, t, 0.3f);
+                if (w.TryShownMember(i, out var t, out _, out _, out bool skip) && !skip) Outline(p, t, 0.3f * w.outlineAlpha);
 
             if (dragging == DragKind.Wound)
             {

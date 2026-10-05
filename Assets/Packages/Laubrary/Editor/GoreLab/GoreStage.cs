@@ -258,11 +258,10 @@ namespace Laubrary.GoreLab.Editor
                 highlight.image = highlightTex;
 
                 System.Array.Clear(s_layer, 0, n);
-                foreach (int k in behind) if (k >= 0 && k < n) s_layer[k] = new Color32(255, 130, 40, 153);
-                foreach (int k in exempt) if (k >= 0 && k < n) s_layer[k] = new Color32(190, 90, 255, 166);
+                foreach (int k in behind) if (k >= 0 && k < n) s_layer[k] = new Color32(255, 130, 40, (byte)(153 * w.behindAlpha));
+                foreach (int k in exempt) if (k >= 0 && k < n) s_layer[k] = new Color32(190, 90, 255, (byte)(166 * w.frontAlpha));
                 paintTex = Bake(paintTex, W, H);
                 paint.image = paintTex;
-                paint.tintColor = new Color(1f, 1f, 1f, w.paintAlpha);
             }
 
             if (w.tab == GoreLabWindow.Tab.Test && w.previewMask != null && w.previewMask.Length == n)

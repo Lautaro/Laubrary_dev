@@ -27,6 +27,13 @@ namespace Laubrary.GoreLab.Editor
                 Z.IconButton("arrow-clockwise", "Redo (Ctrl+Y).", Undo.PerformRedo),
                 tabs);
             host.Add(first);
+            host.Add(Z.Row(
+                Z.MicroSlider("3D shape", shapeAlpha, 0.05f, 1f,
+                    "How visible the 3D shape on the sprite is: the sphere or box wireframe, its dots and letters. Lower it to see the sprite through them.",
+                    v => { shapeAlpha = v; stage?.Refresh(); }, SliderW),
+                Z.MicroSlider("Outline", outlineAlpha, 0.05f, 1f,
+                    "How visible the dashed outlines are: the marked shape of the active member and, fainter, the other members'.",
+                    v => { outlineAlpha = v; stage?.Refresh(); }, SliderW)));
 
             if (tab != Tab.Test) host.Add(BuildMemberChooser());
             if (!HasFrames && tab != Tab.Frame) host.Add(BuildTargetRow());
@@ -115,11 +122,6 @@ namespace Laubrary.GoreLab.Editor
             BuildTurnRows(host, editable);
         }
 
-        VisualElement ShapeOpacitySlider()
-            => Z.MicroSlider("Outline", shapeAlpha, 0.05f, 1f,
-                "How visible the outline, the sphere or box wireframe and the dots are. Lower it to see the sprite through them.",
-                v => { shapeAlpha = v; stage?.Refresh(); }, SliderW);
-
         // ── Turning (part of the Shape tab) ───────────────────────────────────────────────────────────
 
         // The turning controls sit under the shape's own sliders: a fixed-angle turn, the direction default, hold-to-hide-far-side and the outline opacity.
@@ -148,7 +150,6 @@ namespace Laubrary.GoreLab.Editor
                 () => Edit("Default orientation", () => FaceDefault(true)));
             defAll.SetEnabled(CanEditShown);
             host.Add(Z.Row(def, defAll, HoldHideFar()));
-            host.Add(Z.Row(ShapeOpacitySlider()));
         }
 
         void TurnActive(float deg)
@@ -216,9 +217,13 @@ namespace Laubrary.GoreLab.Editor
             clear.SetEnabled(editable);
             host.Add(Z.Row(brush, fill, clear));
 
-            host.Add(Z.Row(Z.MicroSlider("Paint", paintAlpha, 0.05f, 1f,
-                "How visible the painted Behind and In front masks are. Lower it to see the pixels under the paint.",
-                v => { paintAlpha = v; stage?.Refresh(); }, SliderW)));
+            host.Add(Z.Row(
+                Z.MicroSlider("Behind", behindAlpha, 0.05f, 1f,
+                    "How visible the orange Behind paint is. Lower it to see the pixels under it.",
+                    v => { behindAlpha = v; stage?.Refresh(); }, SliderW),
+                Z.MicroSlider("In front", frontAlpha, 0.05f, 1f,
+                    "How visible the purple In front paint is. Lower it to see the pixels under it.",
+                    v => { frontAlpha = v; stage?.Refresh(); }, SliderW)));
         }
 
         void FillMask()
