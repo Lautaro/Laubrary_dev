@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Added canonical retained sampler and synth instrument authoring: sample/zone identity-safe dragging, waveform loop bounds, slices and regions, per-sample playback/NNA, paired B sources, modulation devices, reusable AudioCore chains, eight macros, typed external maps and section presets. New instruments use clean modern defaults. Authored live scalar/macro edits and their Undo/Redo publish preserving prepared snapshots; held tuning and instrument-chain edits retain transport and unrelated runtime overrides. Save persists every dirty linked instrument. Added named-control, rendered held-note and disk-reload checks for the integrated P6 handover.
+
 - P5 independent review: preserve exact automation/event chronology and release-duration capture, retain authored Step coordinates to guarantee forward progress at fractional tempo, continue broader track commands while delayed local events wait, and refuse ambiguous macro/automation/preset identities. Added native-render regressions for these cases and malformed numeric81 preservation.
 
 - Added the native P5 command profile, fractional delay, per-source command memory, foreground bundle ownership, bounded sample pitch/loops, device addressing, tick/point automation and silent seek reconstruction. Added source-device/slice metadata and prepared future-note preset parameter sets without cloning canonical instrument slots. Unsupported contexts and unsafe legacy conversions remain preserved and diagnosed. The existing golden and standalone forced-GC/lifecycle harnesses now exercise active P5 commands and automation; exact evidence and limits are in P5_VERIFICATION.md. The existing DLL authoring backend remains active for P7 retirement.

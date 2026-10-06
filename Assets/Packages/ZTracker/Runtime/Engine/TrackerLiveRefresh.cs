@@ -4,6 +4,7 @@ using System.Text;
 using Laubrary.Audio;
 using Laubrary.ZTracker.Model;
 using Unity.Collections;
+using Unity.Mathematics;
 using UnityEngine;
 
 namespace Laubrary.ZTracker.Engine
@@ -16,27 +17,34 @@ namespace Laubrary.ZTracker.Engine
         {
             var copy=ZTrackerMigration.Copy(source);
             copy.name="";copy.diagnostics.Clear();copy.bpm=120;copy.linesPerBeat=4;copy.ticksPerLine=6;
-            foreach(var t in copy.tracks){t.name="";t.color=Color.gray;t.columns.Clear();t.visibleEffectColumns=0;t.preVolume=t.postVolume=t.preWidth=1;t.prePan=t.postPan=0;t.triggerMute=t.outputMute=t.solo=false;foreach(var n in t.devices.nodes){n.p=Array.Empty<float>();n.enabled=true;}}
+            foreach(var t in copy.tracks){t.name="";t.color=Color.gray;t.columns.Clear();t.visibleEffectColumns=0;t.preVolume=t.postVolume=t.preWidth=1;t.prePan=t.postPan=0;t.triggerMute=t.outputMute=t.solo=false;NormalizeLiveChain(t.devices);}
             foreach(var t in copy.tracks)
             {
-                foreach(var m in t.devices.modifiers){m.name="";if(m.type!=Laubrary.Zounds.ZoundModifierType.Code)m.p=Array.Empty<float>();for(int i=0;i<m.steps.Length;i++)m.steps[i]=0;for(int i=0;i<m.curve.m_points.Count;i++){var p=m.curve.m_points[i];p.time=p.value=p.exponent=p.randomX=p.randomY=p.randomBias=0;m.curve.m_points[i]=p;}}
-                foreach(var b in t.devices.bindings){b.depth=0;b.schema=2;b.combine=Laubrary.Zounds.Dsp.ModulationCombine.Set;b.op=Laubrary.Zounds.ModifierOp.Replace;}
-                foreach(var s in t.sourceDevices){s.pluginId="";foreach(var p in s.parameters){p.defaultValue=0;p.parameter="";}}
-                foreach(var s in t.externalSources)s.pluginId="";
+                if(t.sourceDevices!=null)foreach(var s in t.sourceDevices){if(s==null)continue;s.pluginId="";if(s.parameters!=null)foreach(var p in s.parameters){if(p==null)continue;p.defaultValue=0;p.parameter="";}}
+                if(t.externalSources!=null)foreach(var s in t.externalSources)if(s!=null)s.pluginId="";
             }
-            foreach(var p in copy.patterns){p.name="";foreach(var t in p.tracks){t.lines.Clear();foreach(var lane in t.automation){lane.points.Clear();lane.interpolation=AutomationInterpolation.Step;}}}
+            foreach(var p in copy.patterns){p.name="";foreach(var t in p.tracks){t.lines.Clear();if(t.automation!=null)foreach(var lane in t.automation){if(lane==null)continue;lane.points?.Clear();lane.interpolation=AutomationInterpolation.Step;}}}
             var key=new StringBuilder(JsonUtility.ToJson(copy));
             foreach(var i in source.instruments){if(i==null){key.Append("null");continue;}var data=ZTrackerMigration.Copy(i.model);var q=data.parameters;
                 q.volume=q.pan=q.fineTune=q.blend=q.pulseWidth=q.waveBRatio=q.pmDepth=q.unisonDetune=q.unisonSpread=0;
                 q.attack=q.decay=q.sustain=q.release=q.vibratoDepth=q.vibratoRate=q.vibratoFadeIn=q.instFilterCutoff=q.instFilterResonance=q.glideSeconds=q.fmFeedback=0;
                 if(q.fmOperators!=null)for(int op=0;op<q.fmOperators.Length;op++){var value=q.fmOperators[op];value.freqRatio=value.freqFixed=value.level=value.attack=value.decay=value.sustain=value.release=0;q.fmOperators[op]=value;}
-                data.sampler.volume=data.sampler.pan=data.sampler.fineTuneCents=0;foreach(var m in data.macros)m.value=0;key.Append(JsonUtility.ToJson(data));}
+                data.sampler.volume=data.sampler.pan=data.sampler.fineTuneCents=0;foreach(var s in data.sampler.samples){s.volume=s.pan=0;s.name="";}foreach(var m in data.macros)m.value=0;
+                foreach(var chain in data.fxChains)NormalizeLiveChain(chain);
+                key.Append(JsonUtility.ToJson(data));}
             for(int i=0;i<state.chainCount;i++){var l=state.chains[i].layout;key.Append('|').Append(l.stateFloats).Append(':').Append(l.paramCount);for(int j=0;j<l.nodeCount;j++)key.Append(':').Append((int)l.nodeType[j]).Append('/').Append(l.stateOffset[j]);for(int j=0;j<l.derivedFlat.Length;j++)key.Append('/').Append(l.derivedFlat[j]);}
             liveIdentity=key.ToString();
             // Each delayed note has at most three local commands (volume, pan, local FX).
             state.carryCells=state.cells.Length;state.carryOps=state.ops.Length;
             Expand(ref state.cells,state.carryCells+state.columnCount);
             Expand(ref state.ops,state.carryOps+state.columnCount*3);
+        }
+        static void NormalizeLiveChain(AudioEffectChainData chain)
+        {
+            if(chain==null)return;
+            if(chain.nodes!=null)foreach(var n in chain.nodes){if(n==null)continue;n.p=Array.Empty<float>();n.enabled=true;}
+            if(chain.modifiers!=null)foreach(var m in chain.modifiers){if(m==null)continue;m.name="";if(m.type!=Laubrary.Zounds.ZoundModifierType.Code)m.p=Array.Empty<float>();if(m.steps!=null)for(int i=0;i<m.steps.Length;i++)m.steps[i]=0;if(m.curve?.m_points!=null)for(int i=0;i<m.curve.m_points.Count;i++){var p=m.curve.m_points[i];p.time=p.value=p.exponent=p.randomX=p.randomY=p.randomBias=0;m.curve.m_points[i]=p;}}
+            if(chain.bindings!=null)foreach(var b in chain.bindings){if(b==null)continue;b.depth=0;b.schema=2;b.combine=Laubrary.Zounds.Dsp.ModulationCombine.Set;b.op=Laubrary.Zounds.ModifierOp.Replace;}
         }
         static void Expand<T>(ref NativeArray<T> values,int size) where T:unmanaged
         {var expanded=new NativeArray<T>(Math.Max(1,size),Allocator.Persistent);for(int i=0;i<values.Length;i++)expanded[i]=values[i];values.Dispose();values=expanded;}
@@ -62,6 +70,10 @@ namespace Laubrary.ZTracker.Engine
         {
             var old=state;
             CopyLive(old.voices,next.voices);CopyLive(old.modulationState,next.modulationState);CopyLive(old.columns,next.columns);
+            // Held cursors retain a step computed at launch from the old authored tuning.
+            // Move that base with the authored definition; live direct/macro deltas remain
+            // relative to the new base and therefore preserve unrelated game overrides.
+            for(int i=0;i<next.voices.Length;i++){var v=next.voices[i];if(!v.active||v.sample<0||v.sample>=old.tones.Length||v.sample>=next.tones.Length)continue;double delta=(next.tones[v.sample].baseGlobalTune-old.tones[v.sample].baseGlobalTune)/1200d;if(delta!=0){v.step*=math.pow(2d,delta);next.voices[i]=v;}}
             for(int i=0;i<old.macros.Length;i++){var m=next.macros[i];if(m.authored==old.macros[i].authored)next.macros[i]=old.macros[i];}
             CopyLive(old.parameterDirect,next.parameterDirect);CopyLive(old.parameterLive,next.parameterLive);CopyLive(old.parameterWritten,next.parameterWritten);
             for(int i=0;i<old.parameterBase.Length;i++)if(next.parameterBase[i]!=old.parameterBase[i]){next.parameterDirect[i]=next.parameterLive[i]=next.parameterBase[i];next.parameterWritten[i]|=1;}

@@ -76,8 +76,10 @@ namespace Laubrary.ZTracker.Editor
         }
         void SongEdit(string label,Action edit,bool rebuild=false)=>Change(song,label,edit,rebuild);
         void InstrumentEdit(string label,Action edit,bool rebuild=false,bool liveScalar=false)=>Change(instrument,label,edit,rebuild);
-        void InstrumentScalarEdit(string label,TrackerParameter parameter,float value,Action edit,bool rebuild=false)=>Change(instrument,label,edit,rebuild,TrackerCommand.SetParameter(entryInstrument,parameter,value));
-        void InstrumentMacroEdit(string label,int macro,float value,Action edit,bool rebuild=false)=>Change(instrument,label,edit,rebuild,TrackerCommand.SetMacro(entryInstrument,macro,value));
+        // Publish authored defaults as well as the audible change. A command-only edit leaves
+        // the prepared base stale, so PreserveSwap would mistake Undo for an unrelated override.
+        void InstrumentScalarEdit(string label,TrackerParameter parameter,float value,Action edit,bool rebuild=false)=>Change(instrument,label,edit,rebuild);
+        void InstrumentMacroEdit(string label,int macro,float value,Action edit,bool rebuild=false)=>Change(instrument,label,edit,rebuild);
         void RefreshLive()
         {
             if(host==null||Data==null)return;
@@ -113,13 +115,13 @@ namespace Laubrary.ZTracker.Editor
             if(host!=null){host.PollRetirement();if(pendingLive&&host.RenderedBlocks>0)RefreshLive();while(host.ReadEvent(out var e)){if(e.kind==TrackerEventKind.Stopped)playing=false;if(e.kind==TrackerEventKind.Row&&follow&&playing){bool changed=e.sequence!=order;order=e.sequence;if(changed&&pane==0){BuildPane();}HighlightPlaying(e.row);}}
             }RefreshTransport();
         }
-        void RefreshTransport(){if(status==null)return;status.text=lastError!=null?"⚠ Live update pending":playing?"Playing":"Idle";status.tooltip=lastError??(playing?"The Burst song engine is playing. Edits update its existing audio stream.":"Preview is stopped; Play starts the authored song.");}
+        void RefreshTransport(){if(status==null)return;status.text=lastError!=null?"⚠ Pending: Stop/Play":playing?"Playing":"Idle";status.tooltip=lastError??(playing?"The Burst song engine is playing. Edits update its existing audio stream.":"Preview is stopped; Play starts the authored song.");}
         void OnEnable(){Undo.undoRedoPerformed+=OnUndo;Upgrade();}
         void OnUndo(){RefreshLive();BuildPane();}
         protected override void OnDisable(){Undo.undoRedoPerformed-=OnUndo;StopPreview();base.OnDisable();}
         // ZuiWindow may rebuild on domain reload/view changes; it must not stop a healthy graph.
         protected override void OnBeforeRebuild(){}
-        void Save(){if(song!=null)AssetDatabase.SaveAssetIfDirty(song);if(instrument!=null)AssetDatabase.SaveAssetIfDirty(instrument);}
+        void Save(){if(song!=null)AssetDatabase.SaveAssetIfDirty(song);if(Data!=null)foreach(var linked in Data.instruments.Where(i=>i!=null).Distinct())AssetDatabase.SaveAssetIfDirty(linked);if(instrument!=null)AssetDatabase.SaveAssetIfDirty(instrument);}
         static string Id()=>Guid.NewGuid().ToString("N");
         static ColumnVisibility Visibility(TrackData t,int column){while(t.columns.Count<=column)t.columns.Add(new ColumnVisibility());return t.columns[column];}
         static void Folder(){if(!AssetDatabase.IsValidFolder("Assets/ZTracker"))AssetDatabase.CreateFolder("Assets","ZTracker");}
@@ -156,7 +158,7 @@ namespace Laubrary.ZTracker.Editor
         }
         void CreateInstrument()
         {
-            Undo.IncrementCurrentGroup();int group=Undo.GetCurrentGroup();Folder();instrument=CreateInstance<ZTrackerInstrument>();instrument.type=InstrumentType.Synth;instrument.volume=.25f;ZTrackerMigration.Upgrade(instrument,out _);AssetDatabase.CreateAsset(instrument,AssetDatabase.GenerateUniqueAssetPath("Assets/ZTracker/Instrument.asset"));Undo.RegisterCreatedObjectUndo(instrument,"Tracker: create instrument");SongEdit("add instrument",()=>Data.instruments.Add(instrument));Undo.CollapseUndoOperations(group);entryInstrument=Data.instruments.Count-1;pane=3;BuildPane();
+            Undo.IncrementCurrentGroup();int group=Undo.GetCurrentGroup();Folder();instrument=CreateInstance<ZTrackerInstrument>();instrument.schemaVersion=1;instrument.model=NewInstrumentData();AssetDatabase.CreateAsset(instrument,AssetDatabase.GenerateUniqueAssetPath("Assets/ZTracker/Instrument.asset"));Undo.RegisterCreatedObjectUndo(instrument,"Tracker: create instrument");SongEdit("add instrument",()=>Data.instruments.Add(instrument));Undo.CollapseUndoOperations(group);entryInstrument=Data.instruments.Count-1;pane=3;BuildPane();
         }
         VisualElement DialSong(string label,float value,float min,float max,string tip,Action<float> apply,bool rebuild=false,int decimals=0)=>Dial(label,value,min,max,tip,v=>SongEdit(label,()=>apply(v),rebuild),decimals);
         static VisualElement Dial(string label,float value,float min,float max,string tip,Action<float> changed,int decimals=2,float width=124)=>Z.MicroSlider(label,value,min,max,tip,changed,width,decimals:decimals);
