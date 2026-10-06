@@ -447,7 +447,7 @@ namespace Laubrary.ZTracker.Editor
             s.instruments.AddRange(new[]{i,null,i});s.patterns[0].cells[0].note=60;s.patterns[0].cells[0].instrument=0;
             for(int schema=0;schema<2;schema++)
             {
-                if(schema==1){Upgrade(i);Upgrade(s);i.model.fxChains.Add(new AudioEffectChainData());}
+                if(schema==1){Upgrade(i);Upgrade(s);i.model.fxChains.Add(new AudioEffectChainData());s.model.patterns[0].tracks[0].automation.Add(new AutomationLane {id="unsupported-preview-lane",target=null,points=null});}
                 // Deliberately stale metadata must survive reads as well as canonical metadata.
                 i.serializedNulls=new List<string>{"stale-instrument-path"};s.serializedNulls=new List<string>{"stale-song-path"};
                 var iw=new SourceWitness(i);var sw=new SourceWitness(s);

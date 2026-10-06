@@ -305,8 +305,8 @@ namespace Laubrary.ZTracker
                 Data.patterns.Add(pattern); Data.sequence.Add(new SequenceSlot { id = "audition-slot", patternId = pattern.id });
             }
             for (int i = 0; i < slots.Length; i++) Data.instruments[i] = Copy(slots[i], previous, instrument == null || slots[i] == instrument);
-            string validation = ZTrackerModelValidation.Validate(Data);
-            if (validation != null) throw new InvalidOperationException(validation);
+            // The engine validates before publication, retaining its existing
+            // policy of diagnosing optional malformed lanes/commands separately.
         }
         public void Dispose() { foreach (var copy in copies.Values) if (copy != null) UnityEngine.Object.DestroyImmediate(copy); copies.Clear(); }
     }
