@@ -201,7 +201,7 @@ namespace Laubrary.ZTracker.Model
             foreach (var track in pattern.tracks)
             {
                 track.lines.RemoveAll(l => l.line >= lines);
-                foreach (var lane in track.automation) lane.points.RemoveAll(p => p.line > lines);
+                if(track.automation!=null)foreach (var lane in track.automation) lane?.points?.RemoveAll(p => p!=null&&p.line > lines);
             }
             return archive;
         }
@@ -213,7 +213,7 @@ namespace Laubrary.ZTracker.Model
             {
                 foreach (var row in track.lines) if (row.line >= line) row.line++;
                 track.lines.RemoveAll(l => l.line >= pattern.lineCount);
-                foreach (var lane in track.automation) { foreach (var point in lane.points) if (point.line >= line) point.line++; lane.points.RemoveAll(p => p.line > pattern.lineCount); }
+                if(track.automation!=null)foreach (var lane in track.automation) { if(lane?.points==null)continue;foreach (var point in lane.points) if (point!=null&&point.line >= line) point.line++; lane.points.RemoveAll(p => p!=null&&p.line > pattern.lineCount); }
             }
             return archive;
         }
@@ -225,7 +225,7 @@ namespace Laubrary.ZTracker.Model
             {
                 track.lines.RemoveAll(l => l.line == line);
                 foreach (var row in track.lines) if (row.line > line) row.line--;
-                foreach (var lane in track.automation) { lane.points.RemoveAll(p => p.line >= line && p.line < line+1); foreach (var point in lane.points) if (point.line >= line+1) point.line--; }
+                if(track.automation!=null)foreach (var lane in track.automation) { if(lane?.points==null)continue;lane.points.RemoveAll(p => p!=null&&p.line >= line && p.line < line+1); foreach (var point in lane.points) if (point!=null&&point.line >= line+1) point.line--; }
             }
             return archive;
         }

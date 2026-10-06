@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- P6 independent review: preserve nullable imported source and unsupported lane metadata through display, clone, remove and Undo; keep later note variation references attached to their original preset when one is removed; advance the held unison pitch base with authored detune changes and repeated restoring refreshes. Added disposable adversarial controls and compiled held-output regressions.
+
 - P6 instrument verification fixes: preserve the complete independent preset list when applying a preset to Base, clamp loop/region endpoints within source frames, and isolate disposable authoring fixtures so Undo-restored selections and one failure cannot invalidate later checks.
 
 - Added canonical retained sampler and synth instrument authoring: sample/zone identity-safe dragging, waveform loop bounds, slices and regions, per-sample playback/NNA, paired B sources, modulation devices, reusable AudioCore chains, eight macros, typed external maps and section presets. New instruments use clean modern defaults. Authored live scalar/macro edits and their Undo/Redo publish preserving prepared snapshots; held tuning and instrument-chain edits retain transport and unrelated runtime overrides. Save persists every dirty linked instrument. Added named-control, rendered held-note and disk-reload checks for the integrated P6 handover.

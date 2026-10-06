@@ -66,17 +66,17 @@ namespace Laubrary.ZTracker.Editor
             SongEdit("clone track",()=>
             {
                 var copy=Clone(src);copy.id=Id();copy.name+=" copy";var remap=new Dictionary<string,string>();
-                foreach(var n in copy.devices.nodes){string old=n.uid;n.uid=Id();if(old!="")remap[old]=n.uid;}
-                foreach(var m in copy.devices.modifiers)m.uid=Id();
-                foreach(var s in copy.sourceDevices){string old=s.id;if(!remap.TryGetValue(old,out var nid)){nid=Id();remap[old]=nid;}s.id=nid;foreach(var p in s.parameters){if(p.target.trackId==src.id)p.target.trackId=copy.id;if(remap.TryGetValue(p.target.deviceId,out var id))p.target.deviceId=id;}}
-                foreach(var e in copy.externalSources){if(!remap.TryGetValue(e.id,out var id)){id=Id();remap[e.id]=id;}e.id=id;}
+                foreach(var n in Records(copy.devices?.nodes)){string old=n.uid;n.uid=Id();if(!string.IsNullOrEmpty(old))remap[old]=n.uid;}
+                foreach(var m in Records(copy.devices?.modifiers))m.uid=Id();
+                foreach(var s in Records(copy.sourceDevices)){string old=s.id;if(old==null)continue;if(!remap.TryGetValue(old,out var nid)){nid=Id();remap[old]=nid;}s.id=nid;foreach(var p in Records(s.parameters)){if(p.target==null)continue;if(p.target.trackId==src.id)p.target.trackId=copy.id;if(p.target.deviceId!=null&&remap.TryGetValue(p.target.deviceId,out var id))p.target.deviceId=id;}}
+                foreach(var e in Records(copy.externalSources)){if(e.id==null)continue;if(!remap.TryGetValue(e.id,out var id)){id=Id();remap[e.id]=id;}e.id=id;}
                 Data.tracks.Insert(track+1,copy);
-                foreach(var pattern in Data.patterns){var original=pattern.tracks.Find(p=>p.trackId==src.id);var pt=original!=null?Clone(original):new PatternTrack();pt.trackId=copy.id;foreach(var l in pt.automation){l.id=Id();if(l.target.trackId==src.id)l.target.trackId=copy.id;if(remap.TryGetValue(l.target.deviceId,out var id))l.target.deviceId=id;}pattern.tracks.Add(pt);}track++;
+                foreach(var pattern in Data.patterns){var original=pattern.tracks.Find(p=>p.trackId==src.id);var pt=original!=null?Clone(original):new PatternTrack();pt.trackId=copy.id;foreach(var l in Records(pt.automation)){l.id=Id();if(l.target==null)continue;if(l.target.trackId==src.id)l.target.trackId=copy.id;if(l.target.deviceId!=null&&remap.TryGetValue(l.target.deviceId,out var id))l.target.deviceId=id;}pattern.tracks.Add(pt);}track++;
             },true);
         }
         void RemoveTrack()
         {
-            var t=SelectedTrack;if(t==null||t.kind==TrackKind.Master)return;SongEdit("remove track",()=>{Data.tracks.Remove(t);foreach(var other in Data.tracks){if(other.parentGroupId==t.id)other.parentGroupId=t.parentGroupId;if(other.outputTrackId==t.id)other.outputTrackId="";other.sends.RemoveAll(s=>s.trackId==t.id);}foreach(var p in Data.patterns){p.tracks.RemoveAll(pt=>pt.trackId==t.id);foreach(var pt in p.tracks)foreach(var l in pt.automation)if(l.target.trackId==t.id){l.unsupported=true;l.diagnostic="Target track removed";l.target.unresolved=true;}}foreach(var s in Data.sequence)s.mutedTrackIds.Remove(t.id);track=Math.Max(0,track-1);},true);
+            var t=SelectedTrack;if(t==null||t.kind==TrackKind.Master)return;SongEdit("remove track",()=>{Data.tracks.Remove(t);foreach(var other in Data.tracks){if(other.parentGroupId==t.id)other.parentGroupId=t.parentGroupId;if(other.outputTrackId==t.id)other.outputTrackId="";other.sends?.RemoveAll(s=>s!=null&&s.trackId==t.id);}foreach(var p in Data.patterns){p.tracks.RemoveAll(pt=>pt.trackId==t.id);foreach(var pt in p.tracks)foreach(var l in Records(pt.automation))if(l.target?.trackId==t.id){l.unsupported=true;l.diagnostic="Target track removed";l.target.unresolved=true;}}foreach(var s in Data.sequence)s.mutedTrackIds?.Remove(t.id);track=Math.Max(0,track-1);},true);
         }
         bool RouteAllowed(TrackData t,string dest,bool group)
         {
@@ -92,13 +92,13 @@ namespace Laubrary.ZTracker.Editor
         }
         void FlagRemovedDevice(TrackData t,string uid)
         {
-            foreach(var p in Data.patterns)foreach(var pt in p.tracks)foreach(var lane in pt.automation)if((lane.target.trackId==t.id||lane.target.trackId==""&&pt.trackId==t.id)&&lane.target.deviceId==uid){lane.unsupported=true;lane.target.unresolved=true;lane.diagnostic="Target effect removed";}
-            foreach(var s in t.sourceDevices){if(s.id==uid)s.kind=SourceDeviceKind.Unsupported;foreach(var p in s.parameters)if(p.target.deviceId==uid)p.target.unresolved=true;}
+            foreach(var p in Data.patterns)foreach(var pt in p.tracks)foreach(var lane in Records(pt.automation))if(lane.target!=null&&(lane.target.trackId==t.id||lane.target.trackId==""&&pt.trackId==t.id)&&lane.target.deviceId==uid){lane.unsupported=true;lane.target.unresolved=true;lane.diagnostic="Target effect removed";}
+            foreach(var s in Records(t.sourceDevices)){if(s.id==uid)s.kind=SourceDeviceKind.Unsupported;foreach(var p in Records(s.parameters))if(p.target?.deviceId==uid)p.target.unresolved=true;}
         }
         void RepairChainReferences(TrackData t,AudioEffectNodeData[] before)
         {
-            foreach(var send in t.sends){if(send.devicePosition>0&&send.devicePosition<=before.Length){int n=t.devices.nodes.IndexOf(before[send.devicePosition-1]);send.devicePosition=n>=0?n+1:Math.Min(send.devicePosition,t.devices.nodes.Count);}}
-            foreach(var source in t.sourceDevices.Where(s=>s.kind==SourceDeviceKind.AudioChain))foreach(var p in source.parameters){var node=t.devices.nodes.Find(n=>n.uid==p.target.deviceId);if(node!=null&&p.target.index>=0&&p.target.index<node.p.Length)p.defaultValue=Mathf.InverseLerp(p.min,p.max,node.p[p.target.index]);}
+            foreach(var send in Records(t.sends)){if(send.devicePosition>0&&send.devicePosition<=before.Length){int n=t.devices.nodes.IndexOf(before[send.devicePosition-1]);send.devicePosition=n>=0?n+1:Math.Min(send.devicePosition,t.devices.nodes.Count);}}
+            foreach(var source in Records(t.sourceDevices).Where(s=>s.kind==SourceDeviceKind.AudioChain))foreach(var p in Records(source.parameters)){if(p.target==null)continue;var node=Records(t.devices.nodes).FirstOrDefault(n=>n.uid==p.target.deviceId);if(node?.p!=null&&p.target.index>=0&&p.target.index<node.p.Length)p.defaultValue=Mathf.InverseLerp(p.min,p.max,node.p[p.target.index]);}
             // Source ordinals belong to the authored command profile, not mutable native node order.
         }
     }

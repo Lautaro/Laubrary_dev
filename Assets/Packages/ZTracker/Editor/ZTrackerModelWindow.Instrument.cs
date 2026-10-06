@@ -383,7 +383,7 @@ namespace Laubrary.ZTracker.Editor
         void BuildPresets(VisualElement root)
         {
             var q = Instrument.parameters; var presets = q.presets;
-            root.Add(Flow(Button("New preset", "Snapshot Base settings into a named section preset; Base remains independent.", CreatePreset, "new-instrument-preset"), Button("Remove preset", "Remove selected preset; Undo restores its full payload.", () => { if (presetIndex >= 0 && presetIndex < presets.Count) InstrumentEdit("remove preset", () => { presets.RemoveAt(presetIndex); presetIndex = Math.Min(presetIndex, presets.Count - 1); q.activePresetIndex = -1; }, true); }, "remove-instrument-preset")));
+            root.Add(Flow(Button("New preset", "Snapshot Base settings into a named section preset; Base remains independent.", CreatePreset, "new-instrument-preset"), Button("Remove preset", "Remove the selected preset. Notes using it return to Base; later preset references follow their original sound. Undo restores the preset and all references.", RemovePreset, "remove-instrument-preset")));
             presetIndex = Mathf.Clamp(presetIndex, -1, presets.Count - 1);
             root.Add(Named(Z.MiniRadio(presetIndex + 1, new[] { "Base" }.Concat(presets.Select(p => p?.name ?? "⚠ Missing")).ToArray(), "Choose Base or a preset to author; selecting does not apply it.", v => { presetIndex = v - 1; BuildPane(); }, wrap: true), "instrument-presets"));
             if (presetIndex < 0) return; var preset = presets[presetIndex]; if (preset == null) { root.Add(Diagnostic("Null preset", "Imported null preset is preserved; remove it explicitly to repair playback.")); return; }
@@ -402,6 +402,20 @@ namespace Laubrary.ZTracker.Editor
         void CreatePreset()
         {
             InstrumentEdit("create preset", () => { var q = ZTrackerMigration.ResolveParameterSets(Instrument)[0].data.parameters; var preset = JsonUtility.FromJson<ZTrackerInstrument.InstrumentPreset>(JsonUtility.ToJson(q)); preset.name = "Preset " + (Instrument.parameters.presets.Count + 1); preset.ovrVolPan = preset.ovrSampleParams = preset.ovrSynthParams = preset.ovrBlend = preset.ovrPulseWidth = preset.ovrBRatio = preset.ovrPMDepth = preset.ovrDetune = preset.ovrAdsr = preset.ovrVibrato = preset.ovrEffects = true; Instrument.parameters.presets.Add(preset); presetIndex = Instrument.parameters.presets.Count - 1; }, true);
+        }
+        void RemovePreset()
+        {
+            var presets=Instrument.parameters.presets;if(presetIndex<0||presetIndex>=presets.Count)return;
+            int removed=presetIndex;string prefix=Instrument.id+"/preset-";
+            Undo.IncrementCurrentGroup();int group=Undo.GetCurrentGroup();Undo.SetCurrentGroupName("Tracker: remove preset");
+            Undo.RegisterCompleteObjectUndo(song!=null?new UnityEngine.Object[]{song,instrument}:new UnityEngine.Object[]{instrument},"Tracker: remove preset");
+            if(Data!=null)foreach(var pattern in Data.patterns)foreach(var pt in pattern.tracks)foreach(var line in pt.lines)foreach(var note in line.notes)
+            {
+                if(note.parameterSetId==null||!note.parameterSetId.StartsWith(prefix,StringComparison.Ordinal)||!int.TryParse(note.parameterSetId.Substring(prefix.Length),out int index))continue;
+                if(index==removed)note.parameterSetId="";else if(index>removed&&index<presets.Count)note.parameterSetId=prefix+(index-1);
+            }
+            presets.RemoveAt(removed);presetIndex=Math.Min(removed,presets.Count-1);Instrument.parameters.activePresetIndex=-1;
+            EditorUtility.SetDirty(instrument);if(song!=null)EditorUtility.SetDirty(song);Undo.CollapseUndoOperations(group);RefreshLive();BuildPane();
         }
         void ApplyPreset()
         {

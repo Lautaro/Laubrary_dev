@@ -165,7 +165,10 @@ namespace Laubrary.ZTracker.Editor
         static VisualElement Flow(params VisualElement[] children){var r=Z.Row();r.style.flexWrap=Wrap.Wrap;r.style.flexShrink=0;foreach(var c in children)if(c!=null)r.Add(c);return r;}
         static VisualElement Button(string label,string tip,Action action,string name=null)=>Named(Z.Button(label,tip,action),name);
         static T Named<T>(T element,string name) where T:VisualElement{if(name!=null)element.name=name;return element;}
-        static T Clone<T>(T value)=>JsonUtility.FromJson<T>(JsonUtility.ToJson(value));
+        static T Clone<T>(T value)=>ZTrackerMigration.Copy(value);
+        // Imported unsupported records may carry null lists or neighbors. Filtering is a
+        // view only; it must never fill those holes in the authored payload.
+        static IEnumerable<T> Records<T>(IEnumerable<T> values) where T:class=>values?.Where(v=>v!=null)??Enumerable.Empty<T>();
         static void Move<T>(IList<T> list,int from,int to){var value=list[from];list.RemoveAt(from);list.Insert(to,value);}
         static void Reorder(VisualElement item,string kind,int index,Action<int,int> moved)
         {

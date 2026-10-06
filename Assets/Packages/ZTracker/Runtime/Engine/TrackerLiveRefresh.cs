@@ -73,7 +73,16 @@ namespace Laubrary.ZTracker.Engine
             // Held cursors retain a step computed at launch from the old authored tuning.
             // Move that base with the authored definition; live direct/macro deltas remain
             // relative to the new base and therefore preserve unrelated game overrides.
-            for(int i=0;i<next.voices.Length;i++){var v=next.voices[i];if(!v.active||v.sample<0||v.sample>=old.tones.Length||v.sample>=next.tones.Length)continue;double delta=(next.tones[v.sample].baseGlobalTune-old.tones[v.sample].baseGlobalTune)/1200d;if(delta!=0){v.step*=math.pow(2d,delta);next.voices[i]=v;}}
+            for(int i=0;i<next.voices.Length;i++)
+            {
+                var v=next.voices[i];if(!v.active||v.sample<0||v.sample>=old.tones.Length||v.sample>=next.tones.Length)continue;
+                var before=old.tones[v.sample];var after=next.tones[v.sample];
+                double cents=(double)after.baseGlobalTune-before.baseGlobalTune;
+                // Unison detune is also part of the launch-time step. Keep its authored
+                // base in sync while the retained live detune continues smoothing.
+                if(after.kind!=0){int at=v.instrument*TrackerParameters.Stride+(int)TrackerParameter.UnisonDetune;cents+=v.memberSpread*((double)next.parameterBase[at]-old.parameterBase[at]);}
+                if(cents!=0){v.step=SafeInitialStep(v.step,cents/1200d);next.voices[i]=v;}
+            }
             for(int i=0;i<old.macros.Length;i++){var m=next.macros[i];if(m.authored==old.macros[i].authored)next.macros[i]=old.macros[i];}
             CopyLive(old.parameterDirect,next.parameterDirect);CopyLive(old.parameterLive,next.parameterLive);CopyLive(old.parameterWritten,next.parameterWritten);
             for(int i=0;i<old.parameterBase.Length;i++)if(next.parameterBase[i]!=old.parameterBase[i]){next.parameterDirect[i]=next.parameterLive[i]=next.parameterBase[i];next.parameterWritten[i]|=1;}
