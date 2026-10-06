@@ -46,6 +46,8 @@ namespace Laubrary.Zounds {
         }
 
         public override void OnGUI(Rect rect) {
+            previewTokens.RemoveAll(t => t == null || t.state == ZoundToken.State.Killed);
+            if (previewTokens.Count == 0) isPreviewing = false;
             var prevLabelWidth = EditorGUIUtility.labelWidth;
             EditorGUIUtility.labelWidth = 85f;
 
@@ -86,7 +88,13 @@ namespace Laubrary.Zounds {
             }
             fieldRect.y += fieldRect.height + 7f;
 
-            if (GUI.Button(new Rect(fieldRect.x, fieldRect.y, fieldRect.width / 2f, fieldRect.height), "Preview")) {
+            bool loopPlaying = ZoundPreviewPlayback.IsLoopPlaying(previewOwner, this);
+            var previewContent = PreviewContent();
+            var oldBackground = GUI.backgroundColor;
+            if (loopPlaying) GUI.backgroundColor = new Color(.22f, .34f, .52f, 1f);
+            bool previewClicked = GUI.Button(new Rect(fieldRect.x, fieldRect.y, fieldRect.width / 2f, fieldRect.height), previewContent);
+            GUI.backgroundColor = oldBackground;
+            if (previewClicked) {
                 Preview();
                 editorWindow.Repaint();
             }
@@ -137,7 +145,17 @@ namespace Laubrary.Zounds {
             //}
         }
 
+        private GUIContent PreviewContent() {
+            bool loopPlaying = ZoundPreviewPlayback.IsLoopPlaying(previewOwner, this);
+            return new GUIContent(loopPlaying ? "Stop" : "Preview", loopPlaying ? "Stop loop" : "Play this sequence using the chosen duration and mixer group.");
+        }
+
         private void Preview() {
+            if (ZoundPreviewPlayback.IsLoopPlaying(previewOwner, this)) {
+                ZoundPreviewPlayback.StopControl(previewOwner, this);
+                isPreviewing = false;
+                return;
+            }
             isPreviewing = true;
             startTime = Time.realtimeSinceStartup;
             EnsureAllKlipsRendered(zequence);
@@ -153,7 +171,7 @@ namespace Laubrary.Zounds {
                 overrideDuration = duration
             }, this);
             previewTokens.Add(token);
-            if (token == null) return;
+            if (token == null) { isPreviewing = false; return; }
             token.onComplete += () => {
                 StopTokenCompletely(token);
             };
