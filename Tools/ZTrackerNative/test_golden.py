@@ -46,9 +46,22 @@ class GoldenTests(unittest.TestCase):
     def test_full_repeat_generation(self):
         original=json.loads((REFERENCE/'manifest.json').read_text(encoding='utf-8'))
         repeated=json.loads((RERUN/'manifest.json').read_text(encoding='utf-8'))
+        # P2 authoring and P4 comparator/docs evolved after P0. Only these named
+        # provenance entries may differ; every native source/DLL/case remains exact.
+        for name in ('README.template.md','compare_golden.py','test_golden.py'):
+            original['generator']['tool_sha256'].pop(name)
+            self.assertEqual(repeated['generator']['tool_sha256'].pop(name),sha((HERE/name).read_bytes()),name)
+        editor='Assets/Packages/ZTracker/Editor/ZTrackerWindow.Instrument.cs'
+        original['source_sha256'].pop(editor)
+        self.assertEqual(repeated['source_sha256'].pop(editor),sha((HERE.parent.parent/editor).read_bytes()))
         self.assertEqual(original,repeated)
         for path in REFERENCE.iterdir():
-            self.assertEqual(sha(path.read_bytes()),sha((RERUN/path.name).read_bytes()),path.name)
+            if path.name=='manifest.json':continue # exact case/native semantics checked above
+            if path.name=='README.md':
+                # Documentation may have platform newline storage. Audio/event bytes and
+                # manifest semantics below/above retain their exact repeat-generation gate.
+                self.assertEqual(path.read_text(encoding='utf-8'),(RERUN/path.name).read_text(encoding='utf-8'),path.name)
+            else:self.assertEqual(sha(path.read_bytes()),sha((RERUN/path.name).read_bytes()),path.name)
 
     def test_small_perturbation_pass(self):
         self.change_audio(lambda x:x.__setitem__(100,x[100]+1e-7))
@@ -128,6 +141,27 @@ class GoldenTests(unittest.TestCase):
                          'EXPECTED_DIVERGENCE_REQUIRES_CORRECTION')
         self.assertTrue(compare(REFERENCE,REFERENCE,exemptions={cid:'detune_envelope'},
                         correction_checks={cid:lambda *_:True})['success'])
+
+    def test_tremolo_requires_scoped_metadata_and_correction(self):
+        with self.assertRaisesRegex(ValueError,'not an approved'):
+            compare(REFERENCE,REFERENCE,exemptions={'command_07':'tremolo_ignored'})
+        # Copy metadata for the PM-approved P4 comparison without modifying the native corpus.
+        manifest=json.loads((self.candidate/'manifest.json').read_text())
+        next(c for c in manifest['cases'] if c['id']=='command_07')['approved_defects']=['tremolo_ignored']
+        (self.candidate/'manifest.json').write_text(json.dumps(manifest))
+        result=compare(self.candidate,self.candidate,exemptions={'command_07':'tremolo_ignored'})
+        self.assertFalse(result['success'])
+        self.assertTrue(compare(self.candidate,self.candidate,exemptions={'command_07':'tremolo_ignored'},correction_checks={'command_07':lambda *_:True})['success'])
+        self.assertFalse(compare(self.candidate,self.candidate,exemptions={'command_07':'tremolo_ignored'},correction_checks={'command_07':lambda *_:False})['success'])
+        with self.assertRaisesRegex(ValueError,'incorrectly scoped'):
+            compare(self.candidate,self.candidate,exemptions={self.cid:'tremolo_ignored'},correction_checks={self.cid:lambda *_:True})
+
+    def test_invented_defect_refused_even_if_metadata_declares_it(self):
+        manifest=json.loads((self.candidate/'manifest.json').read_text())
+        next(c for c in manifest['cases'] if c['id']==self.cid)['approved_defects']=['anything']
+        (self.candidate/'manifest.json').write_text(json.dumps(manifest))
+        with self.assertRaisesRegex(ValueError,'unknown'):
+            compare(self.candidate,self.candidate,exemptions={self.cid:'anything'},correction_checks={self.cid:lambda *_:True})
 
 
 if __name__=='__main__':

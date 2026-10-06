@@ -9,6 +9,8 @@ import sys
 FORMAT = {'encoding':'float32', 'endianness':'little', 'channels':2, 'layout':'interleaved-LR'}
 EVENT_FIELDS = {'type','samplePosition','patternIndex','rowIndex','channelIndex','noteValue',
                 'instrumentID','intParam','floatParam','stringPayload'}
+APPROVED_DEFECTS=frozenset({'detune_envelope','envelope_mapping','fm_choices','instrument_glide',
+                         'kit_filter_leak','random_noise','send_subchunks','tremolo_ignored'})
 
 
 def load_corpus(directory):
@@ -80,6 +82,8 @@ def compare(reference, candidate, atol=1e-5, rtol=1e-4, event_frame_tolerance=0,
         for field in ('frames','buffer','clock'):
             if rc[field]!=gc[field]: raise ValueError(cid+': '+field+' mismatch')
         exemption=exemptions.get(cid)
+        if exemption and (exemption not in APPROVED_DEFECTS or (exemption=='tremolo_ignored' and cid!='command_07')):
+            raise ValueError(cid+': unknown or incorrectly scoped approved defect')
         if exemption and exemption not in rc.get('approved_defects',[]):
             raise ValueError(cid+': exemption is not an approved defect for this case')
         event_errors=[]

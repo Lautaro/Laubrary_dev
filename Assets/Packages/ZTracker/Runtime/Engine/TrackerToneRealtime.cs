@@ -7,6 +7,11 @@ namespace Laubrary.ZTracker.Engine
     {
         float Parameter(int instrument,TrackerParameter p)=>state.parameterLive[instrument*TrackerParameters.Stride+(int)p];
         bool Written(int instrument,TrackerParameter p)=>state.parameterWritten[instrument*TrackerParameters.Stride+(int)p]!=0;
+        void ResetToneDefaults()
+        {
+            for(int i=0;i<state.instrumentCount*TrackerParameters.Stride;i++){state.parameterDirect[i]=state.parameterBase[i];state.parameterWritten[i]=0;}
+            for(int i=0;i<state.instrumentCount*8;i++){var m=state.macros[i];m.value=m.target=m.authored;m.sliding=false;m.step=0;state.macros[i]=m;}EvaluateParameters();
+        }
         void ApplyParameterCommand(in TrackerCommand c)
         {
             if(!math.isfinite(c.value))return;
@@ -48,7 +53,8 @@ namespace Laubrary.ZTracker.Engine
         float RouteValue(in TrackerParameterRoute route,float value)
         {
             if(route.pointCount>0)value=PointCurve(route.points,route.pointCount,value,false);
-            return route.min+(route.max-route.min)*value;
+            // Finite opposite-sign float endpoints can overflow a float subtraction.
+            return (float)((double)route.min+((double)route.max-route.min)*value);
         }
         float PointCurve(int start,int count,float time,bool exponent)
         {
@@ -89,7 +95,7 @@ namespace Laubrary.ZTracker.Engine
                 float note=state.points[tone.arpNotes+v.arpIndex].value-state.points[tone.arpNotes].value;double target=math.pow(2f,note/12f);v.arpSmooth+=(target-v.arpSmooth)/math.max(1,cadence);step*=v.arpSmooth;
             }
             // Retained sampler vibrato uses P3's modulation device unless explicitly routed live.
-            bool vibrato=tone.kind!=0||Written(ii,TrackerParameter.VibratoDepth)||Written(ii,TrackerParameter.VibratoRate);
+            bool vibrato=tone.kind!=0||Written(ii,TrackerParameter.VibratoDepth)||Written(ii,TrackerParameter.VibratoRate)||Written(ii,TrackerParameter.VibratoFadeIn);
             if(vibrato){float depth=Parameter(ii,TrackerParameter.VibratoDepth),rate=Parameter(ii,TrackerParameter.VibratoRate),fade=Parameter(ii,TrackerParameter.VibratoFadeIn);uint seed=Seed((uint)v.cohort,(uint)v.note,3);float jitter=(seed&0xffffff)/8388608f-1;rate*=1+jitter*tone.vibratoRandomness;v.vibratoFade=fade>0?math.min(1,v.vibratoFade+1/(fade*state.sampleRate)):1;v.vibratoPhase+=rate/state.sampleRate*2*math.PI;if(v.vibratoPhase>2*math.PI)v.vibratoPhase-=2*math.PI;double target=math.pow(2f,math.sin(v.vibratoPhase)*depth*v.vibratoFade/1200);v.vibratoSmooth+=(target-v.vibratoSmooth)/math.max(1,cadence);step*=v.vibratoSmooth;}
             float fine=Parameter(ii,TrackerParameter.FineTune)-tone.baseGlobalTune;
             if(tone.kind!=0)fine+=v.memberSpread*(v.detuneCurrent-state.parameterBase[ii*TrackerParameters.Stride+(int)TrackerParameter.UnisonDetune]);
@@ -145,7 +151,7 @@ namespace Laubrary.ZTracker.Engine
         {
             if(tone.pcmB<0)return;var clip=state.clips[tone.pcmB];var b=sample;b.loop=tone.loopB;b.loopStart=tone.loopStartB;b.loopEnd=tone.loopEndB;b.releaseExitsLoop=tone.releaseExitsLoopB;
             var cursor=new TrackerVoice{active=true,position=v.positionB+v.stepB*v.directionB,direction=v.directionB,released=v.released};AdvancePcm(ref cursor,in b,in clip);v.positionB=cursor.position;v.directionB=cursor.direction;
-            if(tone.blendMode==2&&v.direction>0&&v.position<previousA)v.positionB=0;
+            if(tone.blendMode==2&&v.direction>0&&v.position<previousA){v.positionB=tone.loopB==SampleLoop.Backward?tone.loopEndB-1:0;v.directionB=tone.loopB==SampleLoop.Backward?-1:1;}
         }
     }
 }

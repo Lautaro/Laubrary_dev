@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Added P4 subtractive/blended/unison synth, four-operator FM algorithms 0–5 and independent paired-sample Mix/Ring/Sync/PM. Added seeded white/pink noise, compiled waveform/loop provenance, glide and detune corrections, typed audio-thread macro routing and external identity resolution. Shared set/target/observe/external/amplitude operations are available to P5; raw legacy command migration and the active DLL authoring backend remain unchanged. Extended the existing native golden adapter and standalone forced-GC/lifetime proof; see P4_VERIFICATION.md for exact scope and results.
+
 - Added opt-in schema-1 Burst/SAP tracker clock, sampler voices, bounded events and AudioCore mixer graph with offline rendering. Independent review corrected muted launches, loop intros, envelope operation order and explicit migration provenance; live stress corrected repeated swaps and timeout graph ownership. Verified the scoped native sampler golden subset, fresh tracker-plus-Zounds forced-GC player callbacks and real stop/swap/quit lifecycle. Fractional clock policy and legacy effect algorithms retain documented differences; synth/FM, Sample B/macros and wider commands remain later-phase work.
 
 - Independent P2 review fixed canonical instrument projection, inherited sampler preset sections, kit null-duplicate/effective-default migration, repeated-gesture rollback, live refresh slot ownership and Unity JSON null normalization. Added null archive save/reload and adversarial regression checks, exact sample-bank accounting and explicit refusal of structural scalar refreshes and native truncation; original assets and native DSP remain unchanged.

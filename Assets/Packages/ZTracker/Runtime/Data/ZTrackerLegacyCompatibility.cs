@@ -49,6 +49,7 @@ namespace Laubrary.ZTracker.Model
         public static LegacySongPayload Project(SongData model)
         {
             Require(ZTrackerModelValidation.Validate(model));
+            if(model.tracks.Exists(t=>t.externalSources.Count>0))throw new InvalidOperationException("Typed external source identities require the new backend; not dropped during projection.");
             if (model.diagnostics.Exists(d => d.StartsWith("Missing dense cell") || d.Contains("dense length mismatch"))) throw new InvalidOperationException("Malformed legacy dense payload is archived and read-only; explicit repair is required.");
             if (model.voiceCapacity != 128) throw new InvalidOperationException("Legacy backend requires 128 voices.");
             var legacy = new LegacySongPayload { songName = model.name, bpm = (int)model.bpm, linesPerBeat = model.linesPerBeat, ticksPerRow = model.ticksPerLine, channelCount = model.tracks.Count-1, instruments = new List<ZTrackerInstrument>(model.instruments), patterns = new List<ZTrackerPattern>(), channels = new List<ZTrackerChannelConfig>(), orderList = new List<int>() };
@@ -119,6 +120,7 @@ namespace Laubrary.ZTracker.Model
         public static InstrumentParameters Project(InstrumentData model)
         {
             Require(ZTrackerModelValidation.Validate(model));
+            if(model.parameters.envelopeEnumDomain!=SoundEnumDomain.SavedAuthoring)throw new InvalidOperationException("Direct native envelope enums require the new backend.");
             if(model.parameters.enumDomain!=SoundEnumDomain.SavedAuthoring||model.parameters.glideEnabled||(model.parameters.arpeggioSpeedPoints?.Count??0)>0||!model.parameters.arpeggioSpeedIsPerNote||model.sampler.zones.Exists(z=>z.blend!=null&&z.blend.loopB!=SampleLoop.Off)||Array.Exists(model.macros,m=>m.mappings.Exists(map=>(map.curvePoints?.Count??0)>0)))throw new InvalidOperationException("Typed P4 sound extensions require the new backend; preserved without legacy projection.");
             if (!Enum.IsDefined(typeof(InstrumentType),model.parameters.type)) throw new InvalidOperationException("Unknown retained legacy engine; explicit repair is required before projection.");
             // The retained payload preserves inactive legacy fields; it is not the

@@ -31,10 +31,12 @@ namespace Laubrary.ZTracker.Engine
         public const int Stride=(int)TrackerParameter.Count;
         public static string Units(TrackerParameter p)
         {
+            if(p==TrackerParameter.Volume)return "linear gain";
+            if(p==TrackerParameter.FMFeedback)return "phase feedback";
             if(p==TrackerParameter.FineTune||p==TrackerParameter.UnisonDetune||p==TrackerParameter.VibratoDepth)return "cents";
             if(p==TrackerParameter.VibratoRate||p==TrackerParameter.FilterCutoff)return "Hz";
             if(p==TrackerParameter.Attack||p==TrackerParameter.Decay||p==TrackerParameter.Release||p==TrackerParameter.GlideSeconds||p==TrackerParameter.VibratoFadeIn)return "seconds";
-            if(p>=TrackerParameter.Op0Ratio){int n=((int)p-(int)TrackerParameter.Op0Ratio)%7;return n==1?"Hz":n==3||n==4||n==6?"seconds":n==0?"ratio":"normalized";}
+            if(p>=TrackerParameter.Op0Ratio){int n=((int)p-(int)TrackerParameter.Op0Ratio)%7;return n==1?"Hz":n==3||n==4||n==6?"seconds":n==0?"ratio":n==2?"linear gain":"normalized";}
             return p==TrackerParameter.WaveBRatio?"ratio":p==TrackerParameter.PMDepth?"phase cycles or sample frames":"normalized";
         }
         public static bool Resolve(string name,out TrackerParameter parameter)

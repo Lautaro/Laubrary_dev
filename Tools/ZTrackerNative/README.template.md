@@ -46,6 +46,8 @@ Command07's tick handler sets a volume modifier, but source inspection finds no 
 
 ## APPROVED-DEFECTS
 
+P4 additionally has PM approval (T-0013 todo4, 2026-10-06) for **only `command_07` / `tremolo_ignored`**: prove audible `max(0, 1 + sin(phase) * depth)` gain against an independently rendered disabled control, finite output and exact native events. The P4 adapter invokes the typed amplitude operation after the initial note; it does not claim raw command migration (P5). Only the copied comparison manifest is tagged. The checked-in manifest and reference audio/events remain unchanged. The comparator refuses invented defect IDs and refuses this exemption on any other case. A callback is mandatory even if reference and candidate happen to match.
+
 These are approved corrections for the future engine, never instructions to reproduce legacy bugs. Ordinary cases use native enum meanings and corrected channel behavior. Defect-tagged cases preserve evidence; exemptions are per case and per defect ID, never a global tolerance increase.
 
 | Issue / ID | Evidence and reference handling | Future gate |

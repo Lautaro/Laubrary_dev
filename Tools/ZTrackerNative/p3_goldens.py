@@ -253,7 +253,11 @@ def compare_output(output):
     result['p4_numeric_scope']=sum(c['id'] in P4_IDS+P4_EXTRA_IDS and c['status']=='PASS' and c['id'] not in exemptions for c in result['cases'])
     result['correction_count']=sum(c['status']=='APPROVED_CORRECTION_VERIFIED' for c in result['cases'])
     write_json(output / "comparison.json", result)
-    print(f"P3 equivalent comparison: {len(CORE_IDS)-len(failures)} passed / {len(failures)} failed; {len(CHARACTERIZATION_IDS)} explicit DSP characterizations")
+    core_failed=sum(c['id'] in CORE_IDS for c in failures)
+    print(f"P3 equivalent comparison: {len(CORE_IDS)-core_failed} passed / {core_failed} failed; {len(CHARACTERIZATION_IDS)} explicit DSP characterizations")
+    if result['p4_case_count']:
+        p4_failed=sum(c['id'] in P4_IDS for c in failures)
+        print(f"P4 scoped comparison: {result['p4_case_count']-p4_failed}/{result['p4_case_count']} accepted; {result['p4_numeric_scope']} new ordinary numeric cases including extra control; {result['correction_count']} total separate corrections; {len(failures)} gate failures")
     return bool(failures)
 
 

@@ -30,6 +30,8 @@ namespace Laubrary.ZTracker.Model
                 if (t.visibleNoteColumns < min || t.visibleNoteColumns > 12 || (t.kind != TrackKind.Sequencer && t.visibleNoteColumns != 0) || t.visibleEffectColumns < 0 || t.visibleEffectColumns > 8) return "Track column capacity " + t.id;
                 if (t.columns == null || !Finite(t.preVolume) || !Finite(t.prePan) || !Finite(t.preWidth) || !Finite(t.postVolume) || !Finite(t.postPan) || t.beatIntervalLines < 1) return "Track mixer/visibility data " + t.id;
                 error = ValidateChain(t.devices); if (error != null) return t.id + ": " + error;
+                error=Unique(t.externalSources,d=>d.id,"External sources");if(error!=null)return error;
+                foreach(var source in t.externalSources)if(source.parameterNumbers==null||source.parameterNumbers.Count>4096||source.parameterNumbers.Exists(id=>string.IsNullOrEmpty(id)))return "External source slots missing/invalid";
             }
             if (masters != 1 || sequencers > 64) return "Require one master and at most 64 sequencer tracks";
             foreach (var t in song.tracks)

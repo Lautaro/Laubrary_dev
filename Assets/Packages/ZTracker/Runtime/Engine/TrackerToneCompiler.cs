@@ -23,7 +23,7 @@ namespace Laubrary.ZTracker.Engine
             var blends=new Dictionary<int,SampleBlendExtension>();
             for(int i=0;i<insts.Count;i++)if(song.instruments[i]!=null&&song.instruments[i].model.family==InstrumentFamily.Sampler){int zi=insts[i].zoneStart;foreach(var z in song.instruments[i].model.sampler.zones)if(!z.inactive){if(z.blend!=null&&z.blend.pcmB!=null){var zone=zones[zi];samples.Add(samples[zone.sample]);zone.sample=samples.Count-1;zones[zi]=zone;blends[zone.sample]=z.blend;}zi++;}}
             var tones=new List<TrackerTone>();var envs=new List<TrackerMod>();var bases=new List<float>();var macros=new List<TrackerMacroValue>();var routes=new List<TrackerParameterRoute>();var external=new List<TrackerParameterRoute>();
-            var ids=new Dictionary<string,int>();for(int i=0;i<song.instruments.Count;i++)if(song.instruments[i]!=null){string id=song.instruments[i].model.id;if(ids.ContainsKey(id))diagnostics.Add("DUPLICATE_INSTRUMENT_IDENTITY "+id);else ids.Add(id,i);}
+            var ids=new Dictionary<string,int>();var ambiguous=new HashSet<string>();for(int i=0;i<song.instruments.Count;i++)if(song.instruments[i]!=null){string id=song.instruments[i].model.id;if(ids.ContainsKey(id)||ambiguous.Contains(id)){diagnostics.Add("DUPLICATE_INSTRUMENT_IDENTITY "+id);ids.Remove(id);ambiguous.Add(id);}else ids.Add(id,i);}
             for(int i=0;i<insts.Count;i++){
                 var data=song.instruments[i]?.model;var q=data?.parameters??new InstrumentParameters();
                 var values=new float[TrackerParameters.Stride];
@@ -38,7 +38,7 @@ namespace Laubrary.ZTracker.Engine
                 for(int op=0;op<4;op++){
                     var o=q.fmOperators!=null&&op<q.fmOperators.Length?q.fmOperators[op]:new ZTrackerInstrument.FMOperatorData{freqRatio=1,level=1,attack=.001f,decay=.1f,sustain=.8f,release=.3f};
                     int at=(int)TrackerParameter.Op0Ratio+op*7;values[at]=o.freqRatio;values[at+1]=o.freqFixed;values[at+2]=o.level;values[at+3]=o.attack;values[at+4]=o.decay;values[at+5]=o.sustain;values[at+6]=o.release;
-                    if(o.waveform!=0)diagnostics.Add("FM_SINE_OPERATORS_ONLY slot="+i+" op="+op);
+                    if(data?.family==InstrumentFamily.Synth&&data.synthMode==SynthMode.FM&&o.waveform!=0)diagnostics.Add("FM_SINE_OPERATORS_ONLY slot="+i+" op="+op);
                 }
                 foreach(float x in values)if(!math.isfinite(x))throw new ArgumentException("Nonfinite tone parameter slot="+i);
                 for(int p=0;p<values.Length;p++)values[p]=TrackerParameters.Clamp((TrackerParameter)p,values[p]);bases.AddRange(values);
@@ -49,12 +49,15 @@ namespace Laubrary.ZTracker.Engine
             }
             for(int si=0;si<samples.Count;si++){
                 var sm=samples[si];var data=song.instruments[sm.instrument].model;var q=data.parameters;bool synth=data.family==InstrumentFamily.Synth;blends.TryGetValue(si,out var b);
-                var tone=new TrackerTone{kind=synth?(data.synthMode==SynthMode.FM?2:1):0,waveA=CompileWave(q.waveA,q.enumDomain),waveB=CompileWave(q.waveB,q.enumDomain),blendMode=b?.mode??q.blendMode,members=synth&&data.synthMode!=SynthMode.FM?math.clamp(q.unisonVoices,1,8):1,pcmB=-1,envelopes=envs.Count,algorithm=q.fmAlgorithm>=0&&q.fmAlgorithm<=5?q.fmAlgorithm:5,glide=q.glideEnabled,legato=q.glideLegato,arpPerNote=q.arpeggioSpeedIsPerNote,baseGlobalVolume=synth?q.volume:data.sampler.volume,baseGlobalPan=synth?q.pan:data.sampler.pan,baseGlobalTune=synth?q.fineTune:data.sampler.fineTuneCents,blendEnvelope=b?.envelopeEnabled??q.blendEnvelope,blendAttack=b?.attack??q.blendAttack,blendDecay=b?.decay??q.blendDecay,blendSustain=b?.sustain??q.blendSustain,blendRelease=b?.release??q.blendRelease};
+                bool subtractive=synth&&data.synthMode==SynthMode.Subtractive;
+                if(subtractive&&(q.unisonVoices<1||q.unisonVoices>8))throw new ArgumentException("Unison member capacity");
+                if(synth&&!subtractive&&(q.fmAlgorithm<0||q.fmAlgorithm>7))throw new ArgumentException("Unknown FM algorithm");
+                var tone=new TrackerTone{kind=synth?(data.synthMode==SynthMode.FM?2:1):0,waveA=subtractive?CompileWave(q.waveA,q.enumDomain):0,waveB=subtractive?CompileWave(q.waveB,q.enumDomain):0,blendMode=subtractive?q.blendMode:b?.mode??0,members=subtractive?q.unisonVoices:1,pcmB=-1,envelopes=envs.Count,algorithm=q.fmAlgorithm>=0&&q.fmAlgorithm<=5?q.fmAlgorithm:5,glide=q.glideEnabled,legato=q.glideLegato,arpPerNote=q.arpeggioSpeedIsPerNote,baseGlobalVolume=synth?q.volume:data.sampler.volume,baseGlobalPan=synth?q.pan:data.sampler.pan,baseGlobalTune=synth?q.fineTune:data.sampler.fineTuneCents,blendEnvelope=b?.envelopeEnabled??(subtractive&&q.blendEnvelope),blendAttack=b?.attack??q.blendAttack,blendDecay=b?.decay??q.blendDecay,blendSustain=b?.sustain??q.blendSustain,blendRelease=b?.release??q.blendRelease};
                 if(tone.blendMode<0||tone.blendMode>3)throw new ArgumentException("Unknown blend mode");
                 tone.baseBlend=b?.amount??q.blend;tone.basePM=b?.pmDepth??q.pmDepth;tone.localVolume=synth?1:sm.localVolume;tone.localPan=synth?0:sm.localPan;tone.vibratoRandomness=math.saturate(q.vibratoRandomness);
-                if(synth&&q.fmAlgorithm>5)diagnostics.Add("FM_ALGORITHM_FALLBACK authored="+q.fmAlgorithm+" compiled=5 slot="+sm.instrument);
-                if(synth&&q.enumDomain==SoundEnumDomain.SavedAuthoring)diagnostics.Add("SAVED_WAVE_MAPPING slot="+sm.instrument+" original="+q.waveA+" compiled="+tone.waveA);
-                var envelopes=new[]{b?.blendEnvelope??q.blendEnvelopeData,q.pulseWidthEnvelopeData,q.waveBRatioEnvelopeData,b?.pmEnvelope??q.pmDepthEnvelopeData,q.unisonDetuneEnvelopeData};
+                if(synth&&!subtractive&&q.fmAlgorithm>5)diagnostics.Add("FM_ALGORITHM_FALLBACK authored="+q.fmAlgorithm+" compiled=5 slot="+sm.instrument);
+                if(subtractive&&q.enumDomain==SoundEnumDomain.SavedAuthoring)diagnostics.Add("SAVED_WAVE_MAPPING slot="+sm.instrument+" original="+q.waveA+" compiled="+tone.waveA);
+                var envelopes=subtractive?new[]{q.blendEnvelopeData,q.pulseWidthEnvelopeData,q.waveBRatioEnvelopeData,q.pmDepthEnvelopeData,q.unisonDetuneEnvelopeData}:b!=null?new[]{b.blendEnvelope??q.blendEnvelopeData,null,null,b.pmEnvelope??q.pmDepthEnvelopeData,null}:new ZUIEnvelopeData[5];
                 foreach(var env in envelopes)envs.Add(CompileEnvelope(env,q.envelopeEnumDomain,points));
                 if(b!=null){tone.pcmB=ReadP4Clip(b.pcmB,pcm,clips,pcmMap);tone.baseNoteB=b.baseNoteB;tone.fineTuneB=b.fineTuneBCents;tone.loopB=b.loopB;tone.loopStartB=b.loopStartFrameB;tone.loopEndB=b.loopEndFrameB;tone.releaseExitsLoopB=b.releaseExitsLoopB;}
                 tone.arpNotes=points.Count;tone.arpNoteCount=q.arpeggioEnabled?q.arpeggioNotes?.Length??0:0;
@@ -68,6 +71,7 @@ namespace Laubrary.ZTracker.Engine
             foreach(var track in song.tracks)if(track.externalSources!=null)foreach(var device in track.externalSources){
                 if(string.IsNullOrEmpty(device.id)||string.IsNullOrEmpty(device.pluginId)||!ids.TryGetValue(device.instrumentId,out int ii)){diagnostics.Add("EXTERNAL_SOURCE_UNRESOLVED track="+track.id+" device="+device.id);continue;}
                 var data=song.instruments[ii].model;
+                if(data.family!=InstrumentFamily.Synth){diagnostics.Add("EXTERNAL_LINK_REQUIRES_SYNTH device="+device.id);continue;}
                 for(int slot=0;slot<device.parameterNumbers.Count;slot++){
                     string id=device.parameterNumbers[slot];var map=data.externalParameters.Find(x=>x.externalId==id);
                     if(map==null){diagnostics.Add("EXTERNAL_ID_UNMAPPED device="+device.id+" slot="+slot+" external="+id);continue;}
@@ -104,9 +108,10 @@ namespace Laubrary.ZTracker.Engine
         bool CompileRoute(Mapping map,int owner,int macro,Dictionary<string,int> ids,List<TrackerModPoint> points,out TrackerParameterRoute route)
         {
             route=default;var t=map.target;int instrument=owner;
+            if(t.kind!=ParameterKind.InstrumentMacro&&t.index!=-1){diagnostics.Add("PARAMETER_INDEX_UNSUPPORTED "+t.parameter+" index="+t.index);return false;}
             if(t.unresolved||(t.instrumentId!=""&&!ids.TryGetValue(t.instrumentId,out instrument))){diagnostics.Add("PARAMETER_ROUTE_UNRESOLVED "+t.parameter);return false;}
             int parameter;
-            if(t.kind==ParameterKind.InstrumentMacro&&macro<0&&t.index>=0&&t.index<8)parameter=-1-t.index;
+            if(t.kind==ParameterKind.InstrumentMacro&&macro<0&&t.index>=0&&t.index<8&&(t.units=="normalized"||t.units=="legacy parameter units"))parameter=-1-t.index;
             else if((t.kind==ParameterKind.Synth||t.kind==ParameterKind.Sample)&&TrackerParameters.Resolve(t.parameter,out var p)){
                 parameter=(int)p;string units=TrackerParameters.Units(p);
                 if(!Applicable(routeModels[instrument],p,t.kind,t.units=="legacy parameter units")){diagnostics.Add("PARAMETER_FAMILY_UNSUPPORTED "+t.parameter+" slot="+instrument);return false;}
@@ -118,6 +123,7 @@ namespace Laubrary.ZTracker.Engine
             if(map.curvePoints!=null)foreach(var p in map.curvePoints)points.Add(new TrackerModPoint{time=p.time,value=p.value,exponent=1});
             // Legacy filter endpoints are normalized Nyquist, declared Hz routes are physical.
             if(parameter==(int)TrackerParameter.FilterCutoff&&t.units=="legacy parameter units"){route.min*=state.sampleRate*.5f;route.max*=state.sampleRate*.5f;}
+            if(!math.isfinite(route.min)||!math.isfinite(route.max)){diagnostics.Add("PARAMETER_ENDPOINT_RANGE_UNSUPPORTED "+t.parameter);return false;}
             return true;
         }
         static bool Applicable(InstrumentData model,TrackerParameter p,ParameterKind kind,bool legacy)

@@ -67,7 +67,7 @@ namespace Laubrary.ZTracker.Engine
         void ResetColumns(){for(int i=0;i<state.columnCount;i++)state.columns[i]=new TrackerColumn{instrument=-1,volume=1,pan=0,due=-1,pendingCell=-1};}
         void ClearVoices(){for(int i=0;i<state.voices.Length;i++)state.voices[i]=default;for(int i=0;i<state.modulationState.Length;i++)state.modulationState[i]=default;}
         void ResetChains(){for(int i=0;i<state.chainCount;i++){ref var c=ref state.chains[i];c.processor.Reset(in c.layout,state.sampleRate,2463534242u,0);TrackerChainSeed.Apply(ref c.processor,in c.layout);}}
-        void ResetDefaults(){state.bpm=state.authoredBpm;state.linesPerBeat=state.authoredLinesPerBeat;state.ticksPerLine=state.authoredTicksPerLine;state.normalization=1;for(int i=0;i<state.trackCount;i++){var t=state.tracks[i];t.livePostGain=t.postGain=t.authoredPostGain;t.livePostPan=t.postPan=t.authoredPostPan;t.outputMute=t.authoredOutputMute;t.triggerMute=t.authoredTriggerMute;t.gainRemaining=t.panRemaining=0;state.tracks[i]=t;}}
+        void ResetDefaults(){state.bpm=state.authoredBpm;state.linesPerBeat=state.authoredLinesPerBeat;state.ticksPerLine=state.authoredTicksPerLine;state.normalization=1;for(int i=0;i<state.trackCount;i++){var t=state.tracks[i];t.livePostGain=t.postGain=t.authoredPostGain;t.livePostPan=t.postPan=t.authoredPostPan;t.outputMute=t.authoredOutputMute;t.triggerMute=t.authoredTriggerMute;t.gainRemaining=t.panRemaining=0;state.tracks[i]=t;}ResetToneDefaults();}
         void ClockCommands(in TrackerRow row){state.breakRow=-1;for(int i=0;i<row.commandCount;i++){var c=state.commands[row.commands+i];switch(c.kind){case 1:state.bpm=c.value;break;case 2:state.linesPerBeat=c.value;break;case 3:state.ticksPerLine=c.value;break;case 4:state.breakRow=c.value;break;}}}
         void Seek(int sequence,int row)
         {
@@ -333,7 +333,7 @@ namespace Laubrary.ZTracker.Engine
                         value=Curve(in m,pos);ms.position=pos+(m.advanceFirst?0:1d/state.sampleRate*(v.released?1:ms.direction));
                         if(!v.released&&m.sustainEnabled)ms.position=math.min(ms.position,m.sustainPosition);break;
                     case ModulationDeviceKind.LFO:
-                        if(s.legacyPan&&state.tones[v.sample].kind==0&&m.target==ModulationTarget.Pitch&&(Written(v.instrument,TrackerParameter.VibratoDepth)||Written(v.instrument,TrackerParameter.VibratoRate)))continue;
+                        if(s.legacyPan&&state.tones[v.sample].kind==0&&m.target==ModulationTarget.Pitch&&m.advanceFirst&&(Written(v.instrument,TrackerParameter.VibratoDepth)||Written(v.instrument,TrackerParameter.VibratoRate)||Written(v.instrument,TrackerParameter.VibratoFadeIn)))continue;
                         uint seed=(uint)(v.cohort*2654435761L+v.note*2246822519L+i*3266489917L);seed^=seed>>16;seed*=0x7feb352du;seed^=seed>>15;
                         float random=(seed&0xffffff)/8388608f-1;
                         double lfoTime=(v.age+(m.advanceFirst?1:0))/(double)state.sampleRate;
