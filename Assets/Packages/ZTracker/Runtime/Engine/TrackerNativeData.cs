@@ -96,6 +96,18 @@ namespace Laubrary.ZTracker.Engine
         public float volume, pan, envelope, releaseStart, releaseStep, amplitude;
         public float fL1, fL2, fR1, fR2, xL1, xL2, xR1, xR2;
         public float b0, b1, b2, a1, a2, filterCutoff, filterQ;
+        public float phaseA, phaseB, syncFilter, blendCurrent, pmCurrent, ratioCurrent, pulseCurrent, detuneCurrent, envTime;
+        public float memberSpread, memberGain, blendLevel, blendReleaseStart, arpTime;
+        public int blendStage, arpIndex, directionB;
+        public double positionB, stepB, glideCurrent, arpCounter, arpStep;
+        public uint noiseA, noiseB;
+        public float3 pinkA, pinkB;
+        public float4 fmPhase, fmLevel, fmReleaseStart;
+        public int4 fmStage;
+        public float fmPrevious;
+        public float vibratoPhase, vibratoFade;
+        public double vibratoSmooth, arpSmooth;
+        public float amplitudeDepth, amplitudePhase, amplitudeRate;
     }
     public struct TrackerColumn
     {
@@ -105,6 +117,8 @@ namespace Laubrary.ZTracker.Engine
         public double dueExact;
         public int pendingNote, pendingInstrument, pendingVelocity, pendingCell;
         public bool pendingOff;
+        public int previousNote;
+        public bool hasPreviousNote;
     }
     public struct TrackerCell
     {
@@ -157,6 +171,12 @@ namespace Laubrary.ZTracker.Engine
         public NativeArray<TrackerModPoint> points;
         public NativeArray<TrackerModState> modulationState;
         public NativeArray<TrackerVoice> voices;
+        public NativeArray<TrackerTone> tones;
+        public NativeArray<float> parameterBase, parameterDirect, parameterLive;
+        public NativeArray<byte> parameterWritten;
+        public NativeArray<TrackerMacroValue> macros;
+        public NativeArray<TrackerParameterRoute> macroRoutes, externalRoutes;
+        public NativeArray<TrackerMod> toneEnvelopes;
         public NativeArray<TrackerColumn> columns;
         public NativeArray<TrackerTrack> tracks;
         public NativeArray<TrackerSend> sends;
@@ -173,6 +193,7 @@ namespace Laubrary.ZTracker.Engine
         [NativeDisableContainerSafetyRestriction] public NativeArray<long> ticket;
         [NativeDisableUnsafePtrRestriction] public TrackerChain* chains;
         public int chainCount, pcmCount, sampleCount, instrumentCount, trackCount, busCount, columnCount, modStride;
+        public int macroRouteCount, externalRouteCount;
         public int sampleRate, maxFrames, master, sequenceIndex, row, tick, breakRow, linesPerBeat, ticksPerLine, beatInterval;
         public double bpm, tickRemaining, rowStart, rowEnd, clockCompensation, tickDeadline;
         public double authoredBpm;
@@ -182,7 +203,7 @@ namespace Laubrary.ZTracker.Engine
         public float normalization;
         public bool playing, rowPending, loopSong, beatTicks, legacyMix;
     }
-    public enum TrackerCommandKind { Play, Stop, ReleaseAll, Seek, AuditionOn, AuditionOff, TrackGain, TrackPan, TrackMute, Swap, AuditionNormalized, ReleaseVoice }
+    public enum TrackerCommandKind { Play, Stop, ReleaseAll, Seek, AuditionOn, AuditionOff, TrackGain, TrackPan, TrackMute, Swap, AuditionNormalized, ReleaseVoice, MacroSet, MacroTarget, MacroAdvance, ParameterSet, ExternalSet, AmplitudeModifier }
     public struct TrackerCommand
     {
         public TrackerCommandKind kind;
@@ -197,5 +218,13 @@ namespace Laubrary.ZTracker.Engine
         public static TrackerCommand Audition(int instrument,int note,float velocity,int track=0)=>new TrackerCommand{kind=TrackerCommandKind.AuditionNormalized,a=instrument,b=note,c=(int)math.round(velocity*127),d=track,value=velocity};
         /// <summary>Release a specific slot only while its cohort generation still matches. A stale handle is a no-op.</summary>
         public static TrackerCommand ReleaseVoice(int slot,long generation)=>new TrackerCommand{kind=TrackerCommandKind.ReleaseVoice,a=slot,generation=generation};
+        public static TrackerCommand SetMacro(int instrument,int macro,float value)=>new TrackerCommand{kind=TrackerCommandKind.MacroSet,a=instrument,b=macro,value=value};
+        /// <summary>Approach by at most step per explicit active tick. Does not decode legacy G/H commands.</summary>
+        public static TrackerCommand TargetMacro(int instrument,int macro,float value,float step)=>new TrackerCommand{kind=TrackerCommandKind.MacroTarget,a=instrument,b=macro,value=value,generation=math.asint(step)};
+        public static TrackerCommand AdvanceMacros(int instrument)=>new TrackerCommand{kind=TrackerCommandKind.MacroAdvance,a=instrument};
+        public static TrackerCommand SetParameter(int instrument,TrackerParameter parameter,float value)=>new TrackerCommand{kind=TrackerCommandKind.ParameterSet,a=instrument,b=(int)parameter,value=value};
+        public static TrackerCommand SetExternal(int compiledRoute,float normalized)=>new TrackerCommand{kind=TrackerCommandKind.ExternalSet,a=compiledRoute,value=normalized};
+        /// <summary>Gain=max(0,1+sin(phase)*depth), phase in cycles; scoped to foreground column cohort.</summary>
+        public static TrackerCommand AmplitudeModifier(int track,int column,float depth,float hz)=>new TrackerCommand{kind=TrackerCommandKind.AmplitudeModifier,a=track,b=column,value=depth,generation=math.asint(hz)};
     }
 }

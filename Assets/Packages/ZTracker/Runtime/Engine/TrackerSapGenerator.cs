@@ -47,6 +47,11 @@ namespace Laubrary.ZTracker.Engine
             if(!ControlContext.builtIn.Exists(instance))return false;
             return ControlContext.builtIn.SendMessage(instance,ref command)==Response.Handled;
         }
+        public bool SetMacro(int instrument,int macro,float value)=>SendCommand(TrackerCommand.SetMacro(instrument,macro,value));
+        public bool TargetMacro(int instrument,int macro,float value,float step)=>SendCommand(TrackerCommand.TargetMacro(instrument,macro,value,step));
+        public bool SetExternal(string track,string device,int slot,float normalized)=>current!=null&&current.TryExternalCommand(track,device,slot,normalized,out var command)&&SendCommand(command);
+        // A single atomic float observation; not a simultaneous snapshot of all eight values.
+        public float ObserveMacro(int instrument,int macro){if(current==null||current.Disposed||instrument<0||instrument>=current.state.instrumentCount||macro<0||macro>=8)throw new ArgumentOutOfRangeException();var ptr=(TrackerMacroValue*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(current.state.macros);return Volatile.Read(ref ptr[instrument*8+macro].value);}
         public bool SwapPrepared(TrackerPreparedSong next,bool playSong=true)
         {
             if(initial==null||next==null||next.Published||next.Disposed||next.state.sampleRate!=configuredRate||!accepting||!hasInstance||TrackerSapRegistry.RefuseNewRendering)return false;

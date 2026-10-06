@@ -40,6 +40,10 @@ namespace Laubrary.ZTracker.Engine
         public bool Compiled{get{RequireAlive();return witness[0]==1;}}
         public long EventOverflow{get{RequireAlive();return realtime->events.OverflowCount;}}
         public TrackerState Snapshot{get{RequireAlive();return realtime->state;}}
+        public void SetMacro(int instrument,int macro,float value)=>SendCommand(TrackerCommand.SetMacro(instrument,macro,value));
+        public void TargetMacro(int instrument,int macro,float value,float step)=>SendCommand(TrackerCommand.TargetMacro(instrument,macro,value,step));
+        public float ObserveMacro(int instrument,int macro){RequireAlive();if(instrument<0||instrument>=realtime->state.instrumentCount||macro<0||macro>=8)throw new ArgumentOutOfRangeException();return realtime->state.macros[instrument*8+macro].value;}
+        public bool SetExternal(string track,string device,int slot,float normalized){RequireAlive();if(!prepared.TryExternalCommand(track,device,slot,normalized,out var command))return false;SendCommand(command);return true;}
         public void SendCommand(TrackerCommand command){RequireAlive();if(command.kind==TrackerCommandKind.Swap)throw new ArgumentException("Offline swap requires a new owned engine");realtime->Apply(in command);}
         public bool ReadEvent(out TrackerEvent value){RequireAlive();return realtime->events.TryRead(out value);}
         public void Render(NativeArray<float> left,NativeArray<float> right,int frames,int blockFrames=1024)

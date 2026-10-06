@@ -1,7 +1,7 @@
 {
   "name": "com.Lautaro-Arino.Laubrary.ZTracker.Engine",
   "rootNamespace": "Laubrary.ZTracker.Engine",
-  "references": ["ZTracker", "com.Lautaro-Arino.Laubrary.AudioCore", "Unity.Burst", "Unity.Collections", "Unity.Mathematics"],
+  "references": ["ZTracker", "com.Lautaro-Arino.Laubrary.ZuiRuntime", "com.Lautaro-Arino.Laubrary.AudioCore", "Unity.Burst", "Unity.Collections", "Unity.Mathematics"],
   "allowUnsafeCode": true,
   "autoReferenced": true
 }

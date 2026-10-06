@@ -11,14 +11,14 @@ using UnityEngine;
 namespace Laubrary.ZTracker.Engine
 {
     /// <summary>Exclusive main-thread owner of one immutable compiled song and its render state. Never dispose a published song without a quiet ticket.</summary>
-    public sealed unsafe class TrackerPreparedSong : IDisposable
+    public sealed unsafe partial class TrackerPreparedSong : IDisposable
     {
         public TrackerState state;
         public readonly List<string> diagnostics = new List<string>();
         public readonly List<string> eventPayloads = new List<string>();
         public bool Published { get; internal set; }
         public bool Disposed { get; private set; }
-        public const string ImplementationWitness = "P3-native-tracker-core-v1";
+        public const string ImplementationWitness = "P4-synth-macro-native-core-v1";
         public int PcmCount => state.pcmCount;
         long chainStateFloats;
         void AddChain(List<TrackerChain> chains,TrackerChain chain){if(chains.Count>=16384||chainStateFloats+chain.layout.stateFloats>33554432){chain.processor.Dispose();chain.layout.Dispose();throw new ArgumentException("Chain count/state exceeds 16384 chains / 128 MiB");}chainStateFloats+=chain.layout.stateFloats;chains.Add(chain);}
@@ -54,7 +54,7 @@ namespace Laubrary.ZTracker.Engine
         void Build(SongData song,int rate,int maxFrames,List<TrackerChain> chains)
         {
             state.sampleRate=rate;state.maxFrames=maxFrames;state.bpm=state.authoredBpm=song.bpm;state.linesPerBeat=state.authoredLinesPerBeat=song.linesPerBeat;state.ticksPerLine=state.authoredTicksPerLine=song.ticksPerLine;state.beatTicks=song.beatTicks;state.beatInterval=song.beatIntervalLines;state.breakRow=-1;state.normalization=1;state.rowPending=true;
-            state.legacyMix=song.instruments.Any(a=>a!=null)&&song.instruments.Where(a=>a!=null).All(a=>a.schemaVersion==1&&a.model!=null&&a.model.family==InstrumentFamily.Sampler&&NativeProvenance(a.model.provenance));
+            state.legacyMix=song.instruments.Any(a=>a!=null)&&song.instruments.Where(a=>a!=null).All(a=>a.schemaVersion==1&&a.model!=null&&NativeProvenance(a.model.provenance));
             if(state.legacyMix)diagnostics.Add("LEGACY_MIX_NORMALIZATION_AND_SOFT_KNEE");
             var trackMap=song.tracks.Select((t,i)=>(t.id,i)).ToDictionary(x=>x.id,x=>x.i);
             state.master=song.tracks.FindIndex(t=>t.kind==TrackKind.Master);state.trackCount=song.tracks.Count;
@@ -90,7 +90,14 @@ namespace Laubrary.ZTracker.Engine
                 if(asset==null){diagnostics.Add("EMPTY_INSTRUMENT slot="+i);insts.Add(ins);continue;}
                 if(asset.schemaVersion!=1)throw new ArgumentException("Instrument requires schema 1 at slot "+i);
                 var data=asset.model;string e=ZTrackerModelValidation.Validate(data);if(e!=null)throw new ArgumentException("Instrument "+i+": "+e);
-                if(data.family==InstrumentFamily.Synth){diagnostics.Add("P4_SYNTH_SILENCE slot="+i);insts.Add(ins);continue;}
+                if(data.family==InstrumentFamily.Synth){
+                    var q=data.parameters;ins.nna=data.sampler.nna;ins.chainStart=-1;ins.chainCount=data.fxChains.Count;
+                    var sm=new TrackerSample{pcm=-1,instrument=i,volume=q.volume,pan=q.pan,attack=q.attack,decay=q.decay,sustain=q.sustain,release=q.release,nna=ins.nna,legacyPan=NativeProvenance(data.provenance),legacyFilter=1,filterType=q.instFilterEnabled?q.instFilterMode+1:0,cutoff=q.instFilterCutoff*(rate*.5f),resonance=q.instFilterResonance,fxChain=data.fxChains.Count>0?0:-1,muteGroup=-1,delayDestination=-1,reverbDestination=-1,modStart=mods.Count};
+                    if(data.synthMode==SynthMode.FM){var op=q.fmOperators!=null&&q.fmOperators.Length>0?q.fmOperators[0]:new ZTrackerInstrument.FMOperatorData{attack=.001f,decay=.1f,sustain=.8f,release=.3f};sm.attack=op.attack;sm.decay=op.decay;sm.sustain=op.sustain;sm.release=op.release;}
+                    foreach(var set in data.modulation)foreach(var m in set.devices)if(m.enabled){bool primary=!sm.orderedVolume&&m.kind==ModulationDeviceKind.AHDSR&&m.target==ModulationTarget.Volume;if(primary){sm.attack=m.attack;sm.hold=m.hold;sm.decay=m.decay;sm.sustain=m.sustain;sm.release=m.release;sm.orderedVolume=true;}AddMod(m,mods,points,primary);}
+                    sm.modCount=mods.Count-sm.modStart;stride=Math.Max(stride,sm.modCount);if(stride>64)throw new ArgumentException("More than 64 synth modulation devices");
+                    zones.Add(new TrackerZone{sample=samples.Count,minNote=0,maxNote=119,minVelocity=0,maxVelocity=127,baseNote=69,tracking=true});samples.Add(sm);ins.zoneCount=1;insts.Add(ins);continue;
+                }
                 if(data.sampler.samples.Count>4096||data.sampler.zones.Count>4096||data.modulation.Count>256||data.fxChains.Count>64)throw new ArgumentException("Sampler capacity exceeded");
                 ins.nna=data.sampler.nna;
                 ins.chainStart=-1;ins.chainCount=data.fxChains.Count;
@@ -119,7 +126,7 @@ namespace Laubrary.ZTracker.Engine
                         }
                         if(legacy.instFilterEnabled){if(legacy.instFilterMode<0||legacy.instFilterMode>2||!math.isfinite(legacy.instFilterCutoff)||!math.isfinite(legacy.instFilterResonance))throw new ArgumentException("Malformed retained filter");sm.legacyFilter=1;sm.filterType=legacy.instFilterMode+1;sm.cutoff=math.clamp(legacy.instFilterCutoff*(rate*.5f),20,rate*.5f-100);sm.resonance=math.clamp(legacy.instFilterResonance,.1f,10);diagnostics.Add("LEGACY_VOICE_FILTER_COMPILED slot="+i+" sample="+j);}
                         if(legacy.vibratoDepth!=0){if(!math.isfinite(legacy.vibratoDepth)||!math.isfinite(legacy.vibratoRate)||!math.isfinite(legacy.vibratoFadeIn)||!math.isfinite(legacy.vibratoRandomness)||legacy.vibratoRate<0||legacy.vibratoFadeIn<0||legacy.vibratoRandomness<0||legacy.vibratoRandomness>1)throw new ArgumentException("Malformed retained vibrato");AddMod(new ModulationDevice{kind=ModulationDeviceKind.LFO,target=ModulationTarget.Pitch,operation=ModulationOperation.Add,depth=legacy.vibratoDepth/100f,rate=legacy.vibratoRate},mods,points);var compiled=mods[mods.Count-1];compiled.fadeSeconds=legacy.vibratoFadeIn;compiled.randomness=legacy.vibratoRandomness;compiled.advanceFirst=true;mods[mods.Count-1]=compiled;diagnostics.Add("LEGACY_VIBRATO_COMPILED_CENTS_TO_SEMITONES slot="+i);}
-                        if(legacy.arpeggioEnabled&&legacy.arpeggioNotes!=null&&legacy.arpeggioNotes.Length>=2){if(legacy.arpeggioNotes.Length>64||!math.isfinite(legacy.arpeggioSpeed)||legacy.arpeggioSpeed<=0)throw new ArgumentException("Malformed retained arpeggio");var arp=new ModulationDevice{kind=ModulationDeviceKind.Multipoint,target=ModulationTarget.Pitch,operation=ModulationOperation.Add,loopEnabled=true,loop=SampleLoop.Forward,loopStart=0,loopEnd=legacy.arpeggioSpeed*legacy.arpeggioNotes.Length};for(int k=0;k<=legacy.arpeggioNotes.Length;k++)arp.points.Add(new ModulationPoint{time=k*legacy.arpeggioSpeed,value=legacy.arpeggioNotes[k%legacy.arpeggioNotes.Length],exponent=100000});AddMod(arp,mods,points);var compiled=mods[mods.Count-1];compiled.advanceFirst=true;mods[mods.Count-1]=compiled;diagnostics.Add("LEGACY_ARPEGGIO_COMPILED slot="+i);}
+                        // Variable-speed arpeggio is compiled by P4, shared with synth/FM.
                         if(legacy.instDelaySend!=0||legacy.instReverbSend!=0){
                             if(!math.isfinite(legacy.instDelaySend)||!math.isfinite(legacy.instReverbSend)||legacy.instDelaySend<0||legacy.instReverbSend<0)throw new ArgumentException("Malformed retained send");
                             sm.delaySend=legacy.instDelaySend;sm.reverbSend=legacy.instReverbSend;
@@ -135,11 +142,11 @@ namespace Laubrary.ZTracker.Engine
                     if(!sm.legacyPan)sm.pan=math.clamp(data.sampler.pan+s.pan,-1,1);
                     sm.modCount=mods.Count-sm.modStart;stride=Math.Max(stride,sm.modCount);if(stride>64)throw new ArgumentException("More than 64 modulation devices per sample");samples.Add(sm);
                 }
-                foreach(var z in data.sampler.zones)if(!z.inactive){zones.Add(new TrackerZone{sample=sampleBase+z.sample,minNote=z.noteMin,maxNote=z.noteMax,minVelocity=z.velocityMin,maxVelocity=z.velocityMax,baseNote=z.baseNote,tracking=z.keyTracking});if(z.blend!=null&&z.blend.pcmB!=null)diagnostics.Add("P4_SAMPLE_B_DEFERRED slot="+i+" zone="+z.id);}
+                foreach(var z in data.sampler.zones)if(!z.inactive)zones.Add(new TrackerZone{sample=sampleBase+z.sample,minNote=z.noteMin,maxNote=z.noteMax,minVelocity=z.velocityMin,maxVelocity=z.velocityMax,baseNote=z.baseNote,tracking=z.keyTracking});
                 ins.zoneCount=zones.Count-ins.zoneStart;insts.Add(ins);
-                if(data.macros.Any(m=>m.mappings.Count>0))diagnostics.Add("P4_MACROS_DEFERRED slot="+i);
                 if(data.parameters.presets!=null&&data.parameters.presets.Count>0)diagnostics.Add("P5_PRESETS_BASE_ONLY slot="+i);
             }
+            BuildP4(song,rate,samples,zones,insts,pcm,clips,pcmMap,points);
             state.pcm=Native(pcm);state.clips=Native(clips);state.pcmCount=clips.Count;state.samples=Native(samples);state.sampleCount=samples.Count;state.zones=Native(zones);state.instruments=Native(insts);state.instrumentCount=insts.Count;state.mods=Native(mods);state.points=Native(points);state.modStride=Math.Max(1,stride);state.modulationState=Buffer<TrackerModState>(checked(song.voiceCapacity*state.modStride));state.voices=Buffer<TrackerVoice>(song.voiceCapacity);
             // Every (track,instrument,FX-chain) partition has independent effect history.
             var buses=new List<TrackerBus>();
@@ -200,6 +207,7 @@ namespace Laubrary.ZTracker.Engine
             if(Disposed)return;if(Published)throw new InvalidOperationException("Stop host publication and confirm ticket quiet before freeing a published song");Disposed=true;
             for(int i=0;i<state.chainCount;i++){state.chains[i].processor.Dispose();state.chains[i].layout.Dispose();}
             if(state.chains!=null)UnsafeUtility.Free(state.chains,Allocator.Persistent);
+            Free(ref state.tones);Free(ref state.toneEnvelopes);Free(ref state.parameterBase);Free(ref state.parameterDirect);Free(ref state.parameterLive);Free(ref state.parameterWritten);Free(ref state.macros);Free(ref state.macroRoutes);Free(ref state.externalRoutes);
             Free(ref state.pcm);Free(ref state.left);Free(ref state.right);Free(ref state.busLeft);Free(ref state.busRight);Free(ref state.outputLeft);Free(ref state.outputRight);Free(ref state.faderGain);Free(ref state.faderPan);Free(ref state.clips);Free(ref state.samples);Free(ref state.instruments);Free(ref state.zones);Free(ref state.mods);Free(ref state.points);Free(ref state.modulationState);Free(ref state.voices);Free(ref state.columns);Free(ref state.tracks);Free(ref state.sends);Free(ref state.order);Free(ref state.patterns);Free(ref state.rows);Free(ref state.cells);Free(ref state.commands);Free(ref state.authoredEvents);Free(ref state.sequence);Free(ref state.sequenceMutes);Free(ref state.outputMutes);Free(ref state.buses);Free(ref state.ticket);state=default;
         }
         static void Free<T>(ref NativeArray<T> a)where T:struct{if(a.IsCreated)a.Dispose();a=default;}

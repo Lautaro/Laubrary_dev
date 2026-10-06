@@ -11,7 +11,7 @@ namespace Laubrary.ZTracker.Engine
 {
     /// <summary>Single song clock, sampler pool and bus graph. Offline and SAP call this identical struct.</summary>
     [BurstCompile(CompileSynchronously=true,FloatMode=FloatMode.Strict)]
-    public unsafe struct TrackerRealtime : GeneratorInstance.IRealtime
+    public unsafe partial struct TrackerRealtime : GeneratorInstance.IRealtime
     {
         public TrackerState state;
         public TrackerEventRing events;
@@ -48,7 +48,7 @@ namespace Laubrary.ZTracker.Engine
                 case TrackerCommandKind.AuditionNormalized:
                     if(c.d>=0&&c.d<state.trackCount&&state.tracks[c.d].columnCount>0&&c.b>=0&&c.b<120&&c.c>=0&&c.c<=127&&math.isfinite(c.value)&&c.value>=0&&c.value<=1){int ci=state.tracks[c.d].columns;var col=state.columns[ci];col.volume=c.value;state.columns[ci]=col;NoteOn(c.d,0,c.a,c.b,c.c);}break;
                 case TrackerCommandKind.ReleaseVoice:
-                    if(c.a>=0&&c.a<state.voices.Length&&state.voices[c.a].active&&state.voices[c.a].cohort==c.generation)Release(c.a);break;
+                    if(c.a>=0&&c.a<state.voices.Length&&state.voices[c.a].active&&state.voices[c.a].cohort==c.generation)for(int i=0;i<state.voices.Length;i++)if(state.voices[i].active&&state.voices[i].cohort==c.generation)Release(i);break;
                 case TrackerCommandKind.AuditionOff:
                     if(c.a>=0&&c.a<state.trackCount&&c.b>=0&&c.b<state.tracks[c.a].columnCount)Off(c.a,c.b);break;
                 case TrackerCommandKind.TrackGain:
@@ -61,6 +61,7 @@ namespace Laubrary.ZTracker.Engine
                     // Update runs between blocks. The old ticket becomes terminal only after its last reader returned.
                     SapRenderTicket.Enter(state.ticket);SapRenderTicket.Exit(state.ticket,0,true);
                     long position=state.samplePosition,generation=state.cohort;state=c.replacement;state.samplePosition=position;state.cohort=generation;state.transportOrigin=position;state.rowPending=true;Emit(TrackerEventKind.PreparedSwap);break;
+                default:ApplyParameterCommand(in c);break;
             }
         }
         void ResetColumns(){for(int i=0;i<state.columnCount;i++)state.columns[i]=new TrackerColumn{instrument=-1,volume=1,pan=0,due=-1,pendingCell=-1};}
@@ -125,6 +126,7 @@ namespace Laubrary.ZTracker.Engine
                 }
                 state.rowStart=state.rowEnd;state.rowPending=true;EnterRow();
             } else {
+                AdvanceMacroTicks(-1);
                 double d=(state.sampleRate*60d)/(state.bpm*state.linesPerBeat);state.tickDeadline=state.rowStart+((state.tick+1)/(double)state.ticksPerLine)*d;Emit(TrackerEventKind.Tick);
             }
         }
@@ -154,16 +156,19 @@ namespace Laubrary.ZTracker.Engine
         {
             if(instrument<0||instrument>=state.instrumentCount||note<0||note>119||state.tracks[track].triggerMute||!state.tracks[track].soloEnabled||state.sequenceMutes[state.sequence[state.sequenceIndex].muteOffset+track]!=0)return;
             var ins=state.instruments[instrument];if(ins.zoneCount==0)return;
-            bool mapped=false;for(int z=0;z<ins.zoneCount;z++){var zone=state.zones[ins.zoneStart+z];if(note>=zone.minNote&&note<=zone.maxNote&&velocity>=zone.minVelocity&&velocity<=zone.maxVelocity&&state.samples[zone.sample].pcm>=0){mapped=true;break;}}if(!mapped)return;
+            bool mapped=false;int required=0;for(int z=0;z<ins.zoneCount;z++){var zone=state.zones[ins.zoneStart+z];if(note>=zone.minNote&&note<=zone.maxNote&&velocity>=zone.minVelocity&&velocity<=zone.maxVelocity&&(state.samples[zone.sample].pcm>=0||state.tones[zone.sample].kind!=0)){mapped=true;required+=state.tones[zone.sample].members;}}if(!mapped||required>state.voices.Length)return;
+            EvaluateParameters();
             // NNA applies only to the foreground cohort in this note column; layered siblings remain a bundle.
             int ci=state.tracks[track].columns+column;var col=state.columns[ci];
+            bool previousHeld=false;for(int i=0;i<state.voices.Length;i++)if(state.voices[i].active&&!state.voices[i].released&&state.voices[i].cohort==col.cohort)previousHeld=true;
             for(int i=0;i<state.voices.Length;i++){var old=state.voices[i];if(old.active&&old.track==track&&old.column==column&&old.cohort==col.cohort){var nna=state.samples[old.sample].nna;if(nna==NewNoteAction.Cut){old.active=false;state.voices[i]=old;}else if(nna==NewNoteAction.NoteOff)Release(i);}}
             long cohort=++state.cohort;col.cohort=cohort;col.instrument=instrument;state.columns[ci]=col;
             for(int z=0;z<ins.zoneCount;z++){
                 var zone=state.zones[ins.zoneStart+z];if(note<zone.minNote||note>zone.maxNote||velocity<zone.minVelocity||velocity>zone.maxVelocity)continue;
-                var sample=state.samples[zone.sample];if(sample.pcm<0)continue;
+                var sample=state.samples[zone.sample];var tone=state.tones[zone.sample];if(sample.pcm<0&&tone.kind==0)continue;
                 if(sample.muteGroup>0)for(int i=0;i<state.voices.Length;i++){var v=state.voices[i];if(v.active&&v.track==track&&v.instrument==instrument&&v.cohort!=cohort&&state.samples[v.sample].muteGroup==sample.muteGroup){v.active=false;state.voices[i]=v;}}
-                int index=ChooseVoice();var clip=state.clips[sample.pcm];
+                for(int member=0;member<tone.members;member++){
+                int index=ChooseVoice(cohort);var clip=sample.pcm>=0?state.clips[sample.pcm]:default;
                 int bus=-1;if(sample.fxChain>=0)for(int b=0;b<state.busCount;b++){var route=state.buses[b];if(route.track==track&&route.instrument==instrument&&route.fx==sample.fxChain){bus=b;break;}}
                 var voice=new TrackerVoice{active=true,sample=zone.sample,instrument=instrument,track=track,column=column,note=note,velocity=velocity,cohort=cohort,volume=col.volume,pan=col.pan,bus=bus,direction=sample.loop==SampleLoop.Backward?-1:1,position=sample.loop==SampleLoop.Backward?sample.loopEnd-1:0,step=(clip.frequency/(double)state.sampleRate)*math.pow(2d,((zone.tracking?note-zone.baseNote:0)+sample.tune)/12d)};
                 if(sample.legacySamplePitch&&zone.tracking){
@@ -173,18 +178,23 @@ namespace Laubrary.ZTracker.Engine
                     float ne=((zone.tracking?note:zone.baseNote)+sample.legacyTranspose-69)*(1f/12f),be=(zone.baseNote-69)*(1f/12f),fe=sample.legacyFineTuneCents*(1f/1200f);
                     voice.step=(math.pow(2f,(ne-be)+fe)*math.asfloat(0x3f7fffff))*(clip.frequency/(double)state.sampleRate);
                 }
+                InitTone(ref voice,in tone,in sample,member,col.hasPreviousNote?col.previousNote:note,previousHeld);
                 voice.filterCutoff=-1;voice.filterQ=-1;state.voices[index]=voice;
                 for(int m=0;m<state.modStride;m++)state.modulationState[index*state.modStride+m]=default;
+                }
             }
+            col.previousNote=note;col.hasPreviousNote=true;state.columns[ci]=col;
             Emit(TrackerEventKind.NoteOn,track,column,note,instrument);
         }
-        int ChooseVoice()
+        int ChooseVoice(long newCohort=0)
         {
             for(int i=0;i<state.voices.Length;i++)if(!state.voices[i].active)return i;
             int best=-1;float quiet=float.MaxValue;
-            for(int i=0;i<state.voices.Length;i++){var v=state.voices[i];if(v.released&&v.envelope<quiet){best=i;quiet=v.envelope;}}
-            if(best<0){quiet=float.MaxValue;for(int i=0;i<state.voices.Length;i++){var v=state.voices[i];if(v.amplitude<quiet){best=i;quiet=v.amplitude;}}}
-            var old=state.voices[best];Emit(TrackerEventKind.VoiceStolen,old.track,old.column,old.note,old.instrument);return best;
+            for(int i=0;i<state.voices.Length;i++){var v=state.voices[i];if(v.cohort!=newCohort&&v.released&&v.envelope<quiet){best=i;quiet=v.envelope;}}
+            if(best<0){quiet=float.MaxValue;for(int i=0;i<state.voices.Length;i++){var v=state.voices[i];if(v.cohort!=newCohort&&v.amplitude<quiet){best=i;quiet=v.amplitude;}}}
+            var old=state.voices[best];Emit(TrackerEventKind.VoiceStolen,old.track,old.column,old.note,old.instrument);
+            for(int i=0;i<state.voices.Length;i++)if(state.voices[i].active&&state.voices[i].cohort==old.cohort){var v=state.voices[i];v.active=false;state.voices[i]=v;}
+            return best;
         }
         public void Render(int frames)
         {
@@ -214,18 +224,34 @@ namespace Laubrary.ZTracker.Engine
         }
         void RenderVoices(int offset,int count)
         {
+            EvaluateParameters();
             for(int t=0;t<state.trackCount;t++){byte mute=Muted(t)?(byte)1:(byte)0;for(int f=0;f<count;f++)state.outputMutes[t*state.maxFrames+offset+f]=mute;}
             int active=0;for(int i=0;i<state.voices.Length;i++)if(state.voices[i].active)active++;
             float target=state.legacyMix&&active>1?1/math.sqrt((float)active):1;float scale=state.normalization,scaleStep=(target-scale)/count;
             for(int i=0;i<state.voices.Length;i++){
-                var v=state.voices[i];if(!v.active)continue;var s=state.samples[v.sample];var clip=state.clips[s.pcm];
+                var v=state.voices[i];if(!v.active)continue;var s=state.samples[v.sample];var tone=state.tones[v.sample];var clip=s.pcm>=0?state.clips[s.pcm]:default;
+                if(Written(v.instrument,TrackerParameter.Attack))s.attack=Parameter(v.instrument,TrackerParameter.Attack);
+                if(Written(v.instrument,TrackerParameter.Decay))s.decay=Parameter(v.instrument,TrackerParameter.Decay);
+                if(Written(v.instrument,TrackerParameter.Sustain))s.sustain=Parameter(v.instrument,TrackerParameter.Sustain);
+                if(Written(v.instrument,TrackerParameter.Release))s.release=Parameter(v.instrument,TrackerParameter.Release);
+                if(Written(v.instrument,TrackerParameter.FilterCutoff))s.cutoff=Parameter(v.instrument,TrackerParameter.FilterCutoff);
+                if(Written(v.instrument,TrackerParameter.FilterResonance))s.resonance=Parameter(v.instrument,TrackerParameter.FilterResonance);
                 for(int f=0;f<count;f++){
                     if(!v.active)break;Envelope(ref v,in s);if(!v.active)break;
                     float volume=1,pan=0,pitch=0,cutoff=s.cutoff,resonance=s.resonance,drive=1;
                     volume=s.orderedVolume?1:v.envelope;EvaluateMods(i,ref v,in s,ref volume,ref pan,ref pitch,ref cutoff,ref resonance,ref drive);
-                    float l=Pcm(in clip,in s,v.position,0,v.released),r=Pcm(in clip,in s,v.position,clip.channels==2?1:0,v.released);
-                    float amplitude=s.volume*v.volume*volume;v.amplitude=amplitude;
-                    float p=s.legacyPan?CombinePan(s.pan,math.clamp(v.pan+pan,-1,1)):math.clamp(s.pan+v.pan+pan,-1,1);
+                    ToneTargets(ref v,in tone);
+                    double increment=ModulatedStep(ref v,in tone,pitch);
+                    float l,r;
+                    if(tone.kind!=0){l=tone.kind==2?FM(ref v,in tone,(float)increment):Synth(ref v,in tone,(float)increment);r=l;}
+                    else {l=Pcm(in clip,in s,v.position,0,v.released);r=Pcm(in clip,in s,v.position,clip.channels==2?1:0,v.released);if(tone.pcmB>=0)Paired(ref v,in tone,in s,l,r,ref l,ref r);}
+                    float globalVolume=Parameter(v.instrument,TrackerParameter.Volume);
+                    float sampleVolume=Written(v.instrument,TrackerParameter.Volume)?tone.kind!=0?globalVolume:tone.baseGlobalVolume>0?s.volume/tone.baseGlobalVolume*globalVolume:globalVolume:s.volume;
+                    float amplitude=sampleVolume*v.memberGain*v.volume*volume;
+                    if(v.amplitudeDepth!=0){v.amplitudePhase+=v.amplitudeRate/state.sampleRate;v.amplitudePhase-=math.floor(v.amplitudePhase);amplitude*=math.max(0,1+math.sin(v.amplitudePhase*2*math.PI)*v.amplitudeDepth);}v.amplitude=amplitude;
+                    float samplePan=Written(v.instrument,TrackerParameter.Pan)?Parameter(v.instrument,TrackerParameter.Pan):s.pan;
+                    samplePan=math.clamp(samplePan+v.memberSpread*Parameter(v.instrument,TrackerParameter.UnisonSpread),-1,1);
+                    float p=s.legacyPan?CombinePan(samplePan,math.clamp(v.pan+pan,-1,1)):math.clamp(samplePan+v.pan+pan,-1,1);
                     float gainL=s.legacyPan?math.sqrt((1-p)*.5f):clip.channels==2?(p>0?1-p:1):math.cos((p+1)*math.PI*.25f),gainR=s.legacyPan?math.sqrt((1+p)*.5f):clip.channels==2?(p<0?1+p:1):math.sin((p+1)*math.PI*.25f);
                     l*=amplitude*gainL;r*=amplitude*gainR;
                     if(drive!=1){l=math.tanh(l*drive);r=math.tanh(r*drive);}
@@ -234,7 +260,8 @@ namespace Laubrary.ZTracker.Engine
                     if(v.bus>=0){state.busLeft[at]+=l;state.busRight[at]+=r;}else{state.left[at]+=l;state.right[at]+=r;}
                     if(s.delayDestination>=0&&!Muted(v.track)){int dest=s.delayDestination*state.maxFrames+offset+f;state.left[dest]+=l*s.delaySend;state.right[dest]+=r*s.delaySend;}
                     if(s.reverbDestination>=0&&!Muted(v.track)){int dest=s.reverbDestination*state.maxFrames+offset+f;state.left[dest]+=l*s.reverbSend;state.right[dest]+=r*s.reverbSend;}
-                    double h=math.log2(v.step)+pitch/12d;if(!math.isfinite(h)){v.active=false;Emit(TrackerEventKind.Diagnostic,v.track,v.column,v.note,v.instrument,(int)TrackerRuntimeDiagnostic.InvalidPitch);break;}if((h<-20||h>20)&&!v.pitchLimited){v.pitchLimited=true;Emit(TrackerEventKind.Diagnostic,v.track,v.column,v.note,v.instrument,(int)TrackerRuntimeDiagnostic.PitchLimit);}v.age++;v.position+=math.pow(2d,math.clamp(h,-20,20))*v.direction;AdvancePcm(ref v,in s,in clip);
+                    double h=math.log2(increment);if(!math.isfinite(h)){v.active=false;Emit(TrackerEventKind.Diagnostic,v.track,v.column,v.note,v.instrument,(int)TrackerRuntimeDiagnostic.InvalidPitch);break;}if((h<-20||h>20)&&!v.pitchLimited){v.pitchLimited=true;Emit(TrackerEventKind.Diagnostic,v.track,v.column,v.note,v.instrument,(int)TrackerRuntimeDiagnostic.PitchLimit);}v.age++;
+                    if(tone.kind==0){double previous=v.position;v.position+=math.pow(2d,math.clamp(h,-20,20))*v.direction;AdvancePcm(ref v,in s,in clip);AdvanceB(ref v,in tone,in s,previous);}
                 }
                 state.voices[i]=v;
             }

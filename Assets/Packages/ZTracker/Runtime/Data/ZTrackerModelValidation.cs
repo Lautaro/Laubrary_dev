@@ -129,6 +129,9 @@ namespace Laubrary.ZTracker.Model
             if (data.parameters.presets != null && data.parameters.presets.Exists(p => p == null)) return "Null legacy preset retained; explicit repair required before migration or playback";
             if (!Enum.IsDefined(typeof(InstrumentFamily),data.family) || !Enum.IsDefined(typeof(SynthMode),data.synthMode) || !Enum.IsDefined(typeof(NewNoteAction),data.sampler.nna)) return "Unknown instrument family/engine/NNA";
             if (data.modulation == null || data.fxChains == null || data.externalParameters == null || data.archivedMacros == null || data.sampler.samples == null || data.sampler.zones == null) return "Instrument collections missing";
+            var q=data.parameters;
+            if(!Enum.IsDefined(typeof(SoundEnumDomain),q.enumDomain)||!Finite(q.glideSeconds)||q.glideSeconds<0||q.glideSeconds>3600||!Finite(q.arpeggioSpeed)||q.arpeggioSpeed<=0)return "Invalid glide/arpeggio parameters";
+            var speedError=Points(q.arpeggioSpeedPoints,false,true);if(speedError!=null)return speedError;
             if (!Finite(data.sampler.volume) || !Finite(data.sampler.pan) || !Finite(data.sampler.fineTuneCents)) return "Invalid sampler globals";
             foreach (var sample in data.sampler.samples)
             {
@@ -137,6 +140,7 @@ namespace Laubrary.ZTracker.Model
                 if (sample.loop != SampleLoop.Off && (sample.pcm == null || sample.loopStartFrame < 0 || sample.loopEndFrame <= sample.loopStartFrame || sample.loopEndFrame > sample.pcm.samples)) return "Invalid sample loop frame bounds";
             }
             foreach (var z in data.sampler.zones) if (z == null || z.sample < 0 || z.sample >= data.sampler.samples.Count || (!z.inactive && (z.noteMin < 0 || z.noteMax > 119 || z.noteMin > z.noteMax || z.velocityMin < 0 || z.velocityMax > 127 || z.velocityMin > z.velocityMax))) return "Invalid keyzone";
+            foreach(var z in data.sampler.zones)if(z.blend!=null){var b=z.blend;if(!Enum.IsDefined(typeof(SampleLoop),b.loopB)||!Finite(b.fineTuneBCents)||!Finite(b.amount)||!Finite(b.pmDepth)||b.baseNoteB<0||b.baseNoteB>119||b.mode<0||b.mode>3||b.amount<0||b.amount>1||b.pmDepth<0||!Finite(b.attack)||!Finite(b.decay)||!Finite(b.sustain)||!Finite(b.release)||b.attack<0||b.decay<0||b.release<0)return "Invalid paired sample settings";if(b.loopB!=SampleLoop.Off&&(b.pcmB==null||b.loopStartFrameB<0||b.loopEndFrameB-b.loopStartFrameB<2||b.loopEndFrameB>b.pcmB.samples))return "Invalid B loop bounds";}
             foreach (var set in data.modulation)
             {
                 if (set == null || set.devices == null) return "Modulation set missing";
@@ -155,6 +159,11 @@ namespace Laubrary.ZTracker.Model
             var external = new HashSet<string>(); foreach (var map in data.externalParameters) { if (map == null || string.IsNullOrEmpty(map.externalId) || !external.Add(map.externalId)) return "External parameter identity duplicate/missing"; var e = Mapping(map.mapping); if (e != null) return e; }
             return null;
         }
-        static string Mapping(Mapping m) => m == null || m.target == null || !Finite(m.min) || !Finite(m.max) || !Finite(m.curve) || m.curve <= 0 || (!m.target.unresolved && string.IsNullOrEmpty(m.target.parameter)) ? "Invalid parameter mapping" : null;
+        static string Mapping(Mapping m) => m == null || m.target == null || !Finite(m.min) || !Finite(m.max) || !Finite(m.curve) || m.curve <= 0 || (!m.target.unresolved && string.IsNullOrEmpty(m.target.parameter)) ? "Invalid parameter mapping" : Points(m.curvePoints,true,false);
+        static string Points(List<ModulationPoint> points,bool normalized,bool positive)
+        {
+            if(points==null)return null;if(points.Count>4096)return "Curve capacity exceeded";double prev=-1;
+            foreach(var p in points){if(p==null||!Finite(p.time)||!Finite(p.value)||p.time<=prev||p.time<0||(normalized&&(p.time>1||p.value<0||p.value>1))||(positive&&p.value<=0))return "Invalid explicit curve points";prev=p.time;}return null;
+        }
     }
 }

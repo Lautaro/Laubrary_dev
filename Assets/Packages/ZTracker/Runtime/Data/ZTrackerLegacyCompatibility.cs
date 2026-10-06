@@ -119,6 +119,7 @@ namespace Laubrary.ZTracker.Model
         public static InstrumentParameters Project(InstrumentData model)
         {
             Require(ZTrackerModelValidation.Validate(model));
+            if(model.parameters.enumDomain!=SoundEnumDomain.SavedAuthoring||model.parameters.glideEnabled||(model.parameters.arpeggioSpeedPoints?.Count??0)>0||!model.parameters.arpeggioSpeedIsPerNote||model.sampler.zones.Exists(z=>z.blend!=null&&z.blend.loopB!=SampleLoop.Off)||Array.Exists(model.macros,m=>m.mappings.Exists(map=>(map.curvePoints?.Count??0)>0)))throw new InvalidOperationException("Typed P4 sound extensions require the new backend; preserved without legacy projection.");
             if (!Enum.IsDefined(typeof(InstrumentType),model.parameters.type)) throw new InvalidOperationException("Unknown retained legacy engine; explicit repair is required before projection.");
             // The retained payload preserves inactive legacy fields; it is not the
             // playback source for fields now owned by the canonical sampler/engine.

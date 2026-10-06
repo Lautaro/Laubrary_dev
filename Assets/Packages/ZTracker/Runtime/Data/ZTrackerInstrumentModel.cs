@@ -7,6 +7,8 @@ namespace Laubrary.ZTracker.Model
 {
     public enum InstrumentFamily { Sampler, Synth }
     public enum SynthMode { Subtractive, FM }
+    // Saved editor integers and direct native fixture integers have different meanings.
+    public enum SoundEnumDomain { SavedAuthoring, NativeDirect }
     public enum SampleLoop { Off, Forward, Backward, PingPong }
     public enum SampleInterpolation { Linear, Cubic }
     public enum NewNoteAction { Cut, NoteOff, Continue }
@@ -19,6 +21,8 @@ namespace Laubrary.ZTracker.Model
         public ParameterTarget target = new ParameterTarget();
         public float min, max = 1, curve = 1;
         public string legacyLink = "";
+        // Empty means Linear. Scalar curve remains archived, never inferred as a transform.
+        public List<ModulationPoint> curvePoints = new List<ModulationPoint>();
     }
     [Serializable] public sealed class InstrumentMacro
     {
@@ -75,6 +79,9 @@ namespace Laubrary.ZTracker.Model
         public float attack, decay, sustain, release;
         public ZUIEnvelopeData blendEnvelope, pmEnvelope;
         public bool requiresRenoiseInterchangeWarning = true;
+        public SampleLoop loopB;
+        public int loopStartFrameB, loopEndFrameB;
+        public bool releaseExitsLoopB;
     }
     [Serializable] public sealed class Keyzone
     {
@@ -117,6 +124,11 @@ namespace Laubrary.ZTracker.Model
         public bool arpeggioEnabled;
         public int[] arpeggioNotes = {0,4,7};
         public float arpeggioSpeed = .05f;
+        public bool glideEnabled, glideLegato;
+        public float glideSeconds = .1f;
+        public bool arpeggioSpeedIsPerNote = true;
+        public List<ModulationPoint> arpeggioSpeedPoints = new List<ModulationPoint>();
+        public SoundEnumDomain enumDomain;
         public ZUIEnvelopeData blendEnvelopeData, pulseWidthEnvelopeData, waveBRatioEnvelopeData, pmDepthEnvelopeData, unisonDetuneEnvelopeData;
         public bool instFilterEnabled;
         public int instFilterMode;

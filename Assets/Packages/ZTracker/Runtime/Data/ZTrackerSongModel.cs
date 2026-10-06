@@ -135,6 +135,13 @@ namespace Laubrary.ZTracker.Model
         public List<SendDestination> sends = new List<SendDestination>();
         public bool beatTicks;
         public int beatIntervalLines = 4;
+        public List<ExternalSourceDevice> externalSources = new List<ExternalSourceDevice>();
+    }
+    // Ordinal selects a slot; its explicit external ID then resolves on the linked instrument.
+    [Serializable] public sealed class ExternalSourceDevice
+    {
+        public string id = "", instrumentId = "", pluginId = "";
+        public List<string> parameterNumbers = new List<string>();
     }
     [Serializable] public sealed class SequenceSlot
     {
