@@ -31,7 +31,7 @@ namespace Laubrary.ZTracker.Editor
         {
             if (gestureGroup >= 0) return;
             Undo.IncrementCurrentGroup(); gestureGroup = Undo.GetCurrentGroup();
-            Undo.SetCurrentGroupName("Tracker: " + label); Undo.RegisterCompleteObjectUndo(instrument, "Tracker: " + label);
+            Undo.SetCurrentGroupName("Tracker: " + label); CompleteUndo(instrument, "Tracker: " + label);
         }
         void EndInstrumentGesture()
         {
@@ -376,8 +376,8 @@ namespace Laubrary.ZTracker.Editor
         void RenameExternal(ExternalParameterMapping entry, string id)
         {
             // Declaration and all same-instrument references form one Undo operation.
-            Undo.IncrementCurrentGroup(); int group = Undo.GetCurrentGroup(); Undo.RegisterCompleteObjectUndo(new UnityEngine.Object[] { song, instrument }, "Tracker: external ID"); string old = entry.externalId; entry.externalId = id;
-            foreach (var t in Data.tracks) { foreach (var s in t.externalSources.Where(s => s.instrumentId == Instrument.id)) for (int i = 0; i < s.parameterNumbers.Count; i++) if (s.parameterNumbers[i] == old) s.parameterNumbers[i] = id; foreach (var s in t.sourceDevices.Where(s => s.instrumentId == Instrument.id)) foreach (var p in s.parameters) if (p.externalId == old) p.externalId = id; }
+            Undo.IncrementCurrentGroup(); int group = Undo.GetCurrentGroup(); CompleteUndo(new UnityEngine.Object[] { song, instrument }, "Tracker: external ID"); string old = entry.externalId; entry.externalId = id;
+            foreach (var t in Data.tracks) { foreach (var s in Records(t.externalSources).Where(s => s.instrumentId == Instrument.id)) if(s.parameterNumbers!=null)for (int i = 0; i < s.parameterNumbers.Count; i++) if (s.parameterNumbers[i] == old) s.parameterNumbers[i] = id; foreach (var s in Records(t.sourceDevices).Where(s => s.instrumentId == Instrument.id)) foreach (var p in Records(s.parameters)) if (p.externalId == old) p.externalId = id; }
             EditorUtility.SetDirty(song); EditorUtility.SetDirty(instrument); Undo.CollapseUndoOperations(group); RefreshLive();
         }
         void BuildPresets(VisualElement root)
@@ -408,7 +408,7 @@ namespace Laubrary.ZTracker.Editor
             var presets=Instrument.parameters.presets;if(presetIndex<0||presetIndex>=presets.Count)return;
             int removed=presetIndex;string prefix=Instrument.id+"/preset-";
             Undo.IncrementCurrentGroup();int group=Undo.GetCurrentGroup();Undo.SetCurrentGroupName("Tracker: remove preset");
-            Undo.RegisterCompleteObjectUndo(song!=null?new UnityEngine.Object[]{song,instrument}:new UnityEngine.Object[]{instrument},"Tracker: remove preset");
+            CompleteUndo(song!=null?new UnityEngine.Object[]{song,instrument}:new UnityEngine.Object[]{instrument},"Tracker: remove preset");
             if(Data!=null)foreach(var pattern in Data.patterns)foreach(var pt in pattern.tracks)foreach(var line in pt.lines)foreach(var note in line.notes)
             {
                 if(note.parameterSetId==null||!note.parameterSetId.StartsWith(prefix,StringComparison.Ordinal)||!int.TryParse(note.parameterSetId.Substring(prefix.Length),out int index))continue;

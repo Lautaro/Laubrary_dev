@@ -69,7 +69,7 @@ namespace Laubrary.ZTracker.Editor
         {
             if(target==null)return;
             // Complete snapshots restore sparse removals, cropped rows and nested serialized values.
-            Undo.IncrementCurrentGroup();int group=Undo.GetCurrentGroup();Undo.SetCurrentGroupName("Tracker: "+label);Undo.RegisterCompleteObjectUndo(target,"Tracker: "+label);
+            Undo.IncrementCurrentGroup();int group=Undo.GetCurrentGroup();Undo.SetCurrentGroupName("Tracker: "+label);CompleteUndo(target,"Tracker: "+label);
             try{edit();EditorUtility.SetDirty(target);Undo.CollapseUndoOperations(group);if(command.HasValue&&host!=null){if(!host.SendCommand(command.Value))lastError="Live update pending: command was not accepted";}else RefreshLive();if(rebuild)BuildPane();else RefreshCells();}
             catch(Exception ex){Undo.RevertAllDownToGroup(group);lastError=ex.Message;BuildPane();}
             RefreshTransport();
@@ -166,6 +166,15 @@ namespace Laubrary.ZTracker.Editor
         static VisualElement Button(string label,string tip,Action action,string name=null)=>Named(Z.Button(label,tip,action),name);
         static T Named<T>(T element,string name) where T:VisualElement{if(name!=null)element.name=name;return element;}
         static T Clone<T>(T value)=>ZTrackerMigration.Copy(value);
+        static void CompleteUndo(UnityEngine.Object target,string label)=>CompleteUndo(new[]{target},label);
+        static void CompleteUndo(UnityEngine.Object[] targets,string label)
+        {
+            // Unity's snapshot serialization fabricates inline null records on the
+            // original object too. Restore them immediately, as the legacy transaction does.
+            var paths=targets.Select(t=>ZTrackerMigration.NullPaths(t)).ToArray();
+            Undo.RegisterCompleteObjectUndo(targets,label);
+            for(int i=0;i<targets.Length;i++)ZTrackerMigration.RestoreNulls(targets[i],paths[i]);
+        }
         // Imported unsupported records may carry null lists or neighbors. Filtering is a
         // view only; it must never fill those holes in the authored payload.
         static IEnumerable<T> Records<T>(IEnumerable<T> values) where T:class=>values?.Where(v=>v!=null)??Enumerable.Empty<T>();
