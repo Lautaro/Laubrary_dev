@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: BarbarianDemo Background
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.BackSplash::Laubrary.BackSplash.BackSplash
   cameraColor: {r: 0.08, g: 0.08, b: 0.1, a: 1}
-  image: {fileID: 21300000, guid: 41e1cf439b424d74eb08aa7f9c3d61d3, type: 3}
+  image: {fileID: 21300000, guid: 62af60d60d46d814193cc7ebe01b86ab, type: 3}
   imageTint: {r: 1, g: 1, b: 1, a: 1}
   imageZoom: 1.2
   imagePos: {x: 0, y: 0}

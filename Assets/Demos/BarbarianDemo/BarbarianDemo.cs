@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Laubrary.Zoetrope;
+using Laubrary.ZoeCharacter;
 using ZoeStates;
 
 namespace Laubrary.Demos.BarbarianDemo
@@ -9,9 +10,11 @@ namespace Laubrary.Demos.BarbarianDemo
     /// Spawns the Barbarian Zoe at Play-time (same reason as ProtoGuySpawner: the spawn wires runtime-only state
     /// that a pre-baked scene object would lose) and maps buttons to the actions the character declares.
     ///
-    /// Moving and facing are the character's own data: its player controller gives it the left stick / WASD,
-    /// and its motion pose mirrors it to face where it last walked. This script only decides WHICH declared
-    /// action plays WHEN — the look of each action lives on the Barbarian asset's event list.
+    /// Moving and facing are the character's own data: its side-view player controller walks it left/right
+    /// along one line with a facing of its own (walking against it is a backpedal), and its motion pose picks
+    /// the walk, backpedal or stand look. This script only decides WHICH declared action plays WHEN — the look
+    /// of each action, and any travel it carries, lives on the Barbarian asset's event list. The one mechanic
+    /// it adds: a completed turnaround flips the facing, because the turnaround art ends facing the other way.
     ///
     /// To add an action: add a row to the Barbarian's event list in the Zoe window, then add a button field
     /// here and one line in <see cref="Bindings"/> using the generated name from <c>BarbarianStates</c>.
@@ -30,7 +33,7 @@ namespace Laubrary.Demos.BarbarianDemo
         public InputAction dodge = Button("<Gamepad>/buttonEast", "<Keyboard>/l");
         [Tooltip("Evasive jump backwards.")]
         public InputAction jumpBack = Button("<Gamepad>/buttonSouth", "<Keyboard>/k");
-        [Tooltip("Turnaround animation.")]
+        [Tooltip("Turn around: plays the turnaround, then faces the other way.")]
         public InputAction turnaround = Button("<Gamepad>/rightShoulder", "<Keyboard>/u");
         [Tooltip("Pushed backwards (a knock-back reaction).")]
         public InputAction pushedBackwards = Button("<Gamepad>/leftShoulder", "<Keyboard>/1");
@@ -68,6 +71,7 @@ namespace Laubrary.Demos.BarbarianDemo
         public InputAction swordCycloneNoTrail = Button("<Keyboard>/n");
 
         ReactionFxPlayer _reactions;
+        SideViewMotionDriver _mover;
 
         (InputAction button, string state)[] Bindings => new[]
         {
@@ -108,7 +112,21 @@ namespace Laubrary.Demos.BarbarianDemo
         {
             if (zoeDef == null) { Debug.LogError("BarbarianDemo: zoeDef not assigned."); return; }
             var go = ZoeSpawner.SpawnCharacter(zoeDef, transform.position);
-            _reactions = go != null ? go.GetComponent<ReactionFxPlayer>() : null;
+            if (go == null) return;
+            _reactions = go.GetComponent<ReactionFxPlayer>();
+            _mover = go.GetComponent<SideViewMotionDriver>();
+            if (_reactions != null) _reactions.EventFinished += OnActionFinished;
+        }
+
+        void OnDestroy()
+        {
+            if (_reactions != null) _reactions.EventFinished -= OnActionFinished;
+        }
+
+        // Flip only when the turn played to its end: an interrupted turn leaves him facing where he started.
+        void OnActionFinished(string id, bool interrupted)
+        {
+            if (!interrupted && _mover != null && id == BarbarianStates.Turnaround) _mover.Turn();
         }
 
         void Update()

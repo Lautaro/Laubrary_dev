@@ -21,6 +21,10 @@ namespace Laubrary.Zoetrope
         Random,
         /// The direction supplied by a general named event such as Fire. Appended to preserve existing data.
         EventDirection,
+        /// Straight ahead for the body as it is drawn right now: right, or left when mirrored. For moves that
+        /// carry the character forward (a lunging chop, a roll) whichever way it happens to face.
+        /// Appended to preserve existing data.
+        Facing,
     }
 
     /// <summary>How an effect's visual is oriented when its event fires.</summary>
@@ -193,7 +197,7 @@ namespace Laubrary.Zoetrope
         /// renderer, or a negative X scale.
         bool BodyFacesLeft(FxEntry entry)
         {
-            Transform anchor = !string.IsNullOrEmpty(entry.bodyPart) && Alive(PartLookup)
+            Transform anchor = entry != null && !string.IsNullOrEmpty(entry.bodyPart) && Alive(PartLookup)
                 ? PartLookup.FindPartTransform(entry.bodyPart) : Transform;
             var renderer = anchor != null ? anchor.GetComponent<SpriteRenderer>() : null;
             if (renderer == null) renderer = Renderer;
@@ -255,6 +259,7 @@ namespace Laubrary.Zoetrope
             if (param == DirectionParam.None) return float.NaN;
             // Rolled per FIRING, not per effect, so two Zoes hit by the same shot scatter independently.
             if (param == DirectionParam.Random) return UnityEngine.Random.Range(0f, 360f);
+            if (param == DirectionParam.Facing) return BodyFacesLeft(null) ? 180f : 0f;
             if (param == DirectionParam.CentreAngle)
             {
                 // Angle from the (already-stamped) spawn Position toward the Zoe's visual centre.

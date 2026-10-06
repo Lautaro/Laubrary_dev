@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Side-view characters: one-line movement, own facing, forward moves
+
+- Added a side-view player controller for Zoes (pick it as the character's player controller). The character walks left and right along the line it appears on, and its facing is its own state: walking against the facing is a backpedal (the existing reversed-walk playback for aim-steered poses), and the facing only changes when the game turns it. The facing is published as the character's aim, so a motion pose steered by Aim mirrors with it and weapons fire the way it faces.
+- Added the direction option Facing: straight ahead for the body as it is drawn right now. A push effect set to Facing makes a move carry the character forward whichever way it faces (a lunging chop, a roll).
+
 ### Launimator: owned source sheets bake at their true size
 
 - Fixed frames baking from a resampled image. When a lauminary takes its own copy of the frames it uses, it packs them into one sheet; that sheet was imported with power-of-two rescaling on and the default 2048 px size cap, so any sheet that was not a power of two (nearly all of them) was silently resampled and every frame came out squashed or cut from the wrong place. The sheet is now imported at its exact size and wraps into rows before it reaches 8192 px. Sliced atlases also lift the 2048 px cap, so a tall atlas can no longer be downscaled under its sprite rectangles.

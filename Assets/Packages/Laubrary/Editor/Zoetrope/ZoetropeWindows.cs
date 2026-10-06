@@ -2395,7 +2395,8 @@ namespace Laubrary.Zoetrope.Editor
                     paramRow.Add(Z.HSpace());
                     paramRow.Add(EnumPicker(directionProp, "Direction",
                         "Which of the event's directions to face: the hit's push, the general event direction " +
-                        "(a shot's aim), the angle toward the Zoe's centre, or a fresh random angle.", rebuild: false));
+                        "(a shot's aim), the angle toward the Zoe's centre, a fresh random angle, or straight ahead " +
+                        "the way the body faces.", rebuild: false));
                     paramRow.Add(Z.HSpace());
                     // A degrees offset has a real, stable range — a slider, not a bare number.
                     paramRow.Add(Z.MicroSlider("Offset°", angleOffsetProp.floatValue, -180f, 180f,

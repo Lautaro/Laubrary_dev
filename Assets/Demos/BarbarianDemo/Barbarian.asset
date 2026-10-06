@@ -26,7 +26,7 @@ MonoBehaviour:
     moveClip: 
     moveThreshold: 0.15
   motionPose:
-    channel: 0
+    channel: 1
     moveThreshold: 0.15
     fixedAngleDeg: 0
     rules:
@@ -155,7 +155,25 @@ MonoBehaviour:
       seconds: 0
       stunSeconds: 0
       bodyFx: {fileID: 0}
-      fx: []
+      fx:
+      - enabled: 1
+        trigger: 1
+        frame: 6
+        placement: 2
+        metaLayerId: 
+        bodyPart: 
+        localOffset: {x: 0, y: 0}
+        mirrorOffsetWithFacing: 1
+        direction: 5
+        rotation: 0
+        angleOffsetDeg: 0
+        flipWithFacing: 0
+        fixedAngleDeg: 0
+        scalar: 1
+        follow: 0
+        fx:
+          rid: 7986899893902115351
+        overrides: []
   - id: NeckSlice
     role: 0
     reaction:
@@ -210,7 +228,25 @@ MonoBehaviour:
       seconds: 0
       stunSeconds: 0
       bodyFx: {fileID: 0}
-      fx: []
+      fx:
+      - enabled: 1
+        trigger: 0
+        frame: 1
+        placement: 2
+        metaLayerId: 
+        bodyPart: 
+        localOffset: {x: 0, y: 0}
+        mirrorOffsetWithFacing: 1
+        direction: 5
+        rotation: 0
+        angleOffsetDeg: 0
+        flipWithFacing: 0
+        fixedAngleDeg: 0
+        scalar: 1
+        follow: 0
+        fx:
+          rid: 7986899893902115352
+        overrides: []
   - id: SwordCyclone
     role: 0
     reaction:
@@ -243,7 +279,25 @@ MonoBehaviour:
       seconds: 0
       stunSeconds: 0
       bodyFx: {fileID: 0}
-      fx: []
+      fx:
+      - enabled: 1
+        trigger: 1
+        frame: 6
+        placement: 2
+        metaLayerId: 
+        bodyPart: 
+        localOffset: {x: 0, y: 0}
+        mirrorOffsetWithFacing: 1
+        direction: 5
+        rotation: 0
+        angleOffsetDeg: 0
+        flipWithFacing: 0
+        fixedAngleDeg: 0
+        scalar: 1
+        follow: 0
+        fx:
+          rid: 7986899893902115353
+        overrides: []
   - id: NeckSliceNoTrail
     role: 0
     reaction:
@@ -291,7 +345,7 @@ MonoBehaviour:
   brain:
     rid: -2
   playerController:
-    rid: 7986899892014940839
+    rid: 7986899893902115354
   aiming:
     rid: -2
   loadout: []
@@ -315,8 +369,30 @@ MonoBehaviour:
         version: {fileID: 11400000, guid: 969b6baf52f8b744b869ef2fb7720143, type: 2}
         idleClip: Idle
         height: 0
-    - rid: 7986899892014940839
-      type: {class: TopDownPlayerControllerSpec, ns: Laubrary.ZoetropeZoeCharacter, asm: com.Lautaro-Arino.Laubrary.Zoetrope.ZoeCharacter}
+    - rid: 7986899893902115351
+      type: {class: PushbackEffect, ns: Laubrary.Zoetrope, asm: com.Lautaro-Arino.Laubrary.Zoetrope}
+      data:
+        distance: 1.25
+        distancePerAmount: 0
+        duration: 0.4
+        invert: 0
+    - rid: 7986899893902115352
+      type: {class: PushbackEffect, ns: Laubrary.Zoetrope, asm: com.Lautaro-Arino.Laubrary.Zoetrope}
+      data:
+        distance: 3
+        distancePerAmount: 0
+        duration: 0.6
+        invert: 0
+    - rid: 7986899893902115353
+      type: {class: PushbackEffect, ns: Laubrary.Zoetrope, asm: com.Lautaro-Arino.Laubrary.Zoetrope}
+      data:
+        distance: 1.25
+        distancePerAmount: 0
+        duration: 0.4
+        invert: 0
+    - rid: 7986899893902115354
+      type: {class: SideViewPlayerControllerSpec, ns: Laubrary.ZoetropeZoeCharacter, asm: com.Lautaro-Arino.Laubrary.Zoetrope.ZoeCharacter}
       data:
         controls: {fileID: -944628639613478452, guid: f07f564b8fae19e4480da06f0437a047, type: 3}
         moveSpeed: 3
+        startFacingRight: 1
