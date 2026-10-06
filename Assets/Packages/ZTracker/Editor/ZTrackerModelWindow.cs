@@ -161,9 +161,13 @@ namespace Laubrary.ZTracker.Editor
             Undo.IncrementCurrentGroup();int group=Undo.GetCurrentGroup();Folder();instrument=CreateInstance<ZTrackerInstrument>();instrument.schemaVersion=1;instrument.model=NewInstrumentData();AssetDatabase.CreateAsset(instrument,AssetDatabase.GenerateUniqueAssetPath("Assets/ZTracker/Instrument.asset"));Undo.RegisterCreatedObjectUndo(instrument,"Tracker: create instrument");SongEdit("add instrument",()=>Data.instruments.Add(instrument));Undo.CollapseUndoOperations(group);entryInstrument=Data.instruments.Count-1;pane=3;BuildPane();
         }
         VisualElement DialSong(string label,float value,float min,float max,string tip,Action<float> apply,bool rebuild=false,int decimals=0)=>Dial(label,value,min,max,tip,v=>SongEdit(label,()=>apply(v),rebuild),decimals);
-        static VisualElement Dial(string label,float value,float min,float max,string tip,Action<float> changed,int decimals=2,float width=124)=>Z.MicroSlider(label,value,min,max,tip,changed,width,decimals:decimals);
+        static VisualElement Dial(string label,float value,float min,float max,string tip,Action<float> changed,int decimals=2,float width=124)
+            =>Z.MicroSlider(label,value,min,max,tip,changed,Math.Max(width,label.Length*6.5f+(decimals>0?50:35)),decimals:decimals);
         static VisualElement Flow(params VisualElement[] children){var r=Z.Row();r.style.flexWrap=Wrap.Wrap;r.style.flexShrink=0;foreach(var c in children)if(c!=null)r.Add(c);return r;}
-        static VisualElement Button(string label,string tip,Action action,string name=null)=>Named(Z.Button(label,tip,action),name);
+        static VisualElement Button(string label,string tip,Action action,string name=null)
+        {
+            var button=Named(Z.Button(label,tip,action),name);button.style.alignSelf=Align.FlexStart;button.style.flexGrow=0;button.style.flexShrink=0;return button;
+        }
         static T Named<T>(T element,string name) where T:VisualElement{if(name!=null)element.name=name;return element;}
         static T Clone<T>(T value)=>ZTrackerMigration.Copy(value);
         static void CompleteUndo(UnityEngine.Object target,string label)=>CompleteUndo(new[]{target},label);
