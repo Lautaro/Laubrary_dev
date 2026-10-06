@@ -49,15 +49,27 @@ namespace Laubrary.ZTracker.Model
         public static string Identity() => Guid.NewGuid().ToString("N");
         public static LegacySongPayload Capture(ZTrackerSong source)
         {
-            var sourcePaths = NullPaths(source); var paths = NullPaths(source,typeof(LegacySongPayload));
-            try { var copy = JsonUtility.FromJson<LegacySongPayload>(JsonUtility.ToJson(source)); RestoreNulls(copy,paths); return copy; }
-            finally { RestoreNulls(source,sourcePaths); }
+            return CaptureFields<LegacySongPayload>(source);
         }
         public static InstrumentParameters Capture(ZTrackerInstrument source)
         {
-            var sourcePaths = NullPaths(source); var paths = NullPaths(source,typeof(InstrumentParameters));
-            try { var copy = JsonUtility.FromJson<InstrumentParameters>(JsonUtility.ToJson(source)); RestoreNulls(copy,paths); return copy; }
-            finally { RestoreNulls(source,sourcePaths); }
+            return CaptureFields<InstrumentParameters>(source);
+        }
+
+        // Read fields into a plain record BEFORE serialization. Serializing a Unity
+        // asset (even just to clone it) invokes its callbacks on the original and
+        // can materialize null records or rewrite stale serialization sidecars.
+        static T CaptureFields<T>(UnityEngine.Object source) where T : new()
+        {
+            if (source == null) throw new ArgumentNullException(nameof(source));
+            var record = new T();
+            foreach (var field in typeof(T).GetFields(Fields))
+            {
+                if (!Serialized(field)) continue;
+                var original = source.GetType().GetField(field.Name,Fields);
+                if (original != null) field.SetValue(record,original.GetValue(source));
+            }
+            return Copy(record);
         }
 
         // Unity serializes a null managed record as a default record (and null

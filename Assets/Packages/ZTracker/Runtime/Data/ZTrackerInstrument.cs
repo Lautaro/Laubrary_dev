@@ -22,6 +22,8 @@ public class ZTrackerInstrument : ScriptableObject, ISerializationCallbackReceiv
         if (schemaVersion == Laubrary.ZTracker.Model.ZTrackerMigration.CurrentVersion) Laubrary.ZTracker.Model.ZTrackerMigration.RestoreNulls(legacyArchive,legacyArchiveNulls);
     }
     [NonSerialized] internal bool legacyPrepared;
+    // Main-thread detached playback wrappers retain the authored source identity.
+    [NonSerialized] public int playbackSourceIdentity;
     public InstrumentType type = InstrumentType.Sample;
 
     // Name comes from the asset filename

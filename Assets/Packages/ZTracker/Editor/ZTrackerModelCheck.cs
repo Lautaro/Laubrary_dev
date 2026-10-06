@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using Laubrary.Audio;
 using Laubrary.ZTracker.Model;
+using Laubrary.ZTracker.Engine;
+using Unity.Collections;
 using UnityEditor;
 using UnityEngine;
 
@@ -260,19 +262,42 @@ namespace Laubrary.ZTracker.Editor
                 Rejected(() => ZTrackerLegacyCompatibility.Prepare(i)); Assert(JsonUtility.ToJson(i) == preserved && i.model.diagnostics.Exists(d => d.StartsWith("Unknown legacy engine")),"Unknown engine silently converted to Sample");
             });
             Check("live refresh captured slot identity / repeated references / structural refusal", () => {
-                Assert(ZTrackerPlayback.Current == null,"Another playback active"); var song = Song(); var first = Temp<ZTrackerInstrument>(); first.type = InstrumentType.Synth;
+                var song = Song(3); var first = Temp<ZTrackerInstrument>(); first.type = InstrumentType.Synth;
                 var other = Temp<ZTrackerInstrument>(); other.type = InstrumentType.Synth; other.blend = .1f;
                 song.instruments.AddRange(new[] {first,other,first}); Upgrade(first); Upgrade(other); Upgrade(song);
-                ZTrackerPlayback playback = null;
-                try {
-                    Assert(ZTrackerPlayback.TryPlay(song,out playback,out var error),error);
-                    var field = typeof(ZTrackerPlayback).GetField("playingSong",System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic); var uploaded = (ZTrackerSong)field.GetValue(playback);
+                var line = new PatternLine {line=0};
+                for(int slot=0;slot<3;slot++)line.notes.Add(new NoteCell {column=slot,note=NoteKind.Note,pitch=60+slot,instrumentPresent=true,instrument=slot});
+                song.model.patterns[0].tracks[0].WriteLine(line);
+                PlaybackSnapshot accepted=PlaybackSnapshot.Create(song,null,-1);
+                var left=new NativeArray<float>(256,Allocator.TempJob);var right=new NativeArray<float>(256,Allocator.TempJob);
+                try { using(var engine=new TrackerOffline(TrackerPreparedSong.Prepare(accepted.Data))) {
+                    engine.SendCommand(TrackerCommand.Play());engine.Render(left,right,256);
+                    Assert(engine.Compiled,"Refresh fixture did not execute Burst");
+                    var ids=accepted.Data.instruments.Select(i=>i.model.id).ToArray();
                     song.model.instruments[0] = other; song.model.instruments[1] = first; first.model.parameters.blend = .8f;
-                    playback.RefreshInstrument(first,-1);
-                    Assert(uploaded.instruments[0].blend == .8f && uploaded.instruments[2].blend == .8f && uploaded.instruments[1].blend == .1f,"Mutable authoring list retargeted uploaded IDs");
-                    string before = JsonUtility.ToJson(uploaded); first.model.parameters.presets.Add(new ZTrackerInstrument.InstrumentPreset());
-                    Rejected(() => playback.RefreshInstrument(first,-1)); Assert(JsonUtility.ToJson(uploaded) == before,"Structural refresh changed snapshot before refusal");
-                } finally { if (playback != null) playback.Stop(); }
+                    void Refresh(ZTrackerInstrument changed) {
+                        var candidate=accepted.CreateRefresh(changed);TrackerPreparedSong next=null;
+                        long frame=engine.Snapshot.samplePosition;var voices=engine.Snapshot.voices.ToArray();
+                        try { next=TrackerPreparedSong.Prepare(candidate.Data);Assert(engine.RefreshPrepared(next,out var reason),reason);next=null;var old=accepted;accepted=candidate;candidate=null;old.Dispose();
+                            Assert(engine.Snapshot.samplePosition==frame,"Refresh restarted transport");
+                            for(int v=0;v<voices.Length;v++)if(voices[v].active)Assert(engine.Snapshot.voices[v].active&&engine.Snapshot.voices[v].instrument==voices[v].instrument&&engine.Snapshot.voices[v].position==voices[v].position&&engine.Snapshot.voices[v].age==voices[v].age,"Refresh reset or retargeted held voice");
+                        } finally {next?.Dispose();candidate?.Dispose();}
+                    }
+                    Refresh(first);
+                    void Slots(float a,float b) {
+                        Assert(accepted.Data.instruments.Select(i=>i.model.id).SequenceEqual(ids),"Captured model IDs reordered");
+                        Assert(accepted.Data.instruments[0]==accepted.Data.instruments[2],"Repeated reference alias lost");
+                        for(int n=0;n<3;n++)Assert(Math.Abs(engine.Snapshot.parameterBase[n*TrackerParameters.Stride+(int)TrackerParameter.Blend]-(n==1?b:a))<.00001,"Mutable authoring list retargeted uploaded IDs");
+                    }
+                    Slots(.8f,.1f);other.model.parameters.blend=.3f;Refresh(other);Slots(.8f,.3f);
+                    string before=SnapshotPayload(accepted);var owner=engine.Snapshot.parameterBase;long frameBefore=engine.Snapshot.samplePosition;
+                    first.model.parameters.presets.Add(new ZTrackerInstrument.InstrumentPreset());
+                    using(var candidate=accepted.CreateRefresh(first))using(var next=TrackerPreparedSong.Prepare(candidate.Data))Assert(!engine.RefreshPrepared(next,out var reason)&&reason.Contains("structural"),"Structural refresh accepted");
+                    Assert(SnapshotPayload(accepted)==before&&engine.Snapshot.parameterBase.Equals(owner)&&engine.Snapshot.samplePosition==frameBefore,"Structural refresh changed snapshot before refusal");Slots(.8f,.3f);
+                    first.model.parameters.presets.Clear();first.model.parameters.blend=.6f;Refresh(first);Slots(.6f,.3f);
+                    using(var candidate=accepted.CreateRefresh())using(var next=TrackerPreparedSong.Prepare(candidate.Data))Assert(!engine.RefreshPrepared(next,out _),"Whole-song list reorder silently retargeted captured slots");
+                    engine.Render(left,right,256);Assert(engine.Snapshot.samplePosition>frameBefore&&engine.Compiled,"Refresh did not continue compiled rendering");
+                }} finally { accepted.Dispose();left.Dispose();right.Dispose(); }
             });
             Check("exact legacy sample-bank limit / null user-slot capacity", () => {
                 var clip = AudioClip.Create("bank limit",8,1,48000,false); temporary.Add(clip);
@@ -371,22 +396,193 @@ namespace Laubrary.ZTracker.Editor
                 Assert(JsonUtility.ToJson(s) == json, "Legacy projection truncated source");
             });
             Check("public Burst facade / detached migration / advanced playback", () => {
-                Assert(ZTrackerPlayback.Current == null, "Another playback active");
-                var s = Song(); var i = Temp<ZTrackerInstrument>(); i.type = InstrumentType.Synth; i.volume = .25f;
-                s.instruments.Add(i); s.patterns[0].cells[0].note = 60; s.patterns[0].cells[0].instrument = 0;
-                string original = JsonUtility.ToJson(s), originalInstrument = JsonUtility.ToJson(i);
-                ZTrackerPlayback playback = null;
-                try
-                {
-                    Assert(ZTrackerPlayback.TryPlay(s, out playback, out var error), error);
-                    Assert(playback.Generator != null && playback.GetComponent<AudioSource>().clip == null, "Public host is not clipless SAP");
-                }
-                finally { if (playback != null) playback.Stop(); }
-                Assert(JsonUtility.ToJson(s) == original && JsonUtility.ToJson(i) == originalInstrument, "Playback mutated legacy assets");
-                Upgrade(i); i.model.fxChains.Add(new AudioEffectChainData());
-                try { Assert(ZTrackerPlayback.TryAudition(i,60,out playback,out var error),error); Assert(playback.Generator != null,"Modern audition unavailable"); }
-                finally { if(playback != null)playback.Stop(); }
+                CheckPlaybackIsolation();
             });
+        }
+        static string SnapshotPayload(PlaybackSnapshot snapshot)=>JsonUtility.ToJson(snapshot.Data)+string.Join("|",snapshot.Data.instruments.Select(i=>i==null?"null":JsonUtility.ToJson(i.model)));
+        // Observing an asset must not itself serialize it: its callbacks are one
+        // of the hazards this regression covers. This records the full field tree,
+        // raw nulls and sidecars, while PCM/asset references stay identity tokens.
+        static string AssetPayload(UnityEngine.Object asset)
+        {
+            var text=new System.Text.StringBuilder();
+            void Visit(object value,bool root=false)
+            {
+                if(value==null){text.Append("null;");return;}
+                if(value is UnityEngine.Object obj&&!root){text.Append("unity:").Append(obj.GetInstanceID()).Append(';');return;}
+                var type=value.GetType();
+                if(type.IsPrimitive||type.IsEnum||value is string){text.Append(type.FullName).Append(':').Append(Convert.ToString(value,System.Globalization.CultureInfo.InvariantCulture)).Append(';');return;}
+                if(value is System.Collections.IList list){text.Append('[').Append(list.Count).Append(':');foreach(var item in list)Visit(item);text.Append(']');return;}
+                foreach(var field in type.GetFields(System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance).OrderBy(f=>f.Name))
+                    if(!field.IsNotSerialized&&(field.IsPublic||field.IsDefined(typeof(SerializeField),true))){text.Append(field.Name).Append('=');Visit(field.GetValue(value));}
+            }
+            Visit(asset,true);return text.ToString();
+        }
+        sealed class SourceWitness
+        {
+            readonly UnityEngine.Object asset;readonly string payload;readonly bool dirty;
+            readonly object model,archive,sidecar;readonly AudioClip pcm;readonly string path,hash;
+            public SourceWitness(UnityEngine.Object asset)
+            {
+                this.asset=asset;payload=AssetPayload(asset);dirty=EditorUtility.IsDirty(asset);
+                path=AssetDatabase.GetAssetPath(asset);if(!string.IsNullOrEmpty(path))hash=Hash(path);
+                if(asset is ZTrackerInstrument i){model=i.model;archive=i.legacyArchive;sidecar=i.serializedNulls;pcm=i.sampleClip;}
+                if(asset is ZTrackerSong s){model=s.model;archive=s.legacyArchive;sidecar=s.serializedNulls;}
+            }
+            public void Check()
+            {
+                Assert(payload==AssetPayload(asset)&&dirty==EditorUtility.IsDirty(asset),"Preview changed source payload/null sidecars or editor dirty state");
+                if(hash!=null)Assert(Hash(path)==hash,"Preview rewrote persisted source bytes");
+                if(asset is ZTrackerInstrument i)Assert(ReferenceEquals(model,i.model)&&ReferenceEquals(archive,i.legacyArchive)&&ReferenceEquals(sidecar,i.serializedNulls)&&pcm==i.sampleClip,"Instrument source identity/PCM replaced");
+                if(asset is ZTrackerSong s)Assert(ReferenceEquals(model,s.model)&&ReferenceEquals(archive,s.legacyArchive)&&ReferenceEquals(sidecar,s.serializedNulls),"Song source identity replaced");
+            }
+        }
+        static void CheckPlaybackIsolation()
+        {
+            Assert(ZTrackerPlayback.Current==null,"Another playback active");
+            var s=Song();var i=Temp<ZTrackerInstrument>();i.type=InstrumentType.Synth;i.volume=.25f;
+            var pcm=AudioClip.Create("shared preview PCM",16,1,48000,false);temporary.Add(pcm);i.sampleClip=pcm;
+            i.blendEnvelopeData=i.pulseWidthEnvelopeData=i.waveBRatioEnvelopeData=i.pmDepthEnvelopeData=i.unisonDetuneEnvelopeData=null;
+            i.fmOperators=null;i.kitEntries=null;i.presets.Add(new ZTrackerInstrument.InstrumentPreset {ovrBlend=true,blend=.7f});
+            s.instruments.AddRange(new[]{i,null,i});s.patterns[0].cells[0].note=60;s.patterns[0].cells[0].instrument=0;
+            for(int schema=0;schema<2;schema++)
+            {
+                if(schema==1){Upgrade(i);Upgrade(s);i.model.fxChains.Add(new AudioEffectChainData());}
+                // Deliberately stale metadata must survive reads as well as canonical metadata.
+                i.serializedNulls=new List<string>{"stale-instrument-path"};s.serializedNulls=new List<string>{"stale-song-path"};
+                var iw=new SourceWitness(i);var sw=new SourceWitness(s);
+                void Unchanged(){iw.Check();sw.Check();}
+                ZTrackerPlayback playback=null;
+                try {
+                    Assert(ZTrackerPlayback.TryPlay(s,out playback,out var error),error);Unchanged();
+                    Assert(playback.Generator!=null&&playback.GetComponent<AudioSource>().clip==null,"Public host is not clipless SAP");
+                    playback.Refresh(out _);Unchanged();
+                    Assert(!ZTrackerPlayback.TryAudition(i,60,out var refused,out _)&&refused==null,"Concurrent preview accepted");Unchanged();
+                }finally{if(playback!=null)playback.Stop();}Unchanged();
+                Assert(!ZTrackerPlayback.TryPlay(s,out playback,out _,order:999)&&playback==null,"Invalid start position accepted");Unchanged();
+                foreach(int preset in new[]{-1,0,99})
+                {
+                    try{bool ok=ZTrackerPlayback.TryAudition(i,60,out playback,out var error,preset);Assert(ok==(preset!=99),error??"Bad preset accepted");Unchanged();if(ok){playback.Refresh(out _);Unchanged();}}
+                    finally{if(playback!=null)playback.Stop();}Unchanged();
+                }
+                // Actual modern window transport methods, with no window shown, UI
+                // rebuild, owner selection or scene operation.
+                var window=ScriptableObject.CreateInstance<ZTrackerModelWindow>();
+                var flags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance;
+                void Call(string name,params object[] args){var method=typeof(ZTrackerModelWindow).GetMethod(name,flags);Assert(method!=null,"Missing editor transport "+name);method.Invoke(window,args);}
+                try{
+                    typeof(ZTrackerModelWindow).GetField("song",flags).SetValue(window,s);
+                    typeof(ZTrackerModelWindow).GetField("instrument",flags).SetValue(window,i);
+                    Call("Upgrade");Unchanged();Call("Play",false);Unchanged();
+                    Assert(typeof(ZTrackerModelWindow).GetField("host",flags).GetValue(window)!=null,"Modern editor play failed");
+                    Call("RefreshLive",new object[]{null});Unchanged();Call("StopPreview");Unchanged();Call("Audition",60);Unchanged();Call("StopPreview");Unchanged();
+                }finally{UnityEngine.Object.DestroyImmediate(window);}Unchanged();
+            }
+            // Legacy preview data becomes authored only in an explicit successful
+            // edit; the migration and edit must still form one undo operation.
+            var editSong=Song();var editWindow=ScriptableObject.CreateInstance<ZTrackerModelWindow>();
+            var editFlags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance;
+            try{
+                typeof(ZTrackerModelWindow).GetField("song",editFlags).SetValue(editWindow,editSong);
+                var view=(SongData)typeof(ZTrackerModelWindow).GetProperty("Data",editFlags).GetValue(editWindow);
+                typeof(ZTrackerModelWindow).GetMethod("SongEdit",editFlags).Invoke(editWindow,new object[]{"legacy tempo",(Action)(()=>view.bpm=111),false});
+                Assert(editSong.schemaVersion==1&&editSong.model.bpm==111&&editSong.legacyArchive.bpm==120,"Explicit legacy edit did not commit detached view/migration");
+                Undo.PerformUndo();Assert(editSong.schemaVersion==0&&editSong.model==null&&editSong.bpm==120,"Legacy editor edit Undo did not restore pre-migration asset");
+                Undo.PerformRedo();Assert(editSong.schemaVersion==1&&editSong.model.bpm==111,"Legacy editor edit Redo lost migration/edit");
+            }finally{UnityEngine.Object.DestroyImmediate(editWindow);Undo.ClearUndo(editSong);}
+            s.schemaVersion=42;i.schemaVersion=42;var futureSong=new SourceWitness(s);var futureInstrument=new SourceWitness(i);
+            Assert(!ZTrackerPlayback.TryPlay(s,out _,out _)&&!ZTrackerPlayback.TryAudition(i,60,out _,out _),"Future schema accepted");futureSong.Check();futureInstrument.Check();
+            CheckPersistedPreview();
+        }
+        static void CheckPersistedPreview()
+        {
+            string folder="Assets/ZTrackerPreviewScratch-"+Guid.NewGuid().ToString("N");
+            var s=ScriptableObject.CreateInstance<ZTrackerSong>();var i=ScriptableObject.CreateInstance<ZTrackerInstrument>();ZTrackerPlayback playback=null;
+            try{
+                AssetDatabase.CreateFolder("Assets",folder.Substring(7));i.type=InstrumentType.Synth;Upgrade(i);
+                s.channelCount=1;s.patterns.Add(new ZTrackerPattern("saved",4,1));s.orderList.Add(0);s.channels.Add(new ZTrackerChannelConfig());s.instruments.Add(i);Upgrade(s);
+                AssetDatabase.CreateAsset(i,folder+"/Instrument.asset");AssetDatabase.CreateAsset(s,folder+"/Song.asset");AssetDatabase.SaveAssetIfDirty(i);AssetDatabase.SaveAssetIfDirty(s);
+                var iw=new SourceWitness(i);var sw=new SourceWitness(s);
+                Assert(ZTrackerPlayback.TryPlay(s,out playback,out var error),error);iw.Check();sw.Check();playback.Refresh(out _);iw.Check();sw.Check();playback.Stop();playback=null;iw.Check();sw.Check();
+                Assert(!ZTrackerPlayback.TryAudition(i,60,out playback,out _,99),"Saved invalid preset accepted");iw.Check();sw.Check();
+                Assert(ZTrackerPlayback.TryAudition(i,60,out playback,out error),error);iw.Check();sw.Check();playback.Stop();playback=null;iw.Check();sw.Check();
+            }finally{if(playback!=null)playback.Stop();AssetDatabase.DeleteAsset(folder);if(s!=null)UnityEngine.Object.DestroyImmediate(s);if(i!=null)UnityEngine.Object.DestroyImmediate(i);}
+        }
+        // Split live checks across eval calls so Unity can start/drain the graph.
+        // No callback-owned voice/parameter arrays are read from the main thread.
+        static ZTrackerSong liveSong;
+        static ZTrackerInstrument liveA,liveB;
+        static ZTrackerPlayback livePlayback;
+        static SourceWitness liveSongWitness,liveAWitness,liveBWitness;
+        static string[] liveIds;
+        static int liveStep,liveSwaps;
+        static bool liveModern;
+        static readonly System.Reflection.BindingFlags LiveFlags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
+        static PlaybackSnapshot LiveSnapshot()
+        {
+            var field=typeof(ZTrackerPlayback).GetField("snapshot",LiveFlags);Assert(field!=null,"Playback snapshot member missing");
+            return (PlaybackSnapshot)field.GetValue(livePlayback);
+        }
+        static object LiveOwner()
+        {
+            var property=typeof(TrackerSapGenerator).GetProperty("CurrentPrepared",LiveFlags);Assert(property!=null,"Prepared owner member missing");return property.GetValue(livePlayback.Generator);
+        }
+        static void LiveWitnesses(){liveSongWitness=new SourceWitness(liveSong);liveAWitness=new SourceWitness(liveA);liveBWitness=new SourceWitness(liveB);}
+        static void LiveUnchanged(){liveSongWitness.Check();liveAWitness.Check();liveBWitness.Check();}
+        static void LiveSlots(float a,float b)
+        {
+            var data=LiveSnapshot().Data;
+            Assert(data.instruments.Select(i=>i.model.id).SequenceEqual(liveIds),"Live captured IDs/order changed");
+            Assert(data.instruments[0]==data.instruments[2],"Live repeated source alias lost");
+            Assert(data.instruments[0].model.parameters.blend==a&&data.instruments[2].model.parameters.blend==a&&data.instruments[1].model.parameters.blend==b,"Live source reorder retargeted instrument slots");
+        }
+        public static string BeginCapturedSlotLive(bool modern)
+        {
+            Assert(livePlayback==null&&ZTrackerPlayback.Current==null,"Another live check/preview active");liveModern=modern;liveStep=liveSwaps=0;
+            try{
+                liveSong=ScriptableObject.CreateInstance<ZTrackerSong>();liveA=ScriptableObject.CreateInstance<ZTrackerInstrument>();liveB=ScriptableObject.CreateInstance<ZTrackerInstrument>();
+                liveSong.hideFlags=liveA.hideFlags=liveB.hideFlags=HideFlags.HideAndDontSave;
+                liveA.type=liveB.type=InstrumentType.Synth;liveB.blend=.1f;
+                liveSong.channelCount=1;liveSong.patterns.Add(new ZTrackerPattern("live",64,1));liveSong.channels.Add(new ZTrackerChannelConfig());liveSong.orderList.Add(0);liveSong.instruments.AddRange(new[]{liveA,liveB,liveA});liveSong.patterns[0].cells[0].note=60;liveSong.patterns[0].cells[0].instrument=0;
+                if(modern){Upgrade(liveA);Upgrade(liveB);Upgrade(liveSong);}
+                liveSong.serializedNulls=new List<string>{"stale"};liveA.serializedNulls=new List<string>{"stale"};liveB.serializedNulls=null;
+                LiveWitnesses();Assert(ZTrackerPlayback.TryPlay(liveSong,out livePlayback,out var error),error);LiveUnchanged();
+                livePlayback.EngineEventReceived+=e=>{if(e.kind==TrackerEventKind.PreparedSwap)liveSwaps++;};
+                liveIds=LiveSnapshot().Data.instruments.Select(i=>i.model.id).ToArray();return "WAIT graph startup";
+            }catch{CancelCapturedSlotLive();throw;}
+        }
+        public static string ContinueCapturedSlotLive()
+        {
+            try{
+                Assert(livePlayback!=null,"Live check not started");while(livePlayback.TryReadEvent(out _)){}LiveUnchanged();
+                if(liveStep==0){
+                    if(livePlayback.RenderedBlocks==0)return "WAIT graph startup";
+                    var slots=liveModern?liveSong.model.instruments:liveSong.instruments;slots[0]=liveB;slots[1]=liveA;
+                    if(liveModern)liveA.model.parameters.blend=.8f;else liveA.blend=.8f;
+                    LiveWitnesses();livePlayback.RefreshInstrument(liveA,-1);LiveUnchanged();LiveSlots(.8f,.1f);liveStep=1;return "WAIT first PreparedSwap";
+                }
+                if(liveStep==1){
+                    if(liveSwaps<1)return "WAIT first PreparedSwap";
+                    LiveSlots(.8f,.1f);var accepted=LiveSnapshot();string before=SnapshotPayload(accepted);var owner=LiveOwner();
+                    var presets=liveModern?liveA.model.parameters.presets:liveA.presets;presets.Add(new ZTrackerInstrument.InstrumentPreset());LiveWitnesses();
+                    Rejected(()=>livePlayback.RefreshInstrument(liveA,-1));Assert(livePlayback.LastError?.Contains("structural")==true,"Live structural refusal not explicit");
+                    Assert(ReferenceEquals(LiveSnapshot(),accepted)&&ReferenceEquals(LiveOwner(),owner)&&before==SnapshotPayload(accepted),"Refused live refresh replaced/mutated accepted snapshot");LiveUnchanged();LiveSlots(.8f,.1f);
+                    presets.Clear();if(liveModern)liveB.model.parameters.blend=.3f;else liveB.blend=.3f;LiveWitnesses();livePlayback.RefreshInstrument(liveB,-1);LiveUnchanged();liveStep=2;return "WAIT second PreparedSwap";
+                }
+                if(liveStep==2){
+                    if(liveSwaps<2)return "WAIT second PreparedSwap";Assert(liveSwaps==2,"Refused candidate emitted a swap");LiveSlots(.8f,.3f);
+                    var accepted=LiveSnapshot();string before=SnapshotPayload(accepted);var owner=LiveOwner();
+                    Assert(!livePlayback.Refresh(out var reason)&&reason.Contains("structural"),"Whole-song reorder accepted");Assert(ReferenceEquals(accepted,LiveSnapshot())&&ReferenceEquals(owner,LiveOwner())&&before==SnapshotPayload(accepted),"Whole-song refusal mutated accepted snapshot");LiveUnchanged();
+                    if(liveModern)liveA.model.parameters.blend=.6f;else liveA.blend=.6f;LiveWitnesses();livePlayback.RefreshInstrument(liveA,-1);LiveUnchanged();liveStep=3;return "WAIT recovery PreparedSwap";
+                }
+                if(liveSwaps<3)return "WAIT recovery PreparedSwap";Assert(liveSwaps==3&&livePlayback.RenderCompiled&&livePlayback.EventOverflow==0,"Live recovery render/swap witness failed");LiveSlots(.6f,.3f);LiveUnchanged();
+                livePlayback.Stop();Assert(livePlayback.LastStopConfirmed,"Live graph retirement not confirmed");livePlayback=null;LiveUnchanged();CancelCapturedSlotLive();return "PASS captured-slot live refresh schema="+(liveModern?1:0)+" swaps=3 compiled=true sources/dirty unchanged";
+            }catch{CancelCapturedSlotLive();throw;}
+        }
+        public static void CancelCapturedSlotLive()
+        {
+            if(livePlayback!=null)livePlayback.Stop();livePlayback=null;
+            if(liveSong!=null)UnityEngine.Object.DestroyImmediate(liveSong);if(liveA!=null)UnityEngine.Object.DestroyImmediate(liveA);if(liveB!=null)UnityEngine.Object.DestroyImmediate(liveB);liveSong=null;liveA=liveB=null;
         }
         static void DemoChecks()
         {

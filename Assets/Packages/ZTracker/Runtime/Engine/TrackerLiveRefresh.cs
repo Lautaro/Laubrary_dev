@@ -16,6 +16,9 @@ namespace Laubrary.ZTracker.Engine
         void BuildLiveIdentity(SongData source)
         {
             var copy=ZTrackerMigration.Copy(source);
+            // Detached candidates own fresh Unity wrappers. Musical identity is
+            // the ordered model IDs/payloads below, not wrapper instance IDs.
+            copy.instruments.Clear();
             copy.name="";copy.diagnostics.Clear();copy.bpm=120;copy.linesPerBeat=4;copy.ticksPerLine=6;
             foreach(var t in copy.tracks){t.name="";t.color=Color.gray;t.columns.Clear();t.visibleEffectColumns=0;t.preVolume=t.postVolume=t.preWidth=1;t.prePan=t.postPan=0;t.triggerMute=t.outputMute=t.solo=false;NormalizeLiveChain(t.devices);}
             foreach(var t in copy.tracks)
@@ -25,7 +28,7 @@ namespace Laubrary.ZTracker.Engine
             }
             foreach(var p in copy.patterns){p.name="";foreach(var t in p.tracks){t.lines.Clear();if(t.automation!=null)foreach(var lane in t.automation){if(lane==null)continue;lane.points?.Clear();lane.interpolation=AutomationInterpolation.Step;}}}
             var key=new StringBuilder(JsonUtility.ToJson(copy));
-            foreach(var i in source.instruments){if(i==null){key.Append("null");continue;}var data=ZTrackerMigration.Copy(i.model);var q=data.parameters;
+            foreach(var i in source.instruments){if(i==null){key.Append("null");continue;}key.Append('|').Append(i.playbackSourceIdentity!=0?i.playbackSourceIdentity:i.GetInstanceID());var data=ZTrackerMigration.Copy(i.model);var q=data.parameters;
                 q.volume=q.pan=q.fineTune=q.blend=q.pulseWidth=q.waveBRatio=q.pmDepth=q.unisonDetune=q.unisonSpread=0;
                 q.attack=q.decay=q.sustain=q.release=q.vibratoDepth=q.vibratoRate=q.vibratoFadeIn=q.instFilterCutoff=q.instFilterResonance=q.glideSeconds=q.fmFeedback=0;
                 if(q.fmOperators!=null)for(int op=0;op<q.fmOperators.Length;op++){var value=q.fmOperators[op];value.freqRatio=value.freqFixed=value.level=value.attack=value.decay=value.sustain=value.release=0;q.fmOperators[op]=value;}

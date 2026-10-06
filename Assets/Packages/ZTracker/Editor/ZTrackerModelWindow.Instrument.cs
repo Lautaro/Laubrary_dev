@@ -18,7 +18,7 @@ namespace Laubrary.ZTracker.Editor
         [SerializeField] int instrumentTab, macroIndex, presetIndex = -1;
         [SerializeField] string sampleId = "", zoneId = "", modSetId = "", modDeviceId = "";
         [SerializeField] int instrumentChain, sampleSort;
-        InstrumentData Instrument => instrument != null && instrument.schemaVersion == 1 ? instrument.model : null;
+        InstrumentData Instrument => ReadInstrument(instrument);
         int gestureGroup = -1;
         static InstrumentData NewInstrumentData()
         {
@@ -36,7 +36,7 @@ namespace Laubrary.ZTracker.Editor
         void EndInstrumentGesture()
         {
             EditorUtility.SetDirty(instrument); if (gestureGroup >= 0) CollapseUndo(gestureGroup,instrument); gestureGroup = -1;
-            RefreshLive(); RefreshTransport();
+            RefreshLive(instrument); RefreshTransport();
         }
         VisualElement InstrumentDial(string label, float value, float min, float max, string tip, Action<float> apply, string name = null, int decimals = 2)
             => Named(Dial(label, value, min, max, tip, v => InstrumentEdit(label, () => apply(v)), decimals), name);

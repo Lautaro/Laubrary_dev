@@ -114,27 +114,31 @@ namespace Laubrary.ZTracker
         }
         public bool SendCommand(TrackerCommand command) => IsPlaying && generator.SendCommand(command);
         public bool Refresh(out string reason)
+            => Refresh(null, out reason);
+        bool Refresh(ZTrackerInstrument instrument, out string reason)
         {
             reason = null;
             if (!IsPlaying) { reason = "Playback unavailable"; return false; }
             TrackerPreparedSong next = null;
+            PlaybackSnapshot candidate = null;
             try
             {
-                snapshot.Refresh();
-                next = TrackerPreparedSong.Prepare(snapshot.Data, AudioSettings.outputSampleRate);
-                var nextCatalog = new EventCatalog(snapshot.Data, next);
+                candidate = snapshot.CreateRefresh(instrument);
+                next = TrackerPreparedSong.Prepare(candidate.Data, AudioSettings.outputSampleRate);
+                var nextCatalog = new EventCatalog(candidate.Data, next);
                 if (!generator.RefreshPrepared(next, out reason)) return false;
+                var previous = snapshot; snapshot = candidate; candidate = null; previous.Dispose();
                 catalogs.Enqueue(nextCatalog); next = null; LastError = null;
                 return true;
             }
             catch (Exception ex) { reason = ex.Message; return false; }
-            finally { next?.Dispose(); if (reason != null) LastError = reason; }
+            finally { candidate?.Dispose(); next?.Dispose(); if (reason != null) LastError = reason; }
         }
         public void RefreshInstrument(ZTrackerInstrument instrument, int preset)
         {
             if (!snapshot.Contains(instrument)) return;
             if (preset != AuditionPreset && !IsSong) throw new InvalidOperationException("Variation change requires explicit Stop and Play");
-            if (!Refresh(out var reason)) throw new InvalidOperationException(reason);
+            if (!Refresh(instrument, out var reason)) throw new InvalidOperationException(reason);
         }
 
         public bool TryReadEvent(out ZTrackerEventData value)
@@ -224,62 +228,85 @@ namespace Laubrary.ZTracker
     }
 
     /// <summary>Detached main-thread migration snapshots. Shared source assets and PCM are never rewritten.</summary>
-    internal sealed class PlaybackSnapshot : IDisposable
+    public sealed class PlaybackSnapshot : IDisposable
     {
         readonly ZTrackerSong source;
         readonly ZTrackerInstrument audition;
         readonly int preset;
         readonly Dictionary<ZTrackerInstrument, ZTrackerInstrument> copies = new Dictionary<ZTrackerInstrument, ZTrackerInstrument>();
+        ZTrackerInstrument[] slots;
         public SongData Data { get; private set; }
         PlaybackSnapshot(ZTrackerSong source, ZTrackerInstrument audition, int preset) { this.source = source; this.audition = audition; this.preset = preset; }
-        public bool Contains(ZTrackerInstrument instrument) => copies.ContainsKey(instrument);
+        public bool Contains(ZTrackerInstrument instrument) => instrument != null && copies.ContainsKey(instrument);
         public static PlaybackSnapshot Create(ZTrackerSong source, ZTrackerInstrument audition, int preset)
         {
             var result = new PlaybackSnapshot(source, audition, preset);
-            try { result.Refresh(); return result; } catch { result.Dispose(); throw; }
+            try { result.Build(null, null); return result; } catch { result.Dispose(); throw; }
         }
-        ZTrackerInstrument Copy(ZTrackerInstrument original)
+        public PlaybackSnapshot CreateRefresh(ZTrackerInstrument instrument = null)
+        {
+            var result = new PlaybackSnapshot(source, audition, preset);
+            try { result.Build(this, instrument); return result; } catch { result.Dispose(); throw; }
+        }
+        ZTrackerInstrument Copy(ZTrackerInstrument original, PlaybackSnapshot previous, bool update)
         {
             if (original == null) return null;
-            if (!copies.TryGetValue(original, out var copy))
-            {
-                copy = UnityEngine.Object.Instantiate(original); copy.hideFlags = HideFlags.HideAndDontSave;
-                if (!ZTrackerMigration.Upgrade(copy, out var error)) { UnityEngine.Object.DestroyImmediate(copy); throw new InvalidOperationException(error); }
-                copies.Add(original, copy);
-            }
+            if (copies.TryGetValue(original, out var copy)) return copy;
+            ZTrackerInstrument accepted = null;
+            previous?.copies.TryGetValue(original, out accepted);
+            InstrumentData model;
+            if (!update && accepted != null) model = ZTrackerMigration.Copy(accepted.model);
             else
             {
                 string error = ZTrackerMigration.VersionError(original.schemaVersion);
                 if (error != null) throw new InvalidOperationException(error);
-                copy.model = original.schemaVersion == 0 ? ZTrackerMigration.Convert(ZTrackerMigration.Capture(original), original.name, copy.model.id) : ZTrackerMigration.Copy(original.model);
+                model = original.schemaVersion == 0 ? ZTrackerMigration.Convert(ZTrackerMigration.Capture(original), original.name, accepted?.model.id) : ZTrackerMigration.Copy(original.model);
+                error = ZTrackerModelValidation.Validate(model);
+                if (error != null) throw new InvalidOperationException(error);
+                if (source == null && preset >= 0)
+                {
+                    var sets = ZTrackerMigration.ResolveParameterSets(model);
+                    if (preset + 1 >= sets.Count) throw new ArgumentOutOfRangeException(nameof(preset));
+                    model = ZTrackerMigration.Copy(sets[preset + 1].data);
+                }
             }
+            copy = ScriptableObject.CreateInstance<ZTrackerInstrument>();
+            copy.hideFlags = HideFlags.HideAndDontSave; copy.name = original.name;
+            copy.schemaVersion = ZTrackerMigration.CurrentVersion; copy.model = model;
+            copy.playbackSourceIdentity = original.GetInstanceID();
+            copies.Add(original, copy);
             return copy;
         }
-        public void Refresh()
+        void Build(PlaybackSnapshot previous, ZTrackerInstrument instrument)
         {
-            if (source != null)
+            if (previous != null && instrument != null)
+            {
+                // Instrument edits follow captured source identities, never the
+                // author's current slot order. Repeated references share a copy.
+                Data = ZTrackerMigration.Copy(previous.Data);
+                slots = (ZTrackerInstrument[])previous.slots.Clone();
+            }
+            else if (source != null)
             {
                 string error = ZTrackerMigration.VersionError(source.schemaVersion);
                 if (error != null) throw new InvalidOperationException(error);
-                Data = source.schemaVersion == 0 ? ZTrackerMigration.Convert(ZTrackerMigration.Capture(source), Data) : ZTrackerMigration.Copy(source.model);
-                for (int i = 0; i < Data.instruments.Count; i++) Data.instruments[i] = Copy(Data.instruments[i]);
+                Data = source.schemaVersion == 0 ? ZTrackerMigration.Convert(ZTrackerMigration.Capture(source), previous?.Data) : ZTrackerMigration.Copy(source.model);
+                if (Data == null) throw new InvalidOperationException("Song model missing");
+                slots = Data.instruments.ToArray();
             }
             else
             {
-                var copy = Copy(audition);
-                if (preset >= 0)
-                {
-                    var sets = ZTrackerMigration.ResolveParameterSets(copy.model);
-                    if (preset + 1 >= sets.Count) throw new ArgumentOutOfRangeException(nameof(preset));
-                    copy.model = ZTrackerMigration.Copy(sets[preset + 1].data);
-                }
-                Data = new SongData { id = "audition", instruments = new List<ZTrackerInstrument> { copy } };
+                slots = new[] { audition };
+                Data = new SongData { id = "audition", instruments = new List<ZTrackerInstrument> { audition } };
                 Data.tracks.Add(new TrackData { id = "audition-track", visibleNoteColumns = 1, outputTrackId = "master" });
                 Data.tracks.Add(new TrackData { id = "master", kind = TrackKind.Master, visibleNoteColumns = 0, visibleEffectColumns = 0 });
                 var pattern = new PatternData { id = "audition-pattern", lineCount = 64 };
                 pattern.tracks.Add(new PatternTrack { trackId = "audition-track" }); pattern.tracks.Add(new PatternTrack { trackId = "master" });
                 Data.patterns.Add(pattern); Data.sequence.Add(new SequenceSlot { id = "audition-slot", patternId = pattern.id });
             }
+            for (int i = 0; i < slots.Length; i++) Data.instruments[i] = Copy(slots[i], previous, instrument == null || slots[i] == instrument);
+            string validation = ZTrackerModelValidation.Validate(Data);
+            if (validation != null) throw new InvalidOperationException(validation);
         }
         public void Dispose() { foreach (var copy in copies.Values) if (copy != null) UnityEngine.Object.DestroyImmediate(copy); copies.Clear(); }
     }

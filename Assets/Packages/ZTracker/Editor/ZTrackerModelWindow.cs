@@ -21,12 +21,26 @@ namespace Laubrary.ZTracker.Editor
         GameObject preview;
         bool playing;
         bool pendingLive;
+        PlaybackSnapshot playbackSnapshot;
+        SongData legacyView;
+        ZTrackerSong legacyViewSource;
+        readonly Dictionary<ZTrackerInstrument,InstrumentData> legacyInstrumentViews=new Dictionary<ZTrackerInstrument,InstrumentData>();
         string lastError;
         VisualElement controls,stage;
         ScrollView controlScroll,grid;
         Label status,help;
         IVisualElementScheduledItem pumpSchedule;
-        SongData Data=>song!=null&&song.schemaVersion==1?song.model:null;
+        SongData Data
+        {
+            get
+            {
+                if(song==null)return null;
+                if(song.schemaVersion==1)return song.model;
+                if(song.schemaVersion!=0)return null;
+                if(legacyViewSource!=song||legacyView==null){legacyView=ZTrackerMigration.Convert(ZTrackerMigration.Capture(song));legacyViewSource=song;}
+                return legacyView;
+            }
+        }
         PatternData Pattern=>Data==null||Data.sequence.Count==0?null:Data.patterns.Find(p=>p.id==Data.sequence[Mathf.Clamp(order,0,Data.sequence.Count-1)].patternId);
         TrackData SelectedTrack=>Data==null||Data.tracks.Count==0?null:Data.tracks[Mathf.Clamp(track,0,Data.tracks.Count-1)];
         [MenuItem("Laubrary/ZTracker")]
@@ -50,9 +64,31 @@ namespace Laubrary.ZTracker.Editor
         void Upgrade()
         {
             if(song==null)return;
-            if(song.schemaVersion==0){Undo.RegisterCompleteObjectUndo(song,"Tracker: migrate song");ZTrackerMigration.Upgrade(song,out _);EditorUtility.SetDirty(song);}
-            if(Data!=null)foreach(var i in Data.instruments)if(i!=null&&i.schemaVersion==0){Undo.RegisterCompleteObjectUndo(i,"Tracker: migrate instrument");ZTrackerMigration.Upgrade(i,out _);EditorUtility.SetDirty(i);}
             lastError=ZTrackerMigration.VersionError(song.schemaVersion);
+        }
+        InstrumentData ReadInstrument(ZTrackerInstrument value)
+        {
+            if(value==null)return null;
+            if(value.schemaVersion==1)return value.model;
+            if(value.schemaVersion!=0)return null;
+            if(!legacyInstrumentViews.TryGetValue(value,out var view)){view=ZTrackerMigration.Convert(ZTrackerMigration.Capture(value),value.name);legacyInstrumentViews.Add(value,view);}
+            return view;
+        }
+        void UpgradeForEdit(UnityEngine.Object target)
+        {
+            if(target is ZTrackerSong s)
+            {
+                var view=s==song?Data:null;
+                if(!ZTrackerMigration.Upgrade(s,out var error))throw new InvalidOperationException(error);
+                if(view!=null&&s==legacyViewSource)s.model=view;
+            }
+            if(target is ZTrackerInstrument i)
+            {
+                var view=ReadInstrument(i);
+                bool legacy=i.schemaVersion==0;
+                if(!ZTrackerMigration.Upgrade(i,out var error))throw new InvalidOperationException(error);
+                if(legacy&&view!=null)i.model=view;
+            }
         }
         void BuildPane()
         {
@@ -73,8 +109,8 @@ namespace Laubrary.ZTracker.Editor
         {
             if(target==null)return;
             // Complete snapshots restore sparse removals, cropped rows and nested serialized values.
-            Undo.IncrementCurrentGroup();int group=Undo.GetCurrentGroup();Undo.SetCurrentGroupName("Tracker: "+label);CompleteUndo(target,"Tracker: "+label);
-            try{edit();EditorUtility.SetDirty(target);CollapseUndo(group,target);if(command.HasValue&&host!=null){if(!host.SendCommand(command.Value))lastError="Live update pending: command was not accepted";}else RefreshLive();if(rebuild)BuildPane();else RefreshCells();}
+            Undo.IncrementCurrentGroup();int group=Undo.GetCurrentGroup();Undo.SetCurrentGroupName("Tracker: "+label);
+            try{CompleteUndo(target,"Tracker: "+label);edit();EditorUtility.SetDirty(target);CollapseUndo(group,target);if(command.HasValue&&host!=null){if(!host.SendCommand(command.Value))lastError="Live update pending: command was not accepted";}else RefreshLive(target as ZTrackerInstrument);if(rebuild)BuildPane();else RefreshCells();}
             catch(Exception ex){Undo.RevertAllDownToGroup(group);lastError=ex.Message;BuildPane();}
             RefreshTransport();
         }
@@ -84,13 +120,14 @@ namespace Laubrary.ZTracker.Editor
         // the prepared base stale, so PreserveSwap would mistake Undo for an unrelated override.
         void InstrumentScalarEdit(string label,TrackerParameter parameter,float value,Action edit,bool rebuild=false)=>Change(instrument,label,edit,rebuild);
         void InstrumentMacroEdit(string label,int macro,float value,Action edit,bool rebuild=false)=>Change(instrument,label,edit,rebuild);
-        void RefreshLive()
+        void RefreshLive(ZTrackerInstrument changedInstrument=null)
         {
             if(host==null||Data==null)return;
             TrackerPreparedSong next=null;
-            try{next=TrackerPreparedSong.Prepare(Data,AudioSettings.outputSampleRate);if(host.RefreshPrepared(next,out var reason)){next=null;lastError=null;pendingLive=false;}else {lastError=reason;pendingLive=reason!=null&&reason.Contains("still starting");}}
+            PlaybackSnapshot candidate=null;
+            try{candidate=playbackSnapshot.CreateRefresh(changedInstrument);next=TrackerPreparedSong.Prepare(candidate.Data,AudioSettings.outputSampleRate);if(host.RefreshPrepared(next,out var reason)){next=null;var previous=playbackSnapshot;playbackSnapshot=candidate;candidate=null;previous.Dispose();lastError=null;pendingLive=false;}else {lastError=reason;pendingLive=reason!=null&&reason.Contains("still starting");}}
             catch(Exception ex){lastError="Live update pending: "+ex.Message;}
-            finally{next?.Dispose();}
+            finally{candidate?.Dispose();next?.Dispose();}
         }
         bool SendLive(TrackerCommand command)=>host!=null&&host.SendCommand(command);
         void Play(bool cursor)
@@ -101,10 +138,13 @@ namespace Laubrary.ZTracker.Editor
         void EnsurePreview()
         {
             if(host!=null)return;if(Data==null)throw new InvalidOperationException("Choose or create a song");
-            var prepared=TrackerPreparedSong.Prepare(Data,AudioSettings.outputSampleRate);
+            PlaybackSnapshot candidate=null;TrackerPreparedSong prepared=null;
+            candidate=PlaybackSnapshot.Create(song,null,-1);
+            try{prepared=TrackerPreparedSong.Prepare(candidate.Data,AudioSettings.outputSampleRate);}
+            catch{candidate.Dispose();throw;}
             try{preview=new GameObject("ZTracker model preview"){hideFlags=HideFlags.HideAndDontSave};host=preview.AddComponent<TrackerSapGenerator>();host.Configure(prepared,false);prepared=null;var source=preview.GetComponent<AudioSource>();source.playOnAwake=false;source.spatialBlend=0;source.generator=host;source.Play();}
             catch{if(preview!=null)DestroyImmediate(preview);host=null;throw;}
-            finally{prepared?.Dispose();}
+            finally{prepared?.Dispose();if(host!=null){playbackSnapshot=candidate;}else candidate.Dispose();}
         }
         void Audition(int pitch)
         {
@@ -113,7 +153,7 @@ namespace Laubrary.ZTracker.Editor
         }
         int FirstSequencer()=>SelectedTrack!=null&&SelectedTrack.kind==TrackKind.Sequencer?track:Data.tracks.FindIndex(t=>t.kind==TrackKind.Sequencer);
         void AuditionOff(){if(host!=null)host.SendCommand(new TrackerCommand{kind=TrackerCommandKind.AuditionOff,a=FirstSequencer(),b=0});}
-        void StopPreview(){playing=false;pendingLive=false;if(preview!=null)DestroyImmediate(preview);preview=null;host=null;lastError=null;RefreshTransport();}
+        void StopPreview(){playing=false;pendingLive=false;if(preview!=null)DestroyImmediate(preview);preview=null;host=null;playbackSnapshot?.Dispose();playbackSnapshot=null;lastError=null;RefreshTransport();}
         void Pump()
         {
             if(host!=null){host.PollRetirement();if(pendingLive&&host.RenderedBlocks>0)RefreshLive();while(host.ReadEvent(out var e)){if(e.kind==TrackerEventKind.Stopped)playing=false;if(e.kind==TrackerEventKind.Row&&follow&&playing){bool changed=e.sequence!=order;order=e.sequence;if(changed&&pane==0){BuildPane();}HighlightPlaying(e.row);}}
@@ -121,7 +161,7 @@ namespace Laubrary.ZTracker.Editor
         }
         void RefreshTransport(){if(status==null)return;status.text=lastError!=null?"⚠ Pending: Stop/Play":playing?"Playing":"Idle";status.tooltip=lastError??(playing?"The Burst song engine is playing. Edits update its existing audio stream.":"Preview is stopped; Play starts the authored song.");}
         void OnEnable(){Undo.undoRedoPerformed+=OnUndo;Upgrade();}
-        void OnUndo(){RefreshLive();BuildPane();}
+        void OnUndo(){legacyView=null;legacyViewSource=null;legacyInstrumentViews.Clear();RefreshLive();BuildPane();}
         protected override void OnDisable(){pumpSchedule?.Pause();pumpSchedule=null;Undo.undoRedoPerformed-=OnUndo;StopPreview();if(patternFont!=null)DestroyImmediate(patternFont);patternFont=null;base.OnDisable();}
         // ZuiWindow may rebuild on domain reload/view changes; it must not stop a healthy graph.
         protected override void OnBeforeRebuild(){pumpSchedule?.Pause();pumpSchedule=null;}
@@ -165,7 +205,7 @@ namespace Laubrary.ZTracker.Editor
         void BuildInstrumentSelector(VisualElement root)
         {
             var box=Z.BoxKeyed("Instruments","Choose the instrument used by note entry and audition.","tracker.model.instruments");
-            box.Add(Flow(Button("New instrument","Create and add a new instrument.",CreateInstrument,"new-instrument"),Named(Z.Object<ZTrackerInstrument>(null,"Add an existing instrument.",v=>{if(v==null)return;Undo.IncrementCurrentGroup();int group=Undo.GetCurrentGroup();if(v.schemaVersion==0){Undo.RegisterCompleteObjectUndo(v,"Tracker: migrate instrument");ZTrackerMigration.Upgrade(v,out _);EditorUtility.SetDirty(v);}SongEdit("add instrument",()=>Data.instruments.Add(v),true);Undo.CollapseUndoOperations(group);},155),"add-instrument")));
+            box.Add(Flow(Button("New instrument","Create and add a new instrument.",CreateInstrument,"new-instrument"),Named(Z.Object<ZTrackerInstrument>(null,"Add an existing instrument.",v=>{if(v==null)return;SongEdit("add instrument",()=>Data.instruments.Add(v),true);},155),"add-instrument")));
             if(Data.instruments.Count>0)box.Add(Named(Z.MiniRadio(entryInstrument,Data.instruments.Select((v,i)=>$"{i:X2} {InstrumentTitle(v)}").ToArray(),"Select an instrument; the preview button auditions it.",v=>{entryInstrument=v;instrument=Data.instruments[v];if(pane==3)BuildPane();},wrap:true),"instrument-selector"));
             box.Add(Flow(Button("Edit","Open the selected instrument.",()=>{if(Data.instruments.Count>0){instrument=Data.instruments[Mathf.Clamp(entryInstrument,0,Data.instruments.Count-1)];pane=3;Rebuild();}}),Button("▶","Audition the selected instrument at the current octave.",()=>Audition(octave*12)),Button("■","Release instrument audition notes.",AuditionOff)));root.Add(box);
         }
@@ -189,14 +229,25 @@ namespace Laubrary.ZTracker.Editor
         }
         static T Named<T>(T element,string name) where T:VisualElement{if(name!=null)element.name=name;return element;}
         static T Clone<T>(T value)=>ZTrackerMigration.Copy(value);
-        static void CompleteUndo(UnityEngine.Object target,string label)=>CompleteUndo(new[]{target},label);
-        static void CompleteUndo(UnityEngine.Object[] targets,string label)
+        void CompleteUndo(UnityEngine.Object target,string label)=>CompleteUndo(new[]{target},label);
+        void CompleteUndo(UnityEngine.Object[] targets,string label)
         {
+            targets=targets.Where(t=>t!=null).Distinct().ToArray();
+            // Preflight the whole authoring transaction before recording or
+            // migrating anything. Selection and transport never reach this path.
+            foreach(var target in targets)
+            {
+                string error=null;
+                if(target is ZTrackerSong s){error=ZTrackerMigration.VersionError(s.schemaVersion);if(error==null&&s.schemaVersion==0)error=ZTrackerModelValidation.Validate(ZTrackerMigration.Convert(ZTrackerMigration.Capture(s)));}
+                if(target is ZTrackerInstrument ins){error=ZTrackerMigration.VersionError(ins.schemaVersion);if(error==null&&ins.schemaVersion==0)error=ZTrackerModelValidation.Validate(ZTrackerMigration.Convert(ZTrackerMigration.Capture(ins),ins.name));}
+                if(error!=null)throw new InvalidOperationException(error);
+            }
             // Unity's snapshot serialization fabricates inline null records on the
             // original object too. Restore them immediately, as the legacy transaction does.
             var paths=targets.Select(t=>ZTrackerMigration.NullPaths(t)).ToArray();
             Undo.RegisterCompleteObjectUndo(targets,label);
             for(int i=0;i<targets.Length;i++)ZTrackerMigration.RestoreNulls(targets[i],paths[i]);
+            foreach(var target in targets)UpgradeForEdit(target);
         }
         static void CollapseUndo(int group,params UnityEngine.Object[] targets)
         {
