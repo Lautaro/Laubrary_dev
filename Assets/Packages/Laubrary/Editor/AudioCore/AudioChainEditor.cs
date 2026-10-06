@@ -19,7 +19,7 @@ namespace Laubrary.Audio.Editor
         int addType, addModifier, bindingNode, bindingParam;
         public AudioChainEditor(Func<AudioEffectChainData> getter, Action<string,Action,bool> editCallback, Action<string> nodeRemoved=null)
         {
-            get=getter;edit=editCallback;removed=nodeRemoved;name="audio-chain-editor";style.minWidth=0;Build();
+            get=getter;edit=editCallback;removed=nodeRemoved;name="audio-chain-editor";style.minWidth=0;style.flexShrink=0;Build();
         }
         public static VisualElement Parameter(ParamDesc pd,float value,Action<float> changed,float width=140)
         {
@@ -41,7 +41,7 @@ namespace Laubrary.Audio.Editor
             => new NodeParts{enabled=enableFactory!=null?enableFactory(enabled,setEnabled):Z.Toggle("On",desc.summary,enabled,setEnabled),title=titleFactory!=null?titleFactory(desc.displayName,desc.summary):Z.Text(desc.displayName,tooltip:desc.summary),remove=removeFactory!=null?removeFactory(remove):Z.IconButton("trash","Remove this effect.",remove)};
         public static VisualElement NodeHeader(EffectDesc desc,bool enabled,Action<bool> setEnabled,Action remove)
         {var parts=NodeAuthoring(desc,enabled,setEnabled,remove);return Row(parts.enabled,parts.title,parts.remove);}
-        static VisualElement Row(params VisualElement[] parts){var r=Z.Row();r.style.flexWrap=Wrap.Wrap;foreach(var p in parts)r.Add(p);return r;}
+        static VisualElement Row(params VisualElement[] parts){var r=Z.Row();r.style.flexWrap=Wrap.Wrap;r.style.height=StyleKeyword.Auto;r.style.minHeight=StyleKeyword.Auto;r.style.flexShrink=0;r.style.alignItems=Align.FlexStart;foreach(var p in parts)r.Add(p);return r;}
         static float[] Defaults(ParamDesc[] p)=>p.Select(x=>x.def).ToArray();
         static float Read(float[] p,int i,ParamDesc d)=>p!=null&&i<p.Length?p[i]:d.def;
         static void Write(ref float[] p,int at,float value,ParamDesc[] ds){if(p==null||p.Length<ds.Length){var n=Defaults(ds);if(p!=null)Array.Copy(p,n,Math.Min(p.Length,n.Length));p=n;}p[at]=value;}
