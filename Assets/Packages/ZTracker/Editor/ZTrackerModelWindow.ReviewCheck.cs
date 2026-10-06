@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Text;
 using Laubrary.Audio;
 using Laubrary.Zounds;
+using Laubrary.Zounds.Dsp;
 using Laubrary.ZTracker.Engine;
 using Laubrary.ZTracker.Model;
 using Laubrary.Zui;
