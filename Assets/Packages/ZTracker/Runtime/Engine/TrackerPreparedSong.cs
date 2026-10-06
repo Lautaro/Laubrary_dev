@@ -151,7 +151,7 @@ namespace Laubrary.ZTracker.Engine
                 }
                 foreach(var z in data.sampler.zones)if(!z.inactive)zones.Add(new TrackerZone{sample=sampleBase+z.sample,minNote=z.noteMin,maxNote=z.noteMax,minVelocity=z.velocityMin,maxVelocity=z.velocityMax,baseNote=z.baseNote,tracking=z.keyTracking});
                 ins.zoneCount=zones.Count-ins.zoneStart;insts.Add(ins);
-                
+
             }
             BuildP4(song,rate,samples,zones,insts,pcm,clips,pcmMap,points);
             BuildParameterSets(song,rate,maxFrames,samples,zones,insts,pcm,clips,mods,points,ref stride);
