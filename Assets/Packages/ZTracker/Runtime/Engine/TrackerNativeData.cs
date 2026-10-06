@@ -9,7 +9,7 @@ using Unity.Mathematics;
 
 namespace Laubrary.ZTracker.Engine
 {
-    public enum TrackerEventKind { Row, Tick, NoteOn, NoteOff, Beat, Authored, VoiceStolen, PreparedSwap, Stopped, Diagnostic }
+    public enum TrackerEventKind { Row, Tick, NoteOn, NoteOff, Beat, Authored, VoiceStolen, PreparedSwap, Stopped, Diagnostic, Started }
     public enum TrackerRuntimeDiagnostic { SeekUnreachable=1, PitchLimit=2, InvalidPitch=3, BreakClamped=4 }
     public struct TrackerEvent
     {
@@ -62,7 +62,9 @@ namespace Laubrary.ZTracker.Engine
         public SampleLoop loop;
         public SampleInterpolation interpolation;
         public NewNoteAction nna;
-        public bool releaseExitsLoop, oneShot, legacyPan;
+        public bool releaseExitsLoop, oneShot, legacyPan, legacySamplePitch, orderedVolume;
+        public float legacyFineTuneCents;
+        public int legacyTranspose;
         public float volume, pan, tune, cutoff, resonance, attack, hold, decay, sustain, release;
         public int legacyFilter;
         public int delayDestination, reverbDestination;
@@ -82,7 +84,7 @@ namespace Laubrary.ZTracker.Engine
         public bool sustainEnabled, loopEnabled;
         public SampleLoop loop;
         public float fadeSeconds, randomness;
-        public bool advanceFirst;
+        public bool advanceFirst, primaryEnvelope;
     }
     public struct TrackerModState { public double position; public float releaseStart, output; public bool released; public int direction; }
     public struct TrackerVoice
@@ -180,15 +182,20 @@ namespace Laubrary.ZTracker.Engine
         public float normalization;
         public bool playing, rowPending, loopSong, beatTicks, legacyMix;
     }
-    public enum TrackerCommandKind { Play, Stop, ReleaseAll, Seek, AuditionOn, AuditionOff, TrackGain, TrackPan, TrackMute, Swap }
+    public enum TrackerCommandKind { Play, Stop, ReleaseAll, Seek, AuditionOn, AuditionOff, TrackGain, TrackPan, TrackMute, Swap, AuditionNormalized, ReleaseVoice }
     public struct TrackerCommand
     {
         public TrackerCommandKind kind;
         public int a, b, c, d;
         public float value;
+        public long generation;
         public TrackerState replacement;
         public static TrackerCommand Play(bool loop = true) => new TrackerCommand { kind = TrackerCommandKind.Play, a = loop ? 1 : 0 };
         public static TrackerCommand Stop() => new TrackerCommand { kind = TrackerCommandKind.Stop };
         public static TrackerCommand Audition(int instrument, int note, int velocity = 127, int track = 0) => new TrackerCommand { kind = TrackerCommandKind.AuditionOn, a = instrument, b = note, c = velocity, d = track };
+        /// <summary>Exact normalized audition gain. Integer-rounded velocity is used only for zone selection.</summary>
+        public static TrackerCommand Audition(int instrument,int note,float velocity,int track=0)=>new TrackerCommand{kind=TrackerCommandKind.AuditionNormalized,a=instrument,b=note,c=(int)math.round(velocity*127),d=track,value=velocity};
+        /// <summary>Release a specific slot only while its cohort generation still matches. A stale handle is a no-op.</summary>
+        public static TrackerCommand ReleaseVoice(int slot,long generation)=>new TrackerCommand{kind=TrackerCommandKind.ReleaseVoice,a=slot,generation=generation};
     }
 }

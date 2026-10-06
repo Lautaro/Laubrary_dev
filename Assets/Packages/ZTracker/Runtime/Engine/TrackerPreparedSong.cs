@@ -50,10 +50,11 @@ namespace Laubrary.ZTracker.Engine
             for(int i=0;i<list.Count;i++)a[i]=list[i];return a;
         }
         static NativeArray<T> Buffer<T>(int count) where T:unmanaged => new NativeArray<T>(Math.Max(1,count),Allocator.Persistent);
+        static bool NativeProvenance(string value)=>value!=null&&(value=="native-v0"||value.StartsWith("native-v0;",StringComparison.Ordinal));
         void Build(SongData song,int rate,int maxFrames,List<TrackerChain> chains)
         {
             state.sampleRate=rate;state.maxFrames=maxFrames;state.bpm=state.authoredBpm=song.bpm;state.linesPerBeat=state.authoredLinesPerBeat=song.linesPerBeat;state.ticksPerLine=state.authoredTicksPerLine=song.ticksPerLine;state.beatTicks=song.beatTicks;state.beatInterval=song.beatIntervalLines;state.breakRow=-1;state.normalization=1;state.rowPending=true;
-            state.legacyMix=song.instruments.Any(a=>a!=null)&&song.instruments.Where(a=>a!=null).All(a=>a.schemaVersion==1&&a.model!=null&&a.model.family==InstrumentFamily.Sampler&&!string.IsNullOrEmpty(a.model.provenance));
+            state.legacyMix=song.instruments.Any(a=>a!=null)&&song.instruments.Where(a=>a!=null).All(a=>a.schemaVersion==1&&a.model!=null&&a.model.family==InstrumentFamily.Sampler&&NativeProvenance(a.model.provenance));
             if(state.legacyMix)diagnostics.Add("LEGACY_MIX_NORMALIZATION_AND_SOFT_KNEE");
             var trackMap=song.tracks.Select((t,i)=>(t.id,i)).ToDictionary(x=>x.id,x=>x.i);
             state.master=song.tracks.FindIndex(t=>t.kind==TrackKind.Master);state.trackCount=song.tracks.Count;
@@ -109,10 +110,10 @@ namespace Laubrary.ZTracker.Engine
                     }
                     var sm=new TrackerSample{pcm=clipIndex,instrument=i,volume=s.volume*data.sampler.volume,pan=CombinePan(data.sampler.pan,s.pan),tune=s.transpose+data.sampler.transpose+(s.fineTuneCents+data.sampler.fineTuneCents)/100,loop=s.loop,loopStart=s.loopStartFrame,loopEnd=s.loopEndFrame,releaseExitsLoop=s.releaseExitsLoop,interpolation=s.interpolation,oneShot=s.oneShot,nna=s.nna,fxChain=s.fxChain,muteGroup=s.muteGroup,modStart=mods.Count,cutoff=20000,resonance=.707f,attack=0,decay=0,sustain=1,release=.05f,delayDestination=-1,reverbDestination=-1};
                     bool amplitudeEnvelope=false;
-                    if(s.modulationSet>=0){var set=data.modulation[s.modulationSet];sm.filterType=set.filterType;if(set.filterType<0||set.filterType>3)throw new ArgumentException("Unknown sampler filter");foreach(var m in set.devices)if(m.enabled){ValidateMod(m);if(!amplitudeEnvelope&&m.kind==ModulationDeviceKind.AHDSR&&m.target==ModulationTarget.Volume&&m.operation==ModulationOperation.Multiply){sm.attack=m.attack;sm.hold=m.hold;sm.decay=m.decay;sm.sustain=math.saturate(m.sustain);sm.release=m.release;amplitudeEnvelope=true;}else AddMod(m,mods,points);}}
+                    if(s.modulationSet>=0){var set=data.modulation[s.modulationSet];sm.filterType=set.filterType;if(set.filterType<0||set.filterType>3)throw new ArgumentException("Unknown sampler filter");foreach(var m in set.devices)if(m.enabled){ValidateMod(m);bool primary=!amplitudeEnvelope&&m.kind==ModulationDeviceKind.AHDSR&&m.target==ModulationTarget.Volume;if(primary){sm.attack=m.attack;sm.hold=m.hold;sm.decay=m.decay;sm.sustain=math.saturate(m.sustain);sm.release=m.release;amplitudeEnvelope=true;sm.orderedVolume=true;}AddMod(m,mods,points,primary);}}
                     // Typed retained extension is part of v1 authority; conversion is preparation-only.
                     var legacy=data.parameters;
-                    if(!string.IsNullOrEmpty(data.provenance)&&legacy!=null){
+                    if(NativeProvenance(data.provenance)&&legacy!=null){
                         if(!amplitudeEnvelope){
                             sm.attack=math.max(0,legacy.attack);sm.decay=math.max(0,legacy.decay);sm.sustain=math.saturate(legacy.sustain);sm.release=math.max(0,legacy.release);
                         }
@@ -128,7 +129,9 @@ namespace Laubrary.ZTracker.Engine
                             diagnostics.Add("LEGACY_SEND_COMPILED_TO_EXPLICIT_TRACK slot="+i);
                         }
                     }
-                    sm.legacyPan=!string.IsNullOrEmpty(data.provenance);
+                    sm.legacyPan=NativeProvenance(data.provenance);
+                    sm.legacySamplePitch=sm.legacyPan&&!s.legacyKitDefaults;
+                    sm.legacyTranspose=s.transpose+data.sampler.transpose;sm.legacyFineTuneCents=s.fineTuneCents+data.sampler.fineTuneCents;
                     if(!sm.legacyPan)sm.pan=math.clamp(data.sampler.pan+s.pan,-1,1);
                     sm.modCount=mods.Count-sm.modStart;stride=Math.Max(stride,sm.modCount);if(stride>64)throw new ArgumentException("More than 64 modulation devices per sample");samples.Add(sm);
                 }
@@ -174,14 +177,15 @@ namespace Laubrary.ZTracker.Engine
             var seq=new List<TrackerSequence>();var mutes=new List<byte>();foreach(var slot in song.sequence){seq.Add(new TrackerSequence{pattern=pmap[slot.patternId],muteOffset=mutes.Count});for(int i=0;i<tracks.Count;i++)mutes.Add(slot.mutedTrackIds.Contains(song.tracks[i].id)?(byte)1:(byte)0);}
             state.patterns=Native(patterns);state.rows=Native(rows);state.cells=Native(cells);state.commands=Native(cmds);state.authoredEvents=Native(events);state.sequence=Native(seq);state.sequenceMutes=Native(mutes);
             if(chains.Count>16384||chains.Sum(c=>(long)c.layout.stateFloats)>33554432)throw new ArgumentException("Chain count/state exceeds 16384 chains / 128 MiB");state.chainCount=chains.Count;state.chains=(TrackerChain*)UnsafeUtility.Malloc(Math.Max(1,chains.Count)*(long)sizeof(TrackerChain),16,Allocator.Persistent);for(int i=0;i<chains.Count;i++)state.chains[i]=chains[i];
-            state.ticket=SapRenderTicket.Create(Allocator.Persistent);
+            // Three lifetime counters, actual render-path BurstDiscard witness, completed render count.
+            state.ticket=new NativeArray<long>(5,Allocator.Persistent);
         }
         static int Output(TrackData t,Dictionary<string,int> map,int master)=>t.kind==TrackKind.Master?-1:t.outputTrackId!=""?map[t.outputTrackId]:t.parentGroupId!=""?map[t.parentGroupId]:master;
         internal static float CombinePan(float a,float b){float r=(a+1)*.5f;r=b<0?r*(1+b):r+(1-r)*b;return r*2-1;}
-        static void AddMod(ModulationDevice m,List<TrackerMod> mods,List<TrackerModPoint> points)
+        static void AddMod(ModulationDevice m,List<TrackerMod> mods,List<TrackerModPoint> points,bool primaryEnvelope=false)
         {
             ValidateMod(m);
-            mods.Add(new TrackerMod{target=m.target,kind=m.kind,operation=m.operation,attack=m.attack,hold=m.hold,decay=m.decay,sustain=m.sustain,release=m.release,rate=m.rate,depth=m.depth,phase=m.phase,min=m.min,max=m.max,curve=m.curve,points=points.Count,pointCount=m.points.Count,shape=m.lfoShape,sustainPosition=m.sustainPosition,sustainEnabled=m.sustainEnabled,loopStart=m.loopStart,loopEnd=m.loopEnd,loopEnabled=m.loopEnabled,loop=m.loop});
+            mods.Add(new TrackerMod{target=m.target,kind=m.kind,operation=m.operation,attack=m.attack,hold=m.hold,decay=m.decay,sustain=m.sustain,release=m.release,rate=m.rate,depth=m.depth,phase=m.phase,min=m.min,max=m.max,curve=m.curve,points=points.Count,pointCount=m.points.Count,shape=m.lfoShape,sustainPosition=m.sustainPosition,sustainEnabled=m.sustainEnabled,loopStart=m.loopStart,loopEnd=m.loopEnd,loopEnabled=m.loopEnabled,loop=m.loop,primaryEnvelope=primaryEnvelope});
             foreach(var p in m.points)points.Add(new TrackerModPoint{time=p.time,value=p.value,exponent=p.exponent});
         }
         static void ValidateMod(ModulationDevice m)

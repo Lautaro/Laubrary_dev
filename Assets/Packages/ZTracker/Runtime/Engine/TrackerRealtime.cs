@@ -34,7 +34,7 @@ namespace Laubrary.ZTracker.Engine
         {
             switch(c.kind){
                 case TrackerCommandKind.Play:
-                    ClearVoices();ResetChains();ResetDefaults();state.sequenceIndex=0;state.row=0;state.tick=0;state.breakRow=-1;state.rowStart=0;state.clockCompensation=0;state.transportOrigin=state.samplePosition;state.rowPending=true;state.playing=true;state.loopSong=c.a!=0;ResetColumns();break;
+                    ClearVoices();ResetChains();ResetDefaults();state.sequenceIndex=0;state.row=0;state.tick=0;state.breakRow=-1;state.rowStart=0;state.clockCompensation=0;state.transportOrigin=state.samplePosition;state.rowPending=true;state.playing=true;state.loopSong=c.a!=0;ResetColumns();Emit(TrackerEventKind.Started);break;
                 case TrackerCommandKind.Stop:
                     state.playing=false;state.rowPending=true;ClearVoices();ResetChains();ResetColumns();Emit(TrackerEventKind.Stopped);break;
                 case TrackerCommandKind.ReleaseAll:
@@ -45,6 +45,10 @@ namespace Laubrary.ZTracker.Engine
                     Seek(c.a,c.b);break;
                 case TrackerCommandKind.AuditionOn:
                     if(c.d>=0&&c.d<state.trackCount&&state.tracks[c.d].columnCount>0&&c.b>=0&&c.b<120&&c.c>=0&&c.c<=127){int ci=state.tracks[c.d].columns;var col=state.columns[ci];col.volume=c.c/127f;state.columns[ci]=col;NoteOn(c.d,0,c.a,c.b,c.c);}break;
+                case TrackerCommandKind.AuditionNormalized:
+                    if(c.d>=0&&c.d<state.trackCount&&state.tracks[c.d].columnCount>0&&c.b>=0&&c.b<120&&c.c>=0&&c.c<=127&&math.isfinite(c.value)&&c.value>=0&&c.value<=1){int ci=state.tracks[c.d].columns;var col=state.columns[ci];col.volume=c.value;state.columns[ci]=col;NoteOn(c.d,0,c.a,c.b,c.c);}break;
+                case TrackerCommandKind.ReleaseVoice:
+                    if(c.a>=0&&c.a<state.voices.Length&&state.voices[c.a].active&&state.voices[c.a].cohort==c.generation)Release(c.a);break;
                 case TrackerCommandKind.AuditionOff:
                     if(c.a>=0&&c.a<state.trackCount&&c.b>=0&&c.b<state.tracks[c.a].columnCount)Off(c.a,c.b);break;
                 case TrackerCommandKind.TrackGain:
@@ -148,7 +152,7 @@ namespace Laubrary.ZTracker.Engine
         }
         void NoteOn(int track,int column,int instrument,int note,int velocity)
         {
-            if(instrument<0||instrument>=state.instrumentCount||note<0||note>119||state.tracks[track].triggerMute||Muted(track))return;
+            if(instrument<0||instrument>=state.instrumentCount||note<0||note>119||state.tracks[track].triggerMute||!state.tracks[track].soloEnabled||state.sequenceMutes[state.sequence[state.sequenceIndex].muteOffset+track]!=0)return;
             var ins=state.instruments[instrument];if(ins.zoneCount==0)return;
             bool mapped=false;for(int z=0;z<ins.zoneCount;z++){var zone=state.zones[ins.zoneStart+z];if(note>=zone.minNote&&note<=zone.maxNote&&velocity>=zone.minVelocity&&velocity<=zone.maxVelocity&&state.samples[zone.sample].pcm>=0){mapped=true;break;}}if(!mapped)return;
             // NNA applies only to the foreground cohort in this note column; layered siblings remain a bundle.
@@ -162,6 +166,13 @@ namespace Laubrary.ZTracker.Engine
                 int index=ChooseVoice();var clip=state.clips[sample.pcm];
                 int bus=-1;if(sample.fxChain>=0)for(int b=0;b<state.busCount;b++){var route=state.buses[b];if(route.track==track&&route.instrument==instrument&&route.fx==sample.fxChain){bus=b;break;}}
                 var voice=new TrackerVoice{active=true,sample=zone.sample,instrument=instrument,track=track,column=column,note=note,velocity=velocity,cohort=cohort,volume=col.volume,pan=col.pan,bus=bus,direction=sample.loop==SampleLoop.Backward?-1:1,position=sample.loop==SampleLoop.Backward?sample.loopEnd-1:0,step=(clip.frequency/(double)state.sampleRate)*math.pow(2d,((zone.tracking?note-zone.baseNote:0)+sample.tune)/12d)};
+                if(sample.legacySamplePitch&&zone.tracking){
+                    // MSVC /O2 /fp:fast folds native MidiToFreq(note)/MidiToFreq(base)*fineMul
+                    // into powf(2, noteExponent-baseExponent+fineExponent), multiplied by
+                    // float(440*float(1/440)) = 0x3f7fffff. Kit's identical note/base folds to 1.
+                    float ne=((zone.tracking?note:zone.baseNote)+sample.legacyTranspose-69)*(1f/12f),be=(zone.baseNote-69)*(1f/12f),fe=sample.legacyFineTuneCents*(1f/1200f);
+                    voice.step=(math.pow(2f,(ne-be)+fe)*math.asfloat(0x3f7fffff))*(clip.frequency/(double)state.sampleRate);
+                }
                 voice.filterCutoff=-1;voice.filterQ=-1;state.voices[index]=voice;
                 for(int m=0;m<state.modStride;m++)state.modulationState[index*state.modStride+m]=default;
             }
@@ -177,6 +188,7 @@ namespace Laubrary.ZTracker.Engine
         }
         public void Render(int frames)
         {
+            state.ticket[3]=1;MarkManagedRender();
             SapRenderTicket.Enter(state.ticket);AudioThreadGuard.CountBlock();
             for(int t=0;t<state.trackCount;t++)for(int i=0;i<frames;i++){int a=t*state.maxFrames+i;state.left[a]=state.right[a]=0;}
             for(int b=0;b<state.busCount;b++)for(int i=0;i<frames;i++){int a=b*state.maxFrames+i;state.busLeft[a]=state.busRight[a]=0;}
@@ -192,8 +204,9 @@ namespace Laubrary.ZTracker.Engine
                     RenderVoices(offset,n);state.samplePosition+=n;offset+=n;
                 }else {RenderVoices(offset,frames-offset);offset=frames;}
             }
-            Mix(frames);SapRenderTicket.Exit(state.ticket,frames,false);
+            Mix(frames);state.ticket[4]++;SapRenderTicket.Exit(state.ticket,frames,false);
         }
+        [BurstDiscard] void MarkManagedRender(){state.ticket[3]=-1;}
         void ApplyDue(double before)
         {
             // Distinct fractional deadlines can share Q's frame; retain their exact order before column ties.
@@ -209,9 +222,9 @@ namespace Laubrary.ZTracker.Engine
                 for(int f=0;f<count;f++){
                     if(!v.active)break;Envelope(ref v,in s);if(!v.active)break;
                     float volume=1,pan=0,pitch=0,cutoff=s.cutoff,resonance=s.resonance,drive=1;
-                    EvaluateMods(i,ref v,in s,ref volume,ref pan,ref pitch,ref cutoff,ref resonance,ref drive);
+                    volume=s.orderedVolume?1:v.envelope;EvaluateMods(i,ref v,in s,ref volume,ref pan,ref pitch,ref cutoff,ref resonance,ref drive);
                     float l=Pcm(in clip,in s,v.position,0,v.released),r=Pcm(in clip,in s,v.position,clip.channels==2?1:0,v.released);
-                    float amplitude=v.envelope*s.volume*v.volume*volume;v.amplitude=amplitude;
+                    float amplitude=s.volume*v.volume*volume;v.amplitude=amplitude;
                     float p=s.legacyPan?CombinePan(s.pan,math.clamp(v.pan+pan,-1,1)):math.clamp(s.pan+v.pan+pan,-1,1);
                     float gainL=s.legacyPan?math.sqrt((1-p)*.5f):clip.channels==2?(p>0?1-p:1):math.cos((p+1)*math.PI*.25f),gainR=s.legacyPan?math.sqrt((1+p)*.5f):clip.channels==2?(p<0?1+p:1):math.sin((p+1)*math.PI*.25f);
                     l*=amplitude*gainL;r*=amplitude*gainR;
@@ -264,7 +277,7 @@ namespace Laubrary.ZTracker.Engine
             if(loop){
                 if(s.loop==SampleLoop.Forward&&v.position>=end)v.position=start+(v.position-start)%width;
                 else if(s.loop==SampleLoop.Backward&&v.position<start){double phase=(v.position-start)%width;if(phase<0)phase+=width;v.position=start+phase;}
-                else if(s.loop==SampleLoop.PingPong){double hi=end-1,span=hi-start;if(v.position>hi||v.position<start){double phase=(v.direction>0?v.position-start:2*span-(v.position-start))%(2*span);if(phase<0)phase+=2*span;v.position=phase<=span?start+phase:hi-(phase-span);v.direction=phase<span?1:-1;}}
+            else if(s.loop==SampleLoop.PingPong){double hi=end-1,span=hi-start;if((v.direction>0&&v.position>hi)||(v.direction<0&&v.position<start)){double phase=(v.direction>0?v.position-start:2*span-(v.position-start))%(2*span);if(phase<0)phase+=2*span;v.position=phase<=span?start+phase:hi-(phase-span);v.direction=phase<span?1:-1;}}
             }
             if(v.position<0||v.position>=clip.frames)v.active=false;
         }
@@ -274,6 +287,7 @@ namespace Laubrary.ZTracker.Engine
                 var m=state.mods[s.modStart+i];int si=index*state.modStride+i;var ms=state.modulationState[si];float value=0;double time=v.age/(double)state.sampleRate;
                 switch(m.kind){
                     case ModulationDeviceKind.AHDSR:
+                        if(m.primaryEnvelope){value=v.envelope;break;}
                         if(v.released){if(!ms.released){ms.released=true;ms.releaseStart=ms.output;}value=m.release>0?ms.releaseStart*math.max(0,1-(float)((v.age-v.releaseAge)/(m.release*state.sampleRate))):0;}
                         else if(time<m.attack)value=m.attack>0?(float)time/m.attack:1;
                         else if(time<m.attack+m.hold)value=1;
@@ -287,7 +301,7 @@ namespace Laubrary.ZTracker.Engine
                         if(!v.released&&m.loopEnabled){double width=m.loopEnd-m.loopStart;
                             if(m.loop==SampleLoop.Forward&&pos>=m.loopEnd)pos=m.loopStart+(pos-m.loopStart)%width;
                             else if(m.loop==SampleLoop.Backward&&pos<m.loopStart){double loopPhase=(pos-m.loopStart)%width;if(loopPhase<0)loopPhase+=width;pos=m.loopStart+loopPhase;}
-                            else if(m.loop==SampleLoop.PingPong&&(pos>m.loopEnd||pos<m.loopStart)){double loopPhase=(ms.direction>0?pos-m.loopStart:2*width-(pos-m.loopStart))%(2*width);if(loopPhase<0)loopPhase+=2*width;pos=loopPhase<=width?m.loopStart+loopPhase:m.loopEnd-(loopPhase-width);ms.direction=loopPhase<width?1:-1;}
+                            else if(m.loop==SampleLoop.PingPong&&((ms.direction>0&&pos>m.loopEnd)||(ms.direction<0&&pos<m.loopStart))){double loopPhase=(ms.direction>0?pos-m.loopStart:2*width-(pos-m.loopStart))%(2*width);if(loopPhase<0)loopPhase+=2*width;pos=loopPhase<=width?m.loopStart+loopPhase:m.loopEnd-(loopPhase-width);ms.direction=loopPhase<width?1:-1;}
                         }
                         value=Curve(in m,pos);ms.position=pos+(m.advanceFirst?0:1d/state.sampleRate*(v.released?1:ms.direction));
                         if(!v.released&&m.sustainEnabled)ms.position=math.min(ms.position,m.sustainPosition);break;
