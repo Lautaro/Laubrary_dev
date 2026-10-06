@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds editor preview ownership (T-0019)
+
+- Closing a Zounds editor window stops every preview it started, including overlapping one-shots, popup auditions, raw clips and scheduled repeats, while sounds from other windows and game code continue.
+- Loop preview controls latch while playing, show a Stop loop tooltip and stop on the next click. One-shot clicks continue to overlap, and controls return to idle after external stops.
+- Preview teardown uses the existing per-token audio lifetime path; finished previews are removed from ownership bookkeeping.
+
 ### Runtime semantic skins (T-0554)
 
 - Added player-safe semantic skin assets for runtime HUDs and menus. A consumer can keep its own skin, or fall back to the shipped default, without changing another consumer or adopting an editor theme.
