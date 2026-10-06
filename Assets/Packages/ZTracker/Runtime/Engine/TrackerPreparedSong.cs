@@ -136,6 +136,7 @@ namespace Laubrary.ZTracker.Engine
                             diagnostics.Add("LEGACY_SEND_COMPILED_TO_EXPLICIT_TRACK slot="+i);
                         }
                     }
+                    sm.localVolume=s.volume;sm.localPan=s.pan;
                     sm.legacyPan=NativeProvenance(data.provenance);
                     sm.legacySamplePitch=sm.legacyPan&&!s.legacyKitDefaults;
                     sm.legacyTranspose=s.transpose+data.sampler.transpose;sm.legacyFineTuneCents=s.fineTuneCents+data.sampler.fineTuneCents;

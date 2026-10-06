@@ -1,7 +1,7 @@
 {
   "name": "ZTrackerP3Golden.Editor",
   "rootNamespace": "Laubrary.ZTracker.Verification",
-  "references": ["ZTracker", "com.Lautaro-Arino.Laubrary.ZTracker.Engine", "com.Lautaro-Arino.Laubrary.AudioCore", "Unity.Collections"],
+  "references": ["ZTracker", "com.Lautaro-Arino.Laubrary.ZuiRuntime", "com.Lautaro-Arino.Laubrary.ZTracker.Engine", "com.Lautaro-Arino.Laubrary.AudioCore", "Unity.Collections"],
   "includePlatforms": ["Editor"],
   "autoReferenced": true
 }

@@ -65,7 +65,7 @@ namespace Laubrary.ZTracker.Engine
         public bool releaseExitsLoop, oneShot, legacyPan, legacySamplePitch, orderedVolume;
         public float legacyFineTuneCents;
         public int legacyTranspose;
-        public float volume, pan, tune, cutoff, resonance, attack, hold, decay, sustain, release;
+        public float volume, pan, tune, cutoff, resonance, attack, hold, decay, sustain, release, localVolume, localPan;
         public int legacyFilter;
         public int delayDestination, reverbDestination;
         public float delaySend, reverbSend;

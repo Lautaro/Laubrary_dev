@@ -35,6 +35,8 @@ namespace Laubrary.ZTracker.Proof
             public bool offlineWitness,zoundsWitness,lifecyclePassed,timeoutRetained,timeoutReclaimed,eventContinuity,quitPassed,passed;
             public bool timeoutHandleBeforeStop,timeoutHandleAfterStop,pendingSwapAccepted,pendingSwapDisposed,queuedSwapsCompiled;
             public string checkReport,errorText;
+            public string implementationWitness;
+            public bool p4ToneCoverage,macroOperationObserved;
             public List<Interval> intervals=new List<Interval>();
         }
         public static Result result=new Result();
@@ -45,6 +47,7 @@ namespace Laubrary.ZTracker.Proof
         ZoundSapVoiceGenerator zounds;
         AudioClip clip;
         ZTrackerInstrument instrument;
+        ZTrackerInstrument synth,fm;
         TrackerPreparedSong current;
         readonly List<TrackerPreparedSong> prepared=new List<TrackerPreparedSong>();
         byte[][] retainedHeap;
@@ -66,11 +69,16 @@ namespace Laubrary.ZTracker.Proof
         IEnumerator Start()
         {
             rate=AudioSettings.outputSampleRate;result.sampleRate=rate;AudioSettings.GetDSPBufferSize(out result.dspFrames,out result.dspBuffers);
-            result.checkReport=TrackerEngineCheck.Execute()+"\n"+TrackerIntegrationCheck.Execute();result.offlineWitness=!result.checkReport.Contains("FAIL");
+            result.implementationWitness=TrackerPreparedSong.ImplementationWitness;
+            result.checkReport=TrackerEngineCheck.Execute()+"\n"+TrackerIntegrationCheck.Execute()+"\n"+TrackerP4Check.Execute();result.offlineWitness=!result.checkReport.Contains("FAIL");
             result.zoundsWitness=ZoundsSapCompiledWitness.Run().compiled;
             var listener=new GameObject("Proof listener");listener.AddComponent<AudioListener>();
             clip=AudioClip.Create("proof-source",rate,1,rate,false);var pcm=new float[rate];for(int i=0;i<pcm.Length;i++)pcm[i]=.12f*(float)Math.Sin(i*2*Math.PI*330/rate);clip.SetData(pcm,0);
             instrument=TrackerEngineCheck.FixtureInstrument(clip);instrument.model.sampler.samples[0].loop=SampleLoop.Forward;instrument.model.sampler.samples[0].loopEndFrame=rate;instrument.model.sampler.samples[0].nna=NewNoteAction.Cut;
+            instrument.model.sampler.zones[0].blend=new SampleBlendExtension{pcmB=clip,baseNoteB=64,mode=3,amount=.4f,pmDepth=17,loopB=SampleLoop.PingPong,loopStartFrameB=100,loopEndFrameB=rate-100};
+            synth=TrackerP4Check.Synth();synth.model.parameters.unisonVoices=8;synth.model.parameters.waveB=3;synth.model.parameters.blendMode=3;synth.model.parameters.blend=.3f;synth.model.parameters.unisonDetune=19;
+            fm=TrackerP4Check.Synth(true);fm.model.parameters.fmAlgorithm=2;fm.model.parameters.fmFeedback=.23f;
+            foreach(var ins in new[]{instrument,synth,fm})for(int macro=0;macro<8;macro++){ins.model.macros[macro].value=macro/8f;ins.model.macros[macro].mappings.Add(TrackerP4Check.Route("volume",.1f,.3f));}
             tracker=NewTracker(true);
             var zg=new GameObject("Compiled Zounds proof voice");var zs=zg.AddComponent<AudioSource>();zounds=zg.AddComponent<ZoundSapVoiceGenerator>();
             var effects=new ZoundEffectChain();var gain=new ZoundEffectNode(ZoundEffectType.Gain);gain.p[0]=.5f;effects.nodes.Add(gain);
@@ -79,6 +87,10 @@ namespace Laubrary.ZTracker.Proof
             if(gcAt>=0&&(gcAt+1>=args.Length||!int.TryParse(args[gcAt+1],out objectCount)||objectCount<10000||objectCount>5000000))throw new Exception("GC object count must be 10000..5000000");
             result.gcObjects=objectCount;retainedHeap=new byte[objectCount][];for(int i=0;i<retainedHeap.Length;i++)retainedHeap[i]=new byte[256];
             yield return new WaitForSecondsRealtime(2);
+            bool paired=false,sub=false,operatorVoice=false;for(int i=0;i<current.state.voices.Length;i++){var voice=current.state.voices[i];if(!voice.active)continue;var tone=current.state.tones[voice.sample];paired|=tone.pcmB>=0;sub|=tone.kind==1&&tone.members==8;operatorVoice|=tone.kind==2;}
+            result.p4ToneCoverage=paired&&sub&&operatorVoice;
+            tracker.SetMacro(1,7,.31f);tracker.TargetMacro(2,7,.6f,.1f);tracker.SendCommand(TrackerCommand.AmplitudeModifier(0,1,.3f,4));
+            yield return new WaitForSecondsRealtime(.2f);result.macroOperationObserved=Math.Abs(tracker.ObserveMacro(1,7)-.31f)<1e-6&&Math.Abs(tracker.ObserveMacro(2,7)-.6f)<1e-6;
             DrainEvents();lastEvent=-1;
             yield return Measure("baseline",3,false);
             yield return Measure("forced-full-GC",6,true);
@@ -115,7 +127,7 @@ namespace Laubrary.ZTracker.Proof
         }
         TrackerPreparedSong Prepare()
         {
-            var song=TrackerEngineCheck.FixtureSong(instrument,lines:64);song.patterns[0].tracks[0].WriteLine(new PatternLine{line=0,notes=new List<NoteCell>{TrackerEngineCheck.Note()}});
+            var song=TrackerEngineCheck.FixtureSong(instrument,3,64);song.voiceCapacity=16;song.instruments.Add(synth);song.instruments.Add(fm);var a=TrackerEngineCheck.Note(69,0);var b=TrackerEngineCheck.Note(60,1);b.instrument=1;var c=TrackerEngineCheck.Note(57,2);c.instrument=2;song.patterns[0].tracks[0].WriteLine(new PatternLine{line=0,notes=new List<NoteCell>{a,b,c}});
             var p=TrackerPreparedSong.Prepare(song,rate);prepared.Add(p);return p;
         }
         TrackerSapGenerator NewTracker(bool play)
@@ -140,6 +152,6 @@ namespace Laubrary.ZTracker.Proof
         bool ObserveQuit(){return true;}
         void Update(){if(quitStarted>0){result.quitFrames=Time.frameCount-quitFrame;result.quitSeconds=Time.realtimeSinceStartupAsDouble-quitStarted;}if(quitStarted==0&&(result.errors>0||Time.realtimeSinceStartupAsDouble-processStarted>90)){quitStarted=Time.realtimeSinceStartupAsDouble;quitFrame=Time.frameCount;Save();Application.Quit();}}
         static void Save(){File.WriteAllText(output,JsonUtility.ToJson(result,true));}
-        static void Finished(){result.quitPassed=result.quitFrames>=2&&result.quitSeconds>=.3;result.passed=result.offlineWitness&&result.zoundsWitness&&result.errors==0&&result.eventContinuity&&result.lifecyclePassed&&result.quitPassed&&result.intervals.TrueForAll(s=>s.passed);Save();}
+        static void Finished(){result.quitPassed=result.quitFrames>=2&&result.quitSeconds>=.3;result.passed=result.offlineWitness&&result.zoundsWitness&&result.p4ToneCoverage&&result.macroOperationObserved&&result.errors==0&&result.eventContinuity&&result.lifecyclePassed&&result.quitPassed&&result.intervals.TrueForAll(s=>s.passed);Save();}
     }
 }

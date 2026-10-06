@@ -24,7 +24,7 @@ namespace Laubrary.ZTracker.Engine
         public SampleLoop loopB;
         public int loopStartB, loopEndB;
         public bool releaseExitsLoopB, blendEnvelope, glide, legato, arpPerNote;
-        public float fineTuneB, blendAttack, blendDecay, blendSustain, blendRelease, baseGlobalVolume, baseGlobalPan, baseGlobalTune;
+        public float fineTuneB, blendAttack, blendDecay, blendSustain, blendRelease, baseGlobalVolume, baseGlobalPan, baseGlobalTune, baseBlend, basePM, localVolume, localPan, vibratoRandomness;
     }
     public static class TrackerParameters
     {

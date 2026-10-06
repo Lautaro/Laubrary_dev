@@ -5,4 +5,5 @@
 /__pycache__/
 # Generated P3 reference copies, float buffers and repeatable comparison output.
 .golden-p3/
+.golden-p4/
 .p3-golden/

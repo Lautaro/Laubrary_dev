@@ -32,6 +32,13 @@ CHARACTERIZATION_IDS = [*[f"master_filter_{i}" for i in range(3)],
                         "send_boundary_split", "send_boundary_tick_split"]
 ROOT = Path(__file__).resolve().parent
 DEFAULT_OUTPUT = ROOT / ".golden-p3"
+P4_IDS = [*[f"synth_wave_{i}" for i in range(5)], *[f"synth_blend_{i}" for i in range(4)],
+          *[f"envelope_target_{i}" for i in range(4)], "envelope_control",
+          *[f"envelope_loop_{i}" for i in range(3)], "modulation", "portamento_control", "portamento_enabled",
+          "synth_unison_3", "synth_unison_8", "detune_control", "defect_detune",
+          *[f"channel_{family}_{setting}" for family in ("synth", "unison", "fm") for setting in ("base", "mute", "half", "left", "right")],
+          *[f"fm_algorithm_{i}" for i in range(6)], "defect_fm_6", "defect_fm_7", *[f"sample_b_{i}" for i in range(4)]]
+P4_EXTRA_IDS = ["command_07", "command_07_control", "noise_5", "noise_6", "noise_vibrato_jitter"]
 
 
 def digest(raw):
@@ -42,21 +49,27 @@ def write_json(path, value):
     path.write_text(json.dumps(value, indent=2, allow_nan=False) + "\n", encoding="utf-8")
 
 
-def prepare(output):
+def prepare(output, p4=False):
     _, reference = load_corpus(ROOT / "golden")
     manifest = json.loads((ROOT / "golden/manifest.json").read_text(encoding="utf-8"))
     refdir, candidate = output / "reference", output / "candidate"
     refdir.mkdir(parents=True, exist_ok=True)
     candidate.mkdir(parents=True, exist_ok=True)
     scoped = copy.deepcopy(manifest)
-    scoped["cases"] = [copy.deepcopy(reference[cid][0]) for cid in CORE_IDS + CHARACTERIZATION_IDS]
+    scoped["cases"] = [copy.deepcopy(reference[cid][0]) for cid in CORE_IDS + CHARACTERIZATION_IDS + (P4_IDS + P4_EXTRA_IDS if p4 else [])]
     scoped["audio_bytes"] = sum(c["frames"] * 8 for c in scoped["cases"])
     fixtures = []
     for case in scoped["cases"]:
+        if case['id']=='command_07':
+            # PM T-0013 todo4 ruling. Only the copied comparison metadata is tagged;
+            # checked-in manifest, reference audio and native events remain untouched.
+            case['approved_defects']=['tremolo_ignored']
         for name in (case["audio_file"], case["events_file"]):
             shutil.copyfile(ROOT / "golden" / name, refdir / name)
         original = reference[case["id"]][0]
         samples, instruments, actions = [], {}, []
+        def extra(args):
+            return {"values": args}
         master_filter, delay, reverb = [], [], []
         returned = iter(x["returnedVoice"] for x in reference[case["id"]][3]["harness_controls"]
                         if x.get("action") == "noteOn")
@@ -82,6 +95,27 @@ def prepare(output):
             elif name == "ZT_SetSampleInstrument":
                 instruments[args[0]] = {"id": args[0], "kind": "sample", "values": args,
                                         "entries": [], "filter": []}
+            elif name == "ZT_SetSynthInstrument":
+                instruments[args[0]] = {"id": args[0], "kind": "synth", "values": args, "entries": [], "filter": []}
+            elif name == "ZT_SetFMInstrument":
+                instruments[args[0]] = {"id": args[0], "kind": "fm", "values": args, "entries": [], "filter": []}
+            elif name == "ZT_SetFMOperator":
+                instruments[args[0]]["entries"].append(extra(args))
+            elif name == "ZT_SetInstrumentVibrato":
+                instruments[args[0]]["vibrato"] = args
+            elif name == "ZT_SetInstrumentPortamento":
+                instruments[args[0]]["glide"] = args
+            elif name == "ZT_SetInstrumentArpeggio":
+                notes, times, values = [0, 4, 7], [0, .1], [.015, .035]
+                for src, raw in ((args[2], struct.pack('<3i', *notes)), (args[5], struct.pack('<2f', *times)), (args[6], struct.pack('<2f', *values))):
+                    if digest(raw) != src['sha256']: raise ValueError('arpeggio original-source hash mismatch')
+                instruments[args[0]]["arp"] = {"notes": notes, "times": times, "values": values, "perNote": bool(args[4])}
+            elif name == "ZT_SetInstrumentEnvelope":
+                ranges = {0: (.05, .9, .2), 1: (.15, .8, .3), 2: (.5, 3, 1), 3: (.02, .7, .13), 4: (-100, 100, -20)}
+                a, b, d = ranges[args[1]]
+                values = [[0, a, 1], [.035, b, 2], [.09, d, .5]]
+                if digest(struct.pack('<9f', *(x for row in values for x in row))) != args[3]['sha256']: raise ValueError('envelope original-source hash mismatch')
+                instruments[args[0]].setdefault('envelopes', []).append({'target': args[1], 'points': [extra(row) for row in values], 'loop': bool(args[6]), 'mode': args[7], 'start': args[8], 'end': args[9]})
             elif name == "ZT_SetKitInstrument":
                 instruments[args[0]] = {"id": args[0], "kind": "kit", "values": [],
                                         "entries": [], "filter": []}
@@ -109,6 +143,7 @@ def prepare(output):
                          "actions": actions, "blocks": original["native_render_blocks"],
                          "sequenced": sequenced, "rows": 4 if case["id"].startswith("channel_") else 8,
                          "everyRow": case["id"].startswith("channel_"), "gain": gain, "pan": pan,
+                         "timeline": "portamento" if case['id'].startswith('portamento_') else "tremolo" if case['id'] in ('command_07','command_07_control') else "",
                          "masterFilter": master_filter, "delay": delay, "reverb": reverb})
     write_json(refdir / "manifest.json", scoped)
     write_json(output / "fixtures.json", {"cases": fixtures})
@@ -125,10 +160,10 @@ def compare_output(output):
             # P0 omits preview events and internal ticks. It includes sequencer
             # start, row, beat and note notifications in this scoped corpus.
             name = event["kind"]
-            if not trace["sequenced"] or name not in ("Started", "Row", "Beat", "NoteOn"):
+            if not trace["sequenced"] or name not in ("Started", "Row", "Beat", "NoteOn", "NoteOff"):
                 continue
-            kind = {"Started": 2, "Row": 0, "Beat": 9, "NoteOn": 5}[name]
-            note = name == "NoteOn"
+            kind = {"Started": 2, "Row": 0, "Beat": 9, "NoteOn": 5, "NoteOff": 6}[name]
+            note = name in ("NoteOn", "NoteOff")
             started = name == "Started"
             mapped.append({"type": kind, "samplePosition": event["samplePosition"],
                            "patternIndex": -1 if started else event["pattern"],
@@ -160,9 +195,48 @@ def compare_output(output):
         correct = correct and all(abs(a-b) <= 1e-5 + 1e-4 * abs(b) for a,b in zip(control[256:], fresh))
         return correct
 
-    result = compare(output / "reference", output / "candidate",
-                     exemptions={"kit_reuse_filtered": "kit_filter_leak"},
-                     correction_checks={"kit_reuse_filtered": corrected_kit})
+    def pcm(cid):
+        value=array('f');value.frombytes((output/'candidate'/f'{cid}.f32').read_bytes());return value
+    def observations(cid):
+        return json.loads((output/'candidate'/f'{cid}.engine-events.json').read_text())['observations']
+    def equal_audio(a,b):
+        x,y=pcm(a),pcm(b)
+        return len(x)==len(y) and all(abs(v-w)<=1e-5+1e-4*abs(w) for v,w in zip(x,y))
+    def different(a,b):
+        return max(abs(x-y) for x,y in zip(pcm(a),pcm(b)))>.001
+    def corrected_detune(*args):
+        # Independently integrate the published exponential curve and 5ms smoother.
+        expected=19.0;time=0.0;by_frame={}
+        for frame in range(1,16001):
+            if time<=.035:target=-100+200*(time/.035)**2
+            elif time<=.09:target=100-120*((time-.035)/(.09-.035))**.5
+            else:target=-20
+            expected+=(target-expected)/(48000*.005)
+            by_frame[frame]=expected
+            # Native engine stores time in float32; reproduce storage, not candidate values.
+            time=struct.unpack('<f',struct.pack('<f',time+struct.unpack('<f',struct.pack('<f',1/48000))[0]))[0]
+        obs=observations('defect_detune')
+        return bool(obs) and all(abs(o['detune']-by_frame[o['frame']])<.002 for o in obs) and different('defect_detune','detune_control')
+    def corrected_glide(*args):
+        obs=[o for o in observations('portamento_enabled') if o['frame']>6000 and o['note']==72]
+        # Previous 60 -> new 72 starts at one half of target frequency, 120ms exponential.
+        return bool(obs) and all(abs(o['glide']-(1-.5*math.exp(-(o['frame']-6000)/(.12*48000))))<1e-6 for o in obs) and different('portamento_enabled','portamento_control')
+    def corrected_loop(*args):
+        return all(o['loop']==3 for o in observations('envelope_loop_2')) and equal_audio('envelope_loop_2','envelope_loop_1') and different('envelope_loop_2','envelope_loop_0')
+    def corrected_fm(cid):
+        return lambda *args: bool(observations(cid)) and all(o['algorithm']==5 for o in observations(cid)) and equal_audio(cid,'fm_algorithm_5')
+    def corrected_tremolo(*args):
+        a,b=pcm('command_07'),pcm('command_07_control');phase=0.0
+        for frame in range(1,len(a)//2):
+            phase=struct.unpack('<f',struct.pack('<f',phase+struct.unpack('<f',struct.pack('<f',3/48000))[0]))[0]
+            phase-=math.floor(phase)
+            gain=max(0,1+math.sin(phase*math.tau)*8/15)
+            if any(abs(a[frame*2+c]-b[frame*2+c]*gain)>1e-5+1e-4*abs(b[frame*2+c]*gain) for c in (0,1)):return False
+        return different('command_07','command_07_control') and a[:2]==b[:2]
+    exemptions={'kit_reuse_filtered':'kit_filter_leak'};checks={'kit_reuse_filtered':corrected_kit}
+    if any(c['id']=='defect_detune' for c in manifest['cases']):
+        for cid,defect,callback in [('defect_detune','detune_envelope',corrected_detune),('portamento_enabled','instrument_glide',corrected_glide),('envelope_loop_2','envelope_mapping',corrected_loop),('defect_fm_6','fm_choices',corrected_fm('defect_fm_6')),('defect_fm_7','fm_choices',corrected_fm('defect_fm_7')),('command_07','tremolo_ignored',corrected_tremolo)]:exemptions[cid]=defect;checks[cid]=callback
+    result = compare(output / "reference", output / "candidate",exemptions=exemptions,correction_checks=checks)
     write_json(output / "comparison.json", result)
     for case in result["cases"]:
         if case['id'] in CHARACTERIZATION_IDS:
@@ -171,10 +245,13 @@ def compare_output(output):
             continue
         print(f"{case['id']}: {case['status']} maxError={case['max_absolute_error']:.9g}")
     write_json(output / "comparison.json", result)
-    failures = [c for c in result["cases"] if (c['id'] in CORE_IDS and c["status"] not in ("PASS", "APPROVED_CORRECTION_VERIFIED")) or c['event_errors'] or c['state_errors']]
+    failures = [c for c in result["cases"] if (c['id'] not in CHARACTERIZATION_IDS and c["status"] not in ("PASS", "APPROVED_CORRECTION_VERIFIED", "STATISTICAL_ONLY_EXCLUDED")) or c['event_errors'] or c['state_errors']]
     result['equivalent_success'] = not failures
     result['equivalent_case_count'] = len(CORE_IDS)
     result['characterization_case_count'] = len(CHARACTERIZATION_IDS)
+    result['p4_case_count']=sum(c['id'] in P4_IDS for c in result['cases'])
+    result['p4_numeric_scope']=sum(c['id'] in P4_IDS+P4_EXTRA_IDS and c['status']=='PASS' and c['id'] not in exemptions for c in result['cases'])
+    result['correction_count']=sum(c['status']=='APPROVED_CORRECTION_VERIFIED' for c in result['cases'])
     write_json(output / "comparison.json", result)
     print(f"P3 equivalent comparison: {len(CORE_IDS)-len(failures)} passed / {len(failures)} failed; {len(CHARACTERIZATION_IDS)} explicit DSP characterizations")
     return bool(failures)
@@ -184,8 +261,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("phase", choices=("prepare", "compare"))
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--p4", action="store_true", help="Extend the retained P3 gate with P4 synth/FM/B/correction fixtures")
     options = parser.parse_args()
-    return compare_output(options.output) if options.phase == "compare" else prepare(options.output)
+    return compare_output(options.output) if options.phase == "compare" else prepare(options.output, options.p4)
 
 
 if __name__ == "__main__":

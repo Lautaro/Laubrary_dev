@@ -129,6 +129,7 @@ namespace Laubrary.ZTracker.Model
         public bool arpeggioSpeedIsPerNote = true;
         public List<ModulationPoint> arpeggioSpeedPoints = new List<ModulationPoint>();
         public SoundEnumDomain enumDomain;
+        public SoundEnumDomain envelopeEnumDomain;
         public ZUIEnvelopeData blendEnvelopeData, pulseWidthEnvelopeData, waveBRatioEnvelopeData, pmDepthEnvelopeData, unisonDetuneEnvelopeData;
         public bool instFilterEnabled;
         public int instFilterMode;

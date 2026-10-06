@@ -148,7 +148,7 @@ namespace Laubrary.ZTracker.Engine
         }
         void Release(int i)
         {
-            var v=state.voices[i];if(!v.active||v.released)return;var s=state.samples[v.sample];v.released=true;v.releaseAge=v.age;v.releaseStart=v.envelope;v.releaseStep=s.release>0?v.envelope/(s.release*state.sampleRate):1;v.stage=4;
+            var v=state.voices[i];if(!v.active||v.released)return;var s=state.samples[v.sample];float release=Written(v.instrument,TrackerParameter.Release)?Parameter(v.instrument,TrackerParameter.Release):s.release;v.released=true;v.releaseAge=v.age;v.releaseStart=v.envelope;v.releaseStep=release>0?v.envelope/(release*state.sampleRate):1;v.stage=4;
             if(s.releaseExitsLoop&&s.loop!=SampleLoop.Off)v.direction=1;
             state.voices[i]=v;
         }
@@ -226,7 +226,7 @@ namespace Laubrary.ZTracker.Engine
         {
             EvaluateParameters();
             for(int t=0;t<state.trackCount;t++){byte mute=Muted(t)?(byte)1:(byte)0;for(int f=0;f<count;f++)state.outputMutes[t*state.maxFrames+offset+f]=mute;}
-            int active=0;for(int i=0;i<state.voices.Length;i++)if(state.voices[i].active)active++;
+            int active=0;for(int i=0;i<state.voices.Length;i++)if(state.voices[i].active){var voice=state.voices[i];bool follower=false;if(state.tones[voice.sample].members>1)for(int j=0;j<i;j++)if(state.voices[j].active&&state.voices[j].cohort==voice.cohort&&state.voices[j].sample==voice.sample){follower=true;break;}if(!follower)active++;}
             float target=state.legacyMix&&active>1?1/math.sqrt((float)active):1;float scale=state.normalization,scaleStep=(target-scale)/count;
             for(int i=0;i<state.voices.Length;i++){
                 var v=state.voices[i];if(!v.active)continue;var s=state.samples[v.sample];var tone=state.tones[v.sample];var clip=s.pcm>=0?state.clips[s.pcm]:default;
@@ -246,10 +246,10 @@ namespace Laubrary.ZTracker.Engine
                     if(tone.kind!=0){l=tone.kind==2?FM(ref v,in tone,(float)increment):Synth(ref v,in tone,(float)increment);r=l;}
                     else {l=Pcm(in clip,in s,v.position,0,v.released);r=Pcm(in clip,in s,v.position,clip.channels==2?1:0,v.released);if(tone.pcmB>=0)Paired(ref v,in tone,in s,l,r,ref l,ref r);}
                     float globalVolume=Parameter(v.instrument,TrackerParameter.Volume);
-                    float sampleVolume=Written(v.instrument,TrackerParameter.Volume)?tone.kind!=0?globalVolume:tone.baseGlobalVolume>0?s.volume/tone.baseGlobalVolume*globalVolume:globalVolume:s.volume;
+                    float sampleVolume=Written(v.instrument,TrackerParameter.Volume)?tone.localVolume*globalVolume:s.volume;
                     float amplitude=sampleVolume*v.memberGain*v.volume*volume;
                     if(v.amplitudeDepth!=0){v.amplitudePhase+=v.amplitudeRate/state.sampleRate;v.amplitudePhase-=math.floor(v.amplitudePhase);amplitude*=math.max(0,1+math.sin(v.amplitudePhase*2*math.PI)*v.amplitudeDepth);}v.amplitude=amplitude;
-                    float samplePan=Written(v.instrument,TrackerParameter.Pan)?Parameter(v.instrument,TrackerParameter.Pan):s.pan;
+                    float samplePan=Written(v.instrument,TrackerParameter.Pan)?s.legacyPan?CombinePan(Parameter(v.instrument,TrackerParameter.Pan),tone.localPan):math.clamp(Parameter(v.instrument,TrackerParameter.Pan)+tone.localPan,-1,1):s.pan;
                     samplePan=math.clamp(samplePan+v.memberSpread*Parameter(v.instrument,TrackerParameter.UnisonSpread),-1,1);
                     float p=s.legacyPan?CombinePan(samplePan,math.clamp(v.pan+pan,-1,1)):math.clamp(samplePan+v.pan+pan,-1,1);
                     float gainL=s.legacyPan?math.sqrt((1-p)*.5f):clip.channels==2?(p>0?1-p:1):math.cos((p+1)*math.PI*.25f),gainR=s.legacyPan?math.sqrt((1+p)*.5f):clip.channels==2?(p<0?1+p:1):math.sin((p+1)*math.PI*.25f);
@@ -333,6 +333,7 @@ namespace Laubrary.ZTracker.Engine
                         value=Curve(in m,pos);ms.position=pos+(m.advanceFirst?0:1d/state.sampleRate*(v.released?1:ms.direction));
                         if(!v.released&&m.sustainEnabled)ms.position=math.min(ms.position,m.sustainPosition);break;
                     case ModulationDeviceKind.LFO:
+                        if(s.legacyPan&&state.tones[v.sample].kind==0&&m.target==ModulationTarget.Pitch&&(Written(v.instrument,TrackerParameter.VibratoDepth)||Written(v.instrument,TrackerParameter.VibratoRate)))continue;
                         uint seed=(uint)(v.cohort*2654435761L+v.note*2246822519L+i*3266489917L);seed^=seed>>16;seed*=0x7feb352du;seed^=seed>>15;
                         float random=(seed&0xffffff)/8388608f-1;
                         double lfoTime=(v.age+(m.advanceFirst?1:0))/(double)state.sampleRate;
