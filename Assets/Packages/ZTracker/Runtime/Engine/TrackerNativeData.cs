@@ -9,7 +9,8 @@ using Unity.Mathematics;
 
 namespace Laubrary.ZTracker.Engine
 {
-    public enum TrackerEventKind { Row, Tick, NoteOn, NoteOff, Beat, Authored, VoiceStolen, PreparedSwap, Stopped }
+    public enum TrackerEventKind { Row, Tick, NoteOn, NoteOff, Beat, Authored, VoiceStolen, PreparedSwap, Stopped, Diagnostic }
+    public enum TrackerRuntimeDiagnostic { SeekUnreachable=1, PitchLimit=2, InvalidPitch=3, BreakClamped=4 }
     public struct TrackerEvent
     {
         public TrackerEventKind kind;
@@ -61,7 +62,7 @@ namespace Laubrary.ZTracker.Engine
         public SampleLoop loop;
         public SampleInterpolation interpolation;
         public NewNoteAction nna;
-        public bool releaseExitsLoop, oneShot;
+        public bool releaseExitsLoop, oneShot, legacyPan;
         public float volume, pan, tune, cutoff, resonance, attack, hold, decay, sustain, release;
         public int legacyFilter;
         public int delayDestination, reverbDestination;
@@ -80,11 +81,13 @@ namespace Laubrary.ZTracker.Engine
         public double sustainPosition, loopStart, loopEnd;
         public bool sustainEnabled, loopEnabled;
         public SampleLoop loop;
+        public float fadeSeconds, randomness;
+        public bool advanceFirst;
     }
-    public struct TrackerModState { public double position; public float releaseStart, output; public bool released; }
+    public struct TrackerModState { public double position; public float releaseStart, output; public bool released; public int direction; }
     public struct TrackerVoice
     {
-        public bool active, released;
+        public bool active, released, pitchLimited;
         public int sample, track, column, note, instrument, bus, velocity, stage, direction;
         public long cohort, age, releaseAge;
         public double position, step;
@@ -97,6 +100,7 @@ namespace Laubrary.ZTracker.Engine
         public int instrument;
         public float volume, pan;
         public long cohort, due;
+        public double dueExact;
         public int pendingNote, pendingInstrument, pendingVelocity, pendingCell;
         public bool pendingOff;
     }
@@ -116,7 +120,10 @@ namespace Laubrary.ZTracker.Engine
         public TrackKind kind;
         public int columns, columnCount, output, chainStart, chainCount, sendStart, sendCount;
         public float preGain, prePan, width, postGain, postPan;
+        public float authoredPostGain, authoredPostPan, livePostGain, livePostPan, gainStep, panStep;
+        public int gainRemaining, panRemaining;
         public bool triggerMute, outputMute, soloEnabled, beatTicks;
+        public bool authoredTriggerMute, authoredOutputMute;
         public int beatInterval;
     }
     public struct TrackerChain
@@ -125,10 +132,21 @@ namespace Laubrary.ZTracker.Engine
         public AudioChainProcessor processor;
         public int position;
     }
+    internal static class TrackerChainSeed
+    {
+        public static void Apply(ref AudioChainProcessor processor,in SapChainLayout layout)
+        {
+            for(int i=0;i<layout.modCount;i++){
+                int p=layout.modParamOffset[i],so=layout.modStateOffset[i];
+                if(layout.modType[i]==Laubrary.Zounds.ZoundModifierType.Random){uint rng=processor.rng;rng^=rng<<13;rng^=rng>>17;rng^=rng<<5;processor.rng=rng;processor.arena[so]=ChainModulation.DrawRandom(layout.modParamFlat[p],layout.modParamFlat[p+1],layout.modParamFlat[p+2],(rng&0xffffff)/16777216f);}
+                if(layout.modType[i]==Laubrary.Zounds.ZoundModifierType.Step){int count=layout.modStepCountOf[i];if(layout.modParamFlat[p+3]>.5f)processor.arena[so]=(int)((processor.rng&0xffffff)/16777216f*count);if(layout.modParamFlat[p]>.5f&&layout.modParamFlat[p+4]<.5f){processor.arena[so+5]=1;processor.arena[so+6]=12345;}}
+            }
+        }
+    }
     public struct TrackerBus { public int track, instrument, fx, chain; }
     public unsafe struct TrackerState
     {
-        public NativeArray<float> pcm, left, right, busLeft, busRight, outputLeft, outputRight;
+        public NativeArray<float> pcm, left, right, busLeft, busRight, outputLeft, outputRight, faderGain, faderPan;
         public NativeArray<TrackerPcm> clips;
         public NativeArray<TrackerSample> samples;
         public NativeArray<TrackerInstrument> instruments;
@@ -148,16 +166,19 @@ namespace Laubrary.ZTracker.Engine
         public NativeArray<TrackerAuthoredEvent> authoredEvents;
         public NativeArray<TrackerSequence> sequence;
         public NativeArray<byte> sequenceMutes;
+        public NativeArray<byte> outputMutes;
         public NativeArray<TrackerBus> buses;
         [NativeDisableContainerSafetyRestriction] public NativeArray<long> ticket;
         [NativeDisableUnsafePtrRestriction] public TrackerChain* chains;
         public int chainCount, pcmCount, sampleCount, instrumentCount, trackCount, busCount, columnCount, modStride;
         public int sampleRate, maxFrames, master, sequenceIndex, row, tick, breakRow, linesPerBeat, ticksPerLine, beatInterval;
         public double bpm, tickRemaining, rowStart, rowEnd, clockCompensation, tickDeadline;
+        public double authoredBpm;
+        public int authoredLinesPerBeat, authoredTicksPerLine;
         public long transportOrigin;
         public long samplePosition, cohort;
         public float normalization;
-        public bool playing, rowPending, loopSong, beatTicks;
+        public bool playing, rowPending, loopSong, beatTicks, legacyMix;
     }
     public enum TrackerCommandKind { Play, Stop, ReleaseAll, Seek, AuditionOn, AuditionOff, TrackGain, TrackPan, TrackMute, Swap }
     public struct TrackerCommand

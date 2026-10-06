@@ -26,7 +26,7 @@ namespace Laubrary.ZTracker.Engine
         public void Configure(TrackerPreparedSong song,bool playSong=true)
         {
             if(initial!=null||hasInstance||song==null||song.Disposed||song.Published)throw new InvalidOperationException("Host needs a fresh prepared song");
-            initial=current=song;owned.Add(song);autoplay=playSong;ring=TrackerEventRing.Create(65536);hasRing=true;TrackerSapRegistry.Register(this);
+            ring=TrackerEventRing.Create(65536);hasRing=true;initial=current=song;song.Published=true;owned.Add(song);autoplay=playSong;TrackerSapRegistry.Register(this);
         }
         public GeneratorInstance CreateInstance(ControlContext context,AudioFormat? nestedConfiguration,CreationParameters creationParameters)
         {
@@ -46,7 +46,7 @@ namespace Laubrary.ZTracker.Engine
         }
         public bool SwapPrepared(TrackerPreparedSong next,bool playSong=true)
         {
-            if(next==null||next.Published||next.Disposed||next.state.sampleRate!=initial.state.sampleRate||!accepting||!hasInstance||TrackerSapRegistry.RefuseNewRendering)return false;
+            if(initial==null||next==null||next.Published||next.Disposed||next.state.sampleRate!=initial.state.sampleRate||!accepting||!hasInstance||TrackerSapRegistry.RefuseNewRendering)return false;
             if(!ControlContext.builtIn.Exists(instance))return false;
             var replacement=next.state;replacement.playing=playSong;replacement.loopSong=true;
             var command=new TrackerCommand{kind=TrackerCommandKind.Swap,replacement=replacement};
@@ -70,7 +70,7 @@ namespace Laubrary.ZTracker.Engine
             if(hasInstance&&ControlContext.builtIn.Exists(instance)){ControlContext.WaitForBuiltInQueueFlush();ControlContext.builtIn.Destroy(instance);}hasInstance=false;
             return true;
         }
-        void Update(){CollectRetired();}
+        void Update(){CollectRetired();TrackerSapRegistry.Tick();}
         void CollectRetired()
         {
             for(int i=owned.Count-1;i>=0;i--){var p=owned[i];if(p==current||p.Disposed)continue;
@@ -105,16 +105,19 @@ namespace Laubrary.ZTracker.Engine
         static readonly List<Retained> retained=new List<Retained>();
         static SapQuitDrain drain;
         static bool installed;
+        static int lastFrame=-1;
         public static bool RefuseNewRendering=>drain.RefuseNewRendering;
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)] static void Init(){drain=default;Install();}
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)] static void Init(){drain=default;lastFrame=-1;Install();}
         static void Install(){if(installed)return;installed=true;Application.wantsToQuit+=WantsQuit;}
         public static void Register(TrackerSapGenerator host){Install();hosts.Add(host);}
         public static void Unregister(TrackerSapGenerator host){hosts.Remove(host);}
-        public static void Retain(List<TrackerPreparedSong> songs,TrackerEventRing ring,bool hasRing){retained.Add(new Retained{songs=new List<TrackerPreparedSong>(songs),ring=ring,hasRing=hasRing});}
+        public static void Retain(List<TrackerPreparedSong> songs,TrackerEventRing ring,bool hasRing){retained.Add(new Retained{songs=new List<TrackerPreparedSong>(songs),ring=ring,hasRing=hasRing});EnsurePump();}
         static bool WantsQuit(){if(drain.complete)return true;if(!drain.draining){drain.Begin(Time.realtimeSinceStartupAsDouble);foreach(var host in hosts)if(host!=null)host.Silence();EnsurePump();}return false;}
-        static void EnsurePump(){var obj=new GameObject("Tracker SAP lifetime drain"){hideFlags=HideFlags.HideAndDontSave};UnityEngine.Object.DontDestroyOnLoad(obj);obj.AddComponent<TrackerSapDrainPump>();}
+        static TrackerSapDrainPump pump;
+        static void EnsurePump(){if(pump!=null)return;var obj=new GameObject("Tracker SAP lifetime drain"){hideFlags=HideFlags.HideAndDontSave};UnityEngine.Object.DontDestroyOnLoad(obj);pump=obj.AddComponent<TrackerSapDrainPump>();}
         internal static void Tick()
         {
+            if(Time.frameCount==lastFrame)return;lastFrame=Time.frameCount;
             if(drain.Tick(Time.realtimeSinceStartupAsDouble)){
                 foreach(var host in hosts)if(host!=null)host.StopAndConfirm(.5);
                 Application.Quit();

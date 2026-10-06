@@ -33,6 +33,8 @@ namespace Laubrary.ZTracker.Engine
         static readonly float[][] ModDefaults = {
             new float[]{0,0}, new float[]{1,1,0,1,0,.5f,0}, new float[]{-.25f,.25f,1}, new float[]{0,250,0,0,0,0}, new float[]{.5f}
         };
+        static readonly float[][] ModMin = {new float[]{0,0},new float[]{-4,0,0,0,0,.01f,-1},new float[]{-1,-1,.1f},new float[]{0,1,0,0,0,0},new float[]{0}};
+        static readonly float[][] ModMax = {new float[]{30,1},new float[]{4,50,3,1,1,10,1},new float[]{1,1,10},new float[]{1,10000,1,1,1,1},new float[]{1}};
         public static TrackerChain Compile(AudioEffectChainData chain, int start, int end, int rate)
         {
             if (chain == null) throw new ArgumentException("Missing effect chain");
@@ -74,13 +76,13 @@ namespace Laubrary.ZTracker.Engine
                 var def=ModDefaults[kind];
                 t.modType[i]=mod.type;t.modParamOffset[i]=mp.Count;t.modParamCountOf[i]=def.Length;
                 if(mod.p!=null&&mod.p.Length>def.Length)throw new ArgumentException("Extra modifier parameters");
-                for(int k=0;k<def.Length;k++){float v=mod.p!=null&&k<mod.p.Length?mod.p[k]:def[k];if(!math.isfinite(v))throw new ArgumentException("Nonfinite modifier");mp.Add(v);}
+                for(int k=0;k<def.Length;k++){float v=mod.p!=null&&k<mod.p.Length?mod.p[k]:def[k];if(!math.isfinite(v))throw new ArgumentException("Nonfinite modifier");mp.Add(math.clamp(v,ModMin[kind][k],ModMax[kind][k]));}
                 t.modStateOffset[i]=t.stateFloats;t.stateFloats=checked(t.stateFloats+AudioEffectSizing.ModifierStateFloats(mod.type));
                 t.modCurveOffset[i]=curves.Count;
-                if(mod.curve!=null&&mod.curve.m_points.Count>0) foreach(var p in mod.curve.m_points)curves.Add(new EnvPoint(p.time,p.value,p.exponent,p.randomX,p.randomY,p.randomBias,mod.curve.m_yMin,mod.curve.m_yMax));
+                if(mod.curve!=null&&mod.curve.m_points.Count>0) {if(mod.curve.m_points.Count>4096)throw new ArgumentException("Chain curve exceeds 4096 points");float time=float.NegativeInfinity;foreach(var p in mod.curve.m_points){if(!math.isfinite(p.time)||!math.isfinite(p.value)||!math.isfinite(p.exponent)||!math.isfinite(p.randomX)||!math.isfinite(p.randomY)||!math.isfinite(p.randomBias)||p.time<=time||p.randomX<0||p.randomY<0)throw new ArgumentException("Malformed chain curve");time=p.time;curves.Add(new EnvPoint(p.time,p.value,p.exponent,p.randomX,p.randomY,p.randomBias,mod.curve.m_yMin,mod.curve.m_yMax));}}
                 else {curves.Add(new EnvPoint(0,1,1));curves.Add(new EnvPoint(1,1,1));}
                 t.modCurveCountOf[i]=curves.Count-t.modCurveOffset[i];t.modStepOffset[i]=steps.Count;
-                if(mod.steps!=null&&mod.steps.Length>0)steps.AddRange(mod.steps);else steps.Add(1);
+                if(mod.steps!=null&&mod.steps.Length>0){if(mod.steps.Length>4096)throw new ArgumentException("Chain steps exceed 4096 values");foreach(float v in mod.steps){if(!math.isfinite(v))throw new ArgumentException("Nonfinite step");steps.Add(v);}}else steps.Add(1);
                 t.modStepCountOf[i]=steps.Count-t.modStepOffset[i];t.modExtraSeconds[i]=mod.type==ZoundModifierType.Envelope?mp[t.modParamOffset[i]]:0;
                 t.modCtlInit[i]=mod.type==ZoundModifierType.Code?math.saturate(mp[t.modParamOffset[i]]):(mod.zpocRest>=0?mod.zpocRest:1);
                 t.modCtlCoef[i]=mod.zpocSmoothMs<=0?1:1-math.exp(-64f/(rate*mod.zpocSmoothMs*.001f));
@@ -90,6 +92,7 @@ namespace Laubrary.ZTracker.Engine
                 if(b.nodeIndex<start||b.nodeIndex>=end) {if(b.nodeIndex<0)throw new ArgumentException("Tracker bus has no source stage for source bindings");continue;}
                 if(b.modifierIndex<0||b.modifierIndex>=m||b.paramIndex<0||b.paramIndex>=t.paramCountOf[b.nodeIndex-start])throw new ArgumentException("Invalid chain binding");
                 if(!chain.modifiers[b.modifierIndex].enabled)continue;
+                if(!Enum.IsDefined(typeof(ModulationCombine),b.combine)||!Enum.IsDefined(typeof(ModifierOp),b.op))throw new ArgumentException("Unknown binding operation");
                 int f=t.paramOffset[b.nodeIndex-start]+b.paramIndex;var combine=b.combine;float depth=b.depth;
                 if(b.schema==1){if(combine==ModulationCombine.Shift)combine=ModulationCombine.ShiftWholeRange;depth=math.clamp(depth,-1,1);}
                 else if(b.schema<1){combine=b.op==ModifierOp.Replace?ModulationCombine.Set:ModulationCombine.ShiftWholeRange;float d=math.abs(depth);if(b.op==ModifierOp.Multiply)depth=math.saturate(d)*.5f;else if(b.op==ModifierOp.Replace)depth=1;else if(ratio[f]){float mid=math.sqrt(math.max(lo[f],1e-4f)*math.max(hi[f],1e-4f));depth=math.saturate(math.abs(ModulationMath.ToPosition(mid+d,lo[f],hi[f],true)-ModulationMath.ToPosition(mid,lo[f],hi[f],true)));}else depth=math.saturate(d/(hi[f]-lo[f]));}
@@ -106,7 +109,7 @@ namespace Laubrary.ZTracker.Engine
             try {
                 var processor=AudioChainProcessor.Create(in layout,rate,Allocator.Persistent);
                 // Random values are per chain instance, seeded before publication; they must never remain an uninitialized zero.
-                for(int i=0;i<m;i++)if(t.modType[i]==ZoundModifierType.Random){uint rng=processor.rng;rng^=rng<<13;rng^=rng>>17;rng^=rng<<5;processor.rng=rng;int p=t.modParamOffset[i];processor.arena[t.modStateOffset[i]]=ChainModulation.DrawRandom(mp[p],mp[p+1],mp[p+2],(rng&0xffffff)/16777216f);}
+                TrackerChainSeed.Apply(ref processor,in layout);
                 return new TrackerChain{layout=layout,processor=processor,position=end};
             }
             catch {layout.Dispose();throw;}

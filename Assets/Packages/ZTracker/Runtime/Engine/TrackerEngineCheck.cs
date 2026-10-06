@@ -10,7 +10,7 @@ using UnityEngine;
 namespace Laubrary.ZTracker.Engine
 {
     /// <summary>Reusable internal engine checks. No menu, Test Runner, asset writes, legacy playback or audio device takeover.</summary>
-    public static class TrackerEngineCheck
+    public static partial class TrackerEngineCheck
     {
         public static SongData FixtureSong(ZTrackerInstrument instrument,int columns=1,int lines=8,double bpm=120)
         {
@@ -47,6 +47,7 @@ namespace Laubrary.ZTracker.Engine
                 check("unsupported commands diagnosed and ignored; synth silence",()=>{var s=FixtureSong(instrument);Line(s,0,Note());s.patterns[0].tracks[0].lines[0].effects.Add(new EffectCell{command=new CommandData{present=true,valuePresent=true,identifier="0S",value=255}});using(var p=TrackerPreparedSong.Prepare(s))need(p.diagnostics.Any(d=>d.Contains("P5_COMMAND_IGNORED")),"Unsupported command lost diagnostic");var family=instrument.model.family;instrument.model.family=InstrumentFamily.Synth;try{using(var e=new TrackerOffline(TrackerPreparedSong.Prepare(s))){e.SendCommand(TrackerCommand.Play());e.Render(l,r,64);need(l[1]==0,"Synth reached old DLL");}}finally{instrument.model.family=family;}});
                 check("event ring bounded overflow and FIFO publication",()=>{var ring=TrackerEventRing.Create(2);try{ring.Write(new TrackerEvent{samplePosition=10});ring.Write(new TrackerEvent{samplePosition=20});ring.Write(new TrackerEvent{samplePosition=30});need(ring.OverflowCount==1,"Overflow not counted");need(ring.TryRead(out var a)&&a.samplePosition==10&&ring.TryRead(out var b)&&b.samplePosition==20&&!ring.TryRead(out _),"FIFO incorrect");}finally{ring.Dispose();}});
                 check("cycles and malformed layouts refused before publication",()=>{var s=FixtureSong(instrument);s.tracks[0].outputTrackId="notes";bool rejected=false;try{TrackerPreparedSong.Prepare(s);}catch(ArgumentException){rejected=true;}need(rejected,"Cycle accepted");s=FixtureSong(instrument);s.tracks[0].devices.nodes.Add(new AudioEffectNodeData{type=(Laubrary.Zounds.ZoundEffectType)999});rejected=false;try{TrackerPreparedSong.Prepare(s);}catch(ArgumentException){rejected=true;}need(rejected,"Unknown effect accepted");});
+                Advanced(check,need,instrument,l,r,report);
             }
             finally{l.Dispose();r.Dispose();UnityEngine.Object.DestroyImmediate(instrument);UnityEngine.Object.DestroyImmediate(clip);}
             return "TrackerEngineCheck "+pass+" passed / "+fail+" failed\n"+report;

@@ -31,23 +31,25 @@ namespace Laubrary.ZTracker.Engine
         public TrackerOffline(TrackerPreparedSong song,int eventCapacity=65536)
         {
             if(song==null||song.Disposed||song.Published)throw new ArgumentException("Prepared song is already owned");
+            if(eventCapacity<2||eventCapacity>1048576)throw new ArgumentOutOfRangeException(nameof(eventCapacity));
             prepared=song;prepared.Published=true;witness=new NativeArray<int>(1,Allocator.Persistent);
             realtime=(TrackerRealtime*)UnsafeUtility.Malloc(sizeof(TrackerRealtime),16,Allocator.Persistent);
             *realtime=new TrackerRealtime{state=song.state,events=TrackerEventRing.Create(eventCapacity)};
         }
-        public bool Compiled=>witness[0]==1;
-        public long EventOverflow=>realtime->events.OverflowCount;
-        public TrackerState Snapshot=>realtime->state;
-        public void SendCommand(TrackerCommand command){if(command.kind==TrackerCommandKind.Swap)throw new ArgumentException("Offline swap requires a new owned engine");realtime->Apply(in command);}
-        public bool ReadEvent(out TrackerEvent value)=>realtime->events.TryRead(out value);
+        void RequireAlive(){if(realtime==null)throw new ObjectDisposedException(nameof(TrackerOffline));}
+        public bool Compiled{get{RequireAlive();return witness[0]==1;}}
+        public long EventOverflow{get{RequireAlive();return realtime->events.OverflowCount;}}
+        public TrackerState Snapshot{get{RequireAlive();return realtime->state;}}
+        public void SendCommand(TrackerCommand command){RequireAlive();if(command.kind==TrackerCommandKind.Swap)throw new ArgumentException("Offline swap requires a new owned engine");realtime->Apply(in command);}
+        public bool ReadEvent(out TrackerEvent value){RequireAlive();return realtime->events.TryRead(out value);}
         public void Render(NativeArray<float> left,NativeArray<float> right,int frames,int blockFrames=1024)
         {
-            if(frames<0||frames>left.Length||frames>right.Length||blockFrames<1||blockFrames>prepared.state.maxFrames)throw new ArgumentOutOfRangeException(nameof(frames));
+            RequireAlive();if(!left.IsCreated||!right.IsCreated||frames<0||frames>left.Length||frames>right.Length||blockFrames<1||blockFrames>prepared.state.maxFrames)throw new ArgumentOutOfRangeException(nameof(frames));
             new TrackerRenderJob{realtime=realtime,left=left,right=right,witness=witness,frames=frames,blockFrames=blockFrames}.Run();
         }
         public void RenderManaged(int frames)
         {
-            if(frames<1||frames>prepared.state.maxFrames)throw new ArgumentOutOfRangeException(nameof(frames));realtime->Render(frames);
+            RequireAlive();if(frames<1||frames>prepared.state.maxFrames)throw new ArgumentOutOfRangeException(nameof(frames));realtime->Render(frames);
         }
         public void Dispose()
         {
