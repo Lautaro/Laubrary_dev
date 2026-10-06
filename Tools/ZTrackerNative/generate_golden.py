@@ -89,6 +89,8 @@ def validate_pairs(records, audio):
 
 def generate(output):
     output=Path(output)
+    if output.resolve()==(HERE/'golden').resolve():
+        raise ValueError('Frozen P0 corpus is read-only; generate into .golden-rerun')
     output.mkdir(parents=True,exist_ok=True)
     specs=cases()
     expected={s['id']+suffix for s in specs for suffix in ('.f32','.events.json')}
@@ -120,7 +122,7 @@ def generate(output):
             raise RuntimeError(spec['id']+': '+str(exc)) from exc
         finally: r.close()
     checks=validate_pairs(records,audio)
-    fingerprints={str(p.relative_to(ROOT)).replace('\\','/'):sha(p.read_bytes()) for p in
+    fingerprints={str(p.relative_to(ROOT)).replace('\\','/'):sha(p.read_text(encoding='utf-8-sig').encode('utf-8') if p==HERE/'native_abi.cs' else p.read_bytes()) for p in
                   sorted(list((HERE/'include').glob('*.h'))+list((HERE/'src').rglob('*.cpp'))+
                          [HERE/'CMakeLists.txt',HERE/'native_abi.cs',
                           PACKAGE/'Editor/ZTrackerWindow.Instrument.cs'])}
@@ -152,5 +154,5 @@ def generate(output):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--output',type=Path,default=HERE/'golden')
+    parser.add_argument('--output',type=Path,default=HERE/'.golden-rerun')
     generate(parser.parse_args().output)
