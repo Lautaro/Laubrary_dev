@@ -113,9 +113,9 @@ namespace Laubrary.ZTracker.Engine
             int parameter;
             if(t.kind==ParameterKind.InstrumentMacro&&macro<0&&t.index>=0&&t.index<8&&(t.units=="normalized"||t.units=="legacy parameter units"))parameter=-1-t.index;
             else if((t.kind==ParameterKind.Synth||t.kind==ParameterKind.Sample)&&TrackerParameters.Resolve(t.parameter,out var p)){
-                parameter=(int)p;string units=TrackerParameters.Units(p);
+                parameter=(int)p;string units=p==TrackerParameter.PMDepth?(routeModels[instrument].family==InstrumentFamily.Sampler?"frames":"cycles"):TrackerParameters.Units(p);
                 if(!Applicable(routeModels[instrument],p,t.kind,t.units=="legacy parameter units")){diagnostics.Add("PARAMETER_FAMILY_UNSUPPORTED "+t.parameter+" slot="+instrument);return false;}
-                if(t.units!="legacy parameter units"&&t.units!=units&&!(p==TrackerParameter.PMDepth&&(t.units=="cycles"||t.units=="frames"))){diagnostics.Add("PARAMETER_UNITS_UNSUPPORTED "+t.parameter+" units="+t.units);return false;}
+                if(t.units!="legacy parameter units"&&t.units!=units&&!(p==TrackerParameter.PMDepth&&t.units==TrackerParameters.Units(p))){diagnostics.Add("PARAMETER_UNITS_UNSUPPORTED "+t.parameter+" units="+t.units);return false;}
             }else {diagnostics.Add("PARAMETER_TARGET_UNSUPPORTED "+t.parameter);return false;}
             if(map.curvePoints==null||map.curvePoints.Count==0){if(map.curve!=1){diagnostics.Add("PARAMETER_TRANSFORM_UNSUPPORTED "+t.parameter);return false;}}
             if(map.curvePoints?.Count>4096)throw new ArgumentException("Macro curve capacity");

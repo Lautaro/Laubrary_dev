@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Independent P4 review corrected paired-sample loop release so B resumes forward from its own cursor without changing A's loop policy, and rejects phase-depth routes with physical units from the wrong sound family while preserving neighboring valid routes. Added two focused regressions and reran the native comparisons and a fresh standalone GC/lifecycle proof after the renderer fix.
+
 - Added P4 subtractive/blended/unison synth, four-operator FM algorithms 0–5 and independent paired-sample Mix/Ring/Sync/PM. Added seeded white/pink noise, compiled waveform/loop provenance, glide and detune corrections, typed audio-thread macro routing and external identity resolution. Shared set/target/observe/external/amplitude operations are available to P5; raw legacy command migration and the active DLL authoring backend remain unchanged. Extended the existing native golden adapter and standalone forced-GC/lifetime proof; see P4_VERIFICATION.md for exact scope and results.
 
 - Added opt-in schema-1 Burst/SAP tracker clock, sampler voices, bounded events and AudioCore mixer graph with offline rendering. Independent review corrected muted launches, loop intros, envelope operation order and explicit migration provenance; live stress corrected repeated swaps and timeout graph ownership. Verified the scoped native sampler golden subset, fresh tracker-plus-Zounds forced-GC player callbacks and real stop/swap/quit lifecycle. Fractional clock policy and legacy effect algorithms retain documented differences; synth/FM, Sample B/macros and wider commands remain later-phase work.

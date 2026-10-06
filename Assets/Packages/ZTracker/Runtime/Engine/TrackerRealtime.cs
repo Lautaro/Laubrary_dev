@@ -150,6 +150,8 @@ namespace Laubrary.ZTracker.Engine
         {
             var v=state.voices[i];if(!v.active||v.released)return;var s=state.samples[v.sample];float release=Written(v.instrument,TrackerParameter.Release)?Parameter(v.instrument,TrackerParameter.Release):s.release;v.released=true;v.releaseAge=v.age;v.releaseStart=v.envelope;v.releaseStep=release>0?v.envelope/(release*state.sampleRate):1;v.stage=4;
             if(s.releaseExitsLoop&&s.loop!=SampleLoop.Off)v.direction=1;
+            var tone=state.tones[v.sample];
+            if(tone.releaseExitsLoopB&&tone.loopB!=SampleLoop.Off)v.directionB=1;
             state.voices[i]=v;
         }
         void NoteOn(int track,int column,int instrument,int note,int velocity)
