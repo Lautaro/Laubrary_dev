@@ -8,7 +8,8 @@ namespace Laubrary.Demos.BarbarianDemo
 {
     /// <summary>
     /// Spawns the Barbarian Zoe at Play-time (same reason as ProtoGuySpawner: the spawn wires runtime-only state
-    /// that a pre-baked scene object would lose) and maps buttons to the actions the character declares.
+    /// that a pre-baked scene object would lose) and turns button + stick-direction inputs into the actions the
+    /// character declares.
     ///
     /// Moving and facing are the character's own data: its side-view player controller walks it left/right
     /// along one line with a facing of its own (walking against it is a backpedal), and its motion pose picks
@@ -16,87 +17,36 @@ namespace Laubrary.Demos.BarbarianDemo
     /// of each action, and any travel it carries, lives on the Barbarian asset's event list. The one mechanic
     /// it adds: a completed turnaround flips the facing, because the turnaround art ends facing the other way.
     ///
-    /// To add an action: add a row to the Barbarian's event list in the Zoe window, then add a button field
-    /// here and one line in <see cref="Bindings"/> using the generated name from <c>BarbarianStates</c>.
+    /// Directions are read relative to the facing: "forward" is the way he faces, so the same input does the
+    /// same move whichever way he is turned. The move table is <see cref="AttackMove"/> and <see cref="Update"/>.
     /// </summary>
     public class BarbarianDemo : MonoBehaviour
     {
         [Tooltip("The character to spawn.")]
         public Zoe zoeDef;
 
-        [Header("Action buttons")]
-        [Tooltip("Gut stab — a quick forward thrust.")]
-        public InputAction gutStab = Button("<Gamepad>/buttonWest", "<Keyboard>/j");
-        [Tooltip("Heavy over-head chop.")]
-        public InputAction heavyChop = Button("<Gamepad>/buttonNorth", "<Keyboard>/i");
-        [Tooltip("Evasive dodge.")]
-        public InputAction dodge = Button("<Gamepad>/buttonEast", "<Keyboard>/l");
-        [Tooltip("Evasive jump backwards.")]
-        public InputAction jumpBack = Button("<Gamepad>/buttonSouth", "<Keyboard>/k");
+        [Header("Buttons")]
+        [Tooltip("Attack. Which attack depends on the stick direction (see the move table in this script).")]
+        public InputAction attack = Button("<Gamepad>/buttonSouth", "<Keyboard>/j");
+        [Tooltip("Evade: a dodge, or a jump backwards with the stick held back.")]
+        public InputAction evade = Button("<Gamepad>/buttonEast", "<Keyboard>/k");
         [Tooltip("Turn around: plays the turnaround, then faces the other way.")]
         public InputAction turnaround = Button("<Gamepad>/rightShoulder", "<Keyboard>/u");
-        [Tooltip("Pushed backwards (a knock-back reaction).")]
-        public InputAction pushedBackwards = Button("<Gamepad>/leftShoulder", "<Keyboard>/1");
-        [Tooltip("Pushed forwards (a shove-from-behind reaction).")]
-        public InputAction pushedForwards = Button("<Gamepad>/leftTrigger", "<Keyboard>/2");
-        [Tooltip("Long gut stab (8 frames, with sword trail).")]
-        public InputAction gutStabLong = Button("<Gamepad>/start", "<Keyboard>/0");
-        [Tooltip("Head chop.")]
-        public InputAction headChop = Button("<Gamepad>/dpad/up", "<Keyboard>/3");
-        [Tooltip("Neck slice.")]
-        public InputAction neckSlice = Button("<Gamepad>/dpad/right", "<Keyboard>/4");
-        [Tooltip("Over cleave.")]
-        public InputAction overCleave = Button("<Gamepad>/dpad/down", "<Keyboard>/5");
-        [Tooltip("Push kick.")]
-        public InputAction pushKick = Button("<Gamepad>/dpad/left", "<Keyboard>/6");
-        [Tooltip("Sword cyclone.")]
-        public InputAction swordCyclone = Button("<Gamepad>/rightTrigger", "<Keyboard>/7");
-        [Tooltip("Roll.")]
-        public InputAction roll = Button("<Gamepad>/rightStickPress", "<Keyboard>/8");
-        [Tooltip("Hit — the hurt reaction.")]
-        public InputAction hit = Button("<Gamepad>/leftStickPress", "<Keyboard>/9");
 
-        [Header("Same moves without sword trails (keyboard only)")]
-        [Tooltip("Long gut stab without trail (older 6-frame version).")]
-        public InputAction gutStabLongNoTrail = Button("<Keyboard>/z");
-        [Tooltip("Head chop without trail.")]
-        public InputAction headChopNoTrail = Button("<Keyboard>/x");
-        [Tooltip("Neck slice without trail.")]
-        public InputAction neckSliceNoTrail = Button("<Keyboard>/c");
-        [Tooltip("Over cleave without trail.")]
-        public InputAction overCleaveNoTrail = Button("<Keyboard>/v");
-        [Tooltip("Push kick without trail.")]
-        public InputAction pushKickNoTrail = Button("<Keyboard>/b");
-        [Tooltip("Sword cyclone without trail.")]
-        public InputAction swordCycloneNoTrail = Button("<Keyboard>/n");
+        [Header("Stick")]
+        [Tooltip("How far the stick must lean before it counts as a direction for a move.")]
+        [Range(0.2f, 0.9f)] public float directionThreshold = 0.5f;
+        [Tooltip("Seconds the stick must stay forward-down before it rolls. Pressing attack within this time " +
+                 "does the long gut stab instead, which shares that direction.")]
+        [Range(0f, 0.4f)] public float rollDelay = 0.12f;
+
+        enum Dir { Neutral, Forward, ForwardUp, Up, BackUp, Back, BackDown, Down, ForwardDown }
 
         ReactionFxPlayer _reactions;
         SideViewMotionDriver _mover;
-
-        (InputAction button, string state)[] Bindings => new[]
-        {
-            (gutStab,         BarbarianStates.GutStab),
-            (heavyChop,       BarbarianStates.HeavyChop),
-            (dodge,           BarbarianStates.Dodge),
-            (jumpBack,        BarbarianStates.JumpBack),
-            (turnaround,      BarbarianStates.Turnaround),
-            (pushedBackwards, BarbarianStates.PushedBackwards),
-            (pushedForwards,  BarbarianStates.PushedForwards),
-            (gutStabLong,     BarbarianStates.GutStabLong),
-            (headChop,        BarbarianStates.HeadChop),
-            (neckSlice,       BarbarianStates.NeckSlice),
-            (overCleave,      BarbarianStates.OverCleave),
-            (pushKick,        BarbarianStates.PushKick),
-            (swordCyclone,    BarbarianStates.SwordCyclone),
-            (roll,            BarbarianStates.Roll),
-            (hit,             BarbarianStates.Hit),
-            (gutStabLongNoTrail,  BarbarianStates.GutStabLongNoTrail),
-            (headChopNoTrail,     BarbarianStates.HeadChopNoTrail),
-            (neckSliceNoTrail,    BarbarianStates.NeckSliceNoTrail),
-            (overCleaveNoTrail,   BarbarianStates.OverCleaveNoTrail),
-            (pushKickNoTrail,     BarbarianStates.PushKickNoTrail),
-            (swordCycloneNoTrail, BarbarianStates.SwordCycloneNoTrail),
-        };
+        IZoeInputSource _input;
+        Dir _lastDir;
+        float _rollArmedAt = -1f;
 
         static InputAction Button(params string[] paths)
         {
@@ -105,8 +55,8 @@ namespace Laubrary.Demos.BarbarianDemo
             return a;
         }
 
-        void OnEnable()  { foreach (var b in Bindings) b.button.Enable(); }
-        void OnDisable() { foreach (var b in Bindings) b.button.Disable(); }
+        void OnEnable()  { attack.Enable(); evade.Enable(); turnaround.Enable(); }
+        void OnDisable() { attack.Disable(); evade.Disable(); turnaround.Disable(); }
 
         void Start()
         {
@@ -115,6 +65,7 @@ namespace Laubrary.Demos.BarbarianDemo
             if (go == null) return;
             _reactions = go.GetComponent<ReactionFxPlayer>();
             _mover = go.GetComponent<SideViewMotionDriver>();
+            _input = go.GetComponent<IZoeInputSource>();
             if (_reactions != null) _reactions.EventFinished += OnActionFinished;
         }
 
@@ -129,11 +80,65 @@ namespace Laubrary.Demos.BarbarianDemo
             if (!interrupted && _mover != null && id == BarbarianStates.Turnaround) _mover.Turn();
         }
 
+        static string AttackMove(Dir d) => d switch
+        {
+            Dir.Neutral     => BarbarianStates.GutStab,
+            Dir.Forward     => BarbarianStates.Headbutt,
+            Dir.Back        => BarbarianStates.HeadChop,
+            Dir.Up          => BarbarianStates.OverCleave,
+            Dir.Down        => BarbarianStates.PushKick,
+            Dir.ForwardUp   => BarbarianStates.NeckSlice,
+            Dir.ForwardDown => BarbarianStates.GutStabLong,
+            Dir.BackUp      => BarbarianStates.SwordCyclone,
+            Dir.BackDown    => BarbarianStates.HeavyChop,
+            _ => null,
+        };
+
         void Update()
         {
-            if (_reactions == null) return;
-            foreach (var b in Bindings)
-                if (b.button.WasPressedThisFrame()) _reactions.Raise(b.state);
+            if (_reactions == null || _mover == null) return;
+            Dir dir = ReadDir();
+
+            if (attack.WasPressedThisFrame())
+            {
+                _rollArmedAt = -1f;   // forward-down + attack is the gut stab, not a roll
+                _reactions.Raise(AttackMove(dir));
+            }
+            else if (evade.WasPressedThisFrame())
+                _reactions.Raise(dir == Dir.Back ? BarbarianStates.JumpBack : BarbarianStates.Dodge);
+            else if (turnaround.WasPressedThisFrame())
+                _reactions.Raise(BarbarianStates.Turnaround);
+
+            // Roll: the stick moved INTO forward-down and stayed there for rollDelay without an attack press.
+            if (dir == Dir.ForwardDown && _lastDir != Dir.ForwardDown) _rollArmedAt = Time.time;
+            if (dir != Dir.ForwardDown) _rollArmedAt = -1f;
+            if (_rollArmedAt >= 0f && Time.time - _rollArmedAt >= rollDelay)
+            {
+                _rollArmedAt = -1f;
+                _reactions.Raise(BarbarianStates.Roll);
+            }
+            _lastDir = dir;
+        }
+
+        // The stick as one of eight directions relative to the facing, or Neutral inside the threshold.
+        Dir ReadDir()
+        {
+            Vector2 s = _input != null ? _input.ReadMove() : Vector2.zero;
+            if (s.magnitude < directionThreshold) return Dir.Neutral;
+            float fwd = _mover.FacingRight ? s.x : -s.x;
+            float angle = Mathf.Atan2(s.y, fwd) * Mathf.Rad2Deg;   // 0 = forward, 90 = up
+            int sector = Mathf.RoundToInt(angle / 45f);
+            switch (sector)
+            {
+                case 0: return Dir.Forward;
+                case 1: return Dir.ForwardUp;
+                case 2: return Dir.Up;
+                case 3: return Dir.BackUp;
+                case 4: case -4: return Dir.Back;
+                case -3: return Dir.BackDown;
+                case -2: return Dir.Down;
+                default: return Dir.ForwardDown;   // -1
+            }
         }
     }
 }

@@ -29,6 +29,9 @@ namespace ZoeStates
         /// Raised as <c>PushedForwards</c>.
         public const string PushedForwards = "PushedForwards";
 
+        /// Raised as <c>Headbutt</c>.
+        public const string Headbutt = "Headbutt";
+
         /// Raised as <c>PushedBackwards</c>.
         public const string PushedBackwards = "PushedBackwards";
 
@@ -56,25 +59,7 @@ namespace ZoeStates
         /// Raised as <c>SwordCyclone</c>.
         public const string SwordCyclone = "SwordCyclone";
 
-        /// Raised as <c>GutStabLongNoTrail</c>.
-        public const string GutStabLongNoTrail = "GutStabLongNoTrail";
-
-        /// Raised as <c>HeadChopNoTrail</c>.
-        public const string HeadChopNoTrail = "HeadChopNoTrail";
-
-        /// Raised as <c>NeckSliceNoTrail</c>.
-        public const string NeckSliceNoTrail = "NeckSliceNoTrail";
-
-        /// Raised as <c>OverCleaveNoTrail</c>.
-        public const string OverCleaveNoTrail = "OverCleaveNoTrail";
-
-        /// Raised as <c>PushKickNoTrail</c>.
-        public const string PushKickNoTrail = "PushKickNoTrail";
-
-        /// Raised as <c>SwordCycloneNoTrail</c>.
-        public const string SwordCycloneNoTrail = "SwordCycloneNoTrail";
-
         /// Every state name above, in the order the character declares them.
-        public static readonly string[] All = { "GutStab", "HeavyChop", "Dodge", "JumpBack", "Turnaround", "PushedForwards", "PushedBackwards", "GutStabLong", "HeadChop", "NeckSlice", "OverCleave", "Hit", "PushKick", "Roll", "SwordCyclone", "GutStabLongNoTrail", "HeadChopNoTrail", "NeckSliceNoTrail", "OverCleaveNoTrail", "PushKickNoTrail", "SwordCycloneNoTrail" };
+        public static readonly string[] All = { "GutStab", "HeavyChop", "Dodge", "JumpBack", "Turnaround", "PushedForwards", "Headbutt", "PushedBackwards", "GutStabLong", "HeadChop", "NeckSlice", "OverCleave", "Hit", "PushKick", "Roll", "SwordCyclone" };
     }
 }
