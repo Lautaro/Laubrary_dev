@@ -14,6 +14,17 @@ HERE=Path(__file__).resolve().parent
 REFERENCE=HERE/'golden'
 RERUN=HERE/'.golden-rerun'
 
+# Two frozen source files had mixed LF/CRLF storage. These pairs pin both the
+# original corpus provenance and its exact content after newline normalization.
+MIXED_NEWLINE_SOURCES={
+    'Tools/ZTrackerNative/include/Common.h': (
+        '1e5bbd6636ddc77251afe990d48772c546f02ceeaf7661793f54135417ba43b0',
+        '453af14cf3e6f4ea4f64d0af24a0002c3f787fc4db0a50b80f6a084ccce4940a'),
+    'Tools/ZTrackerNative/src/Sequencer/Sequencer.cpp': (
+        'abe43523efd7d0e0c62e966014c200813b59e46ec524bbe4ad441445dfd4c0fb',
+        '00565573968ec081fe3e422150b18d1bbfca4d33ec690b91e709d13d612e9d05'),
+}
+
 
 class GoldenTests(unittest.TestCase):
     @classmethod
@@ -58,6 +69,22 @@ class GoldenTests(unittest.TestCase):
                          '8c33fb3c8c9d0ed376f89395d2ccd3b41a5b346b2af6f72602b09eed78c90996')
         self.assertEqual(repeated['source_sha256'].pop('Tools/ZTrackerNative/native_abi.cs'),
                          'c6a1e59f6d62c6a8d8ad85e2c852d0f8180e316bb43eb12b5f0d84b33911dbf7')
+        # Fresh Windows checkouts can store unchanged native text as CRLF. Keep
+        # actual-byte provenance exact, then verify only newline-normalized
+        # content against frozen source. No PCM/event tolerance changes.
+        for source in list(original['source_sha256']):
+            if not source.startswith('Tools/ZTrackerNative/'):
+                continue
+            raw=(HERE.parent.parent/source).read_bytes()
+            self.assertEqual(repeated['source_sha256'].pop(source),sha(raw),source)
+            expected=original['source_sha256'].pop(source)
+            normalized=raw.replace(b'\r\n',b'\n')
+            if source in MIXED_NEWLINE_SOURCES:
+                frozen,normalized_hash=MIXED_NEWLINE_SOURCES[source]
+                self.assertEqual(expected,frozen,source)
+                self.assertEqual(sha(normalized),normalized_hash,source)
+            else:
+                self.assertIn(expected,(sha(normalized),sha(normalized.replace(b'\n',b'\r\n'))),source)
         self.assertEqual(repeated['dll']['path'],'Tools/ZTrackerNative/retired/ZTrackerEngine.dll')
         repeated['dll']['path']=original['dll']['path']
         self.assertEqual(repeated['reference_engine'],'archived offline native DLL; not Burst')
