@@ -24,6 +24,16 @@ namespace Laubrary.ZTracker.Engine
                         engine.SendCommand(TrackerCommand.Play());engine.Render(left,right,1000,partition);var before=engine.Snapshot;var voice=before.voices[0];long frame=before.samplePosition;double pos=voice.position,rowStart=before.rowStart;long cohort=voice.cohort;
                         Write(song,1,TrackerEngineCheck.Note(72));var next=TrackerPreparedSong.Prepare(song);Need(engine.RefreshPrepared(next,out var reason),reason);
                         var after=engine.Snapshot;Need(after.samplePosition==frame&&after.rowStart==rowStart&&after.voices[0].position==pos&&after.voices[0].cohort==cohort,"Refresh reset clock or held voice");Need(original.Disposed,"Terminal owner was not retired safely");
+                        // Control disposal can receive the original realtime copy
+                        // after a swap has retired its ticket. It must acknowledge
+                        // the graph without reading that released song storage.
+                        using(var graphDone=new NativeArray<long>(1,Allocator.Persistent)){
+                            var type=typeof(TrackerSapGenerator).GetNestedType("Control",System.Reflection.BindingFlags.NonPublic);
+                            object control=Activator.CreateInstance(type);type.GetField("disposed").SetValue(control,graphDone);
+                            var stale=new TrackerRealtime{state=before};Need(graphDone[0]==0,"Graph acknowledgement was not initially pending");
+                            type.GetMethod("Dispose").Invoke(control,new object[]{UnityEngine.Audio.ControlContext.builtIn,stale});
+                            Need(graphDone[0]==1,"Deferred graph consumer did not acknowledge disposal");
+                        }
                         engine.Render(left,right,6000,partition);bool changed=false;while(engine.ReadEvent(out var e))if(e.kind==TrackerEventKind.NoteOn&&e.note==72&&e.samplePosition==6000)changed=true;Need(changed,"Inserted next-row note was not rendered at its original deadline");Need(engine.Compiled,"Managed renderer used");
                     }});
                 check("chain scalar changes rendered held output without reset / "+partition,()=>{

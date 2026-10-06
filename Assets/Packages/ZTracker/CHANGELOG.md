@@ -36,3 +36,6 @@
 - Sequenced notes now respect channel gain and pan, with channel gain retained across volume commands and slides without replacing instrument gain.
 - Added a native ABI check, platform capability result, preallocated rendering buffers, owned stop/reload/device-change cleanup, and silent idle components. This managed host does not preserve Zounds SAP garbage-collection immunity during simultaneous playback.
 - Edit-mode preview and gameplay now share a stereo streaming callback, and an optional saved synth-song demo provides explicit Space-to-play interaction. Song/instrument identities and existing serialized assets are retained.
+# P7 independent lifetime review — 2026-10-06
+
+Deferred SAP control disposal now acknowledges a graph-owned native marker instead of reading a prepared-song ticket that may already have retired. Destruction retains the complete song/event ownership bundle until that acknowledgement, including in edit-mode previews. Live-refresh verification retains all 14 groups and checks control disposal against an already retired original song at each block partition. Fresh editor verification does not replace the historical standalone-player proof.
