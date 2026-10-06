@@ -10,7 +10,8 @@ namespace Laubrary.ZTracker.Model
     public enum ValueKind { Empty, Value, Command, Legacy }
     public enum CommandScope { Column, Track, Global, Unresolved }
     public enum AutomationInterpolation { Step, Linear }
-    public enum ParameterKind { Mixer, Device, InstrumentMacro, Sample, Modulation, Synth }
+    public enum ParameterKind { Mixer, Device, InstrumentMacro, Sample, Modulation, Synth, Timing }
+    public enum SourceDeviceKind { InstrumentAutomation, InstrumentMacros, AudioChain, Unsupported }
 
     [Serializable] public sealed class ParameterTarget
     {
@@ -31,6 +32,7 @@ namespace Laubrary.ZTracker.Model
         public string profile = "renoise-p5-v1";
         public bool unsupported;
         public string diagnostic = "";
+        public string rawIdentifier = "", rawValue = "", sourcePayload = "", migrationDecision = "preserve-and-flag";
         public bool hasLegacy;
         public int legacyCommand, legacyParameter, sourceColumn;
         public string sourceAddress = "";
@@ -91,6 +93,10 @@ namespace Laubrary.ZTracker.Model
         public AutomationInterpolation interpolation;
         public List<AutomationPoint> points = new List<AutomationPoint>();
         public bool enabled = true;
+        public bool unsupported;
+        public string diagnostic = "", sourceMode = "", rawSource = "", sourceConvention = "zero-based";
+        public float scaling;
+        public double timeQuantum = 1d/256;
     }
     [Serializable] public sealed class PatternTrack
     {
@@ -136,12 +142,31 @@ namespace Laubrary.ZTracker.Model
         public bool beatTicks;
         public int beatIntervalLines = 4;
         public List<ExternalSourceDevice> externalSources = new List<ExternalSourceDevice>();
+        public List<SourceDeviceData> sourceDevices = new List<SourceDeviceData>();
     }
     // Ordinal selects a slot; its explicit external ID then resolves on the linked instrument.
     [Serializable] public sealed class ExternalSourceDevice
     {
         public string id = "", instrumentId = "", pluginId = "";
+        public int sourceOrdinal;
         public List<string> parameterNumbers = new List<string>();
+    }
+    [Serializable] public sealed class SourceDeviceData
+    {
+        public string id = "", instrumentId = "", pluginId = "", rawSource = "";
+        public int ordinal;
+        public SourceDeviceKind kind;
+        public bool enabled = true;
+        public List<SourceParameterData> parameters = new List<SourceParameterData>();
+    }
+    [Serializable] public sealed class SourceParameterData
+    {
+        public int ordinal;
+        public string externalId = "", parameter = "", units = "normalized", scaling = "Linear";
+        public ParameterTarget target = new ParameterTarget();
+        public float defaultValue, min, max = 1, quantum, lower;
+        public bool explicitEquivalence;
+        public List<ModulationPoint> curvePoints = new List<ModulationPoint>();
     }
     [Serializable] public sealed class SequenceSlot
     {
@@ -160,6 +185,7 @@ namespace Laubrary.ZTracker.Model
         public List<PatternData> patterns = new List<PatternData>();
         public List<SequenceSlot> sequence = new List<SequenceSlot>();
         public string provenance = "";
+        public ulong seed;
         public List<string> diagnostics = new List<string>();
     }
 

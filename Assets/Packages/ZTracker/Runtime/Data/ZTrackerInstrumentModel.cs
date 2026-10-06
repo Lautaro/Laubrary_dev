@@ -13,7 +13,7 @@ namespace Laubrary.ZTracker.Model
     public enum SampleInterpolation { Linear, Cubic }
     public enum NewNoteAction { Cut, NoteOff, Continue }
     public enum ModulationTarget { Volume, Pan, Pitch, Cutoff, Resonance, Drive }
-    public enum ModulationDeviceKind { AHDSR, Multipoint, LFO, Velocity, KeyTracking, Fader }
+    public enum ModulationDeviceKind { AHDSR, Multipoint, LFO, Velocity, KeyTracking, Fader, Stepper }
     public enum ModulationOperation { Add, Multiply, Replace }
 
     [Serializable] public sealed class Mapping
@@ -21,6 +21,8 @@ namespace Laubrary.ZTracker.Model
         public ParameterTarget target = new ParameterTarget();
         public float min, max = 1, curve = 1;
         public string legacyLink = "";
+        public string scaling = "Linear";
+        public float quantum, lower;
         // Empty means Linear. Scalar curve remains archived, never inferred as a transform.
         public List<ModulationPoint> curvePoints = new List<ModulationPoint>();
     }
@@ -45,6 +47,8 @@ namespace Laubrary.ZTracker.Model
         public SampleLoop loop;
         public int lfoShape;
         public float rate = 1, depth = 1, phase, min, max = 1, curve = 1;
+        public float duration;
+        public string rawSource = "";
     }
     [Serializable] public sealed class ModulationSet
     {
@@ -69,6 +73,9 @@ namespace Laubrary.ZTracker.Model
         public int legacyBaseNote;
         public float legacyVolume;
         public bool legacyKitDefaults;
+        public List<int> sliceMarkers = new List<int>();
+        public string parentSampleId = "", rawSliceMetadata = "";
+        public int regionStartFrame, regionEndFrame;
     }
     [Serializable] public sealed class SampleBlendExtension
     {

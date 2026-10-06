@@ -18,7 +18,7 @@ namespace Laubrary.ZTracker.Engine
         public readonly List<string> eventPayloads = new List<string>();
         public bool Published { get; internal set; }
         public bool Disposed { get; private set; }
-        public const string ImplementationWitness = "P4-synth-macro-native-core-v1";
+        public const string ImplementationWitness = "P5-command-automation-native-core-v1";
         public int PcmCount => state.pcmCount;
         long chainStateFloats;
         void AddChain(List<TrackerChain> chains,TrackerChain chain){if(chains.Count>=16384||chainStateFloats+chain.layout.stateFloats>33554432){chain.processor.Dispose();chain.layout.Dispose();throw new ArgumentException("Chain count/state exceeds 16384 chains / 128 MiB");}chainStateFloats+=chain.layout.stateFloats;chains.Add(chain);}
@@ -29,10 +29,15 @@ namespace Laubrary.ZTracker.Engine
         }
         public static TrackerPreparedSong Prepare(SongData song, int rate = 48000, int maxFrames = 16384)
         {
-            string error=ZTrackerModelValidation.Validate(song);
+            if(song==null)throw new ArgumentException("Song model missing");
+            // Authoring validation stays strict. Preparation isolates optional source payloads so
+            // a malformed lane/command cannot discard otherwise playable independent data.
+            var validation=ZTrackerMigration.Copy(song);
+            foreach(var pattern in validation.patterns)foreach(var track in pattern.tracks){foreach(var lane in track.automation)if(lane!=null)lane.unsupported=true;foreach(var line in track.lines){foreach(var cell in line.notes){if(cell.volume.kind==ValueKind.Value&&cell.volume.value>128)cell.volume.kind=ValueKind.Legacy;if(cell.pan.kind==ValueKind.Value&&cell.pan.value>128)cell.pan.kind=ValueKind.Legacy;foreach(var c in new[]{cell.sampleFx,cell.volume.command,cell.pan.command})if(c.identifier==null||c.identifier.Length!=2||c.value<0||c.value>255)c.unsupported=true;}foreach(var cell in line.effects)if(cell.command.identifier==null||cell.command.identifier.Length!=2||cell.command.value<0||cell.command.value>255)cell.command.unsupported=true;}}
+            string error=ZTrackerModelValidation.Validate(validation);
             if(error!=null)throw new ArgumentException(error);
             if(rate<8000||rate>192000||maxFrames<64||maxFrames>65536||song.voiceCapacity>4096||song.tracks.Count>128||song.instruments.Count>4096||song.patterns.Count>4096||song.sequence.Count>65536)throw new ArgumentException("Engine preparation capacity exceeded");
-            if(song.bpm<32||song.bpm>999||song.linesPerBeat>256||song.ticksPerLine>16||rate*60d/(song.bpm*song.linesPerBeat*song.ticksPerLine)<1)throw new ArgumentException("INVALID_CLOCK");
+            if(song.bpm<32||song.bpm>999||song.linesPerBeat>256||song.ticksPerLine>16||rate*60d/(song.bpm*song.linesPerBeat)<1)throw new ArgumentException("INVALID_CLOCK");
             var owner=new TrackerPreparedSong();var chains=new List<TrackerChain>();
             try {
                 owner.Build(song,rate,maxFrames,chains);
@@ -70,6 +75,7 @@ namespace Laubrary.ZTracker.Engine
                 if(t.devices.bindings.Any(b=>b.nodeIndex<0))throw new ArgumentException("Tracker bus has no source stage for source bindings");
                 tr.authoredPostGain=tr.livePostGain=tr.postGain;tr.authoredPostPan=tr.livePostPan=tr.postPan;
                 tr.authoredTriggerMute=tr.triggerMute;tr.authoredOutputMute=tr.outputMute;
+                tr.authoredOutput=tr.output;tr.parent=t.parentGroupId!=""?trackMap[t.parentGroupId]:-1;tr.instrumentGain=1;
                 col+=t.visibleNoteColumns;
                 var cuts=new SortedSet<int>{0,t.devices.nodes.Count};foreach(var s in t.sends){cuts.Add(s.devicePosition);sends.Add(new TrackerSend{destination=trackMap[s.trackId],gain=s.gain,position=s.devicePosition,postfader=s.postfader});}
                 int prev=0;
@@ -104,7 +110,7 @@ namespace Laubrary.ZTracker.Engine
                 int sampleBase=samples.Count;
                 for(int j=0;j<data.sampler.samples.Count;j++) {
                     var s=data.sampler.samples[j];int clipIndex=-1;
-                    if(s.volume<0||s.volume>16||data.sampler.volume<0||data.sampler.volume>16||math.abs(s.pan)>1||math.abs(data.sampler.pan)>1||Math.Abs((long)s.transpose)>120||Math.Abs((long)data.sampler.transpose)>120||math.abs(s.fineTuneCents)>12000||math.abs(data.sampler.fineTuneCents)>12000)throw new ArgumentException("Sampler level, pan or tuning outside runtime range");
+                    if(s.volume<0||s.volume>16||data.sampler.volume<0||data.sampler.volume>16||math.abs(s.pan)>1||math.abs(data.sampler.pan)>1)throw new ArgumentException("Sampler level or pan outside runtime range");
                     if(s.pcm!=null&&!s.inactive){
                         if(s.pcm.channels<1||s.pcm.channels>2||s.pcm.samples<1||s.pcm.loadType!=AudioClipLoadType.DecompressOnLoad)throw new ArgumentException("PCM must be mono/stereo Decompress On Load");
                         if(!pcmMap.TryGetValue(s.pcm,out clipIndex)){
@@ -136,7 +142,7 @@ namespace Laubrary.ZTracker.Engine
                             diagnostics.Add("LEGACY_SEND_COMPILED_TO_EXPLICIT_TRACK slot="+i);
                         }
                     }
-                    sm.localVolume=s.volume;sm.localPan=s.pan;
+                    sm.localVolume=s.volume;sm.localPan=s.pan;sm.regionStart=s.regionStartFrame;sm.regionEnd=s.regionEndFrame>0?s.regionEndFrame:s.pcm!=null?s.pcm.samples:0;
                     sm.legacyPan=NativeProvenance(data.provenance);
                     sm.legacySamplePitch=sm.legacyPan&&!s.legacyKitDefaults;
                     sm.legacyTranspose=s.transpose+data.sampler.transpose;sm.legacyFineTuneCents=s.fineTuneCents+data.sampler.fineTuneCents;
@@ -145,9 +151,10 @@ namespace Laubrary.ZTracker.Engine
                 }
                 foreach(var z in data.sampler.zones)if(!z.inactive)zones.Add(new TrackerZone{sample=sampleBase+z.sample,minNote=z.noteMin,maxNote=z.noteMax,minVelocity=z.velocityMin,maxVelocity=z.velocityMax,baseNote=z.baseNote,tracking=z.keyTracking});
                 ins.zoneCount=zones.Count-ins.zoneStart;insts.Add(ins);
-                if(data.parameters.presets!=null&&data.parameters.presets.Count>0)diagnostics.Add("P5_PRESETS_BASE_ONLY slot="+i);
+                
             }
             BuildP4(song,rate,samples,zones,insts,pcm,clips,pcmMap,points);
+            BuildParameterSets(song,rate,maxFrames,samples,zones,insts,pcm,clips,mods,points,ref stride);
             state.pcm=Native(pcm);state.clips=Native(clips);state.pcmCount=clips.Count;state.samples=Native(samples);state.sampleCount=samples.Count;state.zones=Native(zones);state.instruments=Native(insts);state.instrumentCount=insts.Count;state.mods=Native(mods);state.points=Native(points);state.modStride=Math.Max(1,stride);state.modulationState=Buffer<TrackerModState>(checked(song.voiceCapacity*state.modStride));state.voices=Buffer<TrackerVoice>(song.voiceCapacity);
             // Every (track,instrument,FX-chain) partition has independent effect history.
             var buses=new List<TrackerBus>();
@@ -161,27 +168,11 @@ namespace Laubrary.ZTracker.Engine
             if(mixFloats>33554432)throw new ArgumentException("Mixer buffers exceed 128 MiB; reduce maxFrames or instrument partitions");
             state.left=Buffer<float>(checked(tracks.Count*maxFrames));state.right=Buffer<float>(checked(tracks.Count*maxFrames));state.outputMutes=Buffer<byte>(checked(tracks.Count*maxFrames));state.faderGain=Buffer<float>(checked(tracks.Count*maxFrames));state.faderPan=Buffer<float>(checked(tracks.Count*maxFrames));state.busLeft=Buffer<float>(checked(buses.Count*maxFrames));state.busRight=Buffer<float>(checked(buses.Count*maxFrames));state.outputLeft=Buffer<float>(maxFrames);state.outputRight=Buffer<float>(maxFrames);
             var patterns=new List<TrackerPattern>();var rows=new List<TrackerRow>();var cells=new List<TrackerCell>();var cmds=new List<TrackerClockCommand>();var events=new List<TrackerAuthoredEvent>();var pmap=new Dictionary<string,int>();
-            foreach(var p in song.patterns){pmap.Add(p.id,patterns.Count);patterns.Add(new TrackerPattern{rows=rows.Count,lineCount=p.lineCount});
-                for(int line=0;line<p.lineCount;line++){
-                    var rr=new TrackerRow{cells=cells.Count,commands=cmds.Count,events=events.Count};
-                    foreach(var pt in p.tracks.OrderBy(pt=>trackMap[pt.trackId])){int ti=trackMap[pt.trackId];var src=pt.lines.Find(l=>l.line==line);if(src==null)continue;
-                        foreach(var c in src.notes.OrderBy(c=>c.column))if(!c.inactive){if(c.column>=tracks[ti].columnCount)throw new ArgumentException("Active note column exceeds prepared visible capacity");if(c.instrumentPresent&&(c.instrument<0||c.instrument>=song.instruments.Count))throw new ArgumentException("Instrument cell outside slot bank");var cc=new TrackerCell{track=ti,column=c.column,note=c.note==NoteKind.Note?c.pitch:c.note==NoteKind.Off?-2:-1,instrument=c.instrument,instrumentPresent=c.instrumentPresent,volume=c.volume.kind==ValueKind.Value?c.volume.value:-1,pan=c.pan.kind==ValueKind.Value?c.pan.value:-1,delay=c.delayPresent?c.delay:0};cells.Add(cc);
-                            if(c.note==NoteKind.Legacy)diagnostics.Add("UNSUPPORTED_LEGACY_NOTE pattern="+p.id+" row="+line);
-                            if(c.volume.kind==ValueKind.Command||c.pan.kind==ValueKind.Command||c.sampleFx.HasPayload||c.parameterSetId!="")diagnostics.Add("P5_COLUMN_COMMAND_DEFERRED pattern="+p.id+" row="+line+" track="+ti+" column="+c.column);
-                        }
-                        foreach(var fx in src.effects.OrderBy(f=>f.column))if(!fx.inactive&&fx.command.HasPayload){var c=fx.command;int kind=c.identifier=="ZT"?1:c.identifier=="ZL"?2:c.identifier=="ZK"?3:c.identifier=="ZB"?4:0;int value=c.valuePresent?c.value:0;
-                            if(kind==0||c.unsupported||!c.present){diagnostics.Add("P5_COMMAND_IGNORED pattern="+p.id+" row="+line+" "+c.identifier);continue;}
-                            if(!c.valuePresent)diagnostics.Add("IMPLICIT_ZERO "+c.identifier+" pattern="+p.id+" row="+line);
-                            if(kind==1&&value>=20&&value<32){diagnostics.Add("BPM_RANGE_DISPUTE "+c.identifier);continue;}
-                            if((kind==1&&(value!=0&&(value<32||value>255)))||(kind==2&&(value<0||value>255))||(kind==3&&(value<1||value>16))||(kind==4&&(value<0||value>255))) {diagnostics.Add("INVALID_CLOCK_COMMAND "+c.identifier);continue;}
-                            cmds.Add(new TrackerClockCommand{kind=kind,value=value});
-                        }
-                        foreach(var ev in src.events)if(ev.present){int payload=eventPayloads.Count;eventPayloads.Add(ev.payload);events.Add(new TrackerAuthoredEvent{track=ti,column=ev.column,payload=payload});}
-                    }
-                    rr.cellCount=cells.Count-rr.cells;rr.commandCount=cmds.Count-rr.commands;rr.eventCount=events.Count-rr.events;rows.Add(rr);
-                }
-                if(p.tracks.Any(pt=>pt.automation.Any(a=>a.enabled)))diagnostics.Add("P5_AUTOMATION_DEFERRED pattern="+p.id);
-            }
+            BuildAutomation(song,chains);
+            BuildCommandRows(song,trackMap,patterns,rows,cells,events,pmap);
+            var slices=new List<int>(presetSliceMarkers);
+            for(int ii=0;ii<song.instruments.Count;ii++)if(song.instruments[ii]!=null&&song.instruments[ii].model.family==InstrumentFamily.Sampler){var data=song.instruments[ii].model;int first=insts[ii].zoneStart;var sampleMap=new Dictionary<int,int>();for(int z=0;z<insts[ii].zoneCount;z++){int si=zones[first+z].sample;if(!sampleMap.ContainsKey(si))sampleMap.Add(si,0);}foreach(var si in sampleMap.Keys){int local=0;for(int k=0;k<si;k++)if(samples[k].instrument==ii)local++;if(local>=data.sampler.samples.Count)continue;var source=data.sampler.samples[local];if(source.parentSampleId!="")source=data.sampler.samples.Find(x=>x.id==source.parentSampleId)??source;var sm=state.samples[si];sm.slices=slices.Count;sm.sliceCount=source.sliceMarkers?.Count??0;if(source.sliceMarkers!=null){int prev=-1;foreach(int marker in source.sliceMarkers){if(marker<=prev||marker<0||marker>=sm.regionEnd)throw new ArgumentException("Invalid slice marker");slices.Add(marker);prev=marker;}}state.samples[si]=sm;}}
+            state.sliceMarkers=Native(slices);
             var seq=new List<TrackerSequence>();var mutes=new List<byte>();foreach(var slot in song.sequence){seq.Add(new TrackerSequence{pattern=pmap[slot.patternId],muteOffset=mutes.Count});for(int i=0;i<tracks.Count;i++)mutes.Add(slot.mutedTrackIds.Contains(song.tracks[i].id)?(byte)1:(byte)0);}
             state.patterns=Native(patterns);state.rows=Native(rows);state.cells=Native(cells);state.commands=Native(cmds);state.authoredEvents=Native(events);state.sequence=Native(seq);state.sequenceMutes=Native(mutes);
             if(chains.Count>16384||chains.Sum(c=>(long)c.layout.stateFloats)>33554432)throw new ArgumentException("Chain count/state exceeds 16384 chains / 128 MiB");state.chainCount=chains.Count;state.chains=(TrackerChain*)UnsafeUtility.Malloc(Math.Max(1,chains.Count)*(long)sizeof(TrackerChain),16,Allocator.Persistent);for(int i=0;i<chains.Count;i++)state.chains[i]=chains[i];
@@ -193,7 +184,7 @@ namespace Laubrary.ZTracker.Engine
         static void AddMod(ModulationDevice m,List<TrackerMod> mods,List<TrackerModPoint> points,bool primaryEnvelope=false)
         {
             ValidateMod(m);
-            mods.Add(new TrackerMod{target=m.target,kind=m.kind,operation=m.operation,attack=m.attack,hold=m.hold,decay=m.decay,sustain=m.sustain,release=m.release,rate=m.rate,depth=m.depth,phase=m.phase,min=m.min,max=m.max,curve=m.curve,points=points.Count,pointCount=m.points.Count,shape=m.lfoShape,sustainPosition=m.sustainPosition,sustainEnabled=m.sustainEnabled,loopStart=m.loopStart,loopEnd=m.loopEnd,loopEnabled=m.loopEnabled,loop=m.loop,primaryEnvelope=primaryEnvelope});
+            mods.Add(new TrackerMod{target=m.target,kind=m.kind,operation=m.operation,attack=m.attack,hold=m.hold,decay=m.decay,sustain=m.sustain,release=m.release,rate=m.rate,depth=m.depth,phase=m.phase,min=m.min,max=m.max,curve=m.curve,points=points.Count,pointCount=m.points.Count,shape=m.lfoShape,sustainPosition=m.sustainPosition,sustainEnabled=m.sustainEnabled,loopStart=m.loopStart,loopEnd=m.loopEnd,loopEnabled=m.loopEnabled,loop=m.loop,primaryEnvelope=primaryEnvelope,fadeSeconds=m.duration});
             foreach(var p in m.points)points.Add(new TrackerModPoint{time=p.time,value=p.value,exponent=p.exponent});
         }
         static void ValidateMod(ModulationDevice m)
@@ -208,6 +199,7 @@ namespace Laubrary.ZTracker.Engine
             if(Disposed)return;if(Published)throw new InvalidOperationException("Stop host publication and confirm ticket quiet before freeing a published song");Disposed=true;
             for(int i=0;i<state.chainCount;i++){state.chains[i].processor.Dispose();state.chains[i].layout.Dispose();}
             if(state.chains!=null)UnsafeUtility.Free(state.chains,Allocator.Persistent);
+            Free(ref state.deviceDirty);Free(ref state.parameterDirty);Free(ref state.parameterSets);Free(ref state.presetParameters);Free(ref state.ops);Free(ref state.descriptors);Free(ref state.commandMemory);Free(ref state.sliceMarkers);Free(ref state.occurrences);Free(ref state.devices);Free(ref state.deviceParameters);Free(ref state.automation);Free(ref state.automationPoints);
             Free(ref state.tones);Free(ref state.toneEnvelopes);Free(ref state.parameterBase);Free(ref state.parameterDirect);Free(ref state.parameterLive);Free(ref state.parameterWritten);Free(ref state.macros);Free(ref state.macroRoutes);Free(ref state.externalRoutes);
             Free(ref state.pcm);Free(ref state.left);Free(ref state.right);Free(ref state.busLeft);Free(ref state.busRight);Free(ref state.outputLeft);Free(ref state.outputRight);Free(ref state.faderGain);Free(ref state.faderPan);Free(ref state.clips);Free(ref state.samples);Free(ref state.instruments);Free(ref state.zones);Free(ref state.mods);Free(ref state.points);Free(ref state.modulationState);Free(ref state.voices);Free(ref state.columns);Free(ref state.tracks);Free(ref state.sends);Free(ref state.order);Free(ref state.patterns);Free(ref state.rows);Free(ref state.cells);Free(ref state.commands);Free(ref state.authoredEvents);Free(ref state.sequence);Free(ref state.sequenceMutes);Free(ref state.outputMutes);Free(ref state.buses);Free(ref state.ticket);state=default;
         }

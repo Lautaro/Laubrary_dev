@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq;
 using Laubrary.ZTracker.Model;
 using Unity.Mathematics;
 using UnityEngine;
@@ -68,10 +69,9 @@ namespace Laubrary.ZTracker.Engine
                 if(synth){sm.delaySend=q.instDelaySend;sm.reverbSend=q.instReverbSend;sm.delayDestination=song.tracks.FindIndex(t=>t.kind==TrackKind.Send&&t.devices.nodes.Any(n=>n.type==Laubrary.Zounds.ZoundEffectType.Delay));sm.reverbDestination=song.tracks.FindIndex(t=>t.kind==TrackKind.Send&&t.devices.nodes.Any(n=>n.type==Laubrary.Zounds.ZoundEffectType.Reverb));if(sm.delaySend!=0&&sm.delayDestination<0||sm.reverbSend!=0&&sm.reverbDestination<0)throw new ArgumentException("Synth sends require explicit matching Send tracks");samples[si]=sm;}
                 tones.Add(tone);
             }
-            foreach(var track in song.tracks)if(track.externalSources!=null)foreach(var device in track.externalSources){
+            foreach(var track in song.tracks)foreach(var device in ExternalDevices(track)){
                 if(string.IsNullOrEmpty(device.id)||string.IsNullOrEmpty(device.pluginId)||!ids.TryGetValue(device.instrumentId,out int ii)){diagnostics.Add("EXTERNAL_SOURCE_UNRESOLVED track="+track.id+" device="+device.id);continue;}
                 var data=song.instruments[ii].model;
-                if(data.family!=InstrumentFamily.Synth){diagnostics.Add("EXTERNAL_LINK_REQUIRES_SYNTH device="+device.id);continue;}
                 for(int slot=0;slot<device.parameterNumbers.Count;slot++){
                     string id=device.parameterNumbers[slot];var map=data.externalParameters.Find(x=>x.externalId==id);
                     if(map==null){diagnostics.Add("EXTERNAL_ID_UNMAPPED device="+device.id+" slot="+slot+" external="+id);continue;}
@@ -84,6 +84,14 @@ namespace Laubrary.ZTracker.Engine
             macroRouteCount=routes.Count;externalRouteCount=external.Count;state.macroRouteCount=routes.Count;state.externalRouteCount=external.Count;
         }
         public int macroRouteCount,externalRouteCount;
+        static IEnumerable<ExternalSourceDevice> ExternalDevices(TrackData track)
+        {
+            foreach(var device in track.externalSources)yield return device;
+            foreach(var source in track.sourceDevices)if(source.kind==SourceDeviceKind.InstrumentAutomation&&!track.externalSources.Any(d=>d.id==source.id)){
+                int count=source.parameters.Count==0?0:Math.Min(35,source.parameters.Max(p=>p.ordinal));
+                yield return new ExternalSourceDevice{id=source.id,pluginId=source.pluginId,instrumentId=source.instrumentId,sourceOrdinal=source.ordinal,parameterNumbers=Enumerable.Range(1,count).Select(p=>source.parameters.Find(s=>s.ordinal==p)?.externalId??"").ToList()};
+            }
+        }
         int ReadP4Clip(AudioClip clip,List<float> pcm,List<TrackerPcm> clips,Dictionary<AudioClip,int> map)
         {
             if(map.TryGetValue(clip,out int index))return index;
@@ -108,6 +116,7 @@ namespace Laubrary.ZTracker.Engine
         bool CompileRoute(Mapping map,int owner,int macro,Dictionary<string,int> ids,List<TrackerModPoint> points,out TrackerParameterRoute route)
         {
             route=default;var t=map.target;int instrument=owner;
+            if(map.scaling!="Linear"||!math.isfinite(map.quantum)||map.quantum<0){diagnostics.Add("PARAMETER_TRANSFORM_UNSUPPORTED "+t.parameter);return false;}
             if(t.kind!=ParameterKind.InstrumentMacro&&t.index!=-1){diagnostics.Add("PARAMETER_INDEX_UNSUPPORTED "+t.parameter+" index="+t.index);return false;}
             if(t.unresolved||(t.instrumentId!=""&&!ids.TryGetValue(t.instrumentId,out instrument))){diagnostics.Add("PARAMETER_ROUTE_UNRESOLVED "+t.parameter);return false;}
             int parameter;
@@ -119,7 +128,7 @@ namespace Laubrary.ZTracker.Engine
             }else {diagnostics.Add("PARAMETER_TARGET_UNSUPPORTED "+t.parameter);return false;}
             if(map.curvePoints==null||map.curvePoints.Count==0){if(map.curve!=1){diagnostics.Add("PARAMETER_TRANSFORM_UNSUPPORTED "+t.parameter);return false;}}
             if(map.curvePoints?.Count>4096)throw new ArgumentException("Macro curve capacity");
-            route=new TrackerParameterRoute{instrument=instrument,macro=owner*8+macro,parameter=parameter,min=map.min,max=map.max,points=points.Count,pointCount=map.curvePoints?.Count??0};
+            route=new TrackerParameterRoute{instrument=instrument,macro=owner*8+macro,parameter=parameter,min=map.min,max=map.max,quantum=map.quantum,lower=map.lower,points=points.Count,pointCount=map.curvePoints?.Count??0};
             if(map.curvePoints!=null)foreach(var p in map.curvePoints)points.Add(new TrackerModPoint{time=p.time,value=p.value,exponent=1});
             // Legacy filter endpoints are normalized Nyquist, declared Hz routes are physical.
             if(parameter==(int)TrackerParameter.FilterCutoff&&t.units=="legacy parameter units"){route.min*=state.sampleRate*.5f;route.max*=state.sampleRate*.5f;}

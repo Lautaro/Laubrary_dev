@@ -17,10 +17,11 @@ namespace Laubrary.ZTracker.Engine
         Count
     }
     public struct TrackerMacroValue { public float value, target, step, authored; public bool sliding; }
-    public struct TrackerParameterRoute { public int instrument, macro, parameter, points, pointCount; public float min,max; }
+    public struct TrackerParameterRoute { public int instrument, macro, parameter, points, pointCount; public float min,max,quantum,lower; }
     public struct TrackerTone
     {
         public int kind, waveA, waveB, blendMode, members, pcmB, baseNoteB, envelopes, arpPoints, arpPointCount, arpNotes, arpNoteCount, algorithm;
+        public int parameterSet;
         public SampleLoop loopB;
         public int loopStartB, loopEndB;
         public bool releaseExitsLoopB, blendEnvelope, glide, legato, arpPerNote;

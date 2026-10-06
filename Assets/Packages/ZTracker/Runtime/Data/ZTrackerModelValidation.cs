@@ -77,6 +77,7 @@ namespace Laubrary.ZTracker.Model
                     }
                     foreach (var lane in pt.automation)
                     {
+                        if(lane!=null&&lane.unsupported)continue;
                         if (lane == null || lane.points == null || lane.target == null || !Enum.IsDefined(typeof(AutomationInterpolation),lane.interpolation)) return "Automation data missing";
                         error = Target(lane.target, song, pt.trackId); if (error != null) return error;
                         double time = -1;
