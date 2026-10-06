@@ -8,6 +8,21 @@ namespace Laubrary.Zounds {
     // All teardown remains in ZoundAudition and the token's normal SAP-safe Kill path.
     internal static class ZoundPreviewPlayback {
         static readonly Dictionary<EditorWindow, ZoundAudition> owners = new Dictionary<EditorWindow, ZoundAudition>();
+        static readonly List<EditorWindow> staleOwners = new List<EditorWindow>();
+
+        [InitializeOnLoadMethod]
+        static void HookOwnerSweep() {
+            EditorApplication.update -= SweepOwners;
+            EditorApplication.update += SweepOwners;
+        }
+
+        static void SweepOwners() {
+            var stale = staleOwners;
+            stale.Clear();
+            foreach (var pair in owners)
+                if (pair.Key == null || pair.Value.IsDisposed) stale.Add(pair.Key);
+            foreach (var owner in stale) Dispose(owner);
+        }
 
         internal static void Register(EditorWindow owner, ZoundAudition session) {
             Dispose(owner);

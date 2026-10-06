@@ -90,7 +90,7 @@ namespace Laubrary.Zounds {
                 ZoundPreviewPlayback.StopControl(b, stoppedRepeat);
                 var gameBurst = ZoundEngine.PlayZound(gameRepeat, args);
                 var tailSound = Sound(-19008);
-                var delay = new ZoundEffectNode(ZoundEffectType.Delay); delay.p[0] = 30f; delay.p[1] = .1f; delay.p[3] = 50f;
+                var delay = new ZoundEffectNode(ZoundEffectType.Delay); delay.p[0] = 250f; delay.p[1] = .5f; delay.p[2] = 1f; delay.p[3] = 300f;
                 tailSound.effectChain.nodes.Add(delay);
                 var tail = ZoundPreviewPlayback.Play(b, tailSound, args);
                 Check("effect tail is included in the token lifetime", tail.duration > .35f);
@@ -110,25 +110,55 @@ namespace Laubrary.Zounds {
                 var launchedPopup = NewWindow();
                 AudioPreviewUtility.PlayPreviewClip(clipB, launchedPopup, a);
                 var launchedVoice = ZoundPreviewPlayback.Play(a, loop, args, new object(), secondaryOwner: launchedPopup);
-                int repeatAtClose = own.Count(t => ReferenceEquals(t.zound, repeat));
-                var aTokens = own.Where(t => ReferenceEquals(t.zound, repeat) || ReferenceEquals(t, s1) || ReferenceEquals(t, s2) || ReferenceEquals(t, bounded)).ToArray();
-                UnityEngine.Object.DestroyImmediate(a);
-                Check("UITK window disable stops every owned overlapping token", aTokens.All(t => t.state == ZoundToken.State.Killed));
-                Check("closing one window preserves legacy-window and game loops", tb.state != ZoundToken.State.Killed && game.state != ZoundToken.State.Killed);
-                Check("launching window close also stops surviving popup previews", launchedVoice.state == ZoundToken.State.Killed && Resources.FindObjectsOfTypeAll<AudioSource>().Count(s => s.clip == clipB) == 1);
-                Check("raw clip close stops only the owning window source", !Resources.FindObjectsOfTypeAll<AudioSource>().Any(s => s.clip == clipA) && Resources.FindObjectsOfTypeAll<AudioSource>().Any(s => s.clip == clipB && s.isPlaying));
-                double until = EditorApplication.timeSinceStartup + Math.Max(1.3, tail.duration + .2);
-                int phase = 0;
+                // Register above replaced the first session, so establish fresh live voices at the actual close.
+                var closeShot1 = ZoundPreviewPlayback.Play(a, shot, args);
+                var closeShot2 = ZoundPreviewPlayback.Play(a, shot, args);
+                var closeLoop = ZoundPreviewPlayback.Play(a, loop, args, new object());
+                var closeTokens = new[] { closeShot1, closeShot2, closeLoop };
+                int repeatAtClose = 0;
+                var aTokens = own.Where(t => ReferenceEquals(t.zound, repeat) || closeTokens.Contains(t) || ReferenceEquals(t, bounded)).ToArray();
+                double until = EditorApplication.timeSinceStartup + .1;
+                var pruningWindow = NewWindow();
+                var pruningSession = ZoundPreviewPlayback.Session(pruningWindow);
+                for (int i = 0; i < 16; i++) ZoundPreviewPlayback.Play(pruningWindow, shot, args);
+                ZoundToken ringing = null;
+                int phase = -1;
                 update = () => {
                     try {
                         EditorApplication.QueuePlayerLoopUpdate();
                         if (EditorApplication.timeSinceStartup < until) return;
+                        if (phase == -1) {
+                Check("actual close begins with two live one-shots and a loop", closeTokens.All(t => t != null && t.state != ZoundToken.State.Killed && t.audioSource != null && t.audioSource.isPlaying));
+                report.AppendLine("MEASURE close-live carriers=" + closeTokens.Count(t => t.audioSource.isPlaying) + " generators=" + closeTokens.Count(t => t.audioSource.GetComponent<ZoundSapVoiceGenerator>() != null));
+                repeatAtClose = own.Count(t => ReferenceEquals(t.zound, repeat));
+                UnityEngine.Object.DestroyImmediate(a);
+                Check("UITK window disable stops every owned overlapping token", aTokens.All(t => t.state == ZoundToken.State.Killed));
+                Check("actual close silences all three live carriers", closeTokens.All(t => !t.audioSource.isPlaying));
+                Check("closing one window preserves legacy-window and game loops", tb.state != ZoundToken.State.Killed && game.state != ZoundToken.State.Killed);
+                Check("launching window close also stops surviving popup previews", launchedVoice.state == ZoundToken.State.Killed && Resources.FindObjectsOfTypeAll<AudioSource>().Count(s => s.clip == clipB) == 1);
+                Check("raw clip close stops only the owning window source", !Resources.FindObjectsOfTypeAll<AudioSource>().Any(s => s.clip == clipA) && Resources.FindObjectsOfTypeAll<AudioSource>().Any(s => s.clip == clipB && s.isPlaying));
+                until = EditorApplication.timeSinceStartup + Math.Max(1.3, tail.duration + .2);
+                            phase = 0;
+                            return;
+                        }
                         if (phase++ == 0) {
                             Check("no authored repeat starts after owner closes", own.Count(t => ReferenceEquals(t.zound, repeat)) == repeatAtClose);
                             Check("per-control stop cancels its delayed authored repeats", own.Count(t => ReferenceEquals(t.zound, stoppedRepeat)) == 1);
                             Check("game-owned authored repeat remains unaffected", own.Count(t => ReferenceEquals(t.zound, gameRepeat)) == 4);
                             Check("naturally ended effect tail leaves no ringing carrier before next close", tail.state == ZoundToken.State.Killed && !tail.audioSource.isPlaying);
+                            var retained = (Dictionary<object, List<ZoundToken>>)typeof(ZoundAudition).GetField("previewPlays", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(pruningSession);
+                            Check("ended repeated shots are removed from per-control ownership", retained.Count == 0 && !pruningSession.AnyLive);
+                            UnityEngine.Object.DestroyImmediate(pruningWindow);
+                            tailSound.trimEnd = .1f;
+                            ringing = ZoundPreviewPlayback.Play(b, tailSound, args);
+                            until = EditorApplication.timeSinceStartup + .3;
+                            return;
+                        }
+                        if (phase == 2) {
+                            report.AppendLine("MEASURE ringing state=" + ringing.state + " carrier=" + ringing.audioSource.isPlaying + " time=" + ringing.time + " duration=" + ringing.duration);
+                            Check("tail close begins after source end while effect still rings", ringing.state != ZoundToken.State.Killed && ringing.audioSource.isPlaying && ringing.time > .1f && ringing.duration > ringing.time);
                             UnityEngine.Object.DestroyImmediate(b);
+                            Check("close silences ringing effect carrier", ringing.state == ZoundToken.State.Killed && !ringing.audioSource.isPlaying);
                             Check("legacy window disable stops owned loop and raw source", tb.state == ZoundToken.State.Killed && !Resources.FindObjectsOfTypeAll<AudioSource>().Any(s => s.clip == clipB));
                             Check("game loop survives both window closes", game.state != ZoundToken.State.Killed && game.audioSource.isPlaying);
                             game.Kill(); until = EditorApplication.timeSinceStartup + .4;

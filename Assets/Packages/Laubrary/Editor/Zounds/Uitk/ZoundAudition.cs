@@ -147,6 +147,7 @@ namespace Laubrary.Zounds.Uitk {
         readonly Dictionary<object, ZoundToken> previews = new Dictionary<object, ZoundToken>();
         readonly Dictionary<object, List<ZoundToken>> previewPlays = new Dictionary<object, List<ZoundToken>>();
         readonly Dictionary<object, int> previewVersions = new Dictionary<object, int>();
+        readonly List<object> endedPreviewKeys = new List<object>();
         int generation;
         public readonly Settings settings;
 
@@ -352,6 +353,18 @@ namespace Laubrary.Zounds.Uitk {
                 var t = tokens[i];
                 if (t == null || t.state == ZoundToken.State.Killed) tokens.RemoveAt(i);
             }
+            var empty = endedPreviewKeys;
+            empty.Clear();
+            foreach (var pair in previewPlays) {
+                pair.Value.RemoveAll(t => t == null || t.state == ZoundToken.State.Killed);
+                if (pair.Value.Count == 0) empty.Add(pair.Key);
+            }
+            foreach (var key in empty) previewPlays.Remove(key);
+            empty.Clear();
+            foreach (var pair in previews)
+                if (pair.Value == null || pair.Value.state == ZoundToken.State.Killed) empty.Add(pair.Key);
+            foreach (var key in empty) previews.Remove(key);
+            // Cancellation versions remain: a delayed callback must not become valid after its plays end.
         }
 
         void Tick() {
