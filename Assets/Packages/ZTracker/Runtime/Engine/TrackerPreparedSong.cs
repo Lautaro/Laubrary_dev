@@ -18,7 +18,7 @@ namespace Laubrary.ZTracker.Engine
         public readonly List<string> eventPayloads = new List<string>();
         public bool Published { get; internal set; }
         public bool Disposed { get; private set; }
-        public const string ImplementationWitness = "P5-command-automation-native-core-v1";
+        public const string ImplementationWitness = "P7-public-burst-retirement-v1";
         public int PcmCount => state.pcmCount;
         long chainStateFloats;
         void AddChain(List<TrackerChain> chains,TrackerChain chain){if(chains.Count>=16384||chainStateFloats+chain.layout.stateFloats>33554432){chain.processor.Dispose();chain.layout.Dispose();throw new ArgumentException("Chain count/state exceeds 16384 chains / 128 MiB");}chain.authoredParameters=new NativeArray<float>(chain.layout.pBase,Allocator.Persistent);chainStateFloats+=chain.layout.stateFloats;chains.Add(chain);}
@@ -179,7 +179,7 @@ namespace Laubrary.ZTracker.Engine
             state.patterns=Native(patterns);state.rows=Native(rows);state.cells=Native(cells);state.commands=Native(cmds);state.authoredEvents=Native(events);state.sequence=Native(seq);state.sequenceMutes=Native(mutes);
             if(chains.Count>16384||chains.Sum(c=>(long)c.layout.stateFloats)>33554432)throw new ArgumentException("Chain count/state exceeds 16384 chains / 128 MiB");state.chainCount=chains.Count;state.chains=(TrackerChain*)UnsafeUtility.Malloc(Math.Max(1,chains.Count)*(long)sizeof(TrackerChain),16,Allocator.Persistent);for(int i=0;i<chains.Count;i++)state.chains[i]=chains[i];
             // Three lifetime counters, actual render-path BurstDiscard witness, completed render count.
-            state.ticket=new NativeArray<long>(5,Allocator.Persistent);
+            state.ticket=new NativeArray<long>(6,Allocator.Persistent);
         }
         static int Output(TrackData t,Dictionary<string,int> map,int master)=>t.kind==TrackKind.Master?-1:t.outputTrackId!=""?map[t.outputTrackId]:t.parentGroupId!=""?map[t.parentGroupId]:master;
         internal static float CombinePan(float a,float b){float r=(a+1)*.5f;r=b<0?r*(1+b):r+(1-r)*b;return r*2-1;}

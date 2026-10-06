@@ -1,1 +1,1 @@
-{"name":"com.Lautaro-Arino.ZTracker.P3Proof.Editor","references":["com.Lautaro-Arino.ZTracker.P3Proof"],"includePlatforms":["Editor"],"autoReferenced":true}
+{"name":"com.Lautaro-Arino.ZTracker.P3Proof.Editor","references":["com.Lautaro-Arino.ZTracker.P3Proof","com.Lautaro-Arino.Laubrary.ZTracker.Engine"],"includePlatforms":["Editor"],"autoReferenced":true}

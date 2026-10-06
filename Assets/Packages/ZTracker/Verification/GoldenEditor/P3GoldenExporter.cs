@@ -23,6 +23,8 @@ namespace Laubrary.ZTracker.Verification
         [Serializable] public sealed class Entry { public float[] values; }
         [Serializable] public sealed class Action { public int frame, a, b, expectedVoice; public string kind; public float value; }
         [Serializable] public sealed class Block { public int hostFrame, frames; }
+        [Serializable] public sealed class LegacyPattern { public int rows, channels; public LegacyCell[] cells; }
+        [Serializable] public sealed class LegacyCell { public int note, instrument, volume, command, argument; }
         [Serializable] public sealed class Fixture
         {
             public string id;
@@ -35,12 +37,18 @@ namespace Laubrary.ZTracker.Verification
             public Instrument[] instruments;
             public Action[] actions;
             public Block[] blocks;
+            public LegacyPattern[] legacyPatterns;
+            public int[] legacyOrder;
+            public double bpm;
+            public int lpb, tpl;
+            public bool eventTrack;
         }
         [Serializable] public sealed class Event
         {
             public string kind;
             public long samplePosition;
             public int pattern, row, track, note, instrument;
+            public int column, payload;
         }
         [Serializable] public sealed class Trace
         {
@@ -49,15 +57,19 @@ namespace Laubrary.ZTracker.Verification
             public List<string> failures = new List<string>();
             public List<Event> events = new List<Event>();
             public List<Observation> observations = new List<Observation>();
+            public List<string> diagnostics = new List<string>();
+            public int preservedLegacyCommands, inactiveLegacyCommands;
         }
         [Serializable] public sealed class Observation { public int frame, member,note; public float detune; public double glide, step; public int algorithm, wave, loop; }
 
         public static string Execute(string outputDirectory)
+            => ExecuteRange(outputDirectory,0,int.MaxValue);
+        public static string ExecuteRange(string outputDirectory,int first,int count)
         {
             var fixtures = JsonUtility.FromJson<Corpus>(File.ReadAllText(Path.Combine(outputDirectory, "fixtures.json")));
             var result = new StringBuilder();
             Directory.CreateDirectory(Path.Combine(outputDirectory, "candidate"));
-            foreach (var fixture in fixtures.cases)
+            foreach (var fixture in fixtures.cases.Skip(first).Take(count))
             {
                 var temporary = new List<UnityEngine.Object>();
                 try { result.AppendLine(Render(fixture, outputDirectory, temporary)); }
@@ -88,7 +100,8 @@ namespace Laubrary.ZTracker.Verification
             var song = new SongData { id = fixture.id, voiceCapacity = 128, beatTicks = true };
             foreach (var source in fixture.instruments)
             {
-                if (source.id != song.instruments.Count) throw new InvalidOperationException("Sparse fixture instrument IDs");
+                if (source.id < song.instruments.Count) throw new InvalidOperationException("Unordered fixture instrument IDs");
+                while(source.id>song.instruments.Count)song.instruments.Add(null);
                 var instrument = BuildInstrument(source, clips, fixture.samples, fixture.sequenced);
                 temporary.Add(instrument);
                 song.instruments.Add(instrument);
@@ -152,9 +165,43 @@ namespace Laubrary.ZTracker.Verification
             song.patterns.Add(pattern);
             song.sequence.Add(new SequenceSlot { id = "slot", patternId = "pattern" });
             var trace = new Trace { sequenced = fixture.sequenced };
+            if(fixture.legacyPatterns!=null&&fixture.legacyPatterns.Length>0)
+            {
+                song.patterns.Clear();song.sequence.Clear();song.tracks.Clear();
+                int channels=fixture.legacyPatterns[0].channels;
+                for(int t=0;t<channels;t++)song.tracks.Add(new TrackData{id="track-"+t,kind=fixture.eventTrack&&t==channels-1?TrackKind.Event:TrackKind.Sequencer,visibleNoteColumns=fixture.eventTrack&&t==channels-1?0:1,visibleEffectColumns=1,outputTrackId="master",preVolume=t==0?fixture.gain:1});
+                song.tracks.Add(new TrackData{id="master",kind=TrackKind.Master,visibleNoteColumns=0,visibleEffectColumns=0});
+                song.bpm=fixture.bpm;song.linesPerBeat=fixture.lpb;song.ticksPerLine=fixture.tpl;
+                for(int p=0;p<fixture.legacyPatterns.Length;p++)
+                {
+                    var source=fixture.legacyPatterns[p];var target=new PatternData{id="legacy-"+p,lineCount=source.rows};
+                    for(int t=0;t<channels;t++)
+                    {
+                        var track=new PatternTrack{trackId="track-"+t};
+                        for(int row=0;row<source.rows;row++)
+                        {
+                            var cell=source.cells[row*channels+t];
+                            var line=ZTrackerMigration.Convert(new ZTrackerCellSerialized{note=cell.note,instrument=cell.instrument,volume=cell.volume,effectCmd=cell.command,effectParam=cell.argument},song.tracks[t],row,"P0/"+fixture.id+"/"+p+"/"+t+"/"+row);
+                            if(cell.command!=0)
+                            {
+                                var command=line.effects[0].command;
+                                if(!command.hasLegacy||command.legacyCommand!=cell.command||command.legacyParameter!=cell.argument)throw new InvalidOperationException("Source command bytes lost");
+                                trace.preservedLegacyCommands++;
+                                if(cell.command!=15||cell.argument<1||cell.argument>=17&&cell.argument<=31)trace.inactiveLegacyCommands++;
+                            }
+                            if(fixture.eventTrack&&t==channels-1)line.events.Add(new EventCell{present=true,payload="row-"+row});
+                            if(line.HasPayload)track.WriteLine(line);
+                        }
+                        target.tracks.Add(track);
+                    }
+                    target.tracks.Add(new PatternTrack{trackId="master"});song.patterns.Add(target);
+                }
+                foreach(int p in fixture.legacyOrder)song.sequence.Add(new SequenceSlot{id="legacy-slot-"+song.sequence.Count,patternId=song.patterns[p].id});
+            }
             var handles = new Dictionary<int, long>();
             int actionIndex = 0, position = 0;
-            using (var engine = new TrackerOffline(TrackerPreparedSong.Prepare(song, 48000, Math.Max(4096, fixture.buffer))))
+            var prepared=TrackerPreparedSong.Prepare(song,48000,Math.Max(4096,fixture.buffer));trace.diagnostics.AddRange(prepared.diagnostics);
+            using (var engine = new TrackerOffline(prepared))
             using (var left = new NativeArray<float>(Math.Max(4096, fixture.buffer), Allocator.Persistent))
             using (var right = new NativeArray<float>(left.Length, Allocator.Persistent))
             using (var stream = File.Create(Path.Combine(candidateDirectory, fixture.id + ".f32")))
@@ -167,6 +214,7 @@ namespace Laubrary.ZTracker.Verification
                     {
                         var action = fixture.actions[actionIndex++];
                         if (action.kind == "play") engine.SendCommand(TrackerCommand.Play());
+                        else if(action.kind=="stop")engine.SendCommand(TrackerCommand.Stop());
                         else if (action.kind == "off")
                         {
                             if (!handles.TryGetValue(action.a, out long generation)) throw new InvalidOperationException("Missing native voice handle");
@@ -214,7 +262,7 @@ namespace Laubrary.ZTracker.Verification
         {
             while (engine.ReadEvent(out var value))
                 trace.events.Add(new Event { kind = value.kind.ToString(), samplePosition = value.samplePosition,
-                    pattern = value.pattern, row = value.row, track = value.track, note = value.note, instrument = value.instrument });
+                    pattern = value.pattern, row = value.row, track = value.track, column=value.column,payload=value.payload, note = value.note, instrument = value.instrument });
         }
 
         static ZTrackerInstrument BuildInstrument(Instrument source, AudioClip[] clips, Sample[] samples, bool sequenced)

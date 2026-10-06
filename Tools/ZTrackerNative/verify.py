@@ -1,4 +1,4 @@
-"""Exercise the shipped add-on DLL and its actual C# ABI declarations; no Unity Test Runner."""
+"""Exercise the archived offline reference DLL and ABI; no Unity or shipped runtime import."""
 import ctypes as c
 import math
 from pathlib import Path
@@ -6,8 +6,8 @@ import re
 
 root = Path(__file__).resolve().parents[2]
 package = root / "Assets/Packages/ZTracker"
-bindings = (package / "Runtime/Data/ZTrackerNative.cs").read_text(encoding="utf-8-sig")
-dll = c.CDLL(str(package / "Plugins/x86_64/ZTrackerEngine.dll"))
+bindings = (Path(__file__).resolve().parent / "native_abi.cs").read_text(encoding="utf-8-sig")
+dll = c.CDLL(str(Path(__file__).resolve().parent / "retired/ZTrackerEngine.dll"))
 
 class Cell(c.Structure):
     _pack_ = 1

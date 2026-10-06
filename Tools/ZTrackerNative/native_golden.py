@@ -8,7 +8,7 @@ import struct
 
 ROOT = Path(__file__).resolve().parents[2]
 PACKAGE = ROOT / 'Assets/Packages/ZTracker'
-DLL_PATH = PACKAGE / 'Plugins/x86_64/ZTrackerEngine.dll'
+DLL_PATH = Path(__file__).resolve().parent / 'retired/ZTrackerEngine.dll'
 RATE = 48000
 
 
@@ -59,7 +59,7 @@ class Native:
                  'TrackerCellData[]': C.POINTER(Cell), 'ZTrackerEventData': C.POINTER(Event),
                  'NativeEnvPointData[]': C.POINTER(EnvPoint), 'string': C.c_char_p}
         self.signatures = {}
-        text = (PACKAGE / 'Runtime/Data/ZTrackerNative.cs').read_text(encoding='utf-8-sig')
+        text = (Path(__file__).resolve().parent / 'native_abi.cs').read_text(encoding='utf-8-sig')
         for ret, name, params in re.findall(r'public static extern (\w+) (\w+)\((.*?)\);', text, re.S):
             pairs = [p.strip().split()[-2:] for p in params.split(',')] if params.strip() else []
             fn = getattr(self.dll, name)

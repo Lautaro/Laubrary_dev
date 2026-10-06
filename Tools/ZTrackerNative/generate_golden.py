@@ -122,13 +122,13 @@ def generate(output):
     checks=validate_pairs(records,audio)
     fingerprints={str(p.relative_to(ROOT)).replace('\\','/'):sha(p.read_bytes()) for p in
                   sorted(list((HERE/'include').glob('*.h'))+list((HERE/'src').rglob('*.cpp'))+
-                         [HERE/'CMakeLists.txt',PACKAGE/'Runtime/Data/ZTrackerNative.cs',
+                         [HERE/'CMakeLists.txt',HERE/'native_abi.cs',
                           PACKAGE/'Editor/ZTrackerWindow.Instrument.cs'])}
     tooling={p.name:sha(p.read_bytes()) for p in (HERE/'native_golden.py',HERE/'golden_cases.py',
             HERE/'generate_golden.py',HERE/'compare_golden.py',HERE/'test_golden.py',HERE/'README.template.md')}
     manifest={'schema_version':1,'generator':{'name':'generate_golden.py','version':1,
                'tool_sha256':tooling,'fixed_seed':0,'seed_policy':'procedural periodic PCM, no PRNG; legacy noise unseedable/statistical-only'},
-              'reference_engine':'current installed native DLL; not Burst','sample_rate':RATE,'format':FORMAT,
+              'reference_engine':'archived offline native DLL; not Burst','sample_rate':RATE,'format':FORMAT,
               'dll':{'path':str(DLL_PATH.relative_to(ROOT)).replace('\\','/'),'sha256':sha(DLL_PATH.read_bytes()),
                      'bytes':DLL_PATH.stat().st_size,'abi_version':1,'build':'Release /O2 /fp:fast static MSVC CRT'},
               'abi':{'pointer_bytes':C.sizeof(C.c_void_p),'cell_bytes':C.sizeof(Cell),

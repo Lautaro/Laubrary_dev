@@ -28,6 +28,7 @@ namespace Laubrary.ZTracker
         public long RenderedBlocks => generator != null ? generator.RenderedBlocks : stoppedBlocks;
         public bool RenderCompiled => generator != null && generator.RenderCompiled;
         public long EventOverflow => generator != null ? generator.EventOverflow : 0;
+        public event Action<TrackerEvent> EngineEventReceived;
         TrackerSapGenerator generator;
         PlaybackSnapshot snapshot;
         readonly Queue<EventCatalog> catalogs = new Queue<EventCatalog>();
@@ -142,6 +143,7 @@ namespace Laubrary.ZTracker
             while (generator != null && generator.ReadEvent(out var ev))
             {
                 lastSample = ev.samplePosition;
+                EngineEventReceived?.Invoke(ev);
                 if (ev.kind == TrackerEventKind.PreparedSwap)
                 {
                     if (catalogs.Count == 0) { LastError = "Event catalog boundary missing"; continue; }

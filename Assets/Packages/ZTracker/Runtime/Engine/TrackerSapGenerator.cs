@@ -6,31 +6,45 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.IntegerTime;
 using UnityEngine;
 using UnityEngine.Audio;
+using Unity.Mathematics;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 using static UnityEngine.Audio.ProcessorInstance;
 
 namespace Laubrary.ZTracker.Engine
 {
-    /// <summary>Opt-in SAP host. Existing legacy playback is unchanged until P7. One generator instance consumes one prepared song.</summary>
+    /// <summary>Production SAP host. One generator instance consumes one prepared song.</summary>
     [RequireComponent(typeof(AudioSource))]
     [ExecuteAlways]
     public sealed unsafe class TrackerSapGenerator : MonoBehaviour,IAudioGenerator
     {
         public bool isFinite=>false;
         public bool isRealtime=>false;
+        internal TrackerPreparedSong CurrentPrepared => current;
         public DiscreteTime? length=>null;
         TrackerPreparedSong initial,current;
         TrackerEventRing ring;
         GeneratorInstance instance;
         bool hasInstance,hasRing,accepting=true,transferred,autoplay;
         long retiredFrames,retiredBlocks;
+        double retiredEnergy;
         bool retiredCompiled=true;
         int configuredRate;
+        public string LifecycleReason { get; private set; }
+        public int ConfiguredRate => configuredRate;
         readonly List<TrackerPreparedSong> owned=new List<TrackerPreparedSong>();
         readonly List<TrackerCommand> pending=new List<TrackerCommand>();
         public void Configure(TrackerPreparedSong song,bool playSong=true)
         {
             if(initial!=null||hasInstance||song==null||song.Disposed||song.Published)throw new InvalidOperationException("Host needs a fresh prepared song");
             ring=TrackerEventRing.Create(65536);hasRing=true;initial=current=song;configuredRate=song.state.sampleRate;song.Published=true;owned.Add(song);autoplay=playSong;TrackerSapRegistry.Register(this);
+            AudioSettings.OnAudioConfigurationChanged+=ReconfigureOutput;
+#if UNITY_EDITOR
+            AssemblyReloadEvents.beforeAssemblyReload+=BeforeReload;
+            EditorApplication.playModeStateChanged+=ModeChanged;
+            EditorApplication.quitting+=BeforeReload;
+#endif
         }
         public GeneratorInstance CreateInstance(ControlContext context,AudioFormat? nestedConfiguration,CreationParameters creationParameters)
         {
@@ -81,6 +95,7 @@ namespace Laubrary.ZTracker.Engine
             get{long total=retiredFrames;foreach(var p in owned)if(!p.Disposed&&p.state.ticket.IsCreated)total+=Volatile.Read(ref ((long*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(p.state.ticket))[1]);return total;}
         }
         public long RenderedBlocks { get{long total=retiredBlocks;foreach(var p in owned)if(!p.Disposed)total+=Volatile.Read(ref ((long*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(p.state.ticket))[4]);return total;} }
+        public double RenderedEnergy { get{double total=retiredEnergy;foreach(var p in owned)if(!p.Disposed)total+=math.asdouble(Volatile.Read(ref ((long*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(p.state.ticket))[5]));return total;} }
         public bool RenderCompiled { get{if(!retiredCompiled)return false;bool rendered=retiredFrames>0;foreach(var p in owned)if(!p.Disposed){var ptr=(long*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(p.state.ticket);long frames=Volatile.Read(ref ptr[1]);if(frames>0){rendered=true;if(Volatile.Read(ref ptr[3])!=1)return false;}}return rendered;} }
         public bool StopAndConfirm(double timeout=.5)
         {
@@ -103,18 +118,35 @@ namespace Laubrary.ZTracker.Engine
             for(int i=owned.Count-1;i>=0;i--){var p=owned[i];if(p==current||p.Disposed)continue;
                 var ptr=(long*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(p.state.ticket);
                 if(Volatile.Read(ref ptr[2])==0)continue;
-                if(p.WaitUntilQuiet(.06,.07)){long frames=Volatile.Read(ref ptr[1]);retiredFrames+=frames;retiredBlocks+=Volatile.Read(ref ptr[4]);if(frames>0)retiredCompiled&=Volatile.Read(ref ptr[3])==1;p.DisposeAfterQuiet();owned.RemoveAt(i);}
+                if(p.WaitUntilQuiet(.06,.07)){long frames=Volatile.Read(ref ptr[1]);retiredFrames+=frames;retiredBlocks+=Volatile.Read(ref ptr[4]);retiredEnergy+=math.asdouble(Volatile.Read(ref ptr[5]));if(frames>0)retiredCompiled&=Volatile.Read(ref ptr[3])==1;p.DisposeAfterQuiet();owned.RemoveAt(i);}
             }
         }
         internal void Silence(){accepting=false;var source=GetComponent<AudioSource>();if(source!=null)source.Stop();}
         void OnDestroy()
         {
+            AudioSettings.OnAudioConfigurationChanged-=ReconfigureOutput;
+#if UNITY_EDITOR
+            AssemblyReloadEvents.beforeAssemblyReload-=BeforeReload;
+            EditorApplication.playModeStateChanged-=ModeChanged;
+            EditorApplication.quitting-=BeforeReload;
+#endif
             TrackerSapRegistry.Unregister(this);
             bool quiet=!transferred||StopAndConfirm(.25);
             if(quiet){foreach(var p in owned)if(!p.Disposed)p.DisposeAfterQuiet();if(hasRing)ring.Dispose();}
             else TrackerSapRegistry.Retain(owned,ring,hasRing,instance,hasInstance);
-            owned.Clear();hasRing=false;
+            owned.Clear();hasRing=false;initial=current=null;transferred=false;hasInstance=false;
         }
+        public void ReconfigureOutput(bool deviceChanged)
+        {
+            LifecycleReason=deviceChanged?"Audio device changed; explicit Play required":"Audio output configuration changed; explicit Play required";
+            StopAndConfirm(.5);
+        }
+#if UNITY_EDITOR
+        // Reload discards nonserialized owners even when the component itself survives.
+        // Release the quiet graph now rather than relying on a later OnDestroy callback.
+        void BeforeReload(){OnDestroy();}
+        void ModeChanged(PlayModeStateChange state){if(state==PlayModeStateChange.ExitingEditMode||state==PlayModeStateChange.ExitingPlayMode)StopAndConfirm(.5);}
+#endif
         struct Control:GeneratorInstance.IControl<TrackerRealtime>
         {
             public int rate;

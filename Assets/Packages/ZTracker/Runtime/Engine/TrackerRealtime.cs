@@ -281,7 +281,7 @@ namespace Laubrary.ZTracker.Engine
             for(int t=0;t<state.trackCount;t++)for(int i=0;i<frames;i++){int a=t*state.maxFrames+i;state.left[a]=state.right[a]=0;}
             for(int b=0;b<state.busCount;b++)for(int i=0;i<frames;i++){int a=b*state.maxFrames+i;state.busLeft[a]=state.busRight[a]=0;}
             int offset=0;
-            if(state.paused){for(int f=0;f<frames;f++)state.outputLeft[f]=state.outputRight[f]=0;SapRenderTicket.Exit(state.ticket,frames,false);return;}
+            if(state.paused){for(int f=0;f<frames;f++)state.outputLeft[f]=state.outputRight[f]=0;state.ticket[4]++;SapRenderTicket.Exit(state.ticket,frames,false);return;}
             while(offset<frames){
                 if(state.playing&&state.rowPending)EnterRow();
                 if(state.playing){
@@ -295,6 +295,10 @@ namespace Laubrary.ZTracker.Engine
                     RenderVoices(offset,n);Mix(offset,n);state.samplePosition+=n;offset+=n;
                 }else {RenderVoices(offset,frames-offset);Mix(offset,frames-offset);offset=frames;}
             }
+#if UNITY_EDITOR || ZTRACKER_PROOF
+            double energy=0;for(int f=0;f<frames;f++)energy+=(double)state.outputLeft[f]*state.outputLeft[f]+(double)state.outputRight[f]*state.outputRight[f];
+            state.ticket[5]=math.aslong(math.asdouble(state.ticket[5])+energy);
+#endif
             state.ticket[4]++;SapRenderTicket.Exit(state.ticket,frames,false);
         }
         [BurstDiscard] void MarkManagedRender(){state.ticket[3]=-1;}

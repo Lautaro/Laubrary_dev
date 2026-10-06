@@ -46,14 +46,22 @@ class GoldenTests(unittest.TestCase):
     def test_full_repeat_generation(self):
         original=json.loads((REFERENCE/'manifest.json').read_text(encoding='utf-8'))
         repeated=json.loads((RERUN/'manifest.json').read_text(encoding='utf-8'))
-        # P2 authoring and P4 comparator/docs evolved after P0. Only these named
-        # provenance entries may differ; every native source/DLL/case remains exact.
-        for name in ('README.template.md','compare_golden.py','test_golden.py'):
+        # Authoring/comparator/docs evolved; P7 relocated the offline loader and
+        # its ABI. Native source, DLL bytes, calls, PCM and event traces stay exact.
+        for name in ('README.template.md','compare_golden.py','test_golden.py','native_golden.py','generate_golden.py'):
             original['generator']['tool_sha256'].pop(name)
             self.assertEqual(repeated['generator']['tool_sha256'].pop(name),sha((HERE/name).read_bytes()),name)
         editor='Assets/Packages/ZTracker/Editor/ZTrackerWindow.Instrument.cs'
         original['source_sha256'].pop(editor)
         self.assertEqual(repeated['source_sha256'].pop(editor),sha((HERE.parent.parent/editor).read_bytes()))
+        self.assertEqual(original['source_sha256'].pop('Assets/Packages/ZTracker/Runtime/Data/ZTrackerNative.cs'),
+                         '8c33fb3c8c9d0ed376f89395d2ccd3b41a5b346b2af6f72602b09eed78c90996')
+        self.assertEqual(repeated['source_sha256'].pop('Tools/ZTrackerNative/native_abi.cs'),
+                         'c6a1e59f6d62c6a8d8ad85e2c852d0f8180e316bb43eb12b5f0d84b33911dbf7')
+        self.assertEqual(repeated['dll']['path'],'Tools/ZTrackerNative/retired/ZTrackerEngine.dll')
+        repeated['dll']['path']=original['dll']['path']
+        self.assertEqual(repeated['reference_engine'],'archived offline native DLL; not Burst')
+        repeated['reference_engine']=original['reference_engine']
         self.assertEqual(original,repeated)
         for path in REFERENCE.iterdir():
             if path.name=='manifest.json':continue # exact case/native semantics checked above
