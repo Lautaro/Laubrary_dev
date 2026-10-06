@@ -32,7 +32,49 @@ namespace ZoeStates
         /// Raised as <c>PushedBackwards</c>.
         public const string PushedBackwards = "PushedBackwards";
 
+        /// Raised as <c>GutStabLong</c>.
+        public const string GutStabLong = "GutStabLong";
+
+        /// Raised as <c>HeadChop</c>.
+        public const string HeadChop = "HeadChop";
+
+        /// Raised as <c>NeckSlice</c>.
+        public const string NeckSlice = "NeckSlice";
+
+        /// Raised as <c>OverCleave</c>.
+        public const string OverCleave = "OverCleave";
+
+        /// Raised as <c>Hit</c>.
+        public const string Hit = "Hit";
+
+        /// Raised as <c>PushKick</c>.
+        public const string PushKick = "PushKick";
+
+        /// Raised as <c>Roll</c>.
+        public const string Roll = "Roll";
+
+        /// Raised as <c>SwordCyclone</c>.
+        public const string SwordCyclone = "SwordCyclone";
+
+        /// Raised as <c>GutStabLongNoTrail</c>.
+        public const string GutStabLongNoTrail = "GutStabLongNoTrail";
+
+        /// Raised as <c>HeadChopNoTrail</c>.
+        public const string HeadChopNoTrail = "HeadChopNoTrail";
+
+        /// Raised as <c>NeckSliceNoTrail</c>.
+        public const string NeckSliceNoTrail = "NeckSliceNoTrail";
+
+        /// Raised as <c>OverCleaveNoTrail</c>.
+        public const string OverCleaveNoTrail = "OverCleaveNoTrail";
+
+        /// Raised as <c>PushKickNoTrail</c>.
+        public const string PushKickNoTrail = "PushKickNoTrail";
+
+        /// Raised as <c>SwordCycloneNoTrail</c>.
+        public const string SwordCycloneNoTrail = "SwordCycloneNoTrail";
+
         /// Every state name above, in the order the character declares them.
-        public static readonly string[] All = { "GutStab", "HeavyChop", "Dodge", "JumpBack", "Turnaround", "PushedForwards", "PushedBackwards" };
+        public static readonly string[] All = { "GutStab", "HeavyChop", "Dodge", "JumpBack", "Turnaround", "PushedForwards", "PushedBackwards", "GutStabLong", "HeadChop", "NeckSlice", "OverCleave", "Hit", "PushKick", "Roll", "SwordCyclone", "GutStabLongNoTrail", "HeadChopNoTrail", "NeckSliceNoTrail", "OverCleaveNoTrail", "PushKickNoTrail", "SwordCycloneNoTrail" };
     }
 }

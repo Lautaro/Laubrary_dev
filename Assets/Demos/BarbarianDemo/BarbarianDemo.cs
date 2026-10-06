@@ -36,6 +36,36 @@ namespace Laubrary.Demos.BarbarianDemo
         public InputAction pushedBackwards = Button("<Gamepad>/leftShoulder", "<Keyboard>/1");
         [Tooltip("Pushed forwards (a shove-from-behind reaction).")]
         public InputAction pushedForwards = Button("<Gamepad>/leftTrigger", "<Keyboard>/2");
+        [Tooltip("Long gut stab (8 frames, with sword trail).")]
+        public InputAction gutStabLong = Button("<Gamepad>/start", "<Keyboard>/0");
+        [Tooltip("Head chop.")]
+        public InputAction headChop = Button("<Gamepad>/dpad/up", "<Keyboard>/3");
+        [Tooltip("Neck slice.")]
+        public InputAction neckSlice = Button("<Gamepad>/dpad/right", "<Keyboard>/4");
+        [Tooltip("Over cleave.")]
+        public InputAction overCleave = Button("<Gamepad>/dpad/down", "<Keyboard>/5");
+        [Tooltip("Push kick.")]
+        public InputAction pushKick = Button("<Gamepad>/dpad/left", "<Keyboard>/6");
+        [Tooltip("Sword cyclone.")]
+        public InputAction swordCyclone = Button("<Gamepad>/rightTrigger", "<Keyboard>/7");
+        [Tooltip("Roll.")]
+        public InputAction roll = Button("<Gamepad>/rightStickPress", "<Keyboard>/8");
+        [Tooltip("Hit — the hurt reaction.")]
+        public InputAction hit = Button("<Gamepad>/leftStickPress", "<Keyboard>/9");
+
+        [Header("Same moves without sword trails (keyboard only)")]
+        [Tooltip("Long gut stab without trail (older 6-frame version).")]
+        public InputAction gutStabLongNoTrail = Button("<Keyboard>/z");
+        [Tooltip("Head chop without trail.")]
+        public InputAction headChopNoTrail = Button("<Keyboard>/x");
+        [Tooltip("Neck slice without trail.")]
+        public InputAction neckSliceNoTrail = Button("<Keyboard>/c");
+        [Tooltip("Over cleave without trail.")]
+        public InputAction overCleaveNoTrail = Button("<Keyboard>/v");
+        [Tooltip("Push kick without trail.")]
+        public InputAction pushKickNoTrail = Button("<Keyboard>/b");
+        [Tooltip("Sword cyclone without trail.")]
+        public InputAction swordCycloneNoTrail = Button("<Keyboard>/n");
 
         ReactionFxPlayer _reactions;
 
@@ -48,12 +78,26 @@ namespace Laubrary.Demos.BarbarianDemo
             (turnaround,      BarbarianStates.Turnaround),
             (pushedBackwards, BarbarianStates.PushedBackwards),
             (pushedForwards,  BarbarianStates.PushedForwards),
+            (gutStabLong,     BarbarianStates.GutStabLong),
+            (headChop,        BarbarianStates.HeadChop),
+            (neckSlice,       BarbarianStates.NeckSlice),
+            (overCleave,      BarbarianStates.OverCleave),
+            (pushKick,        BarbarianStates.PushKick),
+            (swordCyclone,    BarbarianStates.SwordCyclone),
+            (roll,            BarbarianStates.Roll),
+            (hit,             BarbarianStates.Hit),
+            (gutStabLongNoTrail,  BarbarianStates.GutStabLongNoTrail),
+            (headChopNoTrail,     BarbarianStates.HeadChopNoTrail),
+            (neckSliceNoTrail,    BarbarianStates.NeckSliceNoTrail),
+            (overCleaveNoTrail,   BarbarianStates.OverCleaveNoTrail),
+            (pushKickNoTrail,     BarbarianStates.PushKickNoTrail),
+            (swordCycloneNoTrail, BarbarianStates.SwordCycloneNoTrail),
         };
 
-        static InputAction Button(string gamepad, string keyboard)
+        static InputAction Button(params string[] paths)
         {
-            var a = new InputAction(type: InputActionType.Button, binding: gamepad);
-            a.AddBinding(keyboard);
+            var a = new InputAction(type: InputActionType.Button);
+            foreach (var p in paths) a.AddBinding(p);
             return a;
         }
 

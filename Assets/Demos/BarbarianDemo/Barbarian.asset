@@ -30,6 +30,10 @@ MonoBehaviour:
     moveThreshold: 0.15
     fixedAngleDeg: 0
     rules:
+    - condition: 1
+      setName: BarbarianWalk
+      overrideChannel: 0
+      channel: 0
     - condition: 0
       setName: BarbarianStand
       overrideChannel: 0
@@ -130,6 +134,160 @@ MonoBehaviour:
       stunSeconds: 0
       bodyFx: {fileID: 0}
       fx: []
+  - id: GutStabLong
+    role: 0
+    reaction:
+      clip: GutStabLong
+      targetPart: 
+      durationMode: 0
+      loops: 1
+      seconds: 0
+      stunSeconds: 0
+      bodyFx: {fileID: 0}
+      fx: []
+  - id: HeadChop
+    role: 0
+    reaction:
+      clip: HeadChop
+      targetPart: 
+      durationMode: 0
+      loops: 1
+      seconds: 0
+      stunSeconds: 0
+      bodyFx: {fileID: 0}
+      fx: []
+  - id: NeckSlice
+    role: 0
+    reaction:
+      clip: NeckSlice
+      targetPart: 
+      durationMode: 0
+      loops: 1
+      seconds: 0
+      stunSeconds: 0
+      bodyFx: {fileID: 0}
+      fx: []
+  - id: OverCleave
+    role: 0
+    reaction:
+      clip: OverCleave
+      targetPart: 
+      durationMode: 0
+      loops: 1
+      seconds: 0
+      stunSeconds: 0
+      bodyFx: {fileID: 0}
+      fx: []
+  - id: Hit
+    role: 1
+    reaction:
+      clip: Hit
+      targetPart: 
+      durationMode: 0
+      loops: 1
+      seconds: 0
+      stunSeconds: 0
+      bodyFx: {fileID: 0}
+      fx: []
+  - id: PushKick
+    role: 0
+    reaction:
+      clip: PushKick
+      targetPart: 
+      durationMode: 0
+      loops: 1
+      seconds: 0
+      stunSeconds: 0
+      bodyFx: {fileID: 0}
+      fx: []
+  - id: Roll
+    role: 0
+    reaction:
+      clip: Roll
+      targetPart: 
+      durationMode: 0
+      loops: 1
+      seconds: 0
+      stunSeconds: 0
+      bodyFx: {fileID: 0}
+      fx: []
+  - id: SwordCyclone
+    role: 0
+    reaction:
+      clip: SwordCyclone
+      targetPart: 
+      durationMode: 0
+      loops: 1
+      seconds: 0
+      stunSeconds: 0
+      bodyFx: {fileID: 0}
+      fx: []
+  - id: GutStabLongNoTrail
+    role: 0
+    reaction:
+      clip: GutStabLongNoTrail
+      targetPart: 
+      durationMode: 0
+      loops: 1
+      seconds: 0
+      stunSeconds: 0
+      bodyFx: {fileID: 0}
+      fx: []
+  - id: HeadChopNoTrail
+    role: 0
+    reaction:
+      clip: HeadChopNoTrail
+      targetPart: 
+      durationMode: 0
+      loops: 1
+      seconds: 0
+      stunSeconds: 0
+      bodyFx: {fileID: 0}
+      fx: []
+  - id: NeckSliceNoTrail
+    role: 0
+    reaction:
+      clip: NeckSliceNoTrail
+      targetPart: 
+      durationMode: 0
+      loops: 1
+      seconds: 0
+      stunSeconds: 0
+      bodyFx: {fileID: 0}
+      fx: []
+  - id: OverCleaveNoTrail
+    role: 0
+    reaction:
+      clip: OverCleaveNoTrail
+      targetPart: 
+      durationMode: 0
+      loops: 1
+      seconds: 0
+      stunSeconds: 0
+      bodyFx: {fileID: 0}
+      fx: []
+  - id: PushKickNoTrail
+    role: 0
+    reaction:
+      clip: PushKickNoTrail
+      targetPart: 
+      durationMode: 0
+      loops: 1
+      seconds: 0
+      stunSeconds: 0
+      bodyFx: {fileID: 0}
+      fx: []
+  - id: SwordCycloneNoTrail
+    role: 0
+    reaction:
+      clip: SwordCycloneNoTrail
+      targetPart: 
+      durationMode: 0
+      loops: 1
+      seconds: 0
+      stunSeconds: 0
+      bodyFx: {fileID: 0}
+      fx: []
   brain:
     rid: -2
   playerController:
@@ -154,7 +312,7 @@ MonoBehaviour:
     - rid: 7986899892014940838
       type: {class: ZonedLauminaryView, ns: Laubrary.ZoetropeLaunimator, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Launimator}
       data:
-        version: {fileID: 11400000, guid: 775c3771390a0a64d8f12c920b6165aa, type: 2}
+        version: {fileID: 11400000, guid: 969b6baf52f8b744b869ef2fb7720143, type: 2}
         idleClip: Idle
         height: 0
     - rid: 7986899892014940839
