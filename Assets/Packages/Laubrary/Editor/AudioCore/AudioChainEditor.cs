@@ -17,10 +17,11 @@ namespace Laubrary.Audio.Editor
         readonly Action<string,Action,bool> edit;
         readonly Action<string> removed;
         readonly bool directAdd;
+        readonly bool wrapDevices;
         int addType, addModifier, bindingNode, bindingParam;
-        public AudioChainEditor(Func<AudioEffectChainData> getter, Action<string,Action,bool> editCallback, Action<string> nodeRemoved=null,bool directAdd=false)
+        public AudioChainEditor(Func<AudioEffectChainData> getter, Action<string,Action,bool> editCallback, Action<string> nodeRemoved=null,bool directAdd=false,bool wrapDevices=false)
         {
-            get=getter;edit=editCallback;removed=nodeRemoved;this.directAdd=directAdd;name="audio-chain-editor";style.minWidth=0;style.flexShrink=0;Build();
+            get=getter;edit=editCallback;removed=nodeRemoved;this.directAdd=directAdd;this.wrapDevices=wrapDevices;name="audio-chain-editor";style.minWidth=0;style.flexShrink=0;Build();
         }
         public static VisualElement Parameter(ParamDesc pd,float value,Action<float> changed,float width=140)
         {
@@ -54,12 +55,42 @@ namespace Laubrary.Audio.Editor
             void AddEffect(int type)=>Change("add effect",()=>chain.nodes.Add(new AudioEffectNodeData{type=(ZoundEffectType)type,uid=Guid.NewGuid().ToString("N"),p=Defaults(ZoundEffectDescriptors.Get((ZoundEffectType)type).parameters)}),true);
             if(directAdd){var choices=Row();for(int type=0;type<types.Length;type++){int at=type;choices.Add(Named(Z.Button(types[type],"Add "+types[type]+" to this chain.",()=>AddEffect(at)),type==0?"chain-add-effect":"chain-add-effect-"+type));}Add(choices);}
             else Add(Row(Z.MiniRadio(addType,types,"Choose an effect to add.",v=>addType=v,wrap:true),Named(Z.Button("Add effect","Append the chosen effect.",()=>AddEffect(addType)),"chain-add-effect")));
+            var devices=wrapDevices?Row():this;
+            if(wrapDevices)
+            {
+                devices.name="chain-device-cards";devices.style.alignSelf=Align.Stretch;devices.style.marginTop=4;
+                devices.RegisterCallback<GeometryChangedEvent>(_=>
+                {
+                    float available=devices.contentRect.width;if(available<=0)return;
+                    int columns=Math.Max(1,Mathf.FloorToInt((available+8)/328));
+                    float width=Mathf.Floor((available-(columns-1)*8)/columns);
+                    for(int c=0;c<devices.childCount;c++)
+                    {
+                        var card=devices[c];if(Mathf.Abs(card.resolvedStyle.width-width)>.5f)card.style.width=width;
+                        card.style.marginRight=c%columns==columns-1?0:8;
+                    }
+                });
+                Add(devices);
+            }
             for(int i=0;i<chain.nodes.Count;i++)
             {
                 int at=i;var node=chain.nodes[i];var desc=ZoundEffectDescriptors.Get(node.type);if(desc==null)continue;
                 var box=Z.BoxKeyed("",desc.summary,"audio.chain.node."+node.uid);var header=NodeHeader(desc,node.enabled,v=>Change("enable effect",()=>node.enabled=v,false),()=>Change("remove effect",()=>{string uid=node.uid;chain.nodes.RemoveAt(at);chain.bindings.RemoveAll(b=>b.nodeIndex==at);foreach(var b in chain.bindings)if(b.nodeIndex>at)b.nodeIndex--;removed?.Invoke(uid);},true));
                 header.name="chain-node-"+at;Drag(header,"node",at,(from,to)=>Change("reorder effects",()=>{var old=chain.nodes.ToArray();Move(chain.nodes,from,to);foreach(var b in chain.bindings)if(b.nodeIndex>=0&&b.nodeIndex<old.Length)b.nodeIndex=chain.nodes.IndexOf(old[b.nodeIndex]);},true));box.Add(header);
-                var parameters=Row();for(int p=0;p<desc.parameters.Length;p++){int pi=p;parameters.Add(Named(Parameter(desc.parameters[p],Read(node.p,p,desc.parameters[p]),v=>Change("effect parameter",()=>Write(ref node.p,pi,v,desc.parameters),false)),"chain-param-"+at+"-"+p));}box.Add(parameters);Add(box);
+                var parameters=Row();for(int p=0;p<desc.parameters.Length;p++){int pi=p;parameters.Add(Named(Parameter(desc.parameters[p],Read(node.p,p,desc.parameters[p]),v=>Change("effect parameter",()=>Write(ref node.p,pi,v,desc.parameters),false)),"chain-param-"+at+"-"+p));}
+                if(wrapDevices)
+                {
+                    box.name="chain-device-card-"+at;box.style.flexShrink=0;box.style.width=320;box.style.marginLeft=0;box.style.marginTop=0;box.style.marginBottom=8;
+                    header.style.flexWrap=Wrap.NoWrap;header[header.childCount-1].style.marginLeft=StyleKeyword.Auto;
+                    if(desc.parameters.Length==1)
+                    {
+                        header.Insert(header.childCount-1,parameters[0]);
+                        if(desc.parameters[0].name==desc.displayName)header.RemoveAt(1);
+                    }
+                    else box.Add(parameters);
+                }
+                else box.Add(parameters);
+                devices.Add(box);
             }
             var mods=Z.BoxKeyed("Modifiers","Modulate effect parameters with the shared audio engine.","audio.chain.modifiers");
             var mt=Enumerable.Range(0,ZoundEffectDescriptors.ModifierTypeCount).Select(i=>ZoundEffectDescriptors.GetModifier((ZoundModifierType)i).displayName).ToArray();
