@@ -153,8 +153,14 @@ namespace Laubrary.ZTracker.Editor
         {
             var box=Z.BoxKeyed("Instruments","Choose the instrument used by note entry and audition.","tracker.model.instruments");
             box.Add(Flow(Button("New instrument","Create and add a new instrument.",CreateInstrument,"new-instrument"),Named(Z.Object<ZTrackerInstrument>(null,"Add an existing instrument.",v=>{if(v==null)return;Undo.IncrementCurrentGroup();int group=Undo.GetCurrentGroup();if(v.schemaVersion==0){Undo.RegisterCompleteObjectUndo(v,"Tracker: migrate instrument");ZTrackerMigration.Upgrade(v,out _);EditorUtility.SetDirty(v);}SongEdit("add instrument",()=>Data.instruments.Add(v),true);Undo.CollapseUndoOperations(group);},155),"add-instrument")));
-            if(Data.instruments.Count>0)box.Add(Z.MiniRadio(entryInstrument,Data.instruments.Select((v,i)=>$"{i:X2} {v?.name??"Missing"}").ToArray(),"Select an instrument; the preview button auditions it.",v=>{entryInstrument=v;instrument=Data.instruments[v];if(pane==3)BuildPane();},wrap:true));
+            if(Data.instruments.Count>0)box.Add(Named(Z.MiniRadio(entryInstrument,Data.instruments.Select((v,i)=>$"{i:X2} {InstrumentTitle(v)}").ToArray(),"Select an instrument; the preview button auditions it.",v=>{entryInstrument=v;instrument=Data.instruments[v];if(pane==3)BuildPane();},wrap:true),"instrument-selector"));
             box.Add(Flow(Button("Edit","Open the selected instrument.",()=>{if(Data.instruments.Count>0){instrument=Data.instruments[Mathf.Clamp(entryInstrument,0,Data.instruments.Count-1)];pane=3;BuildPane();}}),Button("▶","Audition the selected instrument at the current octave.",()=>Audition(octave*12)),Button("■","Release instrument audition notes.",AuditionOff)));root.Add(box);
+        }
+        static string InstrumentTitle(ZTrackerInstrument value)=>value==null?"Missing":value.model?.name??value.name;
+        void RefreshInstrumentNames()
+        {
+            var picker=rootVisualElement.Q("instrument-selector");if(picker==null||Data==null)return;
+            var buttons=picker.Query<Button>().ToList();for(int i=0;i<Math.Min(buttons.Count,Data.instruments.Count);i++)buttons[i].text=$"{i:X2} {InstrumentTitle(Data.instruments[i])}";
         }
         void CreateInstrument()
         {

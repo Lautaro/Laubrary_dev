@@ -53,7 +53,7 @@ namespace Laubrary.ZTracker.Editor
         {
             if (instrument == null && Data.instruments.Count > 0) instrument = Data.instruments[Mathf.Clamp(entryInstrument, 0, Data.instruments.Count - 1)];
             var d = Instrument; if (d == null) return;
-            var header = Flow(Named(Z.TextInput(d.name, "Instrument display name.", v => InstrumentEdit("instrument name", () => d.name = v), 175), "instrument-name"),
+            var header = Flow(Named(Z.TextInput(d.name, "Instrument display name.", v => { InstrumentEdit("instrument name", () => d.name = v); RefreshInstrumentNames(); }, 175), "instrument-name"),
                 InstrumentChoice("Family", (int)d.family, new[] { "Sampler", "Synth" }, "Both families retain their settings. Changing source topology applies after Stop/Play.", v => { d.family = (InstrumentFamily)v; d.parameters.type = v == 0 ? InstrumentType.Sample : d.synthMode == SynthMode.FM ? InstrumentType.FM : InstrumentType.Synth; instrumentTab = 0; }, "instrument-family")); root.Add(header);
             var tabs = d.family == InstrumentFamily.Sampler ? new[] { "Samples", "Zones", "Modulation", "Effects", "Macros", "Presets" } : new[] { "Synth", "Envelopes", "Modulation", "Effects", "Macros", "Presets" };
             instrumentTab = Mathf.Clamp(instrumentTab, 0, tabs.Length - 1);
