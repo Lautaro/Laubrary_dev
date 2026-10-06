@@ -1,0 +1,173 @@
+using System;
+using System.Threading;
+using Laubrary.Audio;
+using Laubrary.ZTracker.Model;
+using Unity.Burst;
+using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
+using Unity.Mathematics;
+
+namespace Laubrary.ZTracker.Engine
+{
+    public enum TrackerEventKind { Row, Tick, NoteOn, NoteOff, Beat, Authored, VoiceStolen, PreparedSwap, Stopped }
+    public struct TrackerEvent
+    {
+        public TrackerEventKind kind;
+        public long samplePosition;
+        public int sequence, pattern, row, tick, track, column, note, instrument, payload;
+    }
+    /// <summary>One audio producer and one main-thread consumer. Storage outlives graph instances and prepared swaps.</summary>
+    public unsafe struct TrackerEventRing : IDisposable
+    {
+        [NativeDisableUnsafePtrRestriction] public TrackerEvent* events;
+        [NativeDisableUnsafePtrRestriction] public long* counters; // published write, consumed read, overflow
+        public int capacity;
+        public static TrackerEventRing Create(int capacity)
+        {
+            if (capacity < 2 || capacity > 1048576) throw new ArgumentOutOfRangeException(nameof(capacity));
+            var r = new TrackerEventRing { capacity = capacity };
+            r.events = (TrackerEvent*)UnsafeUtility.Malloc(capacity * (long)sizeof(TrackerEvent), 16, Allocator.Persistent);
+            r.counters = (long*)UnsafeUtility.Malloc(3 * sizeof(long), 16, Allocator.Persistent);
+            UnsafeUtility.MemClear(r.counters, 3 * sizeof(long));
+            return r;
+        }
+        public void Write(TrackerEvent value)
+        {
+            long w = counters[0], read = Volatile.Read(ref counters[1]);
+            if (w - read >= capacity) { counters[2]++; return; }
+            events[w % capacity] = value;
+            Volatile.Write(ref counters[0], w + 1);
+        }
+        public bool TryRead(out TrackerEvent value)
+        {
+            long r = counters[1];
+            if (r >= Volatile.Read(ref counters[0])) { value = default; return false; }
+            value = events[r % capacity];
+            Volatile.Write(ref counters[1], r + 1);
+            return true;
+        }
+        public long OverflowCount => counters == null ? 0 : Volatile.Read(ref counters[2]);
+        public void Dispose()
+        {
+            if (events != null) UnsafeUtility.Free(events, Allocator.Persistent);
+            if (counters != null) UnsafeUtility.Free(counters, Allocator.Persistent);
+            this = default;
+        }
+    }
+    public struct TrackerPcm { public int offset, frames, channels, frequency; public float peak; }
+    public struct TrackerSample
+    {
+        public int pcm, instrument, loopStart, loopEnd, modStart, modCount, filterType, fxChain, muteGroup;
+        public SampleLoop loop;
+        public SampleInterpolation interpolation;
+        public NewNoteAction nna;
+        public bool releaseExitsLoop, oneShot;
+        public float volume, pan, tune, cutoff, resonance, attack, hold, decay, sustain, release;
+        public int legacyFilter;
+        public int delayDestination, reverbDestination;
+        public float delaySend, reverbSend;
+    }
+    public struct TrackerZone { public int sample, minNote, maxNote, minVelocity, maxVelocity, baseNote; public bool tracking; }
+    public struct TrackerInstrument { public int zoneStart, zoneCount, chainStart, chainCount; public NewNoteAction nna; }
+    public struct TrackerModPoint { public double time; public float value, exponent; }
+    public struct TrackerMod
+    {
+        public ModulationTarget target;
+        public ModulationDeviceKind kind;
+        public ModulationOperation operation;
+        public float attack, hold, decay, sustain, release, rate, depth, phase, min, max, curve;
+        public int points, pointCount, shape;
+        public double sustainPosition, loopStart, loopEnd;
+        public bool sustainEnabled, loopEnabled;
+        public SampleLoop loop;
+    }
+    public struct TrackerModState { public double position; public float releaseStart, output; public bool released; }
+    public struct TrackerVoice
+    {
+        public bool active, released;
+        public int sample, track, column, note, instrument, bus, velocity, stage, direction;
+        public long cohort, age, releaseAge;
+        public double position, step;
+        public float volume, pan, envelope, releaseStart, releaseStep, amplitude;
+        public float fL1, fL2, fR1, fR2, xL1, xL2, xR1, xR2;
+        public float b0, b1, b2, a1, a2, filterCutoff, filterQ;
+    }
+    public struct TrackerColumn
+    {
+        public int instrument;
+        public float volume, pan;
+        public long cohort, due;
+        public int pendingNote, pendingInstrument, pendingVelocity, pendingCell;
+        public bool pendingOff;
+    }
+    public struct TrackerCell
+    {
+        public int track, column, note, instrument, volume, pan, delay;
+        public bool instrumentPresent;
+    }
+    public struct TrackerRow { public int cells, cellCount, commands, commandCount, events, eventCount; }
+    public struct TrackerClockCommand { public int kind, value; } // 1 BPM, 2 LPB, 3 TPL, 4 break
+    public struct TrackerAuthoredEvent { public int track, column, payload; }
+    public struct TrackerPattern { public int rows, lineCount; }
+    public struct TrackerSequence { public int pattern, muteOffset; }
+    public struct TrackerSend { public int destination, position; public float gain; public bool postfader; }
+    public struct TrackerTrack
+    {
+        public TrackKind kind;
+        public int columns, columnCount, output, chainStart, chainCount, sendStart, sendCount;
+        public float preGain, prePan, width, postGain, postPan;
+        public bool triggerMute, outputMute, soloEnabled, beatTicks;
+        public int beatInterval;
+    }
+    public struct TrackerChain
+    {
+        public SapChainLayout layout;
+        public AudioChainProcessor processor;
+        public int position;
+    }
+    public struct TrackerBus { public int track, instrument, fx, chain; }
+    public unsafe struct TrackerState
+    {
+        public NativeArray<float> pcm, left, right, busLeft, busRight, outputLeft, outputRight;
+        public NativeArray<TrackerPcm> clips;
+        public NativeArray<TrackerSample> samples;
+        public NativeArray<TrackerInstrument> instruments;
+        public NativeArray<TrackerZone> zones;
+        public NativeArray<TrackerMod> mods;
+        public NativeArray<TrackerModPoint> points;
+        public NativeArray<TrackerModState> modulationState;
+        public NativeArray<TrackerVoice> voices;
+        public NativeArray<TrackerColumn> columns;
+        public NativeArray<TrackerTrack> tracks;
+        public NativeArray<TrackerSend> sends;
+        public NativeArray<int> order;
+        public NativeArray<TrackerPattern> patterns;
+        public NativeArray<TrackerRow> rows;
+        public NativeArray<TrackerCell> cells;
+        public NativeArray<TrackerClockCommand> commands;
+        public NativeArray<TrackerAuthoredEvent> authoredEvents;
+        public NativeArray<TrackerSequence> sequence;
+        public NativeArray<byte> sequenceMutes;
+        public NativeArray<TrackerBus> buses;
+        [NativeDisableContainerSafetyRestriction] public NativeArray<long> ticket;
+        [NativeDisableUnsafePtrRestriction] public TrackerChain* chains;
+        public int chainCount, pcmCount, sampleCount, instrumentCount, trackCount, busCount, columnCount, modStride;
+        public int sampleRate, maxFrames, master, sequenceIndex, row, tick, breakRow, linesPerBeat, ticksPerLine, beatInterval;
+        public double bpm, tickRemaining, rowStart, rowEnd, clockCompensation, tickDeadline;
+        public long transportOrigin;
+        public long samplePosition, cohort;
+        public float normalization;
+        public bool playing, rowPending, loopSong, beatTicks;
+    }
+    public enum TrackerCommandKind { Play, Stop, ReleaseAll, Seek, AuditionOn, AuditionOff, TrackGain, TrackPan, TrackMute, Swap }
+    public struct TrackerCommand
+    {
+        public TrackerCommandKind kind;
+        public int a, b, c, d;
+        public float value;
+        public TrackerState replacement;
+        public static TrackerCommand Play(bool loop = true) => new TrackerCommand { kind = TrackerCommandKind.Play, a = loop ? 1 : 0 };
+        public static TrackerCommand Stop() => new TrackerCommand { kind = TrackerCommandKind.Stop };
+        public static TrackerCommand Audition(int instrument, int note, int velocity = 127, int track = 0) => new TrackerCommand { kind = TrackerCommandKind.AuditionOn, a = instrument, b = note, c = velocity, d = track };
+    }
+}
