@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Added opt-in schema-1 Burst/SAP tracker clock, sampler voices, bounded events and AudioCore mixer graph with offline rendering. Independent review corrected muted launches, loop intros, envelope operation order and explicit migration provenance; live stress corrected repeated swaps and timeout graph ownership. Verified the scoped native sampler golden subset, fresh tracker-plus-Zounds forced-GC player callbacks and real stop/swap/quit lifecycle. Fractional clock policy and legacy effect algorithms retain documented differences; synth/FM, Sample B/macros and wider commands remain later-phase work.
+
 - Independent P2 review fixed canonical instrument projection, inherited sampler preset sections, kit null-duplicate/effective-default migration, repeated-gesture rollback, live refresh slot ownership and Unity JSON null normalization. Added null archive save/reload and adversarial regression checks, exact sample-bank accounting and explicit refusal of structural scalar refreshes and native truncation; original assets and native DSP remain unchanged.
 
 - Added explicit version-1 song and Sampler/Synth authoring data: sparse independent columns, buses/routing, AudioCore chains, automation, sequence mutes, sampler zones/loops/modulation, eight macros and compiled preset parameter sets. Migration retains script identities, original legacy payloads and unsupported commands without rewriting live assets.

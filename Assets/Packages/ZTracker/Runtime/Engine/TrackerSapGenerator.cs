@@ -72,7 +72,10 @@ namespace Laubrary.ZTracker.Engine
             double settle=SapLifetime.DefaultSettleSeconds(1024,configuredRate);
             bool quiet=SapLifetime.WaitUntilQuiet(owned.Count,i=>SapRenderTicket.Read(owned[i].state.ticket),settle,timeout);
             if(!quiet)return false;
-            if(hasInstance&&ControlContext.builtIn.Exists(instance)){ControlContext.WaitForBuiltInQueueFlush();ControlContext.builtIn.Destroy(instance);ControlContext.WaitForBuiltInQueueFlush();}hasInstance=false;
+            // Source.Stop can remove the handle before its queued control disposal has drained.
+            ControlContext.WaitForBuiltInQueueFlush();
+            if(hasInstance&&ControlContext.builtIn.Exists(instance))ControlContext.builtIn.Destroy(instance);
+            ControlContext.WaitForBuiltInQueueFlush();hasInstance=false;
             // Destroy's control disposal writes the external ticket. Keep it alive until that work is quiet too.
             return SapLifetime.WaitUntilQuiet(owned.Count,i=>SapRenderTicket.Read(owned[i].state.ticket),settle,timeout);
         }
@@ -131,7 +134,7 @@ namespace Laubrary.ZTracker.Engine
             // A timeout retains the full ownership bundle. It is never freed on an optimistic stable snapshot.
             // Terminal tickets prove the graph disposal/swap has prevented any further reader.
             for(int i=retained.Count-1;i>=0;i--){var bundle=retained[i];
-                if(bundle.hasInstance){bool beforeDestroy=SapLifetime.WaitUntilQuiet(bundle.songs.Count,j=>SapRenderTicket.Read(bundle.songs[j].state.ticket),.06,.07);if(!beforeDestroy)continue;if(ControlContext.builtIn.Exists(bundle.instance)){ControlContext.WaitForBuiltInQueueFlush();ControlContext.builtIn.Destroy(bundle.instance);ControlContext.WaitForBuiltInQueueFlush();}bundle.hasInstance=false;continue;}
+                if(bundle.hasInstance){bool beforeDestroy=SapLifetime.WaitUntilQuiet(bundle.songs.Count,j=>SapRenderTicket.Read(bundle.songs[j].state.ticket),.06,.07);if(!beforeDestroy)continue;ControlContext.WaitForBuiltInQueueFlush();if(ControlContext.builtIn.Exists(bundle.instance))ControlContext.builtIn.Destroy(bundle.instance);ControlContext.WaitForBuiltInQueueFlush();bundle.hasInstance=false;continue;}
                 // The remembered graph handle is now detached and its control disposal queue has drained.
                 // An accepted swap may never have reached realtime before Stop, so that unused owner's
                 // ticket can legitimately have no terminal mark. Observe every ticket, then free the bundle.

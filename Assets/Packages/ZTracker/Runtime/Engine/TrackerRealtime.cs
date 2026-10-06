@@ -60,7 +60,7 @@ namespace Laubrary.ZTracker.Engine
                 case TrackerCommandKind.Swap:
                     // Update runs between blocks. The old ticket becomes terminal only after its last reader returned.
                     SapRenderTicket.Enter(state.ticket);SapRenderTicket.Exit(state.ticket,0,true);
-                    long position=state.samplePosition;state=c.replacement;state.samplePosition=position;state.transportOrigin=position;state.rowPending=true;Emit(TrackerEventKind.PreparedSwap);break;
+                    long position=state.samplePosition,generation=state.cohort;state=c.replacement;state.samplePosition=position;state.cohort=generation;state.transportOrigin=position;state.rowPending=true;Emit(TrackerEventKind.PreparedSwap);break;
             }
         }
         void ResetColumns(){for(int i=0;i<state.columnCount;i++)state.columns[i]=new TrackerColumn{instrument=-1,volume=1,pan=0,due=-1,pendingCell=-1};}
