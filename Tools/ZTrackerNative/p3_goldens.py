@@ -145,9 +145,14 @@ def prepare(output, p4=False):
                          "everyRow": case["id"].startswith("channel_"), "gain": gain, "pan": pan,
                          "timeline": "portamento" if case['id'].startswith('portamento_') else "tremolo" if case['id'] in ('command_07','command_07_control') else "",
                          "masterFilter": master_filter, "delay": delay, "reverb": reverb})
+    # Additional policy probes use independently calculated PCM, separate from P0 parity.
+    if p4:
+        for buffer in (64,333,1024):
+            frames=12000
+            fixtures.append({"id":f"p5_policy_{buffer}","frames":frames,"buffer":buffer,"samples":[{"rate":48000,"left":[.2]*1000,"right":[.2]*1000,"loop":1,"start":0,"end":1000}],"instruments":[{"id":0,"kind":"sample","values":[0,0,69,0,1,0,0,0,1,1],"entries":[],"filter":[]}],"actions":[{"frame":0,"kind":"play"}],"blocks":[{"hostFrame":at,"frames":min(buffer,frames-at)} for at in range(0,frames,buffer)],"sequenced":True,"rows":8,"everyRow":False,"gain":1,"pan":0,"timeline":"p5-policy"})
     write_json(refdir / "manifest.json", scoped)
     write_json(output / "fixtures.json", {"cases": fixtures})
-    print(f"Prepared {len(fixtures)} original-source-hash-verified fixtures: {output}")
+    print(f"Prepared {len(fixtures)} fixtures (90 retained source-hash cases plus 3 independent P5 policy cases when --p4): {output}")
 
 
 def compare_output(output):
@@ -178,6 +183,19 @@ def compare_output(output):
                             "event_timeline": []}, indent=2).encode()
         (output / "candidate" / case["events_file"]).write_bytes(evraw)
         case["audio_sha256"], case["events_sha256"] = digest(raw), digest(evraw)
+    policy=[]
+    for buffer in (64,333,1024):
+        cid=f"p5_policy_{buffer}";path=output/"policy-candidate"/(cid+".f32")
+        if not path.exists():continue
+        raw=array("f");raw.frombytes(path.read_bytes())
+        trace=json.loads((output/"policy-candidate"/(cid+".engine-events.json")).read_text())
+        expected=[0 if frame<3000 else .2*(8/15)*(.5 if frame<4500 else .75 if frame<6000 else 1) for frame in range(12000)]
+        error=max(abs(raw[frame*2+channel]-expected[frame]) for frame in range(12000) for channel in (0,1))
+        notes=[event["samplePosition"] for event in trace["events"] if event["kind"]=="NoteOn"]
+        if error>1e-6 or notes!=[3000] or not trace["compiled"] or trace["overflow"] or trace["failures"]:raise ValueError(f"{cid}: policy error={error},notes={notes},compiled={trace['compiled']}")
+        policy.append({"id":cid,"max_error":error,"note_frames":notes,"compiled":trace["compiled"]})
+    write_json(output/"p5-policy-result.json",{"cases":policy,"scope":"Independent policy PCM/event oracle; no Renoise/native parity claim"})
+    if policy:print(f"P5 independent policy PCM/events: {len(policy)}/3 passed")
     manifest["reference_engine"] = "P3 same-struct compiled Burst offline renderer"
     write_json(output / "candidate/manifest.json", manifest)
 

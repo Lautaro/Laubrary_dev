@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Added the native P5 command profile, fractional delay, per-source command memory, foreground bundle ownership, bounded sample pitch/loops, device addressing, tick/point automation and silent seek reconstruction. Added source-device/slice metadata and prepared future-note preset parameter sets without cloning canonical instrument slots. Unsupported contexts and unsafe legacy conversions remain preserved and diagnosed. The existing golden and standalone forced-GC/lifecycle harnesses now exercise active P5 commands and automation; exact evidence and limits are in P5_VERIFICATION.md. The existing DLL authoring backend remains active for P7 retirement.
+
 - Independent P4 review corrected paired-sample loop release so B resumes forward from its own cursor without changing A's loop policy, and rejects phase-depth routes with physical units from the wrong sound family while preserving neighboring valid routes. Added two focused regressions and reran the native comparisons and a fresh standalone GC/lifecycle proof after the renderer fix.
 
 - Added P4 subtractive/blended/unison synth, four-operator FM algorithms 0–5 and independent paired-sample Mix/Ring/Sync/PM. Added seeded white/pink noise, compiled waveform/loop provenance, glide and detune corrections, typed audio-thread macro routing and external identity resolution. Shared set/target/observe/external/amplitude operations are available to P5; raw legacy command migration and the active DLL authoring backend remain unchanged. Extended the existing native golden adapter and standalone forced-GC/lifetime proof; see P4_VERIFICATION.md for exact scope and results.

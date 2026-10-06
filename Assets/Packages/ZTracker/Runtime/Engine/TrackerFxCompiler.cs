@@ -35,6 +35,27 @@ namespace Laubrary.ZTracker.Engine
         };
         static readonly float[][] ModMin = {new float[]{0,0},new float[]{-4,0,0,0,0,.01f,-1},new float[]{-1,-1,.1f},new float[]{0,1,0,0,0,0},new float[]{0}};
         static readonly float[][] ModMax = {new float[]{30,1},new float[]{4,50,3,1,1,10,1},new float[]{1,1,10},new float[]{1,10000,1,1,1,1},new float[]{1}};
+        internal static string ParameterUnits(ZoundEffectType type,int parameter)
+        {
+            switch(type){
+                case ZoundEffectType.Gain:return "linear";
+                case ZoundEffectType.Delay:return parameter==0||parameter==3?"milliseconds":parameter==4?"boolean":"normalized";
+                case ZoundEffectType.LowPass:case ZoundEffectType.HighPass:return parameter==0?"hertz":"Q";
+                case ZoundEffectType.Limiter:return parameter==0?"decibels":"milliseconds";
+                case ZoundEffectType.Compressor:return parameter==0||parameter==4?"decibels":parameter==1?"ratio":"milliseconds";
+                case ZoundEffectType.Reverb:return "normalized";
+                case ZoundEffectType.Flanger:return parameter==0?"hertz":parameter==1?"milliseconds":"normalized";
+                case ZoundEffectType.Chorus:return parameter==0?"hertz":parameter==1?"milliseconds":parameter==2?"integer":"normalized";
+                case ZoundEffectType.Phaser:return parameter==0?"hertz":parameter==2?"integer":"normalized";
+                case ZoundEffectType.BitCrush:return parameter==0?"integer":parameter==1?"ratio":"normalized";
+                case ZoundEffectType.Distortion:return parameter==0?"linear":"normalized";
+                case ZoundEffectType.EQ:return parameter<7?"decibels":"hertz";
+                case ZoundEffectType.Normalize:return "decibels";
+                case ZoundEffectType.Fade:return parameter<2?"seconds":"normalized";
+                case ZoundEffectType.TransientShaper:return parameter<2?"decibels":"milliseconds";
+                default:return "unsupported";
+            }
+        }
         public static TrackerChain Compile(AudioEffectChainData chain, int start, int end, int rate)
         {
             if (chain == null) throw new ArgumentException("Missing effect chain");

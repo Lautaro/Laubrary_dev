@@ -80,8 +80,8 @@ namespace Laubrary.ZTracker.Engine
             v.blendCurrent=Written(v.instrument,TrackerParameter.Blend)?VoiceParameter(in v,TrackerParameter.Blend):tone.baseBlend;v.pmCurrent=Written(v.instrument,TrackerParameter.PMDepth)?VoiceParameter(in v,TrackerParameter.PMDepth):tone.basePM;v.ratioCurrent=VoiceParameter(in v,TrackerParameter.WaveBRatio);v.pulseCurrent=VoiceParameter(in v,TrackerParameter.PulseWidth);v.detuneCurrent=state.parameterBase[v.instrument*TrackerParameters.Stride+(int)TrackerParameter.UnisonDetune];
             v.noiseA=Seed((uint)v.cohort,(uint)member,1);v.noiseB=Seed((uint)v.cohort,(uint)member,2);v.directionB=tone.loopB==SampleLoop.Backward?-1:1;v.positionB=tone.loopB==SampleLoop.Backward?tone.loopEndB-1:0;
             v.vibratoSmooth=v.arpSmooth=1;v.vibratoFade=VoiceParameter(in v,TrackerParameter.VibratoFadeIn)>0?0:1;
-            if(tone.kind!=0){float freq=440*math.pow(2f,(v.note-69)*(1f/12f));float fine=math.pow(2f,(tone.baseGlobalTune+v.memberSpread*v.detuneCurrent)*(1f/1200f));v.step=math.asfloat(math.asint(freq*fine))/(double)state.sampleRate;}
-            if(tone.pcmB>=0){var clip=state.clips[tone.pcmB];float ne=(v.note-69)*(1f/12f),be=(tone.baseNoteB-69)*(1f/12f),fe=tone.fineTuneB*(1f/1200f);v.stepB=sample.legacyPan?(math.pow(2f,(ne-be)+fe)*math.asfloat(0x3f7fffff))*(clip.frequency/(double)state.sampleRate):math.pow(2d,(v.note-tone.baseNoteB+tone.fineTuneB/100)/12d)*(clip.frequency/(double)state.sampleRate);}
+            if(tone.kind!=0){double cents=tone.baseGlobalTune+(double)v.memberSpread*v.detuneCurrent;if(math.abs(cents)<12000){float freq=440*math.pow(2f,(v.note-69)*(1f/12f));float fine=math.pow(2f,(float)cents*(1f/1200f));v.step=math.asfloat(math.asint(freq*fine))/(double)state.sampleRate;}else v.step=SafeInitialStep(440d/state.sampleRate,(v.note-69)/12d+cents/1200d);}
+            if(tone.pcmB>=0){var clip=state.clips[tone.pcmB];float ne=(v.note-69)*(1f/12f),be=(tone.baseNoteB-69)*(1f/12f),fe=tone.fineTuneB*(1f/1200f);double boundedB=SafeInitialStep(clip.frequency/(double)state.sampleRate,(v.note-tone.baseNoteB+(double)tone.fineTuneB/100)/12d);v.stepB=math.abs(tone.fineTuneB)>12000?boundedB:sample.legacyPan?(math.pow(2f,(ne-be)+fe)*math.asfloat(0x3f7fffff))*(clip.frequency/(double)state.sampleRate):math.pow(2d,(v.note-tone.baseNoteB+tone.fineTuneB/100)/12d)*(clip.frequency/(double)state.sampleRate);}
             if(tone.glide&&(!tone.legato||held)&&previousNote!=v.note)v.glideCurrent=math.pow(2d,(previousNote-v.note)/12d);else v.glideCurrent=1;
             float speed=PointCurve(tone.arpPoints,tone.arpPointCount,0,false);v.arpStep=math.max(1,speed*state.sampleRate/(tone.arpPerNote?1:math.max(1,tone.arpNoteCount)));
             if(tone.arpNoteCount>=2){float first=state.points[tone.arpNotes].value;v.step*=math.pow(2d,first/12d);}
@@ -108,8 +108,16 @@ namespace Laubrary.ZTracker.Engine
             if(tone.kind!=0)fine+=v.memberSpread*(v.detuneCurrent-state.parameterBase[ii*TrackerParameters.Stride+(int)TrackerParameter.UnisonDetune]);
             double exponent=math.log2(step)+pitch/12d+fine/1200d;
             if(!math.isfinite(exponent))return double.NaN;
-            if(exponent < -20 || exponent > 20){if(!v.pitchLimited){v.pitchLimited=true;Emit(TrackerEventKind.Diagnostic,v.track,v.column,v.note,v.instrument,(int)TrackerRuntimeDiagnostic.PitchLimit);}return math.pow(2d,math.clamp(exponent,-20,20));}
+            if(exponent < -20 || exponent > 20){ReportPitchLimit(ref v);return math.pow(2d,math.clamp(exponent,-20,20));}
             return step*math.pow(2d,pitch/12d+fine/1200d);
+        }
+        void ReportPitchLimit(ref TrackerVoice voice)
+        {
+            if(voice.pitchLimited)return;
+            bool reported=false;
+            for(int i=0;i<state.voices.Length;i++)if(state.voices[i].active&&state.voices[i].cohort==voice.cohort&&state.voices[i].pitchLimited)reported=true;
+            voice.pitchLimited=true;
+            if(!reported)Emit(TrackerEventKind.Diagnostic,voice.track,voice.column,voice.note,voice.instrument,(int)TrackerRuntimeDiagnostic.PitchLimit);
         }
         static double SafeInitialStep(double rate,double exponent)
         {

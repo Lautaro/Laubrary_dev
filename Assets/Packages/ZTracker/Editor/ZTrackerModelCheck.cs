@@ -160,7 +160,7 @@ namespace Laubrary.ZTracker.Editor
                 var data = ZTrackerMigration.Convert(new InstrumentParameters {type = InstrumentType.Synth},"modern synth");
                 var set = new ModulationSet {id = "modern",filterType = 3}; int index = 0;
                 foreach (ModulationDeviceKind kind in Enum.GetValues(typeof(ModulationDeviceKind))) set.devices.Add(new ModulationDevice {
-                    id = "device-" + index,kind = kind,target = (ModulationTarget)index++,operation = ModulationOperation.Add,hold = .1f,rate = 4,phase = .7f,min = -1,max = 2,curve = 2,
+                    id = "device-" + index,kind = kind,target = (ModulationTarget)(index++ % Enum.GetValues(typeof(ModulationTarget)).Length),operation = ModulationOperation.Add,hold = .1f,rate = 4,phase = .7f,min = -1,max = 2,curve = 2,
                     points = new List<ModulationPoint> {new ModulationPoint {time = 0,value = 0},new ModulationPoint {time = 1,value = 1}},sustainEnabled = true,sustainPosition = .5,loopEnabled = true,loop = SampleLoop.PingPong,loopStart = .25,loopEnd = 1 });
                 data.modulation.Add(set); var chain = new AudioEffectChainData(); chain.nodes.Add(new AudioEffectNodeData {uid = "fx",p = new[] {.25f}}); data.fxChains.Add(chain);
                 data.externalParameters.Add(new ExternalParameterMapping {externalId = "stand-in-vst/parameter-12",mapping = new Mapping {target = new ParameterTarget {kind = ParameterKind.Synth,parameter = "blend"},min = -1,max = 2,curve = 3}});

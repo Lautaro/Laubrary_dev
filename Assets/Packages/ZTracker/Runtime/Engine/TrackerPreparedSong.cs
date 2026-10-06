@@ -121,7 +121,7 @@ namespace Laubrary.ZTracker.Engine
                         }
                         if(s.loop!=SampleLoop.Off&&(s.loopStartFrame<0||s.loopEndFrame>s.pcm.samples||s.loopEndFrame-s.loopStartFrame<2))throw new ArgumentException("Loop must contain at least two frames and fit PCM");
                     }
-                    var sm=new TrackerSample{pcm=clipIndex,instrument=i,volume=s.volume*data.sampler.volume,pan=CombinePan(data.sampler.pan,s.pan),tune=s.transpose+data.sampler.transpose+(s.fineTuneCents+data.sampler.fineTuneCents)/100,loop=s.loop,loopStart=s.loopStartFrame,loopEnd=s.loopEndFrame,releaseExitsLoop=s.releaseExitsLoop,interpolation=s.interpolation,oneShot=s.oneShot,nna=s.nna,fxChain=s.fxChain,muteGroup=s.muteGroup,modStart=mods.Count,cutoff=20000,resonance=.707f,attack=0,decay=0,sustain=1,release=.05f,delayDestination=-1,reverbDestination=-1};
+                    var sm=new TrackerSample{pcm=clipIndex,instrument=i,volume=s.volume*data.sampler.volume,pan=CombinePan(data.sampler.pan,s.pan),tune=(float)(s.transpose+data.sampler.transpose+((double)s.fineTuneCents+data.sampler.fineTuneCents)/100),loop=s.loop,loopStart=s.loopStartFrame,loopEnd=s.loopEndFrame,releaseExitsLoop=s.releaseExitsLoop,interpolation=s.interpolation,oneShot=s.oneShot,nna=s.nna,fxChain=s.fxChain,muteGroup=s.muteGroup,modStart=mods.Count,cutoff=20000,resonance=.707f,attack=0,decay=0,sustain=1,release=.05f,delayDestination=-1,reverbDestination=-1};
                     bool amplitudeEnvelope=false;
                     if(s.modulationSet>=0){var set=data.modulation[s.modulationSet];sm.filterType=set.filterType;if(set.filterType<0||set.filterType>3)throw new ArgumentException("Unknown sampler filter");foreach(var m in set.devices)if(m.enabled){ValidateMod(m);bool primary=!amplitudeEnvelope&&m.kind==ModulationDeviceKind.AHDSR&&m.target==ModulationTarget.Volume;if(primary){sm.attack=m.attack;sm.hold=m.hold;sm.decay=m.decay;sm.sustain=math.saturate(m.sustain);sm.release=m.release;amplitudeEnvelope=true;sm.orderedVolume=true;}AddMod(m,mods,points,primary);}}
                     // Typed retained extension is part of v1 authority; conversion is preparation-only.
@@ -145,7 +145,7 @@ namespace Laubrary.ZTracker.Engine
                     sm.localVolume=s.volume;sm.localPan=s.pan;sm.regionStart=s.regionStartFrame;sm.regionEnd=s.regionEndFrame>0?s.regionEndFrame:s.pcm!=null?s.pcm.samples:0;
                     sm.legacyPan=NativeProvenance(data.provenance);
                     sm.legacySamplePitch=sm.legacyPan&&!s.legacyKitDefaults;
-                    sm.legacyTranspose=s.transpose+data.sampler.transpose;sm.legacyFineTuneCents=s.fineTuneCents+data.sampler.fineTuneCents;
+                    sm.legacyTranspose=s.transpose+data.sampler.transpose;sm.legacyFineTuneCents=(float)math.clamp((double)s.fineTuneCents+data.sampler.fineTuneCents,-float.MaxValue,float.MaxValue);
                     if(!sm.legacyPan)sm.pan=math.clamp(data.sampler.pan+s.pan,-1,1);
                     sm.modCount=mods.Count-sm.modStart;stride=Math.Max(stride,sm.modCount);if(stride>64)throw new ArgumentException("More than 64 modulation devices per sample");samples.Add(sm);
                 }
@@ -181,9 +181,10 @@ namespace Laubrary.ZTracker.Engine
         }
         static int Output(TrackData t,Dictionary<string,int> map,int master)=>t.kind==TrackKind.Master?-1:t.outputTrackId!=""?map[t.outputTrackId]:t.parentGroupId!=""?map[t.parentGroupId]:master;
         internal static float CombinePan(float a,float b){float r=(a+1)*.5f;r=b<0?r*(1+b):r+(1-r)*b;return r*2-1;}
-        static void AddMod(ModulationDevice m,List<TrackerMod> mods,List<TrackerModPoint> points,bool primaryEnvelope=false)
+        void AddMod(ModulationDevice m,List<TrackerMod> mods,List<TrackerModPoint> points,bool primaryEnvelope=false)
         {
             ValidateMod(m);
+            if(m.kind==ModulationDeviceKind.Stepper)diagnostics.Add("STEPPER_PRESERVED target="+m.target+" raw="+m.rawSource);
             mods.Add(new TrackerMod{target=m.target,kind=m.kind,operation=m.operation,attack=m.attack,hold=m.hold,decay=m.decay,sustain=m.sustain,release=m.release,rate=m.rate,depth=m.depth,phase=m.phase,min=m.min,max=m.max,curve=m.curve,points=points.Count,pointCount=m.points.Count,shape=m.lfoShape,sustainPosition=m.sustainPosition,sustainEnabled=m.sustainEnabled,loopStart=m.loopStart,loopEnd=m.loopEnd,loopEnabled=m.loopEnabled,loop=m.loop,primaryEnvelope=primaryEnvelope,fadeSeconds=m.duration});
             foreach(var p in m.points)points.Add(new TrackerModPoint{time=p.time,value=p.value,exponent=p.exponent});
         }
@@ -199,7 +200,7 @@ namespace Laubrary.ZTracker.Engine
             if(Disposed)return;if(Published)throw new InvalidOperationException("Stop host publication and confirm ticket quiet before freeing a published song");Disposed=true;
             for(int i=0;i<state.chainCount;i++){state.chains[i].processor.Dispose();state.chains[i].layout.Dispose();}
             if(state.chains!=null)UnsafeUtility.Free(state.chains,Allocator.Persistent);
-            Free(ref state.deviceDirty);Free(ref state.parameterDirty);Free(ref state.parameterSets);Free(ref state.presetParameters);Free(ref state.ops);Free(ref state.descriptors);Free(ref state.commandMemory);Free(ref state.sliceMarkers);Free(ref state.occurrences);Free(ref state.devices);Free(ref state.deviceParameters);Free(ref state.automation);Free(ref state.automationPoints);
+            Free(ref state.routeQueue);Free(ref state.routeMarks);Free(ref state.deviceDirty);Free(ref state.parameterDirty);Free(ref state.parameterSets);Free(ref state.presetParameters);Free(ref state.ops);Free(ref state.descriptors);Free(ref state.commandMemory);Free(ref state.sliceMarkers);Free(ref state.occurrences);Free(ref state.devices);Free(ref state.deviceParameters);Free(ref state.automation);Free(ref state.automationPoints);
             Free(ref state.tones);Free(ref state.toneEnvelopes);Free(ref state.parameterBase);Free(ref state.parameterDirect);Free(ref state.parameterLive);Free(ref state.parameterWritten);Free(ref state.macros);Free(ref state.macroRoutes);Free(ref state.externalRoutes);
             Free(ref state.pcm);Free(ref state.left);Free(ref state.right);Free(ref state.busLeft);Free(ref state.busRight);Free(ref state.outputLeft);Free(ref state.outputRight);Free(ref state.faderGain);Free(ref state.faderPan);Free(ref state.clips);Free(ref state.samples);Free(ref state.instruments);Free(ref state.zones);Free(ref state.mods);Free(ref state.points);Free(ref state.modulationState);Free(ref state.voices);Free(ref state.columns);Free(ref state.tracks);Free(ref state.sends);Free(ref state.order);Free(ref state.patterns);Free(ref state.rows);Free(ref state.cells);Free(ref state.commands);Free(ref state.authoredEvents);Free(ref state.sequence);Free(ref state.sequenceMutes);Free(ref state.outputMutes);Free(ref state.buses);Free(ref state.ticket);state=default;
         }

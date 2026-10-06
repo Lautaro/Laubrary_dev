@@ -87,9 +87,9 @@ namespace Laubrary.ZTracker.Engine
         static IEnumerable<ExternalSourceDevice> ExternalDevices(TrackData track)
         {
             foreach(var device in track.externalSources)yield return device;
-            foreach(var source in track.sourceDevices)if(source.kind==SourceDeviceKind.InstrumentAutomation&&!track.externalSources.Any(d=>d.id==source.id)){
-                int count=source.parameters.Count==0?0:Math.Min(35,source.parameters.Max(p=>p.ordinal));
-                yield return new ExternalSourceDevice{id=source.id,pluginId=source.pluginId,instrumentId=source.instrumentId,sourceOrdinal=source.ordinal,parameterNumbers=Enumerable.Range(1,count).Select(p=>source.parameters.Find(s=>s.ordinal==p)?.externalId??"").ToList()};
+            foreach(var source in track.sourceDevices)if(source!=null&&source.parameters!=null&&source.kind==SourceDeviceKind.InstrumentAutomation&&!track.externalSources.Any(d=>d.id==source.id)){
+                int count=source.parameters.Count==0?0:Math.Min(35,source.parameters.Where(p=>p!=null).Select(p=>p.ordinal).DefaultIfEmpty(0).Max());
+                yield return new ExternalSourceDevice{id=source.id,pluginId=source.pluginId,instrumentId=source.instrumentId,sourceOrdinal=source.ordinal,parameterNumbers=Enumerable.Range(1,count).Select(p=>source.parameters.Find(s=>s!=null&&s.ordinal==p)?.externalId??"").ToList()};
             }
         }
         int ReadP4Clip(AudioClip clip,List<float> pcm,List<TrackerPcm> clips,Dictionary<AudioClip,int> map)

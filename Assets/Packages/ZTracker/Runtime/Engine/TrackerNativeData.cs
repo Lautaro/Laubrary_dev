@@ -10,7 +10,7 @@ using Unity.Mathematics;
 namespace Laubrary.ZTracker.Engine
 {
     public enum TrackerEventKind { Row, Tick, NoteOn, NoteOff, Beat, Authored, VoiceStolen, PreparedSwap, Stopped, Diagnostic, Started }
-    public enum TrackerRuntimeDiagnostic { SeekUnreachable=1, PitchLimit=2, InvalidPitch=3, BreakClamped=4, EmptyMemory=5, DelayOutsideRow=6, CutOutsideRow=7, GlideNoTarget=8, ExclusiveNoWeight=9, SharedFxStop=10, InvalidClock=11, ClockLimit=12, SliceOutside=13, GlideWithoutVoice=14, GlideInstrumentChanged=15, InstrumentUnresolved=16 }
+    public enum TrackerRuntimeDiagnostic { SeekUnreachable=1, PitchLimit=2, InvalidPitch=3, BreakClamped=4, EmptyMemory=5, DelayOutsideRow=6, CutOutsideRow=7, GlideNoTarget=8, ExclusiveNoWeight=9, SharedFxStop=10, InvalidClock=11, ClockLimit=12, SliceOutside=13, GlideWithoutVoice=14, GlideInstrumentChanged=15, InstrumentUnresolved=16, SeekVoiceStateDiscarded=17, SampleDomainUnsupported=18, RouteCycle=19, StopExpandsSendContributors=20 }
     public struct TrackerEvent
     {
         public TrackerEventKind kind;
@@ -122,7 +122,7 @@ namespace Laubrary.ZTracker.Engine
         public long cohort, due;
         public double dueExact;
         public int pendingNote, pendingInstrument, pendingVelocity, pendingCell;
-        public bool pendingOff;
+        public bool pendingOff, localsPending;
         public int previousNote;
         public bool hasPreviousNote;
         public int glideTarget;
@@ -141,7 +141,7 @@ namespace Laubrary.ZTracker.Engine
     public struct TrackerRow { public int cells, cellCount, commands, commandCount, events, eventCount, ops, opCount; }
     public struct TrackerOp { public int track, column, source, priority, kind, value, bank, target; public bool shorthand; }
     public struct TrackerDevice { public int track, ordinal, parameters, count, kind; public bool enabled, authoredEnabled; }
-    public struct TrackerDeviceParameter { public int device, ordinal, kind, track, instrument, parameter, chain, node, route, points, pointCount; public float latent, emitted, authored, min, max, quantum, lower; }
+    public struct TrackerDeviceParameter { public int device, ordinal, kind, track, instrument, parameter, chain, node, route, points, pointCount; public float latent, emitted, authored, min, max, quantum, lower; public bool authoredPresent, written; }
     public struct TrackerAutomation { public int pattern, target, points, count; public bool linear, timing; }
     public struct TrackerAutomationPoint { public double line; public float value; }
     public struct TrackerClockCommand { public int kind, value; } // 1 BPM, 2 LPB, 3 TPL, 4 break
@@ -220,6 +220,7 @@ namespace Laubrary.ZTracker.Engine
         public NativeArray<TrackerParameterSet> parameterSets;
         public NativeArray<float> presetParameters;
         public NativeArray<byte> deviceDirty, parameterDirty;
+        public NativeArray<int> routeQueue,routeMarks;
         [NativeDisableContainerSafetyRestriction] public NativeArray<long> ticket;
         [NativeDisableUnsafePtrRestriction] public TrackerChain* chains;
         public int chainCount, pcmCount, sampleCount, instrumentCount, trackCount, busCount, columnCount, modStride;

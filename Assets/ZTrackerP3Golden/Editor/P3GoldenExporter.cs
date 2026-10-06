@@ -68,6 +68,7 @@ namespace Laubrary.ZTracker.Verification
 
         static string Render(Fixture fixture, string output, List<UnityEngine.Object> temporary)
         {
+            string candidateDirectory=Path.Combine(output,fixture.timeline=="p5-policy"?"policy-candidate":"candidate");Directory.CreateDirectory(candidateDirectory);
             var clips = new AudioClip[fixture.samples.Length];
             for (int i = 0; i < clips.Length; i++)
             {
@@ -140,6 +141,14 @@ namespace Laubrary.ZTracker.Verification
                 if(fixture.timeline=="portamento")notes.WriteLine(new PatternLine{line=1,notes=new List<NoteCell>{new NoteCell{note=NoteKind.Note,pitch=72,instrumentPresent=true,instrument=0}}});
                 notes.WriteLine(new PatternLine{line=3,notes=new List<NoteCell>{new NoteCell{note=NoteKind.Off}}});
             }
+            if(fixture.timeline=="p5-policy"){
+                song.ticksPerLine=4;song.beatTicks=false;
+                var instrument=song.instruments[0];instrument.model.provenance="";
+                instrument.model.macros[0].value=0;instrument.model.macros[0].mappings.Clear();instrument.model.macros[0].mappings.Add(TrackerP4Check.Route("volume",0,1));
+                var device=new SourceDeviceData{id="policy-macro",ordinal=1,kind=SourceDeviceKind.InstrumentMacros,instrumentId=instrument.model.id};device.parameters.Add(new SourceParameterData{ordinal=1});song.tracks[0].sourceDevices.Add(device);
+                notes.lines.Clear();notes.WriteLine(new PatternLine{line=0,notes=new List<NoteCell>{new NoteCell{note=NoteKind.Note,pitch=69,instrumentPresent=true,instrument=0,delayPresent=true,delay=128,sampleFx=TrackerP5Check.Fx("0C",128)}},effects=new List<EffectCell>{new EffectCell{command=TrackerP5Check.Fx("11",255)}}});
+                notes.automation.Add(new AutomationLane{id="policy-lane",target=new ParameterTarget{kind=ParameterKind.Device,deviceId="policy-macro",index=0},interpolation=AutomationInterpolation.Linear,points=new List<AutomationPoint>{new AutomationPoint{line=0,value=0},new AutomationPoint{line=1,value=1}}});
+            }
             song.patterns.Add(pattern);
             song.sequence.Add(new SequenceSlot { id = "slot", patternId = "pattern" });
             var trace = new Trace { sequenced = fixture.sequenced };
@@ -148,7 +157,7 @@ namespace Laubrary.ZTracker.Verification
             using (var engine = new TrackerOffline(TrackerPreparedSong.Prepare(song, 48000, Math.Max(4096, fixture.buffer))))
             using (var left = new NativeArray<float>(Math.Max(4096, fixture.buffer), Allocator.Persistent))
             using (var right = new NativeArray<float>(left.Length, Allocator.Persistent))
-            using (var stream = File.Create(Path.Combine(output, "candidate", fixture.id + ".f32")))
+            using (var stream = File.Create(Path.Combine(candidateDirectory, fixture.id + ".f32")))
             using (var writer = new BinaryWriter(stream))
             {
                 foreach (var block in fixture.blocks)
@@ -197,7 +206,7 @@ namespace Laubrary.ZTracker.Verification
                 trace.compiled = engine.Compiled;
                 trace.overflow = engine.EventOverflow;
             }
-            File.WriteAllText(Path.Combine(output, "candidate", fixture.id + ".engine-events.json"), JsonUtility.ToJson(trace, true));
+            File.WriteAllText(Path.Combine(candidateDirectory, fixture.id + ".engine-events.json"), JsonUtility.ToJson(trace, true));
             return fixture.id + " rendered=" + position + " compiled=" + trace.compiled + " overflow=" + trace.overflow + " failures=" + trace.failures.Count;
         }
 

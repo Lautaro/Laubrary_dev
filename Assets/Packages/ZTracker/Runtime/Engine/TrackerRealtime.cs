@@ -73,9 +73,9 @@ namespace Laubrary.ZTracker.Engine
         void ClockCommands(in TrackerRow row)=>RowGlobals(in row);
         void Seek(int sequence,int row)
         {
-            bool resume=state.playing;ClearVoices();ResetChains();ResetColumns();ResetDefaults();ResetCommandState();state.playing=false;state.sequenceIndex=0;state.row=0;state.tick=0;state.rowStart=0;state.clockCompensation=0;state.silentReplay=true;
+            bool resume=state.playing;bool discarded=false;ClearVoices();ResetChains();ResetColumns();ResetDefaults();ResetCommandState();state.playing=false;state.sequenceIndex=0;state.row=0;state.tick=0;state.rowStart=0;state.clockCompensation=0;state.silentReplay=true;
             for(int visited=0;visited<1000000;visited++){
-                if(state.sequenceIndex==sequence&&state.row==row){state.silentReplay=false;state.transportOrigin=state.samplePosition-Quantize(state.rowStart);state.rowPending=true;state.playing=resume;return;}
+                if(state.sequenceIndex==sequence&&state.row==row){state.silentReplay=false;state.transportOrigin=state.samplePosition-Quantize(state.rowStart);state.rowPending=true;state.playing=resume;if(discarded)Emit(TrackerEventKind.Diagnostic,payload:(int)TrackerRuntimeDiagnostic.SeekVoiceStateDiscarded);return;}
                 var pattern=state.patterns[state.sequence[state.sequenceIndex].pattern];var rr=state.rows[pattern.rows+state.row];EvaluateAutomation(state.row,true);RowGlobals(in rr);if(state.bpm==0||state.linesPerBeat==0)break;
                 int occurrence=state.sequenceIndex*state.rows.Length+pattern.rows+state.row;state.rowOccurrence=state.occurrences[occurrence]++;
                 EvaluateAutomation(state.row);ResolveRowCommands(in rr);RowScalarWrites(in rr);
@@ -86,8 +86,21 @@ namespace Laubrary.ZTracker.Engine
                     if(next>=state.row+1)break;EvaluateAutomation(next);if(tick<state.ticksPerLine&&next==state.row+tick/(double)state.ticksPerLine)tick++;evaluated=next;
                 }
                 if(state.holdRemaining>0)EvaluateAutomation(state.row+1);
-                for(int i=0;i<rr.cellCount;i++){var c=state.cells[rr.cells+i];int ci=state.tracks[c.track].columns+c.column;var col=state.columns[ci];if(!col.launchSuppressed&&c.instrumentPresent)col.instrument=c.instrument;state.columns[ci]=col;}
-                double duration=state.sampleRate*60d/(state.bpm*state.linesPerBeat);for(int held=0;held<=state.holdRemaining;held++){double y=duration-state.clockCompensation,next=state.rowStart+y;state.clockCompensation=(next-state.rowStart)-y;state.rowStart=next;}state.holdRemaining=0;
+                for(int i=0;i<rr.cellCount;i++){var c=state.cells[rr.cells+i];int ci=state.tracks[c.track].columns+c.column;var col=state.columns[ci];if(c.note>=0)discarded=true;if(!col.launchSuppressed&&c.instrumentPresent&&c.instrument>=0&&c.instrument<state.instrumentCount&&(c.note<0||Eligible(in c)))col.instrument=c.instrument;state.columns[ci]=col;}
+                double duration=state.sampleRate*60d/(state.bpm*state.linesPerBeat);
+                for(int held=0;held<=state.holdRemaining;held++)
+                {
+                    double compensation=state.clockCompensation;
+                    double end=ClockEnd(state.rowStart,duration,ref compensation);
+                    if(!ClockValid(state.rowStart,end,duration,compensation))
+                    {
+                        state.silentReplay=false;state.playing=false;
+                        Emit(TrackerEventKind.Diagnostic,payload:(int)(!math.isfinite(duration)||duration<1?TrackerRuntimeDiagnostic.InvalidClock:TrackerRuntimeDiagnostic.ClockLimit));
+                        return;
+                    }
+                    state.rowStart=end;state.clockCompensation=compensation;
+                }
+                state.holdRemaining=0;
                 state.row++;
                 if(state.breakRow>=0||state.row>=pattern.lineCount){state.sequenceIndex++;if(state.sequenceIndex>=state.sequence.Length)state.sequenceIndex=0;var dest=state.patterns[state.sequence[state.sequenceIndex].pattern];state.row=state.breakRow>=0?math.min(state.breakRow,dest.lineCount-1):0;}
             }
@@ -99,6 +112,14 @@ namespace Laubrary.ZTracker.Engine
             events.Write(new TrackerEvent{kind=kind,samplePosition=state.samplePosition,sequence=state.sequenceIndex,pattern=state.sequence[state.sequenceIndex].pattern,row=state.row,tick=state.tick,track=track,column=column,note=note,instrument=instrument,payload=payload});
         }
         // Binary64 quantizer from COMMANDS.md P-CLOCK; no floating epsilon tied to musical time.
+        public static bool ClockValid(double start,double end,double duration,double compensation)=>math.isfinite(duration)&&duration>=1&&math.isfinite(start)&&start>=0&&math.isfinite(end)&&end<=1099511627776d&&math.isfinite(compensation)&&Quantize(end)>Quantize(start);
+        public static double ClockEnd(double start,double duration,ref double compensation)
+        {
+            double corrected=duration-compensation;
+            double end=start+corrected;
+            compensation=(end-start)-corrected;
+            return end;
+        }
         public static long Quantize(double x)
         {
             double n=math.round(x);long bits=math.aslong(math.max(1,math.abs(x)));int exponent=(int)((bits>>52)&2047)-1023;
@@ -112,9 +133,9 @@ namespace Laubrary.ZTracker.Engine
             EvaluateAutomation(state.row,true);ClockCommands(in rr);
             if(state.bpm==0||state.linesPerBeat==0){var stop=TrackerCommand.Stop();Apply(in stop);return;}
             double duration=(state.sampleRate*60d)/(state.bpm*state.linesPerBeat);state.rowDuration=duration;
-            double y=duration-state.clockCompensation;state.rowEnd=state.rowStart+y;
-            if(!math.isfinite(duration)||duration<1||!math.isfinite(state.rowEnd)||!math.isfinite(state.clockCompensation)||state.rowEnd>1099511627776d||Quantize(state.rowEnd)<=Quantize(state.rowStart)){state.playing=false;ClearVoices();Emit(TrackerEventKind.Diagnostic,payload:(int)(duration<1?TrackerRuntimeDiagnostic.InvalidClock:TrackerRuntimeDiagnostic.ClockLimit));Emit(TrackerEventKind.Stopped);return;}
-            state.clockCompensation=(state.rowEnd-state.rowStart)-y;state.tickDeadline=state.rowStart+duration/state.ticksPerLine;
+            state.rowEnd=ClockEnd(state.rowStart,duration,ref state.clockCompensation);
+            if(!ClockValid(state.rowStart,state.rowEnd,duration,state.clockCompensation)){state.playing=false;ClearVoices();Emit(TrackerEventKind.Diagnostic,payload:(int)(!math.isfinite(duration)||duration<1?TrackerRuntimeDiagnostic.InvalidClock:TrackerRuntimeDiagnostic.ClockLimit));Emit(TrackerEventKind.Stopped);return;}
+            state.tickDeadline=state.rowStart+duration/state.ticksPerLine;
             ResolveRowCommands(in rr);EvaluateAutomation(state.row);RowScalarWrites(in rr);ScheduleAutomationPoint(state.row);
             Emit(TrackerEventKind.Row);Emit(TrackerEventKind.Tick);
             if(state.beatTicks&&state.row%state.beatInterval==0)Emit(TrackerEventKind.Beat);
@@ -131,9 +152,30 @@ namespace Laubrary.ZTracker.Engine
             state.tick++;
             if(state.tick>=state.ticksPerLine){
                 state.tick=0;
-                if(state.holdRemaining>0){if(!state.held)EvaluateAutomation(state.row+1);state.holdRemaining--;state.held=true;state.rowStart=state.rowEnd;double y=state.rowDuration-state.clockCompensation;state.rowEnd=state.rowStart+y;state.clockCompensation=(state.rowEnd-state.rowStart)-y;state.tickDeadline=state.rowStart+state.rowDuration/state.ticksPerLine;state.automationDeadline=double.PositiveInfinity;for(int ci=0;ci<state.columnCount;ci++){var col=state.columns[ci];col.pendingCell=-1;col.due=-1;state.columns[ci]=col;}return;}
+                if(state.holdRemaining>0)
+                {
+                    if(!state.held)EvaluateAutomation(state.row+1);
+                    double start=state.rowEnd,compensation=state.clockCompensation;
+                    double end=ClockEnd(start,state.rowDuration,ref compensation);
+                    if(!ClockValid(start,end,state.rowDuration,compensation))
+                    {
+                        state.playing=false;ClearVoices();
+                        Emit(TrackerEventKind.Diagnostic,payload:(int)TrackerRuntimeDiagnostic.ClockLimit);
+                        Emit(TrackerEventKind.Stopped);
+                        return;
+                    }
+                    state.holdRemaining--;state.held=true;
+                    state.rowStart=start;state.rowEnd=end;state.clockCompensation=compensation;
+                    state.tickDeadline=start+state.rowDuration/state.ticksPerLine;
+                    state.automationDeadline=double.PositiveInfinity;
+                    for(int ci=0;ci<state.columnCount;ci++)
+                    {
+                        var col=state.columns[ci];col.pendingCell=-1;col.due=-1;state.columns[ci]=col;
+                    }
+                    return;
+                }
                 state.row++;var p=state.patterns[state.sequence[state.sequenceIndex].pattern];
-                if(state.breakRow>=0||state.row>=p.lineCount){state.sequenceIndex++;if(state.sequenceIndex>=state.sequence.Length){if(!state.loopSong){state.sequenceIndex=state.sequence.Length-1;state.row=p.lineCount-1;state.playing=false;Emit(TrackerEventKind.Stopped);return;}state.sequenceIndex=0;}
+                if(state.breakRow>=0||state.row>=p.lineCount){state.sequenceIndex++;if(state.sequenceIndex>=state.sequence.Length){if(!state.loopSong&&state.breakRow<0){state.sequenceIndex=state.sequence.Length-1;state.row=p.lineCount-1;state.playing=false;Emit(TrackerEventKind.Stopped);return;}state.sequenceIndex=0;}
                     int lines=state.patterns[state.sequence[state.sequenceIndex].pattern].lineCount;if(state.breakRow>=lines)Emit(TrackerEventKind.Diagnostic,payload:(int)TrackerRuntimeDiagnostic.BreakClamped);state.row=state.breakRow>=0?math.min(state.breakRow,lines-1):0;
                 }
                 state.rowStart=state.rowEnd;state.rowPending=true;EnterRow();
@@ -144,7 +186,7 @@ namespace Laubrary.ZTracker.Engine
         {
             int ci=state.tracks[cell.track].columns+cell.column;
             var previous=state.columns[ci];var col=previous;col.pendingCell=-1;col.due=-1;state.columns[ci]=col;
-            int instrument=cell.instrumentPresent?cell.instrument:col.instrument;
+            int instrument=(cell.note!=-1||cell.instrumentPresent)?col.pendingInstrument:col.instrument;
             if((cell.note>=0||cell.instrumentPresent)&&(instrument<0||instrument>=state.instrumentCount||state.instruments[instrument].zoneCount==0)){
                 Emit(TrackerEventKind.Diagnostic,cell.track,cell.column,payload:(int)TrackerRuntimeDiagnostic.InstrumentUnresolved);return;
             }
@@ -164,6 +206,7 @@ namespace Laubrary.ZTracker.Engine
                 if(state.columns[ci].cohort==previous.cohort){previous.pendingCell=-1;previous.due=-1;state.columns[ci]=previous;return;}
             }
             else for(int i=0;i<state.voices.Length;i++){var v=state.voices[i];if(v.active&&v.cohort==col.cohort){if(cell.volume>=0)v.volume=col.volume;if(cell.pan>=0)v.pan=col.pan;state.voices[i]=v;}}
+            col=state.columns[ci];col.localsPending=false;state.columns[ci]=col;
             InitializeColumn(ci,cell.note>=0&&!glide);
         }
         void Off(int track,int column)
@@ -204,9 +247,11 @@ namespace Laubrary.ZTracker.Engine
                     // into powf(2, noteExponent-baseExponent+fineExponent), multiplied by
                     // float(440*float(1/440)) = 0x3f7fffff. Kit's identical note/base folds to 1.
                     float ne=((zone.tracking?note:zone.baseNote)+sample.legacyTranspose-69)*(1f/12f),be=(zone.baseNote-69)*(1f/12f),fe=sample.legacyFineTuneCents*(1f/1200f);
-                    voice.step=(math.pow(2f,(ne-be)+fe)*math.asfloat(0x3f7fffff))*(clip.frequency/(double)state.sampleRate);
+                    double exponent=(ne-be)+fe;double rate=clip.frequency/(double)state.sampleRate;voice.step=math.abs(exponent)<19?(math.pow(2f,(float)exponent)*math.asfloat(0x3f7fffff))*rate:SafeInitialStep(rate,exponent);
                 }
                 InitTone(ref voice,in tone,in sample,member,col.hasPreviousNote?col.previousNote:note,previousHeld);
+                double sourceExponent=tone.kind==0?math.log2(clip.frequency/(double)state.sampleRate)+((zone.tracking?note-zone.baseNote:0)+(double)sample.tune)/12d:math.log2(440d/state.sampleRate)+(note-69)/12d+((double)tone.baseGlobalTune+voice.memberSpread*voice.detuneCurrent)/1200d;
+                if(math.isfinite(sourceExponent)&&(sourceExponent<-20||sourceExponent>20))ReportPitchLimit(ref voice);
                 voice.filterCutoff=-1;voice.filterQ=-1;state.voices[index]=voice;
                 for(int m=0;m<state.modStride;m++)state.modulationState[index*state.modStride+m]=default;
                 }
@@ -292,7 +337,7 @@ namespace Laubrary.ZTracker.Engine
                     if(v.bus>=0){state.busLeft[at]+=l;state.busRight[at]+=r;}else{state.left[at]+=l;state.right[at]+=r;}
                     if(s.delayDestination>=0&&!Muted(v.track)){int dest=s.delayDestination*state.maxFrames+offset+f;state.left[dest]+=l*s.delaySend;state.right[dest]+=r*s.delaySend;}
                     if(s.reverbDestination>=0&&!Muted(v.track)){int dest=s.reverbDestination*state.maxFrames+offset+f;state.left[dest]+=l*s.reverbSend;state.right[dest]+=r*s.reverbSend;}
-                    double h=math.log2(increment);if(!math.isfinite(h)){v.active=false;Emit(TrackerEventKind.Diagnostic,v.track,v.column,v.note,v.instrument,(int)TrackerRuntimeDiagnostic.InvalidPitch);break;}if((h<-20||h>20)&&!v.pitchLimited){v.pitchLimited=true;Emit(TrackerEventKind.Diagnostic,v.track,v.column,v.note,v.instrument,(int)TrackerRuntimeDiagnostic.PitchLimit);}v.age++;
+                    double h=math.log2(increment);if(!math.isfinite(h)){v.active=false;Emit(TrackerEventKind.Diagnostic,v.track,v.column,v.note,v.instrument,(int)TrackerRuntimeDiagnostic.InvalidPitch);break;}if(h<-20||h>20)ReportPitchLimit(ref v);v.age++;
                     if(tone.kind==0){double previous=v.position;v.position+=math.pow(2d,math.clamp(h,-20,20))*v.direction;AdvancePcm(ref v,in s,in clip);AdvanceB(ref v,in tone,in s,previous);}
                 }
                 state.voices[i]=v;

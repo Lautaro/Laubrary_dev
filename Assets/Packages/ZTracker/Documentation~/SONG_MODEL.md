@@ -1,5 +1,11 @@
 # ZTracker song and instrument data contract
 
+P5 extends the same schema and retained script identities with raw command tokens/presence/provenance, a song random seed, source-device ordinals/kinds/enable state, source parameter defaults/units/endpoints/quantum/explicit-equivalence metadata, retained unsupported automation representation, sample slices/parent identity/region bounds and Fader duration. Stepper is an appended modulation kind whose payload survives serialization; unsupported discrete playback semantics are diagnosed per destination. No existing enum value, schema version or script GUID was reassigned.
+
+Source ordinals describe the original full device chain. An older filtered external-device list does not imply ordinal index+1. Existing explicit external identity calls remain supported, but literal addressed commands and automation require an explicit original ordinal. Older external metadata has no normalized source default: its destination keeps its authored parameter default until a real source setter/lane writes. An explicit source-device parameter supplies a known default. Source identity, parameter slot and external ID remain distinct.
+
+Authoring validation retains its strict P2 contract. Realtime preparation validates structural song data separately from optional command/lane/source conformance, so malformed or unsupported lanes can remain byte-preserved while neighboring supported lanes compile. Preparation performs this isolation on a copy; it never changes the authored lane's unsupported flag or raw fields. Preset IDs bind prepared parameter sets for future launches; the canonical instrument slot and already-playing bundles retain their identities.
+
 P2 introduces version 1 authoring data. It implements architecture sections 2, 3-data and 4-data, and migration decision 7. The retained script assets remain global `ZTrackerSong` and `ZTrackerInstrument` in assembly `ZTracker`. Their existing script GUIDs are `c9234bbc80b22ff41a0ffb03c40c7bad` and `2b96e89e657daa44898819eea2fce0f6`; their files and metas were not replaced. Legacy `InstrumentType` remains Sample=0, Synth=1, Kit=2, FM=3. The new instrument family and synth mode use separate enums.
 
 ## Ownership and versions
