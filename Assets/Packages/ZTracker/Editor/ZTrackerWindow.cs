@@ -29,7 +29,6 @@ namespace Laubrary.ZTracker.Editor
         int followedRow = -1;
         ZTrackerLegacyEdit gesture;
         ZTrackerPattern Pattern => song != null && song.orderList.Count > 0 && song.patterns.Count > 0 ? song.patterns[Mathf.Clamp(song.orderList[Mathf.Clamp(order, 0, song.orderList.Count - 1)], 0, song.patterns.Count - 1)] : null;
-        [MenuItem("Laubrary/ZTracker")]
         public static void Open() => GetWindow<ZTrackerWindow>("ZTracker");
         protected override void BuildUI(VisualElement root)
         {

@@ -12,6 +12,7 @@ namespace Laubrary.ZTracker.Engine
 {
     /// <summary>Opt-in SAP host. Existing legacy playback is unchanged until P7. One generator instance consumes one prepared song.</summary>
     [RequireComponent(typeof(AudioSource))]
+    [ExecuteAlways]
     public sealed unsafe class TrackerSapGenerator : MonoBehaviour,IAudioGenerator
     {
         public bool isFinite=>false;
@@ -42,7 +43,7 @@ namespace Laubrary.ZTracker.Engine
         }
         public bool SendCommand(TrackerCommand command)
         {
-            if(!accepting||TrackerSapRegistry.RefuseNewRendering||initial==null||command.kind==TrackerCommandKind.Swap)return false;
+            if(!accepting||TrackerSapRegistry.RefuseNewRendering||initial==null||command.kind==TrackerCommandKind.Swap||command.kind==TrackerCommandKind.PreserveSwap)return false;
             if(!hasInstance){pending.Add(command);return true;}
             if(!ControlContext.builtIn.Exists(instance))return false;
             return ControlContext.builtIn.SendMessage(instance,ref command)==Response.Handled;
@@ -60,6 +61,17 @@ namespace Laubrary.ZTracker.Engine
             var command=new TrackerCommand{kind=TrackerCommandKind.Swap,replacement=replacement};
             if(ControlContext.builtIn.SendMessage(instance,ref command)!=Response.Handled)return false;
             // Ownership is transferred before the graph can use the queued replacement. No main-thread reads of its arrays follow.
+            next.Published=true;owned.Add(next);current=next;return true;
+        }
+        public bool RefreshPrepared(TrackerPreparedSong next,out string reason)
+        {
+            reason=null;
+            if(current==null||next==null||next.Published||next.Disposed||!accepting||TrackerSapRegistry.RefuseNewRendering){reason="Preview unavailable";return false;}
+            if(!next.PreparePreserving(current,out reason))return false;
+            if(!hasInstance){reason="Preview is still starting; retry the edit after playback begins";return false;}
+            if(!ControlContext.builtIn.Exists(instance)){reason="Preview graph unavailable";return false;}
+            var command=new TrackerCommand{kind=TrackerCommandKind.PreserveSwap,replacement=next.state};
+            if(ControlContext.builtIn.SendMessage(instance,ref command)!=Response.Handled){reason="Live command was not accepted";return false;}
             next.Published=true;owned.Add(next);current=next;return true;
         }
         public long EventOverflow=>hasRing?ring.OverflowCount:0;
@@ -85,6 +97,7 @@ namespace Laubrary.ZTracker.Engine
             return SapLifetime.WaitUntilQuiet(owned.Count,i=>SapRenderTicket.Read(owned[i].state.ticket),settle,timeout);
         }
         void Update(){CollectRetired();TrackerSapRegistry.Tick();}
+        public void PollRetirement(){CollectRetired();}
         void CollectRetired()
         {
             for(int i=owned.Count-1;i>=0;i--){var p=owned[i];if(p==current||p.Disposed)continue;

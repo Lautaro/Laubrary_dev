@@ -26,7 +26,7 @@ namespace Laubrary.ZTracker.Engine
     public sealed unsafe class TrackerOffline : IDisposable
     {
         [NativeDisableUnsafePtrRestriction] TrackerRealtime* realtime;
-        readonly TrackerPreparedSong prepared;
+        TrackerPreparedSong prepared;
         readonly NativeArray<int> witness;
         public TrackerOffline(TrackerPreparedSong song,int eventCapacity=65536)
         {
@@ -44,7 +44,13 @@ namespace Laubrary.ZTracker.Engine
         public void TargetMacro(int instrument,int macro,float value,float step)=>SendCommand(TrackerCommand.TargetMacro(instrument,macro,value,step));
         public float ObserveMacro(int instrument,int macro){RequireAlive();if(instrument<0||instrument>=realtime->state.instrumentCount||macro<0||macro>=8)throw new ArgumentOutOfRangeException();return realtime->state.macros[instrument*8+macro].value;}
         public bool SetExternal(string track,string device,int slot,float normalized){RequireAlive();if(!prepared.TryExternalCommand(track,device,slot,normalized,out var command))return false;SendCommand(command);return true;}
-        public void SendCommand(TrackerCommand command){RequireAlive();if(command.kind==TrackerCommandKind.Swap)throw new ArgumentException("Offline swap requires a new owned engine");realtime->Apply(in command);}
+        public void SendCommand(TrackerCommand command){RequireAlive();if(command.kind==TrackerCommandKind.Swap||command.kind==TrackerCommandKind.PreserveSwap)throw new ArgumentException("Use the owned refresh API for live updates");realtime->Apply(in command);}
+        public bool RefreshPrepared(TrackerPreparedSong next,out string reason)
+        {
+            RequireAlive();if(next==null){reason="Prepared song missing";return false;}if(!next.PreparePreserving(prepared,out reason))return false;
+            var command=new TrackerCommand{kind=TrackerCommandKind.PreserveSwap,replacement=next.state};realtime->Apply(in command);
+            prepared.DisposeAfterQuiet();next.Published=true;prepared=next;return true;
+        }
         public bool ReadEvent(out TrackerEvent value){RequireAlive();return realtime->events.TryRead(out value);}
         public void Render(NativeArray<float> left,NativeArray<float> right,int frames,int blockFrames=1024)
         {

@@ -21,7 +21,7 @@ namespace Laubrary.ZTracker.Engine
         public const string ImplementationWitness = "P5-command-automation-native-core-v1";
         public int PcmCount => state.pcmCount;
         long chainStateFloats;
-        void AddChain(List<TrackerChain> chains,TrackerChain chain){if(chains.Count>=16384||chainStateFloats+chain.layout.stateFloats>33554432){chain.processor.Dispose();chain.layout.Dispose();throw new ArgumentException("Chain count/state exceeds 16384 chains / 128 MiB");}chainStateFloats+=chain.layout.stateFloats;chains.Add(chain);}
+        void AddChain(List<TrackerChain> chains,TrackerChain chain){if(chains.Count>=16384||chainStateFloats+chain.layout.stateFloats>33554432){chain.processor.Dispose();chain.layout.Dispose();throw new ArgumentException("Chain count/state exceeds 16384 chains / 128 MiB");}chain.authoredParameters=new NativeArray<float>(chain.layout.pBase,Allocator.Persistent);chainStateFloats+=chain.layout.stateFloats;chains.Add(chain);}
         public static TrackerPreparedSong Prepare(ZTrackerSong song, int rate = 48000, int maxFrames = 16384)
         {
             if(song==null||song.schemaVersion!=1)throw new ArgumentException("Engine requires an explicitly migrated schema-1 song");
@@ -41,11 +41,12 @@ namespace Laubrary.ZTracker.Engine
             var owner=new TrackerPreparedSong();var chains=new List<TrackerChain>();
             try {
                 owner.Build(song,rate,maxFrames,chains);
+                owner.BuildLiveIdentity(song);
                 return owner;
             }
             catch {
                 // The pointer owns chains only after Build publishes it.
-                if(owner.state.chains==null)foreach(var c in chains){var p=c.processor;var l=c.layout;p.Dispose();l.Dispose();}
+                if(owner.state.chains==null)foreach(var c in chains){var p=c.processor;var l=c.layout;p.Dispose();l.Dispose();if(c.authoredParameters.IsCreated)c.authoredParameters.Dispose();}
                 owner.Dispose();throw;
             }
         }
@@ -74,6 +75,7 @@ namespace Laubrary.ZTracker.Engine
                 if(t.preVolume<0||t.preVolume>16||t.postVolume<0||t.postVolume>16||math.abs(t.prePan)>1||math.abs(t.postPan)>1||t.preWidth<0||t.preWidth>4||t.sends.Any(s=>s.gain<0||s.gain>16))throw new ArgumentException("Mixer value outside runtime range");
                 if(t.devices.bindings.Any(b=>b.nodeIndex<0))throw new ArgumentException("Tracker bus has no source stage for source bindings");
                 tr.authoredPostGain=tr.livePostGain=tr.postGain;tr.authoredPostPan=tr.livePostPan=tr.postPan;
+                tr.authoredPreGain=tr.preGain;tr.authoredPrePan=tr.prePan;tr.authoredWidth=tr.width;
                 tr.authoredTriggerMute=tr.triggerMute;tr.authoredOutputMute=tr.outputMute;
                 tr.authoredOutput=tr.output;tr.parent=t.parentGroupId!=""?trackMap[t.parentGroupId]:-1;tr.instrumentGain=1;
                 col+=t.visibleNoteColumns;
@@ -198,7 +200,7 @@ namespace Laubrary.ZTracker.Engine
         public void Dispose()
         {
             if(Disposed)return;if(Published)throw new InvalidOperationException("Stop host publication and confirm ticket quiet before freeing a published song");Disposed=true;
-            for(int i=0;i<state.chainCount;i++){state.chains[i].processor.Dispose();state.chains[i].layout.Dispose();}
+            for(int i=0;i<state.chainCount;i++){state.chains[i].processor.Dispose();state.chains[i].layout.Dispose();if(state.chains[i].authoredParameters.IsCreated)state.chains[i].authoredParameters.Dispose();}
             if(state.chains!=null)UnsafeUtility.Free(state.chains,Allocator.Persistent);
             Free(ref state.routeQueue);Free(ref state.routeMarks);Free(ref state.deviceDirty);Free(ref state.parameterDirty);Free(ref state.parameterSets);Free(ref state.presetParameters);Free(ref state.ops);Free(ref state.descriptors);Free(ref state.commandMemory);Free(ref state.sliceMarkers);Free(ref state.occurrences);Free(ref state.devices);Free(ref state.deviceParameters);Free(ref state.automation);Free(ref state.automationPoints);
             Free(ref state.tones);Free(ref state.toneEnvelopes);Free(ref state.parameterBase);Free(ref state.parameterDirect);Free(ref state.parameterLive);Free(ref state.parameterWritten);Free(ref state.macros);Free(ref state.macroRoutes);Free(ref state.externalRoutes);

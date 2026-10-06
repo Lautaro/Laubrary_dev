@@ -156,6 +156,7 @@ namespace Laubrary.ZTracker.Engine
         public int authoredOutput, parent;
         public float instrumentGain;
         public float preGain, prePan, width, postGain, postPan;
+        public float authoredPreGain, authoredPrePan, authoredWidth;
         public float authoredPostGain, authoredPostPan, livePostGain, livePostPan, gainStep, panStep;
         public int gainRemaining, panRemaining;
         public bool triggerMute, outputMute, soloEnabled, beatTicks;
@@ -166,6 +167,7 @@ namespace Laubrary.ZTracker.Engine
     {
         public SapChainLayout layout;
         public AudioChainProcessor processor;
+        public NativeArray<float> authoredParameters;
         public int position;
     }
     internal static class TrackerChainSeed
@@ -235,11 +237,13 @@ namespace Laubrary.ZTracker.Engine
         public bool playing, rowPending, loopSong, beatTicks, legacyMix;
         public bool paused, held, silentReplay;
         public int holdRemaining, opCount, deviceCount, deviceParameterCount, automationCount;
+        public int carryCells, carryOps;
+        public bool liveTimingPending;
         public double rowDuration, automationTime, automationDeadline;
         public ulong seed;
         public long rowOccurrence;
     }
-    public enum TrackerCommandKind { Play, Stop, ReleaseAll, Seek, AuditionOn, AuditionOff, TrackGain, TrackPan, TrackMute, Swap, AuditionNormalized, ReleaseVoice, MacroSet, MacroTarget, MacroAdvance, ParameterSet, ExternalSet, AmplitudeModifier, Pause, Resume }
+    public enum TrackerCommandKind { Play, Stop, ReleaseAll, Seek, AuditionOn, AuditionOff, TrackGain, TrackPan, TrackMute, Swap, AuditionNormalized, ReleaseVoice, MacroSet, MacroTarget, MacroAdvance, ParameterSet, ExternalSet, AmplitudeModifier, Pause, Resume, PreserveSwap }
     public struct TrackerCommand
     {
         public TrackerCommandKind kind;

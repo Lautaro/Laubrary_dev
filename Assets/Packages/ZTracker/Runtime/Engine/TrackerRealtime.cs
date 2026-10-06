@@ -63,6 +63,8 @@ namespace Laubrary.ZTracker.Engine
                     // Update runs between blocks. The old ticket becomes terminal only after its last reader returned.
                     SapRenderTicket.Enter(state.ticket);SapRenderTicket.Exit(state.ticket,0,true);
                     long position=state.samplePosition,generation=state.cohort;state=c.replacement;state.samplePosition=position;state.cohort=generation;state.transportOrigin=position;state.rowPending=true;Emit(TrackerEventKind.PreparedSwap);break;
+                case TrackerCommandKind.PreserveSwap:
+                    PreserveSwap(c.replacement);break;
                 default:ApplyParameterCommand(in c);break;
             }
         }
@@ -128,6 +130,7 @@ namespace Laubrary.ZTracker.Engine
         }
         void EnterRow()
         {
+            if(state.liveTimingPending){state.bpm=state.authoredBpm;state.linesPerBeat=state.authoredLinesPerBeat;state.ticksPerLine=state.authoredTicksPerLine;state.liveTimingPending=false;}
             var seq=state.sequence[state.sequenceIndex];var pat=state.patterns[seq.pattern];var rr=state.rows[pat.rows+state.row];state.tick=0;state.breakRow=-1;state.held=false;
             int occurrence=state.sequenceIndex*state.rows.Length+pat.rows+state.row;state.rowOccurrence=state.occurrences[occurrence]++;
             EvaluateAutomation(state.row,true);ClockCommands(in rr);
