@@ -25,6 +25,7 @@ namespace Laubrary.ZTracker.Editor
         VisualElement controls,stage;
         ScrollView controlScroll,grid;
         Label status,help;
+        IVisualElementScheduledItem pumpSchedule;
         SongData Data=>song!=null&&song.schemaVersion==1?song.model:null;
         PatternData Pattern=>Data==null||Data.sequence.Count==0?null:Data.patterns.Find(p=>p.id==Data.sequence[Mathf.Clamp(order,0,Data.sequence.Count-1)].patternId);
         TrackData SelectedTrack=>Data==null||Data.tracks.Count==0?null:Data.tracks[Mathf.Clamp(track,0,Data.tracks.Count-1)];
@@ -44,7 +45,7 @@ namespace Laubrary.ZTracker.Editor
             controlScroll=new ScrollView();controls=new VisualElement();controlScroll.Add(controls);
             stage=new VisualElement();stage.style.flexGrow=1;stage.style.minWidth=0;stage.style.minHeight=0;stage.name="tracker-stage";var workspace=Z.Split("tracker.model.workspace.compact",188,controlScroll,stage);workspace.style.flexGrow=1;workspace.style.minHeight=0;root.Add(workspace);
             help=Z.Text("",tooltip:"Meaning of the command under the pattern cursor.");help.name="command-help";help.AddToClassList("tracker-status-line");root.Add(help);
-            BuildPane();root.schedule.Execute(Pump).Every(30);
+            BuildPane();pumpSchedule=root.schedule.Execute(Pump).Every(30);
         }
         void Upgrade()
         {
@@ -121,9 +122,9 @@ namespace Laubrary.ZTracker.Editor
         void RefreshTransport(){if(status==null)return;status.text=lastError!=null?"⚠ Pending: Stop/Play":playing?"Playing":"Idle";status.tooltip=lastError??(playing?"The Burst song engine is playing. Edits update its existing audio stream.":"Preview is stopped; Play starts the authored song.");}
         void OnEnable(){Undo.undoRedoPerformed+=OnUndo;Upgrade();}
         void OnUndo(){RefreshLive();BuildPane();}
-        protected override void OnDisable(){Undo.undoRedoPerformed-=OnUndo;StopPreview();if(patternFont!=null)DestroyImmediate(patternFont);patternFont=null;base.OnDisable();}
+        protected override void OnDisable(){pumpSchedule?.Pause();pumpSchedule=null;Undo.undoRedoPerformed-=OnUndo;StopPreview();if(patternFont!=null)DestroyImmediate(patternFont);patternFont=null;base.OnDisable();}
         // ZuiWindow may rebuild on domain reload/view changes; it must not stop a healthy graph.
-        protected override void OnBeforeRebuild(){}
+        protected override void OnBeforeRebuild(){pumpSchedule?.Pause();pumpSchedule=null;}
         void Save(){if(song!=null)AssetDatabase.SaveAssetIfDirty(song);if(Data!=null)foreach(var linked in Data.instruments.Where(i=>i!=null).Distinct())AssetDatabase.SaveAssetIfDirty(linked);if(instrument!=null)AssetDatabase.SaveAssetIfDirty(instrument);}
         static string Id()=>Guid.NewGuid().ToString("N");
         static ColumnVisibility Visibility(TrackData t,int column){while(t.columns.Count<=column)t.columns.Add(new ColumnVisibility());return t.columns[column];}
@@ -166,7 +167,7 @@ namespace Laubrary.ZTracker.Editor
             var box=Z.BoxKeyed("Instruments","Choose the instrument used by note entry and audition.","tracker.model.instruments");
             box.Add(Flow(Button("New instrument","Create and add a new instrument.",CreateInstrument,"new-instrument"),Named(Z.Object<ZTrackerInstrument>(null,"Add an existing instrument.",v=>{if(v==null)return;Undo.IncrementCurrentGroup();int group=Undo.GetCurrentGroup();if(v.schemaVersion==0){Undo.RegisterCompleteObjectUndo(v,"Tracker: migrate instrument");ZTrackerMigration.Upgrade(v,out _);EditorUtility.SetDirty(v);}SongEdit("add instrument",()=>Data.instruments.Add(v),true);Undo.CollapseUndoOperations(group);},155),"add-instrument")));
             if(Data.instruments.Count>0)box.Add(Named(Z.MiniRadio(entryInstrument,Data.instruments.Select((v,i)=>$"{i:X2} {InstrumentTitle(v)}").ToArray(),"Select an instrument; the preview button auditions it.",v=>{entryInstrument=v;instrument=Data.instruments[v];if(pane==3)BuildPane();},wrap:true),"instrument-selector"));
-            box.Add(Flow(Button("Edit","Open the selected instrument.",()=>{if(Data.instruments.Count>0){instrument=Data.instruments[Mathf.Clamp(entryInstrument,0,Data.instruments.Count-1)];pane=3;BuildPane();}}),Button("▶","Audition the selected instrument at the current octave.",()=>Audition(octave*12)),Button("■","Release instrument audition notes.",AuditionOff)));root.Add(box);
+            box.Add(Flow(Button("Edit","Open the selected instrument.",()=>{if(Data.instruments.Count>0){instrument=Data.instruments[Mathf.Clamp(entryInstrument,0,Data.instruments.Count-1)];pane=3;Rebuild();}}),Button("▶","Audition the selected instrument at the current octave.",()=>Audition(octave*12)),Button("■","Release instrument audition notes.",AuditionOff)));root.Add(box);
         }
         static string InstrumentTitle(ZTrackerInstrument value)=>value==null?"Missing":value.model?.name??value.name;
         void RefreshInstrumentNames()
@@ -176,7 +177,7 @@ namespace Laubrary.ZTracker.Editor
         }
         void CreateInstrument()
         {
-            Undo.IncrementCurrentGroup();int group=Undo.GetCurrentGroup();Folder();instrument=CreateInstance<ZTrackerInstrument>();instrument.schemaVersion=1;instrument.model=NewInstrumentData();AssetDatabase.CreateAsset(instrument,AssetDatabase.GenerateUniqueAssetPath("Assets/ZTracker/Instrument.asset"));Undo.RegisterCreatedObjectUndo(instrument,"Tracker: create instrument");SongEdit("add instrument",()=>Data.instruments.Add(instrument));Undo.CollapseUndoOperations(group);entryInstrument=Data.instruments.Count-1;pane=3;BuildPane();
+            Undo.IncrementCurrentGroup();int group=Undo.GetCurrentGroup();Folder();instrument=CreateInstance<ZTrackerInstrument>();instrument.schemaVersion=1;instrument.model=NewInstrumentData();AssetDatabase.CreateAsset(instrument,AssetDatabase.GenerateUniqueAssetPath("Assets/ZTracker/Instrument.asset"));Undo.RegisterCreatedObjectUndo(instrument,"Tracker: create instrument");SongEdit("add instrument",()=>Data.instruments.Add(instrument));Undo.CollapseUndoOperations(group);entryInstrument=Data.instruments.Count-1;pane=3;Rebuild();
         }
         VisualElement DialSong(string label,float value,float min,float max,string tip,Action<float> apply,bool rebuild=false,int decimals=0)=>Dial(label,value,min,max,tip,v=>SongEdit(label,()=>apply(v),rebuild),decimals);
         static VisualElement Dial(string label,float value,float min,float max,string tip,Action<float> changed,int decimals=2,float width=124)
@@ -214,8 +215,8 @@ namespace Laubrary.ZTracker.Editor
         static void Move<T>(IList<T> list,int from,int to){var value=list[from];list.RemoveAt(from);list.Insert(to,value);}
         static void Reorder(VisualElement item,string kind,int index,Action<int,int> moved)
         {
-            item.RegisterCallback<PointerDownEvent>(e=>{if(e.button==0){DragAndDrop.PrepareStartDrag();DragAndDrop.SetGenericData("tracker."+kind,index);}});
-            item.RegisterCallback<PointerMoveEvent>(e=>{if((e.pressedButtons&1)!=0&&DragAndDrop.GetGenericData("tracker."+kind)is int)DragAndDrop.StartDrag("Reorder "+kind);});
+            item.RegisterCallback<PointerDownEvent>(e=>{if(e.button==0){DragAndDrop.PrepareStartDrag();DragAndDrop.SetGenericData("tracker."+kind,index);}},TrickleDown.TrickleDown);
+            item.RegisterCallback<PointerMoveEvent>(e=>{if((e.pressedButtons&1)!=0&&DragAndDrop.GetGenericData("tracker."+kind)is int)DragAndDrop.StartDrag("Reorder "+kind);},TrickleDown.TrickleDown);
             item.RegisterCallback<DragUpdatedEvent>(e=>{if(DragAndDrop.GetGenericData("tracker."+kind)is int){DragAndDrop.visualMode=DragAndDropVisualMode.Move;e.StopPropagation();}});
             item.RegisterCallback<DragPerformEvent>(e=>{if(DragAndDrop.GetGenericData("tracker."+kind)is int from){DragAndDrop.AcceptDrag();DragAndDrop.SetGenericData("tracker."+kind,null);if(from!=index)moved(from,index);e.StopPropagation();}});
         }
