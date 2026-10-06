@@ -7,14 +7,16 @@ using Laubrary.ZTracker.Model;
 using Laubrary.ZTracker.Engine;
 using Unity.Collections;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace Laubrary.ZTracker.Editor
 {
     // Invoked directly or by the one requested menu. No Test Runner or live-asset save.
     public static class ZTrackerModelCheck
     {
-        public const string ImplementationWitness = "P2-song-schema-v1-r5-independent-review-final";
+        public const string ImplementationWitness = "P7-detached-attached-selection-r6";
         static int passed, failed;
         static readonly List<string> results = new List<string>();
         static readonly List<UnityEngine.Object> temporary = new List<UnityEngine.Object>();
@@ -477,6 +479,22 @@ namespace Laubrary.ZTracker.Editor
                     Assert(typeof(ZTrackerModelWindow).GetField("host",flags).GetValue(window)!=null,"Modern editor play failed");
                     Call("RefreshLive",new object[]{null});Unchanged();Call("StopPreview");Unchanged();Call("Audition",60);Unchanged();Call("StopPreview");Unchanged();
                 }finally{UnityEngine.Object.DestroyImmediate(window);}Unchanged();
+                // Cold attached selection and reopen must build the note-variation
+                // controls from the same read view without migrating either source.
+                var previousFocus=EditorWindow.focusedWindow;
+                try{
+                    for(int reopen=0;reopen<2;reopen++){
+                        var selectedWindow=ScriptableObject.CreateInstance<ZTrackerModelWindow>();
+                        selectedWindow.hideFlags=HideFlags.HideAndDontSave;
+                        try{
+                            selectedWindow.ShowUtility();selectedWindow.CreateGUI();
+                            var picker=selectedWindow.rootVisualElement.Q<ObjectField>("song");Assert(picker!=null,"Attached song picker missing");picker.value=s;Unchanged();
+                            var details=(VisualElement)typeof(ZTrackerModelWindow).GetField("cellDetails",flags).GetValue(selectedWindow);
+                            Assert(details!=null&&details.Query<Button>().ToList().Any(b=>b.text=="Base"),"Attached note-variation choices missing");
+                            Assert(details.Query<Button>().ToList().Count>=2,"Legacy preset choice missing on selection/reopen");Unchanged();
+                        }finally{selectedWindow.Close();if(selectedWindow!=null)UnityEngine.Object.DestroyImmediate(selectedWindow);}Unchanged();
+                    }
+                }finally{if(previousFocus!=null)previousFocus.Focus();}
             }
             // Legacy preview data becomes authored only in an explicit successful
             // edit; the migration and edit must still form one undo operation.
