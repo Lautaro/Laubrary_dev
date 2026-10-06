@@ -16,10 +16,11 @@ namespace Laubrary.Audio.Editor
         readonly Func<AudioEffectChainData> get;
         readonly Action<string,Action,bool> edit;
         readonly Action<string> removed;
+        readonly bool directAdd;
         int addType, addModifier, bindingNode, bindingParam;
-        public AudioChainEditor(Func<AudioEffectChainData> getter, Action<string,Action,bool> editCallback, Action<string> nodeRemoved=null)
+        public AudioChainEditor(Func<AudioEffectChainData> getter, Action<string,Action,bool> editCallback, Action<string> nodeRemoved=null,bool directAdd=false)
         {
-            get=getter;edit=editCallback;removed=nodeRemoved;name="audio-chain-editor";style.minWidth=0;style.flexShrink=0;Build();
+            get=getter;edit=editCallback;removed=nodeRemoved;this.directAdd=directAdd;name="audio-chain-editor";style.minWidth=0;style.flexShrink=0;Build();
         }
         public static VisualElement Parameter(ParamDesc pd,float value,Action<float> changed,float width=140)
         {
@@ -50,7 +51,9 @@ namespace Laubrary.Audio.Editor
         {
             Clear();var chain=get();if(chain==null)return;
             var types=Enumerable.Range(0,ZoundEffectDescriptors.EffectTypeCount).Select(i=>ZoundEffectDescriptors.Get((ZoundEffectType)i).displayName).ToArray();
-            Add(Row(Z.MiniRadio(addType,types,"Choose an effect to add.",v=>addType=v,wrap:true),Named(Z.Button("Add effect","Append the chosen effect.",()=>Change("add effect",()=>chain.nodes.Add(new AudioEffectNodeData{type=(ZoundEffectType)addType,uid=Guid.NewGuid().ToString("N"),p=Defaults(ZoundEffectDescriptors.Get((ZoundEffectType)addType).parameters)}),true)),"chain-add-effect")));
+            void AddEffect(int type)=>Change("add effect",()=>chain.nodes.Add(new AudioEffectNodeData{type=(ZoundEffectType)type,uid=Guid.NewGuid().ToString("N"),p=Defaults(ZoundEffectDescriptors.Get((ZoundEffectType)type).parameters)}),true);
+            if(directAdd){var choices=Row();for(int type=0;type<types.Length;type++){int at=type;choices.Add(Named(Z.Button(types[type],"Add "+types[type]+" to this chain.",()=>AddEffect(at)),type==0?"chain-add-effect":"chain-add-effect-"+type));}Add(choices);}
+            else Add(Row(Z.MiniRadio(addType,types,"Choose an effect to add.",v=>addType=v,wrap:true),Named(Z.Button("Add effect","Append the chosen effect.",()=>AddEffect(addType)),"chain-add-effect")));
             for(int i=0;i<chain.nodes.Count;i++)
             {
                 int at=i;var node=chain.nodes[i];var desc=ZoundEffectDescriptors.Get(node.type);if(desc==null)continue;

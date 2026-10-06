@@ -1,8 +1,16 @@
-.tracker-cell { height: 22px; min-height: 22px; width: 42px; min-width: 42px; margin-right: 3px; padding-left: 3px; white-space: nowrap; overflow: hidden; }
-.tracker-row-number { width: 34px; min-width: 34px; height: 22px; }
+.tracker-cell { height: 20px; min-height: 20px; margin: 0; padding: 0; font-size: 11px; white-space: nowrap; overflow: hidden; -unity-text-align: middle-center; }
+.tracker-row-number { width: 28px; min-width: 28px; height: 20px; font-size: 11px; margin: 0; padding: 0; -unity-text-align: middle-center; }
+.tracker-track-header { font-size: 11px; margin: 0; padding-left: 3px; white-space: nowrap; overflow: hidden; -unity-text-align: middle-left; }
 .tracker-cell.tracker-picked, .tracker-picked { background-color: var(--zui-accent); color: white; }
 .tracker-selected { background-color: rgba(90, 145, 200, 0.3); }
 .tracker-playing { border-bottom-width: 1px; border-bottom-color: var(--zui-accent); }
 .tracker-beat { background-color: rgba(130, 130, 130, 0.08); }
 .tracker-grid-row { flex-direction: row; flex-wrap: nowrap; flex-shrink: 0; height: 22px; }
 .tracker-track-gap { margin-right: 12px; }
+.tracker-compact .tracker-flow { margin: 0; padding: 0; }
+.tracker-compact .zui-btn { min-height: 22px; height: 22px; margin: 1px; padding-left: 5px; padding-right: 5px; }
+.tracker-compact .zui-box { margin: 2px; padding: 3px; }
+.tracker-track-row { height: 23px; min-height: 23px; -unity-text-align: middle-left; }
+.tracker-status-line { height: 20px; min-height: 20px; flex-shrink: 0; margin: 0; padding-left: 4px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tracker-axis-label { font-size: 10px; margin: 0; padding: 0; -unity-text-align: middle-left; }
+.tracker-zone-label { font-size: 11px; margin: 0; padding: 2px; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

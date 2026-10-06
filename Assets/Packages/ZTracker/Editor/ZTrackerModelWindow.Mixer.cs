@@ -27,7 +27,7 @@ namespace Laubrary.ZTracker.Editor
             scroll.Add(Z.Segmented(mixerTab,new[]{"Levels","Devices","Sources"},"Choose this track's controls.",v=>{mixerTab=v;BuildPane();}));
             if(mixerTab==1)
             {
-                scroll.Add(new AudioChainEditor(()=>t.devices,(label,edit,structural)=>SongEdit(label,()=>{var before=t.devices.nodes.ToArray();edit();RepairChainReferences(t,before);},false),uid=>FlagRemovedDevice(t,uid)));return;
+                scroll.Add(new AudioChainEditor(()=>t.devices,(label,edit,structural)=>SongEdit(label,()=>{var before=t.devices.nodes.ToArray();edit();RepairChainReferences(t,before);},false),uid=>FlagRemovedDevice(t,uid),directAdd:true));return;
             }
             if(mixerTab==2){BuildSources(scroll,t);return;}
             scroll.Add(Flow(Named(DialSong("Pre gain",t.preVolume,0,16,"Amplitude multiplier before effects.",v=>t.preVolume=v,decimals:3),"mixer-pre-volume"),DialSong("Pre pan",t.prePan,-1,1,"Stereo balance before effects.",v=>t.prePan=v,decimals:3),DialSong("Width",t.preWidth,0,4,"Stereo width before effects.",v=>t.preWidth=v,decimals:3)));
@@ -53,7 +53,7 @@ namespace Laubrary.ZTracker.Editor
         void BuildTrackSelector(VisualElement root)
         {
             var types=Enum.GetNames(typeof(TrackKind));root.Add(Named(Z.MiniRadio(newTrackKind,types,"Choose the role of the new track.",v=>newTrackKind=v,wrap:true),"new-track-kind"));root.Add(Flow(Button("Add track","Add the selected track role. Only one Master is allowed.",()=>AddTrack((TrackKind)newTrackKind),"add-track"),Button("Clone","Clone this track and all its pattern records.",CloneTrack,"clone-track"),Button("Remove","Remove this track, clear routes and flag references; Undo restores everything.",RemoveTrack,"remove-track")));
-            var list=Z.BoxKeyed("Tracks","Select a track; drag a row to reorder it.","tracker.mixer.tracks");for(int i=0;i<Data.tracks.Count;i++){int at=i;var t=Data.tracks[i];var b=Button(t.name,"Select "+t.kind+" track; drag to reorder.",()=>{track=at;BuildPane();},"track-select-"+i);b.style.width=180;b.style.borderLeftWidth=5;b.style.borderLeftColor=t.color;b.EnableInClassList("tracker-picked",at==track);Reorder(b,"tracks",at,(a,z)=>SongEdit("reorder tracks",()=>{var selected=SelectedTrack;Move(Data.tracks,a,z);track=Data.tracks.IndexOf(selected);},true));list.Add(b);}root.Add(list);
+            var list=Z.BoxKeyed("Tracks","Select a track; drag a row to reorder it.","tracker.mixer.tracks");for(int i=0;i<Data.tracks.Count;i++){int at=i;var t=Data.tracks[i];var b=Button(t.name,"Select "+t.kind+" track; drag to reorder.",()=>{track=at;BuildPane();},"track-select-"+i);b.AddToClassList("tracker-track-row");b.style.width=Length.Percent(100);b.style.borderLeftWidth=4;b.style.borderLeftColor=t.color;b.style.backgroundColor=at==track?new Color(.18f,.42f,.62f):new Color(.14f,.14f,.14f);b.style.color=Color.white;b.EnableInClassList("tracker-picked",at==track);Reorder(b,"tracks",at,(a,z)=>SongEdit("reorder tracks",()=>{var selected=SelectedTrack;Move(Data.tracks,a,z);track=Data.tracks.IndexOf(selected);},true));list.Add(b);}root.Add(list);
         }
         void AddTrack(TrackKind kind)
         {
