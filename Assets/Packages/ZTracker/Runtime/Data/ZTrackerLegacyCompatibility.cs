@@ -13,22 +13,6 @@ namespace Laubrary.ZTracker.Model
         public readonly List<string> nativeTrackIds = new List<string>();
         public readonly List<int> nativeNoteColumns = new List<int>();
         public readonly List<ZTrackerInstrument> owned = new List<ZTrackerInstrument>();
-        public void PushToNative(IntPtr context)
-        {
-            song.PushLegacyToNative(context);
-            if (sourceModel == null) return;
-            ZTrackerNative.ZT_SetBeatTickInterval(context,sourceModel.beatTicks ? sourceModel.beatIntervalLines : 0);
-            for (int t = 0; t < sourceModel.tracks.Count; t++) if (sourceModel.tracks[t].kind == TrackKind.Event)
-            {
-                int ch = nativeTrackIds.IndexOf(sourceModel.tracks[t].id);
-                ZTrackerNative.ZT_SetChannelType(context,ch,1);
-                for (int p = 0; p < sourceModel.patterns.Count; p++)
-                {
-                    var pt = sourceModel.patterns[p].tracks.Find(x => x.trackId == sourceModel.tracks[t].id);
-                    foreach (var line in pt.lines) foreach (var ev in line.events) if (ev.present) ZTrackerNative.ZT_SetEventString(context,p,line.line,ch,ev.payload);
-                }
-            }
-        }
         public void Dispose() { foreach (var i in owned) if (i != null) UnityEngine.Object.DestroyImmediate(i); owned.Clear(); if (song != null) UnityEngine.Object.DestroyImmediate(song); song = null; }
     }
 

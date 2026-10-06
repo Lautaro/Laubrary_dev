@@ -111,7 +111,7 @@ namespace Laubrary.ZTracker.Engine
         void Emit(TrackerEventKind kind,int track=-1,int column=-1,int note=-1,int instrument=-1,int payload=-1)
         {
             if(events.counters==null||state.silentReplay)return;
-            events.Write(new TrackerEvent{kind=kind,samplePosition=state.samplePosition,sequence=state.sequenceIndex,pattern=state.sequence[state.sequenceIndex].pattern,row=state.row,tick=state.tick,track=track,column=column,note=note,instrument=instrument,payload=payload});
+            events.Write(new TrackerEvent{kind=kind,samplePosition=state.samplePosition,bpm=state.bpm,sequence=state.sequenceIndex,pattern=state.sequence[state.sequenceIndex].pattern,row=state.row,tick=state.tick,track=track,column=column,note=note,instrument=instrument,payload=payload});
         }
         // Binary64 quantizer from COMMANDS.md P-CLOCK; no floating epsilon tied to musical time.
         public static bool ClockValid(double start,double end,double duration,double compensation)=>math.isfinite(duration)&&duration>=1&&math.isfinite(start)&&start>=0&&math.isfinite(end)&&end<=1099511627776d&&math.isfinite(compensation)&&Quantize(end)>Quantize(start);
@@ -130,10 +130,12 @@ namespace Laubrary.ZTracker.Engine
         }
         void EnterRow()
         {
+            double previousBpm=state.bpm;int previousLpb=state.linesPerBeat,previousTpl=state.ticksPerLine;
             if(state.liveTimingPending){state.bpm=state.authoredBpm;state.linesPerBeat=state.authoredLinesPerBeat;state.ticksPerLine=state.authoredTicksPerLine;state.liveTimingPending=false;}
             var seq=state.sequence[state.sequenceIndex];var pat=state.patterns[seq.pattern];var rr=state.rows[pat.rows+state.row];state.tick=0;state.breakRow=-1;state.held=false;
             int occurrence=state.sequenceIndex*state.rows.Length+pat.rows+state.row;state.rowOccurrence=state.occurrences[occurrence]++;
             EvaluateAutomation(state.row,true);ClockCommands(in rr);
+            if(state.bpm!=previousBpm||state.linesPerBeat!=previousLpb||state.ticksPerLine!=previousTpl)Emit(TrackerEventKind.TempoChanged);
             if(state.bpm==0||state.linesPerBeat==0){var stop=TrackerCommand.Stop();Apply(in stop);return;}
             double duration=(state.sampleRate*60d)/(state.bpm*state.linesPerBeat);state.rowDuration=duration;
             state.rowEnd=ClockEnd(state.rowStart,duration,ref state.clockCompensation);
@@ -178,7 +180,7 @@ namespace Laubrary.ZTracker.Engine
                     return;
                 }
                 state.row++;var p=state.patterns[state.sequence[state.sequenceIndex].pattern];
-                if(state.breakRow>=0||state.row>=p.lineCount){state.sequenceIndex++;if(state.sequenceIndex>=state.sequence.Length){if(!state.loopSong&&state.breakRow<0){state.sequenceIndex=state.sequence.Length-1;state.row=p.lineCount-1;state.playing=false;Emit(TrackerEventKind.Stopped);return;}state.sequenceIndex=0;}
+                if(state.breakRow>=0||state.row>=p.lineCount){state.sequenceIndex++;if(state.sequenceIndex>=state.sequence.Length){if(!state.loopSong&&state.breakRow<0){state.sequenceIndex=state.sequence.Length-1;state.row=p.lineCount-1;state.playing=false;Emit(TrackerEventKind.Stopped);return;}state.sequenceIndex=0;Emit(TrackerEventKind.SongLooped);}
                     int lines=state.patterns[state.sequence[state.sequenceIndex].pattern].lineCount;if(state.breakRow>=lines)Emit(TrackerEventKind.Diagnostic,payload:(int)TrackerRuntimeDiagnostic.BreakClamped);state.row=state.breakRow>=0?math.min(state.breakRow,lines-1):0;
                 }
                 state.rowStart=state.rowEnd;state.rowPending=true;EnterRow();

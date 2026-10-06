@@ -1,6 +1,0 @@
-{
-  "name": "com.Lautaro-Arino.ZTracker.P3Proof",
-  "references": ["ZTracker", "com.Lautaro-Arino.Laubrary.ZTracker.Engine", "com.Lautaro-Arino.Laubrary.Zounds", "com.Lautaro-Arino.Laubrary.AudioCore", "Unity.Collections", "Unity.Burst"],
-  "allowUnsafeCode": true,
-  "autoReferenced": true
-}

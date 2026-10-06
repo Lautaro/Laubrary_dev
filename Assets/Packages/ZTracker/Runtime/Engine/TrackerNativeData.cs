@@ -9,12 +9,13 @@ using Unity.Mathematics;
 
 namespace Laubrary.ZTracker.Engine
 {
-    public enum TrackerEventKind { Row, Tick, NoteOn, NoteOff, Beat, Authored, VoiceStolen, PreparedSwap, Stopped, Diagnostic, Started }
+    public enum TrackerEventKind { Row, Tick, NoteOn, NoteOff, Beat, Authored, VoiceStolen, PreparedSwap, Stopped, Diagnostic, Started, SongLooped, TempoChanged }
     public enum TrackerRuntimeDiagnostic { SeekUnreachable=1, PitchLimit=2, InvalidPitch=3, BreakClamped=4, EmptyMemory=5, DelayOutsideRow=6, CutOutsideRow=7, GlideNoTarget=8, ExclusiveNoWeight=9, SharedFxStop=10, InvalidClock=11, ClockLimit=12, SliceOutside=13, GlideWithoutVoice=14, GlideInstrumentChanged=15, InstrumentUnresolved=16, SeekVoiceStateDiscarded=17, SampleDomainUnsupported=18, RouteCycle=19, StopExpandsSendContributors=20 }
     public struct TrackerEvent
     {
         public TrackerEventKind kind;
         public long samplePosition;
+        public double bpm;
         public int sequence, pattern, row, tick, track, column, note, instrument, payload;
     }
     /// <summary>One audio producer and one main-thread consumer. Storage outlives graph instances and prepared swaps.</summary>

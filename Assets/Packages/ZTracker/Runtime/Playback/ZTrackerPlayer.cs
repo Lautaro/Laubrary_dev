@@ -12,6 +12,7 @@ namespace Laubrary.ZTracker
         ZTrackerPlayback playback;
         public bool IsPlaying => playback != null && playback.IsPlaying;
         public string LastError { get; private set; }
+        public ZTrackerPlayback Playback => playback;
 
         public bool Play()
         {
@@ -32,7 +33,7 @@ namespace Laubrary.ZTracker
             if (!IsPlaying) return;
             for (int n = 0; n < 4096 && IsPlaying; n++)
             {
-                if (ZTrackerNative.ZT_PollEvent(playback.NativeContext, out var ev) != 1) break;
+                if (!playback.TryReadEvent(out var ev)) break;
                 EventReceived?.Invoke(ev);
             }
         }

@@ -344,32 +344,48 @@ namespace Laubrary.ZTracker.Editor
         static string Hash(string path) { using (var sha = System.Security.Cryptography.SHA256.Create()) return BitConverter.ToString(sha.ComputeHash(File.ReadAllBytes(path))).Replace("-","").ToLowerInvariant(); }
         static void PlaybackChecks()
         {
-            Check("persistent Event track / native once / mapping / text rejection", () => {
-                var s = Song(); Upgrade(s); var master = s.model.tracks[1]; var ev = new TrackData {id = "event",name = "Events",kind = TrackKind.Event,visibleNoteColumns = 0,visibleEffectColumns = 0,outputTrackId = master.id}; s.model.tracks.Insert(1,ev);
-                var pt = new PatternTrack {trackId = "event"}; pt.WriteLine(new PatternLine {line = 0,events = new List<EventCell> {new EventCell {present = true,payload = "hello"}}}); s.model.patterns[0].tracks.Insert(1,pt);
-                Assert(ZTrackerModelValidation.Validate(s.model) == null,"Event data invalid"); Assert(!ZTrackerLegacyCompatibility.CanEdit(s,out _),"Old editor accepted event data");
+            Check("persistent event track / managed migration / Burst once", () => {
+                var s = Song(); Upgrade(s);
+                var ev = new TrackData { id = "event", name = "Events", kind = TrackKind.Event, visibleNoteColumns = 0, visibleEffectColumns = 0, outputTrackId = s.model.tracks[1].id };
+                s.model.tracks.Insert(1, ev);
+                var pt = new PatternTrack { trackId = "event" };
+                pt.WriteLine(new PatternLine { line = 0, events = new List<EventCell> { new EventCell { present = true, payload = "hello" } } });
+                s.model.patterns[0].tracks.Insert(1, pt);
+                Assert(ZTrackerModelValidation.Validate(s.model) == null, "Event data invalid");
+                Assert(!ZTrackerLegacyCompatibility.CanEdit(s, out _), "Legacy editor accepted event data");
                 using (var prepared = ZTrackerLegacyCompatibility.Prepare(s))
+                    Assert(prepared.nativeTrackIds.Count == 2 && prepared.nativeTrackIds[1] == "event" && prepared.nativeNoteColumns[1] == -1, "Compatibility event mapping");
+                using (var engine = new Laubrary.ZTracker.Engine.TrackerOffline(Laubrary.ZTracker.Engine.TrackerPreparedSong.Prepare(s)))
                 {
-                    Assert(prepared.nativeTrackIds.Count == 2 && prepared.nativeTrackIds[1] == "event" && prepared.nativeNoteColumns[1] == -1,"Event channel mapping");
-                    IntPtr context = ZTrackerNative.ZT_Create(48000);
-                    try { prepared.PushToNative(context); ZTrackerNative.ZT_Play(context,0,0); ZTrackerNative.ZT_Process(context,new float[64],new float[64],64); int fired = 0; while (ZTrackerNative.ZT_PollEvent(context,out var value) == 1) if (value.type == (byte)ZTrackerEventType.EVENT_TRACK_FIRED) { fired++; Assert(value.stringPayload == "hello" && value.channelIndex == 1 && value.samplePosition == 0,"Event payload/address/sample position lost"); } Assert(fired == 1,"Event duplicated or missing"); }
-                    finally { ZTrackerNative.ZT_Destroy(context); }
+                    engine.SendCommand(Laubrary.ZTracker.Engine.TrackerCommand.Play());
+                    // This model-only group verifies events without invoking a native tracker DLL.
+                    engine.RenderManaged(64);
+                    int fired = 0;
+                    while (engine.ReadEvent(out var value)) if (value.kind == Laubrary.ZTracker.Engine.TrackerEventKind.Authored)
+                    { fired++; Assert(value.track == 1 && value.samplePosition == 0, "Event address/time"); }
+                    Assert(fired == 1, "Event duplicated or missing");
                 }
-                pt.lines[0].events[0].payload = new string('x',64); string json = JsonUtility.ToJson(s); Rejected(() => ZTrackerLegacyCompatibility.Prepare(s)); Assert(JsonUtility.ToJson(s) == json,"Long event text truncated");
+                pt.lines[0].events[0].payload = new string('x',64);
+                string json = JsonUtility.ToJson(s);
+                Rejected(() => ZTrackerLegacyCompatibility.Prepare(s));
+                Assert(JsonUtility.ToJson(s) == json, "Legacy projection truncated source");
             });
-            Check("preview+runtime start / audition / snapshot refresh / advanced rejection", () => {
-                Assert(ZTrackerPlayback.Current == null,"Another playback active; check did not take ownership"); var s = Song(); var i = Temp<ZTrackerInstrument>(); i.type = InstrumentType.Synth; i.waveA = 0; i.volume = .25f; s.instruments.Add(i); s.patterns[0].cells[0].note = 60; s.patterns[0].cells[0].instrument = 0; Upgrade(i); Upgrade(s); string original = JsonUtility.ToJson(s);
+            Check("public Burst facade / detached migration / advanced playback", () => {
+                Assert(ZTrackerPlayback.Current == null, "Another playback active");
+                var s = Song(); var i = Temp<ZTrackerInstrument>(); i.type = InstrumentType.Synth; i.volume = .25f;
+                s.instruments.Add(i); s.patterns[0].cells[0].note = 60; s.patterns[0].cells[0].instrument = 0;
+                string original = JsonUtility.ToJson(s), originalInstrument = JsonUtility.ToJson(i);
                 ZTrackerPlayback playback = null;
                 try
                 {
-                    Assert(ZTrackerPlayback.TryPlay(s,out playback,out var error),error); Assert(playback.TryMapNativeChannel(0,out var track,out var col) && track == s.model.tracks[0].id && col == 0,"Runtime mapping");
-                    using (var edit = new ZTrackerLegacyEdit(i,"held blend")) { i.blend = .75f; edit.Commit(); } playback.RefreshInstrument(i,-1);
-                    var field = typeof(ZTrackerPlayback).GetField("playingSong",System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance); var snapshot = (ZTrackerSong)field.GetValue(playback); Assert(snapshot != s && snapshot.instruments[0] != i && snapshot.instruments[0].blend == .75f,"Live polling snapshot stale");
+                    Assert(ZTrackerPlayback.TryPlay(s, out playback, out var error), error);
+                    Assert(playback.Generator != null && playback.GetComponent<AudioSource>().clip == null, "Public host is not clipless SAP");
                 }
                 finally { if (playback != null) playback.Stop(); }
-                try { Assert(ZTrackerPlayback.TryAudition(i,60,out playback,out var error),error); Assert(playback.IsPlaying,"Audition not prepared"); }
-                finally { if (playback != null) playback.Stop(); }
-                Assert(JsonUtility.ToJson(s) == original,"Playback mutated song"); i.model.fxChains.Add(new AudioEffectChainData()); Assert(!ZTrackerPlayback.TryAudition(i,60,out playback,out _),"Advanced instrument silently downgraded"); Assert(ZTrackerPlayback.Current == null,"Rejected playback leaked host");
+                Assert(JsonUtility.ToJson(s) == original && JsonUtility.ToJson(i) == originalInstrument, "Playback mutated legacy assets");
+                Upgrade(i); i.model.fxChains.Add(new AudioEffectChainData());
+                try { Assert(ZTrackerPlayback.TryAudition(i,60,out playback,out var error),error); Assert(playback.Generator != null,"Modern audition unavailable"); }
+                finally { if(playback != null)playback.Stop(); }
             });
         }
         static void DemoChecks()
