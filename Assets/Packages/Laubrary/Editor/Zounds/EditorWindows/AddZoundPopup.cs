@@ -14,6 +14,7 @@ namespace Laubrary.Zounds {
 
         private ZoundKind kind = ZoundKind.Klip;
         private string name;
+        private EditorWindow previewOwner;
         private Vector2 triggerMouseGui;   // GUI-space (pre-screen conversion), captured at Show
                                             // time; forwarded to OpenCreateNewKlipDialogExternal
                                             // which internally converts to screen coords.
@@ -21,8 +22,8 @@ namespace Laubrary.Zounds {
 
         private const string k_NameFieldCtrl = "addzound_name_field";
 
-        public static void Show(Rect activatorRect) {
-            var popup = new AddZoundPopup();
+        public static void Show(Rect activatorRect, EditorWindow previewOwner) {
+            var popup = new AddZoundPopup { previewOwner = previewOwner };
             // Capture GUI-space mouse position for later forwarding to the Klip dialog, which
             // does the GUI→screen conversion itself (matches legacy OpenAddNewZoundMenu flow).
             popup.triggerMouseGui = Event.current != null ? Event.current.mousePosition : Vector2.zero;
@@ -104,7 +105,7 @@ namespace Laubrary.Zounds {
                 // Klip: delegate to the existing audio-file dialog with the chosen name as override.
                 // The dialog's search-text state is tracked inside BrowserTab — we forward its current
                 // value to preserve the same behavior as the legacy menu path.
-                BrowserTab.OpenCreateNewKlipDialogExternal(triggerMouseGui, requestedName);
+                BrowserTab.OpenCreateNewKlipDialogExternal(triggerMouseGui, requestedName, previewOwner);
             }
         }
 

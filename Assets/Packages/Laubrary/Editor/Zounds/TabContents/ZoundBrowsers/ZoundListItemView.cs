@@ -72,12 +72,12 @@ namespace Laubrary.Zounds {
             }
             else {
                 s_btnContent.text    = zoundName;
-                s_btnContent.tooltip = zoundName + ": Left click to play. Right click to open edit mode. Middle click or Alt left click to copy the name to clipboard.";
+                s_btnContent.tooltip = ZoundPreviewPlayback.IsLoopPlaying(tab.previewOwner, currentZound) ? "Stop loop" : zoundName + ": Left click to play. Right click to open edit mode. Middle click or Alt left click to copy the name to clipboard.";
 
                 float pulseI = ZUI.GetPulseIntensity(ZoundBrowserPlaybackVisuals.ZoundPulseKey(currentZound));
                 if (pulseI > 0f) GUI.color = Color.Lerp(guiColor, Color.black, pulseI * 0.6f);
 
-                if (ZUI.Button(layout.nameButtonRect, s_btnContent, ZUI.Style.ZoundBtn)) {
+                if (ZUI.Button(layout.nameButtonRect, s_btnContent, ZUI.Style.ZoundBtn, ZoundPreviewPlayback.IsLoopPlaying(tab.previewOwner, currentZound) ? ZUI.Tint.Confirm : null)) {
                     if (evt.button == 0) {
                         if (evt.alt) {
                             ZoundBrowserPlaybackVisuals.CopyToClipboard(zoundName);
@@ -85,7 +85,7 @@ namespace Laubrary.Zounds {
                         else {
                             if (evt.control) { InfoViewWindow.OpenWindow(currentZound); }
                             else {
-                                ZoundBrowserPlaybackVisuals.PlayOrStopFromBrowser(currentZound);
+                                ZoundBrowserPlaybackVisuals.PlayOrStopFromBrowser(currentZound, tab.previewOwner);
                             }
                         }
                     }

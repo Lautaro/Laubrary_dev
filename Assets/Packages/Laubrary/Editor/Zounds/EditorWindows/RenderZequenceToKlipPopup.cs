@@ -15,14 +15,22 @@ namespace Laubrary.Zounds {
         private float duration;
 
         private bool isPreviewing;
+        private EditorWindow previewOwner;
+        private readonly List<ZoundToken> previewTokens = new List<ZoundToken>();
+
+        public override void OnClose() {
+            ZoundPreviewPlayback.StopControl(previewOwner, this);
+            foreach (var token in previewTokens) if (token != null && token.state != ZoundToken.State.Killed) token.Kill();
+            previewTokens.Clear();
+        }
         private float startTime;
         private GUIStyle timerStyle;
 
         private GUIContent label_mixerGroup = new GUIContent("Mixer Group", "You can use a mixer group to apply effects on the klip result.");
 
-        public static RenderZequenceToKlipPopup Show(Vector2 position, Zequence zequence, float initialDuration) {
+        public static RenderZequenceToKlipPopup Show(Vector2 position, Zequence zequence, float initialDuration, EditorWindow previewOwner) {
             if (zequence == null) return null;
-            var popup = new RenderZequenceToKlipPopup(zequence, initialDuration);
+            var popup = new RenderZequenceToKlipPopup(zequence, initialDuration) { previewOwner = previewOwner };
             PopupWindow.Show(new Rect(position.x, position.y, 0, 0), popup);
             return popup;
         }
@@ -133,7 +141,7 @@ namespace Laubrary.Zounds {
             isPreviewing = true;
             startTime = Time.realtimeSinceStartup;
             EnsureAllKlipsRendered(zequence);
-            var token = ZoundEngine.PlayZound(zequence, new ZoundArgs() {
+            var token = ZoundPreviewPlayback.Play(previewOwner, zequence, new ZoundArgs() {
                 startImmediately = true,
                 delay = 0f,
                 volumeOverride = 1f,
@@ -143,7 +151,9 @@ namespace Laubrary.Zounds {
                 overrideMixerGroup = true,
                 mixerGroupOverride = mixerGroup,
                 overrideDuration = duration
-            });
+            }, this);
+            previewTokens.Add(token);
+            if (token == null) return;
             token.onComplete += () => {
                 StopTokenCompletely(token);
             };

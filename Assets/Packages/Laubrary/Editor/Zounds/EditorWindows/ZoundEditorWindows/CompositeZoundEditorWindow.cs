@@ -52,7 +52,7 @@ namespace Laubrary.Zounds {
             label_maxDuration = new GUIContent("Duration", "This is only used to determine editor width, and doesn't affect runtime behaviour.");
             label_overrideToggle = new GUIContent("O", "Override.\n\nIf checked, then this will override the original value of the zound. If unchecked, then this will act as a multiplier of the original value.");
             label_playEntry = new GUIContent("►", "Play");
-            label_stopEntry = new GUIContent("⏹", "Stop");
+            label_stopEntry = new GUIContent("⏹", "Stop loop");
             icon_removeZound = new GUIContent(ZUI.FindIcon("remove") ?? Resources.Load<Texture>("ZoundsWindowIcons/remove"), "Remove this zound.");
             icon_removeEntry = new GUIContent(ZUI.FindIcon("remove") ?? Resources.Load<Texture>("ZoundsWindowIcons/remove"), "Remove this zound entry.");
             icon_duplicateEntry = new GUIContent(ZUI.FindIcon("duplicate") ?? Resources.Load<Texture>("ZoundsWindowIcons/duplicate"), "Duplicate this zound entry.");
@@ -141,7 +141,7 @@ namespace Laubrary.Zounds {
 
         protected override bool OnDrawGUI() {
             bool remove = false;
-            bool isPlaying = IsCurrentTokenPlaying();
+            bool isPlaying = ZoundPreviewPlayback.IsLoopPlaying(this, targetZound);
 
             var zoundsProject = ZoundsProject.Instance;
             if (durationTextStyle == null) {
@@ -208,7 +208,7 @@ namespace Laubrary.Zounds {
                 var guiEnabled = GUI.enabled;
                 GUI.enabled = guiEnabled && !Application.isPlaying;
                 if (ZUI.Button("Render to Klip", ZUI.Style.Default, ZUICornerMask.Left, GUILayout.Width(100f))) {
-                    RenderZequenceToKlipPopup.Show(Event.current.mousePosition, targetZound as Zequence, CalculateCompositeDuration(targetZound, 1f));
+                    RenderZequenceToKlipPopup.Show(Event.current.mousePosition, targetZound as Zequence, CalculateCompositeDuration(targetZound, 1f), this);
                 }
                 GUI.enabled = guiEnabled;
                 DrawRenderToKlipExtras();
@@ -220,12 +220,12 @@ namespace Laubrary.Zounds {
                     EditorTools.ZoundGcStressTest.Run(isPlaying);
 
                 GUILayout.Space(5f);
-                if (ZUI.Button(isPlaying ? "Stop" : "Play", ZUI.Style.Default, isPlaying ? ZUI.Tint.Confirm : null, ZUICornerMask.Right, GUILayout.Width(60f))) {
+                if (ZUI.Button(new GUIContent(isPlaying ? "Stop" : "Play", isPlaying ? "Stop loop" : "Play this sound."), ZUI.Style.Default, isPlaying ? ZUI.Tint.Confirm : null, ZUICornerMask.Right, GUILayout.Width(60f))) {
                     if (!isPlaying) {
                         SimulatePlay();
                     }
                     else {
-                        currentToken.Kill();
+                        ZoundPreviewPlayback.StopControl(this, targetZound);
                     }
                 }
 
@@ -359,7 +359,7 @@ namespace Laubrary.Zounds {
                     klip.parentId = targetZound.id;
                     targetZound.localKlips.Add(klip);
                     AddNewZoundEntry(targetZound, klip, true);
-                }, createKlipSearchText, text => createKlipSearchText = text);
+                }, createKlipSearchText, text => createKlipSearchText = text, previewOwner: this);
             }
             if (addNewZequence) {
                 var newZequence = new Zequence(ZoundLibrary.GetUniqueZoundId());
@@ -382,8 +382,8 @@ namespace Laubrary.Zounds {
         }
 
         protected override void OnPressSpaceKey() {
-            if (IsCurrentTokenPlaying()) {
-                currentToken.Kill();
+            if (ZoundPreviewPlayback.IsLoopPlaying(this, targetZound)) {
+                ZoundPreviewPlayback.StopControl(this, targetZound);
             }
             else {
                 SimulatePlay();
@@ -391,7 +391,7 @@ namespace Laubrary.Zounds {
         }
 
         private void SimulatePlay() {
-            currentToken = CompositeZoundEditing.SimulatePlay(targetZound, isLocalZound);
+            currentToken = ZoundPreviewPlayback.Session(this).PlayPreview(targetZound, () => CompositeZoundEditing.SimulatePlay(targetZound, isLocalZound, this, targetZound));
         }
 
         protected virtual void DrawAudioRenderingMenu() { }
@@ -486,9 +486,9 @@ namespace Laubrary.Zounds {
             }
 
             var playButtonRect = new Rect(contentRect.xMax - playButtonWidth, currentY, playButtonWidth, lineHeight);
-            bool isPlaying = CompositeZoundEditing.IsEntryPlaying(entryTokens, entry);
+            bool isPlaying = ZoundPreviewPlayback.IsLoopPlaying(this, entry);
             if (ZUI.Button(playButtonRect, isPlaying ? label_stopEntry : label_playEntry, ZUI.Style.RichButton, isPlaying ? ZUI.Tint.Confirm : null, ZUICornerMask.Right)) {
-                CompositeZoundEditing.ToggleEntryPlay(targetZound, ref entryTokens, entry);
+                CompositeZoundEditing.ToggleEntryPlay(targetZound, ref entryTokens, entry, this);
             }
 
             // currentY is still at the first line (name row)
@@ -705,7 +705,7 @@ namespace Laubrary.Zounds {
             // Clicking the waveform plays/stops the entry, identical to the play button.
             if (Event.current.type == EventType.MouseDown && Event.current.button == 0
                 && spectrumRect.Contains(Event.current.mousePosition)) {
-                CompositeZoundEditing.ToggleEntryPlay(targetZound, ref entryTokens, entry);
+                CompositeZoundEditing.ToggleEntryPlay(targetZound, ref entryTokens, entry, this);
                 Event.current.Use();
             }
 
@@ -870,7 +870,7 @@ namespace Laubrary.Zounds {
 
         private void AddNewEntryFromExisting(CompositeZound parentZound) {
             CompositeZoundEditing.AddNewEntryFromExisting(parentZound, Event.current.mousePosition, addMenuSearchText,
-                newSearch => addMenuSearchText = newSearch, zound => AddNewZoundEntry(parentZound, zound, false));
+                newSearch => addMenuSearchText = newSearch, zound => AddNewZoundEntry(parentZound, zound, false), this);
         }
 
         internal void AddNewZoundEntry(CompositeZound parentZound, Zound zound, bool local) {

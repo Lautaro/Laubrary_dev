@@ -13,13 +13,16 @@ namespace Laubrary.Zounds {
     internal class ChainLibraryPopup : PopupWindowContent {
 
         private Zound zound;
+        private EditorWindow previewOwner;
+        private readonly List<ZoundToken> auditionTokens = new List<ZoundToken>();
+        private readonly HashSet<ZoundChainPreset> previewControls = new HashSet<ZoundChainPreset>();
         private Vector2 scroll;
         private ZoundChainPreset renaming;
         private string renameText;
         private ZoundToken auditionToken;
 
-        public static void Show(Rect activator, Zound zound) {
-            var popup = new ChainLibraryPopup { zound = zound };
+        public static void Show(Rect activator, Zound zound, EditorWindow previewOwner) {
+            var popup = new ChainLibraryPopup { zound = zound, previewOwner = previewOwner };
             PopupWindow.Show(activator, popup);
         }
 
@@ -29,10 +32,14 @@ namespace Laubrary.Zounds {
         }
 
         public override void OnClose() {
-            if (auditionToken != null && auditionToken.state != ZoundToken.State.Killed) auditionToken.Kill();
+            foreach (var control in previewControls) ZoundPreviewPlayback.StopControl(previewOwner, control);
+            previewControls.Clear();
+            foreach (var token in auditionTokens) if (token != null && token.state != ZoundToken.State.Killed) token.Kill();
+            auditionTokens.Clear();
         }
 
         public override void OnGUI(Rect rect) {
+            editorWindow.Repaint();
             using var _sheet = ZUI.UseSheet("Zounds");
             var presets = ZoundChainLibrary.Presets;
             var header = new Rect(rect.x + 6f, rect.y + 4f, rect.width - 12f, 20f);
@@ -91,7 +98,7 @@ namespace Laubrary.Zounds {
                 }
                 GUI.enabled = prev;
                 var playRect = new Rect(useRect.xMax, row.y, 26f, row.height);
-                if (ZUI.Button(playRect, new GUIContent("▶", "Plays this zound once through the preset without assigning it."), ZUI.Style.RichButton, ZUICornerMask.None)) {
+                if (ZUI.Button(playRect, new GUIContent("▶", ZoundPreviewPlayback.Tooltip(previewOwner, p, "Plays this zound through the preset without assigning it.")), ZUI.Style.RichButton, ZoundPreviewPlayback.IsLoopPlaying(previewOwner, p) ? ZUI.Tint.Confirm : null, ZUICornerMask.None)) {
                     Audition(p);
                 }
                 var dupRect = new Rect(playRect.xMax, row.y, 40f, row.height);
@@ -115,13 +122,16 @@ namespace Laubrary.Zounds {
         // The audition path IS the playback path: assign, play, restore — a plain ZoundEngine.PlayZound
         // call, same as any other preview button in this editor. The voice took its layout at start.
         private void Audition(ZoundChainPreset p) {
+            previewControls.Add(p);
+            if (ZoundPreviewPlayback.IsLoopPlaying(previewOwner, p)) { ZoundPreviewPlayback.StopControl(previewOwner, p); return; }
             int savedPreset = zound.chainPresetId, savedDetached = zound.detachedChainPresetId;
             var savedOverrides = new List<ChainParamOverride>(zound.chainOverrides);
             zound.chainPresetId = p.id; zound.chainOverrides.Clear();
             ZoundDspPlayback.InvalidateLayout(zound);
-            if (auditionToken != null && auditionToken.state != ZoundToken.State.Killed) auditionToken.Kill();
+            foreach (var control in previewControls) if (ZoundPreviewPlayback.IsLoopPlaying(previewOwner, control)) ZoundPreviewPlayback.StopControl(previewOwner, control);
             var args = ZoundArgs.Default; args.ignoreCooldown = true;
-            auditionToken = ZoundEngine.PlayZound(zound, args);
+            auditionToken = ZoundPreviewPlayback.Play(previewOwner, zound, args, p);
+            if (auditionToken != null) auditionTokens.Add(auditionToken);
             zound.chainPresetId = savedPreset; zound.detachedChainPresetId = savedDetached; zound.chainOverrides.AddRange(savedOverrides);
             ZoundDspPlayback.InvalidateLayout(zound);
         }

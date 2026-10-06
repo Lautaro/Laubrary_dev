@@ -126,7 +126,7 @@ namespace Laubrary.Zounds {
             string _searchTerm = "", System.Action<string> _onSearchTermChanged = null, 
             System.Action<object> _onRightClicked = null, int _columnCount = 3, bool _invokeNoneSelected = false,
             List<ZoundsEditorPresets.NameListPreset> presetList = null,
-            System.Action<System.Action<string, bool>> _onDrawCustomFilter = null) {
+            System.Action<System.Action<string, bool>> _onDrawCustomFilter = null, EditorWindow previewOwner = null, System.Func<object, EditorWindow, ZoundToken> preview = null) {
             
             var popup = new GenericMenuPopup(p_menu, p_title, starredPaths, _columnCount, _invokeNoneSelected, _onDrawCustomFilter);
             popup.onSearchTermChanged = _onSearchTermChanged;
@@ -145,7 +145,7 @@ namespace Laubrary.Zounds {
             Vector2 screenPos = GUIUtility.GUIToScreenPoint(p_position);
             GenericMenuEditorWindow.Show(p_menu, p_title, screenPos, starredPaths,
                 _searchTerm, _onSearchTermChanged, _onRightClicked, _columnCount, _invokeNoneSelected,
-                presetList, _onDrawCustomFilter);
+                presetList, _onDrawCustomFilter, previewOwner, preview);
 
             return popup;
         }

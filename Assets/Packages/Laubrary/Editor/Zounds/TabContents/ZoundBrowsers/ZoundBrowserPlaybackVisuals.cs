@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Laubrary.Zounds {
 
-    // ── Playback state colors ─────────────────────────────────────────────────
+    // â”€â”€ Playback state colors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     internal static class ZoundsEditorColors {
         internal static Color flashColorStart          = new Color(0.5f, 0.5f, 0.8f, 1f);
         internal static Color flashColorEnd            = new Color(0.7f, 0.7f, 0.9f, 1f);
@@ -18,7 +18,7 @@ namespace Laubrary.Zounds {
         internal static Color clipFlashColorEnd        = new Color(0f, 0.7f, 0.9f, 1f);
     }
 
-    // ── Playback visual helpers ───────────────────────────────────────────────
+    // â”€â”€ Playback visual helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// <summary>
     /// Stateless helpers for drawing playback state visuals in the Zound Browser.
@@ -60,7 +60,7 @@ namespace Laubrary.Zounds {
             }
         }
 
-        // Pass 1 — call BEFORE drawing controls: fills the background tint.
+        // Pass 1 â€” call BEFORE drawing controls: fills the background tint.
         internal static void DrawMuteSoloBackground(Rect rowRect, Zound currentZound) {
             if (!currentZound.mute && !currentZound.solo) return;
             var guiColor   = GUI.color;
@@ -72,7 +72,7 @@ namespace Laubrary.Zounds {
             GUI.color = guiColor;
         }
 
-        // Pass 2 — call AFTER drawing controls: draws the top border stripe and Zequence bottom stripe.
+        // Pass 2 â€” call AFTER drawing controls: draws the top border stripe and Zequence bottom stripe.
         internal static void DrawMuteSoloIndicator(Rect rowRect, Zound currentZound) {
             var guiColor = GUI.color;
 
@@ -118,22 +118,14 @@ namespace Laubrary.Zounds {
         }
 
         /// <summary>
-        /// What a plain click on a zound's name in either browser does: plays it — except that a Looper already playing
+        /// What a plain click on a zound's name in either browser does: plays it â€” except that a Looper already playing
         /// is stopped instead (T-0475). A Looper never ends on its own, so a second click that played another copy would
         /// only stack loops the user then has to hunt down with Stop all.
         /// </summary>
-        internal static void PlayOrStopFromBrowser(Zound zound) {
-            if (zound is Klip k && k.IsLooper && ZoundEngine.CullingGroups.TryGetValue(zound, out var tokens)) {
-                bool stopped = false;
-                foreach (var t in new System.Collections.Generic.List<ZoundToken>(tokens)) {
-                    if (t == null || t.state == ZoundToken.State.Killed || t.state == ZoundToken.State.FadeToKill) continue;
-                    t.Kill();
-                    stopped = true;
-                }
-                if (stopped) return;
-            }
-            if (ZoundsProject.Instance.browserSettings.killOnPlay) ZoundEngine.StopAllZounds();
-            ZoundEngine.PlayZound(zound);
+        internal static void PlayOrStopFromBrowser(Zound zound, EditorWindow owner) {
+            var session = ZoundPreviewPlayback.Session(owner);
+            if (!session.IsLoopPlaying(zound) && ZoundsProject.Instance.browserSettings.killOnPlay) session.StopAll();
+            ZoundPreviewPlayback.Play(owner, zound);
         }
 
         internal static void CopyToClipboard(string zoundName) {

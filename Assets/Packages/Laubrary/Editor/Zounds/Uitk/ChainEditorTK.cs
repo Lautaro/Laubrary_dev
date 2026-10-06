@@ -27,6 +27,7 @@ namespace Laubrary.Zounds.Uitk {
     public class ChainEditorTK : VisualElement {
 
         readonly Zound zound;
+        readonly EditorWindow previewOwner;
         int selectedNode = -1;
         /// <summary>Which effect's settings are expanded (-1: none), as in the old editor.</summary>
         internal int SelectedNode { get => selectedNode; set { selectedNode = value; Tick(); } }
@@ -52,10 +53,11 @@ namespace Laubrary.Zounds.Uitk {
         // The sound's snapshots (T-0498), kept across rebuilds too.
         readonly SnapshotsRowTK snapshotsRow;
 
-        public ChainEditorTK(Zound zound) {
+        public ChainEditorTK(Zound zound, EditorWindow previewOwner = null) {
+            this.previewOwner = previewOwner;
             this.zound = zound;
             analyser = new ChainAnalyserTK(zound);
-            zpocTest = new ZpocTestPanelTK(zound);
+            zpocTest = new ZpocTestPanelTK(zound, previewOwner);
             snapshotsRow = new SnapshotsRowTK(zound, (undo, action) => Modify(undo, action));
             AddToClassList("zs-chain");
             AddToClassList("zs-chain-editor__root");
@@ -275,7 +277,7 @@ namespace Laubrary.Zounds.Uitk {
             r.Add(Flex());
             Button lib = null, save = null;
             lib = ZS.Button("Library…", "Browse the chain presets: use one on this zound, audition it, rename, duplicate or delete presets.", "RichButton",
-                            () => ChainLibraryPopup.Show(lib.worldBound, zound), ZUICornerMask.Left, 70f, G.RowH);
+                            () => ChainLibraryPopup.Show(lib.worldBound, zound, previewOwner), ZUICornerMask.Left, 70f, G.RowH);
             save = ZS.Button("Save as…", "Saves a copy of this chain as a new library preset and links this zound to it.", "RichButton",
                              () => SavePresetPopup.Show(save.worldBound, zound.name + " chain", name => Modify("save chain as preset", () => {
                                  var p = ZoundChainLibrary.Create(name, ZoundDspPlayback.ResolveChain(zound, out _));

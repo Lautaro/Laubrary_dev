@@ -93,6 +93,7 @@ namespace Laubrary.Zounds.Uitk {
             if (audition != null && !audition.IsDisposed) return;
             audition = new ZoundAudition(targetZoundID, () => this != null, PlayZequenceOnce,
                                          () => zeq != null && ZoundAudition.ContainsLooper(zeq)) { playOnChange = auditionPlayOnChange };
+            ZoundPreviewPlayback.Register(this, audition);
             audition.changed += () => { auditionPlayOnChange = audition != null && audition.playOnChange; SyncPlayButton(); };
             audition.Attach(rootVisualElement);
         }
@@ -100,7 +101,7 @@ namespace Laubrary.Zounds.Uitk {
         /// <summary>One play of the whole Zequence, as the old window's Play; the latest one drives the playhead.</summary>
         ZoundToken PlayZequenceOnce() {
             if (zeq == null) return null;
-            currentToken = CompositeZoundEditing.SimulatePlay(zeq, isLocalZound);
+            currentToken = CompositeZoundEditing.SimulatePlay(zeq, isLocalZound, this, audition);
             return currentToken;
         }
 
@@ -123,6 +124,7 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         protected override void OnDisable() {
+            ZoundPreviewPlayback.Dispose(this);
             KillAudition();
             base.OnDisable();
         }
@@ -131,10 +133,11 @@ namespace Laubrary.Zounds.Uitk {
 
         void SyncPlayButton() {
             if (playButton == null) return;
-            bool live = IsPlaying();
+            bool live = audition != null && audition.PlayControlStops;
             bool armed = audition != null ? audition.playOnChange : auditionPlayOnChange;
             playButton.text = (live ? "Stop" : "Play") + (armed ? " •" : "");
-            playButton.tooltip = (live ? "Stop everything this window is playing or has queued (Burst and Loop included)."
+            playButton.style.backgroundColor = live ? new Color(.22f, .34f, .52f, 1f) : StyleKeyword.Null;
+            playButton.tooltip = (live ? (audition.IsLoopPlaying(audition) ? "Stop loop" : "Stop the queued audition run.")
                                        : "Play this Zequence.")
                                + (armed ? "\n\n• Play on change is on: every change you make here plays the sound again." : "")
                                + "\n\nRight-click: Play on change, Burst, Loop.";
@@ -288,7 +291,7 @@ namespace Laubrary.Zounds.Uitk {
             r.Add(Gap(5f));
             Button render = null;
             render = ZS.Button("Render to Klip", "", "Default", () => RenderZequenceToKlipPopup.Show(render.worldBound.position,
-                                    zeq, CompositeZoundEditing.CalculateCompositeDuration(zeq, 1f)), ZUICornerMask.Left, 100f, -1f);
+                                    zeq, CompositeZoundEditing.CalculateCompositeDuration(zeq, 1f), this), ZUICornerMask.Left, 100f, -1f);
             render.AddToClassList("zs-layoutbutton");
             render.SetEnabled(!Application.isPlaying);
             r.Add(render);
@@ -318,7 +321,7 @@ namespace Laubrary.Zounds.Uitk {
             r.Add(Gap(5f));
             playButton = ZS.Button("Play", "", "Default", () => {
                 EnsureAudition();
-                if (audition.AnyLive) audition.StopAll();
+                if (audition.BurstRunning || audition.LoopRunning) audition.StopRun();
                 else audition.PlayOnce();
                 Tick();
             }, ZUICornerMask.Right, 60f, -1f);
@@ -459,12 +462,12 @@ namespace Laubrary.Zounds.Uitk {
                 parent.localKlips.Add(klip);
                 CompositeZoundEditing.AddNewZoundEntry(zeq, parent, klip, true, autoDuration);
                 Tick();
-            }, createKlipSearchText, text => createKlipSearchText = text);
+            }, createKlipSearchText, text => createKlipSearchText = text, previewOwner: this);
         }
 
         internal void AddShared(CompositeZound parent, VisualElement from) {
             CompositeZoundEditing.AddNewEntryFromExisting(parent, from.worldBound.position, addMenuSearchText, s => addMenuSearchText = s,
-                zound => { CompositeZoundEditing.AddNewZoundEntry(zeq, parent, zound, false, autoDuration); Tick(); });
+                zound => { CompositeZoundEditing.AddNewZoundEntry(zeq, parent, zound, false, autoDuration); Tick(); }, this);
         }
 
         internal bool AutoDuration => autoDuration;

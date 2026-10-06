@@ -1,57 +1,52 @@
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
 namespace Laubrary.Zounds {
-
-    /// <summary>
-    /// Plays audio clips for AC browser previews using a dedicated AudioSource that is
-    /// completely decoupled from the ZoundEngine pool. Unaffected by mute/solo state.
-    /// </summary>
     internal static class AudioPreviewUtility {
+        static readonly Dictionary<EditorWindow, EditorWindow> parents = new Dictionary<EditorWindow, EditorWindow>();
+        static readonly Dictionary<EditorWindow, AudioSource> sources = new Dictionary<EditorWindow, AudioSource>();
 
-        private static AudioSource s_audioSource;
-
-        // The hidden previewer is HideAndDontSave, so it outlives a domain reload while the static
-        // reference does not. Destroy it before the reload instead of leaking one per recompile.
         [InitializeOnLoadMethod]
-        private static void HookReload() {
-            AssemblyReloadEvents.beforeAssemblyReload += () => {
-                if (s_audioSource != null) Object.DestroyImmediate(s_audioSource.gameObject);
-                s_audioSource = null;
-            };
+        static void HookReload() {
+            AssemblyReloadEvents.beforeAssemblyReload += StopAll;
+            EditorApplication.quitting += StopAll;
+            EditorApplication.update += Sweep;
         }
 
-        private static AudioSource AudioSource {
-            get {
-                if (s_audioSource == null) {
-                    var go = new GameObject("ZoundACBrowserPreviewer");
-                    go.hideFlags = HideFlags.HideAndDontSave;
-                    s_audioSource = go.AddComponent<AudioSource>();
-                    s_audioSource.playOnAwake = false;
-                }
-                return s_audioSource;
+        public static void PlayPreviewClip(AudioClip clip, EditorWindow owner, EditorWindow launchingOwner = null) {
+            if (clip == null || owner == null) return;
+            if (!sources.TryGetValue(owner, out var source) || source == null) {
+                var go = new GameObject("ZoundACBrowserPreviewer") { hideFlags = HideFlags.HideAndDontSave };
+                source = go.AddComponent<AudioSource>();
+                source.playOnAwake = false;
+                sources[owner] = source;
+            }
+            if (launchingOwner != null) parents[owner] = launchingOwner; else parents.Remove(owner);
+            source.Stop(); source.clip = clip; source.Play();
+        }
+
+        public static void StopPreviewClip(EditorWindow owner) {
+            if (ReferenceEquals(owner, null)) return;
+            var owned = new List<EditorWindow>();
+            foreach (var key in sources.Keys)
+                if (ReferenceEquals(key, owner) || (parents.TryGetValue(key, out var parent) && ReferenceEquals(parent, owner))) owned.Add(key);
+            foreach (var key in owned) {
+                var source = sources[key]; sources.Remove(key); parents.Remove(key);
+                if (source != null) { source.Stop(); Object.DestroyImmediate(source.gameObject); }
             }
         }
 
-        /// <summary>
-        /// Plays an audio clip through the dedicated preview AudioSource.
-        /// Completely decoupled from the ZoundEngine and unaffected by mute/solo state.
-        /// </summary>
-        public static void PlayPreviewClip(AudioClip clip) {
-            if (clip == null) return;
-            var source = AudioSource;
-            source.Stop();
-            source.clip = clip;
-            source.Play();
+        static void Sweep() {
+            if (sources.Count == 0) return;
+            var gone = new List<EditorWindow>();
+            foreach (var pair in sources) if (pair.Key == null || (parents.TryGetValue(pair.Key, out var parent) && parent == null)) gone.Add(pair.Key);
+            foreach (var owner in gone) StopPreviewClip(owner);
         }
 
-        /// <summary>
-        /// Stops the currently playing preview clip.
-        /// </summary>
-        public static void StopPreviewClip() {
-            s_audioSource?.Stop();
+        static void StopAll() {
+            foreach (var source in sources.Values) if (source != null) { source.Stop(); Object.DestroyImmediate(source.gameObject); }
+            sources.Clear(); parents.Clear();
         }
-
     }
-
 }

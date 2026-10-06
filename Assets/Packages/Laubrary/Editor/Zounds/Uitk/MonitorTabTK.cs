@@ -18,6 +18,7 @@ namespace Laubrary.Zounds.Uitk {
         const float FrameW = 56f, CallerMaxW = 320f, StateW = 60f, CountW = 32f, BarW = 140f, StopW = 50f;
 
         readonly ZoundsWindowTK win;
+        public EditorWindow PreviewOwner => win;
         static string s_filter = string.Empty;
         readonly HashSet<string> seenKeys = new HashSet<string>();
         readonly Dictionary<Zound, ZoundToken> liveTokens = new Dictionary<Zound, ZoundToken>();

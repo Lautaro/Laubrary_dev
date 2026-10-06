@@ -203,7 +203,7 @@ namespace Laubrary.Zounds {
 
             var zoundName = currentZound.name;
             s_btnContent.text    = zoundName;
-            s_btnContent.tooltip = zoundName + ": Left click to play. Right click to open configuration panel. Middle click or Alt left click to copy the name to clipboard.";
+            s_btnContent.tooltip = ZoundPreviewPlayback.IsLoopPlaying(tab.previewOwner, currentZound) ? "Stop loop" : zoundName + ": Left click to play. Right click to open configuration panel. Middle click or Alt left click to copy the name to clipboard.";
 
             var nameRect = GUILayoutUtility.GetRect(itemWidth, 24f, ZUI.GetButtonStyle(ZUI.Style.ZoundBtn),
                 GUILayout.MinWidth(itemWidth), GUILayout.MaxWidth(itemWidth));
@@ -270,7 +270,7 @@ namespace Laubrary.Zounds {
                 }
             }
             else {
-                if (ZUI.Button(nameRect, s_btnContent, ZUI.Style.ZoundBtn)) {
+                if (ZUI.Button(nameRect, s_btnContent, ZUI.Style.ZoundBtn, ZoundPreviewPlayback.IsLoopPlaying(tab.previewOwner, currentZound) ? ZUI.Tint.Confirm : null)) {
                     if (evt.button == 0) {
                         if (evt.alt) {
                             ZoundBrowserPlaybackVisuals.CopyToClipboard(zoundName);
@@ -280,7 +280,7 @@ namespace Laubrary.Zounds {
                                 InfoViewWindow.OpenWindow(currentZound);
                             }
                             else {
-                                ZoundBrowserPlaybackVisuals.PlayOrStopFromBrowser(currentZound);
+                                ZoundBrowserPlaybackVisuals.PlayOrStopFromBrowser(currentZound, tab.previewOwner);
                             }
                         }
                     }

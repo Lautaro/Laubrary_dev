@@ -470,7 +470,7 @@ namespace Laubrary.Zounds {
                 if (EditorGUI.EndChangeCheck() && newSource != sourceAsset && newSource != null) {
 #if ADDRESSABLES_INSTALLED
                     if (currentToken != null && currentToken.state == ZoundToken.State.Playing) {
-                        currentToken.Kill();
+                        ZoundPreviewPlayback.StopControl(this, targetZound);
                         currentToken = null;
                     }
                     ZoundsWindow.ModifyZoundsProject("replace source clip", () => {
@@ -608,16 +608,16 @@ namespace Laubrary.Zounds {
                     // Group 4: Play
                     var audioSource = spectrumView.audioSource;
                     GUI.enabled = audioSource != null;
-                    bool isPlaying = IsCurrentTokenPlaying();
+                    bool isPlaying = ZoundPreviewPlayback.IsLoopPlaying(this, targetZound);
                     if (ZUI.Button(
-                            !GUI.enabled || !isPlaying ? "Play" : "Stop",
+                            new GUIContent(!GUI.enabled || !isPlaying ? "Play" : "Stop", isPlaying ? "Stop loop" : "Play this sound."),
                             ZUI.Style.RichButton,
                             isPlaying ? ZUI.Tint.Danger : null,
                             ZUICornerMask.All,
                             GUILayout.Height(btnHeight),
                             GUILayout.Width(60f))) {
-                        if (currentToken != null && currentToken.state == ZoundToken.State.Playing) {
-                            currentToken.Kill();
+                        if (ZoundPreviewPlayback.IsLoopPlaying(this, targetZound)) {
+                            ZoundPreviewPlayback.StopControl(this, targetZound);
                             currentToken = null;
                         }
                         else {
@@ -644,7 +644,7 @@ namespace Laubrary.Zounds {
                 // === Time-stretch (source material: duration without pitch change) ===
                 ZUI.RowSpace();
                 if (stretchEditor == null) stretchEditor = new TimeStretchGUI();
-                if (chainEditor == null) chainEditor = new ChainEditorGUI();
+                if (chainEditor == null) chainEditor = new ChainEditorGUI() { previewOwner = this };
                 var editorForMenu = chainEditor;
                 var zoundForMenu = targetZound;
                 stretchEditor.Draw(targetZound, sourceAsset, p => editorForMenu.ShowSourceParamMenu(zoundForMenu, p));
@@ -804,8 +804,8 @@ namespace Laubrary.Zounds {
         }
 
         protected override void OnPressSpaceKey() {
-            if (IsCurrentTokenPlaying()) {
-                currentToken.Kill();
+            if (ZoundPreviewPlayback.IsLoopPlaying(this, targetZound)) {
+                ZoundPreviewPlayback.StopControl(this, targetZound);
             }
             else {
                 SimulatePlay();
@@ -821,7 +821,7 @@ namespace Laubrary.Zounds {
             targetZound.needsRender = false; // Force playback of the rendered clip
 
             float targetPitch = Random.Range(targetZound.minPitch, targetZound.maxPitch);
-            currentToken = ZoundEngine.PlayZound(targetZound, new ZoundArgs() {
+            currentToken = ZoundPreviewPlayback.Play(this, targetZound, new ZoundArgs() {
                 startImmediately = true,
                 delay = 0f,
                 volumeOverride = Random.Range(targetZound.minVolume, targetZound.maxVolume),

@@ -100,7 +100,11 @@ namespace Laubrary.Zounds {
             }
 
             /// <summary>True once every authored play has been started. The final voice keeps running independently.</summary>
-            public bool Complete => started >= count;
+            public bool Complete => started >= count
+#if UNITY_EDITOR
+                || (args.editorPreviewAlive != null && !args.editorPreviewAlive())
+#endif
+                ;
 
             public void Tick() {
                 if (Complete) return;
@@ -425,6 +429,9 @@ namespace Laubrary.Zounds {
         }
 
         public static ZoundToken PlayZound(Zound zound, ZoundArgs zoundArgs) {
+#if UNITY_EDITOR
+            if (zoundArgs.editorPreviewAlive != null && !zoundArgs.editorPreviewAlive()) return null;
+#endif
             if (zound == null) return null;
             if (!zoundArgs.ignoreCooldown && IsCoolingDownAtTime(zound, Time.realtimeSinceStartup + zoundArgs.delay)) {
                 return null;
@@ -477,6 +484,9 @@ namespace Laubrary.Zounds {
             if (reuse != null) token.Start(0f, fadeDuration, onFadeComplete);
             else if (zoundArgs.startImmediately) token.Start();
             global::Laubrary.Zounds.Dsp.ZoundGCStressTest.MaybeSchedule(token);
+#if UNITY_EDITOR
+            zoundArgs.editorPreviewStarted?.Invoke(token);
+#endif
             return token;
         }
 
@@ -782,6 +792,10 @@ namespace Laubrary.Zounds {
         internal bool overrideMixerGroup;
         internal AudioMixerGroup mixerGroupOverride;
         public float overrideDuration;
+#if UNITY_EDITOR
+        internal System.Action<ZoundToken> editorPreviewStarted;
+        internal System.Func<bool> editorPreviewAlive;
+#endif
         public CompositeZound.ZoundEntry soloOverride;
         public bool bypassGlobalSolo;
         public bool ignoreCooldown;

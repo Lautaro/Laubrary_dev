@@ -128,11 +128,11 @@ namespace Laubrary.Zounds.Uitk {
             // Name (opens the sound's own UI Toolkit editor) and play.
             var name = ZS.Button(zound.name, "", "RichButton", OpenChild, ZUICornerMask.Left, -1f, LH);
             Add(name);
-            var play = ZS.Button("►", "Play", "RichButton", () => { CompositeZoundEditing.ToggleEntryPlay(win.zeq, ref win.entryTokens, entry); }, ZUICornerMask.Right, 18f, LH);
+            var play = ZS.Button("►", "Play", "RichButton", () => { CompositeZoundEditing.ToggleEntryPlay(win.zeq, ref win.entryTokens, entry, win); }, ZUICornerMask.Right, 18f, LH);
             Add(play);
             win.liveRefreshers.Add(() => {
-                bool p = CompositeZoundEditing.IsEntryPlaying(win.entryTokens, entry);
-                play.text = p ? "⏹" : "►"; play.tooltip = p ? "Stop" : "Play";
+                bool p = ZoundPreviewPlayback.IsLoopPlaying(win, entry);
+                play.text = p ? "⏹" : "►"; play.tooltip = p ? "Stop loop" : "Play this entry.";
             });
             var duration = Duration();
 
@@ -224,7 +224,7 @@ namespace Laubrary.Zounds.Uitk {
             waveHit.AddToClassList("zs-zequence-entry__plain-wave-hit");
             waveHit.RegisterCallback<PointerDownEvent>(e => {
                 if (e.button != 0) return;
-                CompositeZoundEditing.ToggleEntryPlay(win.zeq, ref win.entryTokens, entry);
+                CompositeZoundEditing.ToggleEntryPlay(win.zeq, ref win.entryTokens, entry, win);
                 e.StopPropagation();
             });
             Add(waveHit);
@@ -473,9 +473,9 @@ namespace Laubrary.Zounds.Uitk {
                 });
                 Add(rename);
             }
-            var play = ZS.Button("►", "Play", "RichButton", () => CompositeZoundEditing.ToggleEntryPlay(win.zeq, ref win.entryTokens, entry), ZUICornerMask.All, 18f, lh);
+            var play = ZS.Button("►", "Play", "RichButton", () => CompositeZoundEditing.ToggleEntryPlay(win.zeq, ref win.entryTokens, entry, win), ZUICornerMask.All, 18f, lh);
             Add(play);
-            win.liveRefreshers.Add(() => { bool p = CompositeZoundEditing.IsEntryPlaying(win.entryTokens, entry); play.text = p ? "⏹" : "►"; });
+            win.liveRefreshers.Add(() => { bool p = ZoundPreviewPlayback.IsLoopPlaying(win, entry); play.text = p ? "⏹" : "►"; play.tooltip = p ? "Stop loop" : "Play this entry."; });
             IntegerField noPlay = null;
             if (comp.mode == CompositeZound.Mode.Randomizer) {
                 noPlay = new IntegerField { value = comp.noPlayWeight };

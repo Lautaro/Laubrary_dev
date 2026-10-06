@@ -144,6 +144,10 @@ namespace Laubrary.Zounds.Uitk {
         readonly Func<bool> neverEnds;
         readonly int zoundId;
         readonly List<ZoundToken> tokens = new List<ZoundToken>();
+        readonly Dictionary<object, ZoundToken> previews = new Dictionary<object, ZoundToken>();
+        readonly Dictionary<object, List<ZoundToken>> previewPlays = new Dictionary<object, List<ZoundToken>>();
+        readonly Dictionary<object, int> previewVersions = new Dictionary<object, int>();
+        int generation;
         public readonly Settings settings;
 
         /// <summary>Play on change: on while the window says so. The window keeps the flag (it survives a reload, not a close).</summary>
@@ -178,6 +182,7 @@ namespace Laubrary.Zounds.Uitk {
 
         /// <summary>Stops everything and unhooks. The window calls this from OnDisable (close and before every reload).</summary>
         public void Dispose() {
+            if (IsDisposed) return;
             StopAll();
             EditorApplication.update -= Tick;
             sessions.Remove(this);
@@ -209,13 +214,12 @@ namespace Laubrary.Zounds.Uitk {
 
         /// <summary>The window's own Play: one play, added to what is already sounding.</summary>
         public ZoundToken PlayOnce() {
-            var t = StartPlay();
-            changed?.Invoke();
-            return t;
+            return PlayPreview(this, StartPlay);
         }
 
         /// <summary>Stops every play this window started and any run or queued play. The window's Stop.</summary>
         public void StopAll() {
+            generation++;
             running = Run.None;
             nextAt = -1d;
             changePending = false;
@@ -225,7 +229,54 @@ namespace Laubrary.Zounds.Uitk {
                 catch (Exception e) { Debug.LogException(e); }
             }
             tokens.Clear();
+            previews.Clear();
+            previewPlays.Clear();
+            previewVersions.Clear();
             lastPlay = null;
+            changed?.Invoke();
+        }
+
+        public bool PlayControlStops => IsLoopPlaying(this) || running != Run.None;
+
+        public bool IsLoopPlaying(object control) {
+            return control != null && previews.TryGetValue(control, out var token) && token != null
+                && token.state != ZoundToken.State.Killed && token.state != ZoundToken.State.FadeToKill
+                && float.IsPositiveInfinity(token.duration);
+        }
+
+        public ZoundToken PlayPreview(object control, Func<ZoundToken> start, bool toggle = true) {
+            if (IsDisposed) return null;
+            if (toggle && IsLoopPlaying(control)) { StopPreview(control); return null; }
+            var token = start?.Invoke();
+            TrackPreview(control, token);
+            changed?.Invoke();
+            return token;
+        }
+
+        internal Func<bool> PreviewAlive(object control) {
+            int runGeneration = generation;
+            previewVersions.TryGetValue(control, out int version);
+            return () => !IsDisposed && generation == runGeneration && (ownerAlive == null || ownerAlive())
+                && (!previewVersions.TryGetValue(control, out int current) ? version == 0 : current == version);
+        }
+
+        internal void TrackPreview(object control, ZoundToken token) {
+            if (token == null) return;
+            if (!tokens.Contains(token)) tokens.Add(token);
+            if (!previewPlays.TryGetValue(control, out var plays)) previewPlays[control] = plays = new List<ZoundToken>();
+            if (!plays.Contains(token)) plays.Add(token);
+            if (!token.isChildZound) previews[control] = token;
+        }
+
+        public void StopPreview(object control) {
+            previewVersions.TryGetValue(control, out int version);
+            previewVersions[control] = version + 1;
+            if (previewPlays.TryGetValue(control, out var plays)) {
+                foreach (var token in plays) if (token != null && token.state != ZoundToken.State.Killed) token.Kill();
+                previewPlays.Remove(control);
+            }
+            previews.Remove(control);
+            Prune();
             changed?.Invoke();
         }
 
@@ -250,7 +301,7 @@ namespace Laubrary.Zounds.Uitk {
             ZoundToken t = null;
             try { t = play?.Invoke(); }
             catch (Exception e) { Debug.LogException(e); }
-            if (t != null) tokens.Add(t);
+            if (t != null && !tokens.Contains(t)) tokens.Add(t);
             return t;
         }
 
@@ -344,14 +395,19 @@ namespace Laubrary.Zounds.Uitk {
         // ───────────────────────── helpers for the windows ─────────────────────────
 
         /// <summary>True when a sound never ends by itself: a Looper, or a Zequence with a Looper anywhere inside it.</summary>
-        public static bool ContainsLooper(Zound z, int depth = 0) {
-            if (z == null || depth > 8) return false;
-            if (z is Klip k) return k.loop != null && k.loop.enabled;
-            if (z is CompositeZound c) {
-                foreach (var e in c.zoundEntries)
-                    if (c.TryGetEntryZound(e, out var inner) && ContainsLooper(inner, depth + 1)) return true;
+        public static bool ContainsLooper(Zound z, int depth = 0) => ContainsLooper(z, new HashSet<Zound>());
+
+        static bool ContainsLooper(Zound z, HashSet<Zound> path) {
+            if (z == null || !path.Add(z)) return false;
+            try {
+                if (z is Klip k) return k.IsLooper;
+                if (z is CompositeZound c) {
+                    foreach (var e in c.zoundEntries)
+                        if (c.TryGetEntryZound(e, out var inner) && ContainsLooper(inner, path)) return true;
+                }
+                return false;
             }
-            return false;
+            finally { path.Remove(z); }
         }
     }
 }

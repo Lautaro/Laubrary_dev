@@ -322,6 +322,10 @@ namespace Laubrary.Zounds {
                     pitchRandomFactor = pitchRandomFactor,
                     volumeRandomFactor = volumeRandomFactor,
                     settingsRoot = args.settingsRoot,
+#if UNITY_EDITOR
+                    editorPreviewStarted = args.editorPreviewStarted,
+                    editorPreviewAlive = args.editorPreviewAlive,
+#endif
                 };
 
                 runtimeEntry.token = ZoundEngine.PlayZound(childZound, entryArgs);

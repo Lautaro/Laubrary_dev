@@ -89,10 +89,10 @@ namespace Laubrary.Zounds {
             projectSO = new SerializedObject(zoundsProject);
 
             mainTabView = new TabViewIMGUI(new TabContent[] {
-                new BrowserTab(),
-                new MonitorTab(),
-                new RoutingTab(),
-                new DependencyMapTab(),
+                new BrowserTab() { previewOwner = this },
+                new MonitorTab() { previewOwner = this },
+                new RoutingTab() { previewOwner = this },
+                new DependencyMapTab() { previewOwner = this },
                 new ProjectSettingsTab() { name = "Settings" },
             });
 
@@ -158,6 +158,7 @@ namespace Laubrary.Zounds {
         }
 
         private void OnDisable() {
+            ZoundPreviewPlayback.Dispose(this);
             AssemblyReloadEvents.beforeAssemblyReload -= SaveIfDirtyBeforeReload;
             EditorApplication.playModeStateChanged -= EditorApplication_playModeStateChanged;
             Undo.undoRedoPerformed -= PerformUndoRedo;

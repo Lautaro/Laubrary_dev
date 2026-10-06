@@ -437,7 +437,7 @@ namespace Laubrary.Zounds {
             if (isMissingZound) {
                 if (ZUI.Button(rect, icon_addMissing, ZUI.Style.ZoundBtnFlat, ZUI.Tint.Confirm)) {  // green-tinted to stand out for missing-zound action
                     RemoveMissingZound(zoundToInspect);
-                    BrowserTab.OpenAddNewZoundMenu(zoundToInspect.name);
+                    BrowserTab.OpenAddNewZoundMenu(zoundToInspect.name, parentTab?.previewOwner);
                 }
             }
             else if (zoundToInspect is ClipZound clipZound) {

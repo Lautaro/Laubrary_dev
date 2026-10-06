@@ -170,7 +170,7 @@ namespace Laubrary.Zounds {
 
         /// <summary>The "+ Shared Zound" menu: every zound not this one and not containing it, searchable, playable on hover.</summary>
         public static void AddNewEntryFromExisting(CompositeZound parentZound, Vector2 mousePosition, string searchText,
-                                                   System.Action<string> onSearchChanged, System.Action<Zound> onChosen) {
+                                                   System.Action<string> onSearchChanged, System.Action<Zound> onChosen, EditorWindow previewOwner) {
             var library = ZoundsProject.Instance.zoundLibrary;
             List<Zound> allZounds = library.GetAllZounds();
             var sortedZounds = allZounds.OrderBy(z => z.name).ToList();
@@ -192,7 +192,7 @@ namespace Laubrary.Zounds {
                 new List<string>(),
                 searchText,
                 onSearchChanged,
-                userData => ZoundEngine.PlayZound(userData as Zound));
+                previewOwner: previewOwner, preview: (userData, popupOwner) => ZoundPreviewPlayback.Play(previewOwner, userData as Zound, secondaryOwner: popupOwner));
         }
 
         /// <summary>Adds an entry for <paramref name="zound"/> and widens the editor timeline if it now runs longer.</summary>
@@ -280,8 +280,8 @@ namespace Laubrary.Zounds {
         }
 
         /// <summary>The window's Play: the whole sound, at its average settings, bypassing global solo when it is local.</summary>
-        public static ZoundToken SimulatePlay(CompositeZound target, bool isLocalZound) {
-            return ZoundEngine.PlayZound(target, new ZoundArgs() {
+        public static ZoundToken SimulatePlay(CompositeZound target, bool isLocalZound, EditorWindow owner, object control) {
+            return ZoundPreviewPlayback.Play(owner, target, new ZoundArgs() {
                 startImmediately = true,
                 delay = 0f,
                 volumeOverride = -1f,
@@ -290,7 +290,7 @@ namespace Laubrary.Zounds {
                 useFixedAverageValues = true,
                 bypassGlobalSolo = isLocalZound,
                 ignoreCooldown = true
-            });
+            }, control, false);
         }
 
         /// <summary>Whether this entry is currently sounding from a play started by its own play button.</summary>
@@ -299,13 +299,13 @@ namespace Laubrary.Zounds {
 
         /// <summary>An entry's play button (or a click on its waveform): stop it if it is sounding, else play the whole
         /// sound soloed to this entry.</summary>
-        public static void ToggleEntryPlay(CompositeZound target, ref Dictionary<CompositeZound.ZoundEntry, ZoundToken> entryTokens, CompositeZound.ZoundEntry entry) {
-            if (IsEntryPlaying(entryTokens, entry)) {
-                entryTokens[entry].Kill();
+        public static void ToggleEntryPlay(CompositeZound target, ref Dictionary<CompositeZound.ZoundEntry, ZoundToken> entryTokens, CompositeZound.ZoundEntry entry, EditorWindow owner) {
+            if (ZoundPreviewPlayback.IsLoopPlaying(owner, entry)) {
+                ZoundPreviewPlayback.StopControl(owner, entry);
                 return;
             }
             if (entryTokens == null) entryTokens = new Dictionary<CompositeZound.ZoundEntry, ZoundToken>();
-            var token = ZoundEngine.PlayZound(target, new ZoundArgs() {
+            var token = ZoundPreviewPlayback.Play(owner, target, new ZoundArgs() {
                 startImmediately = true,
                 delay = 0f,
                 volumeOverride = -1f,
@@ -314,7 +314,7 @@ namespace Laubrary.Zounds {
                 useFixedAverageValues = true,
                 soloOverride = entry,
                 ignoreCooldown = true
-            });
+            }, entry);
             entryTokens[entry] = token;
         }
     }

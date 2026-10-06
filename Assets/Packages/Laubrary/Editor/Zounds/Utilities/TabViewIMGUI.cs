@@ -6,6 +6,7 @@ using UnityEngine;
 namespace Laubrary.Zounds {
     
     public class TabContent {
+        internal EditorWindow previewOwner;
         public virtual string name { get; set; }
         public virtual string tooltip { get; set; }
         public virtual bool isVisible => true;

@@ -27,6 +27,7 @@ namespace Laubrary.Zounds.Uitk {
         const float FlatExtra = 10.5f, ToolbarGap = 10.5f;
 
         readonly ZoundsWindowTK win;
+        public EditorWindow PreviewOwner => win;
         readonly ZoundBrowserFilterEngine engine = new ZoundBrowserFilterEngine();
         static bool s_recent;                 // All / Recent (the old tab keeps it per tab instance, for the session)
         static bool s_showSettings;           // the gear's panel (likewise not saved)
@@ -569,7 +570,7 @@ namespace Laubrary.Zounds.Uitk {
                 Gap();
                 Button add = null;
                 add = ZequenceEditorWindowTK.IconButton("add-new", "Add new item.", "Flat", ZUICornerMask.All, ToolbarHeight, ToolbarHeight, () => {
-                    AddZoundPopup.Show(add.worldBound);
+                    AddZoundPopup.Show(add.worldBound, win);
                 });
                 add.Q<Image>().AddToClassList("zs-toolbaricon");
                 add.AddToClassList("zs-iconbutton");
@@ -962,7 +963,7 @@ namespace Laubrary.Zounds.Uitk {
                 if (e.button == 0) {
                     if (e.altKey) ZoundBrowserPlaybackVisuals.CopyToClipboard(zound.name);
                     else if (e.ctrlKey) InfoViewWindow.OpenWindow(zound);
-                    else ZoundBrowserPlaybackVisuals.PlayOrStopFromBrowser(zound);
+                    else ZoundBrowserPlaybackVisuals.PlayOrStopFromBrowser(zound, tab.win);
                 }
                 else if (e.button == 1) tab.ToggleSelect(zound);
                 else if (e.button == 2) ZoundBrowserPlaybackVisuals.CopyToClipboard(zound.name);
@@ -970,6 +971,10 @@ namespace Laubrary.Zounds.Uitk {
 
             public void Sync() {
                 if (button != null && button.text != zound.name) button.text = zound.name;
+                if (button != null) {
+                    button.tooltip = ZoundPreviewPlayback.Tooltip(tab.win, zound, zound.name + ": Left click to play. Right click to open configuration panel. Middle click or Alt left click to copy the name to clipboard.");
+                    button.style.backgroundColor = ZoundPreviewPlayback.IsLoopPlaying(tab.win, zound) ? new Color(.22f, .34f, .52f, 1f) : StyleKeyword.Null;
+                }
                 bool ms = zound.mute || zound.solo;
                 Color c = zound.mute ? ZoundListRowTK.MuteWash : ZoundListRowTK.SoloWash;
                 wash.style.display = ms ? DisplayStyle.Flex : DisplayStyle.None;
@@ -1016,6 +1021,7 @@ namespace Laubrary.Zounds.Uitk {
         // ─────────────────────────── the grid inspector (ZoundBrowserEditor.DrawMulticolumn) ───────────────────────────
 
         internal class GridInspectorTK : VisualElement, IZoundRowHost {
+            public EditorWindow PreviewOwner => tab.win;
             readonly Zound zound;
             readonly BrowserTabTK tab;
             readonly VisualElement area;

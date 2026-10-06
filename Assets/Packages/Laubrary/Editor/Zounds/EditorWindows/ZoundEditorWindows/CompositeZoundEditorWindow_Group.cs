@@ -108,9 +108,9 @@ namespace Laubrary.Zounds {
             }
 
             var playButtonRect = new Rect(contentRect.xMax - playButtonWidth, currentY, playButtonWidth, lineHeight);
-            bool isPlaying = CompositeZoundEditing.IsEntryPlaying(entryTokens, entry);
+            bool isPlaying = ZoundPreviewPlayback.IsLoopPlaying(this, entry);
             if (ZUI.Button(playButtonRect, isPlaying ? label_stopEntry : label_playEntry, ZUI.Style.RichButton, isPlaying ? ZUI.Tint.Confirm : null)) {
-                CompositeZoundEditing.ToggleEntryPlay(targetZound, ref entryTokens, entry);
+                CompositeZoundEditing.ToggleEntryPlay(targetZound, ref entryTokens, entry, this);
             }
 
             currentY += lineHeight + 2f;
@@ -337,7 +337,7 @@ namespace Laubrary.Zounds {
                         klip.parentId = compositeZound.id;
                         compositeZound.localKlips.Add(klip);
                         AddNewZoundEntry(compositeZound, klip, true);
-                    }, createKlipSearchText, text => createKlipSearchText = text);
+                    }, createKlipSearchText, text => createKlipSearchText = text, previewOwner: this);
                 }
                 //if (ZUI.Button(localZequenceRect, "+ Local Zequence", ZUI.Style.RichButton)) {
                 //    Debug.Log("Nested Local Zequence is not supported.");

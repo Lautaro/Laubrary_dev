@@ -82,6 +82,7 @@ namespace Laubrary.Zounds {
         }
 
         protected virtual void OnDisable() {
+            ZoundPreviewPlayback.Dispose(this);
             Undo.undoRedoPerformed -= PerformUndoRedo;
             OnBaseDisable();
         }
@@ -135,6 +136,7 @@ namespace Laubrary.Zounds {
         }
 
         protected virtual void OnDestroy() {
+            ZoundPreviewPlayback.Dispose(this);
             if (allWindows.TryGetValue(GetType(), out var windows)) {
                 if (windows.ContainsKey(targetZoundID)) {
                     windows.Remove(targetZoundID);

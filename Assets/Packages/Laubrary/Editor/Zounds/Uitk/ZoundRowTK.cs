@@ -11,6 +11,7 @@ namespace Laubrary.Zounds.Uitk {
     /// <summary>What a Browser row asks of whoever shows it (the Browser, the Monitor tab): open an editor, and rebuild
     /// after a change that alters the list itself (a remove, a duplicate, a conversion, a rename).</summary>
     internal interface IZoundRowHost {
+        EditorWindow PreviewOwner { get; }
         void OpenZoundEditor(Zound zound);
         void ListChanged(Zound select = null);
     }
@@ -122,7 +123,7 @@ namespace Laubrary.Zounds.Uitk {
             if (isMissing)
                 return ZequenceEditorWindowTK.IconButton("add-new", "Add as a new zound.", "ZoundBtnFlat", ZUICornerMask.None, -1f, -1f, () => {
                     ZoundBrowserEditor<Zound>.RemoveMissingZound(zound);
-                    BrowserTab.OpenAddNewZoundMenu(zound.name);
+                    BrowserTab.OpenAddNewZoundMenu(zound.name, host.PreviewOwner);
                     host.ListChanged();
                 });
             if (zound is ClipZound clip)
@@ -438,6 +439,10 @@ namespace Laubrary.Zounds.Uitk {
 
         /// <summary>The play pulse and the name button's tint (ZoundListItemView), from the engine's current tokens.</summary>
         public void Live() {
+            if (nameButton != null) {
+                nameButton.tooltip = ZoundPreviewPlayback.Tooltip(host.PreviewOwner, zound, zound.name + ": Left click to play. Right click to open edit mode. Middle click or Alt left click to copy the name to clipboard.");
+                nameButton.style.backgroundColor = ZoundPreviewPlayback.IsLoopPlaying(host.PreviewOwner, zound) ? new Color(.22f, .34f, .52f, 1f) : StyleKeyword.Null;
+            }
             Color fill = Color.clear, border = Color.clear, tint = Color.white;
             if (!isMissing) {
                 ZoundBrowserPlaybackVisuals.TryGetAnyInstanceToken(zound, out var token);
@@ -482,7 +487,7 @@ namespace Laubrary.Zounds.Uitk {
             if (e.button == 0) {
                 if (e.altKey) ZoundBrowserPlaybackVisuals.CopyToClipboard(zound.name);
                 else if (e.ctrlKey) InfoViewWindow.OpenWindow(zound);
-                else ZoundBrowserPlaybackVisuals.PlayOrStopFromBrowser(zound);
+                else ZoundBrowserPlaybackVisuals.PlayOrStopFromBrowser(zound, host.PreviewOwner);
             }
             else if (e.button == 1) host.OpenZoundEditor(zound);
             else if (e.button == 2) ZoundBrowserPlaybackVisuals.CopyToClipboard(zound.name);

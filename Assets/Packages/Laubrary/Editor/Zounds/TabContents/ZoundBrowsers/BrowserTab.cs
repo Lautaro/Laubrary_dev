@@ -768,7 +768,7 @@ namespace Laubrary.Zounds {
                 if (addClicked) {
                     var tl = GUIUtility.GUIToScreenPoint(new Vector2(addBtnGuiRect.x, addBtnGuiRect.y));
                     var screenRect = new Rect(tl, addBtnGuiRect.size);
-                    AddZoundPopup.Show(screenRect);
+                    AddZoundPopup.Show(screenRect, previewOwner);
                     filterCache = null;
                 }
             }
@@ -1017,15 +1017,15 @@ namespace Laubrary.Zounds {
         /// as override. The nameOverride is applied by AddAudioRefToGenericMenu when the user
         /// picks an audio file from the resulting menu.
         /// </summary>
-        public static void OpenCreateNewKlipDialogExternal(Vector3 anchorScreenPos, string nameOverride) {
-            OpenCreateNewKlipDialog(anchorScreenPos, OnKlipAdded, addMenuSearchText, text => addMenuSearchText = text, nameOverride);
+        public static void OpenCreateNewKlipDialogExternal(Vector3 anchorScreenPos, string nameOverride, EditorWindow previewOwner) {
+            OpenCreateNewKlipDialog(anchorScreenPos, OnKlipAdded, addMenuSearchText, text => addMenuSearchText = text, nameOverride, previewOwner);
         }
 
-        public static void OpenAddNewZoundMenu(string nameOverride = null) {
+        public static void OpenAddNewZoundMenu(string nameOverride = null, EditorWindow previewOwner = null) {
             var mousePosition = Event.current.mousePosition;
             var genericMenu = new GenericMenu();
             genericMenu.AddItem(new GUIContent("Klip"), false, () => {
-                OpenCreateNewKlipDialog(mousePosition, OnKlipAdded, addMenuSearchText, text => addMenuSearchText = text, nameOverride);
+                OpenCreateNewKlipDialog(mousePosition, OnKlipAdded, addMenuSearchText, text => addMenuSearchText = text, nameOverride, previewOwner);
             });
             genericMenu.AddItem(new GUIContent("Empty Klip (Placeholder)"), false, () => {
                 ZoundsWindow.ModifyZoundsProject("add empty placeholder klip", () => {
@@ -1097,7 +1097,7 @@ namespace Laubrary.Zounds {
             }
         }
 
-        public static void OpenCreateNewKlipDialog(Vector3 mousePosition, System.Action<Klip> onKlipAdded, string searchText, System.Action<string> onSearchTextChanged, string nameOverride = null) {
+        public static void OpenCreateNewKlipDialog(Vector3 mousePosition, System.Action<Klip> onKlipAdded, string searchText, System.Action<string> onSearchTextChanged, string nameOverride = null, EditorWindow previewOwner = null) {
             var genericMenu = new GenericMenu();
 #if ADDRESSABLES_INSTALLED
             AudioAssetUtility.FindAllAudioReferencesInWorkspace(out var libraryAudioRefs, out var workAudioRefs, out var sourcesAudioRefs, out var _);
@@ -1153,7 +1153,7 @@ namespace Laubrary.Zounds {
             // The popup lists this menu flat and sorted by name, which buried the actions among
             // hundreds of clips; starring pins them above the list while the search box is empty.
             var pinnedActions = new List<string> { "Import External File to Sources...", "Import & Trim External File...", "Empty Klip (Placeholder)" };
-            GenericMenuPopup.Show(genericMenu, "Add New Klip(s)", mousePosition, pinnedActions, searchText, newSearch => onSearchTextChanged?.Invoke(newSearch), userData => PlayAudioClip(userData), 3, false, null, (updateFilter) => DrawFolderFilterButtons(updateFilter, () => AddKlipFromExternalFile(nameOverride, onKlipAdded)));
+            GenericMenuPopup.Show(genericMenu, "Add New Klip(s)", mousePosition, pinnedActions, searchText, newSearch => onSearchTextChanged?.Invoke(newSearch), null, 3, false, null, (updateFilter) => DrawFolderFilterButtons(updateFilter, () => AddKlipFromExternalFile(nameOverride, onKlipAdded)), previewOwner: previewOwner, preview: (userData, popupOwner) => { if (userData is AudioClip clip) AudioPreviewUtility.PlayPreviewClip(clip, popupOwner, previewOwner); return null; });
         }
 
         public void OpenZoundEditor(Zound zound) {
@@ -1877,10 +1877,6 @@ namespace Laubrary.Zounds {
             if (failed.Count > 0)
                 EditorUtility.DisplayDialog("Error", "Could not decode WAV file" + (failed.Count > 1 ? "s" : "") + ":\n" + string.Join("\n", failed), "OK");
             return created;
-        }
-
-        private static void PlayAudioClip(object userData) {
-            if (userData is AudioClip audioClip) AudioPreviewUtility.PlayPreviewClip(audioClip);
         }
 
         private static void DrawFolderFilterButtons(System.Action<string, bool> updateFilter, System.Action onExternalFile) {

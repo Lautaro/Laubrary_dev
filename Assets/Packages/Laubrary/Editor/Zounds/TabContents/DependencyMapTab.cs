@@ -226,9 +226,12 @@ namespace Laubrary.Zounds {
                         else expandedZoundIds.Remove(z.id);
                     }
 
-                    if (GUILayout.Button("Play", EditorStyles.miniButton, GUILayout.Width(35f))) {
-                        ZoundEngine.PlayZound(z);
+                    var previewTint = GUI.backgroundColor;
+                    if (ZoundPreviewPlayback.IsLoopPlaying(previewOwner, z)) GUI.backgroundColor = new Color(.22f,.34f,.52f,1f);
+                    if (GUILayout.Button(new GUIContent("Play", ZoundPreviewPlayback.Tooltip(previewOwner, z)), EditorStyles.miniButton, GUILayout.Width(35f))) {
+                        ZoundPreviewPlayback.Play(previewOwner, z);
                     }
+                    GUI.backgroundColor = previewTint;
                 }
                 GUILayout.EndHorizontal();
 
@@ -1077,9 +1080,12 @@ namespace Laubrary.Zounds {
 
             var rect = GUILayoutUtility.GetRect(new GUIContent(label), style);
             EditorGUIUtility.AddCursorRect(rect, MouseCursor.Link);
-            if (GUI.Button(rect, label, style)) {
-                ZoundEngine.PlayZound(zound);
+            var previewTint = GUI.backgroundColor;
+            if (ZoundPreviewPlayback.IsLoopPlaying(previewOwner, zound)) GUI.backgroundColor = new Color(.22f,.34f,.52f,1f);
+            if (GUI.Button(rect, new GUIContent(label, ZoundPreviewPlayback.Tooltip(previewOwner, zound)), style)) {
+                ZoundPreviewPlayback.Play(previewOwner, zound);
             }
+            GUI.backgroundColor = previewTint;
         }
 
         /// <summary>
@@ -1105,9 +1111,12 @@ namespace Laubrary.Zounds {
                 string fullLabel = $"{typeTag}{nameLabel} {clipLabel}";
                 var rect = GUILayoutUtility.GetRect(new GUIContent(fullLabel), LabelRich);
                 EditorGUIUtility.AddCursorRect(rect, MouseCursor.Link);
-                if (GUI.Button(rect, fullLabel, LabelRich)) {
-                    ZoundEngine.PlayZound(klip);
+                var previewTint = GUI.backgroundColor;
+                if (ZoundPreviewPlayback.IsLoopPlaying(previewOwner, klip)) GUI.backgroundColor = new Color(.22f,.34f,.52f,1f);
+                if (GUI.Button(rect, new GUIContent(fullLabel, ZoundPreviewPlayback.Tooltip(previewOwner, klip)), LabelRich)) {
+                    ZoundPreviewPlayback.Play(previewOwner, klip);
                 }
+                GUI.backgroundColor = previewTint;
             }
             GUILayout.EndHorizontal();
             return true;
@@ -1125,7 +1134,7 @@ namespace Laubrary.Zounds {
             if (GUI.Button(rect, display, style)) {
                 var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(clipPath);
                 if (clip != null) {
-                    AudioPreviewUtility.PlayPreviewClip(clip);
+                    AudioPreviewUtility.PlayPreviewClip(clip, previewOwner);
                 }
             }
         }

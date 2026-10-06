@@ -193,17 +193,19 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         // PlayableZound: "[Klip] name" in the zound's colour (grey local, blue shared); click plays it.
-        static Label PlayableZound(Zound zound, bool showTypeTag = true, string extraPrefix = "", int indent = 0) {
+        Label PlayableZound(Zound zound, bool showTypeTag = true, string extraPrefix = "", int indent = 0) {
             string color = DependencyMapTab.ZoundNameColor(zound);
             string typeTag = showTypeTag ? $"<color={color}>[{DependencyMapTab.GetTypeLabel(zound)}]</color> " : "";
-            return Clickable($"{extraPrefix}{typeTag}<color={color}>{DependencyMapTab.GetCleanZoundName(zound)}</color>", () => ZoundEngine.PlayZound(zound), "zs-lbl", indent);
+            var link = Clickable($"{extraPrefix}{typeTag}<color={color}>{DependencyMapTab.GetCleanZoundName(zound)}</color>", () => ZoundPreviewPlayback.Play(win, zound), "zs-lbl", indent);
+            BindPreviewState(link, zound);
+            return link;
         }
 
-        static Label PlayableClip(string clipPath, string cls = "zs-lbl", string labelOverride = null, int indent = 0) {
+        Label PlayableClip(string clipPath, string cls = "zs-lbl", string labelOverride = null, int indent = 0) {
             string display = labelOverride ?? System.IO.Path.GetFileName(clipPath);
             return Clickable(display, () => {
                 var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(clipPath);
-                if (clip != null) AudioPreviewUtility.PlayPreviewClip(clip);
+                if (clip != null) AudioPreviewUtility.PlayPreviewClip(clip, win);
             }, cls, indent);
         }
 
@@ -254,7 +256,9 @@ namespace Laubrary.Zounds.Uitk {
             }
             head.Add(FoldoutRow($"<color={color}>[{typeLabel}]</color> <b>{DependencyMapTab.GetCleanZoundName(z)}</b>{clipSuffix}", expanded,
                                 v => { if (v) s_expanded.Add(z.id); else s_expanded.Remove(z.id); }));
-            head.Add(MiniButton("Play", 35f, () => ZoundEngine.PlayZound(z)));
+            var play = MiniButton("Play", 35f, () => ZoundPreviewPlayback.Play(win, z));
+            BindPreviewState(play, z);
+            head.Add(play);
             box.Add(head);
             if (expanded) {
                 if (node.isBroken) {
@@ -296,6 +300,13 @@ namespace Laubrary.Zounds.Uitk {
             }
         }
 
+        void BindPreviewState(VisualElement control, Zound zound) {
+            control.schedule.Execute(() => {
+                control.tooltip = ZoundPreviewPlayback.Tooltip(win, zound);
+                control.style.backgroundColor = ZoundPreviewPlayback.IsLoopPlaying(win, zound) ? new Color(.22f,.34f,.52f,1f) : StyleKeyword.Null;
+            }).Every(33);
+        }
+
         bool KlipInline(VisualElement into, Klip klip, int indent, bool broken) {
             if (klip.HasActiveEdits()) return false;
             if (klip.audioClipRef == null || string.IsNullOrEmpty(klip.audioClipRef.AssetGUID)) return false;
@@ -303,7 +314,8 @@ namespace Laubrary.Zounds.Uitk {
             if (string.IsNullOrEmpty(clipPath)) return false;
             string color = DependencyMapTab.ZoundNameColor(klip);
             var l = Clickable($"<color={color}>[Klip]</color> <color={color}>{DependencyMapTab.GetCleanZoundName(klip)}</color> <color=#AAAAAA>({System.IO.Path.GetFileName(clipPath)})</color>",
-                              () => ZoundEngine.PlayZound(klip), "zs-lbl", indent);
+                              () => ZoundPreviewPlayback.Play(win, klip), "zs-lbl", indent);
+            BindPreviewState(l, klip);
             if (broken) l.style.color = new Color(1f * 0.769f, 0.5f * 0.769f, 0.5f * 0.769f);
             var r = Row(); r.Add(l); into.Add(r);
             return true;

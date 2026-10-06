@@ -34,7 +34,10 @@ namespace Laubrary.Zounds.Uitk {
                                   "or a project-wide value no sound listens to. One row per problem, however often it happens; each is also " +
                                   "warned about once in the console. Nothing here ever stopped a sound: a miss only does nothing. Not saved.";
 
-        public ProblemsTabTK() {
+        readonly EditorWindow previewOwner;
+
+        public ProblemsTabTK(EditorWindow previewOwner) {
+            this.previewOwner = previewOwner;
             AddToClassList("zs-problems__root");
             box = new VisualElement();
             box.AddToClassList("zs-box-default");
@@ -139,8 +142,9 @@ namespace Laubrary.Zounds.Uitk {
             var sound = Cell(SoundText(e), ZoundW, exists ? e.message + "\nClick to hear this sound; click again to stop it." : e.message);
             if (exists && !nowExists) {
                 sound.AddToClassList("zs-problems__sound");
-                sound.RegisterCallback<PointerDownEvent>(ev => { if (ev.button == 0) { ZoundBrowserPlaybackVisuals.PlayOrStopFromBrowser(targetZound); ev.StopPropagation(); } });
+                sound.RegisterCallback<PointerDownEvent>(ev => { if (ev.button == 0) { ZoundBrowserPlaybackVisuals.PlayOrStopFromBrowser(targetZound, previewOwner); ev.StopPropagation(); } });
             }
+            sound.schedule.Execute(() => { if (exists) { sound.tooltip = ZoundPreviewPlayback.Tooltip(previewOwner, targetZound, e.message + "\nClick to hear this sound."); sound.style.backgroundColor = ZoundPreviewPlayback.IsLoopPlaying(previewOwner, targetZound) ? new Color(.22f,.34f,.52f,1f) : StyleKeyword.Null; } }).Every(33);
             r.Add(sound);
             r.Add(Cell(e.shown ?? e.detail, DetailW, e.message));
             var count = Cell(CountText(e), CountW, "How many times this happened this session.");

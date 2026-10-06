@@ -11,6 +11,7 @@ namespace Laubrary.Zounds {
     public class GenericMenuEditorWindow : EditorWindow {
 
         private GenericMenuPopup _popup;
+        private EditorWindow previewOwner;
 
         /// <summary>
         /// Opens a GenericMenuPopup as a resizable EditorWindow instead of a PopupWindow.
@@ -26,9 +27,10 @@ namespace Laubrary.Zounds {
             int columnCount = 3,
             bool invokeNoneSelected = false,
             List<ZoundsEditorPresets.NameListPreset> presetList = null,
-            System.Action<System.Action<string, bool>> onDrawCustomFilter = null) {
+            System.Action<System.Action<string, bool>> onDrawCustomFilter = null, EditorWindow previewOwner = null, System.Func<object, EditorWindow, ZoundToken> preview = null) {
 
             var window = CreateInstance<GenericMenuEditorWindow>();
+            window.previewOwner = previewOwner;
             window.titleContent = new GUIContent(title);
             window.minSize = new Vector2(350, 300);
 
@@ -36,7 +38,10 @@ namespace Laubrary.Zounds {
             popup.onSearchTermChanged = onSearchTermChanged;
             popup._search = searchTerm;
             popup.resizeToContent = false;
-            popup.onRightClicked = onRightClicked;
+            popup.onRightClicked = data => {
+                if (preview != null) ZoundPreviewPlayback.Session(window).PlayPreview(data, () => preview(data, window));
+                else onRightClicked?.Invoke(data);
+            };
             popup.presetList = presetList;
             popup.lastSelectedPresetName = null;
             popup.isResizable = false; // native OS handles resize now
@@ -73,11 +78,11 @@ namespace Laubrary.Zounds {
             Close();
         }
 
+        private void OnDisable() => ZoundPreviewPlayback.Dispose(this);
+
         private void OnDestroy() {
-            // This window is the audio file browser's preview player (see PlayAudioClip in
-            // BrowserTab) — nothing else stops that preview, so without this it can be left
-            // playing with no way to silence it once the window is gone.
-            AudioPreviewUtility.StopPreviewClip();
+            // Stop only this popup's previews; the launching window owns other previews separately.
+            ZoundPreviewPlayback.Dispose(this);
         }
     }
 

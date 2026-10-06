@@ -16,6 +16,7 @@ namespace Laubrary.Zounds {
     /// linked zound sets a per-zound override instead (marked, revertable from its context menu).
     /// </summary>
     internal class ChainEditorGUI {
+        internal EditorWindow previewOwner;
 
         internal const float RowH = 20f;
         internal const float GripW = 14f;
@@ -202,7 +203,7 @@ namespace Laubrary.Zounds {
 
                 tmp.text = "Library…"; tmp.tooltip = "Browse the chain presets: use one on this zound, audition it, rename, duplicate or delete presets.";
                 if (ZUI.Button(tmp, ZUI.Style.RichButton, ZUICornerMask.Left, GUILayout.Width(70f), GUILayout.Height(RowH))) {
-                    ChainLibraryPopup.Show(GUILayoutUtility.GetLastRect(), zound);
+                    ChainLibraryPopup.Show(GUILayoutUtility.GetLastRect(), zound, previewOwner);
                 }
                 tmp.text = "Save as…"; tmp.tooltip = "Saves a copy of this chain as a new library preset and links this zound to it.";
                 if (ZUI.Button(tmp, ZUI.Style.RichButton, ZUICornerMask.None, GUILayout.Width(70f), GUILayout.Height(RowH))) {

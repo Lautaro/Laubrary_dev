@@ -106,11 +106,11 @@ namespace Laubrary.Zounds.Uitk {
     internal class ImguiChainGallery : EditorWindow {
         internal Klip klip; internal int expand = -1;
         ChainEditorGUI editor;
-        void OnDisable() => editor?.Dispose();
+        void OnDisable() { ZoundPreviewPlayback.Dispose(this); editor?.Dispose(); }
         void OnGUI() {
             if (klip == null) return;
             using var _ = ZUI.UseSheet("Zounds");
-            if (editor == null) { editor = new ChainEditorGUI(); editor.SelectedNode = expand; }
+            if (editor == null) { editor = new ChainEditorGUI() { previewOwner = this }; editor.SelectedNode = expand; }
             GUILayout.BeginArea(new Rect(8, 8, position.width - 16, position.height - 16));
             editor.Draw(klip);
             GUILayout.EndArea();
@@ -118,11 +118,12 @@ namespace Laubrary.Zounds.Uitk {
     }
 
     internal class UitkChainGallery : ZuiWindow {
+        protected override void OnDisable() { ZoundPreviewPlayback.Dispose(this); base.OnDisable(); }
         internal Klip klip; internal int expand = -1;
         protected override void BuildUI(VisualElement root) {
             ZS.Attach(root);
             if (klip == null) return;
-            var ed = new ChainEditorTK(klip) { SelectedNode = expand };
+            var ed = new ChainEditorTK(klip, this) { SelectedNode = expand };
             ed.At(8, 8);
             ed.style.width = ZoundsUitkGallery.ChainW - 16f;
             root.Add(ed);

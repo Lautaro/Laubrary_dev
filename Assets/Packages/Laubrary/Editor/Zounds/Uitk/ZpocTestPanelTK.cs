@@ -31,18 +31,22 @@ namespace Laubrary.Zounds.Uitk {
 
         const float RowH = 20f;
         readonly Zound zound;
+        readonly UnityEditor.EditorWindow previewOwner;
+        readonly List<IVisualElementScheduledItem> pendingPlays = new List<IVisualElementScheduledItem>();
         readonly List<Row> rows = new List<Row>();
         readonly List<ZoundToken> ownPlays = new List<ZoundToken>();
         readonly HashSet<string> globalsSet = new HashSet<string>();
+        Button playButton;
         bool drive;
         int instances = 3;
         string builtIds;
 
-        public ZpocTestPanelTK(Zound zound) {
+        public ZpocTestPanelTK(Zound zound, UnityEditor.EditorWindow previewOwner = null) {
+            this.previewOwner = previewOwner;
             this.zound = zound;
             AddToClassList("zs-zpoc-test-panel__root");
             schedule.Execute(Tick).Every(33);
-            RegisterCallback<DetachFromPanelEvent>(_ => StopDriving());
+            RegisterCallback<DetachFromPanelEvent>(_ => { StopDriving(); StopOwnPlays(); });
         }
 
         /// <summary>The distinct ZPOC ids this sound's chain declares, in order, as display strings.</summary>
@@ -106,8 +110,9 @@ namespace Laubrary.Zounds.Uitk {
                 r.Add(tg[i]);
             }
             r.Add(Gap(4f));
-            r.Add(ZS.Button("Play", "Starts the chosen number of instances of this sound, 0.15 s apart, and turns Drive on.", "RichButton",
-                () => { drive = true; PlayInstances(); Rebuild(DeclaredIds()); }, ZUICornerMask.All, 44f, RowH - 2f));
+            playButton = ZS.Button("Play", "Starts the chosen number of instances of this sound, 0.15 s apart, and turns Drive on.", "RichButton",
+                () => { drive = true; PlayInstances(); Rebuild(DeclaredIds()); }, ZUICornerMask.All, 44f, RowH - 2f);
+            r.Add(playButton);
             r.Add(Gap(2f));
             r.Add(ZS.Button("Stop", "Stops the instances Play started (a Looper keeps going until stopped).", "RichButton",
                 StopOwnPlays, ZUICornerMask.All, 44f, RowH - 2f));
@@ -160,18 +165,23 @@ namespace Laubrary.Zounds.Uitk {
 
         void PlayInstances() {
             PruneOwn();
+            if (ownPlays.Exists(t => t != null && float.IsPositiveInfinity(t.duration))) { StopOwnPlays(); return; }
             for (int i = 0; i < instances; i++) {
                 int delayMs = i * 150;
-                schedule.Execute(() => {
-                    var t = ZoundEngine.PlayZound(zound, new ZoundArgs {
+                pendingPlays.Add(schedule.Execute(() => {
+                    if (previewOwner == null || panel == null) return;
+                    var t = ZoundPreviewPlayback.Play(previewOwner, zound, new ZoundArgs {
                         startImmediately = true, delay = 0f, chanceOverride = 1f, ignoreCooldown = true, bypassGlobalSolo = true,
-                    });
+                    }, this, false);
                     if (t != null) { ownPlays.Add(t); Send(t, 0f); }
-                }).StartingIn(delayMs);
+                }).StartingIn(delayMs));
             }
         }
 
         void StopOwnPlays() {
+            ZoundPreviewPlayback.StopControl(previewOwner, this);
+            foreach (var pending in pendingPlays) pending.Pause();
+            pendingPlays.Clear();
             foreach (var t in ownPlays) { try { if (t != null && t.state != ZoundToken.State.Killed) t.Kill(); } catch { } }
             ownPlays.Clear();
         }
@@ -195,6 +205,11 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         void Tick() {
+            if (playButton != null) {
+                bool looping = ownPlays.Exists(t => t != null && t.state != ZoundToken.State.Killed && float.IsPositiveInfinity(t.duration));
+                playButton.tooltip = looping ? "Stop loop" : "Starts the chosen number of instances of this sound, 0.15 s apart, and turns Drive on.";
+                playButton.style.backgroundColor = looping ? new Color(.22f,.34f,.52f,1f) : StyleKeyword.Null;
+            }
             if (panel == null) return;
             var ids = DeclaredIds();
             var sig = string.Join("\u0001", ids);

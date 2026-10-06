@@ -133,7 +133,7 @@ namespace Laubrary.Zounds.Uitk {
                 case 3: depMap = new DependencyMapTabTK(this); content.Add(depMap); break;
 #endif
                 case 4: settings = new SettingsTabTK(); content.Add(settings); break;
-                case 5: problems = new ProblemsTabTK(); content.Add(problems); break;
+                case 5: problems = new ProblemsTabTK(this); content.Add(problems); break;
                 default:
                     var todo = new Label(TabNames[selectedTab]);
                     todo.AddToClassList("zs-lbl");
@@ -189,6 +189,7 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         protected override void OnDisable() {
+            ZoundPreviewPlayback.Dispose(this);
             tick?.Pause(); live?.Pause();
             base.OnDisable();
         }

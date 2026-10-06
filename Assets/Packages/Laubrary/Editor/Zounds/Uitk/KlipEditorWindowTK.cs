@@ -37,6 +37,7 @@ namespace Laubrary.Zounds.Uitk {
             if (audition != null && !audition.IsDisposed) return;
             audition = new ZoundAudition(targetZoundID, () => this != null, PlayKlipOnce,
                                          () => klip != null && ZoundAudition.ContainsLooper(klip)) { playOnChange = auditionPlayOnChange };
+            ZoundPreviewPlayback.Register(this, audition);
             audition.changed += () => { auditionPlayOnChange = audition != null && audition.playOnChange; SyncPlayButton(); };
             audition.Attach(rootVisualElement);
         }
@@ -81,6 +82,7 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         protected override void OnDisable() {
+            ZoundPreviewPlayback.Dispose(this);
             // Closing, and the disable Unity sends before every script reload: nothing this window started may outlive it.
             KillAudition();
             EndWaveformDrag();
@@ -242,7 +244,7 @@ namespace Laubrary.Zounds.Uitk {
             scroll.Add(VSpace(4f));
             scroll.Add(new TimeStretchTK(klip));
             scroll.Add(VSpace(Row));
-            scroll.Add(new ChainEditorTK(klip));
+            scroll.Add(new ChainEditorTK(klip, this));
 
             syncTick = root.schedule.Execute(Sync).Every(200);
         }
@@ -298,10 +300,11 @@ namespace Laubrary.Zounds.Uitk {
 
         void SyncPlayButton() {
             if (playButton == null) return;
-            bool live = IsPlaying();
+            bool live = audition != null && audition.PlayControlStops;
             bool armed = audition != null ? audition.playOnChange : auditionPlayOnChange;
             playButton.text = (live ? "Stop" : "Play") + (armed ? " •" : "");
-            playButton.tooltip = (live ? "Stop everything this window is playing or has queued (Burst and Loop included)."
+            playButton.style.backgroundColor = live ? new Color(.22f, .34f, .52f, 1f) : StyleKeyword.Null;
+            playButton.tooltip = (live ? (audition.IsLoopPlaying(audition) ? "Stop loop" : "Stop the queued audition run.")
                                        : "Play this Klip.")
                                + (armed ? "\n\n• Play on change is on: every change you make here plays the sound again." : "")
                                + "\n\nRight-click: Play on change, Burst, Loop.";
@@ -326,7 +329,7 @@ namespace Laubrary.Zounds.Uitk {
         /// <summary>Play when silent, otherwise stop everything this window started (a Burst or Loop included).</summary>
         void PlayOrStop() {
             EnsureAudition();
-            if (audition.AnyLive) audition.StopAll();
+            if (audition.BurstRunning || audition.LoopRunning) audition.StopRun();
             else audition.PlayOnce();
             Sync();
         }
@@ -338,12 +341,12 @@ namespace Laubrary.Zounds.Uitk {
             bool needsRenderTemp = klip.needsRender;
             klip.needsRender = false;
             try {
-                return ZoundEngine.PlayZound(klip, new ZoundArgs() {
+                return ZoundPreviewPlayback.Play(this, klip, new ZoundArgs() {
                     startImmediately = true, delay = 0f,
                     volumeOverride = Random.Range(klip.minVolume, klip.maxVolume),
                     pitchOverride = Random.Range(klip.minPitch, klip.maxPitch),
                     chanceOverride = 1f, useFixedAverageValues = false, bypassGlobalSolo = isLocalZound, ignoreCooldown = true
-                });
+                }, audition, false);
             }
             finally { klip.needsRender = needsRenderTemp; }
         }
