@@ -244,6 +244,7 @@ namespace Laubrary.ZTracker.Engine
         void ScheduleAutomationPoint(double after)
         {
             state.automationDeadline = double.PositiveInfinity;
+            state.automationTime = double.PositiveInfinity;
             int pattern = state.sequence[state.sequenceIndex].pattern;
             if (state.held)
                 return;
@@ -255,8 +256,11 @@ namespace Laubrary.ZTracker.Engine
                 for (int j = 0; j < lane.count; j++)
                 {
                     double time = state.automationPoints[lane.points + j].line;
-                    if (time > after && time < state.row + 1 && time >= state.row)
-                        state.automationDeadline = math.min(state.automationDeadline, state.rowStart + (time - state.row) * state.rowDuration);
+                    if (time > after && time < state.row + 1 && time >= state.row && time < state.automationTime)
+                    {
+                        state.automationTime = time;
+                        state.automationDeadline = state.rowStart + (time - state.row) * state.rowDuration;
+                    }
                 }
             }
         }
@@ -265,9 +269,10 @@ namespace Laubrary.ZTracker.Engine
         {
             if (!math.isfinite(state.automationDeadline))
                 return;
-            double time = state.row + (state.automationDeadline - state.rowStart) / state.rowDuration;
+            // Retain the source coordinate: reversing a cumulative binary64 frame
+            // calculation can land below a Step point and reschedule it forever.
+            double time = state.automationTime;
             EvaluateAutomation(time);
-            state.automationTime = time;
             ScheduleAutomationPoint(time);
         }
     }

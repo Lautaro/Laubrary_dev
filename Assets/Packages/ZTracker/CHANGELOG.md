@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- P5 independent review: preserve exact automation/event chronology and release-duration capture, retain authored Step coordinates to guarantee forward progress at fractional tempo, continue broader track commands while delayed local events wait, and refuse ambiguous macro/automation/preset identities. Added native-render regressions for these cases and malformed numeric81 preservation.
+
 - Added the native P5 command profile, fractional delay, per-source command memory, foreground bundle ownership, bounded sample pitch/loops, device addressing, tick/point automation and silent seek reconstruction. Added source-device/slice metadata and prepared future-note preset parameter sets without cloning canonical instrument slots. Unsupported contexts and unsafe legacy conversions remain preserved and diagnosed. The existing golden and standalone forced-GC/lifecycle harnesses now exercise active P5 commands and automation; exact evidence and limits are in P5_VERIFICATION.md. The existing DLL authoring backend remains active for P7 retirement.
 
 - Independent P4 review corrected paired-sample loop release so B resumes forward from its own cursor without changing A's loop policy, and rejects phase-depth routes with physical units from the wrong sound family while preserving neighboring valid routes. Added two focused regressions and reran the native comparisons and a fresh standalone GC/lifecycle proof after the renderer fix.

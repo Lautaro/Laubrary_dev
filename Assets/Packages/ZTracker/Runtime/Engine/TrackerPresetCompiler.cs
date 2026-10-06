@@ -15,6 +15,7 @@ namespace Laubrary.ZTracker.Engine
             var tones = new List<TrackerTone>();
             var envs = new List<TrackerMod>();
             var parameters = new List<float>();
+            var ambiguousSetIds = new HashSet<string>();
             for (int i = 0; i < samples.Count; i++)
             {
                 var tone = state.tones[i];
@@ -32,9 +33,11 @@ namespace Laubrary.ZTracker.Engine
                     for (int selector = 0; selector < resolved.Count; selector++)
                     {
                         var source = resolved[selector];
-                        if (parameterSetIds.ContainsKey(source.id))
+                        if (parameterSetIds.ContainsKey(source.id) || ambiguousSetIds.Contains(source.id))
                         {
                             diagnostics.Add("PARAMETER_SET_ID_AMBIGUOUS " + source.id);
+                            parameterSetIds.Remove(source.id);
+                            ambiguousSetIds.Add(source.id);
                             continue;
                         }
 

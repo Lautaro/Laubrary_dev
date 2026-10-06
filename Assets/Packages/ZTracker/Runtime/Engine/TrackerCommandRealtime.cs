@@ -123,7 +123,7 @@ namespace Laubrary.ZTracker.Engine
                 var col = state.columns[ci];
                 if (cell.note != -1 || cell.instrumentPresent)
                 {
-                    col.localsPending = cell.note >= 0;
+                    col.localsPending = true;
                     col.pendingInstrument = cell.instrumentPresent ? cell.instrument : col.instrument;
                     var q = Descriptor(ci, 12);
                     double f = (q.kind != 0 ? q.value / (double)state.ticksPerLine : 0) + cell.delay / 256d;
@@ -565,8 +565,8 @@ namespace Laubrary.ZTracker.Engine
                 if (sampler)
                 {
                     var s = state.samples[v.sample];
-                    var b = Descriptor(ci, 8);
-                    var offset = Descriptor(ci, 9);
+                    var b = ActiveDescriptor(ci, 8);
+                    var offset = ActiveDescriptor(ci, 9);
                     if (b.kind != 0)
                     {
                         v.direction = b.value == 0 ? -1 : 1;
@@ -614,13 +614,13 @@ namespace Laubrary.ZTracker.Engine
                         }
                     }
 
-                    var e = Descriptor(ci, 10);
+                    var e = ActiveDescriptor(ci, 10);
                     if (e.kind != 0)
                         SeekEnvelopeClocks(i, ref v, e.value / 256d);
-                    var g = Descriptor(ci, 0);
+                    var g = ActiveDescriptor(ci, 0);
                     if (g.kind == 'G' && col.glideTarget >= 0 && (g.value == 255 && !g.shorthand || g.value == 15 && g.shorthand))
                         v.commandPitch = math.clamp(col.glideTarget - v.note, -1536, 1536);
-                    if (col.volumeCutTick >= 0 && col.volumeCutTick / (double)state.ticksPerLine <= col.activeFrom)
+                    if (col.volumeCutTick >= 0 && col.volumeCutTick / (double)state.ticksPerLine <= col.activeFrom && (newNote || v.cohort == col.volumeCutCohort))
                         v.commandGain = col.volumeCutValue / 15f;
                 }
 
@@ -652,7 +652,31 @@ namespace Laubrary.ZTracker.Engine
         TrackerOp ActiveDescriptor(int ci, int family)
         {
             var op = Descriptor(ci, family);
-            return state.columns[ci].localsPending && op.column >= 0 ? default : op;
+            if (!state.columns[ci].localsPending || op.column < 0)
+                return op;
+            // A pending event owns its local commands. The predecessor still receives
+            // the current row's broader track/master descriptor until that event applies.
+            var pattern = state.patterns[state.sequence[state.sequenceIndex].pattern];
+            var row = state.rows[pattern.rows + state.row];
+            var fallback = default(TrackerOp);
+            for (int i = 0; i < row.opCount; i++)
+            {
+                var candidate = state.ops[row.ops + i];
+                if (candidate.column >= 0 || Family(candidate.kind) != family)
+                    continue;
+                var track = state.tracks[candidate.track];
+                if (track.kind != TrackKind.Master && (ci < track.columns || ci >= track.columns + track.columnCount))
+                    continue;
+                if (candidate.bank >= 0 && candidate.value == 0)
+                {
+                    candidate.value = state.commandMemory[candidate.bank];
+                    if (candidate.value == 0)
+                        continue;
+                }
+                if (fallback.kind == 0 || candidate.priority >= fallback.priority)
+                    fallback = candidate;
+            }
+            return fallback;
         }
 
         void CommandTick()
@@ -672,12 +696,6 @@ namespace Laubrary.ZTracker.Engine
                     bool sampler = state.tones[v.sample].kind == 0;
                     if (col.volumeCutTick == state.tick && v.cohort == col.volumeCutCohort && sampler)
                         v.commandGain = col.volumeCutValue / 15f;
-                    if (state.tick / (double)state.ticksPerLine + 1e-15 < col.activeFrom)
-                    {
-                        state.voices[i] = v;
-                        continue;
-                    }
-
                     var r = ActiveDescriptor(ci, 11);
                     if (r.kind != 0 && state.tick > 0 && state.tick % (r.value & 15) == 0 && !state.tracks[v.track].triggerMute && state.tracks[v.track].soloEnabled && state.sequenceMutes[state.sequence[state.sequenceIndex].muteOffset + v.track] == 0)
                         Retrigger(i, ref v, in r);

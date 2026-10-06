@@ -26,9 +26,18 @@ namespace Laubrary.ZTracker.Engine
             var knots = new List<TrackerAutomationPoint>();
             var lanes = new List<TrackerAutomation>();
             var ids = new Dictionary<string, int>();
+            var ambiguousIds = new HashSet<string>();
             for (int i = 0; i < song.instruments.Count; i++)
-                if (song.instruments[i] != null && song.instruments[i].model.id != "" && !ids.ContainsKey(song.instruments[i].model.id))
-                    ids.Add(song.instruments[i].model.id, i);
+                if (song.instruments[i] != null && song.instruments[i].model.id != "")
+                {
+                    string id = song.instruments[i].model.id;
+                    if (ids.ContainsKey(id))
+                        ambiguousIds.Add(id);
+                    else
+                        ids.Add(id, i);
+                }
+            foreach (string id in ambiguousIds)
+                ids.Remove(id);
             for (int ti = 0; ti < song.tracks.Count; ti++)
             {
                 var track = song.tracks[ti];

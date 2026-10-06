@@ -142,7 +142,7 @@ namespace Laubrary.ZTracker.Engine
             for(int t=0;t<state.trackCount;t++)if(state.tracks[t].beatTicks&&state.row%state.tracks[t].beatInterval==0&&!Muted(t))Emit(TrackerEventKind.Beat,t);
             for(int i=0;i<rr.eventCount;i++){var e=state.authoredEvents[rr.events+i];if(!Muted(e.track))Emit(TrackerEventKind.Authored,e.track,e.column,payload:e.payload);}
             for(int ci=0;ci<state.columnCount;ci++){bool hasCell=false;for(int i=0;i<rr.cellCount;i++){var cell=state.cells[rr.cells+i];if(state.tracks[cell.track].columns+cell.column==ci){hasCell=true;break;}}if(!hasCell)InitializeColumn(ci,false);}
-            for(int i=0;i<rr.cellCount;i++){int index=rr.cells+i;var c=state.cells[index];int ci=state.tracks[c.track].columns+c.column;var col=state.columns[ci];if(col.launchSuppressed)continue;
+            for(int i=0;i<rr.cellCount;i++){int index=rr.cells+i;var c=state.cells[index];int ci=state.tracks[c.track].columns+c.column;var col=state.columns[ci];if(col.launchSuppressed||col.activeFrom>0)InitializeColumn(ci,false);if(col.launchSuppressed)continue;
                 if(col.activeFrom>0&&(c.note!=-1||c.instrumentPresent)){col.dueExact=state.rowStart+col.activeFrom*duration;col.due=state.transportOrigin+Quantize(col.dueExact);col.pendingCell=index;state.columns[ci]=col;}else ApplyCell(in c);
             }
             CommandTick();state.rowPending=false;
@@ -179,7 +179,7 @@ namespace Laubrary.ZTracker.Engine
                     int lines=state.patterns[state.sequence[state.sequenceIndex].pattern].lineCount;if(state.breakRow>=lines)Emit(TrackerEventKind.Diagnostic,payload:(int)TrackerRuntimeDiagnostic.BreakClamped);state.row=state.breakRow>=0?math.min(state.breakRow,lines-1):0;
                 }
                 state.rowStart=state.rowEnd;state.rowPending=true;EnterRow();
-            }else {if(!state.held){EvaluateAutomation(state.row+state.tick/(double)state.ticksPerLine);AdvanceMacroTicks(-1);CommandTick();}state.tickDeadline=state.rowStart+((state.tick+1)/(double)state.ticksPerLine)*state.rowDuration;Emit(TrackerEventKind.Tick);}
+            }else {if(!state.held){double time=state.row+state.tick/(double)state.ticksPerLine;EvaluateAutomation(time);ScheduleAutomationPoint(time);AdvanceMacroTicks(-1);ApplyDue(state.tickDeadline);CommandTick();}state.tickDeadline=state.rowStart+((state.tick+1)/(double)state.ticksPerLine)*state.rowDuration;Emit(TrackerEventKind.Tick);}
         }
         bool Muted(int track)=>state.tracks[track].outputMute||!state.tracks[track].soloEnabled||state.sequenceMutes[state.sequence[state.sequenceIndex].muteOffset+track]!=0;
         void ApplyCell(in TrackerCell cell)
@@ -281,9 +281,9 @@ namespace Laubrary.ZTracker.Engine
                 if(state.playing&&state.rowPending)EnterRow();
                 if(state.playing){
                     double exactNext=state.tick==state.ticksPerLine-1?state.rowEnd:state.tickDeadline;long next=state.transportOrigin+Quantize(exactNext);
-                    if(state.samplePosition>=next){if(state.automationDeadline<exactNext&&state.transportOrigin+Quantize(state.automationDeadline)<=state.samplePosition){ApplyDue(state.automationDeadline);ApplyAutomationPoint();continue;}ApplyDue(exactNext);AdvanceTick();if(state.automationDeadline==exactNext){ApplyAutomationPoint();}continue;}
-                    ApplyDue(double.PositiveInfinity);
-                    if(state.automationDeadline<exactNext&&state.transportOrigin+Quantize(state.automationDeadline)<=state.samplePosition){ApplyAutomationPoint();continue;}
+                    if(state.automationDeadline<exactNext&&state.transportOrigin+Quantize(state.automationDeadline)<=state.samplePosition){double deadline=state.automationDeadline;ApplyDue(deadline,false);ApplyAutomationPoint();ApplyDue(deadline);continue;}
+                    if(state.samplePosition>=next){ApplyDue(exactNext,false);AdvanceTick();continue;}
+                    ApplyDue(math.min(exactNext,state.automationDeadline),false);
                     int n=(int)math.min(frames-offset,next-state.samplePosition);
                     for(int ci=0;ci<state.columnCount;ci++){var c=state.columns[ci];if(c.pendingCell>=0&&c.due>state.samplePosition)n=(int)math.min(n,c.due-state.samplePosition);}
                     if(state.automationDeadline<exactNext)n=(int)math.min(n,state.transportOrigin+Quantize(state.automationDeadline)-state.samplePosition);
@@ -293,10 +293,10 @@ namespace Laubrary.ZTracker.Engine
             state.ticket[4]++;SapRenderTicket.Exit(state.ticket,frames,false);
         }
         [BurstDiscard] void MarkManagedRender(){state.ticket[3]=-1;}
-        void ApplyDue(double before)
+        void ApplyDue(double before,bool inclusive=true)
         {
             // Distinct fractional deadlines can share Q's frame; retain their exact order before column ties.
-            while(true){int best=-1;double deadline=before;for(int ci=0;ci<state.columnCount;ci++){var c=state.columns[ci];if(c.pendingCell>=0&&c.due<=state.samplePosition&&c.dueExact<=before&&(best<0||c.dueExact<deadline)){best=ci;deadline=c.dueExact;}}if(best<0)return;var cell=state.cells[state.columns[best].pendingCell];ApplyCell(in cell);}
+            while(true){int best=-1;double deadline=before;for(int ci=0;ci<state.columnCount;ci++){var c=state.columns[ci];if(c.pendingCell>=0&&c.due<=state.samplePosition&&(c.dueExact<before||inclusive&&c.dueExact==before)&&(best<0||c.dueExact<deadline)){best=ci;deadline=c.dueExact;}}if(best<0)return;var cell=state.cells[state.columns[best].pendingCell];ApplyCell(in cell);}
         }
         void RenderVoices(int offset,int count)
         {

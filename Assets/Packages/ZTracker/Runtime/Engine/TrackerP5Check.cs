@@ -487,6 +487,164 @@ namespace Laubrary.ZTracker.Engine
             }
         }
 
+        static void PendingOwnershipFixtures(AudioClip pcm, int block)
+        {
+            foreach (int successor in new[] { 64, 119, -2, -1 })
+                using (var f = new Fixture(pcm, block))
+                {
+                    f.instrument.model.sampler.zones[0].noteMax = 90;
+                    f.Row(0, f.Note());
+                    var late = successor >= 0 ? f.Note(successor) : new NoteCell { column = 0, note = successor == -2 ? NoteKind.Off : NoteKind.Empty, instrumentPresent = successor == -1, instrument = 0 };
+                    late.delayPresent = true;
+                    late.delay = 128;
+                    late.sampleFx = Fx("0U", 48);
+                    f.Row(1, late, Fx("0U", 16));
+                    using (var e = f.Open())
+                    {
+                        f.Render(e, 7501);
+                        var predecessor = f.Foreground(e);
+                        Near(predecessor.commandPitch, .5, "track slide continues before pending " + successor);
+                        long cohort = predecessor.cohort;
+                        f.Render(e, 1500);
+                        if (successor == 64)
+                        {
+                            Need(f.Foreground(e).cohort != cohort, "accepted successor did not launch");
+                            Near(f.Foreground(e).commandPitch, .75, "local slide applies to accepted successor at its tick");
+                        }
+                        else
+                            Need(f.Foreground(e).cohort == cohort, "nonlaunch event stole predecessor ownership");
+                    }
+                }
+            using (var f = new Fixture(pcm, block))
+            {
+                f.Row(0, f.Note());
+                var late = f.Note(64);
+                late.delayPresent = true;
+                late.delay = 128;
+                late.pan = Col("Y0");
+                late.sampleFx = Fx("0S", 128);
+                f.Row(1, late, Fx("0U", 16), Fx("0B", 0));
+                using (var e = f.Open())
+                {
+                    f.Render(e, 7501);
+                    Near(f.Foreground(e).commandPitch, .5, "rejected event preserves track slide eligibility");
+                    Need(f.Foreground(e).direction == -1, "track reverse deferred behind rejected event");
+                    Need(!f.Foreground(e).explicitStart, "rejected local offset changed predecessor");
+                }
+            }
+        }
+
+        static void AutomationEventOrderFixtures(AudioClip pcm, int block)
+        {
+            using (var f = new Fixture(pcm, block))
+            {
+                f.song.bpm = 137.5;
+                f.MacrosDevice();
+                var lane = f.Lane();
+                lane.interpolation = AutomationInterpolation.Step;
+                lane.points[1].line = 6.375;
+                var simultaneous = ZTrackerMigration.Copy(lane);
+                simultaneous.id = "same-point-neighbor";
+                simultaneous.target.index = 1;
+                simultaneous.points[1].value = .75f;
+                f.song.patterns[0].tracks[0].automation.Add(simultaneous);
+                using (var e = f.Open())
+                {
+                    f.Render(e, 33381);
+                    Near(e.ObserveMacro(0, 0), 0, "fractional Step before exact frame33381");
+                    f.Render(e, 1);
+                    Need(e.Compiled && e.Snapshot.samplePosition == 33382, "fractional Step did not make native render progress");
+                    Near(e.ObserveMacro(0, 0), 1, "fractional Step exact source coordinate");
+                    Near(e.ObserveMacro(0, 1), .75, "simultaneous Step lanes emit together");
+                    Need(double.IsPositiveInfinity(e.Snapshot.automationDeadline), "completed Step scheduled itself again");
+                }
+            }
+            // Release captures its slope once, so later parameter writes cannot repair
+            // the wrong ordering. Check both the frozen coefficient and the rendered tail.
+            foreach (double point in new[] { 1.5, 1.375, 1.375 - 1d / 256, 1.375 + 1d / 256 })
+                using (var f = new Fixture(pcm, block))
+                {
+                    f.instrument.model.family = InstrumentFamily.Synth;
+                    f.instrument.model.macros[0].mappings.Add(TrackerP4Check.Route("release", .1f, 1.1f, "seconds"));
+                    f.MacrosDevice();
+                    var lane = f.Lane();
+                    lane.interpolation = AutomationInterpolation.Step;
+                    lane.points[1].line = point;
+                    f.Row(0, f.Note());
+                    double offTime = point == 1.5 ? 1.5 : 1.375;
+                    bool distinct = point != offTime;
+                    if (distinct)
+                    {
+                        f.song.bpm = 999;
+                        f.song.linesPerBeat = 256;
+                    }
+                    f.Row(1, new NoteCell { column = 0, note = NoteKind.Off, delayPresent = true, delay = offTime == 1.5 ? 128 : 96 });
+                    using (var e = f.Open())
+                    {
+                        e.SendCommand(TrackerCommand.Play(false));
+                        double duration = 48000 * 60d / (f.song.bpm * f.song.linesPerBeat);
+                        int frame = (int)Math.Floor(offTime * duration);
+                        if (distinct)
+                            Need((int)Math.Floor(point * duration) == frame, "distinct exact deadlines did not share one frame");
+                        f.Render(e, frame + 1);
+                        Need(e.Compiled, "ordering fixture used managed renderer");
+                        var voice = f.Foreground(e);
+                        float seconds = point > offTime ? .1f : 1.1f;
+                        double slope = 1d / (seconds * 48000);
+                        Near(voice.releaseStep, slope, "automation/OFF chronology point=" + point);
+                        Near(voice.envelope, 1 - slope, "first release frame uses captured duration");
+                        f.Render(e, 4800);
+                        if (point > offTime)
+                            Need(!e.Snapshot.voices.ToArray().Any(v => v.active), "later same-frame automation rewrote captured short release");
+                        else
+                        {
+                            Need(f.Foreground(e).active && Math.Abs(f.left[4799]) > .0001, "long release lost audible tail");
+                            Need(f.Foreground(e).envelope > .9f, "long release decayed at old short rate");
+                        }
+                    }
+                }
+        }
+
+        static void AmbiguousIdentityFixture(AudioClip pcm, int block)
+        {
+            using (var f = new Fixture(pcm, block))
+            {
+                var other = TrackerEngineCheck.FixtureInstrument(pcm);
+                try
+                {
+                    other.model.id = f.instrument.model.id;
+                    other.model.provenance = "";
+                    f.instrument.model.macros[0].value = .2f;
+                    other.model.macros[0].value = .8f;
+                    f.song.instruments.Add(other);
+                    f.MacrosDevice();
+                    f.song.tracks[0].sourceDevices[0].parameters[0].defaultValue = .6f;
+                    var lane = f.Lane();
+                    lane.target = new ParameterTarget { kind = ParameterKind.InstrumentMacro, instrumentId = f.instrument.model.id, index = 0 };
+                    var note = f.Note();
+                    note.parameterSetId = f.instrument.model.id + "/base";
+                    f.Row(0, note);
+                    string before = ZTrackerMigration.Json(f.song);
+                    using (var prepared = TrackerPreparedSong.Prepare(f.song))
+                    {
+                        Need(prepared.diagnostics.Any(d => d.Contains("SOURCE_TARGET_UNRESOLVED")), "ambiguous macro device picked first instrument");
+                        Need(prepared.diagnostics.Any(d => d.Contains("AUTOMATION_TARGET_UNRESOLVED")), "ambiguous macro lane picked first instrument");
+                        Need(prepared.diagnostics.Any(d => d.Contains("PARAMETER_SET_UNRESOLVED")), "ambiguous preset binding picked first instrument");
+                        using (var e = new TrackerOffline(prepared))
+                        {
+                            e.SendCommand(TrackerCommand.Play());
+                            f.Render(e, 1);
+                            Near(e.ObserveMacro(0, 0), .2, "ambiguous identity changed first macro bank");
+                            Near(e.ObserveMacro(1, 0), .8, "ambiguous identity changed second macro bank");
+                            Need(f.Foreground(e).instrument == 0, "explicit indexed note launch was suppressed");
+                        }
+                    }
+                    Need(before == ZTrackerMigration.Json(f.song), "identity refusal changed source payload");
+                }
+                finally { UnityEngine.Object.DestroyImmediate(other); }
+            }
+        }
+
         static void PresetFixture(AudioClip pcm, int block)
         {
             using (var f = new Fixture(pcm, block))
@@ -582,6 +740,18 @@ namespace Laubrary.ZTracker.Engine
                         Near(f.Foreground(e).volume, 1, "gain80");
                         Near(f.Foreground(e).pan, 0, "pan40");
                     }
+
+                    var malformed = new NoteCell { volume = new ColumnValue { kind = ValueKind.Value, value = 129 } };
+                    f.Row(1, malformed);
+                    string rawNumeric = ZTrackerMigration.Json(malformed);
+                    using (var prepared = TrackerPreparedSong.Prepare(f.song))
+                        Need(prepared.diagnostics.Any(d => d.Contains("INVALID_COLUMN_NUMERIC")), "numeric81 was not diagnosed");
+                    using (var e = f.Open())
+                    {
+                        f.Render(e, 6001);
+                        Near(f.Foreground(e).volume, 1, "numeric81 changed supported gain");
+                    }
+                    Need(rawNumeric == ZTrackerMigration.Json(malformed), "numeric81 payload was changed");
 
                     n.volume = new ColumnValue
                     {
@@ -787,6 +957,7 @@ namespace Laubrary.ZTracker.Engine
                 });
                 check("06 first tick and delayed slide", f =>
                 {
+                    PendingOwnershipFixtures(pcm, f.block);
                     var n = f.Note();
                     n.sampleFx = Fx("0U", 16);
                     f.Row(0, n);
@@ -1567,6 +1738,7 @@ namespace Laubrary.ZTracker.Engine
                 });
                 check("24 external slot73 identity", f =>
                 {
+                    AmbiguousIdentityFixture(pcm, f.block);
                     f.instrument.model.family = InstrumentFamily.Synth;
                     f.instrument.model.modulation.Clear();
                     f.instrument.model.sampler.samples[0].modulationSet = -1;
@@ -1672,6 +1844,7 @@ namespace Laubrary.ZTracker.Engine
                 check("26 tick automation and same-instant setters", f =>
                 {
                     AutomationFixtures(pcm, f.block);
+                    AutomationEventOrderFixtures(pcm, f.block);
                     f.MacrosDevice();
                     f.Lane();
                     f.Row(0, f.Note(), Fx("11", 255));

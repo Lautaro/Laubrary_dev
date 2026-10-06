@@ -1,6 +1,6 @@
 # P5 implementation verification — 2026-10-06
 
-This records implementation evidence for T-0014 in the canonical `D:/UNITY/Laubrary Dev` checkout on `x/zounds-sap`, before the parent's independent review. The deprecated source checkout was read-only. The implemented command behavior follows the proposed ZTracker policies in COMMANDS.md; no Renoise playback equivalence is claimed. The existing DLL authoring player remains active until P7.
+This records implementation evidence and the sequential independent review for T-0014 in the canonical `D:/UNITY/Laubrary Dev` checkout on `x/zounds-sap`. The deprecated source checkout was read-only. The implemented command behavior follows the proposed ZTracker policies in COMMANDS.md; no Renoise playback equivalence is claimed. The existing DLL authoring player remains active until P7. The original implementation artifacts below remain recorded; the post-review evidence at the end supersedes them for the reviewed source.
 
 ## Probe evidence
 
@@ -84,3 +84,34 @@ Supported source device mappings require original ordinal/identity metadata and 
 This executor does not activate conditional legacy proof packages. A modern profile or migrationDecision string cannot override retained unsafe legacy provenance. Only exact approved P2 F1..16→ZK and F32..255→ZT mappings execute with a timing-difference diagnostic; F00 remains a model candidate but is refused here, as are F17..31 and forged identifiers/amounts. This is an explicit implementation limit, not a claim that decision text alone proves equivalence.
 
 Verified-by-probe: the editor suites, compiled offline renders, scoped comparisons, native allocation guards and fresh player evidence above. Verified-by-eye: none; this phase changed core/data/checks/docs only. Not verified: physical listening/device output, Renoise playback equivalence, editor UI/Handover Walk, XRNS/XRNI import/export, unsupported contexts and legacy backend retirement. Independent review and board handover belong to the parent.
+
+## Independent source and adversarial review
+
+The review compared the command compiler, native scheduler, automation/source maps, prepared presets and grouped fixture assertions with the normative policies, rather than treating the thirty passing labels as the evidence. Four defects were reproduced and corrected:
+
+- A delayed OFF coincident with release-duration automation captured the old `.1s` slope instead of the newly written `1.1s` slope. Before correction the coefficient was `.0002083333`; after correction it is `.00001893939`. Both an effect tick and an off-tick point reproduce the difference at caller sizes64/333/1024. Retained regressions check the frozen coefficient, first release frame and continuing rendered tail, plus earlier/later exact automation deadlines sharing one quantized frame.
+- A pending successor suppressed broader track commands on its still-playing predecessor. Two track U10 updates before a half-row launch should produce `+.5` semitones; the previous result was0. Track/Master descriptors now continue while event-local operations remain deferred. Retained cases cover accepted, unmapped, rejected, OFF and instrument-only events, local-over-track precedence at launch, and track reverse without a rejected local offset altering the predecessor.
+- Reconstructing an authored automation coordinate by reversing cumulative frame arithmetic could land just below a Step point. At137.5BPM, point6.375 became6.374999999999999, left the macro at0 and rescheduled the same deadline33381.81818181818. A one-step runtime-method probe reproduced this without hanging the editor. The scheduler now retains the original coordinate. Actual compiled renders check macro0→1 at frame33381, simultaneous neighboring lane emission, progress to33382 and no repeated deadline at all three caller sizes.
+- Duplicate instrument identities could silently bind a macro source/lane or preset selector to the first matching slot. Such stable-ID bindings now refuse with named diagnostics; independent indexed notes and authored macro banks remain intact. Retained regressions keep both `.2/.8` banks unchanged and preserve the source payload.
+
+Group02 was also strengthened: the prior malformed81 case retained a legacy byte, but did not exercise an actual malformed numeric value. The new numeric129 case asserts `INVALID_COLUMN_NUMERIC`, unchanged held gain1 and exact raw preservation. The reviewed group06/24/26 scenarios augment the existing thirty groups; they do not add new parity claims.
+
+Post-review canonical editor evidence is `D:/UNITY/_builds/ztracker-p5/review-final-suite.txt` and `review-suite-cli.json`: clean matching editor, model40/40, engine33/33, P4 27/27, expanded P5 30/30 and independent integration PASS. Scoped warmed allocations remain0 bytes, with engine36/P5 64 native blocks and0 managed-block delta. The existing harness regenerated `review-goldens/comparison.json` and `p5-policy-result.json`: P3 equivalent22/22, P4 scope51/51,7 retained separate corrections,12 different-DSP characterizations and3/3 independent P5 policy cases. `equivalent_success=true`; aggregate `success=false` remains intentional for the characterized DSP differences.
+
+The post-review standalone proof at `D:/UNITY/_builds/ztracker-p5/review-aot/` supersedes the earlier standalone artifacts for the reviewed runtime. `build-result.json` reports Succeeded in48.5676283s with the same single unrelated missing QuizU Boot scene preprocessing error in `build-errors.txt`. The CLI caller timed out after30s while the editor continued the build; the completed build report contains no bridge-timeout error. `build-freshness.json` records new managed engine/proof and Burst artifacts; the reused incremental bootstrap EXE timestamp is not freshness evidence.
+
+| Reviewed artifact | Modified UTC | SHA256 |
+| --- | --- | --- |
+| Managed engine DLL | 2026-10-06T04:29:02.631Z | 6de7a1cd04e56f137892e68ce9cdb1267175429c334aff285aa1babcd59d73e2 |
+| Managed proof DLL | 2026-10-06T04:29:03.176Z | 4e655df42fba580a5eeacdbfeb0aa66f558ea81239abcc81d5b41ed571e1721e |
+| Burst native DLL | 2026-10-06T04:29:13.850Z | 0b29cd03295ead66487bb6c43bcda8b9861707d570a267854e4831fb54ca4988 |
+
+`player-exit.txt` records exit0. `player-proof.json` reports passed=true, errors=0, the P5 native implementation witness, active P4/P5 command/automation coverage and observed macro operations; `player.log` contains no runtime error/exception. The compiled player reran engine33/33, P4 27/27, expanded P5 30/30 and independent integration PASS, with0 warmed P5 render allocations,64 native blocks and0 managed-block delta.
+
+| Reviewed interval | Tracker frames / callbacks | Native guards / managed blocks | Measured tracker rate |
+| --- | --- | --- | --- |
+| Baseline,3.0051882s | 144384 /141 | 282 /0 | 48044.9111 frames/s |
+| Forced full GC,6.0042833s | 288768 /282 | 564 /0 | 48093.6667 frames/s |
+| Recovery,3.0000764s | 143360 /140 | 280 /0 | 47785.4497 frames/s |
+
+The reviewed proof retained3,000,000 garbage objects and performed34 collections. Maximum producer/main-thread collection duration was33.7227ms, not audio callback latency. All intervals passed the existing compiled execution/continuity criteria. Eight swaps,10 retired disposals,3 repeated lifecycle cycles, timeout retention/reclamation and pending-swap rejection/disposal passed. Quit passed after75 actual frames and.7480841s in this batch-mode run. This remains allocation/native-execution and observed continuity evidence, without a callback-deadline, underrun, physical-listening or Renoise-equivalence claim.
