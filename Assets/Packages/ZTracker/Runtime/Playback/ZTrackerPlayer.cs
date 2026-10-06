@@ -16,6 +16,8 @@ namespace Laubrary.ZTracker
         string lastError;
         public string LastError => !ReferenceEquals(playback, null) && playback.LastError != null ? playback.LastError : lastError;
         public ZTrackerPlayback Playback => playback;
+        /// <summary>Live song position for the current playback, or null when nothing is playing.</summary>
+        public ZTrackerSongClock Clock => IsPlaying ? playback.Clock : null;
 
         public bool Play()
         {

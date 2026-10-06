@@ -18,6 +18,10 @@ The lower-level facade is `ZTrackerPlayback.TryPlay(song, out playback, out erro
 
 Import the optional **ZTracker Demo** sample, open its scene and enter Play mode. **Space** explicitly starts/stops its saved synth song. The sample's keyboard dependency remains outside production tracker assemblies.
 
+### Song position for gameplay
+
+`player.Clock` (a `ZTrackerSongClock`, null while nothing plays) tells game code where the song is as the player hears it. `Clock.TryGetHeard(out var p)` gives the order, row, pattern id, BPM, LPB (lines per beat), TPL (ticks per line), `LineInBeat` (0 is the first row of a beat), the tick, `RowFraction`, and the time the row has been current and has left, in samples, milliseconds and ticks. `TryGetHeardAt(time)` answers for a past moment on the `Time.realtimeSinceStartupAsDouble` timeline, so a button press can be judged at the instant it happened. `TryGetRendered` ignores the output delay. The output delay is Unity's DSP buffer estimate plus `ExtraLatencySeconds`; speakers, TVs and wireless headphones add delay Unity cannot see, so offer players a setting for it. `Clock.Song` is the detached song data that is playing (tracks, patterns, order list, instruments), and `TryGetLine(order, row, track, out line)` reads one row's cells without allocating. Reading the clock consumes nothing and does not affect `EventReceived`.
+
 ## Existing assets and compatibility
 
 Song/instrument class identities, data assembly name `ZTracker`, script GUIDs and serialized legacy fields remain intact. Copy authored assets with their .meta files and referenced audio into the consuming project's Assets area. Do not install the old standalone tracker assemblies alongside this package. Explicit playback prepares detached migrations; it does not rewrite the authored legacy asset. Unsupported legacy commands and unrepresentable structures remain preserved and are diagnosed rather than guessed. Legacy direct native upload/interop entry points have been retired; callers must migrate to the public player or prepared engine API.

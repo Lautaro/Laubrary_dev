@@ -141,6 +141,7 @@ namespace Laubrary.ZTracker.Engine
             state.rowEnd=ClockEnd(state.rowStart,duration,ref state.clockCompensation);
             if(!ClockValid(state.rowStart,state.rowEnd,duration,state.clockCompensation)){state.playing=false;ClearVoices();Emit(TrackerEventKind.Diagnostic,payload:(int)(!math.isfinite(duration)||duration<1?TrackerRuntimeDiagnostic.InvalidClock:TrackerRuntimeDiagnostic.ClockLimit));Emit(TrackerEventKind.Stopped);return;}
             state.tickDeadline=state.rowStart+duration/state.ticksPerLine;
+            PublishClockRow(false);
             ResolveRowCommands(in rr);EvaluateAutomation(state.row);RowScalarWrites(in rr);ScheduleAutomationPoint(state.row);
             Emit(TrackerEventKind.Row);Emit(TrackerEventKind.Tick);
             if(state.beatTicks&&state.row%state.beatInterval==0)Emit(TrackerEventKind.Beat);
@@ -173,6 +174,7 @@ namespace Laubrary.ZTracker.Engine
                     state.rowStart=start;state.rowEnd=end;state.clockCompensation=compensation;
                     state.tickDeadline=start+state.rowDuration/state.ticksPerLine;
                     state.automationDeadline=double.PositiveInfinity;
+                    PublishClockRow(true);
                     for(int ci=0;ci<state.columnCount;ci++)
                     {
                         var col=state.columns[ci];col.pendingCell=-1;col.due=-1;state.columns[ci]=col;
@@ -281,7 +283,7 @@ namespace Laubrary.ZTracker.Engine
             for(int t=0;t<state.trackCount;t++)for(int i=0;i<frames;i++){int a=t*state.maxFrames+i;state.left[a]=state.right[a]=0;}
             for(int b=0;b<state.busCount;b++)for(int i=0;i<frames;i++){int a=b*state.maxFrames+i;state.busLeft[a]=state.busRight[a]=0;}
             int offset=0;
-            if(state.paused){for(int f=0;f<frames;f++)state.outputLeft[f]=state.outputRight[f]=0;state.ticket[4]++;SapRenderTicket.Exit(state.ticket,frames,false);return;}
+            if(state.paused){for(int f=0;f<frames;f++)state.outputLeft[f]=state.outputRight[f]=0;events.PublishHead(state.samplePosition,state.sampleRate,state.playing,true);state.ticket[4]++;SapRenderTicket.Exit(state.ticket,frames,false);return;}
             while(offset<frames){
                 if(state.playing&&state.rowPending)EnterRow();
                 if(state.playing){
@@ -299,7 +301,14 @@ namespace Laubrary.ZTracker.Engine
             double energy=0;for(int f=0;f<frames;f++)energy+=(double)state.outputLeft[f]*state.outputLeft[f]+(double)state.outputRight[f]*state.outputRight[f];
             state.ticket[5]=math.aslong(math.asdouble(state.ticket[5])+energy);
 #endif
+            events.PublishHead(state.samplePosition,state.sampleRate,state.playing,state.paused);
             state.ticket[4]++;SapRenderTicket.Exit(state.ticket,frames,false);
+        }
+        // Song clock: one entry per entered row (and per held repeat), on the transport sample timeline.
+        void PublishClockRow(bool held)
+        {
+            if(state.silentReplay)return;
+            events.PublishRow(new TrackerClockRow{start=state.transportOrigin+state.rowStart,duration=state.rowDuration,bpm=state.bpm,sequence=state.sequenceIndex,pattern=state.sequence[state.sequenceIndex].pattern,row=state.row,linesPerBeat=state.linesPerBeat,ticksPerLine=state.ticksPerLine,holdRemaining=state.holdRemaining,occurrence=state.rowOccurrence,held=held?(byte)1:(byte)0});
         }
         [BurstDiscard] void MarkManagedRender(){state.ticket[3]=-1;}
         void ApplyDue(double before,bool inclusive=true)

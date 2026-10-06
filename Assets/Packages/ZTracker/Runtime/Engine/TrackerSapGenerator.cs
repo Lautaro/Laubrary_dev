@@ -93,6 +93,10 @@ namespace Laubrary.ZTracker.Engine
         }
         public long EventOverflow=>hasRing?ring.OverflowCount:0;
         public bool ReadEvent(out TrackerEvent value){if(!hasRing){value=default;return false;}return ring.TryRead(out value);}
+        // Song clock (see TrackerClockRow). Non-consuming: reading never competes with the event consumer above.
+        public long ClockRowsWritten=>hasRing?ring.ClockRowsWritten:0;
+        public bool TryReadClockRow(long serial,out TrackerClockRow value){if(!hasRing){value=default;return false;}return ring.TryReadClockRow(serial,out value);}
+        public bool TryReadClockHead(out TrackerClockHead value){if(!hasRing){value=default;return false;}return ring.TryReadClockHead(out value);}
         public long RenderedFrames
         {
             get{long total=retiredFrames;foreach(var p in owned)if(!p.Disposed&&p.state.ticket.IsCreated)total+=Volatile.Read(ref ((long*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(p.state.ticket))[1]);return total;}

@@ -18,20 +18,94 @@ namespace Laubrary.ZTracker.Engine
         public double bpm;
         public int sequence, pattern, row, tick, track, column, note, instrument, payload;
     }
+    /// <summary>
+    /// One row as the renderer entered it, published for the song clock. Positions are on the transport sample
+    /// timeline (the renderer's own frame counter, which stops while paused and never jumps on seek or swap).
+    /// A held row (ZDxx) publishes one entry per repeat.
+    /// </summary>
+    public struct TrackerClockRow
+    {
+        public long serial;
+        public double start, duration, bpm;
+        public int sequence, pattern, row, linesPerBeat, ticksPerLine, holdRemaining;
+        public long occurrence;
+        public byte held;
+    }
+    /// <summary>Where the renderer has got to: the transport position at the end of the last rendered block.</summary>
+    public struct TrackerClockHead
+    {
+        public long position, blocks;
+        public int sampleRate;
+        public byte playing, paused;
+    }
     /// <summary>One audio producer and one main-thread consumer. Storage outlives graph instances and prepared swaps.</summary>
     public unsafe struct TrackerEventRing : IDisposable
     {
+        public const int ClockRowCapacity = 64;
         [NativeDisableUnsafePtrRestriction] public TrackerEvent* events;
-        [NativeDisableUnsafePtrRestriction] public long* counters; // published write, consumed read, overflow
+        [NativeDisableUnsafePtrRestriction] public long* counters; // published write, consumed read, overflow, clock rows written, clock head version
+        // Song clock: never consumed, only overwritten, so any number of main-thread readers can look without
+        // competing with the event consumer. Each record is guarded by a version so a torn read is detected.
+        [NativeDisableUnsafePtrRestriction] public TrackerClockRow* clockRows;
+        [NativeDisableUnsafePtrRestriction] public TrackerClockHead* clockHead;
         public int capacity;
         public static TrackerEventRing Create(int capacity)
         {
             if (capacity < 2 || capacity > 1048576) throw new ArgumentOutOfRangeException(nameof(capacity));
             var r = new TrackerEventRing { capacity = capacity };
             r.events = (TrackerEvent*)UnsafeUtility.Malloc(capacity * (long)sizeof(TrackerEvent), 16, Allocator.Persistent);
-            r.counters = (long*)UnsafeUtility.Malloc(3 * sizeof(long), 16, Allocator.Persistent);
-            UnsafeUtility.MemClear(r.counters, 3 * sizeof(long));
+            r.counters = (long*)UnsafeUtility.Malloc(5 * sizeof(long), 16, Allocator.Persistent);
+            UnsafeUtility.MemClear(r.counters, 5 * sizeof(long));
+            r.clockRows = (TrackerClockRow*)UnsafeUtility.Malloc(ClockRowCapacity * (long)sizeof(TrackerClockRow), 16, Allocator.Persistent);
+            UnsafeUtility.MemClear(r.clockRows, ClockRowCapacity * (long)sizeof(TrackerClockRow));
+            for (int i = 0; i < ClockRowCapacity; i++) r.clockRows[i].serial = -1;
+            r.clockHead = (TrackerClockHead*)UnsafeUtility.Malloc(sizeof(TrackerClockHead), 16, Allocator.Persistent);
+            UnsafeUtility.MemClear(r.clockHead, sizeof(TrackerClockHead));
             return r;
+        }
+        // ---- Song clock, written on the audio thread ----
+        public void PublishRow(TrackerClockRow value)
+        {
+            if (clockRows == null || counters == null) return;
+            long serial = counters[3];
+            ref var slot = ref clockRows[serial % ClockRowCapacity];
+            Volatile.Write(ref slot.serial, -1);
+            value.serial = -1; slot = value;
+            Volatile.Write(ref slot.serial, serial);
+            Volatile.Write(ref counters[3], serial + 1);
+        }
+        public void PublishHead(long position, int sampleRate, bool playing, bool paused)
+        {
+            if (clockHead == null) return;
+            long version = counters[4];
+            Volatile.Write(ref counters[4], version + 1); // odd: write in progress
+            clockHead->position = position; clockHead->sampleRate = sampleRate; clockHead->blocks++;
+            clockHead->playing = playing ? (byte)1 : (byte)0; clockHead->paused = paused ? (byte)1 : (byte)0;
+            Volatile.Write(ref counters[4], version + 2);
+        }
+        // ---- Song clock, read on the main thread (any number of readers, nothing consumed) ----
+        public long ClockRowsWritten => counters == null ? 0 : Volatile.Read(ref counters[3]);
+        public bool TryReadClockRow(long serial, out TrackerClockRow value)
+        {
+            value = default;
+            if (clockRows == null || serial < 0) return false;
+            ref var slot = ref clockRows[serial % ClockRowCapacity];
+            if (Volatile.Read(ref slot.serial) != serial) return false;
+            value = slot;
+            return Volatile.Read(ref slot.serial) == serial; // overwritten while copying: reject
+        }
+        public bool TryReadClockHead(out TrackerClockHead value)
+        {
+            value = default;
+            if (clockHead == null) return false;
+            for (int attempt = 0; attempt < 8; attempt++)
+            {
+                long before = Volatile.Read(ref counters[4]);
+                if ((before & 1) != 0) continue;
+                value = *clockHead;
+                if (Volatile.Read(ref counters[4]) == before) return before != 0;
+            }
+            return false;
         }
         public void Write(TrackerEvent value)
         {
@@ -53,6 +127,8 @@ namespace Laubrary.ZTracker.Engine
         {
             if (events != null) UnsafeUtility.Free(events, Allocator.Persistent);
             if (counters != null) UnsafeUtility.Free(counters, Allocator.Persistent);
+            if (clockRows != null) UnsafeUtility.Free(clockRows, Allocator.Persistent);
+            if (clockHead != null) UnsafeUtility.Free(clockHead, Allocator.Persistent);
             this = default;
         }
     }

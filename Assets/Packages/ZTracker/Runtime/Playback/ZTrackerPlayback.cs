@@ -103,6 +103,12 @@ namespace Laubrary.ZTracker
         }
 
         public bool TryGetPosition(out int order, out int row) { order = lastOrder; row = lastRow; return IsPlaying && haveRow; }
+        /// <summary>The detached song data that is playing (never the asset itself). Read only.</summary>
+        public SongData PlayingSong => snapshot?.Data;
+        ZTrackerSongClock clock;
+        /// <summary>Live song position: current row, time into it and until the next, tempo, and the row's cells.
+        /// Reading it consumes nothing, so it can be used alongside the event stream.</summary>
+        public ZTrackerSongClock Clock => clock ??= new ZTrackerSongClock(this);
         // Retained method name for legacy view callers. No native channel or pointer is involved.
         public bool TryMapNativeChannel(int channel, out string trackId, out int noteColumn)
         {
