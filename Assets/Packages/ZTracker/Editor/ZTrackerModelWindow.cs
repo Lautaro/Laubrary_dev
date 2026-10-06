@@ -70,7 +70,7 @@ namespace Laubrary.ZTracker.Editor
             if(target==null)return;
             // Complete snapshots restore sparse removals, cropped rows and nested serialized values.
             Undo.IncrementCurrentGroup();int group=Undo.GetCurrentGroup();Undo.SetCurrentGroupName("Tracker: "+label);CompleteUndo(target,"Tracker: "+label);
-            try{edit();EditorUtility.SetDirty(target);Undo.CollapseUndoOperations(group);if(command.HasValue&&host!=null){if(!host.SendCommand(command.Value))lastError="Live update pending: command was not accepted";}else RefreshLive();if(rebuild)BuildPane();else RefreshCells();}
+            try{edit();EditorUtility.SetDirty(target);CollapseUndo(group,target);if(command.HasValue&&host!=null){if(!host.SendCommand(command.Value))lastError="Live update pending: command was not accepted";}else RefreshLive();if(rebuild)BuildPane();else RefreshCells();}
             catch(Exception ex){Undo.RevertAllDownToGroup(group);lastError=ex.Message;BuildPane();}
             RefreshTransport();
         }
@@ -174,6 +174,17 @@ namespace Laubrary.ZTracker.Editor
             var paths=targets.Select(t=>ZTrackerMigration.NullPaths(t)).ToArray();
             Undo.RegisterCompleteObjectUndo(targets,label);
             for(int i=0;i<targets.Length;i++)ZTrackerMigration.RestoreNulls(targets[i],paths[i]);
+        }
+        static void CollapseUndo(int group,params UnityEngine.Object[] targets)
+        {
+            var paths=targets.Select(t=>ZTrackerMigration.NullPaths(t)).ToArray();
+            Undo.CollapseUndoOperations(group);
+            for(int i=0;i<targets.Length;i++)
+            {
+                ZTrackerMigration.RestoreNulls(targets[i],paths[i]);
+                if(targets[i] is ZTrackerSong s){s.serializedNulls=ZTrackerMigration.NullPaths(s);s.serializedNulls.Remove(nameof(s.serializedNulls));}
+                if(targets[i] is ZTrackerInstrument ins){ins.serializedNulls=ZTrackerMigration.NullPaths(ins);ins.serializedNulls.Remove(nameof(ins.serializedNulls));}
+            }
         }
         // Imported unsupported records may carry null lists or neighbors. Filtering is a
         // view only; it must never fill those holes in the authored payload.

@@ -35,7 +35,7 @@ namespace Laubrary.ZTracker.Editor
         }
         void EndInstrumentGesture()
         {
-            EditorUtility.SetDirty(instrument); if (gestureGroup >= 0) Undo.CollapseUndoOperations(gestureGroup); gestureGroup = -1;
+            EditorUtility.SetDirty(instrument); if (gestureGroup >= 0) CollapseUndo(gestureGroup,instrument); gestureGroup = -1;
             RefreshLive(); RefreshTransport();
         }
         VisualElement InstrumentDial(string label, float value, float min, float max, string tip, Action<float> apply, string name = null, int decimals = 2)
@@ -378,7 +378,7 @@ namespace Laubrary.ZTracker.Editor
             // Declaration and all same-instrument references form one Undo operation.
             Undo.IncrementCurrentGroup(); int group = Undo.GetCurrentGroup(); CompleteUndo(new UnityEngine.Object[] { song, instrument }, "Tracker: external ID"); string old = entry.externalId; entry.externalId = id;
             foreach (var t in Data.tracks) { foreach (var s in Records(t.externalSources).Where(s => s.instrumentId == Instrument.id)) if(s.parameterNumbers!=null)for (int i = 0; i < s.parameterNumbers.Count; i++) if (s.parameterNumbers[i] == old) s.parameterNumbers[i] = id; foreach (var s in Records(t.sourceDevices).Where(s => s.instrumentId == Instrument.id)) foreach (var p in Records(s.parameters)) if (p.externalId == old) p.externalId = id; }
-            EditorUtility.SetDirty(song); EditorUtility.SetDirty(instrument); Undo.CollapseUndoOperations(group); RefreshLive();
+            EditorUtility.SetDirty(song); EditorUtility.SetDirty(instrument); CollapseUndo(group,song,instrument); RefreshLive();
         }
         void BuildPresets(VisualElement root)
         {
@@ -415,7 +415,7 @@ namespace Laubrary.ZTracker.Editor
                 if(index==removed)note.parameterSetId="";else if(index>removed&&index<presets.Count)note.parameterSetId=prefix+(index-1);
             }
             presets.RemoveAt(removed);presetIndex=Math.Min(removed,presets.Count-1);Instrument.parameters.activePresetIndex=-1;
-            EditorUtility.SetDirty(instrument);if(song!=null)EditorUtility.SetDirty(song);Undo.CollapseUndoOperations(group);RefreshLive();BuildPane();
+            EditorUtility.SetDirty(instrument);if(song!=null)EditorUtility.SetDirty(song);CollapseUndo(group,song,instrument);RefreshLive();BuildPane();
         }
         void ApplyPreset()
         {
