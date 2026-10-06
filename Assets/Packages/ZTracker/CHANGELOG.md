@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- P7 retires the imported C++ DLL, native upload facade and streamed managed host. Public gameplay and demo playback now use clipless Burst/SAP with detached legacy migration, bounded main-thread event delivery, safe stop/reentry/reload handling, block-boundary live snapshots, preserved game overrides and explicit Stop/Play for structural or PCM replacements. Verification assemblies are opt-in and absent from normal players.
+- P7 accounts for all 122 frozen native references without changing deterministic tolerances: 76 numeric passes, seven verified corrections, 12 DSP characterization cases, 23 modern model-policy cases, three statistical exclusions and one unrepresentable dual-loop exclusion. Full numerical parity is false. Historical P3–P6 notes describe the state at their original phase; current behavior and verification are documented in P7_VERIFICATION.md.
+- P7 UI polish makes zone Active positive, removes the redundant disabled paired-source group, and wraps compact mixer device cards without hiding their controls or losing device identity. Authoring probes and two independent empty-to-save/play/duplicate/reopen walks cover wide and narrow windows.
+
 - P6 independent review: preserve nullable imported source and unsupported lane metadata through display, clone, remove and Undo; keep later note variation references attached to their original preset when one is removed; advance the held unison pitch base with authored detune changes and repeated restoring refreshes. Added disposable adversarial controls and compiled held-output regressions.
 
 - Protect inline null records from Unity's complete-Undo serialization pass before canonical edits, matching the retained legacy transaction. Pattern line operations tolerate preserved unsupported nullable lanes; automation canvas drags use one complete Undo snapshot for the whole gesture. Shared-chain scalar gesture checks verify independent one-step Undo/Redo.

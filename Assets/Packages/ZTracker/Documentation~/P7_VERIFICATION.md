@@ -1,0 +1,31 @@
+# P7 retirement and verification
+
+The public player, editor preview and saved demo use the clipless Burst/SAP renderer. The imported DLL, native declarations/upload helpers and streamed managed host have been retired. A frozen, non-imported native oracle remains under `Tools/ZTrackerNative/retired` solely for offline comparison. Data identities and legacy payloads remain intact; playback uses detached migration and diagnoses unsupported conversions.
+
+## Reference accounting
+
+The frozen manifest has 122 cases. All are explicitly classified: 76 PASS, seven APPROVED_CORRECTION_VERIFIED, 12 DSP_CHARACTERIZATION_NOT_PARITY, 23 MODEL_POLICY_VERIFIED_NOT_PARITY, three STATISTICAL_ONLY_EXCLUDED and one UNREPRESENTABLE_MODEL_EXCLUDED. `gate_success` means the declared verification gates passed; `full_numeric_parity` is false. The deterministic comparison tolerances remain absolute 1e-5 and relative 1e-4. Comparable event frames are exact. Additional analytic fixtures independently verify corrections rather than treating an old renderer's defect as the specification.
+
+Modern command migration deliberately refuses unsupported legacy commands, including neutral-looking commands, instead of silently approximating them. Stop-boundary dispatch and modern command semantics have separate policy assertions. Filter/effect characterizations and random noise do not claim sample parity. A legacy fixture using simultaneous normal and sustain loops cannot be represented by the current model and is explicitly excluded. These categories must not be described as 122 audio matches.
+
+Reproduce the offline reference checks from the development host with `python Tools/ZTrackerVerification/p7_goldens.py prepare --output Tools/ZTrackerNative/.golden-p7`. In a disposable editor, call `Laubrary.ZTracker.Verification.P3GoldenExporter.ExecuteRange(outputPath, first, 10)` for first values 0, 10 through 120. The exporter produces 124 renders, including the additional analytic cases. Run the comparator described by `p7_goldens.py --help`; retain its comparison and input-accounting JSON, then remove generated PCM. Never direct regeneration at the frozen corpus. Native regeneration defaults to scratch output and refuses the frozen target.
+
+## Package, commands and lifetime
+
+Normal-player dependencies contain three tracker assemblies: data, engine and playback. Verification runtime assemblies require `ZTRACKER_PROOF`; the normal runtime graph has no DLL import, reverse core dependency or verification reference. Offline engine checks cover 33 cases, live checks 14 cases, with zero scoped render allocation. Shared render managed-code guards and advancing native tickets distinguish real rendering from a silent fallback.
+
+Live snapshots preserve held-note tuning and instrument-chain state, transport and unrelated game overrides. Structural layout/routing or either PCM source replacement remains pending until explicit Stop/Play. Stop tests include repeated calls, reentrant or throwing event subscribers, queued and spaced swaps, owner timeouts and shutdown while playing. Ownership is retained when quietness cannot be confirmed; memory is never freed beside an active render. Audio configuration changes stop and require explicit Play.
+
+## Standalone reproduction
+
+Build only from a disposable copy of the final committed source; never build in the owner's open development editor. Run the package, fixture, engine, live and integration checks before scheduling `Laubrary.ZTracker.Proof.TrackerPlayerProofBuild.Start()`. The builder uses BuildOptions.None, product ZTrackerProof, a fixed `D:/UNITY/_builds/ztracker-proof/ZTrackerProof.exe` output and the opt-in proof define. It rejects the canonical owner editor.
+
+Run the fresh player with normal audio enabled, `--tracker-p7-proof <absolute-result-json> --tracker-p7-gc-objects 3000000 -logFile <absolute-log>`. Do not use batchmode or nographics for the audio proof. Require exit 0, passed true, no errors, witness `P7-public-burst-retirement-v1`, three passing GC intervals, advancing tracker and Zounds compiled tickets, zero managed render entries, public API/command coverage and lifecycle/playing-quit checks. Record source commit and artifact hashes before removing binaries and the disposable editor/project. Controlled 44.1/48 kHz setup checks are distinct from physical device switching.
+
+## UI verification and limits
+
+The parent personally repeated the empty-song workflow at 1100×760 and 760×440 logical sizes: create instrument, enter pitches 60/62/64/65, add Gain and Delay, save, play compiled nonzero audio, stop, duplicate both assets, remap the copied instrument and reopen the copied song. Both copies retained four notes and two devices. The wide/narrow render probes advanced 3,956,736/3,517,440 frames with energy 42,417.85/40,570.45. Screenshots were checked by eye. Synthetic editor events were used; physical keyboard/mouse gestures were not certified.
+
+The compliance pass found no folded authoring group or geometry finding, and responsive cards fit horizontally. The raw auditor counts hidden framework subtrees (nine in the two-device personal walks); it is not reported as zero skipped nodes. The UI worker's complete authoring suite passed 40 cases, and the parent repeated the three polish Undo/Redo checks. Before/after zone and mixer captures show positive Active polarity, the standalone disabled Second sample toggle, the populated enabled group, and retained Normalize identity.
+
+Not verified: subjective listening, event-to-speaker latency, physical audio-device hot-plug and other player platforms. A controlled sample-rate reset is not evidence for those claims. The standalone result and cleanup inventory are attached to AgentHQ task T-0016; historical phase documents are retained as historical evidence.
