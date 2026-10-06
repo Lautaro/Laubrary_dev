@@ -1,0 +1,164 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0413ec766917e0b4bb054a79ec22ed07, type: 3}
+  m_Name: Barbarian
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Zoetrope::Laubrary.Zoetrope.Zoe
+  displayName: Barbarian
+  maxHealth: 100
+  faction: {fileID: 0}
+  invulnerableAfterHit: 0
+  view:
+    rid: 7986899892014940838
+  deathDisposal: 1
+  deathLinger: 1.5
+  pixelPerfectHits: 0
+  locomotion:
+    idleClip: 
+    moveClip: 
+    moveThreshold: 0.15
+  motionPose:
+    channel: 0
+    moveThreshold: 0.15
+    fixedAngleDeg: 0
+    rules:
+    - condition: 0
+      setName: BarbarianStand
+      overrideChannel: 0
+      channel: 0
+  hit:
+    clip: 
+    targetPart: 
+    durationMode: 0
+    loops: 1
+    seconds: 0
+    stunSeconds: 0
+    bodyFx: {fileID: 0}
+    fx: []
+  death:
+    clip: 
+    targetPart: 
+    durationMode: 0
+    loops: 1
+    seconds: 0
+    stunSeconds: 0
+    bodyFx: {fileID: 0}
+    fx: []
+  events:
+  - id: GutStab
+    role: 0
+    reaction:
+      clip: GutStab
+      targetPart: 
+      durationMode: 0
+      loops: 1
+      seconds: 0
+      stunSeconds: 0
+      bodyFx: {fileID: 0}
+      fx: []
+  - id: HeavyChop
+    role: 0
+    reaction:
+      clip: HeavyChop
+      targetPart: 
+      durationMode: 0
+      loops: 1
+      seconds: 0
+      stunSeconds: 0
+      bodyFx: {fileID: 0}
+      fx: []
+  - id: Dodge
+    role: 0
+    reaction:
+      clip: Dodge
+      targetPart: 
+      durationMode: 0
+      loops: 1
+      seconds: 0
+      stunSeconds: 0
+      bodyFx: {fileID: 0}
+      fx: []
+  - id: JumpBack
+    role: 0
+    reaction:
+      clip: JumpBack
+      targetPart: 
+      durationMode: 0
+      loops: 1
+      seconds: 0
+      stunSeconds: 0
+      bodyFx: {fileID: 0}
+      fx: []
+  - id: Turnaround
+    role: 0
+    reaction:
+      clip: Turnaround
+      targetPart: 
+      durationMode: 0
+      loops: 1
+      seconds: 0
+      stunSeconds: 0
+      bodyFx: {fileID: 0}
+      fx: []
+  - id: PushedForwards
+    role: 0
+    reaction:
+      clip: PushedForwards
+      targetPart: 
+      durationMode: 0
+      loops: 1
+      seconds: 0
+      stunSeconds: 0
+      bodyFx: {fileID: 0}
+      fx: []
+  - id: PushedBackwards
+    role: 0
+    reaction:
+      clip: PushedBackwards
+      targetPart: 
+      durationMode: 0
+      loops: 1
+      seconds: 0
+      stunSeconds: 0
+      bodyFx: {fileID: 0}
+      fx: []
+  brain:
+    rid: -2
+  playerController:
+    rid: 7986899892014940839
+  aiming:
+    rid: -2
+  loadout: []
+  weapons: []
+  defaultActiveWeapon: 0
+  cues: []
+  meta:
+    space: 2
+    refSize: {x: 0, y: 0}
+    footprintMin: {x: 0, y: 0}
+    frameCount: 1
+    layers: []
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
+    - rid: 7986899892014940838
+      type: {class: ZonedLauminaryView, ns: Laubrary.ZoetropeLaunimator, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Launimator}
+      data:
+        version: {fileID: 11400000, guid: 775c3771390a0a64d8f12c920b6165aa, type: 2}
+        idleClip: Idle
+        height: 0
+    - rid: 7986899892014940839
+      type: {class: TopDownPlayerControllerSpec, ns: Laubrary.ZoetropeZoeCharacter, asm: com.Lautaro-Arino.Laubrary.Zoetrope.ZoeCharacter}
+      data:
+        controls: {fileID: -944628639613478452, guid: f07f564b8fae19e4480da06f0437a047, type: 3}
+        moveSpeed: 3

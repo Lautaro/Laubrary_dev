@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Launimator: owned source sheets bake at their true size
+
+- Fixed frames baking from a resampled image. When a lauminary takes its own copy of the frames it uses, it packs them into one sheet; that sheet was imported with power-of-two rescaling on and the default 2048 px size cap, so any sheet that was not a power of two (nearly all of them) was silently resampled and every frame came out squashed or cut from the wrong place. The sheet is now imported at its exact size and wraps into rows before it reaches 8192 px. Sliced atlases also lift the 2048 px cap, so a tall atlas can no longer be downscaled under its sprite rectangles.
+- Added the Barbarian demo (`Assets/Demos/BarbarianDemo`): a side-view melee character built from sprite strips, moved and mirrored with the left stick, with seven gamepad actions raised by name from the character's own event list.
+
 ### Zounds editor preview ownership (T-0019)
 
 - Closing a Zounds editor window stops every preview it started, including overlapping one-shots, popup auditions, raw clips and scheduled repeats, while sounds from other windows and game code continue.

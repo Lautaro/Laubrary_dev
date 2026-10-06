@@ -24,6 +24,9 @@ namespace Laubrary.Launimator.Editor
     /// </summary>
     public static class LauminarySources
     {
+        // Matches the importer cap set in ConfigureSource, so a packed sheet always imports at full size.
+        private const int MaxSourceRowWidth = 8192;
+
         /// <summary>The owned source texture for a version, holding every cell its animations use.</summary>
         public static string SourceFolder(string versionFolder) => $"{versionFolder}/Source";
         public static string SourcePath(string versionFolder, string lauminaryName)
@@ -100,20 +103,29 @@ namespace Laubrary.Launimator.Editor
 
             if (slotBlocks.Count == 0) return 0;
 
-            // ── Pass B: pack unique slots into one horizontal strip (each slot keeps its own width; row 0 = bottom) ──
-            int ownedH = slotBlocks.Max(s => s.h);
-            int ownedW = slotBlocks.Sum(s => s.w);
+            // ── Pass B: pack unique slots into rows (each slot keeps its own size; row 0 = bottom). Rows wrap at
+            // MaxSourceRowWidth so the sheet stays inside the texture size limit — a single long strip of a few
+            // dozen frames would otherwise exceed it and be silently downscaled on import. ──
             var slotRects = new Rect[slotBlocks.Count];
+            int rowX = 0, rowY = 0, rowH = 0, ownedW = 0;
+            for (int s = 0; s < slotBlocks.Count; s++)
+            {
+                var (_, bw, bh) = slotBlocks[s];
+                if (rowX > 0 && rowX + bw > MaxSourceRowWidth) { rowY += rowH; rowX = 0; rowH = 0; }
+                slotRects[s] = new Rect(rowX, rowY, bw, bh);
+                rowX += bw;
+                rowH = Mathf.Max(rowH, bh);
+                ownedW = Mathf.Max(ownedW, rowX);
+            }
+            int ownedH = rowY + rowH;
             var canvas = new Color32[ownedW * ownedH];
-            int xCursor = 0;
             for (int s = 0; s < slotBlocks.Count; s++)
             {
                 var (px, bw, bh) = slotBlocks[s];
+                int ox = (int)slotRects[s].x, oy = (int)slotRects[s].y;
                 for (int y = 0; y < bh; y++)
                     for (int x = 0; x < bw; x++)
-                        canvas[y * ownedW + (xCursor + x)] = px[y * bw + x]; // both bottom-up
-                slotRects[s] = new Rect(xCursor, 0, bw, bh);
-                xCursor += bw;
+                        canvas[(oy + y) * ownedW + (ox + x)] = px[y * bw + x]; // both bottom-up
             }
 
             // ── Pass C: write the owned source texture and resolve its GUID ──
@@ -214,6 +226,10 @@ namespace Laubrary.Launimator.Editor
         {
             if (!(AssetImporter.GetAtPath(path) is TextureImporter ti)) return;
             ti.textureType = TextureImporterType.Default;
+            // Pixels must come back exactly as written: a Default texture otherwise rescales a non-power-of-two
+            // sheet to the nearest power of two and caps it at 2048, and the baker would read the resampled copy.
+            ti.npotScale = TextureImporterNPOTScale.None;
+            ti.maxTextureSize = 8192;
             ti.isReadable = true;
             ti.filterMode = FilterMode.Point;
             ti.textureCompression = TextureImporterCompression.Uncompressed;

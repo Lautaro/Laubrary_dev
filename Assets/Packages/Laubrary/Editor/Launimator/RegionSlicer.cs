@@ -184,6 +184,9 @@ namespace Laubrary.Launimator.Editor
             importer.isReadable = true;
             importer.textureCompression = TextureImporterCompression.Uncompressed;   // else Unity's lossy default blurs/blocks pixel art
             importer.npotScale = TextureImporterNPOTScale.None;
+            // The sprite rects are in the PNG's real pixels; a texture above the default 2048 cap would import
+            // downscaled and every rect would then cut the wrong region.
+            if (importer.maxTextureSize < 8192) importer.maxTextureSize = 8192;
 
             // CRITICAL: force FULL-RECT sprite meshes. Unity defaults to Tight, which builds a per-frame polygon
             // hugging the content — and those meshes round independently, so frames drift ~1px against each other
