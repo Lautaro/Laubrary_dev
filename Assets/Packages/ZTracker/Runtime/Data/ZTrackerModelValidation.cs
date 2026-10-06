@@ -114,7 +114,20 @@ namespace Laubrary.ZTracker.Model
             if (string.IsNullOrEmpty(target.parameter)) return "Parameter identity missing";
             string trackId = target.trackId == "" ? owner : target.trackId;
             var track = song.tracks.Find(t => t.id == trackId); if (track == null) return "Automation target track missing";
-            if (target.kind == ParameterKind.Device && !track.devices.nodes.Exists(n => n.uid == target.deviceId)) return "Automation target device missing";
+            if (target.kind == ParameterKind.Device)
+            {
+                bool node=track.devices.nodes.Exists(n=>n.uid==target.deviceId);
+                var sources=track.sourceDevices.FindAll(s=>s.id==target.deviceId);var external=track.externalSources.FindAll(s=>s.id==target.deviceId);
+                if(!node&&sources.Count==0&&external.Count==0)return "Automation target device missing";
+                if(sources.Count>1||external.Count>1)return "Automation target device identity ambiguous";
+                var source=sources.Count==1?sources[0]:null;
+                if(source!=null&&source.kind==SourceDeviceKind.InstrumentAutomation)
+                {
+                    var instruments=song.instruments.FindAll(i=>i!=null&&i.model?.id==source.instrumentId);if(instruments.Count!=1)return "Automation source instrument missing or ambiguous";
+                    int ordinal=target.index>=0?target.index+1:int.TryParse(target.parameter,out var p)?p:-1;var parameter=source.parameters.Find(s=>s.ordinal==ordinal);if(parameter==null)return "Automation source parameter missing";
+                    if(!instruments[0].model.externalParameters.Exists(e=>e.externalId==parameter.externalId))return "Automation source external parameter missing";
+                }
+            }
             if (target.kind == ParameterKind.InstrumentMacro && (target.index < 0 || target.index >= 8 || !song.instruments.Exists(i => i != null && i.model != null && i.model.id == target.instrumentId))) return "Automation instrument/macro missing";
             return null;
         }

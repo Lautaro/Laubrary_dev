@@ -392,15 +392,17 @@ namespace Laubrary.Zounds.Uitk {
                 });
                 row.Add(grip);
 
-                // enable
-                ZuiToggleButton on = null;
-                on = ZS.Toggle("On", node.enabled ? "Bypass this effect (its state is kept)." : "Enable this effect.", node.enabled,
-                               v => Modify(v ? "enable effect" : "bypass effect", () => { chain.nodes[ni].enabled = v; chain.Touch(); }),
-                               "RichToggle", ZUICornerMask.None, G.OnW, G.RowH - 2f);
+                var parts = Laubrary.Audio.Editor.AudioChainEditor.NodeAuthoring(desc,node.enabled,
+                    v => Modify(v ? "enable effect" : "bypass effect", () => { chain.nodes[ni].enabled = v; chain.Touch(); }),
+                    () => Modify("remove effect", () => { chain.RemoveNode(ni); if (selectedNode >= chain.nodes.Count) selectedNode = -1; }),
+                    (enabled, changed) => ZS.Toggle("On", enabled ? "Bypass this effect (its state is kept)." : "Enable this effect.", enabled,changed,"RichToggle", ZUICornerMask.None,G.OnW,G.RowH-2f),
+                    (title,tip) => Text(title,tip,"zs-bold"),
+                    remove => ZS.Button("×","Removes this effect from the chain.","RichButton",remove,ZUICornerMask.All,G.RemoveW,G.RowH-2f));
+                var on = parts.enabled;
                 row.Add(Place(on, G.GripW + 2f, 1f, G.OnW, G.RowH - 2f));
 
                 float nameX = G.GripW + 2f + G.OnW + 6f;
-                var name = Place(Text(desc.displayName, desc.summary, "zs-bold"), nameX, 0f, G.NameW, G.RowH);
+                var name = Place(parts.title, nameX, 0f, G.NameW, G.RowH);
                 row.Add(name);
 
                 if (inline) {
@@ -426,9 +428,7 @@ namespace Laubrary.Zounds.Uitk {
                 }
 
                 // remove
-                row.Add(PlaceRight(ZS.Button("×", "Removes this effect from the chain.", "RichButton",
-                    () => Modify("remove effect", () => { chain.RemoveNode(ni); if (selectedNode >= chain.nodes.Count) selectedNode = -1; }),
-                    ZUICornerMask.All, G.RemoveW, G.RowH - 2f), 0f, 1f, G.RemoveW, G.RowH - 2f));
+                row.Add(PlaceRight(parts.remove, 0f, 1f, G.RemoveW, G.RowH - 2f));
 
                 if (!inline && selected) Wrap(chain, units, u => NodeValue(ni, u.paramIndex), w, nodesBox);
             }
@@ -567,25 +567,10 @@ namespace Laubrary.Zounds.Uitk {
             }
             else {
                 string LabelOf(float v) => pd.name + (u.overridden ? " •" : "") + "  " + G.Format(pd, v);
-                ZuiSkinSlider s;
-                if (pd.curve == ParamCurve.Logarithmic) {
-                    float lmin = Mathf.Log(Mathf.Max(pd.min, 1e-4f)), lmax = Mathf.Log(Mathf.Max(pd.max, 1e-4f));
-                    float T(float v) => Mathf.InverseLerp(lmin, lmax, Mathf.Log(Mathf.Max(v, 1e-4f)));
-                    ZuiSkinSlider sl = null;
-                    sl = ZS.Slider(LabelOf(u.value), T(u.value), 0f, 1f, tip, nt => { float v = Mathf.Exp(Mathf.Lerp(lmin, lmax, nt)); u.onDrag(v); sl.text = LabelOf(v); },
-                                   ZuiSkinSlider.LabelMode.LabelOnly, T(pd.def), "Default", cw, h);
-                    s = sl;
-                    refreshers.Add(() => { float v = read(); sl.SetValueWithoutNotify(T(v)); sl.text = LabelOf(v); });
-                }
-                else {
-                    ZuiSkinSlider sl = null;
-                    sl = ZS.Slider(LabelOf(u.value), u.value, pd.min, pd.max, tip, nv => {
-                        if (pd.curve == ParamCurve.Integer) nv = Mathf.Round(nv);
-                        u.onDrag(nv); sl.text = LabelOf(nv);
-                    }, ZuiSkinSlider.LabelMode.LabelOnly, pd.def, "Default", cw, h);
-                    s = sl;
-                    refreshers.Add(() => { float v = read(); sl.SetValueWithoutNotify(v); sl.text = LabelOf(v); });
-                }
+                ZuiSkinSlider s = null;
+                s = Laubrary.Audio.Editor.AudioChainEditor.Scalar(pd,u.value,v=>{u.onDrag(v);s.text=LabelOf(v);},
+                    (value,min,max,defaultValue,changed)=>ZS.Slider(LabelOf(u.value),value,min,max,tip,changed,ZuiSkinSlider.LabelMode.LabelOnly,defaultValue,"Default",cw,h));
+                refreshers.Add(() => {float value=read();s.SetValueWithoutNotify(Laubrary.Audio.Editor.AudioChainEditor.DisplayValue(pd,value));s.text=LabelOf(value);});
                 box.Add(Place(s, 0f, 0f, cw, h));
                 if (u.bound && isEffect) LiveOverlay(s, pd, u.nodeIndex, u.paramIndex, read);
             }

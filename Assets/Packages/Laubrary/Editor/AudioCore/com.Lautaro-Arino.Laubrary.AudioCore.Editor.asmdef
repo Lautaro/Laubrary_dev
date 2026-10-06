@@ -1,0 +1,6 @@
+{
+  "name": "com.Lautaro-Arino.Laubrary.AudioCore.Editor",
+  "rootNamespace": "Laubrary.Audio.Editor",
+  "references": ["com.Lautaro-Arino.Laubrary.AudioCore", "com.Lautaro-Arino.Laubrary.Zounds", "com.Lautaro-Arino.Laubrary.Zui.Editor", "com.Lautaro-Arino.Laubrary.ZuiRuntime"],
+  "includePlatforms": ["Editor"]
+}

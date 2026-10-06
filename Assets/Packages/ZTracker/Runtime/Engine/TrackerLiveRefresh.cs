@@ -17,6 +17,13 @@ namespace Laubrary.ZTracker.Engine
             var copy=ZTrackerMigration.Copy(source);
             copy.name="";copy.diagnostics.Clear();copy.bpm=120;copy.linesPerBeat=4;copy.ticksPerLine=6;
             foreach(var t in copy.tracks){t.name="";t.color=Color.gray;t.columns.Clear();t.visibleEffectColumns=0;t.preVolume=t.postVolume=t.preWidth=1;t.prePan=t.postPan=0;t.triggerMute=t.outputMute=t.solo=false;foreach(var n in t.devices.nodes){n.p=Array.Empty<float>();n.enabled=true;}}
+            foreach(var t in copy.tracks)
+            {
+                foreach(var m in t.devices.modifiers){m.name="";if(m.type!=Laubrary.Zounds.ZoundModifierType.Code)m.p=Array.Empty<float>();for(int i=0;i<m.steps.Length;i++)m.steps[i]=0;for(int i=0;i<m.curve.m_points.Count;i++){var p=m.curve.m_points[i];p.time=p.value=p.exponent=p.randomX=p.randomY=p.randomBias=0;m.curve.m_points[i]=p;}}
+                foreach(var b in t.devices.bindings){b.depth=0;b.schema=2;b.combine=Laubrary.Zounds.Dsp.ModulationCombine.Set;b.op=Laubrary.Zounds.ModifierOp.Replace;}
+                foreach(var s in t.sourceDevices){s.pluginId="";foreach(var p in s.parameters){p.defaultValue=0;p.parameter="";}}
+                foreach(var s in t.externalSources)s.pluginId="";
+            }
             foreach(var p in copy.patterns){p.name="";foreach(var t in p.tracks){t.lines.Clear();foreach(var lane in t.automation){lane.points.Clear();lane.interpolation=AutomationInterpolation.Step;}}}
             var key=new StringBuilder(JsonUtility.ToJson(copy));
             foreach(var i in source.instruments){if(i==null){key.Append("null");continue;}var data=ZTrackerMigration.Copy(i.model);var q=data.parameters;
