@@ -1,0 +1,25 @@
+# P3 sampler comparison
+
+`p3_goldens.py` recovers exact float32 source PCM from the original P0 formulas, verifies every PCM input hash, and copies the selected reference files into ignored `.golden-p3/reference`. The checked-in `golden/` corpus stays unchanged. It replays recorded host actions and render partitions, including voice-slot/generation ownership, rather than synthesizing candidate audio from the reference output. The Unity adapter creates transient instruments, migrates them into the authoritative schema-1 model, then renders through the actual compiled offline engine. It never calls the native DLL, saves assets, or adds UI.
+
+Run `python p3_goldens.py prepare` here. In the canonical Laubrary Dev Unity editor, invoke `Laubrary.ZTracker.Verification.P3GoldenExporter.Execute(@"D:/UNITY/Laubrary Dev/Tools/ZTrackerNative/.golden-p3")` through an explicitly targeted Unity CLI evaluation file. Then run `python p3_goldens.py compare`. Do not run the Unity Test Runner. Generated audio, event traces and comparison JSON stay ignored; the comparison tool returns a failure exit code if any equivalent case fails.
+
+## Equivalent gate: 22 cases
+
+The gate contains mono and tuned stereo samples; Off, Forward and PingPong sample loops; mapped kit notes; sample and kit channel base/mute/half/left/right settings; dry master; fresh/reused kit controls; dry send-boundary control; and voice stealing. It uses the original comparator defaults: audio absolute tolerance `1e-5`, relative tolerance `1e-4`, and exact event frames/order. Preview and internal tick events are outside the original P0 notification schema; actual engine Started/Row/Beat/NoteOn events are mapped into that schema without invented timestamps.
+
+The only equivalent-gate correction is the already approved `kit_filter_leak`: both corrected reused-kit segments must equal an independently rendered fresh-kit segment after the 128-frame predecessor. It is not a blanket audio exemption and does not replace the predecessor with fabricated samples.
+
+Migrated native samples retain the original compiler's float pitch profile. The original MSVC `/O2 /fp:fast` calculation folds MIDI frequency conversion into a float exponent and the constant `float(440 * float(1/440))`, whose bits are `0x3f7fffff`. Original P0 queries record base-pitch sample increment `0.9999999403953552`; native kit fixed-pitch playback is exactly the sample-rate ratio. That tiny distinction decides exact loop/end boundaries. Newly authored schema-1 samplers do not inherit this profile.
+
+## DSP characterization: 12 cases
+
+Six master cases (three filters, delay, reverb, combined) and six send cases (four block sizes plus two send-boundary controls) are rendered with explicitly authored AudioCore devices and send tracks. These are nearest-parameter mappings, measured and reported separately from the 22 equivalent cases. No DSP mismatch is relabeled as a successful parity result or an approved defect correction.
+
+The mapping converts native filter cutoff normalized to Nyquist into Hz and preserves resonance; delay seconds into milliseconds with feedback/mix, a 2000ms maximum and ping-pong disabled; and reverb room/damp/wet into room/damp/mix with stereo width 1. AudioCore has no band-pass insert: the explicitly labeled band-pass characterization uses a HighPass/LowPass cascade at the native center, not an equivalent algorithm. Native default sends use delay `.25/.4/.3` and reverb `.5/.5/.3`. These mappings are explicit fixture choices, not an automatic migration contract. The old native effects add wet output to retained dry output; AudioCore delay/reverb use their own dry/wet mix and history/coefficient algorithms. Reverb input gain, damping and delay-line sizing also differ. Thus these old master/global-send recordings are not equivalent to the newly authored shared-device graph. The original approved send-subchunk defect is present in P0, but is not used to excuse an independently different DSP algorithm.
+
+## Remaining six sampler/kit corpus cases
+
+`sample_loop_3` has separate held and normal loop regions, which the current schema-1 single-loop-plus-release-exit model cannot express. It is excluded explicitly; independent engine checks prove release exit from the supported loop. `sample_b_0` through `sample_b_3` belong to the diagnosed P4 paired-sample blend extension. `presets_sample` belongs to P5 parameter-set selection. These six are neither compared nor claimed as implemented by P3. Together with the 22 equivalent cases and 12 DSP characterizations, this accounts for all 40 sample/kit P0 cases.
+
+The fractional native transport countdown is also not the version-1 clock contract. P3 follows the documented cumulative binary64 Kahan/Q deadlines; see the engine documentation for the measured one-frame 137.5BPM difference. Integral 120BPM/LPB4 fixtures in this gate compare directly.

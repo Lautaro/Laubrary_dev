@@ -3,3 +3,6 @@
 /.golden-tests/
 /logs/
 /__pycache__/
+# Generated P3 reference copies, float buffers and repeatable comparison output.
+.golden-p3/
+.p3-golden/
