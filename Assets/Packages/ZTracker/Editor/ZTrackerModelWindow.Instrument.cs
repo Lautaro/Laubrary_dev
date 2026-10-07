@@ -145,7 +145,7 @@ namespace Laubrary.ZTracker.Editor
             mute.style.flexWrap = Wrap.NoWrap; mute.style.alignItems = Align.Center;
             if (s.muteGroup >= 0) mute.Add(Named(Z.Int(s.muteGroup, "Samples with the same group number choke one another.", v => InstrumentEdit("mute group", () => s.muteGroup = Math.Max(0, v)), 65), "sample-mute-group"));
             else mute.Add(Z.Text("None", tooltip: "This sample does not choke a mute group."));
-            root.Add(Flow(InstrumentChoice("New note action", (int)s.nna, new[] { "Cut", "Note off", "Continue" }, "Action on previous voices when a new note starts on their column.", v => s.nna = (NewNoteAction)v, "sample-nna"), mute));
+            root.Add(Flow(InstrumentChoice("New note action", (int)s.nna, new[] { "Cut", "Note off", "Continue" }, "What happens to the previous note in this column when a new one starts. Cut: it stops at once (mono). Note off: it plays its release under the new note. Continue: it keeps sounding.", v => s.nna = (NewNoteAction)v, "sample-nna"), mute));
             root.Add(IndexPicker("Modulation", s.modulationSet, Instrument.modulation.Select(m => m.name).ToArray(), v => s.modulationSet = v, "sample-modulation"));
             root.Add(IndexPicker("FX chain", s.fxChain, Instrument.fxChains.Select((c, i) => "Chain " + (i + 1)).ToArray(), v => s.fxChain = v, "sample-fx-chain"));
             if (s.pcm != null && s.pcm.samples >= 2)
@@ -234,7 +234,7 @@ namespace Laubrary.ZTracker.Editor
         {
             var d = Instrument; var q = d.parameters;
             var source = InstrumentSection(root, "Oscillators", "oscillators", "Sound source, oscillator blend and detuned voices. Right-click a numeric parameter to choose its per-note envelope.");
-            source.Add(Flow(InstrumentChoice("Engine", (int)d.synthMode, new[] { "Subtractive", "FM" }, "Switch synth topology. Existing inactive settings are retained.", v => { d.synthMode = (SynthMode)v; q.type = v == 0 ? InstrumentType.Synth : InstrumentType.FM; }, "synth-mode"), InstrumentChoice("New note", (int)d.sampler.nna, new[] { "Cut", "Note off", "Continue" }, "Action on previous voices when another note starts in the same column.", v => d.sampler.nna = (NewNoteAction)v, "synth-nna")));
+            source.Add(Flow(InstrumentChoice("Engine", (int)d.synthMode, new[] { "Subtractive", "FM" }, "Switch synth topology. Existing inactive settings are retained.", v => { d.synthMode = (SynthMode)v; q.type = v == 0 ? InstrumentType.Synth : InstrumentType.FM; }, "synth-mode"), InstrumentChoice("New note", (int)d.sampler.nna, new[] { "Cut", "Note off", "Continue" }, "What happens to the previous note in this column when a new one starts. Cut: it stops at once, so only one note sounds (mono). Note off: it plays its release under the new note. Continue: it keeps sounding.", v => d.sampler.nna = (NewNoteAction)v, "synth-nna")));
             if (d.synthMode == SynthMode.Subtractive)
             {
                 source.Add(Flow(InstrumentChoice("Wave A", q.waveA, WaveLabels(q.enumDomain), "Primary oscillator waveform.", v => q.waveA = v, "synth-wave-a"), InstrumentChoice("Wave B", q.waveB, WaveLabels(q.enumDomain), "Secondary oscillator waveform.", v => q.waveB = v, "synth-wave-b")));
