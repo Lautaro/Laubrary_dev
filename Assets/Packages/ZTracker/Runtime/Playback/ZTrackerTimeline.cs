@@ -30,7 +30,7 @@ namespace Laubrary.ZTracker
     /// <summary>
     /// A rhythm timeline for a playing ZTracker song, drawn immediate-mode (call from OnGUI). It shows one pattern —
     /// up to <see cref="MaxRows"/> rows, longer patterns page by 64 — with every row as a tick (beats stronger and
-    /// numbered in hex like the tracker), each accent's hit window shaded, the accents marked, and the position the
+    /// numbered, in decimal like the tracker editor), each accent's hit window shaded, the accents marked, and the position the
     /// player hears as a cursor. The window under the cursor brightens, so the player sees when a press would count.
     /// </summary>
     public static class ZTrackerTimeline
@@ -97,7 +97,7 @@ namespace Laubrary.ZTracker
                 bool beat = row % lpb == 0;
                 float x = X(row);
                 Zui.FillRect(new Rect(x - (beat ? 1f : 0.5f), strip.y, beat ? 2f : 1f, strip.height), beat ? style.beatTick : style.rowTick);
-                if (beat && r < rowCount) GUI.Label(new Rect(x + 2f, strip.yMax, rowW * lpb, labelH), row.ToString("X2"), labelStyle);
+                if (beat && r < rowCount) GUI.Label(new Rect(x + 2f, strip.yMax, rowW * lpb, labelH), row.ToString(), labelStyle);
             }
 
             // Accents: a bright marker at the start of the accented row.
