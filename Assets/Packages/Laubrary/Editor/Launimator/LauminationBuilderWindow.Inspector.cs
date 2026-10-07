@@ -125,7 +125,7 @@ namespace Laubrary.Launimator.Editor
                 root.Add(Z.Toggle("Smooth", "Use smooth interpolation for arbitrary rotation and scaling.", transform.smooth, v => { MutateSelectedTransforms(t => { t.smooth = v; return t; }); Dirty(); }));
                 root.Add(Z.Button("Reset transform", "Remove every transform from the selected sprites.", () => { MutateSelectedTransforms(_ => CellTransform.Identity); Refresh(); }));
             }
-            var selection = WrapRow(Z.Button("Duplicate", "Create independent copies of the selected source sprites.", () => { DuplicateSelectedSprites(); Refresh(); }), Z.Button("Trim", "Trim the selected source sprites to visible content.", () => { TrimSelected(); Refresh(); }), Z.IconButton("delete", "Delete selected sprites and every sequence frame using them.", () => { DeleteSelectedCells(); Refresh(); }, 24));
+            var selection = WrapRow(Z.Button("Duplicate", "Create independent copies of the selected source sprites.", () => { DuplicateSelectedSprites(); Refresh(); }), Z.Button("Trim", "Trim the selected source sprites to visible content.", () => { TrimSelected(); Refresh(); }), Z.IconButton("trash", "Delete selected sprites and every sequence frame using them.", () => { DeleteSelectedCells(); Refresh(); }, 24));
             selection.SetEnabled(HasSelectedCell()); root.Add(selection);
             root.Add(Z.Button("Import frame…", "Import an image from your computer as a new sequence frame.", () => ImportExternalImage(true)));
         }
@@ -175,7 +175,7 @@ namespace Laubrary.Launimator.Editor
             add.SetEnabled(_sequence.Count > 0); root.Add(add);
             if (_selectedEvent < 0 || _selectedEvent >= _events.Count) return;
             var current = _events[_selectedEvent];
-            root.Add(Z.TextInput(current.name, "Declare the event's name; consumers pick this name from the animation.", v => EditValue("Event name", () => current.name = v), 190));
+            root.Add(Z.TextInput(current.name, "Declare the event's name; consumers pick this name from the animation.", v => { EditValue("Event name", () => current.name = v); if (_selectedEvent < list.childCount) ((Button)list[_selectedEvent]).text = v + " · " + (current.frame + 1); }, 190));
             root.Add(Z.MicroSlider("Frame", current.frame + 1, 1, Mathf.Max(1, _sequence.Count), "The frame that fires this event, numbered from one.", v => { current.frame = Mathf.RoundToInt(v) - 1; Dirty(); }, 230, decimals: 0, onBeforeMutate: () => RecordUndo("Event frame")));
             var sound = Z.Button(string.IsNullOrEmpty(current.zoundName) ? "Choose sound…" : current.zoundName, "Pick a sound to play when the event fires.", null);
             sound.clicked += () => ZoundPickerPopup.Show(new Vector2(sound.worldBound.x, sound.worldBound.yMax), name => EditValue("Event sound", () => current.zoundName = name, true));
@@ -187,7 +187,7 @@ namespace Laubrary.Launimator.Editor
                 root.Add(Z.Vector2Field("Pixel", () => current.position, v => current.position = Vector2Int.RoundToInt(v), current,
                     new ZuiValue2DControl.Options().WithRange(0, Mathf.Max(1, w - 1), 0, Mathf.Max(1, h - 1)).WithPlotSize(130), "Position of this event within its frame in pixels.", Dirty, () => RecordUndo("Event position")));
             }
-            root.Add(Z.IconButton("delete", "Remove this event.", () => EditValue("Delete event", () => { _events.RemoveAt(_selectedEvent); _selectedEvent = -1; }, true), 24));
+            root.Add(Z.IconButton("trash", "Remove this event.", () => EditValue("Delete event", () => { _events.RemoveAt(_selectedEvent); _selectedEvent = -1; }, true), 24));
         }
 
         private void BuildLayerInspector(VisualElement root)
@@ -207,7 +207,7 @@ namespace Laubrary.Launimator.Editor
                 _activeLayer = _metaLayers.Count - 1; SyncMetaFrames(); PausePreview();
             }, true)));
             var active = ActiveLayer(); if (active == null) return;
-            root.Add(WrapRow(Z.TextInput(active.id, "Declare this layer's name for consumers to pick.", v => EditValue("Layer name", () => active.id = v), 175), Z.IconButton("delete", "Delete this layer and its data on every frame.", () => EditValue("Delete layer", () => { _metaLayers.RemoveAt(_activeLayer); _activeLayer = Mathf.Min(_activeLayer, _metaLayers.Count - 1); }, true), 24)));
+            root.Add(WrapRow(Z.TextInput(active.id, "Declare this layer's name for consumers to pick.", v => { EditValue("Layer name", () => active.id = v); if (_activeLayer < list.childCount) ((Button)list[_activeLayer]).text = v; }, 175), Z.IconButton("trash", "Delete this layer and its data on every frame.", () => EditValue("Delete layer", () => { _metaLayers.RemoveAt(_activeLayer); _activeLayer = Mathf.Min(_activeLayer, _metaLayers.Count - 1); }, true), 24)));
             root.Add(Z.Segmented((int)active.mode, new[] { "Shape", "Point", "Vector" }, "Shape paints a mask; Point keeps one pixel per frame; Vector places an origin and direction. Converting a shape to a point keeps its first painted pixel.", v => EditValue("Layer kind", () =>
             {
                 active.mode = (MetaLayerMode)v;
@@ -258,7 +258,7 @@ namespace Laubrary.Launimator.Editor
             add.SetEnabled(_sequence.Count > 0); root.Add(add);
             if (TimelineSelectedPhase < 0 || TimelineSelectedPhase >= _zones.Count) return;
             var active = _zones[TimelineSelectedPhase];
-            root.Add(WrapRow(Z.TextInput(active.name, "Declare the phase name used by playback and the game.", v => EditValue("Phase name", () => active.name = v), 175), Z.IconButton("delete", "Remove this phase boundary range.", () => EditValue("Delete phase", () => { _zones.RemoveAt(TimelineSelectedPhase); TimelineSelectedPhase = Mathf.Min(TimelineSelectedPhase, _zones.Count - 1); }, true), 24)));
+            root.Add(WrapRow(Z.TextInput(active.name, "Declare the phase name used by playback and the game.", v => { EditValue("Phase name", () => active.name = v); if (TimelineSelectedPhase < list.childCount) ((Button)list[TimelineSelectedPhase]).text = v; }, 175), Z.IconButton("trash", "Remove this phase boundary range.", () => EditValue("Delete phase", () => { _zones.RemoveAt(TimelineSelectedPhase); TimelineSelectedPhase = Mathf.Min(TimelineSelectedPhase, _zones.Count - 1); }, true), 24)));
             root.Add(Z.Segmented((int)active.behavior, new[] { "Play through", "Loop" }, "Play through proceeds to the next phase; Loop repeats until Advance is requested.", v => EditValue("Phase playback", () => active.behavior = (ZoneBehavior)v)));
             root.Add(Z.MicroMinMax("Frames", active.startFrame + 1, active.endFrame + 1, 1, Mathf.Max(1, _sequence.Count), "Inclusive phase boundaries, numbered from one. They remain explicit when frames are moved or removed.", (low, high) => { active.startFrame = Mathf.RoundToInt(low) - 1; active.endFrame = Mathf.RoundToInt(high) - 1; Dirty(); }, width: 230, decimals: 0, onBeforeMutate: () => RecordUndo("Phase range")));
             var selection = Z.Button("Use selection", "Set this phase's endpoints to the first and last selected frames.", () => EditValue("Phase range", () => { active.startFrame = _seqMultiSel.Min(); active.endFrame = _seqMultiSel.Max(); }, true));

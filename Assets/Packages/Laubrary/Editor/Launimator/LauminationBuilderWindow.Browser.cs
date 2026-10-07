@@ -58,34 +58,82 @@ namespace Laubrary.Launimator.Editor
 
         private void AddAnimationCard(Laumination animation, bool current, Action open)
         {
-            var card = Z.Button("", $"Edit {animation.name}; hover to preview. {animation.recipe?.Count ?? 0} frames at {animation.fps:0.#} FPS.", open);
+            int frameCount = animation.recipe?.Count > 0 ? animation.recipe.Count : animation.frames?.Count ?? 0;
+            // The preview action is a sibling of the edit button. A nested Button's pointer-up can
+            // activate its parent Clickable before a ClickEvent propagation handler can stop it.
+            var card = Z.Row();
             card.AddToClassList("lau-builder-modes__animation");
             if (current) card.AddToClassList("zui-radio__on");
+            var edit = Z.Button("", $"Edit {animation.name}; hover to preview. {frameCount} frames at {animation.fps:0.#} FPS.", open);
+            edit.style.width = 118; edit.style.height = 44; edit.style.minWidth = 0;
+            edit.style.flexShrink = 1; edit.style.flexDirection = FlexDirection.Row;
+            edit.style.paddingLeft = 0; edit.style.paddingRight = 0;
+            edit.style.marginLeft = 0; edit.style.marginRight = 0;
+            card.Add(edit);
             var image = new Image { scaleMode = ScaleMode.ScaleToFit, pickingMode = PickingMode.Ignore };
             image.AddToClassList("lau-builder-modes__thumbnail");
-            var frames = animation.frames;
-            if (frames != null && frames.Count > 0) image.sprite = frames[0];
-            card.Add(image);
+            edit.Add(image);
             var name = Z.Text(animation.name, ZuiText.Small, animation.name);
             name.AddToClassList("lau-builder-modes__animation-name");
-            card.Add(name);
+            edit.Add(name);
+            var generated = new System.Collections.Generic.Dictionary<int, Texture2D>();
+            void ShowFrame(int index)
+            {
+                var sprite = animation.frames != null && index < animation.frames.Count ? animation.frames[index] : null;
+                if (sprite != null) { image.image = null; image.sprite = sprite; return; }
+                if (!generated.TryGetValue(index, out var texture))
+                {
+                    texture = CreateAnimationRailFrame(animation, index);
+                    generated[index] = texture;
+                }
+                image.sprite = null; image.image = texture;
+                image.tooltip = texture != null ? animation.name : "This animation's source image is missing or unreadable.";
+            }
             bool hover = false, playing = false; int frame = 0;
             double last = UnityEditor.EditorApplication.timeSinceStartup, remaining = 0;
             var preview = Z.IconButton("play", "Start or stop this thumbnail's animation preview.", () => { playing = !playing; remaining = 0; }, 22);
-            preview.RegisterCallback<ClickEvent>(e => e.StopPropagation()); card.Add(preview);
+            preview.SetEnabled(frameCount > 0); card.Add(preview);
             card.RegisterCallback<MouseEnterEvent>(_ => { hover = true; last = UnityEditor.EditorApplication.timeSinceStartup; });
-            card.RegisterCallback<MouseLeaveEvent>(_ => { hover = false; if (!playing) { frame = 0; if (frames != null && frames.Count > 0) image.sprite = frames[0]; } });
+            card.RegisterCallback<MouseLeaveEvent>(_ => { hover = false; if (!playing && frameCount > 0) { frame = 0; ShowFrame(0); } });
+            card.RegisterCallback<AttachToPanelEvent>(_ => { if (frameCount > 0) ShowFrame(frame); });
+            card.RegisterCallback<DetachFromPanelEvent>(_ =>
+            {
+                playing = hover = false; image.sprite = null; image.image = null;
+                foreach (var texture in generated.Values) if (texture != null) UnityEngine.Object.DestroyImmediate(texture);
+                generated.Clear();
+            });
             card.schedule.Execute(() =>
             {
                 double now = UnityEditor.EditorApplication.timeSinceStartup; double dt = now - last; last = now;
-                if ((!hover && !playing) || frames == null || frames.Count == 0) return;
+                if ((!hover && !playing) || frameCount == 0) return;
                 remaining -= dt;
                 if (remaining > 0) return;
-                frame = (frame + 1) % frames.Count; image.sprite = frames[frame];
+                frame = (frame + 1) % frameCount; ShowFrame(frame);
                 float timing = animation.recipe != null && frame < animation.recipe.Count ? animation.recipe[frame].timingPercent : 0;
                 remaining = FrameRef.TimingFactorOf(timing) / Mathf.Max(1, animation.fps);
             }).Every(25);
             _railItems.Add(card);
+        }
+
+        // Standalone assets retain source recipes without a baked atlas. Make just the first picture
+        // at attachment; other frames are cached lazily during audition and disposed with their card.
+        private Texture2D CreateAnimationRailFrame(Laumination animation, int index)
+        {
+            if (animation.recipe == null || index < 0 || index >= animation.recipe.Count) return null;
+            var frame = animation.recipe[index];
+            if (frame == null) return null;
+            string guid = string.IsNullOrEmpty(frame.sourceTextureGuid) ? animation.sourceTextureGuid : frame.sourceTextureGuid;
+            if (string.IsNullOrEmpty(guid)) return null;
+            var source = ResolveTexture(guid);
+            var pixels = GetPixelsFor(guid);
+            if (source == null || pixels == null) return null;
+            var key = new RegionSlicer.ColorKey { enabled = animation.bgKeyEnabled, color = animation.bgKey, tolerance = animation.bgKeyTolerance };
+            var block = AtlasBaker.TransformCell(pixels, source.width, source.height, frame.cell, frame.transform, key, frame.pivot,
+                out int width, out int height, out _);
+            var result = new Texture2D(width, height, TextureFormat.RGBA32, false)
+                { name = animation.name + " thumbnail", hideFlags = HideFlags.HideAndDontSave, filterMode = FilterMode.Point };
+            result.SetPixels32(block); result.Apply();
+            return result;
         }
 
         private void SwitchToLauminaryAnimation(string name)

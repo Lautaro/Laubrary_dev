@@ -47,16 +47,19 @@ namespace Laubrary.Launimator.Editor
             _timelineCopy = Z.IconButton("copy", "Copy the active tool's typed content at the selected frame.", CopyTimelineContent, 24);
             _timelinePaste = Z.IconButton("clipboard", "Paste matching typed content onto selected frames. Incompatible content is never converted.", PasteTimelineContent, 24);
             commands.Add(_timelineCopy); commands.Add(_timelinePaste);
-            _timelineLead = Z.Button("Lead-in", "Select the preview-only lead-in. It sits outside the real frame ruler and never carries gameplay metadata.", () =>
+            _timelineLead = Z.Button("", "Select the preview-only lead-in. It sits outside the real frame ruler and never carries gameplay metadata.", () =>
             {
                 _frameZeroSel = true; _showingFrameZero = SeqRefValid(_frameZero); _seqSelected = -1;
                 if (SeqRefValid(_frameZero)) SelectSingle(_frameZero.region, _frameZero.cell); else ClearSelection();
                 _seqMultiSel.Clear(); _animPlaying = false; Refresh();
             }).W(88);
             _timelineLead.style.flexDirection = FlexDirection.Row;
+            _timelineLead.style.justifyContent = Justify.Center;
             _timelineLeadImage = new Image { scaleMode = ScaleMode.ScaleToFit, pickingMode = PickingMode.Ignore };
             _timelineLeadImage.style.width = 20; _timelineLeadImage.style.height = 20;
+            _timelineLeadImage.style.flexShrink = 0; _timelineLeadImage.style.marginRight = 4;
             _timelineLead.Insert(0, _timelineLeadImage);
+            _timelineLead.Add(Z.Text("Lead-in", ZuiText.Small));
             commands.Add(_timelineLead);
             _timelineConflict = Z.Text("", ZuiText.Small, "Phase diagnostics.");
             _timelineConflict.style.width = 24;

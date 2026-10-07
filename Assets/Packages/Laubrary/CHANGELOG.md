@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Laumination Builder workspace and document safety
 
+- Added lazy rail thumbnails for unbaked standalone animations, separated preview from edit selection, made entry names update while typing, and corrected removal icons.
 - Polished the persistent identity, compact animation cards and full-width shared frame columns; local acquisition also accepts an image path directly, with labelled File and URL inputs.
 - Corrected mixed-source alignment and trimming, made bulk frame addition one undo step, preserved source identity through external editing, resampled typed mask paste to destination dimensions without duplicating points, and removed the superseded sequence strip.
 - Organised animation authoring into Sheet, Sprites and Animate around a fixed stage, searchable animation thumbnails, scoped image acquisition, visible detected-cut acceptance and a shared frame timeline derived from Chunks' ZUI lanes.
