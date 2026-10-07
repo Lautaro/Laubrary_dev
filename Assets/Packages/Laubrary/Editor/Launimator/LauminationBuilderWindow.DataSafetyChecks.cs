@@ -13,6 +13,7 @@ namespace Laubrary.Launimator.Editor
         {
             var passed = new List<string>();
             var window = CreateInstance<LauminationBuilderWindow>();
+            Texture2D primarySource = null, foreignSource = null;
             try
             {
                 void Check(bool condition, string message)
@@ -196,6 +197,45 @@ namespace Laubrary.Launimator.Editor
                     "same-image recipe variants must preserve distinct out-of-bounds pivots");
                 passed.Add("recipe loading preserves arbitrary finite pivots and distinct registration variants");
 
+                Seed();
+                primarySource = new Texture2D(4, 4, TextureFormat.RGBA32, false);
+                var primaryPixels = new Color32[16]; primaryPixels[0] = new Color32(255, 255, 255, 255);
+                primarySource.SetPixels32(primaryPixels); primarySource.Apply();
+                foreignSource = new Texture2D(8, 8, TextureFormat.RGBA32, false);
+                var foreignPixels = new Color32[64]; foreignPixels[5 * 8 + 6] = new Color32(255, 255, 255, 255);
+                foreignSource.SetPixels32(foreignPixels); foreignSource.Apply();
+                window._sheet = primarySource; window._sheetPath = null; window._texW = window._texH = 4;
+                window._pixelCache = null; window._pixelCacheFor = null;
+                window._bgKeyEnabled = false; window._alphaThreshold = 8;
+                window._foreignTexCache["test-source"] = foreignSource;
+                window._foreignPixelCache["test-source"] = foreignPixels;
+                window._regions[0].cells[0] = new Rect(0, 0, 8, 8);
+                window.SelectSingle(0, 0);
+                window.BaselineSelected();
+                Check(window._regions[0].pivots[0] == new Vector2(6.5f / 8, 5f / 8), "Feet must sample the selected foreign source, not the loaded sheet");
+                window.TopCenterSelected();
+                Check(window._regions[0].pivots[0] == new Vector2(6.5f / 8, 6f / 8), "Head must use the foreign source dimensions");
+                window.TrimSelected();
+                Check(window._regions[0].cells[0] == new Rect(6, 5, 1, 1), "Trim must find the foreign source's actual content");
+                window.PerformUndo();
+                Check(window._regions[0].cells[0] == new Rect(0, 0, 8, 8), "Trim must undo as one edit");
+                passed.Add("Feet, Head and Trim sample the selected sprite's own source and dimensions");
+
+                Seed();
+                // The source guard deliberately requires an imported texture; this is a read-only lookup.
+                string validSource = UnityEditor.AssetDatabase.FindAssets("t:Texture2D").FirstOrDefault(g =>
+                    UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(UnityEditor.AssetDatabase.GUIDToAssetPath(g)) != null);
+                Check(!string.IsNullOrEmpty(validSource), "bulk undo check needs one imported texture in the project");
+                window._regions[0].sourceTextureGuid = validSource;
+                window.SelectSingle(0, 0); window.ToggleSelect(0, 1); window.BeginCleanDocument();
+                window.AddSelectedToSequence();
+                Check(window._sequence.Count == 4 && window._undo.Count == 1, "bulk Add sequence must record exactly one undo step");
+                window.PerformUndo();
+                Check(window._sequence.Count == 2, "one Undo must remove the whole appended selection");
+                window.PerformRedo();
+                Check(window._sequence.Count == 4, "one Redo must restore the whole appended selection");
+                passed.Add("bulk Add sequence is atomic under Undo and Redo");
+
                 int saves = 0;
                 Check(!ResolveDocumentTransition(0, () => { saves++; return false; }) && saves == 1,
                     "failed save must cancel navigation");
@@ -205,7 +245,12 @@ namespace Laubrary.Launimator.Editor
                 passed.Add("Save/Discard/Cancel never navigate after a failed save and never autosave");
                 return string.Join("\n", passed.Select((text, i) => $"PASS {i + 1}: {text}"));
             }
-            finally { DestroyImmediate(window); }
+            finally
+            {
+                DestroyImmediate(window);
+                if (primarySource != null) DestroyImmediate(primarySource);
+                if (foreignSource != null) DestroyImmediate(foreignSource);
+            }
         }
     }
 }

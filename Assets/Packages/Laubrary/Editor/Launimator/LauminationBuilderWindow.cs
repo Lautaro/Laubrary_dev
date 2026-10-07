@@ -41,6 +41,7 @@ namespace Laubrary.Launimator.Editor
         // ── Aseprite edit round-trip (Edit in Aseprite → edit → Sync) ────────
         private string _editAsePath;            // last .aseprite exported for editing
         private string _editSheetPath;          // the sheet it was exported from
+        private readonly HashSet<string> _editSourceGuids = new HashSet<string>(); // original and undoable owned copies
         private readonly List<Rect> _editRects = new List<Rect>();  // edited cell rects, in frame order
         private string _sheetUrl = "";       // download-into-SpriteSheets URL field
         private string _downloadName = "";   // friendly display name for a downloaded sheet
@@ -132,7 +133,6 @@ namespace Laubrary.Launimator.Editor
         }
         private readonly List<CellRef> _sequence = new List<CellRef>();
         private int _seqSelected = -1;
-        private int _seqDragFrom = -1;
         // Batch selection over the sequence (by frame INDEX — a sprite may appear more than once, so we
         // can't key on the cell). _seqSelected stays the "primary" frame; _seqAnchor seeds shift-range.
         private readonly HashSet<int> _seqMultiSel = new HashSet<int>();
@@ -153,7 +153,7 @@ namespace Laubrary.Launimator.Editor
         // so the transition can be judged. Saved with the animation but never baked; the game never sees it.
         private bool _frameZeroOn;
         private CellRef _frameZero = new CellRef(-1, -1);   // pct = how long it shows
-        private bool _frameZeroSel;                          // the strip's slot 0 is the selected frame
+        private bool _frameZeroSel;                          // the separate lead-in slot is selected
         private bool _showingFrameZero;                      // the preview is on frame 0 (playing or parked)
         private double _frameZeroUntil;
         private List<Sprite> _previewFrameZero;              // frame 0, baked with the sequence so it registers alike
@@ -235,14 +235,14 @@ namespace Laubrary.Launimator.Editor
         private Rect _lastImageRect;
 
         private string _status;
-        private Vector2 _cellsScroll, _seqScroll;
+        private Vector2 _cellsScroll;
 
         // ── retained UI hosts + islands (UI Toolkit) ─────────────────────────
         // Each host is cleared + rebuilt by Refresh(); each island only needs MarkDirtyRepaint().
         private VisualElement _bannerHost, _topHost, _leftControlsHost, _paletteHost, _animHost;
         private VisualElement _leftPane, _splitRow;
         private Label _statusLabel;
-        private IMGUIContainer _canvasIM, _regCanvasIM, _paletteGridIM, _playIM, _seqStripIM, _zoneBarIM;
+        private IMGUIContainer _canvasIM, _regCanvasIM, _paletteGridIM, _playIM;
         private IntegerField _boxLField, _boxTField, _boxWField, _boxHField;
         private Button _addRegionButton, _playToggleButton, _addEventButton;
         private Label _metaParamLabel;
@@ -320,7 +320,7 @@ namespace Laubrary.Launimator.Editor
                 _animFrame = _phasePreviewPlayer.CurrentFrame;
                 _animPlaying = _phasePreviewPlayer.IsPlaying;
                 RefreshFrameLabels(); SyncFrameTimelinePlayhead(); UpdatePreviewTransport();
-                _playIM?.MarkDirtyRepaint(); _seqStripIM?.MarkDirtyRepaint(); _zoneBarIM?.MarkDirtyRepaint();
+                _playIM?.MarkDirtyRepaint();
                 return;
             }
 
@@ -335,7 +335,6 @@ namespace Laubrary.Launimator.Editor
                 if (!FrameZeroActive) _showingFrameZero = false;
                 else if (now >= _frameZeroUntil) { _showingFrameZero = false; StartClip(); }
                 _playIM?.MarkDirtyRepaint();
-                _seqStripIM?.MarkDirtyRepaint();
                 return;
             }
 
@@ -346,8 +345,6 @@ namespace Laubrary.Launimator.Editor
             // Playback only moves the playhead — repaint the islands that show it, never the whole window.
             RefreshFrameLabels(); SyncFrameTimelinePlayhead();
             _playIM?.MarkDirtyRepaint();
-            _seqStripIM?.MarkDirtyRepaint();
-            _zoneBarIM?.MarkDirtyRepaint();
         }
 
         // What a frame with this timing lasts at the current FPS, in milliseconds.
@@ -517,7 +514,7 @@ namespace Laubrary.Launimator.Editor
             _barHost = null;
             _leftPane = _splitRow = null;
             _statusLabel = null;
-            _canvasIM = _regCanvasIM = _paletteGridIM = _playIM = _seqStripIM = _zoneBarIM = null;
+            _canvasIM = _regCanvasIM = _paletteGridIM = _playIM = null;
             _boxLField = _boxTField = _boxWField = _boxHField = null;
             _addRegionButton = _playToggleButton = _addEventButton = null;
             _metaParamLabel = null; _metaParamField = null;
@@ -905,9 +902,13 @@ namespace Laubrary.Launimator.Editor
         private void OpenSelectionInAseprite()
         {
             var sel = SelectedCells();
-            if (sel.Count == 0) { _status = "Select sprite(s) in #4 to edit in Aseprite."; return; }
-            var px = GetPixels();
-            if (px == null) { _status = "Texture not readable."; return; }
+            if (sel.Count == 0) { SetStatus("Select sprites to edit in Aseprite."); return; }
+            string sourceGuid = _regions[sel[0].region].sourceTextureGuid;
+            if (sel.Any(cr => _regions[cr.region].sourceTextureGuid != sourceGuid))
+            { SetStatus("Select sprites from one source sheet for Aseprite editing."); return; }
+            var source = ResolveTexture(sourceGuid);
+            var px = GetPixelsFor(sourceGuid);
+            if (source == null || px == null) { SetStatus("The selected source texture is not readable."); return; }
 
             _editRects.Clear();
             var blocks = new List<(Color32[] b, int w, int h)>();
@@ -918,7 +919,7 @@ namespace Laubrary.Launimator.Editor
                 var b = new Color32[w * h];
                 for (int y = 0; y < h; y++)
                     for (int x = 0; x < w; x++)
-                    { int sx = x0 + x, sy = y0 + y; b[y * w + x] = (sx >= 0 && sx < _texW && sy >= 0 && sy < _texH) ? px[sy * _texW + sx] : new Color32(0, 0, 0, 0); }
+                    { int sx = x0 + x, sy = y0 + y; b[y * w + x] = (sx >= 0 && sx < source.width && sy >= 0 && sy < source.height) ? px[sy * source.width + sx] : new Color32(0, 0, 0, 0); }
                 blocks.Add((b, w, h)); _editRects.Add(new Rect(x0, y0, w, h));
             }
             int W = blocks.Max(x => x.w), H = blocks.Max(x => x.h);
@@ -937,12 +938,14 @@ namespace Laubrary.Launimator.Editor
             const string folder = "Assets/Launimator/_Edits";
             System.IO.Directory.CreateDirectory(System.IO.Path.GetFullPath(folder));
             string baseName = string.IsNullOrWhiteSpace(_animName) ? "palette" : _animName;
-            string path = $"{folder}/{baseName}_edit.aseprite";
+            foreach (char invalid in System.IO.Path.GetInvalidFileNameChars()) baseName = baseName.Replace(invalid, '_');
+            string path = AssetDatabase.GenerateUniqueAssetPath($"{folder}/{baseName}_edit.aseprite");
             System.IO.File.WriteAllBytes(System.IO.Path.GetFullPath(path), AsepriteIO.Write(doc));
             AssetDatabase.Refresh();
-            _editAsePath = path; _editSheetPath = _sheetPath;
+            _editAsePath = path; _editSheetPath = AssetDatabase.GetAssetPath(source);
+            _editSourceGuids.Clear(); _editSourceGuids.Add(sourceGuid);
             _status = AsepriteLauncher.Open(path)
-                ? $"Editing {sel.Count} sprite(s) in Aseprite — edit, save, then click 'Sync edits'."
+                ? $"Editing {sel.Count} sprite(s) in Aseprite — edit, save, then click 'Sync'."
                 : $"Wrote {path}, but Aseprite didn't launch. Set its path via Tools ▸ Launimator ▸ Set Aseprite Path.";
         }
 
@@ -953,9 +956,12 @@ namespace Laubrary.Launimator.Editor
         {
             if (string.IsNullOrEmpty(_editAsePath) || !System.IO.File.Exists(System.IO.Path.GetFullPath(_editAsePath)))
             { _status = "Nothing to sync — use 'Edit in Aseprite' first."; return; }
-            if (_editSheetPath != _sheetPath) { _status = "Sheet changed since editing — reload the original sheet, then Sync."; return; }
-            var px = GetPixels();
-            if (px == null) { _status = "Texture not readable."; return; }
+            var source = AssetDatabase.LoadAssetAtPath<Texture2D>(_editSheetPath);
+            string sourceGuid = AssetDatabase.AssetPathToGUID(_editSheetPath);
+            if (source == null || !_regions.Any(r => _editSourceGuids.Contains(r.sourceTextureGuid)))
+            { SetStatus("The edited source is no longer used in this document. Select sprites and open Aseprite again."); return; }
+            var px = GetPixelsFor(sourceGuid);
+            if (px == null) { SetStatus("The edited source texture is not readable."); return; }
 
             var doc = AsepriteIO.Read(System.IO.File.ReadAllBytes(System.IO.Path.GetFullPath(_editAsePath)));
             var sheet = (Color32[])px.Clone();
@@ -970,15 +976,16 @@ namespace Laubrary.Launimator.Editor
                     {
                         if (x >= doc.width || y >= doc.height) continue;      // bottom-left placement
                         int sx = x0 + x, sy = y0 + y;
-                        if (sx >= 0 && sx < _texW && sy >= 0 && sy < _texH) sheet[sy * _texW + sx] = comp[y * doc.width + x];
+                        if (sx >= 0 && sx < source.width && sy >= 0 && sy < source.height) sheet[sy * source.width + sx] = comp[y * doc.width + x];
                     }
             }
 
-            var tex = new Texture2D(_texW, _texH, TextureFormat.RGBA32, false);
+            var tex = new Texture2D(source.width, source.height, TextureFormat.RGBA32, false);
             tex.SetPixels32(sheet); tex.Apply();
             const string folder = "Assets/Launimator/_Edits";
             System.IO.Directory.CreateDirectory(System.IO.Path.GetFullPath(folder));
-            string ownedPath = $"{folder}/{System.IO.Path.GetFileNameWithoutExtension(_sheetPath)}_owned.png";
+            // Each sync gets a new source asset so Undo never points at pixels a later sync overwrote.
+            string ownedPath = AssetDatabase.GenerateUniqueAssetPath($"{folder}/{System.IO.Path.GetFileNameWithoutExtension(_editSheetPath)}_owned.png");
             System.IO.File.WriteAllBytes(System.IO.Path.GetFullPath(ownedPath), tex.EncodeToPNG());
             Object.DestroyImmediate(tex);
             AssetDatabase.Refresh();
@@ -986,8 +993,18 @@ namespace Laubrary.Launimator.Editor
 
             var owned = AssetDatabase.LoadAssetAtPath<Texture2D>(ownedPath);
             if (owned == null) { _status = "Sync wrote the sheet but couldn't load it."; return; }
-            // Rebind the source texture WITHOUT touching the regions/cells (same dimensions → rects stay valid).
-            _sheet = owned; _sheetPath = ownedPath; _texW = owned.width; _texH = owned.height;
+            // Every working region using this source follows the owned copy; unrelated sheets stay bound.
+            string ownedGuid = AssetDatabase.AssetPathToGUID(ownedPath);
+            bool replaceActiveSheet = _editSourceGuids.Contains(CurrentSheetGuid());
+            foreach (var region in _regions)
+                if (_editSourceGuids.Contains(region.sourceTextureGuid)) region.sourceTextureGuid = ownedGuid;
+            _editSourceGuids.Add(ownedGuid);
+            if (replaceActiveSheet)
+            {
+                _sheet = owned; _sheetPath = ownedPath; _texW = owned.width; _texH = owned.height;
+                _sheetDisplayName = SheetRegistry.GetDisplayName(owned);
+            }
+            _foreignTexCache.Clear(); _foreignPixelCache.Clear();
             _pixelCache = null; _pixelCacheFor = null; ClearThumbCache();
             RebuildDisplaySheet();   // the palette/canvas draw a keyed COPY of the sheet — rebuild it from the new pixels
             _previewHash = -1;       // force the animation preview to re-bake from the new sheet
@@ -1134,15 +1151,17 @@ namespace Laubrary.Launimator.Editor
 
         private void BaselineSelected()
         {
-            var px = GetPixels();
-            if (px == null) { _status = "Texture not readable."; return; }
+            if (!HasSelectedCell()) return;
             RecordUndo("Baseline pivot");
             var key = CurrentColorKey();
             int n = 0;
             foreach (var cr in SelectedCells())
             {
                 var reg = _regions[cr.region]; reg.SyncPivots(GlobalPivot());
-                if (RegionSlicer.ContentBaselinePivot(px, _texW, _texH, reg.cells[cr.cell], _alphaThreshold, out Vector2 piv, key))
+                var texture = ResolveTexture(reg.sourceTextureGuid);
+                var px = GetPixelsFor(reg.sourceTextureGuid);
+                if (texture == null || px == null) continue;
+                if (RegionSlicer.ContentBaselinePivot(px, texture.width, texture.height, reg.cells[cr.cell], _alphaThreshold, out Vector2 piv, key))
                 { reg.pivots[cr.cell] = new Vector2(Mathf.Clamp01(piv.x), Mathf.Clamp01(piv.y)); n++; }
             }
             _status = $"Baseline set on {n} sprite(s).";
@@ -1151,15 +1170,17 @@ namespace Laubrary.Launimator.Editor
 
         private void TopCenterSelected()
         {
-            var px = GetPixels();
-            if (px == null) { _status = "Texture not readable."; return; }
+            if (!HasSelectedCell()) return;
             RecordUndo("Head pivot");
             var key = CurrentColorKey();
             int n = 0;
             foreach (var cr in SelectedCells())
             {
                 var reg = _regions[cr.region]; reg.SyncPivots(GlobalPivot());
-                if (RegionSlicer.ContentTopPivot(px, _texW, _texH, reg.cells[cr.cell], _alphaThreshold, out Vector2 piv, key))
+                var texture = ResolveTexture(reg.sourceTextureGuid);
+                var px = GetPixelsFor(reg.sourceTextureGuid);
+                if (texture == null || px == null) continue;
+                if (RegionSlicer.ContentTopPivot(px, texture.width, texture.height, reg.cells[cr.cell], _alphaThreshold, out Vector2 piv, key))
                 { reg.pivots[cr.cell] = new Vector2(Mathf.Clamp01(piv.x), Mathf.Clamp01(piv.y)); n++; }
             }
             _status = $"Head pivot set on {n} sprite(s).";
@@ -1174,7 +1195,10 @@ namespace Laubrary.Launimator.Editor
             foreach (var cr in SelectedCells())
             {
                 var reg = _regions[cr.region];
-                Rect t = TrimCell(reg.cells[cr.cell], out bool empty);
+                var texture = ResolveTexture(reg.sourceTextureGuid);
+                var px = GetPixelsFor(reg.sourceTextureGuid);
+                if (texture == null || px == null) continue;
+                Rect t = RegionSlicer.TrimToContent(px, texture.width, texture.height, reg.cells[cr.cell], _alphaThreshold, out bool empty, CurrentColorKey());
                 if (!empty) { reg.cells[cr.cell] = t; n++; }
             }
             _status = $"Trimmed {n} sprite(s) to content.";
@@ -1183,7 +1207,15 @@ namespace Laubrary.Launimator.Editor
 
         private void AddSelectedToSequence()
         {
-            foreach (var cr in SelectedCells()) AppendToSequence(cr.region, cr.cell);
+            var selected = SelectedCells();
+            if (selected.Count == 0) return;
+            foreach (var cr in selected)
+                if (!RegionSourceUsable(cr.region, out string why))
+                { SetStatus($"Can't add the selection: {why}. Identify it again on its sheet."); return; }
+            RecordUndo("Add selected frames");
+            foreach (var cr in selected) _sequence.Add(new CellRef(cr.region, cr.cell));
+            SeqSelectSingle(_sequence.Count - 1);
+            SyncMetaFrames(); _previewHash = -1;
             Repaint();
         }
 
@@ -1930,125 +1962,6 @@ namespace Laubrary.Launimator.Editor
             finally { GUI.EndClip(); }
         }
 
-        /// The sequence strip — an IMGUI island: a thumbnail grid with zone borders, playhead/selection
-        /// outlines, ordinal badges and drag-to-reorder.
-        private void DrawSequenceStripGUI()
-        {
-            if (_seqStripIM == null) return;
-            Rect view = new Rect(0f, 0f, _seqStripIM.layout.width, _seqStripIM.layout.height);
-            if (!(view.width > 20f)) return;
-
-            const int cell = 46, pad = 4;
-            int lead = _frameZeroOn ? 1 : 0;   // slot 0 sits in front of frame 1 while Frame 0 is on
-            int perRow = Mathf.Max(1, Mathf.FloorToInt((view.width - 18f) / (cell + pad)));
-            int rows = Mathf.CeilToInt((_sequence.Count + lead) / (float)perRow);
-            Rect content = new Rect(0, 0, view.width - 18f, Mathf.Max(view.height, rows * (cell + pad)));
-
-            _seqScroll = GUI.BeginScrollView(view, _seqScroll, content);
-            if (lead == 1) DrawFrameZeroSlot(new Rect(0, 0, cell, cell));
-            for (int i = 0; i < _sequence.Count; i++)
-            {
-                int slot = i + lead;
-                Rect r = new Rect((slot % perRow) * (cell + pad), (slot / perRow) * (cell + pad), cell, cell);
-                EditorGUI.DrawRect(r, new Color(0.12f, 0.12f, 0.12f));
-                DrawCellThumb(r, _sequence[i].region, _sequence[i].cell);
-                if (_metaEnabled && _activeLayer >= 0)
-                {
-                    var mtex = MaskTexture(_activeLayer, i);
-                    if (mtex != null) GUI.DrawTexture(r, mtex, ScaleMode.ScaleToFit, true);
-                }
-
-                // Zone border: a thick outline in the frame's zone colour (drawn under the selection outline).
-                if (TryFrameZone(i, out Color zcol)) DrawRectOutline(r, zcol, 3f);
-
-                bool sel = !_frameZeroSel && IsSeqSelected(i), primary = i == _seqSelected,
-                     playing = i == _animFrame && !_inDivider && !_showingFrameZero;
-                DrawRectOutline(r, sel ? new Color(1f, 0.85f, 0.1f, 1f) : playing ? new Color(0.2f, 1f, 0.5f, 0.9f) : new Color(1f, 1f, 1f, 0.4f), sel ? (primary ? 2.5f : 1.5f) : playing ? 2f : 1f);
-                var badge = new Rect(r.x, r.y, 16, 14);
-                EditorGUI.DrawRect(badge, new Color(0.2f, 0.5f, 1f, 0.92f));
-                GUI.Label(badge, (i + 1).ToString(), EditorStyles.whiteMiniLabel);
-
-                // Every frame states how long it lasts; a frame whose timing differs from the FPS is orange.
-                {
-                    float pct = _sequence[i].pct;
-                    string msText = FrameMsOf(pct).ToString("0") + "ms";
-                    var msSize = EditorStyles.whiteMiniLabel.CalcSize(new GUIContent(msText));
-                    var msBadge = new Rect(r.xMax - msSize.x - 2f, r.yMax - 14f, msSize.x + 2f, 14f);
-                    EditorGUI.DrawRect(msBadge, pct != 0f ? new Color(0.85f, 0.45f, 0.1f, 0.92f) : new Color(0f, 0f, 0f, 0.55f));
-                    string tip = pct != 0f
-                        ? $"Frame {i + 1} shows for {msText} ({pct:+0;-0}% of a normal frame at {_animFps:0.#} FPS)."
-                        : $"Frame {i + 1} shows for {msText} (one normal frame at {_animFps:0.#} FPS).";
-                    GUI.Label(msBadge, new GUIContent(msText, tip), EditorStyles.whiteMiniLabel);
-                }
-
-                HandleSeqDrag(i, r);
-            }
-            GUI.EndScrollView();
-        }
-
-        // Slot 0: frame 0, drawn dimmer with a grey badge so it never reads as part of the animation.
-        private void DrawFrameZeroSlot(Rect r)
-        {
-            bool has = SeqRefValid(_frameZero);
-            EditorGUI.DrawRect(r, new Color(0.08f, 0.08f, 0.08f));
-            if (has)
-            {
-                DrawCellThumb(r, _frameZero.region, _frameZero.cell);
-                EditorGUI.DrawRect(r, new Color(0f, 0f, 0f, 0.35f));   // dimmed: not an animation frame
-            }
-            else GUI.Label(r, "?", new GUIStyle(EditorStyles.centeredGreyMiniLabel) { alignment = TextAnchor.MiddleCenter, fontSize = 16 });
-
-            Color line = _frameZeroSel ? new Color(1f, 0.85f, 0.1f, 1f)
-                       : _showingFrameZero ? new Color(0.2f, 1f, 0.5f, 0.9f) : new Color(1f, 1f, 1f, 0.25f);
-            DrawRectOutline(r, line, _frameZeroSel ? 2.5f : _showingFrameZero ? 2f : 1f);
-            var badge = new Rect(r.x, r.y, 16, 14);
-            EditorGUI.DrawRect(badge, new Color(0.35f, 0.35f, 0.35f, 0.92f));
-            GUI.Label(badge, "0", EditorStyles.whiteMiniLabel);
-
-            string tip;
-            if (has)
-            {
-                string msText = FrameMsOf(_frameZero.pct).ToString("0") + "ms";
-                var msSize = EditorStyles.whiteMiniLabel.CalcSize(new GUIContent(msText));
-                var msBadge = new Rect(r.xMax - msSize.x - 2f, r.yMax - 14f, msSize.x + 2f, 14f);
-                EditorGUI.DrawRect(msBadge, new Color(0f, 0f, 0f, 0.55f));
-                GUI.Label(msBadge, msText, EditorStyles.whiteMiniLabel);
-                tip = $"Frame 0 shows for {msText} before frame 1, in this preview only; the game never plays it. " +
-                      "Click to select it and set its length with Frame time %. Drag a frame here to replace it; " +
-                      "right-click to clear it.";
-            }
-            else tip = "Frame 0 has no sprite yet. Drag a frame from the sequence here, or right-click a sprite in " +
-                       "the palette → Use as frame 0.";
-            GUI.Label(r, new GUIContent("", tip));
-
-            Event e = Event.current;
-            if (e.type == EventType.MouseDown && r.Contains(e.mousePosition))
-            {
-                _frameZeroSel = true; _seqMultiSel.Clear(); _seqSelected = -1;
-                _animPlaying = false; _inDivider = false; _showingFrameZero = has;
-                if (_playToggleButton != null) _playToggleButton.text = "▶";
-                if (e.button == 1)
-                {
-                    var menu = new GenericMenu();
-                    if (HasSelectedCell()) menu.AddItem(new GUIContent("Use selected palette sprite"), false, () => SetFrameZero(_selRegion, _selCell));
-                    else menu.AddDisabledItem(new GUIContent("Use selected palette sprite"));
-                    if (has) menu.AddItem(new GUIContent("Clear frame 0"), false, () =>
-                    {
-                        RecordUndo("Clear frame 0");
-                        _frameZero = new CellRef(-1, -1); _showingFrameZero = false; _previewHash = -1; Refresh();
-                    });
-                    menu.ShowAsContext();
-                }
-                e.Use();
-                DeferRefresh();
-            }
-            else if (e.type == EventType.MouseUp && _seqDragFrom >= 0 && r.Contains(e.mousePosition))
-            {
-                // Dropping a sequence frame here copies it into frame 0; the sequence itself is untouched.
-                if (_seqDragFrom < _sequence.Count) { var src = _sequence[_seqDragFrom]; _seqDragFrom = -1; SetFrameZero(src.region, src.cell); }
-                _seqDragFrom = -1; e.Use();
-            }
-        }
 
         // ── sequence batch selection (mirrors the Sprite Palette's multi-select) ──────
         private bool IsSeqSelected(int i) => _seqMultiSel.Contains(i);
@@ -2119,35 +2032,6 @@ namespace Laubrary.Launimator.Editor
             Repaint();
         }
 
-        private void HandleSeqDrag(int i, Rect r)
-        {
-            Event e = Event.current;
-            if (e.type == EventType.MouseDown && r.Contains(e.mousePosition))
-            {
-                // Scrub the playhead to the clicked frame and pause, so the preview parks on this sprite.
-                _animFrame = i; _animPlaying = false; _inDivider = false;
-                _frameZeroSel = false; _showingFrameZero = false;
-                if (e.button == 1)
-                {
-                    if (!IsSeqSelected(i)) SeqSelectSingle(i); // right-click outside the selection isolates it
-                    ShowSequenceContextMenu(i);
-                }
-                else if (e.control || e.command) SeqToggle(i);   // add/remove this frame
-                else if (e.shift) SeqRangeTo(i);                 // extend from the anchor
-                else { SeqSelectSingle(i); _seqDragFrom = i; }   // plain click: single-select + arm drag
-                e.Use();
-                if (_playToggleButton != null) _playToggleButton.text = "▶";   // the click paused playback
-                DeferRefresh();
-            }
-            else if (e.type == EventType.MouseUp && _seqDragFrom >= 0 && r.Contains(e.mousePosition))
-            {
-                if (_seqDragFrom != i && _seqDragFrom < _sequence.Count)
-                {
-                    MoveSequenceFrame(_seqDragFrom, i);
-                }
-                _seqDragFrom = -1; e.Use(); DeferRefresh();
-            }
-        }
 
         /// Rebuild the control hosts AFTER the current IMGUI pass — an island must never destroy itself
         /// while it is drawing.
@@ -2256,7 +2140,7 @@ namespace Laubrary.Launimator.Editor
         private void LoadAnimationIntoSequence(Laumination def)
         {
             _detectedCells.Clear(); _detectedBox = default;
-            _editAsePath = null; _editSheetPath = null; _editRects.Clear();
+            _editAsePath = null; _editSheetPath = null; _editRects.Clear(); _editSourceGuids.Clear();
             _animName = def.name;
             _animFps = def.fps <= 0f ? 12f : def.fps;
             _sequence.Clear();
@@ -2655,14 +2539,14 @@ namespace Laubrary.Launimator.Editor
         private void LoadSheet(Texture2D tex)
         {
             _detectedCells.Clear(); _detectedBox = default;
-            _editAsePath = null; _editSheetPath = null; _editRects.Clear();
+            _editAsePath = null; _editSheetPath = null; _editRects.Clear(); _editSourceGuids.Clear();
             _sheet = tex;
             _regions.Clear(); ClearThumbCache(); ClearMaskCache();
             _metaEnabled = false; _metaLayers = new List<MetaLayer>(); _activeLayer = -1;
             _hasBox = false; _box = default; _status = null;
             _zoomInitialized = false; _pixelCache = null; _pixelCacheFor = null;
             ClearSelection(); _sequence.Clear(); _seqSelected = -1; _animFrame = 0;
-            _seqMultiSel.Clear(); _seqAnchor = -1; _seqDragFrom = -1;
+            _seqMultiSel.Clear(); _seqAnchor = -1;
             _events = new List<FrameEvent>(); _zones.Clear(); _zonesEnabled = false;
             _animationAsepriteSourcePath = "";
             _frameZero = new CellRef(-1, -1); _frameZeroOn = false; _frameZeroSel = false; _showingFrameZero = false;

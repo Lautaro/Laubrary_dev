@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace Laubrary.Launimator.Editor
@@ -15,6 +16,7 @@ namespace Laubrary.Launimator.Editor
             { if (!condition) throw new InvalidOperationException(name); passed.Add(name); }
             var originalClipboard = _timelineClipboard;
             var window = CreateInstance<LauminationBuilderWindow>();
+            Texture2D maskTexture = null;
             try
             {
                 window._animPlaying = false;
@@ -48,13 +50,32 @@ namespace Laubrary.Launimator.Editor
                 Check(vector.length == 7, "Pasted vectors do not alias their source");
                 window._metaLayers[0].mode = MetaLayerMode.Point;
                 Check(!window.CanPasteTimeline(), "Vector clipboard cannot paste into a point layer");
+                maskTexture = new Texture2D(4, 4);
+                window._previewFrames = new List<Sprite>
+                {
+                    Sprite.Create(maskTexture, new Rect(0, 0, 1, 1), Vector2.zero),
+                    Sprite.Create(maskTexture, new Rect(0, 0, 4, 4), Vector2.zero),
+                    Sprite.Create(maskTexture, new Rect(0, 0, 2, 2), Vector2.zero)
+                };
+                window._previewHash = window.PreviewHash();
                 window.SeqSelectSingle(0); window.CopyTimelineContent(); window.SeqSelectSingle(2); window.PasteTimelineContent();
                 var mask = window._metaLayers[0].frames[2];
-                Check(mask.cells[0] == 8 && mask.param == "payload", "Point clipboard preserves cell values and parameter");
+                Check(mask.w == 2 && mask.h == 2 && mask.cells[3] == 8 && mask.param == "payload" && mask.cells.Count(v => v > 0) == 1,
+                    "Point paste maps to the target baked dimensions and preserves exactly one valued marker and parameter");
                 window._metaLayers[0].frames[0].cells[0] = 1;
-                Check(mask.cells[0] == 8, "Pasted mask cells do not alias their source");
+                Check(mask.cells[3] == 8, "Pasted mask cells do not alias their source");
                 window._metaLayers[0].mode = MetaLayerMode.Shape;
                 Check(!window.CanPasteTimeline(), "Point clipboard cannot silently become a shape");
+                window._previewHash = window.PreviewHash();
+                window.SeqSelectSingle(0); window.CopyTimelineContent(); window.SeqSelectSingle(1); window.PasteTimelineContent();
+                var shape = window._metaLayers[0].frames[1];
+                Check(shape.w == 4 && shape.h == 4 && shape.cells.Length == 16 && shape.cells.All(v => v == 1) && shape.param == "payload",
+                    "Shape paste resamples coverage to the target baked dimensions and preserves its parameter");
+                var shrinkingPoint = ResizeTimelineMask(new MetaFrame { w = 4, h = 4, cells = new byte[] { 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, param = "small" }, 1, 1, true);
+                Check(shrinkingPoint.cells.Length == 1 && shrinkingPoint.cells[0] == 9 && shrinkingPoint.param == "small",
+                    "Point shrinking preserves the marker even when nearest-neighbor mask sampling would miss it");
+                var emptyPoint = ResizeTimelineMask(new MetaFrame { w = 1, h = 1, cells = new byte[] { 0 } }, 4, 4, true);
+                Check(emptyPoint.cells.All(v => v == 0), "Empty point clipboard stays empty when enlarged");
 
                 window._animateTool = AnimateTool.Events; window.SeqSelectSingle(0); window.CopyTimelineContent(); window.SeqSelectSingle(2); window.PasteTimelineContent();
                 var ev = window._events.Find(e => e.frame == 2);
@@ -73,6 +94,7 @@ namespace Laubrary.Launimator.Editor
             {
                 _timelineClipboard = originalClipboard;
                 DestroyImmediate(window);
+                if (maskTexture != null) DestroyImmediate(maskTexture);
             }
         }
     }

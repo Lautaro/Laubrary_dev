@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Laumination Builder workspace and document safety
 
+- Polished the persistent identity, compact animation cards and full-width shared frame columns; local acquisition also accepts an image path directly, with labelled File and URL inputs.
+- Corrected mixed-source alignment and trimming, made bulk frame addition one undo step, preserved source identity through external editing, resampled typed mask paste to destination dimensions without duplicating points, and removed the superseded sequence strip.
 - Organised animation authoring into Sheet, Sprites and Animate around a fixed stage, searchable animation thumbnails, scoped image acquisition, visible detected-cut acceptance and a shared frame timeline derived from Chunks' ZUI lanes.
 - Isolated working documents and undo histories; Save, Discard and Cancel resolve animation and slicing changes independently, failed saves prevent navigation, and frame operations carry masks, points, vectors, events and timing together while phase boundaries remain explicit with conflict warnings.
 - Added typed timeline copy/paste, selected metadata inspectors, phase-aware runtime preview, complete event persistence, pivot-safe clipped fitting and independent lead-in preview; slicing now persists only its own authored data, including source identities and transforms.

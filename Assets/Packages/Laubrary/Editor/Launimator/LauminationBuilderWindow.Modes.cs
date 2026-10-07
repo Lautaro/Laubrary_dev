@@ -21,6 +21,7 @@ namespace Laubrary.Launimator.Editor
         [SerializeField] private SpriteTool _spriteTool;
         private int _acquireMode, _paletteFilter, _paletteSort, _selectedEvent = -1;
         private string _paletteSearch = "";
+        private string _externalImagePath = "";
         private bool _detectMode;
         private readonly List<Rect> _detectedCells = new List<Rect>();
         private Rect _detectedBox;
@@ -41,7 +42,7 @@ namespace Laubrary.Launimator.Editor
 
             _bannerHost = Z.Row();
             _bannerHost.AddToClassList("lau-builder-modes__header");
-            _identityLabel = Z.Text("", ZuiText.Section, "The animation and destination edited by this window.");
+            _identityLabel = Z.Text("", ZuiText.Body, "The animation and destination edited by this window.");
             _identityLabel.AddToClassList("lau-builder-modes__identity");
             _bannerHost.Add(_identityLabel);
             _dirtyLabel = Z.Text("", ZuiText.Small, "Unsaved animation or slicing changes.");
@@ -207,11 +208,15 @@ namespace Laubrary.Launimator.Editor
             if (_acquireMode == 0)
                 root.Add(Z.Object<Texture2D>(_sheet, "Choose an image to start a new animation, after resolving the current document.", t => { if (t == null || t == _sheet || !ConfirmDocumentTransition()) return; StartNewAnimation(SuggestNewAnimName()); LoadSheet(t); BeginCleanDocument(); Refresh(); }, 240));
             else if (_acquireMode == 1)
-                root.Add(Z.Button("Import image…", "Choose an image from your computer and copy it into the project's sprite sheets.", () => ImportExternalImage(false)));
+            {
+                root.Add(Z.Field("Path", "Local image file to copy into the project's sprite sheets.", Z.TextInput(_externalImagePath, "Paste a local image path, or use Browse.", v => _externalImagePath = v, 185)));
+                root.Add(Z.Row(Z.Button("Import", "Import the image at this path as a new animation source.", () => ImportImagePath(_externalImagePath, false)).W(62),
+                    Z.Button("Browse…", "Choose an image from your computer.", () => ImportExternalImage(false)).W(74)));
+            }
             else
             {
-                root.Add(Z.TextInput(_sheetUrl, "Address of the image to download.", v => _sheetUrl = v, 240));
-                root.Add(Z.TextInput(_downloadName, "Optional filename for the imported image.", v => _downloadName = v, 180));
+                root.Add(Z.Field("URL", "Address of the image to download.", Z.TextInput(_sheetUrl, "Address of the image to download.", v => _sheetUrl = v, 185)));
+                root.Add(Z.Field("Name", "Optional filename for the imported image.", Z.TextInput(_downloadName, "Optional filename for the imported image.", v => _downloadName = v, 185)));
                 root.Add(Z.Button("Download", "Download an image for a new animation after resolving unsaved changes.", () => { if (!ConfirmDocumentTransition()) return; DownloadSheetFromUrl(); Refresh(); }));
             }
         }
@@ -219,7 +224,14 @@ namespace Laubrary.Launimator.Editor
         private void ImportExternalImage(bool append)
         {
             string path = EditorUtility.OpenFilePanel("Import image", "", "png,jpg,jpeg,bmp,tga");
+            ImportImagePath(path, append);
+        }
+
+        private void ImportImagePath(string path, bool append)
+        {
             if (string.IsNullOrEmpty(path)) return;
+            path = path.Trim().Trim('"');
+            if (!File.Exists(path)) { SetStatus("Image file not found."); return; }
             if (!append && !ConfirmDocumentTransition()) return;
             try
             {

@@ -225,6 +225,7 @@ namespace Laubrary.Launimator.Editor
             _showingFrameZero = false; _inDivider = false;
             _detectedCells.Clear(); _detectedBox = default;
             _animationAsepriteSourcePath = "";
+            _editAsePath = null; _editSheetPath = null; _editRects.Clear(); _editSourceGuids.Clear();
             if (!string.IsNullOrWhiteSpace(name)) _animName = name.Trim();
             _boundAnimName = null;                       // bound lauminary kept; save adds a new entry
             if (_boundLauminary == null) _orphanAsset = null; // orphan mode: save creates a new orphan

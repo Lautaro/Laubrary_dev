@@ -66,7 +66,9 @@ namespace Laubrary.Launimator.Editor
             var frames = animation.frames;
             if (frames != null && frames.Count > 0) image.sprite = frames[0];
             card.Add(image);
-            card.Add(Z.Text(animation.name, ZuiText.Small, animation.name));
+            var name = Z.Text(animation.name, ZuiText.Small, animation.name);
+            name.AddToClassList("lau-builder-modes__animation-name");
+            card.Add(name);
             bool hover = false, playing = false; int frame = 0;
             double last = UnityEditor.EditorApplication.timeSinceStartup, remaining = 0;
             var preview = Z.IconButton("play", "Start or stop this thumbnail's animation preview.", () => { playing = !playing; remaining = 0; }, 22);

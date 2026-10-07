@@ -1159,17 +1159,18 @@
 .lau-event-log__message { white-space: normal; }
 /* Animation authoring uses stable panes, with one task's controls beside its stage. */
 .lau-builder-modes__header, .lau-builder-modes__toolbar { flex-direction: row; flex-wrap: nowrap; align-items: center; flex-shrink: 0; height: 30px; min-height: 30px; overflow: hidden; }
-.lau-builder-modes__identity { width: 260px; min-width: 100px; flex-shrink: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.lau-builder-modes__identity { width: 260px; min-width: 100px; flex-shrink: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; -unity-font-style: bold; }
 .lau-builder-modes .lau-builder-modes__body { flex-direction: row; flex-wrap: nowrap; align-items: stretch; flex-grow: 1; flex-shrink: 1; min-height: 0; overflow: hidden; }
 .lau-builder-modes .lau-builder-modes__browser { width: 174px; min-width: 174px; flex-shrink: 0; min-height: 0; height: 100%; }
 .lau-builder-modes__inspector { min-width: 240px; min-height: 0; flex-shrink: 1; }
 .lau-builder-modes__inspector > .unity-scroll-view__content-viewport > .unity-scroll-view__content-container { padding: 4px; }
+.lau-builder-modes__inspector .unity-button { align-self: flex-start; }
 .lau-builder-modes .lau-builder-modes__work { flex-grow: 1; flex-shrink: 1; min-width: 300px; min-height: 0; height: 100%; align-self: stretch; }
 .lau-builder-modes__stage { flex-grow: 1; flex-shrink: 1; min-width: 220px; min-height: 0; overflow: hidden; }
 .lau-builder-modes__canvas { flex-grow: 1; flex-shrink: 1; min-width: 0; min-height: 100px; overflow: hidden; }
 .lau-builder-modes__shelf { height: 158px; min-height: 158px; flex-shrink: 0; overflow: hidden; }
 .lau-builder-modes__palette { flex-grow: 1; flex-shrink: 1; min-height: 50px; overflow: hidden; }
 .lau-builder-modes__timeline { height: 180px; min-height: 180px; flex-shrink: 0; overflow: hidden; }
-.lau-builder-modes__animation { width: 152px; min-height: 64px; flex-direction: row; align-items: center; white-space: normal; }
-.lau-builder-modes__animation .zui-text { flex-shrink: 1; white-space: normal; }
-.lau-builder-modes__thumbnail { width: 48px; height: 56px; flex-shrink: 0; margin-right: 4px; }
+.lau-builder-modes__animation { width: 152px; height: 52px; min-height: 52px; padding-left: 3px; padding-right: 3px; flex-direction: row; align-items: center; overflow: hidden; }
+.lau-builder-modes__animation-name { flex-grow: 1; flex-shrink: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.lau-builder-modes__thumbnail { width: 36px; height: 44px; flex-shrink: 0; margin-right: 3px; }

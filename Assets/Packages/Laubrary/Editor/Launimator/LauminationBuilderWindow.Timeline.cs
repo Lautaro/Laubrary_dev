@@ -67,10 +67,12 @@ namespace Laubrary.Launimator.Editor
             _frameTimelineScroll.style.flexGrow = 1;
             _frameTimelineScroll.style.minHeight = 0;
             _frameTimelineScroll.contentContainer.style.minWidth = Length.Percent(100);
+            _frameTimelineScroll.contentContainer.style.flexGrow = 1;
             _frameTimelineScroll.verticalScrollerVisibility = ScrollerVisibility.Hidden;
             _frameTimeline = Z.Lanes(Mathf.Max(1, _sequence.Count),
                 "Shared frame columns. Click to preview; drag a picture to reorder. Ctrl adds to the selection; Shift selects a range. Phase edges resize explicit boundaries.",
                 gutterWidth: 104);
+            _frameTimeline.style.width = Length.Percent(100);
             _frameTimeline.OnFrameSelected = (frame, additive, range) =>
             {
                 _frameZeroSel = false;
@@ -228,6 +230,16 @@ namespace Laubrary.Launimator.Editor
             var targets = _seqMultiSel.Where(f => f >= 0 && f < _sequence.Count).OrderBy(f => f).ToList();
             if (targets.Count == 0) targets.Add(_seqSelected);
             var copy = _timelineClipboard;
+            if (copy.Kind == TimelineClipboardKind.Shape || copy.Kind == TimelineClipboardKind.Point)
+            {
+                EnsurePreviewBake();
+                if (targets.Any(f => !BakedFrameSize(f, out _, out _)))
+                {
+                    _status = "Paste needs a valid preview of each selected frame.";
+                    Refresh();
+                    return;
+                }
+            }
             RecordUndo("Paste " + copy.Kind.ToString().ToLowerInvariant());
             if (copy.Kind == TimelineClipboardKind.Phase)
             {
@@ -245,10 +257,34 @@ namespace Laubrary.Launimator.Editor
                     else if (copy.Kind == TimelineClipboardKind.Events)
                     { _events.RemoveAll(e => e != null && e.frame == f); _events.AddRange(copy.Events.Select(e => CopyTimelineEvent(e, f))); }
                     else if (copy.Kind == TimelineClipboardKind.Vector) _metaLayers[_activeLayer].vectorFrames[f] = copy.Vector.Clone();
-                    else _metaLayers[_activeLayer].frames[f] = copy.Mask.Clone();
+                    else
+                    {
+                        BakedFrameSize(f, out int width, out int height);
+                        _metaLayers[_activeLayer].frames[f] = ResizeTimelineMask(copy.Mask, width, height,
+                            copy.Kind == TimelineClipboardKind.Point);
+                    }
                 }
             }
             ClearMaskCache(); _previewHash = -1; Refresh();
+        }
+
+        // Shapes retain their nearest-neighbor coverage. A point is a single marker, so map its pixel
+        // centre once instead of resampling it into a block (or losing it while shrinking).
+        static MetaFrame ResizeTimelineMask(MetaFrame source, int width, int height, bool point)
+        {
+            var result = source.Clone();
+            if (!point) { result.EnsureSize(width, height); return result; }
+            result.w = width; result.h = height; result.cells = new byte[width * height];
+            if (source.cells == null || source.w <= 0 || source.h <= 0) return result;
+            for (int i = 0; i < Mathf.Min(source.cells.Length, source.w * source.h); i++)
+            {
+                if (source.cells[i] == 0) continue;
+                int x = Mathf.Clamp(Mathf.FloorToInt((i % source.w + .5f) * width / source.w), 0, width - 1);
+                int y = Mathf.Clamp(Mathf.FloorToInt((i / source.w + .5f) * height / source.h), 0, height - 1);
+                result.cells[y * width + x] = source.cells[i];
+                break;
+            }
+            return result;
         }
     }
 }
