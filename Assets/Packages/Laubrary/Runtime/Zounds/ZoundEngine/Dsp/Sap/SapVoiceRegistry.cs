@@ -196,6 +196,24 @@ namespace Laubrary.Zounds.Dsp {
             Quitting = true;
         }
 
+#if UNITY_EDITOR
+        // In the editor, Application.quitting is raised every time Play mode ends, not only when the editor closes. With
+        // Enter Play Mode Options' domain reload switched off nothing resets these statics afterwards, so Quitting stayed
+        // set in edit mode and every editor preview was refused ("Assigned scriptable generator returned an invalid
+        // instance" on each play from the Zounds browser). Back in edit mode the application is plainly not quitting.
+        [UnityEditor.InitializeOnLoadMethod]
+        private static void HookEditMode() {
+            UnityEditor.EditorApplication.playModeStateChanged -= OnPlayModeChanged;
+            UnityEditor.EditorApplication.playModeStateChanged += OnPlayModeChanged;
+        }
+
+        private static void OnPlayModeChanged(UnityEditor.PlayModeStateChange state) {
+            if (state != UnityEditor.PlayModeStateChange.EnteredEditMode) return;
+            Quitting = false;
+            quitDrain = default;
+        }
+#endif
+
         public static int DestroyAllAndConfirm(out bool confirmed, double settleSeconds = 0d,
                                                double timeoutSeconds = 0.5d) {
             // Phase one: silence everything, so that nothing is still pulling on a sound that is about to go away.

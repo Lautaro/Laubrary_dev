@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds: previews work after a Play session without domain reload
+
+- With Enter Play Mode Options skipping the domain reload, the quit flag set when Play mode ended stayed on in edit mode and every Zounds browser preview failed with "Assigned scriptable generator returned an invalid instance". It is now cleared on returning to edit mode.
+
 ### ZUI runtime: segmented choice, visible slider track
 
 - `ZuiStack.Segmented(selected, pts, labels)`: a choice between a few options on one row, every option visible and the chosen one filled. `ZuiStack.Slider` now draws its track and the filled part up to the value (the default runtime skin drew only the thumb).

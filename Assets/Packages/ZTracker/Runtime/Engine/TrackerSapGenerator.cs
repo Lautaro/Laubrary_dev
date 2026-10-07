@@ -185,12 +185,21 @@ namespace Laubrary.ZTracker.Engine
         static void Install(){if(installed)return;installed=true;Application.wantsToQuit+=WantsQuit;
 #if UNITY_EDITOR
             EditorApplication.update+=Tick;
+            EditorApplication.playModeStateChanged+=ResetAfterPlayMode;
 #endif
         }
+#if UNITY_EDITOR
+        // Back in edit mode the application is not quitting. With Enter Play Mode Options' domain reload switched off
+        // nothing else resets this static, and a leftover drain refused every editor preview ("Assigned scriptable
+        // generator returned an invalid instance" on Play in the ZTracker window).
+        static void ResetAfterPlayMode(PlayModeStateChange state){if(state==PlayModeStateChange.EnteredEditMode){drain=default;lastFrame=-1;}}
+#endif
         public static void Register(TrackerSapGenerator host){Install();hosts.Add(host);}
         public static void Unregister(TrackerSapGenerator host){hosts.Remove(host);}
         public static void Retain(List<TrackerPreparedSong> songs,TrackerEventRing ring,bool hasRing,GeneratorInstance instance,bool hasInstance,NativeArray<long> controlDisposed){retained.Add(new Retained{songs=new List<TrackerPreparedSong>(songs),ring=ring,hasRing=hasRing,instance=instance,hasInstance=hasInstance,controlDisposed=controlDisposed});EnsurePump();}
-        static bool WantsQuit(){if(drain.complete)return true;if(!drain.draining){drain.Begin(Time.realtimeSinceStartupAsDouble);foreach(var host in hosts)if(host!=null)host.Silence();EnsurePump();}return false;}
+        // The drain is a standalone-player workaround (T-0503). The editor quitting, or leaving Play mode, is handled by the
+        // generators' own reload/mode hooks, so it never starts a drain that would outlive Play mode.
+        static bool WantsQuit(){if(Application.isEditor)return true;if(drain.complete)return true;if(!drain.draining){drain.Begin(Time.realtimeSinceStartupAsDouble);foreach(var host in hosts)if(host!=null)host.Silence();EnsurePump();}return false;}
         static TrackerSapDrainPump pump;
         static void EnsurePump(){if(!Application.isPlaying||pump!=null)return;var obj=new GameObject("Tracker SAP lifetime drain"){hideFlags=HideFlags.HideAndDontSave};UnityEngine.Object.DontDestroyOnLoad(obj);pump=obj.AddComponent<TrackerSapDrainPump>();}
         internal static void Tick()
