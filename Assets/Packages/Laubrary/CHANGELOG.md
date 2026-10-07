@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds GC stutter test in any build
+- Added `ZoundsGcTestOverlay`, a small on-screen test that forces a garbage collection while sound plays and judges whether audio kept running. It is in the runtime package, so it works in a player build. It appears only when asked for: add the component to a scene, launch with `-zoundsGcTest`, define `ZOUNDS_GC_TEST`, or call `ZoundsGcTest.Show()`.
+- Every press proves the collection happened before judging audio (the runtime's full-collection counter rose, an unreachable object was reclaimed, a finalizer ran). If nothing was collected the press is reported void and no audio verdict is given, because this test has no known-bad run to compare against.
+- Moved `ZoundsSapCompiledWitness` from the check scene folder into the package so the overlay can offer the "is the chain really compiled" check.
+
 ### Launimator: every animation can pick from all of a lauminary's sprites
 - Rebuilding a lauminary's draft writes a palette of every sprite its animations use (at the exact rects they read) into the owned sheet's Laumination Builder data, refreshed each time because a repacked sheet moves every sprite. Opening an animation in the builder keeps that palette, so any animation can use any of the lauminary's sprites, and the animation's own fps now wins over the fps saved with the sheet.
 
