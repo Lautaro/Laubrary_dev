@@ -232,6 +232,10 @@ public class ZTrackerInstrument : ScriptableObject, ISerializationCallbackReceiv
         public ZUIEnvelopeData pmDepthEnvelopeData;
         public ZUIEnvelopeData unisonDetuneEnvelopeData;
 
+        // Per-parameter curves are selected by the same section override as
+        // their scalar. Empty/absent entries mean the overridden scalar is static.
+        public System.Collections.Generic.List<Laubrary.ZTracker.Model.ParameterEnvelope> parameterEnvelopes = new System.Collections.Generic.List<Laubrary.ZTracker.Model.ParameterEnvelope>();
+
         // ADSR
         public float attack = 0.01f;
         public float decay = 0.2f;

@@ -35,17 +35,33 @@ namespace Laubrary.ZTracker.Editor
         }
         void EndInstrumentGesture()
         {
-            EditorUtility.SetDirty(instrument); if (gestureGroup >= 0) CollapseUndo(gestureGroup,instrument); gestureGroup = -1;
+            // The gesture has one complete Undo snapshot. Collapsing it on the first drag update
+            // freezes Redo at that intermediate value, before the remaining pointer moves arrive.
+            // Keep the snapshot open for Unity to capture the final state when Undo is invoked.
+            EditorUtility.SetDirty(instrument);
+            instrument.serializedNulls = ZTrackerMigration.NullPaths(instrument);
+            instrument.serializedNulls.Remove(nameof(instrument.serializedNulls));
+            gestureGroup = -1;
             RefreshLive(instrument); RefreshTransport();
         }
         VisualElement InstrumentDial(string label, float value, float min, float max, string tip, Action<float> apply, string name = null, int decimals = 2)
             => Named(Dial(label, value, min, max, tip, v => InstrumentEdit(label, () => apply(v)), decimals), name);
         VisualElement InstrumentNumber(string label, float value, string tip, Action<float> apply, string name = null)
-            => Z.Field(label, tip, Named(Z.Float(value, tip, v => InstrumentEdit(label, () => apply(v)), 90), name));
+            => Z.Field(label, tip, Named(Z.Float(value, tip, v => InstrumentEdit(label, () => apply(v)), 90, decimals: 2), name));
         VisualElement InstrumentToggle(string label, bool value, string tip, Action<bool> apply, string name = null, bool rebuild = false)
             => Named(Z.Toggle(label, tip, value, v => InstrumentEdit(label, () => apply(v), rebuild)), name);
+        VisualElement InstrumentEnabledBody(ZuiBox box, bool enabled, Action<bool> apply, string name, string tip, string label = "On")
+        {
+            // Enablement is data; folding is view state. Expanding a box must not reveal disabled settings.
+            var body = new VisualElement { name = name + "-body" };
+            body.style.minWidth = 0;
+            body.style.display = enabled ? DisplayStyle.Flex : DisplayStyle.None;
+            box.Add(body);
+            box.AddHeaderContent(InstrumentToggle(label, enabled, tip, v => { apply(v); body.style.display = v ? DisplayStyle.Flex : DisplayStyle.None; }, name + "-enabled"));
+            return body;
+        }
         VisualElement InstrumentChoice(string label, int value, string[] labels, string tip, Action<int> apply, string name = null)
-            => Z.Field(label, tip, Named(Z.MiniRadio(value, labels.Select(l=>l=="PingPong"?"Ping-pong":l=="NoteOff"?"Note off":l).ToArray(), tip, v => InstrumentEdit(label, () => apply(v), true), wrap: true), name));
+            => Z.Field(label, tip, Named(labels.Length <= 3 ? Z.Segmented(value, labels, tip, v => InstrumentEdit(label, () => apply(v), true)) : Z.MiniRadio(value, labels.Select(l=>l=="PingPong"?"Ping-pong":l=="NoteOff"?"Note off":l).ToArray(), tip, v => InstrumentEdit(label, () => apply(v), true), wrap: true), name));
         static VisualElement Diagnostic(string text, string tip) => Z.Text("⚠ " + text, tooltip: tip);
         SampleData SelectedSample => Instrument?.sampler.samples.Find(s => s.id == sampleId);
         Keyzone SelectedZone => Instrument?.sampler.zones.Find(z => z.id == zoneId);
@@ -55,15 +71,21 @@ namespace Laubrary.ZTracker.Editor
             var d = Instrument; if (d == null) return;
             var header = Flow(Named(Z.TextInput(d.name, "Instrument display name.", v => { InstrumentEdit("instrument name", () => d.name = v); RefreshInstrumentNames(); }, 175), "instrument-name"),
                 InstrumentChoice("Family", (int)d.family, new[] { "Sampler", "Synth" }, "Both families retain their settings. Changing source topology applies after Stop/Play.", v => { d.family = (InstrumentFamily)v; d.parameters.type = v == 0 ? InstrumentType.Sample : d.synthMode == SynthMode.FM ? InstrumentType.FM : InstrumentType.Synth; instrumentTab = 0; }, "instrument-family")); root.Add(header);
-            var tabs = d.family == InstrumentFamily.Sampler ? new[] { "Samples", "Zones", "Modulation", "Effects", "Macros", "Presets" } : new[] { "Synth", "Envelopes", "Modulation", "Effects", "Macros", "Presets" };
+            var tabs = d.family == InstrumentFamily.Sampler ? new[] { "Samples", "Zones", "Modulation", "Effects", "Macros", "Presets" } : new[] { "Synth", "Modulation", "Effects", "Macros", "Presets" };
             instrumentTab = Mathf.Clamp(instrumentTab, 0, tabs.Length - 1);
             root.Add(Named(Z.Segmented(instrumentTab, tabs, "Choose the instrument settings to edit.", v => { instrumentTab = v; BuildPane(); }), "instrument-tabs"));
             var scroll = AuthoringScroll(root, "instrument-" + instrumentTab);
-            if (instrumentTab == 0) { if (d.family == InstrumentFamily.Sampler) { BuildSamplePicker(controls); BuildSampler(scroll); } else BuildSynth(scroll); }
-            else if (instrumentTab == 1) { if (d.family == InstrumentFamily.Sampler) { BuildSamplePicker(controls); BuildZones(scroll); } else BuildToneEnvelopes(scroll); }
-            else if (instrumentTab == 2) BuildModulation(scroll);
-            else if (instrumentTab == 3) BuildInstrumentChains(scroll);
-            else if (instrumentTab == 4) BuildMacros(scroll);
+            // A vertical authoring page must measure against its viewport, not the widest child.
+            scroll.style.minWidth = 0;
+            scroll.contentContainer.style.minWidth = 0;
+            scroll.contentContainer.style.width = Length.Percent(100);
+            scroll.contentContainer.style.maxWidth = Length.Percent(100);
+            int page = instrumentTab + (d.family == InstrumentFamily.Synth && instrumentTab > 0 ? 1 : 0);
+            if (page == 0) { if (d.family == InstrumentFamily.Sampler) { BuildSamplePicker(controls); BuildSampler(scroll); } else BuildSynth(scroll); }
+            else if (page == 1) { BuildSamplePicker(controls); BuildZones(scroll); }
+            else if (page == 2) BuildModulation(scroll);
+            else if (page == 3) BuildInstrumentChains(scroll);
+            else if (page == 4) BuildMacros(scroll);
             else BuildPresets(scroll);
             if (d.diagnostics.Count > 0) header.Add(Diagnostic("Imported", string.Join("\n", d.diagnostics)));
         }
@@ -106,29 +128,43 @@ namespace Laubrary.ZTracker.Editor
         void BuildSampler(VisualElement root)
         {
             var sampler = Instrument.sampler;
-            root.Add(Flow(InstrumentDial("Gain", sampler.volume, 0, 16, "Sampler global linear gain, applied once.", v => sampler.volume = v, "sampler-volume"), InstrumentDial("Pan", sampler.pan, -1, 1, "Sampler global pan.", v => sampler.pan = v), InstrumentDial("Transpose", sampler.transpose, -120, 120, "Sampler transpose in semitones.", v => sampler.transpose = (int)v, decimals: 0), InstrumentDial("Fine", sampler.fineTuneCents, -1200, 1200, "Sampler fine tuning in cents.", v => sampler.fineTuneCents = v)));
-            root.Add(InstrumentChoice("New note action", (int)sampler.nna, new[] { "Cut", "Note off", "Continue" }, "Default copied to newly added samples. Each sample's own new note action is authoritative.", v => sampler.nna = (NewNoteAction)v, "sampler-default-nna"));
+            var master = InstrumentSection(root, "All samples", "sampler.master", "Global sampler levels and tuning, applied once to each triggered note. These combine with each sample's own settings.");
+            master.Add(Flow(ParameterValue("volume", sampler.volume, v => sampler.volume = v, "sampler-volume", Instrument.parameters, "volume"), ParameterValue("pan", sampler.pan, v => sampler.pan = v, "sampler-pan", Instrument.parameters, "pan"), InstrumentDial("Transpose st", sampler.transpose, -48, 48, "Sampler pitch offset in semitones.", v => sampler.transpose = (int)v, decimals: 0), ParameterValue("fineTune", sampler.fineTuneCents, v => sampler.fineTuneCents = v, "sampler-tune", Instrument.parameters, "fineTune")));
+            master.Add(InstrumentChoice("New samples", (int)sampler.nna, new[] { "Cut", "Note off", "Continue" }, "Default new-note action copied to newly added samples. Each existing sample's own new-note action is authoritative.", v => sampler.nna = (NewNoteAction)v, "sampler-default-nna"));
+            BuildInstrumentFilter(root, Instrument.parameters, "sampler.filter", "sampler");
             var s = SelectedSample; if (s == null) return;
-            root.Add(Flow(Z.Field("Name", "Sample record name.", Z.TextInput(s.name, "Rename this sample.", v => InstrumentEdit("sample name", () => s.name = v), 160)), Z.Field("Sample audio", "The original AudioClip remains unchanged by edits.", Named(Z.Object(s.pcm, "Assign a readable AudioClip.", v => AssignSample(s, v), 190), "sample-pcm")), Button("▶", "Preview the assigned sample audio.", () => PreviewClip(s.pcm), "sample-preview"), Button("Remove sample", "Remove this sample and its zones; Undo restores them.", () => RemoveSample(s), "remove-sample")));
-            BuildWaveform(root, s);
-            root.Add(Flow(InstrumentDial("Gain", s.volume, 0, 16, "Sample linear gain.", v => s.volume = v, "sample-volume"), InstrumentDial("Pan", s.pan, -1, 1, "Sample pan.", v => s.pan = v), InstrumentDial("Transpose", s.transpose, -120, 120, "Sample transpose in semitones.", v => s.transpose = (int)v, decimals: 0), InstrumentDial("Fine", s.fineTuneCents, -1200, 1200, "Sample tuning in cents.", v => s.fineTuneCents = v), InstrumentDial("Base note", s.baseNote, 0, 119, "Default base note copied to new zones; zone base note controls playback.", v => s.baseNote = (int)v, decimals: 0)));
+            var sample = InstrumentSection(root, "This sample", "sampler.sample", "Source audio and the selected sample's level and tuning. All samples settings also apply.");
+            sample.Add(Flow(Z.Field("Name", "Sample record name.", Z.TextInput(s.name, "Rename this sample.", v => InstrumentEdit("sample name", () => s.name = v), 160)), Z.Field("Audio", "The original AudioClip remains unchanged by edits.", Named(Z.Object(s.pcm, "Assign a readable AudioClip.", v => AssignSample(s, v), 190), "sample-pcm")), Button("▶", "Preview the assigned sample audio.", () => PreviewClip(s.pcm), "sample-preview"), Button("Remove sample", "Remove this sample and its zones; Undo restores them.", () => RemoveSample(s), "remove-sample")));
+            BuildWaveform(sample, s);
+            sample.Add(Flow(NumberForField("volume", s.volume, v => s.volume = v, "sample-volume"), NumberForField("pan", s.pan, v => s.pan = v, "sample-pan"), InstrumentDial("Transpose st", s.transpose, -48, 48, "Sample pitch offset in semitones.", v => s.transpose = (int)v, decimals: 0), NumberForField("fineTune", s.fineTuneCents, v => s.fineTuneCents = v, "sample-tune"), InstrumentDial("Base note", s.baseNote, 0, 119, "Default base note copied to new zones; zone base note controls playback.", v => s.baseNote = (int)v, decimals: 0)));
+            root = InstrumentSection(root, "This sample playback", "sampler.playback", "The selected sample's playback, voice choking, region and slices.");
             root.Add(InstrumentChoice("Loop", (int)s.loop, new[] { "Off", "Forward", "Backward", "Ping-pong" }, "Loop start is inclusive; end is exclusive. Drag either highlighted waveform boundary.", v => { s.loop = (SampleLoop)v; if (v != 0 && s.pcm != null && s.loopEndFrame - s.loopStartFrame < 2) { s.loopStartFrame = s.regionStartFrame; s.loopEndFrame = s.regionEndFrame > 0 ? s.regionEndFrame : s.pcm.samples; } }, "sample-loop-mode"));
             root.Add(Flow(InstrumentChoice("Interpolation", (int)s.interpolation, new[] { "Linear", "Cubic" }, "Sample interpolation method.", v => s.interpolation = (SampleInterpolation)v), InstrumentToggle("Exit on release", s.releaseExitsLoop, "Continue beyond the loop after note release.", v => s.releaseExitsLoop = v), InstrumentToggle("One shot", s.oneShot, "Ignore note-off and play until the sample ends.", v => s.oneShot = v), InstrumentToggle("Inactive", s.inactive, "Preserve this sample but exclude it from preparation.", v => s.inactive = v)));
-            root.Add(Flow(InstrumentChoice("New note action", (int)s.nna, new[] { "Cut", "Note off", "Continue" }, "Action on previous voices when a new note starts on their column.", v => s.nna = (NewNoteAction)v, "sample-nna"), Z.Field("Mute group", "Matching nonnegative groups choke each other; -1 is unassigned.", Named(Z.Int(s.muteGroup, "Mute group or -1.", v => InstrumentEdit("mute group", () => s.muteGroup = Math.Max(-1, v)), 85), "sample-mute-group"))));
+            var mute = Flow(InstrumentToggle("Mute group", s.muteGroup >= 0, "Enable a shared group: starting this sample stops other samples in the same group.", v => s.muteGroup = v ? 0 : -1, "sample-mute-group-enabled", true));
+            mute.style.flexWrap = Wrap.NoWrap; mute.style.alignItems = Align.Center;
+            if (s.muteGroup >= 0) mute.Add(Named(Z.Int(s.muteGroup, "Samples with the same group number choke one another.", v => InstrumentEdit("mute group", () => s.muteGroup = Math.Max(0, v)), 65), "sample-mute-group"));
+            else mute.Add(Z.Text("None", tooltip: "This sample does not choke a mute group."));
+            root.Add(Flow(InstrumentChoice("New note action", (int)s.nna, new[] { "Cut", "Note off", "Continue" }, "Action on previous voices when a new note starts on their column.", v => s.nna = (NewNoteAction)v, "sample-nna"), mute));
             root.Add(IndexPicker("Modulation", s.modulationSet, Instrument.modulation.Select(m => m.name).ToArray(), v => s.modulationSet = v, "sample-modulation"));
             root.Add(IndexPicker("FX chain", s.fxChain, Instrument.fxChains.Select((c, i) => "Chain " + (i + 1)).ToArray(), v => s.fxChain = v, "sample-fx-chain"));
-            if (s.pcm != null)
+            if (s.pcm != null && s.pcm.samples >= 2)
             {
                 int end = s.regionEndFrame > 0 ? s.regionEndFrame : s.pcm.samples;
-                root.Add(Named(Z.MicroMinMax("Region", s.regionStartFrame, end, 0, s.pcm.samples, "Playable region, start inclusive and end exclusive.", (a, b) => InstrumentEdit("sample region", () => { s.regionStartFrame = Mathf.Clamp((int)a, 0, Math.Max(0, s.pcm.samples - 2)); s.regionEndFrame = Mathf.Clamp((int)b, Math.Min(s.pcm.samples, s.regionStartFrame + 2), s.pcm.samples); s.loopStartFrame = Mathf.Clamp(s.loopStartFrame, s.regionStartFrame, s.regionEndFrame - 2); s.loopEndFrame = Mathf.Clamp(s.loopEndFrame, s.loopStartFrame + 2, s.regionEndFrame); s.sliceMarkers.RemoveAll(m => m < s.regionStartFrame || m >= s.regionEndFrame); }, true), 250), "sample-region"));
+                root.Add(SampleTimeRange("Region", s.pcm, s.regionStartFrame, end, 0, s.pcm.samples, "Playable region, start inclusive and end exclusive.", (a, b) => InstrumentEdit("sample region", () => { s.regionStartFrame = Mathf.Clamp(a, 0, Math.Max(0, s.pcm.samples - 2)); s.regionEndFrame = Mathf.Clamp(b, Math.Min(s.pcm.samples, s.regionStartFrame + 2), s.pcm.samples); s.loopStartFrame = Mathf.Clamp(s.loopStartFrame, s.regionStartFrame, s.regionEndFrame - 2); s.loopEndFrame = Mathf.Clamp(s.loopEndFrame, s.loopStartFrame + 2, s.regionEndFrame); s.sliceMarkers.RemoveAll(m => m < s.regionStartFrame || m >= s.regionEndFrame); }, true), "sample-region"));
                 root.Add(Flow(Button("Add slice", "Insert a slice marker halfway through the largest free region.", () => InstrumentEdit("add slice", () => { var points = new[] { s.regionStartFrame }.Concat(s.sliceMarkers).Concat(new[] { end }).Distinct().OrderBy(n => n).ToArray(); var gap = Enumerable.Range(0, points.Length - 1).OrderByDescending(i => points[i + 1] - points[i]).First(); int frame = (points[gap] + points[gap + 1]) / 2; if (!s.sliceMarkers.Contains(frame)) s.sliceMarkers.Add(frame); s.sliceMarkers.Sort(); }, true), "add-slice"), Button("Clear slices", "Remove all slice markers; Undo restores them.", () => InstrumentEdit("clear slices", () => s.sliceMarkers.Clear(), true), "clear-slices")));
-                foreach (int frame in s.sliceMarkers.ToArray()) { int at = s.sliceMarkers.IndexOf(frame); root.Add(Flow(InstrumentDial("Slice " + (at + 1), frame, s.regionStartFrame, end - 1, "Slice start frame; markers are unique and sorted.", v => { int n = (int)v; if (!s.sliceMarkers.Contains(n) || n == frame) { s.sliceMarkers[at] = n; s.sliceMarkers.Sort(); } }, decimals: 0), Button("×", "Remove this slice.", () => InstrumentEdit("remove slice", () => s.sliceMarkers.Remove(frame), true), "remove-slice-" + at))); }
+                float msPerFrame = 1000f / Math.Max(1, s.pcm.frequency);
+                foreach (int frame in s.sliceMarkers.ToArray()) { int at = s.sliceMarkers.IndexOf(frame); root.Add(Flow(InstrumentDial("Slice " + (at + 1) + " ms", frame * msPerFrame, s.regionStartFrame * msPerFrame, (end - 1) * msPerFrame, "Slice time in milliseconds, rounded to the nearest source frame when edited. Markers are unique and sorted.", v => { int n = Mathf.Clamp(Mathf.RoundToInt(v / msPerFrame), s.regionStartFrame, end - 1); if (!s.sliceMarkers.Contains(n) || n == frame) { s.sliceMarkers[at] = n; s.sliceMarkers.Sort(); } }, decimals: 2), Button("×", "Remove this slice.", () => InstrumentEdit("remove slice", () => s.sliceMarkers.Remove(frame), true), "remove-slice-" + at))); }
             }
             var parents = Instrument.sampler.samples.Where(p => p != s && p.parentSampleId == "").ToList(); var labels = new[] { "None" }.Concat(parents.Select(p => p.name)).ToArray(); int parent = parents.FindIndex(p => p.id == s.parentSampleId) + 1;
             root.Add(InstrumentChoice("Slice parent", parent, labels, "Borrow the parent's slice markers. This sample's PCM and region remain authored independently.", v => s.parentSampleId = v == 0 ? "" : parents[v - 1].id));
         }
         VisualElement IndexPicker(string title, int index, string[] choices, Action<int> apply, string name)
             => InstrumentChoice(title, index + 1, new[] { "None" }.Concat(choices).ToArray(), "Pick a declared " + title.ToLowerInvariant() + "; None leaves it unassigned.", v => apply(v - 1), name);
+        static VisualElement SampleTimeRange(string label, AudioClip clip, int low, int high, int min, int max, string tip, Action<int, int> apply, string name)
+        {
+            float msPerFrame = 1000f / Math.Max(1, clip.frequency);
+            return Named(Z.MicroMinMax(label + " ms", low * msPerFrame, high * msPerFrame, min * msPerFrame, max * msPerFrame, tip + " Time is shown in milliseconds and rounded to the nearest source frame when edited (" + clip.frequency + " source frames per second).", (a, b) => apply(Mathf.RoundToInt(a / msPerFrame), Mathf.RoundToInt(b / msPerFrame)), 250, decimals: 2), name);
+        }
         void BuildWaveform(VisualElement root, SampleData sample)
         {
             var canvas = new VisualElement { name = "sample-waveform", tooltip = "Drag cyan loop boundaries; Shift-click sets start and Alt-click sets end. Vertical lines mark slices. AudioClip PCM remains immutable." };
@@ -142,7 +178,7 @@ namespace Laubrary.ZTracker.Editor
             canvas.RegisterCallback<PointerDownEvent>(e => { if (e.button != 0 || clip == null || clip.samples < 2) return; float x = e.localPosition.x; edge = e.shiftKey ? 0 : e.altKey ? 1 : Mathf.Abs(x - X(sample.loopStartFrame)) < Mathf.Abs(x - X(sample.loopEndFrame)) ? 0 : 1; BeginInstrumentGesture("waveform loop"); canvas.CapturePointer(e.pointerId); Set(x); });
             canvas.RegisterCallback<PointerMoveEvent>(e => { if (edge >= 0 && canvas.HasPointerCapture(e.pointerId)) Set(e.localPosition.x); });
             canvas.RegisterCallback<PointerUpEvent>(e => { if (edge < 0) return; edge = -1; canvas.ReleasePointer(e.pointerId); EndInstrumentGesture(); BuildPane(); });
-            if (clip != null && clip.samples >= 2) root.Add(Named(Z.MicroMinMax("Loop frames", sample.loopStartFrame, sample.loopEndFrame, sample.regionStartFrame, sample.regionEndFrame > 0 ? sample.regionEndFrame : clip.samples, "Loop bounds in source frames, end exclusive; minimum span two frames.", (a, b) => InstrumentEdit("loop frames", () => { int end = sample.regionEndFrame > 0 ? sample.regionEndFrame : clip.samples; sample.loopStartFrame = Mathf.Clamp((int)a, sample.regionStartFrame, Math.Max(sample.regionStartFrame, end - 2)); sample.loopEndFrame = Mathf.Clamp((int)b, sample.loopStartFrame + 2, end); canvas.MarkDirtyRepaint(); }), 250), "sample-loop-frames"));
+            if (clip != null && clip.samples >= 2) root.Add(SampleTimeRange("Loop", clip, sample.loopStartFrame, sample.loopEndFrame, sample.regionStartFrame, sample.regionEndFrame > 0 ? sample.regionEndFrame : clip.samples, "Loop bounds, end exclusive; minimum span two source frames.", (a, b) => InstrumentEdit("loop time", () => { int end = sample.regionEndFrame > 0 ? sample.regionEndFrame : clip.samples; sample.loopStartFrame = Mathf.Clamp(a, sample.regionStartFrame, Math.Max(sample.regionStartFrame, end - 2)); sample.loopEndFrame = Mathf.Clamp(b, sample.loopStartFrame + 2, end); canvas.MarkDirtyRepaint(); }), "sample-loop-frames"));
         }
         void AddZone()
         {
@@ -151,6 +187,7 @@ namespace Laubrary.ZTracker.Editor
         }
         void BuildZones(VisualElement root)
         {
+            root = InstrumentSection(root, "Keyzones & kit", "zones", "Assign samples to note and velocity ranges. Disable key tracking for fixed-pitch drum pads.");
             var d = Instrument; var zones = d.sampler.zones; if (SelectedZone == null) zoneId = zones.FirstOrDefault()?.id ?? "";
             root.Add(Flow(Button("Add zone", "Create a full note/velocity zone for the selected sample.", AddZone, "add-zone"), Button("Clone zone", "Duplicate the selected zone with a new identity.", () => { if (SelectedZone == null) return; InstrumentEdit("clone zone", () => { var z = Clone(SelectedZone); z.id = Id(); zones.Add(z); zoneId = z.id; }, true); }, "clone-zone"), Button("Remove zone", "Remove the selected zone; Undo restores it.", () => { if (SelectedZone != null) InstrumentEdit("remove zone", () => zones.Remove(SelectedZone), true); }, "remove-zone")));
             var canvas = new VisualElement { name = "keyzone-map", tooltip = "Horizontal: C-0 to B-9; vertical: velocity 0–127. Drag a zone's interior to move it, its edges to resize. Overlapping zones layer together." }; canvas.style.height = Mathf.Clamp(position.height-250,140,330); canvas.style.flexShrink = 0; canvas.style.backgroundColor = new Color(.08f, .1f, .13f); root.Add(canvas);
@@ -182,52 +219,72 @@ namespace Laubrary.ZTracker.Editor
             var b = zone.blend; if (b == null) { root.Add(paired); return; }
             var box = Z.BoxKeyed("Second sample", "Blend a second sample into this zone, with independent tuning and loops. This extension needs an interchange warning for Renoise.", "tracker.zone.blend");
             box.AddHeaderContent(paired);
-            box.Add(Flow(Z.Field("Second audio", "The second sample's audio source.", Named(Z.Object(b.pcmB, "Assign the second sample's AudioClip.", v => InstrumentEdit("second sample audio", () => { b.pcmB = v; b.loopStartFrameB = 0; b.loopEndFrameB = v != null ? v.samples : 0; }, true), 185), "zone-pcm-b")), Button("▶", "Preview the second sample.", () => PreviewClip(b.pcmB), "zone-preview-b"), InstrumentDial("Base note (second)", b.baseNoteB, 0, 119, "Second sample note played at source frequency.", v => b.baseNoteB = (int)v, decimals: 0), InstrumentDial("Fine tune (second)", b.fineTuneBCents, -1200, 1200, "Second sample tuning in cents.", v => b.fineTuneBCents = v)));
-            box.Add(InstrumentChoice("Blend", b.mode, new[] { "Mix", "Ring", "Sync", "PM" }, "How the second sample combines with the first.", v => b.mode = v)); box.Add(Flow(InstrumentDial("Amount", b.amount, 0, 1, "Second sample blend amount.", v => b.amount = v), InstrumentNumber("PM frames", b.pmDepth, "Phase modulation depth in source frames.", v => b.pmDepth = Math.Max(0, v)), InstrumentToggle("ADSR", b.envelopeEnabled, "Apply an amplitude envelope to the second sample blend.", v => b.envelopeEnabled = v)));
-            BuildNumericFields(box, b, new[] { "attack", "decay", "sustain", "release" }, "paired");
-            box.Add(InstrumentChoice("Second loop", (int)b.loopB, new[] { "Off", "Forward", "Backward", "PingPong" }, "Independent loop mode for the second sample.", v => b.loopB = (SampleLoop)v)); if (b.pcmB != null) box.Add(Z.MicroMinMax("Second loop frames", b.loopStartFrameB, b.loopEndFrameB, 0, b.pcmB.samples, "Second sample loop bounds, exclusive end; minimum two frames.", (a, e) => InstrumentEdit("second sample loop", () => { b.loopStartFrameB = Mathf.Clamp((int)a, 0, Math.Max(0, b.pcmB.samples - 2)); b.loopEndFrameB = Mathf.Clamp((int)e, Math.Min(b.pcmB.samples, b.loopStartFrameB + 2), b.pcmB.samples); }), 230)); box.Add(InstrumentToggle("Exit on release", b.releaseExitsLoopB, "Leave the second sample's loop on note release.", v => b.releaseExitsLoopB = v));
-            BuildRetainedEnvelope(box, "Blend curve", b.blendEnvelope, v => b.blendEnvelope = v, 0, 1, "paired-blend-curve"); BuildRetainedEnvelope(box, "PM curve", b.pmEnvelope, v => b.pmEnvelope = v, 0, 65536, "paired-pm-curve"); root.Add(box);
+            box.Add(Flow(Z.Field("Second audio", "The second sample's audio source.", Named(Z.Object(b.pcmB, "Assign the second sample's AudioClip.", v => InstrumentEdit("second sample audio", () => { b.pcmB = v; b.loopStartFrameB = 0; b.loopEndFrameB = v != null ? v.samples : 0; }, true), 185), "zone-pcm-b")), Button("▶", "Preview the second sample.", () => PreviewClip(b.pcmB), "zone-preview-b"), InstrumentDial("Base note", b.baseNoteB, 0, 119, "Second sample note played at source frequency.", v => b.baseNoteB = (int)v, decimals: 0), NumberForField("fineTune", b.fineTuneBCents, v => b.fineTuneBCents = v, "paired-tune")));
+            var pm = new MusicalRange { label = "PM ms", unit = "ms", tip = "Phase modulation depth as source-audio time in milliseconds.", min = 0, max = 100, scale = 1000f / Math.Max(1, b.pcmB != null ? b.pcmB.frequency : 48000), decimals = 2 };
+            box.Add(InstrumentChoice("Blend", b.mode, new[] { "Mix", "Ring", "Sync", "PM" }, "How the second sample combines with the first.", v => b.mode = v));
+            box.Add(Flow(ParameterValue("blend", b.amount, v => b.amount = v, "paired-blend", () => b.blendEnvelope, env => b.blendEnvelope = env), ParameterValue("pmDepth", b.pmDepth, v => b.pmDepth = v, "paired-pm", () => b.pmEnvelope, env => b.pmEnvelope = env, pm)));
+            var envelope = InstrumentSection(box, "Blend envelope", "paired-envelope", "Fixed amplitude stages applied to the second sample blend.");
+            InstrumentEnabledBody(envelope, b.envelopeEnabled, v => b.envelopeEnabled = v, "paired-envelope", "Apply the second sample's amplitude envelope. Switching off retains all stages.").Add(FixedAdsr("Amplitude", b, name: "paired-adsr"));
+            box.Add(InstrumentChoice("Second loop", (int)b.loopB, new[] { "Off", "Forward", "Backward", "PingPong" }, "Independent loop mode for the second sample.", v => b.loopB = (SampleLoop)v)); if (b.pcmB != null && b.pcmB.samples >= 2) box.Add(SampleTimeRange("Second loop", b.pcmB, b.loopStartFrameB, b.loopEndFrameB, 0, b.pcmB.samples, "Second sample loop bounds, exclusive end; minimum two source frames.", (a, e) => InstrumentEdit("second sample loop", () => { b.loopStartFrameB = Mathf.Clamp(a, 0, Math.Max(0, b.pcmB.samples - 2)); b.loopEndFrameB = Mathf.Clamp(e, Math.Min(b.pcmB.samples, b.loopStartFrameB + 2), b.pcmB.samples); }), "paired-loop-time")); box.Add(InstrumentToggle("Exit on release", b.releaseExitsLoopB, "Leave the second sample's loop on note release.", v => b.releaseExitsLoopB = v));
+            root.Add(box);
         }
         static string[] WaveLabels(SoundEnumDomain domain) => domain == SoundEnumDomain.SavedAuthoring ? new[] { "Sine", "Triangle", "Saw", "Square", "Noise" } : new[] { "Sine", "Square", "Saw", "Reverse saw", "Triangle", "White noise", "Pink noise" };
         void BuildSynth(VisualElement root)
         {
             var d = Instrument; var q = d.parameters;
-            root.Add(InstrumentChoice("New note action", (int)d.sampler.nna, new[] { "Cut", "Note off", "Continue" }, "Synth action on previous voices when another note starts on the same column.", v => d.sampler.nna = (NewNoteAction)v, "synth-nna"));
-            root.Add(InstrumentChoice("Engine", (int)d.synthMode, new[] { "Subtractive", "FM" }, "Switch synth topology. Existing inactive settings are retained.", v => { d.synthMode = (SynthMode)v; q.type = v == 0 ? InstrumentType.Synth : InstrumentType.FM; }, "synth-mode"));
-            root.Add(InstrumentChoice("Wave domain", (int)q.enumDomain, new[] { "Saved", "Native direct" }, "Saved integer mapping: Sine 0→0, Triangle 1→4, Saw 2→2, Square 3→1, Noise 4→5. Native integers 0–6 are direct. This changes interpretation without rewriting stored wave integers.", v => q.enumDomain = (SoundEnumDomain)v, "synth-wave-domain"));
+            var source = InstrumentSection(root, "Oscillators", "oscillators", "Sound source, oscillator blend and detuned voices. Right-click a numeric parameter to choose its per-note envelope.");
+            source.Add(Flow(InstrumentChoice("Engine", (int)d.synthMode, new[] { "Subtractive", "FM" }, "Switch synth topology. Existing inactive settings are retained.", v => { d.synthMode = (SynthMode)v; q.type = v == 0 ? InstrumentType.Synth : InstrumentType.FM; }, "synth-mode"), InstrumentChoice("New note", (int)d.sampler.nna, new[] { "Cut", "Note off", "Continue" }, "Action on previous voices when another note starts in the same column.", v => d.sampler.nna = (NewNoteAction)v, "synth-nna")));
             if (d.synthMode == SynthMode.Subtractive)
             {
-                root.Add(Flow(InstrumentChoice("Wave A", q.waveA, WaveLabels(q.enumDomain), "Primary oscillator shape in the selected integer domain.", v => q.waveA = v, "synth-wave-a"), InstrumentChoice("Wave B", q.waveB, WaveLabels(q.enumDomain), "Secondary oscillator shape in the selected integer domain.", v => q.waveB = v, "synth-wave-b")));
-                root.Add(InstrumentChoice("Blend", q.blendMode, new[] { "Mix", "Ring", "Sync", "PM" }, "Blend the primary and secondary oscillators.", v => q.blendMode = v, "synth-blend-mode"));
-                BuildNumericFields(root, q, new[] { "blend", "waveBRatio", "pmDepth", "pulseWidth", "unisonVoices", "unisonDetune", "unisonSpread" }, "synth");
-                root.Add(InstrumentToggle("Blend ADSR", q.blendEnvelope, "Apply the secondary oscillator blend ADSR.", v => q.blendEnvelope = v)); BuildNumericFields(root, q, new[] { "blendAttack", "blendDecay", "blendSustain", "blendRelease" }, "synth");
+                source.Add(Flow(InstrumentChoice("Wave A", q.waveA, WaveLabels(q.enumDomain), "Primary oscillator waveform.", v => q.waveA = v, "synth-wave-a"), InstrumentChoice("Wave B", q.waveB, WaveLabels(q.enumDomain), "Secondary oscillator waveform.", v => q.waveB = v, "synth-wave-b")));
+                source.Add(InstrumentChoice("Blend", q.blendMode, new[] { "Mix", "Ring", "Sync", "PM" }, "How oscillator B combines with oscillator A.", v => q.blendMode = v, "synth-blend-mode"));
+                BuildNumericFields(source, q, new[] { "blend", "waveBRatio", "pmDepth", "pulseWidth", "unisonVoices", "unisonDetune", "unisonSpread" }, "synth");
+                var blend = InstrumentSection(root, "Blend envelope", "blend-envelope", "Fixed envelope controlling the amount of the second oscillator.");
+                InstrumentEnabledBody(blend, q.blendEnvelope, v => q.blendEnvelope = v, "synth-blend-envelope", "Apply the second oscillator's fixed envelope. Switching off retains all stages.").Add(FixedAdsr("Blend", q, "blend", "blend-adsr"));
             }
             else
             {
-                root.Add(InstrumentChoice("Algorithm", q.fmAlgorithm < 6 ? q.fmAlgorithm : -1, new[] { "1 Stack", "2 Split", "3 Branch", "4 Pairs", "5 Fan", "6 Parallel" }, "Implemented algorithms 0–5 only. Saved 6 or 7 is retained and renders the documented algorithm-5 fallback.", v => q.fmAlgorithm = v, "fm-algorithm"));
+                source.Add(InstrumentChoice("Algorithm", q.fmAlgorithm < 6 ? q.fmAlgorithm : -1, new[] { "1 Stack", "2 Split", "3 Branch", "4 Pairs", "5 Fan", "6 Parallel" }, "Choose the routing between four sine-wave operators.", v => q.fmAlgorithm = v, "fm-algorithm"));
                 if (q.fmAlgorithm >= 6) root.Add(Diagnostic("Algorithm " + q.fmAlgorithm, "Preserved imported integer. The engine uses algorithm 5 fallback; choose an implemented algorithm to replace it explicitly."));
-                BuildNumericFields(root, q, new[] { "fmFeedback" }, "synth");
+                BuildNumericFields(source, q, new[] { "fmFeedback" }, "synth");
                 if (q.fmOperators == null || q.fmOperators.Length != 4) root.Add(Button("Initialize operators", "Create four sine operators, retaining all other settings. Existing malformed operator payload is retained in the legacy archive if available.", () => InstrumentEdit("initialize FM", () => q.fmOperators = NewInstrumentData().parameters.fmOperators, true), "initialize-fm"));
                 else for (int i = 0; i < 4; i++)
                 {
                     int at = i; var op = q.fmOperators[i]; var box = Z.BoxKeyed("Operator " + (i + 1), "FM operators render sine only. Ratio pitch is ignored when fixed frequency is positive.", "tracker.fm." + i);
                     if (op.waveform != 0) box.Add(Flow(Diagnostic("Wave " + op.waveform, "Imported non-sine waveform is preserved but ignored by the FM engine."), Button("Use sine", "Explicitly replace the preserved unsupported operator wave with sine.", () => InstrumentEdit("FM sine", () => { var value = q.fmOperators[at]; value.waveform = 0; q.fmOperators[at] = value; }, true), "fm-sine-" + i)));
-                    else box.Add(Z.Text("Sine", tooltip: "The FM engine implements sine operators only."));
-                    foreach (var field in new[] { "freqRatio", "freqFixed", "level", "attack", "decay", "sustain", "release" })
+                    var operatorRow = Flow();
+                    foreach (var field in new[] { "freqRatio", "freqFixed", "level" })
                     {
                         var f = typeof(ZTrackerInstrument.FMOperatorData).GetField(field); string id = "fmOperators." + at + "." + field; float value = (float)f.GetValue(op);
-                        box.Add(NumberForField(field, value, v => { object next = q.fmOperators[at]; f.SetValue(next, v); q.fmOperators[at] = (ZTrackerInstrument.FMOperatorData)next; }, id));
-                    } root.Add(box);
+                        operatorRow.Add(ParameterValue(field, value, v => { object next = q.fmOperators[at]; f.SetValue(next, v); q.fmOperators[at] = (ZTrackerInstrument.FMOperatorData)next; }, id, q, id));
+                    }
+                    box.Add(operatorRow);
+                    float ReadOp(string field) => (float)typeof(ZTrackerInstrument.FMOperatorData).GetField(field).GetValue(q.fmOperators[at]);
+                    void WriteOp(string field, float v) => InstrumentEdit("operator " + field, () => { object next = q.fmOperators[at]; typeof(ZTrackerInstrument.FMOperatorData).GetField(field).SetValue(next, v); q.fmOperators[at] = (ZTrackerInstrument.FMOperatorData)next; });
+                    box.Add(Named(Z.Adsr("Amplitude", () => ReadOp("attack"), v => WriteOp("attack", v), () => ReadOp("decay"), v => WriteOp("decay", v), () => ReadOp("sustain"), v => WriteOp("sustain", v), () => ReadOp("release"), v => WriteOp("release", v), "Fixed amplitude stages for this operator."), "fm-adsr-" + at));
+                    root.Add(box);
                 }
             }
-            BuildNumericFields(root, q, new[] { "volume", "pan", "fineTune", "attack", "decay", "sustain", "release", "vibratoDepth", "vibratoRate", "vibratoFadeIn", "vibratoRandomness" }, "synth");
-            root.Add(Flow(InstrumentToggle("Glide", q.glideEnabled, "Glide from previous pitch.", v => q.glideEnabled = v), InstrumentToggle("Legato", q.glideLegato, "Apply glide only across legato notes.", v => q.glideLegato = v))); BuildNumericFields(root, q, new[] { "glideSeconds" }, "synth");
-            root.Add(Flow(InstrumentToggle("Arpeggio", q.arpeggioEnabled, "Cycle through authored semitone offsets.", v => q.arpeggioEnabled = v), InstrumentToggle("Per note", q.arpeggioSpeedIsPerNote, "Speed is each note's duration; off divides whole-sequence duration among the notes.", v => q.arpeggioSpeedIsPerNote = v))); BuildNumericFields(root, q, new[] { "arpeggioSpeed" }, "synth");
-            root.Add(Button("Add arp note", "Append a semitone offset to the arpeggio.", () => InstrumentEdit("add arp note", () => q.arpeggioNotes = (q.arpeggioNotes ?? Array.Empty<int>()).Concat(new[] { 0 }).ToArray(), true), "add-arp-note"));
-            var notes = Flow(); for (int i = 0; i < (q.arpeggioNotes?.Length ?? 0); i++) { int at = i; var grip = Button("⋮", "Drag to reorder arpeggio notes.", () => { }); Reorder(grip, "arp-notes", i, (a, b) => InstrumentEdit("reorder arp notes", () => { var list = q.arpeggioNotes.ToList(); Move(list, a, b); q.arpeggioNotes = list.ToArray(); }, true)); var card = Flow(grip, InstrumentDial("Note " + (i + 1), q.arpeggioNotes[i], -120, 120, "Arpeggio offset in semitones.", v => q.arpeggioNotes[at] = (int)v, decimals: 0), Button("×", "Remove this arpeggio note.", () => InstrumentEdit("remove arp note", () => q.arpeggioNotes = q.arpeggioNotes.Where((n, j) => j != at).ToArray(), true), "remove-arp-note-" + i)); notes.Add(card); } root.Add(notes);
-            BuildPoints(root, q.arpeggioSpeedPoints, "Arp speed", 0, 3600, .0001f, 3600, "arp-speed", false);
-            root.Add(InstrumentToggle("Filter", q.instFilterEnabled, "Enable the per-voice filter.", v => q.instFilterEnabled = v)); root.Add(InstrumentChoice("Mode", q.instFilterMode, new[] { "Low pass", "High pass", "Band pass" }, "Per-voice filter mode.", v => q.instFilterMode = v)); BuildNumericFields(root, q, new[] { "instFilterCutoff", "instFilterResonance", "instDelaySend", "instReverbSend" }, "synth");
-            if (q.instDelaySend > 0 || q.instReverbSend > 0) root.Add(Diagnostic("Send routing", "Synth delay and reverb sends route to the first explicit Send track containing the matching Delay or Reverb effect. Declare those buses in Mixer before playback."));
+            BuildInstrumentFilter(root, q, "filter", "synth");
+            var amp = InstrumentSection(root, "Amplifier", "amplifier", "Note loudness, stereo position and fixed amplitude stages.");
+            BuildNumericFields(amp, q, new[] { "volume", "pan" }, "synth");
+            amp.Add(FixedAdsr("Amplitude", q, name: "amplitude-adsr"));
+            var pitch = InstrumentSection(root, "Pitch", "pitch", "Tuning and pitch glide. Pattern Axy supplies arpeggio notes.");
+            BuildNumericFields(pitch, q, new[] { "fineTune", "glideSeconds" }, "synth");
+            pitch.Add(Flow(InstrumentToggle("Glide", q.glideEnabled, "Slide from the previous pitch.", v => q.glideEnabled = v), InstrumentToggle("Legato", q.glideLegato, "Only slide when notes overlap.", v => q.glideLegato = v)));
+            var vibrato = InstrumentSection(root, "Vibrato", "vibrato", "Periodic pitch movement: depth, speed, fade-in and random variation.");
+            BuildNumericFields(vibrato, q, new[] { "vibratoDepth", "vibratoRate", "vibratoFadeIn", "vibratoRandomness" }, "synth");
+            var sends = InstrumentSection(root, "Effects sends", "sends", "Route signal to the first matching Delay and Reverb send buses in Mixer.");
+            BuildNumericFields(sends, q, new[] { "instDelaySend", "instReverbSend" }, "synth");
+        }
+        void BuildInstrumentFilter(VisualElement root, InstrumentParameters q, string key, string prefix)
+        {
+            var filter = InstrumentSection(root, "Filter", key, "Shape the frequency balance independently for each note.");
+            var body = InstrumentEnabledBody(filter, q.instFilterEnabled, v => q.instFilterEnabled = v, prefix + "-filter", "Enable the filter for each voice. Switching off retains its mode, cutoff and resonance.");
+            var controls = Flow(InstrumentChoice("Mode", q.instFilterMode, new[] { "Low pass", "High pass", "Band pass" }, "Choose which frequencies pass through.", v => q.instFilterMode = v), ParameterValue("instFilterCutoff", q.instFilterCutoff, v => q.instFilterCutoff = v, prefix + "-instFilterCutoff", q, "instFilterCutoff"), ParameterValue("instFilterResonance", q.instFilterResonance, v => q.instFilterResonance = v, prefix + "-instFilterResonance", q, "instFilterResonance"));
+            controls.style.alignItems = Align.FlexStart;
+            foreach (var control in controls.Children()) control.style.alignSelf = Align.FlexStart;
+            body.Add(controls);
         }
         static string FieldLabel(string name)
         {
@@ -236,47 +293,20 @@ namespace Laubrary.ZTracker.Editor
         }
         VisualElement NumberForField(string field, float value, Action<float> apply, string name)
         {
-            string label = FieldLabel(field), tip = label + " authored setting."; float lo = 0, hi = 1; bool bounded = true; int decimals = 3;
-            if (field == "volume" || field == "level") { hi = 16; tip = "Linear amplitude gain."; }
-            else if (field == "pan") { lo = -1; tip = "Stereo position from left -1 through centre 0 to right 1."; }
-            else if (field == "pulseWidth") { lo = .01f; hi = .99f; tip = "Square-wave duty cycle."; }
-            else if (field == "unisonVoices") { lo = 1; hi = 8; decimals = 0; tip = "Number of detuned oscillator voices."; }
-            else if (field == "fineTune" || field == "fineTuneB" || field == "fineTuneBCents") { lo = -1200; hi = 1200; tip = "Pitch tuning in cents."; }
-            else if (field == "baseNote" || field == "baseNoteB") { hi = 119; decimals = 0; tip = "MIDI base note played at source frequency."; }
-            else if (field.Contains("Resonance")) { lo = .1f; hi = 10; tip = "Filter resonance Q."; }
-            else if (field == "instFilterCutoff") { tip = "Retained filter cutoff normalized against the output sample rate Nyquist frequency."; }
-            else if (field == "vibratoDepth" || field == "unisonDetune") { hi = 1200; tip = "Pitch depth in cents."; }
-            else if (field == "vibratoRate" || field == "rate") { hi = 1000; tip = "Cycles per second (Hz)."; }
-            else if (field == "fmFeedback") { hi = 16; tip = "FM phase feedback."; }
-            else if (field == "waveBRatio" || field == "freqRatio") { hi = 64; tip = "Frequency ratio."; }
-            else if (field == "freqFixed") { hi = 96000; tip = "Fixed frequency in Hz; zero uses ratio pitch."; }
-            else if (field == "pmDepth") { hi = 65536; tip = "Phase modulation depth: cycles for synth, frames for paired PCM."; }
-            else if (field == "attack" || field == "hold" || field == "decay" || field == "release" || field.EndsWith("Attack") || field.EndsWith("Decay") || field.EndsWith("Release") || field == "glideSeconds" || field == "vibratoFadeIn" || field == "arpeggioSpeed" || field == "duration") { bounded = false; tip = "Duration in seconds, nonnegative and at most 3600; arpeggio durations must be positive."; }
-            else if (field == "depth" || field == "min" || field == "max" || field == "curve") { bounded = false; tip = field == "curve" ? "Positive exponent." : "Physical output value in the selected modulation target's units."; }
-            if (bounded) return InstrumentDial(label, value, lo, hi, tip, apply, name, decimals);
-            return InstrumentNumber(label, value, tip, v => apply(field == "curve" ? Math.Max(.0001f, v) : field == "min" || field == "max" || field == "depth" ? v : Mathf.Clamp(v, field == "arpeggioSpeed" ? .0001f : 0, 3600)), name);
+            return MusicalScalar(field, value, apply, name);
         }
         void BuildNumericFields(VisualElement root, object owner, string[] fields, string prefix)
         {
-            var row = Flow(); foreach (string name in fields) { var f = owner.GetType().GetField(name); if (f == null) continue; bool integer = f.FieldType == typeof(int); float value = Convert.ToSingle(f.GetValue(owner)); row.Add(NumberForField(name, value, v => f.SetValue(owner, integer ? (object)(int)v : v), prefix + "-" + name)); } root.Add(row);
-        }
-        void BuildToneEnvelopes(VisualElement root)
-        {
-            var q = Instrument.parameters;
-            if (Instrument.synthMode == SynthMode.FM) { root.Add(Diagnostic("Retained curves", "Oscillator parameter envelopes are preserved while FM is selected. FM uses its operators' amplitude envelopes; switch to Subtractive to author these curves.")); return; }
-            root.Add(InstrumentChoice("Loop domain", (int)q.envelopeEnumDomain, new[] { "Saved", "Native direct" }, "Saved loops: 1 forward, 2 ping-pong. Native direct: 0 forward, 1 ping-pong. Stored inactive integers are retained.", v => q.envelopeEnumDomain = (SoundEnumDomain)v, "envelope-domain"));
-            BuildRetainedEnvelope(root, "Blend", q.blendEnvelopeData, v => q.blendEnvelopeData = v, 0, 1, "tone-blend"); BuildRetainedEnvelope(root, "Pulse width", q.pulseWidthEnvelopeData, v => q.pulseWidthEnvelopeData = v, .01f, .99f, "tone-pulse-width"); BuildRetainedEnvelope(root, "B ratio", q.waveBRatioEnvelopeData, v => q.waveBRatioEnvelopeData = v, 0, 64, "tone-b-ratio"); BuildRetainedEnvelope(root, "PM depth", q.pmDepthEnvelopeData, v => q.pmDepthEnvelopeData = v, 0, 65536, "tone-pm-depth"); BuildRetainedEnvelope(root, "Detune", q.unisonDetuneEnvelopeData, v => q.unisonDetuneEnvelopeData = v, 0, 12000, "tone-detune");
-        }
-        void BuildRetainedEnvelope(VisualElement root, string title, ZUIEnvelopeData env, Action<ZUIEnvelopeData> assign, float min, float max, string name)
-        {
-            var box = Z.BoxKeyed(title, "Parameter envelope evaluated on the audio thread. Double-click adds points; drag moves; Delete removes selection; Shift-right-drag shapes a segment.", "tracker.envelope." + name);
-            box.Add(Flow(Button(env == null ? "Create curve" : "Remove curve", env == null ? "Create an enabled envelope with two points." : "Remove the envelope; Undo restores it.", () => InstrumentEdit("envelope", () => assign(env == null ? new ZUIEnvelopeData(0, 1, min, max) : null), true), name + "-create"), env != null ? InstrumentToggle("On", env.enabled, "Enable this retained envelope.", v => env.enabled = v, name + "-enabled") : null));
-            if (env != null)
+            var row = Flow();
+            foreach (string name in fields)
             {
-                box.Add(Flow(InstrumentNumber("Duration", env.xMax, "Envelope duration in seconds; moves its required end point.", v => env.xMax = Mathf.Clamp(v, .0001f, 3600), name + "-duration"), InstrumentToggle("Loop", env.loopEnabled, "Loop the selected time range.", v => { env.loopEnabled = v; if (v && env.loopMode == 0 && Instrument.parameters.envelopeEnumDomain == SoundEnumDomain.SavedAuthoring) env.loopMode = 1; }, name + "-loop"), InstrumentChoice("Mode", env.loopMode - (Instrument.parameters.envelopeEnumDomain == SoundEnumDomain.SavedAuthoring ? 1 : 0), new[] { "Forward", "PingPong" }, "Loop integer follows the explicit envelope domain.", v => env.loopMode = v + (Instrument.parameters.envelopeEnumDomain == SoundEnumDomain.SavedAuthoring ? 1 : 0))));
-                box.Add(Z.MicroMinMax("Loop time", env.loopStart, env.loopEnd, 0, Math.Max(.0001f, env.xMax), "Loop start/end in seconds.", (a, b) => InstrumentEdit("envelope loop", () => { env.loopStart = a; env.loopEnd = Math.Max(a + .0001f, b); }), 220));
-                var canvas = Z.Envelope(env.points, new ZuiEnvelopeOptions { xMin = env.xMin, xMax = Math.Max(.0001f, env.xMax), yMin = min, yMax = max, xAxisLabel = "Seconds", yAxisLabel = title, minPoints = 2 }, "Double-click adds points; drag moves; Delete removes; Shift-right-drag bends.", EndInstrumentGesture, () => BeginInstrumentGesture("edit " + title + " envelope"), 380, 140); canvas.name = name + "-canvas"; canvas.style.maxWidth = Length.Percent(100); box.Add(canvas);
-            } root.Add(box);
+                var f = owner.GetType().GetField(name); if (f == null) continue;
+                bool integer = f.FieldType == typeof(int); float value = Convert.ToSingle(f.GetValue(owner)); Action<float> apply = v => f.SetValue(owner, integer ? (object)(int)v : v);
+                if (owner is InstrumentParameters q && CanEnvelope(name)) row.Add(ParameterValue(name, value, apply, prefix + "-" + name, q, name));
+                else if (owner is ZTrackerInstrument.InstrumentPreset preset && CanEnvelope(name)) row.Add(ParameterValue(name, value, apply, prefix + "-" + name, () => PresetEnvelope(preset, name), env => SetPresetEnvelope(preset, name, env)));
+                else row.Add(NumberForField(name, value, apply, prefix + "-" + name));
+            }
+            root.Add(row);
         }
         void BuildPoints(VisualElement root, List<ModulationPoint> points, string title, float xmin, float xmax, float ymin, float ymax, string name, bool exponent = true)
         {
@@ -288,6 +318,7 @@ namespace Laubrary.ZTracker.Editor
         }
         void BuildModulation(VisualElement root)
         {
+            root = InstrumentSection(root, "Modulation", "modulation", "Per-note modulators. Sampler samples choose their set; synth notes use the declared sets together.");
             var d = Instrument; var sets = d.modulation;
             root.Add(Button("Add mod set", "Declare a sampler modulation set; assign it from each sample's Modulation picker. Synth uses its declared sets together.", () => InstrumentEdit("add modulation set", () => { var set = new ModulationSet { id = Id(), name = "Modulation " + (sets.Count + 1) }; sets.Add(set); modSetId = set.id; }, true), "add-mod-set"));
             var setData = sets.Find(s => s.id == modSetId) ?? sets.FirstOrDefault(); if (setData == null) return; modSetId = setData.id;
@@ -300,9 +331,11 @@ namespace Laubrary.ZTracker.Editor
             }
             var device = setData.devices.Find(m => m.id == modDeviceId) ?? setData.devices.FirstOrDefault(); if (device == null) return; modDeviceId = device.id;
             if (device.kind == ModulationDeviceKind.Stepper) { root.Add(Flow(Diagnostic("Preserved Stepper", "Stepper has no engine evaluator. Raw source retained: " + device.rawSource), Button("Remove device", "Explicitly remove this preserved unsupported device; Undo restores its raw payload.", () => InstrumentEdit("remove preserved mod device", () => setData.devices.Remove(device), true), "remove-mod-device"))); return; }
-            root.Add(Flow(InstrumentToggle("On", device.enabled, "Enable device evaluation.", v => device.enabled = v, "mod-enabled"), InstrumentChoice("Target", (int)device.target, Enum.GetNames(typeof(ModulationTarget)), "Volume linear gain; pan normalized; pitch semitones; cutoff Hz; resonance Q; drive physical amount.", v => { device.target = (ModulationTarget)v; device.units = v == 2 ? "semitones" : v == 3 ? "Hz" : "normalized"; }, "mod-target"), InstrumentChoice("Operation", (int)device.operation, new[] { "Add", "Multiply", "Replace" }, "Apply each device in list order.", v => device.operation = (ModulationOperation)v, "mod-operation"), Button("Remove device", "Remove the selected device; Undo restores it.", () => InstrumentEdit("remove mod device", () => setData.devices.Remove(device), true), "remove-mod-device")));
-            root.Add(InstrumentChoice("Units", Array.IndexOf(new[] { "seconds", "normalized", "semitones", "Hz" }, device.units), new[] { "seconds", "normalized", "semitones", "Hz" }, "Declared modulation units; point times remain seconds. Output units follow the selected target.", v => device.units = new[] { "seconds", "normalized", "semitones", "Hz" }[v], "mod-units"));
-            if (device.kind == ModulationDeviceKind.AHDSR) BuildNumericFields(root, device, new[] { "attack", "hold", "decay", "sustain", "release" }, "mod");
+            var deviceBox = InstrumentSection(root, ObjectNames.NicifyVariableName(device.kind.ToString()), "mod-device." + device.id, "The selected per-note modulation device. Its settings are retained while switched off.");
+            root = InstrumentEnabledBody(deviceBox, device.enabled, v => device.enabled = v, "mod", "Enable this modulation device. Switching off retains its target, operation and shape.");
+            deviceBox.AddHeaderContent(Named(Z.IconButton("trash", "Remove the selected device; Undo restores it.", () => InstrumentEdit("remove mod device", () => setData.devices.Remove(device), true)), "remove-mod-device"));
+            root.Add(Flow(InstrumentChoice("Target", (int)device.target, Enum.GetNames(typeof(ModulationTarget)), "Volume linear gain; pan normalized; pitch semitones; cutoff Hz; resonance Q; drive physical amount.", v => { device.target = (ModulationTarget)v; device.units = v == 2 ? "semitones" : v == 3 ? "Hz" : "normalized"; }, "mod-target"), InstrumentChoice("Operation", (int)device.operation, new[] { "Add", "Multiply", "Replace" }, "Apply each device in list order.", v => device.operation = (ModulationOperation)v, "mod-operation")));
+            if (device.kind == ModulationDeviceKind.AHDSR) root.Add(FixedAdsr("Amplitude", device, name: "mod-adsr"));
             if (device.kind == ModulationDeviceKind.LFO) { root.Add(InstrumentChoice("Shape", device.lfoShape, new[] { "Sine", "Triangle", "Saw", "Square" }, "LFO waveform.", v => device.lfoShape = v)); BuildNumericFields(root, device, new[] { "rate", "depth", "phase" }, "mod"); }
             if (device.kind == ModulationDeviceKind.Velocity || device.kind == ModulationDeviceKind.KeyTracking || device.kind == ModulationDeviceKind.Fader) { BuildNumericFields(root, device, new[] { "min", "max", "curve" }, "mod"); if (device.kind == ModulationDeviceKind.Fader) BuildNumericFields(root, device, new[] { "duration", "depth" }, "mod"); }
             if (device.kind == ModulationDeviceKind.Multipoint)
@@ -310,19 +343,20 @@ namespace Laubrary.ZTracker.Editor
                 float end = Math.Max(1, (float)device.points.Select(p => p.time).DefaultIfEmpty(1).Max());
                 root.Add(Flow(InstrumentToggle("Sustain", device.sustainEnabled, "Hold at the sustain position until release.", v => device.sustainEnabled = v), InstrumentNumber("Sustain time", (float)device.sustainPosition, "Sustain time in seconds.", v => device.sustainPosition = Mathf.Clamp(v, 0, end)), InstrumentToggle("Loop", device.loopEnabled, "Loop points while held; release proceeds forward.", v => { device.loopEnabled = v; if (v && device.loop == SampleLoop.Off) device.loop = SampleLoop.Forward; }), InstrumentChoice("Loop mode", Math.Max(0, (int)device.loop - 1), new[] { "Forward", "Backward", "PingPong" }, "Held-note curve loop direction.", v => device.loop = (SampleLoop)(v + 1))));
                 root.Add(Z.MicroMinMax("Loop seconds", (float)device.loopStart, (float)device.loopEnd, 0, end, "Loop time range in seconds.", (a, b) => InstrumentEdit("modulation loop", () => { device.loopStart = a; device.loopEnd = Math.Max(a + .0001f, b); }), 230));
-                float min = device.target == ModulationTarget.Pan ? -1 : device.target == ModulationTarget.Pitch ? -120 : 0, max = device.target == ModulationTarget.Pitch ? 120 : device.target == ModulationTarget.Cutoff ? 96000 : device.target == ModulationTarget.Drive ? 100 : device.target == ModulationTarget.Volume ? 16 : device.target == ModulationTarget.Resonance ? 10 : 1;
-                BuildPoints(root, device.points, "Points", 0, 3600, min, max, "mod-points");
+                float min = device.target == ModulationTarget.Pan ? -1 : device.target == ModulationTarget.Pitch ? -48 : 0, max = device.target == ModulationTarget.Pitch ? 48 : device.target == ModulationTarget.Cutoff ? 20000 : device.target == ModulationTarget.Drive ? 10 : device.target == ModulationTarget.Volume ? 2 : device.target == ModulationTarget.Resonance ? 10 : 1;
+                BuildPoints(root, device.points, "Points", 0, 60, min, max, "mod-points");
             }
         }
         void AddModDevice(ModulationSet set, ModulationDeviceKind kind)
             => InstrumentEdit("add modulation device", () => { var m = new ModulationDevice { id = Id(), kind = kind }; if (kind == ModulationDeviceKind.Multipoint) m.points.AddRange(new[] { new ModulationPoint { time = 0, value = 1 }, new ModulationPoint { time = 1, value = 1 } }); set.devices.Add(m); modDeviceId = m.id; }, true);
         void BuildInstrumentChains(VisualElement root)
         {
+            root = InstrumentSection(root, "Effects", "effects", "Sample and synth effect chains. The selected sample chooses a chain; synth uses the first chain.");
             var chains = Instrument.fxChains;
             root.Add(Flow(Button("Add chain", "Declare an AudioCore instrument chain; assign it from each sampler sample. Synth renders Chain 1; drag another chain to the first position to use it.", () => InstrumentEdit("add instrument chain", () => { chains.Add(new AudioEffectChainData()); instrumentChain = chains.Count - 1; }, true), "add-instrument-chain"), Button("Remove chain", "Remove selected chain and clear affected sample assignments.", () => { if (chains.Count == 0) return; InstrumentEdit("remove instrument chain", () => { chains.RemoveAt(instrumentChain); foreach (var s in Instrument.sampler.samples) { if (s.fxChain == instrumentChain) s.fxChain = -1; else if (s.fxChain > instrumentChain) s.fxChain--; } instrumentChain = Math.Max(0, instrumentChain - 1); }, true); }, "remove-instrument-chain")));
             if (chains.Count == 0) return; instrumentChain = Mathf.Clamp(instrumentChain, 0, chains.Count - 1);
             var picks = Flow(); for (int i = 0; i < chains.Count; i++) { int at = i; var pick = Button("Chain " + (i + 1), "Select this chain; drag to reorder with sampler assignments preserved.", () => { instrumentChain = at; BuildPane(); }, "instrument-chain-" + i); Reorder(pick, "instrument-chains", at, (a, b) => InstrumentEdit("reorder instrument chains", () => { var previous = chains.ToArray(); var selected = chains[instrumentChain]; Move(chains, a, b); foreach (var s in Instrument.sampler.samples) if (s.fxChain >= 0 && s.fxChain < previous.Length) s.fxChain = chains.IndexOf(previous[s.fxChain]); instrumentChain = chains.IndexOf(selected); }, true)); picks.Add(pick); } root.Add(picks);
-            root.Add(Named(new AudioChainEditor(() => Instrument.fxChains[instrumentChain], (label, action, topology) => InstrumentEdit(label, action),directAdd:true), "instrument-chain-editor"));
+            root.Add(Named(new AudioChainEditor(() => Instrument.fxChains[instrumentChain], (label, action, topology) => InstrumentEdit(label, action)), "instrument-chain-editor"));
         }
         sealed class InstrumentDestination { public string label; public ParameterTarget target; }
         List<InstrumentDestination> InstrumentDestinations(bool external)
@@ -358,11 +392,12 @@ namespace Laubrary.ZTracker.Editor
         }
         void BuildMacros(VisualElement root)
         {
+            root = InstrumentSection(root, "Macros", "macros", "Eight named controls, each mapped to one or more musical parameters.");
             var d = Instrument; macroIndex = Mathf.Clamp(macroIndex, 0, 7);
             controls.Add(Named(Z.MiniRadio(macroIndex, Enumerable.Range(0, 8).Select(i => (i + 1) + " " + (d.macros[i]?.name ?? "Missing")).ToArray(), "Select one of the eight audio-thread macros.", v => { macroIndex = v; BuildPane(); }, wrap: true), "instrument-macros"));
             var macro = d.macros[macroIndex]; if (macro == null) { root.Add(Button("Initialize macro", "Create the missing macro record explicitly.", () => InstrumentEdit("initialize macro", () => d.macros[macroIndex] = new InstrumentMacro { name = "Macro " + (macroIndex + 1) }, true), "initialize-macro")); return; }
             int index = macroIndex;
-            root.Add(Flow(Named(Z.TextInput(macro.name, "Macro name declared once.", v => InstrumentEdit("macro name", () => macro.name = v), 180), "macro-name"), Named(Dial("Value", macro.value, 0, 1, "Authored normalized macro default. Live preserving refresh also keeps Undo/Redo audible on held notes.", v => InstrumentMacroEdit("macro value", index, v, () => macro.value = v), 3), "macro-value"), Button("Add mapping", "Add a typed physical parameter mapping.", () => InstrumentEdit("add macro mapping", () => macro.mappings.Add(DefaultMapping(false)), true), "add-macro-mapping")));
+            root.Add(Flow(Named(Z.TextInput(macro.name, "Macro name declared once.", v => InstrumentEdit("macro name", () => macro.name = v), 180), "macro-name"), Named(Dial("Value %", macro.value * 100, 0, 100, "Macro position from its first mapped value to its last; 0% to 100%.", v => InstrumentMacroEdit("macro value", index, v / 100, () => macro.value = v / 100), 0), "macro-value"), Button("Add mapping", "Add a typed physical parameter mapping.", () => InstrumentEdit("add macro mapping", () => macro.mappings.Add(DefaultMapping(false)), true), "add-macro-mapping")));
             foreach (var mapping in macro.mappings.ToArray()) { int at = macro.mappings.IndexOf(mapping); var box = Z.BoxKeyed("Mapping " + (at + 1), "Mappings evaluate in list order. Drag the grip to reorder.", "tracker.macro.mapping." + index + "." + at); var grip = Button("⋮", "Drag to reorder mappings without changing target identity.", () => { }, "macro-mapping-grip-" + at); Reorder(grip, "macro-mappings", at, (a, b) => InstrumentEdit("reorder macro mappings", () => Move(macro.mappings, a, b), true)); box.Add(Flow(grip, Button("Remove mapping", "Remove this route; Undo restores it.", () => InstrumentEdit("remove macro mapping", () => macro.mappings.Remove(mapping), true), "remove-macro-mapping-" + at))); BuildMapping(box, mapping, false, "macro-mapping-" + at); root.Add(box); }
             if (d.family == InstrumentFamily.Synth) BuildExternalMap(root);
         }
@@ -390,6 +425,7 @@ namespace Laubrary.ZTracker.Editor
         }
         void BuildPresets(VisualElement root)
         {
+            root = InstrumentSection(root, "Presets", "presets", "Independent named sound variations selected by pattern notes.");
             var q = Instrument.parameters; var presets = q.presets;
             root.Add(Flow(Button("New preset", "Snapshot Base settings into a named section preset; Base remains independent.", CreatePreset, "new-instrument-preset"), Button("Remove preset", "Remove the selected preset. Notes using it return to Base; later preset references follow their original sound. Undo restores the preset and all references.", RemovePreset, "remove-instrument-preset")));
             presetIndex = Mathf.Clamp(presetIndex, -1, presets.Count - 1);
@@ -399,11 +435,12 @@ namespace Laubrary.ZTracker.Editor
             var sections = new[] { ("Level", "ovrVolPan", new[] { "volume", "pan" }), ("Sample", "ovrSampleParams", new[] { "baseNote", "fineTune", "baseNoteB", "fineTuneB" }), ("Oscillators", "ovrSynthParams", new[] { "unisonVoices", "unisonSpread" }), ("Blend", "ovrBlend", new[] { "blend" }), ("Pulse", "ovrPulseWidth", new[] { "pulseWidth" }), ("Ratio", "ovrBRatio", new[] { "waveBRatio" }), ("PM", "ovrPMDepth", new[] { "pmDepth" }), ("Detune", "ovrDetune", new[] { "unisonDetune" }), ("Amplitude", "ovrAdsr", new[] { "attack", "decay", "sustain", "release" }), ("Vibrato", "ovrVibrato", new[] { "vibratoDepth", "vibratoRate", "vibratoFadeIn", "vibratoRandomness" }), ("Effects", "ovrEffects", new[] { "instFilterCutoff", "instFilterResonance", "instDelaySend", "instReverbSend" }) };
             foreach (var section in sections)
             {
-                var field = preset.GetType().GetField(section.Item2); var box = Z.BoxKeyed(section.Item1, "Override switch controls whether this section participates; disabled values remain authored.", "tracker.preset." + section.Item2); box.Add(InstrumentToggle("Override", (bool)field.GetValue(preset), "Use this section instead of inherited Base.", v => field.SetValue(preset, v))); BuildNumericFields(box, preset, section.Item3, "preset");
-                if (section.Item2 == "ovrSampleParams") box.Add(Flow(Z.Field("PCM A", "Preset A PCM override.", Z.Object(preset.sampleClip, "Pick an A AudioClip.", v => InstrumentEdit("preset PCM", () => preset.sampleClip = v), 170)), Z.Field("PCM B", "Preset B PCM override.", Z.Object(preset.sampleClipB, "Pick a B AudioClip.", v => InstrumentEdit("preset B PCM", () => preset.sampleClipB = v), 170))));
-                if (section.Item2 == "ovrSynthParams") { box.Add(InstrumentChoice("Wave A", preset.waveA, WaveLabels(q.enumDomain), "Preset wave in Base's wave domain.", v => preset.waveA = v)); box.Add(InstrumentChoice("Wave B", preset.waveB, WaveLabels(q.enumDomain), "Preset secondary wave.", v => preset.waveB = v)); box.Add(InstrumentChoice("Blend", preset.blendMode, new[] { "Mix", "Ring", "Sync", "PM" }, "Preset blend mode.", v => preset.blendMode = v)); }
-                if (section.Item2 == "ovrEffects") { box.Add(InstrumentToggle("Filter", preset.instFilterEnabled, "Enable preset filter.", v => preset.instFilterEnabled = v)); box.Add(InstrumentChoice("Filter mode", preset.instFilterMode, new[] { "Low pass", "High pass", "Band pass" }, "Preset filter mode.", v => preset.instFilterMode = v)); }
-                foreach (var f in new[] { "blendEnvelopeData", "pulseWidthEnvelopeData", "waveBRatioEnvelopeData", "pmDepthEnvelopeData", "unisonDetuneEnvelopeData" }) { string owner = f.StartsWith("blend") ? "ovrBlend" : f.StartsWith("pulse") ? "ovrPulseWidth" : f.StartsWith("wave") ? "ovrBRatio" : f.StartsWith("pm") ? "ovrPMDepth" : "ovrDetune"; if (owner != section.Item2) continue; var env = preset.GetType().GetField(f); float max = f.StartsWith("pm") ? 65536 : f.StartsWith("wave") ? 64 : f.StartsWith("unison") ? 12000 : 1; BuildRetainedEnvelope(box, "Curve", (ZUIEnvelopeData)env.GetValue(preset), v => env.SetValue(preset, v), 0, max, "preset-" + f); }
+                var field = preset.GetType().GetField(section.Item2); var box = Z.BoxKeyed(section.Item1, "Override switch controls whether this section participates; disabled values remain authored.", "tracker.preset." + section.Item2);
+                var body = InstrumentEnabledBody(box, (bool)field.GetValue(preset), v => field.SetValue(preset, v), "preset-" + section.Item2, "Use this section instead of inherited Base. Switching off retains its authored values.", "Override");
+                if (section.Item2 == "ovrAdsr") body.Add(FixedAdsr("Amplitude", preset, name: "preset-adsr")); else BuildNumericFields(body, preset, section.Item3, "preset");
+                if (section.Item2 == "ovrSampleParams") body.Add(Flow(Z.Field("PCM A", "Preset A PCM override.", Z.Object(preset.sampleClip, "Pick an A AudioClip.", v => InstrumentEdit("preset PCM", () => preset.sampleClip = v), 170)), Z.Field("PCM B", "Preset B PCM override.", Z.Object(preset.sampleClipB, "Pick a B AudioClip.", v => InstrumentEdit("preset B PCM", () => preset.sampleClipB = v), 170))));
+                if (section.Item2 == "ovrSynthParams") { body.Add(InstrumentChoice("Wave A", preset.waveA, WaveLabels(q.enumDomain), "Preset wave in Base's wave domain.", v => preset.waveA = v)); body.Add(InstrumentChoice("Wave B", preset.waveB, WaveLabels(q.enumDomain), "Preset secondary wave.", v => preset.waveB = v)); body.Add(InstrumentChoice("Blend", preset.blendMode, new[] { "Mix", "Ring", "Sync", "PM" }, "Preset blend mode.", v => preset.blendMode = v)); }
+                if (section.Item2 == "ovrEffects") { body.Add(InstrumentToggle("Filter", preset.instFilterEnabled, "Enable preset filter.", v => preset.instFilterEnabled = v)); body.Add(InstrumentChoice("Filter mode", preset.instFilterMode, new[] { "Low pass", "High pass", "Band pass" }, "Preset filter mode.", v => preset.instFilterMode = v)); }
                 root.Add(box);
             }
         }

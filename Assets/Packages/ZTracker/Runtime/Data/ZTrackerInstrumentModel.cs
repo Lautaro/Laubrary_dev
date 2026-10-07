@@ -33,6 +33,21 @@ namespace Laubrary.ZTracker.Model
         public List<Mapping> mappings = new List<Mapping>();
     }
     [Serializable] public sealed class ModulationPoint { public double time; public float value, exponent = 1; }
+    // Curves use the corresponding saved scalar's units. Preparation lowers them
+    // into the same per-voice Multipoint devices as the modulation workspace.
+    [Serializable] public sealed class ParameterEnvelope
+    {
+        public string parameter = "";
+        public ZUIEnvelopeData envelope;
+    }
+    [Serializable] public sealed class ArchivedInstrumentArpeggio
+    {
+        public bool enabled;
+        public int[] notes;
+        public float speed;
+        public bool speedIsPerNote;
+        public List<ModulationPoint> speedPoints;
+    }
     [Serializable] public sealed class ModulationDevice
     {
         public string id = "", units = "seconds";
@@ -138,6 +153,28 @@ namespace Laubrary.ZTracker.Model
         public SoundEnumDomain enumDomain;
         public SoundEnumDomain envelopeEnumDomain;
         public ZUIEnvelopeData blendEnvelopeData, pulseWidthEnvelopeData, waveBRatioEnvelopeData, pmDepthEnvelopeData, unisonDetuneEnvelopeData;
+        public List<ParameterEnvelope> parameterEnvelopes = new List<ParameterEnvelope>();
+        public ZUIEnvelopeData GetParameterEnvelope(string parameter)
+        {
+            switch (parameter) {
+                case "blend": return blendEnvelopeData; case "pulseWidth": return pulseWidthEnvelopeData;
+                case "waveBRatio": return waveBRatioEnvelopeData; case "pmDepth": return pmDepthEnvelopeData;
+                case "unisonDetune": return unisonDetuneEnvelopeData;
+                default: return parameterEnvelopes?.Find(e => e != null && e.parameter == parameter)?.envelope;
+            }
+        }
+        public void SetParameterEnvelope(string parameter, ZUIEnvelopeData envelope)
+        {
+            switch (parameter) {
+                case "blend": blendEnvelopeData = envelope; return; case "pulseWidth": pulseWidthEnvelopeData = envelope; return;
+                case "waveBRatio": waveBRatioEnvelopeData = envelope; return; case "pmDepth": pmDepthEnvelopeData = envelope; return;
+                case "unisonDetune": unisonDetuneEnvelopeData = envelope; return;
+            }
+            if (parameterEnvelopes == null) parameterEnvelopes = new List<ParameterEnvelope>();
+            var entry = parameterEnvelopes.Find(e => e != null && e.parameter == parameter);
+            if (entry == null) { entry = new ParameterEnvelope { parameter = parameter }; parameterEnvelopes.Add(entry); }
+            entry.envelope = envelope;
+        }
         public bool instFilterEnabled;
         public int instFilterMode;
         public float instFilterCutoff = 1, instFilterResonance = .707f, instDelaySend, instReverbSend;
@@ -164,6 +201,7 @@ namespace Laubrary.ZTracker.Model
         public List<ExternalParameterMapping> externalParameters = new List<ExternalParameterMapping>();
         public List<string> diagnostics = new List<string>();
         public string provenance = "";
+        public ArchivedInstrumentArpeggio archivedArpeggio;
     }
     // A compiled parameter set is independent managed preparation data. No canonical
     // instrument slot is added, and curves/preset arrays do not alias the authoring asset.

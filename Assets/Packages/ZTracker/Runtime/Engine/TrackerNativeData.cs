@@ -154,6 +154,8 @@ namespace Laubrary.ZTracker.Engine
     public struct TrackerModPoint { public double time; public float value, exponent; }
     public struct TrackerMod
     {
+        public bool parameterEnvelope;
+        public TrackerParameter parameter;
         public ModulationTarget target;
         public ModulationDeviceKind kind;
         public ModulationOperation operation;
@@ -169,7 +171,7 @@ namespace Laubrary.ZTracker.Engine
     public struct TrackerVoice
     {
         public bool active, released, pitchLimited;
-        public int sample, track, column, note, instrument, bus, velocity, stage, direction;
+        public int sample, track, column, note, instrument, bus, velocity, stage, direction, modulationOffset;
         public long cohort, age, releaseAge;
         public double position, step;
         public double envelopePosition;

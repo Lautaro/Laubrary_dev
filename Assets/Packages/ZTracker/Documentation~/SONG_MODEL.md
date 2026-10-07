@@ -1,5 +1,11 @@
 # ZTracker song and instrument data contract
 
+## Instrument rework additions
+
+Schema 1 remains additive: optional named parameter envelopes supplement the five existing oscillator-envelope fields, and envelopes now carry optional sustain enable/position. Missing curve records mean static playback. No stored units or field names were changed. The editor converts to musical display units at the boundary and does not clamp authored values merely by opening an instrument.
+
+Explicit upgrade and detached playback conversion archive an enabled instrument arpeggio once and disable its trigger. Original notes, speed, speed curve and speed mode are retained; schema-0 raw archives remain intact. Read-only preparation never changes the source asset. The legacy flat exporter refuses new envelope data it cannot represent, rather than silently omitting it. Disabled envelope points remain authored and can be re-enabled through the standard value menu.
+
 P5 extends the same schema and retained script identities with raw command tokens/presence/provenance, a song random seed, source-device ordinals/kinds/enable state, source parameter defaults/units/endpoints/quantum/explicit-equivalence metadata, retained unsupported automation representation, sample slices/parent identity/region bounds and Fader duration. Stepper is an appended modulation kind whose payload survives serialization; unsupported discrete playback semantics are diagnosed per destination. No existing enum value, schema version or script GUID was reassigned.
 
 Source ordinals describe the original full device chain. An older filtered external-device list does not imply ordinal index+1. Existing explicit external identity calls remain supported, but literal addressed commands and automation require an explicit original ordinal. Older external metadata has no normalized source default: its destination keeps its authored parameter default until a real source setter/lane writes. An explicit source-device parameter supplies a known default. Source identity, parameter slot and external ID remain distinct.

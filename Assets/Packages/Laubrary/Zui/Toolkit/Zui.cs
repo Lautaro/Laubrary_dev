@@ -510,10 +510,11 @@ namespace Laubrary.Zui
         /// Half the height of a vanilla Slider and needs no separate value field.
         public static ZuiMicroSlider MicroSlider(string label, float value, float min, float max,
             string tooltip, Action<float> onChanged, float width = -1f, bool showValue = true,
-            float? defaultValue = null, int decimals = -1, string prefsKey = null, Action onBeforeMutate = null)
+            float? defaultValue = null, int decimals = -1, string prefsKey = null, Action onBeforeMutate = null,
+            bool logarithmic = false)
         {
             var s = new ZuiMicroSlider(label, value, min, max, tooltip, onChanged, showValue, defaultValue,
-                onBeforeMutate, decimals: decimals, prefsKey: prefsKey);
+                onBeforeMutate, decimals: decimals, prefsKey: prefsKey, logarithmic: logarithmic);
             if (width >= 0f) s.style.width = width; // Explicit legacy override; omitted width belongs to USS.
             return s;
         }
@@ -584,9 +585,10 @@ Action<int> onChanged, float width = -1f)
             return s;
         }
 
-public static FloatField Float(float value, string tooltip, Action<float> onChanged, float width = -1f)
+public static FloatField Float(float value, string tooltip, Action<float> onChanged, float width = -1f, int decimals = -1)
         {
             var f = new FloatField { value = value, tooltip = tooltip };
+            if (decimals >= 0) f.formatString = "F" + Mathf.Clamp(decimals, 0, 7);
             f.AddToClassList("zui-float-field");
             if (width >= 0f) f.style.width = width;
             f.RegisterValueChangedCallback(e => onChanged?.Invoke(e.newValue));
@@ -1136,6 +1138,24 @@ float width = -1f, bool allowSceneObjects = false) where T : UnityEngine.Object
             if (onBeforeMutate != null) env.OnBeforeMutate += onBeforeMutate;
             return env;
         }
+
+        /// Fixed-stage envelope. Times are seconds; sustain is 0..1. Each setter changes only its stage
+        /// and must use the owner's Undo/Dirty transaction. The control collapses a whole drag to one Undo.
+        public static ZuiAdsr Adsr(string label,
+            Func<float> getAttack, Action<float> setAttack, Func<float> getHold, Action<float> setHold,
+            Func<float> getDecay, Action<float> setDecay, Func<float> getSustain, Action<float> setSustain,
+            Func<float> getRelease, Action<float> setRelease, string tooltip,
+            ZuiAdsr.Options options = null)
+            => new ZuiAdsr(label, getAttack, setAttack, getHold, setHold, getDecay, setDecay,
+                getSustain, setSustain, getRelease, setRelease, tooltip, options);
+
+        /// ADSR without a Hold stage, for envelopes whose data contains only four stages.
+        public static ZuiAdsr Adsr(string label,
+            Func<float> getAttack, Action<float> setAttack, Func<float> getDecay, Action<float> setDecay,
+            Func<float> getSustain, Action<float> setSustain, Func<float> getRelease, Action<float> setRelease,
+            string tooltip, ZuiAdsr.Options options = null)
+            => Adsr(label, getAttack, setAttack, null, null, getDecay, setDecay, getSustain, setSustain,
+                getRelease, setRelease, tooltip, options);
 
         /// A scrub bar over a LOOP of a given number of seconds, split into consecutive coloured bands
         /// (<see cref="ZuiTimelineSegment"/>) with a playhead, tick marks and numeric time labels. Click

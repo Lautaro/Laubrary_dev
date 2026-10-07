@@ -1,5 +1,11 @@
 # P3–P7 tracker engine core
 
+## Instrument rework update
+
+Per-note parameter curves compile to the existing native Multipoint modulation records and per-voice clocks. A fixed per-tone slot map resolves supported scalar targets without callback or managed allocation. Curves restart on note-on; sustain and held loops end on note-off, then the curve tail continues while amplitude release keeps the voice alive. Existing five oscillator curves retain their serialized fields and share this evaluator. Generic scalar curves replace the corresponding default or macro result; sample-local gain, pan and tuning remain separate. New paired-sample global pitch curves move both sample cursors without changing scalar-only reference audio.
+
+Pattern `0Axy` now applies to sample, subtractive and FM voices. Instrument arpeggio recipes are archived and ignored. Compatible point-value/shape changes preserve live voice phase and age; enabling, adding, removing or changing duration requires Stop/Play. Frozen native references `modulation` and `envelope_loop_1` intentionally differ for removal of instrument arpeggio and release-loop exit respectively; no numeric tolerance was widened.
+
 This is the schema-1 engine in `Laubrary.ZTracker.Engine`. P7 makes it the public preview/gameplay backend and retires the imported DLL and managed streamed host. Preparation reads the canonical song/instrument models and their typed retained parameter extension, never the old compatibility views or archives. It makes no authored asset changes; public playback performs detached migration when required. P4 adds subtractive/unison, four-operator FM, paired PCM and audio-thread macros. P5 adds the proposed command profile, prepared future-note parameter sets and automation described below. The renderer does not depend on legacy main-thread macro pumping. Current retirement, reference accounting and standalone reproduction are in [P7 verification](P7_VERIFICATION.md).
 
 ## P5 command and automation execution

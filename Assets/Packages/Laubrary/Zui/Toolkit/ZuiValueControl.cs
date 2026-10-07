@@ -18,6 +18,7 @@
 // popup (ZUIEnvelopePresetPopup is IMGUI and lives in ZUI.Editor).
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -61,6 +62,13 @@ namespace Laubrary.Zui
             // arm count, frame count — that can't be fractional): the slider snaps to whole numbers and shows
             // no decimals, and MinMax mode uses integer fields.
             public int decimals = -1;
+            /// Map a positive static range perceptually (frequency, duration). Stored values remain linear.
+            public bool logarithmic = false;
+            /// Keep an authored/archived curve when returning from Static. Opt-in for hosts that retain curves.
+            public bool preserveCurveOnModeSwitch = false;
+            /// Opt into a framed curve summary and a labelled physical-value scale. Null keeps the legacy
+            /// presentation; empty means unitless. Values are already in these units; no conversion occurs.
+            public string valueUnit = null;
             // Draw vertical frame-boundary markers in the curve editor at each animation frame's position,
             // labelled with the frame index (labels auto-thin when dense). 0 = off. Set it to the spec's frame
             // count so an author can see exactly which frame each part of an over-life envelope lands on.
@@ -142,6 +150,25 @@ namespace Laubrary.Zui
         /// only the control itself, so nothing else would ever revisit that decision. Without it, switching a
         /// value to Envelope leaves the new curve squeezed into the slider-sized slot it used to occupy.
         public Action ModeChanged;
+
+        /// Whether the Curve/Oscillation editor is expanded rather than a thumbnail. This is view state,
+        /// never authored data: changing it rebuilds only this control and does not invoke Undo callbacks.
+        public bool IsExpanded
+        {
+            get => (_v.mode == ZUIValue.Mode.Curve || _v.mode == ZUIValue.Mode.Oscillation) && GetState(_v).expanded;
+            set
+            {
+                if (_v.mode != ZUIValue.Mode.Curve && _v.mode != ZUIValue.Mode.Oscillation) return;
+                if (GetState(_v).expanded == value) return;
+                GetState(_v).expanded = value;
+                RebuildAll();
+            }
+        }
+
+        /// Fires after the visible expansion state changes, including header/thumbnail clicks and display
+        /// menu actions. Hosts can keep companion controls folded with this editor using the same state.
+        public Action ExpansionChanged;
+        bool _lastExpanded;
 
         /// Fires once per gesture before the first mutation — the Undo.RecordObject hook.
         public Action OnBeforeMutate;
@@ -228,7 +255,7 @@ namespace Laubrary.Zui
                     bool inside = _opt.sliderLabelInside;
                     var slider = Z.MicroSlider(inside ? _label : "", _v.staticValue, _opt.absMin, _opt.absMax,
                         _tooltip, val => Mutate(() => _v.staticValue = val), _opt.controlWidth, showValue: true,
-                        defaultValue: _opt.staticDefault, decimals: _opt.decimals);
+                        defaultValue: _opt.staticDefault, decimals: _opt.decimals, logarithmic: _opt.logarithmic);
                     AddHeaderRow(inside ? null : _label, slider);
                     break;
                 }
@@ -246,6 +273,12 @@ namespace Laubrary.Zui
                 case ZUIValue.Mode.Oscillation:
                     BuildOscillation();
                     break;
+            }
+            bool expanded = IsExpanded;
+            if (_lastExpanded != expanded)
+            {
+                _lastExpanded = expanded;
+                ExpansionChanged?.Invoke();
             }
         }
 
@@ -289,8 +322,27 @@ namespace Laubrary.Zui
         }
 
         // ── curve mode ──────────────────────────────────────────────────────────────
+        string FormatCurveNumber(float value)
+        {
+            int places = _opt.decimals < 0 ? 2 : Mathf.Clamp(_opt.decimals, 0, 7);
+            return value.ToString(places == 0 ? "0" : "0." + new string('#', places), CultureInfo.InvariantCulture);
+        }
+
+        string FormatCurveValue(float value) => FormatCurveNumber(value)
+            + (string.IsNullOrEmpty(_opt.valueUnit) ? "" : " " + _opt.valueUnit);
+
+        string CurveSummary()
+        {
+            if (_v.points.Count == 0) return FormatCurveValue(_v.staticValue);
+            float first = _v.points[0].value, last = _v.points[_v.points.Count - 1].value;
+            bool flat = true;
+            foreach (var point in _v.points) if (point.value != first) { flat = false; break; }
+            return flat ? FormatCurveValue(first) : FormatCurveNumber(first) + " → " + FormatCurveValue(last);
+        }
+
         void BuildCurve()
         {
+            bool physical = _opt.valueUnit != null;
             _v.EnsureCurveDefaults();
             if (_opt.hideCurveRange)
             {
@@ -303,6 +355,9 @@ namespace Laubrary.Zui
             // The config menu opens on RIGHT-CLICK (wired in the ctor), so there's no ⋯ button on the row.
             var header = new VisualElement();
             header.AddToClassList("zui-row");
+            header.style.flexDirection = FlexDirection.Row;
+            header.style.flexWrap = Wrap.NoWrap;
+            header.style.alignItems = Align.Center;
 
             var foldLabel = new Label(_label ?? "Curve")
             {
@@ -311,19 +366,36 @@ namespace Laubrary.Zui
             foldLabel.AddToClassList("zui-field__label");
             foldLabel.AddToClassList("zui-fold-label");
             foldLabel.style.marginTop = 3f;
-            foldLabel.RegisterCallback<PointerDownEvent>(e =>
+            if (physical)
             {
-                if (e.button != 0) return;
-                st.expanded = !st.expanded;
-                RebuildAll();
-                e.StopPropagation();
-            });
+                foldLabel.RemoveFromClassList("zui-field__label");
+                foldLabel.AddToClassList("zui-value__curve-label");
+                foldLabel.style.marginTop = 0;
+                header.AddManipulator(new Clickable(() => { st.expanded = !st.expanded; RebuildAll(); }));
+                foldLabel.pickingMode = PickingMode.Ignore;
+                header.tooltip = foldLabel.tooltip;
+            }
+            else foldLabel.RegisterCallback<PointerDownEvent>(e =>
+                {
+                    if (e.button != 0) return;
+                    st.expanded = !st.expanded; RebuildAll(); e.StopPropagation();
+                });
             header.Add(foldLabel);
 
             if (!st.expanded)
             {
+                if (physical)
+                {
+                    header.AddToClassList("zui-value__curve-field");
+                    var summary = new Label(CurveSummary()) { pickingMode = PickingMode.Ignore, tooltip = "Envelope start and end values. Click to edit the curve." };
+                    summary.AddToClassList("zui-value__curve-summary");
+                    header.Add(summary);
+                }
                 var thumb = new CurveThumb(_v) { tooltip = "Click to expand the curve editor." };
-                thumb.style.width = Mathf.Max(60f, _opt.controlWidth - 20f);
+                thumb.style.width = physical ? 44f : Mathf.Max(60f, _opt.controlWidth - 20f);
+                thumb.style.flexShrink = 1f;
+                thumb.style.minWidth = 24f;
+                if (physical) { thumb.style.flexGrow = 1f; thumb.pickingMode = PickingMode.Ignore; }
                 // A collapsed thumbnail should fill the row's spare width too, not sit narrow with the rest
                 // empty — same grow rule as the sliders, capped so it never runs infinitely wide.
                 if (_opt.grow)
@@ -331,7 +403,7 @@ namespace Laubrary.Zui
                     thumb.style.flexGrow = 1f; thumb.style.flexShrink = 1f;
                     thumb.style.maxWidth = _opt.controlWidth * Mathf.Max(1f, _opt.maxWidthFactor);
                 }
-                thumb.RegisterCallback<PointerDownEvent>(e =>
+                if (!physical) thumb.RegisterCallback<PointerDownEvent>(e =>
                 {
                     if (e.button != 0) return;
                     st.expanded = true;
@@ -349,22 +421,54 @@ namespace Laubrary.Zui
             // is set the verticals are labelled by index and the frame lines are suppressed. Default (0) leaves
             // the frame-marker behaviour exactly as before.
             bool indexMode = _opt.indexMarkerCount > 1;
+            float displayMin = _v.yMin, displayMax = _v.yMax;
+            if (_opt.hideCurveRange)
+            {
+                // A host may preserve imported values outside its normal authoring range
+                // (for example a Nyquist cutoff above 20 kHz). Keep those handles visible
+                // without clamping the points or rewriting the authored range.
+                foreach (var point in _v.points)
+                {
+                    if (float.IsNaN(point.value) || float.IsInfinity(point.value)) continue;
+                    displayMin = Mathf.Min(displayMin, point.value);
+                    displayMax = Mathf.Max(displayMax, point.value);
+                }
+                if (displayMax <= displayMin)
+                    displayMax = displayMin + Mathf.Max(1f, Mathf.Abs(displayMin) * .01f);
+            }
             var envOptions = new ZuiEnvelopeOptions
             {
                 xMin = 0f, xMax = 1f,
-                yMin = _v.yMin, yMax = _v.yMax,
+                yMin = displayMin, yMax = displayMax,
                 curveColor = new Color(0.4f, 0.85f, 1f),
                 showValueLabels = st.showValues,
                 showFrameLines = indexMode || _opt.frameCount > 1,
                 frameCount = indexMode ? _opt.indexMarkerCount : _opt.frameCount,
                 markerMode = indexMode ? ZuiEnvelopeOptions.MarkerMode.Index : ZuiEnvelopeOptions.MarkerMode.Frame,
-                xAxisLabel = _opt.xAxisLabel,
-                yAxisLabel = _opt.yAxisLabel,
+                xAxisLabel = physical ? null : _opt.xAxisLabel,
+                yAxisLabel = physical ? null : _opt.yAxisLabel,
                 yColorFor = _opt.yColorFor,
             };
+            Label scaleMaximum = null, scaleMinimum = null;
+            void RefreshScaleLabels()
+            {
+                if (scaleMaximum == null) return;
+                scaleMaximum.text = FormatCurveValue(envOptions.yMax);
+                scaleMinimum.text = FormatCurveValue(envOptions.yMin);
+            }
             // Mockup layout: the envelope fills the available width (taller than the old 90px), with
             // the optional numeric-inputs COLUMN standing to its right.
             _env = new ZuiEnvelope(_v.points, envOptions, _tooltip, 200f, 140f);
+            if (physical)
+            {
+                _env.AddToClassList("zui-value__physical-envelope");
+                if (!string.IsNullOrEmpty(_opt.xAxisLabel))
+                {
+                    var axis = new Label(_opt.xAxisLabel) { pickingMode = PickingMode.Ignore, tooltip = "Progress through one envelope pass." };
+                    axis.AddToClassList("zui-value__curve-axis");
+                    _env.Add(axis);
+                }
+            }
             _env.style.width = StyleKeyword.Auto;
             _env.style.flexGrow = 1f;
             _env.style.flexShrink = 1f;
@@ -373,12 +477,21 @@ namespace Laubrary.Zui
             {
                 OnChanged?.Invoke();
                 SyncInputFields();
+                RefreshScaleLabels();
             };
             _env.OnSelectionChanged += () => { if (st.showInputs && st.inputsSelectedOnly) RebuildInputsRow(); };
 
             var envRow = new VisualElement();
             envRow.style.flexDirection = FlexDirection.Row;
             envRow.style.alignItems = Align.Stretch;
+            if (physical)
+            {
+                var scale = new VisualElement(); scale.AddToClassList("zui-value__curve-scale");
+                scaleMaximum = new Label(FormatCurveValue(displayMax)) { tooltip = "Value at the top of the curve's vertical scale." };
+                scaleMinimum = new Label(FormatCurveValue(displayMin)) { tooltip = "Value at the bottom of the curve's vertical scale." };
+                scaleMaximum.AddToClassList("zui-value__curve-tick"); scaleMinimum.AddToClassList("zui-value__curve-tick");
+                scale.Add(scaleMaximum); scale.Add(scaleMinimum); envRow.Add(scale);
+            }
             envRow.Add(_env);
             _inputsHost = new VisualElement();
             _inputsHost.style.flexShrink = 0f;
@@ -400,14 +513,14 @@ namespace Laubrary.Zui
                         _v.yMin = val;
                         if (_v.yMax < _v.yMin) _v.yMax = _v.yMin;
                         envOptions.yMin = _v.yMin; envOptions.yMax = _v.yMax;
-                        ClampPointsToRange(); _env?.Refresh(); SyncInputFields();
+                        ClampPointsToRange(); _env?.Refresh(); SyncInputFields(); RefreshScaleLabels();
                     }), 46f)));
                 range.Add(Z.Field("max", "The curve's maximum output value.",
                     Z.Float(_v.yMax, "The curve's maximum output value.", val => Mutate(() =>
                     {
                         _v.yMax = Mathf.Max(val, _v.yMin);
                         envOptions.yMin = _v.yMin; envOptions.yMax = _v.yMax;
-                        ClampPointsToRange(); _env?.Refresh(); SyncInputFields();
+                        ClampPointsToRange(); _env?.Refresh(); SyncInputFields(); RefreshScaleLabels();
                     }), 46f)));
                 _content.Add(range);
             }
@@ -530,6 +643,8 @@ namespace Laubrary.Zui
             {
                 var mini = new OscThumb(_v) { tooltip = "The resolved wave. Click to expand the oscillation editor." };
                 mini.style.width = Mathf.Max(60f, _opt.controlWidth - 20f);
+                mini.style.flexShrink = 1f;
+                mini.style.minWidth = 24f;
                 mini.style.height = 18f;
                 if (_opt.grow)
                 {
@@ -871,7 +986,7 @@ namespace Laubrary.Zui
             {
                 bool wasCurve = _v.mode == ZUIValue.Mode.Curve;
                 _v.mode = mode;
-                if (mode == ZUIValue.Mode.Curve && !wasCurve)
+                if (mode == ZUIValue.Mode.Curve && !wasCurve && (!_opt.preserveCurveOnModeSwitch || _v.points.Count == 0))
                 {
                     // Seed the curve from the field's range + current value so points start somewhere useful.
                     _v.yMin = Mathf.Min(_opt.absMin, _opt.absMax);

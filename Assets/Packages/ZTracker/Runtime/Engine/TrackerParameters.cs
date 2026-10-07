@@ -18,8 +18,11 @@ namespace Laubrary.ZTracker.Engine
     }
     public struct TrackerMacroValue { public float value, target, step, authored; public bool sliding; }
     public struct TrackerParameterRoute { public int instrument, macro, parameter, points, pointCount; public float min,max,quantum,lower; }
-    public struct TrackerTone
+    public unsafe struct TrackerTone
     {
+        // Zero = static; otherwise one plus the relative modulation slot. This
+        // keeps parameter reads constant-time even with many FM envelopes.
+        public fixed byte parameterEnvelopeSlots[TrackerParameters.Stride];
         public int kind, waveA, waveB, blendMode, members, pcmB, baseNoteB, envelopes, arpPoints, arpPointCount, arpNotes, arpNoteCount, algorithm;
         public int parameterSet;
         public SampleLoop loopB;

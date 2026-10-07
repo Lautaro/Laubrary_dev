@@ -38,6 +38,10 @@ public class ZUIEnvelopeData
     public float loopEnd { get => m_loopEnd; set => m_loopEnd = value; }
 
     public bool requiresEndPoint = true;
+    // A held note stops at this musical time. Note-off resumes the curve and
+    // exits any loop; each voice owns its cursor in the prepared renderer.
+    public bool sustainEnabled;
+    public float sustainPosition;
 
     public ZUIEnvelopeData() { }
 

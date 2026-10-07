@@ -607,7 +607,12 @@ namespace Laubrary.ZTracker.Editor
             string scratch = "Assets/ZTrackerP2Scratch-" + Guid.NewGuid().ToString("N");
             string full = Path.GetFullPath(scratch), assets = Path.GetFullPath("Assets") + Path.DirectorySeparatorChar;
             Assert(full.StartsWith(assets,StringComparison.OrdinalIgnoreCase),"Scratch outside Assets");
-            var roots = new[] { "Assets/Packages/ZTracker/Samples~/ZTrackerDemo", "Assets/Demos/ZTrackerDemo" };
+            // Resolve the installed package as well as a development-host copy.
+            // Consumer projects need not import the optional demo into Assets.
+            var package = UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(ZTrackerInstrument).Assembly);
+            string packagedDemo = package == null ? "Assets/Packages/ZTracker/Samples~/ZTrackerDemo" : Path.Combine(package.resolvedPath, "Samples~/ZTrackerDemo");
+            var roots = new[] { packagedDemo, "Assets/Demos/ZTrackerDemo" }.Where(Directory.Exists).ToArray();
+            Assert(roots.Length > 0, "No installed ZTracker demo fixture found");
             var paths = roots.SelectMany(r => new[] { r + "/Song.asset",r + "/Synth.asset",r + "/Song.asset.meta",r + "/Synth.asset.meta" }).ToArray();
             var hashes = paths.Select(Hash).ToArray();
             try
@@ -641,7 +646,7 @@ namespace Laubrary.ZTracker.Editor
             }
             finally
             {
-                Check("all eight live demo files byte-identical", () => { for (int i = 0; i < paths.Length; i++) Assert(Hash(paths[i]) == hashes[i],"Live file changed " + paths[i]); });
+                Check("all available live demo files byte-identical", () => { for (int i = 0; i < paths.Length; i++) Assert(Hash(paths[i]) == hashes[i],"Live file changed " + paths[i]); });
                 if (!Path.GetFullPath(scratch).Equals(full,StringComparison.OrdinalIgnoreCase) || !full.StartsWith(assets,StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Refuse unsafe scratch deletion");
                 AssetDatabase.DeleteAsset(scratch);
             }

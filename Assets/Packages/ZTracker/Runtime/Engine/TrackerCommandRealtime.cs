@@ -551,7 +551,7 @@ namespace Laubrary.ZTracker.Engine
                 if (!sampler)
                 {
                     for (int family = 0; family <= 10; family++)
-                        if (Descriptor(ci, family).kind != 0)
+                        if (family != 3 && Descriptor(ci, family).kind != 0)
                             Emit(TrackerEventKind.Diagnostic, v.track, v.column, payload: (int)TrackerRuntimeDiagnostic.SampleDomainUnsupported);
                 }
 
@@ -728,12 +728,13 @@ namespace Laubrary.ZTracker.Engine
                         var pan = ActiveDescriptor(ci, 2);
                         if (pan.kind != 0)
                             v.pan = math.clamp(v.pan + (pan.kind == 'J' ? -1 : 1) * pan.value / (64f * state.ticksPerLine), -1, 1);
-                        var a = ActiveDescriptor(ci, 3);
-                        v.commandArp = a.kind == 0 ? 0 : state.tick % 3 == 1 ? a.value >> 4 : state.tick % 3 == 2 ? a.value & 15 : 0;
                         LfoTick(ActiveDescriptor(ci, 4), ref v.phaseV, out v.commandVibrato, 0);
                         LfoTick(ActiveDescriptor(ci, 5), ref v.phaseT, out v.commandTremolo, 1);
                         LfoTick(ActiveDescriptor(ci, 6), ref v.phaseN, out v.commandPan, 2);
                     }
+
+                    var arpeggio = ActiveDescriptor(ci, 3);
+                    v.commandArp = arpeggio.kind == 0 ? 0 : state.tick % 3 == 1 ? arpeggio.value >> 4 : state.tick % 3 == 2 ? arpeggio.value & 15 : 0;
 
                     state.voices[i] = v;
                 }

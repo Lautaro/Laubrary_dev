@@ -104,6 +104,7 @@ namespace Laubrary.ZTracker.Model
         public static InstrumentParameters Project(InstrumentData model)
         {
             Require(ZTrackerModelValidation.Validate(model));
+            if((model.parameters.parameterEnvelopes?.Count??0)>0||model.parameters.presets!=null&&model.parameters.presets.Exists(p=>p!=null&&(p.parameterEnvelopes?.Count??0)>0))throw new InvalidOperationException("Per-note parameter envelopes require the Burst backend; retained without legacy projection.");
             if(model.parameters.envelopeEnumDomain!=SoundEnumDomain.SavedAuthoring)throw new InvalidOperationException("Direct native envelope enums require the new backend.");
             if(model.parameters.enumDomain!=SoundEnumDomain.SavedAuthoring||model.parameters.glideEnabled||(model.parameters.arpeggioSpeedPoints?.Count??0)>0||!model.parameters.arpeggioSpeedIsPerNote||model.sampler.zones.Exists(z=>z.blend!=null&&z.blend.loopB!=SampleLoop.Off)||Array.Exists(model.macros,m=>m.mappings.Exists(map=>(map.curvePoints?.Count??0)>0)))throw new InvalidOperationException("Typed P4 sound extensions require the new backend; preserved without legacy projection.");
             if (!Enum.IsDefined(typeof(InstrumentType),model.parameters.type)) throw new InvalidOperationException("Unknown retained legacy engine; explicit repair is required before projection.");
@@ -279,6 +280,7 @@ namespace Laubrary.ZTracker.Model
             void Envelope(ZUIEnvelopeData env)
             {
                 if (env == null || !env.enabled) return;
+                if (env.sustainEnabled) throw new InvalidOperationException("Per-note envelope sustain requires the Burst backend; retained without legacy projection.");
                 if (env.Count > 32) throw new InvalidOperationException("Legacy envelope has 32 points; extra authored points retained, upload refused.");
                 Finite(env.xMax,env.loopStart,env.loopEnd); foreach (var point in env.points) Finite(point.time,point.value,point.exponent);
             }

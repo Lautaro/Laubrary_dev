@@ -96,6 +96,9 @@ namespace Laubrary.Zui
                 _scrim.AddToClassList("zui-root");
             }
             else ZuiPresentationContext.Capture(_anchor).ApplyTo(_scrim);
+            // The root theme supplies the window background; a popover's hit layer must
+            // remain transparent so opening a picker preserves its surrounding workspace.
+            _scrim.style.backgroundColor = UnityEngine.Color.clear;
             _scrim.style.position = Position.Absolute;
             _scrim.style.left = 0; _scrim.style.top = 0; _scrim.style.right = 0; _scrim.style.bottom = 0;
             _scrim.style.paddingLeft = 0; _scrim.style.paddingRight = 0;

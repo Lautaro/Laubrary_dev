@@ -147,7 +147,7 @@ namespace Laubrary.ZTracker.Model
         {
             error = VersionError(asset.schemaVersion);
             if (error != null) return false;
-            if (asset.schemaVersion == CurrentVersion) return true;
+            if (asset.schemaVersion == CurrentVersion) { MigrateInstrumentAuthoring(asset.model); return true; }
             try
             {
                 var legacy = Capture(asset);
@@ -259,6 +259,7 @@ namespace Laubrary.ZTracker.Model
         public static InstrumentData Convert(InstrumentParameters old, string name, string id = null)
         {
             var data = new InstrumentData { id = id ?? Identity(), name = name, family = old.type == InstrumentType.Synth || old.type == InstrumentType.FM ? InstrumentFamily.Synth : InstrumentFamily.Sampler, synthMode = old.type == InstrumentType.FM ? SynthMode.FM : SynthMode.Subtractive, parameters = Copy(old), provenance = "native-v0; " + CommandContract };
+            MigrateInstrumentAuthoring(data);
             if (!Enum.IsDefined(typeof(InstrumentType),old.type)) data.diagnostics.Add("Unknown legacy engine " + (int)old.type + " retained; projection requires explicit repair.");
             // Native kits ignore global level/pan. Keep those authored values in
             // parameters, with the diagnostic below; canonical effective globals
@@ -311,6 +312,21 @@ namespace Laubrary.ZTracker.Model
         {
             return new ModulationSet { id = id, name = id, devices = new List<ModulationDevice> { new ModulationDevice { id = id + "-adsr", attack = a, decay = d, sustain = s, release = r } } };
         }
+        // Additive schema-1 migration: preserve the full authored recipe once,
+        // disable its obsolete trigger, and leave schema-0 archive bytes intact.
+        // Read-only callers run this on their detached model, never the source.
+        public static void MigrateInstrumentAuthoring(InstrumentData data)
+        {
+            var q=data?.parameters;if(q==null||!q.arpeggioEnabled)return;
+            if(data.archivedArpeggio==null){
+                data.archivedArpeggio=new ArchivedInstrumentArpeggio{enabled=q.arpeggioEnabled,notes=q.arpeggioNotes==null?null:(int[])q.arpeggioNotes.Clone(),speed=q.arpeggioSpeed,speedIsPerNote=q.arpeggioSpeedIsPerNote,speedPoints=q.arpeggioSpeedPoints==null?null:new List<ModulationPoint>()};
+                if(q.arpeggioSpeedPoints!=null)foreach(var point in q.arpeggioSpeedPoints)data.archivedArpeggio.speedPoints.Add(Copy(point));
+            }
+            q.arpeggioEnabled=false;
+            const string notice="Instrument arpeggio archived; use Axy in the pattern to enable arpeggio.";
+            if(data.diagnostics==null)data.diagnostics=new List<string>();
+            if(!data.diagnostics.Contains(notice))data.diagnostics.Add(notice);
+        }
 
         public static List<CompiledParameterSet> ResolveParameterSets(InstrumentData authored)
         {
@@ -356,6 +372,7 @@ namespace Laubrary.ZTracker.Model
                 Apply(p, resolved, p.ovrAdsr, "attack", "decay", "sustain", "release");
                 Apply(p, resolved, p.ovrVibrato, "vibratoDepth", "vibratoRate", "vibratoFadeIn", "vibratoRandomness");
                 Apply(p, resolved, p.ovrEffects, "instFilterEnabled", "instFilterMode", "instFilterCutoff", "instFilterResonance", "instDelaySend", "instReverbSend");
+                ApplyEnvelopeOverrides(p,resolved);
                 var set = Copy(authored); set.parameters = Copy(resolved);
                 // Sampler A/B and amplitude overrides are resolved independently too.
                 var legacyResolved = Convert(resolved, authored.name, authored.id);
@@ -398,6 +415,13 @@ namespace Laubrary.ZTracker.Model
         {
             if (!enabled) return;
             foreach (string field in fields) typeof(InstrumentParameters).GetField(field).SetValue(to, from.GetType().GetField(field).GetValue(from));
+        }
+        static void ApplyEnvelopeOverrides(ZTrackerInstrument.InstrumentPreset preset,InstrumentParameters resolved)
+        {
+            bool Enabled(string key)=>key=="volume"||key=="pan"?preset.ovrVolPan:key=="fineTune"?preset.ovrSampleParams:key=="unisonSpread"?preset.ovrSynthParams:key.StartsWith("vibrato",StringComparison.Ordinal)?preset.ovrVibrato:key.StartsWith("instFilter",StringComparison.Ordinal)?preset.ovrEffects:false;
+            if(resolved.parameterEnvelopes==null)resolved.parameterEnvelopes=new List<ParameterEnvelope>();
+            resolved.parameterEnvelopes.RemoveAll(e=>e!=null&&Enabled(e.parameter??""));
+            if(preset.parameterEnvelopes!=null)foreach(var entry in preset.parameterEnvelopes)if(entry!=null&&Enabled(entry.parameter??""))resolved.parameterEnvelopes.Add(Copy(entry));
         }
     }
 }

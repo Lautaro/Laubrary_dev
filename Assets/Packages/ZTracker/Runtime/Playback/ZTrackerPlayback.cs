@@ -284,6 +284,7 @@ namespace Laubrary.ZTracker
                 string error = ZTrackerMigration.VersionError(original.schemaVersion);
                 if (error != null) throw new InvalidOperationException(error);
                 model = original.schemaVersion == 0 ? ZTrackerMigration.Convert(ZTrackerMigration.Capture(original), original.name, accepted?.model.id) : ZTrackerMigration.Copy(original.model);
+                ZTrackerMigration.MigrateInstrumentAuthoring(model);
                 error = ZTrackerModelValidation.Validate(model);
                 if (error != null) throw new InvalidOperationException(error);
                 if (source == null && preset >= 0)

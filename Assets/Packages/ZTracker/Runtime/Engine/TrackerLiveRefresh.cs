@@ -32,6 +32,8 @@ namespace Laubrary.ZTracker.Engine
                 q.volume=q.pan=q.fineTune=q.blend=q.pulseWidth=q.waveBRatio=q.pmDepth=q.unisonDetune=q.unisonSpread=0;
                 q.attack=q.decay=q.sustain=q.release=q.vibratoDepth=q.vibratoRate=q.vibratoFadeIn=q.instFilterCutoff=q.instFilterResonance=q.glideSeconds=q.fmFeedback=0;
                 if(q.fmOperators!=null)for(int op=0;op<q.fmOperators.Length;op++){var value=q.fmOperators[op];value.freqRatio=value.freqFixed=value.level=value.attack=value.decay=value.sustain=value.release=0;q.fmOperators[op]=value;}
+                NormalizeParameterEnvelope(q.blendEnvelopeData);NormalizeParameterEnvelope(q.pulseWidthEnvelopeData);NormalizeParameterEnvelope(q.waveBRatioEnvelopeData);NormalizeParameterEnvelope(q.pmDepthEnvelopeData);NormalizeParameterEnvelope(q.unisonDetuneEnvelopeData);
+                if(q.parameterEnvelopes!=null)foreach(var envelope in q.parameterEnvelopes)if(envelope!=null)NormalizeParameterEnvelope(envelope.envelope);
                 data.sampler.volume=data.sampler.pan=data.sampler.fineTuneCents=0;foreach(var s in data.sampler.samples){s.volume=s.pan=0;s.name="";}foreach(var m in data.macros)m.value=0;
                 foreach(var chain in data.fxChains)NormalizeLiveChain(chain);
                 key.Append(JsonUtility.ToJson(data));}
@@ -48,6 +50,13 @@ namespace Laubrary.ZTracker.Engine
             if(chain.nodes!=null)foreach(var n in chain.nodes){if(n==null)continue;n.p=Array.Empty<float>();n.enabled=true;}
             if(chain.modifiers!=null)foreach(var m in chain.modifiers){if(m==null)continue;m.name="";if(m.type!=Laubrary.Zounds.ZoundModifierType.Code)m.p=Array.Empty<float>();if(m.steps!=null)for(int i=0;i<m.steps.Length;i++)m.steps[i]=0;if(m.curve?.m_points!=null)for(int i=0;i<m.curve.m_points.Count;i++){var p=m.curve.m_points[i];p.time=p.value=p.exponent=p.randomX=p.randomY=p.randomBias=0;m.curve.m_points[i]=p;}}
             if(chain.bindings!=null)foreach(var b in chain.bindings){if(b==null)continue;b.depth=0;b.schema=2;b.combine=Laubrary.Zounds.Dsp.ModulationCombine.Set;b.op=Laubrary.Zounds.ModifierOp.Replace;}
+        }
+        static void NormalizeParameterEnvelope(ZUIEnvelopeData envelope)
+        {
+            if(envelope==null)return;
+            envelope.loopStart=envelope.loopEnd=0;
+            envelope.sustainPosition=0;
+            if(envelope.points!=null)foreach(var point in envelope.points){point.time=point.value=0;point.exponent=1;}
         }
         static void Expand<T>(ref NativeArray<T> values,int size) where T:unmanaged
         {var expanded=new NativeArray<T>(Math.Max(1,size),Allocator.Persistent);for(int i=0;i<values.Length;i++)expanded[i]=values[i];values.Dispose();values=expanded;}

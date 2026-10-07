@@ -1,5 +1,11 @@
 # P7 retirement and verification
 
+## Instrument rework verification update (Trackeroids, 2026-10-07)
+
+The original frozen 122-case corpus and tolerances remain unchanged. After the instrument rework, 74 ordinary numeric cases pass, seven earlier corrections remain verified, 12 DSP characterizations retain their explicit non-parity status, 23 modern policy cases remain verified, three statistical cases remain excluded, and one dual-loop case remains unrepresentable. Two additional native audio differences are intentional: `modulation` used the now-removed instrument arpeggio; `envelope_loop_1` now leaves its held ping-pong parameter loop on note-off. The raw frozen gate is therefore false; this is not represented as full numeric parity. Dedicated regression groups separately verify the requested new outcomes.
+
+The host report and evidence are `docs/ZTRACKER_INSTRUMENT_REWORK_REPORT.md` and `docs/instrument-rework-evidence/` in the Trackeroids repository. The new runtime suite has 13 groups and the new attached-editor control suite has 12. Existing model, engine, P4, P5, live-refresh and editor workflow checks were rerun through the running editor, without Unity Test Runner. The consumer model fixture has 39 groups because the second, optional imported demo tree is absent; its embedded package sample is checked.
+
 The public player, editor preview and saved demo use the clipless Burst/SAP renderer. The imported DLL, native declarations/upload helpers and streamed managed host have been retired. A frozen, non-imported native oracle remains under `Tools/ZTrackerNative/retired` solely for offline comparison. Data identities and legacy payloads remain intact; playback uses detached migration and diagnoses unsupported conversions.
 
 ## Reference accounting

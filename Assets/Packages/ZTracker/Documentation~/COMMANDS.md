@@ -1,5 +1,9 @@
 # ZTracker P5 command profile and P2 migration contract
 
+## Instrument-editor rework: pattern arpeggio
+
+The current renderer supports `0Axy` for sampler, subtractive synth and FM foreground notes. The pattern editor has separate identifier and hexadecimal argument fields: enter `0A` and `37` for the shorthand `A37`. It cycles offsets 0, 3 and 7 semitones on successive ticks, starting from the base note at tick zero. Row absence clears the row-scoped arpeggio; the existing zero-argument command-memory policy remains unchanged. No speed extension is introduced: TPL and tempo determine tick duration. Instrument-owned arpeggio settings are retained in migration/archive data and are ignored by playback. They cannot enable arpeggio on a row that lacks the command.
+
 **P7 status:** the command policies below remain normative for the current Burst/SAP renderer. The P4/P5 phase notes and original specification evidence boundary are retained historically; their statements that the DLL authoring backend remains active are superseded by P7 retirement. See [P7 verification](P7_VERIFICATION.md) for current public playback, complete reference accounting and limits. Policy conformance does not certify Renoise playback equivalence.
 
 P5 implementation coverage (2026-10-06): the opt-in native engine executes sample A/U/D/G/V/I/O/T/C/S/B/E/N, M/Q/Y/R, supported volume/pan commands and numerics, fractional delay, L/P/X00/internal J, explicit base36 device/parameter addresses and bypass, ZT/ZL/ZK/ZG00/ZB/ZD, and Step/Linear automation through declared equivalents. It compiles prepared parameter sets bound to future notes without cloning canonical slots. The exact grouped checks, native comparison scope and player evidence are recorded in [P5_VERIFICATION.md](P5_VERIFICATION.md). These are ZTracker policy conformance claims, not Renoise playback equivalence.

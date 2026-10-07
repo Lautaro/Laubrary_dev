@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Shared AudioCore chains use one searchable add-effect picker. Effect and modifier card headers stay on one row at narrow widths.
+- Popover hit layers remain transparent after inheriting the host theme, keeping the workspace visible behind a picker.
+
+- Shared AudioCore effect controls show physical Hz/ms/Q/ratio values on logarithmic tracks, with 0–2 display decimals and percent amounts. Random modifiers use one paired range control; curve point fields have bounded precision. Stored parameter units and the generic descriptor conversion API remain unchanged.
+
+### ZUI musical envelope controls
+
+- Value controls can opt into a physical unit with `Options.valueUnit`: framed curve thumbnails show a single value or start → end, and expanded curves show readable unit limits with inset point handles. The option changes presentation only; existing callers retain their current layout by default.
+- Added a reusable fixed-stage ADSR/AHDSR editor with separately draggable attack, hold, decay, sustain and release handles. Times use a square-root drag scale and exact millisecond inputs; sustain uses percent. Each gesture stays one Undo step, including interrupted drags.
+- MicroSlider and static Value controls can opt into logarithmic positive ranges, giving frequency controls equal room per octave. Numeric fields can choose display precision without rewriting loaded values.
+- Value controls can retain an authored envelope when switching temporarily to Static, so restoring Envelope mode need not replace the curve with a flat default.
+- Curves with a hidden range editor fit preserved out-of-range point values inside their expanded graph, without clamping the authored points or changing the normal scalar range.
+- The UI audit now counts actual collapsed authoring sections as missing coverage, rather than counting hidden scrollbars, optional numeric inputs and inactive mode controls as folds. Expanding coverage also opens native foldouts; all existing geometry and tooltip checks remain active.
+- Value controls expose their expansion state and change event so a host can fold timing controls together with the envelope thumbnail. The UI audit also detects content clipped horizontally inside a vertical-only scrolling pane, including overflowing descendants of a constrained content root.
+
 ### Launimator: per-frame timing
 
 - Each frame can have its own duration in milliseconds; 0 follows the animation's fps. Set it in the Laumination Builder with the Frame ms field beside FPS (applies to the selected frames); timed frames carry an orange ms label in the sequence strip. Every player, clip length, baked Unity clip and preview uses the real per-frame times.

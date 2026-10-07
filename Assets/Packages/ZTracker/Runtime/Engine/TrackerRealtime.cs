@@ -258,11 +258,13 @@ namespace Laubrary.ZTracker.Engine
                     float ne=((zone.tracking?note:zone.baseNote)+sample.legacyTranspose-69)*(1f/12f),be=(zone.baseNote-69)*(1f/12f),fe=sample.legacyFineTuneCents*(1f/1200f);
                     double exponent=(ne-be)+fe;double rate=clip.frequency/(double)state.sampleRate;voice.step=math.abs(exponent)<19?(math.pow(2f,(float)exponent)*math.asfloat(0x3f7fffff))*rate:SafeInitialStep(rate,exponent);
                 }
+                voice.modulationOffset=index*state.modStride;
+                for(int m=0;m<state.modStride;m++)state.modulationState[voice.modulationOffset+m]=default;
+                for(int m=0;m<sample.modCount;m++){var mod=state.mods[sample.modStart+m];if(mod.parameterEnvelope)state.modulationState[voice.modulationOffset+m]=new TrackerModState{output=Curve(in mod,0)};}
                 InitTone(ref voice,in tone,in sample,member,col.hasPreviousNote?col.previousNote:note,previousHeld);
                 double sourceExponent=tone.kind==0?math.log2(clip.frequency/(double)state.sampleRate)+((zone.tracking?note-zone.baseNote:0)+(double)sample.tune)/12d:math.log2(440d/state.sampleRate)+(note-69)/12d+((double)tone.baseGlobalTune+voice.memberSpread*voice.detuneCurrent)/1200d;
                 if(math.isfinite(sourceExponent)&&(sourceExponent<-20||sourceExponent>20))ReportPitchLimit(ref voice);
                 voice.filterCutoff=-1;voice.filterQ=-1;state.voices[index]=voice;
-                for(int m=0;m<state.modStride;m++)state.modulationState[index*state.modStride+m]=default;
                 }
             }
             col.previousNote=note;col.hasPreviousNote=true;state.columns[ci]=col;
@@ -336,17 +338,19 @@ namespace Laubrary.ZTracker.Engine
                     if(!v.active)break;Envelope(ref v,in s);if(!v.active)break;
                     float volume=1,pan=0,pitch=0,cutoff=s.cutoff,resonance=s.resonance,drive=1;
                     volume=s.orderedVolume?1:v.envelope;EvaluateMods(i,ref v,in s,ref volume,ref pan,ref pitch,ref cutoff,ref resonance,ref drive);
+                    if(HasParameterEnvelope(in v,TrackerParameter.FilterCutoff))cutoff=VoiceParameter(in v,TrackerParameter.FilterCutoff);
+                    if(HasParameterEnvelope(in v,TrackerParameter.FilterResonance))resonance=VoiceParameter(in v,TrackerParameter.FilterResonance);
                     ToneTargets(ref v,in tone);
-                    double increment=ModulatedStep(ref v,in tone,pitch+(tone.kind==0?v.commandPitch+v.commandArp+v.commandVibrato:0));
+                    double increment=ModulatedStep(ref v,in tone,pitch+v.commandArp+(tone.kind==0?v.commandPitch+v.commandVibrato:0));
                     if(!math.isfinite(increment)||increment<=0){v.active=false;Emit(TrackerEventKind.Diagnostic,v.track,v.column,v.note,v.instrument,(int)TrackerRuntimeDiagnostic.InvalidPitch);break;}
                     float l,r;
                     if(tone.kind!=0){l=tone.kind==2?FM(ref v,in tone,(float)increment):Synth(ref v,in tone,(float)increment);r=l;}
                     else {s.regionStart=v.regionStart;s.regionEnd=v.regionEnd;l=Pcm(in clip,in s,v.position,0,v.released);r=Pcm(in clip,in s,v.position,clip.channels==2?1:0,v.released);if(tone.pcmB>=0)Paired(ref v,in tone,in s,l,r,ref l,ref r);}
                     float globalVolume=VoiceParameter(in v,TrackerParameter.Volume);
-                    float sampleVolume=Written(v.instrument,TrackerParameter.Volume)?tone.localVolume*globalVolume:s.volume;
+                    float sampleVolume=VoiceParameterActive(in v,TrackerParameter.Volume)?tone.localVolume*globalVolume:s.volume;
                     float amplitude=sampleVolume*v.memberGain*v.volume*volume*state.tracks[v.track].instrumentGain*(tone.kind==0?v.commandGain*v.commandTremolo:v.retriggerGain);
                     if(v.amplitudeDepth!=0){v.amplitudePhase+=v.amplitudeRate/state.sampleRate;v.amplitudePhase-=math.floor(v.amplitudePhase);amplitude*=math.max(0,1+math.sin(v.amplitudePhase*2*math.PI)*v.amplitudeDepth);}v.amplitude=amplitude;
-                    float samplePan=Written(v.instrument,TrackerParameter.Pan)?s.legacyPan?CombinePan(VoiceParameter(in v,TrackerParameter.Pan),tone.localPan):math.clamp(VoiceParameter(in v,TrackerParameter.Pan)+tone.localPan,-1,1):s.pan;
+                    float samplePan=VoiceParameterActive(in v,TrackerParameter.Pan)?s.legacyPan?CombinePan(VoiceParameter(in v,TrackerParameter.Pan),tone.localPan):math.clamp(VoiceParameter(in v,TrackerParameter.Pan)+tone.localPan,-1,1):s.pan;
                     samplePan=math.clamp(samplePan+v.memberSpread*VoiceParameter(in v,TrackerParameter.UnisonSpread),-1,1);
                     float p=s.legacyPan?CombinePan(samplePan,math.clamp(v.pan+pan+v.commandPan,-1,1)):math.clamp(samplePan+v.pan+pan+v.commandPan,-1,1);
                     float gainL=s.legacyPan?math.sqrt((1-p)*.5f):clip.channels==2?(p>0?1-p:1):math.cos((p+1)*math.PI*.25f),gainR=s.legacyPan?math.sqrt((1+p)*.5f):clip.channels==2?(p<0?1+p:1):math.sin((p+1)*math.PI*.25f);
@@ -419,7 +423,7 @@ namespace Laubrary.ZTracker.Engine
                         else if(time<m.attack+m.hold+m.decay)value=1-(1-m.sustain)*(float)((time-m.attack-m.hold)/math.max(1e-9f,m.decay));
                         else value=m.sustain;ms.position+=1d/state.sampleRate;ms.seeked=false;break;
                     case ModulationDeviceKind.Multipoint:
-                        if(ms.finished)break;
+                        if(ms.finished&&!m.parameterEnvelope)break;
                         if(ms.direction==0){ms.direction=m.loop==SampleLoop.Backward?-1:1;if(!ms.seeked&&m.loop==SampleLoop.Backward&&m.loopEnabled)ms.position=m.loopEnd-1d/state.sampleRate;}
                         if(m.advanceFirst)ms.position+=1d/state.sampleRate;
                         double pos=ms.position;
@@ -432,7 +436,7 @@ namespace Laubrary.ZTracker.Engine
                         value=Curve(in m,pos);ms.position=pos+(m.advanceFirst?0:1d/state.sampleRate*(v.released?1:ms.direction));
                         if(!v.released&&m.sustainEnabled)ms.position=math.min(ms.position,m.sustainPosition);if(!m.loopEnabled&&!m.sustainEnabled&&m.pointCount>0&&pos>=state.points[m.points+m.pointCount-1].time)ms.finished=true;ms.seeked=false;break;
                     case ModulationDeviceKind.LFO:
-                        if(s.legacyPan&&state.tones[v.sample].kind==0&&m.target==ModulationTarget.Pitch&&m.advanceFirst&&(Written(v.instrument,TrackerParameter.VibratoDepth)||Written(v.instrument,TrackerParameter.VibratoRate)||Written(v.instrument,TrackerParameter.VibratoFadeIn)))continue;
+                        if(s.legacyPan&&state.tones[v.sample].kind==0&&m.target==ModulationTarget.Pitch&&m.advanceFirst&&(VoiceParameterActive(in v,TrackerParameter.VibratoDepth)||VoiceParameterActive(in v,TrackerParameter.VibratoRate)||VoiceParameterActive(in v,TrackerParameter.VibratoFadeIn)))continue;
                         uint seed=(uint)(v.cohort*2654435761L+v.note*2246822519L+i*3266489917L);seed^=seed>>16;seed*=0x7feb352du;seed^=seed>>15;
                         float random=(seed&0xffffff)/8388608f-1;
                         double lfoTime=(v.age+(m.advanceFirst?1:0))/(double)state.sampleRate;
@@ -442,6 +446,7 @@ namespace Laubrary.ZTracker.Engine
                     case ModulationDeviceKind.Fader:if(m.fadeSeconds>0){if(!ms.finished){value=math.lerp(m.min,m.max,math.saturate((float)(ms.position/m.fadeSeconds)));ms.position+=1d/state.sampleRate;if(ms.position>=m.fadeSeconds)ms.finished=true;}}else value=m.depth;break;
                 }
                 ms.output=value;state.modulationState[si]=ms;
+                if(m.parameterEnvelope)continue;
                 switch(m.target){case ModulationTarget.Volume:volume=Combine(volume,value,m.operation);break;case ModulationTarget.Pan:pan=Combine(pan,value,m.operation);break;case ModulationTarget.Pitch:pitch=Combine(pitch,value,m.operation);break;case ModulationTarget.Cutoff:cutoff=Combine(cutoff,value,m.operation);break;case ModulationTarget.Resonance:resonance=Combine(resonance,value,m.operation);break;case ModulationTarget.Drive:drive=Combine(drive,value,m.operation);break;}
             }
             volume=math.clamp(volume,0,16);cutoff=math.clamp(cutoff,20,s.legacyFilter!=0?state.sampleRate*.5f-100:state.sampleRate*.45f);resonance=math.clamp(resonance,.1f,10);drive=math.clamp(drive,0,100);

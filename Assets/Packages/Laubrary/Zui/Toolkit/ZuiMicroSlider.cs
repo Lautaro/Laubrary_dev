@@ -38,6 +38,7 @@ namespace Laubrary.Zui
         bool _showValueLabel;
         bool _showNumInput;
         readonly int _decimals;
+        readonly bool _logarithmic;
         bool _dragging, _gestureOpen;
         int _undoGroup = -1;   // the Undo group the open gesture collapses into — see ZuiUndoGesture
         float _lastMoveX;   // local-space x of the previous applied move (for Shift fine/relative dragging)
@@ -55,9 +56,10 @@ namespace Laubrary.Zui
 
         public ZuiMicroSlider(string label, float value, float min, float max, string tooltip,
             Action<float> onChanged, bool showValue = true, float? defaultValue = null,
-            Action onBeforeMutate = null, int decimals = -1, string prefsKey = null)
+            Action onBeforeMutate = null, int decimals = -1, string prefsKey = null, bool logarithmic = false)
         {
             _min = min; _max = Mathf.Max(min + 1e-6f, max);
+            _logarithmic = logarithmic && min > 0f;
             _value = Mathf.Clamp(value, _min, _max);
             // Clamp the default into the track the same way SetValue would, so the tooltip never PROMISES a
             // number the double-click cannot actually produce (a default outside a narrowed [Range] used to
@@ -96,6 +98,7 @@ namespace Laubrary.Zui
             // The optional numeric-input field (#10) sits over the right of the track; hidden unless toggled on.
             // It swallows its own pointer-downs so typing/clicking it never starts a track drag.
             _numField = new FloatField { isDelayed = true };
+            if (decimals >= 0) _numField.formatString = "F" + Mathf.Clamp(decimals, 0, 7);
             _numField.AddToClassList("zui-microslider__numfield");
             _numField.AddToClassList("zui-slider__input");
             _numField.RegisterCallback<PointerDownEvent>(ev => ev.StopPropagation());
@@ -181,8 +184,16 @@ namespace Laubrary.Zui
         float ValueFromX(float localX)
         {
             float w = Mathf.Max(1f, contentRect.width);
-            return Mathf.Lerp(_min, _max, Mathf.Clamp01(localX / w));
+            return ValueFromNormalized(localX / w);
         }
+
+        float ValueFromNormalized(float t) => _logarithmic
+            ? Mathf.Exp(Mathf.Lerp(Mathf.Log(_min), Mathf.Log(_max), Mathf.Clamp01(t)))
+            : Mathf.Lerp(_min, _max, Mathf.Clamp01(t));
+
+        float NormalizedFromValue(float v) => _logarithmic
+            ? Mathf.InverseLerp(Mathf.Log(_min), Mathf.Log(_max), Mathf.Log(Mathf.Clamp(v, _min, _max)))
+            : Mathf.InverseLerp(_min, _max, v);
 
         void OpenGesture()
         {
@@ -234,9 +245,8 @@ namespace Laubrary.Zui
             if (e.shiftKey)
             {
                 // Fine/relative: nudge by a fraction of the normal value-per-pixel, accumulated from the last x.
-                float span = _max - _min;
                 float w = Mathf.Max(1f, contentRect.width);
-                SetValue(_value + (x - _lastMoveX) / w * span * FineFactor, notify: true);
+                SetValue(ValueFromNormalized(NormalizedFromValue(_value) + (x - _lastMoveX) / w * FineFactor), notify: true);
             }
             else SetValue(ValueFromX(x), notify: true);
             _lastMoveX = x;
@@ -256,7 +266,7 @@ namespace Laubrary.Zui
         {
             var r = contentRect;
             if (r.width <= 1f || r.height <= 1f) return;
-            float t = Mathf.InverseLerp(_min, _max, _value);
+            float t = NormalizedFromValue(_value);
             float split = Mathf.Round(t * r.width);
 
             var p = mgc.painter2D;

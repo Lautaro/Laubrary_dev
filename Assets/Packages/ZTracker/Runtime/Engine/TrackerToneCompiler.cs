@@ -18,7 +18,7 @@ namespace Laubrary.ZTracker.Engine
         {
             if(externalRouteIds.TryGetValue(ExternalAddress(track,device,slot),out int route)&&math.isfinite(value)){command=TrackerCommand.SetExternal(route,value);return true;}command=default;return false;
         }
-        void BuildP4(SongData song,int rate,List<TrackerSample> samples,List<TrackerZone> zones,List<TrackerInstrument> insts,List<float> pcm,List<TrackerPcm> clips,Dictionary<AudioClip,int> pcmMap,List<TrackerModPoint> points)
+        void BuildP4(SongData song,int rate,List<TrackerSample> samples,List<TrackerZone> zones,List<TrackerInstrument> insts,List<float> pcm,List<TrackerPcm> clips,Dictionary<AudioClip,int> pcmMap,List<TrackerMod> mods,List<TrackerModPoint> points)
         {
             routeModels=song.instruments.Select(a=>a?.model).ToArray();
             var blends=new Dictionary<int,SampleBlendExtension>();
@@ -55,17 +55,17 @@ namespace Laubrary.ZTracker.Engine
                 if(synth&&!subtractive&&(q.fmAlgorithm<0||q.fmAlgorithm>7))throw new ArgumentException("Unknown FM algorithm");
                 var tone=new TrackerTone{kind=synth?(data.synthMode==SynthMode.FM?2:1):0,waveA=subtractive?CompileWave(q.waveA,q.enumDomain):0,waveB=subtractive?CompileWave(q.waveB,q.enumDomain):0,blendMode=subtractive?q.blendMode:b?.mode??0,members=subtractive?q.unisonVoices:1,pcmB=-1,envelopes=envs.Count,algorithm=q.fmAlgorithm>=0&&q.fmAlgorithm<=5?q.fmAlgorithm:5,glide=q.glideEnabled,legato=q.glideLegato,arpPerNote=q.arpeggioSpeedIsPerNote,baseGlobalVolume=synth?q.volume:data.sampler.volume,baseGlobalPan=synth?q.pan:data.sampler.pan,baseGlobalTune=synth?q.fineTune:data.sampler.fineTuneCents,blendEnvelope=b?.envelopeEnabled??(subtractive&&q.blendEnvelope),blendAttack=b?.attack??q.blendAttack,blendDecay=b?.decay??q.blendDecay,blendSustain=b?.sustain??q.blendSustain,blendRelease=b?.release??q.blendRelease};
                 if(tone.blendMode<0||tone.blendMode>3)throw new ArgumentException("Unknown blend mode");
+                for(int m=0;m<sm.modCount;m++){var mod=mods[sm.modStart+m];if(mod.parameterEnvelope)tone.parameterEnvelopeSlots[(int)mod.parameter]=(byte)(m+1);}
                 tone.baseBlend=b?.amount??q.blend;tone.basePM=b?.pmDepth??q.pmDepth;tone.localVolume=synth?1:sm.localVolume;tone.localPan=synth?0:sm.localPan;tone.vibratoRandomness=math.saturate(q.vibratoRandomness);
                 if(synth&&!subtractive&&q.fmAlgorithm>5)diagnostics.Add("FM_ALGORITHM_FALLBACK authored="+q.fmAlgorithm+" compiled=5 slot="+sm.instrument);
                 if(subtractive&&q.enumDomain==SoundEnumDomain.SavedAuthoring)diagnostics.Add("SAVED_WAVE_MAPPING slot="+sm.instrument+" original="+q.waveA+" compiled="+tone.waveA);
                 var envelopes=subtractive?new[]{q.blendEnvelopeData,q.pulseWidthEnvelopeData,q.waveBRatioEnvelopeData,q.pmDepthEnvelopeData,q.unisonDetuneEnvelopeData}:b!=null?new[]{b.blendEnvelope??q.blendEnvelopeData,null,null,b.pmEnvelope??q.pmDepthEnvelopeData,null}:new ZUIEnvelopeData[5];
                 foreach(var env in envelopes)envs.Add(CompileEnvelope(env,q.envelopeEnumDomain,points));
                 if(b!=null){tone.pcmB=ReadP4Clip(b.pcmB,pcm,clips,pcmMap);tone.baseNoteB=b.baseNoteB;tone.fineTuneB=b.fineTuneBCents;tone.loopB=b.loopB;tone.loopStartB=b.loopStartFrameB;tone.loopEndB=b.loopEndFrameB;tone.releaseExitsLoopB=b.releaseExitsLoopB;}
-                tone.arpNotes=points.Count;tone.arpNoteCount=q.arpeggioEnabled?q.arpeggioNotes?.Length??0:0;
-                if(tone.arpNoteCount>64)throw new ArgumentException("Arpeggio note capacity");
-                for(int n=0;n<tone.arpNoteCount;n++)points.Add(new TrackerModPoint{time=n,value=q.arpeggioNotes[n],exponent=1});
-                tone.arpPoints=points.Count;
-                if(q.arpeggioSpeedPoints!=null&&q.arpeggioSpeedPoints.Count>0){foreach(var p in q.arpeggioSpeedPoints)points.Add(new TrackerModPoint{time=p.time,value=p.value,exponent=1});tone.arpPointCount=q.arpeggioSpeedPoints.Count;}else {points.Add(new TrackerModPoint{time=0,value=q.arpeggioSpeed,exponent=1});tone.arpPointCount=1;}
+                // Instrument arpeggios remain serialized for lossless recovery, but
+                // only an explicit pattern Axy command may now arpeggiate a voice.
+                tone.arpNotes=tone.arpPoints=points.Count;tone.arpNoteCount=tone.arpPointCount=0;
+                if(q.arpeggioEnabled)diagnostics.Add("INSTRUMENT_ARPEGGIO_ARCHIVED_PATTERN_ONLY slot="+sm.instrument);
                 if(synth){sm.delaySend=q.instDelaySend;sm.reverbSend=q.instReverbSend;sm.delayDestination=song.tracks.FindIndex(t=>t.kind==TrackKind.Send&&t.devices.nodes.Any(n=>n.type==Laubrary.Zounds.ZoundEffectType.Delay));sm.reverbDestination=song.tracks.FindIndex(t=>t.kind==TrackKind.Send&&t.devices.nodes.Any(n=>n.type==Laubrary.Zounds.ZoundEffectType.Reverb));if(sm.delaySend!=0&&sm.delayDestination<0||sm.reverbSend!=0&&sm.reverbDestination<0)throw new ArgumentException("Synth sends require explicit matching Send tracks");samples[si]=sm;}
                 tones.Add(tone);
             }
@@ -110,7 +110,9 @@ namespace Laubrary.ZTracker.Engine
             if(env.Count>4096)throw new ArgumentException("Envelope capacity");float prev=-1;
             foreach(var p in env.points){if(!math.isfinite(p.time)||!math.isfinite(p.value)||!math.isfinite(p.exponent)||p.time<=prev||p.exponent<=0)throw new ArgumentException("Malformed tone envelope");points.Add(new TrackerModPoint{time=p.time,value=p.value,exponent=p.exponent});prev=p.time;}
             m.pointCount=env.Count;m.loopStart=env.loopStart;m.loopEnd=env.loopEnd;m.loopEnabled=env.loopEnabled;
-            if(m.loopEnabled){int mode=domain==SoundEnumDomain.NativeDirect?env.loopMode:env.loopMode-1;if(mode<0||mode>1||m.loopEnd<=m.loopStart||m.loopStart<0||m.loopEnd>prev)throw new ArgumentException("Malformed tone loop");m.loop=mode==1?SampleLoop.PingPong:SampleLoop.Forward;}
+            m.sustainEnabled=env.sustainEnabled;m.sustainPosition=env.sustainPosition;
+            if(m.sustainEnabled&&(!math.isfinite(env.sustainPosition)||env.sustainPosition<0||env.sustainPosition>prev))throw new ArgumentException("Invalid parameter envelope sustain");
+            if(m.loopEnabled){int mode=domain==SoundEnumDomain.NativeDirect?env.loopMode:env.loopMode-1;if(mode<0||mode>1||!math.isfinite(m.loopStart)||!math.isfinite(m.loopEnd)||m.loopEnd<=m.loopStart||m.loopStart<0||m.loopEnd>prev)throw new ArgumentException("Malformed tone loop");m.loop=mode==1?SampleLoop.PingPong:SampleLoop.Forward;}
             return m;
         }
         bool CompileRoute(Mapping map,int owner,int macro,Dictionary<string,int> ids,List<TrackerModPoint> points,out TrackerParameterRoute route)

@@ -103,6 +103,7 @@ namespace Laubrary.ZTracker.Engine
                     var sm=new TrackerSample{pcm=-1,instrument=i,volume=q.volume,pan=q.pan,attack=q.attack,decay=q.decay,sustain=q.sustain,release=q.release,nna=ins.nna,legacyPan=NativeProvenance(data.provenance),legacyFilter=1,filterType=q.instFilterEnabled?q.instFilterMode+1:0,cutoff=q.instFilterCutoff*(rate*.5f),resonance=q.instFilterResonance,fxChain=data.fxChains.Count>0?0:-1,muteGroup=-1,delayDestination=-1,reverbDestination=-1,modStart=mods.Count};
                     if(data.synthMode==SynthMode.FM){var op=q.fmOperators!=null&&q.fmOperators.Length>0?q.fmOperators[0]:new ZTrackerInstrument.FMOperatorData{attack=.001f,decay=.1f,sustain=.8f,release=.3f};sm.attack=op.attack;sm.decay=op.decay;sm.sustain=op.sustain;sm.release=op.release;}
                     foreach(var set in data.modulation)foreach(var m in set.devices)if(m.enabled){bool primary=!sm.orderedVolume&&m.kind==ModulationDeviceKind.AHDSR&&m.target==ModulationTarget.Volume;if(primary){sm.attack=m.attack;sm.hold=m.hold;sm.decay=m.decay;sm.sustain=m.sustain;sm.release=m.release;sm.orderedVolume=true;}AddMod(m,mods,points,primary);}
+                    AddParameterEnvelopes(data,mods,points);
                     sm.modCount=mods.Count-sm.modStart;stride=Math.Max(stride,sm.modCount);if(stride>64)throw new ArgumentException("More than 64 synth modulation devices");
                     zones.Add(new TrackerZone{sample=samples.Count,minNote=0,maxNote=119,minVelocity=0,maxVelocity=127,baseNote=69,tracking=true});samples.Add(sm);ins.zoneCount=1;insts.Add(ins);continue;
                 }
@@ -128,6 +129,7 @@ namespace Laubrary.ZTracker.Engine
                     if(s.modulationSet>=0){var set=data.modulation[s.modulationSet];sm.filterType=set.filterType;if(set.filterType<0||set.filterType>3)throw new ArgumentException("Unknown sampler filter");foreach(var m in set.devices)if(m.enabled){ValidateMod(m);bool primary=!amplitudeEnvelope&&m.kind==ModulationDeviceKind.AHDSR&&m.target==ModulationTarget.Volume;if(primary){sm.attack=m.attack;sm.hold=m.hold;sm.decay=m.decay;sm.sustain=math.saturate(m.sustain);sm.release=m.release;amplitudeEnvelope=true;sm.orderedVolume=true;}AddMod(m,mods,points,primary);}}
                     // Typed retained extension is part of v1 authority; conversion is preparation-only.
                     var legacy=data.parameters;
+                    if(!NativeProvenance(data.provenance)&&legacy!=null&&legacy.instFilterEnabled){sm.filterType=legacy.instFilterMode+1;sm.cutoff=legacy.instFilterCutoff*rate*.5f;sm.resonance=legacy.instFilterResonance;}
                     if(NativeProvenance(data.provenance)&&legacy!=null){
                         if(!amplitudeEnvelope){
                             sm.attack=math.max(0,legacy.attack);sm.decay=math.max(0,legacy.decay);sm.sustain=math.saturate(legacy.sustain);sm.release=math.max(0,legacy.release);
@@ -149,13 +151,14 @@ namespace Laubrary.ZTracker.Engine
                     sm.legacySamplePitch=sm.legacyPan&&!s.legacyKitDefaults;
                     sm.legacyTranspose=s.transpose+data.sampler.transpose;sm.legacyFineTuneCents=(float)math.clamp((double)s.fineTuneCents+data.sampler.fineTuneCents,-float.MaxValue,float.MaxValue);
                     if(!sm.legacyPan)sm.pan=math.clamp(data.sampler.pan+s.pan,-1,1);
+                    AddParameterEnvelopes(data,mods,points);
                     sm.modCount=mods.Count-sm.modStart;stride=Math.Max(stride,sm.modCount);if(stride>64)throw new ArgumentException("More than 64 modulation devices per sample");samples.Add(sm);
                 }
                 foreach(var z in data.sampler.zones)if(!z.inactive)zones.Add(new TrackerZone{sample=sampleBase+z.sample,minNote=z.noteMin,maxNote=z.noteMax,minVelocity=z.velocityMin,maxVelocity=z.velocityMax,baseNote=z.baseNote,tracking=z.keyTracking});
                 ins.zoneCount=zones.Count-ins.zoneStart;insts.Add(ins);
 
             }
-            BuildP4(song,rate,samples,zones,insts,pcm,clips,pcmMap,points);
+            BuildP4(song,rate,samples,zones,insts,pcm,clips,pcmMap,mods,points);
             BuildParameterSets(song,rate,maxFrames,samples,zones,insts,pcm,clips,mods,points,ref stride);
             state.pcm=Native(pcm);state.clips=Native(clips);state.pcmCount=clips.Count;state.samples=Native(samples);state.sampleCount=samples.Count;state.zones=Native(zones);state.instruments=Native(insts);state.instrumentCount=insts.Count;state.mods=Native(mods);state.points=Native(points);state.modStride=Math.Max(1,stride);state.modulationState=Buffer<TrackerModState>(checked(song.voiceCapacity*state.modStride));state.voices=Buffer<TrackerVoice>(song.voiceCapacity);
             // Every (track,instrument,FX-chain) partition has independent effect history.
@@ -189,6 +192,22 @@ namespace Laubrary.ZTracker.Engine
             if(m.kind==ModulationDeviceKind.Stepper)diagnostics.Add("STEPPER_PRESERVED target="+m.target+" raw="+m.rawSource);
             mods.Add(new TrackerMod{target=m.target,kind=m.kind,operation=m.operation,attack=m.attack,hold=m.hold,decay=m.decay,sustain=m.sustain,release=m.release,rate=m.rate,depth=m.depth,phase=m.phase,min=m.min,max=m.max,curve=m.curve,points=points.Count,pointCount=m.points.Count,shape=m.lfoShape,sustainPosition=m.sustainPosition,sustainEnabled=m.sustainEnabled,loopStart=m.loopStart,loopEnd=m.loopEnd,loopEnabled=m.loopEnabled,loop=m.loop,primaryEnvelope=primaryEnvelope,fadeSeconds=m.duration});
             foreach(var p in m.points)points.Add(new TrackerModPoint{time=p.time,value=p.value,exponent=p.exponent});
+        }
+        void AddParameterEnvelopes(InstrumentData data,List<TrackerMod> mods,List<TrackerModPoint> points)
+        {
+            if(data.parameters.parameterEnvelopes==null)return;
+            var used=new HashSet<TrackerParameter>();
+            foreach(var entry in data.parameters.parameterEnvelopes){
+                if(entry?.envelope==null||!entry.envelope.enabled)continue;
+                if(!TrackerParameters.Resolve(entry.parameter,out var parameter)||!Applicable(data,parameter,data.family==InstrumentFamily.Sampler?ParameterKind.Sample:ParameterKind.Synth,false))throw new ArgumentException("Unsupported parameter envelope: "+entry.parameter);
+                if(!used.Add(parameter))throw new ArgumentException("Duplicate parameter envelope: "+entry.parameter);
+                var compiled=CompileEnvelope(entry.envelope,data.parameters.envelopeEnumDomain,points);
+                if(compiled.pointCount==0)continue;
+                compiled.kind=ModulationDeviceKind.Multipoint;compiled.operation=ModulationOperation.Replace;
+                compiled.parameterEnvelope=true;compiled.parameter=parameter;
+                if(parameter==TrackerParameter.FilterCutoff)for(int p=0;p<compiled.pointCount;p++){var point=points[compiled.points+p];point.value*=state.sampleRate*.5f;points[compiled.points+p]=point;}
+                mods.Add(compiled);
+            }
         }
         static void ValidateMod(ModulationDevice m)
         {

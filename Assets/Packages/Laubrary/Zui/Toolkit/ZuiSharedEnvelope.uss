@@ -1,4 +1,12 @@
 /* Shared canvas presentation. Domain, permissions and authored colour legends stay in configuration. */
+.zui-adsr {
+    width: 440px;
+    max-width: 100%;
+    flex-grow: 0;
+    flex-shrink: 1;
+    align-self: flex-start;
+}
+
 .zui-envelope {
     --zui-envelope-frame-line-color: rgba(140, 153, 184, 0.15);
     --zui-envelope-frame-edge-color: rgba(140, 153, 184, 0.30);
@@ -45,4 +53,63 @@
     --zui-envelope-padding-right: 0;
     --zui-envelope-padding-bottom: 0;
     --zui-envelope-padding-left: 0;
+}
+
+/* Physical-value curves use the same framed field language as scalar values. */
+.zui-value__curve-field {
+    height: 22px;
+    min-height: 22px;
+    max-width: 100%;
+    border-width: 1px;
+    border-color: var(--zui-line);
+    border-radius: 3px;
+    background-color: var(--zui-stage-bg);
+    padding-left: 6px;
+    padding-right: 4px;
+}
+.zui-value__curve-field:hover { border-color: var(--zui-focus); }
+.zui-value__curve-label,
+.zui-value__curve-summary {
+    font-size: 12px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-left: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    -unity-text-align: middle-left;
+}
+.zui-value__curve-summary { color: var(--zui-control-text); }
+.zui-value__physical-envelope {
+    --zui-envelope-padding-top: 14;
+    --zui-envelope-padding-right: 10;
+    --zui-envelope-padding-bottom: 28;
+    --zui-envelope-padding-left: 10;
+    --zui-envelope-value-label-size: 12;
+}
+.zui-value__curve-scale {
+    height: 140px;
+    flex-shrink: 0;
+    justify-content: space-between;
+    padding-top: 6px;
+    padding-bottom: 20px;
+    margin-right: 4px;
+}
+.zui-value__curve-tick {
+    height: 16px;
+    margin: 0;
+    font-size: 12px;
+    white-space: nowrap;
+    color: var(--zui-control-text);
+    -unity-text-align: middle-right;
+}
+.zui-value__curve-axis {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 1px;
+    height: 18px;
+    margin: 0;
+    font-size: 12px;
+    color: var(--zui-control-text);
+    -unity-text-align: middle-center;
 }

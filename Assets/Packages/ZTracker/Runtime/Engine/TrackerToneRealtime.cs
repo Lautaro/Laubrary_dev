@@ -9,7 +9,19 @@ namespace Laubrary.ZTracker.Engine
         float VoiceParameter(in TrackerVoice voice,TrackerParameter parameter)
         {
             int preset=state.tones[voice.sample].parameterSet;
-            return preset>=0&&!Written(voice.instrument,parameter)?state.presetParameters[preset*TrackerParameters.Stride+(int)parameter]:Parameter(voice.instrument,parameter);
+            float value=preset>=0&&!Written(voice.instrument,parameter)?state.presetParameters[preset*TrackerParameters.Stride+(int)parameter]:Parameter(voice.instrument,parameter);
+            var tone=state.tones[voice.sample];int slot=tone.parameterEnvelopeSlots[(int)parameter];
+            if(slot!=0)value=state.modulationState[voice.modulationOffset+slot-1].output;
+            return TrackerParameters.Clamp(parameter,value);
+        }
+        bool VoiceParameterActive(in TrackerVoice voice,TrackerParameter parameter)
+        {
+            if(Written(voice.instrument,parameter))return true;
+            return HasParameterEnvelope(in voice,parameter);
+        }
+        bool HasParameterEnvelope(in TrackerVoice voice,TrackerParameter parameter)
+        {
+            var tone=state.tones[voice.sample];return tone.parameterEnvelopeSlots[(int)parameter]!=0;
         }
         bool Written(int instrument,TrackerParameter p)=>state.parameterWritten[instrument*TrackerParameters.Stride+(int)p]!=0;
         void ResetToneDefaults()
@@ -69,8 +81,15 @@ namespace Laubrary.ZTracker.Engine
             for(int n=1;n<count;n++){var b=state.points[start+n];if(time<=(float)b.time){var a=state.points[start+n-1];float t=(time-(float)a.time)/((float)b.time-(float)a.time);if(exponent)t=math.pow(t,b.exponent);return a.value+(b.value-a.value)*t;}}
             return state.points[start+count-1].value;
         }
-        float ToneCurve(in TrackerMod m,float time)
+        float ToneCurve(in TrackerMod m,float time,in TrackerVoice voice)
         {
+            if(voice.released&&(m.loopEnabled||m.sustainEnabled)){
+                float releasedAt=voice.releaseAge/(float)state.sampleRate;
+                float releasePosition=m.sustainEnabled?math.min(releasedAt,(float)m.sustainPosition):releasedAt;
+                if(m.loopEnabled&&releasePosition>(float)m.loopEnd){float width=(float)(m.loopEnd-m.loopStart);float phase=(releasePosition-(float)m.loopStart)%width;if(m.loop==SampleLoop.PingPong&&((int)((releasePosition-(float)m.loopStart)/width)&1)!=0)phase=width-phase;releasePosition=(float)m.loopStart+phase;}
+                return PointCurve(m.points,m.pointCount,releasePosition+math.max(0,time-releasedAt),true);
+            }
+            if(m.sustainEnabled)time=math.min(time,(float)m.sustainPosition);
             if(m.loopEnabled&&time>(float)m.loopEnd){float width=(float)(m.loopEnd-m.loopStart);float phase=(time-(float)m.loopStart)%width;if(m.loop==SampleLoop.PingPong&&((int)((time-(float)m.loopStart)/width)&1)!=0)phase=width-phase;time=(float)m.loopStart+phase;}
             return PointCurve(m.points,m.pointCount,time,true);
         }
@@ -102,7 +121,7 @@ namespace Laubrary.ZTracker.Engine
                 float note=state.points[tone.arpNotes+v.arpIndex].value-state.points[tone.arpNotes].value;double target=math.pow(2f,note/12f);v.arpSmooth+=(target-v.arpSmooth)/math.max(1,cadence);step*=v.arpSmooth;
             }
             // Retained sampler vibrato uses P3's modulation device unless explicitly routed live.
-            bool vibrato=tone.kind!=0||Written(ii,TrackerParameter.VibratoDepth)||Written(ii,TrackerParameter.VibratoRate)||Written(ii,TrackerParameter.VibratoFadeIn);
+            bool vibrato=tone.kind!=0||VoiceParameterActive(in v,TrackerParameter.VibratoDepth)||VoiceParameterActive(in v,TrackerParameter.VibratoRate)||VoiceParameterActive(in v,TrackerParameter.VibratoFadeIn);
             if(vibrato){float depth=VoiceParameter(in v,TrackerParameter.VibratoDepth),rate=VoiceParameter(in v,TrackerParameter.VibratoRate),fade=VoiceParameter(in v,TrackerParameter.VibratoFadeIn);uint seed=Seed((uint)v.cohort,(uint)v.note,3);float jitter=(seed&0xffffff)/8388608f-1;rate*=1+jitter*tone.vibratoRandomness;v.vibratoFade=fade>0?math.min(1,v.vibratoFade+1/(fade*state.sampleRate)):1;v.vibratoPhase+=rate/state.sampleRate*2*math.PI;if(v.vibratoPhase>2*math.PI)v.vibratoPhase-=2*math.PI;double target=math.pow(2f,math.sin(v.vibratoPhase)*depth*v.vibratoFade/1200);v.vibratoSmooth+=(target-v.vibratoSmooth)/math.max(1,cadence);step*=v.vibratoSmooth;}
             float fine=VoiceParameter(in v,TrackerParameter.FineTune)-tone.baseGlobalTune;
             if(tone.kind!=0)fine+=v.memberSpread*(v.detuneCurrent-state.parameterBase[ii*TrackerParameters.Stride+(int)TrackerParameter.UnisonDetune]);
@@ -129,7 +148,7 @@ namespace Laubrary.ZTracker.Engine
         {
             int ii=v.instrument;float blend=Written(ii,TrackerParameter.Blend)?VoiceParameter(in v,TrackerParameter.Blend):tone.baseBlend,pw=VoiceParameter(in v,TrackerParameter.PulseWidth),ratio=VoiceParameter(in v,TrackerParameter.WaveBRatio),pm=Written(ii,TrackerParameter.PMDepth)?VoiceParameter(in v,TrackerParameter.PMDepth):tone.basePM,detune=VoiceParameter(in v,TrackerParameter.UnisonDetune);
             if(tone.blendEnvelope&&v.blendStage!=5){if(v.released){if(v.blendStage!=4){v.blendStage=4;v.blendReleaseStart=v.blendLevel;}v.blendLevel=math.max(0,v.blendLevel-(tone.blendRelease>0?1/(tone.blendRelease*state.sampleRate):1));if(v.blendLevel<=0)v.blendStage=5;}else if(v.blendStage==0){v.blendLevel+=tone.blendAttack>0?1/(tone.blendAttack*state.sampleRate):1;if(v.blendLevel>=1){v.blendLevel=1;v.blendStage=2;}}else if(v.blendStage==2){v.blendLevel-=tone.blendDecay>0?(1-tone.blendSustain)/(tone.blendDecay*state.sampleRate):1;if(v.blendLevel<=tone.blendSustain){v.blendLevel=tone.blendSustain;v.blendStage=3;}}v.blendCurrent=v.blendLevel;}
-            for(int n=0;n<5;n++){var env=state.toneEnvelopes[tone.envelopes+n];if(env.pointCount==0)continue;float value=ToneCurve(in env,v.envTime);switch(n){case 0:blend=value;break;case 1:pw=value;break;case 2:ratio=value;break;case 3:pm=value;break;case 4:detune=value;break;}}
+            for(int n=0;n<5;n++){var env=state.toneEnvelopes[tone.envelopes+n];if(env.pointCount==0)continue;float value=ToneCurve(in env,v.envTime,in v);switch(n){case 0:blend=value;break;case 1:pw=value;break;case 2:ratio=value;break;case 3:pm=value;break;case 4:detune=value;break;}}
             float smooth=1/(.005f*state.sampleRate);v.blendCurrent+=(blend-v.blendCurrent)*smooth;v.pulseCurrent+=(pw-v.pulseCurrent)*smooth;v.ratioCurrent+=(ratio-v.ratioCurrent)*smooth;v.pmCurrent+=(pm-v.pmCurrent)*smooth;v.detuneCurrent+=(detune-v.detuneCurrent)*smooth;v.envTime+=1f/state.sampleRate;
         }
         float Synth(ref TrackerVoice v,in TrackerTone tone,float increment)
@@ -177,6 +196,10 @@ namespace Laubrary.ZTracker.Engine
             if(tone.pcmB<0)return;var clip=state.clips[tone.pcmB];var b=sample;b.loop=tone.loopB;b.loopStart=tone.loopStartB;b.loopEnd=tone.loopEndB;b.releaseExitsLoop=tone.releaseExitsLoopB;
             b.regionStart=0;b.regionEnd=clip.frames;
             double increment=SafeInitialStep(v.stepB,(v.commandPitch+v.commandArp+v.commandVibrato)/12d);
+            // New global per-note pitch curves affect both members of a sample
+            // pair. Keep historical scalar-only playback byte-compatible.
+            if(HasParameterEnvelope(in v,TrackerParameter.FineTune))increment=SafeInitialStep(increment,(VoiceParameter(in v,TrackerParameter.FineTune)-tone.baseGlobalTune)/1200d);
+            if(HasParameterEnvelope(in v,TrackerParameter.VibratoDepth)||HasParameterEnvelope(in v,TrackerParameter.VibratoRate)||HasParameterEnvelope(in v,TrackerParameter.VibratoFadeIn))increment*=v.vibratoSmooth;
             var cursor=new TrackerVoice{active=true,position=v.positionB+increment*v.directionB,direction=v.directionB,released=v.released};AdvancePcm(ref cursor,in b,in clip);v.positionB=cursor.position;v.directionB=cursor.direction;
             if(tone.blendMode==2&&v.direction>0&&v.position<previousA){v.positionB=tone.loopB==SampleLoop.Backward?tone.loopEndB-1:0;v.directionB=tone.loopB==SampleLoop.Backward?-1:1;}
         }

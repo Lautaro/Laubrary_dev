@@ -12,6 +12,7 @@
 //                      ZuiToolkit.uss globally forbids);
 //   • over-width     — a plain field control wider than a generous cap (600px), excluding
 //                      containers/plots, per the no-infinite-width-controls rule.
+//   • horizontal-clipping — a vertical-only ScrollView has content beyond its viewport's horizontal bounds.
 // Row-packing waste, redundant titles, and explanatory labels stay a human's job — same as always.
 using System.Collections.Generic;
 using UnityEditor;
@@ -46,17 +47,18 @@ namespace Laubrary.Zui
             // clean audit while visibly stretching (PM by-eye, shaper_3col.png). Neither is a BaseField, so
             // they also need the dedicated stretch check below — being interactive alone only buys them the
             // tooltip/over-width/off-screen checks.
-            typeof(ZuiMicroSlider), typeof(ZuiMicroMinMax),
+            typeof(ZuiMicroSlider), typeof(ZuiMicroMinMax), typeof(ZuiAdsr),
         };
 
         const float OverWidthCap = 600f;
 
         public static List<Finding> Audit(EditorWindow window) => Audit(window, out _);
 
-        /// `foldedSkipped` counts subtrees this pass could not see because they were collapsed. Since every
+        /// `foldedSkipped` counts authoring sections this pass could not see because they were collapsed. Since every
         /// section heading and box title became foldable, a window sitting with half its blocks closed can
         /// return zero findings while most of it was never looked at — a clean result is only meaningful
-        /// when this is 0. Callers that want real coverage should expand first, or report the number.
+        /// when this is 0. Hidden contextual controls (scrollbars, optional numeric inputs, inactive modes)
+        /// are not folded sections. Callers still need to audit each relevant mode/tab separately.
         public static List<Finding> Audit(EditorWindow window, out int foldedSkipped)
         {
             var findings = new List<Finding>();
@@ -67,7 +69,7 @@ namespace Laubrary.Zui
             return findings;
         }
 
-        /// Expand every ZuiSection / ZuiBox in a window so an audit can actually see it. Returns how many
+        /// Expand every ZuiSection / ZuiBox / section label / native Foldout so an audit can see its content. Returns how many
         /// it opened, so a caller can put them back if it cares.
         public static int ExpandAll(EditorWindow window)
         {
@@ -78,13 +80,25 @@ namespace Laubrary.Zui
                 if (!b.IsOpen) { b.IsOpen = true; opened++; }
             foreach (var l in window.rootVisualElement.Query<ZuiSectionLabel>().ToList())
                 if (!l.IsOpen) { l.IsOpen = true; opened++; }
+            foreach (var f in window.rootVisualElement.Query<Foldout>().ToList())
+                if (!f.value) { f.value = true; opened++; }
             return opened;
         }
 
         static void Walk(VisualElement ve, VisualElement root, float windowRight, List<Finding> findings,
             ref int foldedSkipped)
         {
-            if (ve.resolvedStyle.display == DisplayStyle.None) { foldedSkipped++; return; }
+            // Count the owner, not arbitrary hidden descendants. A folded heading may hide several
+            // siblings, while a MicroSlider's hidden numeric editor is merely an alternate presentation.
+            // Counting every display:none made even fully expanded windows permanently "incomplete".
+            bool folded = ve is ZuiSection section && !section.IsOpen
+                || ve is ZuiBox box && !box.IsOpen
+                || ve is ZuiSectionLabel label && !label.IsOpen
+                || ve is Foldout foldout && !foldout.value;
+            if (folded) foldedSkipped++;
+            if (ve.resolvedStyle.display == DisplayStyle.None) return;
+
+            if (ve is ScrollView scroll) AuditHorizontalClipping(scroll, findings);
 
             bool interactive = IsInteractive(ve);
             if (interactive)
@@ -168,12 +182,46 @@ namespace Laubrary.Zui
             return false;
         }
 
-        // Content inside a ScrollView legitimately extends past the window — the scroller handles it.
+        // Scroll content is checked against its own viewport by AuditHorizontalClipping. The outer-window
+        // check would otherwise report the same clipped row once for every nested label and input.
         static bool InsideScroller(VisualElement ve)
         {
             for (var v = ve.parent; v != null; v = v.parent)
                 if (v is ScrollView) return true;
             return false;
+        }
+
+        static void AuditHorizontalClipping(ScrollView scroll, List<Finding> findings)
+        {
+            // Horizontal/2D workspaces deliberately allow wide content. A vertical form does not: hiding
+            // it beyond the viewport cannot be excused merely because some ancestor is a ScrollView.
+            if (scroll.mode != ScrollViewMode.Vertical) return;
+            Rect viewport = scroll.contentViewport.worldBound;
+            if (viewport.width <= 1f || float.IsNaN(viewport.width)) return;
+            float left = float.PositiveInfinity, right = float.NegativeInfinity;
+            HorizontalExtent(scroll.contentContainer, ref left, ref right);
+            if (float.IsInfinity(left) || float.IsInfinity(right)) return;
+            float clippedLeft = Mathf.Max(0, viewport.xMin - left);
+            float clippedRight = Mathf.Max(0, right - viewport.xMax);
+            if (clippedLeft > 1.5f || clippedRight > 1.5f)
+                findings.Add(New("horizontal-clipping", scroll,
+                    $"vertical viewport {viewport.width:0}px; content span {right-left:0}px; clipped left {clippedLeft:0}px, right {clippedRight:0}px"));
+        }
+
+        static void HorizontalExtent(VisualElement ve, ref float left, ref float right)
+        {
+            if (ve.resolvedStyle.display == DisplayStyle.None || ve.resolvedStyle.visibility == Visibility.Hidden) return;
+            Rect bounds = ve.worldBound;
+            if (bounds.width > 0f && !float.IsNaN(bounds.xMin) && !float.IsNaN(bounds.xMax))
+            {
+                left = Mathf.Min(left, bounds.xMin);
+                right = Mathf.Max(right, bounds.xMax);
+            }
+            // Nested scrollers own their content clipping/scrolling. Include their outer rect here, then
+            // let the normal audit visit each one independently; a horizontal child is not a false overflow.
+            if (ve is ScrollView) return;
+            for (int i = 0; i < ve.hierarchy.childCount; i++)
+                HorizontalExtent(ve.hierarchy[i], ref left, ref right);
         }
 
         static Finding New(string check, VisualElement ve, string detail)

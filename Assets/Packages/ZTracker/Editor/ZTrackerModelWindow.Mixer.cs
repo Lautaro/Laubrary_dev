@@ -27,7 +27,7 @@ namespace Laubrary.ZTracker.Editor
             scroll.Add(Z.Segmented(mixerTab,new[]{"Levels","Devices","Sources"},"Choose this track's controls.",v=>{mixerTab=v;BuildPane();}));
             if(mixerTab==1)
             {
-                scroll.Add(new AudioChainEditor(()=>t.devices,(label,edit,structural)=>SongEdit(label,()=>{var before=t.devices.nodes.ToArray();edit();RepairChainReferences(t,before);},false),uid=>FlagRemovedDevice(t,uid),directAdd:true,wrapDevices:true));return;
+                scroll.Add(new AudioChainEditor(()=>t.devices,(label,edit,structural)=>SongEdit(label,()=>{var before=t.devices.nodes.ToArray();edit();RepairChainReferences(t,before);},false),uid=>FlagRemovedDevice(t,uid),wrapDevices:true));return;
             }
             if(mixerTab==2){BuildSources(scroll,t);return;}
             scroll.Add(Flow(Named(DialSong("Pre gain",t.preVolume,0,16,"Amplitude multiplier before effects.",v=>t.preVolume=v,decimals:3),"mixer-pre-volume"),DialSong("Pre pan",t.prePan,-1,1,"Stereo balance before effects.",v=>t.prePan=v,decimals:3),DialSong("Width",t.preWidth,0,4,"Stereo width before effects.",v=>t.preWidth=v,decimals:3)));
