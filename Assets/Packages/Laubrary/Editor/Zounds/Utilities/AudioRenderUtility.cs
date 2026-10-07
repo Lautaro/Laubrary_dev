@@ -539,16 +539,25 @@ namespace Laubrary.Zounds {
                 return null;
             }
 
+            if (audioClip == null) return null;
             string path = AssetDatabase.GetAssetPath(audioClip);
+            if (string.IsNullOrEmpty(path)) return null;
             var guid = AssetDatabase.GUIDFromAssetPath(path).ToString();
             AddressableAssetEntry entry = settings.FindAssetEntry(guid);
 
-            if (entry != null) {
-                AssetReferenceT<AudioClip> reference = new AssetReferenceT<AudioClip>(guid);
-                return reference;
+            // Every caller is about to point a Klip at this clip. A Sources clip only becomes Addressable once a Klip
+            // references it (ZoundsClipClassifier), so a freshly copied or rendered clip has no entry yet; register it
+            // here, in the same group the asset post-processor uses, instead of returning null for the caller to crash on.
+            if (entry == null) {
+                const string groupName = "Zounds Default Local Group";
+                var group = settings.FindGroup(groupName) ?? settings.CreateGroup(groupName, false, false, false, null, typeof(UnityEditor.AddressableAssets.Settings.GroupSchemas.ContentUpdateGroupSchema), typeof(UnityEditor.AddressableAssets.Settings.GroupSchemas.BundledAssetGroupSchema));
+                entry = settings.CreateOrMoveEntry(guid, group);
+                if (entry == null) return null;
+                entry.address = path;
+                AssetDatabase.SaveAssets();
             }
 
-            return null;
+            return new AssetReferenceT<AudioClip>(guid);
         }
 #endif
 

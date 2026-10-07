@@ -1755,8 +1755,17 @@ namespace Laubrary.Zounds {
                         newPath = Path.ChangeExtension(newPath, ".Copy.wav");
                         newPath = AssetDatabase.GenerateUniqueAssetPath(newPath);
                         var reloadedAudio = AudioRenderUtility.SaveAudio(audioRef.editorAsset, newPath);
-                        newKlip.audioClipRef = AudioRenderUtility.GetAudioReference(reloadedAudio);
-                        newKlip.name = ZoundDictionary.EnsureUniqueZoundName(newKlip.audioClipRef.editorAsset.name);
+                        var copiedRef = AudioRenderUtility.GetAudioReference(reloadedAudio);
+                        if (copiedRef == null || copiedRef.editorAsset == null) {
+                            // The copy could not be referenced (no Addressables settings, import failed): use the original.
+                            Debug.LogWarning("[Zounds] Could not reference the copied clip at " + newPath + "; the Klip uses the original clip instead.");
+                            newKlip.audioClipRef = audioRef;
+                            newKlip.name = ZoundDictionary.EnsureUniqueZoundName(clipName);
+                        }
+                        else {
+                            newKlip.audioClipRef = copiedRef;
+                            newKlip.name = ZoundDictionary.EnsureUniqueZoundName(copiedRef.editorAsset.name);
+                        }
                     }
                     else {
                         newKlip.audioClipRef = audioRef;

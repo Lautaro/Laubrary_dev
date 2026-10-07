@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds: adding a Local Klip no longer crashes
+
+- Adding a klip from a work-folder sound copies the audio into Sources and then asked for an Addressables reference the copy did not have yet (a Sources clip is only registered once a Klip references it), so the browser threw a NullReferenceException and left a stray .Copy.wav each time. The reference lookup now registers the clip itself, and the browser falls back to the original clip if it still cannot.
+
 ### Zoe moves can hold the character still
 
 - Added Hold still to every custom event row in the Zoe window (in the row's header). While such an event plays, the player controllers (top-down and side-view) ignore walking input, so a move is committed rather than strolled through; movement the move carries itself (a push effect) still applies. The hold ends when the clip ends or anything interrupts it, and a finishing older move can never release a newer one's hold.
