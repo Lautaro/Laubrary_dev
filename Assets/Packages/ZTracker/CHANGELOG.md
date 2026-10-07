@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Pattern editor: the grid has its own area with a tool column on its left (Edit, Oct and Step as typed and drag-scrubbable number boxes, icon buttons for copy, paste, insert line and delete line, then transpose), and row numbers are decimal (0 to the pattern's length) instead of hexadecimal.
 - ZTracker window preview no longer fail after a Play session when Enter Play Mode Options skip the domain reload. Leaving Play mode raises the application's quitting events in the editor, and the quit flags they set stayed on in edit mode, so every preview was refused with "Assigned scriptable generator returned an invalid instance".
 - Rhythm gameplay helpers: accent sources (beat starts or a track's note starts), an accent hit judge with a single window in rows, and `ZTrackerTimeline`, a reusable runtime timeline of the heard pattern (up to 64 rows) drawn with ZUI. Track gating: a gated (trigger-muted) track keeps silent its own pattern notes but still plays notes from `PlayNote`/auditions, and `ReleaseNote` releases them. The playback assembly now references ZUI's runtime assembly.
 - Double-clicking a song asset in the Project window opens it in the ZTracker window.
