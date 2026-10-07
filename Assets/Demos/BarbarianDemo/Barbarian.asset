@@ -78,7 +78,21 @@ MonoBehaviour:
       stunSeconds: 0
       holdStill: 1
       travel:
-        envelope: []
+        envelope:
+        - time: 0
+          value: 0
+          exponent: 1
+          editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
+        - time: 1
+          value: 1
+          exponent: 1
+          editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
         maxDistancePx: 0
         bipolar: 0
       bodyFx: {fileID: 0}
@@ -94,8 +108,29 @@ MonoBehaviour:
       stunSeconds: 0
       holdStill: 1
       travel:
-        envelope: []
-        maxDistancePx: 0
+        envelope:
+        - time: 0
+          value: 0
+          exponent: 1
+          editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
+        - time: 0
+          value: 1
+          exponent: 1
+          editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
+        - time: 1
+          value: 1
+          exponent: 1
+          editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
+        maxDistancePx: 30
         bipolar: 0
       bodyFx: {fileID: 0}
       fx: []

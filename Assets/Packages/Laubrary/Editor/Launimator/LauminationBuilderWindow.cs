@@ -3242,15 +3242,19 @@ namespace Laubrary.Launimator.Editor
             int assumed = 0;   // frames saved without a source texture, read from the animation's sheet
             if (def.recipe != null && def.recipe.Count > 0)
             {
-                // Build the palette from ONLY this animation's frames. Load the source texture for its pixels,
-                // but then CLEAR the regions: LoadSheet restores the sheet's saved slicing sidecar, which holds
-                // the LAST-edited animation's working set — leaving it would append the previous animation's
-                // sprites in front of this one's (the reported bug). The recipe below repopulates #4 cleanly.
+                // Load the source texture for its pixels, then drop every restored region EXCEPT the sheet's
+                // palette: LoadSheet restores the sheet's saved slicing sidecar, which can hold the LAST-edited
+                // animation's working set — leaving that would append the previous animation's sprites in front
+                // of this one's (the reported bug). The palette is different: it is every sprite the lauminary
+                // uses (LauminarySources.WritePalette), kept so any animation can pick from all of them, and the
+                // recipe below matches this animation's frames onto its boxes.
                 var tex = !string.IsNullOrEmpty(def.sourceTextureGuid)
                     ? AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath(def.sourceTextureGuid))
                     : null;
                 if (tex != null) LoadSheet(tex);
-                _regions.Clear();
+                _regions.RemoveAll(r => r.label != LauminarySources.PaletteRegionLabel);
+                // The sidecar also restores its own fps; this animation's fps wins.
+                _animFps = def.fps <= 0f ? 12f : def.fps;
 
                 foreach (var original in def.recipe)
                 {

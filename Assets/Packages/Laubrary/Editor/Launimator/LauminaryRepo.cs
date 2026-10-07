@@ -344,6 +344,9 @@ namespace Laubrary.Launimator.Editor
             int reowned = LauminarySources.Detach(draft, DraftFolder(c), c.lauminaryName, strict: false);
             if (reowned > 0) Debug.Log($"Launimator: '{c.lauminaryName}' draft owns {reowned} more frame(s) — detached from source sheet(s).");
             LauminaryBuilder.BuildVersionAssets(draft, DraftFolder(c), c.lauminaryName, c.pixelsPerUnit);
+            // The builder's palette of every sprite this lauminary uses, rewritten to match the sheet as it now is.
+            try { LauminarySources.WritePalette(draft, DraftFolder(c), c.lauminaryName); }
+            catch (Exception e) { Debug.LogWarning($"Launimator: couldn't refresh the sprite palette for '{c.lauminaryName}': {e.Message}"); }
             EditorUtility.SetDirty(draft);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();

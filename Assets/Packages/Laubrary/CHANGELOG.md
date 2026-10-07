@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Launimator: every animation can pick from all of a lauminary's sprites
+- Rebuilding a lauminary's draft writes a palette of every sprite its animations use (at the exact rects they read) into the owned sheet's Laumination Builder data, refreshed each time because a repacked sheet moves every sprite. Opening an animation in the builder keeps that palette, so any animation can use any of the lauminary's sprites, and the animation's own fps now wins over the fps saved with the sheet.
+
 ### Laumination Builder: sprites without a readable texture are refused, not saved broken
 
 - Fixed: sprites found with auto-detect ("Identify Sprites") never recorded which sheet they came from, so adding one to an animation broke its preview, and saving it left the animation with no frames. Auto-detected sprites now record their sheet like every other way of adding a sprite.

@@ -32,6 +32,49 @@ namespace Laubrary.Launimator.Editor
         public static string SourcePath(string versionFolder, string lauminaryName)
             => $"{SourceFolder(versionFolder)}/{LauminaryBuilder.Sanitize(lauminaryName)}_src.png";
 
+        /// Label of the owned sheet's palette region in the Laumination Builder: one box per sprite any of the
+        /// version's animations uses, at the exact rect that animation reads. The builder keeps this region when
+        /// an animation is opened, so every animation can pick from all of the lauminary's sprites.
+        public const string PaletteRegionLabel = "palette";
+
+        /// <summary>
+        /// Write (or refresh) the palette region into the owned sheet's builder sidecar. Run on every draft
+        /// rebuild: <see cref="Detach"/> may repack the sheet, which moves every sprite, so boxes written once
+        /// would point at the wrong pixels afterwards. Other regions and settings in the sidecar are kept.
+        /// </summary>
+        public static void WritePalette(LauminaryVersion version, string versionFolder, string lauminaryName)
+        {
+            string srcPath = SourcePath(versionFolder, lauminaryName);
+            if (version?.animations == null || !File.Exists(ToSystemPath(srcPath))) return;
+            string guid = AssetDatabase.AssetPathToGUID(srcPath);
+            var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(srcPath);
+            if (string.IsNullOrEmpty(guid) || tex == null) return;
+
+            var region = new RegionSlicerPersistence.RegionDto
+            {
+                label = PaletteRegionLabel,
+                bounds = new RegionSlicerPersistence.RectDto(new Rect(0, 0, tex.width, tex.height)),
+            };
+            var seen = new HashSet<string>();
+            foreach (var def in version.animations)
+                if (def?.recipe != null)
+                    foreach (var f in def.recipe)
+                    {
+                        if (f == null || f.sourceTextureGuid != guid || !seen.Add(RectKey(f.cell))) continue;
+                        region.cells.Add(new RegionSlicerPersistence.RectDto(f.cell));
+                        region.pivots.Add(new RegionSlicerPersistence.Vec2Dto(f.pivot));
+                    }
+
+            var state = RegionSlicerPersistence.Exists(srcPath) ? RegionSlicerPersistence.Load(srcPath, out _) : null;
+            if (state == null) state = new RegionSlicerPersistence.StateDto();
+            if (state.regions == null) state.regions = new List<RegionSlicerPersistence.RegionDto>();
+            int at = state.regions.FindIndex(r => r != null && r.label == PaletteRegionLabel);
+            if (at >= 0) state.regions[at] = region; else state.regions.Add(region);
+            RegionSlicerPersistence.Normalize(state);   // drops saved sequence refs a shrunk palette no longer has
+            state.textureGuid = guid; state.texturePath = srcPath; state.texW = tex.width; state.texH = tex.height;
+            RegionSlicerPersistence.Save(srcPath, state);
+        }
+
         /// <summary>
         /// Re-own every animation frame whose pixels live outside this version's <c>Source/</c> folder. Returns the
         /// number of frames repointed (0 = nothing to do / already self-contained). In <paramref name="strict"/>
