@@ -145,10 +145,19 @@ namespace Laubrary.Launimator.Editor
         private double _animLastStep;
         private bool _inDivider;
         private double _dividerUntil;
-        private enum LoopDivider { None, EmptyPause, IdleSprite }
+        private enum LoopDivider { None, EmptyPause }
         private LoopDivider _loopDivider = LoopDivider.None;
         private float _loopPause = 0.4f;
-        private CellRef _idleRef = new CellRef(-1, -1);
+
+        // Frame 0: a sprite the preview shows before frame 1 on every loop (e.g. the pose the move starts from),
+        // so the transition can be judged. Saved with the animation but never baked; the game never sees it.
+        private bool _frameZeroOn;
+        private CellRef _frameZero = new CellRef(-1, -1);   // pct = how long it shows
+        private bool _frameZeroSel;                          // the strip's slot 0 is the selected frame
+        private bool _showingFrameZero;                      // the preview is on frame 0 (playing or parked)
+        private double _frameZeroUntil;
+        private List<Sprite> _previewFrameZero;              // frame 0, baked with the sequence so it registers alike
+        private const float DefaultFrameZeroPct = 400f;      // five normal frames: long enough to read the pose
         private const float CrosshairNX = 0.5f, CrosshairNY = 0.4f;
         private const float RotStepDeg = 5f; // increment for the stepwise rotation −/+ buttons
 
@@ -306,6 +315,14 @@ namespace Laubrary.Launimator.Editor
                 _playIM?.MarkDirtyRepaint();
                 return;
             }
+            if (_showingFrameZero)
+            {
+                if (!FrameZeroActive) _showingFrameZero = false;
+                else if (now >= _frameZeroUntil) { _showingFrameZero = false; StartClip(); }
+                _playIM?.MarkDirtyRepaint();
+                _seqStripIM?.MarkDirtyRepaint();
+                return;
+            }
 
             // Make sure the shared player is running our live-baked clip with the right loop mode.
             if (_previewPlayer.Anim != _previewDef || (!_previewPlayer.IsPlaying && !_inDivider)) RestartPreview();
@@ -320,6 +337,27 @@ namespace Laubrary.Launimator.Editor
 
         // What a frame with this timing lasts at the current FPS, in milliseconds.
         private float FrameMsOf(float pct) => _animFps > 0f ? 1000f / _animFps * FrameRef.TimingFactorOf(pct) : 0f;
+
+        // Frame 0 is on and points at a sprite whose texture can be read.
+        private bool FrameZeroActive => _frameZeroOn && SeqRefValid(_frameZero) && RegionSourceUsable(_frameZero.region, out _);
+
+        private FrameRef FrameRefOf(CellRef cr)
+        {
+            var reg = _regions[cr.region]; reg.SyncPivots(GlobalPivot());
+            return new FrameRef { sourceTextureGuid = reg.sourceTextureGuid, cell = reg.cells[cr.cell], pivot = reg.pivots[cr.cell], transform = reg.transforms[cr.cell], timingPercent = cr.pct };
+        }
+
+        // Point frame 0 at a sprite, keeping its own length once it has one.
+        private void SetFrameZero(int region, int cell)
+        {
+            RecordUndo("Set frame 0");
+            float pct = SeqRefValid(_frameZero) ? _frameZero.pct : DefaultFrameZeroPct;
+            _frameZero = new CellRef(region, cell) { pct = pct };
+            _frameZeroOn = true;
+            _status = "Frame 0 set. It shows before frame 1 in the preview only.";
+            RestartPreview();
+            Refresh();
+        }
 
         // Copy each sequence frame's timing onto the preview's recipe, which is what the player times frames by.
         private void SyncPreviewTimings()
@@ -350,9 +388,19 @@ namespace Laubrary.Launimator.Editor
             var recipe = BuildRecipe();
             if (recipe == null || recipe.Count == 0) { _previewDef = null; return; }
 
+            // Frame 0 is baked in the same pass so it gets the same box and registration as the real frames,
+            // then split off again: the player never sees it.
+            bool withZero = FrameZeroActive;
+            if (withZero) recipe.Insert(0, FrameRefOf(_frameZero));
+
             var box = new AtlasBaker.FrameBox { fixedSize = _fixedFrame, w = _frameW, h = _frameH, pivot = _framePivot };
             var frames = AtlasBaker.BakeInMemory(recipe, 16f, out string err, out var tex, CurrentColorKey(), box);
             if (frames == null) { _status = "Preview bake: " + err; _previewDef = null; return; }
+            if (withZero)
+            {
+                _previewFrameZero = new List<Sprite> { frames[0] };
+                frames.RemoveAt(0); recipe.RemoveAt(0);
+            }
 
             _previewTex = tex;
             _previewFrames = frames;
@@ -363,7 +411,7 @@ namespace Laubrary.Launimator.Editor
         private void DestroyPreviewBake()
         {
             if (_previewTex != null) { Object.DestroyImmediate(_previewTex); _previewTex = null; }
-            _previewFrames = null; _previewDef = null;
+            _previewFrames = null; _previewDef = null; _previewFrameZero = null;
             _previewPlayer.Stop();
         }
 
@@ -372,7 +420,21 @@ namespace Laubrary.Launimator.Editor
         private void RestartPreview()
         {
             if (_previewDef == null) return;
-            bool loop = _loopDivider == LoopDivider.None || _loopPause <= 0f;
+            if (FrameZeroActive && _previewFrameZero != null)
+            {
+                _showingFrameZero = true;
+                _frameZeroUntil = EditorApplication.timeSinceStartup + FrameMsOf(_frameZero.pct) / 1000f;
+                _previewPlayer.Stop();
+                return;
+            }
+            StartClip();
+        }
+
+        private void StartClip()
+        {
+            if (_previewDef == null) return;
+            // Frame 0 must come back before every loop, so the clip then ends instead of wrapping by itself.
+            bool loop = !FrameZeroActive && (_loopDivider == LoopDivider.None || _loopPause <= 0f);
             _previewPlayer.Play(_previewDef, loop, 1f, loop ? (System.Action)null : OnPreviewLoopComplete);
             _animFrame = _previewPlayer.Frame;
         }
@@ -409,6 +471,13 @@ namespace Laubrary.Launimator.Editor
                     // any region/cell index ever changing, so this hash never invalidated the stale preview
                     // baked from the wrong texture, even after the underlying bug was already fixed).
                     h = h * 31 + (reg.sourceTextureGuid != null ? reg.sourceTextureGuid.GetHashCode() : 0);
+                }
+                if (FrameZeroActive)
+                {
+                    var z = FrameRefOf(_frameZero);
+                    h = h * 31 + z.cell.GetHashCode(); h = h * 31 + z.pivot.GetHashCode();
+                    h = h * 31 + TransformHash(z.transform);
+                    h = h * 31 + (z.sourceTextureGuid != null ? z.sourceTextureGuid.GetHashCode() : 0);
                 }
                 return h;
             }
@@ -1680,6 +1749,7 @@ namespace Laubrary.Launimator.Editor
             RecordUndo("Clear all sprites");
             _regions.Clear(); ClearThumbCache();
             _sequence.Clear();
+            _frameZero = new CellRef(-1, -1); _showingFrameZero = false;   // its sprite is gone too
             ClearSelection();
             _seqSelected = -1; _animFrame = 0;
             _status = "Cleared all sprites and the sequence.";
@@ -1741,6 +1811,11 @@ namespace Laubrary.Launimator.Editor
             int removedFrames = _sequence.Count - newSeq.Count;
             _sequence.Clear(); _sequence.AddRange(newSeq);
 
+            // Frame 0 follows its sprite to the new indices, or is cleared with it.
+            if (SeqRefValid(_frameZero) && regionMap[_frameZero.region] >= 0 && cellMap[_frameZero.region][_frameZero.cell] >= 0)
+                _frameZero = new CellRef(regionMap[_frameZero.region], cellMap[_frameZero.region][_frameZero.cell]) { pct = _frameZero.pct };
+            else { _frameZero = new CellRef(-1, -1); _showingFrameZero = false; }
+
             // Repair selections.
             ClearSelection();
             _seqMultiSel.Clear();
@@ -1774,6 +1849,7 @@ namespace Laubrary.Launimator.Editor
             else
             {
                 menu.AddItem(new GUIContent("Add to sequence"), false, () => { AppendToSequence(cr.region, cr.cell); Refresh(); });
+                menu.AddItem(new GUIContent("Use as frame 0"), false, () => SetFrameZero(cr.region, cr.cell));
                 menu.AddSeparator("");
                 menu.AddItem(new GUIContent("Trim to content"), false, () => { SelectSingle(cr.region, cr.cell); TrimSelected(); Refresh(); });
                 menu.AddItem(new GUIContent("Set baseline pivot"), false, () => { SelectSingle(cr.region, cr.cell); BaselineSelected(); Refresh(); });
@@ -1803,7 +1879,8 @@ namespace Laubrary.Launimator.Editor
             menu.AddSeparator("");
             if (SeqRefValid(cr))
                 menu.AddItem(new GUIContent("Edit source sprite (select in #4)"), false, () => { SelectSingle(cr.region, cr.cell); Refresh(); });
-            menu.AddItem(new GUIContent("Set as idle (loop gap)"), false, () => { _idleRef = cr; _loopDivider = LoopDivider.IdleSprite; Refresh(); });
+            if (SeqRefValid(cr))
+                menu.AddItem(new GUIContent("Use as frame 0"), false, () => SetFrameZero(cr.region, cr.cell));
             menu.ShowAsContext();
         }
 
@@ -2102,7 +2179,7 @@ namespace Laubrary.Launimator.Editor
         }
 
         // ── 5 · animation (sequence + preview + save) ────────────────────────
-        private static readonly string[] LoopDividerLabels = { "None", "Pause", "Idle" };
+        private static readonly string[] LoopDividerLabels = { "None", "Pause" };
 
         private void BuildAnimationSection(VisualElement root)
         {
@@ -2182,17 +2259,28 @@ namespace Laubrary.Launimator.Editor
             const string frameTimeTip = "How long the selected frame(s) show, relative to the FPS: 0 = one normal " +
                 "frame, +100% = twice as long, -100% = half as long, +800% = 9x as long, -800% = a ninth. Applies " +
                 "to every selected frame and follows any FPS change.";
-            bool anySeqSel = _seqSelected >= 0 && _seqSelected < _sequence.Count;
+            // With slot 0 selected the slider sets how long frame 0 shows instead.
+            bool zeroSel = _frameZeroSel && _frameZeroOn && SeqRefValid(_frameZero);
+            bool anySeqSel = !zeroSel && _seqSelected >= 0 && _seqSelected < _sequence.Count;
+            float SelectedPct() => zeroSel ? _frameZero.pct : anySeqSel ? _sequence[_seqSelected].pct : 0f;
             var frameMsReadout = Z.Text("", ZuiText.Subtle, "What the selected frame lasts with its timing applied.");
             frameMsReadout.style.width = 64f;
             void UpdateReadout()
             {
-                frameMsReadout.text = anySeqSel ? $"= {FrameMsOf(_sequence[_seqSelected].pct):0} ms" : "";
+                frameMsReadout.text = zeroSel || anySeqSel ? $"= {FrameMsOf(SelectedPct()):0} ms" : "";
             }
-            var frameTime = Z.MicroSlider("Frame time %", anySeqSel ? _sequence[_seqSelected].pct : 0f,
+            var frameTime = Z.MicroSlider("Frame time %", SelectedPct(),
                 FrameRef.MinTimingPercent, FrameRef.MaxTimingPercent, frameTimeTip, v =>
                 {
                     v = Mathf.Round(v);
+                    if (zeroSel)
+                    {
+                        _frameZero.pct = v;
+                        UpdateReadout();
+                        _seqStripIM?.MarkDirtyRepaint();
+                        Dirty();
+                        return;
+                    }
                     foreach (int k in _seqMultiSel.ToList())
                         if (k >= 0 && k < _sequence.Count) { var cr = _sequence[k]; cr.pct = v; _sequence[k] = cr; }
                     if (_seqMultiSel.Count == 0 && anySeqSel) { var cr = _sequence[_seqSelected]; cr.pct = v; _sequence[_seqSelected] = cr; }
@@ -2201,7 +2289,7 @@ namespace Laubrary.Launimator.Editor
                     _seqStripIM?.MarkDirtyRepaint();
                     Dirty();
                 }, 190f, defaultValue: 0f, decimals: 0, onBeforeMutate: () => RecordUndo("Frame time"));
-            frameTime.SetEnabled(anySeqSel);
+            frameTime.SetEnabled(zeroSel || anySeqSel);
             UpdateReadout();
             s.Add(WrapRow(
                 _playToggleButton,
@@ -2220,16 +2308,28 @@ namespace Laubrary.Launimator.Editor
                 loopRow.Add(Z.Field("s", "How long the loop gap lasts, in seconds.",
                     Z.Float(Mathf.Max(0f, _loopPause), "How long the loop gap lasts, in seconds.",
                         v => { _loopPause = Mathf.Max(0f, v); Dirty(); }, 52f)));
+            loopRow.Add(Z.Toggle("Frame 0", _frameZeroOn
+                    ? "Frame 0 is on: slot 0 at the start of the sequence shows a sprite before frame 1 on every loop " +
+                      "of this preview. Drag a frame onto slot 0, or right-click a sprite → Use as frame 0, to change " +
+                      "it; select slot 0 to set how long it shows. Saved with the animation for this editor only; " +
+                      "the game never plays it. Click to turn it off."
+                    : "Show a sprite before frame 1 on every loop of this preview, e.g. the pose the move starts " +
+                      "from, to judge the transition. Saved with the animation for this editor only; the game never " +
+                      "plays it.",
+                _frameZeroOn, v =>
+                {
+                    RecordUndo(v ? "Frame 0 on" : "Frame 0 off");
+                    _frameZeroOn = v;
+                    if (!v) { _frameZeroSel = false; _showingFrameZero = false; }
+                    else if (!SeqRefValid(_frameZero))
+                    {
+                        if (HasSelectedCell()) _frameZero = new CellRef(_selRegion, _selCell) { pct = DefaultFrameZeroPct };
+                        else _status = "Frame 0 is on: drag a frame onto slot 0, or right-click a sprite → Use as frame 0.";
+                    }
+                    _previewHash = -1;
+                    Refresh();
+                }));
             s.Add(loopRow);
-
-            if (_loopDivider == LoopDivider.IdleSprite)
-            {
-                var idleButton = Z.Button("Set idle = selected sprite",
-                    "Use the sprite selected in the palette as the frame shown during the loop gap.",
-                    () => { _idleRef = new CellRef(_selRegion, _selCell); Refresh(); }).W(200f);
-                idleButton.SetEnabled(HasSelectedCell());
-                s.Add(idleButton);
-            }
 
             int selCount = _seqMultiSel.Count;
             var reverse = Z.Button("Reverse", "Reverse the order of the selected frames.",
@@ -2910,14 +3010,11 @@ namespace Laubrary.Launimator.Editor
 
             if (_inDivider)
             {
-                // Loop-gap: idle frame (an authoring overlay — the idle sprite may be outside the sequence) or
-                // an empty pause. Not the looping playback.
-                if (_loopDivider == LoopDivider.IdleSprite && SeqRefValid(_idleRef))
-                {
-                    Rect ic = _regions[_idleRef.region].cells[_idleRef.cell];
-                    float s = Mathf.Clamp(Mathf.Min((box.width - 16f) / ic.width, (box.height - 16f) / ic.height), 0.25f, 8f);
-                    DrawFrameAtCrosshair(_idleRef, cx, cy, s, 1f);
-                }
+                // Loop-gap pause: deliberately empty.
+            }
+            else if (_showingFrameZero && FrameZeroActive && _previewFrameZero != null)
+            {
+                FramePreview.DrawClip(box, _previewFrameZero, 0, CrosshairNX, 1f - CrosshairNY, 8f);
             }
             else if (_previewFrames != null && _previewFrames.Count > 0)
             {
@@ -2931,12 +3028,6 @@ namespace Laubrary.Launimator.Editor
             EditorGUI.DrawRect(new Rect(cx - 0.5f, cy - 8, 1f, 16), cross);
         }
 
-        private void DrawFrameAtCrosshair(CellRef cr, float cx, float cy, float scale, float alpha)
-        {
-            var reg = _regions[cr.region]; reg.SyncPivots(GlobalPivot());
-            DrawFrameRegistered(reg.cells[cr.cell], reg.pivots[cr.cell], cx, cy, scale, alpha, reg.sourceTextureGuid);
-        }
-
         /// The sequence strip — an IMGUI island: a thumbnail grid with zone borders, playhead/selection
         /// outlines, ordinal badges and drag-to-reorder.
         private void DrawSequenceStripGUI()
@@ -2946,14 +3037,17 @@ namespace Laubrary.Launimator.Editor
             if (!(view.width > 20f)) return;
 
             const int cell = 46, pad = 4;
+            int lead = _frameZeroOn ? 1 : 0;   // slot 0 sits in front of frame 1 while Frame 0 is on
             int perRow = Mathf.Max(1, Mathf.FloorToInt((view.width - 18f) / (cell + pad)));
-            int rows = Mathf.CeilToInt(_sequence.Count / (float)perRow);
+            int rows = Mathf.CeilToInt((_sequence.Count + lead) / (float)perRow);
             Rect content = new Rect(0, 0, view.width - 18f, Mathf.Max(view.height, rows * (cell + pad)));
 
             _seqScroll = GUI.BeginScrollView(view, _seqScroll, content);
+            if (lead == 1) DrawFrameZeroSlot(new Rect(0, 0, cell, cell));
             for (int i = 0; i < _sequence.Count; i++)
             {
-                Rect r = new Rect((i % perRow) * (cell + pad), (i / perRow) * (cell + pad), cell, cell);
+                int slot = i + lead;
+                Rect r = new Rect((slot % perRow) * (cell + pad), (slot / perRow) * (cell + pad), cell, cell);
                 EditorGUI.DrawRect(r, new Color(0.12f, 0.12f, 0.12f));
                 DrawCellThumb(r, _sequence[i].region, _sequence[i].cell);
                 if (_metaEnabled && _activeLayer >= 0)
@@ -2965,7 +3059,8 @@ namespace Laubrary.Launimator.Editor
                 // Zone border: a thick outline in the frame's zone colour (drawn under the selection outline).
                 if (TryFrameZone(i, out Color zcol)) DrawRectOutline(r, zcol, 3f);
 
-                bool sel = IsSeqSelected(i), primary = i == _seqSelected, playing = i == _animFrame && !_inDivider;
+                bool sel = !_frameZeroSel && IsSeqSelected(i), primary = i == _seqSelected,
+                     playing = i == _animFrame && !_inDivider && !_showingFrameZero;
                 DrawRectOutline(r, sel ? new Color(1f, 0.85f, 0.1f, 1f) : playing ? new Color(0.2f, 1f, 0.5f, 0.9f) : new Color(1f, 1f, 1f, 0.4f), sel ? (primary ? 2.5f : 1.5f) : playing ? 2f : 1f);
                 var badge = new Rect(r.x, r.y, 16, 14);
                 EditorGUI.DrawRect(badge, new Color(0.2f, 0.5f, 1f, 0.92f));
@@ -2987,6 +3082,70 @@ namespace Laubrary.Launimator.Editor
                 HandleSeqDrag(i, r);
             }
             GUI.EndScrollView();
+        }
+
+        // Slot 0: frame 0, drawn dimmer with a grey badge so it never reads as part of the animation.
+        private void DrawFrameZeroSlot(Rect r)
+        {
+            bool has = SeqRefValid(_frameZero);
+            EditorGUI.DrawRect(r, new Color(0.08f, 0.08f, 0.08f));
+            if (has)
+            {
+                DrawCellThumb(r, _frameZero.region, _frameZero.cell);
+                EditorGUI.DrawRect(r, new Color(0f, 0f, 0f, 0.35f));   // dimmed: not an animation frame
+            }
+            else GUI.Label(r, "?", new GUIStyle(EditorStyles.centeredGreyMiniLabel) { alignment = TextAnchor.MiddleCenter, fontSize = 16 });
+
+            Color line = _frameZeroSel ? new Color(1f, 0.85f, 0.1f, 1f)
+                       : _showingFrameZero ? new Color(0.2f, 1f, 0.5f, 0.9f) : new Color(1f, 1f, 1f, 0.25f);
+            DrawRectOutline(r, line, _frameZeroSel ? 2.5f : _showingFrameZero ? 2f : 1f);
+            var badge = new Rect(r.x, r.y, 16, 14);
+            EditorGUI.DrawRect(badge, new Color(0.35f, 0.35f, 0.35f, 0.92f));
+            GUI.Label(badge, "0", EditorStyles.whiteMiniLabel);
+
+            string tip;
+            if (has)
+            {
+                string msText = FrameMsOf(_frameZero.pct).ToString("0") + "ms";
+                var msSize = EditorStyles.whiteMiniLabel.CalcSize(new GUIContent(msText));
+                var msBadge = new Rect(r.xMax - msSize.x - 2f, r.yMax - 14f, msSize.x + 2f, 14f);
+                EditorGUI.DrawRect(msBadge, new Color(0f, 0f, 0f, 0.55f));
+                GUI.Label(msBadge, msText, EditorStyles.whiteMiniLabel);
+                tip = $"Frame 0 shows for {msText} before frame 1, in this preview only; the game never plays it. " +
+                      "Click to select it and set its length with Frame time %. Drag a frame here to replace it; " +
+                      "right-click to clear it.";
+            }
+            else tip = "Frame 0 has no sprite yet. Drag a frame from the sequence here, or right-click a sprite in " +
+                       "the palette → Use as frame 0.";
+            GUI.Label(r, new GUIContent("", tip));
+
+            Event e = Event.current;
+            if (e.type == EventType.MouseDown && r.Contains(e.mousePosition))
+            {
+                _frameZeroSel = true; _seqMultiSel.Clear(); _seqSelected = -1;
+                _animPlaying = false; _inDivider = false; _showingFrameZero = has;
+                if (_playToggleButton != null) _playToggleButton.text = "▶";
+                if (e.button == 1)
+                {
+                    var menu = new GenericMenu();
+                    if (HasSelectedCell()) menu.AddItem(new GUIContent("Use selected palette sprite"), false, () => SetFrameZero(_selRegion, _selCell));
+                    else menu.AddDisabledItem(new GUIContent("Use selected palette sprite"));
+                    if (has) menu.AddItem(new GUIContent("Clear frame 0"), false, () =>
+                    {
+                        RecordUndo("Clear frame 0");
+                        _frameZero = new CellRef(-1, -1); _showingFrameZero = false; _previewHash = -1; Refresh();
+                    });
+                    menu.ShowAsContext();
+                }
+                e.Use();
+                DeferRefresh();
+            }
+            else if (e.type == EventType.MouseUp && _seqDragFrom >= 0 && r.Contains(e.mousePosition))
+            {
+                // Dropping a sequence frame here copies it into frame 0; the sequence itself is untouched.
+                if (_seqDragFrom < _sequence.Count) { var src = _sequence[_seqDragFrom]; _seqDragFrom = -1; SetFrameZero(src.region, src.cell); }
+                _seqDragFrom = -1; e.Use();
+            }
         }
 
         // ── sequence batch selection (mirrors the Sprite Palette's multi-select) ──────
@@ -3082,6 +3241,7 @@ namespace Laubrary.Launimator.Editor
             {
                 // Scrub the playhead to the clicked frame and pause, so the preview parks on this sprite.
                 _animFrame = i; _animPlaying = false; _inDivider = false;
+                _frameZeroSel = false; _showingFrameZero = false;
                 if (e.button == 1)
                 {
                     if (!IsSeqSelected(i)) SeqSelectSingle(i); // right-click outside the selection isolates it
@@ -3187,7 +3347,10 @@ namespace Laubrary.Launimator.Editor
                 bgKeyEnabled = _bgKeyEnabled, bgKey = _bgKey, bgKeyTolerance = _bgTolerance,
                 fixedFrame = _fixedFrame, frameWidth = _frameW, frameHeight = _frameH, framePivot = _framePivot,
                 metaLayersEnabled = _metaEnabled, metaLayers = _metaLayers,
-                zonesEnabled = _zonesEnabled, zones = ZonesForSave()
+                zonesEnabled = _zonesEnabled, zones = ZonesForSave(),
+                // Frame 0 rides along for the builder's preview; nothing bakes or plays it.
+                previewFrameZero = _frameZeroOn,
+                frameZero = SeqRefValid(_frameZero) && RegionSourceUsable(_frameZero.region, out _) ? FrameRefOf(_frameZero) : null
             };
             try
             {
@@ -3275,6 +3438,16 @@ namespace Laubrary.Launimator.Editor
             else
             {
                 _regions.Clear();
+            }
+
+            _frameZeroOn = def.previewFrameZero;
+            _frameZeroSel = false; _showingFrameZero = false;
+            _frameZero = new CellRef(-1, -1);
+            var z = def.frameZero;
+            if (z != null && !string.IsNullOrEmpty(z.sourceTextureGuid) && z.cell.width > 0f && _regions.Count > 0)
+            {
+                _frameZero = FindOrCreateCellForFrame(z);
+                _frameZero.pct = z.timingPercent;
             }
 
             _seqSelected = _sequence.Count > 0 ? 0 : -1;
@@ -3663,6 +3836,7 @@ namespace Laubrary.Launimator.Editor
             _framePivot = new Vector2(s.framePivotX, s.framePivotY);
 
             _regions.Clear();
+            _frameZero = new CellRef(-1, -1); _showingFrameZero = false;   // region indices start over
             string sheetGuid = CurrentSheetGuid();
             foreach (var rd in s.regions)
             {

@@ -200,6 +200,18 @@ namespace Laubrary.Launimator
         [Tooltip("Editable source-of-truth: each frame's source rect + registration. Drives baking + re-editing.")]
         public List<FrameRef> recipe = new List<FrameRef>();
 
+        [Tooltip("Laumination Builder preview only: show frameZero before frame 1 in the builder's preview, e.g. the " +
+                 "pose the move starts from. Never baked, never in the clip, never played by the game.")]
+        public bool previewFrameZero;
+
+        [Tooltip("The sprite the builder's preview shows before frame 1 (its timingPercent is how long). Editor " +
+                 "preview only; see previewFrameZero.")]
+        public FrameRef frameZero;
+
+        /// <summary>True when a frame 0 is switched on AND points at a sprite.</summary>
+        public bool HasFrameZero => previewFrameZero && frameZero != null
+                                    && !string.IsNullOrEmpty(frameZero.sourceTextureGuid) && frameZero.cell.width > 0f;
+
         [Tooltip("Authored per-frame events (e.g. the \"hit\" frame for attack→damage sync). Survive baking; " +
                  "LauminaryPlayer fires OnFrameEvent(name, frame) as playback enters each frame.")]
         public List<FrameEvent> events = new List<FrameEvent>();

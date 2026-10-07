@@ -21,7 +21,7 @@ namespace Laubrary.Launimator.Editor
             public List<FrameEvent> events;
             public List<AnimZone> zones; public bool zonesEnabled;
             public string animName; public float animFps;
-            public LoopDivider loopDivider; public float loopPause; public CellRef idleRef;
+            public LoopDivider loopDivider; public float loopPause; public bool frameZeroOn; public CellRef frameZero;
             public bool fixedFrame; public int frameW, frameH; public Vector2 framePivot;
         }
 
@@ -57,7 +57,7 @@ namespace Laubrary.Launimator.Editor
             zones = _zones.Select(z => new AnimZone { name = z.name, startFrame = z.startFrame, endFrame = z.endFrame, behavior = z.behavior }).ToList(),
             zonesEnabled = _zonesEnabled,
             animName = _animName, animFps = _animFps,
-            loopDivider = _loopDivider, loopPause = _loopPause, idleRef = _idleRef,
+            loopDivider = _loopDivider, loopPause = _loopPause, frameZeroOn = _frameZeroOn, frameZero = _frameZero,
             fixedFrame = _fixedFrame, frameW = _frameW, frameH = _frameH, framePivot = _framePivot,
         };
 
@@ -72,7 +72,8 @@ namespace Laubrary.Launimator.Editor
             _zones.Clear(); _zones.AddRange(s.zones.Select(z => new AnimZone { name = z.name, startFrame = z.startFrame, endFrame = z.endFrame, behavior = z.behavior }));
             _zonesEnabled = s.zonesEnabled;
             _animName = s.animName; _animFps = s.animFps;
-            _loopDivider = s.loopDivider; _loopPause = s.loopPause; _idleRef = s.idleRef;
+            _loopDivider = s.loopDivider; _loopPause = s.loopPause; _frameZeroOn = s.frameZeroOn; _frameZero = s.frameZero;
+            _frameZeroSel = false; _showingFrameZero = false;
             _fixedFrame = s.fixedFrame; _frameW = s.frameW; _frameH = s.frameH; _framePivot = s.framePivot;
 
             // Invalidate derived/cache state and selection so nothing dangles at the old indices.
