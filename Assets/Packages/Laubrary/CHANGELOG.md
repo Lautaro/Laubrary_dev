@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Launimator: per-frame timing
+
+- Each frame can have its own duration in milliseconds; 0 follows the animation's fps. Set it in the Laumination Builder with the Frame ms field beside FPS (applies to the selected frames); timed frames carry an orange ms label in the sequence strip. Every player, clip length, baked Unity clip and preview uses the real per-frame times.
+- The Aseprite round trip keeps per-frame durations both ways, and its synced strip now imports at its true size.
+
+### Zoe moves: travel envelope
+
+- Each custom event in the Zoe window has an optional Travel section (closed by default, one row when closed): a preview of the move on a floor line, a timeline scrubber, and an envelope under it on the same time axis. Max distance (art pixels, negative = backwards) scales the curve; Uni/Bi sets its range; Frame timing shows the animation's frames (and their own durations) as timeline bands and envelope lines. At runtime the move carries the body along its facing by the curve; an interrupt stops it.
+- ZUI's envelope can draw frame lines at uneven positions and a playhead, and exposes its plot area so another control can share its time axis.
+
+### Side-view command list
+
+- The side-view player controller has a command list, edited in the Zoe window: each row picks a button from the controls asset (or the stick alone), a stick direction relative to the facing on a 3×3 pad, the declared action it plays, a hold time for stick-only rows, and whether the action turns the character when it finishes. A game's move set is now data on the character.
+- The Zoe window has a seam for modules to draw their own fields with ZUI pickers (an editor implementing its field-editor interface is found automatically).
+
 ### Zounds: adding a Local Klip no longer crashes
 
 - Adding a klip from a work-folder sound copies the audio into Sources and then asked for an Addressables reference the copy did not have yet (a Sources clip is only registered once a Klip references it), so the browser threw a NullReferenceException and left a stray .Copy.wav each time. The reference lookup now registers the clip itself, and the browser falls back to the original clip if it still cannot.
