@@ -239,6 +239,28 @@ namespace Laubrary.Launimator
 
         public void Stop() { _playing = false; _ending = false; }
 
+        /// <summary>Seek without firing callbacks or changing the playing/paused state. Selects the phase
+        /// containing this frame (or the preceding phase across an authored gap) so later Advance and Tick
+        /// act on the displayed frame. A seek cancels an outstanding retime or requested phase transition.</summary>
+        public bool SeekFrame(int frameIndex)
+        {
+            if (!HasFrames || frameIndex < 0 || frameIndex >= _anim.frames.Count) return false;
+            _i = frameIndex; _t = 0f; _ending = false; _endDone = null; _wantZone = null;
+            if (_zones != null && _zones.Count > 0)
+            {
+                int containing = _zones.FindIndex(z => frameIndex >= z.startFrame && frameIndex <= z.endFrame);
+                if (containing >= 0) _zoneIdx = containing;
+                else
+                {
+                    _zoneIdx = 0;
+                    for (int i = 0; i < _zones.Count; i++)
+                        if (_zones[i].startFrame <= frameIndex) _zoneIdx = i;
+                }
+            }
+            PushSprite();
+            return true;
+        }
+
         /// <summary>Length of a named clip in seconds at this player's current <see cref="speedScale"/>, or 0
         /// when it cannot be known: an unregistered name, no frames, a non-positive rate — or a ZONED strip,
         /// whose zones can hold/loop indefinitely so it has no fixed length. Consumers (reaction effects timing

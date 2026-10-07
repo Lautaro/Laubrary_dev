@@ -1,7 +1,9 @@
 using System.Collections.Generic;
 using Laubrary.Launimator;
+using Laubrary.Zui;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace Laubrary.Launimator.Editor
 {
@@ -82,17 +84,23 @@ namespace Laubrary.Launimator.Editor
 
         /// <summary>
         /// Detect every sprite inside the current marquee and add them per <paramref name="mode"/>. When
-        /// <paramref name="asNewAnimation"/>, first save the current animation, start a fresh one named
-        /// <paramref name="newAnimName"/>, build it (always ReplaceAndSequence), then save + bind to it.
+        /// <paramref name="asNewAnimation"/>, resolve the current document before starting a fresh unsaved
+        /// animation. Detection itself has no persistent side effects.
         /// </summary>
         private void AutoAddSpritesFromBox(AutoAddMode mode, bool asNewAnimation, string newAnimName)
         {
             var px = GetPixels();
             if (px == null) { SetStatus("Auto-add failed: texture not readable."); return; }
 
-            // If no background key is set yet, try to auto-detect one so a no-alpha rip's background is handled
-            // (otherwise the solid bg reads as content and the whole marquee detects as one giant sprite).
-            bool autoBg = TryAutoDetectBgKey(true);
+            // Detect against a candidate key; a failed detection or cancelled transition changes no data.
+            var detectionKey = CurrentColorKey();
+            Color32 detectedColor = default;
+            bool autoBg = !detectionKey.enabled && RegionSlicer.TryDetectBackgroundColor(px, _texW, _texH, out detectedColor);
+            if (autoBg)
+            {
+                detectionKey.enabled = true;
+                detectionKey.color = detectedColor;
+            }
 
             var boxInt = new RectInt(
                 Mathf.RoundToInt(_box.x), Mathf.RoundToInt(_box.y),
@@ -100,7 +108,7 @@ namespace Laubrary.Launimator.Editor
 
             var s = AutoScavenger.Settings.Default;
             s.alphaThreshold = _alphaThreshold;
-            s.key = CurrentColorKey();
+            s.key = detectionKey;
 
             List<Rect> cells = AutoScavenger.DetectCellsInBox(px, _texW, _texH, boxInt, s);
             if (cells == null || cells.Count == 0)
@@ -108,22 +116,27 @@ namespace Laubrary.Launimator.Editor
                 SetStatus("No sprites detected in the marquee — adjust the box, the alpha threshold, or the background key.");
                 return;
             }
-            RecordUndo("Auto-add sprites");
-
-            // New Animation: persist the animation we're leaving, then start a fresh authoring context.
             if (asNewAnimation)
             {
-                if (_sequence.Count > 0) DoSave();   // save the current animation before clearing it
-                StartNewAnimation(newAnimName);      // fresh name; unbind so the next save CREATES a new entry
+                if (string.IsNullOrWhiteSpace(newAnimName) || !ConfirmDocumentTransition()) return;
+                StartNewAnimation(newAnimName);
                 mode = AutoAddMode.ReplaceAndSequence;
             }
 
-            // Replace modes wipe the existing palette (and dangling sequence) before adding.
+            // The common mapping is the single history entry for replacement. No payload can survive
+            // attached to a different image just because a new frame happens to occupy the same index.
             if (mode != AutoAddMode.Append)
             {
+                RemapSequence(System.Array.Empty<int>(), "Replace detected sprites");
                 _regions.Clear(); ClearThumbCache();
-                _sequence.Clear(); ClearSelection();
+                ClearSelection();
                 _seqSelected = -1; _seqMultiSel.Clear(); _seqAnchor = -1; _animFrame = 0;
+                _frameZero = new CellRef(-1, -1); _frameZeroOn = false; _frameZeroSel = false;
+            }
+            else RecordUndo("Add detected sprites");
+            if (autoBg)
+            {
+                _bgKey = detectionKey.color; _bgKeyEnabled = true; RebuildDisplaySheet();
             }
 
             // All auto-detected cells live in one dedicated region (created lazily, like Pick/Box).
@@ -156,14 +169,14 @@ namespace Laubrary.Launimator.Editor
                 SelectSingle(idx, reg.cells.Count - 1);
             }
 
-            // New Animation: persist + bind the freshly-built animation so it shows in the browser and Save targets it.
-            if (asNewAnimation && _sequence.Count > 0) DoSave();
+            SyncMetaFrames();
+            _previewHash = -1;
 
             string verb = mode == AutoAddMode.Append ? "Added"
                 : mode == AutoAddMode.Replace ? "Replaced palette with"
                 : "Replaced sprites + sequence with";
             _status = asNewAnimation
-                ? $"New animation '{_animName}': {cells.Count} sprite(s) baselined + sequenced."
+                ? $"New animation '{_animName}': {cells.Count} sprites added. Save to keep it."
                 : $"{verb} {cells.Count} sprite(s).";
             if (autoBg) _status += $" Auto-detected background RGB({_bgKey.r},{_bgKey.g},{_bgKey.b}).";
 
@@ -178,7 +191,16 @@ namespace Laubrary.Launimator.Editor
         {
             var taken = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
             if (_boundLauminary != null)
-                foreach (var a in LauminaryRepo.EnsureDraft(_boundLauminary).animations) taken.Add(a.name);
+            {
+                string folder = LauminaryRepo.DraftFolder(_boundLauminary);
+                if (AssetDatabase.IsValidFolder(folder))
+                    foreach (var guid in AssetDatabase.FindAssets("t:LauminaryVersion", new[] { folder }))
+                    {
+                        var draft = AssetDatabase.LoadAssetAtPath<LauminaryVersion>(AssetDatabase.GUIDToAssetPath(guid));
+                        if (draft?.animations == null) continue;
+                        foreach (var animation in draft.animations) if (animation != null) taken.Add(animation.name);
+                    }
+            }
             string baseName = "anim";
             if (!taken.Contains(baseName)) return baseName;
             for (int i = 2; i < 999; i++) if (!taken.Contains($"{baseName}_{i}")) return $"{baseName}_{i}";
@@ -192,25 +214,31 @@ namespace Laubrary.Launimator.Editor
         /// </summary>
         private void StartNewAnimation(string name)
         {
+            PausePreview();
+            DestroyPreviewBake();
             _sequence.Clear();
             _seqSelected = -1; _seqMultiSel.Clear(); _seqAnchor = -1; _animFrame = 0;
             _events = new List<FrameEvent>();
             _zonesEnabled = false; _zones.Clear();
             _metaEnabled = false; _metaLayers = new List<MetaLayer>(); _activeLayer = -1; ClearMaskCache();
+            _frameZero = new CellRef(-1, -1); _frameZeroOn = false; _frameZeroSel = false;
+            _showingFrameZero = false; _inDivider = false;
+            _detectedCells.Clear(); _detectedBox = default;
+            _animationAsepriteSourcePath = "";
             if (!string.IsNullOrWhiteSpace(name)) _animName = name.Trim();
             _boundAnimName = null;                       // bound lauminary kept; save adds a new entry
             if (_boundLauminary == null) _orphanAsset = null; // orphan mode: save creates a new orphan
+            BeginCleanDocument();
         }
     }
 
-    /// <summary>Minimal modal text prompt (Unity has no built-in one). Calls <c>onAccept(text)</c> with the
+    /// <summary>Non-modal ZUI name prompt. Calls <c>onAccept(text)</c> with the
     /// entered value when the user confirms; does nothing on cancel. Enter accepts, Escape cancels.</summary>
     internal class NamePromptWindow : EditorWindow
     {
         private string _value = "";
         private string _label = "Name:";
         private System.Action<string> _onAccept;
-        private bool _focused;
 
         public static void Show(string title, string label, string initial, System.Action<string> onAccept)
         {
@@ -220,32 +248,36 @@ namespace Laubrary.Launimator.Editor
             w._value = initial ?? "";
             w._onAccept = onAccept;
             w.position = new Rect(Screen.width / 2f - 160f, Screen.height / 2f - 50f, 320f, 96f);
-            w.ShowModalUtility();
+            w.minSize = w.maxSize = new Vector2(340f, 92f);
+            w.ShowUtility();
         }
 
-        private void OnGUI()
+        private void CreateGUI()
         {
-            EditorGUILayout.Space(6);
-            EditorGUILayout.LabelField(_label);
-
-            GUI.SetNextControlName("nameField");
-            _value = EditorGUILayout.TextField(_value);
-            if (!_focused) { EditorGUI.FocusTextInControl("nameField"); _focused = true; }
-
-            Event e = Event.current;
-            if (e.type == EventType.KeyDown)
+            var root = rootVisualElement;
+            Z.Attach(root);
+            root.style.paddingLeft = root.style.paddingRight = 8;
+            root.style.paddingTop = root.style.paddingBottom = 8;
+            Button accept = null;
+            var field = Z.TextInput(_value, _label, v =>
             {
-                if ((e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter) && !string.IsNullOrWhiteSpace(_value)) { Accept(); e.Use(); }
-                else if (e.keyCode == KeyCode.Escape) { Close(); e.Use(); }
-            }
-
-            EditorGUILayout.Space(4);
-            using (new EditorGUILayout.HorizontalScope())
+                _value = v; accept?.SetEnabled(!string.IsNullOrWhiteSpace(v));
+            }, 240f);
+            root.Add(Z.Field("Name", "The name under which this animation will be saved.", field));
+            var row = Z.Row();
+            var cancel = Z.Button("Cancel", "Close without creating an animation.", Close);
+            cancel.style.width = 70;
+            accept = Z.Button("Create", "Create an unsaved animation with this name.", Accept);
+            accept.style.width = 70;
+            accept.SetEnabled(!string.IsNullOrWhiteSpace(_value));
+            row.Add(cancel); row.Add(accept); root.Add(row);
+            root.RegisterCallback<KeyDownEvent>(e =>
             {
-                if (GUILayout.Button("Cancel")) Close();
-                using (new EditorGUI.DisabledScope(string.IsNullOrWhiteSpace(_value)))
-                    if (GUILayout.Button("OK")) Accept();
-            }
+                if ((e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter) && !string.IsNullOrWhiteSpace(_value))
+                { Accept(); e.StopPropagation(); }
+                else if (e.keyCode == KeyCode.Escape) { Close(); e.StopPropagation(); }
+            });
+            field.schedule.Execute(() => { field.Focus(); field.SelectAll(); });
         }
 
         private void Accept()

@@ -192,7 +192,7 @@ namespace Laubrary.Launimator.Editor
         private int _paintValue = 5;           // current 1–10 palette value (5 = default). Erase = right-click.
         private bool _metaShowValues;          // reveal the 1–10 value palette (off = always paint value 5)
         private int _brushW = 1, _brushH = 1;  // paint brush footprint (1×1, 1×2, 2×1, 2×2)
-        private float _metaZoom = 6f;          // paint-editor zoom (screen px per source px)
+        private float _metaZoom;              // zero fits the current frame; positive values are explicit zoom
         private Vector2 _metaPan;              // paint-editor pan (middle-drag), screen px
         private bool _metaPainting; private int _metaLastX = -1, _metaLastY = -1;
         private bool _metaPanning; private Vector2 _metaPanLast;
@@ -270,6 +270,7 @@ namespace Laubrary.Launimator.Editor
         public static void OpenForEdit(Lauminary lauminary, string animName)
         {
             var w = GetWindow<LauminationBuilderWindow>("Laumination Builder");
+            if (!w.ConfirmDocumentTransition()) return;
             w.minSize = new Vector2(900, 640);
             w.Show();
             w._pendingEditLauminary = lauminary;
@@ -283,6 +284,7 @@ namespace Laubrary.Launimator.Editor
         public static void OpenForOrphan(AnimationAsset orphan)
         {
             var w = GetWindow<LauminationBuilderWindow>("Laumination Builder");
+            if (!w.ConfirmDocumentTransition()) return;
             w.minSize = new Vector2(900, 640);
             w.Show();
             w._pendingOrphan = orphan;
@@ -309,6 +311,19 @@ namespace Laubrary.Launimator.Editor
             EnsurePreviewBake();
             if (_previewFrames == null || _previewFrames.Count == 0) return;
 
+            if (_phasePreviewMode)
+            {
+                EnsurePhasePreview();
+                if (_phasePreviewPlayer == null) return;
+                if (_phasePreviewPlayer.CurrentClip != _previewDef.name) StartPhasePreview();
+                _phasePreviewPlayer.Tick(dt);
+                _animFrame = _phasePreviewPlayer.CurrentFrame;
+                _animPlaying = _phasePreviewPlayer.IsPlaying;
+                RefreshFrameLabels(); SyncFrameTimelinePlayhead(); UpdatePreviewTransport();
+                _playIM?.MarkDirtyRepaint(); _seqStripIM?.MarkDirtyRepaint(); _zoneBarIM?.MarkDirtyRepaint();
+                return;
+            }
+
             if (_inDivider)
             {
                 if (now >= _dividerUntil) { _inDivider = false; RestartPreview(); }
@@ -329,7 +344,7 @@ namespace Laubrary.Launimator.Editor
             _previewPlayer.Tick(dt, 1f);
             _animFrame = _previewPlayer.Frame;
             // Playback only moves the playhead — repaint the islands that show it, never the whole window.
-            RefreshFrameLabels();
+            RefreshFrameLabels(); SyncFrameTimelinePlayhead();
             _playIM?.MarkDirtyRepaint();
             _seqStripIM?.MarkDirtyRepaint();
             _zoneBarIM?.MarkDirtyRepaint();
@@ -388,18 +403,16 @@ namespace Laubrary.Launimator.Editor
             var recipe = BuildRecipe();
             if (recipe == null || recipe.Count == 0) { _previewDef = null; return; }
 
-            // Frame 0 is baked in the same pass so it gets the same box and registration as the real frames,
-            // then split off again: the player never sees it.
-            bool withZero = FrameZeroActive;
-            if (withZero) recipe.Insert(0, FrameRefOf(_frameZero));
-
             var box = new AtlasBaker.FrameBox { fixedSize = _fixedFrame, w = _frameW, h = _frameH, pivot = _framePivot };
             var frames = AtlasBaker.BakeInMemory(recipe, 16f, out string err, out var tex, CurrentColorKey(), box);
             if (frames == null) { _status = "Preview bake: " + err; _previewDef = null; return; }
-            if (withZero)
+            if (FrameZeroActive)
             {
-                _previewFrameZero = new List<Sprite> { frames[0] };
-                frames.RemoveAt(0); recipe.RemoveAt(0);
+                // An editor-only lead-in must never resize the real frames (and their metadata grid).
+                // Bake it independently and register both by their own pivot at the same screen point.
+                _previewFrameZero = AtlasBaker.BakeInMemory(new List<FrameRef> { FrameRefOf(_frameZero) },
+                    16f, out var zeroError, out _previewZeroTex, CurrentColorKey());
+                if (_previewFrameZero == null) _status = "Lead-in preview: " + zeroError;
             }
 
             _previewTex = tex;
@@ -410,7 +423,11 @@ namespace Laubrary.Launimator.Editor
 
         private void DestroyPreviewBake()
         {
+            DestroyPhasePreview();
+            if (_previewFrames != null) foreach (var sprite in _previewFrames) if (sprite != null) Object.DestroyImmediate(sprite);
+            if (_previewFrameZero != null) foreach (var sprite in _previewFrameZero) if (sprite != null) Object.DestroyImmediate(sprite);
             if (_previewTex != null) { Object.DestroyImmediate(_previewTex); _previewTex = null; }
+            if (_previewZeroTex != null) { Object.DestroyImmediate(_previewZeroTex); _previewZeroTex = null; }
             _previewFrames = null; _previewDef = null; _previewFrameZero = null;
             _previewPlayer.Stop();
         }
@@ -420,6 +437,8 @@ namespace Laubrary.Launimator.Editor
         private void RestartPreview()
         {
             if (_previewDef == null) return;
+            _previewPausedAt = 0;
+            if (_phasePreviewMode) { StartPhasePreview(); return; }
             if (FrameZeroActive && _previewFrameZero != null)
             {
                 _showingFrameZero = true;
@@ -518,295 +537,34 @@ namespace Laubrary.Launimator.Editor
             _metaParamField.SetValueWithoutNotify(layer.frames[cur].param ?? "");
         }
 
-        protected override void BuildUI(VisualElement root)
-        {
-            root.AddToClassList("lau-animation-builder");
-            root.AddToClassList("lau-tool-shell");
-
-            // Sprite keys (A/D + arrow nudge) and the window's own snapshot Undo are handled on the ROOT with
-            // TrickleDown so they win over a focused IMGUI island (the canvas would otherwise eat Left/Right).
-            // Rebuild() clears the root's CHILDREN but keeps the root itself, so unregister before
-            // registering or every rebuild would stack another handler.
-            root.focusable = true;
-            root.UnregisterCallback<KeyDownEvent>(OnRootKeyDown, TrickleDown.TrickleDown);
-            root.RegisterCallback<KeyDownEvent>(OnRootKeyDown, TrickleDown.TrickleDown);
-            root.UnregisterCallback<GeometryChangedEvent>(OnRootGeometryChanged);
-            root.RegisterCallback<GeometryChangedEvent>(OnRootGeometryChanged);
-
-            root.Add(Z.Help(Disclaimer, HelpBoxMessageType.Warning));
-
-            _bannerHost = new VisualElement();
-            BuildBindingBanner(_bannerHost);
-            root.Add(_bannerHost);
-
-            _topHost = new VisualElement();
-            BuildTopSection(_topHost);
-            root.Add(_topHost);
-
-            _statusLabel = Z.Text(_status ?? "", ZuiText.Subtle, "The last thing this window did, or why it couldn't.");
-            _statusLabel.AddToClassList("lau-tool-shell__note");
-
-            if (_sheet == null) { root.Add(_statusLabel); return; }
-
-            // T-0084 — section toggle bar. Added FIRST (empty) and filled LAST once every candidate section
-            // below exists, mirroring Pyre's/Chunks' placement at the very top of the per-content UI. It
-            // sits AFTER the sheet-null return rather than above the banner/step-1 area, because every entry
-            // this bar can ever address only exists once a sheet is bound — with no sheet loaded there is
-            // nothing yet to declutter, so no empty bar row shows in that state.
-            //
-            // SCOPE (investigated, not guessed — see the per-method comments this points at): this window's
-            // five numbered steps (1 Sheet, 2 Identify Sprites, 3 Canvas, 4 Sprite Palette, 5 Animation) are a
-            // SEQUENTIAL, load-bearing pipeline, unlike Pyre/Chunks' independent parallel dial sections — and
-            // three of its five steps (3 Canvas, and the palette-grid/registration-stage/play-area/sequence-
-            // strip surfaces embedded in 4 and 5) are the bespoke IMGUI islands this file's own class comment
-            // calls out as "must not regress": the tool's actual click/drag editing surfaces, not settings
-            // that merely configure them. Hiding one of those would make the step it belongs to unusable, so
-            // per the brief's own rule ("if in doubt, err toward excluding a primary-canvas panel"), none of
-            // them — nor the numbered headers that introduce them — join this bar; they stay exactly as they
-            // were, always visible, never wrapped in a Section.
-            //
-            // What DOES join: step 2's whole settings panel (BuildRegionGridUI — its canvas lives OUTSIDE it,
-            // added as a separate sibling by this method, so hiding it never hides anything you drag on), plus
-            // four control-only sub-panels nested one level inside steps 4/5 that are ALREADY structurally
-            // separated from their step's own canvas (BuildPaletteSection puts its registration canvas in one
-            // column and BuildRegistrationControls/BuildSelectedCellControls in a sibling column;
-            // BuildAnimationSection puts its play-area/sequence-strip canvases as plain siblings and
-            // BuildAnimationTools/BuildMetaLayersPanel in a sibling column) — Registration, Selected Sprite,
-            // Playback & Frames, Meta Layers, and Frame Events (BuildEvents, already a Z.Box — promoted to a
-            // Z.Section here). These five are true "dial" panels in the Pyre/Chunks sense: real settings/tool
-            // groups that can be tucked away without losing sight of the actual editing surface they configure.
-            // Because they are still built FROM WITHIN their step's own BuildPaletteSection/BuildAnimationSection
-            // rather than directly from BuildUI, Unit() is called at THEIR call sites (inside those methods)
-            // instead of here — it only needs the immediate parent container, so the extra nesting is transparent
-            // to it. BuildSaveRow (a save button, not a settings group — matches the brief's own "a save-row is
-            // not a good candidate" example) and BuildBindingBanner (one contextual sentence, nothing to hide)
-            // are deliberately left out for the same reason. BuildTopSection/BuildSheetSection (step 1) stay out
-            // too: BuildTopSection lives in the LauminationBuilderWindow.Browser.cs partial, outside this file's
-            // ownership for this pass, and its own layout (a collapse toggle plus a conditional two-column
-            // sheet/browser split) isn't a single clean block to wrap without touching that file.
-            _barHost = new VisualElement();
-            _barHost.AddToClassList("lau-tool-shell__chrome");
-            if (_barReservedH > 0f) _barHost.style.minHeight = _barReservedH;
-            root.Add(_barHost);
-            _barUnits.Clear();
-
-            _splitRow = new VisualElement();
-            _splitRow.AddToClassList("lau-animation-builder__split");
-            root.Add(_splitRow);
-
-            if (!_leftCollapsed)
-            {
-                _leftPane = new VisualElement();
-                _leftPane.AddToClassList("lau-animation-builder__sheet-pane");
-                var leftScroll = new ScrollView(ScrollViewMode.Vertical);
-                leftScroll.AddToClassList("lau-tool-shell__scroll");
-
-                _leftControlsHost = new VisualElement();
-                Unit(_leftControlsHost, "Identify Sprites", BuildRegionGridUI);
-                leftScroll.contentContainer.Add(_leftControlsHost);
-
-                _canvasIM = new IMGUIContainer(DrawCanvasGUI)
-                {
-                    tooltip = "The sheet. Left-drag marquees (Grid/Box) or picks a sprite (Pick); right-drag auto-detects sprites inside the marquee."
-                };
-                _canvasIM.style.height = Mathf.Max(240f, position.height * 0.48f);
-                _canvasIM.AddToClassList("lau-tool-shell__chrome");
-                leftScroll.contentContainer.Add(_canvasIM);
-
-                _leftPane.Add(leftScroll);
-                _splitRow.Add(_leftPane);
-            }
-
-            var rightPane = new VisualElement();
-            rightPane.AddToClassList("lau-tool-shell__pane--unbounded");
-            var rightScroll = new ScrollView(ScrollViewMode.Vertical);
-            rightScroll.AddToClassList("lau-tool-shell__scroll");
-
-            _paletteHost = new VisualElement();
-            BuildPaletteSection(_paletteHost);
-            rightScroll.contentContainer.Add(_paletteHost);
-
-            _animHost = new VisualElement();
-            BuildAnimationSection(_animHost);
-            rightScroll.contentContainer.Add(_animHost);
-
-            rightPane.Add(rightScroll);
-            _splitRow.Add(rightPane);
-
-            root.Add(_statusLabel);
-
-            RebuildBar();
-        }
-
-        /// Keep the canvas viewport proportional as the window resizes (it was position.height-derived).
-        private void OnRootGeometryChanged(GeometryChangedEvent _)
-        {
-            if (_canvasIM != null) _canvasIM.style.height = Mathf.Max(240f, position.height * 0.48f);
-        }
-
-        /// Repaint the bespoke IMGUI islands — for edits that change what's DRAWN but not which controls exist.
         private void Dirty()
         {
-            if (_statusLabel != null) _statusLabel.text = _status ?? "";
+            UpdateWorkspaceStatus();
             _canvasIM?.MarkDirtyRepaint();
             _regCanvasIM?.MarkDirtyRepaint();
             _paletteGridIM?.MarkDirtyRepaint();
             _playIM?.MarkDirtyRepaint();
-            _seqStripIM?.MarkDirtyRepaint();
-            _zoneBarIM?.MarkDirtyRepaint();
+            RefreshFrameTimeline();
         }
 
-        /// Structural change (selection, sequence, layers, modes…) → rebuild the control hosts in place.
-        /// Cheap at editor-window scale, and the one reliable way to keep retained controls truthful.
         private void Refresh()
         {
-            if (!this) return;   // a deferred refresh can outlive the window
-            if (_bannerHost == null) { Dirty(); return; }
-            // Gaining/losing a sheet changes the window's STRUCTURE (the two-column body only exists with
-            // one), so a host-level refresh can't express it — rebuild the whole tree instead.
-            if ((_sheet != null) != (_splitRow != null)) { Rebuild(); return; }
-            _bannerHost.Clear(); BuildBindingBanner(_bannerHost);
-            _topHost.Clear(); BuildTopSection(_topHost);
-            // T-0084 — every barred host is rebuilt here too, so _barUnits (and the bar itself, via
-            // RebuildBar below) stay in sync: this replaces the ZuiSection instances those hosts contain,
-            // and the bar can't be left pointing at now-detached ones. See RebuildBar's comment.
-            _barUnits.Clear();
-            if (_leftControlsHost != null) { _leftControlsHost.Clear(); Unit(_leftControlsHost, "Identify Sprites", BuildRegionGridUI); }
-            if (_paletteHost != null) { _paletteHost.Clear(); BuildPaletteSection(_paletteHost); }
-            if (_animHost != null) { _animHost.Clear(); BuildAnimationSection(_animHost); }
-            RebuildBar();
-            SetStatus(_status);
-            Dirty();
+            if (!this) return;
+            if (_workspaceStage == null) { Rebuild(); return; }
+            RefreshWorkspace();
         }
 
-        // ── section toggle bar helpers (T-0084) ─────────────────────────────────
-        /// Run one section builder and register whatever top-level ZuiSection it added under `label`, so the
-        /// toggle bar can address it — same idiom as ChunkWindow.Unit, adapted to this window's builders
-        /// (which take only a VisualElement, not a per-asset argument). `body` is the IMMEDIATE parent the
-        /// builder adds into; it does not need to be a direct child of BuildUI's root — several of this
-        /// window's candidate sections are built one level deeper, from inside BuildPaletteSection/
-        /// BuildAnimationSection (see the scope comment in BuildUI), and Unit() doesn't care either way.
-        private void Unit(VisualElement body, string label, System.Action<VisualElement> build)
-        {
-            int before = body.childCount;
-            build(body);
-            for (int i = before; i < body.childCount; i++)
-                if (body[i] is ZuiSection sec) { _barUnits.Add((label, sec)); return; }
-        }
-
-        /// (Re)build the toggle-bar host from the CURRENT `_barUnits` roster. Called at the end of BOTH
-        /// BuildUI and Refresh() — unlike Pyre/Chunks, whose bar is only ever (re)built by one monolithic
-        /// BuildAsset, this window ALSO rebuilds its barred hosts in place via Refresh() (any structural
-        /// edit: selection, add/remove layer, mode switch), which replaces their ZuiSection instances. Safe
-        /// to recreate on every call: a ZuiSection's open/closed state lives in a STATIC dictionary keyed by
-        /// its stateKey (ZuiSection.cs), so a fresh instance reads the same fold state right back — nothing
-        /// visibly flips. The one cost: ZuiSectionToggleBar's SOLO set is an instance field, not persisted,
-        /// so recreating the bar drops any active solo the moment a structural edit fires Refresh(). Disclosed
-        /// trade-off, not fixed here — ZuiSectionToggleBar.cs is shared chrome this task must not modify, and
-        /// the Sections/Toggle-Bar MODE choice plus every section's own shown/hidden state are unaffected
-        /// (mode is EditorPrefs-backed, shown/hidden is the same static IsOpen dictionary).
-        private void RebuildBar()
-        {
-            if (_barHost == null) return;
-            _barHost.Clear();
-            if (_barUnits.Count == 0) return;
-            var bar = new ZuiSectionToggleBar("Launimator", _barUnits.ToArray());
-            _barHost.Add(bar);
-            ReserveBarHeight(_barHost, bar);
-        }
-
-        /// Stable-workspace rule: chrome ABOVE the workspace must never change the geometry of what is below
-        /// it. Copied verbatim from ChunkWindow.ReserveBarHeight (generic — no Chunks-specific logic): pins
-        /// the bar host's minHeight to the tallest height the bar has ever measured at the current width, so
-        /// a Sections↔Toggle Bar mode switch (or a solo) can never jump the whole window under the user.
-        private void ReserveBarHeight(VisualElement barHost, VisualElement bar)
-        {
-            bar.RegisterCallback<GeometryChangedEvent>(_ =>
-            {
-                float w = bar.resolvedStyle.width, h = bar.resolvedStyle.height;
-                if (float.IsNaN(w) || float.IsNaN(h) || h <= 0f) return;
-                if (Mathf.Abs(w - _barReservedW) > 0.5f) { _barReservedW = w; _barReservedH = 0f; }
-                if (h <= _barReservedH + 0.5f) return;
-                _barReservedH = h;
-                barHost.style.minHeight = h;
-            });
-        }
+        private void Unit(VisualElement body, string label, System.Action<VisualElement> build) => build(body);
 
         /// Show a one-line result/explanation without rebuilding anything.
         private void SetStatus(string text)
         {
             _status = text;
-            if (_statusLabel != null) _statusLabel.text = _status ?? "";
+            if (_statusLabel != null) _statusLabel.tooltip = _status ?? Disclaimer;
         }
 
-        private void BuildBindingBanner(VisualElement root)
-        {
-            root.Add(Z.Help(_boundLauminary != null
-                ? $"Editing animation '{_animName}' for lauminary '{_boundLauminary.lauminaryName}'. Saving writes back to that lauminary's draft."
-                : _orphanAsset != null
-                    ? $"Editing orphaned animation '{_animName}'. Include it into a lauminary from the Lauminary Browser."
-                    : "Authoring a new orphaned animation (not tied to a lauminary). Include it later from the Lauminary Browser."));
-        }
 
         // ── 1 · sheet ────────────────────────────────────────────────────────
-        private void BuildSheetSection(VisualElement root)
-        {
-            Texture2D picked = _sheet;
-            var sheetField = Z.Object<Texture2D>(_sheet, "The sprite sheet to slice sprites out of.",
-                v => picked = v, 200f);
-
-            var recentButton = Z.Button("Recent ▾",
-                "Pick a sheet from Assets/SpriteSheets (downloaded or previously sliced). Entries are deletable.", null).W(76f);
-            recentButton.clicked += () =>
-            {
-                var wb = recentButton.worldBound;
-                UnityEditor.PopupWindow.Show(new Rect(wb.x, wb.y, wb.width, wb.height),
-                    new RecentSheetsPopup(tex => { LoadSheet(tex); DeferRefresh(); }, _sheet));
-            };
-
-            var saveButton = Z.Button("Save", "Write slicing state (regions, cells, pivots) to a JSON sidecar.",
-                () => { SaveState(); Refresh(); }).W(48f);
-            saveButton.SetEnabled(_sheet != null);
-            var restoreButton = Z.Button("Restore", "Reload slicing state from this sheet's sidecar.",
-                () => { LoadStateFromSidecar(false); Refresh(); }).W(60f);
-            var clearButton = Z.Button("Clear",
-                "Delete this sheet's saved slicing sidecar and empty the palette (#4). Your saved animations are not affected.",
-                () => { ClearSavedSlicing(); Refresh(); }).W(48f);
-            bool hasSidecar = _sheet != null && RegionSlicerPersistence.Exists(_sheetPath);
-            restoreButton.SetEnabled(hasSidecar);
-            clearButton.SetEnabled(hasSidecar);
-
-            root.Add(WrapRow(
-                Z.Text("1 · Sheet", ZuiText.Section, "The source image every sprite in this animation is cut from."),
-                sheetField,
-                Z.Button("Load", "Load the assigned sheet (re-reads its saved slicing state).",
-                    () => { LoadSheet(picked); Refresh(); }).W(48f),
-                recentButton,
-                _sheet != null
-                    ? Z.Text($"{_texW}×{_texH}px", ZuiText.Small, "The loaded sheet's pixel size.").W(80f)
-                    : null,
-                Z.Flexible(),
-                saveButton, restoreButton, clearButton));
-
-            var urlField = Z.TextInput(_sheetUrl, "Download an image straight into Assets/SpriteSheets and load it.",
-                v => _sheetUrl = v, 0f);
-            urlField.AddToClassList("lau-animation-builder__sheet-url");
-            urlField.AddToClassList("zui-audit-allow-stretch");   // a URL is arbitrarily long — the rulebook's exception
-            var downloadButton = Z.Button("Download", "Save the image to Assets/SpriteSheets and load it as the sheet.",
-                () => { DownloadSheetFromUrl(); Refresh(); }).W(80f);
-            downloadButton.SetEnabled(!string.IsNullOrWhiteSpace(_sheetUrl));
-            urlField.RegisterValueChangedCallback(e => downloadButton.SetEnabled(!string.IsNullOrWhiteSpace(e.newValue)));
-            root.Add(Z.Row(
-                Z.Text("URL", ZuiText.Body, "Download an image straight into Assets/SpriteSheets and load it.").W(40f),
-                urlField,
-                Z.TextInput(_downloadName, "Optional display name for the downloaded sheet.", v => _downloadName = v, 120f),
-                downloadButton));
-
-            if (_sheet != null)
-                root.Add(Z.Field("Name", "Friendly display name (identity stays the asset GUID — renaming is safe).",
-                    Z.TextInput(_sheetDisplayName, "Friendly display name (identity stays the asset GUID — renaming is safe).",
-                        v => { _sheetDisplayName = v; SheetRegistry.SetDisplayName(_sheet, v); }, 220f)));
-        }
 
         private void DownloadSheetFromUrl()
         {
@@ -816,7 +574,9 @@ namespace Laubrary.Launimator.Editor
             finally { EditorUtility.ClearProgressBar(); }
 
             if (tex == null) { SetStatus(error ?? "Download failed."); return; }
+            StartNewAnimation(SuggestNewAnimName());
             LoadSheet(tex);
+            BeginCleanDocument();
             _sheetUrl = ""; _downloadName = "";
             SetStatus($"Downloaded and loaded '{_sheetDisplayName}' into {SheetLibrary.Folder}.");
             EditorGUIUtility.PingObject(tex);
@@ -832,177 +592,8 @@ namespace Laubrary.Launimator.Editor
         // and 2 without a number, so it read as a step that had lost its place in the sequence — and the three
         // modes ARE how sprites get identified ("uniform sheet" / "one sprite" / "scattered sprites"), which is
         // step 2's entire job. It is now step 2's first row: a plain label, no competing heading.
-        private void BuildModeBar(VisualElement root)
-        {
-            root.Add(WrapRow(
-                Z.Text("Mode", ZuiText.Small, "How sprites are identified on the sheet."),
-                Z.MiniRadio((int)_toolMode, ToolModeLabels,
-                    "Grid marquees a box and slices it into cols×rows; Box commits one marquee as one sprite; Pick flood-fills the clicked sprite.",
-                    v =>
-                    {
-                        _toolMode = (ToolMode)v;
-                        if (_toolMode != ToolMode.Grid) { _hasBox = false; _box = default; }
-                        Refresh();
-                    }),
-                Z.Text(
-                    _toolMode == ToolMode.Grid ? "Marquee a box on the canvas, set its grid, Add Region."
-                    : _toolMode == ToolMode.Box ? "Drag a box around one sprite — released, it's added instantly."
-                    : "Click each sprite on the canvas to extract it.",
-                    ZuiText.Subtle, "What the current mode does on the canvas.")));
-        }
 
         // ── 2 · region grid UI (mode-gated) ──────────────────────────────────
-        private void BuildRegionGridUI(VisualElement root)
-        {
-            // T-0084 — a real Z.Section (was a plain "2 ·" text heading) so this step can join the toggle
-            // bar; the numbering stays IN the title so the 1..5 sequence still reads even though this is now
-            // the only step whose header is a Section instead of plain text (see BuildUI's scope comment for
-            // why steps 1/3/4/5's own headers are untouched). The canvas this step feeds is a SEPARATE
-            // sibling added by BuildUI, not a child of `s` — hiding this section only hides the settings that
-            // configure a marquee, never the canvas you drag one on.
-            var s = Z.Section("2 · Identify Sprites", "How the canvas marquee becomes sprite cells.",
-                "launimator.identify");
-
-            // Mode goes INSIDE step 2 now, as its first row — it is the choice everything below depends on,
-            // and the rows that follow are mode-gated, so it belongs at the top of what it governs.
-            if (!_leftCollapsed) BuildModeBar(s);
-
-            if (_toolMode == ToolMode.Grid)
-            {
-                // Segmented, not MiniRadio: two single-line options is exactly what Segmented is for, and it
-                // sits INSIDE the grid row instead of claiming one of its own — the fields it switches between
-                // are right beside it, so the relationship reads without a separate line.
-                var modeSwitch = Z.Segmented((int)_mode, GridModeLabels,
-                    "Split the marquee by a column/row count, or by a fixed cell size in pixels.",
-                    v => { _mode = (RegionSlicer.GridMode)v; Refresh(); });
-
-                var gridRow = _mode == RegionSlicer.GridMode.FixedColsRows
-                    ? WrapRow(
-                        modeSwitch,
-                        Z.Field("Cols", "How many columns the marquee is split into.",
-                            Z.Int(_cols, "How many columns the marquee is split into.",
-                                v => { _cols = Mathf.Max(1, v); RefreshBoxDependentLabels(); Dirty(); }, 52f)),
-                        Z.Field("Rows", "How many rows the marquee is split into.",
-                            Z.Int(_rows, "How many rows the marquee is split into.",
-                                v => { _rows = Mathf.Max(1, v); RefreshBoxDependentLabels(); Dirty(); }, 52f)))
-                    : WrapRow(
-                        modeSwitch,
-                        Z.Field("Cell W", "Each cell's width in source pixels.",
-                            Z.Int(_cellW, "Each cell's width in source pixels.",
-                                v => { _cellW = Mathf.Max(1, v); RefreshBoxDependentLabels(); Dirty(); }, 52f)),
-                        Z.Field("Cell H", "Each cell's height in source pixels.",
-                            Z.Int(_cellH, "Each cell's height in source pixels.",
-                                v => { _cellH = Mathf.Max(1, v); RefreshBoxDependentLabels(); Dirty(); }, 52f)));
-                gridRow.Add(Z.Field("Space", "Gap px BETWEEN cells.",
-                    Z.Int(_spacing, "Gap px BETWEEN cells.",
-                        v => { _spacing = Mathf.Max(0, v); RefreshBoxDependentLabels(); Dirty(); }, 52f)));
-                gridRow.Add(Z.Field("Pad", "Shrink px INSIDE each cell.",
-                    Z.Int(_padding, "Shrink px INSIDE each cell.",
-                        v => { _padding = Mathf.Max(0, v); RefreshBoxDependentLabels(); Dirty(); }, 52f)));
-                s.Add(gridRow);
-            }
-
-            // Shared: ppu + pivot.
-            var pivotRow = WrapRow(
-                Z.Field("PPU", "Pixels-per-unit stamped onto the sprites this sheet slices.",
-                    Z.Float(_ppu, "Pixels-per-unit stamped onto the sprites this sheet slices.",
-                        v => _ppu = Mathf.Max(0.01f, v), 52f)),
-                // Segmented, not EnumDropdown — the layout rules name Z.EnumDropdown as THE enum anti-pattern
-                // (it returns a native EnumField). Four short labels fit one line, so this costs no height and
-                // shows every option at a glance instead of hiding three behind a click.
-                Z.Field("Pivot", "Default registration point applied to every newly-identified sprite.",
-                    Z.Segmented((int)_pivot, PivotLabels,
-                        "Default registration point applied to every newly-identified sprite.",
-                        v => { _pivot = (GridSlicer.PivotMode)v; Refresh(); })));
-            if (_pivot == GridSlicer.PivotMode.Custom)
-                pivotRow.Add(Z.Vector2Field("Custom pivot", () => _customPivot, v => _customPivot = v, this,
-                    new ZuiValue2DControl.Options().WithRange(0f, 1f, 0f, 1f).WithPlotSize(64f),
-                    "Where the pivot sits inside each cell (0..1, y bottom-up).", Dirty));
-            s.Add(pivotRow);
-
-            // ONE "what counts as content" row: alpha trimming, the alpha threshold, and the background-colour
-            // key are all the same question asked three ways, and they were three stacked rows. Wrapping means
-            // a narrow pane still breaks them sensibly instead of overflowing.
-            void KeyChanged() { RebuildDisplaySheet(); SaveBgKeyForSheet(); Dirty(); }
-            var keyColor = Z.Color(_bgKey, "The colour treated as transparent.",
-                v => { _bgKey = (Color32)v; KeyChanged(); }, 60f, showAlpha: false);
-            var keyTol = Z.Int(_bgTolerance, "Per-channel match tolerance (0..255).",
-                v => { _bgTolerance = Mathf.Clamp(v, 0, 255); KeyChanged(); }, 52f);
-            keyColor.SetEnabled(_bgKeyEnabled);
-            keyTol.SetEnabled(_bgKeyEnabled);
-
-            var contentRow = WrapRow();
-            if (_toolMode == ToolMode.Grid)
-                contentRow.Add(Z.Toggle("Alpha-trim", "Snap each cell to the tight bbox of its non-transparent pixels.",
-                    _alphaTrim, v => _alphaTrim = v));
-            contentRow.Add(Z.Field("α >", "Alpha above this counts as content (0..255).",
-                Z.Int(_alphaThreshold, "Alpha above this counts as content (0..255).",
-                    v => { _alphaThreshold = Mathf.Clamp(v, 0, 255); Dirty(); }, 52f)));
-            contentRow.Add(Z.Toggle("BG color", "Treat a solid background colour as transparent (sheets with no alpha).",
-                _bgKeyEnabled, v => { _bgKeyEnabled = v; KeyChanged(); Refresh(); }));
-            contentRow.Add(keyColor);
-            contentRow.Add(Z.Field("± tol", "Per-channel match tolerance (0..255).", keyTol));
-            contentRow.Add(Z.Button(_pickingBgColor ? "Click sheet…" : "Pick ☉",
-                "Eyedropper: click a background pixel on the canvas to set the colour.",
-                () => { _pickingBgColor = !_pickingBgColor; if (_pickingBgColor) _bgKeyEnabled = true; Refresh(); }));
-            s.Add(contentRow);
-
-            if (_toolMode == ToolMode.Grid)
-            {
-                void CommitBox()
-                {
-                    int l = _boxLField.value, t = _boxTField.value;
-                    int w = Mathf.Max(1, _boxWField.value), h = Mathf.Max(1, _boxHField.value);
-                    _box = ClampBox(new Rect(l, _texH - t - h, w, h));
-                    RefreshBoxDependentLabels();
-                    Dirty();
-                }
-                _boxLField = Z.Int(Mathf.RoundToInt(_box.x), "Marquee left edge, in source pixels.", _ => CommitBox(), 52f);
-                _boxTField = Z.Int(Mathf.RoundToInt(_texH - _box.yMax), "Marquee top edge, in source pixels (from the sheet's top).", _ => CommitBox(), 52f);
-                _boxWField = Z.Int(Mathf.RoundToInt(_box.width), "Marquee width, in source pixels.", _ => CommitBox(), 52f);
-                _boxHField = Z.Int(Mathf.RoundToInt(_box.height), "Marquee height, in source pixels.", _ => CommitBox(), 52f);
-
-                _addRegionButton = Z.Button($"Add Region ({CurrentBoxCellCount()})",
-                    "Commit the marquee's grid cells into the sprite palette (undoable).",
-                    () => { AddRegion(); Refresh(); }).W(120f);
-
-                // The marquee's numbers and the two things you do to it, on ONE row — they were two, and the
-                // buttons act on exactly the rect the fields describe, so splitting them read as unrelated.
-                // Both halves share the same _hasBox gate, which is the giveaway that they are one control
-                // group. Four 52px fields plus two buttons fit a normal pane comfortably.
-                var boxRow = WrapRow(
-                    Z.Text("Box", ZuiText.Small, "The current marquee's exact rect — type to place it precisely."),
-                    Z.Field("L", "Marquee left edge, in source pixels.", _boxLField),
-                    Z.Field("T", "Marquee top edge, in source pixels (from the sheet's top).", _boxTField),
-                    Z.Field("W", "Marquee width, in source pixels.", _boxWField),
-                    Z.Field("H", "Marquee height, in source pixels.", _boxHField),
-                    Z.Button("Clear Box", "Drop the current marquee.",
-                        () => { _hasBox = false; _box = default; Refresh(); }).W(74f),
-                    _addRegionButton);
-                boxRow.SetEnabled(_hasBox);
-                s.Add(boxRow);
-            }
-
-            // Zoom row (shared).
-            s.Add(WrapRow(
-                Z.Field("Zoom", "Canvas magnification (source pixels × zoom).",
-                    Z.Slider(_zoom, 0.5f, 8f, "Canvas magnification (source pixels × zoom).",
-                        v => { _zoom = v; Dirty(); }, 150f)),
-                Z.Button("Fit", "Re-fit the sheet to the canvas viewport.",
-                    () => { _zoomInitialized = false; Refresh(); }).W(40f)));
-
-            root.Add(s);
-
-            // The "3 · Canvas" header stays OUTSIDE the section (a plain sibling, exactly as before) — the
-            // canvas it introduces is itself a sibling added by BuildUI, so this label must never disappear
-            // along with step 2's settings when the bar hides them.
-            root.Add(Z.Text(
-                _pickingBgColor ? "3 · Canvas — click a background pixel to set the transparent colour"
-                : _toolMode == ToolMode.Grid ? "3 · Canvas — drag to marquee; drag interior/edges to move/resize"
-                : _toolMode == ToolMode.Box ? "3 · Canvas — drag a box around one sprite (added on release)"
-                : "3 · Canvas — click a sprite to extract it", ZuiText.Section,
-                "The sheet viewport below, and what a click/drag does in the current mode."));
-        }
 
         /// The two labels/fields that mirror the live marquee — updated in place while dragging so the
         /// retained controls never lag the canvas (and no rebuild steals focus mid-drag).
@@ -1036,7 +627,7 @@ namespace Laubrary.Launimator.Editor
             EditorGUI.DrawRect(imageRect, new Color(0.18f, 0.18f, 0.18f));
             GUI.DrawTexture(imageRect, SheetForDisplay(), ScaleMode.StretchToFill, true);
 
-            foreach (var reg in _regions)
+            foreach (var reg in _regions.Where(r => r.sourceTextureGuid == CurrentSheetGuid()))
                 foreach (var cell in reg.cells)
                 {
                     Rect sc = TexRectToContent(cell);
@@ -1057,7 +648,7 @@ namespace Laubrary.Launimator.Editor
             {
                 Rect scBox = TexRectToContent(_box);
                 DrawRectOutline(scBox, new Color(1f, 0.85f, 0.1f, 1f), 2f);
-                if (_toolMode == ToolMode.Grid)
+                if (_toolMode == ToolMode.Grid && !_detectMode)
                 {
                     foreach (var cell in RegionSlicer.ExpandRegion(BuildActiveSpec()))
                         DrawRectOutline(TexRectToContent(cell), new Color(0.1f, 1f, 1f, 1f), 1.5f);
@@ -1070,6 +661,8 @@ namespace Laubrary.Launimator.Editor
                 DrawRectOutline(TexRectToContent(_box), new Color(1f, 0.85f, 0.1f, 1f), 2f);
             }
 
+            if (_detectMode) foreach (var cell in _detectedCells)
+                DrawRectOutline(TexRectToContent(cell), new Color(1f, .55f, .1f), 2f);
             GUI.EndScrollView();
         }
 
@@ -1178,7 +771,6 @@ namespace Laubrary.Launimator.Editor
             _bgKeyEnabled = true;
             _pickingBgColor = false;
             RebuildDisplaySheet();
-            SaveBgKeyForSheet(); // a sheet's background is constant — remember it for this sheet
             _status = $"Background colour set to RGB({_bgKey.r},{_bgKey.g},{_bgKey.b}); saved for this sheet, treated as transparent.";
         }
 
@@ -1248,75 +840,6 @@ namespace Laubrary.Launimator.Editor
             "Keys (with a sprite selected): A / D = previous / next sprite · arrow keys = nudge registration.\n\n" +
             "Edit in Aseprite: bakes the selected sprite(s) into an owned .aseprite and opens Aseprite. (Set the app path under Tools ▸ Launimator.)";
 
-        private void BuildPaletteSection(VisualElement root)
-        {
-            int total = TotalCells();
-
-            var aseButton = Z.Button("Edit in Aseprite",
-                "Export the selected sprite(s) to an owned .aseprite and open Aseprite to edit them.",
-                () => { OpenSelectionInAseprite(); Refresh(); }).W(112f);
-            aseButton.SetEnabled(HasSelectedCell());
-            var syncButton = Z.Button("Sync edits",
-                "Pull the edited .aseprite back into the palette (writes into an owned copy of the sheet).",
-                () => { SyncFromAseprite(); Refresh(); }).W(78f);
-            syncButton.SetEnabled(!string.IsNullOrEmpty(_editAsePath));
-            var clearButton = Z.Button("Clear all", "Empty the sprite palette and the sequence (undoable).",
-                () => { ClearAllCells(); Refresh(); }).W(72f);
-            clearButton.SetEnabled(total > 0);
-
-            root.Add(WrapRow(
-                Z.Text($"4 · Sprite Palette ({total})", ZuiText.Section, PaletteHelp),
-                Z.HelpIcon(PaletteHelp),
-                Z.Flexible(),
-                aseButton, syncButton, clearButton));
-
-            if (total == 0)
-                root.Add(Z.Text(_toolMode == ToolMode.Grid ? "Marquee a box and Add Region." : "Click sprites on the canvas.",
-                    ZuiText.Subtle, "Nothing identified yet."));
-            else
-            {
-                _paletteGridIM = new IMGUIContainer(DrawPaletteGridGUI)
-                {
-                    tooltip = PaletteHelp
-                };
-                _paletteGridIM.AddToClassList("lau-animation-builder__palette");
-                root.Add(_paletteGridIM);
-            }
-
-            // Preview (registration canvas) on the LEFT, all its tools/controls on the RIGHT.
-            var row = new VisualElement();
-            row.AddToClassList("lau-tool-shell__row-wrap");
-            root.Add(row);
-
-            var previewCol = new VisualElement();
-            previewCol.AddToClassList("lau-tool-shell__registration-preview");
-            // An IMGUIContainer's declared style.height isn't always honoured by the layout engine's OWN
-            // height reservation for this column (a known IMGUIContainer/flex measurement quirk) — without an
-            // explicit minHeight here, the section BELOW this one (Animation — sequence) can get positioned as
-            // if this column were shorter than it visually renders, overlapping its own trailing caption text.
-            _regCanvasIM = new IMGUIContainer(DrawRegistrationCanvasGUI)
-            {
-                tooltip = "Registration stage: drag the selected sprite to move its pivot relative to the green crosshair."
-            };
-            _regCanvasIM.AddToClassList("lau-tool-shell__canvas-band");
-            previewCol.Add(_regCanvasIM);
-            previewCol.Add(Z.Text(HasSelectedCell()
-                    ? (_fixedFrame ? "Drag to place the sprite in the box. Faint = other frames."
-                                   : "Drag to align the sprite. Faint = other frames.")
-                    : "Select a sprite above to place it.",
-                ZuiText.Subtle, "How to use the registration stage above."));
-            row.Add(previewCol);
-
-            var toolsCol = new VisualElement();
-            toolsCol.AddToClassList("lau-tool-shell__tools");
-            // T-0084 — these two are structurally separate from the registration CANVAS above (it lives in
-            // `previewCol`, a sibling column, not in `toolsCol`), so promoting them to their own Sections and
-            // registering them on the toggle bar never risks hiding the thing you actually drag on. See
-            // BuildUI's scope comment for the full reasoning.
-            Unit(toolsCol, "Registration", BuildRegistrationControls);
-            Unit(toolsCol, "Selected Sprite", BuildSelectedCellControls);
-            row.Add(toolsCol);
-        }
 
         /// The sprite palette grid — an IMGUI island: a thumbnail grid with sequence badges, multi-select and a
         /// right-click actions menu. Bespoke canvas painting, exactly what the rulebook keeps raw.
@@ -1327,7 +850,7 @@ namespace Laubrary.Launimator.Editor
             if (!(view.width > 20f)) return;
 
             const int cell = 56, pad = 4;
-            var flat = FlattenCells();
+            var flat = VisiblePaletteCells();
             int perRow = Mathf.Max(1, Mathf.FloorToInt((view.width - 18f) / (cell + pad)));
             int rows = Mathf.CeilToInt(flat.Count / (float)perRow);
             Rect content = new Rect(0, 0, view.width - 18f, Mathf.Max(view.height, rows * (cell + pad)));
@@ -1505,92 +1028,12 @@ namespace Laubrary.Launimator.Editor
             ti.SaveAndReimport();
         }
 
-        private void BuildSelectedCellControls(VisualElement root)
-        {
-            // T-0084 — a real Z.Section wraps this whole panel (was raw content with no heading of its own),
-            // so it can join the toggle bar. Every exit path (including "nothing selected") adds to `s`, so
-            // the bar's Unit() scan always finds exactly one Section here regardless of selection state.
-            var s = Z.Section("Selected Sprite",
-                "Nudge, transform and manage whichever sprite(s) are selected in the palette above.",
-                "launimator.selectedSprite");
-
-            var sel = SelectedCells();
-            if (sel.Count == 0)
-            {
-                s.Add(Z.Text("Select a sprite to nudge its registration (Ctrl/Shift-click for several).",
-                    ZuiText.Subtle, "Nothing is selected in the palette above."));
-                root.Add(s);
-                return;
-            }
-            bool multi = sel.Count > 1;
-
-            string selLabel = multi
-                ? $"{sel.Count} selected"
-                : $"Sel {_regions[_selRegion].cells[_selCell].width:0}×{_regions[_selRegion].cells[_selCell].height:0}px";
-            s.Add(WrapRow(
-                Z.Text(selLabel, ZuiText.Small, "What the buttons on this row act on.").W(86f),
-                Z.Button("←", "Nudge the registration one source pixel left.", () => { NudgeSelectedPivot(-1, 0); Dirty(); }).W(24f),
-                Z.Button("→", "Nudge the registration one source pixel right.", () => { NudgeSelectedPivot(1, 0); Dirty(); }).W(24f),
-                Z.Button("↓", "Nudge the registration one source pixel down.", () => { NudgeSelectedPivot(0, -1); Dirty(); }).W(24f),
-                Z.Button("↑", "Nudge the registration one source pixel up.", () => { NudgeSelectedPivot(0, 1); Dirty(); }).W(24f),
-                Z.Button("Baseline", "Set pivot to content bottom-center (align feet).",
-                    () => { BaselineSelected(); Dirty(); }).W(66f),
-                Z.Button("Head", "Set pivot to content top-center (align heads — handy for climbing/hanging).",
-                    () => { TopCenterSelected(); Dirty(); }).W(48f)));
-
-            s.Add(WrapRow(
-                Z.Button(multi ? $"Add {sel.Count} → seq" : "Add → seq",
-                    "Append the selected sprite(s) to the animation sequence.",
-                    () => { AddSelectedToSequence(); Refresh(); }).W(96f),
-                Z.Button("Trim to content", "Shrink each selected cell to the tight bbox of its non-transparent pixels.",
-                    () => { TrimSelected(); Refresh(); }).W(110f),
-                Z.Button(multi ? $"Duplicate ({sel.Count})" : "Duplicate",
-                    "Make an independent copy of the sprite(s) so you can flip/rotate/scale the copy without affecting the original a sequence frame uses.",
-                    () => { DuplicateSelectedSprites(); Refresh(); }).W(100f),
-                Z.Button(multi ? $"Delete ({sel.Count})" : "Delete sprite",
-                    "Remove the selected sprite(s) from the palette (frames using them are dropped).",
-                    () => { DeleteSelectedCells(); Refresh(); }).W(100f)));
-
-            // ── per-sprite EDIT (flip / rotate / squash-stretch) — baked into the frame ──────────────
-            var prim = _regions[_selRegion].transforms.Count > _selCell ? _regions[_selRegion].transforms[_selCell] : CellTransform.Identity;
-            s.Add(WrapRow(
-                Z.Text("Edit", ZuiText.Small, "Lossless per-sprite edits, baked into the frame.").W(30f),
-                Z.Button("Flip H", "Mirror horizontally (lossless).",
-                    () => { MutateSelectedTransforms(t => { t.flipX = !t.flipX; return t; }); Dirty(); }).W(48f),
-                Z.Button("Flip V", "Mirror vertically (lossless).",
-                    () => { MutateSelectedTransforms(t => { t.flipY = !t.flipY; return t; }); Dirty(); }).W(48f),
-                Z.Button("<| 90", "Rotate 90° counter-clockwise (lossless).",
-                    () => { MutateSelectedTransforms(t => { t.rot90 = ((t.rot90 + 1) % 4 + 4) % 4; return t; }); Dirty(); }).W(48f),
-                Z.Button("|> 90", "Rotate 90° clockwise (lossless).",
-                    () => { MutateSelectedTransforms(t => { t.rot90 = ((t.rot90 - 1) % 4 + 4) % 4; return t; }); Dirty(); }).W(48f),
-                Z.Button("Reset", "Clear all edits on the selected sprite(s).",
-                    () => { MutateSelectedTransforms(_ => CellTransform.Identity); Refresh(); }).W(48f)));
-
-            s.Add(WrapRow(
-                Z.Text("Rot°", ZuiText.Small, "Arbitrary rotation (degrees, CCW). Resampled — use −/+ to step, or type an exact angle.").W(30f),
-                Z.Button("−", "Rotate −5° (stepwise).",
-                    () => { MutateSelectedTransforms(t => { t.angle -= RotStepDeg; return t; }); Refresh(); }).W(24f),
-                Z.Float(prim.angle, "Exact rotation angle in degrees (CCW).",
-                    v => { MutateSelectedTransforms(t => { t.angle = v; return t; }); Dirty(); }, 48f),
-                Z.Button("+", "Rotate +5° (stepwise).",
-                    () => { MutateSelectedTransforms(t => { t.angle += RotStepDeg; return t; }); Refresh(); }).W(24f),
-                Z.Field("Scale X", "Squash/stretch horizontally (1 = none).",
-                    Z.Float(prim.SX, "Squash/stretch horizontally (1 = none).",
-                        v => { MutateSelectedTransforms(t => { t.scaleX = Mathf.Max(0.01f, v); return t; }); Dirty(); }, 48f)),
-                Z.Field("Y", "Squash/stretch vertically (1 = none).",
-                    Z.Float(prim.SY, "Squash/stretch vertically (1 = none).",
-                        v => { MutateSelectedTransforms(t => { t.scaleY = Mathf.Max(0.01f, v); return t; }); Dirty(); }, 48f)),
-                Z.Toggle("Smooth", "Bilinear sampling for rotate/scale (smooth but blurs); off = crisp nearest-neighbor.",
-                    prim.smooth, v => { MutateSelectedTransforms(t => { t.smooth = v; return t; }); Dirty(); })));
-
-            root.Add(s);
-        }
 
         // ── per-sprite transform edits (UI.4) ────────────────────────────────
-        private void MutateSelectedTransforms(System.Func<CellTransform, CellTransform> fn)
+        private void MutateSelectedTransforms(System.Func<CellTransform, CellTransform> fn, bool recordUndo = true)
         {
             if (!HasSelectedCell()) return;
-            RecordUndo("Transform sprite");
+            if (recordUndo) RecordUndo("Transform sprite");
             foreach (var cr in SelectedCells())
             {
                 var reg = _regions[cr.region]; reg.SyncPivots(GlobalPivot());
@@ -1746,9 +1189,8 @@ namespace Laubrary.Launimator.Editor
 
         private void ClearAllCells()
         {
-            RecordUndo("Clear all sprites");
+            RemapSequence(System.Array.Empty<int>(), "Clear all sprites");
             _regions.Clear(); ClearThumbCache();
-            _sequence.Clear();
             _frameZero = new CellRef(-1, -1); _showingFrameZero = false;   // its sprite is gone too
             ClearSelection();
             _seqSelected = -1; _animFrame = 0;
@@ -1763,10 +1205,11 @@ namespace Laubrary.Launimator.Editor
         {
             var toDelete = SelectedCells();
             if (toDelete.Count == 0) return;
-            RecordUndo("Delete sprite");
-
             var del = new HashSet<long>();
             foreach (var cr in toDelete) del.Add(PackCell(cr.region, cr.cell));
+            int originalFrameCount = _sequence.Count;
+            RemapSequence(Enumerable.Range(0, _sequence.Count)
+                .Where(i => SeqRefValid(_sequence[i]) && !del.Contains(PackCell(_sequence[i].region, _sequence[i].cell))).ToList(), "Delete sprite");
 
             // Compact each region's cells, recording old→new cell index (−1 = deleted).
             var cellMap = new Dictionary<int, int[]>(); // region → old cell index → new index
@@ -1808,11 +1251,13 @@ namespace Laubrary.Launimator.Editor
                 if (nc < 0) continue;
                 newSeq.Add(new CellRef(nr, nc) { pct = cr.pct });
             }
-            int removedFrames = _sequence.Count - newSeq.Count;
+            int removedFrames = originalFrameCount - newSeq.Count;
             _sequence.Clear(); _sequence.AddRange(newSeq);
 
             // Frame 0 follows its sprite to the new indices, or is cleared with it.
-            if (SeqRefValid(_frameZero) && regionMap[_frameZero.region] >= 0 && cellMap[_frameZero.region][_frameZero.cell] >= 0)
+            if (_frameZero.region >= 0 && _frameZero.region < regionMap.Length && regionMap[_frameZero.region] >= 0
+                && cellMap.TryGetValue(_frameZero.region, out var leadMap) && _frameZero.cell >= 0
+                && _frameZero.cell < leadMap.Length && leadMap[_frameZero.cell] >= 0)
                 _frameZero = new CellRef(regionMap[_frameZero.region], cellMap[_frameZero.region][_frameZero.cell]) { pct = _frameZero.pct };
             else { _frameZero = new CellRef(-1, -1); _showingFrameZero = false; }
 
@@ -1873,8 +1318,8 @@ namespace Laubrary.Launimator.Editor
             }
             else
             {
-                menu.AddItem(new GUIContent("Duplicate frame"), false, () => { RecordUndo("Duplicate frame"); _sequence.Insert(i + 1, _sequence[i]); SeqSelectSingle(i + 1); Refresh(); });
-                menu.AddItem(new GUIContent("Remove frame"), false, () => { RecordUndo("Remove frame"); _sequence.RemoveAt(i); _seqMultiSel.Clear(); if (_seqSelected >= _sequence.Count) _seqSelected = _sequence.Count - 1; if (_seqSelected >= 0) _seqMultiSel.Add(_seqSelected); Refresh(); });
+                menu.AddItem(new GUIContent("Duplicate frame"), false, () => { SeqSelectSingle(i); DuplicateSelectedFrames(); Refresh(); });
+                menu.AddItem(new GUIContent("Remove frame"), false, () => { SeqSelectSingle(i); DeleteSelectedFrames(); Refresh(); });
             }
             menu.AddSeparator("");
             if (SeqRefValid(cr))
@@ -1888,50 +1333,6 @@ namespace Laubrary.Launimator.Editor
         // Registration SETTINGS only (the canvas/preview is drawn separately, to its left). See DrawCellsPreview.
         private static readonly string[] RegistrationModeLabels = { "Auto size", "Fixed box" };
 
-        private void BuildRegistrationControls(VisualElement root)
-        {
-            // T-0084 — a real Z.Section (was a WrapRow carrying its own "Registration" text heading) so this
-            // panel can join the toggle bar; the heading text moves into the Section's own title/tooltip.
-            var s = Z.Section("Registration", "How big each baked frame is, and where the shared pivot sits inside it.",
-                "launimator.registration");
-
-            s.Add(Z.MiniRadio(_fixedFrame ? 1 : 0, RegistrationModeLabels,
-                "Auto size fits the frame box to the sequence; Fixed box pins an exact W×H every frame is placed in.",
-                v =>
-                {
-                    bool wasFixed = _fixedFrame;
-                    _fixedFrame = v == 1;
-                    // Switching INTO fixed mode: seed the box from the current auto layout so nothing jumps.
-                    if (_fixedFrame && !wasFixed) FitFrameBox();
-                    Refresh();
-                }));
-
-            if (_fixedFrame)
-                s.Add(WrapRow(
-                    Z.Field("W", "Fixed frame width in source pixels.",
-                        Z.Int(_frameW, "Fixed frame width in source pixels.",
-                            v => { _frameW = Mathf.Max(1, v); Dirty(); }, 52f)),
-                    Z.Field("H", "Fixed frame height in source pixels.",
-                        Z.Int(_frameH, "Fixed frame height in source pixels.",
-                            v => { _frameH = Mathf.Max(1, v); Dirty(); }, 52f)),
-                    Z.Button("Fit", "Size the box to hold every frame at its current placement.",
-                        () => { FitFrameBox(); Refresh(); }).W(40f)));
-
-            s.Add(WrapRow(
-                Z.Text("Ghosts", ZuiText.Small,
-                    "Onion-skin: faint copies of the neighbouring sequence frames, drawn behind the one you're aligning.").W(46f),
-                Z.Field("<", "How many frames BEFORE the current one to ghost.",
-                    Z.Int(_ghostBefore, "How many frames BEFORE the current one to ghost.",
-                        v => { _ghostBefore = Mathf.Clamp(v, 0, 99); Dirty(); }, 40f)),
-                Z.Field(">", "How many frames AFTER the current one to ghost.",
-                    Z.Int(_ghostAfter, "How many frames AFTER the current one to ghost.",
-                        v => { _ghostAfter = Mathf.Clamp(v, 0, 99); Dirty(); }, 40f)),
-                Z.Field("Opacity", "Ghost transparency. Drag to 0 to hide ghosts.",
-                    Z.Slider(_ghostOpacity, 0f, 1f, "Ghost transparency. Drag to 0 to hide ghosts.",
-                        v => { _ghostOpacity = v; Dirty(); }, 110f))));
-
-            root.Add(s);
-        }
 
         /// The registration stage — an IMGUI island: onion-skinned frame painting plus a drag-to-place gizmo.
         private void DrawRegistrationCanvasGUI()
@@ -1949,6 +1350,12 @@ namespace Laubrary.Launimator.Editor
             if (_sheet == null) return;
             EnsurePreviewBake(); // align against the SAME baked frames the play preview & game use
 
+            HandlePreviewPan(canvas);
+            GUI.BeginClip(canvas);
+            try
+            {
+            canvas = new Rect(0, 0, canvas.width, canvas.height);
+
             // The view box (and its registration anchor) follows the active mode.
             int vw, vh; float anchorNX, anchorNY;
             if (_fixedFrame)
@@ -1962,17 +1369,25 @@ namespace Laubrary.Launimator.Editor
                 vw = fw; vh = fh; anchorNX = (float)ax / fw; anchorNY = (float)ay / fh;
             }
 
-            // Integer zoom: one source pixel = exactly `scale` screen pixels, so a 1-px nudge is a clean,
-            // visible step and pixel-art frames stay crisp (no bilinear smear that reads as "½-pixel" drift).
-            float fit = Mathf.Min((canvas.width - 16f) / vw, (canvas.height - 16f) / vh);
-            float scale = Mathf.Clamp(Mathf.Floor(fit), 1f, 12f);
+            Rect visibleBounds = new Rect(-anchorNX * vw, -(1f - anchorNY) * vh, vw, vh);
+            visibleBounds = FramePreview.Union(visibleBounds, FramePreview.RelativeBounds(_previewFrames));
+            if (HasSelectedCell())
+            {
+                // Include the selected unsequenced sprite, including its rotation/scale and unusual pivot.
+                EnsureSelectedXform();
+                if (_selXformTex != null)
+                    visibleBounds = FramePreview.Union(visibleBounds, new Rect(-_selXformPivot.x * _selXformW,
+                        -(1f - _selXformPivot.y) * _selXformH, _selXformW, _selXformH));
+            }
+            Vector2 fitAnchor = new Vector2(canvas.width * 0.5f, canvas.height * 0.78f);
+            float scale = PreviewStageScale(canvas, visibleBounds, fitAnchor);
             float vwS = vw * scale, vhS = vh * scale;
             // FIXED registration point: the crosshair must NOT move when a pivot is nudged. It used to be derived
             // from the auto-box (which is computed FROM the pivots), so nudging the frame that defines the box's
             // extent shifted the box with it and the sprite looked pinned (the "← → don't nudge" bug). Pin the
             // crosshair to the canvas and let the guide box float around it instead.
-            float crossX = Mathf.Round(canvas.x + canvas.width * 0.5f);
-            float crossY = Mathf.Round(canvas.y + canvas.height * 0.78f); // low: feet-registered sprites extend upward
+            float crossX = Mathf.Round(fitAnchor.x + _stagePan.x);
+            float crossY = Mathf.Round(fitAnchor.y + _stagePan.y);
             float bx0 = Mathf.Round(crossX - anchorNX * vwS);
             float by0 = Mathf.Round(crossY - (1f - anchorNY) * vhS);
             DrawRectOutline(new Rect(bx0, by0, vwS, vhS), new Color(1f, 0.85f, 0.1f, 0.8f), 1f);
@@ -2038,7 +1453,10 @@ namespace Laubrary.Launimator.Editor
             EditorGUI.DrawRect(new Rect(crossX - 8, crossY - 0.5f, 16, 1f), cross);
             EditorGUI.DrawRect(new Rect(crossX - 0.5f, crossY - 8, 1f, 16), cross);
 
+            if (Event.current.type == EventType.MouseDown && Event.current.button == 0 && canvas.Contains(Event.current.mousePosition)) PausePreview();
             HandleRegistrationDrag(canvas, scale);
+            }
+            finally { GUI.EndClip(); }
         }
 
         private void DrawCellAtAnchor(Rect cell, Vector2 pivot, float cx, float cy, float scale, float alpha, string textureGuid = null)
@@ -2115,14 +1533,16 @@ namespace Laubrary.Launimator.Editor
 
         private void HandleRegistrationDrag(Rect canvas, float scale)
         {
-            if (!HasSelectedCell()) return;
+            if (_spriteTool != SpriteTool.Align || !HasSelectedCell()) return;
             Event e = Event.current;
             if (e.type == EventType.MouseDown && e.button == 0 && canvas.Contains(e.mousePosition))
             {
+                _registrationUndoRecorded = false;
                 _regDragging = true; e.Use();
             }
             else if (e.type == EventType.MouseDrag && _regDragging)
             {
+                if (!_registrationUndoRecorded) { RecordUndo("Align sprite"); _registrationUndoRecorded = true; }
                 var reg = _regions[_selRegion]; reg.SyncPivots(GlobalPivot());
                 Rect cell = reg.cells[_selCell];
                 float wScreen = Mathf.Max(1f, cell.width * scale), hScreen = Mathf.Max(1f, cell.height * scale);
@@ -2134,7 +1554,7 @@ namespace Laubrary.Launimator.Editor
             }
             else if (e.type == EventType.MouseUp && _regDragging)
             {
-                _regDragging = false; e.Use();
+                _regDragging = false; e.Use(); if (_registrationUndoRecorded) Dirty();
             }
         }
 
@@ -2142,33 +1562,25 @@ namespace Laubrary.Launimator.Editor
         /// content around the shared registration anchor — the same math the auto-size bake uses.</summary>
         private void ComputeAutoBox(out int fw, out int fh, out int anchorX, out int anchorY)
         {
-            float leftMax = 1, rightMax = 1, belowMax = 1, aboveMax = 1;
-            var px = GetPixels();
-            var key = CurrentColorKey();
-            bool any = false;
-            foreach (var cr in _sequence)
+            // The baker owns trimming, transformed pivots and mixed-sheet registration.
+            // Reuse its cached geometry during repaints; explicit Fit frame can request a fresh auto composition.
+            if (!_fixedFrame && _previewHash == PreviewHash() && _previewFrames != null && _previewFrames.Count > 0 && _previewFrames[0] != null)
             {
-                if (!SeqRefValid(cr)) continue;
-                var reg = _regions[cr.region]; reg.SyncPivots(GlobalPivot());
-                Rect cell = reg.cells[cr.cell];
-                Vector2 pv = reg.pivots[cr.cell];
-                Rect b = px != null ? RegionSlicer.TrimToContent(px, _texW, _texH, cell, _alphaThreshold, out bool empty, key) : cell;
-                if (px != null && b.width <= 0) b = cell;
-                float pivPxX = cell.x + pv.x * cell.width, pivPxY = cell.y + pv.y * cell.height;
-                float ox = pivPxX - b.x, oy = pivPxY - b.y;
-                leftMax = Mathf.Max(leftMax, ox); rightMax = Mathf.Max(rightMax, b.width - ox);
-                belowMax = Mathf.Max(belowMax, oy); aboveMax = Mathf.Max(aboveMax, b.height - oy);
-                any = true;
+                var sprite = _previewFrames[0];
+                fw = Mathf.RoundToInt(sprite.rect.width); fh = Mathf.RoundToInt(sprite.rect.height);
+                anchorX = Mathf.RoundToInt(sprite.pivot.x); anchorY = Mathf.RoundToInt(sprite.pivot.y);
+                return;
             }
-            if (!any && HasSelectedCell())
+            var recipe = BuildRecipe();
+            if (recipe.Count == 0 && HasSelectedCell()) recipe.Add(FrameRefOf(new CellRef(_selRegion, _selCell)));
+            if (AtlasBaker.Compose(recipe, CurrentColorKey(), default, out var composition, out _))
             {
-                Rect cell = _regions[_selRegion].cells[_selCell];
-                leftMax = cell.width * 0.5f; rightMax = cell.width * 0.5f; belowMax = 0; aboveMax = cell.height;
+                fw = composition.fw; fh = composition.fh;
+                anchorX = AtlasBaker.SnapOffset(composition.uniformPivot.x * fw);
+                anchorY = AtlasBaker.SnapOffset(composition.uniformPivot.y * fh);
+                return;
             }
-            fw = Mathf.Max(1, Mathf.CeilToInt(leftMax + rightMax));
-            fh = Mathf.Max(1, Mathf.CeilToInt(belowMax + aboveMax));
-            anchorX = Mathf.RoundToInt(leftMax);
-            anchorY = Mathf.RoundToInt(belowMax);
+            fw = fh = 1; anchorX = anchorY = 0;
         }
 
         private void FitFrameBox()
@@ -2181,211 +1593,8 @@ namespace Laubrary.Launimator.Editor
         // ── 5 · animation (sequence + preview + save) ────────────────────────
         private static readonly string[] LoopDividerLabels = { "None", "Pause" };
 
-        private void BuildAnimationSection(VisualElement root)
-        {
-            // keep refs valid
-            _sequence.RemoveAll(cr => !SeqRefValid(cr));
-            if (_sequence.Count > 0) _animFrame %= _sequence.Count; else _animFrame = 0;
-            if (_seqSelected >= _sequence.Count) _seqSelected = _sequence.Count - 1;
-            _seqMultiSel.RemoveWhere(k => k < 0 || k >= _sequence.Count);
-            SyncMetaFrames();
-
-            root.Add(Z.Text($"5 · Animation — sequence ({_sequence.Count})", ZuiText.Section,
-                "The ordered frames this animation plays, plus everything saved alongside them."));
-
-            // Tools on the LEFT, animation PREVIEW (doubles as the meta paint/point/vector editor) on the
-            // RIGHT — one drag-resizable window, not a separate box per meta-layer mode.
-            var row = new VisualElement();
-            row.AddToClassList("lau-tool-shell__row-wrap");
-            root.Add(row);
-
-            var toolsCol = new VisualElement();
-            toolsCol.AddToClassList("lau-animation-builder__tools");
-            // T-0084 — both are structurally separate from the play-area CANVAS (_playIM is a sibling added
-            // to `row` below, not a child of `toolsCol`), so promoting them to their own Sections and
-            // registering them on the toggle bar never risks hiding the live preview/paint surface. See
-            // BuildUI's scope comment for the full reasoning.
-            Unit(toolsCol, "Playback & Frames", BuildAnimationTools);
-            if (_metaEnabled) Unit(toolsCol, "Meta Layers", BuildMetaLayersPanel);
-            row.Add(toolsCol);
-
-            _playIM = new IMGUIContainer(DrawPlayAreaGUI)
-            {
-                tooltip = _metaEnabled
-                    ? "Meta editor: left-drag paints/places, right-click erases, middle-drag pans. Drag the " +
-                      "bottom-right corner to resize."
-                    : "The live animation, played by the same AnimationPlayback the game uses. Drag the " +
-                      "bottom-right corner to resize."
-            };
-            _playIM.style.width = _playW;
-            _playIM.style.height = _playH;
-            _playIM.AddToClassList("lau-tool-shell__chrome");
-            row.Add(_playIM);
-
-            _seqStripIM = new IMGUIContainer(DrawSequenceStripGUI)
-            {
-                tooltip = "The sequence. Drag to reorder · Ctrl/Shift-click = multi-select · Right-click → menu."
-            };
-            _seqStripIM.AddToClassList("lau-animation-builder__sequence");
-            root.Add(_seqStripIM);
-            root.Add(Z.Text("Drag to reorder · Ctrl/Shift-click = multi-select · Right-click → menu · (Reverse/Duplicate/Delete in the tools panel).",
-                ZuiText.Subtle, "How to work the sequence strip above."));
-
-            BuildZoneTrack(root);
-            // T-0084 — Frame Events joins the bar (it already lived in its own Z.Box, so this is a straight
-            // chrome upgrade, no restructuring). BuildSaveRow deliberately does NOT join — a save action, not
-            // a settings/tool group, matching this task's own "a save-row is not a good candidate" guidance.
-            Unit(root, "Frame Events", BuildEvents);
-            BuildSaveRow(root);
-        }
 
         // The tools to the RIGHT of the animation preview: play, fps, loop gap, frame ops, meta toggle.
-        private void BuildAnimationTools(VisualElement root)
-        {
-            // T-0084 — a real Z.Section (was raw content with no heading of its own) so this panel can join
-            // the toggle bar.
-            var s = Z.Section("Playback & Frames",
-                "Play the preview, set its speed and loop gap, and reorder/duplicate/delete/add frames in the sequence.",
-                "launimator.animTools");
-
-            _playToggleButton = Z.Button(_animPlaying ? "❚❚" : "▶", "Play or pause the looping preview.", () =>
-            {
-                _animPlaying = !_animPlaying;
-                _playToggleButton.text = _animPlaying ? "❚❚" : "▶";
-                _playIM?.MarkDirtyRepaint();
-            }).W(36f);
-            // Per-frame timing: a percentage of one fps tick, acting on every selected sequence frame. The readout
-            // beside it is what the selected frame actually lasts, so the value always has a reference.
-            const string frameTimeTip = "How long the selected frame(s) show, relative to the FPS: 0 = one normal " +
-                "frame, +100% = twice as long, -100% = half as long, +800% = 9x as long, -800% = a ninth. Applies " +
-                "to every selected frame and follows any FPS change.";
-            // With slot 0 selected the slider sets how long frame 0 shows instead.
-            bool zeroSel = _frameZeroSel && _frameZeroOn && SeqRefValid(_frameZero);
-            bool anySeqSel = !zeroSel && _seqSelected >= 0 && _seqSelected < _sequence.Count;
-            float SelectedPct() => zeroSel ? _frameZero.pct : anySeqSel ? _sequence[_seqSelected].pct : 0f;
-            var frameMsReadout = Z.Text("", ZuiText.Subtle, "What the selected frame lasts with its timing applied.");
-            frameMsReadout.style.width = 64f;
-            void UpdateReadout()
-            {
-                frameMsReadout.text = zeroSel || anySeqSel ? $"= {FrameMsOf(SelectedPct()):0} ms" : "";
-            }
-            var frameTime = Z.MicroSlider("Frame time %", SelectedPct(),
-                FrameRef.MinTimingPercent, FrameRef.MaxTimingPercent, frameTimeTip, v =>
-                {
-                    v = Mathf.Round(v);
-                    if (zeroSel)
-                    {
-                        _frameZero.pct = v;
-                        UpdateReadout();
-                        _seqStripIM?.MarkDirtyRepaint();
-                        Dirty();
-                        return;
-                    }
-                    foreach (int k in _seqMultiSel.ToList())
-                        if (k >= 0 && k < _sequence.Count) { var cr = _sequence[k]; cr.pct = v; _sequence[k] = cr; }
-                    if (_seqMultiSel.Count == 0 && anySeqSel) { var cr = _sequence[_seqSelected]; cr.pct = v; _sequence[_seqSelected] = cr; }
-                    SyncPreviewTimings();
-                    UpdateReadout();
-                    _seqStripIM?.MarkDirtyRepaint();
-                    Dirty();
-                }, 190f, defaultValue: 0f, decimals: 0, onBeforeMutate: () => RecordUndo("Frame time"));
-            frameTime.SetEnabled(zeroSel || anySeqSel);
-            UpdateReadout();
-            s.Add(WrapRow(
-                _playToggleButton,
-                Z.Field("FPS", "Preview playback speed — also what the saved animation plays at.",
-                    Z.Slider(_animFps, 1f, 30f, "Preview playback speed — also what the saved animation plays at.",
-                        v => { _animFps = v; UpdateReadout(); Dirty(); }, 170f))));
-            s.Add(WrapRow(frameTime, frameMsReadout));
-
-            var loopRow = WrapRow(
-                Z.Text("Loop gap", ZuiText.Small,
-                    "A preview-only pause between loops. Never saved into the animation.").W(58f),
-                Z.MiniRadio((int)_loopDivider, LoopDividerLabels,
-                    "None loops seamlessly; Pause holds an empty gap between loops for the seconds set beside it.",
-                    v => { _loopDivider = (LoopDivider)v; Refresh(); }));
-            if (_loopDivider != LoopDivider.None)
-                loopRow.Add(Z.Field("s", "How long the loop gap lasts, in seconds.",
-                    Z.Float(Mathf.Max(0f, _loopPause), "How long the loop gap lasts, in seconds.",
-                        v => { _loopPause = Mathf.Max(0f, v); Dirty(); }, 52f)));
-            loopRow.Add(Z.Toggle("Frame 0", _frameZeroOn
-                    ? "Frame 0 is on: slot 0 at the start of the sequence shows a sprite before frame 1 on every loop " +
-                      "of this preview. Drag a frame onto slot 0, or right-click a sprite → Use as frame 0, to change " +
-                      "it; select slot 0 to set how long it shows. Saved with the animation for this editor only; " +
-                      "the game never plays it. Click to turn it off."
-                    : "Show a sprite before frame 1 on every loop of this preview, e.g. the pose the move starts " +
-                      "from, to judge the transition. Saved with the animation for this editor only; the game never " +
-                      "plays it.",
-                _frameZeroOn, v =>
-                {
-                    RecordUndo(v ? "Frame 0 on" : "Frame 0 off");
-                    _frameZeroOn = v;
-                    if (!v) { _frameZeroSel = false; _showingFrameZero = false; }
-                    else if (!SeqRefValid(_frameZero))
-                    {
-                        if (HasSelectedCell()) _frameZero = new CellRef(_selRegion, _selCell) { pct = DefaultFrameZeroPct };
-                        else _status = "Frame 0 is on: drag a frame onto slot 0, or right-click a sprite → Use as frame 0.";
-                    }
-                    _previewHash = -1;
-                    Refresh();
-                }));
-            s.Add(loopRow);
-
-            int selCount = _seqMultiSel.Count;
-            var reverse = Z.Button("Reverse", "Reverse the order of the selected frames.",
-                () => { ReverseSelectedFrames(); Refresh(); }).W(74f);
-            reverse.SetEnabled(selCount >= 2);
-            var dupFrames = Z.Button(selCount > 1 ? $"Duplicate ({selCount})" : "Duplicate",
-                "Copy the selected frames in as a block just after the selection.",
-                () => { DuplicateSelectedFrames(); Refresh(); }).W(96f);
-            var delFrames = Z.Button(selCount > 1 ? $"Delete ({selCount})" : "Delete",
-                "Remove the selected frames from the sequence.",
-                () => { DeleteSelectedFrames(); Refresh(); }).W(86f);
-            dupFrames.SetEnabled(selCount > 0);
-            delFrames.SetEnabled(selCount > 0);
-            s.Add(WrapRow(reverse, dupFrames, delFrames));
-
-            const string addFileTip = "Append a STANDALONE image (its own file, not sliced from the loaded " +
-                "sheet above) as one new frame at the end of the sequence — the whole image becomes one cell. " +
-                "For an animation whose frames come from several separate source images (e.g. one file per " +
-                "facing direction), rather than one shared sprite sheet. Doesn't touch the loaded sheet or its " +
-                "own identified sprites.";
-            s.Add(Z.Field("+ Sprite from file", addFileTip,
-                Z.Object<Texture2D>(null, addFileTip, picked =>
-                {
-                    if (picked == null) return;
-                    RecordUndo("Add sprite from file");
-                    AppendStandaloneSpriteFrame(picked);
-                    Refresh();
-                }, 200f)));
-
-            s.Add(WrapRow(
-                Z.Toggle("Meta layers", "Gameplay overlays (hitbox/muzzle/trail) drawn over the sequence. Off keeps the UI clean.",
-                    _metaEnabled, v =>
-                    {
-                        _metaEnabled = v;
-                        // Painting is per-frame, and the preview loops by default — so turning paint mode on
-                        // while the clip is running means "click the preview to place it" lands on whatever
-                        // frame happens to be up at that instant, silently authoring the wrong one. Pause on
-                        // entry; the ▶ button and clicking any strip frame both still work as before.
-                        if (v)
-                        {
-                            _animPlaying = false;
-                            // Keep the ▶/❚❚ button honest about the state we just forced.
-                            if (_playToggleButton != null) _playToggleButton.text = "▶";
-                        }
-                        Refresh();
-                    }),
-                Z.Flexible(),
-                Z.Button("Clear seq", "Empty the sequence (undoable).", () =>
-                {
-                    RecordUndo("Clear sequence");
-                    _sequence.Clear(); _seqSelected = -1; _animFrame = 0;
-                    Refresh();
-                }).W(74f)));
-
-            root.Add(s);
-        }
 
         /// The play box / meta paint editor — an IMGUI island either way (pivot-anchored atlas blits, and a
         /// zoomable per-pixel paint surface with pan).
@@ -2394,44 +1603,10 @@ namespace Laubrary.Launimator.Editor
             if (_playIM == null) return;
             var box = new Rect(0f, 0f, _playIM.layout.width, _playIM.layout.height);
             if (!(box.width > 10f) || !(box.height > 10f)) return;
-            if (_metaEnabled) DrawMetaEditor(box); else DrawPlayBox(box);
-            HandlePreviewResize(box);
+            if (_workspaceMode == WorkspaceMode.Animate && _animateTool == AnimateTool.Layers && _metaEnabled) DrawMetaEditor(box); else DrawPlayBox(box);
         }
 
         /// <summary>Drag-resize grip in the preview/paint window's bottom-right corner.</summary>
-        private void HandlePreviewResize(Rect box)
-        {
-            const float gripSize = 14f;
-            var grip = new Rect(box.xMax - gripSize, box.yMax - gripSize, gripSize, gripSize);
-            EditorGUIUtility.AddCursorRect(grip, MouseCursor.ResizeUpLeft);
-
-            Handles.BeginGUI();
-            Handles.color = new Color(1f, 1f, 1f, 0.35f);
-            for (int i = 0; i < 3; i++)
-            {
-                float o = i * 4f;
-                Handles.DrawLine(new Vector3(grip.xMax - 3f - o, grip.yMax - 3f), new Vector3(grip.xMax - 3f, grip.yMax - 3f - o));
-            }
-            Handles.EndGUI();
-
-            var e = Event.current;
-            if (e.type == EventType.MouseDown && e.button == 0 && grip.Contains(e.mousePosition))
-            {
-                _playResizing = true; _playResizeStart = e.mousePosition;
-                _playResizeStartW = _playW; _playResizeStartH = _playH;
-                e.Use();
-            }
-            else if (e.type == EventType.MouseDrag && _playResizing)
-            {
-                var d = e.mousePosition - _playResizeStart;
-                _playW = Mathf.Clamp(_playResizeStartW + d.x, 160f, 900f);
-                _playH = Mathf.Clamp(_playResizeStartH + d.y, 120f, 900f);
-                _playIM.style.width = _playW; _playIM.style.height = _playH;
-                e.Use(); Repaint();
-            }
-            else if (e.type == EventType.MouseUp && _playResizing)
-            { _playResizing = false; e.Use(); }
-        }
 
         // ── Meta-layers: data sync + UI + paint editor ──────────────────────
         private MetaLayer ActiveLayer() => (_activeLayer >= 0 && _activeLayer < _metaLayers.Count) ? _metaLayers[_activeLayer] : null;
@@ -2474,160 +1649,6 @@ namespace Laubrary.Launimator.Editor
         private static readonly string[] PaintValueLabels =
             { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10" };
 
-        private void BuildMetaLayersPanel(VisualElement root)
-        {
-            root.Add(WrapRow(
-                Z.Text("Layers", ZuiText.Small, "Gameplay overlay masks painted per frame.").W(44f),
-                Z.Button("+ Layer", "Add a meta-layer (e.g. hitbox, muzzle, trail).", () =>
-                {
-                    RecordUndo("Add layer");
-                    _metaLayers.Add(new MetaLayer { id = $"layer{_metaLayers.Count + 1}", color = MetaLayer.Palette[_metaLayers.Count % MetaLayer.Palette.Length] });
-                    _activeLayer = _metaLayers.Count - 1; SyncMetaFrames();
-                    Refresh();
-                }).W(66f)));
-
-            for (int i = 0; i < _metaLayers.Count; i++)
-            {
-                int li = i;
-                var L = _metaLayers[i];
-                var lrow = Z.Row();
-
-                lrow.Add(Z.Button(i == _activeLayer ? "●" : "○", "Make this the layer you're painting.",
-                    () => { _activeLayer = li; Refresh(); }).W(22f));
-                lrow.Add(Z.TextInput(L.id, "This layer's id — how the game looks the mask up.",
-                    v => { RecordUndo("Rename layer"); L.id = v; }, 108f));
-
-                var solid = new Color(L.color.r, L.color.g, L.color.b, 1f);
-                var swatch = Z.Button("", "Pick this layer's colour from the shared palette.", null).W(28f);
-                swatch.AddToClassList("lau-animation-builder__layer-colour");
-                swatch.style.backgroundColor = solid;
-                swatch.clicked += () =>
-                {
-                    var wb = swatch.worldBound;
-                    UnityEditor.PopupWindow.Show(new Rect(wb.x, wb.y, wb.width, wb.height), new ColorPalettePopup(solid, c =>
-                    {
-                        RecordUndo("Layer colour");
-                        var cc = c; cc.a = _metaLayers[li].color.a; _metaLayers[li].color = cc;
-                        ClearMaskCache(); Refresh();
-                    }));
-                };
-                lrow.Add(swatch);
-
-                lrow.Add(Z.Button("X", "Remove this layer.", () =>
-                {
-                    RecordUndo("Remove layer");
-                    _metaLayers.RemoveAt(li);
-                    if (_activeLayer >= _metaLayers.Count) _activeLayer = _metaLayers.Count - 1;
-                    ClearMaskCache(); Refresh();
-                }).W(22f));
-                root.Add(lrow);
-            }
-
-            var layer = ActiveLayer();
-            if (layer == null)
-            {
-                root.Add(Z.Text("No layers. \"+ Layer\" adds one.", ZuiText.Subtle, "Add a meta-layer to start painting."));
-                return;
-            }
-
-            const string modeTip = "Shape = a painted region (the original mechanism, e.g. a hitbox mask). " +
-                "Point = one pixel per frame (a lighter \"here's the one pixel that matters\" marker, e.g. a " +
-                "shockwave origin). Vector = an origin + a direction per frame (e.g. a muzzle's live position " +
-                "AND aim, read by MuzzleVectorTracker) — changing mode only affects how THIS layer is authored " +
-                "and read; a layer's mode is per-layer, never mixed within one.";
-            int modeIdx = (int)layer.mode;
-            root.Add(Z.Field("Mode", modeTip, Z.MiniRadio(modeIdx, new[] { "Shape", "Point", "Vector" }, modeTip,
-                v => { RecordUndo("Layer mode"); layer.mode = (MetaLayerMode)v; ClearMaskCache(); Refresh(); })));
-
-            if (layer.mode == MetaLayerMode.Vector) { BuildVectorLayerUI(root, layer); return; }
-
-            root.Add(Z.Field("Opacity", "Display transparency for this layer's mask.",
-                Z.Slider(layer.color.a, 0.1f, 1f, "Display transparency for this layer's mask.",
-                    v => { var c = layer.color; c.a = v; layer.color = c; ClearMaskCache(); Dirty(); }, 130f)));
-
-            if (layer.mode == MetaLayerMode.Shape)
-            {
-                int brushIdx = System.Array.FindIndex(BrushSizes, b => b.x == _brushW && b.y == _brushH);
-                root.Add(WrapRow(
-                    Z.Text("Brush", ZuiText.Small, "Paint footprint, in mask cells.").W(44f),
-                    Z.MiniRadio(Mathf.Max(0, brushIdx), BrushLabels, "Paint footprint, in mask cells.",
-                        v => { _brushW = BrushSizes[v].x; _brushH = BrushSizes[v].y; })));
-            }
-            else
-            {
-                root.Add(Z.Text("Point mode: exactly one cell per frame — drawing another moves it, it never adds a second.",
-                    ZuiText.Subtle, "Point mode paints a single movable marker, not a shape."));
-            }
-
-            root.Add(WrapRow(
-                Z.Toggle("Values", "Per-pixel value 1–10 as a channel. Off = always paint value 5. Any value triggers a hit unless the consumer reads it.",
-                    _metaShowValues, v => { _metaShowValues = v; if (!v) _paintValue = 5; Refresh(); }),
-                Z.Flexible(),
-                Z.Button("Clear frame", "Erase this layer's mask on the current frame.",
-                    () => { ClearActiveFrame(); Dirty(); }).W(86f)));
-
-            {
-                var pasteBtn = Z.Button("Paste", "Paste the copied frame's mask + param onto the current frame.",
-                    () =>
-                    {
-                        RecordUndo("Paste frame");
-                        PasteMetaFrameInto(ActiveLayer(), ActiveFrameIndex());
-                        ClearMaskCache(); Dirty();
-                    }).W(52f);
-                var pasteAllBtn = Z.Button("Paste all", "Paste the copied frame's mask + param onto EVERY frame of " +
-                    "this layer — for when the same point/mask applies to most frames; repaint just the outliers " +
-                    "afterward.",
-                    () =>
-                    {
-                        RecordUndo("Paste to all frames");
-                        var L = ActiveLayer();
-                        if (L != null) for (int i = 0; i < L.frames.Count; i++) PasteMetaFrameInto(L, i);
-                        ClearMaskCache(); Dirty();
-                    }).W(64f);
-                pasteBtn.SetEnabled(_metaFrameClipboard != null);
-                pasteAllBtn.SetEnabled(_metaFrameClipboard != null);
-
-                root.Add(WrapRow(
-                    Z.Button("Copy frame", "Copy this layer's mask + param on the current frame, to paste onto others.",
-                        () =>
-                        {
-                            var L = ActiveLayer(); int at = ActiveFrameIndex();
-                            if (L != null && at >= 0 && at < L.frames.Count) _metaFrameClipboard = L.frames[at].Clone();
-                            Refresh();   // re-enables the Paste buttons above
-                        }).W(80f),
-                    pasteBtn, pasteAllBtn));
-            }
-
-            if (_metaShowValues)
-                root.Add(WrapRow(
-                    Z.Text("Value", ZuiText.Small, "1 = darkest … 5 = layer colour … 10 = brightest. Erase = right-click.").W(40f),
-                    Z.MiniRadio(Mathf.Clamp(_paintValue - 1, 0, 9), PaintValueLabels,
-                        "1 = darkest … 5 = layer colour … 10 = brightest. Erase = right-click.",
-                        v => _paintValue = v + 1)));
-
-            BuildMetaViewRow(root);
-
-            int f = _sequence.Count > 0 ? Mathf.Clamp(_animFrame, 0, _sequence.Count - 1) : -1;
-            if (f >= 0 && f < layer.frames.Count)
-            {
-                // The param always edits whatever frame is CURRENT (the playhead moves without a rebuild),
-                // so read the index at commit time, not at build time.
-                _metaParamField = Z.TextInput(layer.frames[f].param ?? "",
-                    "Free-text parameter for this frame on the active layer.",
-                    v =>
-                    {
-                        var L = ActiveLayer();
-                        int at = _sequence.Count > 0 ? Mathf.Clamp(_animFrame, 0, _sequence.Count - 1) : -1;
-                        if (L == null || at < 0 || at >= L.frames.Count) return;
-                        RecordUndo("Frame param"); L.frames[at].param = v;
-                    }, 160f);
-                var wrap = Z.Field($"F{f + 1} param", "Free-text parameter for this frame on the active layer.", _metaParamField);
-                _metaParamLabel = wrap.Q<Label>(className: "zui-field__label");
-                root.Add(wrap);
-            }
-            root.Add(Z.Text("Left-drag = paint · right-drag = erase · middle-drag = pan.", ZuiText.Subtle,
-                "How to paint on the preview to the right."));
-        }
 
         /// Vector-mode's side-panel controls. The actual drawing surface is NOT here — it's the same preview
         /// canvas (DrawMetaEditor/HandleVectorInput) Shape/Point paint into; this is just this mode's options +
@@ -2637,82 +1658,7 @@ namespace Laubrary.Launimator.Editor
         /// only tens of pixels across. (It used to live inline in the Shape/Point path only, below
         /// <see cref="BuildVectorLayerUI"/>'s early return — so a Vector layer had no way to zoom or recentre
         /// at all, and a stray middle-drag pan left the sprite off-view with nothing to undo it.)</summary>
-        private void BuildMetaViewRow(VisualElement root)
-        {
-            root.Add(WrapRow(
-                Z.Field("Zoom", "Paint-editor magnification (screen px per source px).",
-                    Z.Slider(_metaZoom, 2f, 24f, "Paint-editor magnification (screen px per source px).",
-                        v => { _metaZoom = Mathf.Round(v); Dirty(); }, 110f)),
-                Z.Button("Center", "Recentre the paint view.",
-                    () => { _metaPan = Vector2.zero; Dirty(); }).W(56f)));
-        }
 
-        private void BuildVectorLayerUI(VisualElement root, MetaLayer layer)
-        {
-            int f = ActiveFrameIndex();
-            if (f < 0 || layer.vectorFrames == null || f >= layer.vectorFrames.Count)
-            {
-                root.Add(Z.Text("Add sprites to the sequence first — vector data is per-frame.", ZuiText.Subtle,
-                    "Vector data is per-frame."));
-                return;
-            }
-
-            root.Add(Z.Field("Opacity", "Display transparency for this layer's origin dot + arrow.",
-                Z.Slider(layer.color.a, 0.1f, 1f, "Display transparency for this layer's origin dot + arrow.",
-                    v => { var c = layer.color; c.a = v; layer.color = c; Dirty(); }, 130f)));
-
-            const string lenTip = "Whether dragging the arrow tip also edits length. Off (default) = always " +
-                "normalized (length 1) — most consumers (e.g. a muzzle direction) only care about direction.";
-            root.Add(WrapRow(
-                Z.Toggle("Allow Length", lenTip, layer.vectorAllowLength,
-                    v => { RecordUndo("Allow length"); layer.vectorAllowLength = v; Refresh(); }),
-                Z.Flexible(),
-                Z.Text($"F{f + 1}/{_sequence.Count}", ZuiText.Subtle, "Current frame.")));
-
-            // Angle snap. The divisions slider is always present and merely DISABLED while the snap is off, so
-            // turning it on never reflows the panel and the count you'll get is readable before you commit to it.
-            const string snapTip = "While you aim, the arrow can only land on one of a ring of evenly-spaced " +
-                "angles — it detents as you drag instead of pointing anywhere in between. An authoring aid " +
-                "only: frames you already aimed keep their direction until you re-aim them, and nothing at " +
-                "runtime reads this.";
-            const string divTip = "How many evenly-spaced angles that ring holds. 16 is one every 22.5°. Keep " +
-                "it a multiple of 4 so up, down, left and right stay exactly on the ring.";
-            var divSlider = Z.SliderInt(Mathf.Clamp(layer.vectorSnapDivisions, 2, 64), 2, 64, divTip,
-                v => { RecordUndo("Snap divisions"); layer.vectorSnapDivisions = v; Dirty(); }, 120f);
-            divSlider.SetEnabled(layer.vectorSnapAngle);
-            root.Add(WrapRow(
-                Z.Toggle("Snap Angle", snapTip, layer.vectorSnapAngle,
-                    v =>
-                    {
-                        RecordUndo("Snap angle");
-                        layer.vectorSnapAngle = v;
-                        // "Defaults to 16 when turned on" — and a layer saved before this existed reads 0.
-                        if (v && (layer.vectorSnapDivisions < 2 || layer.vectorSnapDivisions > 64))
-                            layer.vectorSnapDivisions = 16;
-                        Refresh();
-                    }),
-                Z.Field("Divisions", divTip, divSlider)));
-
-            var vf = layer.vectorFrames[f];
-            root.Add(WrapRow(
-                Z.Button("Clear frame", "Erase this layer's vector on the current frame.", () =>
-                {
-                    RecordUndo("Clear vector frame");
-                    vf.authored = false;
-                    Refresh();
-                }).W(86f),
-                Z.Text(vf.authored
-                    ? $"origin=({vf.origin.x:0.00},{vf.origin.y:0.00}) dir=({vf.direction.x:0.00},{vf.direction.y:0.00})"
-                        + (layer.vectorAllowLength ? $" len={vf.length:0.00}" : "")
-                    : "Not authored — click on the preview to place it.",
-                    ZuiText.Subtle, "Current frame's raw authored values.")));
-
-            BuildMetaViewRow(root);
-
-            root.Add(Z.Text("Click the preview to place the origin, then drag to aim · drag the origin dot to " +
-                "move it · drag the arrowhead to re-aim · right-click erases · middle-drag pans.", ZuiText.Subtle,
-                "How to draw on the preview to the right."));
-        }
 
         private void ClearActiveFrame()
         {
@@ -2761,9 +1707,11 @@ namespace Laubrary.Launimator.Editor
             var layer = ActiveLayer();
             bool isVector = layer != null && layer.mode == MetaLayerMode.Vector;
             MetaFrame mf = null;
-            if (!isVector && layer != null && f < layer.frames.Count) { mf = layer.frames[f]; mf.EnsureSize(fw, fh); }
+            if (!isVector && layer != null && f < layer.frames.Count) mf = layer.frames[f];
 
-            float z = _metaZoom, dw = fw * z, dh = fh * z;
+            float z = _metaZoom > 0 ? _metaZoom : Mathf.Min((box.width - 16) / fw, (box.height - 16) / fh);
+            z = Mathf.Max(.01f, z);
+            float dw = fw * z, dh = fh * z;
             GUI.BeginClip(box);
             float ox = Mathf.Round((box.width - dw) * 0.5f + _metaPan.x), oy = Mathf.Round((box.height - dh) * 0.5f + _metaPan.y);
 
@@ -2817,7 +1765,7 @@ namespace Laubrary.Launimator.Editor
 
             if (e.type == EventType.MouseDown && (e.button == 0 || e.button == 1) && inCell)
             {
-                RecordUndo("Paint");
+                PausePreview(); RecordUndo("Paint"); mf.EnsureSize(fw, fh);
                 if (singlePoint)
                 {
                     if (mf.cells != null) System.Array.Clear(mf.cells, 0, mf.cells.Length);
@@ -2840,7 +1788,7 @@ namespace Laubrary.Launimator.Editor
                 }
                 e.Use(); Repaint();
             }
-            else if (e.type == EventType.MouseUp && _metaPainting) { _metaPainting = false; e.Use(); }
+            else if (e.type == EventType.MouseUp && _metaPainting) { _metaPainting = false; e.Use(); Dirty(); }
         }
 
         /// <summary>Draws Vector mode's origin dot + aim arrow directly on the preview canvas, in the layer's
@@ -2943,57 +1891,6 @@ namespace Laubrary.Launimator.Editor
         // Author per-frame EVENTS (metadata the game reacts to). "hit" is the canonical one — it lets a
         // consumer sync weapon damage / a projectile to the swing's contact frame via LauminaryPlayer.OnFrameEvent.
         // Frames are shown 1-based to match the sequence strip badges; stored 0-based.
-        private void BuildEvents(VisualElement root)
-        {
-            const string eventsTip =
-                "Authored per-frame events the game reacts to (e.g. \"hit\" to sync weapon damage to the contact frame). Fired by LauminaryPlayer.OnFrameEvent.";
-            var box = Z.Box($"Frame events ({_events.Count})", eventsTip);
-
-            int cur = _sequence.Count > 0 ? Mathf.Clamp(_animFrame, 0, _sequence.Count - 1) : 0;
-            _addEventButton = Z.Button($"+ event @ frame {cur + 1}",
-                "Add a named event on the frame shown in the preview, then rename it below (e.g. hit, footstep, Lift Off).",
-                () =>
-                {
-                    RecordUndo("Add event");
-                    int at = _sequence.Count > 0 ? Mathf.Clamp(_animFrame, 0, _sequence.Count - 1) : 0;
-                    _events.Add(new FrameEvent { frame = at, name = "event" });
-                    Refresh();
-                }).W(150f);
-            _addEventButton.SetEnabled(_sequence.Count > 0);
-            box.Add(Z.Row(Z.Flexible(), _addEventButton));
-
-            int maxFrame = Mathf.Max(0, _sequence.Count - 1);
-            for (int e = 0; e < _events.Count; e++)
-            {
-                int idx = e;
-                var ev = _events[e];
-                var evRow = WrapRow(
-                    Z.Field("frame", "Which sequence frame (1-based) this event fires on.",
-                        Z.Int(ev.frame + 1, "Which sequence frame (1-based) this event fires on.",
-                            v => { RecordUndo("Move event"); ev.frame = Mathf.Clamp(v, 1, maxFrame + 1) - 1; Dirty(); }, 52f)),
-                    Z.TextInput(ev.name, "The event's name — what the game listens for.",
-                        v => { RecordUndo("Rename event"); ev.name = v; }, 140f));
-
-                string zoundLabel = string.IsNullOrEmpty(ev.zoundName) ? "— zound —" : ev.zoundName;
-                var zoundButton = Z.Button(zoundLabel,
-                    "Zound auto-played when this event fires, via the Launimator.Zounds bridge. Click to pick.", null).W(90f);
-                zoundButton.clicked += () =>
-                {
-                    var wb = zoundButton.worldBound;
-                    ZoundPickerPopup.Show(new Vector2(wb.x, wb.yMax), picked =>
-                    { RecordUndo("Set event zound"); _events[idx].zoundName = picked; Refresh(); });
-                };
-                evRow.Add(zoundButton);
-                evRow.Add(Z.Button("X", "Remove this event.",
-                    () => { RecordUndo("Remove event"); _events.RemoveAt(idx); Refresh(); }).W(22f));
-                box.Add(evRow);
-            }
-
-            if (_events.Count == 0)
-                box.Add(Z.Text("No events. Add one to tag a frame with a named signal the game reacts to — e.g. \"hit\", \"footstep\", \"Lift Off\" (fired via OnFrameEvent).",
-                    ZuiText.Subtle, eventsTip));
-            root.Add(box);
-        }
 
         private void DrawPlayBox(Rect box)
         {
@@ -3006,26 +1903,31 @@ namespace Laubrary.Launimator.Editor
             }
 
             EnsurePreviewBake();
-            float cx = box.x + box.width * CrosshairNX, cy = box.y + box.height * (1f - CrosshairNY);
-
-            if (_inDivider)
+            HandlePreviewPan(box);
+            GUI.BeginClip(box);
+            try
             {
-                // Loop-gap pause: deliberately empty.
+                box = new Rect(0, 0, box.width, box.height);
+                Vector2 anchor = new Vector2(box.width * CrosshairNX, box.height * (1f - CrosshairNY));
+                var bounds = FramePreview.RelativeBounds(_previewFrames);
+                if (!_phasePreviewMode) bounds = FramePreview.Union(bounds, FramePreview.RelativeBounds(_previewFrameZero));
+                float scale = PreviewStageScale(box, bounds, anchor, 8f);
+                anchor += _stagePan;
+                if (!_inDivider)
+                {
+                    if (_showingFrameZero && FrameZeroActive && _previewFrameZero != null)
+                        FramePreview.DrawSpriteAtAnchor(_previewFrameZero[0], anchor.x, anchor.y, scale, 1f);
+                    else if (_previewFrames != null && _previewFrames.Count > 0)
+                    {
+                        int shown = Mathf.Clamp(_animFrame, 0, _previewFrames.Count - 1);
+                        FramePreview.DrawSpriteAtAnchor(_previewFrames[shown], anchor.x, anchor.y, scale, 1f);
+                    }
+                }
+                var cross = new Color(0.2f, 1f, 0.5f, 0.9f);
+                EditorGUI.DrawRect(new Rect(anchor.x - 8, anchor.y - 0.5f, 16, 1f), cross);
+                EditorGUI.DrawRect(new Rect(anchor.x - 0.5f, anchor.y - 8, 1f, 16), cross);
             }
-            else if (_showingFrameZero && FrameZeroActive && _previewFrameZero != null)
-            {
-                FramePreview.DrawClip(box, _previewFrameZero, 0, CrosshairNX, 1f - CrosshairNY, 8f);
-            }
-            else if (_previewFrames != null && _previewFrames.Count > 0)
-            {
-                // The ONE player + the ONE frame drawer over the live-baked frames — identical to the game.
-                int shown = _animPlaying ? _previewPlayer.Frame : Mathf.Clamp(_animFrame, 0, _previewFrames.Count - 1);
-                FramePreview.DrawClip(box, _previewFrames, shown, CrosshairNX, 1f - CrosshairNY, 8f);
-            }
-
-            var cross = new Color(0.2f, 1f, 0.5f, 0.9f);
-            EditorGUI.DrawRect(new Rect(cx - 8, cy - 0.5f, 16, 1f), cross);
-            EditorGUI.DrawRect(new Rect(cx - 0.5f, cy - 8, 1f, 16), cross);
+            finally { GUI.EndClip(); }
         }
 
         /// The sequence strip — an IMGUI island: a thumbnail grid with zone borders, playhead/selection
@@ -3177,16 +2079,9 @@ namespace Laubrary.Launimator.Editor
         {
             var idx = _seqMultiSel.Where(k => k >= 0 && k < _sequence.Count).OrderBy(k => k).ToList();
             if (idx.Count < 2) return;
-            RecordUndo("Reverse frames");
-            var items = idx.Select(k => _sequence[k]).ToList();
-            items.Reverse();
-            for (int j = 0; j < idx.Count; j++) _sequence[idx[j]] = items[j];
-            foreach (var L in _metaLayers) // mirror the reverse onto each layer's masks
-            {
-                var mi = idx.Where(k => k < L.frames.Count).ToList();
-                var its = mi.Select(k => L.frames[k]).ToList(); its.Reverse();
-                for (int j = 0; j < mi.Count; j++) L.frames[mi[j]] = its[j];
-            }
+            var mapping = Enumerable.Range(0, _sequence.Count).ToList();
+            for (int j = 0; j < idx.Count; j++) mapping[idx[j]] = idx[idx.Count - 1 - j];
+            RemapSequence(mapping, "Reverse frames");
             _status = $"Reversed {idx.Count} frames.";
             Repaint();
         }
@@ -3195,27 +2090,19 @@ namespace Laubrary.Launimator.Editor
         {
             var idx = _seqMultiSel.Where(k => k >= 0 && k < _sequence.Count).OrderBy(k => k).ToList();
             if (idx.Count == 0) return;
-            RecordUndo("Duplicate frames");
-
             // Copy the selected frames as ONE contiguous block (in sequence order) and insert it right AFTER the
             // last selected frame, pushing everything past it forward. (Not interleaved per-original.)
             int insertAt = idx[idx.Count - 1] + 1;
-            var block = idx.Select(k => _sequence[k]).ToList();
-            _sequence.InsertRange(insertAt, block);
-
-            // Mirror the same block onto each meta-layer's per-frame masks so they stay aligned with the sequence.
-            foreach (var L in _metaLayers)
-            {
-                var maskBlock = idx.Where(k => k < L.frames.Count).Select(k => L.frames[k].Clone()).ToList();
-                L.frames.InsertRange(Mathf.Clamp(insertAt, 0, L.frames.Count), maskBlock);
-            }
+            var mapping = Enumerable.Range(0, _sequence.Count).ToList();
+            mapping.InsertRange(insertAt, idx);
+            RemapSequence(mapping, "Duplicate frames");
 
             // Select the freshly-inserted block.
             _seqMultiSel.Clear();
-            for (int j = 0; j < block.Count; j++) _seqMultiSel.Add(insertAt + j);
-            _seqSelected = insertAt + block.Count - 1;
+            for (int j = 0; j < idx.Count; j++) _seqMultiSel.Add(insertAt + j);
+            _seqSelected = insertAt + idx.Count - 1;
             _seqAnchor = insertAt;
-            _status = $"Duplicated {block.Count} frame(s) after the selection.";
+            _status = $"Duplicated {idx.Count} frame(s) after the selection.";
             Repaint();
         }
 
@@ -3223,10 +2110,8 @@ namespace Laubrary.Launimator.Editor
         {
             var idx = _seqMultiSel.Where(k => k >= 0 && k < _sequence.Count).OrderByDescending(k => k).ToList();
             if (idx.Count == 0) return;
-            RecordUndo("Delete frames");
             int first = idx.Min();
-            foreach (int k in idx) _sequence.RemoveAt(k);
-            foreach (var L in _metaLayers) foreach (int k in idx) if (k < L.frames.Count) L.frames.RemoveAt(k); // keep masks aligned
+            RemapSequence(Enumerable.Range(0, _sequence.Count).Where(i => !idx.Contains(i)).ToList(), "Delete frames");
             _seqMultiSel.Clear();
             _seqSelected = _sequence.Count == 0 ? -1 : Mathf.Clamp(first, 0, _sequence.Count - 1);
             if (_seqSelected >= 0) _seqMultiSel.Add(_seqSelected);
@@ -3258,13 +2143,7 @@ namespace Laubrary.Launimator.Editor
             {
                 if (_seqDragFrom != i && _seqDragFrom < _sequence.Count)
                 {
-                    RecordUndo("Reorder frame");
-                    var moved = _sequence[_seqDragFrom];
-                    _sequence.RemoveAt(_seqDragFrom);
-                    _sequence.Insert(Mathf.Clamp(i, 0, _sequence.Count), moved);
-                    foreach (var L in _metaLayers) if (_seqDragFrom < L.frames.Count) // mask follows its frame
-                    { var mfm = L.frames[_seqDragFrom]; L.frames.RemoveAt(_seqDragFrom); L.frames.Insert(Mathf.Clamp(i, 0, L.frames.Count), mfm); }
-                    SeqSelectSingle(i);
+                    MoveSequenceFrame(_seqDragFrom, i);
                 }
                 _seqDragFrom = -1; e.Use(); DeferRefresh();
             }
@@ -3274,39 +2153,6 @@ namespace Laubrary.Launimator.Editor
         /// while it is drawing.
         private void DeferRefresh() => EditorApplication.delayCall += Refresh;
 
-        private void BuildSaveRow(VisualElement root)
-        {
-            root.Add(Z.VSpace());
-            bool bound = _boundLauminary != null;
-            bool newOrphan = !bound && _orphanAsset == null;
-            root.Add(Z.Text(bound
-                    ? $"Save → lauminary '{_boundLauminary.lauminaryName}'"
-                    : (_orphanAsset != null ? "Save → orphaned animation" : "Save → new orphaned animation"),
-                ZuiText.Section, "Where the Save button below writes this animation."));
-
-            // The name only needs editing when authoring a brand-new orphan. When editing an existing
-            // animation (bound or an existing orphan) the target is fixed, so show it read-only.
-            if (newOrphan)
-                root.Add(Z.Field("Animation name", "The name this animation is saved under.",
-                    Z.TextInput(_animName, "The name this animation is saved under.",
-                        v => { RecordUndo("Rename animation"); _animName = v; }, 200f)));
-            else
-                root.Add(Z.Text($"Animation name: {_animName}", ZuiText.Body,
-                    "The animation this window is bound to — fixed while editing an existing one."));
-
-            var saveButton = Z.Button(bound ? $"Save to '{_boundLauminary.lauminaryName}'" : "Save orphaned animation",
-                "Write this sequence (plus events, meta-layers and zones) to its save target.",
-                () => { DoSave(); Refresh(); }).W(260f).H(26f);
-            saveButton.SetEnabled(_sequence.Count > 0);
-            root.Add(saveButton);
-
-            if (!bound)
-                root.Add(Z.Text("Orphaned animations are included into a lauminary from the Lauminary Browser.",
-                    ZuiText.Subtle, "How an orphan later becomes part of a lauminary."));
-
-            root.Add(Z.Button("Open Lauminary Browser", "Open the Lauminary Browser window.",
-                () => LauminaryBrowserWindow.Open()).W(180f));
-        }
 
         /// <summary>The recipe (per-frame source rect + pivot) for the current sequence. The source sheet is
         /// NOT modified — the lauminary/orphan bakes its own atlas from this (see AtlasBaker).</summary>
@@ -3328,45 +2174,55 @@ namespace Laubrary.Launimator.Editor
             return recipe;
         }
 
-        private void DoSave()
+        private void DoSave() => TrySaveDocument();
+
+        private bool TrySaveDocument()
         {
-            if (string.IsNullOrWhiteSpace(_animName)) { _status = "Name the animation first."; return; }
-            if (_sequence.Count == 0) { _status = "Sequence is empty — add sprites first."; return; }
+            if (string.IsNullOrWhiteSpace(_animName)) { _status = "Name the animation first."; return false; }
+            if (_sequence.Count == 0) { _status = "Sequence is empty — add sprites first."; return false; }
+            if (HasInvalidPhaseRanges) { _status = "Not saved: fix the highlighted phase ranges first."; return false; }
+            if (_boundLauminary != null && !string.Equals(_boundAnimName, _animName, System.StringComparison.OrdinalIgnoreCase)
+                && LauminaryRepo.GetDraftAnimation(_boundLauminary, _animName) != null)
+            {
+                _status = $"Not saved: an animation named '{_animName}' already exists. Choose another name.";
+                return false;
+            }
             for (int i = 0; i < _sequence.Count; i++)
                 if (!RegionSourceUsable(_sequence[i].region, out string why))
                 {
                     _status = $"Not saved: frame {i + 1} can't be read ({why}). Remove it or add it again from its sheet.";
-                    return;
+                    return false;
                 }
 
+            try
+            {
             var def = new Laumination
             {
                 name = _animName, fps = _animFps, recipe = BuildRecipe(),
-                events = new List<FrameEvent>(_events),
+                events = CloneEvents(_events),
                 sourceTextureGuid = AssetDatabase.AssetPathToGUID(_sheetPath),
                 bgKeyEnabled = _bgKeyEnabled, bgKey = _bgKey, bgKeyTolerance = _bgTolerance,
                 fixedFrame = _fixedFrame, frameWidth = _frameW, frameHeight = _frameH, framePivot = _framePivot,
-                metaLayersEnabled = _metaEnabled, metaLayers = _metaLayers,
+                metaLayersEnabled = _metaEnabled, metaLayers = CloneLayers(_metaLayers),
                 zonesEnabled = _zonesEnabled, zones = ZonesForSave(),
                 // Frame 0 rides along for the builder's preview; nothing bakes or plays it.
-                previewFrameZero = _frameZeroOn,
+                previewFrameZero = _frameZeroOn, asepriteSourcePath = _animationAsepriteSourcePath,
                 frameZero = SeqRefValid(_frameZero) && RegionSourceUsable(_frameZero.region, out _) ? FrameRefOf(_frameZero) : null
             };
-            try
-            {
                 if (_boundLauminary != null)
                 {
-                    // Renaming a bound animation: drop the old entry so we don't leave a stale copy.
-                    if (!string.IsNullOrEmpty(_boundAnimName) &&
-                        !string.Equals(_boundAnimName, _animName, System.StringComparison.OrdinalIgnoreCase))
-                        LauminaryRepo.RemoveAnimationFromDraft(_boundLauminary, _boundAnimName);
                     // Prefer the no-rebake path. When only meta-layers/zones/events/fps changed, the atlas is
                     // provably unaffected (it is a pure function of the recipe), so re-baking it would be pure
                     // risk — that rebuild carries a reimport race that has silently merged and dropped frames
                     // on real assets. Falls through to the full save the moment any pixel-affecting field
                     // differs, so this can never skip a bake that was actually needed.
-                    bool dataOnly = LauminaryRepo.TrySaveAnimationDataOnly(_boundLauminary, def);
+                    bool dataOnly = string.Equals(_boundAnimName, _animName, System.StringComparison.Ordinal)
+                        && LauminaryRepo.TrySaveAnimationDataOnly(_boundLauminary, def);
                     if (!dataOnly) LauminaryRepo.SaveAnimationToDraft(_boundLauminary, def);
+                    // Preserve the old entry until the new name has actually saved successfully.
+                    if (!string.IsNullOrEmpty(_boundAnimName) &&
+                        !string.Equals(_boundAnimName, _animName, System.StringComparison.OrdinalIgnoreCase))
+                        LauminaryRepo.RemoveAnimationFromDraft(_boundLauminary, _boundAnimName);
                     _boundAnimName = _animName;
                     _status = dataOnly
                         ? $"Saved '{_animName}' ({def.recipe.Count} frames) to '{_boundLauminary.lauminaryName}' — data only, no re-bake."
@@ -3385,10 +2241,13 @@ namespace Laubrary.Launimator.Editor
                 // bug). The sidecar is now written only by the explicit "Save" slicing button.
                 foreach (var w in Resources.FindObjectsOfTypeAll<LauminaryBrowserWindow>())
                     w.ExternalRefresh();
+                MarkAnimationSaved();
+                return true;
             }
             catch (System.Exception ex)
             {
                 _status = "Save failed: " + ex.Message; Debug.LogException(ex);
+                return false;
             }
         }
 
@@ -3396,9 +2255,10 @@ namespace Laubrary.Launimator.Editor
         /// an empty recipe (a freshly-created animation) by just clearing and keeping the name/fps.</summary>
         private void LoadAnimationIntoSequence(Laumination def)
         {
+            _detectedCells.Clear(); _detectedBox = default;
+            _editAsePath = null; _editSheetPath = null; _editRects.Clear();
             _animName = def.name;
             _animFps = def.fps <= 0f ? 12f : def.fps;
-            _events = def.events != null ? new List<FrameEvent>(def.events) : new List<FrameEvent>();
             _sequence.Clear();
             ClearSelection();
 
@@ -3457,8 +2317,10 @@ namespace Laubrary.Launimator.Editor
             _bgKeyEnabled = def.bgKeyEnabled; _bgKey = def.bgKey; _bgTolerance = def.bgKeyTolerance;
             _fixedFrame = def.fixedFrame; _frameW = Mathf.Max(1, def.frameWidth); _frameH = Mathf.Max(1, def.frameHeight); _framePivot = def.framePivot;
             LoadZonesFrom(def);
+            _events = CloneEvents(def.events);
+            _animationAsepriteSourcePath = def.asepriteSourcePath;
             _metaEnabled = def.metaLayersEnabled;
-            _metaLayers = def.metaLayers ?? new List<MetaLayer>();
+            _metaLayers = CloneLayers(def.metaLayers ?? new List<MetaLayer>());
             _activeLayer = _metaLayers.Count > 0 ? 0 : -1; ClearMaskCache();
             RebuildDisplaySheet();
             _status = _sequence.Count > 0
@@ -3466,6 +2328,7 @@ namespace Laubrary.Launimator.Editor
                 : $"'{def.name}' is empty — load a sheet and build it.";
             if (assumed > 0)
                 _status += $" {assumed} frame(s) had no source texture saved; read from the animation's own sheet — Save to keep that.";
+            BeginCleanDocument();
             Refresh();
         }
 
@@ -3508,7 +2371,7 @@ namespace Laubrary.Launimator.Editor
             {
                 var host = _regions[adopt.region];
                 host.cells.Add(f.cell);
-                host.pivots.Add(new Vector2(Mathf.Clamp01(f.pivot.x), Mathf.Clamp01(f.pivot.y)));
+                host.pivots.Add(f.pivot);
                 host.transforms.Add(f.transform);
                 return new CellRef(adopt.region, host.cells.Count - 1);
             }
@@ -3521,7 +2384,7 @@ namespace Laubrary.Launimator.Editor
             }
             var reg = _regions[idx]; reg.SyncPivots(GlobalPivot());
             reg.cells.Add(f.cell);
-            reg.pivots.Add(new Vector2(Mathf.Clamp01(f.pivot.x), Mathf.Clamp01(f.pivot.y)));
+            reg.pivots.Add(f.pivot);
             reg.transforms.Add(f.transform);
             return new CellRef(idx, reg.cells.Count - 1);
         }
@@ -3791,12 +2654,19 @@ namespace Laubrary.Launimator.Editor
         // ── sheet load + importer crispening + auto-restore ──────────────────
         private void LoadSheet(Texture2D tex)
         {
+            _detectedCells.Clear(); _detectedBox = default;
+            _editAsePath = null; _editSheetPath = null; _editRects.Clear();
             _sheet = tex;
             _regions.Clear(); ClearThumbCache(); ClearMaskCache();
             _metaEnabled = false; _metaLayers = new List<MetaLayer>(); _activeLayer = -1;
             _hasBox = false; _box = default; _status = null;
             _zoomInitialized = false; _pixelCache = null; _pixelCacheFor = null;
             ClearSelection(); _sequence.Clear(); _seqSelected = -1; _animFrame = 0;
+            _seqMultiSel.Clear(); _seqAnchor = -1; _seqDragFrom = -1;
+            _events = new List<FrameEvent>(); _zones.Clear(); _zonesEnabled = false;
+            _animationAsepriteSourcePath = "";
+            _frameZero = new CellRef(-1, -1); _frameZeroOn = false; _frameZeroSel = false; _showingFrameZero = false;
+            _animPlaying = false; _inDivider = false; _previewHash = -1;
             _bgKeyEnabled = false; _pickingBgColor = false; DestroyDisplaySheet();
 
             if (_sheet == null) { _sheetPath = null; _texW = _texH = 0; _sheetDisplayName = ""; return; }
@@ -3813,7 +2683,7 @@ namespace Laubrary.Launimator.Editor
                 var saved = RegionSlicerPersistence.Load(_sheetPath, out _);
                 if (saved != null) { ApplyState(saved); _status = $"Loaded sheet — restored {_regions.Count} region(s), {TotalCells()} sprite(s)."; }
             }
-            else if (TryAutoDetectBgKey(true)) // fresh/just-downloaded sheet with no saved settings → guess the bg
+            else if (TryAutoDetectBgKey()) // fresh/just-downloaded sheet with no saved settings → guess the bg
             {
                 _status += $" Auto-detected background RGB({_bgKey.r},{_bgKey.g},{_bgKey.b}) — treated as transparent (toggle off if wrong).";
             }
@@ -3826,19 +2696,21 @@ namespace Laubrary.Launimator.Editor
             {
                 textureGuid = string.IsNullOrEmpty(_sheetPath) ? null : AssetDatabase.AssetPathToGUID(_sheetPath),
                 texturePath = _sheetPath, texW = _texW, texH = _texH,
-                animFps = _animFps, alphaTrim = _alphaTrim, alphaThreshold = _alphaThreshold,
+                alphaTrim = _alphaTrim, alphaThreshold = _alphaThreshold,
                 ppu = _ppu, pivotMode = (int)_pivot, customPivot = new RegionSlicerPersistence.Vec2Dto(_customPivot),
                 gridMode = (int)_mode, cols = _cols, rows = _rows, cellW = _cellW, cellH = _cellH, spacing = _spacing, padding = _padding,
                 bgKeyEnabled = _bgKeyEnabled, bgKeyR = _bgKey.r, bgKeyG = _bgKey.g, bgKeyB = _bgKey.b, bgKeyTolerance = _bgTolerance,
-                fixedFrame = _fixedFrame, frameWidth = _frameW, frameHeight = _frameH, framePivotX = _framePivot.x, framePivotY = _framePivot.y,
             };
             Vector2 g = GlobalPivot();
             foreach (var reg in _regions)
             {
-                reg.SyncPivots(g);
-                var rd = new RegionSlicerPersistence.RegionDto { label = reg.label, bounds = new RegionSlicerPersistence.RectDto(reg.bounds) };
+                var rd = new RegionSlicerPersistence.RegionDto { label = reg.label, sourceTextureGuid = reg.sourceTextureGuid, bounds = new RegionSlicerPersistence.RectDto(reg.bounds) };
                 foreach (var c in reg.cells) rd.cells.Add(new RegionSlicerPersistence.RectDto(c));
-                foreach (var p in reg.pivots) rd.pivots.Add(new RegionSlicerPersistence.Vec2Dto(p));
+                for (int i = 0; i < reg.cells.Count; i++)
+                {
+                    rd.pivots.Add(new RegionSlicerPersistence.Vec2Dto(i < reg.pivots.Count ? reg.pivots[i] : g));
+                    rd.transforms.Add(new RegionSlicerPersistence.TransformDto(i < reg.transforms.Count ? reg.transforms[i] : CellTransform.Identity));
+                }
                 s.regions.Add(rd);
             }
             return s;
@@ -3846,8 +2718,11 @@ namespace Laubrary.Launimator.Editor
 
         private void ApplyState(RegionSlicerPersistence.StateDto s)
         {
+            // Slicing restore is scoped to the sheet. Preserve the working animation and reconnect its
+            // recipe afterwards rather than silently emptying it when the palette is replaced.
+            var recipe = _sequence.Select(DocumentFrame).ToList();
+            var leadIn = SeqRefValid(_frameZero) ? DocumentFrame(_frameZero) : null;
             RegionSlicerPersistence.Normalize(s);
-            _animFps = s.animFps <= 0f ? 8f : s.animFps;
             _alphaTrim = s.alphaTrim; _alphaThreshold = Mathf.Clamp(s.alphaThreshold, 0, 255);
             _ppu = s.ppu <= 0f ? 16f : s.ppu;
             _pivot = (GridSlicer.PivotMode)s.pivotMode;
@@ -3859,30 +2734,37 @@ namespace Laubrary.Launimator.Editor
             _bgKeyEnabled = s.bgKeyEnabled;
             _bgKey = new Color32((byte)Mathf.Clamp(s.bgKeyR, 0, 255), (byte)Mathf.Clamp(s.bgKeyG, 0, 255), (byte)Mathf.Clamp(s.bgKeyB, 0, 255), 255);
             _bgTolerance = Mathf.Clamp(s.bgKeyTolerance, 0, 255);
-            _fixedFrame = s.fixedFrame;
-            _frameW = Mathf.Max(1, s.frameWidth); _frameH = Mathf.Max(1, s.frameHeight);
-            _framePivot = new Vector2(s.framePivotX, s.framePivotY);
 
             _regions.Clear();
             _frameZero = new CellRef(-1, -1); _showingFrameZero = false;   // region indices start over
             string sheetGuid = CurrentSheetGuid();
             foreach (var rd in s.regions)
             {
-                var reg = new Region { label = rd.label ?? "", sourceTextureGuid = sheetGuid };
+                var reg = new Region { label = rd.label ?? "", sourceTextureGuid = string.IsNullOrEmpty(rd.sourceTextureGuid) ? sheetGuid : rd.sourceTextureGuid };
                 if (rd.bounds != null) reg.bounds = rd.bounds.ToRect();
                 foreach (var c in rd.cells) reg.cells.Add(c.ToRect());
                 foreach (var p in rd.pivots) reg.pivots.Add(p.ToVec2());
+                foreach (var t in rd.transforms) reg.transforms.Add(t.ToTransform());
                 reg.SyncPivots(GlobalPivot());
                 _regions.Add(reg);
             }
-            ClearSelection(); _sequence.Clear(); _seqSelected = -1; _animFrame = 0;
+            ClearSelection(); _sequence.Clear();
+            foreach (var frame in recipe)
+            {
+                var cell = FindOrCreateCellForFrame(frame); cell.pct = frame.timingPercent;
+                _sequence.Add(cell);
+            }
+            if (leadIn != null) { _frameZero = FindOrCreateCellForFrame(leadIn); _frameZero.pct = leadIn.timingPercent; }
+            _seqSelected = _sequence.Count > 0 ? 0 : -1; _animFrame = 0;
+            _seqMultiSel.Clear(); if (_seqSelected >= 0) _seqMultiSel.Add(_seqSelected); _seqAnchor = _seqSelected;
+            _previewHash = -1; ClearThumbCache(); ClearMaskCache();
             RebuildDisplaySheet();
         }
 
         private void SaveState(bool silent = false)
         {
             if (_sheet == null || string.IsNullOrEmpty(_sheetPath)) { if (!silent) _status = "Load a sheet first."; return; }
-            try { string path = RegionSlicerPersistence.Save(_sheetPath, BuildState()); if (!silent) _status = $"Saved slicing state → {path}"; }
+            try { string path = RegionSlicerPersistence.Save(_sheetPath, BuildState()); MarkSlicingSaved(); if (!silent) _status = $"Saved slicing state → {path}"; }
             catch (System.Exception ex) { if (!silent) _status = "Save failed: " + ex.Message; }
         }
 
@@ -3893,42 +2775,29 @@ namespace Laubrary.Launimator.Editor
         {
             if (_sheet == null || string.IsNullOrEmpty(_sheetPath)) { _status = "Load a sheet first."; return; }
             if (!EditorUtility.DisplayDialog("Clear saved slicing?",
-                "Delete this sheet's saved slicing sidecar and empty the sprite palette (#4)?\n\nYour saved animations are NOT affected — their frames are stored on the animation, not the sheet.",
+                "Delete this sheet's saved slices and clear unused sprites from the working palette?\n\nSprites used by the current animation and its lead-in stay available. The animation is kept.",
                 "Clear", "Cancel")) return;
 
-            bool existed = RegionSlicerPersistence.Delete(_sheetPath);
-            // The bg key is a genuine sheet property — preserve it by re-writing a minimal sidecar if it was set.
-            _regions.Clear();
-            _sequence.Clear(); _seqSelected = -1; _seqMultiSel.Clear(); _seqAnchor = -1; _animFrame = 0;
-            ClearSelection();
-            if (_bgKeyEnabled) SaveBgKeyForSheet();
-            _status = existed ? "Cleared this sheet's saved slicing (palette emptied)." : "No saved slicing to clear (palette emptied).";
-        }
-
-        /// <summary>Persist the background colour key to THIS sheet's sidecar — it's a property of the sheet, so
-        /// it's remembered for every future load/animation. Patches only the bg fields of an existing sidecar
-        /// (slicing left intact); if none exists yet, writes a minimal sidecar carrying just the bg key.</summary>
-        private void SaveBgKeyForSheet()
-        {
-            if (_sheet == null || string.IsNullOrEmpty(_sheetPath)) return;
+            var empty = BuildState(); empty.regions.Clear();
             try
             {
-                var s = RegionSlicerPersistence.Exists(_sheetPath)
-                    ? RegionSlicerPersistence.Load(_sheetPath, out _)
-                    : null;
-                if (s == null) { s = BuildState(); s.regions?.Clear(); } // no sidecar yet — don't impose slicing
-                s.bgKeyEnabled = _bgKeyEnabled;
-                s.bgKeyR = _bgKey.r; s.bgKeyG = _bgKey.g; s.bgKeyB = _bgKey.b;
-                s.bgKeyTolerance = _bgTolerance;
-                RegionSlicerPersistence.Save(_sheetPath, s);
+                RegionSlicerPersistence.Delete(_sheetPath);
+                RecordUndo("Clear saved slices");
+                ApplyState(empty);
+                // Kept animation sprites are working content, not saved slices. Do not falsely mark
+                // those entries as persisted after deleting the sidecar.
+                _savedSlicingState = Newtonsoft.Json.JsonConvert.SerializeObject(empty);
+                _status = TotalCells() > 0
+                    ? "Cleared saved slices; kept the current animation's source sprites. Save slices stores the working palette again."
+                    : "Cleared saved slices and the working palette.";
             }
-            catch { /* persistence is best-effort; never block editing on a save failure */ }
+            catch (System.Exception ex) { _status = "Clear slices failed: " + ex.Message; }
         }
 
         /// <summary>If no background key is active, try to auto-detect a solid background colour (no-alpha rips)
         /// and apply it. Returns true when one was detected &amp; enabled. No-op if a key is already set or the
-        /// sheet uses real alpha. <paramref name="persist"/> writes it to the sheet sidecar so it's remembered.</summary>
-        private bool TryAutoDetectBgKey(bool persist)
+        /// sheet uses real alpha. Saving the slices explicitly also saves this key.</summary>
+        private bool TryAutoDetectBgKey()
         {
             if (_bgKeyEnabled || _sheet == null) return false;
             var px = GetPixels();
@@ -3936,7 +2805,6 @@ namespace Laubrary.Launimator.Editor
             if (!RegionSlicer.TryDetectBackgroundColor(px, _texW, _texH, out Color32 c)) return false;
             _bgKey = c; _bgKeyEnabled = true;
             RebuildDisplaySheet();
-            if (persist) SaveBgKeyForSheet();
             return true;
         }
 
@@ -3945,7 +2813,9 @@ namespace Laubrary.Launimator.Editor
             if (_sheet == null) { if (!silentIfMissing) _status = "Load a sheet first."; return; }
             var s = RegionSlicerPersistence.Load(_sheetPath, out string error);
             if (s == null) { if (!silentIfMissing) _status = "Restore: " + (error ?? "no saved state."); return; }
+            RecordUndo("Reload slices");
             ApplyState(s);
+            MarkSlicingSaved();
             _status = $"Restored {_regions.Count} region(s), {TotalCells()} sprite(s).";
         }
 

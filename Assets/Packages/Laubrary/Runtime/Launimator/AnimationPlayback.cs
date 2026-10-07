@@ -63,6 +63,15 @@ namespace Laubrary.Launimator
 
         public void Stop() => _playing = false;
 
+        /// <summary>Move the playhead without firing callbacks or changing whether playback is running.
+        /// The selected frame starts with its full authored duration on the next Tick.</summary>
+        public bool SeekFrame(int frameIndex)
+        {
+            if (!HasFrames || frameIndex < 0 || frameIndex >= _anim.frames.Count) return false;
+            _i = frameIndex; _t = 0f;
+            return true;
+        }
+
         /// <summary>Set the per-clip speed multiplier after a Play (used by PlayToFit).</summary>
         public void SetSpeed(float speed) => _speed = speed <= 0f ? 0f : speed;
 

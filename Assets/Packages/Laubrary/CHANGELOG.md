@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Laumination Builder workspace and document safety
+
+- Organised animation authoring into Sheet, Sprites and Animate around a fixed stage, searchable animation thumbnails, scoped image acquisition, visible detected-cut acceptance and a shared frame timeline derived from Chunks' ZUI lanes.
+- Isolated working documents and undo histories; Save, Discard and Cancel resolve animation and slicing changes independently, failed saves prevent navigation, and frame operations carry masks, points, vectors, events and timing together while phase boundaries remain explicit with conflict warnings.
+- Added typed timeline copy/paste, selected metadata inspectors, phase-aware runtime preview, complete event persistence, pivot-safe clipped fitting and independent lead-in preview; slicing now persists only its own authored data, including source identities and transforms.
+- Added silent frame seeking to both playback clocks and retained regression checks for working copies, history, source persistence, frame attachments, timeline gestures, preview fitting and phase transitions.
+
 ### Zounds GC stutter test in any build
 - Added `ZoundsGcTestOverlay`, a small on-screen test that forces a garbage collection while sound plays and judges whether audio kept running. It is in the runtime package, so it works in a player build. It appears only when asked for: add the component to a scene, launch with `-zoundsGcTest`, define `ZOUNDS_GC_TEST`, or call `ZoundsGcTest.Show()`.
 - Every press proves the collection happened before judging audio (the runtime's full-collection counter rose, an unreachable object was reclaimed, a finalizer ran). If nothing was collected the press is reported void and no audio verdict is given, because this test has no known-bad run to compare against.

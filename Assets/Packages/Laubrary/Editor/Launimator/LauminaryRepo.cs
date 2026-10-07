@@ -516,7 +516,8 @@ namespace Laubrary.Launimator.Editor
             recipe = d.recipe.Select(f => new FrameRef { sourceTextureGuid = f.sourceTextureGuid, cell = f.cell, pivot = f.pivot, transform = f.transform, timingPercent = f.timingPercent }).ToList(),
             previewFrameZero = d.previewFrameZero,
             frameZero = CopyFrame(d.frameZero),
-            events = d.events != null ? d.events.Select(e => new FrameEvent { frame = e.frame, name = e.name }).ToList() : new List<FrameEvent>(),
+            events = d.events != null ? d.events.Select(e => new FrameEvent
+            { frame = e.frame, name = e.name, zoundName = e.zoundName, hasPosition = e.hasPosition, position = e.position }).ToList() : new List<FrameEvent>(),
             sourceTextureGuid = d.sourceTextureGuid,
             bgKeyEnabled = d.bgKeyEnabled,
             bgKey = d.bgKey,

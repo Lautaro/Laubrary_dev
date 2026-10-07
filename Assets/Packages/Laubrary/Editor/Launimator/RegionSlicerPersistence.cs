@@ -9,8 +9,8 @@ namespace Laubrary.Launimator.Editor
 {
     /// <summary>
     /// JSON-sidecar persistence for the <see cref="LauminationBuilderWindow"/>. The window's whole working
-    /// state (committed regions + their per-cell rects &amp; pivots, the Animate &amp; Align sequence,
-    /// and every grid/alpha/pivot setting) is mirrored into a flat, serializable DTO and written next
+    /// slicing state (committed regions, source identities, per-cell rects, pivots, transforms,
+    /// and grid/alpha/pivot settings) is mirrored into a flat, serializable DTO and written next
     /// to the SOURCE TEXTURE as <c>&lt;textureAssetPath&gt;.regionslicer.json</c>. Reload the sheet and
     /// the work comes back.
     ///
@@ -20,12 +20,12 @@ namespace Laubrary.Launimator.Editor
     /// stable, and engine-version-proof.
     ///
     /// The window owns the mapping to/from its private runtime fields (see LauminationBuilderWindow's
-    /// BuildState/ApplyState); this class is the pure on-disk format + read/write + index-drift guard.
+    /// BuildState/ApplyState); animations and preview preferences never live in this sidecar.
     /// </summary>
     internal static class RegionSlicerPersistence
     {
-        // Bump if the on-disk shape changes incompatibly; LoadFrom tolerates older minor shapes.
-        public const int CurrentVersion = 1;
+        // The sidecar contains slicing data only; animation data is saved on its own document.
+        public const int CurrentVersion = 2;
         public const string SidecarSuffix = ".regionslicer.json";
 
         // ── DTOs (flat, Newtonsoft-friendly) ─────────────────────────────────
@@ -51,16 +51,24 @@ namespace Laubrary.Launimator.Editor
         public class RegionDto
         {
             public string label;
+            public string sourceTextureGuid;
             public List<RectDto> cells = new List<RectDto>();
             public List<Vec2Dto> pivots = new List<Vec2Dto>();   // index-aligned with cells
+            public List<TransformDto> transforms = new List<TransformDto>();
             public RectDto bounds;                                // dimmed-overlay box (optional)
         }
 
         [Serializable]
-        public class CellRefDto
+        public class TransformDto
         {
-            public int region;
-            public int cell;
+            public bool flipX, flipY, smooth;
+            public int rot90;
+            public float angle, scaleX = 1f, scaleY = 1f;
+            public TransformDto() { }
+            public TransformDto(CellTransform t)
+            { flipX = t.flipX; flipY = t.flipY; smooth = t.smooth; rot90 = t.rot90; angle = t.angle; scaleX = t.scaleX; scaleY = t.scaleY; }
+            public CellTransform ToTransform() => new CellTransform
+            { flipX = flipX, flipY = flipY, smooth = smooth, rot90 = rot90, angle = angle, scaleX = scaleX, scaleY = scaleY };
         }
 
         [Serializable]
@@ -74,11 +82,6 @@ namespace Laubrary.Launimator.Editor
             // Committed regions (includes the hand-picked region — it's just another region).
             public List<RegionDto> regions = new List<RegionDto>();
 
-            // Animate & Align sequence + playback settings.
-            public List<CellRefDto> sequence = new List<CellRefDto>();
-            public float animFps = 8f;
-            public bool onionSkin;
-
             // Settings.
             public bool alphaTrim;
             public int alphaThreshold = 8;
@@ -89,10 +92,6 @@ namespace Laubrary.Launimator.Editor
             public int bgKeyR, bgKeyG, bgKeyB;
             public int bgKeyTolerance = 12;
 
-            // Registration: fixed-frame box vs auto-size, and the shared registration point.
-            public bool fixedFrame;
-            public int frameWidth = 32, frameHeight = 32;
-            public float framePivotX = 0.5f, framePivotY = 0f;
             public int pivotMode;               // (int)GridSlicer.PivotMode
             public Vec2Dto customPivot;
             public int gridMode;                // (int)RegionSlicer.GridMode
@@ -182,27 +181,28 @@ namespace Laubrary.Launimator.Editor
             }
         }
 
-        /// <summary>Guard against malformed/old sidecars: ensure lists exist and per-region pivot lists
-        /// are the same length as their cell lists; drop sequence refs that point outside existing
-        /// regions/cells (index-drift guard so a stale sequence can't crash the play loop).</summary>
+        /// <summary>Ensure every sprite has independent pivot and transform entries.</summary>
         public static void Normalize(StateDto s)
         {
             if (s.regions == null) s.regions = new List<RegionDto>();
+            s.regions.RemoveAll(reg => reg == null);
             foreach (var reg in s.regions)
             {
                 if (reg.cells == null) reg.cells = new List<RectDto>();
                 if (reg.pivots == null) reg.pivots = new List<Vec2Dto>();
+                if (reg.transforms == null) reg.transforms = new List<TransformDto>();
                 // Keep pivots parallel to cells (mirrors Region.SyncPivots).
-                var fill = new Vec2Dto(new Vector2(0.5f, 0f));
-                while (reg.pivots.Count < reg.cells.Count) reg.pivots.Add(fill);
+                while (reg.pivots.Count < reg.cells.Count) reg.pivots.Add(new Vec2Dto(new Vector2(0.5f, 0f)));
                 while (reg.pivots.Count > reg.cells.Count) reg.pivots.RemoveAt(reg.pivots.Count - 1);
+                while (reg.transforms.Count < reg.cells.Count) reg.transforms.Add(new TransformDto());
+                while (reg.transforms.Count > reg.cells.Count) reg.transforms.RemoveAt(reg.transforms.Count - 1);
+                for (int i = 0; i < reg.cells.Count; i++)
+                {
+                    if (reg.cells[i] == null) reg.cells[i] = new RectDto();
+                    if (reg.pivots[i] == null) reg.pivots[i] = new Vec2Dto(new Vector2(.5f, 0));
+                    if (reg.transforms[i] == null) reg.transforms[i] = new TransformDto();
+                }
             }
-
-            if (s.sequence == null) s.sequence = new List<CellRefDto>();
-            s.sequence.RemoveAll(cr =>
-                cr == null
-                || cr.region < 0 || cr.region >= s.regions.Count
-                || cr.cell < 0 || cr.cell >= s.regions[cr.region].cells.Count);
         }
     }
 }

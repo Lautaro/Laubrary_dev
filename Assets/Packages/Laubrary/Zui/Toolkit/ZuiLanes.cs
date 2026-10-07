@@ -118,7 +118,7 @@ namespace Laubrary.Zui
     /// with <see cref="ZuiLaneMarker"/> flags and a single draggable playhead. Click or drag anywhere to move
     /// the playhead; with <see cref="OnLaneMoved"/> set, drag a band's body to move that band in time.
     /// Reach for it via <c>Z.Lanes(...)</c>.</summary>
-    public sealed class ZuiLanes : VisualElement
+    public sealed partial class ZuiLanes : VisualElement
     {
         /// Fires on every USER-driven move of the playhead (click or drag), with the new time in SECONDS. It
         /// does NOT fire for <see cref="SetTime"/> — that is the whole point of that method.
@@ -360,6 +360,7 @@ namespace Laubrary.Zui
         /// it never touches the element's identity, only its numbers.
         void Recompute()
         {
+            if (_frameMode) { RecomputeFrames(); return; }
             float span = _length;
             if (span <= 0f)
             {
@@ -399,6 +400,12 @@ namespace Laubrary.Zui
 
         bool Assign(float s)
         {
+            if (_frameMode)
+            {
+                int previous = _currentFrame;
+                SetFrameWithoutNotify(Mathf.FloorToInt(s));
+                return previous != _currentFrame;
+            }
             float v = Mathf.Clamp(s, 0f, _span);
             if (v == _seconds) return false;
             _seconds = v;
@@ -410,6 +417,7 @@ namespace Laubrary.Zui
         // ── gestures (pointer-captured drag, the ZuiTimeline/ZuiRampControl idiom) ────────────────────────
         void OnDown(PointerDownEvent e)
         {
+            if (_frameMode) { FrameDown(e); return; }
             if (e.button != 0) return;
             this.CapturePointer(e.pointerId);
             float x = LocalX(e.position);
@@ -434,6 +442,7 @@ namespace Laubrary.Zui
 
         void OnMove(PointerMoveEvent e)
         {
+            if (_frameMode) { FrameMove(e); return; }
             if (_bandIndex >= 0)
             {
                 float dx = LocalX(e.position) - _bandDownX;
@@ -459,6 +468,7 @@ namespace Laubrary.Zui
 
         void OnUp(PointerUpEvent e)
         {
+            if (_frameMode) { FrameUp(e); return; }
             if (_bandIndex >= 0)
             {
                 bool moved = _bandMoving;
@@ -481,6 +491,7 @@ namespace Laubrary.Zui
         /// was open, so the Undo gesture cannot be left dangling and the ruler does not stay frozen.
         void OnCaptureOut(PointerCaptureOutEvent e)
         {
+            if (_frameMode) { _framePress = -1; _frameRangeLane = -1; return; }
             _dragging = false;
             if (_bandIndex >= 0) EndBandDrag();
         }
@@ -561,6 +572,7 @@ namespace Laubrary.Zui
 
         void Relayout()
         {
+            if (_frameMode) { LayoutFrames(); return; }
             PlaceGutter();
             PlaceOverlays();
             PlaceRuler();
@@ -759,6 +771,7 @@ namespace Laubrary.Zui
         // ── painting ─────────────────────────────────────────────────────────────────────────────────────
         void Paint(MeshGenerationContext mgc)
         {
+            if (_frameMode) { PaintFrames(mgc); return; }
             var r = _bar.contentRect;
             if (r.width <= 1f || r.height <= 1f) return;
             var p = mgc.painter2D;

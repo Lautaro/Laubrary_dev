@@ -23,6 +23,13 @@ namespace Laubrary.Launimator.Editor
             public string animName; public float animFps;
             public LoopDivider loopDivider; public float loopPause; public bool frameZeroOn; public CellRef frameZero;
             public bool fixedFrame; public int frameW, frameH; public Vector2 framePivot;
+            public Texture2D sheet; public string sheetPath, sheetDisplayName; public int texW, texH;
+            public bool bgKeyEnabled; public Color32 bgKey; public int bgTolerance;
+            public bool alphaTrim; public int alphaThreshold; public float ppu;
+            public GridSlicer.PivotMode pivot; public Vector2 customPivot;
+            public RegionSlicer.GridMode gridMode; public int cols, rows, cellW, cellH, spacing, padding;
+            public bool hasBox; public Rect box;
+            public string animationAsepriteSourcePath;
         }
 
         private readonly List<(string label, Snapshot snap)> _undo = new List<(string, Snapshot)>();
@@ -43,7 +50,10 @@ namespace Laubrary.Launimator.Editor
         private static List<MetaLayer> CloneLayers(List<MetaLayer> src) =>
             src.Select(L => new MetaLayer
             {
-                id = L.id, color = L.color,
+                id = L.id, color = L.color, mode = L.mode,
+                vectorAllowLength = L.vectorAllowLength, vectorSnapAngle = L.vectorSnapAngle,
+                vectorSnapDivisions = L.vectorSnapDivisions,
+                vectorFrames = (L.vectorFrames ?? new List<VectorMetaFrame>()).Select(v => v?.Clone() ?? new VectorMetaFrame()).ToList(),
                 frames = (L.frames ?? new List<MetaFrame>()).Select(mf => mf != null ? mf.Clone() : new MetaFrame()).ToList(),
             }).ToList();
 
@@ -53,12 +63,19 @@ namespace Laubrary.Launimator.Editor
             sequence = new List<CellRef>(_sequence),
             metaLayers = CloneLayers(_metaLayers),
             metaEnabled = _metaEnabled, activeLayer = _activeLayer,
-            events = _events.Select(e => new FrameEvent { frame = e.frame, name = e.name }).ToList(),
+            events = CloneEvents(_events),
             zones = _zones.Select(z => new AnimZone { name = z.name, startFrame = z.startFrame, endFrame = z.endFrame, behavior = z.behavior }).ToList(),
             zonesEnabled = _zonesEnabled,
             animName = _animName, animFps = _animFps,
             loopDivider = _loopDivider, loopPause = _loopPause, frameZeroOn = _frameZeroOn, frameZero = _frameZero,
             fixedFrame = _fixedFrame, frameW = _frameW, frameH = _frameH, framePivot = _framePivot,
+            sheet = _sheet, sheetPath = _sheetPath, sheetDisplayName = _sheetDisplayName, texW = _texW, texH = _texH,
+            bgKeyEnabled = _bgKeyEnabled, bgKey = _bgKey, bgTolerance = _bgTolerance,
+            alphaTrim = _alphaTrim, alphaThreshold = _alphaThreshold, ppu = _ppu,
+            pivot = _pivot, customPivot = _customPivot, gridMode = _mode,
+            cols = _cols, rows = _rows, cellW = _cellW, cellH = _cellH, spacing = _spacing, padding = _padding,
+            hasBox = _hasBox, box = _box,
+            animationAsepriteSourcePath = _animationAsepriteSourcePath,
         };
 
         private void Apply(Snapshot s)
@@ -68,13 +85,21 @@ namespace Laubrary.Launimator.Editor
             _metaLayers = CloneLayers(s.metaLayers);
             _metaEnabled = s.metaEnabled;
             _activeLayer = _metaLayers.Count > 0 ? Mathf.Clamp(s.activeLayer, 0, _metaLayers.Count - 1) : -1;
-            _events.Clear(); _events.AddRange(s.events.Select(e => new FrameEvent { frame = e.frame, name = e.name }));
+            _events = CloneEvents(s.events);
             _zones.Clear(); _zones.AddRange(s.zones.Select(z => new AnimZone { name = z.name, startFrame = z.startFrame, endFrame = z.endFrame, behavior = z.behavior }));
             _zonesEnabled = s.zonesEnabled;
             _animName = s.animName; _animFps = s.animFps;
             _loopDivider = s.loopDivider; _loopPause = s.loopPause; _frameZeroOn = s.frameZeroOn; _frameZero = s.frameZero;
             _frameZeroSel = false; _showingFrameZero = false;
             _fixedFrame = s.fixedFrame; _frameW = s.frameW; _frameH = s.frameH; _framePivot = s.framePivot;
+            _sheet = s.sheet; _sheetPath = s.sheetPath; _sheetDisplayName = s.sheetDisplayName; _texW = s.texW; _texH = s.texH;
+            _bgKeyEnabled = s.bgKeyEnabled; _bgKey = s.bgKey; _bgTolerance = s.bgTolerance;
+            _alphaTrim = s.alphaTrim; _alphaThreshold = s.alphaThreshold; _ppu = s.ppu;
+            _pivot = s.pivot; _customPivot = s.customPivot; _mode = s.gridMode;
+            _cols = s.cols; _rows = s.rows; _cellW = s.cellW; _cellH = s.cellH; _spacing = s.spacing; _padding = s.padding;
+            _hasBox = s.hasBox; _box = s.box;
+            _animationAsepriteSourcePath = s.animationAsepriteSourcePath;
+            RebuildDisplaySheet();
 
             // Invalidate derived/cache state and selection so nothing dangles at the old indices.
             _previewHash = -1; ClearMaskCache(); ClearThumbCache();
@@ -85,6 +110,7 @@ namespace Laubrary.Launimator.Editor
 
         private void PushUndo(string label)
         {
+            EnsureDocumentBaseline();
             _undo.Add((label, Capture()));
             if (_undo.Count > UndoCap) _undo.RemoveAt(0);
             _redo.Clear();

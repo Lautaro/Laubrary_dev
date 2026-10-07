@@ -613,7 +613,6 @@ namespace Laubrary.Launimator.Editor
                 texturePath = sheetPath,
                 textureGuid = AssetDatabase.AssetPathToGUID(sheetPath),
                 texW = texW, texH = texH,
-                animFps = 13f, onionSkin = true,
                 alphaTrim = true, alphaThreshold = 42, ppu = 24f,
                 pivotMode = (int)GridSlicer.PivotMode.Custom,
                 customPivot = new RegionSlicerPersistence.Vec2Dto(new Vector2(0.33f, 0.66f)),
@@ -634,10 +633,10 @@ namespace Laubrary.Launimator.Editor
             state.regions.Add(regA);
             state.regions.Add(regB);
 
-            // Sequence: A.cell1, A.cell0, B.cell0 (order matters).
-            state.sequence.Add(new RegionSlicerPersistence.CellRefDto { region = 0, cell = 1 });
-            state.sequence.Add(new RegionSlicerPersistence.CellRefDto { region = 0, cell = 0 });
-            state.sequence.Add(new RegionSlicerPersistence.CellRefDto { region = 1, cell = 0 });
+            regA.sourceTextureGuid = "source-a";
+            regB.sourceTextureGuid = "source-b";
+            regA.transforms.Add(new RegionSlicerPersistence.TransformDto(new CellTransform { flipX = true, angle = 35f, scaleX = 2f, scaleY = 3f }));
+            regA.transforms.Add(new RegionSlicerPersistence.TransformDto(CellTransform.Identity));
 
             // Save → sidecar.
             string sidecar = RegionSlicerPersistence.Save(sheetPath, state);
@@ -653,8 +652,6 @@ namespace Laubrary.Launimator.Editor
             log.AppendLine("Re-loaded state from sidecar after clearing in-memory copy.");
 
             // Settings round-trip.
-            if (Mathf.Abs(r.animFps - 13f) > 0.001f || !r.onionSkin)
-                return Fail(log, out report, $"animFps/onionSkin mismatch: {r.animFps}/{r.onionSkin}.");
             if (!r.alphaTrim || r.alphaThreshold != 42 || Mathf.Abs(r.ppu - 24f) > 0.001f)
                 return Fail(log, out report, $"alpha/ppu mismatch: {r.alphaTrim}/{r.alphaThreshold}/{r.ppu}.");
             if (r.pivotMode != (int)GridSlicer.PivotMode.Custom
@@ -663,7 +660,7 @@ namespace Laubrary.Launimator.Editor
             if (r.gridMode != (int)RegionSlicer.GridMode.FixedCellSize
                 || r.cols != 4 || r.rows != 7 || r.cellW != 18 || r.cellH != 19 || r.spacing != 2 || r.padding != 1)
                 return Fail(log, out report, "grid settings mismatch.");
-            log.AppendLine("Settings (fps, onion, alpha, ppu, pivot, grid mode + cols/rows/cellW/cellH/spacing/padding) round-trip exactly. ✓");
+            log.AppendLine("Slicing settings (alpha, ppu, pivot, grid mode + cols/rows/cellW/cellH/spacing/padding) round-trip exactly. ✓");
 
             // Regions / cells / pivots round-trip.
             if (r.regions.Count != 2) return Fail(log, out report, $"Expected 2 regions, got {r.regions.Count}.");
@@ -684,22 +681,16 @@ namespace Laubrary.Launimator.Editor
                 return Fail(log, out report, $"Region B pivot did not round-trip: {pb0}.");
             log.AppendLine("Two regions with index-aligned DISTINCT per-cell pivots round-trip exactly. ✓");
 
-            // Sequence round-trips in order.
-            if (r.sequence.Count != 3)
-                return Fail(log, out report, $"Expected 3-frame sequence, got {r.sequence.Count}.");
-            if (r.sequence[0].region != 0 || r.sequence[0].cell != 1
-                || r.sequence[1].region != 0 || r.sequence[1].cell != 0
-                || r.sequence[2].region != 1 || r.sequence[2].cell != 0)
-                return Fail(log, out report, "Sequence order/refs did not round-trip.");
-            log.AppendLine("Ordered 3-frame sequence (A1, A0, B0) round-trips exactly. ✓");
-
-            // Index-drift guard: inject a stale ref past the regions; Normalize must drop ONLY it.
-            r.sequence.Add(new RegionSlicerPersistence.CellRefDto { region = 9, cell = 0 });   // no such region
-            r.sequence.Add(new RegionSlicerPersistence.CellRefDto { region = 0, cell = 99 });  // no such cell
+            if (r.regions[0].sourceTextureGuid != "source-a" || r.regions[1].sourceTextureGuid != "source-b")
+                return Fail(log, out report, "Per-region source identities did not round-trip.");
+            var transform = r.regions[0].transforms[0].ToTransform();
+            if (!transform.flipX || transform.angle != 35f || transform.scaleX != 2f || transform.scaleY != 3f)
+                return Fail(log, out report, "Sprite transform did not round-trip.");
+            r.regions[1].transforms.Clear();
             RegionSlicerPersistence.Normalize(r);
-            if (r.sequence.Count != 3)
-                return Fail(log, out report, $"Index-drift guard should leave 3 valid refs, got {r.sequence.Count}.");
-            log.AppendLine("Index-drift guard drops stale sequence refs (region/cell out of range), keeps the valid 3. ✓");
+            if (r.regions[1].transforms.Count != 1 || !r.regions[1].transforms[0].ToTransform().IsIdentity)
+                return Fail(log, out report, "Missing transforms must normalize to independent identity entries.");
+            log.AppendLine("Per-region sources and sprite transforms round-trip; normalization fills missing transforms. ✓");
 
             // Cleanup the test artifacts.
             AssetDatabase.DeleteAsset(PersistTestFolder);

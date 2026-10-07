@@ -15,7 +15,7 @@ namespace Laubrary.Launimator.Editor
     {
         /// <summary>Draw <c>frames[frame]</c> into <paramref name="box"/>, anchored by its baked pivot at
         /// (<paramref name="anchorNX"/> across, <paramref name="anchorNYTop"/> down-from-top). A single scale
-        /// (largest frame fits the box) is used for every frame so the clip never resizes. Returns the anchor
+        /// (every frame's pivot-relative extents fit the box) is used for every frame so the clip never resizes. Returns the anchor
         /// screen point so callers can overlay a registration crosshair on it.</summary>
         public static Vector2 DrawClip(Rect box, IList<Sprite> frames, int frame,
             float anchorNX = 0.5f, float anchorNYTop = 0.6f, float maxScale = 8f)
@@ -23,18 +23,44 @@ namespace Laubrary.Launimator.Editor
             float cx = box.x + box.width * anchorNX, cy = box.y + box.height * anchorNYTop;
             if (frames == null || frames.Count == 0) return new Vector2(cx, cy);
 
-            float maxW = 1f, maxH = 1f;
-            foreach (var s in frames)
+            float scale = FitScale(box, RelativeBounds(frames), new Vector2(cx, cy), maxScale);
+            GUI.BeginClip(box);
+            try
             {
-                if (s == null) continue;
-                maxW = Mathf.Max(maxW, s.rect.width);
-                maxH = Mathf.Max(maxH, s.rect.height);
+                if (frame >= 0 && frame < frames.Count)
+                    DrawSpriteAtAnchor(frames[frame], cx - box.x, cy - box.y, scale, 1f);
             }
-            float scale = Mathf.Clamp(Mathf.Min((box.width - 16f) / maxW, (box.height - 16f) / maxH), 0.25f, maxScale);
-
-            if (frame >= 0 && frame < frames.Count)
-                DrawSpriteAtAnchor(frames[frame], cx, cy, scale, 1f);
+            finally { GUI.EndClip(); }
             return new Vector2(cx, cy);
+        }
+
+        /// <summary>Screen-oriented source-pixel bounds around the registration point, shared across all frames.</summary>
+        public static Rect RelativeBounds(IList<Sprite> frames)
+        {
+            Rect bounds = new Rect(0, 0, 0, 0);
+            if (frames == null) return bounds;
+            foreach (var sprite in frames)
+            {
+                if (sprite == null) continue;
+                var rect = sprite.rect;
+                bounds = Union(bounds, new Rect(-sprite.pivot.x, sprite.pivot.y - rect.height, rect.width, rect.height));
+            }
+            return bounds;
+        }
+
+        public static Rect Union(Rect a, Rect b) => Rect.MinMaxRect(Mathf.Min(a.xMin, b.xMin),
+            Mathf.Min(a.yMin, b.yMin), Mathf.Max(a.xMax, b.xMax), Mathf.Max(a.yMax, b.yMax));
+
+        /// <summary>Fit each side of the content against the space on that side of a fixed registration point.
+        /// Small viewports may need sub-pixel zoom; forcing a minimum zoom would silently crop Fit.</summary>
+        public static float FitScale(Rect box, Rect relativeBounds, Vector2 anchor, float maxScale = 8f, float padding = 8f)
+        {
+            float scale = Mathf.Max(0.0001f, maxScale);
+            if (relativeBounds.xMin < 0) scale = Mathf.Min(scale, Mathf.Max(0f, anchor.x - box.xMin - padding) / -relativeBounds.xMin);
+            if (relativeBounds.xMax > 0) scale = Mathf.Min(scale, Mathf.Max(0f, box.xMax - anchor.x - padding) / relativeBounds.xMax);
+            if (relativeBounds.yMin < 0) scale = Mathf.Min(scale, Mathf.Max(0f, anchor.y - box.yMin - padding) / -relativeBounds.yMin);
+            if (relativeBounds.yMax > 0) scale = Mathf.Min(scale, Mathf.Max(0f, box.yMax - anchor.y - padding) / relativeBounds.yMax);
+            return Mathf.Max(0.0001f, scale);
         }
 
         /// <summary>Draw a single baked sprite anchored by its OWN baked pivot at (<paramref name="cx"/>,
