@@ -32,7 +32,9 @@ namespace Laubrary.Launimator.Editor
         private static List<Region> CloneRegions(List<Region> src) =>
             src.Select(r => new Region
             {
-                label = r.label, bounds = r.bounds,
+                // The sheet link must survive undo/redo: without it every frame picked from the restored
+                // region reads as "source texture unreadable" and the animation vanishes from the preview.
+                label = r.label, bounds = r.bounds, sourceTextureGuid = r.sourceTextureGuid,
                 cells = new List<Rect>(r.cells),
                 pivots = new List<Vector2>(r.pivots),
                 transforms = new List<CellTransform>(r.transforms),

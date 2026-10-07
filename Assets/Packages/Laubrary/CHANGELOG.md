@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Laumination Builder: sprites without a readable texture are refused, not saved broken
 
+- Fixed: Undo and Redo in the Laumination Builder dropped which sheet each sprite box came from, so after one undo every frame picked from those boxes became unreadable and the animation disappeared from the preview.
 - Fixed: sprites found with auto-detect ("Identify Sprites") never recorded which sheet they came from, so adding one to an animation broke its preview, and saving it left the animation with no frames. Auto-detected sprites now record their sheet like every other way of adding a sprite.
 - Adding a sprite whose texture can't be read is refused with a message in the status line; Save is refused, with the frame named, while any frame can't be read; and the save code itself refuses such an animation before replacing anything. Loading an animation saved with such a frame reads it from the animation's own sheet and says so.
 - The atlas corruption check no longer reports an error when two animations share a pixel-identical frame (the atlas stores it once on purpose); it still reports missing frames and real count mismatches.
