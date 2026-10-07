@@ -3,6 +3,7 @@
     "rootNamespace": "Laubrary.Zoetrope.Editor",
     "references": [
         "com.Lautaro-Arino.Laubrary.Zoetrope",
+        "com.Lautaro-Arino.Laubrary.Caching",
         "com.Lautaro-Arino.Laubrary.AssetKit.Editor",
         "ZUI.Editor",
         "com.Lautaro-Arino.Laubrary.ZuiRuntime",
@@ -32,4 +33,4 @@
     "defineConstraints": [],
     "versionDefines": [],
     "noEngineReferences": false
-}
+}

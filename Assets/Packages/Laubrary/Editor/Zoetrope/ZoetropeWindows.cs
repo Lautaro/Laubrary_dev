@@ -698,6 +698,30 @@ namespace Laubrary.Zoetrope.Editor
 
         void RunValidators() { for (int i = 0; i < _validators.Count; i++) _validators[i]?.Invoke(); }
 
+        // The event cards read their animation's frames and timings once, when built (travel preview, frame
+        // lines). Saving in the Laumination Builder announces the lauminary, so rebuild then; otherwise the cards
+        // keep showing the animation as it was when this window was drawn.
+        protected override void OnEnable()
+        {
+            base.OnEnable();
+            Laubrary.Caching.AssetCacheInvalidation.Invalidated += OnLauminaryChanged;
+        }
+
+        protected override void OnDisable()
+        {
+            Laubrary.Caching.AssetCacheInvalidation.Invalidated -= OnLauminaryChanged;
+            base.OnDisable();
+        }
+
+        bool _lauminaryRebuildQueued;
+        void OnLauminaryChanged(UnityEngine.Object changed)
+        {
+            if (!(changed is Laubrary.Launimator.LauminaryVersion || changed is Laubrary.Launimator.Lauminary)) return;
+            if (_lauminaryRebuildQueued || rootVisualElement == null) return;
+            _lauminaryRebuildQueued = true;   // one rebuild however many announcements a save makes
+            rootVisualElement.schedule.Execute(() => { _lauminaryRebuildQueued = false; Rebuild(); });
+        }
+
         // ── section toggle bar (T-0084) ─────────────────────────────────────────────────────
         // Same idiom as ChunkWindow/MirageWindow/SpriteFxStackWindow/CartographerWindow — a roster rebuilt
         // from scratch on every BuildAsset, populated by Unit() as each top-level section is built.

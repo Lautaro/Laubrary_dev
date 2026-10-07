@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Launimator: every animation can pick from all of a lauminary's sprites
 - Rebuilding a lauminary's draft writes a palette of every sprite its animations use (at the exact rects they read) into the owned sheet's Laumination Builder data, refreshed each time because a repacked sheet moves every sprite. Opening an animation in the builder keeps that palette, so any animation can use any of the lauminary's sprites, and the animation's own fps now wins over the fps saved with the sheet.
 
+### Zoe window follows Launimator saves
+- Fixed: the Zoe window's event cards (travel preview, frame lines) kept showing an animation as it was when the window was drawn. Saving a lauminary now rebuilds the open Zoe window.
+
 ### Laumination Builder: Frame 0
 - A **Frame 0** toggle (Playback & Frames, Loop gap row) shows a chosen sprite before frame 1 on every loop of the builder's preview, so a move can be judged coming out of the pose before it. It appears as a dimmed slot 0 in the sequence strip; drag a frame onto it, or right-click a palette sprite or sequence frame → Use as frame 0. Select slot 0 to set how long it shows with Frame time % (default +400%). It is baked alongside the sequence so it lines up with the real frames.
 - Saved with the animation (`Laumination.previewFrameZero` + `frameZero`) for the builder only: never baked, never in the clip, never played by the game. Undo covers it.

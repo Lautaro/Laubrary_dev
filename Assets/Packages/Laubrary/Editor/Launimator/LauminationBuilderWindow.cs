@@ -2302,7 +2302,7 @@ namespace Laubrary.Launimator.Editor
                 Z.Text("Loop gap", ZuiText.Small,
                     "A preview-only pause between loops. Never saved into the animation.").W(58f),
                 Z.MiniRadio((int)_loopDivider, LoopDividerLabels,
-                    "None loops seamlessly; Pause holds an empty gap; Idle holds a chosen sprite during the gap.",
+                    "None loops seamlessly; Pause holds an empty gap between loops for the seconds set beside it.",
                     v => { _loopDivider = (LoopDivider)v; Refresh(); }));
             if (_loopDivider != LoopDivider.None)
                 loopRow.Add(Z.Field("s", "How long the loop gap lasts, in seconds.",
