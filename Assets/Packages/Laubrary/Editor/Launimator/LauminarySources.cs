@@ -60,7 +60,7 @@ namespace Laubrary.Launimator.Editor
                 if (def?.recipe != null)
                     foreach (var f in def.recipe)
                     {
-                        if (f == null || f.sourceTextureGuid != guid || !seen.Add(RectKey(f.cell))) continue;
+                        if (f == null || f.sourceTextureGuid != guid || !seen.Add(RectKey(f.cell) + PivotKey(f.pivot))) continue;
                         region.cells.Add(new RegionSlicerPersistence.RectDto(f.cell));
                         region.pivots.Add(new RegionSlicerPersistence.Vec2Dto(f.pivot));
                     }
@@ -214,6 +214,9 @@ namespace Laubrary.Launimator.Editor
             if (string.IsNullOrEmpty(p)) return true;
             return !p.Replace('\\', '/').StartsWith(srcFolder + "/", System.StringComparison.OrdinalIgnoreCase);
         }
+
+        // A duplicated sprite (same rect, own pivot) gets its own palette box.
+        private static string PivotKey(Vector2 p) => $"|{p.x:F4},{p.y:F4}";
 
         private static string RectKey(Rect c) =>
             $"{Mathf.RoundToInt(c.x)}:{Mathf.RoundToInt(c.y)}:{Mathf.RoundToInt(c.width)}:{Mathf.RoundToInt(c.height)}";

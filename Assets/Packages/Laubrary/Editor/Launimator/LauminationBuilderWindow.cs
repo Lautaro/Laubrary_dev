@@ -3480,16 +3480,37 @@ namespace Laubrary.Launimator.Editor
             // fix for the real bug found 2026-08-17: an animation built from several single-sprite source
             // files was silently collapsing to one frame repeated N times, because the old match ignored which
             // texture a cell actually came from.
+            //
+            // The PIVOT is part of a sprite's identity too: a duplicated sprite (same rect, its own pivot) used
+            // to fold onto the first match on reload, which then took the last frame's pivot for every frame
+            // using it. So: an exact match (pivot included) is reused; otherwise a same-rect sprite no frame of
+            // this load has claimed yet adopts this frame's pivot (palette boxes carry a default pivot);
+            // otherwise the frame gets its own copy beside it.
+            CellRef adopt = new CellRef(-1, -1);
             for (int ri = 0; ri < _regions.Count; ri++)
             {
                 if (_regions[ri].sourceTextureGuid != f.sourceTextureGuid) continue;
                 _regions[ri].SyncPivots(GlobalPivot());
                 for (int ci = 0; ci < _regions[ri].cells.Count; ci++)
-                    if (RectApprox(_regions[ri].cells[ci], f.cell) && TransformEq(_regions[ri].transforms[ci], f.transform))
-                    {
-                        _regions[ri].pivots[ci] = f.pivot;
-                        return new CellRef(ri, ci);
-                    }
+                {
+                    if (!RectApprox(_regions[ri].cells[ci], f.cell) || !TransformEq(_regions[ri].transforms[ci], f.transform)) continue;
+                    if ((_regions[ri].pivots[ci] - f.pivot).sqrMagnitude < 1e-8f) return new CellRef(ri, ci);
+                    if (!CellClaimed(ri, ci)) { if (adopt.cell < 0) adopt = new CellRef(ri, ci); }
+                    else if (adopt.region < 0) adopt = new CellRef(ri, -1);   // only claimed ones so far: copy into this region
+                }
+            }
+            if (adopt.region >= 0 && adopt.cell >= 0)
+            {
+                _regions[adopt.region].pivots[adopt.cell] = f.pivot;
+                return adopt;
+            }
+            if (adopt.region >= 0)
+            {
+                var host = _regions[adopt.region];
+                host.cells.Add(f.cell);
+                host.pivots.Add(new Vector2(Mathf.Clamp01(f.pivot.x), Mathf.Clamp01(f.pivot.y)));
+                host.transforms.Add(f.transform);
+                return new CellRef(adopt.region, host.cells.Count - 1);
             }
 
             int idx = _regions.FindIndex(r => r.label == "imported" && r.sourceTextureGuid == f.sourceTextureGuid);
@@ -3503,6 +3524,13 @@ namespace Laubrary.Launimator.Editor
             reg.pivots.Add(new Vector2(Mathf.Clamp01(f.pivot.x), Mathf.Clamp01(f.pivot.y)));
             reg.transforms.Add(f.transform);
             return new CellRef(idx, reg.cells.Count - 1);
+        }
+
+        // A sprite already used by a frame loaded so far (sequence or frame 0).
+        private bool CellClaimed(int region, int cell)
+        {
+            foreach (var cr in _sequence) if (cr.region == region && cr.cell == cell) return true;
+            return _frameZero.region == region && _frameZero.cell == cell;
         }
 
         private static bool RectApprox(Rect a, Rect b)
