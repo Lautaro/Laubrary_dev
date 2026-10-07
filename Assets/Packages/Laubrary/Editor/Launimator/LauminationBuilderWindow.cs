@@ -3172,6 +3172,12 @@ namespace Laubrary.Launimator.Editor
         {
             if (string.IsNullOrWhiteSpace(_animName)) { _status = "Name the animation first."; return; }
             if (_sequence.Count == 0) { _status = "Sequence is empty — add sprites first."; return; }
+            for (int i = 0; i < _sequence.Count; i++)
+                if (!RegionSourceUsable(_sequence[i].region, out string why))
+                {
+                    _status = $"Not saved: frame {i + 1} can't be read ({why}). Remove it or add it again from its sheet.";
+                    return;
+                }
 
             var def = new Laumination
             {
@@ -3233,6 +3239,7 @@ namespace Laubrary.Launimator.Editor
             _sequence.Clear();
             ClearSelection();
 
+            int assumed = 0;   // frames saved without a source texture, read from the animation's sheet
             if (def.recipe != null && def.recipe.Count > 0)
             {
                 // Build the palette from ONLY this animation's frames. Load the source texture for its pixels,
@@ -3245,8 +3252,17 @@ namespace Laubrary.Launimator.Editor
                 if (tex != null) LoadSheet(tex);
                 _regions.Clear();
 
-                foreach (var f in def.recipe)
+                foreach (var original in def.recipe)
                 {
+                    // A frame saved without its source texture (an older builder could do that) is read from the
+                    // animation's own source sheet, which is where its rect was measured.
+                    var f = original;
+                    if (string.IsNullOrEmpty(f.sourceTextureGuid) && !string.IsNullOrEmpty(def.sourceTextureGuid))
+                    {
+                        f = new FrameRef { sourceTextureGuid = def.sourceTextureGuid, cell = f.cell, pivot = f.pivot,
+                                           transform = f.transform, timingPercent = f.timingPercent };
+                        assumed++;
+                    }
                     CellRef cr = FindOrCreateCellForFrame(f);
                     cr.pct = f.timingPercent;
                     if (SeqRefValid(cr)) _sequence.Add(cr);
@@ -3271,6 +3287,8 @@ namespace Laubrary.Launimator.Editor
             _status = _sequence.Count > 0
                 ? $"Loaded '{def.name}' ({_sequence.Count} frames) for editing."
                 : $"'{def.name}' is empty — load a sheet and build it.";
+            if (assumed > 0)
+                _status += $" {assumed} frame(s) had no source texture saved; read from the animation's own sheet — Save to keep that.";
             Refresh();
         }
 
@@ -3477,6 +3495,11 @@ namespace Laubrary.Launimator.Editor
 
         private void AppendToSequence(int region, int cell)
         {
+            if (!RegionSourceUsable(region, out string why))
+            {
+                _status = $"Can't add this sprite: {why}. Identify it again on its sheet.";
+                return;
+            }
             RecordUndo("Add frame");
             _sequence.Add(new CellRef(region, cell));
             SeqSelectSingle(_sequence.Count - 1);
@@ -3776,6 +3799,20 @@ namespace Laubrary.Launimator.Editor
         }
 
         private string CurrentSheetGuid() => string.IsNullOrEmpty(_sheetPath) ? null : AssetDatabase.AssetPathToGUID(_sheetPath);
+
+        /// Can the pixels behind this region be read? A frame whose source texture is unknown or missing makes
+        /// every preview and save of its animation fail, so such a frame is refused at the door.
+        private bool RegionSourceUsable(int region, out string why)
+        {
+            why = null;
+            if (region < 0 || region >= _regions.Count) { why = "it no longer exists"; return false; }
+            string guid = _regions[region].sourceTextureGuid;
+            if (string.IsNullOrEmpty(guid)) { why = "its source texture isn't known"; return false; }
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            if (string.IsNullOrEmpty(path) || AssetDatabase.LoadAssetAtPath<Texture2D>(path) == null)
+            { why = "its source texture is missing"; return false; }
+            return true;
+        }
 
         // ── cross-texture resolution (a Laumination's frames may come from several source textures — see
         // Region.sourceTextureGuid's own doc comment) — only used by the PALETTE/SEQUENCE thumbnail path,

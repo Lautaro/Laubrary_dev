@@ -88,16 +88,23 @@ namespace Laubrary.Launimator.Editor
                 // when the character renders wrong. Until the race itself is fixed, at least refuse to let it
                 // pass unremarked — a loud error naming the file is the difference between reverting one edit
                 // and losing an afternoon's painting.
-                int expectedFrames = 0;
-                foreach (var def in baked) expectedFrames += def.frames != null ? def.frames.Count : 0;
+                //
+                // Compared against DISTINCT pictures, not frames: the packer deliberately stores pixel-identical
+                // frames once (two animations sharing a pose), and counting frames flagged that as corruption.
+                var distinct = new HashSet<Sprite>();
+                int missing = 0;
+                foreach (var def in baked)
+                    if (def.frames != null)
+                        foreach (var f in def.frames) { if (f == null) missing++; else distinct.Add(f); }
                 int actualSprites = 0;
                 foreach (var sub in AssetDatabase.LoadAllAssetsAtPath(packedPath))
                     if (sub is Sprite) actualSprites++;
-                if (actualSprites != expectedFrames)
+                if (missing > 0 || actualSprites != distinct.Count)
                     Debug.LogError($"Launimator: atlas rebuild for '{safeChar}' produced {actualSprites} sprites " +
-                                   $"but {expectedFrames} frames were baked — '{packedPath}' is CORRUPT. This is " +
-                                   $"the known rebuild race, not something you did. Undo/revert this lauminary " +
-                                   $"before editing further; saving again on top will not repair it.");
+                                   $"for {distinct.Count} distinct baked pictures ({missing} frame(s) left without one) " +
+                                   $"— '{packedPath}' is CORRUPT. This is the known rebuild race, not something you " +
+                                   $"did. Undo/revert this lauminary before editing further; saving again on top " +
+                                   $"will not repair it.");
             }
             else if (baked.Count > 0)
             {

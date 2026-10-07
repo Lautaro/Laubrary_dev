@@ -127,8 +127,10 @@ namespace Laubrary.Launimator.Editor
             }
 
             // All auto-detected cells live in one dedicated region (created lazily, like Pick/Box).
-            int idx = _regions.FindIndex(r => r.label == AutoLabel);
-            if (idx < 0) { _regions.Add(new Region { label = AutoLabel, bounds = new Rect(0, 0, _texW, _texH) }); idx = _regions.Count - 1; }
+            // Scoped to the loaded sheet like every other region kind: a frame's pixels are read from its
+            // region's own texture, and a region without one cannot be previewed or saved.
+            int idx = _regions.FindIndex(r => r.label == AutoLabel && r.sourceTextureGuid == CurrentSheetGuid());
+            if (idx < 0) { _regions.Add(new Region { label = AutoLabel, bounds = new Rect(0, 0, _texW, _texH), sourceTextureGuid = CurrentSheetGuid() }); idx = _regions.Count - 1; }
             var reg = _regions[idx];
             int firstCell = reg.cells.Count;
             reg.cells.AddRange(cells);

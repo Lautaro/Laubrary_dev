@@ -254,6 +254,18 @@ namespace Laubrary.Launimator.Editor
             if (def == null || string.IsNullOrWhiteSpace(def.name))
                 throw new ArgumentException("Animation needs a name.", nameof(def));
 
+            // Refuse BEFORE touching the draft: a frame whose pixels can't be read fails its bake, and the
+            // animation would be saved with no frames at all, replacing a working one.
+            if (def.recipe != null)
+                for (int i = 0; i < def.recipe.Count; i++)
+                {
+                    string guid = def.recipe[i]?.sourceTextureGuid;
+                    string path = string.IsNullOrEmpty(guid) ? null : AssetDatabase.GUIDToAssetPath(guid);
+                    if (string.IsNullOrEmpty(path) || AssetDatabase.LoadAssetAtPath<Texture2D>(path) == null)
+                        throw new InvalidOperationException(
+                            $"'{def.name}' frame {i + 1} has no readable source texture; nothing was saved.");
+                }
+
             var draft = EnsureDraft(c);
             int idx = draft.animations.FindIndex(a => NameEq(a.name, def.name));
             if (idx >= 0) draft.animations[idx] = def;

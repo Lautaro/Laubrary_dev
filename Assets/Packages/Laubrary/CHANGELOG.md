@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Laumination Builder: sprites without a readable texture are refused, not saved broken
+
+- Fixed: sprites found with auto-detect ("Identify Sprites") never recorded which sheet they came from, so adding one to an animation broke its preview, and saving it left the animation with no frames. Auto-detected sprites now record their sheet like every other way of adding a sprite.
+- Adding a sprite whose texture can't be read is refused with a message in the status line; Save is refused, with the frame named, while any frame can't be read; and the save code itself refuses such an animation before replacing anything. Loading an animation saved with such a frame reads it from the animation's own sheet and says so.
+- The atlas corruption check no longer reports an error when two animations share a pixel-identical frame (the atlas stores it once on purpose); it still reports missing frames and real count mismatches.
+
 - Zounds and portable audio chains now share the retained chain editor. Hosts own undo, saving and live refresh; feature flags hide Zounds-only controls in portable clients. Narrow panes wrap effect and modifier controls, while wide Zounds layouts retain their positions. The former portable editor now contains only descriptor/control helpers.
 - Preview ownership checks borrow suitable nested clips as well as library clips and keep close-test shots alive through fixture setup.
 
