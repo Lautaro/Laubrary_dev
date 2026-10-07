@@ -50,6 +50,7 @@ namespace Laubrary.ZoetropeZoeCharacter
             var mover = host.GetComponent<TopDownMotionDriver>();
             if (mover == null) mover = host.AddComponent<TopDownMotionDriver>();
             mover.moveSpeed = moveSpeed;
+            if (host.GetComponent<ReactionMovementLock>() == null) host.AddComponent<ReactionMovementLock>();
 
             if (host.GetComponent<AimDriver>() == null) host.AddComponent<AimDriver>();
 

@@ -276,8 +276,21 @@ namespace Laubrary.Zoetrope
             FireImmediate(r, ctx);
             // Not Disarm()-ing on failure: a reaction with no clip still fired its Immediate entries above,
             // which is a legitimate custom event (a pure body flash with no animation of its own).
-            var res = TryArmClip(r, ctx, AnimationArbiter.PriorityNamedState,
-                                 interrupted => EventFinished?.Invoke(id, interrupted));
+            // Hold-still bookkeeping: a token per armed event, so a finishing OLDER event can never release the
+            // hold a newer one took. `done` covers a clip that finishes inside TryArmClip itself.
+            bool done = false;
+            int holdToken = 0;
+            var res = TryArmClip(r, ctx, AnimationArbiter.PriorityNamedState, interrupted =>
+            {
+                done = true;
+                if (holdToken != 0 && holdToken == _holdToken) HoldingStill = false;
+                EventFinished?.Invoke(id, interrupted);
+            });
+            if (res == ArmResult.Armed && !done)
+            {
+                holdToken = ++_holdToken;
+                HoldingStill = r.holdStill;
+            }
             // Identical to hurt and death (the contract above): EventFinished fires for EVERY raise, so a
             // caller awaiting it for a named event can never hang. It used to fire only when a clip actually
             // armed, which meant a consumer had to know to also subscribe to EventRefused — and one that
@@ -352,6 +365,11 @@ namespace Laubrary.Zoetrope
         /// Raised when a custom event finishes its clip: the id, and whether it was INTERRUPTED rather than
         /// reaching its own end.
         public event Action<string, bool> EventFinished;
+
+        /// True while a custom event marked <see cref="ReactionFx.holdStill"/> is playing. Movers read it
+        /// (through the ZoeCharacter bridge) to stop walking; the event's own push effects still apply.
+        public bool HoldingStill { get; private set; }
+        int _holdToken;
 
         /// Raised when a named event was declared and its Immediate effects fired, but its CLIP was refused —
         /// something higher up the priority ladder (a death, a hurt) is holding the body. Distinct from

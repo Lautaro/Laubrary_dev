@@ -1666,6 +1666,20 @@ namespace Laubrary.Zoetrope.Editor
                 header.Add(EnumPicker(roleProp, null, roleTip));
             }
 
+            // Hold still sits in the header, not the clip/duration row: that row is already full at ordinary
+            // widths and a short toggle wrapped onto a line of its own there. It is per-row (every custom event
+            // has it), so the header is its natural home; the variable-width usage chip stays after it.
+            var holdProp = entryProp.FindPropertyRelative("reaction.holdStill");
+            if (holdProp != null)
+            {
+                string holdPath = holdProp.propertyPath;
+                header.Add(Z.Toggle("Hold still",
+                    "The character cannot walk while this plays, so the move is committed rather than strolled " +
+                    "through. Movement the move carries itself (a push effect) still moves it. Released when the " +
+                    "clip ends or something interrupts it.",
+                    holdProp.boolValue, v => Commit(holdPath, p => p.boolValue = v)));
+            }
+
             // The usage chip (T-0096: "each row shows whether anything in the project actually requests it").
             // Same purpose ChunkTimelineEvents.HasListeners exists for — "so a tool can honestly report" —
             // reused here for the mirror question: has anything actually asked FOR this row, by name, at any

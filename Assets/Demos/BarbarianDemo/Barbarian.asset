@@ -45,6 +45,7 @@ MonoBehaviour:
     loops: 1
     seconds: 0
     stunSeconds: 0
+    holdStill: 0
     bodyFx: {fileID: 0}
     fx: []
   death:
@@ -54,6 +55,7 @@ MonoBehaviour:
     loops: 1
     seconds: 0
     stunSeconds: 0
+    holdStill: 0
     bodyFx: {fileID: 0}
     fx: []
   events:
@@ -66,6 +68,7 @@ MonoBehaviour:
       loops: 1
       seconds: 0
       stunSeconds: 0
+      holdStill: 1
       bodyFx: {fileID: 0}
       fx: []
   - id: HeavyChop
@@ -77,6 +80,7 @@ MonoBehaviour:
       loops: 1
       seconds: 0
       stunSeconds: 0
+      holdStill: 1
       bodyFx: {fileID: 0}
       fx: []
   - id: Dodge
@@ -88,6 +92,7 @@ MonoBehaviour:
       loops: 1
       seconds: 0
       stunSeconds: 0
+      holdStill: 1
       bodyFx: {fileID: 0}
       fx: []
   - id: JumpBack
@@ -99,6 +104,7 @@ MonoBehaviour:
       loops: 1
       seconds: 0
       stunSeconds: 0
+      holdStill: 1
       bodyFx: {fileID: 0}
       fx: []
   - id: Turnaround
@@ -110,6 +116,7 @@ MonoBehaviour:
       loops: 1
       seconds: 0
       stunSeconds: 0
+      holdStill: 1
       bodyFx: {fileID: 0}
       fx: []
   - id: PushedForwards
@@ -121,6 +128,7 @@ MonoBehaviour:
       loops: 1
       seconds: 0
       stunSeconds: 0
+      holdStill: 1
       bodyFx: {fileID: 0}
       fx: []
   - id: Headbutt
@@ -132,6 +140,7 @@ MonoBehaviour:
       loops: 1
       seconds: 0
       stunSeconds: 0
+      holdStill: 1
       bodyFx: {fileID: 0}
       fx: []
   - id: PushedBackwards
@@ -143,6 +152,7 @@ MonoBehaviour:
       loops: 1
       seconds: 0
       stunSeconds: 0
+      holdStill: 1
       bodyFx: {fileID: 0}
       fx: []
   - id: GutStabLong
@@ -154,6 +164,7 @@ MonoBehaviour:
       loops: 1
       seconds: 0
       stunSeconds: 0
+      holdStill: 1
       bodyFx: {fileID: 0}
       fx: []
   - id: HeadChop
@@ -165,6 +176,7 @@ MonoBehaviour:
       loops: 1
       seconds: 0
       stunSeconds: 0
+      holdStill: 1
       bodyFx: {fileID: 0}
       fx:
       - enabled: 1
@@ -194,6 +206,7 @@ MonoBehaviour:
       loops: 1
       seconds: 0
       stunSeconds: 0
+      holdStill: 1
       bodyFx: {fileID: 0}
       fx: []
   - id: OverCleave
@@ -205,6 +218,7 @@ MonoBehaviour:
       loops: 1
       seconds: 0
       stunSeconds: 0
+      holdStill: 1
       bodyFx: {fileID: 0}
       fx: []
   - id: Hit
@@ -216,6 +230,7 @@ MonoBehaviour:
       loops: 1
       seconds: 0
       stunSeconds: 0
+      holdStill: 1
       bodyFx: {fileID: 0}
       fx: []
   - id: PushKick
@@ -227,6 +242,7 @@ MonoBehaviour:
       loops: 1
       seconds: 0
       stunSeconds: 0
+      holdStill: 1
       bodyFx: {fileID: 0}
       fx: []
   - id: Roll
@@ -238,6 +254,7 @@ MonoBehaviour:
       loops: 1
       seconds: 0
       stunSeconds: 0
+      holdStill: 1
       bodyFx: {fileID: 0}
       fx:
       - enabled: 1
@@ -267,6 +284,7 @@ MonoBehaviour:
       loops: 1
       seconds: 0
       stunSeconds: 0
+      holdStill: 1
       bodyFx: {fileID: 0}
       fx: []
   brain:

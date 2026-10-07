@@ -31,6 +31,8 @@ namespace Laubrary.ZoeCharacter
         IZoeInputSource InputSource => _input != null ? _input : (_input = GetComponent<IZoeInputSource>());
         // Looked up lazily: the spawner may add the body after this component.
         Rigidbody2D Rb => _rb != null ? _rb : (_rb = GetComponent<Rigidbody2D>());
+        IMovementLock _lock;
+        IMovementLock Lock => _lock != null ? _lock : (_lock = GetComponent<IMovementLock>());
         Combatant CombatantRef => _combatant != null ? _combatant : (_combatant = GetComponent<Combatant>());
 
         /// True while the body faces right.
@@ -66,6 +68,7 @@ namespace Laubrary.ZoeCharacter
 
         void Move(float dt)
         {
+            if (Lock != null && Lock.MovementLocked) return;
             float x = InputSource != null ? Mathf.Clamp(InputSource.ReadMove().x, -1f, 1f) : 0f;
             Vector2 pos = Rb != null ? Rb.position : (Vector2)transform.position;
             Vector2 next = new Vector2(pos.x + x * moveSpeed * dt, _lineY);

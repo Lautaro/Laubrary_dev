@@ -229,6 +229,11 @@ namespace Laubrary.Zoetrope
                  "character permanently frozen.")]
         [Min(0f)] public float stunSeconds = 0f;
 
+        [Tooltip("The character cannot walk while this plays: a committed move rather than one it can stroll " +
+                 "through. Movement the move itself carries (a push effect) still moves it. Released when the " +
+                 "clip ends or something interrupts it.")]
+        public bool holdStill = false;
+
         [Tooltip("Optional SpriteFx Stack played on the character's OWN sprite the instant this reaction fires — a " +
                  "hurt/death flash, tint or dissolve that rides on top of the live animation (applied via a " +
                  "SpriteFxFilter added to the body's SpriteRenderer). Leave empty for no body effect. Unlike the FX " +

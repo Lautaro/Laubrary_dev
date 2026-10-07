@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zoe moves can hold the character still
+
+- Added Hold still to every custom event row in the Zoe window (in the row's header). While such an event plays, the player controllers (top-down and side-view) ignore walking input, so a move is committed rather than strolled through; movement the move carries itself (a push effect) still applies. The hold ends when the clip ends or anything interrupts it, and a finishing older move can never release a newer one's hold.
+
 ### Zounds: previews work after a Play session without domain reload
 
 - With Enter Play Mode Options skipping the domain reload, the quit flag set when Play mode ended stayed on in edit mode and every Zounds browser preview failed with "Assigned scriptable generator returned an invalid instance". It is now cleared on returning to edit mode.

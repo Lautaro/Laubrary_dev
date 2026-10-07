@@ -47,6 +47,7 @@ namespace Laubrary.ZoetropeZoeCharacter
             if (mover == null) mover = host.AddComponent<SideViewMotionDriver>();
             mover.moveSpeed = moveSpeed;
             mover.startFacingRight = startFacingRight;
+            if (host.GetComponent<ReactionMovementLock>() == null) host.AddComponent<ReactionMovementLock>();
 
             if (host.GetComponent<ZoeWeaponDriver>() == null) host.AddComponent<ZoeWeaponDriver>();
         }

@@ -26,6 +26,8 @@ namespace Laubrary.ZoeCharacter
         Rigidbody2D _rb;
 
         IZoeInputSource InputSource => _input != null ? _input : (_input = GetComponent<IZoeInputSource>());
+        IMovementLock _lock;
+        IMovementLock Lock => _lock != null ? _lock : (_lock = GetComponent<IMovementLock>());
 
         void Awake()
         {
@@ -50,6 +52,7 @@ namespace Laubrary.ZoeCharacter
 
         void Move(IZoeInputSource src, float dt)
         {
+            if (Lock != null && Lock.MovementLocked) return;
             Vector2 move = src.ReadMove();
             if (move.sqrMagnitude > 1f) move.Normalize();
             if (move.sqrMagnitude <= 0.0001f) return;
