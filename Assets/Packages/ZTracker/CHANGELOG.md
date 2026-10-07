@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Double-clicking a song asset in the Project window opens it in the ZTracker window.
 - Song clock for gameplay: `ZTrackerPlayer.Clock` / `ZTrackerPlayback.Clock` (`ZTrackerSongClock`) answers which row the player hears now, or at an exact past moment such as an input event's time, with the order, row, pattern id, BPM, lines per beat, ticks per line, the line within the beat, the tick, and how long the row has been current, how long until the next row and its whole length in samples, milliseconds and ticks. The renderer publishes every row it enters (and every held repeat) with its exact start sample, plus how far it has rendered, through a small overwrite-only ring beside the event ring; reading it consumes nothing, so the event stream is unaffected. The main thread smooths the block-stepped render position against real time and subtracts the output delay (Unity's DSP buffer estimate plus a settable `ExtraLatencySeconds`). `PlayingSong` exposes the detached song data that is playing, and `TryGetLine` reads a row's cells without allocating. Audio output is unchanged and rendering stays Burst-compiled. Verified in Trackeroids: measured row rate matched the authored tempo within 0.2%, the heard position never ran backwards, and the speaker-to-ear delay is not measured.
 
 - Cold legacy selection and reopening now read note-variation choices from the detached instrument view. The preserved 40 model groups include actual attached-window picker/reopen assertions for both schemas; displaying presets never migrates or dirties the source.
