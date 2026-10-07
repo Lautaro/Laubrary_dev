@@ -40,7 +40,7 @@ namespace Laubrary.ZTracker.Editor
             tools.Add(ToolRow(Button("−12","Transpose selected notes down an octave.",()=>Transpose(-12)),Button("+12","Transpose selected notes up an octave.",()=>Transpose(12))));
             tools.Add(ToolRow(Button("−1","Transpose selected notes down a semitone.",()=>Transpose(-1)),Button("+1","Transpose selected notes up a semitone.",()=>Transpose(1))));
             grid=new ScrollView(ScrollViewMode.VerticalAndHorizontal);grid.name="pattern-grid";grid.focusable=true;grid.style.flexGrow=1;grid.style.minHeight=60;grid.style.minWidth=0;
-            grid.RegisterCallback<KeyDownEvent>(KeyDown);grid.RegisterCallback<KeyUpEvent>(e=>{if(PianoOffset(e.keyCode)>=0)AuditionOff();});pane.Add(grid);
+            grid.RegisterCallback<KeyDownEvent>(KeyDown);grid.RegisterCallback<KeyUpEvent>(e=>{if(PianoOffset(e.keyCode)>=0)AuditionOff();});grid.RegisterCallback<PointerDownEvent>(e=>grid.Focus());pane.Add(grid);
             var header=GridRow();header.Add(RowLabel("Row"));
             for(int ti=0;ti<Data.tracks.Count;ti++){
                 var t=Data.tracks[ti];if(t.kind==TrackKind.Event){AddField(header,ti,0,FieldKind.Event,"Event");}
@@ -52,7 +52,9 @@ namespace Laubrary.ZTracker.Editor
             gridCanvas=new VisualElement();gridCanvas.name="pattern-grid-canvas";gridCanvas.style.width=width;gridCanvas.style.height=(Pattern.lineCount+2)*20;gridCanvas.style.flexShrink=0;grid.Add(gridCanvas);
             grid.verticalScroller.valueChanged+=v=>BuildVisibleCells();grid.horizontalScroller.valueChanged+=v=>BuildVisibleCells();grid.RegisterCallback<GeometryChangedEvent>(e=>BuildVisibleCells());BuildVisibleCells();
             cellDetails=Z.BoxKeyed("Cell","Parameters for the selected field.","tracker.model.cell");controls.Add(cellDetails);RefreshCellDetails();
-            RefreshCells();grid.schedule.Execute(()=>grid.scrollOffset=offset);
+            RefreshCells();var built=grid;grid.schedule.Execute(()=>{built.scrollOffset=offset;
+                // A rebuild replaces the grid, which drops keyboard focus; hand it back unless the user is in another control.
+                var focused=built.focusController?.focusedElement as VisualElement;if(focused==null||focused.panel==null)built.Focus();});
         }
         void AddField(VisualElement header,int t,int c,FieldKind kind,string title){fields.Add(new FieldSlot(t,c,kind,title));}
         void BuildVisibleCells()
@@ -75,7 +77,7 @@ namespace Laubrary.ZTracker.Editor
         static VisualElement ToolRow(params VisualElement[] children){var r=new VisualElement();r.style.flexDirection=FlexDirection.Row;r.style.flexShrink=0;r.style.marginTop=2;foreach(var c in children){c.style.marginRight=2;r.Add(c);}return r;}
         static VisualElement GridRow(){var row=Z.Row();row.AddToClassList("tracker-grid-row");return row;}
         static Label RowLabel(string text){var l=Z.Text(text,tooltip:"Pattern line number.");l.AddToClassList("tracker-row-number");return l;}
-        string FieldTooltip(FieldSlot f)=>$"{Data.tracks[f.track].name}, column {f.column+1}, {FieldName(f.kind)}. "+(f.kind==FieldKind.Note?"QWERTY piano; Backspace writes OFF; Delete clears; Shift+arrows selects a block.":f.kind==FieldKind.EffectId||f.kind==FieldKind.LocalId?"Two-character command identifier; hex argument is in the next field.":f.kind==FieldKind.Volume||f.kind==FieldKind.Pan?"Hex 00–80 or a two-character column command; Delete restores empty.":f.kind==FieldKind.Event?"Choose this cell and edit its payload in the Cell controls.":"Hex entry; Delete restores empty. Empty differs from zero.");
+        string FieldTooltip(FieldSlot f)=>$"{Data.tracks[f.track].name}, column {f.column+1}, {FieldName(f.kind)}. "+(f.kind==FieldKind.Note?"QWERTY piano; Backspace writes OFF; Delete clears the note and its instrument and steps down; Shift+arrows selects a block.":f.kind==FieldKind.EffectId||f.kind==FieldKind.LocalId?"Two-character command identifier; hex argument is in the next field.":f.kind==FieldKind.Volume||f.kind==FieldKind.Pan?"Hex 00–80 or a two-character column command; Delete restores empty.":f.kind==FieldKind.Event?"Choose this cell and edit its payload in the Cell controls.":"Hex entry; Delete restores empty. Empty differs from zero.");
         static string FieldName(FieldKind kind){switch(kind){case FieldKind.LocalId:return "Sample effect";case FieldKind.LocalValue:return "Sample effect value";case FieldKind.EffectId:return "Track effect";case FieldKind.EffectValue:return "Track effect value";default:return kind.ToString();}}
         PatternTrack PatternTrack(int ti,bool create=false){var t=Pattern.tracks.Find(x=>x.trackId==Data.tracks[ti].id);if(t==null&&create){t=new PatternTrack{trackId=Data.tracks[ti].id};Pattern.tracks.Add(t);}return t;}
         PatternLine Read(int r,FieldSlot f)=>PatternTrack(f.track)?.ReadLine(r)??new PatternLine{line=r};
@@ -106,7 +108,7 @@ namespace Laubrary.ZTracker.Editor
                 case KeyCode.Home:Select(0,sub,e.shiftKey);break;case KeyCode.End:Select(Pattern.lineCount-1,sub,e.shiftKey);break;case KeyCode.PageUp:Select(row-16,sub,e.shiftKey);break;case KeyCode.PageDown:Select(row+16,sub,e.shiftKey);break;
                 case KeyCode.Tab:Select(row,sub+(e.shiftKey?-1:1),false);break;
                 case KeyCode.Insert:if(editMode)SongEdit("insert line",()=>ZTrackerPatternOperations.InsertLine(Pattern,row),true);break;
-                case KeyCode.Delete:if(editMode){if(e.shiftKey)SongEdit("delete line",()=>ZTrackerPatternOperations.DeleteLine(Pattern,row),true);else ClearBlock();}break;
+                case KeyCode.Delete:if(editMode){if(e.shiftKey)SongEdit("delete line",()=>ZTrackerPatternOperations.DeleteLine(Pattern,row),true);else if(anchorRow<0){var f=fields[sub];SongEdit("clear cell",()=>EditField(row,f,(n,x,v)=>{CopyField(f.kind,n,x,v,new NoteCell(),new EffectCell(),new EventCell());if(f.kind==FieldKind.Note)CopyField(FieldKind.Instrument,n,x,v,new NoteCell(),new EffectCell(),new EventCell());}));Advance();}else ClearBlock();}break;
                 case KeyCode.Backspace:if(editMode&&fields[sub].kind==FieldKind.Note){var f=fields[sub];SongEdit("note off",()=>EditField(row,f,(n,x,v)=>n.note=NoteKind.Off));Advance();}break;
                 default:
                     var slot=fields[sub];int piano=PianoOffset(e.keyCode);
