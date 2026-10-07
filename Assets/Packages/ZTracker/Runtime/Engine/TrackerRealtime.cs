@@ -46,9 +46,9 @@ namespace Laubrary.ZTracker.Engine
                     int p=state.sequence[c.a].pattern;if(c.b<0||c.b>=state.patterns[p].lineCount)return;
                     Seek(c.a,c.b);break;
                 case TrackerCommandKind.AuditionOn:
-                    if(c.d>=0&&c.d<state.trackCount&&state.tracks[c.d].columnCount>0&&c.b>=0&&c.b<120&&c.c>=0&&c.c<=127){int ci=state.tracks[c.d].columns;var col=state.columns[ci];col.volume=c.c/127f;state.columns[ci]=col;NoteOn(c.d,0,c.a,c.b,c.c);}break;
+                    if(c.d>=0&&c.d<state.trackCount&&state.tracks[c.d].columnCount>0&&c.b>=0&&c.b<120&&c.c>=0&&c.c<=127){int ci=state.tracks[c.d].columns;var col=state.columns[ci];col.volume=c.c/127f;state.columns[ci]=col;NoteOn(c.d,0,c.a,c.b,c.c,-1,true);}break;
                 case TrackerCommandKind.AuditionNormalized:
-                    if(c.d>=0&&c.d<state.trackCount&&state.tracks[c.d].columnCount>0&&c.b>=0&&c.b<120&&c.c>=0&&c.c<=127&&math.isfinite(c.value)&&c.value>=0&&c.value<=1){int ci=state.tracks[c.d].columns;var col=state.columns[ci];col.volume=c.value;state.columns[ci]=col;NoteOn(c.d,0,c.a,c.b,c.c);}break;
+                    if(c.d>=0&&c.d<state.trackCount&&state.tracks[c.d].columnCount>0&&c.b>=0&&c.b<120&&c.c>=0&&c.c<=127&&math.isfinite(c.value)&&c.value>=0&&c.value<=1){int ci=state.tracks[c.d].columns;var col=state.columns[ci];col.volume=c.value;state.columns[ci]=col;NoteOn(c.d,0,c.a,c.b,c.c,-1,true);}break;
                 case TrackerCommandKind.ReleaseVoice:
                     if(c.a>=0&&c.a<state.voices.Length&&state.voices[c.a].active&&state.voices[c.a].cohort==c.generation)for(int i=0;i<state.voices.Length;i++)if(state.voices[i].active&&state.voices[i].cohort==c.generation)Release(i);break;
                 case TrackerCommandKind.AuditionOff:
@@ -230,9 +230,11 @@ namespace Laubrary.ZTracker.Engine
             if(tone.releaseExitsLoopB&&tone.loopB!=SampleLoop.Off)v.directionB=1;
             state.voices[i]=v;
         }
-        void NoteOn(int track,int column,int instrument,int note,int velocity,int parameterSet=-1)
+        // explicitNote: a note game code or the editor asked for (audition). A trigger-muted track silences its own
+        // pattern notes but still plays these, so a game can keep a melody silent and release notes one at a time.
+        void NoteOn(int track,int column,int instrument,int note,int velocity,int parameterSet=-1,bool explicitNote=false)
         {
-            if(instrument<0||instrument>=state.instrumentCount||note<0||note>119||state.tracks[track].triggerMute||!state.tracks[track].soloEnabled||state.sequenceMutes[state.sequence[state.sequenceIndex].muteOffset+track]!=0)return;
+            if(instrument<0||instrument>=state.instrumentCount||note<0||note>119||(state.tracks[track].triggerMute&&!explicitNote)||!state.tracks[track].soloEnabled||state.sequenceMutes[state.sequence[state.sequenceIndex].muteOffset+track]!=0)return;
             var ins=state.instruments[instrument];if(parameterSet>=0){var preset=state.parameterSets[parameterSet];if(preset.instrument!=instrument)return;ins.zoneStart=preset.zones;ins.zoneCount=preset.zoneCount;}if(ins.zoneCount==0)return;
             bool mapped=false;int required=0;for(int z=0;z<ins.zoneCount;z++){var zone=state.zones[ins.zoneStart+z];if(note>=zone.minNote&&note<=zone.maxNote&&velocity>=zone.minVelocity&&velocity<=zone.maxVelocity&&(state.samples[zone.sample].pcm>=0||state.tones[zone.sample].kind!=0)){mapped=true;required+=state.tones[zone.sample].members;}}if(!mapped||required>state.voices.Length)return;
             EvaluateParameters();

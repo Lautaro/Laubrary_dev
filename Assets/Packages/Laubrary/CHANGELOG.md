@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ZUI runtime: segmented choice, visible slider track
+
+- `ZuiStack.Segmented(selected, pts, labels)`: a choice between a few options on one row, every option visible and the chosen one filled. `ZuiStack.Slider` now draws its track and the filled part up to the value (the default runtime skin drew only the thumb).
+
 ### Side-view characters: one-line movement, own facing, forward moves
 
 - Added a side-view player controller for Zoes (pick it as the character's player controller). The character walks left and right along the line it appears on, and its facing is its own state: walking against the facing is a backpedal (the existing reversed-walk playback for aim-steered poses), and the facing only changes when the game turns it. The facing is published as the character's aim, so a motion pose steered by Aim mirrors with it and weapons fire the way it faces.

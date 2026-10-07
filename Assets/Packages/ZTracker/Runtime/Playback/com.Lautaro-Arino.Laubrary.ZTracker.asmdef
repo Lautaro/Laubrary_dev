@@ -1,6 +1,6 @@
 {
   "name": "com.Lautaro-Arino.Laubrary.ZTracker",
   "rootNamespace": "Laubrary.ZTracker",
-  "references": ["ZTracker", "com.Lautaro-Arino.Laubrary.ZTracker.Engine", "Unity.Burst"],
+  "references": ["ZTracker", "com.Lautaro-Arino.Laubrary.ZTracker.Engine", "Unity.Burst", "com.Lautaro-Arino.Laubrary.ZuiRuntime"],
   "autoReferenced": true
 }

@@ -119,6 +119,23 @@ namespace Laubrary.ZTracker
             return false;
         }
         public bool SendCommand(TrackerCommand command) => IsPlaying && generator.SendCommand(command);
+
+        /// <summary>Gates a track: its own pattern notes stop sounding, while notes played with <see cref="PlayNote"/>
+        /// still sound. Ungating restores the pattern notes. The track's output mute is kept as authored.</summary>
+        public bool SetTrackGated(int track, bool gated)
+        {
+            var song = PlayingSong;
+            if (song == null || track < 0 || track >= song.tracks.Count) return false;
+            return SendCommand(new TrackerCommand { kind = TrackerCommandKind.TrackMute, a = track, b = song.tracks[track].outputMute ? 1 : 0, c = gated || song.tracks[track].triggerMute ? 1 : 0 });
+        }
+
+        /// <summary>Plays one note on a track's first note column, as if the pattern had it: instrument is an index
+        /// into the song's instruments, note 0..119, velocity 0..1. It replaces the column's previous note.</summary>
+        public bool PlayNote(int track, int instrument, int note, float velocity = 1f)
+            => SendCommand(TrackerCommand.Audition(instrument, Mathf.Clamp(note, 0, 119), Mathf.Clamp01(velocity), track));
+
+        /// <summary>Releases the note playing on a track's first note column (its envelope's release runs).</summary>
+        public bool ReleaseNote(int track) => SendCommand(new TrackerCommand { kind = TrackerCommandKind.AuditionOff, a = track, b = 0 });
         public bool Refresh(out string reason)
             => Refresh(null, out reason);
         bool Refresh(ZTrackerInstrument instrument, out string reason)

@@ -94,6 +94,36 @@ namespace ZuiRuntime
             return clicked;
         }
 
+        /// <summary>A choice between a few options on ONE row, every option visible and the chosen one lit. Returns the
+        /// selection, changed when an option is clicked.</summary>
+        public int Segmented(int selected, float pts, params string[] labels)
+        {
+            var style = Zui.ButtonStyle(pts);
+            float h = style.CalcSize(new GUIContent("Ay")).y + UIScale.S(6f);
+            var row = Next(h);
+            float gap = UIScale.S(2f);
+            float w = (row.width - gap * (labels.Length - 1)) / labels.Length;
+            int result = selected;
+            for (int i = 0; i < labels.Length; i++)
+            {
+                var rect = new Rect(row.x + i * (w + gap), row.y, w, h);
+                if (i == selected)
+                {
+                    // The chosen option is a solid fill with contrasting text, so it reads at a glance.
+                    Color fill = SegmentedSelected; if (!GUI.enabled) fill.a *= 0.35f;
+                    Zui.FillRect(rect, fill);
+                    GUI.Label(rect, labels[i], Zui.SelectedLabelStyle(pts, style));
+                }
+                else if (GUI.Button(rect, labels[i], style)) result = i;
+            }
+            return result;
+        }
+
+        /// <summary>Fill of the chosen option in <see cref="Segmented"/> and of a slider's filled part.</summary>
+        public static Color SegmentedSelected = new Color(0.2f, 0.55f, 0.85f, 1f);
+        /// <summary>Unfilled part of a slider's track.</summary>
+        public static Color SliderTrack = new Color(1f, 1f, 1f, 0.2f);
+
         public bool Toggle(string label, bool value, float pts = 15f)
         {
             var style = Zui.ToggleStyle(pts);
@@ -116,6 +146,11 @@ namespace ZuiRuntime
                 Zui.TextStyle(pts, Color.white, TextAnchor.MiddleRight, false, wrap: false));
             float sliderX = row.x + labelW;
             float sliderW = Mathf.Max(20f, row.width - labelW - valueW - UIScale.S(6f));
+            // A visible track with the filled part up to the value: the default runtime skin draws only the thumb.
+            float trackH = Mathf.Max(2f, UIScale.S(3f)), trackY = row.y + lh * 0.5f - trackH * 0.5f;
+            float t = max > min ? Mathf.Clamp01((value - min) / (max - min)) : 0f;
+            Zui.FillRect(new Rect(sliderX, trackY, sliderW, trackH), SliderTrack);
+            Zui.FillRect(new Rect(sliderX, trackY, sliderW * t, trackH), SegmentedSelected);
             return GUI.HorizontalSlider(new Rect(sliderX, row.y + lh * 0.28f, sliderW, lh * 0.5f), value, min, max);
         }
 
@@ -146,6 +181,22 @@ namespace ZuiRuntime
             int px = UIScale.Font(pts);
             if (!_buttonStyles.TryGetValue(px, out var s))
                 _buttonStyles[px] = s = new GUIStyle(GUI.skin.button) { fontSize = px, wordWrap = false };
+            return s;
+        }
+
+        static readonly Dictionary<int, GUIStyle> _selectedLabelStyles = new Dictionary<int, GUIStyle>();
+
+        /// <summary>Text for a chosen option drawn over its own fill: the button's metrics and alignment, no
+        /// background of its own (a button background would cover the fill), bold white text.</summary>
+        public static GUIStyle SelectedLabelStyle(float pts, GUIStyle button)
+        {
+            int px = UIScale.Font(pts);
+            if (!_selectedLabelStyles.TryGetValue(px, out var s))
+                _selectedLabelStyles[px] = s = new GUIStyle
+                {
+                    fontSize = px, fontStyle = FontStyle.Bold, alignment = button.alignment, padding = button.padding,
+                    wordWrap = false, clipping = TextClipping.Clip, normal = { textColor = Color.white },
+                };
             return s;
         }
 
