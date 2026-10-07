@@ -1,0 +1,23 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Zoetrope.ZoeCharacter.Editor",
+    "rootNamespace": "Laubrary.ZoetropeZoeCharacter.Editor",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Zoetrope",
+        "com.Lautaro-Arino.Laubrary.Zoetrope.Editor",
+        "com.Lautaro-Arino.Laubrary.Zoetrope.ZoeCharacter",
+        "com.Lautaro-Arino.Laubrary.ZoeCharacter",
+        "com.Lautaro-Arino.Laubrary.Zui.Editor",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

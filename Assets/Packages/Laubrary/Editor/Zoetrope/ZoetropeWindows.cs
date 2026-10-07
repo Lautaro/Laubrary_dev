@@ -221,6 +221,8 @@ namespace Laubrary.Zoetrope.Editor
             while (child.NextVisible(enter) && !SerializedProperty.EqualContents(child, end))
             {
                 enter = false;
+                if (topLevelAsset is Zoe fieldZoe && ZoeFieldEditors.TryBuild(host, child.Copy(), boxedValue, fieldZoe,
+                        new ZoeFieldEditContext { Commit = Commit, Rebuild = Rebuild })) continue;
                 if (TryBuildClipDropdown(host, child, boxedValue, topLevelAsset)) continue;
                 if (TryBuildZoundPicker(host, child)) continue;
                 if (TryBuildPlaybackMode(host, child, boxedValue)) continue;

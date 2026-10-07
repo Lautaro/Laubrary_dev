@@ -14,6 +14,10 @@ namespace Laubrary.ZoetropeZoeCharacter
     /// The sibling of <see cref="TopDownPlayerControllerSpec"/>: same input asset shape, different locomotion.
     /// There is no aim driver: the facing IS the aim. Turning is a call on the motion driver, so the game
     /// decides what turns the character (a button, the end of a turn animation).
+    ///
+    /// Its command list maps buttons and stick directions to the character's declared actions (see
+    /// <see cref="SideViewCommand"/>), edited in the Zoe window with pickers, so a game's move set is data on
+    /// the character rather than code.
     /// </summary>
     [System.Serializable]
     public class SideViewPlayerControllerSpec : IPlayerControllerSpec
@@ -26,6 +30,12 @@ namespace Laubrary.ZoetropeZoeCharacter
 
         [Tooltip("Which way the character faces when it appears.")]
         public bool startFacingRight = true;
+
+        [Tooltip("How far the stick must lean before it counts as a direction for a command.")]
+        [Range(0.2f, 0.9f)] public float directionThreshold = 0.5f;
+
+        [Tooltip("Buttons and stick directions, each playing one of this character's declared actions.")]
+        public System.Collections.Generic.List<SideViewCommand> commands = new System.Collections.Generic.List<SideViewCommand>();
 
         public void Attach(GameObject host)
         {
@@ -40,7 +50,8 @@ namespace Laubrary.ZoetropeZoeCharacter
             // enables the actions synchronously inside AddComponent, before the assignments would land.
             source.enabled = false;
             source.moveAction = InputActionReference.Create(map.FindAction("Move"));
-            source.fireAction = InputActionReference.Create(map.FindAction("Fire"));
+            var fire = map.FindAction("Fire");
+            source.fireAction = fire != null ? InputActionReference.Create(fire) : null;
             source.enabled = true;
 
             var mover = host.GetComponent<SideViewMotionDriver>();
@@ -50,6 +61,13 @@ namespace Laubrary.ZoetropeZoeCharacter
             if (host.GetComponent<ReactionMovementLock>() == null) host.AddComponent<ReactionMovementLock>();
 
             if (host.GetComponent<ZoeWeaponDriver>() == null) host.AddComponent<ZoeWeaponDriver>();
+
+            if (commands != null && commands.Count > 0)
+            {
+                var driver = host.GetComponent<SideViewCommandDriver>();
+                if (driver == null) driver = host.AddComponent<SideViewCommandDriver>();
+                driver.Configure(commands, map, directionThreshold);
+            }
         }
     }
 }

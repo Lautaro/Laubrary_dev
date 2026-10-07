@@ -402,6 +402,73 @@ MonoBehaviour:
     - rid: 7986899893902115354
       type: {class: SideViewPlayerControllerSpec, ns: Laubrary.ZoetropeZoeCharacter, asm: com.Lautaro-Arino.Laubrary.Zoetrope.ZoeCharacter}
       data:
-        controls: {fileID: -944628639613478452, guid: f07f564b8fae19e4480da06f0437a047, type: 3}
+        controls: {fileID: -944628639613478452, guid: c0d2797c29a72544c9469c8711f76036, type: 3}
         moveSpeed: 3
         startFacingRight: 1
+        directionThreshold: 0.5
+        commands:
+        - button: Attack
+          direction: 1
+          eventId: GutStab
+          holdSeconds: 0.12
+          turnWhenDone: 0
+        - button: Attack
+          direction: 2
+          eventId: Headbutt
+          holdSeconds: 0.12
+          turnWhenDone: 0
+        - button: Attack
+          direction: 6
+          eventId: HeadChop
+          holdSeconds: 0.12
+          turnWhenDone: 0
+        - button: Attack
+          direction: 4
+          eventId: OverCleave
+          holdSeconds: 0.12
+          turnWhenDone: 0
+        - button: Attack
+          direction: 8
+          eventId: PushKick
+          holdSeconds: 0.12
+          turnWhenDone: 0
+        - button: Attack
+          direction: 3
+          eventId: NeckSlice
+          holdSeconds: 0.12
+          turnWhenDone: 0
+        - button: Attack
+          direction: 9
+          eventId: GutStabLong
+          holdSeconds: 0.12
+          turnWhenDone: 0
+        - button: Attack
+          direction: 5
+          eventId: SwordCyclone
+          holdSeconds: 0.12
+          turnWhenDone: 0
+        - button: Attack
+          direction: 7
+          eventId: HeavyChop
+          holdSeconds: 0.12
+          turnWhenDone: 0
+        - button: Evade
+          direction: 0
+          eventId: Dodge
+          holdSeconds: 0.12
+          turnWhenDone: 0
+        - button: Evade
+          direction: 6
+          eventId: JumpBack
+          holdSeconds: 0.12
+          turnWhenDone: 0
+        - button: Turn
+          direction: 0
+          eventId: Turnaround
+          holdSeconds: 0.12
+          turnWhenDone: 1
+        - button: 
+          direction: 9
+          eventId: Roll
+          holdSeconds: 0.12
+          turnWhenDone: 0
