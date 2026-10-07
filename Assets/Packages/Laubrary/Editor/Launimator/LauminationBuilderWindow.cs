@@ -124,11 +124,11 @@ namespace Laubrary.Launimator.Editor
         private struct CellRef
         {
             public int region, cell;
-            // This frame's own duration in ms (0 = the animation's fps). Lives on the sequence entry so a
-            // reorder, duplicate or undo snapshot carries it with the frame. Never part of "same cell" checks,
-            // which compare region/cell explicitly.
-            public float ms;
-            public CellRef(int r, int c) { region = r; cell = c; ms = 0f; }
+            // This frame's timing relative to the fps, in percent (0 = one normal tick; see
+            // FrameRef.timingPercent). Lives on the sequence entry so a reorder, duplicate or undo snapshot
+            // carries it with the frame. Never part of "same cell" checks, which compare region/cell explicitly.
+            public float pct;
+            public CellRef(int r, int c) { region = r; cell = c; pct = 0f; }
         }
         private readonly List<CellRef> _sequence = new List<CellRef>();
         private int _seqSelected = -1;
@@ -318,12 +318,15 @@ namespace Laubrary.Launimator.Editor
             _zoneBarIM?.MarkDirtyRepaint();
         }
 
-        // Copy each sequence frame's duration onto the preview's recipe, which is what the player times frames by.
+        // What a frame with this timing lasts at the current FPS, in milliseconds.
+        private float FrameMsOf(float pct) => _animFps > 0f ? 1000f / _animFps * FrameRef.TimingFactorOf(pct) : 0f;
+
+        // Copy each sequence frame's timing onto the preview's recipe, which is what the player times frames by.
         private void SyncPreviewTimings()
         {
             if (_previewDef?.recipe == null) return;
             for (int i = 0; i < _previewDef.recipe.Count && i < _sequence.Count; i++)
-                if (_previewDef.recipe[i] != null) _previewDef.recipe[i].durationMs = _sequence[i].ms;
+                if (_previewDef.recipe[i] != null) _previewDef.recipe[i].timingPercent = _sequence[i].pct;
         }
 
         // ── live in-memory bake feeding the shared player ────────────────────────
@@ -1733,7 +1736,7 @@ namespace Laubrary.Launimator.Editor
                 if (nr < 0 || !cellMap.TryGetValue(cr.region, out var m) || cr.cell < 0 || cr.cell >= m.Length) continue;
                 int nc = m[cr.cell];
                 if (nc < 0) continue;
-                newSeq.Add(new CellRef(nr, nc) { ms = cr.ms });
+                newSeq.Add(new CellRef(nr, nc) { pct = cr.pct });
             }
             int removedFrames = _sequence.Count - newSeq.Count;
             _sequence.Clear(); _sequence.AddRange(newSeq);
@@ -2174,30 +2177,38 @@ namespace Laubrary.Launimator.Editor
                 _playToggleButton.text = _animPlaying ? "❚❚" : "▶";
                 _playIM?.MarkDirtyRepaint();
             }).W(36f);
-            // Per-frame duration: acts on every selected sequence frame. 0 = the frame follows FPS; the strip
-            // labels each frame that has its own duration, so the override is visible without selecting it.
-            const string frameMsTip = "How long the selected frame(s) show, in milliseconds. 0 = follow the FPS " +
-                "above. Hold a wind-up or flash an impact frame without changing the rest. Applies to every " +
-                "selected frame in the sequence.";
+            // Per-frame timing: a percentage of one fps tick, acting on every selected sequence frame. The readout
+            // beside it is what the selected frame actually lasts, so the value always has a reference.
+            const string frameTimeTip = "How long the selected frame(s) show, relative to the FPS: 0 = one normal " +
+                "frame, +100% = twice as long, -100% = half as long, +800% = 9x as long, -800% = a ninth. Applies " +
+                "to every selected frame and follows any FPS change.";
             bool anySeqSel = _seqSelected >= 0 && _seqSelected < _sequence.Count;
-            var frameMs = Z.Float(anySeqSel ? _sequence[_seqSelected].ms : 0f, frameMsTip, v =>
+            var frameMsReadout = Z.Text("", ZuiText.Subtle, "What the selected frame lasts with its timing applied.");
+            frameMsReadout.style.width = 64f;
+            void UpdateReadout()
             {
-                v = Mathf.Max(0f, Mathf.Round(v));
-                RecordUndo("Frame duration");
-                foreach (int k in _seqMultiSel.ToList())
-                    if (k >= 0 && k < _sequence.Count) { var cr = _sequence[k]; cr.ms = v; _sequence[k] = cr; }
-                if (_seqMultiSel.Count == 0 && anySeqSel) { var cr = _sequence[_seqSelected]; cr.ms = v; _sequence[_seqSelected] = cr; }
-                SyncPreviewTimings();
-                _seqStripIM?.MarkDirtyRepaint();
-                Dirty();
-            }, 52f);
-            frameMs.SetEnabled(anySeqSel);
+                frameMsReadout.text = anySeqSel ? $"= {FrameMsOf(_sequence[_seqSelected].pct):0} ms" : "";
+            }
+            var frameTime = Z.MicroSlider("Frame time %", anySeqSel ? _sequence[_seqSelected].pct : 0f,
+                FrameRef.MinTimingPercent, FrameRef.MaxTimingPercent, frameTimeTip, v =>
+                {
+                    v = Mathf.Round(v);
+                    foreach (int k in _seqMultiSel.ToList())
+                        if (k >= 0 && k < _sequence.Count) { var cr = _sequence[k]; cr.pct = v; _sequence[k] = cr; }
+                    if (_seqMultiSel.Count == 0 && anySeqSel) { var cr = _sequence[_seqSelected]; cr.pct = v; _sequence[_seqSelected] = cr; }
+                    SyncPreviewTimings();
+                    UpdateReadout();
+                    _seqStripIM?.MarkDirtyRepaint();
+                    Dirty();
+                }, 190f, defaultValue: 0f, decimals: 0, onBeforeMutate: () => RecordUndo("Frame time"));
+            frameTime.SetEnabled(anySeqSel);
+            UpdateReadout();
             s.Add(WrapRow(
                 _playToggleButton,
                 Z.Field("FPS", "Preview playback speed — also what the saved animation plays at.",
                     Z.Slider(_animFps, 1f, 30f, "Preview playback speed — also what the saved animation plays at.",
-                        v => { _animFps = v; Dirty(); }, 170f)),
-                Z.Field("Frame ms", frameMsTip, frameMs)));
+                        v => { _animFps = v; UpdateReadout(); Dirty(); }, 170f))));
+            s.Add(WrapRow(frameTime, frameMsReadout));
 
             var loopRow = WrapRow(
                 Z.Text("Loop gap", ZuiText.Small,
@@ -2960,15 +2971,17 @@ namespace Laubrary.Launimator.Editor
                 EditorGUI.DrawRect(badge, new Color(0.2f, 0.5f, 1f, 0.92f));
                 GUI.Label(badge, (i + 1).ToString(), EditorStyles.whiteMiniLabel);
 
-                // A frame with its own duration says so in the corner; frames that follow FPS stay unlabelled.
-                if (_sequence[i].ms > 0f)
+                // Every frame states how long it lasts; a frame whose timing differs from the FPS is orange.
                 {
-                    string msText = _sequence[i].ms.ToString("0") + "ms";
+                    float pct = _sequence[i].pct;
+                    string msText = FrameMsOf(pct).ToString("0") + "ms";
                     var msSize = EditorStyles.whiteMiniLabel.CalcSize(new GUIContent(msText));
                     var msBadge = new Rect(r.xMax - msSize.x - 2f, r.yMax - 14f, msSize.x + 2f, 14f);
-                    EditorGUI.DrawRect(msBadge, new Color(0.85f, 0.45f, 0.1f, 0.92f));
-                    GUI.Label(msBadge, new GUIContent(msText, $"Frame {i + 1} shows for {msText} (its own duration)."),
-                        EditorStyles.whiteMiniLabel);
+                    EditorGUI.DrawRect(msBadge, pct != 0f ? new Color(0.85f, 0.45f, 0.1f, 0.92f) : new Color(0f, 0f, 0f, 0.55f));
+                    string tip = pct != 0f
+                        ? $"Frame {i + 1} shows for {msText} ({pct:+0;-0}% of a normal frame at {_animFps:0.#} FPS)."
+                        : $"Frame {i + 1} shows for {msText} (one normal frame at {_animFps:0.#} FPS).";
+                    GUI.Label(msBadge, new GUIContent(msText, tip), EditorStyles.whiteMiniLabel);
                 }
 
                 HandleSeqDrag(i, r);
@@ -3150,7 +3163,7 @@ namespace Laubrary.Launimator.Editor
             foreach (var cr in _sequence)
             {
                 var reg = _regions[cr.region]; reg.SyncPivots(GlobalPivot());
-                recipe.Add(new FrameRef { sourceTextureGuid = reg.sourceTextureGuid, cell = reg.cells[cr.cell], pivot = reg.pivots[cr.cell], transform = reg.transforms[cr.cell], durationMs = cr.ms });
+                recipe.Add(new FrameRef { sourceTextureGuid = reg.sourceTextureGuid, cell = reg.cells[cr.cell], pivot = reg.pivots[cr.cell], transform = reg.transforms[cr.cell], timingPercent = cr.pct });
             }
             return recipe;
         }
@@ -3235,7 +3248,7 @@ namespace Laubrary.Launimator.Editor
                 foreach (var f in def.recipe)
                 {
                     CellRef cr = FindOrCreateCellForFrame(f);
-                    cr.ms = f.durationMs;
+                    cr.pct = f.timingPercent;
                     if (SeqRefValid(cr)) _sequence.Add(cr);
                 }
             }

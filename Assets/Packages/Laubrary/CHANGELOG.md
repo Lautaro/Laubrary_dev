@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Launimator: per-frame timing
 
-- Each frame can have its own duration in milliseconds; 0 follows the animation's fps. Set it in the Laumination Builder with the Frame ms field beside FPS (applies to the selected frames); timed frames carry an orange ms label in the sequence strip. Every player, clip length, baked Unity clip and preview uses the real per-frame times.
+- The animation keeps one fps; each frame can scale its own time with a percentage from -800% to +800% (0 = one normal frame, +100% = twice as long, -100% = half as long, the same amount either way being the same size of change). Set it in the Laumination Builder with the Frame time % slider (applies to the selected frames; the resulting ms is shown beside it), and every frame in the sequence strip shows how long it lasts, orange when changed. The timing follows any fps change. Every player, clip length, baked Unity clip and preview uses the resulting per-frame times.
 - The Aseprite round trip keeps per-frame durations both ways, and its synced strip now imports at its true size.
 
 ### Zoe moves: travel envelope

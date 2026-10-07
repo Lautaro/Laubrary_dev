@@ -212,7 +212,7 @@ namespace Laubrary.Launimator.Editor
             existing.fps = def.fps;
             // Frame timings are playback, not pixels — the recipes matched cell for cell above.
             for (int i = 0; i < existing.recipe.Count; i++)
-                if (existing.recipe[i] != null && def.recipe[i] != null) existing.recipe[i].durationMs = def.recipe[i].durationMs;
+                if (existing.recipe[i] != null && def.recipe[i] != null) existing.recipe[i].timingPercent = def.recipe[i].timingPercent;
             existing.events = def.events;
             existing.metaLayersEnabled = def.metaLayersEnabled;
             existing.metaLayers = def.metaLayers;
@@ -490,7 +490,7 @@ namespace Laubrary.Launimator.Editor
         {
             name = d.name,
             fps = d.fps,
-            recipe = d.recipe.Select(f => new FrameRef { sourceTextureGuid = f.sourceTextureGuid, cell = f.cell, pivot = f.pivot, transform = f.transform, durationMs = f.durationMs }).ToList(),
+            recipe = d.recipe.Select(f => new FrameRef { sourceTextureGuid = f.sourceTextureGuid, cell = f.cell, pivot = f.pivot, transform = f.transform, timingPercent = f.timingPercent }).ToList(),
             events = d.events != null ? d.events.Select(e => new FrameEvent { frame = e.frame, name = e.name }).ToList() : new List<FrameEvent>(),
             sourceTextureGuid = d.sourceTextureGuid,
             bgKeyEnabled = d.bgKeyEnabled,

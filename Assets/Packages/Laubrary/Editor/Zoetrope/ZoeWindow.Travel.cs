@@ -249,7 +249,7 @@ namespace Laubrary.Zoetrope.Editor
                 var (frame, _, len) = spans[k];
                 bool timed = own && visual.Fps > 0f && Mathf.Abs(frameSecs[frame] - 1f / visual.Fps) > 1e-4f;
                 string tip = timed
-                    ? $"Frame {frame + 1}: {frameSecs[frame] * 1000f:0} ms (its own duration)."
+                    ? $"Frame {frame + 1}: {frameSecs[frame] * 1000f:0} ms (its own timing, set in Launimator)."
                     : $"Frame {frame + 1}: {frameSecs[frame] * 1000f:0} ms ({visual.Fps:0.#} fps).";
                 segs[k] = new ZuiTimelineSegment((frame + 1).ToString(), len, timed ? BandOwn : (k % 2 == 0 ? BandA : BandB), tip);
             }

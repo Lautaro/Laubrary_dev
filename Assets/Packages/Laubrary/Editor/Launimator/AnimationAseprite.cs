@@ -106,8 +106,8 @@ namespace Laubrary.Launimator.Editor
             ConfigureSource(ownedPath);
             string guid = AssetDatabase.AssetPathToGUID(ownedPath);
 
-            // Aseprite's per-frame durations come back as frame timings. A frame at the clip's own rate stays on
-            // the default (0), so changing the clip's fps later still moves it.
+            // Aseprite's per-frame durations come back as frame timing percentages relative to the clip's fps.
+            // A frame at the clip's own rate stays at 0, so it follows any later fps change.
             float defaultMs = def.fps > 0f ? 1000f / def.fps : 0f;
             def.recipe = new List<FrameRef>(n);
             for (int f = 0; f < n; f++)
@@ -119,7 +119,8 @@ namespace Laubrary.Launimator.Editor
                     cell = new Rect(f * W, 0, W, H),
                     pivot = def.framePivot,
                     transform = CellTransform.Identity,
-                    durationMs = ms > 0 && Mathf.Abs(ms - defaultMs) > 1f ? ms : 0f,
+                    timingPercent = ms > 0 && defaultMs > 0f && Mathf.Abs(ms - defaultMs) > 1f
+                        ? Mathf.Round(FrameRef.TimingPercentFor(ms / defaultMs)) : 0f,
                 });
             }
             def.sourceTextureGuid = guid;

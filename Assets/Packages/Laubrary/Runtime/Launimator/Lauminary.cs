@@ -47,9 +47,31 @@ namespace Laubrary.Launimator
                  "time. Identity by default — only set by the Laumination Builder's UI.4 tools.")]
         public CellTransform transform = CellTransform.Identity;
 
-        [Tooltip("How long THIS frame shows, in milliseconds. 0 = the animation's own fps decides (the default). " +
-                 "Hold a wind-up longer or flash an impact frame briefly without changing the rest.")]
-        [Min(0f)] public float durationMs;
+        [Tooltip("How long THIS frame shows, relative to the animation's fps: 0 = one normal tick, +100 = twice as " +
+                 "long, -100 = half as long, +800 = 9x as long, -800 = a ninth. Hold a wind-up or flash an impact " +
+                 "frame without changing the rest; it scales with the fps.")]
+        [Range(MinTimingPercent, MaxTimingPercent)] public float timingPercent;
+
+        public const float MinTimingPercent = -800f, MaxTimingPercent = 800f;
+
+        /// How many normal ticks this frame lasts: +X% multiplies by (1 + X/100), -X% divides by it, so the same
+        /// amount either way is the same size of change in opposite directions.
+        public float TimingFactor => TimingFactorOf(timingPercent);
+
+        public static float TimingFactorOf(float percent)
+        {
+            float p = Mathf.Clamp(percent, MinTimingPercent, MaxTimingPercent);
+            float k = 1f + Mathf.Abs(p) / 100f;
+            return p >= 0f ? k : 1f / k;
+        }
+
+        /// The percentage that gives a frame this many normal ticks (the inverse of <see cref="TimingFactorOf"/>).
+        public static float TimingPercentFor(float factor)
+        {
+            if (factor <= 0f) return MinTimingPercent;
+            float p = factor >= 1f ? (factor - 1f) * 100f : -(1f / factor - 1f) * 100f;
+            return Mathf.Clamp(p, MinTimingPercent, MaxTimingPercent);
+        }
     }
 
     /// <summary>
@@ -125,26 +147,28 @@ namespace Laubrary.Launimator
         public string name = "Idle";
         public float fps = 12f;
 
-        /// Seconds frame <paramref name="i"/> shows for: its own duration when the recipe sets one, otherwise
-        /// one tick at <see cref="fps"/>. Infinity when neither gives it a length (fps 0 and no duration), so a
-        /// player dividing by it simply never advances. The recipe is aligned 1:1 with the baked frames.
+        /// Seconds frame <paramref name="i"/> shows for: one tick at <see cref="fps"/>, scaled by that frame's
+        /// <see cref="FrameRef.timingPercent"/>. Infinity at fps 0, so a player dividing by it simply never
+        /// advances. The recipe is aligned 1:1 with the baked frames.
         public float FrameSeconds(int i)
         {
+            if (fps <= 0f) return float.PositiveInfinity;
+            float tick = 1f / fps;
             if (recipe != null && recipe.Count > 0)
             {
                 var r = recipe[Mathf.Clamp(i, 0, recipe.Count - 1)];
-                if (r != null && r.durationMs > 0f) return r.durationMs / 1000f;
+                if (r != null) return tick * r.TimingFactor;
             }
-            return fps > 0f ? 1f / fps : float.PositiveInfinity;
+            return tick;
         }
 
-        /// True when any frame overrides the fps with its own duration.
+        /// True when any frame's timing differs from the plain fps.
         public bool HasFrameTimings
         {
             get
             {
                 if (recipe == null) return false;
-                foreach (var r in recipe) if (r != null && r.durationMs > 0f) return true;
+                foreach (var r in recipe) if (r != null && r.timingPercent != 0f) return true;
                 return false;
             }
         }
