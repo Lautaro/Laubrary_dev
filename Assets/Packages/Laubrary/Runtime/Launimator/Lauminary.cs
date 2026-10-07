@@ -46,6 +46,10 @@ namespace Laubrary.Launimator
         [Tooltip("Per-frame sprite edit (flip / rotate / squash-stretch), baked into the frame at registration " +
                  "time. Identity by default — only set by the Laumination Builder's UI.4 tools.")]
         public CellTransform transform = CellTransform.Identity;
+
+        [Tooltip("How long THIS frame shows, in milliseconds. 0 = the animation's own fps decides (the default). " +
+                 "Hold a wind-up longer or flash an impact frame briefly without changing the rest.")]
+        [Min(0f)] public float durationMs;
     }
 
     /// <summary>
@@ -120,6 +124,54 @@ namespace Laubrary.Launimator
     {
         public string name = "Idle";
         public float fps = 12f;
+
+        /// Seconds frame <paramref name="i"/> shows for: its own duration when the recipe sets one, otherwise
+        /// one tick at <see cref="fps"/>. Infinity when neither gives it a length (fps 0 and no duration), so a
+        /// player dividing by it simply never advances. The recipe is aligned 1:1 with the baked frames.
+        public float FrameSeconds(int i)
+        {
+            if (recipe != null && recipe.Count > 0)
+            {
+                var r = recipe[Mathf.Clamp(i, 0, recipe.Count - 1)];
+                if (r != null && r.durationMs > 0f) return r.durationMs / 1000f;
+            }
+            return fps > 0f ? 1f / fps : float.PositiveInfinity;
+        }
+
+        /// True when any frame overrides the fps with its own duration.
+        public bool HasFrameTimings
+        {
+            get
+            {
+                if (recipe == null) return false;
+                foreach (var r in recipe) if (r != null && r.durationMs > 0f) return true;
+                return false;
+            }
+        }
+
+        /// One play-through in seconds (sum of every frame's time), or 0 when it has no frames or no length.
+        public float TotalSeconds
+        {
+            get
+            {
+                int n = frames != null && frames.Count > 0 ? frames.Count : recipe != null ? recipe.Count : 0;
+                float sum = 0f;
+                for (int i = 0; i < n; i++) sum += FrameSeconds(i);
+                return float.IsInfinity(sum) ? 0f : sum;
+            }
+        }
+
+        /// Which frame shows <paramref name="seconds"/> into a LOOPING play-through.
+        public int FrameAt(float seconds)
+        {
+            int n = frames != null && frames.Count > 0 ? frames.Count : recipe != null ? recipe.Count : 0;
+            if (n == 0) return 0;
+            float total = TotalSeconds;
+            if (total <= 0f) return 0;
+            float t = Mathf.Repeat(seconds, total);
+            for (int i = 0; i < n; i++) { t -= FrameSeconds(i); if (t < 0f) return i; }
+            return n - 1;
+        }
 
         [Tooltip("Editable source-of-truth: each frame's source rect + registration. Drives baking + re-editing.")]
         public List<FrameRef> recipe = new List<FrameRef>();

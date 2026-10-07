@@ -51,7 +51,9 @@ namespace Laubrary.Launimator
         {
             var def = Find();
             if (def == null || def.frames == null || def.frames.Count <= 1 || tex == null) return;
-            int frame = Mathf.FloorToInt((float)(time * Mathf.Max(1f, def.fps))) % def.frames.Count;
+            int frame = def.HasFrameTimings
+                ? def.FrameAt((float)time)
+                : Mathf.FloorToInt((float)(time * Mathf.Max(1f, def.fps))) % def.frames.Count;
             var s = def.frames[frame];
             if (s == null || s.texture == null) return;
             var r = s.textureRect;

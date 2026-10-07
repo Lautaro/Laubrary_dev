@@ -72,15 +72,18 @@ namespace Laubrary.Launimator
         {
             if (!_playing || !HasFrames) return;
 
-            float fps = _anim.fps * globalSpeedScale * _speed;
-            if (fps <= 0f) return;
+            float speed = globalSpeedScale * _speed;
+            if (speed <= 0f) return;
 
+            // _t is the fraction of the CURRENT frame elapsed. Each frame has its own length (see
+            // Laumination.FrameSeconds), so a carry-over is converted through seconds into the next frame.
             int count = _anim.frames.Count;
-            _t += deltaTime * fps;
+            _t += deltaTime * speed / _anim.FrameSeconds(_i);
             while (_t >= 1f)
             {
-                _t -= 1f;
+                float carrySeconds = (_t - 1f) * _anim.FrameSeconds(_i);
                 _i++;
+                _t = _i < count ? carrySeconds / _anim.FrameSeconds(_i) : carrySeconds / _anim.FrameSeconds(0);
                 if (_i < count) { MaybeFireHit(); FireFrameEvents(); }
                 if (_i >= count)
                 {

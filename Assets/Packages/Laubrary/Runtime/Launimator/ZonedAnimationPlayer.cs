@@ -258,8 +258,7 @@ namespace Laubrary.Launimator
             if (string.IsNullOrEmpty(clip) || !_byName.TryGetValue(clip, out var def)) return 0f;
             if (def.frames == null || def.frames.Count == 0) return 0f;
             if (def.zonesEnabled && def.zones != null && def.zones.Count > 0) return 0f;
-            float fps = def.fps * speedScale;
-            return fps > 0f ? def.frames.Count / fps : 0f;
+            return speedScale > 0f ? def.TotalSeconds / speedScale : 0f;
         }
 
         /// <summary>Stop playback AND blank every managed renderer (base + layers) — "show no clip", so a
@@ -282,14 +281,16 @@ namespace Laubrary.Launimator
 
             if (_ending) { TickEnding(dt); return; }
 
-            float fps = _anim.fps * speedScale;
-            if (fps <= 0f) return;
-            _t += dt * fps;
+            if (speedScale <= 0f) return;
+            // _t is the fraction of the CURRENT frame elapsed; each frame has its own length
+            // (Laumination.FrameSeconds), so a carry-over is converted through seconds into the next frame.
+            _t += dt * speedScale / _anim.FrameSeconds(_i);
             int guard = 0;
             while (_t >= 1f && guard++ < 512)
             {
-                _t -= 1f;
+                float carrySeconds = (_t - 1f) * _anim.FrameSeconds(_i);
                 StepOne();
+                _t = carrySeconds / _anim.FrameSeconds(_i);
                 if (!_playing) break;
             }
             PushSprite();

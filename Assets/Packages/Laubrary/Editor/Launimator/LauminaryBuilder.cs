@@ -111,7 +111,7 @@ namespace Laubrary.Launimator.Editor
                 string safeAnim = Sanitize(def.name);
                 string clipPath = $"{clipsFolder}/{safeAnim}.anim";
                 keepClipPaths.Add(clipPath);
-                AnimationClip built = BuildSpriteClip(def.frames, def.fps);
+                AnimationClip built = BuildSpriteClip(def.frames, def.fps, def);
                 built.name = safeAnim;
 
                 var existing = AssetDatabase.LoadAssetAtPath<AnimationClip>(clipPath);
@@ -147,7 +147,7 @@ namespace Laubrary.Launimator.Editor
         /// Build an in-memory looping AnimationClip that swaps SpriteRenderer.sprite each frame at the given
         /// fps. The canonical sprite-frame-animation build.
         /// </summary>
-        public static AnimationClip BuildSpriteClip(IList<Sprite> frames, float frameRate)
+        public static AnimationClip BuildSpriteClip(IList<Sprite> frames, float frameRate, Laumination timing = null)
         {
             if (frameRate <= 0f) frameRate = 12f;
 
@@ -165,8 +165,14 @@ namespace Laubrary.Launimator.Editor
             };
 
             var keys = new ObjectReferenceKeyframe[frames.Count];
+            // Keys at each frame's real start time: per-frame durations (Laumination.FrameSeconds) when the
+            // animation has any, otherwise the uniform 1/frameRate spacing.
+            float at = 0f;
             for (int i = 0; i < frames.Count; i++)
-                keys[i] = new ObjectReferenceKeyframe { time = i / frameRate, value = frames[i] };
+            {
+                keys[i] = new ObjectReferenceKeyframe { time = at, value = frames[i] };
+                at += timing != null && timing.HasFrameTimings ? timing.FrameSeconds(i) : 1f / frameRate;
+            }
 
             AnimationUtility.SetObjectReferenceCurve(clip, binding, keys);
             return clip;

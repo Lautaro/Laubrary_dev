@@ -55,6 +55,8 @@ namespace Laubrary.Launimator.Editor
             string folder = LauminarySources.SourceFolder(versionFolder);
             LauminaryBuilder.EnsureFolder(folder);
             string path = $"{folder}/{LauminaryBuilder.Sanitize(def.name)}.aseprite";
+            doc.frameDurationsMs = new int[n];
+            for (int f = 0; f < n; f++) doc.frameDurationsMs[f] = Mathf.Max(1, Mathf.RoundToInt(def.FrameSeconds(f) * 1000f));
             File.WriteAllBytes(ToSystemPath(path), AsepriteIO.Write(doc));
             AssetDatabase.ImportAsset(path);
 
@@ -104,15 +106,22 @@ namespace Laubrary.Launimator.Editor
             ConfigureSource(ownedPath);
             string guid = AssetDatabase.AssetPathToGUID(ownedPath);
 
+            // Aseprite's per-frame durations come back as frame timings. A frame at the clip's own rate stays on
+            // the default (0), so changing the clip's fps later still moves it.
+            float defaultMs = def.fps > 0f ? 1000f / def.fps : 0f;
             def.recipe = new List<FrameRef>(n);
             for (int f = 0; f < n; f++)
+            {
+                int ms = doc.frameDurationsMs != null && f < doc.frameDurationsMs.Length ? doc.frameDurationsMs[f] : 0;
                 def.recipe.Add(new FrameRef
                 {
                     sourceTextureGuid = guid,
                     cell = new Rect(f * W, 0, W, H),
                     pivot = def.framePivot,
-                    transform = CellTransform.Identity
+                    transform = CellTransform.Identity,
+                    durationMs = ms > 0 && Mathf.Abs(ms - defaultMs) > 1f ? ms : 0f,
                 });
+            }
             def.sourceTextureGuid = guid;
             def.bgKeyEnabled = false;
             def.fixedFrame = true; def.frameWidth = W; def.frameHeight = H;
@@ -162,6 +171,10 @@ namespace Laubrary.Launimator.Editor
         {
             if (!(AssetImporter.GetAtPath(path) is TextureImporter ti)) return;
             ti.textureType = TextureImporterType.Default;
+            // The strip must import at its exact size: a Default texture otherwise rescales a non-power-of-two
+            // strip and caps it at 2048, and every recipe rect would then read resampled pixels.
+            ti.npotScale = TextureImporterNPOTScale.None;
+            ti.maxTextureSize = 16384;
             ti.isReadable = true;
             ti.filterMode = FilterMode.Point;
             ti.textureCompression = TextureImporterCompression.Uncompressed;

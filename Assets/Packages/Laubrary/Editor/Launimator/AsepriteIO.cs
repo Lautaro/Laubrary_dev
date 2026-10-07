@@ -24,6 +24,9 @@ namespace Laubrary.Launimator.Editor
         public List<AseLayer> layers = new List<AseLayer>();
         public List<AseTag> tags = new List<AseTag>();
         public Color32[][][] pixels;   // [frame][layer] full-canvas, bottom-up; null = empty cel
+        /// Each frame's own duration in milliseconds, as Aseprite stores it. Null on write = every frame
+        /// takes Write's uniform duration.
+        public int[] frameDurationsMs;
     }
 
     /// <summary>
@@ -67,7 +70,9 @@ namespace Laubrary.Launimator.Editor
                 // Old 16-bit chunk count: write the real count (Aseprite reads THIS field; 0xFFFF is only a
                 // sentinel meaning "use the 32-bit field", which Aseprite 1.3 treats as a literal 65535).
                 w.Write((ushort)(chunkCount <= 0xFFFE ? chunkCount : 0xFFFF));
-                w.Write((ushort)durMs);
+                int frameMs = d.frameDurationsMs != null && f < d.frameDurationsMs.Length && d.frameDurationsMs[f] > 0
+                    ? d.frameDurationsMs[f] : durMs;
+                w.Write((ushort)Mathf.Clamp(frameMs, 1, 65535));
                 w.Write(new byte[2]);
                 w.Write((uint)chunkCount);     // new 32-bit chunk count
 
@@ -155,13 +160,14 @@ namespace Laubrary.Launimator.Editor
 
             var doc = new AseDoc { width = W, height = H, frameCount = F };
             doc.pixels = new Color32[F][][];
+            doc.frameDurationsMs = new int[F];
 
             for (int f = 0; f < F; f++)
             {
                 long frameStart = r.BaseStream.Position;
                 uint frameBytes = r.ReadUInt32();
                 if (r.ReadUInt16() != 0xF1FA) throw new Exception("Bad frame magic.");
-                int oldCount = r.ReadUInt16(); r.ReadUInt16(); r.ReadBytes(2);
+                int oldCount = r.ReadUInt16(); doc.frameDurationsMs[f] = r.ReadUInt16(); r.ReadBytes(2);
                 uint newCount = r.ReadUInt32();
                 long chunkCount = newCount != 0 ? newCount : oldCount;
 

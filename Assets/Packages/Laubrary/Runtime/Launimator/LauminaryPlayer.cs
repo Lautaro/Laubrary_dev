@@ -145,11 +145,11 @@ namespace Laubrary.Launimator
             if (h > 1e-4f) transform.localScale = new Vector3(worldUnits / h, worldUnits / h, 1f);
         }
 
-        /// <summary>Authored duration of a clip in seconds (frames ÷ fps) at speed 1, or 0 if unknown.</summary>
+        /// <summary>Authored duration of a clip in seconds (every frame's own time summed) at speed 1, or 0 if unknown.</summary>
         public float ClipLength(string clip)
         {
-            if (!string.IsNullOrEmpty(clip) && _byName.TryGetValue(clip, out var d) && d.fps > 0f && d.frames != null)
-                return d.frames.Count / d.fps;
+            if (!string.IsNullOrEmpty(clip) && _byName.TryGetValue(clip, out var d) && d.frames != null)
+                return d.TotalSeconds;
             return 0f;
         }
 

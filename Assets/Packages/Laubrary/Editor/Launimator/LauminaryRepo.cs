@@ -210,6 +210,9 @@ namespace Laubrary.Launimator.Editor
 
             // Carry across only what does NOT affect baking. frames/atlas/clip stay exactly as baked.
             existing.fps = def.fps;
+            // Frame timings are playback, not pixels — the recipes matched cell for cell above.
+            for (int i = 0; i < existing.recipe.Count; i++)
+                if (existing.recipe[i] != null && def.recipe[i] != null) existing.recipe[i].durationMs = def.recipe[i].durationMs;
             existing.events = def.events;
             existing.metaLayersEnabled = def.metaLayersEnabled;
             existing.metaLayers = def.metaLayers;
@@ -487,7 +490,7 @@ namespace Laubrary.Launimator.Editor
         {
             name = d.name,
             fps = d.fps,
-            recipe = d.recipe.Select(f => new FrameRef { sourceTextureGuid = f.sourceTextureGuid, cell = f.cell, pivot = f.pivot, transform = f.transform }).ToList(),
+            recipe = d.recipe.Select(f => new FrameRef { sourceTextureGuid = f.sourceTextureGuid, cell = f.cell, pivot = f.pivot, transform = f.transform, durationMs = f.durationMs }).ToList(),
             events = d.events != null ? d.events.Select(e => new FrameEvent { frame = e.frame, name = e.name }).ToList() : new List<FrameEvent>(),
             sourceTextureGuid = d.sourceTextureGuid,
             bgKeyEnabled = d.bgKeyEnabled,
