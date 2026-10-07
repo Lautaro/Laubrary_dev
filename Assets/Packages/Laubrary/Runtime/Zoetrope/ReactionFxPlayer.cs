@@ -284,12 +284,14 @@ namespace Laubrary.Zoetrope
             {
                 done = true;
                 if (holdToken != 0 && holdToken == _holdToken) HoldingStill = false;
+                if (holdToken != 0) _travelMotion?.Stop(holdToken);
                 EventFinished?.Invoke(id, interrupted);
             });
             if (res == ArmResult.Armed && !done)
             {
                 holdToken = ++_holdToken;
                 HoldingStill = r.holdStill;
+                StartTravel(r, ctx, secs, holdToken);
             }
             // Identical to hurt and death (the contract above): EventFinished fires for EVERY raise, so a
             // caller awaiting it for a named event can never hang. It used to fire only when a clip actually
@@ -370,6 +372,23 @@ namespace Laubrary.Zoetrope
         /// (through the ZoeCharacter bridge) to stop walking; the event's own push effects still apply.
         public bool HoldingStill { get; private set; }
         int _holdToken;
+        ReactionTravelMotion _travelMotion;
+
+        /// Begin the move's authored travel (see <see cref="ReactionTravel"/>), along the facing the body has
+        /// right now, in the art's own pixels. Any travel still running from an earlier move is replaced.
+        void StartTravel(ReactionFx r, EventContext ctx, float seconds, int token)
+        {
+            if (r.travel == null || !r.travel.IsAuthored || seconds <= 0f) return;
+            float deg = ctx.ResolveDirectionDeg(DirectionParam.Facing);
+            if (float.IsNaN(deg)) deg = 0f;
+            var forward = new Vector2(Mathf.Cos(deg * Mathf.Deg2Rad), Mathf.Sin(deg * Mathf.Deg2Rad));
+            var sr = GetComponentInChildren<SpriteRenderer>();
+            float ppu = sr != null && sr.sprite != null ? sr.sprite.pixelsPerUnit : 16f;
+            float worldPerPx = Mathf.Abs(transform.lossyScale.x) / Mathf.Max(0.0001f, ppu);
+            if (_travelMotion == null) _travelMotion = GetComponent<ReactionTravelMotion>();
+            if (_travelMotion == null) _travelMotion = gameObject.AddComponent<ReactionTravelMotion>();
+            _travelMotion.Begin(r.travel, seconds, forward, worldPerPx, token);
+        }
 
         /// Raised when a named event was declared and its Immediate effects fired, but its CLIP was refused —
         /// something higher up the priority ladder (a death, a hurt) is holding the body. Distinct from

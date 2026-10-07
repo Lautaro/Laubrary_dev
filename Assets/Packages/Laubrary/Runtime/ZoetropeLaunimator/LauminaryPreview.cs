@@ -42,5 +42,15 @@ namespace Laubrary.ZoetropeLaunimator
             var a = Pick(version, preferredClip);
             return a != null ? a.fps : 0f;
         }
+
+        /// Each frame's own time in seconds, or null when the animation has no per-frame durations.
+        public static float[] FrameSeconds(LauminaryVersion version, string preferredClip)
+        {
+            var a = Pick(version, preferredClip);
+            if (a == null || !a.HasFrameTimings) return null;
+            var s = new float[a.frames.Count];
+            for (int i = 0; i < s.Length; i++) s[i] = a.FrameSeconds(i);
+            return s;
+        }
     }
 }

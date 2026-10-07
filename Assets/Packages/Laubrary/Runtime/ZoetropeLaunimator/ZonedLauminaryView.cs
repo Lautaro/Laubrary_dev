@@ -45,6 +45,9 @@ namespace Laubrary.ZoetropeLaunimator
             return fps > 0f ? fps : PreviewFps;
         }
 
+        public float[] PreviewFrameSecondsOf(string clip) =>
+            LauminaryPreview.FrameSeconds(version, string.IsNullOrEmpty(clip) ? idleClip : clip);
+
         public Vector2 Build(GameObject host)
         {
             var p = host.AddComponent<ZonedAnimationPlayer>();   // RequireComponent adds the SpriteRenderer

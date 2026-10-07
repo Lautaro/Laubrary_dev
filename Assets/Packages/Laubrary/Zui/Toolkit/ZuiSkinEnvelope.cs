@@ -104,6 +104,11 @@ namespace Laubrary.Zui
             }
         }
 
+        /// The plotting area in this element's local space — where xMin..xMax actually lands. A host that lines
+        /// another control up with this envelope's time axis (a scrubber above it) aligns to THIS, not to the
+        /// element's edges, because the style sheet pads the plot inside the element.
+        public Rect PlotRect => Plot;
+
         float TimeToX(float t, Rect r) => r.x + (t - rt.xMin) / (rt.xMax - rt.xMin) * r.width;
         float XToTime(float x, Rect r) => rt.xMin + (x - r.x) / r.width * (rt.xMax - rt.xMin);
         float ValueToY(float v, Rect r) => r.y + r.height - (v - rt.yMin) / (rt.yMax - rt.yMin) * r.height;
@@ -708,7 +713,25 @@ namespace Laubrary.Zui
                 painter.BeginPath(); painter.MoveTo(new Vector2(x0, plot.y)); painter.LineTo(new Vector2(x1, plot.y));
                 painter.LineTo(new Vector2(x1, plot.yMax)); painter.LineTo(new Vector2(x0, plot.yMax)); painter.ClosePath(); painter.Stroke();
             }
-            if (configuration.showFrameLines && configuration.frameCount > 1)
+            if (configuration.showFrameLines && configuration.frameStarts01 != null && configuration.frameStarts01.Length > 0)
+            {
+                // Uneven frames: a line at every frame start and one at the end; labels thin out like the even case.
+                var starts = configuration.frameStarts01;
+                float lastLabelX = float.NegativeInfinity;
+                painter.lineWidth = 1f;
+                for (int i = 0; i <= starts.Length; i++)
+                {
+                    float f = i < starts.Length ? Mathf.Clamp01(starts[i]) : 1f;
+                    float x = plot.x + plot.width * f;
+                    painter.strokeColor = i == 0 || i == starts.Length ? style.frameEdgeColor : style.frameLineColor;
+                    painter.BeginPath(); painter.MoveTo(new Vector2(x, plot.y)); painter.LineTo(new Vector2(x, plot.yMax)); painter.Stroke();
+                    if (i == starts.Length || x - lastLabelX < style.markerLabelSpacing) continue;
+                    string text = (i + 1).ToString(); float w = text.Length * style.markerLabelSize * 0.61f + 3f;
+                    ctx.DrawText(text, new Vector2(x + w > plot.xMax ? x - w : x + 2f, plot.y + 1f), style.markerLabelSize, style.frameLabelColor);
+                    lastLabelX = x;
+                }
+            }
+            else if (configuration.showFrameLines && configuration.frameCount > 1)
             {
                 int count = configuration.frameCount;
                 float spacing = plot.width / (count - 1);
@@ -726,6 +749,12 @@ namespace Laubrary.Zui
                     string text = i.ToString(); float w = text.Length * style.markerLabelSize * 0.61f + 3f;
                     ctx.DrawText(text, new Vector2(x + w > plot.xMax ? x - w : x + 2f, plot.y + 1f), style.markerLabelSize, style.frameLabelColor);
                 }
+            }
+            if (!float.IsNaN(configuration.playhead01))
+            {
+                float x = plot.x + plot.width * Mathf.Clamp01(configuration.playhead01);
+                painter.strokeColor = new Color(1f, 1f, 1f, 0.85f); painter.lineWidth = 1.5f;
+                painter.BeginPath(); painter.MoveTo(new Vector2(x, plot.y)); painter.LineTo(new Vector2(x, plot.yMax)); painter.Stroke();
             }
             if (!string.IsNullOrEmpty(configuration.xAxisLabel))
                 ctx.DrawText(configuration.xAxisLabel, new Vector2(plot.center.x - configuration.xAxisLabel.Length * style.axisLabelSize * 0.305f, plot.yMax - style.axisLabelSize - 2f), style.axisLabelSize, style.axisLabelColor);

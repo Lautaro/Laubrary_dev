@@ -30,6 +30,9 @@ namespace Laubrary.Zui
         /// so a long animation doesn't become an unreadable smear of digits.
         public bool showFrameLines = false;
         public int frameCount = 0;
+        /// Frame start positions (0..1, ascending) for frames of uneven length — replaces the even spacing of
+        /// frameCount when set. Lines are labelled from 1, matching the Launimator sequence strip.
+        public float[] frameStarts01 = null;
         /// What the vertical markers MEAN. Frame (default) = animation-frame boundaries (0…frameCount-1) —
         /// the task-#34 behaviour, unchanged. Index = particle-index positions (0…frameCount-1) for a curve
         /// whose X axis is a particle INDEX rather than time (e.g. scale-by-index): the SAME line/label/
@@ -106,11 +109,27 @@ namespace Laubrary.Zui
             configuration.minimumPoints = _options.minPoints;
             configuration.showFrameLines = _options.showFrameLines;
             configuration.frameCount = _options.frameCount;
+            configuration.frameStarts01 = _options.frameStarts01;
             configuration.xAxisLabel = _options.xAxisLabel; configuration.yAxisLabel = _options.yAxisLabel;
             configuration.yColorFor = _options.yColorFor;
         }
 
         /// <summary>Repaint after another editor or Undo changed the caller-owned points.</summary>
         public void Refresh() => Repaint();
+
+        /// Replace the uneven frame lines (see <see cref="ZuiEnvelopeOptions.frameStarts01"/>); null hides them.
+        public void SetFrameStarts(float[] starts01)
+        {
+            _options.frameStarts01 = starts01; _options.showFrameLines = starts01 != null;
+            configuration.frameStarts01 = starts01; configuration.showFrameLines = starts01 != null;
+            Repaint();
+        }
+
+        /// Move the playhead line (0..1 across the span); NaN hides it. View state only — never a mutation.
+        public void SetPlayhead(float t01)
+        {
+            configuration.playhead01 = t01;
+            MarkDirtyRepaint();
+        }
     }
 }

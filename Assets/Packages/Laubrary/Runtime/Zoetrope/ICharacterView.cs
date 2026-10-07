@@ -49,6 +49,10 @@ namespace Laubrary.Zoetrope
 
         /// Playback rate for that clip.
         float PreviewFpsOf(string clip);
+
+        /// Seconds each frame of that clip shows, when frames have their own durations; null = every frame
+        /// takes one tick at <see cref="PreviewFpsOf"/>. Optional: a view without per-frame timing omits it.
+        float[] PreviewFrameSecondsOf(string clip) => null;
     }
 
     /// <summary>The default look: one static sprite. No dependency beyond UnityEngine, so it lives in core.</summary>

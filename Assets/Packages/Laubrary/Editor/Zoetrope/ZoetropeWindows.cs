@@ -662,7 +662,7 @@ namespace Laubrary.Zoetrope.Editor
         }
     }
 
-    public class ZoeWindow : ZoetropeDefWindow<Zoe>
+    public partial class ZoeWindow : ZoetropeDefWindow<Zoe>
     {
         protected override string PresentationTool => "zoe";
         [MenuItem("Laubrary/Zoetrope/Zoes")]
@@ -1747,6 +1747,7 @@ namespace Laubrary.Zoetrope.Editor
 
             var body = new VisualElement();
             BuildReactionFx(body, reactionProp, zoe);
+            BuildTravelSection(body, reactionProp, zoe, index);
             box.Add(body);
 
             ZuiFoldCard.Wire(foldKey, header, body, idField, removeBtn);

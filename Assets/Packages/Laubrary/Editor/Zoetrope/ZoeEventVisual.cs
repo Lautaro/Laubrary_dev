@@ -24,6 +24,8 @@ namespace Laubrary.Zoetrope.Editor
         public Sprite[] Frames;
         /// The rate those frames play at. 0 for a still, or a view with no meaningful animation speed.
         public float Fps;
+        /// Each frame's own time in seconds when the animation sets per-frame durations; null = uniform at Fps.
+        public float[] FrameSeconds;
         /// One play-through of the visual, in seconds. 0 when it cannot be measured (a still, or no art).
         public float ClipSeconds;
         /// How long the whole EVENT lasts — ClipSeconds put through the reaction's own duration model (N
@@ -46,6 +48,7 @@ namespace Laubrary.Zoetrope.Editor
                 string clip = reaction != null ? reaction.clip : "";
                 v.Frames = byClip.PreviewFrames(clip) ?? System.Array.Empty<Sprite>();
                 v.Fps = byClip.PreviewFpsOf(clip);
+                v.FrameSeconds = byClip.PreviewFrameSecondsOf(clip);
             }
             else if (zoe.view is IPreviewableView plain)
             {
@@ -59,7 +62,11 @@ namespace Laubrary.Zoetrope.Editor
             // all here and reports 0. Measuring them anyway is how the authoring window came to promise
             // "lasts 0.667 s" for an event the player treats as having no length.
             bool named = reaction != null && !string.IsNullOrEmpty(reaction.clip);
-            if (named && v.Fps > 0f && v.Frames.Length > 0) v.ClipSeconds = v.Frames.Length / v.Fps;
+            if (named && v.FrameSeconds != null && v.FrameSeconds.Length == v.Frames.Length)
+            {
+                foreach (float s in v.FrameSeconds) v.ClipSeconds += s;
+            }
+            else if (named && v.Fps > 0f && v.Frames.Length > 0) v.ClipSeconds = v.Frames.Length / v.Fps;
             v.EventSeconds = reaction != null ? reaction.DurationSeconds(v.ClipSeconds) : 0f;
             return v;
         }

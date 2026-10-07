@@ -46,6 +46,10 @@ MonoBehaviour:
     seconds: 0
     stunSeconds: 0
     holdStill: 0
+    travel:
+      envelope: []
+      maxDistancePx: 0
+      bipolar: 0
     bodyFx: {fileID: 0}
     fx: []
   death:
@@ -56,6 +60,10 @@ MonoBehaviour:
     seconds: 0
     stunSeconds: 0
     holdStill: 0
+    travel:
+      envelope: []
+      maxDistancePx: 0
+      bipolar: 0
     bodyFx: {fileID: 0}
     fx: []
   events:
@@ -69,6 +77,10 @@ MonoBehaviour:
       seconds: 0
       stunSeconds: 0
       holdStill: 1
+      travel:
+        envelope: []
+        maxDistancePx: 0
+        bipolar: 0
       bodyFx: {fileID: 0}
       fx: []
   - id: HeavyChop
@@ -81,6 +93,10 @@ MonoBehaviour:
       seconds: 0
       stunSeconds: 0
       holdStill: 1
+      travel:
+        envelope: []
+        maxDistancePx: 0
+        bipolar: 0
       bodyFx: {fileID: 0}
       fx: []
   - id: Dodge
@@ -93,6 +109,10 @@ MonoBehaviour:
       seconds: 0
       stunSeconds: 0
       holdStill: 1
+      travel:
+        envelope: []
+        maxDistancePx: 0
+        bipolar: 0
       bodyFx: {fileID: 0}
       fx: []
   - id: JumpBack
@@ -105,6 +125,10 @@ MonoBehaviour:
       seconds: 0
       stunSeconds: 0
       holdStill: 1
+      travel:
+        envelope: []
+        maxDistancePx: 0
+        bipolar: 0
       bodyFx: {fileID: 0}
       fx: []
   - id: Turnaround
@@ -117,6 +141,10 @@ MonoBehaviour:
       seconds: 0
       stunSeconds: 0
       holdStill: 1
+      travel:
+        envelope: []
+        maxDistancePx: 0
+        bipolar: 0
       bodyFx: {fileID: 0}
       fx: []
   - id: PushedForwards
@@ -129,6 +157,10 @@ MonoBehaviour:
       seconds: 0
       stunSeconds: 0
       holdStill: 1
+      travel:
+        envelope: []
+        maxDistancePx: 0
+        bipolar: 0
       bodyFx: {fileID: 0}
       fx: []
   - id: Headbutt
@@ -141,6 +173,10 @@ MonoBehaviour:
       seconds: 0
       stunSeconds: 0
       holdStill: 1
+      travel:
+        envelope: []
+        maxDistancePx: 0
+        bipolar: 0
       bodyFx: {fileID: 0}
       fx: []
   - id: PushedBackwards
@@ -153,6 +189,10 @@ MonoBehaviour:
       seconds: 0
       stunSeconds: 0
       holdStill: 1
+      travel:
+        envelope: []
+        maxDistancePx: 0
+        bipolar: 0
       bodyFx: {fileID: 0}
       fx: []
   - id: GutStabLong
@@ -165,6 +205,10 @@ MonoBehaviour:
       seconds: 0
       stunSeconds: 0
       holdStill: 1
+      travel:
+        envelope: []
+        maxDistancePx: 0
+        bipolar: 0
       bodyFx: {fileID: 0}
       fx: []
   - id: HeadChop
@@ -177,26 +221,40 @@ MonoBehaviour:
       seconds: 0
       stunSeconds: 0
       holdStill: 1
+      travel:
+        envelope:
+        - time: 0
+          value: 0
+          exponent: 1
+          editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
+        - time: 0.5
+          value: 0
+          exponent: 1
+          editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
+        - time: 0.9
+          value: 1
+          exponent: 0.5
+          editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
+        - time: 1
+          value: 1
+          exponent: 1
+          editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
+        maxDistancePx: 20
+        bipolar: 0
       bodyFx: {fileID: 0}
-      fx:
-      - enabled: 1
-        trigger: 1
-        frame: 6
-        placement: 2
-        metaLayerId: 
-        bodyPart: 
-        localOffset: {x: 0, y: 0}
-        mirrorOffsetWithFacing: 1
-        direction: 5
-        rotation: 0
-        angleOffsetDeg: 0
-        flipWithFacing: 0
-        fixedAngleDeg: 0
-        scalar: 1
-        follow: 0
-        fx:
-          rid: 7986899893902115351
-        overrides: []
+      fx: []
   - id: NeckSlice
     role: 0
     reaction:
@@ -207,6 +265,10 @@ MonoBehaviour:
       seconds: 0
       stunSeconds: 0
       holdStill: 1
+      travel:
+        envelope: []
+        maxDistancePx: 0
+        bipolar: 0
       bodyFx: {fileID: 0}
       fx: []
   - id: OverCleave
@@ -219,6 +281,10 @@ MonoBehaviour:
       seconds: 0
       stunSeconds: 0
       holdStill: 1
+      travel:
+        envelope: []
+        maxDistancePx: 0
+        bipolar: 0
       bodyFx: {fileID: 0}
       fx: []
   - id: Hit
@@ -231,6 +297,10 @@ MonoBehaviour:
       seconds: 0
       stunSeconds: 0
       holdStill: 1
+      travel:
+        envelope: []
+        maxDistancePx: 0
+        bipolar: 0
       bodyFx: {fileID: 0}
       fx: []
   - id: PushKick
@@ -243,6 +313,10 @@ MonoBehaviour:
       seconds: 0
       stunSeconds: 0
       holdStill: 1
+      travel:
+        envelope: []
+        maxDistancePx: 0
+        bipolar: 0
       bodyFx: {fileID: 0}
       fx: []
   - id: Roll
@@ -255,26 +329,33 @@ MonoBehaviour:
       seconds: 0
       stunSeconds: 0
       holdStill: 1
+      travel:
+        envelope:
+        - time: 0
+          value: 0
+          exponent: 1
+          editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
+        - time: 0.86
+          value: 1
+          exponent: 0.5
+          editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
+        - time: 1
+          value: 1
+          exponent: 1
+          editState: 0
+          randomX: 0
+          randomY: 0
+          randomBias: 0.5
+        maxDistancePx: 48
+        bipolar: 0
       bodyFx: {fileID: 0}
-      fx:
-      - enabled: 1
-        trigger: 0
-        frame: 1
-        placement: 2
-        metaLayerId: 
-        bodyPart: 
-        localOffset: {x: 0, y: 0}
-        mirrorOffsetWithFacing: 1
-        direction: 5
-        rotation: 0
-        angleOffsetDeg: 0
-        flipWithFacing: 0
-        fixedAngleDeg: 0
-        scalar: 1
-        follow: 0
-        fx:
-          rid: 7986899893902115352
-        overrides: []
+      fx: []
   - id: SwordCyclone
     role: 0
     reaction:
@@ -285,6 +366,10 @@ MonoBehaviour:
       seconds: 0
       stunSeconds: 0
       holdStill: 1
+      travel:
+        envelope: []
+        maxDistancePx: 0
+        bipolar: 0
       bodyFx: {fileID: 0}
       fx: []
   brain:
@@ -314,20 +399,6 @@ MonoBehaviour:
         version: {fileID: 11400000, guid: 969b6baf52f8b744b869ef2fb7720143, type: 2}
         idleClip: Idle
         height: 0
-    - rid: 7986899893902115351
-      type: {class: PushbackEffect, ns: Laubrary.Zoetrope, asm: com.Lautaro-Arino.Laubrary.Zoetrope}
-      data:
-        distance: 1.25
-        distancePerAmount: 0
-        duration: 0.4
-        invert: 0
-    - rid: 7986899893902115352
-      type: {class: PushbackEffect, ns: Laubrary.Zoetrope, asm: com.Lautaro-Arino.Laubrary.Zoetrope}
-      data:
-        distance: 3
-        distancePerAmount: 0
-        duration: 0.6
-        invert: 0
     - rid: 7986899893902115354
       type: {class: SideViewPlayerControllerSpec, ns: Laubrary.ZoetropeZoeCharacter, asm: com.Lautaro-Arino.Laubrary.Zoetrope.ZoeCharacter}
       data:

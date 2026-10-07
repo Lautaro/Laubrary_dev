@@ -234,6 +234,9 @@ namespace Laubrary.Zoetrope
                  "clip ends or something interrupts it.")]
         public bool holdStill = false;
 
+        [Tooltip("How far the move carries the character over its length, drawn as an envelope in the Zoe window.")]
+        public ReactionTravel travel = new ReactionTravel();
+
         [Tooltip("Optional SpriteFx Stack played on the character's OWN sprite the instant this reaction fires — a " +
                  "hurt/death flash, tint or dissolve that rides on top of the live animation (applied via a " +
                  "SpriteFxFilter added to the body's SpriteRenderer). Leave empty for no body effect. Unlike the FX " +
