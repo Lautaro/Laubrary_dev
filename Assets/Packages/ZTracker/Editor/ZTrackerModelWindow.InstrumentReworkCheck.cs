@@ -196,10 +196,13 @@ namespace Laubrary.ZTracker.Editor
                     var chain = new Laubrary.Audio.AudioEffectChainData();
                     chain.modifiers.Add(new Laubrary.Audio.AudioModifierData { type = Laubrary.Zounds.ZoundModifierType.Random, uid = "random-check", p = new[] { -.25f, .25f, 1f } });
                     int edits = 0; string before = JsonUtility.ToJson(chain);
-                    var editor = new Laubrary.Audio.Editor.AudioChainEditor(() => chain, (label, action, structural) => { edits++; action(); });
+                    var editor = new Laubrary.Zounds.Uitk.ChainEditorTK(new Laubrary.Zounds.Uitk.AudioDataChainEditorHost(() => chain,
+                        (label, action) => { edits++; action(); }, _ => edits++, () => { }, () => { }));
+                    window.rootVisualElement.Add(editor); LayoutChain(window);
                     Need(edits == 0 && JsonUtility.ToJson(chain) == before, "Building Random controls mutated the chain");
-                    var ranges = editor.Query<ZuiMicroMinMax>().ToList(); Need(ranges.Count == 1, "Random endpoints are not one paired control");
-                    typeof(ZuiMicroMinMax).GetMethod("SetValues", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(ranges[0], new object[] { -50f, 75f, true });
+                    var ranges = editor.Query<ZuiSkinMinMax>().ToList(); Need(ranges.Count == 1, "Random endpoints are not one paired control");
+                    ((Action<float,float>)typeof(ZuiSkinMinMax).GetField("_onChanged", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(ranges[0]))(-.5f, .75f);
+                    ReleaseChain(editor); editor.RemoveFromHierarchy();
                     Need(edits == 1, "The two endpoint changes were not one authoring transaction");
                     Near(chain.modifiers[0].p[0], -.5f, "Random lower physical value"); Near(chain.modifiers[0].p[1], .75f, "Random upper physical value");
                 });

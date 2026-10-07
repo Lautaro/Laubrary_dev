@@ -43,11 +43,41 @@ namespace Laubrary.ZTracker.Editor
                 Check("preset deletion retains later variation identity and joint Undo",()=>{var q=inst.model.parameters;for(int i=0;i<3;i++)q.presets.Add(new ZTrackerInstrument.InstrumentPreset{name="Preset "+i,volume=.2f*(i+1),ovrVolPan=true});var pt=asset.model.patterns[0].tracks[0];for(int i=0;i<3;i++){var note=TrackerEngineCheck.Note();note.parameterSetId=inst.model.id+"/preset-"+i;pt.WriteLine(new PatternLine{line=i,notes=new List<NoteCell>{note}});}w.pane=3;w.instrumentTab=5;w.presetIndex=1;w.BuildPane();Click("remove-instrument-preset");Need(inst.model.parameters.presets.Count==2&&pt.ReadLine(1).notes[0].parameterSetId==""&&pt.ReadLine(2).notes[0].parameterSetId==inst.model.id+"/preset-1","Deletion retargeted notes");Need(Math.Abs(ZTrackerMigration.ResolveParameterSets(inst.model)[2].data.parameters.volume-.6f)<1e-6,"Later preset sound changed");Undo.PerformUndo();Need(inst.model.parameters.presets.Count==3&&asset.model.patterns[0].tracks[0].ReadLine(2).notes[0].parameterSetId==inst.model.id+"/preset-2","Joint Undo did not restore references");Undo.PerformRedo();Need(inst.model.parameters.presets.Count==2&&asset.model.patterns[0].tracks[0].ReadLine(2).notes[0].parameterSetId==inst.model.id+"/preset-1","Joint Redo failed");});
                 Check("shared chain scalar gesture collapses callbacks into one Undo",()=>
                 {
-                    asset.model.tracks[0].devices.nodes.Add(new AudioEffectNodeData{uid="gesture-gain",type=ZoundEffectType.Gain,p=new[]{1f}});w.SongEdit("prior independent edit",()=>asset.model.tracks[0].name="Keep prior edit");w.mixerTab=1;w.BuildPane();var dial=w.rootVisualElement.Q<ZuiMicroSlider>("chain-param-0-0");Need(dial!=null,"Shared chain dial missing");var flags=BindingFlags.Instance|BindingFlags.NonPublic;var pd=ZoundEffectDescriptors.Get(ZoundEffectType.Gain).parameters[0];typeof(ZuiMicroSlider).GetMethod("OpenGesture",flags).Invoke(dial,null);
-                    try{foreach(float gain in new[]{.8f,.4f,.2f})typeof(ZuiMicroSlider).GetMethod("SetValue",flags).Invoke(dial,new object[]{Laubrary.Audio.Editor.AudioChainEditor.DisplayValue(pd,gain),true});}finally{typeof(ZuiMicroSlider).GetMethod("CloseGesture",flags).Invoke(dial,null);}
+                    asset.model.tracks[0].devices.nodes.Add(new AudioEffectNodeData{uid="gesture-gain",type=ZoundEffectType.Gain,p=new[]{1f}});w.SongEdit("prior independent edit",()=>asset.model.tracks[0].name="Keep prior edit");w.mixerTab=1;w.BuildPane();var dial=ChainDial(w);Need(dial!=null,"Shared chain dial missing");var flags=BindingFlags.Instance|BindingFlags.NonPublic;var pd=ZoundEffectDescriptors.Get(ZoundEffectType.Gain).parameters[0];
+                    try{foreach(float gain in new[]{.8f,.4f,.2f})SetChainDial(dial,Laubrary.Audio.Editor.AudioChainEditor.DisplayValue(pd,gain));}finally{ReleaseChain(dial);}
                     Need(Math.Abs(asset.model.tracks[0].devices.nodes[0].p[0]-.2f)<1e-6,"Gesture did not edit gain");Undo.PerformUndo();Need(asset.model.tracks[0].devices.nodes[0].p[0]==1&&asset.model.tracks[0].name=="Keep prior edit","One Undo did not restore the entire gesture independently");Undo.PerformRedo();Need(Math.Abs(asset.model.tracks[0].devices.nodes[0].p[0]-.2f)<1e-6,"Gesture Redo failed");
                 });
                 Check("line operations keep unsupported null lane payload and Undo",()=>{Malformed();string raw=asset.model.patterns[0].tracks[0].automation[0].rawSource;w.SongEdit("insert malformed lane fixture",()=>ZTrackerPatternOperations.InsertLine(w.Pattern,0));w.SongEdit("delete malformed lane fixture",()=>ZTrackerPatternOperations.DeleteLine(w.Pattern,0));w.SongEdit("resize malformed lane fixture",()=>ZTrackerPatternOperations.Resize(w.Pattern,4));Need(w.Pattern.lineCount==4&&w.Pattern.tracks[0].automation[0].points==null&&w.Pattern.tracks[0].automation[0].rawSource==raw,"Line operation lost raw nullable lane");Undo.PerformUndo();Need(w.Pattern.lineCount==8&&w.Pattern.tracks[0].automation[0].target==null&&w.Pattern.tracks[0].automation[1]==null,"Line Undo normalized raw nullable lane");});
+                Check("shared editor reorder and removal preserve send and lane identities through Undo Redo",()=>
+                {
+                    var t=asset.model.tracks[0];
+                    t.devices.nodes.Add(new AudioEffectNodeData{uid="first",type=ZoundEffectType.Gain,p=new[]{1f}});
+                    t.devices.nodes.Add(new AudioEffectNodeData{uid="second",type=ZoundEffectType.Gain,p=new[]{.5f}});
+                    t.sends.Add(new SendDestination{trackId=asset.model.tracks[1].id,devicePosition=1});
+                    var pt=asset.model.patterns[0].tracks[0];
+                    pt.automation.Add(new AutomationLane{id="chain-lane",target=new ParameterTarget{kind=ParameterKind.Device,trackId=t.id,deviceId="first",index=0,parameter="1"}});
+                    w.mixerTab=1;w.BuildPane();ReorderChain(w,0,1);
+                    Need(w.SelectedTrack.devices.nodes[1].uid=="first"&&w.SelectedTrack.sends[0].devicePosition==2,"Write-back moved send to another effect");
+                    Need(w.Pattern.tracks[0].automation[0].target.deviceId=="first","Reorder retargeted lane");
+                    Undo.PerformUndo();Need(w.SelectedTrack.devices.nodes[0].uid=="first"&&w.SelectedTrack.sends[0].devicePosition==1,"Reorder Undo failed");
+                    Undo.PerformRedo();Need(w.SelectedTrack.sends[0].devicePosition==2,"Reorder Redo failed");
+                    LayoutChain(w);Click("chain-remove-1");
+                    Need(w.SelectedTrack.devices.nodes.Count==1&&w.Pattern.tracks[0].automation[0].unsupported&&w.Pattern.tracks[0].automation[0].target.unresolved,"Removal did not flag lane");
+                    Undo.PerformUndo();Need(w.SelectedTrack.devices.nodes.Count==2&&!w.Pattern.tracks[0].automation[0].unsupported&&!w.Pattern.tracks[0].automation[0].target.unresolved,"Removal Undo did not restore lane");
+                    Need(Math.Abs(ChainDial(w,1).value-Laubrary.Audio.Editor.AudioChainEditor.DisplayValue(ZoundEffectDescriptors.Get(ZoundEffectType.Gain).parameters[0],1f))<1e-5,"Restored gain control does not show unity gain");
+                    Undo.PerformRedo();Need(w.SelectedTrack.devices.nodes.Count==1&&w.Pattern.tracks[0].automation[0].unsupported,"Removal Redo failed");
+                });
+                Check("instrument shared chain multi-move gesture restores data and visible control independently",()=>
+                {
+                    inst.model.fxChains.Add(new AudioEffectChainData());inst.model.fxChains[0].nodes.Add(new AudioEffectNodeData{uid="instrument-gain",type=ZoundEffectType.Gain,p=new[]{1f}});
+                    w.InstrumentEdit("prior independent edit",()=>inst.model.name="Keep prior instrument edit");
+                    w.pane=3;w.instrumentTab=2;w.BuildPane();var dial=ChainDial(w);Need(dial!=null,"Instrument gain absent");
+                    foreach(float gain in new[]{.8f,.4f,.2f})SetChainDial(dial,Laubrary.Audio.Editor.AudioChainEditor.DisplayValue(ZoundEffectDescriptors.Get(ZoundEffectType.Gain).parameters[0],gain));
+                    ReleaseChain(dial);Undo.PerformUndo();
+                    Need(inst.model.fxChains[0].nodes[0].p[0]==1&&inst.model.name=="Keep prior instrument edit","Instrument gesture Undo absorbed prior edit");
+                    Need(Math.Abs(ChainDial(w).value-Laubrary.Audio.Editor.AudioChainEditor.DisplayValue(ZoundEffectDescriptors.Get(ZoundEffectType.Gain).parameters[0],1f))<1e-5,"Instrument control did not reload after Undo");
+                    Undo.PerformRedo();Need(Math.Abs(inst.model.fxChains[0].nodes[0].p[0]-.2f)<1e-6,"Instrument gesture Redo failed");
+                });
                 foreach(int partition in new[]{64,333,1024})
                 {
                     Check("held unison authored detune and repeated restoring refresh / "+partition,()=>

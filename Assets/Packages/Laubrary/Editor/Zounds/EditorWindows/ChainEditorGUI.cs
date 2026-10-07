@@ -170,11 +170,10 @@ namespace Laubrary.Zounds {
         }
 
         internal static void Modify(Zound zound, string undo, System.Action action) {
-            ZoundsWindow.ModifyAndSaveZoundsProject(undo, () => {
-                action();
-                ZoundDspPlayback.InvalidateLayout(zound);
-            });
+            Modify(new Uitk.ZoundChainEditorHost(zound), undo, action);
         }
+
+        internal static void Modify(Uitk.IChainEditorHost host, string undo, System.Action action) => host.Edit(undo, action);
 
         // Continuous edits (slider drags) open one undo group on the first change and close it on mouse up.
         private void ModifyContinuous(Zound zound, string undo, System.Action action) {
@@ -382,7 +381,7 @@ namespace Laubrary.Zounds {
         }
 
         internal static float EffectiveValue(Zound zound, ZoundEffectChain chain, int nodeIndex, int paramIndex, float presetValue) {
-            if (zound.chainPresetId != 0 && ZoundChainLibrary.TryGetOverride(zound, nodeIndex, paramIndex, out float v)) return v;
+            if (zound != null && zound.chainPresetId != 0 && ZoundChainLibrary.TryGetOverride(zound, nodeIndex, paramIndex, out float v)) return v;
             return presetValue;
         }
 
@@ -685,38 +684,51 @@ namespace Laubrary.Zounds {
         }
 
         internal static void ShowParamMenu(Zound zound, ZoundEffectChain chain, int nodeIndex, int paramIndex, ParamDesc pd, bool overridden) {
+            ShowParamMenu(new Uitk.ZoundChainEditorHost(zound), chain, nodeIndex, paramIndex, pd, overridden);
+        }
+
+        internal static void ShowParamMenu(Uitk.IChainEditorHost host, ZoundEffectChain chain, int nodeIndex, int paramIndex, ParamDesc pd, bool overridden, UnityEngine.UIElements.VisualElement anchor = null) {
+            var zound = (host as Uitk.IChainEditorZoundHost)?.Zound;
+            if (nodeIndex == int.MinValue || (nodeIndex < 0 && (host.Features & Uitk.ChainEditorFeatures.SourceStage) == 0)) return;
             var items = new List<ZUI.ZUIMenuItem>();
-            if (!pd.automatable) items.Add(ZUI.MenuItem("Not modulatable", null, false, false));
+            var menu = anchor != null ? Laubrary.Zui.Z.Menu(anchor) : null;
+            void Item(string label, System.Action action, bool selected = false, bool enabled = true) {
+                if (menu != null) menu.Item(label, "Change this parameter's modulation.", action, @checked: selected, enabled: enabled);
+                else items.Add(ZUI.MenuItem(label, action, selected, enabled));
+            }
+            if (!pd.automatable) Item("Not modulatable", null, false, false);
             else {
                 for (int m = 0; m < chain.modifiers.Count; m++) {
                     int mi = m;
                     bool already = chain.bindings.Exists(b => b.modifierIndex == mi && b.nodeIndex == nodeIndex && b.paramIndex == paramIndex);
-                    items.Add(ZUI.MenuItem("Modulate with/" + ModifierLabel(chain, m), () => Modify(zound, "bind modifier", () => AddBinding(chain, mi, nodeIndex, paramIndex, pd)), already, !already));
+                    if (chain.modifiers[m].type == ZoundModifierType.Code && (host.Features & Uitk.ChainEditorFeatures.CodeModifier) == 0) continue;
+                    Item("Modulate with/" + ModifierLabel(chain, m), () => Modify(host, "bind modifier", () => AddBinding(chain, mi, nodeIndex, paramIndex, pd)), already, !already);
                 }
                 for (int t = 0; t < ZoundEffectDescriptors.ModifierTypeCount; t++) {
                     var type = (ZoundModifierType)t;
-                    items.Add(ZUI.MenuItem("Modulate with/New " + ZoundEffectDescriptors.GetModifier(type).displayName.ToLower(), () => Modify(zound, "add modifier", () => {
+                    if (type == ZoundModifierType.Code && (host.Features & Uitk.ChainEditorFeatures.CodeModifier) == 0) continue;
+                    Item("Modulate with/New " + ZoundEffectDescriptors.GetModifier(type).displayName.ToLower(), () => Modify(host, "add modifier", () => {
                         chain.modifiers.Add(new ZoundModifier(type));
                         AddBinding(chain, chain.modifiers.Count - 1, nodeIndex, paramIndex, pd);
-                    })));
+                    }));
                 }
                 var bound = chain.bindings.FindAll(b => b.nodeIndex == nodeIndex && b.paramIndex == paramIndex);
                 foreach (var b in bound) {
                     var bb = b;
-                    items.Add(ZUI.MenuItem("Remove modulation: " + ModifierLabel(chain, b.modifierIndex), () => Modify(zound, "unbind modifier", () => { chain.bindings.Remove(bb); chain.Touch(); })));
+                    Item("Remove modulation: " + ModifierLabel(chain, b.modifierIndex), () => Modify(host, "unbind modifier", () => { chain.bindings.Remove(bb); chain.Touch(); }));
                 }
             }
-            if (overridden) {
-                items.Add(ZUI.MenuSeparator());
-                items.Add(ZUI.MenuItem("Revert override (use the preset's value)", () => Modify(zound, "revert chain override", () => ZoundChainLibrary.ClearOverride(zound, nodeIndex, paramIndex))));
-                items.Add(ZUI.MenuItem("Apply override to the preset", () => Modify(zound, "apply override to preset", () => {
+            if (overridden && (host.Features & Uitk.ChainEditorFeatures.Overrides) != 0) {
+                if (menu != null) menu.Separator(); else items.Add(ZUI.MenuSeparator());
+                Item("Revert override (use the preset's value)", () => Modify(host, "revert chain override", () => ZoundChainLibrary.ClearOverride(zound, nodeIndex, paramIndex)));
+                Item("Apply override to the preset", () => Modify(host, "apply override to preset", () => {
                     if (ZoundChainLibrary.TryGetOverride(zound, nodeIndex, paramIndex, out float v) && nodeIndex >= 0 && nodeIndex < chain.nodes.Count) {
                         chain.nodes[nodeIndex].EnsureParams(); chain.nodes[nodeIndex].p[paramIndex] = v; chain.Touch();
                         ZoundChainLibrary.ClearOverride(zound, nodeIndex, paramIndex);
                     }
-                })));
+                }));
             }
-            ZUI.ContextMenu(items.ToArray());
+            if (menu != null) menu.Show(); else ZUI.ContextMenu(items.ToArray());
         }
 
         internal static void AddBinding(ZoundEffectChain chain, int modifierIndex, int nodeIndex, int paramIndex, ParamDesc pd) {

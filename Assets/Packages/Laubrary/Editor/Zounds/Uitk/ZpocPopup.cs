@@ -15,16 +15,21 @@ namespace Laubrary.Zounds.Uitk {
     public class ZpocPopup : PopupWindowContent {
 
         const float RowH = 20f;
-        readonly Zound zound;
+        readonly IChainEditorHost host;
+        Zound zound => (host as IChainEditorZoundHost)?.Zound;
         readonly ZoundModifier mod;
         readonly Action changed;
         bool begun;
 
-        ZpocPopup(Zound zound, ZoundModifier mod, Action changed) { this.zound = zound; this.mod = mod; this.changed = changed; }
+        ZpocPopup(IChainEditorHost host, ZoundModifier mod, Action changed) { this.host = host; this.mod = mod; this.changed = changed; }
 
         public static void Show(Rect anchorWorld, Zound zound, ZoundModifier mod, Action changed) {
+            Show(anchorWorld, new ZoundChainEditorHost(zound), mod, changed);
+        }
+
+        public static void Show(Rect anchorWorld, IChainEditorHost host, ZoundModifier mod, Action changed) {
             if (mod == null) return;
-            UnityEditor.PopupWindow.Show(anchorWorld, new ZpocPopup(zound, mod, changed));
+            UnityEditor.PopupWindow.Show(anchorWorld, new ZpocPopup(host, mod, changed));
         }
 
         // Sized to the row's content: padding, id label, field, warning, gap, [Scale/Set, gap, As authored, gap, Rest, gap], Follow, padding.
@@ -40,15 +45,11 @@ namespace Laubrary.Zounds.Uitk {
             Build(root);
         }
 
-        public override void OnClose() { if (begun) ZoundsWindow.EndDragUndo(); }
+        public override void OnClose() { if (begun) host.EndGesture(); }
 
         void Change(Action a) {
-            if (!begun) { begun = true; ZoundsWindow.BeginDragUndo("ZPOC settings"); }
-            a();
-            var chain = Dsp.ZoundDspPlayback.ResolveChain(zound, out _);
-            chain?.Touch();
-            Dsp.ZoundDspPlayback.InvalidateLayout(zound);
-            EditorUtility.SetDirty(ZoundsProject.Instance);
+            if (!begun) { begun = true; host.BeginGesture("ZPOC settings"); }
+            host.EditContinuous(() => { a(); host.Chain?.Touch(); });
             changed?.Invoke();
         }
 
@@ -56,7 +57,7 @@ namespace Laubrary.Zounds.Uitk {
         bool Duplicate() {
             var key = ZpocKeys.Key(mod.zpocId);
             if (key == null) return false;
-            var chain = Dsp.ZoundDspPlayback.ResolveChain(zound, out _);
+            var chain = host.Chain;
             if (chain == null) return false;
             foreach (var m in chain.modifiers) if (m != mod && m.HasZpoc && ZpocKeys.Key(m.zpocId) == key) return true;
             return false;

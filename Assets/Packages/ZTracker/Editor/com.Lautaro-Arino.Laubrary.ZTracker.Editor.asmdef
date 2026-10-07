@@ -2,6 +2,6 @@
   "name": "com.Lautaro-Arino.Laubrary.ZTracker.Editor",
   "rootNamespace": "Laubrary.ZTracker.Editor",
   "includePlatforms": ["Editor"],
-  "references": ["ZTracker", "com.Lautaro-Arino.Laubrary.ZTracker", "com.Lautaro-Arino.Laubrary.ZTracker.Engine", "com.Lautaro-Arino.Laubrary.Zui.Editor", "com.Lautaro-Arino.Laubrary.ZuiRuntime", "com.Lautaro-Arino.Laubrary.AudioCore", "com.Lautaro-Arino.Laubrary.AudioCore.Editor", "com.Lautaro-Arino.Laubrary.Zounds", "com.Lautaro-Arino.ZTracker.P3Proof"],
+  "references": ["ZTracker", "com.Lautaro-Arino.Laubrary.ZTracker", "com.Lautaro-Arino.Laubrary.ZTracker.Engine", "com.Lautaro-Arino.Laubrary.Zui.Editor", "com.Lautaro-Arino.Laubrary.ZuiRuntime", "com.Lautaro-Arino.Laubrary.AudioCore", "com.Lautaro-Arino.Laubrary.AudioCore.Editor", "com.Lautaro-Arino.Laubrary.Zounds", "com.Lautaro-Arino.Laubrary.Zounds.Editor", "com.Lautaro-Arino.ZTracker.P3Proof"],
   "autoReferenced": true
 }

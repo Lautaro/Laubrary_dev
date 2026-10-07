@@ -26,12 +26,25 @@ namespace Laubrary.Zounds.Uitk {
     /// </summary>
     public class ChainEditorTK : VisualElement {
 
-        readonly Zound zound;
+        readonly IChainEditorHost host;
+        Zound zound => (host as IChainEditorZoundHost)?.Zound;
+        bool Has(ChainEditorFeatures feature) => (host.Features & feature) != 0;
+        ZoundEffectChain Resolve(out ZoundChainPreset preset) { preset = (host as IChainEditorPresetHost)?.Preset; return host.Chain; }
+        float Effective(ZoundEffectChain chain, int node, int parameter, float value) => (host as IChainEditorPresetHost)?.EffectiveValue(chain, node, parameter, value) ?? value;
+        void Push(int node, int parameter, float value) => (host as IChainEditorLiveHost)?.PushParameter(node, parameter, value);
         readonly EditorWindow previewOwner;
-        int selectedNode = -1;
+        string selectedUid;
+        ZoundEffectNode selectedObject;
+        int selectedNode {
+            get => !string.IsNullOrEmpty(selectedUid) ? host.Chain.NodeIndexOfUid(selectedUid) : host.Chain.nodes.IndexOf(selectedObject);
+            set { selectedObject = value >= 0 && value < host.Chain.nodes.Count ? host.Chain.nodes[value] : null; selectedUid = selectedObject?.uid; }
+        }
         /// <summary>Which effect's settings are expanded (-1: none), as in the old editor.</summary>
         internal int SelectedNode { get => selectedNode; set { selectedNode = value; Tick(); } }
-        readonly HashSet<ZoundModifier> folded = new HashSet<ZoundModifier>();
+        readonly HashSet<string> folded = new HashSet<string>();
+        readonly System.Runtime.CompilerServices.ConditionalWeakTable<ZoundModifier, ViewKey> viewKeys = new System.Runtime.CompilerServices.ConditionalWeakTable<ZoundModifier, ViewKey>();
+        sealed class ViewKey { public readonly string value = Guid.NewGuid().ToString("N"); }
+        string Key(ZoundModifier mod) => string.IsNullOrEmpty(mod.uid) ? viewKeys.GetOrCreateValue(mod).value : mod.uid;
         readonly List<Action> refreshers = new List<Action>();
         readonly List<Action> liveRefreshers = new List<Action>();
         string builtSig;
@@ -53,12 +66,19 @@ namespace Laubrary.Zounds.Uitk {
         // The sound's snapshots (T-0498), kept across rebuilds too.
         readonly SnapshotsRowTK snapshotsRow;
 
-        public ChainEditorTK(Zound zound, EditorWindow previewOwner = null) {
-            this.previewOwner = previewOwner;
-            this.zound = zound;
-            analyser = new ChainAnalyserTK(zound);
-            zpocTest = new ZpocTestPanelTK(zound, previewOwner);
-            snapshotsRow = new SnapshotsRowTK(zound, (undo, action) => Modify(undo, action));
+        public ChainEditorTK(Zound zound, EditorWindow previewOwner = null) : this(new ZoundChainEditorHost(zound, previewOwner)) { }
+
+        public ChainEditorTK(IChainEditorHost host) {
+            this.host = host ?? throw new ArgumentNullException(nameof(host));
+            previewOwner = (host as IChainEditorZoundHost)?.PreviewOwner;
+            ZS.Attach(this);
+            style.paddingTop = style.paddingBottom = style.paddingLeft = style.paddingRight = 0;
+            style.minWidth = 0;
+            if (Has(ChainEditorFeatures.Analyser)) analyser = new ChainAnalyserTK(zound);
+            if (Has(ChainEditorFeatures.ZpocTest)) zpocTest = new ZpocTestPanelTK(zound, previewOwner);
+            if (Has(ChainEditorFeatures.Snapshots)) snapshotsRow = new SnapshotsRowTK(zound, (undo, action) => Modify(undo, action));
+            RegisterCallback<AttachToPanelEvent>(_ => { Undo.undoRedoPerformed += OnUndo; OnUndo(); });
+            RegisterCallback<DetachFromPanelEvent>(_ => { Undo.undoRedoPerformed -= OnUndo; EndDrag(); });
             AddToClassList("zs-chain");
             AddToClassList("zs-chain-editor__root");
             RegisterCallback<GeometryChangedEvent>(_ => Tick());
@@ -72,29 +92,28 @@ namespace Laubrary.Zounds.Uitk {
 
         // ─────────────────────────── edits (the old editor's paths) ───────────────────────────
 
-        void Modify(string undo, Action action) { G.Modify(zound, undo, action); Tick(); }
+        void OnUndo() { host.Reload(); builtSig = null; modulationVersion = int.MinValue; Tick(); }
+        void Modify(string undo, Action action) { EndDrag(); G.Modify(host, undo, action); Tick(); }
 
         void ModifyContinuous(string undo, Action action) {
-            if (!dragUndoOpen) { dragUndoOpen = true; ZoundsWindow.BeginDragUndo(undo); }
-            action();
-            ZoundDspPlayback.InvalidateLayout(zound);
-            EditorUtility.SetDirty(ZoundsProject.Instance);
+            if (!dragUndoOpen) { dragUndoOpen = true; host.BeginGesture(undo); }
+            host.EditContinuous(action);
         }
 
         void EndDrag() {
-            if (dragUndoOpen) { dragUndoOpen = false; ZoundsWindow.EndDragUndo(); }
+            if (dragUndoOpen) { dragUndoOpen = false; host.EndGesture(); }
         }
 
         // ─────────────────────────── build / refresh ───────────────────────────
 
         void Tick() {
-            if (panel == null) return;
+            if (panel == null || !ZS.EditorStylesReady) return;
             float w = Width;
             if (w <= 0f) return;
-            var chain = ZoundDspPlayback.ResolveChain(zound, out var preset);
+            var chain = Resolve(out var preset);
             if (chain == null) return;
             string sig = Signature(chain, preset, w);
-            if (sig != builtSig) { builtSig = sig; Build(chain, preset, w); }
+            if (!dragUndoOpen && sig != builtSig) { builtSig = sig; Build(chain, preset, w); }
             foreach (var r in refreshers) r();
             foreach (var r in liveRefreshers) r();
         }
@@ -102,7 +121,7 @@ namespace Laubrary.Zounds.Uitk {
         void EnsureModulation(ZoundEffectChain chain) {
             if (modulationVersion == chain.version && modulation.modifierOutput != null) return;
             modulationVersion = chain.version;
-            if (!ZoundSapPlayback.TryGetPlayLength(zound, out float play)) play = 1.5f;
+            float play = host.PreviewLength;
             modulation = EditorTools.ChainSpectrumProbe.MeasureModulation(chain, play);
         }
 
@@ -110,12 +129,11 @@ namespace Laubrary.Zounds.Uitk {
 
         // ── Sections side by side when the window is wide (owner, 2026-09-30, T-0517/T-0516) ──
         // Effects and Modifiers are two sections. At a width where two of them fit at their minimum width they sit side by
-        // side, each on half the window; below that they stack, as before. A section is never narrower than MinCardW: below
-        // it the controls of a card's header (placed at fixed positions) would overlap.
+        // side, each on half the window; below that they stack and their controls wrap to fit the pane.
         internal const float MinCardW = 640f, ColumnGap = 16f;
         static bool TwoColumns(float w) => w >= MinCardW * 2f + ColumnGap;
         /// <summary>The width each section gets: half the window beside each other, or all of it stacked.</summary>
-        static float SectionWidth(float w) => TwoColumns(w) ? (w - ColumnGap) * 0.5f : Mathf.Max(w, MinCardW);
+        static float SectionWidth(float w) => TwoColumns(w) ? (w - ColumnGap) * 0.5f : Mathf.Max(w, 200f);
         /// <summary>Where the section being built adds its rows (a column when side by side, this element otherwise).</summary>
         VisualElement put;
         float sectionW;
@@ -127,15 +145,16 @@ namespace Laubrary.Zounds.Uitk {
             var sb = new StringBuilder();
             sb.Append(TwoColumns(w) ? '2' : '1').Append('|');
             w = SectionWidth(w);
+            sb.Append(Mathf.FloorToInt(w)).Append('|');
             sb.Append(preset != null ? preset.id.ToString() : "local").Append('|');
-            sb.Append(preset == null && ZoundChainLibrary.CanReconnect(zound) ? 'R' : 'r');
+            sb.Append(Has(ChainEditorFeatures.Library) && preset == null && ZoundChainLibrary.CanReconnect(zound) ? 'R' : 'r');
             sb.Append(ZoundEffectDescriptors.TailBudgetSeconds(chain) > 0f ? 'T' : 't').Append('|');
             sb.Append(selectedNode).Append('|');
             for (int i = 0; i < chain.nodes.Count; i++) {
                 var node = chain.nodes[i]; node.EnsureParams();
                 var desc = ZoundEffectDescriptors.Get(node.type);
                 var units = NodeUnits(chain, i, node, desc, linked);
-                sb.Append((int)node.type).Append(node.enabled ? '+' : '-');
+                sb.Append(System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(node)).Append(node.uid).Append((int)node.type).Append(node.enabled ? '+' : '-');
                 foreach (var u in units) sb.Append(u.overridden ? 'o' : '.').Append(u.bound ? 'b' : '.');
                 sb.Append(Inline(units, w) ? 'I' : 'E');
                 if (!Inline(units, w) && selectedNode == i) sb.Append(ZUI.WrapRow.CountRows(AvailableWidth(w) - (G.GripW + 6f), G.Gap, Widths(units)));
@@ -147,8 +166,8 @@ namespace Laubrary.Zounds.Uitk {
             sb.Append('|');
             for (int m = 0; m < chain.modifiers.Count; m++) {
                 var mod = chain.modifiers[m]; mod.EnsureParams();
-                sb.Append((int)mod.type).Append(mod.enabled ? '+' : '-').Append(folded.Contains(mod) ? 'F' : 'U').Append(mod.HasZpoc ? 'Z' : 'z');
-                if (!folded.Contains(mod)) {
+                sb.Append(System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(mod)).Append(mod.uid).Append((int)mod.type).Append(mod.enabled ? '+' : '-').Append(folded.Contains(Key(mod)) ? 'F' : 'U').Append(mod.HasZpoc ? 'Z' : 'z');
+                if (!folded.Contains(Key(mod))) {
                     var units = ModifierUnits(chain, m, mod, ZoundEffectDescriptors.GetModifier(mod.type));
                     foreach (var u in units) sb.Append(u.paramIndex).Append(u.warning != null ? 'w' : '.');
                     sb.Append('r').Append(ZUI.WrapRow.CountRows(AvailableWidth(w) - (G.GripW + 6f), G.Gap, Widths(units)));
@@ -170,8 +189,8 @@ namespace Laubrary.Zounds.Uitk {
             refreshers.Clear(); liveRefreshers.Clear(); nodeRows.Clear();
             bool linked = preset != null;
 
-            Add(LibraryBar(chain, preset));
-            Add(snapshotsRow);
+            if (Has(ChainEditorFeatures.Library)) Add(LibraryBar(chain, preset));
+            if (snapshotsRow != null) Add(snapshotsRow);
             Add(ErrorRow(chain, linked));
 
             bool two = TwoColumns(w);
@@ -183,6 +202,7 @@ namespace Laubrary.Zounds.Uitk {
             VisualElement Column(bool second) {
                 var c = new VisualElement();
                 c.AddToClassList("zs-chain-editor__section");
+                c.style.minWidth = 0;
                 if (two) { c.style.width = sectionW; if (second) c.AddToClassList("zs-chain-editor__section--second"); }
                 sections.Add(c);
                 return c;
@@ -197,11 +217,12 @@ namespace Laubrary.Zounds.Uitk {
 
             put = mods;
             mods.Add(ModifiersHeader(chain));
-            mods.Add(OwnValuesRow(chain));
+            if (Has(ChainEditorFeatures.SourceStage)) mods.Add(OwnValuesRow(chain));
             for (int m = 0; m < chain.modifiers.Count; m++) {
                 var mod = chain.modifiers[m];
+                if (mod.type == ZoundModifierType.Code && !Has(ChainEditorFeatures.CodeModifier)) continue;
                 mods.Add(ModifierRow(chain, m, mod));
-                if (!folded.Contains(mod)) {
+                if (!folded.Contains(Key(mod))) {
                     ModifierBody(chain, m, mod, sectionW);
                     Bindings(chain, m);
                 }
@@ -209,8 +230,8 @@ namespace Laubrary.Zounds.Uitk {
             put = this;
             Add(sections);
             Add(VSpace(5f));   // ZUI.RowSpace(0.5f), then the ZPOC test panel (only when something is exposed) and the analyser
-            Add(zpocTest);
-            Add(analyser);
+            if (zpocTest != null) Add(zpocTest);
+            if (analyser != null) Add(analyser);
         }
 
         // ─────────────────────────── small element helpers ───────────────────────────
@@ -266,7 +287,7 @@ namespace Laubrary.Zounds.Uitk {
             var title = Text("", "", "zs-text-subheader", "zs-subheader");
             title.AddToClassList("zs-chain-editor__library-bar-title");
             refreshers.Add(() => {
-                var ch = ZoundDspPlayback.ResolveChain(zound, out var p);
+                var ch = Resolve(out var p);
                 int users = p != null ? ZoundChainLibrary.CountUsers(p.id) : 0;
                 title.text = p != null ? p.name + "  (" + users + (users == 1 ? " user)" : " users)") : "Local chain";
                 title.tooltip = p != null
@@ -280,7 +301,7 @@ namespace Laubrary.Zounds.Uitk {
                             () => ChainLibraryPopup.Show(lib.worldBound, zound, previewOwner), ZUICornerMask.Left, 70f, G.RowH);
             save = ZS.Button("Save as…", "Saves a copy of this chain as a new library preset and links this zound to it.", "RichButton",
                              () => SavePresetPopup.Show(save.worldBound, zound.name + " chain", name => Modify("save chain as preset", () => {
-                                 var p = ZoundChainLibrary.Create(name, ZoundDspPlayback.ResolveChain(zound, out _));
+                                 var p = ZoundChainLibrary.Create(name, Resolve(out _));
                                  ZoundChainLibrary.Assign(zound, p);
                              })), ZUICornerMask.None, 70f, G.RowH);
             r.Add(lib); r.Add(save);
@@ -311,7 +332,7 @@ namespace Laubrary.Zounds.Uitk {
             msg.AddToClassList("zs-chain-editor__error-row-msg");
             r.Add(bar); r.Add(msg);
             refreshers.Add(() => {
-                var ch = ZoundDspPlayback.ResolveChain(zound, out var p);
+                var ch = Resolve(out var p);
                 var err = ChainLayout.Build(ch, AudioSettings.outputSampleRate, p != null ? zound.chainOverrides : null).error;
                 bar.style.display = msg.style.display = err != null ? DisplayStyle.Flex : DisplayStyle.None;
                 msg.text = err != null ? "⚠ " + err : ""; msg.tooltip = err ?? "";
@@ -327,18 +348,18 @@ namespace Laubrary.Zounds.Uitk {
                 int pk = k;
                 var u = new G.ParamUnit {
                     pd = desc.parameters[k], nodeIndex = nodeIndex, paramIndex = k,
-                    value = G.EffectiveValue(zound, chain, nodeIndex, k, node.p[k]),
+                    value = Effective(chain, nodeIndex, k, node.p[k]),
                     overridden = linked && ZoundChainLibrary.TryGetOverride(zound, nodeIndex, k, out _),
                     bound = G.IsBound(chain, nodeIndex, k),
                     onDrag = v => {
                         if (linked) ModifyContinuous("override chain parameter", () => ZoundChainLibrary.SetOverride(zound, nodeIndex, pk, v));
                         else ModifyContinuous("change effect parameter", () => { node.p[pk] = v; chain.Touch(); });
-                        ZoundDspPlayback.PushLiveParam(zound, chain, nodeIndex, pk, v);
+                        Push(nodeIndex, pk, v);
                     },
                     onSet = v => {
                         if (linked) Modify("override chain parameter", () => ZoundChainLibrary.SetOverride(zound, nodeIndex, pk, v));
                         else Modify("change effect parameter", () => { node.p[pk] = v; chain.Touch(); });
-                        ZoundDspPlayback.PushLiveParam(zound, chain, nodeIndex, pk, v);
+                        Push(nodeIndex, pk, v);
                     },
                 };
                 u.width = G.UnitWidth(u);
@@ -349,14 +370,15 @@ namespace Laubrary.Zounds.Uitk {
 
         /// <summary>A unit's current value, read fresh on every refresh (the unit object is only a build-time snapshot).</summary>
         Func<float> NodeValue(int nodeIndex, int k) => () => {
-            var ch = ZoundDspPlayback.ResolveChain(zound, out _);
+            var ch = Resolve(out _);
             if (ch == null || nodeIndex >= ch.nodes.Count) return 0f;
             var n = ch.nodes[nodeIndex]; n.EnsureParams();
-            return k < n.p.Length ? G.EffectiveValue(zound, ch, nodeIndex, k, n.p[k]) : 0f;
+            return k < n.p.Length ? Effective(ch, nodeIndex, k, n.p[k]) : 0f;
         };
 
         VisualElement Nodes(ZoundEffectChain chain, bool linked, float w) {
             nodesBox = new VisualElement();
+            nodesBox.name = "chain-device-cards";
             nodesBox.AddToClassList("zs-chain-editor__nodes-nodes-box");
             if (chain.nodes.Count == 0) {
                 var none = Text("No effects.", "", "zs-subtle");
@@ -372,12 +394,14 @@ namespace Laubrary.Zounds.Uitk {
                 bool selected = selectedNode == i;
 
                 var row = Row();
+                row.name = "chain-node-" + ni;
                 nodeRows.Add(row);
                 nodesBox.Add(row);
                 if (selected && !inline) row.Add(Fill(new Color(1f, 1f, 1f, 0.04f)));
 
                 // grip
                 var grip = Place(Text("≡", "Drag to reorder. Signal flows top to bottom.", "zs-greymini"), 0f, 0f, G.GripW, G.RowH);
+                grip.name = "chain-grip-" + ni;
                 grip.AddToClassList("zs-grip");
                 grip.RegisterCallback<PointerDownEvent>(e => {
                     if (e.button != 0) return;
@@ -401,6 +425,8 @@ namespace Laubrary.Zounds.Uitk {
                     (title,tip) => Text(title,tip,"zs-bold"),
                     remove => ZS.Button("×","Removes this effect from the chain.","RichButton",remove,ZUICornerMask.All,G.RemoveW,G.RowH-2f));
                 var on = parts.enabled;
+                on.name = "chain-enabled-" + ni;
+                parts.remove.name = "chain-remove-" + ni;
                 row.Add(Place(on, G.GripW + 2f, 1f, G.OnW, G.RowH - 2f));
 
                 float nameX = G.GripW + 2f + G.OnW + 6f;
@@ -419,13 +445,12 @@ namespace Laubrary.Zounds.Uitk {
                     summary.AddToClassList("zs-chain-editor__effect-summary");
                     summary.tooltip = selected ? "Click to fold the settings away." : "Click to show all " + units.Count + " settings. They do not fit on this row at the window's current width.";
                     refreshers.Add(() => {
-                        var ch = ZoundDspPlayback.ResolveChain(zound, out _);
+                        var ch = Resolve(out _);
                         if (ni >= ch.nodes.Count) return;
                         summary.text = (selected ? "▾ " : "▸ ") + G.Summary(zound, ch, ni, ch.nodes[ni], ZoundEffectDescriptors.Get(ch.nodes[ni].type));
                     });
-                    EventCallback<PointerDownEvent> toggle = e => { if (e.button != 0) return; selectedNode = selected ? -1 : ni; e.StopPropagation(); Tick(); };
-                    summary.RegisterCallback(toggle);
-                    name.RegisterCallback(toggle);
+                    summary.AddManipulator(new Clickable(() => { selectedNode = selected ? -1 : ni; Tick(); }));
+                    name.AddManipulator(new Clickable(() => { selectedNode = selected ? -1 : ni; Tick(); }));
                     row.Add(summary);
                 }
 
@@ -480,29 +505,33 @@ namespace Laubrary.Zounds.Uitk {
             foreach (var r in nodeRows) r.RemoveFromClassList("zs-dragging");
             if (from < 0 || to < 0) return;
             if (to > from) to--;
-            var chain = ZoundDspPlayback.ResolveChain(zound, out _);
+            var chain = Resolve(out _);
             if (to == from || to >= chain.nodes.Count) return;
             Modify("reorder effects", () => { chain.MoveNode(from, to); selectedNode = to; });
         }
 
         VisualElement AddEffectRow(ZoundEffectChain chain) {
             var r = HRow();
-            r.Add(ZS.Button("Add effect…", "Appends an effect to the end of the chain.", "RichButton", () => {
-                var items = new List<ZUI.ZUIMenuItem>();
+            Button add = null;
+            add = ZS.Button("Add effect…", "Appends an effect to the end of the chain.", "RichButton", () => {
+                var menu = Z.Menu(add).Search("Find effect…");
                 for (int t = 0; t < ZoundEffectDescriptors.EffectTypeCount; t++) {
                     var type = (ZoundEffectType)t;
-                    items.Add(ZUI.MenuItem(ZoundEffectDescriptors.Get(type).displayName, () => Modify("add effect", () => {
-                        var ch = ZoundDspPlayback.ResolveChain(zound, out _);
-                        ch.nodes.Add(new ZoundEffectNode(type)); ch.Touch(); selectedNode = ch.nodes.Count - 1;
-                    })));
+                    var descriptor = ZoundEffectDescriptors.Get(type);
+                    menu.Item(descriptor.displayName, descriptor.summary, () => Modify("add effect", () => {
+                        var ch = Resolve(out _);
+                        ch.nodes.Add(new ZoundEffectNode(type) { uid = Guid.NewGuid().ToString("N") }); ch.Touch(); selectedNode = ch.nodes.Count - 1;
+                    }));
                 }
-                ZUI.ContextMenu(items.ToArray());
-            }, ZUICornerMask.All, 90f, G.RowH));
+                menu.Show();
+            }, ZUICornerMask.All, 90f, G.RowH);
+            add.name = "chain-add-effect";
+            r.Add(add);
             r.Add(Flex());
             if (ZoundEffectDescriptors.TailBudgetSeconds(chain) > 0f) {
                 var tail = Text("", "How long this chain keeps ringing after the source stops (delay and reverb decay). Audio End waits at most this long.", "zs-mini");
                 tail.AddToClassList("zs-chain-editor__add-effect-row-tail"); tail.AddToClassList("zs-chain-editor__add-effect-tail");
-                refreshers.Add(() => tail.text = "tail " + ZoundEffectDescriptors.TailBudgetSeconds(ZoundDspPlayback.ResolveChain(zound, out _)).ToString("0.00") + " s");
+                refreshers.Add(() => tail.text = "tail " + ZoundEffectDescriptors.TailBudgetSeconds(Resolve(out _)).ToString("0.00") + " s");
                 r.Add(tail);
             }
             return r;
@@ -518,6 +547,7 @@ namespace Laubrary.Zounds.Uitk {
         VisualElement Unit(ZoundEffectChain chain, G.ParamUnit u, Func<float> read, float x, float y, float w, float h) {
             var pd = u.pd;
             var box = Place(new VisualElement(), x, y, w, h);
+            if (u.nodeIndex >= 0) box.name = "chain-param-" + u.nodeIndex + "-" + u.paramIndex;
             float cw = w - (u.bound ? G.TagIconW : 0f) - (u.warning != null ? G.WarnIconW : 0f);
             bool isEffect = u.nodeIndex != int.MinValue;
             string tip = G.ParamTip(pd, u.overridden, isEffect && pd.automatable);
@@ -574,12 +604,12 @@ namespace Laubrary.Zounds.Uitk {
                     (value,min,max,defaultValue,changed)=>ZS.Slider(LabelOf(u.value),value,min,max,tip,changed,ZuiSkinSlider.LabelMode.LabelOnly,defaultValue,"Default",cw,h));
                 refreshers.Add(() => {float value=read();s.SetValueWithoutNotify(Laubrary.Audio.Editor.AudioChainEditor.DisplayValue(pd,value));s.text=LabelOf(value);});
                 box.Add(Place(s, 0f, 0f, cw, h));
-                if (u.bound && isEffect) LiveOverlay(s, pd, u.nodeIndex, u.paramIndex, read);
+                if (u.bound && isEffect && Has(ChainEditorFeatures.LiveReadouts)) LiveOverlay(s, pd, u.nodeIndex, u.paramIndex, read);
             }
 
             float right = cw;
             if (u.bound) {
-                string ids = ZpocIdsOn(chain, u.nodeIndex, u.paramIndex);
+                string ids = Has(ChainEditorFeatures.Zpoc) ? ZpocIdsOn(chain, u.nodeIndex, u.paramIndex) : null;
                 var tag = Place(ids != null
                         ? (VisualElement)BoltMark("Game code can move this, through ZPOC " + ids + " (modulated by " + G.BoundBy(chain, u.nodeIndex, u.paramIndex) + "). The slider sets where it starts from; the thin line marks it. While the sound plays, amber shows where code has it, a tick where it is heading, and a flash each time code sends a new value. Hold the slider to take over by hand; let go to hand it back.")
                         : Text("~", "Modulated by " + G.BoundBy(chain, u.nodeIndex, u.paramIndex) + ". The slider sets where the modifier starts from; the thin line marks it, and the fill shows where the engine has it right now.", "zs-greymini"),
@@ -593,7 +623,7 @@ namespace Laubrary.Zounds.Uitk {
 
             box.RegisterCallback<PointerDownEvent>(e => {
                 if (e.button != 1) return;
-                G.ShowParamMenu(zound, ZoundDspPlayback.ResolveChain(zound, out _), u.nodeIndex, u.paramIndex, pd, u.overridden);
+                G.ShowParamMenu(host, Resolve(out _), u.nodeIndex, u.paramIndex, pd, u.overridden, box);
                 e.StopPropagation();
                 schedule.Execute(Tick);
             }, TrickleDown.TrickleDown);
@@ -713,16 +743,21 @@ namespace Laubrary.Zounds.Uitk {
             l.AddToClassList("zs-chain-editor__modifiers-header-label");
             r.Add(l);
             r.Add(Flex());
-            r.Add(ZS.Button("Add modifier…", "Adds a modifier to the stack; bind it to a parameter from that parameter's right-click menu.", "RichButton", () => {
-                var items = new List<ZUI.ZUIMenuItem>();
+            Button add = null;
+            add = ZS.Button("Add modifier…", "Adds a modifier to the stack; bind it to a parameter from that parameter's right-click menu.", "RichButton", () => {
+                var menu = Z.Menu(add).Search("Find modifier…");
                 for (int t = 0; t < ZoundEffectDescriptors.ModifierTypeCount; t++) {
                     var type = (ZoundModifierType)t;
-                    items.Add(ZUI.MenuItem(ZoundEffectDescriptors.GetModifier(type).displayName, () => Modify("add modifier", () => {
-                        var ch = ZoundDspPlayback.ResolveChain(zound, out _); ch.modifiers.Add(new ZoundModifier(type)); ch.Touch();
-                    })));
+                    if (type == ZoundModifierType.Code && !Has(ChainEditorFeatures.CodeModifier)) continue;
+                    var descriptor = ZoundEffectDescriptors.GetModifier(type);
+                    menu.Item(descriptor.displayName, descriptor.summary, () => Modify("add modifier", () => {
+                        var ch = Resolve(out _); ch.modifiers.Add(new ZoundModifier(type) { uid = Guid.NewGuid().ToString("N") }); ch.Touch();
+                    }));
                 }
-                ZUI.ContextMenu(items.ToArray());
-            }, ZUICornerMask.All, 100f, G.RowH));
+                menu.Show();
+            }, ZUICornerMask.All, 100f, G.RowH);
+            add.name = "chain-add-modifier";
+            r.Add(add);
             return r;
         }
 
@@ -739,6 +774,7 @@ namespace Laubrary.Zounds.Uitk {
         /// </summary>
         VisualElement OwnValuesRow(ZoundEffectChain chain) {
             var r = HRow();
+            if (sectionW < MinCardW) { r.style.flexWrap = UnityEngine.UIElements.Wrap.Wrap; r.style.height = StyleKeyword.Auto; }
             r.AddToClassList("zs-chain-editor__own-values-row-row");
             var title = Text("Sound", "The sound's own values, as opposed to its effects: its Volume (after every effect, so fading it fades the tails too), Pitch, Speed (without changing pitch) and Drive (the level going into the effects). Right-click one to make a modifier move it, as on any effect setting. Where each rests is the play's own: the volume and pitch ranges above, drawn per play, or x1.", "zs-guilabel");
             title.AddToClassList("zs-chain-editor__own-values-label"); title.AddToClassList("zs-chain-editor__own-values-row-title");
@@ -777,7 +813,7 @@ namespace Laubrary.Zounds.Uitk {
             text.text = Name() + mark;
             box.RegisterCallback<PointerDownEvent>(e => {
                 if (e.button != 1) return;
-                G.ShowParamMenu(zound, ZoundDspPlayback.ResolveChain(zound, out _), -1, k, pd, false);
+                G.ShowParamMenu(host, Resolve(out _), -1, k, pd, false);
                 e.StopPropagation();
                 schedule.Execute(Tick);
             });
@@ -819,7 +855,7 @@ namespace Laubrary.Zounds.Uitk {
                 G.GripW + 6f + G.LabelW + 4f, 0f, 200f, G.RowH));
             r.RegisterCallback<PointerDownEvent>(e => {
                 if (e.button != 1) return;
-                G.ShowParamMenu(zound, ZoundDspPlayback.ResolveChain(zound, out _), -1, k, pd, false);
+                G.ShowParamMenu(host, Resolve(out _), -1, k, pd, false);
                 e.StopPropagation();
             });
             return r;
@@ -827,7 +863,7 @@ namespace Laubrary.Zounds.Uitk {
 
         VisualElement ModifierRow(ZoundEffectChain chain, int m, ZoundModifier mod) {
             var desc = ZoundEffectDescriptors.GetModifier(mod.type);
-            bool isFolded = folded.Contains(mod);
+            bool isFolded = folded.Contains(Key(mod));
             var r = Row();
             var fill = Fill(new Color(1f, 1f, 1f, 0.04f));
             r.AddToClassList("lau-card__header");
@@ -838,16 +874,17 @@ namespace Laubrary.Zounds.Uitk {
             // A click anywhere on the header that is not a control folds or unfolds the card (owner, T-0515); the little arrow
             // that used to be the only place to click is gone. The eye sits at the left: only Delete is on the right (T-0518).
             string foldTip = isFolded ? " Click the header to show this modifier's settings." : " Click the header to fold its settings away.";
-            r.RegisterCallback<PointerDownEvent>(e => {
-                if (e.button != 0 || !(e.target is VisualElement t) || !t.ClassListContains(FoldHit)) return;
-                if (isFolded) folded.Remove(mod); else folded.Add(mod);
+            r.AddManipulator(new Clickable(e => {
+                if (!(e.target is VisualElement t) || !t.ClassListContains(FoldHit)) return;
+                if (isFolded) folded.Remove(Key(mod)); else folded.Add(Key(mod));
                 e.StopPropagation(); Tick();
-            });
+            }));
             ZuiToggleButton eye;
             r.Add(Place(eye = ZS.Eye(CurveView.IsVisible(mod), v => v
                     ? "Shown: what this modifier does is included in the combined-result lines on the waveform (and its curve drawn there). Click to leave it out of the picture; it keeps playing."
                     : "Hidden from the waveform's pictures: its effect is left out of the combined-result lines and its curve is not drawn there. It still plays. Click to show it.",
                 v => { CurveView.SetVisible(mod, v); }, ZUICornerMask.All, EyeW, G.RowH - 2f), 0f, 1f, EyeW, G.RowH - 2f));
+            if (!Has(ChainEditorFeatures.LiveReadouts)) eye.style.display = DisplayStyle.None;
             ZuiToggleButton on = ZS.Toggle("On", mod.enabled ? "Disable: its bindings stop applying." : "Enable this modifier.", mod.enabled,
                                            v => Modify(v ? "enable modifier" : "disable modifier", () => { mod.enabled = v; chain.Touch(); }),
                                            "RichToggle", ZUICornerMask.None, G.OnW, G.RowH - 2f);
@@ -861,13 +898,18 @@ namespace Laubrary.Zounds.Uitk {
             nameField.RegisterValueChangedCallback(e => Modify("rename modifier", () => mod.name = e.newValue));
             r.Add(Place(nameField, typeX + 62f + 2f, 1f, 120f, G.RowH - 2f));
             float chipX = typeX + 62f + 2f + 120f + 6f;
-            r.Add(Place(ZpocChip(mod), chipX, 1f, ZpocChipW, G.RowH - 2f));
-            var targets = Place(Text("", "The parameters this modifier drives." + foldTip, "zs-mini"), chipX + ZpocChipW + 6f, 0f, -1f, G.RowH);
+            bool narrow = sectionW < MinCardW;
+            if (Has(ChainEditorFeatures.Zpoc)) {
+                r.Add(Place(ZpocChip(mod), narrow ? G.GripW + 6f : chipX, narrow ? G.RowH + 1f : 1f, ZpocChipW, G.RowH - 2f));
+                if (narrow) r.style.height = G.RowH * 2;
+            }
+            float targetX = Has(ChainEditorFeatures.Zpoc) ? (narrow ? G.GripW + 6f : chipX) + ZpocChipW + 6f : chipX;
+            var targets = Place(Text("", "The parameters this modifier drives." + foldTip, "zs-mini"), targetX, narrow && Has(ChainEditorFeatures.Zpoc) ? G.RowH : 0f, -1f, G.RowH);
             targets.AddToClassList("zs-chain-editor__binding-targets");
             targets.AddToClassList(FoldHit);
             r.Add(targets);
             refreshers.Add(() => {
-                var ch = ZoundDspPlayback.ResolveChain(zound, out _);
+                var ch = Resolve(out _);
                 int mi = ch.modifiers.IndexOf(mod);
                 if (mi >= 0) targets.text = G.TargetsSummary(ch, mi);
                 on.SetValueWithoutNotify(mod.enabled);
@@ -876,7 +918,7 @@ namespace Laubrary.Zounds.Uitk {
                 ZS.SetEye(eye, CurveView.IsVisible(mod));
             });
             r.Add(PlaceRight(ZS.Button("×", "Removes this modifier and every binding that uses it.", "RichButton",
-                () => Modify("remove modifier", () => { var ch = ZoundDspPlayback.ResolveChain(zound, out _); int mi = ch.modifiers.IndexOf(mod); if (mi >= 0) ch.RemoveModifier(mi); }),
+                () => Modify("remove modifier", () => { var ch = Resolve(out _); int mi = ch.modifiers.IndexOf(mod); if (mi >= 0) ch.RemoveModifier(mi); }),
                 ZUICornerMask.All, G.RemoveW, G.RowH - 2f), 0f, 1f, G.RemoveW, G.RowH - 2f));
             return r;
         }
@@ -929,7 +971,7 @@ namespace Laubrary.Zounds.Uitk {
             chip.Add(bolt); chip.Add(text); chip.Add(spread); chip.Add(fill);
             chip.RegisterCallback<PointerDownEvent>(e => {
                 if (e.button != 0 && e.button != 1) return;
-                ZpocPopup.Show(chip.worldBound, zound, mod, () => { ZoundDspPlayback.InvalidateLayout(zound); schedule.Execute(Tick); });
+                ZpocPopup.Show(chip.worldBound, host, mod, () => schedule.Execute(Tick));
                 e.StopPropagation();
             });
             var values = new float[32];
@@ -948,7 +990,7 @@ namespace Laubrary.Zounds.Uitk {
                             : "Game code cannot reach this modifier. Click to give it a ZPOC id, so code can turn it up and down while the sound plays.");
             });
             liveRefreshers.Add(() => {
-                var ch = ZoundDspPlayback.ResolveChain(zound, out _);
+                var ch = Resolve(out _);
                 int mi = ch != null ? ch.modifiers.IndexOf(mod) : -1;
                 string name = mod.HasZpoc ? mod.zpocId : "";
                 var sum = mi >= 0 && (mod.HasZpoc || mod.type == ZoundModifierType.Code) ? SapVoiceRegistry.ReadModifierControl(zound, mi, values) : default;
@@ -1057,7 +1099,7 @@ namespace Laubrary.Zounds.Uitk {
                 var output = new VisualElement { pickingMode = PickingMode.Ignore };
                 output.AddToClassList("zs-chain-editor__curve-ground-output");
                 output.generateVisualContent += ctx => {
-                    var ch = ZoundDspPlayback.ResolveChain(zound, out _);
+                    var ch = Resolve(out _);
                     int mi = ch != null ? ch.modifiers.IndexOf(mod) : -1;
                     var outs = modulation.modifierOutput;
                     if (mi < 0 || outs == null || mi >= outs.Length || outs[mi] == null || outs[mi].Length < 2) return;
@@ -1093,7 +1135,8 @@ namespace Laubrary.Zounds.Uitk {
             var dot = new VisualElement { pickingMode = PickingMode.Ignore };
             dot.AddToClassList("zs-chain-editor__curve-ground-dot");
             dot.style.backgroundColor = new Color(1f, 0.85f, 0.35f);
-            liveRefreshers.Add(() => {
+            head.style.display = dot.style.display = DisplayStyle.None;
+            if (Has(ChainEditorFeatures.LiveReadouts)) liveRefreshers.Add(() => {
                 bool on = SapVoiceRegistry.TryReadPlayPosition(zound, out float elapsed, out float duration) && duration > 0f;
                 head.style.display = dot.style.display = on ? DisplayStyle.Flex : DisplayStyle.None;
                 if (!on) return;
@@ -1135,7 +1178,7 @@ namespace Laubrary.Zounds.Uitk {
             midLine.style.backgroundColor = new Color(1f, 1f, 1f, 0.18f);
             void Axis() {
                 if (isLfoRamp) return;
-                KlipChainEnvelopes.CurveAxis(ZoundDspPlayback.ResolveChain(zound, out _), mod, out string t, out string mText, out string bText);
+                KlipChainEnvelopes.CurveAxis(Resolve(out _), mod, out string t, out string mText, out string bText);
                 top.text = t; bottom.text = bText;
                 bool hasMid = mText != null;
                 mid.style.display = midLine.style.display = hasMid ? DisplayStyle.Flex : DisplayStyle.None;
@@ -1152,26 +1195,24 @@ namespace Laubrary.Zounds.Uitk {
 
             // The curve itself, on top of the ground and under the playhead, as the old editor paints them.
             if (mod.curve == null) mod.curve = new Envelope(0f, 1f);
-            var es = ZoundsProject.Instance.projectSettings.editorStyle;
+            var es = host.EditorStyle;
             var curve = new EnvelopeTK(mod.curve, mod.type == ZoundModifierType.Envelope ? es.volumeEnvelopeColor : es.pitchEnvelopeColor);
             curve.AddToClassList("zs-chain-editor__curve-ground-curve");
             curve.tooltip = ground.tooltip;
             curve.onBegin = () => {
                 if (dragUndoOpen) return;
                 dragUndoOpen = true;
-                ZoundsWindow.BeginDragUndo("edit modifier curve");
+                host.BeginGesture("edit modifier curve");
                 // Editing the Klip's pitch curve moves it off the old scale first, sounding the same (T-0479).
-                KlipChainEnvelopes.EnsurePitchRatioIfPitchCurve(zound, mod);
+                if (zound != null) KlipChainEnvelopes.EnsurePitchRatioIfPitchCurve(zound, mod);
             };
             curve.onChanged = () => {
-                ZoundDspPlayback.ResolveChain(zound, out _)?.Touch();
-                ZoundDspPlayback.InvalidateLayout(zound);
-                EditorUtility.SetDirty(ZoundsProject.Instance);
+                host.EditContinuous(() => host.Chain.Touch());
             };
             // What the plays under way hear, dotted over the curve (T-0484); follows plays starting and stopping.
             int liveShown = 0;
-            curve.schedule.Execute(() => {
-                var ch = ZoundDspPlayback.ResolveChain(zound, out _);
+            if (Has(ChainEditorFeatures.LiveReadouts)) curve.schedule.Execute(() => {
+                var ch = Resolve(out _);
                 int n = LiveDrawnCurves.Fill(ref curve.liveCurves, zound, mod.curve, ch != null ? ch.modifiers.IndexOf(mod) : -1);
                 if (n > 0 || liveShown > 0) curve.Refresh();
                 liveShown = n;
@@ -1183,16 +1224,16 @@ namespace Laubrary.Zounds.Uitk {
                 foreach (int s in curve.SelectedPoints) if (s >= 0 && s < mod.curve.Count) sel.Add(mod.curve.GetPoint(s));
                 RandomPointPopup.Show(world, mod.curve.GetPoint(i), Mathf.Max(mod.curve.xMax - mod.curve.xMin, 1e-3f),
                     () => mod.curve.yMax - mod.curve.yMin,
-                    () => KlipChainEnvelopes.EnsurePitchRatioIfPitchCurve(zound, mod),
-                    () => { curve.onChanged?.Invoke(); curve.Refresh(); },
+                    () => { if (zound != null) KlipChainEnvelopes.EnsurePitchRatioIfPitchCurve(zound, mod); },
+                    () => { modulationVersion = int.MinValue; curve.Refresh(); },
                     sel,
-                    () => KlipChainEnvelopes.NeutralValue(ZoundDspPlayback.ResolveChain(zound, out _), mod, out float v) ? v : (float?)null,
-                    () => new Vector2(mod.curve.yMin, mod.curve.yMax));
+                    () => KlipChainEnvelopes.NeutralValue(Resolve(out _), mod, out float v) ? v : (float?)null,
+                    () => new Vector2(mod.curve.yMin, mod.curve.yMax), host);
             };
             ground.Add(curve);
             refreshers.Add(() => { if (curve.envelope != mod.curve) curve.envelope = mod.curve; curve.Refresh(); });
             ground.Add(head); ground.Add(dot);
-            refreshers.Add(() => { EnsureModulation(ZoundDspPlayback.ResolveChain(zound, out _)); secs.text = modulation.playSeconds > 0f ? modulation.playSeconds.ToString("0.00") + " s" : ""; });
+            refreshers.Add(() => { EnsureModulation(Resolve(out _)); secs.text = modulation.playSeconds > 0f ? modulation.playSeconds.ToString("0.00") + " s" : ""; });
             return holder;
         }
 
@@ -1243,11 +1284,15 @@ namespace Laubrary.Zounds.Uitk {
             for (int i = 0; i < chain.bindings.Count; i++) {
                 var b = chain.bindings[i];
                 if (b.modifierIndex != modifierIndex) continue;
+                if (b.nodeIndex < 0 && !Has(ChainEditorFeatures.SourceStage)) continue;
                 var bb = b;
                 var r = Row();
+                r.name = "chain-bind-" + i;
                 float lx = G.GripW + 6f;
                 r.Add(Place(Text("→ " + G.TargetLabel(chain, b), "The parameter this binding drives.", "zs-mini"), lx, 0f, G.LabelW + 60f, G.RowH));
                 float x = lx + G.LabelW + 60f + 4f;
+                float controlsY = sectionW < x + 320f ? G.RowH : 0f;
+                if (controlsY > 0) { x = lx; r.style.height = G.RowH * 2; }
                 var currentCombine = ChainModulationCompat.CombineOf(b);
                 bool legacyShift = currentCombine == ModulationCombine.ShiftWholeRange;
                 if (legacyShift) currentCombine = ModulationCombine.Shift;
@@ -1269,7 +1314,7 @@ namespace Laubrary.Zounds.Uitk {
                     }, "RichToggle", corner, 42f, G.RowH - 2f);
                     t.SetEnabled(offered);
                     ops[o] = t;
-                    r.Add(Place(t, x + o * 42f, 1f, 42f, G.RowH - 2f));
+                    r.Add(Place(t, x + o * 42f, controlsY + 1f, 42f, G.RowH - 2f));
                 }
                 float shownDepth = ChainModulationCompat.DepthOf(b, G.DepthMinOf(chain, b), G.DepthMaxOf(chain, b), G.DepthRatioOf(chain, b));
                 string depthTip = G.DepthTip(currentCombine, legacyShift);
@@ -1277,11 +1322,11 @@ namespace Laubrary.Zounds.Uitk {
                 var depth = ZS.Slider("Depth", shownDepth, 0f, 1f, depthTip,
                                       nd => ModifyContinuous("change depth", () => G.WriteBinding(chain, bb, combineNow, nd)),
                                       ZuiSkinSlider.LabelMode.LabelAndValue, 0.25f, "Default", 120f, G.RowH - 2f);
-                r.Add(Place(depth, x + 176f, 1f, 120f, G.RowH - 2f));
+                r.Add(Place(depth, x + 176f, controlsY + 1f, 120f, G.RowH - 2f));
                 refreshers.Add(() => depth.SetValueWithoutNotify(ChainModulationCompat.DepthOf(bb, G.DepthMinOf(chain, bb), G.DepthMaxOf(chain, bb), G.DepthRatioOf(chain, bb))));
                 r.Add(Place(ZS.Button("×", "Removes this binding.", "RichButton",
                     () => Modify("remove binding", () => { chain.bindings.Remove(bb); chain.Touch(); }), ZUICornerMask.All, G.RemoveW, G.RowH - 2f),
-                    x + 176f + 120f + 4f, 1f, G.RemoveW, G.RowH - 2f));
+                    x + 176f + 120f + 4f, controlsY + 1f, G.RemoveW, G.RowH - 2f));
                 (put ?? this).Add(r);
             }
         }

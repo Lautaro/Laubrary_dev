@@ -25,9 +25,11 @@ namespace Laubrary.Zounds.Uitk {
         readonly Func<float?> neutral;           // the curve's "no change" value, read after the first change's conversion
         readonly Func<Vector2> valueRange;       // the curve's (bottom, top)
         bool begun;
+        readonly IChainEditorHost host;
 
         RandomPointPopup(ZUIEnvelopePoint point, float xRange, Func<float> yRange, Action beforeFirstChange, Action changed,
-                         List<ZUIEnvelopePoint> group, Func<float?> neutral, Func<Vector2> valueRange) {
+                         List<ZUIEnvelopePoint> group, Func<float?> neutral, Func<Vector2> valueRange, IChainEditorHost host) {
+            this.host = host;
             this.point = point; this.xRange = xRange > 0f ? xRange : 1f; this.yRange = yRange;
             this.beforeFirstChange = beforeFirstChange; this.changed = changed;
             this.group = group != null && group.Count > 1 && group.Contains(point) ? group : new List<ZUIEnvelopePoint> { point };
@@ -43,10 +45,10 @@ namespace Laubrary.Zounds.Uitk {
         /// <param name="valueRange">The curve's bottom and top, which Squash and Expand stay inside.</param>
         public static void Show(Vector2 worldPosition, ZUIEnvelopePoint point, float xRange, Func<float> yRange,
                                 Action beforeFirstChange, Action changed,
-                                List<ZUIEnvelopePoint> selection = null, Func<float?> neutral = null, Func<Vector2> valueRange = null) {
+                                List<ZUIEnvelopePoint> selection = null, Func<float?> neutral = null, Func<Vector2> valueRange = null, IChainEditorHost host = null) {
             if (point == null) return;
             UnityEditor.PopupWindow.Show(new Rect(worldPosition.x - 4f, worldPosition.y + 6f, 8f, 8f),
-                                          new RandomPointPopup(point, xRange, yRange, beforeFirstChange, changed, selection, neutral, valueRange));
+                                          new RandomPointPopup(point, xRange, yRange, beforeFirstChange, changed, selection, neutral, valueRange, host));
         }
 
         const float ActionsW = 56f + 4f + 62f + 2f + 62f + 12f;
@@ -62,13 +64,13 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         public override void OnClose() {
-            if (begun) ZoundsWindow.EndDragUndo();
+            if (begun) { if (host != null) host.EndGesture(); else ZoundsWindow.EndDragUndo(); }
         }
 
         void Change(Action a) {
-            if (!begun) { begun = true; ZoundsWindow.BeginDragUndo("random curve point"); beforeFirstChange?.Invoke(); }
-            a();
-            EditorUtility.SetDirty(ZoundsProject.Instance);
+            if (!begun) { begun = true; if (host != null) host.BeginGesture("random curve point"); else ZoundsWindow.BeginDragUndo("random curve point"); beforeFirstChange?.Invoke(); }
+            if (host != null) host.EditContinuous(() => { a(); host.Chain.Touch(); });
+            else { a(); EditorUtility.SetDirty(ZoundsProject.Instance); }
             changed?.Invoke();
         }
 

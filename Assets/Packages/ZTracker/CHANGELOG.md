@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Instrument Effects and Mixer Devices use the shared Zounds chain editor, including searchable effect/modifier pickers and compact expandable rows. Continuous drags remain one Undo step. Write-back preserves the chain object, repairs send taps by effect identity, and flags removed automation targets within the same undo transaction.
+- Chain regressions exercise attached controls, restored values, reorder/send identity and removal/automation Undo/Redo. Existing editor checks target the surviving shared controls.
+
 - Instrument review round 2: per-note curves have readable unit scales and inset handles; framed thumbnails show numeric values. Disabled Filter, Blend envelope, modulation-device and preset sections retain their settings behind a header-only view. Curve drag Redo restores the final pointer position, with one Undo for the whole gesture.
 - Instrument review fixes: legacy enabled envelopes with no points display as static without rewriting data; curve timing folds with its thumbnail. Real-asset forms wrap to the viewport, filter controls stay compact, Vibrato is named, sampler scopes read All samples / This sample, unassigned mute groups read None, and sample regions/loops/slices display milliseconds while retaining frame storage. Effects use a compact searchable picker and non-wrapping modifier headers.
 

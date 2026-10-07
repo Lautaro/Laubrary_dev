@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Zounds and portable audio chains now share the retained chain editor. Hosts own undo, saving and live refresh; feature flags hide Zounds-only controls in portable clients. Narrow panes wrap effect and modifier controls, while wide Zounds layouts retain their positions. The former portable editor now contains only descriptor/control helpers.
+- Preview ownership checks borrow suitable nested clips as well as library clips and keep close-test shots alive through fixture setup.
+
 - Shared AudioCore chains use one searchable add-effect picker. Effect and modifier card headers stay on one row at narrow widths.
 - Popover hit layers remain transparent after inheriting the host theme, keeping the workspace visible behind a picker.
 

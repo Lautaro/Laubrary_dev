@@ -4,10 +4,12 @@ using System.Linq;
 using Laubrary.Audio;
 using Laubrary.Audio.Editor;
 using Laubrary.Zounds.Dsp;
+using Laubrary.Zounds.Uitk;
 using Laubrary.ZTracker.Model;
 using Laubrary.Zui;
 using UnityEngine;
 using UnityEngine.UIElements;
+using UnityEditor;
 
 namespace Laubrary.ZTracker.Editor
 {
@@ -27,7 +29,17 @@ namespace Laubrary.ZTracker.Editor
             scroll.Add(Z.Segmented(mixerTab,new[]{"Levels","Devices","Sources"},"Choose this track's controls.",v=>{mixerTab=v;BuildPane();}));
             if(mixerTab==1)
             {
-                scroll.Add(new AudioChainEditor(()=>t.devices,(label,edit,structural)=>SongEdit(label,()=>{var before=t.devices.nodes.ToArray();edit();RepairChainReferences(t,before);},false),uid=>FlagRemovedDevice(t,uid),wrapDevices:true));return;
+                string trackId = t.id;
+                TrackData Owner() => Data.tracks.Find(item => item.id == trackId);
+                scroll.Add(new ChainEditorTK(new AudioDataChainEditorHost(
+                    () => Owner().devices, (label, edit) => SongEdit(label, edit),
+                    BeginMixerGesture, () => ChainGestureChanged(song), EndMixerGesture,
+                    before => {
+                        var owner = Owner();
+                        foreach (var uid in before) if (!owner.devices.nodes.Any(n => n.uid == uid)) FlagRemovedDevice(owner, uid);
+                        RepairChainReferences(owner, before);
+                    })));
+                return;
             }
             if(mixerTab==2){BuildSources(scroll,t);return;}
             scroll.Add(Flow(Named(DialSong("Pre gain",t.preVolume,0,16,"Amplitude multiplier before effects.",v=>t.preVolume=v,decimals:3),"mixer-pre-volume"),DialSong("Pre pan",t.prePan,-1,1,"Stereo balance before effects.",v=>t.prePan=v,decimals:3),DialSong("Width",t.preWidth,0,4,"Stereo width before effects.",v=>t.preWidth=v,decimals:3)));
@@ -96,10 +108,38 @@ namespace Laubrary.ZTracker.Editor
             foreach(var s in Records(t.sourceDevices)){if(s.id==uid)s.kind=SourceDeviceKind.Unsupported;foreach(var p in Records(s.parameters))if(p.target?.deviceId==uid)p.target.unresolved=true;}
         }
         void RepairChainReferences(TrackData t,AudioEffectNodeData[] before)
+            => RepairChainReferences(t, before.Select(n => n.uid).ToArray());
+
+        void RepairChainReferences(TrackData t,string[] before)
         {
-            foreach(var send in Records(t.sends)){if(send.devicePosition>0&&send.devicePosition<=before.Length){int n=t.devices.nodes.IndexOf(before[send.devicePosition-1]);send.devicePosition=n>=0?n+1:Math.Min(send.devicePosition,t.devices.nodes.Count);}}
+            foreach(var send in Records(t.sends)){if(send.devicePosition>0&&send.devicePosition<=before.Length){int n=t.devices.nodes.FindIndex(node=>node.uid==before[send.devicePosition-1]);send.devicePosition=n>=0?n+1:Math.Min(send.devicePosition,t.devices.nodes.Count);}}
             foreach(var source in Records(t.sourceDevices).Where(s=>s.kind==SourceDeviceKind.AudioChain))foreach(var p in Records(source.parameters)){if(p.target==null)continue;var node=Records(t.devices.nodes).FirstOrDefault(n=>n.uid==p.target.deviceId);if(node?.p!=null&&p.target.index>=0&&p.target.index<node.p.Length)p.defaultValue=Mathf.InverseLerp(p.min,p.max,node.p[p.target.index]);}
             // Source ordinals belong to the authored command profile, not mutable native node order.
+        }
+
+        int mixerGestureGroup = -1;
+        double nextChainPreview;
+        void BeginMixerGesture(string label)
+        {
+            if (mixerGestureGroup >= 0) return;
+            Undo.IncrementCurrentGroup(); mixerGestureGroup = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName("Tracker: " + label); CompleteUndo(song, "Tracker: " + label);
+        }
+        void ChainGestureChanged(UnityEngine.Object target)
+        {
+            EditorUtility.SetDirty(target);
+            if (EditorApplication.timeSinceStartup < nextChainPreview) return;
+            nextChainPreview = EditorApplication.timeSinceStartup + .08;
+            RefreshLive(target as ZTrackerInstrument);
+        }
+        void EndMixerGesture()
+        {
+            if (mixerGestureGroup < 0) return;
+            EditorUtility.SetDirty(song);
+            song.serializedNulls = ZTrackerMigration.NullPaths(song);
+            song.serializedNulls.Remove(nameof(song.serializedNulls));
+            mixerGestureGroup = -1;
+            RefreshLive(); RefreshTransport();
         }
     }
 }

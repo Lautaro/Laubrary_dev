@@ -36,7 +36,9 @@ namespace Laubrary.Zounds {
                 windows.Add(w); return w;
             }
             Klip Sound(int id, bool loop = false, bool repeats = false) {
-                var source = ZoundsProject.Instance.zoundLibrary.klips.FirstOrDefault(k => k.audioClipRef != null && k.audioClipRef.editorAsset is AudioClip);
+                var library = ZoundsProject.Instance.zoundLibrary;
+                var source = library.klips.Concat(library.zequences.SelectMany(z => z.localKlips))
+                    .FirstOrDefault(k => k.audioClipRef != null && k.audioClipRef.editorAsset is AudioClip clip && clip.length >= 5f);
                 if (source == null) throw new InvalidOperationException("No existing source audio to borrow read-only.");
                 var k = new Klip(id) { name = "(preview ownership check)", audioClipRef = source.audioClipRef, audioClipPath = source.audioClipPath,
                     effectChain = new ZoundEffectChain(), trimEnabled = true, trimStart = 0f, trimEnd = .35f,
@@ -111,8 +113,11 @@ namespace Laubrary.Zounds {
                 AudioPreviewUtility.PlayPreviewClip(clipB, launchedPopup, a);
                 var launchedVoice = ZoundPreviewPlayback.Play(a, loop, args, new object(), secondaryOwner: launchedPopup);
                 // Register above replaced the first session, so establish fresh live voices at the actual close.
-                var closeShot1 = ZoundPreviewPlayback.Play(a, shot, args);
-                var closeShot2 = ZoundPreviewPlayback.Play(a, shot, args);
+                // Keep these alive through fixture construction and a busy editor frame; short shots may naturally
+                // finish before the close assertion, which tests ownership rather than scheduler latency.
+                var closeSound = Sound(-19010); closeSound.trimEnd = 5f;
+                var closeShot1 = ZoundPreviewPlayback.Play(a, closeSound, args);
+                var closeShot2 = ZoundPreviewPlayback.Play(a, closeSound, args);
                 var closeLoop = ZoundPreviewPlayback.Play(a, loop, args, new object());
                 var closeTokens = new[] { closeShot1, closeShot2, closeLoop };
                 int repeatAtClose = 0;

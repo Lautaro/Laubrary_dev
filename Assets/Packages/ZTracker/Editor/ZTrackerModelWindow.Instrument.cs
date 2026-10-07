@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using Laubrary.Audio;
 using Laubrary.Audio.Editor;
+using Laubrary.Zounds.Uitk;
 using Laubrary.ZTracker.Engine;
 using Laubrary.ZTracker.Model;
 using Laubrary.Zui;
@@ -356,7 +357,10 @@ namespace Laubrary.ZTracker.Editor
             root.Add(Flow(Button("Add chain", "Declare an AudioCore instrument chain; assign it from each sampler sample. Synth renders Chain 1; drag another chain to the first position to use it.", () => InstrumentEdit("add instrument chain", () => { chains.Add(new AudioEffectChainData()); instrumentChain = chains.Count - 1; }, true), "add-instrument-chain"), Button("Remove chain", "Remove selected chain and clear affected sample assignments.", () => { if (chains.Count == 0) return; InstrumentEdit("remove instrument chain", () => { chains.RemoveAt(instrumentChain); foreach (var s in Instrument.sampler.samples) { if (s.fxChain == instrumentChain) s.fxChain = -1; else if (s.fxChain > instrumentChain) s.fxChain--; } instrumentChain = Math.Max(0, instrumentChain - 1); }, true); }, "remove-instrument-chain")));
             if (chains.Count == 0) return; instrumentChain = Mathf.Clamp(instrumentChain, 0, chains.Count - 1);
             var picks = Flow(); for (int i = 0; i < chains.Count; i++) { int at = i; var pick = Button("Chain " + (i + 1), "Select this chain; drag to reorder with sampler assignments preserved.", () => { instrumentChain = at; BuildPane(); }, "instrument-chain-" + i); Reorder(pick, "instrument-chains", at, (a, b) => InstrumentEdit("reorder instrument chains", () => { var previous = chains.ToArray(); var selected = chains[instrumentChain]; Move(chains, a, b); foreach (var s in Instrument.sampler.samples) if (s.fxChain >= 0 && s.fxChain < previous.Length) s.fxChain = chains.IndexOf(previous[s.fxChain]); instrumentChain = chains.IndexOf(selected); }, true)); picks.Add(pick); } root.Add(picks);
-            root.Add(Named(new AudioChainEditor(() => Instrument.fxChains[instrumentChain], (label, action, topology) => InstrumentEdit(label, action)), "instrument-chain-editor"));
+            int chainIndex = instrumentChain;
+            root.Add(Named(new ChainEditorTK(new AudioDataChainEditorHost(
+                () => Instrument.fxChains[chainIndex], (label, action) => InstrumentEdit(label, action),
+                BeginInstrumentGesture, () => ChainGestureChanged(instrument), EndInstrumentGesture)), "instrument-chain-editor"));
         }
         sealed class InstrumentDestination { public string label; public ParameterTarget target; }
         List<InstrumentDestination> InstrumentDestinations(bool external)

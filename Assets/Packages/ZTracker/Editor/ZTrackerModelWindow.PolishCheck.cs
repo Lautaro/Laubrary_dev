@@ -78,7 +78,7 @@ namespace Laubrary.ZTracker.Editor
                 if (cards.childCount >= 2)
                 {
                     bool beside = Mathf.Abs(cards[0].worldBound.y - cards[1].worldBound.y) < 1;
-                    bool expected = cards.contentRect.width >= 648;
+                    bool expected = false; // Signal order is a vertical list in the single shared editor.
                     report.AppendLine("responsive-cards=" + (beside == expected ? "PASS" : "FAIL") + " available=" + cards.contentRect.width);
                     bool fit = cards.Children().All(c => c.worldBound.xMin >= cards.worldBound.xMin - 1 && c.worldBound.xMax <= cards.worldBound.xMax + 1);
                     report.AppendLine("card-horizontal-fit=" + (fit ? "PASS" : "FAIL"));
@@ -106,24 +106,23 @@ namespace Laubrary.ZTracker.Editor
             });
             Check("Second sample has no redundant off box and retains real on group", () =>
             {
-                Need(w.SelectedZone.blend == null, "Start with second sample off"); var toggle = w.rootVisualElement.Q("zone-paired"); Need(toggle.GetFirstAncestorOfType<ZuiBox>() == null, "Off toggle still has a box");
+                Need(w.SelectedZone.blend == null, "Start with second sample off"); var toggle = w.rootVisualElement.Q("zone-paired"); var outerBox = toggle.GetFirstAncestorOfType<ZuiBox>();
+                Need(outerBox == null || (string)typeof(ZuiBox).GetField("_key", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(outerBox) != "tracker.zone.blend", "Off toggle still has its own second-sample box");
                 Click("zone-paired"); Need(w.SelectedZone.blend != null && w.rootVisualElement.Q("zone-pcm-b") != null, "Enabled group missing controls");
-                Need(w.rootVisualElement.Q("zone-paired").GetFirstAncestorOfType<ZuiBox>() != null, "Enabled group missing");
+                Need(w.rootVisualElement.Q("zone-paired").GetFirstAncestorOfType<ZuiBox>() != outerBox, "Enabled group missing");
                 Undo.PerformUndo(); Need(w.SelectedZone.blend == null, "Second sample Undo failed"); Undo.PerformRedo(); Need(w.SelectedZone.blend != null, "Second sample Redo failed"); Undo.PerformUndo();
             });
             Check("Mixer card scalar edit and reorder preserve complete Undo Redo", () =>
             {
                 w.pane = 1; w.mixerTab = 1; w.BuildPane(); var nodes = w.SelectedTrack.devices.nodes; Need(nodes.Count >= 2, "Need two nodes");
                 string first = nodes[0].uid, second = nodes[1].uid; var desc = Laubrary.Zounds.Dsp.ZoundEffectDescriptors.Get(nodes[0].type); float old = nodes[0].p != null && nodes[0].p.Length > 0 ? nodes[0].p[0] : desc.parameters[0].def;
-                var dial = w.rootVisualElement.Q<ZuiMicroSlider>("chain-param-0-0"); Need(dial != null, "Gain slider absent");
-                typeof(ZuiMicroSlider).GetMethod("SetValue", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(dial, new object[] { Laubrary.Audio.Editor.AudioChainEditor.DisplayValue(desc.parameters[0], .25f), true });
+                var dial = ChainDial(w); Need(dial != null, "Gain slider absent");
+                SetChainDial(dial, Laubrary.Audio.Editor.AudioChainEditor.DisplayValue(desc.parameters[0], .25f)); ReleaseChain(dial);
                 Need(Math.Abs(w.SelectedTrack.devices.nodes[0].p[0] - .25f) < 1e-5, "Scalar edit failed"); Undo.PerformUndo(); nodes = w.SelectedTrack.devices.nodes; Need(Math.Abs((nodes[0].p == null || nodes[0].p.Length == 0 ? desc.parameters[0].def : nodes[0].p[0]) - old) < 1e-5, "Scalar Undo failed"); Undo.PerformRedo(); Need(Math.Abs(w.SelectedTrack.devices.nodes[0].p[0] - .25f) < 1e-5, "Scalar Redo failed"); Undo.PerformUndo();
-                var target = w.rootVisualElement.Q("chain-node-1"); Need(target.panel != null, "No attached panel"); DragAndDrop.SetGenericData("audio.chain.node", 0);
-                try { using (var evt = DragPerformEvent.GetPooled()) { evt.target = target; target.SendEvent(evt); } }
-                finally { DragAndDrop.SetGenericData("audio.chain.node", null); }
+                ReorderChain(w, 0, 1);
                 Need(w.SelectedTrack.devices.nodes[0].uid == second && w.SelectedTrack.devices.nodes[1].uid == first, "Attached drop did not reorder");
                 Undo.PerformUndo(); Need(w.SelectedTrack.devices.nodes[0].uid == first, "Reorder Undo failed"); Undo.PerformRedo(); Need(w.SelectedTrack.devices.nodes[0].uid == second, "Reorder Redo failed"); Undo.PerformUndo();
-                Need(w.rootVisualElement.Q("chain-device-cards")?.childCount == w.SelectedTrack.devices.nodes.Count, "Cards lost after rebuild");
+                Need(w.rootVisualElement.Query<VisualElement>().ToList().Count(e => e.name != null && e.name.StartsWith("chain-node-")) == w.SelectedTrack.devices.nodes.Count, "Cards lost after rebuild");
             });
             report.AppendLine("TOTAL passed=" + pass + " failed=" + fail); return report.ToString();
         }
