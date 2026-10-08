@@ -39,6 +39,8 @@ namespace Laubrary.Audio {
         public int[] modStepOffset;
         public int[] modStepCountOf;
         public float[] modExtraSeconds;
+        /// <summary>What a waveform-following curve is anchored to (0 trim, 1 source file seconds; T-0501).</summary>
+        public int[] modAnchor;
         /// <summary>ZPOC: each modifier's starting control value, and how much of the gap to a sent value closes per block.</summary>
         public float[] modCtlInit;
         public float[] modCtlCoef;

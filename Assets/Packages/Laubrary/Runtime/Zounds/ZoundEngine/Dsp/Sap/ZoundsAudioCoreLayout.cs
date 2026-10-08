@@ -34,6 +34,7 @@ namespace Laubrary.Zounds.Dsp {
                 modStepOffset = layout.modStepOffset,
                 modStepCountOf = layout.modStepCountOf,
                 modExtraSeconds = layout.modExtraSeconds,
+                modAnchor = layout.modAnchor,
                 modCtlInit = layout.modCtlInit,
                 modCtlCoef = layout.modCtlCoef,
                 bindCount = layout.bindCount,
