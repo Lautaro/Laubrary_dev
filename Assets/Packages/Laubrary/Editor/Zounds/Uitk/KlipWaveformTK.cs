@@ -60,6 +60,10 @@ namespace Laubrary.Zounds.Uitk {
         public KlipWaveformTK(AudioSpectrumView model, Klip klip) {
             this.model = model; this.klip = klip;
             AddToClassList("zs-klip-waveform__root");
+            // One curve at a time is selected for editing (the others are backdrops); the model starts with every
+            // curve's handles on, which would show every point, so a fresh view starts with none selected.
+            int selectedCount = (model.ShowVolumeHandles ? 1 : 0) + (model.ShowPitchHandles ? 1 : 0) + (model.ShowTimeHandles ? 1 : 0);
+            if (selectedCount > 1) Select(AudioSpectrumView.Curve.Volume, false);
 
             // ── toolbar: the shared curve bar, then Clamp and Keep length (Klip-only), then the length ──
             var row = new VisualElement();

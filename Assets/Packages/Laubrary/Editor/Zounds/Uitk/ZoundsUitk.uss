@@ -627,10 +627,6 @@
 .zs-root.zs-zequence-editor__gap, .zs-root .zs-zequence-editor__gap { flex-shrink: 0; }
 .zs-root.zs-zequence-editor__spacer, .zs-root .zs-zequence-editor__spacer { flex-grow: 1; }
 .zs-root.zs-zequence-editor__toolbar-row, .zs-root .zs-zequence-editor__toolbar-row { flex-direction: row; flex-shrink: 0; align-items: flex-start; }
-.zs-root.zs-zequence-editor__toolbar-no-play, .zs-root .zs-zequence-editor__toolbar-no-play { width: 120px; }
-.zs-root.zs-zequence-editor__toolbar-mode, .zs-root .zs-zequence-editor__toolbar-mode { width: 140px; }
-.zs-root.zs-zequence-editor__toolbar-duration, .zs-root .zs-zequence-editor__toolbar-duration { width: 130px; }
-.zs-root.zs-zequence-editor__toolbar-auto, .zs-root .zs-zequence-editor__toolbar-auto { width: 105px; }
 .zs-root.zs-zequence-editor__master-section-rect, .zs-root .zs-zequence-editor__master-section-rect { flex-shrink: 0; }
 .zs-root.zs-zequence-editor__master-section-label, .zs-root .zs-zequence-editor__master-section-label { -unity-text-align: upper-left; }
 .zs-root.zs-zequence-editor__master-section-bg, .zs-root .zs-zequence-editor__master-section-bg { position: absolute; }
@@ -756,6 +752,8 @@
 .zs-root .zs-lbl.zs-zequence-editor__toolbar-label { height: 20px; padding-right: 4px; -unity-text-align: middle-right; }
 .zs-root .zs-zequence-editor__toolbar-field { height: 18px; margin-top: 1px; }
 .zs-root .zs-zequence-editor__toolbar-mode { height: 20px; }
+.zs-root .zs-zequence-editor__toolbar-row > * { flex-shrink: 0; }
+.zs-root .zs-zequence-editor__toolbar-row > .zs-zequence-editor__spacer { flex-shrink: 1; min-width: 0; }
 /* A track card: the reorder grip, the height grip along the bottom, the start box, the drop line while reordering. */
 .zs-root .zs-lbl.zs-zequence-entry__grip { cursor: move-arrow; color: rgb(140,140,150); -unity-text-align: middle-center; font-size: 11px; padding: 0; }
 .zs-root .zs-lbl.zs-zequence-entry__grip:hover { color: rgb(220,220,230); }

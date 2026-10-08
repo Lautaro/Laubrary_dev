@@ -60,7 +60,6 @@ namespace Laubrary.Zounds.Uitk {
                 int index = i;
                 c.enable = ZS.Toggle(c.label, "", c.enabled(), v => c.setEnabled(v), "RichToggle", ZUICornerMask.Left, NameW, H);
                 c.enable.AddToClassList("zs-curvebar__toggle");
-                c.enable.style.color = c.colour;
                 if (c.onContext != null) c.enable.RegisterCallback<PointerDownEvent>(e => { if (e.button != 1) return; e.StopPropagation(); c.onContext(c.enable); });
                 c.edit = ZS.Toggle("", "", false, v => select(v ? index : -1), "RichToggle", ZUICornerMask.None, IconW, H);
                 c.edit.markWhenOn = false;
@@ -91,6 +90,9 @@ namespace Laubrary.Zounds.Uitk {
                 var c = curves[i];
                 bool on = c.enabled(), editing = sel == i, shown = c.shown();
                 c.enable.SetValueWithoutNotify(on);
+                // The name wears the curve's colour while off (so each curve is told apart at a glance); on, the latched
+                // fill's own text colour, which reads on it.
+                c.enable.style.color = on ? StyleKeyword.Null : (StyleColor)c.colour;
                 c.edit.SetValueWithoutNotify(editing);
                 c.edit.SetEnabled(on);
                 c.eye.SetEnabled(on);

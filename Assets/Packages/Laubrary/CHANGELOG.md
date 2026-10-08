@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Zounds — the Klip and Zequence editors laid out afresh (owner's review of 2026-10-08)
+
+Branch `feat/zounds-ui-overhaul`. The two editors keep every function; what changed is where things are and how much room they take.
+
+- **One curve bar, used in both editors.** Trim, then Time / Pitch / Vol, each with its on switch, a pencil that selects it for editing (one at a time) and an eye that shows or hides its drawing: a 16 px strip over the Klip waveform and on every local track of a Zequence. A right-click on a curve's name opens its own settings: the extra time it keeps going after the audio (its tail), and, for the volume curve, its value range (the top and bottom of its drawing; a top above 1 boosts).
+- **The sound's own curves are not modifiers.** The Volume, Pitch and Time curves no longer appear as Envelope cards in the Modifiers list (they are still saved in the chain and play exactly as before); the curve bar is where they live. A waveform-following envelope that does stay in the list (one bound to an effect) is drawn over the trimmed region and its tail by default, with a File switch for the whole source, since a Klip usually plays a short piece of a long file and the rest of the axis was never heard.
+- **Editing one curve puts the others behind it.** The curve selected for editing shows its points; the others are drawn half transparent and twice as wide, with no points, and take no input. With none selected, no points are drawn.
+- **Klip editor.** Opens showing only the trimmed part (the wheel zooms out to the rest); the waveform's height is dragged on a grip along its bottom edge and kept per machine; Render is gone (playback never used its file, it refused on effects, and builds copy sources on their own); Remove is now a Delete icon; Force GC is gone from both editors.
+- **Zequence editor.** One 20 px toolbar: Mode as a segmented choice, No-play for a randomizer, Auto length (on by default, the length follows the longest track) or a two-decimal Length box when it is off, an Edit tools switch (the timeline's edit bar and overview strip are optional), Tidy (fit the view, default heights, no selection), then Retrigger, Bake…, Delete and Play. The audition card (Play on change, Burst, Loop) can be pinned into either window from Play's right-click.
+- **Tracks.** One header row (reorder grip, play, name and length, id, Start in seconds, the curve bar for a local Klip, Mute, Solo, duplicate, delete, convert) over the V/P/C sliders and the lane; a grip along the bottom sets each track's own height, kept with the track. Tracks are reordered by dragging the grip. A click on a track's waveform plays that track from its start; a right-click plays it from the clicked moment (not while one of its curves is being edited). Only a local Klip's curves can be edited from the Zequence editor; a shared sound is edited in its own window.
+- **A local sound is never shared between tracks.** Every piece a split, a cut or a paste makes from a local Klip gets a Klip of its own, trimmed to the piece, so editing one piece never changes another; "Own sound" is retired. A library sound still gives a piece an excerpt and is never touched. Kept check 32 follows the rule.
+- **Colours.** The editors' background, the two track bands and the track lane are in the Settings tab's Editor Style.
+
 ### Zounds — non-destructive multitrack editing in the Zequence window (T-0558..T-0568)
 
 Commits are prefixed `Zounds (nondestructive-edit):`. A Zequence of placed, trimmed Klips is the non-destructive edit: no edit reads, writes or copies audio; the only thing that writes a file is an explicit Bake.
