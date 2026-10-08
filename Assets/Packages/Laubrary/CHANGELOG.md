@@ -47,6 +47,17 @@ Fifth pass (the PM's review of the third and fourth):
 - **The whole Settings tab is on ZUI controls.** Paths are text inputs sized for a path; the volumes and fade are micro sliders with the label in the track; Cooldown and Max Played Instances are scrub-draggable number boxes; Theme is a ZUI dropdown with Refresh and Save as theme… beside it on one row (and "None saved" when the folder is empty); Auto Render is a latching toggle; the external root's status sits on its own row's end instead of a line of its own. Nothing stretches across the pane, and every edit is one undo step.
 - **A translucent colour says so.** Beside every colour swatch a readout gives the opacity whenever it is not full ("4% opaque" for the track lane), because the swatch shows the colour at full strength and the alpha bar under it is a hairline.
 
+### Zounds — one picker for clips and sounds (owner, 2026-10-08)
+
+The three old ways of choosing audio (the flat "Add New Klip(s)" menu popup, the "Add Zound(s)" menu popup for a Zequence's shared track, and Unity's object field for a Klip's source) are one window, in the Zounds look:
+
+- **Where it opens.** The browser's + (a new Klip), a Zequence's + Local Klip and + Shared Zound, and the Klip editor's Source row (Change…). The other ways to get a Klip (Import file…, Import & trim…, External file…, Empty Klip) sit along its bottom edge instead of being buried in the list.
+- **Finding.** Search as you type across name, folder, tags and file name, forgiving ("ftstp" finds "footstep"; several words must all match; whole-word hits rank first). Show all / library / sources (or all / Klips / Zequences), only favourites, only recent picks, only unused. Sort by name, most recently picked, most used in the project, length, or folder. Group by folder, tag or kind.
+- **Seeing.** Compact (one line each), list (a waveform per row, in the Settings tab's waveform colours) or grid (tiles, as many across as fit). A details pane beside the list: the waveform large, kind, length, format, where it lives, its file, tags and what uses it, with Play, Show file (the Project window), Open… (a sound's editor) and Star. Picking never scrolls the details away.
+- **Doing.** Click selects, Ctrl adds, Shift ranges, Ctrl+A all; arrows (and Page Up/Down, Home, End) move; Enter or a double-click picks; Space or a row's ▶ plays (Play on select plays as you move); Esc cancels. Several picks make several Klips or tracks in one undo step. Rows drag out of the picker into a Zequence editor (clips become local Klips, sounds shared tracks); a clip from the Project window drops there too, and onto the Klip editor's Source row.
+- **Remembering.** Per machine and project: the window's size and place, the last search, filters, sort, grouping and view, the starred items and the last forty picks. A pick's name override (from the browser's name box) goes to the first pick only; the rest keep their clip names.
+- **Scale.** The list is virtualised and the waveform thumbnails are computed a few per editor tick and cached, so a listing of five thousand items opens in a third of a second, searches in under thirty milliseconds, and scrolls without stutter (measured on a synthetic listing, not committed).
+
 ### Zounds — non-destructive multitrack editing in the Zequence window (T-0558..T-0568)
 
 Commits are prefixed `Zounds (nondestructive-edit):`. A Zequence of placed, trimmed Klips is the non-destructive edit: no edit reads, writes or copies audio; the only thing that writes a file is an explicit Bake.

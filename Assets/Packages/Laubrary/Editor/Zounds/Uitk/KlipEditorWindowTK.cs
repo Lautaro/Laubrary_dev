@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Laubrary.Zui;
 using UnityEditor;
 using UnityEngine;
@@ -224,14 +225,7 @@ namespace Laubrary.Zounds.Uitk {
                 box.Add(new HelpBox("Source clip is not available on this machine. Waveform edits are disabled.\nSettings (volume, pitch, chance, routing, tags) remain editable.", HelpBoxMessageType.Info));
 
             if (hasExternalSource) box.Add(BuildExternalSourceRow());
-            else {
-                // Source (EditorGUILayout.ObjectField "Source:")
-                var source = new UnityEditor.UIElements.ObjectField("Source:") { objectType = typeof(AudioClip), allowSceneObjects = false };
-                source.AddToClassList("zs-sourcefield");
-                source.SetValueWithoutNotify(sourceAsset);
-                source.RegisterValueChangedCallback(e => ReplaceSource(e.newValue as AudioClip));
-                box.Add(source);
-            }
+            else box.Add(BuildSourceRow(sourceAsset));
             // With no source on this machine, the rendered output is the only audio left to show and preview.
             if (!sourceAvailable && outputAsset != null) spectrum.audioSource.clip = outputAsset;
 
@@ -372,6 +366,38 @@ namespace Laubrary.Zounds.Uitk {
         AudioClip ResolveOutputAsset() {
             var outputRef = klip.outputClipRef ?? klip.renderedClipRef;
             try { return outputRef == null ? null : outputRef.editorAsset as AudioClip; } catch { return null; }
+        }
+
+        /// <summary>
+        /// The source row (2026-10-08, replacing Unity's object field): "Source:", the clip's name, Change… (the Zounds
+        /// picker, single pick), Show file (the Project window). A clip dragged from the Project window onto the row
+        /// still replaces the source, as the object field allowed.
+        /// </summary>
+        VisualElement BuildSourceRow(AudioClip sourceAsset) {
+            var r = HRow(EditorGUIUtility.singleLineHeight + 2f);
+            r.AddToClassList("zs-klip-editor__source-row");
+            var label = new Label("Source:") { tooltip = "The clip this Klip plays from." };
+            label.AddToClassList("zs-lbl");
+            label.style.width = EditorGUIUtility.labelWidth; label.AddToClassList("zs-klip-editor__external-source-row-label");
+            var name = new TextField { value = sourceAsset != null ? sourceAsset.name : "(none)", isReadOnly = true, tooltip = sourceAsset != null ? AssetDatabase.GetAssetPath(sourceAsset) : "No clip assigned yet." };
+            name.AddToClassList("zs-klip-editor__external-source-row-name");
+            var change = ZS.Button("Change…", "Pick another clip of the workspace for this Klip to play from.", "RichButton",
+                () => ZoundPickerWindowTK.Open(ZoundPickerRequests.KlipSource(klip, ReplaceSource, this)), ZUICornerMask.Left, 70f, EditorGUIUtility.singleLineHeight);
+            change.AddToClassList("zs-klip-editor__external-source-row-browse");
+            var show = ZS.Button("Show file", "Highlights the clip in the Project window.", "RichButton", () => { if (sourceAsset != null) EditorGUIUtility.PingObject(sourceAsset); }, ZUICornerMask.Right, 70f, EditorGUIUtility.singleLineHeight);
+            show.SetEnabled(sourceAsset != null);
+            show.AddToClassList("zs-klip-editor__external-source-row-reveal");
+            r.Add(label); r.Add(name); r.Add(change); r.Add(show);
+            // A clip dropped from the Project window (or dragged out of the picker) replaces the source.
+            r.RegisterCallback<DragUpdatedEvent>(e => { if (DroppedClip() != null) { DragAndDrop.visualMode = DragAndDropVisualMode.Link; e.StopPropagation(); } });
+            r.RegisterCallback<DragPerformEvent>(e => { var c = DroppedClip(); if (c == null) return; DragAndDrop.AcceptDrag(); ReplaceSource(c); e.StopPropagation(); });
+            return r;
+        }
+
+        static AudioClip DroppedClip() {
+            if (DragAndDrop.GetGenericData(ZoundPickerWindowTK.DragKey) is List<ZoundPickerItem> items && items.Count > 0 && items[0].clip != null) return items[0].clip;
+            foreach (var o in DragAndDrop.objectReferences) if (o is AudioClip c) return c;
+            return null;
         }
 
         /// <summary>The old window's external-source row: "Source:" and the file's name (selectable, read-only), Browse, Reveal.</summary>

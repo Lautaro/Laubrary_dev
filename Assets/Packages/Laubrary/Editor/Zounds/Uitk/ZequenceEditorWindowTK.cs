@@ -200,6 +200,7 @@ namespace Laubrary.Zounds.Uitk {
             box.AddToClassList("zs-zequence-editor__box");
             SettingsTabTK.ApplyEditorBackground(box);
             root.Add(box);
+            WireDropTarget(box);
             box.Add(Toolbar());
             pinnedSlot = new VisualElement();
             pinnedSlot.AddToClassList("zs-zequence-editor__pinned");
@@ -556,6 +557,58 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         internal bool AutoDuration => autoDuration;
+
+        // ── drop target (2026-10-08): rows dragged out of the picker, or clips from the Project window, become tracks ──
+
+        /// <summary>What a drag over the editor would add: picker items (clips become local Klips, sounds shared tracks),
+        /// or Project-window clips as local Klips; null when the drag carries nothing of the kind.</summary>
+        List<ZoundPickerItem> Dropped() {
+            if (DragAndDrop.GetGenericData(ZoundPickerWindowTK.DragKey) is List<ZoundPickerItem> items && items.Count > 0) return items;
+            List<ZoundPickerItem> clips = null;
+            foreach (var o in DragAndDrop.objectReferences) {
+                if (!(o is AudioClip c)) continue;
+#if ADDRESSABLES_INSTALLED
+                var r = AudioRenderUtility.GetAudioReference(c);
+                if (r == null) continue;
+                (clips ??= new List<ZoundPickerItem>()).Add(new ZoundPickerItem { key = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(c)), name = c.name, kind = ZoundPickerItem.Kind.Clip, clip = c, audioRef = r });
+#endif
+            }
+            return clips;
+        }
+
+        void WireDropTarget(VisualElement target) {
+            target.RegisterCallback<DragUpdatedEvent>(e => {
+                if (Dropped() == null) return;
+                DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
+                e.StopPropagation();
+            });
+            target.RegisterCallback<DragPerformEvent>(e => {
+                var items = Dropped();
+                if (items == null) return;
+                DragAndDrop.AcceptDrag();
+                e.StopPropagation();
+                int group = Undo.GetCurrentGroup();
+                foreach (var it in items) {
+                    if (it.zound != null) {
+                        if (it.zound.id == zeq.id || (it.zound is CompositeZound cz && ZequenceHandler.CheckRecursiveness(cz, zeq))) continue;
+                        CompositeZoundEditing.AddNewZoundEntry(zeq, zeq, it.zound, false, autoDuration);
+                    }
+#if ADDRESSABLES_INSTALLED
+                    else if (it.audioRef != null) {
+                        ZoundsWindow.ModifyZoundsProject("add local klip", () => {
+                            var klip = BrowserTab.CreateKlipFromAudioRef(it.audioRef, null);
+                            if (klip == null) return;
+                            klip.parentId = zeq.id;
+                            zeq.localKlips.Add(klip);
+                            CompositeZoundEditing.AddNewZoundEntry(zeq, zeq, klip, true, autoDuration);
+                        });
+                    }
+#endif
+                }
+                Undo.CollapseUndoOperations(group);
+                Tick();
+            });
+        }
 
         // ─────────────────────────── the shared timeline ───────────────────────────
 

@@ -185,31 +185,12 @@ namespace Laubrary.Zounds {
             entryToConvert.chance = 1f;
         }
 
-        /// <summary>The "+ Shared Zound" menu: every zound not this one and not containing it, searchable, playable on hover.</summary>
+        /// <summary>"+ Shared Zound": the picker over every library sound that is not this one and does not contain it
+        /// (2026-10-08, replacing the flat menu popup). The picker keeps its own search; <paramref name="searchText"/> and
+        /// <paramref name="onSearchChanged"/> are the old menu's and are no longer read, kept so the call sites need no change.</summary>
         public static void AddNewEntryFromExisting(CompositeZound parentZound, Vector2 mousePosition, string searchText,
                                                    System.Action<string> onSearchChanged, System.Action<Zound> onChosen, EditorWindow previewOwner) {
-            var library = ZoundsProject.Instance.zoundLibrary;
-            List<Zound> allZounds = library.GetAllZounds();
-            var sortedZounds = allZounds.OrderBy(z => z.name).ToList();
-
-            var genericMenu = new GenericMenu();
-            foreach (var z in sortedZounds) {
-                if (z.id == parentZound.id) continue;
-                if (z is CompositeZound cz && ZequenceHandler.CheckRecursiveness(cz, parentZound)) {
-                    continue;
-                }
-                var zound = z;
-                genericMenu.AddItem(new GUIContent(zound.GetType().Name + "/" + zound.name), false, userData => onChosen(zound), zound);
-            }
-
-            GenericMenuPopup.Show(
-                genericMenu,
-                "Add Zound(s)",
-                mousePosition,
-                new List<string>(),
-                searchText,
-                onSearchChanged,
-                previewOwner: previewOwner, preview: (userData, popupOwner) => ZoundPreviewPlayback.Play(previewOwner, userData as Zound, secondaryOwner: popupOwner));
+            Uitk.ZoundPickerWindowTK.Open(Uitk.ZoundPickerRequests.SharedZounds(parentZound, onChosen, previewOwner));
         }
 
         /// <summary>Adds an entry for <paramref name="zound"/> and widens the editor timeline if it now runs longer.</summary>

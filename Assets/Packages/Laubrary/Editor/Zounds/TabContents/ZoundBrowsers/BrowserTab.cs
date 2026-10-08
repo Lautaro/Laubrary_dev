@@ -1097,64 +1097,36 @@ namespace Laubrary.Zounds {
             }
         }
 
+        /// <summary>
+        /// "New Klip": the picker over every clip of the workspace (2026-10-08, replacing the flat menu popup). The picker
+        /// keeps its own search; <paramref name="searchText"/> and <paramref name="onSearchTextChanged"/> are the old
+        /// menu's and are no longer read, kept so the many call sites need no change.
+        /// </summary>
         public static void OpenCreateNewKlipDialog(Vector3 mousePosition, System.Action<Klip> onKlipAdded, string searchText, System.Action<string> onSearchTextChanged, string nameOverride = null, EditorWindow previewOwner = null) {
-            var genericMenu = new GenericMenu();
-#if ADDRESSABLES_INSTALLED
-            AudioAssetUtility.FindAllAudioReferencesInWorkspace(out var libraryAudioRefs, out var workAudioRefs, out var sourcesAudioRefs, out var _);
-            foreach (var audioRef in libraryAudioRefs) AddAudioRefToGenericMenu(onKlipAdded, genericMenu, audioRef, "", nameOverride);
-            foreach (var audioRef in workAudioRefs)    AddAudioRefToGenericMenu(onKlipAdded, genericMenu, audioRef, "", nameOverride);
-            foreach (var audioRef in sourcesAudioRefs) AddAudioRefToGenericMenu(onKlipAdded, genericMenu, audioRef, "Sources/", nameOverride);
-
-            // Browse-and-import option — always available. Lets the user pick any WAV from outside
-            // the project, copies it into the Sources folder as a first-class AudioClip asset, then
-            // builds a Klip from it. Unlike the "External" button in the folder bar (which keeps the file
-            // external via Klip.externalSourcePath), this makes the file a real in-project source.
-            genericMenu.AddSeparator("");
-            genericMenu.AddItem(new GUIContent("Import External File to Sources..."), false, () => {
-                // Defer the modal file dialog to avoid corrupting the IMGUI layout stack.
-                var capturedOnKlipAdded = onKlipAdded;
-                var capturedNameOverride = nameOverride;
-                EditorApplication.delayCall += () => {
-                    string startDir = ProjectSettingsTab.HasExternalSourceRoot ? ProjectSettingsTab.ExternalSourceRoot : "";
-                    string selected = EditorUtility.OpenFilePanel("Import Audio File into Project", startDir, "wav");
-                    if (!string.IsNullOrEmpty(selected)) {
-                        ImportExternalFileAsSource(selected, capturedNameOverride, capturedOnKlipAdded);
-                    }
-                };
-            });
-
-            // Browse-and-import with trimming. Opens a popup to trim the file (and draw a volume
-            // envelope) so only the kept region is baked into Sources — keeping the source project
-            // lean. Provenance (original path + trim) is embedded in the saved WAV's metadata.
-            genericMenu.AddItem(new GUIContent("Import & Trim External File..."), false, () => {
-                var capturedOnKlipAdded = onKlipAdded;
-                var capturedNameOverride = nameOverride;
-                EditorApplication.delayCall += () => {
-                    string startDir = ProjectSettingsTab.HasExternalSourceRoot ? ProjectSettingsTab.ExternalSourceRoot : "";
-                    string selected = EditorUtility.OpenFilePanel("Import & Trim Audio File", startDir, "wav");
-                    if (!string.IsNullOrEmpty(selected)) {
-                        ImportTrimPopupWindow.Open(selected, capturedOnKlipAdded, capturedNameOverride);
-                    }
-                };
-            });
-#endif
-            genericMenu.AddSeparator("");
-            genericMenu.AddItem(new GUIContent("Empty Klip (Placeholder)"), false, () => {
-                var capturedOnKlipAdded = onKlipAdded;
-                var capturedNameOverride = nameOverride;
-                ZoundsWindow.ModifyZoundsProject("add empty placeholder klip", () => {
-                    capturedOnKlipAdded?.Invoke(CreateEmptyPlaceholderKlip(capturedNameOverride));
-                }, true);
-            });
-            // The external file option is not a menu entry: it is the "External" button in the
-            // folder bar above the list (see DrawFolderFilterButtons), so it is visible without
-            // scrolling through the clip list.
-
-            // The popup lists this menu flat and sorted by name, which buried the actions among
-            // hundreds of clips; starring pins them above the list while the search box is empty.
-            var pinnedActions = new List<string> { "Import External File to Sources...", "Import & Trim External File...", "Empty Klip (Placeholder)" };
-            GenericMenuPopup.Show(genericMenu, "Add New Klip(s)", mousePosition, pinnedActions, searchText, newSearch => onSearchTextChanged?.Invoke(newSearch), null, 3, false, null, (updateFilter) => DrawFolderFilterButtons(updateFilter, () => AddKlipFromExternalFile(nameOverride, onKlipAdded)), previewOwner: previewOwner, preview: (userData, popupOwner) => { if (userData is AudioClip clip) AudioPreviewUtility.PlayPreviewClip(clip, popupOwner, previewOwner); return null; });
+            Uitk.ZoundPickerWindowTK.Open(Uitk.ZoundPickerRequests.NewKlips(onKlipAdded, nameOverride, previewOwner));
         }
+
+#if ADDRESSABLES_INSTALLED
+        /// <summary>"Import file…": a WAV from outside the project is copied into Sources and becomes a Klip. The modal
+        /// dialog is deferred a frame so it never opens under the window that asked.</summary>
+        internal static void ImportExternalFile(string nameOverride, System.Action<Klip> onKlipAdded) {
+            EditorApplication.delayCall += () => {
+                string startDir = ProjectSettingsTab.HasExternalSourceRoot ? ProjectSettingsTab.ExternalSourceRoot : "";
+                string selected = EditorUtility.OpenFilePanel("Import Audio File into Project", startDir, "wav");
+                if (!string.IsNullOrEmpty(selected)) ImportExternalFileAsSource(selected, nameOverride, onKlipAdded);
+            };
+        }
+
+        /// <summary>"Import & trim…": the file opens in the trim window; only the kept region is written into Sources,
+        /// as a new Klip, with where it came from in the WAV's metadata.</summary>
+        internal static void ImportAndTrimExternalFile(string nameOverride, System.Action<Klip> onKlipAdded) {
+            EditorApplication.delayCall += () => {
+                string startDir = ProjectSettingsTab.HasExternalSourceRoot ? ProjectSettingsTab.ExternalSourceRoot : "";
+                string selected = EditorUtility.OpenFilePanel("Import & Trim Audio File", startDir, "wav");
+                if (!string.IsNullOrEmpty(selected)) ImportTrimPopupWindow.Open(selected, onKlipAdded, nameOverride);
+            };
+        }
+#endif
 
         public void OpenZoundEditor(Zound zound) {
             if (zound == null) return;
@@ -1724,62 +1696,45 @@ namespace Laubrary.Zounds {
         // ═══════════════════════════════════════════════════════════════════════
 
 #if ADDRESSABLES_INSTALLED
-        private static void AddAudioRefToGenericMenu(System.Action<Klip> onKlipAdded, GenericMenu genericMenu, AssetReferenceT<AudioClip> audioRef, string parentPath, string nameOverride) {
-            var clipName = audioRef.editorAsset.name;
-            string assetPath = AssetDatabase.GetAssetPath(audioRef.editorAsset);
+        /// <summary>
+        /// A new Klip playing <paramref name="audioRef"/>'s clip, whole. A clip from the work folder is first copied into
+        /// Sources (a work file is scratch, not a source), the copy being what the Klip plays. Call inside a project
+        /// modification; the Klip is not yet in the library (the caller's onKlipAdded puts it where it belongs).
+        /// </summary>
+        internal static Klip CreateKlipFromAudioRef(AssetReferenceT<AudioClip> audioRef, string nameOverride) {
+            if (audioRef == null || audioRef.editorAsset == null) return null;
             var projectSettings = ZoundsProject.Instance.projectSettings;
-            string relativePath = "";
-            if (!string.IsNullOrEmpty(projectSettings.libraryFolderPath) && assetPath.StartsWith(projectSettings.libraryFolderPath)) {
-                relativePath = assetPath.Replace(projectSettings.libraryFolderPath, "").Replace("\\", "/");
-                if (relativePath.StartsWith("/")) relativePath = relativePath.Substring(1);
-                int lastSlash = relativePath.LastIndexOf('/');
-                relativePath = lastSlash != -1 ? relativePath.Substring(0, lastSlash + 1) : "";
+            var clipName = audioRef.editorAsset.name;
+            var newKlip = new Klip(ZoundLibrary.GetUniqueZoundId());
+            string ap = AssetDatabase.GetAssetPath(audioRef.editorAsset);
+            if (ap.StartsWith(projectSettings.workFolderPath)) {
+                string newPath = ap.Replace(projectSettings.workFolderPath, projectSettings.sourcesFolderPath);
+                newPath = Path.ChangeExtension(newPath, ".Copy.wav");
+                newPath = AssetDatabase.GenerateUniqueAssetPath(newPath);
+                var reloadedAudio = AudioRenderUtility.SaveAudio(audioRef.editorAsset, newPath);
+                var copiedRef = AudioRenderUtility.GetAudioReference(reloadedAudio);
+                if (copiedRef == null || copiedRef.editorAsset == null) {
+                    // The copy could not be referenced (no Addressables settings, import failed): use the original.
+                    Debug.LogWarning("[Zounds] Could not reference the copied clip at " + newPath + "; the Klip uses the original clip instead.");
+                    newKlip.audioClipRef = audioRef;
+                    newKlip.name = ZoundDictionary.EnsureUniqueZoundName(clipName);
+                }
+                else {
+                    newKlip.audioClipRef = copiedRef;
+                    newKlip.name = ZoundDictionary.EnsureUniqueZoundName(copiedRef.editorAsset.name);
+                }
             }
-            else if (!string.IsNullOrEmpty(projectSettings.sourcesFolderPath) && assetPath.StartsWith(projectSettings.sourcesFolderPath)) {
-                string subPath = assetPath.Replace(projectSettings.sourcesFolderPath, "").Replace("\\", "/");
-                if (subPath.StartsWith("/")) subPath = subPath.Substring(1);
-                int lastSlash = subPath.LastIndexOf('/');
-                string subFolder = lastSlash != -1 ? subPath.Substring(0, lastSlash + 1) : "";
-                relativePath = "Sources/" + subFolder;
+            else {
+                newKlip.audioClipRef = audioRef;
+                newKlip.name = ZoundDictionary.EnsureUniqueZoundName(clipName);
             }
-            else if (!string.IsNullOrEmpty(parentPath)) {
-                relativePath = parentPath;
-            }
-
-            genericMenu.AddItem(new GUIContent(relativePath + clipName), false, userData => {
-                ZoundsWindow.ModifyZoundsProject("add new klips", () => {
-                    var newKlip = new Klip(ZoundLibrary.GetUniqueZoundId());
-                    string ap = AssetDatabase.GetAssetPath(audioRef.editorAsset);
-                    if (ap.StartsWith(projectSettings.workFolderPath)) {
-                        string newPath = ap.Replace(projectSettings.workFolderPath, projectSettings.sourcesFolderPath);
-                        newPath = Path.ChangeExtension(newPath, ".Copy.wav");
-                        newPath = AssetDatabase.GenerateUniqueAssetPath(newPath);
-                        var reloadedAudio = AudioRenderUtility.SaveAudio(audioRef.editorAsset, newPath);
-                        var copiedRef = AudioRenderUtility.GetAudioReference(reloadedAudio);
-                        if (copiedRef == null || copiedRef.editorAsset == null) {
-                            // The copy could not be referenced (no Addressables settings, import failed): use the original.
-                            Debug.LogWarning("[Zounds] Could not reference the copied clip at " + newPath + "; the Klip uses the original clip instead.");
-                            newKlip.audioClipRef = audioRef;
-                            newKlip.name = ZoundDictionary.EnsureUniqueZoundName(clipName);
-                        }
-                        else {
-                            newKlip.audioClipRef = copiedRef;
-                            newKlip.name = ZoundDictionary.EnsureUniqueZoundName(copiedRef.editorAsset.name);
-                        }
-                    }
-                    else {
-                        newKlip.audioClipRef = audioRef;
-                        newKlip.name = ZoundDictionary.EnsureUniqueZoundName(clipName);
-                    }
-                    if (!string.IsNullOrEmpty(nameOverride)) newKlip.name = nameOverride;
-                    newKlip.trimStart = 0f;
-                    newKlip.trimEnd = audioRef.editorAsset.length;
-                    newKlip.volumeEnvelope = new Envelope(Zound.MinVolumeRange, Zound.MaxVolumeRange);
-                    newKlip.pitchEnvelope  = new Envelope(Zound.MinPitchRange,  Zound.MaxPitchRange);
-                    if (ZoundEngine.IsInitialized()) ZoundDictionary.ValidateZoundRuntime(newKlip);
-                    onKlipAdded?.Invoke(newKlip);
-                }, true);
-            }, audioRef.editorAsset);
+            if (!string.IsNullOrEmpty(nameOverride)) newKlip.name = nameOverride;
+            newKlip.trimStart = 0f;
+            newKlip.trimEnd = audioRef.editorAsset.length;
+            newKlip.volumeEnvelope = new Envelope(Zound.MinVolumeRange, Zound.MaxVolumeRange);
+            newKlip.pitchEnvelope  = new Envelope(Zound.MinPitchRange,  Zound.MaxPitchRange);
+            if (ZoundEngine.IsInitialized()) ZoundDictionary.ValidateZoundRuntime(newKlip);
+            return newKlip;
         }
 
         /// <summary>
@@ -1843,7 +1798,7 @@ namespace Laubrary.Zounds {
         /// Makes one Klip per chosen WAV file outside the project; the dialog allows several files.
         /// Needs the per-machine external source root; when none is set yet the user is asked for it first.
         /// </summary>
-        private static void AddKlipFromExternalFile(string nameOverride, System.Action<Klip> onKlipAdded) {
+        internal static void AddKlipFromExternalFile(string nameOverride, System.Action<Klip> onKlipAdded) {
             // Defer the modal file dialog to avoid corrupting the IMGUI layout stack.
             EditorApplication.delayCall += () => {
                 if (!ProjectSettingsTab.HasExternalSourceRoot) {
@@ -1888,81 +1843,5 @@ namespace Laubrary.Zounds {
             return created;
         }
 
-        private static void DrawFolderFilterButtons(System.Action<string, bool> updateFilter, System.Action onExternalFile) {
-            var projectSettings = ZoundsProject.Instance.projectSettings;
-            string libraryPath = projectSettings.libraryFolderPath;
-            string sourcesPath = projectSettings.sourcesFolderPath;
-
-            var allFolders = new List<string>();
-            if (!string.IsNullOrEmpty(libraryPath) && Directory.Exists(libraryPath))
-                allFolders.AddRange(Directory.GetDirectories(libraryPath, "*", SearchOption.AllDirectories));
-            if (!string.IsNullOrEmpty(sourcesPath) && Directory.Exists(sourcesPath))
-                allFolders.AddRange(Directory.GetDirectories(sourcesPath, "*", SearchOption.AllDirectories));
-
-            string defaultRoot = "Assets/GameData/ZoundsData";
-            if (allFolders.Count == 0 && Directory.Exists(defaultRoot))
-                allFolders.AddRange(Directory.GetDirectories(defaultRoot, "*", SearchOption.AllDirectories));
-
-            if (allFolders.Count == 0) return;
-
-            Color libraryColor = new Color(0.7f, 0.9f, 0.7f);
-            Color sourcesColor = new Color(0.7f, 0.8f, 1.0f);
-            Color defaultColor = GUI.color;
-
-            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-            {
-                float viewWidth = EditorGUIUtility.currentViewWidth - 30f;
-                float currentX  = 0f;
-
-                EditorGUILayout.BeginHorizontal();
-                GUILayout.Label("Folders:", EditorStyles.miniLabel, GUILayout.Width(50));
-                currentX += 55f;
-
-                if (GUILayout.Button(new GUIContent("External", "Pick a WAV file outside the project as a new Klip."), EditorStyles.miniButton, GUILayout.ExpandWidth(false))) {
-                    // The picker is modal, so the popup goes away first.
-                    if (EditorWindow.focusedWindow is GenericMenuEditorWindow popupWindow) popupWindow.Close();
-                    onExternalFile?.Invoke();
-                }
-                currentX += 65f;
-
-                if (GUILayout.Button("All", EditorStyles.miniButton, GUILayout.ExpandWidth(false))) {
-                    updateFilter?.Invoke("", true);
-                }
-                currentX += 45f;
-
-                var uniqueNames = new HashSet<string>();
-                foreach (string folderPath in allFolders) {
-                    string folderName = Path.GetFileName(folderPath);
-                    if (uniqueNames.Contains(folderName)) continue;
-                    uniqueNames.Add(folderName);
-
-                    bool isLibrary = !string.IsNullOrEmpty(libraryPath) && folderPath.StartsWith(libraryPath);
-                    float buttonWidth = EditorStyles.miniButton.CalcSize(new GUIContent(folderName)).x + 4f;
-
-                    if (currentX + buttonWidth > viewWidth) {
-                        EditorGUILayout.EndHorizontal();
-                        EditorGUILayout.BeginHorizontal();
-                        GUILayout.Space(55f);
-                        currentX = 55f;
-                    }
-
-                    GUI.color = isLibrary ? libraryColor : sourcesColor;
-                    if (GUILayout.Button(folderName, EditorStyles.miniButton, GUILayout.ExpandWidth(false))) {
-                        string relative = "";
-                        if (isLibrary) relative = folderPath.Replace(libraryPath, "");
-                        else if (!string.IsNullOrEmpty(sourcesPath) && folderPath.StartsWith(sourcesPath)) relative = folderPath.Replace(sourcesPath, "");
-                        else relative = folderPath.Replace(defaultRoot, "");
-                        relative = relative.Replace("\\", "/").ToLower();
-                        if (relative.StartsWith("/")) relative = relative.Substring(1);
-                        if (!string.IsNullOrEmpty(relative) && !relative.EndsWith("/")) relative += "/";
-                        updateFilter?.Invoke(relative, true);
-                    }
-                    GUI.color = defaultColor;
-                    currentX += buttonWidth;
-                }
-                EditorGUILayout.EndHorizontal();
-            }
-            EditorGUILayout.EndVertical();
-        }
     }
 }
