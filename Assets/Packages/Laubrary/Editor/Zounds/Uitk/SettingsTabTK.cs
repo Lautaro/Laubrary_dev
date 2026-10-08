@@ -50,25 +50,81 @@ namespace Laubrary.Zounds.Uitk {
             return l;
         }
 
-        T Field<T, TV>(T field, string path, float labelWidth, Func<SerializedProperty, TV> get, Action<SerializedProperty, TV> set) where T : BaseField<TV> {
-            field.AddToClassList("zs-settingsfield");
-            if (labelWidth > 0f) field.labelElement.style.minWidth = field.labelElement.style.width = labelWidth - 3f;
-            field.SetValueWithoutNotify(get(P(path)));
-            field.RegisterValueChangedCallback(e => { so.Update(); set(P(path), e.newValue); Apply(); });
-            syncers.Add(() => {
-                if (field.focusController?.focusedElement is VisualElement f && (f == field || field.Contains(f))) return;
-                field.SetValueWithoutNotify(get(P(path)));
-            });
-            return field;
+        // ── ZUI controls on a label column (2026-10-08): every control has its own width, nothing stretches across the pane ──
+
+        /// <summary>A settings row: the label in the label column, then the control(s). Height matches the old 20 pt pitch.</summary>
+        VisualElement Row(string label, string tooltip, float lw, params VisualElement[] controls) {
+            var r = new VisualElement();
+            r.AddToClassList("zs-settingsrow");
+            r.AddToClassList("zs-settings__row");
+            var l = new Label(label) { tooltip = tooltip };
+            l.AddToClassList("zs-lbl");
+            l.AddToClassList("zs-settings__row-label");
+            l.style.width = lw;
+            r.Add(l);
+            foreach (var c in controls) { c.AddToClassList("zs-settings__row-control"); r.Add(c); }
+            return r;
         }
 
-        TextField Text(string label, string tooltip, string path, float lw) =>
-            Field<TextField, string>(new TextField(label) { tooltip = tooltip, isDelayed = false }, path, lw, p => p.stringValue, (p, v) => p.stringValue = v);
+        const float PathW = 360f, SliderW = 200f, NumberW = 60f;
 
-        Slider Slider(string label, string tooltip, string path, float min, float max, float lw) {
-            var s = Field<Slider, float>(new Slider(label, min, max) { tooltip = tooltip, showInputField = true }, path, lw, p => p.floatValue, (p, v) => p.floatValue = v);
-            s.AddToClassList("zs-imgui-slider");
-            return s;
+        /// <summary>A project path: ZUI's text input, sized for a path, writing the serialized property (one undo step per edit).</summary>
+        VisualElement Text(string label, string tooltip, string path, float lw) {
+            var f = Z.TextInput(P(path).stringValue, tooltip, v => { so.Update(); P(path).stringValue = v; Apply(); Undo.SetCurrentGroupName("change " + label); }, PathW);
+            f.AddToClassList("zs-settingsfield");
+            syncers.Add(() => {
+                if (f.focusController?.focusedElement is VisualElement x && (x == f || f.Contains(x))) return;
+                string now = P(path).stringValue;
+                if (f.value != now) f.SetValueWithoutNotify(now);
+            });
+            return Row(label, tooltip, lw, f);
+        }
+
+        /// <summary>A bounded setting: ZUI's micro slider (label and value inside the track), writing the serialized property.</summary>
+        VisualElement Slider(string label, string tooltip, string path, float min, float max, float lw, int decimals = 2) {
+            var s = Z.MicroSlider(label, P(path).floatValue, min, max, tooltip, v => { so.Update(); P(path).floatValue = v; Apply(); Undo.SetCurrentGroupName("change " + label); }, SliderW, decimals: decimals);
+            s.AddToClassList("zs-settings__slider");
+            syncers.Add(() => { float now = P(path).floatValue; if (!Mathf.Approximately(s.value, now)) s.value = now; });
+            return Row(label, tooltip, lw, s);
+        }
+
+        /// <summary>An unbounded number (no honest cap): ZUI's scrub-draggable float field.</summary>
+        VisualElement Number(string label, string tooltip, string path, float lw, Func<float, float> clamp, int decimals) {
+            var f = Z.Float(P(path).floatValue, tooltip, v => { so.Update(); P(path).floatValue = clamp(v); Apply(); Undo.SetCurrentGroupName("change " + label); }, NumberW, decimals);
+            f.AddToClassList("zs-settingsfield");
+            syncers.Add(() => {
+                if (f.focusController?.focusedElement is VisualElement x && (x == f || f.Contains(x))) return;
+                float now = P(path).floatValue;
+                if (!Mathf.Approximately(f.value, now)) f.SetValueWithoutNotify(now);
+            });
+            return Row(label, tooltip, lw, f);
+        }
+
+        /// <summary>An unbounded whole number: ZUI's scrub-draggable integer field.</summary>
+        VisualElement Count(string label, string tooltip, string path, float lw, Func<int, int> clamp) {
+            var f = Z.Int(P(path).intValue, tooltip, v => { so.Update(); P(path).intValue = clamp(v); Apply(); Undo.SetCurrentGroupName("change " + label); }, NumberW);
+            f.AddToClassList("zs-settingsfield");
+            syncers.Add(() => {
+                if (f.focusController?.focusedElement is VisualElement x && (x == f || f.Contains(x))) return;
+                int now = P(path).intValue;
+                if (f.value != now) f.SetValueWithoutNotify(now);
+            });
+            return Row(label, tooltip, lw, f);
+        }
+
+        /// <summary>A yes/no setting: ZUI's latching toggle button (never a checkbox).</summary>
+        VisualElement Flag(string label, string tooltip, string path, float lw) {
+            var t = Z.Toggle(label, tooltip, P(path).boolValue, v => { so.Update(); P(path).boolValue = v; Apply(); Undo.SetCurrentGroupName("change " + label); });
+            t.AddToClassList("zs-settings__toggle");
+            syncers.Add(() => { bool now = P(path).boolValue; if (t.value != now) t.SetValueWithoutNotify(now); });
+            return Row(label, tooltip, lw, t);
+        }
+
+        /// <summary>A sheet-styled Zounds button at the settings row height.</summary>
+        static Button Btn(string label, string tooltip, Action onClick, float width) {
+            var b = ZS.Button(label, tooltip, "RichButton", onClick, ZUICornerMask.All, width, 18f);
+            b.AddToClassList("zs-settings__button");
+            return b;
         }
 
         // ── colours: ZUI's colour control (Z.Color), sized to its content, never stretched across the pane (2026-10-08) ──
@@ -85,6 +141,23 @@ namespace Laubrary.Zounds.Uitk {
                 if (f.value != now) f.SetValueWithoutNotify(now);
             });
             return f;
+        }
+
+        /// <summary>
+        /// The swatch alone hides a translucent colour: a 4 %-white lane reads as solid white, its alpha bar a hairline
+        /// (PM, 2026-10-08). So a fixed-width readout beside every swatch says the opacity whenever it is not full.
+        /// </summary>
+        Label AlphaReadout(string path) {
+            var l = new Label();
+            l.AddToClassList("zs-lbl"); l.AddToClassList("zs-settings__alpha");
+            void Sync() {
+                float a = P(path).colorValue.a;
+                l.text = a >= 0.995f ? "" : Mathf.RoundToInt(a * 100f) + "% opaque";
+                l.tooltip = a >= 0.995f ? "" : "This colour is translucent: " + Mathf.RoundToInt(a * 100f) + " % opacity. What is behind it shows through; the swatch shows the colour at full strength.";
+            }
+            Sync();
+            syncers.Add(Sync);
+            return l;
         }
 
         const float ColorW = 110f;
@@ -104,6 +177,7 @@ namespace Laubrary.Zounds.Uitk {
             spacer.AddToClassList("zs-settings__thickness-spacer");
             r.Add(spacer);
             r.Add(ColorControl(path, tooltip, label));
+            r.Add(AlphaReadout(path));
             return r;
         }
 
@@ -128,40 +202,35 @@ namespace Laubrary.Zounds.Uitk {
         // ─────────────────────────── the tab ───────────────────────────
 
         void Build(VisualElement into) {
-            const float lw = 150f;
+            const float lw = 190f;   // one label column for the whole tab, wide enough for its longest label
 
             into.Add(Bold("Workspace Directories"));
-            into.Add(Text("System Folder Path", "Set the path for a folder under Resources where system data is stored.", "systemFolderPath", lw));
-            into.Add(Text("Library Folder Path", "Path where library clips are stored. These are included in builds.", "libraryFolderPath", lw));
-            into.Add(Text("Sources Folder Path", "Path where source clips are stored. Not included in builds unless referenced.", "sourcesFolderPath", lw));
-            into.Add(Text("Themes Folder Path", "Path where UI themes are stored.", "themesFolderPath", lw));
+            into.Add(Text("System Folder Path", "The project folder (under Assets) where Zounds keeps its system data.", "systemFolderPath", lw));
+            into.Add(Text("Library Folder Path", "The project folder where library clips are stored. These are included in builds.", "libraryFolderPath", lw));
+            into.Add(Text("Sources Folder Path", "The project folder where source clips are stored. Not included in builds unless referenced.", "sourcesFolderPath", lw));
+            into.Add(Text("Themes Folder Path", "The project folder where UI themes are stored.", "themesFolderPath", lw));
             into.Add(ZequenceEditorWindowTK.Space(4f));
 
             into.Add(Bold("External Audio Sources (Local)"));
             into.Add(ExternalRoot(lw));
             into.Add(ZequenceEditorWindowTK.Space(10f));
 
+            const float sw = lw;
             into.Add(Bold("Engine"));
-            into.Add(Slider("Player Volume", "Master volume when the game is running. When switching to play mode, this value goes to the master volume.", "playerVolume", 0f, 1f, lw));
-            into.Add(Slider("System Volume Modifier", "Modifier for the master volume. This is just used if there is a need to modify the overall volume for the game for any reason.", "systemVolumeModifier", 0f, 1f, lw));
-            into.Add(Slider("Editor Volume", "Master volume when in edit mode. When switching to edit mode, this value goes to the master volume.", "editorVolume", 0f, 1f, lw));
-            into.Add(Field<FloatField, float>(new FloatField("Cooldown Duration") { tooltip = " A timer for a Zound that prohibits the same Zound to be played again before the timer runs out." },
-                "cooldownDuration", 170f, p => p.floatValue, (p, v) => p.floatValue = v < 0f ? 0f : v));
-            into.Add(Field<IntegerField, int>(new IntegerField("Max Played Zound Instances") { tooltip = "If the number of Zounds playing is more than this threshold, when a Zound in a culling group triggers, then it will play, but the one that has been playing for the longest will be culled." },
-                "maxPlayedZoundInstances", 170f, p => p.intValue, (p, v) => p.intValue = v < 0 ? 1 : v));
-            into.Add(Slider("Cull Fade Duration", "Fade duration to kill a zound when Max Played Zound Instances is reached.", "cullFadeDuration", 0f, 0.5f, 170f));
+            into.Add(Slider("Player Volume", "Master volume (0 to 1) while the game runs; entering play mode sets the master volume to it.", "playerVolume", 0f, 1f, sw));
+            into.Add(Slider("System Volume Modifier", "A multiplier (0 to 1) on the master volume, for when the whole game needs to be quieter.", "systemVolumeModifier", 0f, 1f, sw));
+            into.Add(Slider("Editor Volume", "Master volume (0 to 1) in edit mode; leaving play mode sets the master volume to it.", "editorVolume", 0f, 1f, sw));
+            into.Add(Number("Cooldown Duration", "Seconds after a sound plays during which the same sound will not play again. Drag to scrub, or type.", "cooldownDuration", sw, v => v < 0f ? 0f : v, 2));
+            into.Add(Count("Max Played Zound Instances", "When more sounds than this are playing and a sound in a culling group triggers, it plays and the one playing longest is culled. Drag to scrub, or type.", "maxPlayedZoundInstances", sw, v => v < 1 ? 1 : v));
+            into.Add(Slider("Cull Fade Duration", "Seconds a culled sound takes to fade out.", "cullFadeDuration", 0f, 0.5f, sw));
             into.Add(ZequenceEditorWindowTK.Space(10f));
 
             into.Add(Bold("Themes"));
             themeRow = new VisualElement();
             into.Add(themeRow);
-            BuildThemeRow(lw);
-            var save = new Button(() => { if (ProjectSettingsTab.SaveCurrentStyleAsTheme()) BuildThemeRow(lw); }) { text = "Save Current Style as New Theme" };
-            save.AddToClassList("zs-imgui-button"); save.AddToClassList("zs-settingsbutton");
-            into.Add(save);
+            BuildThemeRow(sw);
             into.Add(ZequenceEditorWindowTK.Space(10f));
 
-            const float sw = 190f;
             into.Add(Bold("Editor Style (Visual)"));
             into.Add(ThicknessColor("Player Head", "editorStyle.playerHeadThickness", "editorStyle.playerHeadColor", sw, "The line that shows where a play is, over the waveform: its thickness in pixels and its colour."));
             into.Add(ThicknessColor("Volume Envelope", "editorStyle.volumeEnvelopeThickness", "editorStyle.volumeEnvelopeColor", sw, "The sound's own volume curve, drawn over its waveform and on the curve bar's Vol chips: thickness in pixels and colour."));
@@ -180,8 +249,8 @@ namespace Laubrary.Zounds.Uitk {
             into.Add(ZequenceEditorWindowTK.Space(10f));
 
             into.Add(Bold("Operational Settings"));
-            into.Add(Field<Toggle, bool>(new Toggle(P("editorStyle.autoRender").displayName), "editorStyle.autoRender", sw, p => p.boolValue, (p, v) => p.boolValue = v));
-            into.Add(Slider("Envelope Handle Size", "", "editorStyle.envelopeHandleSize", 1f, 10f, sw));
+            into.Add(Flag("Auto Render", "On: a sound that needs a rendered file (one whose source cannot go through the chain) is rendered when the project is saved. Off: render it yourself from its editor.", "editorStyle.autoRender", sw));
+            into.Add(Slider("Envelope Handle Size", "The size, in pixels, of the points on a curve being edited (1 to 10).", "editorStyle.envelopeHandleSize", 1f, 10f, sw, 1));
         }
 
         /// <summary>A drawn line's row: the label in the label column, its thickness in a 45 px scrub-draggable number box, then its colour.</summary>
@@ -204,39 +273,31 @@ namespace Laubrary.Zounds.Uitk {
             });
             r.Add(t);
             r.Add(ColorControl(colorPath, tooltip, label));
+            r.Add(AlphaReadout(colorPath));
             return r;
         }
 
         /// <summary>This machine's external source root (EditorPrefs, not the project): shown read-only, Browse, Clear, and a
         /// status line ("OK", or a warning box when the folder is not there).</summary>
+        /// <summary>This machine's external source root (EditorPrefs, not the project): shown read-only, Browse, Clear, and the
+        /// status ("OK", or a warning) inline on the same row, never a row of its own.</summary>
         VisualElement ExternalRoot(float lw) {
-            var host = new VisualElement();
-            var r = new VisualElement();
-            r.AddToClassList("zs-settingsrow");
-            r.AddToClassList("zs-settings__external-root-row");
-            var l = new Label("External Source Root");
-            l.AddToClassList("zs-lbl"); l.AddToClassList("zs-settings__external-root-label");
-            r.Add(l);
-            var path = new TextField { isReadOnly = true };
+            const string tip = "A folder on this machine (not in the project) that Klips may take their audio from directly. Kept per machine, not saved with the project.";
+            var path = Z.TextInput("", tip, null, PathW);
+            path.isReadOnly = true;
             path.AddToClassList("zs-settingsfield");
             path.AddToClassList("zs-settings__external-root-path");
-            r.Add(path);
-            var browse = new Button(() => {
+            var browse = Btn("Browse…", "Pick the external source root folder.", () => {
                 string start = ProjectSettingsTab.ExternalSourceRoot;
                 EditorApplication.delayCall += () => {
                     string selected = EditorUtility.OpenFolderPanel("Select External Audio Source Root", start, "");
                     if (!string.IsNullOrEmpty(selected)) ProjectSettingsTab.ExternalSourceRoot = selected;
                 };
-            }) { text = "Browse" };
-            browse.AddToClassList("zs-imgui-button"); browse.AddToClassList("zs-settings__external-root-browse");
-            r.Add(browse);
-            var clear = new Button(() => ProjectSettingsTab.ExternalSourceRoot = "") { text = "Clear" };
-            clear.AddToClassList("zs-imgui-button"); clear.AddToClassList("zs-settings__external-root-clear");
-            r.Add(clear);
-            host.Add(r);
+            }, 70f);
+            var clear = Btn("Clear", "Forget the external source root on this machine.", () => ProjectSettingsTab.ExternalSourceRoot = "", 50f);
             var status = new Label();
-            status.AddToClassList("zs-lbl"); status.AddToClassList("zs-settingsstatus");
-            host.Add(status);
+            status.AddToClassList("zs-lbl"); status.AddToClassList("zs-settingsstatus"); status.AddToClassList("zs-settings__status");
+            var r = Row("External Source Root", tip, lw, path, browse, clear, status);
             void Sync() {
                 string root = ProjectSettingsTab.ExternalSourceRoot;
                 bool has = !string.IsNullOrEmpty(root);
@@ -245,29 +306,35 @@ namespace Laubrary.Zounds.Uitk {
                 path.EnableInClassList("zs-settingspath--missing", has && !exists);
                 clear.SetEnabled(has);
                 status.text = !has ? "" : exists ? "OK" : "Path not found on this machine.";
+                status.tooltip = status.text;
                 status.EnableInClassList("zs-settingsstatus--warn", has && !exists);
             }
             Sync();
             syncers.Add(Sync);
-            return host;
+            return r;
         }
 
+        /// <summary>The themes row: ZUI's dropdown over the theme files (a list that changes, so not radios), Refresh, and
+        /// Save as theme… (a short label; the full sentence is its tooltip).</summary>
         void BuildThemeRow(float lw) {
             themeRow.Clear();
             themes = ProjectSettingsTab.ThemeNames();
-            var r = new VisualElement();
-            r.AddToClassList("zs-settings__theme-row-row");
             var names = new List<string>(themes);
-            var popup = new PopupField<string>("Available Themes", names, -1);
-            popup.AddToClassList("zs-settingsfield");
-            popup.labelElement.AddToClassList("zs-settings__theme-row-popup-label-element");
-            popup.AddToClassList("zs-settings__theme-row-popup");
-            popup.RegisterValueChangedCallback(e => { if (!string.IsNullOrEmpty(e.newValue)) ProjectSettingsTab.ApplyTheme(e.newValue); });
-            r.Add(popup);
-            var refresh = new Button(() => BuildThemeRow(lw)) { text = "Refresh" };
-            refresh.AddToClassList("zs-imgui-button"); refresh.AddToClassList("zs-settings__theme-row-refresh");
-            r.Add(refresh);
-            themeRow.Add(r);
+            VisualElement pick;
+            if (names.Count == 0) {
+                var none = new Label("None saved") { tooltip = "No theme file in the themes folder yet. Save as theme… writes one from the current style." };
+                none.AddToClassList("zs-lbl"); none.AddToClassList("zs-subtle"); none.AddToClassList("zs-settings__theme-none");
+                pick = none;
+            }
+            else {
+                var d = Z.Dropdown(-1, names, "Apply a saved theme to the editor style (one undo step).", i => { if (i >= 0 && i < names.Count) ProjectSettingsTab.ApplyTheme(names[i]); }, 220f);
+                d.SetValueWithoutNotify(null);
+                d.AddToClassList("zs-settingsfield"); d.AddToClassList("zs-settings__theme-dropdown");
+                pick = d;
+            }
+            var refresh = Btn("Refresh", "Re-read the themes folder.", () => BuildThemeRow(lw), 70f);
+            var save = Btn("Save as theme…", "Saves the current editor style as a new theme file in the themes folder.", () => { if (ProjectSettingsTab.SaveCurrentStyleAsTheme()) BuildThemeRow(lw); }, 110f);
+            themeRow.Add(Row("Theme", "Saved editor styles (colours and line widths) you can switch between.", lw, pick, refresh, save));
         }
 
         public void Tick() {

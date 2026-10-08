@@ -77,7 +77,7 @@ namespace Laubrary.Zui
             string v = _format(_value);
             string full = _mode == LabelMode.None ? "" : _mode == LabelMode.ValueOnly ? v
                         : _mode == LabelMode.LabelOnly ? _text
-                        : string.IsNullOrEmpty(_text) ? v : _text + ": " + v;
+                        : string.IsNullOrEmpty(_text) ? v : _text + " " + v;   // "Chance 100", as the min/max bars read "Volume 90-100"
             ZuiSkinTrackLabel.Fit(_label, full, _mode == LabelMode.LabelAndValue ? v : null, resolvedStyle.width);
         }
 

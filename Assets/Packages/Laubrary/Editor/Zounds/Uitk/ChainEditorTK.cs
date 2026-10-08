@@ -218,17 +218,26 @@ namespace Laubrary.Zounds.Uitk {
 
             put = mods;
             mods.Add(ModifiersHeader(chain));
+            int listed = 0;
             for (int m = 0; m < chain.modifiers.Count; m++) {
                 var mod = chain.modifiers[m];
                 if (mod.type == ZoundModifierType.Code && !Has(ChainEditorFeatures.CodeModifier)) continue;
                 // The sound's own volume, pitch and time curves are properties of the sound, edited on its waveform through
                 // the curve bar; they are not listed among the modifiers (owner, 2026-10-08).
                 if (zound != null && Has(ChainEditorFeatures.SourceStage) && KlipChainEnvelopes.IsOwnCurve(zound, mod)) continue;
+                listed++;
                 mods.Add(ModifierRow(chain, m, mod));
                 if (!folded.Contains(Key(mod))) {
                     ModifierBody(chain, m, mod, sectionW);
                     Bindings(chain, m);
                 }
+            }
+            if (listed == 0) {
+                // The empty state says what the list is for (the "No effects yet." line in the other column does the same).
+                var none = Text("No modifiers yet.", "Add modifier… puts an envelope, LFO, random value or step list here; its Bind… button then picks what it moves.", "zs-subtle");
+                none.style.height = EditorGUIUtility.singleLineHeight;
+                none.AddToClassList("zs-chain-editor__empty");
+                mods.Add(none);
             }
             put = this;
             Add(sections);
@@ -385,8 +394,9 @@ namespace Laubrary.Zounds.Uitk {
             nodesBox.name = "chain-device-cards";
             nodesBox.AddToClassList("zs-chain-editor__nodes-nodes-box");
             if (chain.nodes.Count == 0) {
-                var none = Text("No effects.", "", "zs-subtle");
+                var none = Text("No effects yet.", "Add effect… appends one; the signal flows through them top to bottom.", "zs-subtle");
                 none.style.height = EditorGUIUtility.singleLineHeight;
+                none.AddToClassList("zs-chain-editor__empty");
                 nodesBox.Add(none);
             }
             for (int i = 0; i < chain.nodes.Count; i++) {
@@ -443,6 +453,9 @@ namespace Laubrary.Zounds.Uitk {
                         row.Add(Unit(chain, u, NodeValue(ni, u.paramIndex), x, 1f, u.width, G.RowH - 2f));
                         x += u.width + G.Gap;
                     }
+                    // The remove button belongs with its row: right after the last setting, not at the far edge of a
+                    // column that may be twice as wide as the row's content (PM, 2026-10-08).
+                    row.Add(Place(parts.remove, x, 1f, G.RemoveW, G.RowH - 2f));
                 }
                 else {
                     var summary = Place(Text("", "", "zs-mini"), nameX + G.NameW, 0f, -1f, G.RowH);
@@ -458,8 +471,8 @@ namespace Laubrary.Zounds.Uitk {
                     row.Add(summary);
                 }
 
-                // remove
-                row.Add(PlaceRight(parts.remove, 0f, 1f, G.RemoveW, G.RowH - 2f));
+                // remove (a summary row spans the column, so its remove sits at the column's edge)
+                if (!inline) row.Add(PlaceRight(parts.remove, 0f, 1f, G.RemoveW, G.RowH - 2f));
 
                 if (!inline && selected) Wrap(chain, units, u => NodeValue(ni, u.paramIndex), w, nodesBox);
             }

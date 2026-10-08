@@ -360,9 +360,10 @@
 .zs-root .zs-snapchip__text { position: absolute; left: 0; right: 0; top: 0; bottom: 0; font-size: 10px; color: rgb(215,215,222); -unity-text-align: middle-center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* The Klip's fixed boost into its effects (T-0521): a plain number you drag, fixed width, centred, so x1.0 and x10.0
    take the same space. */
-.zs-root .zs-boost { font-size: 12px; color: rgb(196,196,196); -unity-text-align: middle-center; background-color: rgba(0,0,0,0.25);
-    border-top-left-radius: 3px; border-top-right-radius: 3px; border-bottom-left-radius: 3px; border-bottom-right-radius: 3px; cursor: resize-horizontal; }
-.zs-root .zs-boost:hover { color: rgb(240,240,240); background-color: rgba(255,255,255,0.08); }
+.zs-root .zs-boost { font-size: 15px; -unity-font-style: bold; color: rgb(199,199,209); -unity-text-align: middle-center; background-color: rgba(36,36,46,1);
+    border-top-width: 1px; border-right-width: 1px; border-bottom-width: 1px; border-left-width: 1px; border-color: rgba(255,255,255,0.12);
+    border-top-left-radius: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; border-bottom-left-radius: 0; cursor: resize-horizontal; }
+.zs-root .zs-boost:hover { color: rgb(240,240,240); background-color: rgba(56,56,66,1); }
 
 /* Dense Zounds surfaces: fixed layout roles. Playback, authored colour and measured coordinates remain in C#. */
 .zs-root.zs-audition-popup__row, .zs-root .zs-audition-popup__row { flex-direction: row; height: 20px; flex-shrink: 0; }
@@ -589,10 +590,19 @@
 .zs-root.zs-settings__external-root-path, .zs-root .zs-settings__external-root-path { flex-grow: 1; }
 .zs-root.zs-settings__external-root-browse, .zs-root .zs-settings__external-root-browse { width: 60px; }
 .zs-root.zs-settings__external-root-clear, .zs-root .zs-settings__external-root-clear { width: 50px; }
-.zs-root.zs-settings__theme-row-row, .zs-root .zs-settings__theme-row-row { flex-direction: row; }
-.zs-root.zs-settings__theme-row-popup-label-element, .zs-root .zs-settings__theme-row-popup-label-element { min-width: 147px; width: 147px; }
-.zs-root.zs-settings__theme-row-popup, .zs-root .zs-settings__theme-row-popup { flex-grow: 1; }
-.zs-root.zs-settings__theme-row-refresh, .zs-root .zs-settings__theme-row-refresh { width: 60px; }
+/* Settings rows on ZUI controls (2026-10-08): a label column, then controls at their own widths, nothing stretched. */
+.zs-root .zs-settings__row { flex-direction: row; align-items: center; }
+.zs-root .zs-settings__row-label { flex-shrink: 0; }
+.zs-root .zs-settings__row-control { flex-grow: 0; flex-shrink: 0; margin-right: 4px; align-self: center; }
+.zs-root .zs-settings__slider { height: 18px; }
+.zs-root .zs-settings__toggle { width: 90px; height: 18px; }
+.zs-root .zs-settings__button { margin: 0 4px 0 0; }
+.zs-root .zs-settings__status { margin: 0; height: 18px; -unity-text-align: middle-left; }
+.zs-root .zs-settings__theme-none { height: 18px; -unity-text-align: middle-left; margin: 0; }
+.zs-root .zs-settings__theme-dropdown { margin: 0; }
+.zs-root .zs-settings__alpha { width: 80px; flex-shrink: 0; font-size: 10px; color: rgb(190,190,200); margin-left: 6px; -unity-text-align: middle-left; }
+.zs-root .zs-settings__row > .zs-settingsfield { margin-bottom: 0; }
+.zs-root .zs-chain-editor__empty { margin-left: 4px; }
 .zs-root.zs-snapshots-row__root, .zs-root .zs-snapshots-row__root { flex-direction: row; height: 20px; flex-shrink: 0; margin-bottom: 2px; }
 .zs-root.zs-snapshots-row__title, .zs-root .zs-snapshots-row__title { width: 76px; flex-shrink: 0; -unity-text-align: middle-left; }
 .zs-root.zs-snapshots-row__strip, .zs-root .zs-snapshots-row__strip { flex-direction: row; flex-shrink: 1; flex-grow: 1; overflow: hidden; }

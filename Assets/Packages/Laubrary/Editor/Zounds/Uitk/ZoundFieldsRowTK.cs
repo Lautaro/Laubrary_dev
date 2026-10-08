@@ -24,7 +24,7 @@ namespace Laubrary.Zounds.Uitk {
         // tenths (10..100) so ZUI's drag gives one step per few pixels and the value always has exactly one decimal.
         readonly Label boost;
         readonly IntegerField boostTenths;
-        const float BoostW = 46f;
+        const float BoostW = 80f;
         readonly Button tags;
         readonly System.Action onRenamed;
 
@@ -52,16 +52,16 @@ namespace Laubrary.Zounds.Uitk {
             }
             var vMode = bs.vpcShowSliderType ? ZuiSkinMinMax.LabelMode.LabelAndValues : ZuiSkinMinMax.LabelMode.ValuesOnly;
             volume = ZS.MinMax("Volume", zound.minVolume * 100f, zound.maxVolume * 100f, Zound.MinVolumeRange * 100f, Zound.MaxVolumeRange * 100f,
-                               "Choose the loudness range; each play draws a value between these limits.", (lo, hi) => ZoundsWindow.ModifyZoundsProject("change zound volume", () => {
+                               "Volume, in percent of full loudness: each play draws a value between the two limits. Drag an edge, or the middle to move both.", (lo, hi) => ZoundsWindow.ModifyZoundsProject("change zound volume", () => {
                                    zound.minVolume = ZoundBrowserEditor<Zound>.RoundTo3DecimalPlaces(lo / 100f);
                                    zound.maxVolume = ZoundBrowserEditor<Zound>.RoundTo3DecimalPlaces(hi / 100f);
                                }), "MinMax", vMode, bs.vpcShowInputBoxes);
             pitch = ZS.MinMax("Pitch", zound.minPitch * 100f, zound.maxPitch * 100f, Zound.MinPitchRange * 100f, Zound.MaxPitchRange * 100f,
-                              "Choose the pitch range; each play draws a value between these limits.", (lo, hi) => ZoundsWindow.ModifyZoundsProject("change zound pitch", () => {
+                              "Pitch, in percent of the recorded speed (100 = as recorded): each play draws a value between the two limits. Drag an edge, or the middle to move both.", (lo, hi) => ZoundsWindow.ModifyZoundsProject("change zound pitch", () => {
                                   zound.minPitch = ZoundBrowserEditor<Zound>.RoundTo3DecimalPlaces(lo / 100f);
                                   zound.maxPitch = ZoundBrowserEditor<Zound>.RoundTo3DecimalPlaces(hi / 100f);
                               }), "MinMaxPitch", vMode, bs.vpcShowInputBoxes);
-            chance = ZS.Slider("Chance", zound.chance * 100f, Zound.MinChanceRange * 100f, Zound.MaxChanceRange * 100f, "Set the percentage chance that a trigger plays this sound.",
+            chance = ZS.Slider("Chance", zound.chance * 100f, Zound.MinChanceRange * 100f, Zound.MaxChanceRange * 100f, "Chance, in percent, that a trigger plays this sound at all.",
                                v => ZoundsWindow.ModifyZoundsProject("change zound chance", () => zound.chance = ZoundBrowserEditor<Zound>.RoundTo3DecimalPlaces(v / 100f)),
                                bs.vpcShowSliderType ? ZuiSkinSlider.LabelMode.LabelAndValue : ZuiSkinSlider.LabelMode.ValueOnly, null, "Chance");
             Add(Abs(volume)); Add(Abs(pitch)); Add(Abs(chance));
@@ -97,8 +97,8 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         static int Tenths(float v) => Mathf.Clamp(Mathf.RoundToInt(v * 10f), 10, 100);
-        /// <summary>Always one decimal ("x1.0" .. "x10.0"); the label's width is fixed, so no length ever moves anything.</summary>
-        static string BoostText(float v) => "x" + v.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
+        /// <summary>Always one decimal ("Boost ×1.0" .. "Boost ×10.0"); the label's width is fixed, so no length ever moves anything.</summary>
+        static string BoostText(float v) => "Boost ×" + v.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
 
         static VisualElement Abs(VisualElement e) { e.AddToClassList("zs-zound-fields-row__positioned-control"); return e; }
 
@@ -106,7 +106,8 @@ namespace Laubrary.Zounds.Uitk {
 
         // Every control has a width of its own (owner's review 2026-10-08: the stretched bars read as crowded); the tags,
         // being text, take what is left. In a narrow window the fixed widths shrink together, never below a readable size.
-        const float NameW = 220f, RangeW = 160f, ChanceW = 110f, ColGap = 6f, MinTagsW = 60f;
+        // The three value bars are the same width and the boost is a bar of its own (PM, 2026-10-08: one consistent strip).
+        const float NameW = 220f, RangeW = 150f, ChanceW = 150f, ColGap = 6f, MinTagsW = 60f;
 
         void Layout() {
             float width = resolvedStyle.width;
@@ -118,19 +119,15 @@ namespace Laubrary.Zounds.Uitk {
                 Place(mute, 0f, half);
                 Place(solo, half + gap, muteSoloWidth - half - gap);
             }
-            float wanted = (drawName ? NameW + ColGap : 0f) + RangeW * 2f + ChanceW + ColGap * 2f + (drawTags ? MinTagsW + ColGap : 0f);
+            float boostW = boost != null ? BoostW + ColGap : 0f;
+            float wanted = (drawName ? NameW + ColGap : 0f) + RangeW * 2f + boostW + ChanceW + ColGap * 2f + (drawTags ? MinTagsW + ColGap : 0f);
             float room = width - muteSoloWidth - (isLocal ? 0f : ColGap);
             float k = room < wanted ? Mathf.Max(0.5f, room / wanted) : 1f;
             float x = muteSoloWidth + (isLocal ? 0f : ColGap);
             if (drawName) { Place(nameField, x, NameW * k); x += NameW * k + ColGap; }
             float rw = RangeW * k;
-            if (boost != null) {
-                // Beside the volume range, inside its column, so the other columns keep their places.
-                Place(volume, x, Mathf.Max(0f, rw - BoostW - 2f));
-                Place(boost, x + Mathf.Max(0f, rw - BoostW), BoostW);
-            }
-            else Place(volume, x, rw);
-            x += rw + ColGap;
+            Place(volume, x, rw); x += rw + ColGap;
+            if (boost != null) { Place(boost, x, BoostW * k); x += BoostW * k + ColGap; }
             Place(pitch, x, rw); x += rw + ColGap;
             Place(chance, x, ChanceW * k); x += ChanceW * k + ColGap;
             if (drawTags) Place(tags, x, Mathf.Max(MinTagsW * k, width - x));

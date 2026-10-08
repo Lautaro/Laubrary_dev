@@ -40,6 +40,13 @@ Fourth pass (the Settings tab's colours):
 - **The Zound window's Settings tab draws its colours with ZUI's colour control.** Every colour in Editor Style (the four drawn lines' colours, Waveform, Waveform Background, Trim Area, the two selected-curve colours, Editor Background, the two track bands and the track lane) is ZUI's swatch with its eyedropper, alpha included, 110 px wide in one column beside the label column, instead of Unity's native field stretched across the pane; a drawn line's thickness is a scrub-draggable 45 px number box beside it. Each row's label and control carry a tooltip saying what the colour paints. One undo step per change, named for the setting.
 - **A colour change shows at once in every open editor.** The Klip and Zequence editors re-read the Editor Background on their tick, and a Zequence track's band follows the two track colours the same way, so a change in the Settings tab (or an undo of one) is seen without reopening anything.
 
+Fifth pass (the PM's review of the third and fourth):
+
+- **An effect's remove button sits with its row.** In the chain editor an effect's × used to be pushed to the far edge of its column (beside the Modifiers title when the two sections sit side by side); it now follows the row's last setting. Both lists say what they are for when empty ("No effects yet.", "No modifiers yet.").
+- **One strip of value bars over a sound.** Volume, Pitch and Chance are three bars of the same width; a Klip's Boost is a fourth bar in the same look ("Boost ×1.0") instead of a bare number; the labels read the same way ("Chance 100", not "Chance: 100"); every bar's tooltip names its unit.
+- **The whole Settings tab is on ZUI controls.** Paths are text inputs sized for a path; the volumes and fade are micro sliders with the label in the track; Cooldown and Max Played Instances are scrub-draggable number boxes; Theme is a ZUI dropdown with Refresh and Save as theme… beside it on one row (and "None saved" when the folder is empty); Auto Render is a latching toggle; the external root's status sits on its own row's end instead of a line of its own. Nothing stretches across the pane, and every edit is one undo step.
+- **A translucent colour says so.** Beside every colour swatch a readout gives the opacity whenever it is not full ("4% opaque" for the track lane), because the swatch shows the colour at full strength and the alpha bar under it is a hairline.
+
 ### Zounds — non-destructive multitrack editing in the Zequence window (T-0558..T-0568)
 
 Commits are prefixed `Zounds (nondestructive-edit):`. A Zequence of placed, trimmed Klips is the non-destructive edit: no edit reads, writes or copies audio; the only thing that writes a file is an explicit Bake.
