@@ -35,7 +35,6 @@ namespace Laubrary.Zounds.Uitk {
         internal Zequence zeq;
         internal ZoundToken currentToken;
         internal Dictionary<CompositeZound.ZoundEntry, ZoundToken> entryTokens;
-        internal string addMenuSearchText, createKlipSearchText;
         internal readonly List<Action> refreshers = new List<Action>();
         internal readonly List<Action> liveRefreshers = new List<Action>();
         string builtSig;
@@ -543,17 +542,16 @@ namespace Laubrary.Zounds.Uitk {
         }
 
         internal void AddLocalKlip(CompositeZound parent, VisualElement from) {
-            BrowserTab.OpenCreateNewKlipDialog(from.worldBound.position, klip => {
+            BrowserTab.OpenCreateNewKlipDialog(klip => {
                 klip.parentId = parent.id;
                 parent.localKlips.Add(klip);
                 CompositeZoundEditing.AddNewZoundEntry(zeq, parent, klip, true, autoDuration);
                 Tick();
-            }, createKlipSearchText, text => createKlipSearchText = text, previewOwner: this);
+            }, previewOwner: this);
         }
 
         internal void AddShared(CompositeZound parent, VisualElement from) {
-            CompositeZoundEditing.AddNewEntryFromExisting(parent, from.worldBound.position, addMenuSearchText, s => addMenuSearchText = s,
-                zound => { CompositeZoundEditing.AddNewZoundEntry(zeq, parent, zound, false, autoDuration); Tick(); }, this);
+            CompositeZoundEditing.AddNewEntryFromExisting(parent, zound => { CompositeZoundEditing.AddNewZoundEntry(zeq, parent, zound, false, autoDuration); Tick(); }, this);
         }
 
         internal bool AutoDuration => autoDuration;

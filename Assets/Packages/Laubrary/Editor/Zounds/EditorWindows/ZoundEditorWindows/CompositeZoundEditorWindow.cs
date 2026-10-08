@@ -22,8 +22,6 @@ namespace Laubrary.Zounds {
 
         [SerializeField] private List<EnvelopeCache> envelopeCaches = new List<EnvelopeCache>();
         [SerializeField] private Vector2 scrollPos;
-        private string addMenuSearchText;
-        private string createKlipSearchText;
 
         private ZoundBrowserEditor<CompositeZound> localZequenceInspector;
 
@@ -349,11 +347,11 @@ namespace Laubrary.Zounds {
                 AddNewEntryFromExisting(targetZound);
             }
             if (addNewKlip) {
-                BrowserTab.OpenCreateNewKlipDialog(Event.current.mousePosition, klip => {
+                BrowserTab.OpenCreateNewKlipDialog(klip => {
                     klip.parentId = targetZound.id;
                     targetZound.localKlips.Add(klip);
                     AddNewZoundEntry(targetZound, klip, true);
-                }, createKlipSearchText, text => createKlipSearchText = text, previewOwner: this);
+                }, previewOwner: this);
             }
             if (addNewZequence) {
                 var newZequence = new Zequence(ZoundLibrary.GetUniqueZoundId());
@@ -863,8 +861,7 @@ namespace Laubrary.Zounds {
         }
 
         private void AddNewEntryFromExisting(CompositeZound parentZound) {
-            CompositeZoundEditing.AddNewEntryFromExisting(parentZound, Event.current.mousePosition, addMenuSearchText,
-                newSearch => addMenuSearchText = newSearch, zound => AddNewZoundEntry(parentZound, zound, false), this);
+            CompositeZoundEditing.AddNewEntryFromExisting(parentZound, zound => AddNewZoundEntry(parentZound, zound, false), this);
         }
 
         internal void AddNewZoundEntry(CompositeZound parentZound, Zound zound, bool local) {

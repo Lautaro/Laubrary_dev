@@ -34,6 +34,7 @@ namespace Laubrary.Zounds.Uitk {
         Label count, selectedCount;
         VisualElement details, top;
         Button pick;
+        ZuiSegmented kindSeg, sortSeg, groupSeg, viewSeg;
         float lastWidth;
         int columns = 1;
 
@@ -149,9 +150,9 @@ namespace Laubrary.Zounds.Uitk {
             r.Add(det);
             r.Add(Gap());
             r.Add(Lbl("View", "How dense the list is."));
-            var view = Z.Segmented(Mathf.Clamp(memory.view, 0, 2), ViewNames, "Compact: one line per item, no waveform. List: a row with a waveform. Grid: tiles, as many across as fit.", i => { memory.view = i; Refresh(true); });
-            view.AddToClassList("zs-picker__seg");
-            r.Add(view);
+            viewSeg = Z.Segmented(Mathf.Clamp(memory.view, 0, 2), ViewNames, "Compact: one line per item, no waveform. List: a row with a waveform. Grid: tiles, as many across as fit.", i => { memory.view = i; Refresh(true); });
+            viewSeg.AddToClassList("zs-picker__seg");
+            r.Add(viewSeg);
             return r;
         }
 
@@ -160,9 +161,9 @@ namespace Laubrary.Zounds.Uitk {
             bool clips = request.listing == ZoundPickerRequest.Listing.Clips;
             string[] kinds = clips ? new[] { "All", "Library", "Sources" } : new[] { "All", "Klips", "Zequences" };
             r.Add(Lbl("Show", "Which part of the listing to show."));
-            var kind = Z.Segmented(Mathf.Clamp(memory.kindFilter, 0, 2), kinds, clips ? "All clips, only the library's, or only the sources folder's." : "All sounds, only Klips, or only Zequences.", i => { memory.kindFilter = i; Refresh(true); });
-            kind.AddToClassList("zs-picker__seg");
-            r.Add(kind);
+            kindSeg = Z.Segmented(Mathf.Clamp(memory.kindFilter, 0, 2), kinds, clips ? "All clips, only the library's, or only the sources folder's." : "All sounds, only Klips, or only Zequences.", i => { memory.kindFilter = i; Refresh(true); });
+            kindSeg.AddToClassList("zs-picker__seg");
+            r.Add(kindSeg);
             var fav = ZS.Toggle("★ Favourites", "Only the items you starred.", memory.onlyFavourites, v => { memory.onlyFavourites = v; Refresh(true); }, "RichToggle", ZUICornerMask.Left, 96f, 20f);
             var rec = ZS.Toggle("Recent", "Only items picked here before, newest first.", memory.onlyRecent, v => { memory.onlyRecent = v; Refresh(true); }, "RichToggle", ZUICornerMask.None, 64f, 20f);
             var unused = ZS.Toggle("Unused", clips ? "Only clips no Klip plays yet." : "Only sounds no Zequence plays yet.", memory.onlyUnused, v => { memory.onlyUnused = v; Refresh(true); }, "RichToggle", ZUICornerMask.Right, 64f, 20f);
@@ -171,15 +172,23 @@ namespace Laubrary.Zounds.Uitk {
             r.Add(flags);
             r.Add(Gap());
             r.Add(Lbl("Sort", "The order of the list. With a search typed, the best matches come first within it."));
-            var sort = Z.Segmented(Mathf.Clamp(memory.sort, 0, SortNames.Length - 1), SortNames, "By name; most recently picked here first; most used in the project first; longest first; by folder then name.", i => { memory.sort = i; Refresh(true); });
-            sort.AddToClassList("zs-picker__seg");
-            r.Add(sort);
+            sortSeg = Z.Segmented(Mathf.Clamp(memory.sort, 0, SortNames.Length - 1), SortNames, "By name; most recently picked here first; most used in the project first; longest first; by folder then name.", i => { memory.sort = i; Refresh(true); });
+            sortSeg.AddToClassList("zs-picker__seg");
+            r.Add(sortSeg);
             r.Add(Gap());
             r.Add(Lbl("Group", "Headers between groups of the list."));
-            var group = Z.Segmented(Mathf.Clamp(memory.group, 0, GroupNames.Length - 1), GroupNames, "No headers; a header per folder; per tag (an item with several tags is listed under each); per kind.", i => { memory.group = i; Refresh(true); });
-            group.AddToClassList("zs-picker__seg");
-            r.Add(group);
+            groupSeg = Z.Segmented(Mathf.Clamp(memory.group, 0, GroupNames.Length - 1), GroupNames, "No headers; a header per folder; per tag (an item with several tags is listed under each); per kind.", i => { memory.group = i; Refresh(true); });
+            groupSeg.AddToClassList("zs-picker__seg");
+            r.Add(groupSeg);
             return r;
+        }
+
+        /// <summary>The four mode controls always show the mode the list is in, whatever set it (a click, remembered state, code).</summary>
+        void SyncModeControls() {
+            kindSeg?.SetOn(i => i == memory.kindFilter);
+            sortSeg?.SetOn(i => i == memory.sort);
+            groupSeg?.SetOn(i => i == memory.group);
+            viewSeg?.SetOn(i => i == memory.view);
         }
 
         VisualElement BottomRow() {
@@ -271,6 +280,7 @@ namespace Laubrary.Zounds.Uitk {
                 if (cursor < 0) anchor = -1;
             }
             count.text = shown.Count == request.items.Count ? shown.Count + " items" : shown.Count + " of " + request.items.Count;
+            SyncModeControls();
             list.itemsSource = rows;
             list.Rebuild();
             if (sv != null) list.schedule.Execute(() => { var s2 = list.Q<ScrollView>(); if (s2 != null) s2.scrollOffset = keep; });

@@ -99,11 +99,17 @@ namespace Laubrary.Zounds.Uitk {
             var wave = es != null ? es.waveformColor : new Color(1f, 0.6f, 0.1f, 1f);
             float mid = h * 0.5f;
             if (mine == null) {
-                // Not read yet (queued), or unreadable: a faint midline says "audio, no picture", never a blank square.
-                p2.strokeColor = new Color(wave.r, wave.g, wave.b, unknown ? 0.25f : 0.5f); p2.lineWidth = 1f;
+                // Never a flat line, which reads as silence. Still being read: three grey dots (loading), gone within a few
+                // editor ticks. Unreadable on this machine: a faint dashed midline in the waveform colour.
+                if (!unknown) {
+                    p2.fillColor = new Color(0.75f, 0.75f, 0.8f, 0.55f);
+                    float r = Mathf.Min(2.5f, h * 0.12f), cx = w * 0.5f;
+                    for (int i = -1; i <= 1; i++) { p2.BeginPath(); p2.Arc(new Vector2(cx + i * r * 3.2f, mid), r, 0f, 360f); p2.Fill(); }
+                    return;
+                }
+                p2.strokeColor = new Color(wave.r, wave.g, wave.b, 0.3f); p2.lineWidth = 1f;
                 p2.BeginPath();
-                if (unknown) { for (float x = 2f; x < w; x += 6f) { p2.MoveTo(new Vector2(x, mid)); p2.LineTo(new Vector2(x + 3f, mid)); } }
-                else { p2.MoveTo(new Vector2(0, mid)); p2.LineTo(new Vector2(w, mid)); }
+                for (float x = 2f; x < w; x += 6f) { p2.MoveTo(new Vector2(x, mid)); p2.LineTo(new Vector2(x + 3f, mid)); }
                 p2.Stroke();
                 return;
             }

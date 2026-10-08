@@ -105,7 +105,6 @@ namespace Laubrary.Zounds {
         private GUIContent label_showPresetsAlways = new GUIContent("Presets Always", "Should presets be shown even when settings are closed?");
 
         // ── Add-menu search state ───────────────────────────────────────────────
-        private static string addMenuSearchText = "";
 
         // ── Search / filter state ───────────────────────────────────────────────
         private string tagsSearchText       = "";
@@ -1011,21 +1010,15 @@ namespace Laubrary.Zounds {
         // ADD NEW / OPEN EDITOR
         // ═══════════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Public entry point for the AddZoundPopup's Klip submit path. Forwards to the existing
-        /// OpenCreateNewKlipDialog using the shared search-text state, with the user-chosen name
-        /// as override. The nameOverride is applied by AddAudioRefToGenericMenu when the user
-        /// picks an audio file from the resulting menu.
-        /// </summary>
+        /// <summary>The AddZoundPopup's Klip submit path: the picker, with the user-chosen name as the first pick's name.</summary>
         public static void OpenCreateNewKlipDialogExternal(Vector3 anchorScreenPos, string nameOverride, EditorWindow previewOwner) {
-            OpenCreateNewKlipDialog(anchorScreenPos, OnKlipAdded, addMenuSearchText, text => addMenuSearchText = text, nameOverride, previewOwner);
+            OpenCreateNewKlipDialog(OnKlipAdded, nameOverride, previewOwner);
         }
 
         public static void OpenAddNewZoundMenu(string nameOverride = null, EditorWindow previewOwner = null) {
-            var mousePosition = Event.current.mousePosition;
             var genericMenu = new GenericMenu();
             genericMenu.AddItem(new GUIContent("Klip"), false, () => {
-                OpenCreateNewKlipDialog(mousePosition, OnKlipAdded, addMenuSearchText, text => addMenuSearchText = text, nameOverride, previewOwner);
+                OpenCreateNewKlipDialog(OnKlipAdded, nameOverride, previewOwner);
             });
             genericMenu.AddItem(new GUIContent("Empty Klip (Placeholder)"), false, () => {
                 ZoundsWindow.ModifyZoundsProject("add empty placeholder klip", () => {
@@ -1097,12 +1090,9 @@ namespace Laubrary.Zounds {
             }
         }
 
-        /// <summary>
-        /// "New Klip": the picker over every clip of the workspace (2026-10-08, replacing the flat menu popup). The picker
-        /// keeps its own search; <paramref name="searchText"/> and <paramref name="onSearchTextChanged"/> are the old
-        /// menu's and are no longer read, kept so the many call sites need no change.
-        /// </summary>
-        public static void OpenCreateNewKlipDialog(Vector3 mousePosition, System.Action<Klip> onKlipAdded, string searchText, System.Action<string> onSearchTextChanged, string nameOverride = null, EditorWindow previewOwner = null) {
+        /// <summary>"New Klip": the picker over every clip of the workspace (2026-10-08, replacing the flat menu popup); the
+        /// picker keeps its own search and place, so the caller passes only what to do with a pick.</summary>
+        public static void OpenCreateNewKlipDialog(System.Action<Klip> onKlipAdded, string nameOverride = null, EditorWindow previewOwner = null) {
             Uitk.ZoundPickerWindowTK.Open(Uitk.ZoundPickerRequests.NewKlips(onKlipAdded, nameOverride, previewOwner));
         }
 

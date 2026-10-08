@@ -186,10 +186,8 @@ namespace Laubrary.Zounds {
         }
 
         /// <summary>"+ Shared Zound": the picker over every library sound that is not this one and does not contain it
-        /// (2026-10-08, replacing the flat menu popup). The picker keeps its own search; <paramref name="searchText"/> and
-        /// <paramref name="onSearchChanged"/> are the old menu's and are no longer read, kept so the call sites need no change.</summary>
-        public static void AddNewEntryFromExisting(CompositeZound parentZound, Vector2 mousePosition, string searchText,
-                                                   System.Action<string> onSearchChanged, System.Action<Zound> onChosen, EditorWindow previewOwner) {
+        /// (2026-10-08, replacing the flat menu popup); the picker keeps its own search and place.</summary>
+        public static void AddNewEntryFromExisting(CompositeZound parentZound, System.Action<Zound> onChosen, EditorWindow previewOwner) {
             Uitk.ZoundPickerWindowTK.Open(Uitk.ZoundPickerRequests.SharedZounds(parentZound, onChosen, previewOwner));
         }
 

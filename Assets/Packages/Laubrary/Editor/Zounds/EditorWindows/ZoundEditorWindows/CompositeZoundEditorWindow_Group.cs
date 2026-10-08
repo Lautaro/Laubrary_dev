@@ -333,11 +333,11 @@ namespace Laubrary.Zounds {
                 sharedZoundRect.x += xOffset;
 
                 if (ZUI.Button(localKlipRect, "+ Local Klip", ZUI.Style.RichButton, ZUICornerMask.Left)) {
-                    BrowserTab.OpenCreateNewKlipDialog(Event.current.mousePosition, klip => {
+                    BrowserTab.OpenCreateNewKlipDialog(klip => {
                         klip.parentId = compositeZound.id;
                         compositeZound.localKlips.Add(klip);
                         AddNewZoundEntry(compositeZound, klip, true);
-                    }, createKlipSearchText, text => createKlipSearchText = text, previewOwner: this);
+                    }, previewOwner: this);
                 }
                 //if (ZUI.Button(localZequenceRect, "+ Local Zequence", ZUI.Style.RichButton)) {
                 //    Debug.Log("Nested Local Zequence is not supported.");
