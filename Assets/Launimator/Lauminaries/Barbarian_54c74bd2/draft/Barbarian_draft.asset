@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Barbarian_draft
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Launimator::Laubrary.Launimator.LauminaryVersion
   versionNumber: 0
-  createdUtc: 2026-10-07T11:03:27.5406863Z
+  createdUtc: 2026-10-07T12:34:08.5955715Z
   animations:
   - name: Idle
     fps: 10
@@ -26,6 +26,25 @@ MonoBehaviour:
         width: 120
         height: 120
       pivot: {x: 0.5, y: 0.25833333}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 0
+    previewFrameZero: 0
+    frameZero:
+      sourceTextureGuid: 
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 0
+        height: 0
+      pivot: {x: 0.5, y: 0}
       transform:
         flipX: 0
         flipY: 0
@@ -127,6 +146,25 @@ MonoBehaviour:
         scaleY: 1
         smooth: 0
       timingPercent: 0
+    previewFrameZero: 0
+    frameZero:
+      sourceTextureGuid: 
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 0
+        height: 0
+      pivot: {x: 0.5, y: 0}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 0
     events: []
     bgKeyEnabled: 0
     bgKey:
@@ -152,8 +190,42 @@ MonoBehaviour:
     zones: []
     asepriteSourcePath: 
   - name: HeavyChop
-    fps: 5
+    fps: 9
     recipe:
+    - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
+      cell:
+        serializedVersion: 2
+        x: 3120
+        y: 0
+        width: 120
+        height: 120
+      pivot: {x: 0.5, y: 0.25833333}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 128
+    - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
+      cell:
+        serializedVersion: 2
+        x: 7632
+        y: 0
+        width: 102
+        height: 100
+      pivot: {x: 0.4509804, y: 0.21}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 30
     - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
       cell:
         serializedVersion: 2
@@ -170,7 +242,7 @@ MonoBehaviour:
         scaleX: 1
         scaleY: 1
         smooth: 0
-      timingPercent: -150
+      timingPercent: -102
     - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
       cell:
         serializedVersion: 2
@@ -187,7 +259,7 @@ MonoBehaviour:
         scaleX: 1
         scaleY: 1
         smooth: 0
-      timingPercent: 0
+      timingPercent: -106
     - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
       cell:
         serializedVersion: 2
@@ -204,15 +276,15 @@ MonoBehaviour:
         scaleX: 1
         scaleY: 1
         smooth: 0
-      timingPercent: -100
+      timingPercent: -83
     - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
       cell:
         serializedVersion: 2
-        x: 4413
-        y: 141
-        width: 42
-        height: 63
-      pivot: {x: 0.4047619, y: 0}
+        x: 6528
+        y: 120
+        width: 102
+        height: 100
+      pivot: {x: 0.4509804, y: 0.21}
       transform:
         flipX: 0
         flipY: 0
@@ -238,7 +310,43 @@ MonoBehaviour:
         scaleX: 1
         scaleY: 1
         smooth: 0
-      timingPercent: 0
+      timingPercent: 83
+    - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
+      cell:
+        serializedVersion: 2
+        x: 1080
+        y: 0
+        width: 120
+        height: 120
+      pivot: {x: 0.5, y: 0.25833333}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 83
+    previewFrameZero: 1
+    frameZero:
+      sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 120
+        height: 120
+      pivot: {x: 0.5, y: 0.25833333}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 234
     events: []
     bgKeyEnabled: 0
     bgKey:
@@ -255,6 +363,9 @@ MonoBehaviour:
     - {fileID: -1601596505656613747, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -7547975583332683562, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 6642023921975925791, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -3213947272084201502, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 3683261985718490363, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -4308503013214318697, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     spriteLayers: []
     atlas: {fileID: 2800000, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
@@ -270,7 +381,7 @@ MonoBehaviour:
     - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
       cell:
         serializedVersion: 2
-        x: 960
+        x: 1080
         y: 0
         width: 120
         height: 120
@@ -287,7 +398,7 @@ MonoBehaviour:
     - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
       cell:
         serializedVersion: 2
-        x: 1080
+        x: 1320
         y: 0
         width: 120
         height: 120
@@ -335,6 +446,25 @@ MonoBehaviour:
         scaleY: 1
         smooth: 0
       timingPercent: 0
+    previewFrameZero: 0
+    frameZero:
+      sourceTextureGuid: 
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 0
+        height: 0
+      pivot: {x: 0.5, y: 0}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 0
     events: []
     bgKeyEnabled: 0
     bgKey:
@@ -346,10 +476,10 @@ MonoBehaviour:
     frameHeight: 32
     framePivot: {x: 0.5, y: 0.25833333}
     frames:
-    - {fileID: -3213947272084201502, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 3683261985718490363, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: -4308503013214318697, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -5764143536469989782, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -6217495546354138823, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 2656628738997907869, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 4182495383254442156, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     spriteLayers: []
     atlas: {fileID: 2800000, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
@@ -360,16 +490,16 @@ MonoBehaviour:
     zones: []
     asepriteSourcePath: 
   - name: JumpBack
-    fps: 10
+    fps: 9.8
     recipe:
     - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
       cell:
         serializedVersion: 2
-        x: 1440
-        y: 0
-        width: 120
-        height: 120
-      pivot: {x: 0.5, y: 0.25833333}
+        x: 7140
+        y: 120
+        width: 102
+        height: 100
+      pivot: {x: 0.38235295, y: 0.21}
       transform:
         flipX: 0
         flipY: 0
@@ -395,7 +525,7 @@ MonoBehaviour:
         scaleX: 1
         scaleY: 1
         smooth: 0
-      timingPercent: 0
+      timingPercent: 64
     - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
       cell:
         serializedVersion: 2
@@ -416,7 +546,26 @@ MonoBehaviour:
     - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
       cell:
         serializedVersion: 2
-        x: 1800
+        x: 7140
+        y: 120
+        width: 102
+        height: 100
+      pivot: {x: 0.38235295, y: 0.21}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 0
+    previewFrameZero: 1
+    frameZero:
+      sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
+      cell:
+        serializedVersion: 2
+        x: 0
         y: 0
         width: 120
         height: 120
@@ -429,7 +578,7 @@ MonoBehaviour:
         scaleX: 1
         scaleY: 1
         smooth: 0
-      timingPercent: 0
+      timingPercent: 472
     events: []
     bgKeyEnabled: 0
     bgKey:
@@ -441,10 +590,10 @@ MonoBehaviour:
     frameHeight: 32
     framePivot: {x: 0.5, y: 0.25833333}
     frames:
-    - {fileID: -6217495546354138823, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 2656628738997907869, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 4182495383254442156, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 5444371381045419032, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 2927270964821656390, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 5766709239393123052, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -6685668192395559160, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     spriteLayers: []
     atlas: {fileID: 2800000, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
@@ -559,6 +708,25 @@ MonoBehaviour:
         scaleY: 1
         smooth: 0
       timingPercent: 0
+    previewFrameZero: 0
+    frameZero:
+      sourceTextureGuid: 
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 0
+        height: 0
+      pivot: {x: 0.5, y: 0}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 0
     events: []
     bgKeyEnabled: 0
     bgKey:
@@ -570,12 +738,12 @@ MonoBehaviour:
     frameHeight: 32
     framePivot: {x: 0.5, y: 0.25833333}
     frames:
-    - {fileID: 2927270964821656390, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 5766709239393123052, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: -6685668192395559160, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -7285430028584789868, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 5627367484652728055, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 3394478202789590621, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -6547075014006627773, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 1843800683345282423, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -7981487555666157104, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     spriteLayers: []
     atlas: {fileID: 2800000, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
@@ -690,6 +858,25 @@ MonoBehaviour:
         scaleY: 1
         smooth: 0
       timingPercent: 0
+    previewFrameZero: 0
+    frameZero:
+      sourceTextureGuid: 
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 0
+        height: 0
+      pivot: {x: 0.5, y: 0}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 0
     events: []
     bgKeyEnabled: 0
     bgKey:
@@ -701,12 +888,12 @@ MonoBehaviour:
     frameHeight: 32
     framePivot: {x: 0.5, y: 0.25833333}
     frames:
-    - {fileID: -6547075014006627773, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 1843800683345282423, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: -7981487555666157104, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 8374382311106426359, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -4767001101679781952, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 7549354426586216120, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -738915426039143411, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 5995018510096200328, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 2999516896756697356, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     spriteLayers: []
     atlas: {fileID: 2800000, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
@@ -804,6 +991,25 @@ MonoBehaviour:
         scaleY: 1
         smooth: 0
       timingPercent: 0
+    previewFrameZero: 0
+    frameZero:
+      sourceTextureGuid: 
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 0
+        height: 0
+      pivot: {x: 0.5, y: 0}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 0
     events: []
     bgKeyEnabled: 0
     bgKey:
@@ -815,11 +1021,11 @@ MonoBehaviour:
     frameHeight: 32
     framePivot: {x: 0.5, y: 0.25833333}
     frames:
-    - {fileID: -738915426039143411, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 5995018510096200328, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 2999516896756697356, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 445664672483915349, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -2740289884897651079, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 6964965083523577192, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 3479565467732239201, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -2371649780985693966, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     spriteLayers: []
     atlas: {fileID: 2800000, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
@@ -951,6 +1157,25 @@ MonoBehaviour:
         scaleY: 1
         smooth: 0
       timingPercent: 0
+    previewFrameZero: 0
+    frameZero:
+      sourceTextureGuid: 
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 0
+        height: 0
+      pivot: {x: 0.5, y: 0}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 0
     events: []
     bgKeyEnabled: 0
     bgKey:
@@ -962,13 +1187,13 @@ MonoBehaviour:
     frameHeight: 32
     framePivot: {x: 0.4181818, y: 0.21}
     frames:
-    - {fileID: 6964965083523577192, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 3479565467732239201, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: -2371649780985693966, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 5731262843004722346, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 5811346204228297362, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 2375666797642668340, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 5943746651921447992, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 8020801591492741098, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 4282239347739718915, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -6477925974116854792, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     spriteLayers: []
     atlas: {fileID: 2800000, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
@@ -984,7 +1209,7 @@ MonoBehaviour:
     - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
       cell:
         serializedVersion: 2
-        x: 4610
+        x: 4170
         y: 0
         width: 110
         height: 100
@@ -997,7 +1222,24 @@ MonoBehaviour:
         scaleX: 1
         scaleY: 1
         smooth: 0
-      timingPercent: 0
+      timingPercent: 49
+    - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
+      cell:
+        serializedVersion: 2
+        x: 4390
+        y: 0
+        width: 110
+        height: 100
+      pivot: {x: 0.4181818, y: 0.21}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 45
     - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
       cell:
         serializedVersion: 2
@@ -1099,7 +1341,7 @@ MonoBehaviour:
         scaleX: 1
         scaleY: 1
         smooth: 0
-      timingPercent: 0
+      timingPercent: 30
     - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
       cell:
         serializedVersion: 2
@@ -1116,7 +1358,26 @@ MonoBehaviour:
         scaleX: 1
         scaleY: 1
         smooth: 0
-      timingPercent: 0
+      timingPercent: 79
+    previewFrameZero: 1
+    frameZero:
+      sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
+      cell:
+        serializedVersion: 2
+        x: 4610
+        y: 0
+        width: 110
+        height: 100
+      pivot: {x: 0.4181818, y: 0.21}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 400
     events: []
     bgKeyEnabled: 0
     bgKey:
@@ -1128,14 +1389,15 @@ MonoBehaviour:
     frameHeight: 32
     framePivot: {x: 0.4181818, y: 0.21}
     frames:
-    - {fileID: 8020801591492741098, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 4282239347739718915, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: -6477925974116854792, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 1789001641594031975, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 6562469743352452308, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 4345443088671117522, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -3899591223141291906, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 6327418846055705497, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 3164300150037095534, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 6274065208954949611, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -1070716902629409899, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 3864288322783800103, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     spriteLayers: []
     atlas: {fileID: 2800000, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
@@ -1151,11 +1413,11 @@ MonoBehaviour:
     - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
       cell:
         serializedVersion: 2
-        x: 5490
+        x: 4170
         y: 0
-        width: 102
+        width: 110
         height: 100
-      pivot: {x: 0.4509804, y: 0.21}
+      pivot: {x: 0.4181818, y: 0.21}
       transform:
         flipX: 0
         flipY: 0
@@ -1164,24 +1426,7 @@ MonoBehaviour:
         scaleX: 1
         scaleY: 1
         smooth: 0
-      timingPercent: 0
-    - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
-      cell:
-        serializedVersion: 2
-        x: 5592
-        y: 0
-        width: 102
-        height: 100
-      pivot: {x: 0.4509804, y: 0.21}
-      transform:
-        flipX: 0
-        flipY: 0
-        rot90: 0
-        angle: 0
-        scaleX: 1
-        scaleY: 1
-        smooth: 0
-      timingPercent: 0
+      timingPercent: 106
     - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
       cell:
         serializedVersion: 2
@@ -1198,7 +1443,7 @@ MonoBehaviour:
         scaleX: 1
         scaleY: 1
         smooth: 0
-      timingPercent: 0
+      timingPercent: 45
     - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
       cell:
         serializedVersion: 2
@@ -1215,7 +1460,7 @@ MonoBehaviour:
         scaleX: 1
         scaleY: 1
         smooth: 0
-      timingPercent: 0
+      timingPercent: 53
     - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
       cell:
         serializedVersion: 2
@@ -1232,7 +1477,7 @@ MonoBehaviour:
         scaleX: 1
         scaleY: 1
         smooth: 0
-      timingPercent: 0
+      timingPercent: 38
     - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
       cell:
         serializedVersion: 2
@@ -1304,7 +1549,7 @@ MonoBehaviour:
     - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
       cell:
         serializedVersion: 2
-        x: 6408
+        x: 6204
         y: 0
         width: 102
         height: 100
@@ -1318,6 +1563,42 @@ MonoBehaviour:
         scaleY: 1
         smooth: 0
       timingPercent: 0
+    - sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
+      cell:
+        serializedVersion: 2
+        x: 6408
+        y: 0
+        width: 102
+        height: 100
+      pivot: {x: 0.4509804, y: 0.21}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 98
+    previewFrameZero: 1
+    frameZero:
+      sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
+      cell:
+        serializedVersion: 2
+        x: 5490
+        y: 0
+        width: 102
+        height: 100
+      pivot: {x: 0.4509804, y: 0.21}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 717
     events: []
     bgKeyEnabled: 0
     bgKey:
@@ -1329,16 +1610,16 @@ MonoBehaviour:
     frameHeight: 32
     framePivot: {x: 0.4509804, y: 0.21}
     frames:
-    - {fileID: 3164300150037095534, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 6274065208954949611, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: -1070716902629409899, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 3864288322783800103, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 1503762013697922900, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -2957725807584898279, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 9182298035531302151, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 905010769350951497, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 1915443488850401402, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 6711830346874426076, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -5194223796120435139, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 8843887845531635810, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -7779923726772830313, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 2234857651752982901, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     spriteLayers: []
     atlas: {fileID: 2800000, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
@@ -1504,6 +1785,25 @@ MonoBehaviour:
         scaleY: 1
         smooth: 0
       timingPercent: 0
+    previewFrameZero: 0
+    frameZero:
+      sourceTextureGuid: 
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 0
+        height: 0
+      pivot: {x: 0.5, y: 0}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 0
     events: []
     bgKeyEnabled: 0
     bgKey:
@@ -1515,15 +1815,15 @@ MonoBehaviour:
     frameHeight: 32
     framePivot: {x: 0.4509804, y: 0.21}
     frames:
-    - {fileID: -5194223796120435139, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 8843887845531635810, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: -7779923726772830313, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 2234857651752982901, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 8223482003306255661, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 4945531898137850209, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -1055994045183235229, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 8948602318516331484, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 1053130788975628105, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 6847372377996168587, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -1248963319315004921, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -2840425153468229479, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 6288963904076747352, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     spriteLayers: []
     atlas: {fileID: 2800000, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
@@ -1689,6 +1989,25 @@ MonoBehaviour:
         scaleY: 1
         smooth: 0
       timingPercent: 0
+    previewFrameZero: 0
+    frameZero:
+      sourceTextureGuid: 
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 0
+        height: 0
+      pivot: {x: 0.5, y: 0}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 0
     events: []
     bgKeyEnabled: 0
     bgKey:
@@ -1700,15 +2019,15 @@ MonoBehaviour:
     frameHeight: 32
     framePivot: {x: 0.4509804, y: 0.21}
     frames:
-    - {fileID: 6847372377996168587, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: -1248963319315004921, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: -2840425153468229479, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 6288963904076747352, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -3323696200116325286, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -5075405800114610024, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 1480570949253045113, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -6887854482068669511, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -6790515536481977868, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -2782892778871971328, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -6810154924145069878, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 5441495228614828154, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 6146220136547113985, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     spriteLayers: []
     atlas: {fileID: 2800000, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
@@ -1874,6 +2193,25 @@ MonoBehaviour:
         scaleY: 1
         smooth: 0
       timingPercent: 0
+    previewFrameZero: 0
+    frameZero:
+      sourceTextureGuid: 
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 0
+        height: 0
+      pivot: {x: 0.5, y: 0}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 0
     events: []
     bgKeyEnabled: 0
     bgKey:
@@ -1885,15 +2223,15 @@ MonoBehaviour:
     frameHeight: 32
     framePivot: {x: 0.4509804, y: 0.21}
     frames:
-    - {fileID: -2782892778871971328, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: -6810154924145069878, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 5441495228614828154, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 6146220136547113985, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 8808001636796615964, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 3413916998146848390, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 3932176895457291443, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 821046711256098549, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 3595622791596486680, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -6438014310456770027, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -4822606545041492819, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 5710551738931415828, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 1437842024195365838, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     spriteLayers: []
     atlas: {fileID: 2800000, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
@@ -1991,6 +2329,25 @@ MonoBehaviour:
         scaleY: 1
         smooth: 0
       timingPercent: 0
+    previewFrameZero: 0
+    frameZero:
+      sourceTextureGuid: 
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 0
+        height: 0
+      pivot: {x: 0.5, y: 0}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 0
     events: []
     bgKeyEnabled: 0
     bgKey:
@@ -2002,11 +2359,11 @@ MonoBehaviour:
     frameHeight: 32
     framePivot: {x: 0.4509804, y: 0.21}
     frames:
-    - {fileID: -6438014310456770027, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: -4822606545041492819, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 5710551738931415828, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 1437842024195365838, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 9159300389181664326, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -1761112957501280452, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 1797324385291445623, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -8233833926795351726, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -9074215568876728646, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     spriteLayers: []
     atlas: {fileID: 2800000, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
@@ -2138,6 +2495,25 @@ MonoBehaviour:
         scaleY: 1
         smooth: 0
       timingPercent: 0
+    previewFrameZero: 0
+    frameZero:
+      sourceTextureGuid: 
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 0
+        height: 0
+      pivot: {x: 0.5, y: 0}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 0
     events: []
     bgKeyEnabled: 0
     bgKey:
@@ -2149,13 +2525,13 @@ MonoBehaviour:
     frameHeight: 32
     framePivot: {x: 0.4509804, y: 0.21}
     frames:
-    - {fileID: -1761112957501280452, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 1797324385291445623, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: -8233833926795351726, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: -9074215568876728646, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 3733220230733207682, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -8105989229169811547, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 7883013398047153938, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 3837522554431769538, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 3983354279871219137, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -4305522772654327903, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -6550193500249643466, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     spriteLayers: []
     atlas: {fileID: 2800000, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
@@ -2321,6 +2697,25 @@ MonoBehaviour:
         scaleY: 1
         smooth: 0
       timingPercent: 0
+    previewFrameZero: 0
+    frameZero:
+      sourceTextureGuid: 
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 0
+        height: 0
+      pivot: {x: 0.5, y: 0}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 0
     events: []
     bgKeyEnabled: 0
     bgKey:
@@ -2332,15 +2727,15 @@ MonoBehaviour:
     frameHeight: 32
     framePivot: {x: 0.4509804, y: 0.21}
     frames:
-    - {fileID: 3837522554431769538, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 3983354279871219137, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: -4305522772654327903, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: -6550193500249643466, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -1466989662147522665, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 5416629615840759657, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -3896969859278941215, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 1755541798813818713, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 431219420325161077, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -8030604046419234050, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 6045107535179849091, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 1510748483908238913, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -5970282010783651027, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     spriteLayers: []
     atlas: {fileID: 2800000, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
@@ -2455,6 +2850,25 @@ MonoBehaviour:
         scaleY: 1
         smooth: 0
       timingPercent: 0
+    previewFrameZero: 0
+    frameZero:
+      sourceTextureGuid: 
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 0
+        height: 0
+      pivot: {x: 0.5, y: 0}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 0
     events: []
     bgKeyEnabled: 0
     bgKey:
@@ -2466,12 +2880,12 @@ MonoBehaviour:
     frameHeight: 32
     framePivot: {x: 0.4509804, y: 0.21}
     frames:
-    - {fileID: -8030604046419234050, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 6045107535179849091, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 1510748483908238913, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: -5970282010783651027, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 7298507282620386143, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 4988634788884596200, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -4111066598784806291, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 2159492759845156181, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -7297426797286491207, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 2647236099463264769, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     spriteLayers: []
     atlas: {fileID: 2800000, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
@@ -2654,6 +3068,25 @@ MonoBehaviour:
         scaleY: 1
         smooth: 0
       timingPercent: 0
+    previewFrameZero: 0
+    frameZero:
+      sourceTextureGuid: 
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 0
+        height: 0
+      pivot: {x: 0.5, y: 0}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 0
     events: []
     bgKeyEnabled: 0
     bgKey:
@@ -2665,16 +3098,16 @@ MonoBehaviour:
     frameHeight: 32
     framePivot: {x: 0.4509804, y: 0.21}
     frames:
-    - {fileID: -4111066598784806291, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 2159492759845156181, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: -7297426797286491207, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 2647236099463264769, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 6619541110923348047, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 2020917766658498506, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -7144536836712310386, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 2074362992276660021, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -8378035409395326626, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -5490551204266169476, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -5906578694707417112, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 949784725224393326, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -1341709829758926683, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 8028035583311643954, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     spriteLayers: []
     atlas: {fileID: 2800000, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
@@ -2840,6 +3273,25 @@ MonoBehaviour:
         scaleY: 1
         smooth: 0
       timingPercent: 0
+    previewFrameZero: 0
+    frameZero:
+      sourceTextureGuid: 
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 0
+        height: 0
+      pivot: {x: 0.5, y: 0}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 0
     events: []
     bgKeyEnabled: 0
     bgKey:
@@ -2851,15 +3303,15 @@ MonoBehaviour:
     frameHeight: 32
     framePivot: {x: 0.4509804, y: 0.21}
     frames:
-    - {fileID: -5906578694707417112, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 949784725224393326, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: -1341709829758926683, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 8028035583311643954, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -7789976432634935465, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 7501825277736760647, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -7095297092714557299, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 7706452604837298433, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 3174619925738804913, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 9108197901361077594, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 7064472407934445015, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -9135983737275893525, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 7572981140869373160, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     spriteLayers: []
     atlas: {fileID: 2800000, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
@@ -3025,6 +3477,25 @@ MonoBehaviour:
         scaleY: 1
         smooth: 0
       timingPercent: 0
+    previewFrameZero: 0
+    frameZero:
+      sourceTextureGuid: 
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 0
+        height: 0
+      pivot: {x: 0.5, y: 0}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 0
     events: []
     bgKeyEnabled: 0
     bgKey:
@@ -3036,15 +3507,15 @@ MonoBehaviour:
     frameHeight: 32
     framePivot: {x: 0.4509804, y: 0.21}
     frames:
-    - {fileID: 9108197901361077594, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 7064472407934445015, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: -9135983737275893525, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 7572981140869373160, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -1907823058532922277, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -2680835902924276177, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 1950883923151027583, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -2560583068634760841, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -5291740202454495161, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -4214741000706793747, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -5144202980735072976, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 8348101362914016051, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 6181072455673120367, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     spriteLayers: []
     atlas: {fileID: 2800000, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
@@ -3142,6 +3613,25 @@ MonoBehaviour:
         scaleY: 1
         smooth: 0
       timingPercent: 0
+    previewFrameZero: 0
+    frameZero:
+      sourceTextureGuid: 
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 0
+        height: 0
+      pivot: {x: 0.5, y: 0}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 0
     events: []
     bgKeyEnabled: 0
     bgKey:
@@ -3153,11 +3643,11 @@ MonoBehaviour:
     frameHeight: 32
     framePivot: {x: 0.4509804, y: 0.21}
     frames:
-    - {fileID: -6438014310456770027, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: -4822606545041492819, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 5710551738931415828, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: -4214741000706793747, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 9159300389181664326, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -1761112957501280452, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 1797324385291445623, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -8853746156357737133, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -9074215568876728646, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     spriteLayers: []
     atlas: {fileID: 2800000, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
@@ -3323,6 +3813,25 @@ MonoBehaviour:
         scaleY: 1
         smooth: 0
       timingPercent: 0
+    previewFrameZero: 0
+    frameZero:
+      sourceTextureGuid: 
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 0
+        height: 0
+      pivot: {x: 0.5, y: 0}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+      timingPercent: 0
     events: []
     bgKeyEnabled: 0
     bgKey:
@@ -3334,15 +3843,15 @@ MonoBehaviour:
     frameHeight: 32
     framePivot: {x: 0.4509804, y: 0.21}
     frames:
-    - {fileID: -5144202980735072976, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 8348101362914016051, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: 6181072455673120367, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
-    - {fileID: -8853746156357737133, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 1587902467437548733, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -1969674324553659431, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 4997569440379456233, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: 1636911472, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     - {fileID: -1592797107, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 1340226915, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 144747403, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: 1159049912, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
+    - {fileID: -2117252875, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     spriteLayers: []
     atlas: {fileID: 2800000, guid: c4c6d508fe3f2594ca4ba3aed45e1354, type: 3}
     sourceTextureGuid: 841be758fe1a6ff469217fbcee74106a
@@ -3369,6 +3878,25 @@ MonoBehaviour:
             width: 120
             height: 120
           pivot: {x: 0.5, y: 0.25833333}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+          timingPercent: 0
+        previewFrameZero: 0
+        frameZero:
+          sourceTextureGuid: 
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 0
+            height: 0
+          pivot: {x: 0.5, y: 0}
           transform:
             flipX: 0
             flipY: 0
@@ -3522,6 +4050,25 @@ MonoBehaviour:
             width: 110
             height: 100
           pivot: {x: 0.4181818, y: 0.21}
+          transform:
+            flipX: 0
+            flipY: 0
+            rot90: 0
+            angle: 0
+            scaleX: 1
+            scaleY: 1
+            smooth: 0
+          timingPercent: 0
+        previewFrameZero: 0
+        frameZero:
+          sourceTextureGuid: 
+          cell:
+            serializedVersion: 2
+            x: 0
+            y: 0
+            width: 0
+            height: 0
+          pivot: {x: 0.5, y: 0}
           transform:
             flipX: 0
             flipY: 0
