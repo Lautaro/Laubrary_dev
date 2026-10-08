@@ -641,7 +641,7 @@ namespace Laubrary.Zounds {
                     float step = totalTime / AudioRenderUtility.GetOptimalIntegrationSteps(totalTime);
                     float t = 0f, renderedTime = 0f;
                     // The pitch actually heard at each point (a chain curve's value is not a multiplier; T-0479).
-                    var pitchChain = m_klip != null ? Dsp.ZoundDspPlayback.ResolveChain(m_klip, out _) : null;
+                    var pitchChain = m_klip != null ? Dsp.ZoundDspPlayback.PlayChain(m_klip) : null;
                     while (t <= totalTime && renderedTime < m_audioSource.time) {
                         float heard = pitchChain != null ? Dsp.ZoundDspPlayback.PitchAtSource(pitchChain, t / totalTime, totalTime)
                                                          : m_pitchEnvelope.Evaluate(t / totalTime);

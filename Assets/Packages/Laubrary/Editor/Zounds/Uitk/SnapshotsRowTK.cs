@@ -164,7 +164,8 @@ namespace Laubrary.Zounds.Uitk {
 
         /// <summary>Writes a snapshot's values into the sound's settings, so it can be edited and captured again.</summary>
         void LoadIntoEditor(ZoundSnapshot s) {
-            var chain = Dsp.ZoundDspPlayback.ResolveChain(zound, out _);
+            // The chain as it plays (own curves included): its elements are the sound's own objects, so a write lands.
+            var chain = Dsp.ZoundDspPlayback.PlayChain(zound);
             foreach (var v in s.values) {
                 switch (v.kind) {
                     case SnapshotValueKind.EffectParam: {

@@ -54,7 +54,7 @@ namespace Laubrary.Zounds.Uitk {
         /// </summary>
         public static bool TryGet(Zound zound, ZoundModifier curveMod, out Line line) {
             line = default;
-            var chain = ZoundDspPlayback.ResolveChain(zound, out _);
+            var chain = ZoundDspPlayback.PlayChain(zound);   // as it plays: the sound's own curves laid out with the chain
             if (chain == null || curveMod == null) return false;
             int mi = chain.modifiers.IndexOf(curveMod);
             if (mi < 0) return false;

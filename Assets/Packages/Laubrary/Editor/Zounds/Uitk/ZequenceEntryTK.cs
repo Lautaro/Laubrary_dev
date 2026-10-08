@@ -403,9 +403,7 @@ namespace Laubrary.Zounds.Uitk {
             var es = ZoundsProject.Instance.projectSettings.editorStyle;
             ZoundModifier Mod(Func<Zound, bool, Envelope> curveOf) {
                 var env = curveOf(k, false);
-                int mi = env != null ? KlipChainEnvelopes.ModifierIndexOf(k, env) : -1;
-                var chain = Dsp.ZoundDspPlayback.ResolveChain(k, out _);
-                return mi >= 0 && chain != null && mi < chain.modifiers.Count ? chain.modifiers[mi] : null;
+                return env != null ? KlipChainEnvelopes.ModifierOf(k, env) : null;
             }
             CurveBarTK.Curve Make(string label, Color colour, Func<Zound, bool, Envelope> curveOf, Action<bool> setOn) => new CurveBarTK.Curve {
                 label = label, colour = colour,

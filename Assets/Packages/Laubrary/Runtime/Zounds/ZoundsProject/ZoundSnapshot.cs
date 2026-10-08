@@ -77,9 +77,15 @@ namespace Laubrary.Zounds {
         public static ZoundSnapshot Capture(Zound zound, string name, bool assignIdentities) {
             var s = new ZoundSnapshot { name = name };
             if (zound == null) return s;
-            var chain = ZoundDspPlayback.ResolveChain(zound, out _);
+            // The chain as it plays, the sound's own curves included, so they glide too.
+            if (assignIdentities) {
+                var stored = ZoundDspPlayback.ResolveChain(zound, out _);
+                bool added = stored != null && stored.EnsureUids();
+                if (zound.ownCurves != null && zound.ownCurves.EnsureUids(stored)) { zound.ownCurves.Touch(); added = true; }
+                if (added) ZoundDspPlayback.InvalidateLayout(zound);
+            }
+            var chain = ZoundDspPlayback.PlayChain(zound);
             if (chain != null) {
-                if (assignIdentities) chain.EnsureUids();
                 string NodeId(int i) => string.IsNullOrEmpty(chain.nodes[i].uid) ? "#" + i : chain.nodes[i].uid;
                 string ModId(int i) => string.IsNullOrEmpty(chain.modifiers[i].uid) ? "#" + i : chain.modifiers[i].uid;
                 for (int i = 0; i < chain.nodes.Count; i++) {

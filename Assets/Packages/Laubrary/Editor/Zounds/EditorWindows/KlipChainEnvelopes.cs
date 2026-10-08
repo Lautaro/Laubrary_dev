@@ -5,46 +5,114 @@ using Laubrary.Zounds.Dsp;
 namespace Laubrary.Zounds {
 
     /// <summary>
-    /// Locates (or creates) the two chain modifiers that drive a Klip's volume and pitch over its play
-    /// length — an Envelope bound to a Gain node for volume, and an Envelope bound to the source stage's
-    /// pitch — the same way the waveform overlay's curves are really just ordinary chain modifiers under
-    /// the hood.
+    /// The one place the editor reads and writes a sound's OWN curves: its Volume, Pitch and Time curve, drawn over its
+    /// waveform by the curve bar in the Klip editor and on a local track in the Zequence editor. They are properties of
+    /// the sound (<see cref="Zound.ownCurves"/>, owner's rule 2026-10-08), not entries of its modifier list, and the engine
+    /// hears them as source-stage envelopes laid out with the chain (<see cref="ZoundDspPlayback.PlayChain"/>).
     ///
-    /// The Klip editor's waveform overlay (<see cref="KlipEditorWindow"/> + <see cref="AudioSpectrumView"/>)
-    /// reads and writes curves exclusively through this class. That matters because real-time playback
-    /// (<see cref="ZoundDspPlayback"/> / <c>ZoundSapPlayback.ResolveChainForPlayback</c>) only converts a
-    /// Klip's legacy <c>volumeEnvelope</c>/<c>pitchEnvelope</c> fields into a chain when the Klip has no
-    /// chain of its own — the moment any effect is added through the chain editor, those legacy fields stop
-    /// being consulted. Editing through this class instead of the legacy fields means a curve affects
-    /// playback whether or not the Klip already has other effects.
+    /// A sound saved before the slots existed still carries its curves inside its stored chain, as envelope modifiers
+    /// bound to the source stage (or, older still, a volume envelope owning an inserted Gain effect). Such a sound moves
+    /// its curves into the slots on its first access here (<see cref="ZoundOwnCurves.Adopt"/>), exactly; a curve that
+    /// cannot be moved without changing the sound (something else acts on the same value before it) stays in the chain
+    /// and is still found and edited from here, so both forms behave alike. A chain linked to a shared preset never
+    /// converts (its curves belong to every sound linked to it); a curve switched on there is created on the sound.
     ///
-    /// The legacy fields themselves are left alone: a one-time project migration still converts them for
-    /// Klips nobody has opened in this editor yet, and a handful of older editor-only paths (importing with
-    /// a bake, Zequence-entry mixing) still use them directly for their own, unrelated purposes.
+    /// The Klip's legacy <c>volumeEnvelope</c>/<c>pitchEnvelope</c> fields are left alone: a one-time project migration
+    /// still converts them for Klips nobody has opened in this editor yet, and a handful of older editor-only paths
+    /// (importing with a bake, Zequence-entry mixing) still use them directly for their own, unrelated purposes.
     /// </summary>
     internal static class KlipChainEnvelopes {
 
         /// <summary>A permanently disabled envelope for an overlay that has no modifier yet.</summary>
         public static readonly Envelope Disabled = new Envelope(0f, 1f);
 
-        private static ZoundEffectChain Chain(Zound zound) => ZoundDspPlayback.ResolveChain(zound, out _);
+        /// <summary>An own curve wherever it lives: in the sound's slot, or still inside its stored chain.</summary>
+        public struct Own {
+            public ZoundModifier mod;
+            public ZoundModifierBinding bind;
+            /// <summary>Still an entry of the stored chain (a sound that could not be converted, or a shared preset's).</summary>
+            public bool inChain;
+            public bool Valid => mod != null;
+        }
 
-        private static int FindEnvelopeModifier(ZoundEffectChain chain, System.Predicate<ZoundModifierBinding> target) {
+        static ZoundEffectChain Stored(Zound zound) => zound != null ? ZoundDspPlayback.ResolveChain(zound, out _) : null;
+        static ZoundEffectChain Play(Zound zound) => zound != null ? ZoundDspPlayback.PlayChain(zound) : null;
+
+        /// <summary>The first-access conversion: a sound saved with its curves in its chain moves them into its slots.</summary>
+        static void Settle(Zound zound) {
+            if (ZoundOwnCurves.Adopt(zound)) ZoundDspPlayback.InvalidateLayout(zound);
+        }
+
+        /// <summary>Everything that caches a laid-out chain forgets it, after an edit of an own curve.</summary>
+        static void TouchAll(Zound zound) {
+            Stored(zound)?.Touch();
+            zound?.ownCurves?.Touch();
+            ZoundDspPlayback.InvalidateLayout(zound);
+        }
+
+        static int FirstEnvelopeBinding(ZoundEffectChain chain, System.Predicate<ZoundModifierBinding> target) {
             for (int b = 0; b < chain.bindings.Count; b++) {
                 var bind = chain.bindings[b];
                 if (bind.modifierIndex < 0 || bind.modifierIndex >= chain.modifiers.Count) continue;
                 if (chain.modifiers[bind.modifierIndex].type != ZoundModifierType.Envelope) continue;
-                if (target(bind)) return bind.modifierIndex;
+                if (target(bind)) return b;
             }
             return -1;
         }
 
-        // The volume curve: an envelope on the Zound's own Volume (T-0493), or -- as it was saved before that -- on an
-        // inserted Gain effect. The second form plays exactly as before until it is edited (see EnsureVolumeOwnValue).
-        private static int VolumeModifier(ZoundEffectChain chain) {
-            int own = FindEnvelopeModifier(chain, b => b.nodeIndex == -1 && b.paramIndex == SourceStageParam.Volume);
-            if (own >= 0) return own;
-            return FindEnvelopeModifier(chain, b => b.nodeIndex >= 0 && b.nodeIndex < chain.nodes.Count && chain.nodes[b.nodeIndex].type == ZoundEffectType.Gain && b.paramIndex == 0);
+        /// <summary>The sound's own curve on a source-stage value (Volume, Pitch or Speed), or an invalid one when it has none.</summary>
+        public static Own Find(Zound zound, int sourceParam) {
+            if (zound == null) return default;
+            Settle(zound);
+            var slot = zound.ownCurves?.Of(sourceParam);
+            if (slot != null && slot.Has) return new Own { mod = slot.modifier, bind = slot.binding };
+            var chain = Stored(zound);
+            if (chain == null) return default;
+            // The forms a sound saved before the slots existed can still carry: the first envelope on the value, or, for
+            // volume, an envelope owning an inserted Gain effect (which moves onto the sound's own Volume at its first edit).
+            int bi = FirstEnvelopeBinding(chain, b => b.nodeIndex == -1 && b.paramIndex == sourceParam);
+            if (bi < 0 && sourceParam == SourceStageParam.Volume)
+                bi = FirstEnvelopeBinding(chain, b => b.nodeIndex >= 0 && b.nodeIndex < chain.nodes.Count && chain.nodes[b.nodeIndex].type == ZoundEffectType.Gain && b.paramIndex == 0);
+            if (bi < 0) return default;
+            var bind = chain.bindings[bi];
+            return new Own { mod = chain.modifiers[bind.modifierIndex], bind = bind, inChain = true };
+        }
+
+        /// <summary>The chain a curve's binding is indexed against: the stored chain for one still inside it, else the played one.</summary>
+        static ZoundEffectChain ChainOf(Zound zound, in Own o) => o.inChain ? Stored(zound) : Play(zound);
+
+        static Own Create(Zound zound, int sourceParam, string name, Envelope seed, ModulationCombine combine) {
+            if (zound.ownCurves == null) zound.ownCurves = new ZoundOwnCurves();
+            var mod = new ZoundModifier(ZoundModifierType.Envelope) { name = name, curve = seed };
+            var bind = new ZoundModifierBinding {
+                nodeIndex = -1, paramIndex = sourceParam, combine = combine, depth = 1f, schema = ChainModulationCompat.CURRENT_SCHEMA };
+            zound.ownCurves.Set(sourceParam, mod, bind);
+            ZoundDspPlayback.InvalidateLayout(zound);
+            return new Own { mod = mod, bind = bind };
+        }
+
+        /// <summary>
+        /// Converts every waveform-following curve of a Klip (its own curves and its chain's) from trim-anchored to
+        /// source-anchored (T-0501), so the curves stay on the same audio through any re-trim, split or slip; the sound
+        /// plays identically (kept check 30). Called on the first curve edit and before any trim change, inside the same
+        /// Undo step. Not done for a chain linked to a shared preset (other sounds with other trims use the same curves),
+        /// nor when the file's length is unknown.
+        /// </summary>
+        public static bool EnsureSourceAnchored(Zound zound) {
+            if (!(zound is Klip k) || k.chainPresetId != 0) return false;
+            Settle(zound);
+            var clip = ZoundSapPlayback.LoadSourceClip(k, out bool alreadyTrimmed);
+            if (clip == null || alreadyTrimmed) return false;
+            var axis = CurveAnchor.Axis.Of(k, clip.length);
+            bool any = false;
+            if (k.effectChain != null) foreach (var m in k.effectChain.modifiers) any |= CurveAnchor.ConvertToSource(m, axis);
+            if (k.ownCurves != null)
+                foreach (int p in new[] { SourceStageParam.Volume, SourceStageParam.Pitch, SourceStageParam.Speed }) {
+                    var slot = k.ownCurves.Of(p);
+                    if (slot.Has) any |= CurveAnchor.ConvertToSource(slot.modifier, axis);
+                }
+            if (any) TouchAll(zound);
+            return any;
         }
 
         /// <summary>
@@ -54,173 +122,131 @@ namespace Laubrary.Zounds {
         /// and nothing else is bound to it. Otherwise the sound is left as it is. Called at the start of an edit of the
         /// curve, inside that edit's Undo step, never on a whole project at once. Returns whether anything changed.
         /// </summary>
-        /// <summary>
-        /// Converts every waveform-following curve on a Klip's own chain from trim-anchored to source-anchored (T-0501), so
-        /// the curves stay on the same audio through any re-trim, split or slip; the sound plays identically (kept check 30).
-        /// Called on the first curve edit and before any trim change, inside the same Undo step. Not done for a chain linked
-        /// to a shared preset (other sounds with other trims use the same curves), nor when the file's length is unknown.
-        /// </summary>
-        public static bool EnsureSourceAnchored(Zound zound) {
-            if (!(zound is Klip k) || k.chainPresetId != 0 || k.effectChain == null) return false;
-            var clip = Dsp.ZoundSapPlayback.LoadSourceClip(k, out bool alreadyTrimmed);
-            if (clip == null || alreadyTrimmed) return false;
-            var axis = Dsp.CurveAnchor.Axis.Of(k, clip.length);
-            bool any = false;
-            foreach (var m in k.effectChain.modifiers) any |= Dsp.CurveAnchor.ConvertToSource(m, axis);
-            if (any) k.effectChain.Touch();
-            return any;
-        }
-
         public static bool EnsureVolumeOwnValue(Zound zound) {
             EnsureSourceAnchored(zound);
-            var chain = Chain(zound);
+            var chain = Stored(zound);
             if (chain == null) return false;
-            int m = VolumeModifier(chain);
-            if (m < 0) return false;
-            ZoundModifierBinding vb = null;
-            foreach (var b in chain.bindings) if (b.modifierIndex == m && b.nodeIndex >= 0) { vb = b; break; }
-            if (vb == null) return false;
-            int gi = vb.nodeIndex;
+            var o = Find(zound, SourceStageParam.Volume);
+            if (!o.Valid || !o.inChain || o.bind.nodeIndex < 0) return false;
+            int gi = o.bind.nodeIndex;
             if (gi != chain.nodes.Count - 1) return false;
             var gain = chain.nodes[gi];
             if (gain.type != ZoundEffectType.Gain || !gain.enabled || Mathf.Abs(gain.Param(0) - 1f) > 1e-6f) return false;
-            foreach (var b in chain.bindings) if (b != vb && b.nodeIndex == gi) return false;
-            if (zound.chainOverrides != null) foreach (var o in zound.chainOverrides) if (o.nodeIndex == gi) return false;
-            vb.nodeIndex = -1; vb.paramIndex = SourceStageParam.Volume;
+            foreach (var b in chain.bindings) if (b != o.bind && b.nodeIndex == gi) return false;
+            if (zound.chainOverrides != null) foreach (var ov in zound.chainOverrides) if (ov.nodeIndex == gi) return false;
+            o.bind.nodeIndex = -1; o.bind.paramIndex = SourceStageParam.Volume;
             chain.RemoveNode(gi);
-            ZoundDspPlayback.InvalidateLayout(zound);
+            Settle(zound);   // now in the form the slot takes
+            TouchAll(zound);
             return true;
         }
 
         /// <summary>
-        /// Whether <paramref name="m"/> is one of the sound's OWN curves (its volume, pitch or time curve: the envelope bound to
-        /// its source stage that the waveform's curve bar edits). Those are properties of the sound, not entries of its
-        /// modifier list (owner, 2026-10-08), so the chain editor keeps them out of the list; they stay in the saved chain,
-        /// which is how they play.
+        /// Whether <paramref name="m"/> is one of the sound's OWN curves (its volume, pitch or time curve). Those are
+        /// properties of the sound, not entries of its modifier list, so the chain editor keeps one that still sits in a
+        /// stored chain (a sound that could not convert, a shared preset's) out of the list.
         /// </summary>
         public static bool IsOwnCurve(Zound zound, ZoundModifier m) {
             if (zound == null || m == null || m.type != ZoundModifierType.Envelope) return false;
-            var chain = Chain(zound);
-            if (chain == null) return false;
-            int i = chain.modifiers.IndexOf(m);
-            return i >= 0 && (i == VolumeModifier(chain) || i == PitchModifier(chain) || i == TimeModifier(chain));
+            return Find(zound, SourceStageParam.Volume).mod == m || Find(zound, SourceStageParam.Pitch).mod == m || Find(zound, SourceStageParam.Speed).mod == m;
         }
 
-        private static int PitchModifier(ZoundEffectChain chain) =>
-            FindEnvelopeModifier(chain, b => b.nodeIndex == -1 && b.paramIndex == SourceStageParam.Pitch);
-
         public static Envelope VolumeCurve(Zound zound, bool create) {
-            var chain = Chain(zound);
-            int m = VolumeModifier(chain);
-            if (m < 0) {
-                if (!create) return null;
-                // Seed the new modifier from the Klip's legacy curve, if it drew one, so switching a Klip
-                // over to the chain (by giving it its first modifier) doesn't discard existing curve work.
+            var o = Find(zound, SourceStageParam.Volume);
+            if (!o.Valid) {
+                if (!create || zound == null) return null;
+                // Seed the new curve from the Klip's legacy curve, if it drew one, so switching a Klip over to the chain
+                // doesn't discard existing curve work. The drawn curve owns the level outright (Set), which is what a volume
+                // curve has always meant; it acts on the Zound's own Volume, after every effect (T-0493).
                 Envelope seed = zound is Klip legacyKlip && legacyKlip.volumeEnvelope != null
                     ? legacyKlip.volumeEnvelope.DeepCopy()
                     : new Envelope(Zound.MinVolumeRange, Zound.MaxVolumeRange);
-                var env = new ZoundModifier(ZoundModifierType.Envelope) { name = "Volume", curve = seed };
-                chain.modifiers.Add(env);
-                chain.bindings.Add(new ZoundModifierBinding {
-                    // On the Zound's own Volume, after every effect (T-0493) -- no Gain effect is added any more.
-                    modifierIndex = chain.modifiers.Count - 1, nodeIndex = -1, paramIndex = SourceStageParam.Volume,
-                    // The drawn curve owns the level outright, which is what a volume curve has always meant.
-                    combine = Dsp.ModulationCombine.Set, depth = 1f, schema = Dsp.ChainModulationCompat.CURRENT_SCHEMA });
-                chain.Touch();
-                m = chain.modifiers.Count - 1;
+                o = Create(zound, SourceStageParam.Volume, "Volume", seed, ModulationCombine.Set);
             }
-            if (chain.modifiers[m].curve == null) chain.modifiers[m].curve = new Envelope(Zound.MinVolumeRange, Zound.MaxVolumeRange);
-            return chain.modifiers[m].curve;
+            if (o.mod.curve == null) o.mod.curve = new Envelope(Zound.MinVolumeRange, Zound.MaxVolumeRange);
+            return o.mod.curve;
         }
 
         public static Envelope PitchCurve(Zound zound, bool create) {
-            var chain = Chain(zound);
-            int m = PitchModifier(chain);
-            if (m < 0) {
-                if (!create) return null;
+            var o = Find(zound, SourceStageParam.Pitch);
+            if (!o.Valid) {
+                if (!create || zound == null) return null;
                 // Same carry-over as VolumeCurve: keep the shape of any existing legacy pitch curve. That curve has always
                 // been played as Set (a position across the whole pitch range), so it is added that way and converted to
                 // the Ratio scale exactly, keeping what it sounds like; a new curve starts flat in the middle, which on
                 // the Ratio scale is exactly "no change" (T-0479).
                 bool legacy = zound is Klip legacyKlip && legacyKlip.pitchEnvelope != null;
                 Envelope seed = legacy ? ((Klip)zound).pitchEnvelope.DeepCopy() : NewRatioCurve();
-                var env = new ZoundModifier(ZoundModifierType.Envelope) { name = "Pitch", curve = seed };
-                chain.modifiers.Add(env);
-                var bind = new ZoundModifierBinding {
-                    modifierIndex = chain.modifiers.Count - 1, nodeIndex = -1, paramIndex = SourceStageParam.Pitch,
-                    combine = legacy ? Dsp.ModulationCombine.Set : Dsp.ModulationCombine.Ratio, depth = 1f,
-                    schema = Dsp.ChainModulationCompat.CURRENT_SCHEMA };
-                chain.bindings.Add(bind);
-                if (legacy) Dsp.ChainModulationCompat.ConvertSetToRatio(chain, bind, out _);
-                chain.Touch();
-                m = chain.modifiers.Count - 1;
+                o = Create(zound, SourceStageParam.Pitch, "Pitch", seed, legacy ? ModulationCombine.Set : ModulationCombine.Ratio);
+                if (legacy) { ChainModulationCompat.ConvertSetToRatio(Play(zound), o.bind, out _); TouchAll(zound); }
             }
-            if (chain.modifiers[m].curve == null) chain.modifiers[m].curve = NewRatioCurve();
-            return chain.modifiers[m].curve;
+            if (o.mod.curve == null) o.mod.curve = NewRatioCurve();
+            return o.mod.curve;
         }
 
         // ── the time curve (T-0481/T-0482): an Envelope driving Speed on the Ratio scale, following the waveform ──
 
-        private static int TimeModifier(ZoundEffectChain chain) =>
-            FindEnvelopeModifier(chain, b => b.nodeIndex == -1 && b.paramIndex == SourceStageParam.Speed);
-
         /// <summary>The Klip's time curve (the first envelope bound to Speed), created flat (x1) when asked.</summary>
         public static Envelope TimeCurve(Zound zound, bool create) {
-            var chain = Chain(zound);
-            if (chain == null) {
+            var o = Find(zound, SourceStageParam.Speed);
+            if (!o.Valid) {
                 if (!create || !(zound is Klip)) return null;
-                zound.effectChain = chain = new ZoundEffectChain();
+                o = Create(zound, SourceStageParam.Speed, "Time", NewRatioCurve(), ModulationCombine.Ratio);
             }
-            int m = TimeModifier(chain);
-            if (m < 0) {
-                if (!create) return null;
-                Dsp.LegacyStretch.AddTimeCurve(chain, NewRatioCurve(), "Time");
-                chain.Touch();
-                m = chain.modifiers.Count - 1;
-            }
-            if (chain.modifiers[m].curve == null) chain.modifiers[m].curve = NewRatioCurve();
-            return chain.modifiers[m].curve;
+            if (o.mod.curve == null) o.mod.curve = NewRatioCurve();
+            return o.mod.curve;
         }
 
-        public static void SetTimeEnabled(Zound zound, bool enabled) {
-            var chain = Chain(zound);
-            var curve = TimeCurve(zound, enabled);
+        static void SetEnabled(Zound zound, int sourceParam, bool enabled, System.Func<Zound, bool, Envelope> curveOf) {
+            var curve = curveOf(zound, enabled);
             if (curve == null) return;
-            chain = Chain(zound);
-            int m = TimeModifier(chain);
-            if (m >= 0) chain.modifiers[m].enabled = enabled;
+            var o = Find(zound, sourceParam);
+            if (o.Valid) o.mod.enabled = enabled;
             curve.enabled = enabled;
-            chain.Touch();
-            ZoundDspPlayback.InvalidateLayout(zound);
+            TouchAll(zound);
+        }
+
+        public static void SetTimeEnabled(Zound zound, bool enabled) => SetEnabled(zound, SourceStageParam.Speed, enabled, TimeCurve);
+
+        public static void SetVolumeEnabled(Zound zound, bool enabled) {
+            // Switching it on is an edit: an old inserted Gain moves onto the Zound's own Volume, sounding the same.
+            if (enabled && VolumeCurve(zound, false) != null) EnsureVolumeOwnValue(zound);
+            SetEnabled(zound, SourceStageParam.Volume, enabled, VolumeCurve);
+        }
+
+        public static void SetPitchEnabled(Zound zound, bool enabled) {
+            // Switching it on is an edit: an old-scale curve moves to the Ratio scale here, sounding the same (T-0479).
+            if (enabled && PitchCurve(zound, false) != null) EnsurePitchRatio(zound);
+            SetEnabled(zound, SourceStageParam.Pitch, enabled, PitchCurve);
         }
 
         /// <summary>
         /// Makes a Klip's old stretch setting permanent in the current controls (T-0481), so it no longer needs converting
         /// at every play: Uniform becomes the sound's Speed (Live speed on), Region and Curve become its time curve
-        /// following the waveform (a separate "Old stretch" curve if the Klip already has a time curve switched on, so
-        /// neither is lost). The old setting is then switched off. Plays exactly as it did through the live stretcher.
-        /// The caller records Undo first. Returns a line saying what it did, or null when there was nothing to convert.
+        /// following the waveform (a separate "Old stretch" curve in the modifier list if the Klip already has a time curve
+        /// switched on, so neither is lost). The old setting is then switched off. Plays exactly as it did through the live
+        /// stretcher. The caller records Undo first. Returns a line saying what it did, or null when there was nothing to convert.
         /// </summary>
         public static string ConvertLegacyStretch(Klip k) {
-            if (!Dsp.LegacyStretch.IsActive(k)) return null;
+            if (!LegacyStretch.IsActive(k)) return null;
             var ts = k.timeStretch;
             string done;
             if (ts.mode == TimeStretchMode.Uniform) {
-                float s = Dsp.LegacyStretch.UniformSpeed(k);
-                ts.liveSpeed = Mathf.Clamp((ts.liveEnabled ? ts.liveSpeed : 1f) * s, Dsp.SapStretch.MinSpeed, Dsp.SapStretch.MaxSpeed);
+                float s = LegacyStretch.UniformSpeed(k);
+                ts.liveSpeed = Mathf.Clamp((ts.liveEnabled ? ts.liveSpeed : 1f) * s, SapStretch.MinSpeed, SapStretch.MaxSpeed);
                 ts.liveEnabled = true;
                 done = "Speed ×" + ts.liveSpeed.ToString("0.00");
             }
             else {
-                var clip = Dsp.ZoundSapPlayback.LoadSourceClip(k);
+                var clip = ZoundSapPlayback.LoadSourceClip(k);
                 float from = k.trimEnabled ? k.trimStart : 0f;
                 float to = k.trimEnabled && k.trimEnd > k.trimStart ? k.trimEnd : (clip != null ? clip.length : from + 1f);
-                var curve = Dsp.LegacyStretch.ToTimeCurve(k, from, to);
-                var chain = Chain(k);
-                bool timeOn = chain != null && Dsp.ZoundDspPlayback.HasTimeCurve(chain);
+                var curve = LegacyStretch.ToTimeCurve(k, from, to);
+                bool timeOn = ZoundDspPlayback.HasTimeCurve(Play(k));
                 if (timeOn) {
-                    Dsp.LegacyStretch.AddTimeCurve(chain, curve, "Old stretch");
-                    chain.Touch();
+                    if (k.effectChain == null) k.effectChain = new ZoundEffectChain();
+                    LegacyStretch.AddTimeCurve(k.effectChain, curve, "Old stretch");
+                    k.effectChain.Touch();
                     done = "a second time curve, \"Old stretch\"";
                 }
                 else {
@@ -232,13 +258,13 @@ namespace Laubrary.Zounds {
                 }
             }
             ts.enabled = false;
-            ZoundDspPlayback.InvalidateLayout(k);
+            TouchAll(k);
             return done;
         }
 
         /// <summary>What an old stretch setting does, in words (for the strip's summary line).</summary>
         public static string DescribeLegacyStretch(Klip k) {
-            if (!Dsp.LegacyStretch.IsActive(k)) return null;
+            if (!LegacyStretch.IsActive(k)) return null;
             var ts = k.timeStretch;
             switch (ts.mode) {
                 case TimeStretchMode.Uniform: return "length ×" + ts.factor.ToString("0.00");
@@ -252,13 +278,9 @@ namespace Laubrary.Zounds {
         public static void EnsurePitchRatioIfPitchCurve(Zound zound, ZoundModifier mod) {
             if (zound == null || mod == null) return;
             EnsureSourceAnchored(zound);
-            var chain = Chain(zound);
-            int m = PitchModifier(chain);
-            if (m >= 0 && chain.modifiers[m] == mod) EnsurePitchRatio(zound);
+            if (Find(zound, SourceStageParam.Pitch).mod == mod) EnsurePitchRatio(zound);
             // The same for the volume curve: an old inserted Gain moves onto the Zound's own Volume at its first edit.
-            chain = Chain(zound);
-            int v = VolumeModifier(chain);
-            if (v >= 0 && chain.modifiers[v] == mod) EnsureVolumeOwnValue(zound);
+            if (Find(zound, SourceStageParam.Volume).mod == mod) EnsureVolumeOwnValue(zound);
         }
 
         /// <summary>
@@ -274,17 +296,17 @@ namespace Laubrary.Zounds {
             ZoundModifierBinding only = null; int n = 0;
             foreach (var b in chain.bindings) if (b.modifierIndex == mi) { only = b; n++; }
             if (n != 1) return;
-            var c = Dsp.ChainModulationCompat.CombineOf(only);
+            var c = ChainModulationCompat.CombineOf(only);
             bool pitch = only.nodeIndex == -1 && only.paramIndex == SourceStageParam.Pitch;
-            if (c == Dsp.ModulationCombine.Ratio) {
+            if (c == ModulationCombine.Ratio) {
                 if (pitch) { top = "+24 st"; mid = "0 st"; bottom = "-24 st"; }
                 else { top = "×4"; mid = "×1"; bottom = "×¼"; }
                 return;
             }
             // Under Set the curve's 0..1 spans the parameter's range, so its ends are the parameter's ends -- but only for a
             // curve that runs 0..1 (an old-scale pitch curve runs 0.1..2 and its upper half is all the top).
-            if (c == Dsp.ModulationCombine.Set && mod.curve != null && mod.curve.yMin == 0f && mod.curve.yMax == 1f
-                && Dsp.ChainModulationCompat.TryParam(chain, only, out var pd, out _)) {
+            if (c == ModulationCombine.Set && mod.curve != null && mod.curve.yMin == 0f && mod.curve.yMax == 1f
+                && ChainModulationCompat.TryParam(chain, only, out var pd, out _)) {
                 top = Fmt(pd.max, pd); bottom = Fmt(pd.min, pd);
             }
         }
@@ -302,40 +324,37 @@ namespace Laubrary.Zounds {
             ZoundModifierBinding only = null; int n = 0;
             foreach (var b in chain.bindings) if (b.modifierIndex == mi) { only = b; n++; }
             if (n != 1) return false;
-            switch (Dsp.ChainModulationCompat.EffectiveCombine(chain, only)) {
-                case Dsp.ModulationCombine.Ratio: value = 0.5f; break;
-                case Dsp.ModulationCombine.Scale: value = 1f; break;
-                case Dsp.ModulationCombine.Set:
-                case Dsp.ModulationCombine.SetFromZero:
-                    if (!Dsp.ChainModulationCompat.TryParam(chain, only, out var pd, out float set)) return false;
-                    value = Laubrary.Audio.ModulationMath.ToPosition(set, pd.min, pd.max, Laubrary.Audio.ModulationMath.IsRatioSpaced(pd.curve));
+            switch (ChainModulationCompat.EffectiveCombine(chain, only)) {
+                case ModulationCombine.Ratio: value = 0.5f; break;
+                case ModulationCombine.Scale: value = 1f; break;
+                case ModulationCombine.Set:
+                case ModulationCombine.SetFromZero:
+                    if (!ChainModulationCompat.TryParam(chain, only, out var pd, out float set)) return false;
+                    value = ModulationMath.ToPosition(set, pd.min, pd.max, ModulationMath.IsRatioSpaced(pd.curve));
                     break;
-                case Dsp.ModulationCombine.ShiftFromCentre: value = 0.5f; break;
+                case ModulationCombine.ShiftFromCentre: value = 0.5f; break;
                 default: value = 0f; break;   // Shift (room-relative or whole range): nought does not move it
             }
             value = Mathf.Clamp(value, mod.curve.yMin, mod.curve.yMax);
             return true;
         }
 
-        /// <summary>The neutral value of a Klip's volume, pitch or time curve (see <see cref="NeutralValue"/>).</summary>
+        /// <summary>The neutral value of a Klip's volume (0), pitch (1) or time (2) curve (see <see cref="NeutralValue"/>).</summary>
         public static bool WaveformCurveNeutral(Zound zound, int which, out float value) {
             value = 0f;
-            var chain = Chain(zound);
-            if (chain == null) return false;
-            int m = which == 0 ? VolumeModifier(chain) : which == 1 ? PitchModifier(chain) : TimeModifier(chain);
-            return m >= 0 && NeutralValue(chain, chain.modifiers[m], out value);
+            var o = Find(zound, which == 0 ? SourceStageParam.Volume : which == 1 ? SourceStageParam.Pitch : SourceStageParam.Speed);
+            return o.Valid && NeutralValue(ChainOf(zound, o), o.mod, out value);
         }
 
         /// <summary>The waveform overlay's pitch axis: <see cref="CurveAxis"/> for the Klip's pitch curve, plus whether it
         /// is still on the old scale (then no axis is shown, only a warning; see <see cref="OldScaleTip"/>).</summary>
         public static bool PitchAxis(Zound zound, out string top, out string mid, out string bottom, out bool oldScale) {
             top = mid = bottom = null; oldScale = false;
-            var chain = Chain(zound);
-            int m = PitchModifier(chain);
-            if (m < 0) return false;
+            var o = Find(zound, SourceStageParam.Pitch);
+            if (!o.Valid) return false;
             oldScale = PitchIsOldScale(zound);
             if (oldScale) return true;
-            CurveAxis(chain, chain.modifiers[m], out top, out mid, out bottom);
+            CurveAxis(ChainOf(zound, o), o.mod, out top, out mid, out bottom);
             return true;
         }
 
@@ -345,31 +364,36 @@ namespace Laubrary.Zounds {
             "The first time you edit it, it moves to the current scale (middle = no change, top +24 semitones, bottom -24) " +
             "without changing how it sounds.";
 
-        static string Fmt(float v, Dsp.ParamDesc pd) =>
-            pd.curve == Dsp.ParamCurve.Logarithmic && pd.unit == "" ? "×" + v.ToString("0.##") : v.ToString("0.##") + (string.IsNullOrEmpty(pd.unit) ? "" : " " + pd.unit);
+        static string Fmt(float v, ParamDesc pd) =>
+            pd.curve == ParamCurve.Logarithmic && pd.unit == "" ? "×" + v.ToString("0.##") : v.ToString("0.##") + (string.IsNullOrEmpty(pd.unit) ? "" : " " + pd.unit);
 
-        /// <summary>The index in the Klip's chain of the modifier whose curve is <paramref name="curve"/>, or -1.</summary>
         /// <summary>A Klip's source as its curves see it (trim and file length, in source seconds); false when not known.</summary>
-        public static bool TryAxis(Zound zound, out Dsp.CurveAnchor.Axis axis) {
+        public static bool TryAxis(Zound zound, out CurveAnchor.Axis axis) {
             axis = default;
             if (!(zound is Klip k)) return false;
-            var clip = Dsp.ZoundSapPlayback.LoadSourceClip(k, out bool alreadyTrimmed);
+            var clip = ZoundSapPlayback.LoadSourceClip(k, out bool alreadyTrimmed);
             if (clip == null || alreadyTrimmed) return false;
-            axis = Dsp.CurveAnchor.Axis.Of(k, clip.length);
+            axis = CurveAnchor.Axis.Of(k, clip.length);
             return axis.Valid;
         }
 
         /// <summary>The modifier owning <paramref name="curve"/> when that curve is anchored to source seconds (T-0501), else null.</summary>
         public static ZoundModifier SourceAnchoredModifierOf(Zound zound, Envelope curve) {
-            var chain = Chain(zound);
-            int i = ModifierIndexOf(zound, curve);
-            if (chain == null || i < 0) return null;
-            var m = chain.modifiers[i];
-            return m.curveAnchor == Dsp.CurveAnchor.Source && Dsp.CurveAnchor.FollowsWaveform(m) ? m : null;
+            var m = ModifierOf(zound, curve);
+            return m != null && m.curveAnchor == CurveAnchor.Source && CurveAnchor.FollowsWaveform(m) ? m : null;
         }
 
+        /// <summary>The modifier whose curve is <paramref name="curve"/>, an own curve or a chain's, or null.</summary>
+        public static ZoundModifier ModifierOf(Zound zound, Envelope curve) {
+            int i = ModifierIndexOf(zound, curve);
+            return i >= 0 ? Play(zound).modifiers[i] : null;
+        }
+
+        /// <summary>The index of the modifier whose curve is <paramref name="curve"/> in the chain the sound PLAYS (what a
+        /// voice's layout and its random draws are indexed by), or -1.</summary>
         public static int ModifierIndexOf(Zound zound, Envelope curve) {
-            var chain = Chain(zound);
+            Settle(zound);
+            var chain = Play(zound);
             if (chain == null || curve == null) return -1;
             for (int i = 0; i < chain.modifiers.Count; i++) if (chain.modifiers[i].curve == curve) return i;
             return -1;
@@ -382,14 +406,8 @@ namespace Laubrary.Zounds {
             return e;
         }
 
-        /// <summary>The binding of the Klip's pitch curve (the first envelope bound to the source's pitch), or null.</summary>
-        public static ZoundModifierBinding PitchBinding(Zound zound) {
-            var chain = Chain(zound);
-            int m = PitchModifier(chain);
-            if (m < 0) return null;
-            foreach (var b in chain.bindings) if (b.modifierIndex == m && b.nodeIndex == -1 && b.paramIndex == SourceStageParam.Pitch) return b;
-            return null;
-        }
+        /// <summary>The binding of the Klip's pitch curve, or null.</summary>
+        public static ZoundModifierBinding PitchBinding(Zound zound) => Find(zound, SourceStageParam.Pitch).bind;
 
         /// <summary>
         /// Whether the Klip's pitch curve is still on the scale it was saved with before T-0479 (Set: a position across the
@@ -398,57 +416,49 @@ namespace Laubrary.Zounds {
         /// </summary>
         public static bool PitchIsOldScale(Zound zound) {
             var b = PitchBinding(zound);
-            return b != null && Dsp.ChainModulationCompat.CombineOf(b) == Dsp.ModulationCombine.Set;
+            return b != null && ChainModulationCompat.CombineOf(b) == ModulationCombine.Set;
         }
 
         /// <summary>
         /// Converts the Klip's pitch curve to the Ratio scale if it is still on the old one, so an edit lands on the new
-        /// scale; what it plays is unchanged (see <see cref="Dsp.ChainModulationCompat.ConvertSetToRatio"/>). Called at the
+        /// scale; what it plays is unchanged (see <see cref="ChainModulationCompat.ConvertSetToRatio"/>). Called at the
         /// start of every edit of the curve, inside that edit's Undo step. Returns whether anything changed.
         /// </summary>
         public static bool EnsurePitchRatio(Zound zound) {
             EnsureSourceAnchored(zound);
-            var b = PitchBinding(zound);
-            if (b == null || Dsp.ChainModulationCompat.CombineOf(b) != Dsp.ModulationCombine.Set) return false;
-            var chain = Chain(zound);
-            if (!Dsp.ChainModulationCompat.ConvertSetToRatio(chain, b, out int clamped)) return false;
+            var o = Find(zound, SourceStageParam.Pitch);
+            if (!o.Valid || ChainModulationCompat.CombineOf(o.bind) != ModulationCombine.Set) return false;
+            if (!ChainModulationCompat.ConvertSetToRatio(ChainOf(zound, o), o.bind, out int clamped)) return false;
             if (clamped > 0) Debug.LogWarning("[Zounds] " + zound.name + ": " + clamped + " pitch-curve point(s) were beyond two octaves and are now held at x4 or x1/4.");
-            ZoundDspPlayback.InvalidateLayout(zound);
+            TouchAll(zound);
             return true;
-        }
-
-        public static void SetVolumeEnabled(Zound zound, bool enabled) {
-            var chain = Chain(zound);
-            var curve = VolumeCurve(zound, enabled);
-            if (curve == null) return;
-            // Switching it on is an edit: an old inserted Gain moves onto the Zound's own Volume, sounding the same.
-            if (enabled) EnsureVolumeOwnValue(zound);
-            chain = Chain(zound);
-            int m = VolumeModifier(chain);
-            if (m >= 0) chain.modifiers[m].enabled = enabled;
-            curve.enabled = enabled;
-            chain.Touch();
-            ZoundDspPlayback.InvalidateLayout(zound);
-        }
-
-        public static void SetPitchEnabled(Zound zound, bool enabled) {
-            var chain = Chain(zound);
-            var curve = PitchCurve(zound, enabled);
-            if (curve == null) return;
-            // Switching it on is an edit: an old-scale curve moves to the Ratio scale here, sounding the same (T-0479).
-            if (enabled) EnsurePitchRatio(zound);
-            int m = PitchModifier(chain);
-            if (m >= 0) chain.modifiers[m].enabled = enabled;
-            curve.enabled = enabled;
-            chain.Touch();
-            ZoundDspPlayback.InvalidateLayout(zound);
         }
 
         /// <summary>After an overlay drag mutated a curve in place: the next play rebuilds the layout.</summary>
         public static void Touch(Zound zound) {
-            Chain(zound).Touch();
-            ZoundDspPlayback.InvalidateLayout(zound);
+            TouchAll(zound);
             UnityEditor.EditorUtility.SetDirty(ZoundsProject.Instance);
+        }
+
+        /// <summary>
+        /// The sound's own values as the newest play of it hears them right now, curves and modulators included, for the
+        /// curve bar's readout: "Vol 0.73 · Pitch +2.1 st · Time ×1.00", only the curves that are on. Empty when nothing is
+        /// playing it or no curve is on.
+        /// </summary>
+        public static string LiveReadout(Zound zound) {
+            if (zound == null) return "";
+            var sb = new System.Text.StringBuilder();
+            void Part(int param, string label, System.Func<float, string> fmt) {
+                var o = Find(zound, param);
+                if (!o.Valid || !o.mod.enabled) return;
+                if (!SapVoiceRegistry.TryReadLiveParam(zound, -1, param, out float v)) return;
+                if (sb.Length > 0) sb.Append("  ·  ");
+                sb.Append(label).Append(' ').Append(fmt(v));
+            }
+            Part(SourceStageParam.Volume, "Vol", v => v.ToString("0.00"));
+            Part(SourceStageParam.Pitch, "Pitch", v => (12f * Mathf.Log(Mathf.Max(v, 1e-4f), 2f)).ToString("+0.0;-0.0;0") + " st");
+            Part(SourceStageParam.Speed, "Time", v => "×" + v.ToString("0.00"));
+            return sb.ToString();
         }
     }
 

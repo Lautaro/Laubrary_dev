@@ -287,6 +287,10 @@ namespace Laubrary.Zounds
         /// <summary>Named, saved sets of this Zound's settings a playing sound can glide to (T-0498). Default is not stored.</summary>
         public List<ZoundSnapshot> snapshots = new List<ZoundSnapshot>();
 
+        /// <summary>The sound's own Volume, Pitch and Time curves (see <see cref="ZoundOwnCurves"/>): drawn over its waveform,
+        /// laid out with its chain at play time, never listed among its modifiers.</summary>
+        public ZoundOwnCurves ownCurves = new ZoundOwnCurves();
+
         public Zound(int id) { this.id = id; }
         public Zound(int id, Zound source)
         {
@@ -311,6 +315,7 @@ namespace Laubrary.Zounds
             chainOverrides = source.chainOverrides != null ? new List<ChainParamOverride>(source.chainOverrides) : new List<ChainParamOverride>();
             snapshots = new List<ZoundSnapshot>();
             if (source.snapshots != null) foreach (var sn in source.snapshots) if (sn != null) snapshots.Add(sn.DeepCopy());
+            ownCurves = source.ownCurves != null ? source.ownCurves.DeepCopy() : new ZoundOwnCurves();
         }
 
         public bool IsClipOrLocalZound() {

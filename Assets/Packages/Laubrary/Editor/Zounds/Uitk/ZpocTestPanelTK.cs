@@ -53,7 +53,7 @@ namespace Laubrary.Zounds.Uitk {
         List<string> DeclaredIds() {
             var ids = new List<string>();
             var seen = new HashSet<string>();
-            var chain = Dsp.ZoundDspPlayback.ResolveChain(zound, out _);
+            var chain = Dsp.ZoundDspPlayback.PlayChain(zound);
             if (chain == null) return ids;
             foreach (var m in chain.modifiers) {
                 if (!m.HasZpoc) continue;

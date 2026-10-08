@@ -41,7 +41,7 @@ namespace Laubrary.Zounds.Uitk {
         readonly VisualElement combined;
         readonly List<(Color colour, OwnValueCurves.Line line, Rect rect, float xMin, float xMax, float yMin, float yMax)> combinedLines
             = new List<(Color colour, OwnValueCurves.Line line, Rect rect, float xMin, float xMax, float yMin, float yMax)>();
-        readonly Label length;
+        readonly Label length, live;
         readonly VisualElement box, area, bg, dimStart, dimEnd, handleStart, handleEnd, heads;
         readonly VisualElement[] xmix;
         // The pitch curve's axis (T-0479): top / middle / bottom labels and the "no change" line.
@@ -84,6 +84,12 @@ namespace Laubrary.Zounds.Uitk {
                 v => { model.RequestKeepLength(v); keepLen.tooltip = AudioSpectrumView.KeepLengthTip(v); Refresh(); }, "RichToggle", ZUICornerMask.All, 72f, CurveBarTK.H);
             keepLen.AddToClassList("zs-curvebar__toggle");
             if (model.HasKlip) { row.Add(Gap(4f)); row.Add(keepLen); }
+            // The sound's own values as the newest play hears them (curves and modulators included), while it plays. The
+            // slot is reserved (hidden, not removed) so the bar never reflows when a play starts or stops.
+            live = new Label { tooltip = "What the newest play of this sound hears right now for its own values: the volume, the pitch in semitones and the speed, after its curves, modulators and game-code values. Shown only while it plays." };
+            live.AddToClassList("zs-lbl"); live.AddToClassList("zs-mini"); live.AddToClassList("zs-klip-waveform__live");
+            live.style.visibility = Visibility.Hidden;
+            row.Add(Gap(8f)); row.Add(live);
             length = new Label();
             length.AddToClassList("zs-lbl"); length.AddToClassList("zs-mini");
             length.AddToClassList("zs-klip-waveform__length");
@@ -322,11 +328,7 @@ namespace Laubrary.Zounds.Uitk {
             which == AudioSpectrumView.Curve.Volume ? model.VolumeEnvelope : which == AudioSpectrumView.Curve.Pitch ? model.PitchEnvelope : model.TimeEnvelope;
 
         /// <summary>The chain modifier a waveform curve is, or null (an overlay with no modifier yet).</summary>
-        ZoundModifier ModifierOf(AudioSpectrumView.Curve which) {
-            int mi = KlipChainEnvelopes.ModifierIndexOf(klip, EnvelopeOf(which));
-            var chain = Dsp.ZoundDspPlayback.ResolveChain(klip, out _);
-            return mi >= 0 && chain != null && mi < chain.modifiers.Count ? chain.modifiers[mi] : null;
-        }
+        ZoundModifier ModifierOf(AudioSpectrumView.Curve which) => KlipChainEnvelopes.ModifierOf(klip, EnvelopeOf(which));
 
         bool Selected(AudioSpectrumView.Curve which) =>
             which == AudioSpectrumView.Curve.Volume ? model.ShowVolumeHandles : which == AudioSpectrumView.Curve.Pitch ? model.ShowPitchHandles : model.ShowTimeHandles;
@@ -347,6 +349,9 @@ namespace Laubrary.Zounds.Uitk {
 
             clamp.SetValueWithoutNotify(model.ClampToTrim);
             length.text = model.LengthText;
+            string heard = klip != null ? KlipChainEnvelopes.LiveReadout(klip) : "";
+            if (live.text != heard) live.text = heard;
+            live.style.visibility = heard.Length > 0 ? Visibility.Visible : Visibility.Hidden;
             clamp.tooltip = model.ClampToTrim ? "Curves span the trimmed source. Click to span the whole recording." : "Curves span the whole recording. Click to span the trimmed source.";
 
             var r = AreaRect;

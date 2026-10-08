@@ -259,7 +259,7 @@ namespace Laubrary.Zounds {
             // Default's "draw" is the one this play started with, so gliding back to Default lands where the play began.
             string defaultKey = ZpocKeys.Key(ZoundSnapshots.DefaultName);
             if (!m_drawn.ContainsKey(defaultKey)) m_drawn[defaultKey] = new Vector2(m_startVolume, m_startPitch);
-            var chain = Dsp.ZoundDspPlayback.ResolveChain(zound, out _);
+            var chain = Dsp.ZoundDspPlayback.PlayChain(zound);   // the chain the voice's layout was built from, own curves included
             float now = Time.realtimeSinceStartup;
             // Where this play is now: the Default settings, or wherever the last glide has got to.
             var current = m_glideTo == null ? ZoundSnapshots.Find(zound, ZoundSnapshots.DefaultName)

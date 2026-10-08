@@ -509,6 +509,8 @@
 .zs-root.zs-klip-waveform__root, .zs-root .zs-klip-waveform__root { flex-shrink: 0; }
 .zs-root.zs-klip-waveform__bar, .zs-root .zs-klip-waveform__bar { flex-direction: row; flex-shrink: 0; }
 .zs-root.zs-klip-waveform__length, .zs-root .zs-klip-waveform__length { width: 50px; flex-shrink: 0; }
+/* The live readout of the sound's own values (shown while it plays): a reserved slot, so the bar never reflows. */
+.zs-root.zs-klip-waveform__live, .zs-root .zs-klip-waveform__live { width: 200px; flex-shrink: 0; height: 16px; -unity-text-align: middle-left; color: rgb(204, 217, 255); white-space: nowrap; overflow: hidden; }
 .zs-root.zs-klip-waveform__pitch-old, .zs-root .zs-klip-waveform__pitch-old { width: 16px; flex-shrink: 0; -unity-text-align: middle-center; }
 .zs-root.zs-klip-waveform__flex, .zs-root .zs-klip-waveform__flex { flex-grow: 1; }
 .zs-root.zs-klip-waveform__box, .zs-root .zs-klip-waveform__box { height: 150px; flex-shrink: 0; }
@@ -721,6 +723,8 @@
 .zs-root.zs-track-strip__chip-button, .zs-root .zs-track-strip__chip-button { font-size: 9px; margin-left: 2px; }
 .zs-root .zs-lbl.zs-track-strip__mark, .zs-root.zs-lbl.zs-track-strip__mark { position: absolute; top: 10px; font-size: 10px; color: rgba(204, 217, 255, 0.85); background-color: rgba(0, 0, 0, 0.35); }
 .zs-root.zs-track-strip__curve, .zs-root .zs-track-strip__curve { position: absolute; }
+/* The live readout of the track's sound's own values, floating in the lane's top-right corner while it plays. */
+.zs-root .zs-lbl.zs-track-strip__live, .zs-root.zs-lbl.zs-track-strip__live { right: 2px; left: auto; top: 2px; padding: 0 3px 0 3px; white-space: nowrap; }
 /* The one curve toolbar (CurveBarTK), shared by the Klip editor and every local track: small, one row. */
 .zs-root.zs-curvebar, .zs-root .zs-curvebar { flex-direction: row; flex-shrink: 0; height: 16px; align-items: center; }
 .zs-root .zs-curvebar__toggle.unity-button, .zs-root .zs-curvebar__toggle { font-size: 10px; padding-left: 3px; padding-right: 3px; }

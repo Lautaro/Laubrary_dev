@@ -76,7 +76,7 @@ namespace Laubrary.Zounds {
                 return;
             }
 
-            var chain = Dsp.ZoundDspPlayback.ResolveChain(target, out _);
+            var chain = Dsp.ZoundDspPlayback.PlayChain(target);
             // Scrollable, because the per-effect list under the graph grows with the chain and a long chain otherwise ran off
             // the bottom of the window with no way to reach it.
             scroll = EditorGUILayout.BeginScrollView(scroll);
@@ -111,7 +111,7 @@ namespace Laubrary.Zounds {
 
         void Consider(Klip klip, string within) {
             if (klip == null) return;
-            var chain = Dsp.ZoundDspPlayback.ResolveChain(klip, out _);
+            var chain = Dsp.ZoundDspPlayback.PlayChain(klip);
             if (chain == null || chain.IsEmpty) return;
             candidates.Add(klip);
             candidateNames.Add((within == null ? klip.name : within + " / " + klip.name)

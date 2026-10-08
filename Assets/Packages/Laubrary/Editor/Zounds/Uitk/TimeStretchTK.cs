@@ -76,7 +76,7 @@ namespace Laubrary.Zounds.Uitk {
             if (klip.IsLooper) { text = "Loops"; tip = "A Looper plays until it is stopped."; return true; }
             if (!ZoundSapPlayback.TryGetPlayLength(klip, out float seconds)) return false;
             bool varies = false;
-            var ch = ZoundDspPlayback.ResolveChain(klip, out _);
+            var ch = ZoundDspPlayback.PlayChain(klip);
             if (ch != null) foreach (var m in ch.modifiers) if (m.enabled && EnvelopeRandom.HasRandom(m.curve)) varies = true;
             text = "Plays " + (varies ? "≈" : "") + seconds.ToString("0.00") + " s";
             bool runs = StretcherRuns(klip, out string why);

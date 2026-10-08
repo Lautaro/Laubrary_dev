@@ -36,7 +36,7 @@ namespace Laubrary.Zounds.Uitk {
             RegisterCallback<AttachToPanelEvent>(_ => Tick());
         }
 
-        ZoundEffectChain Chain => ZoundDspPlayback.ResolveChain(zound, out _);
+        ZoundEffectChain Chain => ZoundDspPlayback.PlayChain(zound);   // what is heard: the sound's own curves included
 
         void Tick() {
             if (base.panel == null) return;

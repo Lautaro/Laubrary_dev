@@ -365,7 +365,7 @@ namespace Laubrary.Zounds.Dsp {
         /// apply, in which case the sound plays clean.
         /// </summary>
         public static ZoundEffectChain ResolveChainForPlayback(Zound zound) {
-            var chain = ZoundDspPlayback.ResolveChain(zound, out _);
+            var chain = ZoundDspPlayback.PlayChain(zound);
             if (chain != null && !chain.IsEmpty) return chain;
 
             // Nothing authored. If this is an older sound whose edits still live as named settings, convert them

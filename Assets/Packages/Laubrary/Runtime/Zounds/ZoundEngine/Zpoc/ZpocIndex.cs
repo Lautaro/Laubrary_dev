@@ -23,7 +23,7 @@ namespace Laubrary.Zounds {
 
         static bool Declares(Zound zound, string key, int depth) {
             if (zound == null || depth > 16) return false;   // a cycle would be a data error elsewhere; never recurse forever
-            if (ChainDeclares(Dsp.ZoundDspPlayback.ResolveChain(zound, out _), key)) return true;
+            if (ChainDeclares(Dsp.ZoundDspPlayback.PlayChain(zound), key)) return true;
             if (zound is CompositeZound composite && composite.zoundEntries != null) {
                 var entries = composite.zoundEntries;
                 for (int i = 0; i < entries.Count; i++) {
@@ -56,7 +56,7 @@ namespace Laubrary.Zounds {
             var project = ZoundsProject.Instance;
             if (project != null && project.zoundLibrary != null) {
                 foreach (var z in project.zoundLibrary.GetAllZounds()) {
-                    if (ChainDeclares(Dsp.ZoundDspPlayback.ResolveChain(z, out _), key)) { found = true; break; }
+                    if (ChainDeclares(Dsp.ZoundDspPlayback.PlayChain(z), key)) { found = true; break; }
                     if (z is CompositeZound c && c.zoundEntries != null) {
                         foreach (var e in c.zoundEntries)
                             if (e != null && !string.IsNullOrEmpty(e.zpocId) && ZpocKeys.Key(e.zpocId) == key) { found = true; break; }

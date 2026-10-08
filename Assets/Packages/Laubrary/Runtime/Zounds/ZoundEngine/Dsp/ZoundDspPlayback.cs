@@ -21,13 +21,20 @@ namespace Laubrary.Zounds.Dsp {
 
         private static readonly Dictionary<Zound, LayoutEntry> layouts = new Dictionary<Zound, LayoutEntry>();
 
+        private sealed class PlayChainEntry {
+            public ZoundEffectChain stored, merged;
+            public int storedVersion, ownVersion, presetId;
+        }
+        private static readonly Dictionary<Zound, PlayChainEntry> playChains = new Dictionary<Zound, PlayChainEntry>();
+
         public static void InvalidateLayouts() {
             layouts.Clear();
+            playChains.Clear();
             ZpocIndex.Invalidate();
         }
 
         public static void InvalidateLayout(Zound zound) {
-            if (zound != null) layouts.Remove(zound);
+            if (zound != null) { layouts.Remove(zound); playChains.Remove(zound); }
             // An edit may have declared or removed a ZPOC id somewhere; whole-project answers are worked out again.
             ZpocIndex.Invalidate();
         }
@@ -58,7 +65,11 @@ namespace Laubrary.Zounds.Dsp {
             return SapVoiceRegistry.TryReadLiveParam(zound, nodeIndex, paramIndex, out value);
         }
 
-        /// <summary>The chain a Zound plays with: its preset by live reference, else its inline chain.</summary>
+        /// <summary>
+        /// The chain a Zound STORES and the chain editor edits: its preset by live reference, else its inline chain. It
+        /// does not hold the sound's own Volume, Pitch and Time curves (those live on the sound; see
+        /// <see cref="ZoundOwnCurves"/>), so anything that asks how the sound PLAYS reads <see cref="PlayChain"/> instead.
+        /// </summary>
         public static ZoundEffectChain ResolveChain(Zound zound, out ZoundChainPreset preset) {
             preset = null;
             if (zound.chainPresetId != 0) {
@@ -66,6 +77,27 @@ namespace Laubrary.Zounds.Dsp {
                 if (preset != null) return preset.chain;
             }
             return zound.effectChain;
+        }
+
+        /// <summary>
+        /// The chain a Zound PLAYS: the stored chain with the sound's own curves laid out as source-stage envelopes
+        /// (<see cref="ZoundOwnCurves.Merge"/>). The one place the engine, the length calculations, the measurements,
+        /// snapshots, ZPOC lookups and every drawing of "what is heard" get their chain from. The stored chain itself when
+        /// the sound has no own curves. Rebuilt only when the stored chain or the own curves change; the element objects
+        /// are the stored ones, so a value written through it reaches the sound, but its lists are a layout, not storage:
+        /// add or remove effects and modifiers on <see cref="ResolveChain"/>'s chain, never on this one.
+        /// </summary>
+        public static ZoundEffectChain PlayChain(Zound zound) {
+            if (zound == null) return null;
+            var stored = ResolveChain(zound, out _);
+            var own = zound.ownCurves;
+            if (own == null || !own.Any) return stored;
+            if (playChains.TryGetValue(zound, out var e) && e.stored == stored && e.storedVersion == (stored != null ? stored.version : -1)
+                && e.ownVersion == own.version && e.presetId == zound.chainPresetId)
+                return e.merged;
+            var merged = ZoundOwnCurves.Merge(stored, own);
+            playChains[zound] = new PlayChainEntry { stored = stored, merged = merged, storedVersion = stored != null ? stored.version : -1, ownVersion = own.version, presetId = zound.chainPresetId };
+            return merged;
         }
 
         /// <summary>
@@ -82,7 +114,7 @@ namespace Laubrary.Zounds.Dsp {
 
             // A chain that IS the sound's own goes through the cache, so repeated plays of the same sound do not
             // re-lay it out.
-            var own = ResolveChain(zound, out _);
+            var own = zound != null ? PlayChain(zound) : null;
             if (ReferenceEquals(own, chain)) return GetLayout(zound, sampleRate);
 
             var layout = ChainLayout.Build(chain, sampleRate);
@@ -91,7 +123,7 @@ namespace Laubrary.Zounds.Dsp {
         }
 
         public static ChainLayout GetLayout(Zound zound, int sampleRate) {
-            var chain = ResolveChain(zound, out var preset);
+            var chain = PlayChain(zound);
             if (chain == null || chain.IsEmpty) return ChainLayout.Empty;
             if (layouts.TryGetValue(zound, out var entry) && entry.chain == chain && entry.chainVersion == chain.version
                 && entry.sampleRate == sampleRate && entry.presetId == zound.chainPresetId) {
@@ -109,7 +141,7 @@ namespace Laubrary.Zounds.Dsp {
         /// (waveform time base). Other modulators cannot be predicted here; the hold-after-end rule covers them.
         /// </summary>
         public static float DurationUnderPitchModulation(Zound zound, float sourceSeconds) {
-            var chain = ResolveChain(zound, out _);
+            var chain = PlayChain(zound);
             if (chain == null || chain.IsEmpty) return sourceSeconds;
             const int steps = 400;
             double total = 0;

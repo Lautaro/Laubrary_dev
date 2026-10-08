@@ -28,7 +28,7 @@ namespace Laubrary.Zounds.Uitk {
 
         readonly ZequenceEditorWindowTK win;
         readonly CompositeZound.ZoundEntry entry;
-        readonly Label leftMark, rightMark, warn;
+        readonly Label leftMark, rightMark, warn, liveMark;
         EnvelopeTK trackCurve;
 
         public const float TopBar = 7f;
@@ -66,6 +66,12 @@ namespace Laubrary.Zounds.Uitk {
             warn.AddToClassList("zs-track-strip__warn");
             warn.style.display = DisplayStyle.None;
             Add(warn);
+            // The sound's own values as the newest play hears them, floating in the lane's top-right corner while it plays
+            // (the header has no room for a readout, and a floating mark never moves the lane).
+            liveMark = new Label { pickingMode = PickingMode.Ignore, tooltip = "What the newest play of this track's sound hears right now for its own values (volume, pitch in semitones, speed), after its curves, modulators and game-code values." };
+            liveMark.AddToClassList("zs-lbl"); liveMark.AddToClassList("zs-greymini"); liveMark.AddToClassList("zs-track-strip__mark"); liveMark.AddToClassList("zs-track-strip__live");
+            liveMark.style.display = DisplayStyle.None;
+            Add(liveMark);
 
             RegisterCallback<PointerDownEvent>(OnDown);
             RegisterCallback<PointerMoveEvent>(OnMove);
@@ -109,6 +115,9 @@ namespace Laubrary.Zounds.Uitk {
             var p = P;
             leftMark.style.display = rightMark.style.display = DisplayStyle.None;
             warn.style.display = TL.straddling.Contains(entry) && p != null ? DisplayStyle.Flex : DisplayStyle.None;
+            string heard = p != null && p.klip != null && entry.local ? KlipChainEnvelopes.LiveReadout(p.klip) : "";
+            if (liveMark.text != heard) liveMark.text = heard;
+            liveMark.style.display = heard.Length > 0 ? DisplayStyle.Flex : DisplayStyle.None;
             if (p == null || !p.found) return;
             if (warn.style.display == DisplayStyle.Flex) { warn.style.left = Mathf.Clamp(X(p.start) + 2f, 0f, W - 12f); warn.style.top = TopBar; }
             // The piece is out of view: say which way and how far, so an empty lane is never mistaken for a silent track.
@@ -152,17 +161,16 @@ namespace Laubrary.Zounds.Uitk {
         void CollectOwnCurves(TrackPlacement p) {
             ownCurves.Clear();
             if (p?.klip == null) return;
-            var chain = ZoundDspPlayback.ResolveChain(p.klip, out _);
-            if (chain == null) return;
-            foreach (var b in chain.bindings) {
-                if (b.nodeIndex != -1 || b.modifierIndex < 0 || b.modifierIndex >= chain.modifiers.Count) continue;
-                if (b.paramIndex != SourceStageParam.Volume && b.paramIndex != SourceStageParam.Pitch && b.paramIndex != SourceStageParam.Speed) continue;
-                var m = chain.modifiers[b.modifierIndex];
+            // The sound's own three curves, from the one place that knows where they live (its slots, or an older chain).
+            foreach (int param in new[] { SourceStageParam.Volume, SourceStageParam.Pitch, SourceStageParam.Speed }) {
+                var o = KlipChainEnvelopes.Find(p.klip, param);
+                if (!o.Valid) continue;
+                var m = o.mod;
                 if (!m.enabled || !CurveAnchor.FollowsWaveform(m) || m.curve == null) continue;
-                if (ownCurves.Exists(o => ReferenceEquals(o.mod, m))) continue;
+                if (ownCurves.Exists(x => ReferenceEquals(x.mod, m))) continue;
                 ownCurves.Add(new OwnCurve {
-                    mod = m, param = b.paramIndex,
-                    colour = b.paramIndex == SourceStageParam.Volume ? Es.volumeEnvelopeColor : b.paramIndex == SourceStageParam.Pitch ? Es.pitchEnvelopeColor : AudioSpectrumView.TimeCurveColor,
+                    mod = m, param = param,
+                    colour = param == SourceStageParam.Volume ? Es.volumeEnvelopeColor : param == SourceStageParam.Pitch ? Es.pitchEnvelopeColor : AudioSpectrumView.TimeCurveColor,
                 });
             }
         }
@@ -544,7 +552,7 @@ namespace Laubrary.Zounds.Uitk {
             win.OnTimelineChanged();
         }
 
-        static void Touch(TrackPlacement p) { var chain = ZoundDspPlayback.ResolveChain(p.klip, out _); chain?.Touch(); EditorUtility.SetDirty(ZoundsProject.Instance); }
+        static void Touch(TrackPlacement p) { KlipChainEnvelopes.Touch(p.klip); }
 
         // ─────────────────────────── painter helpers ───────────────────────────
 
