@@ -57,6 +57,11 @@ namespace Laubrary.Zounds.Uitk {
         [System.NonSerialized] AudioSpectrumView spectrum;
         KlipWaveformTK waveform;
         bool draggingWaveform;
+        [System.NonSerialized] bool shownTrimOnce;
+        // The audition card pinned into the window (owner, 2026-10-08) instead of behind Play's right-click; per machine.
+        const string PinKey = "Laubrary.Zounds.AuditionPinned.Klip";
+        static bool AuditionPinned { get => EditorPrefs.GetBool(PinKey, false); set => EditorPrefs.SetBool(PinKey, value); }
+        VisualElement pinnedSlot;
 
         void EnsureSpectrum() {
             if (spectrum != null) return;
@@ -198,6 +203,8 @@ namespace Laubrary.Zounds.Uitk {
 
             EnsureSpectrum();
             RefreshSpectrum();
+            // On entering the editor only the trimmed part is shown (owner, 2026-10-08); the wheel zooms out to the rest.
+            if (!shownTrimOnce) { spectrum.ShowTrim(); shownTrimOnce = true; }
             var sourceAsset = spectrum.sourceClip;
             var outputAsset = ResolveOutputAsset();
             bool sourceAvailable = sourceAsset != null;
@@ -233,9 +240,13 @@ namespace Laubrary.Zounds.Uitk {
             waveform = new KlipWaveformTK(spectrum, klip) { onReleased = EndWaveformDrag };
             scroll.Add(waveform);
 
-            // ── action row ──
+            // ── action row, then the audition card when it is pinned ──
             scroll.Add(VSpace(Row));
             scroll.Add(BuildActionRow(sourceAvailable));
+            pinnedSlot = new VisualElement();
+            pinnedSlot.AddToClassList("zs-klip-editor__pinned");
+            scroll.Add(pinnedSlot);
+            SyncPinned();
             scroll.Add(VSpace(Row * 2f));
 
             // ── time-stretch strip, then the chain editor (T-0462 onward) ──
@@ -252,14 +263,9 @@ namespace Laubrary.Zounds.Uitk {
         VisualElement BuildActionRow(bool sourceAvailable) {
             const float h = 20f;
             var r = HRow(h);
-            // The file actions need the source (disabled on a machine without it), as in the old row.
-            var render = ZS.Button("Render", "Bounce the source and its processing into an audio file for this sound.", "RichButton", () => { KlipEditorWindow.ValidateKlip(klip); spectrum.audioSource.clip = KlipEditorWindow.RenderKlip(klip); }, ZUICornerMask.All, 60f, h);
-            render.SetEnabled(sourceAvailable);
-            r.Add(render);
-            r.Add(Gap(4f));
-            var remove = ZS.Button("Remove", "Remove this sound after confirmation.", "RichButton", Remove, ZUICornerMask.All, 70f, h);
-            remove.SetEnabled(sourceAvailable);
-            r.Add(remove);
+            // Delete (the old "Remove": it deletes the sound from the project after a confirmation, so it says so).
+            var delete = ZequenceEditorWindowTK.IconButton("remove", "Delete this sound from the project (asks first). Cannot be undone.", "RichButton", ZUICornerMask.All, 30f, h, Remove);
+            r.Add(delete);
             if (klip.parentId == 0 && ZoundsProject.Instance.browserSettings.showConvertToZequence) {
                 r.Add(Gap(4f));
                 var convert = ZS.Button("Convert to Zeq", "Make a sequence containing this sound as a local entry.", "RichButton", ConvertToZeq, ZUICornerMask.All, 100f, h);
@@ -267,9 +273,6 @@ namespace Laubrary.Zounds.Uitk {
                 r.Add(convert);
             }
             r.Add(Flex());
-            r.Add(Gap(4f));
-            r.Add(ZS.Button("Force GC", EditorTools.ZoundGcStressTest.Tooltip + "\n\n" + EditorTools.ZoundGcStressTest.lastResult, "RichButton",
-                            () => EditorTools.ZoundGcStressTest.Run(IsPlaying()), ZUICornerMask.All, 72f, h));
             r.Add(Gap(5f));
             retriggerButton = ZS.Toggle("Retrigger", "When enabled, every trigger starts this Klip several times. Right-click to set plays, gap and timing.", klip.retriggerEnabled,
                 value => { ZoundsWindow.ModifyZoundsProject("toggle klip retrigger", () => { if (value) klip.EnableRetrigger(); else klip.retriggerEnabled = false; }); SyncRetriggerButton(); },
@@ -288,14 +291,27 @@ namespace Laubrary.Zounds.Uitk {
             return r;
         }
 
-        /// <summary>Right-click on Play opens the audition card (T-0486).</summary>
+        /// <summary>Right-click on Play opens the audition card (T-0486), unless it is pinned into the window.</summary>
         void WireAuditionMenu(Button b) {
             b.RegisterCallback<PointerDownEvent>(e => {
                 if (e.button != 1) return;
                 e.StopPropagation();
                 EnsureAudition();
-                AuditionPopupTK.Show(b, audition);
+                if (AuditionPinned) return;
+                AuditionPopupTK.Show(b, audition, v => { AuditionPinned = v; SyncPinned(); });
             });
+        }
+
+        /// <summary>The pinned audition card under the action row, or nothing: the slot keeps no height while empty.</summary>
+        void SyncPinned() {
+            if (pinnedSlot == null) return;
+            pinnedSlot.Clear();
+            if (!AuditionPinned) return;
+            EnsureAudition();
+            var card = new AuditionCardTK(audition, true, v => { AuditionPinned = v; SyncPinned(); SyncPlayButton(); });
+            card.AddToClassList("zs-audition-card--pinned");
+            pinnedSlot.Add(card);
+            SyncPlayButton();
         }
 
         void SyncPlayButton() {
@@ -307,7 +323,7 @@ namespace Laubrary.Zounds.Uitk {
             playButton.tooltip = (live ? (audition.IsLoopPlaying(audition) ? "Stop loop" : "Stop the queued audition run.")
                                        : "Play this Klip.")
                                + (armed ? "\n\n• Play on change is on: every change you make here plays the sound again." : "")
-                               + "\n\nRight-click: Play on change, Burst, Loop.";
+                               + (AuditionPinned ? "\n\nPlay on change, Burst and Loop are on the pinned card below." : "\n\nRight-click: Play on change, Burst, Loop.");
         }
 
         void SyncRetriggerButton() {

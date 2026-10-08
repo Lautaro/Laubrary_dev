@@ -92,6 +92,20 @@ namespace Laubrary.Zounds {
             return true;
         }
 
+        /// <summary>
+        /// Whether <paramref name="m"/> is one of the sound's OWN curves (its volume, pitch or time curve: the envelope bound to
+        /// its source stage that the waveform's curve bar edits). Those are properties of the sound, not entries of its
+        /// modifier list (owner, 2026-10-08), so the chain editor keeps them out of the list; they stay in the saved chain,
+        /// which is how they play.
+        /// </summary>
+        public static bool IsOwnCurve(Zound zound, ZoundModifier m) {
+            if (zound == null || m == null || m.type != ZoundModifierType.Envelope) return false;
+            var chain = Chain(zound);
+            if (chain == null) return false;
+            int i = chain.modifiers.IndexOf(m);
+            return i >= 0 && (i == VolumeModifier(chain) || i == PitchModifier(chain) || i == TimeModifier(chain));
+        }
+
         private static int PitchModifier(ZoundEffectChain chain) =>
             FindEnvelopeModifier(chain, b => b.nodeIndex == -1 && b.paramIndex == SourceStageParam.Pitch);
 

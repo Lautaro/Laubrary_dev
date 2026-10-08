@@ -143,6 +143,13 @@ namespace Laubrary.Zounds {
                 public Color selectedEnvelopeHandleColor = new Color(0.1f, 0.75f, 0.85f);
                 public bool autoRender = false;
                 public float envelopeHandleSize = 4.0f;
+                // The editors' backgrounds (owner's request 2026-10-08): the box behind a Klip or Zequence editor, the
+                // two alternating track bands of a Zequence, and the lane a track's audio is drawn in. Alpha counts: the
+                // defaults are the translucent bands the windows used to draw, over the skin's box.
+                public Color editorBackgroundColor = new Color(0f, 0f, 0f, 0f);
+                public Color trackBackgroundColor = new Color(0.25f, 0.25f, 0.3f, 0.22f);
+                public Color trackAltBackgroundColor = new Color(0.35f, 0.35f, 0.42f, 0.15f);
+                public Color trackLaneColor = new Color(1f, 1f, 1f, 0.04f);
             }
 
         }

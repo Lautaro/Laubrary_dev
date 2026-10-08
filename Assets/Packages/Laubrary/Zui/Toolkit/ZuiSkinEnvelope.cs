@@ -38,6 +38,15 @@ namespace Laubrary.Zui
         /// <summary>Drawn dashed: a curve that belongs to the timeline (a track's or the Zequence's own), which stays where it is
         /// when a piece moves, unlike the sound's own curves that travel with its audio (T-0566).</summary>
         public bool dashed;
+        /// <summary>
+        /// Drawn as a backdrop (Zounds, owner's request 2026-10-08): a curve that is shown while another one over the same
+        /// area is being edited. Half transparent and twice as wide, with no handles, hover or ghost, and it takes no
+        /// input, so it reads as context behind the curve under the pointer rather than competing with it.
+        /// </summary>
+        public bool backdrop;
+        /// <summary>Whether the points are drawn at all. Off: just the line (no handles, no ghost, no value tag), as a curve
+        /// that is not selected for editing is shown. Input is still refused when the runtime says the curve is not editable.</summary>
+        public bool showHandles = true;
 
         int _dragPoint = -1, _dragLine = -1, _dragExponent = -1, _hoverPoint = -1, _hoverLine = -1;
         bool _boxSelecting, _pressed, _shift;
@@ -214,7 +223,7 @@ namespace Laubrary.Zui
         public bool IsOverPoint(Vector2 m)
         {
             Prepare();
-            if (points == null || rt == null || def == null || !rt.editable) return false;
+            if (points == null || rt == null || def == null || !rt.editable || backdrop || !showHandles) return false;
             var r = Plot;
             if (!ValidPlot(r)) return false;
             int hit = HitPoint(r, m);
@@ -282,7 +291,7 @@ namespace Laubrary.Zui
             return false;
         }
 
-        bool CanEdit => points != null && rt != null && def != null && rt.editable && enabledInHierarchy;
+        bool CanEdit => points != null && rt != null && def != null && rt.editable && enabledInHierarchy && !backdrop;
         static bool Finite(Vector2 p) => !float.IsNaN(p.x) && !float.IsNaN(p.y) && !float.IsInfinity(p.x) && !float.IsInfinity(p.y);
         float Coordinate(float v) => configuration.roundCoordinates ? (float)System.Math.Round(v, 5) : v;
 
@@ -593,7 +602,9 @@ namespace Laubrary.Zui
             if (points.Count > 0)
             {
                 int n = Mathf.Max(2, (int)(r.width / 3f));
-                p2.strokeColor = style.curveColor; p2.lineWidth = StrokeWidth(style.curveThickness);
+                var lineColor = style.curveColor;
+                if (backdrop) lineColor.a *= 0.5f;
+                p2.strokeColor = lineColor; p2.lineWidth = StrokeWidth(backdrop ? style.curveThickness * 2f : style.curveThickness);
                 p2.lineJoin = LineJoin.Round; p2.lineCap = LineCap.Round;
                 p2.BeginPath();
                 Vector2 prevPt = default; float dashRun = 0f; bool dashOn = true;
@@ -613,7 +624,7 @@ namespace Laubrary.Zui
                     prevPt = pt;
                 }
                 p2.Stroke();
-                if (_hoverLine > 0 && _hoverLine < points.Count && _shift)
+                if (_hoverLine > 0 && _hoverLine < points.Count && _shift && !backdrop)
                 {
                     var a = points[_hoverLine - 1]; var b = points[_hoverLine];
                     int segPx = Mathf.Max(2, Mathf.CeilToInt(Mathf.Abs(TimeToX(b.time, r) - TimeToX(a.time, r)) / 2f));
@@ -647,6 +658,9 @@ namespace Laubrary.Zui
                     Dotted(p2, dotted, Color.Lerp(style.curveColor, Color.white, style.dottedWhiteMix), StrokeWidth(Mathf.Max(style.curveThickness, style.dottedMinWidth)));
                 }
             }
+
+            // A backdrop or an unselected curve is just its line: no ellipses, points, ghost, selection box.
+            if (backdrop || !showHandles) return;
 
             // Random points' ellipses (T-0483): where each play may move the point, faint fill and a thin outline.
             for (int i = 0; i < points.Count; i++)
@@ -785,7 +799,7 @@ namespace Laubrary.Zui
         /// <summary>A positioned value tag beside the hovered or selected point.</summary>
         void UpdateTag()
         {
-            if (!configuration.showReadout || points == null || rt == null || def == null) { _tag.style.display = DisplayStyle.None; return; }
+            if (!configuration.showReadout || points == null || rt == null || def == null || backdrop || !showHandles) { _tag.style.display = DisplayStyle.None; return; }
             int i = _dragPoint >= 0 ? _dragPoint : _hoverPoint >= 0 ? _hoverPoint : _selected.Count > 0 ? _selected[_selected.Count - 1] : -1;
             if (i < 0 || i >= points.Count || contentRect.width <= 0f) { _tag.style.display = DisplayStyle.None; return; }
             var r = Plot;

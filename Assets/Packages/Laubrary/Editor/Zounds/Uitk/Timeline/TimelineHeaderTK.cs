@@ -18,7 +18,7 @@ namespace Laubrary.Zounds.Uitk {
     internal sealed class TimelineHeaderTK : VisualElement {
 
         readonly ZequenceEditorWindowTK win;
-        readonly VisualElement overview, ruler;
+        readonly VisualElement overview, ruler, editBar;
         Label readout;
         readonly List<Label> tickLabels = new List<Label>();
         readonly Dictionary<string, VisualElement> controls = new Dictionary<string, VisualElement>();
@@ -32,7 +32,8 @@ namespace Laubrary.Zounds.Uitk {
         public TimelineHeaderTK(ZequenceEditorWindowTK win) {
             this.win = win;
             AddToClassList("zs-timeline-header");
-            Add(EditBar());
+            editBar = EditBar();
+            Add(editBar);
             overview = new VisualElement();
             overview.AddToClassList("zs-timeline-header__overview"); overview.style.height = OverviewHeight;
             overview.generateVisualContent += PaintOverview;
@@ -55,6 +56,13 @@ namespace Laubrary.Zounds.Uitk {
                 win.OnViewChanged(); e.StopPropagation();
             });
             Add(ruler);
+        }
+
+        /// <summary>The edit tools (the edit bar and the overview strip) are optional (owner, 2026-10-08); the ruler stays,
+        /// being the tracks' time axis.</summary>
+        public void SetEditToolsVisible(bool on) {
+            editBar.style.display = on ? DisplayStyle.Flex : DisplayStyle.None;
+            overview.style.display = on ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         // ─────────────────────────── edit bar ───────────────────────────
@@ -91,14 +99,11 @@ namespace Laubrary.Zounds.Uitk {
             Gap();
             B("trim", "Trim", "Trim each selected track to the selected part (T). The kept audio stays exactly where it was; the piece's start moves. In a Zequence a trim never changes the sound anywhere else: a sound used elsewhere gets an excerpt of its own on this track.", 40f, () => win.Say(TimelineEdits.TrimToSelection(win, TL)), ZUICornerMask.Left);
             B("untrim", "Untrim", "Play each selected track's whole source again, its audio staying where it was. Its curves come back with it.", 50f, () => win.Say(TimelineEdits.Untrim(win, TL)), ZUICornerMask.None);
-            B("split", "Split", "Split each selected track at the selection's start and end, or at the clicked moment (S). The pieces share one sound and its effects, each playing its own part.", 40f, () => win.Say(TimelineEdits.Split(win, TL)), ZUICornerMask.None);
+            B("split", "Split", "Split each selected track at the selection's start and end, or at the clicked moment (S). Each piece of a local sound gets a sound of its own; pieces of a library sound each play their part of it.", 40f, () => win.Say(TimelineEdits.Split(win, TL)), ZUICornerMask.None);
             B("del", "Delete", "Delete the selected part of each selected track, or whole tracks when the selection covers them (Delete). With Ripple on, the tracks after it move up to close the gap.", 50f, () => win.Say(TimelineEdits.Delete(win, TL)), ZUICornerMask.Right);
             Gap();
             B("copy", "Copy", "Copy the selected part of each selected track (Ctrl+C).", 40f, () => win.Say(TimelineEdits.Copy(TL)), ZUICornerMask.Left);
-            B("paste", "Paste", "", 44f, () => win.Say(TimelineEdits.Paste(win, TL, win.PasteTime())), ZUICornerMask.None);
-            B("indep", "Own sound", "Give each selected track a private copy of its sound, trimmed to what it plays, so its effects become its own. Until then, pieces split from one sound share its effects.", 70f, () => win.Say(TimelineEdits.MakeIndependent(win, TL)), ZUICornerMask.Right);
-            Gap();
-            B("bake", "Bake…", "Write the Zequence, or the selected time range, to a new audio file and a new Klip. The Zequence itself stays as it is.", 50f, win.OpenBake);
+            B("paste", "Paste", "", 44f, () => win.Say(TimelineEdits.Paste(win, TL, win.PasteTime())), ZUICornerMask.Right);
             Gap();
             readout = new Label { pickingMode = PickingMode.Position };
             readout.AddToClassList("zs-lbl"); readout.AddToClassList("zs-greymini");
@@ -130,7 +135,7 @@ namespace Laubrary.Zounds.Uitk {
                                        : "Ripple is off: Delete and Paste leave every other track where it is. Click to have them move the tracks after them.";
             loop.tooltip = TL.loop ? "Loop is on: Audition repeats the selection until you stop it. Click to play it once."
                                    : "Loop is off: Audition plays the selection once. Click to have it repeat until stopped, to tune a trim by ear.";
-            controls["paste"].tooltip = TimelineEdits.CanPaste ? "Paste the copied pieces at the clicked moment or the selection's start, as new tracks (Ctrl+V). Pieces from this Zequence share their sound; from another, they get a copy of it."
+            controls["paste"].tooltip = TimelineEdits.CanPaste ? "Paste the copied pieces at the clicked moment or the selection's start, as new tracks (Ctrl+V). A piece of a local sound gets a copy of its own; a piece of a library sound plays its excerpt of it."
                                                                  : "Nothing copied yet: copy a part of a track first (Ctrl+C).";
             bool sel = TL.hasSel, tracks = TL.selTracks.Count > 0;
             controls["zsel"].SetEnabled(sel && TL.selB > TL.selA);
@@ -142,7 +147,6 @@ namespace Laubrary.Zounds.Uitk {
             controls["del"].SetEnabled(tracks);
             controls["copy"].SetEnabled(tracks);
             controls["paste"].SetEnabled(TimelineEdits.CanPaste);
-            controls["indep"].SetEnabled(tracks);
             string sText = sel ? (TL.selB > TL.selA ? ZequenceTimeline.Seconds(TL.selA) + " – " + ZequenceTimeline.Seconds(TL.selB) + " (" + ZequenceTimeline.Seconds(TL.selB - TL.selA) + ")" : "at " + ZequenceTimeline.Seconds(TL.selA))
                                    + (tracks ? ", " + TL.selTracks.Count + (TL.selTracks.Count == 1 ? " track" : " tracks") : ", all tracks") : "";
             readout.text = string.IsNullOrEmpty(TL.readout) ? sText : (sText.Length > 0 ? sText + "   ·   " : "") + TL.readout;

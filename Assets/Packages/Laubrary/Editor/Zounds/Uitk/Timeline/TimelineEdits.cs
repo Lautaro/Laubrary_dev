@@ -8,12 +8,13 @@ namespace Laubrary.Zounds.Uitk {
 
     /// <summary>
     /// The editing verbs of the Zequence timeline (T-0564, T-0565): trim to a selection, untrim, split, delete, move, slip,
-    /// copy, paste, make independent, ripple, and auditioning a selection. None of them reads, writes or copies audio: each
+    /// copy, paste, ripple, auditioning a selection, and playing one track. None of them reads, writes or copies audio: each
     /// is a change to a few numbers on tracks and Klips, one undo step per action.
     ///
-    /// <b>Which trim an edit changes.</b> A trim made in a Zequence never changes the sound anywhere else. A local Klip
-    /// played by this track alone has its own trim edited (the same numbers its Klip editor shows). A library Klip, or a
-    /// local one shared by pieces split from it, gives the track its own excerpt instead, so the other uses are untouched.
+    /// <b>A local sound is never shared between tracks</b> (owner's rule, 2026-10-08). Every piece a split, a cut or a paste
+    /// makes from a local Klip gets a Klip of its own (a copy, trimmed to the piece), so editing one piece's curves or effects
+    /// never changes another's. A library Klip stays what it is: a piece of one plays its own excerpt of it, and the library
+    /// sound is never touched from a Zequence.
     ///
     /// <b>Where a trimmed piece lands.</b> The kept audio stays exactly where it was on the timeline; the piece's start moves.
     /// Before the first trim change of a sound its curves move onto its source's own seconds, so they stay on their audio.
@@ -111,13 +112,13 @@ namespace Laubrary.Zounds.Uitk {
                     renumbered |= RenumbersUnnamed(p.parent, at + 1);
                     var times = new List<float>();
                     foreach (var b in bounds) times.Add(p.SourceToTime(b));
-                    // The original keeps the first piece; the rest go straight after it.
-                    SetExcerptShared(p, bounds[0], bounds[1]);
+                    // The original keeps the first piece; the rest go straight after it, each with a sound of its own.
+                    SetExcerpt(p, bounds[0], bounds[1]);
                     for (int i = 1; i < bounds.Count - 1; i++) {
                         var e = CloneEntry(p.entry);
                         p.parent.zoundEntries.Insert(at + i, e);
+                        GivePieceItsSound(p, e, bounds[i], bounds[i + 1]);
                         var q = PlacementLike(p, e);
-                        e.ownTrim = true; e.trimStart = bounds[i]; e.trimEnd = bounds[i + 1];
                         StartAt(q, times[i]);
                         if (bounds.Count == 4 && i == 1) middle = e;
                         if (bounds.Count == 3 && tl.selB > tl.selA + 1e-4f && i == 1 && Mathf.Abs(times[1] - tl.selA) < 1e-3f) middle = e;
@@ -127,7 +128,7 @@ namespace Laubrary.Zounds.Uitk {
             });
             if (made == 0) return "The selection does not cross any selected track.";
             if (middle != null) { tl.selTracks.Clear(); tl.selTracks.Add(middle); }
-            return "Split into " + (made + 1) + " pieces sharing one sound." + (renumbered ? " Tracks after it were renumbered; give a track an id (its bolt) if game code reaches it by number." : "");
+            return "Split into " + (made + 1) + " pieces, each with a sound of its own." + (renumbered ? " Tracks after it were renumbered; give a track an id (its bolt) if game code reaches it by number." : "");
         }
 
         /// <summary>Deletes the selected part of each selected track (the whole track when the selection covers it), and,
@@ -157,11 +158,11 @@ namespace Laubrary.Zounds.Uitk {
                     float rightAt = p.SourceToTime(b) - (tl.ripple ? (tl.selB - tl.selA) : 0f);
                     float exA = p.exA, exB = p.exB;
                     if (left && right) {
-                        SetExcerptShared(p, exA, a);
+                        SetExcerpt(p, exA, a);
                         var e = CloneEntry(p.entry);
                         p.parent.zoundEntries.Insert(idx + 1, e);
                         renumbered |= RenumbersUnnamed(p.parent, idx + 2);
-                        e.ownTrim = true; e.trimStart = b; e.trimEnd = exB;
+                        GivePieceItsSound(p, e, b, exB);
                         StartAt(PlacementLike(p, e), rightAt);
                     }
                     else if (left) SetExcerpt(p, exA, a);
@@ -234,19 +235,18 @@ namespace Laubrary.Zounds.Uitk {
                 foreach (var it in clipboard) {
                     var e = JsonUtility.FromJson<CompositeZound.ZoundEntry>(it.entryJson);
                     e.zpocId = "";
-                    if (it.local) {
-                        // Same Zequence and its Klip still there: the new piece shares it. Anywhere else: a private copy,
-                        // because one Zequence's local sound cannot belong to another.
-                        bool share = it.parentId == zeq.id && zeq.localKlips.Exists(k => k.id == e.zoundId);
-                        if (!share && !string.IsNullOrEmpty(it.klipJson)) {
-                            var src = JsonUtility.FromJson<Klip>(it.klipJson);
-                            var k = new Klip(ZoundLibrary.GetUniqueZoundId(), src);
-                            k.parentId = zeq.id; k.tags.Clear();
-                            zeq.localKlips.Add(k);
-                            e.zoundId = k.id;
-                        }
+                    if (it.local && !string.IsNullOrEmpty(it.klipJson)) {
+                        // A pasted piece of a local sound always gets a copy of its own, trimmed to the piece (owner's rule):
+                        // never a second track playing the same local Klip.
+                        var src = JsonUtility.FromJson<Klip>(it.klipJson);
+                        var k = new Klip(ZoundLibrary.GetUniqueZoundId(), src);
+                        k.parentId = zeq.id; k.tags.Clear();
+                        k.trimEnabled = true; k.trimStart = it.a; k.trimEnd = it.b;
+                        zeq.localKlips.Add(k);
+                        e.zoundId = k.id;
+                        e.ownTrim = false;
                     }
-                    e.ownTrim = true; e.trimStart = it.a; e.trimEnd = it.b;
+                    else { e.ownTrim = true; e.trimStart = it.a; e.trimEnd = it.b; }
                     e.delay = Mathf.Max(0f, at + it.offset) * zp;
                     // Straight after the track it came from when that is here; otherwise at the end.
                     int idx = zeq.zoundEntries.FindIndex(x => x.zoundId == e.zoundId);
@@ -261,31 +261,25 @@ namespace Laubrary.Zounds.Uitk {
             return "Pasted " + pasted.Count + (pasted.Count == 1 ? " piece" : " pieces") + " at " + ZequenceTimeline.Seconds(at) + "." + (straddle.Count > 0 ? " " + straddle.Count + " track(s) sounding across it stayed (marked)." : "");
         }
 
-        /// <summary>Gives each selected track a private copy of its sound, trimmed to what the track plays: from now on its
-        /// processing is its own.</summary>
-        public static string MakeIndependent(ZequenceEditorWindowTK win, ZequenceTimeline tl) {
-            var sel = Selected(tl);
-            int n = 0;
-            Mod(win, "make independent", () => {
-                foreach (var p in sel) {
-                    if (p.klip == null) continue;
-                    if (!p.entry.local || CompositeZoundEditing.SharedLocally(p.parent, p.entry) || p.entry.ownTrim) {
-                        float a = p.exA, b = p.exB;
-                        var copy = new Klip(ZoundLibrary.GetUniqueZoundId(), p.klip);
-                        copy.parentId = p.parent.id; copy.tags.Clear();
-                        if (!p.entry.local) copy.originalId = p.klip.id;
-                        p.parent.localKlips.Add(copy);
-                        p.entry.zoundId = copy.id; p.entry.local = true;
-                        copy.trimEnabled = true; copy.trimStart = a; copy.trimEnd = b;
-                        p.entry.ownTrim = false;
-                        n++;
-                    }
-                }
-            });
-            return n == 0 ? "The selected tracks already have sounds of their own." : n + (n == 1 ? " track now has" : " tracks now have") + " a sound of its own.";
-        }
-
         // ─────────────────────────── audition ───────────────────────────
+
+        /// <summary>
+        /// Plays one track on its own (a click on its waveform, 2026-10-08): its sound from source second
+        /// <paramref name="fromSource"/> to the end of what it plays, at its drawn pitch, through its live effects. Null for a
+        /// track without a Klip (a nested Zequence; the caller plays that another way).
+        /// </summary>
+        public static ZoundToken PlayTrack(TrackPlacement p, float fromSource, UnityEditor.EditorWindow owner = null) {
+            if (p?.klip == null) return null;
+            float a = Mathf.Clamp(fromSource, p.exA, p.exB), b = p.exB;
+            if (b <= a + MinPiece) return null;
+            var args = new ZoundArgs {
+                startImmediately = true, delay = 0f,
+                volumeOverride = -1f, pitchOverride = p.pitch, chanceOverride = 1f,
+                bypassGlobalSolo = true, ignoreCooldown = true,
+                excerpt = true, excerptStart = a, excerptEnd = b, excerptLoop = false,
+            };
+            return ZoundEngine.PlayZound(p.klip, Owned(args, owner));
+        }
 
         /// <summary>Plays just the selection through each selected track's live chain (or, with no track selected, the whole
         /// Zequence over that range); looping while Loop is on. Never writes anything.</summary>
@@ -342,10 +336,21 @@ namespace Laubrary.Zounds.Uitk {
             return list;
         }
 
-        /// <summary>After a split, every piece plays its own excerpt of the one shared sound.</summary>
-        static void SetExcerptShared(TrackPlacement p, float a, float b) {
+        /// <summary>
+        /// A new piece <paramref name="e"/> made from <paramref name="p"/>'s track, playing source seconds <paramref name="a"/>
+        /// to <paramref name="b"/>: a local sound gives the piece a Klip of its own (a copy trimmed to the piece, so its curves
+        /// and effects are its own from now on); a library sound gives it an excerpt (the library sound is never touched).
+        /// </summary>
+        static void GivePieceItsSound(TrackPlacement p, CompositeZound.ZoundEntry e, float a, float b) {
             KlipChainEnvelopes.EnsureSourceAnchored(p.klip);
-            p.entry.ownTrim = true; p.entry.trimStart = a; p.entry.trimEnd = b;
+            if (p.entry.local) {
+                var copy = new Klip(ZoundLibrary.GetUniqueZoundId(), p.klip);
+                copy.parentId = p.parent.id; copy.tags.Clear();
+                copy.trimEnabled = true; copy.trimStart = a; copy.trimEnd = b;
+                p.parent.localKlips.Add(copy);
+                e.zoundId = copy.id; e.local = true; e.ownTrim = false;
+            }
+            else { e.ownTrim = true; e.trimStart = a; e.trimEnd = b; }
         }
 
         static CompositeZound.ZoundEntry CloneEntry(CompositeZound.ZoundEntry e) {

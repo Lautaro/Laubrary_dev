@@ -486,6 +486,17 @@ namespace Laubrary.Zounds {
             return true;
         }
 
+        /// <summary>Shows just the trimmed part of the source (the owner's default on opening a Klip editor, 2026-10-08):
+        /// zoomed so the trim fills the view. The wheel zooms back out to the whole recording. Nothing to do without a trim.</summary>
+        internal void ShowTrim() {
+            if (!m_trimEnabled || originalClip == null) return;
+            float trimDuration = m_trimEnd - m_trimStart;
+            if (trimDuration <= 0f || originalClip.length <= trimDuration) return;
+            zoomFactor = originalClip.length / trimDuration;
+            viewStart = m_trimStart;
+            ConstrainView();
+        }
+
         internal AudioClip OriginalClip => originalClip;
         internal bool TrimEnabled => m_trimEnabled;
         internal bool ClampToTrim => m_clampToTrim;

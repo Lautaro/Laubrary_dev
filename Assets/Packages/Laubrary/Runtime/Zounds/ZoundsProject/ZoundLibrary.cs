@@ -757,6 +757,9 @@ namespace Laubrary.Zounds
             [HideInInspector] public int editor_instanceID;
             [HideInInspector] public bool editor_foldoutExpanded = true;
             [HideInInspector] public bool editor_isRenaming = false;
+            /// <summary>This track's height in the Zequence editor, in points; 0 means the editor's default. View state,
+            /// kept with the entry so every track can have its own.</summary>
+            [HideInInspector] public float editor_height;
 #endif
         }
 

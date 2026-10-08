@@ -214,12 +214,6 @@ namespace Laubrary.Zounds {
                 DrawRenderToKlipExtras();
 
                 GUILayout.Space(5f);
-                // The owner's stutter test on demand (T-0448): a forced collection while this plays.
-                if (ZUI.Button(new GUIContent("Force GC", EditorTools.ZoundGcStressTest.Tooltip + "\n\n" + EditorTools.ZoundGcStressTest.lastResult),
-                        ZUI.Style.Default, null, ZUICornerMask.All, GUILayout.Width(72f)))
-                    EditorTools.ZoundGcStressTest.Run(isPlaying);
-
-                GUILayout.Space(5f);
                 if (ZUI.Button(new GUIContent(isPlaying ? "Stop" : "Play", isPlaying ? "Stop loop" : "Play this sound."), ZUI.Style.Default, isPlaying ? ZUI.Tint.Confirm : null, ZUICornerMask.Right, GUILayout.Width(60f))) {
                     if (!isPlaying) {
                         SimulatePlay();

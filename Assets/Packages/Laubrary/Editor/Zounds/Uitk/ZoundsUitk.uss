@@ -705,12 +705,8 @@
 .zs-root .zs-monitor__list-label,
 .zs-root .zs-zound-row__list-missing-label { color: rgba(204, 102, 102, 1); }
 .zs-root .zs-snapshots-row__popup-warn { color: rgb(255, 150.45, 40.8); }
-.zs-root .zs-zequence-entry__duration-label { color: rgb(121, 183, 255); }
+.zs-root .zs-zequence-entry__duration-label { color: rgb(121, 183, 255); -unity-text-align: middle-left; padding-left: 4px; }
 .zs-root .zs-zequence-entry__broken-tint { background-color: rgba(255, 102, 102, 0.2); }
-.zs-root .zs-zequence-entry__background--group-child-dark { background-color: rgba(63.75, 63.75, 63.75, 0.4); }
-.zs-root .zs-zequence-entry__background--group-child-light { background-color: rgba(114.75, 114.75, 114.75, 0.4); }
-.zs-root .zs-zequence-entry__background--plain-dark { background-color: rgba(63.75, 63.75, 76.5, 0.22); }
-.zs-root .zs-zequence-entry__background--plain-light { background-color: rgba(89.25, 89.25, 107.1, 0.15); }
 .zs-root .zs-zequence-editor__master-section-bg { background-color: rgba(191.25, 191.25, 191.25, 0.1); }
 .zs-root .zs-chain-editor__error-row-bar { background-color: rgb(242.25, 191.25, 76.5); }
 /* Colorful's fixed action fills, pre-blended over its (32,79,124) border at the original 70% opacity. */
@@ -739,6 +735,36 @@
 .zs-root.zs-track-strip__chip-button, .zs-root .zs-track-strip__chip-button { font-size: 9px; margin-left: 2px; }
 .zs-root .zs-lbl.zs-track-strip__mark, .zs-root.zs-lbl.zs-track-strip__mark { position: absolute; top: 10px; font-size: 10px; color: rgba(204, 217, 255, 0.85); background-color: rgba(0, 0, 0, 0.35); }
 .zs-root.zs-track-strip__curve, .zs-root .zs-track-strip__curve { position: absolute; }
+/* The one curve toolbar (CurveBarTK), shared by the Klip editor and every local track: small, one row. */
+.zs-root.zs-curvebar, .zs-root .zs-curvebar { flex-direction: row; flex-shrink: 0; height: 16px; align-items: center; }
+.zs-root .zs-curvebar__toggle.unity-button, .zs-root .zs-curvebar__toggle { font-size: 10px; padding-left: 3px; padding-right: 3px; }
+.zs-root .zs-curvebar__pencil { position: absolute; left: 50%; top: 50%; width: 11px; height: 11px; translate: -50% -50%; }
+.zs-root .zs-curvebar__gap { flex-shrink: 0; }
+.zs-root .zs-lbl.zs-curvebar__warn { width: 12px; font-size: 10px; }
+/* A curve's own settings card (right-click on its name in the bar). */
+.zs-root .zs-curve-settings { padding: 6px; }
+.zs-root .zs-curve-settings__row { flex-direction: row; height: 20px; align-items: center; margin-bottom: 4px; }
+.zs-root .zs-lbl.zs-curve-settings__label { width: 70px; }
+.zs-root .zs-lbl.zs-curve-settings__unit { width: 12px; padding-left: 3px; }
+/* The Klip waveform's bottom grip: drag to set the area's height. */
+.zs-root .zs-klip-waveform__grip { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; cursor: resize-vertical; background-color: rgba(255,255,255,0.06); }
+.zs-root .zs-klip-waveform__grip:hover { background-color: rgba(255,255,255,0.2); }
+/* The audition card pinned into a window, under the toolbar. */
+.zs-root .zs-klip-editor__pinned, .zs-root .zs-zequence-editor__pinned { flex-shrink: 0; }
+.zs-root .zs-audition-card--pinned { margin: 4px 0 2px 0; flex-shrink: 0; }
+/* The Zequence toolbar: one 20 px row. */
+.zs-root .zs-lbl.zs-zequence-editor__toolbar-label { height: 20px; padding-right: 4px; -unity-text-align: middle-right; }
+.zs-root .zs-zequence-editor__toolbar-field { height: 18px; margin-top: 1px; }
+.zs-root .zs-zequence-editor__toolbar-mode { height: 20px; }
+/* A track card: the reorder grip, the height grip along the bottom, the start box, the drop line while reordering. */
+.zs-root .zs-lbl.zs-zequence-entry__grip { cursor: move-arrow; color: rgb(140,140,150); -unity-text-align: middle-center; font-size: 11px; padding: 0; }
+.zs-root .zs-lbl.zs-zequence-entry__grip:hover { color: rgb(220,220,230); }
+.zs-root .zs-zequence-entry__height-grip { position: absolute; cursor: resize-vertical; background-color: rgba(255,255,255,0.04); }
+.zs-root .zs-zequence-entry__height-grip:hover { background-color: rgba(255,255,255,0.18); }
+.zs-root .zs-zequence-entry__drop-line { position: absolute; left: 0; right: 0; height: 2px; background-color: rgb(120,180,255); }
+.zs-root .zs-lbl.zs-zequence-entry__start-label { -unity-text-align: middle-right; padding-right: 2px; color: rgb(160,160,170); }
+.zs-root .zs-zequence-entry__name.unity-button { -unity-text-align: middle-left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 6px; }
+.zs-root .zs-zequence-entry__curve-bar { position: absolute; }
 .zs-root.zs-bake-popup, .zs-root .zs-bake-popup { padding-left: 6px; padding-right: 6px; padding-top: 6px; }
 .zs-root.zs-bake-popup__row, .zs-root .zs-bake-popup__row { flex-direction: row; margin-bottom: 4px; }
 .zs-root.zs-bake-popup__seed, .zs-root .zs-bake-popup__seed { width: 70px; margin-left: 6px; }

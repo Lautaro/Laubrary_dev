@@ -2,14 +2,14 @@
 // placements, run on an IN-MEMORY Zequence holding a local copy of a real Klip (never added to the library).
 //
 //   1. A track is drawn as long as a play really lasts (the live plan), and the entry length the window shows agrees.
-//   2. Split at 0.3-0.6 s makes three tracks sharing ONE local sound, each playing its own excerpt, contiguous, with every
-//      piece's audio exactly where it was.
-//   3. Deleting the middle piece keeps the sound (the others still play it); with Ripple on, the piece after the gap
-//      moves up to close it.
+//   2. Split at 0.3-0.6 s makes three tracks, each with a local sound of its OWN trimmed to its piece (a local sound is
+//      never shared between tracks, owner's rule 2026-10-08), contiguous, with every piece's audio exactly where it was.
+//   3. Deleting the middle piece removes its own sound with it; with Ripple on, the piece after the gap moves up to close it.
 //   4. Trim to a selection keeps the kept audio where it was (the piece's start moves); Untrim brings the whole source
-//      back, again in place.
-//   5. Copy and paste into the same Zequence shares the sound and its excerpt, placed at the paste moment.
-//   6. "Own sound" gives a track a private copy trimmed to what it played.
+//      back, again in place. Both edit the track's own sound's trim.
+//   5. Copy and paste into the same Zequence gives the pasted piece a sound of its own trimmed to the copied part, placed
+//      at the paste moment.
+//   6. The pasted piece's sound is its own (not the source track's).
 //   7. Bake: a one-piece bake equals that piece rendered on its own; a random-run bake repeats exactly from the same seed.
 //   8. Nothing touches the source audio: the source clip's samples are unchanged by every step above.
 using System.Text;
@@ -60,19 +60,19 @@ public static class ZoundsTimelineEditCheck {
         // ── 2: split ──
         tl.Select(0.3f, 0.6f, zeq.zoundEntries[0], false);
         TimelineEdits.Split(null, tl);
-        bool three = zeq.zoundEntries.Count == 3 && zeq.localKlips.Count == 1;
-        bool shared = three && zeq.zoundEntries.TrueForAll(e => e.zoundId == c.id && e.ownTrim);
-        bool contiguous = three && Near(zeq.zoundEntries[0].trimStart, 0f) && Near(zeq.zoundEntries[0].trimEnd, 0.3f) && Near(zeq.zoundEntries[1].trimStart, 0.3f)
-                          && Near(zeq.zoundEntries[1].trimEnd, 0.6f) && Near(zeq.zoundEntries[2].trimStart, 0.6f) && Near(zeq.zoundEntries[2].trimEnd, L);
+        bool three = zeq.zoundEntries.Count == 3 && zeq.localKlips.Count == 3;
+        var ids = three ? new System.Collections.Generic.HashSet<int> { zeq.zoundEntries[0].zoundId, zeq.zoundEntries[1].zoundId, zeq.zoundEntries[2].zoundId } : null;
+        bool owned = three && ids.Count == 3 && zeq.zoundEntries.TrueForAll(e => e.local && !e.ownTrim && zeq.localKlips.Exists(k => k.id == e.zoundId));
+        bool contiguous = three && Near(P(0).exA, 0f) && Near(P(0).exB, 0.3f) && Near(P(1).exA, 0.3f) && Near(P(1).exB, 0.6f) && Near(P(2).exA, 0.6f) && Near(P(2).exB, L);
         bool inPlace = three && Near(P(1).start, 0.3f) && Near(P(2).start, 0.6f) && Near(P(0).start, 0f);
-        Check(three && shared, "2. split makes 3 tracks sharing one local sound (" + zeq.zoundEntries.Count + " tracks, " + zeq.localKlips.Count + " sound)");
-        Check(contiguous && inPlace, "2. excerpts 0-0.3, 0.3-0.6, 0.6-" + L.ToString("0.0") + " s, each starting where its audio was (" + (three ? P(1).start.ToString("0.000") + ", " + P(2).start.ToString("0.000") : "-") + ")");
+        Check(three && owned, "2. split makes 3 tracks, each with a local sound of its own (" + zeq.zoundEntries.Count + " tracks, " + zeq.localKlips.Count + " sounds)");
+        Check(contiguous && inPlace, "2. pieces 0-0.3, 0.3-0.6, 0.6-" + L.ToString("0.0") + " s, each starting where its audio was (" + (three ? P(1).start.ToString("0.000") + ", " + P(2).start.ToString("0.000") : "-") + ")");
 
         // ── 3: delete the middle, then the same with ripple ──
         var keepA = zeq.zoundEntries[0]; var keepC = zeq.zoundEntries[2];
         tl.ClearSelection(); tl.selTracks.Add(zeq.zoundEntries[1]);
         TimelineEdits.Delete(null, tl);
-        Check(zeq.zoundEntries.Count == 2 && zeq.localKlips.Count == 1 && Near(P(1).start, 0.6f), "3. deleting the middle piece keeps the shared sound, the last piece stays at 0.6 s");
+        Check(zeq.zoundEntries.Count == 2 && zeq.localKlips.Count == 2 && Near(P(1).start, 0.6f), "3. deleting the middle piece removes its own sound with it, the last piece stays at 0.6 s");
         zeq.zoundEntries.Insert(1, new CompositeZound.ZoundEntry { zoundId = c.id, local = true, ownTrim = true, trimStart = 0.3f, trimEnd = 0.6f, delay = 0.3f, overridePitch = true, pitch = 1f });
         tl.Rebuild();
         tl.ripple = true; tl.ClearSelection(); tl.selTracks.Add(zeq.zoundEntries[1]);
@@ -80,13 +80,13 @@ public static class ZoundsTimelineEditCheck {
         tl.ripple = false;
         Check(zeq.zoundEntries.Count == 2 && Near(P(1).start, 0.3f), "3. with Ripple on, the piece after the gap moves up to 0.3 s (" + P(1).start.ToString("0.000") + ")");
 
-        // ── 4: trim to selection, untrim ──
+        // ── 4: trim to selection, untrim (on the track's own sound) ──
         tl.Select(0.1f, 0.2f, keepA, false);
         TimelineEdits.TrimToSelection(null, tl);
-        Check(Near(keepA.trimStart, 0.1f) && Near(keepA.trimEnd, 0.2f) && Near(P(0).start, 0.1f), "4. trim to 0.1-0.2 s: the piece now starts at " + P(0).start.ToString("0.000") + " s, its audio unmoved");
+        Check(Near(c.trimStart, 0.1f) && Near(c.trimEnd, 0.2f) && !keepA.ownTrim && Near(P(0).start, 0.1f), "4. trim to 0.1-0.2 s: the piece now starts at " + P(0).start.ToString("0.000") + " s, its audio unmoved");
         tl.selTracks.Clear(); tl.selTracks.Add(keepA);
         TimelineEdits.Untrim(null, tl);
-        Check(Near(keepA.trimStart, 0f) && Near(keepA.trimEnd, S, 0.01f) && Near(P(0).start, 0f), "4. untrim: the whole source again, starting at " + P(0).start.ToString("0.000") + " s");
+        Check(Near(c.trimStart, 0f) && Near(c.trimEnd, S, 0.01f) && Near(P(0).start, 0f), "4. untrim: the whole source again, starting at " + P(0).start.ToString("0.000") + " s");
 
         // ── 5: copy / paste ──
         tl.Select(0.4f, 0.5f, keepC, false);
@@ -95,14 +95,12 @@ public static class ZoundsTimelineEditCheck {
         TimelineEdits.Paste(null, tl, 2.0f);
         var pasted = zeq.zoundEntries.Find(e => e != keepA && e != keepC);
         tl.Rebuild();
-        Check(zeq.zoundEntries.Count == before + 1 && pasted != null && pasted.zoundId == c.id && Near(pasted.trimStart, 0.7f, 0.003f) && Near(tl.byEntry[pasted].start, 2.0f),
-              "5. paste at 2.0 s: shares the sound, plays " + (pasted != null ? pasted.trimStart.ToString("0.000") + "-" + pasted.trimEnd.ToString("0.000") : "-") + " s of it");
+        var own = pasted != null ? zeq.localKlips.Find(k => k.id == pasted.zoundId) : null;
+        Check(zeq.zoundEntries.Count == before + 1 && own != null && own.id != keepC.zoundId && own.trimEnabled && Near(own.trimStart, 0.7f, 0.003f) && Near(tl.byEntry[pasted].start, 2.0f),
+              "5. paste at 2.0 s: a sound of its own, playing " + (own != null ? own.trimStart.ToString("0.000") + "-" + own.trimEnd.ToString("0.000") : "-") + " s of the recording");
 
-        // ── 6: own sound ──
-        tl.ClearSelection(); tl.selTracks.Add(pasted);
-        TimelineEdits.MakeIndependent(null, tl);
-        var own = zeq.localKlips.Find(k => k.id == pasted.zoundId);
-        Check(own != null && own.id != c.id && !pasted.ownTrim && own.trimEnabled && Near(own.trimStart, 0.7f, 0.003f), "6. own sound: a private copy trimmed to what the track played");
+        // ── 6: the pasted piece's sound is its own ──
+        Check(own != null && !pasted.ownTrim && zeq.localKlips.Count == before + 1, "6. the pasted piece owns its sound (" + zeq.localKlips.Count + " local sounds for " + zeq.zoundEntries.Count + " tracks)");
 
         // ── 7: bake ──
         var one = new Zequence(-9710) { name = "bake check", mode = CompositeZound.Mode.Parallel, minPitch = 1f, maxPitch = 1f };

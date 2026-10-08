@@ -15,25 +15,25 @@ namespace Laubrary.Zounds.Uitk {
     /// sound if the trim were widened; the chain's ringing tail as a band after the end; the spread of a per-play pitch
     /// range as a band at the end; the selection; the shared time cursor; one playhead per read head of every play of this
     /// track, where it is really reading its source; markers at the edges when the piece or a playhead is out of view;
-    /// the sound's own Volume, Pitch and Time curves over its audio, and the track's own volume curve dashed.
+    /// the sound's own Volume, Pitch and Time curves over its audio (the one being edited bright with its points, the
+    /// others as backdrops), and the track's own volume curve dashed.
     ///
-    /// Gestures (drag where you grab): the waveform selects a time range (Shift adds this track to the selection), the thin
-    /// strip along the top moves the piece, an edge trims it, Alt-drag slips which part of the source it plays, a double
-    /// click selects the whole piece. Ctrl+wheel zooms around the pointer; the wheel and Shift+wheel pan; the middle
-    /// button drags the view.
+    /// Gestures: a click on the waveform plays this track from its start, a right-click plays it from the clicked moment
+    /// (owner, 2026-10-08; not while one of its curves is being edited, when a click is for the curve); a drag selects a
+    /// time range (Shift adds this track to the selection), the thin strip along the top moves the piece, an edge trims it,
+    /// Alt-drag slips which part of the source it plays, a double click selects the whole piece. Ctrl+wheel zooms around
+    /// the pointer; the wheel and Shift+wheel pan; the middle button drags the view.
     /// </summary>
     internal sealed class TrackStripTK : VisualElement {
 
         readonly ZequenceEditorWindowTK win;
         readonly CompositeZound.ZoundEntry entry;
         readonly Label leftMark, rightMark, warn;
-        readonly VisualElement chips;
-        readonly Dictionary<int, Button> chipButtons = new Dictionary<int, Button>();
         EnvelopeTK trackCurve;
-        readonly Button focusButton;
 
         public const float TopBar = 7f;
         const float EdgeGrab = 4f;
+        const float ClickSlop = 3f;
 
         ZequenceTimeline TL => win.timeline;
         TrackPlacement P => TL != null && TL.byEntry.TryGetValue(entry, out var p) ? p : null;
@@ -45,6 +45,7 @@ namespace Laubrary.Zounds.Uitk {
         Vector2 downLocal;
         Vector2 hover = new Vector2(-1f, -1f);
         int dragPoint = -1; ZoundModifier dragMod;
+        bool moved;
 
         static ZoundsProject.ProjectSettings.EditorStyle Es => ZoundsProject.Instance.projectSettings.editorStyle;
 
@@ -52,7 +53,8 @@ namespace Laubrary.Zounds.Uitk {
             this.win = win; this.entry = entry;
             AddToClassList("zs-track-strip");
             focusable = true;
-            tooltip = "Drag on the waveform to select a part (Shift adds this track to the selection; double-click selects the whole piece). "
+            tooltip = "Click to play this track from its start; right-click to play it from here. "
+                    + "Drag on the waveform to select a part (Shift adds this track to the selection; double-click selects the whole piece). "
                     + "Drag the thin strip along the top to move the piece, an edge to trim it, Alt-drag to slip which part of the sound it plays. "
                     + "Ctrl+wheel zooms, the wheel pans. Keys: Space auditions, T trims to the selection, S splits, Delete deletes, Ctrl+C/X/V.";
             generateVisualContent += Paint;
@@ -64,16 +66,6 @@ namespace Laubrary.Zounds.Uitk {
             warn.AddToClassList("zs-track-strip__warn");
             warn.style.display = DisplayStyle.None;
             Add(warn);
-            chips = new VisualElement();
-            chips.AddToClassList("zs-track-strip__chips");
-            Add(chips);
-            focusButton = ZS.Button("↕", "", "RichButton", () => {
-                if (TL == null) return;
-                TL.focus = ReferenceEquals(TL.focus, entry) ? null : entry;
-                win.RefreshNow();
-            }, ZUICornerMask.All, 18f, 14f);
-            focusButton.AddToClassList("zs-track-strip__chip-button");
-            chips.Add(focusButton);
 
             RegisterCallback<PointerDownEvent>(OnDown);
             RegisterCallback<PointerMoveEvent>(OnMove);
@@ -108,7 +100,7 @@ namespace Laubrary.Zounds.Uitk {
                 if (!Mathf.Approximately(resolvedStyle.width, lane.width)) style.width = lane.width;
             }
             SyncMarks();
-            SyncChips();
+            CollectOwnCurves(P);
             SyncTrackCurve();
             MarkDirtyRepaint();
         }
@@ -154,7 +146,7 @@ namespace Laubrary.Zounds.Uitk {
 
         // ─────────────────────────── the sound's own curves (T-0566) ───────────────────────────
 
-        struct OwnCurve { public ZoundModifier mod; public int param; public Color colour; }
+        public struct OwnCurve { public ZoundModifier mod; public int param; public Color colour; }
         readonly List<OwnCurve> ownCurves = new List<OwnCurve>();
 
         void CollectOwnCurves(TrackPlacement p) {
@@ -175,43 +167,24 @@ namespace Laubrary.Zounds.Uitk {
             }
         }
 
-        /// <summary>The curve being edited on this track (one at a time, chosen on the chips; none = the waveform's gestures only).</summary>
+        /// <summary>The curve being edited on this track (one at a time, chosen on the card's curve bar; none = the waveform's gestures only).</summary>
         ZoundModifier Editing => TL.editingCurve.TryGetValue(entry, out var m) ? m : null;
 
-        void SyncChips() {
-            var p = P;
-            CollectOwnCurves(p);
-            var seen = new HashSet<int>();
-            foreach (var oc in ownCurves) {
-                seen.Add(oc.param);
-                if (!chipButtons.TryGetValue(oc.param, out var b)) {
-                    int param = oc.param;
-                    string name = param == SourceStageParam.Volume ? "Vol" : param == SourceStageParam.Pitch ? "Pitch" : "Time";
-                    b = ZS.Button(name, "", "RichButton", () => ToggleEditing(param), ZUICornerMask.All, 38f, 14f);
-                    b.AddToClassList("zs-track-strip__chip-button");
-                    chipButtons[param] = b; chips.Add(b);
-                }
-                bool on = ReferenceEquals(Editing, oc.mod);
-                b.style.color = oc.colour;
-                b.style.backgroundColor = on ? new Color(oc.colour.r, oc.colour.g, oc.colour.b, 0.35f) : new Color(0f, 0f, 0f, 0.35f);
-                string what = oc.param == SourceStageParam.Volume ? "volume" : oc.param == SourceStageParam.Pitch ? "pitch" : "time (speed)";
-                b.tooltip = (on ? "Editing this sound's " + what + " curve here: drag a point, double-click the line to add one, double-click a point to remove it. Click again to go back to selecting and moving the track."
-                                : "Edit this sound's " + what + " curve right here on the track. It is the sound's own curve, anchored to its audio: it moves with the piece, and every piece of this sound shares it.")
-                            + (CurveView.IsVisible(oc.mod) ? "" : "\n\nIts eye is off in the Klip editor, so it is not drawn.");
-                b.style.display = DisplayStyle.Flex;
+        /// <summary>Which source-stage parameter's curve is being edited here, or -1.</summary>
+        public int EditingParam {
+            get {
+                var ed = Editing;
+                if (ed == null) return -1;
+                foreach (var oc in ownCurves) if (ReferenceEquals(oc.mod, ed)) return oc.param;
+                return -1;
             }
-            foreach (var kv in chipButtons) if (!seen.Contains(kv.Key)) kv.Value.style.display = DisplayStyle.None;
-            bool focused = ReferenceEquals(TL.focus, entry);
-            focusButton.tooltip = focused ? "This track is the focused one, taller for precise work on its curves. Click to make it compact again."
-                                          : "Make this track taller for precise work on its curves (one track at a time; the others stay compact).";
-            focusButton.style.backgroundColor = focused ? new Color(0.22f, 0.45f, 0.75f, 0.8f) : new Color(0f, 0f, 0f, 0.35f);
-            focusButton.BringToFront();
         }
 
-        void ToggleEditing(int param) {
+        /// <summary>Select the curve bound to <paramref name="param"/> for editing on this track, or -1 for none.</summary>
+        public void SetEditing(int param) {
+            CollectOwnCurves(P);
             var oc = ownCurves.Find(o => o.param == param);
-            if (oc.mod == null) return;
-            if (ReferenceEquals(Editing, oc.mod)) TL.editingCurve.Remove(entry); else TL.editingCurve[entry] = oc.mod;
+            if (param < 0 || oc.mod == null) TL.editingCurve.Remove(entry); else TL.editingCurve[entry] = oc.mod;
             Sync();
         }
 
@@ -258,6 +231,7 @@ namespace Laubrary.Zounds.Uitk {
             trackCurve.style.top = TopBar; trackCurve.style.height = Mathf.Max(4f, H - TopBar);
             // While one of the sound's curves is being edited here, the track curve steps aside.
             trackCurve.pickingMode = Editing != null ? PickingMode.Ignore : PickingMode.Position;
+            trackCurve.backdrop = Editing != null;
         }
 
         // ─────────────────────────── drawing ───────────────────────────
@@ -278,7 +252,7 @@ namespace Laubrary.Zounds.Uitk {
             if (TL == null || W < 2f || H < 2f) return;
             var p2 = ctx.painter2D;
             var p = P;
-            Rect(p2, 0, 0, W, H, new Color(1f, 1f, 1f, 0.04f));
+            Rect(p2, 0, 0, W, H, Es.trackLaneColor);
             // Where the authored duration ends.
             float ax = X(TL.authored);
             if (ax > 0 && ax < W) Rect(p2, ax, 0, W - ax, H, new Color(0f, 0f, 0f, 0.18f));
@@ -367,14 +341,17 @@ namespace Laubrary.Zounds.Uitk {
             var own = CurveAnchor.Axis.Of(p.klip, p.fileLen);
             float top = TopBar, h = H - TopBar;
             float xs = Mathf.Max(0f, X(p.SourceToTime(0f))), xe = Mathf.Min(W, X(p.End + (p.tail > 0f ? p.tail : 0f)));
+            var editingMod = Editing;
             foreach (var oc in ownCurves) {
-                if (!CurveView.IsVisible(oc.mod) && !ReferenceEquals(Editing, oc.mod)) continue;
+                if (!CurveView.IsVisible(oc.mod) && !ReferenceEquals(editingMod, oc.mod)) continue;
                 var env = oc.mod.curve;
                 float yr = Mathf.Max(1e-6f, env.yMax - env.yMin);
-                bool editing = ReferenceEquals(Editing, oc.mod);
+                bool editing = ReferenceEquals(editingMod, oc.mod);
+                // While one curve is being edited the others step back: half transparent and twice as wide, no points.
+                bool backdrop = editingMod != null && !editing;
                 for (int pass = 0; pass < 2; pass++) {
-                    var c = oc.colour; c.a = pass == 0 ? 0.35f : (editing ? 1f : 0.8f);
-                    p2.strokeColor = c; p2.lineWidth = editing ? 1.6f : 1.1f;
+                    var c = oc.colour; c.a = pass == 0 ? 0.35f : (editing ? 1f : backdrop ? 0.5f : 0.8f);
+                    p2.strokeColor = c; p2.lineWidth = editing ? 1.6f : backdrop ? 2.2f : 1.1f;
                     p2.BeginPath(); bool started = false;
                     for (float x = xs; x <= xe; x += 2f) {
                         float t = T(x);
@@ -408,9 +385,15 @@ namespace Laubrary.Zounds.Uitk {
             if (TL == null) return;
             Focus();
             var l = (Vector2)e.localPosition;
-            downLocal = l; downTime = T(l.x);
+            downLocal = l; downTime = T(l.x); moved = false;
             if (e.button == 2) { drag = Drag.Pan; panT0 = TL.t0; this.CapturePointer(e.pointerId); e.StopPropagation(); return; }
-            if (e.button != 0 || p == null || !p.found) return;
+            if (p == null || !p.found) return;
+            // Right-click: play this track from the clicked moment (not while a curve is being edited: that click is the curve's).
+            if (e.button == 1) {
+                if (Editing == null) { win.PlayTrackFrom(entry, p.klip != null ? p.TimeToSource(downTime) : float.NaN); e.StopPropagation(); }
+                return;
+            }
+            if (e.button != 0) return;
             float x0 = X(p.start), x1 = X(p.End);
             dragP = p; start0 = p.start; exA0 = p.exA; exB0 = p.exB;
 
@@ -447,6 +430,7 @@ namespace Laubrary.Zounds.Uitk {
             hover = l;
             if (drag == Drag.None) { MarkDirtyRepaint(); return; }
             if (!this.HasPointerCapture(e.pointerId)) return;
+            if ((l - downLocal).magnitude > ClickSlop) moved = true;
             float t = T(l.x);
             switch (drag) {
                 case Drag.Pan: {
@@ -454,7 +438,7 @@ namespace Laubrary.Zounds.Uitk {
                     float span = TL.Span; TL.t0 = panT0 - dt; TL.t1 = TL.t0 + span; TL.fitted = false; TL.Changed();
                     break;
                 }
-                case Drag.Select: TL.selA = Mathf.Min(downTime, t); TL.selB = Mathf.Max(downTime, t); TL.Changed(); break;
+                case Drag.Select: if (moved) { TL.selA = Mathf.Min(downTime, t); TL.selB = Mathf.Max(downTime, t); TL.Changed(); } break;
                 case Drag.Move: TimelineEdits.Move(dragP, start0, t - downTime); win.OnTimelineChanged(); break;
                 case Drag.TrimA: {
                     float a = Mathf.Clamp(dragP.TimeToSource(t), 0f, exB0 - 0.002f);
@@ -484,9 +468,10 @@ namespace Laubrary.Zounds.Uitk {
                 ZoundsWindow.EndDragUndo();
                 dragPoint = -1; dragMod = null;
             }
-            if (d == Drag.Select && TL.selB - TL.selA < TL.SecondsPerPixel * 2f) {
-                // A click: a moment, not a range (split and paste use it).
+            if (d == Drag.Select && !moved) {
+                // A click: a moment, not a range (split and paste use it), and the track plays from its start.
                 TL.selA = TL.selB = downTime; TL.Changed();
+                if (e.clickCount < 2) win.PlayTrackFrom(entry, float.NaN);
             }
             win.OnTimelineChanged();
             e.StopPropagation();

@@ -6,10 +6,11 @@ using UnityEngine.UIElements;
 namespace Laubrary.Zounds.Uitk {
 
     /// <summary>
-    /// The audition card (T-0486), opened by right-clicking a Zounds editor's Play button: a ZUI overlay anchored to the
-    /// button, in the window's own panel. Two rows, wide rather than tall:
+    /// The audition card (T-0486): a ZUI overlay anchored to a Zounds editor's Play button on a right-click, or, since the
+    /// owner's request of 2026-10-08, pinned into the window itself (the card's Pin toggle moves it there, and back).
+    /// Two rows, wide rather than tall:
     ///
-    ///   [Play on change] [Burst] [Loop]
+    ///   [Play on change] [Burst] [Loop]                       [Pin]
     ///   [Plays] [Gap] [Steady | From start | From end]
     ///
     /// Every control is a setting or a start/stop latch, so none of them closes the card (a click outside or Esc does).
@@ -17,16 +18,35 @@ namespace Laubrary.Zounds.Uitk {
     /// </summary>
     public static class AuditionPopupTK {
 
-        const float RowH = 20f;
-
-        public static ZuiPopover Show(VisualElement anchor, ZoundAudition session) {
+        public static ZuiPopover Show(VisualElement anchor, ZoundAudition session, Action<bool> onPin = null) {
             if (anchor == null || session == null || session.IsDisposed) return null;
-            Action refresh = null;
-            var pop = Z.Popover(anchor, panel => refresh = Build(panel, session),
-                                new ZuiPopover.Options { preferredSide = ZuiPopover.Side.Above, onClosed = () => session.changed -= refresh });
-            session.changed += refresh;
+            AuditionCardTK card = null;
+            ZuiPopover pop = null;
+            pop = Z.Popover(anchor, panel => {
+                card = new AuditionCardTK(session, false, onPin == null ? null : (Action<bool>)(v => { pop?.Close(); onPin(v); }));
+                panel.Add(card);
+            }, new ZuiPopover.Options { preferredSide = ZuiPopover.Side.Above, onClosed = () => card?.Detach() });
             return pop;
         }
+    }
+
+    /// <summary>The audition card's content, as one element either window can host inline (pinned) or in the popover.</summary>
+    public sealed class AuditionCardTK : VisualElement {
+
+        const float RowH = 20f;
+        readonly ZoundAudition s;
+        readonly Action refresh;
+
+        public AuditionCardTK(ZoundAudition session, bool pinned, Action<bool> onPin) {
+            s = session;
+            AddToClassList("zs-audition-card");
+            refresh = Build(this, s, pinned, onPin);
+            s.changed += refresh;
+            RegisterCallback<DetachFromPanelEvent>(_ => Detach());
+        }
+
+        /// <summary>Stops following the session (the popover closing, or the card leaving the window).</summary>
+        public void Detach() { s.changed -= refresh; }
 
         static VisualElement Row() {
             var r = new VisualElement();
@@ -39,8 +59,8 @@ namespace Laubrary.Zounds.Uitk {
         static string BurstLabel(ZoundAudition s) => s.BurstRunning ? "Burst " + s.BurstDone + "/" + s.settings.count : "Burst";
 
         /// <summary>Fills the card and returns its refresh, called whenever the session's state changes.</summary>
-        static Action Build(VisualElement panel, ZoundAudition s) {
-            // ── row 1: the three helpers ──
+        static Action Build(VisualElement panel, ZoundAudition s, bool pinned, Action<bool> onPin) {
+            // ── row 1: the three helpers, and the pin ──
             var r1 = Row();
             var onChange = ZS.Toggle("Play on change", "", s.playOnChange, v => { s.playOnChange = v; s.changed?.Invoke(); },
                                      "RichToggle", ZUICornerMask.All, 110f, RowH);
@@ -53,8 +73,16 @@ namespace Laubrary.Zounds.Uitk {
                              "RichToggle", ZUICornerMask.Right, 56f, RowH);
             r1.Add(burst);
             r1.Add(loop);
+            if (onPin != null) {
+                r1.Add(Gap(8f));
+                var pin = ZS.Toggle("Pin", pinned ? "This card is part of the window. Click to put it back behind the Play button's right-click."
+                                                  : "Keep this card in the window, under the toolbar, instead of behind the Play button's right-click.",
+                                    pinned, v => onPin(v), "RichToggle", ZUICornerMask.All, 40f, RowH);
+                r1.Add(pin);
+            }
             panel.Add(r1);
-            panel.Add(Gap(0f).WithHeight(4f));
+            var between = Gap(0f); between.style.height = 4f;
+            panel.Add(between);
 
             // ── row 2: what Burst and Loop share ──
             var r2 = Row();
@@ -117,7 +145,5 @@ namespace Laubrary.Zounds.Uitk {
             Refresh();
             return Refresh;
         }
-
-        static VisualElement WithHeight(this VisualElement e, float h) { e.style.height = h; return e; }
     }
 }

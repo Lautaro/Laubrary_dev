@@ -70,8 +70,8 @@ namespace Laubrary.Zounds.Uitk {
             return s;
         }
 
-        ColorField Color(string label, string path, float lw) =>
-            Field<ColorField, Color>(new ColorField(label), path, lw, p => p.colorValue, (p, v) => p.colorValue = v);
+        ColorField Color(string label, string path, float lw, string tooltip = null) =>
+            Field<ColorField, Color>(new ColorField(label) { tooltip = tooltip }, path, lw, p => p.colorValue, (p, v) => p.colorValue = v);
 
         // ─────────────────────────── the tab ───────────────────────────
 
@@ -120,6 +120,11 @@ namespace Laubrary.Zounds.Uitk {
             into.Add(Color(P("editorStyle.trimAreaColor").displayName, "editorStyle.trimAreaColor", sw));
             into.Add(Color(P("editorStyle.selectedEnvelopeLineColor").displayName, "editorStyle.selectedEnvelopeLineColor", sw));
             into.Add(Color(P("editorStyle.selectedEnvelopeHandleColor").displayName, "editorStyle.selectedEnvelopeHandleColor", sw));
+            // The editors' backgrounds (owner, 2026-10-08). Alpha counts: a fully transparent editor background keeps the skin's box.
+            into.Add(Color("Editor Background", "editorStyle.editorBackgroundColor", sw, "Behind a Klip or Zequence editor's content. Fully transparent keeps the skin's own box."));
+            into.Add(Color("Track Background", "editorStyle.trackBackgroundColor", sw, "The band behind every other track in a Zequence."));
+            into.Add(Color("Track Background (alternate)", "editorStyle.trackAltBackgroundColor", sw, "The band behind the tracks in between."));
+            into.Add(Color("Track Lane", "editorStyle.trackLaneColor", sw, "The lane a track's audio is drawn in, outside the piece that plays."));
             into.Add(ZequenceEditorWindowTK.Space(10f));
 
             into.Add(Bold("Operational Settings"));

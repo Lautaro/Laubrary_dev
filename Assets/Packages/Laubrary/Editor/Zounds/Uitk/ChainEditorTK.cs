@@ -221,6 +221,9 @@ namespace Laubrary.Zounds.Uitk {
             for (int m = 0; m < chain.modifiers.Count; m++) {
                 var mod = chain.modifiers[m];
                 if (mod.type == ZoundModifierType.Code && !Has(ChainEditorFeatures.CodeModifier)) continue;
+                // The sound's own volume, pitch and time curves are properties of the sound, edited on its waveform through
+                // the curve bar; they are not listed among the modifiers (owner, 2026-10-08).
+                if (zound != null && Has(ChainEditorFeatures.SourceStage) && KlipChainEnvelopes.IsOwnCurve(zound, mod)) continue;
                 mods.Add(ModifierRow(chain, m, mod));
                 if (!folded.Contains(Key(mod))) {
                     ModifierBody(chain, m, mod, sectionW);
@@ -1073,6 +1076,20 @@ namespace Laubrary.Zounds.Uitk {
         /// </summary>
         VisualElement CurveGround(ZoundEffectChain chain, ZoundModifier mod) {
             bool isLfoRamp = mod.type == ZoundModifierType.Lfo;
+            // A curve anchored to the whole source file is shown over the part that is heard (the trimmed region and the
+            // extra time after it) by default, since a Klip usually plays a short piece of a long file and the rest of the
+            // axis would be audio nobody hears (owner's screenshot, 2026-10-08); "File" shows the whole file instead.
+            var curveView = new Vector2(float.NaN, float.NaN);
+            bool wholeFile = false;
+            void UpdateCurveView() {
+                curveView = new Vector2(float.NaN, float.NaN);
+                if (isLfoRamp || wholeFile || zound == null || !CurveAnchor.FollowsWaveform(mod) || mod.curveAnchor != CurveAnchor.Source) return;
+                if (!KlipChainEnvelopes.TryAxis(zound, out var axis) || !axis.Valid) return;
+                float extra = mod.p != null && mod.p.Length > 0 ? Mathf.Max(0f, mod.p[0]) : 0f;
+                float a = CurveAnchor.X(mod, 0f, axis), b = CurveAnchor.XAfterEnd(mod, extra, axis);
+                if (b > a + 1e-4f && (a > 1e-4f || b < 1f - 1e-4f)) curveView = new Vector2(a, b);
+            }
+            UpdateCurveView();
             var holder = new VisualElement();
             holder.AddToClassList("zs-chain-editor__curve-ground-holder");
             var ground = new VisualElement();
@@ -1153,8 +1170,11 @@ namespace Laubrary.Zounds.Uitk {
                 }
                 else if (waveformBase && SapVoiceRegistry.TryReadSourceProgress(zound, out float prog, out float region) && region > 0f && prog < 0.999f)
                     frac = Mathf.Clamp01(prog * region / (region + extra));
-                float x = frac * r.width;
+                // The ground may show only a window of the curve (the trimmed region and the tail): map into it.
+                float vx0 = float.IsNaN(curveView.x) ? 0f : curveView.x, vx1 = float.IsNaN(curveView.y) ? 1f : curveView.y;
+                float x = (frac - vx0) / Mathf.Max(1e-6f, vx1 - vx0) * r.width;
                 head.style.left = x - 0.5f;
+                head.style.display = dot.style.display = x >= -1f && x <= r.width + 1f ? DisplayStyle.Flex : DisplayStyle.None;
                 if (mod.curve != null) {
                     float y = r.height - Mathf.Clamp01(mod.curve.Evaluate(frac)) * r.height;
                     dot.style.left = x - 3f; dot.style.top = y - 3f;
@@ -1204,6 +1224,20 @@ namespace Laubrary.Zounds.Uitk {
             var curve = new EnvelopeTK(mod.curve, mod.type == ZoundModifierType.Envelope ? es.volumeEnvelopeColor : es.pitchEnvelopeColor);
             curve.AddToClassList("zs-chain-editor__curve-ground-curve");
             curve.tooltip = ground.tooltip;
+            curve.view = curveView;
+            if (!isLfoRamp && zound != null && CurveAnchor.FollowsWaveform(mod)) {
+                ZuiToggleButton file = null;
+                file = ZS.Toggle("File", "", wholeFile, v => { wholeFile = v; UpdateCurveView(); curve.view = curveView; curve.Refresh(); }, "RichToggle", ZUICornerMask.All, 34f, 14f);
+                file.AddToClassList("zs-curvebar__toggle");
+                refreshers.Add(() => {
+                    UpdateCurveView(); curve.view = curveView;
+                    bool windowed = !float.IsNaN(curveView.x);
+                    file.style.display = windowed || wholeFile ? DisplayStyle.Flex : DisplayStyle.None;
+                    file.tooltip = wholeFile ? "Showing the whole source file. Click to show only the part that is heard (the trim and the extra time)."
+                                             : "Showing the part that is heard: the trimmed region and the extra time after it. Click to show the whole source file.";
+                });
+                ground.Add(PlaceRight(file, 40f, 0f, 34f, 14f));
+            }
             curve.onBegin = () => {
                 if (dragUndoOpen) return;
                 dragUndoOpen = true;

@@ -12,6 +12,9 @@ namespace Laubrary.Zounds.Uitk
         public float thickness = 1.5f;
         public Action onBegin;
         public Action onChanged;
+        /// <summary>The part of the curve's x (0..1) that is shown, or NaN for all of it: a waveform-following curve over a
+        /// long file is shown over the trimmed region it is heard on (owner, 2026-10-08).</summary>
+        public Vector2 view = new Vector2(float.NaN, float.NaN);
 
         static ZoundsProject.ProjectSettings.EditorStyle Style => ZoundsProject.Instance.projectSettings.editorStyle;
 
@@ -47,7 +50,10 @@ namespace Laubrary.Zounds.Uitk
         {
             points = envelope?.GetPointsList();
             if (envelope == null) return;
-            rt.xMin = envelope.xMin; rt.xMax = envelope.xMax;
+            bool windowed = !float.IsNaN(view.x) && !float.IsNaN(view.y) && view.y > view.x;
+            rt.xMin = windowed ? Mathf.Lerp(envelope.xMin, envelope.xMax, view.x) : envelope.xMin;
+            rt.xMax = windowed ? Mathf.Lerp(envelope.xMin, envelope.xMax, view.y) : envelope.xMax;
+            rt.dataXMin = envelope.xMin; rt.dataXMax = envelope.xMax;
             rt.yMin = envelope.yMin; rt.yMax = envelope.yMax;
             curveColor = mainColor;
             def.curveThickness = thickness;

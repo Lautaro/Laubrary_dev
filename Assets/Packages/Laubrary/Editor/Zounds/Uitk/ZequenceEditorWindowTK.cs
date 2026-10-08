@@ -10,11 +10,12 @@ using UnityEngine.UIElements;
 namespace Laubrary.Zounds.Uitk {
 
     /// <summary>
-    /// The UI Toolkit twin of the Zequence editor window (T-0469): the header fields row, then in the content box the
-    /// toolbar (No-Play for a randomizer, Mode, Duration, remove, Render to Klip, Auto-duration, Force GC, Play), one card
-    /// per entry (plain entries, and local Zequences as groups holding their own entries), the MASTER section and the add
-    /// buttons. Every edit goes through the old window's own paths (<see cref="CompositeZoundEditing"/> and the project's
-    /// modify calls), and every card is laid out with the old window's rect maths, so the two windows agree.
+    /// The Zequence editor window (T-0469; laid out afresh 2026-10-08 on the owner's review): the header fields row, then in
+    /// the content box one compact toolbar (Mode, No-Play for a randomizer, Auto length or the authored Length, the timeline
+    /// edit tools switch, Tidy, then Retrigger, Bake…, Delete and Play), the audition card when it is pinned, the timeline
+    /// header (edit bar and overview when the edit tools are on, the ruler always), one card per track (plain tracks, and
+    /// local Zequences as groups holding their own), the MASTER row and the add buttons. Every edit goes through the
+    /// project's modify path, so Undo and saving behave as everywhere else.
     ///
     /// The tree is rebuilt only when the Zequence's structure changes; a 5 Hz tick refreshes values, and a 30 Hz tick moves
     /// playheads and entry flashes while anything plays.
@@ -23,9 +24,9 @@ namespace Laubrary.Zounds.Uitk {
 
         [SerializeField] int targetZoundID;
         [SerializeField] bool isLocalZound;
-        [SerializeField] bool autoDuration;
+        // Auto length is on by default (owner, 2026-10-08): the Zequence's length follows its longest track.
+        [SerializeField] bool autoDuration = true;
 
-        internal const float EntryHeight = 118f + 18f;
         internal const float LeftSectionWidth = 190f;
         internal const float GroupHeaderHeight = 68f;
         internal const float GroupEntryLeftOffset = 10f;
@@ -39,7 +40,10 @@ namespace Laubrary.Zounds.Uitk {
         string builtSig;
         ZoundFieldsRowTK fields;
         Button playButton;
-        ZuiToggleButton retriggerButton;
+        ZuiToggleButton retriggerButton, editToolsButton;
+        ScrollView scroll;
+        VisualElement pinnedSlot;
+        [NonSerialized] bool suppressRebuild;
 
         // -- the shared timeline (non-destructive editing, T-0558) --
         /// <summary>One time window, selection and set of switches for every track (view state: not saved with the sound).</summary>
@@ -53,6 +57,11 @@ namespace Laubrary.Zounds.Uitk {
         [NonSerialized] readonly Dictionary<CompositeZound.ZoundEntry, List<ZoundToken>> auditionTokens = new Dictionary<CompositeZound.ZoundEntry, List<ZoundToken>>();
         [NonSerialized] ZoundToken auditionWhole;
         [NonSerialized] float auditionFrom;
+
+        // Per machine: whether the timeline's edit tools are shown, and whether the audition card is pinned into the window.
+        const string EditToolsKey = "Laubrary.Zounds.Zequence.EditTools", PinKey = "Laubrary.Zounds.AuditionPinned.Zequence";
+        static bool EditTools { get => EditorPrefs.GetBool(EditToolsKey, false); set => EditorPrefs.SetBool(EditToolsKey, value); }
+        static bool AuditionPinned { get => EditorPrefs.GetBool(PinKey, false); set => EditorPrefs.SetBool(PinKey, value); }
 
         /// <summary>
         /// Opens this Zequence's editor — the main one since 2026-09-28. One that is already open is brought forward
@@ -154,7 +163,7 @@ namespace Laubrary.Zounds.Uitk {
             playButton.tooltip = (live ? (audition.IsLoopPlaying(audition) ? "Stop loop" : "Stop the queued audition run.")
                                        : "Play this Zequence.")
                                + (armed ? "\n\n• Play on change is on: every change you make here plays the sound again." : "")
-                               + "\n\nRight-click: Play on change, Burst, Loop.";
+                               + (AuditionPinned ? "\n\nPlay on change, Burst and Loop are on the pinned card below." : "\n\nRight-click: Play on change, Burst, Loop.");
         }
 
         internal void Modify(string undo, Action a) { ZoundsWindow.ModifyZoundsProject(undo, a); Tick(); }
@@ -167,8 +176,6 @@ namespace Laubrary.Zounds.Uitk {
             if (!ZS.EditorStylesReady) { root.schedule.Execute(Rebuild).StartingIn(100); return; }
             ZS.Attach(root);
             root.AddToClassList("zs-zequence");
-            // The old window draws its fields row from the very top of the window (no leading row space, unlike the Klip
-            // window), so none of the Klip window's 3 px origin offset applies here (measured: every row 3.1 px low with it).
             root.AddToClassList("zs-zequence-editor__root");
             refreshers.Clear(); liveRefreshers.Clear();
             zeq = ZoundsProject.isJSONLoaded ? FindZequence(targetZoundID) : null;
@@ -178,6 +185,9 @@ namespace Laubrary.Zounds.Uitk {
             EnsureEnvelopes();
             EnsureTimeline();
             strips.Clear();
+            // Keep the scroll position across a rebuild (an edit that changes the tree must never snap the view to the top).
+            float keepScroll = scroll != null ? scroll.scrollOffset.y : 0f;
+            var es = ZoundsProject.Instance.projectSettings.editorStyle;
 
             fields = new ZoundFieldsRowTK(zeq, isLocalZound, () => titleContent = new GUIContent("Zequence: " + zeq.name));
             root.Add(fields);
@@ -186,20 +196,26 @@ namespace Laubrary.Zounds.Uitk {
             var box = new VisualElement();
             box.AddToClassList("zs-box-default");
             box.AddToClassList("zs-zequence-editor__box");
+            if (es.editorBackgroundColor.a > 0f) { box.style.backgroundImage = StyleKeyword.None; box.style.backgroundColor = es.editorBackgroundColor; }
             root.Add(box);
             box.Add(Toolbar());
-            box.Add(Space(5f));
+            pinnedSlot = new VisualElement();
+            pinnedSlot.AddToClassList("zs-zequence-editor__pinned");
+            box.Add(pinnedSlot);
+            SyncPinned();
+            box.Add(Space(4f));
             header = new TimelineHeaderTK(this);
+            header.SetEditToolsVisible(EditTools);
             box.Add(header);
             box.Add(Space(3f));
             if (zeq.zoundEntries.Count == 0) {
-                var none = new Label("No zound entry.");
+                var none = new Label("No tracks yet: add one below.");
                 none.AddToClassList("zs-lbl"); none.AddToClassList("zs-greymini");
                 none.style.height = EditorGUIUtility.singleLineHeight;
                 box.Add(none);
             }
 
-            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.AddToClassList("zs-zequence-editor__scroll");
             box.Add(scroll);
             bool darker = false;
@@ -210,6 +226,7 @@ namespace Laubrary.Zounds.Uitk {
             }
             scroll.Add(MasterSection());
             box.Add(AddRow(zeq, true));
+            if (keepScroll > 0f) scroll.schedule.Execute(() => scroll.scrollOffset = new Vector2(0f, keepScroll));
 
             builtSig = Signature();
             root.focusable = true;
@@ -228,7 +245,7 @@ namespace Laubrary.Zounds.Uitk {
             var sb = new StringBuilder();
             Append(sb, zeq);
             sb.Append(zeq.masterVolumeEnvelope != null && zeq.masterVolumeEnvelope.enabled ? 'M' : 'm');
-            sb.Append(timeline != null && timeline.focus != null ? timeline.focus.GetHashCode() : 0);
+            sb.Append(autoDuration ? 'A' : 'a').Append(EditTools ? 'T' : 't').Append(AuditionPinned ? 'P' : 'p');
             return sb.ToString();
         }
 
@@ -237,7 +254,7 @@ namespace Laubrary.Zounds.Uitk {
             foreach (var e in c.zoundEntries) {
                 bool found = c.TryGetEntryZound(e, out var z);
                 sb.Append(e.zoundId).Append(e.local ? 'L' : 'S').Append(found ? 'f' : 'x').Append(e.volumeEnvelope != null && e.volumeEnvelope.enabled ? 'E' : 'e')
-                  .Append(e.editor_foldoutExpanded ? 'X' : 'c').Append(e.editor_isRenaming ? 'R' : 'r');
+                  .Append(e.editor_foldoutExpanded ? 'X' : 'c').Append(e.editor_isRenaming ? 'R' : 'r').Append((int)e.editor_height).Append('h');
                 if (z is Klip k) sb.Append(k.originalId != 0 ? 'o' : '-');
                 if (found && e.local && z is CompositeZound cc) Append(sb, cc);
                 sb.Append(';');
@@ -247,7 +264,7 @@ namespace Laubrary.Zounds.Uitk {
 
         void Tick() {
             if (zeq == null) return;
-            if (FindZequence(targetZoundID) != zeq || Signature() != builtSig) { EnsureEnvelopes(); Rebuild(); return; }
+            if (!suppressRebuild && (FindZequence(targetZoundID) != zeq || Signature() != builtSig)) { EnsureEnvelopes(); Rebuild(); return; }
             fields?.Sync();
             SyncPlayButton();
             SyncRetriggerButton();
@@ -288,87 +305,124 @@ namespace Laubrary.Zounds.Uitk {
 
         // ─────────────────────────── toolbar ───────────────────────────
 
+        const float ToolH = 20f;
+
         VisualElement Toolbar() {
             var r = new VisualElement();
             r.AddToClassList("zs-zeq-toolbar");
             r.AddToClassList("zs-zequence-editor__toolbar-row");
+            // Mode: a segmented choice, every option in view.
+            var modes = (CompositeZound.Mode[])Enum.GetValues(typeof(CompositeZound.Mode));
+            var names = new string[modes.Length];
+            for (int i = 0; i < modes.Length; i++) names[i] = modes[i] == CompositeZound.Mode.RoundRobin ? "Round robin" : modes[i].ToString();
+            var mode = Z.Segmented(Array.IndexOf(modes, zeq.mode), names,
+                "How the tracks play: all together (Parallel), one picked by weight (Randomizer), each in turn (Round robin), or in order (Playlist).",
+                i => Modify("change zequence mode", () => zeq.mode = modes[i]));
+            mode.AddToClassList("zs-zequence-editor__toolbar-mode");
+            refreshers.Add(() => mode.SetOn(i => modes[i] == zeq.mode));
+            r.Add(mode);
+            r.Add(Gap(6f));
             if (zeq.mode == CompositeZound.Mode.Randomizer) {
-                var noPlay = new IntegerField("No-Play") { value = zeq.noPlayWeight, tooltip = "Chance weight for this randomizer to not play any sound." };
-                noPlay.AddToClassList("zs-imgui-field"); noPlay.AddToClassList("zs-label-50");
-                noPlay.AddToClassList("zs-zequence-editor__toolbar-no-play");
-                noPlay.RegisterValueChangedCallback(e => Modify("change no play weight", () => zeq.noPlayWeight = e.newValue));
+                var noPlayLabel = new Label("No-play") { tooltip = "Weight for the randomizer to play nothing at all on a trigger." };
+                noPlayLabel.AddToClassList("zs-lbl"); noPlayLabel.AddToClassList("zs-zequence-editor__toolbar-label");
+                r.Add(noPlayLabel);
+                var noPlay = Z.Int(zeq.noPlayWeight, noPlayLabel.tooltip, v => Modify("change no play weight", () => zeq.noPlayWeight = Mathf.Max(0, v)), 40f);
+                noPlay.AddToClassList("zs-imgui-field"); noPlay.AddToClassList("zs-bare-int"); noPlay.AddToClassList("zs-zequence-editor__toolbar-field");
                 refreshers.Add(() => { if (noPlay.focusController?.focusedElement != noPlay) noPlay.SetValueWithoutNotify(zeq.noPlayWeight); });
                 r.Add(noPlay);
+                r.Add(Gap(6f));
             }
-            r.Add(Flex());
-            var mode = new EnumField("Mode", zeq.mode);
-            mode.AddToClassList("zs-imgui-field"); mode.AddToClassList("zs-label-38");
-            mode.AddToClassList("zs-zequence-editor__toolbar-mode");
-            mode.RegisterValueChangedCallback(e => Modify("change zequence mode", () => zeq.mode = (CompositeZound.Mode)e.newValue));
-            r.Add(mode);
-            var duration = new FloatField("Duration") { tooltip = "This is only used to determine editor width, and doesn't affect runtime behaviour." };
-            duration.AddToClassList("zs-imgui-field"); duration.AddToClassList("zs-label-55");
-            duration.AddToClassList("zs-zequence-editor__toolbar-duration");
-            duration.SetValueWithoutNotify(zeq.editor_maxDuration / zeq.minPitch);
-            duration.RegisterValueChangedCallback(e => Modify("change max duration", () => {
-                zeq.editor_maxDuration = e.newValue * zeq.minPitch;
-                CompositeZoundEditing.RecalculateMaxDuration(zeq, autoDuration);
-            }));
-            refreshers.Add(() => { if (duration.focusController?.focusedElement != duration) duration.SetValueWithoutNotify(zeq.editor_maxDuration / zeq.minPitch); });
-            r.Add(duration);
-            // Space(5) plus the IMGUI layout margin after a standard field (measured 4 px on the old window).
-            r.Add(Gap(5f + 4f));
-            r.Add(IconButton("remove", "Remove this zound.", "RichButton", ZUICornerMask.All, 30f, EditorGUIUtility.singleLineHeight, RemoveZound));
-            r.Add(Gap(5f));
-            Button render = null;
-            render = ZS.Button("Render to Klip", "", "Default", () => RenderZequenceToKlipPopup.Show(render.worldBound.position,
-                                    zeq, CompositeZoundEditing.CalculateCompositeDuration(zeq, 1f), this), ZUICornerMask.Left, 100f, -1f);
-            render.AddToClassList("zs-layoutbutton");
-            render.SetEnabled(!Application.isPlaying);
-            r.Add(render);
-            // Space(4) plus the IMGUI layout margin before ToggleLeft's box (measured 6 px on the old window).
-            r.Add(Gap(4f + 6f));
-            var auto = new Toggle { text = "Auto-duration", value = autoDuration, tooltip = "Automatically set Duration to the length of the longest nested klip on every change." };
-            auto.AddToClassList("zs-toggleleft");
-            auto.AddToClassList("zs-zequence-editor__toolbar-auto");
-            auto.RegisterValueChangedCallback(e => { autoDuration = e.newValue; if (autoDuration) CompositeZoundEditing.AutoApplyDuration(zeq); Tick(); });
+            // Auto length (on by default), or the authored length when it is off.
+            var auto = ZS.Toggle("Auto length", "", autoDuration, v => { autoDuration = v; if (autoDuration) CompositeZoundEditing.AutoApplyDuration(zeq); Tick(); }, "RichToggle", ZUICornerMask.All, 80f, ToolH);
             r.Add(auto);
-            r.Add(Gap(5f));
-            var gc = ZS.Button("Force GC", EditorTools.ZoundGcStressTest.Tooltip + "\n\n" + EditorTools.ZoundGcStressTest.lastResult, "Default",
-                               () => EditorTools.ZoundGcStressTest.Run(IsPlaying()), ZUICornerMask.All, 72f, -1f);
-            gc.AddToClassList("zs-layoutbutton");
-            r.Add(gc);
-            r.Add(Gap(5f));
+            FloatField length = null;
+            if (!autoDuration) {
+                r.Add(Gap(4f));
+                var lengthLabel = new Label("Length") { tooltip = "The Zequence's authored length in seconds: how far the timeline reaches. Playback is not cut here; it only sets the authored end." };
+                lengthLabel.AddToClassList("zs-lbl"); lengthLabel.AddToClassList("zs-zequence-editor__toolbar-label");
+                r.Add(lengthLabel);
+                length = Z.Float(zeq.editor_maxDuration / zeq.minPitch, lengthLabel.tooltip, v => Modify("change max duration", () => {
+                    zeq.editor_maxDuration = Mathf.Max(0.01f, v) * zeq.minPitch;
+                    CompositeZoundEditing.RecalculateMaxDuration(zeq, autoDuration);
+                }), 56f, 2);
+                length.AddToClassList("zs-imgui-field"); length.AddToClassList("zs-bare-int"); length.AddToClassList("zs-zequence-editor__toolbar-field");
+                refreshers.Add(() => { if (length.focusController?.focusedElement == null || !length.Contains(length.focusController.focusedElement as VisualElement)) length.SetValueWithoutNotify(zeq.editor_maxDuration / zeq.minPitch); });
+                r.Add(length);
+            }
+            refreshers.Add(() => {
+                auto.SetValueWithoutNotify(autoDuration);
+                auto.tooltip = autoDuration ? "The Zequence's length follows its longest track. Click to set a length of your own."
+                                            : "The length is set by hand (the Length box). Click to have it follow the longest track.";
+            });
+            r.Add(Gap(6f));
+            editToolsButton = ZS.Toggle("Edit tools", "", EditTools, v => { EditTools = v; header?.SetEditToolsVisible(v); Tick(); }, "RichToggle", ZUICornerMask.Left, 70f, ToolH);
+            refreshers.Add(() => editToolsButton.tooltip = EditTools ? "The timeline's edit tools (zoom, follow, ripple, trim, split, delete, copy and paste, and the overview strip) are shown. Click to hide them and keep the window lean."
+                                                                     : "Show the timeline's edit tools: zoom, follow, ripple, trim, split, delete, copy and paste, and the overview strip.");
+            r.Add(editToolsButton);
+            r.Add(ZS.Button("Tidy", "Show everything in the least space: fit the whole Zequence into view, every track at its default height, and clear the selection.", "RichButton", Tidy, ZUICornerMask.Right, 44f, ToolH));
+            r.Add(Flex());
             retriggerButton = ZS.Toggle("Retrigger", "When enabled, every trigger starts this Zequence several times. Right-click to set plays, gap and timing.", zeq.retriggerEnabled,
                 value => { Modify("toggle zequence retrigger", () => { if (value) zeq.EnableRetrigger(); else zeq.retriggerEnabled = false; }); SyncRetriggerButton(); },
-                "RichToggle", ZUICornerMask.All, 88f, EditorGUIUtility.singleLineHeight);
-            retriggerButton.AddToClassList("zs-layoutbutton");
+                "RichToggle", ZUICornerMask.All, 88f, ToolH);
             retriggerButton.RegisterCallback<PointerDownEvent>(e => {
                 if (e.button != 1) return;
                 e.StopPropagation();
                 RetriggerPopupTK.Show(retriggerButton, zeq, Tick);
             });
             r.Add(retriggerButton);
-            r.Add(Gap(5f));
-            playButton = ZS.Button("Play", "", "Default", () => {
+            r.Add(Gap(6f));
+            r.Add(ZS.Button("Bake…", "Write the Zequence, or the selected time range, to a new audio file and a new Klip. The Zequence itself stays as it is.", "RichButton", OpenBake, ZUICornerMask.All, 52f, ToolH));
+            r.Add(Gap(6f));
+            r.Add(IconButton("remove", "Delete this Zequence from the project (asks first). Cannot be undone.", "RichButton", ZUICornerMask.All, 30f, ToolH, RemoveZound));
+            r.Add(Gap(6f));
+            playButton = ZS.Button("Play", "", "RichButton", () => {
                 EnsureAudition();
                 if (audition.BurstRunning || audition.LoopRunning) audition.StopRun();
                 else audition.PlayOnce();
                 Tick();
-            }, ZUICornerMask.Right, 60f, -1f);
-            playButton.AddToClassList("zs-layoutbutton");
-            // Right-click: the audition card (T-0486).
+            }, ZUICornerMask.All, 60f, ToolH);
+            // Right-click: the audition card (T-0486), unless it is pinned into the window.
             var pb = playButton;
             pb.RegisterCallback<PointerDownEvent>(e => {
                 if (e.button != 1) return;
                 e.StopPropagation();
                 EnsureAudition();
-                AuditionPopupTK.Show(pb, audition);
+                if (AuditionPinned) return;
+                AuditionPopupTK.Show(pb, audition, v => { AuditionPinned = v; SyncPinned(); Tick(); });
             });
             r.Add(playButton);
             SyncPlayButton();
             SyncRetriggerButton();
             return r;
+        }
+
+        /// <summary>The pinned audition card under the toolbar, or nothing: the slot keeps no height while empty.</summary>
+        void SyncPinned() {
+            if (pinnedSlot == null) return;
+            pinnedSlot.Clear();
+            if (!AuditionPinned) { SyncPlayButton(); return; }
+            EnsureAudition();
+            var card = new AuditionCardTK(audition, true, v => { AuditionPinned = v; SyncPinned(); Tick(); });
+            card.AddToClassList("zs-audition-card--pinned");
+            pinnedSlot.Add(card);
+            SyncPlayButton();
+        }
+
+        /// <summary>Tidy: fit the view, every track back to its default height, no selection, scrolled to the top.</summary>
+        void Tidy() {
+            bool any = false;
+            void Reset(CompositeZound c) {
+                foreach (var e in c.zoundEntries) {
+                    if (e.editor_height != 0f) { e.editor_height = 0f; any = true; }
+                    if (e.local && c.TryGetEntryZound(e, out var z) && z is CompositeZound cc) Reset(cc);
+                }
+            }
+            Reset(zeq);
+            if (any) EditorUtility.SetDirty(ZoundsProject.Instance);
+            timeline?.ClearSelection();
+            timeline?.Fit();
+            if (scroll != null) scroll.scrollOffset = Vector2.zero;
+            Tick();
         }
 
         void SyncRetriggerButton() {
@@ -396,21 +450,23 @@ namespace Laubrary.Zounds.Uitk {
             return b;
         }
 
-        // ─────────────────────────── master section (the Zequence window's OnEndOfScrollView) ───────────────────────────
+        // ─────────────────────────── master section ───────────────────────────
 
+        /// <summary>MASTER: one row with the master volume curve switch; with it on, the curve over the Zequence's own length,
+        /// drawn in the shared lane under the tracks.</summary>
         VisualElement MasterSection() {
             float lh = EditorGUIUtility.singleLineHeight;
             bool enabled = zeq.masterVolumeEnvelope.enabled;
             var rect = new VisualElement();
-            rect.style.height = enabled ? EntryHeight : lh * 2f + 10f; rect.AddToClassList("zs-zequence-editor__master-section-rect");
-            var label = new Label("MASTER");
+            rect.style.height = enabled ? lh * 4f + 8f : lh + 8f; rect.AddToClassList("zs-zequence-editor__master-section-rect");
+            var label = new Label("MASTER") { tooltip = "The whole Zequence's own volume curve, over its length." };
             label.AddToClassList("zs-lbl"); label.AddToClassList("zs-text-subheader"); label.AddToClassList("zs-subheader");
-            Place(label, 4f, 4f, LeftSectionWidth, lh);
+            Place(label, 4f, 4f, 70f, lh);
             label.AddToClassList("zs-zequence-editor__master-section-label");
             rect.Add(label);
-            var use = ZS.Toggle("Use Volume Envelope", "", enabled, v => Modify("toggle master volume envelope", () => zeq.masterVolumeEnvelope.enabled = v),
-                                "Default", ZUICornerMask.None, LeftSectionWidth, lh);
-            Place(use, 4f, 4f + lh, LeftSectionWidth, lh);
+            var use = ZS.Toggle("Volume curve", enabled ? "The master volume curve shapes every play of the Zequence. Click to switch it off." : "Switch on a volume curve over the whole Zequence.",
+                                enabled, v => Modify("toggle master volume envelope", () => zeq.masterVolumeEnvelope.enabled = v), "RichToggle", ZUICornerMask.All, 90f, lh);
+            Place(use, 4f + 74f, 4f, 90f, lh);
             rect.Add(use);
             if (enabled) {
                 // The master curve over the Zequence's own length, edited on a copy written back through the modify path.
@@ -430,21 +486,19 @@ namespace Laubrary.Zounds.Uitk {
                 void Layout() {
                     float w = rect.layout.width;
                     if (float.IsNaN(w) || w <= 0f) return;
-                    var content = new Rect(4f, 4f, w - 8f, rect.layout.height - 8f);
-                    var right = new Rect(content.x + LeftSectionWidth + 5f, content.y, content.width - LeftSectionWidth - 5f, content.height);
-                    float fieldBox = EditorGUIUtility.fieldWidth;
-                    var timeline = new Rect(right.x + 5f, right.y, right.width - fieldBox - 15f, right.height - 20f);
-                    float globalMax = zeq.editor_maxDuration / zeq.minPitch;
-                    float dur = CompositeZoundEditing.CalculateCompositeDuration(zeq, zeq.minPitch);
-                    var bgRect = new Rect(timeline.x, content.y + lh, dur / globalMax * timeline.width, lh * 4f);
+                    // In the shared lane: the curve spans the Zequence's drawn length on the same time axis as the tracks.
+                    float laneX = ZequenceEntryTK.LaneLeft, laneW = Mathf.Max(10f, w - ZequenceEntryTK.LaneLeft - ZequenceEntryTK.LaneRight);
+                    float dur = timeline != null ? timeline.FitEnd : CompositeZoundEditing.CalculateCompositeDuration(zeq, zeq.minPitch);
+                    float x0 = laneX + (timeline != null ? timeline.TimeToLaneX(0f) * laneW / Mathf.Max(1f, timeline.laneWorld.width) : 0f);
+                    float x1 = laneX + (timeline != null ? timeline.TimeToLaneX(dur) * laneW / Mathf.Max(1f, timeline.laneWorld.width) : laneW);
+                    var bgRect = new Rect(Mathf.Max(laneX, x0), 4f + lh + 2f, Mathf.Max(1f, Mathf.Min(laneX + laneW, x1) - Mathf.Max(laneX, x0)), lh * 3f);
                     Place(bg, bgRect.x, bgRect.y, bgRect.width, bgRect.height);
                     Place(curve, bgRect.x, bgRect.y, bgRect.width, bgRect.height);
                     bool playing = currentToken != null && currentToken.state != ZoundToken.State.Killed;
                     head.style.display = playing ? DisplayStyle.Flex : DisplayStyle.None;
-                    if (playing) {
-                        float actual = currentToken.duration;
-                        float adjusted = timeline.width / globalMax * actual;
-                        Place(head, timeline.x - 1f + currentToken.time / actual * adjusted, timeline.y, 1f, timeline.height);
+                    if (playing && timeline != null) {
+                        float hx = laneX + timeline.TimeToLaneX(currentToken.time) * laneW / Mathf.Max(1f, timeline.laneWorld.width);
+                        Place(head, hx, bgRect.y, 1f, bgRect.height);
                     }
                 }
                 rect.RegisterCallback<GeometryChangedEvent>(_ => Layout());
@@ -468,21 +522,18 @@ namespace Laubrary.Zounds.Uitk {
             r.AddToClassList("zs-zequence-editor__add-row-row");
             r.Add(Flex());
             Button localKlip = null, sharedZound = null;
-            localKlip = ZS.Button("+ Local Klip", "", "RichButton", () => AddLocalKlip(parent, localKlip), ZUICornerMask.Left, 85f, -1f);
-            localKlip.AddToClassList("zs-layoutbutton");
+            localKlip = ZS.Button("+ Local Klip", "Add a track with a new sound of its own (a copy of a library sound, or a new recording).", "RichButton", () => AddLocalKlip(parent, localKlip), ZUICornerMask.Left, 85f, ToolH);
             r.Add(localKlip);
-            var localZeq = ZS.Button("+ Local Zequence", "", "RichButton", () => {
+            var localZeq = ZS.Button("+ Local Zequence", "Add a nested Zequence of this one's own.", "RichButton", () => {
                 var newZequence = new Zequence(ZoundLibrary.GetUniqueZoundId());
                 newZequence.name = ZoundDictionary.EnsureUniqueZoundName("Zequence");
                 newZequence.parentId = parent.id;
                 parent.localZequences.Add(new CompositeZound.LocalZequence(newZequence));
                 CompositeZoundEditing.AddNewZoundEntry(zeq, parent, newZequence, true, autoDuration);
                 Tick();
-            }, ZUICornerMask.None, 125f, -1f);
-            localZeq.AddToClassList("zs-layoutbutton");
+            }, ZUICornerMask.None, 125f, ToolH);
             r.Add(localZeq);
-            sharedZound = ZS.Button("+ Shared Zound", "", "RichButton", () => AddShared(parent, sharedZound), ZUICornerMask.Right, 105f, -1f);
-            sharedZound.AddToClassList("zs-layoutbutton");
+            sharedZound = ZS.Button("+ Shared Zound", "Add a track that plays a library sound (shared: editing that sound changes it everywhere).", "RichButton", () => AddShared(parent, sharedZound), ZUICornerMask.Right, 105f, ToolH);
             r.Add(sharedZound);
             return r;
         }
@@ -510,7 +561,7 @@ namespace Laubrary.Zounds.Uitk {
                 timeline = new ZequenceTimeline { t0 = viewT0, t1 = Mathf.Max(viewT0 + 0.01f, viewT1), fitted = viewFitted, follow = viewFollow, ripple = viewRipple, loop = viewLoop };
                 timeline.changed += () => { foreach (var s in strips) s.MarkDirtyRepaint(); header?.Repaint(); header?.Sync(); };
             }
-            if (!ReferenceEquals(timeline.zeq, zeq)) { timeline.zeq = zeq; timeline.ClearSelection(); timeline.focus = null; timeline.editingCurve.Clear(); }
+            if (!ReferenceEquals(timeline.zeq, zeq)) { timeline.zeq = zeq; timeline.ClearSelection(); timeline.editingCurve.Clear(); }
             timeline.Rebuild();
         }
 
@@ -520,8 +571,8 @@ namespace Laubrary.Zounds.Uitk {
             viewFollow = timeline.follow; viewRipple = timeline.ripple; viewLoop = timeline.loop;
         }
 
-        /// <summary>The lane every track and the ruler draw in: the first top-level card's timeline area (the old window's
-        /// rect maths), so all of them line up whatever the scroll bar does.</summary>
+        /// <summary>The lane every track and the ruler draw in: the first top-level card's timeline area, so all of them
+        /// line up whatever the scroll bar does.</summary>
         void UpdateLane() {
             foreach (var s in strips) {
                 if (!(s.parent is ZequenceEntryTK card) || card.IsGroupChild) continue;
@@ -554,8 +605,11 @@ namespace Laubrary.Zounds.Uitk {
             header?.Repaint();
         }
 
-        /// <summary>Applies a structural view change now (a focused track is taller, so the cards are rebuilt).</summary>
-        internal void RefreshNow() => Tick();
+        /// <summary>While a track's height grip is dragged: no rebuild (it would drop the grip mid-drag); the card resizes itself.</summary>
+        internal void OnTrackHeightChanged(ZequenceEntryTK card) { suppressRebuild = true; }
+
+        /// <summary>Applies a structural view change now (a track's new height is kept, so the cards are rebuilt).</summary>
+        internal void RefreshNow() { suppressRebuild = false; Tick(); }
 
         internal void Say(string s) { if (timeline != null) { timeline.readout = s ?? ""; header?.Sync(); } }
 
@@ -616,6 +670,26 @@ namespace Laubrary.Zounds.Uitk {
             hereOffset = from;
             hereToken = TimelineEdits.PlayFrom(zeq, from, isLocalZound, this);
             Say(hereToken != null ? "Playing from " + ZequenceTimeline.Seconds(from) + "." : "Nothing to play from there.");
+        }
+
+        /// <summary>
+        /// Plays one track on its own (a click on its waveform: from its start; a right-click: from the clicked source second,
+        /// 2026-10-08). A track already sounding this way is stopped instead. A nested Zequence plays through the
+        /// Zequence soloed to it, as its play button does.
+        /// </summary>
+        internal void PlayTrackFrom(CompositeZound.ZoundEntry entry, float sourceSeconds) {
+            if (timeline == null || !timeline.byEntry.TryGetValue(entry, out var p) || !p.found) return;
+            if (auditionTokens.TryGetValue(entry, out var live) && live.Exists(t => t != null && t.state != ZoundToken.State.Killed)) {
+                foreach (var t in live) { try { if (t != null && t.state != ZoundToken.State.Killed) t.Kill(0.03f); } catch (Exception e) { Debug.LogException(e); } }
+                auditionTokens.Remove(entry);
+                return;
+            }
+            if (p.klip == null) { CompositeZoundEditing.ToggleEntryPlay(zeq, ref entryTokens, entry, this); return; }
+            float a = float.IsNaN(sourceSeconds) ? p.exA : Mathf.Clamp(sourceSeconds, p.exA, p.exB);
+            var token = TimelineEdits.PlayTrack(p, a, this);
+            if (token == null) return;
+            auditionFrom = p.SourceToTime(a);
+            auditionTokens[entry] = new List<ZoundToken> { token };
         }
 
         /// <summary>Play only the selection (Space). Pressed again while it sounds: stop.</summary>

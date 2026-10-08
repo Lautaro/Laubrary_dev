@@ -104,30 +104,36 @@ namespace Laubrary.Zounds.Uitk {
 
         void Place(VisualElement e, float x, float w) { if (e == null) return; e.style.left = x; e.style.width = Mathf.Max(0f, w); }
 
+        // Every control has a width of its own (owner's review 2026-10-08: the stretched bars read as crowded); the tags,
+        // being text, take what is left. In a narrow window the fixed widths shrink together, never below a readable size.
+        const float NameW = 220f, RangeW = 160f, ChanceW = 110f, ColGap = 6f, MinTagsW = 60f;
+
         void Layout() {
             float width = resolvedStyle.width;
             if (float.IsNaN(width) || width <= 0f) return;
-            int fieldCount = 3 + (drawName ? 1 : 0) + (drawTags ? 1 : 0);
             float muteSoloWidth = isLocal ? 0f : 44f;
-            float fieldWidth = (width - muteSoloWidth) / fieldCount;
             if (!isLocal) {
                 const float gap = 1f;
                 float half = (muteSoloWidth - gap) * 0.5f;
                 Place(mute, 0f, half);
                 Place(solo, half + gap, muteSoloWidth - half - gap);
             }
-            float x = muteSoloWidth, w = fieldWidth - 4f;
-            if (drawName) { Place(nameField, x, w); x += fieldWidth; }
+            float wanted = (drawName ? NameW + ColGap : 0f) + RangeW * 2f + ChanceW + ColGap * 2f + (drawTags ? MinTagsW + ColGap : 0f);
+            float room = width - muteSoloWidth - (isLocal ? 0f : ColGap);
+            float k = room < wanted ? Mathf.Max(0.5f, room / wanted) : 1f;
+            float x = muteSoloWidth + (isLocal ? 0f : ColGap);
+            if (drawName) { Place(nameField, x, NameW * k); x += NameW * k + ColGap; }
+            float rw = RangeW * k;
             if (boost != null) {
                 // Beside the volume range, inside its column, so the other columns keep their places.
-                Place(volume, x, Mathf.Max(0f, w - BoostW - 2f));
-                Place(boost, x + Mathf.Max(0f, w - BoostW), BoostW);
+                Place(volume, x, Mathf.Max(0f, rw - BoostW - 2f));
+                Place(boost, x + Mathf.Max(0f, rw - BoostW), BoostW);
             }
-            else Place(volume, x, w);
-            x += fieldWidth;
-            Place(pitch, x, w); x += fieldWidth;
-            Place(chance, x, w); x += fieldWidth;
-            if (drawTags) Place(tags, x, w);
+            else Place(volume, x, rw);
+            x += rw + ColGap;
+            Place(pitch, x, rw); x += rw + ColGap;
+            Place(chance, x, ChanceW * k); x += ChanceW * k + ColGap;
+            if (drawTags) Place(tags, x, Mathf.Max(MinTagsW * k, width - x));
         }
 
         /// <summary>Brings every control up to date with the sound (an edit made elsewhere, an undo).</summary>

@@ -88,14 +88,14 @@ namespace Laubrary.Zounds.Uitk {
         /// Uses ZUI's own eye icons. <paramref name="tooltip"/> is given the current state and should say what clicking does.
         /// </summary>
         public static ZuiToggleButton Eye(bool visible, Func<bool, string> tooltip, Action<bool> onChanged,
-                                          ZUICornerMask corners = ZUICornerMask.All, float width = 22f, float height = 20f) {
+                                          ZUICornerMask corners = ZUICornerMask.All, float width = 22f, float height = 20f, float iconSize = 13f) {
             ZuiToggleButton t = null;
             VisualElement icon = null;
             void SetIcon(bool v) {
                 if (icon != null) t.Remove(icon);
-                icon = Z.Icon(v ? "eye" : "eye-closed", 13f);
+                icon = Z.Icon(v ? "eye" : "eye-closed", iconSize);
                 if (icon != null) {
-                    icon.AddToClassList("zs-eye__icon"); icon.style.left = (width - 13f) * 0.5f; icon.style.top = (height - 13f) * 0.5f;
+                    icon.AddToClassList("zs-eye__icon"); icon.style.left = (width - iconSize) * 0.5f; icon.style.top = (height - iconSize) * 0.5f;
                     t.Add(icon);
                 }
                 t.tooltip = tooltip(v);

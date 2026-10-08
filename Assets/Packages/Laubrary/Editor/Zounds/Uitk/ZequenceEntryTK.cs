@@ -10,11 +10,12 @@ using W = Laubrary.Zounds.Uitk.ZequenceEditorWindowTK;
 namespace Laubrary.Zounds.Uitk {
 
     /// <summary>
-    /// One entry card of the Zequence twin (T-0469), laid out with the old window's rect maths (DrawEntry /
-    /// DrawEntryLeftSection / DrawEntryRightSection / DrawEntryGroup): a plain entry — name, play, duration, the V/P/C
-    /// sliders (with override toggles for a shared entry), the delay slider, the waveform strip with its volume envelope,
-    /// playheads and flash, the delay labels and the button column — or a local Zequence as a group with its own header,
-    /// fields, buttons, delay, master envelope and, when expanded, its child entries and add buttons.
+    /// One track card of the Zequence editor (T-0469; laid out afresh 2026-10-08 on the owner's review). A plain track is two
+    /// rows: a header (reorder grip, play, name and length, the track's id, its start time, the curve bar for a local
+    /// Klip, then Mute / Solo / duplicate / delete / convert) and, under it, the V/P/C sliders down the left with the
+    /// track's lane on the shared timeline filling the rest. A grip along the bottom edge sets the track's own height.
+    /// A local Zequence is a group with its own header, fields, buttons, delay, master envelope and, when expanded, its
+    /// child tracks and add buttons.
     /// </summary>
     public class ZequenceEntryTK : VisualElement {
 
@@ -26,48 +27,48 @@ namespace Laubrary.Zounds.Uitk {
         readonly bool isGroupChild, found;
         readonly Zound zound;
         readonly List<Action<float>> layouts = new List<Action<float>>();
-        readonly VisualElement flash;
+        readonly VisualElement flash, dropLine;
         Rect flashRect;
+        CurveBarTK curveBar;
+        TrackStripTK strip;
 
         static readonly Color MuteOn = new Color32(107, 50, 48, 255), SoloOn = new Color(.14f, .34f, .14f, 1f);
 
         float LH => EditorGUIUtility.singleLineHeight;
-        const float FieldBoxWidth = 50f;   // EditorGUIUtility.fieldWidth at the time the old right section is drawn
+        const float Pad = 4f, HeaderH = 18f, GripH = 5f, Btn = 20f, LeftW = 150f;
+        /// <summary>A plain track's default height, the least it can be (its three sliders need the room) and the most.</summary>
+        internal const float DefaultHeight = 94f, MinHeight = 94f, MaxHeight = 600f;
 
-        /// <summary>Where a top-level card's timeline lane starts and how much it leaves at the right (the old rect maths:
-        /// 4 padding + the left section + 5 + 5, and the delay slider's number box + 15 + the padding).</summary>
-        internal const float LaneLeft = 4f + W.LeftSectionWidth + 5f + 5f, LaneRight = 4f + FieldBoxWidth + 15f - 5f;
-        /// <summary>How much taller the focused track is, for precise work on its curves.</summary>
-        internal const float FocusExtra = 150f;
+        /// <summary>Where a top-level card's timeline lane starts and how much it leaves at the right.</summary>
+        internal const float LaneLeft = Pad + LeftW + 5f, LaneRight = Pad;
         internal bool IsGroupChild => isGroupChild;
+        internal CompositeZound.ZoundEntry Entry => entry;
+        internal CompositeZound Parent => parent;
+
+        /// <summary>A track's height: its own, or the default.</summary>
+        internal static float HeightOf(CompositeZound.ZoundEntry e) => e.editor_height > 0f ? Mathf.Clamp(e.editor_height, MinHeight, MaxHeight) : DefaultHeight;
 
         public ZequenceEntryTK(W win, CompositeZound parent, CompositeZound.ZoundEntry entry, int index, float parentPitch, float parentDelay, bool darker, bool isGroupChild) {
             this.win = win; this.parent = parent; this.entry = entry; this.index = index;
             this.parentPitch = parentPitch; this.parentDelay = parentDelay; this.isGroupChild = isGroupChild;
             AddToClassList("zs-zequence-entry__root");
             found = parent.TryGetEntryZound(entry, out zound);
+            var es = ZoundsProject.Instance.projectSettings.editorStyle;
 
-            // Height: a plain entry is fixed (taller while focused); a local Zequence group grows with its master envelope and its children.
-            float h = W.EntryHeight + (win.timeline != null && ReferenceEquals(win.timeline.focus, entry) ? FocusExtra : 0f);
+            // Height: a plain entry has its own (or the default); a local Zequence group grows with its master envelope and its children.
+            float h = HeightOf(entry);
             if (found && entry.local && zound is CompositeZound comp) {
                 h = W.GroupHeaderHeight;
-                if (entry.editor_foldoutExpanded) h += comp.zoundEntries.Count * (W.EntryHeight + 4f) + LH + 10f;
+                if (entry.editor_foldoutExpanded) { foreach (var c in comp.zoundEntries) h += HeightOf(c) + 4f; h += LH + 10f; }
                 if (comp is Zequence) h += entry.volumeEnvelope.enabled ? LH * 4f : LH;
             }
             style.height = h;
 
-            // Background band.
+            // Background band (the two alternating colours are the owner's, in the Settings tab).
             var bg = new VisualElement { pickingMode = PickingMode.Ignore };
             bg.AddToClassList("zs-zequence-entry__bg");
-            if (isGroupChild) {
-                // The old bgRect: x + (offset − 2), width − (offset − 4): starts 8 in, ends 2 past the right edge.
-                bg.AddToClassList("zs-zequence-entry__background--group-child");
-                bg.AddToClassList(darker ? "zs-zequence-entry__background--group-child-dark" : "zs-zequence-entry__background--group-child-light");
-            }
-            else {
-                bg.AddToClassList("zs-zequence-entry__background--plain");
-                bg.AddToClassList(darker ? "zs-zequence-entry__background--plain-dark" : "zs-zequence-entry__background--plain-light");
-            }
+            bg.AddToClassList(isGroupChild ? "zs-zequence-entry__background--group-child" : "zs-zequence-entry__background--plain");
+            bg.style.backgroundColor = darker ? es.trackBackgroundColor : es.trackAltBackgroundColor;
             Add(bg);
 
             if (!found) BuildBroken();
@@ -78,6 +79,10 @@ namespace Laubrary.Zounds.Uitk {
             flash = new VisualElement { pickingMode = PickingMode.Ignore };
             flash.AddToClassList("zs-zequence-entry__flash"); flash.style.display = DisplayStyle.None;
             Add(flash);
+            // Where a dragged track would land: a line along this card's top or bottom edge.
+            dropLine = new VisualElement { pickingMode = PickingMode.Ignore };
+            dropLine.AddToClassList("zs-zequence-entry__drop-line"); dropLine.style.display = DisplayStyle.None;
+            Add(dropLine);
 
             RegisterCallback<GeometryChangedEvent>(_ => Layout());
         }
@@ -90,12 +95,10 @@ namespace Laubrary.Zounds.Uitk {
 
         static void Place(VisualElement e, Rect r) => W.Place(e, r.x, r.y, r.width, r.height);
 
-        Label Duration() {
-            var l = new Label { pickingMode = PickingMode.Ignore };
-            l.AddToClassList("zs-lbl"); l.AddToClassList("zs-greymini");
-            l.AddToClassList("zs-zequence-entry__duration-label");
-            Add(l);
-            return l;
+        internal void ShowDropLine(bool show, bool below) {
+            dropLine.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
+            dropLine.style.top = below ? StyleKeyword.Auto : 0f;
+            dropLine.style.bottom = below ? 0f : StyleKeyword.Auto;
         }
 
         // ─────────────────────────── broken entry ───────────────────────────
@@ -109,14 +112,77 @@ namespace Laubrary.Zounds.Uitk {
             var remove = ZS.Button("Remove", "", "RichButton", () => { CompositeZoundEditing.RemoveEntry(parent, index); }, ZUICornerMask.All, 60f, 20f);
             Add(remove);
             layouts.Add(w => {
-                var left = new Rect(0f, 0f, W.LeftSectionWidth, W.EntryHeight);
-                var right = new Rect(left.xMax + 5f, 0f, w - left.width - 5f, W.EntryHeight);
+                float hh = HeightOf(entry);
+                var left = new Rect(0f, 0f, LeftW + 40f, hh);
+                var right = new Rect(left.xMax + 5f, 0f, w - left.width - 5f, hh);
                 var label = new Rect(left.x + 5f, left.y + 5f, left.width - 10f, LH);
                 Place(title, label);
-                Place(help, new Rect(left.x + 5f, label.yMax, left.width - 10f, W.EntryHeight - 30f));
+                Place(help, new Rect(left.x + 5f, label.yMax, left.width - 10f, hh - 30f));
                 Place(remove, new Rect(right.xMax - 64f, right.y + 5f, 60f, 20f));
             });
         }
+
+        // ─────────────────────────── shared pieces of a header ───────────────────────────
+
+        /// <summary>The reorder grip (⋮⋮): drag a track up or down past the others; one undo step on release.</summary>
+        VisualElement Grip() {
+            var g = new Label("⋮⋮") { tooltip = "Drag up or down to reorder this track." };
+            g.AddToClassList("zs-lbl"); g.AddToClassList("zs-zequence-entry__grip");
+            ZequenceEntryTK target = null; bool below = false;
+            g.RegisterCallback<PointerDownEvent>(e => { if (e.button != 0) return; g.CapturePointer(e.pointerId); e.StopPropagation(); });
+            g.RegisterCallback<PointerMoveEvent>(e => {
+                if (!g.HasPointerCapture(e.pointerId)) return;
+                target?.ShowDropLine(false, false); target = null;
+                foreach (var c in Siblings()) {
+                    var wb = c.worldBound;
+                    if (e.position.y < wb.yMin || e.position.y > wb.yMax) continue;
+                    target = c; below = e.position.y > wb.center.y;
+                    if (!ReferenceEquals(c, this)) c.ShowDropLine(true, below);
+                    break;
+                }
+            });
+            g.RegisterCallback<PointerUpEvent>(e => {
+                if (!g.HasPointerCapture(e.pointerId)) return;
+                g.ReleasePointer(e.pointerId);
+                var t = target; target?.ShowDropLine(false, false); target = null;
+                if (t == null || ReferenceEquals(t, this)) return;
+                var list = parent.zoundEntries;
+                int from = list.IndexOf(entry), to = list.IndexOf(t.entry);
+                if (from < 0 || to < 0) return;
+                if (below) to++;
+                if (to > from) to--;
+                if (to == from) return;
+                win.Modify("reorder track", () => { list.RemoveAt(from); list.Insert(to, entry); });
+            });
+            return g;
+        }
+
+        /// <summary>The cards of the same list as this one (the tracks of one Zequence), in order.</summary>
+        IEnumerable<ZequenceEntryTK> Siblings() {
+            if (parent == null || this.parent == null) yield break;
+            foreach (var c in this.hierarchy.parent.Children()) if (c is ZequenceEntryTK z && ReferenceEquals(z.parent, parent)) yield return z;
+        }
+
+        /// <summary>The bottom-edge grip: drag it to set this track's height (kept with the track).</summary>
+        VisualElement HeightGrip() {
+            var g = new VisualElement { tooltip = "Drag to change this track's height." };
+            g.AddToClassList("zs-zequence-entry__height-grip");
+            float downY = 0f, downH = 0f;
+            g.RegisterCallback<PointerDownEvent>(e => { if (e.button != 0) return; downY = e.position.y; downH = HeightOf(entry); g.CapturePointer(e.pointerId); e.StopPropagation(); });
+            g.RegisterCallback<PointerMoveEvent>(e => {
+                if (!g.HasPointerCapture(e.pointerId)) return;
+                float hh = Mathf.Clamp(downH + (e.position.y - downY), MinHeight, MaxHeight);
+                if (Mathf.Approximately(hh, HeightOf(entry))) return;
+                entry.editor_height = hh;
+                EditorUtility.SetDirty(ZoundsProject.Instance);
+                style.height = hh;
+                win.OnTrackHeightChanged(this);
+            });
+            g.RegisterCallback<PointerUpEvent>(e => { if (g.HasPointerCapture(e.pointerId)) g.ReleasePointer(e.pointerId); win.RefreshNow(); });
+            return g;
+        }
+
+        Button SmallIcon(string icon, string tip, ZUICornerMask corners, Action onClick) => W.IconButton(icon, tip, "RichButton", corners, Btn, HeaderH, onClick);
 
         // ─────────────────────────── plain entry ───────────────────────────
 
@@ -124,27 +190,30 @@ namespace Laubrary.Zounds.Uitk {
             var es = ZoundsProject.Instance.projectSettings.editorStyle;
             bool randomizer = parent.mode == CompositeZound.Mode.Randomizer;
 
+            var grip = Grip(); Add(grip);
             IntegerField weight = null;
             if (randomizer) {
-                weight = new IntegerField { value = entry.chanceWeight };
+                weight = new IntegerField { value = entry.chanceWeight, tooltip = "This track's weight when the randomizer picks one track: the higher, the likelier." };
                 weight.AddToClassList("zs-imgui-field"); weight.AddToClassList("zs-bare-int");
                 weight.RegisterValueChangedCallback(e => win.Modify("changed entry chance weight", () => entry.chanceWeight = e.newValue));
                 Add(weight);
             }
 
-            // Name (opens the sound's own UI Toolkit editor) and play.
-            var name = ZS.Button(zound.name, "", "RichButton", OpenChild, ZUICornerMask.Left, -1f, LH);
-            Add(name);
-            var play = ZS.Button("►", "Play", "RichButton", () => { CompositeZoundEditing.ToggleEntryPlay(win.zeq, ref win.entryTokens, entry, win); }, ZUICornerMask.Right, 18f, LH);
+            // Play, name (opens the sound's own editor) and the length.
+            var play = ZS.Button("►", "Play", "RichButton", () => { CompositeZoundEditing.ToggleEntryPlay(win.zeq, ref win.entryTokens, entry, win); }, ZUICornerMask.Left, 18f, HeaderH);
             Add(play);
             win.liveRefreshers.Add(() => {
                 bool p = ZoundPreviewPlayback.IsLoopPlaying(win, entry);
-                play.text = p ? "⏹" : "►"; play.tooltip = p ? "Stop loop" : "Play this entry.";
+                play.text = p ? "⏹" : "►"; play.tooltip = p ? "Stop loop" : "Play this track as part of the Zequence (its delay, volume and pitch applied).";
             });
-            var duration = Duration();
+            var name = ZS.Button(zound.name, "", "RichButton", OpenChild, ZUICornerMask.Right, -1f, HeaderH);
+            name.AddToClassList("zs-zequence-entry__name");
+            Add(name);
+            var duration = new Label { pickingMode = PickingMode.Ignore };
+            duration.AddToClassList("zs-lbl"); duration.AddToClassList("zs-greymini"); duration.AddToClassList("zs-zequence-entry__duration-label");
+            Add(duration);
 
             // The track's ZPOC id (T-0495): how game code reaches this track by name through a play's token.
-            // The track's ZPOC mark (T-0514): a dull bolt alone with no id; the lit bolt and the id as plain text with one.
             var idChip = new VisualElement { tooltip = "" };
             idChip.AddToClassList("zs-zpocchip");
             idChip.AddToClassList("zs-zequence-entry__plain-id-chip");
@@ -171,13 +240,26 @@ namespace Laubrary.Zounds.Uitk {
                 Layout();   // the chip is sized to its text
             });
 
+            // Start: when this track starts, in seconds after the Zequence starts (the piece can also be dragged by its top strip).
+            var startLabel = new Label("Start") { pickingMode = PickingMode.Ignore };
+            startLabel.AddToClassList("zs-lbl"); startLabel.AddToClassList("zs-mini"); startLabel.AddToClassList("zs-zequence-entry__start-label");
+            Add(startLabel);
+            var start = Z.Float(entry.delay / parentPitch, "When this track starts, in seconds after the Zequence starts. Drag to scrub, or type. Or drag the thin strip along the top of its piece.",
+                v => win.Modify("change zequence entry delay", () => {
+                    entry.delay = Mathf.Max(0f, v) * parentPitch;
+                    CompositeZoundEditing.RecalculateMaxDuration(win.zeq, win.AutoDuration);
+                }), 56f, 2);
+            start.AddToClassList("zs-imgui-field"); start.AddToClassList("zs-bare-int"); start.AddToClassList("zs-zequence-entry__start");
+            win.refreshers.Add(() => { if (start.focusController?.focusedElement == null || !start.Contains(start.focusController.focusedElement as VisualElement)) start.SetValueWithoutNotify(entry.delay / parentPitch); });
+            Add(start);
+
             // V / P / C.
-            var sliders = new List<(VisualElement e, int row)>();
-            var toggles = new List<(Toggle t, int row)>();
+            var sliders = new List<VisualElement>();
+            var toggles = new List<Toggle>();
             var geo = SliderGeometry();
             Func<float, float, string> compact = EditorFieldsUtility.VpcCompactLabel ? (Func<float, float, string>)CompactText : null;
             float scale = EditorFieldsUtility.VpcPercentage ? 100f : 1f;
-            ZuiSkinRangeSlider Range(string label, float lo, float hi, float absMin, float absMax, Action<float, float> set, Func<(float, float)> read) {
+            ZuiSkinRangeSlider Range(string label, float lo, float hi, float absMin, float absMax, Action<float, float> set, Func<(float, float)> read, string tip) {
                 var s = new ZuiSkinRangeSlider(label, lo * scale, hi * scale, absMin * scale, absMax * scale, geo,
                     (a, b) => {
                         a /= scale; b /= scale;
@@ -185,6 +267,7 @@ namespace Laubrary.Zounds.Uitk {
                         set(a, b);
                     }, null, compact == null ? null : (a, b) => compact(a / scale, b / scale));
                 s.AddToClassList("zs-slider-minmax");
+                s.tooltip = tip;
                 if (compact != null) s.CompactWidth = CompactWidth;
                 win.refreshers.Add(() => { var (a, b) = read(); s.SetValuesWithoutNotify(a * scale, b * scale); });
                 Add(s);
@@ -192,17 +275,17 @@ namespace Laubrary.Zounds.Uitk {
             }
             if (entry.local) {
                 var z = zound;
-                sliders.Add((Range("V", z.minVolume, z.maxVolume, Zound.MinVolumeRange, Zound.MaxVolumeRange, (a, b) => win.Modify("change entry volume", () => {
-                    z.minVolume = ZoundBrowserEditor<Klip>.RoundTo3DecimalPlaces(a); z.maxVolume = ZoundBrowserEditor<Klip>.RoundTo3DecimalPlaces(b); }), () => (z.minVolume, z.maxVolume)), 0));
-                sliders.Add((Range("P", z.minPitch, z.maxPitch, Zound.MinPitchRange, Zound.MaxPitchRange, (a, b) => win.Modify("change entry pitch", () => {
-                    z.minPitch = ZoundBrowserEditor<Klip>.RoundTo3DecimalPlaces(a); z.maxPitch = ZoundBrowserEditor<Klip>.RoundTo3DecimalPlaces(b); }), () => (z.minPitch, z.maxPitch)), 1));
-                sliders.Add((Range("C", z.chance, z.chance, Zound.MinChanceRange, Zound.MaxChanceRange, (a, b) => win.Modify("change entry chance", () => {
-                    z.chance = ZoundBrowserEditor<Klip>.RoundTo3DecimalPlaces(!Mathf.Approximately(a, z.chance) ? a : b); }), () => (z.chance, z.chance)), 2));
+                sliders.Add(Range("V", z.minVolume, z.maxVolume, Zound.MinVolumeRange, Zound.MaxVolumeRange, (a, b) => win.Modify("change entry volume", () => {
+                    z.minVolume = ZoundBrowserEditor<Klip>.RoundTo3DecimalPlaces(a); z.maxVolume = ZoundBrowserEditor<Klip>.RoundTo3DecimalPlaces(b); }), () => (z.minVolume, z.maxVolume), "Volume: each play draws a level between these."));
+                sliders.Add(Range("P", z.minPitch, z.maxPitch, Zound.MinPitchRange, Zound.MaxPitchRange, (a, b) => win.Modify("change entry pitch", () => {
+                    z.minPitch = ZoundBrowserEditor<Klip>.RoundTo3DecimalPlaces(a); z.maxPitch = ZoundBrowserEditor<Klip>.RoundTo3DecimalPlaces(b); }), () => (z.minPitch, z.maxPitch), "Pitch: each play draws a pitch between these."));
+                sliders.Add(Range("C", z.chance, z.chance, Zound.MinChanceRange, Zound.MaxChanceRange, (a, b) => win.Modify("change entry chance", () => {
+                    z.chance = ZoundBrowserEditor<Klip>.RoundTo3DecimalPlaces(!Mathf.Approximately(a, z.chance) ? a : b); }), () => (z.chance, z.chance), "Chance that a trigger plays this track."));
             }
             else {
-                sliders.Add((Range("V", entry.volume, entry.volume, Zound.MinVolumeRange, Zound.MaxVolumeRange, (a, b) => win.Modify("change entry volume", () => entry.volume = !Mathf.Approximately(a, entry.volume) ? a : b), () => (entry.volume, entry.volume)), 0));
-                sliders.Add((Range("P", entry.pitch, entry.pitch, Zound.MinPitchRange, Zound.MaxPitchRange, (a, b) => win.Modify("change entry pitch", () => entry.pitch = !Mathf.Approximately(a, entry.pitch) ? a : b), () => (entry.pitch, entry.pitch)), 1));
-                sliders.Add((Range("C", entry.chance, entry.chance, Zound.MinChanceRange, Zound.MaxChanceRange, (a, b) => win.Modify("change entry chance", () => entry.chance = !Mathf.Approximately(a, entry.chance) ? a : b), () => (entry.chance, entry.chance)), 2));
+                sliders.Add(Range("V", entry.volume, entry.volume, Zound.MinVolumeRange, Zound.MaxVolumeRange, (a, b) => win.Modify("change entry volume", () => entry.volume = !Mathf.Approximately(a, entry.volume) ? a : b), () => (entry.volume, entry.volume), "Volume on this track: multiplies the shared sound's own, or overrides it (O)."));
+                sliders.Add(Range("P", entry.pitch, entry.pitch, Zound.MinPitchRange, Zound.MaxPitchRange, (a, b) => win.Modify("change entry pitch", () => entry.pitch = !Mathf.Approximately(a, entry.pitch) ? a : b), () => (entry.pitch, entry.pitch), "Pitch on this track: multiplies the shared sound's own, or overrides it (O)."));
+                sliders.Add(Range("C", entry.chance, entry.chance, Zound.MinChanceRange, Zound.MaxChanceRange, (a, b) => win.Modify("change entry chance", () => entry.chance = !Mathf.Approximately(a, entry.chance) ? a : b), () => (entry.chance, entry.chance), "Chance on this track: multiplies the shared sound's own, or overrides it (O)."));
                 Toggle Over(bool v, string undo, Action<bool> set, Func<bool> read) {
                     var t = new Toggle("O") { value = v, tooltip = "Override.\n\nIf checked, then this will override the original value of the zound. If unchecked, then this will act as a multiplier of the original value." };
                     t.AddToClassList("zs-imgui-field"); t.AddToClassList("zs-label-16");
@@ -211,100 +294,90 @@ namespace Laubrary.Zounds.Uitk {
                     Add(t);
                     return t;
                 }
-                toggles.Add((Over(entry.overrideVolume, "toggle override entry volume", v => entry.overrideVolume = v, () => entry.overrideVolume), 0));
-                toggles.Add((Over(entry.overridePitch, "toggle override entry pitch", v => entry.overridePitch = v, () => entry.overridePitch), 1));
-                toggles.Add((Over(entry.overrideChance, "toggle override entry pitch", v => entry.overrideChance = v, () => entry.overrideChance), 2));
+                toggles.Add(Over(entry.overrideVolume, "toggle override entry volume", v => entry.overrideVolume = v, () => entry.overrideVolume));
+                toggles.Add(Over(entry.overridePitch, "toggle override entry pitch", v => entry.overridePitch = v, () => entry.overridePitch));
+                toggles.Add(Over(entry.overrideChance, "toggle override entry chance", v => entry.overrideChance = v, () => entry.overrideChance));
             }
 
-            // Right section: delay, timeline, waveform, envelope, playheads, labels, buttons.
-            var delay = DelaySlider(0f, 1f, v => win.Modify("change zequence entry delay", () => {
-                entry.delay = v * parentPitch;
-                CompositeZoundEditing.RecalculateMaxDuration(win.zeq, win.AutoDuration);
-            }));
-            delay.tooltip = "When this track starts, in seconds after the Zequence starts. Or drag the thin strip along the top of its piece.";
-            var drag = delay.Q(className: "unity-base-slider__drag-container");
-            if (drag != null) drag.style.display = DisplayStyle.None;
             // The track's lane on the shared timeline (T-0560..T-0566): the piece where and how it sounds, and its gestures.
-            var strip = new TrackStripTK(win, entry);
+            strip = new TrackStripTK(win, entry);
             Add(strip);
             win.strips.Add(strip);
 
-            Button dup = W.IconButton("duplicate", "Duplicate this zound entry.", "RichButton", ZUICornerMask.Left, -1f, 20f, () => CompositeZoundEditing.DuplicateEntry(parent, index));
-            Button rem = W.IconButton("remove", "Remove this zound entry.", "RichButton", ZUICornerMask.Right, -1f, 20f, () => CompositeZoundEditing.RemoveEntry(parent, index));
+            // The curve bar: only a LOCAL Klip's curves may be edited from here (a shared sound is used elsewhere too; edit it
+            // in its own editor). The same bar as the Klip editor's.
+            if (entry.local && zound is Klip localKlip) {
+                curveBar = new CurveBarTK(TrackCurves(localKlip),
+                    () => localKlip.trimEnabled, v => win.Modify("toggle klip trim", () => { KlipChainEnvelopes.EnsureSourceAnchored(localKlip); localKlip.trimEnabled = v; Dsp.ZoundDspPlayback.InvalidateLayout(localKlip); }),
+                    () => localKlip.trimEnabled ? "This track plays its sound's trimmed part. Click to play the whole recording." : "This track plays the whole recording. Click to play only its trimmed part (drag the piece's edges to set it).",
+                    () => { int p = strip.EditingParam; return p == SourceStageParam.Speed ? 0 : p == SourceStageParam.Pitch ? 1 : p == SourceStageParam.Volume ? 2 : -1; },
+                    i => strip.SetEditing(i == 0 ? SourceStageParam.Speed : i == 1 ? SourceStageParam.Pitch : i == 2 ? SourceStageParam.Volume : -1));
+                curveBar.AddToClassList("zs-zequence-entry__curve-bar");
+                Add(curveBar);
+                win.refreshers.Add(curveBar.Sync);
+            }
+
+            Button dup = SmallIcon("duplicate", "Duplicate this track (a local sound is copied, never shared).", ZUICornerMask.Left, () => CompositeZoundEditing.DuplicateEntry(parent, index));
+            Button rem = SmallIcon("remove", "Delete this track" + (entry.local ? " and its local sound." : "."), ZUICornerMask.Right, () => CompositeZoundEditing.RemoveEntry(parent, index));
             Add(dup); Add(rem);
-            var mute = ZS.Toggle("M", "Mute/Unmute", entry.mute, v => win.Modify("toggle mute", () => { entry.mute = v; if (entry.mute) entry.solo = false; }), "ZoundBtnFlatToggle", ZUICornerMask.Left, -1f, 20f, MuteOn);
-            var solo = ZS.Toggle("S", "Toggle Solo", entry.solo, v => win.Modify("toggle solo", () => { entry.solo = v; if (entry.solo) entry.mute = false; }), "ZoundBtnFlatToggle", ZUICornerMask.Right, -1f, 20f, SoloOn);
+            var mute = ZS.Toggle("M", "Mute/Unmute", entry.mute, v => win.Modify("toggle mute", () => { entry.mute = v; if (entry.mute) entry.solo = false; }), "ZoundBtnFlatToggle", ZUICornerMask.Left, Btn, HeaderH, MuteOn);
+            var solo = ZS.Toggle("S", "Toggle Solo", entry.solo, v => win.Modify("toggle solo", () => { entry.solo = v; if (entry.solo) entry.mute = false; }), "ZoundBtnFlatToggle", ZUICornerMask.Right, Btn, HeaderH, SoloOn);
             win.refreshers.Add(() => { mute.SetValueWithoutNotify(entry.mute); ZS.ApplyOnColor(mute, MuteOn); solo.SetValueWithoutNotify(entry.solo); ZS.ApplyOnColor(solo, SoloOn); });
             Add(mute); Add(solo);
             Button convert = ConversionButton();
             if (convert != null) Add(convert);
-            var up = ZS.Button("↑", "Reorder up.", "RichButton", () => Swap(index - 1), ZUICornerMask.Top, -1f, 20f);
-            var down = ZS.Button("↓", "Reorder down.", "RichButton", () => Swap(index + 1), ZUICornerMask.Bottom, -1f, 20f);
-            up.SetEnabled(index > 0); down.SetEnabled(index < parent.zoundEntries.Count - 1);
-            Add(up); Add(down);
+            var heightGrip = HeightGrip(); Add(heightGrip);
 
             layouts.Add(w => {
-                var rect = new Rect(0f, 0f, w, float.IsNaN(layout.height) || layout.height < W.EntryHeight ? W.EntryHeight : layout.height);
-                var content = isGroupChild ? new Rect(rect.x, rect.y + 4f, rect.width, rect.height - 8f) : new Rect(rect.x + 4f, rect.y + 4f, rect.width - 8f, rect.height - 8f);
+                var rect = new Rect(0f, 0f, w, float.IsNaN(layout.height) || layout.height < MinHeight ? HeightOf(entry) : layout.height);
+                var content = isGroupChild ? new Rect(rect.x + W.GroupEntryLeftOffset, rect.y + Pad, rect.width - W.GroupEntryLeftOffset, rect.height - Pad * 2f)
+                                           : new Rect(rect.x + Pad, rect.y + Pad, rect.width - Pad * 2f, rect.height - Pad * 2f);
                 flashRect = content;
-                float leftOffset = isGroupChild ? W.GroupEntryLeftOffset : 0f;
-                var left = new Rect(content.x + leftOffset, content.y, W.LeftSectionWidth - leftOffset, content.height);
-                var right = new Rect(left.xMax + 5f, content.y + LH, content.width - left.width - 5f - leftOffset, content.height - LH);
-                if (weight != null) { Place(weight, new Rect(left.position, new Vector2(22f, 20f))); left.x += 24f; left.width -= 24f; }
 
-                Place(name, new Rect(left.x, content.y, (content.width - 18f) * 0.8f, LH));
-                float chipX = left.x + (content.width - 18f) * 0.8f + 2f;
-                // Sized to its text (a bolt, or a bolt and the id), never wider than the gap before the play button;
-                // what is left over stays as space. Truncated with an ellipsis if the id is longer than the gap.
-                float chipRoom = Mathf.Max(18f, content.xMax - 18f - 2f - chipX);
-                float textW = string.IsNullOrEmpty(idText.text) ? 0f : idText.MeasureTextSize(idText.text, 0f, MeasureMode.Undefined, LH, MeasureMode.Exactly).x + 6f;
-                float chipW = Mathf.Clamp(14f + textW, 16f, chipRoom);
-                idChip.AddToClassList("zs-zequence-entry__plain-id-chip");
-                Place(idChip, new Rect(chipX, content.y, chipW, LH));
-                Place(play, new Rect(content.xMax - 18f, content.y, 18f, LH));
-                float y = content.y + LH - 3f;
+                // ── header row, from the right end backwards so the name takes what is left ──
+                float y = content.y;
+                float xr = content.xMax;
+                if (convert != null) { Place(convert, new Rect(xr - Btn, y, Btn, HeaderH)); xr -= Btn + 2f; }
+                Place(rem, new Rect(xr - Btn, y, Btn, HeaderH)); Place(dup, new Rect(xr - Btn * 2f, y, Btn, HeaderH)); xr -= Btn * 2f + 2f;
+                Place(solo, new Rect(xr - Btn, y, Btn, HeaderH)); Place(mute, new Rect(xr - Btn * 2f, y, Btn, HeaderH)); xr -= Btn * 2f + 6f;
+                if (curveBar != null) {
+                    float bw = CurveBarTK.TrimW + 4f + 3f * (CurveBarTK.NameW + CurveBarTK.IconW * 2f) + 2f * 4f + 14f;
+                    Place(curveBar, new Rect(xr - bw, y + 1f, bw, CurveBarTK.H)); xr -= bw + 6f;
+                }
+                Place(start, new Rect(xr - 56f, y, 56f, HeaderH)); xr -= 56f;
+                Place(startLabel, new Rect(xr - 30f, y, 30f, HeaderH)); xr -= 30f + 4f;
+
+                float xl = content.x;
+                Place(grip, new Rect(xl, y, 10f, HeaderH)); xl += 12f;
+                if (weight != null) { Place(weight, new Rect(xl, y, 22f, HeaderH)); xl += 24f; }
+                Place(play, new Rect(xl, y, 18f, HeaderH)); xl += 18f;
+                // The id chip is sized to its text (a bolt, or a bolt and the id), the length label is fixed; the name takes the rest.
+                float textW = string.IsNullOrEmpty(idText.text) ? 0f : idText.MeasureTextSize(idText.text, 0f, MeasureMode.Undefined, HeaderH, MeasureMode.Exactly).x + 6f;
+                float chipW = Mathf.Clamp(14f + textW, 16f, 120f);
+                const float durW = 52f;
+                float nameW = Mathf.Max(40f, xr - xl - chipW - durW - 4f);
+                Place(name, new Rect(xl, y, nameW, HeaderH)); xl += nameW;
+                Place(duration, new Rect(xl, y, durW, HeaderH)); xl += durW + 2f;
+                Place(idChip, new Rect(xl, y, chipW, HeaderH));
                 // The length a play really lasts (the live plan: trim or excerpt, curves, stretch), at the drawn speed (T-0502).
                 float dur = PlacedLength(out float endsAt);
-                Place(duration, new Rect(left.x, y, left.width * 0.75f, LH));
-                duration.text = dur.ToString("0.00") + " sec" + (endsAt > dur + 1e-3f ? " (" + endsAt.ToString("0.00") + " sec)" : "");
-                duration.tooltip = "How long this track plays, from its original audio through its live effects, at the middle of its pitch range" + (endsAt > dur + 1e-3f ? "; in brackets, when it ends on the Zequence's timeline." : ".");
-                if (entry.local) {
-                    for (int i = 0; i < sliders.Count; i++) Place(sliders[i].e, new Rect(left.x, y + LH + 1f + i * (LH + 5f), left.width - 1f, LH));
-                }
-                else {
-                    for (int i = 0; i < sliders.Count; i++) {
-                        var sr = new Rect(left.x, y + LH + 1f + i * (LH + 3f), left.width - 36f, LH);
-                        Place(sliders[i].e, sr);
-                        Place(toggles[i].t, new Rect(sr.xMax + 4f, sr.y, 20f, LH));
-                    }
-                }
+                duration.text = dur.ToString("0.00") + " s";
+                duration.tooltip = "How long this track plays, from its original audio through its live effects, at the middle of its pitch range" + (endsAt > dur + 1e-3f ? "; it ends at " + endsAt.ToString("0.00") + " s on the Zequence's timeline." : ".");
+                name.tooltip = "Open this sound's own editor." + (entry.local ? "" : "\n\nA shared sound: its curves and effects are edited there, since other sounds use it too.");
 
-                // Right section.
-                float globalMax = win.zeq.editor_maxDuration / parentPitch;
-                float total = right.width - FieldBoxWidth - 15f;
-                float parentOffset = parentDelay / globalMax * total;
-                float delayRectWidth = total - parentOffset;
-                // Only the number box: the piece itself is moved by dragging its top strip on the zoomable timeline, so a
-                // slider on a fixed axis would no longer line up with it (T-0562).
-                Place(delay, new Rect(right.x + total + 15f - 4f, right.y, FieldBoxWidth + 4f, LH));
-                delay.lowValue = 0f; delay.highValue = globalMax - parentDelay;
-                if (delay.focusController?.focusedElement == null || !delay.Contains(delay.focusController.focusedElement as VisualElement))
-                    delay.SetValueWithoutNotify(entry.delay / parentPitch);
-                var timeline = new Rect(right.x + 5f, right.y + 18f, total, right.height - 18f);
+                // ── the body: sliders down the left, the lane filling the rest, the grip along the bottom ──
+                float by = content.y + HeaderH + 2f;
+                float bh = content.yMax - GripH - by;
+                for (int i = 0; i < sliders.Count; i++) {
+                    float sy = by + i * (LH + 3f);
+                    if (entry.local) Place(sliders[i], new Rect(content.x, sy, LeftW - 1f, LH));
+                    else { Place(sliders[i], new Rect(content.x, sy, LeftW - 24f, LH)); Place(toggles[i], new Rect(content.x + LeftW - 22f, sy, 20f, LH)); }
+                }
+                var lane = new Rect(content.x + LeftW + 5f, by, content.width - LeftW - 5f, Mathf.Max(8f, bh));
                 // The strip keeps to the shared lane horizontally (it places itself); here only its rows.
-                strip.style.top = timeline.y; strip.style.height = Mathf.Max(8f, timeline.height);
-                if (win.timeline == null || win.timeline.laneWorld.width < 2f) { strip.style.left = timeline.x; strip.style.width = timeline.width; }
-
-                // Button column.
-                var col = new Rect(timeline.xMax + 5f, timeline.y, right.width - timeline.width - 10f, 20f);
-                float bw = (col.width - 2f) / 2f;
-                Place(dup, new Rect(col.x, col.y, bw, 20f)); Place(rem, new Rect(col.x + bw + 2f, col.y, bw, 20f));
-                var ms = new Rect(col.x, col.yMax + 2f, col.width, 20f);
-                Place(mute, new Rect(ms.x, ms.y, bw, 20f)); Place(solo, new Rect(ms.x + bw + 2f, ms.y, bw, 20f));
-                var conv = new Rect(ms.x, ms.yMax + 2f, ms.width, 20f);
-                if (convert != null) Place(convert, conv);
-                var ro = new Rect(conv.x, conv.yMax + 2f, conv.width, 20f);
-                Place(up, new Rect(ro.x, ro.y, ro.width / 2f, 20f)); Place(down, new Rect(ro.x + ro.width / 2f, ro.y, ro.width / 2f, 20f));
+                strip.style.top = lane.y; strip.style.height = lane.height;
+                if (win.timeline == null || win.timeline.laneWorld.width < 2f) { strip.style.left = lane.x; strip.style.width = lane.width; }
+                Place(heightGrip, new Rect(content.x, content.yMax - GripH, content.width, GripH));
             });
 
             // The flash while this entry sounds (its playheads are the strip's, where each play reads its source).
@@ -322,6 +395,29 @@ namespace Laubrary.Zounds.Uitk {
                 }
                 Flash(flashing);
             });
+        }
+
+        /// <summary>The local Klip's three curves as the shared bar sees them (on / selected / shown), written through the project's modify path.</summary>
+        List<CurveBarTK.Curve> TrackCurves(Klip k) {
+            var es = ZoundsProject.Instance.projectSettings.editorStyle;
+            ZoundModifier Mod(Func<Zound, bool, Envelope> curveOf) {
+                var env = curveOf(k, false);
+                int mi = env != null ? KlipChainEnvelopes.ModifierIndexOf(k, env) : -1;
+                var chain = Dsp.ZoundDspPlayback.ResolveChain(k, out _);
+                return mi >= 0 && chain != null && mi < chain.modifiers.Count ? chain.modifiers[mi] : null;
+            }
+            CurveBarTK.Curve Make(string label, Color colour, Func<Zound, bool, Envelope> curveOf, Action<bool> setOn) => new CurveBarTK.Curve {
+                label = label, colour = colour,
+                enabled = () => { var e = curveOf(k, false); return e != null && e.enabled; },
+                setEnabled = v => { win.Modify("toggle klip " + label.ToLowerInvariant() + " curve", () => setOn(v)); strip?.Sync(); },
+                shown = () => CurveView.IsVisible(Mod(curveOf)),
+                setShown = v => { CurveView.SetVisible(Mod(curveOf), v); strip?.Sync(); },
+            };
+            return new List<CurveBarTK.Curve> {
+                Make("Time", AudioSpectrumView.TimeCurveColor, KlipChainEnvelopes.TimeCurve, v => KlipChainEnvelopes.SetTimeEnabled(k, v)),
+                Make("Pitch", es.pitchEnvelopeColor, KlipChainEnvelopes.PitchCurve, v => KlipChainEnvelopes.SetPitchEnabled(k, v)),
+                Make("Vol", es.volumeEnvelopeColor, KlipChainEnvelopes.VolumeCurve, v => KlipChainEnvelopes.SetVolumeEnabled(k, v)),
+            };
         }
 
         /// <summary>This track's drawn length and where it ends on the Zequence timeline, from the shared placements.</summary>
@@ -350,15 +446,6 @@ namespace Laubrary.Zounds.Uitk {
             return e;
         }
 
-        /// <summary>EditorGUI.Slider: UI Toolkit's own slider with its number box (the editor's 50 px field, 5 px after the track).</summary>
-        Slider DelaySlider(float lo, float hi, Action<float> onChanged) {
-            var s = new Slider(lo, hi) { showInputField = true };
-            s.AddToClassList("zs-imgui-slider");
-            s.RegisterValueChangedCallback(e => onChanged(e.newValue));
-            Add(s);
-            return s;
-        }
-
         Button ConversionButton() {
             string icon = null, tip = null;
             if (zound is Klip k) {
@@ -367,18 +454,12 @@ namespace Laubrary.Zounds.Uitk {
             }
             else if (zound is Zequence && !entry.local) { icon = "break-to-local"; tip = BreakTip; }
             if (icon == null) return null;
-            return W.IconButton(icon, tip, "RichButton", ZUICornerMask.All, -1f, 20f, () => CompositeZoundEditing.ConvertEntry(parent, index));
+            return SmallIcon(icon, tip, ZUICornerMask.All, () => CompositeZoundEditing.ConvertEntry(parent, index));
         }
 
         const string MakeSharedTip = "<b>Convert to Shared Klip</b>\n\nConvert this Klip into a Shared Klip where it will be listed in Klip browser. Shared Klips can be used across different Zequence.";
         const string BreakTip = "<b>Break as Local Klip</b>\n\nConvert this Klip into a Local Klip where it will only be available internally in this Zequence. This will break the dependency from the original configuration of the Shared Klip, and the Shared Klip's configuration will also no longer affected by this Klip.";
         const string ReconnectTip = "<b>Reconnect to Original Shared Klip</b>\n\nConvert this Klip back into its original Shared Klip. If the original Shared Klip has been removed, then this will fallback into creating a new Shared Klip.";
-
-        void Swap(int other) {
-            var list = parent.zoundEntries;
-            if (other < 0 || other >= list.Count) return;
-            win.Modify(other < index ? "reorder up" : "reorder down", () => { var t = list[other]; list[other] = list[index]; list[index] = t; });
-        }
 
         void OpenChild() {
             // Opens the child's UI Toolkit editor, so a session in the new windows stays in them (the old windows are one
@@ -417,6 +498,7 @@ namespace Laubrary.Zounds.Uitk {
 
             // Left: the chance weight when the parent is a randomizer (the Zequence window adds it to groups too), then the
             // foldout header, rename field, play; No-Play and Mode; duration.
+            var grip = Grip(); Add(grip);
             IntegerField weight = null;
             if (parent.mode == CompositeZound.Mode.Randomizer) {
                 weight = new IntegerField { value = entry.chanceWeight };
@@ -452,7 +534,9 @@ namespace Laubrary.Zounds.Uitk {
             mode.AddToClassList("zs-imgui-field");
             mode.RegisterValueChangedCallback(e => win.Modify("change local zequence mode", () => comp.mode = (CompositeZound.Mode)e.newValue));
             Add(mode);
-            var duration = Duration();
+            var duration = new Label { pickingMode = PickingMode.Ignore };
+            duration.AddToClassList("zs-lbl"); duration.AddToClassList("zs-greymini"); duration.AddToClassList("zs-zequence-entry__duration-label");
+            Add(duration);
 
             // Right: the local Zequence's own fields, the button strip, the delay, its master envelope.
             var fieldsRow = new ZoundFieldsRowTK(comp, true, null, drawName: false, drawTags: false);
@@ -465,19 +549,22 @@ namespace Laubrary.Zounds.Uitk {
             }, ZUICornerMask.All, 60f, 20f);
             Add(renameBtn);
             var dup = W.IconButton("duplicate", "Duplicate this zound entry.", "RichButton", ZUICornerMask.Left, -1f, 20f, () => CompositeZoundEditing.DuplicateEntry(parent, index));
-            var rem = W.IconButton("remove", "Remove this zound entry.", "RichButton", ZUICornerMask.Right, -1f, 20f, () => CompositeZoundEditing.RemoveEntry(parent, index));
+            var rem = W.IconButton("remove", "Delete this zound entry.", "RichButton", ZUICornerMask.Right, -1f, 20f, () => CompositeZoundEditing.RemoveEntry(parent, index));
             var mute = ZS.Toggle("M", "Mute/Unmute", entry.mute, v => win.Modify("toggle mute", () => { entry.mute = v; if (entry.mute) entry.solo = false; }), "ZoundBtnFlatToggle", ZUICornerMask.Left, -1f, 20f, MuteOn);
             var solo = ZS.Toggle("S", "Toggle Solo", entry.solo, v => win.Modify("toggle solo", () => { entry.solo = v; if (entry.solo) entry.mute = false; }), "ZoundBtnFlatToggle", ZUICornerMask.Right, -1f, 20f, SoloOn);
             var conv = W.IconButton(comp.originalId == 0 ? "make-shared" : "reconnect-shared", comp.originalId == 0 ? MakeSharedTip : ReconnectTip, "RichButton", ZUICornerMask.All, -1f, 20f, () => CompositeZoundEditing.ConvertEntry(parent, index));
-            var up = ZS.Button("↑", "Reorder up.", "RichButton", () => Swap(index - 1), ZUICornerMask.Left, -1f, 20f);
-            var down = ZS.Button("↓", "Reorder down.", "RichButton", () => Swap(index + 1), ZUICornerMask.Right, -1f, 20f);
-            up.SetEnabled(index > 0); down.SetEnabled(index < parent.zoundEntries.Count - 1);
-            foreach (var b in new VisualElement[] { dup, rem, mute, solo, conv, up, down }) Add(b);
+            foreach (var b in new VisualElement[] { dup, rem, mute, solo, conv }) Add(b);
             win.refreshers.Add(() => { mute.SetValueWithoutNotify(entry.mute); ZS.ApplyOnColor(mute, MuteOn); solo.SetValueWithoutNotify(entry.solo); ZS.ApplyOnColor(solo, SoloOn); });
-            var delay = DelaySlider(0f, Mathf.Max(0.0001f, win.zeq.editor_maxDuration), v => win.Modify("change zequence entry delay", () => {
-                entry.delay = v;
+            var startLabel = new Label("Start") { pickingMode = PickingMode.Ignore };
+            startLabel.AddToClassList("zs-lbl"); startLabel.AddToClassList("zs-mini"); startLabel.AddToClassList("zs-zequence-entry__start-label");
+            Add(startLabel);
+            var start = Z.Float(entry.delay, "When this group starts, in seconds after the Zequence starts. Drag to scrub, or type.", v => win.Modify("change zequence entry delay", () => {
+                entry.delay = Mathf.Max(0f, v);
                 CompositeZoundEditing.RecalculateMaxDuration(win.zeq, win.AutoDuration);
-            }));
+            }), 56f, 2);
+            start.AddToClassList("zs-imgui-field"); start.AddToClassList("zs-bare-int");
+            win.refreshers.Add(() => { if (start.focusController?.focusedElement == null || !start.Contains(start.focusController.focusedElement as VisualElement)) start.SetValueWithoutNotify(entry.delay); });
+            Add(start);
             VisualElement envBG = null; EnvelopeTK curve = null;
             if (comp is Zequence && entry.volumeEnvelope.enabled) {
                 envBG = Abs(new Color(0.75f, 0.75f, 0.75f, 0.1f));
@@ -509,6 +596,7 @@ namespace Laubrary.Zounds.Uitk {
                 var content = new Rect(4f, 4f, w - 8f, layout.height - 8f);
                 var left = new Rect(content.x, content.y, W.LeftSectionWidth, content.height);
                 var right = new Rect(left.xMax + 5f, content.y, content.width - left.width - 5f, content.height);
+                Place(grip, new Rect(left.x, left.y, 10f, lh)); left.x += 12f; left.width -= 12f;
                 if (weight != null) { Place(weight, new Rect(left.position, new Vector2(22f, 20f))); left.x += 24f; left.width -= 24f; }
                 float y = left.y;
                 var label = new Rect(left.x, y, Mathf.Min((content.width - 18f) * 0.8f, left.width), lh);
@@ -523,23 +611,20 @@ namespace Laubrary.Zounds.Uitk {
                 y += 22f;
                 float dur = PlacedLength(out float endsAt);
                 Place(duration, new Rect(left.x, y, left.width * 0.75f, lh));
-                duration.text = dur.ToString("0.00") + " sec" + (endsAt > dur + 1e-3f ? " (" + endsAt.ToString("0.00") + " sec)" : "");
+                duration.text = dur.ToString("0.00") + " s" + (endsAt > dur + 1e-3f ? " (" + endsAt.ToString("0.00") + " s)" : "");
 
                 float ry = right.y;
                 Place(fieldsRow, new Rect(right.x, ry, right.width, lh));
                 ry += lh + 2f;
                 Place(renameBtn, new Rect(right.x, ry, 60f, 20f));
-                float bw = (right.width - 60f - 2f) / 7f - 2f, bx = right.x + 62f;
-                foreach (var b in new VisualElement[] { dup, rem, mute, solo, conv, up, down }) { Place(b, new Rect(bx, ry, bw, 20f)); bx += bw + 2f; }
+                float bx = right.x + 62f;
+                foreach (var b in new VisualElement[] { dup, rem, mute, solo, conv }) { Place(b, new Rect(bx, ry, 24f, 20f)); bx += 26f; }
+                Place(startLabel, new Rect(bx + 6f, ry, 30f, 20f)); Place(start, new Rect(bx + 36f, ry, 56f, 20f));
                 ry += 22f;
-                Place(delay, new Rect(right.x, ry, right.width, lh));
-                delay.highValue = Mathf.Max(0.0001f, win.zeq.editor_maxDuration);
-                if (delay.focusController?.focusedElement == null || !delay.Contains(delay.focusController.focusedElement as VisualElement)) delay.SetValueWithoutNotify(entry.delay);
-                ry += lh + 2f;
                 if (comp is Zequence) {
                     if (entry.volumeEnvelope.enabled) {
                         float globalMax = win.zeq.editor_maxDuration / win.zeq.minPitch, globalDelay = entry.delay / win.zeq.minPitch;
-                        float total = right.width - FieldBoxWidth - 15f;
+                        float total = right.width - 50f - 15f;
                         float off = globalDelay / globalMax * total;
                         var bgR = new Rect(right.x + off + 5f, ry, dur / globalMax * total, lh * 4f);
                         Place(envBG, bgR); Place(curve, bgR);
@@ -550,9 +635,9 @@ namespace Laubrary.Zounds.Uitk {
                 flashRect = new Rect(content.x, content.y, content.width, ry - content.y);
 
                 float cy = content.y + W.GroupHeaderHeight + (comp is Zequence ? (entry.volumeEnvelope.enabled ? lh * 4f : lh) : 0f);
-                foreach (var c in children) { W.Place(c, content.x, cy, content.width, W.EntryHeight); cy += W.EntryHeight + 4f; }
+                foreach (var c in children) { float ch = HeightOf(c.entry); W.Place(c, content.x, cy, content.width, ch); cy += ch + 4f; }
                 if (addKlip != null) {
-                    float ay = ry + children.Count * (W.EntryHeight + 4f) + 6f;
+                    float ay = cy + 2f;
                     float xo = right.xMax - (right.x + 85f + 4f + 105f);
                     Place(addKlip, new Rect(right.x + xo, ay, 85f, lh));
                     Place(addShared, new Rect(right.x + 85f + 4f + xo, ay, 105f, lh));
