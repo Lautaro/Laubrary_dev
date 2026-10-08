@@ -112,15 +112,11 @@ namespace Laubrary.Zounds.Uitk {
 
         VisualElement Header() {
             var r = HRow(-1f);
-            var toggle = ZS.Toggle(model.open ? "Analyse ▾" : "Analyse ▸", model.open ? "Hide the chain's measurement graphs." : "Show the chain's measured processing and live output graphs.", model.open, v => { model.open = v; Tick(); },
-                                   "RichToggle", ZUICornerMask.All, 90f, 30.52f);
+            // The same 20 px as every other row (it was a 30 px button over a "see what this chain is doing" caption, 2026-10-08).
+            var toggle = ZS.Toggle(model.open ? "Analyse ▾" : "Analyse ▸", model.open ? "Hide the chain's measurement graphs." : "See what this chain is doing: its measured processing and live output graphs.", model.open, v => { model.open = v; Tick(); },
+                                   "RichToggle", ZUICornerMask.All, 90f, 20f);
             r.Add(toggle);
-            if (!model.open) {
-                var l = new Label("see what this chain is doing");
-                l.AddToClassList("zs-lbl"); l.AddToClassList("zs-text-default"); l.AddToClassList("zs-subtle");
-                r.Add(l);
-                return r;
-            }
+            if (!model.open) return r;
             var gap = new VisualElement(); gap.AddToClassList("zs-chain-analyser__header-gap"); r.Add(gap);
             Tab(r, ChainAnalyserPanel.View.Combined, "Combined");
             Tab(r, ChainAnalyserPanel.View.LiveSpectrum, "Spectrum");

@@ -836,7 +836,7 @@ namespace Laubrary.Zounds {
                 if (sb.Length > 0) sb.Append(", ");
                 sb.Append(TargetLabel(chain, b));
             }
-            return sb.Length == 0 ? "not bound — right-click a parameter to bind it" : "→ " + sb;
+            return sb.Length == 0 ? "moves nothing yet — Bind…, or right-click a setting" : "→ " + sb;
         }
 
         internal static string TargetLabel(ZoundEffectChain chain, ZoundModifierBinding b) {

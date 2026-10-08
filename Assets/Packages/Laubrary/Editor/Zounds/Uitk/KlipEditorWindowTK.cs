@@ -19,7 +19,9 @@ namespace Laubrary.Zounds.Uitk {
         [SerializeField] int targetZoundID;
         [SerializeField] bool isLocalZound;
 
-        const float Row = 10f;   // the Zounds sheet's verticalSpacing (ZUI.RowSpace)
+        // The window's vertical rhythm (tightened 2026-10-08, owner's review: loose empty bands): a small gap between
+        // bands, a slightly larger one before the chain, nothing else.
+        const float Gap4 = 4f, Band = 6f;
 
         Klip klip;
         ZoundFieldsRowTK fields;
@@ -184,7 +186,7 @@ namespace Laubrary.Zounds.Uitk {
             EnsureAudition();
 
             // ── header row (ZoundInspector.DrawSimple) ──
-            root.Add(VSpace(Row));
+            root.Add(VSpace(Gap4));
             fields = new ZoundFieldsRowTK(klip, isLocalZound, () => titleContent = new GUIContent(TitleFor(klip)));
             root.Add(fields);
             // A Klip with no reference at all is a legitimate placeholder: say so, and let the Source field below take one.
@@ -192,14 +194,16 @@ namespace Laubrary.Zounds.Uitk {
             bool hasExternalSource = !string.IsNullOrEmpty(klip.externalSourcePath);
             bool hasValidClip = hasInternalSource || hasExternalSource;
             if (!hasValidClip) root.Add(new HelpBox("No audio assigned yet. Assign one in the 'Clip References' tab or the Source field below.", HelpBoxMessageType.Info));
-            root.Add(VSpace(Row));
+            root.Add(VSpace(Gap4));
 
-            // ── content box (ZUI.Box, "Default") ──
+            // ── content box (ZUI.Box, "Default"); its background is the Settings tab's when one is set ──
             var box = new VisualElement();
             box.AddToClassList("zs-box-default");
             box.AddToClassList("zs-klip-editor__box");
+            var es = ZoundsProject.Instance.projectSettings.editorStyle;
+            if (es.editorBackgroundColor.a > 0f) { box.style.backgroundImage = StyleKeyword.None; box.style.backgroundColor = es.editorBackgroundColor; }
             root.Add(box);
-            box.Add(VSpace(Row));
+            box.Add(VSpace(Gap4));
 
             EnsureSpectrum();
             RefreshSpectrum();
@@ -234,27 +238,26 @@ namespace Laubrary.Zounds.Uitk {
             var scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.AddToClassList("zs-klip-editor__scroll");
             box.Add(scroll);
-            scroll.Add(VSpace(Row));
+            scroll.Add(VSpace(Gap4));
 
-            // Waveform block: toolbar, half a row, the waveform with its trim and envelopes (T-0468).
+            // Waveform block: the curve bar, the waveform with its trim and envelopes (T-0468), its height grip.
             waveform = new KlipWaveformTK(spectrum, klip) { onReleased = EndWaveformDrag };
             scroll.Add(waveform);
 
-            // ── action row, then the audition card when it is pinned ──
-            scroll.Add(VSpace(Row));
+            // ── the action row (Retrigger, Delete, Play), then the audition card when it is pinned ──
+            scroll.Add(VSpace(Gap4));
             scroll.Add(BuildActionRow(sourceAvailable));
             pinnedSlot = new VisualElement();
             pinnedSlot.AddToClassList("zs-klip-editor__pinned");
             scroll.Add(pinnedSlot);
             SyncPinned();
-            scroll.Add(VSpace(Row * 2f));
 
-            // ── time-stretch strip, then the chain editor (T-0462 onward) ──
-            scroll.Add(VSpace(Row));
+            // ── the Looper and speed rows, then the chain editor (T-0462 onward) ──
+            scroll.Add(VSpace(Band));
             scroll.Add(new LooperTK(klip));   // T-0476
-            scroll.Add(VSpace(4f));
+            scroll.Add(VSpace(2f));
             scroll.Add(new TimeStretchTK(klip));
-            scroll.Add(VSpace(Row));
+            scroll.Add(VSpace(Band));
             scroll.Add(new ChainEditorTK(klip, this));
 
             syncTick = root.schedule.Execute(Sync).Every(200);
@@ -263,17 +266,13 @@ namespace Laubrary.Zounds.Uitk {
         VisualElement BuildActionRow(bool sourceAvailable) {
             const float h = 20f;
             var r = HRow(h);
-            // Delete (the old "Remove": it deletes the sound from the project after a confirmation, so it says so).
-            var delete = ZequenceEditorWindowTK.IconButton("remove", "Delete this sound from the project (asks first). Cannot be undone.", "RichButton", ZUICornerMask.All, 30f, h, Remove);
-            r.Add(delete);
             if (klip.parentId == 0 && ZoundsProject.Instance.browserSettings.showConvertToZequence) {
-                r.Add(Gap(4f));
                 var convert = ZS.Button("Convert to Zeq", "Make a sequence containing this sound as a local entry.", "RichButton", ConvertToZeq, ZUICornerMask.All, 100f, h);
                 convert.SetEnabled(sourceAvailable);
                 r.Add(convert);
             }
+            // Retrigger, Delete, Play at the right, in the Zequence toolbar's order (Delete used to sit alone at the left, 2026-10-08).
             r.Add(Flex());
-            r.Add(Gap(5f));
             retriggerButton = ZS.Toggle("Retrigger", "When enabled, every trigger starts this Klip several times. Right-click to set plays, gap and timing.", klip.retriggerEnabled,
                 value => { ZoundsWindow.ModifyZoundsProject("toggle klip retrigger", () => { if (value) klip.EnableRetrigger(); else klip.retriggerEnabled = false; }); SyncRetriggerButton(); },
                 "RichToggle", ZUICornerMask.All, 88f, h);
@@ -283,7 +282,10 @@ namespace Laubrary.Zounds.Uitk {
                 RetriggerPopupTK.Show(retriggerButton, klip, Sync);
             });
             r.Add(retriggerButton);
-            r.Add(Gap(5f));
+            r.Add(Gap(6f));
+            // Delete (the old "Remove": it deletes the sound from the project after a confirmation, so it says so).
+            r.Add(ZequenceEditorWindowTK.IconButton("remove", "Delete this sound from the project (asks first). Cannot be undone.", "RichButton", ZUICornerMask.All, 30f, h, Remove));
+            r.Add(Gap(6f));
             playButton = ZS.Button("Play", "", "RichButton", PlayOrStop, ZUICornerMask.All, 60f, h);
             WireAuditionMenu(playButton);
             r.Add(playButton);

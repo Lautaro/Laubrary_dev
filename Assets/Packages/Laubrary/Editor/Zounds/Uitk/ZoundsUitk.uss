@@ -118,6 +118,12 @@
    it (measured 12.4 px at 225 %). */
 .zs-root .zs-editicon { position: absolute; left: 50%; top: 50%; width: 12.4px; height: 12.4px; translate: -50% -50%; }
 
+/* A skin slider's fill and rest each carry a 1 px border, so where they meet two upright lines stood through the
+   label ("Speed ×1|00", "Win|dow 28 ms" read as a stray caret, 2026-10-08). The seam between them has no border. */
+.zs-root .zui-slider .zui-skinslider__fill { border-right-width: 0; }
+.zs-root .zui-slider .zui-skinslider__rest { border-left-width: 0; }
+.zs-root .zui-minmax .zui-skinslider__fill { border-left-width: 0; border-right-width: 0; }
+
 /* A disabled ZUI control: ZUI draws it at 0.4 alpha and IMGUI halves a disabled control's alpha again, so the whole
    control (background, border and text) sits at 0.2 over what is behind it — measured 0.18-0.21 per channel on the old
    window's greyed "Phase vocoder". */
@@ -342,18 +348,6 @@
 .zs-root .zs-settingsstatus { font-size: 10px; height: 18px; padding-left: 2px; margin: 1px 0 2px 0; color: rgb(210,210,210); }
 .zs-root .zs-settingsstatus--warn { background-color: rgba(64,64,64,0.4); border-radius: 3px; font-size: 10px; }
 .zs-root .zs-settingspath--missing > .unity-base-text-field__input { color: rgb(255,178,128); }
-/* The Zound's own values (T-0493): Volume, Pitch, Speed, Drive, shown (not dragged) with what moves them. */
-.zs-root .zs-ownvalue {
-    background-color: rgba(0,0,0,0.22);
-    border-width: 1px; border-color: rgba(128,128,128,0.35);
-    border-top-left-radius: 2px; border-top-right-radius: 2px; border-bottom-left-radius: 2px; border-bottom-right-radius: 2px;
-    overflow: hidden;
-}
-.zs-root .zs-ownvalue--bound { border-color: rgba(115,191,255,0.55); }
-.zs-root .zs-ownvalue--code { border-color: rgba(255,150,40,0.8); }
-.zs-root .zs-ownvalue__text { font-size: 10px; color: rgb(170,170,178); -unity-text-align: middle-left; padding: 0 5px 0 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.zs-root .zs-ownvalue--bound .zs-ownvalue__text { color: rgb(215,215,222); }
-.zs-root .zs-ownvalue--code .zs-ownvalue__text { color: rgb(255,170,70); }
 /* Snapshots (T-0498): one chip per snapshot; the one a playing sound is gliding to fills as it goes. */
 .zs-root .zs-snapchip {
     border-width: 1px; border-color: rgba(128,128,128,0.5);
@@ -457,11 +451,6 @@
 .zs-root.zs-chain-editor__nodes-drop-line, .zs-root .zs-chain-editor__nodes-drop-line { position: absolute; left: 0px; right: 0px; height: 2px; }
 .zs-root.zs-chain-editor__add-effect-row-tail, .zs-root .zs-chain-editor__add-effect-row-tail { width: 110px; }
 .zs-root.zs-chain-editor__modifiers-header-label, .zs-root .zs-chain-editor__modifiers-header-label { width: 80px; }
-.zs-root.zs-chain-editor__own-values-row-row, .zs-root .zs-chain-editor__own-values-row-row { margin-bottom: 2px; }
-.zs-root.zs-chain-editor__own-values-row-title, .zs-root .zs-chain-editor__own-values-row-title { flex-shrink: 0; }
-.zs-root.zs-chain-editor__horizontal-space, .zs-root .zs-chain-editor__horizontal-space { flex-shrink: 0; }
-.zs-root.zs-chain-editor__own-value-box, .zs-root .zs-chain-editor__own-value-box { width: 150px; margin-top: 1px; flex-shrink: 0; }
-.zs-root.zs-chain-editor__own-value-text, .zs-root .zs-chain-editor__own-value-text { position: absolute; left: 0px; right: 0px; top: 0px; bottom: 0px; }
 .zs-root.zs-chain-editor__binding-chip, .zs-root .zs-chain-editor__binding-chip { flex-direction: row; align-items: center; }
 .zs-root.zs-chain-editor__zpoc-chip-bolt, .zs-root .zs-chain-editor__zpoc-chip-bolt { width: 12px; height: 14px; flex-shrink: 0; }
 .zs-root.zs-chain-editor__zpoc-chip-text, .zs-root .zs-chain-editor__zpoc-chip-text { flex-grow: 1; flex-shrink: 1; }
@@ -686,9 +675,10 @@
 .zs-root .zs-chain-analyser__lane-label { width: 150px; }
 .zs-root .zs-chain-editor__effect-summary { right: 24px; }
 .zs-root .zs-chain-editor__add-effect-tail { height: 20px; }
-.zs-root .zs-chain-editor__own-values-label { width: 64px; padding-left: 20px; }
-.zs-root .zs-chain-editor__own-value-control { height: 18px; }
-.zs-root .zs-chain-editor__binding-targets { right: 30px; }
+/* The targets summary ends before the card's Bind… button (48) and its × (20). */
+.zs-root .zs-chain-editor__binding-targets { right: 82px; }
+/* The snapshots row inside the chain's library band: it takes the room between the title and the library buttons. */
+.zs-root .zs-snapshots-row--inline { flex-grow: 1; flex-shrink: 1; min-width: 0; margin: 0 8px 0 8px; }
 .zs-root .zs-chain-editor__curve-stage { left: 20px; }
 .zs-root .zs-monitor__toolbar-height, .zs-root .zs-monitor__status-height { height: 30px; }
 .zs-root .zs-toolbar > .zs-monitor__filter-height { height: 30px; }
@@ -734,6 +724,11 @@
 /* The one curve toolbar (CurveBarTK), shared by the Klip editor and every local track: small, one row. */
 .zs-root.zs-curvebar, .zs-root .zs-curvebar { flex-direction: row; flex-shrink: 0; height: 16px; align-items: center; }
 .zs-root .zs-curvebar__toggle.unity-button, .zs-root .zs-curvebar__toggle { font-size: 10px; padding-left: 3px; padding-right: 3px; }
+/* A curve's three chips wear the colour the curve is drawn in (the colour itself is the Settings tab's, set in code):
+   off = outline and text in it over the skin's dark face; on = a translucent fill of it with light text. The skin's
+   orange "on" picture is turned off so the fill can show. Only the shape and the fixed text colour live here. */
+.zs-root .zs-curvebar__toggle--curve.zui-togglebutton--on, .zs-root .zs-curvebar__toggle--curve.zui-togglebutton--on:hover, .zs-root .zs-curvebar__toggle--curve.zui-togglebutton--on:active { background-image: none; color: rgb(240,240,244); }
+.zs-root .zs-curvebar__toggle--curve { border-width: 1px; }
 .zs-root .zs-curvebar__pencil { position: absolute; left: 50%; top: 50%; width: 11px; height: 11px; translate: -50% -50%; }
 .zs-root .zs-curvebar__gap { flex-shrink: 0; }
 .zs-root .zs-lbl.zs-curvebar__warn { width: 12px; font-size: 10px; }

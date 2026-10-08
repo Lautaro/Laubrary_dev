@@ -28,7 +28,8 @@ namespace Laubrary.Zounds.Uitk {
         [SerializeField] bool autoDuration = true;
 
         internal const float LeftSectionWidth = 190f;
-        internal const float GroupHeaderHeight = 68f;
+        /// <summary>A group card's header: two 18 px rows (2026-10-08; it was three rows, 68 px).</summary>
+        internal const float GroupHeaderHeight = 4f + 18f + 2f + 18f + 2f;
         internal const float GroupEntryLeftOffset = 10f;
 
         internal Zequence zeq;

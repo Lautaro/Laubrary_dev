@@ -72,7 +72,8 @@ namespace Laubrary.Zounds.Uitk {
                 () => model.TrimEnabled, v => { model.SetTrimEnabled(v); Refresh(); },
                 () => model.TrimEnabled ? "Source trim is active. Click to use the whole recording." : "Source trim is off. Click to use the authored start and end points.",
                 () => model.ShowTimeHandles ? 0 : model.ShowPitchHandles ? 1 : model.ShowVolumeHandles ? 2 : -1,
-                i => { Select(i == 0 ? AudioSpectrumView.Curve.Time : i == 1 ? AudioSpectrumView.Curve.Pitch : AudioSpectrumView.Curve.Volume, i >= 0); Refresh(); });
+                i => { Select(i == 0 ? AudioSpectrumView.Curve.Time : i == 1 ? AudioSpectrumView.Curve.Pitch : AudioSpectrumView.Curve.Volume, i >= 0); Refresh(); },
+                ZoundsProject.Instance.projectSettings.editorStyle.trimHandleColor);
             row.Add(bar);
             row.Add(Gap(8f));
             clamp = ZS.Toggle("Clamp", "", model.ClampToTrim, v => { model.SetClampToTrim(v); Refresh(); }, "RichToggle", ZUICornerMask.All, 46f, CurveBarTK.H);

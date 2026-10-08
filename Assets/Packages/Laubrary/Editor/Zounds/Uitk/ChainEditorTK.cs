@@ -189,8 +189,9 @@ namespace Laubrary.Zounds.Uitk {
             refreshers.Clear(); liveRefreshers.Clear(); nodeRows.Clear();
             bool linked = preset != null;
 
+            // One band: the chain's name and library buttons, with the snapshots in between (two rows before 2026-10-08).
             if (Has(ChainEditorFeatures.Library)) Add(LibraryBar(chain, preset));
-            if (snapshotsRow != null) Add(snapshotsRow);
+            else if (snapshotsRow != null) Add(snapshotsRow);
             Add(ErrorRow(chain, linked));
 
             bool two = TwoColumns(w);
@@ -217,7 +218,6 @@ namespace Laubrary.Zounds.Uitk {
 
             put = mods;
             mods.Add(ModifiersHeader(chain));
-            if (Has(ChainEditorFeatures.SourceStage)) mods.Add(OwnValuesRow(chain));
             for (int m = 0; m < chain.modifiers.Count; m++) {
                 var mod = chain.modifiers[m];
                 if (mod.type == ZoundModifierType.Code && !Has(ChainEditorFeatures.CodeModifier)) continue;
@@ -298,6 +298,7 @@ namespace Laubrary.Zounds.Uitk {
                     : "This zound's own chain. Save it as a preset to share it with other zounds.";
             });
             r.Add(title);
+            if (snapshotsRow != null) { snapshotsRow.AddToClassList("zs-snapshots-row--inline"); r.Add(snapshotsRow); }
             r.Add(Flex());
             Button lib = null, save = null;
             lib = ZS.Button("Library…", "Browse the chain presets: use one on this zound, audition it, rename, duplicate or delete presets.", "RichButton",
@@ -741,13 +742,13 @@ namespace Laubrary.Zounds.Uitk {
 
         VisualElement ModifiersHeader(ZoundEffectChain chain) {
             var r = HRow();
-            var l = Text("Modifiers", "Value sources that drive effect parameters and the source stage (pitch, source gain): envelopes over the play, LFOs, a random value per play, or a step list. Bind one from a parameter's right-click menu.",
+            var l = Text("Modifiers", "Value sources that move settings while the sound plays: envelopes over the play, LFOs, a random value per play, or a step list. Each one is bound to what it moves (an effect's setting, or the sound's own volume, pitch, speed or drive) with its Bind… button, or from a setting's right-click menu. The sound's own volume, pitch and time curves are not listed here: they are edited on the waveform.",
                          "zs-text-subheader", "zs-subheader");
             l.AddToClassList("zs-chain-editor__modifiers-header-label");
             r.Add(l);
             r.Add(Flex());
             Button add = null;
-            add = ZS.Button("Add modifier…", "Adds a modifier to the stack; bind it to a parameter from that parameter's right-click menu.", "RichButton", () => {
+            add = ZS.Button("Add modifier…", "Adds a modifier to the stack; then bind it to what it should move with its Bind… button.", "RichButton", () => {
                 var menu = Z.Menu(add).Search("Find modifier…");
                 for (int t = 0; t < ZoundEffectDescriptors.ModifierTypeCount; t++) {
                     var type = (ZoundModifierType)t;
@@ -764,104 +765,36 @@ namespace Laubrary.Zounds.Uitk {
             return r;
         }
 
-        // The Zound's own values (T-0493), in the order a listener thinks of them. Drive (the level going into the effects)
-        // is the source stage's gain, kept last because it is the one that is about the effects rather than the sound.
-        static readonly int[] OwnValueOrder = { SourceStageParam.Volume, SourceStageParam.Pitch, SourceStageParam.Speed, SourceStageParam.Gain };
-        const float OwnValueW = 150f;
-
         /// <summary>
-        /// The Zound's own values -- Volume, Pitch, Speed, Drive -- as one row (T-0493): what drives each (~ a modifier,
-        /// ⚡ game code) and, while it plays, where each is, with the same overlay as the effect sliders. Right-click one to
-        /// add or change what moves it, exactly as on any effect setting. They are shown, not dragged: each one's resting
-        /// setting is the play's own (the volume and pitch ranges in the header, drawn per play) or simply x1.
+        /// The target picker on a modifier's card (owner, 2026-10-08: the sound's own values are no longer a row in the
+        /// Modifiers list, so what a modifier can move is chosen from the modifier itself): the sound's own Volume, Pitch,
+        /// Speed and Drive, then every effect's settings, in sections. What it already moves is ticked; a setting that
+        /// cannot be moved is greyed. Picking one binds it at full strength, as the right-click menu on a setting does.
         /// </summary>
-        VisualElement OwnValuesRow(ZoundEffectChain chain) {
-            var r = HRow();
-            if (sectionW < MinCardW) { r.style.flexWrap = UnityEngine.UIElements.Wrap.Wrap; r.style.height = StyleKeyword.Auto; }
-            r.AddToClassList("zs-chain-editor__own-values-row-row");
-            var title = Text("Sound", "The sound's own values, as opposed to its effects: its Volume (after every effect, so fading it fades the tails too), Pitch, Speed (without changing pitch) and Drive (the level going into the effects). Right-click one to make a modifier move it, as on any effect setting. Where each rests is the play's own: the volume and pitch ranges above, drawn per play, or x1.", "zs-guilabel");
-            title.AddToClassList("zs-chain-editor__own-values-label"); title.AddToClassList("zs-chain-editor__own-values-row-title");
-            r.Add(title);
-            foreach (int k in OwnValueOrder) {
-                r.Add(OwnValue(chain, k));
-                r.Add(VSpaceW(6f));
+        void ShowBindMenu(VisualElement anchor, ZoundModifier mod) {
+            var chain = Resolve(out _);
+            int mi = chain != null ? chain.modifiers.IndexOf(mod) : -1;
+            if (mi < 0) return;
+            var menu = Z.Menu(anchor).Search("Find a setting…");
+            void Item(string label, int node, int param, ParamDesc pd) {
+                bool already = chain.bindings.Exists(b => b.modifierIndex == mi && b.nodeIndex == node && b.paramIndex == param);
+                string tip = already ? "Already moved by this modifier (its row below has the strength and the ×)."
+                           : !pd.automatable ? "This setting cannot be moved while the sound plays."
+                           : pd.desc + " Click to have this modifier move it.";
+                menu.Item(label, tip, () => Modify("bind modifier", () => G.AddBinding(chain, mi, node, param, pd)), @checked: already, enabled: !already && pd.automatable);
             }
-            return r;
-        }
-
-        static VisualElement VSpaceW(float w) { var e = new VisualElement(); e.style.width = w; e.AddToClassList("zs-chain-editor__horizontal-space"); return e; }
-
-        VisualElement OwnValue(ZoundEffectChain chain, int k) {
-            var pd = ZoundEffectDescriptors.SourceStageParams[k];
-            var box = new VisualElement();
-            box.AddToClassList("zs-ownvalue");
-            box.AddToClassList("zs-chain-editor__own-value-box"); box.AddToClassList("zs-chain-editor__own-value-control");
-            var overlay = new ZuiLiveOverlay();
-            box.Add(overlay);
-            var text = new Label { pickingMode = PickingMode.Ignore };
-            text.AddToClassList("zs-ownvalue__text");
-            text.AddToClassList("zs-chain-editor__own-value-text");
-            box.Add(text);
-            bool bound = G.IsBound(chain, -1, k);
-            string ids = bound ? ZpocIdsOn(chain, -1, k) : null;
-            string by = bound ? G.BoundBy(chain, -1, k) : null;
-            string mark = !bound ? "" : ids != null ? "  ⚡ " + by : "  ~ " + by;
-            box.EnableInClassList("zs-ownvalue--bound", bound);
-            box.EnableInClassList("zs-ownvalue--code", ids != null);
-            string baseTip = pd.name + ": " + pd.desc + (bound ? " Moved by " + by + (ids != null ? ", which game code reaches as " + ids : "") + "." : " Nothing moves it; right-click to add a modifier.") + " Right-click to change what moves it.";
-            box.tooltip = baseTip;
-            // Drive also shows the sound's fixed boost when there is one (T-0521): the boost multiplies whatever Drive does.
-            string Name() => k == SourceStageParam.Gain && zound is Klip bk && bk.BoostApplied != 1f
-                ? pd.name + " ×" + bk.BoostApplied.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) : pd.name;
-            text.text = Name() + mark;
-            box.RegisterCallback<PointerDownEvent>(e => {
-                if (e.button != 1) return;
-                G.ShowParamMenu(host, Resolve(out _), -1, k, pd, false);
-                e.StopPropagation();
-                schedule.Execute(Tick);
-            });
-            var values = new float[32];
-            var ticks = new List<float>(32);
-            liveRefreshers.Add(() => {
-                overlay.SetAuthored(G.Normalised(pd, pd.def));
-                var sum = SapVoiceRegistry.ReadLiveParam(zound, -1, k, values);
-                if (sum.count == 0 || !bound) {
-                    overlay.ClearLive(); overlay.ClearSpread();
-                    text.text = Name() + mark;
-                    box.tooltip = baseTip;
-                    return;
-                }
-                var kind = sum.driven ? ZuiLiveKind.Driven : ZuiLiveKind.Modulated;
-                string heard;
-                if (sum.count == 1) { overlay.ClearSpread(); overlay.SetLive(G.Normalised(pd, values[0]), kind); heard = G.Format(pd, values[0]); }
-                else {
-                    overlay.ClearLive(); ticks.Clear();
-                    for (int i = 0; i < Mathf.Min(sum.count, values.Length); i++) ticks.Add(G.Normalised(pd, values[i]));
-                    overlay.SetSpread(G.Normalised(pd, sum.lo), G.Normalised(pd, sum.hi), ticks, kind);
-                    heard = G.Format(pd, sum.lo) + "–" + G.Format(pd, sum.hi);
-                }
-                text.text = Name() + " " + heard + (ids != null ? "  ⚡" : "  ~");
-                box.tooltip = baseTip + (sum.driven ? "\n\nRight now game code has it at " + heard + ". " + ZpocPriority : "");
-            });
-            return box;
-        }
-
-        VisualElement SourceStageRow(ZoundEffectChain chain, int k) {
-            var pd = ZoundEffectDescriptors.SourceStageParams[k];
-            var r = Row();
-            r.Add(Place(Text("Source " + pd.name.ToLower(), "Source-stage parameter (applied while reading the sample data, ahead of every effect). Right-click to change its modulation.", "zs-guilabel"),
-                        G.GripW + 6f, 0f, G.LabelW, G.RowH));
-            string ids = ZpocIdsOn(chain, -1, k);
-            r.Add(Place(ids != null
-                    ? Text("⚡ " + G.BoundBy(chain, -1, k), "Game code can move this, through ZPOC " + ids + ".", "zs-mini", "zs-zpoctext")
-                    : Text("~ " + G.BoundBy(chain, -1, k), "Modulated by this modifier.", "zs-mini"),
-                G.GripW + 6f + G.LabelW + 4f, 0f, 200f, G.RowH));
-            r.RegisterCallback<PointerDownEvent>(e => {
-                if (e.button != 1) return;
-                G.ShowParamMenu(host, Resolve(out _), -1, k, pd, false);
-                e.StopPropagation();
-            });
-            return r;
+            if (Has(ChainEditorFeatures.SourceStage)) {
+                menu.Section("Sound", "The sound's own values, as opposed to its effects.");
+                // In the order a listener thinks of them; Drive (the level going into the effects) last.
+                foreach (int k in new[] { SourceStageParam.Volume, SourceStageParam.Pitch, SourceStageParam.Speed, SourceStageParam.Gain })
+                    Item(ZoundEffectDescriptors.SourceStageParams[k].name, -1, k, ZoundEffectDescriptors.SourceStageParams[k]);
+            }
+            for (int i = 0; i < chain.nodes.Count; i++) {
+                var desc = ZoundEffectDescriptors.Get(chain.nodes[i].type);
+                menu.Section(desc.displayName + " " + (i + 1), desc.summary);
+                for (int k = 0; k < desc.parameters.Length; k++) Item(desc.parameters[k].name, i, k, desc.parameters[k]);
+            }
+            menu.Show();
         }
 
         VisualElement ModifierRow(ZoundEffectChain chain, int m, ZoundModifier mod) {
@@ -920,13 +853,17 @@ namespace Laubrary.Zounds.Uitk {
                 // One setting, two eyes: this one and the waveform's eye for the same curve (T-0519).
                 ZS.SetEye(eye, CurveView.IsVisible(mod));
             });
-            r.Add(PlaceRight(ZS.Button("×", "Removes this modifier and every binding that uses it.", "RichButton",
-                () => Modify("remove modifier", () => { var ch = Resolve(out _); int mi = ch.modifiers.IndexOf(mod); if (mi >= 0) ch.RemoveModifier(mi); }),
+            Button bind = null;
+            bind = ZS.Button("Bind…", "What this modifier moves: pick one of the sound's own values (Volume, Pitch, Speed, Drive) or an effect's setting. Each pick adds a row below with its strength.", "RichButton",
+                             () => ShowBindMenu(bind, mod), ZUICornerMask.All, BindW, G.RowH - 2f);
+            bind.name = "chain-bind-" + m;
+            r.Add(PlaceRight(bind, G.RemoveW + 4f, 1f, BindW, G.RowH - 2f));
+            r.Add(PlaceRight(ZS.Button("×", "Removes this modifier and every binding that uses it.", "RichButton",                () => Modify("remove modifier", () => { var ch = Resolve(out _); int mi = ch.modifiers.IndexOf(mod); if (mi >= 0) ch.RemoveModifier(mi); }),
                 ZUICornerMask.All, G.RemoveW, G.RowH - 2f), 0f, 1f, G.RemoveW, G.RowH - 2f));
             return r;
         }
 
-        const float ZpocChipW = 150f;
+        const float ZpocChipW = 150f, BindW = 48f;
         /// <summary>The parts of a modifier's header a click folds the card on (everything that is not a control).</summary>
         const string FoldHit = "zs-foldhit";
         const float EyeW = 22f;

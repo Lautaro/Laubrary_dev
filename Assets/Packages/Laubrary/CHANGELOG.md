@@ -20,6 +20,14 @@ Branch `feat/zounds-ui-overhaul`. The two editors keep every function; what chan
 - **A local sound is never shared between tracks.** Every piece a split, a cut or a paste makes from a local Klip gets a Klip of its own, trimmed to the piece, so editing one piece never changes another; "Own sound" is retired. A library sound still gives a piece an excerpt and is never touched. Kept check 32 follows the rule.
 - **Colours.** The editors' background, the two track bands and the track lane are in the Settings tab's Editor Style.
 
+Second pass (the PM's review of the first):
+
+- **Nothing of the sound's own in the Modifiers list.** The "Sound" row (Volume, Pitch, Speed and Drive with what moves each) is gone from the top of the list; what a modifier moves is now picked on the modifier's own card, with its Bind… button: the sound's own values and every effect's settings, in sections, what it already moves ticked. A setting's right-click menu still works as before. Saved data is unchanged.
+- **Klip editor rhythm.** Retrigger, Delete and Play share one row at the right (Delete used to sit alone at the left); the loose bands under the waveform and around the Looper and speed rows are closed; the chain's name, library buttons and snapshots share one row; Analyse is a 20 px toggle like everything else (its caption went into its hover text). The editor background colour from the Settings tab now applies to the Klip editor too.
+- **No seam through a slider's label.** A skin slider's fill and rest each had a 1 px border, so where they met two upright lines stood through the label ("Speed ×1|00"); the seam is now borderless.
+- **Each curve's chips wear its colour.** Trim in the trim handles' colour, Time cyan, Pitch and Vol in their Settings-tab colours, one look for on (a translucent fill) and off (outline and text), pencil and eye included.
+- **The group card** (a local Zequence inside a Zequence) has the track header: grip, play, name, length, Start, Mute, Solo, duplicate, delete, convert, with Mode as a segmented choice, No-play, Rename and its own Volume / Pitch / Chance on a second row.
+
 ### Zounds — non-destructive multitrack editing in the Zequence window (T-0558..T-0568)
 
 Commits are prefixed `Zounds (nondestructive-edit):`. A Zequence of placed, trimmed Klips is the non-destructive edit: no edit reads, writes or copies audio; the only thing that writes a file is an explicit Bake.

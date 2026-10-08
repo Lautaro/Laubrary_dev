@@ -311,7 +311,8 @@ namespace Laubrary.Zounds.Uitk {
                     () => localKlip.trimEnabled, v => win.Modify("toggle klip trim", () => { KlipChainEnvelopes.EnsureSourceAnchored(localKlip); localKlip.trimEnabled = v; Dsp.ZoundDspPlayback.InvalidateLayout(localKlip); }),
                     () => localKlip.trimEnabled ? "This track plays its sound's trimmed part. Click to play the whole recording." : "This track plays the whole recording. Click to play only its trimmed part (drag the piece's edges to set it).",
                     () => { int p = strip.EditingParam; return p == SourceStageParam.Speed ? 0 : p == SourceStageParam.Pitch ? 1 : p == SourceStageParam.Volume ? 2 : -1; },
-                    i => strip.SetEditing(i == 0 ? SourceStageParam.Speed : i == 1 ? SourceStageParam.Pitch : i == 2 ? SourceStageParam.Volume : -1));
+                    i => strip.SetEditing(i == 0 ? SourceStageParam.Speed : i == 1 ? SourceStageParam.Pitch : i == 2 ? SourceStageParam.Volume : -1),
+                    es.trimHandleColor);
                 curveBar.AddToClassList("zs-zequence-entry__curve-bar");
                 Add(curveBar);
                 win.refreshers.Add(curveBar.Sync);
@@ -496,23 +497,27 @@ namespace Laubrary.Zounds.Uitk {
             var es = ZoundsProject.Instance.projectSettings.editorStyle;
             float lh = LH;
 
-            // Left: the chance weight when the parent is a randomizer (the Zequence window adds it to groups too), then the
-            // foldout header, rename field, play; No-Play and Mode; duration.
+            // Row one, the plain track's header: grip, (weight), play, the fold with the name (or the rename box), the
+            // length, Start, then Mute / Solo / duplicate / delete / convert (2026-10-08: the group card wore its older
+            // three-row layout until then).
             var grip = Grip(); Add(grip);
             IntegerField weight = null;
             if (parent.mode == CompositeZound.Mode.Randomizer) {
-                weight = new IntegerField { value = entry.chanceWeight };
+                weight = new IntegerField { value = entry.chanceWeight, tooltip = "This group's weight when the randomizer picks one track: the higher, the likelier." };
                 weight.AddToClassList("zs-imgui-field"); weight.AddToClassList("zs-bare-int");
                 weight.RegisterValueChangedCallback(e => win.Modify("changed entry chance weight", () => entry.chanceWeight = e.newValue));
                 Add(weight);
             }
-            var fold = new Foldout { text = comp.name, value = entry.editor_foldoutExpanded };
+            var play = ZS.Button("►", "Play", "RichButton", () => CompositeZoundEditing.ToggleEntryPlay(win.zeq, ref win.entryTokens, entry, win), ZUICornerMask.All, 18f, HeaderH);
+            Add(play);
+            win.liveRefreshers.Add(() => { bool p = ZoundPreviewPlayback.IsLoopPlaying(win, entry); play.text = p ? "⏹" : "►"; play.tooltip = p ? "Stop loop" : "Play this group as part of the Zequence."; });
+            var fold = new Foldout { text = comp.name, value = entry.editor_foldoutExpanded, tooltip = "A local Zequence of its own inside this one. Click to show or hide its tracks." };
             fold.AddToClassList("zs-foldoutheader");
             fold.RegisterValueChangedCallback(e => { if (e.target == fold) win.Modify("toggle foldout expand", () => entry.editor_foldoutExpanded = e.newValue); });
             Add(fold);
             TextField rename = null;
             if (entry.editor_isRenaming) {
-                rename = new TextField { value = comp.name };
+                rename = new TextField { value = comp.name, tooltip = "The group's name. Done keeps it." };
                 rename.AddToClassList("zs-namefield");
                 rename.RegisterValueChangedCallback(e => {
                     var n = ZoundDictionary.EnsureUniqueZoundName(e.newValue);
@@ -520,41 +525,9 @@ namespace Laubrary.Zounds.Uitk {
                 });
                 Add(rename);
             }
-            var play = ZS.Button("►", "Play", "RichButton", () => CompositeZoundEditing.ToggleEntryPlay(win.zeq, ref win.entryTokens, entry, win), ZUICornerMask.All, 18f, lh);
-            Add(play);
-            win.liveRefreshers.Add(() => { bool p = ZoundPreviewPlayback.IsLoopPlaying(win, entry); play.text = p ? "⏹" : "►"; play.tooltip = p ? "Stop loop" : "Play this entry."; });
-            IntegerField noPlay = null;
-            if (comp.mode == CompositeZound.Mode.Randomizer) {
-                noPlay = new IntegerField { value = comp.noPlayWeight };
-                noPlay.AddToClassList("zs-imgui-field"); noPlay.AddToClassList("zs-bare-int");
-                noPlay.RegisterValueChangedCallback(e => win.Modify("change local zequence no-play weight", () => comp.noPlayWeight = e.newValue));
-                Add(noPlay);
-            }
-            var mode = new EnumField(comp.mode);
-            mode.AddToClassList("zs-imgui-field");
-            mode.RegisterValueChangedCallback(e => win.Modify("change local zequence mode", () => comp.mode = (CompositeZound.Mode)e.newValue));
-            Add(mode);
             var duration = new Label { pickingMode = PickingMode.Ignore };
             duration.AddToClassList("zs-lbl"); duration.AddToClassList("zs-greymini"); duration.AddToClassList("zs-zequence-entry__duration-label");
             Add(duration);
-
-            // Right: the local Zequence's own fields, the button strip, the delay, its master envelope.
-            var fieldsRow = new ZoundFieldsRowTK(comp, true, null, drawName: false, drawTags: false);
-            fieldsRow.AddToClassList("zs-zequence-entry__group-fields-row");
-            Add(fieldsRow);
-            win.refreshers.Add(fieldsRow.Sync);
-            var renameBtn = ZS.Button(entry.editor_isRenaming ? "Done" : "Rename", "", "RichButton", () => {
-                entry.editor_isRenaming = !entry.editor_isRenaming;
-                EditorUtility.SetDirty(ZoundsProject.Instance);
-            }, ZUICornerMask.All, 60f, 20f);
-            Add(renameBtn);
-            var dup = W.IconButton("duplicate", "Duplicate this zound entry.", "RichButton", ZUICornerMask.Left, -1f, 20f, () => CompositeZoundEditing.DuplicateEntry(parent, index));
-            var rem = W.IconButton("remove", "Delete this zound entry.", "RichButton", ZUICornerMask.Right, -1f, 20f, () => CompositeZoundEditing.RemoveEntry(parent, index));
-            var mute = ZS.Toggle("M", "Mute/Unmute", entry.mute, v => win.Modify("toggle mute", () => { entry.mute = v; if (entry.mute) entry.solo = false; }), "ZoundBtnFlatToggle", ZUICornerMask.Left, -1f, 20f, MuteOn);
-            var solo = ZS.Toggle("S", "Toggle Solo", entry.solo, v => win.Modify("toggle solo", () => { entry.solo = v; if (entry.solo) entry.mute = false; }), "ZoundBtnFlatToggle", ZUICornerMask.Right, -1f, 20f, SoloOn);
-            var conv = W.IconButton(comp.originalId == 0 ? "make-shared" : "reconnect-shared", comp.originalId == 0 ? MakeSharedTip : ReconnectTip, "RichButton", ZUICornerMask.All, -1f, 20f, () => CompositeZoundEditing.ConvertEntry(parent, index));
-            foreach (var b in new VisualElement[] { dup, rem, mute, solo, conv }) Add(b);
-            win.refreshers.Add(() => { mute.SetValueWithoutNotify(entry.mute); ZS.ApplyOnColor(mute, MuteOn); solo.SetValueWithoutNotify(entry.solo); ZS.ApplyOnColor(solo, SoloOn); });
             var startLabel = new Label("Start") { pickingMode = PickingMode.Ignore };
             startLabel.AddToClassList("zs-lbl"); startLabel.AddToClassList("zs-mini"); startLabel.AddToClassList("zs-zequence-entry__start-label");
             Add(startLabel);
@@ -562,9 +535,49 @@ namespace Laubrary.Zounds.Uitk {
                 entry.delay = Mathf.Max(0f, v);
                 CompositeZoundEditing.RecalculateMaxDuration(win.zeq, win.AutoDuration);
             }), 56f, 2);
-            start.AddToClassList("zs-imgui-field"); start.AddToClassList("zs-bare-int");
+            start.AddToClassList("zs-imgui-field"); start.AddToClassList("zs-bare-int"); start.AddToClassList("zs-zequence-entry__start");
             win.refreshers.Add(() => { if (start.focusController?.focusedElement == null || !start.Contains(start.focusController.focusedElement as VisualElement)) start.SetValueWithoutNotify(entry.delay); });
             Add(start);
+            var mute = ZS.Toggle("M", "Mute/Unmute", entry.mute, v => win.Modify("toggle mute", () => { entry.mute = v; if (entry.mute) entry.solo = false; }), "ZoundBtnFlatToggle", ZUICornerMask.Left, Btn, HeaderH, MuteOn);
+            var solo = ZS.Toggle("S", "Toggle Solo", entry.solo, v => win.Modify("toggle solo", () => { entry.solo = v; if (entry.solo) entry.mute = false; }), "ZoundBtnFlatToggle", ZUICornerMask.Right, Btn, HeaderH, SoloOn);
+            win.refreshers.Add(() => { mute.SetValueWithoutNotify(entry.mute); ZS.ApplyOnColor(mute, MuteOn); solo.SetValueWithoutNotify(entry.solo); ZS.ApplyOnColor(solo, SoloOn); });
+            var dup = SmallIcon("duplicate", "Duplicate this group (its local sounds are copied, never shared).", ZUICornerMask.Left, () => CompositeZoundEditing.DuplicateEntry(parent, index));
+            var rem = SmallIcon("remove", "Delete this group and its local sounds.", ZUICornerMask.Right, () => CompositeZoundEditing.RemoveEntry(parent, index));
+            var conv = SmallIcon(comp.originalId == 0 ? "make-shared" : "reconnect-shared", comp.originalId == 0 ? MakeSharedTip : ReconnectTip, ZUICornerMask.All, () => CompositeZoundEditing.ConvertEntry(parent, index));
+            foreach (var b in new VisualElement[] { mute, solo, dup, rem, conv }) Add(b);
+
+            // Row two, the group's own settings: Mode (a segmented choice, as on the toolbar), No-play for a randomizer,
+            // Rename, then its Volume / Pitch / Chance taking the rest of the row.
+            var modes = (CompositeZound.Mode[])Enum.GetValues(typeof(CompositeZound.Mode));
+            var names = new string[modes.Length];
+            for (int i = 0; i < modes.Length; i++) names[i] = modes[i] == CompositeZound.Mode.RoundRobin ? "Round robin" : modes[i].ToString();
+            var mode = Z.Segmented(Array.IndexOf(modes, comp.mode), names,
+                "How this group's tracks play: all together (Parallel), one picked by weight (Randomizer), each in turn (Round robin), or in order (Playlist).",
+                i => win.Modify("change local zequence mode", () => comp.mode = modes[i]));
+            mode.AddToClassList("zs-zequence-editor__toolbar-mode");
+            win.refreshers.Add(() => mode.SetOn(i => modes[i] == comp.mode));
+            Add(mode);
+            mode.RegisterCallback<GeometryChangedEvent>(_ => Layout());   // the row after it is placed by its measured width
+            Label noPlayLabel = null; IntegerField noPlay = null;
+            if (comp.mode == CompositeZound.Mode.Randomizer) {
+                noPlayLabel = new Label("No-play") { tooltip = "Weight for this group's randomizer to play nothing at all on a trigger.", pickingMode = PickingMode.Ignore };
+                noPlayLabel.AddToClassList("zs-lbl"); noPlayLabel.AddToClassList("zs-mini"); noPlayLabel.AddToClassList("zs-zequence-entry__start-label");
+                Add(noPlayLabel);
+                noPlay = new IntegerField { value = comp.noPlayWeight, tooltip = noPlayLabel.tooltip };
+                noPlay.AddToClassList("zs-imgui-field"); noPlay.AddToClassList("zs-bare-int");
+                noPlay.RegisterValueChangedCallback(e => win.Modify("change local zequence no-play weight", () => comp.noPlayWeight = e.newValue));
+                Add(noPlay);
+            }
+            var renameBtn = ZS.Button(entry.editor_isRenaming ? "Done" : "Rename", entry.editor_isRenaming ? "Keep the name typed in the box." : "Type a new name for this group in place of its name.", "RichButton", () => {
+                entry.editor_isRenaming = !entry.editor_isRenaming;
+                EditorUtility.SetDirty(ZoundsProject.Instance);
+            }, ZUICornerMask.All, 60f, HeaderH);
+            Add(renameBtn);
+            var fieldsRow = new ZoundFieldsRowTK(comp, true, null, drawName: false, drawTags: false);
+            fieldsRow.AddToClassList("zs-zequence-entry__group-fields-row");
+            Add(fieldsRow);
+            win.refreshers.Add(fieldsRow.Sync);
+
             VisualElement envBG = null; EnvelopeTK curve = null;
             if (comp is Zequence && entry.volumeEnvelope.enabled) {
                 envBG = Abs(new Color(0.75f, 0.75f, 0.75f, 0.1f));
@@ -587,46 +600,53 @@ namespace Laubrary.Zounds.Uitk {
                     Add(child); children.Add(child);
                     darker = !darker;
                 }
-                addKlip = ZS.Button("+ Local Klip", "", "RichButton", () => win.AddLocalKlip(comp, addKlip), ZUICornerMask.Left, 85f, lh);
-                addShared = ZS.Button("+ Shared Zound", "", "RichButton", () => win.AddShared(comp, addShared), ZUICornerMask.Right, 105f, lh);
+                addKlip = ZS.Button("+ Local Klip", "Add a new local Klip to this group.", "RichButton", () => win.AddLocalKlip(comp, addKlip), ZUICornerMask.Left, 85f, lh);
+                addShared = ZS.Button("+ Shared Zound", "Add a sound from the library to this group.", "RichButton", () => win.AddShared(comp, addShared), ZUICornerMask.Right, 105f, lh);
                 Add(addKlip); Add(addShared);
             }
 
             layouts.Add(w => {
-                var content = new Rect(4f, 4f, w - 8f, layout.height - 8f);
-                var left = new Rect(content.x, content.y, W.LeftSectionWidth, content.height);
-                var right = new Rect(left.xMax + 5f, content.y, content.width - left.width - 5f, content.height);
-                Place(grip, new Rect(left.x, left.y, 10f, lh)); left.x += 12f; left.width -= 12f;
-                if (weight != null) { Place(weight, new Rect(left.position, new Vector2(22f, 20f))); left.x += 24f; left.width -= 24f; }
-                float y = left.y;
-                var label = new Rect(left.x, y, Mathf.Min((content.width - 18f) * 0.8f, left.width), lh);
-                if (entry.editor_isRenaming) label.width = 14f;
-                Place(fold, label);
-                if (rename != null) Place(rename, new Rect(label.xMax, y, left.width - label.width, lh));
-                Place(play, new Rect(content.xMax - 18f, y, 18f, lh));
-                y += lh + 2f;
-                float xOff = 0f;
-                if (noPlay != null) { xOff += W.GroupEntryLeftOffset; Place(noPlay, new Rect(left.x + xOff, y, 22f, 20f)); xOff += 24f; }
-                Place(mode, new Rect(left.x + xOff, y + 1f, left.width - xOff, 20f));
-                y += 22f;
-                float dur = PlacedLength(out float endsAt);
-                Place(duration, new Rect(left.x, y, left.width * 0.75f, lh));
-                duration.text = dur.ToString("0.00") + " s" + (endsAt > dur + 1e-3f ? " (" + endsAt.ToString("0.00") + " s)" : "");
+                var content = new Rect(Pad, Pad, w - Pad * 2f, layout.height - Pad * 2f);
+                flashRect = content;
 
-                float ry = right.y;
-                Place(fieldsRow, new Rect(right.x, ry, right.width, lh));
-                ry += lh + 2f;
-                Place(renameBtn, new Rect(right.x, ry, 60f, 20f));
-                float bx = right.x + 62f;
-                foreach (var b in new VisualElement[] { dup, rem, mute, solo, conv }) { Place(b, new Rect(bx, ry, 24f, 20f)); bx += 26f; }
-                Place(startLabel, new Rect(bx + 6f, ry, 30f, 20f)); Place(start, new Rect(bx + 36f, ry, 56f, 20f));
-                ry += 22f;
+                // ── row one, from the right end backwards so the name takes what is left ──
+                float y = content.y;
+                float xr = content.xMax;
+                Place(conv, new Rect(xr - Btn, y, Btn, HeaderH)); xr -= Btn + 2f;
+                Place(rem, new Rect(xr - Btn, y, Btn, HeaderH)); Place(dup, new Rect(xr - Btn * 2f, y, Btn, HeaderH)); xr -= Btn * 2f + 2f;
+                Place(solo, new Rect(xr - Btn, y, Btn, HeaderH)); Place(mute, new Rect(xr - Btn * 2f, y, Btn, HeaderH)); xr -= Btn * 2f + 6f;
+                Place(start, new Rect(xr - 56f, y, 56f, HeaderH)); xr -= 56f;
+                Place(startLabel, new Rect(xr - 30f, y, 30f, HeaderH)); xr -= 30f + 4f;
+                float xl = content.x;
+                Place(grip, new Rect(xl, y, 10f, HeaderH)); xl += 12f;
+                if (weight != null) { Place(weight, new Rect(xl, y, 22f, HeaderH)); xl += 24f; }
+                Place(play, new Rect(xl, y, 18f, HeaderH)); xl += 20f;
+                const float durW = 52f;
+                float nameW = Mathf.Max(40f, xr - xl - durW - 4f);
+                if (rename != null) { Place(fold, new Rect(xl, y, 14f, HeaderH)); Place(rename, new Rect(xl + 14f, y, nameW - 14f, HeaderH)); }
+                else Place(fold, new Rect(xl, y, nameW, HeaderH));
+                xl += nameW;
+                Place(duration, new Rect(xl, y, durW, HeaderH));
+                float dur = PlacedLength(out float endsAt);
+                duration.text = dur.ToString("0.00") + " s";
+                duration.tooltip = "How long this group plays" + (endsAt > dur + 1e-3f ? "; it ends at " + endsAt.ToString("0.00") + " s on the Zequence's timeline." : ".");
+
+                // ── row two: Mode, No-play, Rename, then the group's own V / P / C in what is left ──
+                float ry = content.y + HeaderH + 2f;
+                float mx = content.x;
+                float modeW = float.IsNaN(mode.resolvedStyle.width) || mode.resolvedStyle.width < 10f ? 280f : mode.resolvedStyle.width;
+                W.Place(mode, mx, ry, -1f, HeaderH); mx += modeW + 6f;
+                if (noPlay != null) { Place(noPlayLabel, new Rect(mx, ry, 40f, HeaderH)); Place(noPlay, new Rect(mx + 40f, ry, 36f, HeaderH)); mx += 80f; }
+                Place(renameBtn, new Rect(mx, ry, 60f, HeaderH)); mx += 66f;
+                Place(fieldsRow, new Rect(mx, ry, Mathf.Max(200f, content.xMax - mx), lh));
+                ry += HeaderH + 2f;
+
                 if (comp is Zequence) {
                     if (entry.volumeEnvelope.enabled) {
                         float globalMax = win.zeq.editor_maxDuration / win.zeq.minPitch, globalDelay = entry.delay / win.zeq.minPitch;
-                        float total = right.width - 50f - 15f;
+                        float total = content.width - LaneLeft - 15f;
                         float off = globalDelay / globalMax * total;
-                        var bgR = new Rect(right.x + off + 5f, ry, dur / globalMax * total, lh * 4f);
+                        var bgR = new Rect(content.x + LaneLeft + off, ry, dur / globalMax * total, lh * 4f);
                         Place(envBG, bgR); Place(curve, bgR);
                         ry += lh * 4f;
                     }
@@ -634,16 +654,14 @@ namespace Laubrary.Zounds.Uitk {
                 }
                 flashRect = new Rect(content.x, content.y, content.width, ry - content.y);
 
-                float cy = content.y + W.GroupHeaderHeight + (comp is Zequence ? (entry.volumeEnvelope.enabled ? lh * 4f : lh) : 0f);
+                float cy = W.GroupHeaderHeight + (comp is Zequence ? (entry.volumeEnvelope.enabled ? lh * 4f : lh) : 0f);
                 foreach (var c in children) { float ch = HeightOf(c.entry); W.Place(c, content.x, cy, content.width, ch); cy += ch + 4f; }
                 if (addKlip != null) {
                     float ay = cy + 2f;
-                    float xo = right.xMax - (right.x + 85f + 4f + 105f);
-                    Place(addKlip, new Rect(right.x + xo, ay, 85f, lh));
-                    Place(addShared, new Rect(right.x + 85f + 4f + xo, ay, 105f, lh));
+                    Place(addShared, new Rect(content.xMax - 105f, ay, 105f, lh));
+                    Place(addKlip, new Rect(content.xMax - 105f - 4f - 85f, ay, 85f, lh));
                 }
             });
-
             // The group flashes while its local Zequence plays (every token, as the old one).
             win.liveRefreshers.Add(() => {
                 bool on = false;
