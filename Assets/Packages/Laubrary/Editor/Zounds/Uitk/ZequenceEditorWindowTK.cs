@@ -567,7 +567,7 @@ namespace Laubrary.Zounds.Uitk {
                 // The audition of a range stops at the range's end (a tail still rings out); with Loop it starts again.
                 if (timeline.hasSel && t > timeline.selB) {
                     auditionWhole.Kill(timeline.loop ? 0.03f : 0.25f);
-                    if (timeline.loop) { auditionWhole = TimelineEdits.PlayFrom(zeq, timeline.selA, isLocalZound); return timeline.selA; }
+                    if (timeline.loop) { auditionWhole = TimelineEdits.PlayFrom(zeq, timeline.selA, isLocalZound, this); return timeline.selA; }
                     return -1f;
                 }
                 return t;
@@ -614,7 +614,7 @@ namespace Laubrary.Zounds.Uitk {
             if (TimelinePlaying()) { StopTimelinePlays(); return; }
             float from = timeline.hasSel ? timeline.selA : Mathf.Max(0f, timeline.t0);
             hereOffset = from;
-            hereToken = TimelineEdits.PlayFrom(zeq, from, isLocalZound);
+            hereToken = TimelineEdits.PlayFrom(zeq, from, isLocalZound, this);
             Say(hereToken != null ? "Playing from " + ZequenceTimeline.Seconds(from) + "." : "Nothing to play from there.");
         }
 
@@ -624,8 +624,8 @@ namespace Laubrary.Zounds.Uitk {
             if (!timeline.hasSel || timeline.selB <= timeline.selA) { Say("Select a time range to audition."); return; }
             auditionFrom = timeline.selA;
             var tracks = TimelineEdits.Selected(timeline);
-            if (tracks.Count == 0) { auditionWhole = TimelineEdits.PlayFrom(zeq, timeline.selA, isLocalZound); return; }
-            var tokens = TimelineEdits.Audition(timeline, isLocalZound);
+            if (tracks.Count == 0) { auditionWhole = TimelineEdits.PlayFrom(zeq, timeline.selA, isLocalZound, this); return; }
+            var tokens = TimelineEdits.Audition(timeline, isLocalZound, this);
             // Pair each audition play with its track, for its playhead (Audition plays them in the same order).
             int i = 0;
             foreach (var p in tracks) {

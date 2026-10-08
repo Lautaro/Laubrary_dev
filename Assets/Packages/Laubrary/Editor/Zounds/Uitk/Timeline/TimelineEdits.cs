@@ -289,12 +289,12 @@ namespace Laubrary.Zounds.Uitk {
 
         /// <summary>Plays just the selection through each selected track's live chain (or, with no track selected, the whole
         /// Zequence over that range); looping while Loop is on. Never writes anything.</summary>
-        public static List<ZoundToken> Audition(ZequenceTimeline tl, bool isLocal) {
+        public static List<ZoundToken> Audition(ZequenceTimeline tl, bool isLocal, UnityEditor.EditorWindow owner = null) {
             var tokens = new List<ZoundToken>();
             if (!tl.hasSel) return tokens;
             var sel = Selected(tl);
             if (sel.Count == 0) {
-                var t = PlayFrom(tl.zeq, tl.selA, isLocal);
+                var t = PlayFrom(tl.zeq, tl.selA, isLocal, owner);
                 if (t != null) tokens.Add(t);
                 return tokens;
             }
@@ -308,17 +308,31 @@ namespace Laubrary.Zounds.Uitk {
                     bypassGlobalSolo = true, ignoreCooldown = true,
                     excerpt = true, excerptStart = a, excerptEnd = b, excerptLoop = tl.loop,
                 };
-                var t = ZoundEngine.PlayZound(p.klip, args);
+                var t = ZoundEngine.PlayZound(p.klip, Owned(args, owner));
                 if (t != null) tokens.Add(t);
             }
             return tokens;
         }
 
         /// <summary>The whole Zequence from <paramref name="time"/> on (Play from here).</summary>
-        public static ZoundToken PlayFrom(Zequence zeq, float time, bool isLocal) => ZoundEngine.PlayZound(zeq, new ZoundArgs {
+        public static ZoundToken PlayFrom(Zequence zeq, float time, bool isLocal, UnityEditor.EditorWindow owner = null) => ZoundEngine.PlayZound(zeq, Owned(new ZoundArgs {
             startImmediately = true, volumeOverride = -1f, pitchOverride = -1f, chanceOverride = -1f,
             useFixedAverageValues = true, bypassGlobalSolo = isLocal, ignoreCooldown = true, startAt = Mathf.Max(0f, time),
-        });
+        }, owner));
+
+        static readonly object TimelinePlayKey = new object();
+
+        /// <summary>
+        /// Puts a timeline play under its window's preview session, like every other editor preview: it is refused once the window
+        /// is gone, and it is stopped with the window, on a script reload and when the session is disposed.
+        /// </summary>
+        static ZoundArgs Owned(ZoundArgs args, UnityEditor.EditorWindow owner) {
+            if (owner == null) return args;
+            var session = ZoundPreviewPlayback.Session(owner);
+            args.editorPreviewAlive = session.PreviewAlive(TimelinePlayKey);
+            args.editorPreviewStarted = token => session.TrackPreview(TimelinePlayKey, token);
+            return args;
+        }
 
         // ─────────────────────────── helpers ───────────────────────────
 

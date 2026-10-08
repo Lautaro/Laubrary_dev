@@ -724,3 +724,24 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+/* Non-destructive editing timeline (Zequence window): static layout lives here; per-frame geometry stays in code. */
+.zs-root.zs-timeline-header, .zs-root .zs-timeline-header { flex-shrink: 0; }
+.zs-root.zs-timeline-header__overview, .zs-root .zs-timeline-header__overview { flex-shrink: 0; margin-top: 3px; }
+.zs-root.zs-timeline-header__ruler, .zs-root .zs-timeline-header__ruler { flex-shrink: 0; overflow: hidden; }
+.zs-root.zs-timeline-header__edit-bar, .zs-root .zs-timeline-header__edit-bar { flex-direction: row; flex-shrink: 0; flex-wrap: nowrap; overflow: hidden; }
+.zs-root.zs-timeline-header__control, .zs-root .zs-timeline-header__control { flex-shrink: 0; }
+.zs-root .zs-lbl.zs-timeline-header__readout, .zs-root.zs-lbl.zs-timeline-header__readout { flex-grow: 1; flex-shrink: 1; min-width: 40px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; -unity-text-align: middle-left; }
+.zs-root .zs-lbl.zs-timeline-header__tick-label, .zs-root.zs-lbl.zs-timeline-header__tick-label { position: absolute; font-size: 9px; top: -1px; color: rgba(255, 255, 255, 0.75); }
+.zs-root.zs-track-strip, .zs-root .zs-track-strip { position: absolute; overflow: hidden; }
+.zs-root .zs-lbl.zs-track-strip__warn, .zs-root.zs-lbl.zs-track-strip__warn { position: absolute; color: rgb(255, 191, 51); font-size: 11px; }
+.zs-root.zs-track-strip__chips, .zs-root .zs-track-strip__chips { position: absolute; flex-direction: row; top: 0px; right: 2px; }
+.zs-root.zs-track-strip__chip-button, .zs-root .zs-track-strip__chip-button { font-size: 9px; margin-left: 2px; }
+.zs-root .zs-lbl.zs-track-strip__mark, .zs-root.zs-lbl.zs-track-strip__mark { position: absolute; top: 10px; font-size: 10px; color: rgba(204, 217, 255, 0.85); background-color: rgba(0, 0, 0, 0.35); }
+.zs-root.zs-track-strip__curve, .zs-root .zs-track-strip__curve { position: absolute; }
+.zs-root.zs-bake-popup, .zs-root .zs-bake-popup { padding-left: 6px; padding-right: 6px; padding-top: 6px; }
+.zs-root.zs-bake-popup__row, .zs-root .zs-bake-popup__row { flex-direction: row; margin-bottom: 4px; }
+.zs-root.zs-bake-popup__seed, .zs-root .zs-bake-popup__seed { width: 70px; margin-left: 6px; }
+.zs-root.zs-bake-popup__name, .zs-root .zs-bake-popup__name { width: 250px; }
+.zs-root.zs-bake-popup__go, .zs-root .zs-bake-popup__go { margin-left: 6px; }
+.zs-root.zs-bake-popup__info, .zs-root .zs-bake-popup__info { white-space: nowrap; overflow: hidden; }

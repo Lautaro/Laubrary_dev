@@ -31,10 +31,10 @@ namespace Laubrary.Zounds.Uitk {
 
         public TimelineHeaderTK(ZequenceEditorWindowTK win) {
             this.win = win;
-            style.flexShrink = 0;
+            AddToClassList("zs-timeline-header");
             Add(EditBar());
             overview = new VisualElement();
-            overview.style.height = OverviewHeight; overview.style.flexShrink = 0; overview.style.marginTop = 3;
+            overview.AddToClassList("zs-timeline-header__overview"); overview.style.height = OverviewHeight;
             overview.generateVisualContent += PaintOverview;
             overview.tooltip = "The whole Zequence. The box is what the tracks below show: drag it to move the view, or click anywhere to jump there. The white line is the time cursor.";
             overview.RegisterCallback<PointerDownEvent>(OverviewDown);
@@ -42,7 +42,7 @@ namespace Laubrary.Zounds.Uitk {
             overview.RegisterCallback<PointerUpEvent>(e => { if (overview.HasPointerCapture(e.pointerId)) overview.ReleasePointer(e.pointerId); });
             Add(overview);
             ruler = new VisualElement();
-            ruler.style.height = RulerHeight; ruler.style.flexShrink = 0; ruler.style.overflow = Overflow.Hidden;
+            ruler.AddToClassList("zs-timeline-header__ruler"); ruler.style.height = RulerHeight;
             ruler.generateVisualContent += PaintRuler;
             ruler.tooltip = "Seconds on the Zequence's timeline; the shaded part is past its authored duration. Click to set the moment Play from here and Paste use; drag to select a time range across every track. Ctrl+wheel zooms, the wheel pans.";
             ruler.RegisterCallback<PointerDownEvent>(RulerDown);
@@ -61,18 +61,18 @@ namespace Laubrary.Zounds.Uitk {
 
         VisualElement EditBar() {
             var r = new VisualElement();
-            r.style.flexDirection = FlexDirection.Row; r.style.flexShrink = 0; r.style.flexWrap = Wrap.NoWrap; r.style.overflow = Overflow.Hidden;
+            r.AddToClassList("zs-timeline-header__edit-bar");
             r.style.height = lh;
             float h = lh;
             Button B(string key, string text, string tip, float w, Action a, ZUICornerMask corners = ZUICornerMask.All) {
                 var b = ZS.Button(text, tip, "RichButton", () => { a(); win.OnTimelineChanged(); }, corners, w, h);
-                b.style.flexShrink = 0;
+                b.AddToClassList("zs-timeline-header__control");
                 controls[key] = b; r.Add(b);
                 return b;
             }
             ZuiToggleButton Tg(string text, string tip, float w, bool v, Action<bool> set, ZUICornerMask corners = ZUICornerMask.All) {
                 var t = ZS.Toggle(text, tip, v, x => { set(x); win.OnTimelineChanged(); }, "ZoundBtnFlatToggle", corners, w, h, new Color(0.22f, 0.45f, 0.75f, 1f));
-                t.style.flexShrink = 0;
+                t.AddToClassList("zs-timeline-header__control");
                 r.Add(t);
                 return t;
             }
@@ -102,9 +102,7 @@ namespace Laubrary.Zounds.Uitk {
             Gap();
             readout = new Label { pickingMode = PickingMode.Position };
             readout.AddToClassList("zs-lbl"); readout.AddToClassList("zs-greymini");
-            readout.style.flexGrow = 1; readout.style.flexShrink = 1; readout.style.minWidth = 40;
-            readout.style.overflow = Overflow.Hidden; readout.style.textOverflow = TextOverflow.Ellipsis; readout.style.whiteSpace = WhiteSpace.NoWrap;
-            readout.style.unityTextAlign = TextAnchor.MiddleLeft;
+            readout.AddToClassList("zs-timeline-header__readout");
             r.Add(readout);
             return r;
         }
@@ -252,8 +250,7 @@ namespace Laubrary.Zounds.Uitk {
                     if (x < lx || x > lx + lw - 16f) continue;
                     if (li >= tickLabels.Count) {
                         var lab = new Label { pickingMode = PickingMode.Ignore };
-                        lab.AddToClassList("zs-lbl"); lab.style.position = Position.Absolute; lab.style.fontSize = 9; lab.style.top = -1;
-                        lab.style.color = new Color(1f, 1f, 1f, 0.75f);
+                        lab.AddToClassList("zs-lbl"); lab.AddToClassList("zs-timeline-header__tick-label");
                         ruler.Add(lab); tickLabels.Add(lab);
                     }
                     var l = tickLabels[li++];

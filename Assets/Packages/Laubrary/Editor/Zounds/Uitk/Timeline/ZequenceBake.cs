@@ -205,10 +205,10 @@ namespace Laubrary.Zounds.Uitk {
         public override VisualElement CreateGUI() {
             var root = new VisualElement();
             ZS.Attach(root);
-            root.style.paddingLeft = 6; root.style.paddingRight = 6; root.style.paddingTop = 6;
+            root.AddToClassList("zs-bake-popup");
             float h = EditorGUIUtility.singleLineHeight;
             bool canRange = tl != null && tl.hasSel && tl.selB > tl.selA;
-            VisualElement Row() { var r = new VisualElement(); r.style.flexDirection = FlexDirection.Row; r.style.marginBottom = 4; root.Add(r); return r; }
+            VisualElement Row() { var r = new VisualElement(); r.AddToClassList("zs-bake-popup__row"); root.Add(r); return r; }
 
             var r1 = Row();
             ZuiToggleButton whole = null, sel = null, rest = null, rnd = null;
@@ -223,21 +223,21 @@ namespace Laubrary.Zounds.Uitk {
             rest = ZS.Toggle("Resting values", "No randomness: every range at its middle, every track plays, game-code values at rest.", !random, v => { random = !v; Sync(); }, "ZoundBtnFlatToggle", ZUICornerMask.Left, 120f, h, new Color(0.22f, 0.45f, 0.75f, 1f));
             rnd = ZS.Toggle("Random run", "One play's worth of random choices (pitch and volume ranges, chances, which track a picking Zequence plays), drawn from the seed beside it: the same seed bakes the same result.", random, v => { random = v; Sync(); }, "ZoundBtnFlatToggle", ZUICornerMask.Right, 120f, h, new Color(0.22f, 0.45f, 0.75f, 1f));
             seedField = new IntegerField { value = seed, tooltip = "The random run's seed. The same seed repeats the same bake." };
-            seedField.AddToClassList("zs-imgui-field"); seedField.style.width = 70; seedField.style.marginLeft = 6;
+            seedField.AddToClassList("zs-imgui-field"); seedField.AddToClassList("zs-bake-popup__seed");
             seedField.RegisterValueChangedCallback(e => seed = e.newValue);
             r2.Add(rest); r2.Add(rnd); r2.Add(seedField);
 
             var r3 = Row();
             var nameField = new TextField { value = name, tooltip = "The new Klip's name (and its audio file's)." };
-            nameField.AddToClassList("zs-imgui-field"); nameField.style.width = 250;
+            nameField.AddToClassList("zs-imgui-field"); nameField.AddToClassList("zs-bake-popup__name");
             nameField.RegisterValueChangedCallback(e => name = e.newValue);
             r3.Add(nameField);
             var bake = ZS.Button("Bake", "Render now and add the new Klip to the library. The Zequence is not changed.", "RichButton", DoBake, ZUICornerMask.All, 70f, h);
-            bake.style.marginLeft = 6;
+            bake.AddToClassList("zs-bake-popup__go");
             r3.Add(bake);
 
             info = new Label(); info.AddToClassList("zs-lbl"); info.AddToClassList("zs-greymini");
-            info.style.height = h; info.style.whiteSpace = WhiteSpace.NoWrap; info.style.overflow = Overflow.Hidden;
+            info.AddToClassList("zs-bake-popup__info"); info.style.height = h;
             root.Add(info);
 
             void Sync() {

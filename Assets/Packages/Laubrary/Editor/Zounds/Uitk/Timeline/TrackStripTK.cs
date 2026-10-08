@@ -50,8 +50,7 @@ namespace Laubrary.Zounds.Uitk {
 
         public TrackStripTK(ZequenceEditorWindowTK win, CompositeZound.ZoundEntry entry) {
             this.win = win; this.entry = entry;
-            style.position = Position.Absolute;
-            style.overflow = Overflow.Hidden;
+            AddToClassList("zs-track-strip");
             focusable = true;
             tooltip = "Drag on the waveform to select a part (Shift adds this track to the selection; double-click selects the whole piece). "
                     + "Drag the thin strip along the top to move the piece, an edge to trim it, Alt-drag to slip which part of the sound it plays. "
@@ -62,18 +61,18 @@ namespace Laubrary.Zounds.Uitk {
             rightMark.RegisterCallback<PointerDownEvent>(e => { if (e.clickCount == 2) JumpToPiece(); e.StopPropagation(); });
             warn = new Label("⚠") { pickingMode = PickingMode.Position, tooltip = "This track was sounding across the point where a ripple edit moved the tracks after it, so it stayed where it was. Split it or move it yourself if it should follow." };
             warn.AddToClassList("zs-lbl");
-            warn.style.position = Position.Absolute; warn.style.color = new Color(1f, 0.75f, 0.2f); warn.style.fontSize = 11;
+            warn.AddToClassList("zs-track-strip__warn");
             warn.style.display = DisplayStyle.None;
             Add(warn);
             chips = new VisualElement();
-            chips.style.position = Position.Absolute; chips.style.flexDirection = FlexDirection.Row; chips.style.top = 0; chips.style.right = 2;
+            chips.AddToClassList("zs-track-strip__chips");
             Add(chips);
             focusButton = ZS.Button("↕", "", "RichButton", () => {
                 if (TL == null) return;
                 TL.focus = ReferenceEquals(TL.focus, entry) ? null : entry;
                 win.RefreshNow();
             }, ZUICornerMask.All, 18f, 14f);
-            focusButton.style.fontSize = 9; focusButton.style.marginLeft = 2;
+            focusButton.AddToClassList("zs-track-strip__chip-button");
             chips.Add(focusButton);
 
             RegisterCallback<PointerDownEvent>(OnDown);
@@ -86,9 +85,7 @@ namespace Laubrary.Zounds.Uitk {
         Label Mark() {
             var l = new Label { pickingMode = PickingMode.Position };
             l.AddToClassList("zs-lbl"); l.AddToClassList("zs-greymini");
-            l.style.position = Position.Absolute; l.style.top = 10; l.style.fontSize = 10;
-            l.style.color = new Color(0.8f, 0.85f, 1f, 0.85f);
-            l.style.backgroundColor = new Color(0f, 0f, 0f, 0.35f);
+            l.AddToClassList("zs-track-strip__mark");
             l.style.display = DisplayStyle.None;
             Add(l);
             return l;
@@ -191,7 +188,7 @@ namespace Laubrary.Zounds.Uitk {
                     int param = oc.param;
                     string name = param == SourceStageParam.Volume ? "Vol" : param == SourceStageParam.Pitch ? "Pitch" : "Time";
                     b = ZS.Button(name, "", "RichButton", () => ToggleEditing(param), ZUICornerMask.All, 38f, 14f);
-                    b.style.fontSize = 9; b.style.marginLeft = 2;
+                    b.AddToClassList("zs-track-strip__chip-button");
                     chipButtons[param] = b; chips.Add(b);
                 }
                 bool on = ReferenceEquals(Editing, oc.mod);
@@ -248,7 +245,7 @@ namespace Laubrary.Zounds.Uitk {
             if (!show) { if (trackCurve != null) trackCurve.style.display = DisplayStyle.None; return; }
             if (trackCurve == null) {
                 trackCurve = new EnvelopeTK(entry.volumeEnvelope.DeepCopy(), Es.volumeEnvelopeColor) { thickness = Es.volumeEnvelopeThickness, dashed = true, pointsAndLineOnly = true };
-                trackCurve.style.position = Position.Absolute;
+                trackCurve.AddToClassList("zs-track-strip__curve");
                 trackCurve.tooltip = "This track's own volume curve (dashed): it belongs to the timeline, so it stays where it is when the piece moves.";
                 trackCurve.onChanged = () => win.Modify("modify entry volume envelope", () => { entry.volumeEnvelope = trackCurve.envelope.DeepCopy(); entry.volumeEnvelope.enabled = true; });
                 Insert(0, trackCurve);
