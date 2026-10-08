@@ -87,7 +87,7 @@ MonoBehaviour:
           randomY: 0
           randomBias: 0.5
         - time: 1
-          value: 1
+          value: 0
           exponent: 1
           editState: 0
           randomX: 0
