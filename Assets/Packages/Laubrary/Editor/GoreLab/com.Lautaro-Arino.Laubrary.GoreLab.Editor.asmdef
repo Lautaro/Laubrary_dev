@@ -1,0 +1,26 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.GoreLab.Editor",
+    "rootNamespace": "Laubrary.GoreLab.Editor",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.GoreLab",
+        "com.Lautaro-Arino.Laubrary.Zui.Editor",
+        "ZUI.Editor",
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime",
+        "com.Lautaro-Arino.Laubrary.AssetKit.Editor",
+        "com.Lautaro-Arino.Laubrary.PreviewKit",
+        "com.Lautaro-Arino.Laubrary.Launimator",
+        "com.Lautaro-Arino.Laubrary.Zoetrope",
+        "com.Lautaro-Arino.Laubrary.Zoetrope.Launimator"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

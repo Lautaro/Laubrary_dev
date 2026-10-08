@@ -1,0 +1,14 @@
+{
+  "name": "Laubrary.GoreLab.Tests",
+  "rootNamespace": "Laubrary.GoreLab.Tests",
+  "references": ["UnityEngine.TestRunner", "UnityEditor.TestRunner", "com.Lautaro-Arino.Laubrary.GoreLab"],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": ["nunit.framework.dll"],
+  "autoReferenced": false,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

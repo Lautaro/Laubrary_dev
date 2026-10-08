@@ -1,0 +1,316 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f47c6b625f5940a4983f47cb1f8f879d, type: 3}
+  m_Name: Imp Walk
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Launimator::Laubrary.Launimator.LauminaryVersion
+  versionNumber: 0
+  createdUtc: 
+  animations:
+  - name: Walk_180
+    fps: 6
+    recipe: []
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 21300000, guid: 41be84ab27b08e64bbe0ba9164859b10, type: 3}
+    - {fileID: 21300000, guid: 66a1ba1bf6fd2e24eaf707e0a09c04b9, type: 3}
+    - {fileID: 21300000, guid: c8e22a10d8ff96b4c9752dda231c60bd, type: 3}
+    - {fileID: 21300000, guid: 0cea1cec406857d4ea7f1351d0be51f2, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 0}
+    sourceTextureGuid: 
+    clip: {fileID: 0}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: Walk_135
+    fps: 6
+    recipe: []
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 21300000, guid: 81ce0c6c34519524b8004d35bf34da29, type: 3}
+    - {fileID: 21300000, guid: ce5d78ebbd26a3c45b911234574d0037, type: 3}
+    - {fileID: 21300000, guid: 5336a6a476251aa4595bf51bbbcc9a20, type: 3}
+    - {fileID: 21300000, guid: f315675c3a28cd44eba83fcb9a133a0d, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 0}
+    sourceTextureGuid: 
+    clip: {fileID: 0}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: Walk_90
+    fps: 6
+    recipe: []
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 21300000, guid: e739b6dbea4dc274587ea709db06387d, type: 3}
+    - {fileID: 21300000, guid: 33c687230c0b49e45b8b55874e65de23, type: 3}
+    - {fileID: 21300000, guid: eb858409622491540a40cad7f6992cc7, type: 3}
+    - {fileID: 21300000, guid: a98932c234219c64790f8451d18023e5, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 0}
+    sourceTextureGuid: 
+    clip: {fileID: 0}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: Walk_45
+    fps: 6
+    recipe: []
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 21300000, guid: f438456bcf909584586f174b2755b3d5, type: 3}
+    - {fileID: 21300000, guid: 9277995d6e52e674391637c70b189d3e, type: 3}
+    - {fileID: 21300000, guid: 1a43563675b379041bdc8b79ea973f3f, type: 3}
+    - {fileID: 21300000, guid: ac77e9570d8535242bacc7bad8eb8788, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 0}
+    sourceTextureGuid: 
+    clip: {fileID: 0}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: Walk_0
+    fps: 6
+    recipe: []
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 21300000, guid: d5433e1111d8b3243ac78484b03dd927, type: 3}
+    - {fileID: 21300000, guid: b4c6c3c9ac517f04c8599e9b0e6fa915, type: 3}
+    - {fileID: 21300000, guid: fda1d11f4eedd3f4388fc2c982889f21, type: 3}
+    - {fileID: 21300000, guid: d27f3fd48f8043441bbbb970e22a14fc, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 0}
+    sourceTextureGuid: 
+    clip: {fileID: 0}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  sets:
+  - name: Walk8
+    directionMode: 2
+    members:
+    - angleDegrees: 180
+      laumination:
+        name: Walk_180
+        fps: 6
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: 41be84ab27b08e64bbe0ba9164859b10, type: 3}
+        - {fileID: 21300000, guid: 66a1ba1bf6fd2e24eaf707e0a09c04b9, type: 3}
+        - {fileID: 21300000, guid: c8e22a10d8ff96b4c9752dda231c60bd, type: 3}
+        - {fileID: 21300000, guid: 0cea1cec406857d4ea7f1351d0be51f2, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+      zoneName: 
+    - angleDegrees: 135
+      laumination:
+        name: Walk_135
+        fps: 6
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: 81ce0c6c34519524b8004d35bf34da29, type: 3}
+        - {fileID: 21300000, guid: ce5d78ebbd26a3c45b911234574d0037, type: 3}
+        - {fileID: 21300000, guid: 5336a6a476251aa4595bf51bbbcc9a20, type: 3}
+        - {fileID: 21300000, guid: f315675c3a28cd44eba83fcb9a133a0d, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+      zoneName: 
+    - angleDegrees: 90
+      laumination:
+        name: Walk_90
+        fps: 6
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: e739b6dbea4dc274587ea709db06387d, type: 3}
+        - {fileID: 21300000, guid: 33c687230c0b49e45b8b55874e65de23, type: 3}
+        - {fileID: 21300000, guid: eb858409622491540a40cad7f6992cc7, type: 3}
+        - {fileID: 21300000, guid: a98932c234219c64790f8451d18023e5, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+      zoneName: 
+    - angleDegrees: 45
+      laumination:
+        name: Walk_45
+        fps: 6
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: f438456bcf909584586f174b2755b3d5, type: 3}
+        - {fileID: 21300000, guid: 9277995d6e52e674391637c70b189d3e, type: 3}
+        - {fileID: 21300000, guid: 1a43563675b379041bdc8b79ea973f3f, type: 3}
+        - {fileID: 21300000, guid: ac77e9570d8535242bacc7bad8eb8788, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+      zoneName: 
+    - angleDegrees: 0
+      laumination:
+        name: Walk_0
+        fps: 6
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: d5433e1111d8b3243ac78484b03dd927, type: 3}
+        - {fileID: 21300000, guid: b4c6c3c9ac517f04c8599e9b0e6fa915, type: 3}
+        - {fileID: 21300000, guid: fda1d11f4eedd3f4388fc2c982889f21, type: 3}
+        - {fileID: 21300000, guid: d27f3fd48f8043441bbbb970e22a14fc, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+      zoneName: 
+    mirrorBuiltIn: 1
+    snapStepDeg: 0
+    framePivot: {x: 0.5, y: 0}
+  prefab: {fileID: 0}
+  controller: {fileID: 0}
