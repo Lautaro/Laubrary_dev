@@ -40,6 +40,7 @@ namespace Laubrary.Zounds.Uitk {
         internal readonly List<Action> liveRefreshers = new List<Action>();
         string builtSig;
         ZoundFieldsRowTK fields;
+        VisualElement box;
         Button playButton;
         ZuiToggleButton retriggerButton, editToolsButton;
         ScrollView scroll;
@@ -194,10 +195,10 @@ namespace Laubrary.Zounds.Uitk {
             root.Add(fields);
             root.Add(Space(4f));
 
-            var box = new VisualElement();
+            box = new VisualElement();
             box.AddToClassList("zs-box-default");
             box.AddToClassList("zs-zequence-editor__box");
-            if (es.editorBackgroundColor.a > 0f) { box.style.backgroundImage = StyleKeyword.None; box.style.backgroundColor = es.editorBackgroundColor; }
+            SettingsTabTK.ApplyEditorBackground(box);
             root.Add(box);
             box.Add(Toolbar());
             pinnedSlot = new VisualElement();
@@ -269,6 +270,7 @@ namespace Laubrary.Zounds.Uitk {
             fields?.Sync();
             SyncPlayButton();
             SyncRetriggerButton();
+            SettingsTabTK.ApplyEditorBackground(box);   // the Settings tab's colour, live (and after an undo)
             timeline?.Rebuild();
             foreach (var r in refreshers) r();
             header?.Sync();

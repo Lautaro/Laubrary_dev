@@ -25,6 +25,7 @@ namespace Laubrary.Zounds.Uitk {
 
         Klip klip;
         ZoundFieldsRowTK fields;
+        VisualElement box;
         IVisualElementScheduledItem syncTick;
         Button playButton;
         ZuiToggleButton retriggerButton;
@@ -197,11 +198,10 @@ namespace Laubrary.Zounds.Uitk {
             root.Add(VSpace(Gap4));
 
             // ── content box (ZUI.Box, "Default"); its background is the Settings tab's when one is set ──
-            var box = new VisualElement();
+            box = new VisualElement();
             box.AddToClassList("zs-box-default");
             box.AddToClassList("zs-klip-editor__box");
-            var es = ZoundsProject.Instance.projectSettings.editorStyle;
-            if (es.editorBackgroundColor.a > 0f) { box.style.backgroundImage = StyleKeyword.None; box.style.backgroundColor = es.editorBackgroundColor; }
+            SettingsTabTK.ApplyEditorBackground(box);
             root.Add(box);
             box.Add(VSpace(Gap4));
 
@@ -437,6 +437,7 @@ namespace Laubrary.Zounds.Uitk {
             fields?.Sync();
             SyncPlayButton();
             SyncRetriggerButton();
+            SettingsTabTK.ApplyEditorBackground(box);   // the Settings tab's colour, live (and after an undo)
         }
     }
 }

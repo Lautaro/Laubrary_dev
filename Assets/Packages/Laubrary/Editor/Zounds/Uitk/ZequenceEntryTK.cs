@@ -69,6 +69,12 @@ namespace Laubrary.Zounds.Uitk {
             bg.AddToClassList("zs-zequence-entry__bg");
             bg.AddToClassList(isGroupChild ? "zs-zequence-entry__background--group-child" : "zs-zequence-entry__background--plain");
             bg.style.backgroundColor = darker ? es.trackBackgroundColor : es.trackAltBackgroundColor;
+            // The band's colour follows the Settings tab live (and after an undo).
+            win.refreshers.Add(() => {
+                var s = ZoundsProject.Instance.projectSettings.editorStyle;
+                var c = darker ? s.trackBackgroundColor : s.trackAltBackgroundColor;
+                if (bg.style.backgroundColor.value != c) bg.style.backgroundColor = c;
+            });
             Add(bg);
 
             if (!found) BuildBroken();

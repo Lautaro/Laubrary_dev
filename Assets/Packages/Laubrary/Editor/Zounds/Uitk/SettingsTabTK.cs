@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Laubrary.Zui;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
@@ -70,8 +71,59 @@ namespace Laubrary.Zounds.Uitk {
             return s;
         }
 
-        ColorField Color(string label, string path, float lw, string tooltip = null) =>
-            Field<ColorField, Color>(new ColorField(label) { tooltip = tooltip }, path, lw, p => p.colorValue, (p, v) => p.colorValue = v);
+        // ── colours: ZUI's colour control (Z.Color), sized to its content, never stretched across the pane (2026-10-08) ──
+
+        /// <summary>The colour control for one setting: ZUI's swatch with its eyedropper, alpha included (every colour here
+        /// may be translucent), 110 px wide, writing the serialized property (one undo step per change).</summary>
+        ColorField ColorControl(string path, string tooltip, string label) {
+            var f = Z.Color(P(path).colorValue, tooltip, v => { so.Update(); P(path).colorValue = v; Apply(); Undo.SetCurrentGroupName("change " + label + " colour"); }, ColorW);
+            f.AddToClassList("zs-settingsfield");
+            f.AddToClassList("zs-settings__color-field");
+            syncers.Add(() => {
+                if (f.focusController?.focusedElement is VisualElement x && (x == f || f.Contains(x))) return;
+                var now = P(path).colorValue;
+                if (f.value != now) f.SetValueWithoutNotify(now);
+            });
+            return f;
+        }
+
+        const float ColorW = 110f;
+
+        /// <summary>A colour setting on its own row: the label in the label column, then the swatch.</summary>
+        VisualElement Color(string label, string path, float lw, string tooltip) {
+            var r = new VisualElement();
+            r.AddToClassList("zs-settingsrow");
+            r.AddToClassList("zs-settings__color-row");
+            var l = new Label(label) { tooltip = tooltip };
+            l.AddToClassList("zs-lbl");
+            l.AddToClassList("zs-settings__color-label");
+            l.style.width = lw;
+            r.Add(l);
+            // The swatches of the group line up in one column: this row has no thickness box, so it leaves that box's room.
+            var spacer = new VisualElement();
+            spacer.AddToClassList("zs-settings__thickness-spacer");
+            r.Add(spacer);
+            r.Add(ColorControl(path, tooltip, label));
+            return r;
+        }
+
+        /// <summary>
+        /// The one place an editor's background is painted from: the Settings tab's Editor Background when it has any
+        /// opacity, else the skin's own box. Called when a window is built and on its tick, so a change here (or an undo
+        /// of one) shows at once in every open Klip and Zequence editor.
+        /// </summary>
+        public static void ApplyEditorBackground(VisualElement box) {
+            if (box == null || ZoundsProject.Instance == null) return;
+            var c = ZoundsProject.Instance.projectSettings.editorStyle.editorBackgroundColor;
+            if (c.a > 0f) {
+                if (box.style.backgroundImage.keyword != StyleKeyword.None) box.style.backgroundImage = StyleKeyword.None;
+                if (box.style.backgroundColor.keyword != StyleKeyword.Undefined || box.style.backgroundColor.value != c) box.style.backgroundColor = c;
+            }
+            else if (box.style.backgroundColor.keyword != StyleKeyword.Null || box.style.backgroundImage.keyword != StyleKeyword.Null) {
+                box.style.backgroundImage = StyleKeyword.Null;
+                box.style.backgroundColor = StyleKeyword.Null;
+            }
+        }
 
         // ─────────────────────────── the tab ───────────────────────────
 
@@ -111,15 +163,15 @@ namespace Laubrary.Zounds.Uitk {
 
             const float sw = 190f;
             into.Add(Bold("Editor Style (Visual)"));
-            into.Add(ThicknessColor("Player Head", "editorStyle.playerHeadThickness", "editorStyle.playerHeadColor", sw));
-            into.Add(ThicknessColor("Volume Envelope", "editorStyle.volumeEnvelopeThickness", "editorStyle.volumeEnvelopeColor", sw));
-            into.Add(ThicknessColor("Pitch Envelope", "editorStyle.pitchEnvelopeThickness", "editorStyle.pitchEnvelopeColor", sw));
-            into.Add(ThicknessColor("Trim Handle", "editorStyle.trimHandleThickness", "editorStyle.trimHandleColor", sw));
-            into.Add(Color(P("editorStyle.waveformColor").displayName, "editorStyle.waveformColor", sw));
-            into.Add(Color(P("editorStyle.klipWaveformBGColor").displayName, "editorStyle.klipWaveformBGColor", sw));
-            into.Add(Color(P("editorStyle.trimAreaColor").displayName, "editorStyle.trimAreaColor", sw));
-            into.Add(Color(P("editorStyle.selectedEnvelopeLineColor").displayName, "editorStyle.selectedEnvelopeLineColor", sw));
-            into.Add(Color(P("editorStyle.selectedEnvelopeHandleColor").displayName, "editorStyle.selectedEnvelopeHandleColor", sw));
+            into.Add(ThicknessColor("Player Head", "editorStyle.playerHeadThickness", "editorStyle.playerHeadColor", sw, "The line that shows where a play is, over the waveform: its thickness in pixels and its colour."));
+            into.Add(ThicknessColor("Volume Envelope", "editorStyle.volumeEnvelopeThickness", "editorStyle.volumeEnvelopeColor", sw, "The sound's own volume curve, drawn over its waveform and on the curve bar's Vol chips: thickness in pixels and colour."));
+            into.Add(ThicknessColor("Pitch Envelope", "editorStyle.pitchEnvelopeThickness", "editorStyle.pitchEnvelopeColor", sw, "The sound's own pitch curve, drawn over its waveform and on the curve bar's Pitch chips: thickness in pixels and colour."));
+            into.Add(ThicknessColor("Trim Handle", "editorStyle.trimHandleThickness", "editorStyle.trimHandleColor", sw, "The two handles that mark the trimmed part of a source, and the curve bar's Trim chip: thickness in pixels and colour."));
+            into.Add(Color("Waveform", "editorStyle.waveformColor", sw, "The colour the audio's waveform is drawn in."));
+            into.Add(Color("Waveform Background", "editorStyle.klipWaveformBGColor", sw, "The colour behind the waveform in the Klip editor and in a Zequence track's piece."));
+            into.Add(Color("Trim Area", "editorStyle.trimAreaColor", sw, "The shade over the part of the source outside the trim (translucent: the waveform shows through)."));
+            into.Add(Color("Selected Curve Line", "editorStyle.selectedEnvelopeLineColor", sw, "The colour of a curve's line while it is selected for editing."));
+            into.Add(Color("Selected Curve Handle", "editorStyle.selectedEnvelopeHandleColor", sw, "The colour of a curve's points while it is selected for editing."));
             // The editors' backgrounds (owner, 2026-10-08). Alpha counts: a fully transparent editor background keeps the skin's box.
             into.Add(Color("Editor Background", "editorStyle.editorBackgroundColor", sw, "Behind a Klip or Zequence editor's content. Fully transparent keeps the skin's own box."));
             into.Add(Color("Track Background", "editorStyle.trackBackgroundColor", sw, "The band behind every other track in a Zequence."));
@@ -132,21 +184,26 @@ namespace Laubrary.Zounds.Uitk {
             into.Add(Slider("Envelope Handle Size", "", "editorStyle.envelopeHandleSize", 1f, 10f, sw));
         }
 
-        /// <summary>DrawThicknessColor: the label in the label column, the thickness in a 45 wide number box, then the colour.</summary>
-        VisualElement ThicknessColor(string label, string thicknessPath, string colorPath, float lw) {
+        /// <summary>A drawn line's row: the label in the label column, its thickness in a 45 px scrub-draggable number box, then its colour.</summary>
+        VisualElement ThicknessColor(string label, string thicknessPath, string colorPath, float lw, string tooltip) {
             var r = new VisualElement();
             r.AddToClassList("zs-settingsrow");
             r.AddToClassList("zs-settings__thickness-color-row");
-            var l = new Label(label);
+            var l = new Label(label) { tooltip = tooltip };
             l.AddToClassList("zs-lbl");
-            l.AddToClassList("zs-settings__thickness-color-label");
+            l.AddToClassList("zs-settings__color-label");
+            l.style.width = lw;
             r.Add(l);
-            var t = Field<FloatField, float>(new FloatField(), thicknessPath, 0f, p => p.floatValue, (p, v) => p.floatValue = v);
+            var t = Z.Float(P(thicknessPath).floatValue, "Thickness in pixels. Drag to scrub, or type.", v => { so.Update(); P(thicknessPath).floatValue = Mathf.Max(0f, v); Apply(); Undo.SetCurrentGroupName("change " + label + " thickness"); }, 45f, 1);
+            t.AddToClassList("zs-settingsfield");
             t.AddToClassList("zs-settings__thickness-field");
+            syncers.Add(() => {
+                if (t.focusController?.focusedElement is VisualElement x && (x == t || t.Contains(x))) return;
+                float now = P(thicknessPath).floatValue;
+                if (t.value != now) t.SetValueWithoutNotify(now);
+            });
             r.Add(t);
-            var c = Field<ColorField, Color>(new ColorField(), colorPath, 0f, p => p.colorValue, (p, v) => p.colorValue = v);
-            c.AddToClassList("zs-settings__color-field");
-            r.Add(c);
+            r.Add(ColorControl(colorPath, tooltip, label));
             return r;
         }
 

@@ -35,6 +35,11 @@ Third pass (the owner's IMPORTANT item: the sound's own curves are not modifiers
 - **A live readout of the sound's own values.** While a sound plays, the Klip editor's curve bar shows "Vol 0.73 · Pitch +2.1 st · Time ×1.00" (what the newest play hears, curves, modulators and game-code values included) in a reserved slot at the right of the bar, and a local track in the Zequence editor floats the same readout in its lane's top-right corner; both vanish when nothing plays.
 - **Older builds of the package will not see the moved curves** of a project saved by this one (the slots are new fields); the saved chain is otherwise unchanged.
 
+Fourth pass (the Settings tab's colours):
+
+- **The Zound window's Settings tab draws its colours with ZUI's colour control.** Every colour in Editor Style (the four drawn lines' colours, Waveform, Waveform Background, Trim Area, the two selected-curve colours, Editor Background, the two track bands and the track lane) is ZUI's swatch with its eyedropper, alpha included, 110 px wide in one column beside the label column, instead of Unity's native field stretched across the pane; a drawn line's thickness is a scrub-draggable 45 px number box beside it. Each row's label and control carry a tooltip saying what the colour paints. One undo step per change, named for the setting.
+- **A colour change shows at once in every open editor.** The Klip and Zequence editors re-read the Editor Background on their tick, and a Zequence track's band follows the two track colours the same way, so a change in the Settings tab (or an undo of one) is seen without reopening anything.
+
 ### Zounds — non-destructive multitrack editing in the Zequence window (T-0558..T-0568)
 
 Commits are prefixed `Zounds (nondestructive-edit):`. A Zequence of placed, trimmed Klips is the non-destructive edit: no edit reads, writes or copies audio; the only thing that writes a file is an explicit Bake.

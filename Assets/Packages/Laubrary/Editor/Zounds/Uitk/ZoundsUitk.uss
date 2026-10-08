@@ -577,10 +577,13 @@
 .zs-root.zs-settings__root, .zs-root .zs-settings__root { flex-grow: 1; flex-shrink: 1; }
 .zs-root.zs-settings__box, .zs-root .zs-settings__box { flex-grow: 1; flex-shrink: 1; }
 .zs-root.zs-settings__scroll, .zs-root .zs-settings__scroll { flex-grow: 1; flex-shrink: 1; }
-.zs-root.zs-settings__thickness-color-row, .zs-root .zs-settings__thickness-color-row { flex-direction: row; }
-.zs-root.zs-settings__thickness-color-label, .zs-root .zs-settings__thickness-color-label { width: 150px; flex-shrink: 0; }
-.zs-root.zs-settings__thickness-field, .zs-root .zs-settings__thickness-field { width: 45px; flex-shrink: 0; }
-.zs-root.zs-settings__color-field, .zs-root .zs-settings__color-field { flex-grow: 1; }
+/* Colour settings (2026-10-08): a label column, then ZUI's colour swatch at a fixed width (never stretched across the pane);
+   a drawn line's row puts its thickness box between them. */
+.zs-root.zs-settings__thickness-color-row, .zs-root .zs-settings__thickness-color-row, .zs-root .zs-settings__color-row { flex-direction: row; align-items: center; }
+.zs-root .zs-settings__color-label { flex-shrink: 0; }
+.zs-root.zs-settings__thickness-field, .zs-root .zs-settings__thickness-field { width: 45px; flex-shrink: 0; margin-right: 4px; }
+.zs-root .zs-settings__thickness-spacer { width: 45px; flex-shrink: 0; margin-right: 4px; margin-left: 0; }
+.zs-root.zs-settings__color-field, .zs-root .zs-settings__color-field { flex-grow: 0; flex-shrink: 0; margin-right: 0; }
 .zs-root.zs-settings__external-root-row, .zs-root .zs-settings__external-root-row { flex-direction: row; }
 .zs-root.zs-settings__external-root-label, .zs-root .zs-settings__external-root-label { width: 150px; flex-shrink: 0; }
 .zs-root.zs-settings__external-root-path, .zs-root .zs-settings__external-root-path { flex-grow: 1; }
