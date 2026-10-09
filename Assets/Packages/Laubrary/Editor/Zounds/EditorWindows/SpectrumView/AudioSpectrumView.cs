@@ -423,6 +423,12 @@ namespace Laubrary.Zounds {
             zoomTextureAttempted = false;
         }
 
+        /// <summary>The audio of the same clip changed on disk (destructive editing): the detailed picture is redrawn.</summary>
+        internal void InvalidateWaveform() {
+            ClearZoomTexture();
+            rangeJob = null;
+        }
+
         private void ProcessRangeWaveform() {
             double idle = EditorApplication.timeSinceStartup - lastViewportChangeTime;
             if (rangeJob == null) {

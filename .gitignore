@@ -107,3 +107,6 @@ Assets/Plugins.meta
 
 # Agent scratch probes (throwaway eval_file scripts and screenshots)
 .scratch/
+
+# Zounds destructive editing keeps the last versions of each edited audio file here (a safety net, not the work).
+**/Versions~/
