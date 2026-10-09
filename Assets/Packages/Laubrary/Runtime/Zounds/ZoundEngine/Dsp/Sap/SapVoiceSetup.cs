@@ -89,6 +89,7 @@ namespace Laubrary.Zounds.Dsp {
                                   Zound zound = null) {
             sap.basePitchLive = basePitch;
             sap.outGainLive = outGain;
+            sap.postNodeStart = layout != null ? layout.postNodeStart : int.MaxValue;
             // The sound's fixed boost into its effects (T-0521), read from the sound itself so a real play and the chain
             // analyser's re-creation of one both hear it. 1 for anything that is not a Klip.
             sap.boostLive = sap.boostTarget = zound is Klip boostKlip ? boostKlip.BoostApplied : 1f;

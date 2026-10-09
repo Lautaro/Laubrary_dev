@@ -208,6 +208,12 @@ namespace Laubrary.Zounds {
         /// <summary>Bumped by the editor on any edit so cached layouts can be rebuilt.</summary>
         [System.NonSerialized] public int version;
 
+        /// <summary>
+        /// A played chain only (never saved): where the effects of the Zequences around the play begin (2026-10-09). Those
+        /// run after the sound's own Volume, as the Zequence hears its tracks; -1 (every stored chain) means there are none.
+        /// </summary>
+        [System.NonSerialized] public int busNodeStart = -1;
+
         public bool IsEmpty => (nodes == null || nodes.Count == 0) && (modifiers == null || modifiers.Count == 0);
 
         public ZoundEffectChain DeepCopy() {
@@ -215,6 +221,7 @@ namespace Laubrary.Zounds {
             foreach (var n in nodes) copy.nodes.Add(n.DeepCopy());
             foreach (var m in modifiers) copy.modifiers.Add(m.DeepCopy());
             foreach (var b in bindings) copy.bindings.Add(b.DeepCopy());
+            copy.busNodeStart = busNodeStart;
             return copy;
         }
 

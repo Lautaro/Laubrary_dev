@@ -289,6 +289,26 @@ namespace Laubrary.Zounds.Dsp {
         }
 
         /// <summary>Describes the next play. Does not allocate; resolution happens when the graph asks.</summary>
+        // The Zequences whose effects this play goes through, and where each one's effects begin in its layout (2026-10-09).
+        ZoundBusChains bus;
+        readonly int[] busBase = { -1, -1, -1 };
+
+        /// <summary>Records the Zequences around this play (call after <see cref="SetPlay"/>), so a live edit of one of their
+        /// effects reaches it.</summary>
+        public void SetBus(in ZoundBusChains chains, int[] nodeBase) {
+            bus = chains;
+            for (int i = 0; i < busBase.Length; i++) busBase[i] = nodeBase != null && i < nodeBase.Length ? nodeBase[i] : -1;
+        }
+
+        /// <summary>Where <paramref name="zequence"/>'s effects begin in this play's layout, when the play goes through them.</summary>
+        public bool BusNodeBase(Zound zequence, out int nodeBase) {
+            nodeBase = -1;
+            if (zequence == null || !bus.Any) return false;
+            for (int i = 0; i < ZoundBusChains.Max; i++)
+                if (ReferenceEquals(bus[i], zequence) && busBase[i] >= 0) { nodeBase = busBase[i]; return true; }
+            return false;
+        }
+
         public void SetPlay(PcmClip clip, ChainLayout layout, double startFrame, double endFrame,
                            float basePitch, float outGain, float sourceDuration, bool loop,
                            long tokenId, bool heavyTier, Zound zound = null,
@@ -297,6 +317,7 @@ namespace Laubrary.Zounds.Dsp {
             this.authoredSpeed = authoredSpeed;
             tokenSpeed = 1f;
             playingZound = zound;
+            bus = default; busBase[0] = busBase[1] = busBase[2] = -1;
             // A new play: no ZPOC control or glide carried over from whatever this component played before.
             System.Array.Clear(pendingCtlSet, 0, pendingCtlSet.Length);
             pendingGlide.Clear();

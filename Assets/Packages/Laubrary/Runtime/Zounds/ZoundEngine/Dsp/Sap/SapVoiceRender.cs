@@ -285,11 +285,11 @@ namespace Laubrary.Zounds.Dsp {
                     }
                 }
 
-                // ── chain ──
-                if (L.nodeCount > 0) {
+                // ── chain (the sound's own effects; the Zequence's, if any, after its Volume below) ──
+                int postStart = sap.postNodeStart < L.nodeCount ? sap.postNodeStart : L.nodeCount;
+                if (postStart > 0) {
                     ZoundEffects.ProcessChain(L, sap.arena, sap.pStart, sap.pStep, sap.bufL, sap.bufR, off, n, in ctx,
-                                              sap.presence, sap.presencePrev, sap.dryL, sap.dryR);
-                    for (int pi = 0; pi < L.nodeCount && pi < sap.presence.Length; pi++) sap.presencePrev[pi] = sap.presence[pi];
+                                              sap.presence, sap.presencePrev, sap.dryL, sap.dryR, 0, postStart);
                 }
 
                 // ── the Zound's own volume (T-0493), after every effect ──
@@ -301,6 +301,14 @@ namespace Laubrary.Zounds.Dsp {
                         for (int i = 0; i < n; i++) { sap.bufL[off + i] *= vg; sap.bufR[off + i] *= vg; vg += vs; }
                     }
                 }
+
+                // ── the effects of the Zequences around this play (2026-10-09): they hear the track as it leaves it ──
+                if (postStart < L.nodeCount) {
+                    ZoundEffects.ProcessChain(L, sap.arena, sap.pStart, sap.pStep, sap.bufL, sap.bufR, off, n, in ctx,
+                                              sap.presence, sap.presencePrev, sap.dryL, sap.dryR, postStart, L.nodeCount);
+                }
+                if (L.nodeCount > 0)
+                    for (int pi = 0; pi < L.nodeCount && pi < sap.presence.Length; pi++) sap.presencePrev[pi] = sap.presence[pi];
 
                 // ── output gain ──
                 float g = outGainStart;

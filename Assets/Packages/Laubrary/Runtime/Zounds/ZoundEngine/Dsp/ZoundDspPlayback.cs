@@ -30,11 +30,13 @@ namespace Laubrary.Zounds.Dsp {
         public static void InvalidateLayouts() {
             layouts.Clear();
             playChains.Clear();
+            ZoundBus.Invalidate();
             ZpocIndex.Invalidate();
         }
 
         public static void InvalidateLayout(Zound zound) {
             if (zound != null) { layouts.Remove(zound); playChains.Remove(zound); }
+            if (zound is CompositeZound) ZoundBus.Invalidate();
             // An edit may have declared or removed a ZPOC id somewhere; whole-project answers are worked out again.
             ZpocIndex.Invalidate();
         }

@@ -122,7 +122,7 @@ namespace Laubrary.Zounds {
             // same kind of double application T-0443 fixed for pitch).
             m_voice = Dsp.ZoundSapPlayback.StartVoice(zound, audioSource, sourceClip, basePitch, 1f,
                                                      playId, out string reason, out m_chainDuration,
-                                                     sourceAlreadyTrimmed, Dsp.ZoundSapPlayback.Excerpt.From(in args));
+                                                     sourceAlreadyTrimmed, Dsp.ZoundSapPlayback.Excerpt.From(in args), in args.busChains);
             if (m_voice != null) {
                 m_chainPath = true;
                 // The voice applies the pitch itself, as it reads the source (basePitch above), so the audio source that

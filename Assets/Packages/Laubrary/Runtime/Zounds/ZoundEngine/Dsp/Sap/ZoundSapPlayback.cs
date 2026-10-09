@@ -38,7 +38,8 @@ namespace Laubrary.Zounds.Dsp {
         public static ZoundSapVoiceGenerator StartVoice(Zound zound, AudioSource carrier, AudioClip sourceClip,
                                                        float basePitch, float outGain, long tokenId,
                                                        out string reason, out float duration,
-                                                       bool sourceAlreadyTrimmed = false, in Excerpt excerpt = default) {
+                                                       bool sourceAlreadyTrimmed = false, in Excerpt excerpt = default,
+                                                       in ZoundBusChains bus = default) {
             reason = null;
             duration = 0f;
             if (zound == null || carrier == null) { reason = "no sound or no audio source"; return null; }
@@ -69,8 +70,11 @@ namespace Laubrary.Zounds.Dsp {
             // current speed; a stretched voice reports its real end itself, because the speed may change while it plays.
             var plan = Plan(zound, startFrame, endFrame, pcm.frequency, pcm.frames, OwnAxisFor(zound, pcm, sourceAlreadyTrimmed, in excerpt));
             var chain = plan.chain;
-            var layout = chain != null && !chain.IsEmpty ? ZoundDspPlayback.GetLayoutFor(chain, zound, sampleRate)
-                                                        : ChainLayout.Empty;
+            int[] busBase = null;
+            ChainLayout layout;
+            // Inside Zequences with effects (2026-10-09): their effects follow the sound's own, after its Volume.
+            if (bus.Any) { layout = ZoundBus.Layout(zound, chain, in bus, sampleRate, out var merged, out busBase); plan.chain = chain = merged; }
+            else layout = chain != null && !chain.IsEmpty ? ZoundDspPlayback.GetLayoutFor(chain, zound, sampleRate) : ChainLayout.Empty;
             // A curve with random points is measured as THIS play will draw it (T-0483).
             plan.drawn = true; plan.seed = EnvelopeRandom.SeedFor(tokenId);
             duration = PlayLength(in plan, (endFrame - startFrame) / pcm.frequency, basePitch, true);
@@ -83,6 +87,7 @@ namespace Laubrary.Zounds.Dsp {
             generator.SetPlay(pcm, layout, startFrame, endFrame, basePitch, outGain, duration,
                               loop: looping, tokenId: tokenId, heavyTier: layout.heavy, zound: zound,
                               stretch: stretch, authoredSpeed: authoredSpeed);
+            generator.SetBus(in bus, busBase);
             if (looping && zound is Klip lk && lk.IsLooper) {
                 lk.loop.Effective((float)((endFrame - startFrame) / pcm.frequency), out float xMin, out float xMax);
                 generator.SetLoopCrossmix(xMin, xMax);

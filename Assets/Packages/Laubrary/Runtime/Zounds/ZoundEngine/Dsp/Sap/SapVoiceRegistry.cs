@@ -312,10 +312,15 @@ namespace Laubrary.Zounds.Dsp {
             for (int i = live.Count - 1; i >= 0; i--) {
                 var g = live[i];
                 if (g == null) { live.RemoveAt(i); continue; }
-                if (!ReferenceEquals(g.playingZound, zound)) continue;
                 if (!g.IsPlaying) continue;
+                int node = nodeIndex;
+                if (!ReferenceEquals(g.playingZound, zound)) {
+                    // A track of a Zequence with effects: an edit of one of the Zequence's effects (2026-10-09).
+                    if (nodeIndex < 0 || !g.BusNodeBase(zound, out int nb)) continue;
+                    node = nb + nodeIndex;
+                }
 
-                int flat = FlatIndexOf(g.playingLayout, nodeIndex, paramIndex);
+                int flat = FlatIndexOf(g.playingLayout, node, paramIndex);
                 if (flat < 0) continue;
                 if (g.SetParameterLive(flat, value)) delivered++;
             }

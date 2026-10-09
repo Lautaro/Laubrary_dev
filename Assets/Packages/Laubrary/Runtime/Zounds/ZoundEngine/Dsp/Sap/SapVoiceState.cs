@@ -93,6 +93,8 @@ namespace Laubrary.Zounds.Dsp {
         public long tailBudgetSamples;
         public int hangoverSamples;
         public float lastPeak;
+        /// <summary>Where the Zequence effects of this play begin (after the sound's own Volume); the node count when none.</summary>
+        public int postNodeStart;
         public bool stopping;
         public bool released;
         public uint rng;

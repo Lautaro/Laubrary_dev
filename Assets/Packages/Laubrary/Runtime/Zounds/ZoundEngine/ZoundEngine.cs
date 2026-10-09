@@ -833,6 +833,10 @@ namespace Laubrary.Zounds {
         /// </summary>
         public float startAt;
 
+        /// <summary>The Zequences around this play whose own effect chains it goes through (2026-10-09), innermost first:
+        /// set by a Zequence for its tracks.</summary>
+        internal Dsp.ZoundBusChains busChains;
+
         /// <summary>Returns a default ZoundArgs ready for immediate playback with no overrides.</summary>
         public static ZoundArgs Default => new ZoundArgs {
             startImmediately = true,

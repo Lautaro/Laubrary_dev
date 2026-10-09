@@ -34,7 +34,7 @@ namespace Laubrary.Zounds.Uitk {
             var rnd = o.random ? new System.Random(o.seed) : null;
             var pieces = new List<(float start, float[] l, float[] r, float gain, Envelope env, float envLen)>();
             float end = 0f;
-            Gather(zeq, 0f, ZequenceTimeline.Mid(zeq) * (rnd != null ? Draw(rnd, zeq.minPitch, zeq.maxPitch) / ZequenceTimeline.Mid(zeq) : 1f), 1f, rnd, sr, pieces, ref end);
+            Gather(zeq, 0f, ZequenceTimeline.Mid(zeq) * (rnd != null ? Draw(rnd, zeq.minPitch, zeq.maxPitch) / ZequenceTimeline.Mid(zeq) : 1f), 1f, rnd, sr, pieces, ref end, default);
             float from = o.range ? Mathf.Max(0f, o.from) : 0f;
             float to = end;
             if (o.range) {
@@ -66,7 +66,9 @@ namespace Laubrary.Zounds.Uitk {
         static float Draw(System.Random rnd, float lo, float hi) => lo + (float)rnd.NextDouble() * (hi - lo);
 
         static void Gather(CompositeZound c, float start, float pitch, float volume, System.Random rnd, int sr,
-                           List<(float, float[], float[], float, Envelope, float)> pieces, ref float end) {
+                           List<(float, float[], float[], float, Envelope, float)> pieces, ref float end, ZoundBusChains outer) {
+            // This Zequence's own effects, then those around it, as a play hears them on each track (2026-10-09).
+            var bus = outer.Inside(ZoundBus.HasChain(c) ? c : null);
             bool anySolo = c.zoundEntries.Exists(e => e.solo);
             // A Zequence that picks one track per play: the first playable one at rest, or a seeded pick.
             int only = -1;
@@ -106,6 +108,7 @@ namespace Laubrary.Zounds.Uitk {
                     if (b <= a) continue;
                     CurveAnchor.Axis? own = ex.on && !pre ? CurveAnchor.Axis.Of(k, pcm.LengthSeconds) : (CurveAnchor.Axis?)null;
                     var plan = ZoundSapPlayback.Plan(k, a * pcm.frequency, b * pcm.frequency, pcm.frequency, pcm.frames, own);
+                    if (bus.Any) plan.chain = ZoundBus.Merge(plan.chain, bus, null);
                     ZoundSapPlayback.TryGetPlayLength(k, ex, out float len);
                     var layout = plan.chain != null && !plan.chain.IsEmpty ? ChainLayout.Build(plan.chain, sr) : null;
                     float tail = layout != null ? layout.tailSeconds : 0f;
@@ -117,7 +120,7 @@ namespace Laubrary.Zounds.Uitk {
                     end = Mathf.Max(end, s + r.left.Length / (float)sr);
                 }
                 else if (z is CompositeZound cz && !ReferenceEquals(cz, c) && !ZequenceHandler.CheckRecursiveness(cz, c)) {
-                    Gather(cz, s, p, v, rnd, sr, pieces, ref end);
+                    Gather(cz, s, p, v, rnd, sr, pieces, ref end, bus);
                 }
             }
         }

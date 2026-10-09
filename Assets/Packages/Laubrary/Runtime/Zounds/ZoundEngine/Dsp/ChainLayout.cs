@@ -144,6 +144,8 @@ namespace Laubrary.Zounds.Dsp {
         public float tailSeconds;
         public bool pitchModulated;
         public int sourceVersion;
+        /// <summary>Where the Zequence effects of a play begin (they run after the sound's own Volume); the node count when there are none.</summary>
+        public int postNodeStart;
         public string error;
 
         public static readonly ChainLayout Empty = Build(null, 48000);
@@ -229,6 +231,7 @@ namespace Laubrary.Zounds.Dsp {
                     L.derivedCountOf[i] = derivedPos - L.derivedOffset[i];
                 }
                 L.nodeCount = nodes;
+                L.postNodeStart = chain.busNodeStart >= 0 ? Mathf.Min(chain.busNodeStart, nodes) : nodes;
 
                 if (overrides != null) {
                     for (int i = 0; i < overrides.Count; i++) {

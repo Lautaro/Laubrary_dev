@@ -46,8 +46,17 @@ namespace Laubrary.Audio {
         public static void ProcessChain(in SapChainLayout L, NativeArray<float> state, NativeArray<float> pStart, NativeArray<float> pStep,
                                         NativeArray<float> bufL, NativeArray<float> bufR, int off, int n, in VoiceContext ctx,
                                         NativeArray<float> presence, NativeArray<float> presencePrev, NativeArray<float> dryL, NativeArray<float> dryR) {
+            ProcessChain(in L, state, pStart, pStep, bufL, bufR, off, n, in ctx, presence, presencePrev, dryL, dryR, 0, L.nodeCount);
+        }
+
+        /// <summary>As above, for the nodes <paramref name="from"/> up to (not including) <paramref name="to"/> only.</summary>
+        public static void ProcessChain(in SapChainLayout L, NativeArray<float> state, NativeArray<float> pStart, NativeArray<float> pStep,
+                                        NativeArray<float> bufL, NativeArray<float> bufR, int off, int n, in VoiceContext ctx,
+                                        NativeArray<float> presence, NativeArray<float> presencePrev, NativeArray<float> dryL, NativeArray<float> dryR,
+                                        int from, int to) {
             bool hasPresence = presence.IsCreated && presencePrev.IsCreated && dryL.IsCreated && dryR.IsCreated;
-            for (int i = 0; i < L.nodeCount; i++) {
+            if (to > L.nodeCount) to = L.nodeCount;
+            for (int i = from < 0 ? 0 : from; i < to; i++) {
                 float p1 = 1f, p0 = 1f;
                 if (hasPresence && i < presence.Length) { p1 = presence[i]; p0 = presencePrev[i]; if (p1 <= 0f && p0 <= 0f) continue; }
                 else if (!L.enabled[i]) continue;

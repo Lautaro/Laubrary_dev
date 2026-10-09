@@ -344,6 +344,8 @@ namespace Laubrary.Zounds {
                     pitchRandomFactor = pitchRandomFactor,
                     volumeRandomFactor = volumeRandomFactor,
                     settingsRoot = args.settingsRoot,
+                    // This Zequence's own effects, then those of the Zequences around it (2026-10-09).
+                    busChains = args.busChains.Inside(Dsp.ZoundBus.HasChain(zound) ? zound : null),
 #if UNITY_EDITOR
                     editorPreviewStarted = args.editorPreviewStarted,
                     editorPreviewAlive = args.editorPreviewAlive,
