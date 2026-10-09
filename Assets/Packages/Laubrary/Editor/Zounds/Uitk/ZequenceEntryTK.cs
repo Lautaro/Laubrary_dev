@@ -260,44 +260,49 @@ namespace Laubrary.Zounds.Uitk {
             win.refreshers.Add(() => { if (start.focusController?.focusedElement == null || !start.Contains(start.focusController.focusedElement as VisualElement)) start.SetValueWithoutNotify(entry.delay / parentPitch); });
             Add(start);
 
-            // V / P / C.
+            // V / P / C: the same bars as the Zound browser's rows (the min-max bar for volume and pitch, the single bar for
+            // chance), in percent, honouring the browser's "Type+Values" / "Input Boxes" choices.
             var sliders = new List<VisualElement>();
-            var toggles = new List<Toggle>();
-            var geo = SliderGeometry();
-            Func<float, float, string> compact = EditorFieldsUtility.VpcCompactLabel ? (Func<float, float, string>)CompactText : null;
-            float scale = EditorFieldsUtility.VpcPercentage ? 100f : 1f;
-            ZuiSkinRangeSlider Range(string label, float lo, float hi, float absMin, float absMax, Action<float, float> set, Func<(float, float)> read, string tip) {
-                var s = new ZuiSkinRangeSlider(label, lo * scale, hi * scale, absMin * scale, absMax * scale, geo,
-                    (a, b) => {
-                        a /= scale; b /= scale;
-                        if (scale != 1f) { a = Mathf.Round(a * 100f) / 100f; b = Mathf.Round(b * 100f) / 100f; }
-                        set(a, b);
-                    }, null, compact == null ? null : (a, b) => compact(a / scale, b / scale));
-                s.AddToClassList("zs-slider-minmax");
-                s.tooltip = tip;
-                if (compact != null) s.CompactWidth = CompactWidth;
-                win.refreshers.Add(() => { var (a, b) = read(); s.SetValuesWithoutNotify(a * scale, b * scale); });
+            var toggles = new List<VisualElement>();
+            string OverTip(bool on) => on
+                ? "Override is on: this track's value replaces the shared sound's own. Click to multiply the sound's own value instead."
+                : "Override is off: this track's value multiplies the shared sound's own. Click to replace it instead.";
+            var bs = ZoundsProject.Instance.browserSettings;
+            var vMode = bs.vpcShowSliderType ? ZuiSkinMinMax.LabelMode.LabelAndValues : ZuiSkinMinMax.LabelMode.ValuesOnly;
+            var sMode = bs.vpcShowSliderType ? ZuiSkinSlider.LabelMode.LabelAndValue : ZuiSkinSlider.LabelMode.ValueOnly;
+            // A min-max bar: each play draws between the two limits.
+            ZuiSkinMinMax Range(string label, string style, float lo, float hi, float absMin, float absMax, Action<float, float> set, Func<(float, float)> read, string tip) {
+                var s = ZS.MinMax(label, lo * 100f, hi * 100f, absMin * 100f, absMax * 100f, tip,
+                    (a, b) => set(Mathf.Round(a) / 100f, Mathf.Round(b) / 100f), style, vMode, bs.vpcShowInputBoxes);
+                win.refreshers.Add(() => { var (a, b) = read(); s.SetValuesWithoutNotify(a * 100f, b * 100f); });
+                Add(s);
+                return s;
+            }
+            // A single-value bar.
+            ZuiSkinSlider One(string label, string style, float value, float absMin, float absMax, Action<float> set, Func<float> read, string tip) {
+                var s = ZS.Slider(label, value * 100f, absMin * 100f, absMax * 100f, tip, v => set(Mathf.Round(v) / 100f), sMode, null, style);
+                win.refreshers.Add(() => s.SetValueWithoutNotify(read() * 100f));
                 Add(s);
                 return s;
             }
             if (entry.local) {
                 var z = zound;
-                sliders.Add(Range("V", z.minVolume, z.maxVolume, Zound.MinVolumeRange, Zound.MaxVolumeRange, (a, b) => win.Modify("change entry volume", () => {
-                    z.minVolume = ZoundBrowserEditor<Klip>.RoundTo3DecimalPlaces(a); z.maxVolume = ZoundBrowserEditor<Klip>.RoundTo3DecimalPlaces(b); }), () => (z.minVolume, z.maxVolume), "Volume: each play draws a level between these."));
-                sliders.Add(Range("P", z.minPitch, z.maxPitch, Zound.MinPitchRange, Zound.MaxPitchRange, (a, b) => win.Modify("change entry pitch", () => {
-                    z.minPitch = ZoundBrowserEditor<Klip>.RoundTo3DecimalPlaces(a); z.maxPitch = ZoundBrowserEditor<Klip>.RoundTo3DecimalPlaces(b); }), () => (z.minPitch, z.maxPitch), "Pitch: each play draws a pitch between these."));
-                sliders.Add(Range("C", z.chance, z.chance, Zound.MinChanceRange, Zound.MaxChanceRange, (a, b) => win.Modify("change entry chance", () => {
-                    z.chance = ZoundBrowserEditor<Klip>.RoundTo3DecimalPlaces(!Mathf.Approximately(a, z.chance) ? a : b); }), () => (z.chance, z.chance), "Chance that a trigger plays this track."));
+                sliders.Add(Range("Volume", "MinMax", z.minVolume, z.maxVolume, Zound.MinVolumeRange, Zound.MaxVolumeRange, (a, b) => win.Modify("change entry volume", () => {
+                    z.minVolume = ZoundBrowserEditor<Klip>.RoundTo3DecimalPlaces(a); z.maxVolume = ZoundBrowserEditor<Klip>.RoundTo3DecimalPlaces(b); }), () => (z.minVolume, z.maxVolume), "Volume, in percent of full loudness: each play draws a level between the two limits. Drag an edge, or the middle to move both."));
+                sliders.Add(Range("Pitch", "MinMaxPitch", z.minPitch, z.maxPitch, Zound.MinPitchRange, Zound.MaxPitchRange, (a, b) => win.Modify("change entry pitch", () => {
+                    z.minPitch = ZoundBrowserEditor<Klip>.RoundTo3DecimalPlaces(a); z.maxPitch = ZoundBrowserEditor<Klip>.RoundTo3DecimalPlaces(b); }), () => (z.minPitch, z.maxPitch), "Pitch, in percent of the recorded speed (100 = as recorded): each play draws a value between the two limits. Drag an edge, or the middle to move both."));
+                sliders.Add(One("Chance", "Chance", z.chance, Zound.MinChanceRange, Zound.MaxChanceRange, v => win.Modify("change entry chance", () => z.chance = ZoundBrowserEditor<Klip>.RoundTo3DecimalPlaces(v)), () => z.chance, "Chance, in percent, that a trigger plays this track."));
             }
             else {
-                sliders.Add(Range("V", entry.volume, entry.volume, Zound.MinVolumeRange, Zound.MaxVolumeRange, (a, b) => win.Modify("change entry volume", () => entry.volume = !Mathf.Approximately(a, entry.volume) ? a : b), () => (entry.volume, entry.volume), "Volume on this track: multiplies the shared sound's own, or overrides it (O)."));
-                sliders.Add(Range("P", entry.pitch, entry.pitch, Zound.MinPitchRange, Zound.MaxPitchRange, (a, b) => win.Modify("change entry pitch", () => entry.pitch = !Mathf.Approximately(a, entry.pitch) ? a : b), () => (entry.pitch, entry.pitch), "Pitch on this track: multiplies the shared sound's own, or overrides it (O)."));
-                sliders.Add(Range("C", entry.chance, entry.chance, Zound.MinChanceRange, Zound.MaxChanceRange, (a, b) => win.Modify("change entry chance", () => entry.chance = !Mathf.Approximately(a, entry.chance) ? a : b), () => (entry.chance, entry.chance), "Chance on this track: multiplies the shared sound's own, or overrides it (O)."));
-                Toggle Over(bool v, string undo, Action<bool> set, Func<bool> read) {
-                    var t = new Toggle("O") { value = v, tooltip = "Override.\n\nIf checked, then this will override the original value of the zound. If unchecked, then this will act as a multiplier of the original value." };
-                    t.AddToClassList("zs-imgui-field"); t.AddToClassList("zs-label-16");
-                    t.RegisterValueChangedCallback(e => win.Modify(undo, () => set(e.newValue)));
-                    win.refreshers.Add(() => t.SetValueWithoutNotify(read()));
+                sliders.Add(One("Volume", "MinMax", entry.volume, Zound.MinVolumeRange, Zound.MaxVolumeRange, v => win.Modify("change entry volume", () => entry.volume = v), () => entry.volume, "Volume on this track: multiplies the shared sound's own, or overrides it (O)."));
+                sliders.Add(One("Pitch", "MinMaxPitch", entry.pitch, Zound.MinPitchRange, Zound.MaxPitchRange, v => win.Modify("change entry pitch", () => entry.pitch = v), () => entry.pitch, "Pitch on this track: multiplies the shared sound's own, or overrides it (O)."));
+                sliders.Add(One("Chance", "Chance", entry.chance, Zound.MinChanceRange, Zound.MaxChanceRange, v => win.Modify("change entry chance", () => entry.chance = v), () => entry.chance, "Chance on this track: multiplies the shared sound's own, or overrides it (O)."));
+                // A latching "O" button (never a bare checkbox), sized to its slot beside the bar.
+                ZuiToggleButton Over(bool v, string undo, Action<bool> set, Func<bool> read) {
+                    ZuiToggleButton t = null;
+                    t = ZS.Toggle("O", "", v, nv => { win.Modify(undo, () => set(nv)); t.tooltip = OverTip(nv); }, "RichToggle", ZUICornerMask.All, 20f, LH);
+                    t.tooltip = OverTip(v);
+                    win.refreshers.Add(() => { bool on = read(); t.SetValueWithoutNotify(on); t.tooltip = OverTip(on); });
                     Add(t);
                     return t;
                 }
@@ -512,28 +517,6 @@ namespace Laubrary.Zounds.Uitk {
             // tab-menu click away from their own editors).
             if (zound is Klip k) KlipEditorWindowTK.Open(k, entry.local);
             else if (zound is Zequence z) W.Open(z, entry.local);
-        }
-
-        static ZuiSkinRangeSlider.Geometry SliderGeometry() => new ZuiSkinRangeSlider.Geometry {
-            // The Zounds sheet's "MinMax" slider def, copied (2026-09-28): thumb 1 (drawn at least 4) × 20, track 6,
-            // label inline and auto-sized, value fields on, 40 wide, not bipolar, automatic format.
-            thumbWidth = 1f, thumbHeight = 20f, trackHeight = 6f, valueWidth = 40f, labelWidth = 0f,
-            showValueField = true, bipolar = false, bipolarCenter = float.NaN, valueFormat = null,
-        };
-
-        // The compact label (EditorFieldsUtility): "min-max", or one value when both show the same.
-        static string CompactText(float min, float max) {
-            string a, b;
-            if (EditorFieldsUtility.VpcPercentage) { a = Mathf.RoundToInt(min * 100f).ToString(); b = Mathf.RoundToInt(max * 100f).ToString(); }
-            else { a = min.ToString("G4"); b = max.ToString("G4"); }
-            return a == b ? a : a + "-" + b;
-        }
-        static float CompactWidth {
-            get {
-                var st = EditorStyles.label;
-                float pct = st.CalcSize(new GUIContent("99-100")).x, frac = st.CalcSize(new GUIContent("0.98-0.99")).x + 10f;
-                return 10f + Mathf.Max(pct, frac) + 5f;
-            }
         }
 
         // ─────────────────────────── group (a local Zequence) ───────────────────────────
