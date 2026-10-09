@@ -93,9 +93,81 @@ namespace Laubrary.Zounds.Destructive {
                 k.timeStretch.regionStart = (float)MapStart(k.timeStretch.regionStart, e);
                 k.timeStretch.regionEnd = (float)MapEnd(k.timeStretch.regionEnd, e);
             }
-            // The curves on the file's seconds follow in stage 3 (AudioRipple.Curve).
+            if (k.chainPresetId == 0 && k.effectChain != null)
+                foreach (var m in k.effectChain.modifiers) Curve(m, e, rate);
+            if (k.ownCurves != null)
+                foreach (int p in new[] { SourceStageParam.Volume, SourceStageParam.Pitch, SourceStageParam.Speed }) {
+                    var slot = k.ownCurves.Of(p);
+                    if (slot.Has) Curve(slot.modifier, e, rate);
+                }
             KlipChainEnvelopes.Touch(k);
             ZoundDspPlayback.InvalidateLayout(k);
+        }
+
+        /// <summary>A curve that follows the waveform on the file's own seconds (<see cref="CurveAnchor.Source"/>). Others
+        /// (a curve on its own time base, or one a shared preset keeps on the trim) are left as they are.</summary>
+        public static bool Curve(ZoundModifier m, in AudioSpan e, int rate) {
+            if (m == null || m.curve == null || !CurveAnchor.FollowsWaveform(m) || m.curveAnchor != CurveAnchor.Source) return false;
+            double extra = Math.Max(0f, m.Param(0));
+            double total0 = e.oldLength + extra, total1 = e.newLength + extra;
+            if (total0 <= 0d || total1 <= 0d) return false;
+            var env = m.curve;
+            var pts = env.GetPointsList();
+            double a = e.at, b = e.at + e.removed;
+            if (!e.overwrite) {
+                SplitAt(env, pts, a / total0);
+                if (e.removed > 0d) SplitAt(env, pts, b / total0);
+            }
+            var outPts = new List<ZUIEnvelopePoint>(pts.Count + 1);
+            double sample = rate > 0 ? 1d / rate : 1e-5;
+            foreach (var p in pts) {
+                double s = p.time * total0;
+                double s1;
+                if (s > e.oldLength + Eps) s1 = s + (e.newLength - e.oldLength);             // the extra time travels with the end
+                else if (e.overwrite) s1 = s;
+                else if (e.removed > 0d) {
+                    if (s > a + Eps && s < b - Eps) continue;                                // on audio that was cut
+                    s1 = s >= b - Eps ? s + e.Shift : s;
+                    // The two edges meet at the cut: the audio from it on is what followed the cut, so the far edge's value
+                    // starts there, and the near edge's value ends one sample before.
+                    if (Math.Abs(s - a) <= Eps && e.inserted <= 0d) s1 = Math.Max(0d, a - sample);
+                }
+                else {
+                    if (s < a - Eps) s1 = s;
+                    else if (s <= a + Eps) {                                                 // the insert point: the new audio is flat at its value
+                        p.time = (float)(s / total1);
+                        p.randomX = (float)(p.randomX * total0 / total1);
+                        outPts.Add(p);
+                        if (e.inserted > 0d) outPts.Add(new ZUIEnvelopePoint((float)((s + e.inserted) / total1), p.value, 1f));
+                        continue;
+                    }
+                    else s1 = s + e.inserted;
+                }
+                p.time = (float)Math.Min(1d, Math.Max(0d, s1 / total1));
+                p.randomX = (float)(p.randomX * total0 / total1);
+                outPts.Add(p);
+            }
+            // Two points left at the very same moment (a cut whose edges carried equal values) say nothing twice.
+            for (int i = outPts.Count - 1; i > 0; i--)
+                if (Math.Abs(outPts[i].time - outPts[i - 1].time) < 1e-9f && Math.Abs(outPts[i].value - outPts[i - 1].value) < 1e-7f) outPts.RemoveAt(i);
+            pts.Clear(); pts.AddRange(outPts);
+            if (pts.Count > 0 && pts[0].time > 0f) pts.Insert(0, new ZUIEnvelopePoint(0f, pts[0].value, 1f));
+            if (pts.Count > 0 && pts[pts.Count - 1].time < 1f) pts.Add(new ZUIEnvelopePoint(1f, pts[pts.Count - 1].value, 1f));
+            return true;
+        }
+
+        /// <summary>Puts a point at <paramref name="x"/> with the curve's own value there, unless one is already there.</summary>
+        static void SplitAt(Envelope env, List<ZUIEnvelopePoint> pts, double x) {
+            if (x <= 0d || x >= 1d) return;
+            for (int i = 0; i < pts.Count; i++) {
+                if (Math.Abs(pts[i].time - x) < 1e-7) return;
+                if (pts[i].time > x) {
+                    if (i == 0) return;
+                    float v = env.Evaluate((float)x);
+                    pts.Insert(i, new ZUIEnvelopePoint((float)x, v, pts[i].exponent));
+                    return;
+                }
+            }
         }
     }
 }

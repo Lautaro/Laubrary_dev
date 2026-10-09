@@ -113,6 +113,19 @@ A Zequence of placed, trimmed Klips is the non-destructive edit; the design and 
 - **The timeline draws a track through the engine's own source-to-time integration** (`ZoundSapPlayback.TryMapSourceToPlay`), so a drawn piece ends exactly where a play does. The waveform comes from an in-memory summary, never a file.
 - Kept checks 30 (anchoring), 31 (excerpts, play from here) and 32 (the verbs, the bake) measure these.
 
+### Destructive editing, as of 2026-10-09 — read before touching audio files, protection or the copy-on-edit swap
+
+Cut / copy / paste / insert / duplicate-insert / duplicate-paste on a sound's audio file live in the Klip editor (`Editor/Zounds/Destructive/`, the waveform's edit bar). Rules that are easy to break:
+
+- **A true source is never rewritten.** Anything in the Sources or Library folders, an outside file, or a project file outside Zounds' folders; also a Zounds-made file several sounds play, or a shared sound plays (`ZoundsProtection.FileOf`). Such an edit writes a new file under `<work folder>/Edits/` and re-points the sound. Only a file Zounds made for one sound is edited in place.
+- **Edits move whole frames of the file's own bytes** (`AudioPcm`); untouched audio must stay bit for bit. Decode to numbers only to convert between formats, by the rule in `AudioPcm.ConvertedTo`.
+- **Every file write goes through `ZoundsFileHistory`** (in place: `Rewrite`; new file: `Created`), inside the edit's Undo group, so Undo/Redo put the right version back (last 5 kept in `<system folder>/Versions~/`, git-ignored). Never `File.WriteAllBytes` an audio file Zounds plays without it.
+- **Everything pointing at seconds of a file ripples with the edit** (`AudioRipple`: the trim, waveform-following curves on `CurveAnchor.Source`, a time-stretch region, every track's `ownTrim` excerpt). Call `AudioRipple.Prepare` (the first-edit anchoring, which reads the OLD file length) before the file changes. A new reference to file seconds must be added there, with a kept-check case (33).
+- **A shared sound edited in its own editor swaps identities** (`ZoundsEditGuard.SwapToCopy`): the edited object becomes "<name> (copy)" with a new id, and an exact twin keeps the original id, name and place, so tracks and game code keep the original. The editor follows the copy; an undo brings it back. On a Zequence track the swap is the existing Shared → Local conversion. The swap joins the edit's Undo step through `ZoundsWindow.JoinNextEdit`.
+- **How it is announced** is one project setting (`projectSettings.protectedEditPrompt`: Ask / Notice / Silent, default Notice); Ask's "Edit the original" is never offered for a true source. "Edit the original" is remembered per sound until a script reload.
+- **A file going away leaves the Addressables groups too** (`ZoundsAudioEdits.ForgetAddressable`); deleting the asset does not remove its entry.
+- The Zequence timeline's own trims, excerpts and splits stay non-destructive; do not route them through this.
+
 Background documents: the authoritative technical foundation is `D:/Claude@GDrive/Zounds GC-Stutter-Free Audio Architecture Research 2026-09-26.md` (sections 1 and 7 for the plan, 8 for the validation test). `D:/Claude@GDrive/HH2 Audio Effect Chains Architecture.md` describes the existing engine the new path has to match. The 2026-09-25 native-DSP roadmap is **partly superseded** — its phases assume a hand-written C++ plugin as the target, which the 2026-09-26 research replaces; read it for history, not direction. The 2026-09-11 lifetime health report is at `D:/Claude@GDrive/Zounds Lifetime Health Report 2026-09-11.md`.
 
 ## Cartographer and MetaMapper — developed HERE since 2026-10-02
