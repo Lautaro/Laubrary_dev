@@ -825,6 +825,9 @@
 /* The audition card pinned into a window, under the toolbar. */
 .zs-root .zs-klip-editor__pinned, .zs-root .zs-zequence-editor__pinned { flex-shrink: 0; }
 .zs-root .zs-audition-card--pinned { margin: 4px 0 2px 0; flex-shrink: 0; }
+/* Pinned in the Zequence editor: the helpers join the Play button's row, the second row sits right-aligned underneath. */
+.zs-root .zs-zequence-editor__pinned-inline { flex-direction: row; flex-shrink: 0; height: 20px; }
+.zs-root .zs-audition-card--under-play { align-items: flex-end; margin: 2px 0 0 0; }
 /* The Zequence toolbar: one 20 px row. */
 .zs-root .zs-lbl.zs-zequence-editor__toolbar-label { height: 20px; padding-right: 4px; -unity-text-align: middle-right; }
 .zs-root .zs-zequence-editor__toolbar-field { height: 18px; margin-top: 1px; }

@@ -43,7 +43,7 @@ namespace Laubrary.Zounds.Uitk {
         Button playButton;
         ZuiToggleButton retriggerButton, editToolsButton;
         ScrollView scroll;
-        VisualElement pinnedSlot;
+        VisualElement pinnedSlot, pinnedInline;
         [NonSerialized] bool suppressRebuild;
 
         // -- the shared timeline (non-destructive editing, T-0558) --
@@ -402,6 +402,11 @@ namespace Laubrary.Zounds.Uitk {
             r.Add(Gap(6f));
             r.Add(IconButton("remove", "Delete this Zequence from the project (asks first). Cannot be undone.", "RichButton", ZUICornerMask.All, 30f, ToolH, RemoveZound));
             r.Add(Gap(6f));
+            // Pinned audition controls (Play on change, Burst, Loop, Pin) sit right before Play, on its row; empty and
+            // zero-width while the card is not pinned. SyncPinned fills it.
+            pinnedInline = new VisualElement();
+            pinnedInline.AddToClassList("zs-zequence-editor__pinned-inline");
+            r.Add(pinnedInline);
             playButton = ZS.Button("Play", "", "RichButton", () => {
                 EnsureAudition();
                 if (audition.BurstRunning || audition.LoopRunning) audition.StopRun();
@@ -427,10 +432,16 @@ namespace Laubrary.Zounds.Uitk {
         void SyncPinned() {
             if (pinnedSlot == null) return;
             pinnedSlot.Clear();
+            pinnedInline?.Clear();
             if (!AuditionPinned) { SyncPlayButton(); return; }
             EnsureAudition();
-            var card = new AuditionCardTK(audition, true, v => { AuditionPinned = v; SyncPinned(); Tick(); });
+            var card = new AuditionCardTK(audition, true, v => { AuditionPinned = v; SyncPinned(); Tick(); }, pinnedInline);
             card.AddToClassList("zs-audition-card--pinned");
+            card.AddToClassList("zs-audition-card--under-play");
+            if (pinnedInline != null) {
+                var g = new VisualElement(); g.AddToClassList("zs-audition-popup__gap"); g.style.width = 6f;
+                pinnedInline.Add(g);
+            }
             pinnedSlot.Add(card);
             SyncPlayButton();
         }

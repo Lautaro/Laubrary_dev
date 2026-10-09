@@ -37,10 +37,12 @@ namespace Laubrary.Zounds.Uitk {
         readonly ZoundAudition s;
         readonly Action refresh;
 
-        public AuditionCardTK(ZoundAudition session, bool pinned, Action<bool> onPin) {
+        /// <param name="topRowHost">When given, the first row's controls (Play on change, Burst, Loop, Pin) are put into this
+        /// element instead of the card, so a window can hold them on its Play button's row; the card is then only the second row.</param>
+        public AuditionCardTK(ZoundAudition session, bool pinned, Action<bool> onPin, VisualElement topRowHost = null) {
             s = session;
             AddToClassList("zs-audition-card");
-            refresh = Build(this, s, pinned, onPin);
+            refresh = Build(this, s, pinned, onPin, topRowHost);
             s.changed += refresh;
             RegisterCallback<DetachFromPanelEvent>(_ => Detach());
         }
@@ -59,9 +61,9 @@ namespace Laubrary.Zounds.Uitk {
         static string BurstLabel(ZoundAudition s) => s.BurstRunning ? "Burst " + s.BurstDone + "/" + s.settings.count : "Burst";
 
         /// <summary>Fills the card and returns its refresh, called whenever the session's state changes.</summary>
-        static Action Build(VisualElement panel, ZoundAudition s, bool pinned, Action<bool> onPin) {
+        static Action Build(VisualElement panel, ZoundAudition s, bool pinned, Action<bool> onPin, VisualElement topRowHost = null) {
             // ── row 1: the three helpers, and the pin ──
-            var r1 = Row();
+            var r1 = topRowHost ?? Row();
             var onChange = ZS.Toggle("Play on change", "", s.playOnChange, v => { s.playOnChange = v; s.changed?.Invoke(); },
                                      "RichToggle", ZUICornerMask.All, 110f, RowH);
             r1.Add(onChange);
@@ -80,9 +82,11 @@ namespace Laubrary.Zounds.Uitk {
                                     pinned, v => onPin(v), "RichToggle", ZUICornerMask.All, 40f, RowH);
                 r1.Add(pin);
             }
-            panel.Add(r1);
-            var between = Gap(0f); between.style.height = 4f;
-            panel.Add(between);
+            if (topRowHost == null) {
+                panel.Add(r1);
+                var between = Gap(0f); between.style.height = 4f;
+                panel.Add(between);
+            }
 
             // ── row 2: what Burst and Loop share ──
             var r2 = Row();
